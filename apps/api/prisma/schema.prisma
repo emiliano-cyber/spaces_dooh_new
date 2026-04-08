@@ -1,0 +1,58 @@
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "tenant_template"]
+}
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = []
+}
+
+model Tenant {
+  id             String   @id @default(cuid())
+  nombre         String
+  subdominioBase String   @unique
+  dbSchema       String   @unique
+  plan           String   @default("base")
+  activo         Boolean  @default(true)
+  config         Json     @default("{}")
+  creadoEn       DateTime @default(now())
+
+  @@schema("public")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  nombre       String
+  email        String
+  passwordHash String
+  rolId        String
+  activo       Boolean  @default(true)
+  creadoEn     DateTime @default(now())
+
+  @@unique([tenantId, email])
+  @@schema("public")
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  tenantId  String
+  nombre    String
+  permisos  String[]
+  esBuiltin Boolean  @default(false)
+
+  @@unique([tenantId, nombre])
+  @@schema("public")
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  creadoEn  DateTime  @default(now())
+
+  @@schema("public")
+}
