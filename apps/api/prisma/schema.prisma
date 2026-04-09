@@ -4,8 +4,7 @@ datasource db {
 }
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = []
+  provider = "prisma-client-js"
 }
 
 model Tenant {
@@ -55,4 +54,456 @@ model RefreshToken {
   creadoEn  DateTime  @default(now())
 
   @@schema("public")
+}
+
+// ─── Tenant Template Enums ────────────────────────────────────────────────────
+
+enum TipoMedio {
+  ESPECTACULAR
+  PANTALLA_DIGITAL
+  PUENTE_PEATONAL
+  MOBILIARIO_URBANO
+  MURAL
+  VALLA
+  OTRO
+
+  @@schema("tenant_template")
+}
+
+enum EstComercial {
+  DISPONIBLE
+  RESERVADO
+  OCUPADO
+  BLOQUEADO
+  EN_MANTENIMIENTO
+  BAJA
+
+  @@schema("tenant_template")
+}
+
+enum EstLegal {
+  EN_ORDEN
+  PERMISO_VENCIDO
+  EN_TRAMITE
+  SUSPENDIDO
+  SIN_PERMISO
+
+  @@schema("tenant_template")
+}
+
+enum EstOperativo {
+  ACTIVO
+  EN_MANTENIMIENTO
+  APAGADO
+  DAÑADO
+  BAJA
+
+  @@schema("tenant_template")
+}
+
+enum EstContrato {
+  VIGENTE
+  POR_VENCER
+  VENCIDO
+  RENOVADO
+  CANCELADO
+
+  @@schema("tenant_template")
+}
+
+enum TipoIncidencia {
+  CLIMA
+  MANTENIMIENTO
+  LEGAL
+  VANDALISMO
+  SUSPENSION_OPERATIVA
+  ACCIDENTE
+  OTRO
+
+  @@schema("tenant_template")
+}
+
+enum EstIncidencia {
+  ABIERTA
+  EN_PROCESO
+  RESUELTA
+  CERRADA
+
+  @@schema("tenant_template")
+}
+
+enum Prioridad {
+  BAJA
+  NORMAL
+  ALTA
+  URGENTE
+
+  @@schema("tenant_template")
+}
+
+enum TipoOT {
+  MONTAJE_LONA
+  MONTAJE_DIGITAL
+  DESMONTAJE
+  MANTENIMIENTO_PREVENTIVO
+  MANTENIMIENTO_CORRECTIVO
+  HERRERIA
+  ELECTRICO
+  INSPECCION
+  OTRO
+
+  @@schema("tenant_template")
+}
+
+enum EstOT {
+  PENDIENTE
+  ASIGNADA
+  EN_PROCESO
+  COMPLETADA
+  CANCELADA
+
+  @@schema("tenant_template")
+}
+
+enum TipoCampana {
+  OOH
+  DOOH
+  HIBRIDA
+
+  @@schema("tenant_template")
+}
+
+enum EstComercialCampana {
+  DRAFT
+  COTIZACION
+  CONFIRMADA
+  ACTIVA
+  COMPLETADA
+  CANCELADA
+  LISTA_FACTURAR
+
+  @@schema("tenant_template")
+}
+
+enum EstTecnico {
+  PENDIENTE
+  EN_PUBLICACION
+  PAUSADA
+  FINALIZADA
+  ERROR
+
+  @@schema("tenant_template")
+}
+
+enum TipoVenta {
+  SPOT_UNIT
+  DAY_PACK
+  HOUR_PACK
+  SOV
+  TAKEOVER
+  FIXED_PKG
+  PROG_DIRECT
+  PROG_PMP
+  PROG_OPEN
+  MAKEGOOD
+  HOUSE_AD
+
+  @@schema("tenant_template")
+}
+
+// ─── Tenant Template Models ───────────────────────────────────────────────────
+
+model Sitio {
+  id               String       @id @default(cuid())
+  claveInterna     String       @unique
+  nombre           String
+  tipoMedio        TipoMedio
+  lat              Decimal      @db.Decimal(10, 8)
+  lng              Decimal      @db.Decimal(11, 8)
+  direccion        String
+  alcaldia         String?
+  ciudad           String
+  estado           String
+  pais             String       @default("MX")
+  alto             Decimal?     @db.Decimal(6, 2)
+  ancho            Decimal?     @db.Decimal(6, 2)
+  iluminado        Boolean      @default(false)
+  orientacion      String?
+  fotosJson        Json         @default("[]")
+  estatusComercial EstComercial @default(DISPONIBLE)
+  estatusLegal     EstLegal     @default(EN_ORDEN)
+  estatusOperativo EstOperativo @default(ACTIVO)
+  notas            String?
+  creadoEn         DateTime     @default(now())
+  actualizadoEn    DateTime     @updatedAt
+  contratos        ContratoArrendamiento[]
+  licencias        LicenciaPermiso[]
+  incidencias      Incidencia[]
+
+  @@schema("tenant_template")
+}
+
+model Arrendador {
+  id        String   @id @default(cuid())
+  nombre    String
+  rfc       String?
+  telefono  String?
+  email     String?
+  notas     String?
+  creadoEn  DateTime @default(now())
+  contratos ContratoArrendamiento[]
+
+  @@schema("tenant_template")
+}
+
+model ContratoArrendamiento {
+  id            String      @id @default(cuid())
+  sitioId       String
+  sitio         Sitio       @relation(fields: [sitioId], references: [id])
+  arrendadorId  String
+  arrendador    Arrendador  @relation(fields: [arrendadorId], references: [id])
+  fechaInicio   DateTime
+  fechaFin      DateTime
+  montoRenta    Decimal     @db.Decimal(12, 2)
+  periodicidad  String
+  moneda        String      @default("MXN")
+  autoRenovable Boolean     @default(false)
+  clausulasJson Json        @default("{}")
+  documentoUrl  String?
+  estatus       EstContrato @default(VIGENTE)
+  creadoEn      DateTime    @default(now())
+  pagos         PagoRenta[]
+
+  @@schema("tenant_template")
+}
+
+model LicenciaPermiso {
+  id               String   @id @default(cuid())
+  sitioId          String
+  sitio            Sitio    @relation(fields: [sitioId], references: [id])
+  tipo             String
+  folio            String?
+  autoridad        String?
+  fechaInicio      DateTime
+  fechaVencimiento DateTime
+  documentoUrl     String?
+  estatus          String   @default("VIGENTE")
+  notas            String?
+  creadoEn         DateTime @default(now())
+
+  @@schema("tenant_template")
+}
+
+model Incidencia {
+  id                 String         @id @default(cuid())
+  sitioId            String
+  sitio              Sitio          @relation(fields: [sitioId], references: [id])
+  tipo               TipoIncidencia
+  descripcion        String
+  fechaInicio        DateTime
+  fechaResolucion    DateTime?
+  impactaComercial   Boolean        @default(true)
+  estatus            EstIncidencia  @default(ABIERTA)
+  fotosJson          Json           @default("[]")
+  reportadoPorUserId String
+  notas              String?
+  creadoEn           DateTime       @default(now())
+
+  @@schema("tenant_template")
+}
+
+model PagoRenta {
+  id         String                @id @default(cuid())
+  contratoId String
+  contrato   ContratoArrendamiento @relation(fields: [contratoId], references: [id])
+  periodo    String
+  monto      Decimal               @db.Decimal(12, 2)
+  fechaPago  DateTime?
+  facturaUrl String?
+  estatus    String                @default("PENDIENTE")
+  creadoEn   DateTime              @default(now())
+
+  @@schema("tenant_template")
+}
+
+model OrdenTrabajo {
+  id              String        @id @default(cuid())
+  folio           String        @unique
+  tipo            TipoOT
+  sitioId         String?
+  descripcion     String
+  instrucciones   String?
+  checklistJson   Json          @default("[]")
+  prioridad       Prioridad     @default(NORMAL)
+  asignadoAUserId String?
+  fechaProgramada DateTime?
+  fechaInicio     DateTime?
+  fechaCompletada DateTime?
+  campanaId       String?
+  estatus         EstOT         @default(PENDIENTE)
+  notas           String?
+  creadoEn        DateTime      @default(now())
+  actualizadoEn   DateTime      @updatedAt
+  evidencias      EvidenciaOT[]
+
+  @@schema("tenant_template")
+}
+
+model EvidenciaOT {
+  id         String       @id @default(cuid())
+  otId       String
+  ot         OrdenTrabajo @relation(fields: [otId], references: [id])
+  fotoUrl    String
+  storageKey String
+  lat        Decimal?     @db.Decimal(10, 8)
+  lng        Decimal?     @db.Decimal(11, 8)
+  tipo       String       @default("FOTO")
+  uploadedBy String
+  timestamp  DateTime     @default(now())
+
+  @@schema("tenant_template")
+}
+
+model Cliente {
+  id           String    @id @default(cuid())
+  nombre       String
+  rfc          String?
+  tipo         String    @default("DIRECTO")
+  contactoJson Json      @default("{}")
+  activo       Boolean   @default(true)
+  creadoEn     DateTime  @default(now())
+  campanas     Campana[]
+
+  @@schema("tenant_template")
+}
+
+model Campana {
+  id                  String              @id @default(cuid())
+  folio               String              @unique
+  nombre              String
+  clienteId           String
+  cliente             Cliente             @relation(fields: [clienteId], references: [id])
+  agencia             String?
+  marca               String?
+  tipoCampana         TipoCampana         @default(OOH)
+  fechaInicio         DateTime
+  fechaFin            DateTime
+  presupuestoBruto    Decimal?            @db.Decimal(14, 2)
+  presupuestoNeto     Decimal?            @db.Decimal(14, 2)
+  moneda              String              @default("MXN")
+  estadoComercial     EstComercialCampana @default(DRAFT)
+  ocRecibida          Boolean             @default(false)
+  ocUrl               String?
+  fotosComprobatorias Boolean             @default(false)
+  reportePublicacion  Boolean             @default(false)
+  portalToken         String?             @unique
+  portalActivo        Boolean             @default(false)
+  notas               String?
+  creadoEn            DateTime            @default(now())
+  actualizadoEn       DateTime            @updatedAt
+  lines               CampaignLine[]
+  creatividades       Creatividad[]
+  trafficOrders       TrafficOrder[]
+
+  @@schema("tenant_template")
+}
+
+model CampaignLine {
+  id           String    @id @default(cuid())
+  campanaId    String
+  campana      Campana   @relation(fields: [campanaId], references: [id])
+  sitioId      String
+  pantallasIds String[]
+  fechaInicio  DateTime
+  fechaFin     DateTime
+  tipoVenta    TipoVenta @default(DAY_PACK)
+  precio       Decimal   @db.Decimal(12, 2)
+  cantidad     Int       @default(1)
+  unidad       String    @default("DIA")
+  duracionSpot Int?
+  frecuencia   Int?
+  horarioJson  Json      @default("{}")
+  estatus      String    @default("ACTIVA")
+  creadoEn     DateTime  @default(now())
+
+  @@schema("tenant_template")
+}
+
+model Creatividad {
+  id                String   @id @default(cuid())
+  campanaId         String
+  campana           Campana  @relation(fields: [campanaId], references: [id])
+  nombre            String
+  archivoUrl        String?
+  storageKey        String?
+  formato           String?
+  resolucion        String?
+  duracionSeg       Int?
+  pesoMb            Decimal? @db.Decimal(8, 2)
+  estatusValidacion String   @default("PENDIENTE")
+  rechazadoMotivo   String?
+  destino           String?
+  subioPorUserId    String?
+  subioPorExterno   Boolean  @default(false)
+  creadoEn          DateTime @default(now())
+
+  @@schema("tenant_template")
+}
+
+model Pantalla {
+  id          String   @id @default(cuid())
+  sitioId     String
+  nombre      String
+  resolucion  String?
+  orientacion String?
+  cmsTipo     String?
+  cmsScreenId String?
+  activa      Boolean  @default(true)
+  creadoEn    DateTime @default(now())
+
+  @@schema("tenant_template")
+}
+
+model TrafficOrder {
+  id                 String     @id @default(cuid())
+  folio              String     @unique
+  campanaId          String
+  campana            Campana    @relation(fields: [campanaId], references: [id])
+  campaignLineId     String?
+  connectorTipo      String     @default("MANUAL")
+  instruccionJson    Json       @default("{}")
+  referenciaExterna  String?
+  estadoTecnico      EstTecnico @default(PENDIENTE)
+  deliveryReportUrl  String?
+  deliveryStorageKey String?
+  deliveryJson       Json?
+  logsJson           Json       @default("[]")
+  creadoEn           DateTime   @default(now())
+  actualizadoEn      DateTime   @updatedAt
+
+  @@schema("tenant_template")
+}
+
+model ConnectorConfig {
+  id              String   @id @default(cuid())
+  tipo            String   @unique
+  credencialesEnc String
+  activo          Boolean  @default(false)
+  config          Json     @default("{}")
+  creadoEn        DateTime @default(now())
+
+  @@schema("tenant_template")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  accion      String
+  entidadTipo String
+  entidadId   String
+  cambiosJson Json     @default("{}")
+  timestamp   DateTime @default(now())
+
+  @@index([entidadTipo, entidadId])
+  @@schema("tenant_template")
 }

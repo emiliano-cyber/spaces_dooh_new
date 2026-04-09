@@ -6,6 +6,9 @@ import authPlugin from './core/auth/auth.plugin'
 import authRoutes from './core/auth/auth.routes'
 import usersRoutes from './modules/admin/users.routes'
 import rolesRoutes from './modules/admin/roles.routes'
+import inmueblesRoutes from './modules/inmuebles/sitios.routes'
+import operacionesRoutes from './modules/operaciones/ots.routes'
+import devRoutes from './modules/dev/dev.routes'
 
 export const app = Fastify({ logger: true })
 
@@ -26,5 +29,8 @@ app.register(authPlugin)
 app.register(authRoutes)
 app.register(usersRoutes)
 app.register(rolesRoutes)
+app.register(inmueblesRoutes)
+app.register(operacionesRoutes)
+app.register(devRoutes)
 
 app.get('/health', async () => ({ status: 'ok', timestamp: new Date() }))
