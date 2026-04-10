@@ -23,7 +23,7 @@ export async function list(prisma: PrismaClient, filters: ListFilters) {
   return (prisma as any).trafficOrder.findMany({
     where,
     include: {
-      campana: { select: { folio: true, nombre: true } },
+      campana: { select: { id: true, folio: true, nombre: true, cliente: { select: { nombre: true } } } },
     },
     orderBy: { creadoEn: 'desc' },
   })

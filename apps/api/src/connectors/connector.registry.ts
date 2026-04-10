@@ -15,7 +15,7 @@ export class ConnectorRegistry {
     const connector = this.connectors.get(tipo)
     if (!connector) {
       console.warn(`[ConnectorRegistry] Conector '${tipo}' no encontrado, usando MANUAL`)
-      return this.connectors.get('MANUAL')!
+      return this.connectors.get('MANUAL') ?? new ManualConnector()
     }
     return connector
   }

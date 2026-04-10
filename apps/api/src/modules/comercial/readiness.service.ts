@@ -73,7 +73,10 @@ export async function check(
     (requiereTraffic ? status.items.trafficFinalizado.ok : true)
 
   // Auto-transition to LISTA_FACTURAR
-  if (status.listaParaFacturar && campana.estadoComercial === 'COMPLETADA') {
+  // Accepts CONFIRMADA, ACTIVA, or COMPLETADA — the UI has no explicit "completar campaña"
+  // action, so we allow the transition from any in-progress state.
+  const transicionable = ['CONFIRMADA', 'ACTIVA', 'COMPLETADA'].includes(campana.estadoComercial)
+  if (status.listaParaFacturar && transicionable) {
     await (prisma as any).campana.update({
       where: { id: campanaId },
       data: { estadoComercial: 'LISTA_FACTURAR' },

@@ -71,11 +71,7 @@ export async function getById(prisma: PrismaClient, id: string) {
     where: { id },
     include: {
       cliente: true,
-      lines: {
-        include: {
-          sitio: { select: { nombre: true, ciudad: true } },
-        },
-      },
+      lines: true,
       creatividades: true,
       trafficOrders: true,
     },
