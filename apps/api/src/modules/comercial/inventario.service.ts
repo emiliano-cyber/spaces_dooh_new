@@ -87,20 +87,24 @@ async function enrichSitios(prisma: PrismaClient, sitios: any[]) {
 export async function getDisponibles(prisma: PrismaClient, filters: InventarioFilters) {
   const { where, limit, skip } = await buildQuery(prisma, filters)
 
-  const sitios = await (prisma as any).sitio.findMany({
-    where,
-    skip,
-    take: limit,
-    orderBy: [{ nombre: 'asc' }],
-  })
+  const [sitios, total] = await (prisma as any).$transaction([
+    (prisma as any).sitio.findMany({
+      where,
+      skip,
+      take: limit,
+      orderBy: [{ nombre: 'asc' }],
+    }),
+    (prisma as any).sitio.count({ where }),
+  ])
 
   const enriched = await enrichSitios(prisma, sitios)
 
   // Sort: no incidencia first
-  return enriched.sort((a, b) => {
+  const sorted = enriched.sort((a, b) => {
     if (a.tieneIncidencia === b.tieneIncidencia) return 0
     return a.tieneIncidencia ? 1 : -1
   })
+  return { data: sorted, total }
 }
 
 export async function getDisponiblesGeoJSON(

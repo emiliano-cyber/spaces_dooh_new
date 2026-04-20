@@ -15,6 +15,7 @@ interface ListFilters {
   asignadoAUserId?: string
   estatus?: string
   tipo?: string
+  prioridad?: string
   fechaDesde?: string
   fechaHasta?: string
   sitioId?: string
@@ -31,6 +32,7 @@ export async function list(prisma: PrismaClient, filters: ListFilters) {
   if (filters.asignadoAUserId) where.asignadoAUserId = filters.asignadoAUserId
   if (filters.estatus) where.estatus = filters.estatus
   if (filters.tipo) where.tipo = filters.tipo
+  if (filters.prioridad) where.prioridad = filters.prioridad
   if (filters.sitioId) where.sitioId = filters.sitioId
   if (filters.fechaDesde || filters.fechaHasta) {
     where.fechaProgramada = {

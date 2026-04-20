@@ -54,16 +54,20 @@ export async function list(prisma: PrismaClient, filters: ListFilters) {
     if (filters.fechaHasta) (where['fechaInicio'] as any)['lte'] = new Date(filters.fechaHasta)
   }
 
-  return (prisma as any).campana.findMany({
-    where,
-    skip,
-    take: limit,
-    include: {
-      cliente: { select: { nombre: true } },
-      _count: { select: { lines: true, trafficOrders: true } },
-    },
-    orderBy: { actualizadoEn: 'desc' },
-  })
+  const [data, total] = await (prisma as any).$transaction([
+    (prisma as any).campana.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        cliente: { select: { nombre: true } },
+        _count: { select: { lines: true, trafficOrders: true } },
+      },
+      orderBy: { actualizadoEn: 'desc' },
+    }),
+    (prisma as any).campana.count({ where }),
+  ])
+  return { data, total }
 }
 
 export async function getById(prisma: PrismaClient, id: string) {

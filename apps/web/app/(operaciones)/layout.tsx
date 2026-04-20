@@ -36,7 +36,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
   }
 
   const currentNav = NAV.find(
-    (n) => pathname === n.href || (n.href !== '/operaciones' && pathname.startsWith(n.href)),
+    (n) => pathname === n.href || (n.href !== '/operaciones' && (pathname ?? '').startsWith(n.href)),
   )
 
   return (
@@ -52,7 +52,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
 
         <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
           {NAV.map(({ href, label, icon }) => {
-            const isActive = pathname === href || (href !== '/operaciones' && pathname.startsWith(href))
+            const isActive = pathname === href || (href !== '/operaciones' && (pathname ?? '').startsWith(href))
             return (
               <Link
                 key={href}

@@ -8,6 +8,10 @@ import * as clientesService from './clientes.service'
 import * as inventarioService from './inventario.service'
 import * as campanasService from './campanas.service'
 import * as readinessService from './readiness.service'
+import { validateUpload } from '../../core/upload/validate'
+
+const PDF_TYPES = ['application/pdf']
+const PDF_ZIP_TYPES = ['application/pdf', 'application/zip', 'application/x-zip-compressed']
 
 const comercialRoutes: FastifyPluginAsync = async (fastify) => {
   // ── Clientes ──────────────────────────────────────────────────────────────────
@@ -39,6 +43,18 @@ const comercialRoutes: FastifyPluginAsync = async (fastify) => {
       page: q.page ? Number(q.page) : undefined,
       limit: q.limit ? Number(q.limit) : undefined,
     })
+  })
+
+  fastify.get('/inventario/costos', { ...requirePermission('inventario:read_costs') }, async (request) => {
+    const sitios = await (request.prisma as any).sitio.findMany({
+      where: { estatusOperativo: 'ACTIVO' },
+      select: {
+        id: true, claveInterna: true, nombre: true, ciudad: true, tipoMedio: true,
+        tarifaBase: true, tarifaTrafico: true,
+      },
+      orderBy: [{ ciudad: 'asc' }, { nombre: 'asc' }],
+    })
+    return { data: sitios, total: sitios.length }
   })
 
   fastify.get('/inventario/map', { ...requirePermission('inventario:read') }, async (request) => {
@@ -149,6 +165,8 @@ const comercialRoutes: FastifyPluginAsync = async (fastify) => {
     for await (const chunk of data.file) chunks.push(chunk)
     const buffer = Buffer.concat(chunks)
 
+    validateUpload(data, buffer, PDF_TYPES, 50)
+
     const key = buildKey(request.tenant.id, 'ocs', id, data.filename)
     const url = await putObject(key, buffer, data.mimetype)
 
@@ -168,6 +186,8 @@ const comercialRoutes: FastifyPluginAsync = async (fastify) => {
     const chunks: Buffer[] = []
     for await (const chunk of data.file) chunks.push(chunk)
     const buffer = Buffer.concat(chunks)
+
+    validateUpload(data, buffer, PDF_ZIP_TYPES, 100)
 
     const key = buildKey(request.tenant.id, 'reportes', id, data.filename)
     await putObject(key, buffer, data.mimetype)

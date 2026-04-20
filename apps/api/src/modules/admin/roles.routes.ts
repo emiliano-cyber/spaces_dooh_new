@@ -25,6 +25,16 @@ const rolesRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as { permisos: string[] }
     return publicPrisma.role.update({ where: { id }, data: { permisos: body.permisos } })
   })
+
+  fastify.delete('/admin/roles/:id', { ...requirePermission('roles:manage') }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const role = await publicPrisma.role.findUniqueOrThrow({ where: { id } })
+    if (role.esBuiltin) return reply.code(400).send({ error: 'No se puede eliminar un rol builtin' })
+    const usersCount = await publicPrisma.user.count({ where: { rolId: id } })
+    if (usersCount > 0) return reply.code(400).send({ error: `Este rol tiene ${usersCount} usuario(s) asignado(s)` })
+    await publicPrisma.role.delete({ where: { id } })
+    return reply.code(204).send()
+  })
 }
 
 export default fp(rolesRoutes, { name: 'roles-routes' })

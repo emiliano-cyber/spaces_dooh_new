@@ -1,6 +1,14 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import pg from 'pg'
+import path from 'path'
+
+// Load .env early so DATABASE_URL is available even when imported before
+// setup files run (e.g. vitest running from monorepo root).
+if (!process.env.DATABASE_URL) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
+}
 
 function makePool(): pg.Pool {
   const url = new URL(process.env.DATABASE_URL!)

@@ -24,6 +24,24 @@ const inmueblesRoutes: FastifyPluginAsync = async (fastify) => {
     },
   )
 
+  // ── Incidencias list ──────────────────────────────────────────────────────
+  fastify.get('/incidencias', { ...requirePermission('sitios:read') }, async (request) => {
+    const q = request.query as { estatusResolucion?: string; limit?: string }
+    const limit = Math.min(q.limit ? Number(q.limit) : 100, 200)
+    const where: Record<string, unknown> = {}
+    if (q.estatusResolucion === 'ABIERTA') where.estatus = 'ABIERTA'
+    const [items, total] = await Promise.all([
+      (request.prisma as any).incidencia.findMany({
+        where,
+        orderBy: { creadoEn: 'desc' },
+        take: limit,
+        include: { sitio: { select: { id: true, nombre: true, claveInterna: true } } },
+      }),
+      (request.prisma as any).incidencia.count({ where }),
+    ])
+    return { data: items, meta: { total } }
+  })
+
   // ── Sitios ─────────────────────────────────────────────────────────────────
   fastify.get('/sitios', { ...requirePermission('sitios:read') }, async (request) => {
     const q = request.query as {

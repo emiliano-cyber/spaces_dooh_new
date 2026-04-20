@@ -4,6 +4,9 @@ import { requirePermission } from '../../core/auth/rbac.guard'
 import { CreateOTSchema, UpdateOTSchema, ChecklistItemSchema } from './ots.schemas'
 import * as otsService from './ots.service'
 import * as evidenciasService from './evidencias.service'
+import { validateUpload } from '../../core/upload/validate'
+
+const IMAGEN_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
   // ── List ──────────────────────────────────────────────────────────────────────
@@ -12,19 +15,23 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
       asignadoA?: string
       estatus?: string
       tipo?: string
+      prioridad?: string
       fechaDesde?: string
       fechaHasta?: string
       sitioId?: string
       page?: string
+      limit?: string
     }
     return otsService.list(request.prisma, {
       asignadoAUserId: q.asignadoA,
       estatus: q.estatus,
       tipo: q.tipo,
+      prioridad: q.prioridad,
       fechaDesde: q.fechaDesde,
       fechaHasta: q.fechaHasta,
       sitioId: q.sitioId,
       page: q.page ? Number(q.page) : undefined,
+      limit: q.limit ? Math.min(Number(q.limit), 200) : undefined,
     })
   })
 
@@ -76,6 +83,12 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     async (request) => {
       const { id } = request.params as { id: string }
       const { filename, contentType } = request.body as { filename: string; contentType: string }
+      if (!IMAGEN_TYPES.includes(contentType)) {
+        throw Object.assign(
+          new Error(`Formato no permitido. Acepta: ${IMAGEN_TYPES.join(', ')}`),
+          { statusCode: 400 },
+        )
+      }
       return evidenciasService.getPresignedUploadUrl(request.tenant.id, id, filename, contentType)
     },
   )

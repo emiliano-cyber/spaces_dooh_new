@@ -243,7 +243,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
 
 export default function OTDetailPage() {
   const params = useParams()
-  const id = params.id as string
+  const id = params?.id as string
   const isMobile = useIsMobile()
 
   const { data: ot, isLoading, error, refetch } = useQuery({

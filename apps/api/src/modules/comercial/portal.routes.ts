@@ -1,8 +1,15 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { buildKey, putObject } from '../../db/storage'
+import { validateUpload } from '../../core/upload/validate'
+import { publicPrisma, getPrismaForTenant } from '../../db/client'
 
 const ALLOWED_FORMATS = ['jpg', 'jpeg', 'png', 'pdf', 'mp4', 'mov']
+const PORTAL_MIME_TYPES = [
+  'image/jpeg', 'image/png', 'image/webp',
+  'application/pdf',
+  'video/mp4', 'video/quicktime',
+]
 
 function ext(filename: string): string {
   return filename.split('.').pop()?.toLowerCase() ?? ''
@@ -38,7 +45,23 @@ const portalRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/portal/:token', async (request, reply) => {
     const { token } = request.params as { token: string }
 
-    const campana = await (request.prisma as any).campana.findFirst({
+    // Resolve prisma: tenant plugin skips /portal/:token, so we do cross-tenant lookup
+    let prisma = (request as any).prisma as any
+    if (!prisma) {
+      // Search all active tenants for this portalToken
+      const tenants = await publicPrisma.tenant.findMany({ where: { activo: true } })
+      for (const t of tenants) {
+        const tp = getPrismaForTenant(t.dbSchema)
+        const found = await (tp as any).campana.findFirst({
+          where: { portalToken: token, portalActivo: true },
+          select: { id: true },
+        })
+        if (found) { prisma = tp; break }
+      }
+      if (!prisma) return reply.code(404).send({ error: 'Portal no encontrado o inactivo' })
+    }
+
+    const campana = await (prisma as any).campana.findFirst({
       where: { portalToken: token, portalActivo: true },
       include: {
         cliente: { select: { nombre: true } },
@@ -60,7 +83,7 @@ const portalRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     // OrdenTrabajo has campanaId but Campana has no reverse relation in schema
-    const ordenesTrabajo = await (request.prisma as any).ordenTrabajo.findMany({
+    const ordenesTrabajo = await (prisma as any).ordenTrabajo.findMany({
       where: { campanaId: campana.id },
       select: { estatus: true },
     })
@@ -98,23 +121,20 @@ const portalRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(400).send({ error: 'No se proporcionó archivo' })
     }
 
-    const extension = ext(data.filename)
-    if (!ALLOWED_FORMATS.includes(extension)) {
-      // drain the stream to avoid hanging
-      data.file.resume()
-      return reply.code(400).send({
-        error: `Formato no permitido. Formatos aceptados: ${ALLOWED_FORMATS.join(', ')}`,
-      })
-    }
-
     const chunks: Buffer[] = []
     for await (const chunk of data.file) chunks.push(chunk)
     const buffer = Buffer.concat(chunks)
 
-    const pesoMb = buffer.length / (1024 * 1024)
-    if (pesoMb > 500) {
-      return reply.code(400).send({ error: 'El archivo excede el tamaño máximo de 500MB' })
+    validateUpload(data, buffer, PORTAL_MIME_TYPES, 500)
+
+    const extension = ext(data.filename)
+    if (!ALLOWED_FORMATS.includes(extension)) {
+      return reply.code(400).send({
+        error: `Extensión no permitida. Formatos aceptados: ${ALLOWED_FORMATS.join(', ')}`,
+      })
     }
+
+    const pesoMb = buffer.length / (1024 * 1024)
 
     const nombre = (request.body as any)?.nombre ?? data.filename
     const key = buildKey(request.tenant.id, 'creatividades', campana.id, data.filename)

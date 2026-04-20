@@ -67,6 +67,7 @@ export async function apiFetch<T = unknown>(
     // Retry original request with new token
     const retryHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
+      'x-tenant-slug': TENANT_SLUG,
       ...(options.headers as Record<string, string>),
     }
     if (_accessToken) retryHeaders['Authorization'] = `Bearer ${_accessToken}`

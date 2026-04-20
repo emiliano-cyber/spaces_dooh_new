@@ -7,7 +7,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const bucket = process.env.DO_SPACES_BUCKET ?? 'spaces-dooh'
-const isDev = process.env.NODE_ENV === 'development'
+const isDev = process.env.NODE_ENV !== 'production'
 const hasCredentials = Boolean(process.env.DO_SPACES_KEY)
 
 const s3 = new S3Client({

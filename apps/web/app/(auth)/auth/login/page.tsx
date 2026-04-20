@@ -1,24 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
-
-const schema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(1, 'La contraseña es requerida'),
-})
-
-type FormValues = z.infer<typeof schema>
 
 function getRoleRedirect(rol: string): string {
   switch (rol) {
     case 'owner':
     case 'admin':
-      return '/admin'
+      return '/comercial'
     case 'seller':
     case 'comercial_manager':
       return '/comercial'
@@ -28,28 +17,43 @@ function getRoleRedirect(rol: string): string {
     case 'trafficker':
       return '/comercial/digital'
     default:
-      return '/admin'
+      return '/comercial'
   }
 }
 
 export default function LoginPage() {
-  const router = useRouter()
   const { login } = useAuth()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
   const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema as any) })
+  function validate() {
+    const errs: { email?: string; password?: string } = {}
+    if (!email) errs.email = 'El email es requerido'
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Email inválido'
+    if (!password) errs.password = 'La contraseña es requerida'
+    else if (password.length < 6) errs.password = 'Mínimo 6 caracteres'
+    return errs
+  }
 
-  async function onSubmit(data: FormValues) {
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const errs = validate()
+    setFieldErrors(errs)
+    if (Object.keys(errs).length > 0) return
     setServerError(null)
+    setIsSubmitting(true)
     try {
-      const user = await login(data.email, data.password)
-      router.push(getRoleRedirect(user.rol))
+      const user = await login(email, password)
+      // Full reload so rehidrate() picks up the session cookie and avoids
+      // the race condition where the guard fires before user state is set
+      window.location.href = getRoleRedirect(user.rol)
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Error al iniciar sesión')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -61,7 +65,7 @@ export default function LoginPage() {
           <p style={styles.subtitle}>Inicia sesión en tu cuenta</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} style={styles.form} noValidate>
+        <form onSubmit={onSubmit} style={styles.form}>
           <div style={styles.field}>
             <label htmlFor="email" style={styles.label}>
               Email
@@ -71,15 +75,11 @@ export default function LoginPage() {
               type="email"
               autoComplete="email"
               placeholder="usuario@empresa.com"
-              style={{
-                ...styles.input,
-                ...(errors.email ? styles.inputError : {}),
-              }}
-              {...register('email')}
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setFieldErrors((fe) => ({ ...fe, email: undefined })) }}
+              style={fieldErrors.email ? { ...styles.input, ...styles.inputError } : styles.input}
             />
-            {errors.email && (
-              <span style={styles.fieldError}>{errors.email.message}</span>
-            )}
+            {fieldErrors.email && <span style={styles.fieldError}>{fieldErrors.email}</span>}
           </div>
 
           <div style={styles.field}>
@@ -91,15 +91,11 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               placeholder="••••••••"
-              style={{
-                ...styles.input,
-                ...(errors.password ? styles.inputError : {}),
-              }}
-              {...register('password')}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setFieldErrors((fe) => ({ ...fe, password: undefined })) }}
+              style={fieldErrors.password ? { ...styles.input, ...styles.inputError } : styles.input}
             />
-            {errors.password && (
-              <span style={styles.fieldError}>{errors.password.message}</span>
-            )}
+            {fieldErrors.password && <span style={styles.fieldError}>{fieldErrors.password}</span>}
           </div>
 
           {serverError && (

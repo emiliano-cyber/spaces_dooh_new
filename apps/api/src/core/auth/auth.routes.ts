@@ -20,14 +20,18 @@ function setCookie(reply: FastifyReply, token: string, maxAge: number): void {
 }
 
 const authRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.post('/auth/login', async (request, reply) => {
+  const loginRateLimit = process.env.NODE_ENV === 'production'
+    ? { max: 5, timeWindow: '1 minute' }
+    : { max: 100, timeWindow: '1 minute' }
+
+  fastify.post('/auth/login', { config: { rateLimit: loginRateLimit } }, async (request, reply) => {
     const body = loginBody.parse(request.body)
     const result = await authService.login(body.email, body.password, request.tenant.id)
     setCookie(reply, result.refreshToken, 604800)
     return reply.send({ accessToken: result.accessToken, user: result.user })
   })
 
-  fastify.post('/auth/refresh', async (request, reply) => {
+  fastify.post('/auth/refresh', { config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
     const cookie = request.cookies['spaces_rt']
     if (!cookie) return reply.code(401).send({ error: 'Unauthorized' })
     const result = await authService.refresh(cookie)

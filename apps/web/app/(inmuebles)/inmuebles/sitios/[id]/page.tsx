@@ -45,7 +45,7 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
 export default function SitioPage() {
   const params = useParams()
   const router = useRouter()
-  const id = params.id as string
+  const id = params?.id as string
   const [tab, setTab] = useState<Tab>('info')
 
   const { data: sitio, isLoading, error } = useQuery({

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Must match basePath in next.config.mjs
+const BASE_PATH = '/spaces-dooh'
+
 const moduleMap: Record<string, string> = {
   inmuebles: '/inmuebles',
   operaciones: '/operaciones',
@@ -23,11 +26,17 @@ export function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const isDev = process.env.NODE_ENV === 'development' || host.includes('localhost')
 
+  // Normalize pathname: strip basePath prefix so route checks work regardless
+  // of whether Next.js includes it in request.nextUrl.pathname at runtime.
+  const normalizedPath = pathname.startsWith(BASE_PATH)
+    ? pathname.slice(BASE_PATH.length) || '/'
+    : pathname
+
   // Auth and portal routes are always public
   const isPublic =
-    pathname.startsWith('/auth/') ||
-    pathname.startsWith('/portal/') ||
-    pathname === '/auth/login' ||
+    normalizedPath.startsWith('/auth/') ||
+    normalizedPath.startsWith('/portal/') ||
+    normalizedPath === '/auth/login' ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon')
 
@@ -37,19 +46,24 @@ export function middleware(request: NextRequest) {
     if (subdomain && moduleMap[subdomain]) {
       const url = request.nextUrl.clone()
       // Rewrite internally: admin.example.com/foo → /admin/foo
-      if (!pathname.startsWith(moduleMap[subdomain])) {
-        url.pathname = moduleMap[subdomain] + pathname
+      // Use normalizedPath so the rewrite target doesn't double-include basePath
+      if (!normalizedPath.startsWith(moduleMap[subdomain])) {
+        url.pathname = BASE_PATH + moduleMap[subdomain] + normalizedPath
         return NextResponse.rewrite(url)
       }
     }
   }
 
   // Cookie guard: require spaces_rt for protected routes
-  if (!isPublic) {
+  // In development, skip — the API runs on a different port (3001) so the
+  // browser never attaches the spaces_rt cookie to requests to port 3000.
+  // Auth is enforced at the layout level via sessionStorage instead.
+  if (!isDev && !isPublic) {
     const hasSession = request.cookies.has('spaces_rt')
     if (!hasSession) {
       const loginUrl = request.nextUrl.clone()
-      loginUrl.pathname = '/auth/login'
+      // Always include basePath so the redirect lands on the actual login page
+      loginUrl.pathname = BASE_PATH + '/auth/login'
       return NextResponse.redirect(loginUrl)
     }
   }

@@ -22,10 +22,13 @@ declare module 'fastify' {
 }
 
 const EXCLUDED = ['/health']
+// Portal routes resolve tenant from the portalToken itself, not from the host/header
+const PORTAL_PATTERN = /^\/portal\/[^/]+$/
 
 function isExcluded(url: string): boolean {
   const path = url.split('?')[0]
   return EXCLUDED.some((prefix) => path === prefix || path.startsWith(prefix + '/'))
+    || PORTAL_PATTERN.test(path)
 }
 
 function extractSlug(host: string): string | null {
@@ -41,7 +44,7 @@ const tenantPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onRequest', async (request, reply) => {
     if (isExcluded(request.url)) return
 
-    const isDev = process.env.NODE_ENV === 'development'
+    const isDev = process.env.NODE_ENV !== 'production'
     const host = (request.headers['x-forwarded-host'] as string | undefined)
       ?? (request.headers['host'] as string | undefined)
       ?? ''

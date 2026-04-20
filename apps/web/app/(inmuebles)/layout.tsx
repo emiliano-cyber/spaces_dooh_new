@@ -56,7 +56,7 @@ export default function InmueblesLayout({ children }: { children: React.ReactNod
 
         <nav style={{ flex: 1, padding: '0 0.75rem', display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
           {NAV.map(({ href, label, icon }) => {
-            const isActive = pathname === href || (href !== '/inmuebles' && pathname.startsWith(href))
+            const isActive = pathname === href || (href !== '/inmuebles' && (pathname ?? '').startsWith(href))
             return (
               <Link
                 key={href}
@@ -109,7 +109,7 @@ export default function InmueblesLayout({ children }: { children: React.ReactNod
           flexShrink: 0,
         }}>
           <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--fg)' }}>
-            {NAV.find((n) => pathname === n.href || (n.href !== '/inmuebles' && pathname.startsWith(n.href)))?.label ?? 'Inmuebles'}
+            {NAV.find((n) => pathname === n.href || (n.href !== '/inmuebles' && (pathname ?? '').startsWith(n.href)))?.label ?? 'Inmuebles'}
           </span>
           <span style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{user.id.slice(0, 8)}…</span>
         </header>

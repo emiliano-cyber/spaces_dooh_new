@@ -1,159 +1,129 @@
-# Turborepo starter
+# Spaces DOOH
 
-This Turborepo starter is maintained by the Turborepo core team.
+Plataforma multi-tenant para gestión de redes de publicidad exterior (OOH/DOOH).
 
-## Using this example
+## Stack
 
-Run the following command:
+- **API** — Fastify + Prisma + PostgreSQL (multi-schema) + Redis + BullMQ
+- **Web** — Next.js 14 (App Router) + React Query
+- **Infra** — DigitalOcean Droplet + Nginx + PM2 + Let's Encrypt
 
-```sh
-npx create-turbo@latest
+## Desarrollo local
+
+```bash
+# Requisitos: Node 20, PostgreSQL, Redis
+
+# 1. Instalar dependencias
+npm install
+
+# 2. Configurar variables de entorno
+cp apps/api/.env.example apps/api/.env
+# Editar apps/api/.env con tu DATABASE_URL y REDIS_URL
+
+# 3. Correr migraciones
+cd apps/api && npx prisma migrate deploy
+
+# 4. Crear tenant de desarrollo
+./infra/scripts/new-tenant.sh \
+  --slug=dev \
+  --nombre="Dev Tenant" \
+  --owner-email=admin@dev.com
+
+# 5. Iniciar en modo desarrollo
+npm run dev
 ```
 
-## What's inside?
+El API queda en `http://localhost:3001` y el frontend en `http://localhost:3000`.
 
-This Turborepo includes the following packages/apps:
+## Gestión de tenants
 
-### Apps and Packages
+### Crear un tenant nuevo
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo build
+```bash
+./infra/scripts/new-tenant.sh \
+  --slug=westmedia \
+  --nombre="West Media" \
+  --owner-email=owner@westmedia.com
 ```
 
-Without global `turbo`, use your package manager:
+El script es **idempotente**: si se ejecuta dos veces con el mismo slug no falla.
 
-```sh
-cd my-turborepo
-npx turbo build
-npm dlx turbo build
-npm exec turbo build
+### Migrar todos los tenants existentes
+
+```bash
+# Ver qué schemas se migrarían (sin ejecutar)
+./infra/scripts/migrate-all-tenants.sh --dry-run
+
+# Ejecutar migraciones
+./infra/scripts/migrate-all-tenants.sh
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Deploy en producción
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+### Primera vez — configurar el droplet
 
-```sh
-turbo build --filter=docs
+```bash
+# En el droplet Ubuntu 22.04 (como root)
+bash infra/scripts/setup-droplet.sh
+
+# Clonar el repo
+git clone <repo-url> /var/www/spaces-dooh
+cd /var/www/spaces-dooh
+
+# Crear .env de producción
+cp apps/api/.env.example apps/api/.env
+nano apps/api/.env   # completar DATABASE_URL, REDIS_URL, JWT_SECRET, etc.
+
+# Instalar, compilar y arrancar
+npm install
+npm run build
+pm2 start ecosystem.config.js
+pm2 save
+
+# Configurar Nginx (reemplazar {TENANT_SLUG} con el slug real)
+sed 's/{TENANT_SLUG}/westmedia/g' infra/nginx/spaces.conf \
+  > /etc/nginx/sites-available/spaces.conf
+ln -s /etc/nginx/sites-available/spaces.conf /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+# Obtener certificado SSL wildcard
+certbot --nginx -d '*.westmedia.spaces.com'
 ```
 
-Without global `turbo`:
+### Deploy continuo (GitHub Actions)
 
-```sh
-npx turbo build --filter=docs
-npm exec turbo build --filter=docs
-npm exec turbo build --filter=docs
+Cada push a `main` dispara el workflow `.github/workflows/deploy.yml` que:
+1. Type-check + build en CI
+2. SSH al droplet → `git pull` → `npm ci` → `turbo build` → `pm2 reload`
+
+#### GitHub Secrets requeridos
+
+| Secret | Descripción |
+|--------|-------------|
+| `DROPLET_IP` | IP pública del droplet de DigitalOcean |
+| `SSH_PRIVATE_KEY` | Clave SSH privada con acceso root al droplet |
+
+Para agregar los secrets: **GitHub → Settings → Secrets and variables → Actions → New repository secret**
+
+## Estructura del proyecto
+
 ```
-
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo dev
+spaces-dooh/
+├── apps/
+│   ├── api/          # Fastify API (puerto 3001)
+│   └── web/          # Next.js frontend (puerto 3000)
+├── packages/
+│   ├── types/        # Tipos compartidos TypeScript
+│   └── utils/        # Utilidades compartidas (permisos, etc.)
+├── infra/
+│   ├── nginx/
+│   │   └── spaces.conf          # Configuración Nginx
+│   └── scripts/
+│       ├── new-tenant.sh        # Crear tenant nuevo
+│       ├── migrate-all-tenants.sh # Migrar todos los tenants
+│       └── setup-droplet.sh     # Configurar droplet nuevo
+├── ecosystem.config.js          # PM2 — procesos de producción
+└── .github/
+    └── workflows/
+        └── deploy.yml           # CI/CD pipeline
 ```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo dev
-npm exec turbo dev
-npm exec turbo dev
-```
-
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo dev --filter=web
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo dev --filter=web
-npm exec turbo dev --filter=web
-npm exec turbo dev --filter=web
-```
-
-### Remote Caching
-
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-npm exec turbo login
-npm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-npm exec turbo link
-npm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)

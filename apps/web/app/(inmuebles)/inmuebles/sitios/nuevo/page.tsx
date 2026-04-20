@@ -39,11 +39,21 @@ type FormValues = z.infer<typeof schema>
 export default function NuevoSitioPage() {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
+  const [checklistItems, setChecklistItems] = useState<string[]>([])
+  const [newCheckItem, setNewCheckItem] = useState('')
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema as any),
     defaultValues: { iluminado: false, tipoMedio: 'ESPECTACULAR' },
   })
+
+  function addCheckItem() {
+    const trimmed = newCheckItem.trim()
+    if (trimmed && !checklistItems.includes(trimmed)) {
+      setChecklistItems((prev) => [...prev, trimmed])
+    }
+    setNewCheckItem('')
+  }
 
   async function onSubmit(data: FormValues) {
     setServerError(null)
@@ -54,6 +64,7 @@ export default function NuevoSitioPage() {
           ...data,
           alto: data.alto === '' ? undefined : data.alto,
           ancho: data.ancho === '' ? undefined : data.ancho,
+          checklist: checklistItems.length > 0 ? checklistItems.map((label) => ({ label, completado: false })) : undefined,
         }),
       })
       router.push(`/inmuebles/sitios/${sitio.id}`)
@@ -157,6 +168,34 @@ export default function NuevoSitioPage() {
         <div style={field}>
           <label style={label}>Notas</label>
           <textarea style={{ ...input, minHeight: 80, resize: 'vertical' }} placeholder="Observaciones adicionales…" {...register('notas')} />
+        </div>
+
+        {/* Checklist dinámico */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <label style={label}>Checklist de instalación (opcional)</label>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              style={{ ...input, flex: 1 }}
+              placeholder="Ej. Verificar estructura metálica…"
+              value={newCheckItem}
+              onChange={(e) => setNewCheckItem(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem() } }}
+            />
+            <button type="button" onClick={addCheckItem} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.55rem 0.875rem', whiteSpace: 'nowrap' }}>
+              + Agregar
+            </button>
+          </div>
+          {checklistItems.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginTop: '0.25rem' }}>
+              {checklistItems.map((item, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.375rem 0.625rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)', userSelect: 'none' }}>☐</span>
+                  <span style={{ flex: 1, fontSize: '0.8125rem' }}>{item}</span>
+                  <button type="button" onClick={() => setChecklistItems((prev) => prev.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer', fontSize: '0.75rem', padding: '0 0.25rem', lineHeight: 1 }}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {serverError && (

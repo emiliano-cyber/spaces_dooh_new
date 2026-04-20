@@ -3,6 +3,9 @@ import type { FastifyPluginAsync } from 'fastify'
 import { requirePermission } from '../../core/auth/rbac.guard'
 import { buildKey, putObject } from '../../db/storage'
 import * as trafficService from '../comercial/traffic.service'
+import { validateUpload } from '../../core/upload/validate'
+
+const PDF_ZIP_TYPES = ['application/pdf', 'application/zip', 'application/x-zip-compressed']
 
 const trafficRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get('/traffic-orders', { ...requirePermission('traffic:read') }, async (request) => {
@@ -41,6 +44,8 @@ const trafficRoutes: FastifyPluginAsync = async (fastify) => {
     const chunks: Buffer[] = []
     for await (const chunk of data.file) chunks.push(chunk)
     const buffer = Buffer.concat(chunks)
+
+    validateUpload(data, buffer, PDF_ZIP_TYPES, 100)
 
     const key = buildKey(request.tenant.id, 'delivery', id, data.filename)
     const url = await putObject(key, buffer, data.mimetype)

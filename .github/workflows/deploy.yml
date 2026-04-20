@@ -1,0 +1,56 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npx turbo run check-types
+
+      - name: Build
+        run: npx turbo run build
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 120s
+          script: |
+            set -e
+            cd /var/www/spaces-dooh
+
+            echo "→ Pulling latest changes..."
+            git pull origin main
+
+            echo "→ Installing dependencies..."
+            npm ci --prefer-offline
+
+            echo "→ Building..."
+            npx turbo run build
+
+            echo "→ Reloading PM2..."
+            pm2 reload ecosystem.config.js --update-env
+
+            echo "✓ Deploy completado"
+            pm2 list
