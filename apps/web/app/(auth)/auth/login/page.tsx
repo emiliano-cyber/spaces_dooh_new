@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
 function getRoleRedirect(rol: string): string {
@@ -23,6 +24,7 @@ function getRoleRedirect(rol: string): string {
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({})
@@ -47,9 +49,9 @@ export default function LoginPage() {
     setIsSubmitting(true)
     try {
       const user = await login(email, password)
-      // Full reload so rehidrate() picks up the session cookie and avoids
-      // the race condition where the guard fires before user state is set
-      window.location.href = getRoleRedirect(user.rol)
+      // router.push prepends basePath (/spaces-dooh) automatically,
+      // avoiding the https://market.adavailable.com/comercial 404.
+      router.push(getRoleRedirect(user.rol))
     } catch (err) {
       setServerError(err instanceof Error ? err.message : 'Error al iniciar sesión')
     } finally {

@@ -28,7 +28,7 @@ async function tryRefresh(): Promise<boolean> {
 
 function redirectToLogin() {
   if (typeof window !== 'undefined') {
-    window.location.href = '/auth/login'
+    window.location.href = '/spaces-dooh/auth/login'
   }
 }
 

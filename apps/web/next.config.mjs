@@ -6,6 +6,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   basePath: '/spaces-dooh',
+  trailingSlash: true,
   transpilePackages: ['@spaces-dooh/types'],
   images: {
     remotePatterns: [

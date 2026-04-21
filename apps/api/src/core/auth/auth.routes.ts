@@ -13,7 +13,7 @@ function setCookie(reply: FastifyReply, token: string, maxAge: number): void {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    path: '/auth',
+    path: '/',
     domain: process.env.COOKIE_DOMAIN,
     maxAge,
   })
