@@ -88,7 +88,7 @@ export default function NuevaCampanaPage() {
 
   const { data: sitiosDisp = [] } = useQuery<SitioItem[]>({
     queryKey: ['inventario-wizard', fechaInicio, fechaFin, ciudadFil, tipoFil],
-    queryFn: () => apiFetch(`/inventario?${qs}`),
+    queryFn: () => apiFetch<{ data: SitioItem[] }>(`/inventario?${qs}`).then(r => r.data),
     enabled: step === 1,
   })
 

@@ -36,7 +36,7 @@ export default function CampanasKanbanPage() {
 
   const { data: campanas = [], isLoading } = useQuery<Campana[]>({
     queryKey: ['campanas-all'],
-    queryFn: () => apiFetch('/campanas?limit=500'),
+    queryFn: () => apiFetch<{ data: Campana[] }>('/campanas?limit=500').then(r => r.data),
   })
 
   const byStatus = (key: string) => campanas.filter((c) => c.estadoComercial === key)

@@ -62,22 +62,22 @@ export default function ComercialDashboard() {
 
   const { data: activas = [] } = useQuery<Campana[]>({
     queryKey: ['campanas-activas', tick],
-    queryFn: () => apiFetch('/campanas?estadoComercial=ACTIVA&limit=100'),
+    queryFn: () => apiFetch<{ data: Campana[] }>('/campanas?estadoComercial=ACTIVA&limit=100').then(r => r.data),
   })
 
   const { data: listaFacturar = [] } = useQuery<Campana[]>({
     queryKey: ['campanas-facturar', tick],
-    queryFn: () => apiFetch('/campanas?estadoComercial=LISTA_FACTURAR&limit=100'),
+    queryFn: () => apiFetch<{ data: Campana[] }>('/campanas?estadoComercial=LISTA_FACTURAR&limit=100').then(r => r.data),
   })
 
   const { data: cotizacion = [] } = useQuery<Campana[]>({
     queryKey: ['campanas-cotizacion', tick],
-    queryFn: () => apiFetch('/campanas?estadoComercial=COTIZACION&limit=100'),
+    queryFn: () => apiFetch<{ data: Campana[] }>('/campanas?estadoComercial=COTIZACION&limit=100').then(r => r.data),
   })
 
   const { data: recientes = [] } = useQuery<Campana[]>({
     queryKey: ['campanas-recientes', tick],
-    queryFn: () => apiFetch('/campanas?limit=10'),
+    queryFn: () => apiFetch<{ data: Campana[] }>('/campanas?limit=10').then(r => r.data),
   })
 
   const mesInicio = new Date(); mesInicio.setDate(1); mesInicio.setHours(0,0,0,0)

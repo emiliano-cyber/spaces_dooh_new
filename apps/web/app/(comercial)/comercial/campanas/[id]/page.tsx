@@ -97,10 +97,10 @@ export default function CampanaDetailPage() {
   const { data: incidenciasActivas = [] } = useQuery<any[]>({
     queryKey: ['incidencias-activas', id],
     queryFn: async () => {
-      const all = await apiFetch<any[]>('/incidencias?estatusResolucion=ABIERTA&limit=100').catch(() => [])
+      const res = await apiFetch<{ data: any[] }>('/incidencias?estatusResolucion=ABIERTA&limit=100').catch(() => ({ data: [] }))
       if (!campana?.lines?.length) return []
       const sitioIds = new Set(campana.lines.map((l) => l.sitioId))
-      return all.filter((inc) => sitioIds.has(inc.sitioId))
+      return res.data.filter((inc) => sitioIds.has(inc.sitioId))
     },
     enabled: !!campana?.lines?.length,
     staleTime: 60_000,

@@ -84,13 +84,13 @@ export default function FichaComercialPage() {
 
   const { data: campanas = [] } = useQuery<CampanaSimple[]>({
     queryKey: ['campanas-draft'],
-    queryFn: () => apiFetch('/campanas?estadoComercial=DRAFT&limit=100'),
+    queryFn: () => apiFetch<{ data: CampanaSimple[] }>('/campanas?estadoComercial=DRAFT&limit=100').then(r => r.data),
     enabled: showModal,
   })
 
   const { data: cotizaciones = [] } = useQuery<CampanaSimple[]>({
     queryKey: ['campanas-cotizacion'],
-    queryFn: () => apiFetch('/campanas?estadoComercial=COTIZACION&limit=100'),
+    queryFn: () => apiFetch<{ data: CampanaSimple[] }>('/campanas?estadoComercial=COTIZACION&limit=100').then(r => r.data),
     enabled: showModal,
   })
 

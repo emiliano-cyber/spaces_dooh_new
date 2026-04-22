@@ -60,7 +60,7 @@ export default function InventarioPage() {
 
   const { data: sitios = [], isLoading } = useQuery<SitioItem[]>({
     queryKey: ['inventario', fechaInicio, fechaFin, ciudad, tipoMedio, search],
-    queryFn: () => apiFetch(`/inventario?${qs.toString()}`),
+    queryFn: () => apiFetch<{ data: SitioItem[] }>(`/inventario?${qs.toString()}`).then(r => r.data),
   })
 
   const { data: geoData } = useQuery<GeoJSONFeatureCollection>({
