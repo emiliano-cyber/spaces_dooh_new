@@ -39,6 +39,7 @@ export default function ComercialLayout({ children }: { children: React.ReactNod
     { href: '/comercial', label: 'Dashboard', icon: '◈' },
     { href: '/comercial/inventario', label: 'Inventario', icon: '◫' },
     { href: '/comercial/campanas', label: 'Campañas', icon: '◉' },
+    { href: '/comercial/clientes', label: 'Clientes', icon: '◎' },
     ...(canSeeTraffic ? [{ href: '/comercial/digital', label: 'Tráfico Digital', icon: '▶' }] : []),
   ]
 

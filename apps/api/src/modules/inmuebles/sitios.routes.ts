@@ -138,6 +138,53 @@ const inmueblesRoutes: FastifyPluginAsync = async (fastify) => {
     },
   )
 
+  // ── Arrendadores ──────────────────────────────────────────────────────────
+  fastify.get('/arrendadores', { ...requirePermission('contratos:read') }, async (request) => {
+    const { search } = request.query as { search?: string }
+    const where: Record<string, unknown> = search
+      ? { nombre: { contains: search, mode: 'insensitive' } }
+      : {}
+    return (request.prisma as any).arrendador.findMany({
+      where,
+      orderBy: { nombre: 'asc' },
+      take: 200,
+    })
+  })
+
+  fastify.post('/arrendadores', { ...requirePermission('contratos:create') }, async (request, reply) => {
+    const body = request.body as {
+      nombre: string; rfc?: string; telefono?: string; email?: string; notas?: string
+    }
+    if (!body.nombre?.trim()) {
+      return reply.code(400).send({ error: 'nombre es requerido' })
+    }
+    const arrendador = await (request.prisma as any).arrendador.create({
+      data: {
+        nombre: body.nombre.trim(),
+        rfc: body.rfc ?? null,
+        telefono: body.telefono ?? null,
+        email: body.email ?? null,
+        notas: body.notas ?? null,
+      },
+    })
+    return reply.code(201).send(arrendador)
+  })
+
+  fastify.get('/arrendadores/:aid', { ...requirePermission('contratos:read') }, async (request) => {
+    const { aid } = request.params as { aid: string }
+    const a = await (request.prisma as any).arrendador.findUnique({
+      where: { id: aid },
+      include: {
+        contratos: {
+          include: { sitio: { select: { id: true, nombre: true, claveInterna: true } } },
+          orderBy: { fechaInicio: 'desc' },
+        },
+      },
+    })
+    if (!a) throw Object.assign(new Error('Arrendador no encontrado'), { statusCode: 404 })
+    return a
+  })
+
   // ── Licencias ──────────────────────────────────────────────────────────────
   fastify.get(
     '/sitios/:id/licencias',
