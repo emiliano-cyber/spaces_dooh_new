@@ -5,6 +5,15 @@ import { createWorker } from './jobs/queue'
 import { alertVencimientosProcessor } from './jobs/alert-vencimientos.job'
 import { scheduleAlertJobs } from './jobs/scheduler'
 
+// Fail fast on missing critical env vars
+const REQUIRED_ENVS = ['DATABASE_URL', 'JWT_SECRET', 'REDIS_URL'] as const
+for (const key of REQUIRED_ENVS) {
+  if (!process.env[key]) {
+    console.error(`[startup] Missing required environment variable: ${key}`)
+    process.exit(1)
+  }
+}
+
 const PORT = Number(process.env.PORT) || 3001
 const HOST = process.env.HOST || '0.0.0.0'
 

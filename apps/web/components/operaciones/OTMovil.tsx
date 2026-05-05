@@ -38,6 +38,8 @@ export interface OTMovilData {
   evidencias: Evidencia[]
 }
 
+const AVANCE_PLACEHOLDER = 'Describe los avances, condiciones encontradas, materiales usados, observaciones…'
+
 interface LocalPreview {
   tempId: string
   previewUrl: string
@@ -170,6 +172,9 @@ export default function OTMovil({ ot, onRefetch }: Props) {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [poppingItem, setPoppingItem] = useState<string | null>(null)
+  const [notasValue, setNotasValue] = useState(ot.notas ?? '')
+  const [savingNotas, setSavingNotas] = useState(false)
+  const [notasSaved, setNotasSaved] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -239,12 +244,13 @@ export default function OTMovil({ ot, onRefetch }: Props) {
         body: JSON.stringify({ storageKey: key }),
       })
 
-      // 5. Mark done
+      // 5. Mark done — keep previewUrl for display; will be replaced by signed URL on refetch
       setLocalPreviews((prev) =>
         prev.map((p) => p.tempId === tempId ? { ...p, status: 'done', previewUrl } : p),
       )
       onRefetch()
     } catch {
+      URL.revokeObjectURL(previewUrl)
       setLocalPreviews((prev) =>
         prev.map((p) => p.tempId === tempId ? { ...p, status: 'error' } : p),
       )
@@ -264,6 +270,26 @@ export default function OTMovil({ ot, onRefetch }: Props) {
     if (!preview?.file) return
     setLocalPreviews((prev) => prev.filter((p) => p.tempId !== tempId))
     await uploadFile(preview.file)
+  }
+
+  // ── Save notas ────────────────────────────────────────────────────────────────
+
+  async function saveNotas() {
+    if (notasValue === (ot.notas ?? '')) return
+    setSavingNotas(true)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/notas`, {
+        method: 'PATCH',
+        body: JSON.stringify({ notas: notasValue }),
+      })
+      setNotasSaved(true)
+      setTimeout(() => setNotasSaved(false), 2500)
+      onRefetch()
+    } catch {
+      // silent
+    } finally {
+      setSavingNotas(false)
+    }
   }
 
   // ── Complete OT ───────────────────────────────────────────────────────────────
@@ -580,6 +606,43 @@ export default function OTMovil({ ot, onRefetch }: Props) {
                 <div style={{ color: 'var(--muted)', fontSize: '0.9rem', textAlign: 'center', padding: '1rem 0' }}>
                   Sin fotos — toma la primera 📷
                 </div>
+              )}
+            </SectionCard>
+
+            {/* ── SECCIÓN 5: Notas / Avance ───────────────────────────────── */}
+            <SectionCard>
+              <SectionTitle>Notas de avance</SectionTitle>
+              <textarea
+                value={notasValue}
+                onChange={(e) => setNotasValue(e.target.value)}
+                disabled={isCompleted}
+                placeholder={AVANCE_PLACEHOLDER}
+                rows={4}
+                style={{
+                  width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 10, color: 'var(--fg)', fontSize: '0.9375rem',
+                  lineHeight: 1.5, padding: '0.75rem', resize: 'vertical',
+                  fontFamily: 'var(--font-ibm-plex-sans), system-ui, sans-serif',
+                  outline: 'none', boxSizing: 'border-box',
+                  opacity: isCompleted ? 0.6 : 1,
+                }}
+              />
+              {!isCompleted && (
+                <button
+                  onClick={saveNotas}
+                  disabled={savingNotas || notasValue === (ot.notas ?? '')}
+                  style={{
+                    marginTop: '0.625rem', width: '100%', height: 44, borderRadius: 10,
+                    background: notasSaved ? 'rgba(184,240,0,0.15)' : 'var(--bg)',
+                    border: notasSaved ? '1px solid rgba(184,240,0,0.4)' : '1px solid var(--border)',
+                    color: notasSaved ? '#b8f000' : 'var(--fg)',
+                    fontSize: '0.9rem', fontWeight: 600, cursor: savingNotas || notasValue === (ot.notas ?? '') ? 'not-allowed' : 'pointer',
+                    opacity: notasValue === (ot.notas ?? '') && !notasSaved ? 0.45 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {notasSaved ? '✓ Guardado' : savingNotas ? 'Guardando…' : 'Guardar notas'}
+                </button>
               )}
             </SectionCard>
 

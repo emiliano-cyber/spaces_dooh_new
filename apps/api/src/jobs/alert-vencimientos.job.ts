@@ -9,10 +9,19 @@ interface JobData {
 }
 
 async function getOwnerEmail(tenantId: string): Promise<string | null> {
-  const owner = await publicPrisma.user.findFirst({
-    where: { tenantId },
+  const ownerRole = await (publicPrisma as any).role.findFirst({
+    where: { tenantId, nombre: 'owner' },
+    select: { id: true },
   })
-  return owner?.email ?? null
+  const user = await publicPrisma.user.findFirst({
+    where: {
+      tenantId,
+      activo: true,
+      ...(ownerRole ? { rolId: ownerRole.id } : {}),
+    },
+    select: { email: true },
+  })
+  return user?.email ?? null
 }
 
 export async function alertVencimientosProcessor(job: Job<JobData>): Promise<void> {

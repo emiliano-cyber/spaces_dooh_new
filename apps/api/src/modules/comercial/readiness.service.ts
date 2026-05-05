@@ -49,7 +49,7 @@ export async function check(
       },
       reportePublicacion: {
         ok: campana.reportePublicacion,
-        url: undefined,
+        url: campana.reportePublicacionUrl ?? undefined,
       },
       otCompletada: {
         ok: requiereOT ? otCompletada !== null : true,

@@ -395,8 +395,9 @@ model Campana {
   ocRecibida          Boolean             @default(false)
   ocUrl               String?
   fotosComprobatorias Boolean             @default(false)
-  reportePublicacion  Boolean             @default(false)
-  portalToken         String?             @unique
+  reportePublicacion    Boolean             @default(false)
+  reportePublicacionUrl String?
+  portalToken           String?             @unique
   portalActivo        Boolean             @default(false)
   notas               String?
   creadoEn            DateTime            @default(now())

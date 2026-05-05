@@ -8,7 +8,8 @@
     "build": "tsc --project tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "seed:users": "ts-node prisma/seeds/seed-add-users.ts"
   },
   "keywords": [],
   "author": "",

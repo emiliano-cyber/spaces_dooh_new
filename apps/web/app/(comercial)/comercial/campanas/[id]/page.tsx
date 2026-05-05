@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
 import ReadinessPanel from '@/components/campanas/ReadinessPanel'
+import ReporteVisual from '@/components/campanas/ReporteVisual'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Campana {
@@ -78,7 +79,7 @@ export default function CampanaDetailPage() {
   const router = useRouter()
   const { user } = useAuth()
   const qc = useQueryClient()
-  const [tab, setTab] = useState<'resumen' | 'inventario' | 'creatividades' | 'trafico' | 'portal'>('resumen')
+  const [tab, setTab] = useState<'resumen' | 'inventario' | 'creatividades' | 'trafico' | 'portal' | 'reporte'>('resumen')
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
   const [portalCopied, setPortalCopied] = useState(false)
@@ -130,6 +131,7 @@ export default function CampanaDetailPage() {
     { key: 'creatividades', label: `Creatividades (${campana.creatividades?.length ?? 0})` },
     ...(showTraffic ? [{ key: 'trafico', label: `Tráfico (${campana.trafficOrders?.length ?? 0})` }] : []),
     { key: 'portal', label: 'Portal' },
+    { key: 'reporte', label: 'Reporte' },
   ]
 
   async function handleConfirmar() {
@@ -422,6 +424,11 @@ export default function CampanaDetailPage() {
             )
           })}
         </div>
+      )}
+
+      {/* ── Tab: Reporte ── */}
+      {tab === 'reporte' && (
+        <ReporteVisual campanaId={id} />
       )}
 
       {/* ── Tab: Portal ── */}

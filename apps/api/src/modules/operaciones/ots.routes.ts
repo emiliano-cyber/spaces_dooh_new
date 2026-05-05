@@ -116,6 +116,18 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     },
   )
 
+  // ── Guardar notas del técnico ─────────────────────────────────────────────────
+  fastify.patch(
+    '/ordenes-trabajo/:id/notas',
+    { ...requirePermission('ots:complete') },
+    async (request) => {
+      const { id } = request.params as { id: string }
+      const body = request.body as { notas?: string }
+      const notas = typeof body?.notas === 'string' ? body.notas : undefined
+      return otsService.update(request.prisma, id, { notas }, request.user.id)
+    },
+  )
+
   // ── Completar ─────────────────────────────────────────────────────────────────
   fastify.post(
     '/ordenes-trabajo/:id/completar',

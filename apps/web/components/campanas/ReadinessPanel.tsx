@@ -104,7 +104,9 @@ export default function ReadinessPanel({ campanaId, estadoComercial }: Props) {
       ok: items.reportePublicacion.ok,
       requerida: true,
       detail: items.reportePublicacion.ok
-        ? <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Recibido</span>
+        ? items.reportePublicacion.url
+          ? <a href={items.reportePublicacion.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', fontSize: '0.75rem' }}>Ver reporte</a>
+          : <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>Recibido</span>
         : (
           <button
             onClick={() => reporteInputRef.current?.click()}

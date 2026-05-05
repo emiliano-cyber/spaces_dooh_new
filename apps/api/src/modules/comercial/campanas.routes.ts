@@ -190,14 +190,63 @@ const comercialRoutes: FastifyPluginAsync = async (fastify) => {
     validateUpload(data, buffer, PDF_ZIP_TYPES, 100)
 
     const key = buildKey(request.tenant.id, 'reportes', id, data.filename)
-    await putObject(key, buffer, data.mimetype)
+    const reporteUrl = await putObject(key, buffer, data.mimetype)
 
     await (request.prisma as any).campana.update({
       where: { id },
-      data: { reportePublicacion: true },
+      data: { reportePublicacion: true, reportePublicacionUrl: reporteUrl },
     })
 
     return readinessService.check(request.prisma, id, request.tenant.id, request.user.id)
+  })
+
+  // ── Reporte visual ───────────────────────────────────────────────────────────
+
+  fastify.get('/campanas/:id/reporte-visual', { ...requirePermission('campanas:read') }, async (request) => {
+    const { id } = request.params as { id: string }
+
+    const campana = await (request.prisma as any).campana.findUniqueOrThrow({
+      where: { id },
+      include: {
+        cliente: { select: { id: true, nombre: true } },
+        trafficOrders: { select: { id: true, folio: true, estadoTecnico: true, creadoEn: true } },
+      },
+    })
+
+    const ots = await (request.prisma as any).ordenTrabajo.findMany({
+      where: { campanaId: id },
+      include: { evidencias: true },
+      orderBy: [{ fechaProgramada: 'asc' }, { creadoEn: 'asc' }],
+    })
+
+    const otsConFotos = await Promise.all(
+      ots.map(async (ot: any) => ({
+        ...ot,
+        evidencias: await Promise.all(
+          ot.evidencias.map(async (ev: any) => ({
+            ...ev,
+            fotoUrlSigned: await getPresignedGet(ev.storageKey),
+          })),
+        ),
+      })),
+    )
+
+    return {
+      campana: {
+        id: campana.id,
+        folio: campana.folio,
+        nombre: campana.nombre,
+        tipoCampana: campana.tipoCampana,
+        estadoComercial: campana.estadoComercial,
+        fechaInicio: campana.fechaInicio,
+        fechaFin: campana.fechaFin,
+        reportePublicacionUrl: campana.reportePublicacionUrl ?? undefined,
+        presupuestoBruto: campana.presupuestoBruto,
+        cliente: campana.cliente,
+      },
+      ots: otsConFotos,
+      trafficOrders: campana.trafficOrders,
+    }
   })
 
   // ── Portal ────────────────────────────────────────────────────────────────────
