@@ -401,6 +401,10 @@ export async function reabrir(
   const updateData: Record<string, unknown> = {
     estatus: 'EN_PROCESO',
     fechaCompletada: null,
+    revisadoPorUserId: null,
+    revisadoEn: null,
+    revisionNotas: null,
+    motivoBloqueo: null,
   }
   if (data.instrucciones) {
     updateData.instrucciones = data.instrucciones

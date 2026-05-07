@@ -108,7 +108,7 @@ export default function OperacionesDashboard() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>
         <KpiCard label="OTs activas" value={activas.length} />
         <KpiCard label="Urgentes pendientes" value={urgentes.length} color={urgentes.length > 0 ? '#B91C1C' : undefined} />
         <KpiCard label="Completadas hoy" value={completadasHoy.length} color={completadasHoy.length > 0 ? '#15803D' : undefined} />

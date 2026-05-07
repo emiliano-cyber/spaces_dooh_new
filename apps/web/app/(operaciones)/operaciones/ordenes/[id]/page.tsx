@@ -220,8 +220,9 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
       setNotasSaved(true)
       setTimeout(() => setNotasSaved(false), 2500)
       onRefetch()
-    } catch { /* silent */ }
-    finally { setSavingNotas(false) }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Error al guardar notas')
+    } finally { setSavingNotas(false) }
   }
 
   async function handleAssign() {
@@ -308,8 +309,9 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
       })
       setShowCancelarModal(false)
       onRefetch()
-    } catch { /* silent */ }
-    finally { setCancelando(false) }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Error al cancelar la OT')
+    } finally { setCancelando(false) }
   }
 
   const estatusColor = ESTATUS_C[ot.estatus] ?? '#71717A'

@@ -332,7 +332,7 @@ model PagoRenta {
 model OrdenTrabajo {
   id                String        @id @default(cuid())
   folio             String        @unique
-  tipo              TipoOT
+  tipo              String
   sitioId           String?
   descripcion       String
   instrucciones     String?

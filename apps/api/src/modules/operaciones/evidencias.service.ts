@@ -19,7 +19,7 @@ export async function addEvidencia(
 ) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
 
-  if (['COMPLETADA', 'CANCELADA'].includes(ot.estatus)) {
+  if (['COMPLETADA', 'CANCELADA', 'EN_REVISION'].includes(ot.estatus)) {
     throw Object.assign(
       new Error(`No se puede agregar evidencia a una OT en estatus ${ot.estatus}`),
       { statusCode: 400 },
