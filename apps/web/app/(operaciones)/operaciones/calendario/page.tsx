@@ -10,10 +10,10 @@ interface OT { id: string; folio: string; tipo: string; prioridad: string; estat
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 
 const PRIORIDAD_C: Record<string, { bg: string; color: string }> = {
-  URGENTE: { bg: 'rgba(163,45,45,0.35)', color: '#ff5f5f' },
-  ALTA:    { bg: 'rgba(133,79,11,0.35)', color: '#fbbf24' },
-  NORMAL:  { bg: 'rgba(108,99,255,0.2)', color: '#6c63ff' },
-  BAJA:    { bg: 'rgba(90,90,114,0.2)', color: '#9090aa' },
+  URGENTE: { bg: 'rgba(163,45,45,0.35)', color: '#B91C1C' },
+  ALTA:    { bg: 'rgba(133,79,11,0.35)', color: '#B45309' },
+  NORMAL:  { bg: 'rgba(10,102,255,0.2)', color: '#0A66FF' },
+  BAJA:    { bg: 'rgba(90,90,114,0.2)', color: '#71717A' },
 }
 
 const TIPO_SHORT: Record<string, string> = {
@@ -125,7 +125,7 @@ export default function CalendarioPage() {
           const isToday = iso === todayISO
 
           return (
-            <div key={iso} style={{ minHeight: 120, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.25rem', background: isToday ? 'rgba(108,99,255,0.04)' : 'transparent', borderRadius: '6px' }}>
+            <div key={iso} style={{ minHeight: 120, display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.25rem', background: isToday ? 'rgba(10,102,255,0.04)' : 'transparent', borderRadius: '6px' }}>
               {isLoading ? (
                 <div style={{ color: 'var(--muted)', fontSize: '0.7rem', textAlign: 'center', paddingTop: '1rem' }}>…</div>
               ) : ots.length === 0 ? null : (

@@ -37,30 +37,30 @@ interface TrafficOrder {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 const TIPO_C: Record<string, { bg: string; color: string }> = {
-  OOH:    { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff' },
-  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  HIBRIDA:{ bg: 'rgba(184,240,0,0.12)',  color: '#b8f000' },
+  OOH:    { bg: 'rgba(10,102,255,0.15)', color: '#0A66FF' },
+  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  HIBRIDA:{ bg: 'rgba(21,128,61,0.12)',  color: '#15803D' },
 }
 const ESTADO_C: Record<string, { bg: string; color: string }> = {
-  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  COTIZACION:     { bg: 'rgba(108,99,255,0.2)', color: '#6c63ff' },
-  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#fbbf24' },
-  ACTIVA:         { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  LISTA_FACTURAR: { bg: 'rgba(184,240,0,0.25)', color: '#b8f000' },
+  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  COTIZACION:     { bg: 'rgba(10,102,255,0.2)', color: '#0A66FF' },
+  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#B45309' },
+  ACTIVA:         { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  LISTA_FACTURAR: { bg: 'rgba(21,128,61,0.25)', color: '#15803D' },
 }
 const TO_ESTADO_C: Record<string, { bg: string; color: string; anim?: string }> = {
-  PENDIENTE:      { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  EN_PUBLICACION: { bg: 'rgba(108,99,255,0.2)', color: '#6c63ff', anim: 'pulse-blue 2s infinite' },
-  PAUSADA:        { bg: 'rgba(251,191,36,0.2)', color: '#fbbf24' },
-  FINALIZADA:     { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  ERROR:          { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
+  PENDIENTE:      { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  EN_PUBLICACION: { bg: 'rgba(10,102,255,0.2)', color: '#0A66FF', anim: 'pulse-blue 2s infinite' },
+  PAUSADA:        { bg: 'rgba(251,191,36,0.2)', color: '#B45309' },
+  FINALIZADA:     { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  ERROR:          { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
 }
 const VALID_C: Record<string, { bg: string; color: string }> = {
-  PENDIENTE: { bg: 'rgba(90,90,114,0.2)', color: '#9090aa' },
-  APROBADO:  { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  RECHAZADO: { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
+  PENDIENTE: { bg: 'rgba(90,90,114,0.2)', color: '#71717A' },
+  APROBADO:  { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  RECHAZADO: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
 }
 
 function Badge({ label, style }: { label: string; style?: React.CSSProperties }) {
@@ -216,7 +216,7 @@ export default function CampanaDetailPage() {
             </button>
           )}
           {campana.estadoComercial === 'LISTA_FACTURAR' && canReadiness && (
-            <button style={{ background: '#b8f000', border: 'none', borderRadius: '8px', color: '#0c0c0f', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, padding: '0.625rem 1.25rem' }}>
+            <button style={{ background: '#0A0A0A', border: 'none', borderRadius: '8px', color: '#FAFAFA', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, padding: '0.625rem 1.25rem' }}>
               🔒 Marcar como facturada
             </button>
           )}
@@ -234,7 +234,7 @@ export default function CampanaDetailPage() {
       )}
 
       {confirmError && (
-        <div style={{ background: 'rgba(255,92,115,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.625rem 1rem' }}>{confirmError}</div>
+        <div style={{ background: 'rgba(185,28,28,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.625rem 1rem' }}>{confirmError}</div>
       )}
 
       {/* Tabs */}
@@ -332,7 +332,7 @@ export default function CampanaDetailPage() {
             ) : (
               <button
                 onClick={() => { navigator.clipboard.writeText(portalUrl ?? ''); setPortalCopied(true); setTimeout(() => setPortalCopied(false), 2000) }}
-                style={{ background: 'rgba(184,240,0,0.1)', border: '1px solid rgba(184,240,0,0.3)', borderRadius: '8px', color: '#b8f000', cursor: 'pointer', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
+                style={{ background: 'rgba(21,128,61,0.1)', border: '1px solid rgba(21,128,61,0.3)', borderRadius: '8px', color: '#15803D', cursor: 'pointer', fontSize: '0.875rem', padding: '0.5rem 1rem' }}
               >
                 {portalCopied ? '✓ Copiado' : '📋 Copiar link del portal'}
               </button>
@@ -361,8 +361,8 @@ export default function CampanaDetailPage() {
                     <Badge label={c.estatusValidacion} style={{ background: vc.bg, color: vc.color }} />
                     {canCreate && c.estatusValidacion === 'PENDIENTE' && (
                       <div style={{ display: 'flex', gap: '0.375rem' }}>
-                        <button onClick={() => handleValidar(c.id, 'APROBADO')} style={{ background: 'rgba(184,240,0,0.12)', border: '1px solid rgba(184,240,0,0.3)', borderRadius: '6px', color: '#b8f000', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Aprobar</button>
-                        <button onClick={() => setRejectId(c.id)} style={{ background: 'rgba(255,95,95,0.1)', border: '1px solid rgba(255,95,95,0.3)', borderRadius: '6px', color: 'var(--error)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Rechazar</button>
+                        <button onClick={() => handleValidar(c.id, 'APROBADO')} style={{ background: 'rgba(21,128,61,0.12)', border: '1px solid rgba(21,128,61,0.3)', borderRadius: '6px', color: '#15803D', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Aprobar</button>
+                        <button onClick={() => setRejectId(c.id)} style={{ background: 'rgba(255,95,95,0.1)', border: '1px solid rgba(185,28,28,0.3)', borderRadius: '6px', color: 'var(--error)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Rechazar</button>
                       </div>
                     )}
                   </div>
@@ -408,14 +408,14 @@ export default function CampanaDetailPage() {
                 {canTraffic && (
                   <div style={{ display: 'flex', gap: '0.375rem' }}>
                     {to.estadoTecnico === 'PENDIENTE' && (
-                      <button onClick={() => handleToEstado(to.id, 'EN_PUBLICACION')} style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: '6px', color: '#6c63ff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Publicar</button>
+                      <button onClick={() => handleToEstado(to.id, 'EN_PUBLICACION')} style={{ background: 'rgba(10,102,255,0.15)', border: '1px solid rgba(10,102,255,0.3)', borderRadius: '6px', color: '#0A66FF', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Publicar</button>
                     )}
                     {to.estadoTecnico === 'EN_PUBLICACION' && (<>
-                      <button onClick={() => handleToEstado(to.id, 'PAUSADA')} style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '6px', color: '#fbbf24', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Pausar</button>
-                      <button onClick={() => handleToEstado(to.id, 'FINALIZADA')} style={{ background: 'rgba(184,240,0,0.12)', border: '1px solid rgba(184,240,0,0.3)', borderRadius: '6px', color: '#b8f000', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Finalizar</button>
+                      <button onClick={() => handleToEstado(to.id, 'PAUSADA')} style={{ background: 'rgba(180,83,9,0.12)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: '6px', color: '#B45309', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Pausar</button>
+                      <button onClick={() => handleToEstado(to.id, 'FINALIZADA')} style={{ background: 'rgba(21,128,61,0.12)', border: '1px solid rgba(21,128,61,0.3)', borderRadius: '6px', color: '#15803D', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Finalizar</button>
                     </>)}
                     {to.estadoTecnico === 'PAUSADA' && (<>
-                      <button onClick={() => handleToEstado(to.id, 'EN_PUBLICACION')} style={{ background: 'rgba(108,99,255,0.15)', border: '1px solid rgba(108,99,255,0.3)', borderRadius: '6px', color: '#6c63ff', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Reanudar</button>
+                      <button onClick={() => handleToEstado(to.id, 'EN_PUBLICACION')} style={{ background: 'rgba(10,102,255,0.15)', border: '1px solid rgba(10,102,255,0.3)', borderRadius: '6px', color: '#0A66FF', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Reanudar</button>
                       <button onClick={() => handleToEstado(to.id, 'FINALIZADA')} style={{ background: 'rgba(90,90,114,0.2)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.25rem 0.625rem' }}>Cancelar</button>
                     </>)}
                   </div>
@@ -436,8 +436,8 @@ export default function CampanaDetailPage() {
         <div style={{ maxWidth: 560 }}>
           {campana.portalActivo && portalUrl ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ background: 'rgba(184,240,0,0.06)', border: '1px solid rgba(184,240,0,0.3)', borderRadius: '10px', padding: '1.25rem' }}>
-                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#b8f000', marginBottom: '0.5rem' }}>Portal activo</div>
+              <div style={{ background: 'rgba(21,128,61,0.06)', border: '1px solid rgba(21,128,61,0.3)', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#15803D', marginBottom: '0.5rem' }}>Portal activo</div>
                 <div style={{ fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--muted)', wordBreak: 'break-all', marginBottom: '0.75rem' }}>{portalUrl}</div>
                 <button
                   onClick={() => { navigator.clipboard.writeText(portalUrl); setPortalCopied(true); setTimeout(() => setPortalCopied(false), 2000) }}

@@ -34,18 +34,21 @@ const TIPO_OT_OPTIONS = [
 ] as const
 
 const PRIORIDAD_BADGE: Record<string, { bg: string; color: string }> = {
-  URGENTE: { bg: 'rgba(163,45,45,0.2)', color: '#ff5f5f' },
-  ALTA:    { bg: 'rgba(133,79,11,0.25)', color: '#fbbf24' },
-  NORMAL:  { bg: 'rgba(90,90,114,0.15)', color: '#9090aa' },
+  URGENTE: { bg: 'rgba(163,45,45,0.2)', color: '#B91C1C' },
+  ALTA:    { bg: 'rgba(133,79,11,0.25)', color: '#B45309' },
+  NORMAL:  { bg: 'rgba(90,90,114,0.15)', color: '#71717A' },
   BAJA:    { bg: 'rgba(60,60,80,0.12)', color: '#7a7a96' },
 }
 
 const ESTATUS_BADGE: Record<string, { bg: string; color: string; label: string; strike?: boolean }> = {
-  PENDIENTE:   { bg: 'rgba(90,90,114,0.15)', color: '#9090aa', label: 'Pendiente' },
-  ASIGNADA:    { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff', label: 'Asignada' },
-  EN_PROCESO:  { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', label: 'En proceso' },
-  COMPLETADA:  { bg: 'rgba(184,240,0,0.12)', color: '#b8f000', label: 'Completada' },
-  CANCELADA:   { bg: 'rgba(255,95,95,0.1)', color: '#ff5f5f', label: 'Cancelada', strike: true },
+  PENDIENTE:   { bg: 'rgba(90,90,114,0.15)', color: '#71717A', label: 'Pendiente' },
+  ASIGNADA:    { bg: 'rgba(10,102,255,0.15)', color: '#0A66FF', label: 'Asignada' },
+  EN_PROCESO:  { bg: 'rgba(180,83,9,0.15)', color: '#B45309', label: 'En proceso' },
+  BLOQUEADA:   { bg: 'rgba(185,28,28,0.12)', color: '#B91C1C', label: 'Bloqueada' },
+  EN_REVISION: { bg: 'rgba(124,58,237,0.12)', color: '#7C3AED', label: 'En revisión' },
+  COMPLETADA:  { bg: 'rgba(21,128,61,0.12)', color: '#15803D', label: 'Completada' },
+  RECHAZADA:   { bg: 'rgba(180,83,9,0.12)', color: '#B45309', label: 'Rechazada' },
+  CANCELADA:   { bg: 'rgba(185,28,28,0.08)', color: '#B91C1C', label: 'Cancelada', strike: true },
 }
 
 function PrioridadBadge({ p }: { p: string }) {
@@ -65,7 +68,7 @@ function EstatusBadge({ e }: { e: string }) {
 function TipoBadge({ tipo }: { tipo: string }) {
   const label = TIPO_OT_OPTIONS.find(([v]) => v === tipo)?.[1] ?? tipo
   return (
-    <span style={{ background: 'rgba(108,99,255,0.1)', color: '#6c63ff', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+    <span style={{ background: 'rgba(10,102,255,0.1)', color: '#0A66FF', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
       {label}
     </span>
   )
@@ -77,10 +80,13 @@ export default function OrdenesPage() {
   const { user } = useAuth()
   const [filters, setFilters] = useState({ estatus: '', tipo: '', asignadoA: '', fechaDesde: '', fechaHasta: '', page: 1 })
 
+  const CAMPO_ROLES = ['field_worker', 'crew_chief']
+  const isCampo = CAMPO_ROLES.includes(user?.rol ?? '')
   const canSeeAll =
     user?.rol === 'owner' || user?.rol === 'admin' ||
     (user?.permisos as string[] | undefined)?.includes('*') ||
     user?.permisos.includes('ots:assign')
+  const pageTitle = isCampo ? 'Mis órdenes' : 'Órdenes de trabajo'
 
   const params = new URLSearchParams()
   if (filters.estatus) params.set('estatus', filters.estatus)
@@ -110,6 +116,8 @@ export default function OrdenesPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pageTitle}</h1>
+
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -123,7 +131,7 @@ export default function OrdenesPage() {
             {TIPO_OT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
 
-          {canSeeAll && (
+          {canSeeAll && !isCampo && (
             <select style={inp} value={filters.asignadoA} onChange={(e) => setFilter('asignadoA', e.target.value)}>
               <option value="">Todos los técnicos</option>
               {(usersData ?? []).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
@@ -134,9 +142,11 @@ export default function OrdenesPage() {
           <input type="date" style={inp} value={filters.fechaHasta} onChange={(e) => setFilter('fechaHasta', e.target.value)} title="Fecha hasta" />
         </div>
 
-        <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.45rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-          + Nueva OT
-        </Link>
+        {!isCampo && (
+          <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.45rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            + Nueva OT
+          </Link>
+        )}
       </div>
 
       {/* Table */}

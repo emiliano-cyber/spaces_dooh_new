@@ -26,9 +26,9 @@ function KpiCard({ label, value, color }: { label: string; value: number | strin
 }
 
 const NIVEL_BADGE: Record<string, { bg: string; color: string }> = {
-  critico: { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  alerta: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  aviso: { bg: 'rgba(184,240,0,0.12)', color: '#b8f000' },
+  critico: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  alerta: { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  aviso: { bg: 'rgba(21,128,61,0.12)', color: '#15803D' },
 }
 
 export default function InmueblesDashboard() {
@@ -67,9 +67,9 @@ export default function InmueblesDashboard() {
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
         <KpiCard label="Sitios activos" value={totalActivos} />
-        <KpiCard label="Disponibles" value={disponibles} color="#b8f000" />
-        <KpiCard label="Incidencias abiertas" value={incidenciasAbiertas} color={incidenciasAbiertas > 0 ? '#ff5f5f' : undefined} />
-        <KpiCard label="Alertas próximas 30d" value={alertasProximas} color={alertasProximas > 0 ? '#fbbf24' : undefined} />
+        <KpiCard label="Disponibles" value={disponibles} color="#15803D" />
+        <KpiCard label="Incidencias abiertas" value={incidenciasAbiertas} color={incidenciasAbiertas > 0 ? '#B91C1C' : undefined} />
+        <KpiCard label="Alertas próximas 30d" value={alertasProximas} color={alertasProximas > 0 ? '#B45309' : undefined} />
       </div>
 
       {/* Alertas críticas */}
@@ -98,7 +98,7 @@ export default function InmueblesDashboard() {
                       <div>{item.sitio?.nombre ?? '—'}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{item.sitio?.claveInterna}</div>
                     </td>
-                    <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#ff5f5f' }}>{item.diasRestantes}d</td>
+                    <td style={{ padding: '0.875rem 1.5rem', fontSize: '0.875rem', fontWeight: 600, color: '#B91C1C' }}>{item.diasRestantes}d</td>
                     <td style={{ padding: '0.875rem 1.5rem' }}>
                       <span style={{ ...badge, padding: '0.25rem 0.625rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, textTransform: 'capitalize' }}>
                         {item.nivel}

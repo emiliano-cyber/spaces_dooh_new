@@ -8,20 +8,20 @@ interface User { id: string; nombre: string; email: string; rolId: string; activ
 interface Role { id: string; nombre: string; esBuiltin: boolean }
 
 const ROL_STYLE: Record<string, { bg: string; color: string }> = {
-  owner:                { bg: 'rgba(10,10,10,0.5)',    color: '#e8e8f0' },
-  admin:                { bg: 'rgba(10,10,10,0.5)',    color: '#e8e8f0' },
-  super_admin:          { bg: 'rgba(10,10,10,0.5)',    color: '#e8e8f0' },
-  comercial_manager:    { bg: 'rgba(108,99,255,0.18)', color: '#6c63ff' },
-  seller:               { bg: 'rgba(108,99,255,0.18)', color: '#6c63ff' },
+  owner:                { bg: 'rgba(10,10,10,0.5)',    color: '#FAFAFA' },
+  admin:                { bg: 'rgba(10,10,10,0.5)',    color: '#FAFAFA' },
+  super_admin:          { bg: 'rgba(10,10,10,0.5)',    color: '#FAFAFA' },
+  comercial_manager:    { bg: 'rgba(10,102,255,0.18)', color: '#0A66FF' },
+  seller:               { bg: 'rgba(10,102,255,0.18)', color: '#0A66FF' },
   operaciones_manager:  { bg: 'rgba(251,141,36,0.15)', color: '#fb8d24' },
   crew_chief:           { bg: 'rgba(251,141,36,0.15)', color: '#fb8d24' },
   field_worker:         { bg: 'rgba(251,141,36,0.15)', color: '#fb8d24' },
-  trafficker:           { bg: 'rgba(108,99,255,0.18)', color: '#7eb3ff' },
-  inmuebles_manager:    { bg: 'rgba(184,240,0,0.12)',  color: '#b8f000' },
-  auditor:              { bg: 'rgba(90,90,114,0.2)',   color: '#9090aa' },
+  trafficker:           { bg: 'rgba(10,102,255,0.18)', color: '#0A66FF' },
+  inmuebles_manager:    { bg: 'rgba(21,128,61,0.12)',  color: '#15803D' },
+  auditor:              { bg: 'rgba(90,90,114,0.2)',   color: '#71717A' },
 }
 
-function rolStyle(rolId: string) { return ROL_STYLE[rolId] ?? { bg: 'rgba(90,90,114,0.15)', color: '#9090aa' } }
+function rolStyle(rolId: string) { return ROL_STYLE[rolId] ?? { bg: 'rgba(90,90,114,0.15)', color: '#71717A' } }
 
 const inp: React.CSSProperties = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.875rem', padding: '0.55rem 0.75rem', outline: 'none', width: '100%' }
 const lbl: React.CSSProperties = { fontSize: '0.8125rem', fontWeight: 500, color: 'var(--fg)', marginBottom: '0.3rem', display: 'block' }
@@ -133,7 +133,7 @@ export default function UsuariosPage() {
                     </span>
                   </td>
                   <td style={{ padding: '0.75rem 1rem' }}>
-                    <button onClick={() => toggleActivo(u)} title={u.activo ? 'Desactivar' : 'Activar'} style={{ background: u.activo ? 'rgba(184,240,0,0.12)' : 'rgba(255,95,95,0.12)', border: `1px solid ${u.activo ? 'rgba(184,240,0,0.3)' : 'rgba(255,95,95,0.3)'}`, borderRadius: '999px', color: u.activo ? '#b8f000' : '#ff5f5f', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.15rem 0.75rem' }}>
+                    <button onClick={() => toggleActivo(u)} title={u.activo ? 'Desactivar' : 'Activar'} style={{ background: u.activo ? 'rgba(21,128,61,0.12)' : 'rgba(185,28,28,0.12)', border: `1px solid ${u.activo ? 'rgba(21,128,61,0.3)' : 'rgba(185,28,28,0.3)'}`, borderRadius: '999px', color: u.activo ? '#15803D' : '#B91C1C', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.15rem 0.75rem' }}>
                       {u.activo ? 'Activo' : 'Inactivo'}
                     </button>
                   </td>
@@ -162,8 +162,8 @@ export default function UsuariosPage() {
 
             {createdPassword ? (
               <div style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div style={{ background: 'rgba(184,240,0,0.08)', border: '1px solid rgba(184,240,0,0.25)', borderRadius: '8px', padding: '1rem' }}>
-                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#b8f000', marginBottom: '0.5rem' }}>Usuario creado exitosamente</div>
+                <div style={{ background: 'rgba(21,128,61,0.08)', border: '1px solid rgba(21,128,61,0.25)', borderRadius: '8px', padding: '1rem' }}>
+                  <div style={{ fontSize: '0.875rem', fontWeight: 600, color: '#15803D', marginBottom: '0.5rem' }}>Usuario creado exitosamente</div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--muted)', marginBottom: '0.75rem' }}>Esta contraseña no se volverá a mostrar:</div>
                   <div style={{ fontFamily: 'monospace', fontSize: '1rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.625rem 0.875rem', color: 'var(--fg)', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
                     {createdPassword}

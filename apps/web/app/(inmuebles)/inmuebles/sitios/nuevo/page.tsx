@@ -199,7 +199,7 @@ export default function NuevoSitioPage() {
         </div>
 
         {serverError && (
-          <div style={{ background: 'rgba(255,92,115,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>
+          <div style={{ background: 'rgba(185,28,28,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>
             {serverError}
           </div>
         )}

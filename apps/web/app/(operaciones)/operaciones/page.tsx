@@ -21,9 +21,9 @@ interface OT {
 interface OTListRes { data: OT[]; meta: { total: number } }
 
 const PRIORIDAD_BADGE: Record<string, { bg: string; color: string }> = {
-  URGENTE: { bg: 'rgba(163,45,45,0.2)', color: '#ff5f5f' },
-  ALTA:    { bg: 'rgba(133,79,11,0.2)', color: '#fbbf24' },
-  NORMAL:  { bg: 'rgba(90,90,114,0.15)', color: '#9090aa' },
+  URGENTE: { bg: 'rgba(163,45,45,0.2)', color: '#B91C1C' },
+  ALTA:    { bg: 'rgba(133,79,11,0.2)', color: '#B45309' },
+  NORMAL:  { bg: 'rgba(90,90,114,0.15)', color: '#71717A' },
   BAJA:    { bg: 'rgba(60,60,80,0.15)', color: '#7a7a96' },
 }
 
@@ -77,14 +77,19 @@ export default function OperacionesDashboard() {
 
   const all = data?.data ?? []
 
-  const activas = all.filter((o) => o.estatus !== 'COMPLETADA' && o.estatus !== 'CANCELADA')
-  const urgentes = all.filter((o) => o.prioridad === 'URGENTE' && o.estatus !== 'COMPLETADA' && o.estatus !== 'CANCELADA')
+  const FINALES = ['COMPLETADA', 'CANCELADA']
+  const activas = all.filter((o) => !FINALES.includes(o.estatus))
+  const urgentes = all.filter((o) => o.prioridad === 'URGENTE' && !FINALES.includes(o.estatus))
   const completadasHoy = all.filter((o) => o.estatus === 'COMPLETADA' && isToday(o.fechaCompletada))
   const sinAsignar = all.filter((o) => o.estatus === 'PENDIENTE')
+  const enRevision = all.filter((o) => o.estatus === 'EN_REVISION')
+  const bloqueadas = all.filter((o) => o.estatus === 'BLOQUEADA')
 
   const tablaUrgentes = all.filter(
-    (o) => (o.prioridad === 'URGENTE' || o.prioridad === 'ALTA') && o.estatus !== 'COMPLETADA' && o.estatus !== 'CANCELADA',
+    (o) => (o.prioridad === 'URGENTE' || o.prioridad === 'ALTA') && !FINALES.includes(o.estatus),
   ).slice(0, 20)
+
+  const requierenAccion = all.filter((o) => ['BLOQUEADA', 'EN_REVISION', 'RECHAZADA'].includes(o.estatus)).slice(0, 20)
 
   if (isLoading) {
     return <div style={{ color: 'var(--muted)', fontSize: '0.875rem', padding: '2rem' }}>Cargando…</div>
@@ -103,12 +108,41 @@ export default function OperacionesDashboard() {
       </div>
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem' }}>
         <KpiCard label="OTs activas" value={activas.length} />
-        <KpiCard label="Urgentes pendientes" value={urgentes.length} color={urgentes.length > 0 ? '#ff5f5f' : undefined} />
-        <KpiCard label="Completadas hoy" value={completadasHoy.length} color={completadasHoy.length > 0 ? '#b8f000' : undefined} />
-        <KpiCard label="Sin asignar" value={sinAsignar.length} color={sinAsignar.length > 0 ? '#fbbf24' : undefined} sub="estatus PENDIENTE" />
+        <KpiCard label="Urgentes pendientes" value={urgentes.length} color={urgentes.length > 0 ? '#B91C1C' : undefined} />
+        <KpiCard label="Completadas hoy" value={completadasHoy.length} color={completadasHoy.length > 0 ? '#15803D' : undefined} />
+        <KpiCard label="Sin asignar" value={sinAsignar.length} color={sinAsignar.length > 0 ? '#B45309' : undefined} sub="estatus PENDIENTE" />
+        <KpiCard label="En revisión" value={enRevision.length} color={enRevision.length > 0 ? '#7C3AED' : undefined} sub="esperando aprobación" />
+        <KpiCard label="Bloqueadas" value={bloqueadas.length} color={bloqueadas.length > 0 ? '#B91C1C' : undefined} sub="requieren atención" />
       </div>
+
+      {/* Requieren acción inmediata */}
+      {requierenAccion.length > 0 && (
+        <div style={{ background: 'rgba(185,28,28,0.04)', border: '1px solid rgba(185,28,28,0.2)', borderRadius: '10px', overflow: 'hidden' }}>
+          <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid rgba(185,28,28,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1rem' }}>⚠️</span>
+              <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, color: '#B91C1C' }}>Requieren acción inmediata</h2>
+            </div>
+            <span style={{ fontSize: '0.8125rem', color: '#B91C1C', fontWeight: 600 }}>{requierenAccion.length} {requierenAccion.length === 1 ? 'orden' : 'órdenes'}</span>
+          </div>
+          <div style={{ padding: '0.75rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {requierenAccion.map((ot) => {
+              const estatusColor = ot.estatus === 'EN_REVISION' ? '#7C3AED' : ot.estatus === 'RECHAZADA' ? '#B45309' : '#B91C1C'
+              const estatusLabel = ot.estatus === 'EN_REVISION' ? 'En revisión' : ot.estatus === 'RECHAZADA' ? 'Rechazada' : 'Bloqueada'
+              return (
+                <div key={ot.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.625rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '7px', border: '1px solid var(--border)' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--accent)', minWidth: 90 }}>{ot.folio}</span>
+                  <span style={{ flex: 1, fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ot.descripcion}</span>
+                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: estatusColor, background: `${estatusColor}18`, padding: '0.2rem 0.6rem', borderRadius: '999px', whiteSpace: 'nowrap' }}>{estatusLabel}</span>
+                  <Link href={`/operaciones/ordenes/${ot.id}`} style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Ver →</Link>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tabla urgentes + alta prioridad */}
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>

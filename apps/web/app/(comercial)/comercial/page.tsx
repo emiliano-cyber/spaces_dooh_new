@@ -14,19 +14,19 @@ interface Campana {
 }
 
 const ESTADO_C: Record<string, { bg: string; color: string }> = {
-  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  COTIZACION:     { bg: 'rgba(108,99,255,0.2)', color: '#6c63ff' },
-  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#fbbf24' },
-  ACTIVA:         { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  LISTA_FACTURAR: { bg: 'rgba(184,240,0,0.25)', color: '#b8f000' },
+  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  COTIZACION:     { bg: 'rgba(10,102,255,0.2)', color: '#0A66FF' },
+  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#B45309' },
+  ACTIVA:         { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  LISTA_FACTURAR: { bg: 'rgba(21,128,61,0.25)', color: '#15803D' },
 }
 
 const TIPO_C: Record<string, { bg: string; color: string }> = {
-  OOH:    { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff' },
-  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  HIBRIDA:{ bg: 'rgba(184,240,0,0.12)',  color: '#b8f000' },
+  OOH:    { bg: 'rgba(10,102,255,0.15)', color: '#0A66FF' },
+  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  HIBRIDA:{ bg: 'rgba(21,128,61,0.12)',  color: '#15803D' },
 }
 
 function KpiCard({ label, value, color, sub }: { label: string; value: number | string; color?: string; sub?: string }) {
@@ -99,16 +99,16 @@ export default function ComercialDashboard() {
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-        <KpiCard label="Campañas activas" value={activas.length} color="#b8f000" />
-        <KpiCard label="Listas para facturar" value={listaFacturar.length} color={listaFacturar.length > 0 ? '#b8f000' : undefined} sub="requieren factura" />
-        <KpiCard label="En cotización" value={cotizacion.length} color="#6c63ff" />
+        <KpiCard label="Campañas activas" value={activas.length} color="#15803D" />
+        <KpiCard label="Listas para facturar" value={listaFacturar.length} color={listaFacturar.length > 0 ? '#15803D' : undefined} sub="requieren factura" />
+        <KpiCard label="En cotización" value={cotizacion.length} color="#0A66FF" />
         <KpiCard label="Completadas este mes" value={completadasMes} />
       </div>
 
       {/* Alertas de sitios con incidencias */}
       {activas.some((c) => c._count?.lines) && (
         <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: '10px', padding: '1rem 1.25rem' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#fbbf24', marginBottom: '0.5rem' }}>
+          <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#B45309', marginBottom: '0.5rem' }}>
             ⚠ Campañas activas con sitios afectados
           </div>
           <div style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>

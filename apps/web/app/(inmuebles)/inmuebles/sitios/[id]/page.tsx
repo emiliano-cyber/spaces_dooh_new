@@ -16,19 +16,20 @@ type ModalType =
   | { type: 'licencia' }
   | { type: 'incidencia' }
   | { type: 'resolve'; incidenciaId: string }
+  | { type: 'editSitio' }
   | null
 
 const ESTATUS_COMERCIAL_COLORS: Record<string, string> = {
-  DISPONIBLE: '#b8f000', RESERVADO: '#fbbf24', OCUPADO: '#ff5f5f',
-  BLOQUEADO: '#9090aa', EN_MANTENIMIENTO: '#9090aa', BAJA: '#9090aa',
+  DISPONIBLE: '#15803D', RESERVADO: '#B45309', OCUPADO: '#B91C1C',
+  BLOQUEADO: '#71717A', EN_MANTENIMIENTO: '#71717A', BAJA: '#71717A',
 }
 const ESTATUS_LEGAL_COLORS: Record<string, string> = {
-  EN_ORDEN: '#b8f000', PERMISO_VENCIDO: '#ff5f5f', EN_TRAMITE: '#fbbf24',
-  SUSPENDIDO: '#ff5f5f', SIN_PERMISO: '#ff5f5f',
+  EN_ORDEN: '#15803D', PERMISO_VENCIDO: '#B91C1C', EN_TRAMITE: '#B45309',
+  SUSPENDIDO: '#B91C1C', SIN_PERMISO: '#B91C1C',
 }
 const ESTATUS_OP_COLORS: Record<string, string> = {
-  ACTIVO: '#b8f000', EN_MANTENIMIENTO: '#fbbf24', APAGADO: '#9090aa',
-  DAÑADO: '#ff5f5f', BAJA: '#9090aa',
+  ACTIVO: '#15803D', EN_MANTENIMIENTO: '#B45309', APAGADO: '#71717A',
+  DAÑADO: '#B91C1C', BAJA: '#71717A',
 }
 
 const inp: React.CSSProperties = {
@@ -395,6 +396,78 @@ function ResolveIncidenciaModal({ sitioId, incidenciaId, onClose, onSaved }: { s
   )
 }
 
+function EditSitioModal({ sitio, onClose, onSaved }: { sitio: any; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    nombre: sitio.nombre ?? '',
+    claveInterna: sitio.claveInterna ?? '',
+    direccion: sitio.direccion ?? '',
+    estatusComercial: sitio.estatusComercial ?? 'DISPONIBLE',
+    estatusOperativo: sitio.estatusOperativo ?? 'ACTIVO',
+  })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const qc = useQueryClient()
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.nombre.trim()) { setError('El nombre es requerido'); return }
+    setSaving(true); setError('')
+    try {
+      await apiFetch(`/sitios/${sitio.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          nombre: form.nombre.trim(),
+          claveInterna: form.claveInterna.trim() || undefined,
+          direccion: form.direccion.trim() || undefined,
+          estatusComercial: form.estatusComercial,
+          estatusOperativo: form.estatusOperativo,
+        }),
+      })
+      qc.invalidateQueries({ queryKey: ['sitio', sitio.id] })
+      qc.invalidateQueries({ queryKey: ['sitios'] })
+      onSaved()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al guardar')
+    } finally { setSaving(false) }
+  }
+
+  const ESTATUS_COM = ['DISPONIBLE', 'RESERVADO', 'OCUPADO', 'BLOQUEADO', 'EN_MANTENIMIENTO', 'BAJA']
+  const ESTATUS_OP = ['ACTIVO', 'EN_MANTENIMIENTO', 'APAGADO', 'DAÑADO', 'BAJA']
+
+  return (
+    <ModalOverlay onClose={onClose}>
+      <ModalHeader title="Editar sitio" onClose={onClose} />
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <Field label="Nombre *">
+          <input style={inp} value={form.nombre} onChange={(e) => setForm((f) => ({ ...f, nombre: e.target.value }))} placeholder="Nombre del sitio" />
+        </Field>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <Field label="Clave interna">
+            <input style={inp} value={form.claveInterna} onChange={(e) => setForm((f) => ({ ...f, claveInterna: e.target.value }))} placeholder="CDMX-001" />
+          </Field>
+          <Field label="Dirección">
+            <input style={inp} value={form.direccion} onChange={(e) => setForm((f) => ({ ...f, direccion: e.target.value }))} placeholder="Av. Reforma 350" />
+          </Field>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <Field label="Estatus comercial">
+            <select style={inp} value={form.estatusComercial} onChange={(e) => setForm((f) => ({ ...f, estatusComercial: e.target.value }))}>
+              {ESTATUS_COM.map((v) => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}
+            </select>
+          </Field>
+          <Field label="Estatus operativo">
+            <select style={inp} value={form.estatusOperativo} onChange={(e) => setForm((f) => ({ ...f, estatusOperativo: e.target.value }))}>
+              {ESTATUS_OP.map((v) => <option key={v} value={v}>{v.replace(/_/g, ' ')}</option>)}
+            </select>
+          </Field>
+        </div>
+        {error && <p style={{ fontSize: '0.8125rem', color: 'var(--error)', margin: 0 }}>{error}</p>}
+        <SubmitBtn loading={saving} label="Guardar cambios" />
+      </form>
+    </ModalOverlay>
+  )
+}
+
 export default function SitioPage() {
   const params = useParams()
   const router = useRouter()
@@ -452,6 +525,9 @@ export default function SitioPage() {
       {modal?.type === 'resolve' && (
         <ResolveIncidenciaModal sitioId={id} incidenciaId={modal.incidenciaId} onClose={closeModal} onSaved={savedAndRefresh} />
       )}
+      {modal?.type === 'editSitio' && (
+        <EditSitioModal sitio={sitio} onClose={closeModal} onSaved={savedAndRefresh} />
+      )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', justifyContent: 'space-between' }}>
@@ -461,14 +537,22 @@ export default function SitioPage() {
           </button>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.375rem' }}>{sitio.nombre}</h1>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Badge label={sitio.estatusComercial} color={ESTATUS_COMERCIAL_COLORS[sitio.estatusComercial] ?? '#9090aa'} />
-            <Badge label={sitio.estatusLegal} color={ESTATUS_LEGAL_COLORS[sitio.estatusLegal] ?? '#9090aa'} />
-            <Badge label={sitio.estatusOperativo} color={ESTATUS_OP_COLORS[sitio.estatusOperativo] ?? '#9090aa'} />
+            <Badge label={sitio.estatusComercial} color={ESTATUS_COMERCIAL_COLORS[sitio.estatusComercial] ?? '#71717A'} />
+            <Badge label={sitio.estatusLegal} color={ESTATUS_LEGAL_COLORS[sitio.estatusLegal] ?? '#71717A'} />
+            <Badge label={sitio.estatusOperativo} color={ESTATUS_OP_COLORS[sitio.estatusOperativo] ?? '#71717A'} />
           </div>
         </div>
-        <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontFamily: 'monospace', background: 'var(--bg-surface)', border: '1px solid var(--border)', padding: '0.3rem 0.625rem', borderRadius: '6px' }}>
-          {sitio.claveInterna}
-        </span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontFamily: 'monospace', background: 'var(--bg-surface)', border: '1px solid var(--border)', padding: '0.3rem 0.625rem', borderRadius: '6px' }}>
+            {sitio.claveInterna}
+          </span>
+          <button
+            onClick={() => setModal({ type: 'editSitio' })}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, padding: '0.375rem 0.875rem', transition: 'all 0.15s' }}
+          >
+            ✏ Editar
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -523,12 +607,12 @@ export default function SitioPage() {
                 <div key={c.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem 1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{c.arrendador?.nombre ?? 'Arrendador'}</span>
-                    <Badge label={c.estatus} color={c.estatus === 'VIGENTE' ? '#b8f000' : '#fbbf24'} />
+                    <Badge label={c.estatus} color={c.estatus === 'VIGENTE' ? '#15803D' : '#B45309'} />
                   </div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--muted)', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
                     <span>{new Date(c.fechaInicio).toLocaleDateString('es-MX')} – {new Date(c.fechaFin).toLocaleDateString('es-MX')}</span>
                     <span>${Number(c.montoRenta).toLocaleString('es-MX')} {c.moneda}/{c.periodicidad}</span>
-                    {c.autoRenovable && <span style={{ color: '#b8f000' }}>Auto-renovable</span>}
+                    {c.autoRenovable && <span style={{ color: '#15803D' }}>Auto-renovable</span>}
                   </div>
                 </div>
               ))}
@@ -553,7 +637,7 @@ export default function SitioPage() {
                 <div key={l.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem 1.25rem' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                     <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{l.tipo}</span>
-                    <Badge label={l.estatus} color={l.estatus === 'VIGENTE' ? '#b8f000' : '#ff5f5f'} />
+                    <Badge label={l.estatus} color={l.estatus === 'VIGENTE' ? '#15803D' : '#B91C1C'} />
                   </div>
                   <div style={{ fontSize: '0.8125rem', color: 'var(--muted)', display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                     {l.folio && <span>Folio: {l.folio}</span>}
@@ -586,13 +670,13 @@ export default function SitioPage() {
                     <div>
                       <span style={{ fontWeight: 500, fontSize: '0.875rem' }}>{i.tipo.replace(/_/g, ' ')}</span>
                       {i.impactaComercial && (
-                        <span style={{ marginLeft: '0.625rem', background: 'rgba(255,95,95,0.12)', color: '#ff5f5f', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>
+                        <span style={{ marginLeft: '0.625rem', background: 'rgba(185,28,28,0.12)', color: '#B91C1C', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>
                           Impacta comercial
                         </span>
                       )}
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                      <Badge label={i.estatus} color={i.estatus === 'ABIERTA' ? '#ff5f5f' : i.estatus === 'EN_PROCESO' ? '#fbbf24' : '#b8f000'} />
+                      <Badge label={i.estatus} color={i.estatus === 'ABIERTA' ? '#B91C1C' : i.estatus === 'EN_PROCESO' ? '#B45309' : '#15803D'} />
                       {(i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO') && (
                         <button
                           onClick={() => setModal({ type: 'resolve', incidenciaId: i.id })}

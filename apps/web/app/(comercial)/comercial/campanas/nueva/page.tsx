@@ -263,12 +263,12 @@ export default function NuevaCampanaPage() {
               ) : sitiosDisp.map((s) => {
                 const sel = selectedIds.has(s.id)
                 return (
-                  <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', cursor: 'pointer', background: sel ? 'rgba(108,99,255,0.08)' : 'transparent', borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}>
+                  <label key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', cursor: 'pointer', background: sel ? 'rgba(10,102,255,0.08)' : 'transparent', borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}>
                     <input type="checkbox" checked={sel} onChange={() => toggleSitio(s)} style={{ width: 16, height: 16, flexShrink: 0 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: '0.875rem', fontWeight: sel ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {s.nombre}
-                        {s.tieneIncidencia && <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: '#fbbf24' }}>⚠</span>}
+                        {s.tieneIncidencia && <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: '#B45309' }}>⚠</span>}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
                         {s.claveInterna} · {s.ciudad} · {TIPO_LABELS[s.tipoMedio] ?? s.tipoMedio}
@@ -365,7 +365,7 @@ export default function NuevaCampanaPage() {
                   ))}
                   <tr>
                     <td colSpan={4} style={{ padding: '0.625rem 0.75rem', textAlign: 'right', fontSize: '0.875rem', fontWeight: 600, color: 'var(--muted)' }}>Total</td>
-                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#b8f000' }}>
+                    <td style={{ padding: '0.625rem 0.75rem', fontSize: '1rem', fontWeight: 700, color: '#15803D' }}>
                       {totalPresupuesto.toLocaleString('es-MX')} {moneda}
                     </td>
                   </tr>
@@ -373,7 +373,7 @@ export default function NuevaCampanaPage() {
               </table>
             )}
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.875rem', background: confirmarAhora ? 'rgba(108,99,255,0.08)' : 'var(--bg)', border: `1px solid ${confirmarAhora ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '8px', transition: 'all 0.15s', marginTop: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.875rem', background: confirmarAhora ? 'rgba(10,102,255,0.08)' : 'var(--bg)', border: `1px solid ${confirmarAhora ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '8px', transition: 'all 0.15s', marginTop: '0.5rem' }}>
               <input type="checkbox" checked={confirmarAhora} onChange={(e) => setConfirmarAhora(e.target.checked)} style={{ width: 16, height: 16 }} />
               <div>
                 <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>Confirmar y activar campaña ahora</div>
@@ -384,7 +384,7 @@ export default function NuevaCampanaPage() {
             </label>
           </div>
 
-          {error && <div style={{ background: 'rgba(255,92,115,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>{error}</div>}
+          {error && <div style={{ background: 'rgba(185,28,28,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>{error}</div>}
 
           <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'space-between' }}>
             <button onClick={() => setStep(1)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.625rem 1.25rem' }}>← Anterior</button>

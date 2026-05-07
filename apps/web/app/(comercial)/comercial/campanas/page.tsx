@@ -13,18 +13,18 @@ interface Campana {
 }
 
 const KANBAN_COLS: Array<{ key: string; label: string; color: string }> = [
-  { key: 'DRAFT',          label: 'Borrador',         color: '#5a5a72' },
-  { key: 'COTIZACION',     label: 'Cotización',       color: '#6c63ff' },
-  { key: 'CONFIRMADA',     label: 'Confirmada',       color: '#fbbf24' },
-  { key: 'ACTIVA',         label: 'Activa',           color: '#b8f000' },
-  { key: 'COMPLETADA',     label: 'Completada',       color: '#9090aa' },
-  { key: 'LISTA_FACTURAR', label: 'Lista facturar',   color: '#b8f000' },
+  { key: 'DRAFT',          label: 'Borrador',         color: '#71717A' },
+  { key: 'COTIZACION',     label: 'Cotización',       color: '#0A66FF' },
+  { key: 'CONFIRMADA',     label: 'Confirmada',       color: '#B45309' },
+  { key: 'ACTIVA',         label: 'Activa',           color: '#15803D' },
+  { key: 'COMPLETADA',     label: 'Completada',       color: '#71717A' },
+  { key: 'LISTA_FACTURAR', label: 'Lista facturar',   color: '#15803D' },
 ]
 
 const TIPO_C: Record<string, { bg: string; color: string }> = {
-  OOH:    { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff' },
-  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  HIBRIDA:{ bg: 'rgba(184,240,0,0.12)',  color: '#b8f000' },
+  OOH:    { bg: 'rgba(10,102,255,0.15)', color: '#0A66FF' },
+  DOOH:   { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  HIBRIDA:{ bg: 'rgba(21,128,61,0.12)',  color: '#15803D' },
 }
 
 function fmt(d: string) {

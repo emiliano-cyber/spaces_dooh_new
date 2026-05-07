@@ -62,8 +62,8 @@ export function middleware(request: NextRequest) {
     const hasSession = request.cookies.has('spaces_rt')
     if (!hasSession) {
       const loginUrl = request.nextUrl.clone()
-      // Always include basePath so the redirect lands on the actual login page
-      loginUrl.pathname = BASE_PATH + '/auth/login'
+      // nextUrl already applies basePath on serialization — don't add it manually
+      loginUrl.pathname = '/auth/login'
       return NextResponse.redirect(loginUrl)
     }
   }

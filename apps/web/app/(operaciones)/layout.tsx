@@ -9,6 +9,7 @@ const NAV = [
   { href: '/operaciones', label: 'Dashboard OTs', icon: '◫' },
   { href: '/operaciones/ordenes', label: 'Mis Órdenes', icon: '≡' },
   { href: '/operaciones/calendario', label: 'Calendario', icon: '▦' },
+  { href: '/inmuebles/sitios', label: 'Sitios', icon: '📍' },
 ]
 
 export default function OperacionesLayout({ children }: { children: React.ReactNode }) {

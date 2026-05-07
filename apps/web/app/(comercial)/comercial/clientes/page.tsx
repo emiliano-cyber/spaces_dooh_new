@@ -26,9 +26,9 @@ const inp: React.CSSProperties = {
 }
 
 const TIPO_BADGE: Record<string, { bg: string; color: string }> = {
-  ANUNCIANTE: { bg: 'rgba(108,99,255,0.15)', color: '#6c63ff' },
-  AGENCIA: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  DIRECTO: { bg: 'rgba(184,240,0,0.12)', color: '#b8f000' },
+  ANUNCIANTE: { bg: 'rgba(10,102,255,0.15)', color: '#0A66FF' },
+  AGENCIA: { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  DIRECTO: { bg: 'rgba(21,128,61,0.12)', color: '#15803D' },
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {

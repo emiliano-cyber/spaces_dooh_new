@@ -111,7 +111,7 @@ export default function ConfigPage() {
             <button type="submit" disabled={savingTenant} style={{ background: 'var(--accent)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1.25rem', opacity: savingTenant ? 0.7 : 1 }}>
               {savingTenant ? 'Guardando…' : 'Guardar'}
             </button>
-            {tenantMsg && <span style={{ fontSize: '0.8125rem', color: tenantMsg.startsWith('Error') ? 'var(--error)' : '#b8f000' }}>{tenantMsg}</span>}
+            {tenantMsg && <span style={{ fontSize: '0.8125rem', color: tenantMsg.startsWith('Error') ? 'var(--error)' : '#15803D' }}>{tenantMsg}</span>}
           </div>
         </form>
       </section>
@@ -131,7 +131,7 @@ export default function ConfigPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{meta.label}</span>
                     {c.configurado && (
-                      <span style={{ background: c.activo ? 'rgba(184,240,0,0.12)' : 'rgba(90,90,114,0.15)', color: c.activo ? '#b8f000' : 'var(--muted)', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>
+                      <span style={{ background: c.activo ? 'rgba(21,128,61,0.12)' : 'rgba(90,90,114,0.15)', color: c.activo ? '#15803D' : 'var(--muted)', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>
                         {c.activo ? 'Activo' : 'Inactivo'}
                       </span>
                     )}
@@ -163,7 +163,7 @@ export default function ConfigPage() {
               <button onClick={() => setConnModal(null)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.25rem', padding: 0 }}>✕</button>
             </div>
             <form onSubmit={saveConnector} style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '7px', padding: '0.625rem 0.875rem', fontSize: '0.8125rem', color: '#fbbf24' }}>
+              <div style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: '7px', padding: '0.625rem 0.875rem', fontSize: '0.8125rem', color: '#B45309' }}>
                 Las credenciales se guardan cifradas. Solo se muestran los últimos 4 caracteres del API key.
               </div>
               <div style={fld}>
@@ -175,7 +175,7 @@ export default function ConfigPage() {
                 <input style={inp} type="url" value={connBaseUrl} onChange={(e) => setConnBaseUrl(e.target.value)} required placeholder="https://api.plataforma.com" />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                <input type="checkbox" id="conn-activo" checked={connActivo} onChange={(e) => setConnActivo(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#b8f000' }} />
+                <input type="checkbox" id="conn-activo" checked={connActivo} onChange={(e) => setConnActivo(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#15803D' }} />
                 <label htmlFor="conn-activo" style={{ fontSize: '0.875rem', cursor: 'pointer' }}>Activar conector</label>
               </div>
               {connError && <div style={{ background: 'rgba(255,75,75,0.1)', border: '1px solid var(--error)', borderRadius: '7px', color: 'var(--error)', fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}>{connError}</div>}

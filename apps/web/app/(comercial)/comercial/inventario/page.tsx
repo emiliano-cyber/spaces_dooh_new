@@ -23,11 +23,11 @@ const TIPO_LABELS: Record<string, string> = {
 }
 
 const ESTATUS_STYLE: Record<string, { bg: string; color: string }> = {
-  DISPONIBLE:       { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24' },
-  OCUPADO:          { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
+  DISPONIBLE:       { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  OCUPADO:          { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
 }
 
 function inp(style?: React.CSSProperties): React.CSSProperties {
@@ -138,7 +138,7 @@ export default function InventarioPage() {
                       <div>
                         <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--muted)' }}>{s.claveInterna} </span>
                         <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{s.nombre}</span>
-                        {s.tieneIncidencia && <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: '#fbbf24' }}>⚠</span>}
+                        {s.tieneIncidencia && <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: '#B45309' }}>⚠</span>}
                       </div>
                       <span style={{ background: es.bg, color: es.color, padding: '0.15rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0, marginLeft: '0.5rem' }}>
                         {s.estatusComercial}

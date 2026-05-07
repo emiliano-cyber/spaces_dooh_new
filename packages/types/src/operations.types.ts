@@ -2,7 +2,8 @@ export interface ChecklistItem {
   id: string
   texto: string
   completado: boolean
-  completadoEn?: string
+  completadoEn?: string | null
+  completadoPorUserId?: string | null
 }
 
 export interface CreateOTData {
@@ -13,6 +14,8 @@ export interface CreateOTData {
   checklist?: Array<{ texto: string }>
   prioridad?: string
   asignadoAUserId?: string
+  supervisorUserId?: string
   fechaProgramada?: string
   campanaId?: string
+  requiereRevision?: boolean
 }

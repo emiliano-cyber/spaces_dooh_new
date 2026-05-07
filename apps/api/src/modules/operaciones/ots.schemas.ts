@@ -1,31 +1,20 @@
 import { z } from 'zod'
 
-const TipoOTEnum = z.enum([
-  'MONTAJE_LONA',
-  'MONTAJE_DIGITAL',
-  'DESMONTAJE',
-  'MANTENIMIENTO_PREVENTIVO',
-  'MANTENIMIENTO_CORRECTIVO',
-  'HERRERIA',
-  'ELECTRICO',
-  'INSPECCION',
-  'OTRO',
-])
-
-const EstOTEnum = z.enum(['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'COMPLETADA', 'CANCELADA'])
-
+const EstOTEnum = z.enum(['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'BLOQUEADA', 'EN_REVISION', 'COMPLETADA', 'RECHAZADA', 'CANCELADA'])
 const PrioridadEnum = z.enum(['BAJA', 'NORMAL', 'ALTA', 'URGENTE'])
 
 export const CreateOTSchema = z.object({
-  tipo: TipoOTEnum,
+  tipo: z.string().min(1),
   sitioId: z.string().optional(),
   descripcion: z.string().min(10),
   instrucciones: z.string().optional(),
   checklist: z.array(z.object({ texto: z.string().min(1) })).optional(),
   prioridad: PrioridadEnum.optional(),
   asignadoAUserId: z.string().optional(),
+  supervisorUserId: z.string().optional(),
   fechaProgramada: z.string().datetime().optional(),
   campanaId: z.string().optional(),
+  requiereRevision: z.boolean().optional(),
 })
 
 export const UpdateOTSchema = z.object({

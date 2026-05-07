@@ -20,9 +20,9 @@ interface Contrato {
 }
 
 const ESTATUS_BADGE: Record<string, { bg: string; color: string }> = {
-  VIGENTE:  { bg: 'rgba(184,240,0,0.12)', color: '#b8f000' },
-  VENCIDO:  { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  CANCELADO:{ bg: 'rgba(90,90,114,0.15)', color: '#9090aa' },
+  VIGENTE:  { bg: 'rgba(21,128,61,0.12)', color: '#15803D' },
+  VENCIDO:  { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  CANCELADO:{ bg: 'rgba(90,90,114,0.15)', color: '#71717A' },
 }
 
 const inp: React.CSSProperties = {
@@ -56,7 +56,7 @@ export default function ContratosPage() {
         <div>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>Contratos de arrendamiento</h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
-            {criticos > 0 && <span style={{ color: '#ff5f5f', fontWeight: 600 }}>{criticos} crítico{criticos !== 1 ? 's' : ''} · </span>}
+            {criticos > 0 && <span style={{ color: '#B91C1C', fontWeight: 600 }}>{criticos} crítico{criticos !== 1 ? 's' : ''} · </span>}
             {proximos} por vencer en 30 días
           </p>
         </div>
@@ -66,8 +66,8 @@ export default function ContratosPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
         {[
           { label: 'Total en periodo', value: vencimientos.length, color: undefined },
-          { label: 'Críticos (≤7 días)', value: criticos, color: criticos > 0 ? '#ff5f5f' : undefined },
-          { label: 'Próximos (≤30 días)', value: proximos, color: proximos > 0 ? '#fbbf24' : undefined },
+          { label: 'Críticos (≤7 días)', value: criticos, color: criticos > 0 ? '#B91C1C' : undefined },
+          { label: 'Próximos (≤30 días)', value: proximos, color: proximos > 0 ? '#B45309' : undefined },
         ].map(({ label, value, color }) => (
           <div key={label} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem 1.5rem' }}>
             <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.5rem', fontWeight: 500 }}>{label}</div>
@@ -112,7 +112,7 @@ export default function ContratosPage() {
                 <tr><td colSpan={6} style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>Sin contratos en este periodo</td></tr>
               ) : filtered.map((c) => {
                 const bs = ESTATUS_BADGE[c.estatus] ?? ESTATUS_BADGE.VIGENTE
-                const daysColor = c.diasRestantes <= 7 ? '#ff5f5f' : c.diasRestantes <= 30 ? '#fbbf24' : 'var(--fg)'
+                const daysColor = c.diasRestantes <= 7 ? '#B91C1C' : c.diasRestantes <= 30 ? '#B45309' : 'var(--fg)'
                 return (
                   <tr key={c.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '0.75rem 1rem' }}>
@@ -136,7 +136,7 @@ export default function ContratosPage() {
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ ...bs, padding: '0.2rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>{c.estatus}</span>
-                      {c.autoRenovable && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: '#b8f000' }}>↺</span>}
+                      {c.autoRenovable && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', color: '#15803D' }}>↺</span>}
                     </td>
                   </tr>
                 )

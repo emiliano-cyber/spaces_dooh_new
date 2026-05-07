@@ -49,6 +49,9 @@ jobs:
             echo "→ Building..."
             npx turbo run build
 
+            echo "→ Running database migrations..."
+            cd apps/api && npx prisma migrate deploy && cd ../..
+
             echo "→ Reloading PM2..."
             pm2 reload ecosystem.config.js --update-env
 

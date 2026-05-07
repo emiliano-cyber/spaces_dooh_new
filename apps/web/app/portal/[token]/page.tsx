@@ -50,8 +50,8 @@ function fmt(d: string) {
 }
 
 const ESTATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  PENDIENTE:  { bg: 'rgba(90,90,114,0.18)',  color: '#9090aa', label: 'Pendiente' },
-  APROBADO:   { bg: 'rgba(184,240,0,0.14)',  color: '#b8f000', label: 'Aprobado' },
+  PENDIENTE:  { bg: 'rgba(90,90,114,0.18)',  color: '#71717A', label: 'Pendiente' },
+  APROBADO:   { bg: 'rgba(21,128,61,0.14)',  color: '#15803D', label: 'Aprobado' },
   RECHAZADO:  { bg: 'rgba(255,75,75,0.14)',  color: '#ff4b4b', label: 'Rechazado' },
 }
 
@@ -128,17 +128,17 @@ export default function PortalPage() {
 
   if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0e0e14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: '#9090aa', fontSize: '0.875rem' }}>Cargando portal…</div>
+      <div style={{ minHeight: '100vh', background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#71717A', fontSize: '0.875rem' }}>Cargando portal…</div>
       </div>
     )
   }
 
   if (error || !data) {
     return (
-      <div style={{ minHeight: '100vh', background: '#0e0e14', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ minHeight: '100vh', background: '#0A0A0A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '1rem' }}>
         <div style={{ fontSize: '2rem' }}>🔒</div>
-        <div style={{ color: '#9090aa', fontSize: '0.9375rem', textAlign: 'center' }}>
+        <div style={{ color: '#71717A', fontSize: '0.9375rem', textAlign: 'center' }}>
           Este portal no está disponible o el enlace expiró.
         </div>
       </div>
@@ -149,13 +149,13 @@ export default function PortalPage() {
   const completedCount = etapas.filter((e) => e.completado).length
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0e0e14', color: '#e8e8f0' }}>
+    <div style={{ minHeight: '100vh', background: '#0A0A0A', color: '#FAFAFA' }}>
       {/* Header */}
-      <header style={{ borderBottom: '1px solid #2a2a38', background: '#16161f', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.01em', color: '#e8e8f0' }}>
+      <header style={{ borderBottom: '1px solid #E4E4E7', background: '#F4F4F5', padding: '0 1.5rem', height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontWeight: 700, fontSize: '1rem', letterSpacing: '-0.01em', color: '#FAFAFA' }}>
           SPACES
         </div>
-        <div style={{ fontSize: '0.8125rem', color: '#9090aa', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: '0.8125rem', color: '#71717A', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {campana.nombre}
         </div>
       </header>
@@ -163,34 +163,34 @@ export default function PortalPage() {
       <main style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
 
         {/* Campaign summary */}
-        <div style={{ background: '#1a1a24', border: '1px solid #2a2a38', borderRadius: '12px', padding: '1.5rem' }}>
+        <div style={{ background: '#1a1a24', border: '1px solid #E4E4E7', borderRadius: '12px', padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
             <div>
-              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#9090aa', marginBottom: '0.25rem' }}>{campana.folio}</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#71717A', marginBottom: '0.25rem' }}>{campana.folio}</div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>{campana.nombre}</h1>
-              <div style={{ fontSize: '0.875rem', color: '#9090aa', marginTop: '0.25rem' }}>{campana.clienteNombre}</div>
+              <div style={{ fontSize: '0.875rem', color: '#71717A', marginTop: '0.25rem' }}>{campana.clienteNombre}</div>
             </div>
-            <span style={{ background: 'rgba(184,240,0,0.12)', color: '#b8f000', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+            <span style={{ background: 'rgba(21,128,61,0.12)', color: '#15803D', padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
               {campana.tipoCampana}
             </span>
           </div>
-          <div style={{ display: 'flex', gap: '2rem', fontSize: '0.8125rem', color: '#9090aa' }}>
+          <div style={{ display: 'flex', gap: '2rem', fontSize: '0.8125rem', color: '#71717A' }}>
             <div>
-              <div style={{ color: '#9090aa', marginBottom: '0.125rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Inicio</div>
-              <div style={{ color: '#e8e8f0' }}>{fmt(campana.fechaInicio)}</div>
+              <div style={{ color: '#71717A', marginBottom: '0.125rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Inicio</div>
+              <div style={{ color: '#FAFAFA' }}>{fmt(campana.fechaInicio)}</div>
             </div>
             <div>
-              <div style={{ color: '#9090aa', marginBottom: '0.125rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fin</div>
-              <div style={{ color: '#e8e8f0' }}>{fmt(campana.fechaFin)}</div>
+              <div style={{ color: '#71717A', marginBottom: '0.125rem', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fin</div>
+              <div style={{ color: '#FAFAFA' }}>{fmt(campana.fechaFin)}</div>
             </div>
           </div>
         </div>
 
         {/* Pipeline */}
-        <div style={{ background: '#1a1a24', border: '1px solid #2a2a38', borderRadius: '12px', padding: '1.5rem' }}>
+        <div style={{ background: '#1a1a24', border: '1px solid #E4E4E7', borderRadius: '12px', padding: '1.5rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
             <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>Estado de la campaña</h2>
-            <span style={{ fontSize: '0.75rem', color: '#9090aa' }}>{completedCount} / {etapas.length} etapas</span>
+            <span style={{ fontSize: '0.75rem', color: '#71717A' }}>{completedCount} / {etapas.length} etapas</span>
           </div>
 
           {/* Horizontal pipeline */}
@@ -204,13 +204,13 @@ export default function PortalPage() {
                       width: 32, height: 32, borderRadius: '50%',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontSize: '0.875rem', fontWeight: 700, flexShrink: 0,
-                      border: etapa.activo ? '2px solid #b8f000' : 'none',
+                      border: etapa.activo ? '2px solid #15803D' : 'none',
                       background: etapa.completado
-                        ? '#b8f000'
+                        ? '#15803D'
                         : etapa.activo
                           ? 'transparent'
-                          : '#2a2a38',
-                      color: etapa.completado ? '#0e0e14' : etapa.activo ? '#b8f000' : '#5a5a72',
+                          : '#E4E4E7',
+                      color: etapa.completado ? '#0A0A0A' : etapa.activo ? '#15803D' : '#71717A',
                       animation: etapa.activo ? 'portal-blink 1.4s ease-in-out infinite' : 'none',
                     }}>
                       {etapa.completado ? '✓' : i + 1}
@@ -219,7 +219,7 @@ export default function PortalPage() {
                       marginTop: '0.5rem',
                       fontSize: '0.6875rem',
                       textAlign: 'center',
-                      color: etapa.completado ? '#e8e8f0' : etapa.activo ? '#b8f000' : '#5a5a72',
+                      color: etapa.completado ? '#FAFAFA' : etapa.activo ? '#15803D' : '#71717A',
                       fontWeight: etapa.activo ? 600 : 400,
                       lineHeight: 1.3,
                       width: 68,
@@ -234,8 +234,8 @@ export default function PortalPage() {
                     <div style={{
                       width: 28, height: 2, marginTop: 15, flexShrink: 0,
                       background: etapas[i + 1].completado || etapas[i + 1].activo
-                        ? '#b8f000'
-                        : '#2a2a38',
+                        ? '#15803D'
+                        : '#E4E4E7',
                     }} />
                   )}
                 </div>
@@ -245,7 +245,7 @@ export default function PortalPage() {
         </div>
 
         {/* Creative upload */}
-        <div style={{ background: '#1a1a24', border: '1px solid #2a2a38', borderRadius: '12px', padding: '1.5rem' }}>
+        <div style={{ background: '#1a1a24', border: '1px solid #E4E4E7', borderRadius: '12px', padding: '1.5rem' }}>
           <h2 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: '0 0 1rem' }}>Subir material creativo</h2>
 
           <input
@@ -263,8 +263,8 @@ export default function PortalPage() {
             onClick={() => !uploading && fileInputRef.current?.click()}
             style={{
               width: '100%', padding: '2rem 1rem', borderRadius: '8px',
-              border: `2px dashed ${dragOver ? '#b8f000' : uploading ? '#3a3a4a' : '#2a2a38'}`,
-              background: dragOver ? 'rgba(184,240,0,0.05)' : uploading ? '#16161f' : 'transparent',
+              border: `2px dashed ${dragOver ? '#15803D' : uploading ? '#D4D4D8' : '#E4E4E7'}`,
+              background: dragOver ? 'rgba(21,128,61,0.05)' : uploading ? '#F4F4F5' : 'transparent',
               cursor: uploading ? 'not-allowed' : 'pointer',
               textAlign: 'center',
               transition: 'all 0.15s',
@@ -274,7 +274,7 @@ export default function PortalPage() {
             <span style={{ fontSize: '1.5rem', opacity: uploading ? 0.4 : 0.7 }}>
               {uploading ? '⏳' : '📎'}
             </span>
-            <span style={{ fontSize: '0.875rem', color: dragOver ? '#b8f000' : uploading ? '#5a5a72' : '#9090aa' }}>
+            <span style={{ fontSize: '0.875rem', color: dragOver ? '#15803D' : uploading ? '#71717A' : '#71717A' }}>
               {uploading
                 ? `Subiendo… ${uploadProgress}%`
                 : dragOver
@@ -282,7 +282,7 @@ export default function PortalPage() {
                   : 'Arrastra tu archivo aquí o haz clic para seleccionar'}
             </span>
             {!uploading && (
-              <span style={{ fontSize: '0.75rem', color: '#5a5a72' }}>
+              <span style={{ fontSize: '0.75rem', color: '#71717A' }}>
                 JPG, PNG, PDF, MP4, MOV — máx. 500 MB
               </span>
             )}
@@ -290,8 +290,8 @@ export default function PortalPage() {
 
           {/* Progress bar */}
           {uploading && (
-            <div style={{ marginTop: '0.75rem', height: 4, background: '#2a2a38', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${uploadProgress}%`, background: '#b8f000', borderRadius: 2, transition: 'width 0.15s' }} />
+            <div style={{ marginTop: '0.75rem', height: 4, background: '#E4E4E7', borderRadius: 2, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${uploadProgress}%`, background: '#15803D', borderRadius: 2, transition: 'width 0.15s' }} />
             </div>
           )}
 
@@ -302,7 +302,7 @@ export default function PortalPage() {
           )}
 
           {uploadSuccess && (
-            <div style={{ marginTop: '0.75rem', padding: '0.625rem 0.875rem', background: 'rgba(184,240,0,0.08)', border: '1px solid rgba(184,240,0,0.2)', borderRadius: '6px', fontSize: '0.8125rem', color: '#b8f000' }}>
+            <div style={{ marginTop: '0.75rem', padding: '0.625rem 0.875rem', background: 'rgba(21,128,61,0.08)', border: '1px solid rgba(21,128,61,0.2)', borderRadius: '6px', fontSize: '0.8125rem', color: '#15803D' }}>
               ✓ {uploadSuccess}
             </div>
           )}
@@ -310,16 +310,16 @@ export default function PortalPage() {
           {/* Uploaded creatives */}
           {creatividades.length > 0 && (
             <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ fontSize: '0.75rem', color: '#9090aa', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Materiales enviados</div>
+              <div style={{ fontSize: '0.75rem', color: '#71717A', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Materiales enviados</div>
               {creatividades.map((c) => {
                 const badge = ESTATUS_BADGE[c.estatusValidacion] ?? ESTATUS_BADGE.PENDIENTE
                 return (
-                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.875rem', background: '#16161f', border: '1px solid #2a2a38', borderRadius: '8px' }}>
+                  <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.625rem 0.875rem', background: '#F4F4F5', border: '1px solid #E4E4E7', borderRadius: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
-                      <span style={{ fontSize: '0.65rem', fontFamily: 'monospace', background: '#2a2a38', color: '#9090aa', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                      <span style={{ fontSize: '0.65rem', fontFamily: 'monospace', background: '#E4E4E7', color: '#71717A', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
                         {c.formato}
                       </span>
-                      <span style={{ fontSize: '0.8125rem', color: '#e8e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</span>
+                      <span style={{ fontSize: '0.8125rem', color: '#FAFAFA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.nombre}</span>
                     </div>
                     <span style={{ background: badge.bg, color: badge.color, padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0, marginLeft: '0.5rem' }}>
                       {badge.label}
@@ -332,15 +332,15 @@ export default function PortalPage() {
         </div>
 
         {/* Footer */}
-        <footer style={{ textAlign: 'center', padding: '1rem 0', fontSize: '0.75rem', color: '#5a5a72', borderTop: '1px solid #2a2a38' }}>
+        <footer style={{ textAlign: 'center', padding: '1rem 0', fontSize: '0.75rem', color: '#71717A', borderTop: '1px solid #E4E4E7' }}>
           Spaces DOOH · Portal del cliente · Este enlace es privado
         </footer>
       </main>
 
       <style>{`
         @keyframes portal-blink {
-          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(184,240,0,0.4); }
-          50%       { opacity: 0.7; box-shadow: 0 0 0 6px rgba(184,240,0,0); }
+          0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(21,128,61,0.4); }
+          50%       { opacity: 0.7; box-shadow: 0 0 0 6px rgba(21,128,61,0); }
         }
       `}</style>
     </div>

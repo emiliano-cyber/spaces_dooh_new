@@ -4,12 +4,22 @@ import { buildKey, getPresignedUpload } from '../../db/storage'
 export async function addEvidencia(
   prisma: PrismaClient,
   otId: string,
-  data: { fotoUrl: string; storageKey: string; lat?: number; lng?: number; tipo?: string },
+  data: {
+    fotoUrl: string
+    storageKey: string
+    tipo?: string
+    lat?: number
+    lng?: number
+    precision?: number
+    tamanoMb?: number
+    formato?: string
+    deviceInfo?: string
+  },
   userId: string,
 ) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
 
-  if (ot.estatus === 'COMPLETADA' || ot.estatus === 'CANCELADA') {
+  if (['COMPLETADA', 'CANCELADA'].includes(ot.estatus)) {
     throw Object.assign(
       new Error(`No se puede agregar evidencia a una OT en estatus ${ot.estatus}`),
       { statusCode: 400 },
@@ -21,18 +31,25 @@ export async function addEvidencia(
       otId,
       fotoUrl: data.fotoUrl,
       storageKey: data.storageKey,
+      tipo: data.tipo ?? 'INSTALACION',
       lat: data.lat ?? null,
       lng: data.lng ?? null,
-      tipo: data.tipo ?? 'FOTO',
+      precision: data.precision ?? null,
+      tamanoMb: data.tamanoMb ?? null,
+      formato: data.formato ?? 'image/jpeg',
+      deviceInfo: data.deviceInfo ?? null,
       uploadedBy: userId,
     },
   })
 
-  // Advance OT from PENDIENTE → EN_PROCESO on first evidencia
-  if (ot.estatus === 'PENDIENTE') {
+  // Advance to EN_PROCESO on first evidencia (from PENDIENTE or ASIGNADA)
+  if (ot.estatus === 'PENDIENTE' || ot.estatus === 'ASIGNADA') {
     await (prisma as any).ordenTrabajo.update({
       where: { id: otId },
-      data: { estatus: 'EN_PROCESO' },
+      data: {
+        estatus: 'EN_PROCESO',
+        fechaInicio: ot.fechaInicio ?? new Date(),
+      },
     })
   }
 

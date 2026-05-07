@@ -24,12 +24,12 @@ interface Sitio {
 interface SitioListRes { data: Sitio[]; meta: { total: number; pages: number } }
 
 const ESTATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  DISPONIBLE: { bg: 'rgba(184,240,0,0.12)', color: '#b8f000', label: 'Disponible' },
-  RESERVADO: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', label: 'Reservado' },
-  OCUPADO: { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f', label: 'Ocupado' },
-  BLOQUEADO: { bg: 'rgba(90,90,114,0.2)', color: '#9090aa', label: 'Bloqueado' },
-  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)', color: '#9090aa', label: 'Mantenimiento' },
-  BAJA: { bg: 'rgba(90,90,114,0.2)', color: '#9090aa', label: 'Baja' },
+  DISPONIBLE: { bg: 'rgba(21,128,61,0.12)', color: '#15803D', label: 'Disponible' },
+  RESERVADO: { bg: 'rgba(251,191,36,0.15)', color: '#B45309', label: 'Reservado' },
+  OCUPADO: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C', label: 'Ocupado' },
+  BLOQUEADO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Bloqueado' },
+  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Mantenimiento' },
+  BAJA: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Baja' },
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -163,7 +163,7 @@ export default function SitiosPage() {
                     )}
                   </div>
                   {(s._count?.incidencias ?? 0) > 0 && (
-                    <div style={{ marginTop: '0.375rem', fontSize: '0.7125rem', color: '#ff5f5f' }}>
+                    <div style={{ marginTop: '0.375rem', fontSize: '0.7125rem', color: '#B91C1C' }}>
                       ⚠ {s._count!.incidencias} incidencia{s._count!.incidencias > 1 ? 's' : ''} abierta{s._count!.incidencias > 1 ? 's' : ''}
                     </div>
                   )}

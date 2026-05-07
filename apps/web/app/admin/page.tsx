@@ -18,13 +18,13 @@ function fmtRel(d: string) {
 }
 
 const ESTADO_C: Record<string, { bg: string; color: string }> = {
-  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  COTIZACION:     { bg: 'rgba(108,99,255,0.2)', color: '#6c63ff' },
-  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#fbbf24' },
-  ACTIVA:         { bg: 'rgba(184,240,0,0.15)', color: '#b8f000' },
-  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#9090aa' },
-  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f' },
-  LISTA_FACTURAR: { bg: 'rgba(184,240,0,0.25)', color: '#b8f000' },
+  DRAFT:          { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  COTIZACION:     { bg: 'rgba(10,102,255,0.2)', color: '#0A66FF' },
+  CONFIRMADA:     { bg: 'rgba(251,191,36,0.2)', color: '#B45309' },
+  ACTIVA:         { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  COMPLETADA:     { bg: 'rgba(90,90,114,0.2)',  color: '#71717A' },
+  CANCELADA:      { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  LISTA_FACTURAR: { bg: 'rgba(21,128,61,0.25)', color: '#15803D' },
 }
 
 function KpiCard({ label, value, sub, accent, animate }: {
@@ -103,11 +103,11 @@ export default function AdminDashboard() {
       {/* Row 1 — KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '1rem' }}>
         <KpiCard label="Sitios activos"      value={totalSitios} />
-        <KpiCard label="Campañas activas"    value={totalActivas} accent="#b8f000" />
-        <KpiCard label="Listas p/ facturar"  value={totalFacturar} accent={totalFacturar > 0 ? '#b8f000' : undefined} animate={totalFacturar > 0} sub={totalFacturar > 0 ? 'Requieren atención' : undefined} />
-        <KpiCard label="OTs pendientes"      value={totalOtsPend} accent={Number(totalOtsPend) > 0 ? '#fbbf24' : undefined} />
-        <KpiCard label="Incidencias abiertas" value={totalIncidencias} accent={Number(totalIncidencias) > 0 ? '#ff5f5f' : undefined} />
-        <KpiCard label="Alertas críticas"    value={totalAlertas} sub="Próx. 7 días" accent={totalAlertas > 0 ? '#ff5f5f' : undefined} />
+        <KpiCard label="Campañas activas"    value={totalActivas} accent="#15803D" />
+        <KpiCard label="Listas p/ facturar"  value={totalFacturar} accent={totalFacturar > 0 ? '#15803D' : undefined} animate={totalFacturar > 0} sub={totalFacturar > 0 ? 'Requieren atención' : undefined} />
+        <KpiCard label="OTs pendientes"      value={totalOtsPend} accent={Number(totalOtsPend) > 0 ? '#B45309' : undefined} />
+        <KpiCard label="Incidencias abiertas" value={totalIncidencias} accent={Number(totalIncidencias) > 0 ? '#B91C1C' : undefined} />
+        <KpiCard label="Alertas críticas"    value={totalAlertas} sub="Próx. 7 días" accent={totalAlertas > 0 ? '#B91C1C' : undefined} />
       </div>
 
       {/* Row 2 — Billing + Alerts */}
@@ -120,7 +120,7 @@ export default function AdminDashboard() {
                 <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--muted)', flexShrink: 0 }}>{c.folio}</span>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.cliente?.nombre ?? '—'}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--muted)', flexShrink: 0 }}>{fmt(c.fechaFin)}</span>
-                <span style={{ background: 'rgba(184,240,0,0.15)', color: '#b8f000', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>🔒</span>
+                <span style={{ background: 'rgba(21,128,61,0.15)', color: '#15803D', padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600 }}>🔒</span>
               </Row>
             ))
           }
@@ -131,9 +131,9 @@ export default function AdminDashboard() {
             ? <Empty text="Sin alertas críticas" />
             : alertasMixed.map((a: any, i: number) => (
               <Row key={i}>
-                <span style={{ background: a.nivel === 'critico' ? 'rgba(255,75,75,0.12)' : 'rgba(251,191,36,0.12)', color: a.nivel === 'critico' ? '#ff4b4b' : '#fbbf24', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}>{a.tipo.toUpperCase()}</span>
+                <span style={{ background: a.nivel === 'critico' ? 'rgba(255,75,75,0.12)' : 'rgba(251,191,36,0.12)', color: a.nivel === 'critico' ? '#ff4b4b' : '#B45309', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', fontWeight: 700, flexShrink: 0 }}>{a.tipo.toUpperCase()}</span>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.sitio ?? '—'}</span>
-                <span style={{ fontSize: '0.75rem', color: a.nivel === 'critico' ? '#ff4b4b' : '#fbbf24', flexShrink: 0 }}>{a.dias != null ? `${a.dias}d` : (a.desc ?? '').slice(0, 20)}</span>
+                <span style={{ fontSize: '0.75rem', color: a.nivel === 'critico' ? '#ff4b4b' : '#B45309', flexShrink: 0 }}>{a.dias != null ? `${a.dias}d` : (a.desc ?? '').slice(0, 20)}</span>
               </Row>
             ))
           }
@@ -158,7 +158,7 @@ export default function AdminDashboard() {
         <Panel title="OTs urgentes" action="Ver todas" onAction={() => router.push('/operaciones/ordenes')}>
           {otsUrg.length === 0 ? <Empty text="Sin OTs urgentes" /> : otsUrg.map((ot: any) => (
             <Row key={ot.id}>
-              <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#ff5f5f', flexShrink: 0 }}>{ot.folio}</span>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: '#B91C1C', flexShrink: 0 }}>{ot.folio}</span>
               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ot.tipo?.replace(/_/g, ' ')}</span>
               <span style={{ fontSize: '0.75rem', color: 'var(--muted)', flexShrink: 0 }}>{ot.fechaProgramada ? fmt(ot.fechaProgramada) : '—'}</span>
             </Row>

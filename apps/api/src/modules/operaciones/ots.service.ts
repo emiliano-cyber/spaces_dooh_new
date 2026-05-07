@@ -19,21 +19,34 @@ interface ListFilters {
   fechaDesde?: string
   fechaHasta?: string
   sitioId?: string
+  campanaId?: string
   page?: number
   limit?: number
 }
 
-export async function list(prisma: PrismaClient, filters: ListFilters) {
+interface RequestUser { id: string; rol: string }
+
+const CAMPO_ROLES = ['field_worker', 'crew_chief']
+
+export async function list(prisma: PrismaClient, filters: ListFilters, requestUser?: RequestUser) {
   const limit = filters.limit ?? 50
   const page = filters.page ?? 1
   const skip = (page - 1) * limit
 
   const where: Record<string, unknown> = {}
-  if (filters.asignadoAUserId) where.asignadoAUserId = filters.asignadoAUserId
+
+  // Field workers only see their own OTs
+  if (requestUser && CAMPO_ROLES.includes(requestUser.rol)) {
+    where.asignadoAUserId = requestUser.id
+  } else if (filters.asignadoAUserId) {
+    where.asignadoAUserId = filters.asignadoAUserId
+  }
+
   if (filters.estatus) where.estatus = filters.estatus
   if (filters.tipo) where.tipo = filters.tipo
   if (filters.prioridad) where.prioridad = filters.prioridad
   if (filters.sitioId) where.sitioId = filters.sitioId
+  if (filters.campanaId) where.campanaId = filters.campanaId
   if (filters.fechaDesde || filters.fechaHasta) {
     where.fechaProgramada = {
       ...(filters.fechaDesde && { gte: new Date(filters.fechaDesde) }),
@@ -48,7 +61,6 @@ export async function list(prisma: PrismaClient, filters: ListFilters) {
       skip,
       take: limit,
       include: { _count: { select: { evidencias: true } } },
-      // Prioridad enum order in DB: BAJA(0) NORMAL(1) ALTA(2) URGENTE(3) → desc = URGENTE first
       orderBy: [{ prioridad: 'desc' }, { fechaProgramada: 'asc' }],
     }),
   ])
@@ -56,11 +68,16 @@ export async function list(prisma: PrismaClient, filters: ListFilters) {
   return { data: items, meta: { total, page, limit, pages: Math.ceil(total / limit) } }
 }
 
-export async function getById(prisma: PrismaClient, id: string) {
+export async function getById(prisma: PrismaClient, id: string, requestUser?: RequestUser) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({
     where: { id },
-    include: { evidencias: true },
+    include: { evidencias: { orderBy: { timestamp: 'asc' } } },
   })
+
+  // Field workers can only view their own OTs
+  if (requestUser && CAMPO_ROLES.includes(requestUser.rol) && ot.asignadoAUserId !== requestUser.id) {
+    throw Object.assign(new Error('No tienes acceso a esta orden de trabajo'), { statusCode: 403 })
+  }
 
   ot.evidencias = await Promise.all(
     ot.evidencias.map(async (ev: any) => ({
@@ -68,6 +85,14 @@ export async function getById(prisma: PrismaClient, id: string) {
       fotoUrlSigned: await getPresignedGet(ev.storageKey),
     })),
   )
+
+  if (ot.fechaCompletada && ot.fechaInicio) {
+    ot.tiempoTrabajadoMin = Math.round(
+      (new Date(ot.fechaCompletada).getTime() - new Date(ot.fechaInicio).getTime()) / 60000,
+    )
+  } else {
+    ot.tiempoTrabajadoMin = null
+  }
 
   return ot
 }
@@ -79,6 +104,8 @@ export async function create(prisma: PrismaClient, data: CreateOTData, userId: s
     id: `item_${idx}`,
     texto: item.texto,
     completado: false,
+    completadoEn: null,
+    completadoPorUserId: null,
   }))
 
   const estatus = data.asignadoAUserId ? 'ASIGNADA' : 'PENDIENTE'
@@ -93,8 +120,11 @@ export async function create(prisma: PrismaClient, data: CreateOTData, userId: s
       checklistJson,
       prioridad: data.prioridad ?? 'NORMAL',
       asignadoAUserId: data.asignadoAUserId ?? null,
+      supervisorUserId: data.supervisorUserId ?? null,
+      creadoPorUserId: userId,
       fechaProgramada: data.fechaProgramada ? new Date(data.fechaProgramada) : null,
       campanaId: data.campanaId ?? null,
+      requiereRevision: data.requiereRevision ?? false,
       estatus,
     },
   })
@@ -118,6 +148,10 @@ export async function update(
 ) {
   const current = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id } })
 
+  if (current.estatus === 'COMPLETADA' || current.estatus === 'CANCELADA') {
+    throw Object.assign(new Error(`No se puede modificar una OT en estatus ${current.estatus}`), { statusCode: 400 })
+  }
+
   const updateData: Record<string, unknown> = {}
   const cambios: Record<string, { antes: unknown; despues: unknown }> = {}
 
@@ -137,11 +171,10 @@ export async function update(
   }
   if (data.asignadoAUserId !== undefined && data.asignadoAUserId !== current.asignadoAUserId) {
     updateData.asignadoAUserId = data.asignadoAUserId
-    cambios.asignadoAUserId = { antes: current.asignadoAUserId, despues: data.asignadoAUserId }
-    // Set fechaInicio on first assignment
-    if (!current.fechaInicio && data.estatus === 'ASIGNADA') {
-      updateData.fechaInicio = new Date()
+    if (data.estatus === 'ASIGNADA' || !data.estatus) {
+      updateData.estatus = 'ASIGNADA'
     }
+    cambios.asignadoAUserId = { antes: current.asignadoAUserId, despues: data.asignadoAUserId }
   }
 
   const updated = await (prisma as any).ordenTrabajo.update({ where: { id }, data: updateData })
@@ -162,11 +195,15 @@ export async function updateChecklist(
   otId: string,
   itemId: string,
   completado: boolean,
-  _userId: string,
+  userId: string,
 ) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
-  const checklist = ot.checklistJson as ChecklistItem[]
 
+  if (['EN_REVISION', 'COMPLETADA', 'CANCELADA'].includes(ot.estatus)) {
+    throw Object.assign(new Error('No se puede modificar el checklist en este estatus'), { statusCode: 400 })
+  }
+
+  const checklist = ot.checklistJson as ChecklistItem[]
   const item = checklist.find((i) => i.id === itemId)
   if (!item) {
     throw Object.assign(new Error(`Checklist item '${itemId}' not found`), { statusCode: 404 })
@@ -174,6 +211,7 @@ export async function updateChecklist(
 
   item.completado = completado
   item.completadoEn = completado ? new Date().toISOString() : undefined
+  item.completadoPorUserId = completado ? userId : undefined
 
   return (prisma as any).ordenTrabajo.update({
     where: { id: otId },
@@ -193,9 +231,9 @@ export async function completar(
     include: { _count: { select: { evidencias: true } } },
   })
 
-  if (ot.estatus === 'COMPLETADA' || ot.estatus === 'CANCELADA') {
+  if (!['EN_PROCESO', 'RECHAZADA'].includes(ot.estatus)) {
     throw Object.assign(
-      new Error(`La OT ya está en estatus ${ot.estatus}`),
+      new Error(`No se puede completar una OT en estatus ${ot.estatus}`),
       { statusCode: 400 },
     )
   }
@@ -207,9 +245,15 @@ export async function completar(
     )
   }
 
+  const nuevoEstatus = ot.requiereRevision ? 'EN_REVISION' : 'COMPLETADA'
+
   const updated = await (prisma as any).ordenTrabajo.update({
     where: { id: otId },
-    data: { estatus: 'COMPLETADA', fechaCompletada: new Date(), notas: data.notas ?? null },
+    data: {
+      estatus: nuevoEstatus,
+      fechaCompletada: new Date(),
+      notas: data.notas ?? ot.notas,
+    },
   })
 
   await logAudit(prisma, {
@@ -217,7 +261,84 @@ export async function completar(
     accion: 'ot.completada',
     entidadTipo: 'OrdenTrabajo',
     entidadId: otId,
-    cambiosJson: { estatus: 'COMPLETADA', fechaCompletada: updated.fechaCompletada },
+    cambiosJson: { estatus: nuevoEstatus },
+  })
+
+  if (nuevoEstatus === 'COMPLETADA') {
+    eventBus.emit({
+      type: 'ot.completada',
+      payload: { otId, tenantId, campanaId: ot.campanaId ?? null },
+    })
+  }
+
+  return updated
+}
+
+export async function bloquear(
+  prisma: PrismaClient,
+  otId: string,
+  data: { motivo: string },
+  userId: string,
+) {
+  if (!data.motivo || data.motivo.trim().length < 10) {
+    throw Object.assign(new Error('El motivo debe tener al menos 10 caracteres'), { statusCode: 400 })
+  }
+
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (['COMPLETADA', 'CANCELADA', 'BLOQUEADA'].includes(ot.estatus)) {
+    throw Object.assign(new Error(`No se puede bloquear una OT en estatus ${ot.estatus}`), { statusCode: 400 })
+  }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: {
+      estatus: 'BLOQUEADA',
+      motivoBloqueo: data.motivo,
+      fechaCompletada: new Date(),
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.bloqueada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { motivo: data.motivo },
+  })
+
+  return updated
+}
+
+export async function aprobar(
+  prisma: PrismaClient,
+  otId: string,
+  data: { notas?: string },
+  userId: string,
+  tenantId: string,
+) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (ot.estatus !== 'EN_REVISION') {
+    throw Object.assign(new Error('Solo se pueden aprobar OTs en estatus EN_REVISION'), { statusCode: 400 })
+  }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: {
+      estatus: 'COMPLETADA',
+      revisadoPorUserId: userId,
+      revisadoEn: new Date(),
+      revisionNotas: data.notas ?? null,
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.aprobada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { notas: data.notas },
   })
 
   eventBus.emit({
@@ -228,9 +349,118 @@ export async function completar(
   return updated
 }
 
+export async function rechazar(
+  prisma: PrismaClient,
+  otId: string,
+  data: { motivo: string },
+  userId: string,
+) {
+  if (!data.motivo || data.motivo.trim().length < 10) {
+    throw Object.assign(new Error('El motivo de rechazo debe tener al menos 10 caracteres'), { statusCode: 400 })
+  }
+
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (ot.estatus !== 'EN_REVISION') {
+    throw Object.assign(new Error('Solo se pueden rechazar OTs en estatus EN_REVISION'), { statusCode: 400 })
+  }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: {
+      estatus: 'RECHAZADA',
+      revisadoPorUserId: userId,
+      revisadoEn: new Date(),
+      revisionNotas: data.motivo,
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.rechazada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { motivo: data.motivo },
+  })
+
+  return updated
+}
+
+export async function reabrir(
+  prisma: PrismaClient,
+  otId: string,
+  data: { instrucciones?: string },
+  userId: string,
+) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (!['BLOQUEADA', 'RECHAZADA'].includes(ot.estatus)) {
+    throw Object.assign(new Error('Solo se pueden reabrir OTs BLOQUEADAS o RECHAZADAS'), { statusCode: 400 })
+  }
+
+  const updateData: Record<string, unknown> = {
+    estatus: 'EN_PROCESO',
+    fechaCompletada: null,
+  }
+  if (data.instrucciones) {
+    updateData.instrucciones = data.instrucciones
+  }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: updateData,
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.reabierta',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { instrucciones: data.instrucciones },
+  })
+
+  return updated
+}
+
+export async function cancelar(
+  prisma: PrismaClient,
+  otId: string,
+  data: { motivo: string },
+  userId: string,
+) {
+  if (!data.motivo || data.motivo.trim().length < 5) {
+    throw Object.assign(new Error('Se requiere un motivo de cancelación'), { statusCode: 400 })
+  }
+
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (ot.estatus === 'COMPLETADA') {
+    throw Object.assign(new Error('No se puede cancelar una OT ya completada'), { statusCode: 400 })
+  }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: {
+      estatus: 'CANCELADA',
+      motivoCancelacion: data.motivo,
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.cancelada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { motivo: data.motivo },
+  })
+
+  return updated
+}
+
 export async function getCalendario(
   prisma: PrismaClient,
   filters: { desde: string; hasta: string; userId?: string },
+  requestUser?: RequestUser,
 ) {
   const where: Record<string, unknown> = {
     fechaProgramada: {
@@ -238,11 +468,20 @@ export async function getCalendario(
       lte: new Date(filters.hasta),
     },
   }
-  if (filters.userId) where.asignadoAUserId = filters.userId
+
+  if (requestUser && CAMPO_ROLES.includes(requestUser.rol)) {
+    where.asignadoAUserId = requestUser.id
+  } else if (filters.userId) {
+    where.asignadoAUserId = filters.userId
+  }
 
   const ots = await (prisma as any).ordenTrabajo.findMany({
     where,
     orderBy: { fechaProgramada: 'asc' },
+    select: {
+      id: true, folio: true, tipo: true, prioridad: true, estatus: true,
+      asignadoAUserId: true, fechaProgramada: true, descripcion: true,
+    },
   })
 
   const grouped: Record<string, unknown[]> = {}

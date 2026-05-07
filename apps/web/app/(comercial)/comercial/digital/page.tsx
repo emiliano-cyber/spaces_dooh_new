@@ -38,11 +38,11 @@ function hasPermission(user: any, perm: string): boolean {
 
 const ESTADO_META: Record<string, { label: string; color: string; bg: string; order: number }> = {
   ERROR:          { label: 'Error',          color: '#ff4b4b', bg: 'rgba(255,75,75,0.12)',   order: 0 },
-  EN_PUBLICACION: { label: 'En publicación', color: '#b8f000', bg: 'rgba(184,240,0,0.1)',    order: 1 },
-  PENDIENTE:      { label: 'Pendiente',      color: '#9090aa', bg: 'rgba(90,90,114,0.12)',   order: 2 },
-  PAUSADA:        { label: 'Pausada',        color: '#fbbf24', bg: 'rgba(251,191,36,0.12)',  order: 3 },
-  FINALIZADA:     { label: 'Finalizada',     color: '#5a5a72', bg: 'rgba(90,90,114,0.08)',   order: 4 },
-  CANCELADA:      { label: 'Cancelada',      color: '#5a5a72', bg: 'rgba(90,90,114,0.08)',   order: 5 },
+  EN_PUBLICACION: { label: 'En publicación', color: '#15803D', bg: 'rgba(21,128,61,0.1)',    order: 1 },
+  PENDIENTE:      { label: 'Pendiente',      color: '#71717A', bg: 'rgba(90,90,114,0.12)',   order: 2 },
+  PAUSADA:        { label: 'Pausada',        color: '#B45309', bg: 'rgba(251,191,36,0.12)',  order: 3 },
+  FINALIZADA:     { label: 'Finalizada',     color: '#71717A', bg: 'rgba(90,90,114,0.08)',   order: 4 },
+  CANCELADA:      { label: 'Cancelada',      color: '#71717A', bg: 'rgba(90,90,114,0.08)',   order: 5 },
 }
 
 const TRANSITIONS: Record<string, { label: string; to: string }[]> = {
@@ -99,10 +99,10 @@ export default function DigitalTraficoPage() {
   ).size
 
   const KPIS = [
-    { label: 'En publicación',     value: enPublicacion,  color: '#b8f000', bg: 'rgba(184,240,0,0.08)' },
+    { label: 'En publicación',     value: enPublicacion,  color: '#15803D', bg: 'rgba(21,128,61,0.08)' },
     { label: 'Con error',          value: conError,       color: '#ff4b4b', bg: 'rgba(255,75,75,0.08)' },
-    { label: 'Finalizadas hoy',    value: finalizadasHoy, color: '#9090aa', bg: 'transparent' },
-    { label: 'Campañas DOOH activas', value: campanasDOOH, color: '#fbbf24', bg: 'rgba(251,191,36,0.08)' },
+    { label: 'Finalizadas hoy',    value: finalizadasHoy, color: '#71717A', bg: 'transparent' },
+    { label: 'Campañas DOOH activas', value: campanasDOOH, color: '#B45309', bg: 'rgba(251,191,36,0.08)' },
   ]
 
   // Group TOs by estado, sorted by order

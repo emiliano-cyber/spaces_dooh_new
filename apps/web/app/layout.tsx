@@ -1,13 +1,6 @@
 import type { Metadata } from 'next'
-import { IBM_Plex_Sans } from 'next/font/google'
 import './globals.css'
 import { Providers } from './providers'
-
-const ibmPlexSans = IBM_Plex_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-ibm-plex-sans',
-})
 
 export const metadata: Metadata = {
   title: 'Spaces DOOH',
@@ -16,7 +9,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" className={ibmPlexSans.variable}>
+    <html lang="es">
+      <head>
+        <link rel="preconnect" href="https://api.fontshare.com" />
+        <link
+          href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800&f[]=general-sans@400,500,600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <Providers>{children}</Providers>
       </body>

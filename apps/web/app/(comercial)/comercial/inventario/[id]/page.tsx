@@ -27,11 +27,11 @@ const TIPO_LABELS: Record<string, string> = {
 }
 
 const ESTATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  DISPONIBLE:       { bg: 'rgba(184,240,0,0.15)', color: '#b8f000',  label: 'Disponible' },
-  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', label: 'Reservado' },
-  OCUPADO:          { bg: 'rgba(255,95,95,0.15)',  color: '#ff5f5f', label: 'Ocupado' },
-  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',   color: '#9090aa', label: 'Bloqueado' },
-  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',   color: '#9090aa', label: 'En mantenimiento' },
+  DISPONIBLE:       { bg: 'rgba(21,128,61,0.15)', color: '#15803D',  label: 'Disponible' },
+  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#B45309', label: 'Reservado' },
+  OCUPADO:          { bg: 'rgba(255,95,95,0.15)',  color: '#B91C1C', label: 'Ocupado' },
+  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',   color: '#71717A', label: 'Bloqueado' },
+  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',   color: '#71717A', label: 'En mantenimiento' },
 }
 
 function inp(style?: React.CSSProperties): React.CSSProperties {
@@ -156,7 +156,7 @@ export default function FichaComercialPage() {
       </button>
 
       {incidenciaActiva && (
-        <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#fbbf24' }}>
+        <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: '8px', padding: '0.75rem 1rem', marginBottom: '1rem', fontSize: '0.875rem', color: '#B45309' }}>
           ⚠ Incidencia activa: <strong>{incidenciaActiva.tipo.replace(/_/g, ' ')}</strong> — {incidenciaActiva.descripcion}
         </div>
       )}

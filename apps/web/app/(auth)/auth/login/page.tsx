@@ -11,6 +11,7 @@ function getRoleRedirect(rol: string): string {
     case 'seller':
     case 'comercial_manager':
       return '/comercial'
+    case 'operaciones_manager':
     case 'crew_chief':
     case 'field_worker':
       return '/operaciones'
@@ -179,7 +180,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--error)',
   },
   serverError: {
-    background: 'rgba(255, 92, 115, 0.1)',
+    background: 'rgba(185,28,28,0.1)',
     border: '1px solid var(--error)',
     borderRadius: '8px',
     color: 'var(--error)',

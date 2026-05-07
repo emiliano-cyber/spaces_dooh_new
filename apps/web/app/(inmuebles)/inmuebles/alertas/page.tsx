@@ -24,9 +24,9 @@ interface AlertasRes {
 }
 
 const NIVEL_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  critico: { bg: 'rgba(255,95,95,0.15)', color: '#ff5f5f', label: 'Crítico' },
-  alerta: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', label: 'Alerta' },
-  aviso: { bg: 'rgba(184,240,0,0.12)', color: '#b8f000', label: 'Aviso' },
+  critico: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C', label: 'Crítico' },
+  alerta: { bg: 'rgba(251,191,36,0.15)', color: '#B45309', label: 'Alerta' },
+  aviso: { bg: 'rgba(21,128,61,0.12)', color: '#15803D', label: 'Aviso' },
 }
 
 function NivelBadge({ nivel }: { nivel: string }) {
@@ -49,7 +49,7 @@ function AlertaRow({ item, extra }: { item: AlertaItem; extra?: string }) {
         </div>
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div style={{ fontSize: '1.125rem', fontWeight: 700, color: item.nivel === 'critico' ? '#ff5f5f' : item.nivel === 'alerta' ? '#fbbf24' : '#b8f000', lineHeight: 1 }}>
+        <div style={{ fontSize: '1.125rem', fontWeight: 700, color: item.nivel === 'critico' ? '#B91C1C' : item.nivel === 'alerta' ? '#B45309' : '#15803D', lineHeight: 1 }}>
           {item.diasRestantes}d
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>restantes</div>

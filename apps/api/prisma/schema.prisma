@@ -159,7 +159,10 @@ enum EstOT {
   PENDIENTE
   ASIGNADA
   EN_PROCESO
+  BLOQUEADA
+  EN_REVISION
   COMPLETADA
+  RECHAZADA
   CANCELADA
 
   @@schema("tenant_template")
@@ -327,24 +330,33 @@ model PagoRenta {
 }
 
 model OrdenTrabajo {
-  id              String        @id @default(cuid())
-  folio           String        @unique
-  tipo            TipoOT
-  sitioId         String?
-  descripcion     String
-  instrucciones   String?
-  checklistJson   Json          @default("[]")
-  prioridad       Prioridad     @default(NORMAL)
-  asignadoAUserId String?
-  fechaProgramada DateTime?
-  fechaInicio     DateTime?
-  fechaCompletada DateTime?
-  campanaId       String?
-  estatus         EstOT         @default(PENDIENTE)
-  notas           String?
-  creadoEn        DateTime      @default(now())
-  actualizadoEn   DateTime      @updatedAt
-  evidencias      EvidenciaOT[]
+  id                String        @id @default(cuid())
+  folio             String        @unique
+  tipo              TipoOT
+  sitioId           String?
+  descripcion       String
+  instrucciones     String?
+  checklistJson     Json          @default("[]")
+  materialesJson    Json          @default("[]")
+  prioridad         Prioridad     @default(NORMAL)
+  asignadoAUserId   String?
+  supervisorUserId  String?
+  creadoPorUserId   String?
+  fechaProgramada   DateTime?
+  fechaInicio       DateTime?
+  fechaCompletada   DateTime?
+  campanaId         String?
+  estatus           EstOT         @default(PENDIENTE)
+  requiereRevision  Boolean       @default(false)
+  notas             String?
+  motivoBloqueo     String?
+  motivoCancelacion String?
+  revisadoPorUserId String?
+  revisadoEn        DateTime?
+  revisionNotas     String?
+  creadoEn          DateTime      @default(now())
+  actualizadoEn     DateTime      @updatedAt
+  evidencias        EvidenciaOT[]
 
   @@schema("tenant_template")
 }
@@ -355,10 +367,14 @@ model EvidenciaOT {
   ot         OrdenTrabajo @relation(fields: [otId], references: [id])
   fotoUrl    String
   storageKey String
+  formato    String       @default("image/jpeg")
+  tamanoMb   Decimal?     @db.Decimal(6, 2)
   lat        Decimal?     @db.Decimal(10, 8)
   lng        Decimal?     @db.Decimal(11, 8)
-  tipo       String       @default("FOTO")
+  precision  Decimal?     @db.Decimal(6, 2)
+  tipo       String       @default("INSTALACION")
   uploadedBy String
+  deviceInfo String?
   timestamp  DateTime     @default(now())
 
   @@schema("tenant_template")

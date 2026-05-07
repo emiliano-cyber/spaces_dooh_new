@@ -23,7 +23,6 @@ const TIPO_OT_OPTIONS = [
 const PRIORIDAD_OPTIONS = ['BAJA', 'NORMAL', 'ALTA', 'URGENTE'] as const
 
 const schema = z.object({
-  tipo: z.enum(['MONTAJE_LONA', 'MONTAJE_DIGITAL', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'HERRERIA', 'ELECTRICO', 'INSPECCION', 'OTRO']),
   sitioId: z.string().optional(),
   descripcion: z.string().min(10, 'Mínimo 10 caracteres'),
   instrucciones: z.string().optional(),
@@ -41,6 +40,13 @@ export default function NuevaOTPage() {
   const router = useRouter()
   const [serverError, setServerError] = useState<string | null>(null)
   const [checklist, setChecklist] = useState<string[]>([''])
+  const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>(['MANTENIMIENTO_CORRECTIVO'])
+
+  function toggleTipo(value: string) {
+    setTiposSeleccionados((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
+    )
+  }
 
   const { data: sitios } = useQuery({
     queryKey: ['sitios-select'],
@@ -54,17 +60,19 @@ export default function NuevaOTPage() {
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
     resolver: zodResolver(schema as any),
-    defaultValues: { tipo: 'MANTENIMIENTO_CORRECTIVO', prioridad: 'NORMAL' },
+    defaultValues: { prioridad: 'NORMAL' },
   })
 
   async function onSubmit(data: FormValues) {
     setServerError(null)
+    if (tiposSeleccionados.length === 0) { setServerError('Selecciona al menos un tipo'); return }
     try {
       const checklistItems = checklist.filter((t) => t.trim()).map((texto) => ({ texto }))
       const ot = await apiFetch<{ id: string }>('/ordenes-trabajo', {
         method: 'POST',
         body: JSON.stringify({
           ...data,
+          tipo: tiposSeleccionados.join(','),
           sitioId: data.sitioId || undefined,
           asignadoAUserId: data.asignadoAUserId || undefined,
           fechaProgramada: data.fechaProgramada ? new Date(data.fechaProgramada).toISOString() : undefined,
@@ -97,13 +105,34 @@ export default function NuevaOTPage() {
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }} noValidate>
-        {/* Tipo + Prioridad */}
+        {/* Tipo multi-select + Prioridad */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <div style={fld}>
-            <label style={lbl}>Tipo *</label>
-            <select style={inp} {...register('tipo')}>
-              {TIPO_OT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </select>
+            <label style={lbl}>Conceptos de trabajo *</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', padding: '0.5rem 0.75rem', maxHeight: 220, overflowY: 'auto' }}>
+              {TIPO_OT_OPTIONS.map(([value, label]) => (
+                <label key={value} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.25rem 0' }}>
+                  <input
+                    type="checkbox"
+                    checked={tiposSeleccionados.includes(value)}
+                    onChange={() => toggleTipo(value)}
+                    style={{ width: 15, height: 15, flexShrink: 0, cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.875rem', color: tiposSeleccionados.includes(value) ? 'var(--fg)' : 'var(--muted)', fontWeight: tiposSeleccionados.includes(value) ? 500 : 400 }}>
+                    {label}
+                  </span>
+                </label>
+              ))}
+            </div>
+            {tiposSeleccionados.length > 0 && (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', marginTop: '0.375rem' }}>
+                {tiposSeleccionados.map((t) => (
+                  <span key={t} style={{ background: 'rgba(10,102,255,0.15)', color: '#0A66FF', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem' }}>
+                    {TIPO_OT_OPTIONS.find(([v]) => v === t)?.[1] ?? t}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
           <div style={fld}>
             <label style={lbl}>Prioridad</label>
@@ -187,7 +216,7 @@ export default function NuevaOTPage() {
         </div>
 
         {serverError && (
-          <div style={{ background: 'rgba(255,92,115,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>
+          <div style={{ background: 'rgba(185,28,28,0.1)', border: '1px solid var(--error)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.75rem 1rem' }}>
             {serverError}
           </div>
         )}

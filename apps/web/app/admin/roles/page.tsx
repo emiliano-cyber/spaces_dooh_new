@@ -143,8 +143,8 @@ export default function RolesPage() {
                       const checked = editPerms.has(perm)
                       const editable = !selectedRole.esBuiltin
                       return (
-                        <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', background: checked ? 'rgba(184,240,0,0.1)' : 'var(--bg)', border: `1px solid ${checked ? 'rgba(184,240,0,0.3)' : 'var(--border)'}`, borderRadius: '6px', cursor: editable ? 'pointer' : 'default', fontSize: '0.75rem', color: checked ? '#b8f000' : 'var(--muted)', transition: 'all 0.1s' }}>
-                          <input type="checkbox" checked={checked} disabled={!editable} onChange={() => togglePerm(perm)} style={{ margin: 0, cursor: editable ? 'pointer' : 'default', accentColor: '#b8f000' }} />
+                        <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', padding: '0.25rem 0.625rem', background: checked ? 'rgba(21,128,61,0.1)' : 'var(--bg)', border: `1px solid ${checked ? 'rgba(21,128,61,0.3)' : 'var(--border)'}`, borderRadius: '6px', cursor: editable ? 'pointer' : 'default', fontSize: '0.75rem', color: checked ? '#15803D' : 'var(--muted)', transition: 'all 0.1s' }}>
+                          <input type="checkbox" checked={checked} disabled={!editable} onChange={() => togglePerm(perm)} style={{ margin: 0, cursor: editable ? 'pointer' : 'default', accentColor: '#15803D' }} />
                           {fmtPerm(perm)}
                         </label>
                       )
@@ -184,8 +184,8 @@ export default function RolesPage() {
                       {perms.map((perm) => {
                         const checked = newPerms.has(perm)
                         return (
-                          <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.5rem', background: checked ? 'rgba(184,240,0,0.1)' : 'var(--bg)', border: `1px solid ${checked ? 'rgba(184,240,0,0.3)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: checked ? '#b8f000' : 'var(--muted)' }}>
-                            <input type="checkbox" checked={checked} onChange={() => setNewPerms((prev) => { const n = new Set(prev); n.has(perm) ? n.delete(perm) : n.add(perm); return n })} style={{ margin: 0, accentColor: '#b8f000' }} />
+                          <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', padding: '0.2rem 0.5rem', background: checked ? 'rgba(21,128,61,0.1)' : 'var(--bg)', border: `1px solid ${checked ? 'rgba(21,128,61,0.3)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', fontSize: '0.75rem', color: checked ? '#15803D' : 'var(--muted)' }}>
+                            <input type="checkbox" checked={checked} onChange={() => setNewPerms((prev) => { const n = new Set(prev); n.has(perm) ? n.delete(perm) : n.add(perm); return n })} style={{ margin: 0, accentColor: '#15803D' }} />
                             {fmtPerm(perm)}
                           </label>
                         )
