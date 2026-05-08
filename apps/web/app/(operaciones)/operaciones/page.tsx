@@ -70,8 +70,11 @@ function isToday(dateStr: string | null) {
   return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
 }
 
+const CAMPO_ROLES = ['field_worker', 'crew_chief']
+
 export default function OperacionesDashboard() {
   const { user } = useAuth()
+  const isCampo = CAMPO_ROLES.includes(user?.rol ?? '')
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['ots-all'],
     queryFn: () => apiFetch<OTListRes>('/ordenes-trabajo?limit=1000'),
@@ -114,11 +117,15 @@ export default function OperacionesDashboard() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>
             {user?.nombre ? `Hola, ${user.nombre.split(' ')[0]}` : 'Dashboard'}
           </h1>
-          <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>Resumen del módulo Operaciones</p>
+          <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
+            {isCampo ? 'Resumen de tus órdenes de trabajo' : 'Resumen del módulo Operaciones'}
+          </p>
         </div>
-        <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}>
-          + Nueva OT
-        </Link>
+        {!isCampo && (
+          <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}>
+            + Nueva OT
+          </Link>
+        )}
       </div>
 
       {/* Empty state */}

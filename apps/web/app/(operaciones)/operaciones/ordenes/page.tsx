@@ -66,7 +66,7 @@ function EstatusBadge({ e }: { e: string }) {
 }
 
 function TipoBadge({ tipo }: { tipo: string }) {
-  const label = TIPO_OT_OPTIONS.find(([v]) => v === tipo)?.[1] ?? tipo
+  const label = tipo.split(',').map((t) => TIPO_OT_OPTIONS.find(([v]) => v === t.trim())?.[1] ?? t.trim()).join(' + ')
   return (
     <span style={{ background: 'rgba(10,102,255,0.1)', color: '#0A66FF', padding: '0.2rem 0.5rem', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
       {label}
@@ -181,7 +181,8 @@ export default function OrdenesPage() {
                     <td style={{ padding: '0.75rem 1rem' }}><PrioridadBadge p={ot.prioridad} /></td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--muted)' }}>
                       {ot.asignadoAUserId
-                        ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre ?? ot.asignadoAUserId.slice(0, 8) + '…')
+                        ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
+                          ?? (ot.asignadoAUserId === user?.id ? (user.nombre ?? user.email ?? 'Yo') : ot.asignadoAUserId.slice(0, 8) + '…'))
                         : '—'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>

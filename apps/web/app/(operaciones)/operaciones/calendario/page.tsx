@@ -139,7 +139,7 @@ export default function CalendarioPage() {
                       title={`${ot.folio} — ${ot.estatus}`}
                     >
                       <div style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.65rem', marginBottom: '0.1rem' }}>{ot.folio}</div>
-                      <div style={{ opacity: 0.85 }}>{TIPO_SHORT[ot.tipo] ?? ot.tipo}</div>
+                      <div style={{ opacity: 0.85 }}>{ot.tipo.split(',').map((t) => TIPO_SHORT[t.trim()] ?? t.trim()).join('+')}</div>
                     </Link>
                   )
                 })

@@ -325,7 +325,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '1.125rem', fontWeight: 700, fontFamily: 'monospace' }}>{ot.folio}</h1>
-          <Badge label={TIPO_LABELS[ot.tipo] ?? ot.tipo} color="#0A66FF" />
+          <Badge label={ot.tipo.split(',').map((t) => TIPO_LABELS[t.trim()] ?? t.trim()).join(' + ')} color="#0A66FF" />
           <Badge label={ot.prioridad} color={PRIORIDAD_C[ot.prioridad] ?? '#71717A'} />
           <Badge label={ESTATUS_LABEL[ot.estatus] ?? ot.estatus} color={estatusColor} />
         </div>
@@ -369,7 +369,10 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
             <Row label="Descripción" value={ot.descripcion} />
             {ot.instrucciones && <Row label="Instrucciones" value={<span style={{ color: 'var(--muted)' }}>{ot.instrucciones}</span>} />}
             <Row label="Sitio" value={ot.sitioId ?? '—'} />
-            <Row label="Asignado a" value={ot.asignadoAUserId ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre ?? ot.asignadoAUserId) : '—'} />
+            <Row label="Asignado a" value={ot.asignadoAUserId
+              ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
+                ?? (ot.asignadoAUserId === user?.id ? (user?.nombre ?? user?.email ?? 'Yo') : ot.asignadoAUserId.slice(0, 8) + '…'))
+              : '—'} />
             <Row label="Fecha programada" value={fmt(ot.fechaProgramada)} />
             <Row label="Fecha inicio" value={fmt(ot.fechaInicio)} />
             <Row label="Fecha completada" value={fmt(ot.fechaCompletada)} />
