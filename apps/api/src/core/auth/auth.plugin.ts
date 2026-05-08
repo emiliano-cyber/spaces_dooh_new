@@ -37,6 +37,8 @@ const authPlugin: FastifyPluginAsync = async (fastify) => {
         tenantId: payload.tenantId,
         rol: payload.rol,
         permisos: payload.permisos,
+        nombre: payload.nombre,
+        email: payload.email,
       } as AuthUser
     } catch {
       return reply.code(401).send({ error: 'Unauthorized' })

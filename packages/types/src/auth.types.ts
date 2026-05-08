@@ -18,6 +18,8 @@ export interface AuthUser {
   tenantId: string
   rol: string
   permisos: Permission[]
+  nombre?: string
+  email?: string
 }
 
 export interface JWTPayload extends AuthUser {

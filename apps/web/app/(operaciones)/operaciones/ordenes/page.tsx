@@ -101,10 +101,11 @@ export default function OrdenesPage() {
     queryFn: () => apiFetch<OTListRes>(`/ordenes-trabajo?${params}`),
   })
 
-  const { data: usersData } = useQuery({
+  const { data: usersData, isError: usersError } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => apiFetch<UserItem[]>('/admin/users'),
     enabled: !!canSeeAll,
+    retry: 1,
   })
 
   const ots = data?.data ?? []
@@ -133,7 +134,7 @@ export default function OrdenesPage() {
 
           {canSeeAll && !isCampo && (
             <select style={inp} value={filters.asignadoA} onChange={(e) => setFilter('asignadoA', e.target.value)}>
-              <option value="">Todos los técnicos</option>
+              <option value="">{usersError ? 'Error al cargar usuarios' : 'Todos los técnicos'}</option>
               {(usersData ?? []).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
           )}

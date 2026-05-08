@@ -5,12 +5,17 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
 
-const NAV = [
-  { href: '/operaciones', label: 'Dashboard OTs', icon: '◫' },
-  { href: '/operaciones/ordenes', label: 'Mis Órdenes', icon: '≡' },
-  { href: '/operaciones/calendario', label: 'Calendario', icon: '▦' },
-  { href: '/inmuebles/sitios', label: 'Sitios', icon: '📍' },
-]
+const CAMPO_ROLES = ['field_worker', 'crew_chief']
+
+function buildNav(userRol: string) {
+  const isCampo = CAMPO_ROLES.includes(userRol)
+  return [
+    { href: '/operaciones', label: 'Dashboard OTs', icon: '◫' },
+    { href: '/operaciones/ordenes', label: isCampo ? 'Mis Órdenes' : 'Órdenes de trabajo', icon: '≡' },
+    { href: '/operaciones/calendario', label: 'Calendario', icon: '▦' },
+    { href: '/inmuebles/sitios', label: 'Sitios', icon: '📍' },
+  ]
+}
 
 export default function OperacionesLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading, logout } = useAuth()
@@ -36,6 +41,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
     )
   }
 
+  const NAV = buildNav(user.rol)
   const currentNav = NAV.find(
     (n) => pathname === n.href || (n.href !== '/operaciones' && (pathname ?? '').startsWith(n.href)),
   )
@@ -68,7 +74,10 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
         </nav>
 
         <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)' }}>
-          <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--fg)', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>
+            {user.nombre ?? user.email ?? user.id.slice(0, 8)}
+          </div>
+          <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
             {user.rol}
           </div>
           <button
@@ -86,7 +95,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
           <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--fg)' }}>
             {currentNav?.label ?? 'Operaciones'}
           </span>
-          <span style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{user.id.slice(0, 8)}…</span>
+          <span style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{user.nombre ?? user.email ?? user.id.slice(0, 8)}</span>
         </header>
         <main style={{ flex: 1, overflow: 'auto', padding: '1.5rem' }}>{children}</main>
       </div>

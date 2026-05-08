@@ -16,6 +16,7 @@ async function tryRefresh(): Promise<boolean> {
     const res = await fetch(`${BASE_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
+      headers: { 'x-tenant-slug': TENANT_SLUG },
     })
     if (!res.ok) return false
     const data = await res.json()

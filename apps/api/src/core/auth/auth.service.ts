@@ -21,6 +21,8 @@ async function signAccessToken(user: AuthUser): Promise<string> {
     tenantId: user.tenantId,
     rol: user.rol,
     permisos: user.permisos,
+    nombre: user.nombre,
+    email: user.email,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(user.id)
@@ -56,6 +58,8 @@ export async function login(
     tenantId,
     rol: dbUser.rolId,
     permisos: (role?.permisos ?? []) as AuthUser['permisos'],
+    nombre: dbUser.nombre,
+    email: dbUser.email,
   }
 
   const accessToken = await signAccessToken(authUser)
@@ -112,6 +116,8 @@ export async function refresh(
     tenantId: dbUser.tenantId,
     rol: dbUser.rolId,
     permisos: (role?.permisos ?? []) as AuthUser['permisos'],
+    nombre: dbUser.nombre,
+    email: dbUser.email,
   }
 
   const accessToken = await signAccessToken(authUser)

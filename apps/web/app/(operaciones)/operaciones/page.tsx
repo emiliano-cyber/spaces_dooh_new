@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
+import { useAuth } from '@/lib/auth-context'
 
 interface OT {
   id: string
@@ -70,7 +71,8 @@ function isToday(dateStr: string | null) {
 }
 
 export default function OperacionesDashboard() {
-  const { data, isLoading } = useQuery({
+  const { user } = useAuth()
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['ots-all'],
     queryFn: () => apiFetch<OTListRes>('/ordenes-trabajo?limit=1000'),
   })
@@ -95,17 +97,37 @@ export default function OperacionesDashboard() {
     return <div style={{ color: 'var(--muted)', fontSize: '0.875rem', padding: '2rem' }}>Cargando…</div>
   }
 
+  if (isError) {
+    return (
+      <div style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ background: 'rgba(185,28,28,0.08)', border: '1px solid rgba(185,28,28,0.25)', borderRadius: '10px', padding: '1rem 1.25rem', color: '#B91C1C', fontSize: '0.875rem' }}>
+          <strong>Error al cargar las órdenes:</strong> {error instanceof Error ? error.message : 'Error desconocido'}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>Dashboard</h1>
+          <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+            {user?.nombre ? `Hola, ${user.nombre.split(' ')[0]}` : 'Dashboard'}
+          </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>Resumen del módulo Operaciones</p>
         </div>
         <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none' }}>
           + Nueva OT
         </Link>
       </div>
+
+      {/* Empty state */}
+      {all.length === 0 && (
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '2rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
+          No hay órdenes de trabajo registradas.{' '}
+          <Link href="/operaciones/ordenes/nueva" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>Crea la primera →</Link>
+        </div>
+      )}
 
       {/* KPIs */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>

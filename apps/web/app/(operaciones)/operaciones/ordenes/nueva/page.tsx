@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
+import { useAuth } from '@/lib/auth-context'
 
 const TIPO_OT_OPTIONS = [
   ['MONTAJE_LONA', 'Montaje de lona'],
@@ -38,9 +39,12 @@ interface UserOption { id: string; nombre: string; email: string }
 
 export default function NuevaOTPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [serverError, setServerError] = useState<string | null>(null)
   const [checklist, setChecklist] = useState<string[]>([''])
   const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>(['MANTENIMIENTO_CORRECTIVO'])
+
+  const canAssign = user?.rol === 'owner' || user?.rol === 'admin' || user?.permisos?.includes('ots:assign')
 
   function toggleTipo(value: string) {
     setTiposSeleccionados((prev) =>
@@ -53,9 +57,11 @@ export default function NuevaOTPage() {
     queryFn: () => apiFetch<{ data: SitioOption[] }>('/sitios?limit=500').then((r) => r.data),
   })
 
-  const { data: users } = useQuery({
+  const { data: users, isError: usersError } = useQuery({
     queryKey: ['users-select'],
     queryFn: () => apiFetch<UserOption[]>('/admin/users'),
+    enabled: !!canAssign,
+    retry: 1,
   })
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
@@ -203,11 +209,16 @@ export default function NuevaOTPage() {
           <div style={fld}>
             <label style={lbl}>Asignar a</label>
             <select style={inp} {...register('asignadoAUserId')}>
-              <option value="">Sin asignar</option>
+              <option value="">{usersError ? 'Error al cargar usuarios' : 'Sin asignar'}</option>
               {(users ?? []).map((u) => (
                 <option key={u.id} value={u.id}>{u.nombre}</option>
               ))}
             </select>
+            {usersError && (
+              <span style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '0.2rem' }}>
+                No se pudieron cargar los usuarios. Verifica que tengas permisos.
+              </span>
+            )}
           </div>
           <div style={fld}>
             <label style={lbl}>Fecha programada</label>
