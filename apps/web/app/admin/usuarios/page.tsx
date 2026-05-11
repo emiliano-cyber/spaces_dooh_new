@@ -53,14 +53,16 @@ export default function UsuariosPage() {
 
   function openNew() {
     setEditUser(null)
-    setNombre(''); setEmail(''); setPassword(''); setRolId(roles[0]?.id ?? '')
+    setNombre(''); setEmail(''); setPassword(''); setRolId(roles[0]?.nombre ?? '')
     setError(null); setCreatedPassword(null)
     setSlideOpen(true)
   }
 
   function openEdit(u: User) {
     setEditUser(u)
-    setNombre(u.nombre); setEmail(u.email); setPassword(''); setRolId(u.rolId)
+    // resolve UUID rolId → nombre for users created before this fix
+    const resolvedRol = roles.find((r) => r.id === u.rolId)?.nombre ?? u.rolId
+    setNombre(u.nombre); setEmail(u.email); setPassword(''); setRolId(resolvedRol)
     setError(null); setCreatedPassword(null)
     setSlideOpen(true)
   }
@@ -98,7 +100,7 @@ export default function UsuariosPage() {
     qc.invalidateQueries({ queryKey: ['admin-users'] })
   }
 
-  const roleMap = Object.fromEntries(roles.map((r) => [r.id, r]))
+  const roleMap = Object.fromEntries([...roles.map((r) => [r.id, r]), ...roles.map((r) => [r.nombre, r])])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -203,7 +205,7 @@ export default function UsuariosPage() {
                   <label style={lbl}>Rol *</label>
                   <select style={inp} value={rolId} onChange={(e) => setRolId(e.target.value)} required>
                     <option value="">Seleccionar rol…</option>
-                    {roles.map((r) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+                    {roles.map((r) => <option key={r.id} value={r.nombre}>{r.nombre}</option>)}
                   </select>
                 </div>
                 {error && <div style={{ background: 'rgba(255,75,75,0.1)', border: '1px solid var(--error)', borderRadius: '7px', color: 'var(--error)', fontSize: '0.875rem', padding: '0.5rem 0.75rem' }}>{error}</div>}

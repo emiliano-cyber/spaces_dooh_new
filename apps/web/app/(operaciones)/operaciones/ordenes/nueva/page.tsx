@@ -44,7 +44,9 @@ export default function NuevaOTPage() {
   const [checklist, setChecklist] = useState<string[]>([''])
   const [tiposSeleccionados, setTiposSeleccionados] = useState<string[]>(['MANTENIMIENTO_CORRECTIVO'])
 
-  const canAssign = user?.rol === 'owner' || user?.rol === 'admin' || user?.permisos?.includes('ots:assign')
+  const canAssign = user?.rol === 'owner' || user?.rol === 'admin' ||
+    (user?.permisos as string[] | undefined)?.includes('*') ||
+    user?.permisos.includes('ots:assign')
 
   function toggleTipo(value: string) {
     setTiposSeleccionados((prev) =>

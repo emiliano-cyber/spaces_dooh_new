@@ -16,6 +16,15 @@ function jwtSecret(): Uint8Array {
   return new TextEncoder().encode(process.env.JWT_SECRET!)
 }
 
+/** Look up a role by nombre; if not found, try by id (handles legacy UUID-based rolId) */
+async function resolveRole(tenantId: string, rolId: string) {
+  const byNombre = await publicPrisma.role.findUnique({
+    where: { tenantId_nombre: { tenantId, nombre: rolId } },
+  })
+  if (byNombre) return byNombre
+  return publicPrisma.role.findFirst({ where: { tenantId, id: rolId } }) ?? null
+}
+
 async function signAccessToken(user: AuthUser): Promise<string> {
   return new SignJWT({
     tenantId: user.tenantId,
@@ -49,14 +58,12 @@ export async function login(
     throw Object.assign(new Error('Invalid credentials'), { statusCode: 401 })
   }
 
-  const role = await publicPrisma.role.findUnique({
-    where: { tenantId_nombre: { tenantId, nombre: dbUser.rolId } },
-  })
+  const role = await resolveRole(tenantId, dbUser.rolId)
 
   const authUser: AuthUser = {
     id: dbUser.id,
     tenantId,
-    rol: dbUser.rolId,
+    rol: role?.nombre ?? dbUser.rolId,
     permisos: (role?.permisos ?? []) as AuthUser['permisos'],
     nombre: dbUser.nombre,
     email: dbUser.email,
@@ -107,14 +114,12 @@ export async function refresh(
     throw Object.assign(new Error('User not found'), { statusCode: 401 })
   }
 
-  const role = await publicPrisma.role.findUnique({
-    where: { tenantId_nombre: { tenantId: dbUser.tenantId, nombre: dbUser.rolId } },
-  })
+  const role = await resolveRole(dbUser.tenantId, dbUser.rolId)
 
   const authUser: AuthUser = {
     id: dbUser.id,
     tenantId: dbUser.tenantId,
-    rol: dbUser.rolId,
+    rol: role?.nombre ?? dbUser.rolId,
     permisos: (role?.permisos ?? []) as AuthUser['permisos'],
     nombre: dbUser.nombre,
     email: dbUser.email,

@@ -21,10 +21,17 @@ import { getPrismaForTenant, publicPrisma } from './db/client'
 import { connection } from './jobs/queue'
 
 // ── CORS origins ──────────────────────────────────────────────────────────────
-const allowedOrigins =
-  process.env.NODE_ENV === 'production'
-    ? [/https:\/\/.*\.spaces\.com$/, /https:\/\/portal\..*\.spaces\.com$/]
-    : ['http://localhost:3000', 'http://localhost:3001']
+function buildCorsOrigins() {
+  // Explicit override via env var (e.g. CORS_ORIGIN=https://market.adavailable.com)
+  if (process.env.CORS_ORIGIN) {
+    return process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  }
+  if (process.env.NODE_ENV === 'production') {
+    return [/https?:\/\/.*/]  // same-origin requests don't send Origin header, so this only matches real cross-origin requests
+  }
+  return ['http://localhost:3000', 'http://localhost:3001']
+}
+const allowedOrigins = buildCorsOrigins()
 
 export async function buildApp(app: FastifyInstance): Promise<void> {
   // ── CORS (before everything) ────────────────────────────────────────────────

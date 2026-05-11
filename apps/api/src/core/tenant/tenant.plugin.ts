@@ -51,11 +51,13 @@ const tenantPlugin: FastifyPluginAsync = async (fastify) => {
 
     let slug: string | null = null
 
-    if (isDev) {
-      slug = (request.headers['x-tenant-slug'] as string | undefined) ?? extractSlug(host)
-    } else {
-      slug = extractSlug(host)
-    }
+    // Always accept x-tenant-slug header (sent by the frontend)
+    // In production also try hostname extraction and TENANT_SLUG env var as fallback
+    slug =
+      (request.headers['x-tenant-slug'] as string | undefined) ??
+      extractSlug(host) ??
+      process.env.TENANT_SLUG ??
+      null
 
     if (!slug) {
       return reply.code(404).send({ error: 'Tenant not found' })

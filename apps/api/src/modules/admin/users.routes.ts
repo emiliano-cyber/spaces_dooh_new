@@ -4,7 +4,7 @@ import { requirePermission } from '../../core/auth/rbac.guard'
 import * as usersService from './users.service'
 
 const usersRoutes: FastifyPluginAsync = async (fastify) => {
-  fastify.get('/admin/users', { ...requirePermission('users:read') }, async (request) => {
+  fastify.get('/admin/users', { ...requirePermission('ots:assign') }, async (request) => {
     return usersService.list(request.tenant.id)
   })
 
