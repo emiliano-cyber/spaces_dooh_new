@@ -1,3 +1,6 @@
+-- This migration does not support transactions
+-- (ALTER TYPE ... ADD VALUE cannot run inside a transaction in some PostgreSQL versions)
+
 -- Add new EstOT enum values for field reports workflow
 ALTER TYPE "tenant_template"."EstOT" ADD VALUE IF NOT EXISTS 'BLOQUEADA';
 ALTER TYPE "tenant_template"."EstOT" ADD VALUE IF NOT EXISTS 'EN_REVISION';

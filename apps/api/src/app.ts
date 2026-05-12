@@ -3,6 +3,7 @@ import cors from '@fastify/cors'
 import cookie from '@fastify/cookie'
 import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
+import { z } from 'zod'
 import tenantPlugin from './core/tenant/tenant.plugin'
 import authPlugin from './core/auth/auth.plugin'
 import authRoutes from './core/auth/auth.routes'
@@ -93,7 +94,27 @@ export async function buildApp(app: FastifyInstance): Promise<void> {
         message: 'Registro no encontrado',
       })
     }
-    // Zod / fastify validation errors
+    // Prisma validation error (unknown field, wrong type, etc.)
+    if (error.name === 'PrismaClientValidationError') {
+      request.log.error(error)
+      return reply.status(400).send({
+        error: 'Validation Error',
+        message: 'Datos inválidos en la solicitud',
+      })
+    }
+    // Prisma raw query failed (e.g. column not found, type mismatch in DB)
+    if (error.code === 'P2010') {
+      request.log.error({ code: error.code, meta: error.meta, message: error.message }, 'Prisma P2010')
+    }
+    // Zod validation errors (thrown by .parse() — have no statusCode)
+    if (error instanceof z.ZodError) {
+      return reply.status(400).send({
+        error: 'Validation Error',
+        message: 'Datos inválidos',
+        fields: error.issues,
+      })
+    }
+    // Fastify built-in schema validation errors
     if (statusCode === 400 && error.validation) {
       return reply.status(400).send({
         error: 'Validation Error',
