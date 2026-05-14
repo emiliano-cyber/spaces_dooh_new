@@ -65,6 +65,22 @@ export async function list(prisma: PrismaClient, filters: ListFilters, requestUs
     }),
   ])
 
+  // Batch-fetch sitio names
+  const sitioIds = [...new Set(items.map((o: any) => o.sitioId).filter(Boolean))]
+  if (sitioIds.length > 0) {
+    const sitios = await (prisma as any).sitio.findMany({
+      where: { id: { in: sitioIds } },
+      select: { id: true, nombre: true, claveInterna: true },
+    })
+    const sitioMap = Object.fromEntries(sitios.map((s: any) => [s.id, s]))
+    for (const item of items) {
+      if (item.sitioId && sitioMap[item.sitioId]) {
+        item.sitioNombre = sitioMap[item.sitioId].nombre
+        item.sitioClaveInterna = sitioMap[item.sitioId].claveInterna
+      }
+    }
+  }
+
   return { data: items, meta: { total, page, limit, pages: Math.ceil(total / limit) } }
 }
 
@@ -92,6 +108,14 @@ export async function getById(prisma: PrismaClient, id: string, requestUser?: Re
     )
   } else {
     ot.tiempoTrabajadoMin = null
+  }
+
+  if (ot.sitioId) {
+    const sitio = await (prisma as any).sitio.findUnique({
+      where: { id: ot.sitioId },
+      select: { nombre: true, claveInterna: true },
+    })
+    ot.sitioNombre = sitio ? `${sitio.claveInterna} — ${sitio.nombre}` : null
   }
 
   return ot
@@ -138,6 +162,77 @@ export async function create(prisma: PrismaClient, data: CreateOTData, userId: s
   })
 
   return ot
+}
+
+interface Sesion { inicio: string; termino: string | null; userId: string }
+
+export async function iniciarLabores(prisma: PrismaClient, id: string, userId: string) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id } })
+
+  if (['COMPLETADA', 'CANCELADA', 'EN_REVISION'].includes(ot.estatus)) {
+    throw Object.assign(new Error(`No se puede registrar labores en estatus ${ot.estatus}`), { statusCode: 400 })
+  }
+
+  const sesiones: Sesion[] = Array.isArray(ot.sesionesJson) ? ot.sesionesJson : []
+  if (sesiones.find(s => !s.termino)) {
+    throw Object.assign(new Error('Hay una sesión abierta. Termina la sesión actual antes de iniciar una nueva.'), { statusCode: 409 })
+  }
+
+  const now = new Date()
+  sesiones.push({ inicio: now.toISOString(), termino: null, userId })
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id },
+    data: {
+      sesionesJson: sesiones,
+      estatus: 'EN_PROCESO',
+      fechaInicio: ot.fechaInicio ?? now,
+      horaLlegada: ot.horaLlegada ?? now,
+      horaTerminoLabores: null,
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.inicio_labores',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: id,
+    cambiosJson: { inicio: now.toISOString(), sesionNum: sesiones.length, folio: ot.folio },
+  })
+
+  return updated
+}
+
+export async function terminarLabores(prisma: PrismaClient, id: string, userId: string) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id } })
+
+  const sesiones: Sesion[] = Array.isArray(ot.sesionesJson) ? ot.sesionesJson : []
+  const openIdx = sesiones.findIndex(s => !s.termino)
+
+  if (openIdx === -1) {
+    throw Object.assign(new Error('No hay una sesión de labores abierta para terminar'), { statusCode: 400 })
+  }
+
+  const now = new Date()
+  sesiones[openIdx] = { ...sesiones[openIdx], termino: now.toISOString() }
+
+  const updated = await (prisma as any).ordenTrabajo.update({
+    where: { id },
+    data: {
+      sesionesJson: sesiones,
+      horaTerminoLabores: now,
+    },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.termino_labores',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: id,
+    cambiosJson: { termino: now.toISOString(), folio: ot.folio },
+  })
+
+  return updated
 }
 
 export async function update(
@@ -196,6 +291,8 @@ export async function updateChecklist(
   itemId: string,
   completado: boolean,
   userId: string,
+  notaRealizado?: string,
+  notaPendiente?: string,
 ) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
 
@@ -212,6 +309,13 @@ export async function updateChecklist(
   item.completado = completado
   item.completadoEn = completado ? new Date().toISOString() : undefined
   item.completadoPorUserId = completado ? userId : undefined
+  if (completado) {
+    item.notaRealizado = notaRealizado || undefined
+    item.notaPendiente = notaPendiente || undefined
+  } else {
+    item.notaRealizado = undefined
+    item.notaPendiente = undefined
+  }
 
   return (prisma as any).ordenTrabajo.update({
     where: { id: otId },
@@ -461,6 +565,33 @@ export async function cancelar(
   return updated
 }
 
+export async function getMisSitios(prisma: PrismaClient, requestUser: RequestUser) {
+  const where: Record<string, unknown> = { sitioId: { not: null } }
+
+  if (CAMPO_ROLES.includes(requestUser.rol)) {
+    where.asignadoAUserId = requestUser.id
+  }
+
+  const ots = await (prisma as any).ordenTrabajo.findMany({
+    where,
+    select: { sitioId: true, estatus: true },
+  })
+
+  const sitioIds = [...new Set(ots.map((o: any) => o.sitioId as string))]
+  if (sitioIds.length === 0) return []
+
+  const sitios = await (prisma as any).sitio.findMany({
+    where: { id: { in: sitioIds } },
+    select: { id: true, nombre: true, claveInterna: true, ciudad: true, direccion: true, tipoMedio: true },
+  })
+
+  return sitios.map((s: any) => {
+    const sitioOts = ots.filter((o: any) => o.sitioId === s.id)
+    const pendientes = sitioOts.filter((o: any) => ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO'].includes(o.estatus)).length
+    return { ...s, totalOTs: sitioOts.length, otsPendientes: pendientes }
+  })
+}
+
 export async function getCalendario(
   prisma: PrismaClient,
   filters: { desde: string; hasta: string; userId?: string },
@@ -496,4 +627,21 @@ export async function getCalendario(
   }
 
   return grouped
+}
+
+export async function deleteOT(prisma: PrismaClient, id: string, userId: string) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id } })
+
+  await (prisma as any).evidenciaOT.deleteMany({ where: { otId: id } })
+  await (prisma as any).ordenTrabajo.delete({ where: { id } })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'ot.deleted',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: id,
+    cambiosJson: { folio: ot.folio, tipo: ot.tipo, estatus: ot.estatus },
+  })
+
+  return { ok: true, folio: ot.folio }
 }

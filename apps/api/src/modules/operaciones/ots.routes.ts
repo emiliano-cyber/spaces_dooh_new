@@ -36,6 +36,11 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     return reply.code(201).send(ot)
   })
 
+  // ── Mis Sitios (campo roles) ──────────────────────────────────────────────────
+  fastify.get('/ordenes-trabajo/mis-sitios', { ...requirePermission('ots:read') }, async (request) => {
+    return otsService.getMisSitios(request.prisma, request.user)
+  })
+
   // ── Calendario — MUST be before /:id ─────────────────────────────────────────
   fastify.get('/ordenes-trabajo/calendario', { ...requirePermission('ots:read') }, async (request) => {
     const q = request.query as { desde: string; hasta: string; userId?: string }
@@ -58,8 +63,8 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
   // ── Update Checklist ──────────────────────────────────────────────────────────
   fastify.patch('/ordenes-trabajo/:id/checklist', { ...requirePermission('ots:complete') }, async (request) => {
     const { id } = request.params as { id: string }
-    const { itemId, completado } = ChecklistItemSchema.parse(request.body)
-    return otsService.updateChecklist(request.prisma, id, itemId, completado, request.user.id)
+    const { itemId, completado, notaRealizado, notaPendiente } = ChecklistItemSchema.parse(request.body)
+    return otsService.updateChecklist(request.prisma, id, itemId, completado, request.user.id, notaRealizado, notaPendiente)
   })
 
   // ── Presigned Upload URL ──────────────────────────────────────────────────────
@@ -94,6 +99,18 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const body = request.body as { notas?: string }
     return otsService.update(request.prisma, id, { notas: body?.notas }, request.user.id)
+  })
+
+  // ── Iniciar labores ───────────────────────────────────────────────────────────
+  fastify.post('/ordenes-trabajo/:id/iniciar-labores', { ...requirePermission('ots:complete') }, async (request) => {
+    const { id } = request.params as { id: string }
+    return otsService.iniciarLabores(request.prisma, id, request.user.id)
+  })
+
+  // ── Terminar labores ──────────────────────────────────────────────────────────
+  fastify.post('/ordenes-trabajo/:id/terminar-labores', { ...requirePermission('ots:complete') }, async (request) => {
+    const { id } = request.params as { id: string }
+    return otsService.terminarLabores(request.prisma, id, request.user.id)
   })
 
   // ── Completar ─────────────────────────────────────────────────────────────────
@@ -136,6 +153,13 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params as { id: string }
     const { motivo } = request.body as { motivo: string }
     return otsService.cancelar(request.prisma, id, { motivo }, request.user.id)
+  })
+
+  // ── Eliminar ──────────────────────────────────────────────────────────────────
+  fastify.delete('/ordenes-trabajo/:id', { ...requirePermission('ots:assign') }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    await otsService.deleteOT(request.prisma, id, request.user.id)
+    return reply.code(200).send({ ok: true })
   })
 }
 

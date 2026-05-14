@@ -13,7 +13,7 @@ function buildNav(userRol: string) {
     { href: '/operaciones', label: 'Dashboard OTs', icon: '◫' },
     { href: '/operaciones/ordenes', label: isCampo ? 'Mis Órdenes' : 'Órdenes de trabajo', icon: '≡' },
     { href: '/operaciones/calendario', label: 'Calendario', icon: '▦' },
-    { href: '/inmuebles/sitios', label: 'Sitios', icon: '📍' },
+    { href: isCampo ? '/operaciones/mis-sitios' : '/inmuebles/sitios', label: isCampo ? 'Mis Sitios' : 'Sitios', icon: '📍' },
   ]
 }
 

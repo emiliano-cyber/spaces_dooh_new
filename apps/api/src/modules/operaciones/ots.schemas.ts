@@ -28,6 +28,8 @@ export const UpdateOTSchema = z.object({
 export const ChecklistItemSchema = z.object({
   itemId: z.string(),
   completado: z.boolean(),
+  notaRealizado: z.string().optional(),
+  notaPendiente: z.string().optional(),
 })
 
 export type CreateOTInput = z.infer<typeof CreateOTSchema>

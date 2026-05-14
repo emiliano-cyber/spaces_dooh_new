@@ -2,10 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useQuery } from '@tanstack/react-query'
+import { useRouter } from 'next/navigation'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
 
+interface Sesion { inicio: string; termino: string | null }
+interface ChecklistItem { id: string; completado: boolean }
 interface OT {
   id: string
   folio: string
@@ -15,7 +18,11 @@ interface OT {
   estatus: string
   asignadoAUserId: string | null
   fechaProgramada: string | null
+  sesionesJson?: Sesion[]
+  checklistJson?: ChecklistItem[]
   _count?: { evidencias: number }
+  sitioNombre?: string | null
+  sitioClaveInterna?: string | null
 }
 
 interface OTListRes { data: OT[]; meta: { total: number; pages: number } }
@@ -74,10 +81,74 @@ function TipoBadge({ tipo }: { tipo: string }) {
   )
 }
 
+function ChecklistProgress({ items }: { items?: ChecklistItem[] }) {
+  if (!items || items.length === 0) return <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>—</span>
+  const done = items.filter(i => i.completado).length
+  const pct = Math.round((done / items.length) * 100)
+  const color = pct === 100 ? '#15803D' : pct > 0 ? '#B45309' : 'var(--muted)'
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', minWidth: 72 }}>
+      <span style={{ fontSize: '0.75rem', fontWeight: 600, color }}>{done}/{items.length} ({pct}%)</span>
+      <div style={{ height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden', width: '100%' }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: color, transition: 'width 0.3s' }} />
+      </div>
+    </div>
+  )
+}
+
 const inp: React.CSSProperties = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.8375rem', padding: '0.45rem 0.75rem', outline: 'none', height: 34 }
+
+function LaborInlineButton({ ot, onDone }: { ot: OT; onDone: () => void }) {
+  const [loading, setLoading] = useState(false)
+
+  const sessions = ot.sesionesJson ?? []
+  const openSession = sessions.find(s => !s.termino)
+  const canIniciar = !openSession && ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO'].includes(ot.estatus)
+  const canTerminar = !!openSession
+
+  if (!canIniciar && !canTerminar) return null
+
+  async function handleClick(e: React.MouseEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setLoading(true)
+    try {
+      const action = canIniciar ? 'iniciar-labores' : 'terminar-labores'
+      await apiFetch(`/ordenes-trabajo/${ot.id}/${action}`, { method: 'POST', body: JSON.stringify({}) })
+      onDone()
+    } catch {
+      // silently ignore — user can retry
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading}
+      style={{
+        background: canIniciar ? '#15803D' : '#B45309',
+        border: 'none',
+        borderRadius: '6px',
+        color: '#fff',
+        cursor: loading ? 'not-allowed' : 'pointer',
+        fontSize: '0.75rem',
+        fontWeight: 600,
+        padding: '0.35rem 0.7rem',
+        opacity: loading ? 0.7 : 1,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {loading ? '…' : canIniciar ? '▶ Iniciar' : '■ Terminar'}
+    </button>
+  )
+}
 
 export default function OrdenesPage() {
   const { user } = useAuth()
+  const router = useRouter()
+  const qc = useQueryClient()
   const [filters, setFilters] = useState({ estatus: '', tipo: '', asignadoA: '', fechaDesde: '', fechaHasta: '', page: 1 })
 
   const CAMPO_ROLES = ['field_worker', 'crew_chief']
@@ -160,23 +231,30 @@ export default function OrdenesPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Folio', 'Tipo', 'Descripción', 'Prioridad', 'Asignado a', 'Fecha prog.', 'Estatus', ''].map((h) => (
+                {['Folio', 'Tipo', 'Sitio', 'Prioridad', 'Asignado a', 'Fecha prog.', 'Estatus', ...(isCampo ? ['Avance', 'Labores'] : []), ''].map((h) => (
                   <th key={h} style={{ textAlign: 'left', padding: '0.75rem 1rem', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {ots.length === 0 && !isLoading ? (
-                <tr><td colSpan={8} style={{ padding: '2rem 1.25rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>Sin órdenes de trabajo</td></tr>
+                <tr><td colSpan={isCampo ? 10 : 8} style={{ padding: '2rem 1.25rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>Sin órdenes de trabajo</td></tr>
               ) : (
                 ots.map((ot) => (
-                  <tr key={ot.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <tr key={ot.id} onClick={() => router.push(`/operaciones/ordenes/${ot.id}`)} style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}>
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 600, color: 'var(--accent)' }}>{ot.folio}</span>
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}><TipoBadge tipo={ot.tipo} /></td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', maxWidth: 260 }}>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ot.descripcion}</div>
+                      {ot.sitioNombre ? (
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontWeight: 600 }}>{ot.sitioNombre}</span>
+                          {ot.sitioClaveInterna && <span style={{ color: 'var(--muted)', marginLeft: '0.375rem', fontSize: '0.75rem' }}>{ot.sitioClaveInterna}</span>}
+                        </div>
+                      ) : (
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--muted)' }}>{ot.descripcion}</div>
+                      )}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}><PrioridadBadge p={ot.prioridad} /></td>
                     <td style={{ padding: '0.75rem 1rem', fontSize: '0.8125rem', color: 'var(--muted)' }}>
@@ -189,6 +267,16 @@ export default function OrdenesPage() {
                       {ot.fechaProgramada ? new Date(ot.fechaProgramada).toLocaleDateString('es-MX') : '—'}
                     </td>
                     <td style={{ padding: '0.75rem 1rem' }}><EstatusBadge e={ot.estatus} /></td>
+                    {isCampo && (
+                      <td style={{ padding: '0.5rem 1rem' }}>
+                        <ChecklistProgress items={ot.checklistJson} />
+                      </td>
+                    )}
+                    {isCampo && (
+                      <td style={{ padding: '0.5rem 1rem' }}>
+                        <LaborInlineButton ot={ot} onDone={() => qc.invalidateQueries({ queryKey: ['ots-list'] })} />
+                      </td>
+                    )}
                     <td style={{ padding: '0.75rem 1rem' }}>
                       <Link href={`/operaciones/ordenes/${ot.id}`} style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500 }}>Ver →</Link>
                     </td>

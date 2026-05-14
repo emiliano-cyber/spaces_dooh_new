@@ -16,6 +16,7 @@ import trafficRoutes from './modules/digital/traffic.routes'
 import portalRoutes from './modules/comercial/portal.routes'
 import devRoutes from './modules/dev/dev.routes'
 import adminExtRoutes from './modules/admin/admin.routes'
+import portalClienteRoutes from './modules/portal-cliente/portal-cliente.routes'
 import { eventBus } from './core/events/event-bus'
 import * as readinessService from './modules/comercial/readiness.service'
 import { getPrismaForTenant, publicPrisma } from './db/client'
@@ -148,6 +149,7 @@ export async function buildApp(app: FastifyInstance): Promise<void> {
   await app.register(portalRoutes)
   await app.register(devRoutes)
   await app.register(adminExtRoutes)
+  await app.register(portalClienteRoutes)
 
   // ── Health checks ──────────────────────────────────────────────────────────
   app.get('/health', { config: { rateLimit: false } }, async (_req, reply) => {

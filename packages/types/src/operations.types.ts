@@ -4,6 +4,8 @@ export interface ChecklistItem {
   completado: boolean
   completadoEn?: string | null
   completadoPorUserId?: string | null
+  notaRealizado?: string | null
+  notaPendiente?: string | null
 }
 
 export interface CreateOTData {

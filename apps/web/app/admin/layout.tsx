@@ -13,6 +13,7 @@ const NAV_PRIMARY = [
   { href: '/admin/roles', label: 'Roles', icon: '◧' },
   { href: '/admin/config', label: 'Configuración', icon: '⚙' },
   { href: '/admin/audit-log', label: 'Audit Log', icon: '≡' },
+  { href: '/admin/portal-clientes', label: 'Portal clientes', icon: '◉' },
 ]
 
 const NAV_MODULES = [

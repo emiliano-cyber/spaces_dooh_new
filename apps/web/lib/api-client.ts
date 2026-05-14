@@ -43,7 +43,7 @@ export async function apiFetch<T = unknown>(
   options: RequestInit = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+    ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     'x-tenant-slug': TENANT_SLUG,
     ...(options.headers as Record<string, string>),
   }
@@ -67,7 +67,7 @@ export async function apiFetch<T = unknown>(
 
     // Retry original request with new token
     const retryHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       'x-tenant-slug': TENANT_SLUG,
       ...(options.headers as Record<string, string>),
     }

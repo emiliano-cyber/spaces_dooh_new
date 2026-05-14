@@ -36,6 +36,30 @@ const USERS_TO_CREATE = [
     password: 'Fer.123',
     rolId: 'field_worker',
   },
+  {
+    nombre: 'Carlos',
+    email: 'carlos@adavailable.com',
+    password: 'Carlos.123',
+    rolId: 'admin',
+  },
+  {
+    nombre: 'Jochelo',
+    email: 'jochelo@adavailable.com',
+    password: 'Jochelo.123',
+    rolId: 'admin',
+  },
+  {
+    nombre: 'Luis',
+    email: 'luis@adavailable.com',
+    password: 'Luis.123',
+    rolId: 'field_worker',
+  },
+  {
+    nombre: 'Tecnico 1',
+    email: 'tecnico1@adavailable.com',
+    password: 'Tecnico1.123',
+    rolId: 'field_worker',
+  },
 ]
 
 async function main() {

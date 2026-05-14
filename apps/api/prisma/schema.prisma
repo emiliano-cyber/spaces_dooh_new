@@ -354,6 +354,9 @@ model OrdenTrabajo {
   revisadoPorUserId String?
   revisadoEn        DateTime?
   revisionNotas     String?
+  horaLlegada        DateTime?
+  horaTerminoLabores DateTime?
+  sesionesJson       Json          @default("[]")
   creadoEn          DateTime      @default(now())
   actualizadoEn     DateTime      @updatedAt
   evidencias        EvidenciaOT[]
@@ -522,5 +525,44 @@ model AuditLog {
   timestamp   DateTime @default(now())
 
   @@index([entidadTipo, entidadId])
+  @@schema("tenant_template")
+}
+
+model PortalCliente {
+  id           String               @id @default(cuid())
+  email        String               @unique
+  passwordHash String
+  nombre       String
+  activo       Boolean              @default(true)
+  creadoEn     DateTime             @default(now())
+  sitios       PortalClienteSitio[]
+  comentarios  ComentarioPublico[]
+
+  @@schema("tenant_template")
+}
+
+model PortalClienteSitio {
+  clienteId String
+  sitioId   String
+  cliente   PortalCliente @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@id([clienteId, sitioId])
+  @@schema("tenant_template")
+}
+
+model ComentarioPublico {
+  id          String         @id @default(cuid())
+  otId        String
+  texto       String
+  fotoUrl     String?
+  storageKey  String?
+  timestamp   DateTime       @default(now())
+  autorTipo   String
+  autorNombre String
+  clienteId   String?
+  userId      String?
+  cliente     PortalCliente? @relation(fields: [clienteId], references: [id], onDelete: SetNull)
+
+  @@index([otId])
   @@schema("tenant_template")
 }

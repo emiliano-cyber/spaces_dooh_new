@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
@@ -8,16 +8,18 @@ import { useAuth } from '@/lib/auth-context'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
 import OTMovil from '@/components/operaciones/OTMovil'
 
-interface ChecklistItem { id: string; texto: string; completado: boolean; completadoEn?: string; completadoPorUserId?: string }
+interface ChecklistItem { id: string; texto: string; completado: boolean; completadoEn?: string; completadoPorUserId?: string; notaRealizado?: string | null; notaPendiente?: string | null }
 interface Evidencia { id: string; fotoUrl: string; fotoUrlSigned: string; storageKey: string; tipo: string; timestamp: string; lat?: number; lng?: number }
 interface OT {
   id: string; folio: string; tipo: string; descripcion: string; instrucciones?: string
-  prioridad: string; estatus: string; sitioId?: string; asignadoAUserId?: string
+  prioridad: string; estatus: string; sitioId?: string; sitioNombre?: string; asignadoAUserId?: string
   fechaProgramada?: string; fechaInicio?: string; fechaCompletada?: string
   campanaId?: string; notas?: string; checklistJson: ChecklistItem[]
   evidencias: Evidencia[]; creadoEn: string; actualizadoEn: string
   motivoBloqueo?: string; revisionNotas?: string; revisadoPorUserId?: string; revisadoEn?: string
   tiempoTrabajadoMin?: number | null; requiereRevision?: boolean
+  horaLlegada?: string; horaTerminoLabores?: string
+  sesionesJson?: Array<{ inicio: string; termino: string | null; userId: string }>
 }
 interface UserItem { id: string; nombre: string; email: string }
 interface LocalPreview { tempId: string; previewUrl: string; status: 'uploading' | 'done' | 'error'; file?: File }
@@ -52,6 +54,21 @@ function Row({ label, value }: { label: string; value?: React.ReactNode }) {
   )
 }
 function fmt(d?: string | null) { return d ? new Date(d).toLocaleString('es-MX') : '—' }
+
+function parseNotasPorDia(notas: string): Array<{ titulo: string; contenido: string }> {
+  const segments: Array<{ titulo: string; contenido: string }> = []
+  let current: { titulo: string; lineas: string[] } | null = null
+  for (const line of notas.split('\n')) {
+    if (/^VISITA\s+\d+\s+-\s+\d{2}\/\d{2}\/\d{4}:?\s*$/.test(line.trim())) {
+      if (current) segments.push({ titulo: current.titulo, contenido: current.lineas.join('\n').trim() })
+      current = { titulo: line.trim().replace(/:$/, ''), lineas: [] }
+    } else if (current) {
+      current.lineas.push(line)
+    }
+  }
+  if (current) segments.push({ titulo: current.titulo, contenido: current.lineas.join('\n').trim() })
+  return segments
+}
 
 async function compressImage(file: File, maxSizeMB = 1): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -96,9 +113,9 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const canAssign = user?.rol === 'owner' || user?.rol === 'admin' ||
     (user?.permisos as string[] | undefined)?.includes('*') ||
     user?.permisos.includes('ots:assign')
-  const canComplete = user?.rol === 'owner' || user?.rol === 'admin' ||
+  const canComplete = !!(user?.rol === 'owner' || user?.rol === 'admin' ||
     (user?.permisos as string[] | undefined)?.includes('*') ||
-    user?.permisos.includes('ots:complete')
+    user?.permisos.includes('ots:complete'))
 
   const isFinal = ot.estatus === 'COMPLETADA' || ot.estatus === 'CANCELADA'
   const isEditable = !isFinal && ot.estatus !== 'EN_REVISION'
@@ -147,8 +164,18 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const [motivoCancelacion, setMotivoCancelacion] = useState('')
   const [cancelando, setCancelando] = useState(false)
 
+  // eliminar modal
+  const [showEliminarModal, setShowEliminarModal] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
+
   // action error
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // checklist inline form
+  const [pendingItemId, setPendingItemId] = useState<string | null>(null)
+  const [pendingRealizado, setPendingRealizado] = useState('')
+  const [pendingFalta, setPendingFalta] = useState('')
+  const [savingChecklist, setSavingChecklist] = useState(false)
 
   const { data: usersData } = useQuery({
     queryKey: ['admin-users'],
@@ -203,11 +230,36 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     await uploadFile(preview.file)
   }
 
-  async function toggleChecklist(itemId: string, completado: boolean) {
-    await apiFetch(`/ordenes-trabajo/${ot.id}/checklist`, {
-      method: 'PATCH', body: JSON.stringify({ itemId, completado }),
-    })
-    onRefetch()
+  function handleCheckboxChange(itemId: string, checked: boolean) {
+    if (!checked) {
+      apiFetch(`/ordenes-trabajo/${ot.id}/checklist`, {
+        method: 'PATCH', body: JSON.stringify({ itemId, completado: false }),
+      }).then(() => onRefetch())
+      return
+    }
+    setPendingItemId(itemId)
+    setPendingRealizado('')
+    setPendingFalta('')
+  }
+
+  async function confirmChecklist() {
+    if (!pendingItemId) return
+    setSavingChecklist(true)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/checklist`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          itemId: pendingItemId,
+          completado: true,
+          notaRealizado: pendingRealizado.trim() || undefined,
+          notaPendiente: pendingFalta.trim() || undefined,
+        }),
+      })
+      setPendingItemId(null)
+      onRefetch()
+    } finally {
+      setSavingChecklist(false)
+    }
   }
 
   async function saveNotas() {
@@ -314,6 +366,17 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     } finally { setCancelando(false) }
   }
 
+  async function handleEliminar() {
+    setEliminando(true)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}`, { method: 'DELETE' })
+      router.replace('/operaciones/ordenes')
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Error al eliminar la OT')
+      setShowEliminarModal(false)
+    } finally { setEliminando(false) }
+  }
+
   const estatusColor = ESTATUS_C[ot.estatus] ?? '#71717A'
 
   return (
@@ -357,10 +420,10 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
         </div>
       )}
 
-      {/* Two-column layout */}
+      {/* Two-column: left = content + comunicación, right = all action panels */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '1.5rem', alignItems: 'start' }}>
 
-        {/* LEFT */}
+        {/* LEFT — contenido + comunicación */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
           {/* Info */}
@@ -368,7 +431,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
             <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Información</h3>
             <Row label="Descripción" value={ot.descripcion} />
             {ot.instrucciones && <Row label="Instrucciones" value={<span style={{ color: 'var(--muted)' }}>{ot.instrucciones}</span>} />}
-            <Row label="Sitio" value={ot.sitioId ?? '—'} />
+            <Row label="Sitio" value={ot.sitioNombre ?? ot.sitioId ?? '—'} />
             <Row label="Asignado a" value={ot.asignadoAUserId
               ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
                 ?? (ot.asignadoAUserId === user?.id ? (user?.nombre ?? user?.email ?? 'Yo') : ot.asignadoAUserId.slice(0, 8) + '…'))
@@ -391,22 +454,88 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
               <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, marginBottom: '1rem', overflow: 'hidden' }}>
                 <div style={{ height: '100%', width: `${totalItems ? (doneItems / totalItems) * 100 : 0}%`, background: '#15803D', borderRadius: 2, transition: 'width 0.3s' }} />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {checklistItems.map((item) => (
-                  <label key={item.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: isFinal || !canComplete ? 'default' : 'pointer' }}>
-                    <input type="checkbox" checked={item.completado} disabled={isFinal || !canComplete}
-                      onChange={(e) => toggleChecklist(item.id, e.target.checked)}
-                      style={{ marginTop: 2, width: 15, height: 15, flexShrink: 0 }} />
-                    <span style={{ fontSize: '0.875rem', textDecoration: item.completado ? 'line-through' : 'none', color: item.completado ? 'var(--muted)' : 'var(--fg)' }}>
-                      {item.texto}
-                    </span>
-                    {item.completadoEn && (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--muted)', marginLeft: 'auto', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {new Date(item.completadoEn).toLocaleDateString('es-MX')}
-                      </span>
-                    )}
-                  </label>
-                ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {checklistItems.map((item) => {
+                  const isPending = pendingItemId === item.id
+                  return (
+                    <div key={item.id} style={{ borderRadius: '8px', border: isPending ? '1px solid rgba(10,102,255,0.3)' : '1px solid transparent', padding: isPending ? '0.75rem' : 0, transition: 'all 0.15s' }}>
+                      <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem', cursor: isFinal || !canComplete ? 'default' : 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={item.completado || isPending}
+                          disabled={isFinal || !canComplete || (!!pendingItemId && !isPending)}
+                          onChange={(e) => handleCheckboxChange(item.id, e.target.checked)}
+                          style={{ marginTop: 3, width: 15, height: 15, flexShrink: 0 }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <span style={{ fontSize: '0.875rem', textDecoration: item.completado ? 'line-through' : 'none', color: item.completado ? 'var(--muted)' : 'var(--fg)' }}>
+                            {item.texto}
+                          </span>
+                          {item.completadoEn && (
+                            <span style={{ fontSize: '0.7rem', color: 'var(--muted)', marginLeft: '0.5rem' }}>
+                              {new Date(item.completadoEn).toLocaleDateString('es-MX')}
+                            </span>
+                          )}
+                          {item.notaRealizado && (
+                            <div style={{ fontSize: '0.8125rem', color: '#15803D', marginTop: '0.25rem', background: 'rgba(21,128,61,0.07)', borderRadius: '5px', padding: '0.3rem 0.5rem' }}>
+                              ✓ {item.notaRealizado}
+                            </div>
+                          )}
+                          {item.notaPendiente && (
+                            <div style={{ fontSize: '0.8125rem', color: '#B45309', marginTop: '0.25rem', background: 'rgba(180,83,9,0.07)', borderRadius: '5px', padding: '0.3rem 0.5rem' }}>
+                              ⚠ Pendiente: {item.notaPendiente}
+                            </div>
+                          )}
+                        </div>
+                      </label>
+
+                      {/* Inline form when checking */}
+                      {isPending && (
+                        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', marginBottom: '0.25rem' }}>¿Qué se realizó?</div>
+                            <textarea
+                              value={pendingRealizado}
+                              onChange={(e) => setPendingRealizado(e.target.value)}
+                              placeholder="Describe lo que se hizo en este punto…"
+                              rows={2}
+                              autoFocus
+                              style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--fg)', fontSize: '0.8125rem', padding: '0.4rem 0.625rem', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', marginBottom: '0.25rem' }}>¿Falta algo? (opcional)</div>
+                            <textarea
+                              value={pendingFalta}
+                              onChange={(e) => setPendingFalta(e.target.value)}
+                              placeholder="Indica qué quedó pendiente o requiere seguimiento…"
+                              rows={2}
+                              style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--fg)', fontSize: '0.8125rem', padding: '0.4rem 0.625rem', resize: 'none', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                            />
+                          </div>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                              onClick={confirmChecklist}
+                              disabled={savingChecklist || !pendingRealizado.trim()}
+                              style={{ flex: 1, background: pendingRealizado.trim() ? '#15803D' : 'var(--bg)', border: pendingRealizado.trim() ? 'none' : '1px solid var(--border)', borderRadius: '6px', color: pendingRealizado.trim() ? '#fff' : 'var(--muted)', cursor: pendingRealizado.trim() ? 'pointer' : 'not-allowed', fontSize: '0.8125rem', fontWeight: 600, padding: '0.45rem 0.75rem', opacity: savingChecklist ? 0.7 : 1 }}
+                            >
+                              {savingChecklist ? 'Guardando…' : '✓ Confirmar'}
+                            </button>
+                            <button
+                              onClick={() => setPendingItemId(null)}
+                              style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.45rem 0.75rem' }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                          {!pendingRealizado.trim() && (
+                            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: 0 }}>Describe lo que se realizó para confirmar.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
@@ -418,56 +547,35 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
                 Evidencias ({ot.evidencias.length})
               </h3>
               {canComplete && isEditable && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{ background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.4rem 0.875rem' }}
-                >
+                <button onClick={() => fileInputRef.current?.click()} style={{ background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.4rem 0.875rem' }}>
                   📷 Subir foto
                 </button>
               )}
             </div>
-
-            {/* Category selector */}
             {canComplete && isEditable && (
               <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.875rem' }}>
                 {FOTO_CATEGORIAS.map((cat) => (
-                  <button
-                    key={cat}
-                    type="button"
-                    onClick={() => setFotoCategoria(cat)}
-                    style={{
-                      padding: '0.25rem 0.625rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', border: '1px solid',
-                      background: fotoCategoria === cat ? 'rgba(10,102,255,0.12)' : 'transparent',
-                      borderColor: fotoCategoria === cat ? 'rgba(10,102,255,0.4)' : 'var(--border)',
-                      color: fotoCategoria === cat ? '#0A66FF' : 'var(--muted)',
-                    }}
-                  >
+                  <button key={cat} type="button" onClick={() => setFotoCategoria(cat)} style={{ padding: '0.25rem 0.625rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', border: '1px solid', background: fotoCategoria === cat ? 'rgba(10,102,255,0.12)' : 'transparent', borderColor: fotoCategoria === cat ? 'rgba(10,102,255,0.4)' : 'var(--border)', color: fotoCategoria === cat ? '#0A66FF' : 'var(--muted)' }}>
                     {cat}
                   </button>
                 ))}
               </div>
             )}
-
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-
             {uploadError && (
               <div style={{ background: 'rgba(185,28,28,0.08)', border: '1px solid var(--error)', borderRadius: '7px', color: 'var(--error)', fontSize: '0.8125rem', padding: '0.5rem 0.75rem', marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>{uploadError}</span>
                 <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', color: 'var(--error)', cursor: 'pointer' }}>×</button>
               </div>
             )}
-
             {ot.evidencias.length === 0 && localPreviews.length === 0 ? (
               <div style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem' }}>Sin evidencias cargadas</div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.75rem' }}>
                 {ot.evidencias.map((ev) => (
                   <button key={ev.id} onClick={() => setLightboxUrl(ev.fotoUrlSigned)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: 0, cursor: 'pointer', aspectRatio: '1', overflow: 'hidden', position: 'relative' }}>
-                    <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>
-                      {ev.tipo}
-                    </div>
+                    <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>{ev.tipo}</div>
                   </button>
                 ))}
                 {localPreviews.map((p) => (
@@ -485,34 +593,72 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
           </div>
 
           {/* Notas */}
-          {(canComplete || ot.notas) && (
-            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
-              <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Notas de campo</h3>
-              <textarea
-                value={notasValue}
-                onChange={(e) => setNotasValue(e.target.value)}
-                disabled={isFinal}
-                placeholder="Describe los avances, condiciones encontradas, observaciones…"
-                rows={4}
-                style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--fg)', fontSize: '0.875rem', lineHeight: 1.5, padding: '0.625rem 0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit', opacity: isFinal ? 0.6 : 1 }}
-              />
-              {!isFinal && canComplete && (
-                <button
-                  onClick={saveNotas}
-                  disabled={savingNotas || notasValue === (ot.notas ?? '')}
-                  style={{ marginTop: '0.5rem', background: notasSaved ? 'rgba(21,128,61,0.12)' : 'var(--bg)', border: notasSaved ? '1px solid rgba(21,128,61,0.4)' : '1px solid var(--border)', borderRadius: '7px', color: notasSaved ? '#15803D' : 'var(--fg)', cursor: savingNotas || notasValue === (ot.notas ?? '') ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.45rem 1rem', opacity: notasValue === (ot.notas ?? '') && !notasSaved ? 0.5 : 1, transition: 'all 0.2s' }}
-                >
-                  {notasSaved ? '✓ Guardado' : savingNotas ? 'Guardando…' : 'Guardar notas'}
-                </button>
-              )}
-            </div>
-          )}
+          {(canComplete || ot.notas) && (() => {
+            const dias = ot.notas ? parseNotasPorDia(ot.notas) : []
+            const hasSegmentos = dias.length > 0
+            return (
+              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notas de campo</h3>
+                  {hasSegmentos && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{dias.length} visita{dias.length !== 1 ? 's' : ''}</span>}
+                </div>
+
+                {/* Segmentos por día */}
+                {hasSegmentos && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: canComplete && !isFinal ? '1rem' : 0 }}>
+                    {dias.map((dia, i) => (
+                      <div key={i} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                        <div style={{ background: 'rgba(10,102,255,0.06)', borderBottom: '1px solid var(--border)', padding: '0.5rem 0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(10,102,255,0.15)', color: '#0A66FF', borderRadius: '999px', padding: '0.1rem 0.5rem' }}>
+                            {`Visita ${i + 1}`}
+                          </span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--fg)' }}>
+                            {dia.titulo.replace(/^VISITA\s+\d+\s+-\s+/, '')}
+                          </span>
+                        </div>
+                        <div style={{ padding: '0.75rem 0.875rem', fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>
+                          {dia.contenido || <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Sin descripción</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Textarea de edición (solo si puede editar) */}
+                {!isFinal && canComplete && (
+                  <>
+                    {hasSegmentos && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
+                        Editar notas completas:
+                      </div>
+                    )}
+                    <textarea
+                      value={notasValue}
+                      onChange={(e) => setNotasValue(e.target.value)}
+                      placeholder="Describe los avances, condiciones encontradas, observaciones…"
+                      rows={hasSegmentos ? 3 : 4}
+                      style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--fg)', fontSize: '0.875rem', lineHeight: 1.5, padding: '0.625rem 0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    />
+                    <button onClick={saveNotas} disabled={savingNotas || notasValue === (ot.notas ?? '')} style={{ marginTop: '0.5rem', background: notasSaved ? 'rgba(21,128,61,0.12)' : 'var(--bg)', border: notasSaved ? '1px solid rgba(21,128,61,0.4)' : '1px solid var(--border)', borderRadius: '7px', color: notasSaved ? '#15803D' : 'var(--fg)', cursor: savingNotas || notasValue === (ot.notas ?? '') ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.45rem 1rem', opacity: notasValue === (ot.notas ?? '') && !notasSaved ? 0.5 : 1, transition: 'all 0.2s' }}>
+                      {notasSaved ? '✓ Guardado' : savingNotas ? 'Guardando…' : 'Guardar notas'}
+                    </button>
+                  </>
+                )}
+
+                {/* Lectura plana si no hay segmentos y es final */}
+                {isFinal && !hasSegmentos && ot.notas && (
+                  <div style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>{ot.notas}</div>
+                )}
+              </div>
+            )
+          })()}
+
         </div>
 
-        {/* RIGHT — Sticky sidebar */}
+        {/* RIGHT — sticky: todos los paneles de acción */}
         <div style={{ position: 'sticky', top: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
 
-          {/* Assign technician */}
+          {/* Asignar técnico */}
           {canAssign && !isFinal && (
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
               <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.875rem' }}>Asignar técnico</h3>
@@ -520,88 +666,54 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
                 <option value="">— Sin asignar —</option>
                 {(usersData ?? []).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
               </select>
-              <button
-                onClick={handleAssign}
-                disabled={savingAssign || !selectedUser || selectedUser === ot.asignadoAUserId}
-                style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: savingAssign || !selectedUser || selectedUser === ot.asignadoAUserId ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1rem', opacity: !selectedUser || selectedUser === ot.asignadoAUserId ? 0.5 : 1 }}
-              >
+              <button onClick={handleAssign} disabled={savingAssign || !selectedUser || selectedUser === ot.asignadoAUserId} style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: savingAssign || !selectedUser || selectedUser === ot.asignadoAUserId ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1rem', opacity: !selectedUser || selectedUser === ot.asignadoAUserId ? 0.5 : 1 }}>
                 {savingAssign ? 'Guardando…' : ot.asignadoAUserId ? 'Reasignar' : 'Asignar'}
               </button>
               {assignError && <p style={{ fontSize: '0.75rem', color: 'var(--error)', marginTop: '0.375rem' }}>{assignError}</p>}
             </div>
           )}
 
-          {/* State actions panel */}
+          {/* Registro de labores */}
+          <LaborButtons ot={ot} canComplete={canComplete} onRefetch={onRefetch} />
+
+          {/* Estado */}
           <div style={{ background: 'var(--bg-surface)', border: `1px solid ${ot.estatus === 'EN_REVISION' ? 'rgba(124,58,237,0.4)' : ot.estatus === 'BLOQUEADA' ? 'rgba(185,28,28,0.4)' : 'var(--border)'}`, borderRadius: '10px', padding: '1.25rem' }}>
             <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>Estado</h3>
 
-            {/* EN_REVISION — approve / reject */}
             {ot.estatus === 'EN_REVISION' && canAssign && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
                 <p style={{ fontSize: '0.8125rem', color: '#7C3AED', fontWeight: 600, marginBottom: '0.25rem' }}>Trabajo enviado para revisión</p>
-                <textarea
-                  value={notasRevision}
-                  onChange={(e) => setNotasRevision(e.target.value)}
-                  placeholder="Notas de revisión (opcional)"
-                  rows={2}
-                  style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.8125rem', padding: '0.45rem 0.75rem', resize: 'none', outline: 'none', fontFamily: 'inherit' }}
-                />
-                <button
-                  onClick={handleAprobar}
-                  disabled={aprovando}
-                  style={{ width: '100%', background: '#15803D', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, padding: '0.625rem 1rem', opacity: aprovando ? 0.7 : 1 }}
-                >
+                <textarea value={notasRevision} onChange={(e) => setNotasRevision(e.target.value)} placeholder="Notas de revisión (opcional)" rows={2} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.8125rem', padding: '0.45rem 0.75rem', resize: 'none', outline: 'none', fontFamily: 'inherit' }} />
+                <button onClick={handleAprobar} disabled={aprovando} style={{ width: '100%', background: '#15803D', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 700, padding: '0.625rem 1rem', opacity: aprovando ? 0.7 : 1 }}>
                   {aprovando ? 'Aprobando…' : '✓ Aprobar trabajo'}
                 </button>
-                <button
-                  onClick={() => setShowRechazarModal(true)}
-                  style={{ width: '100%', background: 'transparent', border: '1px solid #B91C1C', borderRadius: '7px', color: '#B91C1C', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1rem' }}
-                >
+                <button onClick={() => setShowRechazarModal(true)} style={{ width: '100%', background: 'transparent', border: '1px solid #B91C1C', borderRadius: '7px', color: '#B91C1C', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1rem' }}>
                   ✗ Rechazar — pedir re-trabajo
                 </button>
               </div>
             )}
 
-            {/* BLOQUEADA / RECHAZADA — reabrir */}
             {(ot.estatus === 'BLOQUEADA' || ot.estatus === 'RECHAZADA') && canAssign && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                <button
-                  onClick={handleReabrir}
-                  disabled={reabriendo}
-                  style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: reabriendo ? 0.7 : 1 }}
-                >
-                  {reabriendo ? 'Reabriendo…' : '↺ Reabrir OT'}
-                </button>
-              </div>
+              <button onClick={handleReabrir} disabled={reabriendo} style={{ width: '100%', background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: reabriendo ? 0.7 : 1 }}>
+                {reabriendo ? 'Reabriendo…' : '↺ Reabrir OT'}
+              </button>
             )}
 
-            {/* EN_PROCESO / ASIGNADA — complete + block */}
             {(ot.estatus === 'EN_PROCESO' || ot.estatus === 'ASIGNADA' || ot.estatus === 'RECHAZADA') && canComplete && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                <button
-                  onClick={handleCompletar}
-                  disabled={completing || !hasEvidencias}
-                  style={{ width: '100%', background: hasEvidencias ? 'var(--accent)' : 'var(--bg)', border: hasEvidencias ? 'none' : '1px solid var(--border)', borderRadius: '8px', color: hasEvidencias ? '#fff' : 'var(--muted)', cursor: hasEvidencias ? 'pointer' : 'not-allowed', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: completing ? 0.7 : 1 }}
-                >
+                <button onClick={handleCompletar} disabled={completing || !hasEvidencias} style={{ width: '100%', background: hasEvidencias ? 'var(--accent)' : 'var(--bg)', border: hasEvidencias ? 'none' : '1px solid var(--border)', borderRadius: '8px', color: hasEvidencias ? '#fff' : 'var(--muted)', cursor: hasEvidencias ? 'pointer' : 'not-allowed', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: completing ? 0.7 : 1 }}>
                   {completing ? 'Completando…' : '✓ Completar OT'}
                 </button>
                 {!hasEvidencias && <p style={{ fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'center' }}>Se requiere al menos una foto</p>}
                 {completarError && <p style={{ fontSize: '0.75rem', color: 'var(--error)' }}>{completarError}</p>}
-                <button
-                  onClick={() => setShowBloquearModal(true)}
-                  style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.45rem 0.75rem' }}
-                >
+                <button onClick={() => setShowBloquearModal(true)} style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.45rem 0.75rem' }}>
                   ⚠ Reportar problema
                 </button>
               </div>
             )}
 
-            {/* PENDIENTE — nothing to complete yet */}
-            {ot.estatus === 'PENDIENTE' && (
-              <p style={{ fontSize: '0.8125rem', color: 'var(--muted)', textAlign: 'center' }}>Sin técnico asignado</p>
-            )}
+            {ot.estatus === 'PENDIENTE' && <p style={{ fontSize: '0.8125rem', color: 'var(--muted)', textAlign: 'center' }}>Sin técnico asignado</p>}
 
-            {/* COMPLETADA */}
             {ot.estatus === 'COMPLETADA' && (
               <div style={{ textAlign: 'center', color: '#15803D', fontSize: '0.875rem', padding: '0.5rem', fontWeight: 600 }}>
                 ✓ Completada
@@ -610,23 +722,16 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
               </div>
             )}
 
-            {/* CANCELADA */}
-            {ot.estatus === 'CANCELADA' && (
-              <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', padding: '0.5rem' }}>Cancelada</div>
-            )}
+            {ot.estatus === 'CANCELADA' && <div style={{ textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem', padding: '0.5rem' }}>Cancelada</div>}
 
-            {/* Cancel button (if not final) */}
             {!isFinal && canAssign && ot.estatus !== 'EN_REVISION' && (
-              <button
-                onClick={() => setShowCancelarModal(true)}
-                style={{ width: '100%', marginTop: '0.5rem', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
-              >
+              <button onClick={() => setShowCancelarModal(true)} style={{ width: '100%', marginTop: '0.5rem', background: 'transparent', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
                 Cancelar OT
               </button>
             )}
           </div>
 
-          {/* Metadata */}
+          {/* Info metadata */}
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
             <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Info</h3>
             <div style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -635,7 +740,20 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
               {ot.campanaId && <div>Campaña: <span style={{ fontFamily: 'monospace' }}>{ot.campanaId.slice(0, 8)}…</span></div>}
               {ot.requiereRevision && <div style={{ color: '#7C3AED', fontWeight: 600 }}>Requiere revisión</div>}
             </div>
+            {canAssign && (
+              <button
+                onClick={() => setShowEliminarModal(true)}
+                style={{ marginTop: '1rem', width: '100%', background: 'transparent', border: '1px solid rgba(185,28,28,0.35)', borderRadius: '7px', color: '#B91C1C', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 500, padding: '0.35rem 0.75rem', opacity: 0.7 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '1' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = '0.7' }}
+              >
+                Eliminar OT
+              </button>
+            )}
           </div>
+
+          {/* Comunicación pública */}
+          <ComentariosPublicos otId={ot.id} userName={user?.nombre ?? user?.email ?? 'Técnico'} />
         </div>
       </div>
 
@@ -709,6 +827,29 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
         </div>
       )}
 
+      {/* Modal — Eliminar */}
+      {showEliminarModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '12px', padding: '1.5rem', width: '100%', maxWidth: 400 }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem', color: '#B91C1C' }}>Eliminar orden de trabajo</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
+              ¿Estás seguro de que deseas eliminar <strong style={{ color: 'var(--fg)' }}>{ot.folio}</strong>?
+            </p>
+            <p style={{ fontSize: '0.8125rem', color: '#B91C1C', marginBottom: '1.25rem' }}>Esta acción es permanente y no se puede deshacer.</p>
+            <div style={{ display: 'flex', gap: '0.625rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowEliminarModal(false)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.55rem 1.25rem' }}>Cancelar</button>
+              <button
+                onClick={handleEliminar}
+                disabled={eliminando}
+                style={{ background: '#B91C1C', border: 'none', borderRadius: '7px', color: '#fff', cursor: eliminando ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 700, padding: '0.55rem 1.25rem', opacity: eliminando ? 0.7 : 1 }}
+              >
+                {eliminando ? 'Eliminando…' : 'Sí, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal — Cancelar */}
       {showCancelarModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9998, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
@@ -754,4 +895,226 @@ export default function OTDetailPage() {
   if (isMobile) return <OTMovil ot={ot} onRefetch={refetch} />
 
   return <OTDesktop ot={ot} onRefetch={refetch} />
+}
+
+// ── Botones Iniciar / Terminar labores ────────────────────────────────────────
+function LaborButtons({ ot, canComplete, onRefetch }: { ot: OT; canComplete: boolean; onRefetch: () => void }) {
+  const [loadingInicio, setLoadingInicio] = useState(false)
+  const [loadingTermino, setLoadingTermino] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+
+  if (!canComplete) return null
+  if (['COMPLETADA', 'CANCELADA'].includes(ot.estatus)) return null
+
+  const sesiones = ot.sesionesJson ?? []
+  const openSession = sesiones.find(s => !s.termino)
+  const canIniciar = !openSession && ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO'].includes(ot.estatus)
+  const canTerminar = !!openSession
+
+  const fmtHora = (d: string) =>
+    new Date(d).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+  const durMins = (inicio: string, termino: string) =>
+    Math.round((new Date(termino).getTime() - new Date(inicio).getTime()) / 60000)
+
+  const totalMins = sesiones
+    .filter(s => s.termino)
+    .reduce((acc, s) => acc + durMins(s.inicio, s.termino!), 0)
+
+  async function iniciar() {
+    setErr(null); setLoadingInicio(true)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/iniciar-labores`, { method: 'POST', body: JSON.stringify({}) })
+      onRefetch()
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Error') }
+    finally { setLoadingInicio(false) }
+  }
+
+  async function terminar() {
+    setErr(null); setLoadingTermino(true)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/terminar-labores`, { method: 'POST', body: JSON.stringify({}) })
+      onRefetch()
+    } catch (e) { setErr(e instanceof Error ? e.message : 'Error') }
+    finally { setLoadingTermino(false) }
+  }
+
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
+        <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+          Registro de labores
+        </h3>
+        {totalMins > 0 && (
+          <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+            Total: {Math.floor(totalMins / 60)}h {totalMins % 60}min
+          </span>
+        )}
+      </div>
+
+      {/* Session history */}
+      {sesiones.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', marginBottom: '0.875rem' }}>
+          {sesiones.map((s, i) => {
+            const mins = s.termino ? durMins(s.inicio, s.termino) : null
+            const isOpen = !s.termino
+            return (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: isOpen ? 'rgba(180,83,9,0.07)' : 'rgba(21,128,61,0.06)', border: `1px solid ${isOpen ? 'rgba(180,83,9,0.2)' : 'rgba(21,128,61,0.15)'}`, borderRadius: '7px', padding: '0.5rem 0.75rem', gap: '0.5rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: isOpen ? '#B45309' : '#15803D', marginBottom: '0.1rem' }}>
+                    {isOpen ? '● En curso' : `Sesión ${i + 1}`}
+                  </div>
+                  <div style={{ fontSize: '0.8125rem', color: 'var(--fg)' }}>
+                    {fmtHora(s.inicio)}{s.termino ? ` → ${fmtHora(s.termino)}` : '…'}
+                  </div>
+                </div>
+                {mins !== null && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--muted)', whiteSpace: 'nowrap' }}>
+                    {Math.floor(mins / 60)}h {mins % 60}min
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        {canIniciar && (
+          <button
+            onClick={iniciar}
+            disabled={loadingInicio}
+            style={{ flex: 1, background: '#15803D', border: 'none', borderRadius: '8px', color: '#fff', cursor: loadingInicio ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: loadingInicio ? 0.7 : 1 }}
+          >
+            {loadingInicio ? 'Registrando…' : '▶ Iniciar labores'}
+          </button>
+        )}
+        {canTerminar && (
+          <button
+            onClick={terminar}
+            disabled={loadingTermino}
+            style={{ flex: 1, background: '#B45309', border: 'none', borderRadius: '8px', color: '#fff', cursor: loadingTermino ? 'not-allowed' : 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.625rem 1rem', opacity: loadingTermino ? 0.7 : 1 }}
+          >
+            {loadingTermino ? 'Registrando…' : '■ Terminar labores'}
+          </button>
+        )}
+      </div>
+
+      {err && <p style={{ fontSize: '0.75rem', color: 'var(--error)', margin: '0.5rem 0 0' }}>{err}</p>}
+    </div>
+  )
+}
+
+// ── Comentarios públicos (staff) ───────────────────────────────────────────────
+interface ComentarioP { id: string; texto: string; fotoUrlSigned?: string; timestamp: string; autorTipo: string; autorNombre: string }
+
+function ComentariosPublicos({ otId, userName }: { otId: string; userName: string }) {
+  const [comentarios, setComentarios] = useState<ComentarioP[]>([])
+  const [texto, setTexto] = useState('')
+  const [sending, setSending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingKey, setPendingKey] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+
+  async function load() {
+    try {
+      const data = await apiFetch<ComentarioP[]>(`/ordenes-trabajo/${otId}/comentarios-publicos`)
+      setComentarios(data)
+    } catch { /* ignore */ }
+  }
+
+  useEffect(() => { if (open) load() }, [open, otId])
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; e.target.value = ''
+    if (!file) return
+    setUploading(true)
+    try {
+      const { uploadUrl, key } = await apiFetch<{ uploadUrl: string; key: string }>(
+        `/ordenes-trabajo/${otId}/comentarios-publicos/foto-url`,
+        { method: 'POST', body: JSON.stringify({ filename: file.name, contentType: 'image/jpeg' }) },
+      )
+      if (!uploadUrl.includes('placeholder.storage')) {
+        const res = await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': 'image/jpeg' } })
+        if (!res.ok) throw new Error('Error subiendo foto')
+      }
+      setPendingKey(key)
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error al subir') }
+    finally { setUploading(false) }
+  }
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault()
+    if (!texto.trim() && !pendingKey) return
+    setSending(true); setError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${otId}/comentarios-publicos`, {
+        method: 'POST',
+        body: JSON.stringify({ texto: texto.trim() || '📷 Foto adjunta', storageKey: pendingKey ?? undefined }),
+      })
+      setTexto(''); setPendingKey(null)
+      await load()
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error al enviar') }
+    finally { setSending(false) }
+  }
+
+  return (
+    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', color: 'var(--fg)' }}
+      >
+        <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+          Comunicación con cliente {comentarios.length > 0 ? `(${comentarios.length})` : ''}
+        </h3>
+        <span style={{ color: 'var(--muted)', fontSize: '0.8rem' }}>{open ? '▲' : '▼'}</span>
+      </button>
+
+      {open && (
+        <div style={{ borderTop: '1px solid var(--border)' }}>
+          <div style={{ maxHeight: 320, overflowY: 'auto', padding: '0.875rem' }}>
+            {comentarios.length === 0 ? (
+              <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', textAlign: 'center', padding: '1.5rem' }}>Sin mensajes aún</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {comentarios.map((c) => (
+                  <div key={c.id} style={{ display: 'flex', gap: '0.5rem' }}>
+                    <div style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', background: c.autorTipo === 'cliente' ? 'rgba(10,102,255,0.15)' : 'rgba(52,211,153,0.12)', color: c.autorTipo === 'cliente' ? '#0A66FF' : '#15803D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+                      {c.autorNombre.charAt(0).toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.2rem' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: c.autorTipo === 'cliente' ? '#0A66FF' : '#15803D' }}>{c.autorNombre}</span>
+                        <span style={{ fontSize: '0.7rem', background: c.autorTipo === 'cliente' ? 'rgba(10,102,255,0.1)' : 'rgba(52,211,153,0.1)', color: c.autorTipo === 'cliente' ? '#0A66FF' : '#15803D', borderRadius: '4px', padding: '0.1rem 0.3rem' }}>{c.autorTipo === 'cliente' ? 'Cliente' : 'Técnico'}</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{new Date(c.timestamp).toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.5rem 0.75rem', fontSize: '0.8125rem' }}>
+                        {c.texto}
+                        {c.fotoUrlSigned && <img src={c.fotoUrlSigned} alt="Foto" style={{ display: 'block', marginTop: '0.4rem', maxHeight: 120, borderRadius: '6px', objectFit: 'cover' }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <form onSubmit={send} style={{ borderTop: '1px solid var(--border)', padding: '0.75rem' }}>
+            {error && <div style={{ color: 'var(--error)', fontSize: '0.75rem', marginBottom: '0.375rem' }}>{error}</div>}
+            {pendingKey && <div style={{ fontSize: '0.75rem', color: '#15803D', marginBottom: '0.375rem' }}>📷 Foto lista para enviar</div>}
+            <div style={{ display: 'flex', gap: '0.375rem' }}>
+              <input style={{ flex: 1, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.8125rem', padding: '0.45rem 0.75rem', outline: 'none' }} value={texto} onChange={(e) => setTexto(e.target.value)} placeholder="Responder al cliente…" />
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFile} />
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', cursor: 'pointer', fontSize: '1rem', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} title="Adjuntar foto">📷</button>
+              <button type="submit" disabled={sending || (!texto.trim() && !pendingKey)} style={{ background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: '0 0.875rem', opacity: sending ? 0.7 : 1, flexShrink: 0 }}>
+                {sending ? '…' : 'Enviar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  )
 }
