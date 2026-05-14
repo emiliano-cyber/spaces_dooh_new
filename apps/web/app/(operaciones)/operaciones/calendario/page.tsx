@@ -4,10 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface OT { id: string; folio: string; tipo: string; prioridad: string; estatus: string }
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+const DIAS_LARGO = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 const PRIORIDAD_C: Record<string, { bg: string; color: string }> = {
   URGENTE: { bg: 'rgba(163,45,45,0.35)', color: '#B91C1C' },
@@ -53,6 +55,7 @@ function fmtRangeTitle(lunes: Date, domingo: Date): string {
 }
 
 export default function CalendarioPage() {
+  const isMobile = useIsMobile()
   const [weekStart, setWeekStart] = useState<Date>(() => getMondayOf(new Date()))
 
   const domingo = addDays(weekStart, 6)
@@ -70,7 +73,7 @@ export default function CalendarioPage() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       {/* Navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '0.75rem' : 0 }}>
         <div>
           <h1 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.125rem' }}>Calendario de OTs</h1>
           <p style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{fmtRangeTitle(weekStart, domingo)}</p>
@@ -78,26 +81,69 @@ export default function CalendarioPage() {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             onClick={() => setWeekStart((d) => addDays(d, -7))}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.45rem 0.875rem' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.45rem 0.875rem', ...(isMobile ? { flex: 1 } : {}) }}
           >
-            ← Anterior
+            {isMobile ? '←' : '← Anterior'}
           </button>
           <button
             onClick={() => setWeekStart(getMondayOf(new Date()))}
-            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.45rem 0.75rem' }}
+            style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.45rem 0.75rem', ...(isMobile ? { flex: 1 } : {}) }}
           >
             Hoy
           </button>
           <button
             onClick={() => setWeekStart((d) => addDays(d, 7))}
-            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.45rem 0.875rem' }}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.875rem', padding: '0.45rem 0.875rem', ...(isMobile ? { flex: 1 } : {}) }}
           >
-            Siguiente →
+            {isMobile ? '→' : 'Siguiente →'}
           </button>
         </div>
       </div>
 
-      {/* Week grid */}
+      {/* Agenda vertical — móvil */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+          {days.map((day, i) => {
+            const iso = toISO(day)
+            const ots = calendarioData?.[iso] ?? []
+            const isToday = iso === todayISO
+            return (
+              <div key={iso} style={{ background: 'var(--bg-surface)', border: `1px solid ${isToday ? 'var(--accent)' : 'var(--border)'}`, borderRadius: '10px', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', padding: '0.625rem 0.875rem', borderBottom: ots.length > 0 ? '1px solid var(--border)' : 'none', background: isToday ? 'rgba(10,102,255,0.06)' : 'transparent' }}>
+                  <span style={{ fontSize: '0.9375rem', fontWeight: 700, color: isToday ? 'var(--accent)' : 'var(--fg)' }}>{DIAS_LARGO[i]}</span>
+                  <span style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{fmtHeader(day)}</span>
+                  {isToday && <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--accent)', marginLeft: 'auto' }}>HOY</span>}
+                </div>
+                {isLoading ? (
+                  <div style={{ padding: '0.75rem 0.875rem', color: 'var(--muted)', fontSize: '0.8125rem' }}>…</div>
+                ) : ots.length === 0 ? (
+                  <div style={{ padding: '0.625rem 0.875rem', color: 'var(--muted)', fontSize: '0.8125rem' }}>Sin órdenes</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.625rem 0.875rem' }}>
+                    {ots.map((ot) => {
+                      const pc = PRIORIDAD_C[ot.prioridad] ?? PRIORIDAD_C.NORMAL
+                      return (
+                        <Link
+                          key={ot.id}
+                          href={`/operaciones/ordenes/${ot.id}`}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', ...pc, borderRadius: '7px', padding: '0.5rem 0.625rem', border: `1px solid ${pc.color}44` }}
+                        >
+                          <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: '0.8125rem' }}>{ot.folio}</span>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.85, flex: 1 }}>
+                            {ot.tipo.split(',').map((t) => TIPO_SHORT[t.trim()] ?? t.trim()).join(' + ')}
+                          </span>
+                          <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>{ot.estatus.replace('_', ' ')}</span>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+      /* Week grid — escritorio */
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem', background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', overflow: 'hidden' }}>
         {/* Day headers */}
         {days.map((day, i) => {
@@ -148,6 +194,7 @@ export default function CalendarioPage() {
           )
         })}
       </div>
+      )}
 
       {/* Legend */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>

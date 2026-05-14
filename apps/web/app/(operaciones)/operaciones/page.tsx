@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface OT {
   id: string
@@ -74,6 +75,7 @@ const CAMPO_ROLES = ['field_worker', 'crew_chief']
 
 export default function OperacionesDashboard() {
   const { user } = useAuth()
+  const isMobile = useIsMobile()
   const isCampo = CAMPO_ROLES.includes(user?.rol ?? '')
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['ots-all'],
@@ -137,7 +139,7 @@ export default function OperacionesDashboard() {
       )}
 
       {/* KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 160}px, 1fr))`, gap: isMobile ? '0.625rem' : '1rem' }}>
         <KpiCard label="OTs activas" value={activas.length} />
         <KpiCard label="Urgentes pendientes" value={urgentes.length} color={urgentes.length > 0 ? '#B91C1C' : undefined} />
         <KpiCard label="Completadas hoy" value={completadasHoy.length} color={completadasHoy.length > 0 ? '#15803D' : undefined} />
@@ -161,11 +163,11 @@ export default function OperacionesDashboard() {
               const estatusColor = ot.estatus === 'EN_REVISION' ? '#7C3AED' : ot.estatus === 'RECHAZADA' ? '#B45309' : '#B91C1C'
               const estatusLabel = ot.estatus === 'EN_REVISION' ? 'En revisión' : ot.estatus === 'RECHAZADA' ? 'Rechazada' : 'Bloqueada'
               return (
-                <div key={ot.id} style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.625rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '7px', border: '1px solid var(--border)' }}>
+                <div key={ot.id} style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '0.5rem' : '1rem', flexWrap: isMobile ? 'wrap' : 'nowrap', padding: '0.625rem 0.75rem', background: 'var(--bg-surface)', borderRadius: '7px', border: '1px solid var(--border)' }}>
                   <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--accent)', minWidth: 90 }}>{ot.folio}</span>
-                  <span style={{ flex: 1, fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ot.descripcion}</span>
+                  <span style={{ flex: isMobile ? '1 1 100%' : 1, order: isMobile ? 1 : 0, fontSize: '0.8125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap' }}>{ot.descripcion}</span>
                   <span style={{ fontSize: '0.7rem', fontWeight: 700, color: estatusColor, background: `${estatusColor}18`, padding: '0.2rem 0.6rem', borderRadius: '999px', whiteSpace: 'nowrap' }}>{estatusLabel}</span>
-                  <Link href={`/operaciones/ordenes/${ot.id}`} style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap' }}>Ver →</Link>
+                  <Link href={`/operaciones/ordenes/${ot.id}`} style={{ fontSize: '0.8125rem', color: 'var(--accent)', textDecoration: 'none', fontWeight: 500, whiteSpace: 'nowrap', marginLeft: isMobile ? 'auto' : 0 }}>Ver →</Link>
                 </div>
               )
             })}
@@ -181,6 +183,26 @@ export default function OperacionesDashboard() {
         </div>
         {tablaUrgentes.length === 0 ? (
           <div style={{ padding: '2rem 1.5rem', color: 'var(--muted)', fontSize: '0.875rem' }}>Sin órdenes urgentes pendientes 🎉</div>
+        ) : isMobile ? (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {tablaUrgentes.map((ot) => (
+              <Link
+                key={ot.id}
+                href={`/operaciones/ordenes/${ot.id}`}
+                style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem', padding: '0.75rem 1rem', borderBottom: '1px solid var(--border)', textDecoration: 'none', color: 'var(--fg)' }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--accent)' }}>{ot.folio}</span>
+                  <PrioridadBadge p={ot.prioridad} />
+                </div>
+                <div style={{ fontSize: '0.8125rem' }}>{truncate(ot.descripcion, 80)}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--muted)' }}>
+                  <span>{TIPO_LABELS[ot.tipo] ?? ot.tipo} · {ot.estatus.replace('_', ' ')}</span>
+                  <span>{ot.fechaProgramada ? new Date(ot.fechaProgramada).toLocaleDateString('es-MX') : '—'}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>

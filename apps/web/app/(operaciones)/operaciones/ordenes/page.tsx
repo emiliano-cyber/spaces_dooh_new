@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 interface Sesion { inicio: string; termino: string | null }
 interface ChecklistItem { id: string; completado: boolean }
@@ -145,10 +146,63 @@ function LaborInlineButton({ ot, onDone }: { ot: OT; onDone: () => void }) {
   )
 }
 
+function OrdenCard({
+  ot, isCampo, asignadoNombre, onLaborDone,
+}: {
+  ot: OT
+  isCampo: boolean
+  asignadoNombre: string
+  onLaborDone: () => void
+}) {
+  const router = useRouter()
+  return (
+    <div
+      onClick={() => router.push(`/operaciones/ordenes/${ot.id}`)}
+      style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+        <span style={{ fontFamily: 'monospace', fontSize: '0.875rem', fontWeight: 700, color: 'var(--accent)' }}>{ot.folio}</span>
+        <EstatusBadge e={ot.estatus} />
+      </div>
+
+      <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <TipoBadge tipo={ot.tipo} />
+        <PrioridadBadge p={ot.prioridad} />
+      </div>
+
+      <div style={{ fontSize: '0.8125rem', color: 'var(--fg)' }}>
+        {ot.sitioNombre ? (
+          <>
+            <span style={{ fontWeight: 600 }}>{ot.sitioNombre}</span>
+            {ot.sitioClaveInterna && <span style={{ color: 'var(--muted)', marginLeft: '0.375rem', fontSize: '0.75rem' }}>{ot.sitioClaveInterna}</span>}
+          </>
+        ) : (
+          <span style={{ color: 'var(--muted)' }}>{ot.descripcion}</span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--muted)' }}>
+        <span>{ot.fechaProgramada ? new Date(ot.fechaProgramada).toLocaleDateString('es-MX') : 'Sin fecha'}</span>
+        {!isCampo && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asignadoNombre}</span>}
+      </div>
+
+      {isCampo && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', paddingTop: '0.25rem', borderTop: '1px solid var(--border)' }}>
+          <ChecklistProgress items={ot.checklistJson} />
+          <div onClick={(e) => e.stopPropagation()}>
+            <LaborInlineButton ot={ot} onDone={onLaborDone} />
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function OrdenesPage() {
   const { user } = useAuth()
   const router = useRouter()
   const qc = useQueryClient()
+  const isMobile = useIsMobile()
   const [filters, setFilters] = useState({ estatus: '', tipo: '', asignadoA: '', fechaDesde: '', fechaHasta: '', page: 1 })
 
   const CAMPO_ROLES = ['field_worker', 'crew_chief']
@@ -186,42 +240,79 @@ export default function OrdenesPage() {
     setFilters((f) => ({ ...f, [key]: val, page: key !== 'page' ? 1 : (val as number) }))
   }
 
+  const fStyle: React.CSSProperties = isMobile
+    ? { ...inp, flex: '1 1 calc(50% - 0.25rem)', minWidth: 0, height: 40 }
+    : inp
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <h1 style={{ fontSize: '1.25rem', fontWeight: 600 }}>{pageTitle}</h1>
 
       {/* Toolbar */}
       <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <select style={inp} value={filters.estatus} onChange={(e) => setFilter('estatus', e.target.value)}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', ...(isMobile ? { width: '100%' } : {}) }}>
+          <select style={fStyle} value={filters.estatus} onChange={(e) => setFilter('estatus', e.target.value)}>
             <option value="">Todos los estatus</option>
             {Object.entries(ESTATUS_BADGE).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
           </select>
 
-          <select style={inp} value={filters.tipo} onChange={(e) => setFilter('tipo', e.target.value)}>
+          <select style={fStyle} value={filters.tipo} onChange={(e) => setFilter('tipo', e.target.value)}>
             <option value="">Todos los tipos</option>
             {TIPO_OT_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
 
           {canSeeAll && !isCampo && (
-            <select style={inp} value={filters.asignadoA} onChange={(e) => setFilter('asignadoA', e.target.value)}>
+            <select style={fStyle} value={filters.asignadoA} onChange={(e) => setFilter('asignadoA', e.target.value)}>
               <option value="">{usersError ? 'Error al cargar usuarios' : 'Todos los técnicos'}</option>
               {(usersData ?? []).map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
             </select>
           )}
 
-          <input type="date" style={inp} value={filters.fechaDesde} onChange={(e) => setFilter('fechaDesde', e.target.value)} title="Fecha desde" />
-          <input type="date" style={inp} value={filters.fechaHasta} onChange={(e) => setFilter('fechaHasta', e.target.value)} title="Fecha hasta" />
+          <input type="date" style={fStyle} value={filters.fechaDesde} onChange={(e) => setFilter('fechaDesde', e.target.value)} title="Fecha desde" />
+          <input type="date" style={fStyle} value={filters.fechaHasta} onChange={(e) => setFilter('fechaHasta', e.target.value)} title="Fecha hasta" />
         </div>
 
         {!isCampo && (
-          <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.45rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          <Link href="/operaciones/ordenes/nueva" style={{ background: 'var(--accent)', color: '#fff', borderRadius: '7px', padding: '0.45rem 1rem', fontSize: '0.875rem', fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap', ...(isMobile ? { width: '100%', textAlign: 'center', padding: '0.6rem 1rem' } : {}) }}>
             + Nueva OT
           </Link>
         )}
       </div>
 
-      {/* Table */}
+      {isMobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+          <div style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>
+            {isLoading ? 'Cargando…' : `${data?.meta.total ?? 0} órdenes`}
+          </div>
+          {ots.length === 0 && !isLoading ? (
+            <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '2rem', textAlign: 'center', color: 'var(--muted)', fontSize: '0.875rem' }}>
+              Sin órdenes de trabajo
+            </div>
+          ) : (
+            ots.map((ot) => (
+              <OrdenCard
+                key={ot.id}
+                ot={ot}
+                isCampo={isCampo}
+                asignadoNombre={
+                  ot.asignadoAUserId
+                    ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
+                      ?? (ot.asignadoAUserId === user?.id ? (user.nombre ?? user.email ?? 'Yo') : '—'))
+                    : 'Sin asignar'
+                }
+                onLaborDone={() => qc.invalidateQueries({ queryKey: ['ots-list'] })}
+              />
+            ))
+          )}
+          {pages > 1 && (
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'center', padding: '0.5rem 0' }}>
+              <button disabled={filters.page <= 1} onClick={() => setFilter('page', filters.page - 1)} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.5rem 0.875rem', opacity: filters.page <= 1 ? 0.4 : 1 }}>← Anterior</button>
+              <span style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>Pág. {filters.page} / {pages}</span>
+              <button disabled={filters.page >= pages} onClick={() => setFilter('page', filters.page + 1)} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.5rem 0.875rem', opacity: filters.page >= pages ? 0.4 : 1 }}>Siguiente →</button>
+            </div>
+          )}
+        </div>
+      ) : (
       <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
         <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid var(--border)', fontSize: '0.8125rem', color: 'var(--muted)' }}>
           {isLoading ? 'Cargando…' : `${data?.meta.total ?? 0} órdenes`}
@@ -296,6 +387,7 @@ export default function OrdenesPage() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

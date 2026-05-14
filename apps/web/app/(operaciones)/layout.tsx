@@ -4,16 +4,17 @@ import { useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useAuth } from '@/lib/auth-context'
+import { useIsMobile } from '@/lib/hooks/useIsMobile'
 
 const CAMPO_ROLES = ['field_worker', 'crew_chief']
 
 function buildNav(userRol: string) {
   const isCampo = CAMPO_ROLES.includes(userRol)
   return [
-    { href: '/operaciones', label: 'Dashboard OTs', icon: '◫' },
-    { href: '/operaciones/ordenes', label: isCampo ? 'Mis Órdenes' : 'Órdenes de trabajo', icon: '≡' },
-    { href: '/operaciones/calendario', label: 'Calendario', icon: '▦' },
-    { href: isCampo ? '/operaciones/mis-sitios' : '/inmuebles/sitios', label: isCampo ? 'Mis Sitios' : 'Sitios', icon: '📍' },
+    { href: '/operaciones', label: 'Dashboard OTs', shortLabel: 'Inicio', icon: '◫' },
+    { href: '/operaciones/ordenes', label: isCampo ? 'Mis Órdenes' : 'Órdenes de trabajo', shortLabel: 'Órdenes', icon: '≡' },
+    { href: '/operaciones/calendario', label: 'Calendario', shortLabel: 'Agenda', icon: '▦' },
+    { href: isCampo ? '/operaciones/mis-sitios' : '/inmuebles/sitios', label: isCampo ? 'Mis Sitios' : 'Sitios', shortLabel: 'Sitios', icon: '📍' },
   ]
 }
 
@@ -21,6 +22,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
   const { user, isLoading, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
+  const isMobile = useIsMobile()
 
   useEffect(() => {
     if (isLoading) return
@@ -33,7 +35,7 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
     if (!ok) router.replace('/auth/login')
   }, [user, isLoading, router])
 
-  if (isLoading || !user) {
+  if (isLoading || !user || isMobile === null) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
         <div style={{ color: 'var(--muted)', fontSize: '0.875rem' }}>Cargando…</div>
@@ -45,6 +47,44 @@ export default function OperacionesLayout({ children }: { children: React.ReactN
   const currentNav = NAV.find(
     (n) => pathname === n.href || (n.href !== '/operaciones' && (pathname ?? '').startsWith(n.href)),
   )
+
+  if (isMobile) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--bg)' }}>
+        <header style={{ position: 'sticky', top: 0, zIndex: 50, height: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 1rem', background: 'var(--bg-surface)', flexShrink: 0 }}>
+          <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--fg)' }}>
+            {currentNav?.label ?? 'Operaciones'}
+          </span>
+          <button
+            onClick={logout}
+            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
+          >
+            Salir
+          </button>
+        </header>
+
+        <main style={{ flex: 1, padding: '1rem', paddingBottom: 'calc(64px + env(safe-area-inset-bottom) + 1rem)' }}>
+          {children}
+        </main>
+
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 40, display: 'flex', background: 'var(--bg-surface)', borderTop: '1px solid var(--border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          {NAV.map(({ href, shortLabel, icon }) => {
+            const isActive = pathname === href || (href !== '/operaciones' && (pathname ?? '').startsWith(href))
+            return (
+              <Link
+                key={href}
+                href={href}
+                style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '0.1875rem', minHeight: 56, padding: '0.5rem 0', textDecoration: 'none', color: isActive ? 'var(--accent)' : 'var(--muted)' }}
+              >
+                <span style={{ fontSize: '1.125rem', opacity: isActive ? 1 : 0.85 }}>{icon}</span>
+                <span style={{ fontSize: '0.6875rem', fontWeight: isActive ? 600 : 500 }}>{shortLabel}</span>
+              </Link>
+            )
+          })}
+        </nav>
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)' }}>
