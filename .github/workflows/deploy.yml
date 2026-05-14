@@ -38,7 +38,7 @@ jobs:
           timeout: 120s
           script: |
             set -e
-            cd /var/www/spaces-dooh
+            cd /var/www/Marketplace/spaces-dooh
 
             echo "→ Pulling latest changes..."
             git pull origin main

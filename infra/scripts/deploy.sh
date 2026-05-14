@@ -19,7 +19,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # ── Config ────────────────────────────────────────────────────────────────────
 DROPLET_IP="${DROPLET_IP:-}"
 SSH_KEY="${SSH_PRIVATE_KEY:-$HOME/.ssh/id_rsa}"
-REMOTE_DIR="/var/www/spaces-dooh"
+REMOTE_DIR="/var/www/Marketplace/spaces-dooh"
 SKIP_BUILD=false
 
 for arg in "$@"; do
