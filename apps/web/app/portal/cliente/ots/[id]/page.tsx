@@ -9,6 +9,12 @@ interface Comentario {
   timestamp: string; autorTipo: 'cliente' | 'tecnico' | 'sistema'; autorNombre: string
 }
 interface Evidencia { id: string; fotoUrlSigned: string; tipo: string; timestamp: string }
+type VisitaTipo = 'MODULOS' | 'ELECTRICO'
+interface Visita {
+  id: string; tipo: VisitaTipo; contenido: string; fecha: string
+  autorUserId: string | null; autorNombre: string | null
+  creadoEn: string; actualizadoEn: string
+}
 interface OT {
   id: string; folio: string; tipo: string; descripcion: string; instrucciones?: string
   estatus: string; prioridad: string; sitioNombre?: string
@@ -16,6 +22,12 @@ interface OT {
   checklistJson: { id: string; texto: string; completado: boolean; completadoEn?: string }[]
   evidencias: Evidencia[]; notas?: string; creadoEn: string
   motivoBloqueo?: string
+  visitasJson?: Visita[]
+}
+
+const VISITA_TIPO_LABEL: Record<VisitaTipo, string> = {
+  MODULOS: 'Mantenimiento de módulos',
+  ELECTRICO: 'Eléctrico',
 }
 
 const ESTATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -156,7 +168,11 @@ export default function PortalOTDetallePage() {
   const checkItems: { id: string; texto: string; completado: boolean; completadoEn?: string }[] =
     Array.isArray(ot.checklistJson) ? ot.checklistJson : []
   const isClosed = ot.estatus === 'COMPLETADA' || ot.estatus === 'CANCELADA'
-  const notaSegmentos = ot.notas ? parseNotasPorDia(ot.notas) : []
+  const visitas: Visita[] = Array.isArray(ot.visitasJson) ? ot.visitasJson : []
+  const visitasOrdenadas = [...visitas].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+  const visitasModulos = visitasOrdenadas.filter((v) => v.tipo === 'MODULOS')
+  const visitasElectrico = visitasOrdenadas.filter((v) => v.tipo === 'ELECTRICO')
+  const notaSegmentos = visitas.length === 0 && ot.notas ? parseNotasPorDia(ot.notas) : []
 
   return (
     <div>
@@ -195,8 +211,46 @@ export default function PortalOTDetallePage() {
         )}
       </div>
 
-      {/* Notas técnicas por visita */}
-      {notaSegmentos.length > 0 && (
+      {/* Bitácora de visitas estructuradas */}
+      {visitas.length > 0 && (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
+            Bitácora de visitas ({visitas.length})
+            <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: '#94a3b8', textTransform: 'none', letterSpacing: 0 }}>
+              {visitasModulos.length} módulos · {visitasElectrico.length} eléctrico
+            </span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {visitasOrdenadas.map((v, i) => {
+              const isElectrico = v.tipo === 'ELECTRICO'
+              const tipoColor = isElectrico ? '#B45309' : '#0A66FF'
+              const tipoBg = isElectrico ? 'rgba(180,83,9,0.1)' : 'rgba(10,102,255,0.1)'
+              return (
+                <div key={v.id} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+                  <div style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', padding: '0.625rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8' }}>Visita {i + 1}</span>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e293b' }}>{fmt(v.fecha)}</span>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: tipoColor, background: tipoBg, padding: '0.15rem 0.5rem', borderRadius: '999px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {VISITA_TIPO_LABEL[v.tipo]}
+                    </span>
+                    {v.autorNombre && (
+                      <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>· {v.autorNombre}</span>
+                    )}
+                  </div>
+                  {v.contenido && (
+                    <div style={{ padding: '0.875rem 1rem', fontSize: '0.875rem', color: '#334155', lineHeight: 1.65, whiteSpace: 'pre-wrap' }}>
+                      {v.contenido}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Bitácora legacy (fallback si no hay visitas estructuradas) */}
+      {visitas.length === 0 && notaSegmentos.length > 0 && (
         <div style={{ marginBottom: '1.25rem' }}>
           <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>
             Bitácora de visitas ({notaSegmentos.length})
@@ -219,7 +273,7 @@ export default function PortalOTDetallePage() {
       )}
 
       {/* Notas sin formato VISITA */}
-      {ot.notas && notaSegmentos.length === 0 && (
+      {ot.notas && notaSegmentos.length === 0 && visitas.length === 0 && (
         <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '10px', padding: '1.25rem', marginBottom: '1.25rem', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
           <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.625rem' }}>Notas técnicas</h3>
           <p style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.65, margin: 0, whiteSpace: 'pre-wrap' }}>{ot.notas}</p>

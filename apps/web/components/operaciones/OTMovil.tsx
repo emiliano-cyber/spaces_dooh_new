@@ -230,6 +230,12 @@ export default function OTMovil({ ot, onRefetch }: Props) {
   const isFinal = ['COMPLETADA', 'CANCELADA'].includes(ot.estatus)
   // Statuses where editing (photos, checklist, notas) is locked
   const isReadOnly = isFinal || ['EN_REVISION', 'BLOQUEADA'].includes(ot.estatus)
+  const canAssign = !!(user && (
+    user.rol === 'owner' || user.rol === 'admin' ||
+    (user.permisos as string[] | undefined)?.includes('*') ||
+    user.permisos?.includes('ots:assign')
+  ))
+  const adminCanActOnVisita = canAssign && ot.estatus !== 'CANCELADA'
   // Can submit completion
   const canComplete = ['EN_PROCESO', 'ASIGNADA', 'RECHAZADA'].includes(ot.estatus)
   // Can report a problem (bloquear)
@@ -733,7 +739,7 @@ export default function OTMovil({ ot, onRefetch }: Props) {
                 ) : (
                   visitasFiltradas.map((v, i) => {
                     const isEditing = editingVisitaId === v.id
-                    const canEditThis = v.autorUserId === user?.id
+                    const canEditThis = adminCanActOnVisita || (!isReadOnly && v.autorUserId === user?.id)
                     return (
                       <div key={v.id} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
                         <div style={{ background: 'rgba(10,102,255,0.06)', padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
@@ -741,7 +747,7 @@ export default function OTMovil({ ot, onRefetch }: Props) {
                             <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(10,102,255,0.18)', color: '#0A66FF', borderRadius: 999, padding: '0.15rem 0.5rem' }}>Visita {i + 1}</span>
                             <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{new Date(v.fecha).toLocaleDateString('es-MX', { dateStyle: 'medium' })}</span>
                           </div>
-                          {!isReadOnly && !isEditing && canEditThis && (
+                          {!isEditing && canEditThis && (
                             <button onClick={() => startEditVisita(v)} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: '#0A66FF', fontSize: '0.7rem', fontWeight: 700, padding: '0.25rem 0.55rem', cursor: 'pointer' }}>
                               ✎ Editar
                             </button>
@@ -774,7 +780,7 @@ export default function OTMovil({ ot, onRefetch }: Props) {
                 )}
               </div>
 
-              {!isReadOnly && editingVisitaId === null && (
+              {(adminCanActOnVisita || !isReadOnly) && editingVisitaId === null && (
                 <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
                     Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>

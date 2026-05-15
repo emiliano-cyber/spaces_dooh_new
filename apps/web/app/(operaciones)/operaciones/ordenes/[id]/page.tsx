@@ -832,9 +832,9 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
                           <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--fg)' }}>{new Date(v.fecha).toLocaleDateString('es-MX', { dateStyle: 'medium' })}</span>
                           {v.autorNombre && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>· {v.autorNombre}</span>}
                         </div>
-                        {!isEditing && !isFinal && (
+                        {!isEditing && ot.estatus !== 'CANCELADA' && (canAssign || (!isFinal && canEditThis)) && (
                           <div style={{ display: 'flex', gap: '0.25rem' }}>
-                            {canEditThis && (
+                            {(canAssign || (canEditThis && !isFinal)) && (
                               <button onClick={() => startEditVisita(v)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '5px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem', fontWeight: 600 }}>
                                 ✎ Editar
                               </button>
@@ -872,7 +872,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
               )}
             </div>
 
-            {!isFinal && canComplete && editingVisitaId === null && (
+            {ot.estatus !== 'CANCELADA' && ((canComplete && !isFinal) || canAssign) && editingVisitaId === null && (
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.875rem' }}>
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
                   Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>
