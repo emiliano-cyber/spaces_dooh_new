@@ -63,27 +63,37 @@ export async function getSitiosCliente(prisma: PrismaClient, clienteId: string) 
 
   const ots = await (prisma as any).ordenTrabajo.findMany({
     where: { sitioId: { in: sitioIds } },
-    select: { sitioId: true, estatus: true },
+    select: { sitioId: true, estatus: true, instrucciones: true },
   })
 
-  const stats: Record<string, { total: number; completadas: number }> = {}
+  const stats: Record<string, { total: number; completadas: number; avanceSum: number }> = {}
   for (const o of ots) {
     if (!o.sitioId) continue
-    const s = stats[o.sitioId] ?? { total: 0, completadas: 0 }
+    if (o.estatus === 'CANCELADA') continue
+    const s = stats[o.sitioId] ?? { total: 0, completadas: 0, avanceSum: 0 }
     s.total += 1
     if (o.estatus === 'COMPLETADA') s.completadas += 1
+    s.avanceSum += avancePorOT(o.instrucciones, o.estatus)
     stats[o.sitioId] = s
   }
 
   return sitios.map((s: any) => {
-    const st = stats[s.id] ?? { total: 0, completadas: 0 }
+    const st = stats[s.id] ?? { total: 0, completadas: 0, avanceSum: 0 }
     return {
       ...s,
       totalOTs: st.total,
       otsCompletadas: st.completadas,
-      porcentajeAvance: st.total > 0 ? Math.round((st.completadas / st.total) * 100) : null,
+      porcentajeAvance: st.total > 0 ? Math.round(st.avanceSum / st.total) : null,
     }
   })
+}
+
+function avancePorOT(instrucciones: string | null | undefined, estatus: string): number {
+  if (instrucciones) {
+    const m = instrucciones.match(/Avance:\s*(\d+(?:\.\d+)?)\s*%/i)
+    if (m) return Math.max(0, Math.min(100, parseFloat(m[1])))
+  }
+  return estatus === 'COMPLETADA' ? 100 : 0
 }
 
 export async function getSitioDetalle(prisma: PrismaClient, clienteId: string, sitioId: string) {
