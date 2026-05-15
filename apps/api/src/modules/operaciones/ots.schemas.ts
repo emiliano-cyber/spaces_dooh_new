@@ -22,7 +22,9 @@ export const UpdateOTSchema = z.object({
   asignadoAUserId: z.string().optional(),
   prioridad: PrioridadEnum.optional(),
   notas: z.string().optional(),
-  fechaProgramada: z.string().datetime().optional(),
+  fechaProgramada: z.string().datetime().nullable().optional(),
+  descripcion: z.string().min(1).optional(),
+  sitioId: z.string().optional(),
 })
 
 export const ChecklistItemSchema = z.object({

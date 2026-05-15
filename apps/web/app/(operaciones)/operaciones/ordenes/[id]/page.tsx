@@ -100,6 +100,7 @@ async function compressImage(file: File, maxSizeMB = 1): Promise<Blob> {
 }
 
 const inp: React.CSSProperties = { background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.8375rem', padding: '0.45rem 0.75rem', outline: 'none', width: '100%' }
+const editLbl: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', marginBottom: '0.25rem' }
 
 const FOTO_CATEGORIAS = ['ANTES', 'DURANTE', 'INSTALACION', 'PROBLEMA', 'DESPUES'] as const
 type FotoCategoria = typeof FOTO_CATEGORIAS[number]
@@ -135,6 +136,15 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const [selectedUser, setSelectedUser] = useState(ot.asignadoAUserId ?? '')
   const [savingAssign, setSavingAssign] = useState(false)
   const [assignError, setAssignError] = useState<string | null>(null)
+
+  // editar información (descripción, sitio, asignado, fecha programada)
+  const [editingInfo, setEditingInfo] = useState(false)
+  const [editDescripcion, setEditDescripcion] = useState(ot.descripcion)
+  const [editSitioId, setEditSitioId] = useState(ot.sitioId ?? '')
+  const [editAsignadoA, setEditAsignadoA] = useState(ot.asignadoAUserId ?? '')
+  const [editFecha, setEditFecha] = useState(ot.fechaProgramada ? ot.fechaProgramada.slice(0, 10) : '')
+  const [savingInfo, setSavingInfo] = useState(false)
+  const [infoError, setInfoError] = useState<string | null>(null)
 
   // complete
   const [completing, setCompleting] = useState(false)
@@ -180,6 +190,12 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const { data: usersData } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => apiFetch<UserItem[]>('/admin/users'),
+    enabled: !!canAssign,
+  })
+
+  const { data: sitiosData } = useQuery({
+    queryKey: ['sitios-select'],
+    queryFn: () => apiFetch<{ data: { id: string; nombre: string; claveInterna: string }[] }>('/sitios?limit=500').then((r) => r.data),
     enabled: !!canAssign,
   })
 
@@ -290,6 +306,43 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     } catch (err) {
       setAssignError(err instanceof Error ? err.message : 'Error al asignar')
     } finally { setSavingAssign(false) }
+  }
+
+  function startEditInfo() {
+    setEditDescripcion(ot.descripcion)
+    setEditSitioId(ot.sitioId ?? '')
+    setEditAsignadoA(ot.asignadoAUserId ?? '')
+    setEditFecha(ot.fechaProgramada ? ot.fechaProgramada.slice(0, 10) : '')
+    setInfoError(null)
+    setEditingInfo(true)
+  }
+
+  async function handleSaveInfo() {
+    if (!editDescripcion.trim()) {
+      setInfoError('La descripción no puede estar vacía')
+      return
+    }
+    setSavingInfo(true); setInfoError(null)
+    try {
+      const body: Record<string, unknown> = {}
+      if (editDescripcion.trim() !== ot.descripcion) body.descripcion = editDescripcion.trim()
+      if (editSitioId !== (ot.sitioId ?? '')) body.sitioId = editSitioId
+      if (editAsignadoA !== (ot.asignadoAUserId ?? '')) body.asignadoAUserId = editAsignadoA
+      const currentFecha = ot.fechaProgramada ? ot.fechaProgramada.slice(0, 10) : ''
+      if (editFecha !== currentFecha) {
+        body.fechaProgramada = editFecha ? new Date(editFecha + 'T12:00:00').toISOString() : null
+      }
+      if (Object.keys(body).length > 0) {
+        await apiFetch(`/ordenes-trabajo/${ot.id}`, { method: 'PATCH', body: JSON.stringify(body) })
+        qc.invalidateQueries({ queryKey: ['ot', ot.id] })
+        onRefetch()
+      }
+      setEditingInfo(false)
+    } catch (err) {
+      setInfoError(err instanceof Error ? err.message : 'Error al guardar los cambios')
+    } finally {
+      setSavingInfo(false)
+    }
   }
 
   async function handleCompletar() {
@@ -428,19 +481,80 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
 
           {/* Info */}
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
-            <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.75rem' }}>Información</h3>
-            <Row label="Descripción" value={ot.descripcion} />
-            {ot.instrucciones && <Row label="Instrucciones" value={<span style={{ color: 'var(--muted)' }}>{ot.instrucciones}</span>} />}
-            <Row label="Sitio" value={ot.sitioNombre ?? ot.sitioId ?? '—'} />
-            <Row label="Asignado a" value={ot.asignadoAUserId
-              ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
-                ?? (ot.asignadoAUserId === user?.id ? (user?.nombre ?? user?.email ?? 'Yo') : ot.asignadoAUserId.slice(0, 8) + '…'))
-              : '—'} />
-            <Row label="Fecha programada" value={fmt(ot.fechaProgramada)} />
-            <Row label="Fecha inicio" value={fmt(ot.fechaInicio)} />
-            <Row label="Fecha completada" value={fmt(ot.fechaCompletada)} />
-            {ot.tiempoTrabajadoMin != null && (
-              <Row label="Tiempo trabajado" value={`${Math.floor(ot.tiempoTrabajadoMin / 60)}h ${ot.tiempoTrabajadoMin % 60}min`} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>Información</h3>
+              {canAssign && !isFinal && !editingInfo && (
+                <button onClick={startEditInfo} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.3rem 0.7rem' }}>
+                  ✎ Editar
+                </button>
+              )}
+            </div>
+
+            {editingInfo ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {infoError && (
+                  <div style={{ background: 'rgba(185,28,28,0.08)', border: '1px solid var(--error)', borderRadius: '7px', color: 'var(--error)', fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}>
+                    {infoError}
+                  </div>
+                )}
+                <div>
+                  <label style={editLbl}>Descripción</label>
+                  <textarea rows={3} value={editDescripcion} onChange={(e) => setEditDescripcion(e.target.value)} style={{ ...inp, resize: 'vertical' }} />
+                </div>
+                <div>
+                  <label style={editLbl}>Sitio</label>
+                  <select value={editSitioId} onChange={(e) => setEditSitioId(e.target.value)} style={inp}>
+                    <option value="">Sin sitio asignado</option>
+                    {(sitiosData ?? []).map((s) => (
+                      <option key={s.id} value={s.id}>{s.claveInterna} — {s.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={editLbl}>Asignado a</label>
+                  <select value={editAsignadoA} onChange={(e) => setEditAsignadoA(e.target.value)} style={inp}>
+                    <option value="">Sin asignar</option>
+                    {(usersData ?? []).map((u) => (
+                      <option key={u.id} value={u.id}>{u.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={editLbl}>Fecha programada</label>
+                  <input type="date" value={editFecha} onChange={(e) => setEditFecha(e.target.value)} style={inp} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button onClick={handleSaveInfo} disabled={savingInfo} style={{ background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: savingInfo ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.5rem 1rem', opacity: savingInfo ? 0.7 : 1 }}>
+                    {savingInfo ? 'Guardando…' : 'Guardar'}
+                  </button>
+                  <button onClick={() => setEditingInfo(false)} disabled={savingInfo} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.8125rem', padding: '0.5rem 1rem' }}>
+                    Cancelar
+                  </button>
+                </div>
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.25rem' }}>
+                  <Row label="Fecha inicio" value={fmt(ot.fechaInicio)} />
+                  <Row label="Fecha completada" value={fmt(ot.fechaCompletada)} />
+                  {ot.tiempoTrabajadoMin != null && (
+                    <Row label="Tiempo trabajado" value={`${Math.floor(ot.tiempoTrabajadoMin / 60)}h ${ot.tiempoTrabajadoMin % 60}min`} />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <Row label="Descripción" value={ot.descripcion} />
+                {ot.instrucciones && <Row label="Instrucciones" value={<span style={{ color: 'var(--muted)' }}>{ot.instrucciones}</span>} />}
+                <Row label="Sitio" value={ot.sitioNombre ?? ot.sitioId ?? '—'} />
+                <Row label="Asignado a" value={ot.asignadoAUserId
+                  ? (usersData?.find((u) => u.id === ot.asignadoAUserId)?.nombre
+                    ?? (ot.asignadoAUserId === user?.id ? (user?.nombre ?? user?.email ?? 'Yo') : ot.asignadoAUserId.slice(0, 8) + '…'))
+                  : '—'} />
+                <Row label="Fecha programada" value={fmt(ot.fechaProgramada)} />
+                <Row label="Fecha inicio" value={fmt(ot.fechaInicio)} />
+                <Row label="Fecha completada" value={fmt(ot.fechaCompletada)} />
+                {ot.tiempoTrabajadoMin != null && (
+                  <Row label="Tiempo trabajado" value={`${Math.floor(ot.tiempoTrabajadoMin / 60)}h ${ot.tiempoTrabajadoMin % 60}min`} />
+                )}
+              </>
             )}
           </div>
 

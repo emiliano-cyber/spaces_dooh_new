@@ -238,7 +238,15 @@ export async function terminarLabores(prisma: PrismaClient, id: string, userId: 
 export async function update(
   prisma: PrismaClient,
   id: string,
-  data: { estatus?: string; asignadoAUserId?: string; prioridad?: string; notas?: string; fechaProgramada?: string },
+  data: {
+    estatus?: string
+    asignadoAUserId?: string
+    prioridad?: string
+    notas?: string
+    fechaProgramada?: string | null
+    descripcion?: string
+    sitioId?: string
+  },
   userId: string,
 ) {
   const current = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id } })
@@ -262,14 +270,28 @@ export async function update(
     updateData.notas = data.notas
   }
   if (data.fechaProgramada !== undefined) {
-    updateData.fechaProgramada = new Date(data.fechaProgramada)
+    updateData.fechaProgramada = data.fechaProgramada ? new Date(data.fechaProgramada) : null
   }
-  if (data.asignadoAUserId !== undefined && data.asignadoAUserId !== current.asignadoAUserId) {
-    updateData.asignadoAUserId = data.asignadoAUserId
-    if (data.estatus === 'ASIGNADA' || !data.estatus) {
-      updateData.estatus = 'ASIGNADA'
+  if (data.descripcion !== undefined && data.descripcion !== current.descripcion) {
+    updateData.descripcion = data.descripcion
+    cambios.descripcion = { antes: current.descripcion, despues: data.descripcion }
+  }
+  if (data.sitioId !== undefined) {
+    const nuevoSitio = data.sitioId || null
+    if (nuevoSitio !== current.sitioId) {
+      updateData.sitioId = nuevoSitio
+      cambios.sitioId = { antes: current.sitioId, despues: nuevoSitio }
     }
-    cambios.asignadoAUserId = { antes: current.asignadoAUserId, despues: data.asignadoAUserId }
+  }
+  if (data.asignadoAUserId !== undefined) {
+    const nuevoAsignado = data.asignadoAUserId || null
+    if (nuevoAsignado !== current.asignadoAUserId) {
+      updateData.asignadoAUserId = nuevoAsignado
+      if (nuevoAsignado && (data.estatus === 'ASIGNADA' || !data.estatus)) {
+        updateData.estatus = 'ASIGNADA'
+      }
+      cambios.asignadoAUserId = { antes: current.asignadoAUserId, despues: nuevoAsignado }
+    }
   }
 
   const updated = await (prisma as any).ordenTrabajo.update({ where: { id }, data: updateData })
