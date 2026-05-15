@@ -183,6 +183,13 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     await otsService.deleteVisita(request.prisma, id, visitaId, request.user.id)
     return reply.code(200).send({ ok: true })
   })
+
+  // ── Eliminar evidencia (solo admin) ───────────────────────────────────────────
+  fastify.delete('/ordenes-trabajo/:id/evidencias/:evidenciaId', { ...requirePermission('ots:assign') }, async (request, reply) => {
+    const { id, evidenciaId } = request.params as { id: string; evidenciaId: string }
+    await evidenciasService.deleteEvidencia(request.prisma, id, evidenciaId, request.user.id)
+    return reply.code(200).send({ ok: true })
+  })
 }
 
 export default fp(operacionesRoutes, { name: 'operaciones-routes' })

@@ -1,5 +1,6 @@
 import type { PrismaClient } from '@prisma/client'
-import { buildKey, getPresignedUpload } from '../../db/storage'
+import { buildKey, getPresignedUpload, deleteObject } from '../../db/storage'
+import { logAudit } from '../../core/audit/audit.service'
 
 export async function addEvidencia(
   prisma: PrismaClient,
@@ -54,6 +55,39 @@ export async function addEvidencia(
   }
 
   return evidencia
+}
+
+export async function deleteEvidencia(
+  prisma: PrismaClient,
+  otId: string,
+  evidenciaId: string,
+  userId: string,
+) {
+  const evidencia = await (prisma as any).evidenciaOT.findUnique({ where: { id: evidenciaId } })
+  if (!evidencia || evidencia.otId !== otId) {
+    throw Object.assign(new Error('Evidencia no encontrada'), { statusCode: 404 })
+  }
+
+  await (prisma as any).evidenciaOT.delete({ where: { id: evidenciaId } })
+
+  // Best-effort: try to remove from object storage too. No-op si falla (ya borrada de BD).
+  if (evidencia.storageKey) {
+    try {
+      await deleteObject(evidencia.storageKey)
+    } catch (err) {
+      console.warn(`[evidencias] no se pudo borrar de Spaces ${evidencia.storageKey}:`, (err as Error).message)
+    }
+  }
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'evidencia.eliminada',
+    entidadTipo: 'EvidenciaOT',
+    entidadId: evidenciaId,
+    cambiosJson: { otId, storageKey: evidencia.storageKey, tipo: evidencia.tipo, timestamp: evidencia.timestamp },
+  })
+
+  return { ok: true }
 }
 
 export async function getPresignedUploadUrl(

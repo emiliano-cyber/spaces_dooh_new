@@ -139,6 +139,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const [localPreviews, setLocalPreviews] = useState<LocalPreview[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [deletingEvId, setDeletingEvId] = useState<string | null>(null)
 
   // notas
   const [notasValue, setNotasValue] = useState(ot.notas ?? '')
@@ -512,6 +513,19 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     } finally { setSavingVisita(false) }
   }
 
+  async function handleDeleteEvidencia(evId: string) {
+    if (!confirm('¿Eliminar esta foto? No se puede deshacer.')) return
+    setDeletingEvId(evId)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/evidencias/${evId}`, { method: 'DELETE' })
+      onRefetch()
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Error al eliminar la foto')
+    } finally {
+      setDeletingEvId(null)
+    }
+  }
+
   async function handleDeleteVisita(visitaId: string) {
     if (!confirm('¿Eliminar esta visita? No se puede deshacer.')) return
     setSavingVisita(true); setVisitaError(null)
@@ -789,10 +803,22 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.75rem' }}>
                       {group.items.map((ev) => (
-                        <button key={ev.id} onClick={() => setLightboxUrl(ev.fotoUrlSigned)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: 0, cursor: 'pointer', aspectRatio: '1', overflow: 'hidden', position: 'relative' }}>
-                          <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>{ev.tipo}</div>
-                        </button>
+                        <div key={ev.id} style={{ position: 'relative', aspectRatio: '1' }}>
+                          <button onClick={() => setLightboxUrl(ev.fotoUrlSigned)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: 0, cursor: 'pointer', width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
+                            <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                            <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>{ev.tipo}</div>
+                          </button>
+                          {canAssign && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteEvidencia(ev.id) }}
+                              disabled={deletingEvId === ev.id}
+                              title="Eliminar foto"
+                              style={{ position: 'absolute', top: 4, right: 4, width: 26, height: 26, borderRadius: '50%', background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', cursor: deletingEvId === ev.id ? 'wait' : 'pointer', fontSize: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: deletingEvId === ev.id ? 0.5 : 1 }}
+                            >
+                              {deletingEvId === ev.id ? '…' : '🗑'}
+                            </button>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
