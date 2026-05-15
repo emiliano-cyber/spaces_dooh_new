@@ -41,7 +41,7 @@ echo ""
 if [[ "$SKIP_BUILD" == "false" ]]; then
   echo "→ Verificando types localmente..."
   cd "$REPO_ROOT"
-  npx turbo check-types
+  npx turbo run typecheck
   echo "  ✓ Types ok"
 fi
 
@@ -59,8 +59,8 @@ ssh -i "$SSH_KEY" \
      npm ci --prefer-offline
 
      echo '→ Building...'
-     npx turbo check-types
-     npx turbo build
+     npx turbo run typecheck
+     npx turbo run build
 
      echo '→ Running migrations...'
      cd apps/api

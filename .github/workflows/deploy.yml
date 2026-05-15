@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npx turbo run check-types
+        run: npx turbo run typecheck
 
       - name: Build
         run: npx turbo run build
