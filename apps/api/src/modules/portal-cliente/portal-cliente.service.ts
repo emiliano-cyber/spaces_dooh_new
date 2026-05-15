@@ -89,11 +89,12 @@ export async function getSitiosCliente(prisma: PrismaClient, clienteId: string) 
 }
 
 function avancePorOT(instrucciones: string | null | undefined, estatus: string): number {
+  if (estatus === 'COMPLETADA') return 100
   if (instrucciones) {
     const m = instrucciones.match(/Avance:\s*(\d+(?:\.\d+)?)\s*%/i)
     if (m) return Math.max(0, Math.min(100, parseFloat(m[1])))
   }
-  return estatus === 'COMPLETADA' ? 100 : 0
+  return 0
 }
 
 export async function getSitioDetalle(prisma: PrismaClient, clienteId: string, sitioId: string) {
