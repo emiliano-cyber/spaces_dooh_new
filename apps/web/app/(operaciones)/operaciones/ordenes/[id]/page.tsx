@@ -147,11 +147,13 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   // visitas
   const [visitaTab, setVisitaTab] = useState<VisitaTipo>('MODULOS')
   const [newVisitaContenido, setNewVisitaContenido] = useState('')
+  const [newVisitaFecha, setNewVisitaFecha] = useState(() => new Date().toISOString().slice(0, 10))
   const [savingVisita, setSavingVisita] = useState(false)
   const [visitaError, setVisitaError] = useState<string | null>(null)
   const [editingVisitaId, setEditingVisitaId] = useState<string | null>(null)
   const [editVisitaContenido, setEditVisitaContenido] = useState('')
   const [editVisitaTipo, setEditVisitaTipo] = useState<VisitaTipo>('MODULOS')
+  const [editVisitaFecha, setEditVisitaFecha] = useState('')
 
   // assign
   const [selectedUser, setSelectedUser] = useState(ot.asignadoAUserId ?? '')
@@ -464,11 +466,15 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     if (!newVisitaContenido.trim()) return
     setSavingVisita(true); setVisitaError(null)
     try {
+      const fechaIso = newVisitaFecha
+        ? new Date(newVisitaFecha + 'T12:00:00').toISOString()
+        : new Date().toISOString()
       await apiFetch(`/ordenes-trabajo/${ot.id}/visitas`, {
         method: 'POST',
-        body: JSON.stringify({ tipo: visitaTab, contenido: newVisitaContenido.trim() }),
+        body: JSON.stringify({ tipo: visitaTab, contenido: newVisitaContenido.trim(), fecha: fechaIso }),
       })
       setNewVisitaContenido('')
+      setNewVisitaFecha(new Date().toISOString().slice(0, 10))
       onRefetch()
     } catch (err) {
       setVisitaError(err instanceof Error ? err.message : 'Error al guardar visita')
@@ -479,6 +485,7 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     setEditingVisitaId(v.id)
     setEditVisitaContenido(v.contenido)
     setEditVisitaTipo(v.tipo)
+    setEditVisitaFecha(v.fecha ? v.fecha.slice(0, 10) : '')
     setVisitaError(null)
   }
 
@@ -486,9 +493,16 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     if (!editingVisitaId || !editVisitaContenido.trim()) return
     setSavingVisita(true); setVisitaError(null)
     try {
+      const body: Record<string, unknown> = {
+        tipo: editVisitaTipo,
+        contenido: editVisitaContenido.trim(),
+      }
+      if (editVisitaFecha) {
+        body.fecha = new Date(editVisitaFecha + 'T12:00:00').toISOString()
+      }
       await apiFetch(`/ordenes-trabajo/${ot.id}/visitas/${editingVisitaId}`, {
         method: 'PATCH',
-        body: JSON.stringify({ tipo: editVisitaTipo, contenido: editVisitaContenido.trim() }),
+        body: JSON.stringify(body),
       })
       setEditingVisitaId(null)
       onRefetch()
@@ -850,10 +864,13 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
                       <div style={{ padding: '0.75rem 0.875rem' }}>
                         {isEditing ? (
                           <>
-                            <select value={editVisitaTipo} onChange={(e) => setEditVisitaTipo(e.target.value as VisitaTipo)} style={{ ...inp, marginBottom: '0.5rem', width: 'auto' }}>
-                              <option value="MODULOS">Mantenimiento de módulos</option>
-                              <option value="ELECTRICO">Eléctrico</option>
-                            </select>
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
+                              <select value={editVisitaTipo} onChange={(e) => setEditVisitaTipo(e.target.value as VisitaTipo)} style={{ ...inp, width: 'auto' }}>
+                                <option value="MODULOS">Mantenimiento de módulos</option>
+                                <option value="ELECTRICO">Eléctrico</option>
+                              </select>
+                              <input type="date" value={editVisitaFecha} onChange={(e) => setEditVisitaFecha(e.target.value)} style={{ ...inp, width: 'auto' }} title="Fecha de la visita" />
+                            </div>
                             <textarea value={editVisitaContenido} onChange={(e) => setEditVisitaContenido(e.target.value)} rows={4} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.875rem', padding: '0.5rem 0.75rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', marginBottom: '0.5rem' }} />
                             <div style={{ display: 'flex', gap: '0.375rem' }}>
                               <button onClick={handleSaveEditVisita} disabled={savingVisita || !editVisitaContenido.trim()} style={{ background: 'var(--accent)', border: 'none', borderRadius: '6px', color: '#fff', cursor: savingVisita || !editVisitaContenido.trim() ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.4rem 0.875rem', opacity: savingVisita ? 0.7 : 1 }}>
@@ -874,8 +891,14 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
 
             {ot.estatus !== 'CANCELADA' && ((canComplete && !isFinal) || canAssign) && editingVisitaId === null && (
               <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.875rem' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
-                  Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', fontWeight: 600 }}>
+                    Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>
+                  </div>
+                  <label style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    Fecha:
+                    <input type="date" value={newVisitaFecha} onChange={(e) => setNewVisitaFecha(e.target.value)} style={{ ...inp, width: 'auto', padding: '0.3rem 0.5rem' }} />
+                  </label>
                 </div>
                 <textarea value={newVisitaContenido} onChange={(e) => setNewVisitaContenido(e.target.value)} placeholder="Describe los avances de esta visita…" rows={4} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--fg)', fontSize: '0.875rem', lineHeight: 1.5, padding: '0.625rem 0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
                 <button onClick={handleSaveVisita} disabled={savingVisita || !newVisitaContenido.trim()} style={{ marginTop: '0.5rem', background: newVisitaContenido.trim() && !savingVisita ? 'var(--accent)' : 'var(--bg)', border: newVisitaContenido.trim() && !savingVisita ? 'none' : '1px solid var(--border)', borderRadius: '7px', color: newVisitaContenido.trim() && !savingVisita ? '#fff' : 'var(--muted)', cursor: !newVisitaContenido.trim() || savingVisita ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.5rem 1rem', opacity: savingVisita ? 0.7 : 1 }}>
