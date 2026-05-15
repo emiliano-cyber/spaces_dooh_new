@@ -217,6 +217,7 @@ export default function OTMovil({ ot, onRefetch }: Props) {
   const [bloquearError, setBloquearError] = useState<string | null>(null)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const checklistItems: ChecklistItem[] = Array.isArray(ot.checklistJson) ? ot.checklistJson : []
   const totalItems = checklistItems.length
@@ -303,8 +304,8 @@ export default function OTMovil({ ot, onRefetch }: Props) {
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) uploadFile(file)
+    const files = e.target.files ? Array.from(e.target.files) : []
+    for (const f of files) uploadFile(f)
     e.target.value = ''
   }
 
@@ -668,23 +669,46 @@ export default function OTMovil({ ot, onRefetch }: Props) {
                       </button>
                     ))}
                   </div>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{
-                      width: '100%', minHeight: 48, borderRadius: 10,
-                      background: '#0A0A0A', border: 'none',
-                      color: '#FAFAFA', fontSize: '1rem', fontWeight: 700,
-                      cursor: 'pointer', display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', gap: '0.5rem', marginBottom: '0.875rem',
-                    }}
-                  >
-                    📷 Tomar foto
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.875rem' }}>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        flex: 1, minHeight: 48, borderRadius: 10,
+                        background: '#0A0A0A', border: 'none',
+                        color: '#FAFAFA', fontSize: '0.9375rem', fontWeight: 700,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', gap: '0.4rem',
+                      }}
+                    >
+                      📷 Tomar foto
+                    </button>
+                    <button
+                      onClick={() => galleryInputRef.current?.click()}
+                      style={{
+                        flex: 1, minHeight: 48, borderRadius: 10,
+                        background: 'var(--bg)', border: '1px solid var(--border)',
+                        color: 'var(--fg)', fontSize: '0.9375rem', fontWeight: 700,
+                        cursor: 'pointer', display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', gap: '0.4rem',
+                      }}
+                    >
+                      🖼 Galería
+                    </button>
+                  </div>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
                     capture="environment"
+                    onChange={handleFileChange}
+                    style={{ display: 'none' }}
+                    aria-hidden="true"
+                  />
+                  <input
+                    ref={galleryInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
                     onChange={handleFileChange}
                     style={{ display: 'none' }}
                     aria-hidden="true"
