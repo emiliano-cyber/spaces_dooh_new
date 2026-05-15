@@ -53,12 +53,36 @@ export async function getSitiosCliente(prisma: PrismaClient, clienteId: string) 
   const sitioIds = asignaciones.map((a: any) => a.sitioId)
   if (sitioIds.length === 0) return []
 
-  return (prisma as any).sitio.findMany({
+  const sitios = await (prisma as any).sitio.findMany({
     where: { id: { in: sitioIds } },
     select: {
       id: true, nombre: true, claveInterna: true, ciudad: true, estado: true,
       direccion: true, tipoMedio: true, estatusOperativo: true,
     },
+  })
+
+  const ots = await (prisma as any).ordenTrabajo.findMany({
+    where: { sitioId: { in: sitioIds } },
+    select: { sitioId: true, estatus: true },
+  })
+
+  const stats: Record<string, { total: number; completadas: number }> = {}
+  for (const o of ots) {
+    if (!o.sitioId) continue
+    const s = stats[o.sitioId] ?? { total: 0, completadas: 0 }
+    s.total += 1
+    if (o.estatus === 'COMPLETADA') s.completadas += 1
+    stats[o.sitioId] = s
+  }
+
+  return sitios.map((s: any) => {
+    const st = stats[s.id] ?? { total: 0, completadas: 0 }
+    return {
+      ...s,
+      totalOTs: st.total,
+      otsCompletadas: st.completadas,
+      porcentajeAvance: st.total > 0 ? Math.round((st.completadas / st.total) * 100) : null,
+    }
   })
 }
 
