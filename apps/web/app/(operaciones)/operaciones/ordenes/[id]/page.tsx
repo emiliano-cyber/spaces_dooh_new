@@ -10,6 +10,12 @@ import OTMovil from '@/components/operaciones/OTMovil'
 
 interface ChecklistItem { id: string; texto: string; completado: boolean; completadoEn?: string; completadoPorUserId?: string; notaRealizado?: string | null; notaPendiente?: string | null }
 interface Evidencia { id: string; fotoUrl: string; fotoUrlSigned: string; storageKey: string; tipo: string; timestamp: string; lat?: number; lng?: number }
+type VisitaTipo = 'MODULOS' | 'ELECTRICO'
+interface Visita {
+  id: string; tipo: VisitaTipo; contenido: string; fecha: string
+  autorUserId: string | null; autorNombre: string | null
+  creadoEn: string; actualizadoEn: string
+}
 interface OT {
   id: string; folio: string; tipo: string; descripcion: string; instrucciones?: string
   prioridad: string; estatus: string; sitioId?: string; sitioNombre?: string; asignadoAUserId?: string
@@ -20,6 +26,12 @@ interface OT {
   tiempoTrabajadoMin?: number | null; requiereRevision?: boolean
   horaLlegada?: string; horaTerminoLabores?: string
   sesionesJson?: Array<{ inicio: string; termino: string | null; userId: string }>
+  visitasJson?: Visita[]
+}
+
+const VISITA_TIPO_LABEL: Record<VisitaTipo, string> = {
+  MODULOS: 'Mantenimiento de módulos',
+  ELECTRICO: 'Eléctrico',
 }
 interface UserItem { id: string; nombre: string; email: string }
 interface LocalPreview { tempId: string; previewUrl: string; status: 'uploading' | 'done' | 'error'; file?: File }
@@ -131,6 +143,15 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
   const [notasValue, setNotasValue] = useState(ot.notas ?? '')
   const [savingNotas, setSavingNotas] = useState(false)
   const [notasSaved, setNotasSaved] = useState(false)
+
+  // visitas
+  const [visitaTab, setVisitaTab] = useState<VisitaTipo>('MODULOS')
+  const [newVisitaContenido, setNewVisitaContenido] = useState('')
+  const [savingVisita, setSavingVisita] = useState(false)
+  const [visitaError, setVisitaError] = useState<string | null>(null)
+  const [editingVisitaId, setEditingVisitaId] = useState<string | null>(null)
+  const [editVisitaContenido, setEditVisitaContenido] = useState('')
+  const [editVisitaTipo, setEditVisitaTipo] = useState<VisitaTipo>('MODULOS')
 
   // assign
   const [selectedUser, setSelectedUser] = useState(ot.asignadoAUserId ?? '')
@@ -430,6 +451,63 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
     } finally { setEliminando(false) }
   }
 
+  const visitas: Visita[] = Array.isArray(ot.visitasJson) ? ot.visitasJson : []
+  const visitasFiltradas = visitas
+    .filter((v) => v.tipo === visitaTab)
+    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+  const visitaCountByTipo: Record<VisitaTipo, number> = {
+    MODULOS: visitas.filter((v) => v.tipo === 'MODULOS').length,
+    ELECTRICO: visitas.filter((v) => v.tipo === 'ELECTRICO').length,
+  }
+
+  async function handleSaveVisita() {
+    if (!newVisitaContenido.trim()) return
+    setSavingVisita(true); setVisitaError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/visitas`, {
+        method: 'POST',
+        body: JSON.stringify({ tipo: visitaTab, contenido: newVisitaContenido.trim() }),
+      })
+      setNewVisitaContenido('')
+      onRefetch()
+    } catch (err) {
+      setVisitaError(err instanceof Error ? err.message : 'Error al guardar visita')
+    } finally { setSavingVisita(false) }
+  }
+
+  function startEditVisita(v: Visita) {
+    setEditingVisitaId(v.id)
+    setEditVisitaContenido(v.contenido)
+    setEditVisitaTipo(v.tipo)
+    setVisitaError(null)
+  }
+
+  async function handleSaveEditVisita() {
+    if (!editingVisitaId || !editVisitaContenido.trim()) return
+    setSavingVisita(true); setVisitaError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/visitas/${editingVisitaId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ tipo: editVisitaTipo, contenido: editVisitaContenido.trim() }),
+      })
+      setEditingVisitaId(null)
+      onRefetch()
+    } catch (err) {
+      setVisitaError(err instanceof Error ? err.message : 'Error al editar visita')
+    } finally { setSavingVisita(false) }
+  }
+
+  async function handleDeleteVisita(visitaId: string) {
+    if (!confirm('¿Eliminar esta visita? No se puede deshacer.')) return
+    setSavingVisita(true); setVisitaError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/visitas/${visitaId}`, { method: 'DELETE' })
+      onRefetch()
+    } catch (err) {
+      setVisitaError(err instanceof Error ? err.message : 'Error al eliminar visita')
+    } finally { setSavingVisita(false) }
+  }
+
   const estatusColor = ESTATUS_C[ot.estatus] ?? '#71717A'
 
   return (
@@ -706,66 +784,106 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
             )}
           </div>
 
-          {/* Notas */}
-          {(canComplete || ot.notas) && (() => {
-            const dias = ot.notas ? parseNotasPorDia(ot.notas) : []
-            const hasSegmentos = dias.length > 0
-            return (
-              <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-                  <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Notas de campo</h3>
-                  {hasSegmentos && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{dias.length} visita{dias.length !== 1 ? 's' : ''}</span>}
-                </div>
+          {/* Visitas de campo */}
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.25rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Visitas de campo</h3>
+              <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>
+                {visitas.length} total · {visitasFiltradas.length} en este tipo
+              </span>
+            </div>
 
-                {/* Segmentos por día */}
-                {hasSegmentos && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: canComplete && !isFinal ? '1rem' : 0 }}>
-                    {dias.map((dia, i) => (
-                      <div key={i} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-                        <div style={{ background: 'rgba(10,102,255,0.06)', borderBottom: '1px solid var(--border)', padding: '0.5rem 0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(10,102,255,0.15)', color: '#0A66FF', borderRadius: '999px', padding: '0.1rem 0.5rem' }}>
-                            {`Visita ${i + 1}`}
-                          </span>
-                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--fg)' }}>
-                            {dia.titulo.replace(/^VISITA\s+\d+\s+-\s+/, '')}
-                          </span>
-                        </div>
-                        <div style={{ padding: '0.75rem 0.875rem', fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>
-                          {dia.contenido || <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Sin descripción</span>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div style={{ display: 'flex', gap: '0.25rem', marginBottom: '0.75rem', borderBottom: '1px solid var(--border)' }}>
+              {(['MODULOS', 'ELECTRICO'] as const).map((t) => {
+                const active = visitaTab === t
+                return (
+                  <button
+                    key={t}
+                    onClick={() => { setVisitaTab(t); setEditingVisitaId(null); setVisitaError(null) }}
+                    style={{ background: 'none', border: 'none', borderBottom: active ? '2px solid var(--accent)' : '2px solid transparent', color: active ? 'var(--fg)' : 'var(--muted)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: active ? 600 : 500, padding: '0.5rem 0.875rem', marginBottom: '-1px' }}
+                  >
+                    {VISITA_TIPO_LABEL[t]}
+                    <span style={{ marginLeft: '0.375rem', color: 'var(--muted)', fontWeight: 500 }}>({visitaCountByTipo[t]})</span>
+                  </button>
+                )
+              })}
+            </div>
 
-                {/* Textarea de edición (solo si puede editar) */}
-                {!isFinal && canComplete && (
-                  <>
-                    {hasSegmentos && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.5rem' }}>
-                        Editar notas completas:
-                      </div>
-                    )}
-                    <textarea
-                      value={notasValue}
-                      onChange={(e) => setNotasValue(e.target.value)}
-                      placeholder="Describe los avances, condiciones encontradas, observaciones…"
-                      rows={hasSegmentos ? 3 : 4}
-                      style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--fg)', fontSize: '0.875rem', lineHeight: 1.5, padding: '0.625rem 0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    />
-                    <button onClick={saveNotas} disabled={savingNotas || notasValue === (ot.notas ?? '')} style={{ marginTop: '0.5rem', background: notasSaved ? 'rgba(21,128,61,0.12)' : 'var(--bg)', border: notasSaved ? '1px solid rgba(21,128,61,0.4)' : '1px solid var(--border)', borderRadius: '7px', color: notasSaved ? '#15803D' : 'var(--fg)', cursor: savingNotas || notasValue === (ot.notas ?? '') ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.45rem 1rem', opacity: notasValue === (ot.notas ?? '') && !notasSaved ? 0.5 : 1, transition: 'all 0.2s' }}>
-                      {notasSaved ? '✓ Guardado' : savingNotas ? 'Guardando…' : 'Guardar notas'}
-                    </button>
-                  </>
-                )}
-
-                {/* Lectura plana si no hay segmentos y es final */}
-                {isFinal && !hasSegmentos && ot.notas && (
-                  <div style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>{ot.notas}</div>
-                )}
+            {visitaError && (
+              <div style={{ background: 'rgba(185,28,28,0.08)', border: '1px solid var(--error)', borderRadius: '7px', color: 'var(--error)', fontSize: '0.75rem', padding: '0.4rem 0.625rem', marginBottom: '0.5rem' }}>
+                {visitaError}
               </div>
-            )
-          })()}
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem', marginBottom: canComplete && !isFinal ? '0.875rem' : 0 }}>
+              {visitasFiltradas.length === 0 ? (
+                <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', padding: '0.875rem', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: '8px' }}>
+                  Sin visitas de este tipo aún
+                </div>
+              ) : (
+                visitasFiltradas.map((v, i) => {
+                  const isEditing = editingVisitaId === v.id
+                  const canEditThis = canAssign || v.autorUserId === user?.id
+                  return (
+                    <div key={v.id} style={{ border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                      <div style={{ background: 'rgba(10,102,255,0.06)', borderBottom: '1px solid var(--border)', padding: '0.5rem 0.875rem', display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(10,102,255,0.15)', color: '#0A66FF', borderRadius: '999px', padding: '0.1rem 0.5rem' }}>Visita {i + 1}</span>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--fg)' }}>{new Date(v.fecha).toLocaleDateString('es-MX', { dateStyle: 'medium' })}</span>
+                          {v.autorNombre && <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>· {v.autorNombre}</span>}
+                        </div>
+                        {!isEditing && !isFinal && (
+                          <div style={{ display: 'flex', gap: '0.25rem' }}>
+                            {canEditThis && (
+                              <button onClick={() => startEditVisita(v)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '5px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem', fontWeight: 600 }}>
+                                ✎ Editar
+                              </button>
+                            )}
+                            {canAssign && (
+                              <button onClick={() => handleDeleteVisita(v.id)} style={{ background: 'none', border: '1px solid rgba(185,28,28,0.3)', borderRadius: '5px', color: '#B91C1C', cursor: 'pointer', fontSize: '0.7rem', padding: '0.2rem 0.5rem', fontWeight: 600 }}>
+                                🗑 Eliminar
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ padding: '0.75rem 0.875rem' }}>
+                        {isEditing ? (
+                          <>
+                            <select value={editVisitaTipo} onChange={(e) => setEditVisitaTipo(e.target.value as VisitaTipo)} style={{ ...inp, marginBottom: '0.5rem', width: 'auto' }}>
+                              <option value="MODULOS">Mantenimiento de módulos</option>
+                              <option value="ELECTRICO">Eléctrico</option>
+                            </select>
+                            <textarea value={editVisitaContenido} onChange={(e) => setEditVisitaContenido(e.target.value)} rows={4} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', fontSize: '0.875rem', padding: '0.5rem 0.75rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit', marginBottom: '0.5rem' }} />
+                            <div style={{ display: 'flex', gap: '0.375rem' }}>
+                              <button onClick={handleSaveEditVisita} disabled={savingVisita || !editVisitaContenido.trim()} style={{ background: 'var(--accent)', border: 'none', borderRadius: '6px', color: '#fff', cursor: savingVisita || !editVisitaContenido.trim() ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.4rem 0.875rem', opacity: savingVisita ? 0.7 : 1 }}>
+                                {savingVisita ? 'Guardando…' : 'Guardar cambios'}
+                              </button>
+                              <button onClick={() => setEditingVisitaId(null)} disabled={savingVisita} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.75rem', padding: '0.4rem 0.875rem' }}>Cancelar</button>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: '0.875rem', lineHeight: 1.55, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>{v.contenido}</div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {!isFinal && canComplete && editingVisitaId === null && (
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.875rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
+                  Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>
+                </div>
+                <textarea value={newVisitaContenido} onChange={(e) => setNewVisitaContenido(e.target.value)} placeholder="Describe los avances de esta visita…" rows={4} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--fg)', fontSize: '0.875rem', lineHeight: 1.5, padding: '0.625rem 0.875rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }} />
+                <button onClick={handleSaveVisita} disabled={savingVisita || !newVisitaContenido.trim()} style={{ marginTop: '0.5rem', background: newVisitaContenido.trim() && !savingVisita ? 'var(--accent)' : 'var(--bg)', border: newVisitaContenido.trim() && !savingVisita ? 'none' : '1px solid var(--border)', borderRadius: '7px', color: newVisitaContenido.trim() && !savingVisita ? '#fff' : 'var(--muted)', cursor: !newVisitaContenido.trim() || savingVisita ? 'not-allowed' : 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.5rem 1rem', opacity: savingVisita ? 0.7 : 1 }}>
+                  {savingVisita ? 'Guardando…' : 'Guardar visita'}
+                </button>
+              </div>
+            )}
+          </div>
 
         </div>
 

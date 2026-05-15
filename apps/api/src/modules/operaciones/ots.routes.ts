@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { requirePermission } from '../../core/auth/rbac.guard'
-import { CreateOTSchema, UpdateOTSchema, ChecklistItemSchema } from './ots.schemas'
+import { CreateOTSchema, UpdateOTSchema, ChecklistItemSchema, CreateVisitaSchema, UpdateVisitaSchema } from './ots.schemas'
 import * as otsService from './ots.service'
 import * as evidenciasService from './evidencias.service'
 
@@ -159,6 +159,28 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.delete('/ordenes-trabajo/:id', { ...requirePermission('ots:assign') }, async (request, reply) => {
     const { id } = request.params as { id: string }
     await otsService.deleteOT(request.prisma, id, request.user.id)
+    return reply.code(200).send({ ok: true })
+  })
+
+  // ── Visitas: agregar ──────────────────────────────────────────────────────────
+  fastify.post('/ordenes-trabajo/:id/visitas', { ...requirePermission('ots:complete') }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = CreateVisitaSchema.parse(request.body)
+    const visita = await otsService.addVisita(request.prisma, id, body, request.user)
+    return reply.code(201).send(visita)
+  })
+
+  // ── Visitas: editar ───────────────────────────────────────────────────────────
+  fastify.patch('/ordenes-trabajo/:id/visitas/:visitaId', { ...requirePermission('ots:complete') }, async (request) => {
+    const { id, visitaId } = request.params as { id: string; visitaId: string }
+    const body = UpdateVisitaSchema.parse(request.body)
+    return otsService.updateVisita(request.prisma, id, visitaId, body, request.user)
+  })
+
+  // ── Visitas: eliminar (solo admin) ────────────────────────────────────────────
+  fastify.delete('/ordenes-trabajo/:id/visitas/:visitaId', { ...requirePermission('ots:assign') }, async (request, reply) => {
+    const { id, visitaId } = request.params as { id: string; visitaId: string }
+    await otsService.deleteVisita(request.prisma, id, visitaId, request.user.id)
     return reply.code(200).send({ ok: true })
   })
 }

@@ -34,6 +34,22 @@ export const ChecklistItemSchema = z.object({
   notaPendiente: z.string().optional(),
 })
 
+export const VisitaTipoEnum = z.enum(['MODULOS', 'ELECTRICO'])
+
+export const CreateVisitaSchema = z.object({
+  tipo: VisitaTipoEnum,
+  contenido: z.string().min(1),
+  fecha: z.string().datetime().optional(),
+})
+
+export const UpdateVisitaSchema = z.object({
+  tipo: VisitaTipoEnum.optional(),
+  contenido: z.string().min(1).optional(),
+  fecha: z.string().datetime().optional(),
+})
+
 export type CreateOTInput = z.infer<typeof CreateOTSchema>
 export type UpdateOTInput = z.infer<typeof UpdateOTSchema>
 export type ChecklistItemInput = z.infer<typeof ChecklistItemSchema>
+export type CreateVisitaInput = z.infer<typeof CreateVisitaSchema>
+export type UpdateVisitaInput = z.infer<typeof UpdateVisitaSchema>

@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api-client'
+import { useAuth } from '@/lib/auth-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,23 @@ interface Evidencia {
   storageKey: string
   tipo: string
   timestamp: string
+}
+
+type VisitaTipo = 'MODULOS' | 'ELECTRICO'
+interface Visita {
+  id: string
+  tipo: VisitaTipo
+  contenido: string
+  fecha: string
+  autorUserId: string | null
+  autorNombre: string | null
+  creadoEn: string
+  actualizadoEn: string
+}
+
+const VISITA_TIPO_LABEL: Record<VisitaTipo, string> = {
+  MODULOS: 'Mantto. módulos',
+  ELECTRICO: 'Eléctrico',
 }
 
 export interface OTMovilData {
@@ -39,6 +57,7 @@ export interface OTMovilData {
   motivoBloqueo?: string
   revisionNotas?: string
   requiereRevision?: boolean
+  visitasJson?: Visita[]
 }
 
 interface LocalPreview {
@@ -167,6 +186,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function OTMovil({ ot, onRefetch }: Props) {
   const router = useRouter()
+  const { user } = useAuth()
 
   // UI state
   const [infoOpen, setInfoOpen] = useState(false)
@@ -180,6 +200,13 @@ export default function OTMovil({ ot, onRefetch }: Props) {
   const [notasValue, setNotasValue] = useState(ot.notas ?? '')
   const [savingNotas, setSavingNotas] = useState(false)
   const [notasSaved, setNotasSaved] = useState(false)
+  const [visitaTab, setVisitaTab] = useState<VisitaTipo>('MODULOS')
+  const [newVisitaContenido, setNewVisitaContenido] = useState('')
+  const [savingVisita, setSavingVisita] = useState(false)
+  const [visitaError, setVisitaError] = useState<string | null>(null)
+  const [editingVisitaId, setEditingVisitaId] = useState<string | null>(null)
+  const [editVisitaContenido, setEditVisitaContenido] = useState('')
+  const [editVisitaTipo, setEditVisitaTipo] = useState<VisitaTipo>('MODULOS')
   const [fotoCategoria, setFotoCategoria] = useState<FotoCategoria>('INSTALACION')
   const [showBloquearModal, setShowBloquearModal] = useState(false)
   const [motivoBloqueo, setMotivoBloqueo] = useState('')
@@ -333,6 +360,54 @@ export default function OTMovil({ ot, onRefetch }: Props) {
     } finally {
       setCompleting(false)
     }
+  }
+
+  // ── Visitas ────────────────────────────────────────────────────────────────
+
+  const visitas: Visita[] = Array.isArray(ot.visitasJson) ? ot.visitasJson : []
+  const visitasFiltradas = visitas
+    .filter((v) => v.tipo === visitaTab)
+    .sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime())
+  const visitaCountByTipo: Record<VisitaTipo, number> = {
+    MODULOS: visitas.filter((v) => v.tipo === 'MODULOS').length,
+    ELECTRICO: visitas.filter((v) => v.tipo === 'ELECTRICO').length,
+  }
+
+  async function handleSaveVisita() {
+    if (!newVisitaContenido.trim()) return
+    setSavingVisita(true); setVisitaError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/visitas`, {
+        method: 'POST',
+        body: JSON.stringify({ tipo: visitaTab, contenido: newVisitaContenido.trim() }),
+      })
+      setNewVisitaContenido('')
+      onRefetch()
+    } catch (err) {
+      setVisitaError(err instanceof Error ? err.message : 'Error al guardar visita')
+    } finally { setSavingVisita(false) }
+  }
+
+  function startEditVisita(v: Visita) {
+    setEditingVisitaId(v.id)
+    setEditVisitaContenido(v.contenido)
+    setEditVisitaTipo(v.tipo)
+    setVisitaError(null)
+  }
+
+  async function handleSaveEditVisita() {
+    if (!editingVisitaId || !editVisitaContenido.trim()) return
+    setSavingVisita(true); setVisitaError(null)
+    try {
+      await apiFetch(`/ordenes-trabajo/${ot.id}/visitas/${editingVisitaId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ tipo: editVisitaTipo, contenido: editVisitaContenido.trim() }),
+      })
+      setEditingVisitaId(null)
+      onRefetch()
+    } catch (err) {
+      setVisitaError(err instanceof Error ? err.message : 'Error al editar visita')
+    } finally { setSavingVisita(false) }
   }
 
   // ── Success screen ────────────────────────────────────────────────────────────
@@ -618,39 +693,115 @@ export default function OTMovil({ ot, onRefetch }: Props) {
               )}
             </SectionCard>
 
-            {/* ── Notas de avance ────────────────────────────────────────────── */}
+            {/* ── Visitas ───────────────────────────────────────────────────────── */}
             <SectionCard>
-              <SectionTitle>Notas de avance</SectionTitle>
-              <textarea
-                value={notasValue}
-                onChange={(e) => setNotasValue(e.target.value)}
-                disabled={isReadOnly}
-                placeholder="Describe los avances, condiciones encontradas, materiales usados…"
-                rows={4}
-                style={{
-                  width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 8, color: 'var(--fg)', fontSize: '0.9375rem',
-                  lineHeight: 1.5, padding: '0.75rem', resize: 'vertical',
-                  outline: 'none', boxSizing: 'border-box', opacity: isReadOnly ? 0.6 : 1,
-                }}
-              />
-              {!isReadOnly && (
-                <button
-                  onClick={saveNotas}
-                  disabled={savingNotas || notasValue === (ot.notas ?? '')}
-                  style={{
-                    marginTop: '0.5rem', width: '100%', height: 42, borderRadius: 8,
-                    background: notasSaved ? 'rgba(21,128,61,0.1)' : 'var(--bg)',
-                    border: notasSaved ? '1px solid rgba(21,128,61,0.4)' : '1px solid var(--border)',
-                    color: notasSaved ? '#15803D' : 'var(--fg)',
-                    fontSize: '0.9rem', fontWeight: 600,
-                    cursor: savingNotas || notasValue === (ot.notas ?? '') ? 'not-allowed' : 'pointer',
-                    opacity: notasValue === (ot.notas ?? '') && !notasSaved ? 0.45 : 1,
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  {notasSaved ? '✓ Guardado' : savingNotas ? 'Guardando…' : 'Guardar notas'}
-                </button>
+              <SectionTitle>Visitas · {visitas.length}</SectionTitle>
+
+              <div style={{ display: 'flex', gap: '0.375rem', marginBottom: '0.75rem' }}>
+                {(['MODULOS', 'ELECTRICO'] as const).map((t) => {
+                  const active = visitaTab === t
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => { setVisitaTab(t); setEditingVisitaId(null); setVisitaError(null) }}
+                      style={{
+                        flex: 1, minHeight: 38, borderRadius: 8,
+                        background: active ? 'rgba(10,102,255,0.12)' : 'transparent',
+                        border: active ? '1px solid rgba(10,102,255,0.4)' : '1px solid var(--border)',
+                        color: active ? '#0A66FF' : 'var(--muted)',
+                        fontSize: '0.8125rem', fontWeight: active ? 700 : 500,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {VISITA_TIPO_LABEL[t]} ({visitaCountByTipo[t]})
+                    </button>
+                  )
+                })}
+              </div>
+
+              {visitaError && (
+                <div style={{ background: 'rgba(185,28,28,0.08)', border: '1px solid var(--error)', borderRadius: 8, color: 'var(--error)', fontSize: '0.8125rem', padding: '0.5rem 0.75rem', marginBottom: '0.5rem' }}>
+                  {visitaError}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: isReadOnly ? 0 : '0.75rem' }}>
+                {visitasFiltradas.length === 0 ? (
+                  <div style={{ color: 'var(--muted)', fontSize: '0.8125rem', textAlign: 'center', padding: '0.875rem 0', border: '1px dashed var(--border)', borderRadius: 8 }}>
+                    Sin visitas en este tipo
+                  </div>
+                ) : (
+                  visitasFiltradas.map((v, i) => {
+                    const isEditing = editingVisitaId === v.id
+                    const canEditThis = v.autorUserId === user?.id
+                    return (
+                      <div key={v.id} style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+                        <div style={{ background: 'rgba(10,102,255,0.06)', padding: '0.5rem 0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, background: 'rgba(10,102,255,0.18)', color: '#0A66FF', borderRadius: 999, padding: '0.15rem 0.5rem' }}>Visita {i + 1}</span>
+                            <span style={{ fontSize: '0.8125rem', fontWeight: 600 }}>{new Date(v.fecha).toLocaleDateString('es-MX', { dateStyle: 'medium' })}</span>
+                          </div>
+                          {!isReadOnly && !isEditing && canEditThis && (
+                            <button onClick={() => startEditVisita(v)} style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 6, color: '#0A66FF', fontSize: '0.7rem', fontWeight: 700, padding: '0.25rem 0.55rem', cursor: 'pointer' }}>
+                              ✎ Editar
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ padding: '0.625rem 0.75rem' }}>
+                          {isEditing ? (
+                            <>
+                              <select value={editVisitaTipo} onChange={(e) => setEditVisitaTipo(e.target.value as VisitaTipo)} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--fg)', fontSize: '0.875rem', padding: '0.45rem 0.6rem', marginBottom: '0.5rem' }}>
+                                <option value="MODULOS">Mantenimiento de módulos</option>
+                                <option value="ELECTRICO">Eléctrico</option>
+                              </select>
+                              <textarea value={editVisitaContenido} onChange={(e) => setEditVisitaContenido(e.target.value)} rows={4} style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--fg)', fontSize: '0.9rem', padding: '0.5rem 0.75rem', outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+                              <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+                                <button onClick={handleSaveEditVisita} disabled={savingVisita || !editVisitaContenido.trim()} style={{ flex: 1, height: 40, borderRadius: 8, background: editVisitaContenido.trim() && !savingVisita ? '#0A66FF' : 'var(--bg)', border: editVisitaContenido.trim() && !savingVisita ? 'none' : '1px solid var(--border)', color: editVisitaContenido.trim() && !savingVisita ? '#fff' : 'var(--muted)', fontSize: '0.8125rem', fontWeight: 700, cursor: savingVisita || !editVisitaContenido.trim() ? 'not-allowed' : 'pointer' }}>
+                                  {savingVisita ? 'Guardando…' : 'Guardar cambios'}
+                                </button>
+                                <button onClick={() => setEditingVisitaId(null)} disabled={savingVisita} style={{ flex: 1, height: 40, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--fg)', fontSize: '0.8125rem', cursor: 'pointer' }}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ fontSize: '0.9rem', lineHeight: 1.5, color: 'var(--fg)', whiteSpace: 'pre-wrap' }}>{v.contenido}</div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              {!isReadOnly && editingVisitaId === null && (
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    Nueva visita en <strong style={{ color: 'var(--fg)' }}>{VISITA_TIPO_LABEL[visitaTab]}</strong>
+                  </div>
+                  <textarea
+                    value={newVisitaContenido}
+                    onChange={(e) => setNewVisitaContenido(e.target.value)}
+                    placeholder="Describe los avances de esta visita…"
+                    rows={4}
+                    style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--fg)', fontSize: '0.9375rem', lineHeight: 1.5, padding: '0.75rem', resize: 'vertical', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  <button
+                    onClick={handleSaveVisita}
+                    disabled={savingVisita || !newVisitaContenido.trim()}
+                    style={{
+                      marginTop: '0.5rem', width: '100%', height: 46, borderRadius: 10,
+                      background: newVisitaContenido.trim() && !savingVisita ? '#0A66FF' : 'var(--bg)',
+                      border: newVisitaContenido.trim() && !savingVisita ? 'none' : '1px solid var(--border)',
+                      color: newVisitaContenido.trim() && !savingVisita ? '#fff' : 'var(--muted)',
+                      fontSize: '0.9375rem', fontWeight: 700,
+                      cursor: savingVisita || !newVisitaContenido.trim() ? 'not-allowed' : 'pointer',
+                      opacity: savingVisita ? 0.7 : 1,
+                    }}
+                  >
+                    {savingVisita ? 'Guardando…' : 'Guardar visita'}
+                  </button>
+                </div>
               )}
             </SectionCard>
 

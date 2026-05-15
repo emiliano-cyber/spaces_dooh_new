@@ -1,3 +1,4 @@
+import { randomBytes } from 'crypto'
 import type { PrismaClient } from '@prisma/client'
 import type { ChecklistItem, CreateOTData } from '@spaces-dooh/types'
 import { logAudit } from '../../core/audit/audit.service'
@@ -649,6 +650,148 @@ export async function getCalendario(
   }
 
   return grouped
+}
+
+// ── Visitas ──────────────────────────────────────────────────────────────────
+
+export interface Visita {
+  id: string
+  tipo: 'MODULOS' | 'ELECTRICO'
+  contenido: string
+  fecha: string
+  autorUserId: string | null
+  autorNombre: string | null
+  creadoEn: string
+  actualizadoEn: string
+}
+
+function getVisitas(ot: any): Visita[] {
+  return Array.isArray(ot.visitasJson) ? (ot.visitasJson as Visita[]) : []
+}
+
+function isAdminUser(user: { rol: string; permisos: string[] }): boolean {
+  return user.rol === 'owner' || user.rol === 'admin'
+    || user.permisos.includes('*') || user.permisos.includes('ots:assign')
+}
+
+export async function addVisita(
+  prisma: PrismaClient,
+  otId: string,
+  data: { tipo: 'MODULOS' | 'ELECTRICO'; contenido: string; fecha?: string },
+  user: { id: string; nombre?: string; rol: string; permisos: string[] },
+) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+
+  if (ot.estatus === 'CANCELADA') {
+    throw Object.assign(new Error('No se puede agregar visitas a una OT cancelada'), { statusCode: 400 })
+  }
+  if (ot.estatus === 'COMPLETADA' && !isAdminUser(user)) {
+    throw Object.assign(new Error('No se puede agregar visitas a una OT completada'), { statusCode: 400 })
+  }
+
+  const now = new Date().toISOString()
+  const visita: Visita = {
+    id: 'v_' + randomBytes(8).toString('hex'),
+    tipo: data.tipo,
+    contenido: data.contenido,
+    fecha: data.fecha ?? now,
+    autorUserId: user.id,
+    autorNombre: user.nombre ?? null,
+    creadoEn: now,
+    actualizadoEn: now,
+  }
+  const visitas = [...getVisitas(ot), visita]
+
+  await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: { visitasJson: visitas },
+  })
+
+  await logAudit(prisma, {
+    userId: user.id,
+    accion: 'visita.creada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { visitaId: visita.id, tipo: visita.tipo },
+  })
+
+  return visita
+}
+
+export async function updateVisita(
+  prisma: PrismaClient,
+  otId: string,
+  visitaId: string,
+  data: { tipo?: 'MODULOS' | 'ELECTRICO'; contenido?: string; fecha?: string },
+  user: { id: string; rol: string; permisos: string[] },
+) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+  const visitas = [...getVisitas(ot)]
+  const idx = visitas.findIndex((v) => v.id === visitaId)
+  if (idx === -1) {
+    throw Object.assign(new Error('Visita no encontrada'), { statusCode: 404 })
+  }
+  const current = visitas[idx]
+  if (!isAdminUser(user) && current.autorUserId !== user.id) {
+    throw Object.assign(new Error('No tienes permiso para editar esta visita'), { statusCode: 403 })
+  }
+  if (ot.estatus === 'CANCELADA') {
+    throw Object.assign(new Error('No se puede editar visitas en una OT cancelada'), { statusCode: 400 })
+  }
+
+  const updated: Visita = {
+    ...current,
+    tipo: data.tipo ?? current.tipo,
+    contenido: data.contenido ?? current.contenido,
+    fecha: data.fecha ?? current.fecha,
+    actualizadoEn: new Date().toISOString(),
+  }
+  visitas[idx] = updated
+
+  await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: { visitasJson: visitas },
+  })
+
+  await logAudit(prisma, {
+    userId: user.id,
+    accion: 'visita.editada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { visitaId, antes: current, despues: updated },
+  })
+
+  return updated
+}
+
+export async function deleteVisita(
+  prisma: PrismaClient,
+  otId: string,
+  visitaId: string,
+  userId: string,
+) {
+  const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
+  const visitas = getVisitas(ot)
+  const target = visitas.find((v) => v.id === visitaId)
+  if (!target) {
+    throw Object.assign(new Error('Visita no encontrada'), { statusCode: 404 })
+  }
+  const filtered = visitas.filter((v) => v.id !== visitaId)
+
+  await (prisma as any).ordenTrabajo.update({
+    where: { id: otId },
+    data: { visitasJson: filtered },
+  })
+
+  await logAudit(prisma, {
+    userId,
+    accion: 'visita.eliminada',
+    entidadTipo: 'OrdenTrabajo',
+    entidadId: otId,
+    cambiosJson: { visitaId, eliminada: target },
+  })
+
+  return { ok: true }
 }
 
 export async function deleteOT(prisma: PrismaClient, id: string, userId: string) {

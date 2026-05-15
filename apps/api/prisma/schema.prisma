@@ -357,6 +357,7 @@ model OrdenTrabajo {
   horaLlegada        DateTime?
   horaTerminoLabores DateTime?
   sesionesJson       Json          @default("[]")
+  visitasJson       Json          @default("[]")
   creadoEn          DateTime      @default(now())
   actualizadoEn     DateTime      @updatedAt
   evidencias        EvidenciaOT[]
