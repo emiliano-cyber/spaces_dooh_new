@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
+import { groupByDay } from '@/lib/group-by-day'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -692,19 +693,40 @@ export default function OTMovil({ ot, onRefetch }: Props) {
               )}
 
               {(allEvidencias.length > 0 || localPreviews.length > 0) ? (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                  {allEvidencias.map((ev) => (
-                    <PhotoThumb
-                      key={ev.id}
-                      src={ev.fotoUrlSigned}
-                      alt={ev.tipo}
-                      label={ev.tipo}
-                      onClick={() => setLightboxUrl(ev.fotoUrlSigned)}
-                    />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                  {groupByDay(allEvidencias, (ev) => ev.timestamp).map((group) => (
+                    <div key={group.key}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>{group.label}</span>
+                        <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '999px', fontSize: '0.65rem', padding: '0.05rem 0.4rem', color: 'var(--muted)' }}>
+                          {group.items.length} foto{group.items.length !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                        {group.items.map((ev) => (
+                          <PhotoThumb
+                            key={ev.id}
+                            src={ev.fotoUrlSigned}
+                            alt={ev.tipo}
+                            label={ev.tipo}
+                            onClick={() => setLightboxUrl(ev.fotoUrlSigned)}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   ))}
-                  {localPreviews.map((p) => (
-                    <UploadingThumb key={p.tempId} preview={p} onRetry={() => retryUpload(p.tempId)} />
-                  ))}
+                  {localPreviews.filter((p) => p.status !== 'done').length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0A66FF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.375rem' }}>
+                        Subiendo · Hoy
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                        {localPreviews.filter((p) => p.status !== 'done').map((p) => (
+                          <UploadingThumb key={p.tempId} preview={p} onRetry={() => retryUpload(p.tempId)} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', padding: '0.75rem 0' }}>

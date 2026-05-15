@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 import { useAuth } from '@/lib/auth-context'
 import { useIsMobile } from '@/lib/hooks/useIsMobile'
+import { groupByDay } from '@/lib/group-by-day'
 import OTMovil from '@/components/operaciones/OTMovil'
 
 interface ChecklistItem { id: string; texto: string; completado: boolean; completadoEn?: string; completadoPorUserId?: string; notaRealizado?: string | null; notaPendiente?: string | null }
@@ -777,23 +778,43 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
             {ot.evidencias.length === 0 && localPreviews.length === 0 ? (
               <div style={{ color: 'var(--muted)', fontSize: '0.875rem', textAlign: 'center', padding: '1.5rem' }}>Sin evidencias cargadas</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.75rem' }}>
-                {ot.evidencias.map((ev) => (
-                  <button key={ev.id} onClick={() => setLightboxUrl(ev.fotoUrlSigned)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: 0, cursor: 'pointer', aspectRatio: '1', overflow: 'hidden', position: 'relative' }}>
-                    <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
-                    <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>{ev.tipo}</div>
-                  </button>
-                ))}
-                {localPreviews.map((p) => (
-                  <div key={p.tempId} style={{ aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', position: 'relative', border: `1px solid ${p.status === 'error' ? 'var(--error)' : 'var(--border)'}` }}>
-                    <img src={p.previewUrl} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.status === 'uploading' ? 0.45 : 1 }} />
-                    <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
-                      {p.status === 'uploading' && <span style={{ color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>Subiendo…</span>}
-                      {p.status === 'done' && <span style={{ background: '#15803D', color: '#FAFAFA', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>✓</span>}
-                      {p.status === 'error' && <button onClick={() => retryUpload(p.tempId)} style={{ background: 'var(--error)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.7rem', padding: '0.25rem 0.4rem', cursor: 'pointer' }}>Reintentar</button>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+                {groupByDay(ot.evidencias, (ev) => ev.timestamp).map((group) => (
+                  <div key={group.key}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>{group.label}</span>
+                      <span style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '999px', fontSize: '0.65rem', padding: '0.05rem 0.45rem', color: 'var(--muted)' }}>
+                        {group.items.length} foto{group.items.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.75rem' }}>
+                      {group.items.map((ev) => (
+                        <button key={ev.id} onClick={() => setLightboxUrl(ev.fotoUrlSigned)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: '8px', padding: 0, cursor: 'pointer', aspectRatio: '1', overflow: 'hidden', position: 'relative' }}>
+                          <img src={ev.fotoUrlSigned} alt={ev.tipo} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+                          <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: 'rgba(0,0,0,0.5)', padding: '2px 5px', fontSize: '0.6rem', color: '#fff', fontWeight: 600, textAlign: 'center' }}>{ev.tipo}</div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}
+                {localPreviews.filter((p) => p.status !== 'done').length > 0 && (
+                  <div>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#0A66FF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem' }}>
+                      Subiendo · Hoy
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '0.75rem' }}>
+                      {localPreviews.filter((p) => p.status !== 'done').map((p) => (
+                        <div key={p.tempId} style={{ aspectRatio: '1', borderRadius: '8px', overflow: 'hidden', position: 'relative', border: `1px solid ${p.status === 'error' ? 'var(--error)' : 'var(--border)'}` }}>
+                          <img src={p.previewUrl} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.status === 'uploading' ? 0.45 : 1 }} />
+                          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.35)' }}>
+                            {p.status === 'uploading' && <span style={{ color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>Subiendo…</span>}
+                            {p.status === 'error' && <button onClick={() => retryUpload(p.tempId)} style={{ background: 'var(--error)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '0.7rem', padding: '0.25rem 0.4rem', cursor: 'pointer' }}>Reintentar</button>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

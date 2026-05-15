@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { portalFetch, getPortalToken } from '@/lib/portal-cliente-api'
+import { groupByDay } from '@/lib/group-by-day'
 
 interface Comentario {
   id: string; otId: string; texto: string; fotoUrl?: string; fotoUrlSigned?: string
@@ -312,20 +313,32 @@ export default function PortalOTDetallePage() {
           <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.875rem' }}>
             Evidencias fotográficas ({ot.evidencias.length})
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
-            {ot.evidencias.map((ev) => (
-              <button
-                key={ev.id}
-                onClick={() => setLightbox(ev.fotoUrlSigned)}
-                style={{ aspectRatio: '1', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', padding: 0 }}
-              >
-                <img
-                  src={ev.fotoUrlSigned}
-                  alt="Evidencia"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                />
-              </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            {groupByDay(ot.evidencias, (ev) => ev.timestamp).map((group) => (
+              <div key={group.key}>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>{group.label}</span>
+                  <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '999px', fontSize: '0.65rem', padding: '0.05rem 0.45rem', color: '#64748b' }}>
+                    {group.items.length} foto{group.items.length !== 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '0.5rem' }}>
+                  {group.items.map((ev) => (
+                    <button
+                      key={ev.id}
+                      onClick={() => setLightbox(ev.fotoUrlSigned)}
+                      style={{ aspectRatio: '1', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: '8px', cursor: 'pointer', overflow: 'hidden', padding: 0 }}
+                    >
+                      <img
+                        src={ev.fotoUrlSigned}
+                        alt="Evidencia"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </div>
