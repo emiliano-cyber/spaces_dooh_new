@@ -357,7 +357,7 @@ export async function completar(
     include: { _count: { select: { evidencias: true } } },
   })
 
-  if (!['EN_PROCESO', 'RECHAZADA'].includes(ot.estatus)) {
+  if (!['ASIGNADA', 'EN_PROCESO', 'RECHAZADA'].includes(ot.estatus)) {
     throw Object.assign(
       new Error(`No se puede completar una OT en estatus ${ot.estatus}`),
       { statusCode: 400 },
