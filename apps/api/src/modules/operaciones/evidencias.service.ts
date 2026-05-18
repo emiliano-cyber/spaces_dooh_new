@@ -2,6 +2,11 @@ import type { PrismaClient } from '@prisma/client'
 import { buildKey, getPresignedUpload, deleteObject } from '../../db/storage'
 import { logAudit } from '../../core/audit/audit.service'
 
+function isAdminUser(user: { rol: string; permisos: string[] }): boolean {
+  return user.rol === 'owner' || user.rol === 'admin'
+    || user.permisos.includes('*') || user.permisos.includes('ots:assign')
+}
+
 export async function addEvidencia(
   prisma: PrismaClient,
   otId: string,
@@ -16,11 +21,17 @@ export async function addEvidencia(
     formato?: string
     deviceInfo?: string
   },
-  userId: string,
+  user: { id: string; rol: string; permisos: string[] },
 ) {
   const ot = await (prisma as any).ordenTrabajo.findUniqueOrThrow({ where: { id: otId } })
 
-  if (['COMPLETADA', 'CANCELADA', 'EN_REVISION'].includes(ot.estatus)) {
+  if (ot.estatus === 'CANCELADA') {
+    throw Object.assign(
+      new Error('No se puede agregar evidencia a una OT cancelada'),
+      { statusCode: 400 },
+    )
+  }
+  if (['COMPLETADA', 'EN_REVISION'].includes(ot.estatus) && !isAdminUser(user)) {
     throw Object.assign(
       new Error(`No se puede agregar evidencia a una OT en estatus ${ot.estatus}`),
       { statusCode: 400 },
@@ -39,7 +50,7 @@ export async function addEvidencia(
       tamanoMb: data.tamanoMb ?? null,
       formato: data.formato ?? 'image/jpeg',
       deviceInfo: data.deviceInfo ?? null,
-      uploadedBy: userId,
+      uploadedBy: user.id,
     },
   })
 

@@ -89,7 +89,7 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
       request.prisma, id,
       { fotoUrl, storageKey: body.storageKey, tipo: body.tipo, lat: body.lat, lng: body.lng,
         precision: body.precision, tamanoMb: body.tamanoMb, formato: body.formato, deviceInfo: body.deviceInfo },
-      request.user.id,
+      request.user,
     )
     return reply.code(201).send(evidencia)
   })

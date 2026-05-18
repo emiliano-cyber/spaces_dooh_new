@@ -767,13 +767,13 @@ function OTDesktop({ ot, onRefetch }: { ot: OT; onRefetch: () => void }) {
               <h3 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Evidencias ({ot.evidencias.length})
               </h3>
-              {canComplete && isEditable && (
+              {ot.estatus !== 'CANCELADA' && ((canComplete && isEditable) || canAssign) && (
                 <button onClick={() => fileInputRef.current?.click()} style={{ background: 'var(--accent)', border: 'none', borderRadius: '7px', color: '#fff', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, padding: '0.4rem 0.875rem' }}>
                   📷 Subir foto
                 </button>
               )}
             </div>
-            {canComplete && isEditable && (
+            {ot.estatus !== 'CANCELADA' && ((canComplete && isEditable) || canAssign) && (
               <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap', marginBottom: '0.875rem' }}>
                 {FOTO_CATEGORIAS.map((cat) => (
                   <button key={cat} type="button" onClick={() => setFotoCategoria(cat)} style={{ padding: '0.25rem 0.625rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, cursor: 'pointer', border: '1px solid', background: fotoCategoria === cat ? 'rgba(10,102,255,0.12)' : 'transparent', borderColor: fotoCategoria === cat ? 'rgba(10,102,255,0.4)' : 'var(--border)', color: fotoCategoria === cat ? '#0A66FF' : 'var(--muted)' }}>
