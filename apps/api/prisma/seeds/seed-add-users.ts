@@ -25,28 +25,16 @@ function parseArgs(): Record<string, string> {
 
 const USERS_TO_CREATE = [
   {
-    nombre: 'Luis Garcia',
-    email: 'luis@h3dm.com.mx',
-    password: 'Luis.123',
-    rolId: 'admin',
-  },
-  {
-    nombre: 'Fernando Venegas',
-    email: 'fer@h3dm.com.mx',
-    password: 'Fer.123',
-    rolId: 'field_worker',
-  },
-  {
     nombre: 'Carlos',
     email: 'carlos@adavailable.com',
     password: 'Carlos.123',
-    rolId: 'admin',
+    rolId: 'operaciones_manager',
   },
   {
     nombre: 'Jochelo',
     email: 'jochelo@adavailable.com',
     password: 'Jochelo.123',
-    rolId: 'admin',
+    rolId: 'operaciones_manager',
   },
   {
     nombre: 'Luis',
@@ -72,7 +60,11 @@ async function main() {
     process.exit(1)
   }
 
-  const pool = new pg.Pool({ connectionString: dbUrl })
+  const isLocal = /@localhost|@127\.0\.0\.1/.test(dbUrl)
+  const pool = new pg.Pool({
+    connectionString: dbUrl,
+    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+  })
   const publicClient = new PrismaClient({
     adapter: new PrismaPg(pool, { schema: 'public' }) as any,
   } as any) as any
