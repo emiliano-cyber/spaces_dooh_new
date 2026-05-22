@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
 
@@ -113,12 +114,21 @@ export default function PortalClientesPage() {
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.25rem' }}>Portal de clientes</h1>
           <p style={{ color: 'var(--muted)', fontSize: '0.875rem', margin: 0 }}>Gestiona los accesos al portal cliente y sus sitios asignados</p>
         </div>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          style={{ background: 'var(--accent)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1.125rem' }}
-        >
-          + Nuevo acceso
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <Link
+            href="/admin/onboarding"
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--accent)', borderRadius: '8px', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.5rem 1rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+            title="Wizard: empresa + sitios + accesos en un flujo"
+          >
+            🪄 Onboard cliente nuevo
+          </Link>
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            style={{ background: 'var(--accent)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontSize: '0.875rem', fontWeight: 600, padding: '0.55rem 1.125rem' }}
+          >
+            + Nuevo acceso
+          </button>
+        </div>
       </div>
 
       {/* Formulario nuevo cliente */}
