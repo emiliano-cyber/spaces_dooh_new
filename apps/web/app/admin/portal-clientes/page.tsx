@@ -7,6 +7,21 @@ import { apiFetch } from '@/lib/api-client'
 interface PortalCliente { id: string; email: string; nombre: string; activo: boolean; creadoEn: string; sitios: { sitioId: string }[] }
 interface SitioOption { id: string; nombre: string; claveInterna: string }
 
+function generatePassword(): string {
+  const upper = 'ABCDEFGHJKMNPQRSTUVWXYZ'
+  const lower = 'abcdefghjkmnpqrstuvwxyz'
+  const digits = '23456789'
+  const all = upper + lower + digits
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)]
+  const chars = [pick(upper), pick(lower), pick(digits)]
+  for (let i = 0; i < 11; i++) chars.push(pick(all))
+  for (let i = chars.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[chars[i], chars[j]] = [chars[j], chars[i]]
+  }
+  return chars.join('')
+}
+
 export default function PortalClientesPage() {
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -15,6 +30,8 @@ export default function PortalClientesPage() {
   const [formPassword, setFormPassword] = useState('')
   const [formLoading, setFormLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string; nombre: string } | null>(null)
+  const [copied, setCopied] = useState<'email' | 'password' | 'all' | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [editSitios, setEditSitios] = useState<string[]>([])
   const [savingSitios, setSavingSitios] = useState(false)
@@ -39,12 +56,23 @@ export default function PortalClientesPage() {
         body: JSON.stringify({ email: formEmail, password: formPassword, nombre: formNombre }),
       })
       qc.invalidateQueries({ queryKey: ['portal-clientes'] })
+      setCreatedCreds({ email: formEmail, password: formPassword, nombre: formNombre })
       setShowForm(false)
       setFormNombre(''); setFormEmail(''); setFormPassword('')
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Error al crear')
     } finally {
       setFormLoading(false)
+    }
+  }
+
+  async function copyToClipboard(text: string, label: 'email' | 'password' | 'all') {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(label)
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      // fallback noop
     }
   }
 
@@ -109,7 +137,28 @@ export default function PortalClientesPage() {
           </div>
           <div>
             <label style={{ fontSize: '0.8rem', color: 'var(--muted)', display: 'block', marginBottom: '0.3rem' }}>Contraseña inicial</label>
-            <input style={{ ...inp, maxWidth: 280 }} type="password" value={formPassword} onChange={(e) => setFormPassword(e.target.value)} required placeholder="Mínimo 6 caracteres" />
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              <input
+                style={{ ...inp, maxWidth: 280, fontFamily: formPassword ? 'monospace' : 'inherit' }}
+                type="text"
+                value={formPassword}
+                onChange={(e) => setFormPassword(e.target.value)}
+                required
+                minLength={6}
+                placeholder="Mínimo 6 caracteres"
+              />
+              <button
+                type="button"
+                onClick={() => setFormPassword(generatePassword())}
+                style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 500, padding: '0.5rem 0.875rem' }}
+                title="Generar contraseña segura aleatoria (14 caracteres)"
+              >
+                🎲 Generar
+              </button>
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: '0.3rem' }}>
+              Se mostrará una sola vez después de crear. Guárdala o cópiala antes de cerrar el banner.
+            </div>
           </div>
           {formError && <div style={{ color: 'var(--error)', fontSize: '0.8125rem' }}>{formError}</div>}
           <div style={{ display: 'flex', gap: '0.625rem' }}>
@@ -121,6 +170,64 @@ export default function PortalClientesPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {/* Banner post-creación con credenciales */}
+      {createdCreds && (
+        <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.4)', borderRadius: '10px', padding: '1.125rem 1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#15803D', marginBottom: '0.2rem' }}>
+                ✓ Acceso creado: {createdCreds.nombre}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>
+                Comparte estas credenciales por canal seguro. <strong>No volverán a mostrarse.</strong> Después asigna sus sitios desde la tarjeta más abajo.
+              </div>
+            </div>
+            <button
+              onClick={() => setCreatedCreds(null)}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '1.25rem', lineHeight: 1, padding: 0 }}
+              aria-label="Cerrar"
+            >
+              ×
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem', marginBottom: '0.5rem' }}>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.625rem 0.75rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.2rem' }}>Email</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <code style={{ fontSize: '0.85rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{createdCreds.email}</code>
+                <button
+                  onClick={() => copyToClipboard(createdCreds.email, 'email')}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.4rem', flexShrink: 0 }}
+                >
+                  {copied === 'email' ? '✓' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', padding: '0.625rem 0.75rem' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.2rem' }}>Contraseña</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <code style={{ fontSize: '0.85rem', fontFamily: 'monospace', wordBreak: 'break-all' }}>{createdCreds.password}</code>
+                <button
+                  onClick={() => copyToClipboard(createdCreds.password, 'password')}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, padding: '0.2rem 0.4rem', flexShrink: 0 }}
+                >
+                  {copied === 'password' ? '✓' : 'Copiar'}
+                </button>
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => copyToClipboard(
+              `Acceso al portal cliente — Spaces DOOH\n\nEmail: ${createdCreds.email}\nContraseña: ${createdCreds.password}\nURL: ${typeof window !== 'undefined' ? window.location.origin : ''}/portal/cliente/login`,
+              'all',
+            )}
+            style={{ background: 'var(--bg-surface)', border: '1px solid var(--border)', borderRadius: '7px', color: 'var(--fg)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500, padding: '0.4rem 0.75rem' }}
+          >
+            {copied === 'all' ? '✓ Copiado' : '📋 Copiar mensaje completo para enviar al cliente'}
+          </button>
+        </div>
       )}
 
       {/* Lista de clientes */}
