@@ -20,8 +20,8 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useDemoStore } from './store'
+import { useEffect, useMemo, useState } from 'react'
+import { useDemoStore, type DemoStore } from './store'
 import { mockAdapter } from './adapters/mock'
 import { httpAdapter } from './adapters/http'
 import {
@@ -78,6 +78,18 @@ function useMounted(): boolean {
   const [m, setM] = useState(false)
   useEffect(() => setM(true), [])
   return m
+}
+
+// IMPORTANTE (zustand v5): un selector que construye un objeto/array NUEVO en
+// cada llamada hace que el snapshot de useSyncExternalStore sea inestable y
+// dispara "Maximum update depth exceeded". Para lecturas DERIVADAS seleccionamos
+// el estado completo (referencia estable entre renders) y derivamos con useMemo.
+// Para lecturas que devuelven una rebanada cruda del store (s.sitios, etc.) o un
+// `.find()` (referencia existente), el selector directo es seguro.
+function useStoreMemo<T>(compute: (s: DemoStore) => T, deps: unknown[]): T {
+  const state = useDemoStore()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => compute(state), [state, ...deps])
 }
 
 export function useSitios() {
@@ -137,15 +149,17 @@ export interface CampanaResumen {
 /** Lista de campañas enriquecida con su etapa de pipeline y candado, en vivo. */
 export function useCampanasResumen(): CampanaResumen[] | undefined {
   const m = useMounted()
-  const v = useDemoStore((s) =>
-    s.campanas.map((c) => ({
-      campana: c,
-      clienteNombre: s.clientes.find((cl) => cl.id === c.clienteId)?.nombre ?? '—',
-      etapa: pipelineStage(c, s),
-      index: etapaIndex(pipelineStage(c, s)),
-      totalPasos: ETAPAS_PIPELINE.length,
-      candado: candadoFacturacion(c),
-    })),
+  const v = useStoreMemo(
+    (s) =>
+      s.campanas.map((c) => ({
+        campana: c,
+        clienteNombre: s.clientes.find((cl) => cl.id === c.clienteId)?.nombre ?? '—',
+        etapa: pipelineStage(c, s),
+        index: etapaIndex(pipelineStage(c, s)),
+        totalPasos: ETAPAS_PIPELINE.length,
+        candado: candadoFacturacion(c),
+      })),
+    [],
   )
   return m ? v : undefined
 }
@@ -167,8 +181,9 @@ export function useOT(id: string) {
 }
 export function useEvidencias(otId?: string) {
   const m = useMounted()
-  const v = useDemoStore((s) =>
-    otId ? s.evidencias.filter((e) => e.otId === otId) : s.evidencias,
+  const v = useStoreMemo(
+    (s) => (otId ? s.evidencias.filter((e) => e.otId === otId) : s.evidencias),
+    [otId],
   )
   return m ? v : undefined
 }
@@ -196,14 +211,14 @@ export function useCobranzas() {
 /** Métricas del dashboard del dueño, recalculadas en vivo. */
 export function useDashboard(): DashboardMetrics | undefined {
   const m = useMounted()
-  const v = useDemoStore((s) => dashboardMetrics(s))
+  const v = useStoreMemo((s) => dashboardMetrics(s), [])
   return m ? v : undefined
 }
 
 /** Serie de ocupación día/semana/mes, recalculada en vivo. */
 export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
   const m = useMounted()
-  const v = useDemoStore((s) => ocupacionSerie(s, gran))
+  const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
   return m ? v : undefined
 }
 
@@ -231,7 +246,7 @@ export interface PipelineVista {
 /** Pipeline completo (etapa actual + pasos con fecha) de una campaña, en vivo. */
 export function usePipeline(campanaId: string): PipelineVista | undefined {
   const m = useMounted()
-  const v = useDemoStore((s) => {
+  const v = useStoreMemo((s) => {
     const c = s.campanas.find((x) => x.id === campanaId)
     if (!c) return null
     const etapa = pipelineStage(c, s)
@@ -242,7 +257,7 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
       fecha: fechas[k] ? formatFechaLocal(fechas[k]!) : undefined,
     }))
     return { etapa, index: etapaIndex(etapa), pasos }
-  })
+  }, [campanaId])
   return m ? (v ?? undefined) : undefined
 }
 
@@ -254,7 +269,7 @@ function formatFechaLocal(iso: string): string {
 /** Estado del candado de facturación de una campaña, en vivo. */
 export function useReadiness(campanaId: string) {
   const m = useMounted()
-  const v = useDemoStore((s) => {
+  const v = useStoreMemo((s) => {
     const c = s.campanas.find((x) => x.id === campanaId)
     if (!c) return null
     return {
@@ -263,7 +278,7 @@ export function useReadiness(campanaId: string) {
       reportePublicacion: c.reportePublicacion,
       candado: candadoFacturacion(c),
     }
-  })
+  }, [campanaId])
   return m ? v : undefined
 }
 
