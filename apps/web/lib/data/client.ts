@@ -323,3 +323,17 @@ export function useUsuarios(): UsuarioDemo[] | undefined {
 export function useCambiarRolUsuario() {
   return useDemoStore((s) => s.cambiarRolUsuario)
 }
+export function useToggleUsuarioActivo() {
+  return useDemoStore((s) => s.toggleUsuarioActivo)
+}
+export function useInvitarUsuario() {
+  return useDemoStore((s) => s.invitarUsuario)
+}
+export function useConfigNegocio() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.configNegocio)
+  return m ? v : undefined
+}
+export function useActualizarConfig() {
+  return useDemoStore((s) => s.actualizarConfig)
+}

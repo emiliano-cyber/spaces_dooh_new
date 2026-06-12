@@ -38,6 +38,10 @@ export default function LoginPage() {
       setError('Usuario no encontrado. Usa uno de los accesos rápidos de abajo.')
       return
     }
+    if (!u.activo) {
+      setError('Usuario inactivo. Contacta al administrador.')
+      return
+    }
     entrar(u)
   }
 
@@ -97,7 +101,7 @@ export default function LoginPage() {
             Acceso rápido (demo)
           </p>
           <ul className="space-y-1.5">
-            {usuarios.map((u) => (
+            {usuarios.filter((u) => u.activo).map((u) => (
               <li key={u.id}>
                 <button
                   type="button"

@@ -365,6 +365,12 @@ const cobranzas: Cobranza[] = [
 export function buildSeed(): DemoState {
   return {
     usuarios: clone(USUARIOS_DEMO),
+    configNegocio: {
+      nombreTenant: 'Billboards Perú SA',
+      moneda: 'PEN',
+      plazosCobranza: [60, 90, 120],
+      tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
+    },
     sitios: clone(sitios),
     arrendadores: clone(arrendadores),
     contratos: clone(contratos),

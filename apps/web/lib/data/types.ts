@@ -153,6 +153,7 @@ export interface UsuarioDemo {
   email: string
   cargo: string
   rol: RolDemo
+  activo: boolean
 }
 
 // ─── Modelos espejo de Prisma ───────────────────────────────────────────────
@@ -377,8 +378,17 @@ export interface Cobranza {
 
 // ─── Estado raíz del store ──────────────────────────────────────────────────
 
+// Configuración del negocio (Administración → mock editable).
+export interface ConfigNegocio {
+  nombreTenant: string
+  moneda: string
+  plazosCobranza: number[]
+  tiposTarea: string[]
+}
+
 export interface DemoState {
   usuarios: UsuarioDemo[]
+  configNegocio: ConfigNegocio
   sitios: Sitio[]
   arrendadores: Arrendador[]
   contratos: ContratoArrendamiento[]

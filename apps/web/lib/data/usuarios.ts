@@ -10,12 +10,12 @@ import type { UsuarioDemo, RolDemo } from './types'
 import { TOKEN_TELCO } from './tokens'
 
 export const USUARIOS_DEMO: UsuarioDemo[] = [
-  { id: 'u-dueno', nombre: 'María Quispe', email: 'maria@billboardsperu.pe', cargo: 'Dueña', rol: 'DUENO' },
-  { id: 'u-comercial', nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Ejecutivo comercial', rol: 'COMERCIAL' },
-  { id: 'u-operaciones', nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Jefe de operaciones', rol: 'OPERACIONES' },
-  { id: 'u-imprenta', nombre: 'Rosa Inga', email: 'rosa@billboardsperu.pe', cargo: 'Coordinadora de imprenta', rol: 'IMPRENTA' },
-  { id: 'u-finanzas', nombre: 'Andrea Salas', email: 'andrea@billboardsperu.pe', cargo: 'Finanzas', rol: 'FINANZAS' },
-  { id: 'u-cliente', nombre: 'Telco Andina', email: 'mquispe@telcoandina.pe', cargo: 'Cliente externo', rol: 'CLIENTE' },
+  { id: 'u-dueno', nombre: 'María Quispe', email: 'maria@billboardsperu.pe', cargo: 'Dueña', rol: 'DUENO', activo: true },
+  { id: 'u-comercial', nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Ejecutivo comercial', rol: 'COMERCIAL', activo: true },
+  { id: 'u-operaciones', nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Jefe de operaciones', rol: 'OPERACIONES', activo: true },
+  { id: 'u-imprenta', nombre: 'Rosa Inga', email: 'rosa@billboardsperu.pe', cargo: 'Coordinadora de imprenta', rol: 'IMPRENTA', activo: true },
+  { id: 'u-finanzas', nombre: 'Andrea Salas', email: 'andrea@billboardsperu.pe', cargo: 'Finanzas', rol: 'FINANZAS', activo: true },
+  { id: 'u-cliente', nombre: 'Telco Andina', email: 'mquispe@telcoandina.pe', cargo: 'Cliente externo', rol: 'CLIENTE', activo: true },
 ]
 
 // A dónde aterriza cada rol tras iniciar sesión.

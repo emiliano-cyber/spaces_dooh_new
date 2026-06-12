@@ -13,7 +13,7 @@
 // ============================================================================
 
 import { create } from 'zustand'
-import type { DemoState, RolDemo, UsuarioDemo } from './types'
+import type { DemoState, RolDemo, UsuarioDemo, ConfigNegocio } from './types'
 import { buildSeed } from './seed'
 
 export interface DemoStore extends DemoState {
@@ -25,6 +25,9 @@ export interface DemoStore extends DemoState {
   // Administración: cambia el rol de un usuario. Si es el usuario en sesión,
   // actualiza también rolActivo en vivo.
   cambiarRolUsuario: (usuarioId: string, rol: RolDemo) => void
+  toggleUsuarioActivo: (usuarioId: string) => void
+  invitarUsuario: (datos: Omit<UsuarioDemo, 'id' | 'activo'>) => void
+  actualizarConfig: (cambios: Partial<ConfigNegocio>) => void
   setRol: (rol: RolDemo) => void
   reiniciarDemo: () => void
   // Mutador transaccional: recibe el estado actual y devuelve el siguiente.
@@ -48,6 +51,21 @@ export const useDemoStore = create<DemoStore>((set) => ({
         rolActivo: esActivo ? rol : state.rolActivo,
       }
     }),
+  toggleUsuarioActivo: (usuarioId) =>
+    set((state) => ({
+      usuarios: state.usuarios.map((u) =>
+        u.id === usuarioId ? { ...u, activo: !u.activo } : u,
+      ),
+    })),
+  invitarUsuario: (datos) =>
+    set((state) => ({
+      usuarios: [
+        ...state.usuarios,
+        { ...datos, id: `u-${Date.now().toString(36)}`, activo: true },
+      ],
+    })),
+  actualizarConfig: (cambios) =>
+    set((state) => ({ configNegocio: { ...state.configNegocio, ...cambios } })),
   setRol: (rol) => set({ rolActivo: rol }),
   reiniciarDemo: () => set({ ...buildSeed(), usuarioActivo: null, rolActivo: 'DUENO' }),
   mutate: (fn) => set((state) => fn(state)),
