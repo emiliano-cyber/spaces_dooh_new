@@ -14,6 +14,7 @@
 //      VIVO al cerrar la OT con foto en el Acto 4.
 // ============================================================================
 
+import { USUARIOS_DEMO } from './usuarios'
 import type {
   DemoState,
   Sitio,
@@ -363,6 +364,7 @@ const cobranzas: Cobranza[] = [
 
 export function buildSeed(): DemoState {
   return {
+    usuarios: clone(USUARIOS_DEMO),
     sitios: clone(sitios),
     arrendadores: clone(arrendadores),
     contratos: clone(contratos),

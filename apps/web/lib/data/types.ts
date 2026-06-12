@@ -378,6 +378,7 @@ export interface Cobranza {
 // ─── Estado raíz del store ──────────────────────────────────────────────────
 
 export interface DemoState {
+  usuarios: UsuarioDemo[]
   sitios: Sitio[]
   arrendadores: Arrendador[]
   contratos: ContratoArrendamiento[]

@@ -313,3 +313,13 @@ export function useIniciarSesion() {
 export function useCerrarSesion() {
   return useDemoStore((s) => s.cerrarSesion)
 }
+
+/** Lista de usuarios demo (mutable vía Administración). */
+export function useUsuarios(): UsuarioDemo[] | undefined {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.usuarios)
+  return m ? v : undefined
+}
+export function useCambiarRolUsuario() {
+  return useDemoStore((s) => s.cambiarRolUsuario)
+}

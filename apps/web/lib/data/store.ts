@@ -22,6 +22,9 @@ export interface DemoStore extends DemoState {
   rolActivo: RolDemo
   iniciarSesion: (usuario: UsuarioDemo) => void
   cerrarSesion: () => void
+  // Administración: cambia el rol de un usuario. Si es el usuario en sesión,
+  // actualiza también rolActivo en vivo.
+  cambiarRolUsuario: (usuarioId: string, rol: RolDemo) => void
   setRol: (rol: RolDemo) => void
   reiniciarDemo: () => void
   // Mutador transaccional: recibe el estado actual y devuelve el siguiente.
@@ -35,6 +38,16 @@ export const useDemoStore = create<DemoStore>((set) => ({
   rolActivo: 'DUENO',
   iniciarSesion: (usuario) => set({ usuarioActivo: usuario, rolActivo: usuario.rol }),
   cerrarSesion: () => set({ usuarioActivo: null }),
+  cambiarRolUsuario: (usuarioId, rol) =>
+    set((state) => {
+      const usuarios = state.usuarios.map((u) => (u.id === usuarioId ? { ...u, rol } : u))
+      const esActivo = state.usuarioActivo?.id === usuarioId
+      return {
+        usuarios,
+        usuarioActivo: esActivo ? { ...state.usuarioActivo!, rol } : state.usuarioActivo,
+        rolActivo: esActivo ? rol : state.rolActivo,
+      }
+    }),
   setRol: (rol) => set({ rolActivo: rol }),
   reiniciarDemo: () => set({ ...buildSeed(), usuarioActivo: null, rolActivo: 'DUENO' }),
   mutate: (fn) => set((state) => fn(state)),

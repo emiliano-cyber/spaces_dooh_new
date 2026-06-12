@@ -9,6 +9,7 @@ import {
   USUARIOS_DEMO,
   landingDeRol,
   useIniciarSesion,
+  useUsuarios,
   type UsuarioDemo,
 } from '@/lib/data/client'
 
@@ -18,6 +19,9 @@ const inputCls =
 export default function LoginPage() {
   const router = useRouter()
   const iniciarSesion = useIniciarSesion()
+  // Usa los usuarios del store (reflejan cambios de rol hechos en Administración);
+  // fallback a la lista base antes de montar.
+  const usuarios = useUsuarios() ?? USUARIOS_DEMO
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -29,7 +33,7 @@ export default function LoginPage() {
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    const u = USUARIOS_DEMO.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
+    const u = usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
     if (!u) {
       setError('Usuario no encontrado. Usa uno de los accesos rápidos de abajo.')
       return
@@ -93,7 +97,7 @@ export default function LoginPage() {
             Acceso rápido (demo)
           </p>
           <ul className="space-y-1.5">
-            {USUARIOS_DEMO.map((u) => (
+            {usuarios.map((u) => (
               <li key={u.id}>
                 <button
                   type="button"
