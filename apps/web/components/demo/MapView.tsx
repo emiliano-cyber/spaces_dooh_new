@@ -84,7 +84,13 @@ export function MapView({
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     mapRef.current = map
+
+    // Reproyecta los marcadores si el contenedor cambia de tamaño (reflows).
+    const ro = new ResizeObserver(() => map.resize())
+    ro.observe(containerRef.current)
+
     return () => {
+      ro.disconnect()
       map.remove()
       mapRef.current = null
       markersRef.current.clear()
@@ -105,18 +111,28 @@ export function MapView({
       let marker = existing.get(p.id)
       const isSel = selectedId === p.id
       if (!marker) {
+        // IMPORTANTE: MapLibre posiciona el elemento RAÍZ con un `transform`.
+        // Nunca sobrescribas su `style` (p. ej. cssText) o borras ese transform
+        // y el pin salta a la esquina superior izquierda. El visual va en un
+        // <span> hijo; el raíz queda íntegro para MapLibre.
         const el = document.createElement('button')
         el.type = 'button'
-        el.className = 'demo-map-pin'
+        el.style.background = 'transparent'
+        el.style.border = '0'
+        el.style.padding = '0'
+        el.style.cursor = 'pointer'
+        el.style.lineHeight = '0'
+        el.appendChild(document.createElement('span'))
         el.addEventListener('click', () => onSelectRef.current?.(p.id))
         marker = new maplibregl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map)
         existing.set(p.id, marker)
       } else {
         marker.setLngLat([p.lng, p.lat])
       }
-      const el = marker.getElement()
-      el.style.cssText = pinStyle(hex, isSel)
-      el.title = p.label ?? ''
+      const root = marker.getElement()
+      root.title = p.label ?? ''
+      const dot = root.firstChild as HTMLElement
+      dot.style.cssText = pinStyle(hex, isSel)
     }
     // Remover marcadores que ya no están
     for (const [id, marker] of existing) {
@@ -133,6 +149,7 @@ export function MapView({
 function pinStyle(hex: string, selected: boolean): string {
   const size = selected ? 22 : 16
   return [
+    'display:block',
     `width:${size}px`,
     `height:${size}px`,
     'border-radius:9999px',
