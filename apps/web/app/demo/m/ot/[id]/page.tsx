@@ -1,0 +1,254 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import {
+  Radio,
+  MapPin,
+  Check,
+  CheckCircle2,
+  Loader2,
+  LockOpen,
+  ArrowRight,
+} from 'lucide-react'
+import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
+import { Button } from '@/components/demo/ui/Button'
+import {
+  StatusBadge,
+  OT_TONO,
+  OT_LABEL,
+} from '@/components/demo/StatusBadge'
+import { cn } from '@/lib/cn'
+import {
+  useOT,
+  useSitios,
+  useCampana,
+  useEvidencias,
+  data,
+} from '@/lib/data/client'
+
+export default function OTMovilPage({ params }: { params: { id: string } }) {
+  const ot = useOT(params.id)
+  const sitios = useSitios()
+  const evidencias = useEvidencias(params.id)
+
+  const sitio = sitios?.find((s) => s.id === ot?.sitioId)
+  const campana = useCampana(ot?.campanaId ?? '')
+
+  const [checks, setChecks] = useState<boolean[]>([])
+  const [fotos, setFotos] = useState<string[]>([])
+  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
+  const [cerrando, setCerrando] = useState(false)
+
+  // Sincroniza el checklist local cuando carga la OT.
+  useEffect(() => {
+    if (ot) setChecks(ot.checklist.map((c) => c.hecho))
+  }, [ot?.id])
+
+  if (ot === undefined) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-10">
+        <div className="h-72 animate-pulse rounded-md bg-surface-2" />
+      </div>
+    )
+  }
+  if (ot === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center text-[13px] text-muted">
+        Orden de trabajo no encontrada.
+      </div>
+    )
+  }
+
+  const completada = ot.estatus === 'COMPLETADA'
+  const puedeChecklist = ot.checklist.length > 0
+  const todoListo = checks.every(Boolean) && fotos.length > 0 && !!geo
+
+  function capturarUbicacion() {
+    // En la demo sellamos con las coordenadas del sitio (determinista, siempre
+    // funciona). En campo real usaríamos navigator.geolocation.
+    if (sitio) setGeo({ lat: sitio.lat, lng: sitio.lng })
+  }
+
+  async function cerrar() {
+    setCerrando(true)
+    await data.cerrarOT(ot!.id, {
+      fotoUrl: fotos[0],
+      lat: geo?.lat,
+      lng: geo?.lng,
+    })
+    setCerrando(false)
+  }
+
+  return (
+    <div className="min-h-screen bg-bg pb-24">
+      {/* Header móvil */}
+      <header className="sticky top-0 z-10 border-b border-border bg-surface">
+        <div className="mx-auto flex max-w-md items-center gap-2 px-4 py-3">
+          <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
+            <Radio className="h-4 w-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="demo-num text-[13px] font-semibold text-ink">{ot.folio}</div>
+            <div className="truncate text-[11px] text-muted">{sitio?.nombre ?? '—'}</div>
+          </div>
+          <StatusBadge tono={OT_TONO[ot.estatus]}>{OT_LABEL[ot.estatus]}</StatusBadge>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-md space-y-5 px-4 py-5">
+        {/* Descripción */}
+        <div>
+          <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
+          {campana && (
+            <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>
+          )}
+          {sitio && (
+            <p className="mt-1 inline-flex items-center gap-1 text-[12px] text-muted">
+              <MapPin className="h-3.5 w-3.5" /> {sitio.direccion}
+            </p>
+          )}
+        </div>
+
+        {completada ? (
+          <CompletadaView
+            candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
+            campanaId={ot.campanaId}
+            evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
+          />
+        ) : (
+          <>
+            {/* Checklist */}
+            {puedeChecklist && (
+              <section>
+                <h2 className="mb-2 text-[13px] font-medium text-ink">Checklist</h2>
+                <ul className="space-y-1.5">
+                  {ot.checklist.map((c, i) => (
+                    <li key={i}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setChecks((prev) => prev.map((v, idx) => (idx === i ? !v : v)))
+                        }
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150',
+                          checks[i]
+                            ? 'border-success/40 bg-[#10b9810d]'
+                            : 'border-border bg-surface',
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                            checks[i] ? 'border-success bg-success text-white' : 'border-border-strong',
+                          )}
+                        >
+                          {checks[i] && <Check className="h-3 w-3" strokeWidth={3} />}
+                        </span>
+                        <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>
+                          {c.label}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {/* Foto comprobatoria */}
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-ink">Fotografía comprobatoria</h2>
+              <FotoUploaderMock fotos={fotos} onChange={setFotos} capture label="Tomar foto" />
+            </section>
+
+            {/* Geolocalización */}
+            <section>
+              <h2 className="mb-2 text-[13px] font-medium text-ink">Sello de ubicación</h2>
+              {geo ? (
+                <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-2.5 text-[13px]">
+                  <MapPin className="h-4 w-4 text-success" />
+                  <span className="demo-num text-ink">
+                    {geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}
+                  </span>
+                  <span className="ml-auto text-[11px] text-muted">±8 m</span>
+                </div>
+              ) : (
+                <Button variant="secondary" className="w-full" onClick={capturarUbicacion}>
+                  <MapPin className="h-4 w-4" /> Capturar ubicación
+                </Button>
+              )}
+            </section>
+          </>
+        )}
+      </main>
+
+      {/* Barra fija de cierre */}
+      {!completada && (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-surface">
+          <div className="mx-auto max-w-md px-4 py-3">
+            <Button className="w-full" disabled={!todoListo || cerrando} onClick={cerrar}>
+              {cerrando ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Cerrando…
+                </>
+              ) : (
+                <>Cerrar OT</>
+              )}
+            </Button>
+            {!todoListo && (
+              <p className="mt-1.5 text-center text-[11px] text-muted">
+                Completa el checklist, toma una foto y captura la ubicación.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompletadaView({
+  candado,
+  campanaId,
+  evidenciaUrls,
+}: {
+  candado: boolean
+  campanaId: string | null
+  evidenciaUrls: string[]
+}) {
+  const real = evidenciaUrls.filter((u) => u.startsWith('blob:') || u.startsWith('http') || u.startsWith('data:'))
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col items-center rounded-md border border-success/40 bg-[#10b9810d] px-4 py-6 text-center">
+        <CheckCircle2 className="mb-2 h-9 w-9 text-success" />
+        <p className="text-[15px] font-semibold text-ink">OT cerrada</p>
+        <p className="mt-1 text-[13px] text-muted">
+          La evidencia se envió al pipeline de la campaña.
+        </p>
+      </div>
+
+      {candado && (
+        <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-3">
+          <LockOpen className="h-4 w-4 text-success" />
+          <span className="text-[13px] font-medium text-ink">
+            Candado de facturación encendido
+          </span>
+        </div>
+      )}
+
+      {real.length > 0 && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={real[0]} alt="evidencia" className="w-full rounded-md border border-border object-cover" />
+      )}
+
+      {campanaId && (
+        <Link
+          href={`/demo/campanas/${campanaId}`}
+          className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline"
+        >
+          Ver pipeline de la campaña <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      )}
+    </div>
+  )
+}
