@@ -32,11 +32,14 @@ export function middleware(request: NextRequest) {
     ? pathname.slice(BASE_PATH.length) || '/'
     : pathname
 
-  // Auth and portal routes are always public
+  // Auth, portal y la DEMO (/demo) son siempre públicos. La demo es 100% mock
+  // (sin backend) y debe abrirse sin login para la junta.
   const isPublic =
     normalizedPath.startsWith('/auth/') ||
     normalizedPath.startsWith('/portal/') ||
     normalizedPath === '/auth/login' ||
+    normalizedPath === '/demo' ||
+    normalizedPath.startsWith('/demo/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon')
 
