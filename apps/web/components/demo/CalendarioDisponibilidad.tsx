@@ -102,7 +102,7 @@ export function CalendarioDisponibilidad({
               key={i}
               className={cn(
                 'demo-num flex h-8 items-center justify-center rounded text-[12px]',
-                est === 'CONFIRMADA' && 'bg-[#0a66ff1a] text-[#0a4fcc]',
+                est === 'CONFIRMADA' && 'bg-[#10b9811a] text-[#0f7a55]',
                 est === 'TENTATIVA' && 'bg-[#f59e0b1a] text-[#9a6700]',
                 !est && 'text-ink',
                 esHoy && 'ring-1 ring-accent',
@@ -115,7 +115,7 @@ export function CalendarioDisponibilidad({
       </div>
       <div className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#0a66ff]" /> confirmado
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" /> confirmado
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> tentativo

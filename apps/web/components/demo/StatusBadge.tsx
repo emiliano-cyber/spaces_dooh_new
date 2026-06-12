@@ -59,10 +59,13 @@ export function StatusBadge({
 // Estatus comercial de sitio (mapa/inventario). Canónico sección 7.2:
 //   verde = disponible/libre · ámbar = reservado · rojo = bloqueado/incidencia.
 //   azul = ocupado/vendido (confirmado).  ← ver nota en el informe de Fase A.
+// Confirmar una reserva deja el sitio en VERDE (decisión de negocio, Acto 3):
+// verde = todo bien (disponible o confirmado/ocupado), ámbar = reservado/
+// tentativo, rojo = bloqueado por incidencia.
 export const SITIO_TONO: Record<EstComercial, Tono> = {
   DISPONIBLE: 'verde',
   RESERVADO: 'ambar',
-  OCUPADO: 'azul',
+  OCUPADO: 'verde',
   BLOQUEADO: 'rojo',
   EN_MANTENIMIENTO: 'neutro',
   BAJA: 'neutro',

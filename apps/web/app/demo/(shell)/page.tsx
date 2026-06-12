@@ -197,9 +197,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
-              <LeyendaPin color="#10b981" label={SITIO_LABEL.DISPONIBLE} />
+              <LeyendaPin color="#10b981" label="Disponible / confirmado" />
               <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
-              <LeyendaPin color="#0a66ff" label={SITIO_LABEL.OCUPADO} />
               <LeyendaPin color="#ef4444" label={SITIO_LABEL.BLOQUEADO} />
             </div>
           </CardContent>
