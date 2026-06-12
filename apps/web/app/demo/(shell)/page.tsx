@@ -1,0 +1,255 @@
+'use client'
+
+import { useState } from 'react'
+import Link from 'next/link'
+import {
+  TrendingUp,
+  Wallet,
+  Gauge,
+  HandCoins,
+  AlertTriangle,
+  ArrowRight,
+} from 'lucide-react'
+import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
+import { MapView, type MapPoint } from '@/components/demo/MapView'
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { SITIO_TONO, SITIO_LABEL, type Tono } from '@/components/demo/StatusBadge'
+import { cn } from '@/lib/cn'
+import {
+  useDashboard,
+  useOcupacionSerie,
+  useSitios,
+  formatMonto,
+  type Granularidad,
+} from '@/lib/data/client'
+
+function margenTono(pct: number): Tono {
+  if (pct >= 30) return 'verde'
+  if (pct >= 10) return 'neutro'
+  return 'rojo'
+}
+
+const GRANS: { value: Granularidad; label: string }[] = [
+  { value: 'dia', label: 'Día' },
+  { value: 'semana', label: 'Semana' },
+  { value: 'mes', label: 'Mes' },
+]
+
+export default function DashboardPage() {
+  const m = useDashboard()
+  const sitios = useSitios()
+  const [gran, setGran] = useState<Granularidad>('semana')
+  const serie = useOcupacionSerie(gran)
+
+  const puntos: MapPoint[] =
+    sitios?.map((s) => ({
+      id: s.id,
+      lat: s.lat,
+      lng: s.lng,
+      tono: SITIO_TONO[s.estatusComercial],
+      label: s.nombre,
+    })) ?? []
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-5">
+      <div>
+        <h1 className="text-2xl text-ink">Dashboard</h1>
+        <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · Billboards Perú SA</p>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {!m ? (
+          <>
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+            <KPICardSkeleton />
+          </>
+        ) : (
+          <>
+            <KPICard
+              label="Ingreso contratado del mes"
+              value={formatMonto(m.ingresoMes)}
+              sub={`${m.reservasConfirmadas} reservas confirmadas`}
+              tono="azul"
+              icon={<TrendingUp className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Margen"
+              value={`${m.margenPct.toFixed(0)}%`}
+              sub={formatMonto(m.margen)}
+              tono={margenTono(m.margenPct)}
+              icon={<Wallet className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Por cobrar"
+              value={formatMonto(m.porCobrar)}
+              sub="facturas emitidas pendientes"
+              tono="ambar"
+              icon={<HandCoins className="h-4 w-4" />}
+            />
+            <KPICard
+              label="Ocupación de la red"
+              value={`${m.ocupacionPct.toFixed(0)}%`}
+              sub={`${m.sitiosOcupados} de ${m.sitiosTotales} sitios`}
+              tono="azul"
+              icon={<Gauge className="h-4 w-4" />}
+            />
+          </>
+        )}
+      </div>
+
+      {/* Ocupación + Reservas vs confirmaciones */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Ocupación</CardTitle>
+              {serie && (
+                <p className="mt-0.5 text-[12px] text-muted">
+                  {serie.diasOcupados.toLocaleString('es-PE')} días ocupados de{' '}
+                  {serie.diasDisponibles.toLocaleString('es-PE')} disponibles
+                </p>
+              )}
+            </div>
+            <Segmented value={gran} onChange={setGran} />
+          </CardHeader>
+          <CardContent>
+            {!serie ? (
+              <div className="h-[180px] animate-pulse rounded bg-surface-2" />
+            ) : (
+              <OcupacionChart puntos={serie.puntos} />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Reservas vs confirmaciones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!m ? (
+              <div className="h-[150px] animate-pulse rounded bg-surface-2" />
+            ) : (
+              <>
+                <ReservasChart tentativo={m.valorTentativo} confirmado={m.valorConfirmado} />
+                <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                  <Leyenda color="#f59e0b" label="Tentativo" valor={formatMonto(m.valorTentativo)} />
+                  <Leyenda color="#0a66ff" label="Confirmado" valor={formatMonto(m.valorConfirmado)} />
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alertas + Mini-mapa */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Alertas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!m ? (
+              <div className="h-32 animate-pulse rounded bg-surface-2" />
+            ) : m.alertas.length === 0 ? (
+              <p className="text-[13px] text-muted">Sin alertas activas.</p>
+            ) : (
+              <ul className="space-y-2.5">
+                {m.alertas.slice(0, 6).map((al) => (
+                  <li key={al.id} className="flex items-start gap-2.5">
+                    <AlertTriangle
+                      className={cn(
+                        'mt-0.5 h-4 w-4 shrink-0',
+                        al.nivel === 'rojo' ? 'text-error' : 'text-warning',
+                      )}
+                      strokeWidth={1.75}
+                    />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-medium text-ink">{al.titulo}</div>
+                      <div className="text-[12px] text-muted">{al.detalle}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Tu red en el mapa</CardTitle>
+            <Link
+              href="/demo/comercial"
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+            >
+              Ver comercial <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[260px] w-full overflow-hidden rounded border border-border">
+              {sitios ? (
+                <MapView points={puntos} zoom={10.4} />
+              ) : (
+                <div className="h-full w-full animate-pulse bg-surface-2" />
+              )}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
+              <LeyendaPin color="#10b981" label={SITIO_LABEL.DISPONIBLE} />
+              <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
+              <LeyendaPin color="#0a66ff" label={SITIO_LABEL.OCUPADO} />
+              <LeyendaPin color="#ef4444" label={SITIO_LABEL.BLOQUEADO} />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+function Segmented({
+  value,
+  onChange,
+}: {
+  value: Granularidad
+  onChange: (g: Granularidad) => void
+}) {
+  return (
+    <div className="inline-flex rounded border border-border p-0.5">
+      {GRANS.map((g) => (
+        <button
+          key={g.value}
+          type="button"
+          onClick={() => onChange(g.value)}
+          className={cn(
+            'rounded px-2.5 py-1 text-[12px] font-medium transition-colors duration-150',
+            value === g.value ? 'bg-surface-2 text-ink' : 'text-muted hover:text-ink',
+          )}
+        >
+          {g.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function Leyenda({ color, label, valor }: { color: string; label: string; valor: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
+      <span className="text-muted">{label}</span>
+      <span className="demo-num ml-auto text-ink">{valor}</span>
+    </div>
+  )
+}
+
+function LeyendaPin({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
+      {label}
+    </span>
+  )
+}
