@@ -13,11 +13,15 @@
 // ============================================================================
 
 import { create } from 'zustand'
-import type { DemoState, RolDemo } from './types'
+import type { DemoState, RolDemo, UsuarioDemo } from './types'
 import { buildSeed } from './seed'
 
 export interface DemoStore extends DemoState {
+  // Sesión del login mock. usuarioActivo = null => sin sesión (muestra login).
+  usuarioActivo: UsuarioDemo | null
   rolActivo: RolDemo
+  iniciarSesion: (usuario: UsuarioDemo) => void
+  cerrarSesion: () => void
   setRol: (rol: RolDemo) => void
   reiniciarDemo: () => void
   // Mutador transaccional: recibe el estado actual y devuelve el siguiente.
@@ -27,9 +31,12 @@ export interface DemoStore extends DemoState {
 
 export const useDemoStore = create<DemoStore>((set) => ({
   ...buildSeed(),
+  usuarioActivo: null,
   rolActivo: 'DUENO',
+  iniciarSesion: (usuario) => set({ usuarioActivo: usuario, rolActivo: usuario.rol }),
+  cerrarSesion: () => set({ usuarioActivo: null }),
   setRol: (rol) => set({ rolActivo: rol }),
-  reiniciarDemo: () => set({ ...buildSeed(), rolActivo: 'DUENO' }),
+  reiniciarDemo: () => set({ ...buildSeed(), usuarioActivo: null, rolActivo: 'DUENO' }),
   mutate: (fn) => set((state) => fn(state)),
 }))
 

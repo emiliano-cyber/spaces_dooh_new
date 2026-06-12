@@ -38,7 +38,7 @@ import {
   type Granularidad,
   type SerieOcupacion,
 } from './derive'
-import type { Campana, EtapaPipeline, RolDemo } from './types'
+import type { Campana, EtapaPipeline, RolDemo, UsuarioDemo } from './types'
 
 // ─── Selección de adapter por flag de entorno ───────────────────────────────
 const USE_HTTP = process.env.NEXT_PUBLIC_DEMO_HTTP === '1'
@@ -294,8 +294,22 @@ export function useReiniciarDemo() {
   return useDemoStore((s) => s.reiniciarDemo)
 }
 
-// Helper no-React para mutaciones imperativas que necesiten el id de campaña
-// "hilo conductor" sin hardcodearlo en cada pantalla.
-export const ID_TELCO = 'camp-telco'
-export const ID_OT_TELCO = 'ot-telco'
-export const TOKEN_TELCO = 'telco-andina-2026'
+// Constantes del hilo conductor y usuarios demo (definidos en módulos sin
+// 'use client' para reutilizarlos desde server y client).
+export { ID_TELCO, ID_OT_TELCO, TOKEN_TELCO } from './tokens'
+export { USUARIOS_DEMO, landingDeRol } from './usuarios'
+
+// ─── Sesión del login mock ──────────────────────────────────────────────────
+
+/** Usuario en sesión: undefined antes de montar, null si no hay sesión. */
+export function useUsuario(): UsuarioDemo | null | undefined {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.usuarioActivo)
+  return m ? v : undefined
+}
+export function useIniciarSesion() {
+  return useDemoStore((s) => s.iniciarSesion)
+}
+export function useCerrarSesion() {
+  return useDemoStore((s) => s.cerrarSesion)
+}

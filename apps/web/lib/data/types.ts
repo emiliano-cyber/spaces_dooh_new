@@ -137,7 +137,7 @@ export type EtapaPipeline =
   | 'reporte_generado'
   | 'lista_facturar'
 
-// Rol de la demo (selector del topbar). No es auth real.
+// Rol de la demo. No es auth real.
 export type RolDemo =
   | 'DUENO'
   | 'COMERCIAL'
@@ -145,6 +145,15 @@ export type RolDemo =
   | 'IMPRENTA'
   | 'FINANZAS'
   | 'CLIENTE'
+
+// Usuario demo para el login mock (sin backend). La "sesión" vive en el store.
+export interface UsuarioDemo {
+  id: string
+  nombre: string
+  email: string
+  cargo: string
+  rol: RolDemo
+}
 
 // ─── Modelos espejo de Prisma ───────────────────────────────────────────────
 

@@ -12,10 +12,17 @@ barra superior.
 > - Deploy: `https://<host>/spaces-dooh/demo/`
 
 ## Antes de empezar
-1. Abre `/demo/` (Dashboard) en el proyector.
-2. Pulsa **Reiniciar demo** para partir de datos prístinos.
+1. Abre `/demo/` — te llevará a **`/demo/login`** (login mock).
+2. Entra como **Dueña (María Quispe)** con el acceso rápido (cualquier
+   contraseña funciona). Aterrizas en el Dashboard.
 3. Ten a la mano el teléfono con `/demo/m/ot/ot-telco/` (Acto 4) o el QR.
-4. Selector de **rol** (arriba a la derecha): se usa en el Acto 6.
+4. Menú de **usuario** (arriba a la derecha): *Cambiar de usuario* y *Cerrar
+   sesión* — se usan para mostrar el RBAC por rol (Acto 6).
+
+> **Login mock (sin backend).** Cada usuario demo entra y aterriza en la vista
+> de su rol; lo que el rol no debe ver, no se renderiza. Usuarios: Dueña,
+> Comercial, Operaciones, Imprenta, Finanzas y Cliente externo (Telco Andina,
+> que entra directo a su portal). "Reiniciar demo" también cierra sesión.
 
 ---
 
@@ -70,8 +77,10 @@ barra superior.
 - Abre el portal sin login: `/demo/portal/telco-andina-2026/`
 - Es el **mismo pipeline** de Telco + fechas + **evidencias**, pero **sin un
   solo dato financiero** (ni costo, margen, rebate ni comisión).
-- *(RBAC sin auth:)* en la barra superior cambia el **rol a "Cliente externo"**
-  → el shell deja de mostrar módulos internos y sólo ofrece el portal.
+- *(RBAC sin auth:)* menú de usuario → **Cambiar de usuario** → inicia sesión
+  como **Telco Andina (cliente externo)**: entra directo a su portal y no ve
+  ningún módulo interno. Inicia sesión como **Comercial** y verás que su sidebar
+  no incluye Arrendadores ni Finanzas.
 
 ---
 
