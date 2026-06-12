@@ -1,0 +1,39 @@
+// ============================================================================
+//  lib/data/store.ts — Estado en memoria mutable + suscripción (zustand)
+// ----------------------------------------------------------------------------
+//  El store guarda el DemoState completo más el rol activo de la demo. Es la
+//  ÚNICA fuente de verdad en memoria. Las pantallas NO lo tocan directo: pasan
+//  por `client.ts`, que delega en `adapters/mock.ts`, que lee/escribe aquí.
+//
+//  Cualquier escritura vía `setState` dispara las suscripciones de zustand, así
+//  que mapa, dashboard, pipeline y listas re-renderizan solos. Eso ES la demo.
+//
+//  Sin persistencia: un refresh reinicia el store al seed (decisión de diseño).
+//  El botón "Reiniciar demo" llama a `reiniciarDemo()`.
+// ============================================================================
+
+import { create } from 'zustand'
+import type { DemoState, RolDemo } from './types'
+import { buildSeed } from './seed'
+
+export interface DemoStore extends DemoState {
+  rolActivo: RolDemo
+  setRol: (rol: RolDemo) => void
+  reiniciarDemo: () => void
+  // Mutador transaccional: recibe el estado actual y devuelve el siguiente.
+  // Los adapters lo usan para escribir sin acoplarse a la forma del store.
+  mutate: (fn: (state: DemoState) => Partial<DemoState>) => void
+}
+
+export const useDemoStore = create<DemoStore>((set) => ({
+  ...buildSeed(),
+  rolActivo: 'DUENO',
+  setRol: (rol) => set({ rolActivo: rol }),
+  reiniciarDemo: () => set({ ...buildSeed(), rolActivo: 'DUENO' }),
+  mutate: (fn) => set((state) => fn(state)),
+}))
+
+// Acceso imperativo (para adapters / lógica fuera de React).
+export const getDemoState = (): DemoState => useDemoStore.getState()
+export const mutateDemo = (fn: (state: DemoState) => Partial<DemoState>) =>
+  useDemoStore.getState().mutate(fn)
