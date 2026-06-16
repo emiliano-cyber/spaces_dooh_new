@@ -181,6 +181,21 @@ export interface Sitio {
   notas: string | null
   // [DEMO] no en Prisma — tarifa de lista para filtro de precio (7.2)
   tarifaMensual: number
+  // ─── Ficha de inventario (esquema del proveedor) ──────────────────────────
+  codigoProveedor: string // codigo_proveedor (p. ej. 05605-E01)
+  exhibicion: string // exhibicion: fijo / rotativo / digital
+  unidad: string // unidad de contratación (catorcenal, mensual…)
+  esRotativo: boolean // es_rotativo
+  plazaCiudad: string // plaza_ciudad (mercado)
+  caras: number // n.º de caras
+  tipoEstructura: string // unipolar, bipolar, piso, mupi…
+  vista: string // orientación de la vista (N-S, E-O…)
+  tramo: string // tramo de vialidad
+  tarifaPublicada: number // tarifa_publicada
+  costoCompra: number // costo_compra (interno — para margen)
+  spotsPorHora: number | null // DOOH
+  duracionSpotSeg: number | null // DOOH
+  horario: string | null // horario de exhibición (DOOH)
   creadoEn: string
 }
 

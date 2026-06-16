@@ -1,7 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, MapPin, Ruler, Lightbulb, Compass } from 'lucide-react'
+import {
+  AlertTriangle,
+  MapPin,
+  Ruler,
+  Lightbulb,
+  Compass,
+  Hash,
+  Layers,
+  Building2,
+  Eye,
+  Route,
+  Repeat,
+  Monitor,
+  Clock,
+} from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Button } from '@/components/demo/ui/Button'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
@@ -130,10 +144,11 @@ export function SiteFicha({
           <FotoUploaderMock fotos={fotos} onChange={setFotos} label="Agregar foto" />
         </div>
 
-        {/* Características */}
+        {/* Características técnicas */}
         <div>
           <h4 className="mb-2 text-[13px] font-medium text-ink">Características</h4>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
+            <Caracteristica icon={<Hash className="h-4 w-4" />} label="Código proveedor" valor={sitio.codigoProveedor} mono />
             <Caracteristica icon={<MapPin className="h-4 w-4" />} label="Tipo" valor={TIPO_LABEL[sitio.tipoMedio]} />
             <Caracteristica
               icon={<Ruler className="h-4 w-4" />}
@@ -141,22 +156,44 @@ export function SiteFicha({
               valor={sitio.alto && sitio.ancho ? `${sitio.ancho} × ${sitio.alto} m` : '—'}
               mono
             />
-            <Caracteristica
-              icon={<Lightbulb className="h-4 w-4" />}
-              label="Iluminado"
-              valor={sitio.iluminado ? 'Sí' : 'No'}
-            />
-            <Caracteristica
-              icon={<Compass className="h-4 w-4" />}
-              label="Orientación"
-              valor={sitio.orientacion ?? '—'}
-            />
+            <Caracteristica icon={<Layers className="h-4 w-4" />} label="Caras" valor={String(sitio.caras)} mono />
+            <Caracteristica icon={<Building2 className="h-4 w-4" />} label="Estructura" valor={sitio.tipoEstructura} />
+            <Caracteristica icon={<Eye className="h-4 w-4" />} label="Vista" valor={sitio.vista} />
+            <Caracteristica icon={<Route className="h-4 w-4" />} label="Tramo" valor={sitio.tramo} />
+            <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Exhibición" valor={`${sitio.exhibicion}${sitio.esRotativo ? ' · rotativo' : ''}`} />
+            <Caracteristica icon={<Lightbulb className="h-4 w-4" />} label="Iluminado" valor={sitio.iluminado ? 'Sí' : 'No'} />
+            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Orientación" valor={sitio.orientacion ?? '—'} />
           </dl>
-          <div className="mt-3 flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2">
-            <span className="text-[12px] text-muted">Tarifa de lista (mensual)</span>
-            <span className="demo-num text-sm font-semibold text-ink">
-              {formatMonto(sitio.tarifaMensual)}
-            </span>
+
+          {/* Datos DOOH solo si aplica */}
+          {sitio.esRotativo && (
+            <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
+              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración spot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
+              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
+            </dl>
+          )}
+        </div>
+
+        {/* Datos comerciales (interno — el portal no muestra financieros) */}
+        <div>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">Datos comerciales</h4>
+          <div className="space-y-2">
+            <DatoComercial label={`Tarifa publicada (${sitio.unidad})`} valor={formatMonto(sitio.tarifaPublicada)} />
+            <DatoComercial label="Costo de compra" valor={formatMonto(sitio.costoCompra)} />
+            {(() => {
+              const margen = sitio.tarifaPublicada - sitio.costoCompra
+              const pct = sitio.tarifaPublicada > 0 ? (margen / sitio.tarifaPublicada) * 100 : 0
+              const color = pct >= 30 ? 'text-success' : pct >= 10 ? 'text-ink' : 'text-error'
+              return (
+                <div className="flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2">
+                  <span className="text-[12px] text-muted">Margen</span>
+                  <span className={`demo-num text-sm font-semibold ${color}`}>
+                    {formatMonto(margen)} · {pct.toFixed(0)}%
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         </div>
 
@@ -173,6 +210,15 @@ export function SiteFicha({
         </div>
       </div>
     </Sheet>
+  )
+}
+
+function DatoComercial({ label, valor }: { label: string; valor: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border pb-1.5 text-[13px] last:border-0">
+      <span className="text-muted">{label}</span>
+      <span className="demo-num text-ink">{valor}</span>
+    </div>
   )
 }
 

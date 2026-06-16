@@ -47,6 +47,24 @@ const hoy = () => offsetISO(0)
 // Estatus comercial sembrado consistente con campañas e incidencias:
 //   DISPONIBLE (verde) · RESERVADO (ámbar) · OCUPADO (vendido) · BLOQUEADO (rojo)
 
+// Catálogo de estructura/dimensiones por tipo de medio (valores peruanos
+// coherentes para la ficha de inventario). Declarado ANTES del array `sitios`
+// porque éste invoca s() al evaluar el módulo (evita TDZ).
+const PERFIL_MEDIO: Record<
+  Sitio['tipoMedio'],
+  { ancho: number; alto: number; estructura: string; exhibicion: string; unidad: string; digital: boolean }
+> = {
+  ESPECTACULAR: { ancho: 12.9, alto: 7.2, estructura: 'unipolar', exhibicion: 'fijo', unidad: 'catorcenal', digital: false },
+  PANTALLA_DIGITAL: { ancho: 9.6, alto: 5.4, estructura: 'pantalla LED', exhibicion: 'rotativo', unidad: 'mensual', digital: true },
+  VALLA: { ancho: 8.0, alto: 4.0, estructura: 'a piso', exhibicion: 'fijo', unidad: 'catorcenal', digital: false },
+  MOBILIARIO_URBANO: { ancho: 1.2, alto: 1.8, estructura: 'mupi', exhibicion: 'fijo', unidad: 'catorcenal', digital: false },
+  PUENTE_PEATONAL: { ancho: 10.0, alto: 2.5, estructura: 'puente peatonal', exhibicion: 'fijo', unidad: 'catorcenal', digital: false },
+  MURAL: { ancho: 10.0, alto: 6.0, estructura: 'muro', exhibicion: 'fijo', unidad: 'mensual', digital: false },
+  OTRO: { ancho: 6.0, alto: 3.0, estructura: 'otro', exhibicion: 'fijo', unidad: 'catorcenal', digital: false },
+}
+
+let _siteSeq = 0
+
 const sitios: Sitio[] = [
   s('sitio-javierprado', 'BP-001', 'Espectacular Javier Prado Este', 'ESPECTACULAR',
     -12.0905, -77.0220, 'Av. Javier Prado Este 1234', 'San Isidro', 'OCUPADO', 18500),
@@ -83,11 +101,13 @@ function s(
   lat: number, lng: number, direccion: string, distrito: string,
   estatusComercial: Sitio['estatusComercial'], tarifaMensual: number,
 ): Sitio {
+  _siteSeq += 1
+  const p = PERFIL_MEDIO[tipoMedio]
   return {
     id, claveInterna, nombre, tipoMedio, lat, lng, direccion,
     alcaldia: distrito, ciudad: 'Lima', estado: 'Lima', pais: 'PE',
-    alto: tipoMedio === 'MOBILIARIO_URBANO' ? 1.8 : 7.2,
-    ancho: tipoMedio === 'MOBILIARIO_URBANO' ? 1.2 : 12.9,
+    alto: p.alto,
+    ancho: p.ancho,
     iluminado: true,
     orientacion: 'Norte',
     fotos: [],
@@ -96,6 +116,22 @@ function s(
     estatusOperativo: estatusComercial === 'BLOQUEADO' ? 'EN_MANTENIMIENTO' : 'ACTIVO',
     notas: null,
     tarifaMensual,
+    // ─── Ficha de inventario ──────────────────────────────────────────────
+    codigoProveedor: `056${String(_siteSeq).padStart(2, '0')}-${p.digital ? 'D' : 'E'}0${((_siteSeq % 3) + 1)}`,
+    exhibicion: p.exhibicion,
+    unidad: p.unidad,
+    esRotativo: p.digital,
+    plazaCiudad: 'Lima',
+    caras: tipoMedio === 'MOBILIARIO_URBANO' ? 2 : 1,
+    tipoEstructura: p.estructura,
+    vista: _siteSeq % 2 === 0 ? 'N-S' : 'E-O',
+    tramo: `tramo ${10 + _siteSeq}`,
+    tarifaPublicada: tarifaMensual,
+    // costo de compra ~62% de la tarifa → margen ~38% (verde por regla SET)
+    costoCompra: Math.round(tarifaMensual * 0.62),
+    spotsPorHora: p.digital ? 6 : null,
+    duracionSpotSeg: p.digital ? 10 : null,
+    horario: p.digital ? '06:00–24:00' : null,
     creadoEn: offsetISO(-400),
   }
 }
