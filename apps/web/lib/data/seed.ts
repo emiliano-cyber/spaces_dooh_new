@@ -337,7 +337,7 @@ const ordenesTrabajo: OrdenTrabajo[] = [
 // ─── Evidencias (Banca ya tiene; Telco aún NO — se sube en el Acto 4) ───────
 
 const evidencias: EvidenciaOT[] = [
-  { id: 'ev-banca-1', otId: 'ot-banca-montaje', fotoUrl: 'mock://evidencia/banca-montaje.jpg', formato: 'image/jpeg', lat: -12.1330, lng: -77.0150, precision: 8, tipo: 'INSTALACION', uploadedBy: 'user-cuadrilla-1', timestamp: offsetISO(-24) },
+  { id: 'ev-banca-1', otId: 'ot-banca-montaje', fotoUrl: 'mock://evidencia/banca-montaje.jpg', formato: 'image/jpeg', lat: -12.1330, lng: -77.0150, precision: 8, tipo: 'INSTALACION', uploadedBy: 'user-cuadrilla-1', tomadaEn: offsetISO(-24), timestamp: offsetISO(-24) },
 ]
 
 // ─── Finanzas: facturas + cobranza (semáforo de 3 colores) ──────────────────

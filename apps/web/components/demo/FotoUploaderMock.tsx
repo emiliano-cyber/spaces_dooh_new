@@ -1,13 +1,17 @@
 'use client'
 
 import { useRef } from 'react'
-import { Camera, ImagePlus, Trash2 } from 'lucide-react'
+import { Camera, ImagePlus, Trash2, Clock, Upload } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { leerFechaCreacion } from '@/lib/exif'
+import { formatFechaHora } from '@/lib/data/client'
+import type { FotoMeta } from '@/lib/data/types'
 
 // ============================================================================
-//  FotoUploaderMock — carga de fotografías mock con preview real (usa el file
-//  picker del navegador + URL.createObjectURL). Reutilizable en ficha de sitio,
-//  evidencias de campaña y OT móvil (con `capture` para abrir cámara).
+//  FotoUploaderMock — carga de fotografías mock con preview real. Cada imagen
+//  guarda DOS fechas: `tomadaEn` (creación de la imagen, leída del EXIF o del
+//  archivo) y `subidaEn` (momento de la carga). Se muestran bajo cada foto.
+//  Reutilizable en ficha de sitio, evidencias de campaña, OT móvil y logo.
 // ============================================================================
 
 export function FotoUploaderMock({
@@ -17,41 +21,61 @@ export function FotoUploaderMock({
   label = 'Agregar foto',
   className,
 }: {
-  fotos: string[]
-  onChange: (fotos: string[]) => void
+  fotos: FotoMeta[]
+  onChange: (fotos: FotoMeta[]) => void
   capture?: boolean
   label?: string
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
     if (!files.length) return
-    const urls = files.map((f) => URL.createObjectURL(f))
-    onChange([...fotos, ...urls])
+    const subidaEn = new Date().toISOString()
+    const nuevas = await Promise.all(
+      files.map(async (f): Promise<FotoMeta> => ({
+        url: URL.createObjectURL(f),
+        tomadaEn: await leerFechaCreacion(f),
+        subidaEn,
+      })),
+    )
+    onChange([...fotos, ...nuevas])
     e.target.value = ''
   }
 
   function quitar(url: string) {
-    onChange(fotos.filter((u) => u !== url))
+    onChange(fotos.filter((f) => f.url !== url))
   }
 
   return (
     <div className={className}>
       <div className="grid grid-cols-3 gap-2">
-        {fotos.map((url) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <div key={url} className="group relative aspect-square overflow-hidden rounded border border-border">
-            <img src={url} alt="evidencia" className="h-full w-full object-cover" />
-            <button
-              type="button"
-              onClick={() => quitar(url)}
-              className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded bg-black/55 text-white group-hover:flex"
-              aria-label="Quitar foto"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
+        {fotos.map((f) => (
+          <div key={f.url} className="group relative">
+            <div className="relative aspect-square overflow-hidden rounded border border-border">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={f.url} alt="evidencia" className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => quitar(f.url)}
+                className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded bg-black/55 text-white group-hover:flex"
+                aria-label="Quitar foto"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {/* Timestamps de la imagen */}
+            <div className="mt-1 space-y-0.5">
+              <div className="flex items-center gap-1 text-[10px] text-muted">
+                <Clock className="h-3 w-3 shrink-0" />
+                <span className="demo-num truncate">{formatFechaHora(f.tomadaEn)}</span>
+              </div>
+              <div className="flex items-center gap-1 text-[10px] text-muted">
+                <Upload className="h-3 w-3 shrink-0" />
+                <span className="demo-num truncate">{formatFechaHora(f.subidaEn)}</span>
+              </div>
+            </div>
           </div>
         ))}
         <button

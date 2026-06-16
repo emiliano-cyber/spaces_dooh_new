@@ -62,6 +62,7 @@ export {
   formatMonto,
   formatMontoCorto,
   formatFecha,
+  formatFechaHora,
 } from './derive'
 export type {
   DashboardMetrics,

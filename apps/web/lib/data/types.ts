@@ -319,7 +319,15 @@ export interface EvidenciaOT {
   precision: number | null
   tipo: string
   uploadedBy: string
-  timestamp: string
+  tomadaEn: string // fecha de creación de la imagen (EXIF / archivo)
+  timestamp: string // fecha de subida
+}
+
+// Metadata de una imagen cargada en el uploader mock: URL + dos fechas.
+export interface FotoMeta {
+  url: string
+  tomadaEn: string // creación de la imagen (EXIF DateTimeOriginal / lastModified)
+  subidaEn: string // momento de la carga
 }
 
 // ─── Modelos [DEMO — no existen en Prisma todavía] ──────────────────────────

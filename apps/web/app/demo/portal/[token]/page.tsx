@@ -137,7 +137,9 @@ export default function PortalPage({ params }: { params: { token: string } }) {
             <CardTitle>Evidencias de instalación</CardTitle>
           </CardHeader>
           <CardContent>
-            <EvidenciaGaleria urls={misEvid.map((e) => e.fotoUrl)} />
+            <EvidenciaGaleria
+              fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
+            />
           </CardContent>
         </Card>
 

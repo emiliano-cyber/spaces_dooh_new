@@ -53,6 +53,7 @@ export interface ReservarInput {
 
 export interface CerrarOTInput {
   fotoUrl: string
+  tomadaEn?: string // fecha de creación de la imagen (EXIF/archivo)
   lat?: number
   lng?: number
 }
@@ -272,6 +273,7 @@ export const mockAdapter = {
           precision: 8,
           tipo: 'INSTALACION',
           uploadedBy: 'user-cuadrilla-1',
+          tomadaEn: input.tomadaEn ?? nowISO(),
           timestamp: nowISO(),
         })
       }

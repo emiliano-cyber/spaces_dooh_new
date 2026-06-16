@@ -26,6 +26,7 @@ import {
   useEvidencias,
   data,
 } from '@/lib/data/client'
+import type { FotoMeta } from '@/lib/data/types'
 
 export default function OTMovilPage({ params }: { params: { id: string } }) {
   const ot = useOT(params.id)
@@ -36,7 +37,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
   const campana = useCampana(ot?.campanaId ?? '')
 
   const [checks, setChecks] = useState<boolean[]>([])
-  const [fotos, setFotos] = useState<string[]>([])
+  const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
   const [cerrando, setCerrando] = useState(false)
 
@@ -73,7 +74,8 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
   async function cerrar() {
     setCerrando(true)
     await data.cerrarOT(ot!.id, {
-      fotoUrl: fotos[0],
+      fotoUrl: fotos[0].url,
+      tomadaEn: fotos[0].tomadaEn,
       lat: geo?.lat,
       lng: geo?.lng,
     })

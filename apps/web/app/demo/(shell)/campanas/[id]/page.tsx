@@ -234,7 +234,9 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <CardTitle>Evidencias fotográficas</CardTitle>
         </CardHeader>
         <CardContent>
-          <EvidenciaGaleria urls={misEvid.map((e) => e.fotoUrl)} />
+          <EvidenciaGaleria
+            fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
+          />
         </CardContent>
       </Card>
     </div>

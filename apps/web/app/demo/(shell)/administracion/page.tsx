@@ -36,6 +36,7 @@ import {
   useActualizarConfig,
   type RolDemo,
 } from '@/lib/data/client'
+import type { FotoMeta } from '@/lib/data/types'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -326,7 +327,7 @@ function CapChip({ cap }: { cap: Capacidad }) {
 function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const config = useConfigNegocio()
   const actualizar = useActualizarConfig()
-  const [logo, setLogo] = useState<string[]>([])
+  const [logo, setLogo] = useState<FotoMeta[]>([])
   const [nuevoPlazo, setNuevoPlazo] = useState('')
   const [nuevoTipo, setNuevoTipo] = useState('')
 

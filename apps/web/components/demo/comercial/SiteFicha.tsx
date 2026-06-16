@@ -18,6 +18,7 @@ import {
   type Sitio,
   type TipoMedio,
 } from '@/lib/data/client'
+import type { FotoMeta } from '@/lib/data/types'
 
 const TIPO_LABEL: Record<TipoMedio, string> = {
   ESPECTACULAR: 'Espectacular',
@@ -57,11 +58,12 @@ export function SiteFicha({
 }) {
   const reservas = useReservas()
   const incidencias = useIncidencias()
-  const [fotos, setFotos] = useState<string[]>([])
+  const [fotos, setFotos] = useState<FotoMeta[]>([])
 
-  // Reinicia la galería local al cambiar de sitio.
+  // Reinicia la galería local al cambiar de sitio. Las fotos sembradas (string)
+  // se adaptan a FotoMeta sin fechas conocidas.
   useEffect(() => {
-    setFotos(sitio?.fotos ?? [])
+    setFotos((sitio?.fotos ?? []).map((url) => ({ url, tomadaEn: '', subidaEn: '' })))
   }, [sitio?.id])
 
   if (!sitio) return null
