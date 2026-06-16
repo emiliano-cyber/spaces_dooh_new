@@ -31,6 +31,7 @@ import type {
   OrdenImpresion,
   Factura,
   Cobranza,
+  AccionLog,
 } from './types'
 
 // ─── Helpers de fecha relativa ──────────────────────────────────────────────
@@ -396,6 +397,15 @@ const cobranzas: Cobranza[] = [
   { id: 'cob-banca-q1', facturaId: 'fac-banca-q1', plazoDias: 90, fechaVencimiento: offsetISO(70), estatus: 'AL_CORRIENTE', montoPagado: 0, creadoEn: offsetISO(-20) },
 ]
 
+// ─── Bitácora inicial (acciones históricas sembradas) ──────────────────────
+
+const acciones: AccionLog[] = [
+  { id: 'acc-seed-1', accion: 'Confirmó reserva', entidad: 'Banca del Sol — Crédito Hipotecario', usuarioId: 'u-comercial', usuarioNombre: 'Carlos Mendoza', timestamp: offsetISO(-25) },
+  { id: 'acc-seed-2', accion: 'Generó factura', entidad: 'F001-00000210 · Banca del Sol — Ahorro Q1', usuarioId: 'u-finanzas', usuarioNombre: 'Andrea Salas', timestamp: offsetISO(-20) },
+  { id: 'acc-seed-3', accion: 'Cerró OT con foto', entidad: 'OT-2026-0131', usuarioId: 'u-operaciones', usuarioNombre: 'Luis Paredes', timestamp: offsetISO(-24) },
+  { id: 'acc-seed-4', accion: 'Reportó incidencia', entidad: 'Espectacular Salaverry', usuarioId: 'u-dueno', usuarioNombre: 'María Quispe', timestamp: offsetISO(-9) },
+]
+
 // ─── Estado inicial completo ────────────────────────────────────────────────
 
 export function buildSeed(): DemoState {
@@ -421,6 +431,7 @@ export function buildSeed(): DemoState {
     ordenesImpresion: clone(ordenesImpresion),
     facturas: clone(facturas),
     cobranzas: clone(cobranzas),
+    acciones: clone(acciones),
   }
 }
 

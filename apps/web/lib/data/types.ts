@@ -401,6 +401,17 @@ export interface Cobranza {
 
 // ─── Estado raíz del store ──────────────────────────────────────────────────
 
+// Bitácora de acciones: cada proceso registra quién y cuándo (punto 2 de la
+// reunión). Se alimenta desde las mutaciones del adapter y del store.
+export interface AccionLog {
+  id: string
+  accion: string // etiqueta legible: "Confirmó reserva", "Cerró OT"…
+  entidad: string // sobre qué: "Telco Andina", "OT-2026-0142"…
+  usuarioId: string | null
+  usuarioNombre: string
+  timestamp: string
+}
+
 // Configuración del negocio (Administración → mock editable).
 export interface ConfigNegocio {
   nombreTenant: string
@@ -426,4 +437,5 @@ export interface DemoState {
   ordenesImpresion: OrdenImpresion[]
   facturas: Factura[]
   cobranzas: Cobranza[]
+  acciones: AccionLog[]
 }

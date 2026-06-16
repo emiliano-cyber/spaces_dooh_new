@@ -10,7 +10,7 @@
 //  que las pantallas no cambian una línea cuando llegue el backend.
 // ============================================================================
 
-import { getDemoState, mutateDemo } from '../store'
+import { getDemoState, getUsuarioActivo, mutateDemo } from '../store'
 import { candadoFacturacion } from '../derive'
 import type {
   Campana,
@@ -19,6 +19,7 @@ import type {
   OrdenTrabajo,
   Reserva,
   TipoIncidencia,
+  AccionLog,
 } from '../types'
 
 // ─── util: id único en runtime (no usamos persistencia) ─────────────────────
@@ -40,6 +41,19 @@ function offsetISO(days: number): string {
 // Pequeña latencia simulada para que los skeletons se vean (sección 2).
 function delay<T>(value: T, ms = 120): Promise<T> {
   return new Promise((resolve) => setTimeout(() => resolve(value), ms))
+}
+
+// Entrada de bitácora con el usuario en sesión. Se antepone a state.acciones.
+function acc(accion: string, entidad: string): AccionLog {
+  const u = getUsuarioActivo()
+  return {
+    id: uid('acc'),
+    accion,
+    entidad,
+    usuarioId: u?.id ?? null,
+    usuarioNombre: u?.nombre ?? 'Sistema',
+    timestamp: nowISO(),
+  }
 }
 
 export interface ReservarInput {
@@ -211,7 +225,16 @@ export const mockAdapter = {
         return { ...s, estatusComercial: 'RESERVADO' as const }
       })
 
-      return { campanas, clientes, reservas, sitios }
+      return {
+        campanas,
+        clientes,
+        reservas,
+        sitios,
+        acciones: [
+          acc('Reservó (tentativa)', input.nombreCampana ?? input.clienteNombre ?? 'Campaña'),
+          ...state.acciones,
+        ],
+      }
     })
 
     const c = getDemoState().campanas.find((x) => x.id === campanaId)!
@@ -222,6 +245,7 @@ export const mockAdapter = {
   // campaña → CONFIRMADA. El dashboard recalcula ocupación solo.
   async confirmarReserva(campanaId: string): Promise<Campana> {
     mutateDemo((state) => {
+      const camp = state.campanas.find((c) => c.id === campanaId)
       const sitiosConfirmados = new Set(
         state.reservas
           .filter((r) => r.campanaId === campanaId && r.estatus === 'TENTATIVA')
@@ -239,20 +263,25 @@ export const mockAdapter = {
         campanas: state.campanas.map((c) =>
           c.id === campanaId ? { ...c, estadoComercial: 'CONFIRMADA' as const } : c,
         ),
+        acciones: [acc('Confirmó reserva', camp?.nombre ?? campanaId), ...state.acciones],
       }
     })
     return delay(getDemoState().campanas.find((x) => x.id === campanaId)!)
   },
 
   async extenderCampana(campanaId: string, nuevaFechaFin: string): Promise<Campana> {
-    mutateDemo((state) => ({
-      campanas: state.campanas.map((c) =>
-        c.id === campanaId ? { ...c, fechaFin: nuevaFechaFin } : c,
-      ),
-      reservas: state.reservas.map((r) =>
-        r.campanaId === campanaId ? { ...r, fechaFin: nuevaFechaFin } : r,
-      ),
-    }))
+    mutateDemo((state) => {
+      const camp = state.campanas.find((c) => c.id === campanaId)
+      return {
+        campanas: state.campanas.map((c) =>
+          c.id === campanaId ? { ...c, fechaFin: nuevaFechaFin } : c,
+        ),
+        reservas: state.reservas.map((r) =>
+          r.campanaId === campanaId ? { ...r, fechaFin: nuevaFechaFin } : r,
+        ),
+        acciones: [acc('Extendió campaña', camp?.nombre ?? campanaId), ...state.acciones],
+      }
+    })
     return delay(getDemoState().campanas.find((x) => x.id === campanaId)!)
   },
 
@@ -303,7 +332,12 @@ export const mockAdapter = {
               : c,
           )
         : state.campanas
-      return { evidencias, ordenesTrabajo, campanas }
+      return {
+        evidencias,
+        ordenesTrabajo,
+        campanas,
+        acciones: [acc('Cerró OT con foto', ot?.folio ?? otId), ...state.acciones],
+      }
     })
     return delay(getDemoState().ordenesTrabajo.find((o) => o.id === otId)!)
   },
@@ -325,14 +359,18 @@ export const mockAdapter = {
       notas: 'Reportada desde el módulo de Arrendadores.',
       creadoEn: nowISO(),
     }
-    mutateDemo((state) => ({
-      incidencias: [...state.incidencias, inc],
-      sitios: state.sitios.map((s) =>
-        s.id === input.sitioId
-          ? { ...s, estatusComercial: 'BLOQUEADO' as const, estatusLegal: 'SUSPENDIDO' as const }
-          : s,
-      ),
-    }))
+    mutateDemo((state) => {
+      const sit = state.sitios.find((s) => s.id === input.sitioId)
+      return {
+        incidencias: [...state.incidencias, inc],
+        sitios: state.sitios.map((s) =>
+          s.id === input.sitioId
+            ? { ...s, estatusComercial: 'BLOQUEADO' as const, estatusLegal: 'SUSPENDIDO' as const }
+            : s,
+        ),
+        acciones: [acc('Reportó incidencia', sit?.nombre ?? input.sitioId), ...state.acciones],
+      }
+    })
     return delay(inc)
   },
 
@@ -372,16 +410,21 @@ export const mockAdapter = {
       campanas: state.campanas.map((x) =>
         x.id === campanaId ? { ...x, estadoComercial: 'COMPLETADA' as const } : x,
       ),
+      acciones: [acc('Generó factura', `${factura.folio} · ${c.nombre}`), ...state.acciones],
     }))
     return delay(factura)
   },
 
   async registrarPagoRenta(pagoId: string): Promise<void> {
-    mutateDemo((state) => ({
-      pagosRenta: state.pagosRenta.map((p) =>
-        p.id === pagoId ? { ...p, estatus: 'PAGADO' as const, fechaPago: nowISO() } : p,
-      ),
-    }))
+    mutateDemo((state) => {
+      const pago = state.pagosRenta.find((p) => p.id === pagoId)
+      return {
+        pagosRenta: state.pagosRenta.map((p) =>
+          p.id === pagoId ? { ...p, estatus: 'PAGADO' as const, fechaPago: nowISO() } : p,
+        ),
+        acciones: [acc('Registró pago de renta', pago?.periodo ?? pagoId), ...state.acciones],
+      }
+    })
     return delay(undefined)
   },
 
@@ -392,6 +435,7 @@ export const mockAdapter = {
           ? { ...c, estatus: 'RENOVADO' as const, fechaFin: offsetISO(365) }
           : c,
       ),
+      acciones: [acc('Inició renovación de contrato', contratoId), ...state.acciones],
     }))
     return delay(undefined)
   },

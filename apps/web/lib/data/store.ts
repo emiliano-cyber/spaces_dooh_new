@@ -13,8 +13,20 @@
 // ============================================================================
 
 import { create } from 'zustand'
-import type { DemoState, RolDemo, UsuarioDemo, ConfigNegocio } from './types'
+import type { DemoState, RolDemo, UsuarioDemo, ConfigNegocio, AccionLog } from './types'
 import { buildSeed } from './seed'
+
+// Crea una entrada de bitácora con el usuario en sesión.
+function accion(state: { usuarioActivo: UsuarioDemo | null }, accion: string, entidad: string): AccionLog {
+  return {
+    id: `acc-${Date.now().toString(36)}-${Math.round(performance.now())}`,
+    accion,
+    entidad,
+    usuarioId: state.usuarioActivo?.id ?? null,
+    usuarioNombre: state.usuarioActivo?.nombre ?? 'Sistema',
+    timestamp: new Date().toISOString(),
+  }
+}
 
 export interface DemoStore extends DemoState {
   // Sesión del login mock. usuarioActivo = null => sin sesión (muestra login).
@@ -45,24 +57,32 @@ export const useDemoStore = create<DemoStore>((set) => ({
     set((state) => {
       const usuarios = state.usuarios.map((u) => (u.id === usuarioId ? { ...u, rol } : u))
       const esActivo = state.usuarioActivo?.id === usuarioId
+      const obj = state.usuarios.find((u) => u.id === usuarioId)
       return {
         usuarios,
         usuarioActivo: esActivo ? { ...state.usuarioActivo!, rol } : state.usuarioActivo,
         rolActivo: esActivo ? rol : state.rolActivo,
+        acciones: [accion(state, 'Cambió rol', obj?.nombre ?? 'usuario'), ...state.acciones],
       }
     }),
   toggleUsuarioActivo: (usuarioId) =>
-    set((state) => ({
-      usuarios: state.usuarios.map((u) =>
-        u.id === usuarioId ? { ...u, activo: !u.activo } : u,
-      ),
-    })),
+    set((state) => {
+      const obj = state.usuarios.find((u) => u.id === usuarioId)
+      return {
+        usuarios: state.usuarios.map((u) => (u.id === usuarioId ? { ...u, activo: !u.activo } : u)),
+        acciones: [
+          accion(state, obj?.activo ? 'Desactivó usuario' : 'Activó usuario', obj?.nombre ?? 'usuario'),
+          ...state.acciones,
+        ],
+      }
+    }),
   invitarUsuario: (datos) =>
     set((state) => ({
       usuarios: [
         ...state.usuarios,
         { ...datos, id: `u-${Date.now().toString(36)}`, activo: true },
       ],
+      acciones: [accion(state, 'Invitó usuario', datos.nombre), ...state.acciones],
     })),
   actualizarConfig: (cambios) =>
     set((state) => ({ configNegocio: { ...state.configNegocio, ...cambios } })),
@@ -73,5 +93,6 @@ export const useDemoStore = create<DemoStore>((set) => ({
 
 // Acceso imperativo (para adapters / lógica fuera de React).
 export const getDemoState = (): DemoState => useDemoStore.getState()
+export const getUsuarioActivo = (): UsuarioDemo | null => useDemoStore.getState().usuarioActivo
 export const mutateDemo = (fn: (state: DemoState) => Partial<DemoState>) =>
   useDemoStore.getState().mutate(fn)

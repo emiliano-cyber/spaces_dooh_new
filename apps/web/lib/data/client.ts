@@ -208,6 +208,11 @@ export function useCobranzas() {
   const v = useDemoStore((s) => s.cobranzas)
   return m ? v : undefined
 }
+export function useAcciones() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.acciones)
+  return m ? v : undefined
+}
 
 /** Métricas del dashboard del dueño, recalculadas en vivo. */
 export function useDashboard(): DashboardMetrics | undefined {
