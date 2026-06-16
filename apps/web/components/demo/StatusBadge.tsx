@@ -100,7 +100,7 @@ export const COBRANZA_TONO: Record<EstCobranza, Tono> = {
   AL_CORRIENTE: 'verde',
   POR_VENCER: 'ambar',
   VENCIDA: 'rojo',
-  PAGADA: 'neutro',
+  PAGADA: 'verde',
 }
 export const COBRANZA_LABEL: Record<EstCobranza, string> = {
   AL_CORRIENTE: 'Al corriente',
