@@ -43,6 +43,7 @@ export const httpAdapter: MockAdapter = {
   getCobranzas: () => noImpl('getCobranzas'),
   getReadiness: () => noImpl('getReadiness'),
   altaSitio: () => noImpl('altaSitio'),
+  importarInventario: () => noImpl('importarInventario'),
   toggleNetwork: () => noImpl('toggleNetwork'),
   reservar: () => noImpl('reservar'),
   confirmarReserva: () => noImpl('confirmarReserva'),

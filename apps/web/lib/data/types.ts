@@ -204,12 +204,40 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  // ─── Agregar inventario (importador / formulario manual) ──────────────────
+  modalidades: string[] // modalidades de contratación
+  totalSpots: number | null // total de spots por pantalla (DOOH)
+  spotsDisponibles: number | null // spots disponibles
+  precioM2: number | null // precio por m² (estáticas)
+  tarifaImpresion: number | null // ancho × alto × precioM2 (estáticas)
+  computerVision: boolean // tecnología AdMobilize
+  admobilizeId: string | null // ID del dispositivo AdMobilize
+  imagenPromocional: string | null // url/nombre de la imagen promocional
+  pendienteVerificacion: boolean // coords default → verificar
   creadoEn: string
 }
 
 export type TipoContenido = 'VIDEO' | 'IMAGEN'
 export type Comercializacion = 'PROGRAMATICO' | 'TRADICIONAL'
 export type CMS = 'BROADSIGN' | 'INVIDIS' | 'DOOHMAIN' | 'OTRO'
+
+// ─── Importación masiva de inventario (Excel/CSV) ───────────────────────────
+export type ImportStatus = 'creado' | 'actualizado' | 'error' | 'advertencia'
+export type ModoDuplicado = 'ACTUALIZAR' | 'NUEVA_VERSION' // A | B
+
+export interface ImportResultRow {
+  codigo_proveedor: string
+  status: ImportStatus
+  mensaje: string
+}
+export interface ImportSummary {
+  total_filas: number
+  creadas: number
+  actualizadas: number
+  con_advertencias: number
+  errores: number
+  detalle: ImportResultRow[]
+}
 
 export interface Arrendador {
   id: string

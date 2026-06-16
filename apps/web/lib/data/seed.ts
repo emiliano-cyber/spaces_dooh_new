@@ -143,6 +143,16 @@ function s(
     // Las digitales se comparten a la Network por defecto.
     enNetwork: p.digital,
     cms: p.digital ? (_siteSeq % 2 === 0 ? 'BROADSIGN' : 'DOOHMAIN') : null,
+    // Agregar inventario
+    modalidades: [p.unidad === 'mensual' ? 'Mensual' : 'Catorcenal'],
+    totalSpots: p.digital ? 100 : null,
+    spotsDisponibles: p.digital ? 85 : null,
+    precioM2: null,
+    tarifaImpresion: null,
+    computerVision: false,
+    admobilizeId: null,
+    imagenPromocional: null,
+    pendienteVerificacion: false,
     creadoEn: offsetISO(-400),
   }
 }

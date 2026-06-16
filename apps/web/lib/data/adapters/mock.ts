@@ -25,7 +25,18 @@ import type {
   Comercializacion,
   CMS,
   TipoContenido,
+  ImportSummary,
+  ImportResultRow,
+  ModoDuplicado,
 } from '../types'
+import type { FilaValidada } from '../../inventario-import'
+
+// tipo_medio del archivo (espectacular|muro|valla) → enum TipoMedio.
+const MAPEO_TIPO: Record<string, TipoMedio> = {
+  espectacular: 'ESPECTACULAR',
+  muro: 'MURAL',
+  valla: 'VALLA',
+}
 
 // ─── util: id único en runtime (no usamos persistencia) ─────────────────────
 let _seq = 0
@@ -87,6 +98,21 @@ export interface AltaSitioInput {
   cms: CMS | null
   resolucionPx: string | null
   tipoContenido: TipoContenido | null
+  // Opcionales del formulario de 5 tabs / importador.
+  exhibicion?: string // fijo | digital | rotativo
+  codigoProveedor?: string
+  estatusComercial?: Sitio['estatusComercial']
+  costoCompra?: number
+  caras?: number
+  modalidades?: string[]
+  duracionSpotSeg?: number | null
+  totalSpots?: number | null
+  spotsDisponibles?: number | null
+  computerVision?: boolean
+  admobilizeId?: string | null
+  precioM2?: number | null
+  imagenPromocional?: string | null
+  pendienteVerificacion?: boolean
 }
 
 // Perfiles para autollenar campos técnicos al dar de alta una pantalla.
@@ -98,6 +124,74 @@ const ESTRUCTURA_POR_MEDIO: Record<TipoMedio, string> = {
   PUENTE_PEATONAL: 'puente peatonal',
   MURAL: 'muro',
   OTRO: 'otro',
+}
+
+// Construye un Sitio completo a partir del input (formulario o importador),
+// rellenando defaults coherentes. No muta el store.
+function construirSitio(input: AltaSitioInput): Sitio {
+  const digital =
+    input.tipoMedio === 'PANTALLA_DIGITAL' ||
+    input.exhibicion === 'rotativo' ||
+    input.exhibicion === 'digital'
+  const esEstatica = !digital
+  const precioM2 = input.precioM2 ?? null
+  // tarifa de impresión por m² solo para estáticas con precio configurado
+  const tarifaImpresion =
+    esEstatica && precioM2 ? Math.round(input.ancho * input.alto * precioM2) : null
+  return {
+    id: uid('sitio'),
+    claveInterna: `BP-${String(100 + _seq).padStart(3, '0')}`,
+    nombre: input.nombre,
+    tipoMedio: input.tipoMedio,
+    lat: input.lat,
+    lng: input.lng,
+    direccion: input.direccionComercial,
+    alcaldia: input.distrito,
+    ciudad: input.distrito || 'Lima',
+    estado: input.distrito || 'Lima',
+    pais: 'PE',
+    alto: input.alto,
+    ancho: input.ancho,
+    iluminado: input.iluminado,
+    orientacion: 'Norte',
+    fotos: [],
+    estatusComercial: input.estatusComercial ?? 'DISPONIBLE',
+    estatusLegal: 'EN_ORDEN',
+    estatusOperativo: 'ACTIVO',
+    notas: null,
+    tarifaMensual: input.tarifaPublicada,
+    codigoProveedor: input.codigoProveedor || `056${String(_seq).padStart(2, '0')}-${digital ? 'D' : 'E'}01`,
+    exhibicion: digital ? 'rotativo' : 'fijo',
+    unidad: (input.modalidades && input.modalidades[0]?.toLowerCase()) || (digital ? 'mensual' : 'catorcenal'),
+    esRotativo: digital,
+    plazaCiudad: input.distrito || 'Lima',
+    caras: input.caras ?? (input.tipoMedio === 'MOBILIARIO_URBANO' ? 2 : 1),
+    tipoEstructura: ESTRUCTURA_POR_MEDIO[input.tipoMedio],
+    vista: 'N-S',
+    tramo: 'tramo nuevo',
+    tarifaPublicada: input.tarifaPublicada,
+    costoCompra: input.costoCompra ?? Math.round(input.tarifaPublicada * 0.62),
+    spotsPorHora: digital ? 6 : null,
+    duracionSpotSeg: input.duracionSpotSeg ?? (digital ? 10 : null),
+    horario: digital ? '06:00–24:00' : null,
+    direccionPredio: input.direccionPredio,
+    direccionComercial: input.direccionComercial,
+    resolucionPx: input.resolucionPx,
+    tipoContenido: input.tipoContenido,
+    comercializacion: input.comercializacion,
+    enNetwork: input.enNetwork,
+    cms: input.cms,
+    modalidades: input.modalidades ?? [digital ? 'Mensual' : 'Catorcenal'],
+    totalSpots: input.totalSpots ?? (digital ? 100 : null),
+    spotsDisponibles: input.spotsDisponibles ?? (digital ? 85 : null),
+    precioM2,
+    tarifaImpresion,
+    computerVision: input.computerVision ?? false,
+    admobilizeId: input.admobilizeId ?? null,
+    imagenPromocional: input.imagenPromocional ?? null,
+    pendienteVerificacion: input.pendienteVerificacion ?? false,
+    creadoEn: nowISO(),
+  }
 }
 
 export interface CerrarOTInput {
@@ -187,58 +281,130 @@ export const mockAdapter = {
 
   // ALTA DE PANTALLA: crea un sitio nuevo en el inventario (mapa + lista en vivo).
   async altaSitio(input: AltaSitioInput): Promise<Sitio> {
-    const id = uid('sitio')
-    const digital = input.tipoMedio === 'PANTALLA_DIGITAL'
-    const sitio: Sitio = {
-      id,
-      claveInterna: `BP-${String(100 + _seq).padStart(3, '0')}`,
-      nombre: input.nombre,
-      tipoMedio: input.tipoMedio,
-      lat: input.lat,
-      lng: input.lng,
-      direccion: input.direccionComercial,
-      alcaldia: input.distrito,
-      ciudad: 'Lima',
-      estado: 'Lima',
-      pais: 'PE',
-      alto: input.alto,
-      ancho: input.ancho,
-      iluminado: input.iluminado,
-      orientacion: 'Norte',
-      fotos: [],
-      estatusComercial: 'DISPONIBLE',
-      estatusLegal: 'EN_ORDEN',
-      estatusOperativo: 'ACTIVO',
-      notas: null,
-      tarifaMensual: input.tarifaPublicada,
-      codigoProveedor: `056${String(_seq).padStart(2, '0')}-${digital ? 'D' : 'E'}01`,
-      exhibicion: digital ? 'rotativo' : 'fijo',
-      unidad: digital ? 'mensual' : 'catorcenal',
-      esRotativo: digital,
-      plazaCiudad: 'Lima',
-      caras: input.tipoMedio === 'MOBILIARIO_URBANO' ? 2 : 1,
-      tipoEstructura: ESTRUCTURA_POR_MEDIO[input.tipoMedio],
-      vista: 'N-S',
-      tramo: 'tramo nuevo',
-      tarifaPublicada: input.tarifaPublicada,
-      costoCompra: Math.round(input.tarifaPublicada * 0.62),
-      spotsPorHora: digital ? 6 : null,
-      duracionSpotSeg: digital ? 10 : null,
-      horario: digital ? '06:00–24:00' : null,
-      direccionPredio: input.direccionPredio,
-      direccionComercial: input.direccionComercial,
-      resolucionPx: input.resolucionPx,
-      tipoContenido: input.tipoContenido,
-      comercializacion: input.comercializacion,
-      enNetwork: input.enNetwork,
-      cms: input.cms,
-      creadoEn: nowISO(),
-    }
+    const sitio = construirSitio(input)
     mutateDemo((state) => ({
       sitios: [...state.sitios, sitio],
       acciones: [acc('Dio de alta pantalla', sitio.nombre), ...state.acciones],
     }))
     return delay(sitio)
+  },
+
+  // IMPORTAR INVENTARIO: crea/actualiza pantallas desde filas validadas de un
+  // Excel/CSV. Maneja duplicados según el modo elegido y asocia imágenes.
+  async importarInventario(args: {
+    filas: FilaValidada[]
+    modoDuplicado: ModoDuplicado
+    precioM2: number | null
+    imagenes: Record<string, string>
+  }): Promise<ImportSummary> {
+    const { filas, modoDuplicado, precioM2, imagenes } = args
+    const detalle: ImportResultRow[] = []
+    let creadas = 0,
+      actualizadas = 0,
+      con_advertencias = 0,
+      errores = 0
+
+    mutateDemo((state) => {
+      const sitios = [...state.sitios]
+      const acciones = [...state.acciones]
+
+      // Busca imagen por nombre de archivo exacto o por código de proveedor.
+      const imagenDe = (nombreArchivo: string, codigo: string): string | null => {
+        if (nombreArchivo && imagenes[nombreArchivo]) return imagenes[nombreArchivo]
+        const porCodigo = Object.keys(imagenes).find(
+          (f) => f.replace(/\.[^.]+$/, '').toLowerCase() === codigo.toLowerCase(),
+        )
+        return porCodigo ? imagenes[porCodigo] : null
+      }
+
+      for (const fila of filas) {
+        if (fila.status === 'error' || !fila.datos) {
+          errores++
+          detalle.push({ codigo_proveedor: fila.codigo_proveedor, status: 'error', mensaje: fila.mensaje })
+          continue
+        }
+        const d = fila.datos
+        const tipoMedio = MAPEO_TIPO[d.tipo_medio] ?? 'OTRO'
+        const img = imagenDe(d.imagen_promocional, d.codigo_proveedor)
+        const base: AltaSitioInput = {
+          nombre: d.nombre,
+          tipoMedio,
+          direccionPredio: d.direccion,
+          direccionComercial: d.direccion,
+          distrito: d.plaza_ciudad,
+          lat: d.latitud,
+          lng: d.longitud,
+          ancho: d.ancho_m,
+          alto: d.alto_m,
+          iluminado: d.iluminacion,
+          tarifaPublicada: d.tarifa_publicada,
+          comercializacion: d.exhibicion === 'digital' ? 'PROGRAMATICO' : 'TRADICIONAL',
+          enNetwork: false,
+          cms: null,
+          resolucionPx: null,
+          tipoContenido: d.exhibicion === 'digital' ? 'VIDEO' : null,
+          exhibicion: d.exhibicion,
+          codigoProveedor: d.codigo_proveedor,
+          costoCompra: d.costo_compra,
+          caras: d.caras,
+          duracionSpotSeg: d.duracion_spot_seg,
+          precioM2,
+          imagenPromocional: img,
+          pendienteVerificacion: d.pendienteVerificacion,
+        }
+
+        const existente = sitios.find((s) => s.codigoProveedor === d.codigo_proveedor)
+        const conAdvertencia = fila.status === 'advertencia'
+
+        if (existente && modoDuplicado === 'ACTUALIZAR') {
+          // Actualiza campos; conserva imagen anterior si no llega una nueva.
+          const nuevo = construirSitio(base)
+          const i = sitios.indexOf(existente)
+          sitios[i] = {
+            ...nuevo,
+            id: existente.id,
+            claveInterna: existente.claveInterna,
+            imagenPromocional: img ?? existente.imagenPromocional,
+            creadoEn: existente.creadoEn,
+          }
+          if (conAdvertencia) con_advertencias++
+          else actualizadas++
+          detalle.push({
+            codigo_proveedor: d.codigo_proveedor,
+            status: conAdvertencia ? 'advertencia' : 'actualizado',
+            mensaje: conAdvertencia ? `Actualizada con advertencias: ${fila.mensaje}` : 'Actualizada',
+          })
+        } else {
+          // Crear (nuevo, o duplicado con sufijo -vN)
+          let codigo = d.codigo_proveedor
+          if (existente && modoDuplicado === 'NUEVA_VERSION') {
+            let v = 2
+            while (sitios.some((s) => s.codigoProveedor === `${d.codigo_proveedor}-v${v}`)) v++
+            codigo = `${d.codigo_proveedor}-v${v}`
+          }
+          sitios.push(construirSitio({ ...base, codigoProveedor: codigo }))
+          if (conAdvertencia) con_advertencias++
+          else creadas++
+          detalle.push({
+            codigo_proveedor: codigo,
+            status: conAdvertencia ? 'advertencia' : 'creado',
+            mensaje: conAdvertencia ? `Creada con advertencias: ${fila.mensaje}` : 'Creada',
+          })
+        }
+      }
+
+      acciones.unshift(acc('Importó inventario', `${detalle.length} filas`))
+      return { sitios, acciones }
+    })
+
+    return delay({
+      total_filas: filas.length,
+      creadas,
+      actualizadas,
+      con_advertencias,
+      errores,
+      detalle,
+    })
   },
 
   // NETWORK: el dueño decide qué espacios comparte con la Network.

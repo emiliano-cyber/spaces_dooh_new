@@ -11,6 +11,7 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
+import { AgregarInventario } from '@/components/demo/inventario/AgregarInventario'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -261,6 +262,9 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Agregar inventario (importar archivo / nueva pantalla) */}
+      <AgregarInventario />
     </div>
   )
 }
