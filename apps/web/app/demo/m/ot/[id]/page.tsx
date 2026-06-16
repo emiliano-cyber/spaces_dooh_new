@@ -24,6 +24,7 @@ import {
   useSitios,
   useCampana,
   useEvidencias,
+  useUsuario,
   data,
 } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
@@ -32,6 +33,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
   const ot = useOT(params.id)
   const sitios = useSitios()
   const evidencias = useEvidencias(params.id)
+  const usuario = useUsuario()
 
   const sitio = sitios?.find((s) => s.id === ot?.sitioId)
   const campana = useCampana(ot?.campanaId ?? '')
@@ -117,6 +119,9 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
             candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
             campanaId={ot.campanaId}
             evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
+            // Solo enlaza al pipeline (ruta del shell con login) si hay sesión
+            // interna. En uso de campo (sin login) no debe llevar a inicio de sesión.
+            mostrarPipeline={!!usuario && usuario.rol !== 'CLIENTE'}
           />
         ) : (
           <>
@@ -213,10 +218,12 @@ function CompletadaView({
   candado,
   campanaId,
   evidenciaUrls,
+  mostrarPipeline,
 }: {
   candado: boolean
   campanaId: string | null
   evidenciaUrls: string[]
+  mostrarPipeline: boolean
 }) {
   const real = evidenciaUrls.filter((u) => u.startsWith('blob:') || u.startsWith('http') || u.startsWith('data:'))
   return (
@@ -243,13 +250,17 @@ function CompletadaView({
         <img src={real[0]} alt="evidencia" className="w-full rounded-md border border-border object-cover" />
       )}
 
-      {campanaId && (
+      {mostrarPipeline && campanaId ? (
         <Link
           href={`/demo/campanas/${campanaId}`}
           className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline"
         >
           Ver pipeline de la campaña <ArrowRight className="h-3.5 w-3.5" />
         </Link>
+      ) : (
+        <p className="text-center text-[12px] text-muted">
+          Puedes cerrar esta ventana. La evidencia ya quedó registrada.
+        </p>
       )}
     </div>
   )
