@@ -18,6 +18,7 @@ import type { PuntoOcupacion } from '@/lib/data/client'
 
 const INFO = '#0a66ff'
 const AMBAR = '#f59e0b'
+const VERDE = '#10b981'
 const BORDER = '#e4e4e7'
 const MUTED = '#71717a'
 
@@ -79,8 +80,8 @@ export function ReservasChart({
   confirmado: number
 }) {
   const data = [
-    { name: 'Tentativo', valor: tentativo, color: AMBAR },
-    { name: 'Confirmado', valor: confirmado, color: INFO },
+    { name: 'Tentativas', valor: tentativo, color: AMBAR },
+    { name: 'Confirmadas', valor: confirmado, color: VERDE },
   ]
   return (
     <ResponsiveContainer width="100%" height={150}>

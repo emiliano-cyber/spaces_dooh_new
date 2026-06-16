@@ -115,10 +115,10 @@ export function CalendarioDisponibilidad({
       </div>
       <div className="mt-3 flex items-center gap-4 text-[11px] text-muted">
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" /> confirmado
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#10b981]" /> confirmada
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> tentativo
+          <span className="h-2.5 w-2.5 rounded-sm bg-[#f59e0b]" /> tentativa
         </span>
       </div>
     </div>

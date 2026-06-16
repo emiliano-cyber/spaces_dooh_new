@@ -10,8 +10,8 @@ import {
   StatusBadge,
   CAMPANA_TONO,
   CAMPANA_LABEL,
-  SITIO_TONO,
-  SITIO_LABEL,
+  RESERVA_TONO,
+  RESERVA_LABEL,
   IMPRESION_TONO,
   IMPRESION_LABEL,
   OT_TONO,
@@ -138,8 +138,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                       {sitio!.alcaldia} · {formatMonto(reserva.precio)}/mes
                     </div>
                   </div>
-                  <StatusBadge tono={SITIO_TONO[sitio!.estatusComercial]}>
-                    {SITIO_LABEL[sitio!.estatusComercial]}
+                  <StatusBadge tono={RESERVA_TONO[reserva.estatus]}>
+                    {RESERVA_LABEL[reserva.estatus]}
                   </StatusBadge>
                 </li>
               ))}

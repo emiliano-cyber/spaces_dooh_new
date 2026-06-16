@@ -70,7 +70,7 @@ export function ReservaDialog({
               Cancelar
             </Button>
             <Button size="sm" onClick={submit} disabled={enviando || !cliente.trim()}>
-              {enviando ? 'Reservando…' : 'Reservar (tentativo)'}
+              {enviando ? 'Reservando…' : 'Reservar (tentativa)'}
             </Button>
           </div>
         </div>

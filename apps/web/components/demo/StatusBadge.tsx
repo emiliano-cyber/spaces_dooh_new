@@ -9,6 +9,7 @@ import type {
   EstOT,
   EstOrdenImpresion,
   EstComercialCampana,
+  EstReserva,
 } from '@/lib/data/types'
 
 // ============================================================================
@@ -72,11 +73,26 @@ export const SITIO_TONO: Record<EstComercial, Tono> = {
 }
 export const SITIO_LABEL: Record<EstComercial, string> = {
   DISPONIBLE: 'Disponible',
-  RESERVADO: 'Reservado',
+  // Un sitio RESERVADO corresponde a una reserva TENTATIVA: se anota para que
+  // ambos vocabularios (sitio vs reserva) cuadren a la vista.
+  RESERVADO: 'Reservado · tentativo',
   OCUPADO: 'Ocupado',
   BLOQUEADO: 'Bloqueado',
   EN_MANTENIMIENTO: 'En mantenimiento',
   BAJA: 'Baja',
+}
+
+// ─── Estado de RESERVA (fuente única). Nomenclatura canónica en femenino,
+//     concuerda con "reserva": Tentativa / Confirmada / Cancelada. ────────────
+export const RESERVA_TONO: Record<EstReserva, Tono> = {
+  TENTATIVA: 'ambar',
+  CONFIRMADA: 'verde',
+  CANCELADA: 'neutro',
+}
+export const RESERVA_LABEL: Record<EstReserva, string> = {
+  TENTATIVA: 'Tentativa',
+  CONFIRMADA: 'Confirmada',
+  CANCELADA: 'Cancelada',
 }
 
 export const COBRANZA_TONO: Record<EstCobranza, Tono> = {
