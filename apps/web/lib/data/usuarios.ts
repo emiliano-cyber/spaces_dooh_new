@@ -10,6 +10,7 @@ import type { UsuarioDemo, RolDemo } from './types'
 import { TOKEN_TELCO } from './tokens'
 
 export const USUARIOS_DEMO: UsuarioDemo[] = [
+  { id: 'u-rgb', nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño', rol: 'DUENO', activo: true },
   { id: 'u-dueno', nombre: 'María Quispe', email: 'maria@billboardsperu.pe', cargo: 'Dueña', rol: 'DUENO', activo: true },
   { id: 'u-comercial', nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Ejecutivo comercial', rol: 'COMERCIAL', activo: true },
   { id: 'u-operaciones', nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Jefe de operaciones', rol: 'OPERACIONES', activo: true },
