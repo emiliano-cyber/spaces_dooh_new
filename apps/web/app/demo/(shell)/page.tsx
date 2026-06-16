@@ -14,13 +14,22 @@ import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
-import { SITIO_TONO, SITIO_LABEL, type Tono } from '@/components/demo/StatusBadge'
+import {
+  SITIO_TONO,
+  SITIO_LABEL,
+  CAMPANA_TONO,
+  CAMPANA_LABEL,
+  type Tono,
+} from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import {
   useDashboard,
   useOcupacionSerie,
   useSitios,
+  useCampanas,
   formatMonto,
+  formatFecha,
+  diasHasta,
   type Granularidad,
 } from '@/lib/data/client'
 
@@ -41,6 +50,7 @@ export default function DashboardPage() {
   const sitios = useSitios()
   const [gran, setGran] = useState<Granularidad>('semana')
   const serie = useOcupacionSerie(gran)
+  const campanas = useCampanas()
 
   const puntos: MapPoint[] =
     sitios?.map((s) => ({
@@ -50,6 +60,12 @@ export default function DashboardPage() {
       tono: SITIO_TONO[s.estatusComercial],
       label: s.nombre,
     })) ?? []
+
+  // Campañas que finalizan/finalizaron en una ventana corta (revisión de ingresos).
+  const porFinalizar = (campanas ?? [])
+    .map((c) => ({ c, dias: diasHasta(c.fechaFin) }))
+    .filter((x) => x.dias >= -7 && x.dias <= 14 && x.c.estadoComercial !== 'CANCELADA')
+    .sort((a, b) => a.dias - b.dias)
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -204,6 +220,47 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Campañas por finalizar / recién finalizadas (revisión de ingresos) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Campañas por finalizar</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!campanas ? (
+            <div className="h-20 animate-pulse rounded bg-surface-2" />
+          ) : porFinalizar.length === 0 ? (
+            <p className="text-[13px] text-muted">Ninguna campaña finaliza en los próximos días.</p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {porFinalizar.map(({ c, dias }) => (
+                <li key={c.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <Link href={`/demo/campanas/${c.id}`} className="truncate text-[13px] text-ink hover:underline">
+                      {c.nombre}
+                    </Link>
+                    <div className="demo-num text-[11px] text-muted">
+                      Finaliza {formatFecha(c.fechaFin)} ·{' '}
+                      {dias < 0 ? `terminó hace ${Math.abs(dias)} d` : dias === 0 ? 'hoy' : `en ${dias} d`}
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      'rounded-full border px-2 py-0.5 text-[12px] font-medium',
+                      CAMPANA_TONO[c.estadoComercial] === 'verde' && 'border-[#10b98140] text-[#0f7a55]',
+                      CAMPANA_TONO[c.estadoComercial] === 'azul' && 'border-[#0a66ff40] text-info',
+                      CAMPANA_TONO[c.estadoComercial] === 'ambar' && 'border-[#f59e0b40] text-[#9a6700]',
+                      CAMPANA_TONO[c.estadoComercial] === 'neutro' && 'border-border text-muted',
+                    )}
+                  >
+                    {CAMPANA_LABEL[c.estadoComercial]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

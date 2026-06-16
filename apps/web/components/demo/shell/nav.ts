@@ -9,6 +9,7 @@ import {
   Receipt,
   Settings,
   History,
+  Network,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -27,6 +28,7 @@ export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/demo', icon: LayoutDashboard, roles: ['DUENO'] },
   { key: 'comercial', label: 'Comercial', href: '/demo/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'campanas', label: 'Campañas', href: '/demo/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'network', label: 'Network', href: '/demo/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'arrendadores', label: 'Arrendadores', href: '/demo/arrendadores', icon: Building2, roles: ['DUENO'] },
   { key: 'operaciones', label: 'Operaciones', href: '/demo/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'] },
   { key: 'imprenta', label: 'Imprenta', href: '/demo/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'] },

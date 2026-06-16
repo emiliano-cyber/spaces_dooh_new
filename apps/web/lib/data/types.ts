@@ -196,8 +196,20 @@ export interface Sitio {
   spotsPorHora: number | null // DOOH
   duracionSpotSeg: number | null // DOOH
   horario: string | null // horario de exhibición (DOOH)
+  // ─── Alta de inventario / Network (puntos 6 y 7 de la reunión) ────────────
+  direccionPredio: string // dirección física del predio
+  direccionComercial: string // dirección comercial (la que se muestra)
+  resolucionPx: string | null // resolución en píxeles (DOOH), p. ej. 1920x1080
+  tipoContenido: TipoContenido | null // video / imagen (DOOH)
+  comercializacion: Comercializacion // programático vs tradicional
+  enNetwork: boolean // compartido a la Network
+  cms: CMS | null // CMS que opera la pantalla
   creadoEn: string
 }
+
+export type TipoContenido = 'VIDEO' | 'IMAGEN'
+export type Comercializacion = 'PROGRAMATICO' | 'TRADICIONAL'
+export type CMS = 'BROADSIGN' | 'INVIDIS' | 'DOOHMAIN' | 'OTRO'
 
 export interface Arrendador {
   id: string

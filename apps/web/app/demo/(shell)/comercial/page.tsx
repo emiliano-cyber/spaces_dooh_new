@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock } from 'lucide-react'
+import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
+import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
 import {
   StatusBadge,
   SITIO_TONO,
@@ -53,6 +54,7 @@ export default function ComercialPage() {
   const [activo, setActivo] = useState<string | null>(null)
   const [fichaOpen, setFichaOpen] = useState(false)
   const [reservaOpen, setReservaOpen] = useState(false)
+  const [altaOpen, setAltaOpen] = useState(false)
   const [extender, setExtender] = useState<{ id: string; nombre: string } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -119,9 +121,14 @@ export default function ComercialPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-4">
-      <div>
-        <h1 className="text-2xl text-ink">Comercial</h1>
-        <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {filtrados.length} sitios</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl text-ink">Comercial</h1>
+          <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {filtrados.length} sitios</p>
+        </div>
+        <Button size="sm" onClick={() => setAltaOpen(true)}>
+          <Plus className="h-3.5 w-3.5" /> Nueva pantalla
+        </Button>
       </div>
 
       {/* Reservas tentativas (Acto 3: confirmar / extender) */}
@@ -298,6 +305,13 @@ export default function ComercialPage() {
           </div>
         </Card>
       </div>
+
+      {/* Alta de pantalla */}
+      <AltaSitioDialog
+        open={altaOpen}
+        onOpenChange={setAltaOpen}
+        onCreado={(s) => notify(`Pantalla "${s.nombre}" dada de alta`)}
+      />
 
       {/* Ficha de sitio */}
       <SiteFicha

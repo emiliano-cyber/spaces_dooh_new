@@ -20,6 +20,11 @@ import type {
   Reserva,
   TipoIncidencia,
   AccionLog,
+  Sitio,
+  TipoMedio,
+  Comercializacion,
+  CMS,
+  TipoContenido,
 } from '../types'
 
 // ─── util: id único en runtime (no usamos persistencia) ─────────────────────
@@ -63,6 +68,36 @@ export interface ReservarInput {
   sitioIds: string[]
   fechaInicio: string
   fechaFin: string
+}
+
+export interface AltaSitioInput {
+  nombre: string
+  tipoMedio: TipoMedio
+  direccionPredio: string
+  direccionComercial: string
+  distrito: string
+  lat: number
+  lng: number
+  ancho: number
+  alto: number
+  iluminado: boolean
+  tarifaPublicada: number
+  comercializacion: Comercializacion
+  enNetwork: boolean
+  cms: CMS | null
+  resolucionPx: string | null
+  tipoContenido: TipoContenido | null
+}
+
+// Perfiles para autollenar campos técnicos al dar de alta una pantalla.
+const ESTRUCTURA_POR_MEDIO: Record<TipoMedio, string> = {
+  ESPECTACULAR: 'unipolar',
+  PANTALLA_DIGITAL: 'pantalla LED',
+  VALLA: 'a piso',
+  MOBILIARIO_URBANO: 'mupi',
+  PUENTE_PEATONAL: 'puente peatonal',
+  MURAL: 'muro',
+  OTRO: 'otro',
 }
 
 export interface CerrarOTInput {
@@ -149,6 +184,79 @@ export const mockAdapter = {
   },
 
   // ─── Escrituras (mutan el store → re-render en vivo) ───────────────────────
+
+  // ALTA DE PANTALLA: crea un sitio nuevo en el inventario (mapa + lista en vivo).
+  async altaSitio(input: AltaSitioInput): Promise<Sitio> {
+    const id = uid('sitio')
+    const digital = input.tipoMedio === 'PANTALLA_DIGITAL'
+    const sitio: Sitio = {
+      id,
+      claveInterna: `BP-${String(100 + _seq).padStart(3, '0')}`,
+      nombre: input.nombre,
+      tipoMedio: input.tipoMedio,
+      lat: input.lat,
+      lng: input.lng,
+      direccion: input.direccionComercial,
+      alcaldia: input.distrito,
+      ciudad: 'Lima',
+      estado: 'Lima',
+      pais: 'PE',
+      alto: input.alto,
+      ancho: input.ancho,
+      iluminado: input.iluminado,
+      orientacion: 'Norte',
+      fotos: [],
+      estatusComercial: 'DISPONIBLE',
+      estatusLegal: 'EN_ORDEN',
+      estatusOperativo: 'ACTIVO',
+      notas: null,
+      tarifaMensual: input.tarifaPublicada,
+      codigoProveedor: `056${String(_seq).padStart(2, '0')}-${digital ? 'D' : 'E'}01`,
+      exhibicion: digital ? 'rotativo' : 'fijo',
+      unidad: digital ? 'mensual' : 'catorcenal',
+      esRotativo: digital,
+      plazaCiudad: 'Lima',
+      caras: input.tipoMedio === 'MOBILIARIO_URBANO' ? 2 : 1,
+      tipoEstructura: ESTRUCTURA_POR_MEDIO[input.tipoMedio],
+      vista: 'N-S',
+      tramo: 'tramo nuevo',
+      tarifaPublicada: input.tarifaPublicada,
+      costoCompra: Math.round(input.tarifaPublicada * 0.62),
+      spotsPorHora: digital ? 6 : null,
+      duracionSpotSeg: digital ? 10 : null,
+      horario: digital ? '06:00–24:00' : null,
+      direccionPredio: input.direccionPredio,
+      direccionComercial: input.direccionComercial,
+      resolucionPx: input.resolucionPx,
+      tipoContenido: input.tipoContenido,
+      comercializacion: input.comercializacion,
+      enNetwork: input.enNetwork,
+      cms: input.cms,
+      creadoEn: nowISO(),
+    }
+    mutateDemo((state) => ({
+      sitios: [...state.sitios, sitio],
+      acciones: [acc('Dio de alta pantalla', sitio.nombre), ...state.acciones],
+    }))
+    return delay(sitio)
+  },
+
+  // NETWORK: el dueño decide qué espacios comparte con la Network.
+  async toggleNetwork(sitioId: string): Promise<void> {
+    mutateDemo((state) => {
+      const sit = state.sitios.find((s) => s.id === sitioId)
+      return {
+        sitios: state.sitios.map((s) =>
+          s.id === sitioId ? { ...s, enNetwork: !s.enNetwork } : s,
+        ),
+        acciones: [
+          acc(sit?.enNetwork ? 'Quitó de Network' : 'Compartió a Network', sit?.nombre ?? sitioId),
+          ...state.acciones,
+        ],
+      }
+    })
+    return delay(undefined)
+  },
 
   // Acto 3 — RESERVAR: crea (o reutiliza) campaña + reservas TENTATIVA y pone
   // los sitios en RESERVADO (ámbar).

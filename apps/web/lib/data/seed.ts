@@ -133,6 +133,16 @@ function s(
     spotsPorHora: p.digital ? 6 : null,
     duracionSpotSeg: p.digital ? 10 : null,
     horario: p.digital ? '06:00–24:00' : null,
+    // Alta de inventario / Network
+    direccionPredio: direccion,
+    direccionComercial: direccion,
+    resolucionPx: p.digital ? '1920x1080' : null,
+    tipoContenido: p.digital ? 'VIDEO' : null,
+    // Las digitales son programáticas; el resto tradicional (regla por pantalla).
+    comercializacion: p.digital ? 'PROGRAMATICO' : 'TRADICIONAL',
+    // Las digitales se comparten a la Network por defecto.
+    enNetwork: p.digital,
+    cms: p.digital ? (_siteSeq % 2 === 0 ? 'BROADSIGN' : 'DOOHMAIN') : null,
     creadoEn: offsetISO(-400),
   }
 }

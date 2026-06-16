@@ -15,6 +15,8 @@ import {
   Repeat,
   Monitor,
   Clock,
+  Network,
+  Share2,
 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Button } from '@/components/demo/ui/Button'
@@ -42,6 +44,13 @@ const TIPO_LABEL: Record<TipoMedio, string> = {
   MURAL: 'Mural',
   VALLA: 'Valla',
   OTRO: 'Otro',
+}
+
+const CMS_LABEL: Record<string, string> = {
+  BROADSIGN: 'Broadsign',
+  INVIDIS: 'Invidis',
+  DOOHMAIN: 'Doohmain',
+  OTRO: 'Otros',
 }
 
 const OPERATIVO_LABEL: Record<string, string> = {
@@ -168,11 +177,24 @@ export function SiteFicha({
           {/* Datos DOOH solo si aplica */}
           {sitio.esRotativo && (
             <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Resolución" valor={sitio.resolucionPx ?? '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Contenido" valor={sitio.tipoContenido === 'VIDEO' ? 'Video' : sitio.tipoContenido === 'IMAGEN' ? 'Imagen' : '—'} />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración spot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />
             </dl>
           )}
+
+          {/* Comercialización (Network) */}
+          <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
+            <Caracteristica
+              icon={<Network className="h-4 w-4" />}
+              label="Comercialización"
+              valor={sitio.comercializacion === 'PROGRAMATICO' ? 'Programático' : 'Tradicional'}
+            />
+            <Caracteristica icon={<Share2 className="h-4 w-4" />} label="En Network" valor={sitio.enNetwork ? 'Sí' : 'No'} />
+          </dl>
         </div>
 
         {/* Datos comerciales (interno — el portal no muestra financieros) */}
@@ -200,7 +222,20 @@ export function SiteFicha({
         {/* Dirección */}
         <div>
           <h4 className="mb-1.5 text-[13px] font-medium text-ink">Ubicación</h4>
-          <p className="text-[13px] text-muted">{sitio.direccion}</p>
+          <dl className="space-y-1.5 text-[13px]">
+            <div>
+              <dt className="text-[11px] text-muted">Dirección comercial</dt>
+              <dd className="text-ink">{sitio.direccionComercial}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-muted">Dirección del predio</dt>
+              <dd className="text-ink">{sitio.direccionPredio}</dd>
+            </div>
+            <div>
+              <dt className="text-[11px] text-muted">Coordenadas</dt>
+              <dd className="demo-num text-ink">{sitio.lat.toFixed(4)}, {sitio.lng.toFixed(4)}</dd>
+            </div>
+          </dl>
         </div>
 
         {/* Disponibilidad por fechas */}
