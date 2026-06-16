@@ -13,10 +13,14 @@ import { data, type Sitio, type TipoMedio } from '@/lib/data/client'
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+// Tipos de la lista validada (parabús/mupi/publitienda → mobiliario urbano).
 const TIPO_PANTALLA: { v: TipoMedio; label: string }[] = [
   { v: 'ESPECTACULAR', label: 'Espectacular' },
   { v: 'MURAL', label: 'Muro' },
   { v: 'VALLA', label: 'Valla' },
+  { v: 'MOBILIARIO_URBANO', label: 'Mobiliario urbano (parabús/mupi/publitienda)' },
+  { v: 'PUENTE_PEATONAL', label: 'Puente' },
+  { v: 'OTRO', label: 'Otro' },
 ]
 const ESTADOS: { v: Sitio['estatusComercial']; label: string }[] = [
   { v: 'DISPONIBLE', label: 'Disponible' },

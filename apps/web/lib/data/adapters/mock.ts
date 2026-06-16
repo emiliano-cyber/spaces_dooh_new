@@ -31,11 +31,16 @@ import type {
 } from '../types'
 import type { FilaValidada } from '../../inventario-import'
 
-// tipo_medio del archivo (espectacular|muro|valla) → enum TipoMedio.
+// tipo_medio del archivo (lista validada) → enum TipoMedio.
 const MAPEO_TIPO: Record<string, TipoMedio> = {
   espectacular: 'ESPECTACULAR',
   muro: 'MURAL',
   valla: 'VALLA',
+  parabus: 'MOBILIARIO_URBANO',
+  mupi: 'MOBILIARIO_URBANO',
+  publitienda: 'MOBILIARIO_URBANO',
+  puente: 'PUENTE_PEATONAL',
+  otro: 'OTRO',
 }
 
 // ─── util: id único en runtime (no usamos persistencia) ─────────────────────

@@ -47,9 +47,11 @@ export interface FilaValidada {
 const LAT_DEFAULT = 19.4326
 const LNG_DEFAULT = -99.1332
 
-const TIPO_MEDIO_OK = ['espectacular', 'muro', 'valla']
+// Valores válidos según el libro "Listas validadas" de la plantilla.
+const TIPO_MEDIO_OK = ['espectacular', 'muro', 'valla', 'parabus', 'mupi', 'publitienda', 'puente', 'otro']
 const EXHIBICION_OK = ['fijo', 'digital']
-const UNIDAD_OK = ['mensual', 'catorcenal', 'semanal']
+const UNIDAD_OK = ['mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'programatico']
+const SI_NO_OK = ['si', 'sí', 'no']
 
 // Limpia un encabezado: minúsculas, sin acentos, espacios/especiales → '_'.
 export function limpiarHeader(h: string): string {
@@ -114,11 +116,15 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   }
 
   const advertencias: string[] = []
-  if (!TIPO_MEDIO_OK.includes(tipoMedio)) advertencias.push(`tipo_medio "${tipoMedio}" no estándar`)
+  if (!TIPO_MEDIO_OK.includes(tipoMedio)) advertencias.push(`tipo_medio "${tipoMedio}" no está en la lista validada`)
   const exhibicion = txt(raw.exhibicion).toLowerCase()
-  if (exhibicion && !EXHIBICION_OK.includes(exhibicion)) advertencias.push(`exhibicion "${exhibicion}" no estándar`)
+  if (exhibicion && !EXHIBICION_OK.includes(exhibicion)) advertencias.push(`exhibicion "${exhibicion}" no está en la lista validada`)
   const unidad = txt(raw.unidad).toLowerCase()
-  if (unidad && !UNIDAD_OK.includes(unidad)) advertencias.push(`unidad "${unidad}" no estándar`)
+  if (unidad && !UNIDAD_OK.includes(unidad)) advertencias.push(`unidad "${unidad}" no está en la lista validada`)
+  const esRotTxt = txt(raw.es_rotativo).toLowerCase()
+  if (esRotTxt && !SI_NO_OK.includes(esRotTxt)) advertencias.push(`es_rotativo "${esRotTxt}" debe ser si/no`)
+  const iluTxt = txt(raw.iluminacion).toLowerCase()
+  if (iluTxt && !SI_NO_OK.includes(iluTxt)) advertencias.push(`iluminacion "${iluTxt}" debe ser si/no`)
 
   // Coords default si vacías
   let pendiente = false
