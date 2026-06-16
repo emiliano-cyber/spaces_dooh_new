@@ -33,7 +33,6 @@ export interface SitioImport {
   duracion_spot_seg: number | null
   horario: string
   notas: string
-  imagen_promocional: string
   pendienteVerificacion: boolean
 }
 
@@ -183,7 +182,6 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
     duracion_spot_seg: num(raw.duracion_spot_seg),
     horario: txt(raw.horario),
     notas: txt(raw.notas),
-    imagen_promocional: txt(raw.imagen_promocional),
     pendienteVerificacion: pendiente,
   }
 

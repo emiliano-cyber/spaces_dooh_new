@@ -239,7 +239,7 @@ export function ImportarInventarioDialog({
             {totalImagenes > 0 ? `${totalImagenes} imágenes cargadas` : 'Subir imágenes (JPG/PNG ≤5MB)'}
             <input type="file" accept="image/jpeg,image/png" multiple onChange={onImagenes} className="hidden" />
           </label>
-          <p className="mt-1 text-[11px] text-muted">Se asocian por nombre de archivo o por código de proveedor.</p>
+          <p className="mt-1 text-[11px] text-muted">Se asocian por código de proveedor (nombre del archivo = código).</p>
         </div>
 
         {/* Duplicados */}

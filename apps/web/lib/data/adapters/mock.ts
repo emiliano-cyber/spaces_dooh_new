@@ -315,9 +315,10 @@ export const mockAdapter = {
       const sitios = [...state.sitios]
       const acciones = [...state.acciones]
 
-      // Busca imagen por nombre de archivo exacto o por código de proveedor.
-      const imagenDe = (nombreArchivo: string, codigo: string): string | null => {
-        if (nombreArchivo && imagenes[nombreArchivo]) return imagenes[nombreArchivo]
+      // Asocia imagen por código de proveedor (la plantilla no trae columna de
+      // imagen; las imágenes se suben en bulk y se emparejan por nombre = código).
+      const imagenDe = (codigo: string): string | null => {
+        if (!codigo) return null
         const porCodigo = Object.keys(imagenes).find(
           (f) => f.replace(/\.[^.]+$/, '').toLowerCase() === codigo.toLowerCase(),
         )
@@ -344,7 +345,7 @@ export const mockAdapter = {
       for (const [clave, rows] of grupos) {
         const principal = rows[0].datos!
         const tipoMedio = MAPEO_TIPO[principal.tipo_medio] ?? 'OTRO'
-        const img = imagenDe(principal.imagen_promocional, principal.codigo_proveedor)
+        const img = imagenDe(principal.codigo_proveedor)
         const modalidadesDetalle = rows.map((r) => ({
           unidad: r.datos!.unidad,
           tarifaPublicada: r.datos!.tarifa_publicada,
