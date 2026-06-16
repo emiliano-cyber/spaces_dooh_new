@@ -149,6 +149,7 @@ export function NuevaPantallaForm({
           ]}
         >
           <TabPanel value="basico" className="space-y-3 pt-3">
+            <h3 className="text-base font-semibold text-ink">Información básica</h3>
             <Campo label="Nombre de la pantalla">
               <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
             </Campo>
@@ -174,6 +175,7 @@ export function NuevaPantallaForm({
           </TabPanel>
 
           <TabPanel value="specs" className="space-y-3 pt-3">
+            <h3 className="text-base font-semibold text-ink">Especificaciones técnicas</h3>
             <div className="grid grid-cols-2 gap-3">
               <Campo label="Resolución ancho (px)"><input className={inputCls} value={resAncho} onChange={(e) => setResAncho(e.target.value)} /></Campo>
               <Campo label="Resolución alto (px)"><input className={inputCls} value={resAlto} onChange={(e) => setResAlto(e.target.value)} /></Campo>
@@ -190,26 +192,41 @@ export function NuevaPantallaForm({
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <Campo label="Duración spot (s)"><input className={inputCls} value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} /></Campo>
-              <Campo label="Total spots"><input className={inputCls} value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} /></Campo>
-              <Campo label="Disponibles"><input className={inputCls} value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} /></Campo>
+            <div className="rounded-md border border-border bg-surface-2 p-3">
+              <div className="mb-2 text-[12px] font-medium text-ink">Configuración de spots</div>
+              <div className="grid grid-cols-3 gap-3">
+                <Campo label="Duración spot (s)"><input className={inputCls} value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} /></Campo>
+                <Campo label="Total spots"><input className={inputCls} value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} /></Campo>
+                <Campo label="Disponibles"><input className={inputCls} value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} /></Campo>
+              </div>
             </div>
           </TabPanel>
 
           <TabPanel value="ia" className="space-y-3 pt-3">
-            <label className="flex items-center gap-2 text-[13px] text-ink">
-              <input type="checkbox" checked={cv} onChange={(e) => setCv(e.target.checked)} className="h-4 w-4 accent-[var(--accent)]" />
-              ¿Cuenta con Computer Vision (AdMobilize)?
-            </label>
+            <h3 className="text-base font-semibold text-ink">Computer Vision / AdMobilize</h3>
+            <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
+              <b className="text-info">AdMobilize</b> permite detectar y contabilizar vehículos y
+              personas que pasan frente a la pantalla utilizando tecnología de Computer Vision.
+            </div>
+            <div className="rounded-md border border-border p-3">
+              <label className="flex items-start gap-2 text-[13px] text-ink">
+                <input type="checkbox" checked={cv} onChange={(e) => setCv(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
+                <span>
+                  Esta pantalla cuenta con tecnología de Computer Vision (IA)
+                  <span className="block text-[12px] text-muted">Actívala si tu pantalla usa AdMobilize para el conteo de audiencia</span>
+                </span>
+              </label>
+            </div>
             {cv && (
-              <Campo label="ID del dispositivo AdMobilize (obligatorio)">
+              <Campo label="ID del dispositivo AdMobilize">
                 <input className={cn(inputCls, cvInvalido && 'border-error')} value={admobilizeId} onChange={(e) => setAdmobilizeId(e.target.value)} placeholder="p. ej. ADM-00123" />
+                <span className="mt-1 block text-[11px] text-muted">Identificador único del dispositivo instalado en esta pantalla.</span>
               </Campo>
             )}
           </TabPanel>
 
           <TabPanel value="precios" className="space-y-3 pt-3">
+            <h3 className="text-base font-semibold text-ink">Precios</h3>
             <Campo label="Tarifa publicada"><input className={inputCls} value={tarifa} onChange={(e) => setTarifa(e.target.value)} /></Campo>
             <Campo label="Costo de compra"><input className={inputCls} value={costo} onChange={(e) => setCosto(e.target.value)} /></Campo>
             <Campo label="Precio por m² (estáticas)">
@@ -218,6 +235,7 @@ export function NuevaPantallaForm({
           </TabPanel>
 
           <TabPanel value="imagenes" className="space-y-3 pt-3">
+            <h3 className="text-base font-semibold text-ink">Imágenes</h3>
             <span className="block text-[12px] font-medium text-ink">Imagen promocional</span>
             <p className="text-[11px] text-muted">JPG o PNG · máximo 5MB</p>
             {imagen && (

@@ -1,7 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, FileSpreadsheet, AlertTriangle, Image as ImageIcon } from 'lucide-react'
+import {
+  Upload,
+  FileSpreadsheet,
+  AlertTriangle,
+  Image as ImageIcon,
+  Plus,
+  Download,
+  FileText,
+} from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
@@ -17,6 +25,9 @@ import {
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+// La plantilla real vive en /public; el basePath /spaces-dooh la sirve aquí.
+const PLANTILLA_URL = '/spaces-dooh/plantilla-sitios-set.xlsx'
+
 const STATUS_STYLE: Record<ImportStatus, string> = {
   creado: 'text-[#0f7a55]',
   actualizado: 'text-info',
@@ -27,12 +38,15 @@ const STATUS_STYLE: Record<ImportStatus, string> = {
 export function ImportarInventarioDialog({
   open,
   onOpenChange,
+  onNuevaPantalla,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
+  onNuevaPantalla: () => void
 }) {
   const sitios = useSitios()
-  const [precioM2, setPrecioM2] = useState('')
+  const [precioM2, setPrecioM2] = useState('65')
+  const [codificacion, setCodificacion] = useState('utf-8')
   const [filas, setFilas] = useState<FilaValidada[] | null>(null)
   const [archivoNombre, setArchivoNombre] = useState('')
   const [imagenes, setImagenes] = useState<Record<string, string>>({})
@@ -40,8 +54,8 @@ export function ImportarInventarioDialog({
   const [summary, setSummary] = useState<ImportSummary | null>(null)
   const [procesando, setProcesando] = useState(false)
   const [leyendo, setLeyendo] = useState(false)
+  const [arrastrando, setArrastrando] = useState(false)
 
-  // Códigos del archivo que ya existen → duplicados.
   const existentes = new Set((sitios ?? []).map((s) => s.codigoProveedor))
   const duplicados = (filas ?? [])
     .filter((f) => f.datos && existentes.has(f.codigo_proveedor))
@@ -55,9 +69,7 @@ export function ImportarInventarioDialog({
     setModo('ACTUALIZAR')
   }
 
-  async function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
+  async function procesarArchivo(f: File) {
     setLeyendo(true)
     setArchivoNombre(f.name)
     try {
@@ -67,6 +79,11 @@ export function ImportarInventarioDialog({
     }
     setLeyendo(false)
     setSummary(null)
+  }
+
+  async function onArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (f) await procesarArchivo(f)
     e.target.value = ''
   }
 
@@ -103,8 +120,8 @@ export function ImportarInventarioDialog({
         if (!v) reset()
         onOpenChange(v)
       }}
-      title="Importar inventario"
-      subtitle="Carga masiva desde Excel (.xlsx) o CSV"
+      title="Carga masiva de inventario"
+      subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
       footer={
         <div className="flex items-center justify-between">
           <span className="text-[12px] text-muted">
@@ -121,22 +138,97 @@ export function ImportarInventarioDialog({
         </div>
       }
     >
-      <div className="max-h-[62vh] space-y-4 overflow-y-auto pr-1">
-        {/* Precio m2 */}
+      <div className="max-h-[64vh] space-y-3 overflow-y-auto pr-1">
+        {/* ¿Solo una pantalla? */}
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+          <div>
+            <div className="text-[13px] font-medium text-ink">¿Solo una pantalla?</div>
+            <div className="text-[12px] text-muted">Agrégala manualmente con el formulario</div>
+          </div>
+          <Button size="sm" onClick={onNuevaPantalla}>
+            <Plus className="h-3.5 w-3.5" /> Nueva pantalla
+          </Button>
+        </div>
+
+        {/* ¿Primera vez? Descargar plantilla */}
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+          <div>
+            <div className="text-[13px] font-medium text-ink">¿Primera vez cargando inventario?</div>
+            <div className="text-[12px] text-muted">Descarga la plantilla con el formato correcto</div>
+          </div>
+          <a
+            href={PLANTILLA_URL}
+            download
+            className="inline-flex h-8 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-[13px] font-medium text-ink hover:bg-surface-2"
+          >
+            <Download className="h-3.5 w-3.5" /> Descargar plantilla
+          </a>
+        </div>
+
+        {/* Precio de impresión por m² */}
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+          <div>
+            <div className="text-[13px] font-medium text-ink">Precio de impresión por m² (pantallas estáticas)</div>
+            <div className="text-[12px] text-muted">Este valor se aplicará a todas las pantallas estáticas</div>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-[13px] text-muted">$</span>
+            <input
+              value={precioM2}
+              onChange={(e) => setPrecioM2(e.target.value)}
+              className="h-9 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent demo-num"
+            />
+            <span className="text-[13px] text-muted">/m²</span>
+          </div>
+        </div>
+
+        {/* Info limpieza de encabezados */}
+        <div className="flex gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
+          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+          <p>
+            Sube un archivo CSV o Excel con tu inventario. El sistema mapea las columnas con los
+            campos requeridos y <b className="text-ink">limpia automáticamente los encabezados</b>{' '}
+            (espacios, acentos y caracteres especiales) para aceptar cualquier archivo sin problemas.
+          </p>
+        </div>
+
+        {/* Codificación */}
         <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Precio por m² (opcional)</span>
-          <input className={inputCls} value={precioM2} onChange={(e) => setPrecioM2(e.target.value)} placeholder="Se aplica a pantallas estáticas: ancho × alto × precio_m2" />
+          <span className="mb-1 block text-[12px] font-medium text-ink">Codificación del archivo</span>
+          <select className={inputCls} value={codificacion} onChange={(e) => setCodificacion(e.target.value)}>
+            <option value="utf-8">UTF-8 (Universal)</option>
+            <option value="latin1">Latin-1 / ISO-8859-1</option>
+            <option value="windows-1252">Windows-1252</option>
+          </select>
+          <span className="mt-1 block text-[11px] text-muted">
+            El sistema intentará detectar automáticamente la codificación correcta si la seleccionada no funciona.
+          </span>
         </label>
 
-        {/* Archivo */}
-        <div>
-          <span className="mb-1 block text-[12px] font-medium text-ink">Archivo de inventario</span>
-          <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border-strong px-3 py-3 text-[13px] text-muted hover:bg-surface-2">
-            <FileSpreadsheet className="h-4 w-4" />
-            {leyendo ? 'Leyendo…' : archivoNombre || 'Seleccionar .xlsx o .csv'}
-            <input type="file" accept=".xlsx,.xls,.csv" onChange={onArchivo} className="hidden" />
-          </label>
-        </div>
+        {/* Zona drag-drop */}
+        <label
+          onDragOver={(e) => { e.preventDefault(); setArrastrando(true) }}
+          onDragLeave={() => setArrastrando(false)}
+          onDrop={(e) => {
+            e.preventDefault()
+            setArrastrando(false)
+            const f = e.dataTransfer.files?.[0]
+            if (f) procesarArchivo(f)
+          }}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center gap-1 rounded-md border-2 border-dashed px-4 py-6 text-center transition-colors duration-150',
+            arrastrando ? 'border-accent bg-[#f59e0b0a]' : 'border-border-strong hover:bg-surface-2',
+          )}
+        >
+          <Upload className="h-6 w-6 text-muted" />
+          <span className="text-[13px] text-ink">
+            {leyendo ? 'Leyendo…' : archivoNombre || 'Arrastra un archivo o selecciónalo'}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[11px] text-muted">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> .xlsx o .csv
+          </span>
+          <input type="file" accept=".xlsx,.xls,.csv" onChange={onArchivo} className="hidden" />
+        </label>
 
         {/* Imágenes en bulk */}
         <div>
@@ -170,10 +262,8 @@ export function ImportarInventarioDialog({
           </div>
         )}
 
-        {/* Vista previa de filas (antes de procesar) */}
-        {filas && !summary && (
-          <FilasTabla filas={filas} />
-        )}
+        {/* Vista previa */}
+        {filas && !summary && <FilasTabla filas={filas} />}
 
         {/* Resumen */}
         {summary && (

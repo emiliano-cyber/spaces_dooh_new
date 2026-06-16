@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, PlusSquare, PackagePlus, CheckCircle2 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { PackagePlus, CheckCircle2 } from 'lucide-react'
+import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { ImportarInventarioDialog } from './ImportarInventarioDialog'
 import { NuevaPantallaForm } from './NuevaPantallaForm'
 
-// Sección "Agregar inventario" (debajo del dashboard): dos flujos — importar un
-// archivo Excel/CSV en masa, o dar de alta una sola pantalla con el formulario.
+// Sección "Agregar inventario" (debajo del dashboard). Un botón abre el modal de
+// carga masiva (Modal 1), que a su vez ofrece descargar plantilla, subir archivo
+// o abrir el formulario manual de "Nueva pantalla".
 export function AgregarInventario() {
   const [importOpen, setImportOpen] = useState(false)
   const [nuevaOpen, setNuevaOpen] = useState(false)
@@ -21,46 +22,34 @@ export function AgregarInventario() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-2">
-        <PackagePlus className="h-4 w-4 text-muted" />
-        <CardTitle>Agregar inventario</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="mb-3 text-[13px] text-muted">
-          Carga pantallas a tu inventario por archivo (Excel/CSV) o una por una.
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="flex items-start gap-3 rounded-md border border-border bg-surface p-4 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-surface-2 text-ink">
-              <Upload className="h-4.5 w-4.5" />
-            </span>
-            <span>
-              <span className="block text-[14px] font-medium text-ink">Importar archivo</span>
-              <span className="block text-[12px] text-muted">Excel (.xlsx) o CSV en masa, con validaciones y resumen</span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setNuevaOpen(true)}
-            className="flex items-start gap-3 rounded-md border border-border bg-surface p-4 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-surface-2 text-ink">
-              <PlusSquare className="h-4.5 w-4.5" />
-            </span>
-            <span>
-              <span className="block text-[14px] font-medium text-ink">Nueva pantalla</span>
-              <span className="block text-[12px] text-muted">Alta manual con formulario de 5 secciones</span>
-            </span>
-          </button>
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
+            <PackagePlus className="h-5 w-5" strokeWidth={1.75} />
+          </span>
+          <div>
+            <div className="text-[15px] font-semibold text-ink">Agregar inventario</div>
+            <div className="text-[13px] text-muted">
+              Carga masiva por Excel/CSV con plantilla, o alta manual de una pantalla.
+            </div>
+          </div>
         </div>
+        <Button onClick={() => setImportOpen(true)}>
+          <PackagePlus className="h-4 w-4" /> Agregar inventario
+        </Button>
       </CardContent>
 
-      <ImportarInventarioDialog open={importOpen} onOpenChange={setImportOpen} />
+      {/* Modal 1 — carga masiva */}
+      <ImportarInventarioDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        onNuevaPantalla={() => {
+          setImportOpen(false)
+          setNuevaOpen(true)
+        }}
+      />
+
+      {/* Formulario manual de 5 tabs */}
       <NuevaPantallaForm
         open={nuevaOpen}
         onOpenChange={setNuevaOpen}
