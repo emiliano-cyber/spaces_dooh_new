@@ -186,9 +186,10 @@ export function ImportarInventarioDialog({
         <div className="flex gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">
           <FileText className="mt-0.5 h-4 w-4 shrink-0 text-info" />
           <p>
-            Sube un archivo CSV o Excel con tu inventario. El sistema mapea las columnas con los
-            campos requeridos y <b className="text-ink">limpia automáticamente los encabezados</b>{' '}
-            (espacios, acentos y caracteres especiales) para aceptar cualquier archivo sin problemas.
+            Sube el archivo usando la hoja <b className="text-ink">Sitios</b> de la plantilla. El
+            sistema lee solo esa hoja, <b className="text-ink">limpia automáticamente los encabezados</b>{' '}
+            y <b className="text-ink">agrupa por código de proveedor</b>: una fila por modalidad de
+            venta → un sitio con varias modalidades. Requeridos: nombre, exhibición, unidad, tarifa y costo.
           </p>
         </div>
 

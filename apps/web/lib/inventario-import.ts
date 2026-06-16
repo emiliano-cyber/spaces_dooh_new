@@ -64,11 +64,27 @@ export function limpiarHeader(h: string): string {
     .replace(/^_+|_+$/g, '')
 }
 
-// Lee el archivo y devuelve filas como objetos con encabezados limpios.
+// Elige la hoja de datos: la plantilla tiene Instrucciones / Sitios / Listas
+// válidas. Tomamos "Sitios" (la de los datos), no la primera (Instrucciones).
+function elegirHojaSitios(wb: XLSX.WorkBook): string {
+  const porNombre = wb.SheetNames.find((n) => limpiarHeader(n).includes('sitio'))
+  if (porNombre) return porNombre
+  // Fallback: la primera hoja cuyos encabezados incluyan codigo_proveedor/nombre.
+  for (const n of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(wb.Sheets[n], { defval: '' })
+    if (rows.length) {
+      const cols = Object.keys(rows[0]).map(limpiarHeader)
+      if (cols.includes('codigo_proveedor') || cols.includes('nombre')) return n
+    }
+  }
+  return wb.SheetNames[0]
+}
+
+// Lee el archivo (hoja "Sitios") y devuelve filas con encabezados limpios.
 export async function leerArchivo(file: File): Promise<Record<string, unknown>[]> {
   const buf = await file.arrayBuffer()
   const wb = XLSX.read(buf, { type: 'array' })
-  const sheet = wb.Sheets[wb.SheetNames[0]]
+  const sheet = wb.Sheets[elegirHojaSitios(wb)]
   const filas = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' })
   return filas.map((fila) => {
     const limpia: Record<string, unknown> = {}
@@ -97,13 +113,19 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   const plaza = txt(raw.plaza_ciudad)
   const lat = num(raw.latitud)
   const lng = num(raw.longitud)
+  const exhibicionRaw = txt(raw.exhibicion)
+  const unidadRaw = txt(raw.unidad)
+  const tarifa = num(raw.tarifa_publicada)
+  const costo = num(raw.costo_compra)
 
-  // Obligatorios
+  // Obligatorios (libro Instrucciones): nombre, exhibicion, unidad,
+  // tarifa_publicada, costo_compra.
   const faltan: string[] = []
-  if (!codigo) faltan.push('codigo_proveedor')
   if (!nombre) faltan.push('nombre')
-  if (!tipoMedio) faltan.push('tipo_medio')
-  if (!plaza) faltan.push('plaza_ciudad')
+  if (!exhibicionRaw) faltan.push('exhibicion')
+  if (!unidadRaw) faltan.push('unidad')
+  if (tarifa == null) faltan.push('tarifa_publicada')
+  if (costo == null) faltan.push('costo_compra')
   if (lat == null && txt(raw.latitud) !== '') faltan.push('latitud (no numérica)')
   if (lng == null && txt(raw.longitud) !== '') faltan.push('longitud (no numérica)')
   if (faltan.length) {
@@ -116,11 +138,11 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   }
 
   const advertencias: string[] = []
-  if (!TIPO_MEDIO_OK.includes(tipoMedio)) advertencias.push(`tipo_medio "${tipoMedio}" no está en la lista validada`)
-  const exhibicion = txt(raw.exhibicion).toLowerCase()
-  if (exhibicion && !EXHIBICION_OK.includes(exhibicion)) advertencias.push(`exhibicion "${exhibicion}" no está en la lista validada`)
-  const unidad = txt(raw.unidad).toLowerCase()
-  if (unidad && !UNIDAD_OK.includes(unidad)) advertencias.push(`unidad "${unidad}" no está en la lista validada`)
+  if (tipoMedio && !TIPO_MEDIO_OK.includes(tipoMedio)) advertencias.push(`tipo_medio "${tipoMedio}" no está en la lista validada`)
+  const exhibicion = exhibicionRaw.toLowerCase()
+  if (!EXHIBICION_OK.includes(exhibicion)) advertencias.push(`exhibicion "${exhibicion}" no está en la lista validada`)
+  const unidad = unidadRaw.toLowerCase()
+  if (!UNIDAD_OK.includes(unidad)) advertencias.push(`unidad "${unidad}" no está en la lista validada`)
   const esRotTxt = txt(raw.es_rotativo).toLowerCase()
   if (esRotTxt && !SI_NO_OK.includes(esRotTxt)) advertencias.push(`es_rotativo "${esRotTxt}" debe ser si/no`)
   const iluTxt = txt(raw.iluminacion).toLowerCase()
@@ -155,8 +177,8 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
     tipo_estructura: txt(raw.tipo_estructura),
     vista: txt(raw.vista),
     tramo: txt(raw.tramo),
-    tarifa_publicada: num(raw.tarifa_publicada) ?? 0,
-    costo_compra: num(raw.costo_compra) ?? 0,
+    tarifa_publicada: tarifa ?? 0,
+    costo_compra: costo ?? 0,
     spots_por_hora: num(raw.spots_por_hora),
     duracion_spot_seg: num(raw.duracion_spot_seg),
     horario: txt(raw.horario),

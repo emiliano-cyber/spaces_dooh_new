@@ -217,6 +217,23 @@ export function SiteFicha({
               )
             })()}
           </div>
+
+          {/* Modalidades por fila (importadas agrupadas por código) */}
+          {sitio.modalidadesDetalle && sitio.modalidadesDetalle.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[12px] font-medium text-ink">
+                Modalidades ({sitio.modalidadesDetalle.length})
+              </div>
+              <ul className="divide-y divide-border rounded-md border border-border">
+                {sitio.modalidadesDetalle.map((m, i) => (
+                  <li key={i} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
+                    <span className="capitalize text-ink">{m.unidad}</span>
+                    <span className="demo-num text-muted">{formatMonto(m.tarifaPublicada)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Dirección */}

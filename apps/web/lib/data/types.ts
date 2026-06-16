@@ -206,6 +206,8 @@ export interface Sitio {
   cms: CMS | null // CMS que opera la pantalla
   // ─── Agregar inventario (importador / formulario manual) ──────────────────
   modalidades: string[] // modalidades de contratación
+  // Detalle por modalidad (una por fila del Excel agrupada por codigo_proveedor)
+  modalidadesDetalle?: { unidad: string; tarifaPublicada: number; costoCompra: number }[]
   totalSpots: number | null // total de spots por pantalla (DOOH)
   spotsDisponibles: number | null // spots disponibles
   precioM2: number | null // precio por m² (estáticas)

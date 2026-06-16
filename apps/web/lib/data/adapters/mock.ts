@@ -118,6 +118,7 @@ export interface AltaSitioInput {
   precioM2?: number | null
   imagenPromocional?: string | null
   pendienteVerificacion?: boolean
+  modalidadesDetalle?: { unidad: string; tarifaPublicada: number; costoCompra: number }[]
 }
 
 // Perfiles para autollenar campos técnicos al dar de alta una pantalla.
@@ -187,6 +188,7 @@ function construirSitio(input: AltaSitioInput): Sitio {
     enNetwork: input.enNetwork,
     cms: input.cms,
     modalidades: input.modalidades ?? [digital ? 'Mensual' : 'Catorcenal'],
+    modalidadesDetalle: input.modalidadesDetalle,
     totalSpots: input.totalSpots ?? (digital ? 100 : null),
     spotsDisponibles: input.spotsDisponibles ?? (digital ? 85 : null),
     precioM2,
@@ -322,47 +324,70 @@ export const mockAdapter = {
         return porCodigo ? imagenes[porCodigo] : null
       }
 
+      // 1) Errores por fila + agrupar filas válidas por codigo_proveedor.
+      //    Cada fila = una modalidad; el sistema crea UN sitio por código.
+      const grupos = new Map<string, FilaValidada[]>()
+      let _sinCodigo = 0
       for (const fila of filas) {
         if (fila.status === 'error' || !fila.datos) {
           errores++
           detalle.push({ codigo_proveedor: fila.codigo_proveedor, status: 'error', mensaje: fila.mensaje })
           continue
         }
-        const d = fila.datos
-        const tipoMedio = MAPEO_TIPO[d.tipo_medio] ?? 'OTRO'
-        const img = imagenDe(d.imagen_promocional, d.codigo_proveedor)
+        const clave = fila.datos.codigo_proveedor || `__sin_codigo_${++_sinCodigo}`
+        const g = grupos.get(clave)
+        if (g) g.push(fila)
+        else grupos.set(clave, [fila])
+      }
+
+      // 2) Un sitio por grupo, con una modalidad por fila.
+      for (const [clave, rows] of grupos) {
+        const principal = rows[0].datos!
+        const tipoMedio = MAPEO_TIPO[principal.tipo_medio] ?? 'OTRO'
+        const img = imagenDe(principal.imagen_promocional, principal.codigo_proveedor)
+        const modalidadesDetalle = rows.map((r) => ({
+          unidad: r.datos!.unidad,
+          tarifaPublicada: r.datos!.tarifa_publicada,
+          costoCompra: r.datos!.costo_compra,
+        }))
         const base: AltaSitioInput = {
-          nombre: d.nombre,
+          nombre: principal.nombre,
           tipoMedio,
-          direccionPredio: d.direccion,
-          direccionComercial: d.direccion,
-          distrito: d.plaza_ciudad,
-          lat: d.latitud,
-          lng: d.longitud,
-          ancho: d.ancho_m,
-          alto: d.alto_m,
-          iluminado: d.iluminacion,
-          tarifaPublicada: d.tarifa_publicada,
-          comercializacion: d.exhibicion === 'digital' ? 'PROGRAMATICO' : 'TRADICIONAL',
+          direccionPredio: principal.direccion,
+          direccionComercial: principal.direccion,
+          distrito: principal.plaza_ciudad,
+          lat: principal.latitud,
+          lng: principal.longitud,
+          ancho: principal.ancho_m,
+          alto: principal.alto_m,
+          iluminado: principal.iluminacion,
+          tarifaPublicada: principal.tarifa_publicada,
+          comercializacion: principal.exhibicion === 'digital' ? 'PROGRAMATICO' : 'TRADICIONAL',
           enNetwork: false,
           cms: null,
           resolucionPx: null,
-          tipoContenido: d.exhibicion === 'digital' ? 'VIDEO' : null,
-          exhibicion: d.exhibicion,
-          codigoProveedor: d.codigo_proveedor,
-          costoCompra: d.costo_compra,
-          caras: d.caras,
-          duracionSpotSeg: d.duracion_spot_seg,
+          tipoContenido: principal.exhibicion === 'digital' ? 'VIDEO' : null,
+          exhibicion: principal.exhibicion,
+          codigoProveedor: principal.codigo_proveedor,
+          costoCompra: principal.costo_compra,
+          caras: principal.caras,
+          duracionSpotSeg: principal.duracion_spot_seg,
           precioM2,
           imagenPromocional: img,
-          pendienteVerificacion: d.pendienteVerificacion,
+          pendienteVerificacion: principal.pendienteVerificacion,
+          modalidades: modalidadesDetalle.map((m) => m.unidad),
+          modalidadesDetalle,
         }
 
-        const existente = sitios.find((s) => s.codigoProveedor === d.codigo_proveedor)
-        const conAdvertencia = fila.status === 'advertencia'
+        const codigoReal = principal.codigo_proveedor
+        const existente = codigoReal ? sitios.find((s) => s.codigoProveedor === codigoReal) : undefined
+        const conAdvertencia = rows.some((r) => r.status === 'advertencia')
+        const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
+        const advTxt = conAdvertencia
+          ? ` · advertencias: ${rows.filter((r) => r.status === 'advertencia').map((r) => r.mensaje).join('; ')}`
+          : ''
 
         if (existente && modoDuplicado === 'ACTUALIZAR') {
-          // Actualiza campos; conserva imagen anterior si no llega una nueva.
           const nuevo = construirSitio(base)
           const i = sitios.indexOf(existente)
           sitios[i] = {
@@ -375,30 +400,29 @@ export const mockAdapter = {
           if (conAdvertencia) con_advertencias++
           else actualizadas++
           detalle.push({
-            codigo_proveedor: d.codigo_proveedor,
+            codigo_proveedor: codigoReal,
             status: conAdvertencia ? 'advertencia' : 'actualizado',
-            mensaje: conAdvertencia ? `Actualizada con advertencias: ${fila.mensaje}` : 'Actualizada',
+            mensaje: `Actualizado${sufijoMod}${advTxt}`,
           })
         } else {
-          // Crear (nuevo, o duplicado con sufijo -vN)
-          let codigo = d.codigo_proveedor
+          let codigo = codigoReal
           if (existente && modoDuplicado === 'NUEVA_VERSION') {
             let v = 2
-            while (sitios.some((s) => s.codigoProveedor === `${d.codigo_proveedor}-v${v}`)) v++
-            codigo = `${d.codigo_proveedor}-v${v}`
+            while (sitios.some((s) => s.codigoProveedor === `${codigoReal}-v${v}`)) v++
+            codigo = `${codigoReal}-v${v}`
           }
-          sitios.push(construirSitio({ ...base, codigoProveedor: codigo }))
+          sitios.push(construirSitio({ ...base, codigoProveedor: codigo || undefined }))
           if (conAdvertencia) con_advertencias++
           else creadas++
           detalle.push({
-            codigo_proveedor: codigo,
+            codigo_proveedor: codigo || clave,
             status: conAdvertencia ? 'advertencia' : 'creado',
-            mensaje: conAdvertencia ? `Creada con advertencias: ${fila.mensaje}` : 'Creada',
+            mensaje: `Creado${sufijoMod}${advTxt}`,
           })
         }
       }
 
-      acciones.unshift(acc('Importó inventario', `${detalle.length} filas`))
+      acciones.unshift(acc('Importó inventario', `${grupos.size} sitios · ${filas.length} filas`))
       return { sitios, acciones }
     })
 
