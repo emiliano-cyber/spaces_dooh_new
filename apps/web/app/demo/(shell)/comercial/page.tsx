@@ -256,7 +256,7 @@ export default function ComercialPage() {
                     >
                       <div className="truncate text-[13px] text-ink">{s.nombre}</div>
                       <div className="demo-num text-[11px] text-muted">
-                        {s.alcaldia} · {formatMonto(s.tarifaMensual)}
+                        {s.codigoProveedor} · {s.alcaldia} · {formatMonto(s.tarifaMensual)}
                       </div>
                     </button>
                     <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>
