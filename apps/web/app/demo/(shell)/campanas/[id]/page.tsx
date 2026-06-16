@@ -12,6 +12,8 @@ import {
   CAMPANA_LABEL,
   RESERVA_TONO,
   RESERVA_LABEL,
+  CREATIVIDAD_TONO,
+  CREATIVIDAD_LABEL,
   IMPRESION_TONO,
   IMPRESION_LABEL,
   OT_TONO,
@@ -215,8 +217,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               {misCreas.map((cr) => (
                 <li key={cr.id} className="flex items-center justify-between text-[13px]">
                   <span className="text-ink">{cr.nombre}</span>
-                  <StatusBadge tono={cr.estatusValidacion === 'VALIDADA' ? 'verde' : cr.estatusValidacion === 'RECHAZADA' ? 'rojo' : 'ambar'}>
-                    {cr.estatusValidacion === 'VALIDADA' ? 'Validada' : cr.estatusValidacion === 'RECHAZADA' ? 'Rechazada' : 'Pendiente'}
+                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]}>
+                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
                   </StatusBadge>
                 </li>
               ))}

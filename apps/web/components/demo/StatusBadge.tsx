@@ -10,6 +10,7 @@ import type {
   EstOrdenImpresion,
   EstComercialCampana,
   EstReserva,
+  EstValidacionCreatividad,
 } from '@/lib/data/types'
 
 // ============================================================================
@@ -172,6 +173,17 @@ export const CAMPANA_LABEL: Record<EstComercialCampana, string> = {
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada',
   LISTA_FACTURAR: 'Lista para facturar',
+}
+
+export const CREATIVIDAD_TONO: Record<EstValidacionCreatividad, Tono> = {
+  PENDIENTE: 'ambar',
+  VALIDADA: 'verde',
+  RECHAZADA: 'rojo',
+}
+export const CREATIVIDAD_LABEL: Record<EstValidacionCreatividad, string> = {
+  PENDIENTE: 'Pendiente',
+  VALIDADA: 'Validada',
+  RECHAZADA: 'Rechazada',
 }
 
 export const IMPRESION_TONO: Record<EstOrdenImpresion, Tono> = {
