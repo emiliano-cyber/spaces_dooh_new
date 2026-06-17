@@ -1,0 +1,41 @@
+# Postgres local para Spaces — base VACÍA (solo el esquema, sin datos).
+# Aislado del stack existente: Postgres en 5433, Adminer (GUI) en 8081.
+#
+# Levantar:   cd db && docker compose up -d
+# GUI:        http://localhost:8081   (Sistema: PostgreSQL · Servidor: db
+#                                       Usuario: spaces · Contraseña: spaces · BD: spaces)
+# psql:       docker exec -it spaces_db psql -U spaces -d spaces
+# Conexión:   postgresql://spaces:spaces@localhost:5433/spaces
+# Reiniciar a cero (borra TODO):  docker compose down -v && docker compose up -d
+#
+# Nota: schema.sql se ejecuta UNA sola vez (al crear el volumen). Lo que insertes
+# persiste entre reinicios (docker compose stop/up).
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: spaces_db
+    environment:
+      POSTGRES_DB: spaces
+      POSTGRES_USER: spaces
+      POSTGRES_PASSWORD: spaces
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - spaces_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spaces -d spaces"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  adminer:
+    image: adminer
+    container_name: spaces_adminer
+    ports:
+      - "8081:8080"
+    depends_on:
+      - db
+
+volumes:
+  spaces_pgdata:

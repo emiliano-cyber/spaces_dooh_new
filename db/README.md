@@ -4,21 +4,39 @@
 a **guardar la información de verdad**. Es PostgreSQL puro (sin Prisma), un solo
 schema `public`.
 
-## 1. Crear la base y correr el esquema
+## 1. Correr la base localmente (Docker — recomendado)
+
+Base **vacía** (solo el esquema), aislada del resto: Postgres en **5433** y
+Adminer (GUI) en **8081**.
 
 ```bash
-# Requiere PostgreSQL 13+ (por gen_random_uuid integrado / pgcrypto)
+cd db
+docker compose up -d
+```
+
+- **GUI:** http://localhost:8081 → Sistema **PostgreSQL** · Servidor **db** ·
+  Usuario **spaces** · Contraseña **spaces** · Base **spaces**.
+- **psql:** `docker exec -it spaces_db psql -U spaces -d spaces`
+- **Conexión (apps/clientes):** `postgresql://spaces:spaces@localhost:5433/spaces`
+- **Empezar desde cero otra vez (borra TODO):**
+  `docker compose down -v && docker compose up -d`
+
+El `schema.sql` se carga automáticamente la primera vez; las tablas quedan
+**vacías** para que crees usuarios y todo desde 0. Lo que insertes persiste
+entre reinicios (`docker compose stop` / `up`).
+
+### Alternativa sin Docker (Postgres instalado)
+```bash
 createdb spaces
 psql -d spaces -f db/schema.sql
 ```
 
-En Windows / PgAdmin: crea la base `spaces`, abre el Query Tool y ejecuta el
-contenido de `schema.sql`.
-
-Verifica:
-```bash
-psql -d spaces -c "\dt"      # lista las tablas
-psql -d spaces -c "\dT"      # lista los tipos (enums)
+## 1b. Probar inserts desde cero
+En Adminer (8081) o psql, por ejemplo:
+```sql
+insert into usuarios (nombre, email, rol) values ('Tu Nombre', 'tu@correo.com', 'DUENO');
+insert into clientes (nombre) values ('Cliente Real');
+-- el id se genera solo (uuid); usa los ids al enlazar llaves foráneas.
 ```
 
 ## 2. Qué incluye
