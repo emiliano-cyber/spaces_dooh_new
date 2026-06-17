@@ -23,7 +23,28 @@ export async function refrescarEstado(): Promise<void> {
     creatividades: e.creatividades ?? [],
     ordenesTrabajo: e.ordenesTrabajo ?? [],
     evidencias: e.evidencias ?? [],
+    facturas: e.facturas ?? [],
+    cobranzas: e.cobranzas ?? [],
   })
+}
+
+// ─── Finanzas (facturación + cobranza) ──────────────────────────────────────
+export async function generarFacturaApi(campanaId: string, plazoDias: 60 | 90 | 120): Promise<void> {
+  const r = await fetch(`${API}/campanas/${campanaId}/facturar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plazoDias }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la factura')
+  await refrescarEstado()
+}
+
+export async function pagarCobranzaApi(cobranzaId: string): Promise<void> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/pagar/`, { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
+  await refrescarEstado()
 }
 
 // ─── Operaciones (OT + evidencias/testigos) ─────────────────────────────────

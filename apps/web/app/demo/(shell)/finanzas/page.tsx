@@ -12,12 +12,13 @@ import {
   COBRANZA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { generarFacturaApi } from '@/lib/data/estado-api'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   useCampanasResumen,
   useFacturas,
   useCobranzas,
   useClientes,
-  data,
   estadoCobranza,
   formatMonto,
   formatFecha,
@@ -30,6 +31,7 @@ export default function FinanzasPage() {
   const facturas = useFacturas()
   const cobranzas = useCobranzas()
   const clientes = useClientes()
+  const puedeFacturar = usePuede('finanzas', 'facturar')
 
   const [facturar, setFacturar] = useState<Campana | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -87,9 +89,13 @@ export default function FinanzasPage() {
                       {r.campana.presupuestoBruto ? formatMonto(r.campana.presupuestoBruto) : '—'}
                     </div>
                   </div>
-                  <Button size="sm" onClick={() => setFacturar(r.campana)}>
-                    <Receipt className="h-3.5 w-3.5" /> Generar factura
-                  </Button>
+                  {puedeFacturar ? (
+                    <Button size="sm" onClick={() => setFacturar(r.campana)}>
+                      <Receipt className="h-3.5 w-3.5" /> Generar factura
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted">Lista · requiere Finanzas</span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -172,7 +178,7 @@ export default function FinanzasPage() {
       <GenerarFacturaDialog
         campana={facturar}
         onClose={() => setFacturar(null)}
-        onDone={(folio) => notify(`Factura ${folio} generada`)}
+        onDone={() => notify('Factura generada')}
       />
 
       {toast && (
@@ -223,10 +229,14 @@ function GenerarFacturaDialog({
             disabled={enviando}
             onClick={async () => {
               setEnviando(true)
-              const fac = await data.generarFactura(campana.id, plazo)
+              try {
+                await generarFacturaApi(campana.id, plazo)
+                onDone('generada')
+                onClose()
+              } catch (e) {
+                alert(e instanceof Error ? e.message : 'No se pudo generar la factura')
+              }
               setEnviando(false)
-              onDone(fac.folio)
-              onClose()
             }}
           >
             {enviando ? 'Generando…' : 'Emitir factura'}
