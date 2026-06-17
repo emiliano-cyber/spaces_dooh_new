@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { extenderCampana } from '@/lib/server/campanas-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,5 +14,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!body?.fechaFin) return NextResponse.json({ error: 'Falta fechaFin' }, { status: 400 })
   const c = await extenderCampana(params.id, body.fechaFin)
   if (!c) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  await registrarAccion(g.usuario, 'Extendió campaña', c.nombre)
   return NextResponse.json(c)
 }

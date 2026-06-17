@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { q, q1 } from '@/lib/server/db'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,7 @@ export async function PATCH(req: Request) {
   if (sets.length) {
     vals.push(row.id)
     await q(`update config_negocio set ${sets.join(', ')} where id = $${vals.length}`, vals)
+    await registrarAccion(g.usuario, 'Actualizó configuración', 'Negocio')
   }
   return NextResponse.json(rowToConfig(await obtenerOcrear()))
 }

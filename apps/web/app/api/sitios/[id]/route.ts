@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { actualizarSitio, borrarSitio, toggleNetwork } from '@/lib/server/sitios-repo'
+import { actualizarSitio, borrarSitio, toggleNetwork, getSitio } from '@/lib/server/sitios-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,6 +15,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     ? await toggleNetwork(params.id)
     : await actualizarSitio(params.id, body ?? {})
   if (!sitio) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  await registrarAccion(
+    g.usuario,
+    body?.toggleNetwork ? (sitio.enNetwork ? 'Compartió en Network' : 'Quitó de Network') : 'Editó pantalla',
+    sitio.nombre,
+  )
   return NextResponse.json(sitio)
 }
 
@@ -21,6 +27,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  const previo = await getSitio(params.id)
   await borrarSitio(params.id)
+  await registrarAccion(g.usuario, 'Eliminó pantalla', previo?.nombre ?? params.id)
   return NextResponse.json({ ok: true })
 }

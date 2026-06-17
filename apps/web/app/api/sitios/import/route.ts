@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { importarSitios } from '@/lib/server/sitios-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,5 +17,10 @@ export async function POST(req: Request) {
     modoDuplicado: body.modoDuplicado === 'NUEVA_VERSION' ? 'NUEVA_VERSION' : 'ACTUALIZAR',
     precioM2: body.precioM2 ?? null,
   })
+  await registrarAccion(
+    g.usuario,
+    'Importó inventario',
+    `${resumen.creadas} nuevos · ${resumen.actualizadas} actualizados`,
+  )
   return NextResponse.json(resumen)
 }

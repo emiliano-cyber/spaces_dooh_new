@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { actualizarUsuario, borrarUsuario } from '@/lib/server/usuarios-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,6 +17,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const body = await req.json().catch(() => ({}))
   const u = await actualizarUsuario(params.id, body ?? {})
   if (!u) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+  const accion =
+    body?.rol !== undefined ? 'Cambió rol'
+    : body?.activo !== undefined ? (u.activo ? 'Activó usuario' : 'Desactivó usuario')
+    : 'Editó usuario'
+  await registrarAccion(g.usuario, accion, u.nombre)
   return NextResponse.json(u)
 }
 
@@ -27,5 +33,6 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'No puedes eliminar tu propio usuario' }, { status: 400 })
   }
   await borrarUsuario(params.id)
+  await registrarAccion(g.usuario, 'Eliminó usuario', params.id)
   return NextResponse.json({ ok: true })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { listarSitios, crearSitio } from '@/lib/server/sitios-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,5 +20,6 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
   if (!body?.nombre) return NextResponse.json({ error: 'Falta nombre' }, { status: 400 })
   const sitio = await crearSitio(body)
+  await registrarAccion(g.usuario, 'Dio de alta pantalla', sitio.nombre)
   return NextResponse.json(sitio, { status: 201 })
 }

@@ -25,6 +25,7 @@ export async function refrescarEstado(): Promise<void> {
     evidencias: e.evidencias ?? [],
     facturas: e.facturas ?? [],
     cobranzas: e.cobranzas ?? [],
+    acciones: e.acciones ?? [],
   })
 }
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { listarUsuarios, crearUsuario, emailExiste } from '@/lib/server/usuarios-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,5 +25,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Ya existe un usuario con ese correo' }, { status: 409 })
   }
   const u = await crearUsuario(body)
+  await registrarAccion(g.usuario, 'Invitó usuario', u.nombre)
   return NextResponse.json(u, { status: 201 })
 }

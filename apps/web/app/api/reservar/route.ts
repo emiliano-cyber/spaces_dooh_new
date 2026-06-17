@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { reservar } from '@/lib/server/campanas-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,5 +13,6 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
   if (!body?.sitioIds?.length) return NextResponse.json({ error: 'Sin sitios' }, { status: 400 })
   const campana = await reservar(body)
+  await registrarAccion(g.usuario, 'Reservó (tentativa)', campana.nombre)
   return NextResponse.json(campana, { status: 201 })
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { listarOT, crearOT } from '@/lib/server/ot-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,5 +22,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Tipo y descripción requeridos' }, { status: 400 })
   }
   const ot = await crearOT(body)
+  await registrarAccion(g.usuario, 'Creó OT', ot.folio)
   return NextResponse.json(ot, { status: 201 })
 }

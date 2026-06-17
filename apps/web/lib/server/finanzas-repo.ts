@@ -78,11 +78,11 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
 export async function registrarPagoCobranza(cobranzaId: string) {
   const cob = await q1<any>('select * from cobranzas where id=$1', [cobranzaId])
   if (!cob) return null
-  const fac = await q1<any>('select monto from facturas where id=$1', [cob.factura_id])
+  const fac = await q1<any>('select monto, folio from facturas where id=$1', [cob.factura_id])
   await q(
     `update cobranzas set estatus='PAGADA', monto_pagado=$2 where id=$1`,
     [cobranzaId, Number(fac?.monto ?? 0)],
   )
   await q(`update facturas set estatus='PAGADA' where id=$1`, [cob.factura_id])
-  return rowToCobranza((await q('select * from cobranzas where id=$1', [cobranzaId]))[0])
+  return { ...rowToCobranza((await q('select * from cobranzas where id=$1', [cobranzaId]))[0]), folio: fac?.folio ?? null }
 }

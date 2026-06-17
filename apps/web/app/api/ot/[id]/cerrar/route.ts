@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { cerrarOT } from '@/lib/server/ot-repo'
+import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -13,5 +14,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!body?.fotoUrl) return NextResponse.json({ error: 'Falta la foto comprobatoria' }, { status: 400 })
   const ot = await cerrarOT(params.id, { ...body, uploadedBy: g.usuario.id })
   if (!ot) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  await registrarAccion(g.usuario, 'Cerró OT con testigo', ot.folio)
   return NextResponse.json(ot)
 }
