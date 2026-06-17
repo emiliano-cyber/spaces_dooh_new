@@ -25,8 +25,42 @@ export async function refrescarEstado(): Promise<void> {
     evidencias: e.evidencias ?? [],
     facturas: e.facturas ?? [],
     cobranzas: e.cobranzas ?? [],
+    ordenesImpresion: e.ordenesImpresion ?? [],
     acciones: e.acciones ?? [],
   })
+}
+
+// ─── Imprenta (órdenes de impresión + OC) ───────────────────────────────────
+export async function crearOrdenImpresionApi(input: {
+  campanaId: string; sitioId?: string | null; material?: string
+  alto?: number; ancho?: number; proveedor?: string
+}): Promise<void> {
+  const r = await fetch(`${API}/impresion/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la orden de impresión')
+  await refrescarEstado()
+}
+
+export async function avanzarOrdenImpresionApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/impresion/${id}/`, { method: 'PATCH' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo avanzar la orden')
+  await refrescarEstado()
+}
+
+export async function marcarOCApi(campanaId: string, ocUrl?: string): Promise<void> {
+  const r = await fetch(`${API}/campanas/${campanaId}/oc/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ocUrl: ocUrl ?? null }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la OC')
+  await refrescarEstado()
 }
 
 // ─── Finanzas (facturación + cobranza) ──────────────────────────────────────

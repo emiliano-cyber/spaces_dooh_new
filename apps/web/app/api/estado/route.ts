@@ -9,6 +9,7 @@ import {
 } from '@/lib/server/campanas-repo'
 import { listarOT, listarEvidencias } from '@/lib/server/ot-repo'
 import { listarFacturas, listarCobranzas } from '@/lib/server/finanzas-repo'
+import { listarOrdenesImpresion } from '@/lib/server/impresion-repo'
 import { listarAcciones } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const g = await exigir()
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  const [sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, acciones] =
+  const [sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones] =
     await Promise.all([
       listarSitios(),
       listarClientes(),
@@ -29,9 +30,10 @@ export async function GET() {
       listarEvidencias(),
       listarFacturas(),
       listarCobranzas(),
+      listarOrdenesImpresion(),
       listarAcciones(),
     ])
   return NextResponse.json({
-    sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, acciones,
+    sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones,
   })
 }

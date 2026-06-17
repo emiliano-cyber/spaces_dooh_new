@@ -1,14 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import { Lock, LockOpen, Check, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useReadiness } from '@/lib/data/client'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { marcarOCApi } from '@/lib/data/estado-api'
 
 // Candado de facturación: OC + fotos comprobatorias + reporte. Cuando los tres
 // están, el candado se abre y la campaña queda lista para facturar. Para Telco
 // Andina se enciende EN VIVO al cerrar la OT móvil con foto (Acto 4).
 export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
+  const puedeOC = usePuede('comercial', 'crear')
+  const [enviando, setEnviando] = useState(false)
   if (!r) return <div className="h-28 w-full animate-pulse rounded bg-surface-2" />
 
   const abierto = r.candado
@@ -35,6 +40,24 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />
         <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />
       </ul>
+      {!r.ocRecibida && puedeOC && (
+        <button
+          type="button"
+          disabled={enviando}
+          onClick={async () => {
+            setEnviando(true)
+            try {
+              await marcarOCApi(campanaId)
+            } catch (e) {
+              alert(e instanceof Error ? e.message : 'No se pudo registrar la OC')
+            }
+            setEnviando(false)
+          }}
+          className="mt-3 w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
+        >
+          {enviando ? 'Registrando…' : 'Registrar OC del cliente'}
+        </button>
+      )}
       {!abierto && (
         <p className="mt-3 text-[12px] text-muted">
           El candado se enciende cuando se completan las tres condiciones.
