@@ -9,9 +9,11 @@ import {
   Plus,
   Download,
   FileText,
+  Eye,
 } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
+import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
 import { validarArchivo, type FilaValidada } from '@/lib/inventario-import'
 import {
@@ -55,6 +57,13 @@ export function ImportarInventarioDialog({
   const [procesando, setProcesando] = useState(false)
   const [leyendo, setLeyendo] = useState(false)
   const [arrastrando, setArrastrando] = useState(false)
+  const [verInfo, setVerInfo] = useState(false)
+
+  // Sitios añadidos/actualizados por esta importación (para el mini-modal).
+  const codigosAfectados = new Set(
+    (summary?.detalle ?? []).filter((d) => d.status !== 'error').map((d) => d.codigo_proveedor),
+  )
+  const sitiosAfectados = (sitios ?? []).filter((s) => codigosAfectados.has(s.codigoProveedor))
 
   const existentes = new Set((sitios ?? []).map((s) => s.codigoProveedor))
   const duplicados = (filas ?? [])
@@ -276,6 +285,11 @@ export function ImportarInventarioDialog({
               <Resumen label="Advertencias" n={summary.con_advertencias} tono="ambar" />
               <Resumen label="Errores" n={summary.errores} tono="rojo" />
             </div>
+            {sitiosAfectados.length > 0 && (
+              <Button variant="secondary" size="sm" className="w-full" onClick={() => setVerInfo(true)}>
+                <Eye className="h-3.5 w-3.5" /> Ver información añadida ({sitiosAfectados.length})
+              </Button>
+            )}
             <ResultadoTabla detalle={summary.detalle} />
             <details className="rounded-md border border-border bg-surface-2">
               <summary className="cursor-pointer px-3 py-2 text-[12px] font-medium text-ink">JSON de salida</summary>
@@ -284,6 +298,8 @@ export function ImportarInventarioDialog({
           </div>
         )}
       </div>
+
+      <InfoAnadidaModal open={verInfo} onOpenChange={setVerInfo} sitios={sitiosAfectados} />
     </Modal>
   )
 }
