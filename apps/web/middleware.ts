@@ -40,6 +40,7 @@ export function middleware(request: NextRequest) {
     normalizedPath === '/auth/login' ||
     normalizedPath === '/demo' ||
     normalizedPath.startsWith('/demo/') ||
+    normalizedPath.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon')
 

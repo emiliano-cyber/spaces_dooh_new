@@ -4,12 +4,14 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Radio, ExternalLink } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { useRol, TOKEN_TELCO } from '@/lib/data/client'
+import { TOKEN_TELCO } from '@/lib/data/client'
+import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
 
 export function Sidebar() {
   const pathname = usePathname()
-  const rol = useRol()
+  const { sesion } = useSesionCtx()
+  const rol = sesion?.usuario.rol ?? 'DUENO'
 
   // Cliente externo: no ve módulos internos, sólo su portal.
   const items = NAV.filter((n) => n.roles.includes(rol))

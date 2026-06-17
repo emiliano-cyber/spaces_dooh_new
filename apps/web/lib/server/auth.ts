@@ -1,0 +1,93 @@
+import 'server-only'
+import { randomBytes } from 'crypto'
+import { cookies } from 'next/headers'
+import bcrypt from 'bcryptjs'
+import { q, q1 } from './db'
+
+// ============================================================================
+//  lib/server/auth.ts — Contraseñas (bcrypt), sesiones (cookie httpOnly) y
+//  permisos por rol. Solo servidor.
+// ============================================================================
+
+export const SESSION_COOKIE = 'spaces_sesion'
+const SESSION_DAYS = 30
+
+export interface UsuarioSesion {
+  id: string
+  nombre: string
+  email: string
+  cargo: string | null
+  rol: string
+  activo: boolean
+}
+
+// ─── Contraseñas ────────────────────────────────────────────────────────────
+export function hashPassword(plano: string): Promise<string> {
+  return bcrypt.hash(plano, 10)
+}
+export function verifyPassword(plano: string, hash: string | null): Promise<boolean> {
+  if (!hash) return Promise.resolve(false)
+  return bcrypt.compare(plano, hash)
+}
+
+// ─── Sesiones ───────────────────────────────────────────────────────────────
+export async function crearSesion(usuarioId: string): Promise<string> {
+  const token = randomBytes(32).toString('hex')
+  const expira = new Date(Date.now() + SESSION_DAYS * 86_400_000)
+  await q('insert into sesiones (token, usuario_id, expira_en) values ($1,$2,$3)', [
+    token,
+    usuarioId,
+    expira.toISOString(),
+  ])
+  return token
+}
+
+export async function destruirSesion(token: string): Promise<void> {
+  await q('delete from sesiones where token = $1', [token])
+}
+
+// Usuario de la sesión actual (lee la cookie). null si no hay/expiró.
+export async function usuarioActual(): Promise<UsuarioSesion | null> {
+  const token = cookies().get(SESSION_COOKIE)?.value
+  if (!token) return null
+  const u = await q1<UsuarioSesion>(
+    `select u.id, u.nombre, u.email, u.cargo, u.rol::text as rol, u.activo
+       from sesiones s join usuarios u on u.id = s.usuario_id
+      where s.token = $1 and s.expira_en > now()`,
+    [token],
+  )
+  if (!u || !u.activo) return null
+  return u
+}
+
+// ─── Permisos ───────────────────────────────────────────────────────────────
+// Devuelve { modulo: [acciones] } para un rol.
+export async function permisosDeRol(rol: string): Promise<Record<string, string[]>> {
+  const rows = await q<{ modulo: string; accion: string }>(
+    'select modulo, accion from rol_permisos where rol = $1',
+    [rol],
+  )
+  const out: Record<string, string[]> = {}
+  for (const r of rows) (out[r.modulo] ??= []).push(r.accion)
+  return out
+}
+
+export async function tienePermiso(rol: string, modulo: string, accion: string): Promise<boolean> {
+  const r = await q1(
+    'select 1 from rol_permisos where rol = $1 and modulo = $2 and accion = $3',
+    [rol, modulo, accion],
+  )
+  return !!r
+}
+
+// Opciones de cookie de sesión (para set/clear en las respuestas).
+export function cookieSesion(token: string) {
+  return {
+    name: SESSION_COOKIE,
+    value: token,
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path: '/',
+    maxAge: SESSION_DAYS * 86_400,
+  }
+}

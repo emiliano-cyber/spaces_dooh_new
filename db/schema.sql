@@ -54,14 +54,32 @@ create type est_cobranza        as enum ('AL_CORRIENTE','POR_VENCER','VENCIDA','
 
 -- ─── Usuarios y configuración ───────────────────────────────────────────────
 create table usuarios (
-  id          uuid primary key default gen_random_uuid(),
-  nombre      text not null,
-  email       text not null unique,
-  cargo       text,
-  rol         rol_demo not null default 'COMERCIAL',
-  activo      boolean not null default true,
-  creado_en   timestamptz not null default now()
+  id            uuid primary key default gen_random_uuid(),
+  nombre        text not null,
+  email         text not null unique,
+  cargo         text,
+  rol           rol_demo not null default 'COMERCIAL',
+  password_hash text,                     -- bcrypt; null = aún sin contraseña
+  activo        boolean not null default true,
+  creado_en     timestamptz not null default now()
 );
+
+-- Permisos por rol y módulo (V/C/A/F). Una fila por (rol, módulo, acción).
+create table rol_permisos (
+  rol     rol_demo not null,
+  modulo  text not null,
+  accion  text not null,            -- ver | crear | aprobar | facturar
+  primary key (rol, modulo, accion)
+);
+
+-- Sesiones (token aleatorio en cookie httpOnly; revocable y con expiración).
+create table sesiones (
+  token      text primary key,
+  usuario_id uuid not null references usuarios(id) on delete cascade,
+  creado_en  timestamptz not null default now(),
+  expira_en  timestamptz not null
+);
+create index idx_sesiones_usuario on sesiones (usuario_id);
 
 create table config_negocio (
   id              uuid primary key default gen_random_uuid(),

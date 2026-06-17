@@ -2,53 +2,44 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Radio, LogIn, ArrowRight } from 'lucide-react'
+import { Radio, LogIn } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
-import { cn } from '@/lib/cn'
-import {
-  USUARIOS_DEMO,
-  landingDeRol,
-  useIniciarSesion,
-  useUsuarios,
-  type UsuarioDemo,
-} from '@/lib/data/client'
+import { apiLogin } from '@/lib/auth-real'
+import { landingDeRol } from '@/lib/data/client'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+// Accesos rápidos: usuarios sembrados por bootstrap-auth (contraseña spaces123).
+const ACCESOS = [
+  { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño' },
+  { nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Comercial' },
+  { nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Operaciones' },
+  { nombre: 'Andrea Salas', email: 'andrea@billboardsperu.pe', cargo: 'Finanzas' },
+]
+
 export default function LoginPage() {
   const router = useRouter()
-  const iniciarSesion = useIniciarSesion()
-  // Usa los usuarios del store (reflejan cambios de rol hechos en Administración);
-  // fallback a la lista base antes de montar.
-  const usuarios = useUsuarios() ?? USUARIOS_DEMO
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
 
-  function entrar(usuario: UsuarioDemo) {
-    iniciarSesion(usuario)
-    router.push(landingDeRol(usuario.rol))
-  }
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault()
-    const u = usuarios.find((x) => x.email.toLowerCase() === email.trim().toLowerCase())
-    if (!u) {
-      setError('Usuario no encontrado. Usa uno de los accesos rápidos de abajo.')
-      return
+  async function entrar(mail: string, pass: string) {
+    setEnviando(true)
+    setError(null)
+    try {
+      const { usuario } = await apiLogin(mail.trim(), pass)
+      router.push(landingDeRol(usuario.rol))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión')
+      setEnviando(false)
     }
-    if (!u.activo) {
-      setError('Usuario inactivo. Contacta al administrador.')
-      return
-    }
-    entrar(u)
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
-        {/* Marca */}
         <div className="mb-6 flex items-center gap-2.5">
           <span className="flex h-9 w-9 items-center justify-center rounded bg-accent text-accent-fg">
             <Radio className="h-5 w-5" />
@@ -63,18 +54,21 @@ export default function LoginPage() {
           <h1 className="text-base font-semibold text-ink">Iniciar sesión</h1>
           <p className="mt-0.5 text-[12px] text-muted">Accede con tu cuenta.</p>
 
-          <form onSubmit={submit} className="mt-4 space-y-3">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              entrar(email, password)
+            }}
+            className="mt-4 space-y-3"
+          >
             <label className="block">
               <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
               <input
                 type="email"
                 className={inputCls}
                 value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value)
-                  setError(null)
-                }}
-                placeholder="tu@billboardsperu.pe"
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="tu@correo.com"
                 autoFocus
               />
             </label>
@@ -89,39 +83,35 @@ export default function LoginPage() {
               />
             </label>
             {error && <p className="text-[12px] text-error">{error}</p>}
-            <Button type="submit" className="w-full">
-              <LogIn className="h-4 w-4" /> Entrar
+            <Button type="submit" className="w-full" disabled={enviando || !email || !password}>
+              <LogIn className="h-4 w-4" /> {enviando ? 'Entrando…' : 'Entrar'}
             </Button>
           </form>
         </div>
 
-        {/* Acceso rápido (demo) */}
+        {/* Acceso rápido (usuarios de prueba sembrados) */}
         <div className="mt-5">
           <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-            Acceso rápido (demo)
+            Acceso rápido (prueba · contraseña spaces123)
           </p>
           <ul className="space-y-1.5">
-            {usuarios.filter((u) => u.activo).map((u) => (
-              <li key={u.id}>
+            {ACCESOS.map((u) => (
+              <li key={u.email}>
                 <button
                   type="button"
-                  onClick={() => entrar(u)}
-                  className={cn(
-                    'group flex w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2',
-                  )}
+                  disabled={enviando}
+                  onClick={() => entrar(u.email, 'spaces123')}
+                  className="group flex w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2 disabled:opacity-50"
                 >
                   <span className="min-w-0">
                     <span className="block text-[13px] font-medium text-ink">{u.nombre}</span>
                     <span className="block text-[11px] text-muted">{u.cargo}</span>
                   </span>
-                  <ArrowRight className="h-4 w-4 text-muted transition-transform duration-150 group-hover:translate-x-0.5" />
+                  <LogIn className="h-4 w-4 text-muted" />
                 </button>
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-center text-[11px] text-muted">
-            Demo · cualquier contraseña funciona
-          </p>
         </div>
       </div>
     </div>
