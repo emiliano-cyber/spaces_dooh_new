@@ -11,13 +11,15 @@ const DATABASE_URL =
 const PASSWORD_DEFAULT = process.env.SEED_PASSWORD ?? 'spaces123'
 
 // Matriz roles × módulos × acciones (espejo de components/demo/admin/permisos.ts)
+// El DUENO es superusuario (crear/aprobar en todos los módulos; facturar en
+// finanzas). Los demás roles tienen permisos acotados a su función.
 const MATRIZ = {
   dashboard:      { DUENO: ['ver'], COMERCIAL: ['ver'], FINANZAS: ['ver'] },
   comercial:      { DUENO: ['ver', 'crear', 'aprobar'], COMERCIAL: ['ver', 'crear'], OPERACIONES: ['ver'] },
   arrendadores:   { DUENO: ['ver', 'crear', 'aprobar'] },
-  operaciones:    { DUENO: ['ver', 'aprobar'], OPERACIONES: ['ver', 'crear'], IMPRENTA: ['ver'] },
-  imprenta:       { DUENO: ['ver', 'aprobar'], IMPRENTA: ['ver', 'crear'], OPERACIONES: ['ver'] },
-  finanzas:       { DUENO: ['ver', 'facturar'], FINANZAS: ['ver', 'crear', 'facturar'] },
+  operaciones:    { DUENO: ['ver', 'crear', 'aprobar'], OPERACIONES: ['ver', 'crear'], IMPRENTA: ['ver'] },
+  imprenta:       { DUENO: ['ver', 'crear', 'aprobar'], IMPRENTA: ['ver', 'crear'], OPERACIONES: ['ver'] },
+  finanzas:       { DUENO: ['ver', 'crear', 'facturar'], FINANZAS: ['ver', 'crear', 'facturar'] },
   network:        { DUENO: ['ver', 'crear'], COMERCIAL: ['ver'] },
   administracion: { DUENO: ['ver', 'crear', 'aprobar'] },
 }

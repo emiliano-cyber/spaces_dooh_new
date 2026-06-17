@@ -21,7 +21,43 @@ export async function refrescarEstado(): Promise<void> {
     campanas: e.campanas ?? [],
     reservas: e.reservas ?? [],
     creatividades: e.creatividades ?? [],
+    ordenesTrabajo: e.ordenesTrabajo ?? [],
+    evidencias: e.evidencias ?? [],
   })
+}
+
+// ─── Operaciones (OT + evidencias/testigos) ─────────────────────────────────
+export async function crearOTApi(input: {
+  tipo: string; sitioId?: string | null; campanaId?: string | null
+  descripcion: string; prioridad?: string; asignadoA?: string | null; checklist?: unknown[]
+}): Promise<void> {
+  const r = await fetch(`${API}/ot/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la OT')
+  await refrescarEstado()
+}
+
+// Cierre desde la vista móvil (standalone): no refresca el store del shell.
+export async function getOTApi(id: string) {
+  const r = await fetch(`${API}/ot/${id}/`, { cache: 'no-store' })
+  if (!r.ok) return null
+  return r.json()
+}
+export async function cerrarOTApi(
+  id: string,
+  input: { fotoUrl: string; tomadaEn?: string; lat?: number; lng?: number },
+): Promise<void> {
+  const r = await fetch(`${API}/ot/${id}/cerrar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo cerrar la OT')
 }
 
 export async function reservarApi(input: {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Radio,
@@ -19,68 +19,82 @@ import {
   OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
-import {
-  useOT,
-  useSitios,
-  useCampana,
-  useEvidencias,
-  useUsuario,
-  data,
-} from '@/lib/data/client'
-import type { FotoMeta } from '@/lib/data/types'
+import { getOTApi, cerrarOTApi } from '@/lib/data/estado-api'
+import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
+
+// blob: URL → data URL (base64) para que la foto persista en la BD.
+async function blobADataUrl(blobUrl: string): Promise<string> {
+  const blob = await (await fetch(blobUrl)).blob()
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(fr.result as string)
+    fr.onerror = reject
+    fr.readAsDataURL(blob)
+  })
+}
+
+interface OTData {
+  ot: any
+  sitio: { id: string; nombre: string; direccion: string; lat: number | null; lng: number | null } | null
+  campana: { id: string; nombre: string; ocRecibida: boolean; fotosComprobatorias: boolean; reportePublicacion: boolean } | null
+  evidencias: any[]
+}
 
 export default function OTMovilPage({ params }: { params: { id: string } }) {
-  const ot = useOT(params.id)
-  const sitios = useSitios()
-  const evidencias = useEvidencias(params.id)
-  const usuario = useUsuario()
-
-  const sitio = sitios?.find((s) => s.id === ot?.sitioId)
-  const campana = useCampana(ot?.campanaId ?? '')
-
+  const [data, setData] = useState<OTData | null | undefined>(undefined)
   const [checks, setChecks] = useState<boolean[]>([])
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
   const [cerrando, setCerrando] = useState(false)
 
-  // Sincroniza el checklist local cuando carga la OT.
+  // La vista móvil es standalone: carga su OT directo del API (requiere sesión).
+  const recargar = useCallback(async () => {
+    const d = await getOTApi(params.id)
+    setData(d ?? null)
+    if (d?.ot) setChecks(d.ot.checklist.map((c: any) => !!c.hecho))
+  }, [params.id])
   useEffect(() => {
-    if (ot) setChecks(ot.checklist.map((c) => c.hecho))
-  }, [ot?.id])
+    recargar()
+  }, [recargar])
 
-  if (ot === undefined) {
+  if (data === undefined) {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
         <div className="h-72 animate-pulse rounded-md bg-surface-2" />
       </div>
     )
   }
-  if (ot === null) {
+  if (data === null) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 text-center text-[13px] text-muted">
-        Orden de trabajo no encontrada.
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 px-6 text-center">
+        <p className="text-[13px] text-muted">No se pudo cargar la orden de trabajo.</p>
+        <Link href="/demo/login" className="text-[13px] font-medium text-info hover:underline">
+          Inicia sesión para continuar
+        </Link>
       </div>
     )
   }
 
+  const { ot, sitio, campana, evidencias } = data
   const completada = ot.estatus === 'COMPLETADA'
   const puedeChecklist = ot.checklist.length > 0
   const todoListo = checks.every(Boolean) && fotos.length > 0 && !!geo
 
   function capturarUbicacion() {
-    // En la demo sellamos con las coordenadas del sitio (determinista, siempre
-    // funciona). En campo real usaríamos navigator.geolocation.
-    if (sitio) setGeo({ lat: sitio.lat, lng: sitio.lng })
+    // Sello con las coordenadas del sitio (determinista). En campo real:
+    // navigator.geolocation.
+    if (sitio && sitio.lat != null && sitio.lng != null) setGeo({ lat: sitio.lat, lng: sitio.lng })
   }
 
   async function cerrar() {
     setCerrando(true)
-    await data.cerrarOT(ot!.id, {
-      fotoUrl: fotos[0].url,
-      tomadaEn: fotos[0].tomadaEn,
-      lat: geo?.lat,
-      lng: geo?.lng,
-    })
+    try {
+      const fotoUrl = await blobADataUrl(fotos[0].url)
+      await cerrarOTApi(ot.id, { fotoUrl, tomadaEn: fotos[0].tomadaEn, lat: geo?.lat, lng: geo?.lng })
+      await recargar()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo cerrar la OT')
+    }
     setCerrando(false)
   }
 
@@ -96,7 +110,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
             <div className="demo-num text-[13px] font-semibold text-ink">{ot.folio}</div>
             <div className="truncate text-[11px] text-muted">{sitio?.nombre ?? '—'}</div>
           </div>
-          <StatusBadge tono={OT_TONO[ot.estatus]}>{OT_LABEL[ot.estatus]}</StatusBadge>
+          <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
         </div>
       </header>
 
@@ -119,9 +133,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
             candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
             campanaId={ot.campanaId}
             evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
-            // Solo enlaza al pipeline (ruta del shell con login) si hay sesión
-            // interna. En uso de campo (sin login) no debe llevar a inicio de sesión.
-            mostrarPipeline={!!usuario && usuario.rol !== 'CLIENTE'}
+            mostrarPipeline={!!campana}
           />
         ) : (
           <>
@@ -130,7 +142,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
               <section>
                 <h2 className="mb-2 text-[13px] font-medium text-ink">Checklist</h2>
                 <ul className="space-y-1.5">
-                  {ot.checklist.map((c, i) => (
+                  {ot.checklist.map((c: ChecklistItem, i: number) => (
                     <li key={i}>
                       <button
                         type="button"
