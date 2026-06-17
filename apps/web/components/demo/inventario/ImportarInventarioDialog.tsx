@@ -292,10 +292,8 @@ export function ImportarInventarioDialog({
               </Button>
             )}
             <ResultadoTabla detalle={summary.detalle} />
-            <details className="rounded-md border border-border bg-surface-2">
-              <summary className="cursor-pointer px-3 py-2 text-[12px] font-medium text-ink">JSON de salida</summary>
-              <pre className="demo-num overflow-x-auto px-3 pb-3 text-[11px] text-muted">{JSON.stringify(summary, null, 2)}</pre>
-            </details>
+            {/* El JSON de salida (contrato con el backend) se mantiene en el
+                resultado de importarInventario; se oculta del UI de la demo. */}
           </div>
         )}
       </div>
