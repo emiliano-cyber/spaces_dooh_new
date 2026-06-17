@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
+import { altaSitioApi } from '@/lib/data/sitios-api'
 import {
-  data,
   type Sitio,
   type TipoMedio,
   type Comercializacion,
@@ -69,7 +69,7 @@ export function AltaSitioDialog({
   async function submit() {
     if (!valido) return
     setEnviando(true)
-    const s = await data.altaSitio({
+    const s = await altaSitioApi({
       nombre: nombre.trim(),
       tipoMedio,
       distrito: distrito.trim(),

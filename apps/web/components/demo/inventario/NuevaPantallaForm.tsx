@@ -5,7 +5,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
-import { data, type Sitio, type TipoMedio } from '@/lib/data/client'
+import { altaSitioApi } from '@/lib/data/sitios-api'
+import { type Sitio, type TipoMedio } from '@/lib/data/client'
 
 // Formulario manual de "Nueva pantalla" con 5 tabs (Básico, Especificaciones,
 // IA/Vision, Precios, Imágenes). Crea la pantalla vía data.altaSitio.
@@ -86,7 +87,7 @@ export function NuevaPantallaForm({
   async function submit() {
     if (!valido) return
     setEnviando(true)
-    const s = await data.altaSitio({
+    const s = await altaSitioApi({
       nombre: nombre.trim(),
       tipoMedio,
       direccionPredio: direccion.trim(),

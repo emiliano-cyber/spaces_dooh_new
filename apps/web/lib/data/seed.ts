@@ -428,30 +428,33 @@ const acciones: AccionLog[] = [
 
 // ─── Estado inicial completo ────────────────────────────────────────────────
 
+// La app arranca EN BLANCO: los datos vienen de la base (vía API) o de la
+// captura real del usuario. Ya no se siembran datos mock. (Los arreglos de
+// demo arriba quedan como referencia, sin usarse.)
 export function buildSeed(): DemoState {
   return {
-    usuarios: clone(USUARIOS_DEMO),
+    usuarios: [],
     configNegocio: {
-      nombreTenant: 'Billboards Perú SA',
+      nombreTenant: 'RGB Catorce',
       moneda: 'PEN',
       plazosCobranza: [60, 90, 120],
       tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
     },
-    sitios: clone(sitios),
-    arrendadores: clone(arrendadores),
-    contratos: clone(contratos),
-    pagosRenta: clone(pagosRenta),
-    incidencias: clone(incidencias),
-    clientes: clone(clientes),
-    campanas: clone(campanas),
-    creatividades: clone(creatividades),
-    reservas: clone(reservas),
-    ordenesTrabajo: clone(ordenesTrabajo),
-    evidencias: clone(evidencias),
-    ordenesImpresion: clone(ordenesImpresion),
-    facturas: clone(facturas),
-    cobranzas: clone(cobranzas),
-    acciones: clone(acciones),
+    sitios: [],
+    arrendadores: [],
+    contratos: [],
+    pagosRenta: [],
+    incidencias: [],
+    clientes: [],
+    campanas: [],
+    creatividades: [],
+    reservas: [],
+    ordenesTrabajo: [],
+    evidencias: [],
+    ordenesImpresion: [],
+    facturas: [],
+    cobranzas: [],
+    acciones: [],
   }
 }
 

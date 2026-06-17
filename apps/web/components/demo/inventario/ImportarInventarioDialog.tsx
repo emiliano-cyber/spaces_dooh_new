@@ -16,8 +16,8 @@ import { Button } from '@/components/demo/ui/Button'
 import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
 import { validarArchivo, type FilaValidada } from '@/lib/inventario-import'
+import { importarSitiosApi } from '@/lib/data/sitios-api'
 import {
-  data,
   useSitios,
   type ImportSummary,
   type ImportStatus,
@@ -110,11 +110,10 @@ export function ImportarInventarioDialog({
   async function procesar() {
     if (!filas) return
     setProcesando(true)
-    const res = await data.importarInventario({
+    const res = await importarSitiosApi({
       filas,
       modoDuplicado: modo,
       precioM2: precioM2 ? Number(precioM2) : null,
-      imagenes,
     })
     setProcesando(false)
     setSummary(res)

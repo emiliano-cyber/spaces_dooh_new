@@ -22,13 +22,9 @@ const MATRIZ = {
   administracion: { DUENO: ['ver', 'crear', 'aprobar'] },
 }
 
+// BD desde cero: solo el cliente/usuario RGB para hacer pruebas reales.
 const USUARIOS = [
   { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño', rol: 'DUENO' },
-  { nombre: 'María Quispe', email: 'maria@billboardsperu.pe', cargo: 'Dueña', rol: 'DUENO' },
-  { nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Ejecutivo comercial', rol: 'COMERCIAL' },
-  { nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Jefe de operaciones', rol: 'OPERACIONES' },
-  { nombre: 'Rosa Inga', email: 'rosa@billboardsperu.pe', cargo: 'Coordinadora de imprenta', rol: 'IMPRENTA' },
-  { nombre: 'Andrea Salas', email: 'andrea@billboardsperu.pe', cargo: 'Finanzas', rol: 'FINANZAS' },
 ]
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL })

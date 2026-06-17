@@ -10,7 +10,8 @@ import {
   SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
-import { useSitios, data, type CMS } from '@/lib/data/client'
+import { toggleNetworkApi } from '@/lib/data/sitios-api'
+import { useSitios, type CMS } from '@/lib/data/client'
 
 const CMS_LABEL: Record<CMS, string> = {
   BROADSIGN: 'Broadsign',
@@ -136,7 +137,7 @@ export default function NetworkPage() {
                           role="switch"
                           aria-checked={s.enNetwork}
                           onClick={async () => {
-                            await data.toggleNetwork(s.id)
+                            await toggleNetworkApi(s.id)
                             notify(s.enNetwork ? `${s.nombre} quitada de la Network` : `${s.nombre} compartida a la Network`)
                           }}
                           className={cn(
