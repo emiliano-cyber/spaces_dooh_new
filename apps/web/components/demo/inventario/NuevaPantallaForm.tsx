@@ -66,7 +66,8 @@ export function NuevaPantallaForm({
   const [enviando, setEnviando] = useState(false)
 
   const cvInvalido = cv && !admobilizeId.trim()
-  const valido = nombre.trim() && !cvInvalido
+  // Para el alta de UNA sola pantalla, la imagen promocional es obligatoria.
+  const valido = !!nombre.trim() && !cvInvalido && !!imagen
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -130,6 +131,8 @@ export function NuevaPantallaForm({
         <div className="flex items-center justify-between">
           {cvInvalido ? (
             <span className="text-[12px] text-error">ID AdMobilize requerido</span>
+          ) : !imagen ? (
+            <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
           ) : (
             <span />
           )}
@@ -241,8 +244,10 @@ export function NuevaPantallaForm({
 
           <TabPanel value="imagenes" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Imágenes</h3>
-            <span className="block text-[12px] font-medium text-ink">Imagen promocional</span>
-            <p className="text-[11px] text-muted">JPG o PNG · máximo 5MB</p>
+            <span className="block text-[12px] font-medium text-ink">
+              Imagen promocional <span className="text-error">*</span>
+            </span>
+            <p className="text-[11px] text-muted">Obligatoria · JPG o PNG · máximo 5MB</p>
             {imagen && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imagen} alt="preview" className="max-h-48 w-full rounded border border-border object-contain" />
