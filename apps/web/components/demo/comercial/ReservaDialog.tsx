@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
-import { data, formatMonto, type Sitio } from '@/lib/data/client'
+import { reservarApi } from '@/lib/data/estado-api'
+import { formatMonto, type Sitio } from '@/lib/data/client'
 
 // Modal de reserva (Acto 3): captura cliente + fechas y crea una reserva
 // TENTATIVA sobre los sitios seleccionados. Llama a data.reservar (mock).
@@ -39,7 +40,7 @@ export function ReservaDialog({
   async function submit() {
     if (!cliente.trim() || sitios.length === 0) return
     setEnviando(true)
-    const camp = await data.reservar({
+    const camp = await reservarApi({
       clienteNombre: cliente.trim(),
       nombreCampana: nombre.trim() || `${cliente.trim()} — campaña`,
       sitioIds: sitios.map((s) => s.id),

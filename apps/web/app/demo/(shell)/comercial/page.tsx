@@ -15,11 +15,12 @@ import {
   SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   useSitios,
   useReservas,
   useCampanas,
-  data,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -43,6 +44,7 @@ export default function ComercialPage() {
   const sitios = useSitios()
   const reservas = useReservas()
   const campanas = useCampanas()
+  const puedeCrear = usePuede('comercial', 'crear')
 
   const [q, setQ] = useState('')
   const [fTipo, setFTipo] = useState('')
@@ -115,7 +117,7 @@ export default function ComercialPage() {
   }
 
   async function confirmar(campId: string, nombre: string) {
-    await data.confirmarReserva(campId)
+    await confirmarReservaApi(campId)
     notify(`"${nombre}" confirmada · pines en ocupado`)
   }
 
@@ -126,9 +128,11 @@ export default function ComercialPage() {
           <h1 className="text-2xl text-ink">Comercial</h1>
           <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {filtrados.length} sitios</p>
         </div>
-        <Button size="sm" onClick={() => setAltaOpen(true)}>
-          <Plus className="h-3.5 w-3.5" /> Nueva pantalla
-        </Button>
+        {puedeCrear && (
+          <Button size="sm" onClick={() => setAltaOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Nueva pantalla
+          </Button>
+        )}
       </div>
 
       {/* Reservas tentativas (Acto 3: confirmar / extender) */}
@@ -154,12 +158,16 @@ export default function ComercialPage() {
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => setExtender({ id: c.id, nombre: c.nombre })}>
-                      Extender
-                    </Button>
-                    <Button size="sm" onClick={() => confirmar(c.id, c.nombre)}>
-                      <Check className="h-3.5 w-3.5" /> Confirmar
-                    </Button>
+                    {puedeCrear && (
+                      <>
+                        <Button size="sm" variant="secondary" onClick={() => setExtender({ id: c.id, nombre: c.nombre })}>
+                          Extender
+                        </Button>
+                        <Button size="sm" onClick={() => confirmar(c.id, c.nombre)}>
+                          <Check className="h-3.5 w-3.5" /> Confirmar
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </li>
               )
@@ -276,7 +284,7 @@ export default function ComercialPage() {
           </ul>
 
           {/* Barra de acción de selección */}
-          {seleccion.size > 0 && (
+          {seleccion.size > 0 && puedeCrear && (
             <div className="flex items-center justify-between border-t border-border bg-surface px-3 py-2.5">
               <div className="text-[12px] text-muted">
                 {seleccion.size} sel. ·{' '}
@@ -395,7 +403,7 @@ function ExtenderDialog({
           <Button
             size="sm"
             onClick={async () => {
-              await data.extenderCampana(campana.id, new Date(fin).toISOString())
+              await extenderCampanaApi(campana.id, new Date(fin).toISOString())
               onDone(campana.nombre)
               onClose()
             }}

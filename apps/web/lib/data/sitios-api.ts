@@ -1,23 +1,18 @@
 'use client'
 
-import { useDemoStore } from './store'
 import type { Sitio, ImportSummary } from './types'
+import { refrescarEstado } from './estado-api'
 
 // ============================================================================
 //  lib/data/sitios-api.ts — Sitios contra la BD (route handlers /api/sitios).
-//  Tras cada escritura refresca el store (caché en memoria) desde la BD, así
-//  mapa, lista, network y dashboard reaccionan. basePath + trailingSlash.
+//  Tras cada escritura refresca el ESTADO completo (sitios + campañas + …) para
+//  que mapa, lista, network y dashboard reaccionen. basePath + trailingSlash.
 // ============================================================================
 
 const BASE = '/spaces-dooh/api/sitios'
 
-// Carga los sitios de la BD al store (hidratación / refresco).
-export async function refrescarSitios(): Promise<void> {
-  const r = await fetch(`${BASE}/`, { cache: 'no-store' })
-  if (!r.ok) return
-  const sitios: Sitio[] = await r.json()
-  useDemoStore.setState({ sitios })
-}
+// Refresco: recarga todo el estado persistido al store.
+export const refrescarSitios = refrescarEstado
 
 export async function altaSitioApi(input: unknown): Promise<Sitio> {
   const r = await fetch(`${BASE}/`, {

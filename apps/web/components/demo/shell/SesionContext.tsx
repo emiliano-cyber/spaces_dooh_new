@@ -17,3 +17,9 @@ export function SesionProvider({ children }: { children: React.ReactNode }) {
 }
 
 export const useSesionCtx = () => useContext(SesionCtx)
+
+// ¿El usuario en sesión puede `accion` en `modulo`? (RBAC en el front).
+export function usePuede(modulo: string, accion: string): boolean {
+  const { sesion } = useContext(SesionCtx)
+  return !!sesion?.permisos?.[modulo]?.includes(accion)
+}

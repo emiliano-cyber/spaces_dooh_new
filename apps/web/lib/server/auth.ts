@@ -80,6 +80,20 @@ export async function tienePermiso(rol: string, modulo: string, accion: string):
   return !!r
 }
 
+// Guard para route handlers: exige sesión y, si se indica, un permiso concreto.
+// Devuelve el usuario o un objeto de error con su status (401/403).
+export async function exigir(
+  modulo?: string,
+  accion?: string,
+): Promise<{ ok: true; usuario: UsuarioSesion } | { ok: false; status: number; error: string }> {
+  const usuario = await usuarioActual()
+  if (!usuario) return { ok: false, status: 401, error: 'Sin sesión' }
+  if (modulo && accion && !(await tienePermiso(usuario.rol, modulo, accion))) {
+    return { ok: false, status: 403, error: 'No tienes permiso para esta acción' }
+  }
+  return { ok: true, usuario }
+}
+
 // Opciones de cookie de sesión (para set/clear en las respuestas).
 export function cookieSesion(token: string) {
   return {

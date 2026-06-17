@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { ImportarInventarioDialog } from './ImportarInventarioDialog'
 import { NuevaPantallaForm } from './NuevaPantallaForm'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 
 // Sección "Agregar inventario" (debajo del dashboard). Un botón abre el modal de
 // carga masiva (Modal 1), que a su vez ofrece descargar plantilla, subir archivo
@@ -14,6 +15,9 @@ export function AgregarInventario() {
   const [importOpen, setImportOpen] = useState(false)
   const [nuevaOpen, setNuevaOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const puedeCrear = usePuede('comercial', 'crear')
+
+  if (!puedeCrear) return null
 
   function notify(msg: string) {
     setToast(msg)

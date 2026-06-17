@@ -1,13 +1,13 @@
 'use client'
 
 import { useEffect } from 'react'
-import { refrescarSitios } from '@/lib/data/sitios-api'
+import { refrescarEstado } from '@/lib/data/estado-api'
 
-// Carga los sitios desde la BD al entrar al shell (una vez). El resto de las
-// pantallas leen del store ya hidratado.
+// Carga el estado persistido (sitios, clientes, campañas, reservas…) desde la
+// BD al entrar al shell. El resto de las pantallas leen del store ya hidratado.
 export function HidratarSitios() {
   useEffect(() => {
-    refrescarSitios()
+    refrescarEstado()
   }, [])
   return null
 }
