@@ -129,6 +129,7 @@ export function ImportarInventarioDialog({
         if (!v) reset()
         onOpenChange(v)
       }}
+      size="xl"
       title="Carga masiva de inventario"
       subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
       footer={

@@ -123,6 +123,7 @@ export function NuevaPantallaForm({
     <Modal
       open={open}
       onOpenChange={onOpenChange}
+      size="lg"
       title="Nueva pantalla"
       subtitle="Alta manual de una sola pantalla"
       footer={

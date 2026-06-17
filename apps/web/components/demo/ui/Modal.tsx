@@ -2,6 +2,16 @@
 
 import * as Dialog from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
+import { cn } from '@/lib/cn'
+
+// Ancho máximo en desktop. En móvil siempre es w-full (se topa con el viewport),
+// así que el tamaño en celular no cambia entre variantes.
+type ModalSize = 'md' | 'lg' | 'xl'
+const SIZE_MAX: Record<ModalSize, string> = {
+  md: 'max-w-md',
+  lg: 'max-w-2xl',
+  xl: 'max-w-4xl',
+}
 
 // Modal centrado plano, 1px. Para formularios cortos (p. ej. reservar).
 export function Modal({
@@ -11,6 +21,7 @@ export function Modal({
   subtitle,
   children,
   footer,
+  size = 'md',
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
@@ -18,12 +29,16 @@ export function Modal({
   subtitle?: string
   children: React.ReactNode
   footer?: React.ReactNode
+  size?: ModalSize
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="demo-root fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-surface data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95">
+        <Dialog.Content className={cn(
+          'demo-root fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-surface data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          SIZE_MAX[size],
+        )}>
           <div className="flex items-start justify-between border-b border-border px-5 py-4">
             <div>
               <Dialog.Title className="text-base font-semibold text-ink">{title}</Dialog.Title>
