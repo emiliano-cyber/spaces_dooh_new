@@ -10,12 +10,10 @@ import { landingDeRol } from '@/lib/data/client'
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-// Accesos rápidos: usuarios sembrados por bootstrap-auth (contraseña spaces123).
+// Acceso rápido al usuario admin sembrado (contraseña spaces123). Los demás
+// usuarios se crean desde Administración → Invitar.
 const ACCESOS = [
   { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño' },
-  { nombre: 'Carlos Mendoza', email: 'carlos@billboardsperu.pe', cargo: 'Comercial' },
-  { nombre: 'Luis Paredes', email: 'luis@billboardsperu.pe', cargo: 'Operaciones' },
-  { nombre: 'Andrea Salas', email: 'andrea@billboardsperu.pe', cargo: 'Finanzas' },
 ]
 
 export default function LoginPage() {
