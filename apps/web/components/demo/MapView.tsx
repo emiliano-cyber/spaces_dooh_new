@@ -53,22 +53,53 @@ function buildStyle(): string | StyleSpecification {
   }
 }
 
+// Encuentra el foco con MÁS sitios: el punto con más vecinos cercanos (densidad)
+// y los límites del cúmulo a su alrededor. Así el mapa muestra dónde se concentra
+// el inventario en vez de quedarse fijo en un centro arbitrario. Ignora outliers
+// lejanos (otra ciudad con pocos sitios no arrastra el encuadre).
+const R_DENSIDAD = 0.05 // ~5 km: radio para puntuar densidad
+const R_CUMULO = 0.25 // ~25 km: radio del cúmulo a encuadrar (área metropolitana)
+
+function focoDensidad(points: MapPoint[]) {
+  const validos = points.filter((p) => Number.isFinite(p.lat) && Number.isFinite(p.lng))
+  if (!validos.length) return null
+  let mejor = validos[0]
+  let mejorScore = -1
+  for (const a of validos) {
+    let s = 0
+    for (const b of validos) {
+      if (Math.abs(a.lat - b.lat) <= R_DENSIDAD && Math.abs(a.lng - b.lng) <= R_DENSIDAD) s++
+    }
+    if (s > mejorScore) {
+      mejorScore = s
+      mejor = a
+    }
+  }
+  const cumulo = validos.filter(
+    (p) => Math.abs(p.lat - mejor.lat) <= R_CUMULO && Math.abs(p.lng - mejor.lng) <= R_CUMULO,
+  )
+  return { centro: mejor, cumulo }
+}
+
 export function MapView({
   points,
   selectedId,
   onSelect,
   className,
   zoom = 11,
+  autoFit = true,
 }: {
   points: MapPoint[]
   selectedId?: string | null
   onSelect?: (id: string) => void
   className?: string
   zoom?: number
+  autoFit?: boolean
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
+  const lastFitRef = useRef<string>('')
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
 
@@ -141,7 +172,29 @@ export function MapView({
         existing.delete(id)
       }
     }
-  }, [points, selectedId])
+
+    // Auto-enfoque a la zona de mayor concentración. Solo cuando cambia el
+    // CONJUNTO de sitios (no al seleccionar uno ni al re-render), para no pelear
+    // con el desplazamiento manual del usuario.
+    if (autoFit) {
+      const clave = points.map((p) => p.id).sort().join('|')
+      if (clave !== lastFitRef.current && points.length > 0) {
+        lastFitRef.current = clave
+        const foco = focoDensidad(points)
+        if (foco) {
+          if (foco.cumulo.length === 1) {
+            map.easeTo({ center: [foco.centro.lng, foco.centro.lat], zoom: 13, duration: 500 })
+          } else {
+            const b = new maplibregl.LngLatBounds()
+            foco.cumulo.forEach((p) => b.extend([p.lng, p.lat]))
+            map.fitBounds(b, { padding: 56, maxZoom: 14, duration: 500 })
+          }
+        }
+      } else if (points.length === 0) {
+        lastFitRef.current = ''
+      }
+    }
+  }, [points, selectedId, autoFit])
 
   return <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }} />
 }
