@@ -17,8 +17,11 @@ import {
   Clock,
   Network,
   Share2,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
+import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
@@ -27,6 +30,8 @@ import {
   SITIO_TONO,
   SITIO_LABEL,
 } from '@/components/demo/StatusBadge'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { actualizarSitioApi, borrarSitioApi } from '@/lib/data/sitios-api'
 import {
   useReservas,
   useIncidencias,
@@ -81,7 +86,23 @@ export function SiteFicha({
 }) {
   const reservas = useReservas()
   const incidencias = useIncidencias()
+  const puedeEditar = usePuede('comercial', 'crear')
   const [fotos, setFotos] = useState<FotoMeta[]>([])
+  const [editOpen, setEditOpen] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+
+  async function eliminar() {
+    if (!sitio) return
+    if (!window.confirm(`¿Eliminar la pantalla "${sitio.nombre}"? Esta acción no se puede deshacer.`)) return
+    setBorrando(true)
+    try {
+      await borrarSitioApi(sitio.id)
+      onOpenChange(false)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
+    }
+    setBorrando(false)
+  }
 
   // Reinicia la galería local al cambiar de sitio. Las fotos sembradas (string)
   // se adaptan a FotoMeta sin fechas conocidas.
@@ -135,6 +156,18 @@ export function SiteFicha({
             {LEGAL_LABEL[sitio.estatusLegal]}
           </StatusBadge>
         </div>
+
+        {/* Acciones de administración del sitio */}
+        {puedeEditar && (
+          <div className="flex gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-3.5 w-3.5" /> Editar
+            </Button>
+            <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
+              <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
+            </Button>
+          </div>
+        )}
 
         {/* Incidencia explicada */}
         {incidencia && (
@@ -261,7 +294,129 @@ export function SiteFicha({
           <CalendarioDisponibilidad rangos={rangos} />
         </div>
       </div>
+
+      <EditarSitioDialog sitio={sitio} open={editOpen} onClose={() => setEditOpen(false)} />
     </Sheet>
+  )
+}
+
+const TIPOS: TipoMedio[] = [
+  'ESPECTACULAR', 'PANTALLA_DIGITAL', 'PUENTE_PEATONAL', 'MOBILIARIO_URBANO', 'MURAL', 'VALLA', 'OTRO',
+]
+const ESTATUS: { v: string; label: string }[] = [
+  { v: 'DISPONIBLE', label: 'Disponible' },
+  { v: 'RESERVADO', label: 'Reservado' },
+  { v: 'OCUPADO', label: 'Ocupado' },
+  { v: 'BLOQUEADO', label: 'Bloqueado' },
+]
+const inputCls =
+  'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  const [nombre, setNombre] = useState(sitio.nombre)
+  const [tipoMedio, setTipoMedio] = useState<TipoMedio>(sitio.tipoMedio)
+  const [alcaldia, setAlcaldia] = useState(sitio.alcaldia ?? '')
+  const [direccionComercial, setDireccionComercial] = useState(sitio.direccionComercial ?? '')
+  const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
+  const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
+  const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [notas, setNotas] = useState(sitio.notas ?? '')
+  const [enviando, setEnviando] = useState(false)
+
+  // Reinicia el formulario al abrir o cambiar de sitio.
+  useEffect(() => {
+    setNombre(sitio.nombre)
+    setTipoMedio(sitio.tipoMedio)
+    setAlcaldia(sitio.alcaldia ?? '')
+    setDireccionComercial(sitio.direccionComercial ?? '')
+    setTarifa(String(sitio.tarifaPublicada ?? 0))
+    setCostoCompra(String(sitio.costoCompra ?? 0))
+    setEstatusComercial(sitio.estatusComercial)
+    setNotas(sitio.notas ?? '')
+  }, [sitio.id, open])
+
+  async function guardar() {
+    setEnviando(true)
+    try {
+      const tarifaNum = Number(tarifa) || 0
+      await actualizarSitioApi(sitio.id, {
+        nombre: nombre.trim(),
+        tipoMedio,
+        alcaldia: alcaldia.trim(),
+        direccionComercial: direccionComercial.trim(),
+        // La tarifa publicada y la mensual se mantienen sincronizadas (igual que en el alta).
+        tarifaPublicada: tarifaNum,
+        tarifaMensual: tarifaNum,
+        costoCompra: Number(costoCompra) || 0,
+        estatusComercial,
+        notas: notas.trim() || null,
+      })
+      onClose()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(v) => !v && onClose()}
+      title="Editar pantalla"
+      subtitle={sitio.codigoProveedor}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" disabled={enviando || !nombre.trim()} onClick={guardar}>
+            {enviando ? 'Guardando…' : 'Guardar cambios'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <CampoEdit label="Nombre">
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
+        </CampoEdit>
+        <div className="grid grid-cols-2 gap-3">
+          <CampoEdit label="Tipo de medio">
+            <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
+              {TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+            </select>
+          </CampoEdit>
+          <CampoEdit label="Disponibilidad">
+            <select value={estatusComercial} onChange={(e) => setEstatusComercial(e.target.value as Sitio['estatusComercial'])} className={inputCls}>
+              {ESTATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
+            </select>
+          </CampoEdit>
+        </div>
+        <CampoEdit label="Distrito / alcaldía">
+          <input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} />
+        </CampoEdit>
+        <CampoEdit label="Dirección comercial">
+          <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
+        </CampoEdit>
+        <div className="grid grid-cols-2 gap-3">
+          <CampoEdit label="Tarifa publicada (mensual)">
+            <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
+          </CampoEdit>
+          <CampoEdit label="Costo de compra">
+            <input type="number" inputMode="decimal" value={costoCompra} onChange={(e) => setCostoCompra(e.target.value)} className={`demo-num ${inputCls}`} />
+          </CampoEdit>
+        </div>
+        <CampoEdit label="Notas">
+          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={inputCls} />
+        </CampoEdit>
+      </div>
+    </Modal>
+  )
+}
+
+function CampoEdit({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
+      {children}
+    </label>
   )
 }
 

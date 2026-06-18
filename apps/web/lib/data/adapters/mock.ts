@@ -685,12 +685,16 @@ export const mockAdapter = {
     if (!c) throw new Error('Campaña no encontrada')
     if (!candadoFacturacion(c)) throw new Error('La campaña no tiene el candado completo')
 
-    const monto = c.presupuestoBruto ?? 0
+    const subtotal = c.presupuestoNeto ?? 0
+    const igv = Math.round(subtotal * 0.18 * 100) / 100
+    const monto = c.presupuestoBruto ?? Math.round((subtotal + igv) * 100) / 100
     const factura: Factura = {
       id: uid('fac'),
       folio: `F001-${String(300 + _seq).padStart(8, '0')}`,
       campanaId,
       clienteId: c.clienteId,
+      subtotal,
+      igv,
       monto,
       moneda: 'PEN',
       fechaEmision: nowISO(),

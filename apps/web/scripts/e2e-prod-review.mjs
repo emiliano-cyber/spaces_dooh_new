@@ -144,6 +144,27 @@ async function main() {
   const finOI = await call('POST', '/impresion/', { cookie: fin.cookie, body: { campanaId: campId } })
   check('RBAC: FINANZAS no puede crear OI → 403', finOI.status === 403, `HTTP ${finOI.status}`)
 
+  const f = factura.data ?? {}
+  const r2 = (x) => Math.round(x * 100) / 100
+  check('Factura desglosa subtotal + IGV = total', r2(f.subtotal + f.igv) === r2(f.monto), `${f.subtotal}+${f.igv}=${f.monto}`)
+  check('IGV = 18% del subtotal', r2(f.subtotal * 0.18) === r2(f.igv), `igv ${f.igv}`)
+  // Proración por días exactos: campaña de 31 días (01–31 jul) a tarifa 18,000/mes.
+  check('Proración por días: subtotal = 18000/30 × 31', r2(f.subtotal) === r2((18000 / 30) * 31), `subtotal ${f.subtotal}`)
+
+  console.log('\n── E2. Comercial: editar y eliminar pantalla ────────────────')
+  const editar = await call('PATCH', `/sitios/${sitioId}/`, { cookie: com.cookie, body: { nombre: 'Valla Editada', tarifaPublicada: 20000, tarifaMensual: 20000 } })
+  check('COMERCIAL editar sitio → 200', editar.status === 200 && editar.data?.tarifaMensual === 20000, `tarifa ${editar.data?.tarifaMensual}`)
+
+  const delConDep = await call('DELETE', `/sitios/${sitioId}/`, { cookie: com.cookie })
+  check('Eliminar sitio con reservas/OT → 409', delConDep.status === 409, `HTTP ${delConDep.status}`)
+
+  const desechable = await call('POST', '/sitios/', { cookie: com.cookie, body: { nombre: 'Desechable', tipoMedio: 'VALLA', tarifaPublicada: 5000 } })
+  const delLimpio = await call('DELETE', `/sitios/${desechable.data?.id}/`, { cookie: com.cookie })
+  check('Eliminar sitio sin dependencias → 200', delLimpio.status === 200, `HTTP ${delLimpio.status}`)
+
+  const impEdit = await call('PATCH', `/sitios/${sitioId}/`, { cookie: imp.cookie, body: { nombre: 'x' } })
+  check('RBAC: IMPRENTA no puede editar sitio → 403', impEdit.status === 403, `HTTP ${impEdit.status}`)
+
   console.log('\n── F. PERSISTENCIA: /estado refleja todo ────────────────────')
   const est = await call('GET', '/estado/', { cookie: RGBC })
   const e = est.data ?? {}

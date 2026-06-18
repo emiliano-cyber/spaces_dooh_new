@@ -401,11 +401,11 @@ const evidencias: EvidenciaOT[] = [
 
 const facturas: Factura[] = [
   // Bebidas Pacífico — ámbar (por vencer)
-  { id: 'fac-bebidas', folio: 'F001-00000231', campanaId: 'camp-bebidas', clienteId: 'cli-bebidas', monto: 98000, moneda: 'PEN', fechaEmision: offsetISO(-75), estatus: 'EMITIDA', creadoEn: offsetISO(-75) },
+  { id: 'fac-bebidas', folio: 'F001-00000231', campanaId: 'camp-bebidas', clienteId: 'cli-bebidas', subtotal: 83050.85, igv: 14949.15, monto: 98000, moneda: 'PEN', fechaEmision: offsetISO(-75), estatus: 'EMITIDA', creadoEn: offsetISO(-75) },
   // Retail Lima Q1 — rojo (vencida)
-  { id: 'fac-retail-q1', folio: 'F001-00000198', campanaId: 'camp-retail-q1', clienteId: 'cli-retail', monto: 64000, moneda: 'PEN', fechaEmision: offsetISO(-100), estatus: 'EMITIDA', creadoEn: offsetISO(-100) },
+  { id: 'fac-retail-q1', folio: 'F001-00000198', campanaId: 'camp-retail-q1', clienteId: 'cli-retail', subtotal: 54237.29, igv: 9762.71, monto: 64000, moneda: 'PEN', fechaEmision: offsetISO(-100), estatus: 'EMITIDA', creadoEn: offsetISO(-100) },
   // Banca del Sol Q1 — verde (al corriente)
-  { id: 'fac-banca-q1', folio: 'F001-00000210', campanaId: 'camp-banca-q1', clienteId: 'cli-banca', monto: 110000, moneda: 'PEN', fechaEmision: offsetISO(-20), estatus: 'EMITIDA', creadoEn: offsetISO(-20) },
+  { id: 'fac-banca-q1', folio: 'F001-00000210', campanaId: 'camp-banca-q1', clienteId: 'cli-banca', subtotal: 93220.34, igv: 16779.66, monto: 110000, moneda: 'PEN', fechaEmision: offsetISO(-20), estatus: 'EMITIDA', creadoEn: offsetISO(-20) },
 ]
 
 const cobranzas: Cobranza[] = [

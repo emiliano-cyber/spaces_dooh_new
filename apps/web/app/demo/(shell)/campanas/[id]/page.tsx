@@ -113,8 +113,13 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent>
             <dl className="space-y-2 text-[13px]">
-              <Fila label="Presupuesto bruto" valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
-              <Fila label="Presupuesto neto" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
+              <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
+              <Fila
+                label="IGV (18%)"
+                valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
+                mono
+              />
+              <Fila label="Total" valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
               <Fila label="Agencia" valor={c.agencia ?? 'Directo'} />
               <Fila label="OC recibida" valor={c.ocRecibida ? 'Sí' : 'No'} />
             </dl>

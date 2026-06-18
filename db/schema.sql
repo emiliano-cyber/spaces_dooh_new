@@ -371,7 +371,9 @@ create table facturas (
   folio         text unique,
   campana_id    uuid not null references campanas(id) on delete restrict,
   cliente_id    uuid not null references clientes(id) on delete restrict,
-  monto         numeric(16,2) not null,
+  subtotal      numeric(16,2) not null default 0,   -- neto sin IGV
+  igv           numeric(16,2) not null default 0,   -- IGV 18%
+  monto         numeric(16,2) not null,             -- total = subtotal + igv
   moneda        text not null default 'PEN',
   fecha_emision date not null default current_date,
   estatus       est_factura not null default 'EMITIDA',

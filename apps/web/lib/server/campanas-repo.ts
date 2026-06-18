@@ -10,23 +10,26 @@ import { pool, q } from './db'
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string))
 
-// Recalcula el presupuesto de la campaña a partir de sus reservas: cada reserva
-// aporta su tarifa mensual × los meses que cubre (mínimo 1). Mantiene bruto=neto
-// (no modelamos IVA/margen). Acepta un client de transacción o el pool (q).
+// IGV (Perú) = 18%. Importe de cada reserva = tarifa mensual prorrateada por
+// días exactos: precio / 30 × días cubiertos (fecha_fin - fecha_inicio + 1).
+// presupuesto_neto = suma prorrateada; presupuesto_bruto = neto + IGV (total).
+export const IGV_PCT = 0.18
+
 type Exec = { query: (sql: string, params?: unknown[]) => Promise<unknown> }
 async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
   const sql =
     `update campanas c
-        set presupuesto_bruto = sub.total, presupuesto_neto = sub.total
+        set presupuesto_neto = sub.neto,
+            presupuesto_bruto = round(sub.neto * (1 + $2::numeric), 2)
        from (
          select coalesce(
-           sum(precio * greatest(1, round((fecha_fin - fecha_inicio + 1) / 30.0))), 0
-         ) as total
+           round(sum(precio * (fecha_fin - fecha_inicio + 1) / 30.0), 2), 0
+         ) as neto
          from reservas where campana_id = $1
        ) sub
       where c.id = $1`
-  if (exec) await exec.query(sql, [campanaId])
-  else await q(sql, [campanaId])
+  if (exec) await exec.query(sql, [campanaId, IGV_PCT])
+  else await q(sql, [campanaId, IGV_PCT])
 }
 
 function rowToCliente(r: any) {

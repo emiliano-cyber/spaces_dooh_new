@@ -28,7 +28,18 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const previo = await getSitio(params.id)
-  await borrarSitio(params.id)
+  try {
+    await borrarSitio(params.id)
+  } catch (e) {
+    // 23503 = foreign_key_violation: el sitio tiene reservas / OT / impresión asociadas.
+    if ((e as { code?: string })?.code === '23503') {
+      return NextResponse.json(
+        { error: 'No se puede eliminar: la pantalla tiene reservas u órdenes asociadas.' },
+        { status: 409 },
+      )
+    }
+    throw e
+  }
   await registrarAccion(g.usuario, 'Eliminó pantalla', previo?.nombre ?? params.id)
   return NextResponse.json({ ok: true })
 }

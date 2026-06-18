@@ -9,7 +9,7 @@ distinto en cada etapa** del flujo, antes de pasar a producción.
   2. BD en estado inicial (solo el usuario RGB) — el runner crea y deja la BD lista, pero **debe arrancar sin datos de campañas** (conteos exactos).
   3. Dev server arriba: `cd apps/web && npm run dev`
   4. `node apps/web/scripts/e2e-prod-review.mjs`
-- **Último resultado:** ✅ **28/28 verificaciones OK**
+- **Último resultado:** ✅ **35/35 verificaciones OK**
 - El runner crea usuarios de prueba por perfil; **al terminar, limpiar la BD a solo-RGB**:
   ```sql
   delete from usuarios where email<>'jose@pixeled.com.mx';
@@ -39,7 +39,9 @@ distinto en cada etapa** del flujo, antes de pasar a producción.
 - [x] Reservar (campaña tentativa) → **201**
 - [x] Confirmar reserva → **200** (campaña `CONFIRMADA`, sitios `OCUPADO`)
 - [x] Registrar OC del cliente → **200** (`oc_recibida = true`)
-- [x] **Presupuesto** calculado desde las reservas (tarifa mensual × meses) — *bug detectado y corregido en este repaso (antes facturaba 0)*
+- [x] **Presupuesto** calculado desde las reservas con **proración por días exactos** (`tarifa_mensual / 30 × días`) — *bug detectado y corregido (antes facturaba 0)*
+- [x] **Editar** pantalla (nombre, tarifa, estatus…) → **200**
+- [x] **Eliminar** pantalla sin dependencias → **200**; con reservas/OT → **409** con mensaje claro
 
 ### C. Imprenta — órdenes de impresión
 - [x] Crear orden de impresión ligada a campaña → **201**
@@ -51,7 +53,9 @@ distinto en cada etapa** del flujo, antes de pasar a producción.
 - [x] Al cerrar OT se encienden fotos + reporte → **candado de facturación** completo
 
 ### E. Finanzas — facturación + cobranza
-- [x] Generar factura con candado completo → **201** (monto = presupuesto, **S/ 18,000** en la prueba)
+- [x] Generar factura con candado completo → **201**
+- [x] **Desglose fiscal**: la factura guarda `subtotal` (neto) + `igv` (18%) = `monto` (total); `subtotal + igv == monto`
+- [x] **IGV = 18%** del subtotal (Perú)
 - [x] Re-facturar la misma campaña → **400** (no duplica)
 - [x] Registrar pago de cobranza → **200** (`PAGADA`)
 - [x] Campaña queda `COMPLETADA` tras facturar
@@ -60,6 +64,7 @@ distinto en cada etapa** del flujo, antes de pasar a producción.
 - [x] COMERCIAL no puede **facturar** → **403**
 - [x] COMERCIAL no puede **crear OT** → **403**
 - [x] IMPRENTA no puede **dar alta de sitio** → **403**
+- [x] IMPRENTA no puede **editar sitio** → **403**
 - [x] OPERACIONES no puede **facturar** → **403**
 - [x] FINANZAS no puede **crear orden de impresión** → **403**
 
@@ -81,9 +86,11 @@ distinto en cada etapa** del flujo, antes de pasar a producción.
 
 - **Almacenamiento de imágenes:** los testigos se guardan como data URL (base64)
   en la BD. En producción mover a disco/S3 y guardar solo la URL.
-- **Proración de presupuesto:** los meses se calculan como `días/30` redondeado
-  (mínimo 1). No modela IVA ni márgenes (`bruto = neto`). Revisar si se requiere
-  fiscalidad real.
-- **UI editar/eliminar sitio:** endpoints existentes; falta la pantalla.
+- **Fiscalidad:** IGV fijo al **18%** (`bruto = neto + IGV`). No modela retenciones,
+  detracciones ni márgenes de agencia. Si se requiere, parametrizar la tasa en
+  Configuración del negocio.
 - **Despliegue:** build de producción, variables de entorno (`DATABASE_URL`,
   secreto de sesión), hosting de Postgres y del frontend.
+
+*(Resueltos en repasos previos: cálculo de presupuesto con proración por días,
+desglose de IGV en la factura, y UI de editar/eliminar pantalla.)*

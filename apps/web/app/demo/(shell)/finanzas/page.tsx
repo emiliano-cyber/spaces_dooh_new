@@ -86,7 +86,7 @@ export default function FinanzasPage() {
                     <div className="text-[13px] font-medium text-ink">{r.campana.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
                       {r.clienteNombre} ·{' '}
-                      {r.campana.presupuestoBruto ? formatMonto(r.campana.presupuestoBruto) : '—'}
+                      {r.campana.presupuestoBruto ? `${formatMonto(r.campana.presupuestoBruto)} · IGV inc.` : '—'}
                     </div>
                   </div>
                   {puedeFacturar ? (
@@ -245,11 +245,27 @@ function GenerarFacturaDialog({
       }
     >
       <div className="space-y-3">
-        <div className="flex items-center justify-between rounded-md border border-border bg-surface-2 px-3 py-2 text-[13px]">
-          <span className="text-muted">Monto</span>
-          <span className="demo-num font-semibold text-ink">
-            {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto) : '—'}
-          </span>
+        <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[13px]">
+          <div className="flex items-center justify-between">
+            <span className="text-muted">Subtotal (neto)</span>
+            <span className="demo-num text-ink">
+              {campana.presupuestoNeto ? formatMonto(campana.presupuestoNeto) : '—'}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-muted">IGV (18%)</span>
+            <span className="demo-num text-ink">
+              {campana.presupuestoNeto != null && campana.presupuestoBruto != null
+                ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)
+                : '—'}
+            </span>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between border-t border-border pt-1.5">
+            <span className="font-medium text-ink">Total</span>
+            <span className="demo-num font-semibold text-ink">
+              {campana.presupuestoBruto ? formatMonto(campana.presupuestoBruto) : '—'}
+            </span>
+          </div>
         </div>
         <div>
           <span className="mb-1.5 block text-[12px] font-medium text-ink">Plazo de cobranza</span>

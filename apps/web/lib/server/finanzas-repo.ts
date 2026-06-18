@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { IGV_PCT } from './campanas-repo'
 
 // ============================================================================
 //  lib/server/finanzas-repo.ts — Facturación y cobranza.
@@ -14,6 +15,7 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string)
 function rowToFactura(r: any) {
   return {
     id: r.id, folio: r.folio, campanaId: r.campana_id, clienteId: r.cliente_id,
+    subtotal: n(r.subtotal) ?? 0, igv: n(r.igv) ?? 0,
     monto: n(r.monto) ?? 0, moneda: r.moneda, fechaEmision: iso(r.fecha_emision),
     estatus: r.estatus, creadoEn: iso(r.creado_en),
   }
@@ -48,14 +50,20 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
     throw new FacturaError('La campaña ya tiene factura')
   }
 
+  // Desglose fiscal: subtotal (neto) + IGV = total. Se calcula desde el neto
+  // para garantizar que subtotal + igv == monto exactamente (sin desfases).
+  const neto = Math.round(Number(c.presupuesto_neto ?? 0) * 100) / 100
+  const igv = Math.round(neto * IGV_PCT * 100) / 100
+  const total = Math.round((neto + igv) * 100) / 100
+
   const client = await pool.connect()
   try {
     await client.query('begin')
     const fac = (
       await client.query(
-        `insert into facturas (folio, campana_id, cliente_id, monto, moneda, fecha_emision, estatus)
-         values ($1,$2,$3,$4,'PEN',current_date,'EMITIDA') returning *`,
-        [folioFactura(), campanaId, c.cliente_id, Number(c.presupuesto_bruto ?? 0)],
+        `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus)
+         values ($1,$2,$3,$4,$5,$6,'PEN',current_date,'EMITIDA') returning *`,
+        [folioFactura(), campanaId, c.cliente_id, neto, igv, total],
       )
     ).rows[0]
     await client.query(

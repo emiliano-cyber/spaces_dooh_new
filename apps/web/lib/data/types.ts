@@ -423,7 +423,9 @@ export interface Factura {
   folio: string
   campanaId: string
   clienteId: string
-  monto: number
+  subtotal: number // neto sin IGV
+  igv: number // IGV 18%
+  monto: number // total = subtotal + igv
   moneda: string
   fechaEmision: string
   estatus: EstFactura
