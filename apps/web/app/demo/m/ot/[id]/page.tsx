@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Loader2,
   LockOpen,
-  ArrowRight,
 } from 'lucide-react'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
@@ -131,9 +130,7 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
         {completada ? (
           <CompletadaView
             candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
-            campanaId={ot.campanaId}
             evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
-            mostrarPipeline={!!campana}
           />
         ) : (
           <>
@@ -228,14 +225,10 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
 
 function CompletadaView({
   candado,
-  campanaId,
   evidenciaUrls,
-  mostrarPipeline,
 }: {
   candado: boolean
-  campanaId: string | null
   evidenciaUrls: string[]
-  mostrarPipeline: boolean
 }) {
   const real = evidenciaUrls.filter((u) => u.startsWith('blob:') || u.startsWith('http') || u.startsWith('data:'))
   return (
@@ -262,18 +255,9 @@ function CompletadaView({
         <img src={real[0]} alt="evidencia" className="w-full rounded-md border border-border object-cover" />
       )}
 
-      {mostrarPipeline && campanaId ? (
-        <Link
-          href={`/demo/campanas/${campanaId}`}
-          className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline"
-        >
-          Ver pipeline de la campaña <ArrowRight className="h-3.5 w-3.5" />
-        </Link>
-      ) : (
-        <p className="text-center text-[12px] text-muted">
-          Puedes cerrar esta ventana. La evidencia ya quedó registrada.
-        </p>
-      )}
+      <p className="text-center text-[12px] text-muted">
+        Puedes cerrar esta ventana. La evidencia ya quedó registrada.
+      </p>
     </div>
   )
 }

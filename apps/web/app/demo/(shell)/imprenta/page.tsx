@@ -35,6 +35,7 @@ export default function ImprentaPage() {
   const campanas = useCampanas()
   const sitios = useSitios()
   const puedeCrear = usePuede('imprenta', 'crear')
+  const puedeVerCampanas = usePuede('comercial', 'crear')
 
   const [nueva, setNueva] = useState(false)
   const [avanzando, setAvanzando] = useState<string | null>(null)
@@ -112,12 +113,16 @@ export default function ImprentaPage() {
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                     {camp ? (
-                      <Link
-                        href={`/demo/campanas/${camp.id}`}
-                        className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
-                      >
-                        Campaña: {camp.nombre} <ArrowUpRight className="h-3.5 w-3.5" />
-                      </Link>
+                      puedeVerCampanas ? (
+                        <Link
+                          href={`/demo/campanas/${camp.id}`}
+                          className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+                        >
+                          Campaña: {camp.nombre} <ArrowUpRight className="h-3.5 w-3.5" />
+                        </Link>
+                      ) : (
+                        <span className="text-[12px] text-muted">Campaña: {camp.nombre}</span>
+                      )
                     ) : (
                       <span className="text-[12px] text-muted">Sin campaña</span>
                     )}
