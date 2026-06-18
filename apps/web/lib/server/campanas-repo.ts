@@ -10,6 +10,25 @@ import { pool, q } from './db'
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string))
 
+// Recalcula el presupuesto de la campaña a partir de sus reservas: cada reserva
+// aporta su tarifa mensual × los meses que cubre (mínimo 1). Mantiene bruto=neto
+// (no modelamos IVA/margen). Acepta un client de transacción o el pool (q).
+type Exec = { query: (sql: string, params?: unknown[]) => Promise<unknown> }
+async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
+  const sql =
+    `update campanas c
+        set presupuesto_bruto = sub.total, presupuesto_neto = sub.total
+       from (
+         select coalesce(
+           sum(precio * greatest(1, round((fecha_fin - fecha_inicio + 1) / 30.0))), 0
+         ) as total
+         from reservas where campana_id = $1
+       ) sub
+      where c.id = $1`
+  if (exec) await exec.query(sql, [campanaId])
+  else await q(sql, [campanaId])
+}
+
 function rowToCliente(r: any) {
   return {
     id: r.id, nombre: r.nombre, rfc: r.rfc, tipo: r.tipo,
@@ -107,6 +126,7 @@ export async function reservar(input: {
       )
       await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
     }
+    await recalcularPresupuesto(client, campanaId!)
     await client.query('commit')
     const camp = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
     return rowToCampana(camp)
@@ -137,6 +157,7 @@ export async function confirmarReserva(campanaId: string) {
       await client.query(`update sitios set estatus_comercial='OCUPADO' where id = any($1::uuid[])`, [sitios])
     }
     await client.query(`update campanas set estado_comercial='CONFIRMADA' where id=$1`, [campanaId])
+    await recalcularPresupuesto(client, campanaId)
     await client.query('commit')
     const camp = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
     return camp ? rowToCampana(camp) : null
@@ -152,6 +173,7 @@ export async function confirmarReserva(campanaId: string) {
 export async function extenderCampana(campanaId: string, nuevaFechaFin: string) {
   await q(`update campanas set fecha_fin=$2 where id=$1`, [campanaId, nuevaFechaFin])
   await q(`update reservas set fecha_fin=$2 where campana_id=$1`, [campanaId, nuevaFechaFin])
+  await recalcularPresupuesto(null, campanaId)
   const rows = await q('select * from campanas where id=$1', [campanaId])
   return rows[0] ? rowToCampana(rows[0]) : null
 }
