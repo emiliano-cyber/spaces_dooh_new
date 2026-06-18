@@ -114,6 +114,17 @@ export function MapView({
       attributionControl: { compact: true },
     })
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
+    // Botón "mi ubicación": pide geolocalización al navegador, muestra tu punto
+    // (con círculo de precisión) y centra el mapa en él. Requiere HTTPS o localhost.
+    map.addControl(
+      new maplibregl.GeolocateControl({
+        positionOptions: { enableHighAccuracy: true },
+        trackUserLocation: true,
+        showUserLocation: true,
+        showAccuracyCircle: true,
+      }),
+      'top-right',
+    )
     mapRef.current = map
 
     // Reproyecta los marcadores si el contenedor cambia de tamaño (reflows).
