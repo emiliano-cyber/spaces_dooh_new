@@ -55,7 +55,10 @@ function rowToReserva(r: any) {
   return {
     id: r.id, campanaId: r.campana_id, sitioId: r.sitio_id,
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
-    precio: n(r.precio) ?? 0, tipoVenta: r.tipo_venta, estatus: r.estatus, creadoEn: iso(r.creado_en),
+    precio: n(r.precio) ?? 0, tipoVenta: r.tipo_venta, estatus: r.estatus,
+    spotsReservados: n(r.spots_reservados),
+    creativos: Array.isArray(r.creativos) ? r.creativos : [],
+    creadoEn: iso(r.creado_en),
   }
 }
 
@@ -72,12 +75,27 @@ export async function listarReservas() {
 export async function listarCreatividades() {
   return (await q('select * from creatividades order by creado_en asc')).map((r: any) => ({
     id: r.id, campanaId: r.campana_id, nombre: r.nombre, archivoUrl: r.archivo_url,
+    codigo: r.codigo ?? null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
     rechazadoMotivo: r.rechazado_motivo, creadoEn: iso(r.creado_en),
   }))
 }
 
 const folio = () => `CAM-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
+
+type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
+
+// Deriva el tipo de campaña según los sitios reservados: solo digitales → DOOH
+// (pipeline sin imprenta), solo estáticas → OOH, mezcla → HIBRIDA.
+// Nota: lo "digital" NO se marca en tipo_medio (espectacular/valla/…), sino en
+// exhibicion ('digital'/'rotativo') o es_rotativo — así lo guarda el importador.
+function derivarTipoCampana(digitales: boolean[]): TipoCampana {
+  if (digitales.length === 0) return 'OOH'
+  const n = digitales.filter(Boolean).length
+  if (n === digitales.length) return 'DOOH'
+  if (n === 0) return 'OOH'
+  return 'HIBRIDA'
+}
 
 // ─── Clientes ───────────────────────────────────────────────────────────────
 export async function crearCliente(input: { nombre: string; rfc?: string; tipo?: string; contacto?: unknown }) {
@@ -97,6 +115,10 @@ export async function reservar(input: {
   sitioIds: string[]
   fechaInicio: string
   fechaFin: string
+  // Tipo de campaña. Si se omite, se deriva del medio de los sitios reservados.
+  tipoCampana?: TipoCampana
+  // Spots a reservar por sitio digital (sitioId → cantidad). Descuenta disponibles.
+  spotsPorSitio?: Record<string, number>
 }) {
   const client = await pool.connect()
   try {
@@ -104,6 +126,18 @@ export async function reservar(input: {
     let campanaId = input.campanaId
 
     if (!campanaId) {
+      // Tipo manual si viene; si no, derivado del medio de los sitios.
+      let tipoCampana = input.tipoCampana
+      if (!tipoCampana) {
+        const flags = (
+          await client.query(
+            `select (tipo_medio = 'PANTALLA_DIGITAL' or es_rotativo or exhibicion in ('digital','rotativo')) as digital
+               from sitios where id = any($1::uuid[])`,
+            [input.sitioIds],
+          )
+        ).rows.map((r: any) => !!r.digital)
+        tipoCampana = derivarTipoCampana(flags)
+      }
       const cli = (
         await client.query(`insert into clientes (nombre) values ($1) returning id`, [
           input.clienteNombre ?? 'Cliente nuevo',
@@ -111,23 +145,52 @@ export async function reservar(input: {
       ).rows[0]
       campanaId = (
         await client.query(
-          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial)
-           values ($1,$2,$3,$4,$5,$6,'COTIZACION') returning id`,
+          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana)
+           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7) returning id`,
           [folio(), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
-           input.clienteNombre ?? null, input.fechaInicio, input.fechaFin],
+           input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana],
         )
       ).rows[0].id
     }
 
     for (const sitioId of input.sitioIds) {
-      const s = (await client.query('select tarifa_mensual from sitios where id=$1', [sitioId])).rows[0]
+      const s = (
+        await client.query(
+          'select tarifa_mensual, spots_disponibles, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          [sitioId],
+        )
+      ).rows[0]
       const precio = s ? Number(s.tarifa_mensual ?? 0) : 0
+      const digital =
+        !!s &&
+        (s.tipo_medio === 'PANTALLA_DIGITAL' ||
+          s.es_rotativo ||
+          s.exhibicion === 'digital' ||
+          s.exhibicion === 'rotativo')
+      // Spots reservados: solo digitales y solo si se pidió una cantidad (acotada
+      // a lo disponible). En estáticas queda null.
+      const pedidos = input.spotsPorSitio?.[sitioId]
+      const disp = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
+      const spotsReservados =
+        digital && pedidos != null
+          ? Math.max(0, disp != null ? Math.min(Math.round(pedidos), disp) : Math.round(pedidos))
+          : null
+
       await client.query(
-        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA')`,
-        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio],
+        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6)`,
+        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados],
       )
-      await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
+
+      if (digital && spotsReservados != null) {
+        // Descuenta spots; el sitio sigue disponible mientras le queden spots.
+        await client.query(
+          `update sitios set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2) where id=$1`,
+          [sitioId, spotsReservados],
+        )
+      } else {
+        await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
+      }
     }
     await recalcularPresupuesto(client, campanaId!)
     await client.query('commit')

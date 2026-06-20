@@ -212,6 +212,8 @@ export function SiteFicha({
             <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Resolución" valor={sitio.resolucionPx ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Contenido" valor={sitio.tipoContenido === 'VIDEO' ? 'Video' : sitio.tipoContenido === 'IMAGEN' ? 'Imagen' : '—'} />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de spots" valor={sitio.totalSpots != null ? String(sitio.totalSpots) : '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots disponibles" valor={sitio.spotsDisponibles != null ? String(sitio.spotsDisponibles) : '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración spot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />

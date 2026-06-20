@@ -40,6 +40,14 @@ export default function ImprentaPage() {
   const [nueva, setNueva] = useState(false)
   const [avanzando, setAvanzando] = useState<string | null>(null)
 
+  // Imprenta solo aplica a campañas que imprimen: OOH (fija) e HÍBRIDA. Las
+  // campañas 100% digitales (DOOH) no llevan impresión, así que sus órdenes no
+  // se muestran aquí.
+  const oisVisibles = (ois ?? []).filter((o) => {
+    const camp = campanas?.find((c) => c.id === o.campanaId)
+    return !camp || camp.tipoCampana !== 'DOOH'
+  })
+
   async function avanzar(id: string) {
     setAvanzando(id)
     try {
@@ -70,15 +78,15 @@ export default function ImprentaPage() {
             <div key={i} className="h-32 animate-pulse rounded-md bg-surface-2" />
           ))}
         </div>
-      ) : ois.length === 0 ? (
+      ) : oisVisibles.length === 0 ? (
         <EmptyState
           icon={Ruler}
           titulo="Sin órdenes de impresión"
-          detalle="Crea una orden ligada a una campaña para llevar el proceso del arte al montaje."
+          detalle="Crea una orden ligada a una campaña fija (OOH/híbrida) para llevar el proceso del arte al montaje."
         />
       ) : (
         <ul className="space-y-3">
-          {ois.map((o) => {
+          {oisVisibles.map((o) => {
             const camp = campanas?.find((c) => c.id === o.campanaId)
             const sitio = sitios?.find((s) => s.id === o.sitioId)
             const idx = PROCESO.indexOf(o.estatus)
@@ -203,9 +211,11 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           >
             <option value="">Selecciona una campaña…</option>
-            {(campanas ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.nombre}</option>
-            ))}
+            {(campanas ?? [])
+              .filter((c) => c.tipoCampana !== 'DOOH') // digital no imprime
+              .map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
           </select>
         </Campo>
         <Campo label="Sitio (opcional)">

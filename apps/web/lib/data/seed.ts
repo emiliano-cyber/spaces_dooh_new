@@ -323,8 +323,8 @@ const campanas: Campana[] = [
 // ─── Creatividades ──────────────────────────────────────────────────────────
 
 const creatividades: Creatividad[] = [
-  { id: 'crea-telco', campanaId: 'camp-telco', nombre: 'Telco Andina 5G — arte final v3', archivoUrl: 'mock://arte/telco-5g.pdf', formato: 'PDF/X-1a', resolucion: '12.9 x 7.2 m', estatusValidacion: 'VALIDADA', rechazadoMotivo: null, creadoEn: offsetISO(-9) },
-  { id: 'crea-banca', campanaId: 'camp-banca', nombre: 'Banca del Sol — hipotecario', archivoUrl: 'mock://arte/banca.pdf', formato: 'PDF/X-1a', resolucion: '12.9 x 7.2 m', estatusValidacion: 'VALIDADA', rechazadoMotivo: null, creadoEn: offsetISO(-28) },
+  { id: 'crea-telco', campanaId: 'camp-telco', nombre: 'Telco Andina 5G — arte final v3', archivoUrl: 'mock://arte/telco-5g.pdf', codigo: null, formato: 'PDF/X-1a', resolucion: '12.9 x 7.2 m', estatusValidacion: 'VALIDADA', rechazadoMotivo: null, creadoEn: offsetISO(-9) },
+  { id: 'crea-banca', campanaId: 'camp-banca', nombre: 'Banca del Sol — hipotecario', archivoUrl: 'mock://arte/banca.pdf', codigo: null, formato: 'PDF/X-1a', resolucion: '12.9 x 7.2 m', estatusValidacion: 'VALIDADA', rechazadoMotivo: null, creadoEn: offsetISO(-28) },
 ]
 
 // ─── Reservas (sitio↔campaña). Telco CONFIRMADA, Retail TENTATIVA ───────────
@@ -348,7 +348,7 @@ function r(
   return {
     id, campanaId, sitioId,
     fechaInicio: offsetISO(inicioOffset), fechaFin: offsetISO(finOffset),
-    precio, tipoVenta: 'FIXED_PKG', estatus, creadoEn: offsetISO(inicioOffset - 3),
+    precio, tipoVenta: 'FIXED_PKG', estatus, spotsReservados: null, creativos: [], creadoEn: offsetISO(inicioOffset - 3),
   }
 }
 

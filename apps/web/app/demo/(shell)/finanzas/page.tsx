@@ -86,7 +86,7 @@ export default function FinanzasPage() {
                     <div className="text-[13px] font-medium text-ink">{r.campana.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
                       {r.clienteNombre} ·{' '}
-                      {r.campana.presupuestoBruto ? `${formatMonto(r.campana.presupuestoBruto)} · IGV inc.` : '—'}
+                      {r.campana.presupuestoBruto ? `${formatMonto(r.campana.presupuestoBruto)} · IVA inc.` : '—'}
                     </div>
                   </div>
                   {puedeFacturar ? (
@@ -253,7 +253,7 @@ function GenerarFacturaDialog({
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-muted">IGV (18%)</span>
+            <span className="text-muted">IVA (18%)</span>
             <span className="demo-num text-ink">
               {campana.presupuestoNeto != null && campana.presupuestoBruto != null
                 ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)

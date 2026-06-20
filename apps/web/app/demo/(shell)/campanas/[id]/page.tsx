@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
@@ -59,6 +59,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const misSitios = misReservas
     .map((r) => ({ reserva: r, sitio: (sitios ?? []).find((s) => s.id === r.sitioId) }))
     .filter((x) => x.sitio)
+  // Pantallas de la campaña con IA / Computer Vision (AdMobilize) activada.
+  const sitiosIA = misSitios.map((x) => x.sitio!).filter((s) => s.computerVision)
   const misCreas = (creatividades ?? []).filter((x) => x.campanaId === id)
   const misOis = (ois ?? []).filter((x) => x.campanaId === id)
   const misOts = (ots ?? []).filter((x) => x.campanaId === id)
@@ -94,6 +96,23 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </div>
       </div>
 
+      {/* Aviso: pantallas con IA / medición de audiencia */}
+      {sitiosIA.length > 0 && (
+        <div className="flex items-start gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3">
+          <Cpu className="mt-0.5 h-4 w-4 shrink-0 text-info" />
+          <div className="text-[12px]">
+            <div className="text-[13px] font-medium text-ink">
+              Esta campaña incluye {sitiosIA.length} pantalla{sitiosIA.length === 1 ? '' : 's'} con IA · medición de audiencia (AdMobilize)
+            </div>
+            <div className="mt-0.5 text-muted">
+              {sitiosIA
+                .map((s) => s.nombre + (s.admobilizeId ? ` (${s.admobilizeId})` : ''))
+                .join(' · ')}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pipeline (pieza estrella) */}
       <Card>
         <CardHeader>
@@ -115,7 +134,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
             <dl className="space-y-2 text-[13px]">
               <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
               <Fila
-                label="IGV (18%)"
+                label="IVA (18%)"
                 valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
                 mono
               />

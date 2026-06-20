@@ -22,6 +22,7 @@ import type {
   AccionLog,
   Sitio,
   TipoMedio,
+  TipoCampana,
   Comercializacion,
   CMS,
   TipoContenido,
@@ -84,6 +85,8 @@ export interface ReservarInput {
   sitioIds: string[]
   fechaInicio: string
   fechaFin: string
+  // Tipo manual; si se omite se deriva del medio de los sitios reservados.
+  tipoCampana?: TipoCampana
 }
 
 export interface AltaSitioInput {
@@ -466,6 +469,24 @@ export const mockAdapter = {
 
       // Cliente nuevo + campaña nueva si no se pasa campanaId
       if (!campanaId) {
+        // Tipo de campaña derivado del medio de los sitios reservados:
+        // pantallas digitales → DOOH (su pipeline omite "En imprenta"),
+        // estáticas → OOH, y mezcla → HIBRIDA.
+        const sitiosSel = state.sitios.filter((s) => input.sitioIds.includes(s.id))
+        const digitales = sitiosSel.filter(
+          (s) =>
+            s.tipoMedio === 'PANTALLA_DIGITAL' ||
+            s.esRotativo ||
+            s.exhibicion === 'digital' ||
+            s.exhibicion === 'rotativo',
+        ).length
+        const tipoCampana: TipoCampana =
+          input.tipoCampana ??
+          (sitiosSel.length > 0 && digitales === sitiosSel.length
+            ? 'DOOH'
+            : digitales === 0
+              ? 'OOH'
+              : 'HIBRIDA')
         const cliId = uid('cli')
         clientes = [
           ...clientes,
@@ -489,7 +510,7 @@ export const mockAdapter = {
             clienteId: cliId,
             agencia: null,
             marca: input.clienteNombre ?? null,
-            tipoCampana: 'OOH',
+            tipoCampana,
             fechaInicio: input.fechaInicio,
             fechaFin: input.fechaFin,
             presupuestoBruto: null,
@@ -522,6 +543,8 @@ export const mockAdapter = {
           precio,
           tipoVenta: 'FIXED_PKG',
           estatus: 'TENTATIVA',
+          spotsReservados: null,
+          creativos: [],
           creadoEn: nowISO(),
         }
         reservas.push(res)

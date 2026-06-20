@@ -100,6 +100,7 @@ export function MapView({
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map())
   const lastFitRef = useRef<string>('')
+  const hasFitRef = useRef(false)
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
 
@@ -136,6 +137,11 @@ export function MapView({
       map.remove()
       mapRef.current = null
       markersRef.current.clear()
+      // El mapa se destruye: reinicia el estado de encuadre para que la próxima
+      // instancia (remontaje por StrictMode en dev, o al volver a la pantalla)
+      // vuelva a enfocar la zona con más sitios en vez de quedarse en el centro.
+      lastFitRef.current = ''
+      hasFitRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -193,13 +199,26 @@ export function MapView({
         lastFitRef.current = clave
         const foco = focoDensidad(points)
         if (foco) {
-          if (foco.cumulo.length === 1) {
-            map.easeTo({ center: [foco.centro.lng, foco.centro.lat], zoom: 13, duration: 500 })
-          } else {
-            const b = new maplibregl.LngLatBounds()
-            foco.cumulo.forEach((p) => b.extend([p.lng, p.lat]))
-            map.fitBounds(b, { padding: 56, maxZoom: 14, duration: 500 })
+          // La PRIMERA vez encuadra al instante: el mapa "abre" directo en la
+          // zona con más carteles. Los cambios posteriores del conjunto se
+          // animan suavemente.
+          const duration = hasFitRef.current ? 500 : 0
+          hasFitRef.current = true
+          const aplicarFoco = () => {
+            if (foco.cumulo.length === 1) {
+              map.easeTo({ center: [foco.centro.lng, foco.centro.lat], zoom: 13, duration })
+            } else {
+              const b = new maplibregl.LngLatBounds()
+              foco.cumulo.forEach((p) => b.extend([p.lng, p.lat]))
+              map.fitBounds(b, { padding: 56, maxZoom: 14, duration })
+            }
           }
+          // Aplicamos el encuadre en cuanto el ESTILO esté listo. Ojo: NO usar
+          // map.loaded() — devuelve false mientras cargan los tiles aunque el
+          // estilo ya esté y el evento 'load' ya haya ocurrido, lo que dejaría el
+          // listener sin disparar y el mapa clavado en el centro inicial.
+          if (map.isStyleLoaded()) aplicarFoco()
+          else map.once('load', aplicarFoco)
         }
       } else if (points.length === 0) {
         lastFitRef.current = ''

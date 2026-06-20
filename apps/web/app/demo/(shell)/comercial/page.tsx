@@ -208,9 +208,9 @@ export default function ComercialPage() {
         </select>
         <select className={selectCls} value={fPrecio} onChange={(e) => setFPrecio(e.target.value)}>
           <option value="">Cualquier precio</option>
-          <option value="8000">≤ S/ 8k</option>
-          <option value="15000">≤ S/ 15k</option>
-          <option value="25000">≤ S/ 25k</option>
+          <option value="8000">≤ $ 8k</option>
+          <option value="15000">≤ $ 15k</option>
+          <option value="25000">≤ $ 25k</option>
         </select>
       </div>
 
@@ -272,6 +272,19 @@ export default function ComercialPage() {
                       <div className="truncate text-[13px] text-ink">{s.nombre}</div>
                       <div className="demo-num text-[11px] text-muted">
                         {s.codigoProveedor} · {s.alcaldia} · {formatMonto(s.tarifaMensual)}
+                        {(s.tipoMedio === 'PANTALLA_DIGITAL' ||
+                          s.esRotativo ||
+                          s.exhibicion === 'digital' ||
+                          s.exhibicion === 'rotativo') &&
+                          (s.totalSpots != null ? (
+                            <>
+                              {' · '}
+                              <span className="text-ink">{s.spotsDisponibles ?? s.totalSpots}</span>/
+                              {s.totalSpots} spots libres
+                            </>
+                          ) : s.spotsPorHora != null ? (
+                            <> · {s.spotsPorHora} spots/h</>
+                          ) : null)}
                       </div>
                     </button>
                     <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>

@@ -41,3 +41,6 @@ yarn-error.log*
 .DS_Store
 *.pem
 .tmp.driveupload/
+
+# Postgres local (datos persistentes del docker-compose)
+db/spaces_pgdata/

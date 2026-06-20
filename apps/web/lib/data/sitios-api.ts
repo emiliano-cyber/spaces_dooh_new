@@ -36,8 +36,9 @@ export async function importarSitiosApi(args: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(args),
   })
-  const d = await r.json()
-  if (!r.ok) throw new Error(d.error ?? 'No se pudo importar')
+  // .catch evita "Unexpected end of JSON input" si el server respondió vacío (500).
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo importar')
   await refrescarSitios()
   return d
 }

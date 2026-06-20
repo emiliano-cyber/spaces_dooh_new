@@ -42,6 +42,19 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
   lista_facturar: 'Lista para facturar',
 }
 
+// ─── Etapas aplicables a una campaña según su tipo ──────────────────────────
+// "En imprenta" solo aplica a medios físicos: se imprime una lona antes de
+// montarla. Las campañas 100% digitales (DOOH) omiten esa etapa — basta con que
+// el creativo del cliente quede validado para salir al aire. OOH (fijo) e
+// HÍBRIDA sí pasan por imprenta. "Creativo recibido" y "Creativo validado" se
+// mantienen en todos los tipos (el arte del cliente siempre se recibe y aprueba).
+export function etapasPipeline(c: Campana): EtapaPipeline[] {
+  if (c.tipoCampana === 'DOOH') {
+    return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
+  }
+  return ETAPAS_PIPELINE
+}
+
 // ─── Candado de facturación ─────────────────────────────────────────────────
 // Las tres condiciones (todas son campos reales de Prisma en Campana):
 //   OC recibida + fotos comprobatorias + reporte de publicación.
@@ -71,7 +84,8 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   if (ois.some((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')) {
     return 'en_produccion'
   }
-  if (ois.length > 0) return 'en_imprenta'
+  // "En imprenta" no aplica a campañas digitales (no tienen etapa de impresión).
+  if (c.tipoCampana !== 'DOOH' && ois.length > 0) return 'en_imprenta'
 
   const creas = state.creatividades.filter((cr) => cr.campanaId === c.id)
   if (creas.some((cr) => cr.estatusValidacion === 'VALIDADA')) return 'creativo_validado'
@@ -82,8 +96,11 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   return 'reservada'
 }
 
-export function etapaIndex(etapa: EtapaPipeline): number {
-  return ETAPAS_PIPELINE.indexOf(etapa)
+export function etapaIndex(
+  etapa: EtapaPipeline,
+  etapas: EtapaPipeline[] = ETAPAS_PIPELINE,
+): number {
+  return etapas.indexOf(etapa)
 }
 
 // Fecha conocida de cada etapa (donde se puede derivar del estado). Las que no
@@ -274,13 +291,13 @@ export function diasHasta(iso: string): number {
 }
 
 export function formatMonto(n: number): string {
-  return `S/ ${n.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return `$ ${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-// Monto compacto para ejes/etiquetas (S/ 18.5k).
+// Monto compacto para ejes/etiquetas ($ 18.5k).
 export function formatMontoCorto(n: number): string {
-  if (Math.abs(n) >= 1000) return `S/ ${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`
-  return `S/ ${n.toFixed(0)}`
+  if (Math.abs(n) >= 1000) return `$ ${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`
+  return `$ ${n.toFixed(0)}`
 }
 
 // Fecha dd/mm/yyyy (formato de la demo).

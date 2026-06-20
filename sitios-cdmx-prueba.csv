@@ -1,0 +1,11 @@
+codigo_proveedor,nombre,tipo_medio,exhibicion,unidad,es_rotativo,plaza_ciudad,direccion,latitud,longitud,ancho_m,alto_m,caras,iluminacion,tipo_estructura,vista,tramo,tarifa_publicada,costo_compra,spots_por_hora,duracion_spot_seg,horario,notas
+CDMX-001,Espectacular Reforma & Insurgentes,espectacular,fijo,mensual,no,Ciudad de Mexico,"Paseo de la Reforma 350",19.4270,-99.1677,12.9,7.2,1,si,unipolar,N-S,Reforma,38000,22000,,,,Estatico premium (caso fijo)
+CDMX-002,Pantalla LED Reforma 222,espectacular,digital,mensual,si,Ciudad de Mexico,"Paseo de la Reforma 222",19.4290,-99.1610,9.6,5.4,1,si,pantalla LED,N-S,Reforma,52000,30000,6,10,06:00-24:00,Digital (caso DOOH)
+CDMX-003,Espectacular Polanco Masaryk,espectacular,fijo,mensual,no,Ciudad de Mexico,"Av. Presidente Masaryk 100",19.4330,-99.1930,12.9,7.2,1,si,unipolar,E-O,Polanco,41000,24000,,,,Estatico
+CDMX-004,Pantalla LED Polanco Ejercito,valla,digital,mensual,si,Ciudad de Mexico,"Av. Ejercito Nacional 800",19.4400,-99.1900,8.0,4.5,1,si,pantalla LED,E-O,Polanco,47000,27000,6,12,06:00-24:00,Digital (caso DOOH)
+CDMX-005,Espectacular Condesa Insurgentes,espectacular,fijo,catorcenal,no,Ciudad de Mexico,"Av. Insurgentes Sur 300",19.4100,-99.1710,12.9,7.2,1,si,unipolar,N-S,Condesa,19000,11000,,,,Estatico catorcenal
+CDMX-006,Mupi Roma Alvaro Obregon,mupi,fijo,mensual,no,Ciudad de Mexico,"Av. Alvaro Obregon 100",19.4190,-99.1620,1.2,1.8,2,si,mupi,ambas,Roma,9000,5000,,,,Mobiliario urbano
+CDMX-007,Puente Chapultepec,puente,fijo,mensual,no,Ciudad de Mexico,"Av. Chapultepec 500",19.4204,-99.1800,8.0,2.0,1,no,puente peatonal,N-S,Centro,12000,7000,,,,Puente peatonal
+GRP-CDMX,Espectacular Santa Fe Multimodal,espectacular,fijo,mensual,no,Ciudad de Mexico,"Av. Vasco de Quiroga 3800",19.3590,-99.2590,12.9,7.2,1,si,unipolar,N-S,Santa Fe,36000,21000,,,,Multimodalidad - mensual
+GRP-CDMX,Espectacular Santa Fe Multimodal,espectacular,fijo,catorcenal,no,Ciudad de Mexico,"Av. Vasco de Quiroga 3800",19.3590,-99.2590,12.9,7.2,1,si,unipolar,N-S,Santa Fe,20000,12000,,,,Multimodalidad - catorcenal
+MTY-001,Espectacular Monterrey San Pedro,espectacular,fijo,mensual,no,Monterrey,"Av. Vasconcelos 150",25.6572,-100.4038,12.9,7.2,1,si,unipolar,E-O,San Pedro,28000,16000,,,,Outlier lejano (otra ciudad) - el mapa NO debe centrarse aqui

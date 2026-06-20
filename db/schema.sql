@@ -280,6 +280,7 @@ create table creatividades (
   campana_id         uuid not null references campanas(id) on delete cascade,
   nombre             text not null,
   archivo_url        text,
+  codigo             text,          -- creativo como código (HTML/UTF) en vez de imagen
   formato            text,
   resolucion         text,
   estatus_validacion est_validacion_crea not null default 'PENDIENTE',
@@ -298,6 +299,8 @@ create table reservas (
   precio       numeric(14,2) not null,
   tipo_venta   tipo_venta not null default 'FIXED_PKG',
   estatus      est_reserva not null default 'TENTATIVA',
+  spots_reservados int,                     -- spots reservados (DOOH); null en estáticas
+  creativos    jsonb not null default '[]', -- [{creatividadId, veces}] exhibidos en este spot
   creado_en    timestamptz not null default now()
 );
 create index idx_reservas_campana on reservas (campana_id);

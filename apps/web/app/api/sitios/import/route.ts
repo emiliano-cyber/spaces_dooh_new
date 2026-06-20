@@ -12,15 +12,22 @@ export async function POST(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const body = await req.json().catch(() => null)
   if (!body?.filas) return NextResponse.json({ error: 'Faltan filas' }, { status: 400 })
-  const resumen = await importarSitios({
-    filas: body.filas,
-    modoDuplicado: body.modoDuplicado === 'NUEVA_VERSION' ? 'NUEVA_VERSION' : 'ACTUALIZAR',
-    precioM2: body.precioM2 ?? null,
-  })
-  await registrarAccion(
-    g.usuario,
-    'Importó inventario',
-    `${resumen.creadas} nuevos · ${resumen.actualizadas} actualizados`,
-  )
-  return NextResponse.json(resumen)
+  try {
+    const resumen = await importarSitios({
+      filas: body.filas,
+      modoDuplicado: body.modoDuplicado === 'NUEVA_VERSION' ? 'NUEVA_VERSION' : 'ACTUALIZAR',
+      precioM2: body.precioM2 ?? null,
+    })
+    await registrarAccion(
+      g.usuario,
+      'Importó inventario',
+      `${resumen.creadas} nuevos · ${resumen.actualizadas} actualizados`,
+    )
+    return NextResponse.json(resumen)
+  } catch (e) {
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'No se pudo importar' },
+      { status: 500 },
+    )
+  }
 }

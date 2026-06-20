@@ -164,7 +164,7 @@ export function AltaSitioDialog({
         </Seccion>
 
         <Seccion titulo="Comercialización">
-          <Campo label="Tarifa publicada (S/)">
+          <Campo label="Tarifa publicada ($)">
             <input className={inputCls} value={tarifa} onChange={(e) => setTarifa(e.target.value)} />
           </Campo>
           <Campo label="Regla de comercialización">

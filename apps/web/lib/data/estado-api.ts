@@ -116,6 +116,54 @@ export async function cerrarOTApi(
   if (!r.ok) throw new Error(d.error ?? 'No se pudo cerrar la OT')
 }
 
+// ─── Creativos ──────────────────────────────────────────────────────────────
+export async function crearCreatividadApi(input: {
+  campanaId: string
+  nombre: string
+  archivoUrl?: string | null
+  codigo?: string | null
+  formato?: string | null
+  resolucion?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/creatividades/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo subir el creativo')
+  await refrescarEstado()
+}
+
+export async function validarCreatividadApi(
+  id: string,
+  aprobar: boolean,
+  motivo?: string,
+): Promise<void> {
+  const r = await fetch(`${API}/creatividades/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aprobar, motivo }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo validar el creativo')
+  await refrescarEstado()
+}
+
+export async function asignarCreativosApi(
+  reservaId: string,
+  creativos: { creatividadId: string; veces: number }[],
+): Promise<void> {
+  const r = await fetch(`${API}/reservas/${reservaId}/creativo/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ creativos }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo asignar el creativo')
+  await refrescarEstado()
+}
+
 export async function reservarApi(input: {
   campanaId?: string
   clienteNombre?: string
@@ -123,6 +171,8 @@ export async function reservarApi(input: {
   sitioIds: string[]
   fechaInicio: string
   fechaFin: string
+  tipoCampana?: 'OOH' | 'DOOH' | 'HIBRIDA'
+  spotsPorSitio?: Record<string, number>
 }): Promise<Campana> {
   const r = await fetch(`${API}/reservar/`, {
     method: 'POST',

@@ -73,7 +73,7 @@ export function Sidebar() {
 
       <div className="border-t border-border p-3">
         <p className="text-[10px] leading-relaxed text-muted">
-          Demo · datos ficticios · S/ PEN
+          Demo · datos ficticios · $ MXN
         </p>
       </div>
     </aside>

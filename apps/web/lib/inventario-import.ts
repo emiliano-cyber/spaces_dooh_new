@@ -50,6 +50,8 @@ const LNG_DEFAULT = -99.1332
 const TIPO_MEDIO_OK = ['espectacular', 'muro', 'valla', 'parabus', 'mupi', 'publitienda', 'puente', 'otro']
 const EXHIBICION_OK = ['fijo', 'digital']
 const UNIDAD_OK = ['mensual', 'catorcenal', 'semanal', 'diaria', 'spot', 'hora', 'programatico']
+// Una pantalla FIJA solo se comercializa por periodo: mensual o catorcenal.
+const UNIDAD_FIJO_OK = ['mensual', 'catorcenal']
 const SI_NO_OK = ['si', 'sí', 'no']
 
 // Limpia un encabezado: minúsculas, sin acentos, espacios/especiales → '_'.
@@ -141,6 +143,15 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   const exhibicion = exhibicionRaw.toLowerCase()
   if (!EXHIBICION_OK.includes(exhibicion)) advertencias.push(`exhibicion "${exhibicion}" no está en la lista validada`)
   const unidad = unidadRaw.toLowerCase()
+  // Regla estricta: una pantalla FIJA solo admite unidad mensual o catorcenal.
+  if (exhibicion === 'fijo' && !UNIDAD_FIJO_OK.includes(unidad)) {
+    return {
+      codigo_proveedor: codigo || `fila ${idx + 2}`,
+      datos: null,
+      status: 'error',
+      mensaje: `Pantalla fija: la unidad solo puede ser "mensual" o "catorcenal" (recibido "${unidad}")`,
+    }
+  }
   if (!UNIDAD_OK.includes(unidad)) advertencias.push(`unidad "${unidad}" no está en la lista validada`)
   const esRotTxt = txt(raw.es_rotativo).toLowerCase()
   if (esRotTxt && !SI_NO_OK.includes(esRotTxt)) advertencias.push(`es_rotativo "${esRotTxt}" debe ser si/no`)

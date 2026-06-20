@@ -105,6 +105,40 @@ function valoresDe(s: any): unknown[] {
   ]
 }
 
+// Convierte una hora suelta a número de horas (0–24). Acepta "06:00", "24:00",
+// "6:00 am", "12:00 pm", "6", etc.
+function parseHora(s: string): number | null {
+  const ap = s.match(/(\d{1,2})(?::(\d{2}))?\s*([ap])\.?\s*m\.?/i)
+  const simple = s.match(/(\d{1,2})(?::(\d{2}))?/)
+  const m = ap ?? simple
+  if (!m) return null
+  let h = Number(m[1])
+  const min = m[2] ? Number(m[2]) / 60 : 0
+  const meridiano = ap?.[3]?.toLowerCase()
+  if (meridiano === 'p' && h < 12) h += 12
+  if (meridiano === 'a' && h === 12) h = 0
+  return h + min
+}
+
+// Horas de operación a partir del campo `horario`. Acepta rangos como
+// "06:00-24:00", "6:00 am a 12:00 pm", "6 a 24". Si no se puede parsear, asume
+// 18 h (jornada DOOH típica 6am–medianoche).
+function horasOperacion(horario?: string | null): number {
+  if (!horario) return 18
+  const partes = String(horario).split(/\s+a\s+|\s*[-–—]\s*/i).filter((x) => /\d/.test(x))
+  if (partes.length >= 2) {
+    const start = parseHora(partes[0])
+    const fin = parseHora(partes[1])
+    if (start != null && fin != null) {
+      let end = fin
+      if (end <= start) end += 24 // cruza medianoche
+      const h = end - start
+      if (h > 0 && h <= 24) return h
+    }
+  }
+  return 18
+}
+
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
   const sitios = await q('select * from sitios order by creado_en asc')
@@ -143,6 +177,23 @@ async function insertarSitio(client: PoolClient, s: any): Promise<any> {
     row,
     mods.map((m) => ({ unidad: m.unidad, tarifa_publicada: m.tarifaPublicada ?? 0, costo_compra: m.costoCompra ?? 0 })),
   )
+}
+
+// Actualiza TODAS las columnas de un sitio existente (re-importación), en lugar
+// de borrar+recrear. Borrar fallaba cuando el sitio ya tenía reservas (FK
+// reservas_sitio_id_fkey ON DELETE RESTRICT). El UPDATE conserva esas reservas.
+async function actualizarSitioCompleto(client: PoolClient, id: string, s: any): Promise<void> {
+  const set = COLS.map((c, i) => `${c} = $${i + 1}`).join(', ')
+  await client.query(`update sitios set ${set} where id = $${COLS.length + 1}`, [...valoresDe(s), id])
+  // Reemplaza las modalidades por las del archivo.
+  await client.query('delete from sitio_modalidades where sitio_id = $1', [id])
+  for (const m of (s.modalidadesDetalle ?? [])) {
+    await client.query(
+      `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra) values ($1,$2,$3,$4)
+       on conflict (sitio_id, unidad) do update set tarifa_publicada=excluded.tarifa_publicada, costo_compra=excluded.costo_compra`,
+      [id, m.unidad, m.tarifaPublicada ?? 0, m.costoCompra ?? 0],
+    )
+  }
 }
 
 export async function crearSitio(s: any): Promise<any> {
@@ -233,6 +284,12 @@ export async function importarSitios(args: {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'
       const esEstatica = !digital
+      // Total de spots (DOOH) = spots por hora × horas de operación (del horario).
+      // Inventario nuevo → disponibles = total (todo libre al darlo de alta).
+      const totalSpots =
+        digital && p.spots_por_hora != null
+          ? Math.max(1, Math.round(Number(p.spots_por_hora) * horasOperacion(p.horario)))
+          : null
       const modalidadesDetalle = rows.map((r: any) => ({
         unidad: r.datos.unidad, tarifaPublicada: r.datos.tarifa_publicada, costoCompra: r.datos.costo_compra,
       }))
@@ -246,6 +303,7 @@ export async function importarSitios(args: {
         unidad: p.unidad, tipoEstructura: p.tipo_estructura, vista: p.vista, tramo: p.tramo,
         tarifaPublicada: p.tarifa_publicada, costoCompra: p.costo_compra, precioM2, tarifaImpresion,
         spotsPorHora: p.spots_por_hora, duracionSpotSeg: p.duracion_spot_seg, horario: p.horario,
+        totalSpots, spotsDisponibles: totalSpots,
         comercializacion: digital ? 'PROGRAMATICO' : 'TRADICIONAL',
         tipoContenido: digital ? 'VIDEO' : null, notas: p.notas, pendienteVerificacion: p.pendienteVerificacion,
         codigoProveedor: p.codigo_proveedor, modalidadesDetalle,
@@ -257,8 +315,7 @@ export async function importarSitios(args: {
       const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
 
       if (existente && modoDuplicado === 'ACTUALIZAR') {
-        await client.query('delete from sitios where id=$1', [existente.id]) // recrea limpio
-        await insertarSitio(client, base)
+        await actualizarSitioCompleto(client, existente.id, base) // UPDATE en sitio (conserva reservas)
         conAdv ? con_advertencias++ : actualizadas++
         detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}` })
       } else {

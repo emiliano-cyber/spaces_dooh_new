@@ -333,6 +333,7 @@ export interface Creatividad {
   campanaId: string
   nombre: string
   archivoUrl: string | null
+  codigo: string | null // creativo como código (HTML/UTF) en vez de imagen
   formato: string | null
   resolucion: string | null
   estatusValidacion: EstValidacionCreatividad
@@ -400,7 +401,15 @@ export interface Reserva {
   precio: number
   tipoVenta: TipoVenta
   estatus: EstReserva
+  spotsReservados: number | null // spots reservados (DOOH); null en estáticas
+  creativos: SpotCreativo[] // creativos exhibidos en este spot + cuántas veces cada uno
   creadoEn: string
+}
+
+// Un creativo asignado a un spot reservado y cuántas veces se reproduce ahí.
+export interface SpotCreativo {
+  creatividadId: string
+  veces: number
 }
 
 // No hay modelo de impresión física en Prisma (TrafficOrder es digital).

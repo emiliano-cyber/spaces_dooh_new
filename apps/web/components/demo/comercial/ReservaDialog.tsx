@@ -18,6 +18,26 @@ function isoDate(offsetDays: number): string {
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
+const TIPO_LABEL: Record<'DOOH' | 'OOH' | 'HIBRIDA', string> = {
+  DOOH: 'Digital',
+  OOH: 'Fijo',
+  HIBRIDA: 'Híbrida',
+}
+
+// Una pantalla es digital (con inventario de spots) por su medio/exhibición.
+function esDigital(s: Sitio): boolean {
+  return (
+    s.tipoMedio === 'PANTALLA_DIGITAL' ||
+    s.esRotativo ||
+    s.exhibicion === 'digital' ||
+    s.exhibicion === 'rotativo'
+  )
+}
+// Spots disponibles del sitio (cae a total si no hay disponibles, o 0).
+function dispOf(s: Sitio): number {
+  return s.spotsDisponibles ?? s.totalSpots ?? 0
+}
+
 export function ReservaDialog({
   open,
   onOpenChange,
@@ -33,9 +53,30 @@ export function ReservaDialog({
   const [nombre, setNombre] = useState('')
   const [inicio, setInicio] = useState(isoDate(7))
   const [fin, setFin] = useState(isoDate(37))
+  const [tipo, setTipo] = useState<'AUTO' | 'DOOH' | 'OOH' | 'HIBRIDA'>('AUTO')
+  // Spots a reservar por sitio digital (sitioId → cantidad). Si no hay valor,
+  // el default es reservar todos los disponibles.
+  const [spots, setSpots] = useState<Record<string, number>>({})
   const [enviando, setEnviando] = useState(false)
 
+  const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
+
   const total = sitios.reduce((s, x) => s + x.tarifaMensual, 0)
+
+  // Tipo que se asignaría en modo "Automático", según el medio de los sitios
+  // seleccionados (pantallas digitales → DOOH; estáticas → OOH; mezcla → HIBRIDA).
+  const digitales = sitios.filter(esDigital).length
+  const autoTipo: 'DOOH' | 'OOH' | 'HIBRIDA' =
+    sitios.length > 0 && digitales === sitios.length
+      ? 'DOOH'
+      : digitales === 0
+        ? 'OOH'
+        : 'HIBRIDA'
+
+  // Spots a reservar por cada pantalla digital seleccionada.
+  const spotsPorSitio: Record<string, number> = {}
+  for (const s of sitios) if (esDigital(s)) spotsPorSitio[s.id] = reservedOf(s)
+  const totalSpotsReservados = Object.values(spotsPorSitio).reduce((a, b) => a + b, 0)
 
   async function submit() {
     if (!cliente.trim() || sitios.length === 0) return
@@ -46,11 +87,15 @@ export function ReservaDialog({
       sitioIds: sitios.map((s) => s.id),
       fechaInicio: new Date(inicio).toISOString(),
       fechaFin: new Date(fin).toISOString(),
+      tipoCampana: tipo === 'AUTO' ? undefined : tipo,
+      spotsPorSitio: Object.keys(spotsPorSitio).length ? spotsPorSitio : undefined,
     })
     setEnviando(false)
     onReserved(camp.id, camp.nombre)
     setCliente('')
     setNombre('')
+    setTipo('AUTO')
+    setSpots({})
     onOpenChange(false)
   }
 
@@ -65,6 +110,12 @@ export function ReservaDialog({
           <div className="text-[12px] text-muted">
             Total mensual{' '}
             <span className="demo-num font-semibold text-ink">{formatMonto(total)}</span>
+            {totalSpotsReservados > 0 && (
+              <>
+                {' · '}
+                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> spots
+              </>
+            )}
           </div>
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>
@@ -103,14 +154,56 @@ export function ReservaDialog({
             <input type="date" className={inputCls} value={fin} onChange={(e) => setFin(e.target.value)} />
           </Campo>
         </div>
+        <Campo label="Tipo de campaña">
+          <select
+            className={inputCls}
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value as typeof tipo)}
+          >
+            <option value="AUTO">Automático ({TIPO_LABEL[autoTipo]} — según sitios)</option>
+            <option value="DOOH">Digital (DOOH) — sin imprenta</option>
+            <option value="OOH">Fijo (OOH) — con imprenta</option>
+            <option value="HIBRIDA">Híbrida — con imprenta</option>
+          </select>
+        </Campo>
         <div className="rounded border border-border bg-surface-2 p-2.5">
-          <ul className="space-y-1 text-[12px]">
-            {sitios.map((s) => (
-              <li key={s.id} className="flex items-center justify-between">
-                <span className="truncate text-ink">{s.nombre}</span>
-                <span className="demo-num text-muted">{formatMonto(s.tarifaMensual)}</span>
-              </li>
-            ))}
+          <ul className="space-y-2 text-[12px]">
+            {sitios.map((s) => {
+              const digital = esDigital(s)
+              const disp = dispOf(s)
+              const reservados = Math.min(reservedOf(s), disp)
+              const quedan = Math.max(0, disp - reservados)
+              return (
+                <li key={s.id} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="truncate text-ink">{s.nombre}</span>
+                    <span className="demo-num text-muted">{formatMonto(s.tarifaMensual)}</span>
+                  </div>
+                  {digital && (
+                    <div className="flex items-center justify-between gap-2 pl-1">
+                      <span className="text-[11px] text-muted">
+                        Reserva{' '}
+                        <input
+                          type="number"
+                          min={0}
+                          max={disp}
+                          value={reservados}
+                          onChange={(e) => {
+                            const v = Math.max(0, Math.min(disp, Math.round(Number(e.target.value) || 0)))
+                            setSpots((prev) => ({ ...prev, [s.id]: v }))
+                          }}
+                          className="demo-num mx-1 h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        />{' '}
+                        de {disp} spots
+                      </span>
+                      <span className="text-[11px] text-muted">
+                        Quedan <span className="demo-num font-semibold text-ink">{quedan}</span>
+                      </span>
+                    </div>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         </div>
       </div>

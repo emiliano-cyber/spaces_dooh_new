@@ -32,6 +32,7 @@ import {
   ocupacionSerie,
   fechasPipeline,
   etapaIndex,
+  etapasPipeline,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
@@ -58,6 +59,7 @@ export {
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   etapaIndex,
+  etapasPipeline,
   diasHasta,
   formatMonto,
   formatMontoCorto,
@@ -152,14 +154,18 @@ export function useCampanasResumen(): CampanaResumen[] | undefined {
   const m = useMounted()
   const v = useStoreMemo(
     (s) =>
-      s.campanas.map((c) => ({
-        campana: c,
-        clienteNombre: s.clientes.find((cl) => cl.id === c.clienteId)?.nombre ?? '—',
-        etapa: pipelineStage(c, s),
-        index: etapaIndex(pipelineStage(c, s)),
-        totalPasos: ETAPAS_PIPELINE.length,
-        candado: candadoFacturacion(c),
-      })),
+      s.campanas.map((c) => {
+        const etapas = etapasPipeline(c)
+        const etapa = pipelineStage(c, s)
+        return {
+          campana: c,
+          clienteNombre: s.clientes.find((cl) => cl.id === c.clienteId)?.nombre ?? '—',
+          etapa,
+          index: etapaIndex(etapa, etapas),
+          totalPasos: etapas.length,
+          candado: candadoFacturacion(c),
+        }
+      }),
     [],
   )
   return m ? v : undefined
@@ -257,12 +263,13 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
     if (!c) return null
     const etapa = pipelineStage(c, s)
     const fechas = fechasPipeline(c, s)
-    const pasos: PasoPipeline[] = ETAPAS_PIPELINE.map((k) => ({
+    const etapas = etapasPipeline(c)
+    const pasos: PasoPipeline[] = etapas.map((k) => ({
       key: k,
       label: ETAPA_LABEL[k],
       fecha: fechas[k] ? formatFechaLocal(fechas[k]!) : undefined,
     }))
-    return { etapa, index: etapaIndex(etapa), pasos }
+    return { etapa, index: etapaIndex(etapa, etapas), pasos }
   }, [campanaId])
   return m ? (v ?? undefined) : undefined
 }

@@ -12,6 +12,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
+import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Button } from '@/components/demo/ui/Button'
 import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
@@ -41,10 +42,13 @@ export function ImportarInventarioDialog({
   open,
   onOpenChange,
   onNuevaPantalla,
+  inline = false,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onNuevaPantalla: () => void
+  // En `inline` se renderiza dentro de la página (sin modal/overlay).
+  inline?: boolean
 }) {
   const sitios = useSitios()
   const [precioM2, setPrecioM2] = useState('65')
@@ -121,33 +125,24 @@ export function ImportarInventarioDialog({
 
   const totalImagenes = Object.keys(imagenes).length
 
-  return (
-    <Modal
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset()
-        onOpenChange(v)
-      }}
-      size="xl"
-      title="Carga masiva de inventario"
-      subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
-      footer={
-        <div className="flex items-center justify-between">
-          <span className="text-[12px] text-muted">
-            {filas ? `${filas.length} filas leídas` : 'Sin archivo'}
-          </span>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => { reset(); onOpenChange(false) }}>
-              Cerrar
-            </Button>
-            <Button size="sm" disabled={!filas || procesando || !!summary} onClick={procesar}>
-              {procesando ? 'Procesando…' : 'Procesar importación'}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <div className="max-h-[64vh] space-y-3 overflow-y-auto pr-1">
+  const footer = (
+    <div className="flex items-center justify-between">
+      <span className="text-[12px] text-muted">
+        {filas ? `${filas.length} filas leídas` : 'Sin archivo'}
+      </span>
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={() => { reset(); if (!inline) onOpenChange(false) }}>
+          {inline ? 'Limpiar' : 'Cerrar'}
+        </Button>
+        <Button size="sm" disabled={!filas || procesando || !!summary} onClick={procesar}>
+          {procesando ? 'Procesando…' : 'Procesar importación'}
+        </Button>
+      </div>
+    </div>
+  )
+  const cuerpo = (
+    <>
+      <div className={inline ? 'space-y-3 pr-1' : 'max-h-[64vh] space-y-3 overflow-y-auto pr-1'}>
         {/* ¿Solo una pantalla? */}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
@@ -296,8 +291,34 @@ export function ImportarInventarioDialog({
           </div>
         )}
       </div>
-
       <InfoAnadidaModal open={verInfo} onOpenChange={setVerInfo} sitios={sitiosAfectados} />
+    </>
+  )
+
+  if (inline) {
+    return (
+      <InlinePanel
+        title="Carga masiva de inventario"
+        subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
+        footer={footer}
+      >
+        {cuerpo}
+      </InlinePanel>
+    )
+  }
+  return (
+    <Modal
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) reset()
+        onOpenChange(v)
+      }}
+      size="xl"
+      title="Carga masiva de inventario"
+      subtitle="Sube tu inventario por archivo o agrega una sola pantalla"
+      footer={footer}
+    >
+      {cuerpo}
     </Modal>
   )
 }

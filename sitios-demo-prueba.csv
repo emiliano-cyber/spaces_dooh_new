@@ -1,0 +1,8 @@
+codigo_proveedor,nombre,tipo_medio,exhibicion,unidad,es_rotativo,plaza_ciudad,direccion,latitud,longitud,ancho_m,alto_m,caras,iluminacion,tipo_estructura,vista,tramo,tarifa_publicada,costo_compra,spots_por_hora,duracion_spot_seg,horario,notas
+PRB-001,Espectacular Javier Prado (prueba),espectacular,fijo,mensual,no,Lima,"Av. Javier Prado Este 4000",-12.0905,-77.0220,12.9,7.2,1,si,unipolar,N-S,tramo prueba,18000,10000,,,,Caso valido estatico
+PRB-002,Pantalla LED Miraflores (prueba),valla,digital,mensual,si,Lima,"Av. Jose Larco 500",-12.1210,-77.0300,9.6,5.4,1,si,pantalla LED,N-S,tramo,25000,15000,6,10,06:00-24:00,Caso valido digital
+GRP-010,Espectacular multimodalidad,espectacular,fijo,mensual,no,Lima,"Av. Arequipa 3000",-12.0850,-77.0360,12.9,7.2,1,si,unipolar,N-S,tramo,20000,12000,,,,Modalidad mensual
+GRP-010,Espectacular multimodalidad,espectacular,fijo,catorcenal,no,Lima,"Av. Arequipa 3000",-12.0850,-77.0360,12.9,7.2,1,si,unipolar,N-S,tramo,11000,7000,,,,Modalidad catorcenal
+GRP-010,Espectacular multimodalidad,espectacular,fijo,semanal,no,Lima,"Av. Arequipa 3000",-12.0850,-77.0360,12.9,7.2,1,si,unipolar,N-S,tramo,4000,2500,,,,Modalidad semanal
+ADV-077,Sitio con advertencias,kiosko,fijo,mensual,no,Lima,"Coordenadas vacias - prueba",,,10,5,1,si,poste,N-S,tramo,8000,5000,,,,Tipo no validado y sin coordenadas
+PRB-ERR,,espectacular,,,no,Lima,"Fila sin requeridos",-12.0900,-77.0400,10,5,1,si,poste,N-S,tramo,,,,,,Faltan nombre exhibicion unidad tarifa costo

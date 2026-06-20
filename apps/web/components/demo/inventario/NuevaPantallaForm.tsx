@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
+import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
@@ -28,16 +29,21 @@ const ESTADOS: { v: Sitio['estatusComercial']; label: string }[] = [
   { v: 'OCUPADO', label: 'Ocupada' },
   { v: 'EN_MANTENIMIENTO', label: 'Mantenimiento' },
 ]
-const MODALIDADES = ['Mensual', 'Catorcenal', 'Semanal', 'Por Día', 'Por Spot', 'Por Hora']
+// El alta manual crea pantallas fijas → solo se comercializan por periodo:
+// mensual o catorcenal (misma regla que la importación).
+const MODALIDADES = ['Mensual', 'Catorcenal']
 
 export function NuevaPantallaForm({
   open,
   onOpenChange,
   onCreado,
+  inline = false,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onCreado: (s: Sitio) => void
+  // En `inline` se renderiza dentro de la página (sin modal/overlay).
+  inline?: boolean
 }) {
   // Tab 1
   const [nombre, setNombre] = useState('')
@@ -121,32 +127,27 @@ export function NuevaPantallaForm({
     onOpenChange(false)
   }
 
-  return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      size="lg"
-      title="Nueva pantalla"
-      subtitle="Alta manual de una sola pantalla"
-      footer={
-        <div className="flex items-center justify-between">
-          {cvInvalido ? (
-            <span className="text-[12px] text-error">ID AdMobilize requerido</span>
-          ) : !imagen ? (
-            <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!valido || enviando} onClick={submit}>
-              {enviando ? 'Guardando…' : 'Guardar pantalla'}
-            </Button>
-          </div>
-        </div>
-      }
-    >
-      <div className="max-h-[62vh] overflow-y-auto pr-1">
+  const footer = (
+    <div className="flex items-center justify-between">
+      {cvInvalido ? (
+        <span className="text-[12px] text-error">ID AdMobilize requerido</span>
+      ) : !imagen ? (
+        <span className="text-[12px] text-error">Imagen obligatoria (pestaña Imágenes)</span>
+      ) : (
+        <span />
+      )}
+      <div className="flex gap-2">
+        {!inline && (
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
+        )}
+        <Button size="sm" disabled={!valido || enviando} onClick={submit}>
+          {enviando ? 'Guardando…' : 'Guardar pantalla'}
+        </Button>
+      </div>
+    </div>
+  )
+  const cuerpo = (
+    <div className={inline ? 'pr-1' : 'max-h-[62vh] overflow-y-auto pr-1'}>
         <Tabs
           defaultValue="basico"
           tabs={[
@@ -261,6 +262,25 @@ export function NuevaPantallaForm({
           </TabPanel>
         </Tabs>
       </div>
+  )
+
+  if (inline) {
+    return (
+      <InlinePanel title="Nueva pantalla" subtitle="Alta manual de una sola pantalla" footer={footer}>
+        {cuerpo}
+      </InlinePanel>
+    )
+  }
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="lg"
+      title="Nueva pantalla"
+      subtitle="Alta manual de una sola pantalla"
+      footer={footer}
+    >
+      {cuerpo}
     </Modal>
   )
 }
