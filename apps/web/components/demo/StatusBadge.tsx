@@ -67,7 +67,7 @@ export function StatusBadge({
 export const SITIO_TONO: Record<EstComercial, Tono> = {
   DISPONIBLE: 'verde',
   RESERVADO: 'ambar',
-  OCUPADO: 'verde',
+  OCUPADO: 'azul',
   BLOQUEADO: 'rojo',
   EN_MANTENIMIENTO: 'neutro',
   BAJA: 'neutro',

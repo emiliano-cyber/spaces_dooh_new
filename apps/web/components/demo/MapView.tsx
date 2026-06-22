@@ -13,6 +13,10 @@ import type { Tono } from './StatusBadge'
 
 const LIMA: [number, number] = [-77.037, -12.095]
 
+// A partir de este nivel de zoom se muestran automáticamente los nombres de los
+// lugares (al alejarse se ocultan para no saturar el mapa).
+const LABEL_MIN_ZOOM = 12.5
+
 const TONO_HEX: Record<Tono, string> = {
   verde: '#10b981',
   ambar: '#f59e0b',
@@ -104,6 +108,18 @@ export function MapView({
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
 
+  // Muestra/oculta automáticamente los nombres según el zoom actual. Usa solo
+  // refs (estables), así que puede invocarse desde el listener de 'zoom'.
+  function aplicarVisibilidadLabels() {
+    const map = mapRef.current
+    if (!map) return
+    const visible = map.getZoom() >= LABEL_MIN_ZOOM
+    for (const m of markersRef.current.values()) {
+      const lbl = m.getElement().querySelector('.mv-label') as HTMLElement | null
+      if (lbl) lbl.style.display = visible ? 'block' : 'none'
+    }
+  }
+
   // Init una sola vez
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
@@ -114,6 +130,8 @@ export function MapView({
       zoom,
       attributionControl: { compact: true },
     })
+    // Al cambiar el zoom mostramos/ocultamos los nombres automáticamente.
+    map.on('zoom', aplicarVisibilidadLabels)
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
     // Botón "mi ubicación": pide geolocalización al navegador, muestra tu punto
     // (con círculo de precisión) y centra el mapa en él. Requiere HTTPS o localhost.
@@ -170,7 +188,19 @@ export function MapView({
         el.style.padding = '0'
         el.style.cursor = 'pointer'
         el.style.lineHeight = '0'
-        el.appendChild(document.createElement('span'))
+        el.appendChild(document.createElement('span')) // pin (primer hijo)
+        // Etiqueta con el nombre del lugar. Automática por zoom (ver
+        // aplicarVisibilidadLabels) y además visible al pasar el mouse por el pin.
+        const lbl = document.createElement('span')
+        lbl.className = 'mv-label'
+        lbl.style.cssText = labelStyle()
+        el.appendChild(lbl)
+        el.addEventListener('mouseenter', () => { lbl.style.display = 'block' })
+        el.addEventListener('mouseleave', () => {
+          // Al salir, volvemos a la visibilidad que toca según el zoom actual.
+          const z = mapRef.current?.getZoom() ?? 0
+          lbl.style.display = z >= LABEL_MIN_ZOOM ? 'block' : 'none'
+        })
         el.addEventListener('click', () => onSelectRef.current?.(p.id))
         marker = new maplibregl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map)
         existing.set(p.id, marker)
@@ -181,6 +211,8 @@ export function MapView({
       root.title = p.label ?? ''
       const dot = root.firstChild as HTMLElement
       dot.style.cssText = pinStyle(hex, isSel)
+      const lbl = root.querySelector('.mv-label') as HTMLElement | null
+      if (lbl) lbl.textContent = p.label ?? ''
     }
     // Remover marcadores que ya no están
     for (const [id, marker] of existing) {
@@ -190,6 +222,8 @@ export function MapView({
       }
     }
 
+    // Ajusta la visibilidad de los nombres al zoom actual (pines recién creados).
+    aplicarVisibilidadLabels()
     // Auto-enfoque a la zona de mayor concentración. Solo cuando cambia el
     // CONJUNTO de sitios (no al seleccionar uno ni al re-render), para no pelear
     // con el desplazamiento manual del usuario.
@@ -227,6 +261,28 @@ export function MapView({
   }, [points, selectedId, autoFit])
 
   return <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }} />
+}
+
+function labelStyle(): string {
+  return [
+    'position:absolute',
+    'left:50%',
+    'top:24px',
+    'transform:translateX(-50%)',
+    'display:none',
+    'white-space:nowrap',
+    'background:#ffffff',
+    'color:#18181b',
+    'border:1px solid rgba(0,0,0,0.12)',
+    'border-radius:7px',
+    'padding:4px 10px',
+    'font-size:14px',
+    'line-height:1.3',
+    'font-weight:600',
+    'box-shadow:0 2px 6px rgba(0,0,0,0.18)',
+    'pointer-events:none',
+    'z-index:1',
+  ].join(';')
 }
 
 function pinStyle(hex: string, selected: boolean): string {

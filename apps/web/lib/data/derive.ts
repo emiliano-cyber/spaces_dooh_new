@@ -43,14 +43,21 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
 }
 
 // ─── Etapas aplicables a una campaña según su tipo ──────────────────────────
-// "En imprenta" solo aplica a medios físicos: se imprime una lona antes de
-// montarla. Las campañas 100% digitales (DOOH) omiten esa etapa — basta con que
-// el creativo del cliente quede validado para salir al aire. OOH (fijo) e
-// HÍBRIDA sí pasan por imprenta. "Creativo recibido" y "Creativo validado" se
-// mantienen en todos los tipos (el arte del cliente siempre se recibe y aprueba).
+// La revisión de creativo (recibido/validado) y la impresión son etapas
+// excluyentes según el medio:
+//   • DOOH (digital): el arte del cliente se recibe y aprueba, pero NO se
+//     imprime → se omite "En imprenta".
+//   • OOH (fija/física): la lona se imprime y monta; NO hay etapa de revisión
+//     de creativo → se omiten "Creativo recibido" y "Creativo validado", queda
+//     "En imprenta".
+//   • HÍBRIDA: tiene ambos flujos, conserva todas las etapas.
+const ETAPAS_CREATIVO: EtapaPipeline[] = ['creativo_recibido', 'creativo_validado']
 export function etapasPipeline(c: Campana): EtapaPipeline[] {
   if (c.tipoCampana === 'DOOH') {
     return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
+  }
+  if (c.tipoCampana === 'OOH') {
+    return ETAPAS_PIPELINE.filter((e) => !ETAPAS_CREATIVO.includes(e))
   }
   return ETAPAS_PIPELINE
 }
@@ -80,16 +87,21 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
     return 'instalada'
   }
 
+  // Etapas que aplican a esta campaña según su tipo (digital/fija/híbrida).
+  const aplica = (e: EtapaPipeline) => etapasPipeline(c).includes(e)
+
   const ois = state.ordenesImpresion.filter((o) => o.campanaId === c.id)
   if (ois.some((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')) {
     return 'en_produccion'
   }
-  // "En imprenta" no aplica a campañas digitales (no tienen etapa de impresión).
-  if (c.tipoCampana !== 'DOOH' && ois.length > 0) return 'en_imprenta'
+  // "En imprenta" solo aplica a medios físicos (OOH/HÍBRIDA), no a digitales.
+  if (aplica('en_imprenta') && ois.length > 0) return 'en_imprenta'
 
+  // "Creativo recibido/validado" solo aplica a medios con revisión de arte
+  // (DOOH/HÍBRIDA); la fija (OOH) los omite.
   const creas = state.creatividades.filter((cr) => cr.campanaId === c.id)
-  if (creas.some((cr) => cr.estatusValidacion === 'VALIDADA')) return 'creativo_validado'
-  if (creas.length > 0) return 'creativo_recibido'
+  if (aplica('creativo_validado') && creas.some((cr) => cr.estatusValidacion === 'VALIDADA')) return 'creativo_validado'
+  if (aplica('creativo_recibido') && creas.length > 0) return 'creativo_recibido'
 
   if (c.ocRecibida) return 'oc_recibida'
   if (c.estadoComercial === 'CONFIRMADA' || c.estadoComercial === 'ACTIVA') return 'confirmada'

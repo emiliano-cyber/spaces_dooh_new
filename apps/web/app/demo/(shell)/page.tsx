@@ -205,7 +205,7 @@ export default function DashboardPage() {
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="h-[260px] w-full overflow-hidden rounded border border-border">
+            <div className="h-[460px] w-full overflow-hidden rounded border border-border">
               {sitios ? (
                 <MapView points={puntos} zoom={10.4} />
               ) : (
@@ -213,7 +213,8 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
-              <LeyendaPin color="#10b981" label="Disponible / confirmado" />
+              <LeyendaPin color="#10b981" label={SITIO_LABEL.DISPONIBLE} />
+              <LeyendaPin color="#0a66ff" label={SITIO_LABEL.OCUPADO} />
               <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
               <LeyendaPin color="#ef4444" label={SITIO_LABEL.BLOQUEADO} />
             </div>

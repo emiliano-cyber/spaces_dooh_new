@@ -320,7 +320,8 @@ export default function ComercialPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-[11px] text-muted">
-            <Pin color="#10b981" label="Disponible / confirmado" />
+            <Pin color="#10b981" label="Disponible" />
+            <Pin color="#0a66ff" label="Ocupado" />
             <Pin color="#f59e0b" label="Reservado · tentativo" />
             <Pin color="#ef4444" label="Bloqueado por incidencia" />
           </div>

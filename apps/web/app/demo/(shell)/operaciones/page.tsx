@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
@@ -20,6 +20,7 @@ import {
   useSitios,
   useCampanas,
   useEvidencias,
+  useReservas,
   formatFecha,
   type TipoOT,
   type Prioridad,
@@ -69,6 +70,7 @@ export default function OperacionesPage() {
   const sitios = useSitios()
   const campanas = useCampanas()
   const evidencias = useEvidencias()
+  const reservas = useReservas()
   const puedeCrear = usePuede('operaciones', 'crear')
   const [filtro, setFiltro] = useState<EstOT | ''>('')
   const [nuevaOpen, setNuevaOpen] = useState(false)
@@ -94,6 +96,7 @@ export default function OperacionesPage() {
         onOpenChange={setNuevaOpen}
         sitios={sitios ?? []}
         campanas={campanas ?? []}
+        reservas={reservas ?? []}
       />
 
       {/* Filtros */}
@@ -198,11 +201,13 @@ function NuevaOTModal({
   onOpenChange,
   sitios,
   campanas,
+  reservas,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   sitios: { id: string; nombre: string }[]
   campanas: { id: string; nombre: string }[]
+  reservas: { campanaId: string; sitioId: string }[]
 }) {
   const [tipo, setTipo] = useState<TipoOT>('MONTAJE_LONA')
   const [descripcion, setDescripcion] = useState('')
@@ -212,6 +217,23 @@ function NuevaOTModal({
   const [enviando, setEnviando] = useState(false)
   const sel =
     'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+  // Sitios reservados por la campaña elegida (null = sin campaña → libre).
+  const sitiosDeCampana = useMemo(() => {
+    if (!campanaId) return null
+    const ids = new Set(reservas.filter((r) => r.campanaId === campanaId).map((r) => r.sitioId))
+    return sitios.filter((s) => ids.has(s.id))
+  }, [campanaId, reservas, sitios])
+
+  // Al elegir campaña, el sitio se autoselecciona desde su reserva.
+  function onCampana(id: string) {
+    setCampanaId(id)
+    if (!id) return
+    const ids = [...new Set(reservas.filter((r) => r.campanaId === id).map((r) => r.sitioId))]
+    setSitioId(ids[0] ?? '')
+  }
+  // Opciones del select de sitio: las de la campaña si hay, si no todas.
+  const opcionesSitio = sitiosDeCampana ?? sitios
 
   async function crear() {
     if (!descripcion.trim()) return
@@ -272,18 +294,24 @@ function NuevaOTModal({
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Sitio</span>
-            <select className={sel} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
-              <option value="">— Sin sitio —</option>
-              {sitios.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-            </select>
-          </label>
-          <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
-            <select className={sel} value={campanaId} onChange={(e) => setCampanaId(e.target.value)}>
+            <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>
               <option value="">— Sin campaña —</option>
               {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
+              Sitio
+              {campanaId && <span className="text-[10px] font-normal text-muted">(auto por campaña)</span>}
+            </span>
+            <select className={sel} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
+              <option value="">— Sin sitio —</option>
+              {opcionesSitio.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
+            </select>
+            {campanaId && sitiosDeCampana?.length === 0 && (
+              <span className="mt-1 block text-[11px] text-muted">Esta campaña no tiene sitios reservados.</span>
+            )}
           </label>
         </div>
         <label className="block">

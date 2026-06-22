@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Manual de usuario — Spaces (Demo)</title>
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Arial, sans-serif; color: #1f2430; font-size: 12.5px; line-height: 1.55; margin: 0; }
+  h1, h2, h3 { color: #0a3d91; margin: 0 0 .35em; line-height: 1.25; }
+  h2 { font-size: 19px; border-bottom: 2px solid #0a66ff; padding-bottom: 5px; margin-top: 24px; }
+  h3 { font-size: 14.5px; color: #0a66ff; margin-top: 16px; }
+  p { margin: 0 0 .7em; }
+  ul, ol { margin: 0 0 .8em; padding-left: 20px; }
+  li { margin-bottom: 4px; }
+  code, .mono { font-family: "Consolas", monospace; background: #eef2fb; padding: 1px 5px; border-radius: 4px; font-size: 11.5px; color: #0a3d91; }
+  .cover { page-break-after: always; display: flex; flex-direction: column; justify-content: center; min-height: 250mm; }
+  .cover .logo { width: 54px; height: 54px; border-radius: 12px; background: #0a66ff; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; margin-bottom: 22px; }
+  .cover h1 { font-size: 40px; margin-bottom: 8px; }
+  .cover .sub { font-size: 17px; color: #5b6473; margin-bottom: 36px; }
+  .cover .meta { font-size: 12.5px; color: #5b6473; border-top: 1px solid #d8dee9; padding-top: 16px; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .b-verde { background: #e7f7ef; color: #0f7a55; border: 1px solid #b7e4cd; }
+  .b-rojo  { background: #fdeaea; color: #c2331f; border: 1px solid #f3c0b9; }
+  .b-azul  { background: #e7efff; color: #0a3d91; border: 1px solid #b9cdf3; }
+  .b-ambar { background: #fdf3e2; color: #9a6700; border: 1px solid #f0dcae; }
+  .box { border: 1px solid #d8dee9; border-radius: 8px; padding: 12px 14px; margin: 12px 0; background: #fafbfd; }
+  .nota { border-left: 4px solid #0a66ff; background: #eef4ff; padding: 9px 13px; border-radius: 0 6px 6px 0; margin: 12px 0; }
+  .warn { border-left: 4px solid #f59e0b; background: #fff7e9; padding: 9px 13px; border-radius: 0 6px 6px 0; margin: 12px 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11.5px; }
+  th, td { border: 1px solid #d8dee9; padding: 6px 9px; text-align: left; vertical-align: top; }
+  th { background: #eef2fb; color: #0a3d91; }
+  figure { margin: 12px 0; }
+  img.shot { width: 100%; border: 1px solid #cfd6e2; border-radius: 8px; display: block; }
+  figcaption { font-size: 10.5px; color: #5b6473; margin-top: 5px; text-align: center; }
+  .small { font-size: 11px; color: #5b6473; }
+  .pb { page-break-before: always; }
+  .nobreak { page-break-inside: avoid; }
+</style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="logo">S</div>
+  <h1>Spaces</h1>
+  <div class="sub">Manual de usuario · Plataforma de gestión DOOH (versión demo)</div>
+  <p>Guía de las funcionalidades de la plataforma: acceso, dashboard, inventario de pantallas
+  con Inteligencia Artificial, comercial, campañas, operaciones de campo, mapas inteligentes
+  y finanzas.</p>
+  <div class="meta">
+    Documento de demostración · Billboards Perú SA<br>
+    Versión del manual: 1.1 · Incluye capturas de pantalla de cada módulo
+  </div>
+</section>
+
+<h2>Contenido</h2>
+<ol>
+  <li>Acceso a la plataforma</li>
+  <li>Usuarios y roles</li>
+  <li>Dashboard (vista general)</li>
+  <li>Inventario: alta de pantalla con Inteligencia Artificial</li>
+  <li>Comercial e IA en la ficha del sitio</li>
+  <li>Mapas inteligentes y código de colores</li>
+  <li>Campañas y pipeline por tipo de medio</li>
+  <li>Operaciones: órdenes de trabajo (OT)</li>
+  <li>Finanzas</li>
+</ol>
+
+<h2>1. Acceso a la plataforma</h2>
+<p>La plataforma se abre desde el navegador en la siguiente dirección:</p>
+<div class="box"><code>http://localhost:3000/spaces-dooh/demo/login/</code></div>
+<ol>
+  <li>Ingresa tu <b>correo</b> y <b>contraseña</b>.</li>
+  <li>Presiona <b>Entrar</b>.</li>
+  <li>El sistema te lleva a la pantalla principal según tu rol.</li>
+</ol>
+<figure class="nobreak">
+  <img class="shot" src="01-login.png" alt="Pantalla de inicio de sesión">
+  <figcaption>Pantalla de inicio de sesión</figcaption>
+</figure>
+<div class="nota">La contraseña de todos los usuarios de prueba es <code>spaces123</code>.</div>
+
+<h2>2. Usuarios y roles</h2>
+<table>
+  <tr><th>Correo</th><th>Rol</th><th>Qué puede hacer</th></tr>
+  <tr><td class="mono">jose@pixeled.com.mx</td><td>Dueño</td><td>Acceso total a todos los módulos.</td></tr>
+  <tr><td class="mono">emiliano@rgb.com</td><td>Comercial</td><td>Inventario, campañas, reservas y clientes.</td></tr>
+  <tr><td class="mono">operaciones@rgb.com</td><td>Operaciones</td><td>Órdenes de trabajo, sitios y campo.</td></tr>
+  <tr><td class="mono">imprenta@rgb.com</td><td>Imprenta</td><td>Producción e impresión de lonas.</td></tr>
+  <tr><td class="mono">carlos@rgb.com</td><td>Finanzas</td><td>Facturación y cobranza.</td></tr>
+</table>
+<p class="small">Contraseña para todos: <code>spaces123</code></p>
+
+<h2 class="pb">3. Dashboard (vista general)</h2>
+<p>Al entrar, el <b>Dashboard</b> resume el negocio: ingreso contratado del mes, margen,
+por cobrar, ocupación de la red, reservas tentativas vs. confirmadas y tu red en el mapa.</p>
+<figure class="nobreak">
+  <img class="shot" src="02-dashboard.png" alt="Dashboard">
+  <figcaption>Dashboard — indicadores y mapa ampliado de la red</figcaption>
+</figure>
+
+<h2>4. Inventario: alta de pantalla con Inteligencia Artificial</h2>
+<p>En <b>Inventario</b> se administran las pantallas. El alta organiza la información en
+pestañas: <i>Básico</i>, <i>Especificaciones</i>, <i>IA/Vision</i>, <i>Precios</i> e
+<i>Imágenes</i>.</p>
+<figure class="nobreak">
+  <img class="shot" src="04-inventario.png" alt="Inventario">
+  <figcaption>Módulo de Inventario</figcaption>
+</figure>
+<h3>Activar la Inteligencia Artificial (Computer Vision)</h3>
+<ol>
+  <li>Abre <b>Inventario → Nueva pantalla</b> y ve a la pestaña <b>IA/Vision</b>.</li>
+  <li>Marca <b>«Esta pantalla cuenta con tecnología de Computer Vision (IA)»</b>.</li>
+  <li>Captura el <b>ID del dispositivo AdMobilize</b> (ej. <code>ADM-00123</code>).</li>
+  <li>Presiona <b>«Ver imagen de detección IA»</b> para ver la detección de vehículos y personas.</li>
+</ol>
+<figure class="nobreak">
+  <img class="shot" src="ia-deteccion.jpg" alt="Detección por IA">
+  <figcaption>Vista de detección por Computer Vision: cajas, velocidad y conteo por zona</figcaption>
+</figure>
+<div class="warn"><b>Imagen promocional obligatoria.</b> Para guardar una pantalla hay que
+subir su foto promocional en la pestaña <b>Imágenes</b> (es independiente de la imagen de
+detección IA, que es solo de visualización).</div>
+
+<h2 class="pb">5. Comercial e IA en la ficha del sitio</h2>
+<p>El módulo <b>Comercial</b> muestra el inventario comercializable en lista y en mapa, con
+las reservas tentativas a confirmar.</p>
+<figure class="nobreak">
+  <img class="shot" src="03-comercial.png" alt="Comercial">
+  <figcaption>Módulo Comercial — lista de pantallas y mapa (verde = disponible, azul = ocupado)</figcaption>
+</figure>
+<p>Al abrir la ficha de un sitio, la sección <b>«Inteligencia artificial»</b> indica si la
+pantalla tiene IA:</p>
+<ul>
+  <li><span class="badge b-verde">Con IA · Computer Vision</span> &nbsp;Tiene IA: muestra el
+      <b>ID de AdMobilize</b> y el botón <b>«Ver imagen de detección IA»</b>.</li>
+  <li><span class="badge b-rojo">Sin IA</span> &nbsp;No cuenta con el módulo de IA.</li>
+</ul>
+
+<h2>6. Mapas inteligentes y código de colores</h2>
+<h3>Nombres de los lugares</h3>
+<ul>
+  <li>Al <b>acercar el zoom</b>, los nombres de las pantallas aparecen <b>automáticamente</b>.</li>
+  <li>Al <b>alejarte</b>, se ocultan para mantener el mapa limpio.</li>
+  <li>Al pasar el <b>cursor sobre un punto</b>, su nombre se muestra en cualquier zoom.</li>
+</ul>
+<h3>Código de colores del estatus</h3>
+<table>
+  <tr><th>Color</th><th>Estatus</th><th>Significado</th></tr>
+  <tr><td><span class="badge b-verde">Verde</span></td><td>Disponible</td><td>Libre para comercializar.</td></tr>
+  <tr><td><span class="badge b-azul">Azul</span></td><td>Ocupado</td><td>Vendido / campaña confirmada al aire.</td></tr>
+  <tr><td><span class="badge b-ambar">Ámbar</span></td><td>Reservado · tentativo</td><td>Reserva tentativa por confirmar.</td></tr>
+  <tr><td><span class="badge b-rojo">Rojo</span></td><td>Bloqueado</td><td>Bloqueado por incidencia.</td></tr>
+</table>
+
+<h2 class="pb">7. Campañas y pipeline por tipo de medio</h2>
+<p>El <b>pipeline</b> de cada campaña muestra su avance, desde la reserva hasta que queda
+lista para facturar. Las etapas se adaptan al tipo de medio:</p>
+<figure class="nobreak">
+  <img class="shot" src="05-campanas.png" alt="Campañas">
+  <figcaption>Módulo de Campañas</figcaption>
+</figure>
+<table>
+  <tr><th>Tipo de campaña</th><th>Revisión de creativo (recibido / validado)</th><th>En imprenta</th></tr>
+  <tr><td><b>Fija (OOH)</b></td><td style="text-align:center">No</td><td style="text-align:center">Sí</td></tr>
+  <tr><td><b>Digital (DOOH)</b></td><td style="text-align:center">Sí</td><td style="text-align:center">No</td></tr>
+  <tr><td><b>Híbrida</b></td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+</table>
+<ul>
+  <li>Una campaña <b>fija</b> pasa por <b>imprenta</b> y no tiene revisión de creativo.</li>
+  <li>Una campaña <b>digital</b> tiene <b>revisión de creativo</b> pero no pasa por imprenta.</li>
+  <li>Una campaña <b>híbrida</b> conserva ambos flujos.</li>
+</ul>
+
+<h3 class="pb">Flujo paso a paso: Fijo vs Digital</h3>
+<p>Las etapas exclusivas de cada medio van resaltadas:
+<span class="badge b-azul">En imprenta</span> solo en fijo y
+<span class="badge b-verde">Creativo recibido/validado</span> solo en digital.</p>
+<table>
+  <tr>
+    <th style="width:50%">Flujo FIJO (OOH) — espectaculares, lonas</th>
+    <th style="width:50%">Flujo DIGITAL (DOOH) — pantallas digitales</th>
+  </tr>
+  <tr>
+    <td>
+      <ol style="margin:0; padding-left:18px">
+        <li>Reservada</li>
+        <li>Confirmada</li>
+        <li>OC recibida</li>
+        <li><span class="badge b-azul">En imprenta</span> (se imprime la lona)</li>
+        <li>En producción</li>
+        <li>Instalada / al aire</li>
+        <li>Reporte generado</li>
+        <li>Lista para facturar</li>
+      </ol>
+    </td>
+    <td>
+      <ol style="margin:0; padding-left:18px">
+        <li>Reservada</li>
+        <li>Confirmada</li>
+        <li>OC recibida</li>
+        <li><span class="badge b-verde">Creativo recibido</span></li>
+        <li><span class="badge b-verde">Creativo validado</span></li>
+        <li>En producción</li>
+        <li>Instalada / al aire</li>
+        <li>Reporte generado</li>
+        <li>Lista para facturar</li>
+      </ol>
+    </td>
+  </tr>
+</table>
+<h3>Comparativo etapa por etapa</h3>
+<table>
+  <tr><th>Etapa</th><th style="text-align:center">Fijo (OOH)</th><th style="text-align:center">Digital (DOOH)</th></tr>
+  <tr><td>Reservada</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>Confirmada</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>OC recibida</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>Creativo recibido</td><td style="text-align:center">No</td><td style="text-align:center"><b>Sí</b></td></tr>
+  <tr><td>Creativo validado</td><td style="text-align:center">No</td><td style="text-align:center"><b>Sí</b></td></tr>
+  <tr><td>En imprenta</td><td style="text-align:center"><b>Sí</b></td><td style="text-align:center">No</td></tr>
+  <tr><td>En producción</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>Instalada / al aire</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>Reporte generado</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+  <tr><td>Lista para facturar</td><td style="text-align:center">Sí</td><td style="text-align:center">Sí</td></tr>
+</table>
+
+<h2>8. Operaciones: órdenes de trabajo (OT)</h2>
+<p>En <b>Operaciones</b> se gestionan las tareas de cuadrilla (montajes, mantenimientos,
+inspecciones) mediante órdenes de trabajo.</p>
+<figure class="nobreak">
+  <img class="shot" src="06-operaciones.png" alt="Operaciones">
+  <figcaption>Módulo de Operaciones</figcaption>
+</figure>
+<h3>Crear una nueva OT</h3>
+<ol>
+  <li>Presiona <b>«Nueva OT»</b> y elige el <b>Tipo de tarea</b>.</li>
+  <li>Escribe la <b>Descripción</b>.</li>
+  <li>Elige la <b>Campaña</b>: <b>el sitio se selecciona automáticamente</b> según su reserva.</li>
+  <li>Define la <b>Prioridad</b> y presiona <b>Crear OT</b>.</li>
+</ol>
+<div class="nota"><b>Sitio automático.</b> Al elegir la campaña, el campo <b>Sitio</b> se llena
+solo con la pantalla reservada (marcado «auto por campaña»). Si la campaña tiene varias,
+puedes elegir entre ellas; con «Sin campaña» el sitio vuelve a selección libre.</div>
+
+<h2 class="pb">9. Finanzas</h2>
+<p>El módulo <b>Finanzas</b> concentra la facturación y la cobranza de las campañas.</p>
+<figure class="nobreak">
+  <img class="shot" src="07-finanzas.png" alt="Finanzas">
+  <figcaption>Módulo de Finanzas</figcaption>
+</figure>
+
+<p class="small" style="margin-top:26px; border-top:1px solid #d8dee9; padding-top:12px;">
+Spaces — Manual de usuario (versión demo). Documento generado para fines de demostración.
+</p>
+
+</body>
+</html>

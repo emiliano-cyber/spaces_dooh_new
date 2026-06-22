@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { Eye } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { InlinePanel } from '@/components/demo/ui/InlinePanel'
 import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
@@ -14,6 +15,10 @@ import { type Sitio, type TipoMedio } from '@/lib/data/client'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+// Imagen de muestra de la detección por Computer Vision (vive en /public; el
+// basePath /spaces-dooh la sirve aquí). Solo se usa en el demo.
+const IA_DEMO_IMG = '/spaces-dooh/demo/ia-deteccion.jpg'
 
 // Tipos de la lista validada (parabús/mupi/publitienda → mobiliario urbano).
 const TIPO_PANTALLA: { v: TipoMedio; label: string }[] = [
@@ -63,6 +68,7 @@ export function NuevaPantallaForm({
   // Tab 3
   const [cv, setCv] = useState(false)
   const [admobilizeId, setAdmobilizeId] = useState('')
+  const [verIA, setVerIA] = useState(false)
   // Tab 4
   const [tarifa, setTarifa] = useState('15000')
   const [costo, setCosto] = useState('9000')
@@ -228,10 +234,21 @@ export function NuevaPantallaForm({
               </label>
             </div>
             {cv && (
-              <Campo label="ID del dispositivo AdMobilize">
-                <input className={cn(inputCls, cvInvalido && 'border-error')} value={admobilizeId} onChange={(e) => setAdmobilizeId(e.target.value)} placeholder="p. ej. ADM-00123" />
-                <span className="mt-1 block text-[11px] text-muted">Identificador único del dispositivo instalado en esta pantalla.</span>
-              </Campo>
+              <>
+                <Campo label="ID del dispositivo AdMobilize">
+                  <input className={cn(inputCls, cvInvalido && 'border-error')} value={admobilizeId} onChange={(e) => setAdmobilizeId(e.target.value)} placeholder="p. ej. ADM-00123" />
+                  <span className="mt-1 block text-[11px] text-muted">Identificador único del dispositivo instalado en esta pantalla.</span>
+                </Campo>
+                <div className="rounded-md border border-border p-3">
+                  <div className="mb-2 text-[12px] font-medium text-ink">Vista de detección en vivo</div>
+                  <p className="mb-2 text-[11px] text-muted">
+                    Vista previa de la detección de vehículos y personas por Computer Vision.
+                  </p>
+                  <Button type="button" variant="secondary" size="sm" onClick={() => setVerIA(true)}>
+                    <Eye className="h-4 w-4" /> Ver imagen de detección IA
+                  </Button>
+                </div>
+              </>
             )}
           </TabPanel>
 
@@ -264,24 +281,51 @@ export function NuevaPantallaForm({
       </div>
   )
 
+  // Visor de la imagen de detección IA (se monta en ambos modos).
+  const iaViewer = (
+    <Modal
+      open={verIA}
+      onOpenChange={setVerIA}
+      size="xl"
+      title="Detección por Computer Vision"
+      subtitle="Vista de muestra del conteo de vehículos y personas (AdMobilize)"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={IA_DEMO_IMG}
+        alt="Detección de vehículos y personas por IA"
+        className="w-full rounded border border-border object-contain"
+      />
+      <p className="mt-2 text-[11px] text-muted">
+        Las cajas y métricas (velocidad, conteo por zona) las genera el módulo de Computer Vision en tiempo real.
+      </p>
+    </Modal>
+  )
+
   if (inline) {
     return (
-      <InlinePanel title="Nueva pantalla" subtitle="Alta manual de una sola pantalla" footer={footer}>
-        {cuerpo}
-      </InlinePanel>
+      <>
+        <InlinePanel title="Nueva pantalla" subtitle="Alta manual de una sola pantalla" footer={footer}>
+          {cuerpo}
+        </InlinePanel>
+        {iaViewer}
+      </>
     )
   }
   return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      size="lg"
-      title="Nueva pantalla"
-      subtitle="Alta manual de una sola pantalla"
-      footer={footer}
-    >
-      {cuerpo}
-    </Modal>
+    <>
+      <Modal
+        open={open}
+        onOpenChange={onOpenChange}
+        size="lg"
+        title="Nueva pantalla"
+        subtitle="Alta manual de una sola pantalla"
+        footer={footer}
+      >
+        {cuerpo}
+      </Modal>
+      {iaViewer}
+    </>
   )
 }
 

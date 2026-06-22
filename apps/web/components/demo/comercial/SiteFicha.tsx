@@ -51,6 +51,10 @@ const TIPO_LABEL: Record<TipoMedio, string> = {
   OTRO: 'Otro',
 }
 
+// Imagen de muestra de la detección por Computer Vision (vive en /public; el
+// basePath /spaces-dooh la sirve aquí). Solo se usa en el demo.
+const IA_DEMO_IMG = '/spaces-dooh/demo/ia-deteccion.jpg'
+
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
   INVIDIS: 'Invidis',
@@ -90,6 +94,7 @@ export function SiteFicha({
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
   const [borrando, setBorrando] = useState(false)
+  const [verIA, setVerIA] = useState(false)
 
   async function eliminar() {
     if (!sitio) return
@@ -232,6 +237,24 @@ export function SiteFicha({
           </dl>
         </div>
 
+        {/* Inteligencia artificial (Computer Vision / AdMobilize) */}
+        <div>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">Inteligencia artificial</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tono={sitio.computerVision ? 'verde' : 'rojo'}>
+              {sitio.computerVision ? 'Con IA · Computer Vision' : 'Sin IA'}
+            </StatusBadge>
+            {sitio.computerVision && sitio.admobilizeId && (
+              <span className="demo-num text-[12px] text-muted">ID {sitio.admobilizeId}</span>
+            )}
+          </div>
+          {sitio.computerVision && (
+            <Button size="sm" variant="secondary" className="mt-2.5" onClick={() => setVerIA(true)}>
+              <Eye className="h-4 w-4" /> Ver imagen de detección IA
+            </Button>
+          )}
+        </div>
+
         {/* Datos comerciales (interno — el portal no muestra financieros) */}
         <div>
           <h4 className="mb-2 text-[13px] font-medium text-ink">Datos comerciales</h4>
@@ -298,6 +321,24 @@ export function SiteFicha({
       </div>
 
       <EditarSitioDialog sitio={sitio} open={editOpen} onClose={() => setEditOpen(false)} />
+
+      <Modal
+        open={verIA}
+        onOpenChange={setVerIA}
+        size="xl"
+        title="Detección por Computer Vision"
+        subtitle={`${sitio.nombre} · conteo de vehículos y personas (AdMobilize)`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={IA_DEMO_IMG}
+          alt="Detección de vehículos y personas por IA"
+          className="w-full rounded border border-border object-contain"
+        />
+        <p className="mt-2 text-[11px] text-muted">
+          Las cajas y métricas (velocidad, conteo por zona) las genera el módulo de Computer Vision en tiempo real.
+        </p>
+      </Modal>
     </Sheet>
   )
 }

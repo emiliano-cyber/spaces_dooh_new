@@ -1,0 +1,78 @@
+================================================================
+ SPACES (DEMO) - USUARIOS Y PERMISOS
+================================================================
+
+Acceso:    http://localhost:3000/spaces-dooh/demo/login/
+Contrasena (todos los usuarios de prueba):  spaces123
+
+----------------------------------------------------------------
+ USUARIOS
+----------------------------------------------------------------
+
+ CORREO                 | NOMBRE                | CARGO              | ROL
+ -----------------------|-----------------------|-------------------|-------------
+ jose@pixeled.com.mx    | Cliente_ RGB Catorce  | Dueno             | DUENO
+ emiliano@rgb.com       | emiliano              | Miembro del equipo| COMERCIAL
+ operaciones@rgb.com    | Omar Quispe           | -                 | OPERACIONES
+ imprenta@rgb.com       | Ivan Rojas            | -                 | IMPRENTA
+ carlos@rgb.com         | carlos                | facturas          | FINANZAS
+
+----------------------------------------------------------------
+ ACCIONES POSIBLES
+----------------------------------------------------------------
+
+ ver       = consultar / visualizar el modulo
+ crear     = dar de alta / editar registros
+ aprobar   = autorizar (validar creativos, confirmar, etc.)
+ facturar  = emitir factura (solo finanzas)
+
+----------------------------------------------------------------
+ PERMISOS POR ROL  (modulo: acciones)
+----------------------------------------------------------------
+
+[ DUENO ]  (jose@pixeled.com.mx) - Acceso total
+ - dashboard       : ver
+ - comercial       : ver, crear, aprobar
+ - operaciones     : ver, crear, aprobar
+ - imprenta        : ver, crear, aprobar
+ - finanzas        : ver, crear, facturar
+ - network         : ver, crear
+ - arrendadores    : ver, crear, aprobar
+ - administracion  : ver, crear, aprobar
+
+[ COMERCIAL ]  (emiliano@rgb.com)
+ - dashboard       : ver
+ - comercial       : ver, crear
+ - network         : ver
+
+[ OPERACIONES ]  (operaciones@rgb.com)
+ - operaciones     : ver, crear
+ - comercial       : ver
+ - imprenta        : ver
+
+[ IMPRENTA ]  (imprenta@rgb.com)
+ - imprenta        : ver, crear
+ - operaciones     : ver
+
+[ FINANZAS ]  (carlos@rgb.com)
+ - dashboard       : ver
+ - finanzas        : ver, crear, facturar
+
+----------------------------------------------------------------
+ RESUMEN: QUE MODULO VE CADA ROL
+----------------------------------------------------------------
+
+ MODULO          | DUENO | COMERCIAL | OPERACIONES | IMPRENTA | FINANZAS
+ ----------------|-------|-----------|-------------|----------|---------
+ Dashboard       |  Si   |    Si     |     No      |    No    |   Si
+ Comercial       |  Si   |    Si     |     Si      |    No    |   No
+ Operaciones     |  Si   |    No     |     Si      |    Si    |   No
+ Imprenta        |  Si   |    No     |     Si      |    Si    |   No
+ Finanzas        |  Si   |    No     |     No      |    No    |   Si
+ Network         |  Si   |    Si     |     No      |    No    |   No
+ Arrendadores    |  Si   |    No     |     No      |    No    |   No
+ Administracion  |  Si   |    No     |     No      |    No    |   No
+
+================================================================
+ Documento generado para fines de demostracion - Spaces (Demo)
+================================================================

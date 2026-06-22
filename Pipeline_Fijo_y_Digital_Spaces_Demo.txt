@@ -1,0 +1,69 @@
+================================================================
+ SPACES (DEMO) - FLUJO DEL PIPELINE DE CAMPANAS
+ Medios FIJOS (OOH) vs DIGITALES (DOOH)
+================================================================
+
+El pipeline son las etapas por las que avanza una campana, desde
+que se reserva hasta que queda lista para facturar. Las etapas
+cambian segun el tipo de medio:
+
+ - FIJA (OOH)    : se IMPRIME una lona y se monta. NO tiene
+                   revision de creativo (recibido/validado).
+ - DIGITAL (DOOH): el arte se RECIBE y se APRUEBA. NO pasa por
+                   imprenta.
+
+----------------------------------------------------------------
+ 1) FLUJO FIJO  (OOH - espectaculares, lonas, muros)
+----------------------------------------------------------------
+
+ 1.  Reservada              -> se aparta el sitio
+ 2.  Confirmada             -> el cliente confirma
+ 3.  OC recibida            -> llega la orden de compra
+ 4.  En imprenta            -> se imprime la lona            *
+ 5.  En produccion          -> lona lista para montaje
+ 6.  Instalada / al aire    -> montada en el sitio
+ 7.  Reporte generado       -> evidencia y reporte
+ 8.  Lista para facturar    -> se puede facturar
+
+ * Etapa exclusiva del medio fijo. NO hay "Creativo recibido"
+   ni "Creativo validado".
+
+----------------------------------------------------------------
+ 2) FLUJO DIGITAL  (DOOH - pantallas digitales)
+----------------------------------------------------------------
+
+ 1.  Reservada              -> se aparta el sitio
+ 2.  Confirmada             -> el cliente confirma
+ 3.  OC recibida            -> llega la orden de compra
+ 4.  Creativo recibido      -> llega el arte del cliente      *
+ 5.  Creativo validado      -> se aprueba el arte             *
+ 6.  En produccion          -> listo para salir al aire
+ 7.  Instalada / al aire    -> reproduciendo en pantalla
+ 8.  Reporte generado       -> evidencia y reporte
+ 9.  Lista para facturar    -> se puede facturar
+
+ * Etapas exclusivas del medio digital. NO pasa por "En imprenta".
+
+----------------------------------------------------------------
+ COMPARATIVO RAPIDO (etapa por etapa)
+----------------------------------------------------------------
+
+ ETAPA                  | FIJO (OOH) | DIGITAL (DOOH)
+ -----------------------|------------|----------------
+ Reservada              |    Si      |     Si
+ Confirmada             |    Si      |     Si
+ OC recibida            |    Si      |     Si
+ Creativo recibido      |    No      |     Si
+ Creativo validado      |    No      |     Si
+ En imprenta            |    Si      |     No
+ En produccion          |    Si      |     Si
+ Instalada / al aire    |    Si      |     Si
+ Reporte generado       |    Si      |     Si
+ Lista para facturar    |    Si      |     Si
+
+ Nota: una campana HIBRIDA (mezcla de fijo + digital) conserva
+ TODAS las etapas (creativo recibido/validado Y en imprenta).
+
+================================================================
+ Documento generado para fines de demostracion - Spaces (Demo)
+================================================================
