@@ -33,9 +33,11 @@ import {
   fechasPipeline,
   etapaIndex,
   etapasPipeline,
+  margenCampana,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
+  type MargenCampana,
   type Granularidad,
   type SerieOcupacion,
 } from './derive'
@@ -68,6 +70,7 @@ export {
 } from './derive'
 export type {
   DashboardMetrics,
+  MargenCampana,
   Alerta,
   Granularidad,
   SerieOcupacion,
@@ -277,6 +280,16 @@ export function usePipeline(campanaId: string): PipelineVista | undefined {
 function formatFechaLocal(iso: string): string {
   const d = new Date(iso)
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** Margen (ingreso − costos) de una campaña, recalculado en vivo. */
+export function useMargenCampana(campanaId: string): MargenCampana | undefined {
+  const m = useMounted()
+  const v = useStoreMemo((s) => {
+    const c = s.campanas.find((x) => x.id === campanaId)
+    return c ? margenCampana(c, s) : null
+  }, [campanaId])
+  return m ? (v ?? undefined) : undefined
 }
 
 /** Estado del candado de facturación de una campaña, en vivo. */

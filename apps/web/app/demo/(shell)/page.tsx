@@ -95,7 +95,7 @@ export default function DashboardPage() {
             <KPICard
               label="Margen"
               value={`${m.margenPct.toFixed(0)}%`}
-              sub={formatMonto(m.margen)}
+              sub={`${formatMonto(m.margen)} · costo ${formatMonto(m.costoTotalMes)}`}
               tono={margenTono(m.margenPct)}
               icon={<Wallet className="h-4 w-4" />}
             />
@@ -116,6 +116,17 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Desglose del costo del mes (motor de costos: espacios + impresión + operación) */}
+      {m && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-md border border-border bg-surface-2 px-4 py-2 text-[12px]">
+          <span className="font-medium text-ink">Costos del mes</span>
+          <CostoItem label="Espacios" valor={formatMonto(m.costoEspaciosMes)} />
+          <CostoItem label="Impresión" valor={formatMonto(m.costoImpresionMes)} />
+          <CostoItem label="Operación" valor={formatMonto(m.costoOperacionMes)} />
+          <CostoItem label="Total" valor={formatMonto(m.costoTotalMes)} fuerte />
+        </div>
+      )}
 
       {/* Ocupación + Reservas vs confirmaciones */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -307,6 +318,15 @@ function LeyendaPin({ color, label }: { color: string; label: string }) {
     <span className="inline-flex items-center gap-1.5">
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: color }} />
       {label}
+    </span>
+  )
+}
+
+function CostoItem({ label, valor, fuerte }: { label: string; valor: string; fuerte?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="text-muted">{label}</span>
+      <span className={`demo-num ${fuerte ? 'font-semibold text-ink' : 'text-ink'}`}>{valor}</span>
     </span>
   )
 }

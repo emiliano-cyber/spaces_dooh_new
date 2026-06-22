@@ -27,6 +27,7 @@ import {
   useOrdenesImpresion,
   useOrdenesTrabajo,
   useEvidencias,
+  useMargenCampana,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -40,6 +41,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const ois = useOrdenesImpresion()
   const ots = useOrdenesTrabajo()
   const evidencias = useEvidencias()
+  const margen = useMargenCampana(id)
 
   if (c === undefined) {
     return <div className="mx-auto max-w-4xl h-64 animate-pulse rounded-md bg-surface-2" />
@@ -145,6 +147,29 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           </CardContent>
         </Card>
       </div>
+
+      {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
+      {margen && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Rentabilidad</CardTitle>
+            <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
+              Margen {margen.margenPct.toFixed(0)}%
+            </span>
+          </CardHeader>
+          <CardContent>
+            <dl className="space-y-2 text-[13px]">
+              <Fila label="Ingreso (reservas)" valor={formatMonto(margen.ingreso)} mono />
+              <Fila label="− Costo de espacios" valor={formatMonto(margen.costoEspacios)} mono />
+              <Fila label="− Costo de impresión" valor={formatMonto(margen.costoImpresion)} mono />
+              <Fila label="− Costo de operación" valor={formatMonto(margen.costoOperacion)} mono />
+              <div className="mt-1 border-t border-border pt-2">
+                <Fila label="Margen" valor={formatMonto(margen.margen)} mono />
+              </div>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Sitios */}
       <Card>

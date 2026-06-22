@@ -164,9 +164,18 @@ export function estadoCobranza(cob: Cobranza): EstCobranza {
 
 // ─── Métricas del dashboard del dueño (7.1) ─────────────────────────────────
 
+// Costo operativo estimado por orden de trabajo (mano de obra de cuadrilla).
+// Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
+const COSTO_OPERATIVO_POR_OT = 1500
+
 export interface DashboardMetrics {
   ingresoMes: number
-  costoRentaMes: number
+  // Motor de costos (3 fuentes) → costoTotalMes.
+  costoEspaciosMes: number   // costo de compra de los sitios vendidos
+  costoImpresionMes: number  // producción de lonas (órdenes de impresión)
+  costoOperacionMes: number  // mano de obra de cuadrilla (órdenes de trabajo)
+  costoTotalMes: number      // suma de los tres
+  costoRentaMes: number      // renta a arrendadores (gasto fijo, informativo)
   margen: number // S/
   margenPct: number // 0–100
   porCobrar: number
@@ -194,11 +203,33 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const valorConfirmado = ingresoMes
   const valorTentativo = tentativas.reduce((s, r) => s + r.precio, 0)
 
+  // ── Motor de costos (3 fuentes) ──────────────────────────────────────────
+  const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
+  // 1) Espacios: lo que nos cuesta cada sitio que vendimos (costoCompra) por
+  //    cada reserva CONFIRMADA. Es el costo de los ingresos reconocidos.
+  const costoEspaciosMes = confirmadas.reduce(
+    (sum, r) => sum + (sitioPorId.get(r.sitioId)?.costoCompra ?? 0),
+    0,
+  )
+  // 2) Impresión: costo de producir la lona por cada orden de impresión, según
+  //    la tarifa de impresión del sitio (solo medios físicos).
+  const costoImpresionMes = state.ordenesImpresion.reduce(
+    (sum, oi) => sum + (sitioPorId.get(oi.sitioId ?? '')?.tarifaImpresion ?? 0),
+    0,
+  )
+  // 3) Operación: mano de obra de cuadrilla por cada orden de trabajo activa.
+  const otsOperativas = state.ordenesTrabajo.filter((o) => o.estatus !== 'CANCELADA')
+  const costoOperacionMes = otsOperativas.length * COSTO_OPERATIVO_POR_OT
+
+  const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
+
+  // Renta a arrendadores: gasto fijo informativo. NO se suma al margen para no
+  // duplicar con el costo de compra del espacio (que ya representa ese costo).
   const costoRentaMes = state.contratos
     .filter((c) => c.estatus === 'VIGENTE' || c.estatus === 'POR_VENCER')
     .reduce((s, c) => s + c.montoRenta, 0)
 
-  const margen = ingresoMes - costoRentaMes
+  const margen = ingresoMes - costoTotalMes
   const margenPct = ingresoMes > 0 ? (margen / ingresoMes) * 100 : 0
 
   const porCobrar = state.cobranzas
@@ -216,6 +247,10 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
 
   return {
     ingresoMes,
+    costoEspaciosMes,
+    costoImpresionMes,
+    costoOperacionMes,
+    costoTotalMes,
     costoRentaMes,
     margen,
     margenPct,
@@ -229,6 +264,40 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     valorConfirmado,
     alertas: construirAlertas(state),
   }
+}
+
+// Margen de UNA campaña con el mismo motor de costos (espacios + impresión +
+// operación). Útil en el detalle de campaña y en reportería.
+export interface MargenCampana {
+  ingreso: number
+  costoEspacios: number
+  costoImpresion: number
+  costoOperacion: number
+  costoTotal: number
+  margen: number
+  margenPct: number
+}
+export function margenCampana(c: Campana, state: DemoState): MargenCampana {
+  const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
+  const reservas = state.reservas.filter(
+    (r) => r.campanaId === c.id && r.estatus !== 'CANCELADA',
+  )
+  const ingreso = reservas.reduce((s, r) => s + r.precio, 0)
+  const costoEspacios = reservas.reduce(
+    (s, r) => s + (sitioPorId.get(r.sitioId)?.costoCompra ?? 0),
+    0,
+  )
+  const costoImpresion = state.ordenesImpresion
+    .filter((o) => o.campanaId === c.id)
+    .reduce((s, o) => s + (sitioPorId.get(o.sitioId ?? '')?.tarifaImpresion ?? 0), 0)
+  const ots = state.ordenesTrabajo.filter(
+    (o) => o.campanaId === c.id && o.estatus !== 'CANCELADA',
+  )
+  const costoOperacion = ots.length * COSTO_OPERATIVO_POR_OT
+  const costoTotal = costoEspacios + costoImpresion + costoOperacion
+  const margen = ingreso - costoTotal
+  const margenPct = ingreso > 0 ? (margen / ingreso) * 100 : 0
+  return { ingreso, costoEspacios, costoImpresion, costoOperacion, costoTotal, margen, margenPct }
 }
 
 function construirAlertas(state: DemoState): Alerta[] {
