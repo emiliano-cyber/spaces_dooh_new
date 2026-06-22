@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
+import { estatusComercialLabel } from '@/lib/estatus-sitio'
 import dynamic from 'next/dynamic'
 import type { GeoJSONFeatureCollection } from '@/components/maps/SitiosMap'
 
@@ -26,12 +27,12 @@ const TIPO_LABELS: Record<string, string> = {
   MURAL: 'Mural', VALLA: 'Valla', OTRO: 'Otro',
 }
 
-const ESTATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  DISPONIBLE:       { bg: 'rgba(21,128,61,0.15)', color: '#15803D',  label: 'Disponible' },
-  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#B45309', label: 'Reservado' },
-  OCUPADO:          { bg: 'rgba(255,95,95,0.15)',  color: '#B91C1C', label: 'Ocupado' },
-  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',   color: '#71717A', label: 'Bloqueado' },
-  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',   color: '#71717A', label: 'En mantenimiento' },
+const ESTATUS_STYLE: Record<string, { bg: string; color: string }> = {
+  DISPONIBLE:       { bg: 'rgba(21,128,61,0.15)', color: '#15803D' },
+  RESERVADO:        { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  OCUPADO:          { bg: 'rgba(255,95,95,0.15)',  color: '#B91C1C' },
+  BLOQUEADO:        { bg: 'rgba(90,90,114,0.2)',   color: '#71717A' },
+  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)',   color: '#71717A' },
 }
 
 function inp(style?: React.CSSProperties): React.CSSProperties {
@@ -191,7 +192,7 @@ export default function FichaComercialPage() {
                 <div style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--muted)' }}>{sitio.claveInterna}</div>
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>{sitio.nombre}</h1>
               </div>
-              <span style={{ background: es.bg, color: es.color, padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>{es.label}</span>
+              <span style={{ background: es.bg, color: es.color, padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: 600 }}>{estatusComercialLabel(sitio.estatusComercial)}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem 1.5rem' }}>
               {[

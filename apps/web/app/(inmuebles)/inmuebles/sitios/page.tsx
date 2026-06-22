@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api-client'
+import { estatusComercialLabel } from '@/lib/estatus-sitio'
 import type { GeoJSONFeatureCollection } from '@/components/maps/SitiosMap'
 
 const SitiosMap = dynamic(() => import('@/components/maps/SitiosMap'), { ssr: false })
@@ -23,13 +24,13 @@ interface Sitio {
 
 interface SitioListRes { data: Sitio[]; meta: { total: number; pages: number } }
 
-const ESTATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  DISPONIBLE: { bg: 'rgba(21,128,61,0.12)', color: '#15803D', label: 'Disponible' },
-  RESERVADO: { bg: 'rgba(251,191,36,0.15)', color: '#B45309', label: 'Reservado' },
-  OCUPADO: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C', label: 'Ocupado' },
-  BLOQUEADO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Bloqueado' },
-  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Mantenimiento' },
-  BAJA: { bg: 'rgba(90,90,114,0.2)', color: '#71717A', label: 'Baja' },
+const ESTATUS_BADGE: Record<string, { bg: string; color: string }> = {
+  DISPONIBLE: { bg: 'rgba(21,128,61,0.12)', color: '#15803D' },
+  RESERVADO: { bg: 'rgba(251,191,36,0.15)', color: '#B45309' },
+  OCUPADO: { bg: 'rgba(255,95,95,0.15)', color: '#B91C1C' },
+  BLOQUEADO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A' },
+  EN_MANTENIMIENTO: { bg: 'rgba(90,90,114,0.2)', color: '#71717A' },
+  BAJA: { bg: 'rgba(90,90,114,0.2)', color: '#71717A' },
 }
 
 const TIPO_LABELS: Record<string, string> = {
@@ -104,7 +105,7 @@ export default function SitiosPage() {
           </select>
           <select style={selectStyle} value={filters.estatusComercial} onChange={(e) => setFilters((f) => ({ ...f, estatusComercial: e.target.value }))}>
             <option value="">Estatus comercial</option>
-            {Object.keys(ESTATUS_BADGE).map((v) => <option key={v} value={v}>{ESTATUS_BADGE[v].label}</option>)}
+            {Object.keys(ESTATUS_BADGE).map((v) => <option key={v} value={v}>{estatusComercialLabel(v)}</option>)}
           </select>
         </div>
         <Link
@@ -158,7 +159,7 @@ export default function SitiosPage() {
                     </div>
                     {badge && (
                       <span style={{ ...badge, padding: '0.2rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                        {badge.label}
+                        {estatusComercialLabel(s.estatusComercial)}
                       </span>
                     )}
                   </div>

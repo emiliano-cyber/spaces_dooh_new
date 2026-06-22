@@ -20,6 +20,7 @@ export async function addEvidencia(
     tamanoMb?: number
     formato?: string
     deviceInfo?: string
+    capturadaEn?: Date | string | null
   },
   user: { id: string; rol: string; permisos: string[] },
 ) {
@@ -50,6 +51,7 @@ export async function addEvidencia(
       tamanoMb: data.tamanoMb ?? null,
       formato: data.formato ?? 'image/jpeg',
       deviceInfo: data.deviceInfo ?? null,
+      capturadaEn: data.capturadaEn ? new Date(data.capturadaEn) : null,
       uploadedBy: user.id,
     },
   })

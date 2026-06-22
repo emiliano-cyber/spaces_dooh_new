@@ -20,7 +20,8 @@ interface Evidencia {
   fotoUrlSigned: string
   storageKey: string
   tipo: string
-  timestamp: string
+  capturadaEn?: string | null // fecha de creación de la imagen (dispositivo)
+  timestamp: string           // fecha de subida al sistema
 }
 
 type VisitaTipo = 'MODULOS' | 'ELECTRICO'
@@ -270,6 +271,11 @@ export default function OTMovil({ ot, onRefetch }: Props) {
     setUploadError(null)
 
     try {
+      // Fecha de creación de la imagen: tomada del archivo original (antes de comprimir,
+      // ya que el recompresionado por canvas elimina el EXIF). Para fotos de cámara
+      // lastModified ≈ el momento de captura.
+      const capturadaEn = file.lastModified ? new Date(file.lastModified).toISOString() : undefined
+
       const compressed = await compressImage(file)
       const sizeMb = compressed.size / (1024 * 1024)
 
@@ -287,7 +293,7 @@ export default function OTMovil({ ot, onRefetch }: Props) {
 
       await apiFetch(`/ordenes-trabajo/${ot.id}/evidencias`, {
         method: 'POST',
-        body: JSON.stringify({ storageKey: key, tipo: fotoCategoria, tamanoMb: Math.round(sizeMb * 100) / 100 }),
+        body: JSON.stringify({ storageKey: key, tipo: fotoCategoria, tamanoMb: Math.round(sizeMb * 100) / 100, capturadaEn }),
       })
 
       setLocalPreviews((prev) =>

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { apiFetch } from '@/lib/api-client'
+import { estatusComercialLabel } from '@/lib/estatus-sitio'
 import type { GeoJSONFeatureCollection } from '@/components/maps/SitiosMap'
 
 const SitiosMap = dynamic(() => import('@/components/maps/SitiosMap'), { ssr: false })
@@ -537,7 +538,7 @@ export default function SitioPage() {
           </button>
           <h1 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '0.375rem' }}>{sitio.nombre}</h1>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <Badge label={sitio.estatusComercial} color={ESTATUS_COMERCIAL_COLORS[sitio.estatusComercial] ?? '#71717A'} />
+            <Badge label={estatusComercialLabel(sitio.estatusComercial)} color={ESTATUS_COMERCIAL_COLORS[sitio.estatusComercial] ?? '#71717A'} />
             <Badge label={sitio.estatusLegal} color={ESTATUS_LEGAL_COLORS[sitio.estatusLegal] ?? '#71717A'} />
             <Badge label={sitio.estatusOperativo} color={ESTATUS_OP_COLORS[sitio.estatusOperativo] ?? '#71717A'} />
           </div>

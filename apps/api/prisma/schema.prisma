@@ -379,7 +379,8 @@ model EvidenciaOT {
   tipo       String       @default("INSTALACION")
   uploadedBy String
   deviceInfo String?
-  timestamp  DateTime     @default(now())
+  capturadaEn DateTime?    // fecha de creación/captura de la imagen (dispositivo); null si se desconoce
+  timestamp  DateTime     @default(now()) // fecha de subida/registro en el sistema
 
   @@schema("tenant_template")
 }

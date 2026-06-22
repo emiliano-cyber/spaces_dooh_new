@@ -83,12 +83,14 @@ const operacionesRoutes: FastifyPluginAsync = async (fastify) => {
     const body = request.body as {
       storageKey: string; tipo?: string; lat?: number; lng?: number
       precision?: number; tamanoMb?: number; formato?: string; deviceInfo?: string
+      capturadaEn?: string
     }
     const fotoUrl = `https://placeholder.storage/${body.storageKey}`
     const evidencia = await evidenciasService.addEvidencia(
       request.prisma, id,
       { fotoUrl, storageKey: body.storageKey, tipo: body.tipo, lat: body.lat, lng: body.lng,
-        precision: body.precision, tamanoMb: body.tamanoMb, formato: body.formato, deviceInfo: body.deviceInfo },
+        precision: body.precision, tamanoMb: body.tamanoMb, formato: body.formato, deviceInfo: body.deviceInfo,
+        capturadaEn: body.capturadaEn },
       request.user,
     )
     return reply.code(201).send(evidencia)

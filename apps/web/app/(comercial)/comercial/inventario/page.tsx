@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '@/lib/api-client'
+import { estatusComercialLabel } from '@/lib/estatus-sitio'
 import dynamic from 'next/dynamic'
 import type { GeoJSONFeatureCollection } from '@/components/maps/SitiosMap'
 
@@ -141,7 +142,7 @@ export default function InventarioPage() {
                         {s.tieneIncidencia && <span style={{ marginLeft: '0.375rem', fontSize: '0.75rem', color: '#B45309' }}>⚠</span>}
                       </div>
                       <span style={{ background: es.bg, color: es.color, padding: '0.15rem 0.5rem', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 600, flexShrink: 0, marginLeft: '0.5rem' }}>
-                        {s.estatusComercial}
+                        {estatusComercialLabel(s.estatusComercial)}
                       </span>
                     </div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--muted)', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
