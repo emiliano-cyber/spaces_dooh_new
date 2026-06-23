@@ -273,6 +273,21 @@ create table propuesta_items (
 );
 create index idx_prop_items_propuesta on propuesta_items (propuesta_id);
 
+-- ─── Órdenes de compra del cliente (ODC) ─────────────────────────────────────
+create type est_odc as enum ('PENDIENTE','RECIBIDA','CANCELADA');
+create table ordenes_compra (
+  id            uuid primary key default gen_random_uuid(),
+  folio         text not null unique,
+  campana_id    uuid not null references campanas(id) on delete cascade,
+  monto         numeric(14,2) not null default 0,
+  fecha         date not null default current_date,
+  estatus       est_odc not null default 'RECIBIDA',
+  documento_url text,
+  notas         text,
+  creado_en     timestamptz not null default now()
+);
+create index idx_odc_campana on ordenes_compra (campana_id);
+
 create table campanas (
   id                    uuid primary key default gen_random_uuid(),
   folio                 text unique,

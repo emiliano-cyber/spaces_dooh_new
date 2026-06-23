@@ -28,6 +28,7 @@ import {
   useOrdenesTrabajo,
   useEvidencias,
   useMargenCampana,
+  useOrdenesCompra,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -42,6 +43,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const ots = useOrdenesTrabajo()
   const evidencias = useEvidencias()
   const margen = useMargenCampana(id)
+  const ordenesCompra = useOrdenesCompra()
 
   if (c === undefined) {
     return <div className="mx-auto max-w-4xl h-64 animate-pulse rounded-md bg-surface-2" />
@@ -63,6 +65,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
     .filter((x) => x.sitio)
   // Pantallas de la campaña con IA / Computer Vision (AdMobilize) activada.
   const sitiosIA = misSitios.map((x) => x.sitio!).filter((s) => s.computerVision)
+  // Orden de compra del cliente (ODC) de esta campaña, si ya se registró.
+  const odc = (ordenesCompra ?? []).find((o) => o.campanaId === id)
   const misCreas = (creatividades ?? []).filter((x) => x.campanaId === id)
   const misOis = (ois ?? []).filter((x) => x.campanaId === id)
   const misOts = (ots ?? []).filter((x) => x.campanaId === id)
@@ -166,6 +170,26 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               <div className="mt-1 border-t border-border pt-2">
                 <Fila label="Margen" valor={formatMonto(margen.margen)} mono />
               </div>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Orden de compra del cliente (ODC) */}
+      {odc && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Orden de compra</CardTitle>
+            <span className="rounded-full border border-[#10b98140] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55]">
+              {odc.estatus === 'RECIBIDA' ? 'Recibida' : odc.estatus === 'PENDIENTE' ? 'Pendiente' : 'Cancelada'}
+            </span>
+          </CardHeader>
+          <CardContent>
+            <dl className="space-y-2 text-[13px]">
+              <Fila label="Folio ODC" valor={odc.folio} mono />
+              <Fila label="Monto" valor={formatMonto(odc.monto)} mono />
+              <Fila label="Fecha" valor={formatFecha(odc.fecha)} />
+              {odc.documentoUrl && <Fila label="Documento" valor={odc.documentoUrl} />}
             </dl>
           </CardContent>
         </Card>

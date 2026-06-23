@@ -139,6 +139,12 @@ export function usePropuestas() {
   const v = useDemoStore((s) => s.propuestas)
   return m ? v : undefined
 }
+
+export function useOrdenesCompra() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.ordenesCompra)
+  return m ? v : undefined
+}
 export function useCampanas() {
   const m = useMounted()
   const v = useDemoStore((s) => s.campanas)

@@ -447,6 +447,7 @@ export function buildSeed(): DemoState {
     incidencias: [],
     clientes: [],
     propuestas: [],
+    ordenesCompra: [],
     campanas: [],
     creatividades: [],
     reservas: [],

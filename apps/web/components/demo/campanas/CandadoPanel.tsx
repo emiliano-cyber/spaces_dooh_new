@@ -5,7 +5,7 @@ import { Lock, LockOpen, Check, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { useReadiness } from '@/lib/data/client'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { marcarOCApi } from '@/lib/data/estado-api'
+import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 
 // Candado de facturación: OC + fotos comprobatorias + reporte. Cuando los tres
 // están, el candado se abre y la campaña queda lista para facturar. Para Telco
@@ -47,7 +47,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           onClick={async () => {
             setEnviando(true)
             try {
-              await marcarOCApi(campanaId)
+              await crearOrdenCompraApi({ campanaId })
             } catch (e) {
               alert(e instanceof Error ? e.message : 'No se pudo registrar la OC')
             }

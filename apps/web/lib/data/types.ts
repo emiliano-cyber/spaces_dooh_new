@@ -343,6 +343,19 @@ export interface Propuesta {
   totalAprobado: number
 }
 
+export type EstOdc = 'PENDIENTE' | 'RECIBIDA' | 'CANCELADA'
+export interface OrdenCompra {
+  id: string
+  folio: string
+  campanaId: string
+  monto: number
+  fecha: string
+  estatus: EstOdc
+  documentoUrl: string | null
+  notas: string | null
+  creadoEn: string
+}
+
 export interface Campana {
   id: string
   folio: string
@@ -524,6 +537,7 @@ export interface DemoState {
   incidencias: Incidencia[]
   clientes: Cliente[]
   propuestas: Propuesta[]
+  ordenesCompra: OrdenCompra[]
   campanas: Campana[]
   creatividades: Creatividad[]
   reservas: Reserva[]

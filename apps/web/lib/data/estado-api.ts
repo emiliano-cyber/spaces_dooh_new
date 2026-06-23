@@ -32,6 +32,7 @@ export async function refrescarEstado(): Promise<void> {
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
     propuestas: e.propuestas ?? [],
+    ordenesCompra: e.ordenesCompra ?? [],
   })
 }
 
@@ -159,6 +160,21 @@ export async function avanzarOrdenImpresionApi(id: string): Promise<void> {
   const r = await fetch(`${API}/impresion/${id}/`, { method: 'PATCH' })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo avanzar la orden')
+  await refrescarEstado()
+}
+
+// Registra una Orden de Compra (ODC) del cliente como entidad real y abre el
+// candado de facturación (oc_recibida). Reemplaza a marcarOCApi en el flujo.
+export async function crearOrdenCompraApi(input: {
+  campanaId: string; monto?: number | null; documentoUrl?: string | null; notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/ordenes-compra/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la ODC')
   await refrescarEstado()
 }
 
