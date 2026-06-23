@@ -34,7 +34,12 @@ async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
 
 function rowToCliente(r: any) {
   return {
-    id: r.id, nombre: r.nombre, rfc: r.rfc, tipo: r.tipo,
+    id: r.id, nombre: r.nombre, rfc: r.rfc,
+    razonSocial: r.razon_social ?? null,
+    regimenFiscal: r.regimen_fiscal ?? null,
+    cpFiscal: r.cp_fiscal ?? null,
+    usoCfdi: r.uso_cfdi ?? null,
+    tipo: r.tipo,
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }
 }

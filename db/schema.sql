@@ -235,13 +235,17 @@ create index idx_incidencias_estatus on incidencias (estatus);
 
 -- ─── Clientes / campañas / creatividades ────────────────────────────────────
 create table clientes (
-  id        uuid primary key default gen_random_uuid(),
-  nombre    text not null,
-  rfc       text,
-  tipo      text not null default 'DIRECTO',
-  contacto  jsonb not null default '{}',
-  activo    boolean not null default true,
-  creado_en timestamptz not null default now()
+  id             uuid primary key default gen_random_uuid(),
+  nombre         text not null,
+  rfc            text,
+  razon_social   text,          -- datos fiscales (para facturar)
+  regimen_fiscal text,
+  cp_fiscal      text,
+  uso_cfdi       text,
+  tipo           text not null default 'DIRECTO',
+  contacto       jsonb not null default '{}',
+  activo         boolean not null default true,
+  creado_en      timestamptz not null default now()
 );
 
 create table campanas (

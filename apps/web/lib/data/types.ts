@@ -296,6 +296,12 @@ export interface Cliente {
   id: string
   nombre: string
   rfc: string | null
+  // Datos fiscales (para facturar). Una identidad fiscal por cliente; varias
+  // (N RFC por cliente, estilo SET) queda como mejora futura.
+  razonSocial: string | null
+  regimenFiscal: string | null
+  cpFiscal: string | null
+  usoCfdi: string | null
   tipo: string
   contacto: { nombre?: string; email?: string; telefono?: string }
   activo: boolean

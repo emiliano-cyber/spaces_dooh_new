@@ -34,6 +34,40 @@ export async function refrescarEstado(): Promise<void> {
   })
 }
 
+// ─── Clientes (CRUD con datos fiscales) ──────────────────────────────────────
+export interface ClienteInput {
+  nombre: string
+  rfc?: string | null
+  razonSocial?: string | null
+  regimenFiscal?: string | null
+  cpFiscal?: string | null
+  usoCfdi?: string | null
+  tipo?: string
+  contacto?: { nombre?: string; email?: string; telefono?: string }
+}
+
+export async function crearClienteApi(input: ClienteInput): Promise<void> {
+  const r = await fetch(`${API}/clientes/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el cliente')
+  await refrescarEstado()
+}
+
+export async function actualizarClienteApi(id: string, input: Partial<ClienteInput>): Promise<void> {
+  const r = await fetch(`${API}/clientes/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar el cliente')
+  await refrescarEstado()
+}
+
 // ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
 export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
   const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
