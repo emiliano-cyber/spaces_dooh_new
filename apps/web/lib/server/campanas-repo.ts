@@ -156,7 +156,7 @@ export async function reservar(input: {
     for (const sitioId of input.sitioIds) {
       const s = (
         await client.query(
-          'select tarifa_mensual, spots_disponibles, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          'select nombre, tarifa_mensual, spots_disponibles, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
           [sitioId],
         )
       ).rows[0]
@@ -167,6 +167,30 @@ export async function reservar(input: {
           s.es_rotativo ||
           s.exhibicion === 'digital' ||
           s.exhibicion === 'rotativo')
+      // Validación de colisión de fechas (sobre-reserva): una pantalla ESTÁTICA
+      // no puede tener dos reservas activas que se solapen en el mismo periodo.
+      // Las digitales se comparten por spots, así que se omiten aquí.
+      if (!digital) {
+        const choque = (
+          await client.query(
+            `select c.nombre as campana
+               from reservas r join campanas c on c.id = r.campana_id
+              where r.sitio_id = $1
+                and r.estatus <> 'CANCELADA'
+                and r.campana_id <> $4
+                and r.fecha_inicio <= $3::date
+                and r.fecha_fin    >= $2::date
+              limit 1`,
+            [sitioId, input.fechaInicio, input.fechaFin, campanaId],
+          )
+        ).rows[0]
+        if (choque) {
+          throw new Error(
+            `"${s?.nombre ?? 'La pantalla'}" ya está reservada en esas fechas por la campaña "${choque.campana}". Elige otras fechas u otra pantalla.`,
+          )
+        }
+      }
+
       // Spots reservados: solo digitales y solo si se pidió una cantidad (acotada
       // a lo disponible). En estáticas queda null.
       const pedidos = input.spotsPorSitio?.[sitioId]

@@ -12,7 +12,15 @@ export async function POST(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const body = await req.json().catch(() => null)
   if (!body?.sitioIds?.length) return NextResponse.json({ error: 'Sin sitios' }, { status: 400 })
-  const campana = await reservar(body)
-  await registrarAccion(g.usuario, 'Reservó (tentativa)', campana.nombre)
-  return NextResponse.json(campana, { status: 201 })
+  try {
+    const campana = await reservar(body)
+    await registrarAccion(g.usuario, 'Reservó (tentativa)', campana.nombre)
+    return NextResponse.json(campana, { status: 201 })
+  } catch (e) {
+    // Colisión de fechas u otra regla de negocio → 409 con el mensaje al usuario.
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : 'No se pudo reservar' },
+      { status: 409 },
+    )
+  }
 }
