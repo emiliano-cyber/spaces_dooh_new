@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { listarOrdenesImpresion, crearOrdenImpresion } from '@/lib/server/impresion-repo'
+import { listarOrdenesImpresion, crearOrdenImpresion, ImpresionError } from '@/lib/server/impresion-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
@@ -19,7 +19,13 @@ export async function POST(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const body = await req.json().catch(() => null)
   if (!body?.campanaId) return NextResponse.json({ error: 'Falta la campaña' }, { status: 400 })
-  const oi = await crearOrdenImpresion(body)
-  await registrarAccion(g.usuario, 'Creó orden de impresión', oi.folio)
-  return NextResponse.json(oi, { status: 201 })
+  try {
+    const oi = await crearOrdenImpresion(body)
+    await registrarAccion(g.usuario, 'Creó orden de impresión', oi.folio)
+    return NextResponse.json(oi, { status: 201 })
+  } catch (e) {
+    // Transición inválida (p. ej. DOOH → imprenta) → 409 con mensaje claro.
+    if (e instanceof ImpresionError) return NextResponse.json({ error: e.message }, { status: 409 })
+    throw e
+  }
 }
