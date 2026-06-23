@@ -14,7 +14,7 @@ import {
   IMPRESION_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { crearOrdenImpresionApi, avanzarOrdenImpresionApi } from '@/lib/data/estado-api'
+import { crearOrdenImpresionApi, avanzarOrdenImpresionApi, aprobarPruebaColorApi } from '@/lib/data/estado-api'
 import {
   useOrdenesImpresion,
   useCampanas,
@@ -117,6 +117,27 @@ export default function ImprentaPage() {
                   {/* Proceso */}
                   <div className="mt-4">
                     <Stepper pasos={pasos} actualIndex={idx} />
+                  </div>
+
+                  {/* Prueba de color (probatorio) */}
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-surface-2 px-3 py-2">
+                    <span className="flex items-center gap-2 text-[12px] text-ink">
+                      Prueba de color:
+                      <span className={o.pruebaColorAprobada ? 'font-medium text-[#0f7a55]' : 'text-muted'}>
+                        {o.pruebaColorAprobada ? 'Aprobada' : 'Pendiente'}
+                      </span>
+                    </span>
+                    {puedeCrear && !o.pruebaColorAprobada && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={async () => {
+                          try { await aprobarPruebaColorApi(o.id, true) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+                        }}
+                      >
+                        Aprobar prueba de color
+                      </Button>
+                    )}
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">

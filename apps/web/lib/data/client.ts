@@ -34,10 +34,12 @@ import {
   etapaIndex,
   etapasPipeline,
   margenCampana,
+  reporteCampana,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
   type MargenCampana,
+  type ReporteCampana,
   type Granularidad,
   type SerieOcupacion,
 } from './derive'
@@ -71,6 +73,7 @@ export {
 export type {
   DashboardMetrics,
   MargenCampana,
+  ReporteCampana,
   Alerta,
   Granularidad,
   SerieOcupacion,
@@ -300,6 +303,16 @@ export function useMargenCampana(campanaId: string): MargenCampana | undefined {
   const v = useStoreMemo((s) => {
     const c = s.campanas.find((x) => x.id === campanaId)
     return c ? margenCampana(c, s) : null
+  }, [campanaId])
+  return m ? (v ?? undefined) : undefined
+}
+
+/** Reporte probatorio (contratado vs entregado + testigos) de una campaña. */
+export function useReporteCampana(campanaId: string): ReporteCampana | undefined {
+  const m = useMounted()
+  const v = useStoreMemo((s) => {
+    const c = s.campanas.find((x) => x.id === campanaId)
+    return c ? reporteCampana(c, s) : null
   }, [campanaId])
   return m ? (v ?? undefined) : undefined
 }

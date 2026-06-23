@@ -23,8 +23,21 @@ function rowToOrdenImpresion(r: any) {
     ancho: r.ancho == null ? 0 : Number(r.ancho),
     estatus: r.estatus as EstOI,
     proveedor: r.proveedor ?? null,
+    pruebaColorUrl: r.prueba_color_url ?? null,
+    pruebaColorAprobada: !!r.prueba_color_aprobada,
     creadoEn: r.creado_en instanceof Date ? r.creado_en.toISOString() : r.creado_en,
   }
+}
+
+// Probatorio: aprueba/registra la prueba de color de una orden de impresión.
+export async function aprobarPruebaColor(id: string, aprobada: boolean, url?: string | null) {
+  const rows = await q(
+    `update ordenes_impresion
+        set prueba_color_aprobada=$2, prueba_color_url=coalesce($3, prueba_color_url)
+      where id=$1 returning *`,
+    [id, aprobada, url ?? null],
+  )
+  return rows[0] ? rowToOrdenImpresion(rows[0]) : null
 }
 
 export async function listarOrdenesImpresion() {

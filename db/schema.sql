@@ -405,6 +405,8 @@ create table ordenes_impresion (
   ancho          numeric(8,2),
   estatus        est_orden_impresion not null default 'ARTE_RECIBIDO',
   proveedor      text,
+  prueba_color_url      text,                       -- prueba de color (probatorio)
+  prueba_color_aprobada boolean not null default false,
   creado_en      timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );

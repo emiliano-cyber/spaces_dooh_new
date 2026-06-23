@@ -477,6 +477,8 @@ export interface OrdenImpresion {
   ancho: number
   estatus: EstOrdenImpresion
   proveedor: string | null
+  pruebaColorUrl: string | null      // prueba de color (probatorio)
+  pruebaColorAprobada: boolean
   creadoEn: string
 }
 

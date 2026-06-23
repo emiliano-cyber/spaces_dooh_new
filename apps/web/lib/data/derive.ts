@@ -300,6 +300,40 @@ export function margenCampana(c: Campana, state: DemoState): MargenCampana {
   return { ingreso, costoEspacios, costoImpresion, costoOperacion, costoTotal, margen, margenPct }
 }
 
+// Reporte probatorio de una campaña: contratado vs. entregado + testigos.
+export interface ReporteCampana {
+  sitiosContratados: number
+  sitiosEntregados: number
+  cumplimientoPct: number
+  testigos: number // fotos comprobatorias (proof-of-play)
+  diasContratados: number
+}
+export function reporteCampana(c: Campana, state: DemoState): ReporteCampana {
+  const reservas = state.reservas.filter((r) => r.campanaId === c.id && r.estatus !== 'CANCELADA')
+  const sitiosContratados = new Set(reservas.map((r) => r.sitioId)).size
+  const ots = state.ordenesTrabajo.filter(
+    (o) => o.campanaId === c.id && (o.tipo === 'MONTAJE_LONA' || o.tipo === 'MONTAJE_DIGITAL'),
+  )
+  const testigos = state.evidencias.filter((e) => ots.some((o) => o.id === e.otId))
+  // Un sitio está "entregado" si su OT de montaje está completada o tiene testigo.
+  const entregados = new Set<string>()
+  for (const o of ots) {
+    const tieneTestigo = state.evidencias.some((e) => e.otId === o.id)
+    if (o.sitioId && (o.estatus === 'COMPLETADA' || tieneTestigo)) entregados.add(o.sitioId)
+  }
+  const dias = (a: string, b: string) =>
+    Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86400000))
+  const diasContratados = reservas.reduce((s, r) => s + dias(r.fechaInicio, r.fechaFin), 0)
+  const sitiosEntregados = entregados.size
+  return {
+    sitiosContratados,
+    sitiosEntregados,
+    cumplimientoPct: sitiosContratados > 0 ? (sitiosEntregados / sitiosContratados) * 100 : 0,
+    testigos: testigos.length,
+    diasContratados,
+  }
+}
+
 function construirAlertas(state: DemoState): Alerta[] {
   const alertas: Alerta[] = []
 

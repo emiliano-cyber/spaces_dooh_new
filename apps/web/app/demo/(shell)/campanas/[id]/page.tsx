@@ -29,6 +29,7 @@ import {
   useEvidencias,
   useMargenCampana,
   useOrdenesCompra,
+  useReporteCampana,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -44,6 +45,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const evidencias = useEvidencias()
   const margen = useMargenCampana(id)
   const ordenesCompra = useOrdenesCompra()
+  const reporte = useReporteCampana(id)
 
   if (c === undefined) {
     return <div className="mx-auto max-w-4xl h-64 animate-pulse rounded-md bg-surface-2" />
@@ -170,6 +172,26 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               <div className="mt-1 border-t border-border pt-2">
                 <Fila label="Margen" valor={formatMonto(margen.margen)} mono />
               </div>
+            </dl>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Reporte de cumplimiento (contratado vs entregado + testigos) */}
+      {reporte && (
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Reporte de cumplimiento</CardTitle>
+            <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
+              {reporte.cumplimientoPct.toFixed(0)}% entregado
+            </span>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
+              <Fila label="Sitios contratados" valor={String(reporte.sitiosContratados)} mono />
+              <Fila label="Sitios entregados" valor={String(reporte.sitiosEntregados)} mono />
+              <Fila label="Testigos (fotos)" valor={String(reporte.testigos)} mono />
+              <Fila label="Días contratados" valor={String(reporte.diasContratados)} mono />
             </dl>
           </CardContent>
         </Card>

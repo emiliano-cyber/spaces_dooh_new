@@ -156,6 +156,18 @@ export async function crearOrdenImpresionApi(input: {
   await refrescarEstado()
 }
 
+// Probatorio: aprobar la prueba de color de una orden de impresión.
+export async function aprobarPruebaColorApi(id: string, aprobada: boolean): Promise<void> {
+  const r = await fetch(`${API}/impresion/${id}/prueba-color/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aprobada }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la prueba de color')
+  await refrescarEstado()
+}
+
 export async function avanzarOrdenImpresionApi(id: string): Promise<void> {
   const r = await fetch(`${API}/impresion/${id}/`, { method: 'PATCH' })
   const d = await r.json().catch(() => ({}))
