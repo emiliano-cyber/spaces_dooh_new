@@ -16,6 +16,9 @@ export interface EstadoIntegracion {
   configurado: boolean
 }
 
+// TODO (seguridad): hoy las credenciales se leen de variables de entorno (no hay
+// almacén en BD). Cuando se construya un almacén de credenciales por tenant,
+// debe cifrarse en reposo (AES con llave en secreto, nunca en el repo).
 export function estadoIntegraciones(): EstadoIntegracion[] {
   const def = (envVar: string) => !!process.env[envVar]
   return [
