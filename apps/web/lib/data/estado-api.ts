@@ -66,6 +66,18 @@ export async function cambiarEstatusPropuestaApi(id: string, estatus: string): P
   await refrescarEstado()
 }
 
+// Aprobación granular: aprueba/desaprueba un sitio de la propuesta.
+export async function aprobarItemPropuestaApi(itemId: string, aprobado: boolean): Promise<void> {
+  const r = await fetch(`${API}/propuestas/items/${itemId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aprobado }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar el sitio')
+  await refrescarEstado()
+}
+
 // ─── Clientes (CRUD con datos fiscales) ──────────────────────────────────────
 export interface ClienteInput {
   nombre: string

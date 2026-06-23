@@ -31,6 +31,11 @@ function armarPropuesta(p: any, items: any[]) {
   const divisor = 1 - comisionPct / 100
   const neto = Math.round(bruto * divisor)
   const iva = Math.round(bruto * (IVA_PCT / 100))
+  // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
+  const aprob = its.filter((i) => i.aprobado)
+  const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
+  const netoAprobado = Math.round(brutoAprobado * divisor)
+  const ivaAprobado = Math.round(brutoAprobado * (IVA_PCT / 100))
   return {
     id: p.id,
     folio: p.folio,
@@ -47,6 +52,11 @@ function armarPropuesta(p: any, items: any[]) {
     neto,
     iva,
     total: bruto + iva,
+    itemsAprobados: aprob.length,
+    brutoAprobado,
+    netoAprobado,
+    ivaAprobado,
+    totalAprobado: brutoAprobado + ivaAprobado,
   }
 }
 
@@ -103,6 +113,20 @@ export async function crearPropuesta(input: PropuestaInput) {
   } finally {
     client.release()
   }
+}
+
+// Aprobación granular: aprueba/desaprueba un sitio (item) de la propuesta y
+// devuelve la propuesta recompuesta (con los totales aprobados al día).
+export async function aprobarItem(itemId: string, aprobado: boolean) {
+  const upd = await q(
+    `update propuesta_items set aprobado=$2 where id=$1 returning propuesta_id`,
+    [itemId, aprobado],
+  )
+  if (!upd.length) return null
+  const propId = upd[0].propuesta_id
+  const p = (await q('select * from propuestas where id=$1', [propId]))[0]
+  const items = await q('select * from propuesta_items where propuesta_id=$1', [propId])
+  return armarPropuesta(p, items)
 }
 
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']

@@ -335,6 +335,12 @@ export interface Propuesta {
   neto: number    // bruto × divisor (lo que recibe el medio)
   iva: number     // bruto × 16%
   total: number   // bruto + iva (lo que paga el cliente)
+  // Aprobación granular (sitio por sitio): presupuesto sobre lo aprobado.
+  itemsAprobados: number
+  brutoAprobado: number
+  netoAprobado: number
+  ivaAprobado: number
+  totalAprobado: number
 }
 
 export interface Campana {

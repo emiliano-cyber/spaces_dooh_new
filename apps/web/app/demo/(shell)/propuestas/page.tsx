@@ -14,7 +14,7 @@ import {
   type Propuesta,
   type EstPropuesta,
 } from '@/lib/data/client'
-import { crearPropuestaApi, cambiarEstatusPropuestaApi } from '@/lib/data/estado-api'
+import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi } from '@/lib/data/estado-api'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -80,6 +80,9 @@ function PropuestaCard({
   async function cambiar(estatus: EstPropuesta) {
     try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
   }
+  async function aprobar(itemId: string, aprobado: boolean) {
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+  }
 
   return (
     <li>
@@ -108,16 +111,37 @@ function PropuestaCard({
             <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-[12px] sm:grid-cols-4">
               <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
               <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
-              <Dato label="Neto (al medio)" valor={formatMonto(p.neto)} />
+              <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
               <Dato label="IVA 16%" valor={formatMonto(p.iva)} />
             </div>
-            {/* Items */}
+            {/* Neto vs aprobado (aprobación granular) */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#10b98133] bg-[#10b9810d] px-3 py-2 text-[12px]">
+              <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{p.items.length} sitios</span>
+              <span className="text-muted">
+                Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
+                {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>
+              </span>
+            </div>
+            {/* Items con aprobación sitio por sitio */}
             <ul className="divide-y divide-border rounded-md border border-border">
               {p.items.map((it) => {
                 const s = sitios?.find((x) => x.id === it.sitioId)
                 return (
                   <li key={it.id} className="flex items-center justify-between px-3 py-1.5 text-[12px]">
-                    <span className="truncate text-ink">{s?.nombre ?? it.sitioId}</span>
+                    <label className="flex min-w-0 items-center gap-2">
+                      {puedeEditar && (
+                        <input
+                          type="checkbox"
+                          checked={it.aprobado}
+                          onChange={(e) => aprobar(it.id, e.target.checked)}
+                          className="h-4 w-4 accent-[var(--accent)]"
+                        />
+                      )}
+                      <span className={`truncate ${it.aprobado ? 'text-ink' : 'text-muted'}`}>{s?.nombre ?? it.sitioId}</span>
+                      {it.aprobado && (
+                        <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">aprobado</span>
+                      )}
+                    </label>
                     <span className="demo-num text-muted">{formatMonto(it.precio)}</span>
                   </li>
                 )
