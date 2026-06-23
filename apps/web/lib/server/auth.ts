@@ -19,6 +19,7 @@ export interface UsuarioSesion {
   cargo: string | null
   rol: string
   activo: boolean
+  tenantId: string | null
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export async function usuarioActual(): Promise<UsuarioSesion | null> {
   const token = cookies().get(SESSION_COOKIE)?.value
   if (!token) return null
   const u = await q1<UsuarioSesion>(
-    `select u.id, u.nombre, u.email, u.cargo, u.rol::text as rol, u.activo
+    `select u.id, u.nombre, u.email, u.cargo, u.rol::text as rol, u.activo, u.tenant_id as "tenantId"
        from sesiones s join usuarios u on u.id = s.usuario_id
       where s.token = $1 and s.expira_en > now()`,
     [token],

@@ -474,6 +474,46 @@ create table acciones (
 create index idx_acciones_timestamp on acciones (timestamp desc);
 
 -- ============================================================================
+--  Multi-tenant + RLS (aditivo). tenant_id en todas las tablas de datos con
+--  DEFAULT al tenant por defecto (los inserts existentes no cambian). RLS
+--  ENABLE (no FORCE): el rol dueño/superusuario la salta -> no rompe la app.
+--  Para ENFORZAR en producción: conectar como rol NO-superusuario y
+--  `set app.tenant_id = '<uuid>'` por request (transacción).
+-- ============================================================================
+create table if not exists tenants (
+  id        uuid primary key default gen_random_uuid(),
+  nombre    text not null,
+  slug      text not null unique,
+  creado_en timestamptz not null default now()
+);
+insert into tenants (nombre, slug) values ('RGB Catorce','rgb') on conflict (slug) do nothing;
+
+do $$
+declare
+  t text;
+  def uuid;
+  tbls text[] := array[
+    'usuarios','sitios','clientes','propuestas','propuesta_items','ordenes_compra',
+    'campanas','creatividades','reservas','ordenes_trabajo','evidencias_ot','ordenes_impresion',
+    'facturas','cobranzas','arrendadores','contratos_arrendamiento','pagos_renta',
+    'incidencias','notificaciones','acciones','sitio_modalidades'];
+begin
+  select id into def from tenants where slug='rgb';
+  foreach t in array tbls loop
+    execute format('alter table %I add column if not exists tenant_id uuid', t);
+    execute format('update %I set tenant_id=%L where tenant_id is null', t, def);
+    execute format('alter table %I alter column tenant_id set default %L', t, def);
+    execute format('alter table %I alter column tenant_id set not null', t);
+    execute format('alter table %I enable row level security', t);
+    execute format('drop policy if exists tenant_isolation on %I', t);
+    execute format($p$create policy tenant_isolation on %I for all
+      using (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
+             or nullif(current_setting('app.tenant_id', true),'') is null)
+      with check (true)$p$, t);
+  end loop;
+end $$;
+
+-- ============================================================================
 --  Fin del esquema. Para datos semilla, mapear el seed de la demo
 --  (apps/web/lib/data/seed.ts) a INSERTs — pedirlo aparte si se requiere.
 -- ============================================================================
