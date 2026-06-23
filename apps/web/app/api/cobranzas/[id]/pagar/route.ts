@@ -6,12 +6,13 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// POST /api/cobranzas/:id/pagar → marca la cobranza como pagada (finanzas.crear)
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+// POST /api/cobranzas/:id/pagar { monto? } → registra pago/abono (finanzas.crear)
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('finanzas', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  const c = await registrarPagoCobranza(params.id)
+  const body = await req.json().catch(() => ({}))
+  const c = await registrarPagoCobranza(params.id, body?.monto ?? null)
   if (!c) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
-  await registrarAccion(g.usuario, 'Registró pago', c.folio ?? 'cobranza')
+  await registrarAccion(g.usuario, c.liquidado ? 'Registró pago (liquidado)' : 'Registró abono', c.folio ?? 'cobranza')
   return NextResponse.json(c)
 }

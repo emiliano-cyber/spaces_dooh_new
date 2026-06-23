@@ -487,11 +487,17 @@ export interface Factura {
   campanaId: string
   clienteId: string
   subtotal: number // neto sin IGV
-  igv: number // IGV 18%
+  igv: number // IGV/IVA
   monto: number // total = subtotal + igv
   moneda: string
   fechaEmision: string
   estatus: EstFactura
+  // Datos fiscales (snapshot al emitir) + folio fiscal simulado (CFDI/UUID)
+  serie: string | null
+  folioFiscal: string | null
+  rfc: string | null
+  razonSocial: string | null
+  usoCfdi: string | null
   creadoEn: string
 }
 

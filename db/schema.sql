@@ -424,6 +424,12 @@ create table facturas (
   moneda        text not null default 'PEN',
   fecha_emision date not null default current_date,
   estatus       est_factura not null default 'EMITIDA',
+  -- Datos fiscales (snapshot al emitir) + folio fiscal simulado (CFDI/UUID)
+  serie         text,
+  folio_fiscal  text,
+  rfc           text,
+  razon_social  text,
+  uso_cfdi      text,
   creado_en     timestamptz not null default now()
 );
 create index idx_facturas_campana on facturas (campana_id);

@@ -128,6 +128,7 @@ export default function FinanzasPage() {
                 <thead>
                   <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
                     <th className="px-4 py-2 font-medium">Folio</th>
+                    <th className="px-4 py-2 font-medium">Folio fiscal</th>
                     <th className="px-4 py-2 font-medium">Cliente</th>
                     <th className="px-4 py-2 text-right font-medium">Monto</th>
                     <th className="px-4 py-2 font-medium">Plazo</th>
@@ -146,9 +147,18 @@ export default function FinanzasPage() {
                       return (
                         <tr key={cob.id} className="border-b border-border last:border-0">
                           <td className="demo-num px-4 py-2.5 text-ink">{fac?.folio ?? '—'}</td>
+                          <td className="px-4 py-2.5">
+                            <div className="demo-num text-[10px] leading-tight text-muted" title={fac?.folioFiscal ?? ''}>
+                              {fac?.folioFiscal ? `${fac.folioFiscal.slice(0, 13)}…` : '—'}
+                            </div>
+                            {fac?.rfc && <div className="demo-num text-[10px] text-muted">{fac.rfc}</div>}
+                          </td>
                           <td className="px-4 py-2.5 text-muted">{fac ? cliNombre(fac.clienteId) : '—'}</td>
                           <td className="demo-num px-4 py-2.5 text-right text-ink">
                             {fac ? formatMonto(fac.monto) : '—'}
+                            {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
+                              <div className="text-[10px] text-warning">saldo {formatMonto(fac.monto - cob.montoPagado)}</div>
+                            )}
                           </td>
                           <td className="demo-num px-4 py-2.5 text-muted">{cob.plazoDias} días</td>
                           <td className="demo-num px-4 py-2.5 text-muted">
