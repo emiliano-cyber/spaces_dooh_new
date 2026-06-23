@@ -308,6 +308,35 @@ export interface Cliente {
   creadoEn: string
 }
 
+export type EstPropuesta = 'BORRADOR' | 'ENVIADA' | 'APROBADA' | 'RECHAZADA'
+export interface PropuestaItem {
+  id: string
+  propuestaId: string
+  sitioId: string
+  fechaInicio: string
+  fechaFin: string
+  precio: number // tarifa bruta de lista
+  aprobado: boolean // aprobación granular (sitio por sitio)
+}
+export interface Propuesta {
+  id: string
+  folio: string
+  clienteId: string | null
+  nombre: string
+  fecha: string
+  estatus: EstPropuesta
+  comisionPct: number // comisión de agencia → divisor
+  notas: string | null
+  creadoEn: string
+  items: PropuestaItem[]
+  // Calculados con el método del divisor (server-side):
+  bruto: number   // Σ precio de los items
+  divisor: number // 1 − comisión/100
+  neto: number    // bruto × divisor (lo que recibe el medio)
+  iva: number     // bruto × 16%
+  total: number   // bruto + iva (lo que paga el cliente)
+}
+
 export interface Campana {
   id: string
   folio: string
@@ -488,6 +517,7 @@ export interface DemoState {
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]
   clientes: Cliente[]
+  propuestas: Propuesta[]
   campanas: Campana[]
   creatividades: Creatividad[]
   reservas: Reserva[]

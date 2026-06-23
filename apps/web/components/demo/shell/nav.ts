@@ -13,6 +13,7 @@ import {
   PackagePlus,
   Images,
   Users,
+  FileText,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -34,6 +35,7 @@ export const NAV: NavItem[] = [
   { key: 'creativos', label: 'Creativos', href: '/demo/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'campanas', label: 'Campañas', href: '/demo/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'clientes', label: 'Clientes', href: '/demo/clientes', icon: Users, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'propuestas', label: 'Propuestas', href: '/demo/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'network', label: 'Network', href: '/demo/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'arrendadores', label: 'Arrendadores', href: '/demo/arrendadores', icon: Building2, roles: ['DUENO'] },
   { key: 'operaciones', label: 'Operaciones', href: '/demo/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'] },

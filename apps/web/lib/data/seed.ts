@@ -446,6 +446,7 @@ export function buildSeed(): DemoState {
     pagosRenta: [],
     incidencias: [],
     clientes: [],
+    propuestas: [],
     campanas: [],
     creatividades: [],
     reservas: [],

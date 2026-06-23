@@ -31,7 +31,39 @@ export async function refrescarEstado(): Promise<void> {
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
+    propuestas: e.propuestas ?? [],
   })
+}
+
+// ─── Propuestas (método del divisor) ─────────────────────────────────────────
+export async function crearPropuestaApi(input: {
+  clienteId?: string | null
+  nombre: string
+  comisionPct?: number
+  fechaInicio: string
+  fechaFin: string
+  items: { sitioId: string; precio: number }[]
+  notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/propuestas/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la propuesta')
+  await refrescarEstado()
+}
+
+export async function cambiarEstatusPropuestaApi(id: string, estatus: string): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estatus }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
+  await refrescarEstado()
 }
 
 // ─── Clientes (CRUD con datos fiscales) ──────────────────────────────────────

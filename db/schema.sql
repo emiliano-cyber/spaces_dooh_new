@@ -248,6 +248,31 @@ create table clientes (
   creado_en      timestamptz not null default now()
 );
 
+-- ─── Propuestas comerciales (método del divisor: bruto/neto) ─────────────────
+create type est_propuesta as enum ('BORRADOR','ENVIADA','APROBADA','RECHAZADA');
+create table propuestas (
+  id           uuid primary key default gen_random_uuid(),
+  folio        text not null unique,
+  cliente_id   uuid references clientes(id) on delete set null,
+  nombre       text not null,
+  fecha        date not null default current_date,
+  estatus      est_propuesta not null default 'BORRADOR',
+  comision_pct numeric(5,2) not null default 0,   -- comisión de agencia → divisor
+  notas        text,
+  creado_en    timestamptz not null default now()
+);
+create table propuesta_items (
+  id           uuid primary key default gen_random_uuid(),
+  propuesta_id uuid not null references propuestas(id) on delete cascade,
+  sitio_id     uuid not null references sitios(id) on delete restrict,
+  fecha_inicio date not null,
+  fecha_fin    date not null,
+  precio       numeric(14,2) not null default 0,   -- tarifa bruta de lista
+  aprobado     boolean not null default false,     -- aprobación granular
+  creado_en    timestamptz not null default now()
+);
+create index idx_prop_items_propuesta on propuesta_items (propuesta_id);
+
 create table campanas (
   id                    uuid primary key default gen_random_uuid(),
   folio                 text unique,
