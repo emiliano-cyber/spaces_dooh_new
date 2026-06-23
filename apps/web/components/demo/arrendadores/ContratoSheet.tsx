@@ -18,13 +18,17 @@ import {
   useArrendadores,
   useSitios,
   usePagosRenta,
-  data,
   formatMonto,
   formatFecha,
   diasHasta,
   type ContratoArrendamiento,
   type TipoIncidencia,
 } from '@/lib/data/client'
+import {
+  registrarPagoRentaApi,
+  iniciarRenovacionApi,
+  reportarIncidenciaApi,
+} from '@/lib/data/estado-api'
 
 const TIPO_INC: { value: TipoIncidencia; label: string }[] = [
   { value: 'LEGAL', label: 'Legal / permiso' },
@@ -77,7 +81,7 @@ export function ContratoSheet({
               <Button
                 className="flex-1"
                 onClick={async () => {
-                  await data.iniciarRenovacion(contrato.id)
+                  await iniciarRenovacionApi(contrato.id)
                   onToast('Renovación iniciada')
                 }}
               >
@@ -134,7 +138,7 @@ export function ContratoSheet({
                           size="sm"
                           variant="secondary"
                           onClick={async () => {
-                            await data.registrarPagoRenta(p.id)
+                            await registrarPagoRentaApi(p.id)
                             onToast('Pago registrado')
                           }}
                         >
@@ -169,7 +173,7 @@ export function ContratoSheet({
           onOpenChange={setIncOpen}
           sitioNombre={sitio.nombre}
           onSubmit={async (tipo, descripcion) => {
-            await data.reportarIncidencia({ sitioId: sitio.id, tipo, descripcion })
+            await reportarIncidenciaApi({ sitioId: sitio.id, tipo, descripcion })
             onToast(`Incidencia reportada · ${sitio.nombre} bloqueado en Comercial`)
             setIncOpen(false)
           }}

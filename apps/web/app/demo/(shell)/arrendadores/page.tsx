@@ -18,12 +18,12 @@ import {
   useArrendadores,
   useSitios,
   usePagosRenta,
-  data,
   formatMonto,
   formatFecha,
   diasHasta,
   type ContratoArrendamiento,
 } from '@/lib/data/client'
+import { registrarPagoRentaApi } from '@/lib/data/estado-api'
 
 export default function ArrendadoresPage() {
   const contratos = useContratos()
@@ -159,7 +159,7 @@ export default function ArrendadoresPage() {
                               size="sm"
                               variant="secondary"
                               onClick={async () => {
-                                await data.registrarPagoRenta(p.id)
+                                await registrarPagoRentaApi(p.id)
                                 notify('Pago registrado')
                               }}
                             >

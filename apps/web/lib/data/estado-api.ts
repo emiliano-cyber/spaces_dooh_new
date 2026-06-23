@@ -27,7 +27,39 @@ export async function refrescarEstado(): Promise<void> {
     cobranzas: e.cobranzas ?? [],
     ordenesImpresion: e.ordenesImpresion ?? [],
     acciones: e.acciones ?? [],
+    arrendadores: e.arrendadores ?? [],
+    contratos: e.contratos ?? [],
+    pagosRenta: e.pagosRenta ?? [],
+    incidencias: e.incidencias ?? [],
   })
+}
+
+// ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
+export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
+  const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
+  await refrescarEstado()
+}
+
+export async function iniciarRenovacionApi(contratoId: string): Promise<void> {
+  const r = await fetch(`${API}/contratos/${contratoId}/renovar/`, { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo iniciar la renovación')
+  await refrescarEstado()
+}
+
+export async function reportarIncidenciaApi(input: {
+  sitioId: string; tipo: string; descripcion: string
+}): Promise<void> {
+  const r = await fetch(`${API}/incidencias/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo reportar la incidencia')
+  await refrescarEstado()
 }
 
 // ─── Imprenta (órdenes de impresión + OC) ───────────────────────────────────
