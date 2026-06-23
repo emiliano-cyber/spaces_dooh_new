@@ -425,6 +425,7 @@ export interface EvidenciaOT {
   id: string
   otId: string
   fotoUrl: string
+  fotoKey?: string | null // key en Spaces si la imagen se subió a storage
   formato: string
   lat: number | null
   lng: number | null

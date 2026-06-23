@@ -395,7 +395,8 @@ create trigger trg_ot_upd before update on ordenes_trabajo
 create table evidencias_ot (
   id          uuid primary key default gen_random_uuid(),
   ot_id       uuid not null references ordenes_trabajo(id) on delete cascade,
-  foto_url    text not null,
+  foto_url    text not null,                 -- base64 (legado) o vacío si va a Spaces
+  foto_key    text,                          -- key del objeto en Spaces (si aplica)
   formato     text not null default 'image/jpeg',
   lat         numeric(10,7),
   lng         numeric(11,7),

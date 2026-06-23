@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
 // ============================================================================
 //  lib/server/ot-repo.ts — Órdenes de trabajo (cuadrillas) + evidencias
@@ -24,17 +25,31 @@ function rowToOT(r: any) {
 }
 function rowToEvidencia(r: any) {
   return {
-    id: r.id, otId: r.ot_id, fotoUrl: r.foto_url, formato: r.formato,
+    id: r.id, otId: r.ot_id, fotoUrl: r.foto_url, fotoKey: r.foto_key ?? null, formato: r.formato,
     lat: n(r.lat), lng: n(r.lng), precision: n(r.precision_m), tipo: r.tipo,
     uploadedBy: r.uploaded_by, tomadaEn: iso(r.tomada_en), timestamp: iso(r.timestamp),
   }
+}
+
+// Resuelve la URL servible de cada evidencia: si tiene foto_key (subida a
+// Spaces) y el storage está habilitado → URL firmada; si no → el base64 viejo.
+async function resolverEvidencias(rows: any[]) {
+  return Promise.all(
+    rows.map(async (r) => {
+      const e = rowToEvidencia(r)
+      if (r.foto_key && storageHabilitado()) {
+        try { e.fotoUrl = await urlFirmada(r.foto_key) } catch { /* deja el valor actual */ }
+      }
+      return e
+    }),
+  )
 }
 
 export async function listarOT() {
   return (await q('select * from ordenes_trabajo order by creado_en asc')).map(rowToOT)
 }
 export async function listarEvidencias() {
-  return (await q('select * from evidencias_ot order by timestamp asc')).map(rowToEvidencia)
+  return resolverEvidencias(await q('select * from evidencias_ot order by timestamp asc'))
 }
 
 // OT con su sitio, campaña y evidencias (para la vista móvil standalone).
@@ -46,7 +61,7 @@ export async function getOTcompleta(id: string) {
   const campana = ot.campanaId
     ? await q1('select id, nombre, oc_recibida, fotos_comprobatorias, reporte_publicacion from campanas where id=$1', [ot.campanaId])
     : null
-  const evidencias = (await q('select * from evidencias_ot where ot_id=$1 order by timestamp asc', [id])).map(rowToEvidencia)
+  const evidencias = await resolverEvidencias(await q('select * from evidencias_ot where ot_id=$1 order by timestamp asc', [id]))
   return {
     ot,
     sitio: sitio
@@ -100,10 +115,22 @@ export async function cerrarOT(
          fecha_inicio=coalesce(fecha_inicio, now()), fecha_completada=now() where id=$1`,
       [id, JSON.stringify(checklist)],
     )
+    // Storage: si Spaces está habilitado y llega un data URL, lo subimos y
+    // guardamos la KEY (no el base64). Si no, fallback: base64 en BD (como antes).
+    let fotoUrl: string = input.fotoUrl
+    let fotoKey: string | null = null
+    if (storageHabilitado() && typeof input.fotoUrl === 'string' && input.fotoUrl.startsWith('data:')) {
+      try {
+        fotoKey = await subirDataUrl(`evidencias/${id}/${Date.now()}.jpg`, input.fotoUrl)
+        fotoUrl = '' // ya no guardamos el base64 en BD
+      } catch {
+        fotoKey = null // si falla la subida, conservamos el base64 (no se pierde la evidencia)
+      }
+    }
     await client.query(
-      `insert into evidencias_ot (ot_id, foto_url, formato, lat, lng, precision_m, tipo, uploaded_by, tomada_en)
-       values ($1,$2,'image/jpeg',$3,$4,8,'INSTALACION',$5,$6)`,
-      [id, input.fotoUrl, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null],
+      `insert into evidencias_ot (ot_id, foto_url, foto_key, formato, lat, lng, precision_m, tipo, uploaded_by, tomada_en)
+       values ($1,$2,$3,'image/jpeg',$4,$5,8,'INSTALACION',$6,$7)`,
+      [id, fotoUrl, fotoKey, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null],
     )
     // candado de la campaña (fotos + reporte) si está ligada
     if (ot.campana_id) {
