@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { cambiarEstatusPropuesta } from '@/lib/server/propuestas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { notificar } from '@/lib/server/notificaciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -15,6 +16,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const prop = await cambiarEstatusPropuesta(params.id, body.estatus)
     if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
     await registrarAccion(g.usuario, `Propuesta → ${prop.estatus}`, prop.nombre)
+    if (prop.estatus === 'APROBADA' || prop.estatus === 'RECHAZADA') {
+      await notificar({
+        tipo: 'PROPUESTA',
+        nivel: prop.estatus === 'APROBADA' ? 'ok' : 'warn',
+        titulo: prop.estatus === 'APROBADA' ? 'Propuesta aprobada' : 'Propuesta rechazada',
+        detalle: `${prop.folio} · ${prop.nombre}`,
+        link: '/demo/propuestas',
+      })
+    }
     return NextResponse.json(prop)
   } catch (e) {
     return NextResponse.json(

@@ -535,6 +535,17 @@ export interface ConfigNegocio {
   tiposTarea: string[]
 }
 
+export interface Notificacion {
+  id: string
+  tipo: string
+  nivel: 'info' | 'ok' | 'warn'
+  titulo: string
+  detalle: string | null
+  link: string | null
+  leida: boolean
+  creadoEn: string
+}
+
 export interface DemoState {
   usuarios: UsuarioDemo[]
   configNegocio: ConfigNegocio
@@ -555,4 +566,5 @@ export interface DemoState {
   facturas: Factura[]
   cobranzas: Cobranza[]
   acciones: AccionLog[]
+  notificaciones: Notificacion[]
 }

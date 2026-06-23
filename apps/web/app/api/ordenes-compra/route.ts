@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { crearOrdenCompra } from '@/lib/server/ordenes-compra-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { notificar } from '@/lib/server/notificaciones-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,5 +21,6 @@ export async function POST(req: Request) {
   })
   if (!odc) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
   await registrarAccion(g.usuario, 'Registró ODC del cliente', odc.folio)
+  await notificar({ tipo: 'ODC', nivel: 'ok', titulo: 'ODC registrada', detalle: `${odc.folio} · ${odc.monto.toLocaleString('es-MX')}`, link: `/demo/campanas/${odc.campanaId}` })
   return NextResponse.json(odc, { status: 201 })
 }

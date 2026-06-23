@@ -33,7 +33,18 @@ export async function refrescarEstado(): Promise<void> {
     incidencias: e.incidencias ?? [],
     propuestas: e.propuestas ?? [],
     ordenesCompra: e.ordenesCompra ?? [],
+    notificaciones: e.notificaciones ?? [],
   })
+}
+
+// ─── Notificaciones ──────────────────────────────────────────────────────────
+export async function marcarNotificacionLeidaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/notificaciones/${id}/leer/`, { method: 'POST' })
+  if (r.ok) await refrescarEstado()
+}
+export async function marcarTodasNotificacionesApi(): Promise<void> {
+  const r = await fetch(`${API}/notificaciones/leer-todas/`, { method: 'POST' })
+  if (r.ok) await refrescarEstado()
 }
 
 // ─── Propuestas (método del divisor) ─────────────────────────────────────────

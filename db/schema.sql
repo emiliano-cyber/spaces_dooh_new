@@ -288,6 +288,19 @@ create table ordenes_compra (
 );
 create index idx_odc_campana on ordenes_compra (campana_id);
 
+-- ─── Notificaciones por evento (centro in-app) ───────────────────────────────
+create table notificaciones (
+  id        uuid primary key default gen_random_uuid(),
+  tipo      text not null,                 -- ODC | FACTURA | PAGO | OT | PROPUESTA
+  nivel     text not null default 'info',  -- info | ok | warn
+  titulo    text not null,
+  detalle   text,
+  link      text,
+  leida     boolean not null default false,
+  creado_en timestamptz not null default now()
+);
+create index idx_notif_creado on notificaciones (creado_en desc);
+
 create table campanas (
   id                    uuid primary key default gen_random_uuid(),
   folio                 text unique,

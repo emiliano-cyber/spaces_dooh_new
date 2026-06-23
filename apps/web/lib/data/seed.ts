@@ -457,6 +457,7 @@ export function buildSeed(): DemoState {
     facturas: [],
     cobranzas: [],
     acciones: [],
+    notificaciones: [],
   }
 }
 
