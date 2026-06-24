@@ -361,6 +361,7 @@ export interface Campana {
   folio: string
   nombre: string
   clienteId: string
+  propuestaId: string | null // propuesta de la que se derivó (null si es manual)
   agencia: string | null
   marca: string | null
   tipoCampana: TipoCampana

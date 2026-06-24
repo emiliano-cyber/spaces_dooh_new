@@ -1,6 +1,9 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { q, pool } from './db'
+import { q, q1, pool } from './db'
+
+// Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
+export class PropuestaError extends Error {}
 
 // ============================================================================
 //  lib/server/propuestas-repo.ts — Propuestas comerciales con método del
@@ -118,6 +121,14 @@ export async function crearPropuesta(input: PropuestaInput) {
 // Aprobación granular: aprueba/desaprueba un sitio (item) de la propuesta y
 // devuelve la propuesta recompuesta (con los totales aprobados al día).
 export async function aprobarItem(itemId: string, aprobado: boolean) {
+  // Congelado: una propuesta ya APROBADA es inmutable; sus ítems no se editan.
+  const est = await q1<any>(
+    `select p.estatus from propuesta_items i join propuestas p on p.id=i.propuesta_id where i.id=$1`,
+    [itemId],
+  )
+  if (est?.estatus === 'APROBADA') {
+    throw new PropuestaError('La propuesta ya está aprobada y es inmutable; un cambio va como adenda')
+  }
   const upd = await q(
     `update propuesta_items set aprobado=$2 where id=$1 returning propuesta_id`,
     [itemId, aprobado],

@@ -315,6 +315,7 @@ create table campanas (
   presupuesto_neto      numeric(16,2),
   moneda                text not null default 'PEN',
   estado_comercial      est_comercial_campana not null default 'DRAFT',
+  propuesta_id          uuid references propuestas(id) on delete set null,  -- campaña derivada de una propuesta aprobada (nullable: manuales sin propuesta)
   -- candado de facturación
   oc_recibida           boolean not null default false,
   fotos_comprobatorias  boolean not null default false,
@@ -329,6 +330,7 @@ create table campanas (
 );
 create index idx_campanas_cliente on campanas (cliente_id);
 create index idx_campanas_estado  on campanas (estado_comercial);
+create index idx_campanas_propuesta on campanas (propuesta_id);
 create trigger trg_campanas_upd before update on campanas
   for each row execute function set_actualizado_en();
 

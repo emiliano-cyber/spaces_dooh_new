@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q } from './db'
+import { pool, q, q1 } from './db'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -46,6 +46,7 @@ function rowToCliente(r: any) {
 function rowToCampana(r: any) {
   return {
     id: r.id, folio: r.folio, nombre: r.nombre, clienteId: r.cliente_id,
+    propuestaId: r.propuesta_id ?? null,
     agencia: r.agencia, marca: r.marca, tipoCampana: r.tipo_campana,
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
     presupuestoBruto: n(r.presupuesto_bruto), presupuestoNeto: n(r.presupuesto_neto),
@@ -158,6 +159,23 @@ export async function reservar(input: {
       ).rows[0].id
     }
 
+    // Guard de integridad: si la campaña destino nace de una propuesta, solo
+    // admite sitios del set APROBADO de esa propuesta (las manuales no aplican).
+    const cp = (await client.query('select propuesta_id from campanas where id=$1', [campanaId])).rows[0]
+    if (cp?.propuesta_id) {
+      const aprob = (
+        await client.query(
+          'select sitio_id from propuesta_items where propuesta_id=$1 and aprobado=true',
+          [cp.propuesta_id],
+        )
+      ).rows.map((r: any) => r.sitio_id)
+      const set = new Set(aprob)
+      const fuera = input.sitioIds.filter((s) => !set.has(s))
+      if (fuera.length) {
+        throw new Error('Solo se pueden agregar sitios aprobados en la propuesta de esta campaña')
+      }
+    }
+
     for (const sitioId of input.sitioIds) {
       const s = (
         await client.query(
@@ -225,6 +243,88 @@ export async function reservar(input: {
     await client.query('commit')
     const camp = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
     return rowToCampana(camp)
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// ─── Propuesta → campaña ─────────────────────────────────────────────────────
+// Error de regla de negocio (propuesta no aprobada / ya generada) → 409.
+export class PropuestaCampanaError extends Error {}
+
+// Set de sitios APROBADOS de una propuesta (para el guard de integridad).
+export async function sitiosAprobadosDePropuesta(propuestaId: string): Promise<Set<string>> {
+  const rows = await q<{ sitio_id: string }>(
+    'select sitio_id from propuesta_items where propuesta_id=$1 and aprobado=true',
+    [propuestaId],
+  )
+  return new Set(rows.map((r) => r.sitio_id))
+}
+
+// Genera una campaña a partir de una propuesta APROBADA: hereda cliente, fechas
+// (min/max de los items) y SOLO los sitios aprobados con su precio NETO de
+// comisión (item.precio × divisor). Idempotente. La campaña nace CONFIRMADA
+// (cliente comprometió), reservas CONFIRMADA, sitios RESERVADO hasta la OC.
+export async function generarCampanaDesdePropuesta(propuestaId: string) {
+  const prop = await q1<any>('select * from propuestas where id=$1', [propuestaId])
+  if (!prop) throw new PropuestaCampanaError('Propuesta no encontrada')
+  if (prop.estatus !== 'APROBADA') {
+    throw new PropuestaCampanaError('La propuesta no está aprobada; no se puede generar la campaña')
+  }
+  if (!prop.cliente_id) {
+    throw new PropuestaCampanaError('La propuesta no tiene cliente asignado; no se puede facturar la campaña')
+  }
+  // Idempotencia: si ya generó campaña, devuelve la existente (no duplica).
+  const ya = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
+  if (ya) return rowToCampana(ya)
+
+  const items = await q<any>(
+    'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
+    [propuestaId],
+  )
+  if (!items.length) throw new PropuestaCampanaError('La propuesta no tiene sitios aprobados')
+
+  const divisor = 1 - Number(prop.comision_pct) / 100
+  const fechaInicio = items.map((i) => iso(i.fecha_inicio)).sort()[0]
+  const fechaFin = items.map((i) => iso(i.fecha_fin)).sort().at(-1) as string
+
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    // tipo de campaña derivado del medio de los sitios aprobados
+    const flags = (
+      await client.query(
+        `select (tipo_medio='PANTALLA_DIGITAL' or es_rotativo or exhibicion in ('digital','rotativo')) as digital
+           from sitios where id = any($1::uuid[])`,
+        [items.map((i) => i.sitio_id)],
+      )
+    ).rows.map((r: any) => !!r.digital)
+    const tipoCampana = derivarTipoCampana(flags)
+
+    const campanaId = (
+      await client.query(
+        `insert into campanas (folio, nombre, cliente_id, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id)
+         values ($1,$2,$3,$4,$5,'CONFIRMADA',$6,$7) returning id`,
+        [folio(), prop.nombre, prop.cliente_id, fechaInicio, fechaFin, tipoCampana, propuestaId],
+      )
+    ).rows[0].id
+
+    for (const it of items) {
+      const precioNeto = Math.round(Number(it.precio) * divisor)
+      await client.query(
+        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null)`,
+        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), precioNeto],
+      )
+      // sitios RESERVADO hasta la OC (no OCUPADO todavía)
+      await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [it.sitio_id])
+    }
+    await recalcularPresupuesto(client, campanaId)
+    await client.query('commit')
+    return rowToCampana((await client.query('select * from campanas where id=$1', [campanaId])).rows[0])
   } catch (e) {
     await client.query('rollback')
     throw e
