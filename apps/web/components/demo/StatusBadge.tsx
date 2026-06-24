@@ -72,6 +72,20 @@ export const SITIO_TONO: Record<EstComercial, Tono> = {
   EN_MANTENIMIENTO: 'neutro',
   BAJA: 'neutro',
 }
+// Color del PIN en los mapas (dashboard y comercial). Distinto de SITIO_TONO
+// (que es para badges de estatus): aquí el medio digital se resalta en azul.
+//   azul = digital · verde = disponible · rojo = ocupado · ámbar = reservado.
+export function pinTono(s: {
+  tipoMedio: string; esRotativo: boolean; exhibicion: string; estatusComercial: EstComercial
+}): Tono {
+  const digital =
+    s.tipoMedio === 'PANTALLA_DIGITAL' || s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+  if (digital) return 'azul'
+  if (s.estatusComercial === 'OCUPADO') return 'rojo'
+  if (s.estatusComercial === 'DISPONIBLE') return 'verde'
+  return SITIO_TONO[s.estatusComercial] // reservado=ámbar, etc.
+}
+
 export const SITIO_LABEL: Record<EstComercial, string> = {
   DISPONIBLE: 'Disponible',
   // Un sitio RESERVADO corresponde a una reserva TENTATIVA: se anota para que

@@ -13,6 +13,7 @@ import {
   StatusBadge,
   SITIO_TONO,
   SITIO_LABEL,
+  pinTono,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
@@ -86,7 +87,7 @@ export default function ComercialPage() {
     id: s.id,
     lat: s.lat,
     lng: s.lng,
-    tono: SITIO_TONO[s.estatusComercial],
+    tono: pinTono(s),
     label: s.nombre,
   }))
 
@@ -320,10 +321,10 @@ export default function ComercialPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-3 py-2 text-[11px] text-muted">
+            <Pin color="#0a66ff" label="Digital" />
             <Pin color="#10b981" label="Disponible" />
-            <Pin color="#0a66ff" label="Ocupado" />
+            <Pin color="#ef4444" label="Ocupado" />
             <Pin color="#f59e0b" label="Reservado · tentativo" />
-            <Pin color="#ef4444" label="Bloqueado por incidencia" />
           </div>
         </Card>
       </div>
