@@ -14,7 +14,8 @@ import {
   type Propuesta,
   type EstPropuesta,
 } from '@/lib/data/client'
-import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi } from '@/lib/data/estado-api'
+import { useRouter } from 'next/navigation'
+import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi } from '@/lib/data/estado-api'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -76,9 +77,19 @@ function PropuestaCard({
   const sitios = useSitios()
   const cliente = clientes?.find((c) => c.id === p.clienteId)
   const est = EST[p.estatus]
+  const router = useRouter()
+  const [generando, setGenerando] = useState(false)
 
   async function cambiar(estatus: EstPropuesta) {
     try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+  }
+  async function generarCampana() {
+    setGenerando(true)
+    try {
+      const camp = await generarCampanaDesdePropuestaApi(p.id)
+      if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
+    } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    setGenerando(false)
   }
   async function aprobar(itemId: string, aprobado: boolean) {
     try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
@@ -158,6 +169,11 @@ function PropuestaCard({
                     <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
                     <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
                   </>
+                )}
+                {p.estatus === 'APROBADA' && (
+                  <Button size="sm" disabled={generando} onClick={generarCampana}>
+                    <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+                  </Button>
                 )}
               </div>
             )}
