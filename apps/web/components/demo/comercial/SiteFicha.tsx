@@ -242,7 +242,7 @@ export function SiteFicha({
           <h4 className="mb-2 text-[13px] font-medium text-ink">Inteligencia artificial</h4>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tono={sitio.computerVision ? 'verde' : 'rojo'}>
-              {sitio.computerVision ? 'Con IA · Computer Vision' : 'Sin IA'}
+              {sitio.computerVision ? 'Computer Vision On' : 'Sin Computer Vision'}
             </StatusBadge>
             {sitio.computerVision && sitio.admobilizeId && (
               <span className="demo-num text-[12px] text-muted">ID {sitio.admobilizeId}</span>
