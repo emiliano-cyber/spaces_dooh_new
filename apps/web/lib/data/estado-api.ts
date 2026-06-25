@@ -107,6 +107,8 @@ export interface ClienteInput {
   regimenFiscal?: string | null
   cpFiscal?: string | null
   usoCfdi?: string | null
+  ivaPct?: number | null
+  comisionAgenciaPct?: number | null
   tipo?: string
   contacto?: { nombre?: string; email?: string; telefono?: string }
 }

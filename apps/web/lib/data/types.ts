@@ -302,6 +302,8 @@ export interface Cliente {
   regimenFiscal: string | null
   cpFiscal: string | null
   usoCfdi: string | null
+  ivaPct: number              // IVA configurado para el cliente (default 16)
+  comisionAgenciaPct: number  // comisión de agencia (divisor) configurada
   tipo: string
   contacto: { nombre?: string; email?: string; telefono?: string }
   activo: boolean

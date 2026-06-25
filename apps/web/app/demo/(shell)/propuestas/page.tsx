@@ -123,7 +123,7 @@ function PropuestaCard({
               <Dato label="Bruto (lista)" valor={formatMonto(p.bruto)} />
               <Dato label={`Comisión ${(100 - p.divisor * 100).toFixed(0)}% · divisor ${p.divisor.toFixed(2)}`} valor={`× ${p.divisor.toFixed(2)}`} />
               <Dato label="Neto propuesto" valor={formatMonto(p.neto)} />
-              <Dato label="IVA 16%" valor={formatMonto(p.iva)} />
+              <Dato label={`IVA ${p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16}%`} valor={formatMonto(p.iva)} />
             </div>
             {/* Neto vs aprobado (aprobación granular) */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#10b98133] bg-[#10b9810d] px-3 py-2 text-[12px]">
@@ -202,7 +202,8 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
   const divisor = 1 - (Number(comision) || 0) / 100
   const neto = Math.round(bruto * divisor)
-  const iva = Math.round(bruto * 0.16)
+  const ivaPctSel = clientes?.find((c) => c.id === clienteId)?.ivaPct ?? 16
+  const iva = Math.round(bruto * (ivaPctSel / 100))
   const total = bruto + iva
   const valido = !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0
 
@@ -261,7 +262,17 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
           </Campo>
           <Campo label="Cliente">
-            <select className={inputCls} value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
+            <select
+              className={inputCls}
+              value={clienteId}
+              onChange={(e) => {
+                const id = e.target.value
+                setClienteId(id)
+                // Precarga la comisión de agencia configurada en el cliente.
+                const c = clientes?.find((x) => x.id === id)
+                if (c) setComision(String(c.comisionAgenciaPct ?? 0))
+              }}
+            >
               <option value="">— Sin cliente —</option>
               {clientes?.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
@@ -294,7 +305,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           <Dato label="Bruto" valor={formatMonto(bruto)} />
           <Dato label={`Divisor (${comision || 0}%)`} valor={`× ${divisor.toFixed(2)}`} />
           <Dato label="Neto" valor={formatMonto(neto)} />
-          <Dato label="IVA 16%" valor={formatMonto(iva)} />
+          <Dato label={`IVA ${ivaPctSel}%`} valor={formatMonto(iva)} />
         </div>
       </div>
     </Modal>

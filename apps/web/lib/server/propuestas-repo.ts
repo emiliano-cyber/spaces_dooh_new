@@ -33,12 +33,14 @@ function armarPropuesta(p: any, items: any[]) {
   const comisionPct = Number(p.comision_pct)
   const divisor = 1 - comisionPct / 100
   const neto = Math.round(bruto * divisor)
-  const iva = Math.round(bruto * (IVA_PCT / 100))
+  // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
+  const ivaP = p.cliente_iva != null ? Number(p.cliente_iva) : IVA_PCT
+  const iva = Math.round(bruto * (ivaP / 100))
   // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
   const netoAprobado = Math.round(brutoAprobado * divisor)
-  const ivaAprobado = Math.round(brutoAprobado * (IVA_PCT / 100))
+  const ivaAprobado = Math.round(brutoAprobado * (ivaP / 100))
   return {
     id: p.id,
     folio: p.folio,
@@ -64,7 +66,10 @@ function armarPropuesta(p: any, items: any[]) {
 }
 
 export async function listarPropuestas() {
-  const props = await q('select * from propuestas order by creado_en desc')
+  const props = await q(
+    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
+       from propuestas p order by p.creado_en desc`,
+  )
   if (!props.length) return []
   const items = await q('select * from propuesta_items order by creado_en asc')
   const porProp = new Map<string, any[]>()

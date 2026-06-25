@@ -13,14 +13,18 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string)
 // IGV (Perú) = 18%. Importe de cada reserva = tarifa mensual prorrateada por
 // días exactos: precio / 30 × días cubiertos (fecha_fin - fecha_inicio + 1).
 // presupuesto_neto = suma prorrateada; presupuesto_bruto = neto + IGV (total).
-export const IGV_PCT = 0.18
+// IVA por defecto (México). El IVA real se configura por cliente (clientes.iva_pct,
+// default 16); este valor es solo el respaldo cuando no hay cliente.
+export const IGV_PCT = 0.16
 
 type Exec = { query: (sql: string, params?: unknown[]) => Promise<unknown> }
 async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
+  // El IVA sale del cliente de la campaña (clientes.iva_pct); si no hay, 16.
   const sql =
     `update campanas c
         set presupuesto_neto = sub.neto,
-            presupuesto_bruto = round(sub.neto * (1 + $2::numeric), 2)
+            presupuesto_bruto = round(
+              sub.neto * (1 + coalesce((select iva_pct from clientes cl where cl.id = c.cliente_id), 16) / 100), 2)
        from (
          select coalesce(
            round(sum(precio * (fecha_fin - fecha_inicio + 1) / 30.0), 2), 0
@@ -28,8 +32,8 @@ async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
          from reservas where campana_id = $1
        ) sub
       where c.id = $1`
-  if (exec) await exec.query(sql, [campanaId, IGV_PCT])
-  else await q(sql, [campanaId, IGV_PCT])
+  if (exec) await exec.query(sql, [campanaId])
+  else await q(sql, [campanaId])
 }
 
 function rowToCliente(r: any) {
@@ -39,6 +43,8 @@ function rowToCliente(r: any) {
     regimenFiscal: r.regimen_fiscal ?? null,
     cpFiscal: r.cp_fiscal ?? null,
     usoCfdi: r.uso_cfdi ?? null,
+    ivaPct: r.iva_pct != null ? Number(r.iva_pct) : 16,
+    comisionAgenciaPct: r.comision_agencia_pct != null ? Number(r.comision_agencia_pct) : 0,
     tipo: r.tipo,
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }

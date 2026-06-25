@@ -242,6 +242,8 @@ create table clientes (
   regimen_fiscal text,
   cp_fiscal      text,
   uso_cfdi       text,
+  iva_pct        numeric(5,2) not null default 16,  -- IVA configurado por cliente
+  comision_agencia_pct numeric(5,2) not null default 0,  -- comisión de agencia (divisor)
   tipo           text not null default 'DIRECTO',
   contacto       jsonb not null default '{}',
   activo         boolean not null default true,

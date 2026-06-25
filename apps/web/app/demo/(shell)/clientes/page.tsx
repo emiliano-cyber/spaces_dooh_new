@@ -103,6 +103,8 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   const [cpFiscal, setCpFiscal] = useState(cliente?.cpFiscal ?? '')
   const [usoCfdi, setUsoCfdi] = useState(cliente?.usoCfdi ?? '')
   const [tipo, setTipo] = useState(cliente?.tipo ?? 'DIRECTO')
+  const [ivaPct, setIvaPct] = useState(String(cliente?.ivaPct ?? 16))
+  const [comisionAgencia, setComisionAgencia] = useState(String(cliente?.comisionAgenciaPct ?? 0))
   const [email, setEmail] = useState(cliente?.contacto?.email ?? '')
   const [telefono, setTelefono] = useState(cliente?.contacto?.telefono ?? '')
   const [guardando, setGuardando] = useState(false)
@@ -119,6 +121,8 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       regimenFiscal: regimenFiscal || null,
       cpFiscal: cpFiscal.trim() || null,
       usoCfdi: usoCfdi || null,
+      ivaPct: Number(ivaPct) || 0,
+      comisionAgenciaPct: Number(comisionAgencia) || 0,
       tipo,
       contacto: { email: email.trim(), telefono: telefono.trim() },
     }
@@ -165,8 +169,17 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cuentas@cliente.com" />
           </Campo>
         </div>
-        <Campo label="Teléfono">
-          <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Campo label="Teléfono">
+            <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+          </Campo>
+          <Campo label="Comisión de agencia (%)">
+            <input className={inputCls} value={comisionAgencia} onChange={(e) => setComisionAgencia(e.target.value)} placeholder="0" />
+          </Campo>
+        </div>
+        <Campo label="IVA (%)">
+          <input className={inputCls} value={ivaPct} onChange={(e) => setIvaPct(e.target.value)} placeholder="16" />
+          <span className="mt-1 block text-[11px] text-muted">Se aplica al facturar y al presupuesto de sus campañas. México: 16%.</span>
         </Campo>
 
         <div className="rounded-md border border-border bg-surface-2 p-3">
