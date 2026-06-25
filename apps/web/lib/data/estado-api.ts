@@ -134,6 +134,19 @@ export async function actualizarClienteApi(id: string, input: Partial<ClienteInp
 }
 
 // ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
+export async function crearArrendadorApi(input: {
+  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/arrendadores/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el propietario')
+  await refrescarEstado()
+}
+
 export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
   const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
   const d = await r.json().catch(() => ({}))

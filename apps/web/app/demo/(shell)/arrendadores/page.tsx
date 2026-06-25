@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Plus } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { Modal } from '@/components/demo/ui/Modal'
+import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
 import {
   StatusBadge,
@@ -23,7 +25,7 @@ import {
   diasHasta,
   type ContratoArrendamiento,
 } from '@/lib/data/client'
-import { registrarPagoRentaApi } from '@/lib/data/estado-api'
+import { registrarPagoRentaApi, crearArrendadorApi } from '@/lib/data/estado-api'
 
 export default function ArrendadoresPage() {
   const contratos = useContratos()
@@ -34,6 +36,8 @@ export default function ArrendadoresPage() {
   const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
   const [open, setOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [nuevoOpen, setNuevoOpen] = useState(false)
+  const puedeCrear = usePuede('arrendadores', 'crear')
 
   function notify(msg: string) {
     setToast(msg)
@@ -48,9 +52,16 @@ export default function ArrendadoresPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
-      <div>
-        <h1 className="text-2xl text-ink">Arrendadores</h1>
-        <p className="mt-1 text-[13px] text-muted">El otro lado de la red · contratos, rentas y vencimientos</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl text-ink">Arrendadores</h1>
+          <p className="mt-1 text-[13px] text-muted">El otro lado de la red · contratos, rentas y vencimientos</p>
+        </div>
+        {puedeCrear && (
+          <Button size="sm" onClick={() => setNuevoOpen(true)}>
+            <Plus className="h-3.5 w-3.5" /> Nuevo propietario
+          </Button>
+        )}
       </div>
 
       {/* Resumen */}
@@ -139,6 +150,7 @@ export default function ArrendadoresPage() {
                     <th className="px-4 py-2 font-medium">Periodo</th>
                     <th className="px-4 py-2 text-right font-medium">Monto</th>
                     <th className="px-4 py-2 font-medium">Estatus</th>
+                    <th className="px-4 py-2 font-medium">Pago</th>
                     <th className="px-4 py-2"></th>
                   </tr>
                 </thead>
@@ -152,6 +164,9 @@ export default function ArrendadoresPage() {
                         <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(p.monto)}</td>
                         <td className="px-4 py-2.5">
                           <StatusBadge tono={PAGO_TONO[p.estatus]}>{PAGO_LABEL[p.estatus]}</StatusBadge>
+                        </td>
+                        <td className="demo-num px-4 py-2.5 text-muted">
+                          {p.fechaPago ? formatFecha(p.fechaPago) : '—'}
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           {p.estatus !== 'PAGADO' && (
@@ -178,6 +193,9 @@ export default function ArrendadoresPage() {
       </Card>
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
+      {nuevoOpen && (
+        <NuevoPropietarioDialog onClose={() => setNuevoOpen(false)} onToast={notify} />
+      )}
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">
@@ -187,6 +205,78 @@ export default function ArrendadoresPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// Alta de propietario/arrendador
+function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onToast: (m: string) => void }) {
+  const inputCls =
+    'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+  const [nombre, setNombre] = useState('')
+  const [rfc, setRfc] = useState('')
+  const [telefono, setTelefono] = useState('')
+  const [email, setEmail] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function guardar() {
+    if (!nombre.trim()) return
+    setGuardando(true)
+    setError(null)
+    try {
+      await crearArrendadorApi({
+        nombre: nombre.trim(),
+        rfc: rfc.trim() || null,
+        telefono: telefono.trim() || null,
+        email: email.trim() || null,
+      })
+      onToast('Propietario agregado')
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title="Nuevo propietario"
+      subtitle="Alta de arrendador (dueño del predio)"
+      footer={
+        <div className="flex items-center justify-between">
+          {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+              {guardando ? 'Guardando…' : 'Guardar'}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre / razón social</span>
+          <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>
+            <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Teléfono</span>
+            <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+          </label>
+        </div>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
+          <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@propietario.com" />
+        </label>
+      </div>
+    </Modal>
   )
 }
 
