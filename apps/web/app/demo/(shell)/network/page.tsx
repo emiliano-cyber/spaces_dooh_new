@@ -41,7 +41,7 @@ export default function NetworkPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Network</h1>
         <p className="mt-1 text-[13px] text-muted">

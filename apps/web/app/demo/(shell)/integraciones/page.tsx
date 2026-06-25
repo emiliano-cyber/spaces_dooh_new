@@ -40,7 +40,7 @@ export default function IntegracionesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Integraciones</h1>
         <p className="mt-1 text-[13px] text-muted">Conectores externos · listos para enchufar credenciales</p>

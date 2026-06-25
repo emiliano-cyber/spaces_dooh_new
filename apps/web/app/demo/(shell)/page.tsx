@@ -69,7 +69,7 @@ export default function DashboardPage() {
     .sort((a, b) => a.dias - b.dias)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="w-full space-y-5">
       <div>
         <h1 className="text-2xl text-ink">Dashboard</h1>
         <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · Billboards Perú SA</p>

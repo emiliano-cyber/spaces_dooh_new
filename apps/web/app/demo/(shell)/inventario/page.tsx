@@ -19,7 +19,7 @@ export default function AgregarInventarioPage() {
   // por URL directa.
   if (sesion && sesion.usuario.rol !== 'DUENO') {
     return (
-      <div className="mx-auto max-w-3xl p-6">
+      <div className="w-full p-6">
         <h1 className="text-lg font-semibold text-ink">Agregar inventario</h1>
         <p className="mt-2 text-[13px] text-muted">Esta sección es exclusiva del Dueño.</p>
       </div>
@@ -32,7 +32,7 @@ export default function AgregarInventarioPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-6">
+    <div className="w-full space-y-4 p-6">
       <div className="flex items-center gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-2 text-ink">
           <PackagePlus className="h-5 w-5" strokeWidth={1.75} />

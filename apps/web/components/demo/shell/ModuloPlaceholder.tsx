@@ -17,7 +17,7 @@ export function ModuloPlaceholder({
   fase: string
 }) {
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="w-full space-y-6">
       <div>
         <h1 className="text-2xl text-ink">{titulo}</h1>
         <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>

@@ -34,7 +34,7 @@ export default function PropuestasPage() {
   const [abierta, setAbierta] = useState<string | null>(null)
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">Propuestas</h1>

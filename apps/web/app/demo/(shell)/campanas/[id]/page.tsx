@@ -48,11 +48,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const reporte = useReporteCampana(id)
 
   if (c === undefined) {
-    return <div className="mx-auto max-w-4xl h-64 animate-pulse rounded-md bg-surface-2" />
+    return <div className="w-full h-64 animate-pulse rounded-md bg-surface-2" />
   }
   if (c === null) {
     return (
-      <div className="mx-auto max-w-4xl">
+      <div className="w-full">
         <p className="text-[13px] text-muted">Campaña no encontrada.</p>
         <Link href="/demo/campanas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> Volver a campañas
@@ -75,7 +75,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const misEvid = (evidencias ?? []).filter((e) => misOts.some((o) => o.id === e.otId))
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="w-full space-y-4">
       <Link href="/demo/campanas" className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink">
         <ArrowLeft className="h-3.5 w-3.5" /> Campañas
       </Link>

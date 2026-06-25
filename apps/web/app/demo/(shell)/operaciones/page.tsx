@@ -78,7 +78,7 @@ export default function OperacionesPage() {
   const lista = (ots ?? []).filter((o) => !filtro || o.estatus === filtro)
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">Operaciones</h1>
