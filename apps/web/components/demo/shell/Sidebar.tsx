@@ -22,6 +22,13 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
   // Normaliza el basePath para marcar el activo.
   const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/demo'
   const here = norm(pathname ?? '/demo')
+  // Una sección queda activa en su página y en cualquier subruta (detalle), p.
+  // ej. /demo/operaciones/ot/123 marca "Operaciones". El dashboard ('/demo')
+  // solo coincide exacto para no encenderse en todas las rutas.
+  const esActivo = (href: string) => {
+    const h = norm(href)
+    return here === h || (h !== '/demo' && here.startsWith(h + '/'))
+  }
 
   return (
     <>
@@ -52,7 +59,7 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
         ) : (
           <ul className="space-y-0.5">
             {items.map((n) => {
-              const active = here === norm(n.href)
+              const active = esActivo(n.href)
               const Icon = n.icon
               return (
                 <li key={n.key}>

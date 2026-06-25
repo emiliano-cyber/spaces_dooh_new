@@ -315,7 +315,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 {misOts.map((o) => (
                   <li key={o.id}>
                     <Link
-                      href={withTrail(`/demo/m/ot/${o.id}`, trailHaciaOT)}
+                      href={withTrail(`/demo/operaciones/ot/${o.id}`, trailHaciaOT)}
                       className="-mx-1 flex items-center justify-between rounded px-1 py-1.5 hover:bg-surface-2"
                     >
                       <div className="min-w-0">
