@@ -124,6 +124,10 @@ export type EstCobranza = 'AL_CORRIENTE' | 'POR_VENCER' | 'VENCIDA' | 'PAGADA'
 
 export type EstValidacionCreatividad = 'PENDIENTE' | 'VALIDADA' | 'RECHAZADA'
 
+// Validación de publicación a nivel CAMPAÑA: se revisa la información de los
+// anuncios una vez enviada al dominio/CMS, antes de salir al aire.
+export type EstValidacionPublicacion = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
+
 // Etapas del pipeline de campaña (sección 7.4). Derivadas, no almacenadas.
 export type EtapaPipeline =
   | 'reservada'
@@ -373,6 +377,14 @@ export interface Campana {
   presupuestoNeto: number | null
   moneda: string
   estadoComercial: EstComercialCampana
+  // Validación de publicación: la campaña se envía al dominio/CMS y un revisor
+  // verifica los anuncios antes de salir al aire. Al aprobar → estado ACTIVA.
+  enviadaDominio: boolean
+  enviadaDominioEn: string | null
+  validacionEstatus: EstValidacionPublicacion
+  validacionMotivo: string | null
+  validacionPor: string | null
+  validacionEn: string | null
   // Las tres banderas del CANDADO de facturación (todas existen en Prisma):
   ocRecibida: boolean
   fotosComprobatorias: boolean

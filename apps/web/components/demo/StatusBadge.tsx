@@ -11,6 +11,7 @@ import type {
   EstComercialCampana,
   EstReserva,
   EstValidacionCreatividad,
+  EstValidacionPublicacion,
 } from '@/lib/data/types'
 
 // ============================================================================
@@ -187,6 +188,18 @@ export const CAMPANA_LABEL: Record<EstComercialCampana, string> = {
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada',
   LISTA_FACTURAR: 'Lista para facturar',
+}
+
+// Validación de publicación a nivel campaña (antes de salir al aire).
+export const VALIDACION_PUB_TONO: Record<EstValidacionPublicacion, Tono> = {
+  PENDIENTE: 'ambar',
+  APROBADA: 'verde',
+  RECHAZADA: 'rojo',
+}
+export const VALIDACION_PUB_LABEL: Record<EstValidacionPublicacion, string> = {
+  PENDIENTE: 'Pendiente de validar',
+  APROBADA: 'Publicación aprobada',
+  RECHAZADA: 'Publicación rechazada',
 }
 
 export const CREATIVIDAD_TONO: Record<EstValidacionCreatividad, Tono> = {

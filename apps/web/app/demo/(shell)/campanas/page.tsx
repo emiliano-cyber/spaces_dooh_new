@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Lock, LockOpen, ArrowRight } from 'lucide-react'
+import { Lock, LockOpen, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import {
   StatusBadge,
@@ -10,6 +10,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import {
+  useCampanas,
   useCampanasResumen,
   ETAPA_LABEL,
   formatMonto,
@@ -18,6 +19,13 @@ import {
 
 export default function CampanasPage() {
   const campanas = useCampanasResumen()
+  const todas = useCampanas()
+
+  // Cola de validación: campañas enviadas al dominio que esperan revisión de la
+  // información de los anuncios antes de publicarse.
+  const porValidar = (todas ?? []).filter(
+    (c) => c.enviadaDominio && c.validacionEstatus === 'PENDIENTE',
+  )
 
   return (
     <div className="w-full space-y-4">
@@ -27,6 +35,41 @@ export default function CampanasPage() {
           Cada campaña viaja sola por la empresa · pipeline en vivo
         </p>
       </div>
+
+      {/* Cola de validación de publicación */}
+      {porValidar.length > 0 && (
+        <Card className="border-accent/50 bg-[#f59e0b08] p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-[#9a6700]" strokeWidth={1.75} />
+            <h2 className="text-[13px] font-semibold text-ink">
+              Por validar ({porValidar.length})
+            </h2>
+            <span className="text-[12px] text-muted">
+              · enviadas al dominio, esperan aprobación antes de publicar
+            </span>
+          </div>
+          <ul className="divide-y divide-border">
+            {porValidar.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/demo/campanas/${c.id}`}
+                  className="-mx-1 flex items-center justify-between gap-3 rounded px-1 py-2 hover:bg-surface-2"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-medium text-ink">{c.nombre}</div>
+                    <div className="demo-num text-[11px] text-muted">
+                      {c.folio} · {c.tipoCampana}
+                    </div>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[12px] font-medium text-info">
+                    Validar <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       {!campanas ? (
         <div className="space-y-3">

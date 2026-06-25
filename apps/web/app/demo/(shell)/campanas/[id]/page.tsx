@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu } from 'lu
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
+import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import {
   StatusBadge,
@@ -128,6 +129,16 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </CardHeader>
         <CardContent>
           <PipelineView campanaId={id} />
+        </CardContent>
+      </Card>
+
+      {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Validación de publicación</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ValidacionPanel campanaId={id} />
         </CardContent>
       </Card>
 

@@ -370,6 +370,33 @@ export async function confirmarReservaApi(campanaId: string): Promise<Campana> {
   return d
 }
 
+// ─── Validación de publicación ───────────────────────────────────────────────
+// Envía la campaña al dominio/CMS (queda pendiente de validar la publicación).
+export async function enviarADominioApi(campanaId: string): Promise<Campana> {
+  const r = await fetch(`${API}/campanas/${campanaId}/enviar-dominio/`, { method: 'POST' })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar al dominio')
+  await refrescarEstado()
+  return d
+}
+
+// Valida la publicación: aprobar (→ ACTIVA / al aire) o rechazar (con motivo).
+export async function validarPublicacionApi(
+  campanaId: string,
+  aprobar: boolean,
+  motivo?: string,
+): Promise<Campana> {
+  const r = await fetch(`${API}/campanas/${campanaId}/validar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aprobar, motivo }),
+  })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo validar la publicación')
+  await refrescarEstado()
+  return d
+}
+
 export async function extenderCampanaApi(campanaId: string, fechaFin: string): Promise<Campana> {
   const r = await fetch(`${API}/campanas/${campanaId}/extender/`, {
     method: 'POST',

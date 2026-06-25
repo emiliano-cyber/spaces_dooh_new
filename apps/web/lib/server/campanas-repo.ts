@@ -57,6 +57,11 @@ function rowToCampana(r: any) {
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
     presupuestoBruto: n(r.presupuesto_bruto), presupuestoNeto: n(r.presupuesto_neto),
     moneda: r.moneda, estadoComercial: r.estado_comercial,
+    enviadaDominio: !!r.enviada_dominio, enviadaDominioEn: r.enviada_dominio_en ? iso(r.enviada_dominio_en) : null,
+    validacionEstatus: r.validacion_estatus ?? 'PENDIENTE',
+    validacionMotivo: r.validacion_motivo ?? null,
+    validacionPor: r.validacion_por ?? null,
+    validacionEn: r.validacion_en ? iso(r.validacion_en) : null,
     ocRecibida: !!r.oc_recibida, fotosComprobatorias: !!r.fotos_comprobatorias,
     reportePublicacion: !!r.reporte_publicacion, ocUrl: r.oc_url,
     reportePublicacionUrl: r.reporte_publicacion_url, portalToken: r.portal_token,
@@ -376,5 +381,97 @@ export async function extenderCampana(campanaId: string, nuevaFechaFin: string) 
   await q(`update reservas set fecha_fin=$2 where campana_id=$1`, [campanaId, nuevaFechaFin])
   await recalcularPresupuesto(null, campanaId)
   const rows = await q('select * from campanas where id=$1', [campanaId])
+  return rows[0] ? rowToCampana(rows[0]) : null
+}
+
+// ─── Validación de publicación ──────────────────────────────────────────────
+// Error de regla de negocio (estado inválido / sin anuncios) → el route lo
+// mapea a 409.
+export class ValidacionError extends Error {}
+
+// Estados de campaña que ya están comprometidos (no borrador/cotización/cancel.)
+// y por tanto pueden enviarse al dominio para revisión.
+const ESTADOS_COMPROMETIDOS = new Set(['CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR'])
+
+// Paso 1: envía la campaña al dominio/CMS. Deja la validación en PENDIENTE para
+// que un revisor verifique la información de los anuncios antes de publicar.
+// Requiere campaña comprometida y, en medios digitales (DOOH/HÍBRIDA), al menos
+// un creativo cargado (es la "información de los anuncios" a verificar).
+export async function enviarADominio(campanaId: string) {
+  const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
+  if (!camp) return null
+  if (!ESTADOS_COMPROMETIDOS.has(camp.estado_comercial)) {
+    throw new ValidacionError(
+      'Solo se puede enviar al dominio una campaña confirmada por el cliente',
+    )
+  }
+  if (camp.tipo_campana === 'DOOH' || camp.tipo_campana === 'HIBRIDA') {
+    const creas = await q1<any>(
+      'select count(*)::int as n from creatividades where campana_id=$1',
+      [campanaId],
+    )
+    if (!creas || creas.n === 0) {
+      throw new ValidacionError(
+        'La campaña no tiene anuncios (creativos) que enviar al dominio',
+      )
+    }
+  }
+  const rows = await q(
+    `update campanas
+        set enviada_dominio = true,
+            enviada_dominio_en = now(),
+            validacion_estatus = 'PENDIENTE',
+            validacion_motivo = null,
+            validacion_por = null,
+            validacion_en = null
+      where id = $1
+      returning *`,
+    [campanaId],
+  )
+  return rows[0] ? rowToCampana(rows[0]) : null
+}
+
+// Paso 2: el revisor valida la publicación. Aprobar → la campaña pasa a ACTIVA
+// (al aire). Rechazar → se guarda el motivo y se baja la bandera de envío para
+// que deba corregirse y reenviarse antes de volver a revisarse.
+export async function validarPublicacion(
+  campanaId: string,
+  aprobar: boolean,
+  motivo: string | null,
+  validadorNombre: string,
+) {
+  const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
+  if (!camp) return null
+  if (!camp.enviada_dominio) {
+    throw new ValidacionError(
+      'La campaña aún no se ha enviado al dominio; no hay nada que validar',
+    )
+  }
+  if (aprobar) {
+    const rows = await q(
+      `update campanas
+          set validacion_estatus = 'APROBADA',
+              validacion_motivo = null,
+              validacion_por = $2,
+              validacion_en = now(),
+              estado_comercial = case when estado_comercial = 'CONFIRMADA'
+                                      then 'ACTIVA' else estado_comercial end
+        where id = $1
+        returning *`,
+      [campanaId, validadorNombre],
+    )
+    return rows[0] ? rowToCampana(rows[0]) : null
+  }
+  const rows = await q(
+    `update campanas
+        set validacion_estatus = 'RECHAZADA',
+            validacion_motivo = $3,
+            validacion_por = $2,
+            validacion_en = now(),
+            enviada_dominio = false
+      where id = $1
+      returning *`,
+    [campanaId, validadorNombre, motivo ?? null],
+  )
   return rows[0] ? rowToCampana(rows[0]) : null
 }
