@@ -9,15 +9,18 @@ import {
   CheckCircle2,
   Loader2,
   LockOpen,
+  ArrowLeft,
 } from 'lucide-react'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
+import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import {
   StatusBadge,
   OT_TONO,
   OT_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { trailFromLocation } from '@/lib/nav-trail'
 import { getOTApi, cerrarOTApi } from '@/lib/data/estado-api'
 import type { FotoMeta, EstOT, ChecklistItem } from '@/lib/data/types'
 
@@ -45,6 +48,14 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null)
   const [cerrando, setCerrando] = useState(false)
+  // Rastro de navegación ("cómo llegué aquí"): viene en el query param `from`.
+  // Si no hay, se asume que se llegó desde Operaciones.
+  const [trail, setTrail] = useState<Crumb[]>([])
+  useEffect(() => {
+    const t = trailFromLocation()
+    setTrail(t.length ? t : [{ label: 'Operaciones', href: '/demo/operaciones' }])
+  }, [])
+  const volver = trail.length ? trail[trail.length - 1] : { label: 'Operaciones', href: '/demo/operaciones' }
 
   // La vista móvil es standalone: carga su OT directo del API (requiere sesión).
   const recargar = useCallback(async () => {
@@ -112,6 +123,22 @@ export default function OTMovilPage({ params }: { params: { id: string } }) {
           <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
         </div>
       </header>
+
+      {/* Migas: de dónde vengo y cómo llegué (Operaciones / Campaña → esta OT) */}
+      <div className="border-b border-border bg-surface-2/60">
+        <div className="mx-auto flex max-w-md items-center gap-2 px-4 py-2">
+          {volver.href && (
+            <Link
+              href={volver.href}
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
+            </Link>
+          )}
+          <span className="text-muted/50">·</span>
+          <Breadcrumbs items={[...trail, { label: ot.folio }]} />
+        </div>
+      </div>
 
       <main className="mx-auto max-w-md space-y-5 px-4 py-5">
         {/* Descripción */}
