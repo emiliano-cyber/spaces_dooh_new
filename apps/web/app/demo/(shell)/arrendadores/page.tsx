@@ -91,6 +91,7 @@ export default function ArrendadoresPage() {
                     <th className="px-4 py-2 font-medium">Arrendador</th>
                     <th className="px-4 py-2 font-medium">Sitio</th>
                     <th className="px-4 py-2 text-right font-medium">Renta</th>
+                    <th className="px-4 py-2 font-medium">Cada cuándo</th>
                     <th className="px-4 py-2 font-medium">Vence</th>
                     <th className="px-4 py-2 font-medium">Estatus</th>
                   </tr>
@@ -110,6 +111,7 @@ export default function ArrendadoresPage() {
                         <td className="px-4 py-2.5 text-ink">{nombreArr(c.arrendadorId)}</td>
                         <td className="px-4 py-2.5 text-muted">{sitioDe(c.sitioId)?.nombre ?? '—'}</td>
                         <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(c.montoRenta)}</td>
+                        <td className="px-4 py-2.5 capitalize text-muted">{c.periodicidad ? c.periodicidad.toLowerCase() : '—'}</td>
                         <td className="demo-num px-4 py-2.5 text-muted">
                           {formatFecha(c.fechaFin)}
                           {c.estatus === 'POR_VENCER' && (
