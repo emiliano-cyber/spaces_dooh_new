@@ -66,6 +66,55 @@ function armarPropuesta(p: any, items: any[]) {
   }
 }
 
+// Lectura pública (sin auth) de una propuesta por su id: datos de solo lectura
+// para una liga compartible. Incluye nombres de cliente/agencia y de cada sitio.
+export async function obtenerPropuestaPublica(id: string) {
+  const p = await q1<any>(
+    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
+       from propuestas p where p.id = $1`,
+    [id],
+  )
+  if (!p) return null
+  const items = await q('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
+  const armado = armarPropuesta(p, items)
+
+  const cliente = p.cliente_id ? await q1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
+  const agencia = p.agencia_id ? await q1<any>('select nombre from clientes where id=$1', [p.agencia_id]) : null
+
+  const sitioIds = (items as any[]).map((i) => i.sitio_id)
+  const sitios = sitioIds.length
+    ? await q<any>('select id, nombre, alcaldia, tipo_medio from sitios where id = any($1::uuid[])', [sitioIds])
+    : []
+  const byId = new Map(sitios.map((s) => [s.id, s]))
+
+  return {
+    folio: armado.folio,
+    nombre: armado.nombre,
+    estatus: armado.estatus,
+    clienteNombre: cliente?.nombre ?? null,
+    agenciaNombre: agencia?.nombre ?? null,
+    comisionPct: armado.comisionPct,
+    divisor: armado.divisor,
+    bruto: armado.bruto,
+    neto: armado.neto,
+    iva: armado.iva,
+    total: armado.total,
+    itemsAprobados: armado.itemsAprobados,
+    items: armado.items.map((it) => {
+      const s = byId.get(it.sitioId)
+      return {
+        sitioNombre: s?.nombre ?? it.sitioId,
+        alcaldia: s?.alcaldia ?? null,
+        tipoMedio: s?.tipo_medio ?? null,
+        fechaInicio: it.fechaInicio,
+        fechaFin: it.fechaFin,
+        precio: it.precio,
+        aprobado: it.aprobado,
+      }
+    }),
+  }
+}
+
 export async function listarPropuestas() {
   const props = await q(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva

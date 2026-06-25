@@ -15,6 +15,9 @@ import {
   X,
   ChevronRight,
   CalendarDays,
+  Link2,
+  FileDown,
+  Check as CheckIcon,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -54,6 +57,25 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const puedeEditar = usePuede('comercial', 'crear')
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+
+  // Copia la liga pública (solo lectura) para que cualquiera pueda ver la propuesta.
+  async function copiarLiga() {
+    const url = `${window.location.origin}/spaces-dooh/demo/p/${id}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Fallback si el portapapeles no está disponible.
+      window.prompt('Copia la liga:', url)
+    }
+    setCopiado(true)
+    setTimeout(() => setCopiado(false), 2200)
+  }
+
+  // Generar PDF: por ahora no hace nada (placeholder de UI).
+  function generarPdf() {
+    /* TODO: generación de PDF de la propuesta */
+  }
 
   // Rastro de navegación (cómo llegué); por defecto, Propuestas.
   const [trail, setTrail] = useState<Crumb[]>([])
@@ -136,24 +158,31 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           </div>
           <p className="demo-num mt-1 text-[12px] text-muted">{p.folio}</p>
         </div>
-        {puedeEditar && (
-          <div className="flex flex-wrap gap-2">
-            {p.estatus === 'BORRADOR' && (
-              <Button size="sm" variant="secondary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
-            )}
-            {(p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
-              <>
-                <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
-                <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
-              </>
-            )}
-            {p.estatus === 'APROBADA' && (
-              <Button size="sm" disabled={generando} onClick={generarCampana}>
-                <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
-              </Button>
-            )}
-          </div>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {/* Compartir + PDF (visibles siempre) */}
+          <Button size="sm" variant="secondary" onClick={copiarLiga}>
+            {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={generarPdf}>
+            <FileDown className="h-3.5 w-3.5" /> Generar PDF
+          </Button>
+
+          {/* Acciones de estatus (solo edición) */}
+          {puedeEditar && p.estatus === 'BORRADOR' && (
+            <Button size="sm" variant="secondary" onClick={() => cambiar('ENVIADA')}><Send className="h-3.5 w-3.5" /> Enviar</Button>
+          )}
+          {puedeEditar && (p.estatus === 'ENVIADA' || p.estatus === 'BORRADOR') && (
+            <>
+              <Button size="sm" onClick={() => cambiar('APROBADA')}><Check className="h-3.5 w-3.5" /> Aprobar</Button>
+              <Button size="sm" variant="danger" onClick={() => cambiar('RECHAZADA')}><X className="h-3.5 w-3.5" /> Rechazar</Button>
+            </>
+          )}
+          {puedeEditar && p.estatus === 'APROBADA' && (
+            <Button size="sm" disabled={generando} onClick={generarCampana}>
+              <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Barra de metadatos (fechas / anunciante / agencia / comisión) */}
