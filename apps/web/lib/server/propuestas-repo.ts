@@ -45,6 +45,7 @@ function armarPropuesta(p: any, items: any[]) {
     id: p.id,
     folio: p.folio,
     clienteId: p.cliente_id ?? null,
+    agenciaId: p.agencia_id ?? null,
     nombre: p.nombre,
     fecha: iso(p.fecha),
     estatus: p.estatus,
@@ -83,6 +84,7 @@ export async function listarPropuestas() {
 
 export interface PropuestaInput {
   clienteId?: string | null
+  agenciaId?: string | null
   nombre: string
   comisionPct?: number
   fechaInicio: string
@@ -98,11 +100,20 @@ export async function crearPropuesta(input: PropuestaInput) {
     await client.query('begin')
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, nombre, comision_pct, notas)
-         values ($1,$2,$3,$4,$5) returning *`,
-        [folio(), input.clienteId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas)
+         values ($1,$2,$3,$4,$5,$6) returning *`,
+        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null],
       )
     ).rows[0]
+    // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
+    // agencia, se persiste el vínculo en el cliente para que quede ligado y se
+    // precargue en futuras propuestas.
+    if (input.clienteId && input.agenciaId) {
+      await client.query('update clientes set agencia_id=$2 where id=$1', [
+        input.clienteId,
+        input.agenciaId,
+      ])
+    }
     for (const it of input.items) {
       await client.query(
         `insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio)

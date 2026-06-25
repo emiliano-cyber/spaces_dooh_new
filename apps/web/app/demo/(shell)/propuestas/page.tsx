@@ -76,6 +76,7 @@ function PropuestaCard({
   const clientes = useClientes()
   const sitios = useSitios()
   const cliente = clientes?.find((c) => c.id === p.clienteId)
+  const agencia = clientes?.find((c) => c.id === p.agenciaId)
   const est = EST[p.estatus]
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
@@ -107,7 +108,11 @@ function PropuestaCard({
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{est.label}</span>
               </div>
               <div className="mt-0.5 text-[14px] font-medium text-ink">{p.nombre}</div>
-              <div className="text-[12px] text-muted">{cliente?.nombre ?? 'Sin cliente'} · {p.items.length} sitios</div>
+              <div className="text-[12px] text-muted">
+                {cliente?.nombre ?? 'Sin cliente'}
+                {agencia ? <> · vía <span className="text-ink">{agencia.nombre}</span></> : ''}
+                {' '}· {p.items.length} sitios
+              </div>
             </div>
           </button>
           <div className="text-right">
@@ -189,8 +194,12 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const clientes = useClientes()
   const sitios = useSitios()
   const [clienteId, setClienteId] = useState('')
+  const [agenciaId, setAgenciaId] = useState('')
   const [nombre, setNombre] = useState('')
   const [comision, setComision] = useState('0')
+
+  // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
+  const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -222,6 +231,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     try {
       await crearPropuestaApi({
         clienteId: clienteId || null,
+        agenciaId: agenciaId || null,
         nombre: nombre.trim(),
         comisionPct: Number(comision) || 0,
         fechaInicio,
@@ -257,10 +267,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="space-y-3">
+        <Campo label="Nombre de la propuesta">
+          <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
+        </Campo>
         <div className="grid grid-cols-2 gap-3">
-          <Campo label="Nombre de la propuesta">
-            <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
-          </Campo>
           <Campo label="Cliente">
             <select
               className={inputCls}
@@ -268,14 +278,32 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
               onChange={(e) => {
                 const id = e.target.value
                 setClienteId(id)
-                // Precarga la comisión de agencia configurada en el cliente.
+                // Precarga la comisión y la agencia asociadas al cliente.
                 const c = clientes?.find((x) => x.id === id)
-                if (c) setComision(String(c.comisionAgenciaPct ?? 0))
+                if (c) {
+                  setComision(String(c.comisionAgenciaPct ?? 0))
+                  if (c.agenciaId) setAgenciaId(c.agenciaId)
+                }
               }}
             >
               <option value="">— Sin cliente —</option>
-              {clientes?.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              {/* Solo clientes directos como anunciante; las agencias van aparte. */}
+              {clientes?.filter((c) => c.tipo !== 'AGENCIA').map((c) => (
+                <option key={c.id} value={c.id}>{c.nombre}</option>
+              ))}
             </select>
+          </Campo>
+          <Campo label="Agencia">
+            {agencias.length === 0 ? (
+              <div className="flex h-9 items-center rounded border border-dashed border-border-strong px-3 text-[12px] text-muted">
+                Crea un cliente tipo «Agencia» para asociarla
+              </div>
+            ) : (
+              <select className={inputCls} value={agenciaId} onChange={(e) => setAgenciaId(e.target.value)}>
+                <option value="">— Sin agencia (directo) —</option>
+                {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
+              </select>
+            )}
           </Campo>
         </div>
         <div className="grid grid-cols-3 gap-3">

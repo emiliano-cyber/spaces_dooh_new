@@ -308,6 +308,7 @@ export interface Cliente {
   usoCfdi: string | null
   ivaPct: number              // IVA configurado para el cliente (default 16)
   comisionAgenciaPct: number  // comisión de agencia (divisor) configurada
+  agenciaId: string | null    // agencia asociada al cliente (otro cliente tipo AGENCIA)
   tipo: string
   contacto: { nombre?: string; email?: string; telefono?: string }
   activo: boolean
@@ -328,6 +329,7 @@ export interface Propuesta {
   id: string
   folio: string
   clienteId: string | null
+  agenciaId: string | null // agencia con la que se arma la propuesta (cliente AGENCIA)
   nombre: string
   fecha: string
   estatus: EstPropuesta

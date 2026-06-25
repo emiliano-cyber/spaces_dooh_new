@@ -50,6 +50,7 @@ export async function marcarTodasNotificacionesApi(): Promise<void> {
 // ─── Propuestas (método del divisor) ─────────────────────────────────────────
 export async function crearPropuestaApi(input: {
   clienteId?: string | null
+  agenciaId?: string | null
   nombre: string
   comisionPct?: number
   fechaInicio: string
@@ -109,6 +110,7 @@ export interface ClienteInput {
   usoCfdi?: string | null
   ivaPct?: number | null
   comisionAgenciaPct?: number | null
+  agenciaId?: string | null
   tipo?: string
   contacto?: { nombre?: string; email?: string; telefono?: string }
 }

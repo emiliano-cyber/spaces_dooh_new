@@ -45,6 +45,7 @@ function rowToCliente(r: any) {
     usoCfdi: r.uso_cfdi ?? null,
     ivaPct: r.iva_pct != null ? Number(r.iva_pct) : 16,
     comisionAgenciaPct: r.comision_agencia_pct != null ? Number(r.comision_agencia_pct) : 0,
+    agenciaId: r.agencia_id ?? null,
     tipo: r.tipo,
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }
@@ -315,11 +316,17 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     ).rows.map((r: any) => !!r.digital)
     const tipoCampana = derivarTipoCampana(flags)
 
+    // La campaña hereda el nombre de la agencia de la propuesta (si la lleva).
+    const ag = prop.agencia_id
+      ? (await client.query('select nombre from clientes where id=$1', [prop.agencia_id])).rows[0]
+      : null
+    const agenciaNombre = ag?.nombre ?? null
+
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id)
-         values ($1,$2,$3,$4,$5,'CONFIRMADA',$6,$7) returning id`,
-        [folio(), prop.nombre, prop.cliente_id, fechaInicio, fechaFin, tipoCampana, propuestaId],
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8) returning id`,
+        [folio(), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId],
       )
     ).rows[0].id
 
