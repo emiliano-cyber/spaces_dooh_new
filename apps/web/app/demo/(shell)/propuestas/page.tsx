@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -15,6 +16,8 @@ import {
   type EstPropuesta,
 } from '@/lib/data/client'
 import { useRouter } from 'next/navigation'
+import { ArrowUpRight } from 'lucide-react'
+import { withTrail } from '@/lib/nav-trail'
 import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi } from '@/lib/data/estado-api'
 
 const inputCls =
@@ -115,9 +118,17 @@ function PropuestaCard({
               </div>
             </div>
           </button>
-          <div className="text-right">
-            <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total)}</div>
-            <div className="text-[11px] text-muted">total c/IVA</div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="demo-num text-[15px] font-semibold text-ink">{formatMonto(p.total)}</div>
+              <div className="text-[11px] text-muted">total c/IVA</div>
+            </div>
+            <Link
+              href={withTrail(`/demo/propuestas/${p.id}`, [{ label: 'Propuestas', href: '/demo/propuestas' }])}
+              className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
+            >
+              Abrir <ArrowUpRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
 
