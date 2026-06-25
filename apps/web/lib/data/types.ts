@@ -307,8 +307,12 @@ export interface Cliente {
   cpFiscal: string | null
   usoCfdi: string | null
   ivaPct: number              // IVA configurado para el cliente (default 16)
-  comisionAgenciaPct: number  // comisión de agencia (divisor) configurada
+  comisionAgenciaPct: number  // comisión (divisor). Aplica a la AGENCIA (tipo AGENCIA)
   agenciaId: string | null    // agencia asociada al cliente (otro cliente tipo AGENCIA)
+  // Negociación con la agencia (solo aplica a clientes tipo AGENCIA):
+  tieneNegociacion: boolean   // ¿hay negociación con la agencia? sí/no
+  negociacionValidada: boolean // si la hay, ¿está validada? (gate para propuestas)
+  negociacionNota: string | null // términos negociados
   tipo: string
   contacto: { nombre?: string; email?: string; telefono?: string }
   activo: boolean

@@ -111,6 +111,9 @@ export interface ClienteInput {
   ivaPct?: number | null
   comisionAgenciaPct?: number | null
   agenciaId?: string | null
+  tieneNegociacion?: boolean | null
+  negociacionValidada?: boolean | null
+  negociacionNota?: string | null
   tipo?: string
   contacto?: { nombre?: string; email?: string; telefono?: string }
 }

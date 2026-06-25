@@ -46,6 +46,9 @@ function rowToCliente(r: any) {
     ivaPct: r.iva_pct != null ? Number(r.iva_pct) : 16,
     comisionAgenciaPct: r.comision_agencia_pct != null ? Number(r.comision_agencia_pct) : 0,
     agenciaId: r.agencia_id ?? null,
+    tieneNegociacion: !!r.tiene_negociacion,
+    negociacionValidada: !!r.negociacion_validada,
+    negociacionNota: r.negociacion_nota ?? null,
     tipo: r.tipo,
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }

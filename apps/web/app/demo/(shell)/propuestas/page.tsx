@@ -211,6 +211,13 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   // Agencias = clientes tipo AGENCIA (una agencia se asocia a un cliente directo).
   const agencias = (clientes ?? []).filter((c) => c.tipo === 'AGENCIA')
+
+  // La comisión viene de la AGENCIA seleccionada (no del cliente).
+  function aplicarAgencia(agId: string) {
+    setAgenciaId(agId)
+    const ag = clientes?.find((c) => c.id === agId)
+    setComision(String(ag?.comisionAgenciaPct ?? 0))
+  }
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -225,7 +232,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const ivaPctSel = clientes?.find((c) => c.id === clienteId)?.ivaPct ?? 16
   const iva = Math.round(bruto * (ivaPctSel / 100))
   const total = bruto + iva
-  const valido = !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0
+  // Gate de negociación: si la agencia tiene negociación sin validar, se bloquea.
+  const agenciaSel = clientes?.find((c) => c.id === agenciaId)
+  const negociacionPendiente = !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
+  const valido = !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente
 
   function toggle(id: string) {
     setSel((prev) => {
@@ -289,12 +299,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
               onChange={(e) => {
                 const id = e.target.value
                 setClienteId(id)
-                // Precarga la comisión y la agencia asociadas al cliente.
+                // Precarga la agencia asociada al cliente; la comisión viene de ella.
                 const c = clientes?.find((x) => x.id === id)
-                if (c) {
-                  setComision(String(c.comisionAgenciaPct ?? 0))
-                  if (c.agenciaId) setAgenciaId(c.agenciaId)
-                }
+                if (c?.agenciaId) aplicarAgencia(c.agenciaId)
               }}
             >
               <option value="">— Sin cliente —</option>
@@ -310,17 +317,32 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                 Crea un cliente tipo «Agencia» para asociarla
               </div>
             ) : (
-              <select className={inputCls} value={agenciaId} onChange={(e) => setAgenciaId(e.target.value)}>
+              <select className={inputCls} value={agenciaId} onChange={(e) => aplicarAgencia(e.target.value)}>
                 <option value="">— Sin agencia (directo) —</option>
                 {agencias.map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
               </select>
             )}
           </Campo>
         </div>
+        {/* Aviso de negociación sin validar (bloquea crear la propuesta) */}
+        {negociacionPendiente && (
+          <div className="flex items-start gap-2 rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px]">
+            <span className="mt-0.5 text-[#9a6700]">⚠</span>
+            <div>
+              <div className="font-medium text-ink">
+                La negociación con «{agenciaSel?.nombre}» no está validada
+              </div>
+              <div className="text-muted">
+                Valida la negociación de la agencia en Clientes para poder crear la propuesta.
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-3 gap-3">
           <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
           <Campo label="Hasta"><input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Campo>
-          <Campo label="Comisión agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
+          <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
 
         {/* Selección de sitios */}

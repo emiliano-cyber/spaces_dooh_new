@@ -5,6 +5,20 @@ import { q, q1, pool } from './db'
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}
 
+// Bloqueo por negociación: si la agencia tiene negociación SIN validar, no se
+// puede crear ni aprobar una propuesta con esa agencia (gate de validación).
+async function agenciaBloqueada(
+  agenciaId: string | null | undefined,
+): Promise<{ bloqueada: boolean; nombre?: string }> {
+  if (!agenciaId) return { bloqueada: false }
+  const a = await q1<any>(
+    'select nombre, tiene_negociacion, negociacion_validada from clientes where id=$1',
+    [agenciaId],
+  )
+  if (!a) return { bloqueada: false }
+  return { bloqueada: !!a.tiene_negociacion && !a.negociacion_validada, nombre: a.nombre }
+}
+
 // ============================================================================
 //  lib/server/propuestas-repo.ts — Propuestas comerciales con método del
 //  divisor. bruto = Σ items; divisor = 1 − comisión/100; neto = bruto × divisor;
@@ -144,6 +158,13 @@ export interface PropuestaInput {
 }
 
 export async function crearPropuesta(input: PropuestaInput) {
+  // Gate de negociación: la agencia debe tener su negociación validada.
+  const bloq = await agenciaBloqueada(input.agenciaId)
+  if (bloq.bloqueada) {
+    throw new PropuestaError(
+      `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; valídala antes de crear la propuesta`,
+    )
+  }
   const client = await pool.connect()
   try {
     await client.query('begin')
@@ -208,6 +229,16 @@ export async function aprobarItem(itemId: string, aprobado: boolean) {
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']
 export async function cambiarEstatusPropuesta(id: string, estatus: string) {
   if (!ESTATUS_VALIDOS.includes(estatus)) throw new Error('Estatus inválido')
+  // Aprobar exige que la negociación con la agencia esté validada.
+  if (estatus === 'APROBADA') {
+    const p = await q1<any>('select agencia_id from propuestas where id=$1', [id])
+    const bloq = await agenciaBloqueada(p?.agencia_id)
+    if (bloq.bloqueada) {
+      throw new PropuestaError(
+        `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
+      )
+    }
+  }
   const rows = await q(
     `update propuestas set estatus=$2::est_propuesta where id=$1 returning *`,
     [id, estatus],
