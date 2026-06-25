@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus } from 'lucide-react'
+import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -22,6 +22,8 @@ import {
   useSitios,
   useReservas,
   useCampanas,
+  useContratos,
+  useArrendadores,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -45,7 +47,20 @@ export default function ComercialPage() {
   const sitios = useSitios()
   const reservas = useReservas()
   const campanas = useCampanas()
+  const contratos = useContratos()
+  const arrendadores = useArrendadores()
   const puedeCrear = usePuede('comercial', 'crear')
+
+  // Propietario por sitio: del contrato vigente preferente (dueño del predio).
+  const propietarioPorSitio = useMemo(() => {
+    const PR: Record<string, number> = { VIGENTE: 0, POR_VENCER: 1, RENOVADO: 2, VENCIDO: 3, CANCELADO: 4 }
+    const arrById = new Map((arrendadores ?? []).map((a) => [a.id, a.nombre]))
+    const m = new Map<string, string>()
+    for (const c of (contratos ?? []).slice().sort((a, b) => (PR[a.estatus] ?? 9) - (PR[b.estatus] ?? 9))) {
+      if (!m.has(c.sitioId)) m.set(c.sitioId, arrById.get(c.arrendadorId) ?? '—')
+    }
+    return m
+  }, [contratos, arrendadores])
 
   const [q, setQ] = useState('')
   const [fTipo, setFTipo] = useState('')
@@ -286,6 +301,10 @@ export default function ComercialPage() {
                           ) : s.spotsPorHora != null ? (
                             <> · {s.spotsPorHora} spots/h</>
                           ) : null)}
+                      </div>
+                      <div className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] text-muted">
+                        <UserRound className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin propietario'}</span>
                       </div>
                     </button>
                     <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>
