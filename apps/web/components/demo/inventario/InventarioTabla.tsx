@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { Search, Cpu } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { StatusBadge, SITIO_TONO, SITIO_LABEL } from '@/components/demo/StatusBadge'
 import {
   useSitios,
@@ -47,6 +48,13 @@ export function InventarioTabla() {
   const contratos = useContratos()
   const arrendadores = useArrendadores()
   const [q, setQ] = useState('')
+  const [activo, setActivo] = useState<Sitio | null>(null)
+  const [fichaOpen, setFichaOpen] = useState(false)
+
+  function abrirFicha(s: Sitio) {
+    setActivo(s)
+    setFichaOpen(true)
+  }
 
   // sitioId → { propietario, renta, periodicidad } del contrato preferente.
   const rentaPorSitio = useMemo(() => {
@@ -76,6 +84,7 @@ export function InventarioTabla() {
   })
 
   return (
+    <>
     <Card className="overflow-hidden p-0">
       <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-2">
         <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
@@ -116,7 +125,7 @@ export function InventarioTabla() {
               filtrados.map((s) => {
                 const r = rentaPorSitio.get(s.id)
                 return (
-                  <tr key={s.id} className="hover:bg-surface-2">
+                  <tr key={s.id} onClick={() => abrirFicha(s)} className="cursor-pointer hover:bg-surface-2">
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 font-medium text-ink">
                         <span className="truncate">{s.nombre}</span>
@@ -144,5 +153,8 @@ export function InventarioTabla() {
         </table>
       </div>
     </Card>
+
+    <SiteFicha sitio={activo} open={fichaOpen} onOpenChange={setFichaOpen} />
+    </>
   )
 }
