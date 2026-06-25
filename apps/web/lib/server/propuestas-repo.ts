@@ -80,15 +80,22 @@ function armarPropuesta(p: any, items: any[]) {
   }
 }
 
-// Lectura pública (sin auth) de una propuesta por su id: datos de solo lectura
-// para una liga compartible. Incluye nombres de cliente/agencia y de cada sitio.
-export async function obtenerPropuestaPublica(id: string) {
+// Lectura pública (sin auth) de una propuesta por su CÓDIGO: acepta el id (UUID)
+// o el folio (p. ej. PR-A0BC4F). Datos de solo lectura para una liga
+// compartible. Incluye nombres de cliente/agencia y de cada sitio.
+export async function obtenerPropuestaPublica(codigo: string) {
+  const cod = (codigo ?? '').trim()
+  // Se compara el código contra el id (UUID, casteado a texto) o el folio. Se
+  // castea la COLUMNA a texto para no fallar si el código no es un UUID válido.
   const p = await q1<any>(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
-       from propuestas p where p.id = $1`,
-    [id],
+       from propuestas p
+      where p.id::text = $1 or upper(p.folio) = upper($1)
+      limit 1`,
+    [cod],
   )
   if (!p) return null
+  const id = p.id
   const items = await q('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
   const armado = armarPropuesta(p, items)
 

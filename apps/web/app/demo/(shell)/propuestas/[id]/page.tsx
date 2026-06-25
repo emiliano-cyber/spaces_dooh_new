@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Link2,
   FileDown,
+  KeyRound,
   Check as CheckIcon,
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -58,18 +59,21 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
   const [copiado, setCopiado] = useState(false)
+  const [copiadoCod, setCopiadoCod] = useState(false)
+
+  async function copiar(texto: string, marcar: (v: boolean) => void) {
+    try {
+      await navigator.clipboard.writeText(texto)
+    } catch {
+      window.prompt('Copia esto:', texto)
+    }
+    marcar(true)
+    setTimeout(() => marcar(false), 2200)
+  }
 
   // Copia la liga pública (solo lectura) para que cualquiera pueda ver la propuesta.
-  async function copiarLiga() {
-    const url = `${window.location.origin}/spaces-dooh/demo/p/${id}`
-    try {
-      await navigator.clipboard.writeText(url)
-    } catch {
-      // Fallback si el portapapeles no está disponible.
-      window.prompt('Copia la liga:', url)
-    }
-    setCopiado(true)
-    setTimeout(() => setCopiado(false), 2200)
+  function copiarLiga() {
+    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${id}`, setCopiado)
   }
 
   // Generar PDF: por ahora no hace nada (placeholder de UI).
@@ -156,12 +160,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             <h1 className="text-2xl text-ink">{p.nombre}</h1>
             <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${est.cls}`}>{est.label}</span>
           </div>
-          <p className="demo-num mt-1 text-[12px] text-muted">{p.folio}</p>
+          <p className="mt-1 text-[12px] text-muted">
+            Código para el cliente: <span className="demo-num font-medium text-ink">{p.folio}</span>
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {/* Compartir + PDF (visibles siempre) */}
           <Button size="sm" variant="secondary" onClick={copiarLiga}>
             {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
+          </Button>
+          <Button size="sm" variant="secondary" onClick={() => copiar(p.folio, setCopiadoCod)}>
+            {copiadoCod ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><KeyRound className="h-3.5 w-3.5" /> Copiar código</>}
           </Button>
           <Button size="sm" variant="secondary" onClick={generarPdf}>
             <FileDown className="h-3.5 w-3.5" /> Generar PDF
