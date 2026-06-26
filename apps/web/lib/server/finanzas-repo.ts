@@ -61,15 +61,17 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
   }
 
   // Validación fiscal: el cliente necesita RFC y razón social para timbrar.
-  const cli = await q1<any>('select rfc, razon_social, uso_cfdi from clientes where id=$1', [c.cliente_id])
+  const cli = await q1<any>('select rfc, razon_social, uso_cfdi, iva_pct from clientes where id=$1', [c.cliente_id])
   if (!cli?.rfc || !cli?.razon_social) {
     throw new FacturaError('El cliente requiere RFC y razón social para facturar (ve a Clientes)')
   }
 
-  // Desglose fiscal: subtotal (neto) + IGV = total. Se calcula desde el neto
-  // para garantizar que subtotal + igv == monto exactamente (sin desfases).
+  // Desglose fiscal: subtotal (neto) + IVA = total. El IVA se configura por
+  // cliente (clientes.iva_pct, default 16). Se calcula desde el neto para
+  // garantizar que subtotal + iva == monto exactamente (sin desfases).
+  const ivaPct = cli.iva_pct != null ? Number(cli.iva_pct) / 100 : IGV_PCT
   const neto = Math.round(Number(c.presupuesto_neto ?? 0) * 100) / 100
-  const igv = Math.round(neto * IGV_PCT * 100) / 100
+  const igv = Math.round(neto * ivaPct * 100) / 100
   const total = Math.round((neto + igv) * 100) / 100
 
   const client = await pool.connect()

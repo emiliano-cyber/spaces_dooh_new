@@ -1,6 +1,23 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { q, pool } from './db'
+import { q, q1, pool } from './db'
+
+// Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
+export class PropuestaError extends Error {}
+
+// Bloqueo por negociación: si la agencia tiene negociación SIN validar, no se
+// puede crear ni aprobar una propuesta con esa agencia (gate de validación).
+async function agenciaBloqueada(
+  agenciaId: string | null | undefined,
+): Promise<{ bloqueada: boolean; nombre?: string }> {
+  if (!agenciaId) return { bloqueada: false }
+  const a = await q1<any>(
+    'select nombre, tiene_negociacion, negociacion_validada from clientes where id=$1',
+    [agenciaId],
+  )
+  if (!a) return { bloqueada: false }
+  return { bloqueada: !!a.tiene_negociacion && !a.negociacion_validada, nombre: a.nombre }
+}
 
 // ============================================================================
 //  lib/server/propuestas-repo.ts — Propuestas comerciales con método del
@@ -30,16 +47,19 @@ function armarPropuesta(p: any, items: any[]) {
   const comisionPct = Number(p.comision_pct)
   const divisor = 1 - comisionPct / 100
   const neto = Math.round(bruto * divisor)
-  const iva = Math.round(bruto * (IVA_PCT / 100))
+  // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
+  const ivaP = p.cliente_iva != null ? Number(p.cliente_iva) : IVA_PCT
+  const iva = Math.round(bruto * (ivaP / 100))
   // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
   const netoAprobado = Math.round(brutoAprobado * divisor)
-  const ivaAprobado = Math.round(brutoAprobado * (IVA_PCT / 100))
+  const ivaAprobado = Math.round(brutoAprobado * (ivaP / 100))
   return {
     id: p.id,
     folio: p.folio,
     clienteId: p.cliente_id ?? null,
+    agenciaId: p.agencia_id ?? null,
     nombre: p.nombre,
     fecha: iso(p.fecha),
     estatus: p.estatus,
@@ -60,8 +80,67 @@ function armarPropuesta(p: any, items: any[]) {
   }
 }
 
+// Lectura pública (sin auth) de una propuesta por su CÓDIGO: acepta el id (UUID)
+// o el folio (p. ej. PR-A0BC4F). Datos de solo lectura para una liga
+// compartible. Incluye nombres de cliente/agencia y de cada sitio.
+export async function obtenerPropuestaPublica(codigo: string) {
+  const cod = (codigo ?? '').trim()
+  // Se compara el código contra el id (UUID, casteado a texto) o el folio. Se
+  // castea la COLUMNA a texto para no fallar si el código no es un UUID válido.
+  const p = await q1<any>(
+    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
+       from propuestas p
+      where p.id::text = $1 or upper(p.folio) = upper($1)
+      limit 1`,
+    [cod],
+  )
+  if (!p) return null
+  const id = p.id
+  const items = await q('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
+  const armado = armarPropuesta(p, items)
+
+  const cliente = p.cliente_id ? await q1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
+  const agencia = p.agencia_id ? await q1<any>('select nombre from clientes where id=$1', [p.agencia_id]) : null
+
+  const sitioIds = (items as any[]).map((i) => i.sitio_id)
+  const sitios = sitioIds.length
+    ? await q<any>('select id, nombre, alcaldia, tipo_medio from sitios where id = any($1::uuid[])', [sitioIds])
+    : []
+  const byId = new Map(sitios.map((s) => [s.id, s]))
+
+  return {
+    folio: armado.folio,
+    nombre: armado.nombre,
+    estatus: armado.estatus,
+    clienteNombre: cliente?.nombre ?? null,
+    agenciaNombre: agencia?.nombre ?? null,
+    comisionPct: armado.comisionPct,
+    divisor: armado.divisor,
+    bruto: armado.bruto,
+    neto: armado.neto,
+    iva: armado.iva,
+    total: armado.total,
+    itemsAprobados: armado.itemsAprobados,
+    items: armado.items.map((it) => {
+      const s = byId.get(it.sitioId)
+      return {
+        sitioNombre: s?.nombre ?? it.sitioId,
+        alcaldia: s?.alcaldia ?? null,
+        tipoMedio: s?.tipo_medio ?? null,
+        fechaInicio: it.fechaInicio,
+        fechaFin: it.fechaFin,
+        precio: it.precio,
+        aprobado: it.aprobado,
+      }
+    }),
+  }
+}
+
 export async function listarPropuestas() {
-  const props = await q('select * from propuestas order by creado_en desc')
+  const props = await q(
+    `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
+       from propuestas p order by p.creado_en desc`,
+  )
   if (!props.length) return []
   const items = await q('select * from propuesta_items order by creado_en asc')
   const porProp = new Map<string, any[]>()
@@ -75,6 +154,7 @@ export async function listarPropuestas() {
 
 export interface PropuestaInput {
   clienteId?: string | null
+  agenciaId?: string | null
   nombre: string
   comisionPct?: number
   fechaInicio: string
@@ -85,16 +165,32 @@ export interface PropuestaInput {
 }
 
 export async function crearPropuesta(input: PropuestaInput) {
+  // Gate de negociación: la agencia debe tener su negociación validada.
+  const bloq = await agenciaBloqueada(input.agenciaId)
+  if (bloq.bloqueada) {
+    throw new PropuestaError(
+      `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; valídala antes de crear la propuesta`,
+    )
+  }
   const client = await pool.connect()
   try {
     await client.query('begin')
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, nombre, comision_pct, notas)
-         values ($1,$2,$3,$4,$5) returning *`,
-        [folio(), input.clienteId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas)
+         values ($1,$2,$3,$4,$5,$6) returning *`,
+        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null],
       )
     ).rows[0]
+    // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
+    // agencia, se persiste el vínculo en el cliente para que quede ligado y se
+    // precargue en futuras propuestas.
+    if (input.clienteId && input.agenciaId) {
+      await client.query('update clientes set agencia_id=$2 where id=$1', [
+        input.clienteId,
+        input.agenciaId,
+      ])
+    }
     for (const it of input.items) {
       await client.query(
         `insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio)
@@ -118,6 +214,14 @@ export async function crearPropuesta(input: PropuestaInput) {
 // Aprobación granular: aprueba/desaprueba un sitio (item) de la propuesta y
 // devuelve la propuesta recompuesta (con los totales aprobados al día).
 export async function aprobarItem(itemId: string, aprobado: boolean) {
+  // Congelado: una propuesta ya APROBADA es inmutable; sus ítems no se editan.
+  const est = await q1<any>(
+    `select p.estatus from propuesta_items i join propuestas p on p.id=i.propuesta_id where i.id=$1`,
+    [itemId],
+  )
+  if (est?.estatus === 'APROBADA') {
+    throw new PropuestaError('La propuesta ya está aprobada y es inmutable; un cambio va como adenda')
+  }
   const upd = await q(
     `update propuesta_items set aprobado=$2 where id=$1 returning propuesta_id`,
     [itemId, aprobado],
@@ -132,6 +236,16 @@ export async function aprobarItem(itemId: string, aprobado: boolean) {
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']
 export async function cambiarEstatusPropuesta(id: string, estatus: string) {
   if (!ESTATUS_VALIDOS.includes(estatus)) throw new Error('Estatus inválido')
+  // Aprobar exige que la negociación con la agencia esté validada.
+  if (estatus === 'APROBADA') {
+    const p = await q1<any>('select agencia_id from propuestas where id=$1', [id])
+    const bloq = await agenciaBloqueada(p?.agencia_id)
+    if (bloq.bloqueada) {
+      throw new PropuestaError(
+        `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
+      )
+    }
+  }
   const rows = await q(
     `update propuestas set estatus=$2::est_propuesta where id=$1 returning *`,
     [id, estatus],

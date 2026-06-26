@@ -234,12 +234,20 @@ const clientes: Cliente[] = [
   cli('cli-bebidas', 'Bebidas Pacífico', { nombre: 'Andrés Soto', email: 'asoto@bebidaspacifico.pe', telefono: '+51 999 777 888' }),
 ]
 function cli(id: string, nombre: string, contacto: Cliente['contacto']): Cliente {
-  return { id, nombre, rfc: null, tipo: 'DIRECTO', contacto, activo: true, creadoEn: offsetISO(-365) }
+  return {
+    id, nombre, rfc: null, tipo: 'DIRECTO', contacto, activo: true, creadoEn: offsetISO(-365),
+    razonSocial: null, regimenFiscal: null, cpFiscal: null, usoCfdi: null,
+    ivaPct: 16, comisionAgenciaPct: 0, agenciaId: null,
+    tieneNegociacion: false, negociacionValidada: false, negociacionNota: null,
+  }
 }
 
 // ─── Campañas ───────────────────────────────────────────────────────────────
 
-const campanas: Campana[] = [
+// Campos de propuesta/validación que se rellenan con defaults (datos de demo).
+type CampanaSeed = Omit<Campana,
+  'propuestaId' | 'enviadaDominio' | 'enviadaDominioEn' | 'validacionEstatus' | 'validacionMotivo' | 'validacionPor' | 'validacionEn'>
+const campanas: Campana[] = ([
   // 1. HILO CONDUCTOR — Telco Andina: confirmada, en imprenta, candado APAGADO
   {
     id: 'camp-telco', folio: 'CAM-2026-0042', nombre: 'Telco Andina — Lanzamiento 5G',
@@ -318,7 +326,16 @@ const campanas: Campana[] = [
     notas: 'Factura emitida, dentro de plazo.',
     creadoEn: offsetISO(-100),
   },
-]
+] as CampanaSeed[]).map((c) => ({
+  ...c,
+  propuestaId: null,
+  enviadaDominio: false,
+  enviadaDominioEn: null,
+  validacionEstatus: 'PENDIENTE' as const,
+  validacionMotivo: null,
+  validacionPor: null,
+  validacionEn: null,
+}))
 
 // ─── Creatividades ──────────────────────────────────────────────────────────
 
@@ -354,7 +371,7 @@ function r(
 
 // ─── Órdenes de impresión ───────────────────────────────────────────────────
 
-const ordenesImpresion: OrdenImpresion[] = [
+const ordenesImpresion: OrdenImpresion[] = ([
   // Telco — EN PRODUCCION (parte del hilo conductor)
   { id: 'oi-telco', folio: 'IMP-2026-0061', campanaId: 'camp-telco', sitioId: 'sitio-javierprado', material: 'Lona front-lit 13 oz', alto: 7.2, ancho: 12.9, estatus: 'EN_PRODUCCION', proveedor: 'Gigantografías Lima', creadoEn: offsetISO(-5) },
   { id: 'oi-telco-2', folio: 'IMP-2026-0062', campanaId: 'camp-telco', sitioId: 'sitio-larco', material: 'Contenido digital 1080x1920', alto: 0, ancho: 0, estatus: 'VALIDADO', proveedor: 'Estudio Andino', creadoEn: offsetISO(-5) },
@@ -362,7 +379,9 @@ const ordenesImpresion: OrdenImpresion[] = [
   { id: 'oi-retail', folio: 'IMP-2026-0064', campanaId: 'camp-retail', sitioId: 'sitio-universitaria', material: 'Vinil mobiliario', alto: 1.8, ancho: 1.2, estatus: 'ARTE_RECIBIDO', proveedor: 'Gigantografías Lima', creadoEn: offsetISO(-1) },
   // Banca — ya impreso y montado
   { id: 'oi-banca', folio: 'IMP-2026-0058', campanaId: 'camp-banca', sitioId: 'sitio-benavides', material: 'Lona front-lit 13 oz', alto: 7.2, ancho: 12.9, estatus: 'LISTO_MONTAJE', proveedor: 'Gigantografías Lima', creadoEn: offsetISO(-22) },
-]
+] as Omit<OrdenImpresion, 'pruebaColorUrl' | 'pruebaColorAprobada'>[]).map((o) => ({
+  ...o, pruebaColorUrl: null, pruebaColorAprobada: false,
+}))
 
 // ─── Órdenes de trabajo (cuadrillas) ────────────────────────────────────────
 
@@ -399,14 +418,16 @@ const evidencias: EvidenciaOT[] = [
 
 // ─── Finanzas: facturas + cobranza (semáforo de 3 colores) ──────────────────
 
-const facturas: Factura[] = [
+const facturas: Factura[] = ([
   // Bebidas Pacífico — ámbar (por vencer)
   { id: 'fac-bebidas', folio: 'F001-00000231', campanaId: 'camp-bebidas', clienteId: 'cli-bebidas', subtotal: 83050.85, igv: 14949.15, monto: 98000, moneda: 'PEN', fechaEmision: offsetISO(-75), estatus: 'EMITIDA', creadoEn: offsetISO(-75) },
   // Retail Lima Q1 — rojo (vencida)
   { id: 'fac-retail-q1', folio: 'F001-00000198', campanaId: 'camp-retail-q1', clienteId: 'cli-retail', subtotal: 54237.29, igv: 9762.71, monto: 64000, moneda: 'PEN', fechaEmision: offsetISO(-100), estatus: 'EMITIDA', creadoEn: offsetISO(-100) },
   // Banca del Sol Q1 — verde (al corriente)
   { id: 'fac-banca-q1', folio: 'F001-00000210', campanaId: 'camp-banca-q1', clienteId: 'cli-banca', subtotal: 93220.34, igv: 16779.66, monto: 110000, moneda: 'PEN', fechaEmision: offsetISO(-20), estatus: 'EMITIDA', creadoEn: offsetISO(-20) },
-]
+] as Omit<Factura, 'serie' | 'folioFiscal' | 'rfc' | 'razonSocial' | 'usoCfdi'>[]).map((f) => ({
+  ...f, serie: null, folioFiscal: null, rfc: null, razonSocial: null, usoCfdi: null,
+}))
 
 const cobranzas: Cobranza[] = [
   // Bebidas: plazo 90, emitida hace 75 → vence en ~15 días → POR_VENCER (ámbar)

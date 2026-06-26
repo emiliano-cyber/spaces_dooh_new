@@ -17,6 +17,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import {
   SITIO_TONO,
   SITIO_LABEL,
+  pinTono,
   CAMPANA_TONO,
   CAMPANA_LABEL,
   type Tono,
@@ -57,7 +58,7 @@ export default function DashboardPage() {
       id: s.id,
       lat: s.lat,
       lng: s.lng,
-      tono: SITIO_TONO[s.estatusComercial],
+      tono: pinTono(s),
       label: s.nombre,
     })) ?? []
 
@@ -68,7 +69,7 @@ export default function DashboardPage() {
     .sort((a, b) => a.dias - b.dias)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    <div className="w-full space-y-5">
       <div>
         <h1 className="text-2xl text-ink">Dashboard</h1>
         <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · Billboards Perú SA</p>
@@ -224,10 +225,10 @@ export default function DashboardPage() {
               )}
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
-              <LeyendaPin color="#10b981" label={SITIO_LABEL.DISPONIBLE} />
-              <LeyendaPin color="#0a66ff" label={SITIO_LABEL.OCUPADO} />
+              <LeyendaPin color="#0a66ff" label="Digital" />
+              <LeyendaPin color="#10b981" label="Disponible" />
+              <LeyendaPin color="#ef4444" label="Ocupado" />
               <LeyendaPin color="#f59e0b" label={SITIO_LABEL.RESERVADO} />
-              <LeyendaPin color="#ef4444" label={SITIO_LABEL.BLOQUEADO} />
             </div>
           </CardContent>
         </Card>

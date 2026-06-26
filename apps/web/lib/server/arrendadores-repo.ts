@@ -56,6 +56,17 @@ export async function listarArrendadores() {
   return rows.map(rowToArrendador)
 }
 
+// Alta de un propietario/arrendador.
+export async function crearArrendador(input: {
+  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+}) {
+  const rows = await q(
+    `insert into arrendadores (nombre, rfc, telefono, email, notas) values ($1,$2,$3,$4,$5) returning *`,
+    [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null],
+  )
+  return rowToArrendador(rows[0])
+}
+
 export async function listarContratos() {
   const rows = await q('select * from contratos_arrendamiento order by creado_en asc')
   return rows.map(rowToContrato)

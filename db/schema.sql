@@ -242,6 +242,8 @@ create table clientes (
   regimen_fiscal text,
   cp_fiscal      text,
   uso_cfdi       text,
+  iva_pct        numeric(5,2) not null default 16,  -- IVA configurado por cliente
+  comision_agencia_pct numeric(5,2) not null default 0,  -- comisión de agencia (divisor)
   tipo           text not null default 'DIRECTO',
   contacto       jsonb not null default '{}',
   activo         boolean not null default true,
@@ -315,6 +317,7 @@ create table campanas (
   presupuesto_neto      numeric(16,2),
   moneda                text not null default 'PEN',
   estado_comercial      est_comercial_campana not null default 'DRAFT',
+  propuesta_id          uuid references propuestas(id) on delete set null,  -- campaña derivada de una propuesta aprobada (nullable: manuales sin propuesta)
   -- candado de facturación
   oc_recibida           boolean not null default false,
   fotos_comprobatorias  boolean not null default false,
@@ -329,6 +332,7 @@ create table campanas (
 );
 create index idx_campanas_cliente on campanas (cliente_id);
 create index idx_campanas_estado  on campanas (estado_comercial);
+create index idx_campanas_propuesta on campanas (propuesta_id);
 create trigger trg_campanas_upd before update on campanas
   for each row execute function set_actualizado_en();
 
@@ -395,7 +399,8 @@ create trigger trg_ot_upd before update on ordenes_trabajo
 create table evidencias_ot (
   id          uuid primary key default gen_random_uuid(),
   ot_id       uuid not null references ordenes_trabajo(id) on delete cascade,
-  foto_url    text not null,
+  foto_url    text not null,                 -- base64 (legado) o vacío si va a Spaces
+  foto_key    text,                          -- key del objeto en Spaces (si aplica)
   formato     text not null default 'image/jpeg',
   lat         numeric(10,7),
   lng         numeric(11,7),

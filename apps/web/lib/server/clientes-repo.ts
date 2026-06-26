@@ -18,6 +18,12 @@ function rowToCliente(r: any) {
     regimenFiscal: r.regimen_fiscal ?? null,
     cpFiscal: r.cp_fiscal ?? null,
     usoCfdi: r.uso_cfdi ?? null,
+    ivaPct: r.iva_pct != null ? Number(r.iva_pct) : 16,
+    comisionAgenciaPct: r.comision_agencia_pct != null ? Number(r.comision_agencia_pct) : 0,
+    agenciaId: r.agencia_id ?? null,
+    tieneNegociacion: !!r.tiene_negociacion,
+    negociacionValidada: !!r.negociacion_validada,
+    negociacionNota: r.negociacion_nota ?? null,
     tipo: r.tipo,
     contacto: r.contacto ?? {},
     activo: !!r.activo,
@@ -32,14 +38,20 @@ export interface ClienteInput {
   regimenFiscal?: string | null
   cpFiscal?: string | null
   usoCfdi?: string | null
+  ivaPct?: number | null
+  comisionAgenciaPct?: number | null
+  agenciaId?: string | null
+  tieneNegociacion?: boolean | null
+  negociacionValidada?: boolean | null
+  negociacionNota?: string | null
   tipo?: string
   contacto?: { nombre?: string; email?: string; telefono?: string }
 }
 
 export async function crearCliente(input: ClienteInput) {
   const rows = await q(
-    `insert into clientes (nombre, rfc, razon_social, regimen_fiscal, cp_fiscal, uso_cfdi, tipo, contacto)
-     values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+    `insert into clientes (nombre, rfc, razon_social, regimen_fiscal, cp_fiscal, uso_cfdi, iva_pct, comision_agencia_pct, agencia_id, tiene_negociacion, negociacion_validada, negociacion_nota, tipo, contacto)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning *`,
     [
       input.nombre,
       input.rfc ?? null,
@@ -47,6 +59,12 @@ export async function crearCliente(input: ClienteInput) {
       input.regimenFiscal ?? null,
       input.cpFiscal ?? null,
       input.usoCfdi ?? null,
+      input.ivaPct ?? 16,
+      input.comisionAgenciaPct ?? 0,
+      input.agenciaId ?? null,
+      input.tieneNegociacion ?? false,
+      input.negociacionValidada ?? false,
+      input.negociacionNota ?? null,
       input.tipo ?? 'DIRECTO',
       JSON.stringify(input.contacto ?? {}),
     ],
@@ -64,8 +82,14 @@ export async function actualizarCliente(id: string, input: Partial<ClienteInput>
         regimen_fiscal= coalesce($5, regimen_fiscal),
         cp_fiscal     = coalesce($6, cp_fiscal),
         uso_cfdi      = coalesce($7, uso_cfdi),
-        tipo          = coalesce($8, tipo),
-        contacto      = coalesce($9, contacto)
+        iva_pct       = coalesce($8, iva_pct),
+        comision_agencia_pct = coalesce($9, comision_agencia_pct),
+        agencia_id    = coalesce($10, agencia_id),
+        tiene_negociacion    = coalesce($11, tiene_negociacion),
+        negociacion_validada = coalesce($12, negociacion_validada),
+        negociacion_nota     = coalesce($13, negociacion_nota),
+        tipo          = coalesce($14, tipo),
+        contacto      = coalesce($15, contacto)
       where id = $1
       returning *`,
     [
@@ -76,6 +100,12 @@ export async function actualizarCliente(id: string, input: Partial<ClienteInput>
       input.regimenFiscal ?? null,
       input.cpFiscal ?? null,
       input.usoCfdi ?? null,
+      input.ivaPct ?? null,
+      input.comisionAgenciaPct ?? null,
+      input.agenciaId ?? null,
+      input.tieneNegociacion ?? null,
+      input.negociacionValidada ?? null,
+      input.negociacionNota ?? null,
       input.tipo ?? null,
       input.contacto ? JSON.stringify(input.contacto) : null,
     ],

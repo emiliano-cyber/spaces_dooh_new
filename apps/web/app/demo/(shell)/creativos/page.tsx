@@ -25,7 +25,7 @@ export default function CreativosPage() {
 
   if (!campanas || !creatividades || !reservas || !sitios) {
     return (
-      <div className="mx-auto max-w-4xl space-y-3">
+      <div className="w-full space-y-3">
         {Array.from({ length: 3 }).map((_, i) => (
           <div key={i} className="h-40 animate-pulse rounded-md bg-surface-2" />
         ))}
@@ -41,7 +41,7 @@ export default function CreativosPage() {
   )
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Creativos</h1>
         <p className="mt-1 text-[13px] text-muted">

@@ -1,10 +1,14 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
+import { withTrail, trailFromLocation } from '@/lib/nav-trail'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
+import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import {
   StatusBadge,
@@ -47,12 +51,22 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const ordenesCompra = useOrdenesCompra()
   const reporte = useReporteCampana(id)
 
+  // Rastro de cómo se llegó a esta campaña (param `from`); por defecto, Campañas.
+  const [trail, setTrail] = useState<Crumb[]>([])
+  useEffect(() => {
+    const t = trailFromLocation()
+    setTrail(t.length ? t : [{ label: 'Campañas', href: '/demo/campanas' }])
+  }, [])
+  const volver = trail.length ? trail[trail.length - 1] : { label: 'Campañas', href: '/demo/campanas' }
+  // Rastro a propagar hacia las OT de esta campaña (incluye la campaña actual).
+  const trailHaciaOT: Crumb[] = [...trail, { label: c && 'nombre' in c ? c.nombre : 'Campaña', href: `/demo/campanas/${id}` }]
+
   if (c === undefined) {
-    return <div className="mx-auto max-w-4xl h-64 animate-pulse rounded-md bg-surface-2" />
+    return <div className="w-full h-64 animate-pulse rounded-md bg-surface-2" />
   }
   if (c === null) {
     return (
-      <div className="mx-auto max-w-4xl">
+      <div className="w-full">
         <p className="text-[13px] text-muted">Campaña no encontrada.</p>
         <Link href="/demo/campanas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> Volver a campañas
@@ -75,10 +89,17 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const misEvid = (evidencias ?? []).filter((e) => misOts.some((o) => o.id === e.otId))
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
-      <Link href="/demo/campanas" className="inline-flex items-center gap-1 text-[13px] text-muted hover:text-ink">
-        <ArrowLeft className="h-3.5 w-3.5" /> Campañas
-      </Link>
+    <div className="w-full space-y-4">
+      {/* Migas: de dónde vengo y cómo llegué a esta campaña */}
+      <div className="flex flex-wrap items-center gap-2">
+        {volver.href && (
+          <Link href={volver.href} className="inline-flex items-center gap-1 text-[13px] font-medium text-info hover:underline">
+            <ArrowLeft className="h-3.5 w-3.5" /> {volver.label}
+          </Link>
+        )}
+        <span className="text-muted/50">·</span>
+        <Breadcrumbs items={[...trail, { label: c.nombre }]} />
+      </div>
 
       {/* Encabezado */}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -128,6 +149,16 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </CardHeader>
         <CardContent>
           <PipelineView campanaId={id} />
+        </CardContent>
+      </Card>
+
+      {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Validación de publicación</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ValidacionPanel campanaId={id} />
         </CardContent>
       </Card>
 
@@ -284,7 +315,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 {misOts.map((o) => (
                   <li key={o.id}>
                     <Link
-                      href={`/demo/m/ot/${o.id}`}
+                      href={withTrail(`/demo/operaciones/ot/${o.id}`, trailHaciaOT)}
                       className="-mx-1 flex items-center justify-between rounded px-1 py-1.5 hover:bg-surface-2"
                     >
                       <div className="min-w-0">

@@ -50,6 +50,7 @@ export async function marcarTodasNotificacionesApi(): Promise<void> {
 // ─── Propuestas (método del divisor) ─────────────────────────────────────────
 export async function crearPropuestaApi(input: {
   clienteId?: string | null
+  agenciaId?: string | null
   nombre: string
   comisionPct?: number
   fechaInicio: string
@@ -78,6 +79,15 @@ export async function cambiarEstatusPropuestaApi(id: string, estatus: string): P
   await refrescarEstado()
 }
 
+// Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).
+export async function generarCampanaDesdePropuestaApi(propuestaId: string): Promise<{ id: string }> {
+  const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la campaña')
+  await refrescarEstado()
+  return d
+}
+
 // Aprobación granular: aprueba/desaprueba un sitio de la propuesta.
 export async function aprobarItemPropuestaApi(itemId: string, aprobado: boolean): Promise<void> {
   const r = await fetch(`${API}/propuestas/items/${itemId}/`, {
@@ -98,6 +108,12 @@ export interface ClienteInput {
   regimenFiscal?: string | null
   cpFiscal?: string | null
   usoCfdi?: string | null
+  ivaPct?: number | null
+  comisionAgenciaPct?: number | null
+  agenciaId?: string | null
+  tieneNegociacion?: boolean | null
+  negociacionValidada?: boolean | null
+  negociacionNota?: string | null
   tipo?: string
   contacto?: { nombre?: string; email?: string; telefono?: string }
 }
@@ -125,6 +141,19 @@ export async function actualizarClienteApi(id: string, input: Partial<ClienteInp
 }
 
 // ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
+export async function crearArrendadorApi(input: {
+  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/arrendadores/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el propietario')
+  await refrescarEstado()
+}
+
 export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
   const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
   const d = await r.json().catch(() => ({}))
@@ -342,6 +371,33 @@ export async function confirmarReservaApi(campanaId: string): Promise<Campana> {
   const r = await fetch(`${API}/campanas/${campanaId}/confirmar/`, { method: 'POST' })
   const d = await r.json()
   if (!r.ok) throw new Error(d.error ?? 'No se pudo confirmar')
+  await refrescarEstado()
+  return d
+}
+
+// ─── Validación de publicación ───────────────────────────────────────────────
+// Envía la campaña al dominio/CMS (queda pendiente de validar la publicación).
+export async function enviarADominioApi(campanaId: string): Promise<Campana> {
+  const r = await fetch(`${API}/campanas/${campanaId}/enviar-dominio/`, { method: 'POST' })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar al dominio')
+  await refrescarEstado()
+  return d
+}
+
+// Valida la publicación: aprobar (→ ACTIVA / al aire) o rechazar (con motivo).
+export async function validarPublicacionApi(
+  campanaId: string,
+  aprobar: boolean,
+  motivo?: string,
+): Promise<Campana> {
+  const r = await fetch(`${API}/campanas/${campanaId}/validar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ aprobar, motivo }),
+  })
+  const d = await r.json()
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo validar la publicación')
   await refrescarEstado()
   return d
 }

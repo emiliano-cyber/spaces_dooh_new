@@ -19,6 +19,9 @@ import {
   Share2,
   Pencil,
   Trash2,
+  UserRound,
+  Wallet,
+  CalendarClock,
 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -29,13 +32,21 @@ import {
   StatusBadge,
   SITIO_TONO,
   SITIO_LABEL,
+  CONTRATO_TONO,
+  CONTRATO_LABEL,
+  PAGO_TONO,
+  PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { actualizarSitioApi, borrarSitioApi } from '@/lib/data/sitios-api'
 import {
   useReservas,
   useIncidencias,
+  useContratos,
+  useArrendadores,
+  usePagosRenta,
   formatMonto,
+  formatFecha,
   type Sitio,
   type TipoMedio,
 } from '@/lib/data/client'
@@ -61,6 +72,20 @@ const CMS_LABEL: Record<string, string> = {
   DOOHMAIN: 'Doohmain',
   OTRO: 'Otros',
 }
+
+// Periodicidad de pago al propietario ("cada cuándo se le paga").
+const PERIODICIDAD_LABEL: Record<string, string> = {
+  SEMANAL: 'Semanal',
+  CATORCENAL: 'Catorcenal (cada 14 días)',
+  QUINCENAL: 'Quincenal',
+  MENSUAL: 'Mensual',
+  BIMESTRAL: 'Bimestral',
+  TRIMESTRAL: 'Trimestral',
+  SEMESTRAL: 'Semestral',
+  ANUAL: 'Anual',
+}
+const periodicidadLabel = (p: string) =>
+  PERIODICIDAD_LABEL[p?.toUpperCase()] ?? (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '—')
 
 const OPERATIVO_LABEL: Record<string, string> = {
   ACTIVO: 'Operativo',
@@ -90,6 +115,9 @@ export function SiteFicha({
 }) {
   const reservas = useReservas()
   const incidencias = useIncidencias()
+  const contratos = useContratos()
+  const arrendadores = useArrendadores()
+  const pagos = usePagosRenta()
   const puedeEditar = usePuede('comercial', 'crear')
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
@@ -129,6 +157,21 @@ export function SiteFicha({
   const incidencia = incidencias?.find(
     (i) => i.sitioId === sitio.id && (i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO'),
   )
+
+  // Propietario y renta del sitio: contrato preferentemente vigente; si no, el
+  // más reciente. De ahí salen el propietario, la renta y la periodicidad de pago.
+  const PRIORIDAD_CONTRATO: Record<string, number> = { VIGENTE: 0, POR_VENCER: 1, RENOVADO: 2, VENCIDO: 3, CANCELADO: 4 }
+  const contrato = (contratos ?? [])
+    .filter((c) => c.sitioId === sitio.id)
+    .sort((a, b) => (PRIORIDAD_CONTRATO[a.estatus] ?? 9) - (PRIORIDAD_CONTRATO[b.estatus] ?? 9))[0]
+  const propietario = arrendadores?.find((a) => a.id === contrato?.arrendadorId)
+  const pagosContrato = (pagos ?? []).filter((p) => p.contratoId === contrato?.id)
+  const ultimoPago = pagosContrato
+    .filter((p) => p.fechaPago)
+    .sort((a, b) => (b.fechaPago ?? '').localeCompare(a.fechaPago ?? ''))[0]
+  const proximoPago = pagosContrato
+    .filter((p) => p.estatus !== 'PAGADO')
+    .sort((a, b) => (a.periodo ?? '').localeCompare(b.periodo ?? ''))[0]
 
   return (
     <Sheet
@@ -242,7 +285,7 @@ export function SiteFicha({
           <h4 className="mb-2 text-[13px] font-medium text-ink">Inteligencia artificial</h4>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge tono={sitio.computerVision ? 'verde' : 'rojo'}>
-              {sitio.computerVision ? 'Con IA · Computer Vision' : 'Sin IA'}
+              {sitio.computerVision ? 'Computer Vision On' : 'Sin Computer Vision'}
             </StatusBadge>
             {sitio.computerVision && sitio.admobilizeId && (
               <span className="demo-num text-[12px] text-muted">ID {sitio.admobilizeId}</span>
@@ -291,6 +334,52 @@ export function SiteFicha({
                 ))}
               </ul>
             </div>
+          )}
+        </div>
+
+        {/* Propietario y renta (cada cuándo se le paga) */}
+        <div>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">Propietario y renta</h4>
+          {contrato ? (
+            <div className="space-y-2.5">
+              <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3">
+                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+                <div className="min-w-0">
+                  <div className="text-[13px] font-medium text-ink">{propietario?.nombre ?? 'Propietario sin asignar'}</div>
+                  <div className="text-[11px] text-muted">
+                    {[propietario?.telefono, propietario?.email].filter(Boolean).join(' · ') || 'Dueño del predio / pantalla'}
+                  </div>
+                </div>
+                <StatusBadge tono={CONTRATO_TONO[contrato.estatus]} className="ml-auto shrink-0">
+                  {CONTRATO_LABEL[contrato.estatus]}
+                </StatusBadge>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
+                <Caracteristica icon={<Wallet className="h-4 w-4" />} label="Renta" valor={formatMonto(contrato.montoRenta)} mono />
+                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Cada cuándo se paga" valor={periodicidadLabel(contrato.periodicidad)} />
+                <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${formatFecha(contrato.fechaFin)}`} mono />
+                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Renovación" valor={contrato.autoRenovable ? 'Automática' : 'Manual'} />
+              </dl>
+
+              {/* Estado de pagos */}
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[12px]">
+                <span className="inline-flex items-center gap-1.5 text-muted">
+                  Último pago
+                  <span className="demo-num text-ink">{ultimoPago?.fechaPago ? formatFecha(ultimoPago.fechaPago) : '—'}</span>
+                </span>
+                {proximoPago ? (
+                  <span className="inline-flex items-center gap-1.5 text-muted">
+                    Próximo: <span className="text-ink">{proximoPago.periodo}</span>
+                    <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{PAGO_LABEL[proximoPago.estatus]}</StatusBadge>
+                  </span>
+                ) : (
+                  <span className="text-muted">Sin pagos pendientes</span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <p className="text-[12px] text-muted">Sin contrato de arrendamiento registrado para este espacio.</p>
           )}
         </div>
 

@@ -23,7 +23,7 @@ export function Sheet({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content className="demo-root fixed right-0 top-0 z-50 flex h-full w-full max-w-md flex-col border-l border-border bg-surface data-[state=open]:animate-in data-[state=open]:slide-in-from-right">
+        <Dialog.Content className="demo-root fixed right-0 top-0 z-50 flex h-full w-full max-w-2xl flex-col border-l border-border bg-surface data-[state=open]:animate-in data-[state=open]:slide-in-from-right">
           <div className="flex items-start justify-between border-b border-border px-5 py-4">
             <div className="min-w-0">
               <Dialog.Title className="text-base font-semibold text-ink">{title}</Dialog.Title>

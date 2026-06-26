@@ -12,6 +12,9 @@ type EstOI = (typeof PROCESO)[number]
 
 const folioOI = () => `OI-${randomBytes(3).toString('hex').toUpperCase()}`
 
+// Error de regla de negocio (transición inválida) → el route lo mapea a 409.
+export class ImpresionError extends Error {}
+
 function rowToOrdenImpresion(r: any) {
   return {
     id: r.id,
@@ -53,6 +56,14 @@ export async function crearOrdenImpresion(input: {
   ancho?: number | null
   proveedor?: string | null
 }) {
+  // Máquina de estados (server-side): una campaña digital (DOOH) NO genera
+  // orden de impresión. Fija (OOH) e híbrida sí. La UI ya lo oculta; esto lo
+  // enforza también vía API.
+  const camp = await q1<any>('select tipo_campana from campanas where id=$1', [input.campanaId])
+  if (!camp) throw new ImpresionError('Campaña no encontrada')
+  if (camp.tipo_campana === 'DOOH') {
+    throw new ImpresionError('Una campaña digital (DOOH) no genera orden de impresión')
+  }
   const rows = await q(
     `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor)
      values ($1,$2,$3,$4,$5,$6,$7) returning *`,

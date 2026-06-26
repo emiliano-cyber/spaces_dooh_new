@@ -124,6 +124,10 @@ export type EstCobranza = 'AL_CORRIENTE' | 'POR_VENCER' | 'VENCIDA' | 'PAGADA'
 
 export type EstValidacionCreatividad = 'PENDIENTE' | 'VALIDADA' | 'RECHAZADA'
 
+// Validación de publicación a nivel CAMPAÑA: se revisa la información de los
+// anuncios una vez enviada al dominio/CMS, antes de salir al aire.
+export type EstValidacionPublicacion = 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'
+
 // Etapas del pipeline de campaña (sección 7.4). Derivadas, no almacenadas.
 export type EtapaPipeline =
   | 'reservada'
@@ -302,6 +306,13 @@ export interface Cliente {
   regimenFiscal: string | null
   cpFiscal: string | null
   usoCfdi: string | null
+  ivaPct: number              // IVA configurado para el cliente (default 16)
+  comisionAgenciaPct: number  // comisión (divisor). Aplica a la AGENCIA (tipo AGENCIA)
+  agenciaId: string | null    // agencia asociada al cliente (otro cliente tipo AGENCIA)
+  // Negociación con la agencia (solo aplica a clientes tipo AGENCIA):
+  tieneNegociacion: boolean   // ¿hay negociación con la agencia? sí/no
+  negociacionValidada: boolean // si la hay, ¿está validada? (gate para propuestas)
+  negociacionNota: string | null // términos negociados
   tipo: string
   contacto: { nombre?: string; email?: string; telefono?: string }
   activo: boolean
@@ -322,6 +333,7 @@ export interface Propuesta {
   id: string
   folio: string
   clienteId: string | null
+  agenciaId: string | null // agencia con la que se arma la propuesta (cliente AGENCIA)
   nombre: string
   fecha: string
   estatus: EstPropuesta
@@ -361,6 +373,7 @@ export interface Campana {
   folio: string
   nombre: string
   clienteId: string
+  propuestaId: string | null // propuesta de la que se derivó (null si es manual)
   agencia: string | null
   marca: string | null
   tipoCampana: TipoCampana
@@ -370,6 +383,14 @@ export interface Campana {
   presupuestoNeto: number | null
   moneda: string
   estadoComercial: EstComercialCampana
+  // Validación de publicación: la campaña se envía al dominio/CMS y un revisor
+  // verifica los anuncios antes de salir al aire. Al aprobar → estado ACTIVA.
+  enviadaDominio: boolean
+  enviadaDominioEn: string | null
+  validacionEstatus: EstValidacionPublicacion
+  validacionMotivo: string | null
+  validacionPor: string | null
+  validacionEn: string | null
   // Las tres banderas del CANDADO de facturación (todas existen en Prisma):
   ocRecibida: boolean
   fotosComprobatorias: boolean
@@ -425,6 +446,7 @@ export interface EvidenciaOT {
   id: string
   otId: string
   fotoUrl: string
+  fotoKey?: string | null // key en Spaces si la imagen se subió a storage
   formato: string
   lat: number | null
   lng: number | null

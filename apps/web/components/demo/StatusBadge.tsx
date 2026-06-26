@@ -11,6 +11,7 @@ import type {
   EstComercialCampana,
   EstReserva,
   EstValidacionCreatividad,
+  EstValidacionPublicacion,
 } from '@/lib/data/types'
 
 // ============================================================================
@@ -58,20 +59,31 @@ export function StatusBadge({
 
 // ─── Mapeos de dominio → {tono, label} (sentence case) ──────────────────────
 
-// Estatus comercial de sitio (mapa/inventario). Canónico sección 7.2:
-//   verde = disponible/libre · ámbar = reservado · rojo = bloqueado/incidencia.
-//   azul = ocupado/vendido (confirmado).  ← ver nota en el informe de Fase A.
-// Confirmar una reserva deja el sitio en VERDE (decisión de negocio, Acto 3):
-// verde = todo bien (disponible o confirmado/ocupado), ámbar = reservado/
-// tentativo, rojo = bloqueado por incidencia.
+// Estatus comercial de sitio (mapa/inventario). Esquema de color unificado con
+// los pines del mapa (ver pinTono):
+//   verde = disponible/libre · ámbar = reservado · rojo = ocupado/bloqueado.
 export const SITIO_TONO: Record<EstComercial, Tono> = {
   DISPONIBLE: 'verde',
   RESERVADO: 'ambar',
-  OCUPADO: 'azul',
+  OCUPADO: 'rojo',
   BLOQUEADO: 'rojo',
   EN_MANTENIMIENTO: 'neutro',
   BAJA: 'neutro',
 }
+// Color del PIN en los mapas (dashboard y comercial). Distinto de SITIO_TONO
+// (que es para badges de estatus): aquí el medio digital se resalta en azul.
+//   azul = digital · verde = disponible · rojo = ocupado · ámbar = reservado.
+export function pinTono(s: {
+  tipoMedio: string; esRotativo: boolean; exhibicion: string; estatusComercial: EstComercial
+}): Tono {
+  const digital =
+    s.tipoMedio === 'PANTALLA_DIGITAL' || s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+  if (digital) return 'azul'
+  if (s.estatusComercial === 'OCUPADO') return 'rojo'
+  if (s.estatusComercial === 'DISPONIBLE') return 'verde'
+  return SITIO_TONO[s.estatusComercial] // reservado=ámbar, etc.
+}
+
 export const SITIO_LABEL: Record<EstComercial, string> = {
   DISPONIBLE: 'Disponible',
   // Un sitio RESERVADO corresponde a una reserva TENTATIVA: se anota para que
@@ -173,6 +185,18 @@ export const CAMPANA_LABEL: Record<EstComercialCampana, string> = {
   COMPLETADA: 'Completada',
   CANCELADA: 'Cancelada',
   LISTA_FACTURAR: 'Lista para facturar',
+}
+
+// Validación de publicación a nivel campaña (antes de salir al aire).
+export const VALIDACION_PUB_TONO: Record<EstValidacionPublicacion, Tono> = {
+  PENDIENTE: 'ambar',
+  APROBADA: 'verde',
+  RECHAZADA: 'rojo',
+}
+export const VALIDACION_PUB_LABEL: Record<EstValidacionPublicacion, string> = {
+  PENDIENTE: 'Pendiente de validar',
+  APROBADA: 'Publicación aprobada',
+  RECHAZADA: 'Publicación rechazada',
 }
 
 export const CREATIVIDAD_TONO: Record<EstValidacionCreatividad, Tono> = {

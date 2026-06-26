@@ -1,0 +1,207 @@
+'use client'
+
+import { useState } from 'react'
+import { ShieldCheck, Send, Check, X, Clock, Images, Code2 } from 'lucide-react'
+import { cn } from '@/lib/cn'
+import {
+  StatusBadge,
+  VALIDACION_PUB_TONO,
+  VALIDACION_PUB_LABEL,
+  CREATIVIDAD_TONO,
+  CREATIVIDAD_LABEL,
+} from '@/components/demo/StatusBadge'
+import { usePuede } from '@/components/demo/shell/SesionContext'
+import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client'
+import { enviarADominioApi, validarPublicacionApi } from '@/lib/data/estado-api'
+import type { Creatividad } from '@/lib/data/types'
+
+// Panel de validación de publicación: se envía la campaña al dominio/CMS y un
+// revisor verifica la información de los anuncios antes de que salga al aire.
+export function ValidacionPanel({ campanaId }: { campanaId: string }) {
+  const c = useCampana(campanaId)
+  const creatividades = useCreatividades()
+  const puede = usePuede('comercial', 'crear')
+  const [busy, setBusy] = useState(false)
+
+  if (!c) return <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
+
+  const creas = (creatividades ?? []).filter((cr) => cr.campanaId === campanaId)
+  const validadas = creas.filter((cr) => cr.estatusValidacion === 'VALIDADA')
+  const requiereCreativos = c.tipoCampana === 'DOOH' || c.tipoCampana === 'HIBRIDA'
+  const aprobada = c.validacionEstatus === 'APROBADA'
+
+  async function enviar() {
+    setBusy(true)
+    try {
+      await enviarADominioApi(campanaId)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo enviar al dominio')
+    }
+    setBusy(false)
+  }
+
+  async function validar(aprobar: boolean) {
+    let motivo: string | undefined
+    if (!aprobar) {
+      motivo = window.prompt('Motivo del rechazo (qué corregir en los anuncios):') ?? undefined
+      if (motivo === undefined) return // canceló el prompt
+    }
+    setBusy(true)
+    try {
+      await validarPublicacionApi(campanaId, aprobar, motivo)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo validar la publicación')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-md border p-4',
+        aprobada ? 'border-[#10b98140] bg-[#10b9810d]' : 'border-border bg-surface',
+      )}
+    >
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ShieldCheck
+            className={cn('h-4 w-4', aprobada ? 'text-success' : 'text-muted')}
+            strokeWidth={1.75}
+          />
+          <span className="text-[13px] font-medium text-ink">Validación de publicación</span>
+        </div>
+        <StatusBadge tono={VALIDACION_PUB_TONO[c.validacionEstatus]}>
+          {VALIDACION_PUB_LABEL[c.validacionEstatus]}
+        </StatusBadge>
+      </div>
+
+      {/* Estado de envío al dominio */}
+      <ul className="space-y-2">
+        <Condicion ok={c.enviadaDominio} label="Enviada al dominio / CMS" />
+        {requiereCreativos && (
+          <Condicion
+            ok={creas.length > 0}
+            label={`Anuncios cargados (${validadas.length}/${creas.length} validados)`}
+          />
+        )}
+      </ul>
+
+      {/* Información de los anuncios a verificar */}
+      {creas.length > 0 && (
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="mb-2 text-[12px] font-medium text-muted">
+            Información de los anuncios
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {creas.map((cr) => (
+              <div key={cr.id} className="overflow-hidden rounded border border-border">
+                <Miniatura cr={cr} />
+                <div className="space-y-1 p-1.5">
+                  <div className="truncate text-[11px] text-ink" title={cr.nombre}>
+                    {cr.nombre}
+                  </div>
+                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]} className="px-1.5 py-0 text-[10px]">
+                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
+                  </StatusBadge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sello de validación / motivo de rechazo */}
+      {c.validacionEstatus !== 'PENDIENTE' && c.validacionEn && (
+        <div className="mt-3 flex items-start gap-2 rounded border border-border bg-surface-2 p-2 text-[11px]">
+          {aprobada ? (
+            <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" />
+          ) : (
+            <X className="mt-0.5 h-3.5 w-3.5 shrink-0 text-error" />
+          )}
+          <div className="text-muted">
+            {aprobada ? 'Aprobada' : 'Rechazada'} por{' '}
+            <span className="text-ink">{c.validacionPor ?? '—'}</span> ·{' '}
+            {formatFechaHora(c.validacionEn)}
+            {!aprobada && c.validacionMotivo ? (
+              <div className="mt-0.5 text-error">Motivo: {c.validacionMotivo}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* Acciones */}
+      {puede && (
+        <div className="mt-3">
+          {!c.enviadaDominio ? (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={enviar}
+              className="inline-flex w-full items-center justify-center gap-1.5 rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
+            >
+              <Send className="h-3.5 w-3.5" />
+              {busy ? 'Enviando…' : c.validacionEstatus === 'RECHAZADA' ? 'Corregir y reenviar al dominio' : 'Enviar al dominio'}
+            </button>
+          ) : c.validacionEstatus === 'PENDIENTE' ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => validar(true)}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded bg-success px-3 py-2 text-[12px] font-medium text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50"
+              >
+                <Check className="h-3.5 w-3.5" /> Aprobar publicación
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => validar(false)}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded border border-[#ef444466] px-3 py-2 text-[12px] font-medium text-error transition-colors duration-150 hover:bg-[#ef44440d] disabled:opacity-50"
+              >
+                <X className="h-3.5 w-3.5" /> Rechazar
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      {!c.enviadaDominio && c.validacionEstatus === 'PENDIENTE' && (
+        <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted">
+          <Clock className="h-3.5 w-3.5" />
+          Envía la campaña al dominio para que se valide antes de publicarse.
+        </p>
+      )}
+    </div>
+  )
+}
+
+function Miniatura({ cr }: { cr: Creatividad }) {
+  if (cr.archivoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={cr.archivoUrl} alt={cr.nombre} className="h-16 w-full object-cover" />
+  }
+  if (cr.codigo) {
+    return <iframe title={cr.nombre} srcDoc={cr.codigo} sandbox="" className="h-16 w-full border-0 bg-white" />
+  }
+  return (
+    <div className="flex h-16 w-full items-center justify-center bg-surface-2 text-muted">
+      {cr.codigo ? <Code2 className="h-5 w-5" /> : <Images className="h-5 w-5" />}
+    </div>
+  )
+}
+
+function Condicion({ ok, label }: { ok: boolean; label: string }) {
+  return (
+    <li className="flex items-center gap-2.5 text-[13px]">
+      <span
+        className={cn(
+          'flex h-5 w-5 items-center justify-center rounded-full',
+          ok ? 'bg-success text-white' : 'bg-surface-2 text-muted',
+        )}
+      >
+        {ok ? <Check className="h-3 w-3" strokeWidth={3} /> : <X className="h-3 w-3" strokeWidth={3} />}
+      </span>
+      <span className={ok ? 'text-ink' : 'text-muted'}>{label}</span>
+    </li>
+  )
+}

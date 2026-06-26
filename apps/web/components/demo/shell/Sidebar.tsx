@@ -2,13 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Radio, ExternalLink } from 'lucide-react'
+import { Radio, ExternalLink, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { TOKEN_TELCO } from '@/lib/data/client'
 import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
+import { useMenuMovil } from './MenuMovilContext'
 
-export function Sidebar() {
+// Contenido del sidebar (cabecera + navegación + pie). Se reutiliza para el
+// aside estático de desktop y el drawer retráctil de móvil.
+function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
   const pathname = usePathname()
   const { sesion } = useSesionCtx()
   const rol = sesion?.usuario.rol ?? 'DUENO'
@@ -19,9 +22,16 @@ export function Sidebar() {
   // Normaliza el basePath para marcar el activo.
   const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/demo'
   const here = norm(pathname ?? '/demo')
+  // Una sección queda activa en su página y en cualquier subruta (detalle), p.
+  // ej. /demo/operaciones/ot/123 marca "Operaciones". El dashboard ('/demo')
+  // solo coincide exacto para no encenderse en todas las rutas.
+  const esActivo = (href: string) => {
+    const h = norm(href)
+    return here === h || (h !== '/demo' && here.startsWith(h + '/'))
+  }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
+    <>
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
         <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
           <Radio className="h-4 w-4" />
@@ -40,6 +50,7 @@ export function Sidebar() {
             </p>
             <Link
               href={`/demo/portal/${TOKEN_TELCO}`}
+              onClick={onNavegar}
               className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-info hover:underline"
             >
               Abrir portal <ExternalLink className="h-3.5 w-3.5" />
@@ -48,12 +59,13 @@ export function Sidebar() {
         ) : (
           <ul className="space-y-0.5">
             {items.map((n) => {
-              const active = here === norm(n.href)
+              const active = esActivo(n.href)
               const Icon = n.icon
               return (
                 <li key={n.key}>
                   <Link
                     href={n.href}
+                    onClick={onNavegar}
                     className={cn(
                       'flex items-center gap-2.5 rounded px-3 py-2 text-[13px] transition-colors duration-150',
                       active
@@ -76,6 +88,48 @@ export function Sidebar() {
           Demo · datos ficticios · $ MXN
         </p>
       </div>
-    </aside>
+    </>
+  )
+}
+
+export function Sidebar() {
+  const { abierto, cerrar } = useMenuMovil()
+
+  return (
+    <>
+      {/* Desktop: sidebar estático */}
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-border bg-surface md:flex">
+        <SidebarContent />
+      </aside>
+
+      {/* Móvil: drawer retráctil con backdrop */}
+      <div className={cn('md:hidden', abierto ? '' : 'pointer-events-none')} aria-hidden={!abierto}>
+        {/* Backdrop */}
+        <div
+          onClick={cerrar}
+          className={cn(
+            'fixed inset-0 z-40 bg-black/40 transition-opacity duration-200',
+            abierto ? 'opacity-100' : 'opacity-0',
+          )}
+        />
+        {/* Panel */}
+        <aside
+          className={cn(
+            'fixed left-0 top-0 z-50 flex h-full w-64 max-w-[80%] flex-col border-r border-border bg-surface shadow-xl transition-transform duration-200',
+            abierto ? 'translate-x-0' : '-translate-x-full',
+          )}
+        >
+          <button
+            type="button"
+            onClick={cerrar}
+            aria-label="Cerrar menú"
+            className="absolute right-2 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded text-muted hover:bg-surface-2"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <SidebarContent onNavegar={cerrar} />
+        </aside>
+      </div>
+    </>
   )
 }

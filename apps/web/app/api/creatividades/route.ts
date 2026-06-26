@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { crearCreatividad } from '@/lib/server/creativos-repo'
+import { crearCreatividad, CreatividadError } from '@/lib/server/creativos-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
@@ -29,6 +29,8 @@ export async function POST(req: Request) {
     await registrarAccion(g.usuario, 'Subió creativo', body.nombre)
     return NextResponse.json(crea, { status: 201 })
   } catch (e) {
+    // Transición inválida (p. ej. OOH → creatividad) → 409 con mensaje claro.
+    if (e instanceof CreatividadError) return NextResponse.json({ error: e.message }, { status: 409 })
     return NextResponse.json({ error: e instanceof Error ? e.message : 'No se pudo crear' }, { status: 500 })
   }
 }

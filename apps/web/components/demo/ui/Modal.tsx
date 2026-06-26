@@ -8,9 +8,9 @@ import { cn } from '@/lib/cn'
 // así que el tamaño en celular no cambia entre variantes.
 type ModalSize = 'md' | 'lg' | 'xl'
 const SIZE_MAX: Record<ModalSize, string> = {
-  md: 'max-w-md',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
+  md: 'max-w-2xl',
+  lg: 'max-w-4xl',
+  xl: 'max-w-6xl',
 }
 
 // Modal centrado plano, 1px. Para formularios cortos (p. ej. reservar).

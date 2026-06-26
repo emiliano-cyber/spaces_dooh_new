@@ -2,15 +2,17 @@
 
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, UserCircle2, LogOut, Bell, CheckCheck } from 'lucide-react'
+import { ChevronDown, UserCircle2, LogOut, Bell, CheckCheck, Menu } from 'lucide-react'
 import { apiLogout } from '@/lib/auth-real'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
+import { useMenuMovil } from './MenuMovilContext'
 import { useNotificaciones } from '@/lib/data/client'
 import { marcarNotificacionLeidaApi, marcarTodasNotificacionesApi } from '@/lib/data/estado-api'
 
 export function Topbar() {
   const router = useRouter()
+  const { alternar } = useMenuMovil()
   const { sesion, refrescar } = useSesionCtx()
   const usuario = sesion?.usuario
   const notificaciones = useNotificaciones() ?? []
@@ -29,11 +31,19 @@ export function Topbar() {
 
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
-      <div className="text-[13px] text-muted">
+      <div className="flex items-center gap-2 text-[13px] text-muted">
+        <button
+          type="button"
+          onClick={alternar}
+          aria-label="Abrir menú"
+          className="inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-surface text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:hidden"
+        >
+          <Menu className="h-4 w-4" strokeWidth={1.75} />
+        </button>
         {usuario ? (
-          <>
+          <span>
             Vista de <span className="font-medium text-ink">{rolLabel(usuario.rol)}</span>
-          </>
+          </span>
         ) : null}
       </div>
 

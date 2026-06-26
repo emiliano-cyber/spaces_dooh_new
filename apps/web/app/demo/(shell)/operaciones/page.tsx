@@ -13,6 +13,7 @@ import {
   type Tono,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { withTrail } from '@/lib/nav-trail'
 import { crearOTApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
@@ -78,7 +79,7 @@ export default function OperacionesPage() {
   const lista = (ots ?? []).filter((o) => !filtro || o.estatus === filtro)
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
+    <div className="w-full space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">Operaciones</h1>
@@ -177,11 +178,11 @@ export default function OperacionesPage() {
 
                   <div className="mt-3 flex justify-end">
                     <Link
-                      href={`/demo/m/ot/${o.id}`}
+                      href={withTrail(`/demo/operaciones/ot/${o.id}`, [{ label: 'Operaciones', href: '/demo/operaciones' }])}
                       className="inline-flex items-center gap-1.5 rounded border border-border-strong px-3 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
                     >
                       <Smartphone className="h-3.5 w-3.5" />
-                      {abierta ? 'Abrir OT móvil' : 'Ver OT'}
+                      {abierta ? 'Abrir OT' : 'Ver OT'}
                       <ArrowRight className="h-3.5 w-3.5" />
                     </Link>
                   </div>
