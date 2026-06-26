@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, dirname, resolve } from 'node:path'
 
 const [, , inPath, outPath] = process.argv
 if (!inPath || !outPath) {
@@ -11,12 +11,20 @@ if (!inPath || !outPath) {
   process.exit(1)
 }
 
+const baseDir = dirname(resolve(inPath))
+// Resuelve la ruta de una imagen a file:// absoluto (relativa al .md de entrada).
+function resolveSrc(src) {
+  if (/^(https?:|file:|data:)/i.test(src)) return src
+  return 'file:///' + resolve(baseDir, src).replace(/\\/g, '/')
+}
+
 const esc = (s) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-// Inline: **negrita**, `código`.
+// Inline: imágenes ![alt](src), **negrita**, `código`.
 function inline(s) {
   let t = esc(s)
+  t = t.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_m, alt, src) => `<img src="${resolveSrc(src)}" alt="${alt}" />`)
   t = t.replace(/`([^`]+)`/g, '<code>$1</code>')
   t = t.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
   return t
@@ -131,6 +139,7 @@ const html = `<!doctype html><html lang="es"><head><meta charset="utf-8">
   code { font-family: ui-monospace, Consolas, monospace; background: #f1f3f5; padding: 1px 4px; border-radius: 3px; font-size: 10.5px; }
   pre { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px 12px; overflow-x: auto; }
   pre code { background: none; padding: 0; font-size: 10px; line-height: 1.45; }
+  img { max-width: 100%; height: auto; display: block; margin: 8px 0; border: 1px solid #e5e7eb; border-radius: 6px; }
   table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 10.5px; }
   th, td { border: 1px solid #e5e7eb; padding: 5px 8px; text-align: left; vertical-align: top; }
   th { background: #f1f3f5; font-weight: 600; }
