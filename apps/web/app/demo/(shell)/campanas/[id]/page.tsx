@@ -173,7 +173,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
             <dl className="space-y-2 text-[13px]">
               <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
               <Fila
-                label="IVA (18%)"
+                label={`IVA (${c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16}%)`}
                 valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
                 mono
               />

@@ -263,7 +263,11 @@ function GenerarFacturaDialog({
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-muted">IVA (18%)</span>
+            <span className="text-muted">
+              IVA ({campana.presupuestoNeto
+                ? Math.round((((campana.presupuestoBruto ?? 0) - campana.presupuestoNeto) / campana.presupuestoNeto) * 100)
+                : 16}%)
+            </span>
             <span className="demo-num text-ink">
               {campana.presupuestoNeto != null && campana.presupuestoBruto != null
                 ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)
