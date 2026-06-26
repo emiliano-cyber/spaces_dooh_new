@@ -75,6 +75,20 @@ Catálogo con datos fiscales (RFC, razón social, régimen, CP, uso CFDI) e **IV
 
 ---
 
+## 5b. Comisiones (Dueño, Comercial)
+
+Pantalla dedicada para **ajustar la comisión** en un solo lugar:
+
+- **Agencias y su comisión:** edita la **comisión (%)** de cada agencia (escribe el valor y **Guardar**). Muestra el estado de la **negociación** con un botón **Validar** (o *Quitar*) y cuántos clientes tiene asociados.
+- **Clientes y su agencia:** asigna a cada cliente directo su **agencia**; la columna **Comisión aplicada** muestra la comisión que hereda de esa agencia.
+
+> La comisión es **por agencia**. Si la negociación de una agencia no está validada, no se pueden crear ni aprobar propuestas con ella (ver §6).
+
+![Comisiones](manual-shots/17-comisiones.png)
+*Ajuste de comisión por agencia y asignación de agencia por cliente.*
+
+---
+
 ## 6. Propuestas (Dueño, Comercial)
 
 Cotizaciones por el **método del divisor** (precio de lista bruto → neto según comisión de agencia).
