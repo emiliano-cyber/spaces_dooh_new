@@ -79,6 +79,7 @@ Catálogo con datos fiscales (RFC, razón social, régimen, CP, uso CFDI) e **IV
 
 Pantalla dedicada para **ajustar la comisión** en un solo lugar:
 
+- **Nueva agencia:** botón para dar de alta una agencia (cliente tipo Agencia) con su **comisión** y, si aplica, su **negociación**, sin salir de esta pantalla.
 - **Agencias y su comisión:** edita la **comisión (%)** de cada agencia (escribe el valor y **Guardar**). Muestra el estado de la **negociación** con un botón **Validar** (o *Quitar*) y cuántos clientes tiene asociados.
 - **Clientes y su agencia:** asigna a cada cliente directo su **agencia**; la columna **Comisión aplicada** muestra la comisión que hereda de esa agencia.
 

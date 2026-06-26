@@ -1,17 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users } from 'lucide-react'
+import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, type Cliente } from '@/lib/data/client'
-import { actualizarClienteApi } from '@/lib/data/estado-api'
+import { actualizarClienteApi, crearClienteApi } from '@/lib/data/estado-api'
 
 const inputCls =
   'h-8 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 const selectCls =
   'h-8 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+const fieldCls =
+  'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 // Pantalla de ajuste de comisiones: la comisión es por AGENCIA. Aquí se ajusta
 // la comisión de cada agencia (y su negociación) y se asigna la agencia a cada
@@ -19,6 +22,7 @@ const selectCls =
 export default function ComisionesPage() {
   const clientes = useClientes()
   const puede = usePuede('comercial', 'crear')
+  const [nuevaOpen, setNuevaOpen] = useState(false)
 
   if (!clientes) {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
@@ -43,14 +47,21 @@ export default function ComisionesPage() {
 
       {/* Agencias: comisión + negociación */}
       <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted" />
-          <CardTitle>Agencias y su comisión</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-muted" />
+            <CardTitle>Agencias y su comisión</CardTitle>
+          </div>
+          {puede && (
+            <Button size="sm" onClick={() => setNuevaOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> Nueva agencia
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {agencias.length === 0 ? (
             <p className="text-[13px] text-muted">
-              No hay clientes tipo «Agencia». Crea uno en Clientes para ajustar su comisión.
+              Aún no hay agencias. Usa «Nueva agencia» para crear una.
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -108,7 +119,100 @@ export default function ComisionesPage() {
           )}
         </CardContent>
       </Card>
+
+      {nuevaOpen && <NuevaAgenciaDialog onClose={() => setNuevaOpen(false)} />}
     </div>
+  )
+}
+
+// ─── Alta de agencia (cliente tipo AGENCIA) ──────────────────────────────────
+function NuevaAgenciaDialog({ onClose }: { onClose: () => void }) {
+  const [nombre, setNombre] = useState('')
+  const [comision, setComision] = useState('0')
+  const [tieneNeg, setTieneNeg] = useState(false)
+  const [negValidada, setNegValidada] = useState(false)
+  const [nota, setNota] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function guardar() {
+    if (!nombre.trim()) return
+    setGuardando(true)
+    setError(null)
+    try {
+      await crearClienteApi({
+        nombre: nombre.trim(),
+        tipo: 'AGENCIA',
+        comisionAgenciaPct: Number(comision) || 0,
+        tieneNegociacion: tieneNeg,
+        negociacionValidada: tieneNeg ? negValidada : false,
+        negociacionNota: tieneNeg ? (nota.trim() || null) : null,
+      })
+      onClose()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo crear la agencia')
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title="Nueva agencia"
+      subtitle="Alta de cliente tipo Agencia con su comisión"
+      footer={
+        <div className="flex items-center justify-between">
+          {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+              {guardando ? 'Guardando…' : 'Crear agencia'}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Nombre de la agencia</span>
+          <input className={fieldCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus placeholder="p. ej. Andina Media" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Comisión de la agencia (%)</span>
+          <input className={`demo-num ${fieldCls}`} value={comision} onChange={(e) => setComision(e.target.value)} placeholder="0" />
+        </label>
+
+        <div className="rounded-md border border-border bg-surface-2 p-3">
+          <label className="flex items-center gap-2 text-[13px] text-ink">
+            <input
+              type="checkbox"
+              checked={tieneNeg}
+              onChange={(e) => { setTieneNeg(e.target.checked); if (!e.target.checked) setNegValidada(false) }}
+              className="h-4 w-4 accent-[var(--accent)]"
+            />
+            ¿Hay negociación con la agencia?
+          </label>
+          {tieneNeg && (
+            <div className="mt-3 space-y-2.5">
+              <textarea
+                className="min-h-[56px] w-full rounded border border-border-strong bg-surface px-3 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                placeholder="Términos negociados (comisión especial, condiciones de pago…)"
+              />
+              <label className="flex items-start gap-2 text-[13px]">
+                <input type="checkbox" checked={negValidada} onChange={(e) => setNegValidada(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[var(--accent)]" />
+                <span>
+                  <span className="font-medium text-ink">Negociación validada</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">Sin validar, no se pueden crear ni aprobar propuestas con esta agencia.</span>
+                </span>
+              </label>
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }
 
