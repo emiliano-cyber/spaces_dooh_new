@@ -38,7 +38,7 @@ Entra a **Inventario** (Dueño). Tiene tres pestañas:
 
 1. **Inventario (listado):** tabla con todas las pantallas y columnas **Pantalla, Tipo, Ubicación, Medio (Digital/Fija), Tarifa, Estatus, Propietario, Renta y "Cada cuándo" (periodicidad de pago)**. Tiene **buscador** (nombre/código/distrito). **Haz clic en una fila** para abrir la ficha del sitio.
 2. **Carga masiva:** sube un Excel/CSV con la plantilla para dar de alta muchas pantallas.
-3. **Alta manual:** formulario para registrar una pantalla, con la opción de **Computer Vision** (medición de audiencia/AdMobilize).
+3. **Alta manual:** formulario para registrar una pantalla. Incluye la **Exhibición** (**Fija** = impresa, o **Digital** = pantalla por spots) y la opción de **Computer Vision** (medición de audiencia/AdMobilize).
 
 ![Tabla de inventario](manual-shots/03-inventario-tabla.png)
 *Tabla de inventario con columnas (incluye Propietario, Renta y periodicidad). La fila es clicable para abrir la ficha.*

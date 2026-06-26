@@ -56,6 +56,7 @@ export function NuevaPantallaForm({
   const [lat, setLat] = useState('19.4326')
   const [lng, setLng] = useState('-99.1332')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
+  const [exhibicion, setExhibicion] = useState<'fijo' | 'digital'>('fijo')
   const [estado, setEstado] = useState<Sitio['estatusComercial']>('DISPONIBLE')
   // Tab 2
   const [resAncho, setResAncho] = useState('1920')
@@ -99,9 +100,12 @@ export function NuevaPantallaForm({
   async function submit() {
     if (!valido) return
     setEnviando(true)
+    const digital = exhibicion === 'digital'
     const s = await altaSitioApi({
       nombre: nombre.trim(),
       tipoMedio,
+      exhibicion,
+      esRotativo: digital,
       direccionPredio: direccion.trim(),
       direccionComercial: direccion.trim(),
       distrito: '',
@@ -171,6 +175,17 @@ export function NuevaPantallaForm({
             </Campo>
             <Campo label="Dirección">
               <input className={inputCls} value={direccion} onChange={(e) => setDireccion(e.target.value)} />
+            </Campo>
+            <Campo label="Exhibición">
+              <select className={inputCls} value={exhibicion} onChange={(e) => setExhibicion(e.target.value as 'fijo' | 'digital')}>
+                <option value="fijo">Fija (impresa)</option>
+                <option value="digital">Digital (pantalla)</option>
+              </select>
+              <span className="mt-1 block text-[11px] text-muted">
+                {exhibicion === 'digital'
+                  ? 'Pantalla digital: se comercializa por spots (ver pestaña Especificaciones).'
+                  : 'Pantalla fija: se imprime y se comercializa por periodo.'}
+              </span>
             </Campo>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Latitud"><input className={inputCls} value={lat} onChange={(e) => setLat(e.target.value)} /></Campo>
