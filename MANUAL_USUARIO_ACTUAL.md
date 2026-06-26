@@ -212,7 +212,19 @@ Bitácora de **quién hizo qué y cuándo**, con **filtros combinables**:
 
 - **Network:** sitios compartidos a la red programática.
 - **Integraciones:** AdMobilize / CMS / CFDI (simulados hasta tener llaves).
-- **Administración:** configuración del negocio y usuarios/roles.
+- **Administración:** usuarios, roles y la **Configuración** del negocio (siguiente sección).
+
+### Configuración / Ajustes del negocio (Administración → Configuración)
+
+La app es **multi-cliente**: cada empresa define aquí su identidad y parámetros, que se usan en toda la app:
+
+- **Logo** de la empresa (se muestra en el menú lateral) y **Nombre de la empresa**.
+- **IVA(s) con los que trabaja:** una o **varias** tasas (catálogo para facturar; el IVA aplicado se elige por cliente).
+- **Reproducción digital (loop):** **tamaño del loop** y **duración de cada spot** (en segundos). De ahí sale **cuántos spots tiene un loop** (loop ÷ spot), que se muestra al **apartar pantallas digitales** en campañas.
+- **Plazos de cobranza** y **tipos de tarea** de cuadrilla.
+
+![Configuración del negocio](manual-shots/18-ajustes.png)
+*Ajustes: logo, nombre, IVA(s) y parámetros de loop/spot para pantallas digitales.*
 
 ---
 

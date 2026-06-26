@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { reservarApi } from '@/lib/data/estado-api'
-import { formatMonto, type Sitio } from '@/lib/data/client'
+import { formatMonto, useConfigNegocio, type Sitio } from '@/lib/data/client'
 
 // Modal de reserva (Acto 3): captura cliente + fechas y crea una reserva
 // TENTATIVA sobre los sitios seleccionados. Llama a data.reservar (mock).
@@ -58,6 +58,8 @@ export function ReservaDialog({
   // el default es reservar todos los disponibles.
   const [spots, setSpots] = useState<Record<string, number>>({})
   const [enviando, setEnviando] = useState(false)
+  const config = useConfigNegocio()
+  const spotsPorLoop = config && config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
 
   const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
 
@@ -166,6 +168,16 @@ export function ReservaDialog({
             <option value="HIBRIDA">Híbrida — con imprenta</option>
           </select>
         </Campo>
+        {/* Estructura del loop digital (de Ajustes) — solo si hay pantallas digitales */}
+        {digitales > 0 && config && (
+          <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] px-3 py-2 text-[12px] text-ink">
+            Loop de <span className="demo-num font-medium">{config.loopSeg}s</span> · spot de{' '}
+            <span className="demo-num font-medium">{config.spotSeg}s</span> →{' '}
+            <span className="demo-num font-semibold">{spotsPorLoop}</span> spots por loop
+            <span className="ml-1 text-muted">(configurable en Administración → Configuración)</span>
+          </div>
+        )}
+
         <div className="rounded border border-border bg-surface-2 p-2.5">
           <ul className="space-y-2 text-[12px]">
             {sitios.map((s) => {

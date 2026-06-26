@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -252,6 +252,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const [config, setConfig] = useState<ConfigNegocio | null>(null)
   const [nuevoPlazo, setNuevoPlazo] = useState('')
   const [nuevoTipo, setNuevoTipo] = useState('')
+  const [nuevoIva, setNuevoIva] = useState('')
   useEffect(() => { getConfigApi().then(setConfig) }, [])
 
   async function guardar(cambios: Partial<ConfigNegocio>, msg?: string) {
@@ -259,21 +260,108 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
     setConfig(c)
     if (msg) onToast(msg)
   }
+
+  function subirLogo(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    if (f.size > 1.5 * 1024 * 1024) { onToast('El logo supera 1.5 MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => guardar({ logoUrl: reader.result as string }, 'Logo actualizado')
+    reader.readAsDataURL(f)
+  }
+
   if (!config) return <div className="h-64 animate-pulse rounded-md bg-surface-2" />
+
+  const spotsPorLoop = config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
 
   return (
     <div className="space-y-4">
       <Card>
-        <CardHeader className="flex flex-row items-center gap-2"><Building2 className="h-4 w-4 text-muted" /><CardTitle>Identidad del negocio</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center gap-2"><Building2 className="h-4 w-4 text-muted" /><CardTitle>Identidad de la empresa</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <Campo label="Nombre del tenant">
+          {/* Logo */}
+          <Campo label="Logo">
+            <div className="flex items-center gap-3">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
+                {config.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={config.logoUrl} alt="logo" className="h-full w-full object-contain" />
+                ) : (
+                  <Building2 className="h-6 w-6 text-muted" />
+                )}
+              </div>
+              <div className="flex gap-2">
+                <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink hover:bg-surface-2">
+                  <Upload className="h-3.5 w-3.5" /> Subir logo
+                  <input type="file" accept="image/*" className="hidden" onChange={subirLogo} />
+                </label>
+                {config.logoUrl && (
+                  <Button size="sm" variant="secondary" onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}>Quitar</Button>
+                )}
+              </div>
+            </div>
+            <span className="mt-1 block text-[11px] text-muted">Se muestra en el menú lateral. PNG/JPG, máx. 1.5 MB.</span>
+          </Campo>
+
+          <Campo label="Nombre de la empresa">
             <input className={inputCls} value={config.nombreTenant}
               onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
               onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
           </Campo>
           <Campo label="Moneda">
-            <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">S/ · Sol peruano (PEN)</div>
+            <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
           </Campo>
+        </CardContent>
+      </Card>
+
+      {/* IVA(s) con los que trabaja */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2"><Percent className="h-4 w-4 text-muted" /><CardTitle>IVA(s) con los que trabaja</CardTitle></CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-2">
+            {config.ivaTasas.map((p) => (
+              <span key={p} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-[13px] text-ink">
+                <span className="demo-num">{p}%</span>
+                <button type="button" disabled={config.ivaTasas.length <= 1}
+                  onClick={() => guardar({ ivaTasas: config.ivaTasas.filter((x) => x !== p) })}
+                  className="text-muted hover:text-error disabled:opacity-30"><X className="h-3.5 w-3.5" /></button>
+              </span>
+            ))}
+            <div className="inline-flex items-center gap-1">
+              <input type="number" value={nuevoIva} onChange={(e) => setNuevoIva(e.target.value)} placeholder="%"
+                className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent" />
+              <Button size="sm" variant="secondary" onClick={() => {
+                const nx = Number(nuevoIva)
+                if (nx >= 0 && !config.ivaTasas.includes(nx)) guardar({ ivaTasas: [...config.ivaTasas, nx].sort((a, b) => a - b) }, `IVA ${nx}% agregado`)
+                setNuevoIva('')
+              }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-muted">Las tasas disponibles para facturar. El IVA aplicado se elige por cliente.</p>
+        </CardContent>
+      </Card>
+
+      {/* Reproducción digital (loop y spot) */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2"><MonitorPlay className="h-4 w-4 text-muted" /><CardTitle>Reproducción digital (loop)</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Campo label="Tamaño del loop (seg)">
+              <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.loopSeg}
+                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.loopSeg) guardar({ loopSeg: v }, 'Loop actualizado') }} />
+            </Campo>
+            <Campo label="Duración de spot (seg)">
+              <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.spotSeg}
+                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.spotSeg) guardar({ spotSeg: v }, 'Spot actualizado') }} />
+            </Campo>
+            <Campo label="Spots por loop">
+              <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] font-semibold text-ink">{spotsPorLoop}</div>
+            </Campo>
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            Determina cuántos spots tiene un loop (loop ÷ spot). Se usa al apartar pantallas digitales en campañas.
+          </p>
         </CardContent>
       </Card>
 

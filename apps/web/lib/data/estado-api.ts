@@ -34,6 +34,7 @@ export async function refrescarEstado(): Promise<void> {
     propuestas: e.propuestas ?? [],
     ordenesCompra: e.ordenesCompra ?? [],
     notificaciones: e.notificaciones ?? [],
+    ...(e.configNegocio ? { configNegocio: e.configNegocio } : {}),
   })
 }
 

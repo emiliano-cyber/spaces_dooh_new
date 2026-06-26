@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Radio, ExternalLink, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { TOKEN_TELCO } from '@/lib/data/client'
+import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
@@ -14,6 +14,7 @@ import { useMenuMovil } from './MenuMovilContext'
 function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
   const pathname = usePathname()
   const { sesion } = useSesionCtx()
+  const config = useConfigNegocio()
   const rol = sesion?.usuario.rol ?? 'DUENO'
 
   // Cliente externo: no ve módulos internos, sólo su portal.
@@ -33,12 +34,19 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
   return (
     <>
       <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
-          <Radio className="h-4 w-4" />
-        </span>
-        <div className="leading-tight">
-          <div className="font-display text-[15px] font-bold text-ink">Spaces</div>
-          <div className="text-[10px] text-muted">Billboards Perú SA</div>
+        {config?.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={config.logoUrl} alt="logo" className="h-7 w-7 shrink-0 rounded object-contain" />
+        ) : (
+          <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
+            <Radio className="h-4 w-4" />
+          </span>
+        )}
+        <div className="min-w-0 leading-tight">
+          <div className="truncate font-display text-[15px] font-bold text-ink">
+            {config?.nombreTenant ?? 'Spaces'}
+          </div>
+          <div className="text-[10px] text-muted">Spaces OS</div>
         </div>
       </div>
 
