@@ -23,6 +23,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
+import { MapView, type MapPoint } from '@/components/demo/MapView'
+import { pinTono } from '@/components/demo/StatusBadge'
 import { trailFromLocation } from '@/lib/nav-trail'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
@@ -124,6 +126,12 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return { monto: con.montoRenta, periodicidad: con.periodicidad, propietario: arr?.nombre ?? '—' }
   }
   const rentaTotal = p.items.reduce((s, it) => s + (rentaDe(it.sitioId)?.monto ?? 0), 0)
+
+  // Puntos del mapa: ubicación de cada pantalla de la propuesta.
+  const puntos: MapPoint[] = p.items.flatMap((it) => {
+    const s = sitios?.find((x) => x.id === it.sitioId)
+    return s ? [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }] : []
+  })
 
   async function cambiar(estatus: EstPropuesta) {
     try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
@@ -286,6 +294,22 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Mapa con la ubicación de las pantallas */}
+      <Card>
+        <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-[360px] w-full overflow-hidden rounded border border-border">
+            {puntos.length ? (
+              <MapView points={puntos} zoom={11} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-[13px] text-muted">
+                Sin coordenadas para mostrar en el mapa.
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

@@ -104,7 +104,7 @@ export async function obtenerPropuestaPublica(codigo: string) {
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
-    ? await q<any>('select id, nombre, alcaldia, tipo_medio from sitios where id = any($1::uuid[])', [sitioIds])
+    ? await q<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
     : []
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
@@ -127,6 +127,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
         sitioNombre: s?.nombre ?? it.sitioId,
         alcaldia: s?.alcaldia ?? null,
         tipoMedio: s?.tipo_medio ?? null,
+        lat: s?.lat != null ? Number(s.lat) : null,
+        lng: s?.lng != null ? Number(s.lng) : null,
         fechaInicio: it.fechaInicio,
         fechaFin: it.fechaFin,
         precio: it.precio,
