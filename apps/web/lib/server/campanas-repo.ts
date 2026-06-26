@@ -102,7 +102,16 @@ export async function listarCreatividades() {
   }))
 }
 
-const folio = () => `CAM-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
+// Folio de campaña: RGB + año + mes + día + 3 dígitos aleatorios, todo junto.
+// p. ej. RGB20260626482
+const folio = () => {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const rnd = String(randomBytes(2).readUInt16BE(0) % 1000).padStart(3, '0')
+  return `RGB${yyyy}${mm}${dd}${rnd}`
+}
 
 type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
 
