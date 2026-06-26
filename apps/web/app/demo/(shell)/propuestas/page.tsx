@@ -291,7 +291,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         <Campo label="Nombre de la propuesta">
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Cliente">
             <select
               className={inputCls}
@@ -339,7 +339,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
           <Campo label="Hasta"><input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>

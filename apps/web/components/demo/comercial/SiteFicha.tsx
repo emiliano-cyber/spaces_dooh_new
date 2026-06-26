@@ -509,7 +509,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Nombre">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
         </CampoEdit>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tipo de medio">
             <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
               {TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
@@ -527,7 +527,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Dirección comercial">
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
         </CampoEdit>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tarifa publicada (mensual)">
             <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>

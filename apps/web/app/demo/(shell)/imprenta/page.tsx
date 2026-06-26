@@ -259,7 +259,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
             className="w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink"
           />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Ancho (m)">
             <input
               type="number" inputMode="decimal" value={ancho}

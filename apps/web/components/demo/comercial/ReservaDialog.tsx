@@ -148,7 +148,7 @@ export function ReservaDialog({
             placeholder="p. ej. Lanzamiento Q3"
           />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Inicio">
             <input type="date" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
           </Campo>

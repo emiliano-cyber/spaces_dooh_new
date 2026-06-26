@@ -135,19 +135,19 @@ export function AltaSitioDialog({
           <Campo label="Dirección comercial">
             <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder="Dirección que se muestra" />
           </Campo>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label="Latitud"><input className={inputCls} value={lat} onChange={(e) => setLat(e.target.value)} /></Campo>
             <Campo label="Longitud"><input className={inputCls} value={lng} onChange={(e) => setLng(e.target.value)} /></Campo>
           </div>
         </Seccion>
 
         <Seccion titulo="Características del espacio">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Campo label="Ancho (m)"><input className={inputCls} value={ancho} onChange={(e) => setAncho(e.target.value)} /></Campo>
             <Campo label="Alto (m)"><input className={inputCls} value={alto} onChange={(e) => setAlto(e.target.value)} /></Campo>
           </div>
           {digital && (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Resolución (px)"><input className={inputCls} value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" /></Campo>
               <Campo label="Tipo de contenido">
                 <select className={inputCls} value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value as TipoContenido)}>

@@ -293,7 +293,7 @@ function NuevaOTModal({
             placeholder="p. ej. Montaje de lona en espectacular…"
           />
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
             <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>

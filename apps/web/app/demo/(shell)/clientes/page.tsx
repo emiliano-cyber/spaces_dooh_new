@@ -175,7 +175,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
         <Campo label="Nombre del cliente">
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Tipo">
             <select className={inputCls} value={tipo} onChange={(e) => setTipo(e.target.value)}>
               {TIPOS.map((t) => <option key={t} value={t}>{t === 'AGENCIA' ? 'Agencia' : 'Directo'}</option>)}
@@ -185,7 +185,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cuentas@cliente.com" />
           </Campo>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Teléfono">
             <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
           </Campo>
@@ -268,7 +268,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
             <Building2 className="h-4 w-4 text-info" /> Datos fiscales
           </div>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="RFC">
                 <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} placeholder="XAXX010101000" />
               </Campo>

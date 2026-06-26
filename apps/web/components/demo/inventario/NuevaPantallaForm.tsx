@@ -172,11 +172,11 @@ export function NuevaPantallaForm({
             <Campo label="Dirección">
               <input className={inputCls} value={direccion} onChange={(e) => setDireccion(e.target.value)} />
             </Campo>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Latitud"><input className={inputCls} value={lat} onChange={(e) => setLat(e.target.value)} /></Campo>
               <Campo label="Longitud"><input className={inputCls} value={lng} onChange={(e) => setLng(e.target.value)} /></Campo>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Tipo de pantalla">
                 <select className={inputCls} value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)}>
                   {TIPO_PANTALLA.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
@@ -192,7 +192,7 @@ export function NuevaPantallaForm({
 
           <TabPanel value="specs" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Especificaciones técnicas</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Resolución ancho (px)"><input className={inputCls} value={resAncho} onChange={(e) => setResAncho(e.target.value)} /></Campo>
               <Campo label="Resolución alto (px)"><input className={inputCls} value={resAlto} onChange={(e) => setResAlto(e.target.value)} /></Campo>
             </div>
@@ -210,7 +210,7 @@ export function NuevaPantallaForm({
             </div>
             <div className="rounded-md border border-border bg-surface-2 p-3">
               <div className="mb-2 text-[12px] font-medium text-ink">Configuración de spots</div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Campo label="Duración spot (s)"><input className={inputCls} value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} /></Campo>
                 <Campo label="Total spots"><input className={inputCls} value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} /></Campo>
                 <Campo label="Disponibles"><input className={inputCls} value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} /></Campo>
