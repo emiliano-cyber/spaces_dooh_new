@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { useClientes, type Cliente } from '@/lib/data/client'
+import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import { crearClienteApi, actualizarClienteApi, type ClienteInput } from '@/lib/data/estado-api'
 
 const inputCls =
@@ -96,6 +96,7 @@ export default function ClientesPage() {
 // ─── Alta / edición de cliente ───────────────────────────────────────────────
 function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () => void }) {
   const editando = !!cliente
+  const config = useConfigNegocio()
   const [nombre, setNombre] = useState(cliente?.nombre ?? '')
   const [rfc, setRfc] = useState(cliente?.rfc ?? '')
   const [razonSocial, setRazonSocial] = useState(cliente?.razonSocial ?? '')
@@ -110,6 +111,12 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   const [negociacionNota, setNegociacionNota] = useState(cliente?.negociacionNota ?? '')
   const [email, setEmail] = useState(cliente?.contacto?.email ?? '')
   const [telefono, setTelefono] = useState(cliente?.contacto?.telefono ?? '')
+  // Catálogo de IVA(s) de Ajustes + la tasa actual (por si no está en el catálogo).
+  const ivaOpciones = Array.from(
+    new Set([...(config?.ivaTasas ?? [16]), Number(ivaPct) || 16]),
+  )
+    .filter((n) => !Number.isNaN(n))
+    .sort((a, b) => a - b)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -190,8 +197,12 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           )}
         </div>
         <Campo label="IVA (%)">
-          <input className={inputCls} value={ivaPct} onChange={(e) => setIvaPct(e.target.value)} placeholder="16" />
-          <span className="mt-1 block text-[11px] text-muted">Se aplica al facturar y al presupuesto de sus campañas. México: 16%.</span>
+          <select className={inputCls} value={ivaPct} onChange={(e) => setIvaPct(e.target.value)}>
+            {ivaOpciones.map((t) => <option key={t} value={String(t)}>{t}%</option>)}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted">
+            Se elige del catálogo de IVAs (Administración → Configuración). Se aplica al facturar y al presupuesto de sus campañas.
+          </span>
         </Campo>
 
         {/* Negociación con la agencia (solo agencias) */}

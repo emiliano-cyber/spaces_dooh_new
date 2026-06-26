@@ -61,7 +61,7 @@ Es el centro de venta: **mapa + lista de inventario** con filtros (tipo, distrit
 
 ## 5. Clientes (Dueño, Comercial)
 
-Catálogo con datos fiscales (RFC, razón social, régimen, CP, uso CFDI) e **IVA (%)** por cliente.
+Catálogo con datos fiscales (RFC, razón social, régimen, CP, uso CFDI) e **IVA (%)** por cliente. El IVA se **elige de un selector** con las tasas del catálogo definido en **Ajustes** (Administración → Configuración).
 
 - **Tipo de cliente:** *Directo* o *Agencia*.
 - **La comisión es de la AGENCIA:** al crear/editar un cliente **tipo Agencia** capturas su **comisión (%)** y la **negociación**:
