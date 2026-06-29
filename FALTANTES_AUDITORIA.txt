@@ -1,0 +1,66 @@
+==============================================================================
+ SPACES OS — LO QUE FALTA (AUDITORÍA)
+ Rama: cierre/auditoria-completitud
+ Estado funcional: TODO EN VERDE (tipos, HTTP, BD, reglas de negocio, git).
+ Lo que sigue NO son fallas: son pendientes por DECISIÓN, EXTERNO o AUTORIZACIÓN.
+==============================================================================
+
+[ 1 ] PENDIENTE POR DECISIÓN (arquitectura / tenancy)
+------------------------------------------------------------------------------
+  - RLS / aislamiento multi-tenant real.
+      * Estado: 21 políticas "tenant_isolation" instaladas + tenant_id en 21
+        tablas, pero INERTES (la app conecta como superusuario; sin FORCE; no
+        se setea app.tenant_id por request).
+      * Falta: definir el modelo de tenancy (rol restringido por request +
+        app.tenant_id) y activar el enforcement.  -> Bloqueante #1 de producción.
+
+  - Despliegue / CI-CD / backups.
+      * Falta: pipeline de despliegue, integración continua y respaldos
+        automatizados (depende del modelo de tenancy anterior).
+
+[ 2 ] PENDIENTE POR EXTERNO (contratos / API keys)
+------------------------------------------------------------------------------
+  - Timbrado fiscal real (CFDI MX / SUNAT PE).
+      * Estado: el folio fiscal es SIMULADO (UUID); la factura exige RFC +
+        razón social y aplica el IVA del cliente, pero NO timbra legalmente.
+      * Falta: contratar un PAC y cablear el timbrado.
+
+  - Integraciones AdMobilize / CMS-DOOH (Broadsign/Invidis/Doohmain).
+      * Estado: STUBS detectados por entorno (datos simulados).
+      * Falta: contratos / API keys para métricas y proof-of-play reales.
+
+[ 3 ] REQUIERE AUTORIZACIÓN HUMANA (sin construir aún)
+------------------------------------------------------------------------------
+  - Storage de evidencias en DigitalOcean Spaces.
+      * Estado: implementado (storage.ts, columna foto_key) pero INACTIVO;
+        hoy las evidencias se guardan en base64 en la BD.
+      * Falta: activar el bucket de producción en el BFF y correr el backfill
+        base64 -> Spaces (script listo, no ejecutado).
+
+[ 4 ] CERRABLE POR CÓDIGO (opcional, contenido — no bloqueante)
+------------------------------------------------------------------------------
+  - Inmutabilidad de la bitácora.
+      * Estado: la tabla "acciones" registra usuario+acción+timestamp en cada
+        mutación, pero es MUTABLE.
+      * Falta (opcional): endurecerla (append-only / trigger anti-update).
+
+  - ESLint.
+      * Estado: existe el script "next lint" pero ESLint NO está configurado
+        (lanza el asistente de setup).
+      * Falta (opcional): configurar ESLint para tener lint en verde.
+
+==============================================================================
+ RESUMEN
+------------------------------------------------------------------------------
+   Funcionalidad de negocio:     ~95%  (cadena completa y conectada, verificada)
+   Listo para producción:        ~55-60%  (lo pendiente es infraestructura,
+                                            fiscal legal e integraciones externas)
+
+   Verificado (health check, read-only):
+     - tsc: 0 errores
+     - Rutas shell: 9/9 -> 200 ; pública folio/id/404 ; API sin sesión -> 401
+     - Migraciones: todas las columnas presentes ; tenant_id en 21 tablas
+     - Smoke E2E: 13/13 en verde
+     - Guards: DOOH->409, OOH->409, colisión->409, candado, gate negociación
+     - Git: working tree limpio, sin commits sin pushear
+==============================================================================
