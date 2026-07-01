@@ -254,7 +254,18 @@ export default function ComercialPage() {
               </li>
             ) : (
               filtrados.map((s) => {
-                const libre = s.estatusComercial === 'DISPONIBLE'
+                // Ocupación de una pantalla DIGITAL = por slots: es seleccionable
+                // mientras le queden slots libres (sin importar el flag heredado),
+                // y deja de serlo cuando llega a 0. Las estáticas van por estatus.
+                const esDigital =
+                  s.tipoMedio === 'PANTALLA_DIGITAL' ||
+                  s.esRotativo ||
+                  s.exhibicion === 'digital' ||
+                  s.exhibicion === 'rotativo'
+                const slotsLibres = s.spotsDisponibles ?? s.totalSpots ?? null
+                const libre = esDigital
+                  ? s.estatusComercial !== 'BLOQUEADO' && (slotsLibres == null || slotsLibres > 0)
+                  : s.estatusComercial === 'DISPONIBLE'
                 const sel = seleccion.has(s.id)
                 return (
                   <li

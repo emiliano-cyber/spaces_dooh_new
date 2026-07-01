@@ -236,6 +236,14 @@ export async function reservar(input: {
             `"${s?.nombre ?? 'La pantalla'}" ya está reservada en esas fechas por la campaña "${choque.campana}". Elige otras fechas u otra pantalla.`,
           )
         }
+      } else {
+        // Digital ocupada = sin slots libres → no acepta más campañas.
+        const dispNow = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
+        if (dispNow != null && dispNow <= 0) {
+          throw new Error(
+            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (ocupada). Elige otra pantalla.`,
+          )
+        }
       }
 
       // Spots reservados: solo digitales y solo si se pidió una cantidad (acotada
@@ -254,9 +262,16 @@ export async function reservar(input: {
       )
 
       if (digital && spotsReservados != null) {
-        // Descuenta spots; el sitio sigue disponible mientras le queden spots.
+        // Descuenta slots; la pantalla sigue DISPONIBLE mientras le queden slots
+        // y pasa a OCUPADO solo cuando se agotan (no debe aceptar más campañas).
         await client.query(
-          `update sitios set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2) where id=$1`,
+          `update sitios
+              set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2),
+                  estatus_comercial = (case
+                    when greatest(0, coalesce(spots_disponibles,0) - $2) <= 0 then 'OCUPADO'
+                    else 'DISPONIBLE'
+                  end)::est_comercial
+            where id=$1`,
           [sitioId, spotsReservados],
         )
       } else {
@@ -379,7 +394,17 @@ export async function confirmarReserva(campanaId: string) {
       [campanaId],
     )
     if (sitios.length) {
-      await client.query(`update sitios set estatus_comercial='OCUPADO' where id = any($1::uuid[])`, [sitios])
+      // Estáticas → OCUPADO al confirmar. Digitales → OCUPADO solo si ya no les
+      // quedan slots; si aún tienen, siguen DISPONIBLE para más campañas.
+      await client.query(
+        `update sitios set estatus_comercial='OCUPADO'
+           where id = any($1::uuid[])
+             and (
+               not (es_rotativo or exhibicion in ('digital','rotativo') or tipo_medio='PANTALLA_DIGITAL')
+               or coalesce(spots_disponibles, 0) <= 0
+             )`,
+        [sitios],
+      )
     }
     await client.query(`update campanas set estado_comercial='CONFIRMADA' where id=$1`, [campanaId])
     await recalcularPresupuesto(client, campanaId)
