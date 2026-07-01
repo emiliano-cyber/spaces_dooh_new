@@ -53,26 +53,26 @@ export function NuevaPantallaForm({
   // Tab 1
   const [nombre, setNombre] = useState('')
   const [direccion, setDireccion] = useState('')
-  const [lat, setLat] = useState('19.4326')
-  const [lng, setLng] = useState('-99.1332')
+  const [lat, setLat] = useState('')
+  const [lng, setLng] = useState('')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
   const [exhibicion, setExhibicion] = useState<'fijo' | 'digital'>('fijo')
   const [estado, setEstado] = useState<Sitio['estatusComercial']>('DISPONIBLE')
   // Tab 2
-  const [resAncho, setResAncho] = useState('1920')
-  const [resAlto, setResAlto] = useState('1080')
-  const [caras, setCaras] = useState('1')
+  const [resAncho, setResAncho] = useState('')
+  const [resAlto, setResAlto] = useState('')
+  const [caras, setCaras] = useState('')
   const [modalidades, setModalidades] = useState<string[]>(['Mensual'])
-  const [duracionSpot, setDuracionSpot] = useState('10')
-  const [totalSpots, setTotalSpots] = useState('100')
-  const [spotsDisp, setSpotsDisp] = useState('85')
+  const [duracionSpot, setDuracionSpot] = useState('')
+  const [totalSpots, setTotalSpots] = useState('')
+  const [spotsDisp, setSpotsDisp] = useState('')
   // Tab 3
   const [cv, setCv] = useState(false)
   const [admobilizeId, setAdmobilizeId] = useState('')
   const [verIA, setVerIA] = useState(false)
   // Tab 4
-  const [tarifa, setTarifa] = useState('15000')
-  const [costo, setCosto] = useState('9000')
+  const [tarifa, setTarifa] = useState('')
+  const [costo, setCosto] = useState('')
   const [precioM2, setPrecioM2] = useState('')
   // Tab 5
   const [imagen, setImagen] = useState<string | null>(null)
@@ -118,15 +118,15 @@ export function NuevaPantallaForm({
       comercializacion: 'TRADICIONAL',
       enNetwork: false,
       cms: null,
-      resolucionPx: `${resAncho}x${resAlto}`,
+      resolucionPx: resAncho && resAlto ? `${resAncho}x${resAlto}` : '',
       tipoContenido: null,
       estatusComercial: estado,
       costoCompra: Number(costo) || 0,
       caras: Number(caras) || 1,
       modalidades,
-      duracionSpotSeg: Number(duracionSpot) || null,
-      totalSpots: Number(totalSpots) || null,
-      spotsDisponibles: Number(spotsDisp) || null,
+      duracionSpotSeg: Number(duracionSpot) || (digital ? 20 : null),
+      totalSpots: Number(totalSpots) || (digital ? 12 : null),
+      spotsDisponibles: Number(spotsDisp) || (digital ? 12 : null),
       computerVision: cv,
       admobilizeId: cv ? admobilizeId.trim() : null,
       precioM2: precioM2 ? Number(precioM2) : null,
@@ -183,13 +183,13 @@ export function NuevaPantallaForm({
               </select>
               <span className="mt-1 block text-[11px] text-muted">
                 {exhibicion === 'digital'
-                  ? 'Pantalla digital: se comercializa por spots (ver pestaña Especificaciones).'
+                  ? 'Pantalla digital: se comercializa por slots (ver pestaña Especificaciones).'
                   : 'Pantalla fija: se imprime y se comercializa por periodo.'}
               </span>
             </Campo>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Latitud"><input className={inputCls} value={lat} onChange={(e) => setLat(e.target.value)} /></Campo>
-              <Campo label="Longitud"><input className={inputCls} value={lng} onChange={(e) => setLng(e.target.value)} /></Campo>
+              <Campo label="Latitud"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. 19.4326" /></Campo>
+              <Campo label="Longitud"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -99.1332" /></Campo>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Tipo de pantalla">
@@ -208,10 +208,10 @@ export function NuevaPantallaForm({
           <TabPanel value="specs" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Especificaciones técnicas</h3>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Resolución ancho (px)"><input className={inputCls} value={resAncho} onChange={(e) => setResAncho(e.target.value)} /></Campo>
-              <Campo label="Resolución alto (px)"><input className={inputCls} value={resAlto} onChange={(e) => setResAlto(e.target.value)} /></Campo>
+              <Campo label="Resolución ancho (px)"><input className={inputCls} inputMode="numeric" value={resAncho} onChange={(e) => setResAncho(e.target.value)} placeholder="Ej. 1920" /></Campo>
+              <Campo label="Resolución alto (px)"><input className={inputCls} inputMode="numeric" value={resAlto} onChange={(e) => setResAlto(e.target.value)} placeholder="Ej. 1080" /></Campo>
             </div>
-            <Campo label="Caras"><input className={inputCls} value={caras} onChange={(e) => setCaras(e.target.value)} /></Campo>
+            <Campo label="Caras"><input className={inputCls} inputMode="numeric" value={caras} onChange={(e) => setCaras(e.target.value)} placeholder="Ej. 1" /></Campo>
             <div>
               <span className="mb-1 block text-[12px] font-medium text-ink">Modalidades de contratación</span>
               <div className="grid grid-cols-2 gap-1.5">
@@ -224,11 +224,11 @@ export function NuevaPantallaForm({
               </div>
             </div>
             <div className="rounded-md border border-border bg-surface-2 p-3">
-              <div className="mb-2 text-[12px] font-medium text-ink">Configuración de spots</div>
+              <div className="mb-2 text-[12px] font-medium text-ink">Configuración de slots</div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <Campo label="Duración spot (s)"><input className={inputCls} value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} /></Campo>
-                <Campo label="Total spots"><input className={inputCls} value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} /></Campo>
-                <Campo label="Disponibles"><input className={inputCls} value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} /></Campo>
+                <Campo label="Duración por slot (s)"><input className={inputCls} inputMode="numeric" value={duracionSpot} onChange={(e) => setDuracionSpot(e.target.value)} placeholder="Ej. 20" /></Campo>
+                <Campo label="Total slots"><input className={inputCls} inputMode="numeric" value={totalSpots} onChange={(e) => setTotalSpots(e.target.value)} placeholder="Ej. 12" /></Campo>
+                <Campo label="Slots disponibles"><input className={inputCls} inputMode="numeric" value={spotsDisp} onChange={(e) => setSpotsDisp(e.target.value)} placeholder="Ej. 12" /></Campo>
               </div>
             </div>
           </TabPanel>
@@ -269,8 +269,8 @@ export function NuevaPantallaForm({
 
           <TabPanel value="precios" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Precios</h3>
-            <Campo label="Tarifa publicada"><input className={inputCls} value={tarifa} onChange={(e) => setTarifa(e.target.value)} /></Campo>
-            <Campo label="Costo de compra"><input className={inputCls} value={costo} onChange={(e) => setCosto(e.target.value)} /></Campo>
+            <Campo label="Tarifa publicada"><input className={inputCls} inputMode="numeric" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="Ej. 15000" /></Campo>
+            <Campo label="Costo de compra"><input className={inputCls} inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="Ej. 9000" /></Campo>
             <Campo label="Precio por m² (estáticas)">
               <input className={inputCls} value={precioM2} onChange={(e) => setPrecioM2(e.target.value)} placeholder="Se aplica a las estáticas del lote" />
             </Campo>

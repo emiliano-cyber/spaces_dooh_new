@@ -115,7 +115,13 @@ export function ReservaDialog({
             {totalSpotsReservados > 0 && (
               <>
                 {' · '}
-                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> spots
+                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> slots
+                {config && (
+                  <>
+                    {' · '}
+                    <span className="demo-num font-semibold text-ink">{config.spotSeg}s</span> c/u
+                  </>
+                )}
               </>
             )}
           </div>
@@ -171,9 +177,9 @@ export function ReservaDialog({
         {/* Estructura del loop digital (de Ajustes) — solo si hay pantallas digitales */}
         {digitales > 0 && config && (
           <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] px-3 py-2 text-[12px] text-ink">
-            Loop de <span className="demo-num font-medium">{config.loopSeg}s</span> · spot de{' '}
+            Loop de <span className="demo-num font-medium">{config.loopSeg}s</span> · slot de{' '}
             <span className="demo-num font-medium">{config.spotSeg}s</span> →{' '}
-            <span className="demo-num font-semibold">{spotsPorLoop}</span> spots por loop
+            <span className="demo-num font-semibold">{spotsPorLoop}</span> slots por loop
             <span className="ml-1 text-muted">(configurable en Administración → Configuración)</span>
           </div>
         )}
@@ -206,7 +212,7 @@ export function ReservaDialog({
                           }}
                           className="demo-num mx-1 h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         />{' '}
-                        de {disp} spots
+                        de {disp} slots
                       </span>
                       <span className="text-[11px] text-muted">
                         Quedan <span className="demo-num font-semibold text-ink">{quedan}</span>

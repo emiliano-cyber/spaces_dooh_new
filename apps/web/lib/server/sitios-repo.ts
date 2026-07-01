@@ -95,8 +95,8 @@ function valoresDe(s: any): unknown[] {
     s.lat ?? null, s.lng ?? null, s.pendienteVerificacion ?? false, s.ancho ?? null, s.alto ?? null,
     s.caras ?? 1, s.iluminado ?? false, s.orientacion ?? null, s.tipoEstructura ?? null,
     s.vista ?? null, s.tramo ?? null, s.resolucionPx ?? null, s.tipoContenido ?? null,
-    s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 10 : null),
-    s.totalSpots ?? (digital ? 100 : null), s.spotsDisponibles ?? (digital ? 85 : null),
+    s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 20 : null),
+    s.totalSpots ?? (digital ? 12 : null), s.spotsDisponibles ?? (digital ? 12 : null),
     s.horario ?? (digital ? '06:00-24:00' : null), s.computerVision ?? false, s.admobilizeId ?? null,
     s.tarifaPublicada ?? 0, s.tarifaPublicada ?? 0, s.costoCompra ?? 0, s.precioM2 ?? null,
     s.tarifaImpresion ?? null, s.comercializacion ?? 'TRADICIONAL', s.enNetwork ?? false, s.cms ?? null,
@@ -284,12 +284,9 @@ export async function importarSitios(args: {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'
       const esEstatica = !digital
-      // Total de spots (DOOH) = spots por hora × horas de operación (del horario).
+      // Slots por pantalla (DOOH): por default 12 por pantalla digital.
       // Inventario nuevo → disponibles = total (todo libre al darlo de alta).
-      const totalSpots =
-        digital && p.spots_por_hora != null
-          ? Math.max(1, Math.round(Number(p.spots_por_hora) * horasOperacion(p.horario)))
-          : null
+      const totalSpots = digital ? 12 : null
       const modalidadesDetalle = rows.map((r: any) => ({
         unidad: r.datos.unidad, tarifaPublicada: r.datos.tarifa_publicada, costoCompra: r.datos.costo_compra,
       }))
@@ -302,7 +299,7 @@ export async function importarSitios(args: {
         iluminado: p.iluminacion, exhibicion: p.exhibicion, esRotativo: p.es_rotativo,
         unidad: p.unidad, tipoEstructura: p.tipo_estructura, vista: p.vista, tramo: p.tramo,
         tarifaPublicada: p.tarifa_publicada, costoCompra: p.costo_compra, precioM2, tarifaImpresion,
-        spotsPorHora: p.spots_por_hora, duracionSpotSeg: p.duracion_spot_seg, horario: p.horario,
+        spotsPorHora: p.spots_por_hora, duracionSpotSeg: p.duracion_spot_seg ?? (digital ? 20 : null), horario: p.horario,
         totalSpots, spotsDisponibles: totalSpots,
         comercializacion: digital ? 'PROGRAMATICO' : 'TRADICIONAL',
         tipoContenido: digital ? 'VIDEO' : null, notas: p.notas, pendienteVerificacion: p.pendienteVerificacion,

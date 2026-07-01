@@ -131,7 +131,7 @@ function s(
     // costo de compra ~62% de la tarifa → margen ~38% (verde por regla SET)
     costoCompra: Math.round(tarifaMensual * 0.62),
     spotsPorHora: p.digital ? 6 : null,
-    duracionSpotSeg: p.digital ? 10 : null,
+    duracionSpotSeg: p.digital ? 20 : null,
     horario: p.digital ? '06:00–24:00' : null,
     // Alta de inventario / Network
     direccionPredio: direccion,
@@ -145,8 +145,8 @@ function s(
     cms: p.digital ? (_siteSeq % 2 === 0 ? 'BROADSIGN' : 'DOOHMAIN') : null,
     // Agregar inventario
     modalidades: [p.unidad === 'mensual' ? 'Mensual' : 'Catorcenal'],
-    totalSpots: p.digital ? 100 : null,
-    spotsDisponibles: p.digital ? 85 : null,
+    totalSpots: p.digital ? 12 : null,
+    spotsDisponibles: p.digital ? 12 : null,
     precioM2: null,
     tarifaImpresion: null,
     computerVision: false,
@@ -462,8 +462,8 @@ export function buildSeed(): DemoState {
       tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
       logoUrl: null,
       ivaTasas: [16],
-      loopSeg: 60,
-      spotSeg: 10,
+      loopSeg: 240,
+      spotSeg: 20,
     },
     sitios: [],
     arrendadores: [],

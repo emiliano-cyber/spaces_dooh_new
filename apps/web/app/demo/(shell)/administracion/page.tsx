@@ -351,16 +351,16 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.loopSeg}
                 onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.loopSeg) guardar({ loopSeg: v }, 'Loop actualizado') }} />
             </Campo>
-            <Campo label="Duración de spot (seg)">
+            <Campo label="Duración por slot (seg)">
               <input type="number" className={`demo-num ${inputCls}`} defaultValue={config.spotSeg}
-                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.spotSeg) guardar({ spotSeg: v }, 'Spot actualizado') }} />
+                onBlur={(e) => { const v = Math.max(1, Number(e.target.value) || 0); if (v !== config.spotSeg) guardar({ spotSeg: v }, 'Slot actualizado') }} />
             </Campo>
-            <Campo label="Spots por loop">
+            <Campo label="Slots por loop">
               <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] font-semibold text-ink">{spotsPorLoop}</div>
             </Campo>
           </div>
           <p className="mt-2 text-[11px] text-muted">
-            Determina cuántos spots tiene un loop (loop ÷ spot). Se usa al apartar pantallas digitales en campañas.
+            Determina cuántos slots tiene un loop (loop ÷ slot). Se usa al apartar pantallas digitales en campañas.
           </p>
         </CardContent>
       </Card>

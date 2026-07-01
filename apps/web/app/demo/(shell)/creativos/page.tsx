@@ -45,14 +45,14 @@ export default function CreativosPage() {
       <div>
         <h1 className="text-2xl text-ink">Creativos</h1>
         <p className="mt-1 text-[13px] text-muted">
-          Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada spot reservado.
+          Sube y aprueba las imágenes de cada campaña, y asigna cuál va en cada slot reservado.
         </p>
       </div>
 
       {visibles.length === 0 ? (
         <EmptyState
           icon={Images}
-          titulo="Sin campañas con spots o creativos"
+          titulo="Sin campañas con slots o creativos"
           detalle="Reserva sitios en Comercial o sube un creativo para gestionarlos aquí."
         />
       ) : (
@@ -278,9 +278,9 @@ function CampanaCard({
 
       {/* Spots reservados */}
       <div className="border-t border-border pt-3">
-        <div className="mb-2 text-[12px] font-medium text-muted">Spots reservados ({reservas.length})</div>
+        <div className="mb-2 text-[12px] font-medium text-muted">Slots reservados ({reservas.length})</div>
         {reservas.length === 0 ? (
-          <p className="text-[12px] text-muted">Sin spots reservados todavía.</p>
+          <p className="text-[12px] text-muted">Sin slots reservados todavía.</p>
         ) : (
           <ul className="space-y-3">
             {reservas.map((r) => {
@@ -361,7 +361,7 @@ function CampanaCard({
         )}
         {aprobados.length === 0 && reservas.length > 0 && (
           <p className="mt-2 text-[11px] text-muted">
-            Aprueba al menos un creativo para poder asignarlo a los spots.
+            Aprueba al menos un creativo para poder asignarlo a los slots.
           </p>
         )}
       </div>
