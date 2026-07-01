@@ -50,16 +50,16 @@ export function AltaSitioDialog({
   const [distrito, setDistrito] = useState('')
   const [direccionPredio, setDireccionPredio] = useState('')
   const [direccionComercial, setDireccionComercial] = useState('')
-  const [lat, setLat] = useState('-12.0900')
-  const [lng, setLng] = useState('-77.0400')
-  const [ancho, setAncho] = useState('12.9')
-  const [alto, setAlto] = useState('7.2')
+  const [lat, setLat] = useState('')
+  const [lng, setLng] = useState('')
+  const [ancho, setAncho] = useState('')
+  const [alto, setAlto] = useState('')
   const [iluminado, setIluminado] = useState(true)
-  const [tarifa, setTarifa] = useState('15000')
+  const [tarifa, setTarifa] = useState('')
   const [comercializacion, setComercializacion] = useState<Comercializacion>('TRADICIONAL')
   const [enNetwork, setEnNetwork] = useState(false)
   const [cms, setCms] = useState<CMS>('DOOHMAIN')
-  const [resolucionPx, setResolucionPx] = useState('1920x1080')
+  const [resolucionPx, setResolucionPx] = useState('')
   const [tipoContenido, setTipoContenido] = useState<TipoContenido>('VIDEO')
   const [enviando, setEnviando] = useState(false)
 
@@ -136,15 +136,15 @@ export function AltaSitioDialog({
             <input className={inputCls} value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} placeholder="Dirección que se muestra" />
           </Campo>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Latitud"><input className={inputCls} value={lat} onChange={(e) => setLat(e.target.value)} /></Campo>
-            <Campo label="Longitud"><input className={inputCls} value={lng} onChange={(e) => setLng(e.target.value)} /></Campo>
+            <Campo label="Latitud"><input className={inputCls} inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} placeholder="Ej. -12.0900" /></Campo>
+            <Campo label="Longitud"><input className={inputCls} inputMode="decimal" value={lng} onChange={(e) => setLng(e.target.value)} placeholder="Ej. -77.0400" /></Campo>
           </div>
         </Seccion>
 
         <Seccion titulo="Características del espacio">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Campo label="Ancho (m)"><input className={inputCls} value={ancho} onChange={(e) => setAncho(e.target.value)} /></Campo>
-            <Campo label="Alto (m)"><input className={inputCls} value={alto} onChange={(e) => setAlto(e.target.value)} /></Campo>
+            <Campo label="Ancho (m)"><input className={inputCls} inputMode="decimal" value={ancho} onChange={(e) => setAncho(e.target.value)} placeholder="Ej. 12.9" /></Campo>
+            <Campo label="Alto (m)"><input className={inputCls} inputMode="decimal" value={alto} onChange={(e) => setAlto(e.target.value)} placeholder="Ej. 7.2" /></Campo>
           </div>
           {digital && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -165,7 +165,7 @@ export function AltaSitioDialog({
 
         <Seccion titulo="Comercialización">
           <Campo label="Tarifa publicada ($)">
-            <input className={inputCls} value={tarifa} onChange={(e) => setTarifa(e.target.value)} />
+            <input className={inputCls} inputMode="numeric" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="Ej. 15000" />
           </Campo>
           <Campo label="Regla de comercialización">
             <div className="flex gap-2">

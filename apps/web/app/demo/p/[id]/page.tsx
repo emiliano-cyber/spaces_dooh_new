@@ -51,7 +51,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
 
   if (data === undefined) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="w-full px-6 py-10">
         <div className="h-64 animate-pulse rounded-md bg-surface-2" />
       </div>
     )
@@ -87,7 +87,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
     <div className="min-h-screen bg-bg">
       {/* Header público */}
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className="flex w-full items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
               <Radio className="h-4 w-4" />
@@ -101,7 +101,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+      <main className="w-full space-y-4 px-6 py-6">
         {/* Nombre + folio */}
         <div>
           <h1 className="text-2xl text-ink">{p.nombre}</h1>

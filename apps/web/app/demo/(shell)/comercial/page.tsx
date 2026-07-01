@@ -231,7 +231,7 @@ export default function ComercialPage() {
       </div>
 
       {/* Lista + Mapa */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[380px_1fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[440px_1fr]">
         {/* Lista */}
         <Card className="flex max-h-[560px] flex-col overflow-hidden">
           <div className="flex items-center justify-between border-b border-border px-3 py-2 text-[12px] text-muted">
@@ -260,7 +260,7 @@ export default function ComercialPage() {
                   <li
                     key={s.id}
                     className={cn(
-                      'flex items-center gap-2.5 border-b border-border px-3 py-2.5 transition-colors duration-150',
+                      'flex items-center gap-2.5 border-b border-border px-3 py-3 transition-colors duration-150',
                       activo === s.id ? 'bg-surface-2' : 'hover:bg-surface-2',
                     )}
                   >
@@ -285,8 +285,8 @@ export default function ComercialPage() {
                       onClick={() => abrirFicha(s.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <div className="truncate text-[13px] text-ink">{s.nombre}</div>
-                      <div className="demo-num text-[11px] text-muted">
+                      <div className="truncate text-[15px] font-medium text-ink">{s.nombre}</div>
+                      <div className="demo-num mt-0.5 text-[12.5px] text-muted">
                         {s.codigoProveedor} · {s.alcaldia} · {formatMonto(s.tarifaMensual)}
                         {(s.tipoMedio === 'PANTALLA_DIGITAL' ||
                           s.esRotativo ||
@@ -296,14 +296,14 @@ export default function ComercialPage() {
                             <>
                               {' · '}
                               <span className="text-ink">{s.spotsDisponibles ?? s.totalSpots}</span>/
-                              {s.totalSpots} spots libres
+                              {s.totalSpots} slots libres
                             </>
                           ) : s.spotsPorHora != null ? (
-                            <> · {s.spotsPorHora} spots/h</>
+                            <> · {s.spotsPorHora} slots/h</>
                           ) : null)}
                       </div>
-                      <div className="mt-0.5 inline-flex items-center gap-1 truncate text-[11px] text-muted">
-                        <UserRound className="h-3 w-3 shrink-0" />
+                      <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
+                        <UserRound className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin propietario'}</span>
                       </div>
                     </button>

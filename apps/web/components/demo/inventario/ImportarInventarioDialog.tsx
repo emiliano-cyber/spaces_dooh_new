@@ -51,7 +51,7 @@ export function ImportarInventarioDialog({
   inline?: boolean
 }) {
   const sitios = useSitios()
-  const [precioM2, setPrecioM2] = useState('65')
+  const [precioM2, setPrecioM2] = useState('')
   const [codificacion, setCodificacion] = useState('utf-8')
   const [filas, setFilas] = useState<FilaValidada[] | null>(null)
   const [archivoNombre, setArchivoNombre] = useState('')
@@ -180,6 +180,8 @@ export function ImportarInventarioDialog({
             <input
               value={precioM2}
               onChange={(e) => setPrecioM2(e.target.value)}
+              inputMode="numeric"
+              placeholder="65"
               className="h-9 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent demo-num"
             />
             <span className="text-[13px] text-muted">/m²</span>
