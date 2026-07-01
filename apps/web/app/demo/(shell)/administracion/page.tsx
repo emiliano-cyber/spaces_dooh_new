@@ -16,6 +16,7 @@ import {
   type Capacidad,
 } from '@/components/demo/admin/permisos'
 import { cn } from '@/lib/cn'
+import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
@@ -43,6 +44,9 @@ export default function AdministracionPage() {
         <h1 className="text-2xl text-ink">Administración</h1>
         <p className="mt-1 text-[13px] text-muted">Usuarios, roles y configuración del negocio</p>
       </div>
+
+      {/* Organizaciones (CRMs) — solo super-admin de plataforma */}
+      <OrganizacionesPanel />
 
       <Tabs
         defaultValue="usuarios"

@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { q, pool } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/ordenes-compra-repo.ts — Órdenes de compra del cliente (ODC).
@@ -27,7 +28,7 @@ function rowToOdc(r: any) {
 }
 
 export async function listarOrdenesCompra() {
-  const rows = await q('select * from ordenes_compra order by creado_en desc')
+  const rows = await q('select * from ordenes_compra where tenant_id = $1 order by creado_en desc', [await tenantActual()])
   return rows.map(rowToOdc)
 }
 
@@ -50,9 +51,9 @@ export async function crearOrdenCompra(
     const monto = input.monto ?? Number(camp.presupuesto_bruto ?? 0)
     const odc = (
       await client.query(
-        `insert into ordenes_compra (folio, campana_id, monto, estatus, documento_url, notas)
-         values ($1,$2,$3,'RECIBIDA',$4,$5) returning *`,
-        [folioODC(), campanaId, monto, input.documentoUrl ?? null, input.notas ?? null],
+        `insert into ordenes_compra (folio, campana_id, monto, estatus, documento_url, notas, tenant_id)
+         values ($1,$2,$3,'RECIBIDA',$4,$5,$6) returning *`,
+        [folioODC(), campanaId, monto, input.documentoUrl ?? null, input.notas ?? null, await tenantActual()],
       )
     ).rows[0]
     await client.query(

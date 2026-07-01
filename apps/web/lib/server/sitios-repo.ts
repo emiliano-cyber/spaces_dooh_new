@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { tenantActual } from './tenant'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -141,7 +142,7 @@ function horasOperacion(horario?: string | null): number {
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
-  const sitios = await q('select * from sitios order by creado_en asc')
+  const sitios = await q('select * from sitios where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
@@ -159,9 +160,9 @@ export async function getSitio(id: string): Promise<any | null> {
 async function insertarSitio(client: PoolClient, s: any): Promise<any> {
   // Autogenera código de proveedor si no viene (alta manual no lo pide).
   if (!s.codigoProveedor) s.codigoProveedor = 'S-' + randomBytes(3).toString('hex').toUpperCase()
-  const cols = COLS.join(', ')
-  const ph = COLS.map((_, i) => `$${i + 1}`).join(', ')
-  const { rows } = await client.query(`insert into sitios (${cols}) values (${ph}) returning *`, valoresDe(s))
+  const cols = [...COLS, 'tenant_id'].join(', ')
+  const ph = [...COLS, 'tenant_id'].map((_, i) => `$${i + 1}`).join(', ')
+  const { rows } = await client.query(`insert into sitios (${cols}) values (${ph}) returning *`, [...valoresDe(s), s.tenantId ?? (await tenantActual())])
   const row = rows[0]
   const mods: any[] = s.modalidadesDetalle ?? []
   for (const m of mods) {

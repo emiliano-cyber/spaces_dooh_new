@@ -1,5 +1,6 @@
 import 'server-only'
 import { q, q1 } from './db'
+import { tenantActual } from './tenant'
 import { hashPassword } from './auth'
 
 // ============================================================================
@@ -15,18 +16,19 @@ function rowToUsuario(r: any) {
 }
 
 export async function listarUsuarios() {
-  const rows = await q('select id, nombre, email, cargo, rol::text as rol, activo, creado_en from usuarios order by creado_en asc')
+  const rows = await q('select id, nombre, email, cargo, rol::text as rol, activo, creado_en from usuarios where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToUsuario)
 }
 
 export async function crearUsuario(input: {
-  nombre: string; email: string; cargo?: string; rol?: string; password?: string
+  nombre: string; email: string; cargo?: string; rol?: string; password?: string; tenantId?: string | null
 }) {
   const hash = await hashPassword(input.password || 'spaces123')
+  const tenantId = input.tenantId ?? (await tenantActual())
   const rows = await q(
-    `insert into usuarios (nombre, email, cargo, rol, password_hash, activo)
-     values ($1,$2,$3,$4,$5,true) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`,
-    [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash],
+    `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
+     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`,
+    [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId],
   )
   return rowToUsuario(rows[0])
 }
