@@ -14,6 +14,28 @@ import {
 import { useCampanas, useCreatividades, useReservas, useSitios } from '@/lib/data/client'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 
+// Convierte una imagen subida (data URL) en un creativo HTML para el player
+// DOOH: incrusta el <img> a pantalla completa (contain, fondo negro). Así todas
+// las imágenes se guardan/sirven como HTML (formato text/html), no como imagen.
+function imagenAHtml(dataUrl: string, nombre: string): string {
+  const alt = (nombre || 'creativo').replace(/[<>&"]/g, ' ').trim()
+  return (
+    '<!doctype html><html><head><meta charset="utf-8">' +
+    '<style>html,body{margin:0;padding:0;height:100%;background:#000}</style></head>' +
+    '<body><div style="width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden">' +
+    `<img src="${dataUrl}" alt="${alt}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block"/>` +
+    '</div></body></html>'
+  )
+}
+
+// Si un creativo HTML es una imagen envuelta (ver imagenAHtml), devuelve su data
+// URL para mostrarlo como imagen en previews/miniaturas; si no, null.
+function imagenDeCodigo(codigo?: string | null): string | null {
+  if (!codigo) return null
+  const m = codigo.match(/<img[^>]+src="(data:image\/[^"]+)"/i)
+  return m ? m[1] : null
+}
+
 // Pantalla de creativos (debajo de Comercial): subir/aprobar imágenes por
 // campaña y asignar cuál se exhibe en cada spot reservado.
 export default function CreativosPage() {
@@ -105,11 +127,13 @@ function CampanaCard({
     const reader = new FileReader()
     reader.onload = async () => {
       try {
+        // Toda imagen subida se convierte a un creativo HTML (no se guarda como imagen).
+        const dataUrl = reader.result as string
         await crearCreatividadApi({
           campanaId: campana.id,
           nombre: f.name,
-          archivoUrl: reader.result as string,
-          formato: f.type,
+          codigo: imagenAHtml(dataUrl, f.name),
+          formato: 'text/html',
         })
       } catch (err) {
         alert(err instanceof Error ? err.message : 'No se pudo subir')
@@ -229,9 +253,9 @@ function CampanaCard({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {creativos.map((cr) => (
               <div key={cr.id} className="overflow-hidden rounded-md border border-border">
-                {cr.archivoUrl ? (
+                {cr.archivoUrl || imagenDeCodigo(cr.codigo) ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={cr.archivoUrl} alt={cr.nombre} className="h-28 w-full object-cover" />
+                  <img src={cr.archivoUrl ?? imagenDeCodigo(cr.codigo)!} alt={cr.nombre} className="h-28 w-full object-cover" />
                 ) : cr.codigo ? (
                   <iframe
                     title={cr.nombre}
@@ -372,9 +396,10 @@ function CampanaCard({
 // Miniatura de un creativo: imagen si la hay, icono de código si es código,
 // o placeholder si no hay nada asignado.
 function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
-  if (cr?.archivoUrl) {
+  const img = cr?.archivoUrl ?? imagenDeCodigo(cr?.codigo)
+  if (img) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={cr.archivoUrl} alt="" className={`${className} shrink-0 rounded border border-border object-cover`} />
+    return <img src={img} alt="" className={`${className} shrink-0 rounded border border-border object-cover`} />
   }
   return (
     <span
