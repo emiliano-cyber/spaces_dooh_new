@@ -108,78 +108,78 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     setCerrando(false)
   }
 
-  // ─── Contenido común (descripción + checklist/fotos/geo o vista completada) ──
-  const contenido = (
-    <>
-      <div>
-        <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
-        {campana && <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>}
-        {sitio && (
-          <p className="mt-1 inline-flex items-center gap-1 text-[12px] text-muted">
-            <MapPin className="h-3.5 w-3.5" /> {sitio.direccion}
-          </p>
-        )}
-      </div>
-
-      {completada ? (
-        <CompletadaView
-          candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
-          evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
-        />
-      ) : (
-        <>
-          {puedeChecklist && (
-            <section>
-              <h2 className="mb-2 text-[13px] font-medium text-ink">Checklist</h2>
-              <ul className="space-y-1.5">
-                {ot.checklist.map((c: ChecklistItem, i: number) => (
-                  <li key={i}>
-                    <button
-                      type="button"
-                      onClick={() => setChecks((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150',
-                        checks[i] ? 'border-success/40 bg-[#10b9810d]' : 'border-border bg-surface',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
-                          checks[i] ? 'border-success bg-success text-white' : 'border-border-strong',
-                        )}
-                      >
-                        {checks[i] && <Check className="h-3 w-3" strokeWidth={3} />}
-                      </span>
-                      <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{c.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
-
-          <section>
-            <h2 className="mb-2 text-[13px] font-medium text-ink">Fotografía comprobatoria</h2>
-            <FotoUploaderMock fotos={fotos} onChange={setFotos} capture label="Tomar foto" />
-          </section>
-
-          <section>
-            <h2 className="mb-2 text-[13px] font-medium text-ink">Sello de ubicación</h2>
-            {geo ? (
-              <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-2.5 text-[13px]">
-                <MapPin className="h-4 w-4 text-success" />
-                <span className="demo-num text-ink">{geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}</span>
-                <span className="ml-auto text-[11px] text-muted">±8 m</span>
-              </div>
-            ) : (
-              <Button variant="secondary" className="w-full" onClick={capturarUbicacion}>
-                <MapPin className="h-4 w-4" /> Capturar ubicación
-              </Button>
-            )}
-          </section>
-        </>
+  // ─── Piezas de contenido (reutilizadas por la vista móvil y la de escritorio) ─
+  const cabecera = (
+    <div>
+      <h1 className="text-lg font-semibold text-ink">{ot.descripcion}</h1>
+      {campana && <p className="mt-0.5 text-[12px] text-muted">Campaña: {campana.nombre}</p>}
+      {sitio && (
+        <p className="mt-1 inline-flex items-center gap-1 text-[12px] text-muted">
+          <MapPin className="h-3.5 w-3.5" /> {sitio.direccion}
+        </p>
       )}
-    </>
+    </div>
+  )
+
+  const completadaView = (
+    <CompletadaView
+      candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
+      evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
+    />
+  )
+
+  const checklistSection = puedeChecklist ? (
+    <section>
+      <h2 className="mb-2 text-[13px] font-medium text-ink">Checklist</h2>
+      <ul className="space-y-1.5">
+        {ot.checklist.map((c: ChecklistItem, i: number) => (
+          <li key={i}>
+            <button
+              type="button"
+              onClick={() => setChecks((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-md border px-3 py-2.5 text-left transition-colors duration-150',
+                checks[i] ? 'border-success/40 bg-[#10b9810d]' : 'border-border bg-surface',
+              )}
+            >
+              <span
+                className={cn(
+                  'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border',
+                  checks[i] ? 'border-success bg-success text-white' : 'border-border-strong',
+                )}
+              >
+                {checks[i] && <Check className="h-3 w-3" strokeWidth={3} />}
+              </span>
+              <span className={cn('text-[13px]', checks[i] ? 'text-ink' : 'text-muted')}>{c.label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  ) : null
+
+  const fotoSection = (
+    <section>
+      <h2 className="mb-2 text-[13px] font-medium text-ink">Fotografía comprobatoria</h2>
+      <FotoUploaderMock fotos={fotos} onChange={setFotos} capture label="Tomar foto" />
+    </section>
+  )
+
+  const geoSection = (
+    <section>
+      <h2 className="mb-2 text-[13px] font-medium text-ink">Sello de ubicación</h2>
+      {geo ? (
+        <div className="flex items-center gap-2 rounded-md border border-success/40 bg-[#10b9810d] px-3 py-2.5 text-[13px]">
+          <MapPin className="h-4 w-4 text-success" />
+          <span className="demo-num text-ink">{geo.lat.toFixed(5)}, {geo.lng.toFixed(5)}</span>
+          <span className="ml-auto text-[11px] text-muted">±8 m</span>
+        </div>
+      ) : (
+        <Button variant="secondary" className="w-full" onClick={capturarUbicacion}>
+          <MapPin className="h-4 w-4" /> Capturar ubicación
+        </Button>
+      )}
+    </section>
   )
 
   const cerrarBtn = !completada ? (
@@ -199,7 +199,27 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     </>
   ) : null
 
-  // ─── Embebida en el shell (escritorio): conserva el menú izquierdo ──────────
+  const cerrarBox = cerrarBtn ? (
+    <div className="rounded-md border border-border bg-surface p-3">{cerrarBtn}</div>
+  ) : null
+
+  // ─── Contenido común (vista móvil: una sola columna) ─────────────────────────
+  const contenido = (
+    <>
+      {cabecera}
+      {completada ? (
+        completadaView
+      ) : (
+        <>
+          {checklistSection}
+          {fotoSection}
+          {geoSection}
+        </>
+      )}
+    </>
+  )
+
+  // ─── Embebida en el shell (escritorio): ancho completo y responsive ─────────
   if (embedded) {
     return (
       <div className="w-full space-y-4">
@@ -222,9 +242,29 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
           <StatusBadge tono={OT_TONO[ot.estatus as EstOT]}>{OT_LABEL[ot.estatus as EstOT]}</StatusBadge>
         </div>
 
-        <div className="max-w-2xl space-y-5">
-          {contenido}
-          {cerrarBtn && <div className="rounded-md border border-border bg-surface p-3">{cerrarBtn}</div>}
+        {/* Ancho completo: en pantallas grandes se divide en dos columnas. */}
+        <div className="w-full space-y-5">
+          {cabecera}
+          {completada ? (
+            completadaView
+          ) : puedeChecklist ? (
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
+              <div className="space-y-5">{checklistSection}</div>
+              <div className="space-y-5">
+                {fotoSection}
+                {geoSection}
+                {cerrarBox}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:items-start">
+              {fotoSection}
+              <div className="space-y-5">
+                {geoSection}
+                {cerrarBox}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )
