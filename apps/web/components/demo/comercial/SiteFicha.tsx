@@ -445,6 +445,12 @@ const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  // Una pantalla digital tiene inventario de slots editable.
+  const digital =
+    sitio.esRotativo ||
+    sitio.exhibicion === 'digital' ||
+    sitio.exhibicion === 'rotativo' ||
+    sitio.tipoMedio === 'PANTALLA_DIGITAL'
   const [nombre, setNombre] = useState(sitio.nombre)
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>(sitio.tipoMedio)
   const [alcaldia, setAlcaldia] = useState(sitio.alcaldia ?? '')
@@ -452,6 +458,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+  const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
   const [enviando, setEnviando] = useState(false)
 
@@ -464,6 +472,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setTarifa(String(sitio.tarifaPublicada ?? 0))
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
+    setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+    setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
   }, [sitio.id, open])
 
@@ -471,7 +481,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setEnviando(true)
     try {
       const tarifaNum = Number(tarifa) || 0
-      await actualizarSitioApi(sitio.id, {
+      const cambios: Record<string, unknown> = {
         nombre: nombre.trim(),
         tipoMedio,
         alcaldia: alcaldia.trim(),
@@ -482,7 +492,18 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         costoCompra: Number(costoCompra) || 0,
         estatusComercial,
         notas: notas.trim() || null,
-      })
+      }
+      // Cantidad de slots (solo digitales): ajusta los disponibles conservando
+      // los ya reservados (reservados = total anterior − disponibles anteriores).
+      if (digital && slots.trim() !== '') {
+        const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
+        const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
+        cambios.totalSpots = nuevoTotal
+        cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
+        const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
+        if (dur > 0) cambios.duracionSpotSeg = dur
+      }
+      await actualizarSitioApi(sitio.id, cambios)
       onClose()
     } catch (e) {
       alert(e instanceof Error ? e.message : 'No se pudo guardar')
@@ -535,6 +556,16 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             <input type="number" inputMode="decimal" value={costoCompra} onChange={(e) => setCostoCompra(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
         </div>
+        {digital && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CampoEdit label="Cantidad de slots">
+              <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Duración por slot (s)">
+              <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+          </div>
+        )}
         <CampoEdit label="Notas">
           <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={inputCls} />
         </CampoEdit>

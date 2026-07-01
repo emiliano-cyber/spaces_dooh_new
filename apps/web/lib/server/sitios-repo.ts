@@ -223,6 +223,8 @@ const CAMPO_COL: Record<string, string> = {
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
   vista: 'vista', tramo: 'tramo', tipoEstructura: 'tipo_estructura', horario: 'horario',
+  totalSpots: 'total_spots', spotsDisponibles: 'spots_disponibles',
+  duracionSpotSeg: 'duracion_spot_seg', spotsPorHora: 'spots_por_hora',
 }
 export async function actualizarSitio(id: string, cambios: Record<string, unknown>): Promise<any | null> {
   const sets: string[] = []
