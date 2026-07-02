@@ -10,12 +10,6 @@ import { landingDeRol } from '@/lib/data/client'
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-// Acceso rápido al usuario admin sembrado (contraseña spaces123). Los demás
-// usuarios se crean desde Administración → Invitar.
-const ACCESOS = [
-  { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño' },
-]
-
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -44,7 +38,7 @@ export default function LoginPage() {
           </span>
           <div className="leading-tight">
             <div className="font-display text-lg font-bold text-ink">Spaces</div>
-            <div className="text-[11px] text-muted">Billboards Perú SA</div>
+            <div className="text-[11px] text-muted">RGB Catorce S de RL de CV (PIXELED)</div>
           </div>
         </div>
 
@@ -85,31 +79,6 @@ export default function LoginPage() {
               <LogIn className="h-4 w-4" /> {enviando ? 'Entrando…' : 'Entrar'}
             </Button>
           </form>
-        </div>
-
-        {/* Acceso rápido (usuarios de prueba sembrados) */}
-        <div className="mt-5">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-            Acceso rápido (prueba · contraseña spaces123)
-          </p>
-          <ul className="space-y-1.5">
-            {ACCESOS.map((u) => (
-              <li key={u.email}>
-                <button
-                  type="button"
-                  disabled={enviando}
-                  onClick={() => entrar(u.email, 'spaces123')}
-                  className="group flex w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2 disabled:opacity-50"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-ink">{u.nombre}</span>
-                    <span className="block text-[11px] text-muted">{u.cargo}</span>
-                  </span>
-                  <LogIn className="h-4 w-4 text-muted" />
-                </button>
-              </li>
-            ))}
-          </ul>
         </div>
       </div>
     </div>

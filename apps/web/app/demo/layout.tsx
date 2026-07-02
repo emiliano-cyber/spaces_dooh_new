@@ -14,7 +14,7 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Spaces — Demo',
-  description: 'Demo Billboards Perú SA',
+  description: 'Demo RGB Catorce S de RL de CV (PIXELED)',
 }
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {

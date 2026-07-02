@@ -144,7 +144,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
         </Card>
 
         <p className="pb-4 text-center text-[11px] text-muted">
-          Spaces · portal de seguimiento · Billboards Perú SA
+          Spaces · portal de seguimiento · RGB Catorce S de RL de CV (PIXELED)
         </p>
       </main>
     </div>
