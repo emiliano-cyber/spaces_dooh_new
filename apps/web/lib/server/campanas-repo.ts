@@ -54,7 +54,7 @@ function rowToCliente(r: any) {
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }
 }
-function rowToCampana(r: any) {
+export function rowToCampana(r: any) {
   return {
     id: r.id, folio: r.folio, nombre: r.nombre, clienteId: r.cliente_id,
     propuestaId: r.propuesta_id ?? null,
@@ -73,7 +73,7 @@ function rowToCampana(r: any) {
     portalActivo: !!r.portal_activo, notas: r.notas, creadoEn: iso(r.creado_en),
   }
 }
-function rowToReserva(r: any) {
+export function rowToReserva(r: any) {
   return {
     id: r.id, campanaId: r.campana_id, sitioId: r.sitio_id,
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),

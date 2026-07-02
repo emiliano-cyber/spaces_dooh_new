@@ -12,7 +12,7 @@ import type { PoolClient } from 'pg'
 
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 
-function rowToSitio(r: any, modalidades: any[] = []): any {
+export function rowToSitio(r: any, modalidades: any[] = []): any {
   return {
     id: r.id,
     claveInterna: r.clave_interna,

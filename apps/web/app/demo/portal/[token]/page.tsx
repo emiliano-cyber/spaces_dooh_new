@@ -1,9 +1,11 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Radio, MapPin, CalendarDays, CircleHelp } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { hidratarPortalPublico } from '@/lib/data/estado-api'
 import {
   useCampanas,
   useReservas,
@@ -32,7 +34,13 @@ export default function PortalPage({ params }: { params: { token: string } }) {
   const ots = useOrdenesTrabajo()
   const evidencias = useEvidencias()
 
-  const cargando = campanas === undefined
+  // Liga pública: hidrata el store SOLO con los datos de esta campaña (por token,
+  // sin sesión), así cualquiera puede verla sin haber iniciado sesión.
+  const [cargando, setCargando] = useState(true)
+  useEffect(() => {
+    hidratarPortalPublico(params.token).finally(() => setCargando(false))
+  }, [params.token])
+
   const campana = campanas?.find((c) => c.portalToken === params.token && c.portalActivo) ?? null
   const pipeline = usePipeline(campana?.id ?? '')
 

@@ -13,7 +13,7 @@ import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string | null))
 
-function rowToOT(r: any) {
+export function rowToOT(r: any) {
   return {
     id: r.id, folio: r.folio, tipo: r.tipo, sitioId: r.sitio_id, campanaId: r.campana_id,
     descripcion: r.descripcion, instrucciones: r.instrucciones,
