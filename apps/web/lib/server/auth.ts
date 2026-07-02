@@ -102,8 +102,9 @@ export function cookieSesion(token: string) {
     value: token,
     httpOnly: true,
     sameSite: 'lax' as const,
-    // En producción (HTTPS) la cookie solo viaja por conexión segura.
-    secure: process.env.NODE_ENV === 'production',
+    // Secure requiere HTTPS. Se activa con COOKIE_SECURE=1 (cuando haya TLS);
+    // sobre HTTP se deja en false para no romper el login.
+    secure: process.env.COOKIE_SECURE === '1',
     path: '/',
     maxAge: SESSION_DAYS * 86_400,
   }
