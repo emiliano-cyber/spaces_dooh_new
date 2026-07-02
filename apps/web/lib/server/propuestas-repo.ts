@@ -249,6 +249,15 @@ export async function cambiarEstatusPropuesta(id: string, estatus: string) {
         `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
       )
     }
+    // Aprobar la propuesta = aceptar sus pantallas. Si no hay ítems marcados,
+    // se aprueban TODOS (la campaña se genera sobre todas las pantallas).
+    const aprob = await q1<{ n: string }>(
+      'select count(*)::text as n from propuesta_items where propuesta_id=$1 and aprobado=true',
+      [id],
+    )
+    if (Number(aprob?.n ?? 0) === 0) {
+      await q('update propuesta_items set aprobado=true where propuesta_id=$1', [id])
+    }
   }
   const rows = await q(
     `update propuestas set estatus=$2::est_propuesta where id=$1 returning *`,
