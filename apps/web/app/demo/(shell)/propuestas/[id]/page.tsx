@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -63,9 +65,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [copiado, setCopiado] = useState(false)
   const [copiadoCod, setCopiadoCod] = useState(false)
 
-  async function copiar(texto: string, marcar: (v: boolean) => void) {
+  async function copiar(texto: string, marcar: (v: boolean) => void, mensaje = 'Copiado') {
     try {
       await navigator.clipboard.writeText(texto)
+      toast.success(mensaje)
     } catch {
       window.prompt('Copia esto:', texto)
     }
@@ -75,7 +78,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
   // Copia la liga pública (solo lectura) para que cualquiera pueda ver la propuesta.
   function copiarLiga() {
-    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${id}`, setCopiado)
+    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${id}`, setCopiado, 'Liga de la propuesta copiada')
   }
 
   // Generar PDF: por ahora no hace nada (placeholder de UI).
@@ -134,17 +137,17 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   })
 
   async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function generarCampana() {
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(id)
       if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
-    } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
 
@@ -177,7 +180,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <Button size="sm" variant="secondary" onClick={copiarLiga}>
             {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => copiar(p.folio, setCopiadoCod)}>
+          <Button size="sm" variant="secondary" onClick={() => copiar(p.folio, setCopiadoCod, 'Código copiado')}>
             {copiadoCod ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><KeyRound className="h-3.5 w-3.5" /> Copiar código</>}
           </Button>
           <Button size="sm" variant="secondary" onClick={generarPdf}>

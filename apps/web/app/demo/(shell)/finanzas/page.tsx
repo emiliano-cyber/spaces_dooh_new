@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { CheckCircle2, FileText, Lock, Receipt } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -244,7 +245,7 @@ function GenerarFacturaDialog({
                 onDone('generada')
                 onClose()
               } catch (e) {
-                alert(e instanceof Error ? e.message : 'No se pudo generar la factura')
+                toast.error(e instanceof Error ? e.message : 'No se pudo generar la factura')
               }
               setEnviando(false)
             }}

@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import { Percent, Handshake, ShieldCheck, ShieldAlert, Building2, Users, Plus } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -238,7 +239,7 @@ function AgenciaRow({
     try {
       await actualizarClienteApi(agencia.id, input)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
     }
     setBusy(false)
   }
@@ -318,7 +319,7 @@ function ClienteRow({
     try {
       await actualizarClienteApi(cliente.id, { agenciaId })
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo asignar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo asignar')
     }
     setBusy(false)
   }

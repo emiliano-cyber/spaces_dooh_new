@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react'
@@ -85,18 +86,18 @@ function PropuestaCard({
   const [generando, setGenerando] = useState(false)
 
   async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function generarCampana() {
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(p.id)
       if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
-    } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
 
   return (

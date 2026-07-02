@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -90,7 +91,7 @@ export function NuevaPantallaForm({
     const f = e.target.files?.[0]
     if (!f) return
     if (f.size > 5 * 1024 * 1024) {
-      alert('La imagen supera 5MB')
+      toast.error('La imagen supera 5MB')
       return
     }
     setImagen(URL.createObjectURL(f))

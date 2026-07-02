@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { Lock, LockOpen, Check, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -49,7 +50,7 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
             try {
               await crearOrdenCompraApi({ campanaId })
             } catch (e) {
-              alert(e instanceof Error ? e.message : 'No se pudo registrar la OC')
+              toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
             }
             setEnviando(false)
           }}

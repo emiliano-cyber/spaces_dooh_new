@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import {
   Upload,
@@ -88,7 +89,7 @@ export function ImportarInventarioDialog({
     try {
       setFilas(await validarArchivo(f))
     } catch {
-      alert('No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.')
+      toast.error('No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.')
     }
     setLeyendo(false)
     setSummary(null)

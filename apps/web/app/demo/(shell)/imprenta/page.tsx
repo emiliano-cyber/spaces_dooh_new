@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Ruler, Plus, ChevronRight } from 'lucide-react'
@@ -53,7 +54,7 @@ export default function ImprentaPage() {
     try {
       await avanzarOrdenImpresionApi(id)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo avanzar la orden')
+      toast.error(e instanceof Error ? e.message : 'No se pudo avanzar la orden')
     }
     setAvanzando(null)
   }
@@ -132,7 +133,7 @@ export default function ImprentaPage() {
                         size="sm"
                         variant="secondary"
                         onClick={async () => {
-                          try { await aprobarPruebaColorApi(o.id, true) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+                          try { await aprobarPruebaColorApi(o.id, true) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
                         }}
                       >
                         Aprobar prueba de color
@@ -205,7 +206,7 @@ function NuevaOrdenDialog({ open, onClose }: { open: boolean; onClose: () => voi
       setCampanaId(''); setSitioId(''); setMaterial(''); setAncho(''); setAlto(''); setProveedor('')
       onClose()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo crear la orden')
+      toast.error(e instanceof Error ? e.message : 'No se pudo crear la orden')
     }
     setEnviando(false)
   }

@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { ShieldCheck, Send, Check, X, Clock, Images, Code2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -35,7 +36,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
     try {
       await enviarADominioApi(campanaId)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo enviar al dominio')
+      toast.error(e instanceof Error ? e.message : 'No se pudo enviar al dominio')
     }
     setBusy(false)
   }
@@ -50,7 +51,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
     try {
       await validarPublicacionApi(campanaId, aprobar, motivo)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo validar la publicación')
+      toast.error(e instanceof Error ? e.message : 'No se pudo validar la publicación')
     }
     setBusy(false)
   }

@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus } from 'lucide-react'
@@ -257,7 +258,7 @@ function NuevaOTModal({
       setSitioId('')
       setCampanaId('')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo crear la OT')
+      toast.error(e instanceof Error ? e.message : 'No se pudo crear la OT')
     }
     setEnviando(false)
   }

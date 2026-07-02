@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import {
   AlertTriangle,
@@ -132,7 +133,7 @@ export function SiteFicha({
       await borrarSitioApi(sitio.id)
       onOpenChange(false)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
     }
     setBorrando(false)
   }
@@ -506,7 +507,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
       await actualizarSitioApi(sitio.id, cambios)
       onClose()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
     }
     setEnviando(false)
   }

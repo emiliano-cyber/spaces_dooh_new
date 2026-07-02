@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useRef, useState } from 'react'
 import { Images, Upload, Check, X, Clock, Code2 } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
@@ -120,7 +121,7 @@ function CampanaCard({
     e.target.value = ''
     if (!f) return
     if (f.size > 5 * 1024 * 1024) {
-      alert('La imagen supera 5MB')
+      toast.error('La imagen supera 5MB')
       return
     }
     setSubiendo(true)
@@ -136,7 +137,7 @@ function CampanaCard({
           formato: 'text/html',
         })
       } catch (err) {
-        alert(err instanceof Error ? err.message : 'No se pudo subir')
+        toast.error(err instanceof Error ? err.message : 'No se pudo subir')
       }
       setSubiendo(false)
     }
@@ -157,7 +158,7 @@ function CampanaCard({
       setCodeNombre('')
       setCodeOpen(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'No se pudo guardar')
+      toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
     }
     setSubiendo(false)
   }
@@ -169,7 +170,7 @@ function CampanaCard({
     try {
       await validarCreatividadApi(id, aprobar, motivo)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo validar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo validar')
     }
     setBusy(null)
   }
@@ -180,7 +181,7 @@ function CampanaCard({
     try {
       await asignarCreativosApi(reserva.id, creativos)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo asignar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo asignar')
     }
     setBusy(null)
   }
