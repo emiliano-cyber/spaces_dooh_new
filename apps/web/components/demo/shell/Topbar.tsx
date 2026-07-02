@@ -76,7 +76,7 @@ export function Topbar() {
                   <button
                     type="button"
                     onClick={() => marcarTodasNotificacionesApi()}
-                    className="inline-flex items-center gap-1 text-[11px] text-info hover:underline"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-info transition-colors hover:bg-[#0a66ff14]"
                   >
                     <CheckCheck className="h-3.5 w-3.5" /> Marcar todas
                   </button>
