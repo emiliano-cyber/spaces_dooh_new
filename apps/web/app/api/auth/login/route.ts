@@ -1,12 +1,21 @@
 import { NextResponse } from 'next/server'
 import { q1 } from '@/lib/server/db'
 import { verifyPassword, crearSesion, cookieSesion, permisosDeRol } from '@/lib/server/auth'
+import { limitar, ipDe } from '@/lib/server/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // POST /api/auth/login  { email, password } → set cookie + { usuario, permisos }
 export async function POST(req: Request) {
+  // Anti fuerza bruta: máx. 10 intentos por IP cada 5 minutos.
+  const lim = limitar(`login:${ipDe(req)}`, 10, 5 * 60_000)
+  if (!lim.ok) {
+    return NextResponse.json(
+      { error: `Demasiados intentos. Espera ${lim.retrySeg}s e intenta de nuevo.` },
+      { status: 429, headers: { 'Retry-After': String(lim.retrySeg) } },
+    )
+  }
   let body: { email?: string; password?: string }
   try {
     body = await req.json()

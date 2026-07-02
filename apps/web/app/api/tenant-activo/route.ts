@@ -20,6 +20,6 @@ export async function POST(req: Request) {
   }
   const existe = (await listarTenants()).some((t) => t.id === tenantId)
   if (!existe) return NextResponse.json({ error: 'Organización no encontrada' }, { status: 404 })
-  res.cookies.set({ name: TENANT_COOKIE, value: tenantId, httpOnly: true, sameSite: 'lax', path: '/', maxAge: 30 * 86_400 })
+  res.cookies.set({ name: TENANT_COOKIE, value: tenantId, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 30 * 86_400 })
   return res
 }
