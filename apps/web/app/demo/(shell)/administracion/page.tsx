@@ -152,7 +152,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
         )}
       </CardContent>
 
-      <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n) => { onToast(`Usuario ${n} invitado (contraseña inicial: spaces123)`); cargar() }} />
+      <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n) => { onToast(`Usuario ${n} creado`); cargar() }} />
     </Card>
   )
 }
@@ -162,18 +162,19 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   const [email, setEmail] = useState('')
   const [cargo, setCargo] = useState('')
   const [rol, setRol] = useState<RolDemo>('COMERCIAL')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const valido = nombre.trim() && email.trim()
+  const valido = nombre.trim() && email.trim() && password.trim().length >= 6
 
   async function enviar() {
     setEnviando(true)
     setError(null)
     try {
-      await invitarUsuarioApi({ nombre: nombre.trim(), email: email.trim(), cargo: cargo.trim() || 'Miembro del equipo', rol })
+      await invitarUsuarioApi({ nombre: nombre.trim(), email: email.trim(), cargo: cargo.trim() || 'Miembro del equipo', rol, password: password.trim() })
       onInvitado(nombre.trim())
       onOpenChange(false)
-      setNombre(''); setEmail(''); setCargo('')
+      setNombre(''); setEmail(''); setCargo(''); setPassword('')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo invitar')
     }
@@ -181,13 +182,14 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   }
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Invitar usuario" subtitle="Se crea con contraseña inicial spaces123"
+    <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle="Define su acceso y contraseña"
       footer={<div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
       <div className="space-y-3">
         <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
-        <Campo label="Correo"><input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
+        <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
         <Campo label="Cargo"><input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} /></Campo>
         <Campo label="Rol"><select className={inputCls} value={rol} onChange={(e) => setRol(e.target.value as RolDemo)}>{ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></Campo>
+        <Campo label="Contraseña"><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 6 caracteres" /></Campo>
         {error && <p className="text-[12px] text-error">{error}</p>}
       </div>
     </Modal>

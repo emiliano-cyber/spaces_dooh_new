@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (!body?.nombre || !body?.email) {
     return NextResponse.json({ error: 'Nombre y correo requeridos' }, { status: 400 })
   }
+  if (!body?.password || String(body.password).length < 6) {
+    return NextResponse.json({ error: 'La contraseña es requerida (mínimo 6 caracteres)' }, { status: 400 })
+  }
   if (await emailExiste(body.email)) {
     return NextResponse.json({ error: 'Ya existe un usuario con ese correo' }, { status: 409 })
   }

@@ -22,7 +22,7 @@ export async function listarUsuariosApi(): Promise<UsuarioDemo[]> {
   return r.json()
 }
 export async function invitarUsuarioApi(input: {
-  nombre: string; email: string; cargo?: string; rol: RolDemo
+  nombre: string; email: string; cargo?: string; rol: RolDemo; password?: string
 }): Promise<UsuarioDemo> {
   return jsonOk(
     await fetch(`${API}/usuarios/`, {
