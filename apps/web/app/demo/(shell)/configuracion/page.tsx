@@ -8,6 +8,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { useConfigNegocio } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx, usePuede } from '@/components/demo/shell/SesionContext'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -83,6 +84,7 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   const hayCambio = (email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()) || password.length > 0
 
   async function guardar() {
+    if (email.trim() && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
     if (password && password.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return }
     setBusy(true)
     try {

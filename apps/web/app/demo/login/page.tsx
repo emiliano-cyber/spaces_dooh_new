@@ -6,6 +6,7 @@ import { Radio, LogIn, UserPlus } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { apiLogin } from '@/lib/auth-real'
 import { landingDeRol } from '@/lib/data/client'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -28,6 +29,7 @@ export default function LoginPage() {
   }
 
   async function onSubmit() {
+    if (esSignup && !esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
     try {

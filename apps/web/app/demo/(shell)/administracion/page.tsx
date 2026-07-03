@@ -16,6 +16,7 @@ import {
   type Capacidad,
 } from '@/components/demo/admin/permisos'
 import { cn } from '@/lib/cn'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import {
   listarUsuariosApi,
@@ -168,6 +169,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   const valido = nombre.trim() && email.trim() && password.trim().length >= 6
 
   async function enviar() {
+    if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
     try {

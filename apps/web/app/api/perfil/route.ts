@@ -3,6 +3,7 @@ import { usuarioActual, hashPassword } from '@/lib/server/auth'
 import { emailExiste } from '@/lib/server/usuarios-repo'
 import { q } from '@/lib/server/db'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,6 +19,9 @@ export async function PATCH(req: Request) {
 
   const nuevoEmail = typeof body?.email === 'string' ? body.email.trim() : ''
   if (nuevoEmail && nuevoEmail.toLowerCase() !== u.email.toLowerCase()) {
+    if (!esEmailValido(nuevoEmail)) {
+      return NextResponse.json({ error: EMAIL_INVALIDO }, { status: 400 })
+    }
     if (await emailExiste(nuevoEmail)) {
       return NextResponse.json({ error: 'Ese correo ya está en uso' }, { status: 409 })
     }
