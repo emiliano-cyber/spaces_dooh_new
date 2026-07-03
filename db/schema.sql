@@ -56,13 +56,16 @@ create type est_cobranza        as enum ('AL_CORRIENTE','POR_VENCER','VENCIDA','
 create table usuarios (
   id            uuid primary key default gen_random_uuid(),
   nombre        text not null,
-  email         text not null unique,
+  email         text not null,
   cargo         text,
   rol           rol_demo not null default 'COMERCIAL',
   password_hash text,                     -- bcrypt; null = aún sin contraseña
   activo        boolean not null default true,
   creado_en     timestamptz not null default now()
 );
+-- Correo ÚNICO e insensible a mayúsculas (el login usa lower(email)): no puede
+-- haber dos usuarios con el mismo correo aunque cambie la capitalización.
+create unique index if not exists usuarios_email_lower_uidx on usuarios (lower(email));
 
 -- Permisos por rol y módulo (V/C/A/F). Una fila por (rol, módulo, acción).
 create table rol_permisos (
