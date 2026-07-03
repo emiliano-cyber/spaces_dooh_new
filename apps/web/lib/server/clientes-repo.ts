@@ -1,5 +1,6 @@
 import 'server-only'
 import { q } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/clientes-repo.ts — CRUD de clientes con datos fiscales (RFC,
@@ -50,8 +51,8 @@ export interface ClienteInput {
 
 export async function crearCliente(input: ClienteInput) {
   const rows = await q(
-    `insert into clientes (nombre, rfc, razon_social, regimen_fiscal, cp_fiscal, uso_cfdi, iva_pct, comision_agencia_pct, agencia_id, tiene_negociacion, negociacion_validada, negociacion_nota, tipo, contacto)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning *`,
+    `insert into clientes (nombre, rfc, razon_social, regimen_fiscal, cp_fiscal, uso_cfdi, iva_pct, comision_agencia_pct, agencia_id, tiene_negociacion, negociacion_validada, negociacion_nota, tipo, contacto, tenant_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) returning *`,
     [
       input.nombre,
       input.rfc ?? null,
@@ -67,6 +68,7 @@ export async function crearCliente(input: ClienteInput) {
       input.negociacionNota ?? null,
       input.tipo ?? 'DIRECTO',
       JSON.stringify(input.contacto ?? {}),
+      await tenantActual(),
     ],
   )
   return rowToCliente(rows[0])

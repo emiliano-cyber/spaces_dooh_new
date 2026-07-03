@@ -17,6 +17,7 @@ export async function POST(req: Request) {
       filas: body.filas,
       modoDuplicado: body.modoDuplicado === 'NUEVA_VERSION' ? 'NUEVA_VERSION' : 'ACTUALIZAR',
       precioM2: body.precioM2 ?? null,
+      imagenes: body.imagenes && typeof body.imagenes === 'object' ? body.imagenes : undefined,
     })
     await registrarAccion(
       g.usuario,

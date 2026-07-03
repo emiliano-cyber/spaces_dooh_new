@@ -32,25 +32,11 @@ export function middleware(request: NextRequest) {
     ? pathname.slice(BASE_PATH.length) || '/'
     : pathname
 
-  // Auth, portal y la DEMO (/demo) son siempre públicos. La demo es 100% mock
-  // (sin backend) y debe abrirse sin login para la junta.
-  const isPublic =
-    normalizedPath.startsWith('/auth/') ||
-    normalizedPath.startsWith('/portal/') ||
-    normalizedPath === '/auth/login' ||
-    normalizedPath === '/demo' ||
-    normalizedPath.startsWith('/demo/') ||
-    normalizedPath.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.startsWith('/favicon')
-
-  // In development: skip subdomain logic, only enforce cookie guard
+  // Ruteo por subdominio (producción multi-subdominio): admin.x.com → /admin
   if (!isDev) {
     const subdomain = extractSubdomain(host)
     if (subdomain && moduleMap[subdomain]) {
       const url = request.nextUrl.clone()
-      // Rewrite internally: admin.example.com/foo → /admin/foo
-      // Use normalizedPath so the rewrite target doesn't double-include basePath
       if (!normalizedPath.startsWith(moduleMap[subdomain])) {
         url.pathname = BASE_PATH + moduleMap[subdomain] + normalizedPath
         return NextResponse.rewrite(url)
@@ -58,18 +44,25 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Cookie guard: require spaces_rt for protected routes
-  // In development, skip — the API runs on a different port (3001) so the
-  // browser never attaches the spaces_rt cookie to requests to port 3000.
-  // Auth is enforced at the layout level via sessionStorage instead.
-  if (!isDev && !isPublic) {
-    const hasSession = request.cookies.has('spaces_rt')
-    if (!hasSession) {
-      const loginUrl = request.nextUrl.clone()
-      // nextUrl already applies basePath on serialization — don't add it manually
-      loginUrl.pathname = '/auth/login'
-      return NextResponse.redirect(loginUrl)
-    }
+  // Rutas PÚBLICAS (sin sesión): el login, las ligas compartibles (propuesta
+  // /demo/p/… y portal de campaña /demo/portal/…), las APIs (que se auto-protegen)
+  // y los assets. Cualquier OTRA ruta exige haber iniciado sesión.
+  const publico =
+    normalizedPath.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/favicon') ||
+    normalizedPath === '/demo/login' ||
+    normalizedPath.startsWith('/demo/login/') ||
+    normalizedPath.startsWith('/demo/p/') ||
+    normalizedPath.startsWith('/demo/portal/') ||
+    normalizedPath.startsWith('/auth/') ||
+    normalizedPath.startsWith('/portal/')
+
+  // Gate: sin cookie de sesión → redirige al login (no expone ninguna otra ruta).
+  if (!publico && !request.cookies.has('spaces_sesion')) {
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/demo/login'
+    return NextResponse.redirect(loginUrl)
   }
 
   return NextResponse.next()

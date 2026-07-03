@@ -15,6 +15,7 @@ import {
   Users,
   FileText,
   Plug,
+  Percent,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -29,19 +30,24 @@ export interface NavItem {
   roles: RolDemo[]
 }
 
+// Orden = flujo real de creación:
+//   1) Dashboard · 2) Agregar inventario · 3) Campañas (fijos, arriba)
+//   Base de inventario → ciclo comercial → producción → operación → cobranza
+//   Últimos 3 (Integraciones · Actividad · Administración) se mantienen al final.
 export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/demo', icon: LayoutDashboard, roles: ['DUENO'] },
   { key: 'inventario', label: 'Agregar inventario', href: '/demo/inventario', icon: PackagePlus, roles: ['DUENO'] },
-  { key: 'comercial', label: 'Comercial', href: '/demo/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'] },
-  { key: 'creativos', label: 'Creativos', href: '/demo/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'campanas', label: 'Campañas', href: '/demo/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'] },
-  { key: 'clientes', label: 'Clientes', href: '/demo/clientes', icon: Users, roles: ['DUENO', 'COMERCIAL'] },
-  { key: 'propuestas', label: 'Propuestas', href: '/demo/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'] },
-  { key: 'network', label: 'Network', href: '/demo/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'arrendadores', label: 'Arrendadores', href: '/demo/arrendadores', icon: Building2, roles: ['DUENO'] },
-  { key: 'operaciones', label: 'Operaciones', href: '/demo/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'] },
+  { key: 'network', label: 'Network', href: '/demo/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'clientes', label: 'Clientes', href: '/demo/clientes', icon: Users, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'comercial', label: 'Comercial', href: '/demo/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'propuestas', label: 'Propuestas', href: '/demo/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'creativos', label: 'Creativos', href: '/demo/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'imprenta', label: 'Imprenta', href: '/demo/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'] },
+  { key: 'operaciones', label: 'Operaciones', href: '/demo/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'] },
   { key: 'finanzas', label: 'Finanzas', href: '/demo/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'] },
+  { key: 'comisiones', label: 'Comisiones', href: '/demo/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'integraciones', label: 'Integraciones', href: '/demo/integraciones', icon: Plug, roles: ['DUENO'] },
   { key: 'actividad', label: 'Actividad', href: '/demo/actividad', icon: History, roles: ['DUENO'] },
   { key: 'administracion', label: 'Administración', href: '/demo/administracion', icon: Settings, roles: ['DUENO'] },

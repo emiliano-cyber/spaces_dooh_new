@@ -102,6 +102,9 @@ export function cookieSesion(token: string) {
     value: token,
     httpOnly: true,
     sameSite: 'lax' as const,
+    // Secure requiere HTTPS. Se activa con COOKIE_SECURE=1 (cuando haya TLS);
+    // sobre HTTP se deja en false para no romper el login.
+    secure: process.env.COOKIE_SECURE === '1',
     path: '/',
     maxAge: SESSION_DAYS * 86_400,
   }

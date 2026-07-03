@@ -11,6 +11,10 @@ const config: Config = {
   content: [
     './app/demo/**/*.{ts,tsx}',
     './components/demo/**/*.{ts,tsx}',
+    // OTVista (vista de OT) vive fuera de /demo pero se usa en /demo/operaciones
+    // y /demo/m/ot; se incluye para que sus utilidades (p. ej. lg:grid-cols-2)
+    // se generen.
+    './components/operaciones/**/*.{ts,tsx}',
   ],
   corePlugins: {
     preflight: false,

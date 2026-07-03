@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import {
   Upload,
@@ -51,7 +52,7 @@ export function ImportarInventarioDialog({
   inline?: boolean
 }) {
   const sitios = useSitios()
-  const [precioM2, setPrecioM2] = useState('65')
+  const [precioM2, setPrecioM2] = useState('')
   const [codificacion, setCodificacion] = useState('utf-8')
   const [filas, setFilas] = useState<FilaValidada[] | null>(null)
   const [archivoNombre, setArchivoNombre] = useState('')
@@ -88,7 +89,7 @@ export function ImportarInventarioDialog({
     try {
       setFilas(await validarArchivo(f))
     } catch {
-      alert('No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.')
+      toast.error('No se pudo leer el archivo. Verifica que sea .xlsx o .csv válido.')
     }
     setLeyendo(false)
     setSummary(null)
@@ -102,22 +103,44 @@ export function ImportarInventarioDialog({
 
   function onImagenes(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    const map = { ...imagenes }
-    for (const f of files) {
-      if (f.size > 5 * 1024 * 1024) continue
-      map[f.name] = URL.createObjectURL(f)
-    }
-    setImagenes(map)
     e.target.value = ''
+    // Se leen como data URL (base64) para que persistan; el blob URL se perdería.
+    Promise.all(
+      files.map(
+        (f) =>
+          new Promise<[string, string] | null>((res) => {
+            if (f.size > 5 * 1024 * 1024) return res(null)
+            const reader = new FileReader()
+            reader.onload = () => res([f.name, reader.result as string])
+            reader.onerror = () => res(null)
+            reader.readAsDataURL(f)
+          }),
+      ),
+    ).then((pares) => {
+      setImagenes((prev) => {
+        const map = { ...prev }
+        for (const par of pares) if (par) map[par[0]] = par[1]
+        return map
+      })
+    })
   }
 
   async function procesar() {
     if (!filas) return
     setProcesando(true)
+    // Envía las imágenes por nombre de archivo (sin extensión, minúsculas). El
+    // servidor las asocia por nomenclatura: "codigo" (principal) o "codigo-N"
+    // (imagen N). Ej.: "S-ABC123.jpg", "S-ABC123-2.jpg" → sitio "S-ABC123".
+    const imagenesPorArchivo: Record<string, string> = {}
+    for (const [fn, dataUrl] of Object.entries(imagenes)) {
+      const clave = fn.replace(/\.[^.]+$/, '').trim().toLowerCase()
+      if (clave) imagenesPorArchivo[clave] = dataUrl
+    }
     const res = await importarSitiosApi({
       filas,
       modoDuplicado: modo,
       precioM2: precioM2 ? Number(precioM2) : null,
+      imagenes: Object.keys(imagenesPorArchivo).length ? imagenesPorArchivo : undefined,
     })
     setProcesando(false)
     setSummary(res)
@@ -180,6 +203,8 @@ export function ImportarInventarioDialog({
             <input
               value={precioM2}
               onChange={(e) => setPrecioM2(e.target.value)}
+              inputMode="numeric"
+              placeholder="65"
               className="h-9 w-20 rounded border border-border-strong bg-surface px-2 text-right text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent demo-num"
             />
             <span className="text-[13px] text-muted">/m²</span>
@@ -243,7 +268,10 @@ export function ImportarInventarioDialog({
             {totalImagenes > 0 ? `${totalImagenes} imágenes cargadas` : 'Subir imágenes (JPG/PNG ≤5MB)'}
             <input type="file" accept="image/jpeg,image/png" multiple onChange={onImagenes} className="hidden" />
           </label>
-          <p className="mt-1 text-[11px] text-muted">Se asocian por código de proveedor (nombre del archivo = código).</p>
+          <p className="mt-1 text-[11px] text-muted">
+            Nombra cada archivo con el <b className="text-ink">código de proveedor</b>: <code>codigo.jpg</code> (principal)
+            o <code>codigo-1.jpg</code>, <code>codigo-2.jpg</code>… para varias por pantalla.
+          </p>
         </div>
 
         {/* Duplicados */}

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { reservarApi } from '@/lib/data/estado-api'
-import { formatMonto, type Sitio } from '@/lib/data/client'
+import { formatMonto, useConfigNegocio, type Sitio } from '@/lib/data/client'
 
 // Modal de reserva (Acto 3): captura cliente + fechas y crea una reserva
 // TENTATIVA sobre los sitios seleccionados. Llama a data.reservar (mock).
@@ -58,6 +58,8 @@ export function ReservaDialog({
   // el default es reservar todos los disponibles.
   const [spots, setSpots] = useState<Record<string, number>>({})
   const [enviando, setEnviando] = useState(false)
+  const config = useConfigNegocio()
+  const spotsPorLoop = config && config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
 
   const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
 
@@ -113,7 +115,13 @@ export function ReservaDialog({
             {totalSpotsReservados > 0 && (
               <>
                 {' · '}
-                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> spots
+                <span className="demo-num font-semibold text-ink">{totalSpotsReservados}</span> slots
+                {config && (
+                  <>
+                    {' · '}
+                    <span className="demo-num font-semibold text-ink">{config.spotSeg}s</span> c/u
+                  </>
+                )}
               </>
             )}
           </div>
@@ -146,7 +154,7 @@ export function ReservaDialog({
             placeholder="p. ej. Lanzamiento Q3"
           />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Inicio">
             <input type="date" className={inputCls} value={inicio} onChange={(e) => setInicio(e.target.value)} />
           </Campo>
@@ -166,6 +174,16 @@ export function ReservaDialog({
             <option value="HIBRIDA">Híbrida — con imprenta</option>
           </select>
         </Campo>
+        {/* Estructura del loop digital (de Ajustes) — solo si hay pantallas digitales */}
+        {digitales > 0 && config && (
+          <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] px-3 py-2 text-[12px] text-ink">
+            Loop de <span className="demo-num font-medium">{config.loopSeg}s</span> · slot de{' '}
+            <span className="demo-num font-medium">{config.spotSeg}s</span> →{' '}
+            <span className="demo-num font-semibold">{spotsPorLoop}</span> slots por loop
+            <span className="ml-1 text-muted">(configurable en Administración → Configuración)</span>
+          </div>
+        )}
+
         <div className="rounded border border-border bg-surface-2 p-2.5">
           <ul className="space-y-2 text-[12px]">
             {sitios.map((s) => {
@@ -194,7 +212,7 @@ export function ReservaDialog({
                           }}
                           className="demo-num mx-1 h-7 w-16 rounded border border-border-strong bg-surface px-2 text-right text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
                         />{' '}
-                        de {disp} spots
+                        de {disp} slots
                       </span>
                       <span className="text-[11px] text-muted">
                         Quedan <span className="demo-num font-semibold text-ink">{quedan}</span>

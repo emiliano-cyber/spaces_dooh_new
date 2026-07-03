@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react'
@@ -85,18 +86,18 @@ function PropuestaCard({
   const [generando, setGenerando] = useState(false)
 
   async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function generarCampana() {
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(p.id)
       if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
-    } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
 
   return (
@@ -291,7 +292,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         <Campo label="Nombre de la propuesta">
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Cliente">
             <select
               className={inputCls}
@@ -339,7 +340,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
           <Campo label="Hasta"><input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>

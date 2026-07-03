@@ -1,5 +1,7 @@
 'use client'
 
+
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -23,6 +25,8 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
+import { MapView, type MapPoint } from '@/components/demo/MapView'
+import { pinTono } from '@/components/demo/StatusBadge'
 import { trailFromLocation } from '@/lib/nav-trail'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
@@ -61,9 +65,10 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [copiado, setCopiado] = useState(false)
   const [copiadoCod, setCopiadoCod] = useState(false)
 
-  async function copiar(texto: string, marcar: (v: boolean) => void) {
+  async function copiar(texto: string, marcar: (v: boolean) => void, mensaje = 'Copiado') {
     try {
       await navigator.clipboard.writeText(texto)
+      toast.success(mensaje)
     } catch {
       window.prompt('Copia esto:', texto)
     }
@@ -73,7 +78,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
 
   // Copia la liga pública (solo lectura) para que cualquiera pueda ver la propuesta.
   function copiarLiga() {
-    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${id}`, setCopiado)
+    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${id}`, setCopiado, 'Liga de la propuesta copiada')
   }
 
   // Generar PDF: por ahora no hace nada (placeholder de UI).
@@ -125,18 +130,24 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   }
   const rentaTotal = p.items.reduce((s, it) => s + (rentaDe(it.sitioId)?.monto ?? 0), 0)
 
+  // Puntos del mapa: ubicación de cada pantalla de la propuesta.
+  const puntos: MapPoint[] = p.items.flatMap((it) => {
+    const s = sitios?.find((x) => x.id === it.sitioId)
+    return s ? [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }] : []
+  })
+
   async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function aprobar(itemId: string, aprobado: boolean) {
-    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
   }
   async function generarCampana() {
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(id)
       if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
-    } catch (e) { alert(e instanceof Error ? e.message : 'Error') }
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
 
@@ -169,7 +180,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <Button size="sm" variant="secondary" onClick={copiarLiga}>
             {copiado ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><Link2 className="h-3.5 w-3.5" /> Copiar liga</>}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => copiar(p.folio, setCopiadoCod)}>
+          <Button size="sm" variant="secondary" onClick={() => copiar(p.folio, setCopiadoCod, 'Código copiado')}>
             {copiadoCod ? <><CheckIcon className="h-3.5 w-3.5 text-success" /> ¡Copiado!</> : <><KeyRound className="h-3.5 w-3.5" /> Copiar código</>}
           </Button>
           <Button size="sm" variant="secondary" onClick={generarPdf}>
@@ -286,6 +297,22 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
               </table>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Mapa con la ubicación de las pantallas */}
+      <Card>
+        <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
+        <CardContent>
+          <div className="h-[360px] w-full overflow-hidden rounded border border-border">
+            {puntos.length ? (
+              <MapView points={puntos} zoom={11} />
+            ) : (
+              <div className="flex h-full items-center justify-center text-[13px] text-muted">
+                Sin coordenadas para mostrar en el mapa.
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

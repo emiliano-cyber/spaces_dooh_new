@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
+import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
@@ -89,7 +90,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const misEvid = (evidencias ?? []).filter((e) => misOts.some((o) => o.id === e.otId))
 
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        {/* Menú lateral: saltar a las demás campañas sin volver al listado */}
+        <CampanasNav activeId={id} />
+
+        <div className="min-w-0 flex-1 space-y-4">
       {/* Migas: de dónde vengo y cómo llegué a esta campaña */}
       <div className="flex flex-wrap items-center gap-2">
         {volver.href && (
@@ -173,7 +179,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
             <dl className="space-y-2 text-[13px]">
               <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
               <Fila
-                label="IVA (18%)"
+                label={`IVA (${c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16}%)`}
                 valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
                 mono
               />
@@ -365,6 +371,8 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           />
         </CardContent>
       </Card>
+        </div>
+      </div>
     </div>
   )
 }

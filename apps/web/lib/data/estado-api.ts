@@ -34,7 +34,26 @@ export async function refrescarEstado(): Promise<void> {
     propuestas: e.propuestas ?? [],
     ordenesCompra: e.ordenesCompra ?? [],
     notificaciones: e.notificaciones ?? [],
+    ...(e.configNegocio ? { configNegocio: e.configNegocio } : {}),
   })
+}
+
+// Hidrata el store SOLO con los datos públicos de una campaña (por token), sin
+// sesión. Se usa en la liga pública del portal de campaña (/demo/portal/:token).
+export async function hidratarPortalPublico(token: string): Promise<boolean> {
+  const r = await fetch(`${API}/portal/${token}/`, { cache: 'no-store' })
+  if (!r.ok) return false
+  const e = await r.json()
+  useDemoStore.setState({
+    campanas: e.campanas ?? [],
+    reservas: e.reservas ?? [],
+    sitios: e.sitios ?? [],
+    ordenesTrabajo: e.ordenesTrabajo ?? [],
+    evidencias: e.evidencias ?? [],
+    creatividades: e.creatividades ?? [],
+    ordenesImpresion: e.ordenesImpresion ?? [],
+  })
+  return true
 }
 
 // ─── Notificaciones ──────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import 'server-only'
 import { q } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/notificaciones-repo.ts — Centro de notificaciones por evento.
@@ -27,8 +28,8 @@ export async function notificar(input: {
 }): Promise<void> {
   try {
     await q(
-      `insert into notificaciones (tipo, nivel, titulo, detalle, link) values ($1,$2,$3,$4,$5)`,
-      [input.tipo, input.nivel ?? 'info', input.titulo, input.detalle ?? null, input.link ?? null],
+      `insert into notificaciones (tipo, nivel, titulo, detalle, link, tenant_id) values ($1,$2,$3,$4,$5,$6)`,
+      [input.tipo, input.nivel ?? 'info', input.titulo, input.detalle ?? null, input.link ?? null, await tenantActual()],
     )
   } catch {
     /* las notificaciones nunca rompen la operación principal */
@@ -36,7 +37,7 @@ export async function notificar(input: {
 }
 
 export async function listarNotificaciones() {
-  const rows = await q('select * from notificaciones order by creado_en desc limit 100')
+  const rows = await q('select * from notificaciones where tenant_id = $1 order by creado_en desc limit 100', [await tenantActual()])
   return rows.map(rowToNotif)
 }
 

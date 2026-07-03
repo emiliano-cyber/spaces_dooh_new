@@ -20,6 +20,7 @@ import {
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
 import { listarNotificaciones } from '@/lib/server/notificaciones-repo'
+import { obtenerConfig } from '@/lib/server/config-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,7 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const g = await exigir()
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  const [sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones] =
+  const [sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio] =
     await Promise.all([
       listarSitios(),
       listarClientes(),
@@ -48,8 +49,9 @@ export async function GET() {
       listarPropuestas(),
       listarOrdenesCompra(),
       listarNotificaciones(),
+      obtenerConfig(),
     ])
   return NextResponse.json({
-    sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones,
+    sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio,
   })
 }

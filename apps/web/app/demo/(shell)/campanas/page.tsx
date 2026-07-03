@@ -13,6 +13,7 @@ import {
   useCampanas,
   useCampanasResumen,
   ETAPA_LABEL,
+  etapasPipeline,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -117,19 +118,48 @@ export default function CampanasPage() {
                       </div>
                     </div>
 
-                    {/* Progreso del pipeline */}
+                    {/* Progreso del pipeline: TODAS las etapas y cómo van */}
                     <div className="mt-3">
-                      <div className="mb-1.5 flex items-center justify-between text-[12px]">
-                        <span className="font-medium text-ink">{ETAPA_LABEL[etapa]}</span>
-                        <span className="demo-num text-muted">
-                          {index + 1}/{totalPasos}
+                      <div className="mb-2 flex items-center justify-between text-[12px]">
+                        <span className="text-muted">
+                          Etapa actual: <span className="font-medium text-ink">{ETAPA_LABEL[etapa]}</span>
                         </span>
+                        <span className="demo-num text-muted">{index + 1}/{totalPasos}</span>
                       </div>
-                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className="h-full rounded-full bg-accent transition-[width] duration-300"
-                          style={{ width: `${((index + 1) / totalPasos) * 100}%` }}
-                        />
+                      <div className="flex items-start overflow-x-auto pb-1">
+                        {etapasPipeline(c).map((e, i, arr) => {
+                          const done = i < index
+                          const cur = i === index
+                          return (
+                            <div key={e} className="flex items-start">
+                              <div className="flex w-[72px] shrink-0 flex-col items-center text-center">
+                                <span
+                                  className={cn(
+                                    'flex h-5 w-5 items-center justify-center rounded-full border text-[10px] font-semibold',
+                                    done
+                                      ? 'border-success bg-success text-white'
+                                      : cur
+                                        ? 'border-accent bg-[#f59e0b1a] text-[#9a6700]'
+                                        : 'border-border bg-surface text-muted',
+                                  )}
+                                >
+                                  {done ? '✓' : i + 1}
+                                </span>
+                                <span
+                                  className={cn(
+                                    'mt-1 text-[10px] leading-tight',
+                                    cur ? 'font-medium text-ink' : done ? 'text-ink' : 'text-muted',
+                                  )}
+                                >
+                                  {ETAPA_LABEL[e]}
+                                </span>
+                              </div>
+                              {i < arr.length - 1 && (
+                                <span className={cn('mt-2.5 h-0.5 w-3 shrink-0 rounded-full', i < index ? 'bg-success' : 'bg-border')} />
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
                     </div>
 

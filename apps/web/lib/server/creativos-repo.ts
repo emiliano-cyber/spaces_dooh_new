@@ -1,5 +1,6 @@
 import 'server-only'
 import { q, q1 } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/creativos-repo.ts — Creativos (imágenes) por campaña: alta,
@@ -44,8 +45,8 @@ export async function crearCreatividad(input: {
     throw new CreatividadError('Una campaña fija (OOH) no recibe creatividad; su producción es por imprenta')
   }
   const rows = await q(
-    `insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, resolucion, estatus_validacion)
-     values ($1,$2,$3,$4,$5,$6,'PENDIENTE') returning *`,
+    `insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, resolucion, estatus_validacion, tenant_id)
+     values ($1,$2,$3,$4,$5,$6,'PENDIENTE',$7) returning *`,
     [
       input.campanaId,
       input.nombre,
@@ -53,6 +54,7 @@ export async function crearCreatividad(input: {
       input.codigo ?? null,
       input.formato ?? null,
       input.resolucion ?? null,
+      await tenantActual(),
     ],
   )
   return rowToCreatividad(rows[0])

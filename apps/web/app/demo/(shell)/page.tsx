@@ -72,7 +72,7 @@ export default function DashboardPage() {
     <div className="w-full space-y-5">
       <div>
         <h1 className="text-2xl text-ink">Dashboard</h1>
-        <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · Billboards Perú SA</p>
+        <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · RGB Catorce S de RL de CV (PIXELED)</p>
       </div>
 
       {/* KPIs */}

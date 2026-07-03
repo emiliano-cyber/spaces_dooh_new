@@ -1,5 +1,6 @@
 import 'server-only'
 import { q, pool } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -52,7 +53,7 @@ function rowToPagoRenta(r: any) {
 }
 
 export async function listarArrendadores() {
-  const rows = await q('select * from arrendadores order by nombre asc')
+  const rows = await q('select * from arrendadores where tenant_id = $1 order by nombre asc', [await tenantActual()])
   return rows.map(rowToArrendador)
 }
 
@@ -61,19 +62,19 @@ export async function crearArrendador(input: {
   nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
 }) {
   const rows = await q(
-    `insert into arrendadores (nombre, rfc, telefono, email, notas) values ($1,$2,$3,$4,$5) returning *`,
-    [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null],
+    `insert into arrendadores (nombre, rfc, telefono, email, notas, tenant_id) values ($1,$2,$3,$4,$5,$6) returning *`,
+    [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null, await tenantActual()],
   )
   return rowToArrendador(rows[0])
 }
 
 export async function listarContratos() {
-  const rows = await q('select * from contratos_arrendamiento order by creado_en asc')
+  const rows = await q('select * from contratos_arrendamiento where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToContrato)
 }
 
 export async function listarPagosRenta() {
-  const rows = await q('select * from pagos_renta order by creado_en asc')
+  const rows = await q('select * from pagos_renta where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToPagoRenta)
 }
 
@@ -95,7 +96,7 @@ function rowToIncidencia(r: any) {
 }
 
 export async function listarIncidencias() {
-  const rows = await q('select * from incidencias order by creado_en asc')
+  const rows = await q('select * from incidencias where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToIncidencia)
 }
 
@@ -132,9 +133,9 @@ export async function reportarIncidencia(
     await client.query('begin')
     const inc = (
       await client.query(
-        `insert into incidencias (sitio_id, tipo, descripcion, impacta_comercial, estatus, reportado_por_usuario, notas)
-         values ($1,$2::tipo_incidencia,$3,true,'ABIERTA',$4,$5) returning *`,
-        [input.sitioId, input.tipo, input.descripcion, usuarioId ?? null, 'Reportada desde el módulo de Arrendadores.'],
+        `insert into incidencias (sitio_id, tipo, descripcion, impacta_comercial, estatus, reportado_por_usuario, notas, tenant_id)
+         values ($1,$2::tipo_incidencia,$3,true,'ABIERTA',$4,$5,$6) returning *`,
+        [input.sitioId, input.tipo, input.descripcion, usuarioId ?? null, 'Reportada desde el módulo de Arrendadores.', await tenantActual()],
       )
     ).rows[0]
     await client.query(

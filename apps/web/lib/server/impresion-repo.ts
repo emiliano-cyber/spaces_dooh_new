@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { q, q1 } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/impresion-repo.ts — Imprenta: órdenes de impresión (arte→montaje)
@@ -44,7 +45,7 @@ export async function aprobarPruebaColor(id: string, aprobada: boolean, url?: st
 }
 
 export async function listarOrdenesImpresion() {
-  const rows = await q('select * from ordenes_impresion order by creado_en asc')
+  const rows = await q('select * from ordenes_impresion where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToOrdenImpresion)
 }
 
@@ -65,8 +66,8 @@ export async function crearOrdenImpresion(input: {
     throw new ImpresionError('Una campaña digital (DOOH) no genera orden de impresión')
   }
   const rows = await q(
-    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor)
-     values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+    `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
     [
       folioOI(),
       input.campanaId,
@@ -75,6 +76,7 @@ export async function crearOrdenImpresion(input: {
       input.alto ?? null,
       input.ancho ?? null,
       input.proveedor ?? null,
+      await tenantActual(),
     ],
   )
   return rowToOrdenImpresion(rows[0])

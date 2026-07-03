@@ -44,3 +44,6 @@ yarn-error.log*
 
 # Postgres local (datos persistentes del docker-compose)
 db/spaces_pgdata/
+
+# Respaldos locales de BD (no se versionan)
+migration-backup/

@@ -263,7 +263,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           <span className="mb-1 block text-[12px] font-medium text-ink">Nombre / razón social</span>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>
             <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} />

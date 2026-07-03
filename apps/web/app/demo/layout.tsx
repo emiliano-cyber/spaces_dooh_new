@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
+import { Toaster } from 'sonner'
 import './demo.css'
 
 // Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
@@ -14,11 +15,14 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Spaces — Demo',
-  description: 'Demo Billboards Perú SA',
+  description: 'Demo RGB Catorce S de RL de CV (PIXELED)',
 }
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`demo-root ${jetbrains.variable} min-h-screen`}>{children}</div>
+    <div className={`demo-root ${jetbrains.variable} min-h-screen`}>
+      {children}
+      <Toaster position="bottom-right" richColors closeButton expand />
+    </div>
   )
 }

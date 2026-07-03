@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { tenantActual } from './tenant'
 import { IGV_PCT } from './campanas-repo'
 
 // ============================================================================
@@ -39,10 +40,10 @@ function rowToCobranza(r: any) {
 }
 
 export async function listarFacturas() {
-  return (await q('select * from facturas order by creado_en asc')).map(rowToFactura)
+  return (await q('select * from facturas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToFactura)
 }
 export async function listarCobranzas() {
-  return (await q('select * from cobranzas order by creado_en asc')).map(rowToCobranza)
+  return (await q('select * from cobranzas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToCobranza)
 }
 
 const folioFactura = () => `F001-${randomBytes(4).toString('hex').toUpperCase()}`
@@ -79,15 +80,15 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
     await client.query('begin')
     const fac = (
       await client.query(
-        `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi)
-         values ($1,$2,$3,$4,$5,$6,'PEN',current_date,'EMITIDA','A',$7,$8,$9,$10) returning *`,
-        [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null],
+        `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,'PEN',current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
+        [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual()],
       )
     ).rows[0]
     await client.query(
-      `insert into cobranzas (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado)
-       values ($1,$2, current_date + $2::int, 'AL_CORRIENTE', 0)`,
-      [fac.id, plazoDias],
+      `insert into cobranzas (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado, tenant_id)
+       values ($1,$2, current_date + $2::int, 'AL_CORRIENTE', 0, $3)`,
+      [fac.id, plazoDias, await tenantActual()],
     )
     await client.query(`update campanas set estado_comercial='COMPLETADA' where id=$1`, [campanaId])
     await client.query('commit')

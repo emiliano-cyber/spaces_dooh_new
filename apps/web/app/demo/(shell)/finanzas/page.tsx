@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useState } from 'react'
 import { CheckCircle2, FileText, Lock, Receipt } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
@@ -244,7 +245,7 @@ function GenerarFacturaDialog({
                 onDone('generada')
                 onClose()
               } catch (e) {
-                alert(e instanceof Error ? e.message : 'No se pudo generar la factura')
+                toast.error(e instanceof Error ? e.message : 'No se pudo generar la factura')
               }
               setEnviando(false)
             }}
@@ -263,7 +264,11 @@ function GenerarFacturaDialog({
             </span>
           </div>
           <div className="mt-1 flex items-center justify-between">
-            <span className="text-muted">IVA (18%)</span>
+            <span className="text-muted">
+              IVA ({campana.presupuestoNeto
+                ? Math.round((((campana.presupuestoBruto ?? 0) - campana.presupuestoNeto) / campana.presupuestoNeto) * 100)
+                : 16}%)
+            </span>
             <span className="demo-num text-ink">
               {campana.presupuestoNeto != null && campana.presupuestoBruto != null
                 ? formatMonto(campana.presupuestoBruto - campana.presupuestoNeto)

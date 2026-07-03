@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { q, q1, pool } from './db'
+import { tenantActual } from './tenant'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}
@@ -104,7 +105,7 @@ export async function obtenerPropuestaPublica(codigo: string) {
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
-    ? await q<any>('select id, nombre, alcaldia, tipo_medio from sitios where id = any($1::uuid[])', [sitioIds])
+    ? await q<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
     : []
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
@@ -127,6 +128,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
         sitioNombre: s?.nombre ?? it.sitioId,
         alcaldia: s?.alcaldia ?? null,
         tipoMedio: s?.tipo_medio ?? null,
+        lat: s?.lat != null ? Number(s.lat) : null,
+        lng: s?.lng != null ? Number(s.lng) : null,
         fechaInicio: it.fechaInicio,
         fechaFin: it.fechaFin,
         precio: it.precio,
@@ -139,7 +142,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
 export async function listarPropuestas() {
   const props = await q(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
-       from propuestas p order by p.creado_en desc`,
+       from propuestas p where p.tenant_id = $1 order by p.creado_en desc`,
+    [await tenantActual()],
   )
   if (!props.length) return []
   const items = await q('select * from propuesta_items order by creado_en asc')
@@ -177,9 +181,9 @@ export async function crearPropuesta(input: PropuestaInput) {
     await client.query('begin')
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas)
-         values ($1,$2,$3,$4,$5,$6) returning *`,
-        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, await tenantActual()],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y
@@ -193,9 +197,9 @@ export async function crearPropuesta(input: PropuestaInput) {
     }
     for (const it of input.items) {
       await client.query(
-        `insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio)
-         values ($1,$2,$3,$4,$5)`,
-        [prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0],
+        `insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, tenant_id)
+         values ($1,$2,$3,$4,$5,$6)`,
+        [prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0, await tenantActual()],
       )
     }
     const items = (
@@ -244,6 +248,15 @@ export async function cambiarEstatusPropuesta(id: string, estatus: string) {
       throw new PropuestaError(
         `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
       )
+    }
+    // Aprobar la propuesta = aceptar sus pantallas. Si no hay ítems marcados,
+    // se aprueban TODOS (la campaña se genera sobre todas las pantallas).
+    const aprob = await q1<{ n: string }>(
+      'select count(*)::text as n from propuesta_items where propuesta_id=$1 and aprobado=true',
+      [id],
+    )
+    if (Number(aprob?.n ?? 0) === 0) {
+      await q('update propuesta_items set aprobado=true where propuesta_id=$1', [id])
     }
   }
   const rows = await q(

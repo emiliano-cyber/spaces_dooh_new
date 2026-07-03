@@ -1,5 +1,6 @@
 import 'server-only'
 import { q } from './db'
+import { tenantActual } from './tenant'
 import type { UsuarioSesion } from './auth'
 
 // ============================================================================
@@ -14,8 +15,8 @@ export async function registrarAccion(
 ): Promise<void> {
   try {
     await q(
-      `insert into acciones (accion, entidad, usuario_id, usuario_nombre) values ($1,$2,$3,$4)`,
-      [accion, entidad, usuario?.id ?? null, usuario?.nombre ?? 'Sistema'],
+      `insert into acciones (accion, entidad, usuario_id, usuario_nombre, tenant_id) values ($1,$2,$3,$4,$5)`,
+      [accion, entidad, usuario?.id ?? null, usuario?.nombre ?? 'Sistema', await tenantActual()],
     )
   } catch {
     /* la bitácora nunca rompe la operación principal */
@@ -24,7 +25,7 @@ export async function registrarAccion(
 
 export async function listarAcciones() {
   const rows = await q(
-    'select id, accion, entidad, usuario_id, usuario_nombre, timestamp from acciones order by timestamp desc limit 200',
+    'select id, accion, entidad, usuario_id, usuario_nombre, timestamp from acciones where tenant_id = $1 order by timestamp desc limit 200', [await tenantActual()],
   )
   return rows.map((r: any) => ({
     id: r.id, accion: r.accion, entidad: r.entidad,

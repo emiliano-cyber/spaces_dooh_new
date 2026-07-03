@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { tenantActual } from './tenant'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
 // ============================================================================
@@ -12,7 +13,7 @@ import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string | null))
 
-function rowToOT(r: any) {
+export function rowToOT(r: any) {
   return {
     id: r.id, folio: r.folio, tipo: r.tipo, sitioId: r.sitio_id, campanaId: r.campana_id,
     descripcion: r.descripcion, instrucciones: r.instrucciones,
@@ -46,10 +47,10 @@ async function resolverEvidencias(rows: any[]) {
 }
 
 export async function listarOT() {
-  return (await q('select * from ordenes_trabajo order by creado_en asc')).map(rowToOT)
+  return (await q('select * from ordenes_trabajo where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToOT)
 }
 export async function listarEvidencias() {
-  return resolverEvidencias(await q('select * from evidencias_ot order by timestamp asc'))
+  return resolverEvidencias(await q('select * from evidencias_ot where tenant_id = $1 order by timestamp asc', [await tenantActual()]))
 }
 
 // OT con su sitio, campaña y evidencias (para la vista móvil standalone).
@@ -86,11 +87,11 @@ export async function crearOT(input: {
 }) {
   const rows = await q(
     `insert into ordenes_trabajo (folio, tipo, sitio_id, campana_id, descripcion, instrucciones,
-        checklist, prioridad, asignado_a, fecha_programada, estatus, requiere_revision)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'PENDIENTE',true) returning *`,
+        checklist, prioridad, asignado_a, fecha_programada, estatus, requiere_revision, tenant_id)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'PENDIENTE',true,$11) returning *`,
     [folioOT(), input.tipo, input.sitioId ?? null, input.campanaId ?? null, input.descripcion,
      input.instrucciones ?? null, JSON.stringify(input.checklist ?? []), input.prioridad ?? 'NORMAL',
-     input.asignadoA ?? null, input.fechaProgramada ?? null],
+     input.asignadoA ?? null, input.fechaProgramada ?? null, await tenantActual()],
   )
   return rowToOT(rows[0])
 }
@@ -128,9 +129,9 @@ export async function cerrarOT(
       }
     }
     await client.query(
-      `insert into evidencias_ot (ot_id, foto_url, foto_key, formato, lat, lng, precision_m, tipo, uploaded_by, tomada_en)
-       values ($1,$2,$3,'image/jpeg',$4,$5,8,'INSTALACION',$6,$7)`,
-      [id, fotoUrl, fotoKey, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null],
+      `insert into evidencias_ot (ot_id, foto_url, foto_key, formato, lat, lng, precision_m, tipo, uploaded_by, tomada_en, tenant_id)
+       values ($1,$2,$3,'image/jpeg',$4,$5,8,'INSTALACION',$6,$7,$8)`,
+      [id, fotoUrl, fotoKey, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null, await tenantActual()],
     )
     // candado de la campaña (fotos + reporte) si está ligada
     if (ot.campana_id) {

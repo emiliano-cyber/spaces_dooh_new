@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus } from 'lucide-react'
@@ -257,7 +258,7 @@ function NuevaOTModal({
       setSitioId('')
       setCampanaId('')
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo crear la OT')
+      toast.error(e instanceof Error ? e.message : 'No se pudo crear la OT')
     }
     setEnviando(false)
   }
@@ -293,7 +294,7 @@ function NuevaOTModal({
             placeholder="p. ej. Montaje de lona en espectacular…"
           />
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
             <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>

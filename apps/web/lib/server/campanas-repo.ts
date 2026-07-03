@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -53,7 +54,7 @@ function rowToCliente(r: any) {
     contacto: r.contacto ?? {}, activo: !!r.activo, creadoEn: iso(r.creado_en),
   }
 }
-function rowToCampana(r: any) {
+export function rowToCampana(r: any) {
   return {
     id: r.id, folio: r.folio, nombre: r.nombre, clienteId: r.cliente_id,
     propuestaId: r.propuesta_id ?? null,
@@ -72,7 +73,7 @@ function rowToCampana(r: any) {
     portalActivo: !!r.portal_activo, notas: r.notas, creadoEn: iso(r.creado_en),
   }
 }
-function rowToReserva(r: any) {
+export function rowToReserva(r: any) {
   return {
     id: r.id, campanaId: r.campana_id, sitioId: r.sitio_id,
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
@@ -85,16 +86,16 @@ function rowToReserva(r: any) {
 
 // ─── Lecturas ───────────────────────────────────────────────────────────────
 export async function listarClientes() {
-  return (await q('select * from clientes order by creado_en asc')).map(rowToCliente)
+  return (await q('select * from clientes where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToCliente)
 }
 export async function listarCampanas() {
-  return (await q('select * from campanas order by creado_en asc')).map(rowToCampana)
+  return (await q('select * from campanas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToCampana)
 }
 export async function listarReservas() {
-  return (await q('select * from reservas order by creado_en asc')).map(rowToReserva)
+  return (await q('select * from reservas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToReserva)
 }
 export async function listarCreatividades() {
-  return (await q('select * from creatividades order by creado_en asc')).map((r: any) => ({
+  return (await q('select * from creatividades where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map((r: any) => ({
     id: r.id, campanaId: r.campana_id, nombre: r.nombre, archivoUrl: r.archivo_url,
     codigo: r.codigo ?? null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
@@ -102,7 +103,16 @@ export async function listarCreatividades() {
   }))
 }
 
-const folio = () => `CAM-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
+// Folio de campaña: RGB + año + mes + día + 3 dígitos aleatorios, todo junto.
+// p. ej. RGB20260626482
+const folio = () => {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  const rnd = String(randomBytes(2).readUInt16BE(0) % 1000).padStart(3, '0')
+  return `RGB${yyyy}${mm}${dd}${rnd}`
+}
 
 type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
 
@@ -121,8 +131,8 @@ function derivarTipoCampana(digitales: boolean[]): TipoCampana {
 // ─── Clientes ───────────────────────────────────────────────────────────────
 export async function crearCliente(input: { nombre: string; rfc?: string; tipo?: string; contacto?: unknown }) {
   const rows = await q(
-    `insert into clientes (nombre, rfc, tipo, contacto) values ($1,$2,$3,$4) returning *`,
-    [input.nombre, input.rfc ?? null, input.tipo ?? 'DIRECTO', input.contacto ?? {}],
+    `insert into clientes (nombre, rfc, tipo, contacto, tenant_id) values ($1,$2,$3,$4,$5) returning *`,
+    [input.nombre, input.rfc ?? null, input.tipo ?? 'DIRECTO', input.contacto ?? {}, await tenantActual()],
   )
   return rowToCliente(rows[0])
 }
@@ -159,17 +169,18 @@ export async function reservar(input: {
         ).rows.map((r: any) => !!r.digital)
         tipoCampana = derivarTipoCampana(flags)
       }
+      const tenantId = await tenantActual()
       const cli = (
-        await client.query(`insert into clientes (nombre) values ($1) returning id`, [
-          input.clienteNombre ?? 'Cliente nuevo',
+        await client.query(`insert into clientes (nombre, tenant_id) values ($1,$2) returning id`, [
+          input.clienteNombre ?? 'Cliente nuevo', tenantId,
         ])
       ).rows[0]
       campanaId = (
         await client.query(
-          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana)
-           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7) returning id`,
+          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, tenant_id)
+           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,$8) returning id`,
           [folio(), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
-           input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana],
+           input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
       ).rows[0].id
     }
@@ -227,6 +238,14 @@ export async function reservar(input: {
             `"${s?.nombre ?? 'La pantalla'}" ya está reservada en esas fechas por la campaña "${choque.campana}". Elige otras fechas u otra pantalla.`,
           )
         }
+      } else {
+        // Digital ocupada = sin slots libres → no acepta más campañas.
+        const dispNow = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
+        if (dispNow != null && dispNow <= 0) {
+          throw new Error(
+            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (ocupada). Elige otra pantalla.`,
+          )
+        }
       }
 
       // Spots reservados: solo digitales y solo si se pidió una cantidad (acotada
@@ -239,15 +258,22 @@ export async function reservar(input: {
           : null
 
       await client.query(
-        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6)`,
-        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados],
+        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6,$7)`,
+        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, await tenantActual()],
       )
 
       if (digital && spotsReservados != null) {
-        // Descuenta spots; el sitio sigue disponible mientras le queden spots.
+        // Descuenta slots; la pantalla sigue DISPONIBLE mientras le queden slots
+        // y pasa a OCUPADO solo cuando se agotan (no debe aceptar más campañas).
         await client.query(
-          `update sitios set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2) where id=$1`,
+          `update sitios
+              set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2),
+                  estatus_comercial = (case
+                    when greatest(0, coalesce(spots_disponibles,0) - $2) <= 0 then 'OCUPADO'
+                    else 'DISPONIBLE'
+                  end)::est_comercial
+            where id=$1`,
           [sitioId, spotsReservados],
         )
       } else {
@@ -327,18 +353,18 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
 
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id)
-         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8) returning id`,
-        [folio(), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId],
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,$9) returning id`,
+        [folio(), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
 
     for (const it of items) {
       const precioNeto = Math.round(Number(it.precio) * divisor)
       await client.query(
-        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null)`,
-        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), precioNeto],
+        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null,$6)`,
+        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), precioNeto, await tenantActual()],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
       await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [it.sitio_id])
@@ -370,7 +396,17 @@ export async function confirmarReserva(campanaId: string) {
       [campanaId],
     )
     if (sitios.length) {
-      await client.query(`update sitios set estatus_comercial='OCUPADO' where id = any($1::uuid[])`, [sitios])
+      // Estáticas → OCUPADO al confirmar. Digitales → OCUPADO solo si ya no les
+      // quedan slots; si aún tienen, siguen DISPONIBLE para más campañas.
+      await client.query(
+        `update sitios set estatus_comercial='OCUPADO'
+           where id = any($1::uuid[])
+             and (
+               not (es_rotativo or exhibicion in ('digital','rotativo') or tipo_medio='PANTALLA_DIGITAL')
+               or coalesce(spots_disponibles, 0) <= 0
+             )`,
+        [sitios],
+      )
     }
     await client.query(`update campanas set estado_comercial='CONFIRMADA' where id=$1`, [campanaId])
     await recalcularPresupuesto(client, campanaId)

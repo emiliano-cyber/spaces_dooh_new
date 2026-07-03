@@ -1,5 +1,6 @@
 'use client'
 
+import { toast } from 'sonner'
 import { useEffect, useState } from 'react'
 import {
   AlertTriangle,
@@ -132,7 +133,7 @@ export function SiteFicha({
       await borrarSitioApi(sitio.id)
       onOpenChange(false)
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
     }
     setBorrando(false)
   }
@@ -142,6 +143,20 @@ export function SiteFicha({
   useEffect(() => {
     setFotos((sitio?.fotos ?? []).map((url) => ({ url, tomadaEn: '', subidaEn: '' })))
   }, [sitio?.id])
+
+  // Guarda la galería en el sitio (fotos como data URLs base64; la 1ª es la
+  // imagen principal). Persiste al agregar o quitar una foto, así se ve después.
+  async function guardarFotos(next: FotoMeta[]) {
+    setFotos(next) // update optimista
+    if (!sitio) return
+    const urls = next.map((f) => f.url)
+    try {
+      await actualizarSitioApi(sitio.id, { fotos: urls, imagenPromocional: urls[0] ?? null })
+      toast.success('Galería guardada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar la imagen')
+    }
+  }
 
   if (!sitio) return null
 
@@ -231,7 +246,7 @@ export function SiteFicha({
         {/* Galería */}
         <div>
           <h4 className="mb-2 text-[13px] font-medium text-ink">Galería</h4>
-          <FotoUploaderMock fotos={fotos} onChange={setFotos} label="Agregar foto" />
+          <FotoUploaderMock fotos={fotos} onChange={guardarFotos} label="Agregar foto" />
         </div>
 
         {/* Características técnicas */}
@@ -260,10 +275,10 @@ export function SiteFicha({
             <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5 border-t border-border pt-2.5 text-[13px]">
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Resolución" valor={sitio.resolucionPx ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Contenido" valor={sitio.tipoContenido === 'VIDEO' ? 'Video' : sitio.tipoContenido === 'IMAGEN' ? 'Imagen' : '—'} />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de spots" valor={sitio.totalSpots != null ? String(sitio.totalSpots) : '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots disponibles" valor={sitio.spotsDisponibles != null ? String(sitio.spotsDisponibles) : '—'} mono />
-              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Spots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
-              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración spot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Total de slots" valor={sitio.totalSpots != null ? String(sitio.totalSpots) : '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots disponibles" valor={sitio.spotsDisponibles != null ? String(sitio.spotsDisponibles) : '—'} mono />
+              <Caracteristica icon={<Monitor className="h-4 w-4" />} label="Slots por hora" valor={sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '—'} mono />
+              <Caracteristica icon={<Clock className="h-4 w-4" />} label="Duración por slot" valor={sitio.duracionSpotSeg != null ? `${sitio.duracionSpotSeg} s` : '—'} mono />
               <Caracteristica icon={<Clock className="h-4 w-4" />} label="Horario" valor={sitio.horario ?? '—'} mono />
               <Caracteristica icon={<Monitor className="h-4 w-4" />} label="CMS" valor={sitio.cms ? CMS_LABEL[sitio.cms] : '—'} />
             </dl>
@@ -445,6 +460,12 @@ const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boolean; onClose: () => void }) {
+  // Una pantalla digital tiene inventario de slots editable.
+  const digital =
+    sitio.esRotativo ||
+    sitio.exhibicion === 'digital' ||
+    sitio.exhibicion === 'rotativo' ||
+    sitio.tipoMedio === 'PANTALLA_DIGITAL'
   const [nombre, setNombre] = useState(sitio.nombre)
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>(sitio.tipoMedio)
   const [alcaldia, setAlcaldia] = useState(sitio.alcaldia ?? '')
@@ -452,6 +473,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+  const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
   const [enviando, setEnviando] = useState(false)
 
@@ -464,6 +487,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setTarifa(String(sitio.tarifaPublicada ?? 0))
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
+    setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+    setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
   }, [sitio.id, open])
 
@@ -471,7 +496,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setEnviando(true)
     try {
       const tarifaNum = Number(tarifa) || 0
-      await actualizarSitioApi(sitio.id, {
+      const cambios: Record<string, unknown> = {
         nombre: nombre.trim(),
         tipoMedio,
         alcaldia: alcaldia.trim(),
@@ -482,10 +507,21 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         costoCompra: Number(costoCompra) || 0,
         estatusComercial,
         notas: notas.trim() || null,
-      })
+      }
+      // Cantidad de slots (solo digitales): ajusta los disponibles conservando
+      // los ya reservados (reservados = total anterior − disponibles anteriores).
+      if (digital && slots.trim() !== '') {
+        const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
+        const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
+        cambios.totalSpots = nuevoTotal
+        cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
+        const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
+        if (dur > 0) cambios.duracionSpotSeg = dur
+      }
+      await actualizarSitioApi(sitio.id, cambios)
       onClose()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'No se pudo guardar')
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar')
     }
     setEnviando(false)
   }
@@ -509,7 +545,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Nombre">
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} />
         </CampoEdit>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tipo de medio">
             <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
               {TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
@@ -527,7 +563,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Dirección comercial">
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
         </CampoEdit>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tarifa publicada (mensual)">
             <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
@@ -535,6 +571,16 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             <input type="number" inputMode="decimal" value={costoCompra} onChange={(e) => setCostoCompra(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
         </div>
+        {digital && (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <CampoEdit label="Cantidad de slots">
+              <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Duración por slot (s)">
+              <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+          </div>
+        )}
         <CampoEdit label="Notas">
           <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={inputCls} />
         </CampoEdit>

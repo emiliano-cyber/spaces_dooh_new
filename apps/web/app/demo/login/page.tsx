@@ -2,38 +2,57 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Radio, LogIn } from 'lucide-react'
+import { Radio, LogIn, UserPlus } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { apiLogin } from '@/lib/auth-real'
 import { landingDeRol } from '@/lib/data/client'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
-// Acceso rápido al usuario admin sembrado (contraseña spaces123). Los demás
-// usuarios se crean desde Administración → Invitar.
-const ACCESOS = [
-  { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño' },
-]
-
 export default function LoginPage() {
   const router = useRouter()
+  const [modo, setModo] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [organizacion, setOrganizacion] = useState('')
+  const [nombre, setNombre] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
+  const esSignup = modo === 'signup'
+
   async function entrar(mail: string, pass: string) {
+    const { usuario } = await apiLogin(mail.trim(), pass)
+    router.push(landingDeRol(usuario.rol))
+  }
+
+  async function onSubmit() {
+    if (esSignup && !esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
     try {
-      const { usuario } = await apiLogin(mail.trim(), pass)
-      router.push(landingDeRol(usuario.rol))
+      if (esSignup) {
+        // Crea la cuenta (organización + usuario Dueño) y entra automáticamente.
+        const r = await fetch('/spaces-dooh/api/signup/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organizacion: organizacion.trim(), nombre: nombre.trim(), email: email.trim(), password }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo crear la cuenta')
+      }
+      await entrar(email, password)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo iniciar sesión')
+      setError(e instanceof Error ? e.message : esSignup ? 'No se pudo crear la cuenta' : 'No se pudo iniciar sesión')
       setEnviando(false)
     }
   }
+
+  const puedeEnviar = esSignup
+    ? organizacion.trim() && nombre.trim() && email.trim() && password.trim().length >= 6
+    : email && password
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
@@ -44,21 +63,35 @@ export default function LoginPage() {
           </span>
           <div className="leading-tight">
             <div className="font-display text-lg font-bold text-ink">Spaces</div>
-            <div className="text-[11px] text-muted">Billboards Perú SA</div>
+            <div className="text-[11px] text-muted">RGB Catorce S de RL de CV (PIXELED)</div>
           </div>
         </div>
 
         <div className="rounded-md border border-border bg-surface p-5">
-          <h1 className="text-base font-semibold text-ink">Iniciar sesión</h1>
-          <p className="mt-0.5 text-[12px] text-muted">Accede con tu cuenta.</p>
+          <h1 className="text-base font-semibold text-ink">{esSignup ? 'Crear cuenta' : 'Iniciar sesión'}</h1>
+          <p className="mt-0.5 text-[12px] text-muted">
+            {esSignup ? 'Registra tu organización y tu usuario. Tendrás tu propio CRM.' : 'Accede con tu cuenta.'}
+          </p>
 
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              entrar(email, password)
+              onSubmit()
             }}
             className="mt-4 space-y-3"
           >
+            {esSignup && (
+              <>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] font-medium text-ink">Organización</span>
+                  <input className={inputCls} value={organizacion} onChange={(e) => setOrganizacion(e.target.value)} placeholder="Ej. Media Norte" autoFocus />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[12px] font-medium text-ink">Tu nombre</span>
+                  <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. Ana López" />
+                </label>
+              </>
+            )}
             <label className="block">
               <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
               <input
@@ -67,7 +100,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@correo.com"
-                autoFocus
+                autoFocus={!esSignup}
               />
             </label>
             <label className="block">
@@ -77,39 +110,26 @@ export default function LoginPage() {
                 className={inputCls}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder={esSignup ? 'mínimo 6 caracteres' : '••••••••'}
               />
             </label>
             {error && <p className="text-[12px] text-error">{error}</p>}
-            <Button type="submit" className="w-full" disabled={enviando || !email || !password}>
-              <LogIn className="h-4 w-4" /> {enviando ? 'Entrando…' : 'Entrar'}
+            <Button type="submit" className="w-full" disabled={enviando || !puedeEnviar}>
+              {esSignup ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+              {enviando ? (esSignup ? 'Creando cuenta…' : 'Entrando…') : esSignup ? 'Crear cuenta' : 'Entrar'}
             </Button>
           </form>
-        </div>
 
-        {/* Acceso rápido (usuarios de prueba sembrados) */}
-        <div className="mt-5">
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-            Acceso rápido (prueba · contraseña spaces123)
-          </p>
-          <ul className="space-y-1.5">
-            {ACCESOS.map((u) => (
-              <li key={u.email}>
-                <button
-                  type="button"
-                  disabled={enviando}
-                  onClick={() => entrar(u.email, 'spaces123')}
-                  className="group flex w-full items-center justify-between rounded-md border border-border bg-surface px-3 py-2 text-left transition-colors duration-150 hover:border-border-strong hover:bg-surface-2 disabled:opacity-50"
-                >
-                  <span className="min-w-0">
-                    <span className="block text-[13px] font-medium text-ink">{u.nombre}</span>
-                    <span className="block text-[11px] text-muted">{u.cargo}</span>
-                  </span>
-                  <LogIn className="h-4 w-4 text-muted" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <div className="mt-3 text-center text-[12px] text-muted">
+            <button
+              type="button"
+              onClick={() => { setModo(esSignup ? 'login' : 'signup'); setError(null) }}
+              className="hover:underline"
+            >
+              {esSignup ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
+              <span className="font-medium text-info">{esSignup ? 'Iniciar sesión' : 'Crear cuenta'}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

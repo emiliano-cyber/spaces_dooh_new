@@ -555,6 +555,11 @@ export interface ConfigNegocio {
   moneda: string
   plazosCobranza: number[]
   tiposTarea: string[]
+  // Ajustes del negocio (multi-tenant):
+  logoUrl: string | null        // logo de la empresa (data URL o ruta)
+  ivaTasas: number[]            // IVA(s) con los que trabaja (uno o varios)
+  loopSeg: number               // tamaño del loop digital, en segundos
+  spotSeg: number               // duración de cada spot, en segundos
 }
 
 export interface Notificacion {

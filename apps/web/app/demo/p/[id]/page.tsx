@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { formatMonto, formatFecha } from '@/lib/data/client'
 
 const API = '/spaces-dooh/api'
@@ -11,6 +12,8 @@ interface ItemPub {
   sitioNombre: string
   alcaldia: string | null
   tipoMedio: string | null
+  lat: number | null
+  lng: number | null
   fechaInicio: string
   fechaFin: string
   precio: number
@@ -48,7 +51,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
 
   if (data === undefined) {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-10">
+      <div className="w-full px-6 py-10">
         <div className="h-64 animate-pulse rounded-md bg-surface-2" />
       </div>
     )
@@ -69,11 +72,22 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   const desde = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()[0]
   const hasta = p.items.map((i) => i.fechaFin).filter(Boolean).sort().at(-1)
 
+  // Ubicación de las pantallas en el mapa.
+  const puntos: MapPoint[] = p.items
+    .filter((it) => it.lat != null && it.lng != null)
+    .map((it, i) => ({
+      id: `p-${i}`,
+      lat: it.lat as number,
+      lng: it.lng as number,
+      tono: it.tipoMedio === 'PANTALLA_DIGITAL' ? 'azul' : 'verde',
+      label: it.sitioNombre,
+    }))
+
   return (
     <div className="min-h-screen bg-bg">
       {/* Header público */}
       <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+        <div className="flex w-full items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
             <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
               <Radio className="h-4 w-4" />
@@ -87,7 +101,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-6">
+      <main className="w-full space-y-4 px-6 py-6">
         {/* Nombre + folio */}
         <div>
           <h1 className="text-2xl text-ink">{p.nombre}</h1>
@@ -141,6 +155,18 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
             )}
           </CardContent>
         </Card>
+
+        {/* Mapa con la ubicación de las pantallas */}
+        {puntos.length > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
+            <CardContent>
+              <div className="h-[340px] w-full overflow-hidden rounded border border-border">
+                <MapView points={puntos} zoom={11} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Total */}
         <Card>

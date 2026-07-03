@@ -1,6 +1,7 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
+import { tenantActual } from './tenant'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -11,7 +12,7 @@ import type { PoolClient } from 'pg'
 
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 
-function rowToSitio(r: any, modalidades: any[] = []): any {
+export function rowToSitio(r: any, modalidades: any[] = []): any {
   return {
     id: r.id,
     claveInterna: r.clave_interna,
@@ -95,8 +96,8 @@ function valoresDe(s: any): unknown[] {
     s.lat ?? null, s.lng ?? null, s.pendienteVerificacion ?? false, s.ancho ?? null, s.alto ?? null,
     s.caras ?? 1, s.iluminado ?? false, s.orientacion ?? null, s.tipoEstructura ?? null,
     s.vista ?? null, s.tramo ?? null, s.resolucionPx ?? null, s.tipoContenido ?? null,
-    s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 10 : null),
-    s.totalSpots ?? (digital ? 100 : null), s.spotsDisponibles ?? (digital ? 85 : null),
+    s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 20 : null),
+    s.totalSpots ?? (digital ? 12 : null), s.spotsDisponibles ?? (digital ? 12 : null),
     s.horario ?? (digital ? '06:00-24:00' : null), s.computerVision ?? false, s.admobilizeId ?? null,
     s.tarifaPublicada ?? 0, s.tarifaPublicada ?? 0, s.costoCompra ?? 0, s.precioM2 ?? null,
     s.tarifaImpresion ?? null, s.comercializacion ?? 'TRADICIONAL', s.enNetwork ?? false, s.cms ?? null,
@@ -141,7 +142,7 @@ function horasOperacion(horario?: string | null): number {
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
-  const sitios = await q('select * from sitios order by creado_en asc')
+  const sitios = await q('select * from sitios where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
@@ -159,9 +160,9 @@ export async function getSitio(id: string): Promise<any | null> {
 async function insertarSitio(client: PoolClient, s: any): Promise<any> {
   // Autogenera código de proveedor si no viene (alta manual no lo pide).
   if (!s.codigoProveedor) s.codigoProveedor = 'S-' + randomBytes(3).toString('hex').toUpperCase()
-  const cols = COLS.join(', ')
-  const ph = COLS.map((_, i) => `$${i + 1}`).join(', ')
-  const { rows } = await client.query(`insert into sitios (${cols}) values (${ph}) returning *`, valoresDe(s))
+  const cols = [...COLS, 'tenant_id'].join(', ')
+  const ph = [...COLS, 'tenant_id'].map((_, i) => `$${i + 1}`).join(', ')
+  const { rows } = await client.query(`insert into sitios (${cols}) values (${ph}) returning *`, [...valoresDe(s), s.tenantId ?? (await tenantActual())])
   const row = rows[0]
   const mods: any[] = s.modalidadesDetalle ?? []
   for (const m of mods) {
@@ -222,7 +223,10 @@ const CAMPO_COL: Record<string, string> = {
   tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual', costoCompra: 'costo_compra',
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
+  fotos: 'fotos',
   vista: 'vista', tramo: 'tramo', tipoEstructura: 'tipo_estructura', horario: 'horario',
+  totalSpots: 'total_spots', spotsDisponibles: 'spots_disponibles',
+  duracionSpotSeg: 'duracion_spot_seg', spotsPorHora: 'spots_por_hora',
 }
 export async function actualizarSitio(id: string, cambios: Record<string, unknown>): Promise<any | null> {
   const sets: string[] = []
@@ -255,12 +259,34 @@ const MAPEO_TIPO: Record<string, string> = {
   puente: 'PUENTE_PEATONAL', otro: 'OTRO',
 }
 
+// Empareja imágenes con un sitio por nomenclatura de archivo (sin extensión):
+//   • "<codigo>"        → imagen principal
+//   • "<codigo>-<N>"    → imagen número N (también acepta "_" o espacio)
+// Devuelve las data URLs ordenadas: principal primero, luego por número. Exige
+// separador antes del número para no confundir "S-001" con "S-0012".
+function imagenesDeSitio(codigo: string, imagenes?: Record<string, string>): string[] {
+  const cod = String(codigo || '').trim().toLowerCase()
+  if (!cod || !imagenes) return []
+  const matches: { n: number; url: string }[] = []
+  for (const [key, url] of Object.entries(imagenes)) {
+    if (key === cod) { matches.push({ n: 0, url }); continue }
+    if (key.startsWith(cod)) {
+      const m = key.slice(cod.length).match(/^[-_ ](\d+)$/)
+      if (m) matches.push({ n: Number(m[1]), url })
+    }
+  }
+  return matches.sort((a, b) => a.n - b.n).map((x) => x.url)
+}
+
 export async function importarSitios(args: {
   filas: any[]
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'
   precioM2: number | null
+  // Imágenes por pantalla: clave = nombre de archivo SIN extensión en minúsculas
+  // (= código de proveedor), valor = data URL base64.
+  imagenes?: Record<string, string>
 }): Promise<any> {
-  const { filas, modoDuplicado, precioM2 } = args
+  const { filas, modoDuplicado, precioM2, imagenes } = args
   const detalle: any[] = []
   let creadas = 0, actualizadas = 0, con_advertencias = 0, errores = 0
 
@@ -284,12 +310,9 @@ export async function importarSitios(args: {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'
       const esEstatica = !digital
-      // Total de spots (DOOH) = spots por hora × horas de operación (del horario).
+      // Slots por pantalla (DOOH): por default 12 por pantalla digital.
       // Inventario nuevo → disponibles = total (todo libre al darlo de alta).
-      const totalSpots =
-        digital && p.spots_por_hora != null
-          ? Math.max(1, Math.round(Number(p.spots_por_hora) * horasOperacion(p.horario)))
-          : null
+      const totalSpots = digital ? 12 : null
       const modalidadesDetalle = rows.map((r: any) => ({
         unidad: r.datos.unidad, tarifaPublicada: r.datos.tarifa_publicada, costoCompra: r.datos.costo_compra,
       }))
@@ -302,7 +325,7 @@ export async function importarSitios(args: {
         iluminado: p.iluminacion, exhibicion: p.exhibicion, esRotativo: p.es_rotativo,
         unidad: p.unidad, tipoEstructura: p.tipo_estructura, vista: p.vista, tramo: p.tramo,
         tarifaPublicada: p.tarifa_publicada, costoCompra: p.costo_compra, precioM2, tarifaImpresion,
-        spotsPorHora: p.spots_por_hora, duracionSpotSeg: p.duracion_spot_seg, horario: p.horario,
+        spotsPorHora: p.spots_por_hora, duracionSpotSeg: p.duracion_spot_seg ?? (digital ? 20 : null), horario: p.horario,
         totalSpots, spotsDisponibles: totalSpots,
         comercializacion: digital ? 'PROGRAMATICO' : 'TRADICIONAL',
         tipoContenido: digital ? 'VIDEO' : null, notas: p.notas, pendienteVerificacion: p.pendienteVerificacion,
@@ -310,14 +333,26 @@ export async function importarSitios(args: {
       }
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
-        ? (await client.query('select id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
+        ? (await client.query('select id, fotos, imagen_promocional from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
         : null
+      // Imágenes por código (archivo "codigo" o "codigo-N"): van a la galería
+      // (fotos) y la 1ª es la principal. Si no llegan imágenes nuevas y el sitio
+      // ya existe, se conservan las suyas (no se borran al actualizar).
+      const fotosNuevas = imagenesDeSitio(p.codigo_proveedor, imagenes)
+      if (fotosNuevas.length) {
+        base.fotos = fotosNuevas
+        base.imagenPromocional = fotosNuevas[0]
+      } else if (existente) {
+        base.fotos = existente.fotos ?? []
+        base.imagenPromocional = existente.imagen_promocional ?? null
+      }
+      const conImg = fotosNuevas.length ? ` +${fotosNuevas.length} img` : ''
       const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
 
       if (existente && modoDuplicado === 'ACTUALIZAR') {
         await actualizarSitioCompleto(client, existente.id, base) // UPDATE en sitio (conserva reservas)
         conAdv ? con_advertencias++ : actualizadas++
-        detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}` })
+        detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}${conImg}` })
       } else {
         let codigo = p.codigo_proveedor
         if (existente && modoDuplicado === 'NUEVA_VERSION') {
@@ -327,7 +362,7 @@ export async function importarSitios(args: {
         }
         await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
         conAdv ? con_advertencias++ : creadas++
-        detalle.push({ codigo_proveedor: codigo || '(sin código)', status: conAdv ? 'advertencia' : 'creado', mensaje: `Creado${sufijoMod}` })
+        detalle.push({ codigo_proveedor: codigo || '(sin código)', status: conAdv ? 'advertencia' : 'creado', mensaje: `Creado${sufijoMod}${conImg}` })
       }
     }
     await client.query('commit')
