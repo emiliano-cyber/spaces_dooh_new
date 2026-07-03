@@ -94,8 +94,15 @@ export function NuevaPantallaForm({
       toast.error('La imagen supera 5MB')
       return
     }
-    setImagen(URL.createObjectURL(f))
-    setImagenNombre(f.name)
+    // Se guarda como data URL (base64), NO como blob URL: el blob solo vive en
+    // esta pestaña y desaparecería al recargar. El base64 persiste en la BD.
+    const reader = new FileReader()
+    reader.onload = () => {
+      setImagen(reader.result as string)
+      setImagenNombre(f.name)
+    }
+    reader.onerror = () => toast.error('No se pudo leer la imagen')
+    reader.readAsDataURL(f)
   }
 
   async function submit() {
