@@ -258,6 +258,25 @@ const MAPEO_TIPO: Record<string, string> = {
   puente: 'PUENTE_PEATONAL', otro: 'OTRO',
 }
 
+// Empareja imágenes con un sitio por nomenclatura de archivo (sin extensión):
+//   • "<codigo>"        → imagen principal
+//   • "<codigo>-<N>"    → imagen número N (también acepta "_" o espacio)
+// Devuelve las data URLs ordenadas: principal primero, luego por número. Exige
+// separador antes del número para no confundir "S-001" con "S-0012".
+function imagenesDeSitio(codigo: string, imagenes?: Record<string, string>): string[] {
+  const cod = String(codigo || '').trim().toLowerCase()
+  if (!cod || !imagenes) return []
+  const matches: { n: number; url: string }[] = []
+  for (const [key, url] of Object.entries(imagenes)) {
+    if (key === cod) { matches.push({ n: 0, url }); continue }
+    if (key.startsWith(cod)) {
+      const m = key.slice(cod.length).match(/^[-_ ](\d+)$/)
+      if (m) matches.push({ n: Number(m[1]), url })
+    }
+  }
+  return matches.sort((a, b) => a.n - b.n).map((x) => x.url)
+}
+
 export async function importarSitios(args: {
   filas: any[]
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'
@@ -311,15 +330,22 @@ export async function importarSitios(args: {
         tipoContenido: digital ? 'VIDEO' : null, notas: p.notas, pendienteVerificacion: p.pendienteVerificacion,
         codigoProveedor: p.codigo_proveedor, modalidadesDetalle,
       }
-      // Imagen por código: archivo (sin extensión) = código de proveedor. Solo se
-      // asigna si hay match (no borra la imagen existente al actualizar).
-      const img = imagenes?.[String(p.codigo_proveedor || '').trim().toLowerCase()]
-      if (img) base.imagenPromocional = img
-      const conImg = img ? ' +imagen' : ''
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
-        ? (await client.query('select id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
+        ? (await client.query('select id, fotos, imagen_promocional from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
         : null
+      // Imágenes por código (archivo "codigo" o "codigo-N"): van a la galería
+      // (fotos) y la 1ª es la principal. Si no llegan imágenes nuevas y el sitio
+      // ya existe, se conservan las suyas (no se borran al actualizar).
+      const fotosNuevas = imagenesDeSitio(p.codigo_proveedor, imagenes)
+      if (fotosNuevas.length) {
+        base.fotos = fotosNuevas
+        base.imagenPromocional = fotosNuevas[0]
+      } else if (existente) {
+        base.fotos = existente.fotos ?? []
+        base.imagenPromocional = existente.imagen_promocional ?? null
+      }
+      const conImg = fotosNuevas.length ? ` +${fotosNuevas.length} img` : ''
       const sufijoMod = rows.length > 1 ? ` (${rows.length} modalidades)` : ''
 
       if (existente && modoDuplicado === 'ACTUALIZAR') {

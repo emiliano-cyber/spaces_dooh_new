@@ -128,18 +128,19 @@ export function ImportarInventarioDialog({
   async function procesar() {
     if (!filas) return
     setProcesando(true)
-    // Asocia imagen ↔ sitio por nombre de archivo (sin extensión) = código de
-    // proveedor. Ej.: "S-ABC123.jpg" → sitio con código "S-ABC123".
-    const imagenesPorCodigo: Record<string, string> = {}
+    // Envía las imágenes por nombre de archivo (sin extensión, minúsculas). El
+    // servidor las asocia por nomenclatura: "codigo" (principal) o "codigo-N"
+    // (imagen N). Ej.: "S-ABC123.jpg", "S-ABC123-2.jpg" → sitio "S-ABC123".
+    const imagenesPorArchivo: Record<string, string> = {}
     for (const [fn, dataUrl] of Object.entries(imagenes)) {
       const clave = fn.replace(/\.[^.]+$/, '').trim().toLowerCase()
-      if (clave) imagenesPorCodigo[clave] = dataUrl
+      if (clave) imagenesPorArchivo[clave] = dataUrl
     }
     const res = await importarSitiosApi({
       filas,
       modoDuplicado: modo,
       precioM2: precioM2 ? Number(precioM2) : null,
-      imagenes: Object.keys(imagenesPorCodigo).length ? imagenesPorCodigo : undefined,
+      imagenes: Object.keys(imagenesPorArchivo).length ? imagenesPorArchivo : undefined,
     })
     setProcesando(false)
     setSummary(res)
@@ -267,7 +268,10 @@ export function ImportarInventarioDialog({
             {totalImagenes > 0 ? `${totalImagenes} imágenes cargadas` : 'Subir imágenes (JPG/PNG ≤5MB)'}
             <input type="file" accept="image/jpeg,image/png" multiple onChange={onImagenes} className="hidden" />
           </label>
-          <p className="mt-1 text-[11px] text-muted">Se asocian por código de proveedor (nombre del archivo = código).</p>
+          <p className="mt-1 text-[11px] text-muted">
+            Nombra cada archivo con el <b className="text-ink">código de proveedor</b>: <code>codigo.jpg</code> (principal)
+            o <code>codigo-1.jpg</code>, <code>codigo-2.jpg</code>… para varias por pantalla.
+          </p>
         </div>
 
         {/* Duplicados */}
