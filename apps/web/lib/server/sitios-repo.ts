@@ -262,8 +262,11 @@ export async function importarSitios(args: {
   filas: any[]
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'
   precioM2: number | null
+  // Imágenes por pantalla: clave = nombre de archivo SIN extensión en minúsculas
+  // (= código de proveedor), valor = data URL base64.
+  imagenes?: Record<string, string>
 }): Promise<any> {
-  const { filas, modoDuplicado, precioM2 } = args
+  const { filas, modoDuplicado, precioM2, imagenes } = args
   const detalle: any[] = []
   let creadas = 0, actualizadas = 0, con_advertencias = 0, errores = 0
 
@@ -308,6 +311,11 @@ export async function importarSitios(args: {
         tipoContenido: digital ? 'VIDEO' : null, notas: p.notas, pendienteVerificacion: p.pendienteVerificacion,
         codigoProveedor: p.codigo_proveedor, modalidadesDetalle,
       }
+      // Imagen por código: archivo (sin extensión) = código de proveedor. Solo se
+      // asigna si hay match (no borra la imagen existente al actualizar).
+      const img = imagenes?.[String(p.codigo_proveedor || '').trim().toLowerCase()]
+      if (img) base.imagenPromocional = img
+      const conImg = img ? ' +imagen' : ''
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
         ? (await client.query('select id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
@@ -317,7 +325,7 @@ export async function importarSitios(args: {
       if (existente && modoDuplicado === 'ACTUALIZAR') {
         await actualizarSitioCompleto(client, existente.id, base) // UPDATE en sitio (conserva reservas)
         conAdv ? con_advertencias++ : actualizadas++
-        detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}` })
+        detalle.push({ codigo_proveedor: p.codigo_proveedor, status: conAdv ? 'advertencia' : 'actualizado', mensaje: `Actualizado${sufijoMod}${conImg}` })
       } else {
         let codigo = p.codigo_proveedor
         if (existente && modoDuplicado === 'NUEVA_VERSION') {
@@ -327,7 +335,7 @@ export async function importarSitios(args: {
         }
         await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
         conAdv ? con_advertencias++ : creadas++
-        detalle.push({ codigo_proveedor: codigo || '(sin código)', status: conAdv ? 'advertencia' : 'creado', mensaje: `Creado${sufijoMod}` })
+        detalle.push({ codigo_proveedor: codigo || '(sin código)', status: conAdv ? 'advertencia' : 'creado', mensaje: `Creado${sufijoMod}${conImg}` })
       }
     }
     await client.query('commit')

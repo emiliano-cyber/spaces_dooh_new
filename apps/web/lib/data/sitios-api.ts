@@ -30,6 +30,8 @@ export async function importarSitiosApi(args: {
   filas: unknown[]
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'
   precioM2: number | null
+  // Imágenes por código de proveedor (clave en minúsculas) → data URL base64.
+  imagenes?: Record<string, string>
 }): Promise<ImportSummary> {
   const r = await fetch(`${BASE}/import/`, {
     method: 'POST',

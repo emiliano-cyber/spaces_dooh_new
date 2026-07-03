@@ -103,22 +103,43 @@ export function ImportarInventarioDialog({
 
   function onImagenes(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
-    const map = { ...imagenes }
-    for (const f of files) {
-      if (f.size > 5 * 1024 * 1024) continue
-      map[f.name] = URL.createObjectURL(f)
-    }
-    setImagenes(map)
     e.target.value = ''
+    // Se leen como data URL (base64) para que persistan; el blob URL se perdería.
+    Promise.all(
+      files.map(
+        (f) =>
+          new Promise<[string, string] | null>((res) => {
+            if (f.size > 5 * 1024 * 1024) return res(null)
+            const reader = new FileReader()
+            reader.onload = () => res([f.name, reader.result as string])
+            reader.onerror = () => res(null)
+            reader.readAsDataURL(f)
+          }),
+      ),
+    ).then((pares) => {
+      setImagenes((prev) => {
+        const map = { ...prev }
+        for (const par of pares) if (par) map[par[0]] = par[1]
+        return map
+      })
+    })
   }
 
   async function procesar() {
     if (!filas) return
     setProcesando(true)
+    // Asocia imagen ↔ sitio por nombre de archivo (sin extensión) = código de
+    // proveedor. Ej.: "S-ABC123.jpg" → sitio con código "S-ABC123".
+    const imagenesPorCodigo: Record<string, string> = {}
+    for (const [fn, dataUrl] of Object.entries(imagenes)) {
+      const clave = fn.replace(/\.[^.]+$/, '').trim().toLowerCase()
+      if (clave) imagenesPorCodigo[clave] = dataUrl
+    }
     const res = await importarSitiosApi({
       filas,
       modoDuplicado: modo,
       precioM2: precioM2 ? Number(precioM2) : null,
+      imagenes: Object.keys(imagenesPorCodigo).length ? imagenesPorCodigo : undefined,
     })
     setProcesando(false)
     setSummary(res)
