@@ -1,11 +1,14 @@
 import 'server-only'
 import { q, q1 } from './db'
+import { tenantActual } from './tenant'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio (tenant). Fila única
 //  en config_negocio. Se lee desde /api/config (admin) y desde /api/estado
 //  (todos los roles) para que el logo, nombre, IVA y parámetros de loop/spot
 //  estén disponibles en toda la app.
+//  El `nombreTenant` que se muestra (sidebar) es el nombre de la ORGANIZACIÓN
+//  (tenant) actual, no el global de config_negocio.
 // ============================================================================
 
 export function rowToConfig(r: any) {
@@ -30,5 +33,10 @@ export async function obtenerConfigRow() {
 }
 
 export async function obtenerConfig() {
-  return rowToConfig(await obtenerConfigRow())
+  const cfg = rowToConfig(await obtenerConfigRow())
+  // El nombre visible es el de la organización (tenant) actual, así cada CRM
+  // muestra su propia empresa en el sidebar.
+  const t = await q1<any>('select nombre from tenants where id = $1', [await tenantActual()])
+  if (t?.nombre) cfg.nombreTenant = t.nombre
+  return cfg
 }

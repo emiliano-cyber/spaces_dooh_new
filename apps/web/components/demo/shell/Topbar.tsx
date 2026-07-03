@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, UserCircle2, LogOut, Bell, CheckCheck, Menu } from 'lucide-react'
+import { ChevronDown, UserCircle2, LogOut, Bell, CheckCheck, Menu, Settings } from 'lucide-react'
 import { apiLogout } from '@/lib/auth-real'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
@@ -135,6 +136,14 @@ export function Topbar() {
                 </div>
               )}
               <div className="my-1 h-px bg-border" />
+              <DropdownMenu.Item asChild>
+                <Link
+                  href="/demo/configuracion"
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
+                >
+                  <Settings className="h-4 w-4 text-muted" /> Configuración
+                </Link>
+              </DropdownMenu.Item>
               <DropdownMenu.Item
                 onSelect={cerrar}
                 className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
