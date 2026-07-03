@@ -33,9 +33,18 @@ export function FotoUploaderMock({
     const files = Array.from(e.target.files ?? [])
     if (!files.length) return
     const subidaEn = new Date().toISOString()
+    // Se lee como data URL (base64), NO blob: el blob solo vive en la pestaña y
+    // desaparecería al guardar/recargar. El base64 se persiste y se ve siempre.
+    const leerDataUrl = (f: File) =>
+      new Promise<string>((res, rej) => {
+        const r = new FileReader()
+        r.onload = () => res(r.result as string)
+        r.onerror = () => rej(new Error('No se pudo leer la imagen'))
+        r.readAsDataURL(f)
+      })
     const nuevas = await Promise.all(
       files.map(async (f): Promise<FotoMeta> => ({
-        url: URL.createObjectURL(f),
+        url: await leerDataUrl(f),
         tomadaEn: await leerFechaCreacion(f),
         subidaEn,
       })),

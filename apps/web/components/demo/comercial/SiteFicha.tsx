@@ -144,6 +144,20 @@ export function SiteFicha({
     setFotos((sitio?.fotos ?? []).map((url) => ({ url, tomadaEn: '', subidaEn: '' })))
   }, [sitio?.id])
 
+  // Guarda la galería en el sitio (fotos como data URLs base64; la 1ª es la
+  // imagen principal). Persiste al agregar o quitar una foto, así se ve después.
+  async function guardarFotos(next: FotoMeta[]) {
+    setFotos(next) // update optimista
+    if (!sitio) return
+    const urls = next.map((f) => f.url)
+    try {
+      await actualizarSitioApi(sitio.id, { fotos: urls, imagenPromocional: urls[0] ?? null })
+      toast.success('Galería guardada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo guardar la imagen')
+    }
+  }
+
   if (!sitio) return null
 
   const rangos =
@@ -232,7 +246,7 @@ export function SiteFicha({
         {/* Galería */}
         <div>
           <h4 className="mb-2 text-[13px] font-medium text-ink">Galería</h4>
-          <FotoUploaderMock fotos={fotos} onChange={setFotos} label="Agregar foto" />
+          <FotoUploaderMock fotos={fotos} onChange={guardarFotos} label="Agregar foto" />
         </div>
 
         {/* Características técnicas */}
