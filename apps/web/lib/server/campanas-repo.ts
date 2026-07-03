@@ -103,15 +103,24 @@ export async function listarCreatividades() {
   }))
 }
 
-// Folio de campaña: RGB + año + mes + día + 3 dígitos aleatorios, todo junto.
-// p. ej. RGB20260626482
-const folio = () => {
+// Prefijo de folio POR TENANT: deriva del slug (o nombre) de la organización,
+// en mayúsculas y solo alfanumérico (hasta 6). Ej.: slug "g500" → "G500",
+// "rgb" → "RGB", "media-norte" → "MEDIAN". Así cada CRM tiene su propio prefijo.
+async function prefijoTenant(tenantId: string | null): Promise<string> {
+  const t = tenantId ? await q1<any>('select slug, nombre from tenants where id = $1', [tenantId]) : null
+  const base = String(t?.slug || t?.nombre || 'CRM').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return base.slice(0, 6) || 'CRM'
+}
+
+// Folio de campaña: <PREFIJO_TENANT> + año + mes + día + 3 dígitos aleatorios,
+// todo junto. p. ej. G50020260703482
+const folio = (prefijo: string) => {
   const d = new Date()
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   const rnd = String(randomBytes(2).readUInt16BE(0) % 1000).padStart(3, '0')
-  return `RGB${yyyy}${mm}${dd}${rnd}`
+  return `${prefijo}${yyyy}${mm}${dd}${rnd}`
 }
 
 type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
@@ -179,7 +188,7 @@ export async function reservar(input: {
         await client.query(
           `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, tenant_id)
            values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,$8) returning id`,
-          [folio(), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
+          [folio(await prefijoTenant(tenantId)), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
            input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
       ).rows[0].id
@@ -355,7 +364,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       await client.query(
         `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, tenant_id)
          values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,$9) returning id`,
-        [folio(), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        [folio(await prefijoTenant(await tenantActual())), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
 
