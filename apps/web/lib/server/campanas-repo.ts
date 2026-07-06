@@ -18,6 +18,11 @@ const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string)
 // default 16); este valor es solo el respaldo cuando no hay cliente.
 export const IGV_PCT = 0.16
 
+// TTL de una reserva TENTATIVA: días desde su creación tras los cuales caduca
+// sola (barrerReservasVencidas la pasa a CANCELADA y libera el sitio). Al
+// confirmar se limpia (expira_en = null → no caduca). Ajustable a futuro.
+export const TTL_RESERVA_DIAS = 7
+
 type Exec = { query: (sql: string, params?: unknown[]) => Promise<unknown> }
 async function recalcularPresupuesto(exec: Exec | null, campanaId: string) {
   // El IVA sale del cliente de la campaña (clientes.iva_pct); si no hay, 16.
@@ -79,6 +84,7 @@ export function rowToReserva(r: any) {
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
     precio: n(r.precio) ?? 0, tipoVenta: r.tipo_venta, estatus: r.estatus,
     spotsReservados: n(r.spots_reservados),
+    expiraEn: r.expira_en ? iso(r.expira_en) : null,
     creativos: Array.isArray(r.creativos) ? r.creativos : [],
     creadoEn: iso(r.creado_en),
   }
@@ -103,15 +109,24 @@ export async function listarCreatividades() {
   }))
 }
 
-// Folio de campaña: RGB + año + mes + día + 3 dígitos aleatorios, todo junto.
-// p. ej. RGB20260626482
-const folio = () => {
+// Prefijo de folio POR TENANT: deriva del slug (o nombre) de la organización,
+// en mayúsculas y solo alfanumérico (hasta 6). Ej.: slug "g500" → "G500",
+// "rgb" → "RGB", "media-norte" → "MEDIAN". Así cada CRM tiene su propio prefijo.
+async function prefijoTenant(tenantId: string | null): Promise<string> {
+  const t = tenantId ? await q1<any>('select slug, nombre from tenants where id = $1', [tenantId]) : null
+  const base = String(t?.slug || t?.nombre || 'CRM').toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return base.slice(0, 6) || 'CRM'
+}
+
+// Folio de campaña: <PREFIJO_TENANT> + año + mes + día + 3 dígitos aleatorios,
+// todo junto. p. ej. G50020260703482
+const folio = (prefijo: string) => {
   const d = new Date()
   const yyyy = d.getFullYear()
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   const dd = String(d.getDate()).padStart(2, '0')
   const rnd = String(randomBytes(2).readUInt16BE(0) % 1000).padStart(3, '0')
-  return `RGB${yyyy}${mm}${dd}${rnd}`
+  return `${prefijo}${yyyy}${mm}${dd}${rnd}`
 }
 
 type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
@@ -137,6 +152,84 @@ export async function crearCliente(input: { nombre: string; rfc?: string; tipo?:
   return rowToCliente(rows[0])
 }
 
+// ─── TTL: barrido de reservas tentativas vencidas ───────────────────────────
+// Pasa a CANCELADA toda reserva TENTATIVA cuyo `expira_en` ya pasó y libera el
+// inventario: devuelve slots a las digitales y regresa a DISPONIBLE las
+// estáticas que se quedaron sin reserva activa. Se llama en cada lectura de
+// estado (chokepoint) y antes de reservar, así que no requiere cron. Idempotente.
+export async function barrerReservasVencidas(): Promise<number> {
+  const tenantId = await tenantActual()
+  if (!tenantId) return 0
+  // Guard barato: si no hay vencidas, no abre transacción (cada lectura pasa por aquí).
+  const hay = await q1<{ n: string }>(
+    `select count(*)::text as n from reservas
+      where tenant_id=$1 and estatus='TENTATIVA' and expira_en is not null and expira_en < now()`,
+    [tenantId],
+  )
+  if (!hay || Number(hay.n) === 0) return 0
+
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    // 1) Reservas vencidas + flag de medio digital (para liberar inventario).
+    const vencidas = (
+      await client.query(
+        `select r.id, r.sitio_id, r.campana_id, r.spots_reservados,
+                (s.tipo_medio='PANTALLA_DIGITAL' or s.es_rotativo or s.exhibicion in ('digital','rotativo')) as digital
+           from reservas r join sitios s on s.id = r.sitio_id
+          where r.tenant_id=$1 and r.estatus='TENTATIVA'
+            and r.expira_en is not null and r.expira_en < now()
+          for update of r`,
+        [tenantId],
+      )
+    ).rows as any[]
+
+    const ids = vencidas.map((r) => r.id)
+    await client.query(`update reservas set estatus='CANCELADA' where id = any($1::uuid[])`, [ids])
+
+    // 2) Devolver slots a las digitales (acotado a total_spots) → DISPONIBLE.
+    for (const r of vencidas) {
+      if (r.digital && r.spots_reservados != null) {
+        await client.query(
+          `update sitios
+              set spots_disponibles = least(
+                    coalesce(total_spots, coalesce(spots_disponibles,0) + $2),
+                    coalesce(spots_disponibles,0) + $2),
+                  estatus_comercial = 'DISPONIBLE'
+            where id=$1`,
+          [r.sitio_id, r.spots_reservados],
+        )
+      }
+    }
+
+    // 3) Liberar estáticas que se quedaron sin ninguna reserva activa.
+    const sitiosAfectados = [...new Set(vencidas.map((r) => r.sitio_id))]
+    await client.query(
+      `update sitios set estatus_comercial='DISPONIBLE'
+        where id = any($1::uuid[])
+          and estatus_comercial='RESERVADO'
+          and not exists (
+            select 1 from reservas r
+             where r.sitio_id = sitios.id and r.estatus <> 'CANCELADA'
+          )`,
+      [sitiosAfectados],
+    )
+
+    // 4) Recalcular presupuesto de las campañas afectadas.
+    for (const cid of [...new Set(vencidas.map((r) => r.campana_id))]) {
+      await recalcularPresupuesto(client, cid)
+    }
+
+    await client.query('commit')
+    return ids.length
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 // ─── Reservar (Acto 3): crea cliente+campaña si hace falta, reservas TENTATIVA
 //     y pone los sitios en RESERVADO ─────────────────────────────────────────
 export async function reservar(input: {
@@ -151,6 +244,9 @@ export async function reservar(input: {
   // Spots a reservar por sitio digital (sitioId → cantidad). Descuenta disponibles.
   spotsPorSitio?: Record<string, number>
 }) {
+  // Libera primero las tentativas vencidas: así el guard de colisión y los slots
+  // digitales reflejan el inventario realmente disponible al momento de vender.
+  await barrerReservasVencidas()
   const client = await pool.connect()
   try {
     await client.query('begin')
@@ -179,7 +275,7 @@ export async function reservar(input: {
         await client.query(
           `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, tenant_id)
            values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,$8) returning id`,
-          [folio(), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
+          [folio(await prefijoTenant(tenantId)), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
            input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
       ).rows[0].id
@@ -258,9 +354,9 @@ export async function reservar(input: {
           : null
 
       await client.query(
-        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6,$7)`,
-        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, await tenantActual()],
+        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, expira_en, tenant_id)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6, now() + make_interval(days => $7::int), $8)`,
+        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, TTL_RESERVA_DIAS, await tenantActual()],
       )
 
       if (digital && spotsReservados != null) {
@@ -355,7 +451,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       await client.query(
         `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, tenant_id)
          values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,$9) returning id`,
-        [folio(), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        [folio(await prefijoTenant(await tenantActual())), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
 
@@ -392,7 +488,7 @@ export async function confirmarReserva(campanaId: string) {
       )
     ).rows.map((r) => r.sitio_id)
     await client.query(
-      `update reservas set estatus='CONFIRMADA' where campana_id=$1 and estatus='TENTATIVA'`,
+      `update reservas set estatus='CONFIRMADA', expira_en=null where campana_id=$1 and estatus='TENTATIVA'`,
       [campanaId],
     )
     if (sitios.length) {

@@ -264,6 +264,9 @@ create table propuestas (
   estatus      est_propuesta not null default 'BORRADOR',
   comision_pct numeric(5,2) not null default 0,   -- comisión de agencia → divisor
   notas        text,
+  aceptado_en  timestamptz,                        -- aceptación del cliente desde la liga pública (medio-contrato)
+  aceptado_por text,                               -- nombre que el cliente escribió al aceptar
+  aceptado_ip  text,                               -- IP de origen de la aceptación
   creado_en    timestamptz not null default now()
 );
 create table propuesta_items (
@@ -364,12 +367,14 @@ create table reservas (
   tipo_venta   tipo_venta not null default 'FIXED_PKG',
   estatus      est_reserva not null default 'TENTATIVA',
   spots_reservados int,                     -- spots reservados (DOOH); null en estáticas
+  expira_en    timestamptz,                 -- TTL: una TENTATIVA caduca sola en esta fecha (null = no caduca)
   creativos    jsonb not null default '[]', -- [{creatividadId, veces}] exhibidos en este spot
   creado_en    timestamptz not null default now()
 );
 create index idx_reservas_campana on reservas (campana_id);
 create index idx_reservas_sitio   on reservas (sitio_id);
 create index idx_reservas_estatus on reservas (estatus);
+create index idx_reservas_expira  on reservas (expira_en) where estatus = 'TENTATIVA';
 
 -- ─── Operaciones: órdenes de trabajo + evidencias ───────────────────────────
 create table ordenes_trabajo (
@@ -465,6 +470,8 @@ create table cobranzas (
   fecha_vencimiento date not null,
   estatus           est_cobranza not null default 'AL_CORRIENTE',
   monto_pagado      numeric(16,2) not null default 0,
+  recordatorio_en       timestamptz,                 -- último recordatorio de cobro enviado (cadencia + idempotencia)
+  recordatorios_enviados integer not null default 0, -- cuántos recordatorios se han enviado
   creado_en         timestamptz not null default now()
 );
 create index idx_cobranzas_factura on cobranzas (factura_id);

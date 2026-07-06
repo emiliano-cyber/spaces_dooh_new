@@ -35,6 +35,7 @@ import {
   etapasPipeline,
   margenCampana,
   reporteCampana,
+  disponibilidad,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
@@ -42,6 +43,8 @@ import {
   type ReporteCampana,
   type Granularidad,
   type SerieOcupacion,
+  type Disponibilidad,
+  type OpcionesDisponibilidad,
 } from './derive'
 import type { Campana, EtapaPipeline, RolDemo, UsuarioDemo } from './types'
 
@@ -64,6 +67,8 @@ export {
   ETAPA_LABEL,
   etapaIndex,
   etapasPipeline,
+  estadoSLAOT,
+  otAbierta,
   diasHasta,
   formatMonto,
   formatMontoCorto,
@@ -78,6 +83,14 @@ export type {
   Granularidad,
   SerieOcupacion,
   PuntoOcupacion,
+  Disponibilidad,
+  OpcionesDisponibilidad,
+  FilaDisponibilidad,
+  CeldaDisponibilidad,
+  PeriodoDisponibilidad,
+  EstadoCelda,
+  GranDisponibilidad,
+  EstadoSLA,
 } from './derive'
 export type * from './types'
 
@@ -255,6 +268,18 @@ export function useDashboard(): DashboardMetrics | undefined {
 export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
   const m = useMounted()
   const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
+  return m ? v : undefined
+}
+
+/** Calendario de disponibilidad futura por sitio × periodo (catorcena/mes). */
+export function useDisponibilidad(opts: OpcionesDisponibilidad): Disponibilidad | undefined {
+  const m = useMounted()
+  const v = useStoreMemo((s) => disponibilidad(s, opts), [
+    opts.desde,
+    opts.periodos,
+    opts.gran,
+    opts.soloDisponibles,
+  ])
   return m ? v : undefined
 }
 

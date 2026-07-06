@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp } from 'lucide-react'
+import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Button } from '@/components/demo/ui/Button'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
-import { formatMonto, formatFecha } from '@/lib/data/client'
+import { formatMonto, formatFecha, formatFechaHora } from '@/lib/data/client'
 
 const API = '/spaces-dooh/api'
 
@@ -23,6 +24,8 @@ interface PropuestaPub {
   folio: string
   nombre: string
   estatus: string
+  aceptadoEn: string | null
+  aceptadoPor: string | null
   clienteNombre: string | null
   agenciaNombre: string | null
   comisionPct: number
@@ -37,6 +40,11 @@ interface PropuestaPub {
 
 export default function PropuestaPublicaPage({ params }: { params: { id: string } }) {
   const [data, setData] = useState<PropuestaPub | null | undefined>(undefined)
+  // Aceptación del cliente (liga pública).
+  const [nombre, setNombre] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [errorAcep, setErrorAcep] = useState<string | null>(null)
+  const [aceptadaLocal, setAceptadaLocal] = useState<{ aceptadoEn: string; aceptadoPor: string } | null>(null)
 
   useEffect(() => {
     let vivo = true
@@ -48,6 +56,32 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       vivo = false
     }
   }, [params.id])
+
+  async function aceptar() {
+    if (!nombre.trim()) {
+      setErrorAcep('Escribe tu nombre para aceptar')
+      return
+    }
+    setEnviando(true)
+    setErrorAcep(null)
+    try {
+      const r = await fetch(`${API}/propuestas/publica/${params.id}/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: nombre.trim() }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        setErrorAcep(j.error ?? 'No se pudo aceptar. Reintenta.')
+        return
+      }
+      setAceptadaLocal({ aceptadoEn: j.aceptadoEn ?? new Date().toISOString(), aceptadoPor: j.aceptadoPor ?? nombre.trim() })
+    } catch {
+      setErrorAcep('No se pudo aceptar. Reintenta.')
+    } finally {
+      setEnviando(false)
+    }
+  }
 
   if (data === undefined) {
     return (
@@ -69,6 +103,10 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   const p = data
   const ivaPct = p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16
   const comisionPct = Math.round(100 - p.divisor * 100)
+  // Estado de aceptación: local (recién aceptada) o el que trae la propuesta.
+  const aceptada =
+    aceptadaLocal ?? (p.aceptadoEn ? { aceptadoEn: p.aceptadoEn, aceptadoPor: p.aceptadoPor ?? '' } : null)
+  const puedeAceptar = !aceptada && p.estatus === 'ENVIADA'
   const desde = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()[0]
   const hasta = p.items.map((i) => i.fechaFin).filter(Boolean).sort().at(-1)
 
@@ -97,7 +135,13 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
               <div className="text-[10px] text-muted">Propuesta comercial</div>
             </div>
           </div>
-          <span className="text-[12px] text-muted">Solo lectura</span>
+          {aceptada ? (
+            <span className="inline-flex items-center gap-1 rounded-full border border-[#10b98140] bg-[#10b9810d] px-2.5 py-1 text-[12px] font-medium text-[#0f7a55]">
+              <CheckCircle2 className="h-3.5 w-3.5" /> Aceptada
+            </span>
+          ) : (
+            <span className="text-[12px] text-muted">{puedeAceptar ? 'Pendiente de tu aprobación' : 'Solo lectura'}</span>
+          )}
         </div>
       </header>
 
@@ -183,8 +227,50 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           </CardContent>
         </Card>
 
+        {/* Aceptación del cliente (cierra el loop de venta) */}
+        {aceptada ? (
+          <Card className="border-[#10b98140] bg-[#10b9810d]">
+            <CardContent>
+              <div className="flex items-start gap-3 py-1">
+                <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-[#0f7a55]" />
+                <div>
+                  <div className="text-[15px] font-semibold text-ink">Propuesta aceptada</div>
+                  <div className="mt-0.5 text-[13px] text-muted">
+                    Aceptada{aceptada.aceptadoPor ? ` por ${aceptada.aceptadoPor}` : ''} el{' '}
+                    {formatFechaHora(aceptada.aceptadoEn)}. El equipo comercial fue notificado.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ) : puedeAceptar ? (
+          <Card>
+            <CardHeader>
+              <CardTitle>¿Aceptas esta propuesta?</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-[13px] text-muted">
+                Al aceptar confirmas las {p.items.length} pantalla{p.items.length === 1 ? '' : 's'} y el
+                total de {formatMonto(p.total)}. Queda registrada tu aceptación con fecha y hora.
+              </p>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <input
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Tu nombre y cargo"
+                  className="h-10 flex-1 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                />
+                <Button onClick={aceptar} disabled={enviando} className="shrink-0">
+                  <CheckCircle2 className="h-4 w-4" /> {enviando ? 'Aceptando…' : 'Aceptar propuesta'}
+                </Button>
+              </div>
+              {errorAcep && <p className="mt-2 text-[12px] text-error">{errorAcep}</p>}
+            </CardContent>
+          </Card>
+        ) : null}
+
         <p className="pb-4 text-center text-[11px] text-muted">
-          Spaces · propuesta comercial · este enlace es de solo lectura
+          Spaces · propuesta comercial{puedeAceptar || aceptada ? '' : ' · este enlace es de solo lectura'}
         </p>
       </main>
     </div>

@@ -49,8 +49,13 @@ jobs:
             echo "→ Building..."
             npx turbo run build
 
-            echo "→ Running database migrations..."
+            echo "→ Running Prisma migrations (apps/api)..."
             cd apps/api && npx prisma migrate deploy && cd ../..
+
+            echo "→ Applying BFF SQL migrations (aditivas, idempotentes, fail-closed)..."
+            node scripts/apply-migration.mjs db/migrations/20260706_reserva_ttl.sql
+            node scripts/apply-migration.mjs db/migrations/20260706_propuesta_aceptacion.sql
+            node scripts/apply-migration.mjs db/migrations/20260706_cobranza_recordatorios.sql
 
             echo "→ Reloading PM2..."
             pm2 reload ecosystem.config.js --update-env

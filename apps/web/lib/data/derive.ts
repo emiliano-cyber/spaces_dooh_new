@@ -13,6 +13,12 @@ import type {
   EtapaPipeline,
   Cobranza,
   EstCobranza,
+  Sitio,
+  Reserva,
+  EstReserva,
+  TipoMedio,
+  OrdenTrabajo,
+  EstOT,
 } from './types'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -392,7 +398,45 @@ function construirAlertas(state: DemoState): Alerta[] {
     }
   }
 
+  // Órdenes de trabajo vencidas / por vencer (SLA de cierre en campo). Una OT
+  // abierta que pasó su fecha compromiso frena el candado de facturación.
+  for (const ot of state.ordenesTrabajo) {
+    const sla = estadoSLAOT(ot)
+    if (sla !== 'VENCIDA' && sla !== 'POR_VENCER') continue
+    const sit = state.sitios.find((s) => s.id === ot.sitioId)
+    const dias = diasHasta(ot.fechaProgramada!)
+    const sinAsignar = ot.asignadoAUserId ? '' : ' · sin asignar'
+    alertas.push({
+      id: `al-ot-${ot.id}`,
+      nivel: sla === 'VENCIDA' ? 'rojo' : 'ambar',
+      titulo: sla === 'VENCIDA' ? 'OT vencida' : 'OT por vencer',
+      detalle:
+        `${ot.folio} · ${sit?.nombre ?? 'sin sitio'} — ` +
+        (sla === 'VENCIDA' ? `venció hace ${Math.abs(dias)} día(s)` : `vence en ${dias} día(s)`) +
+        sinAsignar,
+    })
+  }
+
   return alertas
+}
+
+// ─── SLA de órdenes de trabajo (OT vencida / por vencer) ────────────────────
+export type EstadoSLA = 'VENCIDA' | 'POR_VENCER' | 'EN_TIEMPO' | 'SIN_FECHA'
+
+// Estados en los que la OT sigue ABIERTA (aún debe cerrarse en campo).
+const OT_ABIERTAS: EstOT[] = ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'BLOQUEADA', 'EN_REVISION']
+export function otAbierta(ot: OrdenTrabajo): boolean {
+  return OT_ABIERTAS.includes(ot.estatus)
+}
+
+// SLA respecto a la fecha programada (compromiso). Solo aplica a OT abiertas
+// con fecha: VENCIDA = el compromiso ya pasó; POR_VENCER = dentro del umbral.
+export function estadoSLAOT(ot: OrdenTrabajo, umbralPorVencerDias = 2): EstadoSLA {
+  if (!otAbierta(ot) || !ot.fechaProgramada) return 'SIN_FECHA'
+  const dias = diasHasta(ot.fechaProgramada)
+  if (dias < 0) return 'VENCIDA'
+  if (dias <= umbralPorVencerDias) return 'POR_VENCER'
+  return 'EN_TIEMPO'
 }
 
 // ─── Utilidades ─────────────────────────────────────────────────────────────
@@ -507,4 +551,172 @@ function etiquetaBucket(d: Date, gran: Granularidad): string {
     return `${dd}/${mm}`
   }
   return String(d.getDate())
+}
+
+// ─── Disponibilidad futura (calendario de ocupación) ────────────────────────
+//  Responde "¿qué tengo libre en septiembre?": cruza las reservas VIGENTES
+//  (no canceladas: tentativas + confirmadas) contra una rejilla de periodos
+//  (catorcena o mes) y marca cada sitio×periodo como LIBRE / PARCIAL / OCUPADO.
+//  Estáticas = ocupación única (solapa → OCUPADO). Digitales = por slots
+//  (usados vs total_spots): PARCIAL mientras queden slots, OCUPADO al agotarse.
+
+export type GranDisponibilidad = 'catorcena' | 'mes'
+export type EstadoCelda = 'LIBRE' | 'PARCIAL' | 'OCUPADO'
+
+export interface OcupanteCelda {
+  campana: string
+  estatus: EstReserva // TENTATIVA | CONFIRMADA
+  spots: number | null
+}
+export interface CeldaDisponibilidad {
+  estado: EstadoCelda
+  ocupantes: OcupanteCelda[]
+  spotsUsados: number
+  spotsTotal: number | null // capacidad (solo digitales)
+}
+export interface PeriodoDisponibilidad {
+  clave: string
+  label: string
+  inicio: string // ISO date (solo fecha)
+  fin: string // ISO date (solo fecha)
+}
+export interface FilaDisponibilidad {
+  sitioId: string
+  nombre: string
+  clave: string
+  tipoMedio: TipoMedio
+  digital: boolean
+  totalSpots: number | null
+  celdas: CeldaDisponibilidad[]
+  libres: number // n.º de periodos LIBRE (para resumen / orden)
+}
+export interface Disponibilidad {
+  periodos: PeriodoDisponibilidad[]
+  filas: FilaDisponibilidad[]
+  totalSitios: number
+}
+export interface OpcionesDisponibilidad {
+  desde: string // ISO date (YYYY-MM-DD) del inicio de la rejilla
+  periodos: number
+  gran: GranDisponibilidad
+  soloDisponibles?: boolean // deja solo filas con al menos un periodo libre
+}
+
+function esDigital(s: Sitio): boolean {
+  return (
+    s.tipoMedio === 'PANTALLA_DIGITAL' ||
+    s.esRotativo ||
+    s.exhibicion === 'digital' ||
+    s.exhibicion === 'rotativo'
+  )
+}
+
+function fechaISOsolo(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dd}`
+}
+
+function construirPeriodos(
+  desde: Date,
+  cantidad: number,
+  gran: GranDisponibilidad,
+): PeriodoDisponibilidad[] {
+  const periodos: PeriodoDisponibilidad[] = []
+  if (gran === 'mes') {
+    let cursor = new Date(desde.getFullYear(), desde.getMonth(), 1)
+    for (let i = 0; i < cantidad; i++) {
+      const ini = new Date(cursor)
+      const fin = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0) // último día del mes
+      periodos.push({
+        clave: `${ini.getFullYear()}-${String(ini.getMonth() + 1).padStart(2, '0')}`,
+        label: ini.toLocaleDateString('es-PE', { month: 'short', year: '2-digit' }).replace('.', ''),
+        inicio: fechaISOsolo(ini),
+        fin: fechaISOsolo(fin),
+      })
+      cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1)
+    }
+  } else {
+    const cursor = new Date(desde)
+    cursor.setHours(0, 0, 0, 0)
+    for (let i = 0; i < cantidad; i++) {
+      const ini = new Date(cursor)
+      const fin = new Date(cursor)
+      fin.setDate(fin.getDate() + 13) // catorcena = 14 días
+      periodos.push({
+        clave: `c-${fechaISOsolo(ini)}`,
+        label: `${ini.getDate()}/${ini.getMonth() + 1}–${fin.getDate()}/${fin.getMonth() + 1}`,
+        inicio: fechaISOsolo(ini),
+        fin: fechaISOsolo(fin),
+      })
+      cursor.setDate(cursor.getDate() + 14)
+    }
+  }
+  return periodos
+}
+
+export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): Disponibilidad {
+  const base = new Date(`${opts.desde}T00:00:00`)
+  const desde = isNaN(base.getTime()) ? startOfToday() : base
+  const periodos = construirPeriodos(desde, Math.max(1, opts.periodos), opts.gran)
+
+  // Bloquean inventario las reservas NO canceladas (tentativas vigentes +
+  // confirmadas). Las tentativas vencidas ya las caducó el servidor.
+  const activas = state.reservas.filter((r) => r.estatus !== 'CANCELADA')
+  const campanaNombre = new Map(state.campanas.map((c) => [c.id, c.nombre]))
+  const porSitio = new Map<string, Reserva[]>()
+  for (const r of activas) {
+    const arr = porSitio.get(r.sitioId)
+    if (arr) arr.push(r)
+    else porSitio.set(r.sitioId, [r])
+  }
+
+  const filas: FilaDisponibilidad[] = state.sitios.map((s) => {
+    const digital = esDigital(s)
+    const rs = porSitio.get(s.id) ?? []
+    let libres = 0
+    const celdas: CeldaDisponibilidad[] = periodos.map((p) => {
+      const pIni = new Date(`${p.inicio}T00:00:00`).getTime()
+      const pFin = new Date(`${p.fin}T23:59:59`).getTime()
+      const solapan = rs.filter((r) => {
+        const ri = new Date(r.fechaInicio).getTime()
+        const rf = new Date(r.fechaFin).getTime()
+        return ri <= pFin && rf >= pIni
+      })
+      const ocupantes: OcupanteCelda[] = solapan.map((r) => ({
+        campana: campanaNombre.get(r.campanaId) ?? '—',
+        estatus: r.estatus,
+        spots: r.spotsReservados,
+      }))
+      const spotsTotal = digital ? s.totalSpots : null
+      let spotsUsados = 0
+      let estado: EstadoCelda
+      if (digital) {
+        // Rotativas/digitales comparten slots. Una reserva sin spots explícitos
+        // (venta por paquete, no por spot) ocupa al menos 1 slot = 1 anunciante.
+        spotsUsados = solapan.reduce((acc, r) => acc + (r.spotsReservados ?? 1), 0)
+        if (solapan.length === 0) estado = 'LIBRE'
+        else if (spotsTotal != null && spotsUsados >= spotsTotal) estado = 'OCUPADO'
+        else estado = 'PARCIAL' // quedan slots libres
+      } else {
+        estado = solapan.length > 0 ? 'OCUPADO' : 'LIBRE'
+      }
+      if (estado === 'LIBRE') libres++
+      return { estado, ocupantes, spotsUsados, spotsTotal }
+    })
+    return {
+      sitioId: s.id,
+      nombre: s.nombre,
+      clave: s.claveInterna || s.codigoProveedor || '',
+      tipoMedio: s.tipoMedio,
+      digital,
+      totalSpots: digital ? s.totalSpots : null,
+      celdas,
+      libres,
+    }
+  })
+
+  const filtradas = opts.soloDisponibles ? filas.filter((f) => f.libres > 0) : filas
+  return { periodos, filas: filtradas, totalSitios: state.sitios.length }
 }

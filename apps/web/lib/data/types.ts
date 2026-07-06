@@ -478,6 +478,7 @@ export interface Reserva {
   tipoVenta: TipoVenta
   estatus: EstReserva
   spotsReservados: number | null // spots reservados (DOOH); null en estáticas
+  expiraEn: string | null // TTL: fecha en que una TENTATIVA caduca sola (null = no caduca)
   creativos: SpotCreativo[] // creativos exhibidos en este spot + cuántas veces cada uno
   creadoEn: string
 }
@@ -533,6 +534,8 @@ export interface Cobranza {
   fechaVencimiento: string
   estatus: EstCobranza
   montoPagado: number
+  recordatorioEn: string | null // último recordatorio de cobro enviado (null = ninguno)
+  recordatoriosEnviados: number // cuántos recordatorios se han enviado
   creadoEn: string
 }
 

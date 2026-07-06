@@ -365,7 +365,9 @@ function r(
   return {
     id, campanaId, sitioId,
     fechaInicio: offsetISO(inicioOffset), fechaFin: offsetISO(finOffset),
-    precio, tipoVenta: 'FIXED_PKG', estatus, spotsReservados: null, creativos: [], creadoEn: offsetISO(inicioOffset - 3),
+    precio, tipoVenta: 'FIXED_PKG', estatus, spotsReservados: null,
+    expiraEn: estatus === 'TENTATIVA' ? offsetISO(7) : null,
+    creativos: [], creadoEn: offsetISO(inicioOffset - 3),
   }
 }
 
@@ -431,11 +433,11 @@ const facturas: Factura[] = ([
 
 const cobranzas: Cobranza[] = [
   // Bebidas: plazo 90, emitida hace 75 → vence en ~15 días → POR_VENCER (ámbar)
-  { id: 'cob-bebidas', facturaId: 'fac-bebidas', plazoDias: 90, fechaVencimiento: offsetISO(15), estatus: 'POR_VENCER', montoPagado: 0, creadoEn: offsetISO(-75) },
+  { id: 'cob-bebidas', facturaId: 'fac-bebidas', plazoDias: 90, fechaVencimiento: offsetISO(15), estatus: 'POR_VENCER', montoPagado: 0, recordatorioEn: null, recordatoriosEnviados: 0, creadoEn: offsetISO(-75) },
   // Retail Q1: plazo 60, emitida hace 100 → venció hace 40 días → VENCIDA (rojo)
-  { id: 'cob-retail-q1', facturaId: 'fac-retail-q1', plazoDias: 60, fechaVencimiento: offsetISO(-40), estatus: 'VENCIDA', montoPagado: 0, creadoEn: offsetISO(-100) },
+  { id: 'cob-retail-q1', facturaId: 'fac-retail-q1', plazoDias: 60, fechaVencimiento: offsetISO(-40), estatus: 'VENCIDA', montoPagado: 0, recordatorioEn: null, recordatoriosEnviados: 0, creadoEn: offsetISO(-100) },
   // Banca Q1: plazo 90, emitida hace 20 → vence en ~70 días → AL_CORRIENTE (verde)
-  { id: 'cob-banca-q1', facturaId: 'fac-banca-q1', plazoDias: 90, fechaVencimiento: offsetISO(70), estatus: 'AL_CORRIENTE', montoPagado: 0, creadoEn: offsetISO(-20) },
+  { id: 'cob-banca-q1', facturaId: 'fac-banca-q1', plazoDias: 90, fechaVencimiento: offsetISO(70), estatus: 'AL_CORRIENTE', montoPagado: 0, recordatorioEn: null, recordatoriosEnviados: 0, creadoEn: offsetISO(-20) },
 ]
 
 // ─── Bitácora inicial (acciones históricas sembradas) ──────────────────────

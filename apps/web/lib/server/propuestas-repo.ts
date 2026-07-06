@@ -113,6 +113,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
     folio: armado.folio,
     nombre: armado.nombre,
     estatus: armado.estatus,
+    aceptadoEn: p.aceptado_en ? iso(p.aceptado_en) : null,
+    aceptadoPor: p.aceptado_por ?? null,
     clienteNombre: cliente?.nombre ?? null,
     agenciaNombre: agencia?.nombre ?? null,
     comisionPct: armado.comisionPct,
@@ -136,6 +138,97 @@ export async function obtenerPropuestaPublica(codigo: string) {
         aprobado: it.aprobado,
       }
     }),
+  }
+}
+
+// ─── Aceptación del cliente desde la liga pública ───────────────────────────
+// El cliente acepta la propuesta con un clic desde la liga (SIN sesión). Deja
+// el timestamp + su nombre (medio-contrato) y mueve la propuesta a APROBADA
+// (acepta todas las pantallas si no hay selección granular). Idempotente: si ya
+// está aceptada, devuelve la aceptación existente sin volver a escribir.
+// Nota: NO re-valida el gate de negociación de agencia — enviar la liga al
+// cliente (ENVIADA) ya fue un acto deliberado del área comercial.
+export async function aceptarPropuestaPublica(
+  codigo: string,
+  input: { nombre: string; ip?: string | null },
+): Promise<{ ok: boolean; yaAceptada: boolean; estatus: string; aceptadoEn: string | null; aceptadoPor: string | null } | null> {
+  const cod = (codigo ?? '').trim()
+  const nombre = (input.nombre ?? '').trim()
+  if (!nombre) throw new PropuestaError('Escribe tu nombre para aceptar la propuesta')
+
+  const p = await q1<any>(
+    `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
+       from propuestas where id::text = $1 or upper(folio) = upper($1) limit 1`,
+    [cod],
+  )
+  if (!p) return null
+
+  // Idempotente: ya aceptada / aprobada → devuelve la aceptación registrada.
+  if (p.aceptado_en || p.estatus === 'APROBADA') {
+    return {
+      ok: true,
+      yaAceptada: true,
+      estatus: p.estatus,
+      aceptadoEn: p.aceptado_en ? iso(p.aceptado_en) : null,
+      aceptadoPor: p.aceptado_por ?? null,
+    }
+  }
+  if (p.estatus === 'BORRADOR') {
+    throw new PropuestaError('Esta propuesta todavía no está disponible para aceptar')
+  }
+  if (p.estatus === 'RECHAZADA') {
+    throw new PropuestaError('Esta propuesta ya no está vigente')
+  }
+
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    // Aceptar = aceptar todas las pantallas si no hay selección granular previa.
+    const marcados = (
+      await client.query(
+        'select count(*)::int as n from propuesta_items where propuesta_id=$1 and aprobado=true',
+        [p.id],
+      )
+    ).rows[0].n
+    if (Number(marcados) === 0) {
+      await client.query('update propuesta_items set aprobado=true where propuesta_id=$1', [p.id])
+    }
+    const upd = (
+      await client.query(
+        `update propuestas
+            set estatus='APROBADA', aceptado_en=now(), aceptado_por=$2, aceptado_ip=$3
+          where id=$1
+          returning estatus, aceptado_en, aceptado_por`,
+        [p.id, nombre, input.ip ?? null],
+      )
+    ).rows[0]
+    // Notifica al equipo interno (bell) usando el tenant de la propuesta, no la
+    // sesión (aquí no hay sesión). Nunca rompe la aceptación si falla.
+    try {
+      await client.query(
+        `insert into notificaciones (tipo, nivel, titulo, detalle, link, tenant_id)
+         values ('PROPUESTA','ok',$1,$2,$3,$4)`,
+        [
+          'Propuesta aceptada por el cliente',
+          `${p.folio} · ${p.nombre} — aceptada por ${nombre}`,
+          `/demo/propuestas/${p.id}`,
+          p.tenant_id,
+        ],
+      )
+    } catch { /* la notificación no rompe la aceptación */ }
+    await client.query('commit')
+    return {
+      ok: true,
+      yaAceptada: false,
+      estatus: upd.estatus,
+      aceptadoEn: iso(upd.aceptado_en),
+      aceptadoPor: upd.aceptado_por,
+    }
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
   }
 }
 

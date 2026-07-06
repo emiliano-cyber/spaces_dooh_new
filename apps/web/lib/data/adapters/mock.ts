@@ -561,6 +561,7 @@ export const mockAdapter = {
           tipoVenta: 'FIXED_PKG',
           estatus: 'TENTATIVA',
           spotsReservados: null,
+          expiraEn: offsetISO(7),
           creativos: [],
           creadoEn: nowISO(),
         }
@@ -598,7 +599,7 @@ export const mockAdapter = {
       return {
         reservas: state.reservas.map((r) =>
           r.campanaId === campanaId && r.estatus === 'TENTATIVA'
-            ? { ...r, estatus: 'CONFIRMADA' as const }
+            ? { ...r, estatus: 'CONFIRMADA' as const, expiraEn: null }
             : r,
         ),
         sitios: state.sitios.map((s) =>
@@ -757,6 +758,8 @@ export const mockAdapter = {
           fechaVencimiento: offsetISO(plazoDias),
           estatus: 'AL_CORRIENTE' as const,
           montoPagado: 0,
+          recordatorioEn: null,
+          recordatoriosEnviados: 0,
           creadoEn: nowISO(),
         },
       ],
