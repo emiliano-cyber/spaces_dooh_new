@@ -7,16 +7,13 @@
 --  (barrerReservasVencidas) la pasa a CANCELADA y libera el sitio.
 --
 --  • CONFIRMADA / CANCELADA → expira_en = null (no caducan).
---  • Backfill NO destructivo: a las tentativas ya existentes se les da una
---    ventana fresca (7 días desde ahora) para que ninguna caduque de golpe.
+--  • VARIANTE CONSERVADORA: las tentativas EXISTENTES quedan en NULL (no
+--    caducan). El TTL solo aplica a reservas NUEVAS. Sin backfill → cero
+--    escrituras de datos: la migración es puramente aditiva.
 -- ============================================================================
 
 alter table public.reservas
   add column if not exists expira_en timestamptz;
-
-update public.reservas
-   set expira_en = now() + interval '7 days'
- where estatus = 'TENTATIVA' and expira_en is null;
 
 create index if not exists idx_reservas_expira on public.reservas (expira_en)
   where estatus = 'TENTATIVA';
