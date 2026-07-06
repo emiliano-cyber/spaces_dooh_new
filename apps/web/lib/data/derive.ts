@@ -19,6 +19,7 @@ import type {
   TipoMedio,
   OrdenTrabajo,
   EstOT,
+  Propuesta,
 } from './types'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -437,6 +438,43 @@ export function estadoSLAOT(ot: OrdenTrabajo, umbralPorVencerDias = 2): EstadoSL
   if (dias < 0) return 'VENCIDA'
   if (dias <= umbralPorVencerDias) return 'POR_VENCER'
   return 'EN_TIEMPO'
+}
+
+// ─── Funnel comercial (propuestas: enviadas → aprobadas → perdidas) ─────────
+export interface FunnelPropuestas {
+  total: number
+  borrador: number
+  enviadas: number
+  aprobadas: number
+  rechazadas: number
+  pipelineValue: number // $ en vuelo (borrador + enviada), por total c/IVA
+  ganadoValue: number // $ de aprobadas
+  perdidoValue: number // $ de rechazadas
+  winRate: number | null // aprobadas / (aprobadas + rechazadas)
+  conversion: number | null // aprobadas / (propuestas que salieron al cliente)
+}
+
+// Agrega las propuestas por estado y calcula win rate + valor de pipeline.
+export function funnelPropuestas(props: Propuesta[]): FunnelPropuestas {
+  let borrador = 0, enviadas = 0, aprobadas = 0, rechazadas = 0
+  let pipelineValue = 0, ganadoValue = 0, perdidoValue = 0
+  for (const p of props) {
+    switch (p.estatus) {
+      case 'BORRADOR': borrador++; pipelineValue += p.total; break
+      case 'ENVIADA': enviadas++; pipelineValue += p.total; break
+      case 'APROBADA': aprobadas++; ganadoValue += p.total; break
+      case 'RECHAZADA': rechazadas++; perdidoValue += p.total; break
+    }
+  }
+  const cerradas = aprobadas + rechazadas
+  const tocadas = enviadas + aprobadas + rechazadas // salieron al cliente alguna vez
+  return {
+    total: props.length,
+    borrador, enviadas, aprobadas, rechazadas,
+    pipelineValue, ganadoValue, perdidoValue,
+    winRate: cerradas > 0 ? aprobadas / cerradas : null,
+    conversion: tocadas > 0 ? aprobadas / tocadas : null,
+  }
 }
 
 // ─── Utilidades ─────────────────────────────────────────────────────────────

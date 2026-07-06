@@ -36,6 +36,7 @@ import {
   margenCampana,
   reporteCampana,
   disponibilidad,
+  funnelPropuestas,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
@@ -45,6 +46,7 @@ import {
   type SerieOcupacion,
   type Disponibilidad,
   type OpcionesDisponibilidad,
+  type FunnelPropuestas,
 } from './derive'
 import type { Campana, EtapaPipeline, RolDemo, UsuarioDemo } from './types'
 
@@ -69,6 +71,7 @@ export {
   etapasPipeline,
   estadoSLAOT,
   otAbierta,
+  funnelPropuestas,
   diasHasta,
   formatMonto,
   formatMontoCorto,
@@ -91,6 +94,7 @@ export type {
   EstadoCelda,
   GranDisponibilidad,
   EstadoSLA,
+  FunnelPropuestas,
 } from './derive'
 export type * from './types'
 
@@ -268,6 +272,13 @@ export function useDashboard(): DashboardMetrics | undefined {
 export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefined {
   const m = useMounted()
   const v = useStoreMemo((s) => ocupacionSerie(s, gran), [gran])
+  return m ? v : undefined
+}
+
+/** Funnel comercial: propuestas por estado + win rate + valor de pipeline. */
+export function useFunnelPropuestas(): FunnelPropuestas | undefined {
+  const m = useMounted()
+  const v = useStoreMemo((s) => funnelPropuestas(s.propuestas), [])
   return m ? v : undefined
 }
 

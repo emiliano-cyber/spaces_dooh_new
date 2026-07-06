@@ -10,11 +10,14 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   usePropuestas,
+  useFunnelPropuestas,
   useClientes,
   useSitios,
   formatMonto,
+  formatMontoCorto,
   type Propuesta,
   type EstPropuesta,
+  type FunnelPropuestas,
 } from '@/lib/data/client'
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
@@ -33,6 +36,7 @@ const EST: Record<EstPropuesta, { label: string; cls: string }> = {
 
 export default function PropuestasPage() {
   const propuestas = usePropuestas()
+  const funnel = useFunnelPropuestas()
   const puedeEditar = usePuede('comercial', 'crear')
   const [nuevoOpen, setNuevoOpen] = useState(false)
   const [abierta, setAbierta] = useState<string | null>(null)
@@ -50,6 +54,8 @@ export default function PropuestasPage() {
           </Button>
         )}
       </div>
+
+      {funnel && funnel.total > 0 && <FunnelStrip f={funnel} />}
 
       {!propuestas ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
@@ -389,5 +395,55 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
       {children}
     </label>
+  )
+}
+
+// Tira de funnel comercial: enviadas → aprobadas → perdidas, win rate y pipeline.
+function FunnelStrip({ f }: { f: FunnelPropuestas }) {
+  const winPct = f.winRate != null ? Math.round(f.winRate * 100) : null
+  const enPipeline = f.borrador + f.enviadas
+  // Ancho relativo del embudo (enviadas alguna vez = base).
+  const base = Math.max(1, f.enviadas + f.aprobadas + f.rechazadas)
+  const barra = (n: number, cls: string) => (
+    <div className="h-2 rounded-full bg-surface-2">
+      <div className={`h-2 rounded-full ${cls}`} style={{ width: `${Math.round((n / base) * 100)}%` }} />
+    </div>
+  )
+  return (
+    <Card>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 py-1 lg:grid-cols-4">
+          <Tile label="En pipeline" valor={formatMontoCorto(f.pipelineValue)} sub={`${enPipeline} propuesta${enPipeline === 1 ? '' : 's'} (borrador + enviada)`} />
+          <Tile label="Ganado" tono="text-[#0f7a55]" valor={formatMontoCorto(f.ganadoValue)} sub={`${f.aprobadas} aprobada${f.aprobadas === 1 ? '' : 's'}`} />
+          <Tile label="Perdido" tono="text-error" valor={formatMontoCorto(f.perdidoValue)} sub={`${f.rechazadas} rechazada${f.rechazadas === 1 ? '' : 's'}`} />
+          <Tile label="Win rate" valor={winPct != null ? `${winPct}%` : '—'} sub={winPct != null ? `sobre ${f.aprobadas + f.rechazadas} cerradas` : 'sin cierres aún'} />
+        </div>
+        <div className="mt-3 space-y-1.5 border-t border-border pt-3">
+          <FunnelRow label="Enviadas" n={f.enviadas + f.aprobadas + f.rechazadas} bar={barra(f.enviadas + f.aprobadas + f.rechazadas, 'bg-info')} />
+          <FunnelRow label="Aprobadas" n={f.aprobadas} bar={barra(f.aprobadas, 'bg-[#10b981]')} />
+          <FunnelRow label="Perdidas" n={f.rechazadas} bar={barra(f.rechazadas, 'bg-[#ef4444]')} />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function Tile({ label, valor, sub, tono }: { label: string; valor: string; sub?: string; tono?: string }) {
+  return (
+    <div>
+      <div className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</div>
+      <div className={`demo-num text-[20px] font-semibold ${tono ?? 'text-ink'}`}>{valor}</div>
+      {sub && <div className="text-[11px] text-muted">{sub}</div>}
+    </div>
+  )
+}
+
+function FunnelRow({ label, n, bar }: { label: string; n: number; bar: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-20 shrink-0 text-[12px] text-muted">{label}</span>
+      <span className="flex-1">{bar}</span>
+      <span className="demo-num w-8 shrink-0 text-right text-[12px] font-medium text-ink">{n}</span>
+    </div>
   )
 }
