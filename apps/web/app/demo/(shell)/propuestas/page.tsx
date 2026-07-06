@@ -116,6 +116,12 @@ function PropuestaCard({
               <div className="flex items-center gap-2">
                 <span className="demo-num text-[12px] text-muted">{p.folio}</span>
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${est.cls}`}>{est.label}</span>
+                {p.version > 1 && (
+                  <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] font-medium text-muted">v{p.version}</span>
+                )}
+                {p.descuentoPct > 0 && (
+                  <span className="rounded-full border border-[#f59e0b40] px-1.5 py-0.5 text-[10px] font-medium text-[#9a6700]">−{p.descuentoPct}%</span>
+                )}
               </div>
               <div className="mt-0.5 text-[14px] font-medium text-ink">{p.nombre}</div>
               <div className="text-[12px] text-muted">

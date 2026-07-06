@@ -338,18 +338,23 @@ export interface Propuesta {
   fecha: string
   estatus: EstPropuesta
   comisionPct: number // comisión de agencia → divisor
+  descuentoPct: number // descuento comercial sobre la tarifa de lista (≠ comisión)
+  version: number // versión de la propuesta (sube en cada renegociación)
   notas: string | null
   creadoEn: string
   items: PropuestaItem[]
   // Calculados con el método del divisor (server-side):
-  bruto: number   // Σ precio de los items
-  divisor: number // 1 − comisión/100
-  neto: number    // bruto × divisor (lo que recibe el medio)
-  iva: number     // bruto × 16%
-  total: number   // bruto + iva (lo que paga el cliente)
+  bruto: number         // Σ precio de los items (tarifa de lista)
+  descuentoMonto: number // bruto × descuento/100
+  base: number          // bruto − descuento (base de cálculo)
+  divisor: number       // 1 − comisión/100
+  neto: number          // base × divisor (lo que recibe el medio)
+  iva: number           // base × 16%
+  total: number         // base + iva (lo que paga el cliente)
   // Aprobación granular (sitio por sitio): presupuesto sobre lo aprobado.
   itemsAprobados: number
   brutoAprobado: number
+  baseAprobado: number
   netoAprobado: number
   ivaAprobado: number
   totalAprobado: number

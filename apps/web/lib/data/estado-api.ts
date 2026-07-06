@@ -98,6 +98,21 @@ export async function cambiarEstatusPropuestaApi(id: string, estatus: string): P
   await refrescarEstado()
 }
 
+// Actualiza el descuento comercial / nombre / notas (renegociación → sube versión).
+export async function actualizarPropuestaApi(
+  id: string,
+  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+): Promise<void> {
+  const r = await fetch(`${API}/propuestas/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
+  await refrescarEstado()
+}
+
 // Genera una campaña a partir de una propuesta aprobada (solo sitios aprobados).
 export async function generarCampanaDesdePropuestaApi(propuestaId: string): Promise<{ id: string }> {
   const r = await fetch(`${API}/propuestas/${propuestaId}/generar-campana/`, { method: 'POST' })
