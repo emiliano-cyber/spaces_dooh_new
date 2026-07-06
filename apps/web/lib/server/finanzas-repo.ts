@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
 import { tenantActual } from './tenant'
+import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
 
 // ============================================================================
@@ -35,7 +36,10 @@ function rowToCobranza(r: any) {
   return {
     id: r.id, facturaId: r.factura_id, plazoDias: r.plazo_dias,
     fechaVencimiento: iso(r.fecha_vencimiento), estatus: r.estatus,
-    montoPagado: n(r.monto_pagado) ?? 0, creadoEn: iso(r.creado_en),
+    montoPagado: n(r.monto_pagado) ?? 0,
+    recordatorioEn: r.recordatorio_en ? iso(r.recordatorio_en) : null,
+    recordatoriosEnviados: n(r.recordatorios_enviados) ?? 0,
+    creadoEn: iso(r.creado_en),
   }
 }
 
@@ -44,6 +48,79 @@ export async function listarFacturas() {
 }
 export async function listarCobranzas() {
   return (await q('select * from cobranzas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToCobranza)
+}
+
+// ─── Recordatorios de cobro ─────────────────────────────────────────────────
+// Umbral: se recuerda cuando la cobranza vence dentro de N días o ya venció.
+// Cadencia: no se vuelve a recordar hasta que pasen M días desde el último.
+export const UMBRAL_RECORDATORIO_DIAS = 7
+export const CADENCIA_RECORDATORIO_DIAS = 3
+
+const fmtMonto = (v: number) =>
+  '$' + Math.round(v).toLocaleString('es-MX')
+
+function textoRecordatorio(r: { folio: string; cliente: string | null; dias: number; saldo: number }) {
+  const vencida = r.dias < 0
+  return {
+    nivel: (vencida ? 'warn' : 'info') as 'warn' | 'info',
+    titulo: vencida ? 'Cobranza vencida' : 'Recordatorio de cobro',
+    detalle:
+      `${r.folio}${r.cliente ? ` · ${r.cliente}` : ''} — ` +
+      (vencida ? `vencida hace ${-r.dias} día(s)` : `vence en ${r.dias} día(s)`) +
+      ` · saldo ${fmtMonto(r.saldo)}`,
+  }
+}
+
+// Barrido: recuerda las cobranzas por vencer / vencidas sin liquidar, respetando
+// la cadencia (no spamea). Se llama en cada lectura de estado (sin cron).
+// Idempotente por la ventana de cadencia. Devuelve cuántas recordó.
+export async function recordarCobranzasVencidas(): Promise<number> {
+  const tenantId = await tenantActual()
+  if (!tenantId) return 0
+  const rows = await q<any>(
+    `select c.id, f.folio, f.monto, cl.nombre as cliente, c.monto_pagado,
+            (c.fecha_vencimiento - current_date) as dias
+       from cobranzas c
+       join facturas f on f.id = c.factura_id
+       left join clientes cl on cl.id = f.cliente_id
+      where c.tenant_id = $1
+        and c.estatus <> 'PAGADA'
+        and c.monto_pagado < f.monto
+        and (c.fecha_vencimiento - current_date) <= $2
+        and (c.recordatorio_en is null or c.recordatorio_en < now() - make_interval(days => $3))`,
+    [tenantId, UMBRAL_RECORDATORIO_DIAS, CADENCIA_RECORDATORIO_DIAS],
+  )
+  for (const r of rows) {
+    const saldo = Math.round((Number(r.monto) - Number(r.monto_pagado)) * 100) / 100
+    await notificar({ tipo: 'COBRANZA', link: '/demo/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
+    await q(`update cobranzas set recordatorio_en=now(), recordatorios_enviados=recordatorios_enviados+1 where id=$1`, [r.id])
+  }
+  return rows.length
+}
+
+// Recordatorio MANUAL de una cobranza (botón "Recordar"). Envía ahora, ignora la
+// cadencia; solo se niega si ya está liquidada.
+export async function enviarRecordatorioCobranza(
+  cobranzaId: string,
+): Promise<{ ok: boolean; recordatoriosEnviados: number; motivo?: string } | null> {
+  const r = await q1<any>(
+    `select c.id, f.folio, f.monto, cl.nombre as cliente, c.monto_pagado, c.recordatorios_enviados,
+            (c.fecha_vencimiento - current_date) as dias
+       from cobranzas c
+       join facturas f on f.id = c.factura_id
+       left join clientes cl on cl.id = f.cliente_id
+      where c.id = $1 and c.tenant_id = $2`,
+    [cobranzaId, await tenantActual()],
+  )
+  if (!r) return null
+  const saldo = Math.round((Number(r.monto) - Number(r.monto_pagado)) * 100) / 100
+  if (saldo <= 0) return { ok: false, recordatoriosEnviados: n(r.recordatorios_enviados) ?? 0, motivo: 'La cobranza ya está liquidada' }
+  await notificar({ tipo: 'COBRANZA', link: '/demo/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
+  const upd = await q<any>(
+    `update cobranzas set recordatorio_en=now(), recordatorios_enviados=recordatorios_enviados+1 where id=$1 returning recordatorios_enviados`,
+    [cobranzaId],
+  )
+  return { ok: true, recordatoriosEnviados: n(upd[0].recordatorios_enviados) ?? 0 }
 }
 
 const folioFactura = () => `F001-${randomBytes(4).toString('hex').toUpperCase()}`

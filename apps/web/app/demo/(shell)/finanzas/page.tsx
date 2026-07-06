@@ -13,7 +13,7 @@ import {
   COBRANZA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
-import { generarFacturaApi } from '@/lib/data/estado-api'
+import { generarFacturaApi, recordarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   useCampanasResumen,
@@ -33,13 +33,27 @@ export default function FinanzasPage() {
   const cobranzas = useCobranzas()
   const clientes = useClientes()
   const puedeFacturar = usePuede('finanzas', 'facturar')
+  const puedeCobrar = usePuede('finanzas', 'crear')
 
   const [facturar, setFacturar] = useState<Campana | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [recordando, setRecordando] = useState<string | null>(null)
 
   function notify(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 2600)
+  }
+
+  async function recordar(id: string) {
+    setRecordando(id)
+    try {
+      await recordarCobranzaApi(id)
+      notify('Recordatorio de cobro enviado')
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'No se pudo enviar el recordatorio')
+    } finally {
+      setRecordando(null)
+    }
   }
 
   const cliNombre = (id: string) => clientes?.find((c) => c.id === id)?.nombre ?? '—'
@@ -174,7 +188,31 @@ export default function FinanzasPage() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5">
-                            <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
+                            <div className="flex flex-col items-start gap-1.5">
+                              <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
+                              {est !== 'PAGADA' && (
+                                <div className="flex items-center gap-2">
+                                  {puedeCobrar && (
+                                    <button
+                                      type="button"
+                                      onClick={() => recordar(cob.id)}
+                                      disabled={recordando === cob.id}
+                                      className="rounded border border-border-strong px-2 py-0.5 text-[11px] text-ink hover:bg-surface-2 disabled:opacity-50"
+                                    >
+                                      {recordando === cob.id ? 'Enviando…' : 'Recordar'}
+                                    </button>
+                                  )}
+                                  {cob.recordatoriosEnviados > 0 && (
+                                    <span
+                                      className="text-[10px] text-muted"
+                                      title={cob.recordatorioEn ? `Último: ${formatFecha(cob.recordatorioEn)}` : ''}
+                                    >
+                                      {cob.recordatoriosEnviados} enviado{cob.recordatoriosEnviados === 1 ? '' : 's'}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )

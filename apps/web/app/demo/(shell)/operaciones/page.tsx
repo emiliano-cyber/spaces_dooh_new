@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Smartphone, Calendar, User, Camera, ArrowRight, Plus } from 'lucide-react'
+import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -24,6 +24,7 @@ import {
   useEvidencias,
   useReservas,
   formatFecha,
+  estadoSLAOT,
   type TipoOT,
   type Prioridad,
   type EstOT,
@@ -78,6 +79,8 @@ export default function OperacionesPage() {
   const [nuevaOpen, setNuevaOpen] = useState(false)
 
   const lista = (ots ?? []).filter((o) => !filtro || o.estatus === filtro)
+  const vencidas = (ots ?? []).filter((o) => estadoSLAOT(o) === 'VENCIDA')
+  const porVencer = (ots ?? []).filter((o) => estadoSLAOT(o) === 'POR_VENCER')
 
   return (
     <div className="w-full space-y-4">
@@ -100,6 +103,37 @@ export default function OperacionesPage() {
         campanas={campanas ?? []}
         reservas={reservas ?? []}
       />
+
+      {/* Banner de SLA: OT vencidas (compromiso pasado, aún abiertas) */}
+      {(vencidas.length > 0 || porVencer.length > 0) && (
+        <div
+          className={cn(
+            'flex items-start gap-2.5 rounded-md border px-3 py-2.5 text-[13px]',
+            vencidas.length > 0
+              ? 'border-[#ef444440] bg-[#ef44440d] text-error'
+              : 'border-[#f59e0b40] bg-[#f59e0b0d] text-[#9a6700]',
+          )}
+        >
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={1.75} />
+          <div className="text-ink">
+            {vencidas.length > 0 && (
+              <span className="font-medium text-error">
+                {vencidas.length} OT vencida{vencidas.length === 1 ? '' : 's'}
+              </span>
+            )}
+            {vencidas.length > 0 && porVencer.length > 0 && <span className="text-muted"> · </span>}
+            {porVencer.length > 0 && (
+              <span className="font-medium text-[#9a6700]">
+                {porVencer.length} por vencer
+              </span>
+            )}
+            <span className="text-muted">
+              {' '}
+              — una OT abierta que pasó su fecha compromiso frena el candado de facturación.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-1.5">
@@ -134,6 +168,7 @@ export default function OperacionesPage() {
             const sitio = sitios?.find((s) => s.id === o.sitioId)
             const nEvid = (evidencias ?? []).filter((e) => e.otId === o.id).length
             const abierta = o.estatus !== 'COMPLETADA' && o.estatus !== 'CANCELADA'
+            const sla = estadoSLAOT(o)
             return (
               <li key={o.id}>
                 <Card className="p-4">
@@ -158,7 +193,19 @@ export default function OperacionesPage() {
                       </div>
                       <div className="text-[12px] text-muted">{sitio?.nombre ?? '—'}</div>
                     </div>
-                    <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {sla === 'VENCIDA' && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#ef444440] px-2 py-0.5 text-[10px] font-semibold text-error">
+                          <AlertTriangle className="h-3 w-3" /> Vencida
+                        </span>
+                      )}
+                      {sla === 'POR_VENCER' && (
+                        <span className="rounded-full border border-[#f59e0b40] px-2 py-0.5 text-[10px] font-semibold text-[#9a6700]">
+                          Por vencer
+                        </span>
+                      )}
+                      <StatusBadge tono={OT_TONO[o.estatus]}>{OT_LABEL[o.estatus]}</StatusBadge>
+                    </div>
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
@@ -166,8 +213,14 @@ export default function OperacionesPage() {
                       <User className="h-3.5 w-3.5" /> {CUADRILLA[o.asignadoAUserId ?? ''] ?? 'Sin asignar'}
                     </span>
                     {o.fechaProgramada && (
-                      <span className="inline-flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          'inline-flex items-center gap-1.5',
+                          sla === 'VENCIDA' && 'font-medium text-error',
+                        )}
+                      >
                         <Calendar className="h-3.5 w-3.5" /> {formatFecha(o.fechaProgramada)}
+                        {sla === 'VENCIDA' && ' · vencida'}
                       </span>
                     )}
                     {nEvid > 0 && (

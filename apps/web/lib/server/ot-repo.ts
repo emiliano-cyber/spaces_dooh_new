@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1 } from './db'
 import { tenantActual } from './tenant'
+import { notificar } from './notificaciones-repo'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
 // ============================================================================
@@ -48,6 +49,44 @@ async function resolverEvidencias(rows: any[]) {
 
 export async function listarOT() {
   return (await q('select * from ordenes_trabajo where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToOT)
+}
+
+// Estados en los que la OT sigue ABIERTA (aún debe cerrarse en campo).
+const OT_ABIERTAS = ['PENDIENTE', 'ASIGNADA', 'EN_PROCESO', 'BLOQUEADA', 'EN_REVISION']
+
+// Alerta proactiva de OT vencida: una OT abierta que pasó su fecha compromiso
+// (fecha_programada) genera UNA notificación in-app. Idempotente: no repite la
+// alerta de la misma OT (dedup por link). Se ejecuta en cada lectura de estado
+// (chokepoint), así que no requiere cron. Devuelve cuántas alertó esta vez.
+export async function notificarOTsVencidas(): Promise<number> {
+  const tenantId = await tenantActual()
+  if (!tenantId) return 0
+  const vencidas = await q<any>(
+    `select ot.id, ot.folio, ot.asignado_a, s.nombre as sitio
+       from ordenes_trabajo ot
+       left join sitios s on s.id = ot.sitio_id
+      where ot.tenant_id = $1
+        and ot.estatus = any($2)
+        and ot.fecha_programada is not null
+        and ot.fecha_programada < now()
+        and not exists (
+          select 1 from notificaciones nz
+           where nz.tenant_id = $1
+             and nz.titulo = 'OT vencida'
+             and nz.link = '/demo/operaciones/ot/' || ot.id
+        )`,
+    [tenantId, OT_ABIERTAS],
+  )
+  for (const ot of vencidas) {
+    await notificar({
+      tipo: 'OT',
+      nivel: 'warn',
+      titulo: 'OT vencida',
+      detalle: `${ot.folio}${ot.sitio ? ` · ${ot.sitio}` : ''} no se cerró a tiempo${ot.asignado_a ? '' : ' (sin asignar)'}`,
+      link: `/demo/operaciones/ot/${ot.id}`,
+    })
+  }
+  return vencidas.length
 }
 export async function listarEvidencias() {
   return resolverEvidencias(await q('select * from evidencias_ot where tenant_id = $1 order by timestamp asc', [await tenantActual()]))

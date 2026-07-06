@@ -16,6 +16,7 @@ import {
   FileText,
   Plug,
   Percent,
+  CalendarRange,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -42,6 +43,7 @@ export const NAV: NavItem[] = [
   { key: 'network', label: 'Network', href: '/demo/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'clientes', label: 'Clientes', href: '/demo/clientes', icon: Users, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'comercial', label: 'Comercial', href: '/demo/comercial', icon: Map, roles: ['DUENO', 'COMERCIAL'] },
+  { key: 'disponibilidad', label: 'Disponibilidad', href: '/demo/disponibilidad', icon: CalendarRange, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'propuestas', label: 'Propuestas', href: '/demo/propuestas', icon: FileText, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'creativos', label: 'Creativos', href: '/demo/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'imprenta', label: 'Imprenta', href: '/demo/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'] },

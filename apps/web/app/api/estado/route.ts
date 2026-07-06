@@ -6,9 +6,10 @@ import {
   listarCampanas,
   listarReservas,
   listarCreatividades,
+  barrerReservasVencidas,
 } from '@/lib/server/campanas-repo'
-import { listarOT, listarEvidencias } from '@/lib/server/ot-repo'
-import { listarFacturas, listarCobranzas } from '@/lib/server/finanzas-repo'
+import { listarOT, listarEvidencias, notificarOTsVencidas } from '@/lib/server/ot-repo'
+import { listarFacturas, listarCobranzas, recordarCobranzasVencidas } from '@/lib/server/finanzas-repo'
 import { listarOrdenesImpresion } from '@/lib/server/impresion-repo'
 import { listarAcciones } from '@/lib/server/acciones-repo'
 import {
@@ -29,6 +30,12 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const g = await exigir()
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // Caduca las reservas tentativas vencidas antes de leer (libera inventario).
+  await barrerReservasVencidas()
+  // Genera alertas in-app de OT vencidas (idempotente; no repite por OT).
+  await notificarOTsVencidas()
+  // Recordatorios de cobro (por vencer / vencidas), con cadencia (sin spam).
+  await recordarCobranzasVencidas()
   const [sitios, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio] =
     await Promise.all([
       listarSitios(),

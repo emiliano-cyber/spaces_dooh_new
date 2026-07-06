@@ -283,6 +283,14 @@ export async function pagarCobranzaApi(cobranzaId: string, monto?: number): Prom
   await refrescarEstado()
 }
 
+// Envía un recordatorio de cobro manual (notificación in-app al equipo).
+export async function recordarCobranzaApi(cobranzaId: string): Promise<void> {
+  const r = await fetch(`${API}/cobranzas/${cobranzaId}/recordar/`, { method: 'POST' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo enviar el recordatorio')
+  await refrescarEstado()
+}
+
 // ─── Operaciones (OT + evidencias/testigos) ─────────────────────────────────
 export async function crearOTApi(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
