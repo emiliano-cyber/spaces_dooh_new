@@ -477,6 +477,64 @@ export function funnelPropuestas(props: Propuesta[]): FunnelPropuestas {
   }
 }
 
+// ─── Rentabilidad por pantalla (ingreso vs renta de arrendador) ─────────────
+export interface MargenSitio {
+  sitioId: string
+  nombre: string
+  clave: string
+  rentaMensual: number // renta del contrato vigente, normalizada a mensual (0 si no hay)
+  ingresoMensual: number // ingreso de reservas activas hoy en el sitio
+  margenMensual: number // ingreso − renta
+  tieneContrato: boolean
+  arrendador: string | null
+  activo: boolean // ¿tiene reserva vigente hoy?
+}
+
+// Normaliza el monto de renta a mensual según la periodicidad del contrato.
+function rentaAMensual(monto: number, periodicidad: string): number {
+  const per = (periodicidad || '').toLowerCase()
+  if (per.includes('anu') || per.includes('año') || per.includes('year')) return monto / 12
+  if (per.includes('catorc')) return monto * (30 / 14)
+  if (per.includes('quinc')) return monto * 2
+  if (per.includes('seman')) return monto * (30 / 7)
+  if (per.includes('dia')) return monto * 30
+  return monto // mensual por defecto
+}
+
+// Margen mensual por pantalla: ingreso de las reservas vigentes hoy menos la
+// renta del arrendador. Responde "¿qué pantallas ganan y cuáles matar?".
+export function margenPorSitio(state: DemoState): MargenSitio[] {
+  const hoy = startOfToday().getTime()
+  const activasPorSitio = new Map<string, number>()
+  for (const r of state.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    const ini = new Date(r.fechaInicio).getTime()
+    const fin = new Date(r.fechaFin).getTime()
+    if (ini <= hoy && fin >= hoy) {
+      activasPorSitio.set(r.sitioId, (activasPorSitio.get(r.sitioId) ?? 0) + r.precio)
+    }
+  }
+  return state.sitios.map((s) => {
+    // Contrato del sitio (se prefiere uno vigente).
+    const cons = state.contratos.filter((c) => c.sitioId === s.id)
+    const con = cons.find((c) => c.estatus === 'VIGENTE') ?? cons[0] ?? null
+    const rentaMensual = con ? rentaAMensual(con.montoRenta, con.periodicidad) : 0
+    const arr = con ? state.arrendadores.find((a) => a.id === con.arrendadorId) : null
+    const ingresoMensual = activasPorSitio.get(s.id) ?? 0
+    return {
+      sitioId: s.id,
+      nombre: s.nombre,
+      clave: s.claveInterna || s.codigoProveedor || '',
+      rentaMensual: Math.round(rentaMensual),
+      ingresoMensual: Math.round(ingresoMensual),
+      margenMensual: Math.round(ingresoMensual - rentaMensual),
+      tieneContrato: !!con,
+      arrendador: arr?.nombre ?? null,
+      activo: ingresoMensual > 0,
+    }
+  })
+}
+
 // ─── Utilidades ─────────────────────────────────────────────────────────────
 
 export function diasHasta(iso: string): number {

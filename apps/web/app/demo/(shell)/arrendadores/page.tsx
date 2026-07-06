@@ -20,10 +20,12 @@ import {
   useArrendadores,
   useSitios,
   usePagosRenta,
+  useMargenPorSitio,
   formatMonto,
   formatFecha,
   diasHasta,
   type ContratoArrendamiento,
+  type MargenSitio,
 } from '@/lib/data/client'
 import { registrarPagoRentaApi, crearArrendadorApi } from '@/lib/data/estado-api'
 
@@ -32,6 +34,7 @@ export default function ArrendadoresPage() {
   const arrendadores = useArrendadores()
   const sitios = useSitios()
   const pagos = usePagosRenta()
+  const margenes = useMargenPorSitio()
 
   const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
   const [open, setOpen] = useState(false)
@@ -70,6 +73,9 @@ export default function ArrendadoresPage() {
         <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
         <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
       </div>
+
+      {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
+      <RentabilidadCard margenes={margenes} />
 
       {/* Contratos */}
       <Card>
@@ -295,5 +301,71 @@ function Mini({ label, valor, tono }: { label: string; valor: string; tono?: 'am
         {valor}
       </div>
     </div>
+  )
+}
+
+// P&L por pantalla: ingreso mensual de reservas activas − renta del arrendador.
+function RentabilidadCard({ margenes }: { margenes: MargenSitio[] | undefined }) {
+  // Solo pantallas con contrato o con ingreso activo; peores márgenes primero.
+  const filas = (margenes ?? [])
+    .filter((m) => m.tieneContrato || m.activo)
+    .sort((a, b) => a.margenMensual - b.margenMensual)
+  const totalIngreso = filas.reduce((s, m) => s + m.ingresoMensual, 0)
+  const totalRenta = filas.reduce((s, m) => s + m.rentaMensual, 0)
+  const totalMargen = totalIngreso - totalRenta
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Rentabilidad por pantalla</CardTitle>
+        <p className="mt-0.5 text-[12px] text-muted">
+          Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja.
+        </p>
+      </CardHeader>
+      <CardContent className="px-0 pb-0">
+        {!margenes ? (
+          <div className="space-y-2 px-4 pb-4">
+            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-8 animate-pulse rounded bg-surface-2" />)}
+          </div>
+        ) : filas.length === 0 ? (
+          <p className="px-4 pb-4 text-[13px] text-muted">Sin contratos ni reservas activas todavía.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[12px]">
+              <thead>
+                <tr className="border-b border-border text-left text-muted">
+                  <th className="px-4 py-2 font-medium">Pantalla</th>
+                  <th className="px-4 py-2 font-medium">Arrendador</th>
+                  <th className="px-4 py-2 text-right font-medium">Ingreso/mes</th>
+                  <th className="px-4 py-2 text-right font-medium">Renta/mes</th>
+                  <th className="px-4 py-2 text-right font-medium">Margen/mes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((m) => (
+                  <tr key={m.sitioId} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2">
+                      <div className="font-medium text-ink">{m.nombre}</div>
+                      {!m.tieneContrato && <span className="text-[10px] text-muted">sin contrato de renta</span>}
+                    </td>
+                    <td className="px-4 py-2 text-muted">{m.arrendador ?? '—'}</td>
+                    <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(m.ingresoMensual)}</td>
+                    <td className="demo-num px-4 py-2 text-right text-muted">{m.rentaMensual ? formatMonto(m.rentaMensual) : '—'}</td>
+                    <td className={cn('demo-num px-4 py-2 text-right font-semibold', m.margenMensual < 0 ? 'text-error' : m.margenMensual > 0 ? 'text-[#0f7a55]' : 'text-muted')}>
+                      {formatMonto(m.margenMensual)}
+                    </td>
+                  </tr>
+                ))}
+                <tr className="bg-surface-2/40 font-medium">
+                  <td className="px-4 py-2 text-ink" colSpan={2}>Total</td>
+                  <td className="demo-num px-4 py-2 text-right text-ink">{formatMonto(totalIngreso)}</td>
+                  <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta)}</td>
+                  <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

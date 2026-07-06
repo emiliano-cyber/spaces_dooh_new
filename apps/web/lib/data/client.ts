@@ -37,6 +37,7 @@ import {
   reporteCampana,
   disponibilidad,
   funnelPropuestas,
+  margenPorSitio,
   ETAPAS_PIPELINE,
   ETAPA_LABEL,
   type DashboardMetrics,
@@ -47,6 +48,7 @@ import {
   type Disponibilidad,
   type OpcionesDisponibilidad,
   type FunnelPropuestas,
+  type MargenSitio,
 } from './derive'
 import type { Campana, EtapaPipeline, RolDemo, UsuarioDemo } from './types'
 
@@ -95,6 +97,7 @@ export type {
   GranDisponibilidad,
   EstadoSLA,
   FunnelPropuestas,
+  MargenSitio,
 } from './derive'
 export type * from './types'
 
@@ -279,6 +282,13 @@ export function useOcupacionSerie(gran: Granularidad): SerieOcupacion | undefine
 export function useFunnelPropuestas(): FunnelPropuestas | undefined {
   const m = useMounted()
   const v = useStoreMemo((s) => funnelPropuestas(s.propuestas), [])
+  return m ? v : undefined
+}
+
+/** Rentabilidad mensual por pantalla: ingreso de reservas activas vs renta. */
+export function useMargenPorSitio(): MargenSitio[] | undefined {
+  const m = useMounted()
+  const v = useStoreMemo((s) => margenPorSitio(s), [])
   return m ? v : undefined
 }
 
