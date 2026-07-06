@@ -1,23 +1,28 @@
 # SPACES OS — Lo solicitado vs. el avance
 
 **Feedback de RGB / PIXELED y estado de implementación**
-Fecha: 6 de julio de 2026 · Rama: `cierre/auditoria-completitud`
+Fecha: 6 de julio de 2026 · Rama: `main`
 
 ---
 
 ## 1. Resumen ejecutivo
 
-A partir del feedback de la reunión (cuatro perspectivas: media owner, sales lead, director de operaciones y detalles del manual) se identificaron **11 puntos de mejora**. En esta iteración se cerraron **5**, todos verificados de extremo a extremo contra la base de datos real:
+A partir del feedback de la reunión (cuatro perspectivas: media owner, sales lead, director de operaciones y detalles del manual) se identificaron **11 puntos de mejora**. Se cerraron **8**, todos verificados de extremo a extremo contra la base de datos real:
 
 - **A** — Calendario de disponibilidad futura
 - **B** — TTL de reservas tentativas (caducan solas)
 - **C** — Aprobación del cliente desde la liga pública
 - **D** — Alerta de OT vencida (SLA de cierre en campo)
 - **F** — Recordatorios de cobranza (automáticos + manual)
+- **H** — Funnel comercial / win-rate / pipeline value
+- **I** — Descuentos comerciales + versionado de propuesta
+- **G** — Rentabilidad (margen) por pantalla con renta de arrendadores
+
+**A, B, C, D y F ya están en producción.** **H, I y G están terminados y verificados en local**, listos para el siguiente despliegue.
 
 Además, dos puntos del feedback **ya estaban resueltos** de antes: los **pagos parciales** de cobranza y el **prefijo de folio de campaña por-tenant**.
 
-Quedan **5 pendientes cerrables por código** (1 de infraestructura, 3 de features, 1 rápido de manual) y **1 bloqueado por contratos externos**.
+Con esto, **todo lo cerrable por código del feedback está hecho**. Quedan **3 pendientes**: 1 de infraestructura (staging), 1 rápido de manual (recapturar screenshot) y **1 bloqueado por contratos externos** (proof-of-play).
 
 ---
 
@@ -49,15 +54,15 @@ Quedan **5 pendientes cerrables por código** (1 de infraestructura, 3 de featur
 
 | # | Área | Solicitado | Estado |
 |---|------|-----------|--------|
-| A | Media owner | Calendario de disponibilidad futura | ✅ Hecho |
-| B | Media owner | TTL de reserva tentativa | ✅ Hecho |
-| G | Media owner | Margen / P&L con renta de arrendadores | ⏳ Pendiente (código) |
-| C | Sales lead | Aprobación del cliente en la liga pública | ✅ Hecho |
-| I | Sales lead | Descuentos + versiones de propuesta | ⏳ Pendiente (código) |
-| H | Sales lead | Funnel / win-rate / pipeline value | ⏳ Pendiente (código) |
-| D | Operaciones | Alerta de OT vencida + SLA | ✅ Hecho |
+| A | Media owner | Calendario de disponibilidad futura | ✅ Hecho (en prod) |
+| B | Media owner | TTL de reserva tentativa | ✅ Hecho (en prod) |
+| G | Media owner | Margen / P&L con renta de arrendadores | ✅ Hecho (local) |
+| C | Sales lead | Aprobación del cliente en la liga pública | ✅ Hecho (en prod) |
+| I | Sales lead | Descuentos + versiones de propuesta | ✅ Hecho (local) |
+| H | Sales lead | Funnel / win-rate / pipeline value | ✅ Hecho (local) |
+| D | Operaciones | Alerta de OT vencida + SLA | ✅ Hecho (en prod) |
 | K | Operaciones | Proof-of-play / SPACE EYE | 🌐 Bloqueado (externo) |
-| F | Operaciones | Recordatorios de cobranza | ✅ Hecho |
+| F | Operaciones | Recordatorios de cobranza | ✅ Hecho (en prod) |
 | — | Operaciones | Pagos parciales de cobranza | ✅ Ya existía |
 | J | Manual | Recapturar screenshot sección 9 | ⏳ Pendiente (rápido) |
 | E | Infra | Tenant de staging | ⏳ Pendiente (infra) |
@@ -94,6 +99,21 @@ Las cobranzas **por vencer (≤7 días) o vencidas** sin liquidar generan **reco
 
 *Verificado:* cobranza vencida → recordatorio automático; segunda lectura no duplicó (cadencia); manual envió ignorando cadencia; el saldo refleja el abono parcial.
 
+### H — Funnel comercial / win-rate / pipeline value
+Tira nueva en **Propuestas** que agrega las propuestas por estado: **valor en pipeline** (borrador + enviada), **ganado** (aprobadas), **perdido** (rechazadas), **win rate** (aprobadas ÷ cerradas) y un **embudo visual** enviadas → aprobadas → perdidas. Convierte la lista en métricas accionables para el sales lead.
+
+*Verificado:* con datos de muestra (2 aprobadas, 1 enviada, 1 perdida) el win rate da 67% y el pipeline suma correctamente.
+
+### I — Descuentos comerciales + versionado de propuesta
+Se agregó un **descuento comercial** (%) sobre la tarifa de lista, distinto de la comisión de agencia: `base = bruto − descuento`, y el neto/IVA/total se recalculan sobre la base. Cada vez que se cambia el descuento de una propuesta ya **Enviada** (renegociación) **sube la versión** (v1 → v2 → v3…). Editor de descuento en el detalle; badges `v{n}` y `−{d}%` en la lista; línea de descuento en el visor público. Una propuesta **Aprobada** sigue siendo inmutable.
+
+*Verificado:* descuento 10% → base 90k, total 104,400, v2; 15% → total 98,600, v3; editar una aprobada → 409 (inmutable).
+
+### G — Rentabilidad (margen) por pantalla con renta
+Tabla nueva **"Rentabilidad por pantalla"** en Arrendadores: **margen mensual = ingreso de reservas vigentes − renta del arrendador** (normalizada a mensual según la periodicidad del contrato), ordenada de peor a mejor margen, con totales. Las de margen **negativo** quedan marcadas en rojo (candidatas a renegociar o dar de baja); las pantallas sin contrato se marcan "sin contrato de renta". Es el "oro para decidir qué pantallas matar" del feedback.
+
+*Verificado:* con contratos de muestra, PATRIOTISMO +$32,250 (verde), JINETES −$13,500 (roja), y una pantalla con renta sin ingreso −$30,000.
+
 ---
 
 ## 5. Pendiente
@@ -101,9 +121,6 @@ Las cobranzas **por vencer (≤7 días) o vencidas** sin liquidar generan **reco
 | # | Pendiente | Prioridad | Nota |
 |---|-----------|-----------|------|
 | E | Tenant de staging | Alta | Hoy se prueba en la BD real con borrado manual → riesgo. Es decisión de infraestructura/despliegue. |
-| H | Funnel / win-rate / pipeline value | Media | Agregar propuestas por estado + tasa de conversión (falta estado "perdida"). |
-| I | Descuentos + versiones de propuesta | Media | La comisión de agencia ya existe; faltan descuentos y el versionado/adenda. |
-| G | Margen / P&L con renta | Media | Ligar el costo de renta prorrateado a la campaña → margen por pantalla. |
 | J | Recapturar screenshot sección 9 | Rápido | Tomar la captura con el portal vivo antes de borrar datos. |
 | K | Proof-of-play / SPACE EYE | Roadmap | Requiere contratos/API keys de CMS (Broadsign/Invian); hoy los connectors son stubs. |
 
@@ -113,15 +130,19 @@ Las cobranzas **por vencer (≤7 días) o vencidas** sin liquidar generan **reco
 
 ## 6. Estado de despliegue a producción
 
-Producción es un **droplet** desplegado por **GitHub Actions al hacer push a `main`** (build → `pm2 reload`). El código de esta iteración quedó **commiteado y listo**, con el **build de producción verificado**.
+Producción es un **droplet** desplegado por **GitHub Actions al hacer push a `main`** (build → migraciones → `pm2 reload`).
 
-**Importante antes de publicar:** las 3 migraciones nuevas son **SQL sobre la base del BFF** (`db/migrations/*.sql`), no Prisma, por lo que el pipeline de CI (que corre `prisma migrate deploy`) **no las aplica**. Deben ejecutarse contra la base de producción **antes o junto** con el despliegue del código; de lo contrario el código nuevo consultaría columnas inexistentes. Las 3 son **aditivas e idempotentes** (`add column if not exists`), sin riesgo para los datos existentes.
+- **A, B, C, D y F ya están desplegados** en producción.
+- **H, I y G están commiteados y verificados en local**, listos para el siguiente despliegue.
 
-Migraciones a aplicar en prod:
+**Migraciones automatizadas en el deploy.** Las migraciones nuevas son **SQL del BFF** (`db/migrations/*.sql`), no Prisma; el CI (`prisma migrate deploy`) no las aplicaba. Se agregó un paso al `deploy.yml` que las corre en el droplet **antes del `pm2 reload`**, con `set -e` → si una falla, el deploy aborta sin recargar (**fail-closed**: producción no se rompe). Todas son **aditivas e idempotentes** (`add column if not exists`).
 
-- `db/migrations/20260706_reserva_ttl.sql`
-- `db/migrations/20260706_propuesta_aceptacion.sql`
-- `db/migrations/20260706_cobranza_recordatorios.sql`
+Migraciones que aplica el deploy (en orden):
+
+- `db/migrations/20260706_reserva_ttl.sql` — TTL de reservas (variante conservadora: sin backfill)
+- `db/migrations/20260706_propuesta_aceptacion.sql` — aceptación del cliente
+- `db/migrations/20260706_cobranza_recordatorios.sql` — recordatorios de cobro
+- `db/migrations/20260706_propuesta_descuento_version.sql` — descuento + versión de propuesta
 
 ---
 
@@ -134,6 +155,10 @@ Migraciones a aplicar en prod:
 | Aprobación cliente (C) | `lib/server/propuestas-repo.ts`, `app/api/propuestas/publica/[id]/route.ts`, `app/demo/p/[id]/page.tsx`, `db/migrations/20260706_propuesta_aceptacion.sql` |
 | OT vencida (D) | `lib/data/derive.ts`, `lib/server/ot-repo.ts`, `app/demo/(shell)/operaciones/page.tsx` |
 | Recordatorios cobranza (F) | `lib/server/finanzas-repo.ts`, `app/api/cobranzas/[id]/recordar/route.ts`, `app/demo/(shell)/finanzas/page.tsx`, `db/migrations/20260706_cobranza_recordatorios.sql` |
+| Funnel comercial (H) | `lib/data/derive.ts` (funnelPropuestas), `app/demo/(shell)/propuestas/page.tsx` |
+| Descuento + versión (I) | `lib/server/propuestas-repo.ts`, `app/api/propuestas/[id]/route.ts`, `app/demo/(shell)/propuestas/[id]/page.tsx`, `app/demo/p/[id]/page.tsx`, `db/migrations/20260706_propuesta_descuento_version.sql` |
+| Rentabilidad por pantalla (G) | `lib/data/derive.ts` (margenPorSitio), `app/demo/(shell)/arrendadores/page.tsx` |
 | Barrido central | `app/api/estado/route.ts` (TTL + OT vencidas + recordatorios en cada lectura) |
+| Deploy | `.github/workflows/deploy.yml`, `scripts/apply-migration.mjs` (aplica las migraciones SQL del BFF en el droplet, fail-closed) |
 
 *Verificación transversal:* `tsc --noEmit` sin errores; build de producción OK; pruebas E2E contra Postgres real para cada punto.
