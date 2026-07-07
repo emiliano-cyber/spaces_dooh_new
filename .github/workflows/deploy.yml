@@ -24,10 +24,10 @@ jobs:
         run: npm ci
 
       - name: Type check
-        run: npx turbo run typecheck
+        run: npx turbo run typecheck --filter=web
 
       - name: Build
-        run: npx turbo run build
+        run: npx turbo run build --filter=web
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -46,8 +46,8 @@ jobs:
             echo "→ Installing dependencies..."
             npm ci --prefer-offline
 
-            echo "→ Building..."
-            npx turbo run build
+            echo "→ Building (solo el app web; api es huérfano)..."
+            npx turbo run build --filter=web
 
             echo "→ Running Prisma migrations (apps/api)..."
             cd apps/api && npx prisma migrate deploy && cd ../..
