@@ -26,11 +26,15 @@ interface PropuestaPub {
   estatus: string
   aceptadoEn: string | null
   aceptadoPor: string | null
+  version: number
   clienteNombre: string | null
   agenciaNombre: string | null
   comisionPct: number
+  descuentoPct: number
+  descuentoMonto: number
   divisor: number
   bruto: number
+  base: number
   neto: number
   iva: number
   total: number
@@ -101,7 +105,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   }
 
   const p = data
-  const ivaPct = p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16
+  const ivaPct = p.base ? Math.round((p.iva / p.base) * 100) : 16
   const comisionPct = Math.round(100 - p.divisor * 100)
   // Estado de aceptación: local (recién aceptada) o el que trae la propuesta.
   const aceptada =
@@ -217,7 +221,10 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           <CardContent>
             <dl className="space-y-2 text-[13px]">
               <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
-              <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.bruto - p.neto)}`} />
+              {p.descuentoMonto > 0 && (
+                <Fila label={`Descuento (${p.descuentoPct}%)`} valor={`− ${formatMonto(p.descuentoMonto)}`} />
+              )}
+              <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
               <Fila label="Neto" valor={formatMonto(p.neto)} />
               <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
               <div className="mt-1 border-t border-border pt-2">

@@ -33,6 +33,7 @@ import {
   cambiarEstatusPropuestaApi,
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
+  actualizarPropuestaApi,
 } from '@/lib/data/estado-api'
 import {
   usePropuestas,
@@ -64,6 +65,28 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [generando, setGenerando] = useState(false)
   const [copiado, setCopiado] = useState(false)
   const [copiadoCod, setCopiadoCod] = useState(false)
+  const [descInput, setDescInput] = useState('')
+  const [guardandoDesc, setGuardandoDesc] = useState(false)
+
+  const pActual = propuestas?.find((x) => x.id === id)
+  // Sincroniza el input de descuento con el valor actual al cargar/cambiar.
+  useEffect(() => {
+    if (pActual) setDescInput(String(pActual.descuentoPct))
+  }, [pActual?.id, pActual?.descuentoPct])
+
+  async function aplicarDescuento() {
+    const d = Number(descInput)
+    if (isNaN(d) || d < 0 || d > 100) { toast.error('Descuento inválido (0–100)'); return }
+    setGuardandoDesc(true)
+    try {
+      await actualizarPropuestaApi(id, { descuentoPct: d })
+      toast.success('Descuento actualizado')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error')
+    } finally {
+      setGuardandoDesc(false)
+    }
+  }
 
   async function copiar(texto: string, marcar: (v: boolean) => void, mensaje = 'Copiado') {
     try {
@@ -112,8 +135,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const cliente = clientes?.find((c) => c.id === p.clienteId)
   const agencia = clientes?.find((c) => c.id === p.agenciaId)
   const est = EST[p.estatus]
-  const ivaPct = p.bruto ? Math.round((p.iva / p.bruto) * 100) : 16
+  const ivaPct = p.base ? Math.round((p.iva / p.base) * 100) : 16
   const comisionPct = Math.round(100 - p.divisor * 100)
+  const editable = p.estatus !== 'APROBADA' && p.estatus !== 'RECHAZADA'
 
   // Fechas de la propuesta (min/max de los items).
   const fechas = p.items.map((i) => i.fechaInicio).filter(Boolean).sort()
@@ -170,6 +194,11 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           <div className="flex items-center gap-2">
             <h1 className="text-2xl text-ink">{p.nombre}</h1>
             <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${est.cls}`}>{est.label}</span>
+            {p.version > 1 && (
+              <span className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted" title="Versión (sube en cada renegociación)">
+                v{p.version}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-[12px] text-muted">
             Código para el cliente: <span className="demo-num font-medium text-ink">{p.folio}</span>
@@ -225,6 +254,50 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             <Kpi icon={<Coins className="h-4 w-4" />} tono="success" label="Neto propuesto" value={formatMonto(p.neto)} />
             <Kpi icon={<Receipt className="h-4 w-4" />} tono="ambar" label={`IVA ${ivaPct}%`} value={formatMonto(p.iva)} />
             <Kpi icon={<Building2 className="h-4 w-4" />} tono="neutro" label="Sitios" value={`${p.items.length}`} />
+          </div>
+
+          {/* Desglose con descuento comercial + editor */}
+          <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-2">
+            <dl className="space-y-1.5 text-[13px]">
+              <Fila label="Bruto (tarifa de lista)" valor={formatMonto(p.bruto)} />
+              <Fila label={`Descuento comercial (${p.descuentoPct}%)`} valor={p.descuentoMonto ? `− ${formatMonto(p.descuentoMonto)}` : '—'} tono={p.descuentoMonto ? 'text-error' : undefined} />
+              <Fila label="Base con descuento" valor={formatMonto(p.base)} />
+              <Fila label={`Comisión de agencia (${comisionPct}%)`} valor={`− ${formatMonto(p.base - p.neto)}`} />
+              <Fila label="Neto (para el medio)" valor={formatMonto(p.neto)} />
+              <Fila label={`IVA ${ivaPct}%`} valor={formatMonto(p.iva)} />
+              <div className="border-t border-border pt-1.5">
+                <Fila label="Total que paga el cliente" valor={formatMonto(p.total)} fuerte />
+              </div>
+            </dl>
+
+            {puedeEditar && (
+              <div className="rounded-md border border-border bg-surface-2/40 p-3">
+                <div className="text-[12px] font-medium text-ink">Descuento comercial</div>
+                <p className="mt-0.5 text-[11px] text-muted">
+                  Rebaja sobre la tarifa de lista (distinta de la comisión de agencia).
+                  {' '}Cambiarlo en una propuesta ya <b>Enviada</b> sube la versión (renegociación).
+                </p>
+                {editable ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="relative">
+                      <input
+                        type="number" min={0} max={100} step={1}
+                        value={descInput}
+                        onChange={(e) => setDescInput(e.target.value)}
+                        className="h-9 w-24 rounded border border-border-strong bg-surface pl-3 pr-6 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      />
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+                    </div>
+                    <Button size="sm" onClick={aplicarDescuento} disabled={guardandoDesc || Number(descInput) === p.descuentoPct}>
+                      {guardandoDesc ? 'Guardando…' : 'Aplicar'}
+                    </Button>
+                    {p.version > 1 && <span className="text-[11px] text-muted">versión actual: v{p.version}</span>}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-[12px] text-muted">La propuesta ya está {est.label.toLowerCase()}; el descuento quedó fijo.</p>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -383,11 +456,11 @@ function Kpi({ icon, tono, label, value }: { icon: React.ReactNode; tono: string
   )
 }
 
-function Fila({ label, valor, fuerte }: { label: string; valor: string; fuerte?: boolean }) {
+function Fila({ label, valor, fuerte, tono }: { label: string; valor: string; fuerte?: boolean; tono?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
       <dt className="text-muted">{label}</dt>
-      <dd className={`demo-num ${fuerte ? 'font-semibold text-ink' : 'text-ink'}`}>{valor}</dd>
+      <dd className={`demo-num ${tono ?? (fuerte ? 'font-semibold text-ink' : 'text-ink')}`}>{valor}</dd>
     </div>
   )
 }

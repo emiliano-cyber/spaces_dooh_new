@@ -263,6 +263,8 @@ create table propuestas (
   fecha        date not null default current_date,
   estatus      est_propuesta not null default 'BORRADOR',
   comision_pct numeric(5,2) not null default 0,   -- comisión de agencia → divisor
+  descuento_pct numeric(5,2) not null default 0,  -- descuento comercial sobre la tarifa de lista (≠ comisión)
+  version      integer not null default 1,         -- versión de la propuesta (sube en cada renegociación)
   notas        text,
   aceptado_en  timestamptz,                        -- aceptación del cliente desde la liga pública (medio-contrato)
   aceptado_por text,                               -- nombre que el cliente escribió al aceptar

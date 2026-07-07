@@ -46,16 +46,24 @@ function armarPropuesta(p: any, items: any[]) {
   const its = items.map(rowToItem)
   const bruto = its.reduce((s, i) => s + i.precio, 0)
   const comisionPct = Number(p.comision_pct)
+  const descuentoPct = p.descuento_pct != null ? Number(p.descuento_pct) : 0
+  const version = p.version != null ? Number(p.version) : 1
   const divisor = 1 - comisionPct / 100
-  const neto = Math.round(bruto * divisor)
   // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
   const ivaP = p.cliente_iva != null ? Number(p.cliente_iva) : IVA_PCT
-  const iva = Math.round(bruto * (ivaP / 100))
+
+  // base = tarifa de lista (bruto) − descuento comercial. El neto (para el
+  // medio) y el IVA se calculan sobre la base; el total es lo que paga el cliente.
+  const descuentoMonto = Math.round(bruto * (descuentoPct / 100))
+  const base = bruto - descuentoMonto
+  const neto = Math.round(base * divisor)
+  const iva = Math.round(base * (ivaP / 100))
   // Aprobación granular: presupuesto sobre los items aprobados (modelo "menú").
   const aprob = its.filter((i) => i.aprobado)
   const brutoAprobado = aprob.reduce((s, i) => s + i.precio, 0)
-  const netoAprobado = Math.round(brutoAprobado * divisor)
-  const ivaAprobado = Math.round(brutoAprobado * (ivaP / 100))
+  const baseAprobado = brutoAprobado - Math.round(brutoAprobado * (descuentoPct / 100))
+  const netoAprobado = Math.round(baseAprobado * divisor)
+  const ivaAprobado = Math.round(baseAprobado * (ivaP / 100))
   return {
     id: p.id,
     folio: p.folio,
@@ -65,19 +73,24 @@ function armarPropuesta(p: any, items: any[]) {
     fecha: iso(p.fecha),
     estatus: p.estatus,
     comisionPct,
+    descuentoPct,
+    version,
     notas: p.notas ?? null,
     creadoEn: iso(p.creado_en),
     items: its,
     bruto,
+    descuentoMonto,
+    base,
     divisor,
     neto,
     iva,
-    total: bruto + iva,
+    total: base + iva,
     itemsAprobados: aprob.length,
     brutoAprobado,
+    baseAprobado,
     netoAprobado,
     ivaAprobado,
-    totalAprobado: brutoAprobado + ivaAprobado,
+    totalAprobado: baseAprobado + ivaAprobado,
   }
 }
 
@@ -115,11 +128,15 @@ export async function obtenerPropuestaPublica(codigo: string) {
     estatus: armado.estatus,
     aceptadoEn: p.aceptado_en ? iso(p.aceptado_en) : null,
     aceptadoPor: p.aceptado_por ?? null,
+    version: armado.version,
     clienteNombre: cliente?.nombre ?? null,
     agenciaNombre: agencia?.nombre ?? null,
     comisionPct: armado.comisionPct,
+    descuentoPct: armado.descuentoPct,
+    descuentoMonto: armado.descuentoMonto,
     divisor: armado.divisor,
     bruto: armado.bruto,
+    base: armado.base,
     neto: armado.neto,
     iva: armado.iva,
     total: armado.total,
@@ -327,6 +344,41 @@ export async function aprobarItem(itemId: string, aprobado: boolean) {
   const propId = upd[0].propuesta_id
   const p = (await q('select * from propuestas where id=$1', [propId]))[0]
   const items = await q('select * from propuesta_items where propuesta_id=$1', [propId])
+  return armarPropuesta(p, items)
+}
+
+// Actualiza campos editables de la propuesta (descuento comercial, nombre,
+// notas). Regla de negocio: una propuesta APROBADA es inmutable. Si se cambia
+// el descuento de una propuesta ya ENVIADA, sube la versión (renegociación).
+export async function actualizarPropuesta(
+  id: string,
+  input: { descuentoPct?: number; nombre?: string; notas?: string | null },
+) {
+  const cur = await q1<any>('select estatus, descuento_pct from propuestas where id=$1', [id])
+  if (!cur) return null
+  if (cur.estatus === 'APROBADA') {
+    throw new PropuestaError('La propuesta ya está aprobada y es inmutable; un cambio va como adenda')
+  }
+  const sets: string[] = []
+  const vals: any[] = [id]
+  let i = 2
+  let subeVersion = false
+  if (input.descuentoPct != null) {
+    const d = Math.max(0, Math.min(100, Number(input.descuentoPct)))
+    sets.push(`descuento_pct=$${i++}`)
+    vals.push(d)
+    if (cur.estatus === 'ENVIADA' && d !== Number(cur.descuento_pct)) subeVersion = true
+  }
+  if (input.nombre != null) { sets.push(`nombre=$${i++}`); vals.push(input.nombre) }
+  if (input.notas !== undefined) { sets.push(`notas=$${i++}`); vals.push(input.notas) }
+  if (subeVersion) sets.push('version = version + 1')
+  if (sets.length) await q(`update propuestas set ${sets.join(', ')} where id=$1`, vals)
+
+  const p = await q1<any>(
+    'select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva from propuestas p where p.id=$1',
+    [id],
+  )
+  const items = await q('select * from propuesta_items where propuesta_id=$1', [id])
   return armarPropuesta(p, items)
 }
 

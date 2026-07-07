@@ -19,6 +19,7 @@ import type {
   TipoMedio,
   OrdenTrabajo,
   EstOT,
+  Propuesta,
 } from './types'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -437,6 +438,101 @@ export function estadoSLAOT(ot: OrdenTrabajo, umbralPorVencerDias = 2): EstadoSL
   if (dias < 0) return 'VENCIDA'
   if (dias <= umbralPorVencerDias) return 'POR_VENCER'
   return 'EN_TIEMPO'
+}
+
+// ─── Funnel comercial (propuestas: enviadas → aprobadas → perdidas) ─────────
+export interface FunnelPropuestas {
+  total: number
+  borrador: number
+  enviadas: number
+  aprobadas: number
+  rechazadas: number
+  pipelineValue: number // $ en vuelo (borrador + enviada), por total c/IVA
+  ganadoValue: number // $ de aprobadas
+  perdidoValue: number // $ de rechazadas
+  winRate: number | null // aprobadas / (aprobadas + rechazadas)
+  conversion: number | null // aprobadas / (propuestas que salieron al cliente)
+}
+
+// Agrega las propuestas por estado y calcula win rate + valor de pipeline.
+export function funnelPropuestas(props: Propuesta[]): FunnelPropuestas {
+  let borrador = 0, enviadas = 0, aprobadas = 0, rechazadas = 0
+  let pipelineValue = 0, ganadoValue = 0, perdidoValue = 0
+  for (const p of props) {
+    switch (p.estatus) {
+      case 'BORRADOR': borrador++; pipelineValue += p.total; break
+      case 'ENVIADA': enviadas++; pipelineValue += p.total; break
+      case 'APROBADA': aprobadas++; ganadoValue += p.total; break
+      case 'RECHAZADA': rechazadas++; perdidoValue += p.total; break
+    }
+  }
+  const cerradas = aprobadas + rechazadas
+  const tocadas = enviadas + aprobadas + rechazadas // salieron al cliente alguna vez
+  return {
+    total: props.length,
+    borrador, enviadas, aprobadas, rechazadas,
+    pipelineValue, ganadoValue, perdidoValue,
+    winRate: cerradas > 0 ? aprobadas / cerradas : null,
+    conversion: tocadas > 0 ? aprobadas / tocadas : null,
+  }
+}
+
+// ─── Rentabilidad por pantalla (ingreso vs renta de arrendador) ─────────────
+export interface MargenSitio {
+  sitioId: string
+  nombre: string
+  clave: string
+  rentaMensual: number // renta del contrato vigente, normalizada a mensual (0 si no hay)
+  ingresoMensual: number // ingreso de reservas activas hoy en el sitio
+  margenMensual: number // ingreso − renta
+  tieneContrato: boolean
+  arrendador: string | null
+  activo: boolean // ¿tiene reserva vigente hoy?
+}
+
+// Normaliza el monto de renta a mensual según la periodicidad del contrato.
+function rentaAMensual(monto: number, periodicidad: string): number {
+  const per = (periodicidad || '').toLowerCase()
+  if (per.includes('anu') || per.includes('año') || per.includes('year')) return monto / 12
+  if (per.includes('catorc')) return monto * (30 / 14)
+  if (per.includes('quinc')) return monto * 2
+  if (per.includes('seman')) return monto * (30 / 7)
+  if (per.includes('dia')) return monto * 30
+  return monto // mensual por defecto
+}
+
+// Margen mensual por pantalla: ingreso de las reservas vigentes hoy menos la
+// renta del arrendador. Responde "¿qué pantallas ganan y cuáles matar?".
+export function margenPorSitio(state: DemoState): MargenSitio[] {
+  const hoy = startOfToday().getTime()
+  const activasPorSitio = new Map<string, number>()
+  for (const r of state.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    const ini = new Date(r.fechaInicio).getTime()
+    const fin = new Date(r.fechaFin).getTime()
+    if (ini <= hoy && fin >= hoy) {
+      activasPorSitio.set(r.sitioId, (activasPorSitio.get(r.sitioId) ?? 0) + r.precio)
+    }
+  }
+  return state.sitios.map((s) => {
+    // Contrato del sitio (se prefiere uno vigente).
+    const cons = state.contratos.filter((c) => c.sitioId === s.id)
+    const con = cons.find((c) => c.estatus === 'VIGENTE') ?? cons[0] ?? null
+    const rentaMensual = con ? rentaAMensual(con.montoRenta, con.periodicidad) : 0
+    const arr = con ? state.arrendadores.find((a) => a.id === con.arrendadorId) : null
+    const ingresoMensual = activasPorSitio.get(s.id) ?? 0
+    return {
+      sitioId: s.id,
+      nombre: s.nombre,
+      clave: s.claveInterna || s.codigoProveedor || '',
+      rentaMensual: Math.round(rentaMensual),
+      ingresoMensual: Math.round(ingresoMensual),
+      margenMensual: Math.round(ingresoMensual - rentaMensual),
+      tieneContrato: !!con,
+      arrendador: arr?.nombre ?? null,
+      activo: ingresoMensual > 0,
+    }
+  })
 }
 
 // ─── Utilidades ─────────────────────────────────────────────────────────────

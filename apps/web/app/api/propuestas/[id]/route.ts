@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { cambiarEstatusPropuesta } from '@/lib/server/propuestas-repo'
+import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError } from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
@@ -13,6 +13,25 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const body = await req.json().catch(() => ({}))
+
+  // Actualización de campos editables (descuento comercial / nombre / notas),
+  // sin cambio de estatus. Sube versión si renegocia una propuesta ya enviada.
+  if (body.estatus == null && (body.descuentoPct != null || body.nombre != null || body.notas !== undefined)) {
+    try {
+      const prop = await actualizarPropuesta(params.id, {
+        descuentoPct: body.descuentoPct,
+        nombre: body.nombre,
+        notas: body.notas,
+      })
+      if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
+      await registrarAccion(g.usuario, `Actualizó propuesta (v${prop.version})`, prop.nombre)
+      return NextResponse.json(prop)
+    } catch (e) {
+      const status = e instanceof PropuestaError ? 409 : 400
+      return NextResponse.json({ error: e instanceof Error ? e.message : 'No se pudo actualizar' }, { status })
+    }
+  }
+
   try {
     const prop = await cambiarEstatusPropuesta(params.id, body.estatus)
     if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
