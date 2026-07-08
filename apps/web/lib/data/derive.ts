@@ -698,13 +698,12 @@ export interface OpcionesDisponibilidad {
   soloDisponibles?: boolean // deja solo filas con al menos un periodo libre
 }
 
+// S0-3: el TIPO DE MEDIO gobierna las reglas de booking. Solo las pantallas
+// digitales (PANTALLA_DIGITAL) manejan concurrencia por slots; todo lo demás
+// (espectacular, valla, mural…) es estático = 1 cara = reserva exclusiva.
+// La exhibición 'rotativo' sobre una estructura estática ya NO la vuelve digital.
 function esDigital(s: Sitio): boolean {
-  return (
-    s.tipoMedio === 'PANTALLA_DIGITAL' ||
-    s.esRotativo ||
-    s.exhibicion === 'digital' ||
-    s.exhibicion === 'rotativo'
-  )
+  return s.tipoMedio === 'PANTALLA_DIGITAL'
 }
 
 function fechaISOsolo(d: Date): string {

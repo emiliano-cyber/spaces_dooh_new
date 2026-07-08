@@ -262,7 +262,7 @@ export async function reservar(input: {
       if (!tipoCampana) {
         const flags = (
           await client.query(
-            `select (tipo_medio = 'PANTALLA_DIGITAL' or es_rotativo or exhibicion in ('digital','rotativo')) as digital
+            `select (tipo_medio = 'PANTALLA_DIGITAL') as digital
                from sitios where id = any($1::uuid[])`,
             [input.sitioIds],
           )
@@ -310,12 +310,9 @@ export async function reservar(input: {
         )
       ).rows[0]
       const precio = s ? Number(s.tarifa_mensual ?? 0) : 0
-      const digital =
-        !!s &&
-        (s.tipo_medio === 'PANTALLA_DIGITAL' ||
-          s.es_rotativo ||
-          s.exhibicion === 'digital' ||
-          s.exhibicion === 'rotativo')
+      // S0-3: el tipo de medio manda. Solo PANTALLA_DIGITAL maneja slots; las
+      // demás (espectacular, etc.) son estáticas = reserva exclusiva.
+      const digital = !!s && s.tipo_medio === 'PANTALLA_DIGITAL'
       // Validación de colisión de fechas (sobre-reserva): una pantalla ESTÁTICA
       // no puede tener dos reservas activas que se solapen en el mismo periodo.
       // Las digitales se comparten por spots, así que se omiten aquí.
