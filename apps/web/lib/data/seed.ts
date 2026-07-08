@@ -468,6 +468,7 @@ export function buildSeed(): DemoState {
       spotSeg: 20,
     },
     sitios: [],
+    sitiosRed: [],
     arrendadores: [],
     contratos: [],
     pagosRenta: [],

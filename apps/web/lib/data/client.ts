@@ -131,6 +131,12 @@ export function useSitio(id: string) {
   const v = useDemoStore((s) => s.sitios.find((x) => x.id === id) ?? null)
   return m ? v : undefined
 }
+// Catálogo de red: todas las pantallas de la plataforma (propias + ajenas).
+export function useSitiosRed() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.sitiosRed)
+  return m ? v : undefined
+}
 export function useArrendadores() {
   const m = useMounted()
   const v = useDemoStore((s) => s.arrendadores)

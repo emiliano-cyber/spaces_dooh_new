@@ -17,6 +17,7 @@ export async function refrescarEstado(): Promise<void> {
   const e = await r.json()
   useDemoStore.setState({
     sitios: e.sitios ?? [],
+    sitiosRed: e.sitiosRed ?? [],
     clientes: e.clientes ?? [],
     campanas: e.campanas ?? [],
     reservas: e.reservas ?? [],

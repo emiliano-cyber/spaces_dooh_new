@@ -149,6 +149,40 @@ export async function listarSitios(): Promise<any[]> {
   return sitios.map((r) => rowToSitio(r, porSitio.get(r.id) ?? []))
 }
 
+// Catálogo de RED: todas las pantallas de la plataforma (todos los CRMs). Las
+// propias vienen completas; las ajenas marcadas esPropio=false y con los costos
+// internos ocultos (costo de compra, impresión, m², tarifa interna, notas). Es
+// solo para VER — las operaciones (propuestas/reservas) siguen usando listarSitios
+// (solo las propias), así ningún CRM vende pantallas de otro.
+export async function listarSitiosRed(): Promise<any[]> {
+  const yo = await tenantActual()
+  const sitios = await q(
+    `select s.*, t.nombre as dueno_tenant, (s.tenant_id = $1) as es_propio
+       from sitios s left join tenants t on t.id = s.tenant_id
+      order by s.creado_en asc`,
+    [yo],
+  )
+  const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
+  const porSitio = new Map<string, any[]>()
+  for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
+  return sitios.map((r) => {
+    const propio = !!r.es_propio
+    const base = rowToSitio(r, propio ? (porSitio.get(r.id) ?? []) : [])
+    if (propio) return { ...base, esPropio: true, duenoTenant: r.dueno_tenant ?? null }
+    return {
+      ...base,
+      esPropio: false,
+      duenoTenant: r.dueno_tenant ?? null,
+      costoCompra: null,
+      tarifaImpresion: null,
+      precioM2: null,
+      tarifaMensual: null,
+      notas: null,
+      modalidades: [],
+    }
+  })
+}
+
 export async function getSitio(id: string): Promise<any | null> {
   const r = await q1('select * from sitios where id = $1', [id])
   if (!r) return null
@@ -197,6 +231,9 @@ async function actualizarSitioCompleto(client: PoolClient, id: string, s: any): 
   }
 }
 
+// Error de negocio al dar de alta un sitio (p. ej. ya es de otro operador).
+export class SitioError extends Error {}
+
 export async function crearSitio(s: any): Promise<any> {
   const client = await pool.connect()
   try {
@@ -204,8 +241,13 @@ export async function crearSitio(s: any): Promise<any> {
     const sitio = await insertarSitio(client, s)
     await client.query('commit')
     return sitio
-  } catch (e) {
+  } catch (e: any) {
     await client.query('rollback')
+    // 23505 = violación de UNIQUE (codigo_proveedor / clave_interna ya existen).
+    // En la red compartida eso significa que la pantalla es de alguien más.
+    if (e?.code === '23505') {
+      throw new SitioError('Esas pantallas son de alguien más (ese código o clave ya existe en la red).')
+    }
     throw e
   } finally {
     client.release()
@@ -303,6 +345,7 @@ export async function importarSitios(args: {
     ;(grupos.get(clave) ?? grupos.set(clave, []).get(clave)!).push(f)
   }
 
+  const yo = await tenantActual()
   const client = await pool.connect()
   try {
     await client.query('begin')
@@ -333,8 +376,19 @@ export async function importarSitios(args: {
       }
       const conAdv = rows.some((r: any) => r.status === 'advertencia')
       const existente = p.codigo_proveedor
-        ? (await client.query('select id, fotos, imagen_promocional from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
+        ? (await client.query('select id, fotos, imagen_promocional, tenant_id from sitios where codigo_proveedor=$1', [p.codigo_proveedor])).rows[0]
         : null
+      // Propiedad: si la pantalla ya existe y es de OTRO operador, no se puede
+      // añadir ni sobreescribir — es de alguien más (red compartida con dueño).
+      if (existente && existente.tenant_id !== yo) {
+        errores++
+        detalle.push({
+          codigo_proveedor: p.codigo_proveedor,
+          status: 'error',
+          mensaje: 'Esas pantallas son de alguien más (otro operador ya las registró en la red).',
+        })
+        continue
+      }
       // Imágenes por código (archivo "codigo" o "codigo-N"): van a la galería
       // (fotos) y la 1ª es la principal. Si no llegan imágenes nuevas y el sitio
       // ya existe, se conservan las suyas (no se borran al actualizar).

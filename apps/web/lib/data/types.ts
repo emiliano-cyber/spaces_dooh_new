@@ -164,6 +164,10 @@ export interface UsuarioDemo {
 
 export interface Sitio {
   id: string
+  // Red compartida: true si la pantalla es del CRM actual; en el catálogo de red
+  // las ajenas vienen con costos internos ocultos y sin edición.
+  esPropio?: boolean
+  duenoTenant?: string | null
   claveInterna: string
   nombre: string
   tipoMedio: TipoMedio
@@ -586,6 +590,9 @@ export interface Notificacion {
 export interface DemoState {
   usuarios: UsuarioDemo[]
   configNegocio: ConfigNegocio
+  // Catálogo de red: todas las pantallas de la plataforma (propias + ajenas,
+  // estas últimas sin costos internos). Solo lectura para las que no son propias.
+  sitiosRed: Sitio[]
   sitios: Sitio[]
   arrendadores: Arrendador[]
   contratos: ContratoArrendamiento[]

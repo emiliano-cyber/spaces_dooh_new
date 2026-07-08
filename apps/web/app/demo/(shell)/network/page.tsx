@@ -11,7 +11,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { toggleNetworkApi } from '@/lib/data/sitios-api'
-import { useSitios, type CMS } from '@/lib/data/client'
+import { useSitios, useSitiosRed, formatMonto, type CMS } from '@/lib/data/client'
 
 const CMS_LABEL: Record<CMS, string> = {
   BROADSIGN: 'Broadsign',
@@ -22,6 +22,7 @@ const CMS_LABEL: Record<CMS, string> = {
 
 export default function NetworkPage() {
   const sitios = useSitios()
+  const sitiosRed = useSitiosRed()
   const [toast, setToast] = useState<string | null>(null)
 
   function notify(msg: string) {
@@ -147,6 +148,65 @@ export default function NetworkPage() {
                         >
                           <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-150', s.enNetwork ? 'translate-x-4' : 'translate-x-0.5')} />
                         </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Red de pantallas · catálogo de toda la plataforma (propias + de otros
+          operadores). Solo lectura para las ajenas; los costos internos no se
+          muestran. Las operaciones (propuestas/reservas) usan solo las propias. */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Red de pantallas · toda la plataforma</CardTitle>
+          <p className="mt-0.5 text-[12px] text-muted">
+            Catálogo de todas las pantallas registradas. Solo el operador dueño puede editarlas.
+          </p>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {!sitiosRed ? (
+            <div className="space-y-2 px-4 pb-4">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />)}
+            </div>
+          ) : sitiosRed.length === 0 ? (
+            <p className="px-4 pb-4 text-[13px] text-muted">Aún no hay pantallas en la red.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                    <th className="px-4 py-2 font-medium">Pantalla</th>
+                    <th className="px-4 py-2 font-medium">Operador</th>
+                    <th className="px-4 py-2 font-medium">Tipo</th>
+                    <th className="px-4 py-2 font-medium">Ubicación</th>
+                    <th className="px-4 py-2 text-right font-medium">Tarifa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sitiosRed.map((s) => (
+                    <tr key={s.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-2.5">
+                        <div className="text-ink">{s.nombre}</div>
+                        <div className="demo-num text-[11px] text-muted">{s.codigoProveedor}</div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {s.esPropio ? (
+                          <span className="rounded-full border border-[#10b98155] bg-[#10b9810d] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55]">
+                            Tuya
+                          </span>
+                        ) : (
+                          <span className="text-muted">{s.duenoTenant ?? 'Otro operador'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted">{s.tipoMedio}</td>
+                      <td className="px-4 py-2.5 text-muted">{s.alcaldia || s.plazaCiudad || '—'}</td>
+                      <td className="demo-num px-4 py-2.5 text-right text-ink">
+                        {s.tarifaPublicada ? formatMonto(s.tarifaPublicada) : '—'}
                       </td>
                     </tr>
                   ))}
