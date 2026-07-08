@@ -68,11 +68,16 @@ export default function ArrendadoresPage() {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Mini label="Propietarios" valor={`${arrendadores?.length ?? '—'}`} />
         <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
         <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
         <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
       </div>
+
+      {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
+          todavía no tengan contrato) */}
+      <PropietariosCard arrendadores={arrendadores} contratos={contratos ?? []} />
 
       {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
       <RentabilidadCard margenes={margenes} />
@@ -361,6 +366,70 @@ function RentabilidadCard({ margenes }: { margenes: MargenSitio[] | undefined })
                   <td className="demo-num px-4 py-2 text-right text-muted">{formatMonto(totalRenta)}</td>
                   <td className={cn('demo-num px-4 py-2 text-right', totalMargen < 0 ? 'text-error' : 'text-[#0f7a55]')}>{formatMonto(totalMargen)}</td>
                 </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// Lista de propietarios (arrendadores) dados de alta. Se muestran aquí aunque
+// aún no tengan contrato — así un alta reciente es visible de inmediato.
+function PropietariosCard({
+  arrendadores,
+  contratos,
+}: {
+  arrendadores: ReturnType<typeof useArrendadores>
+  contratos: ContratoArrendamiento[]
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Propietarios</CardTitle>
+        <p className="mt-0.5 text-[12px] text-muted">Dueños de predio dados de alta.</p>
+      </CardHeader>
+      <CardContent className="px-0 pb-0">
+        {!arrendadores ? (
+          <div className="space-y-2 px-4 pb-4">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <div key={i} className="h-9 animate-pulse rounded bg-surface-2" />
+            ))}
+          </div>
+        ) : arrendadores.length === 0 ? (
+          <p className="px-4 pb-4 text-[13px] text-muted">
+            Aún no hay propietarios. Usa <b>“Nuevo propietario”</b> para dar de alta uno.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[13px]">
+              <thead>
+                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                  <th className="px-4 py-2 font-medium">Propietario</th>
+                  <th className="px-4 py-2 font-medium">RFC</th>
+                  <th className="px-4 py-2 font-medium">Contacto</th>
+                  <th className="px-4 py-2 text-right font-medium">Contratos</th>
+                </tr>
+              </thead>
+              <tbody>
+                {arrendadores.map((a) => {
+                  const nContratos = contratos.filter((c) => c.arrendadorId === a.id).length
+                  return (
+                    <tr key={a.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-2.5 font-medium text-ink">{a.nombre}</td>
+                      <td className="demo-num px-4 py-2.5 text-muted">{a.rfc || '—'}</td>
+                      <td className="px-4 py-2.5 text-muted">
+                        {a.email || a.telefono ? (
+                          <span>{a.email ?? ''}{a.email && a.telefono ? ' · ' : ''}{a.telefono ?? ''}</span>
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td className="demo-num px-4 py-2.5 text-right text-ink">{nContratos}</td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
