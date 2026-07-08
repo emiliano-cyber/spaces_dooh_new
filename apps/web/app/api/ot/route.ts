@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { listarOT, crearOT } from '@/lib/server/ot-repo'
+import { listarOT } from '@/lib/server/ot-repo'
+import { crearOTCtrl } from '@/lib/server/ot-controller'
+import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
 export const runtime = 'nodejs'
@@ -17,15 +19,11 @@ export async function GET() {
 export async function POST(req: Request) {
   const g = await exigir('operaciones', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  const body = await req.json().catch(() => null)
-  if (!body?.tipo || !body?.descripcion) {
-    return NextResponse.json({ error: 'Tipo y descripción requeridos' }, { status: 400 })
+  try {
+    const ot = await crearOTCtrl(await req.json().catch(() => ({})))
+    await registrarAccion(g.usuario, 'Creó OT', ot.folio)
+    return NextResponse.json(ot, { status: 201 })
+  } catch (e) {
+    return respuestaError(e)
   }
-  // S1-5: la fecha compromiso es obligatoria (sin ella no opera la alerta de OT vencida).
-  if (!body?.fechaProgramada) {
-    return NextResponse.json({ error: 'La fecha compromiso es obligatoria' }, { status: 400 })
-  }
-  const ot = await crearOT(body)
-  await registrarAccion(g.usuario, 'Creó OT', ot.folio)
-  return NextResponse.json(ot, { status: 201 })
 }
