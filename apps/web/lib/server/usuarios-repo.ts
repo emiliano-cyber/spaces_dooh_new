@@ -58,6 +58,25 @@ export async function borrarUsuario(id: string) {
   await q('delete from usuarios where id = $1', [id])
 }
 
+// Actualiza el propio perfil: correo y/o hash de contraseña (ya validados/hasheados
+// por el controller). Devuelve false si no hay nada que cambiar.
+export async function actualizarPerfil(id: string, cambios: { email?: string; passwordHash?: string }) {
+  const sets: string[] = []
+  const vals: unknown[] = []
+  if (cambios.email) {
+    vals.push(cambios.email.toLowerCase())
+    sets.push(`email = $${vals.length}`)
+  }
+  if (cambios.passwordHash) {
+    vals.push(cambios.passwordHash)
+    sets.push(`password_hash = $${vals.length}`)
+  }
+  if (!sets.length) return false
+  vals.push(id)
+  await q(`update usuarios set ${sets.join(', ')} where id = $${vals.length}`, vals)
+  return true
+}
+
 export async function emailExiste(email: string): Promise<boolean> {
   return !!(await q1('select 1 from usuarios where lower(email)=lower($1)', [email]))
 }
