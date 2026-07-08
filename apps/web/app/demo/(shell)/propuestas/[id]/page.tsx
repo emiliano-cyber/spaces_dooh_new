@@ -34,6 +34,7 @@ import {
   aprobarItemPropuestaApi,
   generarCampanaDesdePropuestaApi,
   actualizarPropuestaApi,
+  ConfirmacionCeroError,
 } from '@/lib/data/estado-api'
 import {
   usePropuestas,
@@ -160,8 +161,16 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return s ? [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }] : []
   })
 
-  async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+  async function cambiar(estatus: EstPropuesta, confirmarCero = false) {
+    try {
+      await cambiarEstatusPropuestaApi(id, estatus, confirmarCero)
+    } catch (e) {
+      if (e instanceof ConfirmacionCeroError) {
+        if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
+        return
+      }
+      toast.error(e instanceof Error ? e.message : 'Error')
+    }
   }
   async function aprobar(itemId: string, aprobado: boolean) {
     try { await aprobarItemPropuestaApi(itemId, aprobado) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }

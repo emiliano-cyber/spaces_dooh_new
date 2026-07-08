@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError } from '@/lib/server/propuestas-repo'
+import { cambiarEstatusPropuesta, actualizarPropuesta, PropuestaError, PropuestaCeroError } from '@/lib/server/propuestas-repo'
 import { generarCampanaDesdePropuesta, PropuestaCampanaError } from '@/lib/server/campanas-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { notificar } from '@/lib/server/notificaciones-repo'
@@ -33,9 +33,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   }
 
   try {
-    const prop = await cambiarEstatusPropuesta(params.id, body.estatus)
+    const prop = await cambiarEstatusPropuesta(params.id, body.estatus, { confirmarCero: body.confirmarCero })
     if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
-    await registrarAccion(g.usuario, `Propuesta → ${prop.estatus}`, prop.nombre)
+    // S1-2: si se aprobó una propuesta en $0 (con confirmación), queda en bitácora.
+    const accionTxt = prop.estatus === 'APROBADA' && prop.total <= 0
+      ? 'Aprobó propuesta en $0 (confirmado)'
+      : `Propuesta → ${prop.estatus}`
+    await registrarAccion(g.usuario, accionTxt, prop.nombre)
     if (prop.estatus === 'APROBADA' || prop.estatus === 'RECHAZADA') {
       await notificar({
         tipo: 'PROPUESTA',
@@ -69,6 +73,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     return NextResponse.json({ ...prop, campanaGenerada: campana })
   } catch (e) {
+    // S1-2: total $0 sin confirmar → aviso para que el UI reconfirme.
+    if (e instanceof PropuestaCeroError) {
+      return NextResponse.json({ error: e.message, requiereConfirmacionCero: true }, { status: 409 })
+    }
     return NextResponse.json(
       { error: e instanceof Error ? e.message : 'No se pudo actualizar' },
       { status: 400 },

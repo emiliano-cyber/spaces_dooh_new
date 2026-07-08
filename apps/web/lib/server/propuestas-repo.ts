@@ -278,7 +278,16 @@ export interface PropuestaInput {
   notas?: string | null
 }
 
+// S1-1: valida que la fecha fin no sea anterior a la de inicio (rango válido).
+export function validarRangoFechas(inicio?: string | null, fin?: string | null) {
+  if (!inicio || !fin) return
+  if (new Date(fin) < new Date(inicio)) {
+    throw new PropuestaError('La fecha fin no puede ser anterior a la fecha de inicio')
+  }
+}
+
 export async function crearPropuesta(input: PropuestaInput) {
+  validarRangoFechas(input.fechaInicio, input.fechaFin)
   // Gate de negociación: la agencia debe tener su negociación validada.
   const bloq = await agenciaBloqueada(input.agenciaId)
   if (bloq.bloqueada) {
@@ -382,8 +391,16 @@ export async function actualizarPropuesta(
   return armarPropuesta(p, items)
 }
 
+// S1-2: aprobar una propuesta con Total $0 (p. ej. descuento 100%) exige
+// confirmación explícita. El route la mapea a un aviso; el UI reconfirma.
+export class PropuestaCeroError extends PropuestaError {}
+
 const ESTATUS_VALIDOS = ['BORRADOR', 'ENVIADA', 'APROBADA', 'RECHAZADA']
-export async function cambiarEstatusPropuesta(id: string, estatus: string) {
+export async function cambiarEstatusPropuesta(
+  id: string,
+  estatus: string,
+  opts?: { confirmarCero?: boolean },
+) {
   if (!ESTATUS_VALIDOS.includes(estatus)) throw new Error('Estatus inválido')
   // Aprobar exige que la negociación con la agencia esté validada.
   if (estatus === 'APROBADA') {
@@ -393,6 +410,15 @@ export async function cambiarEstatusPropuesta(id: string, estatus: string) {
       throw new PropuestaError(
         `La negociación con la agencia ${bloq.nombre ?? ''} no está validada; no se puede aprobar la propuesta`,
       )
+    }
+    // S1-2: guardarraíl contra aprobar/facturar en $0 sin confirmación.
+    const tot = await q1<{ base: string }>(
+      `select coalesce(sum(precio),0) * (1 - coalesce((select descuento_pct from propuestas where id=$1),0)/100.0) as base
+         from propuesta_items where propuesta_id=$1`,
+      [id],
+    )
+    if (Number(tot?.base ?? 0) <= 0 && !opts?.confirmarCero) {
+      throw new PropuestaCeroError('Estás por aprobar una propuesta con Total $0. Confirma explícitamente para continuar.')
     }
     // Aprobar la propuesta = aceptar sus pantallas. Si no hay ítems marcados,
     // se aprueban TODOS (la campaña se genera sobre todas las pantallas).

@@ -87,14 +87,26 @@ export async function crearPropuestaApi(input: {
   await refrescarEstado()
 }
 
-export async function cambiarEstatusPropuestaApi(id: string, estatus: string): Promise<void> {
+// Error con bandera para que el UI reconfirme una aprobación en $0 (S1-2).
+export class ConfirmacionCeroError extends Error {
+  requiereConfirmacionCero = true
+}
+
+export async function cambiarEstatusPropuestaApi(
+  id: string,
+  estatus: string,
+  confirmarCero = false,
+): Promise<void> {
   const r = await fetch(`${API}/propuestas/${id}/`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ estatus }),
+    body: JSON.stringify({ estatus, confirmarCero }),
   })
   const d = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
+  if (!r.ok) {
+    if (d.requiereConfirmacionCero) throw new ConfirmacionCeroError(d.error ?? 'Confirma la aprobación en $0')
+    throw new Error(d.error ?? 'No se pudo actualizar la propuesta')
+  }
   await refrescarEstado()
 }
 

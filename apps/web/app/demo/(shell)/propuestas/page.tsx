@@ -22,7 +22,7 @@ import {
 import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
-import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi } from '@/lib/data/estado-api'
+import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -91,8 +91,16 @@ function PropuestaCard({
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
 
-  async function cambiar(estatus: EstPropuesta) {
-    try { await cambiarEstatusPropuestaApi(p.id, estatus) } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
+  async function cambiar(estatus: EstPropuesta, confirmarCero = false) {
+    try {
+      await cambiarEstatusPropuestaApi(p.id, estatus, confirmarCero)
+    } catch (e) {
+      if (e instanceof ConfirmacionCeroError) {
+        if (window.confirm(`${e.message}\n\n¿Aprobar de todas formas?`)) return cambiar(estatus, true)
+        return
+      }
+      toast.error(e instanceof Error ? e.message : 'Error')
+    }
   }
   async function generarCampana() {
     setGenerando(true)

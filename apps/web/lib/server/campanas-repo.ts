@@ -244,6 +244,10 @@ export async function reservar(input: {
   // Spots a reservar por sitio digital (sitioId → cantidad). Descuenta disponibles.
   spotsPorSitio?: Record<string, number>
 }) {
+  // S1-1: no permitir rangos de fecha invertidos (fin anterior a inicio).
+  if (new Date(input.fechaFin) < new Date(input.fechaInicio)) {
+    throw new Error('La fecha fin no puede ser anterior a la fecha de inicio')
+  }
   // Libera primero las tentativas vencidas: así el guard de colisión y los slots
   // digitales reflejan el inventario realmente disponible al momento de vender.
   await barrerReservasVencidas()
