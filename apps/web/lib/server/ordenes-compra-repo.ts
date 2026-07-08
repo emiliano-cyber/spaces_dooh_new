@@ -17,6 +17,7 @@ function rowToOdc(r: any) {
   return {
     id: r.id,
     folio: r.folio,
+    numeroOc: r.numero_oc ?? null,
     campanaId: r.campana_id,
     monto: Number(r.monto),
     fecha: iso(r.fecha),
@@ -36,7 +37,7 @@ export async function listarOrdenesCompra() {
 // estaban fotos + reporte). El monto, si no se pasa, sale del presupuesto bruto.
 export async function crearOrdenCompra(
   campanaId: string,
-  input: { monto?: number | null; documentoUrl?: string | null; notas?: string | null } = {},
+  input: { numeroOc?: string | null; monto?: number | null; fecha?: string | null; documentoUrl?: string | null; notas?: string | null } = {},
 ) {
   const client = await pool.connect()
   try {
@@ -51,9 +52,9 @@ export async function crearOrdenCompra(
     const monto = input.monto ?? Number(camp.presupuesto_bruto ?? 0)
     const odc = (
       await client.query(
-        `insert into ordenes_compra (folio, campana_id, monto, estatus, documento_url, notas, tenant_id)
-         values ($1,$2,$3,'RECIBIDA',$4,$5,$6) returning *`,
-        [folioODC(), campanaId, monto, input.documentoUrl ?? null, input.notas ?? null, await tenantActual()],
+        `insert into ordenes_compra (folio, numero_oc, campana_id, monto, fecha, estatus, documento_url, notas, tenant_id)
+         values ($1,$2,$3,$4, coalesce($5::date, current_date), 'RECIBIDA',$6,$7,$8) returning *`,
+        [folioODC(), input.numeroOc ?? null, campanaId, monto, input.fecha ?? null, input.documentoUrl ?? null, input.notas ?? null, await tenantActual()],
       )
     ).rows[0]
     await client.query(

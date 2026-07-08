@@ -259,6 +259,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <CardContent>
             <dl className="space-y-2 text-[13px]">
               <Fila label="Folio ODC" valor={odc.folio} mono />
+              {odc.numeroOc && <Fila label="Número de OC (cliente)" valor={odc.numeroOc} mono />}
               <Fila label="Monto" valor={formatMonto(odc.monto)} mono />
               <Fila label="Fecha" valor={formatFecha(odc.fecha)} />
               {odc.documentoUrl && <Fila label="Documento" valor={odc.documentoUrl} />}

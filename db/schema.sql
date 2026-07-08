@@ -288,6 +288,7 @@ create type est_odc as enum ('PENDIENTE','RECIBIDA','CANCELADA');
 create table ordenes_compra (
   id            uuid primary key default gen_random_uuid(),
   folio         text not null unique,
+  numero_oc     text,                                -- número de OC del cliente (S1-4)
   campana_id    uuid not null references campanas(id) on delete cascade,
   monto         numeric(14,2) not null default 0,
   fecha         date not null default current_date,

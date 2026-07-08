@@ -21,6 +21,10 @@ export async function POST(req: Request) {
   if (!body?.tipo || !body?.descripcion) {
     return NextResponse.json({ error: 'Tipo y descripción requeridos' }, { status: 400 })
   }
+  // S1-5: la fecha compromiso es obligatoria (sin ella no opera la alerta de OT vencida).
+  if (!body?.fechaProgramada) {
+    return NextResponse.json({ error: 'La fecha compromiso es obligatoria' }, { status: 400 })
+  }
   const ot = await crearOT(body)
   await registrarAccion(g.usuario, 'Creó OT', ot.folio)
   return NextResponse.json(ot, { status: 201 })

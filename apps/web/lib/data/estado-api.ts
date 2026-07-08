@@ -264,7 +264,8 @@ export async function avanzarOrdenImpresionApi(id: string): Promise<void> {
 // Registra una Orden de Compra (ODC) del cliente como entidad real y abre el
 // candado de facturación (oc_recibida). Reemplaza a marcarOCApi en el flujo.
 export async function crearOrdenCompraApi(input: {
-  campanaId: string; monto?: number | null; documentoUrl?: string | null; notas?: string | null
+  campanaId: string; numeroOc?: string | null; monto?: number | null
+  fecha?: string | null; documentoUrl?: string | null; notas?: string | null
 }): Promise<void> {
   const r = await fetch(`${API}/ordenes-compra/`, {
     method: 'POST',
@@ -321,7 +322,8 @@ export async function recordarCobranzaApi(cobranzaId: string): Promise<void> {
 // ─── Operaciones (OT + evidencias/testigos) ─────────────────────────────────
 export async function crearOTApi(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
-  descripcion: string; prioridad?: string; asignadoA?: string | null; checklist?: unknown[]
+  descripcion: string; prioridad?: string; asignadoA?: string | null
+  fechaProgramada: string; checklist?: unknown[]
 }): Promise<void> {
   const r = await fetch(`${API}/ot/`, {
     method: 'POST',

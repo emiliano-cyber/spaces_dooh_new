@@ -15,6 +15,31 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
   const puedeOC = usePuede('comercial', 'crear')
   const [enviando, setEnviando] = useState(false)
+  const [numeroOc, setNumeroOc] = useState('')
+  const [monto, setMonto] = useState('')
+  const [fecha, setFecha] = useState('')
+  const [documento, setDocumento] = useState('')
+
+  const inp =
+    'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
+  async function registrarOC() {
+    if (!numeroOc.trim()) return
+    setEnviando(true)
+    try {
+      await crearOrdenCompraApi({
+        campanaId,
+        numeroOc: numeroOc.trim(),
+        monto: monto ? Number(monto) : null,
+        fecha: fecha || null,
+        documentoUrl: documento.trim() || null,
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
+    }
+    setEnviando(false)
+  }
+
   if (!r) return <div className="h-28 w-full animate-pulse rounded bg-surface-2" />
 
   const abierto = r.candado
@@ -42,22 +67,42 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />
       </ul>
       {!r.ocRecibida && puedeOC && (
-        <button
-          type="button"
-          disabled={enviando}
-          onClick={async () => {
-            setEnviando(true)
-            try {
-              await crearOrdenCompraApi({ campanaId })
-            } catch (e) {
-              toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
-            }
-            setEnviando(false)
-          }}
-          className="mt-3 w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
-        >
-          {enviando ? 'Registrando…' : 'Registrar OC del cliente'}
-        </button>
+        <div className="mt-3 space-y-2 rounded border border-border bg-surface p-3">
+          <p className="text-[12px] font-medium text-ink">Registrar OC del cliente</p>
+          <input
+            className={inp}
+            placeholder="Número de OC del cliente *"
+            value={numeroOc}
+            onChange={(e) => setNumeroOc(e.target.value)}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              className={inp}
+              type="number"
+              placeholder="Monto (opcional)"
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+            />
+            <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+          </div>
+          <input
+            className={inp}
+            placeholder="Documento (URL del PDF/imagen)"
+            value={documento}
+            onChange={(e) => setDocumento(e.target.value)}
+          />
+          <button
+            type="button"
+            disabled={enviando || !numeroOc.trim()}
+            onClick={registrarOC}
+            className="w-full rounded border border-border-strong px-3 py-2 text-[12px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 disabled:opacity-50"
+          >
+            {enviando ? 'Registrando…' : 'Registrar OC'}
+          </button>
+          <p className="text-[10px] text-muted">
+            El pipeline marca “OC recibida” solo con este registro (número, monto, fecha y documento).
+          </p>
+        </div>
       )}
       {!abierto && (
         <p className="mt-3 text-[12px] text-muted">

@@ -23,6 +23,7 @@ import {
   useCampanas,
   useEvidencias,
   useReservas,
+  useUsuarios,
   formatFecha,
   estadoSLAOT,
   type TipoOT,
@@ -74,6 +75,9 @@ export default function OperacionesPage() {
   const campanas = useCampanas()
   const evidencias = useEvidencias()
   const reservas = useReservas()
+  const usuarios = useUsuarios()
+  const nombreAsignado = (id?: string | null) =>
+    (id && usuarios?.find((u) => u.id === id)?.nombre) || CUADRILLA[id ?? ''] || 'Sin asignar'
   const puedeCrear = usePuede('operaciones', 'crear')
   const [filtro, setFiltro] = useState<EstOT | ''>('')
   const [nuevaOpen, setNuevaOpen] = useState(false)
@@ -210,7 +214,7 @@ export default function OperacionesPage() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
                     <span className="inline-flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" /> {CUADRILLA[o.asignadoAUserId ?? ''] ?? 'Sin asignar'}
+                      <User className="h-3.5 w-3.5" /> {nombreAsignado(o.asignadoAUserId)}
                     </span>
                     {o.fechaProgramada && (
                       <span
@@ -269,7 +273,12 @@ function NuevaOTModal({
   const [sitioId, setSitioId] = useState('')
   const [campanaId, setCampanaId] = useState('')
   const [prioridad, setPrioridad] = useState<Prioridad>('NORMAL')
+  const [fechaProg, setFechaProg] = useState('')
+  const [asignado, setAsignado] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const usuarios = useUsuarios()
+  // Responsables sugeridos: usuarios con rol de Operaciones (o cualquiera si no hay).
+  const responsables = (usuarios ?? []).filter((u) => u.rol === 'OPERACIONES' || u.rol === 'DUENO')
   const sel =
     'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
@@ -291,7 +300,7 @@ function NuevaOTModal({
   const opcionesSitio = sitiosDeCampana ?? sitios
 
   async function crear() {
-    if (!descripcion.trim()) return
+    if (!descripcion.trim() || !fechaProg) return
     setEnviando(true)
     try {
       await crearOTApi({
@@ -300,6 +309,8 @@ function NuevaOTModal({
         sitioId: sitioId || null,
         campanaId: campanaId || null,
         prioridad,
+        fechaProgramada: fechaProg,
+        asignadoA: asignado || null,
         checklist: [
           { label: 'Inspección de estructura y herrajes', hecho: false },
           { label: 'Montaje / ejecución', hecho: false },
@@ -310,6 +321,8 @@ function NuevaOTModal({
       setDescripcion('')
       setSitioId('')
       setCampanaId('')
+      setFechaProg('')
+      setAsignado('')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo crear la OT')
     }
@@ -325,7 +338,7 @@ function NuevaOTModal({
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button size="sm" disabled={!descripcion.trim() || enviando} onClick={crear}>
+          <Button size="sm" disabled={!descripcion.trim() || !fechaProg || enviando} onClick={crear}>
             {enviando ? 'Creando…' : 'Crear OT'}
           </Button>
         </div>
@@ -369,10 +382,25 @@ function NuevaOTModal({
             )}
           </label>
         </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Prioridad</span>
+            <select className={sel} value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
+              {Object.entries(PRIORIDAD_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">
+              Fecha compromiso <span className="text-error">*</span>
+            </span>
+            <input type="date" className={sel} value={fechaProg} onChange={(e) => setFechaProg(e.target.value)} />
+          </label>
+        </div>
         <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Prioridad</span>
-          <select className={sel} value={prioridad} onChange={(e) => setPrioridad(e.target.value as Prioridad)}>
-            {Object.entries(PRIORIDAD_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          <span className="mb-1 block text-[12px] font-medium text-ink">Asignar a (responsable)</span>
+          <select className={sel} value={asignado} onChange={(e) => setAsignado(e.target.value)}>
+            <option value="">— Sin asignar —</option>
+            {responsables.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
           </select>
         </label>
       </div>

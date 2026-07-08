@@ -364,6 +364,7 @@ export type EstOdc = 'PENDIENTE' | 'RECIBIDA' | 'CANCELADA'
 export interface OrdenCompra {
   id: string
   folio: string
+  numeroOc: string | null
   campanaId: string
   monto: number
   fecha: string

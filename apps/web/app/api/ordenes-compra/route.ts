@@ -15,7 +15,9 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null)
   if (!body?.campanaId) return NextResponse.json({ error: 'Falta la campaña' }, { status: 400 })
   const odc = await crearOrdenCompra(body.campanaId, {
+    numeroOc: body.numeroOc ?? null,
     monto: body.monto ?? null,
+    fecha: body.fecha ?? null,
     documentoUrl: body.documentoUrl ?? null,
     notas: body.notas ?? null,
   })
