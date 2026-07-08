@@ -13,7 +13,7 @@ import {
   COBRANZA_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
-import { generarFacturaApi, recordarCobranzaApi } from '@/lib/data/estado-api'
+import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   useCampanasResumen,
@@ -38,6 +38,7 @@ export default function FinanzasPage() {
   const [facturar, setFacturar] = useState<Campana | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [recordando, setRecordando] = useState<string | null>(null)
+  const [pagoCob, setPagoCob] = useState<{ id: string; folio: string; saldo: number } | null>(null)
 
   function notify(msg: string) {
     setToast(msg)
@@ -195,6 +196,15 @@ export default function FinanzasPage() {
                                   {puedeCobrar && (
                                     <button
                                       type="button"
+                                      onClick={() => setPagoCob({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: fac ? fac.monto - cob.montoPagado : 0 })}
+                                      className="rounded border border-[#10b98155] bg-[#10b9810d] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55] hover:bg-[#10b9811a]"
+                                    >
+                                      Registrar pago
+                                    </button>
+                                  )}
+                                  {puedeCobrar && (
+                                    <button
+                                      type="button"
                                       onClick={() => recordar(cob.id)}
                                       disabled={recordando === cob.id}
                                       className="rounded border border-border-strong px-2 py-0.5 text-[11px] text-ink hover:bg-surface-2 disabled:opacity-50"
@@ -229,6 +239,14 @@ export default function FinanzasPage() {
         onClose={() => setFacturar(null)}
         onDone={() => notify('Factura generada')}
       />
+
+      {pagoCob && (
+        <PagoModal
+          cob={pagoCob}
+          onClose={() => setPagoCob(null)}
+          onDone={(msg) => { notify(msg); setPagoCob(null) }}
+        />
+      )}
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-[60] -translate-x-1/2 rounded-md border border-border bg-ink px-4 py-2.5 text-[13px] text-white">
@@ -340,6 +358,81 @@ function GenerarFacturaDialog({
             ))}
           </div>
         </div>
+      </div>
+    </Modal>
+  )
+}
+
+// S0-2: registrar pago/abono sobre una cobranza (parcial o total) con saldo.
+function PagoModal({
+  cob,
+  onClose,
+  onDone,
+}: {
+  cob: { id: string; folio: string; saldo: number }
+  onClose: () => void
+  onDone: (msg: string) => void
+}) {
+  const [monto, setMonto] = useState(String(Math.round(cob.saldo * 100) / 100))
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const num = Number(monto)
+  const excede = num > cob.saldo + 0.005
+
+  async function pagar(total: boolean) {
+    setGuardando(true)
+    setError(null)
+    try {
+      // total → liquida el saldo; parcial → el monto ingresado (el backend lo acota al saldo)
+      await pagarCobranzaApi(cob.id, total ? undefined : num)
+      onDone(total || num >= cob.saldo ? 'Cobranza liquidada' : 'Abono registrado')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo registrar el pago')
+      setGuardando(false)
+    }
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title="Registrar pago"
+      subtitle={`${cob.folio} · saldo ${formatMonto(cob.saldo)}`}
+      footer={
+        <div className="flex items-center justify-between">
+          {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" size="sm" disabled={guardando} onClick={() => pagar(true)}>
+              Liquidar total
+            </Button>
+            <Button size="sm" disabled={guardando || !num || num <= 0} onClick={() => pagar(false)}>
+              {guardando ? 'Guardando…' : 'Registrar abono'}
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="space-y-2">
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Monto del abono</span>
+          <input
+            type="number"
+            min={0}
+            step="0.01"
+            value={monto}
+            onChange={(e) => setMonto(e.target.value)}
+            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
+        </label>
+        {excede && (
+          <p className="text-[12px] text-warning">
+            ⚠ El monto excede el saldo ({formatMonto(cob.saldo)}). Solo se aplicará el saldo pendiente.
+          </p>
+        )}
+        <p className="text-[11px] text-muted">
+          Al cubrir el saldo total, la cobranza pasa a <b>Pagada</b> y se detienen los recordatorios.
+        </p>
       </div>
     </Modal>
   )

@@ -203,7 +203,20 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <CardContent>
             <dl className="space-y-2 text-[13px]">
               <Fila label="Ingreso (reservas)" valor={formatMonto(margen.ingreso)} mono />
-              <Fila label="− Costo de espacios" valor={formatMonto(margen.costoEspacios)} mono />
+              <div className="flex items-center justify-between gap-3">
+                <dt className="flex items-center gap-1.5 text-muted">
+                  − Costo de espacios
+                  {margen.costoEspacios > 0 && (
+                    <span
+                      className="rounded-full border border-[#f59e0b55] px-1.5 py-0.5 text-[9px] font-medium text-[#9a6700]"
+                      title="Costo de compra interno estimado — no está ligado a un contrato de arrendador vigente"
+                    >
+                      estimado
+                    </span>
+                  )}
+                </dt>
+                <dd className="demo-num text-ink">{formatMonto(margen.costoEspacios)}</dd>
+              </div>
               <Fila label="− Costo de impresión" valor={formatMonto(margen.costoImpresion)} mono />
               <Fila label="− Costo de operación" valor={formatMonto(margen.costoOperacion)} mono />
               <div className="mt-1 border-t border-border pt-2">

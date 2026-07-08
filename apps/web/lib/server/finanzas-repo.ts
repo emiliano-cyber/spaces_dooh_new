@@ -198,6 +198,8 @@ export async function registrarPagoCobranza(cobranzaId: string, monto?: number |
   return {
     ...rowToCobranza((await q('select * from cobranzas where id=$1', [cobranzaId]))[0]),
     folio: fac?.folio ?? null,
+    abono,
+    saldo: Math.round((total - nuevoPagado) * 100) / 100,
     liquidado,
   }
 }

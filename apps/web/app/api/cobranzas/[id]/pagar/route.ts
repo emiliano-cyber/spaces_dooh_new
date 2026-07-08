@@ -14,7 +14,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   const body = await req.json().catch(() => ({}))
   const c = await registrarPagoCobranza(params.id, body?.monto ?? null)
   if (!c) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
-  await registrarAccion(g.usuario, c.liquidado ? 'Registró pago (liquidado)' : 'Registró abono', c.folio ?? 'cobranza')
+  const montoTxt = `$${Math.round(c.abono ?? 0).toLocaleString('es-MX')}`
+  await registrarAccion(
+    g.usuario,
+    c.liquidado ? `Registró pago ${montoTxt} (liquidado)` : `Registró abono ${montoTxt}`,
+    c.folio ?? 'cobranza',
+  )
   await notificar({ tipo: 'PAGO', nivel: 'ok', titulo: c.liquidado ? 'Cobranza liquidada' : 'Abono registrado', detalle: c.folio ?? 'cobranza', link: '/demo/finanzas' })
   return NextResponse.json(c)
 }
