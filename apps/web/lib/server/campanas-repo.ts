@@ -425,6 +425,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   if (!items.length) throw new PropuestaCampanaError('La propuesta no tiene sitios aprobados')
 
   const divisor = 1 - Number(prop.comision_pct) / 100
+  const factorDesc = 1 - Number(prop.descuento_pct ?? 0) / 100
   const fechaInicio = items.map((i) => iso(i.fecha_inicio)).sort()[0]
   const fechaFin = items.map((i) => iso(i.fecha_fin)).sort().at(-1) as string
 
@@ -456,16 +457,27 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     ).rows[0].id
 
     for (const it of items) {
-      const precioNeto = Math.round(Number(it.precio) * divisor)
+      // Precio por sitio = NETO real del medio: lista × (1−descuento) × (1−comisión).
+      // Aplica el descuento comercial (antes se perdía) además de la comisión.
+      const netoSitio = Math.round(Number(it.precio) * factorDesc * divisor)
       await client.query(
         `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
          values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null,$6)`,
-        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), precioNeto, await tenantActual()],
+        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio, await tenantActual()],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
       await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [it.sitio_id])
     }
-    await recalcularPresupuesto(client, campanaId)
+    // La factura debe reproducir EXACTAMENTE lo que aceptó el cliente: base
+    // (lista − descuento) + IVA, SIN prorrateo (la propuesta es un paquete, no
+    // una renta mensual). Por eso fijamos el presupuesto desde la propuesta y NO
+    // usamos recalcularPresupuesto (que prorratearía y usaría el neto por-sitio).
+    const base = Math.round(items.reduce((s, it) => s + Number(it.precio) * factorDesc, 0) * 100) / 100
+    const ivaPct = Number(
+      (await client.query('select coalesce(iva_pct, 16) as iva from clientes where id=$1', [prop.cliente_id])).rows[0]?.iva ?? 16,
+    )
+    const bruto = Math.round(base * (1 + ivaPct / 100) * 100) / 100
+    await client.query('update campanas set presupuesto_neto=$2, presupuesto_bruto=$3 where id=$1', [campanaId, base, bruto])
     await client.query('commit')
     return rowToCampana((await client.query('select * from campanas where id=$1', [campanaId])).rows[0])
   } catch (e) {
