@@ -427,6 +427,12 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
 
   const divisor = 1 - Number(prop.comision_pct) / 100
   const factorDesc = 1 - Number(prop.descuento_pct ?? 0) / 100
+  // S0-1: economía congelada en la aceptación. Si existe, la campaña/factura la
+  // heredan literalmente (nadie recalcula desde tarifas de lista).
+  const snap = (prop.snapshot_economico ?? null) as any
+  const netoDeSnap = new Map<string, number>(
+    (snap?.porSitio ?? []).map((x: any) => [x.sitioId as string, Number(x.neto)]),
+  )
   const fechaInicio = items.map((i) => iso(i.fecha_inicio)).sort()[0]
   const fechaFin = items.map((i) => iso(i.fecha_fin)).sort().at(-1) as string
 
@@ -436,7 +442,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
       await client.query(
-        `select (tipo_medio='PANTALLA_DIGITAL' or es_rotativo or exhibicion in ('digital','rotativo')) as digital
+        `select (tipo_medio='PANTALLA_DIGITAL') as digital
            from sitios where id = any($1::uuid[])`,
         [items.map((i) => i.sitio_id)],
       )
@@ -458,9 +464,10 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     ).rows[0].id
 
     for (const it of items) {
-      // Precio por sitio = NETO real del medio: lista × (1−descuento) × (1−comisión).
-      // Aplica el descuento comercial (antes se perdía) además de la comisión.
-      const netoSitio = Math.round(Number(it.precio) * factorDesc * divisor)
+      // Precio por sitio = NETO del snapshot congelado (o, sin snapshot, el
+      // cálculo lista × (1−descuento) × (1−comisión) como respaldo).
+      const netoSitio =
+        netoDeSnap.get(it.sitio_id) ?? Math.round(Number(it.precio) * factorDesc * divisor)
       await client.query(
         `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
          values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null,$6)`,
@@ -473,11 +480,20 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     // (lista − descuento) + IVA, SIN prorrateo (la propuesta es un paquete, no
     // una renta mensual). Por eso fijamos el presupuesto desde la propuesta y NO
     // usamos recalcularPresupuesto (que prorratearía y usaría el neto por-sitio).
-    const base = Math.round(items.reduce((s, it) => s + Number(it.precio) * factorDesc, 0) * 100) / 100
-    const ivaPct = Number(
-      (await client.query('select coalesce(iva_pct, 16) as iva from clientes where id=$1', [prop.cliente_id])).rows[0]?.iva ?? 16,
-    )
-    const bruto = Math.round(base * (1 + ivaPct / 100) * 100) / 100
+    // Presupuesto de la campaña = snapshot congelado (base sin IVA + total con
+    // IVA). Sin snapshot, respaldo con el cálculo directo (lista − descuento) + IVA.
+    let base: number
+    let bruto: number
+    if (snap) {
+      base = Number(snap.base)
+      bruto = Number(snap.total)
+    } else {
+      base = Math.round(items.reduce((s, it) => s + Number(it.precio) * factorDesc, 0) * 100) / 100
+      const ivaPct = Number(
+        (await client.query('select coalesce(iva_pct, 16) as iva from clientes where id=$1', [prop.cliente_id])).rows[0]?.iva ?? 16,
+      )
+      bruto = Math.round(base * (1 + ivaPct / 100) * 100) / 100
+    }
     await client.query('update campanas set presupuesto_neto=$2, presupuesto_bruto=$3 where id=$1', [campanaId, base, bruto])
     await client.query('commit')
     return rowToCampana((await client.query('select * from campanas where id=$1', [campanaId])).rows[0])

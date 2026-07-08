@@ -202,7 +202,21 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           </CardHeader>
           <CardContent>
             <dl className="space-y-2 text-[13px]">
-              <Fila label="Ingreso (reservas)" valor={formatMonto(margen.ingreso)} mono />
+              {c.presupuestoBruto ? (
+                <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+                  <dt className="flex items-center gap-1.5 text-muted">
+                    Total contratado (cliente)
+                    <span
+                      className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-medium text-muted"
+                      title="Snapshot económico congelado en la aceptación — igual al total de la propuesta y de la factura (IVA incluido)"
+                    >
+                      snapshot
+                    </span>
+                  </dt>
+                  <dd className="demo-num font-medium text-ink">{formatMonto(c.presupuestoBruto)}</dd>
+                </div>
+              ) : null}
+              <Fila label="Ingreso del medio (neto)" valor={formatMonto(margen.ingreso)} mono />
               <div className="flex items-center justify-between gap-3">
                 <dt className="flex items-center gap-1.5 text-muted">
                   − Costo de espacios

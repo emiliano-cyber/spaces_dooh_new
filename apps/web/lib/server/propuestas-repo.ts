@@ -94,6 +94,55 @@ function armarPropuesta(p: any, items: any[]) {
   }
 }
 
+// S0-1: congela un snapshot económico INMUTABLE al aceptar/aprobar. Todos los
+// módulos (campaña, factura, rentabilidad, comisiones) leen de aquí — nadie
+// recalcula desde tarifas de lista. Idempotente: si ya existe, no lo re-escribe.
+// Devuelve el snapshot (nuevo o el existente).
+export async function congelarSnapshotEconomico(propuestaId: string) {
+  const prop = await q1<any>(
+    `select p.*, c.iva_pct as cliente_iva
+       from propuestas p left join clientes c on c.id = p.cliente_id
+      where p.id = $1`,
+    [propuestaId],
+  )
+  if (!prop) return null
+  if (prop.snapshot_economico) return prop.snapshot_economico // inmutable
+
+  const aprob = await q<any>(
+    'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
+    [propuestaId],
+  )
+  const usar = aprob.length
+    ? aprob
+    : await q<any>('select * from propuesta_items where propuesta_id=$1', [propuestaId])
+
+  const comisionPct = Number(prop.comision_pct)
+  const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
+  const ivaPct = prop.cliente_iva != null ? Number(prop.cliente_iva) : IVA_PCT
+  const version = prop.version != null ? Number(prop.version) : 1
+  const divisor = 1 - comisionPct / 100
+  const factorDesc = 1 - descuentoPct / 100
+
+  const bruto = usar.reduce((s, it) => s + Number(it.precio), 0)
+  const descuentoMonto = Math.round(bruto * (descuentoPct / 100))
+  const base = bruto - descuentoMonto
+  const neto = Math.round(base * divisor)
+  const iva = Math.round(base * (ivaPct / 100))
+  const total = base + iva
+  const porSitio = usar.map((it) => ({
+    sitioId: it.sitio_id,
+    lista: Number(it.precio),
+    neto: Math.round(Number(it.precio) * factorDesc * divisor),
+  }))
+
+  const snap = { version, bruto, descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio }
+  await q('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
+    propuestaId,
+    JSON.stringify(snap),
+  ])
+  return snap
+}
+
 // Lectura pública (sin auth) de una propuesta por su CÓDIGO: acepta el id (UUID)
 // o el folio (p. ej. PR-A0BC4F). Datos de solo lectura para una liga
 // compartible. Incluye nombres de cliente/agencia y de cada sitio.
@@ -234,6 +283,8 @@ export async function aceptarPropuestaPublica(
       )
     } catch { /* la notificación no rompe la aceptación */ }
     await client.query('commit')
+    // S0-1: congela el snapshot económico al aceptar por liga pública (inmutable).
+    await congelarSnapshotEconomico(p.id)
     return {
       ok: true,
       yaAceptada: false,
@@ -435,6 +486,8 @@ export async function cambiarEstatusPropuesta(
     [id, estatus],
   )
   if (!rows.length) return null
+  // S0-1: al aprobar se congela el snapshot económico (inmutable).
+  if (estatus === 'APROBADA') await congelarSnapshotEconomico(id)
   const items = await q('select * from propuesta_items where propuesta_id=$1', [id])
   return armarPropuesta(rows[0], items)
 }

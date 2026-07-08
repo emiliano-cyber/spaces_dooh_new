@@ -35,10 +35,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   try {
     const prop = await cambiarEstatusPropuesta(params.id, body.estatus, { confirmarCero: body.confirmarCero })
     if (!prop) return NextResponse.json({ error: 'Propuesta no encontrada' }, { status: 404 })
-    // S1-2: si se aprobó una propuesta en $0 (con confirmación), queda en bitácora.
-    const accionTxt = prop.estatus === 'APROBADA' && prop.total <= 0
-      ? 'Aprobó propuesta en $0 (confirmado)'
-      : `Propuesta → ${prop.estatus}`
+    // S0-1/S1-2: al aprobar se congela el snapshot económico; queda en bitácora
+    // con versión y total (y la marca de $0 si aplica el guardarraíl).
+    const totalTxt = `$${Math.round(prop.total).toLocaleString('es-MX')}`
+    const accionTxt =
+      prop.estatus !== 'APROBADA'
+        ? `Propuesta → ${prop.estatus}`
+        : prop.total <= 0
+          ? `Aprobó propuesta en $0 (confirmado) · snapshot v${prop.version}`
+          : `Aprobó propuesta · snapshot económico v${prop.version} (total ${totalTxt})`
     await registrarAccion(g.usuario, accionTxt, prop.nombre)
     if (prop.estatus === 'APROBADA' || prop.estatus === 'RECHAZADA') {
       await notificar({
