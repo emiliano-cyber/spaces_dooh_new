@@ -29,6 +29,8 @@ async function agenciaBloqueada(
 const IVA_PCT = 16
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
 const folio = () => `PR-${randomBytes(3).toString('hex').toUpperCase()}`
+// S1-3: token aleatorio no enumerable (48 chars) para la liga pública.
+const tokenPublico = () => randomBytes(24).toString('hex')
 
 function rowToItem(r: any) {
   return {
@@ -67,6 +69,7 @@ function armarPropuesta(p: any, items: any[]) {
   return {
     id: p.id,
     folio: p.folio,
+    tokenPublico: p.token_publico ?? null,
     clienteId: p.cliente_id ?? null,
     agenciaId: p.agencia_id ?? null,
     nombre: p.nombre,
@@ -148,12 +151,12 @@ export async function congelarSnapshotEconomico(propuestaId: string) {
 // compartible. Incluye nombres de cliente/agencia y de cada sitio.
 export async function obtenerPropuestaPublica(codigo: string) {
   const cod = (codigo ?? '').trim()
-  // Se compara el código contra el id (UUID, casteado a texto) o el folio. Se
-  // castea la COLUMNA a texto para no fallar si el código no es un UUID válido.
+  // S1-3: la liga pública se resuelve SOLO por token aleatorio (no por id/folio
+  // enumerable). Sin el token exacto no se puede abrir la propuesta.
   const p = await q1<any>(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
        from propuestas p
-      where p.id::text = $1 or upper(p.folio) = upper($1)
+      where p.token_publico = $1
       limit 1`,
     [cod],
   )
@@ -224,7 +227,7 @@ export async function aceptarPropuestaPublica(
 
   const p = await q1<any>(
     `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
-       from propuestas where id::text = $1 or upper(folio) = upper($1) limit 1`,
+       from propuestas where token_publico = $1 limit 1`,
     [cod],
   )
   if (!p) return null
@@ -351,9 +354,9 @@ export async function crearPropuesta(input: PropuestaInput) {
     await client.query('begin')
     const prop = (
       await client.query(
-        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7) returning *`,
-        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, await tenantActual()],
+        `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
+        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), await tenantActual()],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y

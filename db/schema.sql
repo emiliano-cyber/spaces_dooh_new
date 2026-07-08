@@ -258,6 +258,7 @@ create type est_propuesta as enum ('BORRADOR','ENVIADA','APROBADA','RECHAZADA');
 create table propuestas (
   id           uuid primary key default gen_random_uuid(),
   folio        text not null unique,
+  token_publico text unique,                        -- token aleatorio de la liga pública (S1-3)
   cliente_id   uuid references clientes(id) on delete set null,
   nombre       text not null,
   fecha        date not null default current_date,

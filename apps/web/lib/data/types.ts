@@ -332,6 +332,7 @@ export interface PropuestaItem {
 export interface Propuesta {
   id: string
   folio: string
+  tokenPublico: string | null
   clienteId: string | null
   agenciaId: string | null // agencia con la que se arma la propuesta (cliente AGENCIA)
   nombre: string
