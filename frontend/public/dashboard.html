@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="dashboard()" x-init="init()" class="min-h-screen">
+
+    <!-- NAV -->
+    <header class="bg-white border-b border-neutral-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-[#0A66FF] rounded flex items-center justify-center text-white font-bold">E</div>
+          <h1 class="text-lg font-medium">SPACE EYE</h1>
+        </div>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/dashboard.html" class="text-blue-600 font-medium">Devices</a>
+          <a href="/gallery.html" class="text-neutral-500 hover:text-neutral-900">Galeria</a>
+          <a href="/scheduler.html" class="text-neutral-500 hover:text-neutral-900">Programacion</a>
+          <a href="/campaigns.html" class="text-neutral-500 hover:text-neutral-900">Campanas</a>
+          <a href="/verification.html" class="text-neutral-500 hover:text-neutral-900">Verificacion</a>
+        </nav>
+        <div class="flex items-center gap-6 text-sm">
+          <span class="text-neutral-500">
+            <span x-text="onlineCount" class="font-medium text-green-600"></span> online ·
+            <span x-text="totalCount" class="font-medium"></span> total
+          </span>
+          <span x-text="userName" class="text-neutral-700"></span>
+          <button @click="logout()" class="text-neutral-500 hover:text-neutral-900">Salir</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex gap-2">
+          <input x-model="search" type="text" placeholder="Buscar device..."
+            class="px-3 py-2 border border-neutral-300 rounded text-sm w-64">
+          <select x-model="filter" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+            <option value="all">Todos</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+            <option value="maintenance">Mantenimiento</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="d in filtered" :key="d.id">
+          <div @click="openDevice(d.id)"
+               class="bg-white border border-neutral-200 rounded-lg p-4 cursor-pointer hover:border-neutral-400 transition">
+            <div class="flex items-start justify-between mb-3">
+              <div>
+                <h3 class="font-medium text-neutral-900" x-text="d.name"></h3>
+                <p class="text-xs text-neutral-500 mt-0.5" x-text="d.address || d.billboard_code || 'Sin ubicacion'"></p>
+              </div>
+              <span :class="d.online ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
+                    class="text-xs px-2 py-0.5 rounded-full">
+                <span x-text="d.online ? 'online' : 'offline'"></span>
+              </span>
+            </div>
+            <div class="grid grid-cols-3 gap-2 text-xs">
+              <div>
+                <div class="text-neutral-500">Bateria</div>
+                <div class="font-medium" x-text="(d.battery_pct != null ? d.battery_pct + '%' : '—')"></div>
+              </div>
+              <div>
+                <div class="text-neutral-500">Senal</div>
+                <div class="font-medium" x-text="signalLabel(d.signal_dbm)"></div>
+              </div>
+              <div>
+                <div class="text-neutral-500">Ultima vez</div>
+                <div class="font-medium" x-text="relTime(d.last_seen_at)"></div>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="devices.length === 0" class="text-center py-16 text-neutral-500">
+        <p class="text-lg mb-2">No hay devices registrados</p>
+        <p class="text-sm">Los devices aparecen automaticamente al instalar la app Android</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/socket.js"></script>
+  <script src="/src/js/pages/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Galeria</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="gallery()" x-init="init()" class="min-h-screen">
+
+    <header class="bg-white border-b border-neutral-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-[#0A66FF] rounded flex items-center justify-center text-white font-bold">E</div>
+          <h1 class="text-lg font-medium">Galeria de fotos</h1>
+        </div>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/dashboard.html" class="text-neutral-500 hover:text-neutral-900">Devices</a>
+          <a href="/gallery.html" class="text-blue-600 font-medium">Galeria</a>
+          <a href="/scheduler.html" class="text-neutral-500 hover:text-neutral-900">Programacion</a>
+          <a href="/campaigns.html" class="text-neutral-500 hover:text-neutral-900">Campanas</a>
+          <a href="/verification.html" class="text-neutral-500 hover:text-neutral-900">Verificacion</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+      <div class="flex gap-3 mb-6 flex-wrap">
+        <input x-model="filters.from" type="date" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+        <input x-model="filters.to" type="date" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+        <select x-model="filters.source" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+          <option value="">Todas las fuentes</option>
+          <option value="manual">Manual</option>
+          <option value="scheduled">Programada</option>
+          <option value="on_demand">On demand</option>
+        </select>
+        <button @click="loadPhotos()" class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700">Filtrar</button>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <template x-for="photo in photos" :key="photo.id">
+          <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+            <div class="aspect-square bg-neutral-100">
+              <img :src="photo.thumbnail_path" class="w-full h-full object-cover" :alt="'Photo ' + photo.id">
+            </div>
+            <div class="p-2 text-xs">
+              <div class="font-medium" x-text="photo.device_name"></div>
+              <div class="text-neutral-500" x-text="new Date(photo.taken_at).toLocaleString()"></div>
+              <div class="mt-1">
+                <span :class="{
+                  'text-green-600': photo.verification_status === 'verified' && photo.is_correct,
+                  'text-red-600': photo.verification_status === 'verified' && !photo.is_correct,
+                  'text-neutral-400': photo.verification_status !== 'verified'
+                }" x-text="photo.verification_status"></span>
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <div x-show="photos.length === 0" class="text-center py-16 text-neutral-500">
+        Sin fotos para los filtros seleccionados
+      </div>
+
+      <div class="flex justify-center mt-8 gap-2" x-show="totalPages > 1">
+        <button @click="page > 1 && (page--, loadPhotos())" :disabled="page <= 1"
+          class="px-3 py-1 text-sm border rounded disabled:opacity-50">&larr; Anterior</button>
+        <span class="px-3 py-1 text-sm" x-text="'Pagina ' + page + ' de ' + totalPages"></span>
+        <button @click="page < totalPages && (page++, loadPhotos())" :disabled="page >= totalPages"
+          class="px-3 py-1 text-sm border rounded disabled:opacity-50">Siguiente &rarr;</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/pages/gallery.js"></script>
+</body>
+</html>

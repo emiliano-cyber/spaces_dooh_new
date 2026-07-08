@@ -1,0 +1,156 @@
+package com.spaceeye.agent.network
+
+import android.content.Context
+import android.util.Log
+import com.spaceeye.agent.BuildConfig
+import com.spaceeye.agent.telemetry.DeviceStatus
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+import java.util.concurrent.TimeUnit
+
+class ApiClient(ctx: Context) {
+
+    companion object {
+        private const val TAG = "ApiClient"
+    }
+
+    private val tokenStore = TokenStore(ctx)
+    private val baseUrl = BuildConfig.SERVER_URL
+
+    private val http = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    fun uploadPhoto(
+        photoBytes: ByteArray,
+        commandId: Int? = null,
+        scheduleId: Int? = null,
+        campaignId: Int? = null,
+        gpsLat: Double? = null,
+        gpsLng: Double? = null,
+        source: String = "on_demand"
+    ): Boolean {
+        val token = tokenStore.getDeviceToken() ?: return false
+
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }
+
+        val builder = MultipartBody.Builder()
+            .setType(MultipartBody.FORM)
+            .addFormDataPart(
+                "photo", "capture.jpg",
+                photoBytes.toRequestBody("image/jpeg".toMediaType())
+            )
+            .addFormDataPart("taken_at", isoFormat.format(Date()))
+            .addFormDataPart("source", source)
+
+        commandId?.let { builder.addFormDataPart("command_id", it.toString()) }
+        scheduleId?.let { builder.addFormDataPart("schedule_id", it.toString()) }
+        campaignId?.let { builder.addFormDataPart("campaign_id", it.toString()) }
+        gpsLat?.let { builder.addFormDataPart("gps_lat", it.toString()) }
+        gpsLng?.let { builder.addFormDataPart("gps_lng", it.toString()) }
+
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/upload-photo")
+            .header("Authorization", "Bearer $token")
+            .post(builder.build())
+            .build()
+
+        return try {
+            val response = http.newCall(request).execute()
+            val success = response.isSuccessful
+            if (success) {
+                Log.d(TAG, "Photo uploaded: ${photoBytes.size} bytes")
+            } else {
+                Log.e(TAG, "Photo upload failed: ${response.code} ${response.body?.string()}")
+            }
+            response.close()
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Photo upload error: ${e.message}")
+            false
+        }
+    }
+
+    fun reportStatus(status: DeviceStatus): Boolean {
+        val token = tokenStore.getDeviceToken() ?: return false
+
+        val json = JSONObject().apply {
+            put("battery_pct", status.batteryPct)
+            status.batteryTemp?.let { put("battery_temp", it) }
+            put("battery_charging", status.batteryCharging)
+            status.signalDbm?.let { put("signal_dbm", it) }
+            status.networkType?.let { put("network_type", it) }
+            status.networkOperator?.let { put("network_operator", it) }
+            status.gpsLat?.let { put("gps_lat", it) }
+            status.gpsLng?.let { put("gps_lng", it) }
+            status.gpsAccuracyM?.let { put("gps_accuracy_m", it) }
+            put("storage_free_mb", status.storageFreeMb)
+            put("ram_free_mb", status.ramFreeMb)
+            status.cpuTemp?.let { put("cpu_temp", it) }
+            put("uptime_seconds", status.uptimeSeconds)
+        }
+
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/status")
+            .header("Authorization", "Bearer $token")
+            .post(json.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            val response = http.newCall(request).execute()
+            val success = response.isSuccessful
+            if (!success) {
+                Log.e(TAG, "Status report failed: ${response.code}")
+            }
+            response.close()
+            success
+        } catch (e: Exception) {
+            Log.e(TAG, "Status report error: ${e.message}")
+            false
+        }
+    }
+
+    fun reportCommandResult(
+        commandId: Int,
+        success: Boolean,
+        result: JSONObject? = null,
+        errorMessage: String? = null
+    ): Boolean {
+        val token = tokenStore.getDeviceToken() ?: return false
+
+        val json = JSONObject().apply {
+            put("command_id", commandId)
+            put("success", success)
+            result?.let { put("result", it) }
+            errorMessage?.let { put("error_message", it) }
+        }
+
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/command-result")
+            .header("Authorization", "Bearer $token")
+            .post(json.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        return try {
+            val response = http.newCall(request).execute()
+            val ok = response.isSuccessful
+            response.close()
+            ok
+        } catch (e: Exception) {
+            Log.e(TAG, "Command result report error: ${e.message}")
+            false
+        }
+    }
+}

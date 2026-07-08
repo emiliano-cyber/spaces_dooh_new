@@ -1,0 +1,31 @@
+/* SPACE EYE — Custom styles */
+[x-cloak] { display: none !important; }
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f5f5f5; }
+::-webkit-scrollbar-thumb { background: #d4d4d4; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a3a3a3; }
+
+/* Loading spinner */
+.spinner {
+  border: 2px solid #e5e7eb;
+  border-top-color: #0A66FF;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Card hover effect */
+.card-hover {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.card-hover:hover {
+  border-color: #a3a3a3;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}

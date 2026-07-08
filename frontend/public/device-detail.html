@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Device</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="deviceDetail()" x-init="init()" class="min-h-screen">
+
+    <header class="bg-white border-b border-neutral-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <a href="/dashboard.html" class="text-neutral-500 hover:text-neutral-900 text-sm">&larr; Dashboard</a>
+          <span class="text-neutral-300">/</span>
+          <h1 class="text-lg font-medium" x-text="device?.name || 'Cargando...'"></h1>
+          <span :class="device?.online ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
+                class="text-xs px-2 py-0.5 rounded-full" x-text="device?.online ? 'online' : 'offline'"></span>
+        </div>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/dashboard.html" class="text-neutral-500 hover:text-neutral-900">Devices</a>
+          <a href="/gallery.html" class="text-neutral-500 hover:text-neutral-900">Galeria</a>
+          <a href="/scheduler.html" class="text-neutral-500 hover:text-neutral-900">Programacion</a>
+          <a href="/campaigns.html" class="text-neutral-500 hover:text-neutral-900">Campanas</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Live View -->
+        <div class="lg:col-span-2 bg-white border border-neutral-200 rounded-lg overflow-hidden">
+          <div class="p-4 border-b border-neutral-200 flex items-center justify-between">
+            <h2 class="font-medium">Vista en vivo</h2>
+            <div class="flex gap-2">
+              <button @click="startStream()" :disabled="streaming"
+                class="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+                Iniciar stream
+              </button>
+              <button @click="stopStream()" :disabled="!streaming"
+                class="px-3 py-1.5 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50">
+                Detener
+              </button>
+            </div>
+          </div>
+          <div class="aspect-video bg-neutral-900 flex items-center justify-center">
+            <video id="liveVideo" autoplay playsinline class="w-full h-full object-contain" x-show="streaming"></video>
+            <p x-show="!streaming" class="text-neutral-500 text-sm">Stream no activo</p>
+          </div>
+        </div>
+
+        <!-- Device Info & Actions -->
+        <div class="space-y-4">
+          <!-- Quick Actions -->
+          <div class="bg-white border border-neutral-200 rounded-lg p-4">
+            <h3 class="font-medium mb-3">Acciones</h3>
+            <div class="space-y-2">
+              <button @click="takePhoto()" class="w-full py-2 text-sm bg-[#0A66FF] text-white rounded hover:bg-blue-700">
+                Tomar foto
+              </button>
+              <button @click="rebootApp()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
+                Reiniciar app
+              </button>
+            </div>
+          </div>
+
+          <!-- Status -->
+          <div class="bg-white border border-neutral-200 rounded-lg p-4">
+            <h3 class="font-medium mb-3">Estado del dispositivo</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Bateria</span>
+                <span x-text="(status?.battery_pct ?? '—') + '%'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Senal</span>
+                <span x-text="status?.signal_dbm ? status.signal_dbm + ' dBm' : '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Red</span>
+                <span x-text="status?.network_type || '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Storage libre</span>
+                <span x-text="status?.storage_free_mb ? status.storage_free_mb + ' MB' : '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Temp CPU</span>
+                <span x-text="status?.cpu_temp ? status.cpu_temp + ' C' : '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Ultima conexion</span>
+                <span x-text="device?.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '—'" class="font-medium"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Device Config -->
+          <div class="bg-white border border-neutral-200 rounded-lg p-4">
+            <h3 class="font-medium mb-3">Configuracion</h3>
+            <div class="space-y-2 text-sm">
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Modelo</span>
+                <span x-text="device?.manufacturer + ' ' + device?.model || '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Android</span>
+                <span x-text="device?.android_version || '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">App version</span>
+                <span x-text="device?.app_version || '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Billboard</span>
+                <span x-text="device?.billboard_code || '—'" class="font-medium"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Photos -->
+      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium">Fotos recientes</h3>
+          <a :href="'/gallery.html?device_id=' + deviceId" class="text-sm text-blue-600 hover:underline">Ver todas</a>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <template x-for="photo in recentPhotos" :key="photo.id">
+            <div class="aspect-square bg-neutral-100 rounded overflow-hidden">
+              <img :src="photo.thumbnail_path" class="w-full h-full object-cover" :alt="'Photo ' + photo.id">
+            </div>
+          </template>
+          <p x-show="recentPhotos.length === 0" class="col-span-full text-center text-neutral-500 text-sm py-8">
+            Sin fotos todavia
+          </p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/socket.js"></script>
+  <script src="/src/js/webrtc.js"></script>
+  <script src="/src/js/pages/device-detail.js"></script>
+</body>
+</html>

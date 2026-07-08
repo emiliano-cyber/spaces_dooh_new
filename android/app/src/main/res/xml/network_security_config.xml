@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Permite HTTP en claro (sin TLS) SOLO hacia el backend en la red local / emulador.
+  El resto del trafico sigue exigiendo HTTPS (usesCleartextTraffic global = false).
+  Si tu PC tiene otra IP, agrega su <domain> aqui.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">192.168.1.80</domain>
+        <domain includeSubdomains="false">192.168.1.30</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

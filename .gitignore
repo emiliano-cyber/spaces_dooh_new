@@ -1,0 +1,44 @@
+# ---- Secrets / env ----
+.env
+.env.local
+.env.*.local
+*.pem
+# (se conservan los .env.example)
+
+# ---- Node / backend ----
+node_modules/
+dist/
+build/
+*.log
+npm-debug.log*
+yarn-error.log*
+.npm/
+
+# ---- Fotos / evidencia generadas en runtime (STORAGE_DRIVER=local) ----
+backend/storage/
+
+# ---- Python / ai-worker ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# ---- Android / Gradle ----
+.gradle/
+android/**/build/
+android/local.properties
+android/.idea/
+android/app/release/
+*.iml
+*.keystore
+*.jks
+local.properties
+
+# ---- Editor / OS ----
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.swp

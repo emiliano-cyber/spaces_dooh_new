@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 min-h-screen flex items-center justify-center">
+  <div class="w-full max-w-sm">
+    <div class="bg-white rounded-lg border border-neutral-200 p-8">
+      <div class="flex items-center gap-3 mb-8">
+        <div class="w-10 h-10 bg-[#0A66FF] rounded-lg flex items-center justify-center text-white font-bold text-lg">E</div>
+        <div>
+          <h1 class="text-xl font-semibold">SPACE EYE</h1>
+          <p class="text-xs text-neutral-500">Sistema de Monitoreo Remoto</p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-neutral-700 mb-1">Email</label>
+          <input type="email" id="email" required
+            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="admin@spaceeye.app">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-neutral-700 mb-1">Password</label>
+          <input type="password" id="password" required
+            class="w-full px-3 py-2 border border-neutral-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="••••••••">
+        </div>
+        <div id="error" class="text-red-600 text-sm hidden"></div>
+        <button type="submit"
+          class="w-full py-2.5 bg-[#0A66FF] text-white text-sm font-medium rounded-md hover:bg-blue-700 transition">
+          Iniciar sesion
+        </button>
+      </form>
+    </div>
+    <p class="text-center text-xs text-neutral-400 mt-4">SPACE EYE v0.1 — AS OOH Enterprise</p>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorEl = document.getElementById('error');
+      errorEl.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error === 'invalid_credentials' ? 'Email o password incorrectos' : 'Error de servidor';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.setItem('refresh_token', data.refresh_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/dashboard.html';
+      } catch (err) {
+        errorEl.textContent = 'Error de conexion';
+        errorEl.classList.remove('hidden');
+      }
+    });
+
+    // Redirect if already logged in
+    if (localStorage.getItem('access_token')) {
+      window.location.href = '/dashboard.html';
+    }
+  </script>
+</body>
+</html>

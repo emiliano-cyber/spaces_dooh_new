@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SPACE EYE — Verificacion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <link rel="stylesheet" href="/src/css/styles.css">
+</head>
+<body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
+  <div x-data="verificationPage()" x-init="init()" class="min-h-screen">
+
+    <header class="bg-white border-b border-neutral-200 sticky top-0 z-10">
+      <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 bg-[#0A66FF] rounded flex items-center justify-center text-white font-bold">E</div>
+          <h1 class="text-lg font-medium">Resultados de verificacion</h1>
+        </div>
+        <nav class="flex items-center gap-4 text-sm">
+          <a href="/dashboard.html" class="text-neutral-500 hover:text-neutral-900">Devices</a>
+          <a href="/gallery.html" class="text-neutral-500 hover:text-neutral-900">Galeria</a>
+          <a href="/scheduler.html" class="text-neutral-500 hover:text-neutral-900">Programacion</a>
+          <a href="/campaigns.html" class="text-neutral-500 hover:text-neutral-900">Campanas</a>
+          <a href="/verification.html" class="text-blue-600 font-medium">Verificacion</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+      <div class="flex gap-3 mb-6">
+        <select x-model="filters.is_correct" class="px-3 py-2 border border-neutral-300 rounded text-sm">
+          <option value="">Todos los resultados</option>
+          <option value="true">Correctos</option>
+          <option value="false">Incorrectos</option>
+        </select>
+        <button @click="loadVerifications()" class="px-4 py-2 bg-[#0A66FF] text-white text-sm rounded hover:bg-blue-700">Filtrar</button>
+      </div>
+
+      <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+          <thead class="bg-neutral-50 border-b border-neutral-200">
+            <tr>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Foto</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Device</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">SSIM</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">pHash</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">OCR Match</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Resultado</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Confianza</th>
+              <th class="text-left px-4 py-3 font-medium text-neutral-700">Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="v in verifications" :key="v.id">
+              <tr class="border-b border-neutral-100">
+                <td class="px-4 py-3">
+                  <div class="w-12 h-12 bg-neutral-100 rounded overflow-hidden">
+                    <img :src="v.thumbnail_path" class="w-full h-full object-cover">
+                  </div>
+                </td>
+                <td class="px-4 py-3" x-text="v.device_name"></td>
+                <td class="px-4 py-3" x-text="v.ssim_score ? v.ssim_score.toFixed(3) : '—'"></td>
+                <td class="px-4 py-3" x-text="v.phash_distance ?? '—'"></td>
+                <td class="px-4 py-3">
+                  <span :class="v.ocr_match ? 'text-green-600' : 'text-red-600'" x-text="v.ocr_match ? 'Si' : 'No'"></span>
+                </td>
+                <td class="px-4 py-3">
+                  <span :class="v.is_correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                        class="text-xs px-2 py-0.5 rounded-full" x-text="v.is_correct ? 'Correcto' : 'Incorrecto'"></span>
+                </td>
+                <td class="px-4 py-3" x-text="(v.confidence * 100).toFixed(0) + '%'"></td>
+                <td class="px-4 py-3 text-neutral-500" x-text="new Date(v.processed_at).toLocaleString()"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p x-show="verifications.length === 0" class="text-center py-8 text-neutral-500">Sin resultados de verificacion</p>
+      </div>
+    </main>
+  </div>
+
+  <script src="/src/js/api.js"></script>
+  <script src="/src/js/pages/verification.js"></script>
+</body>
+</html>
