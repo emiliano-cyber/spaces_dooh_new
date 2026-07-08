@@ -23,6 +23,18 @@ export interface UsuarioSesion {
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
+// Política de contraseñas: mínimo 8, con al menos una letra y un número. Devuelve
+// un mensaje de error si no cumple, o null si es válida. Único origen de verdad
+// para signup, alta de usuarios y cambio de contraseña (perfil).
+export function validarPassword(plano: unknown): string | null {
+  const p = typeof plano === 'string' ? plano : ''
+  if (p.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
+  if (!/[a-zA-Z]/.test(p)) return 'La contraseña debe incluir al menos una letra'
+  if (!/[0-9]/.test(p)) return 'La contraseña debe incluir al menos un número'
+  if (/\s/.test(p)) return 'La contraseña no puede contener espacios'
+  return null
+}
+
 export function hashPassword(plano: string): Promise<string> {
   return bcrypt.hash(plano, 10)
 }

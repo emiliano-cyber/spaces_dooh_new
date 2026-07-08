@@ -23,7 +23,9 @@ export async function listarUsuarios() {
 export async function crearUsuario(input: {
   nombre: string; email: string; cargo?: string; rol?: string; password?: string; tenantId?: string | null
 }) {
-  const hash = await hashPassword(input.password || 'spaces123')
+  // Nunca un default débil: la contraseña debe venir validada por la ruta.
+  if (!input.password) throw new Error('Se requiere una contraseña para crear el usuario')
+  const hash = await hashPassword(input.password)
   const tenantId = input.tenantId ?? (await tenantActual())
   const rows = await q(
     `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)

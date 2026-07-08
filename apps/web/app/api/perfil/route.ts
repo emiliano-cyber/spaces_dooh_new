@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { usuarioActual, hashPassword } from '@/lib/server/auth'
+import { usuarioActual, hashPassword, validarPassword } from '@/lib/server/auth'
 import { emailExiste } from '@/lib/server/usuarios-repo'
 import { q } from '@/lib/server/db'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -30,9 +30,8 @@ export async function PATCH(req: Request) {
   }
 
   if (body?.password) {
-    if (String(body.password).length < 6) {
-      return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 })
-    }
+    const errPass = validarPassword(body.password)
+    if (errPass) return NextResponse.json({ error: errPass }, { status: 400 })
     vals.push(await hashPassword(String(body.password)))
     sets.push(`password_hash = $${vals.length}`)
   }

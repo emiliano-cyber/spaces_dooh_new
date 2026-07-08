@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
+import { exigir, validarPassword } from '@/lib/server/auth'
 import { listarUsuarios, crearUsuario, emailExiste } from '@/lib/server/usuarios-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
@@ -25,9 +25,8 @@ export async function POST(req: Request) {
   if (!esEmailValido(body.email)) {
     return NextResponse.json({ error: EMAIL_INVALIDO }, { status: 400 })
   }
-  if (!body?.password || String(body.password).length < 6) {
-    return NextResponse.json({ error: 'La contraseña es requerida (mínimo 6 caracteres)' }, { status: 400 })
-  }
+  const errPass = validarPassword(body?.password)
+  if (errPass) return NextResponse.json({ error: errPass }, { status: 400 })
   if (await emailExiste(body.email)) {
     return NextResponse.json({ error: 'Ya existe un usuario con ese correo' }, { status: 409 })
   }

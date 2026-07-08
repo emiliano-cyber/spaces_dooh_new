@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
+import { exigir, validarPassword } from '@/lib/server/auth'
 import { listarTenants, crearTenant, puedeCambiarCrm, tenantActual } from '@/lib/server/tenant'
 import { crearUsuario, emailExiste } from '@/lib/server/usuarios-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -27,6 +28,11 @@ export async function POST(req: Request) {
   if (!admin.nombre?.trim() || !admin.email?.trim()) {
     return NextResponse.json({ error: 'Falta el usuario administrador (nombre y correo)' }, { status: 400 })
   }
+  if (!esEmailValido(admin.email)) {
+    return NextResponse.json({ error: EMAIL_INVALIDO }, { status: 400 })
+  }
+  const errPass = validarPassword(admin.password)
+  if (errPass) return NextResponse.json({ error: errPass }, { status: 400 })
   if (await emailExiste(admin.email)) {
     return NextResponse.json({ error: 'Ese correo ya está registrado' }, { status: 409 })
   }
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
     email: admin.email,
     cargo: admin.cargo ?? 'Dueño',
     rol: 'DUENO',
-    password: admin.password || 'spaces123',
+    password: admin.password,
     tenantId: tenant.id,
   })
   await registrarAccion(g.usuario, 'Creó organización (CRM)', tenant.nombre)
