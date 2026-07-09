@@ -2,9 +2,10 @@
 
 import { toast } from 'sonner'
 import { useRef, useState } from 'react'
-import { Images, Upload, Check, X, Clock, Code2 } from 'lucide-react'
+import { Images, Upload, Check, X, Clock, Code2, Eye, Download } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { Modal } from '@/components/demo/ui/Modal'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
@@ -42,6 +43,36 @@ function imagenDeCodigo(codigo?: string | null): string | null {
 function esCreativoHtml(cr?: { formato?: string | null; archivoUrl?: string | null } | null): boolean {
   const url = cr?.archivoUrl ?? ''
   return cr?.formato === 'HTML' || url.startsWith('data:text/html') || /\.html?(\?|#|$)/i.test(url)
+}
+
+// Fuente HTML de un creativo, venga como texto en `codigo` o embebida en un
+// data: URL (base64 o percent-encoded). null si no hay HTML que enseñar (imagen
+// remota, PDF, o un .html que vive en el bucket y habría que descargar aparte).
+function htmlDeCreativo(cr?: Creatividad | null): string | null {
+  if (cr?.codigo) return cr.codigo
+  const m = (cr?.archivoUrl ?? '').match(/^data:text\/html([^,]*),([\s\S]*)$/i)
+  if (!m) return null
+  try {
+    if (/;base64/i.test(m[1])) {
+      const bin = atob(m[2])
+      return new TextDecoder('utf-8').decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
+    }
+    return decodeURIComponent(m[2])
+  } catch {
+    return null // data: URL corrupto
+  }
+}
+
+// Descarga el HTML como archivo. Un Blob descargado no se ejecuta, así que es
+// seguro incluso con creativos subidos por clientes externos.
+function descargarHtml(nombre: string, html: string) {
+  const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }))
+  const base = (nombre || 'creativo').replace(/[^\w.-]+/g, '_').replace(/\.html?$/i, '')
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${base}.html`
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // Pantalla de creativos (debajo de Comercial): subir/aprobar imágenes por
@@ -120,6 +151,8 @@ function CampanaCard({
   const [codeOpen, setCodeOpen] = useState(false)
   const [codeNombre, setCodeNombre] = useState('')
   const [codigo, setCodigo] = useState('')
+  // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
+  const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
 
   const aprobados = creativos.filter((cr) => cr.estatusValidacion === 'VALIDADA')
 
@@ -293,6 +326,17 @@ function CampanaCard({
                     )}
                   </div>
                   <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
+                  {/* Sólo si hay fuente que enseñar (codigo o data:text/html). */}
+                  {htmlDeCreativo(cr) !== null && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 gap-1 px-2 text-[12px]"
+                      onClick={() => setVerFuente(cr)}
+                    >
+                      <Eye className="h-3 w-3" /> Ver HTML
+                    </Button>
+                  )}
                   {puede && (
                     <div className="flex gap-1.5">
                       <Button
@@ -411,6 +455,36 @@ function CampanaCard({
           </p>
         )}
       </div>
+
+      {/* Fuente HTML del creativo. Se pinta como texto ({fuente} en un <pre>, que
+          React escapa), nunca como HTML: los creativos pueden venir de clientes
+          externos y ejecutarlos en nuestro origen sería un XSS. */}
+      <Modal
+        open={verFuente !== null}
+        onOpenChange={(v) => !v && setVerFuente(null)}
+        title={verFuente?.nombre ?? 'Creativo'}
+        subtitle={verFuente ? `${verFuente.formato ?? 'HTML'} · ${(htmlDeCreativo(verFuente) ?? '').length.toLocaleString('es-MX')} caracteres` : undefined}
+        size="xl"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                const fuente = htmlDeCreativo(verFuente)
+                if (fuente) descargarHtml(verFuente!.nombre, fuente)
+              }}
+            >
+              <Download className="h-3.5 w-3.5" /> Descargar .html
+            </Button>
+            <Button size="sm" onClick={() => setVerFuente(null)}>Cerrar</Button>
+          </div>
+        }
+      >
+        <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-ink">
+          {htmlDeCreativo(verFuente) ?? ''}
+        </pre>
+      </Modal>
     </Card>
   )
 }
