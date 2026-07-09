@@ -303,7 +303,14 @@ function CampanaCard({
                       >
                         <Check className="h-3 w-3" /> Aprobar
                       </Button>
-                      <Button size="sm" variant="danger" disabled={busy === cr.id} onClick={() => validar(cr.id, false)}>
+                      {/* Aprobar es definitivo: una vez validado ya no se puede rechazar. */}
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
+                        title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado' : undefined}
+                        onClick={() => validar(cr.id, false)}
+                      >
                         <X className="h-3 w-3" /> Rechazar
                       </Button>
                     </div>
