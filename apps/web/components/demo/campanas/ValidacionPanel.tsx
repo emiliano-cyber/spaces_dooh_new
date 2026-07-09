@@ -177,6 +177,11 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
 }
 
 function Miniatura({ cr }: { cr: Creatividad }) {
+  // HTML (formato o data:text/html) → iframe; <img> no puede pintar HTML.
+  const esHtml = cr.formato === 'HTML' || (cr.archivoUrl ?? '').startsWith('data:text/html')
+  if (cr.archivoUrl && esHtml) {
+    return <iframe title={cr.nombre} src={cr.archivoUrl} sandbox="" className="h-16 w-full border-0 bg-white" />
+  }
   if (cr.archivoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={cr.archivoUrl} alt={cr.nombre} className="h-16 w-full object-cover" />

@@ -37,6 +37,13 @@ function imagenDeCodigo(codigo?: string | null): string | null {
   return m ? m[1] : null
 }
 
+// Un creativo es HTML si su formato es HTML o su archivo es un data:text/html /
+// .html — se renderiza en <iframe> (un <img> no puede pintar HTML).
+function esCreativoHtml(cr?: { formato?: string | null; archivoUrl?: string | null } | null): boolean {
+  const url = cr?.archivoUrl ?? ''
+  return cr?.formato === 'HTML' || url.startsWith('data:text/html') || /\.html?(\?|#|$)/i.test(url)
+}
+
 // Pantalla de creativos (debajo de Comercial): subir/aprobar imágenes por
 // campaña y asignar cuál se exhibe en cada spot reservado.
 export default function CreativosPage() {
@@ -254,7 +261,14 @@ function CampanaCard({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {creativos.map((cr) => (
               <div key={cr.id} className="overflow-hidden rounded-md border border-border">
-                {cr.archivoUrl || imagenDeCodigo(cr.codigo) ? (
+                {esCreativoHtml(cr) ? (
+                  <iframe
+                    title={cr.nombre}
+                    src={cr.archivoUrl!}
+                    sandbox=""
+                    className="h-28 w-full border-0 bg-white"
+                  />
+                ) : cr.archivoUrl || imagenDeCodigo(cr.codigo) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={cr.archivoUrl ?? imagenDeCodigo(cr.codigo)!} alt={cr.nombre} className="h-28 w-full object-cover" />
                 ) : cr.codigo ? (
@@ -397,6 +411,16 @@ function CampanaCard({
 // Miniatura de un creativo: imagen si la hay, icono de código si es código,
 // o placeholder si no hay nada asignado.
 function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
+  if (esCreativoHtml(cr)) {
+    return (
+      <iframe
+        title={cr?.nombre ?? 'creativo'}
+        src={cr!.archivoUrl!}
+        sandbox=""
+        className={`${className} shrink-0 rounded border border-border bg-white`}
+      />
+    )
+  }
   const img = cr?.archivoUrl ?? imagenDeCodigo(cr?.codigo)
   if (img) {
     // eslint-disable-next-line @next/next/no-img-element
