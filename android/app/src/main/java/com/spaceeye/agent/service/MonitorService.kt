@@ -71,6 +71,13 @@ class MonitorService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
     override fun onBind(intent: Intent?): IBinder? = null
 
+    // Si el usuario quita la app de "recientes", el sistema mata el servicio.
+    // Agendamos un reinicio para mantener el servicio activo (operacion desatendida).
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        com.spaceeye.agent.SpaceEyeApp.scheduleRestart(applicationContext, 1500L)
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         scope.cancel()
         socketManager.disconnect()

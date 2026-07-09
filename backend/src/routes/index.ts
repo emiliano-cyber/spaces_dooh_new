@@ -34,6 +34,7 @@ export function createRoutes() {
 
   // Photos
   router.get('/api/photos', requireUser, dashboard.listPhotos);
+  router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), dashboard.deletePhoto);
 
   // Schedules
   router.get('/api/schedules', requireUser, dashboard.listSchedules);

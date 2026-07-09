@@ -1,5 +1,5 @@
 // backend/src/services/photoStorage.service.ts
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
@@ -37,6 +37,21 @@ async function putObject(key: string, body: Buffer, contentType: string): Promis
 // alineada/diff generadas por el ai-worker) y devuelve su ruta/URL almacenable.
 export async function storeBuffer(key: string, body: Buffer, contentType: string): Promise<string> {
   return putObject(key, body, contentType);
+}
+
+// Borra un objeto almacenado (foto o thumbnail) tanto en local como en Spaces.
+// Silencioso: si el archivo ya no existe no es un error.
+export async function deleteStored(storagePath: string): Promise<void> {
+  try {
+    if (storagePath.startsWith('/storage/')) {
+      const key = storagePath.replace(/^\/storage\//, '');
+      await fs.unlink(path.join(STORAGE_ROOT, key)).catch(() => {});
+    } else if (env.STORAGE_DRIVER === 'spaces') {
+      await s3.send(new DeleteObjectCommand({ Bucket: env.SPACES_BUCKET, Key: storagePath }));
+    }
+  } catch {
+    /* borrado best-effort */
+  }
 }
 
 // Convierte una storage_path guardada en BD a una URL descargable por el worker.

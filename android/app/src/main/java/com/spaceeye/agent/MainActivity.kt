@@ -2,9 +2,18 @@
 package com.spaceeye.agent
 
 import android.Manifest
+import android.app.ActivityManager
+import android.app.admin.DevicePolicyManager
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
+import android.util.Log
+import com.spaceeye.agent.service.KioskAdminReceiver
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -48,6 +57,13 @@ class MainActivity : ComponentActivity() {
                 MainScreen()
             }
         }
+
+        requestBatteryExemption()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        enableKioskIfProvisioned()
     }
 
     private fun checkAndStart() {
@@ -59,6 +75,46 @@ class MainActivity : ComponentActivity() {
             // Sin token: primera ejecucion -> registrar el device (SetupActivity
             // hace el POST /api/device/register y arranca MonitorService al terminar).
             startActivity(Intent(this, SetupActivity::class.java))
+        }
+    }
+
+    /** Pide excluir la app de la optimizacion de bateria (clave para no morir en Doze). */
+    private fun requestBatteryExemption() {
+        try {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "battery exemption: ${e.message}")
+        }
+    }
+
+    /**
+     * Activa el modo kiosco (Lock Task) SOLO si el equipo fue aprovisionado como
+     * device owner (kiosco real, sin salida). Si no lo esta, no hace nada, para
+     * no molestar con el "screen pinning" debil. Ver docs/ANDROID_RESILIENCE.md.
+     */
+    private fun enableKioskIfProvisioned() {
+        try {
+            val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+            if (dpm.isDeviceOwnerApp(packageName)) {
+                val admin = ComponentName(this, KioskAdminReceiver::class.java)
+                dpm.setLockTaskPackages(admin, arrayOf(packageName))
+            }
+            if (dpm.isLockTaskPermitted(packageName)) {
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                if (am.lockTaskModeState == ActivityManager.LOCK_TASK_MODE_NONE) {
+                    startLockTask()
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("MainActivity", "kiosk: ${e.message}")
         }
     }
 }

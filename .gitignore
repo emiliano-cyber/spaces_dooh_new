@@ -39,6 +39,7 @@ local.properties
 # ---- Artefactos de build / debug (no versionar) ----
 *.apk
 cap.png
+inc.png
 
 # ---- Editor / OS ----
 .idea/

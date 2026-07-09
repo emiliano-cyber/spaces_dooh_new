@@ -8,6 +8,8 @@ function gallery() {
     page: 1,
     totalPages: 1,
     lightbox: null,   // foto abierta en grande (null = cerrado)
+    toast: { show: false, msg: '', type: 'info' },
+    _toastT: null,
 
     async init() {
       const params = new URLSearchParams(window.location.search);
@@ -27,6 +29,24 @@ function gallery() {
         this.totalPages = Math.ceil(data.total / 20) || 1;
       } catch (err) {
         console.error('Failed to load photos:', err);
+      }
+    },
+
+    showToast(msg, type = 'info') {
+      this.toast = { show: true, msg, type };
+      clearTimeout(this._toastT);
+      this._toastT = setTimeout(() => { this.toast.show = false; }, 3200);
+    },
+
+    async deletePhoto(id) {
+      if (!confirm('¿Eliminar esta fotografía? Esta acción no se puede deshacer.')) return;
+      try {
+        await API.delete(`/api/photos/${id}`);
+        this.photos = this.photos.filter((p) => p.id !== id);
+        if (this.lightbox && this.lightbox.id === id) this.lightbox = null;
+        this.showToast('Fotografía eliminada', 'success');
+      } catch (e) {
+        this.showToast('No se pudo eliminar la fotografía', 'error');
       }
     },
   };

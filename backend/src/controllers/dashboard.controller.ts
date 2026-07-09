@@ -3,6 +3,7 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { z } from 'zod';
+import { deleteStored } from '../services/photoStorage.service';
 
 // --- DEVICES ---
 export async function listDevices(req: Request, res: Response) {
@@ -146,6 +147,23 @@ export async function listPhotos(req: Request, res: Response) {
   );
 
   res.json({ photos: rows, total: (countResult as any[])[0]?.total || 0 });
+}
+
+// Elimina una foto tomada por error: borra archivos (full + thumb) y la fila.
+// La FK ON DELETE CASCADE elimina tambien su verificacion si existiera.
+export async function deletePhoto(req: Request, res: Response) {
+  const [rows] = await pool.query<any[]>(
+    `SELECT storage_path, thumbnail_path FROM photos WHERE id = ?`,
+    [req.params.id]
+  );
+  const photo = (rows as any[])[0];
+  if (!photo) return res.status(404).json({ error: 'not_found' });
+
+  await deleteStored(photo.storage_path);
+  if (photo.thumbnail_path) await deleteStored(photo.thumbnail_path);
+  await pool.query(`DELETE FROM photos WHERE id = ?`, [req.params.id]);
+
+  res.json({ ok: true });
 }
 
 // --- SCHEDULES ---

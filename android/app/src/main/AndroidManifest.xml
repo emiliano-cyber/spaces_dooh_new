@@ -20,6 +20,7 @@
     <uses-feature android:name="android.hardware.camera" android:required="true"/>
 
     <application
+        android:name=".SpaceEyeApp"
         android:label="SPACE EYE"
         android:allowBackup="false"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -46,6 +47,24 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Reinicio del servicio tras crash / quitar de recientes (AlarmManager) -->
+        <receiver
+            android:name=".service.RestartReceiver"
+            android:exported="false"/>
+
+        <!-- Administrador de dispositivo para modo kiosco (device owner) -->
+        <receiver
+            android:name=".service.KioskAdminReceiver"
+            android:permission="android.permission.BIND_DEVICE_ADMIN"
+            android:exported="true">
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin"/>
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED"/>
             </intent-filter>
         </receiver>
     </application>

@@ -33,18 +33,11 @@ class LiveStreamClient {
       ],
     });
 
-    // Ajuste automatico del encuadre:
-    //  - contenido horizontal (ancho >= alto)  -> 'cover'   => llena el recuadro
-    //  - contenido vertical  (alto > ancho)     -> 'contain' => se ve completo con bordes
-    const applyFit = () => {
-      const w = this.video.videoWidth, h = this.video.videoHeight;
-      if (w && h) this.video.style.objectFit = (w >= h) ? 'cover' : 'contain';
-    };
+    // El ajuste de encuadre/rotacion lo gestiona device-detail.js
+    // (applyVideoTransform), que es la unica fuente de verdad del estilo del video.
     this.video.onloadedmetadata = () => {
       console.log('[WebRTC] video metadata:', this.video.videoWidth + 'x' + this.video.videoHeight);
-      applyFit();
     };
-    this.video.onresize = applyFit;
 
     this.pc.ontrack = (evt) => {
       console.log('[WebRTC] ontrack — received remote stream; streams=' + (evt.streams ? evt.streams.length : 0));

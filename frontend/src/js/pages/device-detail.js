@@ -17,7 +17,8 @@ function deviceDetail() {
     focusLocked: false,
     rotation: 0,   // rotacion del video en el visor (0/90/180/270)
     takingPhoto: false,
-    photoMsg: '',
+    toast: { show: false, msg: '', type: 'info' },
+    _toastT: null,
 
     async init() {
       const params = new URLSearchParams(window.location.search);
@@ -65,15 +66,14 @@ function deviceDetail() {
 
     async takePhoto() {
       if (this.takingPhoto) return;
-      this.takingPhoto = true;
-      this.photoMsg = 'Tomando foto…';
+      this.takingPhoto = true;   // dispara el modal "Capturando fotografía…"
       try {
         await API.post(`/api/devices/${this.deviceId}/command`, {
           command_type: 'TAKE_PHOTO',
           priority: 1,
         });
         // El device tarda ~2-6s en capturar y subir. Sondeamos hasta que
-        // aparezca una foto nueva, mostrando el estado al usuario.
+        // aparezca una foto nueva.
         const before = this.recentPhotos[0]?.id;
         let tries = 0;
         const poll = setInterval(async () => {
@@ -82,19 +82,34 @@ function deviceDetail() {
           if (this.recentPhotos[0]?.id !== before) {
             clearInterval(poll);
             this.takingPhoto = false;
-            this.photoMsg = '✓ Foto lista';
-            setTimeout(() => { this.photoMsg = ''; }, 2500);
+            this.showToast('✓ Fotografía capturada', 'success');
           } else if (tries >= 12) {  // ~24s sin foto nueva
             clearInterval(poll);
             this.takingPhoto = false;
-            this.photoMsg = 'No llegó la foto (la cámara puede estar ocupada por el stream).';
-            setTimeout(() => { this.photoMsg = ''; }, 5000);
+            this.showToast('No llegó la foto (la cámara puede estar ocupada por el stream).', 'error');
           }
         }, 2000);
       } catch (err) {
         this.takingPhoto = false;
-        this.photoMsg = 'Error al enviar el comando';
-        setTimeout(() => { this.photoMsg = ''; }, 4000);
+        this.showToast('Error al enviar el comando', 'error');
+      }
+    },
+
+    showToast(msg, type = 'info') {
+      this.toast = { show: true, msg, type };
+      clearTimeout(this._toastT);
+      this._toastT = setTimeout(() => { this.toast.show = false; }, 3200);
+    },
+
+    async deletePhoto(id) {
+      if (!confirm('¿Eliminar esta fotografía? Esta acción no se puede deshacer.')) return;
+      try {
+        await API.delete(`/api/photos/${id}`);
+        this.recentPhotos = this.recentPhotos.filter((p) => p.id !== id);
+        if (this.lightbox && this.lightbox.id === id) this.lightbox = null;
+        this.showToast('Fotografía eliminada', 'success');
+      } catch (e) {
+        this.showToast('No se pudo eliminar la fotografía', 'error');
       }
     },
 
@@ -103,6 +118,13 @@ function deviceDetail() {
       this.streamClient = new LiveStreamClient(Number(this.deviceId), video);
       await this.streamClient.start();
       this.streaming = true;
+      // Ajustar encuadre/rotacion cuando lleguen frames y en cada resize.
+      const v = document.getElementById('liveVideo');
+      v.addEventListener('loadedmetadata', () => this.applyVideoTransform());
+      v.addEventListener('resize', () => this.applyVideoTransform());
+      this._resizeHandler = () => this.applyVideoTransform();
+      window.addEventListener('resize', this._resizeHandler);
+      setTimeout(() => this.applyVideoTransform(), 400);
       // Re-aplicar los ajustes que definiste, cuando la camara ya este lista.
       setTimeout(() => this.reapplyControls(), 1500);
     },
@@ -111,6 +133,10 @@ function deviceDetail() {
       await this.streamClient?.stop();
       this.streamClient = null;
       this.streaming = false;
+      if (this._resizeHandler) {
+        window.removeEventListener('resize', this._resizeHandler);
+        this._resizeHandler = null;
+      }
       // Se conservan zoom/exposicion/wb/foco/rotacion para el proximo stream.
     },
 
@@ -123,8 +149,34 @@ function deviceDetail() {
       if (this.focusLocked) this.camControl({ action: 'lock_focus', x: 0.5, y: 0.5 });
     },
 
-    // Rotacion del video en el visor (recorte/encuadre visual, lado navegador).
-    rotate() { this.rotation = (this.rotation + 90) % 360; },
+    // Rotacion del video en el visor (lado navegador).
+    rotate() {
+      this.rotation = (this.rotation + 90) % 360;
+      this.applyVideoTransform();
+    },
+
+    // Ajusta tamaño + rotacion del video para que SIEMPRE encaje en el recuadro,
+    // como una camara real al girarla (sin sobresalir ni deformarse). Al rotar
+    // 90/270 se intercambian ancho/alto para que, tras el giro, ocupe el cuadro.
+    applyVideoTransform() {
+      const v = document.getElementById('liveVideo');
+      if (!v || !v.parentElement) return;
+      const box = v.parentElement;
+      const cw = box.clientWidth, ch = box.clientHeight;
+      const r = ((this.rotation % 360) + 360) % 360;
+      if (r === 90 || r === 270) {
+        v.style.width = ch + 'px';
+        v.style.height = cw + 'px';
+      } else {
+        v.style.width = cw + 'px';
+        v.style.height = ch + 'px';
+      }
+      v.style.position = 'absolute';
+      v.style.left = '50%';
+      v.style.top = '50%';
+      v.style.objectFit = 'contain';   // muestra el cuadro completo, sin deformar
+      v.style.transform = `translate(-50%, -50%) rotate(${r}deg)`;
+    },
 
     // --- Control manual de camara (solo con stream activo) ---
     camControl(control) {

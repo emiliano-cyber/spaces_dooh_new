@@ -168,14 +168,15 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 val provider = future.get()
                 cameraProvider = provider
 
-                // Forzar 16:9 para que la vista en vivo llene el recuadro (antes
-                // setTargetResolution entregaba frames cuadrados 720x720).
-                val res169 = ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_16_9_FALLBACK_AUTO_STRATEGY)
+                // 4:3 en AMBOS use cases: asi el stream muestra exactamente el
+                // mismo encuadre que la foto capturada (antes el preview era 16:9
+                // y la foto 4:3, por lo que no coincidian).
+                val res43 = ResolutionSelector.Builder()
+                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
                     .build()
 
                 val preview = Preview.Builder()
-                    .setResolutionSelector(res169)
+                    .setResolutionSelector(res43)
                     .build()
 
                 // Use case de foto en la MISMA sesion: permite tomar foto durante
@@ -186,6 +187,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 // coincida con lo que se ve en la vista en vivo (landscape).
                 val imgCap = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                    .setResolutionSelector(res43)
                     .setTargetRotation(Surface.ROTATION_270)
                     .build()
                 imageCapture = imgCap

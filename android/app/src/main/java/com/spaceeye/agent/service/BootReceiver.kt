@@ -13,6 +13,8 @@ class BootReceiver : BroadcastReceiver() {
             val token = TokenStore(context).getDeviceToken()
             if (token != null) {
                 MonitorService.start(context)
+                // Re-asegura el watchdog periodico tras un reinicio del equipo.
+                WatchdogWorker.schedule(context)
             }
         }
     }
