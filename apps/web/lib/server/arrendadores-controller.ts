@@ -2,7 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
-import { crearArrendador } from './arrendadores-repo'
+import { crearArrendador, iniciarRenovacion, registrarPagoRenta } from './arrendadores-repo'
 
 // ============================================================================
 //  lib/server/arrendadores-controller.ts — Alta de propietarios/arrendadores.
@@ -24,4 +24,18 @@ export async function crearArrendadorCtrl(body: unknown) {
   if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
   if (d.email && !esEmailValido(d.email)) throw new AppError('Correo inválido', 400)
   return crearArrendador(d)
+}
+
+// Renovación de contrato (acción por id, sin body).
+export async function iniciarRenovacionCtrl(id: string) {
+  const c = await iniciarRenovacion(id)
+  if (!c) throw new AppError('Contrato no encontrado', 404)
+  return c
+}
+
+// Registro de pago de renta (acción por id, sin body).
+export async function registrarPagoRentaCtrl(id: string) {
+  const p = await registrarPagoRenta(id)
+  if (!p) throw new AppError('Pago no encontrado', 404)
+  return p
 }
