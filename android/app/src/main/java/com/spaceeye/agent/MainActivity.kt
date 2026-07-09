@@ -2,6 +2,7 @@
 package com.spaceeye.agent
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -54,8 +55,11 @@ class MainActivity : ComponentActivity() {
         val token = tokenStore.getDeviceToken()
         if (token != null) {
             MonitorService.start(this)
+        } else {
+            // Sin token: primera ejecucion -> registrar el device (SetupActivity
+            // hace el POST /api/device/register y arranca MonitorService al terminar).
+            startActivity(Intent(this, SetupActivity::class.java))
         }
-        // If no token, SetupActivity handles pairing
     }
 }
 

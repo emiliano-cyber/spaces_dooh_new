@@ -18,7 +18,7 @@ android {
         // URL del backend. Default = IP LAN de la PC (Wi-Fi) para celular real.
         // Override sin tocar codigo:  ./gradlew assembleDebug -PserverUrl=http://192.168.1.80:4000
         // Para el emulador usa:       -PserverUrl=http://10.0.2.2:4000
-        val serverUrl = (project.findProperty("serverUrl") as String?) ?: "http://192.168.1.80:4000"
+        val serverUrl = (project.findProperty("serverUrl") as String?) ?: "http://192.168.100.135:4000"
         buildConfigField("String", "SERVER_URL", "\"$serverUrl\"")
     }
 

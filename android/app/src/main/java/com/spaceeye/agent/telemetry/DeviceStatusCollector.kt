@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Environment
 import android.os.StatFs
@@ -48,9 +49,20 @@ class DeviceStatusCollector(private val ctx: Context) {
         }
 
         val tm = ctx.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
-        val signalDbm = try {
-            tm.signalStrength?.cellSignalStrengths?.firstOrNull()?.dbm
-        } catch (_: Exception) { null }
+        // Senal segun el transporte activo: en WiFi el RSSI (dBm) del WifiManager,
+        // en celular el dBm de la senal movil. Antes solo leia celular, por eso
+        // en WiFi siempre salia vacio.
+        val signalDbm: Int? = when (netType) {
+            "WIFI" -> try {
+                val wm = ctx.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+                @Suppress("DEPRECATION")
+                wm.connectionInfo?.rssi?.takeIf { it != -127 && it < 0 }
+            } catch (_: Exception) { null }
+            "CELLULAR" -> try {
+                tm.signalStrength?.cellSignalStrengths?.firstOrNull()?.dbm
+            } catch (_: Exception) { null }
+            else -> null
+        }
 
         val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val loc = try {
@@ -79,16 +91,19 @@ class DeviceStatusCollector(private val ctx: Context) {
         )
     }
 
+    // Temp de CPU: en Android 10+ los sysfs termicos suelen estar bloqueados
+    // por SELinux para apps normales, asi que esto es best-effort. Escanea las
+    // thermal_zone y devuelve la primera lectura en rango plausible (10-120 C).
+    // Si nada es legible, se devuelve null y la UI cae a la temp de bateria.
     private fun readCpuTemp(): Float? {
         return try {
-            val paths = listOf(
-                "/sys/class/thermal/thermal_zone0/temp",
-                "/sys/devices/virtual/thermal/thermal_zone0/temp"
-            )
-            for (p in paths) {
-                val f = java.io.File(p)
-                if (f.exists()) {
-                    return f.readText().trim().toFloat() / 1000f
+            for (i in 0..29) {
+                val f = java.io.File("/sys/class/thermal/thermal_zone$i/temp")
+                if (f.exists() && f.canRead()) {
+                    val raw = f.readText().trim().toFloatOrNull() ?: continue
+                    // Algunos exponen milésimas (45000), otros grados (45).
+                    val c = if (raw > 1000f) raw / 1000f else raw
+                    if (c in 10f..120f) return c
                 }
             }
             null

@@ -48,9 +48,50 @@
               </button>
             </div>
           </div>
-          <div class="aspect-video bg-neutral-900 flex items-center justify-center">
-            <video id="liveVideo" autoplay playsinline class="w-full h-full object-contain" x-show="streaming"></video>
+          <div class="aspect-video bg-neutral-900 flex items-center justify-center relative"
+               :class="streaming ? 'cursor-crosshair' : ''"
+               @click="streaming && focusPoint($event)">
+            <video id="liveVideo" autoplay playsinline muted class="w-full h-full transition-transform"
+                   x-show="streaming" :style="{ transform: 'rotate(' + rotation + 'deg)' }"></video>
             <p x-show="!streaming" class="text-neutral-500 text-sm">Stream no activo</p>
+          </div>
+
+          <!-- Control manual de camara (solo con stream activo) -->
+          <div x-show="streaming" style="display:none" class="p-4 border-t border-neutral-200">
+            <h3 class="font-medium mb-3 text-sm">Control de camara</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <label class="block">
+                <span class="text-neutral-500">Zoom</span>
+                <input type="range" min="0" max="1" step="0.02" x-model="zoom" @input="onZoom()" class="w-full">
+              </label>
+              <label class="block">
+                <span class="text-neutral-500">Exposicion / brillo</span>
+                <input type="range" min="-12" max="12" step="1" x-model="exposure" @input="onExposure()" class="w-full">
+              </label>
+              <label class="block">
+                <span class="text-neutral-500">Balance de blancos</span>
+                <select x-model="wb" @change="onWb()" class="w-full px-2 py-1.5 border border-neutral-300 rounded">
+                  <option value="auto">Auto</option>
+                  <option value="daylight">Luz de dia</option>
+                  <option value="cloudy">Nublado</option>
+                  <option value="incandescent">Incandescente</option>
+                  <option value="fluorescent">Fluorescente</option>
+                </select>
+              </label>
+              <div class="flex items-end">
+                <button @click="toggleFocusLock()"
+                  :class="focusLocked ? 'bg-amber-600 text-white hover:bg-amber-700' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'"
+                  class="px-3 py-2 rounded w-full text-xs"
+                  x-text="focusLocked ? 'Enfoque BLOQUEADO — tocar para liberar' : 'Bloquear enfoque'"></button>
+              </div>
+              <div class="flex items-end">
+                <button @click="rotate()"
+                  class="px-3 py-2 rounded w-full text-xs bg-neutral-100 text-neutral-700 hover:bg-neutral-200">
+                  Rotar 90° (<span x-text="rotation + '°'"></span>)
+                </button>
+              </div>
+            </div>
+            <p class="text-xs text-neutral-400 mt-3">Toca sobre el video para enfocar en ese punto. Los ajustes se conservan al reconectar.</p>
           </div>
         </div>
 
@@ -60,9 +101,13 @@
           <div class="bg-white border border-neutral-200 rounded-lg p-4">
             <h3 class="font-medium mb-3">Acciones</h3>
             <div class="space-y-2">
-              <button @click="takePhoto()" class="w-full py-2 text-sm bg-[#0A66FF] text-white rounded hover:bg-blue-700">
-                Tomar foto
+              <button @click="takePhoto()" :disabled="takingPhoto"
+                class="w-full py-2 text-sm bg-[#0A66FF] text-white rounded hover:bg-blue-700 disabled:opacity-60">
+                <span x-text="takingPhoto ? 'Tomando foto…' : 'Tomar foto'"></span>
               </button>
+              <p x-show="photoMsg" x-text="photoMsg"
+                 :class="photoMsg.startsWith('✓') ? 'text-green-600' : 'text-neutral-500'"
+                 class="text-xs text-center"></p>
               <button @click="rebootApp()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
                 Reiniciar app
               </button>
@@ -91,7 +136,11 @@
               </div>
               <div class="flex justify-between">
                 <span class="text-neutral-500">Temp CPU</span>
-                <span x-text="status?.cpu_temp ? status.cpu_temp + ' C' : '—'" class="font-medium"></span>
+                <span x-text="status?.cpu_temp ? status.cpu_temp + ' °C' : 'n/d'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-neutral-500">Temp bateria</span>
+                <span x-text="(status?.battery_temp || status?.battery_temp === 0) ? status.battery_temp + ' °C' : '—'" class="font-medium"></span>
               </div>
               <div class="flex justify-between">
                 <span class="text-neutral-500">Ultima conexion</span>
@@ -134,7 +183,8 @@
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <template x-for="photo in recentPhotos" :key="photo.id">
             <div class="aspect-square bg-neutral-100 rounded overflow-hidden">
-              <img :src="photo.thumbnail_path" class="w-full h-full object-cover" :alt="'Photo ' + photo.id">
+              <img :src="photo.thumbnail_path" @click="lightbox = photo"
+                   class="w-full h-full object-cover cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
             </div>
           </template>
           <p x-show="recentPhotos.length === 0" class="col-span-full text-center text-neutral-500 text-sm py-8">
@@ -143,6 +193,17 @@
         </div>
       </div>
     </main>
+
+    <!-- Visor de foto en grande -->
+    <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
+         class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
+      <img :src="lightbox?.storage_path" class="max-w-full max-h-[90vh] object-contain rounded shadow-2xl">
+      <button @click.stop="lightbox = null"
+              class="absolute top-4 right-6 text-white/80 hover:text-white text-4xl leading-none">&times;</button>
+      <div class="absolute bottom-4 left-0 right-0 text-center text-white/80 text-sm">
+        <span x-text="lightbox ? new Date(lightbox.taken_at).toLocaleString() : ''"></span>
+      </div>
+    </div>
   </div>
 
   <script src="/src/js/api.js"></script>

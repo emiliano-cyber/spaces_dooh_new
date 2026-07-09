@@ -36,6 +36,10 @@ android/app/release/
 *.jks
 local.properties
 
+# ---- Artefactos de build / debug (no versionar) ----
+*.apk
+cap.png
+
 # ---- Editor / OS ----
 .idea/
 .vscode/

@@ -44,7 +44,8 @@
         <template x-for="photo in photos" :key="photo.id">
           <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
             <div class="aspect-square bg-neutral-100">
-              <img :src="photo.thumbnail_path" class="w-full h-full object-cover" :alt="'Photo ' + photo.id">
+              <img :src="photo.thumbnail_path" @click="lightbox = photo"
+                   class="w-full h-full object-cover cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
             </div>
             <div class="p-2 text-xs">
               <div class="font-medium" x-text="photo.device_name"></div>
@@ -73,6 +74,18 @@
           class="px-3 py-1 text-sm border rounded disabled:opacity-50">Siguiente &rarr;</button>
       </div>
     </main>
+
+    <!-- Visor de foto en grande -->
+    <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
+         class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
+      <img :src="lightbox?.storage_path" class="max-w-full max-h-[90vh] object-contain rounded shadow-2xl">
+      <button @click.stop="lightbox = null"
+              class="absolute top-4 right-6 text-white/80 hover:text-white text-4xl leading-none">&times;</button>
+      <div class="absolute bottom-4 left-0 right-0 text-center text-white/80 text-sm">
+        <span x-text="lightbox?.device_name"></span> ·
+        <span x-text="lightbox ? new Date(lightbox.taken_at).toLocaleString() : ''"></span>
+      </div>
+    </div>
   </div>
 
   <script src="/src/js/api.js"></script>

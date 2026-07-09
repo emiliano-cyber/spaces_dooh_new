@@ -45,6 +45,7 @@ class MonitorService : Service() {
         apiClient = ApiClient(applicationContext)
 
         socketManager.onCommand = { cmd -> commandHandler.handle(cmd) }
+        socketManager.onCameraControl = { control -> commandHandler.handleCameraControl(control) }
         socketManager.connect()
 
         // Heartbeat loop: collect status and report to backend every 60s

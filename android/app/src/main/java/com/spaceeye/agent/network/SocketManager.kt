@@ -19,6 +19,7 @@ class SocketManager(private val ctx: Context) {
     var onCommand: ((JSONObject) -> Unit)? = null
     var onWebRTCAnswer: ((JSONObject) -> Unit)? = null
     var onWebRTCIceCandidate: ((JSONObject) -> Unit)? = null
+    var onCameraControl: ((JSONObject) -> Unit)? = null
 
     fun connect() {
         val token = tokenStore.getDeviceToken() ?: return
@@ -50,6 +51,11 @@ class SocketManager(private val ctx: Context) {
                 val data = args[0] as? JSONObject ?: return@on
                 Log.d(TAG, "Received webrtc_ice_candidate")
                 onWebRTCIceCandidate?.invoke(data)
+            }
+
+            on("camera_control") { args ->
+                val data = args[0] as? JSONObject ?: return@on
+                onCameraControl?.invoke(data)
             }
 
             connect()

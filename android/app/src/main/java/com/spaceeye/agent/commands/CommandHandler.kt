@@ -9,7 +9,9 @@ import com.spaceeye.agent.network.WebRTCClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 import org.json.JSONObject
 
 class CommandHandler(
@@ -49,6 +51,31 @@ class CommandHandler(
         }
     }
 
+    /**
+     * Control manual de camara en vivo (canal `camera_control`, tiempo real).
+     * Solo tiene efecto si hay un stream activo (la camara CameraX esta abierta).
+     * control = { action, ...params }.
+     */
+    fun handleCameraControl(control: JSONObject) {
+        when (control.optString("action")) {
+            "zoom" -> webrtc.setZoom(control.optDouble("value", 0.0).toFloat())
+            "focus" -> webrtc.focusAt(
+                control.optDouble("x", 0.5).toFloat(),
+                control.optDouble("y", 0.5).toFloat(),
+                lock = false
+            )
+            "lock_focus" -> webrtc.focusAt(
+                control.optDouble("x", 0.5).toFloat(),
+                control.optDouble("y", 0.5).toFloat(),
+                lock = true
+            )
+            "unlock_focus" -> webrtc.unlockFocus()
+            "exposure" -> webrtc.setExposure(control.optInt("value", 0))
+            "wb" -> webrtc.setWhiteBalance(control.optString("value", "auto"))
+            else -> Log.w(TAG, "Unknown camera_control action: ${control.optString("action")}")
+        }
+    }
+
     fun handle(cmd: JSONObject) {
         val type = cmd.optString("command_type")
         val id = cmd.optInt("id")
@@ -58,32 +85,49 @@ class CommandHandler(
             try {
                 when (type) {
                     "TAKE_PHOTO" -> {
-                        val photo = photoCapture.captureNow()
-                        Log.d(TAG, "Photo captured: ${photo.size} bytes")
-
-                        // Upload photo to backend
                         val commandId = if (id > 0) id else null
                         val campaignId = payload?.optInt("campaign_id")?.takeIf { it > 0 }
                         val scheduleId = payload?.optInt("schedule_id")?.takeIf { it > 0 }
 
-                        val uploaded = withContext(Dispatchers.IO) {
-                            apiClient.uploadPhoto(
-                                photoBytes = photo,
-                                commandId = commandId,
-                                campaignId = campaignId,
-                                scheduleId = scheduleId,
-                                source = "on_demand"
-                            )
+                        // Con stream activo: tomar desde la sesion CameraX (sin
+                        // conflicto de camara y con los ajustes en vivo). Sin
+                        // stream: abrir la camara con Camera2.
+                        val photo: ByteArray? = if (webrtc.isStreaming()) {
+                            suspendCancellableCoroutine { cont ->
+                                webrtc.captureStill { bytes -> if (cont.isActive) cont.resume(bytes) }
+                            }
+                        } else {
+                            try {
+                                photoCapture.captureNow()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "photoCapture failed: ${e.message}")
+                                null
+                            }
                         }
 
-                        // Report command result
-                        if (id > 0) {
-                            withContext(Dispatchers.IO) {
-                                apiClient.reportCommandResult(
-                                    commandId = id,
-                                    success = uploaded,
-                                    errorMessage = if (!uploaded) "upload_failed" else null
+                        if (photo != null) {
+                            Log.d(TAG, "Photo captured: ${photo.size} bytes")
+                            val uploaded = withContext(Dispatchers.IO) {
+                                apiClient.uploadPhoto(
+                                    photoBytes = photo,
+                                    commandId = commandId,
+                                    campaignId = campaignId,
+                                    scheduleId = scheduleId,
+                                    source = "on_demand"
                                 )
+                            }
+                            if (id > 0) {
+                                withContext(Dispatchers.IO) {
+                                    apiClient.reportCommandResult(
+                                        commandId = id,
+                                        success = uploaded,
+                                        errorMessage = if (!uploaded) "upload_failed" else null
+                                    )
+                                }
+                            }
+                        } else if (id > 0) {
+                            withContext(Dispatchers.IO) {
+                                apiClient.reportCommandResult(id, false, errorMessage = "capture_failed")
                             }
                         }
                     }

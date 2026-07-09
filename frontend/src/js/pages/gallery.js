@@ -7,6 +7,7 @@ function gallery() {
     filters: { from: '', to: '', source: '', device_id: '' },
     page: 1,
     totalPages: 1,
+    lightbox: null,   // foto abierta en grande (null = cerrado)
 
     async init() {
       const params = new URLSearchParams(window.location.search);

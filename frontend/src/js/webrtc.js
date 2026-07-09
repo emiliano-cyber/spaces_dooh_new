@@ -5,6 +5,10 @@ class LiveStreamClient {
     this.video = videoElement;
     this.pc = null;
     this.socket = null;
+    // ICE candidates que llegan antes de fijar la descripcion remota: se
+    // encolan y se aplican despues. Sin esto se descartaban y el stream
+    // conectaba de forma intermitente (a veces negro).
+    this.pendingCandidates = [];
   }
 
   async start() {
@@ -29,11 +33,35 @@ class LiveStreamClient {
       ],
     });
 
+    // Ajuste automatico del encuadre:
+    //  - contenido horizontal (ancho >= alto)  -> 'cover'   => llena el recuadro
+    //  - contenido vertical  (alto > ancho)     -> 'contain' => se ve completo con bordes
+    const applyFit = () => {
+      const w = this.video.videoWidth, h = this.video.videoHeight;
+      if (w && h) this.video.style.objectFit = (w >= h) ? 'cover' : 'contain';
+    };
+    this.video.onloadedmetadata = () => {
+      console.log('[WebRTC] video metadata:', this.video.videoWidth + 'x' + this.video.videoHeight);
+      applyFit();
+    };
+    this.video.onresize = applyFit;
+
     this.pc.ontrack = (evt) => {
-      console.log('[WebRTC] ontrack — received remote stream');
-      if (evt.streams && evt.streams[0]) {
-        this.video.srcObject = evt.streams[0];
+      console.log('[WebRTC] ontrack — received remote stream; streams=' + (evt.streams ? evt.streams.length : 0));
+      // El device hace addTrack() sin stream id, asi que evt.streams suele venir
+      // vacio: en ese caso armamos el MediaStream a partir del track recibido.
+      let stream = (evt.streams && evt.streams[0]) ? evt.streams[0] : null;
+      if (!stream) {
+        stream = new MediaStream([evt.track]);
+        console.log('[WebRTC] stream reconstruido desde evt.track');
       }
+      this.video.srcObject = stream;
+      // Autoplay fiable: muted + play() explicito.
+      this.video.muted = true;
+      this.video.playsInline = true;
+      this.video.play()
+        .then(() => console.log('[WebRTC] video.play() OK'))
+        .catch((e) => console.warn('[WebRTC] video.play() bloqueado:', e.name, e.message));
     };
 
     this.pc.onicecandidate = (evt) => {
@@ -71,6 +99,13 @@ class LiveStreamClient {
           },
         });
         console.log('[WebRTC] Answer sent');
+
+        // Aplicar los ICE candidates que llegaron antes de la descripcion remota.
+        for (const c of this.pendingCandidates) {
+          try { await this.pc.addIceCandidate(c); } catch (e) { console.warn('[WebRTC] pending ICE:', e.message); }
+        }
+        console.log('[WebRTC] flushed ' + this.pendingCandidates.length + ' pending ICE');
+        this.pendingCandidates = [];
       } catch (err) {
         console.error('[WebRTC] Error handling offer:', err);
       }
@@ -78,18 +113,18 @@ class LiveStreamClient {
 
     // Listen for ICE candidates from device
     this.socket.on('webrtc_ice_candidate', async (data) => {
-      try {
-        if (data.candidate && this.pc.remoteDescription) {
-          await this.pc.addIceCandidate(
-            new RTCIceCandidate({
-              sdpMid: data.candidate.sdpMid,
-              sdpMLineIndex: data.candidate.sdpMLineIndex,
-              candidate: data.candidate.candidate,
-            })
-          );
-        }
-      } catch (err) {
-        console.error('[WebRTC] Error adding ICE candidate:', err);
+      if (!data.candidate) return;
+      const c = new RTCIceCandidate({
+        sdpMid: data.candidate.sdpMid,
+        sdpMLineIndex: data.candidate.sdpMLineIndex,
+        candidate: data.candidate.candidate,
+      });
+      // Si aun no hay descripcion remota, encolar; si ya hay, aplicar.
+      if (this.pc.remoteDescription && this.pc.remoteDescription.type) {
+        try { await this.pc.addIceCandidate(c); }
+        catch (err) { console.warn('[WebRTC] Error adding ICE candidate:', err.message); }
+      } else {
+        this.pendingCandidates.push(c);
       }
     });
 
@@ -100,6 +135,14 @@ class LiveStreamClient {
     });
 
     console.log('[WebRTC] START_STREAM command sent');
+  }
+
+  // Control manual de camara en vivo (zoom, enfoque, exposicion, WB, lock).
+  // Va por el mismo socket /dashboard que la señalizacion; canal efimero.
+  sendCameraControl(control) {
+    if (this.socket && this.socket.connected) {
+      this.socket.emit('camera_control', { device_id: this.deviceId, control });
+    }
   }
 
   async stop() {

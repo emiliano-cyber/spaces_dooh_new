@@ -46,6 +46,13 @@ export function setupDashboardNamespace(io: Server) {
         user_id: socket.data.user_id,
       }));
     });
+
+    // Control manual de camara en vivo (zoom, enfoque, exposicion, WB, lock).
+    // Canal efimero (no persiste en `commands`): solo aplica si el device
+    // esta transmitiendo. payload = { device_id, control: {...} }.
+    socket.on('camera_control', async ({ device_id, control }) => {
+      await redis.publish('camera:control', JSON.stringify({ device_id, control }));
+    });
   });
 
   // Subscribe to device events

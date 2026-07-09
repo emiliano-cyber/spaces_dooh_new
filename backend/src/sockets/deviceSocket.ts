@@ -65,6 +65,11 @@ export function setupDeviceNamespace(io: Server) {
       const { device_id, candidate, user_id } = JSON.parse(msg);
       ns.to(`device:${device_id}`).emit('webrtc_ice_candidate', { candidate, user_id });
     });
+
+    sub.subscribe('camera:control', (msg) => {
+      const { device_id, control } = JSON.parse(msg);
+      ns.to(`device:${device_id}`).emit('camera_control', control);
+    });
   }).catch((err) => {
     console.error('[DeviceSocket] Redis subscription failed:', err.message);
   });
