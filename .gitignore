@@ -47,3 +47,9 @@ db/spaces_pgdata/
 
 # Respaldos locales de BD (no se versionan)
 migration-backup/
+
+# Python (SDK de integración DOOHmain)
+__pycache__/
+*.pyc
+.venv/
+venv/
