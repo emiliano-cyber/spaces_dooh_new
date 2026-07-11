@@ -26,12 +26,22 @@ class LiveStreamClient {
     // Join the watching room so we receive offers/ICE from this device
     this.socket.emit('watch_device', this.deviceId);
 
-    this.pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-      ],
-    });
+    // ICE servers desde el backend (incluye TURN para redes remotas / datos
+    // moviles). Si falla, cae a STUN publico.
+    let iceServers = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+    ];
+    try {
+      const data = await API.get('/api/ice-servers');
+      if (data && Array.isArray(data.iceServers) && data.iceServers.length) {
+        iceServers = data.iceServers;
+      }
+    } catch (e) {
+      console.warn('[WebRTC] no se pudieron obtener ICE servers, usando STUN', e);
+    }
+
+    this.pc = new RTCPeerConnection({ iceServers });
 
     // El ajuste de encuadre/rotacion lo gestiona device-detail.js
     // (applyVideoTransform), que es la unica fuente de verdad del estilo del video.

@@ -35,6 +35,12 @@ const schema = z.object({
   SPACES_BUCKET: z.string().default('space-eye-photos'),
   SPACES_REGION: z.string().default('nyc3'),
 
+  // TURN (WebRTC en redes remotas / datos moviles). Vacio = solo STUN.
+  // TURN_URL admite varias separadas por coma, p.ej.:
+  //   "turn:turn.midominio.com:3478,turns:turn.midominio.com:5349"
+  TURN_URL: z.string().default(''),
+  TURN_SECRET: z.string().default(''),
+
   MEDIASOUP_LISTEN_IP: z.string().default('0.0.0.0'),
   MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),
   MEDIASOUP_MIN_PORT: z.coerce.number().default(40000),

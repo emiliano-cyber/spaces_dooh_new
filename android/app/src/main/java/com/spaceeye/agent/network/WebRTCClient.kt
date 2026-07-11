@@ -74,6 +74,13 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     private var captureWidth = 1280
     private var captureHeight = 720
 
+    // ICE servers efectivos (por defecto solo STUN; el backend puede inyectar TURN).
+    private var iceServers: List<PeerConnection.IceServer> = ICE_SERVERS
+
+    fun setIceServers(list: List<PeerConnection.IceServer>) {
+        if (list.isNotEmpty()) iceServers = list
+    }
+
     private val mainExecutor by lazy { ContextCompat.getMainExecutor(ctx) }
 
     fun initialize() {
@@ -117,7 +124,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
             setEnabled(true)
         }
 
-        val rtcConfig = PeerConnection.RTCConfiguration(ICE_SERVERS).apply {
+        val rtcConfig = PeerConnection.RTCConfiguration(iceServers).apply {
             sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN
             continualGatheringPolicy = PeerConnection.ContinualGatheringPolicy.GATHER_CONTINUALLY
         }
@@ -209,8 +216,10 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 cameraInfo = cam.cameraInfo
                 Log.d(TAG, "CameraX bound; zoom range=" +
                     "${cam.cameraInfo.zoomState.value?.minZoomRatio}-${cam.cameraInfo.zoomState.value?.maxZoomRatio}")
+                RemoteLog.info(ctx, "camera", "Cámara abierta (stream)")
             } catch (e: Exception) {
                 Log.e(TAG, "CameraX bind failed: ${e.message}", e)
+                RemoteLog.error(ctx, "camera", "Fallo al abrir cámara: ${e.message}")
             }
         }, mainExecutor)
     }

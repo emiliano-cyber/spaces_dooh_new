@@ -9,7 +9,9 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
+import org.webrtc.PeerConnection
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,6 +82,43 @@ class ApiClient(ctx: Context) {
         } catch (e: Exception) {
             Log.e(TAG, "Photo upload error: ${e.message}")
             false
+        }
+    }
+
+    /**
+     * Obtiene los ICE servers (STUN + TURN) del backend para WebRTC. En redes
+     * remotas / datos moviles el TURN es imprescindible. Devuelve null si falla
+     * (el llamador cae a STUN por defecto).
+     */
+    fun getIceServers(): List<PeerConnection.IceServer>? {
+        val token = tokenStore.getDeviceToken() ?: return null
+        val request = Request.Builder()
+            .url("$baseUrl/api/device/ice-servers")
+            .header("Authorization", "Bearer $token")
+            .get()
+            .build()
+        return try {
+            http.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                val arr = JSONObject(response.body!!.string()).getJSONArray("iceServers")
+                val list = mutableListOf<PeerConnection.IceServer>()
+                for (i in 0 until arr.length()) {
+                    val o = arr.getJSONObject(i)
+                    val urls = mutableListOf<String>()
+                    when (val u = o.get("urls")) {
+                        is JSONArray -> for (j in 0 until u.length()) urls.add(u.getString(j))
+                        else -> urls.add(u.toString())
+                    }
+                    val builder = PeerConnection.IceServer.builder(urls)
+                    if (o.has("username")) builder.setUsername(o.getString("username"))
+                    if (o.has("credential")) builder.setPassword(o.getString("credential"))
+                    list.add(builder.createIceServer())
+                }
+                list
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getIceServers error: ${e.message}")
+            null
         }
     }
 

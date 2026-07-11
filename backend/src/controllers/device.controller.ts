@@ -139,6 +139,30 @@ export async function commandResult(req: Request, res: Response) {
   res.json({ ok: true });
 }
 
+const logSchema = z.object({
+  level: z.enum(['debug', 'info', 'warning', 'error', 'critical']).default('info'),
+  category: z.string().max(50).optional(),
+  message: z.string().min(1).max(2000),
+  metadata: z.any().optional(),
+});
+
+// El agente reporta sus eventos/errores aqui (logging remoto). Permite
+// diagnosticar equipos en campo sin USB. Se guarda en device_logs.
+export async function logEvent(req: Request, res: Response) {
+  const parsed = logSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  const did = req.device!.did;
+  const { level, category, message, metadata } = parsed.data;
+
+  await pool.query(
+    `INSERT INTO device_logs (device_id, level, category, message, metadata)
+     VALUES (?, ?, ?, ?, ?)`,
+    [did, level, category ?? null, message, metadata ? JSON.stringify(metadata) : null]
+  );
+  res.json({ ok: true });
+}
+
 export async function uploadPhotoEndpoint(req: Request, res: Response) {
   if (!req.file) return res.status(400).json({ error: 'no_file' });
   const did = req.device!.did;

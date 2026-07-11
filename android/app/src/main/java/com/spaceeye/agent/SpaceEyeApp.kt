@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.service.RestartReceiver
 import com.spaceeye.agent.service.WatchdogWorker
 import kotlin.system.exitProcess
@@ -23,6 +24,9 @@ class SpaceEyeApp : Application() {
     companion object {
         private const val TAG = "SpaceEyeApp"
         private const val RESTART_REQ = 7001
+        private const val HEARTBEAT_REQ = 7002
+        // Latido cada ~4 min: mucho mas rapido que el watchdog de WorkManager (15 min).
+        private const val HEARTBEAT_INTERVAL = 4 * 60 * 1000L
 
         /** Agenda un reinicio del servicio ~2s en el futuro (sobrevive al proceso). */
         fun scheduleRestart(ctx: Context, delayMs: Long = 2000L) {
@@ -36,6 +40,29 @@ class SpaceEyeApp : Application() {
             val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             am.set(AlarmManager.RTC, System.currentTimeMillis() + delayMs, pi)
         }
+
+        /**
+         * Programa el siguiente "latido": una alarma que dispara el RestartReceiver,
+         * el cual reactiva el servicio (si murio) y vuelve a programar el latido.
+         * `setAndAllowWhileIdle` funciona incluso en Doze. AlarmManager recrea el
+         * proceso para ejecutar el receiver aunque la app este cerrada.
+         */
+        fun scheduleHeartbeat(ctx: Context) {
+            val intent = Intent(ctx, RestartReceiver::class.java).apply {
+                action = RestartReceiver.ACTION_HEARTBEAT
+            }
+            val pi = PendingIntent.getBroadcast(
+                ctx, HEARTBEAT_REQ, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val at = System.currentTimeMillis() + HEARTBEAT_INTERVAL
+            try {
+                am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pi)
+            } catch (e: Exception) {
+                am.set(AlarmManager.RTC_WAKEUP, at, pi)
+            }
+        }
     }
 
     override fun onCreate() {
@@ -44,6 +71,13 @@ class SpaceEyeApp : Application() {
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             Log.e(TAG, "Uncaught exception — programando reinicio", throwable)
+            // Reporta el crash al backend antes de morir (sincrono, best-effort).
+            try {
+                RemoteLog.logCrashBlocking(
+                    this, "crash",
+                    "App crash: ${throwable.javaClass.simpleName}: ${throwable.message}"
+                )
+            } catch (_: Exception) {}
             try {
                 scheduleRestart(this)
             } catch (e: Exception) {
@@ -55,7 +89,8 @@ class SpaceEyeApp : Application() {
             exitProcess(2)
         }
 
-        // Watchdog periodico (reactiva el servicio si dejo de correr).
+        // Watchdog periodico (WorkManager, 15 min) + latido rapido (~4 min).
         WatchdogWorker.schedule(this)
+        scheduleHeartbeat(this)
     }
 }

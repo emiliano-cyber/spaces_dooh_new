@@ -1,0 +1,84 @@
+# SPACE EYE — stack de PRODUCCION (equipos remotos)
+# Requisitos: un VPS con IP publica, un dominio apuntando (A record) al VPS,
+# y los puertos 80/443 (TLS) y 3478 + rango relay (TURN) abiertos.
+# Uso:  docker compose -f infra/docker-compose.prod.yml --env-file backend/.env up -d --build
+#
+# Variables clave en el .env: DOMAIN, TURN_SECRET, PUBLIC_IP (IP publica del VPS),
+# DB_PASSWORD, JWT_SECRET, JWT_DEVICE_SECRET, WORKER_SECRET, PUBLIC_BASE_URL,
+# TURN_URL.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/migrations:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    volumes:
+      - ../frontend:/frontend:ro
+      - storage_data:/app/storage
+    depends_on: [mysql, redis]
+
+  ai-worker:
+    build:
+      context: ../ai-worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_BASE: http://backend:4000
+      WORKER_SECRET: ${WORKER_SECRET}
+    depends_on: [backend, redis]
+
+  # Reverse proxy con HTTPS automatico (Let's Encrypt). Proxya HTTP y WebSocket.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [backend]
+
+  # Servidor TURN para WebRTC en redes remotas / datos moviles (NAT de operador).
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host   # necesario para el rango de puertos relay de TURN
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:
+  caddy_data:
+  caddy_config:

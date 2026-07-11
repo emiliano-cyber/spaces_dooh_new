@@ -2,11 +2,13 @@ package com.spaceeye.agent.service
 
 import android.app.*
 import android.content.*
+import android.content.pm.ServiceInfo
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.spaceeye.agent.MainActivity
 import com.spaceeye.agent.network.ApiClient
+import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
 import com.spaceeye.agent.telemetry.DeviceStatusCollector
 import com.spaceeye.agent.commands.CommandHandler
@@ -19,6 +21,9 @@ class MonitorService : Service() {
         const val CHANNEL = "monitor_channel"
         const val NOTIF_ID = 1001
 
+        @Volatile
+        private var instance: MonitorService? = null
+
         fun start(ctx: Context) {
             val intent = Intent(ctx, MonitorService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -27,9 +32,22 @@ class MonitorService : Service() {
                 ctx.startService(intent)
             }
         }
+
+        /**
+         * Activa/desactiva el tipo de FGS "camera". El servicio persistente corre
+         * como dataSync|location (reiniciable desde background en Android 14). El
+         * tipo camera SOLO se agrega mientras se transmite/captura, porque Android
+         * 14 prohibe arrancar un FGS camera desde background (causaba crash-loop).
+         */
+        fun setCameraActive(active: Boolean) {
+            instance?.updateForegroundType(active)
+        }
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var notifText = "Iniciando..."
+    private var cameraTypeActive = false
     private lateinit var socketManager: SocketManager
     private lateinit var statusCollector: DeviceStatusCollector
     private lateinit var commandHandler: CommandHandler
@@ -37,7 +55,26 @@ class MonitorService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        startForeground(NOTIF_ID, buildNotification("Iniciando..."))
+        instance = this
+        // Arranca SIN tipo camera (dataSync|location) para poder reiniciarse desde
+        // background sin la SecurityException de Android 14.
+        startForegroundWithType(camera = false)
+
+        // WakeLock parcial: mantiene la CPU activa con la pantalla apagada/bloqueada
+        // para que el heartbeat, los comandos y las capturas sigan funcionando.
+        try {
+            val pm = getSystemService(POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SpaceEye::Monitor").apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "wakelock: ${e.message}")
+        }
+
+        RemoteLog.info(applicationContext, "service", "MonitorService iniciado")
+        // Re-arma el latido de auto-recuperacion por si se perdio.
+        com.spaceeye.agent.SpaceEyeApp.scheduleHeartbeat(applicationContext)
 
         socketManager = SocketManager(applicationContext)
         statusCollector = DeviceStatusCollector(applicationContext)
@@ -74,14 +111,57 @@ class MonitorService : Service() {
     // Si el usuario quita la app de "recientes", el sistema mata el servicio.
     // Agendamos un reinicio para mantener el servicio activo (operacion desatendida).
     override fun onTaskRemoved(rootIntent: Intent?) {
+        RemoteLog.warn(applicationContext, "service", "App quitada de recientes — reprogramando reinicio")
         com.spaceeye.agent.SpaceEyeApp.scheduleRestart(applicationContext, 1500L)
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
+        instance = null
+        try {
+            if (wakeLock?.isHeld == true) wakeLock?.release()
+        } catch (_: Exception) {}
         scope.cancel()
         socketManager.disconnect()
+        // Al destruirse, agenda un reinicio para maximizar la disponibilidad.
+        com.spaceeye.agent.SpaceEyeApp.scheduleRestart(applicationContext, 2000L)
         super.onDestroy()
+    }
+
+    /**
+     * (Re)entra en primer plano con los tipos adecuados. Sin `camera` el arranque
+     * funciona desde background; con `camera` habilita el acceso a la camara para
+     * transmitir/capturar. Best-effort: si Android lo rechaza, cae a dataSync.
+     */
+    private fun startForegroundWithType(camera: Boolean) {
+        cameraTypeActive = camera
+        val notif = buildNotification(notifText)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Base = dataSync (NO es un tipo "while-in-use", asi que si se puede
+            // arrancar desde background en Android 14). camera se agrega solo al
+            // transmitir/capturar, cuando el servicio ya esta en primer plano.
+            var type = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            if (camera) type = type or ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA
+            try {
+                startForeground(NOTIF_ID, notif, type)
+            } catch (e: Exception) {
+                Log.w(TAG, "startForeground(type=$type) fallo: ${e.message}")
+                try {
+                    startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                } catch (_: Exception) {}
+            }
+        } else {
+            startForeground(NOTIF_ID, notif)
+        }
+    }
+
+    fun updateForegroundType(camera: Boolean) {
+        if (camera == cameraTypeActive) return
+        try {
+            startForegroundWithType(camera)
+        } catch (e: Exception) {
+            Log.w(TAG, "updateForegroundType($camera): ${e.message}")
+        }
     }
 
     private fun buildNotification(text: String): Notification {
@@ -106,6 +186,7 @@ class MonitorService : Service() {
     }
 
     private fun updateNotification(text: String) {
+        notifText = text
         val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(NOTIF_ID, buildNotification(text))
     }

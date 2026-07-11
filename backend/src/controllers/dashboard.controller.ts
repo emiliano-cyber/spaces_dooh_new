@@ -4,6 +4,12 @@ import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { z } from 'zod';
 import { deleteStored } from '../services/photoStorage.service';
+import { getIceServers } from '../utils/turn';
+
+// ICE servers (STUN + TURN) para WebRTC. Lo consumen el dashboard y el agente.
+export function iceServers(_req: Request, res: Response) {
+  res.json({ iceServers: getIceServers() });
+}
 
 // --- DEVICES ---
 export async function listDevices(req: Request, res: Response) {
@@ -164,6 +170,24 @@ export async function deletePhoto(req: Request, res: Response) {
   await pool.query(`DELETE FROM photos WHERE id = ?`, [req.params.id]);
 
   res.json({ ok: true });
+}
+
+// Registros remotos de un device (para diagnostico de equipos en campo).
+export async function listDeviceLogs(req: Request, res: Response) {
+  const { level, limit = '100' } = req.query;
+  let sql = `SELECT id, level, category, message, metadata, logged_at
+             FROM device_logs WHERE device_id = ?`;
+  const params: any[] = [req.params.id];
+
+  if (level && level !== 'all') {
+    sql += ` AND level = ?`;
+    params.push(level);
+  }
+  sql += ` ORDER BY logged_at DESC LIMIT ?`;
+  params.push(Math.min(Number(limit) || 100, 500));
+
+  const [rows] = await pool.query(sql, params);
+  res.json({ logs: rows });
 }
 
 // --- SCHEDULES ---

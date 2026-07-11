@@ -4,8 +4,10 @@ import android.content.Context
 import android.util.Log
 import com.spaceeye.agent.camera.PhotoCapture
 import com.spaceeye.agent.network.ApiClient
+import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
 import com.spaceeye.agent.network.WebRTCClient
+import com.spaceeye.agent.service.MonitorService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -89,6 +91,10 @@ class CommandHandler(
                         val campaignId = payload?.optInt("campaign_id")?.takeIf { it > 0 }
                         val scheduleId = payload?.optInt("schedule_id")?.takeIf { it > 0 }
 
+                        // Habilita el tipo FGS camera durante la captura (Android 14
+                        // exige acceso a camara solo con ese tipo activo).
+                        MonitorService.setCameraActive(true)
+
                         // Con stream activo: tomar desde la sesion CameraX (sin
                         // conflicto de camara y con los ajustes en vivo). Sin
                         // stream: abrir la camara con Camera2.
@@ -102,11 +108,15 @@ class CommandHandler(
                             } catch (e: Exception) {
                                 Log.e(TAG, "photoCapture failed: ${e.message}")
                                 null
+                            } finally {
+                                // Si no hay stream, libera el tipo camera tras la foto.
+                                if (!webrtc.isStreaming()) MonitorService.setCameraActive(false)
                             }
                         }
 
                         if (photo != null) {
                             Log.d(TAG, "Photo captured: ${photo.size} bytes")
+                            RemoteLog.info(ctx, "photo", "Foto capturada (${photo.size / 1024} KB)")
                             val uploaded = withContext(Dispatchers.IO) {
                                 apiClient.uploadPhoto(
                                     photoBytes = photo,
@@ -125,13 +135,22 @@ class CommandHandler(
                                     )
                                 }
                             }
-                        } else if (id > 0) {
-                            withContext(Dispatchers.IO) {
-                                apiClient.reportCommandResult(id, false, errorMessage = "capture_failed")
+                        } else {
+                            RemoteLog.error(ctx, "photo", "Fallo al capturar la foto")
+                            if (id > 0) {
+                                withContext(Dispatchers.IO) {
+                                    apiClient.reportCommandResult(id, false, errorMessage = "capture_failed")
+                                }
                             }
                         }
                     }
                     "START_STREAM" -> {
+                        // Habilita el tipo FGS camera antes de abrir la camara.
+                        MonitorService.setCameraActive(true)
+                        // ICE servers (STUN + TURN) del backend, para conectar en
+                        // redes remotas / datos moviles.
+                        val ice = withContext(Dispatchers.IO) { apiClient.getIceServers() }
+                        if (ice != null) webrtc.setIceServers(ice)
                         val sessionId = payload?.optString("session_id") ?: ""
                         webrtc.startStreaming(sessionId) { event, data ->
                             socketManager.emit(event, data)
@@ -144,6 +163,8 @@ class CommandHandler(
                     }
                     "STOP_STREAM" -> {
                         webrtc.stopStreaming()
+                        // Libera el tipo FGS camera al terminar el stream.
+                        MonitorService.setCameraActive(false)
                         if (id > 0) {
                             withContext(Dispatchers.IO) {
                                 apiClient.reportCommandResult(id, true)
@@ -169,6 +190,7 @@ class CommandHandler(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error handling $type: ${e.message}", e)
+                RemoteLog.error(ctx, "command", "Error en $type: ${e.message}")
                 if (id > 0) {
                     try {
                         withContext(Dispatchers.IO) {

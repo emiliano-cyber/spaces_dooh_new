@@ -7,6 +7,7 @@ function deviceDetail() {
     device: null,
     status: null,
     recentPhotos: [],
+    logs: [],
     streaming: false,
     streamClient: null,
     lightbox: null,   // foto abierta en grande (null = cerrado)
@@ -30,6 +31,9 @@ function deviceDetail() {
 
       await this.loadDevice();
       await this.loadPhotos();
+      await this.loadLogs();
+      // Refresca los registros remotos periodicamente.
+      setInterval(() => this.loadLogs(), 15000);
 
       dashboardSocket.connect();
       dashboardSocket.watchDevice(Number(this.deviceId));
@@ -61,6 +65,15 @@ function deviceDetail() {
         this.recentPhotos = data.photos;
       } catch (err) {
         console.error('Failed to load photos:', err);
+      }
+    },
+
+    async loadLogs() {
+      try {
+        const data = await API.get(`/api/devices/${this.deviceId}/logs?limit=50`);
+        this.logs = data.logs;
+      } catch (err) {
+        /* silencioso */
       }
     },
 

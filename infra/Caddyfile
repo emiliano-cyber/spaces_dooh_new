@@ -1,0 +1,7 @@
+# Caddy: HTTPS automatico (Let's Encrypt) + proxy al backend.
+# Proxya tambien WebSocket/socket.io de forma transparente.
+# Sustituye {$DOMAIN} via variable de entorno (DOMAIN en el .env del compose).
+{$DOMAIN} {
+	encode gzip
+	reverse_proxy backend:4000
+}

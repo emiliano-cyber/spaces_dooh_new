@@ -24,11 +24,14 @@ export function createRoutes() {
   router.get('/api/device/pending-commands', requireDevice, device.pendingCommands);
   router.post('/api/device/command-result', requireDevice, device.commandResult);
   router.post('/api/device/upload-photo', requireDevice, upload.single('photo'), device.uploadPhotoEndpoint);
+  router.post('/api/device/log', requireDevice, device.logEvent);
+  router.get('/api/device/ice-servers', requireDevice, dashboard.iceServers);
 
   // --- Dashboard endpoints (user JWT) ---
   // Devices
   router.get('/api/devices', requireUser, dashboard.listDevices);
   router.get('/api/devices/:id', requireUser, dashboard.getDevice);
+  router.get('/api/devices/:id/logs', requireUser, dashboard.listDeviceLogs);
   router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateDevice);
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
 
@@ -49,6 +52,9 @@ export function createRoutes() {
 
   // Verifications
   router.get('/api/verifications', requireUser, dashboard.listVerifications);
+
+  // WebRTC ICE servers (STUN + TURN) para el dashboard
+  router.get('/api/ice-servers', requireUser, dashboard.iceServers);
 
   // --- Internal endpoints (ai-worker, shared secret) ---
   const evidenceUpload = upload.fields([

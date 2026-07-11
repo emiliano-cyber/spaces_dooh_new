@@ -18,8 +18,13 @@ Android** y **qué configuración manual maximiza la disponibilidad**.
 | **Sobrevive "quitar de recientes"** | `onTaskRemoved` agenda un reinicio del servicio. | `MonitorService.kt` |
 | **Auto-arranque en boot** | `BootReceiver` levanta el servicio tras reiniciar el equipo. | `service/BootReceiver.kt` |
 | **Watchdog periódico** | `WorkManager` revisa cada ~15 min que el servicio esté vivo y lo reactiva. Persiste a reinicios y muertes del proceso. | `service/WatchdogWorker.kt` |
+| **Latido (~4 min)** | Alarma `setAndAllowWhileIdle` que se re-programa sola y revive el servicio; AlarmManager recrea el proceso aunque esté muerto. Baja el peor caso de 15 min a ~4. | `SpaceEyeApp.kt` → `RestartReceiver.kt` |
 | **Exención de batería** | Al abrir, pide excluir la app de la optimización de batería (Doze). | `MainActivity.kt` |
 | **Modo kiosco (Lock Task)** | Si el equipo es *device owner*, fija la app en pantalla sin salida. | `MainActivity.kt` + `KioskAdminReceiver.kt` |
+| **WakeLock parcial** | Mantiene la CPU activa con pantalla apagada/bloqueada → heartbeat, comandos y capturas siguen operando. | `MonitorService.kt` |
+| **Reinicio en `onDestroy`** | Al destruirse el servicio por cualquier causa, agenda su reinicio. | `MonitorService.kt` |
+| **Mostrar sobre lockscreen** | `setShowWhenLocked/TurnScreenOn` para operar/recuperar con el equipo bloqueado. | `MainActivity.kt` |
+| **Logging remoto** | El agente reporta eventos/errores (crash, cámara, foto, reinicios) al backend → visibles en el dashboard sin USB. | `network/RemoteLog.kt` |
 
 Capas de recuperación (de más a menos frecuente): Foreground+START_STICKY →
 onTaskRemoved/crash restart → Watchdog (15 min) → BootReceiver (tras reinicio).
