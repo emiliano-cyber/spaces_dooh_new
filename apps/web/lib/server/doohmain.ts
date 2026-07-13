@@ -56,23 +56,65 @@ async function materializar(cr: any): Promise<{ path: string; cleanup: () => Pro
   const dir = await mkdtemp(join(tmpdir(), 'doohmain-'))
   const cleanup = () => rm(dir, { recursive: true, force: true })
 
+  // Preferimos SIEMPRE una imagen sobre HTML: la pantalla de creativos del demo
+  // envuelve las imágenes en HTML (imagenAHtml) y DOOHmain no acepta HTML. Si el
+  // creativo lleva una imagen embebida (o ES una data:image), subimos la imagen.
+  const img = imagenDataUrl(cr)
+  if (img) {
+    const buf = Buffer.from(img.b64, 'base64')
+    const ext = extDeMime(img.mime) ?? 'png'
+    const path = join(dir, `${slug(cr.nombre)}.${ext}`)
+    await writeFile(path, buf)
+    return { path, cleanup }
+  }
+
+  // data: que no es imagen (p. ej. data:text/html sin imagen) → archivo tal cual.
   const url: string = cr.archivo_url ?? ''
   const m = url.match(/^data:([^;,]+)(;base64)?,([\s\S]*)$/i)
   if (m) {
     const mime = m[1].toLowerCase()
-    const isB64 = !!m[2]
-    const buf = isB64 ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]), 'utf8')
+    const buf = m[2] ? Buffer.from(m[3], 'base64') : Buffer.from(decodeURIComponent(m[3]), 'utf8')
     const ext = extDeMime(mime) ?? extDeFormato(cr.formato) ?? 'bin'
     const path = join(dir, `${slug(cr.nombre)}.${ext}`)
     await writeFile(path, buf)
     return { path, cleanup }
   }
+
+  // HTML/código inline sin imagen (se sube como .html; DOOHmain puede rechazarlo).
   if (cr.codigo) {
     const path = join(dir, `${slug(cr.nombre)}.html`)
     await writeFile(path, String(cr.codigo), 'utf8')
     return { path, cleanup }
   }
+
   await cleanup()
+  return null
+}
+
+// Extrae {mime, b64} de una imagen del creativo, o null. Cubre: (a) archivo_url
+// que ES una data:image; (b) imagen embebida en el HTML que genera la UI del demo
+// (en `codigo` o en un data:text/html).
+function imagenDataUrl(cr: any): { mime: string; b64: string } | null {
+  const url: string = cr.archivo_url ?? ''
+  const directa = url.match(/^data:(image\/[^;,]+);base64,([\s\S]*)$/i)
+  if (directa) return { mime: directa[1].toLowerCase(), b64: directa[2] }
+
+  let html = cr.codigo ? String(cr.codigo) : ''
+  if (!html) {
+    const mHtml = url.match(/^data:text\/html([^,]*),([\s\S]*)$/i)
+    if (mHtml) {
+      html = /;base64/i.test(mHtml[1])
+        ? Buffer.from(mHtml[2], 'base64').toString('utf8')
+        : decodeURIComponent(mHtml[2])
+    }
+  }
+  if (html) {
+    const mImg = html.match(/<img[^>]+src="(data:image\/[^";]+;base64,[^"]+)"/i)
+    if (mImg) {
+      const dm = mImg[1].match(/^data:(image\/[^;]+);base64,([\s\S]+)$/i)
+      if (dm) return { mime: dm[1].toLowerCase(), b64: dm[2] }
+    }
+  }
   return null
 }
 
