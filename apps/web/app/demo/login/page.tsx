@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Radio, LogIn, UserPlus } from 'lucide-react'
+import { LogIn, UserPlus } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { apiLogin } from '@/lib/auth-real'
 import { landingDeRol } from '@/lib/data/client'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
@@ -58,11 +59,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded bg-accent text-accent-fg">
-            <Radio className="h-5 w-5" />
-          </span>
+          <SpaceOsMark className="h-9 w-9 shrink-0" />
           <div className="leading-tight">
-            <div className="font-display text-lg font-bold text-ink">Spaces</div>
+            <div className="demo-wordmark text-lg text-ink">Space OS</div>
             <div className="text-[11px] text-muted">RGB Catorce S de RL de CV (PIXELED)</div>
           </div>
         </div>

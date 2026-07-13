@@ -1,9 +1,15 @@
 /* ==========================================================================
-   demo.css — Tokens del design system SET + reset scoped para /demo
+   demo.css — Design System de SPACE OS (scoped a /demo)
    --------------------------------------------------------------------------
-   TODO vive bajo `.demo-root` para no tocar la app de producción (que no usa
-   Tailwind y define sus propias variables en app/globals.css con OTRO accent).
-   El accent vive en UNA variable (--accent) para cambiarlo en una línea.
+   Identidad SPACE OS (AS Network brand book, hoja 8):
+     · Una página = TINTA cálida + UN color de producto (azul eléctrico).
+     · Neutros CÁLIDOS (blanco/crema), nunca grises fríos → esto es lo que
+       distingue la marca de un SaaS genérico.
+     · Flat absoluto: cero gradientes, cero sombras, bordes 1px.
+     · Tipografía: Cabinet Grotesk (display), General Sans (UI), JetBrains Mono
+       (números). Sentence case siempre.
+   Todo vive bajo `.demo-root` para no tocar la app de producción. El accent y
+   los neutros viven en variables → cambiar la marca es cambiar valores aquí.
    ========================================================================== */
 
 @tailwind base;
@@ -11,27 +17,36 @@
 @tailwind utilities;
 
 .demo-root {
-  /* Paleta SET (sección 2) */
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --ink: #0a0a0a;
-  --border: #e4e4e7;
-  --border-strong: #d4d4d8;
-  --muted: #71717a;
+  /* — Neutros cálidos (tinta + crema) ——————————————————————————————— */
+  --bg: #faf7f2;            /* fondo de página, blanco cálido */
+  --surface: #ffffff;       /* tarjetas, superficie principal */
+  --surface-2: #f3eee3;     /* crema: relleno sutil, hover, code */
+  --ink: #1c1612;           /* tinta cálida: texto principal, centros de icono */
+  --border: #eae4d8;        /* borde claro cálido (1px) */
+  --border-strong: #d9d0c1; /* borde acentuado cálido */
+  --muted: #6e6155;         /* texto secundario cálido (legible, AA) */
 
-  /* Accent en UNA variable. Hoy ámbar (continuidad con SET). */
-  --accent: #f59e0b;
-  --accent-fg: #0a0a0a;
+  /* — Azul de SPACE OS (el ÚNICO color de producto en pantalla) ———————— */
+  --accent: #0a66ff;        /* azul eléctrico — nunca navy */
+  --accent-fg: #ffffff;
+  --accent-hover: #0052d6;
+  --accent-soft: #eaf1ff;   /* tinte azul para seleccionado/info */
 
-  /* Semáforos */
-  --success: #10b981;
-  --error: #ef4444;
-  --info: #0a66ff;
+  /* — Acentos reservados (uso puntual, no de UI general) —————————————— */
+  --live: #f59e0b;          /* ámbar: estados «activo / al aire» */
+  --fuego: #eb4b0a;         /* fuego AS Network: solo picos/endoso */
+
+  /* — Semáforos (marca) ——————————————————————————————————————————————— */
+  --success: #1da850;
+  --success-soft: #e6f6ec;
   --warning: #f59e0b;
+  --warning-soft: #fef3e2;
+  --error: #dc2626;
+  --error-soft: #fdecec;
+  --info: #0a66ff;
 
-  /* Tipografías. Cabinet Grotesk y General Sans ya se cargan vía Fontshare en
-     el <head> del root layout. JetBrains Mono entra por next/font (--font-jetbrains). */
+  /* — Tipografías. Cabinet Grotesk y General Sans se cargan vía Fontshare en
+       el <head> del root layout; JetBrains Mono por next/font. ———————————— */
   --font-display: 'Cabinet Grotesk', 'Space Grotesk', system-ui, sans-serif;
   --font-body: 'General Sans', 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'Courier New', monospace;
@@ -43,7 +58,7 @@
   text-rendering: optimizeLegibility;
 }
 
-/* Reset scoped equivalente a preflight (que está desactivado globalmente).
+/* Reset scoped equivalente a preflight (desactivado globalmente).
    Sólo afecta a descendientes de .demo-root → cero bleed a producción. */
 .demo-root *,
 .demo-root *::before,
@@ -54,26 +69,35 @@
   border-color: var(--border);
 }
 
+/* Títulos en Cabinet Grotesk, sentence case, tracking ajustado por escala. */
 .demo-root h1,
 .demo-root h2,
 .demo-root h3 {
   font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.demo-root h1 { font-weight: 800; letter-spacing: -0.02em; }
+.demo-root h2 { font-weight: 700; letter-spacing: -0.015em; }
+.demo-root h3 { font-weight: 700; letter-spacing: -0.01em; }
+
+/* Wordmark de SPACE OS: Cabinet Grotesk 800, caps, tracking abierto (.03em). */
+.demo-wordmark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
-/* Datos numéricos técnicos (folios, IDs, montos) en JetBrains Mono. */
+/* Datos numéricos técnicos (folios, IDs, montos, IPs) en JetBrains Mono. */
 .demo-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-/* Scrollbars discretas dentro de la demo */
-.demo-root ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+/* Scrollbars discretas, cálidas. */
+.demo-root ::-webkit-scrollbar { width: 10px; height: 10px; }
 .demo-root ::-webkit-scrollbar-thumb {
   background: var(--border-strong);
   border-radius: 6px;
 }
+.demo-root ::-webkit-scrollbar-thumb:hover { background: var(--muted); }

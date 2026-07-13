@@ -23,11 +23,14 @@ import type {
 
 export type Tono = 'verde' | 'ambar' | 'rojo' | 'azul' | 'neutro'
 
+// Tonos de estado, alineados a la paleta de marca: punto sólido (token), fondo
+// suave (token *-soft) y texto oscuro legible. Verde #1DA850, rojo #DC2626,
+// azul #0A66FF, ámbar #F59E0B.
 const TONO_STYLE: Record<Tono, { dot: string; text: string; bg: string; border: string }> = {
-  verde: { dot: 'bg-success', text: 'text-[#0f7a55]', bg: 'bg-[#10b9811a]', border: 'border-[#10b98140]' },
-  ambar: { dot: 'bg-warning', text: 'text-[#9a6700]', bg: 'bg-[#f59e0b1a]', border: 'border-[#f59e0b40]' },
-  rojo: { dot: 'bg-error', text: 'text-[#b91c1c]', bg: 'bg-[#ef44441a]', border: 'border-[#ef444440]' },
-  azul: { dot: 'bg-info', text: 'text-[#0a4fcc]', bg: 'bg-[#0a66ff1a]', border: 'border-[#0a66ff40]' },
+  verde: { dot: 'bg-success', text: 'text-[#146c39]', bg: 'bg-success-soft', border: 'border-[#1da85040]' },
+  ambar: { dot: 'bg-warning', text: 'text-[#9a6700]', bg: 'bg-warning-soft', border: 'border-[#f59e0b40]' },
+  rojo: { dot: 'bg-error', text: 'text-[#b42318]', bg: 'bg-error-soft', border: 'border-[#dc262640]' },
+  azul: { dot: 'bg-info', text: 'text-[#0a4fcc]', bg: 'bg-accent-soft', border: 'border-[#0a66ff40]' },
   neutro: { dot: 'bg-muted', text: 'text-muted', bg: 'bg-surface-2', border: 'border-border' },
 }
 

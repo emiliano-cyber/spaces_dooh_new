@@ -53,3 +53,8 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Material de referencia de identidad visual (handoff de marca; no se versiona)
+Visual identity project Space OS-handoff*.zip
+Visual identity project Space OS-handoff*/
+visual-identity-project-space-os/
