@@ -29,6 +29,8 @@ export const ETAPAS_PIPELINE: EtapaPipeline[] = [
   'oc_recibida',
   'creativo_recibido',
   'creativo_validado',
+  'enviada_dominio',
+  'publicada',
   'en_imprenta',
   'en_produccion',
   'instalada',
@@ -42,6 +44,8 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
   oc_recibida: 'OC recibida',
   creativo_recibido: 'Creativo recibido',
   creativo_validado: 'Creativo validado',
+  enviada_dominio: 'Enviada al dominio',
+  publicada: 'Publicada',
   en_imprenta: 'En imprenta',
   en_produccion: 'En producción',
   instalada: 'Instalada / al aire',
@@ -59,12 +63,17 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
 //     "En imprenta".
 //   • HÍBRIDA: tiene ambos flujos, conserva todas las etapas.
 const ETAPAS_CREATIVO: EtapaPipeline[] = ['creativo_recibido', 'creativo_validado']
+// Publicación al dominio/CMS: solo aplica a medios digitales (DOOH/HÍBRIDA); la
+// fija (OOH) no tiene CMS.
+const ETAPAS_PUBLICACION: EtapaPipeline[] = ['enviada_dominio', 'publicada']
 export function etapasPipeline(c: Campana): EtapaPipeline[] {
   if (c.tipoCampana === 'DOOH') {
     return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
   }
   if (c.tipoCampana === 'OOH') {
-    return ETAPAS_PIPELINE.filter((e) => !ETAPAS_CREATIVO.includes(e))
+    return ETAPAS_PIPELINE.filter(
+      (e) => !ETAPAS_CREATIVO.includes(e) && !ETAPAS_PUBLICACION.includes(e),
+    )
   }
   return ETAPAS_PIPELINE
 }
@@ -104,6 +113,11 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   // "En imprenta" solo aplica a medios físicos (OOH/HÍBRIDA), no a digitales.
   if (aplica('en_imprenta') && ois.length > 0) return 'en_imprenta'
 
+  // Publicación al dominio/CMS (DOOH/HÍBRIDA): "enviada" al mandarse y "publicada"
+  // cuando el revisor aprueba (la campaña queda al aire).
+  if (aplica('publicada') && c.enviadaDominio && c.validacionEstatus === 'APROBADA') return 'publicada'
+  if (aplica('enviada_dominio') && c.enviadaDominio) return 'enviada_dominio'
+
   // "Creativo recibido/validado" solo aplica a medios con revisión de arte
   // (DOOH/HÍBRIDA); la fija (OOH) los omite.
   const creas = state.creatividades.filter((cr) => cr.campanaId === c.id)
@@ -141,6 +155,10 @@ export function fechasPipeline(
   if (creas.length) f.creativo_recibido = min(creas.map((cr) => cr.creadoEn))
   if (creas.some((cr) => cr.estatusValidacion === 'VALIDADA')) {
     f.creativo_validado = min(creas.map((cr) => cr.creadoEn))
+  }
+  if (c.enviadaDominio && c.enviadaDominioEn) f.enviada_dominio = c.enviadaDominioEn
+  if (c.enviadaDominio && c.validacionEstatus === 'APROBADA' && c.validacionEn) {
+    f.publicada = c.validacionEn
   }
   if (ois.length) f.en_imprenta = min(ois.map((o) => o.creadoEn))
   const listo = ois.filter((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')

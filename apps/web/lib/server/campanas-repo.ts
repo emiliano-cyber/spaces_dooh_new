@@ -560,9 +560,9 @@ export async function extenderCampana(campanaId: string, nuevaFechaFin: string) 
 // mapea a 409.
 export class ValidacionError extends Error {}
 
-// Estados de campaña que ya están comprometidos (no borrador/cotización/cancel.)
-// y por tanto pueden enviarse al dominio para revisión.
-const ESTADOS_COMPROMETIDOS = new Set(['CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR'])
+// Una campaña puede enviarse al dominio en cualquier estado salvo cancelada
+// (no tiene sentido publicar en el CMS algo cancelado).
+const ESTADOS_NO_ENVIABLES = new Set(['CANCELADA'])
 
 // Paso 1: envía la campaña al dominio/CMS. Deja la validación en PENDIENTE para
 // que un revisor verifique la información de los anuncios antes de publicar.
@@ -571,9 +571,9 @@ const ESTADOS_COMPROMETIDOS = new Set(['CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR']
 export async function enviarADominio(campanaId: string) {
   const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!camp) return null
-  if (!ESTADOS_COMPROMETIDOS.has(camp.estado_comercial)) {
+  if (ESTADOS_NO_ENVIABLES.has(camp.estado_comercial)) {
     throw new ValidacionError(
-      'Solo se puede enviar al dominio una campaña confirmada por el cliente',
+      'No se puede enviar al dominio una campaña cancelada',
     )
   }
   if (camp.tipo_campana === 'DOOH' || camp.tipo_campana === 'HIBRIDA') {

@@ -135,6 +135,8 @@ export type EtapaPipeline =
   | 'oc_recibida'
   | 'creativo_recibido'
   | 'creativo_validado'
+  | 'enviada_dominio'
+  | 'publicada'
   | 'en_imprenta'
   | 'en_produccion'
   | 'instalada'
