@@ -204,10 +204,19 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
     "select id, nombre, archivo_url, codigo, formato from creatividades where campana_id=$1 and estatus_validacion='VALIDADA'",
     [campanaId],
   )
+  // Solo pantallas DIGITALES van a DOOHmain. Los sitios FIJOS (espectaculares,
+  // vallas, murales, etc.) no se suben — misma regla de "digital" que usa el resto
+  // del sistema (sitios-repo). Una campaña FIJA no tiene sitios digitales → no
+  // publica nada; una HÍBRIDA solo publica sus pantallas digitales.
   const sitios = await q<any>(
-    'select distinct s.id, s.clave_interna, s.nombre from reservas r join sitios s on s.id = r.sitio_id where r.campana_id=$1',
+    `select distinct s.id, s.clave_interna, s.nombre
+       from reservas r join sitios s on s.id = r.sitio_id
+      where r.campana_id=$1
+        and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo = true
+             or s.exhibicion in ('digital', 'rotativo'))`,
     [campanaId],
   )
+  if (sitios.length === 0) return []
 
   const mapa = screenMap()
   const out: ResultadoPublicacion[] = []
