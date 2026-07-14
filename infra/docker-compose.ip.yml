@@ -1,0 +1,67 @@
+# SPACE EYE — despliegue por IP (sin dominio, sin Caddy).
+# El backend se publica directo en el puerto 4000 (HTTP). Apache NO se toca.
+# Uso: docker compose -f infra/docker-compose.ip.yml --env-file backend/.env up -d --build
+#
+# Requiere abrir en el firewall: 4000/tcp, 3478/udp+tcp, 49160-49200/udp.
+# Nota: HTTP en claro. Migrar a dominio+HTTPS para produccion real.
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-space_eye}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ../backend/migrations:/docker-entrypoint-initdb.d
+    command: >
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+      --innodb-buffer-pool-size=256M
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy noeviction
+    volumes:
+      - redis_data:/data
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    env_file: ../backend/.env
+    environment:
+      DB_HOST: mysql
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: production
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../frontend:/frontend:ro
+      - storage_data:/app/storage
+    depends_on: [mysql, redis]
+
+  ai-worker:
+    build:
+      context: ../ai-worker
+    restart: unless-stopped
+    environment:
+      REDIS_URL: redis://redis:6379
+      API_BASE: http://backend:4000
+      WORKER_SECRET: ${WORKER_SECRET}
+    depends_on: [backend, redis]
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: ["-c", "/etc/coturn/turnserver.conf"]
+
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:
