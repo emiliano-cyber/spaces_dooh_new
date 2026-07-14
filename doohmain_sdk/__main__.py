@@ -71,6 +71,9 @@ def _build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--filepath", required=True)
     pub.add_argument("--screen", required=True)
     pub.add_argument("--list", required=True, dest="list_name")
+
+    ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
+    ret.add_argument("--version", required=True)
     return p
 
 
@@ -107,6 +110,10 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "update-campaign":
             res = integration.update_campaign(args.auth, **_parse_fields(args.field))
             return _emit_ok({"result": res})
+
+        if args.cmd == "retirar":
+            estado = integration.retirar_creativo(args.version)
+            return _emit_ok({"estado": estado})
 
         if args.cmd == "publish":
             api = DOOHmainClient()

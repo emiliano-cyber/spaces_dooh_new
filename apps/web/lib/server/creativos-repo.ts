@@ -81,6 +81,52 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
   return rowToCreatividad(rows[0])
 }
 
+// Elimina un creativo: lo desasigna de cualquier spot y lo borra. Devuelve el
+// creativo eliminado (para que el llamador lo retire también de DOOHmain).
+export async function eliminarCreatividad(id: string) {
+  const rows = await q(`delete from creatividades where id=$1 returning *`, [id])
+  if (!rows[0]) return null
+  await q(
+    `update reservas set creativos = coalesce(
+       (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
+       '[]'::jsonb)`,
+    [id],
+  )
+  return rowToCreatividad(rows[0])
+}
+
+// Reemplaza el arte de un creativo: actualiza su contenido, lo regresa a
+// PENDIENTE (debe re-validarse) y lo desasigna de spots. Devuelve el creativo.
+export async function reemplazarCreatividad(
+  id: string,
+  input: {
+    nombre?: string | null
+    archivoUrl?: string | null
+    codigo?: string | null
+    formato?: string | null
+  },
+) {
+  const rows = await q(
+    `update creatividades set
+        nombre = coalesce($2, nombre),
+        archivo_url = $3,
+        codigo = $4,
+        formato = $5,
+        estatus_validacion = 'PENDIENTE',
+        rechazado_motivo = null
+      where id=$1 returning *`,
+    [id, input.nombre ?? null, input.archivoUrl ?? null, input.codigo ?? null, input.formato ?? null],
+  )
+  if (!rows[0]) return null
+  await q(
+    `update reservas set creativos = coalesce(
+       (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
+       '[]'::jsonb)`,
+    [id],
+  )
+  return rowToCreatividad(rows[0])
+}
+
 // Define los creativos exhibidos en un spot reservado, con cuántas veces cada
 // uno. Solo se aceptan creativos VALIDADOS de la misma campaña y con veces > 0.
 export async function setCreativosDeReserva(

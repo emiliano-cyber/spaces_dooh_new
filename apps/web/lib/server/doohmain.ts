@@ -168,6 +168,30 @@ async function ejecutarPublish(args: {
   }
 }
 
+// Retira un creativo de DOOHmain (al eliminarlo o antes de reemplazarlo):
+// finaliza su campaña (queda fuera del aire) y limpia el tracking. Nunca lanza.
+// `version` es el id del creativo (la misma clave con la que se publicó).
+export async function retirarCreativoEnDoohmain(
+  version: string,
+): Promise<{ ok: boolean; estado?: string; error?: string; category?: string }> {
+  try {
+    const { stdout } = await pexec(PY, ['-m', 'doohmain_sdk', 'retirar', '--version', version], {
+      cwd: SDK_DIR,
+      timeout: 120000,
+    })
+    return JSON.parse(stdout.trim().split('\n').pop() || '{}')
+  } catch (e: any) {
+    if (e?.stdout) {
+      try {
+        return JSON.parse(String(e.stdout).trim().split('\n').pop() || '{}')
+      } catch {
+        /* cae abajo */
+      }
+    }
+    return { ok: false, error: e?.message ?? 'fallo al invocar el SDK', category: 'network' }
+  }
+}
+
 // Publica todos los creativos VALIDADOS de la campaña en las pantallas de sus
 // sitios. Nunca lanza: devuelve un resultado por (creativo × pantalla).
 export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {

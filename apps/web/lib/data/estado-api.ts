@@ -389,6 +389,33 @@ export async function validarCreatividadApi(
   await refrescarEstado()
 }
 
+// Elimina un creativo (y lo retira de DOOHmain si aplica). Devuelve la respuesta
+// (incluye el resultado del retiro en `doohmain`).
+export async function eliminarCreatividadApi(id: string): Promise<any> {
+  const r = await fetch(`${API}/creatividades/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo eliminar el creativo')
+  await refrescarEstado()
+  return d
+}
+
+// Reemplaza el arte de un creativo (retira el anterior de DOOHmain y lo deja
+// PENDIENTE para re-validar). Devuelve la respuesta.
+export async function reemplazarCreatividadApi(
+  id: string,
+  input: { nombre?: string | null; archivoUrl?: string | null; codigo?: string | null; formato?: string | null },
+): Promise<any> {
+  const r = await fetch(`${API}/creatividades/${id}/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo reemplazar el creativo')
+  await refrescarEstado()
+  return d
+}
+
 export async function asignarCreativosApi(
   reservaId: string,
   creativos: { creatividadId: string; veces: number }[],

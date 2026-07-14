@@ -14,12 +14,20 @@ __all__ = [
     "ensure_media",
     "publish_spot",
     "update_campaign",
+    "retirar_creativo",
     "ping",
     "DOOHmainError",
     "ErrorCategory",
 ]
 
-_PRIMITIVES = {"ensure_campaign", "ensure_media", "publish_spot", "update_campaign", "ping"}
+_PRIMITIVES = {
+    "ensure_campaign",
+    "ensure_media",
+    "publish_spot",
+    "update_campaign",
+    "retirar_creativo",
+    "ping",
+}
 
 
 def __getattr__(name: str):

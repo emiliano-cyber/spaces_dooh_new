@@ -150,6 +150,38 @@ def update_campaign(auth: str, *, api: DOOHmainClient | None = None, **fields: A
     return api.update_campaign(auth, **fields)
 
 
+def retirar_creativo(
+    version: str,
+    *,
+    api: DOOHmainClient | None = None,
+    db: Database | None = None,
+) -> str:
+    """Retira un creativo de DOOHmain (para eliminarlo o reemplazarlo).
+
+    DOOHmain no permite borrar spots/media; lo máximo es finalizar la campaña
+    del creativo (queda fuera del aire). Además limpia el tracking local, de modo
+    que si luego se re-publica (reemplazo), se cree de nuevo desde cero.
+
+    Devuelve 'retirado' si había algo publicado, o 'no_publicado' si no lo estaba.
+    """
+    db = db or Database()
+    api = api or DOOHmainClient()
+
+    row = db.remote_campaign_get(version)
+    auth = row.get("auth") if row else None
+    if not auth:
+        # Nunca llegó a DOOHmain; solo limpiamos cualquier resto local.
+        db.remote_campaign_delete(version)
+        db.media_delete(version)
+        return "no_publicado"
+
+    api.update_campaign(auth, status="finished")  # lo baja del aire
+    db.remote_list_delete_by_auth(auth)
+    db.remote_campaign_delete(version)
+    db.media_delete(version)
+    return "retirado"
+
+
 def ping(*, api: DOOHmainClient | None = None) -> list[str]:
     """Diagnóstico de conectividad: devuelve la lista de pantallas accesibles."""
     api = api or DOOHmainClient()

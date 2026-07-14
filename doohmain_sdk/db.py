@@ -158,3 +158,26 @@ class Database:
                 ),
             )
         self.conn.commit()
+
+    # -- borrado (para retirar un creativo) ---------------------------------
+    def remote_campaign_delete(self, version: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM doohmain_remote_campaigns WHERE version=%s", (version,)
+            )
+        self.conn.commit()
+
+    def remote_list_delete_by_auth(self, campaign_auth: str) -> int:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM doohmain_remote_lists WHERE campaign_auth=%s",
+                (campaign_auth,),
+            )
+            n = cur.rowcount
+        self.conn.commit()
+        return n
+
+    def media_delete(self, version: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM media_uploads WHERE version=%s", (version,))
+        self.conn.commit()
