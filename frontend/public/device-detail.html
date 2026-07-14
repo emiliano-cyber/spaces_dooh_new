@@ -109,6 +109,9 @@
                 </svg>
                 <span x-text="takingPhoto ? 'Capturando…' : 'Tomar fotografía'"></span>
               </button>
+              <button @click="openEdit()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
+                Editar nombre / sitio
+              </button>
               <button @click="rebootApp()" class="w-full py-2 text-sm bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">
                 Reiniciar app
               </button>
@@ -179,12 +182,18 @@
       <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
         <div class="flex items-center justify-between mb-4">
           <h3 class="font-medium">Fotos recientes</h3>
-          <a :href="'/gallery.html?device_id=' + deviceId" class="text-sm text-blue-600 hover:underline">Ver todas</a>
+          <div class="flex items-center gap-3 text-sm">
+            <button @click="downloadAlbum()" :disabled="albumDownloading"
+              class="text-blue-600 hover:underline disabled:opacity-50">
+              <span x-text="albumDownloading ? ('Descargando ' + albumProgress) : 'Descargar álbum'"></span>
+            </button>
+            <a :href="'/gallery.html?device_id=' + deviceId" class="text-neutral-500 hover:underline">Ver todas</a>
+          </div>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
           <template x-for="photo in recentPhotos" :key="photo.id">
             <div class="relative group aspect-square bg-neutral-100 rounded overflow-hidden">
-              <img :src="photo.thumbnail_path" @click="lightbox = photo"
+              <img :src="photo.thumbnail_path" @click="openLightbox(photo)"
                    class="w-full h-full object-cover cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
               <button @click.stop="deletePhoto(photo.id)" title="Eliminar fotografía"
                 class="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-600/90 hover:bg-red-700 text-white rounded p-1 transition-opacity">
@@ -228,11 +237,23 @@
     <!-- Visor de foto en grande -->
     <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
          class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
-      <img :src="lightbox?.storage_path" class="max-w-full max-h-[90vh] object-contain rounded shadow-2xl">
+      <img :src="lightbox?.storage_path" @click.stop
+           :style="'transform: rotate(' + lbRotation + 'deg)'"
+           class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
       <button @click.stop="lightbox = null"
               class="absolute top-4 right-6 text-white/80 hover:text-white text-4xl leading-none">&times;</button>
-      <div class="absolute bottom-4 left-0 right-0 flex items-center justify-center gap-4 text-white/80 text-sm">
+      <div class="absolute bottom-4 left-0 right-0 flex flex-wrap items-center justify-center gap-3 text-white/80 text-sm">
         <span x-text="lightbox ? new Date(lightbox.taken_at).toLocaleString() : ''"></span>
+        <button @click.stop="rotateLightbox()"
+                class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5 9a7 7 0 0111.9-2.9M19 15a7 7 0 01-11.9 2.9"/></svg>
+          Rotar
+        </button>
+        <button @click.stop="downloadCurrentPhoto()"
+                class="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+          Descargar
+        </button>
         <button @click.stop="deletePhoto(lightbox.id)"
                 class="flex items-center gap-1.5 bg-red-600/90 hover:bg-red-700 text-white px-3 py-1.5 rounded">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
@@ -259,11 +280,54 @@
          :class="{ 'bg-green-600': toast.type === 'success', 'bg-red-600': toast.type === 'error', 'bg-neutral-800': toast.type === 'info' }">
       <span x-text="toast.msg"></span>
     </div>
+
+    <!-- Modal editar nombre / sitio -->
+    <div x-show="editMode" style="display:none" x-transition.opacity @click="editMode = false"
+         class="fixed inset-0 z-[65] bg-black/50 flex items-center justify-center p-4">
+      <div @click.stop class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
+        <h3 class="font-medium mb-4">Editar nombre / sitio</h3>
+        <div class="space-y-3 text-sm">
+          <label class="block">
+            <span class="text-neutral-500">Nombre</span>
+            <input x-model="editForm.name" type="text" placeholder="Ej. Espectacular Reforma 222"
+                   class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Código de espectacular</span>
+            <input x-model="editForm.billboard_code" type="text"
+                   class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+          </label>
+          <label class="block">
+            <span class="text-neutral-500">Dirección</span>
+            <input x-model="editForm.address" type="text"
+                   class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+          </label>
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-neutral-500">Ciudad</span>
+              <input x-model="editForm.city" type="text"
+                     class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+            </label>
+            <label class="block">
+              <span class="text-neutral-500">Estado</span>
+              <input x-model="editForm.state" type="text"
+                     class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+            </label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-5">
+          <button @click="editMode = false" class="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded">Cancelar</button>
+          <button @click="saveDevice()" class="px-4 py-2 text-sm bg-[#0A66FF] text-white rounded hover:bg-blue-700">Guardar</button>
+        </div>
+      </div>
+    </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="/src/js/api.js"></script>
   <script src="/src/js/socket.js"></script>
   <script src="/src/js/webrtc.js"></script>
+  <script src="/src/js/photo-utils.js"></script>
   <script src="/src/js/pages/device-detail.js"></script>
 </body>
 </html>

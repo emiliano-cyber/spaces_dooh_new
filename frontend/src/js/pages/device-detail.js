@@ -11,6 +11,11 @@ function deviceDetail() {
     streaming: false,
     streamClient: null,
     lightbox: null,   // foto abierta en grande (null = cerrado)
+    lbRotation: 0,    // rotacion de la foto en el visor
+    albumDownloading: false,
+    albumProgress: '',
+    editMode: false,
+    editForm: {},
     // Estado del control manual de camara (solo activo durante el stream)
     zoom: 0,
     exposure: 0,
@@ -123,6 +128,71 @@ function deviceDetail() {
         this.showToast('Fotografía eliminada', 'success');
       } catch (e) {
         this.showToast('No se pudo eliminar la fotografía', 'error');
+      }
+    },
+
+    openLightbox(photo) {
+      this.lightbox = photo;
+      this.lbRotation = 0;
+    },
+    rotateLightbox() {
+      this.lbRotation = (this.lbRotation + 90) % 360;
+    },
+    async downloadCurrentPhoto() {
+      if (!this.lightbox) return;
+      const ts = new Date(this.lightbox.taken_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const base = (this.device && this.device.name ? this.device.name : 'foto').replace(/\s+/g, '_');
+      try {
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`);
+        this.showToast('Descargando foto…', 'success');
+      } catch (e) {
+        this.showToast('No se pudo descargar la foto', 'error');
+      }
+    },
+    async downloadAlbum() {
+      if (this.albumDownloading) return;
+      this.albumDownloading = true;
+      this.albumProgress = 'Preparando…';
+      try {
+        let page = 1;
+        let all = [];
+        while (true) {
+          const data = await API.get(`/api/photos?device_id=${this.deviceId}&page=${page}&limit=100`);
+          all = all.concat(data.photos);
+          if (data.photos.length === 0 || all.length >= (data.total || all.length)) break;
+          page++;
+        }
+        if (all.length === 0) { this.showToast('Sin fotos para descargar', 'info'); return; }
+        const base = (this.device && this.device.name ? this.device.name : 'album').replace(/\s+/g, '_');
+        await downloadAlbumZip(all, `${base}_fotos.zip`, (d, t) => { this.albumProgress = `${d}/${t}`; });
+        this.showToast('Álbum descargado', 'success');
+      } catch (e) {
+        this.showToast('Error al descargar el álbum', 'error');
+      } finally {
+        this.albumDownloading = false;
+        this.albumProgress = '';
+      }
+    },
+
+    openEdit() {
+      const d = this.device || {};
+      this.editForm = {
+        name: d.name || '',
+        billboard_code: d.billboard_code || '',
+        address: d.address || '',
+        city: d.city || '',
+        state: d.state || '',
+      };
+      this.editMode = true;
+    },
+    async saveDevice() {
+      try {
+        await API.put(`/api/devices/${this.deviceId}`, this.editForm);
+        await this.loadDevice();
+        this.editMode = false;
+        this.showToast('Datos del sitio guardados', 'success');
+      } catch (e) {
+        this.showToast('No se pudo guardar', 'error');
       }
     },
 
