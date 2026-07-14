@@ -3,7 +3,7 @@
 import { toast } from 'sonner'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -370,15 +370,32 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         <div>
           <span className="mb-1 block text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
           <div className="max-h-48 overflow-y-auto rounded-md border border-border">
-            {(sitios ?? []).map((s) => (
-              <label key={s.id} className="flex cursor-pointer items-center justify-between border-b border-border px-3 py-1.5 text-[12px] last:border-0 hover:bg-surface-2">
-                <span className="flex items-center gap-2">
-                  <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 accent-[var(--accent)]" />
-                  <span className="text-ink">{s.nombre}</span>
-                </span>
-                <span className="demo-num text-muted">{formatMonto(precioDe(s))}</span>
-              </label>
-            ))}
+            {(sitios ?? []).map((s) => {
+              const digital =
+                s.tipoMedio === 'PANTALLA_DIGITAL' ||
+                s.esRotativo ||
+                s.exhibicion === 'digital' ||
+                s.exhibicion === 'rotativo'
+              return (
+                <label key={s.id} className="flex cursor-pointer items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[12px] last:border-0 hover:bg-surface-2">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
+                    <span className="truncate text-ink">{s.nombre}</span>
+                    <span
+                      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                        digital
+                          ? 'border-[#0a66ff40] bg-accent-soft text-[#0a4fcc]'
+                          : 'border-border bg-surface-2 text-muted'
+                      }`}
+                    >
+                      {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
+                      {digital ? 'Digital' : 'Fija'}
+                    </span>
+                  </span>
+                  <span className="demo-num shrink-0 text-muted">{formatMonto(precioDe(s))}</span>
+                </label>
+              )
+            })}
           </div>
         </div>
 
