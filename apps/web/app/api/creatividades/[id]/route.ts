@@ -3,6 +3,7 @@ import { exigir } from '@/lib/server/auth'
 import {
   validarCreatividad,
   eliminarCreatividad,
+  retirarCreatividadSoft,
   reemplazarCreatividad,
 } from '@/lib/server/creativos-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -25,21 +26,28 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   return NextResponse.json(crea)
 }
 
-// DELETE /api/creatividades/:id → elimina el creativo y lo retira de DOOHmain
-// (finaliza su campaña y limpia el tracking).
+// DELETE /api/creatividades/:id → baja el creativo.
+//   · Si estaba publicado en DOOHmain: se finaliza su campaña, pero su arte NO se
+//     puede quitar de la lista (la API de DOOHmain no lo permite). En vez de
+//     borrarlo, se marca como "retirado — pendiente en DOOHmain" (estado honesto).
+//   · Si nunca se publicó: se borra limpio.
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  // Retira de DOOHmain antes de borrar en SPACES. Un fallo del retiro no impide
-  // la eliminación local; se reporta en la respuesta.
-  let doohmain: unknown = undefined
-  if (doohmainHabilitado()) {
-    doohmain = await retirarCreativoEnDoohmain(params.id)
-  }
-  const crea = await eliminarCreatividad(params.id)
+  const doohmain = doohmainHabilitado()
+    ? ((await retirarCreativoEnDoohmain(params.id)) as { ok?: boolean; estado?: string })
+    : undefined
+  const estabaPublicado = doohmain?.estado === 'retirado'
+  const crea = estabaPublicado
+    ? await retirarCreatividadSoft(params.id)
+    : await eliminarCreatividad(params.id)
   if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  await registrarAccion(g.usuario, 'Eliminó creativo', crea.nombre)
-  return NextResponse.json({ ...crea, doohmain })
+  await registrarAccion(
+    g.usuario,
+    estabaPublicado ? 'Retiró creativo (pendiente en DOOHmain)' : 'Eliminó creativo',
+    crea.nombre,
+  )
+  return NextResponse.json({ ...crea, doohmain, pendienteEnDoohmain: estabaPublicado })
 }
 
 // PUT /api/creatividades/:id  { nombre?, codigo?, archivoUrl?, formato? }

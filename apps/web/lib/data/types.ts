@@ -426,6 +426,9 @@ export interface Creatividad {
   resolucion: string | null
   estatusValidacion: EstValidacionCreatividad
   rechazadoMotivo: string | null
+  // Retirado del sistema pero su arte SIGUE en DOOHmain (la API no permite
+  // quitarlo). null = activo. Marca el estado honesto de "pendiente en DOOHmain".
+  retiradoEn: string | null
   creadoEn: string
 }
 

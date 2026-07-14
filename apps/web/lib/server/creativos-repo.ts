@@ -23,6 +23,7 @@ function rowToCreatividad(r: any) {
     resolucion: r.resolucion,
     estatusValidacion: r.estatus_validacion,
     rechazadoMotivo: r.rechazado_motivo,
+    retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -85,6 +86,21 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
 // creativo eliminado (para que el llamador lo retire también de DOOHmain).
 export async function eliminarCreatividad(id: string) {
   const rows = await q(`delete from creatividades where id=$1 returning *`, [id])
+  if (!rows[0]) return null
+  await q(
+    `update reservas set creativos = coalesce(
+       (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
+       '[]'::jsonb)`,
+    [id],
+  )
+  return rowToCreatividad(rows[0])
+}
+
+// Retiro "honesto": el creativo se dio de baja pero su arte SIGUE en DOOHmain
+// (su API no permite quitarlo). No se borra; se marca retirado_en y se desasigna
+// de spots, para que el sistema muestre que queda pendiente de quitar en DOOHmain.
+export async function retirarCreatividadSoft(id: string) {
+  const rows = await q(`update creatividades set retirado_en = now() where id=$1 returning *`, [id])
   if (!rows[0]) return null
   await q(
     `update reservas set creativos = coalesce(

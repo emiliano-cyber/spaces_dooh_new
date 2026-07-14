@@ -175,7 +175,19 @@ def retirar_creativo(
         db.media_delete(version)
         return "no_publicado"
 
-    api.update_campaign(auth, status="finished")  # lo baja del aire
+    # Lo baja del aire de la forma más fuerte que permite la API: status
+    # 'finished' + ventana de fechas en el pasado (un player DOOH deja de emitir
+    # una campaña expirada) + cuotas en 0. DOOHmain no permite borrar el arte ni
+    # el elemento de la lista, así que esto es lo máximo para que DEJE de sonar.
+    api.update_campaign(
+        auth,
+        status="finished",
+        start_date="2000-01-01",
+        end_date="2000-01-02",
+        cant_total="0",
+        cant_day="0",
+        cant_hour="0",
+    )
     db.remote_list_delete_by_auth(auth)
     db.remote_campaign_delete(version)
     db.media_delete(version)
