@@ -97,7 +97,10 @@ function valoresDe(s: any): unknown[] {
     s.caras ?? 1, s.iluminado ?? false, s.orientacion ?? null, s.tipoEstructura ?? null,
     s.vista ?? null, s.tramo ?? null, s.resolucionPx ?? null, s.tipoContenido ?? null,
     s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 20 : null),
-    s.totalSpots ?? (digital ? 12 : null), s.spotsDisponibles ?? (digital ? 12 : null),
+    // Regla de negocio (control para DOOHmain): toda pantalla digital nueva tiene
+    // SIEMPRE 12 slots (1 slot = 1 campaña), no más. Se fuerza, ignorando el valor
+    // de entrada. Las fijas conservan lo que se les pase.
+    digital ? 12 : (s.totalSpots ?? null), digital ? 12 : (s.spotsDisponibles ?? null),
     s.horario ?? (digital ? '06:00-24:00' : null), s.computerVision ?? false, s.admobilizeId ?? null,
     s.tarifaPublicada ?? 0, s.tarifaPublicada ?? 0, s.costoCompra ?? 0, s.precioM2 ?? null,
     s.tarifaImpresion ?? null, s.comercializacion ?? 'TRADICIONAL', s.enNetwork ?? false, s.cms ?? null,
