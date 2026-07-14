@@ -105,7 +105,9 @@ export async function listarCreatividades() {
     id: r.id, campanaId: r.campana_id, nombre: r.nombre, archivoUrl: r.archivo_url,
     codigo: r.codigo ?? null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
-    rechazadoMotivo: r.rechazado_motivo, creadoEn: iso(r.creado_en),
+    rechazadoMotivo: r.rechazado_motivo,
+    retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
+    creadoEn: iso(r.creado_en),
   }))
 }
 
@@ -305,7 +307,7 @@ export async function reservar(input: {
     for (const sitioId of input.sitioIds) {
       const s = (
         await client.query(
-          'select nombre, tarifa_mensual, spots_disponibles, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
           [sitioId],
         )
       ).rows[0]
@@ -336,11 +338,21 @@ export async function reservar(input: {
           )
         }
       } else {
-        // Digital ocupada = sin slots libres → no acepta más campañas.
-        const dispNow = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
-        if (dispNow != null && dispNow <= 0) {
+        // Digital: 1 slot = 1 campaña. Ocupada cuando el nº de campañas con
+        // reserva activa alcanza total_spots (no depende del contador almacenado).
+        const tot = s?.total_spots != null ? Number(s.total_spots) : null
+        const cnt = Number(
+          (
+            await client.query(
+              `select count(distinct campana_id)::int as n from reservas
+                where sitio_id=$1 and estatus <> 'CANCELADA' and campana_id <> $2`,
+              [sitioId, campanaId],
+            )
+          ).rows[0]?.n ?? 0,
+        )
+        if (tot != null && cnt >= tot) {
           throw new Error(
-            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (ocupada). Elige otra pantalla.`,
+            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (${cnt}/${tot} campañas). Elige otra pantalla.`,
           )
         }
       }
@@ -360,18 +372,18 @@ export async function reservar(input: {
         [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, TTL_RESERVA_DIAS, await tenantActual()],
       )
 
-      if (digital && spotsReservados != null) {
-        // Descuenta slots; la pantalla sigue DISPONIBLE mientras le queden slots
-        // y pasa a OCUPADO solo cuando se agotan (no debe aceptar más campañas).
+      if (digital) {
+        // 1 slot = 1 campaña. Estatus por conteo de campañas activas: OCUPADO al
+        // llenar los slots, si no DISPONIBLE. El nº de disponibles se calcula al
+        // leer (listarSitios = total − campañas activas), sin contador que drifte.
         await client.query(
-          `update sitios
-              set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2),
-                  estatus_comercial = (case
-                    when greatest(0, coalesce(spots_disponibles,0) - $2) <= 0 then 'OCUPADO'
-                    else 'DISPONIBLE'
-                  end)::est_comercial
-            where id=$1`,
-          [sitioId, spotsReservados],
+          `update sitios s set estatus_comercial = (case
+              when (select count(distinct campana_id) from reservas r
+                     where r.sitio_id = s.id and r.estatus <> 'CANCELADA')
+                   >= coalesce(s.total_spots, 0) then 'OCUPADO'
+              else 'DISPONIBLE' end)::est_comercial
+            where s.id=$1`,
+          [sitioId],
         )
       } else {
         await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])

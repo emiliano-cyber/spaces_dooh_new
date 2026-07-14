@@ -145,11 +145,28 @@ function horasOperacion(horario?: string | null): number {
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
-  const sitios = await q('select * from sitios where tenant_id = $1 order by creado_en asc', [await tenantActual()])
+  const sitios = await q(
+    `select s.*,
+            (select count(distinct r.campana_id) from reservas r
+              where r.sitio_id = s.id and r.estatus <> 'CANCELADA') as campanas_activas
+       from sitios s where s.tenant_id = $1 order by s.creado_en asc`,
+    [await tenantActual()],
+  )
   const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
-  return sitios.map((r) => rowToSitio(r, porSitio.get(r.id) ?? []))
+  return sitios.map((r) => {
+    const base = rowToSitio(r, porSitio.get(r.id) ?? [])
+    // Slots de digitales: 1 slot = 1 campaña. Disponibles = total − nº de campañas
+    // con reserva activa. Se calcula por conteo (no del contador almacenado, que
+    // se desincroniza si una reserva no traía cantidad de spots).
+    const digital =
+      r.tipo_medio === 'PANTALLA_DIGITAL' || r.es_rotativo || r.exhibicion === 'digital' || r.exhibicion === 'rotativo'
+    if (digital && base.totalSpots != null) {
+      base.spotsDisponibles = Math.max(0, Number(base.totalSpots) - Number(r.campanas_activas ?? 0))
+    }
+    return base
+  })
 }
 
 // Catálogo de RED: todas las pantallas de la plataforma (todos los CRMs). Las

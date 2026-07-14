@@ -9,6 +9,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
 import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
+import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import {
   StatusBadge,
   SITIO_TONO,
@@ -299,25 +300,18 @@ export default function ComercialPage() {
                       <div className="truncate text-[15px] font-medium text-ink">{s.nombre}</div>
                       <div className="demo-num mt-0.5 text-[12.5px] text-muted">
                         {s.codigoProveedor} · {s.alcaldia} · {formatMonto(s.tarifaMensual)}
-                        {(s.tipoMedio === 'PANTALLA_DIGITAL' ||
-                          s.esRotativo ||
-                          s.exhibicion === 'digital' ||
-                          s.exhibicion === 'rotativo') &&
-                          (s.totalSpots != null ? (
-                            <>
-                              {' · '}
-                              <span className="text-ink">{s.spotsDisponibles ?? s.totalSpots}</span>/
-                              {s.totalSpots} slots libres
-                            </>
-                          ) : s.spotsPorHora != null ? (
-                            <> · {s.spotsPorHora} slots/h</>
-                          ) : null)}
+                        {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
+                          <> · {s.spotsPorHora} slots/h</>
+                        )}
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
                         <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin propietario'}</span>
                       </div>
                     </button>
+                    {esDigital && s.totalSpots != null && (
+                      <SlotsBadge disponibles={s.spotsDisponibles ?? null} total={s.totalSpots} />
+                    )}
                     <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>
                       {SITIO_LABEL[s.estatusComercial]}
                     </StatusBadge>
