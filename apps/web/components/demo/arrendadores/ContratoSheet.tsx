@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, RefreshCw, Building2 } from 'lucide-react'
+import { AlertTriangle, RefreshCw, Building2, FileText } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
@@ -116,6 +116,17 @@ export function ContratoSheet({
               />
               <Fila label="Renovación automática" valor={contrato.autoRenovable ? 'Sí' : 'No'} />
             </dl>
+            {contrato.documentoUrl && (
+              <a
+                href={contrato.documentoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                download="contrato.pdf"
+                className="mt-2 inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
+              >
+                <FileText className="h-3.5 w-3.5" /> Ver documento (PDF)
+              </a>
+            )}
           </div>
 
           {/* Pagos de renta */}

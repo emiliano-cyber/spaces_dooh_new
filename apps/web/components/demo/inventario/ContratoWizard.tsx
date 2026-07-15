@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
+import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi } from '@/lib/data/estado-api'
@@ -73,6 +73,8 @@ export function ContratoWizard({
   const [periodicidad, setPeriodicidad] = useState('MENSUAL')
   const [moneda, setMoneda] = useState('MXN')
   const [autoRenovable, setAutoRenovable] = useState(false)
+  const [documento, setDocumento] = useState<string | null>(null) // PDF en base64 (data URL)
+  const [docNombre, setDocNombre] = useState<string | null>(null)
 
   // Paso 3 — pantalla
   const [nombre, setNombre] = useState('')
@@ -117,6 +119,30 @@ export function ContratoWizard({
     setPaso((p) => Math.max(1, p - 1))
   }
 
+  // Lee el PDF del contrato como data URL base64 (persiste en documento_url).
+  function onDocumento(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.type !== 'application/pdf') {
+      toast.error('El documento debe ser un PDF')
+      e.target.value = ''
+      return
+    }
+    if (f.size > 8 * 1024 * 1024) {
+      toast.error('El PDF supera 8 MB')
+      e.target.value = ''
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => { setDocumento(reader.result as string); setDocNombre(f.name) }
+    reader.onerror = () => toast.error('No se pudo leer el PDF')
+    reader.readAsDataURL(f)
+  }
+  function quitarDocumento() {
+    setDocumento(null)
+    setDocNombre(null)
+  }
+
   async function crear() {
     setError(null)
     if (!paso1Ok || !paso2Ok || !paso3Ok) return
@@ -140,6 +166,7 @@ export function ContratoWizard({
           periodicidad,
           moneda,
           autoRenovable,
+          documentoUrl: documento,
         },
         sitio: {
           nombre: nombre.trim(),
@@ -178,6 +205,7 @@ export function ContratoWizard({
     setPaso(1)
     setModoArr('existente'); setArrId(''); setArrNombre(''); setArrRfc(''); setArrTel(''); setArrEmail('')
     setFechaInicio(''); setFechaFin(''); setRenta(''); setPeriodicidad('MENSUAL'); setMoneda('MXN'); setAutoRenovable(false)
+    setDocumento(null); setDocNombre(null)
     setNombre(''); setTipoMedio('ESPECTACULAR'); setExhibicion('fijo'); setDireccion(''); setAlcaldia(''); setCiudad('')
     setLat(''); setLng(''); setCaras(''); setTarifa(''); setCosto(''); setTotalSpots(''); setDuracionSpot('')
   }
@@ -272,6 +300,25 @@ export function ContratoWizard({
                 Renovación automática
               </label>
             </div>
+
+            {/* Documento del contrato (PDF firmado) */}
+            <Campo label="Documento del contrato (PDF, opcional)">
+              {documento ? (
+                <div className="flex items-center gap-2 rounded border border-border bg-surface-2 px-3 py-2 text-[13px]">
+                  <FileText className="h-4 w-4 shrink-0 text-info" />
+                  <span className="min-w-0 flex-1 truncate text-ink">{docNombre}</span>
+                  <button type="button" onClick={quitarDocumento} title="Quitar" className="shrink-0 text-muted hover:text-error">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border-strong bg-surface px-3 py-2 text-[13px] text-muted hover:border-accent hover:text-ink">
+                  <Paperclip className="h-4 w-4 shrink-0" />
+                  <span>Adjuntar PDF del contrato firmado (máx. 8 MB)</span>
+                  <input type="file" accept="application/pdf" onChange={onDocumento} className="hidden" />
+                </label>
+              )}
+            </Campo>
           </div>
         )}
 
