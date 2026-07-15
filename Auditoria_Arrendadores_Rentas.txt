@@ -1,0 +1,213 @@
+================================================================================
+ AUDITORIA - MODULO ARRENDADORES Y FINANZAS DE RENTAS  (SPACES OS)
+ Fecha: 2026-07-15
+ Alcance: estado real del codigo (no del roadmap). Rutas de archivo incluidas
+ para trazabilidad de la auditoria.
+================================================================================
+
+--------------------------------------------------------------------------------
+0. ARQUITECTURA / CONTEXTO CLAVE (leer primero)
+--------------------------------------------------------------------------------
+Existen DOS superficies de aplicacion y DOS bases de datos:
+
+  A) WEB "demo shell"  -> lo que usan los duenos y lo que ESTA EN PRODUCCION.
+     - apps/web (Next.js), corre en el droplet DO como pm2 "spaces-web".
+     - Habla DIRECTO a su Postgres (local dev: 5433; prod: spaces_prod).
+     - Aqui viven arrendadores, contratos, pagos y el P&L de rentas.
+
+  B) API "apps/api" (Fastify + Prisma + BullMQ + Redis).
+     - Incluye el WORKER de alertas de vencimiento por correo.
+     - *** NO esta desplegada en produccion (no esta en pm2). ***
+       => Las alertas por email de contratos/rentas HOY NO corren en prod.
+
+Todo lo de "arrendadores y rentas" que ve el usuario final vive en la superficie A.
+
+--------------------------------------------------------------------------------
+1. MODELO DE DATOS  (db/schema.sql)
+--------------------------------------------------------------------------------
+TABLA  arrendadores
+  id, nombre(*), rfc, telefono, email, notas, tenant_id, creado_en
+  -> "Propietario/arrendatario" (dueno del inmueble/predio).
+
+TABLA  contratos_arrendamiento
+  id, sitio_id(*)->sitios, arrendador_id(*)->arrendadores, tenant_id,
+  fecha_inicio(*), fecha_fin(*), monto_renta(*), periodicidad (def MENSUAL),
+  moneda (def MXN/PEN), auto_renovable, documento_url, estatus, creado_en
+  estatus (enum est_contrato): VIGENTE | POR_VENCER | VENCIDO | RENOVADO | CANCELADO
+  -> Un contrato pertenece a UNA pantalla (relacion 1 contrato = 1 sitio).
+
+TABLA  pagos_renta
+  id, contrato_id(*)->contratos, tenant_id, periodo(*), monto(*),
+  fecha_pago, factura_url, estatus, creado_en
+  estatus (enum est_pago_renta): PENDIENTE | PAGADO | VENCIDO
+
+CAMPOS DIRECTOS EN sitios (NUEVOS, ago/2026):
+  arrendador_id      -> arrendatario del inmueble (sin necesidad de contrato)
+  renta_arrendador   -> renta que la empresa duena paga por esa pantalla
+  periodicidad_renta -> cada cuando se paga esa renta
+  -> Permiten capturar arrendatario+renta por pantalla de forma rapida, y sirven
+     de respaldo cuando aun no hay contrato formal.
+
+Relacionado: incidencias (sitio_id, tipo LEGAL/..., impacta_comercial) se usa
+para bloquear una pantalla por temas del arrendamiento.
+
+--------------------------------------------------------------------------------
+2. FUNCIONALIDAD IMPLEMENTADA  (superficie WEB, en produccion salvo nota)
+--------------------------------------------------------------------------------
+2.1 ARRENDADORES (alta y consulta)
+    [OK] Alta de arrendador.        POST /api/arrendadores
+         UI: pagina Arrendadores -> boton "Nuevo propietario".
+    [OK] Listado de arrendadores.   (via /api/estado)
+         UI: tarjeta "Propietarios" (aparecen aunque no tengan contrato aun).
+    [--] Editar arrendador.         NO EXISTE.
+    [--] Borrar arrendador.         NO EXISTE.
+    Archivos: app/api/arrendadores/route.ts,
+              lib/server/arrendadores-controller.ts (crearArrendadorCtrl, valida
+              RFC y correo), lib/server/arrendadores-repo.ts (crearArrendador),
+              app/demo/(shell)/arrendadores/page.tsx.
+
+2.2 CONTRATOS DE ARRENDAMIENTO
+    [OK] Alta guiada CONTRATO + PANTALLA (asistente 3 pasos, NUEVO).
+         POST /api/contratos  (atomico: arrendatario -> pantalla -> contrato).
+         - Permite arrendatario existente o nuevo.
+         - Permite FECHAS PASADAS (para subir contratos ya firmados).
+         - Estatus auto-calculado por fechas (VIGENTE/POR_VENCER<=30d/VENCIDO).
+         - Tambien estampa arrendador_id/renta/periodicidad directos en el sitio.
+         UI: Inventario -> "Contrato + pantalla"  y  Arrendadores -> "Nuevo contrato".
+    [OK] Listado de contratos.      (via /api/estado)
+         UI: tarjeta "Contratos de arrendamiento" + ficha ContratoSheet.
+    [OK] Renovacion de contrato.    POST /api/contratos/:id/renovar
+         -> estatus RENOVADO y fecha_fin = hoy + 365 dias.
+    [PARCIAL] Documento del contrato (PDF firmado, base64 en documento_url).
+         Carga en el asistente + enlace "Ver documento (PDF)" en la ficha.
+         *** LISTO Y PROBADO EN LOCAL; PENDIENTE DE DESPLEGAR A PRODUCCION. ***
+    [--] Editar contrato.           NO EXISTE.
+    [--] Cancelar/borrar contrato.  NO EXISTE (solo cambia a RENOVADO al renovar).
+    Archivos: app/api/contratos/route.ts, app/api/contratos/[id]/renovar/route.ts,
+              lib/server/arrendadores-repo.ts (crearContratoConSitio, estatusPorFechas,
+              iniciarRenovacion), components/demo/inventario/ContratoWizard.tsx,
+              components/demo/arrendadores/ContratoSheet.tsx.
+
+2.3 PAGOS DE RENTA
+    [OK] Listado de pagos de renta. (via /api/estado)
+         UI: dentro de la ficha del contrato (ContratoSheet) y metricas.
+    [OK] Registrar pago.            POST /api/pagos-renta/:id/pagar
+         -> marca un pago existente como PAGADO con fecha de hoy.
+    [--] GENERACION del calendario de pagos.  *** NO EXISTE. ***
+         La app NO crea filas en pagos_renta segun periodicidad; hoy solo
+         existen los pagos que vengan del seed. "Registrar pago" liquida un pago
+         PREEXISTENTE, no crea la serie de periodos.
+    [--] Adjuntar factura del pago (factura_url).  Campo en BD, sin UI.
+    Archivos: app/api/pagos-renta/[id]/pagar/route.ts,
+              lib/server/arrendadores-repo.ts (registrarPagoRenta, listarPagosRenta).
+
+2.4 ARRENDATARIO / RENTA POR PANTALLA (edicion rapida, NUEVO)
+    [OK] Asignar arrendatario inline en la tabla de Inventario (columna "Arrendatario").
+    [OK] Editar arrendatario + renta + periodicidad en el modal de la pantalla
+         (comercial -> ficha del sitio -> Editar).
+    [OK] Persisten via PATCH /api/sitios/:id (campos directos del sitio).
+    Archivos: components/demo/inventario/InventarioTabla.tsx,
+              components/demo/comercial/SiteFicha.tsx, lib/server/sitios-repo.ts.
+
+--------------------------------------------------------------------------------
+3. FINANZAS DE RENTAS  (motor de costos y P&L)
+--------------------------------------------------------------------------------
+Archivo: apps/web/lib/data/derive.ts
+
+3.1 MOTOR DE COSTOS (dashboard)
+    - costoRentaMes = suma de monto_renta de contratos VIGENTES.
+      *** ES INFORMATIVO: NO se resta al margen ***, para no duplicar con el
+      "costo de compra" del espacio (que ya representa ese costo). (ver comentario
+      en derive.ts). El margen del negocio usa: ingreso - (espacios + impresion +
+      operacion), NO la renta.
+
+3.2 RENTABILIDAD POR PANTALLA (P&L)  -> margenPorSitio()
+    - Por cada pantalla: ingresoMensual (reservas vigentes hoy) - rentaMensual.
+    - rentaMensual = renta del CONTRATO vigente, normalizada a mensual segun
+      periodicidad (anual/12, catorcenal*30/14, quincenal*2, semanal*30/7, etc.).
+    - Marca tieneContrato y "activo" (con ingreso). Responde "que pantallas ganan".
+      UI: tarjeta "Rentabilidad por pantalla" en la pagina Arrendadores.
+    -> IMPORTANTE (brecha): usa la renta del CONTRATO, NO el nuevo campo directo
+       renta_arrendador del sitio. Si se captura renta directa sin contrato, el
+       P&L la ignora (rentaMensual=0). Ver seccion 6.
+
+3.3 ALERTAS DE RENTA/CONTRATO
+    a) En el WEB (dashboard, derive.ts -> construirAlertas):
+       - "Renta vencida": por cada pago_renta con estatus VENCIDO.
+       - "Contrato por vencer": contratos proximos a vencer (renovacion).
+       (Dependen de que existan pagos/estatus correctos; ver 2.3.)
+    b) En la API (apps/api, NO desplegada en prod):
+       getAlertasVencimiento() revisa contratos VIGENTES con fecha_fin <= +30d,
+       licencias/permisos y pagos PENDIENTES vencidos, y ENVIA CORREO
+       (email.service) via job BullMQ "alertas-vencimiento".
+       *** Esta automatizacion por correo NO esta activa en produccion. ***
+    Archivos: apps/api/src/jobs/alert-vencimientos.job.ts,
+              apps/api/src/modules/inmuebles/alertas.service.ts.
+
+3.4 METRICAS (pagina Arrendadores)
+    - Propietarios (conteo de arrendadores)
+    - Contratos (conteo)
+    - Por vencer (contratos con estatus POR_VENCER)
+    - Renta vencida (pagos con estatus VENCIDO)
+
+--------------------------------------------------------------------------------
+4. ESTADO EN PRODUCCION (droplet DO, pm2 spaces-web, commit eed1f94)
+--------------------------------------------------------------------------------
+DESPLEGADO Y VERIFICADO (2026-07-15):
+  [OK] Campos directos arrendador_id/renta_arrendador/periodicidad_renta en sitios
+       (migracion aplicada en spaces_prod; GRANT INSERT a spaces_user en contratos).
+  [OK] Asistente "Contrato + pantalla" (POST /api/contratos) desde Inventario y
+       Arrendadores.
+  [OK] Edicion inline de arrendatario/renta en inventario y en el modal comercial.
+PENDIENTE DE DESPLEGAR:
+  [ .. ] Carga del PDF del contrato (base64) + enlace "Ver documento". Listo en
+         local; es solo codigo (la columna documento_url ya existe en prod).
+NO DESPLEGADO (por diseno):
+  [ x ] apps/api (worker de alertas por correo de vencimientos). No esta en pm2.
+
+--------------------------------------------------------------------------------
+5. SEMAFORO DE PROGRESO POR AREA
+--------------------------------------------------------------------------------
+  Alta de arrendatario ................................ VERDE  (falta editar/borrar)
+  Alta de contrato (con fechas pasadas) ............... VERDE
+  Documento PDF del contrato .......................... AMARILLO (falta deploy)
+  Renovacion de contrato .............................. VERDE
+  Arrendatario/renta por pantalla (captura rapida) .... VERDE
+  Registro de pago de renta ........................... AMARILLO (no genera calendario)
+  Calendario/serie de pagos de renta .................. ROJO   (no existe)
+  P&L / rentabilidad por pantalla ..................... VERDE  (usa contrato, no renta directa)
+  Alertas de vencimiento por correo ................... ROJO   (existe en API, no en prod)
+  Alertas en dashboard (web) .......................... AMARILLO (depende de datos de pagos)
+  Editar / cancelar contrato .......................... ROJO   (no existe)
+
+--------------------------------------------------------------------------------
+6. BRECHAS / PENDIENTES (checklist para la auditoria)
+--------------------------------------------------------------------------------
+  [ ] Generacion automatica de pagos_renta segun periodo y periodicidad
+      (hoy "registrar pago" solo liquida pagos que ya existan; sin seed no hay).
+  [ ] Unificar la renta del P&L: margenPorSitio usa el CONTRATO; el nuevo campo
+      directo renta_arrendador del sitio NO alimenta el P&L ni el costoRentaMes.
+      -> Riesgo de inconsistencia entre lo capturado por pantalla y el reporte.
+  [ ] Editar y cancelar/borrar contratos y arrendatarios (no existen).
+  [ ] Adjuntar factura del pago de renta (factura_url existe en BD, sin UI).
+  [ ] Desplegar la carga de PDF del contrato a produccion.
+  [ ] Activar en produccion las alertas de vencimiento por correo (requiere
+      desplegar apps/api con Redis/BullMQ, o replicar la logica en el web).
+  [ ] Moneda del contrato: default mezclado (schema PEN vs formularios MXN);
+      revisar consistencia para reportes financieros.
+  [ ] Historial de pagos pasados al subir contratos retroactivos (por decision
+      actual NO se generan; evaluar si la auditoria los requiere).
+
+--------------------------------------------------------------------------------
+7. RESUMEN EJECUTIVO
+--------------------------------------------------------------------------------
+El ciclo "dar de alta al arrendatario -> registrar el contrato (incluso con
+fechas pasadas) -> ligarlo a una pantalla -> ver rentabilidad por pantalla ->
+renovar" esta OPERATIVO y en produccion. La captura rapida de arrendatario y
+renta por pantalla tambien. Lo mas debil para una auditoria financiera formal es
+la parte de PAGOS: no hay generacion del calendario de rentas, el registro de
+pago es manual sobre pagos preexistentes, y las alertas por correo de
+vencimientos existen en el codigo pero NO estan corriendo en produccion. Ademas,
+el reporte de rentabilidad se basa en el contrato y aun no considera el campo de
+renta directo por pantalla.
+================================================================================
