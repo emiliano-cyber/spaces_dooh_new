@@ -1,10 +1,16 @@
 package com.spaceeye.agent.network
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Matrix
 import android.hardware.camera2.CaptureRequest
+import android.media.ExifInterface
 import android.util.Log
 import android.util.Size
 import android.view.Surface
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import androidx.annotation.OptIn
 import androidx.camera.camera2.interop.Camera2CameraControl
 import androidx.camera.camera2.interop.CaptureRequestOptions
@@ -281,7 +287,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
      * conflicto con el stream, y con los ajustes en vivo aplicados). Devuelve
      * el JPEG por callback, o null si falla.
      */
-    fun captureStill(onResult: (ByteArray?) -> Unit) {
+    fun captureStill(extraDegrees: Int, onResult: (ByteArray?) -> Unit) {
         val ic = imageCapture ?: return onResult(null)
         ic.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
             override fun onCaptureSuccess(image: ImageProxy) {
@@ -289,12 +295,13 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                     val buffer = image.planes[0].buffer
                     val bytes = ByteArray(buffer.remaining())
                     buffer.get(bytes)
-                    onResult(bytes)
+                    image.close()
+                    // Hornea la orientacion en los pixeles (ver bakeRotation) para
+                    // que la foto guardada coincida con lo que se veia en el stream.
+                    onResult(bakeRotation(bytes, extraDegrees))
                 } catch (e: Exception) {
                     Log.e(TAG, "captureStill read failed: ${e.message}")
                     onResult(null)
-                } finally {
-                    image.close()
                 }
             }
             override fun onError(exc: ImageCaptureException) {
@@ -302,6 +309,42 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 onResult(null)
             }
         })
+    }
+
+    /**
+     * Graba en los pixeles la orientacion EXIF de la captura + la rotacion manual
+     * del visor (extraDegrees) y re-codifica el JPEG sin EXIF. Asi la foto queda
+     * con la MISMA orientacion que se veia en el stream, y todo lo de abajo
+     * (miniatura, galeria, descarga, verificacion) es consistente sin depender
+     * del EXIF (que muchos visores ignoran).
+     */
+    private fun bakeRotation(jpeg: ByteArray, extraDegrees: Int): ByteArray {
+        return try {
+            val exifDeg = try {
+                when (ExifInterface(ByteArrayInputStream(jpeg))
+                    .getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                    else -> 0
+                }
+            } catch (_: Exception) { 0 }
+
+            val total = (((exifDeg + extraDegrees) % 360) + 360) % 360
+            val src = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) ?: return jpeg
+            val outBmp = if (total == 0) src else {
+                val m = Matrix().apply { postRotate(total.toFloat()) }
+                Bitmap.createBitmap(src, 0, 0, src.width, src.height, m, true)
+            }
+            val out = ByteArrayOutputStream()
+            outBmp.compress(Bitmap.CompressFormat.JPEG, 92, out)
+            if (outBmp !== src) outBmp.recycle()
+            src.recycle()
+            out.toByteArray()
+        } catch (e: Exception) {
+            Log.e(TAG, "bakeRotation failed: ${e.message}")
+            jpeg
+        }
     }
 
     // ---- Señalizacion (sin cambios respecto a la version que ya conectaba) --

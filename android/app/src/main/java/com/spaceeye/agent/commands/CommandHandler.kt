@@ -95,12 +95,16 @@ class CommandHandler(
                         // exige acceso a camara solo con ese tipo activo).
                         MonitorService.setCameraActive(true)
 
+                        // Rotacion del visor (stream) al momento de capturar, para
+                        // que la foto se guarde con esa misma orientacion.
+                        val rotation = payload?.optInt("rotation", 0) ?: 0
+
                         // Con stream activo: tomar desde la sesion CameraX (sin
                         // conflicto de camara y con los ajustes en vivo). Sin
                         // stream: abrir la camara con Camera2.
                         val photo: ByteArray? = if (webrtc.isStreaming()) {
                             suspendCancellableCoroutine { cont ->
-                                webrtc.captureStill { bytes -> if (cont.isActive) cont.resume(bytes) }
+                                webrtc.captureStill(rotation) { bytes -> if (cont.isActive) cont.resume(bytes) }
                             }
                         } else {
                             try {
