@@ -138,12 +138,19 @@ function deviceDetail() {
     rotateLightbox() {
       this.lbRotation = (this.lbRotation + 90) % 360;
     },
+    // Texto del sitio (ubicacion) para grabar dentro de la foto.
+    siteText() {
+      const d = this.device || {};
+      const loc = [d.address, [d.city, d.state].filter(Boolean).join(', ')].filter(Boolean).join(' — ');
+      return [d.name, loc].filter(Boolean).join(' · ') || (d.name || 'SPACE EYE');
+    },
     async downloadCurrentPhoto() {
       if (!this.lightbox) return;
       const ts = new Date(this.lightbox.taken_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const base = (this.device && this.device.name ? this.device.name : 'foto').replace(/\s+/g, '_');
       try {
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`);
+        const lines = photoOverlayLines(this.lightbox, this.siteText());
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');
@@ -164,7 +171,8 @@ function deviceDetail() {
         }
         if (all.length === 0) { this.showToast('Sin fotos para descargar', 'info'); return; }
         const base = (this.device && this.device.name ? this.device.name : 'album').replace(/\s+/g, '_');
-        await downloadAlbumZip(all, `${base}_fotos.zip`, (d, t) => { this.albumProgress = `${d}/${t}`; });
+        const site = this.siteText();
+        await downloadAlbumZip(all, `${base}_fotos.zip`, (d, t) => { this.albumProgress = `${d}/${t}`; }, (p) => photoOverlayLines(p, site));
         this.showToast('Álbum descargado', 'success');
       } catch (e) {
         this.showToast('Error al descargar el álbum', 'error');

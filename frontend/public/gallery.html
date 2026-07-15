@@ -92,10 +92,7 @@
       <button @click.stop="lightbox = null"
               class="absolute top-4 right-6 text-white/80 hover:text-white text-4xl leading-none">&times;</button>
       <div class="absolute bottom-4 left-0 right-0 flex flex-wrap items-center justify-center gap-3 text-white/80 text-sm">
-        <span>
-          <span x-text="lightbox?.device_name"></span> ·
-          <span x-text="lightbox ? new Date(lightbox.taken_at).toLocaleString() : ''"></span>
-        </span>
+        <span x-text="lightbox ? ((lightbox.device_name || '') + ' · ' + new Date(lightbox.taken_at).toLocaleString('es-MX') + (lightbox.gps_lat ? ' · GPS ' + Number(lightbox.gps_lat).toFixed(5) + ', ' + Number(lightbox.gps_lng).toFixed(5) : '')) : ''"></span>
         <button @click.stop="rotateLightbox()"
                 class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded">
           <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5 9a7 7 0 0111.9-2.9M19 15a7 7 0 01-11.9 2.9"/></svg>
