@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { q, q1, pool } from './db'
+import { q, q1, pool, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -252,6 +252,7 @@ export async function aceptarPropuestaPublica(
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     // Aceptar = aceptar todas las pantallas si no hay selección granular previa.
     const marcados = (
       await client.query(
@@ -352,6 +353,7 @@ export async function crearPropuesta(input: PropuestaInput) {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const prop = (
       await client.query(
         `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, tenant_id)

@@ -1,6 +1,6 @@
 import 'server-only'
 import type { PoolClient } from 'pg'
-import { q, pool } from './db'
+import { q, pool, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio } from './sitios-repo'
 
@@ -105,6 +105,7 @@ export async function crearContratoConSitio(input: {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
 
     // 1) Arrendatario (existente o nuevo)
     let arrendadorId: string
@@ -207,6 +208,7 @@ export async function reportarIncidencia(
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const inc = (
       await client.query(
         `insert into incidencias (sitio_id, tipo, descripcion, impacta_comercial, estatus, reportado_por_usuario, notas, tenant_id)

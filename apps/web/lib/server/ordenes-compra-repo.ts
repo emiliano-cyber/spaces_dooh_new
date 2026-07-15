@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { q, pool } from './db'
+import { q, pool, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 
 // ============================================================================
@@ -42,6 +42,7 @@ export async function crearOrdenCompra(
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const camp = (
       await client.query('select presupuesto_bruto, nombre from campanas where id=$1', [campanaId])
     ).rows[0]

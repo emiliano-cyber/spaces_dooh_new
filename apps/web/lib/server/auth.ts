@@ -2,7 +2,10 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { cookies } from 'next/headers'
 import bcrypt from 'bcryptjs'
-import { q, q1 } from './db'
+// Autenticación (usuarios/sesiones): consultas RAW sin GUC. El login resuelve al
+// usuario ANTES de conocer el tenant; usuarios/tenants están exentas de RLS
+// fail-closed. Usar q() aquí recursaría (q -> tenantActual -> usuarioActual -> q).
+import { qRaw as q, qRaw1 as q1 } from './db'
 
 // ============================================================================
 //  lib/server/auth.ts — Contraseñas (bcrypt), sesiones (cookie httpOnly) y

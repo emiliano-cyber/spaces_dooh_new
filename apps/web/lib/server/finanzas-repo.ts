@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
@@ -155,6 +155,7 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const fac = (
       await client.query(
         `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)

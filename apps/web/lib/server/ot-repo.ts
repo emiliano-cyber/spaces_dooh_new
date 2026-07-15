@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { notificar } from './notificaciones-repo'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
@@ -143,6 +143,7 @@ export async function cerrarOT(
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const ot = (await client.query('select * from ordenes_trabajo where id=$1', [id])).rows[0]
     if (!ot) {
       await client.query('rollback')

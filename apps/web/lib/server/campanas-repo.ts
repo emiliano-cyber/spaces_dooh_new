@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 
 // ============================================================================
@@ -173,6 +173,7 @@ export async function barrerReservasVencidas(): Promise<number> {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     // 1) Reservas vencidas + flag de medio digital (para liberar inventario).
     const vencidas = (
       await client.query(
@@ -256,6 +257,7 @@ export async function reservar(input: {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     let campanaId = input.campanaId
 
     if (!campanaId) {
@@ -451,6 +453,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
       await client.query(
@@ -522,6 +525,7 @@ export async function confirmarReserva(campanaId: string) {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const sitios = (
       await client.query(
         `select sitio_id from reservas where campana_id=$1 and estatus='TENTATIVA'`,

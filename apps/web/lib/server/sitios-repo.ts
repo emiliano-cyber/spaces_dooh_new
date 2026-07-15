@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import type { PoolClient } from 'pg'
 
@@ -263,6 +263,7 @@ export async function crearSitio(s: any): Promise<any> {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const sitio = await insertarSitio(client, s)
     await client.query('commit')
     return sitio
@@ -375,6 +376,7 @@ export async function importarSitios(args: {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     for (const [, rows] of grupos) {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'
