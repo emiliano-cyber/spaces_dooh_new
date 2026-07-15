@@ -347,33 +347,7 @@ create index idx_prop_items_propuesta on propuesta_items (propuesta_id);
 
 -- ─── Órdenes de compra del cliente (ODC) ─────────────────────────────────────
 create type est_odc as enum ('PENDIENTE','RECIBIDA','CANCELADA');
-create table ordenes_compra (
-  id            uuid primary key default gen_random_uuid(),
-  folio         text not null unique,
-  numero_oc     text,                                -- número de OC del cliente (S1-4)
-  campana_id    uuid not null references campanas(id) on delete cascade,
-  monto         numeric(14,2) not null default 0,
-  fecha         date not null default current_date,
-  estatus       est_odc not null default 'RECIBIDA',
-  documento_url text,
-  notas         text,
-  creado_en     timestamptz not null default now()
-);
-create index idx_odc_campana on ordenes_compra (campana_id);
-
--- ─── Notificaciones por evento (centro in-app) ───────────────────────────────
-create table notificaciones (
-  id        uuid primary key default gen_random_uuid(),
-  tipo      text not null,                 -- ODC | FACTURA | PAGO | OT | PROPUESTA
-  nivel     text not null default 'info',  -- info | ok | warn
-  titulo    text not null,
-  detalle   text,
-  link      text,
-  leida     boolean not null default false,
-  creado_en timestamptz not null default now()
-);
-create index idx_notif_creado on notificaciones (creado_en desc);
-
+-- Campañas (definida antes de ordenes_compra, que la referencia).
 create table campanas (
   id                    uuid primary key default gen_random_uuid(),
   folio                 text unique,
@@ -406,6 +380,33 @@ create index idx_campanas_estado  on campanas (estado_comercial);
 create index idx_campanas_propuesta on campanas (propuesta_id);
 create trigger trg_campanas_upd before update on campanas
   for each row execute function set_actualizado_en();
+
+create table ordenes_compra (
+  id            uuid primary key default gen_random_uuid(),
+  folio         text not null unique,
+  numero_oc     text,                                -- número de OC del cliente (S1-4)
+  campana_id    uuid not null references campanas(id) on delete cascade,
+  monto         numeric(14,2) not null default 0,
+  fecha         date not null default current_date,
+  estatus       est_odc not null default 'RECIBIDA',
+  documento_url text,
+  notas         text,
+  creado_en     timestamptz not null default now()
+);
+create index idx_odc_campana on ordenes_compra (campana_id);
+
+-- ─── Notificaciones por evento (centro in-app) ───────────────────────────────
+create table notificaciones (
+  id        uuid primary key default gen_random_uuid(),
+  tipo      text not null,                 -- ODC | FACTURA | PAGO | OT | PROPUESTA
+  nivel     text not null default 'info',  -- info | ok | warn
+  titulo    text not null,
+  detalle   text,
+  link      text,
+  leida     boolean not null default false,
+  creado_en timestamptz not null default now()
+);
+create index idx_notif_creado on notificaciones (creado_en desc);
 
 create table creatividades (
   id                 uuid primary key default gen_random_uuid(),
