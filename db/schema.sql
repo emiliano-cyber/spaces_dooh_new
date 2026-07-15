@@ -148,9 +148,11 @@ create table sitios (
   -- propietario/arrendador del inmueble (directo; independiente del contrato).
   -- La FK se agrega tras crear la tabla arrendadores (definida más abajo).
   arrendador_id       uuid,
-  -- renta que la empresa dueña paga al arrendador por esta pantalla y cada cuándo.
+  -- DEPRECADOS (Fase 1): la renta ahora vive en el contrato del predio.
   renta_arrendador    numeric(14,2),
   periodicidad_renta  text,
+  -- Predio al que pertenece la pantalla (FK se agrega en M2). N pantallas : 1 predio.
+  predio_id           uuid,
   -- estatus
   estatus_comercial   est_comercial not null default 'DISPONIBLE',
   estatus_legal       est_legal     not null default 'EN_ORDEN',
@@ -184,13 +186,19 @@ create index idx_modalidades_sitio on sitio_modalidades (sitio_id);
 
 -- ─── Arrendadores / contratos / pagos ───────────────────────────────────────
 create table arrendadores (
-  id        uuid primary key default gen_random_uuid(),
-  nombre    text not null,
-  rfc       text,
-  telefono  text,
-  email     text,
-  notas     text,
-  creado_en timestamptz not null default now()
+  id              uuid primary key default gen_random_uuid(),
+  nombre          text not null,
+  rfc             text,
+  curp            text,
+  telefono        text,
+  email           text,
+  direccion       text,
+  cuenta_bancaria text,
+  forma_pago      text,
+  observaciones   text,
+  notas           text,
+  activo          boolean not null default true,   -- soft-delete (Fase 1)
+  creado_en       timestamptz not null default now()
 );
 
 -- FK diferida: sitios.arrendador_id → arrendadores (sitios se define más arriba).
@@ -209,6 +217,11 @@ create table contratos_arrendamiento (
   moneda         text not null default 'PEN',
   auto_renovable boolean not null default false,
   documento_url  text,
+  deposito          numeric(14,2),
+  motivo_cancelacion text,
+  -- Vínculos a predio/razón social (FK se agrega tras crear esas tablas — M2).
+  predio_id         uuid,
+  razon_social_id   uuid,
   estatus        est_contrato not null default 'VIGENTE',
   creado_en      timestamptz not null default now()
 );
@@ -223,6 +236,9 @@ create table pagos_renta (
   monto       numeric(14,2) not null,
   fecha_pago  date,
   factura_url text,
+  comprobante_url text,
+  metodo_pago     text,
+  observaciones   text,
   estatus     est_pago_renta not null default 'PENDIENTE',
   creado_en   timestamptz not null default now()
 );
@@ -514,6 +530,7 @@ create table if not exists tenants (
   id        uuid primary key default gen_random_uuid(),
   nombre    text not null,
   slug      text not null unique,
+  moneda    text not null default 'MXN',   -- moneda estándar por organización
   creado_en timestamptz not null default now()
 );
 insert into tenants (nombre, slug) values ('RGB Catorce','rgb') on conflict (slug) do nothing;
