@@ -39,6 +39,9 @@ create type tipo_contenido      as enum ('VIDEO','IMAGEN');
 create type est_contrato        as enum ('VIGENTE','POR_VENCER','VENCIDO','RENOVADO','CANCELADO');
 create type est_pago_renta      as enum ('PENDIENTE','PAGADO','VENCIDO');
 create type estado_predio       as enum ('PROSPECTO','EN_NEGOCIACION','DISPONIBLE','OCUPADO','SUSPENDIDO','PROBLEMA_LEGAL','FUERA_DE_SERVICIO');
+-- Periodicidad de pago. Equiv. mensual: SEMANAL x30/7, CATORCENAL x30/14, QUINCENAL x2,
+-- MENSUAL x1, BIMESTRAL /2, TRIMESTRAL /3, SEMESTRAL /6, ANUAL /12.
+create type periodicidad_pago   as enum ('SEMANAL','CATORCENAL','QUINCENAL','MENSUAL','BIMESTRAL','TRIMESTRAL','SEMESTRAL','ANUAL');
 create type tipo_incidencia     as enum ('CLIMA','MANTENIMIENTO','LEGAL','VANDALISMO','SUSPENSION_OPERATIVA','ACCIDENTE','OTRO');
 create type est_incidencia      as enum ('ABIERTA','EN_PROCESO','RESUELTA','CERRADA');
 create type tipo_campana        as enum ('OOH','DOOH','HIBRIDA');
@@ -214,7 +217,7 @@ create table contratos_arrendamiento (
   fecha_inicio   date not null,
   fecha_fin      date not null,
   monto_renta    numeric(14,2) not null,
-  periodicidad   text not null default 'MENSUAL',
+  periodicidad   periodicidad_pago not null default 'MENSUAL',
   moneda         text not null default 'PEN',
   auto_renovable boolean not null default false,
   documento_url  text,
