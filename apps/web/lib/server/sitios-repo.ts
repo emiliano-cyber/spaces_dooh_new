@@ -57,6 +57,9 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     comercializacion: r.comercializacion,
     enNetwork: !!r.en_network,
     cms: r.cms,
+    arrendadorId: r.arrendador_id ?? null,
+    rentaArrendador: n(r.renta_arrendador),
+    periodicidadRenta: r.periodicidad_renta ?? null,
     estatusComercial: r.estatus_comercial,
     estatusLegal: r.estatus_legal,
     estatusOperativo: r.estatus_operativo,
@@ -211,7 +214,9 @@ export async function getSitio(id: string): Promise<any | null> {
 }
 
 // ─── Escritura ──────────────────────────────────────────────────────────────
-async function insertarSitio(client: PoolClient, s: any): Promise<any> {
+// Exportada para que el alta de "contrato + pantalla" cree el sitio dentro de la
+// MISMA transacción del contrato (atómico: o se crean ambos, o ninguno).
+export async function insertarSitio(client: PoolClient, s: any): Promise<any> {
   // Autogenera código de proveedor si no viene (alta manual no lo pide).
   if (!s.codigoProveedor) s.codigoProveedor = 'S-' + randomBytes(3).toString('hex').toUpperCase()
   const cols = [...COLS, 'tenant_id'].join(', ')
@@ -283,6 +288,7 @@ const CAMPO_COL: Record<string, string> = {
   alcaldia: 'alcaldia', plazaCiudad: 'plaza_ciudad', lat: 'lat', lng: 'lng',
   ancho: 'ancho', alto: 'alto', caras: 'caras', iluminado: 'iluminado',
   tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual', costoCompra: 'costo_compra',
+  arrendadorId: 'arrendador_id', rentaArrendador: 'renta_arrendador', periodicidadRenta: 'periodicidad_renta',
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
   fotos: 'fotos',

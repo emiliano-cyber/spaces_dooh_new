@@ -201,6 +201,28 @@ export async function crearArrendadorApi(input: {
   await refrescarEstado()
 }
 
+// Alta unificada: arrendatario → contrato de arrendamiento → pantalla. El
+// arrendador puede ser existente ({ id }) o nuevo ({ nombre, ... }). Fechas
+// pasadas permitidas. Devuelve el id de la pantalla creada.
+export async function crearContratoConSitioApi(input: {
+  arrendador: { id: string } | { nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null }
+  contrato: {
+    fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
+    moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
+  }
+  sitio: Record<string, unknown>
+}): Promise<{ sitioId: string; contratoId: string }> {
+  const r = await fetch(`${API}/contratos/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el contrato')
+  await refrescarEstado()
+  return { sitioId: d.sitio?.id, contratoId: d.contrato?.id }
+}
+
 export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
   const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
   const d = await r.json().catch(() => ({}))

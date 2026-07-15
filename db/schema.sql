@@ -145,6 +145,12 @@ create table sitios (
   comercializacion    comercializacion not null default 'TRADICIONAL',
   en_network          boolean not null default false,
   cms                 cms,
+  -- propietario/arrendador del inmueble (directo; independiente del contrato).
+  -- La FK se agrega tras crear la tabla arrendadores (definida más abajo).
+  arrendador_id       uuid,
+  -- renta que la empresa dueña paga al arrendador por esta pantalla y cada cuándo.
+  renta_arrendador    numeric(14,2),
+  periodicidad_renta  text,
   -- estatus
   estatus_comercial   est_comercial not null default 'DISPONIBLE',
   estatus_legal       est_legal     not null default 'EN_ORDEN',
@@ -186,6 +192,11 @@ create table arrendadores (
   notas     text,
   creado_en timestamptz not null default now()
 );
+
+-- FK diferida: sitios.arrendador_id → arrendadores (sitios se define más arriba).
+alter table sitios
+  add constraint sitios_arrendador_id_fkey
+  foreign key (arrendador_id) references arrendadores(id) on delete set null;
 
 create table contratos_arrendamiento (
   id             uuid primary key default gen_random_uuid(),

@@ -214,6 +214,9 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
+  rentaArrendador?: number | null // renta que la empresa dueña paga al arrendador por esta pantalla
+  periodicidadRenta?: string | null // cada cuándo se paga esa renta (SEMANAL, MENSUAL, …)
   // ─── Agregar inventario (importador / formulario manual) ──────────────────
   modalidades: string[] // modalidades de contratación
   // Detalle por modalidad (una por fila del Excel agrupada por codigo_proveedor)

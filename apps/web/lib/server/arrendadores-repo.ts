@@ -1,6 +1,8 @@
 import 'server-only'
+import type { PoolClient } from 'pg'
 import { q, pool } from './db'
 import { tenantActual } from './tenant'
+import { insertarSitio } from './sitios-repo'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -71,6 +73,80 @@ export async function crearArrendador(input: {
 export async function listarContratos() {
   const rows = await q('select * from contratos_arrendamiento where tenant_id = $1 order by creado_en asc', [await tenantActual()])
   return rows.map(rowToContrato)
+}
+
+// Estatus del contrato derivado de sus fechas (permite altas retroactivas):
+// VENCIDO si ya terminó, POR_VENCER si vence dentro de 30 días, si no VIGENTE.
+function estatusPorFechas(fechaInicio: string, fechaFin: string): string {
+  const hoy = new Date()
+  hoy.setHours(0, 0, 0, 0)
+  const fin = new Date(fechaFin)
+  const dias = Math.round((fin.getTime() - hoy.getTime()) / 86_400_000)
+  if (dias < 0) return 'VENCIDO'
+  if (dias <= 30) return 'POR_VENCER'
+  return 'VIGENTE'
+}
+
+// Alta unificada "arrendatario → contrato → pantalla" en UNA transacción.
+// - arrendador: {id} usa uno existente; {nombre,...} da de alta uno nuevo.
+// - contrato: periodo (fechas pasadas permitidas), renta, periodicidad, etc.
+// - sitio: datos de la pantalla/espectacular (mismo shape que el alta manual).
+// La renta/periodicidad y el arrendatario también quedan como campos directos del
+// sitio, así el inventario los muestra al instante.
+export async function crearContratoConSitio(input: {
+  arrendador: { id: string } | { nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null }
+  contrato: {
+    fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
+    moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
+  }
+  sitio: Record<string, unknown>
+}) {
+  const tenantId = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+
+    // 1) Arrendatario (existente o nuevo)
+    let arrendadorId: string
+    if ('id' in input.arrendador) {
+      arrendadorId = input.arrendador.id
+    } else {
+      const { rows } = await client.query(
+        `insert into arrendadores (nombre, rfc, telefono, email, notas, tenant_id)
+         values ($1,$2,$3,$4,$5,$6) returning id`,
+        [input.arrendador.nombre, input.arrendador.rfc ?? null, input.arrendador.telefono ?? null,
+         input.arrendador.email ?? null, input.arrendador.notas ?? null, tenantId],
+      )
+      arrendadorId = rows[0].id
+    }
+
+    // 2) Pantalla/espectacular (misma transacción)
+    const sitio = await insertarSitio(client, { ...input.sitio, tenantId })
+    // Campos directos del sitio: arrendatario + renta (para el inventario/modal).
+    await client.query(
+      `update sitios set arrendador_id = $1, renta_arrendador = $2, periodicidad_renta = $3 where id = $4`,
+      [arrendadorId, input.contrato.montoRenta, input.contrato.periodicidad, sitio.id],
+    )
+
+    // 3) Contrato de arrendamiento vinculado a la pantalla recién creada
+    const estatus = estatusPorFechas(input.contrato.fechaInicio, input.contrato.fechaFin)
+    const { rows: cr } = await client.query(
+      `insert into contratos_arrendamiento
+        (sitio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta, periodicidad, moneda, auto_renovable, documento_url, estatus, tenant_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
+      [sitio.id, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
+       input.contrato.periodicidad, input.contrato.moneda ?? 'MXN', input.contrato.autoRenovable ?? false,
+       input.contrato.documentoUrl ?? null, estatus, tenantId],
+    )
+
+    await client.query('commit')
+    return { sitio: { ...sitio, arrendadorId, rentaArrendador: input.contrato.montoRenta, periodicidadRenta: input.contrato.periodicidad }, contrato: rowToContrato(cr[0]) }
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
 }
 
 export async function listarPagosRenta() {

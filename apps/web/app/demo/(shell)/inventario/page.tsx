@@ -1,18 +1,19 @@
 'use client'
 
 import { useState } from 'react'
-import { PackagePlus, CheckCircle2, Upload, FilePlus2, Table2 } from 'lucide-react'
+import { PackagePlus, CheckCircle2, Upload, FilePlus2, Table2, FileSignature } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { ImportarInventarioDialog } from '@/components/demo/inventario/ImportarInventarioDialog'
 import { NuevaPantallaForm } from '@/components/demo/inventario/NuevaPantallaForm'
 import { InventarioTabla } from '@/components/demo/inventario/InventarioTabla'
+import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 
-// Pantalla "Agregar inventario" (solo Dueño). Reemplaza al modal: las dos vías
-// — carga masiva y alta manual — viven aquí, en la página, sin diálogos.
+// Pantalla "Agregar inventario" (solo Dueño). Reemplaza al modal: las vías
+// — contrato+pantalla, carga masiva y alta manual — viven aquí, en la página.
 export default function AgregarInventarioPage() {
   const { sesion } = useSesionCtx()
-  const [modo, setModo] = useState<'lista' | 'masiva' | 'manual'>('lista')
+  const [modo, setModo] = useState<'lista' | 'contrato' | 'masiva' | 'manual'>('lista')
   const [resetKey, setResetKey] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
 
@@ -60,6 +61,16 @@ export default function AgregarInventarioPage() {
         </button>
         <button
           type="button"
+          onClick={() => setModo('contrato')}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
+            modo === 'contrato' ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
+          )}
+        >
+          <FileSignature className="h-3.5 w-3.5" /> Contrato + pantalla
+        </button>
+        <button
+          type="button"
           onClick={() => setModo('masiva')}
           className={cn(
             'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
@@ -82,6 +93,14 @@ export default function AgregarInventarioPage() {
 
       {modo === 'lista' ? (
         <InventarioTabla />
+      ) : modo === 'contrato' ? (
+        <ContratoWizard
+          key={`contrato-${resetKey}`}
+          onCreado={(s) => {
+            notify(`Contrato y pantalla "${s.nombre}" creados`)
+            setResetKey((k) => k + 1)
+          }}
+        />
       ) : modo === 'masiva' ? (
         <ImportarInventarioDialog
           key={`masiva-${resetKey}`}
