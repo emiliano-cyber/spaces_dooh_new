@@ -38,6 +38,7 @@ create type cms                 as enum ('BROADSIGN','INVIDIS','DOOHMAIN','OTRO'
 create type tipo_contenido      as enum ('VIDEO','IMAGEN');
 create type est_contrato        as enum ('VIGENTE','POR_VENCER','VENCIDO','RENOVADO','CANCELADO');
 create type est_pago_renta      as enum ('PENDIENTE','PAGADO','VENCIDO');
+create type estado_predio       as enum ('PROSPECTO','EN_NEGOCIACION','DISPONIBLE','OCUPADO','SUSPENDIDO','PROBLEMA_LEGAL','FUERA_DE_SERVICIO');
 create type tipo_incidencia     as enum ('CLIMA','MANTENIMIENTO','LEGAL','VANDALISMO','SUSPENSION_OPERATIVA','ACCIDENTE','OTRO');
 create type est_incidencia      as enum ('ABIERTA','EN_PROCESO','RESUELTA','CERRADA');
 create type tipo_campana        as enum ('OOH','DOOH','HIBRIDA');
@@ -242,6 +243,39 @@ create table pagos_renta (
   estatus     est_pago_renta not null default 'PENDIENTE',
   creado_en   timestamptz not null default now()
 );
+
+-- Predio: nucleo del modulo (Arrendador -> Predio -> Contrato -> Pantallas).
+create table predios (
+  id             uuid primary key default gen_random_uuid(),
+  arrendador_id  uuid not null references arrendadores(id) on delete restrict,
+  nombre         text not null,
+  direccion      text,
+  lat            numeric(10,7),
+  lng            numeric(11,7),
+  tipo_ubicacion text,
+  estado         estado_predio not null default 'DISPONIBLE',
+  documentos     jsonb not null default '[]'::jsonb,
+  creado_en      timestamptz not null default now()
+);
+create index if not exists predios_arrendador_idx on predios(arrendador_id);
+
+-- Razon social del arrendador (factura la renta bajo N razones sociales).
+create table arrendador_razon_social (
+  id            uuid primary key default gen_random_uuid(),
+  arrendador_id uuid not null references arrendadores(id) on delete cascade,
+  razon_social  text not null,
+  rfc           text,
+  regimen       text,
+  creado_en     timestamptz not null default now()
+);
+create index if not exists ars_arrendador_idx on arrendador_razon_social(arrendador_id);
+
+-- FKs de los vinculos declarados arriba (predios ya existe).
+alter table contratos_arrendamiento
+  add constraint contratos_predio_fk       foreign key (predio_id)       references predios(id)                  on delete restrict,
+  add constraint contratos_razon_social_fk foreign key (razon_social_id) references arrendador_razon_social(id) on delete set null;
+alter table sitios
+  add constraint sitios_predio_fk foreign key (predio_id) references predios(id) on delete restrict;
 create index idx_pagos_contrato on pagos_renta (contrato_id);
 create index idx_pagos_estatus  on pagos_renta (estatus);
 
@@ -543,7 +577,8 @@ declare
     'usuarios','sitios','clientes','propuestas','propuesta_items','ordenes_compra',
     'campanas','creatividades','reservas','ordenes_trabajo','evidencias_ot','ordenes_impresion',
     'facturas','cobranzas','arrendadores','contratos_arrendamiento','pagos_renta',
-    'incidencias','notificaciones','acciones','sitio_modalidades'];
+    'incidencias','notificaciones','acciones','sitio_modalidades',
+    'predios','arrendador_razon_social'];
 begin
   select id into def from tenants where slug='rgb';
   foreach t in array tbls loop
