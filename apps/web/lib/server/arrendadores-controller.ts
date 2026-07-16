@@ -93,6 +93,12 @@ export async function crearPredioCtrl(body: unknown) {
   return p
 }
 
+// Pantalla de un alta: una del inventario por id, o una nueva por sus datos.
+const sitioRef = z.union([
+  z.object({ id: z.string().uuid('Pantalla inválida') }),
+  z.object({ nombre: z.string().trim().min(1, 'La pantalla necesita un nombre') }).passthrough(),
+])
+
 // Agrega una pantalla al predio SIN contrato nuevo (el del predio ya define la
 // renta). {sitioId} liga una pantalla existente; si no, se crea una nueva (el
 // insert whitelistea columnas, igual que el alta manual).
@@ -129,9 +135,10 @@ const crearContratoSchema = z.object({
   // contrato sin predio no costaría nada e inflaría el margen (derive.ts).
   predio: predioRef,
   contrato: contratoSchema,
-  // El sitio se valida de forma laxa aquí (el model/insert whitelistea columnas);
-  // solo exigimos un nombre para la pantalla.
-  sitio: z.object({ nombre: z.string().trim().min(1, 'La pantalla necesita un nombre') }).passthrough(),
+  // {id} liga una pantalla que ya existe en el inventario (lo normal: el dueño
+  // ya las tiene cargadas y solo les asigna arrendador y predio). Si no, se da
+  // de alta una nueva y se valida de forma laxa (el insert whitelistea columnas).
+  sitio: sitioRef,
 })
 
 export async function crearContratoCtrl(body: unknown) {

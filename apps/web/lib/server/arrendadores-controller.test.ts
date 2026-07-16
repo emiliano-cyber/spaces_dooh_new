@@ -66,6 +66,21 @@ describe('crearContratoCtrl — el predio es obligatorio', () => {
     expect(r.predio).toEqual(predio)
   })
 
+  it('acepta una pantalla del inventario por id (no se re-captura)', async () => {
+    const sitio = { id: '55555555-5555-5555-5555-555555555555' }
+    const r: any = await crearContratoCtrl({
+      arrendador: ARR, predio: { nombre: 'Predio 1' }, contrato: CONTRATO, sitio,
+    })
+    // Solo el id: mandar los datos del formulario sobrescribiría los de la BD.
+    expect(r.sitio).toEqual(sitio)
+  })
+
+  it('rechaza una pantalla con id que no es uuid', async () => {
+    await expect(crearContratoCtrl({
+      arrendador: ARR, predio: { nombre: 'Predio 1' }, contrato: CONTRATO, sitio: { id: 'abc' },
+    })).rejects.toThrow(/pantalla/i)
+  })
+
   it('acepta un predio nuevo y lo pasa al repo', async () => {
     const r: any = await crearContratoCtrl({
       arrendador: ARR, predio: { nombre: 'Azotea Reforma 222', direccion: 'Reforma 222' },

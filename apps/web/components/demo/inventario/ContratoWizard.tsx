@@ -6,7 +6,7 @@ import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
-import { useArrendadores, usePredios, useContratos, formatMonto, type TipoMedio, type Sitio } from '@/lib/data/client'
+import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, type TipoMedio, type Sitio } from '@/lib/data/client'
 
 // ============================================================================
 //  ContratoWizard — alta guiada "arrendatario → contrato → pantalla".
@@ -59,6 +59,7 @@ export function ContratoWizard({
   const arrendadores = useArrendadores()
   const predios = usePredios()
   const contratos = useContratos()
+  const sitios = useSitios()
   const [paso, setPaso] = useState(1)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -114,7 +115,9 @@ export function ContratoWizard({
   const [documento, setDocumento] = useState<string | null>(null) // PDF en base64 (data URL)
   const [docNombre, setDocNombre] = useState<string | null>(null)
 
-  // Paso 3 — pantalla
+  // Paso 3 — pantalla: una que el dueño ya tiene en el inventario, o una nueva.
+  const [modoPantalla, setModoPantalla] = useState<'inventario' | 'nueva'>('inventario')
+  const [sitioSelId, setSitioSelId] = useState('')
   const [nombre, setNombre] = useState('')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
   const [exhibicion, setExhibicion] = useState<'fijo' | 'digital'>('fijo')
@@ -136,6 +139,11 @@ export function ContratoWizard({
   }
   const digital = exhibicion === 'digital' || tipoMedio === 'PANTALLA_DIGITAL'
 
+  // Pantallas del inventario aún sin predio: son las que se pueden asignar a un
+  // arrendador. Las que ya tienen predio pertenecen a otro contrato.
+  const sitiosLibres = (sitios ?? []).filter((s) => !s.predioId)
+  const sitioSel = sitiosLibres.find((s) => s.id === sitioSelId)
+
   const arrOk = modoArr === 'existente' ? !!arrId : !!arrNombre.trim()
   const predioOk = modoPredio === 'existente' ? !!predioId : !!predioNombre.trim()
   const paso1Ok = arrOk && predioOk
@@ -144,7 +152,7 @@ export function ContratoWizard({
   const paso2Ok =
     !paso2Aplica ||
     (!!fechaInicio && !!fechaFin && fechaFin >= fechaInicio && renta.trim() !== '' && Number(renta) >= 0)
-  const paso3Ok = !!nombre.trim()
+  const paso3Ok = modoPantalla === 'inventario' ? !!sitioSelId : !!nombre.trim()
 
   function siguiente() {
     setError(null)
@@ -210,7 +218,12 @@ export function ContratoWizard({
               lat: lat ? Number(lat) : null,
               lng: lng ? Number(lng) : null,
             }
-      const datosSitio = {
+      const delInventario = modoPantalla === 'inventario'
+      const nombrePantalla = delInventario ? sitioSel?.nombre ?? '' : nombre.trim()
+      // Datos de una pantalla NUEVA. Si viene del inventario no se manda nada de
+      // esto: sus datos ya están en la BD y re-mandarlos los sobrescribiría con
+      // lo que tenga el formulario.
+      const datosSitioNuevo: Record<string, unknown> = {
         nombre: nombre.trim(),
         tipoMedio,
         exhibicion,
@@ -236,9 +249,13 @@ export function ContratoWizard({
       if (soloPantalla) {
         // El predio ya tiene contrato activo: se cuelga la pantalla y comparte
         // esa renta con las demás del predio. NO se firma un segundo contrato.
-        await agregarPantallaAPredioApi(predioId, datosSitio)
+        // Esta ruta identifica la pantalla existente por `sitioId`.
+        await agregarPantallaAPredioApi(
+          predioId,
+          delInventario ? { sitioId: sitioSelId } : datosSitioNuevo,
+        )
         toast.success('Pantalla agregada al predio')
-        onCreado?.({ nombre: nombre.trim() })
+        onCreado?.({ nombre: nombrePantalla })
         reiniciar()
         return
       }
@@ -254,10 +271,10 @@ export function ContratoWizard({
           autoRenovable,
           documentoUrl: documento,
         },
-        sitio: datosSitio,
+        sitio: delInventario ? { id: sitioSelId } : datosSitioNuevo,
       })
-      toast.success('Contrato y pantalla creados')
-      onCreado?.({ nombre: nombre.trim() })
+      toast.success(delInventario ? 'Contrato creado y pantalla asignada' : 'Contrato y pantalla creados')
+      onCreado?.({ nombre: nombrePantalla })
       reiniciar()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo crear el contrato')
@@ -271,6 +288,7 @@ export function ContratoWizard({
     setModoPredio('nuevo'); setPredioId(''); setPredioNombre(''); setPredioDireccion('')
     setFechaInicio(''); setFechaFin(''); setRenta(''); setPeriodicidad('MENSUAL'); setMoneda('MXN'); setAutoRenovable(false)
     setDocumento(null); setDocNombre(null)
+    setModoPantalla('inventario'); setSitioSelId('')
     setNombre(''); setTipoMedio('ESPECTACULAR'); setExhibicion('fijo'); setDireccion(''); setAlcaldia(''); setCiudad('')
     setLat(''); setLng(''); setCaras(''); setTarifa(''); setCosto(''); setTotalSpots(''); setDuracionSpot('')
   }
@@ -439,7 +457,59 @@ export function ContratoWizard({
         {/* ── Paso 3: pantalla ── */}
         {paso === 3 && (
           <div className="space-y-3">
-            <p className="text-[13px] text-muted">Datos del inventario que ampara este contrato (pantalla o espectacular).</p>
+            <p className="text-[13px] text-muted">
+              ¿Qué pantalla ampara este contrato? Si ya está en tu inventario, elígela y no captures
+              nada: se le asigna el arrendatario y el predio.
+            </p>
+            <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
+              <button type="button" onClick={() => setModoPantalla('inventario')}
+                className={cn('rounded px-3 py-1.5', modoPantalla === 'inventario' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
+                Del inventario
+              </button>
+              <button type="button" onClick={() => { setModoPantalla('nueva'); setSitioSelId('') }}
+                className={cn('rounded px-3 py-1.5', modoPantalla === 'nueva' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
+                Pantalla nueva
+              </button>
+            </div>
+
+            {modoPantalla === 'inventario' && (
+              <div className="space-y-3">
+                <Campo label={`Pantalla (${sitiosLibres.length} sin arrendatario)`}>
+                  <select value={sitioSelId} onChange={(e) => setSitioSelId(e.target.value)} className={inputCls}>
+                    <option value="">— Selecciona —</option>
+                    {sitiosLibres.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}{s.alcaldia ? ` — ${s.alcaldia}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {sitiosLibres.length === 0 && (
+                    <span className="mt-1 block text-[11px] text-muted">
+                      Todas tus pantallas ya están asignadas a un predio. Cambia a “Pantalla nueva”.
+                    </span>
+                  )}
+                </Campo>
+
+                {/* Lo que ya se sabe de la pantalla: no se re-captura. */}
+                {sitioSel && (
+                  <div className="rounded-md border border-border bg-surface-2 p-3">
+                    <div className="mb-2 text-[12px] font-medium text-ink">Datos que ya tiene</div>
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
+                      <Dato label="Tipo" valor={TIPO_PANTALLA.find((t) => t.v === sitioSel.tipoMedio)?.label ?? sitioSel.tipoMedio} />
+                      <Dato label="Caras" valor={String(sitioSel.caras ?? 1)} />
+                      <Dato label="Ubicación" valor={[sitioSel.alcaldia, sitioSel.ciudad].filter(Boolean).join(', ') || '—'} />
+                      <Dato label="Tarifa publicada" valor={sitioSel.tarifaPublicada ? formatMonto(sitioSel.tarifaPublicada) : '—'} />
+                      <Dato label="Dirección" valor={sitioSel.direccionPredio || sitioSel.direccion || '—'} ancho />
+                    </dl>
+                    <p className="mt-2 text-[11px] text-muted">
+                      Se ligará al predio del contrato. Para cambiar estos datos, edita la pantalla en Inventario.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {modoPantalla === 'nueva' && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Campo label="Nombre de la pantalla"><input value={nombre} onChange={(e) => setNombre(e.target.value)} className={inputCls} placeholder="Ej. Patriotismo y Pensilvania" /></Campo>
               <Campo label="Tipo de medio">
@@ -462,11 +532,23 @@ export function ContratoWizard({
                 </>
               )}
             </div>
+            )}
 
             {/* Resumen */}
             <div className="mt-1 rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-              Se creará el contrato ({fechaInicio || '—'} → {fechaFin || '—'}, renta {renta ? formatMonto(Number(renta)) : '—'} {periodicidad.toLowerCase()})
-              y la pantalla “{nombre || '—'}”, ambos vinculados al arrendatario.
+              {soloPantalla ? (
+                <>
+                  La pantalla “{modoPantalla === 'inventario' ? sitioSel?.nombre ?? '—' : nombre || '—'}” se agregará
+                  al predio, que ya tiene contrato vigente. Su renta se repartirá entre las pantallas del predio.
+                </>
+              ) : (
+                <>
+                  Se creará el contrato ({fechaInicio || '—'} → {fechaFin || '—'}, renta{' '}
+                  {renta ? formatMonto(Number(renta)) : '—'} {periodicidad.toLowerCase()}) y se{' '}
+                  {modoPantalla === 'inventario' ? 'asignará la pantalla' : 'creará la pantalla'} “
+                  {modoPantalla === 'inventario' ? sitioSel?.nombre ?? '—' : nombre || '—'}”, todo vinculado al arrendatario.
+                </>
+              )}
             </div>
           </div>
         )}
@@ -499,5 +581,15 @@ function Campo({ label, children }: { label: string; children: React.ReactNode }
       <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
       {children}
     </label>
+  )
+}
+
+// Dato de solo lectura de una pantalla ya existente (no se re-captura).
+function Dato({ label, valor, ancho = false }: { label: string; valor: string; ancho?: boolean }) {
+  return (
+    <div className={ancho ? 'col-span-2' : undefined}>
+      <dt className="text-muted">{label}</dt>
+      <dd className="truncate text-ink">{valor}</dd>
+    </div>
   )
 }

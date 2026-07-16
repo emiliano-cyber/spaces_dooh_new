@@ -214,7 +214,8 @@ export async function crearContratoConSitioApi(input: {
     fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
     moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
   }
-  sitio: Record<string, unknown>
+  // {id} asigna una pantalla que ya está en el inventario; si no, se crea una.
+  sitio: { id: string } | Record<string, unknown>
 }): Promise<{ sitioId: string; contratoId: string }> {
   const r = await fetch(`${API}/contratos/`, {
     method: 'POST',

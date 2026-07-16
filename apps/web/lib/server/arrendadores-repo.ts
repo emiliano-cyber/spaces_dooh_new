@@ -2,7 +2,7 @@ import 'server-only'
 import type { PoolClient } from 'pg'
 import { q, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
-import { insertarSitio } from './sitios-repo'
+import { insertarSitio, rowToSitio } from './sitios-repo'
 import { AppError } from './errores'
 
 // ============================================================================
@@ -261,12 +261,14 @@ export async function crearContratoConSitio(input: {
       predioId = row.id
     }
 
-    // 3) Pantalla/espectacular (misma transacción), ligada al predio.
-    const sitio = await insertarSitio(client, { ...input.sitio, tenantId })
-    await client.query(
-      `update sitios set arrendador_id = $1, predio_id = $2 where id = $3`,
-      [arrendadorId, predioId, sitio.id],
+    // 3) Pantalla (misma transacción), ligada al predio: una del inventario que
+    //    aún no tiene predio, o una nueva.
+    const sitioId = await resolverSitioEnTx(client, tenantId, input.sitio, predioId)
+    const { rows: sr } = await client.query(
+      `update sitios set arrendador_id = $1, predio_id = $2 where id = $3 and tenant_id = $4 returning *`,
+      [arrendadorId, predioId, sitioId, tenantId],
     )
+    const sitio = rowToSitio(sr[0])
 
     // 4) Contrato de arrendamiento: cuelga del PREDIO (sitio_id se conserva por
     //    compatibilidad con el histórico; predio_id es la fuente del P&L).
@@ -275,7 +277,7 @@ export async function crearContratoConSitio(input: {
       `insert into contratos_arrendamiento
         (sitio_id, predio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta, periodicidad, moneda, auto_renovable, documento_url, estatus, tenant_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
-      [sitio.id, predioId, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
+      [sitioId, predioId, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
        input.contrato.periodicidad, input.contrato.moneda ?? 'MXN', input.contrato.autoRenovable ?? false,
        input.contrato.documentoUrl ?? null, estatus, tenantId],
     )
@@ -499,6 +501,30 @@ export async function crearPredio(input: PredioInput) {
   })
 }
 
+// Resuelve la pantalla de un alta: {id} liga una que YA existe en el inventario
+// (el caso normal: el dueño ya tiene sus pantallas cargadas y solo les asigna
+// arrendador y predio); cualquier otra cosa da de alta una nueva.
+// Una pantalla solo puede estar en un predio: si ya está en otro, se rechaza en
+// vez de moverla en silencio (movería su renta de un predio a otro).
+async function resolverSitioEnTx(
+  client: PoolClient, tenantId: string | null,
+  sitio: { id: string } | Record<string, unknown>, predioId: string,
+): Promise<string> {
+  if ('id' in sitio && typeof sitio.id === 'string') {
+    const { rows } = await client.query(
+      'select predio_id from sitios where id=$1 and tenant_id=$2',
+      [sitio.id, tenantId],
+    )
+    if (!rows[0]) throw new AppError('La pantalla no existe', 404)
+    if (rows[0].predio_id && rows[0].predio_id !== predioId) {
+      throw new AppError('La pantalla ya pertenece a otro predio', 409)
+    }
+    return sitio.id
+  }
+  const nuevo = await insertarSitio(client, { ...sitio, tenantId })
+  return nuevo.id
+}
+
 // ¿El predio ya tiene un contrato activo? La renta del predio es UNA sola: un
 // segundo contrato activo la duplicaría y el P&L solo contaría el mayor (M8 lo
 // impide también desde la BD, con un índice único parcial).
@@ -528,21 +554,7 @@ export async function agregarPantallaAPredio(predioId: string, sitio: { id: stri
     if (!pr[0]) throw new AppError('El predio no existe', 404)
     const arrendadorId = pr[0].arrendador_id
 
-    let sitioId: string
-    if ('id' in sitio && typeof sitio.id === 'string') {
-      const { rows } = await client.query(
-        'select predio_id from sitios where id=$1 and tenant_id=$2',
-        [sitio.id, tenantId],
-      )
-      if (!rows[0]) throw new AppError('La pantalla no existe', 404)
-      if (rows[0].predio_id && rows[0].predio_id !== predioId) {
-        throw new AppError('La pantalla ya pertenece a otro predio', 409)
-      }
-      sitioId = sitio.id
-    } else {
-      const nuevo = await insertarSitio(client, { ...sitio, tenantId })
-      sitioId = nuevo.id
-    }
+    const sitioId = await resolverSitioEnTx(client, tenantId, sitio, predioId)
     const { rows } = await client.query(
       'update sitios set predio_id=$1, arrendador_id=$2 where id=$3 and tenant_id=$4 returning *',
       [predioId, arrendadorId, sitioId, tenantId],
