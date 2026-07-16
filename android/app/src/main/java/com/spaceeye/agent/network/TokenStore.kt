@@ -30,7 +30,18 @@ class TokenStore(private val ctx: Context) {
         prefs.edit().putString("device_uid", uid).apply()
     }
 
+    @android.annotation.SuppressLint("HardwareIds")
     fun getOrCreateDeviceUid(): String {
+        // ANDROID_ID es estable entre reinstalaciones (mismo equipo + firma de la
+        // app), asi el dispositivo NO se duplica al reinstalar. Fallback: UUID.
+        val androidId = try {
+            android.provider.Settings.Secure.getString(
+                ctx.contentResolver, android.provider.Settings.Secure.ANDROID_ID
+            )
+        } catch (_: Exception) { null }
+        if (!androidId.isNullOrBlank() && androidId.length >= 8 && androidId != "9774d56d682e549c") {
+            return "android-$androidId"
+        }
         val existing = prefs.getString("device_uid", null)
         if (existing != null) return existing
         val uid = java.util.UUID.randomUUID().toString().replace("-", "")
