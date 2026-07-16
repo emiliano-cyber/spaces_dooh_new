@@ -31,8 +31,11 @@ function rowToConsulta(r: any): ConsultaPlay {
     tipo: r.tipo,
     campanaId: r.campana_id ?? null,
     auths: r.auths ?? [],
-    desde: iso(r.desde),
-    hasta: iso(r.hasta),
+    // `desde`/`hasta` son DATE: no tienen hora. Sin el recorte salen como
+    // 2026-07-14T06:00:00.000Z (la medianoche de CDMX en UTC), que en pantalla
+    // parece "el 14 a las 6am" y no lo es.
+    desde: String(iso(r.desde)).slice(0, 10),
+    hasta: String(iso(r.hasta)).slice(0, 10),
     payload: r.payload,
     vacio: r.vacio,
     error: r.error ?? null,
