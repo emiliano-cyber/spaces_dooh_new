@@ -47,9 +47,10 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     companion object {
         private const val TAG = "WebRTCClient"
-        // Correccion fija para que la FOTO guardada coincida con el STREAM.
-        // (Calibrado: la foto salia 90° en sentido horario respecto al stream.)
-        private const val PHOTO_ROTATION_CORRECTION = -90
+        // La foto se captura en ROTATION_0 (pixeles crudos del sensor = lo que
+        // muestra el stream), asi que no se necesita correccion de base. Solo se
+        // aplica la rotacion manual del visor encima.
+        private const val PHOTO_ROTATION_CORRECTION = 0
         private val ICE_SERVERS = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
@@ -204,7 +205,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 val imgCap = ImageCapture.Builder()
                     .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
                     .setResolutionSelector(res43)
-                    .setTargetRotation(Surface.ROTATION_270)
+                    .setTargetRotation(Surface.ROTATION_0)  // pixeles crudos = igual al stream
                     .build()
                 imageCapture = imgCap
 

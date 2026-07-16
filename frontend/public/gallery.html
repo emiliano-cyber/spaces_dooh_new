@@ -47,9 +47,9 @@
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         <template x-for="photo in photos" :key="photo.id">
           <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
-            <div class="relative group aspect-square bg-neutral-100">
+            <div class="relative group aspect-[4/3] bg-neutral-100">
               <img :src="photo.thumbnail_path" @click="openLightbox(photo)"
-                   class="w-full h-full object-cover cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
+                   class="w-full h-full object-contain cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
               <button @click.stop="deletePhoto(photo.id)" title="Eliminar fotografía"
                 class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-600/90 hover:bg-red-700 text-white rounded p-1.5 transition-opacity">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
