@@ -210,13 +210,6 @@ function deviceDetail() {
       this.streamClient = new LiveStreamClient(Number(this.deviceId), video);
       await this.streamClient.start();
       this.streaming = true;
-      // Ajustar encuadre/rotacion cuando lleguen frames y en cada resize.
-      const v = document.getElementById('liveVideo');
-      v.addEventListener('loadedmetadata', () => this.applyVideoTransform());
-      v.addEventListener('resize', () => this.applyVideoTransform());
-      this._resizeHandler = () => this.applyVideoTransform();
-      window.addEventListener('resize', this._resizeHandler);
-      setTimeout(() => this.applyVideoTransform(), 400);
       // Re-aplicar los ajustes que definiste, cuando la camara ya este lista.
       setTimeout(() => this.reapplyControls(), 1500);
     },
@@ -225,10 +218,6 @@ function deviceDetail() {
       await this.streamClient?.stop();
       this.streamClient = null;
       this.streaming = false;
-      if (this._resizeHandler) {
-        window.removeEventListener('resize', this._resizeHandler);
-        this._resizeHandler = null;
-      }
       // Se conservan zoom/exposicion/wb/foco/rotacion para el proximo stream.
     },
 
@@ -241,33 +230,9 @@ function deviceDetail() {
       if (this.focusLocked) this.camControl({ action: 'lock_focus', x: 0.5, y: 0.5 });
     },
 
-    // Rotacion del video en el visor (lado navegador).
+    // Rotacion del video en el visor (CSS simple; el frame ya llega 4:3 correcto).
     rotate() {
       this.rotation = (this.rotation + 90) % 360;
-      this.applyVideoTransform();
-    },
-
-    // Ajusta tamaño + rotacion del video para que SIEMPRE encaje en el recuadro,
-    // como una camara real al girarla (sin sobresalir ni deformarse). Al rotar
-    // 90/270 se intercambian ancho/alto para que, tras el giro, ocupe el cuadro.
-    applyVideoTransform() {
-      const v = document.getElementById('liveVideo');
-      if (!v || !v.parentElement) return;
-      const box = v.parentElement;
-      const cw = box.clientWidth, ch = box.clientHeight;
-      const r = ((this.rotation % 360) + 360) % 360;
-      if (r === 90 || r === 270) {
-        v.style.width = ch + 'px';
-        v.style.height = cw + 'px';
-      } else {
-        v.style.width = cw + 'px';
-        v.style.height = ch + 'px';
-      }
-      v.style.position = 'absolute';
-      v.style.left = '50%';
-      v.style.top = '50%';
-      v.style.objectFit = 'contain';   // muestra el cuadro completo, sin deformar
-      v.style.transform = `translate(-50%, -50%) rotate(${r}deg)`;
     },
 
     // --- Control manual de camara (solo con stream activo) ---

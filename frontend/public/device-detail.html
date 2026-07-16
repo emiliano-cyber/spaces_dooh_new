@@ -51,8 +51,8 @@
           <div class="aspect-[4/3] bg-neutral-900 flex items-center justify-center relative overflow-hidden"
                :class="streaming ? 'cursor-crosshair' : ''"
                @click="streaming && focusPoint($event)">
-            <video id="liveVideo" autoplay playsinline muted class="transition-transform"
-                   x-show="streaming"></video>
+            <video id="liveVideo" autoplay playsinline muted class="w-full h-full object-contain transition-transform"
+                   x-show="streaming" :style="{ transform: 'rotate(' + rotation + 'deg)' }"></video>
             <p x-show="!streaming" class="text-neutral-500 text-sm">Stream no activo</p>
           </div>
 
