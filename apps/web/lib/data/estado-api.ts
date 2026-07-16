@@ -244,11 +244,43 @@ export async function agregarPantallaAPredioApi(
   return { sitioId: d.sitioId }
 }
 
-export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
-  const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
+// Registra el pago. Opcionalmente con fecha, método y adjuntos de una vez.
+export async function registrarPagoRentaApi(
+  pagoId: string,
+  datos?: {
+    fechaPago?: string | null; metodoPago?: string | null
+    facturaUrl?: string | null; comprobanteUrl?: string | null; observaciones?: string | null
+  },
+): Promise<void> {
+  const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos ?? {}),
+  })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
   await refrescarEstado()
+}
+
+// Adjunta/reemplaza factura y comprobante de un pago YA registrado (la factura
+// suele llegar después). No re-sella el pago. `null` borra el adjunto.
+export async function adjuntarAPagoApi(
+  pagoId: string,
+  datos: { facturaUrl?: string | null; comprobanteUrl?: string | null; observaciones?: string | null },
+): Promise<void> {
+  const r = await fetch(`${API}/pagos-renta/${pagoId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron guardar los adjuntos')
+  await refrescarEstado()
+}
+
+// Liga para abrir un adjunto (no viaja en el estado; se sirve por su ruta).
+export function urlAdjuntoPago(pagoId: string, tipo: 'factura' | 'comprobante'): string {
+  return `${API}/pagos-renta/${pagoId}/adjunto/${tipo}/`
 }
 
 export async function iniciarRenovacionApi(contratoId: string): Promise<void> {

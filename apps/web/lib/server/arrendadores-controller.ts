@@ -6,6 +6,7 @@ import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
   crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
+  adjuntarAPago, obtenerAdjuntoPago,
 } from './arrendadores-repo'
 
 // ============================================================================
@@ -234,13 +235,33 @@ export async function iniciarRenovacionCtrl(id: string, body?: unknown) {
   return r.contrato
 }
 
+// ─── Adjuntos de pago (factura / comprobante) ───────────────────────────────
+// Se guardan como data URL base64 (mismo patrón que el PDF del contrato). El
+// cliente no es fuente de verdad: aquí se valida el tipo real declarado y el
+// tamaño, porque el límite del navegador se salta con un curl.
+const MAX_ADJUNTO_BYTES = 5 * 1024 * 1024
+const ADJUNTO_RE = /^data:(application\/pdf|image\/(png|jpe?g|webp));base64,[A-Za-z0-9+/]+=*$/
+
+// Bytes reales de un data URL base64 (4 chars → 3 bytes, menos el padding).
+function bytesDeDataUrl(v: string): number {
+  const b64 = v.slice(v.indexOf(',') + 1)
+  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0
+  return Math.floor((b64.length * 3) / 4) - padding
+}
+
+const adjunto = z
+  .string()
+  .trim()
+  .refine((v) => ADJUNTO_RE.test(v), 'El adjunto debe ser un PDF o una imagen (PNG, JPG o WebP)')
+  .refine((v) => bytesDeDataUrl(v) <= MAX_ADJUNTO_BYTES, 'El adjunto supera 5 MB')
+
 // Registro de pago de renta: PAGADO + adjuntos opcionales (factura/comprobante).
 const pagarSchema = z.object({
   fechaPago: fecha.nullish(),
   metodoPago: z.string().trim().max(40).nullish(),
-  facturaUrl: z.string().trim().nullish(),
-  comprobanteUrl: z.string().trim().nullish(),
-  observaciones: z.string().trim().nullish(),
+  facturaUrl: adjunto.nullish(),
+  comprobanteUrl: adjunto.nullish(),
+  observaciones: z.string().trim().max(500).nullish(),
 }).strict()
 export async function registrarPagoRentaCtrl(id: string, body?: unknown) {
   const d = pagarSchema.parse(body ?? {})
@@ -255,6 +276,30 @@ export async function registrarPagoRentaCtrl(id: string, body?: unknown) {
     throw new AppError(`Este periodo ya está pagado (${r.yaPagado}). Cancélalo antes de volver a registrarlo.`, 409)
   }
   return r.pago
+}
+
+// Adjuntar/reemplazar factura y comprobante de un pago, sin re-sellar el pago:
+// la factura suele llegar días después. `null` borra el adjunto.
+const adjuntarSchema = z.object({
+  facturaUrl: adjunto.nullable().optional(),
+  comprobanteUrl: adjunto.nullable().optional(),
+  metodoPago: z.string().trim().max(40).nullable().optional(),
+  observaciones: z.string().trim().max(500).nullable().optional(),
+}).strict()
+
+export async function adjuntarAPagoCtrl(id: string, body: unknown) {
+  const d = validar(adjuntarSchema, body)
+  if (!Object.keys(d).length) throw new AppError('No hay nada que guardar', 400)
+  const p = await adjuntarAPago(id, d)
+  if (!p) throw new AppError('Pago no encontrado', 404)
+  return p
+}
+
+export async function obtenerAdjuntoPagoCtrl(id: string, tipo: string) {
+  if (tipo !== 'factura' && tipo !== 'comprobante') throw new AppError('Adjunto inválido', 400)
+  const url = await obtenerAdjuntoPago(id, tipo)
+  if (!url) throw new AppError('Adjunto no encontrado', 404)
+  return url
 }
 
 // ─── Razón social del arrendador ────────────────────────────────────────────

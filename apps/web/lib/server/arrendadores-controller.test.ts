@@ -15,14 +15,18 @@ const repo = {
   agregarPantallaAPredio: vi.fn(async (predioId: string, sitio: unknown) => ({ predioId, sitio })),
   iniciarRenovacion: vi.fn(async () => ({ contrato: { id: 'C1' } })),
   registrarPagoRenta: vi.fn(async () => ({ pago: { id: 'P1' } })),
+  adjuntarAPago: vi.fn(async (id: string, d: unknown) => ({ id, ...(d as object) })),
+  obtenerAdjuntoPago: vi.fn(async () => 'data:application/pdf;base64,AAAA'),
   crearPredio: vi.fn(), editarPredio: vi.fn(), crearArrendador: vi.fn(),
   editarArrendador: vi.fn(), borrarArrendador: vi.fn(), editarContrato: vi.fn(),
   cancelarContrato: vi.fn(), crearRazonSocial: vi.fn(),
 }
 vi.mock('./arrendadores-repo', () => repo)
 
-const { crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl, registrarPagoRentaCtrl } =
-  await import('./arrendadores-controller')
+const {
+  crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl,
+  registrarPagoRentaCtrl, adjuntarAPagoCtrl, obtenerAdjuntoPagoCtrl,
+} = await import('./arrendadores-controller')
 
 // Las aserciones de "no se llamó al model" dependen de partir de cero.
 beforeEach(() => vi.clearAllMocks())
@@ -144,5 +148,59 @@ describe('registrarPagoRentaCtrl — fecha y repago', () => {
 
   it('registra un pago normal', async () => {
     await expect(registrarPagoRentaCtrl('P1', {})).resolves.toEqual({ id: 'P1' })
+  })
+})
+
+// ============================================================================
+//  Adjuntos (factura/comprobante). El limite del navegador se salta con un curl:
+//  el tipo y el tamaño se validan aqui, en el servidor.
+// ============================================================================
+describe('adjuntos de pago', () => {
+  const PDF = 'data:application/pdf;base64,JVBERi0xLjQK'
+  const PNG = 'data:image/png;base64,iVBORw0KGgo='
+  // ~6 MB de base64 => por encima del limite de 5 MB.
+  const GRANDE = 'data:application/pdf;base64,' + 'A'.repeat(8_400_000)
+
+  it('acepta un PDF y una imagen', async () => {
+    await expect(adjuntarAPagoCtrl('P1', { facturaUrl: PDF, comprobanteUrl: PNG })).resolves.toBeTruthy()
+  })
+
+  it('rechaza un ejecutable disfrazado de adjunto', async () => {
+    await expect(adjuntarAPagoCtrl('P1', { facturaUrl: 'data:application/x-msdownload;base64,TVqQ' }))
+      .rejects.toThrow(/PDF o una imagen/)
+  })
+
+  it('rechaza una URL que no es un adjunto', async () => {
+    await expect(adjuntarAPagoCtrl('P1', { facturaUrl: 'https://evil.example/factura.pdf' }))
+      .rejects.toThrow(/PDF o una imagen/)
+  })
+
+  it('rechaza un adjunto de mas de 5 MB', async () => {
+    await expect(adjuntarAPagoCtrl('P1', { facturaUrl: GRANDE })).rejects.toThrow(/5 MB/)
+  })
+
+  it('acepta null para borrar un adjunto', async () => {
+    const r: any = await adjuntarAPagoCtrl('P1', { facturaUrl: null })
+    expect(r.facturaUrl).toBeNull()
+  })
+
+  it('rechaza un cuerpo vacio (nada que guardar)', async () => {
+    await expect(adjuntarAPagoCtrl('P1', {})).rejects.toThrow(/nada que guardar/)
+  })
+
+  it('no re-sella el pago: nunca manda estatus ni fechaPago al model', async () => {
+    await adjuntarAPagoCtrl('P1', { facturaUrl: PDF })
+    const [, datos] = repo.adjuntarAPago.mock.calls[0] as [string, Record<string, unknown>]
+    expect(datos).not.toHaveProperty('estatus')
+    expect(datos).not.toHaveProperty('fechaPago')
+  })
+
+  it('rechaza un tipo de adjunto desconocido en la ruta', async () => {
+    await expect(obtenerAdjuntoPagoCtrl('P1', 'contrato')).rejects.toThrow(/inválido/i)
+    expect(repo.obtenerAdjuntoPago).not.toHaveBeenCalled()
+  })
+
+  it('devuelve el adjunto pedido', async () => {
+    await expect(obtenerAdjuntoPagoCtrl('P1', 'factura')).resolves.toMatch(/^data:application\/pdf/)
   })
 })

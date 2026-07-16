@@ -313,8 +313,11 @@ export interface PagoRenta {
   periodo: string
   monto: number
   fechaPago: string | null
-  facturaUrl: string | null
-  comprobanteUrl?: string | null
+  // Los adjuntos (factura/comprobante) pesan MB y NO viajan en el estado global:
+  // aquí solo se sabe si existen. El archivo se pide a
+  // /api/pagos-renta/[id]/adjunto/[tipo] cuando se abre (ver urlAdjuntoPago).
+  tieneFactura: boolean
+  tieneComprobante: boolean
   metodoPago?: string | null
   observaciones?: string | null
   estatus: EstPagoRenta

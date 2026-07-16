@@ -193,12 +193,12 @@ function c(
 
 const pagosRenta: PagoRenta[] = [
   // Contrato sano: últimos pagos PAGADOS, próximo aún lejano
-  { id: 'pago-1', contratoId: 'con-sanisidro', periodo: mesEtiqueta(-1), monto: 6500, fechaPago: offsetISO(-28), facturaUrl: null, estatus: 'PAGADO', creadoEn: offsetISO(-30) },
-  { id: 'pago-2', contratoId: 'con-sanisidro', periodo: mesEtiqueta(0), monto: 6500, fechaPago: offsetISO(-2), facturaUrl: null, estatus: 'PAGADO', creadoEn: offsetISO(-5) },
+  { id: 'pago-1', contratoId: 'con-sanisidro', periodo: mesEtiqueta(-1), monto: 6500, fechaPago: offsetISO(-28), tieneFactura: false, tieneComprobante: false, estatus: 'PAGADO', creadoEn: offsetISO(-30) },
+  { id: 'pago-2', contratoId: 'con-sanisidro', periodo: mesEtiqueta(0), monto: 6500, fechaPago: offsetISO(-2), tieneFactura: false, tieneComprobante: false, estatus: 'PAGADO', creadoEn: offsetISO(-5) },
   // Predial: pago por vencer en 10 días (ámbar)
-  { id: 'pago-3', contratoId: 'con-predial', periodo: mesEtiqueta(0), monto: 4200, fechaPago: null, facturaUrl: null, estatus: 'PENDIENTE', creadoEn: offsetISO(-3) },
+  { id: 'pago-3', contratoId: 'con-predial', periodo: mesEtiqueta(0), monto: 4200, fechaPago: null, tieneFactura: false, tieneComprobante: false, estatus: 'PENDIENTE', creadoEn: offsetISO(-3) },
   // Urbanas: renta VENCIDA (rojo) — venció hace 12 días
-  { id: 'pago-4', contratoId: 'con-urbanas', periodo: mesEtiqueta(-1), monto: 5800, fechaPago: null, facturaUrl: null, estatus: 'VENCIDO', creadoEn: offsetISO(-42) },
+  { id: 'pago-4', contratoId: 'con-urbanas', periodo: mesEtiqueta(-1), monto: 5800, fechaPago: null, tieneFactura: false, tieneComprobante: false, estatus: 'VENCIDO', creadoEn: offsetISO(-42) },
 ]
 function mesEtiqueta(offsetMeses: number): string {
   const d = new Date()

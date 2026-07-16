@@ -132,6 +132,12 @@ function rowToContrato(r: any) {
   }
 }
 
+// Los adjuntos (factura/comprobante) se guardan como data URL base64 y pesan MB.
+// NO viajan aquí: el estado global (/api/estado) trae TODOS los pagos y se
+// refresca tras cada mutación de la app, así que mandar los archivos lo haría
+// crecer sin límite. Solo se expone si existen; el archivo se pide por su ruta
+// (GET /api/pagos-renta/[id]/adjunto/[tipo]) cuando alguien lo abre.
+// Acepta filas con las columnas crudas (returning *) o con los flags calculados.
 function rowToPagoRenta(r: any) {
   return {
     id: r.id,
@@ -139,8 +145,8 @@ function rowToPagoRenta(r: any) {
     periodo: r.periodo,
     monto: Number(r.monto),
     fechaPago: r.fecha_pago ? iso(r.fecha_pago) : null,
-    facturaUrl: r.factura_url ?? null,
-    comprobanteUrl: r.comprobante_url ?? null,
+    tieneFactura: r.tiene_factura ?? r.factura_url != null,
+    tieneComprobante: r.tiene_comprobante ?? r.comprobante_url != null,
     metodoPago: r.metodo_pago ?? null,
     observaciones: r.observaciones ?? null,
     estatus: r.estatus,
@@ -287,9 +293,58 @@ export async function crearContratoConSitio(input: {
   }
 }
 
+// Sin las columnas de adjuntos (pesan MB): solo si existen. Ver rowToPagoRenta.
 export async function listarPagosRenta() {
-  const rows = await q('select * from pagos_renta where tenant_id = $1 order by creado_en asc', [await tenantActual()])
+  const rows = await q(
+    `select id, contrato_id, periodo, monto, fecha_pago, metodo_pago, observaciones, estatus, creado_en,
+            factura_url     is not null as tiene_factura,
+            comprobante_url is not null as tiene_comprobante
+       from pagos_renta where tenant_id = $1 order by creado_en asc`,
+    [await tenantActual()],
+  )
   return rows.map(rowToPagoRenta)
+}
+
+export type TipoAdjunto = 'factura' | 'comprobante'
+
+// Devuelve el data URL del adjunto (solo cuando alguien lo abre).
+export async function obtenerAdjuntoPago(pagoId: string, tipo: TipoAdjunto): Promise<string | null> {
+  const col = tipo === 'factura' ? 'factura_url' : 'comprobante_url'
+  const rows = await q(
+    `select ${col} as url from pagos_renta where id=$1 and tenant_id=$2`,
+    [pagoId, await tenantActual()],
+  )
+  if (!rows[0]) return null
+  return rows[0].url ?? null
+}
+
+// Adjunta/reemplaza factura y comprobante de un pago. A diferencia de
+// registrarPagoRenta, NO toca estatus ni fecha_pago: la factura suele llegar
+// días después del pago, y corregir un adjunto no debe re-sellar el pago.
+// `null` explícito borra el adjunto; `undefined` lo deja como está.
+export async function adjuntarAPago(pagoId: string, datos: {
+  facturaUrl?: string | null; comprobanteUrl?: string | null
+  metodoPago?: string | null; observaciones?: string | null
+}) {
+  const tenantId = await tenantActual()
+  const map: [string, unknown][] = [
+    ['factura_url', datos.facturaUrl], ['comprobante_url', datos.comprobanteUrl],
+    ['metodo_pago', datos.metodoPago], ['observaciones', datos.observaciones],
+  ]
+  const provided = map.filter(([, v]) => v !== undefined)
+  if (!provided.length) {
+    const cur = await q('select * from pagos_renta where id=$1 and tenant_id=$2', [pagoId, tenantId])
+    return cur[0] ? rowToPagoRenta(cur[0]) : null
+  }
+  const sets = provided.map(([c], i) => `${c} = $${i + 1}`)
+  const vals = provided.map(([, v]) => v)
+  vals.push(pagoId, tenantId)
+  const rows = await q(
+    `update pagos_renta set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return rows[0] ? rowToPagoRenta(rows[0]) : null
 }
 
 function rowToIncidencia(r: any) {
