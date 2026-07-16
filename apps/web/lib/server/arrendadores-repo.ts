@@ -276,13 +276,81 @@ export async function listarIncidencias() {
 
 // ─── Mutaciones (antes solo en el mock; ahora persisten en la BD) ────────────
 
-// Marca un pago de renta como PAGADO con la fecha de hoy.
-export async function registrarPagoRenta(pagoId: string) {
+// Registra un pago de renta: PAGADO + fecha, con adjuntos opcionales (factura,
+// comprobante), método de pago y observaciones. coalesce conserva lo previo.
+export async function registrarPagoRenta(pagoId: string, datos?: {
+  fechaPago?: string | null; metodoPago?: string | null; facturaUrl?: string | null
+  comprobanteUrl?: string | null; observaciones?: string | null
+}) {
+  const d = datos ?? {}
   const rows = await q(
-    `update pagos_renta set estatus='PAGADO', fecha_pago=now() where id=$1 returning *`,
-    [pagoId],
+    `update pagos_renta set
+        estatus         = 'PAGADO',
+        fecha_pago      = coalesce($3::timestamptz, now()),
+        metodo_pago     = coalesce($4, metodo_pago),
+        factura_url     = coalesce($5, factura_url),
+        comprobante_url = coalesce($6, comprobante_url),
+        observaciones   = coalesce($7, observaciones)
+      where id=$1 and tenant_id=$2 returning *`,
+    [pagoId, await tenantActual(), d.fechaPago ?? null, d.metodoPago ?? null,
+     d.facturaUrl ?? null, d.comprobanteUrl ?? null, d.observaciones ?? null],
   )
   return rows[0] ? rowToPagoRenta(rows[0]) : null
+}
+
+// ─── Razón social del arrendador (Fase 1.5) ─────────────────────────────────
+function rowToRazonSocial(r: any) {
+  return {
+    id: r.id,
+    arrendadorId: r.arrendador_id,
+    razonSocial: r.razon_social,
+    rfc: r.rfc ?? null,
+    regimen: r.regimen ?? null,
+    creadoEn: iso(r.creado_en),
+  }
+}
+
+export async function listarRazonesSociales() {
+  const rows = await q(
+    'select * from arrendador_razon_social where tenant_id = $1 order by razon_social asc',
+    [await tenantActual()],
+  )
+  return rows.map(rowToRazonSocial)
+}
+
+export async function crearRazonSocial(input: {
+  arrendadorId: string; razonSocial: string; rfc?: string | null; regimen?: string | null
+}) {
+  const rows = await q(
+    `insert into arrendador_razon_social (arrendador_id, razon_social, rfc, regimen, tenant_id)
+     values ($1,$2,$3,$4,$5) returning *`,
+    [input.arrendadorId, input.razonSocial, input.rfc ?? null, input.regimen ?? null, await tenantActual()],
+  )
+  return rowToRazonSocial(rows[0])
+}
+
+// ─── Predios (listado; entidad central del módulo) ──────────────────────────
+function rowToPredio(r: any) {
+  return {
+    id: r.id,
+    arrendadorId: r.arrendador_id,
+    nombre: r.nombre,
+    direccion: r.direccion ?? null,
+    lat: r.lat != null ? Number(r.lat) : null,
+    lng: r.lng != null ? Number(r.lng) : null,
+    tipoUbicacion: r.tipo_ubicacion ?? null,
+    estado: r.estado,
+    documentos: r.documentos ?? [],
+    creadoEn: iso(r.creado_en),
+  }
+}
+
+export async function listarPredios() {
+  const rows = await q(
+    'select * from predios where tenant_id = $1 order by creado_en asc',
+    [await tenantActual()],
+  )
+  return rows.map(rowToPredio)
 }
 
 // Inicia la renovación de un contrato: estatus RENOVADO y nueva vigencia.

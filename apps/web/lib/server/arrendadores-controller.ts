@@ -5,6 +5,7 @@ import { esEmailValido } from '@/lib/validacion'
 import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
+  crearRazonSocial,
 } from './arrendadores-repo'
 
 // ============================================================================
@@ -154,9 +155,30 @@ export async function iniciarRenovacionCtrl(id: string, body?: unknown) {
   return c
 }
 
-// Registro de pago de renta (acción por id, sin body).
-export async function registrarPagoRentaCtrl(id: string) {
-  const p = await registrarPagoRenta(id)
+// Registro de pago de renta: PAGADO + adjuntos opcionales (factura/comprobante).
+const pagarSchema = z.object({
+  fechaPago: z.string().min(1).nullish(),
+  metodoPago: z.string().trim().max(40).nullish(),
+  facturaUrl: z.string().trim().nullish(),
+  comprobanteUrl: z.string().trim().nullish(),
+  observaciones: z.string().trim().nullish(),
+}).strict()
+export async function registrarPagoRentaCtrl(id: string, body?: unknown) {
+  const d = pagarSchema.parse(body ?? {})
+  const p = await registrarPagoRenta(id, d)
   if (!p) throw new AppError('Pago no encontrado', 404)
   return p
+}
+
+// ─── Razón social del arrendador ────────────────────────────────────────────
+const crearRazonSocialSchema = z.object({
+  arrendadorId: z.string().uuid('Arrendador inválido'),
+  razonSocial: z.string().trim().min(1, 'La razón social es obligatoria'),
+  rfc: z.string().trim().max(13).nullish(),
+  regimen: z.string().trim().max(120).nullish(),
+})
+export async function crearRazonSocialCtrl(body: unknown) {
+  const d = validar(crearRazonSocialSchema, body)
+  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  return crearRazonSocial(d)
 }
