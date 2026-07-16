@@ -57,6 +57,7 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     comercializacion: r.comercializacion,
     enNetwork: !!r.en_network,
     cms: r.cms,
+    predioId: r.predio_id ?? null,
     arrendadorId: r.arrendador_id ?? null,
     rentaArrendador: n(r.renta_arrendador),
     periodicidadRenta: r.periodicidad_renta ?? null,

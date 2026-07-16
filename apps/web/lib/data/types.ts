@@ -214,9 +214,12 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  predioId?: string | null // predio (inmueble) al que pertenece la pantalla (N pantallas : 1 predio)
   arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
-  rentaArrendador?: number | null // renta que la empresa dueña paga al arrendador por esta pantalla
-  periodicidadRenta?: string | null // cada cuándo se paga esa renta (SEMANAL, MENSUAL, …)
+  /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */
+  rentaArrendador?: number | null
+  /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */
+  periodicidadRenta?: string | null
   // ─── Agregar inventario (importador / formulario manual) ──────────────────
   modalidades: string[] // modalidades de contratación
   // Detalle por modalidad (una por fila del Excel agrupada por codigo_proveedor)
@@ -272,10 +275,15 @@ export interface ContratoArrendamiento {
   fechaFin: string
   montoRenta: number
   periodicidad: string
+  montoMensualEquivalente?: number // renta normalizada a mensual (informativo)
   moneda: string
   autoRenovable: boolean
   documentoUrl: string | null
   estatus: EstContrato
+  predioId?: string | null // predio (inmueble) al que pertenece el contrato — fuente de la renta
+  razonSocialId?: string | null // razón social bajo la que se paga
+  deposito?: number | null
+  motivoCancelacion?: string | null
   creadoEn: string
 }
 
@@ -286,6 +294,9 @@ export interface PagoRenta {
   monto: number
   fechaPago: string | null
   facturaUrl: string | null
+  comprobanteUrl?: string | null
+  metodoPago?: string | null
+  observaciones?: string | null
   estatus: EstPagoRenta
   creadoEn: string
 }
