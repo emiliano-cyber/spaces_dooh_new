@@ -17,6 +17,8 @@ import {
   listarContratos,
   listarPagosRenta,
   listarIncidencias,
+  listarPredios,
+  listarRazonesSociales,
 } from '@/lib/server/arrendadores-repo'
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
@@ -36,7 +38,7 @@ export async function GET() {
   await notificarOTsVencidas()
   // Recordatorios de cobro (por vencer / vencidas), con cadencia (sin spam).
   await recordarCobranzasVencidas()
-  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio] =
+  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales] =
     await Promise.all([
       listarSitios(),
       listarSitiosRed(),
@@ -58,8 +60,10 @@ export async function GET() {
       listarOrdenesCompra(),
       listarNotificaciones(),
       obtenerConfig(),
+      listarPredios(),
+      listarRazonesSociales(),
     ])
   return NextResponse.json({
-    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio,
+    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales,
   })
 }

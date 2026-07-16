@@ -75,6 +75,7 @@ export {
   otAbierta,
   funnelPropuestas,
   diasHasta,
+  medioLabel,
   formatMonto,
   formatMontoCorto,
   formatFecha,
@@ -140,6 +141,11 @@ export function useSitiosRed() {
 export function useArrendadores() {
   const m = useMounted()
   const v = useDemoStore((s) => s.arrendadores)
+  return m ? v : undefined
+}
+export function usePredios() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.predios)
   return m ? v : undefined
 }
 export function useContratos() {

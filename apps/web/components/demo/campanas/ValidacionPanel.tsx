@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { useState } from 'react'
-import { ShieldCheck, Send, Check, X, Clock, Images, Code2 } from 'lucide-react'
+import { ShieldCheck, Send, Check, X, Clock, Images, Code2, Trash2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import {
   StatusBadge,
@@ -11,9 +11,10 @@ import {
   CREATIVIDAD_TONO,
   CREATIVIDAD_LABEL,
 } from '@/components/demo/StatusBadge'
+import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useCampana, useCreatividades, formatFechaHora } from '@/lib/data/client'
-import { enviarADominioApi, validarPublicacionApi } from '@/lib/data/estado-api'
+import { enviarADominioApi, validarPublicacionApi, eliminarCreatividadApi } from '@/lib/data/estado-api'
 import type { Creatividad } from '@/lib/data/types'
 
 // Panel de validación de publicación: se envía la campaña al dominio/CMS y un
@@ -23,11 +24,14 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
   const creatividades = useCreatividades()
   const puede = usePuede('comercial', 'crear')
   const [busy, setBusy] = useState(false)
+  const [busyCr, setBusyCr] = useState<string | null>(null)
+  const [confirmar, setConfirmar] = useState<Creatividad | null>(null)
+  const [confirmarAprobar, setConfirmarAprobar] = useState(false)
 
   if (!c) return <div className="h-40 w-full animate-pulse rounded-md bg-surface-2" />
 
   const creas = (creatividades ?? []).filter((cr) => cr.campanaId === campanaId)
-  const validadas = creas.filter((cr) => cr.estatusValidacion === 'VALIDADA')
+  const validadas = creas.filter((cr) => cr.estatusValidacion === 'VALIDADA' && !cr.retiradoEn)
   const requiereCreativos = c.tipoCampana === 'DOOH' || c.tipoCampana === 'HIBRIDA'
   const aprobada = c.validacionEstatus === 'APROBADA'
 
@@ -54,6 +58,26 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
       toast.error(e instanceof Error ? e.message : 'No se pudo validar la publicación')
     }
     setBusy(false)
+  }
+
+  // Baja un creativo desde la campaña: lo elimina y, si estaba publicado, lo
+  // retira de DOOHmain. Confirmación con diálogo (no window.confirm).
+  async function confirmarBajar() {
+    const cr = confirmar
+    if (!cr) return
+    setBusyCr(cr.id)
+    try {
+      const res = await eliminarCreatividadApi(cr.id)
+      toast.success(
+        res?.pendienteEnDoohmain
+          ? `“${cr.nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel`
+          : `“${cr.nombre}” se bajó`,
+      )
+      setConfirmar(null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo bajar el creativo')
+    }
+    setBusyCr(null)
   }
 
   return (
@@ -95,15 +119,40 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {creas.map((cr) => (
-              <div key={cr.id} className="overflow-hidden rounded border border-border">
+              <div
+                key={cr.id}
+                className={`overflow-hidden rounded border border-border ${cr.retiradoEn ? 'opacity-60' : ''}`}
+              >
                 <Miniatura cr={cr} />
                 <div className="space-y-1 p-1.5">
                   <div className="truncate text-[11px] text-ink" title={cr.nombre}>
                     {cr.nombre}
                   </div>
-                  <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]} className="px-1.5 py-0 text-[10px]">
-                    {CREATIVIDAD_LABEL[cr.estatusValidacion]}
-                  </StatusBadge>
+                  <div className="flex items-center justify-between gap-1">
+                    {cr.retiradoEn ? (
+                      <span
+                        className="inline-flex items-center gap-1 rounded-full border border-[#f59e0b40] bg-warning-soft px-1.5 py-0 text-[10px] font-medium text-[#9a6700]"
+                        title="Retirado; su arte sigue en DOOHmain (quítalo en su panel)"
+                      >
+                        <AlertTriangle className="h-2.5 w-2.5" /> Retirado
+                      </span>
+                    ) : (
+                      <StatusBadge tono={CREATIVIDAD_TONO[cr.estatusValidacion]} className="px-1.5 py-0 text-[10px]">
+                        {CREATIVIDAD_LABEL[cr.estatusValidacion]}
+                      </StatusBadge>
+                    )}
+                    {puede && !cr.retiradoEn && (
+                      <button
+                        type="button"
+                        title="Bajar creativo (finaliza su campaña en DOOHmain)"
+                        disabled={busyCr === cr.id}
+                        onClick={() => setConfirmar(cr)}
+                        className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-error transition-colors hover:bg-error-soft disabled:opacity-50"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
@@ -148,7 +197,7 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => validar(true)}
+                onClick={() => (requiereCreativos ? setConfirmarAprobar(true) : validar(true))}
                 className="inline-flex flex-1 items-center justify-center gap-1.5 rounded bg-success px-3 py-2 text-[12px] font-medium text-white transition-opacity duration-150 hover:opacity-90 disabled:opacity-50"
               >
                 <Check className="h-3.5 w-3.5" /> Aprobar publicación
@@ -172,6 +221,39 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
           Envía la campaña al dominio para que se valide antes de publicarse.
         </p>
       )}
+
+      <ConfirmDialog
+        open={confirmar !== null}
+        onOpenChange={(v) => !v && setConfirmar(null)}
+        title="Bajar creativo"
+        confirmLabel="Sí, bajar"
+        busy={busyCr !== null && busyCr === confirmar?.id}
+        onConfirm={confirmarBajar}
+      >
+        ¿Seguro que quieres bajar{' '}
+        <span className="font-medium text-ink">“{confirmar?.nombre}”</span>? Si estaba publicado, su
+        campaña se finaliza, pero <span className="text-ink">el arte no se puede quitar de DOOHmain</span>
+        (su API no lo permite): quedará marcado como “pendiente en DOOHmain”.
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={confirmarAprobar}
+        onOpenChange={setConfirmarAprobar}
+        title="Aprobar y publicar en DOOHmain"
+        confirmLabel="Sí, publicar"
+        busy={busy}
+        onConfirm={async () => {
+          await validar(true)
+          setConfirmarAprobar(false)
+        }}
+      >
+        Al aprobar, los anuncios se suben a DOOHmain.{' '}
+        <span className="font-medium text-ink">
+          Una vez publicados no se pueden eliminar ni reemplazar desde el sistema
+        </span>{' '}
+        (la API de DOOHmain no lo permite): cualquier cambio posterior deberá hacerse{' '}
+        <span className="text-ink">manualmente en el panel de DOOHmain</span>. ¿Continuar?
+      </ConfirmDialog>
     </div>
   )
 }

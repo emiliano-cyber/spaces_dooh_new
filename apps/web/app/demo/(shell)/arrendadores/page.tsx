@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, Plus } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
+import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import {
   StatusBadge,
   CONTRATO_TONO,
@@ -40,6 +41,7 @@ export default function ArrendadoresPage() {
   const [open, setOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
+  const [contratoOpen, setContratoOpen] = useState(false)
   const puedeCrear = usePuede('arrendadores', 'crear')
 
   function notify(msg: string) {
@@ -61,9 +63,14 @@ export default function ArrendadoresPage() {
           <p className="mt-1 text-[13px] text-muted">El otro lado de la red · contratos, rentas y vencimientos</p>
         </div>
         {puedeCrear && (
-          <Button size="sm" onClick={() => setNuevoOpen(true)}>
-            <Plus className="h-3.5 w-3.5" /> Nuevo propietario
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setNuevoOpen(true)}>
+              <Plus className="h-3.5 w-3.5" /> Nuevo propietario
+            </Button>
+            <Button size="sm" onClick={() => setContratoOpen(true)}>
+              <FileSignature className="h-3.5 w-3.5" /> Nuevo contrato
+            </Button>
+          </div>
         )}
       </div>
 
@@ -208,6 +215,23 @@ export default function ArrendadoresPage() {
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (
         <NuevoPropietarioDialog onClose={() => setNuevoOpen(false)} onToast={notify} />
+      )}
+      {contratoOpen && (
+        <Modal
+          open
+          onOpenChange={(v) => !v && setContratoOpen(false)}
+          size="lg"
+          title="Nuevo contrato de arrendamiento"
+          subtitle="Arrendatario → contrato (fechas pasadas permitidas) → pantalla"
+        >
+          <ContratoWizard
+            bare
+            onCreado={(s) => {
+              notify(`Contrato y pantalla "${s.nombre}" creados`)
+              setContratoOpen(false)
+            }}
+          />
+        </Modal>
       )}
 
       {toast && (

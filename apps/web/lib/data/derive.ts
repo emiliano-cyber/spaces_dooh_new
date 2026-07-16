@@ -29,6 +29,8 @@ export const ETAPAS_PIPELINE: EtapaPipeline[] = [
   'oc_recibida',
   'creativo_recibido',
   'creativo_validado',
+  'enviada_dominio',
+  'publicada',
   'en_imprenta',
   'en_produccion',
   'instalada',
@@ -42,6 +44,8 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
   oc_recibida: 'OC recibida',
   creativo_recibido: 'Creativo recibido',
   creativo_validado: 'Creativo validado',
+  enviada_dominio: 'Enviada al dominio',
+  publicada: 'Publicada',
   en_imprenta: 'En imprenta',
   en_produccion: 'En producción',
   instalada: 'Instalada / al aire',
@@ -59,12 +63,17 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
 //     "En imprenta".
 //   • HÍBRIDA: tiene ambos flujos, conserva todas las etapas.
 const ETAPAS_CREATIVO: EtapaPipeline[] = ['creativo_recibido', 'creativo_validado']
+// Publicación al dominio/CMS: solo aplica a medios digitales (DOOH/HÍBRIDA); la
+// fija (OOH) no tiene CMS.
+const ETAPAS_PUBLICACION: EtapaPipeline[] = ['enviada_dominio', 'publicada']
 export function etapasPipeline(c: Campana): EtapaPipeline[] {
   if (c.tipoCampana === 'DOOH') {
     return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
   }
   if (c.tipoCampana === 'OOH') {
-    return ETAPAS_PIPELINE.filter((e) => !ETAPAS_CREATIVO.includes(e))
+    return ETAPAS_PIPELINE.filter(
+      (e) => !ETAPAS_CREATIVO.includes(e) && !ETAPAS_PUBLICACION.includes(e),
+    )
   }
   return ETAPAS_PIPELINE
 }
@@ -104,6 +113,11 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   // "En imprenta" solo aplica a medios físicos (OOH/HÍBRIDA), no a digitales.
   if (aplica('en_imprenta') && ois.length > 0) return 'en_imprenta'
 
+  // Publicación al dominio/CMS (DOOH/HÍBRIDA): "enviada" al mandarse y "publicada"
+  // cuando el revisor aprueba (la campaña queda al aire).
+  if (aplica('publicada') && c.enviadaDominio && c.validacionEstatus === 'APROBADA') return 'publicada'
+  if (aplica('enviada_dominio') && c.enviadaDominio) return 'enviada_dominio'
+
   // "Creativo recibido/validado" solo aplica a medios con revisión de arte
   // (DOOH/HÍBRIDA); la fija (OOH) los omite.
   const creas = state.creatividades.filter((cr) => cr.campanaId === c.id)
@@ -142,6 +156,10 @@ export function fechasPipeline(
   if (creas.some((cr) => cr.estatusValidacion === 'VALIDADA')) {
     f.creativo_validado = min(creas.map((cr) => cr.creadoEn))
   }
+  if (c.enviadaDominio && c.enviadaDominioEn) f.enviada_dominio = c.enviadaDominioEn
+  if (c.enviadaDominio && c.validacionEstatus === 'APROBADA' && c.validacionEn) {
+    f.publicada = c.validacionEn
+  }
   if (ois.length) f.en_imprenta = min(ois.map((o) => o.creadoEn))
   const listo = ois.filter((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')
   if (listo.length) f.en_produccion = min(listo.map((o) => o.creadoEn))
@@ -178,7 +196,7 @@ const COSTO_OPERATIVO_POR_OT = 1500
 export interface DashboardMetrics {
   ingresoMes: number
   // Motor de costos (3 fuentes) → costoTotalMes.
-  costoEspaciosMes: number   // costo de compra de los sitios vendidos
+  costoEspaciosMes: number   // costo del espacio = renta atribuida del predio (reemplaza costo de compra)
   costoImpresionMes: number  // producción de lonas (órdenes de impresión)
   costoOperacionMes: number  // mano de obra de cuadrilla (órdenes de trabajo)
   costoTotalMes: number      // suma de los tres
@@ -212,10 +230,12 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
 
   // ── Motor de costos (3 fuentes) ──────────────────────────────────────────
   const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
-  // 1) Espacios: lo que nos cuesta cada sitio que vendimos (costoCompra) por
-  //    cada reserva CONFIRMADA. Es el costo de los ingresos reconocidos.
+  // 1) Espacios: el costo del espacio es la RENTA atribuida del predio a cada
+  //    pantalla vendida (reserva CONFIRMADA). La renta REEMPLAZA al costo de
+  //    compra (un solo costo, sin doble conteo). Sin contrato activo ⇒ 0.
+  const rentaAtribuida = rentaAtribuidaPorSitio(state)
   const costoEspaciosMes = confirmadas.reduce(
-    (sum, r) => sum + (sitioPorId.get(r.sitioId)?.costoCompra ?? 0),
+    (sum, r) => sum + (rentaAtribuida.get(r.sitioId) ?? 0),
     0,
   )
   // 2) Impresión: costo de producir la lona por cada orden de impresión, según
@@ -230,11 +250,13 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
 
   const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
 
-  // Renta a arrendadores: gasto fijo informativo. NO se suma al margen para no
-  // duplicar con el costo de compra del espacio (que ya representa ese costo).
+  // Renta a arrendadores: total BRUTO mensual de los contratos activos
+  // (informativo). El costo que ENTRA al margen es la renta ATRIBUIDA a las
+  // pantallas vendidas (costoEspaciosMes); este bruto NO se suma aparte para no
+  // duplicar (la renta ya es el costo del espacio).
   const costoRentaMes = state.contratos
-    .filter((c) => c.estatus === 'VIGENTE' || c.estatus === 'POR_VENCER')
-    .reduce((s, c) => s + c.montoRenta, 0)
+    .filter((c) => contratoActivo(c.estatus))
+    .reduce((s, c) => s + rentaAMensual(c.montoRenta, c.periodicidad), 0)
 
   const margen = ingresoMes - costoTotalMes
   const margenPct = ingresoMes > 0 ? (margen / ingresoMes) * 100 : 0
@@ -290,8 +312,10 @@ export function margenCampana(c: Campana, state: DemoState): MargenCampana {
     (r) => r.campanaId === c.id && r.estatus !== 'CANCELADA',
   )
   const ingreso = reservas.reduce((s, r) => s + r.precio, 0)
+  // Costo del espacio = renta atribuida del predio (reemplaza costoCompra).
+  const rentaAtribuida = rentaAtribuidaPorSitio(state)
   const costoEspacios = reservas.reduce(
-    (s, r) => s + (sitioPorId.get(r.sitioId)?.costoCompra ?? 0),
+    (s, r) => s + (rentaAtribuida.get(r.sitioId) ?? 0),
     0,
   )
   const costoImpresion = state.ordenesImpresion
@@ -482,23 +506,72 @@ export interface MargenSitio {
   sitioId: string
   nombre: string
   clave: string
-  rentaMensual: number // renta del contrato vigente, normalizada a mensual (0 si no hay)
+  rentaMensual: number // renta ATRIBUIDA del predio a esta pantalla (mensual; 0 si no hay contrato activo)
   ingresoMensual: number // ingreso de reservas activas hoy en el sitio
-  margenMensual: number // ingreso − renta
+  margenMensual: number // ingreso − renta atribuida
   tieneContrato: boolean
   arrendador: string | null
   activo: boolean // ¿tiene reserva vigente hoy?
 }
 
 // Normaliza el monto de renta a mensual según la periodicidad del contrato.
+// Enum canónico (M3): SEMANAL ×30/7 · CATORCENAL ×30/14 · QUINCENAL ×2 ·
+// MENSUAL ×1 · BIMESTRAL ÷2 · TRIMESTRAL ÷3 · SEMESTRAL ÷6 · ANUAL ÷12.
 function rentaAMensual(monto: number, periodicidad: string): number {
-  const per = (periodicidad || '').toLowerCase()
+  const F: Record<string, number> = {
+    SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
+    BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
+  }
+  const p = (periodicidad || '').toUpperCase()
+  if (p in F) return monto * F[p]
+  // Compat con etiquetas legacy (minúsculas / otros idiomas).
+  const per = p.toLowerCase()
   if (per.includes('anu') || per.includes('año') || per.includes('year')) return monto / 12
+  if (per.includes('semestr')) return monto / 6
+  if (per.includes('trimestr')) return monto / 3
+  if (per.includes('bimestr')) return monto / 2
   if (per.includes('catorc')) return monto * (30 / 14)
   if (per.includes('quinc')) return monto * 2
   if (per.includes('seman')) return monto * (30 / 7)
   if (per.includes('dia')) return monto * 30
   return monto // mensual por defecto
+}
+
+// ¿El contrato está activo (representa un costo de renta real hoy)?
+function contratoActivo(estatus: string): boolean {
+  return estatus === 'VIGENTE' || estatus === 'POR_VENCER' || estatus === 'RENOVADO'
+}
+
+// Renta mensual ATRIBUIDA a cada pantalla (Fase 1.6):
+//   rentaAtribuida(pantalla) = rentaMensualDelPredio × (caras_pantalla / Σ caras del predio).
+// rentaMensualDelPredio = renta del contrato ACTIVO del predio normalizada a mensual.
+// Si el predio no tiene contrato activo ⇒ 0 (sin renta). NUNCA usa costoCompra:
+// la renta ES el costo del espacio (un solo costo, sin doble conteo).
+export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
+  // 1) Renta mensual activa por predio (si hay varios activos, el de mayor renta).
+  const rentaPredio = new Map<string, number>()
+  for (const c of state.contratos) {
+    if (!c.predioId || !contratoActivo(c.estatus)) continue
+    const m = rentaAMensual(c.montoRenta, c.periodicidad)
+    const prev = rentaPredio.get(c.predioId)
+    if (prev == null || m > prev) rentaPredio.set(c.predioId, m)
+  }
+  // 2) Σ caras por predio.
+  const carasPredio = new Map<string, number>()
+  for (const s of state.sitios) {
+    if (!s.predioId) continue
+    carasPredio.set(s.predioId, (carasPredio.get(s.predioId) ?? 0) + (s.caras || 1))
+  }
+  // 3) Atribución por pantalla (partes iguales ponderadas por caras).
+  const out = new Map<string, number>()
+  for (const s of state.sitios) {
+    const pid = s.predioId
+    if (!pid) { out.set(s.id, 0); continue }
+    const renta = rentaPredio.get(pid) ?? 0
+    const total = carasPredio.get(pid) ?? 0
+    out.set(s.id, total > 0 ? renta * ((s.caras || 1) / total) : 0)
+  }
+  return out
 }
 
 // Margen mensual por pantalla: ingreso de las reservas vigentes hoy menos la
@@ -514,11 +587,16 @@ export function margenPorSitio(state: DemoState): MargenSitio[] {
       activasPorSitio.set(r.sitioId, (activasPorSitio.get(r.sitioId) ?? 0) + r.precio)
     }
   }
+  // Renta atribuida por pantalla (partes iguales por caras del predio).
+  const rentaAtribuida = rentaAtribuidaPorSitio(state)
+  // Contrato ACTIVO del predio de cada sitio (para arrendador y "tieneContrato").
+  const contratoActivoDePredio = (predioId: string | null | undefined) =>
+    predioId ? state.contratos.find((c) => c.predioId === predioId && contratoActivo(c.estatus)) ?? null : null
+
   return state.sitios.map((s) => {
-    // Contrato del sitio (se prefiere uno vigente).
-    const cons = state.contratos.filter((c) => c.sitioId === s.id)
-    const con = cons.find((c) => c.estatus === 'VIGENTE') ?? cons[0] ?? null
-    const rentaMensual = con ? rentaAMensual(con.montoRenta, con.periodicidad) : 0
+    const con = contratoActivoDePredio(s.predioId)
+    // rentaMensual = renta del predio ATRIBUIDA a esta pantalla (no la renta completa).
+    const rentaMensual = rentaAtribuida.get(s.id) ?? 0
     const arr = con ? state.arrendadores.find((a) => a.id === con.arrendadorId) : null
     const ingresoMensual = activasPorSitio.get(s.id) ?? 0
     return {
@@ -543,6 +621,21 @@ export function diasHasta(iso: string): number {
   const objetivo = new Date(iso)
   objetivo.setHours(0, 0, 0, 0)
   return Math.round((objetivo.getTime() - ahora.getTime()) / 86_400_000)
+}
+
+// Etiqueta del medio para la UI: "Digital" (vende slots) o "Fija" (vende lona).
+// OJO: esta es la regla de PRESENTACIÓN y es más amplia que la de BOOKING
+// (`esDigital`, abajo), que por S0-3 solo considera digital a PANTALLA_DIGITAL:
+// un rotativo sobre estructura estática se muestra como digital pero se reserva
+// como fijo. Hoy no hay ninguna pantalla así, pero si la hubiera, las dos reglas
+// difieren a propósito. No las unifiques sin decidir antes cuál gana.
+export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibicion'>): string {
+  const digital =
+    s.tipoMedio === 'PANTALLA_DIGITAL' ||
+    !!s.esRotativo ||
+    s.exhibicion === 'digital' ||
+    s.exhibicion === 'rotativo'
+  return digital ? 'Digital' : 'Fija'
 }
 
 export function formatMonto(n: number): string {

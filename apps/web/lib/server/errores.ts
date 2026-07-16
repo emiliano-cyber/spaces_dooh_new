@@ -31,8 +31,30 @@ export function validar<T>(schema: ZodType<T>, data: unknown): T {
   return r.data
 }
 
+// Errores de Postgres que en realidad son culpa de la petición, no del servidor:
+// sin esto salían como 500 con el texto crudo del driver (uuid mal formado, fecha
+// basura, choque de índice único...). Mensaje propio: el de Postgres filtra
+// nombres de tablas, columnas y constraints al cliente.
+const ERRORES_PG: Record<string, { status: number; mensaje: string }> = {
+  '22P02': { status: 400, mensaje: 'Dato con formato inválido' },            // uuid/enum mal formado
+  '22007': { status: 400, mensaje: 'Fecha inválida' },                       // invalid_datetime_format
+  '22008': { status: 400, mensaje: 'Fecha fuera de rango' },
+  '22001': { status: 400, mensaje: 'Un valor excede la longitud permitida' },
+  '23502': { status: 400, mensaje: 'Falta un dato obligatorio' },            // not_null_violation
+  '23514': { status: 400, mensaje: 'Un valor no cumple las reglas de la tabla' },
+  '23505': { status: 409, mensaje: 'El registro ya existe' },                // unique_violation
+  '23503': { status: 409, mensaje: 'El registro está referenciado por otro' },
+  '42501': { status: 403, mensaje: 'Sin acceso a ese registro' },            // RLS
+}
+
+function codigoPg(e: unknown): string | null {
+  const c = (e as { code?: unknown })?.code
+  return typeof c === 'string' && /^[0-9A-Z]{5}$/.test(c) ? c : null
+}
+
 // Mapea cualquier error a una respuesta HTTP. AppError/ZodError → 4xx con
-// mensaje; lo demás → 500 genérico (sin filtrar internals).
+// mensaje; errores de Postgres atribuibles a la petición → 4xx genérico; lo
+// demás → 500 sin filtrar internals (el detalle va al log del servidor).
 export function respuestaError(e: unknown): NextResponse {
   if (e instanceof AppError) {
     return NextResponse.json({ error: e.message }, { status: e.status })
@@ -40,6 +62,15 @@ export function respuestaError(e: unknown): NextResponse {
   if (e instanceof ZodError) {
     return NextResponse.json({ error: e.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
   }
-  const msg = e instanceof Error ? e.message : 'Error interno'
-  return NextResponse.json({ error: msg }, { status: 500 })
+  const pg = codigoPg(e)
+  if (pg && ERRORES_PG[pg]) {
+    const { status, mensaje } = ERRORES_PG[pg]
+    console.error(`[api] Postgres ${pg}:`, e)
+    return NextResponse.json({ error: mensaje }, { status })
+  }
+  // Inesperado: se registra completo del lado del servidor y al cliente solo le
+  // llega que fue un error interno (el mensaje puede contener detalles del
+  // esquema, de la conexión o de la consulta).
+  console.error('[api] Error no controlado:', e)
+  return NextResponse.json({ error: 'Error interno' }, { status: 500 })
 }

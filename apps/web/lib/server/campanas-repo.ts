@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 
 // ============================================================================
@@ -105,7 +105,9 @@ export async function listarCreatividades() {
     id: r.id, campanaId: r.campana_id, nombre: r.nombre, archivoUrl: r.archivo_url,
     codigo: r.codigo ?? null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
-    rechazadoMotivo: r.rechazado_motivo, creadoEn: iso(r.creado_en),
+    rechazadoMotivo: r.rechazado_motivo,
+    retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
+    creadoEn: iso(r.creado_en),
   }))
 }
 
@@ -171,6 +173,7 @@ export async function barrerReservasVencidas(): Promise<number> {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     // 1) Reservas vencidas + flag de medio digital (para liberar inventario).
     const vencidas = (
       await client.query(
@@ -254,6 +257,7 @@ export async function reservar(input: {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     let campanaId = input.campanaId
 
     if (!campanaId) {
@@ -305,7 +309,7 @@ export async function reservar(input: {
     for (const sitioId of input.sitioIds) {
       const s = (
         await client.query(
-          'select nombre, tarifa_mensual, spots_disponibles, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
           [sitioId],
         )
       ).rows[0]
@@ -336,11 +340,21 @@ export async function reservar(input: {
           )
         }
       } else {
-        // Digital ocupada = sin slots libres → no acepta más campañas.
-        const dispNow = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
-        if (dispNow != null && dispNow <= 0) {
+        // Digital: 1 slot = 1 campaña. Ocupada cuando el nº de campañas con
+        // reserva activa alcanza total_spots (no depende del contador almacenado).
+        const tot = s?.total_spots != null ? Number(s.total_spots) : null
+        const cnt = Number(
+          (
+            await client.query(
+              `select count(distinct campana_id)::int as n from reservas
+                where sitio_id=$1 and estatus <> 'CANCELADA' and campana_id <> $2`,
+              [sitioId, campanaId],
+            )
+          ).rows[0]?.n ?? 0,
+        )
+        if (tot != null && cnt >= tot) {
           throw new Error(
-            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (ocupada). Elige otra pantalla.`,
+            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (${cnt}/${tot} campañas). Elige otra pantalla.`,
           )
         }
       }
@@ -360,18 +374,18 @@ export async function reservar(input: {
         [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, TTL_RESERVA_DIAS, await tenantActual()],
       )
 
-      if (digital && spotsReservados != null) {
-        // Descuenta slots; la pantalla sigue DISPONIBLE mientras le queden slots
-        // y pasa a OCUPADO solo cuando se agotan (no debe aceptar más campañas).
+      if (digital) {
+        // 1 slot = 1 campaña. Estatus por conteo de campañas activas: OCUPADO al
+        // llenar los slots, si no DISPONIBLE. El nº de disponibles se calcula al
+        // leer (listarSitios = total − campañas activas), sin contador que drifte.
         await client.query(
-          `update sitios
-              set spots_disponibles = greatest(0, coalesce(spots_disponibles,0) - $2),
-                  estatus_comercial = (case
-                    when greatest(0, coalesce(spots_disponibles,0) - $2) <= 0 then 'OCUPADO'
-                    else 'DISPONIBLE'
-                  end)::est_comercial
-            where id=$1`,
-          [sitioId, spotsReservados],
+          `update sitios s set estatus_comercial = (case
+              when (select count(distinct campana_id) from reservas r
+                     where r.sitio_id = s.id and r.estatus <> 'CANCELADA')
+                   >= coalesce(s.total_spots, 0) then 'OCUPADO'
+              else 'DISPONIBLE' end)::est_comercial
+            where s.id=$1`,
+          [sitioId],
         )
       } else {
         await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
@@ -439,6 +453,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
       await client.query(
@@ -510,6 +525,7 @@ export async function confirmarReserva(campanaId: string) {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const sitios = (
       await client.query(
         `select sitio_id from reservas where campana_id=$1 and estatus='TENTATIVA'`,
@@ -560,9 +576,9 @@ export async function extenderCampana(campanaId: string, nuevaFechaFin: string) 
 // mapea a 409.
 export class ValidacionError extends Error {}
 
-// Estados de campaña que ya están comprometidos (no borrador/cotización/cancel.)
-// y por tanto pueden enviarse al dominio para revisión.
-const ESTADOS_COMPROMETIDOS = new Set(['CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR'])
+// Una campaña puede enviarse al dominio en cualquier estado salvo cancelada
+// (no tiene sentido publicar en el CMS algo cancelado).
+const ESTADOS_NO_ENVIABLES = new Set(['CANCELADA'])
 
 // Paso 1: envía la campaña al dominio/CMS. Deja la validación en PENDIENTE para
 // que un revisor verifique la información de los anuncios antes de publicar.
@@ -571,9 +587,9 @@ const ESTADOS_COMPROMETIDOS = new Set(['CONFIRMADA', 'ACTIVA', 'LISTA_FACTURAR']
 export async function enviarADominio(campanaId: string) {
   const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!camp) return null
-  if (!ESTADOS_COMPROMETIDOS.has(camp.estado_comercial)) {
+  if (ESTADOS_NO_ENVIABLES.has(camp.estado_comercial)) {
     throw new ValidacionError(
-      'Solo se puede enviar al dominio una campaña confirmada por el cliente',
+      'No se puede enviar al dominio una campaña cancelada',
     )
   }
   if (camp.tipo_campana === 'DOOH' || camp.tipo_campana === 'HIBRIDA') {

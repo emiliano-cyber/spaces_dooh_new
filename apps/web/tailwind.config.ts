@@ -32,11 +32,24 @@ const config: Config = {
         accent: {
           DEFAULT: 'var(--accent)',
           fg: 'var(--accent-fg)',
+          hover: 'var(--accent-hover)',
+          soft: 'var(--accent-soft)',
         },
-        success: 'var(--success)',
-        error: 'var(--error)',
+        live: 'var(--live)',
+        fuego: 'var(--fuego)',
+        success: {
+          DEFAULT: 'var(--success)',
+          soft: 'var(--success-soft)',
+        },
+        error: {
+          DEFAULT: 'var(--error)',
+          soft: 'var(--error-soft)',
+        },
         info: 'var(--info)',
-        warning: 'var(--warning)',
+        warning: {
+          DEFAULT: 'var(--warning)',
+          soft: 'var(--warning-soft)',
+        },
       },
       fontFamily: {
         display: ['var(--font-display)'],

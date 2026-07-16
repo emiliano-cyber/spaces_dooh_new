@@ -2,30 +2,43 @@
 
 import { toast } from 'sonner'
 import { useRef, useState } from 'react'
-import { Images, Upload, Check, X, Clock, Code2, Eye, Download } from 'lucide-react'
+import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { EmptyState } from '@/components/demo/EmptyState'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   crearCreatividadApi,
   validarCreatividadApi,
   asignarCreativosApi,
+  eliminarCreatividadApi,
+  reemplazarCreatividadApi,
 } from '@/lib/data/estado-api'
 import { useCampanas, useCreatividades, useReservas, useSitios } from '@/lib/data/client'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 
-// Convierte una imagen subida (data URL) en un creativo HTML para el player
-// DOOH: incrusta el <img> a pantalla completa (contain, fondo negro). Así todas
-// las imágenes se guardan/sirven como HTML (formato text/html), no como imagen.
+// Convierte una imagen subida (data URL) en un creativo HTML para el player DOOH.
+// Adaptativo a cualquier pantalla: la imagen completa (contain) va al centro sin
+// recorte, y las franjas se rellenan con la MISMA imagen difuminada de fondo → sin
+// barras negras y sin perder nada. Responsivo (llena el contenedor a cualquier
+// tamaño/proporción). El <img src="data:image…"> se conserva para que la extracción
+// a DOOHmain y los previews sigan encontrando la imagen.
 function imagenAHtml(dataUrl: string, nombre: string): string {
   const alt = (nombre || 'creativo').replace(/[<>&"]/g, ' ').trim()
   return (
     '<!doctype html><html><head><meta charset="utf-8">' +
-    '<style>html,body{margin:0;padding:0;height:100%;background:#000}</style></head>' +
-    '<body><div style="width:100%;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden">' +
-    `<img src="${dataUrl}" alt="${alt}" style="max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block"/>` +
+    '<style>' +
+    'html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}' +
+    '.dooh-wrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}' +
+    `.dooh-bg{position:absolute;inset:0;background:#000 center/cover no-repeat url("${dataUrl}");` +
+    'filter:blur(28px) brightness(.55);transform:scale(1.15)}' +
+    '.dooh-fg{position:relative;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;display:block}' +
+    '</style></head>' +
+    '<body><div class="dooh-wrap">' +
+    '<div class="dooh-bg"></div>' +
+    `<img class="dooh-fg" src="${dataUrl}" alt="${alt}"/>` +
     '</div></body></html>'
   )
 }
@@ -146,6 +159,7 @@ function CampanaCard({
   puede: boolean
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null)
+  const reemplazarRef = useRef<HTMLInputElement | null>(null)
   const [subiendo, setSubiendo] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [codeOpen, setCodeOpen] = useState(false)
@@ -153,8 +167,14 @@ function CampanaCard({
   const [codigo, setCodigo] = useState('')
   // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
   const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
+  // Creativo que se está reemplazando (para el input de archivo).
+  const [reemplazarId, setReemplazarId] = useState<string | null>(null)
+  // Creativo cuya eliminación se está confirmando (null = cerrado).
+  const [confirmarEliminar, setConfirmarEliminar] = useState<Creatividad | null>(null)
 
-  const aprobados = creativos.filter((cr) => cr.estatusValidacion === 'VALIDADA')
+  // Aprobados y asignables: excluye los retirados (siguen en DOOHmain, pero ya no
+  // se pueden asignar a spots desde aquí).
+  const aprobados = creativos.filter((cr) => cr.estatusValidacion === 'VALIDADA' && !cr.retiradoEn)
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
@@ -215,6 +235,65 @@ function CampanaCard({
     setBusy(null)
   }
 
+  // Elimina un creativo (confirmado por diálogo). Si estaba publicado, el backend
+  // lo retira de DOOHmain.
+  async function confirmarEliminarDo() {
+    const cr = confirmarEliminar
+    if (!cr) return
+    setBusy(cr.id)
+    try {
+      const res = await eliminarCreatividadApi(cr.id)
+      toast.success(
+        res?.pendienteEnDoohmain
+          ? `“${cr.nombre}” se retiró. Su arte sigue en DOOHmain — quítalo en su panel`
+          : `“${cr.nombre}” se eliminó`,
+      )
+      setConfirmarEliminar(null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+    }
+    setBusy(null)
+  }
+
+  // Reemplaza el arte de un creativo: abre el selector de imagen.
+  function pedirReemplazo(cr: Creatividad) {
+    setReemplazarId(cr.id)
+    reemplazarRef.current?.click()
+  }
+
+  function onReemplazoFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    const id = reemplazarId
+    if (!f || !id) return
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error('La imagen supera 5MB')
+      return
+    }
+    setBusy(id)
+    const reader = new FileReader()
+    reader.onload = async () => {
+      try {
+        const dataUrl = reader.result as string
+        const res = await reemplazarCreatividadApi(id, {
+          nombre: f.name,
+          codigo: imagenAHtml(dataUrl, f.name),
+          formato: 'text/html',
+        })
+        toast.success(
+          res?.doohmain?.estado === 'retirado'
+            ? 'Arte reemplazado. El anterior se retiró de DOOHmain; apruébalo de nuevo para publicar el nuevo.'
+            : 'Arte reemplazado. Apruébalo de nuevo para publicarlo.',
+        )
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'No se pudo reemplazar')
+      }
+      setBusy(null)
+      setReemplazarId(null)
+    }
+    reader.readAsDataURL(f)
+  }
+
   // Guarda los creativos (con veces) de un spot.
   async function guardarCreativos(reserva: Reserva, creativos: { creatividadId: string; veces: number }[]) {
     setBusy(reserva.id)
@@ -250,6 +329,7 @@ function CampanaCard({
         {puede && (
           <div className="flex shrink-0 gap-2">
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} />
+            <input ref={reemplazarRef} type="file" accept="image/*" className="hidden" onChange={onReemplazoFile} />
             <Button size="sm" disabled={subiendo} onClick={() => fileRef.current?.click()}>
               <Upload className="h-3.5 w-3.5" /> Imagen
             </Button>
@@ -293,7 +373,10 @@ function CampanaCard({
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {creativos.map((cr) => (
-              <div key={cr.id} className="overflow-hidden rounded-md border border-border">
+              <div
+                key={cr.id}
+                className={`overflow-hidden rounded-md border border-border ${cr.retiradoEn ? 'opacity-60' : ''}`}
+              >
                 {esCreativoHtml(cr) ? (
                   <iframe
                     title={cr.nombre}
@@ -325,7 +408,16 @@ function CampanaCard({
                       </span>
                     )}
                   </div>
-                  <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
+                  {cr.retiradoEn ? (
+                    <div
+                      className="inline-flex items-center gap-1 rounded-full border border-[#f59e0b40] bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-[#9a6700]"
+                      title="Retirado del sistema; su arte sigue en DOOHmain (quítalo en su panel)"
+                    >
+                      <AlertTriangle className="h-2.5 w-2.5" /> Retirado · pendiente en DOOHmain
+                    </div>
+                  ) : (
+                    <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
+                  )}
                   {/* Sólo si hay fuente que enseñar (codigo o data:text/html). */}
                   {htmlDeCreativo(cr) !== null && (
                     <Button
@@ -337,26 +429,48 @@ function CampanaCard({
                       <Eye className="h-3 w-3" /> Ver HTML
                     </Button>
                   )}
-                  {puede && (
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
-                        disabled={busy === cr.id}
-                        onClick={() => validar(cr.id, true)}
-                      >
-                        <Check className="h-3 w-3" /> Aprobar
-                      </Button>
-                      {/* Aprobar es definitivo: una vez validado ya no se puede rechazar. */}
-                      <Button
-                        size="sm"
-                        variant="danger"
-                        disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
-                        title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado' : undefined}
-                        onClick={() => validar(cr.id, false)}
-                      >
-                        <X className="h-3 w-3" /> Rechazar
-                      </Button>
+                  {puede && !cr.retiradoEn && (
+                    <div className="space-y-1.5">
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
+                          disabled={busy === cr.id}
+                          onClick={() => validar(cr.id, true)}
+                        >
+                          <Check className="h-3 w-3" /> Aprobar
+                        </Button>
+                        {/* Aprobar es definitivo: una vez validado ya no se puede rechazar. */}
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
+                          title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado' : undefined}
+                          onClick={() => validar(cr.id, false)}
+                        >
+                          <X className="h-3 w-3" /> Rechazar
+                        </Button>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-7 gap-1 px-2 text-[12px]"
+                          disabled={busy === cr.id}
+                          onClick={() => pedirReemplazo(cr)}
+                        >
+                          <RefreshCw className="h-3 w-3" /> Reemplazar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 gap-1 px-2 text-[12px] text-error hover:bg-error-soft"
+                          disabled={busy === cr.id}
+                          onClick={() => setConfirmarEliminar(cr)}
+                        >
+                          <Trash2 className="h-3 w-3" /> Eliminar
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -485,6 +599,21 @@ function CampanaCard({
           {htmlDeCreativo(verFuente) ?? ''}
         </pre>
       </Modal>
+
+      <ConfirmDialog
+        open={confirmarEliminar !== null}
+        onOpenChange={(v) => !v && setConfirmarEliminar(null)}
+        title="Eliminar creativo"
+        confirmLabel="Sí, eliminar"
+        busy={busy !== null && busy === confirmarEliminar?.id}
+        onConfirm={confirmarEliminarDo}
+      >
+        ¿Seguro que quieres bajar{' '}
+        <span className="font-medium text-ink">“{confirmarEliminar?.nombre}”</span>? Si ya está
+        publicado, su campaña se finaliza, pero <span className="text-ink">el arte no se puede
+        quitar de DOOHmain</span> (su API no lo permite): quedará marcado como “pendiente en DOOHmain”
+        para que lo quites en su panel.
+      </ConfirmDialog>
     </Card>
   )
 }

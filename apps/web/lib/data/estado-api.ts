@@ -29,6 +29,7 @@ export async function refrescarEstado(): Promise<void> {
     ordenesImpresion: e.ordenesImpresion ?? [],
     acciones: e.acciones ?? [],
     arrendadores: e.arrendadores ?? [],
+    predios: e.predios ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
@@ -201,11 +202,86 @@ export async function crearArrendadorApi(input: {
   await refrescarEstado()
 }
 
-export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
-  const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, { method: 'POST' })
+// Alta unificada: arrendatario → contrato de arrendamiento → pantalla. El
+// arrendador puede ser existente ({ id }) o nuevo ({ nombre, ... }). Fechas
+// pasadas permitidas. Devuelve el id de la pantalla creada.
+export async function crearContratoConSitioApi(input: {
+  arrendador: { id: string } | { nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null }
+  // Predio obligatorio: {id} reusa uno del mismo arrendador (varias pantallas en
+  // un predio comparten la renta), {nombre,...} da de alta uno nuevo.
+  predio: { id: string } | { nombre: string; direccion?: string | null; lat?: number | null; lng?: number | null; tipoUbicacion?: string | null }
+  contrato: {
+    fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
+    moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
+  }
+  // {id} asigna una pantalla que ya está en el inventario; si no, se crea una.
+  sitio: { id: string } | Record<string, unknown>
+}): Promise<{ sitioId: string; contratoId: string }> {
+  const r = await fetch(`${API}/contratos/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el contrato')
+  await refrescarEstado()
+  return { sitioId: d.sitio?.id, contratoId: d.contrato?.id }
+}
+
+// Cuelga una pantalla de un predio que YA tiene contrato: no se firma otro
+// (la renta del predio es una sola y se reparte entre sus pantallas).
+export async function agregarPantallaAPredioApi(
+  predioId: string,
+  sitio: Record<string, unknown>,
+): Promise<{ sitioId: string }> {
+  const r = await fetch(`${API}/predios/${predioId}/pantallas/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sitio),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo agregar la pantalla al predio')
+  await refrescarEstado()
+  return { sitioId: d.sitioId }
+}
+
+// Registra el pago. Opcionalmente con fecha, método y adjuntos de una vez.
+export async function registrarPagoRentaApi(
+  pagoId: string,
+  datos?: {
+    fechaPago?: string | null; metodoPago?: string | null
+    facturaUrl?: string | null; comprobanteUrl?: string | null; observaciones?: string | null
+  },
+): Promise<void> {
+  const r = await fetch(`${API}/pagos-renta/${pagoId}/pagar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos ?? {}),
+  })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar el pago')
   await refrescarEstado()
+}
+
+// Adjunta/reemplaza factura y comprobante de un pago YA registrado (la factura
+// suele llegar después). No re-sella el pago. `null` borra el adjunto.
+export async function adjuntarAPagoApi(
+  pagoId: string,
+  datos: { facturaUrl?: string | null; comprobanteUrl?: string | null; observaciones?: string | null },
+): Promise<void> {
+  const r = await fetch(`${API}/pagos-renta/${pagoId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(datos),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudieron guardar los adjuntos')
+  await refrescarEstado()
+}
+
+// Liga para abrir un adjunto (no viaja en el estado; se sirve por su ruta).
+export function urlAdjuntoPago(pagoId: string, tipo: 'factura' | 'comprobante'): string {
+  return `${API}/pagos-renta/${pagoId}/adjunto/${tipo}/`
 }
 
 export async function iniciarRenovacionApi(contratoId: string): Promise<void> {
@@ -387,6 +463,33 @@ export async function validarCreatividadApi(
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error((d as any).error ?? 'No se pudo validar el creativo')
   await refrescarEstado()
+}
+
+// Elimina un creativo (y lo retira de DOOHmain si aplica). Devuelve la respuesta
+// (incluye el resultado del retiro en `doohmain`).
+export async function eliminarCreatividadApi(id: string): Promise<any> {
+  const r = await fetch(`${API}/creatividades/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo eliminar el creativo')
+  await refrescarEstado()
+  return d
+}
+
+// Reemplaza el arte de un creativo (retira el anterior de DOOHmain y lo deja
+// PENDIENTE para re-validar). Devuelve la respuesta.
+export async function reemplazarCreatividadApi(
+  id: string,
+  input: { nombre?: string | null; archivoUrl?: string | null; codigo?: string | null; formato?: string | null },
+): Promise<any> {
+  const r = await fetch(`${API}/creatividades/${id}/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudo reemplazar el creativo')
+  await refrescarEstado()
+  return d
 }
 
 export async function asignarCreativosApi(

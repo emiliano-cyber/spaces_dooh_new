@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { pool, q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import type { PoolClient } from 'pg'
 
@@ -57,6 +57,10 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     comercializacion: r.comercializacion,
     enNetwork: !!r.en_network,
     cms: r.cms,
+    predioId: r.predio_id ?? null,
+    arrendadorId: r.arrendador_id ?? null,
+    rentaArrendador: n(r.renta_arrendador),
+    periodicidadRenta: r.periodicidad_renta ?? null,
     estatusComercial: r.estatus_comercial,
     estatusLegal: r.estatus_legal,
     estatusOperativo: r.estatus_operativo,
@@ -97,7 +101,10 @@ function valoresDe(s: any): unknown[] {
     s.caras ?? 1, s.iluminado ?? false, s.orientacion ?? null, s.tipoEstructura ?? null,
     s.vista ?? null, s.tramo ?? null, s.resolucionPx ?? null, s.tipoContenido ?? null,
     s.spotsPorHora ?? (digital ? 6 : null), s.duracionSpotSeg ?? (digital ? 20 : null),
-    s.totalSpots ?? (digital ? 12 : null), s.spotsDisponibles ?? (digital ? 12 : null),
+    // Regla de negocio (control para DOOHmain): toda pantalla digital nueva tiene
+    // SIEMPRE 12 slots (1 slot = 1 campaña), no más. Se fuerza, ignorando el valor
+    // de entrada. Las fijas conservan lo que se les pase.
+    digital ? 12 : (s.totalSpots ?? null), digital ? 12 : (s.spotsDisponibles ?? null),
     s.horario ?? (digital ? '06:00-24:00' : null), s.computerVision ?? false, s.admobilizeId ?? null,
     s.tarifaPublicada ?? 0, s.tarifaPublicada ?? 0, s.costoCompra ?? 0, s.precioM2 ?? null,
     s.tarifaImpresion ?? null, s.comercializacion ?? 'TRADICIONAL', s.enNetwork ?? false, s.cms ?? null,
@@ -142,11 +149,28 @@ function horasOperacion(horario?: string | null): number {
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
-  const sitios = await q('select * from sitios where tenant_id = $1 order by creado_en asc', [await tenantActual()])
+  const sitios = await q(
+    `select s.*,
+            (select count(distinct r.campana_id) from reservas r
+              where r.sitio_id = s.id and r.estatus <> 'CANCELADA') as campanas_activas
+       from sitios s where s.tenant_id = $1 order by s.creado_en asc`,
+    [await tenantActual()],
+  )
   const mods = await q('select sitio_id, unidad, tarifa_publicada, costo_compra from sitio_modalidades')
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
-  return sitios.map((r) => rowToSitio(r, porSitio.get(r.id) ?? []))
+  return sitios.map((r) => {
+    const base = rowToSitio(r, porSitio.get(r.id) ?? [])
+    // Slots de digitales: 1 slot = 1 campaña. Disponibles = total − nº de campañas
+    // con reserva activa. Se calcula por conteo (no del contador almacenado, que
+    // se desincroniza si una reserva no traía cantidad de spots).
+    const digital =
+      r.tipo_medio === 'PANTALLA_DIGITAL' || r.es_rotativo || r.exhibicion === 'digital' || r.exhibicion === 'rotativo'
+    if (digital && base.totalSpots != null) {
+      base.spotsDisponibles = Math.max(0, Number(base.totalSpots) - Number(r.campanas_activas ?? 0))
+    }
+    return base
+  })
 }
 
 // Catálogo de RED: todas las pantallas de la plataforma (todos los CRMs). Las
@@ -191,7 +215,9 @@ export async function getSitio(id: string): Promise<any | null> {
 }
 
 // ─── Escritura ──────────────────────────────────────────────────────────────
-async function insertarSitio(client: PoolClient, s: any): Promise<any> {
+// Exportada para que el alta de "contrato + pantalla" cree el sitio dentro de la
+// MISMA transacción del contrato (atómico: o se crean ambos, o ninguno).
+export async function insertarSitio(client: PoolClient, s: any): Promise<any> {
   // Autogenera código de proveedor si no viene (alta manual no lo pide).
   if (!s.codigoProveedor) s.codigoProveedor = 'S-' + randomBytes(3).toString('hex').toUpperCase()
   const cols = [...COLS, 'tenant_id'].join(', ')
@@ -238,6 +264,7 @@ export async function crearSitio(s: any): Promise<any> {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     const sitio = await insertarSitio(client, s)
     await client.query('commit')
     return sitio
@@ -263,6 +290,10 @@ const CAMPO_COL: Record<string, string> = {
   alcaldia: 'alcaldia', plazaCiudad: 'plaza_ciudad', lat: 'lat', lng: 'lng',
   ancho: 'ancho', alto: 'alto', caras: 'caras', iluminado: 'iluminado',
   tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual', costoCompra: 'costo_compra',
+  arrendadorId: 'arrendador_id',
+  // renta_arrendador / periodicidad_renta NO son editables por esta ruta: están
+  // DEPRECADOS (M1) y la fuente de la renta es el contrato del predio. Dejarlos
+  // aquí permitía cambiar la renta con permiso de Comercial y sin validación.
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
   fotos: 'fotos',
@@ -349,6 +380,7 @@ export async function importarSitios(args: {
   const client = await pool.connect()
   try {
     await client.query('begin')
+    await fijarTenant(client)
     for (const [, rows] of grupos) {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'

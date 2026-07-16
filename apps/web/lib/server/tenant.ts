@@ -1,7 +1,9 @@
 import 'server-only'
 import { cache } from 'react'
 import { cookies } from 'next/headers'
-import { q, q1 } from './db'
+// Bootstrap del tenant: usa consultas RAW (sin GUC) sobre tablas EXENTAS de RLS
+// fail-closed (tenants/usuarios). Fijar el GUC aquí recursaría (q -> tenantActual).
+import { qRaw as q, qRaw1 as q1 } from './db'
 import { usuarioActual } from './auth'
 
 // ============================================================================

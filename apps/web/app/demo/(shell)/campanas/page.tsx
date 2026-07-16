@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Lock, LockOpen, ArrowRight, ShieldCheck } from 'lucide-react'
+import { Lock, LockOpen, ArrowRight, ShieldCheck, Search } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import {
   StatusBadge,
@@ -27,6 +28,20 @@ export default function CampanasPage() {
   const porValidar = (todas ?? []).filter(
     (c) => c.enviadaDominio && c.validacionEstatus === 'PENDIENTE',
   )
+
+  // Filtro: texto (nombre / folio / cliente) + estado comercial.
+  const [q, setQ] = useState('')
+  const [estado, setEstado] = useState('')
+  const term = q.trim().toLowerCase()
+  const filtradas = (campanas ?? []).filter(({ campana: c, clienteNombre }) => {
+    if (estado && c.estadoComercial !== estado) return false
+    if (!term) return true
+    return (
+      c.nombre.toLowerCase().includes(term) ||
+      c.folio.toLowerCase().includes(term) ||
+      (clienteNombre ?? '').toLowerCase().includes(term)
+    )
+  })
 
   return (
     <div className="w-full space-y-4">
@@ -72,15 +87,54 @@ export default function CampanasPage() {
         </Card>
       )}
 
+      {/* Filtro / búsqueda de campañas */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-[220px] flex-1">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            strokeWidth={1.75}
+          />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar por nombre, folio o cliente…"
+            className="h-9 w-full rounded border border-border-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          />
+        </div>
+        <select
+          value={estado}
+          onChange={(e) => setEstado(e.target.value)}
+          className="h-9 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <option value="">Todos los estados</option>
+          {Object.entries(CAMPANA_LABEL).map(([k, label]) => (
+            <option key={k} value={k}>
+              {label}
+            </option>
+          ))}
+        </select>
+        {campanas && (
+          <span className="demo-num ml-auto text-[12px] text-muted">
+            {filtradas.length} de {campanas.length}
+          </span>
+        )}
+      </div>
+
       {!campanas ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-md bg-surface-2" />
           ))}
         </div>
+      ) : filtradas.length === 0 ? (
+        <Card className="p-8 text-center">
+          <p className="text-[13px] text-muted">
+            No hay campañas que coincidan con el filtro.
+          </p>
+        </Card>
       ) : (
         <ul className="space-y-3">
-          {campanas.map(({ campana: c, clienteNombre, etapa, index, totalPasos, candado }) => {
+          {filtradas.map(({ campana: c, clienteNombre, etapa, index, totalPasos, candado }) => {
             const hilo = c.id === 'camp-telco'
             return (
               <li key={c.id}>

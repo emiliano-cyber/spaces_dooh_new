@@ -135,6 +135,8 @@ export type EtapaPipeline =
   | 'oc_recibida'
   | 'creativo_recibido'
   | 'creativo_validado'
+  | 'enviada_dominio'
+  | 'publicada'
   | 'en_imprenta'
   | 'en_produccion'
   | 'instalada'
@@ -212,6 +214,12 @@ export interface Sitio {
   comercializacion: Comercializacion // programático vs tradicional
   enNetwork: boolean // compartido a la Network
   cms: CMS | null // CMS que opera la pantalla
+  predioId?: string | null // predio (inmueble) al que pertenece la pantalla (N pantallas : 1 predio)
+  arrendadorId?: string | null // propietario/arrendador del inmueble (directo, sin contrato)
+  /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */
+  rentaArrendador?: number | null
+  /** @deprecated Fase 1: la renta vive en el contrato del predio. No usar en P&L/UI. */
+  periodicidadRenta?: string | null
   // ─── Agregar inventario (importador / formulario manual) ──────────────────
   modalidades: string[] // modalidades de contratación
   // Detalle por modalidad (una por fila del Excel agrupada por codigo_proveedor)
@@ -259,6 +267,26 @@ export interface Arrendador {
   creadoEn: string
 }
 
+// Predio: el inmueble que se renta. Entidad central del módulo Arrendadores
+// (Arrendador → Predio → Contrato → Pantallas). La renta vive en el contrato del
+// predio y se atribuye a sus pantallas; N pantallas pueden compartir un predio.
+export type EstadoPredio =
+  | 'PROSPECTO' | 'EN_NEGOCIACION' | 'DISPONIBLE' | 'OCUPADO'
+  | 'SUSPENDIDO' | 'PROBLEMA_LEGAL' | 'FUERA_DE_SERVICIO'
+
+export interface Predio {
+  id: string
+  arrendadorId: string
+  nombre: string
+  direccion: string | null
+  lat: number | null
+  lng: number | null
+  tipoUbicacion: string | null
+  estado: EstadoPredio
+  documentos: unknown[]
+  creadoEn: string
+}
+
 export interface ContratoArrendamiento {
   id: string
   sitioId: string
@@ -267,10 +295,15 @@ export interface ContratoArrendamiento {
   fechaFin: string
   montoRenta: number
   periodicidad: string
+  montoMensualEquivalente?: number // renta normalizada a mensual (informativo)
   moneda: string
   autoRenovable: boolean
   documentoUrl: string | null
   estatus: EstContrato
+  predioId?: string | null // predio (inmueble) al que pertenece el contrato — fuente de la renta
+  razonSocialId?: string | null // razón social bajo la que se paga
+  deposito?: number | null
+  motivoCancelacion?: string | null
   creadoEn: string
 }
 
@@ -280,7 +313,13 @@ export interface PagoRenta {
   periodo: string
   monto: number
   fechaPago: string | null
-  facturaUrl: string | null
+  // Los adjuntos (factura/comprobante) pesan MB y NO viajan en el estado global:
+  // aquí solo se sabe si existen. El archivo se pide a
+  // /api/pagos-renta/[id]/adjunto/[tipo] cuando se abre (ver urlAdjuntoPago).
+  tieneFactura: boolean
+  tieneComprobante: boolean
+  metodoPago?: string | null
+  observaciones?: string | null
   estatus: EstPagoRenta
   creadoEn: string
 }
@@ -424,6 +463,9 @@ export interface Creatividad {
   resolucion: string | null
   estatusValidacion: EstValidacionCreatividad
   rechazadoMotivo: string | null
+  // Retirado del sistema pero su arte SIGUE en DOOHmain (la API no permite
+  // quitarlo). null = activo. Marca el estado honesto de "pendiente en DOOHmain".
+  retiradoEn: string | null
   creadoEn: string
 }
 
@@ -595,6 +637,7 @@ export interface DemoState {
   sitiosRed: Sitio[]
   sitios: Sitio[]
   arrendadores: Arrendador[]
+  predios: Predio[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]

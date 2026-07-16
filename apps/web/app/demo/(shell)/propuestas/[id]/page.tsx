@@ -11,6 +11,8 @@ import {
   Coins,
   Receipt,
   MapPin,
+  Monitor,
+  Square,
   Building2,
   Send,
   Check,
@@ -338,12 +340,32 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                   {p.items.map((it) => {
                     const s = sitios?.find((x) => x.id === it.sitioId)
                     const renta = rentaDe(it.sitioId)
+                    const digital =
+                      !!s &&
+                      (s.tipoMedio === 'PANTALLA_DIGITAL' ||
+                        s.esRotativo ||
+                        s.exhibicion === 'digital' ||
+                        s.exhibicion === 'rotativo')
                     return (
                       <tr key={it.id} className={it.aprobado ? '' : 'opacity-70'}>
                         <td className="py-2.5 pr-3">
-                          <div className="font-medium text-ink">{s?.nombre ?? it.sitioId}</div>
-                          <div className="inline-flex items-center gap-1 text-[11px] text-muted">
-                            <MapPin className="h-3 w-3" /> {s?.alcaldia ?? '—'}{s?.tipoMedio ? ` · ${s.tipoMedio}` : ''}
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-ink">{s?.nombre ?? it.sitioId}</span>
+                            {s && (
+                              <span
+                                className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                                  digital
+                                    ? 'border-[#0a66ff40] bg-accent-soft text-[#0a4fcc]'
+                                    : 'border-border bg-surface-2 text-muted'
+                                }`}
+                              >
+                                {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
+                                {digital ? 'Digital' : 'Fija'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] text-muted">
+                            <MapPin className="h-3 w-3" /> {s?.alcaldia ?? '—'}
                           </div>
                         </td>
                         <td className="py-2.5 pr-3">

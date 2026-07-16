@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarRange, Search, Info } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import { useDisponibilidad, type GranDisponibilidad, type EstadoCelda } from '@/lib/data/client'
 
 // Calendario de disponibilidad futura: responde "¿qué tengo libre en septiembre?".
@@ -191,13 +192,13 @@ export default function DisponibilidadPage() {
                     <div className="truncate font-medium text-ink" title={f.nombre}>
                       {f.nombre}
                     </div>
-                    <div className="text-[11px] text-muted">
-                      {f.clave}
-                      {f.digital && (
-                        <span className="ml-1 rounded bg-surface-2 px-1 text-[10px] text-muted">
-                          digital{f.totalSpots != null ? ` · ${f.totalSpots} slots` : ''}
-                        </span>
-                      )}
+                    <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[11px] text-muted">{f.clave}</span>
+                      {f.digital && f.totalSpots != null ? (
+                        <SlotsBadge total={f.totalSpots} />
+                      ) : f.digital ? (
+                        <span className="rounded bg-surface-2 px-1 text-[10px] text-muted">digital</span>
+                      ) : null}
                     </div>
                   </td>
                   {f.celdas.map((c, i) => {

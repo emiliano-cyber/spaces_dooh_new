@@ -8,11 +8,11 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // POST /api/contratos/[id]/renovar → contrato a RENOVADO + 1 año de vigencia.
-export async function POST(_req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('arrendadores', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    const contrato = await iniciarRenovacionCtrl(params.id)
+    const contrato = await iniciarRenovacionCtrl(params.id, await req.json().catch(() => ({})))
     await registrarAccion(g.usuario, 'Inició renovación de contrato', contrato.id)
     return NextResponse.json(contrato)
   } catch (e) {

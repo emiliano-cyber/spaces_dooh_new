@@ -173,13 +173,24 @@ export function SiteFicha({
     (i) => i.sitioId === sitio.id && (i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO'),
   )
 
-  // Propietario y renta del sitio: contrato preferentemente vigente; si no, el
-  // más reciente. De ahí salen el propietario, la renta y la periodicidad de pago.
+  // Contrato del que sale la renta: el del PREDIO de la pantalla (varias pantallas
+  // comparten el predio y su contrato). Los contratos antiguos, anteriores al
+  // predio, se siguen encontrando por sitioId. Preferentemente el vigente; si no,
+  // el más reciente.
   const PRIORIDAD_CONTRATO: Record<string, number> = { VIGENTE: 0, POR_VENCER: 1, RENOVADO: 2, VENCIDO: 3, CANCELADO: 4 }
   const contrato = (contratos ?? [])
-    .filter((c) => c.sitioId === sitio.id)
+    .filter((c) => (sitio.predioId ? c.predioId === sitio.predioId : c.sitioId === sitio.id))
     .sort((a, b) => (PRIORIDAD_CONTRATO[a.estatus] ?? 9) - (PRIORIDAD_CONTRATO[b.estatus] ?? 9))[0]
   const propietario = arrendadores?.find((a) => a.id === contrato?.arrendadorId)
+  const propietarioDirecto = sitio.arrendadorId
+    ? arrendadores?.find((a) => a.id === sitio.arrendadorId)
+    : undefined
+  const propietarioEfectivo = propietarioDirecto ?? propietario
+  // La renta sale SOLO del contrato: los campos directos del sitio están
+  // deprecados (Fase 1.7) y ya no se leen.
+  const rentaEfectiva = contrato?.montoRenta ?? null
+  const periodicidadEfectiva = contrato?.periodicidad ?? null
+  const tienePropRenta = !!propietarioEfectivo || rentaEfectiva != null || !!contrato
   const pagosContrato = (pagos ?? []).filter((p) => p.contratoId === contrato?.id)
   const ultimoPago = pagosContrato
     .filter((p) => p.fechaPago)
@@ -354,47 +365,55 @@ export function SiteFicha({
 
         {/* Propietario y renta (cada cuándo se le paga) */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Propietario y renta</h4>
-          {contrato ? (
+          <h4 className="mb-2 text-[13px] font-medium text-ink">Arrendatario y renta</h4>
+          {tienePropRenta ? (
             <div className="space-y-2.5">
               <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3">
                 <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium text-ink">{propietario?.nombre ?? 'Propietario sin asignar'}</div>
+                  <div className="text-[13px] font-medium text-ink">{propietarioEfectivo?.nombre ?? 'Arrendatario sin asignar'}</div>
                   <div className="text-[11px] text-muted">
-                    {[propietario?.telefono, propietario?.email].filter(Boolean).join(' · ') || 'Dueño del predio / pantalla'}
+                    {[propietarioEfectivo?.telefono, propietarioEfectivo?.email].filter(Boolean).join(' · ') || 'Dueño del predio / pantalla'}
                   </div>
                 </div>
-                <StatusBadge tono={CONTRATO_TONO[contrato.estatus]} className="ml-auto shrink-0">
-                  {CONTRATO_LABEL[contrato.estatus]}
-                </StatusBadge>
+                {contrato && (
+                  <StatusBadge tono={CONTRATO_TONO[contrato.estatus]} className="ml-auto shrink-0">
+                    {CONTRATO_LABEL[contrato.estatus]}
+                  </StatusBadge>
+                )}
               </div>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
-                <Caracteristica icon={<Wallet className="h-4 w-4" />} label="Renta" valor={formatMonto(contrato.montoRenta)} mono />
-                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Cada cuándo se paga" valor={periodicidadLabel(contrato.periodicidad)} />
-                <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${formatFecha(contrato.fechaFin)}`} mono />
-                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Renovación" valor={contrato.autoRenovable ? 'Automática' : 'Manual'} />
+                <Caracteristica icon={<Wallet className="h-4 w-4" />} label="Renta" valor={rentaEfectiva != null ? formatMonto(rentaEfectiva) : '—'} mono />
+                <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Cada cuándo se paga" valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva) : '—'} />
+                {contrato && (
+                  <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${formatFecha(contrato.fechaFin)}`} mono />
+                )}
+                {contrato && (
+                  <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Renovación" valor={contrato.autoRenovable ? 'Automática' : 'Manual'} />
+                )}
               </dl>
 
-              {/* Estado de pagos */}
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[12px]">
-                <span className="inline-flex items-center gap-1.5 text-muted">
-                  Último pago
-                  <span className="demo-num text-ink">{ultimoPago?.fechaPago ? formatFecha(ultimoPago.fechaPago) : '—'}</span>
-                </span>
-                {proximoPago ? (
+              {/* Estado de pagos (solo si hay contrato con calendario de pagos) */}
+              {contrato && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-[12px]">
                   <span className="inline-flex items-center gap-1.5 text-muted">
-                    Próximo: <span className="text-ink">{proximoPago.periodo}</span>
-                    <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{PAGO_LABEL[proximoPago.estatus]}</StatusBadge>
+                    Último pago
+                    <span className="demo-num text-ink">{ultimoPago?.fechaPago ? formatFecha(ultimoPago.fechaPago) : '—'}</span>
                   </span>
-                ) : (
-                  <span className="text-muted">Sin pagos pendientes</span>
-                )}
-              </div>
+                  {proximoPago ? (
+                    <span className="inline-flex items-center gap-1.5 text-muted">
+                      Próximo: <span className="text-ink">{proximoPago.periodo}</span>
+                      <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{PAGO_LABEL[proximoPago.estatus]}</StatusBadge>
+                    </span>
+                  ) : (
+                    <span className="text-muted">Sin pagos pendientes</span>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
-            <p className="text-[12px] text-muted">Sin contrato de arrendamiento registrado para este espacio.</p>
+            <p className="text-[12px] text-muted">Sin arrendatario ni renta registrados para este espacio.</p>
           )}
         </div>
 
@@ -466,6 +485,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     sitio.exhibicion === 'digital' ||
     sitio.exhibicion === 'rotativo' ||
     sitio.tipoMedio === 'PANTALLA_DIGITAL'
+  const arrendadores = useArrendadores()
   const [nombre, setNombre] = useState(sitio.nombre)
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>(sitio.tipoMedio)
   const [alcaldia, setAlcaldia] = useState(sitio.alcaldia ?? '')
@@ -473,6 +493,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
   const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
   const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
@@ -487,6 +508,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setTarifa(String(sitio.tarifaPublicada ?? 0))
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
+    setArrendadorSel(sitio.arrendadorId ?? '')
     setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
     setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
@@ -507,6 +529,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         costoCompra: Number(costoCompra) || 0,
         estatusComercial,
         notas: notas.trim() || null,
+        // Propietario/arrendador de la pantalla. La renta NO se manda: los campos
+        // directos del sitio están deprecados (Fase 1.7) y la fuente es el contrato.
+        arrendadorId: arrendadorSel || null,
       }
       // Cantidad de slots (solo digitales): ajusta los disponibles conservando
       // los ya reservados (reservados = total anterior − disponibles anteriores).
@@ -570,6 +595,24 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           <CampoEdit label="Costo de compra">
             <input type="number" inputMode="decimal" value={costoCompra} onChange={(e) => setCostoCompra(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
+        </div>
+
+        {/* Propietario/arrendador de la pantalla. La RENTA no se edita aquí: vive
+            en el contrato del predio (módulo Arrendadores), que es su única
+            fuente para el P&L. */}
+        <div className="rounded-md border border-border bg-surface-2 p-3">
+          <div className="mb-2 text-[12px] font-medium text-ink">Arrendatario</div>
+          <CampoEdit label="Arrendatario">
+            <select value={arrendadorSel} onChange={(e) => setArrendadorSel(e.target.value)} className={inputCls}>
+              <option value="">— Sin asignar —</option>
+              {(arrendadores ?? []).map((a) => (
+                <option key={a.id} value={a.id}>{a.nombre}</option>
+              ))}
+            </select>
+          </CampoEdit>
+          <p className="mt-2 text-[11px] text-muted">
+            La renta y su periodicidad se editan en el contrato del predio, en el módulo de Arrendadores.
+          </p>
         </div>
         {digital && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Radio, ExternalLink, X } from 'lucide-react'
+import { ExternalLink, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
@@ -33,20 +34,18 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
 
   return (
     <>
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
+      <div className="flex h-14 items-center gap-2.5 border-b border-border px-4">
         {config?.logoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={config.logoUrl} alt="logo" className="h-7 w-7 shrink-0 rounded object-contain" />
         ) : (
-          <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
-            <Radio className="h-4 w-4" />
-          </span>
+          <SpaceOsMark className="h-7 w-7 shrink-0" />
         )}
         <div className="min-w-0 leading-tight">
-          <div className="truncate font-display text-[15px] font-bold text-ink">
-            {config?.nombreTenant ?? 'Spaces'}
+          <div className="demo-wordmark truncate text-[15px] text-ink">
+            {config?.nombreTenant ?? 'Space OS'}
           </div>
-          <div className="text-[10px] text-muted">Spaces OS</div>
+          <div className="text-[10px] text-muted">by AS Network</div>
         </div>
       </div>
 
@@ -74,14 +73,18 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
                   <Link
                     href={n.href}
                     onClick={onNavegar}
+                    aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'flex items-center gap-2.5 rounded px-3 py-2 text-[13px] transition-colors duration-150',
+                      'relative flex items-center gap-2.5 rounded px-3 py-2 text-[13px] transition-colors duration-150',
                       active
-                        ? 'bg-surface-2 font-medium text-ink'
+                        ? 'bg-accent-soft font-medium text-ink before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:rounded-full before:bg-accent'
                         : 'text-muted hover:bg-surface-2 hover:text-ink',
                     )}
                   >
-                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+                    <Icon
+                      className={cn('h-4 w-4', active ? 'text-accent' : '')}
+                      strokeWidth={1.75}
+                    />
                     {n.label}
                   </Link>
                 </li>
@@ -123,7 +126,7 @@ export function Sidebar() {
         {/* Panel */}
         <aside
           className={cn(
-            'fixed left-0 top-0 z-50 flex h-full w-64 max-w-[80%] flex-col border-r border-border bg-surface shadow-xl transition-transform duration-200',
+            'fixed left-0 top-0 z-50 flex h-full w-64 max-w-[80%] flex-col border-r border-border bg-surface transition-transform duration-200',
             abierto ? 'translate-x-0' : '-translate-x-full',
           )}
         >

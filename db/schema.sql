@@ -38,6 +38,10 @@ create type cms                 as enum ('BROADSIGN','INVIDIS','DOOHMAIN','OTRO'
 create type tipo_contenido      as enum ('VIDEO','IMAGEN');
 create type est_contrato        as enum ('VIGENTE','POR_VENCER','VENCIDO','RENOVADO','CANCELADO');
 create type est_pago_renta      as enum ('PENDIENTE','PAGADO','VENCIDO');
+create type estado_predio       as enum ('PROSPECTO','EN_NEGOCIACION','DISPONIBLE','OCUPADO','SUSPENDIDO','PROBLEMA_LEGAL','FUERA_DE_SERVICIO');
+-- Periodicidad de pago. Equiv. mensual: SEMANAL x30/7, CATORCENAL x30/14, QUINCENAL x2,
+-- MENSUAL x1, BIMESTRAL /2, TRIMESTRAL /3, SEMESTRAL /6, ANUAL /12.
+create type periodicidad_pago   as enum ('SEMANAL','CATORCENAL','QUINCENAL','MENSUAL','BIMESTRAL','TRIMESTRAL','SEMESTRAL','ANUAL');
 create type tipo_incidencia     as enum ('CLIMA','MANTENIMIENTO','LEGAL','VANDALISMO','SUSPENSION_OPERATIVA','ACCIDENTE','OTRO');
 create type est_incidencia      as enum ('ABIERTA','EN_PROCESO','RESUELTA','CERRADA');
 create type tipo_campana        as enum ('OOH','DOOH','HIBRIDA');
@@ -145,6 +149,14 @@ create table sitios (
   comercializacion    comercializacion not null default 'TRADICIONAL',
   en_network          boolean not null default false,
   cms                 cms,
+  -- propietario/arrendador del inmueble (directo; independiente del contrato).
+  -- La FK se agrega tras crear la tabla arrendadores (definida más abajo).
+  arrendador_id       uuid,
+  -- DEPRECADOS (Fase 1): la renta ahora vive en el contrato del predio.
+  renta_arrendador    numeric(14,2),
+  periodicidad_renta  text,
+  -- Predio al que pertenece la pantalla (FK se agrega en M2). N pantallas : 1 predio.
+  predio_id           uuid,
   -- estatus
   estatus_comercial   est_comercial not null default 'DISPONIBLE',
   estatus_legal       est_legal     not null default 'EN_ORDEN',
@@ -178,14 +190,25 @@ create index idx_modalidades_sitio on sitio_modalidades (sitio_id);
 
 -- ─── Arrendadores / contratos / pagos ───────────────────────────────────────
 create table arrendadores (
-  id        uuid primary key default gen_random_uuid(),
-  nombre    text not null,
-  rfc       text,
-  telefono  text,
-  email     text,
-  notas     text,
-  creado_en timestamptz not null default now()
+  id              uuid primary key default gen_random_uuid(),
+  nombre          text not null,
+  rfc             text,
+  curp            text,
+  telefono        text,
+  email           text,
+  direccion       text,
+  cuenta_bancaria text,
+  forma_pago      text,
+  observaciones   text,
+  notas           text,
+  activo          boolean not null default true,   -- soft-delete (Fase 1)
+  creado_en       timestamptz not null default now()
 );
+
+-- FK diferida: sitios.arrendador_id → arrendadores (sitios se define más arriba).
+alter table sitios
+  add constraint sitios_arrendador_id_fkey
+  foreign key (arrendador_id) references arrendadores(id) on delete set null;
 
 create table contratos_arrendamiento (
   id             uuid primary key default gen_random_uuid(),
@@ -194,10 +217,15 @@ create table contratos_arrendamiento (
   fecha_inicio   date not null,
   fecha_fin      date not null,
   monto_renta    numeric(14,2) not null,
-  periodicidad   text not null default 'MENSUAL',
+  periodicidad   periodicidad_pago not null default 'MENSUAL',
   moneda         text not null default 'PEN',
   auto_renovable boolean not null default false,
   documento_url  text,
+  deposito          numeric(14,2),
+  motivo_cancelacion text,
+  -- Vínculos a predio/razón social (FK se agrega tras crear esas tablas — M2).
+  predio_id         uuid,
+  razon_social_id   uuid,
   estatus        est_contrato not null default 'VIGENTE',
   creado_en      timestamptz not null default now()
 );
@@ -212,9 +240,45 @@ create table pagos_renta (
   monto       numeric(14,2) not null,
   fecha_pago  date,
   factura_url text,
+  comprobante_url text,
+  metodo_pago     text,
+  observaciones   text,
   estatus     est_pago_renta not null default 'PENDIENTE',
   creado_en   timestamptz not null default now()
 );
+
+-- Predio: nucleo del modulo (Arrendador -> Predio -> Contrato -> Pantallas).
+create table predios (
+  id             uuid primary key default gen_random_uuid(),
+  arrendador_id  uuid not null references arrendadores(id) on delete restrict,
+  nombre         text not null,
+  direccion      text,
+  lat            numeric(10,7),
+  lng            numeric(11,7),
+  tipo_ubicacion text,
+  estado         estado_predio not null default 'DISPONIBLE',
+  documentos     jsonb not null default '[]'::jsonb,
+  creado_en      timestamptz not null default now()
+);
+create index if not exists predios_arrendador_idx on predios(arrendador_id);
+
+-- Razon social del arrendador (factura la renta bajo N razones sociales).
+create table arrendador_razon_social (
+  id            uuid primary key default gen_random_uuid(),
+  arrendador_id uuid not null references arrendadores(id) on delete cascade,
+  razon_social  text not null,
+  rfc           text,
+  regimen       text,
+  creado_en     timestamptz not null default now()
+);
+create index if not exists ars_arrendador_idx on arrendador_razon_social(arrendador_id);
+
+-- FKs de los vinculos declarados arriba (predios ya existe).
+alter table contratos_arrendamiento
+  add constraint contratos_predio_fk       foreign key (predio_id)       references predios(id)                  on delete restrict,
+  add constraint contratos_razon_social_fk foreign key (razon_social_id) references arrendador_razon_social(id) on delete set null;
+alter table sitios
+  add constraint sitios_predio_fk foreign key (predio_id) references predios(id) on delete restrict;
 create index idx_pagos_contrato on pagos_renta (contrato_id);
 create index idx_pagos_estatus  on pagos_renta (estatus);
 
@@ -286,33 +350,7 @@ create index idx_prop_items_propuesta on propuesta_items (propuesta_id);
 
 -- ─── Órdenes de compra del cliente (ODC) ─────────────────────────────────────
 create type est_odc as enum ('PENDIENTE','RECIBIDA','CANCELADA');
-create table ordenes_compra (
-  id            uuid primary key default gen_random_uuid(),
-  folio         text not null unique,
-  numero_oc     text,                                -- número de OC del cliente (S1-4)
-  campana_id    uuid not null references campanas(id) on delete cascade,
-  monto         numeric(14,2) not null default 0,
-  fecha         date not null default current_date,
-  estatus       est_odc not null default 'RECIBIDA',
-  documento_url text,
-  notas         text,
-  creado_en     timestamptz not null default now()
-);
-create index idx_odc_campana on ordenes_compra (campana_id);
-
--- ─── Notificaciones por evento (centro in-app) ───────────────────────────────
-create table notificaciones (
-  id        uuid primary key default gen_random_uuid(),
-  tipo      text not null,                 -- ODC | FACTURA | PAGO | OT | PROPUESTA
-  nivel     text not null default 'info',  -- info | ok | warn
-  titulo    text not null,
-  detalle   text,
-  link      text,
-  leida     boolean not null default false,
-  creado_en timestamptz not null default now()
-);
-create index idx_notif_creado on notificaciones (creado_en desc);
-
+-- Campañas (definida antes de ordenes_compra, que la referencia).
 create table campanas (
   id                    uuid primary key default gen_random_uuid(),
   folio                 text unique,
@@ -345,6 +383,33 @@ create index idx_campanas_estado  on campanas (estado_comercial);
 create index idx_campanas_propuesta on campanas (propuesta_id);
 create trigger trg_campanas_upd before update on campanas
   for each row execute function set_actualizado_en();
+
+create table ordenes_compra (
+  id            uuid primary key default gen_random_uuid(),
+  folio         text not null unique,
+  numero_oc     text,                                -- número de OC del cliente (S1-4)
+  campana_id    uuid not null references campanas(id) on delete cascade,
+  monto         numeric(14,2) not null default 0,
+  fecha         date not null default current_date,
+  estatus       est_odc not null default 'RECIBIDA',
+  documento_url text,
+  notas         text,
+  creado_en     timestamptz not null default now()
+);
+create index idx_odc_campana on ordenes_compra (campana_id);
+
+-- ─── Notificaciones por evento (centro in-app) ───────────────────────────────
+create table notificaciones (
+  id        uuid primary key default gen_random_uuid(),
+  tipo      text not null,                 -- ODC | FACTURA | PAGO | OT | PROPUESTA
+  nivel     text not null default 'info',  -- info | ok | warn
+  titulo    text not null,
+  detalle   text,
+  link      text,
+  leida     boolean not null default false,
+  creado_en timestamptz not null default now()
+);
+create index idx_notif_creado on notificaciones (creado_en desc);
 
 create table creatividades (
   id                 uuid primary key default gen_random_uuid(),
@@ -503,6 +568,7 @@ create table if not exists tenants (
   id        uuid primary key default gen_random_uuid(),
   nombre    text not null,
   slug      text not null unique,
+  moneda    text not null default 'MXN',   -- moneda estándar por organización
   creado_en timestamptz not null default now()
 );
 insert into tenants (nombre, slug) values ('RGB Catorce','rgb') on conflict (slug) do nothing;
@@ -515,7 +581,8 @@ declare
     'usuarios','sitios','clientes','propuestas','propuesta_items','ordenes_compra',
     'campanas','creatividades','reservas','ordenes_trabajo','evidencias_ot','ordenes_impresion',
     'facturas','cobranzas','arrendadores','contratos_arrendamiento','pagos_renta',
-    'incidencias','notificaciones','acciones','sitio_modalidades'];
+    'incidencias','notificaciones','acciones','sitio_modalidades',
+    'predios','arrendador_razon_social'];
 begin
   select id into def from tenants where slug='rgb';
   foreach t in array tbls loop

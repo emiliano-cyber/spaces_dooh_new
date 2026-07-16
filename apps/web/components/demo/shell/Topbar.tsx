@@ -77,7 +77,7 @@ export function Topbar() {
                   <button
                     type="button"
                     onClick={() => marcarTodasNotificacionesApi()}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-info transition-colors hover:bg-[#0a66ff14]"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-info transition-colors hover:bg-accent-soft"
                   >
                     <CheckCheck className="h-3.5 w-3.5" /> Marcar todas
                   </button>
@@ -97,7 +97,7 @@ export function Topbar() {
                     <div className="flex items-center gap-2">
                       <span
                         className={`h-2 w-2 shrink-0 rounded-full ${
-                          n.nivel === 'ok' ? 'bg-[#10b981]' : n.nivel === 'warn' ? 'bg-[#f59e0b]' : 'bg-info'
+                          n.nivel === 'ok' ? 'bg-success' : n.nivel === 'warn' ? 'bg-warning' : 'bg-info'
                         } ${n.leida ? 'opacity-0' : ''}`}
                       />
                       <span className="text-[13px] font-medium text-ink">{n.titulo}</span>
