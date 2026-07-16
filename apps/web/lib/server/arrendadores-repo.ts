@@ -3,6 +3,7 @@ import type { PoolClient } from 'pg'
 import { q, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio } from './sitios-repo'
+import { AppError } from './errores'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -181,14 +182,19 @@ function estatusPorFechas(fechaInicio: string, fechaFin: string): string {
   return 'VIGENTE'
 }
 
-// Alta unificada "arrendatario → contrato → pantalla" en UNA transacción.
+// Alta unificada "arrendatario → predio → contrato → pantalla" en UNA transacción.
 // - arrendador: {id} usa uno existente; {nombre,...} da de alta uno nuevo.
+// - predio: {id} usa uno existente del MISMO arrendador; {nombre,...} da de alta uno.
+//   El predio es OBLIGATORIO: el contrato cuelga del predio y el P&L atribuye la
+//   renta por predio (derive.ts), así que un contrato sin predio_id no costaría
+//   nada y inflaría el margen.
 // - contrato: periodo (fechas pasadas permitidas), renta, periodicidad, etc.
 // - sitio: datos de la pantalla/espectacular (mismo shape que el alta manual).
-// La renta/periodicidad y el arrendatario también quedan como campos directos del
-// sitio, así el inventario los muestra al instante.
+// La renta NO se copia a los campos directos del sitio (renta_arrendador /
+// periodicidad_renta): están DEPRECADOS (M1) y la fuente es el contrato del predio.
 export async function crearContratoConSitio(input: {
   arrendador: { id: string } | { nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null }
+  predio: { id: string } | { nombre: string; direccion?: string | null; lat?: number | null; lng?: number | null; tipoUbicacion?: string | null; estado?: string }
   contrato: {
     fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
     moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
@@ -204,6 +210,11 @@ export async function crearContratoConSitio(input: {
     // 1) Arrendatario (existente o nuevo)
     let arrendadorId: string
     if ('id' in input.arrendador) {
+      const { rows } = await client.query(
+        'select 1 from arrendadores where id=$1 and tenant_id=$2',
+        [input.arrendador.id, tenantId],
+      )
+      if (!rows[0]) throw new AppError('El arrendador no existe', 404)
       arrendadorId = input.arrendador.id
     } else {
       const { rows } = await client.query(
@@ -215,21 +226,50 @@ export async function crearContratoConSitio(input: {
       arrendadorId = rows[0].id
     }
 
-    // 2) Pantalla/espectacular (misma transacción)
+    // 2) Predio (existente o nuevo). Si es existente debe ser del mismo
+    //    arrendador: si no, la renta se atribuiría a pantallas de otro dueño.
+    let predioId: string
+    if ('id' in input.predio) {
+      const { rows } = await client.query(
+        'select arrendador_id from predios where id=$1 and tenant_id=$2',
+        [input.predio.id, tenantId],
+      )
+      if (!rows[0]) throw new AppError('El predio no existe', 404)
+      if (rows[0].arrendador_id !== arrendadorId) {
+        throw new AppError('El predio pertenece a otro arrendador', 409)
+      }
+      // Un predio solo puede tener un contrato activo: si ya lo tiene, lo que se
+      // quiere es colgar otra pantalla del predio (agregarPantallaAPredio), no
+      // firmar un segundo contrato que duplicaría la renta.
+      if (await contratoActivoDePredio(client, tenantId, input.predio.id)) {
+        throw new AppError(
+          'El predio ya tiene un contrato activo. Agrega la pantalla al predio en vez de crear otro contrato, ' +
+          'o cancela/vence el contrato anterior primero.',
+          409,
+        )
+      }
+      predioId = input.predio.id
+    } else {
+      const row = await insertarPredioEnTx(client, tenantId, { ...input.predio, arrendadorId })
+      if (!row) throw new AppError('El arrendador no existe', 404)
+      predioId = row.id
+    }
+
+    // 3) Pantalla/espectacular (misma transacción), ligada al predio.
     const sitio = await insertarSitio(client, { ...input.sitio, tenantId })
-    // Campos directos del sitio: arrendatario + renta (para el inventario/modal).
     await client.query(
-      `update sitios set arrendador_id = $1, renta_arrendador = $2, periodicidad_renta = $3 where id = $4`,
-      [arrendadorId, input.contrato.montoRenta, input.contrato.periodicidad, sitio.id],
+      `update sitios set arrendador_id = $1, predio_id = $2 where id = $3`,
+      [arrendadorId, predioId, sitio.id],
     )
 
-    // 3) Contrato de arrendamiento vinculado a la pantalla recién creada
+    // 4) Contrato de arrendamiento: cuelga del PREDIO (sitio_id se conserva por
+    //    compatibilidad con el histórico; predio_id es la fuente del P&L).
     const estatus = estatusPorFechas(input.contrato.fechaInicio, input.contrato.fechaFin)
     const { rows: cr } = await client.query(
       `insert into contratos_arrendamiento
-        (sitio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta, periodicidad, moneda, auto_renovable, documento_url, estatus, tenant_id)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) returning *`,
-      [sitio.id, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
+        (sitio_id, predio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta, periodicidad, moneda, auto_renovable, documento_url, estatus, tenant_id)
+       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) returning *`,
+      [sitio.id, predioId, arrendadorId, input.contrato.fechaInicio, input.contrato.fechaFin, input.contrato.montoRenta,
        input.contrato.periodicidad, input.contrato.moneda ?? 'MXN', input.contrato.autoRenovable ?? false,
        input.contrato.documentoUrl ?? null, estatus, tenantId],
     )
@@ -238,7 +278,7 @@ export async function crearContratoConSitio(input: {
     await generarCalendarioEnTx(client, genInputFromRow(cr[0]))
 
     await client.query('commit')
-    return { sitio: { ...sitio, arrendadorId, rentaArrendador: input.contrato.montoRenta, periodicidadRenta: input.contrato.periodicidad }, contrato: rowToContrato(cr[0]) }
+    return { sitio: { ...sitio, arrendadorId, predioId }, contrato: rowToContrato(cr[0]) }
   } catch (e) {
     await client.query('rollback')
     throw e
@@ -351,6 +391,127 @@ export async function listarPredios() {
     [await tenantActual()],
   )
   return rows.map(rowToPredio)
+}
+
+export interface PredioInput {
+  arrendadorId: string; nombre: string; direccion?: string | null
+  lat?: number | null; lng?: number | null; tipoUbicacion?: string | null; estado?: string
+}
+
+// Inserta un predio dentro de una transacción con el tenant ya fijado.
+// Valida que el arrendador exista EN ESTE TENANT: la FK a arrendadores(id) no
+// comprueba tenant (los chequeos de FK saltan la RLS), así que sin esto un
+// arrendador_id de otro tenant pasaría.
+// tenantId puede ser null (sin sesión): entonces no casa ningún arrendador y el
+// alta se rechaza — fail-closed, igual que la RLS.
+async function insertarPredioEnTx(client: PoolClient, tenantId: string | null, p: PredioInput) {
+  const { rows: arr } = await client.query(
+    'select 1 from arrendadores where id=$1 and tenant_id=$2',
+    [p.arrendadorId, tenantId],
+  )
+  if (!arr[0]) return null
+  const { rows } = await client.query(
+    `insert into predios (arrendador_id, nombre, direccion, lat, lng, tipo_ubicacion, estado, tenant_id)
+     values ($1,$2,$3,$4,$5,$6,$7::estado_predio,$8) returning *`,
+    [p.arrendadorId, p.nombre, p.direccion ?? null, p.lat ?? null, p.lng ?? null,
+     p.tipoUbicacion ?? null, p.estado ?? 'DISPONIBLE', tenantId],
+  )
+  return rows[0]
+}
+
+// Alta de un predio (entidad central: Arrendador → Predio → Contrato → Pantallas).
+// Devuelve null si el arrendador no existe en el tenant.
+export async function crearPredio(input: PredioInput) {
+  const tenantId = await tenantActual()
+  return withTenantTx(async (client) => {
+    const row = await insertarPredioEnTx(client, tenantId, input)
+    return row ? rowToPredio(row) : null
+  })
+}
+
+// ¿El predio ya tiene un contrato activo? La renta del predio es UNA sola: un
+// segundo contrato activo la duplicaría y el P&L solo contaría el mayor (M8 lo
+// impide también desde la BD, con un índice único parcial).
+const ESTATUS_ACTIVO = ['VIGENTE', 'POR_VENCER', 'RENOVADO']
+async function contratoActivoDePredio(client: PoolClient, tenantId: string | null, predioId: string) {
+  const { rows } = await client.query(
+    `select id from contratos_arrendamiento
+      where predio_id=$1 and tenant_id=$2 and estatus = any($3::est_contrato[]) limit 1`,
+    [predioId, tenantId, ESTATUS_ACTIVO],
+  )
+  return rows[0]?.id ?? null
+}
+
+// Cuelga una pantalla de un predio SIN crear contrato: la renta ya la define el
+// contrato del predio y se reparte entre sus pantallas (N pantallas : 1 predio).
+// `sitio` puede ser {id} (liga una pantalla existente) o los datos de una nueva.
+export async function agregarPantallaAPredio(predioId: string, sitio: { id: string } | Record<string, unknown>) {
+  const tenantId = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+    const { rows: pr } = await client.query(
+      'select arrendador_id from predios where id=$1 and tenant_id=$2',
+      [predioId, tenantId],
+    )
+    if (!pr[0]) throw new AppError('El predio no existe', 404)
+    const arrendadorId = pr[0].arrendador_id
+
+    let sitioId: string
+    if ('id' in sitio && typeof sitio.id === 'string') {
+      const { rows } = await client.query(
+        'select predio_id from sitios where id=$1 and tenant_id=$2',
+        [sitio.id, tenantId],
+      )
+      if (!rows[0]) throw new AppError('La pantalla no existe', 404)
+      if (rows[0].predio_id && rows[0].predio_id !== predioId) {
+        throw new AppError('La pantalla ya pertenece a otro predio', 409)
+      }
+      sitioId = sitio.id
+    } else {
+      const nuevo = await insertarSitio(client, { ...sitio, tenantId })
+      sitioId = nuevo.id
+    }
+    const { rows } = await client.query(
+      'update sitios set predio_id=$1, arrendador_id=$2 where id=$3 and tenant_id=$4 returning *',
+      [predioId, arrendadorId, sitioId, tenantId],
+    )
+    await client.query('commit')
+    return { sitioId: rows[0].id, predioId, arrendadorId }
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// Edita un predio (solo los campos provistos). tenant-scoped.
+export async function editarPredio(id: string, patch: {
+  nombre?: string; direccion?: string | null; lat?: number | null; lng?: number | null
+  tipoUbicacion?: string | null; estado?: string
+}) {
+  const tenantId = await tenantActual()
+  const map: [string, unknown][] = [
+    ['nombre', patch.nombre], ['direccion', patch.direccion], ['lat', patch.lat],
+    ['lng', patch.lng], ['tipo_ubicacion', patch.tipoUbicacion], ['estado', patch.estado],
+  ]
+  const provided = map.filter(([, v]) => v !== undefined)
+  if (!provided.length) {
+    const cur = await q('select * from predios where id=$1 and tenant_id=$2', [id, tenantId])
+    return cur[0] ? rowToPredio(cur[0]) : null
+  }
+  const sets = provided.map(([c], i) =>
+    c === 'estado' ? `${c} = $${i + 1}::estado_predio` : `${c} = $${i + 1}`)
+  const vals = provided.map(([, v]) => v)
+  vals.push(id, tenantId)
+  const rows = await q(
+    `update predios set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return rows[0] ? rowToPredio(rows[0]) : null
 }
 
 // Inicia la renovación de un contrato: estatus RENOVADO y nueva vigencia.

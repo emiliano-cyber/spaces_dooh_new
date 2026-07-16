@@ -5,7 +5,7 @@ import { esEmailValido } from '@/lib/validacion'
 import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
-  crearRazonSocial,
+  crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
 } from './arrendadores-repo'
 
 // ============================================================================
@@ -55,8 +55,70 @@ const contratoSchema = z.object({
   documentoUrl: z.string().trim().nullish(),
 })
 
+// ─── Predio (entidad central del módulo) ────────────────────────────────────
+const ESTADOS_PREDIO = ['PROSPECTO', 'EN_NEGOCIACION', 'DISPONIBLE', 'OCUPADO', 'SUSPENDIDO', 'PROBLEMA_LEGAL', 'FUERA_DE_SERVICIO'] as const
+
+const lat = z.coerce.number().min(-90, 'Latitud fuera de rango').max(90, 'Latitud fuera de rango')
+const lng = z.coerce.number().min(-180, 'Longitud fuera de rango').max(180, 'Longitud fuera de rango')
+
+const predioNuevoSchema = z.object({
+  nombre: z.string().trim().min(1, 'El predio necesita un nombre'),
+  direccion: z.string().trim().nullish(),
+  lat: lat.nullish(),
+  lng: lng.nullish(),
+  tipoUbicacion: z.string().trim().max(60).nullish(),
+  estado: z.enum(ESTADOS_PREDIO).default('DISPONIBLE'),
+})
+
+// En el alta unificada el arrendador viene del payload padre, no del predio.
+const predioRef = z.union([z.object({ id: z.string().uuid('Predio inválido') }), predioNuevoSchema])
+
+const crearPredioSchema = predioNuevoSchema.extend({
+  arrendadorId: z.string().uuid('Arrendador inválido'),
+})
+
+export async function crearPredioCtrl(body: unknown) {
+  const d = validar(crearPredioSchema, body)
+  const p = await crearPredio(d)
+  if (!p) throw new AppError('Arrendador no encontrado', 404)
+  return p
+}
+
+// Agrega una pantalla al predio SIN contrato nuevo (el del predio ya define la
+// renta). {sitioId} liga una pantalla existente; si no, se crea una nueva (el
+// insert whitelistea columnas, igual que el alta manual).
+const agregarPantallaSchema = z.union([
+  z.object({ sitioId: z.string().uuid('Pantalla inválida') }),
+  z.object({ nombre: z.string().trim().min(1, 'La pantalla necesita un nombre') }).passthrough(),
+])
+
+export async function agregarPantallaAPredioCtrl(predioId: string, body: unknown) {
+  const d = validar(agregarPantallaSchema, body)
+  const sitio = 'sitioId' in d ? { id: d.sitioId } : d
+  return agregarPantallaAPredio(predioId, sitio)
+}
+
+const editarPredioSchema = z.object({
+  nombre: z.string().trim().min(1, 'El nombre es obligatorio').optional(),
+  direccion: z.string().trim().nullish(),
+  lat: lat.nullish(),
+  lng: lng.nullish(),
+  tipoUbicacion: z.string().trim().max(60).nullish(),
+  estado: z.enum(ESTADOS_PREDIO).optional(),
+}).strict()
+
+export async function editarPredioCtrl(id: string, body: unknown) {
+  const d = editarPredioSchema.parse(body ?? {})
+  const p = await editarPredio(id, d)
+  if (!p) throw new AppError('Predio no encontrado', 404)
+  return p
+}
+
 const crearContratoSchema = z.object({
   arrendador: arrendadorRef,
+  // El predio es OBLIGATORIO: el P&L atribuye la renta por predio, así que un
+  // contrato sin predio no costaría nada e inflaría el margen (derive.ts).
+  predio: predioRef,
   contrato: contratoSchema,
   // El sitio se valida de forma laxa aquí (el model/insert whitelistea columnas);
   // solo exigimos un nombre para la pantalla.

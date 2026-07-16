@@ -5,8 +5,8 @@ import { toast } from 'sonner'
 import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2, Paperclip, X } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
-import { crearContratoConSitioApi } from '@/lib/data/estado-api'
-import { useArrendadores, formatMonto, type TipoMedio, type Sitio } from '@/lib/data/client'
+import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
+import { useArrendadores, usePredios, useContratos, formatMonto, type TipoMedio, type Sitio } from '@/lib/data/client'
 
 // ============================================================================
 //  ContratoWizard — alta guiada "arrendatario → contrato → pantalla".
@@ -39,8 +39,11 @@ const PERIODICIDADES: { v: string; label: string }[] = [
   { v: 'ANUAL', label: 'Anual' },
 ]
 
+const periodicidadLabel = (v: string) =>
+  PERIODICIDADES.find((p) => p.v === v)?.label ?? v
+
 const PASOS = [
-  { n: 1, label: 'Arrendatario', icon: UserRound },
+  { n: 1, label: 'Arrendatario y predio', icon: UserRound },
   { n: 2, label: 'Contrato', icon: FileText },
   { n: 3, label: 'Pantalla', icon: Monitor },
 ]
@@ -54,6 +57,8 @@ export function ContratoWizard({
   bare?: boolean
 }) {
   const arrendadores = useArrendadores()
+  const predios = usePredios()
+  const contratos = useContratos()
   const [paso, setPaso] = useState(1)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,6 +70,39 @@ export function ContratoWizard({
   const [arrRfc, setArrRfc] = useState('')
   const [arrTel, setArrTel] = useState('')
   const [arrEmail, setArrEmail] = useState('')
+
+  // Paso 1 — predio (obligatorio: el contrato cuelga del predio y su renta se
+  // reparte entre las pantallas del predio).
+  const [modoPredio, setModoPredio] = useState<'existente' | 'nuevo'>('nuevo')
+  const [predioId, setPredioId] = useState('')
+  const [predioNombre, setPredioNombre] = useState('')
+  const [predioDireccion, setPredioDireccion] = useState('')
+
+  // Solo los predios del arrendatario elegido (un predio es de un arrendador).
+  const prediosDelArr =
+    modoArr === 'existente' && arrId ? (predios ?? []).filter((p) => p.arrendadorId === arrId) : []
+
+  // Un predio tiene UN contrato activo (la renta del predio es una sola). Si el
+  // predio elegido ya lo tiene, no se firma otro: la pantalla se cuelga del
+  // predio y comparte esa renta con las demás. El wizard omite el paso 2.
+  const ESTATUS_ACTIVO = ['VIGENTE', 'POR_VENCER', 'RENOVADO']
+  const contratoDelPredio =
+    modoPredio === 'existente' && predioId
+      ? (contratos ?? []).find((c) => c.predioId === predioId && ESTATUS_ACTIVO.includes(c.estatus))
+      : undefined
+  const soloPantalla = !!contratoDelPredio
+  const pasosVisibles = soloPantalla ? PASOS.filter((p) => p.n !== 2) : PASOS
+
+  // Un arrendatario nuevo no tiene predios: el predio solo puede ser nuevo.
+  function onModoArr(m: 'existente' | 'nuevo') {
+    setModoArr(m)
+    if (m === 'nuevo') { setModoPredio('nuevo'); setPredioId('') }
+  }
+  function onArrId(id: string) {
+    setArrId(id)
+    setPredioId('')
+    setModoPredio('nuevo')
+  }
 
   // Paso 2 — contrato
   const [fechaInicio, setFechaInicio] = useState('')
@@ -98,25 +136,31 @@ export function ContratoWizard({
   }
   const digital = exhibicion === 'digital' || tipoMedio === 'PANTALLA_DIGITAL'
 
-  const paso1Ok =
-    modoArr === 'existente' ? !!arrId : !!arrNombre.trim()
+  const arrOk = modoArr === 'existente' ? !!arrId : !!arrNombre.trim()
+  const predioOk = modoPredio === 'existente' ? !!predioId : !!predioNombre.trim()
+  const paso1Ok = arrOk && predioOk
+  // Sin contrato que capturar, el paso 2 no aplica.
+  const paso2Aplica = !soloPantalla
   const paso2Ok =
-    !!fechaInicio && !!fechaFin && fechaFin >= fechaInicio && renta.trim() !== '' && Number(renta) >= 0
+    !paso2Aplica ||
+    (!!fechaInicio && !!fechaFin && fechaFin >= fechaInicio && renta.trim() !== '' && Number(renta) >= 0)
   const paso3Ok = !!nombre.trim()
 
   function siguiente() {
     setError(null)
-    if (paso === 1 && !paso1Ok) return setError('Elige un arrendatario existente o captura el nombre de uno nuevo.')
+    if (paso === 1 && !arrOk) return setError('Elige un arrendatario existente o captura el nombre de uno nuevo.')
+    if (paso === 1 && !predioOk) return setError('Elige el predio del contrato o captura el nombre de uno nuevo.')
     if (paso === 2) {
       if (!fechaInicio || !fechaFin) return setError('Captura el periodo del contrato (inicio y fin).')
       if (fechaFin < fechaInicio) return setError('La fecha de fin no puede ser anterior a la de inicio.')
       if (renta.trim() === '' || Number(renta) < 0) return setError('Captura la renta (no negativa).')
     }
-    setPaso((p) => Math.min(3, p + 1))
+    // El predio ya tiene contrato: no hay nada que capturar en el paso 2.
+    setPaso((p) => (p === 1 && !paso2Aplica ? 3 : Math.min(3, p + 1)))
   }
   function atras() {
     setError(null)
-    setPaso((p) => Math.max(1, p - 1))
+    setPaso((p) => (p === 3 && !paso2Aplica ? 1 : Math.max(1, p - 1)))
   }
 
   // Lee el PDF del contrato como data URL base64 (persiste en documento_url).
@@ -157,8 +201,50 @@ export function ContratoWizard({
               telefono: arrTel.trim() || null,
               email: arrEmail.trim() || null,
             }
+      const predio =
+        modoPredio === 'existente'
+          ? { id: predioId }
+          : {
+              nombre: predioNombre.trim(),
+              direccion: predioDireccion.trim() || direccion.trim() || null,
+              lat: lat ? Number(lat) : null,
+              lng: lng ? Number(lng) : null,
+            }
+      const datosSitio = {
+        nombre: nombre.trim(),
+        tipoMedio,
+        exhibicion,
+        esRotativo: digital,
+        direccion: direccion.trim(),
+        direccionComercial: direccion.trim(),
+        direccionPredio: direccion.trim(),
+        alcaldia: alcaldia.trim() || null,
+        distrito: alcaldia.trim() || null,
+        ciudad: ciudad.trim() || null,
+        lat: lat ? Number(lat) : null,
+        lng: lng ? Number(lng) : null,
+        caras: Number(caras) || 1,
+        tarifaPublicada: Number(tarifa) || 0,
+        costoCompra: Number(costo) || 0,
+        estatusComercial: 'DISPONIBLE' as Sitio['estatusComercial'],
+        comercializacion: 'TRADICIONAL',
+        enNetwork: false,
+        cms: null,
+        totalSpots: digital ? Number(totalSpots) || 12 : null,
+        duracionSpotSeg: digital ? Number(duracionSpot) || 20 : null,
+      }
+      if (soloPantalla) {
+        // El predio ya tiene contrato activo: se cuelga la pantalla y comparte
+        // esa renta con las demás del predio. NO se firma un segundo contrato.
+        await agregarPantallaAPredioApi(predioId, datosSitio)
+        toast.success('Pantalla agregada al predio')
+        onCreado?.({ nombre: nombre.trim() })
+        reiniciar()
+        return
+      }
       await crearContratoConSitioApi({
         arrendador,
+        predio,
         contrato: {
           fechaInicio,
           fechaFin,
@@ -168,29 +254,7 @@ export function ContratoWizard({
           autoRenovable,
           documentoUrl: documento,
         },
-        sitio: {
-          nombre: nombre.trim(),
-          tipoMedio,
-          exhibicion,
-          esRotativo: digital,
-          direccion: direccion.trim(),
-          direccionComercial: direccion.trim(),
-          direccionPredio: direccion.trim(),
-          alcaldia: alcaldia.trim() || null,
-          distrito: alcaldia.trim() || null,
-          ciudad: ciudad.trim() || null,
-          lat: lat ? Number(lat) : null,
-          lng: lng ? Number(lng) : null,
-          caras: Number(caras) || 1,
-          tarifaPublicada: Number(tarifa) || 0,
-          costoCompra: Number(costo) || 0,
-          estatusComercial: 'DISPONIBLE' as Sitio['estatusComercial'],
-          comercializacion: 'TRADICIONAL',
-          enNetwork: false,
-          cms: null,
-          totalSpots: digital ? Number(totalSpots) || 12 : null,
-          duracionSpotSeg: digital ? Number(duracionSpot) || 20 : null,
-        },
+        sitio: datosSitio,
       })
       toast.success('Contrato y pantalla creados')
       onCreado?.({ nombre: nombre.trim() })
@@ -204,6 +268,7 @@ export function ContratoWizard({
   function reiniciar() {
     setPaso(1)
     setModoArr('existente'); setArrId(''); setArrNombre(''); setArrRfc(''); setArrTel(''); setArrEmail('')
+    setModoPredio('nuevo'); setPredioId(''); setPredioNombre(''); setPredioDireccion('')
     setFechaInicio(''); setFechaFin(''); setRenta(''); setPeriodicidad('MENSUAL'); setMoneda('MXN'); setAutoRenovable(false)
     setDocumento(null); setDocNombre(null)
     setNombre(''); setTipoMedio('ESPECTACULAR'); setExhibicion('fijo'); setDireccion(''); setAlcaldia(''); setCiudad('')
@@ -214,7 +279,7 @@ export function ContratoWizard({
     <div className={bare ? '' : 'rounded-md border border-border bg-surface'}>
       {/* Stepper */}
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        {PASOS.map((p, i) => {
+        {pasosVisibles.map((p, i) => {
           const activo = paso === p.n
           const hecho = paso > p.n
           const Icon = p.icon
@@ -227,25 +292,25 @@ export function ContratoWizard({
                 )}
               >
                 {hecho ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}
-                <span>{p.n}. {p.label}</span>
+                <span>{i + 1}. {p.label}</span>
               </div>
-              {i < PASOS.length - 1 && <ChevronRight className="h-4 w-4 text-muted" />}
+              {i < pasosVisibles.length - 1 && <ChevronRight className="h-4 w-4 text-muted" />}
             </div>
           )
         })}
       </div>
 
       <div className="p-4">
-        {/* ── Paso 1: arrendatario ── */}
+        {/* ── Paso 1: arrendatario y predio ── */}
         {paso === 1 && (
           <div className="space-y-3">
             <p className="text-[13px] text-muted">¿A quién le rentas este espacio? Elige un arrendatario ya registrado o da de alta uno nuevo.</p>
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
-              <button type="button" onClick={() => setModoArr('existente')}
+              <button type="button" onClick={() => onModoArr('existente')}
                 className={cn('rounded px-3 py-1.5', modoArr === 'existente' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
                 Existente
               </button>
-              <button type="button" onClick={() => setModoArr('nuevo')}
+              <button type="button" onClick={() => onModoArr('nuevo')}
                 className={cn('rounded px-3 py-1.5', modoArr === 'nuevo' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
                 Nuevo
               </button>
@@ -253,7 +318,7 @@ export function ContratoWizard({
 
             {modoArr === 'existente' ? (
               <Campo label="Arrendatario">
-                <select value={arrId} onChange={(e) => setArrId(e.target.value)} className={inputCls}>
+                <select value={arrId} onChange={(e) => onArrId(e.target.value)} className={inputCls}>
                   <option value="">— Selecciona —</option>
                   {(arrendadores ?? []).map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
@@ -269,6 +334,55 @@ export function ContratoWizard({
                 <Campo label="Correo (opcional)"><input value={arrEmail} onChange={(e) => setArrEmail(e.target.value)} className={inputCls} type="email" /></Campo>
               </div>
             )}
+
+            <div className="border-t border-border pt-3">
+              <p className="text-[13px] text-muted">
+                ¿Qué predio se renta? El contrato y la renta pertenecen al predio: si varias pantallas
+                están en el mismo predio, elige el que ya existe y la renta se reparte entre ellas.
+              </p>
+              {prediosDelArr.length > 0 && (
+                <div className="mt-2 inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
+                  <button type="button" onClick={() => setModoPredio('existente')}
+                    className={cn('rounded px-3 py-1.5', modoPredio === 'existente' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
+                    Predio existente
+                  </button>
+                  <button type="button" onClick={() => { setModoPredio('nuevo'); setPredioId('') }}
+                    className={cn('rounded px-3 py-1.5', modoPredio === 'nuevo' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
+                    Predio nuevo
+                  </button>
+                </div>
+              )}
+
+              {modoPredio === 'existente' ? (
+                <div className="mt-3">
+                  <Campo label="Predio">
+                    <select value={predioId} onChange={(e) => setPredioId(e.target.value)} className={inputCls}>
+                      <option value="">— Selecciona —</option>
+                      {prediosDelArr.map((p) => (
+                        <option key={p.id} value={p.id}>{p.nombre}{p.direccion ? ` — ${p.direccion}` : ''}</option>
+                      ))}
+                    </select>
+                  </Campo>
+                  {contratoDelPredio && (
+                    <p className="mt-2 rounded border border-info/30 bg-info/10 p-2 text-[12px] text-ink">
+                      Este predio ya tiene un contrato vigente de{' '}
+                      <strong>{formatMonto(contratoDelPredio.montoRenta)}</strong>{' '}
+                      ({periodicidadLabel(contratoDelPredio.periodicidad)}). No se firma otro: la pantalla se agrega al
+                      predio y comparte esa renta con las demás. Para cambiar la renta, edita el contrato.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Campo label="Nombre del predio">
+                    <input value={predioNombre} onChange={(e) => setPredioNombre(e.target.value)} className={inputCls} placeholder="Ej. Azotea Reforma 222" />
+                  </Campo>
+                  <Campo label="Dirección del predio (opcional)">
+                    <input value={predioDireccion} onChange={(e) => setPredioDireccion(e.target.value)} className={inputCls} placeholder="Se toma la de la pantalla si lo dejas vacío" />
+                  </Campo>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

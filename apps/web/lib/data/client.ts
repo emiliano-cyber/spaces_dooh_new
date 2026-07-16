@@ -142,6 +142,11 @@ export function useArrendadores() {
   const v = useDemoStore((s) => s.arrendadores)
   return m ? v : undefined
 }
+export function usePredios() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.predios)
+  return m ? v : undefined
+}
 export function useContratos() {
   const m = useMounted()
   const v = useDemoStore((s) => s.contratos)

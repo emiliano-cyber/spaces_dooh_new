@@ -267,6 +267,26 @@ export interface Arrendador {
   creadoEn: string
 }
 
+// Predio: el inmueble que se renta. Entidad central del módulo Arrendadores
+// (Arrendador → Predio → Contrato → Pantallas). La renta vive en el contrato del
+// predio y se atribuye a sus pantallas; N pantallas pueden compartir un predio.
+export type EstadoPredio =
+  | 'PROSPECTO' | 'EN_NEGOCIACION' | 'DISPONIBLE' | 'OCUPADO'
+  | 'SUSPENDIDO' | 'PROBLEMA_LEGAL' | 'FUERA_DE_SERVICIO'
+
+export interface Predio {
+  id: string
+  arrendadorId: string
+  nombre: string
+  direccion: string | null
+  lat: number | null
+  lng: number | null
+  tipoUbicacion: string | null
+  estado: EstadoPredio
+  documentos: unknown[]
+  creadoEn: string
+}
+
 export interface ContratoArrendamiento {
   id: string
   sitioId: string
@@ -614,6 +634,7 @@ export interface DemoState {
   sitiosRed: Sitio[]
   sitios: Sitio[]
   arrendadores: Arrendador[]
+  predios: Predio[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]

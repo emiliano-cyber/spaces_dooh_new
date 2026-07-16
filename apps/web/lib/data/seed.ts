@@ -470,6 +470,7 @@ export function buildSeed(): DemoState {
     sitios: [],
     sitiosRed: [],
     arrendadores: [],
+    predios: [],
     contratos: [],
     pagosRenta: [],
     incidencias: [],

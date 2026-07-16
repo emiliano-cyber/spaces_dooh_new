@@ -29,6 +29,7 @@ export async function refrescarEstado(): Promise<void> {
     ordenesImpresion: e.ordenesImpresion ?? [],
     acciones: e.acciones ?? [],
     arrendadores: e.arrendadores ?? [],
+    predios: e.predios ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
@@ -206,6 +207,9 @@ export async function crearArrendadorApi(input: {
 // pasadas permitidas. Devuelve el id de la pantalla creada.
 export async function crearContratoConSitioApi(input: {
   arrendador: { id: string } | { nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null }
+  // Predio obligatorio: {id} reusa uno del mismo arrendador (varias pantallas en
+  // un predio comparten la renta), {nombre,...} da de alta uno nuevo.
+  predio: { id: string } | { nombre: string; direccion?: string | null; lat?: number | null; lng?: number | null; tipoUbicacion?: string | null }
   contrato: {
     fechaInicio: string; fechaFin: string; montoRenta: number; periodicidad: string
     moneda?: string; autoRenovable?: boolean; documentoUrl?: string | null
@@ -221,6 +225,23 @@ export async function crearContratoConSitioApi(input: {
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el contrato')
   await refrescarEstado()
   return { sitioId: d.sitio?.id, contratoId: d.contrato?.id }
+}
+
+// Cuelga una pantalla de un predio que YA tiene contrato: no se firma otro
+// (la renta del predio es una sola y se reparte entre sus pantallas).
+export async function agregarPantallaAPredioApi(
+  predioId: string,
+  sitio: Record<string, unknown>,
+): Promise<{ sitioId: string }> {
+  const r = await fetch(`${API}/predios/${predioId}/pantallas/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(sitio),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo agregar la pantalla al predio')
+  await refrescarEstado()
+  return { sitioId: d.sitioId }
 }
 
 export async function registrarPagoRentaApi(pagoId: string): Promise<void> {
