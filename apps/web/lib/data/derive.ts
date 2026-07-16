@@ -623,6 +623,21 @@ export function diasHasta(iso: string): number {
   return Math.round((objetivo.getTime() - ahora.getTime()) / 86_400_000)
 }
 
+// Etiqueta del medio para la UI: "Digital" (vende slots) o "Fija" (vende lona).
+// OJO: esta es la regla de PRESENTACIÓN y es más amplia que la de BOOKING
+// (`esDigital`, abajo), que por S0-3 solo considera digital a PANTALLA_DIGITAL:
+// un rotativo sobre estructura estática se muestra como digital pero se reserva
+// como fijo. Hoy no hay ninguna pantalla así, pero si la hubiera, las dos reglas
+// difieren a propósito. No las unifiques sin decidir antes cuál gana.
+export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibicion'>): string {
+  const digital =
+    s.tipoMedio === 'PANTALLA_DIGITAL' ||
+    !!s.esRotativo ||
+    s.exhibicion === 'digital' ||
+    s.exhibicion === 'rotativo'
+  return digital ? 'Digital' : 'Fija'
+}
+
 export function formatMonto(n: number): string {
   return `$ ${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }

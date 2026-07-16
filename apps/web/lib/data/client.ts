@@ -75,6 +75,7 @@ export {
   otAbierta,
   funnelPropuestas,
   diasHasta,
+  medioLabel,
   formatMonto,
   formatMontoCorto,
   formatFecha,

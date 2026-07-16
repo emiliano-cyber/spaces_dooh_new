@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { dashboardMetrics, margenPorSitio, rentaAtribuidaPorSitio, margenCampana } from './derive'
+import { dashboardMetrics, margenPorSitio, rentaAtribuidaPorSitio, margenCampana, medioLabel } from './derive'
 
 // ============================================================================
 //  P&L (Fase 1.6): la renta del contrato vigente del predio ES el costo del
@@ -41,6 +41,25 @@ const escenario = baseState({
     { id: 'R1', sitioId: 'S1', campanaId: 'CAMP1', precio: 8000, estatus: 'CONFIRMADA', fechaInicio: AYER, fechaFin: MANANA },
   ],
   campanas: [{ id: 'CAMP1', nombre: 'Campaña 1' }],
+})
+
+// medioLabel es la regla de PRESENTACIÓN (más amplia que la de booking, que por
+// S0-3 solo considera digital a PANTALLA_DIGITAL). Ver el comentario en derive.ts.
+describe('medioLabel — Fija o Digital', () => {
+  const m = (s: any) => medioLabel(s)
+  it('PANTALLA_DIGITAL es Digital', () => {
+    expect(m({ tipoMedio: 'PANTALLA_DIGITAL', exhibicion: 'digital', esRotativo: true })).toBe('Digital')
+  })
+  it('espectacular fijo es Fija', () => {
+    expect(m({ tipoMedio: 'ESPECTACULAR', exhibicion: 'fijo', esRotativo: false })).toBe('Fija')
+  })
+  it('un rotativo sobre estructura estática se MUESTRA como Digital', () => {
+    // Ojo: para BOOKING sigue siendo fijo (regla S0-3). Las dos difieren a propósito.
+    expect(m({ tipoMedio: 'ESPECTACULAR', exhibicion: 'rotativo', esRotativo: true })).toBe('Digital')
+  })
+  it('no truena sin exhibicion ni esRotativo', () => {
+    expect(m({ tipoMedio: 'MURAL' })).toBe('Fija')
+  })
 })
 
 describe('P&L renta = costo del espacio (atribución partes iguales, sin doble conteo)', () => {

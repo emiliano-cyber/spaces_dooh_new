@@ -6,7 +6,7 @@ import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
-import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, type TipoMedio, type Sitio } from '@/lib/data/client'
+import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, medioLabel, type TipoMedio, type Sitio } from '@/lib/data/client'
 
 // ============================================================================
 //  ContratoWizard — alta guiada "arrendatario → contrato → pantalla".
@@ -479,7 +479,7 @@ export function ContratoWizard({
                     <option value="">— Selecciona —</option>
                     {sitiosLibres.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.nombre}{s.alcaldia ? ` — ${s.alcaldia}` : ''}
+                        [{medioLabel(s)}] {s.nombre}{s.alcaldia ? ` — ${s.alcaldia}` : ''}
                       </option>
                     ))}
                   </select>
@@ -496,6 +496,7 @@ export function ContratoWizard({
                     <div className="mb-2 text-[12px] font-medium text-ink">Datos que ya tiene</div>
                     <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12px]">
                       <Dato label="Tipo" valor={TIPO_PANTALLA.find((t) => t.v === sitioSel.tipoMedio)?.label ?? sitioSel.tipoMedio} />
+                      <Dato label="Medio" valor={medioLabel(sitioSel)} />
                       <Dato label="Caras" valor={String(sitioSel.caras ?? 1)} />
                       <Dato label="Ubicación" valor={[sitioSel.alcaldia, sitioSel.ciudad].filter(Boolean).join(', ') || '—'} />
                       <Dato label="Tarifa publicada" valor={sitioSel.tarifaPublicada ? formatMonto(sitioSel.tarifaPublicada) : '—'} />

@@ -11,6 +11,7 @@ import {
   useSitios,
   useContratos,
   useArrendadores,
+  medioLabel,
   formatMonto,
   type Sitio,
   type TipoMedio,
@@ -38,10 +39,6 @@ const PERIODICIDAD_LABEL: Record<string, string> = {
 }
 const periodicidadLabel = (p?: string) =>
   p ? PERIODICIDAD_LABEL[p.toUpperCase()] ?? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '—'
-
-function esDigital(s: Sitio): boolean {
-  return s.tipoMedio === 'PANTALLA_DIGITAL' || s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
-}
 
 // Tabla del inventario completo con columnas (incluye propietario, renta y
 // periodicidad de pago tomados del contrato vigente de cada sitio).
@@ -162,7 +159,7 @@ export function InventarioTabla() {
                     <td className="px-3 py-2.5 text-muted">
                       {s.alcaldia ?? '—'}{s.ciudad ? `, ${s.ciudad}` : ''}
                     </td>
-                    <td className="px-3 py-2.5 text-muted">{esDigital(s) ? 'Digital' : 'Fija'}</td>
+                    <td className="px-3 py-2.5 text-muted">{medioLabel(s)}</td>
                     <td className="px-3 py-2.5 text-right">
                       <CeldaTarifa sitio={s} editable={puedeEditar} onSaved={notify} />
                     </td>
