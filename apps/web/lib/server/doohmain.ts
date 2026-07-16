@@ -168,6 +168,59 @@ async function ejecutarPublish(args: {
   }
 }
 
+// ─── Proof of play ──────────────────────────────────────────────────────────
+// Pide a DOOHmain las reproducciones y devuelve su payload CRUDO, sin tocarlo.
+// A propósito NO se interpreta aquí: al 16-jul-2026 la API siempre responde `[]`
+// (nada ha salido al aire todavía), así que no sabemos qué trae un elemento con
+// datos. Inventarnos su forma acabaría en números equivocados en la pantalla con
+// la que se le cobra al anunciante. Se guarda literal y se modela cuando se vea.
+export interface RespuestaPlay {
+  ok: boolean
+  payload: unknown
+  error?: string
+}
+
+async function ejecutarSdk(cli: string[]): Promise<any> {
+  try {
+    const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
+    return JSON.parse(stdout.trim().split('\n').pop() || '{}')
+  } catch (e: any) {
+    if (e?.stdout) {
+      try {
+        return JSON.parse(String(e.stdout).trim().split('\n').pop() || '{}')
+      } catch { /* cae abajo */ }
+    }
+    return { ok: false, error: e?.message ?? 'fallo al invocar el SDK' }
+  }
+}
+
+// Reproducciones de una o varias campañas (por su `auth` de DOOHmain).
+export async function consultarStats(
+  auths: string[], desde: string, hasta: string,
+): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!auths.length) return { ok: false, payload: {}, error: 'Sin campañas publicadas en DOOHmain' }
+  const cli = ['-m', 'doohmain_sdk', 'stats', '--start-date', desde, '--end-date', hasta]
+  for (const a of auths) cli.push('--auth', a)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? r ?? {} }
+}
+
+// Métricas de una o varias pantallas.
+export async function consultarMetrics(
+  pantallas: string[], desde: string, hasta: string,
+): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!pantallas.length) return { ok: false, payload: {}, error: 'Sin pantallas que consultar' }
+  const cli = ['-m', 'doohmain_sdk', 'metrics', '--start-date', desde, '--end-date', hasta,
+               '--type', 'full', '--zoom', 'days']
+  for (const s of pantallas) cli.push('--screen', s)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? r ?? {} }
+}
+
 // Retira un creativo de DOOHmain (al eliminarlo o antes de reemplazarlo):
 // finaliza su campaña (queda fuera del aire) y limpia el tracking. Nunca lanza.
 // `version` es el id del creativo (la misma clave con la que se publicó).

@@ -74,6 +74,22 @@ def _build_parser() -> argparse.ArgumentParser:
 
     ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
     ret.add_argument("--version", required=True)
+
+    # Proof of play. Devuelven el payload CRUDO de DOOHmain, sin interpretarlo:
+    # todavía no hemos visto una respuesta con datos (hasta hoy siempre `[]`,
+    # porque nada ha salido al aire), así que inventarse su forma aquí sería
+    # adivinar en la pantalla con la que se le cobra al anunciante.
+    st = sub.add_parser("stats", help="Reproducciones por campaña (payload crudo)")
+    st.add_argument("--auth", action="append", required=True, help="auth de campaña (repetible)")
+    st.add_argument("--start-date", required=True)
+    st.add_argument("--end-date", required=True)
+
+    me = sub.add_parser("metrics", help="Métricas por pantalla (payload crudo)")
+    me.add_argument("--screen", action="append", required=True, help="nombre de pantalla (repetible)")
+    me.add_argument("--start-date", required=True)
+    me.add_argument("--end-date", required=True)
+    me.add_argument("--type", default="details", choices=["full", "details"])
+    me.add_argument("--zoom", default="details", choices=["days", "details"])
     return p
 
 
@@ -114,6 +130,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.cmd == "retirar":
             estado = integration.retirar_creativo(args.version)
             return _emit_ok({"estado": estado})
+
+        if args.cmd == "stats":
+            with DOOHmainClient() as api:
+                return _emit_ok({"payload": api.get_stats(args.auth, args.start_date, args.end_date)})
+
+        if args.cmd == "metrics":
+            with DOOHmainClient() as api:
+                return _emit_ok({"payload": api.get_metrics(
+                    args.screen, args.start_date, args.end_date, type=args.type, zoom=args.zoom,
+                )})
 
         if args.cmd == "publish":
             api = DOOHmainClient()
