@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ============================================================================
 //  Contrato: el PREDIO es obligatorio (Fase 1.6/1.7).
@@ -10,16 +10,22 @@ import { describe, it, expect, vi } from 'vitest'
 
 // El repo abre un pool de Postgres al importarse: se mockea porque estas
 // pruebas solo ejercitan la validación del controller.
-vi.mock('./arrendadores-repo', () => ({
+const repo = {
   crearContratoConSitio: vi.fn(async (i: unknown) => i),
   agregarPantallaAPredio: vi.fn(async (predioId: string, sitio: unknown) => ({ predioId, sitio })),
+  iniciarRenovacion: vi.fn(async () => ({ contrato: { id: 'C1' } })),
+  registrarPagoRenta: vi.fn(async () => ({ pago: { id: 'P1' } })),
   crearPredio: vi.fn(), editarPredio: vi.fn(), crearArrendador: vi.fn(),
-  iniciarRenovacion: vi.fn(), registrarPagoRenta: vi.fn(), editarArrendador: vi.fn(),
-  borrarArrendador: vi.fn(), editarContrato: vi.fn(), cancelarContrato: vi.fn(),
-  crearRazonSocial: vi.fn(),
-}))
+  editarArrendador: vi.fn(), borrarArrendador: vi.fn(), editarContrato: vi.fn(),
+  cancelarContrato: vi.fn(), crearRazonSocial: vi.fn(),
+}
+vi.mock('./arrendadores-repo', () => repo)
 
-const { crearContratoCtrl, agregarPantallaAPredioCtrl } = await import('./arrendadores-controller')
+const { crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl, registrarPagoRentaCtrl } =
+  await import('./arrendadores-controller')
+
+// Las aserciones de "no se llamó al model" dependen de partir de cero.
+beforeEach(() => vi.clearAllMocks())
 
 const CONTRATO = {
   fechaInicio: '2026-01-01', fechaFin: '2026-12-31',
@@ -92,5 +98,51 @@ describe('agregarPantallaAPredioCtrl', () => {
 
   it('rechaza un sitioId que no es uuid', async () => {
     await expect(agregarPantallaAPredioCtrl(PREDIO, { sitioId: 'abc' })).rejects.toThrow()
+  })
+})
+
+// ============================================================================
+//  Fechas y montos que antes llegaban crudos a Postgres: el cast fallaba y salía
+//  como 500 con el texto del driver, en vez de un 400 con el motivo.
+// ============================================================================
+describe('iniciarRenovacionCtrl — fecha', () => {
+  it('rechaza una fecha que no es fecha (antes: 500 por el cast ::date)', async () => {
+    await expect(iniciarRenovacionCtrl('C1', { nuevaFechaFin: 'mañana' })).rejects.toThrow(/fecha/i)
+    expect(repo.iniciarRenovacion).not.toHaveBeenCalled()
+  })
+
+  it('rechaza un campo desconocido en el cuerpo', async () => {
+    await expect(iniciarRenovacionCtrl('C1', { fechaFin: '2027-01-01' })).rejects.toThrow()
+  })
+
+  it('acepta renovar sin fecha (el model aplica +365 días)', async () => {
+    await expect(iniciarRenovacionCtrl('C1', {})).resolves.toEqual({ id: 'C1' })
+  })
+
+  it('traduce fechaNoPosterior del model a 400 con la vigencia actual', async () => {
+    repo.iniciarRenovacion.mockResolvedValueOnce({ fechaNoPosterior: '2026-12-31' } as never)
+    await expect(iniciarRenovacionCtrl('C1', { nuevaFechaFin: '2026-01-01' }))
+      .rejects.toThrow(/posterior a la vigencia actual \(2026-12-31\)/)
+  })
+})
+
+describe('registrarPagoRentaCtrl — fecha y repago', () => {
+  it('rechaza una fecha de pago inválida (antes: 500 por el cast ::timestamptz)', async () => {
+    await expect(registrarPagoRentaCtrl('P1', { fechaPago: 'ayer' })).rejects.toThrow(/fecha/i)
+    expect(repo.registrarPagoRenta).not.toHaveBeenCalled()
+  })
+
+  it('rechaza una fecha de pago futura', async () => {
+    const dentroDeUnAno = new Date(Date.now() + 365 * 86_400_000).toISOString()
+    await expect(registrarPagoRentaCtrl('P1', { fechaPago: dentroDeUnAno })).rejects.toThrow(/futura/i)
+  })
+
+  it('rechaza re-registrar un pago ya PAGADO (409, no sobrescribe la fecha)', async () => {
+    repo.registrarPagoRenta.mockResolvedValueOnce({ yaPagado: '2026-03-01' } as never)
+    await expect(registrarPagoRentaCtrl('P1', {})).rejects.toThrow(/ya está pagado \(2026-03-01\)/)
+  })
+
+  it('registra un pago normal', async () => {
+    await expect(registrarPagoRentaCtrl('P1', {})).resolves.toEqual({ id: 'P1' })
   })
 })

@@ -321,8 +321,21 @@ export async function listarIncidencias() {
 export async function registrarPagoRenta(pagoId: string, datos?: {
   fechaPago?: string | null; metodoPago?: string | null; facturaUrl?: string | null
   comprobanteUrl?: string | null; observaciones?: string | null
-}) {
+}): Promise<
+  | { noEncontrado: true }
+  | { yaPagado: string }
+  | { pago: ReturnType<typeof rowToPagoRenta> }
+> {
   const d = datos ?? {}
+  const tenantId = await tenantActual()
+  const cur = await q('select estatus, fecha_pago from pagos_renta where id=$1 and tenant_id=$2', [pagoId, tenantId])
+  if (!cur[0]) return { noEncontrado: true }
+  // Idempotencia con rastro: volver a registrar un pago PAGADO sobrescribía su
+  // fecha en silencio. Se rechaza; corregirlo es una acción explícita.
+  if (cur[0].estatus === 'PAGADO') {
+    const f = cur[0].fecha_pago ? String(iso(cur[0].fecha_pago)).slice(0, 10) : 'sin fecha'
+    return { yaPagado: f }
+  }
   const rows = await q(
     `update pagos_renta set
         estatus         = 'PAGADO',
@@ -331,11 +344,13 @@ export async function registrarPagoRenta(pagoId: string, datos?: {
         factura_url     = coalesce($5, factura_url),
         comprobante_url = coalesce($6, comprobante_url),
         observaciones   = coalesce($7, observaciones)
-      where id=$1 and tenant_id=$2 returning *`,
-    [pagoId, await tenantActual(), d.fechaPago ?? null, d.metodoPago ?? null,
+      where id=$1 and tenant_id=$2 and estatus <> 'PAGADO' returning *`,
+    [pagoId, tenantId, d.fechaPago ?? null, d.metodoPago ?? null,
      d.facturaUrl ?? null, d.comprobanteUrl ?? null, d.observaciones ?? null],
   )
-  return rows[0] ? rowToPagoRenta(rows[0]) : null
+  // Carrera: otro request lo pagó entre el select y el update.
+  if (!rows[0]) return { yaPagado: 'sin fecha' }
+  return { pago: rowToPagoRenta(rows[0]) }
 }
 
 // ─── Razón social del arrendador (Fase 1.5) ─────────────────────────────────
@@ -517,9 +532,24 @@ export async function editarPredio(id: string, patch: {
 // Inicia la renovación de un contrato: estatus RENOVADO y nueva vigencia.
 // La fecha de fin es CONFIGURABLE; si no se indica, por defecto +365 días.
 // Genera automáticamente los pagos del nuevo periodo (idempotente).
-export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: string | null) {
+export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: string | null): Promise<
+  | { noEncontrado: true }
+  | { fechaNoPosterior: string }
+  | { contrato: ReturnType<typeof rowToContrato> }
+> {
   const tenantId = await tenantActual()
   return withTenantTx(async (client) => {
+    const { rows: cur } = await client.query(
+      'select fecha_fin from contratos_arrendamiento where id=$1 and tenant_id=$2',
+      [contratoId, tenantId],
+    )
+    if (!cur[0]) return { noEncontrado: true }
+    // Renovar EXTIENDE la vigencia. Una fecha anterior a la actual acortaría el
+    // contrato y generaría periodos ya vencidos (el calendario los marca VENCIDO).
+    const finActual = String(iso(cur[0].fecha_fin)).slice(0, 10)
+    if (nuevaFechaFin && nuevaFechaFin.slice(0, 10) <= finActual) {
+      return { fechaNoPosterior: finActual }
+    }
     const { rows } = await client.query(
       `update contratos_arrendamiento
           set estatus='RENOVADO',
@@ -527,9 +557,8 @@ export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: stri
         where id=$1 and tenant_id=$3 returning *`,
       [contratoId, nuevaFechaFin ?? null, tenantId],
     )
-    if (!rows[0]) return null
     await generarCalendarioEnTx(client, genInputFromRow(rows[0]))
-    return rowToContrato(rows[0])
+    return { contrato: rowToContrato(rows[0]) }
   })
 }
 

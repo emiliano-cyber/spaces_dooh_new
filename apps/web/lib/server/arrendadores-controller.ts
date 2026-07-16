@@ -16,6 +16,14 @@ import {
 const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i
 const CURP_RE = /^[A-Z][AEIOUX][A-Z]{2}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/i
 
+// Fecha que Postgres pueda castear de verdad. Sin esto, un valor como "mañana"
+// llegaba crudo a `$1::date` y salía como error del driver (500) en vez de 400.
+const fecha = z
+  .string()
+  .trim()
+  .min(1, 'La fecha es obligatoria')
+  .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
+
 const crearSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
   rfc: z.string().trim().max(13).nullish(),
@@ -208,18 +216,27 @@ export async function cancelarContratoCtrl(id: string, body: unknown) {
   return c
 }
 
-// Renovación de contrato (acción por id). Fecha de fin opcional (configurable).
-const renovarSchema = z.object({ nuevaFechaFin: z.string().min(1).nullish() })
+// Renovación de contrato (acción por id). Fecha de fin opcional (configurable);
+// si no se indica, el model usa +365 días.
+const renovarSchema = z.object({ nuevaFechaFin: fecha.nullish() }).strict()
 export async function iniciarRenovacionCtrl(id: string, body?: unknown) {
   const d = renovarSchema.parse(body ?? {})
-  const c = await iniciarRenovacion(id, d.nuevaFechaFin ?? null)
-  if (!c) throw new AppError('Contrato no encontrado', 404)
-  return c
+  const r = await iniciarRenovacion(id, d.nuevaFechaFin ?? null)
+  if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
+  // Renovar es EXTENDER la vigencia: una fecha anterior a la actual generaría
+  // periodos ya vencidos y acortaría el contrato en silencio.
+  if ('fechaNoPosterior' in r) {
+    throw new AppError(
+      `La nueva fecha de fin debe ser posterior a la vigencia actual (${r.fechaNoPosterior}).`,
+      400,
+    )
+  }
+  return r.contrato
 }
 
 // Registro de pago de renta: PAGADO + adjuntos opcionales (factura/comprobante).
 const pagarSchema = z.object({
-  fechaPago: z.string().min(1).nullish(),
+  fechaPago: fecha.nullish(),
   metodoPago: z.string().trim().max(40).nullish(),
   facturaUrl: z.string().trim().nullish(),
   comprobanteUrl: z.string().trim().nullish(),
@@ -227,9 +244,17 @@ const pagarSchema = z.object({
 }).strict()
 export async function registrarPagoRentaCtrl(id: string, body?: unknown) {
   const d = pagarSchema.parse(body ?? {})
-  const p = await registrarPagoRenta(id, d)
-  if (!p) throw new AppError('Pago no encontrado', 404)
-  return p
+  // Un pago no puede registrarse con fecha futura: aún no ha ocurrido.
+  if (d.fechaPago && Date.parse(d.fechaPago) > Date.now() + 86_400_000) {
+    throw new AppError('La fecha de pago no puede ser futura', 400)
+  }
+  const r = await registrarPagoRenta(id, d)
+  if ('noEncontrado' in r) throw new AppError('Pago no encontrado', 404)
+  // Re-registrar un pago ya PAGADO sobrescribía su fecha sin dejar rastro.
+  if ('yaPagado' in r) {
+    throw new AppError(`Este periodo ya está pagado (${r.yaPagado}). Cancélalo antes de volver a registrarlo.`, 409)
+  }
+  return r.pago
 }
 
 // ─── Razón social del arrendador ────────────────────────────────────────────
