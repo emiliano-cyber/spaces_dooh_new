@@ -71,20 +71,24 @@ export function InventarioTabla() {
     [arrendadores],
   )
 
-  // sitioId → { propietario, renta, periodicidad } del contrato preferente.
+  // Renta del contrato preferente, indexada por predio (fuente actual: varias
+  // pantallas comparten el contrato de su predio) y por sitio (contratos
+  // antiguos, anteriores al predio).
   const rentaPorSitio = useMemo(() => {
     const PR: Record<string, number> = { VIGENTE: 0, POR_VENCER: 1, RENOVADO: 2, VENCIDO: 3, CANCELADO: 4 }
-    const m = new Map<string, { propietario: string; renta: number; periodicidad: string }>()
+    type Info = { propietario: string; renta: number; periodicidad: string }
+    const porPredio = new Map<string, Info>()
+    const porSitio = new Map<string, Info>()
     for (const c of (contratos ?? []).slice().sort((a, b) => (PR[a.estatus] ?? 9) - (PR[b.estatus] ?? 9))) {
-      if (!m.has(c.sitioId)) {
-        m.set(c.sitioId, {
-          propietario: arrById.get(c.arrendadorId) ?? '—',
-          renta: c.montoRenta,
-          periodicidad: c.periodicidad,
-        })
+      const info: Info = {
+        propietario: arrById.get(c.arrendadorId) ?? '—',
+        renta: c.montoRenta,
+        periodicidad: c.periodicidad,
       }
+      if (c.predioId && !porPredio.has(c.predioId)) porPredio.set(c.predioId, info)
+      if (!porSitio.has(c.sitioId)) porSitio.set(c.sitioId, info)
     }
-    return m
+    return { porPredio, porSitio }
   }, [contratos, arrendadores])
 
   if (!sitios) {
@@ -137,11 +141,14 @@ export function InventarioTabla() {
               </tr>
             ) : (
               filtrados.map((s) => {
-                const r = rentaPorSitio.get(s.id)
-                // Renta y periodicidad EFECTIVAS: dato directo de la pantalla con
-                // prioridad; si no, el del contrato vigente.
-                const rentaEff = s.rentaArrendador ?? r?.renta ?? null
-                const periodicidadEff = s.periodicidadRenta ?? r?.periodicidad ?? null
+                // La renta sale SOLO del contrato (del predio, o del sitio si es
+                // un contrato antiguo): los campos directos del sitio están
+                // deprecados (Fase 1.7) y ya no se leen.
+                const r = s.predioId
+                  ? rentaPorSitio.porPredio.get(s.predioId)
+                  : rentaPorSitio.porSitio.get(s.id)
+                const rentaEff = r?.renta ?? null
+                const periodicidadEff = r?.periodicidad ?? null
                 return (
                   <tr key={s.id} onClick={() => abrirFicha(s)} className="cursor-pointer hover:bg-surface-2">
                     <td className="px-3 py-2.5">

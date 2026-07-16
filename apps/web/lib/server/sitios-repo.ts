@@ -290,7 +290,10 @@ const CAMPO_COL: Record<string, string> = {
   alcaldia: 'alcaldia', plazaCiudad: 'plaza_ciudad', lat: 'lat', lng: 'lng',
   ancho: 'ancho', alto: 'alto', caras: 'caras', iluminado: 'iluminado',
   tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual', costoCompra: 'costo_compra',
-  arrendadorId: 'arrendador_id', rentaArrendador: 'renta_arrendador', periodicidadRenta: 'periodicidad_renta',
+  arrendadorId: 'arrendador_id',
+  // renta_arrendador / periodicidad_renta NO son editables por esta ruta: están
+  // DEPRECADOS (M1) y la fuente de la renta es el contrato del predio. Dejarlos
+  // aquí permitía cambiar la renta con permiso de Comercial y sin validación.
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
   fotos: 'fotos',

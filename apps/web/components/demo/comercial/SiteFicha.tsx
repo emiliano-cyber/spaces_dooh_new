@@ -173,21 +173,23 @@ export function SiteFicha({
     (i) => i.sitioId === sitio.id && (i.estatus === 'ABIERTA' || i.estatus === 'EN_PROCESO'),
   )
 
-  // Propietario y renta del sitio: contrato preferentemente vigente; si no, el
-  // más reciente. De ahí salen el propietario, la renta y la periodicidad de pago.
+  // Contrato del que sale la renta: el del PREDIO de la pantalla (varias pantallas
+  // comparten el predio y su contrato). Los contratos antiguos, anteriores al
+  // predio, se siguen encontrando por sitioId. Preferentemente el vigente; si no,
+  // el más reciente.
   const PRIORIDAD_CONTRATO: Record<string, number> = { VIGENTE: 0, POR_VENCER: 1, RENOVADO: 2, VENCIDO: 3, CANCELADO: 4 }
   const contrato = (contratos ?? [])
-    .filter((c) => c.sitioId === sitio.id)
+    .filter((c) => (sitio.predioId ? c.predioId === sitio.predioId : c.sitioId === sitio.id))
     .sort((a, b) => (PRIORIDAD_CONTRATO[a.estatus] ?? 9) - (PRIORIDAD_CONTRATO[b.estatus] ?? 9))[0]
   const propietario = arrendadores?.find((a) => a.id === contrato?.arrendadorId)
-  // Propietario y renta EFECTIVOS: primero el dato directo de la pantalla (lo que
-  // la empresa dueña de la cuenta capturó aquí); si no hay, cae al contrato vigente.
   const propietarioDirecto = sitio.arrendadorId
     ? arrendadores?.find((a) => a.id === sitio.arrendadorId)
     : undefined
   const propietarioEfectivo = propietarioDirecto ?? propietario
-  const rentaEfectiva = sitio.rentaArrendador ?? contrato?.montoRenta ?? null
-  const periodicidadEfectiva = sitio.periodicidadRenta ?? contrato?.periodicidad ?? null
+  // La renta sale SOLO del contrato: los campos directos del sitio están
+  // deprecados (Fase 1.7) y ya no se leen.
+  const rentaEfectiva = contrato?.montoRenta ?? null
+  const periodicidadEfectiva = contrato?.periodicidad ?? null
   const tienePropRenta = !!propietarioEfectivo || rentaEfectiva != null || !!contrato
   const pagosContrato = (pagos ?? []).filter((p) => p.contratoId === contrato?.id)
   const ultimoPago = pagosContrato
@@ -473,17 +475,6 @@ const ESTATUS: { v: string; label: string }[] = [
   { v: 'OCUPADO', label: 'Ocupado' },
   { v: 'BLOQUEADO', label: 'Bloqueado' },
 ]
-const PERIODICIDADES: { v: string; label: string }[] = [
-  { v: '', label: '— Sin definir —' },
-  { v: 'SEMANAL', label: 'Semanal' },
-  { v: 'CATORCENAL', label: 'Catorcenal (cada 14 días)' },
-  { v: 'QUINCENAL', label: 'Quincenal' },
-  { v: 'MENSUAL', label: 'Mensual' },
-  { v: 'BIMESTRAL', label: 'Bimestral' },
-  { v: 'TRIMESTRAL', label: 'Trimestral' },
-  { v: 'SEMESTRAL', label: 'Semestral' },
-  { v: 'ANUAL', label: 'Anual' },
-]
 const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
@@ -503,8 +494,6 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
   const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
-  const [renta, setRenta] = useState(sitio.rentaArrendador != null ? String(sitio.rentaArrendador) : '')
-  const [periodicidad, setPeriodicidad] = useState(sitio.periodicidadRenta ?? '')
   const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
   const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
@@ -520,8 +509,6 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
     setArrendadorSel(sitio.arrendadorId ?? '')
-    setRenta(sitio.rentaArrendador != null ? String(sitio.rentaArrendador) : '')
-    setPeriodicidad(sitio.periodicidadRenta ?? '')
     setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
     setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
@@ -542,11 +529,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         costoCompra: Number(costoCompra) || 0,
         estatusComercial,
         notas: notas.trim() || null,
-        // Propietario/arrendador y renta directos de la pantalla (los captura la
-        // empresa dueña de la cuenta; independientes del contrato).
+        // Propietario/arrendador de la pantalla. La renta NO se manda: los campos
+        // directos del sitio están deprecados (Fase 1.7) y la fuente es el contrato.
         arrendadorId: arrendadorSel || null,
-        rentaArrendador: renta.trim() === '' ? null : Number(renta) || 0,
-        periodicidadRenta: periodicidad || null,
       }
       // Cantidad de slots (solo digitales): ajusta los disponibles conservando
       // los ya reservados (reservados = total anterior − disponibles anteriores).
@@ -612,9 +597,11 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </CampoEdit>
         </div>
 
-        {/* Propietario/arrendador y renta que paga la empresa dueña por esta pantalla */}
+        {/* Propietario/arrendador de la pantalla. La RENTA no se edita aquí: vive
+            en el contrato del predio (módulo Arrendadores), que es su única
+            fuente para el P&L. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink">Arrendatario y renta</div>
+          <div className="mb-2 text-[12px] font-medium text-ink">Arrendatario</div>
           <CampoEdit label="Arrendatario">
             <select value={arrendadorSel} onChange={(e) => setArrendadorSel(e.target.value)} className={inputCls}>
               <option value="">— Sin asignar —</option>
@@ -623,16 +610,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               ))}
             </select>
           </CampoEdit>
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <CampoEdit label="Renta (lo que se le paga)">
-              <input type="number" inputMode="decimal" value={renta} onChange={(e) => setRenta(e.target.value)} placeholder="Ej. 8000" className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Cada cuándo se paga">
-              <select value={periodicidad} onChange={(e) => setPeriodicidad(e.target.value)} className={inputCls}>
-                {PERIODICIDADES.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
-              </select>
-            </CampoEdit>
-          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            La renta y su periodicidad se editan en el contrato del predio, en el módulo de Arrendadores.
+          </p>
         </div>
         {digital && (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
