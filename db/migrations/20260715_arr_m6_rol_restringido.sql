@@ -1,24 +1,22 @@
 -- ============================================================================
--- Arrendadores Fase 1 · M6 — Rol de aplicación restringido + GRANTs.
--- La app NO debe conectar como superusuario (que salta RLS). En prod ya se usa
--- `spaces_user` (NOSUPERUSER/NOBYPASSRLS). En dev se crea `spaces_app` con el
--- mismo perfil y se le otorga el DML necesario.
---   • spaces_app (dev): DML sobre TODO el esquema (es el rol de la app en dev).
---   • spaces_user (prod, si existe): DML sobre las tablas NUEVAS del módulo
---     (predios, arrendador_razon_social); las demás ya las tenía.
--- Tras aplicar en dev: apuntar apps/web/.env.local DATABASE_URL a spaces_app.
+-- Arrendadores Fase 1 · M6 — GRANTs para el rol de aplicación restringido.
+-- La app NO debe conectar como superusuario (que salta RLS):
+--   • prod: `spaces_user` (NOSUPERUSER/NOBYPASSRLS), ya existente.
+--   • dev:  `spaces_app`, que se crea aparte con `db/dev-rol-app.sql`.
+--
+-- Esta migración NO crea ningún rol de login. Antes sí lo hacía —con una
+-- contraseña de dev escrita aquí— y eso habría plantado en PRODUCCIÓN un usuario
+-- de base de datos con contraseña conocida y DML sobre todo el esquema. Crear
+-- credenciales es provisión de entorno, no migración de esquema: el .sql viaja
+-- en el repo y se aplica en todos lados.
+--
+-- Aquí solo se otorgan permisos, a los roles que YA existan (guardado por
+-- existencia, así que en prod el bloque de dev es un no-op y viceversa).
 -- Idempotente.
 -- ============================================================================
 begin;
 
--- Rol restringido de DEV (no existe en prod; ahí se usa spaces_user).
-do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'spaces_app') then
-    create role spaces_app login password 'spaces_app_dev' nosuperuser nobypassrls;
-  end if;
-end $$;
-
--- spaces_app (dev): acceso DML completo al esquema de la app.
+-- spaces_app (dev, si se creó con db/dev-rol-app.sql): DML del esquema de la app.
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'spaces_app') then
     grant usage on schema public to spaces_app;
@@ -32,7 +30,8 @@ do $$ begin
   end if;
 end $$;
 
--- spaces_user (prod): asegurar DML sobre las tablas NUEVAS del módulo.
+-- spaces_user (prod): asegurar DML sobre las tablas NUEVAS del módulo. Las demás
+-- ya las tenía. Sin esto, la app en prod da "permission denied" al leer predios.
 do $$
 declare t text;
 begin
@@ -47,6 +46,6 @@ end $$;
 
 commit;
 
--- Verificación
+-- Verificación: ningún rol nuevo debe aparecer por culpa de esta migración.
 select rolname, rolsuper, rolbypassrls, rolcanlogin
   from pg_roles where rolname in ('spaces_app','spaces_user','spaces') order by rolname;
