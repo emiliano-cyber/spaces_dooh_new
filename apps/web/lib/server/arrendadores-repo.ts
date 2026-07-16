@@ -20,6 +20,12 @@ function rowToArrendador(r: any) {
     telefono: r.telefono ?? null,
     email: r.email ?? null,
     notas: r.notas ?? null,
+    curp: r.curp ?? null,
+    direccion: r.direccion ?? null,
+    cuentaBancaria: r.cuenta_bancaria ?? null,
+    formaPago: r.forma_pago ?? null,
+    observaciones: r.observaciones ?? null,
+    activo: r.activo ?? true,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -37,6 +43,10 @@ function rowToContrato(r: any) {
     autoRenovable: r.auto_renovable,
     documentoUrl: r.documento_url ?? null,
     estatus: r.estatus,
+    deposito: r.deposito != null ? Number(r.deposito) : null,
+    predioId: r.predio_id ?? null,
+    razonSocialId: r.razon_social_id ?? null,
+    motivoCancelacion: r.motivo_cancelacion ?? null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -49,13 +59,17 @@ function rowToPagoRenta(r: any) {
     monto: Number(r.monto),
     fechaPago: r.fecha_pago ? iso(r.fecha_pago) : null,
     facturaUrl: r.factura_url ?? null,
+    comprobanteUrl: r.comprobante_url ?? null,
+    metodoPago: r.metodo_pago ?? null,
+    observaciones: r.observaciones ?? null,
     estatus: r.estatus,
     creadoEn: iso(r.creado_en),
   }
 }
 
 export async function listarArrendadores() {
-  const rows = await q('select * from arrendadores where tenant_id = $1 order by nombre asc', [await tenantActual()])
+  // Oculta los soft-deleted (activo=false); conserva su historial en la BD.
+  const rows = await q('select * from arrendadores where tenant_id = $1 and coalesce(activo,true) order by nombre asc', [await tenantActual()])
   return rows.map(rowToArrendador)
 }
 
@@ -188,14 +202,124 @@ export async function registrarPagoRenta(pagoId: string) {
   return rows[0] ? rowToPagoRenta(rows[0]) : null
 }
 
-// Inicia la renovación de un contrato: estatus RENOVADO y +1 año de vigencia.
-export async function iniciarRenovacion(contratoId: string) {
+// Inicia la renovación de un contrato: estatus RENOVADO y nueva vigencia.
+// La fecha de fin es CONFIGURABLE; si no se indica, por defecto +365 días.
+export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: string | null) {
   const rows = await q(
     `update contratos_arrendamiento
         set estatus='RENOVADO',
-            fecha_fin = (current_date + interval '365 days')::date
-      where id=$1 returning *`,
-    [contratoId],
+            fecha_fin = coalesce($2::date, (current_date + interval '365 days')::date)
+      where id=$1 and tenant_id=$3 returning *`,
+    [contratoId, nuevaFechaFin ?? null, await tenantActual()],
+  )
+  return rows[0] ? rowToContrato(rows[0]) : null
+}
+
+// ─── CRUD faltante (Fase 1.2): editar/borrar arrendador; editar/cancelar contrato ──
+
+// Edita un arrendador (solo los campos provistos). tenant-scoped.
+export async function editarArrendador(id: string, patch: {
+  nombre?: string; rfc?: string | null; telefono?: string | null; email?: string | null
+  notas?: string | null; curp?: string | null; direccion?: string | null
+  cuentaBancaria?: string | null; formaPago?: string | null; observaciones?: string | null
+}) {
+  const tenantId = await tenantActual()
+  const map: [string, unknown][] = [
+    ['nombre', patch.nombre], ['rfc', patch.rfc], ['telefono', patch.telefono],
+    ['email', patch.email], ['notas', patch.notas], ['curp', patch.curp],
+    ['direccion', patch.direccion], ['cuenta_bancaria', patch.cuentaBancaria],
+    ['forma_pago', patch.formaPago], ['observaciones', patch.observaciones],
+  ]
+  const provided = map.filter(([, v]) => v !== undefined)
+  if (!provided.length) {
+    const cur = await q('select * from arrendadores where id=$1 and tenant_id=$2', [id, tenantId])
+    return cur[0] ? rowToArrendador(cur[0]) : null
+  }
+  const sets = provided.map(([c], i) => `${c} = $${i + 1}`)
+  const vals = provided.map(([, v]) => v)
+  vals.push(id, tenantId)
+  const rows = await q(
+    `update arrendadores set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return rows[0] ? rowToArrendador(rows[0]) : null
+}
+
+// Borra un arrendador. Bloquea (RESTRICT) si tiene predios o contratos activos;
+// en caso contrario hace SOFT-DELETE (activo=false) para conservar el historial.
+export async function borrarArrendador(id: string): Promise<
+  | { bloqueado: true; predios: number; contratos: number }
+  | { bloqueado: false; arrendador: ReturnType<typeof rowToArrendador> | null }
+> {
+  const tenantId = await tenantActual()
+  const b = await q(
+    `select
+       (select count(*) from predios p
+          where p.arrendador_id=$1 and p.tenant_id=$2) as predios,
+       (select count(*) from contratos_arrendamiento c
+          where c.arrendador_id=$1 and c.tenant_id=$2
+            and c.estatus in ('VIGENTE','POR_VENCER','RENOVADO')) as contratos`,
+    [id, tenantId],
+  )
+  const predios = Number(b[0]?.predios ?? 0)
+  const contratos = Number(b[0]?.contratos ?? 0)
+  if (predios > 0 || contratos > 0) return { bloqueado: true, predios, contratos }
+
+  const rows = await q(
+    `update arrendadores set activo=false where id=$1 and tenant_id=$2 returning *`,
+    [id, tenantId],
+  )
+  return { bloqueado: false, arrendador: rows[0] ? rowToArrendador(rows[0]) : null }
+}
+
+// Edita un contrato (campos provistos). Recalcula el estatus por fechas salvo que
+// esté CANCELADO (en cuyo caso no se edita: se debe crear uno nuevo).
+export async function editarContrato(id: string, patch: {
+  fechaInicio?: string; fechaFin?: string; montoRenta?: number; periodicidad?: string
+  moneda?: string; deposito?: number | null; documentoUrl?: string | null
+  autoRenovable?: boolean; razonSocialId?: string | null
+}): Promise<{ noEncontrado: true } | { cancelado: true } | { contrato: ReturnType<typeof rowToContrato> }> {
+  const tenantId = await tenantActual()
+  const cur = await q('select * from contratos_arrendamiento where id=$1 and tenant_id=$2', [id, tenantId])
+  if (!cur[0]) return { noEncontrado: true }
+  if (cur[0].estatus === 'CANCELADO') return { cancelado: true }
+
+  const map: [string, unknown][] = [
+    ['fecha_inicio', patch.fechaInicio], ['fecha_fin', patch.fechaFin],
+    ['monto_renta', patch.montoRenta], ['periodicidad', patch.periodicidad],
+    ['moneda', patch.moneda], ['deposito', patch.deposito],
+    ['documento_url', patch.documentoUrl], ['auto_renovable', patch.autoRenovable],
+    ['razon_social_id', patch.razonSocialId],
+  ]
+  const provided = map.filter(([, v]) => v !== undefined)
+
+  // Estatus recalculado por las fechas efectivas (patch o actuales).
+  const fi = patch.fechaInicio ?? iso(cur[0].fecha_inicio)
+  const ff = patch.fechaFin ?? iso(cur[0].fecha_fin)
+  provided.push(['estatus', estatusPorFechas(fi, ff)])
+
+  const sets = provided.map(([c], i) =>
+    c === 'periodicidad' ? `${c} = $${i + 1}::periodicidad_pago`
+    : c === 'estatus'    ? `${c} = $${i + 1}::est_contrato`
+    : `${c} = $${i + 1}`)
+  const vals = provided.map(([, v]) => v)
+  vals.push(id, tenantId)
+  const rows = await q(
+    `update contratos_arrendamiento set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return { contrato: rowToContrato(rows[0]) }
+}
+
+// Cancela un contrato: estatus CANCELADO + motivo (no se borra, se conserva).
+export async function cancelarContrato(id: string, motivo: string) {
+  const rows = await q(
+    `update contratos_arrendamiento
+        set estatus='CANCELADO', motivo_cancelacion=$3
+      where id=$1 and tenant_id=$2 and estatus <> 'CANCELADO' returning *`,
+    [id, await tenantActual(), motivo],
   )
   return rows[0] ? rowToContrato(rows[0]) : null
 }
