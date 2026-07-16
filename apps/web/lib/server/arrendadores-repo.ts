@@ -1,6 +1,6 @@
 import 'server-only'
 import type { PoolClient } from 'pg'
-import { q, pool, fijarTenant } from './db'
+import { q, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio } from './sitios-repo'
 
@@ -11,6 +11,85 @@ import { insertarSitio } from './sitios-repo'
 // ============================================================================
 
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
+
+// ─── Periodicidad: equivalente mensual y avance de periodo (fuente única) ─────
+// Equivalente mensual (coincide con M3 y con rentaAMensual de derive.ts):
+//   SEMANAL ×30/7 · CATORCENAL ×30/14 · QUINCENAL ×2 · MENSUAL ×1 ·
+//   BIMESTRAL ÷2 · TRIMESTRAL ÷3 · SEMESTRAL ÷6 · ANUAL ÷12.
+const FACTOR_MENSUAL: Record<string, number> = {
+  SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
+  BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
+}
+export function montoMensualEquivalente(monto: number, periodicidad: string): number {
+  return Math.round(monto * (FACTOR_MENSUAL[periodicidad] ?? 1) * 100) / 100
+}
+
+// Avanza la fecha de vencimiento un periodo según la periodicidad.
+function avanzarPeriodo(d: Date, periodicidad: string): Date {
+  const n = new Date(d)
+  switch (periodicidad) {
+    case 'SEMANAL':    n.setDate(n.getDate() + 7); break
+    case 'CATORCENAL': n.setDate(n.getDate() + 14); break
+    case 'QUINCENAL':  n.setDate(n.getDate() + 15); break
+    case 'BIMESTRAL':  n.setMonth(n.getMonth() + 2); break
+    case 'TRIMESTRAL': n.setMonth(n.getMonth() + 3); break
+    case 'SEMESTRAL':  n.setMonth(n.getMonth() + 6); break
+    case 'ANUAL':      n.setMonth(n.getMonth() + 12); break
+    case 'MENSUAL':
+    default:           n.setMonth(n.getMonth() + 1); break
+  }
+  return n
+}
+
+interface GenInput {
+  id: string; tenantId: string; fechaInicio: string; fechaFin: string
+  montoRenta: number; periodicidad: string
+}
+function genInputFromRow(r: any): GenInput {
+  return {
+    id: r.id, tenantId: r.tenant_id,
+    fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
+    montoRenta: Number(r.monto_renta), periodicidad: r.periodicidad,
+  }
+}
+
+// Genera (idempotente) la serie de pagos de un contrato dentro de su vigencia.
+// Un periodo cuyo vencimiento ya pasó e impago queda VENCIDO; el resto PENDIENTE.
+// NO inventa pagos (no marca PAGADO). Reejecutar no duplica (ON CONFLICT).
+// Recibe un client YA en transacción con el tenant fijado.
+async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<number> {
+  const inicio = new Date(c.fechaInicio)
+  const fin = new Date(c.fechaFin)
+  if (isNaN(inicio.getTime()) || isNaN(fin.getTime()) || fin < inicio) return 0
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+
+  const params: unknown[] = []
+  const values: string[] = []
+  let cursor = new Date(inicio)
+  let guard = 0
+  while (cursor <= fin && guard < 1200) {
+    const periodo = cursor.toISOString().slice(0, 10)      // YYYY-MM-DD (vencimiento)
+    const estatus = cursor < hoy ? 'VENCIDO' : 'PENDIENTE'
+    const b = params.length
+    values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5}::est_pago_renta)`)
+    params.push(c.id, c.tenantId, periodo, c.montoRenta, estatus)
+    cursor = avanzarPeriodo(cursor, c.periodicidad)
+    guard++
+  }
+  if (!values.length) return 0
+  const res = await client.query(
+    `insert into pagos_renta (contrato_id, tenant_id, periodo, monto, estatus)
+     values ${values.join(',')}
+     on conflict (contrato_id, periodo) do nothing`,
+    params,
+  )
+  return res.rowCount ?? 0
+}
+
+// Regenera el calendario de un contrato (por su fila). Abre su propia transacción.
+async function generarCalendarioDesdeRow(r: any): Promise<number> {
+  return withTenantTx((client) => generarCalendarioEnTx(client, genInputFromRow(r)))
+}
 
 function rowToArrendador(r: any) {
   return {
@@ -39,6 +118,7 @@ function rowToContrato(r: any) {
     fechaFin: iso(r.fecha_fin),
     montoRenta: Number(r.monto_renta),
     periodicidad: r.periodicidad,
+    montoMensualEquivalente: montoMensualEquivalente(Number(r.monto_renta), r.periodicidad),
     moneda: r.moneda,
     autoRenovable: r.auto_renovable,
     documentoUrl: r.documento_url ?? null,
@@ -154,6 +234,9 @@ export async function crearContratoConSitio(input: {
        input.contrato.documentoUrl ?? null, estatus, tenantId],
     )
 
+    // Calendario de pagos: se genera automáticamente al crear el contrato.
+    await generarCalendarioEnTx(client, genInputFromRow(cr[0]))
+
     await client.query('commit')
     return { sitio: { ...sitio, arrendadorId, rentaArrendador: input.contrato.montoRenta, periodicidadRenta: input.contrato.periodicidad }, contrato: rowToContrato(cr[0]) }
   } catch (e) {
@@ -204,15 +287,21 @@ export async function registrarPagoRenta(pagoId: string) {
 
 // Inicia la renovación de un contrato: estatus RENOVADO y nueva vigencia.
 // La fecha de fin es CONFIGURABLE; si no se indica, por defecto +365 días.
+// Genera automáticamente los pagos del nuevo periodo (idempotente).
 export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: string | null) {
-  const rows = await q(
-    `update contratos_arrendamiento
-        set estatus='RENOVADO',
-            fecha_fin = coalesce($2::date, (current_date + interval '365 days')::date)
-      where id=$1 and tenant_id=$3 returning *`,
-    [contratoId, nuevaFechaFin ?? null, await tenantActual()],
-  )
-  return rows[0] ? rowToContrato(rows[0]) : null
+  const tenantId = await tenantActual()
+  return withTenantTx(async (client) => {
+    const { rows } = await client.query(
+      `update contratos_arrendamiento
+          set estatus='RENOVADO',
+              fecha_fin = coalesce($2::date, (current_date + interval '365 days')::date)
+        where id=$1 and tenant_id=$3 returning *`,
+      [contratoId, nuevaFechaFin ?? null, tenantId],
+    )
+    if (!rows[0]) return null
+    await generarCalendarioEnTx(client, genInputFromRow(rows[0]))
+    return rowToContrato(rows[0])
+  })
 }
 
 // ─── CRUD faltante (Fase 1.2): editar/borrar arrendador; editar/cancelar contrato ──
@@ -310,6 +399,9 @@ export async function editarContrato(id: string, patch: {
       where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
     vals,
   )
+  // Sincroniza el calendario con las nuevas fechas/monto (idempotente: solo
+  // agrega los periodos faltantes; no toca los pagos existentes).
+  await generarCalendarioDesdeRow(rows[0])
   return { contrato: rowToContrato(rows[0]) }
 }
 
