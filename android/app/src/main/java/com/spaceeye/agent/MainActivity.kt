@@ -137,6 +137,8 @@ fun MainScreen() {
             Text("SPACE EYE", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(8.dp))
             Text("Agente de monitoreo activo", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("v${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
