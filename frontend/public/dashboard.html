@@ -54,16 +54,31 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <template x-for="d in filtered" :key="d.id">
           <div @click="openDevice(d.id)"
-               class="bg-white border border-neutral-200 rounded-lg p-4 cursor-pointer hover:border-neutral-400 transition">
+               class="group relative bg-white border rounded-lg p-4 cursor-pointer hover:border-neutral-400 transition"
+               :class="d.pinned ? 'border-amber-300' : 'border-neutral-200'">
             <div class="flex items-start justify-between mb-3">
-              <div>
-                <h3 class="font-medium text-neutral-900" x-text="d.name"></h3>
+              <div class="min-w-0">
+                <h3 class="font-medium text-neutral-900 flex items-center gap-1.5">
+                  <svg x-show="d.pinned" class="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.363 1.118l1.287 3.958c.3.922-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.196-1.539-1.118l1.287-3.958a1 1 0 00-.363-1.118L2.34 9.385c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.958z"/></svg>
+                  <span class="truncate" x-text="d.name"></span>
+                </h3>
                 <p class="text-xs text-neutral-500 mt-0.5" x-text="d.address || d.billboard_code || 'Sin ubicacion'"></p>
               </div>
-              <span :class="d.online ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
-                    class="text-xs px-2 py-0.5 rounded-full">
-                <span x-text="d.online ? 'online' : 'offline'"></span>
-              </span>
+              <div class="flex items-center gap-1 shrink-0">
+                <span :class="d.online ? 'bg-green-100 text-green-700' : 'bg-neutral-100 text-neutral-500'"
+                      class="text-xs px-2 py-0.5 rounded-full">
+                  <span x-text="d.online ? 'online' : 'offline'"></span>
+                </span>
+                <button @click.stop="togglePin(d)" :title="d.pinned ? 'Desfijar' : 'Fijar arriba'"
+                        class="p-1 rounded hover:bg-neutral-100 transition-opacity"
+                        :class="d.pinned ? 'text-amber-500' : 'text-neutral-400 opacity-0 group-hover:opacity-100'">
+                  <svg class="w-4 h-4" :fill="d.pinned ? 'currentColor' : 'none'" viewBox="0 0 20 20" stroke="currentColor" stroke-width="1.5"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.958a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.37 2.448a1 1 0 00-.363 1.118l1.287 3.958c.3.922-.755 1.688-1.54 1.118l-3.37-2.448a1 1 0 00-1.175 0l-3.37 2.448c-.784.57-1.838-.196-1.539-1.118l1.287-3.958a1 1 0 00-.363-1.118L2.34 9.385c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69l1.286-3.958z"/></svg>
+                </button>
+                <button @click.stop="deleteDevice(d)" title="Eliminar dispositivo"
+                        class="p-1 rounded text-neutral-400 opacity-0 group-hover:opacity-100 hover:bg-red-50 hover:text-red-600">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v11a2 2 0 002 2h4a2 2 0 002-2V7"/></svg>
+                </button>
+              </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-xs">
               <div>
@@ -88,6 +103,13 @@
         <p class="text-sm">Los devices aparecen automaticamente al instalar la app Android</p>
       </div>
     </main>
+
+    <!-- Toast -->
+    <div x-show="toast.show" style="display:none" x-transition
+         class="fixed bottom-6 right-6 z-[70] px-4 py-3 rounded-lg shadow-lg text-sm text-white"
+         :class="{ 'bg-green-600': toast.type === 'success', 'bg-red-600': toast.type === 'error', 'bg-neutral-800': toast.type === 'info' }">
+      <span x-text="toast.msg"></span>
+    </div>
   </div>
 
   <script src="/src/js/api.js"></script>

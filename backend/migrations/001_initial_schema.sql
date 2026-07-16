@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS devices (
   last_seen_at    TIMESTAMP NULL,
 
   stream_quality  ENUM('low','medium','high') DEFAULT 'medium',
+  pinned          BOOLEAN DEFAULT FALSE,
   capture_quality ENUM('low','medium','high') DEFAULT 'high',
 
   registered_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

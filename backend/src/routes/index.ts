@@ -33,6 +33,7 @@ export function createRoutes() {
   router.get('/api/devices/:id', requireUser, dashboard.getDevice);
   router.get('/api/devices/:id/logs', requireUser, dashboard.listDeviceLogs);
   router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateDevice);
+  router.delete('/api/devices/:id', requireUser, requireRole('admin'), dashboard.deleteDevice);
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
 
   // Photos

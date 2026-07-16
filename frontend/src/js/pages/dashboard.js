@@ -7,6 +7,8 @@ function dashboard() {
     search: '',
     filter: 'all',
     userName: '',
+    toast: { show: false, msg: '', type: 'info' },
+    _toastT: null,
 
     get onlineCount() {
       return this.devices.filter(d => d.online).length;
@@ -35,6 +37,8 @@ function dashboard() {
       this.userName = user.name || '';
 
       await this.loadDevices();
+      // Refresca la lista (aparecen equipos nuevos, se actualizan estados).
+      setInterval(() => this.loadDevices(), 30000);
 
       dashboardSocket.connect();
       dashboardSocket.on('device:online', (data) => {
@@ -61,6 +65,35 @@ function dashboard() {
 
     openDevice(id) {
       window.location.href = `/device-detail.html?id=${id}`;
+    },
+
+    showToast(msg, type = 'info') {
+      this.toast = { show: true, msg, type };
+      clearTimeout(this._toastT);
+      this._toastT = setTimeout(() => { this.toast.show = false; }, 3200);
+    },
+
+    // Fijar/desfijar: los fijados aparecen primero (orden del backend).
+    async togglePin(d) {
+      const next = !d.pinned;
+      try {
+        await API.put(`/api/devices/${d.id}`, { pinned: next });
+        await this.loadDevices();
+        this.showToast(next ? 'Dispositivo fijado' : 'Dispositivo desfijado', 'success');
+      } catch (e) {
+        this.showToast('No se pudo actualizar', 'error');
+      }
+    },
+
+    async deleteDevice(d) {
+      if (!confirm(`¿Eliminar "${d.name}"? Se borrarán sus fotos, estado y registros. Esta acción no se puede deshacer.`)) return;
+      try {
+        await API.delete(`/api/devices/${d.id}`);
+        this.devices = this.devices.filter((x) => x.id !== d.id);
+        this.showToast('Dispositivo eliminado', 'success');
+      } catch (e) {
+        this.showToast('No se pudo eliminar (requiere rol admin)', 'error');
+      }
     },
 
     signalLabel(dbm) {

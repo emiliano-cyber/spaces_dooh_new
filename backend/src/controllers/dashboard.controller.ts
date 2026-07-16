@@ -46,7 +46,7 @@ export async function listDevices(req: Request, res: Response) {
     params.push(group_id);
   }
 
-  sql += ` ORDER BY d.online DESC, d.last_seen_at DESC`;
+  sql += ` ORDER BY d.pinned DESC, d.online DESC, d.last_seen_at DESC`;
 
   const [rows] = await pool.query(sql, params);
   res.json({ devices: rows });
@@ -79,6 +79,7 @@ export async function updateDevice(req: Request, res: Response) {
     status: z.enum(['active', 'inactive', 'maintenance', 'provisioning']).optional(),
     stream_quality: z.enum(['low', 'medium', 'high']).optional(),
     capture_quality: z.enum(['low', 'medium', 'high']).optional(),
+    pinned: z.boolean().optional(),
   });
 
   const parsed = schema.safeParse(req.body);
@@ -91,6 +92,26 @@ export async function updateDevice(req: Request, res: Response) {
   const values = fields.map(([, v]) => v);
 
   await pool.query(`UPDATE devices SET ${sets} WHERE id = ?`, [...values, req.params.id]);
+  res.json({ ok: true });
+}
+
+// Elimina un dispositivo y todo lo asociado (fotos, estado, comandos, logs caen
+// por FK ON DELETE CASCADE; los archivos de fotos se borran del almacenamiento).
+export async function deleteDevice(req: Request, res: Response) {
+  const id = req.params.id;
+  const [rows] = await pool.query<any[]>(`SELECT id FROM devices WHERE id = ?`, [id]);
+  if (!(rows as any[])[0]) return res.status(404).json({ error: 'not_found' });
+
+  const [photos] = await pool.query<any[]>(
+    `SELECT storage_path, thumbnail_path FROM photos WHERE device_id = ?`,
+    [id]
+  );
+  for (const p of photos as any[]) {
+    await deleteStored(p.storage_path);
+    if (p.thumbnail_path) await deleteStored(p.thumbnail_path);
+  }
+
+  await pool.query(`DELETE FROM devices WHERE id = ?`, [id]);
   res.json({ ok: true });
 }
 
