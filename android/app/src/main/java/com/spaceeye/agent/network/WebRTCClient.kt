@@ -47,6 +47,9 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     companion object {
         private const val TAG = "WebRTCClient"
+        // Correccion fija para que la FOTO guardada coincida con el STREAM.
+        // (Calibrado: la foto salia 90° en sentido horario respecto al stream.)
+        private const val PHOTO_ROTATION_CORRECTION = -90
         private val ICE_SERVERS = listOf(
             PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer(),
             PeerConnection.IceServer.builder("stun:stun1.l.google.com:19302").createIceServer()
@@ -330,7 +333,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 }
             } catch (_: Exception) { 0 }
 
-            val total = (((exifDeg + extraDegrees) % 360) + 360) % 360
+            val total = (((exifDeg + extraDegrees + PHOTO_ROTATION_CORRECTION) % 360) + 360) % 360
             val src = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) ?: return jpeg
             val outBmp = if (total == 0) src else {
                 val m = Matrix().apply { postRotate(total.toFloat()) }

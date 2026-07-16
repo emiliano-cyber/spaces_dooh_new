@@ -89,8 +89,8 @@ function deviceDetail() {
         await API.post(`/api/devices/${this.deviceId}/command`, {
           command_type: 'TAKE_PHOTO',
           priority: 1,
-          // Rotacion actual del visor -> el telefono la hornea en la foto.
-          payload: { rotation: this.rotation },
+          // Rotacion del visor + nombre del sitio -> el telefono los graba en la foto.
+          payload: { rotation: this.rotation, site: (this.device && this.device.name) || '' },
         });
         // El device tarda ~2-6s en capturar y subir. Sondeamos hasta que
         // aparezca una foto nueva.

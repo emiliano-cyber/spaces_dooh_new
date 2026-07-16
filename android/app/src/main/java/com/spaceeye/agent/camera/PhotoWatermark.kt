@@ -5,19 +5,21 @@ import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.util.Log
 import java.io.ByteArrayOutputStream
 
 /**
- * Graba (quema) texto DENTRO de la foto: coordenadas GPS exactas + fecha/hora.
- * Queda como parte de la imagen, por lo que se ve igual en galeria, visor y
- * descarga, sin depender de metadatos.
+ * Graba (quema) DENTRO de la foto la informacion de ubicacion y fecha/hora, con
+ * el estilo de referencia: texto AMARILLO en negrita, alineado a la derecha, en
+ * la parte superior. Queda como parte de la imagen (no depende de metadatos).
  */
 object PhotoWatermark {
     private const val TAG = "PhotoWatermark"
 
     fun draw(jpeg: ByteArray, lines: List<String>): ByteArray {
-        if (lines.isEmpty()) return jpeg
+        val clean = lines.filter { it.isNotBlank() }
+        if (clean.isEmpty()) return jpeg
         return try {
             val decoded = BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size) ?: return jpeg
             val bmp = decoded.copy(Bitmap.Config.ARGB_8888, true)
@@ -26,22 +28,24 @@ object PhotoWatermark {
             val canvas = Canvas(bmp)
             val w = bmp.width.toFloat()
             val h = bmp.height.toFloat()
-            val fontSize = maxOf(26f, w / 42f)
-            val pad = fontSize * 0.6f
-            val lineH = fontSize * 1.35f
-            val barH = lines.size * lineH + pad * 2
+            val fontSize = maxOf(24f, w / 40f)
+            val lineH = fontSize * 1.32f
+            val rightMargin = fontSize * 0.7f
+            val x = w - rightMargin
 
-            canvas.drawRect(0f, h - barH, w, h, Paint().apply { color = Color.argb(140, 0, 0, 0) })
-
-            val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = Color.WHITE
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.rgb(255, 235, 0) // amarillo
                 textSize = fontSize
-                setShadowLayer(3f, 0f, 0f, Color.BLACK)
+                textAlign = Paint.Align.RIGHT
+                typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+                setShadowLayer(fontSize * 0.14f, 0f, 0f, Color.BLACK)
             }
-            var baseline = h - barH + pad + fontSize
-            for (line in lines) {
-                canvas.drawText(line, pad, baseline, text)
-                baseline += lineH
+
+            // Bloque de texto empezando ~22% desde arriba (como en la referencia).
+            var y = h * 0.22f + fontSize
+            for (line in clean) {
+                canvas.drawText(line, x, y, paint)
+                y += lineH
             }
 
             val out = ByteArrayOutputStream()

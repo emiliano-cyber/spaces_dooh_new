@@ -2,6 +2,7 @@ package com.spaceeye.agent.commands
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.location.Geocoder
 import android.location.LocationManager
 import android.util.Log
 import com.spaceeye.agent.camera.PhotoCapture
@@ -9,6 +10,7 @@ import com.spaceeye.agent.camera.PhotoWatermark
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import com.spaceeye.agent.network.ApiClient
 import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
@@ -84,6 +86,40 @@ class CommandHandler(
         }
     }
 
+    // Direccion legible a partir del GPS (geocodificacion inversa). Best-effort:
+    // requiere red; si no hay servicio devuelve lista vacia (se muestra solo DMS).
+    private fun reverseGeocode(lat: Double, lng: Double): List<String> {
+        return try {
+            @Suppress("DEPRECATION")
+            val addrs = Geocoder(ctx, Locale("es", "MX")).getFromLocation(lat, lng, 1)
+            val a = addrs?.firstOrNull() ?: return emptyList()
+            val out = mutableListOf<String>()
+            val street = listOfNotNull(a.subThoroughfare, a.thoroughfare).joinToString(" ")
+            if (street.isNotBlank()) out.add(street)
+            a.subLocality?.let { out.add(it) }
+            a.locality?.let { out.add(it) }
+            a.adminArea?.let { out.add(it) }
+            out
+        } catch (e: Exception) {
+            Log.w(TAG, "geocode: ${e.message}")
+            emptyList()
+        }
+    }
+
+    // Convierte coordenadas decimales a grados/minutos/segundos (ej. 21°2'51.19"N).
+    private fun toDMS(lat: Double, lng: Double): String {
+        fun part(v: Double, pos: String, neg: String): String {
+            val hemi = if (v >= 0) pos else neg
+            val a = abs(v)
+            val d = a.toInt()
+            val mFull = (a - d) * 60
+            val m = mFull.toInt()
+            val s = (mFull - m) * 60
+            return "%d°%d'%.2f\"%s".format(d, m, s, hemi)
+        }
+        return "${part(lat, "N", "S")} ${part(lng, "E", "W")}"
+    }
+
     // Ubicacion actual (ultima conocida) para estampar en la foto.
     @SuppressLint("MissingPermission")
     private fun currentLatLng(): Pair<Double, Double>? {
@@ -142,16 +178,19 @@ class CommandHandler(
                             Log.d(TAG, "Photo captured: ${photo.size} bytes")
                             RemoteLog.info(ctx, "photo", "Foto capturada (${photo.size / 1024} KB)")
 
-                            // Graba dentro de la foto la ubicacion exacta (GPS) y la
-                            // fecha/hora de captura.
+                            // Graba dentro de la foto: sitio + direccion (geocodificada
+                            // del GPS) + coordenadas DMS + fecha/hora de captura.
                             val ll = currentLatLng()
+                            val site = payload?.optString("site")?.takeIf { it.isNotBlank() }
                             val lines = mutableListOf<String>()
+                            if (site != null) lines.add(site)
                             if (ll != null) {
-                                lines.add("Lat ${"%.6f".format(ll.first)}   Lng ${"%.6f".format(ll.second)}")
+                                lines.addAll(reverseGeocode(ll.first, ll.second))
+                                lines.add(toDMS(ll.first, ll.second))
                             } else {
                                 lines.add("Ubicacion no disponible")
                             }
-                            lines.add(SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date()))
+                            lines.add(SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("es", "MX")).format(Date()))
                             val stamped = PhotoWatermark.draw(photo, lines)
 
                             val uploaded = withContext(Dispatchers.IO) {
