@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
@@ -11,6 +11,7 @@ import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
 import {
   StatusBadge,
   CAMPANA_TONO,
@@ -397,6 +398,18 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <EvidenciaGaleria
             fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
           />
+        </CardContent>
+      </Card>
+
+      {/* Proof of play: la prueba de los medios DIGITALES, equivalente a las
+          evidencias fotográficas de los fijos. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2">
+          <MonitorPlay className="h-4 w-4 text-muted" />
+          <CardTitle>Reproducciones (proof of play)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PlaylogsPanel campanaId={id} fechaInicio={c.fechaInicio} fechaFin={c.fechaFin} />
         </CardContent>
       </Card>
         </div>
