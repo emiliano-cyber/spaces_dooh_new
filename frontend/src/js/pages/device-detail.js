@@ -151,8 +151,8 @@ function deviceDetail() {
       const ts = new Date(this.lightbox.taken_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const base = (this.device && this.device.name ? this.device.name : 'foto').replace(/\s+/g, '_');
       try {
-        const lines = photoOverlayLines(this.lightbox, this.siteText());
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines);
+        // La foto ya trae grabada la ubicacion y fecha/hora; solo aplicamos la rotacion.
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');
@@ -173,8 +173,7 @@ function deviceDetail() {
         }
         if (all.length === 0) { this.showToast('Sin fotos para descargar', 'info'); return; }
         const base = (this.device && this.device.name ? this.device.name : 'album').replace(/\s+/g, '_');
-        const site = this.siteText();
-        await downloadAlbumZip(all, `${base}_fotos.zip`, (d, t) => { this.albumProgress = `${d}/${t}`; }, (p) => photoOverlayLines(p, site));
+        await downloadAlbumZip(all, `${base}_fotos.zip`, (d, t) => { this.albumProgress = `${d}/${t}`; });
         this.showToast('Álbum descargado', 'success');
       } catch (e) {
         this.showToast('Error al descargar el álbum', 'error');
