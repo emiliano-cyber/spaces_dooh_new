@@ -8,6 +8,7 @@ import { apiLogout } from '@/lib/auth-real'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
 import { useMenuMovil } from './MenuMovilContext'
+import { DesbloqueoCambios } from './DesbloqueoCambios'
 import { useNotificaciones } from '@/lib/data/client'
 import { marcarNotificacionLeidaApi, marcarTodasNotificacionesApi } from '@/lib/data/estado-api'
 
@@ -49,6 +50,10 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Candado de cambios sensibles (solo si el Dueño activó el control y a
+            este rol le aplica; el Dueño no lo ve nunca). */}
+        <DesbloqueoCambios />
+
         {/* Centro de notificaciones */}
         <DropdownMenu.Root>
           <DropdownMenu.Trigger asChild>

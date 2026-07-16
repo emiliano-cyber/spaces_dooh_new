@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
+import { exigirCambioSensible } from '@/lib/server/cambios'
 import { editarArrendadorCtrl, borrarArrendadorCtrl } from '@/lib/server/arrendadores-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -21,9 +22,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 }
 
 // DELETE /api/arrendadores/[id] → soft-delete (bloquea si tiene predios/contratos activos).
+// Catálogo: dar de baja a un propietario es sensible.
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('arrendadores', 'aprobar')
-  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  const gc = await exigirCambioSensible('arrendadores', 'aprobar')
+  if (!gc.ok) return gc.res
+  const g = { usuario: gc.usuario }
   try {
     const arr = await borrarArrendadorCtrl(params.id)
     await registrarAccion(g.usuario, 'Borró propietario (soft-delete)', arr.nombre)

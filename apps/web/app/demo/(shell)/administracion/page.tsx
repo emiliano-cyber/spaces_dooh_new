@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
+import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
@@ -58,7 +59,7 @@ export default function AdministracionPage() {
         ]}
       >
         <TabPanel value="usuarios" className="pt-4"><Usuarios onToast={notify} /></TabPanel>
-        <TabPanel value="roles" className="pt-4"><MatrizRoles /></TabPanel>
+        <TabPanel value="roles" className="pt-4"><div className="space-y-4"><ControlCambiosPanel onToast={notify} /><MatrizRoles /></div></TabPanel>
         <TabPanel value="config" className="pt-4"><Configuracion onToast={notify} /></TabPanel>
       </Tabs>
 
