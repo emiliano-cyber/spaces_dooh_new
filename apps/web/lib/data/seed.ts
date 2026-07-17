@@ -459,6 +459,8 @@ export function buildSeed(): DemoState {
     usuarios: [],
     configNegocio: {
       nombreTenant: 'RGB Catorce',
+      razonSocial: null,
+      nombreComercial: null,
       moneda: 'PEN',
       plazosCobranza: [60, 90, 120],
       tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],

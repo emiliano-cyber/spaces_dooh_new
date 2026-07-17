@@ -318,6 +318,19 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
               onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
           </Campo>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Campo label="Razón social">
+              <input className={inputCls} value={config.razonSocial ?? ''} placeholder="p. ej. RGB Catorce S de RL de CV"
+                onChange={(e) => setConfig({ ...config, razonSocial: e.target.value })}
+                onBlur={(e) => guardar({ razonSocial: e.target.value.trim() || null }, 'Razón social actualizada')} />
+            </Campo>
+            <Campo label="Nombre comercial">
+              <input className={inputCls} value={config.nombreComercial ?? ''} placeholder="p. ej. PIXELED"
+                onChange={(e) => setConfig({ ...config, nombreComercial: e.target.value })}
+                onBlur={(e) => guardar({ nombreComercial: e.target.value.trim() || null }, 'Nombre comercial actualizado')} />
+            </Campo>
+          </div>
+          <span className="-mt-2 block text-[11px] text-muted">Se muestran en el encabezado del Dashboard.</span>
           <Campo label="Moneda">
             <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
           </Campo>

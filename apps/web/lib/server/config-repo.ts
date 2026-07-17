@@ -14,6 +14,10 @@ import { tenantActual } from './tenant'
 export function rowToConfig(r: any) {
   return {
     nombreTenant: r.nombre_tenant,
+    // razón social / nombre comercial son POR TENANT (viven en `tenants`); aquí
+    // van como placeholder null y se resuelven en obtenerConfig()/…Admin().
+    razonSocial: null as string | null,
+    nombreComercial: null as string | null,
     moneda: r.moneda,
     plazosCobranza: r.plazos_cobranza ?? [],
     tiposTarea: r.tipos_tarea ?? [],
@@ -34,9 +38,29 @@ export async function obtenerConfigRow() {
 
 export async function obtenerConfig() {
   const cfg = rowToConfig(await obtenerConfigRow())
-  // El nombre visible es el de la organización (tenant) actual, así cada CRM
-  // muestra su propia empresa en el sidebar.
-  const t = await q1<any>('select nombre from tenants where id = $1', [await tenantActual()])
+  // Nombre, razón social y nombre comercial son POR TENANT: cada CRM muestra su
+  // propia empresa (el resto de la config —moneda, IVA, loop…— es global).
+  const t = await q1<any>(
+    'select nombre, razon_social, nombre_comercial from tenants where id = $1',
+    [await tenantActual()],
+  )
   if (t?.nombre) cfg.nombreTenant = t.nombre
+  cfg.razonSocial = t?.razon_social ?? null
+  cfg.nombreComercial = t?.nombre_comercial ?? null
+  return cfg
+}
+
+// Config para el panel de Administración: base global + los campos POR TENANT
+// (razón social, nombre comercial) del tenant actual. A diferencia de
+// obtenerConfig(), NO sobre-escribe nombreTenant (ese campo se edita como el
+// nombre de la organización, contra config_negocio).
+export async function obtenerConfigAdmin() {
+  const cfg = rowToConfig(await obtenerConfigRow())
+  const t = await q1<any>(
+    'select razon_social, nombre_comercial from tenants where id = $1',
+    [await tenantActual()],
+  )
+  cfg.razonSocial = t?.razon_social ?? null
+  cfg.nombreComercial = t?.nombre_comercial ?? null
   return cfg
 }

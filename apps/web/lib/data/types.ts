@@ -608,6 +608,8 @@ export interface AccionLog {
 // Configuración del negocio (Administración → mock editable).
 export interface ConfigNegocio {
   nombreTenant: string
+  razonSocial: string | null      // razón social fiscal (encabezado del dashboard)
+  nombreComercial: string | null  // nombre comercial / marca (encabezado del dashboard)
   moneda: string
   plazosCobranza: number[]
   tiposTarea: string[]

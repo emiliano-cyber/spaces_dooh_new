@@ -28,6 +28,7 @@ import {
   useOcupacionSerie,
   useSitios,
   useCampanas,
+  useConfigNegocio,
   formatMonto,
   formatFecha,
   diasHasta,
@@ -52,6 +53,16 @@ export default function DashboardPage() {
   const [gran, setGran] = useState<Granularidad>('semana')
   const serie = useOcupacionSerie(gran)
   const campanas = useCampanas()
+  const cfg = useConfigNegocio()
+
+  // Encabezado: razón social y nombre comercial salen de config_negocio
+  // (Administración → Configuración). Solo se muestra el dato que esté cargado.
+  const subtitulo = [
+    cfg?.razonSocial ? `Razón social: ${cfg.razonSocial}` : null,
+    cfg?.nombreComercial ? `Nombre comercial: ${cfg.nombreComercial}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   const puntos: MapPoint[] =
     sitios?.map((s) => ({
@@ -72,7 +83,7 @@ export default function DashboardPage() {
     <div className="w-full space-y-5">
       <div>
         <h1 className="text-2xl text-ink">Dashboard</h1>
-        <p className="mt-1 text-[13px] text-muted">Tu negocio de un vistazo · RGB Catorce S de RL de CV (PIXELED)</p>
+        {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
       </div>
 
       {/* KPIs */}
