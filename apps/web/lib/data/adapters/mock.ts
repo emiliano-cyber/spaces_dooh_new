@@ -538,6 +538,7 @@ export const mockAdapter = {
             fotosComprobatorias: false,
             reportePublicacion: false,
             ocUrl: null,
+            contratoUrl: null,
             reportePublicacionUrl: null,
             portalToken: null,
             portalActivo: false,

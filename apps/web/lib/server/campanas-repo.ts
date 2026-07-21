@@ -74,10 +74,21 @@ export function rowToCampana(r: any) {
     validacionEn: r.validacion_en ? iso(r.validacion_en) : null,
     ocRecibida: !!r.oc_recibida, fotosComprobatorias: !!r.fotos_comprobatorias,
     reportePublicacion: !!r.reporte_publicacion, ocUrl: r.oc_url,
+    contratoUrl: r.contrato_url ?? null,
     reportePublicacionUrl: r.reporte_publicacion_url, portalToken: r.portal_token,
     portalActivo: !!r.portal_activo, notas: r.notas, creadoEn: iso(r.creado_en),
   }
 }
+// Guarda (o quita) el contrato firmado del cliente en la campaña. Devuelve la
+// campaña recompuesta, o null si no existe.
+export async function guardarContratoCampana(campanaId: string, contratoUrl: string | null) {
+  const rows = await q<any>(
+    'update campanas set contrato_url = $2 where id = $1 returning *',
+    [campanaId, contratoUrl],
+  )
+  return rows.length ? rowToCampana(rows[0]) : null
+}
+
 export function rowToReserva(r: any) {
   return {
     id: r.id, campanaId: r.campana_id, sitioId: r.sitio_id,
@@ -233,8 +244,9 @@ export async function barrerReservasVencidas(): Promise<number> {
   }
 }
 
-// ─── Reservar (Acto 3): crea cliente+campaña si hace falta, reservas TENTATIVA
-//     y pone los sitios en RESERVADO ─────────────────────────────────────────
+// ─── Reservar: crea cliente+campaña si hace falta, reservas CONFIRMADAS (sin
+//     tentativa) y consume el spot del sitio (digital: baja 1/12; fija: OCUPADO).
+// ────────────────────────────────────────────────────────────────────────────
 export async function reservar(input: {
   campanaId?: string
   clienteNombre?: string
@@ -368,10 +380,13 @@ export async function reservar(input: {
           ? Math.max(0, disp != null ? Math.min(Math.round(pedidos), disp) : Math.round(pedidos))
           : null
 
+      // En comercial NO hay reserva tentativa: al reservar se consume el spot de
+      // inmediato (CONFIRMADA, sin TTL). La disponibilidad se ve por spots
+      // (12/12, 8/12… o 0/12 = no disponible), no por un estado "tentativo".
       await client.query(
         `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, expira_en, tenant_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6, now() + make_interval(days => $7::int), $8)`,
-        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, TTL_RESERVA_DIAS, await tenantActual()],
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6, null, $7)`,
+        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, await tenantActual()],
       )
 
       if (digital) {
@@ -388,7 +403,8 @@ export async function reservar(input: {
           [sitioId],
         )
       } else {
-        await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
+        // Fija: 1 solo espacio; al reservar queda OCUPADO (ya no "reservado" tentativo).
+        await client.query(`update sitios set estatus_comercial='OCUPADO' where id=$1`, [sitioId])
       }
     }
     await recalcularPresupuesto(client, campanaId!)

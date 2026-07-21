@@ -12,8 +12,6 @@ import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
 import { SlotsBadge } from '@/components/demo/SlotsBadge'
 import {
   StatusBadge,
-  SITIO_TONO,
-  SITIO_LABEL,
   pinTono,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
@@ -219,8 +217,7 @@ export default function ComercialPage() {
         <select className={selectCls} value={fDisp} onChange={(e) => setFDisp(e.target.value)}>
           <option value="">Toda disponibilidad</option>
           <option value="DISPONIBLE">Disponible</option>
-          <option value="RESERVADO">Reservado</option>
-          <option value="OCUPADO">Ocupado</option>
+          <option value="OCUPADO">No disponible</option>
           <option value="BLOQUEADO">Bloqueado</option>
         </select>
         <select className={selectCls} value={fPrecio} onChange={(e) => setFPrecio(e.target.value)}>
@@ -309,11 +306,13 @@ export default function ComercialPage() {
                         <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin propietario'}</span>
                       </div>
                     </button>
+                    {/* Disponibilidad por spots: las digitales muestran X/12 y las
+                        fijas Disponible/No disponible. Sin estado "tentativo". */}
                     {esDigital && s.totalSpots != null && (
                       <SlotsBadge disponibles={s.spotsDisponibles ?? null} total={s.totalSpots} />
                     )}
-                    <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>
-                      {SITIO_LABEL[s.estatusComercial]}
+                    <StatusBadge tono={libre ? 'verde' : 'rojo'}>
+                      {libre ? 'Disponible' : 'No disponible'}
                     </StatusBadge>
                   </li>
                 )
@@ -379,7 +378,7 @@ export default function ComercialPage() {
         sitios={sitiosSeleccionados}
         onReserved={(_, nombre) => {
           setSeleccion(new Set())
-          notify(`Reserva tentativa creada: "${nombre}"`)
+          notify(`Sitios reservados: "${nombre}"`)
         }}
       />
 

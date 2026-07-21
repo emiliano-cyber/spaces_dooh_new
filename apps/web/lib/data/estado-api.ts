@@ -361,6 +361,18 @@ export async function crearOrdenCompraApi(input: {
   await refrescarEstado()
 }
 
+// Adjunta (o quita) el contrato firmado del cliente al expediente de la campaña.
+export async function subirContratoCampanaApi(campanaId: string, contratoUrl: string | null): Promise<void> {
+  const r = await fetch(`${API}/campanas/${campanaId}/contrato/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contratoUrl }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo adjuntar el contrato')
+  await refrescarEstado()
+}
+
 export async function marcarOCApi(campanaId: string, ocUrl?: string): Promise<void> {
   const r = await fetch(`${API}/campanas/${campanaId}/oc/`, {
     method: 'POST',

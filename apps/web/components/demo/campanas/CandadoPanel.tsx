@@ -1,24 +1,37 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Lock, LockOpen, Check, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
-import { useReadiness } from '@/lib/data/client'
+import { useReadiness, useCampana } from '@/lib/data/client'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearOrdenCompraApi } from '@/lib/data/estado-api'
+
+const hoyISO = () => new Date().toISOString().slice(0, 10)
 
 // Candado de facturación: OC + fotos comprobatorias + reporte. Cuando los tres
 // están, el candado se abre y la campaña queda lista para facturar. Para Telco
 // Andina se enciende EN VIVO al cerrar la OT móvil con foto (Acto 4).
 export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
+  const camp = useCampana(campanaId)
   const puedeOC = usePuede('comercial', 'crear')
   const [enviando, setEnviando] = useState(false)
   const [numeroOc, setNumeroOc] = useState('')
   const [monto, setMonto] = useState('')
   const [fecha, setFecha] = useState('')
-  const [documento, setDocumento] = useState('')
+
+  // Autorrelleno desde la campaña (que hereda todo de la propuesta): el número de
+  // OC toma el folio de la campaña, el monto el total contratado y la fecha hoy.
+  // Quedan editables por si el cliente dio otro número/monto. El documento de la
+  // OC ya no se pide: es el contrato que vive en "Datos de facturación".
+  useEffect(() => {
+    if (!camp) return
+    setNumeroOc((v) => v || camp.folio || '')
+    setMonto((v) => v || (camp.presupuestoBruto != null ? String(camp.presupuestoBruto) : ''))
+    setFecha((v) => v || hoyISO())
+  }, [camp])
 
   const inp =
     'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -32,7 +45,8 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
         numeroOc: numeroOc.trim(),
         monto: monto ? Number(monto) : null,
         fecha: fecha || null,
-        documentoUrl: documento.trim() || null,
+        // El documento de la OC es el contrato del cliente (si se subió).
+        documentoUrl: camp?.contratoUrl ?? null,
       })
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo registrar la OC')
@@ -85,12 +99,6 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
             />
             <input className={inp} type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
           </div>
-          <input
-            className={inp}
-            placeholder="Documento (URL del PDF/imagen)"
-            value={documento}
-            onChange={(e) => setDocumento(e.target.value)}
-          />
           <button
             type="button"
             disabled={enviando || !numeroOc.trim()}
@@ -100,7 +108,8 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
             {enviando ? 'Registrando…' : 'Registrar OC'}
           </button>
           <p className="text-[10px] text-muted">
-            El pipeline marca “OC recibida” solo con este registro (número, monto, fecha y documento).
+            Número, monto y fecha vienen precargados de la campaña; ajústalos si el cliente dio otros.
+            El documento de la OC es el contrato (se adjunta en “Datos de facturación”).
           </p>
         </div>
       )}

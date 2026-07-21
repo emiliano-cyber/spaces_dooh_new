@@ -9,6 +9,7 @@ import { withTrail, trailFromLocation } from '@/lib/nav-trail'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
+import { DatosFacturacion } from '@/components/demo/campanas/DatosFacturacion'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
 import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
@@ -192,6 +193,9 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           </CardContent>
         </Card>
       </div>
+
+      {/* Datos de facturación: fiscales del cliente (auto-llenados) + contrato */}
+      <DatosFacturacion campana={c} />
 
       {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
       {margen && (

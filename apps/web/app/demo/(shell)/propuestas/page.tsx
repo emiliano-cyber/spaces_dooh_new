@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
@@ -29,6 +29,7 @@ import {
   cantidadEfectiva,
   precioItem,
   periodosEnRango,
+  fechaFinDesde,
   type Unidad,
 } from '@/lib/periodos'
 
@@ -249,9 +250,20 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   }
   const [fechaInicio, setFechaInicio] = useState('')
   const [fechaFin, setFechaFin] = useState('')
+  // Duración de la campaña: N + unidad. Con la fecha "Desde" completa la fecha
+  // "Hasta" automáticamente (misma equivalencia que el precio: mes=30, etc.).
+  const [duracionN, setDuracionN] = useState('1')
+  const [duracionUnidad, setDuracionUnidad] = useState<Unidad>('mensual')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Completa "Hasta" cuando cambia "Desde" o la duración.
+  useEffect(() => {
+    const n = parseInt(duracionN, 10)
+    const fin = fechaInicio && n > 0 ? fechaFinDesde(fechaInicio, duracionUnidad, n) : ''
+    if (fin) setFechaFin(fin)
+  }, [fechaInicio, duracionN, duracionUnidad])
 
   // Configuración por sitio: unidad de contratación, cantidad manual (spot/hora)
   // y programación de spots/día. Todo por sitioId; los que no estén aquí usan su
@@ -341,7 +353,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo crear')
+      const msg = e instanceof Error ? e.message : 'No se pudo crear la propuesta'
+      setError(msg)
+      toast.error(msg) // notificación (sonner), además del aviso en el pie del modal
       setGuardando(false)
     }
   }
@@ -419,9 +433,34 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Campo label="Desde"><input type="date" className={inputCls} value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} /></Campo>
-          <Campo label="Hasta"><input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} /></Campo>
+          <Campo label="Duración de la campaña">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                className={`${inputCls} w-20`}
+                value={duracionN}
+                onChange={(e) => setDuracionN(e.target.value)}
+              />
+              <select className={inputCls} value={duracionUnidad} onChange={(e) => setDuracionUnidad(e.target.value as Unidad)}>
+                {UNIDADES.filter((u) => u.unidad !== 'spot' && u.unidad !== 'hora').map((u) => {
+                  const n = parseInt(duracionN, 10) || 1
+                  return (
+                    <option key={u.unidad} value={u.unidad}>
+                      {UNIDAD_CORTA[u.unidad]}{n !== 1 ? 's' : ''}
+                    </option>
+                  )
+                })}
+              </select>
+            </div>
+          </Campo>
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Campo label="Hasta (se calcula de la duración)">
+            <input type="date" className={inputCls} value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} />
+          </Campo>
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
 
@@ -468,6 +507,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                 const mods = modalidadesDe(s)
                 const periodos = periodosEnRango(c.unidad, fechaInicio, fechaFin)
                 const esManual = periodos === null // spot / hora
+                // Los spots/día (programación) solo aplican a pantallas DIGITALES;
+                // las fijas no tienen spots.
+                const digital =
+                  s.tipoMedio === 'PANTALLA_DIGITAL' || s.esRotativo ||
+                  s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
                 return (
                   <div key={s.id} className="flex flex-wrap items-center gap-2 border-b border-border pb-2 text-[12px] last:border-0 last:pb-0">
                     <span className="min-w-0 flex-1 truncate font-medium text-ink">{s.nombre}</span>
@@ -498,16 +542,20 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         {periodos} {UNIDAD_CORTA[c.unidad]}{periodos !== 1 ? 's' : ''}
                       </span>
                     )}
-                    {/* Programación: spots por día */}
-                    <input
-                      type="number"
-                      min={1}
-                      placeholder="spots/día"
-                      className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
-                      value={c.spotsPorDia}
-                      onChange={(e) => setCfgSitio(s.id, { spotsPorDia: e.target.value })}
-                      title="Programación: cuántas veces al día se muestra (opcional)"
-                    />
+                    {/* Programación: spots por día — solo pantallas digitales */}
+                    {digital ? (
+                      <input
+                        type="number"
+                        min={1}
+                        placeholder="spots/día"
+                        className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                        value={c.spotsPorDia}
+                        onChange={(e) => setCfgSitio(s.id, { spotsPorDia: e.target.value })}
+                        title="Programación: cuántas veces al día se muestra (opcional)"
+                      />
+                    ) : (
+                      <span className="w-24 text-center text-[11px] text-muted" title="Las pantallas fijas no manejan spots">Fija · sin spots</span>
+                    )}
                     <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
                   </div>
                 )

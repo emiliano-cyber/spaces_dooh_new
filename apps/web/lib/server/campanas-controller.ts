@@ -7,6 +7,7 @@ import {
   validarPublicacion,
   enviarADominio,
   extenderCampana,
+  guardarContratoCampana,
   ValidacionError,
 } from './campanas-repo'
 import { marcarOCRecibida } from './impresion-repo'
@@ -62,6 +63,18 @@ export async function extenderCampanaCtrl(id: string, body: unknown) {
 const ocSchema = z.object({
   ocUrl: uploadOUrlZod(LIMITES.ocCampana.allowlist, LIMITES.ocCampana.maxMB, 'ocUrl').nullish(),
 })
+
+// Contrato firmado del cliente (opcional). Va al expediente de facturación de la
+// campaña. Mismo formato que la OC: PDF (o imagen) de hasta 10 MB.
+const contratoSchema = z.object({
+  contratoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'contratoUrl').nullish(),
+})
+export async function guardarContratoCtrl(id: string, body: unknown) {
+  const d = validar(contratoSchema, body ?? {})
+  const camp = await guardarContratoCampana(id, d.contratoUrl ?? null)
+  if (!camp) throw new AppError('Campaña no encontrada', 404)
+  return camp
+}
 
 export async function marcarOCCtrl(id: string, body: unknown) {
   const d = validar(ocSchema, body ?? {})

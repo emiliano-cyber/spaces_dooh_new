@@ -1,12 +1,17 @@
 import 'server-only'
 import { NextResponse } from 'next/server'
-import { ZodError, type ZodType } from 'zod'
+import { z, ZodError, type ZodIssue, type ZodType } from 'zod'
 
 // ============================================================================
 //  lib/server/errores.ts — Fundación de la capa por capas (ruta → controller →
 //  model). Un error de dominio con status HTTP + validación de entrada con zod
 //  + un mapeador único de errores a respuesta HTTP. Los controllers lanzan
 //  AppError; las rutas solo llaman respuestaError() en el catch.
+//
+//  Todos los errores de validación salen en LENGUAJE NATURAL para el usuario:
+//  un mapa de errores en español (abajo) traduce los mensajes por defecto de zod
+//  (que vienen en inglés técnico, p. ej. "Number must be greater than 0") y el
+//  nombre del campo se humaniza (items.0.spotsPorDia → "Spots por día").
 // ============================================================================
 
 // Error de dominio con código HTTP. Ej.: throw new AppError('No encontrado', 404).
@@ -19,8 +24,64 @@ export class AppError extends Error {
   }
 }
 
-// Valida `data` contra un schema zod. Si falla, lanza AppError(400) con un
-// mensaje legible (campo + motivo). Devuelve el dato ya tipado y saneado.
+// ─── Mapa de errores de zod en español ──────────────────────────────────────
+// Solo aplica cuando el schema NO trae un mensaje propio; los mensajes custom
+// que ya escribimos en español se respetan tal cual.
+const mapaZodEs: z.ZodErrorMap = (issue, ctx) => {
+  switch (issue.code) {
+    case z.ZodIssueCode.invalid_type:
+      if (issue.received === 'undefined' || issue.received === 'null') return { message: 'Este dato es obligatorio' }
+      return { message: 'El valor tiene un formato inválido' }
+    case z.ZodIssueCode.too_small:
+      if (issue.type === 'string') return { message: issue.minimum === 1 ? 'Este dato es obligatorio' : `Debe tener al menos ${issue.minimum} caracteres` }
+      if (issue.type === 'array') return { message: `Agrega al menos ${issue.minimum}` }
+      if (issue.type === 'number') {
+        if (Number(issue.minimum) === 0 && !issue.inclusive) return { message: 'Debe ser mayor que 0' }
+        return { message: issue.inclusive ? `Debe ser mayor o igual a ${issue.minimum}` : `Debe ser mayor que ${issue.minimum}` }
+      }
+      break
+    case z.ZodIssueCode.too_big:
+      if (issue.type === 'string') return { message: `No puede tener más de ${issue.maximum} caracteres` }
+      if (issue.type === 'number') return { message: `No puede ser mayor que ${issue.maximum}` }
+      break
+    case z.ZodIssueCode.invalid_enum_value:
+      return { message: 'Selecciona una opción válida' }
+    case z.ZodIssueCode.invalid_string:
+      if (issue.validation === 'email') return { message: 'Correo inválido' }
+      return { message: 'El texto tiene un formato inválido' }
+    case z.ZodIssueCode.not_multiple_of:
+      return { message: 'El valor no es válido' }
+  }
+  return { message: ctx.defaultError }
+}
+z.setErrorMap(mapaZodEs)
+
+// Etiquetas legibles para los campos más comunes. Lo que no esté aquí se
+// convierte de camelCase a texto ("spotsPorDia" → "Spots por día").
+const CAMPO_ES: Record<string, string> = {
+  nombre: 'Nombre', email: 'Correo', password: 'Contraseña', passwordActual: 'Contraseña actual',
+  rfc: 'RFC', razonSocial: 'Razón social', regimenFiscal: 'Régimen fiscal', usoCfdi: 'Uso de CFDI',
+  cpFiscal: 'CP fiscal', fechaInicio: 'Fecha de inicio', fechaFin: 'Fecha de fin', fecha: 'Fecha',
+  comisionPct: 'Comisión', clienteId: 'Cliente', agenciaId: 'Agencia', sitioId: 'Sitio',
+  spotsPorDia: 'Spots por día', cantidad: 'Cantidad', tarifaUnitaria: 'Tarifa', precio: 'Precio',
+  unidad: 'Unidad', monto: 'Monto', montoRenta: 'Renta', contratoUrl: 'Contrato', ocUrl: 'Orden de compra',
+  documentoUrl: 'Documento', logoUrl: 'Logo', archivoUrl: 'Archivo', codigo: 'Código',
+}
+function humanizarCampo(seg: string): string {
+  if (CAMPO_ES[seg]) return CAMPO_ES[seg]
+  const t = seg.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_-]+/g, ' ').toLowerCase()
+  return t.charAt(0).toUpperCase() + t.slice(1)
+}
+// Nombre de campo legible del issue: último segmento de texto de la ruta,
+// ignorando los índices numéricos de arreglos (items.0.spotsPorDia → "Spots por día").
+function etiquetaDe(path: ZodIssue['path']): string {
+  const seg = [...path].reverse().find((p) => typeof p === 'string') as string | undefined
+  return seg ? humanizarCampo(seg) : ''
+}
+
+// Valida `data` contra un schema zod. Si falla, lanza AppError con un mensaje en
+// lenguaje natural (campo humanizado + motivo en español). Devuelve el dato ya
+// tipado y saneado.
 //
 // Un issue custom puede pedir otro status vía `params.status` (p. ej. las
 // validaciones de subida usan 422 para distinguir "archivo inválido" de un
@@ -29,7 +90,8 @@ export function validar<T>(schema: ZodType<T>, data: unknown): T {
   const r = schema.safeParse(data)
   if (!r.success) {
     const i = r.error.issues[0]
-    const campo = i?.path?.length ? `${i.path.join('.')}: ` : ''
+    const etiqueta = i?.path?.length ? etiquetaDe(i.path) : ''
+    const campo = etiqueta ? `${etiqueta}: ` : ''
     const status = (i as { params?: { status?: number } })?.params?.status ?? 400
     throw new AppError(`${campo}${i?.message ?? 'Datos inválidos'}`, status)
   }
@@ -66,7 +128,8 @@ export function respuestaError(e: unknown): NextResponse {
   }
   if (e instanceof ZodError) {
     const i = e.issues[0]
-    const campo = i?.path?.length ? `${i.path.join('.')}: ` : ''
+    const etiqueta = i?.path?.length ? etiquetaDe(i.path) : ''
+    const campo = etiqueta ? `${etiqueta}: ` : ''
     // Un issue custom puede pedir otro status (las subidas usan 422); ver validar().
     const status = (i as { params?: { status?: number } })?.params?.status ?? 400
     return NextResponse.json({ error: `${campo}${i?.message ?? 'Datos inválidos'}` }, { status })

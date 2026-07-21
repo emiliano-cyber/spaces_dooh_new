@@ -17,16 +17,19 @@ import { cantidadEfectiva, precioItem, UNIDADES, type Unidad } from '@/lib/perio
 
 const UNIDADES_VALIDAS = UNIDADES.map((u) => u.unidad) as [Unidad, ...Unidad[]]
 
+// Campos numéricos opcionales: el front manda `null` cuando no aplican (p. ej.
+// spots/día vacío), así que van con `.nullish()` — `.optional()` solo aceptaría
+// `undefined` y `z.coerce.number()` convertiría null→0, fallando en `.positive()`.
 const itemSchema = z.object({
   sitioId: z.string().min(1),
   unidad: z.enum(UNIDADES_VALIDAS).optional(),
-  tarifaUnitaria: z.coerce.number().nonnegative().optional(),
+  tarifaUnitaria: z.coerce.number().nonnegative().nullish(),
   // Cantidad manual (solo se usa para spot/hora; las unidades de tiempo la
   // derivan del rango). Para tiempo se ignora.
-  cantidad: z.coerce.number().positive().optional(),
-  spotsPorDia: z.coerce.number().int().positive().optional(),
+  cantidad: z.coerce.number().positive().nullish(),
+  spotsPorDia: z.coerce.number().int().positive().nullish(),
   // Precio directo (compatibilidad hacia atrás / propuestas sin unidad).
-  precio: z.coerce.number().nonnegative().optional(),
+  precio: z.coerce.number().nonnegative().nullish(),
 })
 
 const crearSchema = z
@@ -52,7 +55,7 @@ export async function crearPropuestaCtrl(body: unknown) {
   // el servidor a partir de la unidad y la tarifa por unidad.
   const items = d.items.map((it) => {
     // Sin unidad → modo compatible: precio directo, unidad mensual, cantidad 1.
-    if (!it.unidad || it.tarifaUnitaria === undefined) {
+    if (!it.unidad || it.tarifaUnitaria == null) {
       const precio = it.precio ?? 0
       return {
         sitioId: it.sitioId,

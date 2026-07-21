@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { AppError } from './errores'
 import { notificar } from './notificaciones-repo'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
@@ -119,11 +120,34 @@ export async function getOTcompleta(id: string) {
 
 const folioOT = () => `OT-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
 
+// Tipos de tarea que NO aplican a una pantalla según su medio. Una DIGITAL no
+// lleva montaje de lona ni herrería; una FIJA no lleva montaje digital. El resto
+// aplica a ambas. Es la misma regla que la UI, aquí como límite duro.
+const OT_SOLO_FIJA = new Set(['MONTAJE_LONA', 'HERRERIA'])
+const OT_SOLO_DIGITAL = new Set(['MONTAJE_DIGITAL'])
+
 export async function crearOT(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
   descripcion: string; instrucciones?: string; prioridad?: string
   asignadoA?: string | null; fechaProgramada?: string | null; checklist?: unknown[]
 }) {
+  // Guard por tipo de pantalla: valida el tipo de tarea contra el medio del sitio.
+  if (input.sitioId) {
+    const s = await q1<any>(
+      'select tipo_medio, es_rotativo, exhibicion from sitios where id=$1',
+      [input.sitioId],
+    )
+    if (s) {
+      const digital = s.tipo_medio === 'PANTALLA_DIGITAL' || s.es_rotativo === true ||
+        s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+      if (digital && OT_SOLO_FIJA.has(input.tipo)) {
+        throw new AppError('Esa tarea no aplica a una pantalla digital (no lleva lona ni herrería)', 409)
+      }
+      if (!digital && OT_SOLO_DIGITAL.has(input.tipo)) {
+        throw new AppError('El montaje digital solo aplica a pantallas digitales', 409)
+      }
+    }
+  }
   const rows = await q(
     `insert into ordenes_trabajo (folio, tipo, sitio_id, campana_id, descripcion, instrucciones,
         checklist, prioridad, asignado_a, fecha_programada, estatus, requiere_revision, tenant_id)

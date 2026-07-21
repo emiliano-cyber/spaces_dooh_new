@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Smartphone, Calendar, User, Camera, ArrowRight, Plus, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
@@ -41,6 +41,24 @@ const TIPO_OT_LABEL: Record<TipoOT, string> = {
   ELECTRICO: 'Eléctrico',
   INSPECCION: 'Inspección',
   OTRO: 'Otro',
+}
+
+// Tipos de tarea aplicables según el tipo de pantalla. Una DIGITAL no lleva
+// montaje de lona ni herrería (no hay lona ni estructura de espectacular); una
+// FIJA no lleva montaje digital. El resto (desmontaje, mantenimiento, eléctrico,
+// inspección) aplica a ambas.
+const TIPO_OT_DIGITAL: TipoOT[] = ['MONTAJE_DIGITAL', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'ELECTRICO', 'INSPECCION', 'OTRO']
+const TIPO_OT_FIJA: TipoOT[] = ['MONTAJE_LONA', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'HERRERIA', 'ELECTRICO', 'INSPECCION', 'OTRO']
+const TODOS_TIPOS_OT = Object.keys(TIPO_OT_LABEL) as TipoOT[]
+
+function esSitioDigital(s?: { tipoMedio?: string; esRotativo?: boolean; exhibicion?: string } | null): boolean {
+  if (!s) return false
+  return s.tipoMedio === 'PANTALLA_DIGITAL' || !!s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+}
+// Tipos disponibles: filtrados por pantalla si hay sitio; todos si aún no se elige.
+function tiposParaSitio(digital: boolean | null): TipoOT[] {
+  if (digital == null) return TODOS_TIPOS_OT
+  return digital ? TIPO_OT_DIGITAL : TIPO_OT_FIJA
 }
 
 const PRIORIDAD_TONO: Record<Prioridad, Tono> = {
@@ -264,11 +282,11 @@ function NuevaOTModal({
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  sitios: { id: string; nombre: string }[]
+  sitios: { id: string; nombre: string; tipoMedio?: string; esRotativo?: boolean; exhibicion?: string }[]
   campanas: { id: string; nombre: string }[]
   reservas: { campanaId: string; sitioId: string }[]
 }) {
-  const [tipo, setTipo] = useState<TipoOT>('MONTAJE_LONA')
+  const [tipo, setTipo] = useState<TipoOT>('INSPECCION')
   const [descripcion, setDescripcion] = useState('')
   const [sitioId, setSitioId] = useState('')
   const [campanaId, setCampanaId] = useState('')
@@ -298,6 +316,18 @@ function NuevaOTModal({
   }
   // Opciones del select de sitio: las de la campaña si hay, si no todas.
   const opcionesSitio = sitiosDeCampana ?? sitios
+
+  // Tipo de pantalla del sitio elegido → tipos de tarea válidos. Una pantalla
+  // digital no puede llevar montaje de lona; una fija no lleva montaje digital.
+  const sitioSel = opcionesSitio.find((s) => s.id === sitioId)
+  const digital = sitioId ? esSitioDigital(sitioSel) : null
+  const tiposDisponibles = tiposParaSitio(digital)
+
+  // Si el tipo elegido deja de ser válido al cambiar de pantalla, cae al primero
+  // disponible (p. ej. de "Montaje de lona" a "Montaje digital" en una digital).
+  useEffect(() => {
+    if (!tiposDisponibles.includes(tipo)) setTipo(tiposDisponibles[0])
+  }, [tiposDisponibles, tipo])
 
   async function crear() {
     if (!descripcion.trim() || !fechaProg) return
@@ -345,10 +375,45 @@ function NuevaOTModal({
       }
     >
       <div className="space-y-3">
+        {/* 1) Primero la campaña y su pantalla: de ahí depende qué tareas se pueden elegir. */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
+            <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>
+              <option value="">— Sin campaña —</option>
+              {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
+              Pantalla
+              {campanaId && <span className="text-[10px] font-normal text-muted">(auto por campaña)</span>}
+            </span>
+            <select className={sel} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
+              <option value="">— Sin pantalla —</option>
+              {opcionesSitio.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.nombre} {esSitioDigital(s) ? '· Digital' : '· Fija'}
+                </option>
+              ))}
+            </select>
+            {campanaId && sitiosDeCampana?.length === 0 && (
+              <span className="mt-1 block text-[11px] text-muted">Esta campaña no tiene sitios reservados.</span>
+            )}
+          </label>
+        </div>
+        {/* 2) Tipo de tarea, ya filtrado por el tipo de pantalla. */}
         <label className="block">
-          <span className="mb-1 block text-[12px] font-medium text-ink">Tipo de tarea</span>
+          <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
+            Tipo de tarea
+            {sitioId && (
+              <span className="text-[10px] font-normal text-muted">
+                (opciones de pantalla {digital ? 'digital' : 'fija'})
+              </span>
+            )}
+          </span>
           <select className={sel} value={tipo} onChange={(e) => setTipo(e.target.value as TipoOT)}>
-            {Object.entries(TIPO_OT_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            {tiposDisponibles.map((k) => <option key={k} value={k}>{TIPO_OT_LABEL[k]}</option>)}
           </select>
         </label>
         <label className="block">
@@ -360,28 +425,6 @@ function NuevaOTModal({
             placeholder="p. ej. Montaje de lona en espectacular…"
           />
         </label>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-1 block text-[12px] font-medium text-ink">Campaña</span>
-            <select className={sel} value={campanaId} onChange={(e) => onCampana(e.target.value)}>
-              <option value="">— Sin campaña —</option>
-              {campanas.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 flex items-center gap-1.5 text-[12px] font-medium text-ink">
-              Sitio
-              {campanaId && <span className="text-[10px] font-normal text-muted">(auto por campaña)</span>}
-            </span>
-            <select className={sel} value={sitioId} onChange={(e) => setSitioId(e.target.value)}>
-              <option value="">— Sin sitio —</option>
-              {opcionesSitio.map((s) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-            </select>
-            {campanaId && sitiosDeCampana?.length === 0 && (
-              <span className="mt-1 block text-[11px] text-muted">Esta campaña no tiene sitios reservados.</span>
-            )}
-          </label>
-        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Prioridad</span>

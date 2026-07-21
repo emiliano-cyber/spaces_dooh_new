@@ -446,6 +446,7 @@ export interface Campana {
   fotosComprobatorias: boolean
   reportePublicacion: boolean
   ocUrl: string | null
+  contratoUrl: string | null // contrato firmado del cliente (opcional, expediente de facturación)
   reportePublicacionUrl: string | null
   portalToken: string | null
   portalActivo: boolean
