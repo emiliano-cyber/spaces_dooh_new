@@ -45,7 +45,7 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
           <div className="demo-wordmark truncate text-[15px] text-ink">
             {config?.nombreTenant ?? 'Space OS'}
           </div>
-          <div className="text-[10px] text-muted">by AS Network</div>
+          <div className="text-[10px] text-muted">AS SPACE OS</div>
         </div>
       </div>
 
@@ -96,7 +96,7 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
 
       <div className="border-t border-border p-3">
         <p className="text-[10px] leading-relaxed text-muted">
-          Demo · datos ficticios · $ MXN
+          Derechos reservados
         </p>
       </div>
     </>

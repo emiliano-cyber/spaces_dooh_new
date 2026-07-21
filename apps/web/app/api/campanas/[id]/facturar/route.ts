@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
+import { exigirCambioSensible } from '@/lib/server/cambios'
 import { generarFacturaCtrl } from '@/lib/server/finanzas-controller'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -10,8 +10,11 @@ export const dynamic = 'force-dynamic'
 
 // POST /api/campanas/:id/facturar  { plazoDias } (requiere finanzas.facturar)
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('finanzas', 'facturar')
-  if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  // Cambio sensible (dinero): exige el permiso del rol Y, si el Dueno activo el
+  // control de cambios, que la sesion este desbloqueada.
+  const gc = await exigirCambioSensible('finanzas', 'facturar')
+  if (!gc.ok) return gc.res
+  const g = { usuario: gc.usuario }
   try {
     const factura = await generarFacturaCtrl(params.id, await req.json().catch(() => ({})))
     await registrarAccion(g.usuario, 'Generó factura', factura.folio)

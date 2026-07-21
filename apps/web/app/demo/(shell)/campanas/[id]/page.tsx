@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
@@ -11,6 +11,8 @@ import { CampanasNav } from '@/components/demo/campanas/CampanasNav'
 import { CandadoPanel } from '@/components/demo/campanas/CandadoPanel'
 import { ValidacionPanel } from '@/components/demo/campanas/ValidacionPanel'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
+import { PlaylogsPanel } from '@/components/demo/campanas/PlaylogsPanel'
+import { AgregarCreativo } from '@/components/demo/campanas/AgregarCreativo'
 import {
   StatusBadge,
   CAMPANA_TONO,
@@ -366,13 +368,20 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </Card>
       </div>
 
-      {/* Creatividades */}
-      {misCreas.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Creatividades</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Creatividades — siempre visible para poder subir desde aquí, sin ir a
+          la pantalla de Creativos. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Creatividades</CardTitle>
+          <Link
+            href={withTrail('/demo/creativos', trail)}
+            className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
+          >
+            Gestionar <ExternalLink className="h-3.5 w-3.5" />
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {misCreas.length > 0 ? (
             <ul className="space-y-2">
               {misCreas.map((cr) => (
                 <li key={cr.id} className="flex items-center justify-between text-[13px]">
@@ -383,9 +392,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
-      )}
+          ) : (
+            <p className="text-[13px] text-muted">Aún no hay creativos. Súbelos aquí mismo.</p>
+          )}
+          <AgregarCreativo campanaId={id} />
+        </CardContent>
+      </Card>
 
       {/* Evidencias */}
       <Card>
@@ -397,6 +409,18 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           <EvidenciaGaleria
             fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
           />
+        </CardContent>
+      </Card>
+
+      {/* Proof of play: la prueba de los medios DIGITALES, equivalente a las
+          evidencias fotográficas de los fijos. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2">
+          <MonitorPlay className="h-4 w-4 text-muted" />
+          <CardTitle>Reproducciones (proof of play)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PlaylogsPanel campanaId={id} fechaInicio={c.fechaInicio} fechaFin={c.fechaFin} />
         </CardContent>
       </Card>
         </div>

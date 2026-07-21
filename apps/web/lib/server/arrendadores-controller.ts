@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
+import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
@@ -61,7 +62,8 @@ const contratoSchema = z.object({
   periodicidad: z.enum(PERIODICIDADES).default('MENSUAL'),
   moneda: z.string().trim().default('MXN'),
   autoRenovable: z.boolean().default(false),
-  documentoUrl: z.string().trim().nullish(),
+  // PDF del contrato: 10 MB, magic bytes %PDF (Bloque D).
+  documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
 })
 
 // ─── Predio (entidad central del módulo) ────────────────────────────────────
@@ -198,7 +200,8 @@ const editarContratoSchema = z.object({
   periodicidad: z.enum(PERIODICIDADES).optional(),
   moneda: z.string().trim().optional(),
   deposito: z.coerce.number().nonnegative('El depósito no puede ser negativo').nullish(),
-  documentoUrl: z.string().trim().nullish(),
+  // PDF del contrato: 10 MB, magic bytes %PDF (Bloque D).
+  documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
   autoRenovable: z.boolean().optional(),
   razonSocialId: z.string().uuid().nullish(),
 }).strict()
@@ -246,21 +249,10 @@ export async function iniciarRenovacionCtrl(id: string, body?: unknown) {
 // Se guardan como data URL base64 (mismo patrón que el PDF del contrato). El
 // cliente no es fuente de verdad: aquí se valida el tipo real declarado y el
 // tamaño, porque el límite del navegador se salta con un curl.
-const MAX_ADJUNTO_BYTES = 5 * 1024 * 1024
-const ADJUNTO_RE = /^data:(application\/pdf|image\/(png|jpe?g|webp));base64,[A-Za-z0-9+/]+=*$/
-
-// Bytes reales de un data URL base64 (4 chars → 3 bytes, menos el padding).
-function bytesDeDataUrl(v: string): number {
-  const b64 = v.slice(v.indexOf(',') + 1)
-  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0
-  return Math.floor((b64.length * 3) / 4) - padding
-}
-
-const adjunto = z
-  .string()
-  .trim()
-  .refine((v) => ADJUNTO_RE.test(v), 'El adjunto debe ser un PDF o una imagen (PNG, JPG o WebP)')
-  .refine((v) => bytesDeDataUrl(v) <= MAX_ADJUNTO_BYTES, 'El adjunto supera 5 MB')
+// Este era el ÚNICO punto de subida que ya validaba. Ahora usa el mismo helper
+// que los otros seis, así que además del tipo declarado comprueba los magic
+// bytes reales: un .exe renombrado a .pdf ya no pasa (Bloque D).
+const adjunto = uploadZod(LIMITES.adjuntoPago.allowlist, LIMITES.adjuntoPago.maxMB)
 
 // Registro de pago de renta: PAGADO + adjuntos opcionales (factura/comprobante).
 const pagarSchema = z.object({

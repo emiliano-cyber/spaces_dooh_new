@@ -144,7 +144,7 @@ function fecha(v: any): string {
 // Ejecuta el CLI del SDK y devuelve su JSON (éxito o error, mismo contrato).
 async function ejecutarPublish(args: {
   version: string; anunciante: string; campana: string; fi: string; ff: string
-  filepath: string; screen: string; list: string
+  filepath: string; screen: string; list: string; cantDia?: number | null
 }): Promise<any> {
   const cli = [
     '-m', 'doohmain_sdk', 'publish',
@@ -152,6 +152,10 @@ async function ejecutarPublish(args: {
     '--fecha-inicio', args.fi, '--fecha-fin', args.ff,
     '--filepath', args.filepath, '--screen', args.screen, '--list', args.list,
   ]
+  // Programación: spots/día → cuota diaria en DOOHmain (solo si el sitio la tiene).
+  if (args.cantDia != null && args.cantDia > 0) {
+    cli.push('--cant-dia', String(args.cantDia))
+  }
   try {
     const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
     return JSON.parse(stdout.trim().split('\n').pop() || '{}')
@@ -166,6 +170,59 @@ async function ejecutarPublish(args: {
     }
     return { ok: false, error: e?.message ?? 'fallo al invocar el SDK', category: 'network' }
   }
+}
+
+// ─── Proof of play ──────────────────────────────────────────────────────────
+// Pide a DOOHmain las reproducciones y devuelve su payload CRUDO, sin tocarlo.
+// A propósito NO se interpreta aquí: al 16-jul-2026 la API siempre responde `[]`
+// (nada ha salido al aire todavía), así que no sabemos qué trae un elemento con
+// datos. Inventarnos su forma acabaría en números equivocados en la pantalla con
+// la que se le cobra al anunciante. Se guarda literal y se modela cuando se vea.
+export interface RespuestaPlay {
+  ok: boolean
+  payload: unknown
+  error?: string
+}
+
+async function ejecutarSdk(cli: string[]): Promise<any> {
+  try {
+    const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
+    return JSON.parse(stdout.trim().split('\n').pop() || '{}')
+  } catch (e: any) {
+    if (e?.stdout) {
+      try {
+        return JSON.parse(String(e.stdout).trim().split('\n').pop() || '{}')
+      } catch { /* cae abajo */ }
+    }
+    return { ok: false, error: e?.message ?? 'fallo al invocar el SDK' }
+  }
+}
+
+// Reproducciones de una o varias campañas (por su `auth` de DOOHmain).
+export async function consultarStats(
+  auths: string[], desde: string, hasta: string,
+): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!auths.length) return { ok: false, payload: {}, error: 'Sin campañas publicadas en DOOHmain' }
+  const cli = ['-m', 'doohmain_sdk', 'stats', '--start-date', desde, '--end-date', hasta]
+  for (const a of auths) cli.push('--auth', a)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? r ?? {} }
+}
+
+// Métricas de una o varias pantallas.
+export async function consultarMetrics(
+  pantallas: string[], desde: string, hasta: string,
+): Promise<RespuestaPlay> {
+  if (!doohmainHabilitado()) return { ok: false, payload: {}, error: 'La integración con DOOHmain está apagada' }
+  if (!pantallas.length) return { ok: false, payload: {}, error: 'Sin pantallas que consultar' }
+  const cli = ['-m', 'doohmain_sdk', 'metrics', '--start-date', desde, '--end-date', hasta,
+               '--type', 'full', '--zoom', 'days']
+  for (const s of pantallas) cli.push('--screen', s)
+  const r = await ejecutarSdk(cli)
+  if (r?.ok === false) return { ok: false, payload: {}, error: r.error ?? 'DOOHmain no respondió' }
+  return { ok: true, payload: r?.payload ?? r ?? {} }
 }
 
 // Retira un creativo de DOOHmain (al eliminarlo o antes de reemplazarlo):
@@ -209,11 +266,13 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   // del sistema (sitios-repo). Una campaña FIJA no tiene sitios digitales → no
   // publica nada; una HÍBRIDA solo publica sus pantallas digitales.
   const sitios = await q<any>(
-    `select distinct s.id, s.clave_interna, s.nombre
+    `select s.id, s.clave_interna, s.nombre,
+            max(r.spots_por_dia) as spots_por_dia
        from reservas r join sitios s on s.id = r.sitio_id
       where r.campana_id=$1
         and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo = true
-             or s.exhibicion in ('digital', 'rotativo'))`,
+             or s.exhibicion in ('digital', 'rotativo'))
+      group by s.id, s.clave_interna, s.nombre`,
     [campanaId],
   )
   if (sitios.length === 0) return []
@@ -238,6 +297,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
           version: cr.id, anunciante, campana: camp.nombre,
           fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
           filepath: mat.path, screen, list: camp.folio,
+          cantDia: s.spots_por_dia != null ? Number(s.spots_por_dia) : null,
         })
         out.push({
           creativoId: cr.id, creativoNombre: cr.nombre, sitio: s.clave_interna, screen,

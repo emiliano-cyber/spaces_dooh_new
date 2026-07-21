@@ -21,12 +21,17 @@ export class AppError extends Error {
 
 // Valida `data` contra un schema zod. Si falla, lanza AppError(400) con un
 // mensaje legible (campo + motivo). Devuelve el dato ya tipado y saneado.
+//
+// Un issue custom puede pedir otro status vía `params.status` (p. ej. las
+// validaciones de subida usan 422 para distinguir "archivo inválido" de un
+// error de forma). Ver lib/server/uploads.ts.
 export function validar<T>(schema: ZodType<T>, data: unknown): T {
   const r = schema.safeParse(data)
   if (!r.success) {
     const i = r.error.issues[0]
     const campo = i?.path?.length ? `${i.path.join('.')}: ` : ''
-    throw new AppError(`${campo}${i?.message ?? 'Datos inválidos'}`, 400)
+    const status = (i as { params?: { status?: number } })?.params?.status ?? 400
+    throw new AppError(`${campo}${i?.message ?? 'Datos inválidos'}`, status)
   }
   return r.data
 }
@@ -60,7 +65,11 @@ export function respuestaError(e: unknown): NextResponse {
     return NextResponse.json({ error: e.message }, { status: e.status })
   }
   if (e instanceof ZodError) {
-    return NextResponse.json({ error: e.issues[0]?.message ?? 'Datos inválidos' }, { status: 400 })
+    const i = e.issues[0]
+    const campo = i?.path?.length ? `${i.path.join('.')}: ` : ''
+    // Un issue custom puede pedir otro status (las subidas usan 422); ver validar().
+    const status = (i as { params?: { status?: number } })?.params?.status ?? 400
+    return NextResponse.json({ error: `${campo}${i?.message ?? 'Datos inválidos'}` }, { status })
   }
   const pg = codigoPg(e)
   if (pg && ERRORES_PG[pg]) {

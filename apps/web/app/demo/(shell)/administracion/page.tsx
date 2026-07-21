@@ -9,8 +9,7 @@ import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { ROLES, rolLabel } from '@/components/demo/shell/nav'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 import {
-  MODULOS_PERMISO,
-  ROLES_MATRIZ,
+  CAPACIDADES,
   CAP_CORTA,
   CAP_LABEL,
   type Capacidad,
@@ -18,15 +17,16 @@ import {
 import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
+import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import {
   listarUsuariosApi,
   invitarUsuarioApi,
   actualizarUsuarioApi,
   borrarUsuarioApi,
-  getPermisosApi,
+  getPermisosMatrizApi,
   getConfigApi,
   actualizarConfigApi,
-  type PermisoRow,
+  type PermisosMatriz,
 } from '@/lib/data/admin-api'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 
@@ -58,7 +58,7 @@ export default function AdministracionPage() {
         ]}
       >
         <TabPanel value="usuarios" className="pt-4"><Usuarios onToast={notify} /></TabPanel>
-        <TabPanel value="roles" className="pt-4"><MatrizRoles /></TabPanel>
+        <TabPanel value="roles" className="pt-4"><div className="space-y-4"><ControlCambiosPanel onToast={notify} /><MatrizRoles /></div></TabPanel>
         <TabPanel value="config" className="pt-4"><Configuracion onToast={notify} /></TabPanel>
       </Tabs>
 
@@ -198,35 +198,40 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   )
 }
 
-// ─── Tab Roles (matriz desde BD) ────────────────────────────────────────────
+// ─── Tab Roles (matriz 100% desde BD, Bloque F) ─────────────────────────────
+// Módulos (filas), roles (columnas) y celdas vienen de GET
+// /api/admin/permisos-matriz, que las deriva de rol_permisos. No hay ninguna
+// copia estática del RBAC: un cambio en BD se ve al refrescar, sin desplegar.
 function MatrizRoles() {
-  const [rows, setRows] = useState<PermisoRow[] | null>(null)
-  useEffect(() => { getPermisosApi().then(setRows) }, [])
+  const [data, setData] = useState<PermisosMatriz | null | undefined>(undefined)
+  useEffect(() => { getPermisosMatrizApi().then(setData) }, [])
 
   const tiene = (modulo: string, rol: string, cap: Capacidad) =>
-    !!rows?.some((r) => r.modulo === modulo && r.rol === rol && r.accion === cap)
+    !!data?.filas.some((r) => r.modulo === modulo && r.rol === rol && r.accion === cap)
 
   return (
     <Card>
       <CardHeader><CardTitle>Permisos por rol y módulo</CardTitle></CardHeader>
       <CardContent className="px-0 pb-0">
-        {!rows ? (
+        {data === undefined ? (
           <div className="h-32 animate-pulse rounded bg-surface-2 mx-4 mb-4" />
+        ) : !data ? (
+          <div className="px-4 py-6 text-[13px] text-muted">No se pudo cargar la matriz de permisos.</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
                   <th className="px-4 py-2 font-medium">Módulo</th>
-                  {ROLES_MATRIZ.map((r) => <th key={r.rol} className="px-3 py-2 text-center font-medium">{r.label}</th>)}
+                  {data.roles.map((r) => <th key={r.rol} className="px-3 py-2 text-center font-medium">{r.label}</th>)}
                 </tr>
               </thead>
               <tbody>
-                {MODULOS_PERMISO.map((mod) => (
+                {data.modulos.map((mod) => (
                   <tr key={mod.key} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5 font-medium text-ink">{mod.label}</td>
-                    {ROLES_MATRIZ.map((r) => {
-                      const caps = (['ver', 'crear', 'aprobar', 'facturar'] as Capacidad[]).filter((c) => tiene(mod.key, r.rol, c))
+                    {data.roles.map((r) => {
+                      const caps = CAPACIDADES.filter((c) => tiene(mod.key, r.rol, c))
                       return (
                         <td key={r.rol} className="px-3 py-2.5 text-center">
                           {caps.length === 0 ? <span className="text-muted">—</span> : (
@@ -242,7 +247,7 @@ function MatrizRoles() {
           </div>
         )}
         <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border px-4 py-2.5 text-[11px] text-muted">
-          {(['ver', 'crear', 'aprobar', 'facturar'] as Capacidad[]).map((c) => (
+          {CAPACIDADES.map((c) => (
             <span key={c} className="inline-flex items-center gap-1.5"><CapChip cap={c} /> {CAP_LABEL[c]}</span>
           ))}
         </div>
@@ -317,6 +322,19 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
               onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
           </Campo>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Campo label="Razón social">
+              <input className={inputCls} value={config.razonSocial ?? ''} placeholder="p. ej. RGB Catorce S de RL de CV"
+                onChange={(e) => setConfig({ ...config, razonSocial: e.target.value })}
+                onBlur={(e) => guardar({ razonSocial: e.target.value.trim() || null }, 'Razón social actualizada')} />
+            </Campo>
+            <Campo label="Nombre comercial">
+              <input className={inputCls} value={config.nombreComercial ?? ''} placeholder="p. ej. PIXELED"
+                onChange={(e) => setConfig({ ...config, nombreComercial: e.target.value })}
+                onBlur={(e) => guardar({ nombreComercial: e.target.value.trim() || null }, 'Nombre comercial actualizado')} />
+            </Campo>
+          </div>
+          <span className="-mt-2 block text-[11px] text-muted">Se muestran en el encabezado del Dashboard.</span>
           <Campo label="Moneda">
             <div className="flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">$ · Peso mexicano (MXN)</div>
           </Campo>

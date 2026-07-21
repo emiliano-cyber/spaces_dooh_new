@@ -172,7 +172,7 @@ describe('registrarPagoRentaCtrl — fecha y repago', () => {
 // ============================================================================
 describe('adjuntos de pago', () => {
   const PDF = 'data:application/pdf;base64,JVBERi0xLjQK'
-  const PNG = 'data:image/png;base64,iVBORw0KGgo='
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=='
   // ~6 MB de base64 => por encima del limite de 5 MB.
   const GRANDE = 'data:application/pdf;base64,' + 'A'.repeat(8_400_000)
 
@@ -182,12 +182,12 @@ describe('adjuntos de pago', () => {
 
   it('rechaza un ejecutable disfrazado de adjunto', async () => {
     await expect(adjuntarAPagoCtrl('P1', { facturaUrl: 'data:application/x-msdownload;base64,TVqQ' }))
-      .rejects.toThrow(/PDF o una imagen/)
+      .rejects.toThrow(/no permitido/)
   })
 
   it('rechaza una URL que no es un adjunto', async () => {
     await expect(adjuntarAPagoCtrl('P1', { facturaUrl: 'https://evil.example/factura.pdf' }))
-      .rejects.toThrow(/PDF o una imagen/)
+      .rejects.toThrow(/data URL/)
   })
 
   it('rechaza un adjunto de mas de 5 MB', async () => {

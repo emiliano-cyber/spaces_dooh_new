@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { actualizarSitio, borrarSitio, toggleNetwork, getSitio, importarSitios } from './sitios-repo'
+import { LIMITES, uploadZod } from './uploads'
 
 // ============================================================================
 //  lib/server/sitios-controller.ts — Edición, borrado e importación de pantallas.
@@ -42,7 +43,12 @@ const importSchema = z.object({
   filas: z.array(z.any()).min(1, 'No hay filas para importar'),
   modoDuplicado: z.enum(['ACTUALIZAR', 'NUEVA_VERSION']).default('ACTUALIZAR'),
   precioM2: z.coerce.number().nonnegative().nullish(),
-  imagenes: z.record(z.string(), z.any()).nullish(),
+  // Fotos de pantallas del import masivo: clave = código de proveedor, valor =
+  // data URL. Cada una se valida por separado (8 MB, imagen real) — Bloque D.
+  // Antes era z.any(): entraba cualquier cosa, de cualquier peso, en lote.
+  imagenes: z
+    .record(z.string(), uploadZod(LIMITES.fotoSitio.allowlist, LIMITES.fotoSitio.maxMB))
+    .nullish(),
 })
 
 export async function importarSitiosCtrl(body: unknown) {

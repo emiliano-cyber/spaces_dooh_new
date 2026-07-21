@@ -8,9 +8,9 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET /api/ot → lista de órdenes de trabajo
+// GET /api/ot → lista de órdenes de trabajo (requiere operaciones.ver)
 export async function GET() {
-  const g = await exigir()
+  const g = await exigir('operaciones', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   return NextResponse.json(await listarOT())
 }

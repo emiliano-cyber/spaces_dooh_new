@@ -1,6 +1,6 @@
 import 'server-only'
 import { randomBytes } from 'crypto'
-import { q, q1, pool, fijarTenant } from './db'
+import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -40,6 +40,11 @@ function rowToItem(r: any) {
     fechaInicio: iso(r.fecha_inicio),
     fechaFin: iso(r.fecha_fin),
     precio: Number(r.precio),
+    // Contratación por tiempo (aditivo; ítems viejos → mensual/1).
+    unidad: r.unidad ?? 'mensual',
+    cantidad: r.cantidad != null ? Number(r.cantidad) : 1,
+    tarifaUnitaria: r.tarifa_unitaria != null ? Number(r.tarifa_unitaria) : Number(r.precio),
+    spotsPorDia: r.spots_por_dia != null ? Number(r.spots_por_dia) : null,
     aprobado: !!r.aprobado,
   }
 }
@@ -101,8 +106,16 @@ function armarPropuesta(p: any, items: any[]) {
 // módulos (campaña, factura, rentabilidad, comisiones) leen de aquí — nadie
 // recalcula desde tarifas de lista. Idempotente: si ya existe, no lo re-escribe.
 // Devuelve el snapshot (nuevo o el existente).
-export async function congelarSnapshotEconomico(propuestaId: string) {
-  const prop = await q1<any>(
+// `tenantId` solo lo pasa la aceptación por liga PÚBLICA, donde no hay sesión de
+// la que sacar el tenant y las tablas son fail-closed (Bloque B). Desde las rutas
+// autenticadas se omite y se usa el tenant de la sesión, como siempre.
+export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: string) {
+  const qS = <T = any>(sql: string, params?: unknown[]) =>
+    tenantId ? qConTenant<T>(tenantId, sql, params) : q<T>(sql, params)
+  const qS1 = async <T = any>(sql: string, params?: unknown[]): Promise<T | null> =>
+    (await qS<T>(sql, params))[0] ?? null
+
+  const prop = await qS1<any>(
     `select p.*, c.iva_pct as cliente_iva
        from propuestas p left join clientes c on c.id = p.cliente_id
       where p.id = $1`,
@@ -111,13 +124,13 @@ export async function congelarSnapshotEconomico(propuestaId: string) {
   if (!prop) return null
   if (prop.snapshot_economico) return prop.snapshot_economico // inmutable
 
-  const aprob = await q<any>(
+  const aprob = await qS<any>(
     'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
     [propuestaId],
   )
   const usar = aprob.length
     ? aprob
-    : await q<any>('select * from propuesta_items where propuesta_id=$1', [propuestaId])
+    : await qS<any>('select * from propuesta_items where propuesta_id=$1', [propuestaId])
 
   const comisionPct = Number(prop.comision_pct)
   const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
@@ -139,7 +152,7 @@ export async function congelarSnapshotEconomico(propuestaId: string) {
   }))
 
   const snap = { version, bruto, descuentoPct, descuentoMonto, base, comisionPct, neto, ivaPct, iva, total, porSitio }
-  await q('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
+  await qS('update propuestas set snapshot_economico=$2, snapshot_en=now() where id=$1', [
     propuestaId,
     JSON.stringify(snap),
   ])
@@ -151,9 +164,25 @@ export async function congelarSnapshotEconomico(propuestaId: string) {
 // compartible. Incluye nombres de cliente/agencia y de cada sitio.
 export async function obtenerPropuestaPublica(codigo: string) {
   const cod = (codigo ?? '').trim()
+  if (!cod) return null
+
+  // Ruta PÚBLICA: sin sesión no hay tenant que fijar, y estas tablas son
+  // fail-closed (Hardening 1 · Bloque B). El token aleatorio ES la autorización:
+  // Postgres resuelve su tenant y el resto de las consultas corren bajo él.
+  const t = await qRaw1<{ tenant: string | null }>(
+    'select propuesta_tenant_por_token($1) as tenant',
+    [cod],
+  )
+  const tenantId = t?.tenant
+  if (!tenantId) return null
+
+  const qPub = <T = any>(sql: string, params?: unknown[]) => qConTenant<T>(tenantId, sql, params)
+  const qPub1 = async <T = any>(sql: string, params?: unknown[]): Promise<T | null> =>
+    (await qPub<T>(sql, params))[0] ?? null
+
   // S1-3: la liga pública se resuelve SOLO por token aleatorio (no por id/folio
   // enumerable). Sin el token exacto no se puede abrir la propuesta.
-  const p = await q1<any>(
+  const p = await qPub1<any>(
     `select p.*, (select iva_pct from clientes c where c.id = p.cliente_id) as cliente_iva
        from propuestas p
       where p.token_publico = $1
@@ -162,15 +191,15 @@ export async function obtenerPropuestaPublica(codigo: string) {
   )
   if (!p) return null
   const id = p.id
-  const items = await q('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
+  const items = await qPub('select * from propuesta_items where propuesta_id=$1 order by creado_en asc', [id])
   const armado = armarPropuesta(p, items)
 
-  const cliente = p.cliente_id ? await q1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
-  const agencia = p.agencia_id ? await q1<any>('select nombre from clientes where id=$1', [p.agencia_id]) : null
+  const cliente = p.cliente_id ? await qPub1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
+  const agencia = p.agencia_id ? await qPub1<any>('select nombre from clientes where id=$1', [p.agencia_id]) : null
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
-    ? await q<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
+    ? await qPub<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
     : []
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
@@ -225,11 +254,24 @@ export async function aceptarPropuestaPublica(
   const nombre = (input.nombre ?? '').trim()
   if (!nombre) throw new PropuestaError('Escribe tu nombre para aceptar la propuesta')
 
-  const p = await q1<any>(
-    `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
-       from propuestas where token_publico = $1 limit 1`,
+  // Ruta PÚBLICA (sin sesión): el token resuelve el tenant, y bajo ese tenant se
+  // lee y se escribe. Las tablas son fail-closed (Bloque B), así que sin esto el
+  // SELECT no vería la propuesta y el UPDATE fallaría el WITH CHECK.
+  const tRow = await qRaw1<{ tenant: string | null }>(
+    'select propuesta_tenant_por_token($1) as tenant',
     [cod],
   )
+  const tenantId = tRow?.tenant
+  if (!tenantId) return null
+
+  const p = (
+    await qConTenant<any>(
+      tenantId,
+      `select id, tenant_id, folio, nombre, estatus, aceptado_en, aceptado_por
+         from propuestas where token_publico = $1 limit 1`,
+      [cod],
+    )
+  )[0]
   if (!p) return null
 
   // Idempotente: ya aceptada / aprobada → devuelve la aceptación registrada.
@@ -252,7 +294,9 @@ export async function aceptarPropuestaPublica(
   const client = await pool.connect()
   try {
     await client.query('begin')
-    await fijarTenant(client)
+    // Tenant del token, NO de la sesión: aquí no hay sesión (fijarTenant habría
+    // fijado el GUC vacío y la transacción entera fallaría fail-closed).
+    await fijarTenantExplicito(client, p.tenant_id)
     // Aceptar = aceptar todas las pantallas si no hay selección granular previa.
     const marcados = (
       await client.query(
@@ -288,7 +332,7 @@ export async function aceptarPropuestaPublica(
     } catch { /* la notificación no rompe la aceptación */ }
     await client.query('commit')
     // S0-1: congela el snapshot económico al aceptar por liga pública (inmutable).
-    await congelarSnapshotEconomico(p.id)
+    await congelarSnapshotEconomico(p.id, p.tenant_id)
     return {
       ok: true,
       yaAceptada: false,
@@ -328,8 +372,16 @@ export interface PropuestaInput {
   comisionPct?: number
   fechaInicio: string
   fechaFin: string
-  // Sitios con su precio (tarifa de lista). Si no viene precio, se toma 0.
-  items: { sitioId: string; precio: number }[]
+  // Sitios con su contratación por tiempo. El controller ya calculó precio y
+  // cantidad; el repo solo persiste. `precio` = tarifaUnitaria × cantidad.
+  items: {
+    sitioId: string
+    precio: number
+    unidad?: string
+    tarifaUnitaria?: number
+    cantidad?: number
+    spotsPorDia?: number | null
+  }[]
   notas?: string | null
 }
 
@@ -370,11 +422,17 @@ export async function crearPropuesta(input: PropuestaInput) {
         input.agenciaId,
       ])
     }
+    const tId = await tenantActual()
     for (const it of input.items) {
       await client.query(
-        `insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, tenant_id)
-         values ($1,$2,$3,$4,$5,$6)`,
-        [prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0, await tenantActual()],
+        `insert into propuesta_items
+           (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
+          it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
+          it.spotsPorDia ?? null, tId,
+        ],
       )
     }
     const items = (

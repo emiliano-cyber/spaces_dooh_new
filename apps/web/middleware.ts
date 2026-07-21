@@ -4,11 +4,10 @@ import type { NextRequest } from 'next/server'
 // Must match basePath in next.config.mjs
 const BASE_PATH = '/spaces-dooh'
 
+// Ruteo por subdominio. Los módulos del segundo frontend (inmuebles/operaciones/
+// comercial/admin) se archivaron en /_archive (Bloque G), así que solo queda el
+// portal externo, que sí es parte del producto vivo.
 const moduleMap: Record<string, string> = {
-  inmuebles: '/inmuebles',
-  operaciones: '/operaciones',
-  comercial: '/comercial',
-  admin: '/admin',
   portal: '/portal',
 }
 
@@ -31,6 +30,33 @@ export function middleware(request: NextRequest) {
   const normalizedPath = pathname.startsWith(BASE_PATH)
     ? pathname.slice(BASE_PATH.length) || '/'
     : pathname
+
+  // ─── CSRF (Hardening 1 · Bloque E): double-submit en mutaciones con sesión ──
+  // Toda mutación del BFF autenticada por la cookie de sesión debe traer el
+  // header X-CSRF-Token igual a la cookie spaces_csrf. Exentos: el bootstrap de
+  // sesión (login/signup/logout) y las rutas PÚBLICAS por token (portal y
+  // propuesta compartible), que no dependen de la cookie de sesión. Si no hay
+  // cookie de sesión, no hay credencial ambiental que proteger: se deja pasar.
+  const MUTACIONES = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+  if (normalizedPath.startsWith('/api/') && MUTACIONES.has(request.method)) {
+    const exento =
+      normalizedPath.startsWith('/api/auth/login') ||
+      normalizedPath.startsWith('/api/signup') ||
+      normalizedPath.startsWith('/api/auth/logout') ||
+      normalizedPath.startsWith('/api/portal/') ||
+      normalizedPath.startsWith('/api/propuestas/publica/')
+    const sesion = request.cookies.get('spaces_sesion')?.value
+    if (!exento && sesion) {
+      const cookieTok = request.cookies.get('spaces_csrf')?.value
+      const headerTok = request.headers.get('x-csrf-token')
+      if (!cookieTok || !headerTok || cookieTok !== headerTok) {
+        return NextResponse.json(
+          { error: 'Falta el token CSRF o no coincide. Recarga la página e intenta de nuevo.' },
+          { status: 403 },
+        )
+      }
+    }
+  }
 
   // Ruteo por subdominio (producción multi-subdominio): admin.x.com → /admin
   if (!isDev) {

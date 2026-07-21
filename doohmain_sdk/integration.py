@@ -54,37 +54,57 @@ def ensure_campaign(
     fecha_inicio: Any,
     fecha_fin: Any,
     *,
+    cant_dia: int | None = None,
     api: DOOHmainClient | None = None,
     db: Database | None = None,
 ) -> str:
-    """Devuelve el `auth` de la campaña remota, creándola solo si no existe."""
+    """Devuelve el `auth` de la campaña remota, creándola solo si no existe.
+
+    `cant_dia` es la programación: cuántas veces al día se muestra el spot. Se
+    envía a DOOHmain como cuota diaria (`cant_day`). None = no se toca la cuota.
+    """
     db = db or Database()
     api = api or DOOHmainClient()
 
     row = db.remote_campaign_get(version)
     if row and row.get("auth"):
-        return row["auth"]
-
-    name = f"{anunciante} - {campana}".strip(" -") or version
-    res = api.create_campaign(
-        name=name,
-        anunciante=anunciante,
-        start_date=norm(fecha_inicio),
-        end_date=norm(fecha_fin),
-    )
-    auth = res.get("auth")
-    if not auth:
-        raise DOOHmainError(
-            f"'create_campaign' no devolvió auth: {res}",
-            action="create_campaign",
-            payload=res,
+        auth = row["auth"]
+    else:
+        name = f"{anunciante} - {campana}".strip(" -") or version
+        res = api.create_campaign(
+            name=name,
+            anunciante=anunciante,
+            start_date=norm(fecha_inicio),
+            end_date=norm(fecha_fin),
         )
+        auth = res.get("auth")
+        if not auth:
+            raise DOOHmainError(
+                f"'create_campaign' no devolvió auth: {res}",
+                action="create_campaign",
+                payload=res,
+            )
+        db.remote_campaign_register(version, auth, name=name, anunciante=anunciante)
+        # Carrera entre servers: si otro insertó primero, ON DUPLICATE conserva SU
+        # auth; re-leemos para devolver el canónico.
+        winner = db.remote_campaign_get(version)
+        auth = (winner and winner.get("auth")) or auth
 
-    db.remote_campaign_register(version, auth, name=name, anunciante=anunciante)
-    # Carrera entre servers: si otro insertó primero, ON DUPLICATE conserva SU
-    # auth; re-leemos para devolver el canónico.
-    winner = db.remote_campaign_get(version)
-    return (winner and winner.get("auth")) or auth
+    # Mantener SIEMPRE al día en DOOHmain las fechas contratadas y —si viene— la
+    # programación (spots/día → cant_day). Así toda publicación refleja el periodo
+    # y la cuota vigentes, tanto en la creación como al re-publicar/extender. Un
+    # fallo de sincronización NO debe romper la publicación del arte.
+    fields: dict[str, Any] = {
+        "start_date": norm(fecha_inicio),
+        "end_date": norm(fecha_fin),
+    }
+    if cant_dia is not None and cant_dia > 0:
+        fields["cant_day"] = str(cant_dia)
+    try:
+        api.update_campaign(auth, **fields)
+    except DOOHmainError:
+        pass
+    return auth
 
 
 def ensure_media(

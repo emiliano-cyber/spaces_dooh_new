@@ -5,10 +5,9 @@
 //  obliga a que las firmas coincidan al compilar). Hoy todos los métodos lanzan
 //  "no implementado": la demo corre 100% con el mock.
 //
-//  POST-JUNTA: reemplazar cada cuerpo por una llamada `fetch` al API
-//  (apps/api, Fastify). Como las firmas ya calzan con lo que consumen las
-//  pantallas, conectar el backend NO requiere tocar ninguna pantalla — sólo
-//  rellenar estos métodos y prender el flag NEXT_PUBLIC_DEMO_HTTP=1.
+//  Este adapter quedó como andamiaje histórico: apuntaba al Fastify que se
+//  archivó en /_archive/api (Bloque G). El backend vivo es el BFF y las
+//  pantallas hablan con él por los helpers `*-api.ts`, no por este adapter.
 // ============================================================================
 
 import type { MockAdapter } from './mock'

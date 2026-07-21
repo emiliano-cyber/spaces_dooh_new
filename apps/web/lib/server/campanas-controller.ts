@@ -1,6 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
+import { LIMITES, uploadOUrlZod } from './uploads'
 import {
   confirmarReserva,
   validarPublicacion,
@@ -56,7 +57,11 @@ export async function extenderCampanaCtrl(id: string, body: unknown) {
   return c
 }
 
-const ocSchema = z.object({ ocUrl: z.string().trim().nullish() })
+// La OC del cliente llega como PDF o imagen en base64 (o como URL ya hospedada).
+// Bloque D: 10 MB, tipo real verificado por magic bytes.
+const ocSchema = z.object({
+  ocUrl: uploadOUrlZod(LIMITES.ocCampana.allowlist, LIMITES.ocCampana.maxMB, 'ocUrl').nullish(),
+})
 
 export async function marcarOCCtrl(id: string, body: unknown) {
   const d = validar(ocSchema, body ?? {})

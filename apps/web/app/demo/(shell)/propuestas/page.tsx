@@ -23,6 +23,14 @@ import { useRouter } from 'next/navigation'
 import { ArrowUpRight } from 'lucide-react'
 import { withTrail } from '@/lib/nav-trail'
 import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
+import {
+  UNIDADES,
+  UNIDAD_CORTA,
+  cantidadEfectiva,
+  precioItem,
+  periodosEnRango,
+  type Unidad,
+} from '@/lib/periodos'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -245,7 +253,47 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const precioDe = (s: any) => Number(s.tarifaPublicada || s.tarifaMensual || 0)
+  // Configuración por sitio: unidad de contratación, cantidad manual (spot/hora)
+  // y programación de spots/día. Todo por sitioId; los que no estén aquí usan su
+  // primera modalidad publicada (o mensual).
+  type CfgSitio = { unidad: Unidad; cantidadManual: number; spotsPorDia: string }
+  const [cfg, setCfg] = useState<Record<string, CfgSitio>>({})
+
+  // Modalidades publicadas de un sitio: [{unidad, tarifa}]. Si no tiene, ofrece
+  // una mensual sintética con su tarifa publicada, para no bloquear.
+  const modalidadesDe = (s: any): { unidad: Unidad; tarifa: number }[] => {
+    const det = (s.modalidadesDetalle ?? []) as { unidad: string; tarifaPublicada: number }[]
+    const validas = det
+      .filter((m) => UNIDADES.some((u) => u.unidad === m.unidad))
+      .map((m) => ({ unidad: m.unidad as Unidad, tarifa: Number(m.tarifaPublicada) || 0 }))
+    if (validas.length) return validas
+    return [{ unidad: 'mensual', tarifa: Number(s.tarifaPublicada || s.tarifaMensual || 0) }]
+  }
+
+  const cfgDe = (s: any): CfgSitio => cfg[s.id] ?? {
+    unidad: modalidadesDe(s)[0].unidad,
+    cantidadManual: 1,
+    spotsPorDia: '',
+  }
+  const tarifaDe = (s: any, unidad: Unidad): number =>
+    modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
+
+  // Cantidad efectiva (periodos del rango para unidades de tiempo; manual para
+  // spot/hora) y precio (tarifa × cantidad) de un sitio con su configuración.
+  const cantidadDe = (s: any): number => {
+    const c = cfgDe(s)
+    return cantidadEfectiva(c.unidad, fechaInicio, fechaFin, c.cantidadManual)
+  }
+  const precioDe = (s: any): number => {
+    const c = cfgDe(s)
+    return precioItem(tarifaDe(s, c.unidad), cantidadDe(s))
+  }
+  const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
+    const s = (sitios ?? []).find((x) => x.id === id)
+    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '' }
+    setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
+  }
+
   const seleccionados = (sitios ?? []).filter((s) => sel.has(s.id))
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
   const divisor = 1 - (Number(comision) || 0) / 100
@@ -278,7 +326,18 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         comisionPct: Number(comision) || 0,
         fechaInicio,
         fechaFin,
-        items: seleccionados.map((s) => ({ sitioId: s.id, precio: precioDe(s) })),
+        items: seleccionados.map((s) => {
+          const c = cfgDe(s)
+          const spots = parseInt(c.spotsPorDia, 10)
+          return {
+            sitioId: s.id,
+            unidad: c.unidad,
+            tarifaUnitaria: tarifaDe(s, c.unidad),
+            // Solo relevante para spot/hora; el servidor la ignora en unidades de tiempo.
+            cantidad: c.cantidadManual,
+            spotsPorDia: Number.isFinite(spots) && spots > 0 ? spots : null,
+          }
+        }),
       })
       onClose()
     } catch (e) {
@@ -392,12 +451,73 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       {digital ? 'Digital' : 'Fija'}
                     </span>
                   </span>
-                  <span className="demo-num shrink-0 text-muted">{formatMonto(precioDe(s))}</span>
+                  <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
                 </label>
               )
             })}
           </div>
         </div>
+
+        {/* Configuración por tiempo de cada sitio seleccionado */}
+        {seleccionados.length > 0 && (
+          <div>
+            <span className="mb-1 block text-[12px] font-medium text-ink">Contratación por sitio</span>
+            <div className="space-y-2 rounded-md border border-border p-2">
+              {seleccionados.map((s) => {
+                const c = cfgDe(s)
+                const mods = modalidadesDe(s)
+                const periodos = periodosEnRango(c.unidad, fechaInicio, fechaFin)
+                const esManual = periodos === null // spot / hora
+                return (
+                  <div key={s.id} className="flex flex-wrap items-center gap-2 border-b border-border pb-2 text-[12px] last:border-0 last:pb-0">
+                    <span className="min-w-0 flex-1 truncate font-medium text-ink">{s.nombre}</span>
+                    {/* Unidad (de las modalidades publicadas del sitio) */}
+                    <select
+                      className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                      value={c.unidad}
+                      onChange={(e) => setCfgSitio(s.id, { unidad: e.target.value as Unidad })}
+                    >
+                      {mods.map((m) => (
+                        <option key={m.unidad} value={m.unidad}>
+                          {UNIDADES.find((u) => u.unidad === m.unidad)?.label ?? m.unidad}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Cantidad: auto (periodos del rango) o manual (spot/hora) */}
+                    {esManual ? (
+                      <input
+                        type="number"
+                        min={1}
+                        className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                        value={c.cantidadManual}
+                        onChange={(e) => setCfgSitio(s.id, { cantidadManual: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                        title={`Nº de ${UNIDAD_CORTA[c.unidad]}s`}
+                      />
+                    ) : (
+                      <span className="whitespace-nowrap text-muted" title="Periodos calculados del rango de fechas">
+                        {periodos} {UNIDAD_CORTA[c.unidad]}{periodos !== 1 ? 's' : ''}
+                      </span>
+                    )}
+                    {/* Programación: spots por día */}
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="spots/día"
+                      className="h-8 w-24 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                      value={c.spotsPorDia}
+                      onChange={(e) => setCfgSitio(s.id, { spotsPorDia: e.target.value })}
+                      title="Programación: cuántas veces al día se muestra (opcional)"
+                    />
+                    <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+                  </div>
+                )
+              })}
+            </div>
+            {!fechaInicio || !fechaFin ? (
+              <p className="mt-1 text-[11px] text-muted">Elige las fechas para calcular los periodos y el precio.</p>
+            ) : null}
+          </div>
+        )}
 
         {/* Resumen del divisor en vivo */}
         <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-md border border-border bg-surface-2 p-3 text-[12px] sm:grid-cols-4">

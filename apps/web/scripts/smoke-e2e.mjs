@@ -35,20 +35,28 @@ async function limpiar() {
   await pool.query(`delete from clientes where nombre like 'TEST_%'`)
 }
 
+// Devuelve { cookie, csrf }: el navegador manda AMBAS cookies (sesión + csrf) y
+// reenvía el token csrf en el header X-CSRF-Token (double-submit, Bloque E). El
+// smoke lo replica para que sus mutaciones pasen el guard del middleware.
 async function login() {
   const r = await fetch(`${BASE}/auth/login/`, {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ email: EMAIL, password: PW }),
   })
   const sc = r.headers.getSetCookie?.() ?? []
-  const c = sc.find((x) => x.startsWith('spaces_sesion='))
-  if (!c) throw new Error('login falló')
-  return c.split(';')[0]
+  const ses = sc.find((x) => x.startsWith('spaces_sesion='))
+  const csrfSet = sc.find((x) => x.startsWith('spaces_csrf='))
+  if (!ses) throw new Error('login falló')
+  const csrf = csrfSet ? csrfSet.split(';')[0].split('=')[1] : ''
+  const cookie = [ses.split(';')[0], csrfSet ? csrfSet.split(';')[0] : ''].filter(Boolean).join('; ')
+  return { cookie, csrf }
 }
 
-async function api(method, path, cookie, body) {
+// `sesion` es el objeto { cookie, csrf } que devuelve login().
+async function api(method, path, sesion, body) {
   const r = await fetch(`${BASE}${path}`, {
-    method, headers: { 'content-type': 'application/json', cookie },
+    method,
+    headers: { 'content-type': 'application/json', cookie: sesion.cookie, 'x-csrf-token': sesion.csrf },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
   let data = null

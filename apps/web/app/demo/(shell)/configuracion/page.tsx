@@ -78,6 +78,7 @@ function EmpresaCard({ nombreActual }: { nombreActual: string }) {
 function CuentaCard({ emailActual }: { emailActual: string }) {
   const [email, setEmail] = useState(emailActual)
   const [password, setPassword] = useState('')
+  const [passwordActual, setPasswordActual] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => { setEmail(emailActual) }, [emailActual])
 
@@ -86,16 +87,19 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   async function guardar() {
     if (email.trim() && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
     if (password && password.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return }
+    // Cambiar correo o contraseña exige la contraseña actual (re-autenticación).
+    if (!passwordActual) { toast.error('Ingresa tu contraseña actual para confirmar'); return }
     setBusy(true)
     try {
       const r = await fetch(`${API}/perfil/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password: password || undefined }),
+        body: JSON.stringify({ email: email.trim(), password: password || undefined, passwordActual }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
       setPassword('')
+      setPasswordActual('')
       toast.success('Cuenta actualizada')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error')
@@ -118,6 +122,12 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
           <span className="mb-1 block text-[12px] font-medium text-ink">Nueva contraseña</span>
           <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 6)" />
         </label>
+        {hayCambio && (
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña actual <span className="text-muted">(para confirmar)</span></span>
+            <input type="password" className={inputCls} value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} placeholder="Tu contraseña actual" autoComplete="current-password" />
+          </label>
+        )}
         <Button size="sm" disabled={busy || !hayCambio} onClick={guardar}>
           <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar cambios'}
         </Button>

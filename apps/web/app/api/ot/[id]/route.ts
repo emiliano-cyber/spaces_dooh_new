@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 
 // GET /api/ot/:id → OT con sitio, campaña y evidencias (vista móvil standalone)
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir()
+  const g = await exigir('operaciones', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const data = await getOTcompleta(params.id)
   if (!data) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })

@@ -76,7 +76,14 @@ export async function crearPropuestaApi(input: {
   comisionPct?: number
   fechaInicio: string
   fechaFin: string
-  items: { sitioId: string; precio: number }[]
+  items: {
+    sitioId: string
+    precio?: number
+    unidad?: string
+    tarifaUnitaria?: number
+    cantidad?: number
+    spotsPorDia?: number | null
+  }[]
   notas?: string | null
 }): Promise<void> {
   const r = await fetch(`${API}/propuestas/`, {

@@ -214,8 +214,13 @@ export interface DashboardMetrics {
   alertas: Alerta[]
 }
 
+// Tipos (categorías) de alerta. Sirven para que el usuario elija en el Dashboard
+// cuáles ver en pantalla y cuáles no (todas encendidas por default).
+export type TipoAlerta = 'pago' | 'contrato' | 'cobranza' | 'incidencia' | 'ot'
+
 export interface Alerta {
   id: string
+  tipo: TipoAlerta
   nivel: 'rojo' | 'ambar'
   titulo: string
   detalle: string
@@ -375,6 +380,7 @@ function construirAlertas(state: DemoState): Alerta[] {
       const sit = con && state.sitios.find((s) => s.id === con.sitioId)
       alertas.push({
         id: `al-pago-${p.id}`,
+        tipo: 'pago',
         nivel: 'rojo',
         titulo: 'Renta vencida',
         detalle: `${sit?.nombre ?? 'Sitio'} — pago ${p.periodo} sin liquidar`,
@@ -389,6 +395,7 @@ function construirAlertas(state: DemoState): Alerta[] {
       const dias = diasHasta(c.fechaFin)
       alertas.push({
         id: `al-con-${c.id}`,
+        tipo: 'contrato',
         nivel: dias <= 15 ? 'rojo' : 'ambar',
         titulo: 'Contrato por vencer',
         detalle: `${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`,
@@ -403,6 +410,7 @@ function construirAlertas(state: DemoState): Alerta[] {
       const fac = state.facturas.find((f) => f.id === cob.facturaId)
       alertas.push({
         id: `al-cob-${cob.id}`,
+        tipo: 'cobranza',
         nivel: est === 'VENCIDA' ? 'rojo' : 'ambar',
         titulo: est === 'VENCIDA' ? 'Factura vencida' : 'Factura por vencer',
         detalle: `${fac?.folio ?? 'Factura'} — ${formatMonto(fac?.monto ?? 0)}`,
@@ -416,6 +424,7 @@ function construirAlertas(state: DemoState): Alerta[] {
       const sit = state.sitios.find((s) => s.id === inc.sitioId)
       alertas.push({
         id: `al-inc-${inc.id}`,
+        tipo: 'incidencia',
         nivel: 'rojo',
         titulo: 'Sitio bloqueado por incidencia',
         detalle: `${sit?.nombre ?? 'Sitio'} — ${inc.tipo.toLowerCase()}`,
@@ -433,6 +442,7 @@ function construirAlertas(state: DemoState): Alerta[] {
     const sinAsignar = ot.asignadoAUserId ? '' : ' · sin asignar'
     alertas.push({
       id: `al-ot-${ot.id}`,
+      tipo: 'ot',
       nivel: sla === 'VENCIDA' ? 'rojo' : 'ambar',
       titulo: sla === 'VENCIDA' ? 'OT vencida' : 'OT por vencer',
       detalle:

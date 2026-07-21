@@ -25,6 +25,30 @@ El `schema.sql` se carga automáticamente la primera vez; las tablas quedan
 **vacías** para que crees usuarios y todo desde 0. Lo que insertes persiste
 entre reinicios (`docker compose stop` / `up`).
 
+### Rol de la app en local (necesario para probar la RLS de verdad)
+
+El módulo de Arrendadores tiene **RLS fail-closed**: sin `app.tenant_id` fijado,
+las tablas devuelven 0 filas. El superusuario **salta la RLS**, así que si en
+local conectas como `spaces` no estarías probando el aislamiento — pasaría todo
+aquí y fallaría en producción. Por eso hay un rol restringido:
+
+```bash
+# 1) Crea el rol (SOLO DEV; la contraseña está en claro en el archivo)
+psql postgresql://spaces:spaces@localhost:5433/spaces -f db/dev-rol-app.sql
+# 2) Dale permisos (la migración M6 otorga a los roles que existan)
+node scripts/apply-migration.mjs db/migrations/20260715_arr_m6_rol_restringido.sql
+```
+
+Y en `apps/web/.env.local`:
+```
+DATABASE_URL=postgresql://spaces_app:spaces_app_dev@localhost:5433/spaces
+```
+
+En **producción** el rol de la app es `spaces_user` y ya existe: no se crea nada.
+Las migraciones no crean roles ni contraseñas a propósito — un `.sql` viaja en el
+repo y se aplica en todos lados, así que crear credenciales ahí planta un usuario
+con contraseña conocida en producción.
+
 ### Alternativa sin Docker (Postgres instalado)
 ```bash
 createdb spaces

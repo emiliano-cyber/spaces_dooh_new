@@ -72,6 +72,39 @@ export async function q1<T = any>(text: string, params?: unknown[]): Promise<T |
   return rows[0] ?? null
 }
 
+// Igual que q(), pero con el tenant fijado EXPLÍCITAMENTE en vez de tomarlo de la
+// sesión. Para el único caso legítimo en que hay tenant pero todavía no hay
+// sesión: el signup, que acaba de crear el tenant y necesita insertar a su Dueño
+// bajo la RLS fail-closed de `usuarios`. El id nunca viene del cliente: lo
+// devuelve crearTenant() en la misma petición.
+export async function qConTenant<T = any>(
+  tenantId: string,
+  text: string,
+  params?: unknown[],
+): Promise<T[]> {
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await client.query("select set_config('app.tenant_id', $1, true)", [tenantId])
+    const res = await client.query(text, params as any[])
+    await client.query('commit')
+    return res.rows as T[]
+  } catch (e) {
+    try { await client.query('rollback') } catch { /* noop */ }
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// Fija app.tenant_id a un tenant EXPLÍCITO en un client ya dentro de transacción.
+// Para las rutas públicas (sin sesión), donde el tenant sale del token público y
+// no de la cookie. El id nunca viene del cliente: lo resuelve Postgres a partir
+// del token (portal_tenant_por_token / propuesta_tenant_por_token).
+export async function fijarTenantExplicito(client: PoolClient, tenantId: string): Promise<void> {
+  await client.query("select set_config('app.tenant_id', $1, true)", [tenantId])
+}
+
 // Transacción multi-statement con app.tenant_id ya fijado. Para operaciones que
 // necesitan varias sentencias atómicas dentro del mismo tenant.
 export async function withTenantTx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {

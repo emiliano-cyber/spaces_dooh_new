@@ -46,11 +46,8 @@ jobs:
             echo "→ Installing dependencies..."
             npm ci --prefer-offline
 
-            echo "→ Building (solo el app web; api es huérfano)..."
+            echo "→ Building (solo el app web; el Fastify se archivó en _archive/api)..."
             npx turbo run build --filter=web
-
-            echo "→ Running Prisma migrations (apps/api)..."
-            cd apps/api && npx prisma migrate deploy && cd ../..
 
             echo "→ Applying BFF SQL migrations (aditivas, idempotentes, fail-closed)..."
             node scripts/apply-migration.mjs db/migrations/20260706_reserva_ttl.sql

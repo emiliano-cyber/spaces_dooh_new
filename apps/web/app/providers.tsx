@@ -3,8 +3,13 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/lib/auth-context'
+import { instalarCsrf } from '@/lib/csrf-client'
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // Parcha window.fetch para el double-submit anti-CSRF, lo antes posible en el
+  // cliente y una sola vez (antes de cualquier mutación). Ver lib/csrf-client.ts.
+  if (typeof window !== 'undefined') instalarCsrf()
+
   // Create a new QueryClient per component instance so the cache is NOT shared
   // between different users' server-side renders (singleton would leak stale data).
   const [queryClient] = useState(
