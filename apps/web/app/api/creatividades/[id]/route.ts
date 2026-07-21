@@ -8,6 +8,8 @@ import {
 } from '@/lib/server/creativos-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 import { doohmainHabilitado, retirarCreativoEnDoohmain } from '@/lib/server/doohmain'
+import { validarReemplazoCreatividad } from '@/lib/server/creativos-controller'
+import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -56,21 +58,19 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 export async function PUT(req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
-  const body = await req.json().catch(() => null)
-  if (!body || (!body.codigo && !body.archivoUrl)) {
-    return NextResponse.json({ error: 'Falta el nuevo arte (codigo o archivoUrl)' }, { status: 400 })
+  try {
+    // Valida ANTES de tocar DOOHmain: si el arte nuevo es inválido, retirar el
+    // anterior dejaría el creativo sin arte en ningún lado.
+    const arte = validarReemplazoCreatividad(await req.json().catch(() => ({})))
+    let doohmain: unknown = undefined
+    if (doohmainHabilitado()) {
+      doohmain = await retirarCreativoEnDoohmain(params.id)
+    }
+    const crea = await reemplazarCreatividad(params.id, arte)
+    if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    await registrarAccion(g.usuario, 'Reemplazó creativo', crea.nombre)
+    return NextResponse.json({ ...crea, doohmain })
+  } catch (e) {
+    return respuestaError(e)
   }
-  let doohmain: unknown = undefined
-  if (doohmainHabilitado()) {
-    doohmain = await retirarCreativoEnDoohmain(params.id)
-  }
-  const crea = await reemplazarCreatividad(params.id, {
-    nombre: body.nombre ?? null,
-    archivoUrl: body.archivoUrl ?? null,
-    codigo: body.codigo ?? null,
-    formato: body.formato ?? null,
-  })
-  if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
-  await registrarAccion(g.usuario, 'Reemplazó creativo', crea.nombre)
-  return NextResponse.json({ ...crea, doohmain })
 }

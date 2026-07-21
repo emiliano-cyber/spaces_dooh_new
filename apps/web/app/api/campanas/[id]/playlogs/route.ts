@@ -25,8 +25,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 // POST /api/campanas/[id]/playlogs → pregunta a DOOHmain por las reproducciones
 // de la campaña en un rango y guarda la respuesta TAL CUAL.
 // Body: { desde: 'YYYY-MM-DD', hasta: 'YYYY-MM-DD' }
+// Escritura, no lectura: dispara una llamada a DOOHmain y persiste el payload,
+// así que exige `crear` (antes bastaba con `ver`).
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('comercial', 'ver')
+  const g = await exigir('comercial', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const body = (await req.json().catch(() => ({}))) as { desde?: unknown; hasta?: unknown }

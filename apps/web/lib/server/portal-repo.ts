@@ -1,5 +1,5 @@
 import 'server-only'
-import { q, q1 } from './db'
+import { qConTenant, qRaw1 } from './db'
 import { rowToCampana, rowToReserva } from './campanas-repo'
 import { rowToSitio } from './sitios-repo'
 import { rowToOT } from './ot-repo'
@@ -14,9 +14,28 @@ import { rowToOT } from './ot-repo'
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string))
 
 export async function obtenerPortalPublico(token: string) {
+  const tok = (token ?? '').trim()
+  if (!tok) return null
+
+  // Sin sesión no hay tenant que fijar, y todas estas tablas son fail-closed
+  // (Hardening 1 · Bloque B). El token público ES la autorización: Postgres
+  // resuelve a qué tenant pertenece y el resto de las consultas corren bajo él.
+  // Antes usaban q() con el GUC vacío, así que `sitios` (fail-closed desde M5)
+  // ya devolvía cero filas: el portal llevaba tiempo sin mostrar sitios.
+  const t = await qRaw1<{ tenant: string | null }>(
+    'select portal_tenant_por_token($1) as tenant',
+    [tok],
+  )
+  const tenantId = t?.tenant
+  if (!tenantId) return null
+
+  const q = <T = any>(sql: string, params?: unknown[]) => qConTenant<T>(tenantId, sql, params)
+  const q1 = async <T = any>(sql: string, params?: unknown[]): Promise<T | null> =>
+    (await q<T>(sql, params))[0] ?? null
+
   const c = await q1<any>(
     'select * from campanas where portal_token = $1 and portal_activo = true limit 1',
-    [(token ?? '').trim()],
+    [tok],
   )
   if (!c) return null
 

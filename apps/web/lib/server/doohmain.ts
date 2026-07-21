@@ -144,7 +144,7 @@ function fecha(v: any): string {
 // Ejecuta el CLI del SDK y devuelve su JSON (éxito o error, mismo contrato).
 async function ejecutarPublish(args: {
   version: string; anunciante: string; campana: string; fi: string; ff: string
-  filepath: string; screen: string; list: string
+  filepath: string; screen: string; list: string; cantDia?: number | null
 }): Promise<any> {
   const cli = [
     '-m', 'doohmain_sdk', 'publish',
@@ -152,6 +152,10 @@ async function ejecutarPublish(args: {
     '--fecha-inicio', args.fi, '--fecha-fin', args.ff,
     '--filepath', args.filepath, '--screen', args.screen, '--list', args.list,
   ]
+  // Programación: spots/día → cuota diaria en DOOHmain (solo si el sitio la tiene).
+  if (args.cantDia != null && args.cantDia > 0) {
+    cli.push('--cant-dia', String(args.cantDia))
+  }
   try {
     const { stdout } = await pexec(PY, cli, { cwd: SDK_DIR, timeout: 120000 })
     return JSON.parse(stdout.trim().split('\n').pop() || '{}')
@@ -262,11 +266,13 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
   // del sistema (sitios-repo). Una campaña FIJA no tiene sitios digitales → no
   // publica nada; una HÍBRIDA solo publica sus pantallas digitales.
   const sitios = await q<any>(
-    `select distinct s.id, s.clave_interna, s.nombre
+    `select s.id, s.clave_interna, s.nombre,
+            max(r.spots_por_dia) as spots_por_dia
        from reservas r join sitios s on s.id = r.sitio_id
       where r.campana_id=$1
         and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo = true
-             or s.exhibicion in ('digital', 'rotativo'))`,
+             or s.exhibicion in ('digital', 'rotativo'))
+      group by s.id, s.clave_interna, s.nombre`,
     [campanaId],
   )
   if (sitios.length === 0) return []
@@ -291,6 +297,7 @@ export async function publicarCampanaEnDoohmain(campanaId: string): Promise<Resu
           version: cr.id, anunciante, campana: camp.nombre,
           fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
           filepath: mat.path, screen, list: camp.folio,
+          cantDia: s.spots_por_dia != null ? Number(s.spots_por_dia) : null,
         })
         out.push({
           creativoId: cr.id, creativoNombre: cr.nombre, sitio: s.clave_interna, screen,

@@ -60,7 +60,7 @@ export function Topbar() {
             <button
               type="button"
               aria-label="Notificaciones"
-              className="relative inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-surface text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="relative inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-white text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <Bell className="h-4 w-4" strokeWidth={1.75} />
               {noLeidas > 0 && (
@@ -120,7 +120,7 @@ export function Topbar() {
           <DropdownMenu.Trigger asChild>
             <button
               type="button"
-              className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-surface px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="inline-flex h-9 items-center gap-2 rounded border border-border-strong bg-white px-3 text-[13px] font-medium text-ink transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
               <UserCircle2 className="h-4 w-4 text-muted" strokeWidth={1.75} />
               {usuario?.nombre ?? 'Cuenta'}

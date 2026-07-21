@@ -8,9 +8,9 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET /api/impresion → órdenes de impresión
+// GET /api/impresion → órdenes de impresión (requiere imprenta.ver)
 export async function GET() {
-  const g = await exigir()
+  const g = await exigir('imprenta', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   return NextResponse.json(await listarOrdenesImpresion())
 }

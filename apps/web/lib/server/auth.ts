@@ -66,10 +66,12 @@ export async function destruirSesion(token: string): Promise<void> {
 export async function usuarioActual(): Promise<UsuarioSesion | null> {
   const token = cookies().get(SESSION_COOKIE)?.value
   if (!token) return null
+  // `usuarios` es fail-closed + FORCE (Hardening 1 · Bloque A) y aquí todavía no
+  // hay tenant que fijar: la sesión es justo lo que estamos resolviendo. Va por
+  // la función SECURITY DEFINER acotada, que devuelve una sola fila por token.
   const u = await q1<UsuarioSesion>(
-    `select u.id, u.nombre, u.email, u.cargo, u.rol::text as rol, u.activo, u.tenant_id as "tenantId"
-       from sesiones s join usuarios u on u.id = s.usuario_id
-      where s.token = $1 and s.expira_en > now()`,
+    `select id, nombre, email, cargo, rol, activo, tenant_id as "tenantId"
+       from auth_usuario_por_sesion($1)`,
     [token],
   )
   if (!u || !u.activo) return null
@@ -110,6 +112,16 @@ export async function exigir(
   return { ok: true, usuario }
 }
 
+// Cookie `Secure` (Hardening 1 · Bloque E): en producción va ON por default y
+// solo se apaga con COOKIE_SECURE=0 explícito (dev local sobre HTTP). Fuera de
+// producción va OFF salvo COOKIE_SECURE=1. Así prod nunca manda la sesión en
+// claro por un olvido de env, pero el dev local sigue funcionando sobre HTTP.
+export function cookieSecure(): boolean {
+  if (process.env.COOKIE_SECURE === '1') return true
+  if (process.env.COOKIE_SECURE === '0') return false
+  return process.env.NODE_ENV === 'production'
+}
+
 // Opciones de cookie de sesión (para set/clear en las respuestas).
 export function cookieSesion(token: string) {
   return {
@@ -117,9 +129,32 @@ export function cookieSesion(token: string) {
     value: token,
     httpOnly: true,
     sameSite: 'lax' as const,
-    // Secure requiere HTTPS. Se activa con COOKIE_SECURE=1 (cuando haya TLS);
-    // sobre HTTP se deja en false para no romper el login.
-    secure: process.env.COOKIE_SECURE === '1',
+    secure: cookieSecure(),
+    path: '/',
+    maxAge: SESSION_DAYS * 86_400,
+  }
+}
+
+// ─── CSRF (double-submit cookie) ────────────────────────────────────────────
+// Token anti-CSRF: se emite junto con la sesión como cookie LEGIBLE por JS
+// (httpOnly:false a propósito) y el front lo reenvía en el header X-CSRF-Token.
+// El middleware exige que header == cookie en toda mutación con sesión. Un sitio
+// atacante no puede leer la cookie (SOP) ni fijar el header cross-site, así que
+// no puede falsificar la pareja. `sameSite: lax` se mantiene como primera capa.
+export const CSRF_COOKIE = 'spaces_csrf'
+export const CSRF_HEADER = 'x-csrf-token'
+
+export function nuevoCsrfToken(): string {
+  return randomBytes(32).toString('hex')
+}
+
+export function cookieCsrf(token: string) {
+  return {
+    name: CSRF_COOKIE,
+    value: token,
+    httpOnly: false, // el front DEBE poder leerla para reenviarla en el header
+    sameSite: 'lax' as const,
+    secure: cookieSecure(),
     path: '/',
     maxAge: SESSION_DAYS * 86_400,
   }

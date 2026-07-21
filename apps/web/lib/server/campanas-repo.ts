@@ -392,8 +392,11 @@ export async function reservar(input: {
       }
     }
     await recalcularPresupuesto(client, campanaId!)
-    await client.query('commit')
+    // Releer ANTES del commit: set_config('app.tenant_id', …, true) es
+    // TRANSACTION-local, así que tras el commit el GUC ya no está y la RLS
+    // fail-closed (Bloque B) devolvería 0 filas.
     const camp = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
+    await client.query('commit')
     return rowToCampana(camp)
   } catch (e) {
     await client.query('rollback')
@@ -483,10 +486,19 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       // cálculo lista × (1−descuento) × (1−comisión) como respaldo).
       const netoSitio =
         netoDeSnap.get(it.sitio_id) ?? Math.round(Number(it.precio) * factorDesc * divisor)
+      // La reserva hereda la contratación por tiempo del ítem (unidad, cantidad
+      // de periodos y programación de spots), para que la campaña conserve cómo
+      // se contrató y no solo el precio.
       await client.query(
-        `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, tenant_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',null,$6)`,
-        [campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio, await tenantActual()],
+        `insert into reservas
+           (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus,
+            spots_reservados, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id)
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11)`,
+        [
+          campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
+          it.spots_por_dia ?? null, it.unidad ?? 'mensual', it.cantidad ?? 1,
+          it.tarifa_unitaria ?? null, it.spots_por_dia ?? null, await tenantActual(),
+        ],
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
       await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [it.sitio_id])
@@ -510,8 +522,11 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       bruto = Math.round(base * (1 + ivaPct / 100) * 100) / 100
     }
     await client.query('update campanas set presupuesto_neto=$2, presupuesto_bruto=$3 where id=$1', [campanaId, base, bruto])
+    // Releer ANTES del commit: el GUC app.tenant_id es TRANSACTION-local y tras
+    // el commit la RLS fail-closed (Bloque B) devolvería 0 filas.
+    const creada = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
     await client.query('commit')
-    return rowToCampana((await client.query('select * from campanas where id=$1', [campanaId])).rows[0])
+    return rowToCampana(creada)
   } catch (e) {
     await client.query('rollback')
     throw e
@@ -551,8 +566,11 @@ export async function confirmarReserva(campanaId: string) {
     }
     await client.query(`update campanas set estado_comercial='CONFIRMADA' where id=$1`, [campanaId])
     await recalcularPresupuesto(client, campanaId)
-    await client.query('commit')
+    // Releer ANTES del commit: el GUC app.tenant_id es TRANSACTION-local y tras
+    // el commit la RLS fail-closed (Bloque B) devolvería 0 filas — aquí eso no
+    // reventaba, devolvía null en silencio.
     const camp = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
+    await client.query('commit')
     return camp ? rowToCampana(camp) : null
   } catch (e) {
     await client.query('rollback')

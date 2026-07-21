@@ -6,9 +6,10 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET /api/sitios → lista de sitios (con modalidades)
+// GET /api/sitios → lista de sitios (con modalidades). Requiere network.ver:
+// el inventario es dato de negocio, no algo que cualquier sesión pueda listar.
 export async function GET() {
-  const g = await exigir()
+  const g = await exigir('network', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   return NextResponse.json(await listarSitios())
 }

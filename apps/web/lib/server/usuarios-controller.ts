@@ -59,5 +59,7 @@ export async function actualizarUsuarioCtrl(id: string, actorId: string, body: u
 
 export async function borrarUsuarioCtrl(id: string, actorId: string) {
   if (id === actorId) throw new AppError('No puedes eliminar tu propio usuario', 400)
-  await borrarUsuario(id)
+  // 404 —no 403— cuando el usuario es de otro tenant: un 403 confirmaría que ese
+  // id existe en otra organización.
+  if (!(await borrarUsuario(id))) throw new AppError('No encontrado', 404)
 }

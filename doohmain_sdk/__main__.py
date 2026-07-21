@@ -71,6 +71,8 @@ def _build_parser() -> argparse.ArgumentParser:
     pub.add_argument("--filepath", required=True)
     pub.add_argument("--screen", required=True)
     pub.add_argument("--list", required=True, dest="list_name")
+    # Programación: spots/día → cuota diaria en DOOHmain (opcional).
+    pub.add_argument("--cant-dia", type=int, default=None)
 
     ret = sub.add_parser("retirar", help="Retira un creativo de DOOHmain (finish + limpia tracking)")
     ret.add_argument("--version", required=True)
@@ -147,7 +149,8 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 auth = integration.ensure_campaign(
                     args.version, args.anunciante, args.campana,
-                    args.fecha_inicio, args.fecha_fin, api=api, db=db,
+                    args.fecha_inicio, args.fecha_fin,
+                    cant_dia=args.cant_dia, api=api, db=db,
                 )
                 media_id = integration.ensure_media(
                     args.filepath, args.version, api=api, db=db

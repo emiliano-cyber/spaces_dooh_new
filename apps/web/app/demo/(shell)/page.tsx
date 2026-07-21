@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   TrendingUp,
   Wallet,
@@ -9,7 +10,10 @@ import {
   HandCoins,
   AlertTriangle,
   ArrowRight,
+  SlidersHorizontal,
+  Check,
 } from 'lucide-react'
+import { useAlertasVisibles, TIPOS_ALERTA } from '@/lib/alertas-visibles'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { OcupacionChart, ReservasChart } from '@/components/demo/charts'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -54,6 +58,7 @@ export default function DashboardPage() {
   const serie = useOcupacionSerie(gran)
   const campanas = useCampanas()
   const cfg = useConfigNegocio()
+  const alertasCfg = useAlertasVisibles()
 
   // Encabezado: razón social y nombre comercial salen de config_negocio
   // (Administración → Configuración). Solo se muestra el dato que esté cargado.
@@ -187,17 +192,27 @@ export default function DashboardPage() {
       {/* Alertas + Mini-mapa */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Alertas</CardTitle>
+            <ConfigAlertas cfg={alertasCfg} />
           </CardHeader>
           <CardContent>
-            {!m ? (
-              <div className="h-32 animate-pulse rounded bg-surface-2" />
-            ) : m.alertas.length === 0 ? (
-              <p className="text-[13px] text-muted">Sin alertas activas.</p>
-            ) : (
+            {(() => {
+              // Solo los tipos que el usuario dejó encendidos (todos por default).
+              const visibles = (m?.alertas ?? []).filter((al) => alertasCfg.esVisible(al.tipo))
+              if (!m) return <div className="h-32 animate-pulse rounded bg-surface-2" />
+              if (visibles.length === 0) {
+                return (
+                  <p className="text-[13px] text-muted">
+                    {m.alertas.length === 0
+                      ? 'Sin alertas activas.'
+                      : 'No hay alertas de los tipos que elegiste mostrar.'}
+                  </p>
+                )
+              }
+              return (
               <ul className="space-y-2.5">
-                {m.alertas.slice(0, 6).map((al) => (
+                {visibles.slice(0, 6).map((al) => (
                   <li key={al.id} className="flex items-start gap-2.5">
                     <AlertTriangle
                       className={cn(
@@ -213,7 +228,8 @@ export default function DashboardPage() {
                   </li>
                 ))}
               </ul>
-            )}
+              )
+            })()}
           </CardContent>
         </Card>
 
@@ -286,6 +302,63 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// Menú para elegir qué tipos de alerta se muestran en pantalla. Todas encendidas
+// por default; la preferencia se guarda por navegador (localStorage).
+function ConfigAlertas({ cfg }: { cfg: ReturnType<typeof useAlertasVisibles> }) {
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          aria-label="Configurar alertas"
+          title="Elegir qué alertas ver"
+          className="relative inline-flex h-8 w-8 items-center justify-center rounded border border-border-strong bg-white text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <SlidersHorizontal className="h-4 w-4" strokeWidth={1.75} />
+          {cfg.listo && cfg.ocultos > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-white">
+              {cfg.ocultos}
+            </span>
+          )}
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="z-50 w-64 rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+        >
+          <div className="px-2 py-1.5 text-[12px] font-medium text-ink">Alertas a mostrar</div>
+          <div className="my-1 h-px bg-border" />
+          {TIPOS_ALERTA.map((t) => {
+            const activo = cfg.esVisible(t.tipo)
+            return (
+              <DropdownMenu.Item
+                key={t.tipo}
+                onSelect={(e) => {
+                  e.preventDefault() // no cerrar el menú al alternar
+                  cfg.alternar(t.tipo)
+                }}
+                className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
+              >
+                <span
+                  className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded border',
+                    activo ? 'border-accent bg-accent text-white' : 'border-border-strong bg-white',
+                  )}
+                >
+                  {activo && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                {t.label}
+              </DropdownMenu.Item>
+            )
+          })}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   )
 }
 

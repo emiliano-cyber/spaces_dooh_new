@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 //  CONTRATO DE DESACOPLE (léelo antes de tocar nada):
 //
-//  Estos tipos ESPEJAN el schema de Prisma en `apps/api/prisma/schema.prisma`
+//  Estos tipos ESPEJAN el schema de Prisma en `_archive/api/prisma/schema.prisma`
 //  (modelos del schema `tenant_template`). Los nombres de campos y enums se
 //  mantienen idénticos a Prisma a propósito: cuando el backend Fastify se
 //  conecte (vía `adapters/http.ts`), el cableado es 1:1 y no hay que renombrar.

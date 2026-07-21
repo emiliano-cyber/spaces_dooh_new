@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { SESSION_COOKIE, destruirSesion } from '@/lib/server/auth'
+import { SESSION_COOKIE, CSRF_COOKIE, destruirSesion } from '@/lib/server/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,5 +11,6 @@ export async function POST() {
   if (token) await destruirSesion(token)
   const res = NextResponse.json({ ok: true })
   res.cookies.set({ name: SESSION_COOKIE, value: '', maxAge: 0, path: '/' })
+  res.cookies.set({ name: CSRF_COOKIE, value: '', maxAge: 0, path: '/' })
   return res
 }

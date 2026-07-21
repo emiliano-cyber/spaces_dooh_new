@@ -60,6 +60,19 @@ export async function getPermisosApi(): Promise<PermisoRow[]> {
   return r.json()
 }
 
+// Matriz completa (módulos + roles + celdas) derivada de rol_permisos en BD.
+// La UI de administración la usa para no hardcodear el RBAC (Bloque F).
+export interface PermisosMatriz {
+  modulos: { key: string; label: string }[]
+  roles: { rol: string; label: string }[]
+  filas: PermisoRow[]
+}
+export async function getPermisosMatrizApi(): Promise<PermisosMatriz | null> {
+  const r = await fetch(`${API}/admin/permisos-matriz/`, { cache: 'no-store' })
+  if (!r.ok) return null
+  return r.json()
+}
+
 // ─── Configuración ──────────────────────────────────────────────────────────
 export async function getConfigApi(): Promise<ConfigNegocio | null> {
   const r = await fetch(`${API}/config/`, { cache: 'no-store' })

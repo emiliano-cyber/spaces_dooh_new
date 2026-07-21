@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
-import { q1 } from '@/lib/server/db'
-import { verifyPassword, crearSesion, cookieSesion, permisosDeRol } from '@/lib/server/auth'
+import { qRaw1 as q1 } from '@/lib/server/db'
+import { verifyPassword, crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, permisosDeRol } from '@/lib/server/auth'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 
 export const runtime = 'nodejs'
@@ -27,12 +27,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Correo y contraseña requeridos' }, { status: 400 })
   }
 
+  // Pre-sesión y pre-tenant: `usuarios` es fail-closed + FORCE, así que la
+  // lectura va por la función SECURITY DEFINER acotada (una fila por correo).
   const u = await q1<{
     id: string; nombre: string; email: string; cargo: string | null
     rol: string; activo: boolean; password_hash: string | null
   }>(
-    `select id, nombre, email, cargo, rol::text as rol, activo, password_hash
-       from usuarios where lower(email) = lower($1)`,
+    `select id, nombre, email, cargo, rol, activo, password_hash
+       from auth_usuario_por_email($1)`,
     [email],
   )
 
@@ -48,5 +50,8 @@ export async function POST(req: Request) {
     permisos,
   })
   res.cookies.set(cookieSesion(token))
+  // Emite el token anti-CSRF junto con la sesión (double-submit). El front lo
+  // lee de esta cookie y lo reenvía en X-CSRF-Token; el middleware lo exige.
+  res.cookies.set(cookieCsrf(nuevoCsrfToken()))
   return res
 }
