@@ -120,18 +120,22 @@ export async function getOTcompleta(id: string) {
 
 const folioOT = () => `OT-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
 
-// Tipos de tarea que NO aplican a una pantalla según su medio. Una DIGITAL no
-// lleva montaje de lona ni herrería; una FIJA no lleva montaje digital. El resto
-// aplica a ambas. Es la misma regla que la UI, aquí como límite duro.
+// Tipos de tarea que NO aplican a una pantalla fija: montaje de lona y herrería
+// son de espectacular físico, así que una DIGITAL no los lleva. El resto de las
+// tareas (desmontaje, mantenimiento, eléctrico, inspección) aplica a ambas.
 const OT_SOLO_FIJA = new Set(['MONTAJE_LONA', 'HERRERIA'])
-const OT_SOLO_DIGITAL = new Set(['MONTAJE_DIGITAL'])
 
 export async function crearOT(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
   descripcion: string; instrucciones?: string; prioridad?: string
   asignadoA?: string | null; fechaProgramada?: string | null; checklist?: unknown[]
 }) {
-  // Guard por tipo de pantalla: valida el tipo de tarea contra el medio del sitio.
+  // "Montaje digital" quedó obsoleto: el arte de una pantalla digital se sube por
+  // "Subir a producción" (DOOHmain) desde la campaña, no por una OT de montaje.
+  if (input.tipo === 'MONTAJE_DIGITAL') {
+    throw new AppError('El montaje digital ya no es una tarea de OT: el arte se sube con "Subir a producción" en la campaña', 409)
+  }
+  // Guard por tipo de pantalla: una digital no lleva montaje de lona ni herrería.
   if (input.sitioId) {
     const s = await q1<any>(
       'select tipo_medio, es_rotativo, exhibicion from sitios where id=$1',
@@ -142,9 +146,6 @@ export async function crearOT(input: {
         s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
       if (digital && OT_SOLO_FIJA.has(input.tipo)) {
         throw new AppError('Esa tarea no aplica a una pantalla digital (no lleva lona ni herrería)', 409)
-      }
-      if (!digital && OT_SOLO_DIGITAL.has(input.tipo)) {
-        throw new AppError('El montaje digital solo aplica a pantallas digitales', 409)
       }
     }
   }

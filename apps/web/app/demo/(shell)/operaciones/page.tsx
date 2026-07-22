@@ -44,10 +44,11 @@ const TIPO_OT_LABEL: Record<TipoOT, string> = {
 }
 
 // Tipos de tarea aplicables según el tipo de pantalla. Una DIGITAL no lleva
-// montaje de lona ni herrería (no hay lona ni estructura de espectacular); una
-// FIJA no lleva montaje digital. El resto (desmontaje, mantenimiento, eléctrico,
-// inspección) aplica a ambas.
-const TIPO_OT_DIGITAL: TipoOT[] = ['MONTAJE_DIGITAL', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'ELECTRICO', 'INSPECCION', 'OTRO']
+// montaje de lona ni herrería (no hay lona ni estructura de espectacular), y
+// TAMPOCO montaje digital: el arte se sube por "Subir a producción" (DOOHmain)
+// desde la campaña, no por una OT de montaje. Una FIJA no lleva montaje digital.
+// El resto (desmontaje, mantenimiento, eléctrico, inspección) aplica a ambas.
+const TIPO_OT_DIGITAL: TipoOT[] = ['DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'ELECTRICO', 'INSPECCION', 'OTRO']
 const TIPO_OT_FIJA: TipoOT[] = ['MONTAJE_LONA', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'HERRERIA', 'ELECTRICO', 'INSPECCION', 'OTRO']
 const TODOS_TIPOS_OT = Object.keys(TIPO_OT_LABEL) as TipoOT[]
 

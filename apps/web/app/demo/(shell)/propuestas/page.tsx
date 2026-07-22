@@ -13,6 +13,7 @@ import {
   useFunnelPropuestas,
   useClientes,
   useSitios,
+  useCampanas,
   formatMonto,
   formatMontoCorto,
   type Propuesta,
@@ -94,8 +95,12 @@ function PropuestaCard({
 }: { p: Propuesta; abierta: boolean; onToggle: () => void; puedeEditar: boolean }) {
   const clientes = useClientes()
   const sitios = useSitios()
+  const campanas = useCampanas()
   const cliente = clientes?.find((c) => c.id === p.clienteId)
   const agencia = clientes?.find((c) => c.id === p.agenciaId)
+  // Campaña ya generada desde esta propuesta (si existe): deshabilita el botón
+  // de crear campaña y ofrece verla.
+  const campanaGenerada = campanas?.find((c) => c.propuestaId === p.id) ?? null
   const est = EST[p.estatus]
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
@@ -217,9 +222,20 @@ function PropuestaCard({
                   </>
                 )}
                 {p.estatus === 'APROBADA' && (
-                  <Button size="sm" disabled={generando} onClick={generarCampana}>
-                    <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
-                  </Button>
+                  campanaGenerada ? (
+                    <>
+                      <Button size="sm" disabled title="Esta propuesta ya generó su campaña">
+                        <Check className="h-3.5 w-3.5" /> Campaña generada
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={() => router.push(`/demo/campanas/${campanaGenerada.id}`)}>
+                        Ver campaña
+                      </Button>
+                    </>
+                  ) : (
+                    <Button size="sm" disabled={generando} onClick={generarCampana}>
+                      <ChevronRight className="h-3.5 w-3.5" /> {generando ? 'Generando…' : 'Generar campaña'}
+                    </Button>
+                  )
                 )}
               </div>
             )}

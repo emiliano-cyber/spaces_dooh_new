@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-22
+
+- **Operaciones: se retira la tarea "Montaje digital".** Ya no aparece como tipo
+  de OT (ni para digitales), porque el arte de las pantallas digitales se sube
+  con "Subir a producción" (DOOHmain) desde la campaña. El servidor también la
+  rechaza. Las digitales siguen teniendo desmontaje, mantenimiento, eléctrico,
+  inspección y otro.
+- **Propuesta: no se puede generar campaña dos veces.** Si una propuesta ya
+  generó su campaña, el botón "Generar campaña" queda deshabilitado ("Campaña
+  generada") y aparece un botón "Ver campaña" para ir a ella.
+
 ## 2026-07-21
 
 - **Operaciones: OT según el tipo de pantalla.** Al crear una orden de trabajo,
