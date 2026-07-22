@@ -24,7 +24,9 @@ const USO_CFDI: Record<string, string> = {
   P01: 'P01 · Por definir',
 }
 
-export function DatosFacturacion({ campana }: { campana: Campana }) {
+// `sinCard`: cuando esta tarjeta va dentro de una sección colapsable de la ficha
+// (que ya pone su propio Card y título), se renderiza solo el contenido.
+export function DatosFacturacion({ campana, sinCard }: { campana: Campana; sinCard?: boolean }) {
   const clientes = useClientes()
   const puede = usePuede('comercial', 'crear')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -56,22 +58,8 @@ export function DatosFacturacion({ campana }: { campana: Campana }) {
     reader.readAsDataURL(f)
   }
 
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Datos de facturación</CardTitle>
-        <span
-          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-            fiscalCompleto
-              ? 'border-[#10b98140] text-[#0f7a55]'
-              : 'border-[#f59e0b40] text-[#9a6700]'
-          }`}
-        >
-          {fiscalCompleto ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-          {fiscalCompleto ? 'Cliente listo para facturar' : 'Faltan datos fiscales'}
-        </span>
-      </CardHeader>
-      <CardContent>
+  const cuerpo = (
+      <>
         {!cli ? (
           <p className="text-[13px] text-muted">Esta campaña no tiene cliente asignado.</p>
         ) : (
@@ -121,7 +109,28 @@ export function DatosFacturacion({ campana }: { campana: Campana }) {
             </div>
           )}
         </div>
-      </CardContent>
+      </>
+  )
+
+  // Dentro de una sección colapsable (la ficha ya pone Card + título + chip).
+  if (sinCard) return cuerpo
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Datos de facturación</CardTitle>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+            fiscalCompleto
+              ? 'border-[#10b98140] text-[#0f7a55]'
+              : 'border-[#f59e0b40] text-[#9a6700]'
+          }`}
+        >
+          {fiscalCompleto ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+          {fiscalCompleto ? 'Cliente listo para facturar' : 'Faltan datos fiscales'}
+        </span>
+      </CardHeader>
+      <CardContent>{cuerpo}</CardContent>
     </Card>
   )
 }

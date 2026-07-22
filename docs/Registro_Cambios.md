@@ -7,6 +7,34 @@ La entrada más reciente va arriba.
 
 ## 2026-07-22
 
+- **Pipeline digital sin etapas físicas.** En las campañas digitales (DOOH) el
+  pipeline ya no muestra "Instalada / al aire" ni "En producción": una digital
+  sale al aire por "Publicada" (DOOHmain), no por producción o instalación
+  física. Las fijas conservan esas etapas.
+- **Indicador de carga global.** Cada vez que una acción guarda y espera
+  respuesta (POST/PUT/PATCH/DELETE), se muestra una pequeña animación de carga:
+  una barra delgada arriba y un spinner "Procesando…" abajo a la derecha, que
+  desaparecen al terminar. Es automático para toda la app, sin tocar cada botón.
+- **Creativos: botones según el estado.** Cuando un creativo ya fue aprobado, el
+  botón "Aprobar" queda deshabilitado (hasta reemplazarlo o eliminarlo, que lo
+  regresa a pendiente) y el botón "Rechazar" se oculta.
+- **Campaña: pendientes hasta arriba + vista previa del creativo.** En la ficha,
+  las secciones pendientes se ordenan hasta arriba (luego las completas y al final
+  las que no aplican). Además, al subir un creativo (imagen o código) se abre un
+  modal de vista previa que muestra cómo se verá en la pantalla antes de confirmar
+  la subida.
+- **Ficha de campaña: secciones que se minimizan solas.** Cada sección de la
+  campaña ahora es plegable y arranca según su estado: las que están
+  **pendientes** quedan abiertas, y las **completas** o las que **no aplican** al
+  tipo de campaña (p. ej. imprenta/evidencias en una digital, o proof of play en
+  una fija) arrancan minimizadas. Cada sección muestra un chip Pendiente /
+  Completo / No aplica y se puede abrir o cerrar con clic.
+- **Candado de facturación para campañas digitales.** En las digitales, el candado
+  ya no depende de una OT: "Reporte de publicación" se enciende al aprobar la
+  publicación en DOOHmain (salió al aire) y "Fotografías comprobatorias" al traer
+  el proof-of-play (las reproducciones son la evidencia). Con la OC recibida, el
+  candado completa y la campaña queda lista para facturar. Las fijas siguen igual
+  (candado por la OT cerrada con foto).
 - **Operaciones: se retira la tarea "Montaje digital".** Ya no aparece como tipo
   de OT (ni para digitales), porque el arte de las pantallas digitales se sube
   con "Subir a producción" (DOOHmain) desde la campaña. El servidor también la

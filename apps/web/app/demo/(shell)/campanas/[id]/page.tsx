@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay } from 'lucide-react'
+import { ArrowLeft, ExternalLink, Camera, Printer, ClipboardList, Cpu, MonitorPlay, ChevronDown, Check } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
 import { withTrail, trailFromLocation } from '@/lib/nav-trail'
@@ -29,6 +29,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import {
   useCampana,
+  useClientes,
   useReservas,
   useSitios,
   useCreatividades,
@@ -45,6 +46,7 @@ import {
 export default function CampanaDetallePage({ params }: { params: { id: string } }) {
   const id = params.id
   const c = useCampana(id)
+  const clientes = useClientes()
   const reservas = useReservas()
   const sitios = useSitios()
   const creatividades = useCreatividades()
@@ -91,6 +93,19 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const misOis = (ois ?? []).filter((x) => x.campanaId === id)
   const misOts = (ots ?? []).filter((x) => x.campanaId === id)
   const misEvid = (evidencias ?? []).filter((e) => misOts.some((o) => o.id === e.otId))
+
+  // ─── Estado de cada sección: se abren las PENDIENTES y se minimizan las que ya
+  //     están completas o que no aplican al tipo de campaña. (clientes se lee
+  //     arriba, junto con los demás hooks, para no romper el orden de hooks.) ──
+  const tieneDigital = c.tipoCampana === 'DOOH' || c.tipoCampana === 'HIBRIDA'
+  const tieneFija = c.tipoCampana === 'OOH' || c.tipoCampana === 'HIBRIDA'
+  const candadoHecho = c.ocRecibida && c.fotosComprobatorias && c.reportePublicacion
+  const validacionAplica = tieneDigital && c.enviadaDominio
+  const validacionHecha = c.validacionEstatus === 'APROBADA'
+  const creativosHecho = misCreas.length > 0 && misCreas.every((cr) => cr.estatusValidacion === 'VALIDADA')
+  const otsPendientes = misOts.length === 0 || misOts.some((o) => !['COMPLETADA', 'CANCELADA', 'RECHAZADA'].includes(o.estatus))
+  const cliFiscal = (clientes ?? []).find((x) => x.id === c.clienteId)
+  const fiscalHecho = !!cliFiscal?.rfc && !!cliFiscal?.razonSocial
 
   return (
     <div className="w-full">
@@ -161,52 +176,52 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         </CardContent>
       </Card>
 
+      {/* Secciones plegables. Flex + `order` para subir las pendientes. */}
+      <div className="flex flex-col gap-4">
       {/* Validación de publicación (verificar anuncios antes de salir al aire) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Validación de publicación</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ValidacionPanel campanaId={id} />
-        </CardContent>
-      </Card>
+      <Seccion
+        titulo="Validación de publicación"
+        estado={!validacionAplica ? 'na' : validacionHecha ? 'hecho' : 'pendiente'}
+      >
+        <ValidacionPanel campanaId={id} />
+      </Seccion>
 
-      {/* Candado + presupuesto */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {/* Candado de facturación */}
+      <Seccion titulo="Candado de facturación" estado={candadoHecho ? 'hecho' : 'pendiente'}>
         <CandadoPanel campanaId={id} />
-        <Card>
-          <CardHeader>
-            <CardTitle>Comercial</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="space-y-2 text-[13px]">
-              <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
-              <Fila
-                label={`IVA (${c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16}%)`}
-                valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
-                mono
-              />
-              <Fila label="Total" valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
-              <Fila label="Agencia" valor={c.agencia ?? 'Directo'} />
-              <Fila label="OC recibida" valor={c.ocRecibida ? 'Sí' : 'No'} />
-            </dl>
-          </CardContent>
-        </Card>
-      </div>
+      </Seccion>
+
+      {/* Comercial (referencia) */}
+      <Seccion titulo="Comercial" estado="hecho">
+        <dl className="space-y-2 text-[13px]">
+          <Fila label="Subtotal (neto)" valor={c.presupuestoNeto ? formatMonto(c.presupuestoNeto) : '—'} mono />
+          <Fila
+            label={`IVA (${c.presupuestoNeto ? Math.round(((c.presupuestoBruto ?? 0) - c.presupuestoNeto) / c.presupuestoNeto * 100) : 16}%)`}
+            valor={c.presupuestoNeto != null && c.presupuestoBruto != null ? formatMonto(c.presupuestoBruto - c.presupuestoNeto) : '—'}
+            mono
+          />
+          <Fila label="Total" valor={c.presupuestoBruto ? formatMonto(c.presupuestoBruto) : '—'} mono />
+          <Fila label="Agencia" valor={c.agencia ?? 'Directo'} />
+          <Fila label="OC recibida" valor={c.ocRecibida ? 'Sí' : 'No'} />
+        </dl>
+      </Seccion>
 
       {/* Datos de facturación: fiscales del cliente (auto-llenados) + contrato */}
-      <DatosFacturacion campana={c} />
+      <Seccion titulo="Datos de facturación" estado={fiscalHecho ? 'hecho' : 'pendiente'}>
+        <DatosFacturacion campana={c} sinCard />
+      </Seccion>
 
       {/* Rentabilidad (motor de costos: espacios + impresión + operación) */}
       {margen && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Rentabilidad</CardTitle>
+        <Seccion
+          titulo="Rentabilidad"
+          estado="hecho"
+          accion={
             <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
               Margen {margen.margenPct.toFixed(0)}%
             </span>
-          </CardHeader>
-          <CardContent>
+          }
+        >
             <dl className="space-y-2 text-[13px]">
               {c.presupuestoBruto ? (
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
@@ -243,40 +258,32 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 <Fila label="Margen" valor={formatMonto(margen.margen)} mono />
               </div>
             </dl>
-          </CardContent>
-        </Card>
+        </Seccion>
       )}
 
       {/* Reporte de cumplimiento (contratado vs entregado + testigos) */}
       {reporte && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Reporte de cumplimiento</CardTitle>
+        <Seccion
+          titulo="Reporte de cumplimiento"
+          estado="hecho"
+          accion={
             <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
               {reporte.cumplimientoPct.toFixed(0)}% entregado
             </span>
-          </CardHeader>
-          <CardContent>
+          }
+        >
             <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
               <Fila label="Sitios contratados" valor={String(reporte.sitiosContratados)} mono />
               <Fila label="Sitios entregados" valor={String(reporte.sitiosEntregados)} mono />
               <Fila label="Testigos (fotos)" valor={String(reporte.testigos)} mono />
               <Fila label="Días contratados" valor={String(reporte.diasContratados)} mono />
             </dl>
-          </CardContent>
-        </Card>
+        </Seccion>
       )}
 
       {/* Orden de compra del cliente (ODC) */}
       {odc && (
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Orden de compra</CardTitle>
-            <span className="rounded-full border border-[#10b98140] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55]">
-              {odc.estatus === 'RECIBIDA' ? 'Recibida' : odc.estatus === 'PENDIENTE' ? 'Pendiente' : 'Cancelada'}
-            </span>
-          </CardHeader>
-          <CardContent>
+        <Seccion titulo="Orden de compra" estado="hecho">
             <dl className="space-y-2 text-[13px]">
               <Fila label="Folio ODC" valor={odc.folio} mono />
               {odc.numeroOc && <Fila label="Número de OC (cliente)" valor={odc.numeroOc} mono />}
@@ -284,16 +291,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               <Fila label="Fecha" valor={formatFecha(odc.fecha)} />
               {odc.documentoUrl && <Fila label="Documento" valor={odc.documentoUrl} />}
             </dl>
-          </CardContent>
-        </Card>
+        </Seccion>
       )}
 
-      {/* Sitios */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sitios de la campaña</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Sitios (referencia) */}
+      <Seccion titulo="Sitios de la campaña" estado="hecho">
           {misSitios.length === 0 ? (
             <p className="text-[13px] text-muted">Sin sitios asignados.</p>
           ) : (
@@ -313,41 +315,37 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
+      </Seccion>
 
-      {/* Producción: creatividades + imprenta + OT */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Printer className="h-4 w-4 text-muted" />
-            <CardTitle>Imprenta</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {misOis.length === 0 ? (
-              <p className="text-[13px] text-muted">Sin órdenes de impresión.</p>
-            ) : (
-              <ul className="space-y-2">
-                {misOis.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between">
-                    <div className="min-w-0">
-                      <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
-                      <div className="text-[11px] text-muted">{o.material}</div>
-                    </div>
-                    <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{IMPRESION_LABEL[o.estatus]}</StatusBadge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+      {/* Imprenta — solo para campañas con medios fijos (OOH/híbrida). */}
+      <Seccion
+        titulo="Imprenta"
+        icono={<Printer className="h-4 w-4 text-muted" />}
+        estado={!tieneFija ? 'na' : misOis.length > 0 ? 'hecho' : 'pendiente'}
+      >
+          {misOis.length === 0 ? (
+            <p className="text-[13px] text-muted">Sin órdenes de impresión.</p>
+          ) : (
+            <ul className="space-y-2">
+              {misOis.map((o) => (
+                <li key={o.id} className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <div className="demo-num truncate text-[12px] text-ink">{o.folio}</div>
+                    <div className="text-[11px] text-muted">{o.material}</div>
+                  </div>
+                  <StatusBadge tono={IMPRESION_TONO[o.estatus]}>{IMPRESION_LABEL[o.estatus]}</StatusBadge>
+                </li>
+              ))}
+            </ul>
+          )}
+      </Seccion>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <ClipboardList className="h-4 w-4 text-muted" />
-            <CardTitle>Órdenes de trabajo</CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Órdenes de trabajo */}
+      <Seccion
+        titulo="Órdenes de trabajo"
+        icono={<ClipboardList className="h-4 w-4 text-muted" />}
+        estado={otsPendientes ? 'pendiente' : 'hecho'}
+      >
             {misOts.length === 0 ? (
               <p className="text-[13px] text-muted">Sin órdenes de trabajo.</p>
             ) : (
@@ -368,23 +366,22 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 ))}
               </ul>
             )}
-          </CardContent>
-        </Card>
-      </div>
+      </Seccion>
 
-      {/* Creatividades — siempre visible para poder subir desde aquí, sin ir a
-          la pantalla de Creativos. */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Creatividades</CardTitle>
+      {/* Creatividades — se pueden subir desde aquí, sin ir a Creativos. */}
+      <Seccion
+        titulo="Creatividades"
+        estado={creativosHecho ? 'hecho' : 'pendiente'}
+        accion={
           <Link
             href={withTrail('/demo/creativos', trail)}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
           >
             Gestionar <ExternalLink className="h-3.5 w-3.5" />
           </Link>
-        </CardHeader>
-        <CardContent className="space-y-3">
+        }
+      >
+        <div className="space-y-3">
           {misCreas.length > 0 ? (
             <ul className="space-y-2">
               {misCreas.map((cr) => (
@@ -400,36 +397,85 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
             <p className="text-[13px] text-muted">Aún no hay creativos. Súbelos aquí mismo.</p>
           )}
           <AgregarCreativo campanaId={id} />
-        </CardContent>
-      </Card>
+        </div>
+      </Seccion>
 
-      {/* Evidencias */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <Camera className="h-4 w-4 text-muted" />
-          <CardTitle>Evidencias fotográficas</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <EvidenciaGaleria
-            fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
-          />
-        </CardContent>
-      </Card>
+      {/* Evidencias fotográficas — de los medios FIJOS. */}
+      <Seccion
+        titulo="Evidencias fotográficas"
+        icono={<Camera className="h-4 w-4 text-muted" />}
+        estado={!tieneFija ? 'na' : misEvid.length > 0 ? 'hecho' : 'pendiente'}
+      >
+        <EvidenciaGaleria
+          fotos={misEvid.map((e) => ({ url: e.fotoUrl, tomadaEn: e.tomadaEn, subidaEn: e.timestamp }))}
+        />
+      </Seccion>
 
-      {/* Proof of play: la prueba de los medios DIGITALES, equivalente a las
-          evidencias fotográficas de los fijos. */}
-      <Card>
-        <CardHeader className="flex flex-row items-center gap-2">
-          <MonitorPlay className="h-4 w-4 text-muted" />
-          <CardTitle>Reproducciones (proof of play)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PlaylogsPanel campanaId={id} fechaInicio={c.fechaInicio} fechaFin={c.fechaFin} />
-        </CardContent>
-      </Card>
+      {/* Proof of play — la prueba de los medios DIGITALES. */}
+      <Seccion
+        titulo="Reproducciones (proof of play)"
+        icono={<MonitorPlay className="h-4 w-4 text-muted" />}
+        estado={!tieneDigital ? 'na' : c.validacionEstatus === 'APROBADA' ? 'hecho' : 'pendiente'}
+      >
+        <PlaylogsPanel campanaId={id} fechaInicio={c.fechaInicio} fechaFin={c.fechaFin} />
+      </Seccion>
+      </div>
         </div>
       </div>
     </div>
+  )
+}
+
+// Sección colapsable de la ficha. Arranca abierta o minimizada según su estado
+// (las pendientes abiertas, las hechas o que no aplican minimizadas). El usuario
+// puede abrir/cerrar con clic en el encabezado.
+type EstadoSeccion = 'pendiente' | 'hecho' | 'na'
+function Seccion({
+  titulo,
+  icono,
+  estado,
+  accion,
+  children,
+}: {
+  titulo: string
+  icono?: React.ReactNode
+  estado: EstadoSeccion
+  accion?: React.ReactNode
+  children: React.ReactNode
+}) {
+  const [abierto, setAbierto] = useState(estado === 'pendiente')
+  const chip =
+    estado === 'hecho'
+      ? { txt: 'Completo', cls: 'border-[#10b98140] text-[#0f7a55]' }
+      : estado === 'na'
+        ? { txt: 'No aplica', cls: 'border-border text-muted' }
+        : { txt: 'Pendiente', cls: 'border-[#f59e0b40] text-[#9a6700]' }
+  // Orden visual: las pendientes suben, luego las completas y al final las que no
+  // aplican (solo reordena la vista; el DOM/JSX no cambia).
+  const orden = estado === 'pendiente' ? 'order-1' : estado === 'hecho' ? 'order-2' : 'order-3'
+  return (
+    <Card className={orden}>
+      <CardHeader
+        className="flex cursor-pointer select-none flex-row items-center justify-between gap-2"
+        onClick={() => setAbierto((v) => !v)}
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          {icono}
+          <CardTitle>{titulo}</CardTitle>
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${chip.cls}`}>
+            {estado === 'hecho' && <Check className="h-2.5 w-2.5" />}
+            {chip.txt}
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
+          {accion}
+          <button type="button" aria-label={abierto ? 'Minimizar' : 'Expandir'} onClick={() => setAbierto((v) => !v)} className="text-muted hover:text-ink">
+            <ChevronDown className={`h-4 w-4 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
+      </CardHeader>
+      {abierto && <CardContent>{children}</CardContent>}
+    </Card>
   )
 }
 

@@ -78,6 +78,22 @@ export async function consultarYGuardarPlay(input: {
       input.usuarioId ?? null,
     ],
   )
+  // Candado de facturación para DIGITALES: el proof-of-play es la evidencia
+  // comprobatoria de que la campaña salió al aire (equivale a las fotos testigo
+  // de las fijas). Con la publicación ya aprobada (reporte) y la OC, completa el
+  // candado → LISTA_FACTURAR. Solo si la consulta trajo respuesta (no un error de
+  // conexión); un payload vacío igual cuenta como consulta hecha.
+  if (input.campanaId && r.ok) {
+    await q(
+      `update campanas
+          set fotos_comprobatorias = true,
+              estado_comercial = case
+                when oc_recibida and reporte_publicacion then 'LISTA_FACTURAR'::est_comercial_campana
+                else estado_comercial end
+        where id = $1`,
+      [input.campanaId],
+    )
+  }
   return rowToConsulta(rows[0])
 }
 

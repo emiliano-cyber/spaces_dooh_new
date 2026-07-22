@@ -409,24 +409,29 @@ function CampanaCard({
                   {puede && !cr.retiradoEn && (
                     <div className="space-y-1.5">
                       <div className="flex gap-1.5">
+                        {/* Aprobar es definitivo: una vez aprobado, el botón queda
+                            deshabilitado hasta que se reemplace o elimine el creativo
+                            (al reemplazar vuelve a PENDIENTE). */}
                         <Button
                           size="sm"
                           variant={cr.estatusValidacion === 'VALIDADA' ? 'secondary' : 'primary'}
-                          disabled={busy === cr.id}
+                          disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
+                          title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado — reemplázalo o elimínalo para cambiarlo' : undefined}
                           onClick={() => validar(cr.id, true)}
                         >
                           <Check className="h-3 w-3" /> Aprobar
                         </Button>
-                        {/* Aprobar es definitivo: una vez validado ya no se puede rechazar. */}
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          disabled={busy === cr.id || cr.estatusValidacion === 'VALIDADA'}
-                          title={cr.estatusValidacion === 'VALIDADA' ? 'El creativo ya fue aprobado' : undefined}
-                          onClick={() => validar(cr.id, false)}
-                        >
-                          <X className="h-3 w-3" /> Rechazar
-                        </Button>
+                        {/* Rechazar: se quita cuando el creativo ya fue aprobado. */}
+                        {cr.estatusValidacion !== 'VALIDADA' && (
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={busy === cr.id}
+                            onClick={() => validar(cr.id, false)}
+                          >
+                            <X className="h-3 w-3" /> Rechazar
+                          </Button>
+                        )}
                       </div>
                       <div className="flex gap-1.5">
                         <Button

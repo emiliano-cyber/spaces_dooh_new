@@ -2,21 +2,25 @@
 
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { Upload, Code2 } from 'lucide-react'
+import { Upload, Code2, Eye } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
+import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { crearCreatividadApi } from '@/lib/data/estado-api'
 import { imagenAHtml } from '@/lib/creativo-html'
 
 // ============================================================================
-//  Alta rápida de creativos desde la FICHA DE CAMPAÑA (Bloque UX): subir una
-//  imagen o pegar código HTML sin salir a la pantalla de Creativos. Reusa el
-//  mismo endpoint y la misma conversión imagen→HTML que la pantalla de
-//  Creativos, así que el resultado es idéntico.
+//  Alta rápida de creativos desde la FICHA DE CAMPAÑA: subir una imagen o pegar
+//  código HTML sin salir a la pantalla de Creativos. Antes de subir, se muestra
+//  un MODAL DE VISTA PREVIA con el render real del creativo (como se verá en la
+//  pantalla), para confirmar antes de guardarlo. Reusa el mismo endpoint y la
+//  misma conversión imagen→HTML que la pantalla de Creativos.
 //
-//  Gateado con `comercial.crear` (igual que en la pantalla de Creativos). Si el
-//  rol no puede, no se muestra nada.
+//  Gateado con `comercial.crear`. Si el rol no puede, no se muestra nada.
 // ============================================================================
+
+// Lo que se está por subir, ya convertido al HTML del creativo (lo que se guarda).
+type Previa = { nombre: string; codigo: string }
 
 export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const puede = usePuede('comercial', 'crear')
@@ -25,6 +29,8 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
   const [codeOpen, setCodeOpen] = useState(false)
   const [codigo, setCodigo] = useState('')
   const [codeNombre, setCodeNombre] = useState('')
+  // Creativo en vista previa (null = modal cerrado).
+  const [previa, setPrevia] = useState<Previa | null>(null)
 
   if (!puede) return null
 
@@ -36,43 +42,38 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
       toast.error('La imagen supera 5MB')
       return
     }
-    setSubiendo(true)
     const reader = new FileReader()
-    reader.onload = async () => {
-      try {
-        // Toda imagen subida se convierte a un creativo HTML (no se guarda como imagen).
-        const dataUrl = reader.result as string
-        await crearCreatividadApi({
-          campanaId,
-          nombre: f.name,
-          codigo: imagenAHtml(dataUrl, f.name),
-          formato: 'text/html',
-        })
-        toast.success('Creativo agregado')
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'No se pudo subir')
-      }
-      setSubiendo(false)
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      // Toda imagen se convierte al creativo HTML adaptativo (como en Creativos)
+      // y se muestra en vista previa antes de subir.
+      setPrevia({ nombre: f.name, codigo: imagenAHtml(dataUrl, f.name) })
     }
     reader.readAsDataURL(f)
   }
 
-  async function guardarCodigo() {
+  function previsualizarCodigo() {
     if (!codigo.trim()) return
+    setPrevia({ nombre: codeNombre.trim() || 'Creativo (código)', codigo })
+  }
+
+  async function confirmarSubida() {
+    if (!previa) return
     setSubiendo(true)
     try {
       await crearCreatividadApi({
         campanaId,
-        nombre: codeNombre.trim() || 'Creativo (código)',
-        codigo,
+        nombre: previa.nombre,
+        codigo: previa.codigo,
         formato: 'text/html',
       })
+      toast.success('Creativo agregado')
+      setPrevia(null)
       setCodigo('')
       setCodeNombre('')
       setCodeOpen(false)
-      toast.success('Creativo agregado')
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'No se pudo guardar')
+      toast.error(err instanceof Error ? err.message : 'No se pudo subir')
     }
     setSubiendo(false)
   }
@@ -106,12 +107,45 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
           />
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
-            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={guardarCodigo}>
-              {subiendo ? 'Guardando…' : 'Guardar código'}
+            <Button size="sm" disabled={!codigo.trim() || subiendo} onClick={previsualizarCodigo}>
+              <Eye className="h-3.5 w-3.5" /> Vista previa
             </Button>
           </div>
         </div>
       )}
+
+      {/* Modal de vista previa del creativo a subir */}
+      <Modal
+        open={!!previa}
+        onOpenChange={(v) => { if (!v && !subiendo) setPrevia(null) }}
+        title="Vista previa del creativo"
+        subtitle={previa?.nombre}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" disabled={subiendo} onClick={() => setPrevia(null)}>Cancelar</Button>
+            <Button size="sm" disabled={subiendo} onClick={confirmarSubida}>
+              <Upload className="h-3.5 w-3.5" /> {subiendo ? 'Subiendo…' : 'Subir creativo'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-[12px] text-muted">Así se verá el creativo en la pantalla:</p>
+          <div className="overflow-hidden rounded-md border border-border bg-black">
+            {previa && (
+              <iframe
+                title="Vista previa del creativo"
+                srcDoc={previa.codigo}
+                // Sandbox: renderiza el creativo pero aislado (sin acceso a la
+                // página ni navegación); permite scripts para que el HTML se vea
+                // como en el player, sin same-origin.
+                sandbox="allow-scripts"
+                className="h-[360px] w-full bg-black"
+              />
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

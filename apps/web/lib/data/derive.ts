@@ -54,21 +54,23 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
 }
 
 // ─── Etapas aplicables a una campaña según su tipo ──────────────────────────
-// La revisión de creativo (recibido/validado) y la impresión son etapas
+// La revisión de creativo (recibido/validado) y las etapas FÍSICAS son
 // excluyentes según el medio:
-//   • DOOH (digital): el arte del cliente se recibe y aprueba, pero NO se
-//     imprime → se omite "En imprenta".
-//   • OOH (fija/física): la lona se imprime y monta; NO hay etapa de revisión
-//     de creativo → se omiten "Creativo recibido" y "Creativo validado", queda
-//     "En imprenta".
+//   • DOOH (digital): el arte se recibe y aprueba y sale al aire por "Publicada"
+//     (DOOHmain). NO hay impresión, producción ni instalación física → se omiten
+//     "En imprenta", "En producción" e "Instalada / al aire".
+//   • OOH (fija/física): la lona se imprime, produce y monta; NO hay etapa de
+//     revisión de creativo → se omiten "Creativo recibido/validado".
 //   • HÍBRIDA: tiene ambos flujos, conserva todas las etapas.
 const ETAPAS_CREATIVO: EtapaPipeline[] = ['creativo_recibido', 'creativo_validado']
 // Publicación al dominio/CMS: solo aplica a medios digitales (DOOH/HÍBRIDA); la
 // fija (OOH) no tiene CMS.
 const ETAPAS_PUBLICACION: EtapaPipeline[] = ['enviada_dominio', 'publicada']
+// Etapas FÍSICAS (impresión, producción, montaje/instalación): solo medios fijos.
+const ETAPAS_FISICAS: EtapaPipeline[] = ['en_imprenta', 'en_produccion', 'instalada']
 export function etapasPipeline(c: Campana): EtapaPipeline[] {
   if (c.tipoCampana === 'DOOH') {
-    return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
+    return ETAPAS_PIPELINE.filter((e) => !ETAPAS_FISICAS.includes(e))
   }
   if (c.tipoCampana === 'OOH') {
     return ETAPAS_PIPELINE.filter(

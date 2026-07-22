@@ -669,14 +669,22 @@ export async function validarPublicacion(
     )
   }
   if (aprobar) {
+    // Candado de facturación para DIGITALES: aprobar la publicación (= salió al
+    // aire en DOOHmain) enciende "reporte de publicación". Las fotos
+    // comprobatorias las enciende el proof-of-play (playlogs-repo). Con la OC ya
+    // recibida y las fotos, el candado completa → LISTA_FACTURAR. Las fijas no
+    // pasan por aquí (no se envían al dominio): su candado sigue por la OT.
     const rows = await q(
       `update campanas
           set validacion_estatus = 'APROBADA',
               validacion_motivo = null,
               validacion_por = $2,
               validacion_en = now(),
-              estado_comercial = case when estado_comercial = 'CONFIRMADA'
-                                      then 'ACTIVA' else estado_comercial end
+              reporte_publicacion = true,
+              estado_comercial = case
+                when oc_recibida and fotos_comprobatorias then 'LISTA_FACTURAR'::est_comercial_campana
+                when estado_comercial = 'CONFIRMADA' then 'ACTIVA'
+                else estado_comercial end
         where id = $1
         returning *`,
       [campanaId, validadorNombre],
