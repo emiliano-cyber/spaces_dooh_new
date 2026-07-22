@@ -36,10 +36,12 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-black/20 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <Dialog.Content className={cn(
-          'demo-root fixed left-1/2 top-1/2 z-50 w-full -translate-x-1/2 -translate-y-1/2 rounded-md border border-border bg-surface data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
+          // Tope de alto al 90% del viewport con cuerpo scrolleable: el modal nunca
+          // se sale de la pantalla aunque el contenido sea largo (p. ej. el mapa).
+          'demo-root fixed left-1/2 top-1/2 z-50 flex max-h-[90vh] w-full -translate-x-1/2 -translate-y-1/2 flex-col rounded-md border border-border bg-surface data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95',
           SIZE_MAX[size],
         )}>
-          <div className="flex items-start justify-between border-b border-border px-5 py-4">
+          <div className="flex shrink-0 items-start justify-between border-b border-border px-5 py-4">
             <div>
               <Dialog.Title className="text-base font-semibold text-ink">{title}</Dialog.Title>
               {subtitle ? (
@@ -52,8 +54,8 @@ export function Modal({
               <X className="h-4 w-4" />
             </Dialog.Close>
           </div>
-          <div className="px-5 py-4">{children}</div>
-          {footer ? <div className="border-t border-border px-5 py-3">{footer}</div> : null}
+          <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+          {footer ? <div className="shrink-0 border-t border-border px-5 py-3">{footer}</div> : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

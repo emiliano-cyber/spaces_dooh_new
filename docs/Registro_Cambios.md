@@ -7,6 +7,29 @@ La entrada más reciente va arriba.
 
 ## 2026-07-22
 
+- **Ficha de pantalla: los detalles ahora son editables.** En Comercial, "Editar"
+  de una pantalla ya permite cambiar los detalles técnicos (medidas, caras,
+  estructura, tramo, iluminado y —en digitales— slots, duración, slots/hora,
+  resolución, contenido, CMS y horario), no solo nombre/tarifa. Se guarda solo lo
+  que cambió, así editar un detalle NO financiero ya no pide la contraseña del
+  Dueño; tocar tarifa, costo o arrendatario sí la sigue pidiendo. La renta se
+  mantiene fuera (vive en el contrato del predio).
+- **Inventario: cambio masivo de tarifa sin Excel.** En la tabla de Inventario se
+  pueden seleccionar varias pantallas (o todas) y, desde una barra, fijar una
+  tarifa nueva o ajustar un porcentaje (+/-) que se aplica a todas de una vez, con
+  confirmación previa. Ya no hace falta subir un Excel para un cambio masivo de
+  precios. La edición de una sola tarifa por fila (clic en el monto) sigue igual.
+- **Modales que ya no se salen de la pantalla.** Los modales se topan al 90% del
+  alto de la pantalla y su cuerpo hace scroll interno, con el encabezado y el pie
+  (donde va, por ejemplo, el total y "Crear propuesta") siempre visibles.
+- **Propuesta: elegir sitios en lista o en mapa, y por zona.** Al armar una
+  propuesta ahora hay un switch Lista / Mapa. En el mapa, tocar un punto agrega o
+  quita la pantalla. Además, con "Dibujar zona" se traza un polígono sobre el
+  mapa y, al cerrarlo, la selección pasa a ser exactamente las pantallas dentro de
+  esa área (se descartan las demás).
+- **Pantallas: "Vista" en vez de "Orientación".** En la ficha de la pantalla se
+  quitó el campo "Orientación" y se dejó solo "Vista", que ahora indica el rumbo
+  (Norte, Sur, Este, Oeste, Noreste…) mediante un selector.
 - **Pipeline digital sin etapas físicas.** En las campañas digitales (DOOH) el
   pipeline ya no muestra "Instalada / al aire" ni "En producción": una digital
   sale al aire por "Publicada" (DOOHmain), no por producción o instalación

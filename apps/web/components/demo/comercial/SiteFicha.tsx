@@ -274,11 +274,12 @@ export function SiteFicha({
             />
             <Caracteristica icon={<Layers className="h-4 w-4" />} label="Caras" valor={String(sitio.caras)} mono />
             <Caracteristica icon={<Building2 className="h-4 w-4" />} label="Estructura" valor={sitio.tipoEstructura} />
-            <Caracteristica icon={<Eye className="h-4 w-4" />} label="Vista" valor={sitio.vista} />
+            {/* Vista = hacia dónde ve la pantalla (dirección cardinal). Reemplaza
+                a "Orientación", que se retiró. */}
+            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Vista" valor={sitio.vista || '—'} />
             <Caracteristica icon={<Route className="h-4 w-4" />} label="Tramo" valor={sitio.tramo} />
             <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Exhibición" valor={`${sitio.exhibicion}${sitio.esRotativo ? ' · rotativo' : ''}`} />
             <Caracteristica icon={<Lightbulb className="h-4 w-4" />} label="Iluminado" valor={sitio.iluminado ? 'Sí' : 'No'} />
-            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Orientación" valor={sitio.orientacion ?? '—'} />
           </dl>
 
           {/* Datos DOOH solo si aplica */}
@@ -475,6 +476,11 @@ const ESTATUS: { v: string; label: string }[] = [
   { v: 'OCUPADO', label: 'Ocupado' },
   { v: 'BLOQUEADO', label: 'Bloqueado' },
 ]
+// Vista = dirección cardinal hacia la que apunta la pantalla (reemplaza a
+// "Orientación"). Los ocho rumbos de la rosa de los vientos.
+const VISTAS_CARDINALES = [
+  'Norte', 'Sur', 'Este', 'Oeste', 'Noreste', 'Noroeste', 'Sureste', 'Suroeste',
+]
 const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
@@ -493,10 +499,24 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [vista, setVista] = useState(sitio.vista ?? '')
   const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
   const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
   const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
+  // Detalles técnicos (características físicas + specs DOOH). Editables con las
+  // mismas restricciones: permiso comercial/crear; la renta sigue fuera (contrato).
+  const [ancho, setAncho] = useState(sitio.ancho != null ? String(sitio.ancho) : '')
+  const [alto, setAlto] = useState(sitio.alto != null ? String(sitio.alto) : '')
+  const [caras, setCaras] = useState(sitio.caras != null ? String(sitio.caras) : '')
+  const [tipoEstructura, setTipoEstructura] = useState(sitio.tipoEstructura ?? '')
+  const [tramo, setTramo] = useState(sitio.tramo ?? '')
+  const [iluminado, setIluminado] = useState(sitio.iluminado)
+  const [resolucionPx, setResolucionPx] = useState(sitio.resolucionPx ?? '')
+  const [tipoContenido, setTipoContenido] = useState<string>(sitio.tipoContenido ?? '')
+  const [spotsPorHora, setSpotsPorHora] = useState(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
+  const [horario, setHorario] = useState(sitio.horario ?? '')
+  const [cms, setCms] = useState<string>(sitio.cms ?? '')
   const [enviando, setEnviando] = useState(false)
 
   // Reinicia el formulario al abrir o cambiar de sitio.
@@ -508,40 +528,94 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setTarifa(String(sitio.tarifaPublicada ?? 0))
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
+    setVista(sitio.vista ?? '')
     setArrendadorSel(sitio.arrendadorId ?? '')
     setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
     setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
+    setAncho(sitio.ancho != null ? String(sitio.ancho) : '')
+    setAlto(sitio.alto != null ? String(sitio.alto) : '')
+    setCaras(sitio.caras != null ? String(sitio.caras) : '')
+    setTipoEstructura(sitio.tipoEstructura ?? '')
+    setTramo(sitio.tramo ?? '')
+    setIluminado(sitio.iluminado)
+    setResolucionPx(sitio.resolucionPx ?? '')
+    setTipoContenido(sitio.tipoContenido ?? '')
+    setSpotsPorHora(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
+    setHorario(sitio.horario ?? '')
+    setCms(sitio.cms ?? '')
   }, [sitio.id, open])
 
   async function guardar() {
     setEnviando(true)
     try {
-      const tarifaNum = Number(tarifa) || 0
-      const cambios: Record<string, unknown> = {
-        nombre: nombre.trim(),
-        tipoMedio,
-        alcaldia: alcaldia.trim(),
-        direccionComercial: direccionComercial.trim(),
-        // La tarifa publicada y la mensual se mantienen sincronizadas (igual que en el alta).
-        tarifaPublicada: tarifaNum,
-        tarifaMensual: tarifaNum,
-        costoCompra: Number(costoCompra) || 0,
-        estatusComercial,
-        notas: notas.trim() || null,
-        // Propietario/arrendador de la pantalla. La renta NO se manda: los campos
-        // directos del sitio están deprecados (Fase 1.7) y la fuente es el contrato.
-        arrendadorId: arrendadorSel || null,
+      // Se manda SOLO lo que cambió (diff). Así, editar un detalle no financiero
+      // no arrastra los campos de dinero y no dispara el candado del Dueño (que
+      // solo aplica a tarifa/costo/arrendador). Restricciones intactas.
+      const cambios: Record<string, unknown> = {}
+
+      // Identidad / ubicación / estado
+      if (nombre.trim() !== sitio.nombre) cambios.nombre = nombre.trim()
+      if (tipoMedio !== sitio.tipoMedio) cambios.tipoMedio = tipoMedio
+      if (alcaldia.trim() !== (sitio.alcaldia ?? '')) cambios.alcaldia = alcaldia.trim()
+      if (direccionComercial.trim() !== (sitio.direccionComercial ?? '')) cambios.direccionComercial = direccionComercial.trim()
+      if (estatusComercial !== sitio.estatusComercial) cambios.estatusComercial = estatusComercial
+      if ((vista || null) !== (sitio.vista || null)) cambios.vista = vista || null
+      if ((notas.trim() || null) !== (sitio.notas ?? null)) cambios.notas = notas.trim() || null
+
+      // Características físicas
+      const anchoNum = ancho.trim() === '' ? null : Number(ancho)
+      if (anchoNum !== (sitio.ancho ?? null)) cambios.ancho = anchoNum
+      const altoNum = alto.trim() === '' ? null : Number(alto)
+      if (altoNum !== (sitio.alto ?? null)) cambios.alto = altoNum
+      if (caras.trim() !== '') {
+        const carasNum = Math.max(0, Math.round(Number(caras) || 0))
+        if (carasNum !== sitio.caras) cambios.caras = carasNum
       }
-      // Cantidad de slots (solo digitales): ajusta los disponibles conservando
-      // los ya reservados (reservados = total anterior − disponibles anteriores).
-      if (digital && slots.trim() !== '') {
-        const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
-        const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
-        cambios.totalSpots = nuevoTotal
-        cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
-        const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
-        if (dur > 0) cambios.duracionSpotSeg = dur
+      if (tipoEstructura.trim() !== (sitio.tipoEstructura ?? '')) cambios.tipoEstructura = tipoEstructura.trim()
+      if (tramo.trim() !== (sitio.tramo ?? '')) cambios.tramo = tramo.trim()
+      if (iluminado !== sitio.iluminado) cambios.iluminado = iluminado
+
+      // Dinero (dispara el desbloqueo del Dueño): solo si de verdad cambió.
+      const tarifaNum = Number(tarifa) || 0
+      if (tarifaNum !== sitio.tarifaPublicada) {
+        // Publicada y mensual sincronizadas (igual que en el alta).
+        cambios.tarifaPublicada = tarifaNum
+        cambios.tarifaMensual = tarifaNum
+      }
+      const costoNum = Number(costoCompra) || 0
+      if (costoNum !== sitio.costoCompra) cambios.costoCompra = costoNum
+      // Propietario/arrendador. La renta NO se edita aquí (vive en el contrato).
+      if ((arrendadorSel || null) !== (sitio.arrendadorId ?? null)) cambios.arrendadorId = arrendadorSel || null
+
+      // Specs DOOH (solo digitales)
+      if (digital) {
+        if (slots.trim() !== '') {
+          const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
+          if (nuevoTotal !== (sitio.totalSpots ?? null)) {
+            // Ajusta los disponibles conservando los ya reservados.
+            const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
+            cambios.totalSpots = nuevoTotal
+            cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
+          }
+        }
+        if (duracionSlot.trim() !== '') {
+          const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
+          if (dur > 0 && dur !== (sitio.duracionSpotSeg ?? null)) cambios.duracionSpotSeg = dur
+        }
+        if ((resolucionPx.trim() || null) !== (sitio.resolucionPx ?? null)) cambios.resolucionPx = resolucionPx.trim() || null
+        if ((tipoContenido || null) !== (sitio.tipoContenido ?? null)) cambios.tipoContenido = tipoContenido || null
+        if (spotsPorHora.trim() !== '') {
+          const sph = Math.max(0, Math.round(Number(spotsPorHora) || 0))
+          if (sph !== (sitio.spotsPorHora ?? null)) cambios.spotsPorHora = sph
+        }
+        if ((horario.trim() || null) !== (sitio.horario ?? null)) cambios.horario = horario.trim() || null
+        if ((cms || null) !== (sitio.cms ?? null)) cambios.cms = cms || null
+      }
+
+      if (Object.keys(cambios).length === 0) {
+        onClose()
+        return
       }
       await actualizarSitioApi(sitio.id, cambios)
       onClose()
@@ -581,6 +655,14 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               {ESTATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
             </select>
           </CampoEdit>
+          <CampoEdit label="Vista (dirección)">
+            <select value={vista} onChange={(e) => setVista(e.target.value)} className={inputCls}>
+              <option value="">— Sin definir —</option>
+              {VISTAS_CARDINALES.map((d) => <option key={d} value={d}>{d}</option>)}
+              {/* Conserva un valor previo que no esté en la rosa de los vientos */}
+              {vista && !VISTAS_CARDINALES.includes(vista) && <option value={vista}>{vista}</option>}
+            </select>
+          </CampoEdit>
         </div>
         <CampoEdit label="Distrito / alcaldía">
           <input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} />
@@ -588,6 +670,35 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Dirección comercial">
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
         </CampoEdit>
+
+        {/* Características físicas de la pantalla (detalles editables) */}
+        <div className="rounded-md border border-border bg-surface-2 p-3">
+          <div className="mb-2 text-[12px] font-medium text-ink">Características</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <CampoEdit label="Ancho (m)">
+              <input type="number" inputMode="decimal" min={0} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Alto (m)">
+              <input type="number" inputMode="decimal" min={0} value={alto} onChange={(e) => setAlto(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Caras">
+              <input type="number" inputMode="numeric" min={0} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Estructura">
+              <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder="unipolar, mupi…" className={inputCls} />
+            </CampoEdit>
+            <CampoEdit label="Tramo">
+              <input value={tramo} onChange={(e) => setTramo(e.target.value)} className={inputCls} />
+            </CampoEdit>
+            <CampoEdit label="Iluminado">
+              <select value={iluminado ? 'si' : 'no'} onChange={(e) => setIluminado(e.target.value === 'si')} className={inputCls}>
+                <option value="si">Sí</option>
+                <option value="no">No</option>
+              </select>
+            </CampoEdit>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tarifa publicada (mensual)">
             <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
@@ -615,13 +726,38 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </p>
         </div>
         {digital && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <CampoEdit label="Cantidad de slots">
-              <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Duración por slot (s)">
-              <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
-            </CampoEdit>
+          <div className="rounded-md border border-border bg-surface-2 p-3">
+            <div className="mb-2 text-[12px] font-medium text-ink">Especificaciones DOOH</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <CampoEdit label="Cantidad de slots">
+                <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Duración por slot (s)">
+                <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Slots por hora">
+                <input type="number" inputMode="numeric" min={0} value={spotsPorHora} onChange={(e) => setSpotsPorHora(e.target.value)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Resolución (px)">
+                <input value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" className={inputCls} />
+              </CampoEdit>
+              <CampoEdit label="Contenido">
+                <select value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value)} className={inputCls}>
+                  <option value="">— Sin definir —</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="IMAGEN">Imagen</option>
+                </select>
+              </CampoEdit>
+              <CampoEdit label="CMS">
+                <select value={cms} onChange={(e) => setCms(e.target.value)} className={inputCls}>
+                  <option value="">— Sin definir —</option>
+                  {Object.entries(CMS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </CampoEdit>
+              <CampoEdit label="Horario">
+                <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. 06:00–24:00" className={inputCls} />
+              </CampoEdit>
+            </div>
           </div>
         )}
         <CampoEdit label="Notas">

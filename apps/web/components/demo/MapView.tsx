@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl, { type StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Tono } from './StatusBadge'
@@ -92,6 +92,8 @@ export function MapView({
   className,
   zoom = 11,
   autoFit = true,
+  permitirDibujo = false,
+  onZonaChange,
 }: {
   points: MapPoint[]
   selectedId?: string | null
@@ -99,6 +101,11 @@ export function MapView({
   className?: string
   zoom?: number
   autoFit?: boolean
+  // Herramienta "dibujar zona": cuando está activa, muestra una barra para trazar
+  // un polígono sobre el mapa. Al cerrarlo, notifica sus vértices ([lng,lat][]);
+  // al limpiarlo, notifica null. Apagada por default (no afecta otros usos).
+  permitirDibujo?: boolean
+  onZonaChange?: (poligono: [number, number][] | null) => void
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -107,6 +114,13 @@ export function MapView({
   const hasFitRef = useRef(false)
   const onSelectRef = useRef(onSelect)
   onSelectRef.current = onSelect
+
+  // ── Estado del dibujo de zona (polígono libre) ──────────────────────────────
+  const [dibujando, setDibujando] = useState(false)
+  const [vertices, setVertices] = useState<[number, number][]>([])
+  const [zonaCerrada, setZonaCerrada] = useState(false)
+  const dibujandoRef = useRef(false)
+  dibujandoRef.current = dibujando
 
   // Muestra/oculta automáticamente los nombres según el zoom actual. Usa solo
   // refs (estables), así que puede invocarse desde el listener de 'zoom'.
@@ -201,7 +215,11 @@ export function MapView({
           const z = mapRef.current?.getZoom() ?? 0
           lbl.style.display = z >= LABEL_MIN_ZOOM ? 'block' : 'none'
         })
-        el.addEventListener('click', () => onSelectRef.current?.(p.id))
+        el.addEventListener('click', () => {
+          // Mientras se dibuja la zona, ignorar el clic al pin (no togglear).
+          if (dibujandoRef.current) return
+          onSelectRef.current?.(p.id)
+        })
         marker = new maplibregl.Marker({ element: el }).setLngLat([p.lng, p.lat]).addTo(map)
         existing.set(p.id, marker)
       } else {
@@ -260,7 +278,118 @@ export function MapView({
     }
   }, [points, selectedId, autoFit])
 
-  return <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }} />
+  // ── Dibujo de zona: clic en el mapa agrega un vértice ───────────────────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !permitirDibujo || !dibujando) return
+    const canvas = map.getCanvas()
+    canvas.style.cursor = 'crosshair'
+    const onClick = (e: maplibregl.MapMouseEvent) => {
+      setVertices((prev) => [...prev, [e.lngLat.lng, e.lngLat.lat]])
+    }
+    map.on('click', onClick)
+    return () => {
+      map.off('click', onClick)
+      canvas.style.cursor = ''
+    }
+  }, [dibujando, permitirDibujo])
+
+  // ── Dibujo de zona: pinta el polígono (relleno + contorno + vértices) ────────
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !permitirDibujo) return
+    const data = zonaGeoJSON(vertices, zonaCerrada)
+    const apply = () => {
+      try {
+        if (!map.getSource('zona')) {
+          map.addSource('zona', { type: 'geojson', data })
+          map.addLayer({ id: 'zona-fill', type: 'fill', source: 'zona', paint: { 'fill-color': '#0a66ff', 'fill-opacity': 0.12 } })
+          map.addLayer({ id: 'zona-line', type: 'line', source: 'zona', paint: { 'line-color': '#0a66ff', 'line-width': 2, 'line-dasharray': [2, 1] } })
+          map.addLayer({ id: 'zona-pts', type: 'circle', source: 'zona', paint: { 'circle-radius': 4, 'circle-color': '#ffffff', 'circle-stroke-color': '#0a66ff', 'circle-stroke-width': 2 } })
+        } else {
+          ;(map.getSource('zona') as maplibregl.GeoJSONSource).setData(data)
+        }
+      } catch {
+        /* el estilo aún no está listo; se reintenta en 'load' */
+      }
+    }
+    if (map.isStyleLoaded()) apply()
+    else map.once('load', apply)
+  }, [vertices, zonaCerrada, permitirDibujo])
+
+  function iniciarDibujo() {
+    setVertices([])
+    setZonaCerrada(false)
+    setDibujando(true)
+    onZonaChange?.(null)
+  }
+  function cerrarZona() {
+    if (vertices.length < 3) return
+    setZonaCerrada(true)
+    setDibujando(false)
+    onZonaChange?.(vertices)
+  }
+  function limpiarZona() {
+    setVertices([])
+    setZonaCerrada(false)
+    setDibujando(false)
+    onZonaChange?.(null)
+  }
+
+  const btnCls =
+    'rounded-md border border-border-strong bg-surface px-2 py-1 text-[11px] font-medium text-ink shadow-sm transition-colors hover:bg-surface-2 disabled:opacity-50'
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className={className} style={{ width: '100%', height: '100%' }} />
+      {permitirDibujo && (
+        <div className="pointer-events-none absolute left-2 top-2 z-10 flex flex-col items-start gap-1">
+          <div className="pointer-events-auto flex gap-1">
+            {!dibujando && !zonaCerrada && (
+              <button type="button" onClick={iniciarDibujo} className={btnCls}>
+                Dibujar zona
+              </button>
+            )}
+            {dibujando && (
+              <>
+                <button type="button" onClick={cerrarZona} disabled={vertices.length < 3} className={btnCls}>
+                  Cerrar zona ({vertices.length})
+                </button>
+                <button type="button" onClick={limpiarZona} className={btnCls}>
+                  Cancelar
+                </button>
+              </>
+            )}
+            {zonaCerrada && (
+              <button type="button" onClick={limpiarZona} className={btnCls}>
+                Limpiar zona
+              </button>
+            )}
+          </div>
+          {dibujando && (
+            <span className="pointer-events-none rounded bg-black/70 px-2 py-1 text-[11px] text-white">
+              Toca el mapa para marcar la zona (mín. 3 puntos)
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Construye el GeoJSON del dibujo: mientras se traza es una línea; al cerrar,
+// un polígono. Siempre agrega un punto por cada vértice para que se vean.
+function zonaGeoJSON(vertices: [number, number][], cerrada: boolean) {
+  const features: any[] = []
+  if (cerrada && vertices.length >= 3) {
+    features.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...vertices, vertices[0]]] } })
+  } else if (vertices.length >= 2) {
+    features.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: vertices } })
+  }
+  for (const v of vertices) {
+    features.push({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: v } })
+  }
+  return { type: 'FeatureCollection' as const, features }
 }
 
 function labelStyle(): string {

@@ -1,12 +1,13 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus } from 'lucide-react'
+import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { Button } from '@/components/demo/ui/Button'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { StatusBadge, SITIO_TONO, SITIO_LABEL } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, actualizarTarifasApi } from '@/lib/data/sitios-api'
 import {
   useSitios,
   useContratos,
@@ -51,6 +52,12 @@ export function InventarioTabla() {
   const [activo, setActivo] = useState<Sitio | null>(null)
   const [fichaOpen, setFichaOpen] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  // Selección para el cambio MASIVO de tarifa (sin Excel): marcas pantallas y
+  // fijas una tarifa nueva o un ajuste porcentual y se aplica a todas.
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [modoTarifa, setModoTarifa] = useState<'fijar' | 'ajustar'>('fijar')
+  const [valorTarifa, setValorTarifa] = useState('')
+  const [aplicando, setAplicando] = useState(false)
 
   function abrirFicha(s: Sitio) {
     setActivo(s)
@@ -98,6 +105,63 @@ export function InventarioTabla() {
     return t.includes(q.toLowerCase())
   })
 
+  // Selección múltiple (sobre lo filtrado): toggle por fila y "todos".
+  const idsFiltrados = filtrados.map((s) => s.id)
+  const todosSel = idsFiltrados.length > 0 && idsFiltrados.every((id) => sel.has(id))
+  function toggleFila(id: string) {
+    setSel((prev) => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+  function toggleTodos() {
+    setSel(todosSel ? new Set() : new Set(idsFiltrados))
+  }
+  function limpiarSel() {
+    setSel(new Set())
+    setValorTarifa('')
+  }
+
+  // Aplica el cambio masivo: "fijar" pone la misma tarifa a todas; "ajustar"
+  // sube/baja un % sobre la tarifa actual de cada una.
+  async function aplicarMasivo() {
+    const num = Number(valorTarifa.replace(/[^\d.-]/g, ''))
+    if (!Number.isFinite(num)) {
+      notify('Escribe un número válido')
+      return
+    }
+    if (modoTarifa === 'fijar' && num < 0) {
+      notify('La tarifa no puede ser negativa')
+      return
+    }
+    const objetivos = filtrados.filter((s) => sel.has(s.id))
+    if (objetivos.length === 0) return
+    const items = objetivos.map((s) => {
+      const base = s.tarifaMensual ?? 0
+      const nueva = modoTarifa === 'fijar' ? num : Math.max(0, Math.round(base * (1 + num / 100)))
+      return { id: s.id, tarifa: nueva }
+    })
+    const resumen =
+      modoTarifa === 'fijar'
+        ? `fijar la tarifa en ${formatMonto(num)}`
+        : `ajustar la tarifa ${num >= 0 ? '+' : ''}${num}%`
+    if (!window.confirm(`¿Aplicar «${resumen}» a ${objetivos.length} pantalla${objetivos.length === 1 ? '' : 's'}?`)) return
+    setAplicando(true)
+    try {
+      const { ok, fallidas } = await actualizarTarifasApi(items)
+      notify(
+        fallidas === 0
+          ? `Tarifa actualizada en ${ok} pantalla${ok === 1 ? '' : 's'}`
+          : `Tarifa actualizada en ${ok}; ${fallidas} fallaron`,
+      )
+      limpiarSel()
+    } catch {
+      notify('No se pudo aplicar el cambio masivo')
+    }
+    setAplicando(false)
+  }
+
   return (
     <>
     <Card className="overflow-hidden p-0">
@@ -114,10 +178,71 @@ export function InventarioTabla() {
         <span className="shrink-0 text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>
       </div>
 
+      {/* Barra de cambio MASIVO de tarifa (sin Excel): aparece al seleccionar. */}
+      {puedeEditar && sel.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-accent-soft px-3 py-2 text-[12px]">
+          <span className="inline-flex items-center gap-1.5 font-medium text-ink">
+            <Tag className="h-3.5 w-3.5 text-info" />
+            {sel.size} seleccionada{sel.size === 1 ? '' : 's'}
+          </span>
+          {/* Modo: fijar tarifa exacta o ajustar por porcentaje */}
+          <div className="inline-flex overflow-hidden rounded-md border border-border-strong">
+            <button
+              type="button"
+              onClick={() => setModoTarifa('fijar')}
+              className={`px-2 py-1 font-medium transition-colors ${modoTarifa === 'fijar' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
+            >
+              Fijar tarifa
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoTarifa('ajustar')}
+              className={`border-l border-border-strong px-2 py-1 font-medium transition-colors ${modoTarifa === 'ajustar' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'}`}
+            >
+              Ajustar %
+            </button>
+          </div>
+          <div className="inline-flex items-center gap-1">
+            <span className="text-muted">{modoTarifa === 'fijar' ? '$' : ''}</span>
+            <input
+              inputMode="decimal"
+              value={valorTarifa}
+              onChange={(e) => setValorTarifa(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') void aplicarMasivo() }}
+              placeholder={modoTarifa === 'fijar' ? 'Nueva tarifa' : 'p. ej. 10 o -5'}
+              className="h-8 w-32 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+            {modoTarifa === 'ajustar' && <span className="text-muted">%</span>}
+          </div>
+          <Button size="sm" onClick={aplicarMasivo} disabled={aplicando || !valorTarifa.trim()}>
+            {aplicando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {aplicando ? 'Aplicando…' : 'Aplicar'}
+          </Button>
+          <button
+            type="button"
+            onClick={limpiarSel}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-muted hover:text-ink"
+          >
+            <X className="h-3.5 w-3.5" /> Limpiar
+          </button>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1000px] text-left text-[12px]">
           <thead>
             <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+              {puedeEditar && (
+                <th className="w-8 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={todosSel}
+                    onChange={toggleTodos}
+                    title="Seleccionar todo"
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                </th>
+              )}
               <th className="px-3 py-2 font-medium">Pantalla</th>
               <th className="px-3 py-2 font-medium">Tipo</th>
               <th className="px-3 py-2 font-medium">Ubicación</th>
@@ -132,7 +257,7 @@ export function InventarioTabla() {
           <tbody className="divide-y divide-border">
             {filtrados.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-muted">
+                <td colSpan={puedeEditar ? 10 : 9} className="px-3 py-10 text-center text-muted">
                   Ningún sitio coincide con la búsqueda.
                 </td>
               </tr>
@@ -147,7 +272,17 @@ export function InventarioTabla() {
                 const rentaEff = r?.renta ?? null
                 const periodicidadEff = r?.periodicidad ?? null
                 return (
-                  <tr key={s.id} onClick={() => abrirFicha(s)} className="cursor-pointer hover:bg-surface-2">
+                  <tr key={s.id} onClick={() => abrirFicha(s)} className={`cursor-pointer hover:bg-surface-2 ${sel.has(s.id) ? 'bg-accent-soft' : ''}`}>
+                    {puedeEditar && (
+                      <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={sel.has(s.id)}
+                          onChange={() => toggleFila(s.id)}
+                          className="h-4 w-4 accent-[var(--accent)]"
+                        />
+                      </td>
+                    )}
                     <td className="px-3 py-2.5">
                       <div className="flex items-center gap-1.5 font-medium text-ink">
                         <span className="truncate">{s.nombre}</span>

@@ -63,6 +63,28 @@ export async function actualizarSitioApi(id: string, cambios: Record<string, unk
   await refrescarSitios()
 }
 
+// Cambio MASIVO de tarifa: aplica una tarifa nueva a varios sitios a la vez
+// (mantiene sincronizadas mensual y publicada, igual que la ficha). Hace los
+// PATCH en paralelo y refresca el estado UNA sola vez al final (no por sitio).
+export async function actualizarTarifasApi(
+  items: { id: string; tarifa: number }[],
+): Promise<{ ok: number; fallidas: number }> {
+  const res = await Promise.allSettled(
+    items.map((it) =>
+      fetch(`${BASE}/${it.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tarifaMensual: it.tarifa, tarifaPublicada: it.tarifa }),
+      }).then((r) => {
+        if (!r.ok) throw new Error('patch falló')
+      }),
+    ),
+  )
+  const ok = res.filter((r) => r.status === 'fulfilled').length
+  await refrescarSitios()
+  return { ok, fallidas: items.length - ok }
+}
+
 export async function borrarSitioApi(id: string): Promise<void> {
   await fetch(`${BASE}/${id}/`, { method: 'DELETE' })
   await refrescarSitios()

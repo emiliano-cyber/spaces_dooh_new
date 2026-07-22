@@ -3,10 +3,12 @@
 import { toast } from 'sonner'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square } from 'lucide-react'
+import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
+import { MapView } from '@/components/demo/MapView'
+import { pinTono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
   usePropuestas,
@@ -271,6 +273,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const [duracionN, setDuracionN] = useState('1')
   const [duracionUnidad, setDuracionUnidad] = useState<Unidad>('mensual')
   const [sel, setSel] = useState<Set<string>>(new Set())
+  // Cómo elegir los sitios: lista (por default) o mapa. Se alterna con el switch.
+  const [vistaSitios, setVistaSitios] = useState<'lista' | 'mapa'>('lista')
+  // Zona dibujada en el mapa (polígono [lng,lat][]) o null si no hay. Cuando hay
+  // zona, el mapa solo muestra las pantallas de dentro (y las autoselecciona).
+  const [zona, setZona] = useState<[number, number][] | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -280,6 +287,17 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const fin = fechaInicio && n > 0 ? fechaFinDesde(fechaInicio, duracionUnidad, n) : ''
     if (fin) setFechaFin(fin)
   }, [fechaInicio, duracionN, duracionUnidad])
+
+  // Al cerrar una zona en el mapa, la selección pasa a ser EXACTAMENTE las
+  // pantallas de dentro del polígono: se descartan todas las de fuera.
+  useEffect(() => {
+    if (!zona) return
+    const dentro = (sitios ?? [])
+      .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng) && puntoEnPoligono([s.lng, s.lat], zona))
+      .map((s) => s.id)
+    setSel(new Set(dentro))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [zona])
 
   // Configuración por sitio: unidad de contratación, cantidad manual (spot/hora)
   // y programación de spots/día. Todo por sitioId; los que no estén aquí usan su
@@ -480,37 +498,91 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
           <Campo label="Comisión de la agencia (%)"><input className={inputCls} value={comision} onChange={(e) => setComision(e.target.value)} /></Campo>
         </div>
 
-        {/* Selección de sitios */}
+        {/* Selección de sitios: dos vistas alternables (lista / mapa) */}
         <div>
-          <span className="mb-1 block text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
-          <div className="max-h-48 overflow-y-auto rounded-md border border-border">
-            {(sitios ?? []).map((s) => {
-              const digital =
-                s.tipoMedio === 'PANTALLA_DIGITAL' ||
-                s.esRotativo ||
-                s.exhibicion === 'digital' ||
-                s.exhibicion === 'rotativo'
-              return (
-                <label key={s.id} className="flex cursor-pointer items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[12px] last:border-0 hover:bg-surface-2">
-                  <span className="flex min-w-0 items-center gap-2">
-                    <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
-                    <span className="truncate text-ink">{s.nombre}</span>
-                    <span
-                      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
-                        digital
-                          ? 'border-[#0a66ff40] bg-accent-soft text-[#0a4fcc]'
-                          : 'border-border bg-surface-2 text-muted'
-                      }`}
-                    >
-                      {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
-                      {digital ? 'Digital' : 'Fija'}
-                    </span>
-                  </span>
-                  <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
-                </label>
-              )
-            })}
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="text-[12px] font-medium text-ink">Sitios ({sel.size})</span>
+            {/* Switch de vista */}
+            <div className="inline-flex overflow-hidden rounded-md border border-border-strong text-[11px]">
+              <button
+                type="button"
+                onClick={() => { setVistaSitios('lista'); setZona(null) }}
+                className={`inline-flex items-center gap-1 px-2 py-1 font-medium transition-colors ${
+                  vistaSitios === 'lista' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
+                }`}
+              >
+                <List className="h-3 w-3" /> Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => setVistaSitios('mapa')}
+                className={`inline-flex items-center gap-1 border-l border-border-strong px-2 py-1 font-medium transition-colors ${
+                  vistaSitios === 'mapa' ? 'bg-accent text-white' : 'text-muted hover:bg-surface-2'
+                }`}
+              >
+                <MapIcon className="h-3 w-3" /> Mapa
+              </button>
+            </div>
           </div>
+
+          {vistaSitios === 'lista' ? (
+            <div className="max-h-48 overflow-y-auto rounded-md border border-border">
+              {(sitios ?? []).map((s) => {
+                const digital =
+                  s.tipoMedio === 'PANTALLA_DIGITAL' ||
+                  s.esRotativo ||
+                  s.exhibicion === 'digital' ||
+                  s.exhibicion === 'rotativo'
+                return (
+                  <label key={s.id} className="flex cursor-pointer items-center justify-between gap-2 border-b border-border px-3 py-1.5 text-[12px] last:border-0 hover:bg-surface-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <input type="checkbox" checked={sel.has(s.id)} onChange={() => toggle(s.id)} className="h-4 w-4 shrink-0 accent-[var(--accent)]" />
+                      <span className="truncate text-ink">{s.nombre}</span>
+                      <span
+                        className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium leading-none ${
+                          digital
+                            ? 'border-[#0a66ff40] bg-accent-soft text-[#0a4fcc]'
+                            : 'border-border bg-surface-2 text-muted'
+                        }`}
+                      >
+                        {digital ? <Monitor className="h-2.5 w-2.5" /> : <Square className="h-2.5 w-2.5" />}
+                        {digital ? 'Digital' : 'Fija'}
+                      </span>
+                    </span>
+                    <span className="demo-num shrink-0 text-muted">{sel.has(s.id) ? formatMonto(precioDe(s)) : ''}</span>
+                  </label>
+                )
+              })}
+            </div>
+          ) : (
+            <>
+              {/* Mapa: clic en un pin agrega/quita el sitio. Un ✓ en el nombre y
+                  el aro azul marcan los ya elegidos. */}
+              <div className="h-72 overflow-hidden rounded-md border border-border">
+                <MapView
+                  points={(sitios ?? [])
+                    .filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lng))
+                    // Con una zona dibujada, solo se muestran las pantallas de dentro.
+                    .filter((s) => !zona || puntoEnPoligono([s.lng, s.lat], zona))
+                    .map((s) => ({
+                      id: s.id,
+                      lat: s.lat,
+                      lng: s.lng,
+                      tono: sel.has(s.id) ? 'azul' : pinTono(s),
+                      label: `${sel.has(s.id) ? '✓ ' : ''}${s.nombre}`,
+                    }))}
+                  onSelect={toggle}
+                  zoom={11}
+                  permitirDibujo
+                  onZonaChange={setZona}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-muted">
+                Toca un punto para agregar o quitar el sitio. O usa <b className="text-ink">Dibujar zona</b> para
+                quedarte solo con las pantallas de esa área (se descartan las demás).
+              </p>
+            </>
+          )}
         </div>
 
         {/* Configuración por tiempo de cada sitio seleccionado */}
@@ -593,6 +665,20 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       </div>
     </Modal>
   )
+}
+
+// ¿El punto [lng,lat] cae dentro del polígono (lista de [lng,lat])? Algoritmo de
+// ray-casting clásico; el polígono no necesita venir "cerrado".
+function puntoEnPoligono(p: [number, number], poly: [number, number][]): boolean {
+  const [x, y] = p
+  let dentro = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    const cruza = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
+    if (cruza) dentro = !dentro
+  }
+  return dentro
 }
 
 function Dato({ label, valor }: { label: string; valor: string }) {
