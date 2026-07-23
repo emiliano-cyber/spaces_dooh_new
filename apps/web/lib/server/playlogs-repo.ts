@@ -81,9 +81,10 @@ export async function consultarYGuardarPlay(input: {
   // Candado de facturación para DIGITALES: el proof-of-play es la evidencia
   // comprobatoria de que la campaña salió al aire (equivale a las fotos testigo
   // de las fijas). Con la publicación ya aprobada (reporte) y la OC, completa el
-  // candado → LISTA_FACTURAR. Solo si la consulta trajo respuesta (no un error de
-  // conexión); un payload vacío igual cuenta como consulta hecha.
-  if (input.campanaId && r.ok) {
+  // candado → LISTA_FACTURAR. Se exige que la consulta traiga REPRODUCCIONES
+  // REALES (r.ok && !vacio): un payload vacío significa que la campaña nunca se
+  // reprodujo, así que NO debe encender la evidencia (hallazgo A-2).
+  if (input.campanaId && r.ok && !vacio) {
     await q(
       `update campanas
           set fotos_comprobatorias = true,

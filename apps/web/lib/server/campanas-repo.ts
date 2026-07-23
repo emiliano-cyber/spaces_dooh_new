@@ -293,8 +293,8 @@ export async function reservar(input: {
       ).rows[0]
       campanaId = (
         await client.query(
-          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, tenant_id)
-           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,$8) returning id`,
+          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, moneda, tenant_id)
+           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,coalesce((select moneda from tenants where id=$8),'MXN'),$8) returning id`,
           [folio(await prefijoTenant(tenantId)), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
            input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
@@ -319,9 +319,13 @@ export async function reservar(input: {
     }
 
     for (const sitioId of input.sitioIds) {
+      // FOR UPDATE bloquea la fila del sitio durante la transacción: dos reservas
+      // concurrentes del MISMO sitio se serializan, así el chequeo de colisión /
+      // conteo de slots y el INSERT son atómicos (cierra el doble-booking y la
+      // sobreventa de slots — hallazgo A-1).
       const s = (
         await client.query(
-          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1 for update',
           [sitioId],
         )
       ).rows[0]
@@ -491,8 +495,8 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
 
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,$9) returning id`,
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
         [folio(await prefijoTenant(await tenantActual())), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id

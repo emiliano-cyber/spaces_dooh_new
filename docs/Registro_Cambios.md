@@ -5,6 +5,24 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-24
+
+- **Cierre de los 5 riesgos ALTO de la auditoría de código.**
+  - *Duplicados por doble clic (dinero):* índices únicos en `facturas.campana_id`
+    y `campanas.propuesta_id` + bloqueo `FOR UPDATE` del sitio al reservar → ya no
+    se pueden crear dos facturas de una campaña, dos campañas de una propuesta, ni
+    sobre-reservar una pantalla por peticiones simultáneas.
+  - *Candado de facturación digital más honesto:* un proof-of-play **vacío** (sin
+    reproducciones) ya no cuenta como evidencia; en campañas **híbridas**, cerrar
+    una OT de la parte fija ya no da por publicada la parte digital.
+  - *Moneda correcta:* las campañas y facturas ya salen en la moneda de la
+    organización (MXN) en vez de un fijo en soles; se corrigieron las existentes.
+  - *Datos bancarios del propietario:* cambiar la cuenta/forma de pago del
+    arrendador ahora pide el desbloqueo del Dueño (candado), como los demás
+    movimientos de dinero.
+  - *Deploy:* el pipeline aplica todas las migraciones (no una lista fija) y se
+    corrigió el `package-lock` para que `npm ci` funcione.
+
 ## 2026-07-23
 
 - **Arrendadores: reubicación, vista por razón social y enlace Almacén↔OT.**

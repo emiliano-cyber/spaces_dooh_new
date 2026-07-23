@@ -159,7 +159,7 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
     const fac = (
       await client.query(
         `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,'PEN',current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
+         values ($1,$2,$3,$4,$5,$6,coalesce((select moneda from campanas where id=$2),(select moneda from tenants where id=$11),'MXN'),current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
         [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual()],
       )
     ).rows[0]
