@@ -7,6 +7,13 @@ La entrada más reciente va arriba.
 
 ## 2026-07-23
 
+- **Arrendadores: reubicación, vista por razón social y enlace Almacén↔OT.**
+  Desde la ficha de la pantalla, "Reubicar" la mueve a otro predio y genera una OT
+  de reubicación. En Arrendadores hay una tabla "Por razón social" que consolida
+  contratos, predios, renta mensual y pagos vencidos de cada razón social. Y al
+  cerrar una OT de retiro, el equipo entra solo al almacén. (De paso se corrigió
+  un error que hacía que cerrar una OT devolviera "error interno" aunque sí se
+  cerrara.)
 - **Almacén de activos (Arrendadores ↔ Operaciones, Fase 3).** Nueva sección
   "Almacén" (Dueño y Operaciones) para el seguimiento de activos físicos
   (pantallas, estructuras, lonas): se registran, se ve su estado (en almacén /

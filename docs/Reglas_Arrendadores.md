@@ -55,9 +55,9 @@ Leyenda: ✅ Implementado · 🟡 Ya existía (cubierto) · 🔵 Pendiente (feat
   `arrendador_razon_social`; un arrendador puede tener varias.
 - 🟡 **Contrato asociado a una razón social.** El contrato guarda `razon_social_id`
   (bajo qué razón social se paga/factura).
-- 🔵 **Vista consolidada por razón social** (todos los predios/contratos/pagos de
-  una razón social en un solo tablero) — la estructura existe; falta la superficie
-  de UI que lo agrupe explícitamente. Pendiente si se requiere.
+- ✅ **Vista consolidada por razón social.** En Arrendadores, tabla "Por razón
+  social" que agrupa contratos, predios, renta mensual y pagos vencidos de cada
+  razón social (incluye una fila para los contratos sin razón social).
 
 ## 4. Integración entre Arrendadores y Operaciones  🔵 (feature nuevo)
 
@@ -77,13 +77,13 @@ Estado: **Fase 1 hecha**; el resto pendiente. Lo que hoy existe y lo que falta:
   - Cancelar un contrato → OT de **retiro (DESMONTAJE)** de su pantalla.
   - Alta de pantalla nueva → OT de **montaje (MONTAJE_LONA)** — solo fijas (el
     montaje digital es obsoleto).
-- 🔵 **Reubicación** — pendiente: falta una acción de "mover pantalla a otro
-  predio" que dispare la OT de reubicación.
+- ✅ **Reubicación.** Desde la ficha de la pantalla, "Reubicar" la mueve a otro
+  predio y dispara una OT de reubicación.
 - ✅ **Seguimiento de activos en almacén (Fase 3).** Módulo "Almacén": registra
   activos físicos (pantallas/estructuras/lonas), su estado (en almacén /
   instalado / en traslado / baja) y sus traslados (historial de movimientos).
-  Pendiente: enganchar automáticamente con las OT (una OT de retiro debería
-  ofrecer meter el equipo al almacén; una de montaje, sacarlo).
+  Al cerrar una OT de retiro (desmontaje), el equipo de la pantalla entra
+  automáticamente al almacén como activo (ENTRADA).
 
 **Propuesta de fases** (para dimensionar aparte):
 1. Estado "pausa legal" del predio/sitio con motivo → refleja disponibilidad.

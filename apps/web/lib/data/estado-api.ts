@@ -30,6 +30,7 @@ export async function refrescarEstado(): Promise<void> {
     acciones: e.acciones ?? [],
     arrendadores: e.arrendadores ?? [],
     predios: e.predios ?? [],
+    razonesSociales: e.razonesSociales ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],

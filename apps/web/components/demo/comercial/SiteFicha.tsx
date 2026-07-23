@@ -21,6 +21,7 @@ import {
   Trash2,
   Gavel,
   Undo2,
+  ArrowLeftRight,
   UserRound,
   Wallet,
   CalendarClock,
@@ -41,13 +42,14 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
 import {
   useReservas,
   useIncidencias,
   useContratos,
   useArrendadores,
   usePagosRenta,
+  usePredios,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -126,6 +128,25 @@ export function SiteFicha({
   const [pausaOpen, setPausaOpen] = useState(false)
   const [motivoPausa, setMotivoPausa] = useState('')
   const [pausando, setPausando] = useState(false)
+  const predios = usePredios()
+  const [reubicarOpen, setReubicarOpen] = useState(false)
+  const [predioDestino, setPredioDestino] = useState('')
+  const [reubicando, setReubicando] = useState(false)
+
+  async function reubicar() {
+    if (!sitio || !predioDestino) return
+    setReubicando(true)
+    try {
+      const { otFolio } = await reubicarSitioApi(sitio.id, predioDestino)
+      toast.success(otFolio ? `Pantalla reubicada · OT ${otFolio} generada` : 'Pantalla reubicada')
+      setReubicarOpen(false)
+      setPredioDestino('')
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo reubicar')
+    }
+    setReubicando(false)
+  }
 
   async function pausar() {
     if (!sitio || !motivoPausa.trim()) return
@@ -273,6 +294,11 @@ export function SiteFicha({
             {puedePausar && !sitio.pausaLegal && (
               <Button size="sm" variant="secondary" onClick={() => setPausaOpen(true)}>
                 <Gavel className="h-3.5 w-3.5" /> Pausar por situación legal
+              </Button>
+            )}
+            {puedePausar && (
+              <Button size="sm" variant="secondary" onClick={() => setReubicarOpen(true)}>
+                <ArrowLeftRight className="h-3.5 w-3.5" /> Reubicar
               </Button>
             )}
           </div>
@@ -515,6 +541,36 @@ export function SiteFicha({
               className={inputCls}
               autoFocus
             />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={reubicarOpen}
+        onOpenChange={(v) => { if (!v) { setReubicarOpen(false); setPredioDestino('') } }}
+        title="Reubicar pantalla"
+        subtitle={sitio.nombre}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setReubicarOpen(false); setPredioDestino('') }}>Cancelar</Button>
+            <Button size="sm" disabled={reubicando || !predioDestino} onClick={reubicar}>
+              {reubicando ? 'Reubicando…' : 'Reubicar'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-[12px] text-muted">
+            Mueve la pantalla a otro predio. Se generará una OT de reubicación en Operaciones.
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Predio destino</span>
+            <select value={predioDestino} onChange={(e) => setPredioDestino(e.target.value)} className={inputCls}>
+              <option value="">— Elige el predio —</option>
+              {(predios ?? [])
+                .filter((p) => p.id !== sitio.predioId)
+                .map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
           </label>
         </div>
       </Modal>

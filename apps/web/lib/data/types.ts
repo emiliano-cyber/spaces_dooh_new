@@ -292,6 +292,15 @@ export interface Predio {
   creadoEn: string
 }
 
+export interface RazonSocial {
+  id: string
+  arrendadorId: string
+  razonSocial: string
+  rfc: string | null
+  regimen: string | null
+  creadoEn: string
+}
+
 export interface ContratoArrendamiento {
   id: string
   sitioId: string
@@ -646,6 +655,7 @@ export interface DemoState {
   sitios: Sitio[]
   arrendadores: Arrendador[]
   predios: Predio[]
+  razonesSociales: RazonSocial[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]

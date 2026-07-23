@@ -827,6 +827,23 @@ export async function pausarSitioLegal(sitioId: string, motivo: string): Promise
   return rows[0] ?? null
 }
 
+// Reubica una pantalla a otro predio (mover inventario). Devuelve los nombres
+// para la OT de reubicación, o null si la pantalla o el predio destino no existen
+// (RLS acota al tenant de la sesión).
+export async function reubicarSitio(
+  sitioId: string,
+  predioId: string,
+): Promise<{ sitioNombre: string; predioNombre: string } | null> {
+  const predio = await q<{ nombre: string }>('select nombre from predios where id = $1', [predioId])
+  if (!predio.length) return null
+  const rows = await q<{ nombre: string }>(
+    'update sitios set predio_id = $2 where id = $1 returning nombre',
+    [sitioId, predioId],
+  )
+  if (!rows.length) return null
+  return { sitioNombre: rows[0].nombre, predioNombre: predio[0].nombre }
+}
+
 export async function reanudarSitioLegal(sitioId: string): Promise<{ nombre: string } | null> {
   const rows = await q<{ nombre: string }>(
     `update sitios

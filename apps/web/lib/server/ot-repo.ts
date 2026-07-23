@@ -207,8 +207,34 @@ export async function cerrarOT(
         [ot.campana_id],
       )
     }
+    // Integración Almacén (Fase 3): al cerrar una OT de RETIRO (desmontaje) por
+    // primera vez, el equipo de la pantalla entra al almacén como activo, para su
+    // seguimiento. Solo en el primer cierre (evita duplicar).
+    if (ot.estatus !== 'COMPLETADA' && ot.tipo === 'DESMONTAJE' && ot.sitio_id) {
+      const sitio = (await client.query('select nombre, codigo_proveedor from sitios where id=$1', [ot.sitio_id])).rows[0]
+      if (sitio) {
+        const tid = await tenantActual()
+        const etiqueta = `RET-${sitio.codigo_proveedor ?? ot.folio}`
+        const activo = (
+          await client.query(
+            `insert into almacen_activos (etiqueta, descripcion, tipo_activo, estado, notas, tenant_id)
+             values ($1,$2,'PANTALLA','EN_ALMACEN',$3,$4) returning id`,
+            [etiqueta, `Equipo retirado de ${sitio.nombre}`, `Ingresó al almacén al cerrar la OT ${ot.folio} (retiro).`, tid],
+          )
+        ).rows[0]
+        await client.query(
+          `insert into almacen_movimientos (activo_id, tipo, motivo, sitio_id, tenant_id)
+           values ($1,'ENTRADA',$2,$3,$4)`,
+          [activo.id, `Retiro por OT ${ot.folio}`, ot.sitio_id, tid],
+        )
+      }
+    }
+    // Se lee la OT DENTRO de la transacción (con app.tenant_id fijado): tras el
+    // commit, fijarTenant (set_config local) se descarta y la RLS devolvería 0
+    // filas, rompiendo rowToOT. Fix del bug de cierre.
+    const cerrada = (await client.query('select * from ordenes_trabajo where id=$1', [id])).rows[0]
     await client.query('commit')
-    return rowToOT((await client.query('select * from ordenes_trabajo where id=$1', [id])).rows[0])
+    return rowToOT(cerrada)
   } catch (e) {
     await client.query('rollback')
     throw e

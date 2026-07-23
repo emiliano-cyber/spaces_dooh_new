@@ -22,6 +22,7 @@ import {
   useSitios,
   usePagosRenta,
   useMargenPorSitio,
+  useRazonesSociales,
   formatMonto,
   formatFecha,
   diasHasta,
@@ -36,6 +37,7 @@ export default function ArrendadoresPage() {
   const sitios = useSitios()
   const pagos = usePagosRenta()
   const margenes = useMargenPorSitio()
+  const razones = useRazonesSociales()
 
   const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
   const [open, setOpen] = useState(false)
@@ -88,6 +90,14 @@ export default function ArrendadoresPage() {
 
       {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
       <RentabilidadCard margenes={margenes} />
+
+      {/* Consolidado por razón social (un propietario puede tener varias) */}
+      <RazonesSocialesCard
+        razones={razones ?? []}
+        contratos={contratos ?? []}
+        pagos={pagos ?? []}
+        nombreArr={nombreArr}
+      />
 
       {/* Contratos */}
       <Card>
@@ -314,6 +324,82 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         </label>
       </div>
     </Modal>
+  )
+}
+
+// Consolidado por razón social: un propietario puede facturar bajo varias
+// razones sociales (varias gasolineras/inmuebles). Agrupa sus contratos, predios,
+// renta mensual y pagos vencidos.
+function RazonesSocialesCard({
+  razones, contratos, pagos, nombreArr,
+}: {
+  razones: { id: string; razonSocial: string; rfc: string | null; arrendadorId: string }[]
+  contratos: ContratoArrendamiento[]
+  pagos: { contratoId: string; estatus: string }[]
+  nombreArr: (id: string) => string
+}) {
+  const esActivo = (e: string) => e === 'VIGENTE' || e === 'POR_VENCER' || e === 'RENOVADO'
+  const aMensual = (monto: number, per: string) => {
+    const F: Record<string, number> = { SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1, BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12 }
+    return monto * (F[(per || '').toUpperCase()] ?? 1)
+  }
+  const filaDe = (id: string | null, nombre: string, rfc: string | null, arrId: string | null) => {
+    const cs = contratos.filter((c) => (c.razonSocialId ?? null) === id)
+    const activos = cs.filter((c) => esActivo(c.estatus))
+    const predios = new Set(cs.map((c) => c.predioId).filter(Boolean)).size
+    const rentaMensual = activos.reduce((s, c) => s + aMensual(c.montoRenta, c.periodicidad), 0)
+    const cids = new Set(cs.map((c) => c.id))
+    const vencidos = pagos.filter((p) => cids.has(p.contratoId) && p.estatus === 'VENCIDO').length
+    return { id: id ?? 'sin', nombre, rfc, arr: arrId ? nombreArr(arrId) : '—', total: cs.length, activos: activos.length, predios, rentaMensual, vencidos }
+  }
+  const filas = razones.map((rs) => filaDe(rs.id, rs.razonSocial, rs.rfc, rs.arrendadorId))
+  const sinRs = filaDe(null, 'Sin razón social', null, null)
+  const todas = sinRs.total > 0 ? [...filas, sinRs] : filas
+  if (todas.length === 0) return null
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>Por razón social</CardTitle></CardHeader>
+      <CardContent className="px-0 pb-0">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[13px]">
+            <thead>
+              <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                <th className="px-4 py-2 font-medium">Razón social</th>
+                <th className="px-4 py-2 font-medium">Propietario</th>
+                <th className="px-4 py-2 text-center font-medium">Contratos</th>
+                <th className="px-4 py-2 text-center font-medium">Predios</th>
+                <th className="px-4 py-2 text-right font-medium">Renta mensual</th>
+                <th className="px-4 py-2 text-center font-medium">Pagos vencidos</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {todas.map((f) => (
+                <tr key={f.id}>
+                  <td className="px-4 py-2.5">
+                    <div className="font-medium text-ink">{f.nombre}</div>
+                    {f.rfc && <div className="demo-num text-[11px] text-muted">{f.rfc}</div>}
+                  </td>
+                  <td className="px-4 py-2.5 text-muted">{f.arr}</td>
+                  <td className="px-4 py-2.5 text-center text-muted">
+                    <span className="text-ink">{f.activos}</span> / {f.total}
+                  </td>
+                  <td className="px-4 py-2.5 text-center text-muted">{f.predios}</td>
+                  <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(Math.round(f.rentaMensual))}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    {f.vencidos > 0 ? (
+                      <span className="inline-flex items-center rounded-full border border-[#ef444440] bg-[#ef44441a] px-2 py-0.5 text-[11px] font-medium text-error">{f.vencidos}</span>
+                    ) : (
+                      <span className="text-muted">0</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </CardContent>
+    </Card>
   )
 }
 

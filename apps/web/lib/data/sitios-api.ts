@@ -112,3 +112,16 @@ export async function reanudarSitioLegalApi(id: string): Promise<void> {
   }
   await refrescarSitios()
 }
+
+// Reubica la pantalla a otro predio y dispara una OT de reubicación.
+export async function reubicarSitioApi(id: string, predioId: string): Promise<{ otFolio: string | null }> {
+  const r = await fetch(`${BASE}/${id}/reubicar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ predioId }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo reubicar')
+  await refrescarSitios()
+  return d as { otFolio: string | null }
+}

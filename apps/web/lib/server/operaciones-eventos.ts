@@ -67,3 +67,20 @@ export async function otMontajePorAlta(sitioId: string | null | undefined): Prom
     'alta de pantalla',
   )
 }
+
+// Reubicación de pantalla → OT (tarea física de mover el inventario).
+export async function otReubicacion(
+  sitioId: string,
+  predioDestino: string,
+): Promise<{ folio: string } | null> {
+  return dispararOT(
+    {
+      tipo: 'OTRO',
+      sitioId,
+      descripcion: `Reubicación de pantalla hacia el predio "${predioDestino}".`,
+      instrucciones: 'Generada automáticamente al reubicar la pantalla (Arrendadores → Operaciones).',
+      prioridad: 'ALTA',
+    },
+    'reubicación de pantalla',
+  )
+}

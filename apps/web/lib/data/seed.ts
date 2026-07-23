@@ -476,6 +476,7 @@ export function buildSeed(): DemoState {
     sitiosRed: [],
     arrendadores: [],
     predios: [],
+    razonesSociales: [],
     contratos: [],
     pagosRenta: [],
     incidencias: [],
