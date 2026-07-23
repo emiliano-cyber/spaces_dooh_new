@@ -41,6 +41,8 @@ export function middleware(request: NextRequest) {
   if (normalizedPath.startsWith('/api/') && MUTACIONES.has(request.method)) {
     const exento =
       normalizedPath.startsWith('/api/auth/login') ||
+      normalizedPath.startsWith('/api/auth/forgot') ||
+      normalizedPath.startsWith('/api/auth/reset') ||
       normalizedPath.startsWith('/api/signup') ||
       normalizedPath.startsWith('/api/auth/logout') ||
       normalizedPath.startsWith('/api/portal/') ||

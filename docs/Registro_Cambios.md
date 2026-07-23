@@ -5,6 +5,57 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-23
+
+- **Almacén de activos (Arrendadores ↔ Operaciones, Fase 3).** Nueva sección
+  "Almacén" (Dueño y Operaciones) para el seguimiento de activos físicos
+  (pantallas, estructuras, lonas): se registran, se ve su estado (en almacén /
+  instalado / en traslado / baja) y se registran sus traslados con historial de
+  movimientos.
+- **Contratos que disparan tareas de Operaciones (Arrendadores ↔ Operaciones,
+  Fase 2).** Al **cancelar un contrato** se genera automáticamente una OT de
+  **retiro (desmontaje)** de su pantalla; al **dar de alta una pantalla nueva** se
+  genera una OT de **montaje/instalación** (solo fijas). Nacen PENDIENTE, con nota
+  de origen, y aparecen en Operaciones; si no aplican, se pueden cancelar. No
+  bloquean la acción principal si algo falla.
+- **Pausa legal del inventario (Arrendadores ↔ Operaciones, Fase 1).** Desde la
+  ficha de una pantalla se puede "Pausar por situación legal" (con motivo): la
+  pantalla sale de la disponibilidad comercial (queda bloqueada) y muestra un
+  banner con el motivo; "Reanudar" la vuelve a habilitar. Genera alerta y queda en
+  la bitácora. Es distinta de "Reportar incidencia" (daño físico) y requiere
+  permiso de Arrendadores.
+- **Arrendadores: estatus al día + alertas con 3 meses de anticipación.** El
+  estatus de contratos y pagos ya no queda "congelado": se recalcula contra la
+  fecha de hoy (vigente / por vencer / vencido), así el costo de renta del P&L y
+  las alertas dejan de usar un valor viejo. Nuevas alertas: "Renta por vencer"
+  (avisa hasta 90 días antes del próximo pago, anual o mensual) y "Contrato
+  vencido"; "Contrato por vencer" pasó de 30 a 90 días de anticipación. Ver las
+  reglas acordadas en `docs/Reglas_Arrendadores.md`.
+- **Cámaras Space Eye = la "Inteligencia artificial" de la pantalla.** En la ficha
+  de la pantalla, la sección de IA ya no muestra una imagen de demostración: se
+  sincroniza con Space Eye y enseña la **cámara real** del espectacular — estado
+  del dispositivo (en línea, batería, última señal), la última foto y, si existe,
+  el veredicto de IA (correcto / no coincide). El enlace es automático por código
+  (el `billboard_code` de Space Eye = el código de proveedor del sitio); si la
+  pantalla no tiene cámara, lo indica.
+- **Recuperar contraseña ("olvidé mi contraseña").** En el login hay un enlace
+  para restablecer la contraseña: escribes tu correo y recibes un enlace (vence en
+  1 hora, un solo uso) para elegir una nueva. Por seguridad la respuesta es
+  siempre la misma (no revela si el correo existe), tiene límite de intentos y, al
+  cambiarla, cierra todas las sesiones. Nota: el envío por correo requiere
+  configurar el proveedor (Resend) en el servidor; mientras tanto queda listo.
+- **El Dueño puede cambiar la contraseña de cualquier usuario.** En Administración
+  → Usuarios, cada fila tiene un botón para fijarle una contraseña nueva a ese
+  usuario (reset), y para el propio Dueño pide su contraseña actual. Queda en la
+  bitácora de acciones.
+- **Configuración por perfil.** La Configuración del negocio (empresa, IVA, loop,
+  plazos, tareas…) sigue siendo solo del Dueño. Los demás perfiles ven solo "Mi
+  cuenta", para cambiar su **correo y contraseña** (con su contraseña actual para
+  confirmar).
+- **Menús de notificaciones y de cuenta con fondo sólido.** Los desplegables de la
+  campana y del menú de usuario ya no se ven transparentes: tienen fondo blanco y
+  sombra.
+
 ## 2026-07-22
 
 - **Ficha de pantalla: los detalles ahora son editables.** En Comercial, "Editar"

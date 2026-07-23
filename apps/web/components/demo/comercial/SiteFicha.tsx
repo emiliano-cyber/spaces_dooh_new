@@ -11,7 +11,6 @@ import {
   Hash,
   Layers,
   Building2,
-  Eye,
   Route,
   Repeat,
   Monitor,
@@ -20,6 +19,8 @@ import {
   Share2,
   Pencil,
   Trash2,
+  Gavel,
+  Undo2,
   UserRound,
   Wallet,
   CalendarClock,
@@ -29,6 +30,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
+import { SpaceEyeVision } from '@/components/demo/comercial/SpaceEyeVision'
 import {
   StatusBadge,
   SITIO_TONO,
@@ -39,7 +41,7 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, borrarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi } from '@/lib/data/sitios-api'
 import {
   useReservas,
   useIncidencias,
@@ -62,10 +64,6 @@ const TIPO_LABEL: Record<TipoMedio, string> = {
   VALLA: 'Valla',
   OTRO: 'Otro',
 }
-
-// Imagen de muestra de la detección por Computer Vision (vive en /public; el
-// basePath /spaces-dooh la sirve aquí). Solo se usa en el demo.
-const IA_DEMO_IMG = '/spaces-dooh/demo/ia-deteccion.jpg'
 
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
@@ -120,10 +118,38 @@ export function SiteFicha({
   const arrendadores = useArrendadores()
   const pagos = usePagosRenta()
   const puedeEditar = usePuede('comercial', 'crear')
+  // Pausa legal: acción del dominio Arrendadores (situaciones legales).
+  const puedePausar = usePuede('arrendadores', 'crear')
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
   const [borrando, setBorrando] = useState(false)
-  const [verIA, setVerIA] = useState(false)
+  const [pausaOpen, setPausaOpen] = useState(false)
+  const [motivoPausa, setMotivoPausa] = useState('')
+  const [pausando, setPausando] = useState(false)
+
+  async function pausar() {
+    if (!sitio || !motivoPausa.trim()) return
+    setPausando(true)
+    try {
+      await pausarSitioLegalApi(sitio.id, motivoPausa.trim())
+      setPausaOpen(false)
+      setMotivoPausa('')
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo pausar')
+    }
+    setPausando(false)
+  }
+  async function reanudar() {
+    if (!sitio) return
+    if (!window.confirm(`¿Reanudar "${sitio.nombre}"? Volverá a estar disponible comercialmente.`)) return
+    try {
+      await reanudarSitioLegalApi(sitio.id)
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo reanudar')
+    }
+  }
 
   async function eliminar() {
     if (!sitio) return
@@ -232,14 +258,43 @@ export function SiteFicha({
         </div>
 
         {/* Acciones de administración del sitio */}
-        {puedeEditar && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-3.5 w-3.5" /> Editar
-            </Button>
-            <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
-              <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
-            </Button>
+        {(puedeEditar || puedePausar) && (
+          <div className="flex flex-wrap gap-2">
+            {puedeEditar && (
+              <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </Button>
+            )}
+            {puedeEditar && (
+              <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
+                <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
+              </Button>
+            )}
+            {puedePausar && !sitio.pausaLegal && (
+              <Button size="sm" variant="secondary" onClick={() => setPausaOpen(true)}>
+                <Gavel className="h-3.5 w-3.5" /> Pausar por situación legal
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Pausa legal activa */}
+        {sitio.pausaLegal && (
+          <div className="flex gap-2.5 rounded-md border border-[#ef444440] bg-[#ef44440d] p-3">
+            <Gavel className="mt-0.5 h-4 w-4 shrink-0 text-error" strokeWidth={1.75} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-ink">Pausada por situación legal</div>
+              <p className="mt-0.5 text-[12px] text-muted">
+                {sitio.motivoPausaLegal}
+                {sitio.pausaLegalEn ? ` · desde ${formatFecha(sitio.pausaLegalEn)}` : ''}
+              </p>
+              <p className="text-[11px] text-muted">No disponible comercialmente mientras esté en pausa.</p>
+            </div>
+            {puedePausar && (
+              <Button size="sm" variant="secondary" onClick={reanudar}>
+                <Undo2 className="h-3.5 w-3.5" /> Reanudar
+              </Button>
+            )}
           </div>
         )}
 
@@ -307,23 +362,9 @@ export function SiteFicha({
           </dl>
         </div>
 
-        {/* Inteligencia artificial (Computer Vision / AdMobilize) */}
-        <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Inteligencia artificial</h4>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tono={sitio.computerVision ? 'verde' : 'rojo'}>
-              {sitio.computerVision ? 'Computer Vision On' : 'Sin Computer Vision'}
-            </StatusBadge>
-            {sitio.computerVision && sitio.admobilizeId && (
-              <span className="demo-num text-[12px] text-muted">ID {sitio.admobilizeId}</span>
-            )}
-          </div>
-          {sitio.computerVision && (
-            <Button size="sm" variant="secondary" className="mt-2.5" onClick={() => setVerIA(true)}>
-              <Eye className="h-4 w-4" /> Ver imagen de detección IA
-            </Button>
-          )}
-        </div>
+        {/* Inteligencia artificial — cámara real de Space Eye (reemplaza la
+            imagen de demostración). Se sincroniza por codigo_proveedor. */}
+        <SpaceEyeVision sitioId={sitio.id} sitioNombre={sitio.nombre} />
 
         {/* Datos comerciales (interno — el portal no muestra financieros) */}
         <div>
@@ -447,21 +488,35 @@ export function SiteFicha({
       <EditarSitioDialog sitio={sitio} open={editOpen} onClose={() => setEditOpen(false)} />
 
       <Modal
-        open={verIA}
-        onOpenChange={setVerIA}
-        size="xl"
-        title="Detección por Computer Vision"
-        subtitle={`${sitio.nombre} · conteo de vehículos y personas (AdMobilize)`}
+        open={pausaOpen}
+        onOpenChange={(v) => { if (!v) { setPausaOpen(false); setMotivoPausa('') } }}
+        title="Pausar por situación legal"
+        subtitle={sitio.nombre}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setPausaOpen(false); setMotivoPausa('') }}>Cancelar</Button>
+            <Button variant="danger" size="sm" disabled={pausando || !motivoPausa.trim()} onClick={pausar}>
+              {pausando ? 'Pausando…' : 'Pausar'}
+            </Button>
+          </div>
+        }
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={IA_DEMO_IMG}
-          alt="Detección de vehículos y personas por IA"
-          className="w-full rounded border border-border object-contain"
-        />
-        <p className="mt-2 text-[11px] text-muted">
-          Las cajas y métricas (velocidad, conteo por zona) las genera el módulo de Computer Vision en tiempo real.
-        </p>
+        <div className="space-y-2">
+          <p className="text-[12px] text-muted">
+            La pantalla saldrá de la disponibilidad comercial (queda bloqueada) hasta que la reanudes.
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Motivo</span>
+            <textarea
+              value={motivoPausa}
+              onChange={(e) => setMotivoPausa(e.target.value)}
+              rows={3}
+              placeholder="Ej. Litigio del predio, permiso suspendido, orden de autoridad…"
+              className={inputCls}
+              autoFocus
+            />
+          </label>
+        </div>
       </Modal>
     </Sheet>
   )

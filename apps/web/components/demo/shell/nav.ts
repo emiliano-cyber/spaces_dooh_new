@@ -17,6 +17,7 @@ import {
   Plug,
   Percent,
   CalendarRange,
+  Warehouse,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -48,6 +49,7 @@ export const NAV: NavItem[] = [
   { key: 'creativos', label: 'Creativos', href: '/demo/creativos', icon: Images, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'imprenta', label: 'Imprenta', href: '/demo/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'] },
   { key: 'operaciones', label: 'Operaciones', href: '/demo/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'] },
+  { key: 'almacen', label: 'Almacén', href: '/demo/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'] },
   { key: 'finanzas', label: 'Finanzas', href: '/demo/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'] },
   { key: 'comisiones', label: 'Comisiones', href: '/demo/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'integraciones', label: 'Integraciones', href: '/demo/integraciones', icon: Plug, roles: ['DUENO'] },

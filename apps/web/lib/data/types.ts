@@ -188,6 +188,11 @@ export interface Sitio {
   estatusComercial: EstComercial
   estatusLegal: EstLegal
   estatusOperativo: EstOperativo
+  // Pausa legal (Fase 1 integración con Operaciones): saca la pantalla de la
+  // disponibilidad comercial por una situación legal, con motivo y reversible.
+  pausaLegal: boolean
+  motivoPausaLegal: string | null
+  pausaLegalEn: string | null
   notas: string | null
   // [DEMO] no en Prisma — tarifa de lista para filtro de precio (7.2)
   tarifaMensual: number

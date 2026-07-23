@@ -23,8 +23,12 @@ export default function ConfiguracionPage() {
     <div className="w-full max-w-2xl space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Configuración</h1>
-        <p className="mt-1 text-[13px] text-muted">Nombre de la empresa y datos de tu cuenta.</p>
+        <p className="mt-1 text-[13px] text-muted">
+          {puedeEmpresa ? 'Nombre de la empresa y datos de tu cuenta.' : 'Cambia el correo y la contraseña de tu cuenta.'}
+        </p>
       </div>
+      {/* La configuración del negocio (empresa, IVA, loop, plazos…) es solo del
+          Dueño; los demás perfiles solo ven "Mi cuenta" (correo + contraseña). */}
       {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
       <CuentaCard emailActual={sesion?.usuario.email ?? ''} />
     </div>
@@ -82,11 +86,12 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   const [busy, setBusy] = useState(false)
   useEffect(() => { setEmail(emailActual) }, [emailActual])
 
-  const hayCambio = (email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()) || password.length > 0
+  const cambiaEmail = !!email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()
+  const hayCambio = cambiaEmail || password.length > 0
 
   async function guardar() {
-    if (email.trim() && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
-    if (password && password.length < 6) { toast.error('La contraseña debe tener al menos 6 caracteres'); return }
+    if (cambiaEmail && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
+    if (password && password.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return }
     // Cambiar correo o contraseña exige la contraseña actual (re-autenticación).
     if (!passwordActual) { toast.error('Ingresa tu contraseña actual para confirmar'); return }
     setBusy(true)
@@ -114,13 +119,14 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
         <CardTitle>Mi cuenta</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        <p className="text-[12px] text-muted">Cambia tu correo y/o contraseña. Solo afecta a tu cuenta.</p>
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
           <input type="email" className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="tu@correo.com" />
         </label>
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Nueva contraseña</span>
-          <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 6)" />
+          <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
         </label>
         {hayCambio && (
           <label className="block">

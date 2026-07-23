@@ -375,32 +375,65 @@ export function reporteCampana(c: Campana, state: DemoState): ReporteCampana {
 function construirAlertas(state: DemoState): Alerta[] {
   const alertas: Alerta[] = []
 
-  // Pagos de renta vencidos / por vencer
+  const sitioDeContrato = (contratoId: string): string => {
+    const con = state.contratos.find((c) => c.id === contratoId)
+    const sit = con && state.sitios.find((s) => s.id === con.sitioId)
+    return sit?.nombre ?? 'Sitio'
+  }
+
+  // Renta vencida: cada pago impago cuyo vencimiento ya pasó.
   for (const p of state.pagosRenta) {
     if (p.estatus === 'VENCIDO') {
-      const con = state.contratos.find((c) => c.id === p.contratoId)
-      const sit = con && state.sitios.find((s) => s.id === con.sitioId)
       alertas.push({
         id: `al-pago-${p.id}`,
         tipo: 'pago',
         nivel: 'rojo',
         titulo: 'Renta vencida',
-        detalle: `${sit?.nombre ?? 'Sitio'} — pago ${p.periodo} sin liquidar`,
+        detalle: `${sitioDeContrato(p.contratoId)} — pago ${p.periodo} sin liquidar`,
       })
     }
   }
 
-  // Contratos por vencer (renovación)
+  // Renta por vencer: se avisa con al menos 3 MESES (90 días) de anticipación.
+  // Un solo aviso por contrato (el próximo pago pendiente, anual o mensual).
+  const proxPago = new Map<string, (typeof state.pagosRenta)[number]>()
+  for (const p of state.pagosRenta) {
+    if (p.estatus !== 'PENDIENTE') continue
+    const prev = proxPago.get(p.contratoId)
+    if (!prev || p.periodo < prev.periodo) proxPago.set(p.contratoId, p)
+  }
+  for (const p of proxPago.values()) {
+    const dias = diasHasta(p.periodo)
+    if (dias < 0 || dias > 90) continue
+    alertas.push({
+      id: `al-pagov-${p.id}`,
+      tipo: 'pago',
+      nivel: dias <= 15 ? 'rojo' : 'ambar',
+      titulo: 'Renta por vencer',
+      detalle: `${sitioDeContrato(p.contratoId)} — vence en ${dias} días (${formatMonto(p.monto)})`,
+    })
+  }
+
+  // Contratos: por vencer (a 3 meses) y vencidos.
   for (const c of state.contratos) {
+    const sit = state.sitios.find((s) => s.id === c.sitioId)
     if (c.estatus === 'POR_VENCER') {
-      const sit = state.sitios.find((s) => s.id === c.sitioId)
       const dias = diasHasta(c.fechaFin)
       alertas.push({
         id: `al-con-${c.id}`,
         tipo: 'contrato',
-        nivel: dias <= 15 ? 'rojo' : 'ambar',
+        nivel: dias <= 30 ? 'rojo' : 'ambar',
         titulo: 'Contrato por vencer',
         detalle: `${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`,
+      })
+    } else if (c.estatus === 'VENCIDO') {
+      const dias = Math.abs(diasHasta(c.fechaFin))
+      alertas.push({
+        id: `al-conv-${c.id}`,
+        tipo: 'contrato',
+        nivel: 'rojo',
+        titulo: 'Contrato vencido',
+        detalle: `${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`,
       })
     }
   }
@@ -416,6 +449,19 @@ function construirAlertas(state: DemoState): Alerta[] {
         nivel: est === 'VENCIDA' ? 'rojo' : 'ambar',
         titulo: est === 'VENCIDA' ? 'Factura vencida' : 'Factura por vencer',
         detalle: `${fac?.folio ?? 'Factura'} — ${formatMonto(fac?.monto ?? 0)}`,
+      })
+    }
+  }
+
+  // Pantallas en pausa legal (fuera de disponibilidad comercial)
+  for (const s of state.sitios) {
+    if (s.pausaLegal) {
+      alertas.push({
+        id: `al-pausa-${s.id}`,
+        tipo: 'incidencia',
+        nivel: 'rojo',
+        titulo: 'Pantalla en pausa legal',
+        detalle: `${s.nombre}${s.motivoPausaLegal ? ` — ${s.motivoPausaLegal}` : ''}`,
       })
     }
   }

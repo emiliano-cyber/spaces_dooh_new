@@ -1,7 +1,7 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { validarPassword } from './auth'
+import { validarPassword, hashPassword } from './auth'
 import { esEmailValido } from '@/lib/validacion'
 import {
   listarUsuarios,
@@ -33,6 +33,9 @@ const actualizarSchema = z
     cargo: z.string().trim().optional(),
     rol: z.enum(ROLES).optional(),
     activo: z.boolean().optional(),
+    // Reset de contraseña por el Dueño (para OTROS usuarios; el cambio propio va
+    // por /api/perfil con la contraseña actual).
+    password: z.string().optional(),
   })
   .strict()
 
@@ -49,10 +52,18 @@ export async function crearUsuarioCtrl(body: unknown) {
 }
 
 export async function actualizarUsuarioCtrl(id: string, actorId: string, body: unknown) {
-  // No te puedes modificar a ti mismo (evita auto-bloqueo de rol/activo).
-  if (id === actorId) throw new AppError('No puedes modificar tu propio usuario', 400)
+  // No te puedes modificar a ti mismo (evita auto-bloqueo de rol/activo, y el
+  // reset de contraseña propio debe ir por /api/perfil con la contraseña actual).
+  if (id === actorId) throw new AppError('No puedes modificar tu propio usuario. Cambia tu contraseña en Configuración.', 400)
   const d = validar(actualizarSchema, body)
-  const u = await actualizarUsuario(id, d)
+  const { password, ...resto } = d
+  const cambios: { nombre?: string; cargo?: string; rol?: string; activo?: boolean; passwordHash?: string } = { ...resto }
+  if (password !== undefined) {
+    const errPass = validarPassword(password)
+    if (errPass) throw new AppError(errPass, 400)
+    cambios.passwordHash = await hashPassword(password)
+  }
+  const u = await actualizarUsuario(id, cambios)
   if (!u) throw new AppError('No encontrado', 404)
   return u
 }

@@ -115,6 +115,9 @@ function s(
     estatusComercial,
     estatusLegal: estatusComercial === 'BLOQUEADO' ? 'SUSPENDIDO' : 'EN_ORDEN',
     estatusOperativo: estatusComercial === 'BLOQUEADO' ? 'EN_MANTENIMIENTO' : 'ACTIVO',
+    pausaLegal: false,
+    motivoPausaLegal: null,
+    pausaLegalEn: null,
     notas: null,
     tarifaMensual,
     // ─── Ficha de inventario ──────────────────────────────────────────────

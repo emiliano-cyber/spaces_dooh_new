@@ -34,7 +34,7 @@ export async function invitarUsuarioApi(input: {
 }
 export async function actualizarUsuarioApi(
   id: string,
-  cambios: { rol?: RolDemo; activo?: boolean; nombre?: string; cargo?: string },
+  cambios: { rol?: RolDemo; activo?: boolean; nombre?: string; cargo?: string; password?: string },
 ): Promise<UsuarioDemo> {
   return jsonOk(
     await fetch(`${API}/usuarios/${id}/`, {

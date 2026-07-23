@@ -19,6 +19,7 @@ import {
   listarIncidencias,
   listarPredios,
   listarRazonesSociales,
+  recomputarEstatusArrendadores,
 } from '@/lib/server/arrendadores-repo'
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
@@ -57,6 +58,10 @@ export async function GET() {
   if (verComercial) await barrerReservasVencidas() // libera inventario reservado
   if (verOperaciones) await notificarOTsVencidas() // alertas de OT vencidas
   if (verFinanzas) await recordarCobranzasVencidas() // recordatorios de cobro
+  // Sincroniza el estatus de contratos y pagos con la fecha de hoy (vigente /
+  // por vencer a 3 meses / vencido), para que el P&L y las alertas no usen un
+  // estatus congelado.
+  if (puede('arrendadores')) await recomputarEstatusArrendadores()
 
   const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales] =
     await Promise.all([

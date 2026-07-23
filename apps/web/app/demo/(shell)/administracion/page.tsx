@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -77,6 +77,8 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   const yo = sesion?.usuario.id
   const [usuarios, setUsuarios] = useState<UsuarioDemo[] | null>(null)
   const [invOpen, setInvOpen] = useState(false)
+  // Usuario al que se le va a cambiar la contraseña (null = modal cerrado).
+  const [passwordDe, setPasswordDe] = useState<UsuarioDemo | null>(null)
 
   const cargar = useCallback(async () => setUsuarios(await listarUsuariosApi()), [])
   useEffect(() => { cargar() }, [cargar])
@@ -111,6 +113,7 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                   <th className="px-4 py-2 font-medium">Usuario</th>
                   <th className="px-4 py-2 font-medium">Rol</th>
                   <th className="px-4 py-2 font-medium">Estatus</th>
+                  <th className="px-4 py-2 font-medium">Contraseña</th>
                 </tr>
               </thead>
               <tbody>
@@ -144,6 +147,12 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
                           {u.activo ? 'Activo' : 'Inactivo'}
                         </button>
                       </td>
+                      <td className="px-4 py-2.5">
+                        <button type="button" onClick={() => setPasswordDe(u)}
+                          className="inline-flex items-center gap-1.5 rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2">
+                          <KeyRound className="h-3.5 w-3.5 text-muted" /> {esYo ? 'Cambiar la mía' : 'Cambiar'}
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
@@ -154,7 +163,91 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
       </CardContent>
 
       <InvitarModal open={invOpen} onOpenChange={setInvOpen} onInvitado={(n) => { onToast(`Usuario ${n} creado`); cargar() }} />
+
+      {passwordDe && (
+        <CambiarPasswordModal
+          usuario={passwordDe}
+          esYo={passwordDe.id === yo}
+          onClose={() => setPasswordDe(null)}
+          onDone={() => { onToast(passwordDe.id === yo ? 'Tu contraseña se actualizó' : `Contraseña de ${passwordDe.nombre} actualizada`); setPasswordDe(null) }}
+        />
+      )}
     </Card>
+  )
+}
+
+// Cambia la contraseña de un usuario. Para OTROS usuarios es un reset del Dueño
+// (solo la nueva). Para el propio usuario ("tú") exige la contraseña actual y va
+// por /api/perfil (misma re-autenticación que Configuración).
+function CambiarPasswordModal({
+  usuario, esYo, onClose, onDone,
+}: { usuario: UsuarioDemo; esYo: boolean; onClose: () => void; onDone: () => void }) {
+  const [actual, setActual] = useState('')
+  const [nueva, setNueva] = useState('')
+  const [confirmar, setConfirmar] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  async function guardar() {
+    setError(null)
+    if (nueva.length < 8) { setError('La contraseña debe tener al menos 8 caracteres, con letra y número.'); return }
+    if (nueva !== confirmar) { setError('Las contraseñas no coinciden.'); return }
+    if (esYo && !actual) { setError('Ingresa tu contraseña actual para confirmar.'); return }
+    setEnviando(true)
+    try {
+      if (esYo) {
+        const r = await fetch('/spaces-dooh/api/perfil/', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: nueva, passwordActual: actual }),
+        })
+        const d = await r.json().catch(() => ({}))
+        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo cambiar la contraseña')
+      } else {
+        await actualizarUsuarioApi(usuario.id, { password: nueva })
+      }
+      onDone()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo cambiar la contraseña')
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title={esYo ? 'Cambiar mi contraseña' : `Contraseña de ${usuario.nombre}`}
+      subtitle={esYo ? 'Confirma con tu contraseña actual' : usuario.email}
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button size="sm" disabled={enviando || !nueva || !confirmar} onClick={guardar}>
+            {enviando ? 'Guardando…' : 'Guardar contraseña'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        {!esYo && (
+          <p className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-[#9a6700]">
+            Como Dueño, fijas una contraseña nueva para <b>{usuario.nombre}</b>. Compártesela por un medio seguro; podrá cambiarla después desde su perfil.
+          </p>
+        )}
+        {esYo && (
+          <Campo label="Contraseña actual">
+            <input type="password" className={inputCls} value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" autoFocus />
+          </Campo>
+        )}
+        <Campo label="Nueva contraseña">
+          <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="mínimo 8, con letra y número" autoComplete="new-password" autoFocus={!esYo} />
+        </Campo>
+        <Campo label="Confirmar contraseña">
+          <input type="password" className={inputCls} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
+        </Campo>
+        {error && <p className="text-[12px] text-error">{error}</p>}
+      </div>
+    </Modal>
   )
 }
 

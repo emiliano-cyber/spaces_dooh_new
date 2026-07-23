@@ -74,7 +74,7 @@ export function Topbar() {
             <DropdownMenu.Content
               align="end"
               sideOffset={6}
-              className="z-50 max-h-[420px] w-80 overflow-y-auto rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+              className="demo-root z-50 max-h-[420px] w-80 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               <div className="flex items-center justify-between px-2 py-1.5">
                 <span className="text-[13px] font-medium text-ink">Notificaciones</span>
@@ -131,7 +131,7 @@ export function Topbar() {
             <DropdownMenu.Content
               align="end"
               sideOffset={6}
-              className="z-50 min-w-[220px] rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+              className="demo-root z-50 min-w-[220px] rounded-md border border-border bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               {usuario && (
                 <div className="px-2 py-1.5">

@@ -89,3 +89,26 @@ export async function borrarSitioApi(id: string): Promise<void> {
   await fetch(`${BASE}/${id}/`, { method: 'DELETE' })
   await refrescarSitios()
 }
+
+// Pausa legal: saca la pantalla de la disponibilidad comercial con un motivo.
+export async function pausarSitioLegalApi(id: string, motivo: string): Promise<void> {
+  const r = await fetch(`${BASE}/${id}/pausa-legal/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo }),
+  })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo pausar')
+  }
+  await refrescarSitios()
+}
+
+export async function reanudarSitioLegalApi(id: string): Promise<void> {
+  const r = await fetch(`${BASE}/${id}/pausa-legal/`, { method: 'DELETE' })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo reanudar')
+  }
+  await refrescarSitios()
+}
