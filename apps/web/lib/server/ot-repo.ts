@@ -198,13 +198,14 @@ export async function cerrarOT(
        values ($1,$2,$3,'image/jpeg',$4,$5,8,'INSTALACION',$6,$7,$8)`,
       [id, fotoUrl, fotoKey, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null, await tenantActual()],
     )
-    // Candado de la campaña si está ligada. Una OT es evidencia de la parte
-    // FÍSICA, así que enciende `fotos_comprobatorias`. `reporte_publicacion`
-    // (salió al aire) solo lo enciende para campañas NO híbridas: en una HÍBRIDA
-    // la parte digital debe publicarse aparte (validarPublicacion / DOOHmain), así
-    // que cerrar una OT de lona NO puede dar por publicada la digital (A-2). Por
-    // eso una híbrida solo pasa a LISTA_FACTURAR si su parte digital ya reportó.
-    if (ot.campana_id) {
+    // Candado (A-2): SOLO el cierre de una OT de MONTAJE FÍSICO (lona) es
+    // evidencia del segmento FÍSICO → enciende `fotos_comprobatorias`. Otras OTs
+    // (inspección, mantenimiento, desmontaje) NO completan la evidencia de
+    // facturación. NO enciende `reporte_publicacion` (evidencia DIGITAL) en
+    // HÍBRIDAS: la parte digital se prueba aparte (proof-of-play / publicación),
+    // así que cerrar la lona NO da por cumplida la digital. Una HÍBRIDA solo pasa
+    // a LISTA_FACTURAR si su parte digital ya reportó.
+    if (ot.campana_id && ot.tipo === 'MONTAJE_LONA') {
       await client.query(
         `update campanas set
             fotos_comprobatorias = true,

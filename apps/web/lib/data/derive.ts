@@ -80,11 +80,33 @@ export function etapasPipeline(c: Campana): EtapaPipeline[] {
   return ETAPAS_PIPELINE
 }
 
-// ─── Candado de facturación ─────────────────────────────────────────────────
-// Las tres condiciones (todas son campos reales de Prisma en Campana):
-//   OC recibida + fotos comprobatorias + reporte de publicación.
+// ─── Candado de facturación (regla ÚNICA, por segmento — A-2) ────────────────
+// La evidencia se exige SOLO para los segmentos que la campaña realmente tiene:
+//   • FÍSICO  (OOH/HÍBRIDA): fotos comprobatorias = testigos de la OT de montaje.
+//   • DIGITAL (DOOH/HÍBRIDA): reporte de publicación = proof-of-play con
+//     reproducciones reales (o publicación aprobada).
+// El candado global es el AND de los segmentos aplicables (una HÍBRIDA exige
+// AMBOS: la evidencia física NO da por cumplido lo digital ni viceversa). Una
+// campaña 100% física o 100% digital exige solo su único segmento.
+//
+// Esta es la ÚNICA definición del candado: el gate de facturación del servidor
+// (finanzas-repo) también la usa, para no duplicar la regla.
+export function candadoDeSegmentos(
+  tipoCampana: string,
+  f: { ocRecibida: boolean; evidenciaFisica: boolean; evidenciaDigital: boolean },
+): boolean {
+  if (!f.ocRecibida) return false
+  const exigeFisica = tipoCampana === 'OOH' || tipoCampana === 'HIBRIDA'
+  const exigeDigital = tipoCampana === 'DOOH' || tipoCampana === 'HIBRIDA'
+  return (!exigeFisica || f.evidenciaFisica) && (!exigeDigital || f.evidenciaDigital)
+}
+
 export function candadoFacturacion(c: Campana): boolean {
-  return c.ocRecibida && c.fotosComprobatorias && c.reportePublicacion
+  return candadoDeSegmentos(c.tipoCampana, {
+    ocRecibida: c.ocRecibida,
+    evidenciaFisica: c.fotosComprobatorias,
+    evidenciaDigital: c.reportePublicacion,
+  })
 }
 
 // ─── Etapa actual del pipeline ──────────────────────────────────────────────
@@ -195,6 +217,32 @@ export function estadoCobranza(cob: Cobranza): EstCobranza {
 // Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
 const COSTO_OPERATIVO_POR_OT = 1500
 
+// ─── Totalización por moneda (A-3) ──────────────────────────────────────────
+// Suma importes RESPETANDO la moneda. Si todos comparten moneda, devuelve el
+// total escalar. Si hay MÁS de una moneda, NO suma 1:1 (eso mezclaría divisas):
+// devuelve `total = null`, el desglose `porMoneda` y marca `mixto`. La conversión
+// con tipo de cambio queda explícitamente FUERA de scope (decisión pendiente).
+export interface TotalPorMoneda {
+  mixto: boolean
+  moneda: string | null // la moneda única, o null si hay mezcla
+  total: number | null // total escalar si la moneda es única; null si es mixto
+  porMoneda: Record<string, number>
+}
+export function totalizarMoneda(
+  items: Array<{ monto: number; moneda?: string | null }>,
+): TotalPorMoneda {
+  const porMoneda: Record<string, number> = {}
+  for (const it of items) {
+    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || 'MXN'
+    porMoneda[m] = (porMoneda[m] ?? 0) + (Number(it.monto) || 0)
+  }
+  const monedas = Object.keys(porMoneda)
+  if (monedas.length <= 1) {
+    return { mixto: false, moneda: monedas[0] ?? null, total: monedas.length ? porMoneda[monedas[0]] : 0, porMoneda }
+  }
+  return { mixto: true, moneda: null, total: null, porMoneda }
+}
+
 export interface DashboardMetrics {
   ingresoMes: number
   // Motor de costos (3 fuentes) → costoTotalMes.
@@ -214,6 +262,15 @@ export interface DashboardMetrics {
   valorTentativo: number
   valorConfirmado: number
   alertas: Alerta[]
+  // A-3 · moneda. `moneda` es la moneda única de los importes (o null si hay
+  // mezcla). `monedasMixtas` marca que P&L/por-cobrar/costo-renta abarcan más de
+  // una divisa: en ese caso los escalares de arriba son un 1:1 NO confiable y la
+  // UI debe usar los desgloses `*PorMoneda` (no convertir sin tipo de cambio).
+  moneda: string | null
+  monedasMixtas: boolean
+  ingresoPorMoneda: Record<string, number>
+  porCobrarPorMoneda: Record<string, number>
+  costoRentaPorMoneda: Record<string, number>
 }
 
 // Tipos (categorías) de alerta. Sirven para que el usuario elija en el Dashboard
@@ -275,6 +332,33 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
       return s + (fac ? fac.monto - c.montoPagado : 0)
     }, 0)
 
+  // ── Moneda (A-3): desglose por divisa de los agregados de dinero. La reserva
+  //    NO guarda moneda: la hereda de su campaña. Factura y contrato sí la traen.
+  const monedaCampana = new Map(state.campanas.map((c) => [c.id, c.moneda]))
+  const ingresoTot = totalizarMoneda(
+    confirmadas.map((r) => ({ monto: r.precio, moneda: monedaCampana.get(r.campanaId) })),
+  )
+  const porCobrarTot = totalizarMoneda(
+    state.cobranzas
+      .filter((c) => estadoCobranza(c) !== 'PAGADA')
+      .map((c) => {
+        const fac = state.facturas.find((f) => f.id === c.facturaId)
+        return { monto: fac ? fac.monto - c.montoPagado : 0, moneda: fac?.moneda }
+      }),
+  )
+  const costoRentaTot = totalizarMoneda(
+    state.contratos
+      .filter((c) => contratoActivo(c.estatus))
+      .map((c) => ({ monto: rentaAMensual(c.montoRenta, c.periodicidad), moneda: c.moneda })),
+  )
+  const monedasPresentes = new Set([
+    ...Object.keys(ingresoTot.porMoneda),
+    ...Object.keys(porCobrarTot.porMoneda),
+    ...Object.keys(costoRentaTot.porMoneda),
+  ])
+  const monedasMixtas = monedasPresentes.size > 1
+  const moneda = monedasMixtas ? null : ([...monedasPresentes][0] ?? null)
+
   const sitiosTotales = state.sitios.length
   const sitiosOcupados = state.sitios.filter(
     (s) => s.estatusComercial === 'OCUPADO',
@@ -299,6 +383,11 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     valorTentativo,
     valorConfirmado,
     alertas: construirAlertas(state),
+    moneda,
+    monedasMixtas,
+    ingresoPorMoneda: ingresoTot.porMoneda,
+    porCobrarPorMoneda: porCobrarTot.porMoneda,
+    costoRentaPorMoneda: costoRentaTot.porMoneda,
   }
 }
 

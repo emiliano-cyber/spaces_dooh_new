@@ -34,7 +34,14 @@ export async function generarFacturaCtrl(campanaId: string, body: unknown) {
     return await generarFactura(campanaId, d.plazoDias as 60 | 90 | 120)
   } catch (e) {
     if (e instanceof FacturaError) {
-      throw new AppError(e.message, /no encontrada/i.test(e.message) ? 404 : 400)
+      // A-1: "ya tiene factura" (incluida la carrera que rebota en el índice
+      // único) es un conflicto de estado → 409, no un 400 de validación.
+      const status = /no encontrada/i.test(e.message)
+        ? 404
+        : /ya tiene factura/i.test(e.message)
+          ? 409
+          : 400
+      throw new AppError(e.message, status)
     }
     throw e
   }

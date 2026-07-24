@@ -670,6 +670,20 @@ export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: stri
 
 // ─── CRUD faltante (Fase 1.2): editar/borrar arrendador; editar/cancelar contrato ──
 
+// Snapshot de los datos bancarios ACTUALES de un arrendador. Se usa para el
+// audit inmutable de A-4: registrar el valor anterior antes de sobrescribirlo
+// (a dónde se pagaba la renta). tenant-scoped.
+export async function datosBancariosArrendador(
+  id: string,
+): Promise<{ cuentaBancaria: string | null; formaPago: string | null } | null> {
+  const rows = await q<{ cuenta_bancaria: string | null; forma_pago: string | null }>(
+    'select cuenta_bancaria, forma_pago from arrendadores where id=$1 and tenant_id=$2',
+    [id, await tenantActual()],
+  )
+  const r = rows[0]
+  return r ? { cuentaBancaria: r.cuenta_bancaria ?? null, formaPago: r.forma_pago ?? null } : null
+}
+
 // Edita un arrendador (solo los campos provistos). tenant-scoped.
 export async function editarArrendador(id: string, patch: {
   nombre?: string; rfc?: string | null; telefono?: string | null; email?: string | null

@@ -4,6 +4,7 @@ import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
+import { candadoDeSegmentos } from '@/lib/data/derive'
 
 // ============================================================================
 //  lib/server/finanzas-repo.ts — Facturación y cobranza.
@@ -131,11 +132,17 @@ export class FacturaError extends Error {}
 export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120) {
   const c = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!c) throw new FacturaError('Campaña no encontrada')
-  if (!(c.oc_recibida && c.fotos_comprobatorias && c.reporte_publicacion)) {
+  // Candado por segmento (A-2): la MISMA regla que usa la UI (derive.ts). Una
+  // HÍBRIDA exige evidencia física (fotos) Y digital (reporte/proof-of-play); una
+  // 100% física o digital solo su único segmento. No se re-implementa aquí.
+  if (
+    !candadoDeSegmentos(c.tipo_campana, {
+      ocRecibida: c.oc_recibida,
+      evidenciaFisica: c.fotos_comprobatorias,
+      evidenciaDigital: c.reporte_publicacion,
+    })
+  ) {
     throw new FacturaError('La campaña no tiene el candado de facturación completo')
-  }
-  if (await q1('select 1 from facturas where campana_id=$1', [campanaId])) {
-    throw new FacturaError('La campaña ya tiene factura')
   }
 
   // Validación fiscal: el cliente necesita RFC y razón social para timbrar.
@@ -156,13 +163,26 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
   try {
     await client.query('begin')
     await fijarTenant(client)
-    const fac = (
-      await client.query(
-        `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,coalesce((select moneda from campanas where id=$2),(select moneda from tenants where id=$11),'MXN'),current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
-        [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual()],
-      )
-    ).rows[0]
+    // A-1: el check "¿ya existe factura?" va DENTRO de la transacción, respaldado
+    // por el índice único facturas_campana_uq. Si dos peticiones concurrentes
+    // pasan este check, la segunda rebota en el INSERT con unique_violation
+    // (23505), que traducimos abajo a un FacturaError limpio (409), no a un 500.
+    if ((await client.query('select 1 from facturas where campana_id=$1', [campanaId])).rows[0]) {
+      throw new FacturaError('La campaña ya tiene factura')
+    }
+    let fac: any
+    try {
+      fac = (
+        await client.query(
+          `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)
+           values ($1,$2,$3,$4,$5,$6,coalesce((select moneda from campanas where id=$2),(select moneda from tenants where id=$11),'MXN'),current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
+          [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual()],
+        )
+      ).rows[0]
+    } catch (e) {
+      if ((e as { code?: string })?.code === '23505') throw new FacturaError('La campaña ya tiene factura')
+      throw e
+    }
     await client.query(
       `insert into cobranzas (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado, tenant_id)
        values ($1,$2, current_date + $2::int, 'AL_CORRIENTE', 0, $3)`,

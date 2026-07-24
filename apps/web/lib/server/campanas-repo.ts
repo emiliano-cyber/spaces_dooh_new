@@ -452,9 +452,6 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   if (!prop.cliente_id) {
     throw new PropuestaCampanaError('La propuesta no tiene cliente asignado; no se puede facturar la campaña')
   }
-  // Idempotencia: si ya generó campaña, devuelve la existente (no duplica).
-  const ya = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
-  if (ya) return rowToCampana(ya)
 
   const items = await q<any>(
     'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
@@ -477,6 +474,15 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // A-1: idempotencia DENTRO de la transacción, respaldada por el índice único
+    // campanas_propuesta_uq. Si ya se generó la campaña de esta propuesta, se
+    // devuelve la existente (no duplica). En carrera con otra generación
+    // simultánea, la segunda rebota en el INSERT con 23505 y se resuelve abajo.
+    const ya = (await client.query('select * from campanas where propuesta_id=$1', [propuestaId])).rows[0]
+    if (ya) {
+      await client.query('commit')
+      return rowToCampana(ya)
+    }
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
       await client.query(
@@ -549,6 +555,13 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     return rowToCampana(creada)
   } catch (e) {
     await client.query('rollback')
+    // A-1: carrera con otra generación simultánea de la MISMA propuesta. La
+    // campaña ya existe (23505 sobre campanas_propuesta_uq): se relee y se
+    // devuelve (idempotente), no es un error para el usuario.
+    if ((e as { code?: string })?.code === '23505') {
+      const existente = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
+      if (existente) return rowToCampana(existente)
+    }
     throw e
   } finally {
     client.release()
@@ -673,11 +686,12 @@ export async function validarPublicacion(
     )
   }
   if (aprobar) {
-    // Candado de facturación para DIGITALES: aprobar la publicación (= salió al
-    // aire en DOOHmain) enciende "reporte de publicación". Las fotos
-    // comprobatorias las enciende el proof-of-play (playlogs-repo). Con la OC ya
-    // recibida y las fotos, el candado completa → LISTA_FACTURAR. Las fijas no
-    // pasan por aquí (no se envían al dominio): su candado sigue por la OT.
+    // Candado de facturación para DIGITALES (A-2): aprobar la publicación (= salió
+    // al aire en DOOHmain) enciende la evidencia DIGITAL "reporte_publicacion"
+    // (igual que el proof-of-play). La evidencia FÍSICA (fotos_comprobatorias) va
+    // aparte, por la OT de montaje. Paso a LISTA_FACTURAR: para DOOH basta la OC
+    // (solo tiene segmento digital); para HÍBRIDA falta además la OT física
+    // (fotos). Las fijas (OOH) no pasan por aquí: su candado va por la OT.
     const rows = await q(
       `update campanas
           set validacion_estatus = 'APROBADA',
@@ -686,7 +700,8 @@ export async function validarPublicacion(
               validacion_en = now(),
               reporte_publicacion = true,
               estado_comercial = case
-                when oc_recibida and fotos_comprobatorias then 'LISTA_FACTURAR'::est_comercial_campana
+                when oc_recibida and (tipo_campana <> 'HIBRIDA' or fotos_comprobatorias)
+                  then 'LISTA_FACTURAR'::est_comercial_campana
                 when estado_comercial = 'CONFIRMADA' then 'ACTIVA'
                 else estado_comercial end
         where id = $1

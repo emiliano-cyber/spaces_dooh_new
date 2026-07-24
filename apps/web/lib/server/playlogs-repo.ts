@@ -78,18 +78,21 @@ export async function consultarYGuardarPlay(input: {
       input.usuarioId ?? null,
     ],
   )
-  // Candado de facturación para DIGITALES: el proof-of-play es la evidencia
-  // comprobatoria de que la campaña salió al aire (equivale a las fotos testigo
-  // de las fijas). Con la publicación ya aprobada (reporte) y la OC, completa el
-  // candado → LISTA_FACTURAR. Se exige que la consulta traiga REPRODUCCIONES
-  // REALES (r.ok && !vacio): un payload vacío significa que la campaña nunca se
-  // reprodujo, así que NO debe encender la evidencia (hallazgo A-2).
+  // A-2: el proof-of-play es la evidencia del segmento DIGITAL (que la campaña
+  // SÍ se reprodujo). Enciende `reporte_publicacion` (evidencia digital), NO
+  // `fotos_comprobatorias` (que es la evidencia FÍSICA de la OT de montaje): así
+  // una HÍBRIDA sigue exigiendo su OT física aparte y una foto de lona no da por
+  // cumplido lo digital ni viceversa. Se exige REPRODUCCIONES REALES
+  // (r.ok && !vacio): un payload vacío = la campaña nunca se reprodujo → NO
+  // enciende evidencia. El paso a LISTA_FACTURAR completa el candado: para DOOH
+  // basta la OC; para HÍBRIDA falta además la evidencia física (fotos).
   if (input.campanaId && r.ok && !vacio) {
     await q(
       `update campanas
-          set fotos_comprobatorias = true,
+          set reporte_publicacion = true,
               estado_comercial = case
-                when oc_recibida and reporte_publicacion then 'LISTA_FACTURAR'::est_comercial_campana
+                when oc_recibida and (tipo_campana <> 'HIBRIDA' or fotos_comprobatorias)
+                  then 'LISTA_FACTURAR'::est_comercial_campana
                 else estado_comercial end
         where id = $1`,
       [input.campanaId],
