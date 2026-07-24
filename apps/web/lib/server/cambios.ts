@@ -131,10 +131,20 @@ export interface FaltaDesbloqueo {
 // de exigir(): primero el permiso del rol, luego el candado.
 // Deja pasar si: es el Dueño, el control está apagado, o la sesión está
 // desbloqueada y no ha expirado.
-export async function exigirDesbloqueo(): Promise<{ ok: true } | FaltaDesbloqueo> {
+//
+// `sinExenciones` (N-1): modo ESTRICTO. Ignora la exención del Dueño
+// (ROL_SIN_CANDADO) y le exige también a él reconfirmar con la contraseña del
+// control de cambios. Se usa SOLO en cambios de máxima sensibilidad (datos
+// bancarios del arrendador: a dónde se paga la renta), donde una sesión de Dueño
+// desatendida/secuestrada no debe poder redirigir pagos sin reautenticar. Si el
+// control de cambios está APAGADO (no hay contraseña), no hay nada que reconfirmar
+// y se deja pasar igual que el resto del sistema.
+export async function exigirDesbloqueo(
+  opts?: { sinExenciones?: boolean },
+): Promise<{ ok: true } | FaltaDesbloqueo> {
   const u = await usuarioActual()
   if (!u) return { ok: false, status: 401, error: 'Sin sesión', requiereDesbloqueo: true }
-  if (u.rol === ROL_SIN_CANDADO) return { ok: true }
+  if (!opts?.sinExenciones && u.rol === ROL_SIN_CANDADO) return { ok: true }
   const hash = await hashDelTenant(u.tenantId)
   if (!hash) return { ok: true } // control apagado: todo sigue como antes
   const t = token()
@@ -161,10 +171,11 @@ export function respuestaDesbloqueo(d: FaltaDesbloqueo): NextResponse {
 export async function exigirCambioSensible(
   modulo: string,
   accion: string,
+  opts?: { sinExenciones?: boolean },
 ): Promise<{ ok: true; usuario: UsuarioSesion } | { ok: false; res: NextResponse }> {
   const g = await exigir(modulo, accion)
   if (!g.ok) return { ok: false, res: NextResponse.json({ error: g.error }, { status: g.status }) }
-  const d = await exigirDesbloqueo()
+  const d = await exigirDesbloqueo(opts)
   if (!d.ok) return { ok: false, res: respuestaDesbloqueo(d) }
   return { ok: true, usuario: g.usuario }
 }

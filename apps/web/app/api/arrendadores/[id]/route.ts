@@ -22,12 +22,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const body = await req.json().catch(() => ({}))
     const tocaBanco =
       body && typeof body === 'object' && CAMPOS_BANCARIOS.some((c) => c in (body as object))
-    // A-4: cambiar la cuenta/forma de pago es un cambio sensible de dinero →
-    // exige el MISMO candado del Dueño que pagar/facturar/cancelar contrato.
-    // El resto de campos (nombre, RFC, contacto…) siguen igual que antes.
+    // A-4 + N-1: cambiar la cuenta/forma de pago es el cambio MÁS sensible de
+    // dinero (a dónde se paga la renta). Exige reconfirmación de contraseña del
+    // control de cambios en modo ESTRICTO (`sinExenciones`): SIN la exención del
+    // Dueño, para que ni una sesión de Dueño desatendida/secuestrada pueda
+    // redirigir pagos sin reautenticar. El resto de campos (nombre, RFC,
+    // contacto…) siguen igual que antes.
     let previo: { cuentaBancaria: string | null; formaPago: string | null } | null = null
     if (tocaBanco) {
-      const gc = await exigirCambioSensible('arrendadores', 'crear')
+      const gc = await exigirCambioSensible('arrendadores', 'crear', { sinExenciones: true })
       if (!gc.ok) return gc.res
       // Snapshot del valor ANTERIOR antes de sobrescribirlo (para el audit).
       previo = await datosBancariosArrendador(params.id)
