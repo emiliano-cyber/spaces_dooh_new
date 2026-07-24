@@ -148,6 +148,11 @@ export function usePredios() {
   const v = useDemoStore((s) => s.predios)
   return m ? v : undefined
 }
+export function useRazonesSociales() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.razonesSociales)
+  return m ? v : undefined
+}
 export function useContratos() {
   const m = useMounted()
   const v = useDemoStore((s) => s.contratos)

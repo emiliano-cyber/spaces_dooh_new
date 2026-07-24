@@ -23,6 +23,6 @@ export async function POST(req: Request) {
   })
   if (!odc) return NextResponse.json({ error: 'Campaña no encontrada' }, { status: 404 })
   await registrarAccion(g.usuario, 'Registró ODC del cliente', odc.folio)
-  await notificar({ tipo: 'ODC', nivel: 'ok', titulo: 'ODC registrada', detalle: `${odc.folio} · ${odc.monto.toLocaleString('es-MX')}`, link: `/demo/campanas/${odc.campanaId}` })
+  await notificar({ tipo: 'ODC', nivel: 'ok', titulo: 'ODC registrada', detalle: `${odc.folio} · ${odc.monto.toLocaleString('es-MX')}`, link: `/campanas/${odc.campanaId}` })
   return NextResponse.json(odc, { status: 201 })
 }

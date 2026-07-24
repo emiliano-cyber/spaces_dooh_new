@@ -14,7 +14,7 @@ import { NAV } from './nav'
 // ítem y bloquear la ruta nunca se desincronizan. Esto cierra las fugas por
 // links directos (pipeline, OT, etc.), no solo el menú.
 function moduloDe(pathname: string | null) {
-  const path = (pathname ?? '/demo').replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/demo'
+  const path = (pathname ?? '/').replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
   const matches = NAV.filter((n) => path === n.href || path.startsWith(n.href + '/'))
   // El href más largo gana: /demo/comercial vence a /demo (dashboard).
   return matches.sort((a, b) => b.href.length - a.href.length)[0] ?? null
@@ -32,7 +32,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (sesion === undefined) return
     if (sesion === null) {
-      router.replace('/demo/login')
+      router.replace('/login')
     } else if (sesion.usuario.rol === 'CLIENTE') {
       router.replace(landingDeRol('CLIENTE'))
     } else if (noAutorizado) {

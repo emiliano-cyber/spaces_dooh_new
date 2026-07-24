@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       c.liquidado ? `Registró pago ${montoTxt} (liquidado)` : `Registró abono ${montoTxt}`,
       c.folio ?? 'cobranza',
     )
-    await notificar({ tipo: 'PAGO', nivel: 'ok', titulo: c.liquidado ? 'Cobranza liquidada' : 'Abono registrado', detalle: c.folio ?? 'cobranza', link: '/demo/finanzas' })
+    await notificar({ tipo: 'PAGO', nivel: 'ok', titulo: c.liquidado ? 'Cobranza liquidada' : 'Abono registrado', detalle: c.folio ?? 'cobranza', link: '/finanzas' })
     return NextResponse.json(c)
   } catch (e) {
     return respuestaError(e)

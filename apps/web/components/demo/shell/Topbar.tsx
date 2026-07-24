@@ -23,7 +23,7 @@ export function Topbar() {
   async function cerrar() {
     await apiLogout()
     await refrescar()
-    router.push('/demo/login')
+    router.push('/login')
   }
 
   async function abrirNotif(id: string, link: string | null) {
@@ -74,7 +74,7 @@ export function Topbar() {
             <DropdownMenu.Content
               align="end"
               sideOffset={6}
-              className="z-50 max-h-[420px] w-80 overflow-y-auto rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+              className="demo-root z-50 max-h-[420px] w-80 overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               <div className="flex items-center justify-between px-2 py-1.5">
                 <span className="text-[13px] font-medium text-ink">Notificaciones</span>
@@ -131,7 +131,7 @@ export function Topbar() {
             <DropdownMenu.Content
               align="end"
               sideOffset={6}
-              className="z-50 min-w-[220px] rounded-md border border-border bg-surface p-1 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
+              className="demo-root z-50 min-w-[220px] rounded-md border border-border bg-surface p-1 shadow-lg data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
             >
               {usuario && (
                 <div className="px-2 py-1.5">
@@ -143,7 +143,7 @@ export function Topbar() {
               <div className="my-1 h-px bg-border" />
               <DropdownMenu.Item asChild>
                 <Link
-                  href="/demo/configuracion"
+                  href="/configuracion"
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
                 >
                   <Settings className="h-4 w-4 text-muted" /> Configuración

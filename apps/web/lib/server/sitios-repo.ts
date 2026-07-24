@@ -64,6 +64,9 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     estatusComercial: r.estatus_comercial,
     estatusLegal: r.estatus_legal,
     estatusOperativo: r.estatus_operativo,
+    pausaLegal: r.pausa_legal ?? false,
+    motivoPausaLegal: r.motivo_pausa_legal ?? null,
+    pausaLegalEn: r.pausa_legal_en ? new Date(r.pausa_legal_en).toISOString() : null,
     fotos: r.fotos ?? [],
     imagenPromocional: r.imagen_promocional,
     notas: r.notas,
@@ -87,6 +90,7 @@ const COLS = [
   'tarifa_mensual', 'tarifa_publicada', 'costo_compra', 'precio_m2', 'tarifa_impresion',
   'comercializacion', 'en_network', 'cms', 'estatus_comercial', 'estatus_legal', 'estatus_operativo',
   'fotos', 'imagen_promocional', 'notas',
+  'pausa_legal', 'motivo_pausa_legal', 'pausa_legal_en',
 ] as const
 
 function valoresDe(s: any): unknown[] {

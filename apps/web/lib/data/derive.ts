@@ -54,21 +54,23 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
 }
 
 // ─── Etapas aplicables a una campaña según su tipo ──────────────────────────
-// La revisión de creativo (recibido/validado) y la impresión son etapas
+// La revisión de creativo (recibido/validado) y las etapas FÍSICAS son
 // excluyentes según el medio:
-//   • DOOH (digital): el arte del cliente se recibe y aprueba, pero NO se
-//     imprime → se omite "En imprenta".
-//   • OOH (fija/física): la lona se imprime y monta; NO hay etapa de revisión
-//     de creativo → se omiten "Creativo recibido" y "Creativo validado", queda
-//     "En imprenta".
+//   • DOOH (digital): el arte se recibe y aprueba y sale al aire por "Publicada"
+//     (DOOHmain). NO hay impresión, producción ni instalación física → se omiten
+//     "En imprenta", "En producción" e "Instalada / al aire".
+//   • OOH (fija/física): la lona se imprime, produce y monta; NO hay etapa de
+//     revisión de creativo → se omiten "Creativo recibido/validado".
 //   • HÍBRIDA: tiene ambos flujos, conserva todas las etapas.
 const ETAPAS_CREATIVO: EtapaPipeline[] = ['creativo_recibido', 'creativo_validado']
 // Publicación al dominio/CMS: solo aplica a medios digitales (DOOH/HÍBRIDA); la
 // fija (OOH) no tiene CMS.
 const ETAPAS_PUBLICACION: EtapaPipeline[] = ['enviada_dominio', 'publicada']
+// Etapas FÍSICAS (impresión, producción, montaje/instalación): solo medios fijos.
+const ETAPAS_FISICAS: EtapaPipeline[] = ['en_imprenta', 'en_produccion', 'instalada']
 export function etapasPipeline(c: Campana): EtapaPipeline[] {
   if (c.tipoCampana === 'DOOH') {
-    return ETAPAS_PIPELINE.filter((e) => e !== 'en_imprenta')
+    return ETAPAS_PIPELINE.filter((e) => !ETAPAS_FISICAS.includes(e))
   }
   if (c.tipoCampana === 'OOH') {
     return ETAPAS_PIPELINE.filter(
@@ -78,11 +80,33 @@ export function etapasPipeline(c: Campana): EtapaPipeline[] {
   return ETAPAS_PIPELINE
 }
 
-// ─── Candado de facturación ─────────────────────────────────────────────────
-// Las tres condiciones (todas son campos reales de Prisma en Campana):
-//   OC recibida + fotos comprobatorias + reporte de publicación.
+// ─── Candado de facturación (regla ÚNICA, por segmento — A-2) ────────────────
+// La evidencia se exige SOLO para los segmentos que la campaña realmente tiene:
+//   • FÍSICO  (OOH/HÍBRIDA): fotos comprobatorias = testigos de la OT de montaje.
+//   • DIGITAL (DOOH/HÍBRIDA): reporte de publicación = proof-of-play con
+//     reproducciones reales (o publicación aprobada).
+// El candado global es el AND de los segmentos aplicables (una HÍBRIDA exige
+// AMBOS: la evidencia física NO da por cumplido lo digital ni viceversa). Una
+// campaña 100% física o 100% digital exige solo su único segmento.
+//
+// Esta es la ÚNICA definición del candado: el gate de facturación del servidor
+// (finanzas-repo) también la usa, para no duplicar la regla.
+export function candadoDeSegmentos(
+  tipoCampana: string,
+  f: { ocRecibida: boolean; evidenciaFisica: boolean; evidenciaDigital: boolean },
+): boolean {
+  if (!f.ocRecibida) return false
+  const exigeFisica = tipoCampana === 'OOH' || tipoCampana === 'HIBRIDA'
+  const exigeDigital = tipoCampana === 'DOOH' || tipoCampana === 'HIBRIDA'
+  return (!exigeFisica || f.evidenciaFisica) && (!exigeDigital || f.evidenciaDigital)
+}
+
 export function candadoFacturacion(c: Campana): boolean {
-  return c.ocRecibida && c.fotosComprobatorias && c.reportePublicacion
+  return candadoDeSegmentos(c.tipoCampana, {
+    ocRecibida: c.ocRecibida,
+    evidenciaFisica: c.fotosComprobatorias,
+    evidenciaDigital: c.reportePublicacion,
+  })
 }
 
 // ─── Etapa actual del pipeline ──────────────────────────────────────────────
@@ -193,6 +217,32 @@ export function estadoCobranza(cob: Cobranza): EstCobranza {
 // Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
 const COSTO_OPERATIVO_POR_OT = 1500
 
+// ─── Totalización por moneda (A-3) ──────────────────────────────────────────
+// Suma importes RESPETANDO la moneda. Si todos comparten moneda, devuelve el
+// total escalar. Si hay MÁS de una moneda, NO suma 1:1 (eso mezclaría divisas):
+// devuelve `total = null`, el desglose `porMoneda` y marca `mixto`. La conversión
+// con tipo de cambio queda explícitamente FUERA de scope (decisión pendiente).
+export interface TotalPorMoneda {
+  mixto: boolean
+  moneda: string | null // la moneda única, o null si hay mezcla
+  total: number | null // total escalar si la moneda es única; null si es mixto
+  porMoneda: Record<string, number>
+}
+export function totalizarMoneda(
+  items: Array<{ monto: number; moneda?: string | null }>,
+): TotalPorMoneda {
+  const porMoneda: Record<string, number> = {}
+  for (const it of items) {
+    const m = (typeof it.moneda === 'string' && it.moneda.trim()) || 'MXN'
+    porMoneda[m] = (porMoneda[m] ?? 0) + (Number(it.monto) || 0)
+  }
+  const monedas = Object.keys(porMoneda)
+  if (monedas.length <= 1) {
+    return { mixto: false, moneda: monedas[0] ?? null, total: monedas.length ? porMoneda[monedas[0]] : 0, porMoneda }
+  }
+  return { mixto: true, moneda: null, total: null, porMoneda }
+}
+
 export interface DashboardMetrics {
   ingresoMes: number
   // Motor de costos (3 fuentes) → costoTotalMes.
@@ -212,6 +262,15 @@ export interface DashboardMetrics {
   valorTentativo: number
   valorConfirmado: number
   alertas: Alerta[]
+  // A-3 · moneda. `moneda` es la moneda única de los importes (o null si hay
+  // mezcla). `monedasMixtas` marca que P&L/por-cobrar/costo-renta abarcan más de
+  // una divisa: en ese caso los escalares de arriba son un 1:1 NO confiable y la
+  // UI debe usar los desgloses `*PorMoneda` (no convertir sin tipo de cambio).
+  moneda: string | null
+  monedasMixtas: boolean
+  ingresoPorMoneda: Record<string, number>
+  porCobrarPorMoneda: Record<string, number>
+  costoRentaPorMoneda: Record<string, number>
 }
 
 // Tipos (categorías) de alerta. Sirven para que el usuario elija en el Dashboard
@@ -273,6 +332,33 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
       return s + (fac ? fac.monto - c.montoPagado : 0)
     }, 0)
 
+  // ── Moneda (A-3): desglose por divisa de los agregados de dinero. La reserva
+  //    NO guarda moneda: la hereda de su campaña. Factura y contrato sí la traen.
+  const monedaCampana = new Map(state.campanas.map((c) => [c.id, c.moneda]))
+  const ingresoTot = totalizarMoneda(
+    confirmadas.map((r) => ({ monto: r.precio, moneda: monedaCampana.get(r.campanaId) })),
+  )
+  const porCobrarTot = totalizarMoneda(
+    state.cobranzas
+      .filter((c) => estadoCobranza(c) !== 'PAGADA')
+      .map((c) => {
+        const fac = state.facturas.find((f) => f.id === c.facturaId)
+        return { monto: fac ? fac.monto - c.montoPagado : 0, moneda: fac?.moneda }
+      }),
+  )
+  const costoRentaTot = totalizarMoneda(
+    state.contratos
+      .filter((c) => contratoActivo(c.estatus))
+      .map((c) => ({ monto: rentaAMensual(c.montoRenta, c.periodicidad), moneda: c.moneda })),
+  )
+  const monedasPresentes = new Set([
+    ...Object.keys(ingresoTot.porMoneda),
+    ...Object.keys(porCobrarTot.porMoneda),
+    ...Object.keys(costoRentaTot.porMoneda),
+  ])
+  const monedasMixtas = monedasPresentes.size > 1
+  const moneda = monedasMixtas ? null : ([...monedasPresentes][0] ?? null)
+
   const sitiosTotales = state.sitios.length
   const sitiosOcupados = state.sitios.filter(
     (s) => s.estatusComercial === 'OCUPADO',
@@ -297,6 +383,11 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     valorTentativo,
     valorConfirmado,
     alertas: construirAlertas(state),
+    moneda,
+    monedasMixtas,
+    ingresoPorMoneda: ingresoTot.porMoneda,
+    porCobrarPorMoneda: porCobrarTot.porMoneda,
+    costoRentaPorMoneda: costoRentaTot.porMoneda,
   }
 }
 
@@ -373,32 +464,65 @@ export function reporteCampana(c: Campana, state: DemoState): ReporteCampana {
 function construirAlertas(state: DemoState): Alerta[] {
   const alertas: Alerta[] = []
 
-  // Pagos de renta vencidos / por vencer
+  const sitioDeContrato = (contratoId: string): string => {
+    const con = state.contratos.find((c) => c.id === contratoId)
+    const sit = con && state.sitios.find((s) => s.id === con.sitioId)
+    return sit?.nombre ?? 'Sitio'
+  }
+
+  // Renta vencida: cada pago impago cuyo vencimiento ya pasó.
   for (const p of state.pagosRenta) {
     if (p.estatus === 'VENCIDO') {
-      const con = state.contratos.find((c) => c.id === p.contratoId)
-      const sit = con && state.sitios.find((s) => s.id === con.sitioId)
       alertas.push({
         id: `al-pago-${p.id}`,
         tipo: 'pago',
         nivel: 'rojo',
         titulo: 'Renta vencida',
-        detalle: `${sit?.nombre ?? 'Sitio'} — pago ${p.periodo} sin liquidar`,
+        detalle: `${sitioDeContrato(p.contratoId)} — pago ${p.periodo} sin liquidar`,
       })
     }
   }
 
-  // Contratos por vencer (renovación)
+  // Renta por vencer: se avisa con al menos 3 MESES (90 días) de anticipación.
+  // Un solo aviso por contrato (el próximo pago pendiente, anual o mensual).
+  const proxPago = new Map<string, (typeof state.pagosRenta)[number]>()
+  for (const p of state.pagosRenta) {
+    if (p.estatus !== 'PENDIENTE') continue
+    const prev = proxPago.get(p.contratoId)
+    if (!prev || p.periodo < prev.periodo) proxPago.set(p.contratoId, p)
+  }
+  for (const p of proxPago.values()) {
+    const dias = diasHasta(p.periodo)
+    if (dias < 0 || dias > 90) continue
+    alertas.push({
+      id: `al-pagov-${p.id}`,
+      tipo: 'pago',
+      nivel: dias <= 15 ? 'rojo' : 'ambar',
+      titulo: 'Renta por vencer',
+      detalle: `${sitioDeContrato(p.contratoId)} — vence en ${dias} días (${formatMonto(p.monto)})`,
+    })
+  }
+
+  // Contratos: por vencer (a 3 meses) y vencidos.
   for (const c of state.contratos) {
+    const sit = state.sitios.find((s) => s.id === c.sitioId)
     if (c.estatus === 'POR_VENCER') {
-      const sit = state.sitios.find((s) => s.id === c.sitioId)
       const dias = diasHasta(c.fechaFin)
       alertas.push({
         id: `al-con-${c.id}`,
         tipo: 'contrato',
-        nivel: dias <= 15 ? 'rojo' : 'ambar',
+        nivel: dias <= 30 ? 'rojo' : 'ambar',
         titulo: 'Contrato por vencer',
         detalle: `${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`,
+      })
+    } else if (c.estatus === 'VENCIDO') {
+      const dias = Math.abs(diasHasta(c.fechaFin))
+      alertas.push({
+        id: `al-conv-${c.id}`,
+        tipo: 'contrato',
+        nivel: 'rojo',
+        titulo: 'Contrato vencido',
+        detalle: `${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`,
       })
     }
   }
@@ -414,6 +538,19 @@ function construirAlertas(state: DemoState): Alerta[] {
         nivel: est === 'VENCIDA' ? 'rojo' : 'ambar',
         titulo: est === 'VENCIDA' ? 'Factura vencida' : 'Factura por vencer',
         detalle: `${fac?.folio ?? 'Factura'} — ${formatMonto(fac?.monto ?? 0)}`,
+      })
+    }
+  }
+
+  // Pantallas en pausa legal (fuera de disponibilidad comercial)
+  for (const s of state.sitios) {
+    if (s.pausaLegal) {
+      alertas.push({
+        id: `al-pausa-${s.id}`,
+        tipo: 'incidencia',
+        nivel: 'rojo',
+        titulo: 'Pantalla en pausa legal',
+        detalle: `${s.nombre}${s.motivoPausaLegal ? ` — ${s.motivoPausaLegal}` : ''}`,
       })
     }
   }

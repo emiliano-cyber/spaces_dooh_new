@@ -21,7 +21,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       nivel: 'info',
       titulo: 'Campaña por validar',
       detalle: `${c.nombre} se envió al dominio y espera validación de publicación`,
-      link: `/demo/campanas/${c.id}`,
+      link: `/campanas/${c.id}`,
     })
     return NextResponse.json(c)
   } catch (e) {

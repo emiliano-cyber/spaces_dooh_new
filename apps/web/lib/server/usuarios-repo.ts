@@ -56,9 +56,10 @@ export async function crearUsuario(input: {
 
 export async function actualizarUsuario(
   id: string,
-  cambios: { nombre?: string; cargo?: string; rol?: string; activo?: boolean },
+  cambios: { nombre?: string; cargo?: string; rol?: string; activo?: boolean; passwordHash?: string },
 ) {
-  const map: Record<string, string> = { nombre: 'nombre', cargo: 'cargo', rol: 'rol', activo: 'activo' }
+  // passwordHash → columna password_hash (reset de contraseña por el Dueño).
+  const map: Record<string, string> = { nombre: 'nombre', cargo: 'cargo', rol: 'rol', activo: 'activo', passwordHash: 'password_hash' }
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, v] of Object.entries(cambios)) {

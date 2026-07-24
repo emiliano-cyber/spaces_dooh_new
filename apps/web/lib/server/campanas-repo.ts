@@ -74,10 +74,21 @@ export function rowToCampana(r: any) {
     validacionEn: r.validacion_en ? iso(r.validacion_en) : null,
     ocRecibida: !!r.oc_recibida, fotosComprobatorias: !!r.fotos_comprobatorias,
     reportePublicacion: !!r.reporte_publicacion, ocUrl: r.oc_url,
+    contratoUrl: r.contrato_url ?? null,
     reportePublicacionUrl: r.reporte_publicacion_url, portalToken: r.portal_token,
     portalActivo: !!r.portal_activo, notas: r.notas, creadoEn: iso(r.creado_en),
   }
 }
+// Guarda (o quita) el contrato firmado del cliente en la campaña. Devuelve la
+// campaña recompuesta, o null si no existe.
+export async function guardarContratoCampana(campanaId: string, contratoUrl: string | null) {
+  const rows = await q<any>(
+    'update campanas set contrato_url = $2 where id = $1 returning *',
+    [campanaId, contratoUrl],
+  )
+  return rows.length ? rowToCampana(rows[0]) : null
+}
+
 export function rowToReserva(r: any) {
   return {
     id: r.id, campanaId: r.campana_id, sitioId: r.sitio_id,
@@ -233,8 +244,9 @@ export async function barrerReservasVencidas(): Promise<number> {
   }
 }
 
-// ─── Reservar (Acto 3): crea cliente+campaña si hace falta, reservas TENTATIVA
-//     y pone los sitios en RESERVADO ─────────────────────────────────────────
+// ─── Reservar: crea cliente+campaña si hace falta, reservas CONFIRMADAS (sin
+//     tentativa) y consume el spot del sitio (digital: baja 1/12; fija: OCUPADO).
+// ────────────────────────────────────────────────────────────────────────────
 export async function reservar(input: {
   campanaId?: string
   clienteNombre?: string
@@ -281,8 +293,8 @@ export async function reservar(input: {
       ).rows[0]
       campanaId = (
         await client.query(
-          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, tenant_id)
-           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,$8) returning id`,
+          `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, moneda, tenant_id)
+           values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,coalesce((select moneda from tenants where id=$8),'MXN'),$8) returning id`,
           [folio(await prefijoTenant(tenantId)), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
            input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
@@ -307,9 +319,13 @@ export async function reservar(input: {
     }
 
     for (const sitioId of input.sitioIds) {
+      // FOR UPDATE bloquea la fila del sitio durante la transacción: dos reservas
+      // concurrentes del MISMO sitio se serializan, así el chequeo de colisión /
+      // conteo de slots y el INSERT son atómicos (cierra el doble-booking y la
+      // sobreventa de slots — hallazgo A-1).
       const s = (
         await client.query(
-          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1',
+          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1 for update',
           [sitioId],
         )
       ).rows[0]
@@ -368,10 +384,13 @@ export async function reservar(input: {
           ? Math.max(0, disp != null ? Math.min(Math.round(pedidos), disp) : Math.round(pedidos))
           : null
 
+      // En comercial NO hay reserva tentativa: al reservar se consume el spot de
+      // inmediato (CONFIRMADA, sin TTL). La disponibilidad se ve por spots
+      // (12/12, 8/12… o 0/12 = no disponible), no por un estado "tentativo".
       await client.query(
         `insert into reservas (campana_id, sitio_id, fecha_inicio, fecha_fin, precio, tipo_venta, estatus, spots_reservados, expira_en, tenant_id)
-         values ($1,$2,$3,$4,$5,'FIXED_PKG','TENTATIVA',$6, now() + make_interval(days => $7::int), $8)`,
-        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, TTL_RESERVA_DIAS, await tenantActual()],
+         values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6, null, $7)`,
+        [campanaId, sitioId, input.fechaInicio, input.fechaFin, precio, spotsReservados, await tenantActual()],
       )
 
       if (digital) {
@@ -388,7 +407,8 @@ export async function reservar(input: {
           [sitioId],
         )
       } else {
-        await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [sitioId])
+        // Fija: 1 solo espacio; al reservar queda OCUPADO (ya no "reservado" tentativo).
+        await client.query(`update sitios set estatus_comercial='OCUPADO' where id=$1`, [sitioId])
       }
     }
     await recalcularPresupuesto(client, campanaId!)
@@ -432,9 +452,6 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   if (!prop.cliente_id) {
     throw new PropuestaCampanaError('La propuesta no tiene cliente asignado; no se puede facturar la campaña')
   }
-  // Idempotencia: si ya generó campaña, devuelve la existente (no duplica).
-  const ya = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
-  if (ya) return rowToCampana(ya)
 
   const items = await q<any>(
     'select * from propuesta_items where propuesta_id=$1 and aprobado=true order by creado_en asc',
@@ -457,6 +474,15 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // A-1: idempotencia DENTRO de la transacción, respaldada por el índice único
+    // campanas_propuesta_uq. Si ya se generó la campaña de esta propuesta, se
+    // devuelve la existente (no duplica). En carrera con otra generación
+    // simultánea, la segunda rebota en el INSERT con 23505 y se resuelve abajo.
+    const ya = (await client.query('select * from campanas where propuesta_id=$1', [propuestaId])).rows[0]
+    if (ya) {
+      await client.query('commit')
+      return rowToCampana(ya)
+    }
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
       await client.query(
@@ -475,8 +501,8 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
 
     const campanaId = (
       await client.query(
-        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,$9) returning id`,
+        `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
+         values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
         [folio(await prefijoTenant(await tenantActual())), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
@@ -529,6 +555,13 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     return rowToCampana(creada)
   } catch (e) {
     await client.query('rollback')
+    // A-1: carrera con otra generación simultánea de la MISMA propuesta. La
+    // campaña ya existe (23505 sobre campanas_propuesta_uq): se relee y se
+    // devuelve (idempotente), no es un error para el usuario.
+    if ((e as { code?: string })?.code === '23505') {
+      const existente = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
+      if (existente) return rowToCampana(existente)
+    }
     throw e
   } finally {
     client.release()
@@ -653,14 +686,24 @@ export async function validarPublicacion(
     )
   }
   if (aprobar) {
+    // Candado de facturación para DIGITALES (A-2): aprobar la publicación (= salió
+    // al aire en DOOHmain) enciende la evidencia DIGITAL "reporte_publicacion"
+    // (igual que el proof-of-play). La evidencia FÍSICA (fotos_comprobatorias) va
+    // aparte, por la OT de montaje. Paso a LISTA_FACTURAR: para DOOH basta la OC
+    // (solo tiene segmento digital); para HÍBRIDA falta además la OT física
+    // (fotos). Las fijas (OOH) no pasan por aquí: su candado va por la OT.
     const rows = await q(
       `update campanas
           set validacion_estatus = 'APROBADA',
               validacion_motivo = null,
               validacion_por = $2,
               validacion_en = now(),
-              estado_comercial = case when estado_comercial = 'CONFIRMADA'
-                                      then 'ACTIVA' else estado_comercial end
+              reporte_publicacion = true,
+              estado_comercial = case
+                when oc_recibida and (tipo_campana <> 'HIBRIDA' or fotos_comprobatorias)
+                  then 'LISTA_FACTURAR'::est_comercial_campana
+                when estado_comercial = 'CONFIRMADA' then 'ACTIVA'
+                else estado_comercial end
         where id = $1
         returning *`,
       [campanaId, validadorNombre],

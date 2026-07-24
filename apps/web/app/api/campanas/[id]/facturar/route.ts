@@ -18,7 +18,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   try {
     const factura = await generarFacturaCtrl(params.id, await req.json().catch(() => ({})))
     await registrarAccion(g.usuario, 'Generó factura', factura.folio)
-    await notificar({ tipo: 'FACTURA', nivel: 'ok', titulo: 'Factura emitida', detalle: `${factura.folio} · ${factura.monto.toLocaleString('es-MX')}`, link: '/demo/finanzas' })
+    await notificar({ tipo: 'FACTURA', nivel: 'ok', titulo: 'Factura emitida', detalle: `${factura.folio} · ${factura.monto.toLocaleString('es-MX')}`, link: '/finanzas' })
     return NextResponse.json(factura, { status: 201 })
   } catch (e) {
     return respuestaError(e)

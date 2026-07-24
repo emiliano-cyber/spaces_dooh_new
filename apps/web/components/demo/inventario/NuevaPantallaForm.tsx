@@ -19,7 +19,7 @@ const inputCls =
 
 // Imagen de muestra de la detección por Computer Vision (vive en /public; el
 // basePath /spaces-dooh la sirve aquí). Solo se usa en el demo.
-const IA_DEMO_IMG = '/spaces-dooh/demo/ia-deteccion.jpg'
+const IA_DEMO_IMG = '/spaces-dooh/ia-deteccion.jpg'
 
 // Tipos de la lista validada (parabús/mupi/publitienda → mobiliario urbano).
 const TIPO_PANTALLA: { v: TipoMedio; label: string }[] = [

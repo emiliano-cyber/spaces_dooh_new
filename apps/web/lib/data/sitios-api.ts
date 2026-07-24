@@ -63,7 +63,65 @@ export async function actualizarSitioApi(id: string, cambios: Record<string, unk
   await refrescarSitios()
 }
 
+// Cambio MASIVO de tarifa: aplica una tarifa nueva a varios sitios a la vez
+// (mantiene sincronizadas mensual y publicada, igual que la ficha). Hace los
+// PATCH en paralelo y refresca el estado UNA sola vez al final (no por sitio).
+export async function actualizarTarifasApi(
+  items: { id: string; tarifa: number }[],
+): Promise<{ ok: number; fallidas: number }> {
+  const res = await Promise.allSettled(
+    items.map((it) =>
+      fetch(`${BASE}/${it.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tarifaMensual: it.tarifa, tarifaPublicada: it.tarifa }),
+      }).then((r) => {
+        if (!r.ok) throw new Error('patch falló')
+      }),
+    ),
+  )
+  const ok = res.filter((r) => r.status === 'fulfilled').length
+  await refrescarSitios()
+  return { ok, fallidas: items.length - ok }
+}
+
 export async function borrarSitioApi(id: string): Promise<void> {
   await fetch(`${BASE}/${id}/`, { method: 'DELETE' })
   await refrescarSitios()
+}
+
+// Pausa legal: saca la pantalla de la disponibilidad comercial con un motivo.
+export async function pausarSitioLegalApi(id: string, motivo: string): Promise<void> {
+  const r = await fetch(`${BASE}/${id}/pausa-legal/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo }),
+  })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo pausar')
+  }
+  await refrescarSitios()
+}
+
+export async function reanudarSitioLegalApi(id: string): Promise<void> {
+  const r = await fetch(`${BASE}/${id}/pausa-legal/`, { method: 'DELETE' })
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}))
+    throw new Error((d as { error?: string }).error ?? 'No se pudo reanudar')
+  }
+  await refrescarSitios()
+}
+
+// Reubica la pantalla a otro predio y dispara una OT de reubicación.
+export async function reubicarSitioApi(id: string, predioId: string): Promise<{ otFolio: string | null }> {
+  const r = await fetch(`${BASE}/${id}/reubicar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ predioId }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo reubicar')
+  await refrescarSitios()
+  return d as { otFolio: string | null }
 }

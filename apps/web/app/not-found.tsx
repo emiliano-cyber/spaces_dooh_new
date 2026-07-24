@@ -5,7 +5,7 @@ export default function NotFound() {
         <div style={{ textAlign: 'center' }}>
           <h1 style={{ fontSize: '3rem', fontWeight: 600, margin: '0 0 0.5rem', color: '#0A66FF' }}>404</h1>
           <p style={{ color: '#71717A', margin: '0 0 1.5rem' }}>Página no encontrada</p>
-          <a href="/" style={{ color: '#0A66FF', fontSize: '0.875rem' }}>← Volver al inicio</a>
+          <a href="/spaces-dooh/inicio/" style={{ color: '#0A66FF', fontSize: '0.875rem' }}>← Volver al inicio</a>
         </div>
       </body>
     </html>

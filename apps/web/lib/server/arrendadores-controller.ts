@@ -9,6 +9,7 @@ import {
   crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
   adjuntarAPago, obtenerAdjuntoPago,
 } from './arrendadores-repo'
+import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 
 // ============================================================================
 //  lib/server/arrendadores-controller.ts — Alta de propietarios/arrendadores.
@@ -152,7 +153,11 @@ export async function crearContratoCtrl(body: unknown) {
   if ('email' in d.arrendador && d.arrendador.email && !esEmailValido(d.arrendador.email)) {
     throw new AppError('Correo del arrendatario inválido', 400)
   }
-  return crearContratoConSitio(d as Parameters<typeof crearContratoConSitio>[0])
+  const res = await crearContratoConSitio(d as Parameters<typeof crearContratoConSitio>[0])
+  // Fase 2 (Arrendadores → Operaciones): alta de pantalla nueva dispara una OT de
+  // montaje/instalación (solo fijas). Mejor esfuerzo: no bloquea el alta.
+  await otMontajePorAlta((res as { sitio?: { id?: string } })?.sitio?.id ?? null)
+  return res
 }
 
 // ─── Editar / borrar arrendador ─────────────────────────────────────────────
@@ -224,6 +229,9 @@ export async function cancelarContratoCtrl(id: string, body: unknown) {
   const d = validar(cancelarContratoSchema, body)
   const c = await cancelarContrato(id, d.motivo)
   if (!c) throw new AppError('Contrato no encontrado o ya cancelado', 404)
+  // Fase 2 (Arrendadores → Operaciones): cancelar el contrato dispara una OT de
+  // retiro (desmontaje) de su pantalla. Mejor esfuerzo: no bloquea la cancelación.
+  await otRetiroPorCancelacion(c.sitioId)
   return c
 }
 

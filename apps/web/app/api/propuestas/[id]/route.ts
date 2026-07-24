@@ -51,7 +51,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         nivel: prop.estatus === 'APROBADA' ? 'ok' : 'warn',
         titulo: prop.estatus === 'APROBADA' ? 'Propuesta aprobada' : 'Propuesta rechazada',
         detalle: `${prop.folio} · ${prop.nombre}`,
-        link: '/demo/propuestas',
+        link: '/propuestas',
       })
     }
 
@@ -64,14 +64,14 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         await registrarAccion(g.usuario, 'Generó campaña desde propuesta', campana.nombre)
         await notificar({
           tipo: 'CAMPANA', nivel: 'ok', titulo: 'Campaña generada desde propuesta',
-          detalle: `${campana.folio} · ${campana.nombre}`, link: `/demo/campanas/${campana.id}`,
+          detalle: `${campana.folio} · ${campana.nombre}`, link: `/campanas/${campana.id}`,
         })
       } catch (e) {
         // No bloquea la aprobación (p. ej. falta cliente); se puede generar luego.
         if (!(e instanceof PropuestaCampanaError)) throw e
         await notificar({
           tipo: 'CAMPANA', nivel: 'warn', titulo: 'No se pudo generar la campaña',
-          detalle: e.message, link: '/demo/propuestas',
+          detalle: e.message, link: '/propuestas',
         })
       }
     }

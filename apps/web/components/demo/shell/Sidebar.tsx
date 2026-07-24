@@ -22,14 +22,14 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
   const items = NAV.filter((n) => n.roles.includes(rol))
 
   // Normaliza el basePath para marcar el activo.
-  const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/demo'
-  const here = norm(pathname ?? '/demo')
+  const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
+  const here = norm(pathname ?? '/')
   // Una sección queda activa en su página y en cualquier subruta (detalle), p.
-  // ej. /demo/operaciones/ot/123 marca "Operaciones". El dashboard ('/demo')
-  // solo coincide exacto para no encenderse en todas las rutas.
+  // ej. /operaciones/ot/123 marca "Operaciones". La raíz ('/') solo coincide
+  // exacto para no encenderse en todas las rutas.
   const esActivo = (href: string) => {
     const h = norm(href)
-    return here === h || (h !== '/demo' && here.startsWith(h + '/'))
+    return here === h || (h !== '/' && here.startsWith(h + '/'))
   }
 
   return (
@@ -56,7 +56,7 @@ function SidebarContent({ onNavegar }: { onNavegar?: () => void }) {
               Como cliente externo sólo tienes acceso a tu portal.
             </p>
             <Link
-              href={`/demo/portal/${TOKEN_TELCO}`}
+              href={`/portal/${TOKEN_TELCO}`}
               onClick={onNavegar}
               className="mt-3 inline-flex items-center gap-1.5 text-[13px] font-medium text-info hover:underline"
             >

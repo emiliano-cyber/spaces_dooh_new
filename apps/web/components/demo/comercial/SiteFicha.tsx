@@ -11,7 +11,6 @@ import {
   Hash,
   Layers,
   Building2,
-  Eye,
   Route,
   Repeat,
   Monitor,
@@ -20,6 +19,9 @@ import {
   Share2,
   Pencil,
   Trash2,
+  Gavel,
+  Undo2,
+  ArrowLeftRight,
   UserRound,
   Wallet,
   CalendarClock,
@@ -29,6 +31,7 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
+import { SpaceEyeVision } from '@/components/demo/comercial/SpaceEyeVision'
 import {
   StatusBadge,
   SITIO_TONO,
@@ -39,13 +42,14 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { actualizarSitioApi, borrarSitioApi } from '@/lib/data/sitios-api'
+import { actualizarSitioApi, borrarSitioApi, pausarSitioLegalApi, reanudarSitioLegalApi, reubicarSitioApi } from '@/lib/data/sitios-api'
 import {
   useReservas,
   useIncidencias,
   useContratos,
   useArrendadores,
   usePagosRenta,
+  usePredios,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -62,10 +66,6 @@ const TIPO_LABEL: Record<TipoMedio, string> = {
   VALLA: 'Valla',
   OTRO: 'Otro',
 }
-
-// Imagen de muestra de la detección por Computer Vision (vive en /public; el
-// basePath /spaces-dooh la sirve aquí). Solo se usa en el demo.
-const IA_DEMO_IMG = '/spaces-dooh/demo/ia-deteccion.jpg'
 
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
@@ -120,10 +120,57 @@ export function SiteFicha({
   const arrendadores = useArrendadores()
   const pagos = usePagosRenta()
   const puedeEditar = usePuede('comercial', 'crear')
+  // Pausa legal: acción del dominio Arrendadores (situaciones legales).
+  const puedePausar = usePuede('arrendadores', 'crear')
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
   const [borrando, setBorrando] = useState(false)
-  const [verIA, setVerIA] = useState(false)
+  const [pausaOpen, setPausaOpen] = useState(false)
+  const [motivoPausa, setMotivoPausa] = useState('')
+  const [pausando, setPausando] = useState(false)
+  const predios = usePredios()
+  const [reubicarOpen, setReubicarOpen] = useState(false)
+  const [predioDestino, setPredioDestino] = useState('')
+  const [reubicando, setReubicando] = useState(false)
+
+  async function reubicar() {
+    if (!sitio || !predioDestino) return
+    setReubicando(true)
+    try {
+      const { otFolio } = await reubicarSitioApi(sitio.id, predioDestino)
+      toast.success(otFolio ? `Pantalla reubicada · OT ${otFolio} generada` : 'Pantalla reubicada')
+      setReubicarOpen(false)
+      setPredioDestino('')
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo reubicar')
+    }
+    setReubicando(false)
+  }
+
+  async function pausar() {
+    if (!sitio || !motivoPausa.trim()) return
+    setPausando(true)
+    try {
+      await pausarSitioLegalApi(sitio.id, motivoPausa.trim())
+      setPausaOpen(false)
+      setMotivoPausa('')
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo pausar')
+    }
+    setPausando(false)
+  }
+  async function reanudar() {
+    if (!sitio) return
+    if (!window.confirm(`¿Reanudar "${sitio.nombre}"? Volverá a estar disponible comercialmente.`)) return
+    try {
+      await reanudarSitioLegalApi(sitio.id)
+      onOpenChange(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo reanudar')
+    }
+  }
 
   async function eliminar() {
     if (!sitio) return
@@ -232,14 +279,48 @@ export function SiteFicha({
         </div>
 
         {/* Acciones de administración del sitio */}
-        {puedeEditar && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-3.5 w-3.5" /> Editar
-            </Button>
-            <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
-              <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
-            </Button>
+        {(puedeEditar || puedePausar) && (
+          <div className="flex flex-wrap gap-2">
+            {puedeEditar && (
+              <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+                <Pencil className="h-3.5 w-3.5" /> Editar
+              </Button>
+            )}
+            {puedeEditar && (
+              <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
+                <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
+              </Button>
+            )}
+            {puedePausar && !sitio.pausaLegal && (
+              <Button size="sm" variant="secondary" onClick={() => setPausaOpen(true)}>
+                <Gavel className="h-3.5 w-3.5" /> Pausar por situación legal
+              </Button>
+            )}
+            {puedePausar && (
+              <Button size="sm" variant="secondary" onClick={() => setReubicarOpen(true)}>
+                <ArrowLeftRight className="h-3.5 w-3.5" /> Reubicar
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Pausa legal activa */}
+        {sitio.pausaLegal && (
+          <div className="flex gap-2.5 rounded-md border border-[#ef444440] bg-[#ef44440d] p-3">
+            <Gavel className="mt-0.5 h-4 w-4 shrink-0 text-error" strokeWidth={1.75} />
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-ink">Pausada por situación legal</div>
+              <p className="mt-0.5 text-[12px] text-muted">
+                {sitio.motivoPausaLegal}
+                {sitio.pausaLegalEn ? ` · desde ${formatFecha(sitio.pausaLegalEn)}` : ''}
+              </p>
+              <p className="text-[11px] text-muted">No disponible comercialmente mientras esté en pausa.</p>
+            </div>
+            {puedePausar && (
+              <Button size="sm" variant="secondary" onClick={reanudar}>
+                <Undo2 className="h-3.5 w-3.5" /> Reanudar
+              </Button>
+            )}
           </div>
         )}
 
@@ -274,11 +355,12 @@ export function SiteFicha({
             />
             <Caracteristica icon={<Layers className="h-4 w-4" />} label="Caras" valor={String(sitio.caras)} mono />
             <Caracteristica icon={<Building2 className="h-4 w-4" />} label="Estructura" valor={sitio.tipoEstructura} />
-            <Caracteristica icon={<Eye className="h-4 w-4" />} label="Vista" valor={sitio.vista} />
+            {/* Vista = hacia dónde ve la pantalla (dirección cardinal). Reemplaza
+                a "Orientación", que se retiró. */}
+            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Vista" valor={sitio.vista || '—'} />
             <Caracteristica icon={<Route className="h-4 w-4" />} label="Tramo" valor={sitio.tramo} />
             <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Exhibición" valor={`${sitio.exhibicion}${sitio.esRotativo ? ' · rotativo' : ''}`} />
             <Caracteristica icon={<Lightbulb className="h-4 w-4" />} label="Iluminado" valor={sitio.iluminado ? 'Sí' : 'No'} />
-            <Caracteristica icon={<Compass className="h-4 w-4" />} label="Orientación" valor={sitio.orientacion ?? '—'} />
           </dl>
 
           {/* Datos DOOH solo si aplica */}
@@ -306,23 +388,9 @@ export function SiteFicha({
           </dl>
         </div>
 
-        {/* Inteligencia artificial (Computer Vision / AdMobilize) */}
-        <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Inteligencia artificial</h4>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusBadge tono={sitio.computerVision ? 'verde' : 'rojo'}>
-              {sitio.computerVision ? 'Computer Vision On' : 'Sin Computer Vision'}
-            </StatusBadge>
-            {sitio.computerVision && sitio.admobilizeId && (
-              <span className="demo-num text-[12px] text-muted">ID {sitio.admobilizeId}</span>
-            )}
-          </div>
-          {sitio.computerVision && (
-            <Button size="sm" variant="secondary" className="mt-2.5" onClick={() => setVerIA(true)}>
-              <Eye className="h-4 w-4" /> Ver imagen de detección IA
-            </Button>
-          )}
-        </div>
+        {/* Inteligencia artificial — cámara real de Space Eye (reemplaza la
+            imagen de demostración). Se sincroniza por codigo_proveedor. */}
+        <SpaceEyeVision sitioId={sitio.id} sitioNombre={sitio.nombre} />
 
         {/* Datos comerciales (interno — el portal no muestra financieros) */}
         <div>
@@ -446,21 +514,65 @@ export function SiteFicha({
       <EditarSitioDialog sitio={sitio} open={editOpen} onClose={() => setEditOpen(false)} />
 
       <Modal
-        open={verIA}
-        onOpenChange={setVerIA}
-        size="xl"
-        title="Detección por Computer Vision"
-        subtitle={`${sitio.nombre} · conteo de vehículos y personas (AdMobilize)`}
+        open={pausaOpen}
+        onOpenChange={(v) => { if (!v) { setPausaOpen(false); setMotivoPausa('') } }}
+        title="Pausar por situación legal"
+        subtitle={sitio.nombre}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setPausaOpen(false); setMotivoPausa('') }}>Cancelar</Button>
+            <Button variant="danger" size="sm" disabled={pausando || !motivoPausa.trim()} onClick={pausar}>
+              {pausando ? 'Pausando…' : 'Pausar'}
+            </Button>
+          </div>
+        }
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={IA_DEMO_IMG}
-          alt="Detección de vehículos y personas por IA"
-          className="w-full rounded border border-border object-contain"
-        />
-        <p className="mt-2 text-[11px] text-muted">
-          Las cajas y métricas (velocidad, conteo por zona) las genera el módulo de Computer Vision en tiempo real.
-        </p>
+        <div className="space-y-2">
+          <p className="text-[12px] text-muted">
+            La pantalla saldrá de la disponibilidad comercial (queda bloqueada) hasta que la reanudes.
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Motivo</span>
+            <textarea
+              value={motivoPausa}
+              onChange={(e) => setMotivoPausa(e.target.value)}
+              rows={3}
+              placeholder="Ej. Litigio del predio, permiso suspendido, orden de autoridad…"
+              className={inputCls}
+              autoFocus
+            />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={reubicarOpen}
+        onOpenChange={(v) => { if (!v) { setReubicarOpen(false); setPredioDestino('') } }}
+        title="Reubicar pantalla"
+        subtitle={sitio.nombre}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => { setReubicarOpen(false); setPredioDestino('') }}>Cancelar</Button>
+            <Button size="sm" disabled={reubicando || !predioDestino} onClick={reubicar}>
+              {reubicando ? 'Reubicando…' : 'Reubicar'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <p className="text-[12px] text-muted">
+            Mueve la pantalla a otro predio. Se generará una OT de reubicación en Operaciones.
+          </p>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Predio destino</span>
+            <select value={predioDestino} onChange={(e) => setPredioDestino(e.target.value)} className={inputCls}>
+              <option value="">— Elige el predio —</option>
+              {(predios ?? [])
+                .filter((p) => p.id !== sitio.predioId)
+                .map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+            </select>
+          </label>
+        </div>
       </Modal>
     </Sheet>
   )
@@ -474,6 +586,11 @@ const ESTATUS: { v: string; label: string }[] = [
   { v: 'RESERVADO', label: 'Reservado' },
   { v: 'OCUPADO', label: 'Ocupado' },
   { v: 'BLOQUEADO', label: 'Bloqueado' },
+]
+// Vista = dirección cardinal hacia la que apunta la pantalla (reemplaza a
+// "Orientación"). Los ocho rumbos de la rosa de los vientos.
+const VISTAS_CARDINALES = [
+  'Norte', 'Sur', 'Este', 'Oeste', 'Noreste', 'Noroeste', 'Sureste', 'Suroeste',
 ]
 const inputCls =
   'w-full rounded border border-border-strong bg-surface px-2.5 py-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -493,10 +610,24 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
   const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
+  const [vista, setVista] = useState(sitio.vista ?? '')
   const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
   const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
   const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
+  // Detalles técnicos (características físicas + specs DOOH). Editables con las
+  // mismas restricciones: permiso comercial/crear; la renta sigue fuera (contrato).
+  const [ancho, setAncho] = useState(sitio.ancho != null ? String(sitio.ancho) : '')
+  const [alto, setAlto] = useState(sitio.alto != null ? String(sitio.alto) : '')
+  const [caras, setCaras] = useState(sitio.caras != null ? String(sitio.caras) : '')
+  const [tipoEstructura, setTipoEstructura] = useState(sitio.tipoEstructura ?? '')
+  const [tramo, setTramo] = useState(sitio.tramo ?? '')
+  const [iluminado, setIluminado] = useState(sitio.iluminado)
+  const [resolucionPx, setResolucionPx] = useState(sitio.resolucionPx ?? '')
+  const [tipoContenido, setTipoContenido] = useState<string>(sitio.tipoContenido ?? '')
+  const [spotsPorHora, setSpotsPorHora] = useState(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
+  const [horario, setHorario] = useState(sitio.horario ?? '')
+  const [cms, setCms] = useState<string>(sitio.cms ?? '')
   const [enviando, setEnviando] = useState(false)
 
   // Reinicia el formulario al abrir o cambiar de sitio.
@@ -508,40 +639,94 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setTarifa(String(sitio.tarifaPublicada ?? 0))
     setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
+    setVista(sitio.vista ?? '')
     setArrendadorSel(sitio.arrendadorId ?? '')
     setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
     setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
+    setAncho(sitio.ancho != null ? String(sitio.ancho) : '')
+    setAlto(sitio.alto != null ? String(sitio.alto) : '')
+    setCaras(sitio.caras != null ? String(sitio.caras) : '')
+    setTipoEstructura(sitio.tipoEstructura ?? '')
+    setTramo(sitio.tramo ?? '')
+    setIluminado(sitio.iluminado)
+    setResolucionPx(sitio.resolucionPx ?? '')
+    setTipoContenido(sitio.tipoContenido ?? '')
+    setSpotsPorHora(sitio.spotsPorHora != null ? String(sitio.spotsPorHora) : '')
+    setHorario(sitio.horario ?? '')
+    setCms(sitio.cms ?? '')
   }, [sitio.id, open])
 
   async function guardar() {
     setEnviando(true)
     try {
-      const tarifaNum = Number(tarifa) || 0
-      const cambios: Record<string, unknown> = {
-        nombre: nombre.trim(),
-        tipoMedio,
-        alcaldia: alcaldia.trim(),
-        direccionComercial: direccionComercial.trim(),
-        // La tarifa publicada y la mensual se mantienen sincronizadas (igual que en el alta).
-        tarifaPublicada: tarifaNum,
-        tarifaMensual: tarifaNum,
-        costoCompra: Number(costoCompra) || 0,
-        estatusComercial,
-        notas: notas.trim() || null,
-        // Propietario/arrendador de la pantalla. La renta NO se manda: los campos
-        // directos del sitio están deprecados (Fase 1.7) y la fuente es el contrato.
-        arrendadorId: arrendadorSel || null,
+      // Se manda SOLO lo que cambió (diff). Así, editar un detalle no financiero
+      // no arrastra los campos de dinero y no dispara el candado del Dueño (que
+      // solo aplica a tarifa/costo/arrendador). Restricciones intactas.
+      const cambios: Record<string, unknown> = {}
+
+      // Identidad / ubicación / estado
+      if (nombre.trim() !== sitio.nombre) cambios.nombre = nombre.trim()
+      if (tipoMedio !== sitio.tipoMedio) cambios.tipoMedio = tipoMedio
+      if (alcaldia.trim() !== (sitio.alcaldia ?? '')) cambios.alcaldia = alcaldia.trim()
+      if (direccionComercial.trim() !== (sitio.direccionComercial ?? '')) cambios.direccionComercial = direccionComercial.trim()
+      if (estatusComercial !== sitio.estatusComercial) cambios.estatusComercial = estatusComercial
+      if ((vista || null) !== (sitio.vista || null)) cambios.vista = vista || null
+      if ((notas.trim() || null) !== (sitio.notas ?? null)) cambios.notas = notas.trim() || null
+
+      // Características físicas
+      const anchoNum = ancho.trim() === '' ? null : Number(ancho)
+      if (anchoNum !== (sitio.ancho ?? null)) cambios.ancho = anchoNum
+      const altoNum = alto.trim() === '' ? null : Number(alto)
+      if (altoNum !== (sitio.alto ?? null)) cambios.alto = altoNum
+      if (caras.trim() !== '') {
+        const carasNum = Math.max(0, Math.round(Number(caras) || 0))
+        if (carasNum !== sitio.caras) cambios.caras = carasNum
       }
-      // Cantidad de slots (solo digitales): ajusta los disponibles conservando
-      // los ya reservados (reservados = total anterior − disponibles anteriores).
-      if (digital && slots.trim() !== '') {
-        const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
-        const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
-        cambios.totalSpots = nuevoTotal
-        cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
-        const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
-        if (dur > 0) cambios.duracionSpotSeg = dur
+      if (tipoEstructura.trim() !== (sitio.tipoEstructura ?? '')) cambios.tipoEstructura = tipoEstructura.trim()
+      if (tramo.trim() !== (sitio.tramo ?? '')) cambios.tramo = tramo.trim()
+      if (iluminado !== sitio.iluminado) cambios.iluminado = iluminado
+
+      // Dinero (dispara el desbloqueo del Dueño): solo si de verdad cambió.
+      const tarifaNum = Number(tarifa) || 0
+      if (tarifaNum !== sitio.tarifaPublicada) {
+        // Publicada y mensual sincronizadas (igual que en el alta).
+        cambios.tarifaPublicada = tarifaNum
+        cambios.tarifaMensual = tarifaNum
+      }
+      const costoNum = Number(costoCompra) || 0
+      if (costoNum !== sitio.costoCompra) cambios.costoCompra = costoNum
+      // Propietario/arrendador. La renta NO se edita aquí (vive en el contrato).
+      if ((arrendadorSel || null) !== (sitio.arrendadorId ?? null)) cambios.arrendadorId = arrendadorSel || null
+
+      // Specs DOOH (solo digitales)
+      if (digital) {
+        if (slots.trim() !== '') {
+          const nuevoTotal = Math.max(0, Math.round(Number(slots) || 0))
+          if (nuevoTotal !== (sitio.totalSpots ?? null)) {
+            // Ajusta los disponibles conservando los ya reservados.
+            const reservados = Math.max(0, (sitio.totalSpots ?? 0) - (sitio.spotsDisponibles ?? 0))
+            cambios.totalSpots = nuevoTotal
+            cambios.spotsDisponibles = Math.max(0, nuevoTotal - reservados)
+          }
+        }
+        if (duracionSlot.trim() !== '') {
+          const dur = Math.max(0, Math.round(Number(duracionSlot) || 0))
+          if (dur > 0 && dur !== (sitio.duracionSpotSeg ?? null)) cambios.duracionSpotSeg = dur
+        }
+        if ((resolucionPx.trim() || null) !== (sitio.resolucionPx ?? null)) cambios.resolucionPx = resolucionPx.trim() || null
+        if ((tipoContenido || null) !== (sitio.tipoContenido ?? null)) cambios.tipoContenido = tipoContenido || null
+        if (spotsPorHora.trim() !== '') {
+          const sph = Math.max(0, Math.round(Number(spotsPorHora) || 0))
+          if (sph !== (sitio.spotsPorHora ?? null)) cambios.spotsPorHora = sph
+        }
+        if ((horario.trim() || null) !== (sitio.horario ?? null)) cambios.horario = horario.trim() || null
+        if ((cms || null) !== (sitio.cms ?? null)) cambios.cms = cms || null
+      }
+
+      if (Object.keys(cambios).length === 0) {
+        onClose()
+        return
       }
       await actualizarSitioApi(sitio.id, cambios)
       onClose()
@@ -581,6 +766,14 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
               {ESTATUS.map((s) => <option key={s.v} value={s.v}>{s.label}</option>)}
             </select>
           </CampoEdit>
+          <CampoEdit label="Vista (dirección)">
+            <select value={vista} onChange={(e) => setVista(e.target.value)} className={inputCls}>
+              <option value="">— Sin definir —</option>
+              {VISTAS_CARDINALES.map((d) => <option key={d} value={d}>{d}</option>)}
+              {/* Conserva un valor previo que no esté en la rosa de los vientos */}
+              {vista && !VISTAS_CARDINALES.includes(vista) && <option value={vista}>{vista}</option>}
+            </select>
+          </CampoEdit>
         </div>
         <CampoEdit label="Distrito / alcaldía">
           <input value={alcaldia} onChange={(e) => setAlcaldia(e.target.value)} className={inputCls} />
@@ -588,6 +781,35 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <CampoEdit label="Dirección comercial">
           <input value={direccionComercial} onChange={(e) => setDireccionComercial(e.target.value)} className={inputCls} />
         </CampoEdit>
+
+        {/* Características físicas de la pantalla (detalles editables) */}
+        <div className="rounded-md border border-border bg-surface-2 p-3">
+          <div className="mb-2 text-[12px] font-medium text-ink">Características</div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <CampoEdit label="Ancho (m)">
+              <input type="number" inputMode="decimal" min={0} value={ancho} onChange={(e) => setAncho(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Alto (m)">
+              <input type="number" inputMode="decimal" min={0} value={alto} onChange={(e) => setAlto(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Caras">
+              <input type="number" inputMode="numeric" min={0} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} />
+            </CampoEdit>
+            <CampoEdit label="Estructura">
+              <input value={tipoEstructura} onChange={(e) => setTipoEstructura(e.target.value)} placeholder="unipolar, mupi…" className={inputCls} />
+            </CampoEdit>
+            <CampoEdit label="Tramo">
+              <input value={tramo} onChange={(e) => setTramo(e.target.value)} className={inputCls} />
+            </CampoEdit>
+            <CampoEdit label="Iluminado">
+              <select value={iluminado ? 'si' : 'no'} onChange={(e) => setIluminado(e.target.value === 'si')} className={inputCls}>
+                <option value="si">Sí</option>
+                <option value="no">No</option>
+              </select>
+            </CampoEdit>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tarifa publicada (mensual)">
             <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
@@ -615,13 +837,38 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </p>
         </div>
         {digital && (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <CampoEdit label="Cantidad de slots">
-              <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
-            </CampoEdit>
-            <CampoEdit label="Duración por slot (s)">
-              <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
-            </CampoEdit>
+          <div className="rounded-md border border-border bg-surface-2 p-3">
+            <div className="mb-2 text-[12px] font-medium text-ink">Especificaciones DOOH</div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <CampoEdit label="Cantidad de slots">
+                <input type="number" inputMode="numeric" min={0} value={slots} onChange={(e) => setSlots(e.target.value)} placeholder="Ej. 12" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Duración por slot (s)">
+                <input type="number" inputMode="numeric" min={0} value={duracionSlot} onChange={(e) => setDuracionSlot(e.target.value)} placeholder="Ej. 20" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Slots por hora">
+                <input type="number" inputMode="numeric" min={0} value={spotsPorHora} onChange={(e) => setSpotsPorHora(e.target.value)} placeholder="Ej. 180" className={`demo-num ${inputCls}`} />
+              </CampoEdit>
+              <CampoEdit label="Resolución (px)">
+                <input value={resolucionPx} onChange={(e) => setResolucionPx(e.target.value)} placeholder="1920x1080" className={inputCls} />
+              </CampoEdit>
+              <CampoEdit label="Contenido">
+                <select value={tipoContenido} onChange={(e) => setTipoContenido(e.target.value)} className={inputCls}>
+                  <option value="">— Sin definir —</option>
+                  <option value="VIDEO">Video</option>
+                  <option value="IMAGEN">Imagen</option>
+                </select>
+              </CampoEdit>
+              <CampoEdit label="CMS">
+                <select value={cms} onChange={(e) => setCms(e.target.value)} className={inputCls}>
+                  <option value="">— Sin definir —</option>
+                  {Object.entries(CMS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </CampoEdit>
+              <CampoEdit label="Horario">
+                <input value={horario} onChange={(e) => setHorario(e.target.value)} placeholder="Ej. 06:00–24:00" className={inputCls} />
+              </CampoEdit>
+            </div>
           </div>
         )}
         <CampoEdit label="Notas">

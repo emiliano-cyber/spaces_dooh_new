@@ -178,14 +178,53 @@ export async function listarContratos() {
 
 // Estatus del contrato derivado de sus fechas (permite altas retroactivas):
 // VENCIDO si ya terminó, POR_VENCER si vence dentro de 30 días, si no VIGENTE.
+// Anticipación con la que un contrato/pago entra en "por vencer": 3 meses
+// (regla de negocio — avisar con al menos 3 meses). Antes eran 30 días.
+const DIAS_POR_VENCER = 90
+
 function estatusPorFechas(fechaInicio: string, fechaFin: string): string {
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
   const fin = new Date(fechaFin)
   const dias = Math.round((fin.getTime() - hoy.getTime()) / 86_400_000)
   if (dias < 0) return 'VENCIDO'
-  if (dias <= 30) return 'POR_VENCER'
+  if (dias <= DIAS_POR_VENCER) return 'POR_VENCER'
   return 'VIGENTE'
+}
+
+// Recálculo persistente del estatus de contratos y pagos contra la fecha de HOY.
+// El estatus se guardaba y solo se recomputaba al escribir el contrato, así que
+// quedaba "congelado": un contrato vencido seguía como VIGENTE (falseaba el costo
+// de renta y no alertaba). Esto lo sincroniza. Se llama como barrido de
+// mantenimiento en /api/estado (solo para quien puede ver arrendadores), igual
+// que barrerReservasVencidas. Solo escribe filas realmente desincronizadas.
+//
+// Contratos: CANCELADO es fijo; un RENOVADO que sigue holgado conserva su
+// marcador, pero si entra a los 90 días pasa a POR_VENCER y si venció a VENCIDO.
+// Pagos: PAGADO es fijo; un PENDIENTE cuyo vencimiento (periodo) ya pasó → VENCIDO.
+export async function recomputarEstatusArrendadores(): Promise<void> {
+  await q(
+    `update contratos_arrendamiento
+        set estatus = (case
+          when current_date > fecha_fin then 'VENCIDO'
+          when (fecha_fin - current_date) <= $1 then 'POR_VENCER'
+          when estatus = 'RENOVADO' then 'RENOVADO'
+          else 'VIGENTE'
+        end)::est_contrato
+      where estatus <> 'CANCELADO'
+        and estatus <> (case
+          when current_date > fecha_fin then 'VENCIDO'
+          when (fecha_fin - current_date) <= $1 then 'POR_VENCER'
+          when estatus = 'RENOVADO' then 'RENOVADO'
+          else 'VIGENTE'
+        end)::est_contrato`,
+    [DIAS_POR_VENCER],
+  )
+  await q(
+    `update pagos_renta
+        set estatus = 'VENCIDO'
+      where estatus = 'PENDIENTE' and periodo::date < current_date`,
+  )
 }
 
 // Alta unificada "arrendatario → predio → contrato → pantalla" en UNA transacción.
@@ -631,6 +670,20 @@ export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: stri
 
 // ─── CRUD faltante (Fase 1.2): editar/borrar arrendador; editar/cancelar contrato ──
 
+// Snapshot de los datos bancarios ACTUALES de un arrendador. Se usa para el
+// audit inmutable de A-4: registrar el valor anterior antes de sobrescribirlo
+// (a dónde se pagaba la renta). tenant-scoped.
+export async function datosBancariosArrendador(
+  id: string,
+): Promise<{ cuentaBancaria: string | null; formaPago: string | null } | null> {
+  const rows = await q<{ cuenta_bancaria: string | null; forma_pago: string | null }>(
+    'select cuenta_bancaria, forma_pago from arrendadores where id=$1 and tenant_id=$2',
+    [id, await tenantActual()],
+  )
+  const r = rows[0]
+  return r ? { cuentaBancaria: r.cuenta_bancaria ?? null, formaPago: r.forma_pago ?? null } : null
+}
+
 // Edita un arrendador (solo los campos provistos). tenant-scoped.
 export async function editarArrendador(id: string, patch: {
   nombre?: string; rfc?: string | null; telefono?: string | null; email?: string | null
@@ -769,4 +822,50 @@ export async function reportarIncidencia(
   } finally {
     client.release()
   }
+}
+
+// ─── Pausa legal del inventario (Fase 1 · Arrendadores ↔ Operaciones) ─────────
+// Pausa una pantalla por una situación legal: registra el motivo y la saca de la
+// disponibilidad comercial (BLOQUEADO). Reversible con reanudarSitioLegal.
+// Devuelve null si el sitio no existe o es de otro tenant (RLS) → la ruta lo
+// mapea a 404. `q` fija el tenant de la sesión.
+export async function pausarSitioLegal(sitioId: string, motivo: string): Promise<{ nombre: string } | null> {
+  const rows = await q<{ nombre: string }>(
+    `update sitios
+        set pausa_legal = true, motivo_pausa_legal = $2, pausa_legal_en = now(),
+            estatus_comercial = 'BLOQUEADO'
+      where id = $1
+      returning nombre`,
+    [sitioId, motivo],
+  )
+  return rows[0] ?? null
+}
+
+// Reubica una pantalla a otro predio (mover inventario). Devuelve los nombres
+// para la OT de reubicación, o null si la pantalla o el predio destino no existen
+// (RLS acota al tenant de la sesión).
+export async function reubicarSitio(
+  sitioId: string,
+  predioId: string,
+): Promise<{ sitioNombre: string; predioNombre: string } | null> {
+  const predio = await q<{ nombre: string }>('select nombre from predios where id = $1', [predioId])
+  if (!predio.length) return null
+  const rows = await q<{ nombre: string }>(
+    'update sitios set predio_id = $2 where id = $1 returning nombre',
+    [sitioId, predioId],
+  )
+  if (!rows.length) return null
+  return { sitioNombre: rows[0].nombre, predioNombre: predio[0].nombre }
+}
+
+export async function reanudarSitioLegal(sitioId: string): Promise<{ nombre: string } | null> {
+  const rows = await q<{ nombre: string }>(
+    `update sitios
+        set pausa_legal = false, motivo_pausa_legal = null, pausa_legal_en = null,
+            estatus_comercial = 'DISPONIBLE'
+      where id = $1 and pausa_legal = true
+      returning nombre`,
+    [sitioId],
+  )
+  return rows[0] ?? null
 }

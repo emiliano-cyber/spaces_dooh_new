@@ -59,6 +59,20 @@ export function cantidadEfectiva(
   return Math.max(1, Math.floor(cantidadManual ?? 1))
 }
 
+// Fecha "hasta" a partir de una duración: fechaInicio + (cantidad × días de la
+// unidad) − 1 (rango inclusivo). Usa la MISMA equivalencia que el precio (mes=30,
+// catorcena=14, semana=7, día=1), así una duración de "1 mes" cubre exactamente
+// 1 periodo mensual. Devuelve '' si faltan datos. Solo unidades de tiempo.
+export function fechaFinDesde(fechaInicio: string, unidad: Unidad, cantidad: number): string {
+  const base = Date.parse(fechaInicio)
+  if (Number.isNaN(base) || !cantidad || cantidad < 1) return ''
+  if (unidad === 'spot' || unidad === 'hora') return ''
+  const factor = unidad === 'mensual' ? 30 : unidad === 'catorcenal' ? 14 : unidad === 'semanal' ? 7 : 1
+  const diasTotal = Math.round(cantidad * factor)
+  const fin = base + (diasTotal - 1) * 86_400_000
+  return new Date(fin).toISOString().slice(0, 10)
+}
+
 // Precio del ítem = tarifa por unidad × cantidad. Redondeado a entero (MXN/PEN
 // sin centavos, como el resto de precios de lista del sistema).
 export function precioItem(tarifaUnitaria: number, cantidad: number): number {

@@ -17,7 +17,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     await registrarAccion(g.usuario, 'Generó campaña desde propuesta', campana.nombre)
     await notificar({
       tipo: 'CAMPANA', nivel: 'ok', titulo: 'Campaña generada desde propuesta',
-      detalle: `${campana.folio} · ${campana.nombre}`, link: `/demo/campanas/${campana.id}`,
+      detalle: `${campana.folio} · ${campana.nombre}`, link: `/campanas/${campana.id}`,
     })
     return NextResponse.json(campana, { status: 201 })
   } catch (e) {

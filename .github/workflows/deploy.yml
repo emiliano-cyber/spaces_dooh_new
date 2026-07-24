@@ -49,11 +49,15 @@ jobs:
             echo "→ Building (solo el app web; el Fastify se archivó en _archive/api)..."
             npx turbo run build --filter=web
 
-            echo "→ Applying BFF SQL migrations (aditivas, idempotentes, fail-closed)..."
-            node scripts/apply-migration.mjs db/migrations/20260706_reserva_ttl.sql
-            node scripts/apply-migration.mjs db/migrations/20260706_propuesta_aceptacion.sql
-            node scripts/apply-migration.mjs db/migrations/20260706_cobranza_recordatorios.sql
-            node scripts/apply-migration.mjs db/migrations/20260706_propuesta_descuento_version.sql
+            echo "→ Applying ALL BFF SQL migrations in order (aditivas, idempotentes)..."
+            # Aplica TODAS las migraciones del directorio en orden lexicográfico
+            # (por eso el prefijo de fecha AAAAMMDD). Antes esto era una lista fija
+            # de 4 y las nuevas nunca se aplicaban (p. ej. la tabla del almacén),
+            # dejando prod inconsistente (hallazgo A-5).
+            for f in $(ls db/migrations/*.sql | sort); do
+              echo "  → $f"
+              node scripts/apply-migration.mjs "$f"
+            done
 
             echo "→ Reloading PM2..."
             pm2 reload ecosystem.config.js --update-env

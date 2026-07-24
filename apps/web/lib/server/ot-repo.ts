@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { AppError } from './errores'
 import { notificar } from './notificaciones-repo'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
@@ -73,7 +74,7 @@ export async function notificarOTsVencidas(): Promise<number> {
           select 1 from notificaciones nz
            where nz.tenant_id = $1
              and nz.titulo = 'OT vencida'
-             and nz.link = '/demo/operaciones/ot/' || ot.id
+             and nz.link = '/operaciones/ot/' || ot.id
         )`,
     [tenantId, OT_ABIERTAS],
   )
@@ -83,7 +84,7 @@ export async function notificarOTsVencidas(): Promise<number> {
       nivel: 'warn',
       titulo: 'OT vencida',
       detalle: `${ot.folio}${ot.sitio ? ` · ${ot.sitio}` : ''} no se cerró a tiempo${ot.asignado_a ? '' : ' (sin asignar)'}`,
-      link: `/demo/operaciones/ot/${ot.id}`,
+      link: `/operaciones/ot/${ot.id}`,
     })
   }
   return vencidas.length
@@ -119,11 +120,35 @@ export async function getOTcompleta(id: string) {
 
 const folioOT = () => `OT-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
 
+// Tipos de tarea que NO aplican a una pantalla fija: montaje de lona y herrería
+// son de espectacular físico, así que una DIGITAL no los lleva. El resto de las
+// tareas (desmontaje, mantenimiento, eléctrico, inspección) aplica a ambas.
+const OT_SOLO_FIJA = new Set(['MONTAJE_LONA', 'HERRERIA'])
+
 export async function crearOT(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
   descripcion: string; instrucciones?: string; prioridad?: string
   asignadoA?: string | null; fechaProgramada?: string | null; checklist?: unknown[]
 }) {
+  // "Montaje digital" quedó obsoleto: el arte de una pantalla digital se sube por
+  // "Subir a producción" (DOOHmain) desde la campaña, no por una OT de montaje.
+  if (input.tipo === 'MONTAJE_DIGITAL') {
+    throw new AppError('El montaje digital ya no es una tarea de OT: el arte se sube con "Subir a producción" en la campaña', 409)
+  }
+  // Guard por tipo de pantalla: una digital no lleva montaje de lona ni herrería.
+  if (input.sitioId) {
+    const s = await q1<any>(
+      'select tipo_medio, es_rotativo, exhibicion from sitios where id=$1',
+      [input.sitioId],
+    )
+    if (s) {
+      const digital = s.tipo_medio === 'PANTALLA_DIGITAL' || s.es_rotativo === true ||
+        s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+      if (digital && OT_SOLO_FIJA.has(input.tipo)) {
+        throw new AppError('Esa tarea no aplica a una pantalla digital (no lleva lona ni herrería)', 409)
+      }
+    }
+  }
   const rows = await q(
     `insert into ordenes_trabajo (folio, tipo, sitio_id, campana_id, descripcion, instrucciones,
         checklist, prioridad, asignado_a, fecha_programada, estatus, requiere_revision, tenant_id)
@@ -173,17 +198,55 @@ export async function cerrarOT(
        values ($1,$2,$3,'image/jpeg',$4,$5,8,'INSTALACION',$6,$7,$8)`,
       [id, fotoUrl, fotoKey, input.lat ?? null, input.lng ?? null, input.uploadedBy ?? null, input.tomadaEn ?? null, await tenantActual()],
     )
-    // candado de la campaña (fotos + reporte) si está ligada
-    if (ot.campana_id) {
+    // Candado (A-2): SOLO el cierre de una OT de MONTAJE FÍSICO (lona) es
+    // evidencia del segmento FÍSICO → enciende `fotos_comprobatorias`. Otras OTs
+    // (inspección, mantenimiento, desmontaje) NO completan la evidencia de
+    // facturación. NO enciende `reporte_publicacion` (evidencia DIGITAL) en
+    // HÍBRIDAS: la parte digital se prueba aparte (proof-of-play / publicación),
+    // así que cerrar la lona NO da por cumplida la digital. Una HÍBRIDA solo pasa
+    // a LISTA_FACTURAR si su parte digital ya reportó.
+    if (ot.campana_id && ot.tipo === 'MONTAJE_LONA') {
       await client.query(
-        `update campanas set fotos_comprobatorias=true, reporte_publicacion=true,
-           estado_comercial = case when oc_recibida then 'LISTA_FACTURAR'::est_comercial_campana else estado_comercial end
-         where id=$1`,
+        `update campanas set
+            fotos_comprobatorias = true,
+            reporte_publicacion = case when tipo_campana = 'HIBRIDA' then reporte_publicacion else true end,
+            estado_comercial = case
+              when oc_recibida
+                and (case when tipo_campana = 'HIBRIDA' then reporte_publicacion else true end)
+              then 'LISTA_FACTURAR'::est_comercial_campana
+              else estado_comercial end
+          where id=$1`,
         [ot.campana_id],
       )
     }
+    // Integración Almacén (Fase 3): al cerrar una OT de RETIRO (desmontaje) por
+    // primera vez, el equipo de la pantalla entra al almacén como activo, para su
+    // seguimiento. Solo en el primer cierre (evita duplicar).
+    if (ot.estatus !== 'COMPLETADA' && ot.tipo === 'DESMONTAJE' && ot.sitio_id) {
+      const sitio = (await client.query('select nombre, codigo_proveedor from sitios where id=$1', [ot.sitio_id])).rows[0]
+      if (sitio) {
+        const tid = await tenantActual()
+        const etiqueta = `RET-${sitio.codigo_proveedor ?? ot.folio}`
+        const activo = (
+          await client.query(
+            `insert into almacen_activos (etiqueta, descripcion, tipo_activo, estado, notas, tenant_id)
+             values ($1,$2,'PANTALLA','EN_ALMACEN',$3,$4) returning id`,
+            [etiqueta, `Equipo retirado de ${sitio.nombre}`, `Ingresó al almacén al cerrar la OT ${ot.folio} (retiro).`, tid],
+          )
+        ).rows[0]
+        await client.query(
+          `insert into almacen_movimientos (activo_id, tipo, motivo, sitio_id, tenant_id)
+           values ($1,'ENTRADA',$2,$3,$4)`,
+          [activo.id, `Retiro por OT ${ot.folio}`, ot.sitio_id, tid],
+        )
+      }
+    }
+    // Se lee la OT DENTRO de la transacción (con app.tenant_id fijado): tras el
+    // commit, fijarTenant (set_config local) se descarta y la RLS devolvería 0
+    // filas, rompiendo rowToOT. Fix del bug de cierre.
+    const cerrada = (await client.query('select * from ordenes_trabajo where id=$1', [id])).rows[0]
     await client.query('commit')
-    return rowToOT((await client.query('select * from ordenes_trabajo where id=$1', [id])).rows[0])
+    return rowToOT(cerrada)
   } catch (e) {
     await client.query('rollback')
     throw e

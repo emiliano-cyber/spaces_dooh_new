@@ -56,9 +56,9 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
     const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Operaciones', href: '/demo/operaciones' }])
+    setTrail(t.length ? t : [{ label: 'Operaciones', href: '/operaciones' }])
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Operaciones', href: '/demo/operaciones' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: 'Operaciones', href: '/operaciones' }
 
   const recargar = useCallback(async () => {
     const d = await getOTApi(id)
@@ -80,7 +80,7 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     return (
       <div className={cn('flex flex-col items-center justify-center gap-2 px-6 text-center', embedded ? 'py-16' : 'min-h-screen')}>
         <p className="text-[13px] text-muted">No se pudo cargar la orden de trabajo.</p>
-        <Link href="/demo/login" className="text-[13px] font-medium text-info hover:underline">
+        <Link href="/login" className="text-[13px] font-medium text-info hover:underline">
           Inicia sesión para continuar
         </Link>
       </div>

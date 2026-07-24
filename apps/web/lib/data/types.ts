@@ -188,6 +188,11 @@ export interface Sitio {
   estatusComercial: EstComercial
   estatusLegal: EstLegal
   estatusOperativo: EstOperativo
+  // Pausa legal (Fase 1 integración con Operaciones): saca la pantalla de la
+  // disponibilidad comercial por una situación legal, con motivo y reversible.
+  pausaLegal: boolean
+  motivoPausaLegal: string | null
+  pausaLegalEn: string | null
   notas: string | null
   // [DEMO] no en Prisma — tarifa de lista para filtro de precio (7.2)
   tarifaMensual: number
@@ -284,6 +289,15 @@ export interface Predio {
   tipoUbicacion: string | null
   estado: EstadoPredio
   documentos: unknown[]
+  creadoEn: string
+}
+
+export interface RazonSocial {
+  id: string
+  arrendadorId: string
+  razonSocial: string
+  rfc: string | null
+  regimen: string | null
   creadoEn: string
 }
 
@@ -446,6 +460,7 @@ export interface Campana {
   fotosComprobatorias: boolean
   reportePublicacion: boolean
   ocUrl: string | null
+  contratoUrl: string | null // contrato firmado del cliente (opcional, expediente de facturación)
   reportePublicacionUrl: string | null
   portalToken: string | null
   portalActivo: boolean
@@ -640,6 +655,7 @@ export interface DemoState {
   sitios: Sitio[]
   arrendadores: Arrendador[]
   predios: Predio[]
+  razonesSociales: RazonSocial[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]

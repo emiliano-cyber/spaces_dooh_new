@@ -78,6 +78,26 @@ export async function consultarYGuardarPlay(input: {
       input.usuarioId ?? null,
     ],
   )
+  // A-2: el proof-of-play es la evidencia del segmento DIGITAL (que la campaña
+  // SÍ se reprodujo). Enciende `reporte_publicacion` (evidencia digital), NO
+  // `fotos_comprobatorias` (que es la evidencia FÍSICA de la OT de montaje): así
+  // una HÍBRIDA sigue exigiendo su OT física aparte y una foto de lona no da por
+  // cumplido lo digital ni viceversa. Se exige REPRODUCCIONES REALES
+  // (r.ok && !vacio): un payload vacío = la campaña nunca se reprodujo → NO
+  // enciende evidencia. El paso a LISTA_FACTURAR completa el candado: para DOOH
+  // basta la OC; para HÍBRIDA falta además la evidencia física (fotos).
+  if (input.campanaId && r.ok && !vacio) {
+    await q(
+      `update campanas
+          set reporte_publicacion = true,
+              estado_comercial = case
+                when oc_recibida and (tipo_campana <> 'HIBRIDA' or fotos_comprobatorias)
+                  then 'LISTA_FACTURAR'::est_comercial_campana
+                else estado_comercial end
+        where id = $1`,
+      [input.campanaId],
+    )
+  }
   return rowToConsulta(rows[0])
 }
 

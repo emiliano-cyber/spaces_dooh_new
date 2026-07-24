@@ -15,7 +15,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const body = await req.json().catch(() => ({}))
     const u = await actualizarUsuarioCtrl(params.id, g.usuario.id, body)
     const accion =
-      body?.rol !== undefined ? 'Cambió rol'
+      body?.password !== undefined ? 'Cambió la contraseña de'
+      : body?.rol !== undefined ? 'Cambió rol'
       : body?.activo !== undefined ? (u.activo ? 'Activó usuario' : 'Desactivó usuario')
       : 'Editó usuario'
     await registrarAccion(g.usuario, accion, u.nombre)

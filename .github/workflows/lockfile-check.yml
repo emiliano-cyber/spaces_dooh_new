@@ -1,0 +1,20 @@
+# Guardarraíl anti-drift del lockfile (N-2). `npm ci --dry-run` FALLA si
+# package.json y package-lock.json no están en sync (exactamente el error que
+# rompía CI/deploy: "lock file's X does not satisfy Y"). Fail-fast antes de
+# mergear/desplegar. No instala nada (dry-run), así que es rápido.
+name: lockfile-check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  npm-ci-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: package.json ↔ package-lock.json en sync
+        run: npm ci --dry-run
