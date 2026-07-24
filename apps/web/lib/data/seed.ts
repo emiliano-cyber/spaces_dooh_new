@@ -189,7 +189,7 @@ function c(
   return {
     id, sitioId, arrendadorId,
     fechaInicio: offsetISO(inicioOffset), fechaFin: offsetISO(finOffset),
-    montoRenta, periodicidad: 'MENSUAL', moneda: 'PEN', autoRenovable,
+    montoRenta, periodicidad: 'MENSUAL', moneda: 'MXN', autoRenovable,
     documentoUrl: null, estatus, creadoEn: offsetISO(inicioOffset),
   }
 }
@@ -256,7 +256,7 @@ const campanas: Campana[] = ([
     id: 'camp-telco', folio: 'CAM-2026-0042', nombre: 'Telco Andina — Lanzamiento 5G',
     clienteId: 'cli-telco', agencia: 'Andina Media', marca: 'Telco Andina',
     tipoCampana: 'OOH', fechaInicio: offsetISO(-6), fechaFin: offsetISO(54),
-    presupuestoBruto: 204000, presupuestoNeto: 173000, moneda: 'PEN',
+    presupuestoBruto: 204000, presupuestoNeto: 173000, moneda: 'MXN',
     estadoComercial: 'CONFIRMADA',
     ocRecibida: true, fotosComprobatorias: false, reportePublicacion: false,
     ocUrl: 'mock://oc/telco-andina.pdf', contratoUrl: null, reportePublicacionUrl: null,
@@ -269,7 +269,7 @@ const campanas: Campana[] = ([
     id: 'camp-banca', folio: 'CAM-2026-0039', nombre: 'Banca del Sol — Crédito Hipotecario',
     clienteId: 'cli-banca', agencia: null, marca: 'Banca del Sol',
     tipoCampana: 'OOH', fechaInicio: offsetISO(-25), fechaFin: offsetISO(20),
-    presupuestoBruto: 142000, presupuestoNeto: 121000, moneda: 'PEN',
+    presupuestoBruto: 142000, presupuestoNeto: 121000, moneda: 'MXN',
     estadoComercial: 'ACTIVA',
     ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true,
     ocUrl: 'mock://oc/banca-del-sol.pdf', contratoUrl: null, reportePublicacionUrl: 'mock://reporte/banca-del-sol.pdf',
@@ -282,7 +282,7 @@ const campanas: Campana[] = ([
     id: 'camp-retail', folio: 'CAM-2026-0044', nombre: 'Retail Lima — Cyber Days',
     clienteId: 'cli-retail', agencia: 'Performance Plus', marca: 'Retail Lima',
     tipoCampana: 'OOH', fechaInicio: offsetISO(14), fechaFin: offsetISO(44),
-    presupuestoBruto: 56000, presupuestoNeto: 47000, moneda: 'PEN',
+    presupuestoBruto: 56000, presupuestoNeto: 47000, moneda: 'MXN',
     estadoComercial: 'COTIZACION',
     ocRecibida: false, fotosComprobatorias: false, reportePublicacion: false,
     ocUrl: null, contratoUrl: null, reportePublicacionUrl: null,
@@ -295,7 +295,7 @@ const campanas: Campana[] = ([
     id: 'camp-bebidas', folio: 'CAM-2026-0021', nombre: 'Bebidas Pacífico — Verano',
     clienteId: 'cli-bebidas', agencia: null, marca: 'Bebidas Pacífico',
     tipoCampana: 'OOH', fechaInicio: offsetISO(-120), fechaFin: offsetISO(-78),
-    presupuestoBruto: 98000, presupuestoNeto: 83000, moneda: 'PEN',
+    presupuestoBruto: 98000, presupuestoNeto: 83000, moneda: 'MXN',
     estadoComercial: 'COMPLETADA',
     ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true,
     ocUrl: 'mock://oc/bebidas.pdf', contratoUrl: null, reportePublicacionUrl: 'mock://reporte/bebidas.pdf',
@@ -308,7 +308,7 @@ const campanas: Campana[] = ([
     id: 'camp-retail-q1', folio: 'CAM-2026-0008', nombre: 'Retail Lima — Temporada escolar',
     clienteId: 'cli-retail', agencia: 'Performance Plus', marca: 'Retail Lima',
     tipoCampana: 'OOH', fechaInicio: offsetISO(-160), fechaFin: offsetISO(-110),
-    presupuestoBruto: 64000, presupuestoNeto: 54000, moneda: 'PEN',
+    presupuestoBruto: 64000, presupuestoNeto: 54000, moneda: 'MXN',
     estadoComercial: 'COMPLETADA',
     ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true,
     ocUrl: 'mock://oc/retail-q1.pdf', contratoUrl: null, reportePublicacionUrl: 'mock://reporte/retail-q1.pdf',
@@ -321,7 +321,7 @@ const campanas: Campana[] = ([
     id: 'camp-banca-q1', folio: 'CAM-2026-0015', nombre: 'Banca del Sol — Ahorro Q1',
     clienteId: 'cli-banca', agencia: null, marca: 'Banca del Sol',
     tipoCampana: 'OOH', fechaInicio: offsetISO(-90), fechaFin: offsetISO(-48),
-    presupuestoBruto: 110000, presupuestoNeto: 94000, moneda: 'PEN',
+    presupuestoBruto: 110000, presupuestoNeto: 94000, moneda: 'MXN',
     estadoComercial: 'COMPLETADA',
     ocRecibida: true, fotosComprobatorias: true, reportePublicacion: true,
     ocUrl: 'mock://oc/banca-q1.pdf', contratoUrl: null, reportePublicacionUrl: 'mock://reporte/banca-q1.pdf',
@@ -425,11 +425,11 @@ const evidencias: EvidenciaOT[] = [
 
 const facturas: Factura[] = ([
   // Bebidas Pacífico — ámbar (por vencer)
-  { id: 'fac-bebidas', folio: 'F001-00000231', campanaId: 'camp-bebidas', clienteId: 'cli-bebidas', subtotal: 83050.85, igv: 14949.15, monto: 98000, moneda: 'PEN', fechaEmision: offsetISO(-75), estatus: 'EMITIDA', creadoEn: offsetISO(-75) },
+  { id: 'fac-bebidas', folio: 'F001-00000231', campanaId: 'camp-bebidas', clienteId: 'cli-bebidas', subtotal: 83050.85, igv: 14949.15, monto: 98000, moneda: 'MXN', fechaEmision: offsetISO(-75), estatus: 'EMITIDA', creadoEn: offsetISO(-75) },
   // Retail Lima Q1 — rojo (vencida)
-  { id: 'fac-retail-q1', folio: 'F001-00000198', campanaId: 'camp-retail-q1', clienteId: 'cli-retail', subtotal: 54237.29, igv: 9762.71, monto: 64000, moneda: 'PEN', fechaEmision: offsetISO(-100), estatus: 'EMITIDA', creadoEn: offsetISO(-100) },
+  { id: 'fac-retail-q1', folio: 'F001-00000198', campanaId: 'camp-retail-q1', clienteId: 'cli-retail', subtotal: 54237.29, igv: 9762.71, monto: 64000, moneda: 'MXN', fechaEmision: offsetISO(-100), estatus: 'EMITIDA', creadoEn: offsetISO(-100) },
   // Banca del Sol Q1 — verde (al corriente)
-  { id: 'fac-banca-q1', folio: 'F001-00000210', campanaId: 'camp-banca-q1', clienteId: 'cli-banca', subtotal: 93220.34, igv: 16779.66, monto: 110000, moneda: 'PEN', fechaEmision: offsetISO(-20), estatus: 'EMITIDA', creadoEn: offsetISO(-20) },
+  { id: 'fac-banca-q1', folio: 'F001-00000210', campanaId: 'camp-banca-q1', clienteId: 'cli-banca', subtotal: 93220.34, igv: 16779.66, monto: 110000, moneda: 'MXN', fechaEmision: offsetISO(-20), estatus: 'EMITIDA', creadoEn: offsetISO(-20) },
 ] as Omit<Factura, 'serie' | 'folioFiscal' | 'rfc' | 'razonSocial' | 'usoCfdi'>[]).map((f) => ({
   ...f, serie: null, folioFiscal: null, rfc: null, razonSocial: null, usoCfdi: null,
 }))
@@ -464,7 +464,7 @@ export function buildSeed(): DemoState {
       nombreTenant: 'RGB Catorce',
       razonSocial: null,
       nombreComercial: null,
-      moneda: 'PEN',
+      moneda: 'MXN',
       plazosCobranza: [60, 90, 120],
       tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
       logoUrl: null,

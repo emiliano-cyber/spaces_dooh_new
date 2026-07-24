@@ -22,8 +22,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useDemoStore, type DemoStore } from './store'
-import { mockAdapter } from './adapters/mock'
-import { httpAdapter } from './adapters/http'
 import {
   dashboardMetrics,
   pipelineStage,
@@ -52,11 +50,11 @@ import {
 } from './derive'
 import type { Campana, EtapaPipeline, RolDemo, UsuarioDemo } from './types'
 
-// ─── Selección de adapter por flag de entorno ───────────────────────────────
-const USE_HTTP = process.env.NEXT_PUBLIC_DEMO_HTTP === '1'
-
-/** API imperativa (lecturas + mutaciones). Mismas firmas mock/http. */
-export const data = USE_HTTP ? httpAdapter : mockAdapter
+// N-4: se retiró el export `data = USE_HTTP ? httpAdapter : mockAdapter`, que era
+// código MUERTO (nadie lo importaba ni llamaba). El path VIVO de datos es: el
+// store `useDemoStore` hidratado desde `GET /api/estado` (server/BFF) para las
+// lecturas, y `estado-api.ts` (fetch a `/api/…`) para las mutaciones. Los
+// adapters mock/http quedan disponibles pero ya no se seleccionan aquí.
 
 // Re-export de derivaciones y formato para que las pantallas tengan una sola
 // fuente de import.
