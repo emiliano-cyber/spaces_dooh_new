@@ -73,7 +73,7 @@ export default function RecuperarPage({ params }: { params: { token: string } })
                   <div className="text-muted">El enlace ya se usó o venció. Solicita uno nuevo desde el login.</div>
                 </div>
               </div>
-              <Button className="mt-4 w-full" variant="secondary" onClick={() => router.push('/demo/login')}>
+              <Button className="mt-4 w-full" variant="secondary" onClick={() => router.push('/login')}>
                 Ir a iniciar sesión
               </Button>
             </div>
@@ -86,7 +86,7 @@ export default function RecuperarPage({ params }: { params: { token: string } })
                   <div className="text-muted">Ya puedes iniciar sesión con tu nueva contraseña.</div>
                 </div>
               </div>
-              <Button className="mt-4 w-full" onClick={() => router.push('/demo/login')}>
+              <Button className="mt-4 w-full" onClick={() => router.push('/login')}>
                 Iniciar sesión
               </Button>
             </div>

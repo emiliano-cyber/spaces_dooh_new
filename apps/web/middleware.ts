@@ -31,6 +31,19 @@ export function middleware(request: NextRequest) {
     ? pathname.slice(BASE_PATH.length) || '/'
     : pathname
 
+  // Compatibilidad: se quitó el segmento '/demo' de las rutas de página. Las URLs
+  // viejas /demo/* (bookmarks, correos de recuperar contraseña ya enviados,
+  // deep-links) redirigen permanentemente a /* para no romperse.
+  if (normalizedPath === '/demo' || normalizedPath.startsWith('/demo/')) {
+    const url = request.nextUrl.clone()
+    // Next.js antepone el basePath solo (igual que el gate de abajo). El viejo
+    // dashboard vivía en /demo/ (la raíz del shell); ahora es /inicio. El resto
+    // conserva su subruta ya sin el segmento '/demo'.
+    const resto = normalizedPath.slice('/demo'.length)
+    url.pathname = resto === '' || resto === '/' ? '/inicio' : resto
+    return NextResponse.redirect(url, 308)
+  }
+
   // ─── CSRF (Hardening 1 · Bloque E): double-submit en mutaciones con sesión ──
   // Toda mutación del BFF autenticada por la cookie de sesión debe traer el
   // header X-CSRF-Token igual a la cookie spaces_csrf. Exentos: el bootstrap de
@@ -73,23 +86,22 @@ export function middleware(request: NextRequest) {
   }
 
   // Rutas PÚBLICAS (sin sesión): el login, las ligas compartibles (propuesta
-  // /demo/p/… y portal de campaña /demo/portal/…), las APIs (que se auto-protegen)
-  // y los assets. Cualquier OTRA ruta exige haber iniciado sesión.
+  // /p/… y portal de campaña /portal/…), las APIs (que se auto-protegen) y los
+  // assets. Cualquier OTRA ruta exige haber iniciado sesión.
   const publico =
     normalizedPath.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
     pathname.startsWith('/favicon') ||
-    normalizedPath === '/demo/login' ||
-    normalizedPath.startsWith('/demo/login/') ||
-    normalizedPath.startsWith('/demo/p/') ||
-    normalizedPath.startsWith('/demo/portal/') ||
-    normalizedPath.startsWith('/auth/') ||
+    normalizedPath === '/login' ||
+    normalizedPath.startsWith('/login/') ||
+    normalizedPath.startsWith('/recuperar/') ||
+    normalizedPath.startsWith('/p/') ||
     normalizedPath.startsWith('/portal/')
 
   // Gate: sin cookie de sesión → redirige al login (no expone ninguna otra ruta).
   if (!publico && !request.cookies.has('spaces_sesion')) {
     const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/demo/login'
+    loginUrl.pathname = '/login'
     return NextResponse.redirect(loginUrl)
   }
 

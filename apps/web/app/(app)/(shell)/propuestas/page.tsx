@@ -122,7 +122,7 @@ function PropuestaCard({
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(p.id)
-      if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
+      if (camp?.id) router.push(`/campanas/${camp.id}`)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
@@ -161,7 +161,7 @@ function PropuestaCard({
               <div className="text-[11px] text-muted">total c/IVA</div>
             </div>
             <Link
-              href={withTrail(`/demo/propuestas/${p.id}`, [{ label: 'Propuestas', href: '/demo/propuestas' }])}
+              href={withTrail(`/propuestas/${p.id}`, [{ label: 'Propuestas', href: '/propuestas' }])}
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-info hover:bg-surface-2"
             >
               Abrir <ArrowUpRight className="h-3.5 w-3.5" />
@@ -229,7 +229,7 @@ function PropuestaCard({
                       <Button size="sm" disabled title="Esta propuesta ya generó su campaña">
                         <Check className="h-3.5 w-3.5" /> Campaña generada
                       </Button>
-                      <Button size="sm" variant="secondary" onClick={() => router.push(`/demo/campanas/${campanaGenerada.id}`)}>
+                      <Button size="sm" variant="secondary" onClick={() => router.push(`/campanas/${campanaGenerada.id}`)}>
                         Ver campaña
                       </Button>
                     </>

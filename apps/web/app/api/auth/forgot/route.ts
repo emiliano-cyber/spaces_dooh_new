@@ -32,7 +32,7 @@ export async function POST(req: Request) {
     const reset = await crearReset(email)
     if (reset) {
       const base = process.env.APP_URL || new URL(req.url).origin
-      const link = `${base}/spaces-dooh/demo/recuperar/${reset.token}`
+      const link = `${base}/spaces-dooh/recuperar/${reset.token}`
       if (emailHabilitado()) {
         try {
           await enviarEmail({

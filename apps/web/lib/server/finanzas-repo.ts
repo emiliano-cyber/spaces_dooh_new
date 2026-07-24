@@ -92,7 +92,7 @@ export async function recordarCobranzasVencidas(): Promise<number> {
   )
   for (const r of rows) {
     const saldo = Math.round((Number(r.monto) - Number(r.monto_pagado)) * 100) / 100
-    await notificar({ tipo: 'COBRANZA', link: '/demo/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
+    await notificar({ tipo: 'COBRANZA', link: '/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
     await q(`update cobranzas set recordatorio_en=now(), recordatorios_enviados=recordatorios_enviados+1 where id=$1`, [r.id])
   }
   return rows.length
@@ -115,7 +115,7 @@ export async function enviarRecordatorioCobranza(
   if (!r) return null
   const saldo = Math.round((Number(r.monto) - Number(r.monto_pagado)) * 100) / 100
   if (saldo <= 0) return { ok: false, recordatoriosEnviados: n(r.recordatorios_enviados) ?? 0, motivo: 'La cobranza ya está liquidada' }
-  await notificar({ tipo: 'COBRANZA', link: '/demo/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
+  await notificar({ tipo: 'COBRANZA', link: '/finanzas', ...textoRecordatorio({ folio: r.folio, cliente: r.cliente, dias: Number(r.dias), saldo }) })
   const upd = await q<any>(
     `update cobranzas set recordatorio_en=now(), recordatorios_enviados=recordatorios_enviados+1 where id=$1 returning recordatorios_enviados`,
     [cobranzaId],

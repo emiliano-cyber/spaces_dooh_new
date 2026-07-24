@@ -20,6 +20,13 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    // La raíz del basePath (/spaces-dooh/) no renderiza una página propia
+    // (limitación de basePath + trailingSlash en el índice). El dashboard vive
+    // en /inicio; mandamos la raíz ahí. La sesión la valida el middleware/gate
+    // en /inicio (si no hay sesión, rebota a /login).
+    return [{ source: '/', destination: '/inicio', permanent: false }]
+  },
   async headers() {
     return [
       {

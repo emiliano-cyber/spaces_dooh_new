@@ -255,7 +255,7 @@ export default function OperacionesPage() {
 
                   <div className="mt-3 flex justify-end">
                     <Link
-                      href={withTrail(`/demo/operaciones/ot/${o.id}`, [{ label: 'Operaciones', href: '/demo/operaciones' }])}
+                      href={withTrail(`/operaciones/ot/${o.id}`, [{ label: 'Operaciones', href: '/operaciones' }])}
                       className="inline-flex items-center gap-1.5 rounded border border-border-strong px-3 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2"
                     >
                       <Smartphone className="h-3.5 w-3.5" />

@@ -23,7 +23,7 @@ export function Topbar() {
   async function cerrar() {
     await apiLogout()
     await refrescar()
-    router.push('/demo/login')
+    router.push('/login')
   }
 
   async function abrirNotif(id: string, link: string | null) {
@@ -143,7 +143,7 @@ export function Topbar() {
               <div className="my-1 h-px bg-border" />
               <DropdownMenu.Item asChild>
                 <Link
-                  href="/demo/configuracion"
+                  href="/configuracion"
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
                 >
                   <Settings className="h-4 w-4 text-muted" /> Configuración

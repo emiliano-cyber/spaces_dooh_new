@@ -25,7 +25,7 @@ export default function IngresarCodigoPropuestaPage() {
         setVerificando(false)
         return
       }
-      router.push(`/demo/p/${encodeURIComponent(cod)}`)
+      router.push(`/p/${encodeURIComponent(cod)}`)
     } catch {
       setError('No se pudo verificar el código. Inténtalo de nuevo.')
       setVerificando(false)

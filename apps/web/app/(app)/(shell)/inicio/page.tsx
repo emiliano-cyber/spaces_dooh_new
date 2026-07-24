@@ -237,7 +237,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Tu red en el mapa</CardTitle>
             <Link
-              href="/demo/comercial"
+              href="/comercial"
               className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
             >
               Ver comercial <ArrowRight className="h-3.5 w-3.5" />
@@ -276,7 +276,7 @@ export default function DashboardPage() {
               {porFinalizar.map(({ c, dias }) => (
                 <li key={c.id} className="flex items-center justify-between gap-3 py-2">
                   <div className="min-w-0">
-                    <Link href={`/demo/campanas/${c.id}`} className="truncate text-[13px] text-ink hover:underline">
+                    <Link href={`/campanas/${c.id}`} className="truncate text-[13px] text-ink hover:underline">
                       {c.nombre}
                     </Link>
                     <div className="demo-num text-[11px] text-muted">

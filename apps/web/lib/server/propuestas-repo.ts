@@ -325,7 +325,7 @@ export async function aceptarPropuestaPublica(
         [
           'Propuesta aceptada por el cliente',
           `${p.folio} · ${p.nombre} — aceptada por ${nombre}`,
-          `/demo/propuestas/${p.id}`,
+          `/propuestas/${p.id}`,
           p.tenant_id,
         ],
       )

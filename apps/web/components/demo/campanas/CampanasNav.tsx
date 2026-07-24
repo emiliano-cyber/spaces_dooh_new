@@ -37,7 +37,7 @@ export function CampanasNav({ activeId }: { activeId: string }) {
             return (
               <Link
                 key={c.id}
-                href={`/demo/campanas/${c.id}`}
+                href={`/campanas/${c.id}`}
                 aria-current={activa ? 'page' : undefined}
                 className={cn(
                   'block rounded border-l-2 px-2 py-1.5 transition-colors',

@@ -23,16 +23,16 @@ export const USUARIOS_DEMO: UsuarioDemo[] = [
 export function landingDeRol(rol: RolDemo): string {
   switch (rol) {
     case 'DUENO':
-      return '/demo'
+      return '/inicio'
     case 'COMERCIAL':
-      return '/demo/comercial'
+      return '/comercial'
     case 'OPERACIONES':
-      return '/demo/operaciones'
+      return '/operaciones'
     case 'IMPRENTA':
-      return '/demo/imprenta'
+      return '/imprenta'
     case 'FINANZAS':
-      return '/demo/finanzas'
+      return '/finanzas'
     case 'CLIENTE':
-      return `/demo/portal/${TOKEN_TELCO}`
+      return `/portal/${TOKEN_TELCO}`
   }
 }

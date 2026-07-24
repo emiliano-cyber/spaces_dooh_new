@@ -74,7 +74,7 @@ export async function notificarOTsVencidas(): Promise<number> {
           select 1 from notificaciones nz
            where nz.tenant_id = $1
              and nz.titulo = 'OT vencida'
-             and nz.link = '/demo/operaciones/ot/' || ot.id
+             and nz.link = '/operaciones/ot/' || ot.id
         )`,
     [tenantId, OT_ABIERTAS],
   )
@@ -84,7 +84,7 @@ export async function notificarOTsVencidas(): Promise<number> {
       nivel: 'warn',
       titulo: 'OT vencida',
       detalle: `${ot.folio}${ot.sitio ? ` · ${ot.sitio}` : ''} no se cerró a tiempo${ot.asignado_a ? '' : ' (sin asignar)'}`,
-      link: `/demo/operaciones/ot/${ot.id}`,
+      link: `/operaciones/ot/${ot.id}`,
     })
   }
   return vencidas.length

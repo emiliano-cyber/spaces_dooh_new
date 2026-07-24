@@ -29,7 +29,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       detalle: body?.aprobar
         ? `${c.nombre} fue validada y está al aire`
         : `${c.nombre} fue rechazada${c.validacionMotivo ? `: ${c.validacionMotivo}` : ''}`,
-      link: `/demo/campanas/${c.id}`,
+      link: `/campanas/${c.id}`,
     })
 
     // Al aprobar: publicar en DOOHmain vía el SDK (si está habilitado). Un fallo

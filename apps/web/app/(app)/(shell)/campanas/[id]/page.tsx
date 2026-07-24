@@ -61,11 +61,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
     const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Campañas', href: '/demo/campanas' }])
+    setTrail(t.length ? t : [{ label: 'Campañas', href: '/campanas' }])
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Campañas', href: '/demo/campanas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: 'Campañas', href: '/campanas' }
   // Rastro a propagar hacia las OT de esta campaña (incluye la campaña actual).
-  const trailHaciaOT: Crumb[] = [...trail, { label: c && 'nombre' in c ? c.nombre : 'Campaña', href: `/demo/campanas/${id}` }]
+  const trailHaciaOT: Crumb[] = [...trail, { label: c && 'nombre' in c ? c.nombre : 'Campaña', href: `/campanas/${id}` }]
 
   if (c === undefined) {
     return <div className="w-full h-64 animate-pulse rounded-md bg-surface-2" />
@@ -74,7 +74,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
     return (
       <div className="w-full">
         <p className="text-[13px] text-muted">Campaña no encontrada.</p>
-        <Link href="/demo/campanas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
+        <Link href="/campanas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> Volver a campañas
         </Link>
       </div>
@@ -139,7 +139,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
           </StatusBadge>
           {c.portalActivo && c.portalToken && (
             <Link
-              href={`/demo/portal/${c.portalToken}`}
+              href={`/portal/${c.portalToken}`}
               target="_blank"
               className="inline-flex items-center gap-1 rounded border border-border-strong px-2.5 py-1 text-[12px] font-medium text-info hover:bg-surface-2"
             >
@@ -353,7 +353,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
                 {misOts.map((o) => (
                   <li key={o.id}>
                     <Link
-                      href={withTrail(`/demo/operaciones/ot/${o.id}`, trailHaciaOT)}
+                      href={withTrail(`/operaciones/ot/${o.id}`, trailHaciaOT)}
                       className="-mx-1 flex items-center justify-between rounded px-1 py-1.5 hover:bg-surface-2"
                     >
                       <div className="min-w-0">
@@ -374,7 +374,7 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
         estado={creativosHecho ? 'hecho' : 'pendiente'}
         accion={
           <Link
-            href={withTrail('/demo/creativos', trail)}
+            href={withTrail('/creativos', trail)}
             className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
           >
             Gestionar <ExternalLink className="h-3.5 w-3.5" />

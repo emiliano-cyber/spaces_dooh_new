@@ -145,7 +145,7 @@ export default function ImprentaPage() {
                     {camp ? (
                       puedeVerCampanas ? (
                         <Link
-                          href={`/demo/campanas/${camp.id}`}
+                          href={`/campanas/${camp.id}`}
                           className="inline-flex items-center gap-1 text-[12px] font-medium text-info hover:underline"
                         >
                           Campaña: {camp.nombre} <ArrowUpRight className="h-3.5 w-3.5" />

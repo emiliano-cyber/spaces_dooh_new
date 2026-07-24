@@ -68,7 +68,7 @@ export default function CampanasPage() {
             {porValidar.map((c) => (
               <li key={c.id}>
                 <Link
-                  href={`/demo/campanas/${c.id}`}
+                  href={`/campanas/${c.id}`}
                   className="-mx-1 flex items-center justify-between gap-3 rounded px-1 py-2 hover:bg-surface-2"
                 >
                   <div className="min-w-0">
@@ -138,7 +138,7 @@ export default function CampanasPage() {
             const hilo = c.id === 'camp-telco'
             return (
               <li key={c.id}>
-                <Link href={`/demo/campanas/${c.id}`}>
+                <Link href={`/campanas/${c.id}`}>
                   <Card
                     className={cn(
                       'p-4 transition-colors duration-150 hover:border-border-strong',

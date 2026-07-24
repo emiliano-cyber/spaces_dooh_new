@@ -107,7 +107,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
       toast.error('Esta propuesta aún no tiene liga; vuelve a guardarla.')
       return
     }
-    void copiar(`${window.location.origin}/spaces-dooh/demo/p/${p.tokenPublico}`, setCopiado, 'Liga de la propuesta copiada')
+    void copiar(`${window.location.origin}/spaces-dooh/p/${p.tokenPublico}`, setCopiado, 'Liga de la propuesta copiada')
   }
 
   // Generar PDF: por ahora no hace nada (placeholder de UI).
@@ -119,9 +119,9 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const [trail, setTrail] = useState<Crumb[]>([])
   useEffect(() => {
     const t = trailFromLocation()
-    setTrail(t.length ? t : [{ label: 'Propuestas', href: '/demo/propuestas' }])
+    setTrail(t.length ? t : [{ label: 'Propuestas', href: '/propuestas' }])
   }, [])
-  const volver = trail.length ? trail[trail.length - 1] : { label: 'Propuestas', href: '/demo/propuestas' }
+  const volver = trail.length ? trail[trail.length - 1] : { label: 'Propuestas', href: '/propuestas' }
 
   if (!propuestas) {
     return <div className="h-64 w-full animate-pulse rounded-md bg-surface-2" />
@@ -131,7 +131,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     return (
       <div className="w-full">
         <p className="text-[13px] text-muted">Propuesta no encontrada.</p>
-        <Link href="/demo/propuestas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
+        <Link href="/propuestas" className="mt-2 inline-flex items-center gap-1 text-[13px] text-info">
           <ArrowLeft className="h-3.5 w-3.5" /> Volver a propuestas
         </Link>
       </div>
@@ -184,7 +184,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
     setGenerando(true)
     try {
       const camp = await generarCampanaDesdePropuestaApi(id)
-      if (camp?.id) router.push(`/demo/campanas/${camp.id}`)
+      if (camp?.id) router.push(`/campanas/${camp.id}`)
     } catch (e) { toast.error(e instanceof Error ? e.message : 'Error') }
     setGenerando(false)
   }
