@@ -65,7 +65,16 @@ export async function getDevice(req: Request, res: Response) {
     [req.params.id]
   );
 
-  res.json({ device, latest_status: (statusRows as any[])[0] || null });
+  const [usageRows] = await pool.query<any[]>(
+    `SELECT * FROM device_data_usage WHERE device_id = ?`,
+    [req.params.id]
+  );
+
+  res.json({
+    device,
+    latest_status: (statusRows as any[])[0] || null,
+    data_usage: (usageRows as any[])[0] || null,
+  });
 }
 
 export async function updateDevice(req: Request, res: Response) {

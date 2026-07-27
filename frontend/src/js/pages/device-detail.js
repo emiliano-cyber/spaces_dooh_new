@@ -6,6 +6,7 @@ function deviceDetail() {
     deviceId: null,
     device: null,
     status: null,
+    dataUsage: null,   // consumo de datos (movil/wifi) del dispositivo
     recentPhotos: [],
     logs: [],
     streaming: false,
@@ -68,9 +69,20 @@ function deviceDetail() {
         const data = await API.get(`/api/devices/${this.deviceId}`);
         this.device = data.device;
         this.status = data.latest_status;
+        this.dataUsage = data.data_usage;
       } catch (err) {
         console.error('Failed to load device:', err);
       }
+    },
+
+    // Formatea bytes a KB/MB/GB. 'n/d' si no existe (equipo con APK previa a v0.7.0).
+    fmtBytes(n) {
+      if (n === null || n === undefined) return 'n/d';
+      const b = Number(n);
+      if (b < 1024) return b + ' B';
+      if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+      if (b < 1073741824) return (b / 1048576).toFixed(1) + ' MB';
+      return (b / 1073741824).toFixed(2) + ' GB';
     },
 
     async loadPhotos() {

@@ -136,6 +136,10 @@
                 <span x-text="status?.network_type || '—'" class="font-medium"></span>
               </div>
               <div class="flex justify-between">
+                <span class="text-neutral-500">Operador</span>
+                <span x-text="status?.network_operator || '—'" class="font-medium"></span>
+              </div>
+              <div class="flex justify-between">
                 <span class="text-neutral-500">Storage libre</span>
                 <span x-text="status?.storage_free_mb ? status.storage_free_mb + ' MB' : '—'" class="font-medium"></span>
               </div>
@@ -152,6 +156,42 @@
                 <span x-text="device?.last_seen_at ? new Date(device.last_seen_at).toLocaleString() : '—'" class="font-medium"></span>
               </div>
             </div>
+          </div>
+
+          <!-- Consumo de datos (chip Telcel / WiFi) -->
+          <div class="bg-white border border-neutral-200 rounded-lg p-4">
+            <h3 class="font-medium mb-3">Consumo de datos</h3>
+            <template x-if="!dataUsage">
+              <p class="text-sm text-neutral-400">Sin datos (requiere la app v0.7.0 o superior en el equipo).</p>
+            </template>
+            <template x-if="dataUsage">
+              <div class="text-sm">
+                <div class="grid grid-cols-3 gap-2 mb-2 text-xs text-neutral-500 font-medium">
+                  <span></span><span class="text-right">Móvil</span><span class="text-right">WiFi</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 py-1 border-t border-neutral-100">
+                  <span class="text-neutral-500">Hoy</span>
+                  <span class="text-right font-medium" x-text="fmtBytes(dataUsage.mobile_today)"></span>
+                  <span class="text-right" x-text="fmtBytes(dataUsage.wifi_today)"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 py-1 border-t border-neutral-100">
+                  <span class="text-neutral-500">Semana</span>
+                  <span class="text-right font-medium" x-text="fmtBytes(dataUsage.mobile_week)"></span>
+                  <span class="text-right" x-text="fmtBytes(dataUsage.wifi_week)"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 py-1 border-t border-neutral-100">
+                  <span class="text-neutral-500">Mes</span>
+                  <span class="text-right font-medium" x-text="fmtBytes(dataUsage.mobile_month)"></span>
+                  <span class="text-right" x-text="fmtBytes(dataUsage.wifi_month)"></span>
+                </div>
+                <div class="grid grid-cols-3 gap-2 py-1 border-t border-neutral-100">
+                  <span class="text-neutral-500">Total</span>
+                  <span class="text-right font-medium" x-text="fmtBytes(dataUsage.mobile_total)"></span>
+                  <span class="text-right" x-text="fmtBytes(dataUsage.wifi_total)"></span>
+                </div>
+                <p class="text-xs text-neutral-400 mt-2">Móvil = consumo del chip. Actualizado: <span x-text="dataUsage.reported_at ? new Date(dataUsage.reported_at).toLocaleString() : '—'"></span></p>
+              </div>
+            </template>
           </div>
 
           <!-- Device Config -->

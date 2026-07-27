@@ -27,7 +27,8 @@ data class DeviceStatus(
     val storageFreeMb: Long,
     val ramFreeMb: Long,
     val cpuTemp: Float?,
-    val uptimeSeconds: Long
+    val uptimeSeconds: Long,
+    val dataUsage: DataUsage? = null
 )
 
 class DeviceStatusCollector(private val ctx: Context) {
@@ -87,7 +88,8 @@ class DeviceStatusCollector(private val ctx: Context) {
             storageFreeMb = freeMb,
             ramFreeMb = ramFree,
             cpuTemp = readCpuTemp(),
-            uptimeSeconds = SystemClock.elapsedRealtime() / 1000
+            uptimeSeconds = SystemClock.elapsedRealtime() / 1000,
+            dataUsage = try { DataUsageCollector(ctx).collect() } catch (_: Exception) { null }
         )
     }
 

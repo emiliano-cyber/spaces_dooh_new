@@ -67,6 +67,15 @@ const statusSchema = z.object({
   ram_free_mb: z.number().optional(),
   cpu_temp: z.number().optional(),
   uptime_seconds: z.number().optional(),
+  // Consumo de datos (bytes). Opcionales: los APK previos a v0.7.0 no los envian.
+  data_mobile_today: z.number().nonnegative().optional(),
+  data_mobile_week: z.number().nonnegative().optional(),
+  data_mobile_month: z.number().nonnegative().optional(),
+  data_mobile_total: z.number().nonnegative().optional(),
+  data_wifi_today: z.number().nonnegative().optional(),
+  data_wifi_week: z.number().nonnegative().optional(),
+  data_wifi_month: z.number().nonnegative().optional(),
+  data_wifi_total: z.number().nonnegative().optional(),
 });
 
 export async function reportStatus(req: Request, res: Response) {
@@ -92,6 +101,30 @@ export async function reportStatus(req: Request, res: Response) {
      lat = COALESCE(?, lat), lng = COALESCE(?, lng) WHERE id = ?`,
     [d.gps_lat ?? null, d.gps_lng ?? null, did]
   );
+
+  // Consumo de datos: upsert del ultimo snapshot (solo si el APK lo reporta).
+  if (
+    d.data_mobile_today !== undefined || d.data_mobile_week !== undefined ||
+    d.data_mobile_month !== undefined || d.data_mobile_total !== undefined ||
+    d.data_wifi_today !== undefined || d.data_wifi_week !== undefined ||
+    d.data_wifi_month !== undefined || d.data_wifi_total !== undefined
+  ) {
+    await pool.query(
+      `INSERT INTO device_data_usage
+         (device_id, mobile_today, mobile_week, mobile_month, mobile_total,
+          wifi_today, wifi_week, wifi_month, wifi_total)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         mobile_today=VALUES(mobile_today), mobile_week=VALUES(mobile_week),
+         mobile_month=VALUES(mobile_month), mobile_total=VALUES(mobile_total),
+         wifi_today=VALUES(wifi_today), wifi_week=VALUES(wifi_week),
+         wifi_month=VALUES(wifi_month), wifi_total=VALUES(wifi_total)`,
+      [did, d.data_mobile_today ?? null, d.data_mobile_week ?? null,
+       d.data_mobile_month ?? null, d.data_mobile_total ?? null,
+       d.data_wifi_today ?? null, d.data_wifi_week ?? null,
+       d.data_wifi_month ?? null, d.data_wifi_total ?? null]
+    );
+  }
 
   await redis.publish('device:status', JSON.stringify({ device_id: did, ...d }));
   res.json({ ok: true });

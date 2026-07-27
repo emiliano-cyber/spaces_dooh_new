@@ -139,6 +139,18 @@ class ApiClient(ctx: Context) {
             put("ram_free_mb", status.ramFreeMb)
             status.cpuTemp?.let { put("cpu_temp", it) }
             put("uptime_seconds", status.uptimeSeconds)
+            // Consumo de datos (movil/WiFi). Campos opcionales: si el equipo no los
+            // pudo leer se omiten y el backend/dashboard muestran n/d.
+            status.dataUsage?.let { du ->
+                du.mobileToday?.let { put("data_mobile_today", it) }
+                du.mobileWeek?.let { put("data_mobile_week", it) }
+                du.mobileMonth?.let { put("data_mobile_month", it) }
+                du.mobileTotal?.let { put("data_mobile_total", it) }
+                du.wifiToday?.let { put("data_wifi_today", it) }
+                du.wifiWeek?.let { put("data_wifi_week", it) }
+                du.wifiMonth?.let { put("data_wifi_month", it) }
+                du.wifiTotal?.let { put("data_wifi_total", it) }
+            }
         }
 
         val request = Request.Builder()
