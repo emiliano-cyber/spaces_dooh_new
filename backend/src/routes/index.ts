@@ -39,6 +39,8 @@ export function createRoutes() {
   router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateDevice);
   router.delete('/api/devices/:id', requireUser, requireRole('admin'), dashboard.deleteDevice);
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
+  // Fijar orientacion por defecto del stream (solo admin).
+  router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), dashboard.setStreamRotation);
 
   // Photos
   router.get('/api/photos', requireUser, dashboard.listPhotos);

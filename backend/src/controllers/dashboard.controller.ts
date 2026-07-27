@@ -77,6 +77,21 @@ export async function getDevice(req: Request, res: Response) {
   });
 }
 
+// Fija la orientacion por defecto del stream (0/90/180/270) para este dispositivo.
+// Solo admin (ver ruta). Todos la ven al abrir/recargar la vista en vivo.
+export async function setStreamRotation(req: Request, res: Response) {
+  const schema = z.object({ rotation: z.number().int().refine((v) => [0, 90, 180, 270].includes(v), 'invalid_rotation') });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  const [r] = await pool.query<any>(
+    `UPDATE devices SET stream_rotation = ? WHERE id = ?`,
+    [parsed.data.rotation, req.params.id]
+  );
+  if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true, rotation: parsed.data.rotation });
+}
+
 export async function updateDevice(req: Request, res: Response) {
   const schema = z.object({
     name: z.string().optional(),

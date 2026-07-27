@@ -22,7 +22,9 @@ function deviceDetail() {
     exposure: 0,
     wb: 'auto',
     focusLocked: false,
-    rotation: 0,   // rotacion del video en el visor (0/90/180/270)
+    rotation: 0,        // rotacion actual del video en el visor (0/90/180/270)
+    savedRotation: 0,   // orientacion fija guardada en el servidor (la que ven todos)
+    isAdmin: false,     // solo admin puede fijar la orientacion
     takingPhoto: false,
     toast: { show: false, msg: '', type: 'info' },
     _toastT: null,
@@ -42,6 +44,9 @@ function deviceDetail() {
         window.location.href = '/dashboard.html';
         return;
       }
+
+      // Rol del usuario (para habilitar "Fijar orientacion" solo a admin).
+      try { this.isAdmin = JSON.parse(localStorage.getItem('user') || '{}').role === 'admin'; } catch (_) {}
 
       await this.loadDevice();
       await this.loadPhotos();
@@ -70,6 +75,9 @@ function deviceDetail() {
         this.device = data.device;
         this.status = data.latest_status;
         this.dataUsage = data.data_usage;
+        // Orientacion fija guardada por admin: es la que ven todos al abrir/recargar.
+        this.savedRotation = ((Number(this.device.stream_rotation) % 360) + 360) % 360 || 0;
+        this.rotation = this.savedRotation;
       } catch (err) {
         console.error('Failed to load device:', err);
       }
@@ -345,9 +353,32 @@ function deviceDetail() {
       if (this.focusLocked) this.camControl({ action: 'lock_focus', x: 0.5, y: 0.5 });
     },
 
+    // Estilo del video segun la rotacion. En 90°/270° escala x(4/3) para LLENAR
+    // el recuadro 4:3 (si no, quedarian barras negras al girar). El frame es 4:3.
+    videoStyle() {
+      const r = ((Number(this.rotation) % 360) + 360) % 360;
+      const scale = (r === 90 || r === 270) ? (4 / 3) : 1;
+      return `transform: rotate(${r}deg) scale(${scale});`;
+    },
     // Rotacion del video en el visor (CSS simple; el frame ya llega 4:3 correcto).
+    // Es temporal por navegador; al recargar vuelve a la orientacion fija (savedRotation).
     rotate() {
       this.rotation = (this.rotation + 90) % 360;
+    },
+    // Vuelve a la orientacion fija guardada (la que ven todos).
+    resetRotation() {
+      this.rotation = this.savedRotation;
+    },
+    // Fija la orientacion actual como la que veran todos (solo admin). Persiste en el servidor.
+    async saveRotation() {
+      try {
+        await API.put(`/api/devices/${this.deviceId}/stream-rotation`, { rotation: this.rotation });
+        this.savedRotation = this.rotation;
+        if (this.device) this.device.stream_rotation = this.rotation;
+        this.showToast('Orientación fijada para todos', 'success');
+      } catch (e) {
+        this.showToast('No se pudo fijar la orientación (¿eres admin?)', 'error');
+      }
     },
 
     // --- Control manual de camara (solo con stream activo) ---
