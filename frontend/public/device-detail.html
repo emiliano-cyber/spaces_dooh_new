@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="/src/css/styles.css">
 </head>
 <body class="bg-neutral-50 text-neutral-900 font-sans antialiased">
@@ -231,6 +232,75 @@
             Sin registros todavía
           </p>
         </div>
+      </div>
+
+      <!-- PlayLog / Historico de telemetria -->
+      <div class="mt-8 bg-white border border-neutral-200 rounded-lg p-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 class="font-medium">PlayLog — Histórico de telemetría</h3>
+          <div class="flex flex-wrap items-center gap-2 text-sm">
+            <select x-model="tlRange" @change="onRangePreset()" class="px-2 py-1.5 border border-neutral-300 rounded">
+              <option value="24h">Últimas 24 h</option>
+              <option value="7d">7 días</option>
+              <option value="30d">30 días</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            <template x-if="tlRange === 'custom'">
+              <span class="flex items-center gap-1">
+                <input type="datetime-local" x-model="tlFrom" class="px-2 py-1 border border-neutral-300 rounded">
+                <span class="text-neutral-400">→</span>
+                <input type="datetime-local" x-model="tlTo" class="px-2 py-1 border border-neutral-300 rounded">
+              </span>
+            </template>
+            <button @click="loadTelemetry()" class="px-3 py-1.5 bg-[#0A66FF] text-white rounded hover:bg-blue-700">Aplicar</button>
+            <button @click="exportTelemetry()" class="px-3 py-1.5 bg-neutral-100 text-neutral-700 rounded hover:bg-neutral-200">Exportar CSV</button>
+          </div>
+        </div>
+
+        <!-- Alertas -->
+        <div x-show="tlAlerts.length > 0" class="mb-4 space-y-1.5">
+          <template x-for="a in tlAlerts" :key="a.type">
+            <div class="flex items-center gap-2 text-sm px-3 py-2 rounded"
+                 :class="a.level === 'critical' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'">
+              <span class="font-bold" x-text="a.level === 'critical' ? '⚠' : '!'"></span>
+              <span x-text="a.message"></span>
+            </div>
+          </template>
+        </div>
+        <p x-show="tlLoaded && tlAlerts.length === 0" class="mb-4 text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
+          ✓ Sin alertas en el rango seleccionado
+        </p>
+
+        <!-- Resumen -->
+        <div x-show="tlLoaded" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 text-sm">
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Temp CPU máx</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.cpu_temp_max != null ? Number(tlSummary.cpu_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Temp batería máx</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.battery_temp_max != null ? Number(tlSummary.battery_temp_max).toFixed(1) + ' °C' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Batería mín</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.battery_pct_min != null ? tlSummary.battery_pct_min + ' %' : 'n/d'"></div>
+          </div>
+          <div class="border border-neutral-100 rounded p-2">
+            <div class="text-neutral-400 text-xs">Muestras</div>
+            <div class="font-medium tabular-nums" x-text="tlSummary.samples ?? 0"></div>
+          </div>
+        </div>
+
+        <!-- Graficas -->
+        <div x-show="tlLoaded && tlSummary.samples > 0" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartTemp" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartBattery" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartSignal" height="140"></canvas></div>
+          <div class="border border-neutral-100 rounded p-3"><canvas id="chartStorage" height="140"></canvas></div>
+        </div>
+        <p x-show="tlLoaded && (!tlSummary.samples || tlSummary.samples === 0)" class="text-center text-neutral-400 text-sm py-8">
+          Sin telemetría en el rango seleccionado
+        </p>
       </div>
     </main>
 

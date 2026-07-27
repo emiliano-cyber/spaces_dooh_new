@@ -25,6 +25,14 @@ function deviceDetail() {
     takingPhoto: false,
     toast: { show: false, msg: '', type: 'info' },
     _toastT: null,
+    // PlayLog / historico de telemetria
+    tlRange: '24h',
+    tlFrom: '', tlTo: '',
+    tlLoaded: false,
+    tlAlerts: [],
+    tlSummary: {},
+    tlSeries: [],
+    _charts: {},
 
     async init() {
       const params = new URLSearchParams(window.location.search);
@@ -37,6 +45,7 @@ function deviceDetail() {
       await this.loadDevice();
       await this.loadPhotos();
       await this.loadLogs();
+      await this.loadTelemetry();
       // Refresca los registros remotos periodicamente.
       setInterval(() => this.loadLogs(), 15000);
 
@@ -80,6 +89,100 @@ function deviceDetail() {
       } catch (err) {
         /* silencioso */
       }
+    },
+
+    // ---- PlayLog / historico de telemetria ----
+    onRangePreset() {
+      // Al elegir un preset != custom, recarga de una vez.
+      if (this.tlRange !== 'custom') this.loadTelemetry();
+    },
+    // Devuelve {fromISO, toISO, granularity} segun el rango elegido.
+    _computeRange() {
+      const now = new Date();
+      let from, to = now, gran = 'raw';
+      if (this.tlRange === '24h') { from = new Date(now - 24 * 3600e3); gran = 'raw'; }
+      else if (this.tlRange === '7d') { from = new Date(now - 7 * 24 * 3600e3); gran = 'hour'; }
+      else if (this.tlRange === '30d') { from = new Date(now - 30 * 24 * 3600e3); gran = 'hour'; }
+      else { // custom
+        from = this.tlFrom ? new Date(this.tlFrom) : new Date(now - 24 * 3600e3);
+        to = this.tlTo ? new Date(this.tlTo) : now;
+        gran = (to - from) > 2 * 24 * 3600e3 ? 'hour' : 'raw';
+      }
+      return { fromISO: from.toISOString(), toISO: to.toISOString(), granularity: gran };
+    },
+    async loadTelemetry() {
+      const { fromISO, toISO, granularity } = this._computeRange();
+      try {
+        const data = await API.get(
+          `/api/devices/${this.deviceId}/telemetry?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}&granularity=${granularity}`
+        );
+        this.tlAlerts = data.alerts || [];
+        this.tlSummary = data.summary || {};
+        this.tlSeries = data.series || [];
+        this.tlLoaded = true;
+        this.$nextTick(() => this.renderCharts(granularity));
+      } catch (err) {
+        console.error('Failed to load telemetry:', err);
+      }
+    },
+    renderCharts(granularity) {
+      if (typeof Chart === 'undefined' || !this.tlSeries.length) return;
+      const labels = this.tlSeries.map((r) => {
+        const d = new Date(r.bucket || r.reported_at);
+        return granularity === 'hour'
+          ? d.toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit' })
+          : d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' });
+      });
+      const num = (v) => (v == null ? null : Number(v));
+      const mk = (canvasId, datasets) => {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        if (this._charts[canvasId]) this._charts[canvasId].destroy();
+        this._charts[canvasId] = new Chart(el, {
+          type: 'line',
+          data: { labels, datasets },
+          options: {
+            responsive: true, animation: false, interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+            scales: { x: { ticks: { maxTicksLimit: 8, font: { size: 9 } } }, y: { ticks: { font: { size: 10 } } } },
+            elements: { point: { radius: 0 }, line: { borderWidth: 1.5, tension: 0.25 } },
+          },
+        });
+      };
+      const S = this.tlSeries;
+      mk('chartTemp', [
+        { label: 'Temp CPU °C', data: S.map((r) => num(r.cpu_temp)), borderColor: '#dc2626' },
+        { label: 'Temp batería °C', data: S.map((r) => num(r.battery_temp)), borderColor: '#f59e0b' },
+      ]);
+      mk('chartBattery', [
+        { label: 'Batería %', data: S.map((r) => num(r.battery_pct)), borderColor: '#16a34a' },
+      ]);
+      mk('chartSignal', [
+        { label: 'Señal dBm', data: S.map((r) => num(r.signal_dbm)), borderColor: '#2563eb' },
+      ]);
+      mk('chartStorage', [
+        { label: 'Storage libre MB', data: S.map((r) => num(r.storage_free_mb)), borderColor: '#7c3aed' },
+        { label: 'RAM libre MB', data: S.map((r) => num(r.ram_free_mb)), borderColor: '#0891b2' },
+      ]);
+    },
+    exportTelemetry() {
+      const { fromISO, toISO } = this._computeRange();
+      const token = localStorage.getItem('access_token');
+      // Descarga con token en query (el endpoint valida requireUser); abrimos en
+      // nueva pestaña para que el navegador maneje la descarga del CSV.
+      const url = `/api/devices/${this.deviceId}/telemetry/export?from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`;
+      // Usamos fetch con Authorization y forzamos descarga del blob.
+      fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        .then((r) => r.ok ? r.blob() : Promise.reject(r.status))
+        .then((blob) => {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `telemetria_${(this.device?.name || 'device').replace(/\s+/g, '_')}.csv`;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+          this.showToast('CSV exportado', 'success');
+        })
+        .catch(() => this.showToast('No se pudo exportar', 'error'));
     },
 
     async takePhoto() {

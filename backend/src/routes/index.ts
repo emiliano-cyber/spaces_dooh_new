@@ -6,6 +6,7 @@ import * as auth from '../controllers/auth.controller';
 import * as device from '../controllers/device.controller';
 import * as dashboard from '../controllers/dashboard.controller';
 import * as verification from '../controllers/verification.controller';
+import * as telemetry from '../controllers/telemetry.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -32,6 +33,9 @@ export function createRoutes() {
   router.get('/api/devices', requireUser, dashboard.listDevices);
   router.get('/api/devices/:id', requireUser, dashboard.getDevice);
   router.get('/api/devices/:id/logs', requireUser, dashboard.listDeviceLogs);
+  // PlayLog / historico de telemetria (lee device_status existente).
+  router.get('/api/devices/:id/telemetry', requireUser, telemetry.getTelemetry);
+  router.get('/api/devices/:id/telemetry/export', requireUser, telemetry.exportTelemetry);
   router.put('/api/devices/:id', requireUser, requireRole('admin', 'operator'), dashboard.updateDevice);
   router.delete('/api/devices/:id', requireUser, requireRole('admin'), dashboard.deleteDevice);
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
