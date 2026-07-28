@@ -108,6 +108,24 @@
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5M20 20v-5h-5M5 9a7 7 0 0111.9-2.9M19 15a7 7 0 01-11.9 2.9"/></svg>
                   <span x-text="rotation + '°'"></span>
                 </button>
+
+                <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
+                     no se llega con zoom. Solo en equipos que lo tengan. -->
+                <select x-show="isAdmin" style="display:none" x-model="lens"
+                        class="bg-white/15 hover:bg-white/25 text-white text-xs rounded px-2 py-1.5 border-0 outline-none cursor-pointer backdrop-blur-sm"
+                        title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
+                  <option class="text-black" value="main">Lente normal</option>
+                  <option class="text-black" value="wide">Gran angular 0.5x</option>
+                </select>
+
+                <!-- Fija lente + zoom para las fotos, incluidas las programadas -->
+                <button x-show="isAdmin" style="display:none" @click="saveCamera()"
+                  :disabled="!encuadreCambiado()"
+                  class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-xs rounded px-3 py-1.5"
+                  title="Guarda el lente y el zoom actuales. Se aplican también a las fotos programadas.">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  Fijar encuadre
+                </button>
                 <!-- Fijar orientacion para todos (solo admin) -->
                 <button x-show="isAdmin" style="display:none" @click="saveRotation()"
                   :disabled="rotation === savedRotation"

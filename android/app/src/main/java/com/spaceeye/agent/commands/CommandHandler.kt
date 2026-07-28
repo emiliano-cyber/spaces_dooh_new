@@ -155,6 +155,14 @@ class CommandHandler(
                         // que la foto se guarde con esa misma orientacion.
                         val rotation = payload?.optInt("rotation", 0) ?: 0
 
+                        // Encuadre fijo del sitio, que manda el backend en la orden.
+                        // Va en TODAS las ordenes de foto (programadas incluidas):
+                        // antes la foto por horario ignoraba cualquier ajuste y salia
+                        // siempre al encuadre por defecto del lente principal.
+                        val lente = payload?.optString("camera_lens", "main") ?: "main"
+                        val zoom = (payload?.optDouble("camera_zoom", 0.0) ?: 0.0).toFloat()
+                        webrtc.setEncuadre(lente, zoom)
+
                         // Con stream activo: tomar desde la sesion CameraX (sin
                         // conflicto de camara y con los ajustes en vivo). Sin
                         // stream: abrir la camara con Camera2.
@@ -164,7 +172,7 @@ class CommandHandler(
                             }
                         } else {
                             try {
-                                photoCapture.captureNow()
+                                photoCapture.captureNow(lente, zoom)
                             } catch (e: Exception) {
                                 Log.e(TAG, "photoCapture failed: ${e.message}")
                                 null
@@ -217,6 +225,12 @@ class CommandHandler(
                     "START_STREAM" -> {
                         // Habilita el tipo FGS camera antes de abrir la camara.
                         MonitorService.setCameraActive(true)
+                        // Mismo encuadre fijo que tendran las fotos: hay que
+                        // encuadrar viendo lo que de verdad se va a recibir.
+                        webrtc.setEncuadre(
+                            payload?.optString("camera_lens", "main") ?: "main",
+                            (payload?.optDouble("camera_zoom", 0.0) ?: 0.0).toFloat()
+                        )
                         // ICE servers (STUN + TURN) del backend, para conectar en
                         // redes remotas / datos moviles.
                         val ice = withContext(Dispatchers.IO) { apiClient.getIceServers() }

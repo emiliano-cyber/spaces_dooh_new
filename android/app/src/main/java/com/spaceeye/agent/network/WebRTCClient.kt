@@ -84,6 +84,12 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     private var captureWidth = 1280
     private var captureHeight = 720
 
+    // Encuadre fijo del sitio, configurado desde el dashboard: que lente usar
+    // ("main" o "wide") y cuanto zoom aplicar al abrir. Llega en el payload de las
+    // ordenes; lo que se fija aqui es lo que veran la vista en vivo y las fotos.
+    private var lente: String = "main"
+    private var zoomInicial: Float = 0f
+
     // ICE servers efectivos (por defecto solo STUN; el backend puede inyectar TURN).
     private var iceServers: List<PeerConnection.IceServer> = ICE_SERVERS
 
@@ -177,6 +183,35 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         createOfferAndSend()
     }
 
+    /**
+     * Lente que debe usar el sitio: "main" (principal) o "wide" (el gran angular
+     * 0.5x). El gran angular es una camara FISICA distinta, no se llega con zoom.
+     *
+     * Se resuelve por id con Camera2 y se filtra el selector de CameraX para que
+     * la vista en vivo y la foto usen exactamente el mismo lente: si no, lo que
+     * ves al encuadrar no seria lo que despues recibes.
+     */
+    private fun selectorDeLente(): CameraSelector {
+        if (lente != "wide") return CameraSelector.DEFAULT_BACK_CAMERA
+        return try {
+            val cm = ctx.getSystemService(android.content.Context.CAMERA_SERVICE)
+                as android.hardware.camera2.CameraManager
+            val id = com.spaceeye.agent.camera.PhotoCapture.elegirCamara(cm, "wide")
+                ?: return CameraSelector.DEFAULT_BACK_CAMERA
+            CameraSelector.Builder()
+                .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                .addCameraFilter { infos ->
+                    infos.filter {
+                        androidx.camera.camera2.interop.Camera2CameraInfo.from(it).cameraId == id
+                    }.ifEmpty { infos }  // si no aparece, mejor la principal que fallar
+                }
+                .build()
+        } catch (e: Exception) {
+            Log.w(TAG, "no pude seleccionar el gran angular: ${e.message}")
+            CameraSelector.DEFAULT_BACK_CAMERA
+        }
+    }
+
     private fun bindCameraX() {
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         val future = ProcessCameraProvider.getInstance(ctx)
@@ -220,13 +255,20 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 }
 
                 provider.unbindAll()
-                val cam = provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imgCap)
+                val cam = provider.bindToLifecycle(this, selectorDeLente(), preview, imgCap)
                 camera = cam
                 cameraControl = cam.cameraControl
                 cameraInfo = cam.cameraInfo
-                Log.d(TAG, "CameraX bound; zoom range=" +
-                    "${cam.cameraInfo.zoomState.value?.minZoomRatio}-${cam.cameraInfo.zoomState.value?.maxZoomRatio}")
-                RemoteLog.info(ctx, "camera", "Cámara abierta (stream)")
+                // Arranca con el encuadre configurado para el sitio, para que lo
+                // primero que se vea sea ya el encuadre bueno.
+                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial)
+
+                val rango = cam.cameraInfo.zoomState.value
+                Log.d(TAG, "CameraX bound; lente=$lente zoom range=${rango?.minZoomRatio}-${rango?.maxZoomRatio}")
+                // El rango va al log remoto: sin esto no habia forma de saber desde
+                // el dashboard si un equipo tiene gran angular o hasta donde abre.
+                RemoteLog.info(ctx, "camera",
+                    "Cámara abierta (stream) lente=$lente zoom=${rango?.minZoomRatio}x-${rango?.maxZoomRatio}x")
             } catch (e: Exception) {
                 Log.e(TAG, "CameraX bind failed: ${e.message}", e)
                 RemoteLog.error(ctx, "camera", "Fallo al abrir cámara: ${e.message}")
@@ -240,6 +282,24 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     fun setZoom(linear: Float) {
         cameraControl?.setLinearZoom(linear.coerceIn(0f, 1f))
     }
+
+    /**
+     * Encuadre fijo del sitio (lente + zoom), tal como quedo configurado en el
+     * dashboard. Si cambia el lente con el stream ya andando hay que reabrir la
+     * camara: el lente es una camara fisica distinta, no un parametro.
+     */
+    fun setEncuadre(nuevoLente: String, zoom: Float) {
+        val cambioDeLente = nuevoLente != lente
+        lente = if (nuevoLente == "wide") "wide" else "main"
+        zoomInicial = zoom.coerceIn(0f, 1f)
+        if (isStreaming()) {
+            if (cambioDeLente) bindCameraX() else setZoom(zoomInicial)
+        }
+    }
+
+    /** Lente y zoom vigentes, para que la captura con Camera2 use los mismos. */
+    fun lenteActual(): String = lente
+    fun zoomActual(): Float = zoomInicial
 
     /** Enfoque + medicion de exposicion en un punto normalizado (0..1). */
     fun focusAt(x: Float, y: Float, lock: Boolean) {

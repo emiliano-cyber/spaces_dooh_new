@@ -14,15 +14,71 @@ import kotlin.coroutines.resumeWithException
 
 class PhotoCapture(private val ctx: Context) {
 
+    companion object {
+        private const val TAG = "PhotoCapture"
+
+        /**
+         * Elige la camara trasera a usar.
+         *
+         * "wide" = el gran angular (el 0.5x de la app de camara). Es una camara
+         * FISICA distinta de la principal, asi que no se llega a el con zoom: hay
+         * que abrirla por su id. Se identifica por tener la distancia focal mas
+         * corta, que es lo que le da el campo de vision mas amplio.
+         *
+         * Si el equipo no tiene gran angular, se cae a la principal en silencio:
+         * la misma APK sirve para toda la flota.
+         */
+        fun elegirCamara(cm: CameraManager, lente: String): String? {
+            val traseras = cm.cameraIdList.filter { id ->
+                cm.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) ==
+                    CameraCharacteristics.LENS_FACING_BACK
+            }
+            if (traseras.isEmpty()) return null
+            if (lente != "wide" || traseras.size == 1) return traseras.first()
+
+            val focalMinima = { id: String ->
+                cm.getCameraCharacteristics(id)
+                    .get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)
+                    ?.minOrNull() ?: Float.MAX_VALUE
+            }
+            val principal = traseras.first()
+            val angular = traseras.minByOrNull { focalMinima(it) } ?: principal
+            // Solo se considera gran angular de verdad si abre notablemente mas que
+            // la principal; si no, no vale la pena cambiar de sensor (suelen tener
+            // menos resolucion y peor calidad).
+            return if (focalMinima(angular) < focalMinima(principal) * 0.8f) angular else principal
+        }
+
+        /**
+         * Zoom digital sobre el sensor: recorta el area activa. 0.0 = sin recorte
+         * (lo mas abierto), 1.0 = el maximo que permita el equipo.
+         */
+        fun regionDeZoom(c: CameraCharacteristics, zoomLineal: Float): android.graphics.Rect? {
+            val activo = c.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE) ?: return null
+            val maxZoom = c.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM) ?: 1f
+            val z = zoomLineal.coerceIn(0f, 1f)
+            if (z <= 0f || maxZoom <= 1f) return null
+
+            val factor = 1f + (maxZoom - 1f) * z
+            val ancho = (activo.width() / factor).toInt()
+            val alto = (activo.height() / factor).toInt()
+            val x = (activo.width() - ancho) / 2
+            val y = (activo.height() - alto) / 2
+            return android.graphics.Rect(x, y, x + ancho, y + alto)
+        }
+    }
+
     @Suppress("MissingPermission")
-    suspend fun captureNow(): ByteArray = suspendCancellableCoroutine { cont ->
+    suspend fun captureNow(
+        lente: String = "main",
+        zoomLineal: Float = 0f,
+    ): ByteArray = suspendCancellableCoroutine { cont ->
         val cm = ctx.getSystemService(Context.CAMERA_SERVICE) as CameraManager
-        val cameraId = cm.cameraIdList.firstOrNull { id ->
-            cm.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) ==
-                CameraCharacteristics.LENS_FACING_BACK
-        } ?: return@suspendCancellableCoroutine cont.resumeWithException(
-            IllegalStateException("no_back_camera")
-        )
+        val cameraId = elegirCamara(cm, lente)
+            ?: return@suspendCancellableCoroutine cont.resumeWithException(
+                IllegalStateException("no_back_camera")
+            )
+        android.util.Log.d(TAG, "captura con lente=$lente id=$cameraId zoom=$zoomLineal")
 
         val characteristics = cm.getCameraCharacteristics(cameraId)
         val sizes = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
@@ -72,6 +128,12 @@ class PhotoCapture(private val ctx: Context) {
                             CaptureRequest.CONTROL_AE_MODE,
                             CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH
                         )
+                        // El zoom configurado para el sitio. Antes esta captura
+                        // ignoraba cualquier ajuste, asi que la foto por horario
+                        // salia siempre al encuadre por defecto del lente.
+                        regionDeZoom(characteristics, zoomLineal)?.let {
+                            builder.set(CaptureRequest.SCALER_CROP_REGION, it)
+                        }
 
                         camera.createCaptureSession(
                             listOf(reader.surface),

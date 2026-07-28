@@ -93,6 +93,29 @@ export async function setStreamRotation(req: Request, res: Response) {
   res.json({ ok: true, rotation: parsed.data.rotation });
 }
 
+// Encuadre fijo del dispositivo: que lente usa y cuanto zoom.
+//
+// El zoom de la vista en vivo no llegaba a las fotos programadas (sin stream, la
+// captura abre la camara con Camera2 y no heredaba ningun ajuste). Guardandolo
+// aqui, el backend lo mete en el payload de cada TAKE_PHOTO y aplica igual a la
+// foto por horario que a la manual. Solo admin (ver ruta).
+export async function setCamera(req: Request, res: Response) {
+  const schema = z.object({
+    // 'wide' = gran angular (0.5x). Si el equipo no lo tiene, la APK cae al principal.
+    lens: z.enum(['main', 'wide']),
+    zoom: z.number().min(0).max(1),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  const [r] = await pool.query<any>(
+    `UPDATE devices SET camera_lens = ?, camera_zoom = ? WHERE id = ?`,
+    [parsed.data.lens, parsed.data.zoom, req.params.id]
+  );
+  if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true, ...parsed.data });
+}
+
 // Guarda la posicion de la marca de informacion (overlay) del dispositivo.
 // x/y = centro del bloque de texto en % (0-100). Solo admin (ver ruta).
 export async function setOverlay(req: Request, res: Response) {
@@ -173,6 +196,17 @@ export async function deleteDevice(req: Request, res: Response) {
   res.json({ ok: true });
 }
 
+// Lente y zoom guardados del equipo, para adjuntarlos a las ordenes de foto.
+export async function encuadreDe(deviceId: number) {
+  const [rows] = await pool.query<any[]>(
+    `SELECT camera_lens, camera_zoom FROM devices WHERE id = ?`,
+    [deviceId]
+  );
+  const d = (rows as any[])[0];
+  if (!d) return {};
+  return { camera_lens: d.camera_lens || 'main', camera_zoom: Number(d.camera_zoom) || 0 };
+}
+
 export async function sendCommand(req: Request, res: Response) {
   const schema = z.object({
     command_type: z.enum(['TAKE_PHOTO', 'START_STREAM', 'STOP_STREAM', 'UPDATE_CONFIG', 'REBOOT_APP', 'SYNC_SCHEDULE', 'CHANGE_QUALITY']),
@@ -184,7 +218,16 @@ export async function sendCommand(req: Request, res: Response) {
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
   const deviceId = req.params.id;
-  const { command_type, payload, priority } = parsed.data;
+  const { command_type, priority } = parsed.data;
+  let { payload } = parsed.data;
+
+  // El encuadre fijo del equipo viaja en la orden: asi la APK lo aplica tanto si
+  // toma la foto durante un stream como si abre la camara desde cero. Tambien en
+  // START_STREAM, para que la vista en vivo muestre el mismo encuadre que tendra
+  // la foto (si no, se encuadraria contra algo distinto de lo que se recibe).
+  if (command_type === 'TAKE_PHOTO' || command_type === 'START_STREAM') {
+    payload = { ...(payload ?? {}), ...(await encuadreDe(Number(deviceId))) };
+  }
 
   const [result] = await pool.query<any>(
     `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)

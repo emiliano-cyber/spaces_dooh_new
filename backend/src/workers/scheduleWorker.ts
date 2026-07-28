@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { parseExpression } from 'cron-parser';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
+import { encuadreDe } from '../controllers/dashboard.controller';
 
 async function fireSchedule(schedule: any) {
   const targets: number[] = [];
@@ -24,10 +25,15 @@ async function fireSchedule(schedule: any) {
   }
 
   for (const deviceId of targets) {
+    // El encuadre fijo del equipo (lente y zoom) viaja en la orden. Sin esto, la
+    // foto por horario salia siempre al encuadre por defecto del lente principal:
+    // el ajuste hecho en la vista en vivo no la alcanzaba.
+    const payload = { campaign_id: schedule.campaign_id, ...(await encuadreDe(deviceId)) };
+
     const [result] = await pool.query<any>(
       `INSERT INTO commands (device_id, command_type, payload, schedule_id, priority, expires_at)
        VALUES (?, 'TAKE_PHOTO', ?, ?, 5, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-      [deviceId, JSON.stringify({ campaign_id: schedule.campaign_id }), schedule.id]
+      [deviceId, JSON.stringify(payload), schedule.id]
     );
 
     await redis.publish('device:command', JSON.stringify({
@@ -35,7 +41,7 @@ async function fireSchedule(schedule: any) {
       command: {
         id: (result as any).insertId,
         command_type: 'TAKE_PHOTO',
-        payload: { campaign_id: schedule.campaign_id },
+        payload,
       },
     }));
   }

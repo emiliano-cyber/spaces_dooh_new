@@ -25,6 +25,11 @@ function deviceDetail() {
     focusLocked: false,
     rotation: 0,        // rotacion actual del video en el visor (0/90/180/270)
     savedRotation: 0,   // orientacion fija guardada en el servidor (la que ven todos)
+    // Encuadre fijo del sitio: a diferencia del zoom "en vivo", esto se guarda y
+    // el backend lo manda en cada orden de foto, incluidas las programadas.
+    lens: 'main',       // 'main' | 'wide' (gran angular 0.5x)
+    savedLens: 'main',
+    savedZoom: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
     // Marca de informacion (overlay): posicion en % + estilo (se configura en "Ajustar texto").
     overlayX: 50, overlayY: 92, overlayEnabled: true,
@@ -84,6 +89,12 @@ function deviceDetail() {
         // Orientacion fija guardada por admin: es la que ven todos al abrir/recargar.
         this.savedRotation = ((Number(this.device.stream_rotation) % 360) + 360) % 360 || 0;
         this.rotation = this.savedRotation;
+        // Encuadre fijo: lente y zoom guardados. Aplican tanto a la vista en vivo
+        // como a las fotos programadas.
+        this.lens = this.device.camera_lens === 'wide' ? 'wide' : 'main';
+        this.savedLens = this.lens;
+        this.savedZoom = Number(this.device.camera_zoom) || 0;
+        this.zoom = this.savedZoom;
         // Marca de informacion (overlay) configurada para este dispositivo.
         if (this.device.overlay_x != null) this.overlayX = Number(this.device.overlay_x);
         if (this.device.overlay_y != null) this.overlayY = Number(this.device.overlay_y);
@@ -438,6 +449,37 @@ function deviceDetail() {
         this.showToast('Orientación fijada para todos', 'success');
       } catch (e) {
         this.showToast('No se pudo fijar la orientación (¿eres admin?)', 'error');
+      }
+    },
+
+    // ---- Encuadre fijo del sitio (lente + zoom) ----
+    // Se guarda en el servidor y el backend lo manda en CADA orden de foto, asi
+    // que aplica igual a las programadas. Antes el zoom de la vista en vivo no
+    // llegaba a las capturas por horario: salian siempre al encuadre por defecto.
+    encuadreCambiado() {
+      return this.lens !== this.savedLens || Math.abs(Number(this.zoom) - this.savedZoom) > 0.001;
+    },
+    async saveCamera() {
+      try {
+        await API.put(`/api/devices/${this.deviceId}/camera`, {
+          lens: this.lens,
+          zoom: Number(this.zoom) || 0,
+        });
+        const cambioLente = this.lens !== this.savedLens;
+        this.savedLens = this.lens;
+        this.savedZoom = Number(this.zoom) || 0;
+        if (this.device) {
+          this.device.camera_lens = this.savedLens;
+          this.device.camera_zoom = this.savedZoom;
+        }
+        this.showToast('Encuadre fijado: se aplicará también a las fotos programadas', 'success');
+        // El lente es una cámara física distinta: hay que reabrirla para verlo.
+        if (cambioLente && this.streaming) {
+          await this.stopStream();
+          setTimeout(() => this.startStream(), 1200);
+        }
+      } catch (e) {
+        this.showToast('No se pudo guardar el encuadre (¿eres admin?)', 'error');
       }
     },
 
