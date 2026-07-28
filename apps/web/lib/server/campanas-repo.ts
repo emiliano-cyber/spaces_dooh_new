@@ -528,6 +528,41 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       )
       // sitios RESERVADO hasta la OC (no OCUPADO todavía)
       await client.query(`update sitios set estatus_comercial='RESERVADO' where id=$1`, [it.sitio_id])
+
+      // ADR 0001: vender una pantalla es el indicio de que debe existir un
+      // contrato con su propietario. Si no hay ninguno, se abre uno INCOMPLETO
+      // para que el pendiente sea visible en Arrendadores en vez de quedar como
+      // un costo de renta cero que infla el margen de esta campaña.
+      // No pisa contratos existentes (de cualquier estatus, incluido el
+      // histórico vencido): ahí el dato ya existe. La unicidad la respalda el
+      // índice parcial `contratos_sitio_incompleto_uq`, así que un reintento o
+      // una carrera no dejan dos pendientes del mismo sitio.
+      // El contrato nace cubriendo el periodo que se vendió: de la fecha de
+      // inicio a la de fin del ítem. Así el pendiente ya dice CUÁNTO tiempo hay
+      // que cubrir, no solo desde cuándo.
+      await client.query(
+        `insert into contratos_arrendamiento
+           (id, sitio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta,
+            periodicidad, moneda, auto_renovable, estatus, tenant_id)
+         select gen_random_uuid(), $1, null, $2, $4, null, null,
+                coalesce((select moneda from tenants where id=$3),'MXN'),
+                false, 'INCOMPLETO', $3
+          where not exists (select 1 from contratos_arrendamiento c where c.sitio_id=$1)
+         on conflict do nothing`,
+        [it.sitio_id, iso(it.fecha_inicio), await tenantActual(), iso(it.fecha_fin)],
+      )
+      // Si el pendiente ya existía de una venta anterior y esta campaña va más
+      // allá, se estira para seguir cubriendo lo vendido. Solo se toca el
+      // marcador INCOMPLETO: un contrato REAL jamás se extiende solo, porque
+      // eso sería inventar los términos pactados con el propietario. Ese caso
+      // lo denuncia la alerta «El contrato no cubre la campaña».
+      await client.query(
+        `update contratos_arrendamiento
+            set fecha_fin = $2::date
+          where sitio_id = $1 and estatus = 'INCOMPLETO'
+            and (fecha_fin is null or fecha_fin < $2::date)`,
+        [it.sitio_id, iso(it.fecha_fin)],
+      )
     }
     // La factura debe reproducir EXACTAMENTE lo que aceptó el cliente: base
     // (lista − descuento) + IVA, SIN prorrateo (la propuesta es un paquete, no

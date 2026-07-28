@@ -130,6 +130,8 @@ export const CONTRATO_TONO: Record<EstContrato, Tono> = {
   VENCIDO: 'rojo',
   RENOVADO: 'azul',
   CANCELADO: 'neutro',
+  // Ámbar: es un pendiente de captura, no un error ni un estado sano.
+  INCOMPLETO: 'ambar',
 }
 export const CONTRATO_LABEL: Record<EstContrato, string> = {
   VIGENTE: 'Vigente',
@@ -137,6 +139,7 @@ export const CONTRATO_LABEL: Record<EstContrato, string> = {
   VENCIDO: 'Vencido',
   RENOVADO: 'Renovado',
   CANCELADO: 'Cancelado',
+  INCOMPLETO: 'Incompleto',
 }
 
 export const PAGO_TONO: Record<EstPagoRenta, Tono> = {

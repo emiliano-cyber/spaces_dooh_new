@@ -209,6 +209,9 @@ const editarContratoSchema = z.object({
   documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
   autoRenovable: z.boolean().optional(),
   razonSocialId: z.string().uuid().nullish(),
+  // ADR 0001: completar un contrato INCOMPLETO exige poder asignarle su
+  // arrendador, que hasta ahora no era editable (nacía obligatorio).
+  arrendadorId: z.string().uuid().optional(),
 }).strict()
 
 export async function editarContratoCtrl(id: string, body: unknown) {
@@ -242,6 +245,13 @@ export async function iniciarRenovacionCtrl(id: string, body?: unknown) {
   const d = renovarSchema.parse(body ?? {})
   const r = await iniciarRenovacion(id, d.nuevaFechaFin ?? null)
   if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
+  // ADR 0001: no se puede renovar lo que nunca se pactó.
+  if ('incompleto' in r) {
+    throw new AppError(
+      'Este contrato está incompleto: falta el arrendador, el importe de la renta y la periodicidad. Complétalo antes de renovarlo.',
+      409,
+    )
+  }
   // Renovar es EXTENDER la vigencia: una fecha anterior a la actual generaría
   // periodos ya vencidos y acortaría el contrato en silencio.
   if ('fechaNoPosterior' in r) {

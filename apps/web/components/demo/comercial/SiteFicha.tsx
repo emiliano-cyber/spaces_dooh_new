@@ -455,7 +455,7 @@ export function SiteFicha({
                 <Caracteristica icon={<Wallet className="h-4 w-4" />} label="Renta" valor={rentaEfectiva != null ? formatMonto(rentaEfectiva) : '—'} mono />
                 <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Cada cuándo se paga" valor={periodicidadEfectiva ? periodicidadLabel(periodicidadEfectiva) : '—'} />
                 {contrato && (
-                  <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${formatFecha(contrato.fechaFin)}`} mono />
+                  <Caracteristica icon={<CalendarClock className="h-4 w-4" />} label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin) : 'por definir'}`} mono />
                 )}
                 {contrato && (
                   <Caracteristica icon={<Repeat className="h-4 w-4" />} label="Renovación" valor={contrato.autoRenovable ? 'Automática' : 'Manual'} />

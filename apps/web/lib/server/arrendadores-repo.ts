@@ -43,14 +43,16 @@ function avanzarPeriodo(d: Date, periodicidad: string): Date {
 }
 
 interface GenInput {
-  id: string; tenantId: string; fechaInicio: string; fechaFin: string
-  montoRenta: number; periodicidad: string
+  id: string; tenantId: string; fechaInicio: string; fechaFin: string | null
+  montoRenta: number | null; periodicidad: string | null
 }
 function genInputFromRow(r: any): GenInput {
   return {
     id: r.id, tenantId: r.tenant_id,
     fechaInicio: iso(r.fecha_inicio), fechaFin: iso(r.fecha_fin),
-    montoRenta: Number(r.monto_renta), periodicidad: r.periodicidad,
+    // `Number(null)` es 0: preservamos el null para no fabricar pagos de $0.
+    montoRenta: r.monto_renta != null ? Number(r.monto_renta) : null,
+    periodicidad: r.periodicidad ?? null,
   }
 }
 
@@ -59,6 +61,10 @@ function genInputFromRow(r: any): GenInput {
 // NO inventa pagos (no marca PAGADO). Reejecutar no duplica (ON CONFLICT).
 // Recibe un client YA en transacción con el tenant fijado.
 async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<number> {
+  // Un contrato INCOMPLETO (ADR 0001) no tiene fin, importe ni periodicidad: no
+  // hay calendario de pagos que generar hasta que se complete. Explícito, para
+  // no depender de que `fin < inicio` lo filtre por accidente.
+  if (c.fechaFin == null || c.montoRenta == null || !c.periodicidad) return 0
   const inicio = new Date(c.fechaInicio)
   const fin = new Date(c.fechaFin)
   if (isNaN(inicio.getTime()) || isNaN(fin.getTime()) || fin < inicio) return 0
@@ -117,9 +123,14 @@ function rowToContrato(r: any) {
     arrendadorId: r.arrendador_id,
     fechaInicio: iso(r.fecha_inicio),
     fechaFin: iso(r.fecha_fin),
-    montoRenta: Number(r.monto_renta),
-    periodicidad: r.periodicidad,
-    montoMensualEquivalente: montoMensualEquivalente(Number(r.monto_renta), r.periodicidad),
+    // OJO: `Number(null)` es 0. Un contrato INCOMPLETO (ADR 0001) todavía no
+    // tiene importe, y convertirlo en 0 haría indistinguible «no se sabe cuánto
+    // se paga» de «no se paga nada» — exactamente el margen inflado que este
+    // estatus existe para señalar. Se preserva el null.
+    montoRenta: r.monto_renta != null ? Number(r.monto_renta) : null,
+    periodicidad: r.periodicidad ?? null,
+    montoMensualEquivalente:
+      r.monto_renta != null ? montoMensualEquivalente(Number(r.monto_renta), r.periodicidad) : null,
     moneda: r.moneda,
     autoRenovable: r.auto_renovable,
     documentoUrl: r.documento_url ?? null,
@@ -202,6 +213,13 @@ function estatusPorFechas(fechaInicio: string, fechaFin: string): string {
 // Contratos: CANCELADO es fijo; un RENOVADO que sigue holgado conserva su
 // marcador, pero si entra a los 90 días pasa a POR_VENCER y si venció a VENCIDO.
 // Pagos: PAGADO es fijo; un PENDIENTE cuyo vencimiento (periodo) ya pasó → VENCIDO.
+//
+// INCOMPLETO también es fijo (ADR 0001): no tiene `fecha_fin`, así que las tres
+// condiciones del CASE dan NULL, caería al ELSE y este barrido lo pasaría a
+// VIGENTE — que el CHECK `contrato_completo_ck` rechaza, tumbando /api/estado
+// entero y con él los datos de TODAS las pantallas. Un contrato sin fecha de fin
+// no tiene vencimiento que recomputar. El `fecha_fin is not null` es el mismo
+// resguardo por si alguna fila vieja quedara sin fecha.
 export async function recomputarEstatusArrendadores(): Promise<void> {
   await q(
     `update contratos_arrendamiento
@@ -211,7 +229,8 @@ export async function recomputarEstatusArrendadores(): Promise<void> {
           when estatus = 'RENOVADO' then 'RENOVADO'
           else 'VIGENTE'
         end)::est_contrato
-      where estatus <> 'CANCELADO'
+      where estatus not in ('CANCELADO', 'INCOMPLETO')
+        and fecha_fin is not null
         and estatus <> (case
           when current_date > fecha_fin then 'VENCIDO'
           when (fecha_fin - current_date) <= $1 then 'POR_VENCER'
@@ -641,15 +660,24 @@ export async function editarPredio(id: string, patch: {
 export async function iniciarRenovacion(contratoId: string, nuevaFechaFin?: string | null): Promise<
   | { noEncontrado: true }
   | { fechaNoPosterior: string }
+  | { incompleto: true }
   | { contrato: ReturnType<typeof rowToContrato> }
 > {
   const tenantId = await tenantActual()
   return withTenantTx(async (client) => {
     const { rows: cur } = await client.query(
-      'select fecha_fin from contratos_arrendamiento where id=$1 and tenant_id=$2',
+      'select fecha_fin, estatus from contratos_arrendamiento where id=$1 and tenant_id=$2',
       [contratoId, tenantId],
     )
     if (!cur[0]) return { noEncontrado: true }
+    // Renovar EXTIENDE un acuerdo existente; un contrato INCOMPLETO (ADR 0001)
+    // no tiene acuerdo que extender: le faltan arrendador, importe y
+    // periodicidad. Sin este guard el UPDATE lo pondría en RENOVADO con esos
+    // campos en NULL y el CHECK `contrato_completo_ck` devolvería un 23514
+    // opaco («Un valor no cumple las reglas de la tabla») en vez de decir qué
+    // hay que hacer. Además `fecha_fin` es NULL aquí, así que la comparación de
+    // fechas de abajo trabajaría sobre la cadena "null".
+    if (cur[0].estatus === 'INCOMPLETO') return { incompleto: true }
     // Renovar EXTIENDE la vigencia. Una fecha anterior a la actual acortaría el
     // contrato y generaría periodos ya vencidos (el calendario los marca VENCIDO).
     const finActual = String(iso(cur[0].fecha_fin)).slice(0, 10)
@@ -740,12 +768,24 @@ export async function borrarArrendador(id: string): Promise<
   return { bloqueado: false, arrendador: rows[0] ? rowToArrendador(rows[0]) : null }
 }
 
+// Estatus actual de un contrato. Lo usa la ruta PATCH para decidir el nivel de
+// candado ANTES de editar: completar un contrato INCOMPLETO fija por primera vez
+// cuánto se le paga al propietario, y eso exige el modo estricto (ADR 0001).
+export async function estatusContrato(id: string): Promise<string | null> {
+  const tenantId = await tenantActual()
+  const rows = await q<{ estatus: string }>(
+    'select estatus from contratos_arrendamiento where id=$1 and tenant_id=$2',
+    [id, tenantId],
+  )
+  return rows[0]?.estatus ?? null
+}
+
 // Edita un contrato (campos provistos). Recalcula el estatus por fechas salvo que
 // esté CANCELADO (en cuyo caso no se edita: se debe crear uno nuevo).
 export async function editarContrato(id: string, patch: {
   fechaInicio?: string; fechaFin?: string; montoRenta?: number; periodicidad?: string
   moneda?: string; deposito?: number | null; documentoUrl?: string | null
-  autoRenovable?: boolean; razonSocialId?: string | null
+  autoRenovable?: boolean; razonSocialId?: string | null; arrendadorId?: string
 }): Promise<{ noEncontrado: true } | { cancelado: true } | { contrato: ReturnType<typeof rowToContrato> }> {
   const tenantId = await tenantActual()
   const cur = await q('select * from contratos_arrendamiento where id=$1 and tenant_id=$2', [id, tenantId])
@@ -757,14 +797,23 @@ export async function editarContrato(id: string, patch: {
     ['monto_renta', patch.montoRenta], ['periodicidad', patch.periodicidad],
     ['moneda', patch.moneda], ['deposito', patch.deposito],
     ['documento_url', patch.documentoUrl], ['auto_renovable', patch.autoRenovable],
-    ['razon_social_id', patch.razonSocialId],
+    ['razon_social_id', patch.razonSocialId], ['arrendador_id', patch.arrendadorId],
   ]
   const provided = map.filter(([, v]) => v !== undefined)
 
-  // Estatus recalculado por las fechas efectivas (patch o actuales).
+  // Valores EFECTIVOS tras el patch (lo que quedará en la fila).
   const fi = patch.fechaInicio ?? iso(cur[0].fecha_inicio)
   const ff = patch.fechaFin ?? iso(cur[0].fecha_fin)
-  provided.push(['estatus', estatusPorFechas(fi, ff)])
+  const arrendador = patch.arrendadorId ?? cur[0].arrendador_id
+  const monto = patch.montoRenta ?? cur[0].monto_renta
+  const per = patch.periodicidad ?? cur[0].periodicidad
+
+  // ADR 0001: un contrato solo sale de INCOMPLETO cuando tiene los cuatro datos.
+  // Mientras le falte alguno se queda como está, en vez de que `estatusPorFechas`
+  // lo mueva a VIGENTE y el CHECK `contrato_completo_ck` reviente la petición con
+  // un error de base de datos incomprensible para quien lo está capturando.
+  const completo = arrendador != null && ff != null && monto != null && per != null
+  provided.push(['estatus', completo ? estatusPorFechas(fi, ff) : 'INCOMPLETO'])
 
   const sets = provided.map(([c], i) =>
     c === 'periodicidad' ? `${c} = $${i + 1}::periodicidad_pago`
