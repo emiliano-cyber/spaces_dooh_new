@@ -51,6 +51,12 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
                 <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
+            <!-- Tras actualizar la app, Android mata el proceso y NO lo relanza:
+                 sin esto el equipo quedaria mudo despues de cada actualizacion
+                 remota, hasta que alguien lo reiniciara a mano. -->
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
         </receiver>
 
         <!-- Reinicio del servicio tras crash / quitar de recientes (AlarmManager) -->
