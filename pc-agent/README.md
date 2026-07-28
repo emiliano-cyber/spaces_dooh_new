@@ -3,73 +3,57 @@
 Para sitios donde en lugar de un telefono hay una **camara IP** (HiLook / Hikvision)
 conectada a una PC que permanece encendida.
 
-La camara vive en la red local del sitio, detras del NAT: el servidor no puede
-entrar a buscarla. Este agente corre en esa PC —que si la alcanza— y se presenta
-ante el backend como un equipo mas, hablando los mismos endpoints `/api/device/*`
-que la APK de Android. El sitio aparece en el dashboard como cualquier otro y
-hereda galeria, marca de informacion, verificacion con IA y telemetria.
+## Instalacion en el sitio
 
-**Los horarios se configuran en el dashboard, no aqui.** La programacion vive en
-el servidor: inserta comandos `TAKE_PHOTO` igual que para los telefonos y el
-agente los obedece.
+1. Copia **`SpaceEyeAgente.exe`** a la PC (donde sea, por ejemplo el Escritorio).
+2. **Clic derecho → Ejecutar como administrador.**
+3. Contesta tres preguntas: IP de la camara, usuario y clave.
 
-## Requisitos
+Eso es todo. El programa prueba la camara, guarda una foto de muestra para que
+confirmes el encuadre, y queda arrancando solo cada vez que prende la PC.
 
-- **Node.js 18 o superior** en la PC del sitio: <https://nodejs.org> (instalador LTS).
-- Que la PC alcance la camara en la red local (comprueba abriendo `http://<ip-camara>` en el navegador).
-- **Usuario y clave de la camara**, no los de Hik-Connect. Son credenciales distintas.
+No hace falta instalar nada mas: el ejecutable lleva todo dentro.
 
-## Instalacion
+> **Las credenciales son las de la camara**, las que usas para entrar a
+> `http://<ip-de-la-camara>` desde el navegador. **No son las de Hik-Connect.**
+> Es el error mas comun y es lo que hace fallar la instalacion.
 
-```bat
-cd pc-agent
-npm install
-copy config.example.json config.json
-notepad config.json
-```
+Si la camara no usa el puerto 80, escribela como `192.168.1.64:8000`.
 
-En `config.json`:
+## Despues de instalar
 
-| Campo | Que poner |
-|---|---|
-| `server_url` | `http://159.203.188.58:4000` |
-| `camara.host` | IP local de la camara (ej. `192.168.1.64`) |
-| `camara.usuario` / `clave` | credenciales del equipo (las de su interfaz web) |
-| `camara.canal` | `101` = camara 1, calidad principal. `102` = calidad secundaria |
+El sitio aparece en el dashboard como un equipo nuevo, en estado `provisioning`.
+Entra a su ficha y ponle el **nombre del sitio**. De ahi en adelante se usa igual
+que un telefono: fotos programadas, galeria, marca de informacion, verificacion
+con IA y telemetria.
 
-## 1) Probar solo la camara
+**Los horarios se configuran en el dashboard**, no en la PC. La programacion vive
+en el servidor: manda comandos `TAKE_PHOTO` igual que a los telefonos.
 
-Antes de dar de alta el sitio, verifica que la camara responde:
+## Si algo sale mal
 
-```bat
-npm run probar-camara
-```
+- El programa deja un registro junto a si mismo: **`agente.log`**.
+- Sus errores tambien llegan al dashboard, en **Registros del dispositivo** de la
+  ficha del equipo.
+- Para verificar solo la camara, sin tocar el servidor: `SpaceEyeAgente.exe --instalar`
+  vuelve a probarla y guarda `prueba.jpg`.
+- Windows puede advertir que el programa no esta firmado (SmartScreen):
+  *Mas informacion → Ejecutar de todas formas*. Es porque no compramos un
+  certificado de firma de codigo.
 
-Guarda `prueba.jpg` con lo que ve la camara. Si falla, el problema esta entre la
-PC y la camara (IP, credenciales o red), no en Space Eye.
+## Instalar en varios sitios de golpe
 
-## 2) Arrancar el agente
+Sin preguntas, para automatizar:
 
 ```bat
-npm start
+SpaceEyeAgente.exe --instalar --camara 192.168.1.64 --usuario admin --clave LACLAVE
 ```
 
-Aparecera en el dashboard como equipo nuevo, en estado `provisioning`. Entra a su
-ficha y ponle el **nombre del sitio**; de ahi en adelante se usa igual que un
-telefono: fotos programadas, galeria, marca configurable y verificacion.
+Parametros opcionales: `--servidor`, `--puerto`, `--canal` (`101` = calidad
+principal, `102` = secundaria).
 
-## 3) Dejarlo corriendo siempre
-
-El agente debe sobrevivir a reinicios de la PC. La forma mas simple en Windows:
-
-**Programador de tareas** → Crear tarea:
-- General: *Ejecutar aunque el usuario no haya iniciado sesion*, *Ejecutar con privilegios maximos*
-- Desencadenadores: *Al iniciar el equipo*
-- Acciones: Programa `node`, Argumentos `src\index.js`, Iniciar en `C:\ruta\a\pc-agent`
-- Configuracion: *Reiniciar la tarea si se produce un error*, cada 1 minuto
-
-Alternativa mas robusta si prefieres un servicio real: [NSSM](https://nssm.cc)
-(`nssm install SpaceEyeAgent`).
+Para quitar el arranque automatico: `SpaceEyeAgente.exe --desinstalar`
+(conserva la configuracion y la identidad del equipo).
 
 ## Que hace y que no
 
@@ -79,19 +63,26 @@ Alternativa mas robusta si prefieres un servicio real: [NSSM](https://nssm.cc)
 | Foto bajo demanda (boton "Tomar foto") | si |
 | Galeria, marca de informacion, descarga, album | si |
 | Verificacion con IA | si |
-| Telemetria (equipo en linea, almacenamiento, RAM) | si |
-| Registros remotos en el dashboard | si |
+| Telemetria y registros remotos | si |
 | **Vista en vivo** | **no** — ver abajo |
 
 La vista en vivo de una camara IP requiere convertir su RTSP a WebRTC (con
 MediaMTX o go2rtc junto a los demas contenedores). Es una pieza aparte, todavia
-no construida. Mientras tanto, el agente responde a `START_STREAM` con un error
+no construida. Mientras tanto el agente responde a `START_STREAM` con un error
 claro en lugar de dejar el comando colgado.
 
-## Diagnostico
+## Para desarrolladores
 
-- El agente escribe en consola cada comando y cada foto subida.
-- Sus errores tambien llegan al dashboard, en el panel **Registros del dispositivo**
-  de la ficha del equipo.
-- `state.json` guarda el identificador del equipo. **No lo borres**: si se pierde,
-  el backend da de alta un sitio nuevo y se corta el historial del actual.
+```bat
+npm install
+npm start                    REM correrlo con Node, sin empaquetar
+npm run build                REM genera dist/SpaceEyeAgente.exe
+```
+
+El ejecutable se arma con **SEA** (Single Executable Applications, nativo de
+Node 20+): `build.js` empaqueta el codigo con esbuild, genera la carga y la
+inyecta en una copia de `node.exe`. Se descarto `pkg` porque sin binarios
+precompilados intenta compilar Node desde cero y eso exige Visual Studio.
+
+`state.json` guarda la identidad del equipo. **No lo borres**: si se pierde, el
+backend da de alta un sitio nuevo y se corta el historial del actual.

@@ -2,3 +2,5 @@
 config.json
 state.json
 prueba.jpg
+dist/
+agente.log

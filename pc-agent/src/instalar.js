@@ -1,0 +1,193 @@
+// pc-agent/src/instalar.js
+// Asistente de instalacion: lo que ve quien va al sitio.
+//
+// Objetivo: copiar UN archivo, doble clic, tres preguntas y listo. Nada de
+// instalar Node, editar JSON ni configurar el Programador de tareas a mano.
+const fs = require('fs');
+const os = require('os');
+const readline = require('readline');
+const { execFileSync } = require('child_process');
+const rutas = require('./rutas');
+const { Camara } = require('./camera');
+
+const SERVIDOR_POR_DEFECTO = 'http://159.203.188.58:4000';
+const TAREA = 'SPACE EYE Agente';
+
+function preguntar(rl, texto, porDefecto) {
+  const sufijo = porDefecto ? ` [${porDefecto}]` : '';
+  return new Promise((res) => rl.question(`${texto}${sufijo}: `, (r) => res(r.trim() || porDefecto || '')));
+}
+
+// Sin admin no se puede crear una tarea que arranque con Windows.
+function esAdministrador() {
+  try {
+    execFileSync('net', ['session'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function instalarTarea() {
+  // ONSTART + SYSTEM: arranca con Windows aunque nadie inicie sesion, que es
+  // como opera una PC de sitio.
+  execFileSync('schtasks', [
+    '/Create', '/F',
+    '/TN', TAREA,
+    '/SC', 'ONSTART',
+    '/RU', 'SYSTEM',
+    '/RL', 'HIGHEST',
+    '/TR', `"${rutas.ejecutable}" --servicio`,
+  ], { stdio: 'pipe' });
+}
+
+function arrancarTarea() {
+  execFileSync('schtasks', ['/Run', '/TN', TAREA], { stdio: 'pipe' });
+}
+
+function pausar() {
+  // El .exe se abre con doble clic: sin esto la ventana se cierra y nadie lee
+  // el resultado.
+  try {
+    console.log('\nPresiona ENTER para cerrar.');
+    fs.readSync(0, Buffer.alloc(1), 0, 1, null);
+  } catch { /* sin consola interactiva */ }
+}
+
+// Permite instalar sin contestar preguntas, util para varios sitios de golpe:
+//   SpaceEyeAgente.exe --instalar --camara 192.168.1.64 --usuario admin --clave xxx
+function leerParametros(argv) {
+  const p = {};
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a.startsWith('--') && argv[i + 1] && !argv[i + 1].startsWith('--')) p[a.slice(2)] = argv[++i];
+  }
+  return p;
+}
+
+// Acepta "192.168.1.64" o "192.168.1.64:8000": algunas camaras no usan el 80.
+function partirHost(valor, puertoPorDefecto) {
+  const m = /^(.+?):(\d+)$/.exec(valor || '');
+  return m ? { host: m[1], puerto: Number(m[2]) } : { host: valor, puerto: puertoPorDefecto };
+}
+
+async function asistente() {
+  console.log('');
+  console.log('  ===========================================');
+  console.log('   SPACE EYE — instalacion del agente de PC');
+  console.log('  ===========================================');
+  console.log('');
+  console.log('  Para sitios con camara IP fija en lugar de telefono.');
+  console.log('  Necesitas: la IP de la camara y su usuario/clave.');
+  console.log('');
+  console.log('  OJO: son las credenciales de la camara (las que usas para');
+  console.log('  entrar a http://<ip> desde el navegador), NO las de Hik-Connect.');
+  console.log('');
+
+  const par = leerParametros(process.argv.slice(2));
+  const desatendido = Boolean(par.camara && par.clave);
+
+  let servidor, destino, usuario, clave;
+  if (desatendido) {
+    servidor = par.servidor || SERVIDOR_POR_DEFECTO;
+    destino = par.camara;
+    usuario = par.usuario || 'admin';
+    clave = par.clave;
+    console.log(`  Instalacion desatendida: camara ${destino}, usuario ${usuario}`);
+  } else {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    servidor = await preguntar(rl, '  Servidor Space Eye', SERVIDOR_POR_DEFECTO);
+    destino = await preguntar(rl, '  IP de la camara en la red local', '192.168.1.64');
+    usuario = await preguntar(rl, '  Usuario de la camara', 'admin');
+    clave = await preguntar(rl, '  Clave de la camara');
+    rl.close();
+  }
+
+  if (!clave) {
+    console.log('\n  Sin la clave no puedo continuar. Vuelve a ejecutar el instalador.');
+    return pausar();
+  }
+
+  const { host, puerto } = partirHost(destino, Number(par.puerto) || 80);
+  const cfg = {
+    server_url: servidor,
+    camara: { host, puerto, usuario, clave, canal: Number(par.canal) || 101, timeout_ms: 15000 },
+    intervalo_estado_seg: 60,
+    intervalo_sondeo_seg: 30,
+  };
+
+  // Se prueba ANTES de instalar nada: es preferible fallar aqui, con la persona
+  // enfrente de la camara, que dejar un servicio instalado que no funciona.
+  console.log('\n  Probando la camara...');
+  const cam = new Camara(cfg.camara);
+  let jpeg;
+  try {
+    const info = await cam.infoDispositivo();
+    if (info?.modelo) console.log(`  Detectada: ${info.modelo}  (firmware ${info.firmware || '?'})`);
+    jpeg = await cam.tomarFoto();
+  } catch (e) {
+    console.log(`\n  NO PUDE TOMAR LA FOTO: ${e.message}`);
+    console.log('');
+    console.log('  Revisa:');
+    console.log(`   - Que ${host} sea la IP correcta (abrela en el navegador de esta PC).`);
+    console.log('   - Que el usuario y la clave sean los de la camara.');
+    console.log('   - Que esta PC y la camara esten en la misma red.');
+    return pausar();
+  }
+
+  const muestra = require('path').join(rutas.BASE, 'prueba.jpg');
+  fs.writeFileSync(muestra, jpeg);
+  console.log(`  OK — foto de ${Math.round(jpeg.length / 1024)} KB guardada en:`);
+  console.log(`       ${muestra}`);
+  console.log('       Abrela para confirmar el encuadre.');
+
+  fs.writeFileSync(rutas.config, JSON.stringify(cfg, null, 2));
+  console.log(`\n  Configuracion guardada.`);
+
+  if (!esAdministrador()) {
+    console.log('');
+    console.log('  FALTA UN PASO: para que arranque solo con Windows necesito');
+    console.log('  permisos de administrador.');
+    console.log('');
+    console.log('  Cierra esta ventana, haz CLIC DERECHO sobre el archivo y elige');
+    console.log('  "Ejecutar como administrador". La camara ya quedo configurada,');
+    console.log('  solo te volvera a preguntar para confirmar.');
+    return pausar();
+  }
+
+  try {
+    instalarTarea();
+    arrancarTarea();
+    console.log('');
+    console.log('  ===========================================');
+    console.log('   INSTALADO Y FUNCIONANDO');
+    console.log('  ===========================================');
+    console.log('');
+    console.log(`  El agente arranca solo con Windows (tarea "${TAREA}").`);
+    console.log('  Ya aparece en el dashboard como equipo nuevo: entra a su ficha');
+    console.log('  y ponle el nombre del sitio.');
+    console.log('');
+    console.log(`  Si algo falla, revisa: ${rutas.registro}`);
+  } catch (e) {
+    console.log(`\n  No pude registrar el arranque automatico: ${e.message}`);
+    console.log('  La camara si quedo configurada; puedes arrancarlo a mano');
+    console.log(`  ejecutando: "${rutas.ejecutable}" --servicio`);
+  }
+  pausar();
+}
+
+function desinstalar() {
+  try {
+    execFileSync('schtasks', ['/End', '/TN', TAREA], { stdio: 'ignore' });
+  } catch { /* puede no estar corriendo */ }
+  try {
+    execFileSync('schtasks', ['/Delete', '/F', '/TN', TAREA], { stdio: 'pipe' });
+    console.log('  Arranque automatico eliminado.');
+  } catch (e) {
+    console.log(`  No habia nada que desinstalar (${e.message.split('\n')[0]}).`);
+  }
+  console.log('  La configuracion y la identidad del equipo se conservan.');
+  pausar();
+}
+
+module.exports = { asistente, desinstalar, TAREA };

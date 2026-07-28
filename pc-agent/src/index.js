@@ -13,20 +13,37 @@ const crypto = require('crypto');
 const { io } = require('socket.io-client');
 const { Camara } = require('./camera');
 const { Api } = require('./api');
+const rutas = require('./rutas');
 
 const VERSION = '1.0.0';
-const RAIZ = path.join(__dirname, '..');
-const RUTA_CONFIG = process.env.SPACEEYE_CONFIG || path.join(RAIZ, 'config.json');
-const RUTA_ESTADO = path.join(RAIZ, 'state.json');
+const RAIZ = rutas.BASE;
+const RUTA_CONFIG = rutas.config;
+const RUTA_ESTADO = rutas.estado;
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
-const log = (...a) => console.log(`[${ahora()}]`, ...a);
+
+// Corriendo como tarea de Windows no hay consola que mirar, asi que el registro
+// va tambien a un archivo junto al ejecutable (acotado para que no crezca sin fin).
+function aArchivo(linea) {
+  try {
+    if (fs.existsSync(rutas.registro) && fs.statSync(rutas.registro).size > 5 * 1024 * 1024) {
+      fs.renameSync(rutas.registro, rutas.registro + '.old');
+    }
+    fs.appendFileSync(rutas.registro, linea + os.EOL);
+  } catch { /* si no se puede escribir, seguimos igual */ }
+}
+
+const log = (...a) => {
+  const linea = `[${ahora()}] ` + a.map((x) => (typeof x === 'string' ? x : JSON.stringify(x))).join(' ');
+  console.log(linea);
+  aArchivo(linea);
+};
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function cargarConfig() {
   if (!fs.existsSync(RUTA_CONFIG)) {
     console.error(`No encuentro la configuracion en ${RUTA_CONFIG}.`);
-    console.error('Copia config.example.json a config.json y llena los datos.');
+    console.error('Ejecuta el instalador (doble clic al programa) para configurarlo.');
     process.exit(1);
   }
   const cfg = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
@@ -211,7 +228,27 @@ async function main() {
 }
 
 process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message || e));
-main().catch((e) => {
-  log('ERROR FATAL:', e.message);
-  process.exit(1);
-});
+
+// Como lo abran decide que hace:
+//   --servicio     -> corre el agente (asi lo lanza la tarea de Windows)
+//   --desinstalar  -> quita el arranque automatico
+//   doble clic     -> asistente de instalacion, o el agente si ya esta configurado
+const flags = process.argv.slice(2);
+const { asistente, desinstalar } = require('./instalar');
+
+if (flags.includes('--desinstalar')) {
+  desinstalar();
+} else if (flags.includes('--instalar')) {
+  asistente().catch((e) => { console.error('Fallo la instalacion:', e.message); process.exit(1); });
+} else if (flags.includes('--servicio') || fs.existsSync(RUTA_CONFIG)) {
+  main().catch((e) => {
+    log('ERROR FATAL:', e.message);
+    // La tarea de Windows lo reintenta; salir con codigo != 0 lo deja registrado.
+    process.exit(1);
+  });
+} else {
+  asistente().catch((e) => {
+    console.error('Fallo la instalacion:', e.message);
+    process.exit(1);
+  });
+}
