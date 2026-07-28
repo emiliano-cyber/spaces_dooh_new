@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/cn'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import {
   useCampanasResumen,
   useFacturas,
@@ -73,7 +74,7 @@ export default function FinanzasPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Finanzas</h1>
-        <p className="mt-1 text-[13px] text-muted">Facturación y cobranza</p>
+        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a propietarios</p>
       </div>
 
       {/* Listas para facturar */}
@@ -233,6 +234,16 @@ export default function FinanzasPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Renta a los propietarios: la otra mitad del flujo de caja. Cobranza
+          es lo que ENTRA; esto es lo que SALE y cuándo vence. Mismo componente
+          que en Arrendadores para que las reglas no diverjan; aquí se listan
+          solo las pendientes, que es lo que Finanzas tiene que programar. */}
+      <PagosRentaCard
+        soloPendientes
+        titulo="Renta por pagar a propietarios"
+        onToast={notify}
+      />
 
       <GenerarFacturaDialog
         campana={facturar}

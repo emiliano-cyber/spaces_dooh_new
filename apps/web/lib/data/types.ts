@@ -342,6 +342,10 @@ export interface PagoRenta {
   metodoPago?: string | null
   observaciones?: string | null
   estatus: EstPagoRenta
+  // Nombre de la pantalla, denormalizado en `listarPagosRenta`. Finanzas ve los
+  // pagos de renta pero NO el inventario ni los contratos, así que sin esto no
+  // podría decir de qué pantalla es cada pago.
+  sitioNombre?: string | null
   creadoEn: string
 }
 

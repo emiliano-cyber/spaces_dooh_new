@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
+import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import {
   StatusBadge,
@@ -213,68 +214,9 @@ export default function ArrendadoresPage() {
         </CardContent>
       </Card>
 
-      {/* Pagos de renta */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pagos de renta</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          {!pagos ? (
-            <div className="space-y-2 px-4 pb-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-4 py-2 font-medium">Sitio</th>
-                    <th className="px-4 py-2 font-medium">Periodo</th>
-                    <th className="px-4 py-2 text-right font-medium">Monto</th>
-                    <th className="px-4 py-2 font-medium">Estatus</th>
-                    <th className="px-4 py-2 font-medium">Pago</th>
-                    <th className="px-4 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagos.map((p) => {
-                    const con = contratos?.find((c) => c.id === p.contratoId)
-                    return (
-                      <tr key={p.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2.5 text-ink">{con ? sitioDe(con.sitioId)?.nombre : '—'}</td>
-                        <td className="px-4 py-2.5 capitalize text-muted">{p.periodo}</td>
-                        <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(p.monto)}</td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge tono={PAGO_TONO[p.estatus]}>{PAGO_LABEL[p.estatus]}</StatusBadge>
-                        </td>
-                        <td className="demo-num px-4 py-2.5 text-muted">
-                          {p.fechaPago ? formatFecha(p.fechaPago) : '—'}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          {p.estatus !== 'PAGADO' && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={async () => {
-                                await registrarPagoRentaApi(p.id)
-                                notify('Pago registrado')
-                              }}
-                            >
-                              Registrar pago
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
+          salida de dinero, y no debe divergir entre las dos pantallas) */}
+      <PagosRentaCard onToast={notify} />
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (

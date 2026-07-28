@@ -60,6 +60,17 @@ function genInputFromRow(r: any): GenInput {
 // Un periodo cuyo vencimiento ya pasó e impago queda VENCIDO; el resto PENDIENTE.
 // NO inventa pagos (no marca PAGADO). Reejecutar no duplica (ON CONFLICT).
 // Recibe un client YA en transacción con el tenant fijado.
+// Genera el calendario de un contrato dentro de una transacción AJENA (la que
+// crea la campaña). Se expone esta y no las dos internas para que el llamador no
+// tenga que conocer la forma de `GenInput`. Devuelve cuántas cuotas creó; 0 si
+// el contrato aún no tiene importe (incompleto) o el rango no da periodos.
+export async function generarCalendarioDeContratoEnTx(
+  client: PoolClient,
+  filaContrato: any,
+): Promise<number> {
+  return generarCalendarioEnTx(client, genInputFromRow(filaContrato))
+}
+
 async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<number> {
   // Un contrato INCOMPLETO (ADR 0001) no tiene fin, importe ni periodicidad: no
   // hay calendario de pagos que generar hasta que se complete. Explícito, para
@@ -161,6 +172,9 @@ function rowToPagoRenta(r: any) {
     metodoPago: r.metodo_pago ?? null,
     observaciones: r.observaciones ?? null,
     estatus: r.estatus,
+    // Solo lo trae `listarPagosRenta`; el resto de rutas que devuelven un pago
+    // suelto no hacen el join, y ahí la UI ya tiene el sitio por otra vía.
+    sitioNombre: r.sitio_nombre ?? null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -356,10 +370,19 @@ export async function crearContratoConSitio(input: {
 // Sin las columnas de adjuntos (pesan MB): solo si existen. Ver rowToPagoRenta.
 export async function listarPagosRenta() {
   const rows = await q(
-    `select id, contrato_id, periodo, monto, fecha_pago, metodo_pago, observaciones, estatus, creado_en,
-            factura_url     is not null as tiene_factura,
-            comprobante_url is not null as tiene_comprobante
-       from pagos_renta where tenant_id = $1 order by creado_en asc`,
+    // `sitio_nombre` va denormalizado a propósito: Finanzas necesita saber de qué
+    // pantalla es cada pago, pero NO tiene permiso sobre el inventario ni sobre
+    // los contratos (ahí viven importes y datos del propietario). Traer el nombre
+    // aquí evita abrirle esos dos módulos enteros solo para pintar una columna.
+    `select p.id, p.contrato_id, p.periodo, p.monto, p.fecha_pago, p.metodo_pago,
+            p.observaciones, p.estatus, p.creado_en,
+            p.factura_url     is not null as tiene_factura,
+            p.comprobante_url is not null as tiene_comprobante,
+            s.nombre as sitio_nombre
+       from pagos_renta p
+       left join contratos_arrendamiento c on c.id = p.contrato_id
+       left join sitios s on s.id = c.sitio_id
+      where p.tenant_id = $1 order by p.creado_en asc`,
     [await tenantActual()],
   )
   return rows.map(rowToPagoRenta)
