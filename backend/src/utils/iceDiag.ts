@@ -24,8 +24,13 @@ const nuevo = (): IceSummary => ({
 });
 
 // Acumulador por equipo mientras dura el intento. Se vuelca a la BD con un
-// respiro para no escribir una vez por candidato.
-const enCurso = new Map<number, { sum: IceSummary; flush: NodeJS.Timeout }>();
+// respiro para no escribir una vez por candidato. La ventana se reinicia con
+// cada candidato (los relay por TCP tardan bastante mas que los host y con una
+// ventana fija quedaban fuera del resumen), con un tope por si el equipo sigue
+// emitiendo indefinidamente.
+const ESPERA_MS = 15000;
+const TOPE_MS = 60000;
+const enCurso = new Map<number, { sum: IceSummary; flush: NodeJS.Timeout; inicio: number }>();
 
 // "candidate:123 1 udp 2113937151 10.211.3.121 34643 typ host ..."
 export function registrarCandidato(deviceId: number, candidate: string) {
@@ -37,8 +42,11 @@ export function registrarCandidato(deviceId: number, candidate: string) {
 
   let e = enCurso.get(deviceId);
   if (!e) {
-    e = { sum: nuevo(), flush: setTimeout(() => void volcar(deviceId), 8000) };
+    e = { sum: nuevo(), flush: setTimeout(() => void volcar(deviceId), ESPERA_MS), inicio: Date.now() };
     enCurso.set(deviceId, e);
+  } else if (Date.now() - e.inicio < TOPE_MS) {
+    clearTimeout(e.flush);
+    e.flush = setTimeout(() => void volcar(deviceId), ESPERA_MS);
   }
   // Una IPv6 lleva ':'; los .local son mDNS del navegador (no aplican aqui).
   const familia = direccion.includes(':') ? 'ipv6' : 'ipv4';
@@ -54,10 +62,33 @@ function dictaminar(s: IceSummary): IceSummary['verdict'] {
   return 'ok';
 }
 
+// Un candidato rezagado (uno que llega despues del volcado) abria un resumen
+// nuevo que pisaba al bueno: un relay ya conseguido se perdia y el equipo
+// quedaba marcado como si nunca hubiera conectado. Si el volcado anterior es
+// del mismo intento, se fusionan en vez de reemplazarse.
+const VENTANA_INTENTO_MS = 90000;
+const ultimo = new Map<number, { at: number; sum: IceSummary }>();
+
+function fusionar(a: IceSummary, b: IceSummary): IceSummary {
+  const s = nuevo();
+  for (const f of ['ipv4', 'ipv6'] as const) {
+    for (const t of ['host', 'srflx', 'relay'] as const) s[f][t] = a[f][t] + b[f][t];
+  }
+  s.total = a.total + b.total;
+  return s;
+}
+
 async function volcar(deviceId: number) {
   const e = enCurso.get(deviceId);
   if (!e) return;
   enCurso.delete(deviceId);
+
+  const prev = ultimo.get(deviceId);
+  if (prev && Date.now() - prev.at < VENTANA_INTENTO_MS) {
+    e.sum = fusionar(prev.sum, e.sum);
+  }
+  ultimo.set(deviceId, { at: Date.now(), sum: e.sum });
+
   e.sum.verdict = dictaminar(e.sum);
   try {
     await pool.query(
