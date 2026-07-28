@@ -78,6 +78,16 @@ const statusSchema = z.object({
   data_wifi_total: z.number().nonnegative().optional(),
 });
 
+// IP publica desde la que el equipo habla con el backend. Si algun dia se pone
+// un proxy delante (Caddy), la real viene en X-Forwarded-For.
+function sourceIp(req: Request): string | null {
+  const fwd = req.headers['x-forwarded-for'];
+  const raw = (Array.isArray(fwd) ? fwd[0] : fwd)?.split(',')[0].trim() || req.ip || '';
+  // Express entrega las IPv4 como ::ffff:189.203.98.166 cuando el socket es v6.
+  const ip = raw.replace(/^::ffff:/, '');
+  return ip ? ip.slice(0, 45) : null;
+}
+
 export async function reportStatus(req: Request, res: Response) {
   const parsed = statusSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
@@ -88,12 +98,13 @@ export async function reportStatus(req: Request, res: Response) {
   await pool.query(
     `INSERT INTO device_status
      (device_id, battery_pct, battery_temp, battery_charging, signal_dbm, network_type, network_operator,
-      gps_lat, gps_lng, gps_accuracy_m, storage_free_mb, ram_free_mb, cpu_temp, uptime_seconds)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      gps_lat, gps_lng, gps_accuracy_m, storage_free_mb, ram_free_mb, cpu_temp, uptime_seconds, source_ip)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [did, d.battery_pct, d.battery_temp ?? null, d.battery_charging ?? null,
      d.signal_dbm ?? null, d.network_type ?? null, d.network_operator ?? null,
      d.gps_lat ?? null, d.gps_lng ?? null, d.gps_accuracy_m ?? null,
-     d.storage_free_mb ?? null, d.ram_free_mb ?? null, d.cpu_temp ?? null, d.uptime_seconds ?? null]
+     d.storage_free_mb ?? null, d.ram_free_mb ?? null, d.cpu_temp ?? null, d.uptime_seconds ?? null,
+     sourceIp(req)]
   );
 
   await pool.query(

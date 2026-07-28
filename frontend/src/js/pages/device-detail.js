@@ -378,6 +378,26 @@ function deviceDetail() {
       // Se conservan zoom/exposicion/wb/foco/rotacion para el proximo stream.
     },
 
+    // Diagnostico de red del ultimo intento de transmision. Explica en la ficha
+    // el caso que dejo ciego a un sitio: el equipo funcionaba (fotos, telemetria)
+    // pero su red movil ya solo le daba IPv6 y el video nunca podia conectar.
+    iceDiag() {
+      const s = this.device?.last_ice_summary;
+      if (!s) return null;
+      const d = typeof s === 'string' ? JSON.parse(s) : s;
+      const cuando = this.device.last_ice_at
+        ? new Date(this.device.last_ice_at).toLocaleString('es-MX')
+        : 'n/d';
+      const textos = {
+        ok: ['Conectividad correcta', ''],
+        sin_ipv4: ['Sin IPv4 (red IPv6)', 'El equipo solo ofrece direcciones IPv6 y el servidor de video es IPv4: la vista en vivo no puede conectar. Cambia el APN del equipo a IPv4/IPv6. Las fotos y la telemetría no se ven afectadas.'],
+        sin_publicos: ['Sin dirección pública', 'El equipo no logró obtener candidatos públicos (STUN/TURN). Su red puede estar bloqueando el puerto 3478.'],
+        sin_candidatos: ['Sin candidatos', 'El equipo no generó ninguna dirección para la conexión de video.'],
+      };
+      const [titulo, detalle] = textos[d.verdict] || ['Desconocido', ''];
+      return { ok: d.verdict === 'ok', titulo, detalle, cuando, raw: d };
+    },
+
     // mm:ss para la cuenta regresiva del corte automatico.
     streamLeftLabel() {
       const s = Math.max(0, Number(this.streamLeft) || 0);

@@ -3,6 +3,7 @@ import { Server, Socket } from 'socket.io';
 import { deviceJwt } from '../utils/jwt';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
+import { registrarCandidato } from '../utils/iceDiag';
 
 export function setupDeviceNamespace(io: Server) {
   const ns = io.of('/devices');
@@ -39,6 +40,10 @@ export function setupDeviceNamespace(io: Server) {
     });
 
     socket.on('webrtc_ice_candidate', async (payload) => {
+      // Guarda que familias de direcciones logra ofrecer el equipo: un equipo en
+      // red IPv6 pura no produce candidatos IPv4 y la vista en vivo no conecta,
+      // aunque fotos y telemetria sigan funcionando.
+      registrarCandidato(did, payload?.candidate?.candidate);
       await redis.publish('webrtc:device_ice', JSON.stringify({ device_id: did, ...payload }));
     });
 
