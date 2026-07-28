@@ -27,12 +27,12 @@ const facturaSchema = z.object({
     .refine((v) => [60, 90, 120].includes(v), 'Plazo inválido (60, 90 o 120 días)')
     .default(90),
   // Cobro en parcialidades (opcional; sin esto, cobro único como siempre).
-  // Los IMPORTES no se aceptan del cliente: los calcula el servidor a partir del
-  // total de la factura. Admitirlos permitiría facturar 100 000 y programar
-  // cuotas por 10.
+  // Ni el NÚMERO DE CUOTAS ni los IMPORTES se aceptan del cliente: los deriva el
+  // servidor de la duración de la campaña y del total de la factura. Admitirlos
+  // permitiría facturar 100 000 y programar cuotas por 10, o pedir 40
+  // mensualidades en una campaña de dos meses.
   plan: z
     .object({
-      cuotas: z.coerce.number().int().min(2, 'Mínimo 2 cuotas').max(36, 'Máximo 36 cuotas'),
       periodicidad: z.enum(['QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']),
       primerVencimiento: z.string().min(1, 'Falta la fecha del primer vencimiento'),
     })

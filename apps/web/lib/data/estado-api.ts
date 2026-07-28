@@ -387,7 +387,6 @@ export async function marcarOCApi(campanaId: string, ocUrl?: string): Promise<vo
 
 // ─── Finanzas (facturación + cobranza) ──────────────────────────────────────
 export interface PlanCuotasApi {
-  cuotas: number
   periodicidad: 'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
   primerVencimiento: string
 }

@@ -37,3 +37,47 @@ export function repartirCuotas(total: number, n: number): number[] {
   cuotas[n - 1] = Math.round((base + (total - suma)) * 100) / 100
   return cuotas
 }
+
+// ─── Qué parcialidades caben en una campaña ─────────────────────────────────
+// Duración de cada periodo en MESES. Quincenal es medio mes: en una campaña de
+// un mes caben 2 quincenas.
+export const MESES_PERIODO: Record<PeriodicidadCuota, number> = {
+  QUINCENAL: 0.5, MENSUAL: 1, BIMESTRAL: 2, TRIMESTRAL: 3, SEMESTRAL: 6, ANUAL: 12,
+}
+
+// Duración de la campaña en meses. Las campañas casi nunca caen en meses
+// exactos (del 14/07 al 13/08 es "un mes" pero son 31 días), así que se
+// aproxima por días y se redondea: 30.44 es la media real de días por mes.
+export function duracionMeses(fechaInicio: string, fechaFin: string): number {
+  const i = new Date(fechaInicio).getTime()
+  const f = new Date(fechaFin).getTime()
+  if (!Number.isFinite(i) || !Number.isFinite(f) || f < i) return 0
+  const dias = Math.round((f - i) / 86_400_000) + 1 // ambos extremos cuentan
+  return Math.max(1, Math.round(dias / 30.44))
+}
+
+export interface OpcionParcialidad {
+  periodicidad: PeriodicidadCuota
+  cuotas: number
+}
+
+// Periodicidades válidas para una campaña de `meses`, con las cuotas que salen.
+//
+// La regla es una sola: las cuotas deben salir ENTERAS y ser al menos 2.
+//   · 1 mes  → mensual da 1 cuota (no es fraccionar) y bimestral daría media.
+//              Solo quedan las quincenales, que dan 2.
+//   · 2 meses→ mensual da 2 ✓; bimestral daría 1 ✗.
+//   · 12 meses→ anual daría 1 ✗; con 24 da 2 ✓ (de ahí lo del múltiplo de 12).
+// Cobrar en "una parcialidad" no es fraccionar el pago: es el cobro único, que
+// ya existe sin marcar la casilla.
+export function opcionesParcialidad(meses: number): OpcionParcialidad[] {
+  const out: OpcionParcialidad[] = []
+  for (const p of Object.keys(MESES_PERIODO) as PeriodicidadCuota[]) {
+    const exactas = meses / MESES_PERIODO[p]
+    const cuotas = Math.round(exactas)
+    if (Math.abs(exactas - cuotas) > 0.001) continue // no cabe un nº entero
+    if (cuotas < 2) continue                          // 1 cuota = cobro único
+    out.push({ periodicidad: p, cuotas })
+  }
+  return out
+}

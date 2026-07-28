@@ -17,7 +17,10 @@ import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
-import { repartirCuotas, PERIODICIDAD_LABEL, type PeriodicidadCuota } from '@/lib/finanzas-calculo'
+import {
+  repartirCuotas, PERIODICIDAD_LABEL, duracionMeses, opcionesParcialidad,
+  type PeriodicidadCuota,
+} from '@/lib/finanzas-calculo'
 import {
   useCampanasResumen,
   useFacturas,
@@ -309,9 +312,13 @@ function GenerarFacturaDialog({
   // Cobro en parcialidades. Apagado por defecto: el comportamiento de siempre es
   // una sola exhibición, y activarlo tiene que ser una decisión explícita.
   const [enCuotas, setEnCuotas] = useState(false)
-  const [cuotas, setCuotas] = useState(12)
-  const [periodicidad, setPeriodicidad] = useState<PeriodicidadCuota>('MENSUAL')
+  const [periodicidad, setPeriodicidad] = useState<PeriodicidadCuota | ''>('')
   const [primerVenc, setPrimerVenc] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
+  // Duración de la campaña → qué reparto admite. Sin campaña aún, nada.
+  const meses = campana ? duracionMeses(campana.fechaInicio, campana.fechaFin) : 0
+  const opciones = opcionesParcialidad(meses)
+  const nCuotas = opciones.find((o) => o.periodicidad === periodicidad)?.cuotas ?? 0
+
   if (!campana) return null
   return (
     <Modal
@@ -333,7 +340,7 @@ function GenerarFacturaDialog({
                 await generarFacturaApi(
                   campana.id,
                   plazo,
-                  enCuotas ? { cuotas, periodicidad, primerVencimiento: primerVenc } : null,
+                  enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
                 )
                 onDone('generada')
                 onClose()
@@ -375,51 +382,64 @@ function GenerarFacturaDialog({
             </span>
           </div>
         </div>
-        {/* Cobro en parcialidades. Los importes los calcula el SERVIDOR a
-            partir del total; aquí solo se previsualizan para que se vea en qué
-            se está comprometiendo al cliente antes de emitir. */}
+        {/* Cobro en parcialidades. Las opciones y el nº de cuotas se DERIVAN de
+            la duración de la campaña: solo se ofrece lo que da un número entero
+            de cuotas y al menos 2. Cobrar en "una parcialidad" no es fraccionar
+            nada — eso es el cobro único, que es no marcar la casilla. */}
         <div className="rounded-md border border-border px-3 py-2.5">
-          <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
-            <input type="checkbox" checked={enCuotas} onChange={(e) => setEnCuotas(e.target.checked)} />
-            Cobrar en parcialidades
-          </label>
-          {enCuotas && (
-            <div className="mt-2.5 space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
+          {opciones.length === 0 ? (
+            <p className="text-[12px] text-muted">
+              Esta campaña dura {meses} {meses === 1 ? 'mes' : 'meses'}: no admite un
+              reparto en cuotas iguales, así que se cobra en una sola exhibición.
+            </p>
+          ) : (
+            <>
+              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
                 <input
-                  type="number" min={2} max={36} value={cuotas}
-                  onChange={(e) => setCuotas(Math.min(36, Math.max(2, parseInt(e.target.value, 10) || 2)))}
-                  className="h-9 w-20 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                  type="checkbox"
+                  checked={enCuotas}
+                  onChange={(e) => {
+                    setEnCuotas(e.target.checked)
+                    if (e.target.checked && !periodicidad) setPeriodicidad(opciones[0].periodicidad)
+                  }}
                 />
-                <select
-                  value={periodicidad}
-                  onChange={(e) => setPeriodicidad(e.target.value as typeof periodicidad)}
-                  className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                >
-                  {/* Desde la fuente única: añadir una periodicidad en
-                      finanzas-calculo.ts la trae aquí sola. */}
-                  {(Object.keys(PERIODICIDAD_LABEL) as PeriodicidadCuota[]).map((k) => (
-                    <option key={k} value={k}>{PERIODICIDAD_LABEL[k]}</option>
-                  ))}
-                </select>
-                <span className="text-[12px] text-muted">desde</span>
-                <input
-                  type="date" value={primerVenc}
-                  onChange={(e) => setPrimerVenc(e.target.value)}
-                  className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
-                />
-              </div>
-              {campana.presupuestoBruto != null && (
-                <p className="text-[12px] text-muted">
-                  {cuotas} cuotas de{' '}
-                  <span className="demo-num font-medium text-ink">
-                    {formatMonto(repartirCuotas(campana.presupuestoBruto, cuotas)[0])}
-                  </span>
-                  {' '}(la última ajusta el redondeo) · suman{' '}
-                  <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto)}</span>
-                </p>
+                Cobrar en parcialidades
+                <span className="text-[11px] text-muted">· campaña de {meses} {meses === 1 ? 'mes' : 'meses'}</span>
+              </label>
+              {enCuotas && (
+                <div className="mt-2.5 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={periodicidad}
+                      onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
+                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                    >
+                      {opciones.map((o) => (
+                        <option key={o.periodicidad} value={o.periodicidad}>
+                          {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[12px] text-muted">desde</span>
+                    <input
+                      type="date" value={primerVenc}
+                      onChange={(e) => setPrimerVenc(e.target.value)}
+                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                    />
+                  </div>
+                  {campana.presupuestoBruto != null && nCuotas > 0 && (
+                    <p className="text-[12px] text-muted">
+                      {nCuotas} cuotas de{' '}
+                      <span className="demo-num font-medium text-ink">
+                        {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0])}
+                      </span>
+                      {' '}(la última ajusta el redondeo) · suman{' '}
+                      <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto)}</span>
+                    </p>
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
         </div>
 

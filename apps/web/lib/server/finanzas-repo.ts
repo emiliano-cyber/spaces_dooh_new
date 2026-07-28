@@ -2,7 +2,10 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
-import { repartirCuotas, INTERVALO_PERIODO, type PeriodicidadCuota } from '../finanzas-calculo'
+import {
+  repartirCuotas, INTERVALO_PERIODO, duracionMeses, opcionesParcialidad, PERIODICIDAD_LABEL,
+  type PeriodicidadCuota,
+} from '../finanzas-calculo'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
 import { candadoDeSegmentos } from '@/lib/data/derive'
@@ -137,7 +140,6 @@ export class FacturaError extends Error {}
 // siempre). Los IMPORTES no vienen del cliente: se calculan aquí, porque
 // aceptarlos permitiría facturar 100 000 y programar cuotas por 10.
 export interface PlanCuotas {
-  cuotas: number
   periodicidad: PeriodicidadCuota
   primerVencimiento: string // ISO date
 }
@@ -202,8 +204,24 @@ export async function generarFactura(
       throw e
     }
     const tId = await tenantActual()
-    if (plan && plan.cuotas > 1) {
-      const importes = repartirCuotas(total, plan.cuotas)
+    if (plan) {
+      // Las cuotas NO vienen del cliente: se derivan de la duración de la
+      // campaña y la periodicidad. Aceptarlas permitiría pedir 40 mensualidades
+      // en una campaña de 2 meses, o 1 sola (que no es fraccionar nada).
+      const meses = duracionMeses(iso(c.fecha_inicio), iso(c.fecha_fin))
+      const opcion = opcionesParcialidad(meses).find((o) => o.periodicidad === plan.periodicidad)
+      if (!opcion) {
+        throw new FacturaError(
+          // `PERIODICIDAD_LABEL` ya trae el plural correcto ("bimestrales"):
+          // pegarle una "s" al enum daba "bimestrals".
+          `Una campaña de ${meses} ${meses === 1 ? 'mes' : 'meses'} no admite cuotas ` +
+            `${PERIODICIDAD_LABEL[plan.periodicidad]}. Opciones válidas: ` +
+            (opcionesParcialidad(meses)
+              .map((o) => `${o.cuotas} ${PERIODICIDAD_LABEL[o.periodicidad]}`)
+              .join(', ') || 'ninguna, se cobra en una sola exhibición'),
+        )
+      }
+      const importes = repartirCuotas(total, opcion.cuotas)
       // Guardarraíl del invariante: si el reparto no cuadra con la factura, se
       // aborta. Prefiero no facturar a dejar una cartera que no suma.
       const suma = Math.round(importes.reduce((a, x) => a + x, 0) * 100) / 100
