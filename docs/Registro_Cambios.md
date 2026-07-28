@@ -23,6 +23,30 @@ La entrada más reciente va arriba.
   código; el nombre identifica al negocio en toda la aplicación, así que ahora
   depende del rol y no de un permiso configurable. La bitácora registra el
   cambio completo ("nombre anterior → nombre nuevo") en vez de solo el nuevo.
+- **Una campaña ya se puede cobrar en parcialidades.** Hasta ahora se cobraba de
+  una sola vez, con un plazo de 60/90/120 días; no había forma de pactar
+  mensualidades, que es lo normal en contratos anuales. Al generar la factura hay
+  una casilla "Cobrar en parcialidades": eliges cuántas, cada cuánto (quincenal,
+  mensual, bimestral o trimestral) y desde qué fecha, y ves el importe de cada
+  cuota antes de emitir. Las cuotas son iguales y **la última ajusta el
+  redondeo**, de modo que siempre suman el total exacto de la factura. Cada
+  parcialidad tiene su propio vencimiento y se cobra por separado; la factura
+  solo queda saldada cuando se han pagado todas.
+  - *Alcance de esta versión:* cuotas iguales, plan decidido al facturar, sin
+    complemento de pago (REP) y con aviso —no bloqueo— si una parcialidad vence.
+    Un calendario libre (30 % al firmar, 70 % al cierre) o el timbrado del REP se
+    pueden añadir después sin rehacer el modelo. Ver
+    `docs/diseno-cobro-en-parcialidades.md`.
+  - *El cobro de siempre no cambia:* una factura sin plan de cuotas se comporta
+    igual que antes, y las cobranzas anteriores siguen intactas.
+- **La captura de la renta avisa cuando algo no cuadra.** Se detectaron dos
+  propuestas reales con la renta mal capturada: llevaban el precio del cliente
+  con IVA en vez de lo que se le paga al propietario —un importe **mayor** que lo
+  cobrado—, y además sin propietario asignado, lo que dejaba el contrato
+  pendiente sin que nadie se enterara. Ahora, si la organización tiene un solo
+  propietario viene ya seleccionado, y salta un aviso en ámbar si la renta iguala
+  o supera lo que se le cobra al cliente (la campaña saldría a pérdida) o si
+  falta algún dato, diciendo qué falta y qué consecuencia tiene.
 - **La renta al propietario se captura al crear la propuesta.** Cierra el hueco
   que dejó el contrato incompleto: se indica a quién se le paga, cuánto y cada
   cuánto (mensual, anual…), y el contrato nace **completo** con la campaña en vez
