@@ -178,30 +178,22 @@ class CommandHandler(
                             Log.d(TAG, "Photo captured: ${photo.size} bytes")
                             RemoteLog.info(ctx, "photo", "Foto capturada (${photo.size / 1024} KB)")
 
-                            // Graba dentro de la foto: sitio + direccion (geocodificada
-                            // del GPS) + coordenadas DMS + fecha/hora de captura.
+                            // v0.8.0: ya NO se quema la marca en el telefono. Se sube la
+                            // foto LIMPIA (watermark_baked=false) y el dashboard dibuja la
+                            // marca configurable (nombre/fecha/hora) en la posicion del
+                            // dispositivo. Se conserva el GPS como metadato.
                             val ll = currentLatLng()
-                            val site = payload?.optString("site")?.takeIf { it.isNotBlank() }
-                            val lines = mutableListOf<String>()
-                            if (site != null) lines.add(site)
-                            if (ll != null) {
-                                lines.addAll(reverseGeocode(ll.first, ll.second))
-                                lines.add(toDMS(ll.first, ll.second))
-                            } else {
-                                lines.add("Ubicacion no disponible")
-                            }
-                            lines.add(SimpleDateFormat("dd/MM/yyyy HH:mm:ss", Locale("es", "MX")).format(Date()))
-                            val stamped = PhotoWatermark.draw(photo, lines)
 
                             val uploaded = withContext(Dispatchers.IO) {
                                 apiClient.uploadPhoto(
-                                    photoBytes = stamped,
+                                    photoBytes = photo,
                                     commandId = commandId,
                                     campaignId = campaignId,
                                     scheduleId = scheduleId,
                                     gpsLat = ll?.first,
                                     gpsLng = ll?.second,
-                                    source = "on_demand"
+                                    source = "on_demand",
+                                    watermarkBaked = false
                                 )
                             }
                             if (id > 0) {

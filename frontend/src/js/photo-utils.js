@@ -21,32 +21,65 @@ function _loadImage(url) {
   });
 }
 
-// Dibuja una barra inferior semitransparente con las lineas de texto dadas.
-function _drawOverlay(ctx, canvas, lines) {
+// Dibuja la marca de informacion en una caja centrada en pos={x,y} (en %, 0-100)
+// del canvas. Fondo semitransparente redondeado + sombra = legible sobre cualquier
+// fondo. Si pos es null, cae a una barra inferior (compatibilidad).
+function _drawOverlay(ctx, canvas, lines, pos) {
   lines = (lines || []).filter(Boolean);
   if (!lines.length) return;
-  const fs = Math.max(18, Math.round(canvas.width / 46));
-  const pad = Math.round(fs * 0.7);
-  const lh = Math.round(fs * 1.35);
-  const barH = lines.length * lh + pad * 2;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, canvas.height - barH, canvas.width, barH);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = fs + 'px Arial, Helvetica, sans-serif';
+  const W = canvas.width, H = canvas.height;
+  const fs = Math.max(16, Math.round(W / 46));
+  const padX = Math.round(fs * 0.9);
+  const padY = Math.round(fs * 0.6);
+  const lh = Math.round(fs * 1.3);
+
+  ctx.font = 'bold ' + fs + 'px Arial, Helvetica, sans-serif';
   ctx.textBaseline = 'top';
+  let boxW = 0;
+  for (const l of lines) boxW = Math.max(boxW, ctx.measureText(l).width);
+  boxW += padX * 2;
+  const boxH = lines.length * lh + padY * 2;
+
+  // Centro de la caja en (x%,y%), acotado para que no se salga.
+  let cx = ((pos && pos.x != null) ? pos.x : 50) / 100 * W;
+  let cy = ((pos && pos.y != null) ? pos.y : 92) / 100 * H;
+  let bx = Math.min(Math.max(cx - boxW / 2, 6), W - boxW - 6);
+  let by = Math.min(Math.max(cy - boxH / 2, 6), H - boxH - 6);
+
+  // Fondo redondeado semitransparente.
+  const r = Math.round(fs * 0.4);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(bx + r, by);
+  ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
+  ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
+  ctx.arcTo(bx, by + boxH, bx, by, r);
+  ctx.arcTo(bx, by, bx + boxW, by, r);
+  ctx.closePath();
+  ctx.fill();
+
+  // Texto blanco con sombra.
+  ctx.fillStyle = '#ffffff';
   ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 3;
-  let y = canvas.height - barH + pad;
-  for (const line of lines) {
-    ctx.fillText(line, pad, y);
-    y += lh;
-  }
+  ctx.shadowBlur = 4;
+  let ty = by + padY;
+  for (const line of lines) { ctx.fillText(line, bx + padX, ty); ty += lh; }
   ctx.shadowBlur = 0;
+}
+
+// Lineas de la marca configurable: Nombre · Fecha · Hora, tomando la fecha/hora
+// de CAPTURA (taken_at), no la de descarga.
+function overlayInfoLines(photo, deviceName) {
+  const name = deviceName || photo.device_name || 'SPACE EYE';
+  const d = photo.taken_at ? new Date(photo.taken_at) : null;
+  const fecha = d ? d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  const hora = d ? d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+  return [name, fecha, hora].filter(Boolean);
 }
 
 // Renderiza la foto girada `rotation` grados con la marca `overlayLines` y
 // devuelve un Blob JPEG.
-async function _renderPhoto(url, rotation, overlayLines) {
+async function _renderPhoto(url, rotation, overlayLines, pos) {
   const img = await _loadImage(url);
   const r = ((Number(rotation) % 360) + 360) % 360;
   const swap = r === 90 || r === 270;
@@ -58,13 +91,13 @@ async function _renderPhoto(url, rotation, overlayLines) {
   ctx.rotate((r * Math.PI) / 180);
   ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
   ctx.setTransform(1, 0, 0, 1, 0, 0); // vuelve a coords del canvas final
-  _drawOverlay(ctx, canvas, overlayLines);
+  _drawOverlay(ctx, canvas, overlayLines, pos);
   return await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
 }
 
-// Descarga una foto girada `rotation` grados, con la marca `overlayLines`.
-async function downloadRotatedImage(url, rotation, filename, overlayLines) {
-  const blob = await _renderPhoto(url, rotation, overlayLines);
+// Descarga una foto girada `rotation` grados, con la marca `overlayLines` en pos {x,y}%.
+async function downloadRotatedImage(url, rotation, filename, overlayLines, pos) {
+  const blob = await _renderPhoto(url, rotation, overlayLines, pos);
   const objUrl = URL.createObjectURL(blob);
   _triggerDownload(objUrl, filename);
   setTimeout(() => URL.revokeObjectURL(objUrl), 4000);

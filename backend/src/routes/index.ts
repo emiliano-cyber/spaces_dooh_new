@@ -48,6 +48,8 @@ export function createRoutes() {
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
   // Fijar orientacion por defecto del stream (solo admin).
   router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), dashboard.setStreamRotation);
+  // Posicion de la marca de informacion (overlay) del dispositivo (solo admin).
+  router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
 
   // Photos
   router.get('/api/photos', requireUser, dashboard.listPhotos);

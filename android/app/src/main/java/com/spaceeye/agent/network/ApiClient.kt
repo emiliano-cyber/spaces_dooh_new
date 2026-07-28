@@ -40,7 +40,8 @@ class ApiClient(ctx: Context) {
         campaignId: Int? = null,
         gpsLat: Double? = null,
         gpsLng: Double? = null,
-        source: String = "on_demand"
+        source: String = "on_demand",
+        watermarkBaked: Boolean = true
     ): Boolean {
         val token = tokenStore.getDeviceToken() ?: return false
 
@@ -62,6 +63,7 @@ class ApiClient(ctx: Context) {
         campaignId?.let { builder.addFormDataPart("campaign_id", it.toString()) }
         gpsLat?.let { builder.addFormDataPart("gps_lat", it.toString()) }
         gpsLng?.let { builder.addFormDataPart("gps_lng", it.toString()) }
+        builder.addFormDataPart("watermark_baked", watermarkBaked.toString())
 
         val request = Request.Builder()
             .url("$baseUrl/api/device/upload-photo")

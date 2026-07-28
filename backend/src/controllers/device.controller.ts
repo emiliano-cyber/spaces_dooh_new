@@ -207,13 +207,21 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     gps_lat: z.coerce.number().optional(),
     gps_lng: z.coerce.number().optional(),
     source: z.enum(['manual','scheduled','on_demand','boot']).default('manual'),
+    // La APK v0.8.0 sube la foto SIN marca quemada -> envia watermark_baked="false",
+    // y el dashboard dibuja el overlay configurable. APK previas no lo envian
+    // (default true = ya trae la marca quemada, no se le agrega overlay).
+    watermark_baked: z.string().optional(),
   }).parse(req.body);
+
+  // Multipart manda strings; solo "false"/"0" cuentan como no-quemada.
+  const baked = !(meta.watermark_baked === 'false' || meta.watermark_baked === '0');
 
   const result = await uploadPhoto({
     deviceId: did,
     fileBuffer: req.file.buffer,
     mimetype: req.file.mimetype,
     ...meta,
+    watermark_baked: baked,
   });
   res.json(result);
 }

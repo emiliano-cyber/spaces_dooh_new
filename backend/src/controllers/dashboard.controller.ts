@@ -92,6 +92,27 @@ export async function setStreamRotation(req: Request, res: Response) {
   res.json({ ok: true, rotation: parsed.data.rotation });
 }
 
+// Guarda la posicion de la marca de informacion (overlay) del dispositivo.
+// x/y = centro del bloque de texto en % (0-100). Solo admin (ver ruta).
+export async function setOverlay(req: Request, res: Response) {
+  const schema = z.object({
+    x: z.number().min(0).max(100),
+    y: z.number().min(0).max(100),
+    enabled: z.boolean().optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  const { x, y, enabled } = parsed.data;
+  const sets = ['overlay_x = ?', 'overlay_y = ?'];
+  const values: any[] = [x, y];
+  if (enabled !== undefined) { sets.push('overlay_enabled = ?'); values.push(enabled); }
+
+  const [r] = await pool.query<any>(`UPDATE devices SET ${sets.join(', ')} WHERE id = ?`, [...values, req.params.id]);
+  if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
+  res.json({ ok: true, overlay_x: x, overlay_y: y, overlay_enabled: enabled ?? true });
+}
+
 export async function updateDevice(req: Request, res: Response) {
   const schema = z.object({
     name: z.string().optional(),
@@ -175,7 +196,8 @@ export async function sendCommand(req: Request, res: Response) {
 // --- PHOTOS ---
 export async function listPhotos(req: Request, res: Response) {
   const { device_id, campaign_id, from, to, source, page = '1', limit = '20' } = req.query;
-  let sql = `SELECT p.*, d.name as device_name
+  let sql = `SELECT p.*, d.name as device_name,
+                    d.overlay_x, d.overlay_y, d.overlay_enabled
              FROM photos p JOIN devices d ON p.device_id = d.id WHERE 1=1`;
   const params: any[] = [];
 

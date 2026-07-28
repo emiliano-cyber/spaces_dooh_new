@@ -24,7 +24,10 @@ function deviceDetail() {
     focusLocked: false,
     rotation: 0,        // rotacion actual del video en el visor (0/90/180/270)
     savedRotation: 0,   // orientacion fija guardada en el servidor (la que ven todos)
-    isAdmin: false,     // solo admin puede fijar la orientacion
+    isAdmin: false,     // solo admin puede fijar la orientacion / overlay
+    // Marca de informacion (overlay) configurable: posicion en % (centro del bloque)
+    overlayX: 50, overlayY: 92, overlayEnabled: true,
+    _dragging: false,
     takingPhoto: false,
     toast: { show: false, msg: '', type: 'info' },
     _toastT: null,
@@ -78,6 +81,10 @@ function deviceDetail() {
         // Orientacion fija guardada por admin: es la que ven todos al abrir/recargar.
         this.savedRotation = ((Number(this.device.stream_rotation) % 360) + 360) % 360 || 0;
         this.rotation = this.savedRotation;
+        // Marca de informacion (overlay) configurada para este dispositivo.
+        if (this.device.overlay_x != null) this.overlayX = Number(this.device.overlay_x);
+        if (this.device.overlay_y != null) this.overlayY = Number(this.device.overlay_y);
+        this.overlayEnabled = this.device.overlay_enabled !== 0 && this.device.overlay_enabled !== false;
       } catch (err) {
         console.error('Failed to load device:', err);
       }
@@ -274,8 +281,12 @@ function deviceDetail() {
       const ts = new Date(this.lightbox.taken_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const base = (this.device && this.device.name ? this.device.name : 'foto').replace(/\s+/g, '_');
       try {
-        // La foto ya trae grabada la ubicacion y fecha/hora; solo aplicamos la rotacion.
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`);
+        // Fotos limpias (APK v0.8.0): dibujamos la marca configurable (nombre/fecha/hora
+        // de captura) en la posicion del dispositivo. Fotos con marca quemada: sin overlay.
+        const clean = this.lightbox.watermark_baked === 0 || this.lightbox.watermark_baked === false;
+        const lines = clean ? overlayInfoLines(this.lightbox, this.device && this.device.name) : null;
+        const pos = clean && this.overlayEnabled ? { x: this.overlayX, y: this.overlayY } : null;
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines, pos);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');
@@ -378,6 +389,46 @@ function deviceDetail() {
         this.showToast('Orientación fijada para todos', 'success');
       } catch (e) {
         this.showToast('No se pudo fijar la orientación (¿eres admin?)', 'error');
+      }
+    },
+
+    // ---- Marca de informacion (overlay) configurable ----
+    // Imagen de referencia para posicionar: ultima foto o placeholder.
+    overlayPreviewSrc() {
+      const p = this.recentPhotos && this.recentPhotos[0];
+      return p ? p.thumbnail_path : null;
+    },
+    // Lineas de ejemplo para la vista previa (usa la ultima foto o "ahora").
+    overlayPreviewLines() {
+      const p = (this.recentPhotos && this.recentPhotos[0]) || {};
+      const d = p.taken_at ? new Date(p.taken_at) : new Date();
+      return [
+        (this.device && this.device.name) || 'Dispositivo',
+        d.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+        d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+      ];
+    },
+    // Drag: actualiza x/y en % relativo al recuadro de preview (4:3 = igual que la foto).
+    overlayDragStart(e) { if (this.isAdmin) this._dragging = true; },
+    overlayDragMove(e) {
+      if (!this._dragging) return;
+      const box = e.currentTarget.getBoundingClientRect();
+      const pt = e.touches ? e.touches[0] : e;
+      let x = ((pt.clientX - box.left) / box.width) * 100;
+      let y = ((pt.clientY - box.top) / box.height) * 100;
+      this.overlayX = Math.min(100, Math.max(0, Math.round(x)));
+      this.overlayY = Math.min(100, Math.max(0, Math.round(y)));
+    },
+    overlayDragEnd() { this._dragging = false; },
+    // Lineas de la marca para una foto (usa el helper global de photo-utils).
+    overlayInfoLinesFor(photo) { return photo ? overlayInfoLines(photo, this.device && this.device.name) : []; },
+    async saveOverlay() {
+      try {
+        await API.put(`/api/devices/${this.deviceId}/overlay`, { x: this.overlayX, y: this.overlayY, enabled: this.overlayEnabled });
+        if (this.device) { this.device.overlay_x = this.overlayX; this.device.overlay_y = this.overlayY; this.device.overlay_enabled = this.overlayEnabled; }
+        this.showToast('Posición de la marca guardada', 'success');
+      } catch (e) {
+        this.showToast('No se pudo guardar (¿eres admin?)', 'error');
       }
     },
 
