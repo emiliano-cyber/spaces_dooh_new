@@ -7,6 +7,7 @@ import * as device from '../controllers/device.controller';
 import * as dashboard from '../controllers/dashboard.controller';
 import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
+import * as users from '../controllers/users.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -18,6 +19,12 @@ export function createRoutes() {
   router.post('/api/auth/refresh', auth.refresh);
   router.post('/api/auth/logout', auth.logout);
   router.get('/api/auth/me', requireUser, auth.me);
+  router.put('/api/auth/password', requireUser, auth.changePassword);
+
+  // --- Users (admin) ---
+  router.get('/api/users', requireUser, requireRole('admin'), users.listUsers);
+  router.post('/api/users', requireUser, requireRole('admin'), users.createUser);
+  router.put('/api/users/:id', requireUser, requireRole('admin'), users.updateUser);
 
   // --- Device endpoints (device JWT) ---
   router.post('/api/device/register', device.register);

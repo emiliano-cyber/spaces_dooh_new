@@ -108,3 +108,26 @@ export async function me(req: Request, res: Response) {
   if (!user) return res.status(404).json({ error: 'user_not_found' });
   res.json(user);
 }
+
+// Cambia la contrasena del usuario autenticado (verifica la actual).
+const changePasswordSchema = z.object({
+  current_password: z.string().min(1),
+  new_password: z.string().min(8, 'La nueva contrasena debe tener al menos 8 caracteres'),
+});
+export async function changePassword(req: Request, res: Response) {
+  const parsed = changePasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const [rows] = await pool.query<any[]>(`SELECT password_hash FROM users WHERE id = ?`, [req.user!.uid]);
+  const user = (rows as any[])[0];
+  if (!user) return res.status(404).json({ error: 'user_not_found' });
+
+  const ok = await bcrypt.compare(parsed.data.current_password, user.password_hash);
+  if (!ok) return res.status(401).json({ error: 'current_password_incorrect' });
+
+  const hash = await bcrypt.hash(parsed.data.new_password, 12);
+  await pool.query(`UPDATE users SET password_hash = ? WHERE id = ?`, [hash, req.user!.uid]);
+  // Revoca las sesiones (refresh tokens) para forzar re-login en otros dispositivos.
+  await pool.query(`UPDATE refresh_tokens SET revoked = TRUE WHERE user_id = ?`, [req.user!.uid]);
+  res.json({ ok: true });
+}

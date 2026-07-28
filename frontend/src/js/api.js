@@ -32,7 +32,12 @@ const API = {
       });
     }
 
-    if (!res.ok) throw new Error(`API ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(`API ${res.status}`);
+      err.status = res.status;
+      try { err.body = await res.json(); } catch (_) {}
+      throw err;
+    }
     return res.json();
   },
 
