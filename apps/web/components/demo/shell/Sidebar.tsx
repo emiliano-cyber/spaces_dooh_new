@@ -78,22 +78,40 @@ function SidebarContent({
       <div
         className={cn(
           'flex h-14 items-center border-b border-border',
-          colapsado ? 'justify-center px-0' : 'gap-2.5 px-4',
+          colapsado ? 'justify-center px-0' : 'gap-2.5 px-3',
         )}
       >
-        {config?.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={config.logoUrl} alt="logo" className="h-7 w-7 shrink-0 rounded object-contain" />
-        ) : (
-          <SpaceOsMark className="h-7 w-7 shrink-0" />
+        {/* Colapsado: el toggle ocupa la cabecera él solo. La barra mide 64px y
+            no caben logo y botón en la misma fila sin apretarlos; se prioriza el
+            botón, que es la única forma de volver a expandir. */}
+        {!colapsado && (
+          config?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={config.logoUrl} alt="logo" className="h-7 w-7 shrink-0 rounded object-contain" />
+          ) : (
+            <SpaceOsMark className="h-7 w-7 shrink-0" />
+          )
         )}
         {!colapsado && (
-          <div className="min-w-0 leading-tight">
+          <div className="min-w-0 flex-1 leading-tight">
             <div className="demo-wordmark truncate text-[15px] text-ink">
               {config?.nombreTenant ?? 'Space OS'}
             </div>
             <div className="text-[10px] text-muted">AS SPACE OS</div>
           </div>
+        )}
+        {onAlternarColapso && (
+          <Globo activo texto={colapsado ? 'Expandir menú' : 'Colapsar menú'}>
+            <button
+              type="button"
+              onClick={onAlternarColapso}
+              aria-label={colapsado ? 'Expandir menú' : 'Colapsar menú'}
+              aria-expanded={!colapsado}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+            >
+              <Menu className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          </Globo>
         )}
       </div>
 
@@ -166,30 +184,12 @@ function SidebarContent({
         )}
       </nav>
 
-      {/* Pie anclado al fondo de la pantalla: `shrink-0` evita que el flex lo
-          comprima cuando la lista de módulos es larga, así el botón y los
-          derechos quedan siempre visibles sin desplazar el menú. */}
+      {/* Pie anclado al fondo: `shrink-0` evita que el flex lo comprima cuando la
+          lista de módulos es larga. El toggle de colapso vive ahora en la
+          cabecera, arriba. */}
       <div className="mt-auto shrink-0 border-t border-border">
-        {onAlternarColapso && (
-          // Sin etiqueta visible: solo el icono. El nombre de la acción vive en
-          // `aria-label` (lectores de pantalla) y en el globo al pasar el ratón.
-          <Globo activo texto={colapsado ? 'Expandir menú' : 'Colapsar menú'}>
-            <button
-              type="button"
-              onClick={onAlternarColapso}
-              aria-label={colapsado ? 'Expandir menú' : 'Colapsar menú'}
-              aria-expanded={!colapsado}
-              className={cn(
-                'flex h-9 w-full items-center text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent',
-                colapsado ? 'justify-center' : 'px-2.5',
-              )}
-            >
-              <Menu className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-            </button>
-          </Globo>
-        )}
         {!colapsado && (
-          <p className="border-t border-border px-2.5 py-1.5 text-[10px] leading-none text-muted">
+          <p className="px-2.5 py-1.5 text-[10px] leading-none text-muted">
             Derechos reservados
           </p>
         )}
