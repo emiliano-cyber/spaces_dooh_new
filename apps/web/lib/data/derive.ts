@@ -214,6 +214,19 @@ function max(xs: string[]): string {
   return xs.slice().sort().at(-1) as string
 }
 
+// Saldo vivo de una cobranza. Con parcialidades, el importe a cobrar es el de
+// LA CUOTA (`cobranza.monto`), no el de la factura: usar el de la factura en
+// cada una multiplicaría la cartera por el número de cuotas — una campaña de
+// 120 000 en 12 mensualidades figuraría como 1 440 000 por cobrar.
+// `monto` en null = cobro único (histórico): ahí sí manda el total de la factura.
+export function saldoCobranza(
+  cob: { monto?: number | null; montoPagado: number },
+  factura: { monto: number } | undefined,
+): number {
+  const total = cob.monto != null ? cob.monto : (factura?.monto ?? 0)
+  return Math.round((total - cob.montoPagado) * 100) / 100
+}
+
 // ─── Semáforo de cobranza (recalculado vs hoy) ──────────────────────────────
 export function estadoCobranza(cob: Cobranza): EstCobranza {
   if (cob.estatus === 'PAGADA') return 'PAGADA'
@@ -341,7 +354,7 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     .filter((c) => estadoCobranza(c) !== 'PAGADA')
     .reduce((s, c) => {
       const fac = state.facturas.find((f) => f.id === c.facturaId)
-      return s + (fac ? fac.monto - c.montoPagado : 0)
+      return s + (fac ? saldoCobranza(c, fac) : 0)
     }, 0)
 
   // ── Moneda (A-3): desglose por divisa de los agregados de dinero. La reserva
@@ -355,7 +368,7 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
       .filter((c) => estadoCobranza(c) !== 'PAGADA')
       .map((c) => {
         const fac = state.facturas.find((f) => f.id === c.facturaId)
-        return { monto: fac ? fac.monto - c.montoPagado : 0, moneda: fac?.moneda }
+        return { monto: fac ? saldoCobranza(c, fac) : 0, moneda: fac?.moneda }
       }),
   )
   const costoRentaTot = totalizarMoneda(

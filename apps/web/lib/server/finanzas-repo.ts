@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { repartirCuotas, DIAS_PERIODO, type PeriodicidadCuota } from '../finanzas-calculo'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
 import { candadoDeSegmentos } from '@/lib/data/derive'
@@ -41,6 +42,9 @@ function rowToCobranza(r: any) {
     recordatorioEn: r.recordatorio_en ? iso(r.recordatorio_en) : null,
     recordatoriosEnviados: n(r.recordatorios_enviados) ?? 0,
     creadoEn: iso(r.creado_en),
+    numero: r.numero != null ? Number(r.numero) : null,
+    totalCuotas: r.total_cuotas != null ? Number(r.total_cuotas) : null,
+    monto: r.monto != null ? Number(r.monto) : null,
   }
 }
 
@@ -129,7 +133,21 @@ const folioFactura = () => `F001-${randomBytes(4).toString('hex').toUpperCase()}
 export class FacturaError extends Error {}
 
 // Genera factura + cobranza desde una campaña con el candado completo.
-export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120) {
+// Plan de cobro en parcialidades. `null` = cobro único (comportamiento de
+// siempre). Los IMPORTES no vienen del cliente: se calculan aquí, porque
+// aceptarlos permitiría facturar 100 000 y programar cuotas por 10.
+export interface PlanCuotas {
+  cuotas: number
+  periodicidad: PeriodicidadCuota
+  primerVencimiento: string // ISO date
+}
+
+
+export async function generarFactura(
+  campanaId: string,
+  plazoDias: 60 | 90 | 120,
+  plan?: PlanCuotas | null,
+) {
   const c = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!c) throw new FacturaError('Campaña no encontrada')
   // Candado por segmento (A-2): la MISMA regla que usa la UI (derive.ts). Una
@@ -183,11 +201,33 @@ export async function generarFactura(campanaId: string, plazoDias: 60 | 90 | 120
       if ((e as { code?: string })?.code === '23505') throw new FacturaError('La campaña ya tiene factura')
       throw e
     }
-    await client.query(
-      `insert into cobranzas (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado, tenant_id)
-       values ($1,$2, current_date + $2::int, 'AL_CORRIENTE', 0, $3)`,
-      [fac.id, plazoDias, await tenantActual()],
-    )
+    const tId = await tenantActual()
+    if (plan && plan.cuotas > 1) {
+      const importes = repartirCuotas(total, plan.cuotas)
+      // Guardarraíl del invariante: si el reparto no cuadra con la factura, se
+      // aborta. Prefiero no facturar a dejar una cartera que no suma.
+      const suma = Math.round(importes.reduce((a, x) => a + x, 0) * 100) / 100
+      if (suma !== total) {
+        throw new FacturaError(`Las parcialidades suman ${suma} y la factura ${total}`)
+      }
+      const paso = DIAS_PERIODO[plan.periodicidad]
+      for (let i = 0; i < importes.length; i++) {
+        await client.query(
+          `insert into cobranzas
+             (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado,
+              numero, total_cuotas, monto, tenant_id)
+           values ($1,$2, $3::date + ($4::int * $5::int), 'AL_CORRIENTE', 0, $6, $7, $8, $9)`,
+          [fac.id, plazoDias, plan.primerVencimiento, paso, i, i + 1, importes.length, importes[i], tId],
+        )
+      }
+    } else {
+      // Cobro único: `numero`/`monto` en NULL, como todo el histórico.
+      await client.query(
+        `insert into cobranzas (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado, tenant_id)
+         values ($1,$2, current_date + $2::int, 'AL_CORRIENTE', 0, $3)`,
+        [fac.id, plazoDias, tId],
+      )
+    }
     await client.query(`update campanas set estado_comercial='COMPLETADA' where id=$1`, [campanaId])
     await client.query('commit')
     return rowToFactura(fac)
@@ -206,7 +246,10 @@ export async function registrarPagoCobranza(cobranzaId: string, monto?: number |
   const cob = await q1<any>('select * from cobranzas where id=$1', [cobranzaId])
   if (!cob) return null
   const fac = await q1<any>('select monto, folio from facturas where id=$1', [cob.factura_id])
-  const total = Number(fac?.monto ?? 0)
+  // El total a cubrir es el de ESTA cobranza: si es una parcialidad, su propio
+  // importe; si es cobro único (histórico), el de la factura. Usar siempre el de
+  // la factura haría que abonar una cuota liquidara la factura entera.
+  const total = cob.monto != null ? Number(cob.monto) : Number(fac?.monto ?? 0)
   const yaPagado = Number(cob.monto_pagado ?? 0)
   const abono = monto != null && monto > 0 ? Math.min(monto, total - yaPagado) : total - yaPagado
   const nuevoPagado = Math.round((yaPagado + abono) * 100) / 100
@@ -215,7 +258,18 @@ export async function registrarPagoCobranza(cobranzaId: string, monto?: number |
     `update cobranzas set monto_pagado=$2, estatus = case when $3 then 'PAGADA'::est_cobranza else estatus end where id=$1`,
     [cobranzaId, nuevoPagado, liquidado],
   )
-  if (liquidado) await q(`update facturas set estatus='PAGADA' where id=$1`, [cob.factura_id])
+  // La factura queda PAGADA solo cuando no le queda ninguna parcialidad viva.
+  // Con cobro único es equivalente a lo de antes; con parcialidades, marcarla al
+  // liquidar la primera daría por cobrado lo que no se ha cobrado.
+  if (liquidado) {
+    const vivas = await q1<{ n: string }>(
+      `select count(*)::text as n from cobranzas where factura_id=$1 and estatus <> 'PAGADA'`,
+      [cob.factura_id],
+    )
+    if (Number(vivas?.n ?? 0) === 0) {
+      await q(`update facturas set estatus='PAGADA' where id=$1`, [cob.factura_id])
+    }
+  }
   return {
     ...rowToCobranza((await q('select * from cobranzas where id=$1', [cobranzaId]))[0]),
     folio: fac?.folio ?? null,

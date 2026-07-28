@@ -386,11 +386,21 @@ export async function marcarOCApi(campanaId: string, ocUrl?: string): Promise<vo
 }
 
 // ─── Finanzas (facturación + cobranza) ──────────────────────────────────────
-export async function generarFacturaApi(campanaId: string, plazoDias: 60 | 90 | 120): Promise<void> {
+export interface PlanCuotasApi {
+  cuotas: number
+  periodicidad: 'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL'
+  primerVencimiento: string
+}
+
+export async function generarFacturaApi(
+  campanaId: string,
+  plazoDias: 60 | 90 | 120,
+  plan?: PlanCuotasApi | null,
+): Promise<void> {
   const r = await fetch(`${API}/campanas/${campanaId}/facturar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plazoDias }),
+    body: JSON.stringify({ plazoDias, plan: plan ?? null }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la factura')

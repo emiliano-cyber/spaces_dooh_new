@@ -619,6 +619,12 @@ export interface Cobranza {
   recordatorioEn: string | null // último recordatorio de cobro enviado (null = ninguno)
   recordatoriosEnviados: number // cuántos recordatorios se han enviado
   creadoEn: string
+  // Cobro en parcialidades: `numero` de N y el importe DE ESTA cuota. Null en
+  // las tres = cobro único (histórico), y entonces el importe es el de la
+  // factura. Ver docs/diseno-cobro-en-parcialidades.md.
+  numero?: number | null
+  totalCuotas?: number | null
+  monto?: number | null
 }
 
 // ─── Estado raíz del store ──────────────────────────────────────────────────
