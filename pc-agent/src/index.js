@@ -1,0 +1,217 @@
+// pc-agent/src/index.js
+// Agente de PC para sitios con camara IP fija (HiLook / Hikvision) en lugar de
+// telefono. Corre en la PC del sitio, que es quien alcanza a la camara en la red
+// local, y se presenta ante el backend como un equipo mas.
+//
+// La programacion de fotos NO vive aqui: el scheduleWorker del backend inserta
+// comandos TAKE_PHOTO igual que para los telefonos y este agente los obedece.
+// Por eso los horarios se configuran en el dashboard, sin tocar la PC.
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const crypto = require('crypto');
+const { io } = require('socket.io-client');
+const { Camara } = require('./camera');
+const { Api } = require('./api');
+
+const VERSION = '1.0.0';
+const RAIZ = path.join(__dirname, '..');
+const RUTA_CONFIG = process.env.SPACEEYE_CONFIG || path.join(RAIZ, 'config.json');
+const RUTA_ESTADO = path.join(RAIZ, 'state.json');
+
+const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
+const log = (...a) => console.log(`[${ahora()}]`, ...a);
+const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function cargarConfig() {
+  if (!fs.existsSync(RUTA_CONFIG)) {
+    console.error(`No encuentro la configuracion en ${RUTA_CONFIG}.`);
+    console.error('Copia config.example.json a config.json y llena los datos.');
+    process.exit(1);
+  }
+  const cfg = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8'));
+  for (const campo of ['server_url', 'camara']) {
+    if (!cfg[campo]) { console.error(`Falta "${campo}" en config.json`); process.exit(1); }
+  }
+  for (const campo of ['host', 'usuario', 'clave']) {
+    if (!cfg.camara[campo]) { console.error(`Falta "camara.${campo}" en config.json`); process.exit(1); }
+  }
+  return cfg;
+}
+
+// El device_uid debe ser ESTABLE: si cambia, el backend crea un equipo nuevo y se
+// pierde el historial del sitio. Se genera una vez y se guarda en disco.
+function cargarEstado() {
+  if (fs.existsSync(RUTA_ESTADO)) {
+    try { return JSON.parse(fs.readFileSync(RUTA_ESTADO, 'utf8')); } catch { /* se regenera */ }
+  }
+  return {};
+}
+
+function guardarEstado(estado) {
+  fs.writeFileSync(RUTA_ESTADO, JSON.stringify(estado, null, 2));
+}
+
+function uidEstable(estado, cfg) {
+  if (estado.device_uid) return estado.device_uid;
+  // Derivado del hostname + la camara: reinstalar el agente en la misma PC y con
+  // la misma camara reutiliza el equipo en lugar de duplicarlo.
+  const semilla = `${os.hostname()}|${cfg.camara.host}|${cfg.camara.canal || 101}`;
+  estado.device_uid = 'pc-' + crypto.createHash('sha256').update(semilla).digest('hex').slice(0, 24);
+  guardarEstado(estado);
+  return estado.device_uid;
+}
+
+function telemetriaPc(camaraViva) {
+  const libreMb = (() => {
+    try { return Math.round(fs.statfsSync(RAIZ).bavail * fs.statfsSync(RAIZ).bsize / 1048576); }
+    catch { return undefined; }
+  })();
+  return {
+    // La PC no tiene bateria; el backend exige el campo, asi que se reporta
+    // "conectada a corriente" para que el dashboard no la marque en riesgo.
+    battery_pct: 100,
+    battery_charging: true,
+    network_type: 'ETHERNET',
+    network_operator: camaraViva ? 'CAMARA OK' : 'CAMARA SIN RESPUESTA',
+    storage_free_mb: libreMb,
+    ram_free_mb: Math.round(os.freemem() / 1048576),
+    uptime_seconds: Math.round(os.uptime()),
+  };
+}
+
+async function main() {
+  const cfg = cargarConfig();
+  const estado = cargarEstado();
+  const camara = new Camara(cfg.camara);
+  const api = new Api(cfg.server_url);
+
+  const intervaloEstado = (cfg.intervalo_estado_seg || 60) * 1000;
+  const intervaloSondeo = (cfg.intervalo_sondeo_seg || 30) * 1000;
+
+  log(`SPACE EYE — agente de PC v${VERSION}`);
+  log(`servidor: ${cfg.server_url}`);
+  log(`camara:   ${cfg.camara.host}:${cfg.camara.puerto || 80} (canal ${cfg.camara.canal || 101})`);
+
+  // --- registro ---
+  const uid = uidEstable(estado, cfg);
+  const info = await camara.infoDispositivo();
+  if (info) log(`camara detectada: ${info.modelo || '?'} fw ${info.firmware || '?'}`);
+  else log('AVISO: no pude leer los datos de la camara (revisa IP, usuario y clave).');
+
+  const reg = await api.registrar({
+    device_uid: uid,
+    app_version: `pc-agent ${VERSION}`,
+    model: info?.modelo || cfg.camara.modelo || 'Camara IP',
+    manufacturer: 'HiLook/Hikvision',
+    os_version: `${os.type()} ${os.release()}`,
+  });
+  estado.device_id = reg.device_id;
+  guardarEstado(estado);
+  log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
+  api.log('info', 'startup', `Agente de PC v${VERSION} iniciado en ${os.hostname()}`);
+
+  const enCurso = new Set();
+
+  async function tomarYSubir(cmd) {
+    if (enCurso.has(cmd.id)) return;
+    enCurso.add(cmd.id);
+    const t0 = Date.now();
+    try {
+      const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+      const jpeg = await camara.tomarFoto();
+      await api.subirFoto(jpeg, {
+        taken_at: new Date().toISOString(),
+        command_id: cmd.id,
+        schedule_id: cmd.schedule_id || payload.schedule_id,
+        campaign_id: payload.campaign_id,
+        // Si el comando viene de un horario, cuenta como programada.
+        source: (cmd.schedule_id || payload.schedule_id) ? 'scheduled' : 'on_demand',
+      });
+      await api.resultadoComando(cmd.id, true, { bytes: jpeg.length, ms: Date.now() - t0 });
+      log(`foto subida (comando ${cmd.id}, ${Math.round(jpeg.length / 1024)} KB, ${Date.now() - t0} ms)`);
+    } catch (e) {
+      log(`ERROR al tomar/subir la foto (comando ${cmd.id}): ${e.message}`);
+      await api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500)).catch(() => {});
+      api.log('error', 'photo', `No se pudo capturar: ${e.message}`);
+    } finally {
+      enCurso.delete(cmd.id);
+    }
+  }
+
+  async function atender(cmd) {
+    switch (cmd.command_type) {
+      case 'TAKE_PHOTO':
+        return tomarYSubir(cmd);
+      case 'START_STREAM':
+      case 'STOP_STREAM':
+        // La vista en vivo de una camara IP necesita convertir RTSP a WebRTC, que
+        // es una pieza aparte. Se responde para que el comando no quede colgado.
+        return api.resultadoComando(cmd.id, false, null, 'vista en vivo no disponible en el agente de PC');
+      case 'REBOOT_APP':
+        log('reinicio solicitado desde el dashboard');
+        await api.resultadoComando(cmd.id, true);
+        return process.exit(0); // el servicio de Windows lo vuelve a levantar
+      default:
+        return api.resultadoComando(cmd.id, true, { ignorado: cmd.command_type });
+    }
+  }
+
+  // --- comandos en vivo por socket.io (igual que los telefonos) ---
+  const socket = io(`${cfg.server_url}/devices`, {
+    auth: { token: api.token },
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelayMax: 30000,
+  });
+  socket.on('connect', () => log('socket conectado'));
+  socket.on('disconnect', (r) => log(`socket desconectado (${r})`));
+  socket.on('connect_error', (e) => log(`socket error: ${e.message}`));
+  socket.on('command', (cmd) => {
+    log(`comando recibido: ${cmd.command_type} (${cmd.id})`);
+    socket.emit('command_ack', { command_id: cmd.id });
+    atender(cmd);
+  });
+
+  // --- sondeo de respaldo: si el socket se cayo, los comandos igual llegan ---
+  (async function sondear() {
+    for (;;) {
+      try {
+        const { commands } = await api.comandosPendientes();
+        for (const c of commands || []) await atender(c);
+      } catch (e) {
+        if (e.status === 401) {
+          log('token rechazado; volviendo a registrar...');
+          try { await api.registrar({
+            device_uid: uid, app_version: `pc-agent ${VERSION}`,
+            model: info?.modelo || 'Camara IP', manufacturer: 'HiLook/Hikvision',
+            os_version: `${os.type()} ${os.release()}`,
+          }); } catch { /* reintenta en el siguiente ciclo */ }
+        }
+      }
+      await dormir(intervaloSondeo);
+    }
+  })();
+
+  // --- telemetria periodica: mantiene el equipo "en linea" en el dashboard ---
+  (async function reportar() {
+    for (;;) {
+      try {
+        const viva = await camara.estaViva();
+        await api.reportarEstado(telemetriaPc(viva));
+        if (!viva) api.log('warning', 'camera', 'La camara no responde en la red local');
+      } catch (e) {
+        log(`no pude reportar estado: ${e.message}`);
+      }
+      await dormir(intervaloEstado);
+    }
+  })();
+
+  log('agente listo; esperando comandos del dashboard');
+}
+
+process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message || e));
+main().catch((e) => {
+  log('ERROR FATAL:', e.message);
+  process.exit(1);
+});

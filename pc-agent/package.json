@@ -1,0 +1,17 @@
+{
+  "name": "spaceeye-pc-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agente de PC para sitios con camara IP fija (HiLook/Hikvision) en lugar de telefono",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "probar-camara": "node src/probar-camara.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.7.5"
+  }
+}
