@@ -5,6 +5,63 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-28
+
+- **El sistema ya vive en https://demo.space-os.io.** Se acabó entrar por la IP:
+  cualquier acceso por `209.97.146.136` redirige de forma permanente al dominio,
+  conservando la ruta, así que los enlaces guardados siguen funcionando.
+  Certificado válido de Let's Encrypt (renovación automática comprobada), HTTP/2
+  y compresión. Los enlaces de recuperar contraseña ya apuntan al dominio y no a
+  la IP, y la cookie de sesión viaja marcada como `Secure`: solo por HTTPS.
+  Procedimiento completo y cómo revertirlo en `docs/runbook-dominio-https.md`.
+  - *Pendiente:* Cloudflare sigue sin hacer de proxy (nube gris). Al activarlo
+    hay que ejecutar `infra/nginx/cloudflare-realip.sh`; si no, todas las visitas
+    parecerán venir de una misma IP y el décimo intento de acceso fallido de
+    cualquiera bloquearía el ingreso de todos durante 5 minutos.
+- **Renombrar la organización queda reservado al Dueño.** Antes bastaba con el
+  permiso de Administración, que se puede conceder a otros roles sin tocar
+  código; el nombre identifica al negocio en toda la aplicación, así que ahora
+  depende del rol y no de un permiso configurable. La bitácora registra el
+  cambio completo ("nombre anterior → nombre nuevo") en vez de solo el nuevo.
+- **La renta al propietario se captura al crear la propuesta.** Cierra el hueco
+  que dejó el contrato incompleto: se indica a quién se le paga, cuánto y cada
+  cuánto (mensual, anual…), y el contrato nace **completo** con la campaña en vez
+  de como pendiente. El costo se conoce desde la venta, se muestra el equivalente
+  mensual mientras se escribe, y se genera el calendario de pagos con **todas las
+  cuotas pendientes** — nada se marca como pagado hasta que alguien lo registra.
+  - *Se autocompleta y respeta lo ya pactado:* si el **inmueble** ya tiene
+    contrato no se pregunta nada (la renta se pacta por predio y se reparte entre
+    sus pantallas); solo se muestra el importe vigente. Y cuando sí hay que
+    capturarla, los campos llegan propuestos con lo que ya se sabe de esa
+    pantalla, así que la segunda vez que se vende el sistema recuerda. *Nota:* las
+    pantallas actuales sin contrato no tienen ningún dato previo, así que la
+    primera captura sigue siendo manual.
+- **Los pagos de renta también en Finanzas.** El calendario de lo que hay que
+  pagar a los propietarios solo vivía en Arrendadores, un módulo al que Finanzas
+  no tiene acceso, aunque es dinero que sale con vencimiento. Ahora aparece en
+  las dos pantallas: en Finanzas como "Renta por pagar a propietarios", con lo
+  vencido primero y el total pendiente a la vista. Finanzas lo ve en modo
+  lectura; registrar el pago sigue siendo de Arrendadores.
+- **"Olvidé mi contraseña" desactivado temporalmente.** El envío de correo no
+  está configurado, así que quien lo usaba recibía "revisa tu bandeja" y no le
+  llegaba nada. Se ocultó el enlace y se cerraron los endpoints. *Consecuencia a
+  tener presente:* quien olvide su contraseña queda fuera hasta que un
+  administrador se la reponga — delicado en organizaciones con un solo Dueño.
+  Se reactiva con una variable, sin revertir código.
+- **El botón para contraer el menú vuelve arriba**, en la cabecera de la barra
+  lateral, alineado con la barra superior. Con el menú contraído la cabecera
+  muestra solo ese botón: es la única forma de volver a expandirlo.
+- **Todo lo anterior, más lo del 27 de julio, quedó desplegado en producción.**
+  Con respaldo de la base tomado y verificado antes. El efecto visible: se
+  abrieron **14 contratos incompletos** — 10 en la organización *demo g500* y 4
+  en *eyro*. No son un error: son pantallas que se estaban vendiendo sin
+  constancia de qué se le paga a su propietario, y hasta ahora contaban con costo
+  cero, inflando el margen. Aparecen en Arrendadores con alerta y diciendo en qué
+  campaña se vendió cada una.
+  - *Pendiente, y es lo que da valor al cambio:* definir quién completa esos 14
+    contratos y en qué plazo. Mientras sigan vacíos, el costo real de esas
+    pantallas se desconoce.
+
 ## 2026-07-27
 
 - **Contrato de arrendamiento incompleto al vender una pantalla.** Hasta ahora se
