@@ -353,10 +353,9 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     unidad: modalidadesDe(s)[0].unidad,
     cantidadManual: 1,
     spotsPorDia: '',
-    rentaMonto: '',
-    rentaPeriodicidad: 'MENSUAL',
-    // Si la pantalla ya tiene propietario asignado, se propone ese.
-    rentaArrendadorId: s.arrendadorId ?? '',
+    ...(({ monto, per, arr }) => ({
+      rentaMonto: monto, rentaPeriodicidad: per, rentaArrendadorId: arr,
+    }))(rentaPrevia(s)),
   }
   const tarifaDe = (s: any, unidad: Unidad): number =>
     modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
@@ -371,11 +370,47 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const c = cfgDe(s)
     return precioItem(tarifaDe(s, c.unidad), cantidadDe(s))
   }
-  // ¿La pantalla ya tiene contrato? Si lo tiene, no se pregunta la renta: el
-  // importe pactado manda. Un contrato INCOMPLETO no cuenta como tal — es
-  // justamente el hueco que esta captura viene a cerrar.
-  const tieneContrato = (sitioId: string) =>
-    (contratos ?? []).some((c) => c.sitioId === sitioId && c.estatus !== 'INCOMPLETO' && c.estatus !== 'CANCELADO')
+  // Contrato REAL que ya cubre esa pantalla. Ojo: la renta se pacta por INMUEBLE
+  // y se reparte entre las pantallas del predio (derive.ts ·
+  // rentaAtribuidaPorSitio), así que hay que mirar también el contrato del
+  // predio — buscar solo por sitio_id haría que a una pantalla cuyo predio ya
+  // tiene contrato se le volviera a pedir la renta, invitando a contradecir lo
+  // pactado. Un contrato INCOMPLETO no cuenta: es el hueco que esto viene a
+  // cerrar.
+  const contratoVigenteDe = (s: any) =>
+    (contratos ?? []).find(
+      (c) =>
+        (c.sitioId === s.id || (s.predioId && c.predioId === s.predioId)) &&
+        c.estatus !== 'INCOMPLETO' &&
+        c.estatus !== 'CANCELADO',
+    )
+  const tieneContrato = (s: any) => !!contratoVigenteDe(s)
+
+  // Autollenado de la renta, por orden de fiabilidad:
+  //   1. Lo ya capturado en su propio contrato incompleto (alguien avanzó).
+  //   2. Los campos directos del sitio (renta_arrendador/periodicidad_renta):
+  //      están DEPRECADOS a favor del contrato, pero siguen con datos en varias
+  //      pantallas y es mejor proponerlos que dejar el campo vacío.
+  //   3. Vacío, con el arrendador del sitio si lo tiene.
+  // Siempre es una PROPUESTA editable: nada se guarda sin que el usuario lo vea.
+  const rentaPrevia = (s: any): { monto: string; per: string; arr: string } => {
+    const inc = (contratos ?? []).find((c) => c.sitioId === s.id && c.estatus === 'INCOMPLETO')
+    if (inc?.montoRenta != null) {
+      return {
+        monto: String(inc.montoRenta),
+        per: inc.periodicidad ?? 'MENSUAL',
+        arr: inc.arrendadorId ?? s.arrendadorId ?? '',
+      }
+    }
+    if (s.rentaArrendador != null && Number(s.rentaArrendador) > 0) {
+      return {
+        monto: String(s.rentaArrendador),
+        per: String(s.periodicidadRenta ?? 'MENSUAL').toUpperCase(),
+        arr: s.arrendadorId ?? '',
+      }
+    }
+    return { monto: '', per: 'MENSUAL', arr: s.arrendadorId ?? '' }
+  }
 
   // Renta capturada a medias: hay importe pero falta el propietario (o al revés).
   // Con eso el contrato no puede nacer completo.
@@ -714,7 +749,24 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         contradecirlo. Capturarla hace que el contrato nazca
                         completo con la campaña (ADR 0001); si se deja vacía,
                         nace como pendiente igual que hasta ahora. */}
-                    {!tieneContrato(s.id) && (
+                    {tieneContrato(s) && (() => {
+                      // La renta ya está pactada: se muestra para que el
+                      // comercial vea el costo, pero no se pide ni se toca.
+                      const cv = contratoVigenteDe(s)!
+                      const mes = Math.round((cv.montoRenta ?? 0) * (A_MENSUAL[cv.periodicidad ?? 'MENSUAL'] ?? 1))
+                      return (
+                        <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
+                          <span className="font-medium">Renta al propietario</span>
+                          <span className="text-ink">
+                            {formatMonto(cv.montoRenta ?? 0)} {String(cv.periodicidad ?? '').toLowerCase()}
+                          </span>
+                          <span className="ml-auto">
+                            ya pactada en el contrato{cv.predioId ? ' del predio' : ''} · costo {formatMonto(mes)}/mes
+                          </span>
+                        </div>
+                      )
+                    })()}
+                    {!tieneContrato(s) && (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
                         <span className="text-[11px] font-medium text-muted">Renta al propietario</span>
                         <select
