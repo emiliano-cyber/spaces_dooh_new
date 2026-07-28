@@ -20,6 +20,9 @@ const UNIDADES_VALIDAS = UNIDADES.map((u) => u.unidad) as [Unidad, ...Unidad[]]
 // Campos numéricos opcionales: el front manda `null` cuando no aplican (p. ej.
 // spots/día vacío), así que van con `.nullish()` — `.optional()` solo aceptaría
 // `undefined` y `z.coerce.number()` convertiría null→0, fallando en `.positive()`.
+// Mismo enum que `periodicidad_pago` en la BD y que arrendadores-controller.
+const PERIODICIDADES_RENTA = ['SEMANAL', 'CATORCENAL', 'QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'] as const
+
 const itemSchema = z.object({
   sitioId: z.string().min(1),
   unidad: z.enum(UNIDADES_VALIDAS).optional(),
@@ -30,6 +33,12 @@ const itemSchema = z.object({
   spotsPorDia: z.coerce.number().int().positive().nullish(),
   // Precio directo (compatibilidad hacia atrás / propuestas sin unidad).
   precio: z.coerce.number().nonnegative().nullish(),
+  // Renta que se le paga al PROPIETARIO por esta pantalla (el costo). Capturarla
+  // aquí hace que el contrato nazca completo al generar la campaña, en vez de
+  // como pendiente sin importe (ADR 0001). Opcional: sin ella todo sigue igual.
+  rentaMonto: z.coerce.number().nonnegative().nullish(),
+  rentaPeriodicidad: z.enum(PERIODICIDADES_RENTA).nullish(),
+  rentaArrendadorId: z.string().uuid().nullish(),
 })
 
 const crearSchema = z
@@ -64,6 +73,11 @@ export async function crearPropuestaCtrl(body: unknown) {
         cantidad: 1,
         spotsPorDia: it.spotsPorDia ?? null,
         precio,
+        // Renta al propietario: se propaga tal cual; el repo la normaliza a
+        // null si falta importe o periodicidad (el CHECK los exige juntos).
+        rentaMonto: it.rentaMonto ?? null,
+        rentaPeriodicidad: it.rentaPeriodicidad ?? null,
+        rentaArrendadorId: it.rentaArrendadorId ?? null,
       }
     }
     const cantidad = cantidadEfectiva(it.unidad, d.fechaInicio, d.fechaFin, it.cantidad)
@@ -74,6 +88,11 @@ export async function crearPropuestaCtrl(body: unknown) {
       cantidad,
       spotsPorDia: it.spotsPorDia ?? null,
       precio: precioItem(it.tarifaUnitaria, cantidad),
+      // Renta al propietario: se propaga tal cual; el repo la normaliza a
+      // null si falta importe o periodicidad (el CHECK los exige juntos).
+      rentaMonto: it.rentaMonto ?? null,
+      rentaPeriodicidad: it.rentaPeriodicidad ?? null,
+      rentaArrendadorId: it.rentaArrendadorId ?? null,
     }
   })
 

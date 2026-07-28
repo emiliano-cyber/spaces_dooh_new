@@ -16,6 +16,8 @@ import {
   useClientes,
   useSitios,
   useCampanas,
+  useContratos,
+  useArrendadores,
   formatMonto,
   formatMontoCorto,
   type Propuesta,
@@ -35,6 +37,27 @@ import {
   fechaFinDesde,
   type Unidad,
 } from '@/lib/periodos'
+
+// Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD).
+// Las dos primeras son las que se usan casi siempre; el resto están porque el
+// contrato con el propietario puede pactarse en cualquiera de ellas.
+const PERIODICIDADES_RENTA = [
+  { value: 'MENSUAL', label: 'Mensual' },
+  { value: 'ANUAL', label: 'Anual' },
+  { value: 'SEMANAL', label: 'Semanal' },
+  { value: 'CATORCENAL', label: 'Catorcenal' },
+  { value: 'QUINCENAL', label: 'Quincenal' },
+  { value: 'BIMESTRAL', label: 'Bimestral' },
+  { value: 'TRIMESTRAL', label: 'Trimestral' },
+  { value: 'SEMESTRAL', label: 'Semestral' },
+] as const
+
+// Equivalencia a mensual, igual que en el P&L (derive.ts · rentaAMensual): un
+// contrato anual de 60 000 cuesta 5 000/mes.
+const A_MENSUAL: Record<string, number> = {
+  SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
+  BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
+}
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -252,6 +275,10 @@ function PropuestaCard({
 function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const clientes = useClientes()
   const sitios = useSitios()
+  // Para la captura de renta: saber qué pantalla ya tiene contrato y a qué
+  // propietarios se puede asignar.
+  const contratos = useContratos()
+  const arrendadores = useArrendadores()
   const [clienteId, setClienteId] = useState('')
   const [agenciaId, setAgenciaId] = useState('')
   const [nombre, setNombre] = useState('')
@@ -302,7 +329,13 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   // Configuración por sitio: unidad de contratación, cantidad manual (spot/hora)
   // y programación de spots/día. Todo por sitioId; los que no estén aquí usan su
   // primera modalidad publicada (o mensual).
-  type CfgSitio = { unidad: Unidad; cantidadManual: number; spotsPorDia: string }
+  // `renta*`: lo que se le paga al PROPIETARIO por esa pantalla (el costo).
+  // Capturarlo aquí hace que el contrato nazca completo al generar la campaña,
+  // en vez de como pendiente sin importe (ADR 0001).
+  type CfgSitio = {
+    unidad: Unidad; cantidadManual: number; spotsPorDia: string
+    rentaMonto: string; rentaPeriodicidad: string; rentaArrendadorId: string
+  }
   const [cfg, setCfg] = useState<Record<string, CfgSitio>>({})
 
   // Modalidades publicadas de un sitio: [{unidad, tarifa}]. Si no tiene, ofrece
@@ -320,6 +353,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     unidad: modalidadesDe(s)[0].unidad,
     cantidadManual: 1,
     spotsPorDia: '',
+    rentaMonto: '',
+    rentaPeriodicidad: 'MENSUAL',
+    // Si la pantalla ya tiene propietario asignado, se propone ese.
+    rentaArrendadorId: s.arrendadorId ?? '',
   }
   const tarifaDe = (s: any, unidad: Unidad): number =>
     modalidadesDe(s).find((m) => m.unidad === unidad)?.tarifa ?? modalidadesDe(s)[0].tarifa
@@ -334,9 +371,27 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const c = cfgDe(s)
     return precioItem(tarifaDe(s, c.unidad), cantidadDe(s))
   }
+  // ¿La pantalla ya tiene contrato? Si lo tiene, no se pregunta la renta: el
+  // importe pactado manda. Un contrato INCOMPLETO no cuenta como tal — es
+  // justamente el hueco que esta captura viene a cerrar.
+  const tieneContrato = (sitioId: string) =>
+    (contratos ?? []).some((c) => c.sitioId === sitioId && c.estatus !== 'INCOMPLETO' && c.estatus !== 'CANCELADO')
+
+  // Renta capturada a medias: hay importe pero falta el propietario (o al revés).
+  // Con eso el contrato no puede nacer completo.
+  const rentaIncompleta = (s: any) => {
+    const c = cfgDe(s)
+    const monto = Number(c.rentaMonto) || 0
+    return (monto > 0 && !c.rentaArrendadorId) || (monto <= 0 && !!c.rentaArrendadorId)
+  }
+  const rentaMensualDe = (s: any) => {
+    const c = cfgDe(s)
+    return Math.round((Number(c.rentaMonto) || 0) * (A_MENSUAL[c.rentaPeriodicidad] ?? 1))
+  }
+
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
     const s = (sitios ?? []).find((x) => x.id === id)
-    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '' }
+    const base = s ? cfgDe(s) : { unidad: 'mensual' as Unidad, cantidadManual: 1, spotsPorDia: '', rentaMonto: '', rentaPeriodicidad: 'MENSUAL', rentaArrendadorId: '' }
     setCfg((prev) => ({ ...prev, [id]: { ...base, ...prev[id], ...patch } }))
   }
 
@@ -375,6 +430,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         items: seleccionados.map((s) => {
           const c = cfgDe(s)
           const spots = parseInt(c.spotsPorDia, 10)
+          const renta = Number(c.rentaMonto) || 0
           return {
             sitioId: s.id,
             unidad: c.unidad,
@@ -382,6 +438,12 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
             // Solo relevante para spot/hora; el servidor la ignora en unidades de tiempo.
             cantidad: c.cantidadManual,
             spotsPorDia: Number.isFinite(spots) && spots > 0 ? spots : null,
+            // Renta al propietario. Solo viaja si hay importe: el servidor exige
+            // importe y periodicidad juntos, y sin arrendador el contrato no
+            // puede salir de INCOMPLETO.
+            rentaMonto: renta > 0 ? renta : null,
+            rentaPeriodicidad: renta > 0 ? c.rentaPeriodicidad : null,
+            rentaArrendadorId: renta > 0 && c.rentaArrendadorId ? c.rentaArrendadorId : null,
           }
         }),
       })
@@ -645,6 +707,54 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       <span className="w-24 text-center text-[11px] text-muted" title="Las pantallas fijas no manejan spots">Fija · sin spots</span>
                     )}
                     <span className="demo-num w-24 text-right font-medium text-ink">{formatMonto(precioDe(s))}</span>
+
+                    {/* Renta al propietario (el COSTO). Solo se pide para las
+                        pantallas que aún no tienen contrato: si ya lo tienen, el
+                        importe pactado manda y preguntarlo aquí invitaría a
+                        contradecirlo. Capturarla hace que el contrato nazca
+                        completo con la campaña (ADR 0001); si se deja vacía,
+                        nace como pendiente igual que hasta ahora. */}
+                    {!tieneContrato(s.id) && (
+                      <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
+                        <span className="text-[11px] font-medium text-muted">Renta al propietario</span>
+                        <select
+                          className="h-8 min-w-[9rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                          value={c.rentaArrendadorId}
+                          onChange={(e) => setCfgSitio(s.id, { rentaArrendadorId: e.target.value })}
+                          title="A quién se le paga"
+                        >
+                          <option value="">Propietario…</option>
+                          {(arrendadores ?? []).map((a) => (
+                            <option key={a.id} value={a.id}>{a.nombre}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="importe"
+                          className="h-8 w-28 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                          value={c.rentaMonto}
+                          onChange={(e) => setCfgSitio(s.id, { rentaMonto: e.target.value })}
+                        />
+                        <select
+                          className="h-8 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
+                          value={c.rentaPeriodicidad}
+                          onChange={(e) => setCfgSitio(s.id, { rentaPeriodicidad: e.target.value })}
+                          title="Cada cuándo se paga"
+                        >
+                          {PERIODICIDADES_RENTA.map((x) => (
+                            <option key={x.value} value={x.value}>{x.label}</option>
+                          ))}
+                        </select>
+                        <span className="flex-1 text-right text-[11px] text-muted">
+                          {rentaIncompleta(s)
+                            ? 'Falta propietario o importe: el contrato nacerá pendiente'
+                            : Number(c.rentaMonto) > 0
+                              ? `Costo ${formatMonto(rentaMensualDe(s))}/mes`
+                              : 'Opcional · sin esto el contrato nace pendiente'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}

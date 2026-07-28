@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -540,16 +541,33 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       // El contrato nace cubriendo el periodo que se vendió: de la fecha de
       // inicio a la de fin del ítem. Así el pendiente ya dice CUÁNTO tiempo hay
       // que cubrir, no solo desde cuándo.
+      //
+      // Si la propuesta capturó la renta (arrendador + importe + periodicidad),
+      // nace COMPLETO y vigente: el costo se conoce desde la venta y el margen
+      // deja de salir inflado. Si falta cualquiera de los tres, nace INCOMPLETO
+      // como hasta ahora — el CHECK `contrato_completo_ck` exige los cuatro
+      // datos para cualquier estatus que afirme un acuerdo real.
+      const rentaCompleta =
+        it.renta_monto != null && it.renta_periodicidad != null && it.renta_arrendador_id != null
       await client.query(
         `insert into contratos_arrendamiento
            (id, sitio_id, arrendador_id, fecha_inicio, fecha_fin, monto_renta,
             periodicidad, moneda, auto_renovable, estatus, tenant_id)
-         select gen_random_uuid(), $1, null, $2, $4, null, null,
+         select gen_random_uuid(), $1, $5, $2, $4, $6, $7::periodicidad_pago,
                 coalesce((select moneda from tenants where id=$3),'MXN'),
-                false, 'INCOMPLETO', $3
+                false, $8::est_contrato, $3
           where not exists (select 1 from contratos_arrendamiento c where c.sitio_id=$1)
          on conflict do nothing`,
-        [it.sitio_id, iso(it.fecha_inicio), await tenantActual(), iso(it.fecha_fin)],
+        [
+          it.sitio_id, iso(it.fecha_inicio), await tenantActual(), iso(it.fecha_fin),
+          rentaCompleta ? it.renta_arrendador_id : null,
+          rentaCompleta ? it.renta_monto : null,
+          rentaCompleta ? it.renta_periodicidad : null,
+          // VIGENTE y no POR_VENCER/VENCIDO: el barrido de mantenimiento
+          // (recomputarEstatusArrendadores) lo ajusta contra la fecha de hoy en
+          // la primera carga, así que no hay que duplicar aquí esa regla.
+          rentaCompleta ? 'VIGENTE' : 'INCOMPLETO',
+        ],
       )
       // Si el pendiente ya existía de una venta anterior y esta campaña va más
       // allá, se estira para seguir cubriendo lo vendido. Solo se toca el
@@ -563,6 +581,19 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
             and (fecha_fin is null or fecha_fin < $2::date)`,
         [it.sitio_id, iso(it.fecha_fin)],
       )
+
+      // Calendario de pagos de la renta. La campaña nace SIN PAGO REGISTRADO:
+      // se crean las cuotas que tocan según la periodicidad y ninguna se marca
+      // como pagada — eso solo ocurre cuando alguien lo registra a mano en
+      // Arrendadores o Finanzas. Idempotente (on conflict) y silencioso si el
+      // contrato aún está incompleto: sin importe no hay cuotas que calcular.
+      if (rentaCompleta) {
+        const { rows: cRows } = await client.query(
+          `select * from contratos_arrendamiento where sitio_id=$1 and estatus <> 'CANCELADO' limit 1`,
+          [it.sitio_id],
+        )
+        if (cRows[0]) await generarCalendarioDeContratoEnTx(client, cRows[0])
+      }
     }
     // La factura debe reproducir EXACTAMENTE lo que aceptó el cliente: base
     // (lista − descuento) + IVA, SIN prorrateo (la propuesta es un paquete, no
