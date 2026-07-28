@@ -17,7 +17,11 @@ const inputCls =
 export default function ConfiguracionPage() {
   const config = useConfigNegocio()
   const { sesion } = useSesionCtx()
-  const puedeEmpresa = usePuede('administracion', 'crear')
+  // Mismo criterio que el servidor (`/api/organizacion`): renombrar la empresa
+  // es exclusivo del Dueño, por ROL y no por permiso. Si aquí se usara solo
+  // `usePuede`, un rol con `administracion.crear` concedido vería el formulario
+  // y recibiría un 403 al guardar.
+  const puedeEmpresa = usePuede('administracion', 'crear') && sesion?.usuario.rol === 'DUENO'
 
   return (
     <div className="w-full max-w-2xl space-y-4">
