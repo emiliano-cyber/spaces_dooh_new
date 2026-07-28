@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { JetBrains_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { IndicadorCarga } from '@/components/demo/ui/IndicadorCarga'
 import './demo.css'
 
 // Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`demo-root ${jetbrains.variable} min-h-screen`}>
+      <IndicadorCarga />
       {children}
       <Toaster position="bottom-right" richColors closeButton expand />
     </div>
