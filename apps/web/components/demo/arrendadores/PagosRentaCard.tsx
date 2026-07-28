@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import { Button } from '@/components/demo/ui/Button'
 import { StatusBadge, PAGO_TONO, PAGO_LABEL } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { usePagosRenta, formatMonto, formatFecha } from '@/lib/data/client'
+import { usePagosRenta, useContratos, formatMonto, formatFecha } from '@/lib/data/client'
 import { registrarPagoRentaApi } from '@/lib/data/estado-api'
 
 // ============================================================================
@@ -33,6 +33,7 @@ export function PagosRentaCard({
   onToast?: (msg: string) => void
 }) {
   const pagos = usePagosRenta()
+  const contratos = useContratos()
   // Registrar el pago es una acción de Arrendadores. Quien solo tenga Finanzas
   // ve el calendario en modo lectura: puede planear la salida de dinero, pero no
   // dar por pagada la renta de un propietario.
@@ -52,6 +53,7 @@ export function PagosRentaCard({
     )
   }
 
+  const incompletos = (contratos ?? []).filter((c) => c.estatus === 'INCOMPLETO').length
   const visibles = soloPendientes ? pagos.filter((p) => p.estatus !== 'PAGADO') : pagos
   // Vencidos primero (es lo que urge), luego por fecha de vencimiento.
   const ordenados = [...visibles].sort(
@@ -89,9 +91,20 @@ export function PagosRentaCard({
       </CardHeader>
       <CardContent className="px-0 pb-0">
         {ordenados.length === 0 ? (
-          <p className="px-4 pb-4 text-[13px] text-muted">
-            {soloPendientes ? 'No hay rentas pendientes de pago.' : 'Sin pagos de renta registrados.'}
-          </p>
+          // Distinguir "no debes nada" de "no se sabe cuánto debes" es lo
+          // importante aquí: sin importe capturado no hay cuotas que calcular, y
+          // un "no hay pendientes" a secas se lee como que la renta está al día.
+          incompletos > 0 ? (
+            <p className="px-4 pb-4 text-[13px] text-muted">
+              No se puede calcular lo que hay que pagar: {incompletos} contrato
+              {incompletos === 1 ? '' : 's'} sin importe capturado. Complétalo en
+              Arrendadores y el calendario de pagos se genera solo.
+            </p>
+          ) : (
+            <p className="px-4 pb-4 text-[13px] text-muted">
+              {soloPendientes ? 'No hay rentas pendientes de pago.' : 'Sin pagos de renta registrados.'}
+            </p>
+          )
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px]">

@@ -36,6 +36,22 @@ La entrada más reciente va arriba.
     pantalla, así que la segunda vez que se vende el sistema recuerda. *Nota:* las
     pantallas actuales sin contrato no tienen ningún dato previo, así que la
     primera captura sigue siendo manual.
+- **En Finanzas ya se ve cuánto cuesta la renta al mes y el detalle de cada
+  contrato.** Faltaban dos cosas distintas. Primero, la vista de lo
+  **comprometido**: nueva tarjeta "Renta comprometida a propietarios" con lo que
+  se paga por cada pantalla, cada cuánto, hasta cuándo y —clave— su equivalente
+  mensual, que es lo que permite comparar y sumar un contrato anual con uno
+  mensual (60 000 al año = 5 000/mes). El total va arriba.
+  - *Y segundo, había contratos sin calendario de pagos.* Los anteriores a la
+    generación automática se habían quedado sin cuotas: en producción había 2
+    contratos vigentes y **cero** pagos registrados, así que la pantalla salía
+    vacía aunque el contrato existiera. Se generaron las cuotas de su vigencia
+    (26 en producción), con los periodos ya pasados marcados como vencidos.
+    Ninguna se marca como pagada: eso solo ocurre cuando alguien lo registra.
+  - *Cuando no hay importe capturado se dice.* Antes la pantalla mostraba "no
+    hay rentas pendientes", que se lee como que la renta está al día. Ahora
+    explica que no se puede calcular lo que hay que pagar porque faltan importes,
+    y que al completarlos en Arrendadores el calendario se genera solo.
 - **Los pagos de renta también en Finanzas.** El calendario de lo que hay que
   pagar a los propietarios solo vivía en Arrendadores, un módulo al que Finanzas
   no tiene acceso, aunque es dinero que sale con vencimiento. Ahora aparece en
