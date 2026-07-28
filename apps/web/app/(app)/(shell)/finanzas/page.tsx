@@ -16,6 +16,7 @@ import { cn } from '@/lib/cn'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
+import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
 import {
   useCampanasResumen,
   useFacturas,
@@ -234,6 +235,12 @@ export default function FinanzasPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Lo COMPROMETIDO: cuánto se paga por cada pantalla y cada cuánto, con
+          todo normalizado a mes para poder compararlo y sumarlo. Va antes que
+          las cuotas porque responde la pregunta de arriba: cuánto cuesta la
+          renta al mes. */}
+      <CompromisoRentaCard />
 
       {/* Renta a los propietarios: la otra mitad del flujo de caja. Cobranza
           es lo que ENTRA; esto es lo que SALE y cuándo vence. Mismo componente

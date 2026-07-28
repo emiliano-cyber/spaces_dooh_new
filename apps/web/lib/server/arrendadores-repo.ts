@@ -150,6 +150,7 @@ function rowToContrato(r: any) {
     predioId: r.predio_id ?? null,
     razonSocialId: r.razon_social_id ?? null,
     motivoCancelacion: r.motivo_cancelacion ?? null,
+    sitioNombre: r.sitio_nombre ?? null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -197,7 +198,16 @@ export async function crearArrendador(input: {
 }
 
 export async function listarContratos() {
-  const rows = await q('select * from contratos_arrendamiento where tenant_id = $1 order by creado_en asc', [await tenantActual()])
+  // `sitio_nombre` denormalizado: Finanzas ve los contratos (son compromisos de
+  // dinero) pero NO el inventario, así que sin esto no podría decir de qué
+  // pantalla es cada renta. Mismo criterio que en listarPagosRenta.
+  const rows = await q(
+    `select c.*, s.nombre as sitio_nombre
+       from contratos_arrendamiento c
+       left join sitios s on s.id = c.sitio_id
+      where c.tenant_id = $1 order by c.creado_en asc`,
+    [await tenantActual()],
+  )
   return rows.map(rowToContrato)
 }
 

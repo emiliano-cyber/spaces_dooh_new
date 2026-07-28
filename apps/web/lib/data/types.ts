@@ -325,6 +325,9 @@ export interface ContratoArrendamiento {
   razonSocialId?: string | null // razón social bajo la que se paga
   deposito?: number | null
   motivoCancelacion?: string | null
+  // Nombre de la pantalla, denormalizado en `listarContratos` (Finanzas ve los
+  // contratos pero no el inventario).
+  sitioNombre?: string | null
   creadoEn: string
 }
 

@@ -83,7 +83,7 @@ export async function GET() {
       si('imprenta', listarOrdenesImpresion),
       si('administracion', listarAcciones),
       si('arrendadores', listarArrendadores),
-      si('arrendadores', listarContratos),
+      siAlguno(['arrendadores', 'finanzas'], listarContratos),
       siAlguno(['arrendadores', 'finanzas'], listarPagosRenta),
       si('arrendadores', listarIncidencias),
       si('comercial', listarPropuestas),
