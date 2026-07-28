@@ -23,6 +23,16 @@ La entrada más reciente va arriba.
   código; el nombre identifica al negocio en toda la aplicación, así que ahora
   depende del rol y no de un permiso configurable. La bitácora registra el
   cambio completo ("nombre anterior → nombre nuevo") en vez de solo el nuevo.
+- **Aviso de carga en toda la aplicación.** Al guardar, aprobar, facturar o
+  registrar un pago no había ninguna señal de que el sistema estuviera
+  trabajando: la pantalla parecía congelada hasta que llegaba la respuesta. Ahora
+  una barra fina en el borde superior se enciende mientras haya alguna petición
+  en curso. Aparece solo si la espera se nota de verdad —las respuestas rápidas
+  no la disparan, porque un parpadeo se lee como un error— y no simula un
+  porcentaje de avance, que sería inventado. Respeta la preferencia del sistema
+  de reducir animaciones y se anuncia a los lectores de pantalla. Los avisos de
+  carga que ya había al abrir cada pantalla siguen igual; esto cubre el hueco de
+  las acciones.
 - **Una campaña ya se puede cobrar en parcialidades.** Hasta ahora se cobraba de
   una sola vez, con un plazo de 60/90/120 días; no había forma de pactar
   mensualidades, que es lo normal en contratos anuales. Al generar la factura hay
@@ -32,6 +42,15 @@ La entrada más reciente va arriba.
   redondeo**, de modo que siempre suman el total exacto de la factura. Cada
   parcialidad tiene su propio vencimiento y se cobra por separado; la factura
   solo queda saldada cuando se han pagado todas.
+  - *Cuotas anuales y semestrales,* además de quincenales, mensuales,
+    bimestrales y trimestrales. Una campaña de 24 meses se cobra en 2
+    anualidades y una de 36 en 3.
+  - *Los vencimientos ya no se desplazan.* Las cuotas avanzaban 30 días fijos en
+    vez de un mes real, así que doce mensualidades desde el 1 de septiembre caían
+    el 1, el 1, el 31, el 30… acumulando casi una semana de desfase y dando al
+    cliente fechas que no coincidían con lo pactado. Ahora respetan el día del
+    mes y ajustan los meses cortos: del 31 de enero pasan al 28 de febrero y al
+    31 de marzo.
   - *Alcance de esta versión:* cuotas iguales, plan decidido al facturar, sin
     complemento de pago (REP) y con aviso —no bloqueo— si una parcialidad vence.
     Un calendario libre (30 % al firmar, 70 % al cierre) o el timbrado del REP se
