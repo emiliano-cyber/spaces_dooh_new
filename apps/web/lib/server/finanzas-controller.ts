@@ -33,7 +33,7 @@ const facturaSchema = z.object({
   plan: z
     .object({
       cuotas: z.coerce.number().int().min(2, 'Mínimo 2 cuotas').max(36, 'Máximo 36 cuotas'),
-      periodicidad: z.enum(['QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL']),
+      periodicidad: z.enum(['QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']),
       primerVencimiento: z.string().min(1, 'Falta la fecha del primer vencimiento'),
     })
     .strict()

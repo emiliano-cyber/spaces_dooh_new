@@ -2,7 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
-import { repartirCuotas, DIAS_PERIODO, type PeriodicidadCuota } from '../finanzas-calculo'
+import { repartirCuotas, INTERVALO_PERIODO, type PeriodicidadCuota } from '../finanzas-calculo'
 import { notificar } from './notificaciones-repo'
 import { IGV_PCT } from './campanas-repo'
 import { candadoDeSegmentos } from '@/lib/data/derive'
@@ -210,13 +210,13 @@ export async function generarFactura(
       if (suma !== total) {
         throw new FacturaError(`Las parcialidades suman ${suma} y la factura ${total}`)
       }
-      const paso = DIAS_PERIODO[plan.periodicidad]
+      const paso = INTERVALO_PERIODO[plan.periodicidad]
       for (let i = 0; i < importes.length; i++) {
         await client.query(
           `insert into cobranzas
              (factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado,
               numero, total_cuotas, monto, tenant_id)
-           values ($1,$2, $3::date + ($4::int * $5::int), 'AL_CORRIENTE', 0, $6, $7, $8, $9)`,
+           values ($1,$2, ($3::date + ($5::int * $4::interval))::date, 'AL_CORRIENTE', 0, $6, $7, $8, $9)`,
           [fac.id, plazoDias, plan.primerVencimiento, paso, i, i + 1, importes.length, importes[i], tId],
         )
       }

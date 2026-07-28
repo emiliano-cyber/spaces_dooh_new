@@ -4,10 +4,26 @@
 //  aritmética de dinero y merece pruebas propias.
 // ============================================================================
 
-export type PeriodicidadCuota = 'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL'
+export type PeriodicidadCuota =
+  | 'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
 
-export const DIAS_PERIODO: Record<PeriodicidadCuota, number> = {
-  QUINCENAL: 15, MENSUAL: 30, BIMESTRAL: 60, TRIMESTRAL: 90,
+// Intervalo de PostgreSQL, no un número de días. Avanzar "30 días" no es avanzar
+// un mes: 12 cuotas mensuales desde el 1 de septiembre caían el 1, el 1, el 31,
+// el 30, el 30… porque cada salto se comía los meses de 31 días. Con
+// `interval '1 month'` Postgres respeta el día del mes y ajusta los cortos
+// (el 31 de enero + 1 mes = 28 de febrero).
+export const INTERVALO_PERIODO: Record<PeriodicidadCuota, string> = {
+  QUINCENAL: '15 days',
+  MENSUAL: '1 month',
+  BIMESTRAL: '2 months',
+  TRIMESTRAL: '3 months',
+  SEMESTRAL: '6 months',
+  ANUAL: '1 year',
+}
+
+export const PERIODICIDAD_LABEL: Record<PeriodicidadCuota, string> = {
+  QUINCENAL: 'quincenales', MENSUAL: 'mensuales', BIMESTRAL: 'bimestrales',
+  TRIMESTRAL: 'trimestrales', SEMESTRAL: 'semestrales', ANUAL: 'anuales',
 }
 
 // Reparte un total en n cuotas iguales SIN perder centavos: todas se redondean

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { dashboardMetrics, saldoCobranza } from './derive'
-import { repartirCuotas } from '../finanzas-calculo'
+import { repartirCuotas, INTERVALO_PERIODO, PERIODICIDAD_LABEL } from '../finanzas-calculo'
 
 // ============================================================================
 //  Cobro en parcialidades. Dos invariantes que sostienen la cartera:
@@ -99,5 +99,26 @@ describe('cartera del dashboard con parcialidades', () => {
     }
     const m = dashboardMetrics(baseState({ facturas: [factura], cobranzas: [unica] }))
     expect(m.porCobrar).toBe(120000)
+  })
+})
+
+describe('periodicidades de las cuotas', () => {
+  it('incluye anual y semestral, para campañas de 12 y 24 meses', () => {
+    expect(Object.keys(INTERVALO_PERIODO)).toContain('ANUAL')
+    expect(Object.keys(INTERVALO_PERIODO)).toContain('SEMESTRAL')
+  })
+
+  it('avanza por MESES reales, no por 30 días fijos', () => {
+    // Con "30 days" doce cuotas mensuales se desplazaban: 1 sep, 1 oct, 31 oct,
+    // 30 nov… Postgres con `1 month` respeta el día y ajusta los meses cortos.
+    expect(INTERVALO_PERIODO.MENSUAL).toBe('1 month')
+    expect(INTERVALO_PERIODO.ANUAL).toBe('1 year')
+    expect(INTERVALO_PERIODO.MENSUAL).not.toMatch(/day/)
+  })
+
+  it('toda periodicidad tiene etiqueta: el desplegable se genera de aquí', () => {
+    for (const k of Object.keys(INTERVALO_PERIODO)) {
+      expect(PERIODICIDAD_LABEL[k as keyof typeof PERIODICIDAD_LABEL]).toBeTruthy()
+    }
   })
 })

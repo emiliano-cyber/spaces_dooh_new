@@ -17,7 +17,7 @@ import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
-import { repartirCuotas } from '@/lib/finanzas-calculo'
+import { repartirCuotas, PERIODICIDAD_LABEL, type PeriodicidadCuota } from '@/lib/finanzas-calculo'
 import {
   useCampanasResumen,
   useFacturas,
@@ -310,7 +310,7 @@ function GenerarFacturaDialog({
   // una sola exhibición, y activarlo tiene que ser una decisión explícita.
   const [enCuotas, setEnCuotas] = useState(false)
   const [cuotas, setCuotas] = useState(12)
-  const [periodicidad, setPeriodicidad] = useState<'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL'>('MENSUAL')
+  const [periodicidad, setPeriodicidad] = useState<PeriodicidadCuota>('MENSUAL')
   const [primerVenc, setPrimerVenc] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
   if (!campana) return null
   return (
@@ -396,10 +396,11 @@ function GenerarFacturaDialog({
                   onChange={(e) => setPeriodicidad(e.target.value as typeof periodicidad)}
                   className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
                 >
-                  <option value="QUINCENAL">quincenales</option>
-                  <option value="MENSUAL">mensuales</option>
-                  <option value="BIMESTRAL">bimestrales</option>
-                  <option value="TRIMESTRAL">trimestrales</option>
+                  {/* Desde la fuente única: añadir una periodicidad en
+                      finanzas-calculo.ts la trae aquí sola. */}
+                  {(Object.keys(PERIODICIDAD_LABEL) as PeriodicidadCuota[]).map((k) => (
+                    <option key={k} value={k}>{PERIODICIDAD_LABEL[k]}</option>
+                  ))}
                 </select>
                 <span className="text-[12px] text-muted">desde</span>
                 <input
