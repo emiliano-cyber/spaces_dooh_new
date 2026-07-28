@@ -234,18 +234,39 @@ process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message |
 //   --desinstalar  -> quita el arranque automatico
 //   doble clic     -> asistente de instalacion, o el agente si ya esta configurado
 const flags = process.argv.slice(2);
-const { asistente, desinstalar } = require('./instalar');
+const { asistente, desinstalar, menu, pausar } = require('./instalar');
+
+// Arranca el agente. Si lo lanzo una persona (no la tarea de Windows) y algo
+// falla, la ventana NO se cierra de golpe: antes un dato mal escrito hacia que
+// el programa se cerrara al instante y no habia forma de corregirlo.
+function arrancar(interactivo) {
+  main().catch((e) => {
+    log('ERROR FATAL:', e.message);
+    if (interactivo) {
+      console.log('\n  El agente no pudo arrancar. Lo mas comun es que la direccion del');
+      console.log('  servidor este mal o que esta PC no tenga internet.');
+      console.log('  Vuelve a abrir este programa y elige "Reconfigurar".');
+      pausar();
+    } else {
+      // La tarea de Windows lo reintenta; salir con codigo != 0 lo deja registrado.
+      process.exit(1);
+    }
+  });
+}
 
 if (flags.includes('--desinstalar')) {
   desinstalar();
-} else if (flags.includes('--instalar')) {
+} else if (flags.includes('--instalar') || flags.includes('--configurar')) {
   asistente().catch((e) => { console.error('Fallo la instalacion:', e.message); process.exit(1); });
-} else if (flags.includes('--servicio') || fs.existsSync(RUTA_CONFIG)) {
-  main().catch((e) => {
-    log('ERROR FATAL:', e.message);
-    // La tarea de Windows lo reintenta; salir con codigo != 0 lo deja registrado.
-    process.exit(1);
-  });
+} else if (flags.includes('--servicio')) {
+  arrancar(false);
+} else if (fs.existsSync(RUTA_CONFIG)) {
+  // Doble clic con configuracion existente: se ofrece corregirla.
+  let cfgActual = {};
+  try { cfgActual = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8')); } catch (_) {}
+  menu(cfgActual)
+    .then((accion) => { if (accion === 'arrancar') arrancar(true); })
+    .catch((e) => { console.error('Error:', e.message); pausar(); });
 } else {
   asistente().catch((e) => {
     console.error('Fallo la instalacion:', e.message);

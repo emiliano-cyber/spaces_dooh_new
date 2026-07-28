@@ -108,6 +108,23 @@ async function asistente() {
     return pausar();
   }
 
+  // Se comprueba el servidor ANTES de instalar. Sin esto, una direccion mal
+  // escrita solo se nota cuando el equipo nunca aparece en el dashboard, y para
+  // entonces la persona ya se fue del sitio.
+  console.log(`\n  Probando el servidor ${servidor}...`);
+  try {
+    const res = await fetch(`${servidor.replace(/\/+$/, '')}/api/app/version`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    // 401 = responde pero pide sesion: es exactamente lo que se espera aqui.
+    if (res.status === 401 || res.ok) console.log('  OK — el servidor responde.');
+    else console.log(`  AVISO: respondio HTTP ${res.status}. Revisa la direccion.`);
+  } catch (e) {
+    console.log(`  NO PUDE CONTACTAR AL SERVIDOR: ${e.message}`);
+    console.log('  Revisa la direccion y que esta PC tenga internet.');
+    console.log('  (Se continua de todos modos: el agente reintenta solo cuando haya red.)');
+  }
+
   const { host, puerto } = partirHost(destino, Number(par.puerto) || 80);
   const cfg = {
     server_url: servidor,
@@ -190,4 +207,31 @@ function desinstalar() {
   pausar();
 }
 
-module.exports = { asistente, desinstalar, TAREA };
+/**
+ * Doble clic cuando el equipo YA esta configurado.
+ *
+ * Antes esto arrancaba el agente directo: si la configuracion estaba mal, fallaba
+ * y la ventana se cerraba de golpe, sin forma de corregir nada. Ahora muestra lo
+ * que hay y ofrece reconfigurar.
+ */
+async function menu(cfgActual) {
+  console.log('');
+  console.log('  ===========================================');
+  console.log('   SPACE EYE — agente de PC (ya configurado)');
+  console.log('  ===========================================');
+  console.log('');
+  console.log(`  Servidor: ${cfgActual.server_url}`);
+  console.log(`  Camara:   ${cfgActual.camara?.host}:${cfgActual.camara?.puerto || 80}`);
+  console.log('');
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const r = (await preguntar(rl, '  ¿Que quieres hacer?  [1] Reconfigurar  [2] Arrancar el agente  [3] Salir', '1')).trim();
+  rl.close();
+
+  if (r === '2') return 'arrancar';
+  if (r === '3') return 'salir';
+  await asistente();
+  return 'salir';
+}
+
+module.exports = { asistente, desinstalar, menu, pausar, TAREA };
