@@ -5,6 +5,118 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-27
+
+- **Contrato de arrendamiento incompleto al vender una pantalla.** Hasta ahora se
+  podía vender y facturar una pantalla sin que constara qué se le paga a su
+  propietario: el P&L la contaba con costo de renta cero y el margen de esa
+  campaña salía inflado. Al aplicarlo, 10 de las 16 pantallas estaban así y 8 ya
+  estaban comprometidas en campañas. Ahora, al generar la campaña desde una
+  propuesta aprobada, toda pantalla sin contrato recibe uno en estado
+  **"Incompleto"**, visible en Arrendadores, con su alerta de pendiente. El
+  contrato nace sin arrendador, importe, periodicidad ni fecha de fin —los campos
+  muestran "Por definir"— y **no cuenta como costo ni dispara alertas de
+  vencimiento** hasta que se completa. La base de datos impide cerrarlo a medias:
+  para sacarlo de "Incompleto" hay que capturar los cuatro datos. Se hizo carga
+  inicial retroactiva, así que hoy no queda ninguna pantalla sin registro.
+  Decisiones y alternativas descartadas en
+  `docs/adr/0001-contrato-incompleto-al-generar-campana.md`.
+  - *Candado del Dueño al completarlo:* rellenar un contrato incompleto fija por
+    primera vez cuánto se le paga al propietario, así que pide la contraseña del
+    control de cambios **incluso al Dueño** —igual que cambiar datos bancarios
+    del arrendador—, para que una sesión abierta y desatendida no pueda
+    comprometer una renta. Si el control de cambios está apagado, no cambia nada.
+    Completar a medias no lo saca de "Incompleto": mientras falte cualquiera de
+    los cuatro datos, sigue pendiente y no genera calendario de pagos. La
+    bitácora distingue "Completó contrato de arrendamiento" de "Editó contrato".
+  - *La vigencia cubre lo vendido:* el contrato nace abarcando el periodo de la
+    campaña (de la fecha de inicio a la de fin), no solo la de arranque, y si una
+    venta posterior va más allá se estira. Los pendientes ya existentes se
+    ajustaron a su reserva más lejana. Un contrato **real** nunca se extiende
+    solo: eso sería inventar lo pactado con el propietario.
+  - *Nueva alerta «El contrato no cubre la campaña»:* avisa en rojo cuando lo
+    vendido a un cliente termina después de que vence el contrato de esa
+    pantalla. Es el caso grave: estamos comprometiendo un espacio sobre el que
+    perderemos derechos a media campaña. Hay que renovar antes o recortar. Hoy no
+    hay ninguna reserva en esa situación (se revisaron las 18 activas).
+  - *Renovar y cancelar un pendiente:* renovar un contrato incompleto ahora
+    explica qué falta capturar en vez de fallar con un error técnico —no se puede
+    renovar lo que nunca se pactó—, y el botón ya no aparece en esos contratos.
+    Cancelarlo sí se puede: es la forma de descartar un pendiente que no aplica.
+  - *Pendiente:* definir quién completa estos contratos y en qué plazo. Sin un
+    responsable, el pendiente se vuelve ruido.
+- **Campañas: las más recientes hasta arriba.** El listado de Campañas mostraba
+  las más antiguas primero y el menú lateral del detalle las ordenaba
+  alfabéticamente, así que las campañas nuevas quedaban enterradas al final. Los
+  dos usan ya el mismo orden, por fecha de creación descendente.
+- **No aparecía cómo subir una campaña a DOOHmain.** En el detalle de una campaña
+  digital que todavía no se había enviado al dominio, la sección "Validación de
+  publicación" se marcaba como **"No aplica"**. Eso la dejaba plegada y al final
+  de la página, escondiendo justo el botón "Enviar al dominio" que hay que pulsar
+  para que el arte llegue a DOOHmain — así que parecía que la opción no existía,
+  aunque los creativos ya estuvieran aprobados. Ahora la validación aplica a toda
+  campaña digital: no haberla enviado es el estado **Pendiente**, no un "no
+  aplica", y la sección aparece abierta y arriba. Las campañas fijas (OOH) siguen
+  en "No aplica", como debe ser.
+  - De paso, el panel aclara que **aprobar los creativos no los sube a DOOHmain**:
+    el arte se publica al aprobar la publicación de la campaña, que es el paso
+    siguiente. La confusión era razonable porque no se decía en ningún lado.
+- **Creativos: búsqueda, filtros y orden por campaña más reciente.** La pantalla
+  listaba todas las campañas sin forma de acotarlas y con las más antiguas
+  primero. Ahora tiene un buscador por nombre de campaña, folio, cliente o
+  **nombre del archivo del creativo**, y un filtro por estado: con pendientes de
+  aprobar, con aprobados, con rechazados, o **sin creativos todavía** —este
+  último es el pendiente real: campañas con espacios reservados a las que aún no
+  se les ha subido nada—. Arriba a la derecha se ve cuántas campañas quedan de
+  cuántas. El orden es el mismo que en Campañas: la más reciente primero.
+- **Clases de estilo que nunca llegaban al navegador (causa de varias
+  desalineaciones).** La configuración de Tailwind seguía apuntando a la carpeta
+  `app/demo/`, que dejó de existir cuando se quitó el segmento `/demo` de las
+  URLs. Consecuencia: ninguna clase usada *solo* dentro de `app/` se generaba, y
+  las pantallas se veían mal sin que nada fallara en consola. El caso visible era
+  el **detalle de campaña**, donde el listado lateral de campañas aparecía
+  apilado encima del contenido en vez de a su lado. Corregidos los globs a
+  `app/**`, `components/**` y `lib/**`; el CSS creció ~18% (esas utilidades que
+  faltaban). *Ojo: al activarse de golpe, otras pantallas pueden cambiar de
+  aspecto — conviene un repaso visual.*
+- **Pipeline de campaña vacío al abrir una campaña digital.** En el detalle de
+  una campaña DOOH el pipeline se veía sin ninguna etapa marcada (todos los pasos
+  en gris, sin palomitas ni etapa actual), aunque la campaña estuviera avanzada.
+  Ocurría cuando la campaña tenía una orden de trabajo de montaje digital
+  completada: el sistema la situaba en "Instalada", que es una etapa **física** y
+  por tanto no forma parte del pipeline de una campaña digital, y el resultado era
+  un índice inválido. Afectaba a "Coca-Cola — Verano". Ahora la etapa derivada
+  siempre pertenece al pipeline del tipo de campaña, con pruebas automáticas que
+  lo garantizan para digital, fija e híbrida. *Pendiente de decisión de negocio:*
+  si una campaña digital debe tener etapa propia de puesta al aire, hoy su avance
+  se expresa con "Publicada".
+- **Menú lateral izquierdo: colapsable y siempre a la vista.** El menú se puede
+  contraer a modo icono con un botón al pie de la propia barra; la preferencia se
+  recuerda entre sesiones. Se compactaron las filas para que los 18 módulos
+  quepan sin desplazar el menú, y el botón junto con "Derechos reservados" quedan
+  fijos abajo. El contenido de la derecha es lo único que hace scroll. En móvil se
+  mantiene el menú deslizable de siempre.
+  - *Nombres al pasar el ratón (menú colapsado):* con el menú contraído, apuntar
+    a un icono muestra el nombre del módulo en un globo blanco a su derecha. El
+    botón de contraer/expandir perdió su rótulo: queda solo el icono, y su
+    nombre aparece en el mismo globo. Los nombres siguen presentes para lectores
+    de pantalla aunque no se vean.
+- **Ubicación de las pantallas en la liga de propuesta compartida.** La liga que
+  se manda al cliente ahora muestra, por cada pantalla, su dirección completa, la
+  zona (alcaldía/ciudad/estado) y un enlace para abrirla en Google Maps. Antes
+  solo estaba el mapa, que depende de un servicio externo: si no cargaba, el
+  cliente se quedaba sin saber dónde estaba la pantalla. La tarjeta del mapa ya no
+  desaparece en silencio cuando faltan coordenadas: lo dice y remite a la lista.
+- **Mapas más robustos.** Una pantalla con coordenadas inválidas o sin capturar
+  tumbaba el mapa completo (desaparecía la sección entera, no solo ese punto).
+  Ahora esos puntos se descartan y el resto del mapa se dibuja igual. *Pendiente:*
+  queda un reporte de que el mapa no aparece en la liga pública que no se pudo
+  reproducir — los datos, el servicio de mapas y la liga se verificaron correctos.
+- **Reset de estilos incompleto.** Faltaba la regla que hace que imágenes, video,
+  canvas e iframes se comporten como bloque; es la que necesita el mapa para
+  dimensionarse bien. Se añadió, dejando fuera los iconos a propósito para no
+  mover su alineación en toda la aplicación.
+
 ## 2026-07-24
 
 - **Cierre de los 5 riesgos ALTO de la auditoría de código.**
