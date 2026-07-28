@@ -76,6 +76,11 @@ const statusSchema = z.object({
   data_wifi_week: z.number().nonnegative().optional(),
   data_wifi_month: z.number().nonnegative().optional(),
   data_wifi_total: z.number().nonnegative().optional(),
+  // Desde v0.10.0: si el equipo puede instalar actualizaciones sin que nadie lo
+  // toque (device owner) y que numero de version trae. Los APK previos no los
+  // mandan, por eso son opcionales.
+  device_owner: z.boolean().optional(),
+  app_version_code: z.number().int().optional(),
 });
 
 // IP publica desde la que el equipo habla con el backend. Si algun dia se pone
@@ -109,8 +114,12 @@ export async function reportStatus(req: Request, res: Response) {
 
   await pool.query(
     `UPDATE devices SET online = TRUE, last_seen_at = NOW(),
-     lat = COALESCE(?, lat), lng = COALESCE(?, lng) WHERE id = ?`,
-    [d.gps_lat ?? null, d.gps_lng ?? null, did]
+     lat = COALESCE(?, lat), lng = COALESCE(?, lng),
+     device_owner = COALESCE(?, device_owner),
+     app_version_code = COALESCE(?, app_version_code) WHERE id = ?`,
+    [d.gps_lat ?? null, d.gps_lng ?? null,
+     d.device_owner === undefined ? null : (d.device_owner ? 1 : 0),
+     d.app_version_code ?? null, did]
   );
 
   // Consumo de datos: upsert del ultimo snapshot (solo si el APK lo reporta).

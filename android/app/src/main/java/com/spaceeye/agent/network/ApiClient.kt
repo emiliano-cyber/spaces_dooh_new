@@ -141,6 +141,9 @@ class ApiClient(ctx: Context) {
             put("ram_free_mb", status.ramFreeMb)
             status.cpuTemp?.let { put("cpu_temp", it) }
             put("uptime_seconds", status.uptimeSeconds)
+            // Permite ver en el dashboard que equipos se pueden actualizar solos.
+            put("device_owner", status.deviceOwner)
+            put("app_version_code", com.spaceeye.agent.BuildConfig.VERSION_CODE)
             // Consumo de datos (movil/WiFi). Campos opcionales: si el equipo no los
             // pudo leer se omiten y el backend/dashboard muestran n/d.
             status.dataUsage?.let { du ->

@@ -49,6 +49,8 @@ export function createRoutes() {
   // Fijar orientacion por defecto del stream (solo admin).
   router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), dashboard.setStreamRotation);
   router.put('/api/devices/:id/camera', requireUser, requireRole('admin'), dashboard.setCamera);
+  // Version del APK publicado, para saber que equipos estan atrasados.
+  router.get('/api/app/version', requireUser, dashboard.appVersion);
   // Posicion de la marca de informacion (overlay) del dispositivo (solo admin).
   router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
 

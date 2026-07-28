@@ -63,6 +63,7 @@ function deviceDetail() {
       await this.loadPhotos();
       await this.loadLogs();
       await this.loadTelemetry();
+      this.loadAppVersion();
       // Refresca los registros remotos periodicamente.
       setInterval(() => this.loadLogs(), 15000);
 
@@ -449,6 +450,48 @@ function deviceDetail() {
         this.showToast('Orientación fijada para todos', 'success');
       } catch (e) {
         this.showToast('No se pudo fijar la orientación (¿eres admin?)', 'error');
+      }
+    },
+
+    // ---- Actualizacion remota de la app ----
+    // Antes cada version nueva exigia ir sitio por sitio a reinstalar el APK.
+    apkLatest: null,
+    updating: false,
+    async loadAppVersion() {
+      try { this.apkLatest = await API.get('/api/app/version'); } catch (_) { this.apkLatest = null; }
+    },
+    // Un equipo esta atrasado si su version instalada es menor a la publicada.
+    // Las APK anteriores a la v0.10.0 no reportan su numero: en ese caso se
+    // compara por nombre, que basta para saber que no estan al dia.
+    appAtrasada() {
+      if (!this.apkLatest?.disponible || !this.device) return false;
+      const instalado = Number(this.device.app_version_code) || 0;
+      if (this.apkLatest.version_code && instalado) return instalado < this.apkLatest.version_code;
+      return Boolean(this.apkLatest.version && this.device.app_version &&
+        this.device.app_version !== this.apkLatest.version);
+    },
+    // Sin device owner, Android exige que alguien confirme en la pantalla del
+    // equipo. Conviene decirlo ANTES de mandar la orden, no despues.
+    puedeActualizarSolo() {
+      return this.device?.device_owner === 1 || this.device?.device_owner === true;
+    },
+    async updateApp() {
+      const aviso = this.puedeActualizarSolo()
+        ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
+        : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
+      if (!confirm(aviso)) return;
+      this.updating = true;
+      try {
+        await API.post(`/api/devices/${this.deviceId}/command`, { command_type: 'UPDATE_APP' });
+        this.showToast(this.puedeActualizarSolo()
+          ? 'Actualización enviada; el equipo se reiniciará al terminar'
+          : 'Orden enviada: falta confirmar la instalación en el equipo', 'success');
+      } catch (e) {
+        this.showToast(e?.body?.error === 'apk_no_publicado'
+          ? 'No hay APK publicada en el servidor'
+          : 'No se pudo enviar la actualización', 'error');
+      } finally {
+        this.updating = false;
       }
     },
 

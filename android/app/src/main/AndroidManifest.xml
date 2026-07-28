@@ -16,6 +16,9 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+    <!-- Actualizacion remota de la app. En equipos device owner la instalacion es
+         silenciosa; en el resto Android pide confirmacion en pantalla. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
     <uses-feature android:name="android.hardware.camera" android:required="true"/>
 
@@ -54,6 +57,15 @@
         <receiver
             android:name=".service.RestartReceiver"
             android:exported="false"/>
+
+        <!-- Resultado de la instalacion remota (PackageInstaller) -->
+        <receiver
+            android:name=".update.InstallResultReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.spaceeye.agent.INSTALL_RESULT"/>
+            </intent-filter>
+        </receiver>
 
         <!-- Administrador de dispositivo para modo kiosco (device owner) -->
         <receiver

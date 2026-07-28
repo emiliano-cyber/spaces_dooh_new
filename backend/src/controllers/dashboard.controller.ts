@@ -6,6 +6,8 @@ import { z } from 'zod';
 import { deleteStored } from '../services/photoStorage.service';
 import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog } from '../utils/streamWatchdog';
+import { apkInfo } from '../utils/apkInfo';
+import { env } from '../config/env';
 
 // ICE servers (STUN + TURN) para WebRTC. Lo consumen el dashboard y el agente.
 export function iceServers(_req: Request, res: Response) {
@@ -196,6 +198,11 @@ export async function deleteDevice(req: Request, res: Response) {
   res.json({ ok: true });
 }
 
+// Version del APK publicado, para que el dashboard sepa quien esta atrasado.
+export function appVersion(_req: Request, res: Response) {
+  res.json(apkInfo());
+}
+
 // Lente y zoom guardados del equipo, para adjuntarlos a las ordenes de foto.
 export async function encuadreDe(deviceId: number) {
   const [rows] = await pool.query<any[]>(
@@ -209,7 +216,7 @@ export async function encuadreDe(deviceId: number) {
 
 export async function sendCommand(req: Request, res: Response) {
   const schema = z.object({
-    command_type: z.enum(['TAKE_PHOTO', 'START_STREAM', 'STOP_STREAM', 'UPDATE_CONFIG', 'REBOOT_APP', 'SYNC_SCHEDULE', 'CHANGE_QUALITY']),
+    command_type: z.enum(['TAKE_PHOTO', 'START_STREAM', 'STOP_STREAM', 'UPDATE_CONFIG', 'REBOOT_APP', 'SYNC_SCHEDULE', 'CHANGE_QUALITY', 'UPDATE_APP']),
     payload: z.any().optional(),
     priority: z.number().min(1).max(9).default(5),
   });
@@ -227,6 +234,20 @@ export async function sendCommand(req: Request, res: Response) {
   // la foto (si no, se encuadraria contra algo distinto de lo que se recibe).
   if (command_type === 'TAKE_PHOTO' || command_type === 'START_STREAM') {
     payload = { ...(payload ?? {}), ...(await encuadreDe(Number(deviceId))) };
+  }
+
+  // La orden de actualizar lleva de donde bajar el APK, su huella y que version
+  // se espera: el equipo verifica antes de instalar y no reinstala la misma.
+  if (command_type === 'UPDATE_APP') {
+    const apk = apkInfo();
+    if (!apk.disponible) return res.status(409).json({ error: 'apk_no_publicado' });
+    payload = {
+      url: `${env.PUBLIC_BASE_URL || ''}/space-eye.apk`,
+      sha256: apk.sha256,
+      version_code: apk.version_code,
+      version: apk.version,
+      ...(payload ?? {}),
+    };
   }
 
   const [result] = await pool.query<any>(

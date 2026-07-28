@@ -188,6 +188,28 @@
                 <span class="text-neutral-500">Operador</span>
                 <span x-text="status?.network_operator || '—'" class="font-medium"></span>
               </div>
+              <!-- Version de la app y actualizacion remota -->
+              <div class="flex justify-between items-center">
+                <span class="text-neutral-500">Versión app</span>
+                <span class="flex items-center gap-2">
+                  <span class="font-medium" x-text="device?.app_version || '—'"></span>
+                  <span x-show="appAtrasada()" style="display:none"
+                        class="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5"
+                        x-text="'hay ' + (apkLatest?.version || 'nueva')"></span>
+                </span>
+              </div>
+              <div x-show="isAdmin && appAtrasada()" style="display:none" class="pt-1">
+                <button @click="updateApp()" :disabled="updating"
+                  class="w-full flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs rounded px-3 py-2">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                  <span x-text="updating ? 'Enviando…' : 'Actualizar app del equipo'"></span>
+                </button>
+                <p class="text-xs mt-1" :class="puedeActualizarSolo() ? 'text-neutral-500' : 'text-amber-600'"
+                   x-text="puedeActualizarSolo()
+                     ? 'Se instala sola, sin tocar el equipo.'
+                     : 'Este equipo pedirá confirmación en su pantalla (no es device owner).'"></p>
+              </div>
+
               <div class="flex justify-between">
                 <span class="text-neutral-500">IP pública</span>
                 <span x-text="status?.source_ip || '—'" class="font-medium tabular-nums text-xs"

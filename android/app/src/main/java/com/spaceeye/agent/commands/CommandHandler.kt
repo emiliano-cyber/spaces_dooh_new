@@ -222,6 +222,30 @@ class CommandHandler(
                             }
                         }
                     }
+                    // Actualizacion remota: evita el viaje a sitio por cada version.
+                    "UPDATE_APP" -> {
+                        val url = payload?.optString("url").orEmpty()
+                            .ifBlank { "${com.spaceeye.agent.BuildConfig.SERVER_URL}/space-eye.apk" }
+                        val sha = payload?.optString("sha256")?.ifBlank { null }
+                        val vc = payload?.optInt("version_code", 0)?.takeIf { it > 0 }
+                        RemoteLog.info(ctx, "update", "Actualizacion solicitada desde el dashboard")
+
+                        val res = withContext(Dispatchers.IO) {
+                            com.spaceeye.agent.update.AppUpdater(ctx).actualizar(url, sha, vc)
+                        }
+                        // Se responde ANTES de que el instalador mate el proceso: si
+                        // no, el comando quedaria "enviado" para siempre.
+                        if (id > 0) {
+                            withContext(Dispatchers.IO) {
+                                when (res) {
+                                    is com.spaceeye.agent.update.AppUpdater.Resultado.Fallo ->
+                                        apiClient.reportCommandResult(id, false, errorMessage = res.motivo)
+                                    else -> apiClient.reportCommandResult(id, true)
+                                }
+                            }
+                        }
+                    }
+
                     "START_STREAM" -> {
                         // Habilita el tipo FGS camera antes de abrir la camara.
                         MonitorService.setCameraActive(true)

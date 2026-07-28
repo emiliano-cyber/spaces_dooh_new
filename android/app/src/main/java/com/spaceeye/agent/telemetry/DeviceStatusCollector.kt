@@ -28,7 +28,11 @@ data class DeviceStatus(
     val ramFreeMb: Long,
     val cpuTemp: Float?,
     val uptimeSeconds: Long,
-    val dataUsage: DataUsage? = null
+    val dataUsage: DataUsage? = null,
+    // Si la app es device owner puede instalar actualizaciones SIN que nadie
+    // toque el equipo. Se reporta para saber desde el dashboard cuales sitios se
+    // actualizan solos y cuales necesitan una mano.
+    val deviceOwner: Boolean = false,
 )
 
 class DeviceStatusCollector(private val ctx: Context) {
@@ -89,7 +93,8 @@ class DeviceStatusCollector(private val ctx: Context) {
             ramFreeMb = ramFree,
             cpuTemp = readCpuTemp(),
             uptimeSeconds = SystemClock.elapsedRealtime() / 1000,
-            dataUsage = try { DataUsageCollector(ctx).collect() } catch (_: Exception) { null }
+            dataUsage = try { DataUsageCollector(ctx).collect() } catch (_: Exception) { null },
+            deviceOwner = com.spaceeye.agent.update.AppUpdater.esDeviceOwner(ctx)
         )
     }
 
