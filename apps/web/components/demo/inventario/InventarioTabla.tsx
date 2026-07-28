@@ -84,10 +84,12 @@ export function InventarioTabla() {
     const porPredio = new Map<string, Info>()
     const porSitio = new Map<string, Info>()
     for (const c of (contratos ?? []).slice().sort((a, b) => (PR[a.estatus] ?? 9) - (PR[b.estatus] ?? 9))) {
+      // INCOMPLETO (ADR 0001) queda al final del orden de preferencia (PR no lo
+      // lista → 9) y sin importe: renta 0 hasta que se capture.
       const info: Info = {
-        propietario: arrById.get(c.arrendadorId) ?? '—',
-        renta: c.montoRenta,
-        periodicidad: c.periodicidad,
+        propietario: (c.arrendadorId ? arrById.get(c.arrendadorId) : null) ?? '—',
+        renta: c.montoRenta ?? 0,
+        periodicidad: c.periodicidad ?? '',
       }
       if (c.predioId && !porPredio.has(c.predioId)) porPredio.set(c.predioId, info)
       if (!porSitio.has(c.sitioId)) porSitio.set(c.sitioId, info)

@@ -48,6 +48,12 @@ import {
   type EstPropuesta,
 } from '@/lib/data/client'
 
+// Una coordenada sirve para el mapa si es finita y no es el (0,0) que usa
+// sitios-repo como relleno cuando el sitio no tiene ubicación capturada.
+function coordUtil(lat: number, lng: number): boolean {
+  return Number.isFinite(lat) && Number.isFinite(lng) && !(lat === 0 && lng === 0)
+}
+
 const EST: Record<EstPropuesta, { label: string; cls: string }> = {
   BORRADOR: { label: 'Borrador', cls: 'border-border text-muted' },
   ENVIADA: { label: 'Enviada', cls: 'border-[#0a66ff40] text-info' },
@@ -152,19 +158,27 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
   const hasta = fines.at(-1)
 
   // Info de renta por sitio: contrato vigente del sitio → arrendador + monto.
+  // Un contrato INCOMPLETO (ADR 0001) no tiene importe todavía: se trata igual
+  // que "sin contrato" para el costo de la propuesta, porque suponerle un monto
+  // falsearía el margen tanto como ignorarlo.
   const rentaDe = (sitioId: string) => {
     const con = (contratos ?? []).find((c) => c.sitioId === sitioId)
-    if (!con) return null
+    if (!con || con.montoRenta == null) return null
     const arr = (arrendadores ?? []).find((a) => a.id === con.arrendadorId)
-    return { monto: con.montoRenta, periodicidad: con.periodicidad, propietario: arr?.nombre ?? '—' }
+    return { monto: con.montoRenta, periodicidad: con.periodicidad ?? '—', propietario: arr?.nombre ?? '—' }
   }
   const rentaTotal = p.items.reduce((s, it) => s + (rentaDe(it.sitioId)?.monto ?? 0), 0)
 
   // Puntos del mapa: ubicación de cada pantalla de la propuesta.
+  // Los sitios sin coordenadas llegan como (0,0) desde sitios-repo (`n(r.lat) ?? 0`),
+  // no como null. Sin este filtro MapLibre planta un pin en el golfo de Guinea y
+  // el encuadre automático se va con él, dejando el mapa "vacío" sobre el océano.
   const puntos: MapPoint[] = p.items.flatMap((it) => {
     const s = sitios?.find((x) => x.id === it.sitioId)
-    return s ? [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }] : []
+    if (!s || !coordUtil(s.lat, s.lng)) return []
+    return [{ id: s.id, lat: s.lat, lng: s.lng, tono: pinTono(s), label: s.nombre }]
   })
+  const sinCoords = p.items.length - puntos.length
 
   async function cambiar(estatus: EstPropuesta, confirmarCero = false) {
     try {
@@ -413,11 +427,18 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
             {puntos.length ? (
               <MapView points={puntos} zoom={11} />
             ) : (
-              <div className="flex h-full items-center justify-center text-[13px] text-muted">
-                Sin coordenadas para mostrar en el mapa.
+              <div className="flex h-full items-center justify-center px-4 text-center text-[13px] text-muted">
+                {sitios === undefined
+                  ? 'Cargando ubicaciones…'
+                  : `Ninguna de las ${p.items.length} pantalla${p.items.length === 1 ? '' : 's'} de esta propuesta tiene coordenadas capturadas.`}
               </div>
             )}
           </div>
+          {puntos.length > 0 && sinCoords > 0 && (
+            <p className="mt-2 text-[11px] text-muted">
+              {sinCoords} de {p.items.length} pantallas no tienen coordenadas y no aparecen en el mapa.
+            </p>
+          )}
         </CardContent>
       </Card>
 

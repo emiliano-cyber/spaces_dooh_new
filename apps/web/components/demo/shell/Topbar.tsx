@@ -14,7 +14,7 @@ import { marcarNotificacionLeidaApi, marcarTodasNotificacionesApi } from '@/lib/
 
 export function Topbar() {
   const router = useRouter()
-  const { alternar } = useMenuMovil()
+  const { abierto, alternar } = useMenuMovil()
   const { sesion, refrescar } = useSesionCtx()
   const usuario = sesion?.usuario
   const notificaciones = useNotificaciones() ?? []
@@ -34,10 +34,12 @@ export function Topbar() {
   return (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface px-4">
       <div className="flex items-center gap-2 text-[13px] text-muted">
+        {/* Móvil (<md): abre/cierra el drawer del sidebar. */}
         <button
           type="button"
           onClick={alternar}
-          aria-label="Abrir menú"
+          aria-label={abierto ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={abierto}
           className="inline-flex h-9 w-9 items-center justify-center rounded border border-border-strong bg-surface text-muted transition-colors duration-150 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:hidden"
         >
           <Menu className="h-4 w-4" strokeWidth={1.75} />

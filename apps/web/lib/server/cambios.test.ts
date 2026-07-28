@@ -88,6 +88,35 @@ describe('exigirDesbloqueo — el candado', () => {
     expect(r.requiereDesbloqueo).toBe(true)
   })
 
+  // Modo ESTRICTO (`sinExenciones`). Lo usan los cambios de máxima sensibilidad:
+  // datos bancarios del arrendador (a dónde se paga) y completar un contrato
+  // INCOMPLETO (cuánto se paga, ADR 0001). El punto es que ni el Dueño queda
+  // exento: una sesión suya desatendida no debe poder comprometer dinero.
+  it('ESTRICTO: al Dueño TAMBIÉN le exige desbloquear', async () => {
+    tenantRow = { h: 'un-hash' }
+    sesionRow = { e: null }
+    usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
+    const r: any = await exigirDesbloqueo({ sinExenciones: true })
+    expect(r.ok).toBe(false)
+    expect(r.requiereDesbloqueo).toBe(true)
+    // Y sin el modo estricto, el mismo Dueño sí pasa: confirma que la diferencia
+    // la hace la bandera y no el estado del tenant.
+    expect((await exigirDesbloqueo()).ok).toBe(true)
+  })
+
+  it('ESTRICTO: el Dueño con la sesión ya desbloqueada pasa', async () => {
+    tenantRow = { h: 'un-hash' }
+    sesionRow = { e: EN_15_MIN() }
+    usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
+    expect((await exigirDesbloqueo({ sinExenciones: true })).ok).toBe(true)
+  })
+
+  it('ESTRICTO con el control APAGADO: pasa (no hay contraseña que reconfirmar)', async () => {
+    tenantRow = { h: null }
+    usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
+    expect((await exigirDesbloqueo({ sinExenciones: true })).ok).toBe(true)
+  })
+
   it('el desbloqueo se lee de la SESIÓN en la BD, no de nada del cliente', async () => {
     tenantRow = { h: 'un-hash' }
     sesionRow = { e: EN_15_MIN() }

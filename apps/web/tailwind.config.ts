@@ -8,13 +8,17 @@ import type { Config } from 'tailwindcss'
 // ============================================================================
 
 const config: Config = {
+  // OJO: estos globs deben cubrir TODO archivo que escriba clases de Tailwind.
+  // Antes apuntaban a './app/demo/**', ruta que dejó de existir cuando las
+  // pantallas se movieron a './app/(app)/...'. Resultado: ninguna clase usada
+  // ÚNICAMENTE dentro de app/ llegaba al CSS (p. ej. `lg:flex-row` del detalle
+  // de campaña, que dejaba el menú de campañas apilado sobre el contenido).
+  // Los paréntesis y corchetes de las rutas de Next —(app), (shell), [id]— los
+  // resuelve `**` sin problema: son nombres de carpeta reales, no patrones.
   content: [
-    './app/demo/**/*.{ts,tsx}',
-    './components/demo/**/*.{ts,tsx}',
-    // OTVista (vista de OT) vive fuera de /demo pero se usa en /demo/operaciones
-    // y /demo/m/ot; se incluye para que sus utilidades (p. ej. lg:grid-cols-2)
-    // se generen.
-    './components/operaciones/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './lib/**/*.{ts,tsx}',
   ],
   corePlugins: {
     preflight: false,

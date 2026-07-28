@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Manual de Usuario — SPACES OS</title>
+<style>
+  :root{
+    --ink:#1c1a17; --muted:#6b6459; --line:#e7e1d8; --bg:#faf8f5; --surface:#ffffff;
+    --surface2:#f4f0ea; --accent:#0A66FF; --accent-soft:#e8f0ff; --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+    --radius:12px; --maxw:900px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;font-size:15.5px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .layout{display:flex;gap:0;align-items:flex-start}
+  nav.toc{position:sticky;top:0;height:100vh;overflow-y:auto;width:280px;flex:0 0 280px;
+    background:var(--surface);border-right:1px solid var(--line);padding:22px 18px}
+  nav.toc h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+  nav.toc a{display:block;color:var(--ink);padding:4px 8px;border-radius:7px;font-size:14px}
+  nav.toc a:hover{background:var(--surface2);text-decoration:none}
+  nav.toc .brand{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  nav.toc .brand b{font-size:16px}
+  main{flex:1;min-width:0;padding:0 6vw 120px;max-width:calc(var(--maxw) + 12vw);margin:0 auto}
+  header.cover{padding:80px 0 40px;border-bottom:1px solid var(--line);margin-bottom:36px}
+  .burst{width:44px;height:44px;display:inline-block}
+  header.cover .kicker{color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:13px}
+  header.cover h1{font-size:40px;line-height:1.1;margin:.2em 0 .3em;letter-spacing:-.02em}
+  header.cover p.lead{font-size:18px;color:var(--muted);max-width:620px}
+  header.cover .meta{margin-top:24px;font-size:13px;color:var(--muted)}
+  section{padding-top:28px;margin-top:28px;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none}
+  h2.sec{font-size:27px;letter-spacing:-.01em;margin:.2em 0 .1em;scroll-margin-top:16px}
+  h2.sec .num{color:var(--accent);font-weight:700;margin-right:10px}
+  h3{font-size:19px;margin:1.4em 0 .3em}
+  h4{font-size:16px;margin:1.2em 0 .2em;color:#2a2620}
+  p{margin:.5em 0}
+  ul,ol{margin:.4em 0 .8em;padding-left:1.3em}
+  li{margin:.25em 0}
+  code{background:var(--surface2);padding:.12em .4em;border-radius:5px;font-size:.9em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .btn{display:inline-block;background:var(--surface2);border:1px solid var(--line);border-radius:6px;
+    padding:.05em .5em;font-size:.88em;font-weight:600;white-space:nowrap}
+  .role{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:20px;
+    padding:.05em .6em;font-size:.8em;font-weight:600}
+  figure{margin:18px 0 6px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--surface)}
+  figure img{display:block;width:100%;height:auto}
+  figure figcaption{padding:8px 12px;font-size:13px;color:var(--muted);border-top:1px solid var(--line);background:var(--surface2)}
+  .callout{border-radius:var(--radius);padding:14px 16px;margin:16px 0;border:1px solid var(--line);background:var(--surface)}
+  .callout.info{border-color:#bcd4ff;background:var(--accent-soft)}
+  .callout.warn{border-color:#f6d99a;background:#fff7e8}
+  .callout.ok{border-color:#a7e8cf;background:#e9faf3}
+  .callout b{display:block;margin-bottom:2px}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;overflow:hidden;border-radius:10px;border:1px solid var(--line)}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--surface2);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .tablewrap{overflow-x:auto}
+  .steps{counter-reset:step;list-style:none;padding-left:0}
+  .steps li{counter-increment:step;position:relative;padding-left:38px;margin:.5em 0}
+  .steps li::before{content:counter(step);position:absolute;left:0;top:0;width:26px;height:26px;
+    background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700}
+  .pill{display:inline-block;padding:.05em .55em;border-radius:20px;font-size:.8em;font-weight:600;border:1px solid var(--line)}
+  .pill.dig{background:#e8f0ff;color:#0A66FF;border-color:#bcd4ff}
+  .pill.fija{background:var(--surface2);color:var(--muted)}
+  hr{border:none;border-top:1px solid var(--line);margin:26px 0}
+  .lead-muted{color:var(--muted)}
+  @media (max-width:880px){
+    nav.toc{display:none}
+    main{padding:0 6vw 80px}
+    header.cover h1{font-size:32px}
+  }
+  @media print{
+    nav.toc{display:none}
+    body{background:#fff;font-size:11pt}
+    section{page-break-inside:auto}
+    figure{page-break-inside:avoid}
+    h2.sec{page-break-after:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <div class="brand">
+    <svg class="burst" viewBox="0 0 24 24" fill="none"><g stroke="#0A66FF" stroke-width="2" stroke-linecap="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M18 6l-2.5 2.5M8.5 15.5 6 18"/></g></svg>
+    <b>SPACES OS</b>
+  </div>
+  <div class="lead-muted" style="font-size:12px;padding-left:2px">Manual de usuario</div>
+
+  <h2>Fundamentos</h2>
+  <a href="#intro">Introducción y conceptos</a>
+  <a href="#cuenta">1. Alta de cuenta e inicio de sesión</a>
+  <a href="#dashboard">2. Dashboard</a>
+
+  <h2>Inventario</h2>
+  <a href="#inventario">3. Agregar inventario</a>
+  <a href="#comercial">4. Comercial (mapa)</a>
+  <a href="#disponibilidad">5. Disponibilidad</a>
+  <a href="#arrendadores">6. Arrendadores</a>
+  <a href="#network">7. Network</a>
+
+  <h2>Ciclo comercial</h2>
+  <a href="#clientes">8. Clientes</a>
+  <a href="#propuestas">9. Propuestas</a>
+  <a href="#campanas">10. Campañas y pipeline</a>
+  <a href="#comisiones">11. Comisiones</a>
+
+  <h2>Producción y publicación</h2>
+  <a href="#creativos">12. Creativos</a>
+  <a href="#doohmain">13. Publicar a DOOHmain</a>
+  <a href="#imprenta">14. Imprenta (fijos)</a>
+  <a href="#operaciones">15. Operaciones (OT)</a>
+  <a href="#finanzas">16. Finanzas</a>
+
+  <h2>Administración</h2>
+  <a href="#integraciones">17. Integraciones</a>
+  <a href="#actividad">18. Actividad</a>
+  <a href="#administracion">19. Administración</a>
+  <a href="#configuracion">20. Configuración</a>
+
+  <h2>Vistas externas</h2>
+  <a href="#portales">21. Portales y OT móvil</a>
+
+  <h2>Anexos</h2>
+  <a href="#anexo-roles">A. Roles y permisos</a>
+  <a href="#anexo-nav">B. Mapa de navegación</a>
+  <a href="#glosario">C. Glosario</a>
+</nav>
+
+<main>
+<header class="cover">
+  <div class="kicker">Plataforma de gestión de medios OOH / DOOH</div>
+  <h1>Manual de Usuario<br/>SPACES OS</h1>
+  <p class="lead">Guía completa del sistema: alta de cuenta, dashboard, inventario fijo y digital, ciclo comercial (propuestas → campañas), creativos, publicación a DOOHmain, imprenta, operaciones, finanzas y portales del cliente.</p>
+  <div class="meta">RGB Catorce S de RL de CV (PIXELED) · Moneda: Peso mexicano (MXN) · Documento generado a partir del sistema en funcionamiento.</div>
+</header>
+
+<!-- ===================== INTRO ===================== -->
+<section id="intro">
+<h2 class="sec">Introducción y conceptos clave</h2>
+<p><b>SPACES OS</b> es el sistema para operar una red de medios publicitarios exteriores: desde dar de alta las pantallas (fijas y digitales), cotizarlas al cliente, convertir la cotización en campaña, subir los creativos y publicarlos en las pantallas digitales vía <b>DOOHmain</b>, hasta la producción de impresos, la instalación en campo, la facturación y la cobranza.</p>
+
+<h3>Conceptos que conviene entender antes de empezar</h3>
+<ul>
+  <li><b>Organización / CRM (tenant).</b> Cada empresa que se registra tiene su propio espacio de datos aislado. Todo lo que ves (inventario, clientes, campañas) pertenece a tu organización y nadie más lo ve.</li>
+  <li><b>Roles.</b> El acceso a cada módulo depende del rol del usuario: <span class="role">Dueño</span> <span class="role">Comercial</span> <span class="role">Operaciones</span> <span class="role">Imprenta</span> <span class="role">Finanzas</span> y <span class="role">Cliente externo</span>. Lo que un rol no debe ver, simplemente no aparece en su menú. La matriz completa está en el <a href="#anexo-roles">Anexo A</a>.</li>
+  <li><b>Sitio Fijo vs. Digital.</b> Es la distinción más importante del sistema:
+    <ul>
+      <li><span class="pill fija">Fija</span> Espectaculares, vallas, murales, puentes peatonales, mobiliario urbano. Se <b>imprimen</b> y se comercializan por <b>periodo</b> (mensual o catorcenal). La reserva es <b>exclusiva</b> (una cara = ocupada o libre). Su producción pasa por <b>Imprenta</b> y su instalación por <b>Operaciones</b>. <b>Nunca</b> se suben a DOOHmain.</li>
+      <li><span class="pill dig">Digital</span> Pantallas (tipo <code>PANTALLA_DIGITAL</code> o exhibición «Digital»). Se comercializan por <b>slots</b> (por defecto 12 slots de 20 s). «1 slot = 1 campaña». Se publican en <b>DOOHmain</b>.</li>
+    </ul>
+  </li>
+  <li><b>Pipeline.</b> Cada campaña «viaja sola» por una línea de etapas (Reservada → … → Lista para facturar) que se calcula automáticamente según lo que va ocurriendo. Ver <a href="#campanas">§10</a>.</li>
+  <li><b>Candado de facturación.</b> Una campaña solo se puede facturar cuando cumple tres condiciones: <b>OC recibida</b>, <b>fotografías comprobatorias</b> y <b>reporte de publicación</b>.</li>
+</ul>
+
+<div class="callout info">
+  <b>Cómo está organizado este manual</b>
+  Cada módulo se explica con: <b>para qué sirve</b>, <b>qué se ve en pantalla</b>, <b>cómo se usa</b> (paso a paso) y <b>quién puede usarlo</b> (rol). Los nombres de botones aparecen así: <span class="btn">Nombre del botón</span>.
+</div>
+</section>
+
+<!-- ===================== 1. CUENTA ===================== -->
+<section id="cuenta">
+<h2 class="sec"><span class="num">1</span>Alta de cuenta e inicio de sesión</h2>
+<p class="lead-muted">Ruta: <code>/demo/login</code> · Visible para todos (puerta de entrada)</p>
+
+<h3>Para qué sirve</h3>
+<p>Es la puerta de entrada. Desde la misma pantalla puedes <b>iniciar sesión</b> (usuarios existentes) o <b>crear una cuenta</b> nueva. Al crear cuenta se genera una <b>organización (CRM) propia</b> y un primer usuario con rol <span class="role">Dueño</span>, y la sesión inicia automáticamente.</p>
+
+<figure><img src="img/login.png" alt="Pantalla de inicio de sesión"><figcaption>Pantalla de inicio de sesión / creación de cuenta.</figcaption></figure>
+
+<h3>Cómo iniciar sesión</h3>
+<ol class="steps">
+  <li>Escribe tu <b>Correo</b> y <b>Contraseña</b>.</li>
+  <li>Presiona <span class="btn">Entrar</span>.</li>
+  <li>El sistema te lleva a tu pantalla inicial según tu rol.</li>
+</ol>
+<p class="lead-muted">Seguridad: máximo 10 intentos por IP cada 5 minutos. Credenciales incorrectas muestran «Correo o contraseña inválidos».</p>
+
+<h3>Cómo crear una cuenta (registrar tu organización)</h3>
+<ol class="steps">
+  <li>Pulsa <span class="btn">¿No tienes cuenta? Crear cuenta</span>.</li>
+  <li>Completa <b>Organización</b>, <b>Tu nombre</b>, <b>Correo</b> y <b>Contraseña</b> (mínimo 6 caracteres).</li>
+  <li>Pulsa <span class="btn">Crear cuenta</span>. Se crea tu CRM + tu usuario Dueño y entras directo al Dashboard.</li>
+</ol>
+
+<h3>A dónde llega cada rol al entrar</h3>
+<div class="tablewrap"><table>
+<tr><th>Rol</th><th>Pantalla inicial</th></tr>
+<tr><td><span class="role">Dueño</span></td><td>Dashboard (<code>/demo</code>)</td></tr>
+<tr><td><span class="role">Comercial</span></td><td>Comercial</td></tr>
+<tr><td><span class="role">Operaciones</span></td><td>Operaciones</td></tr>
+<tr><td><span class="role">Imprenta</span></td><td>Imprenta</td></tr>
+<tr><td><span class="role">Finanzas</span></td><td>Finanzas</td></tr>
+<tr><td><span class="role">Cliente externo</span></td><td>Portal del cliente (no ve módulos internos)</td></tr>
+</table></div>
+<div class="callout info"><b>¿Cómo se crean los demás usuarios?</b>El auto-registro siempre crea un <b>Dueño</b>. Los demás roles se dan de alta desde <a href="#administracion">Administración</a>, donde el Dueño invita usuarios y les asigna rol.</div>
+</section>
+
+<!-- ===================== 2. DASHBOARD ===================== -->
+<section id="dashboard">
+<h2 class="sec"><span class="num">2</span>Dashboard</h2>
+<p class="lead-muted">Ruta: <code>/demo</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Vista ejecutiva «de un vistazo» del negocio: ingresos, margen, cobranza, ocupación de la red, alertas, mapa de sitios y campañas próximas a finalizar. Es la pantalla de aterrizaje del Dueño.</p>
+
+<figure><img src="img/dashboard.png" alt="Dashboard"><figcaption>Dashboard con KPIs, costos, ocupación, alertas, mapa y campañas por finalizar.</figcaption></figure>
+
+<h3>Qué se ve en pantalla</h3>
+<ul>
+  <li><b>4 KPIs:</b> «Ingreso contratado del mes», «Margen» (verde ≥30 %, rojo &lt;10 %), «Por cobrar» y «Ocupación de la red».</li>
+  <li><b>Costos del mes:</b> desglose Espacios · Impresión · Operación · Total.</li>
+  <li><b>Gráfica de Ocupación</b> con selector <span class="btn">Día</span> <span class="btn">Semana</span> <span class="btn">Mes</span>.</li>
+  <li><b>Reservas: tentativas vs confirmadas</b> (ámbar / verde).</li>
+  <li><b>Alertas</b> (hasta 6), <b>Tu red en el mapa</b> (pines por estado) con enlace <span class="btn">Ver comercial →</span>, y <b>Campañas por finalizar</b>.</li>
+</ul>
+<p>Es una pantalla de consulta: cambia la granularidad de la gráfica, abre una campaña desde su nombre o salta a Comercial.</p>
+</section>
+
+<!-- ===================== 3. INVENTARIO ===================== -->
+<section id="inventario">
+<h2 class="sec"><span class="num">3</span>Agregar inventario</h2>
+<p class="lead-muted">Ruta: <code>/demo/inventario</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Da de alta y consulta las pantallas/sitios de la operación. Hay tres vistas: <b>Inventario</b> (tabla), <b>Carga masiva</b> (archivo Excel/CSV) y <b>Alta manual</b> (una pantalla). Aquí es donde se define si la pantalla es <span class="pill fija">Fija (impresa)</span> o <span class="pill dig">Digital (pantalla)</span>.</p>
+
+<figure><img src="img/inventario.png" alt="Inventario"><figcaption>Tabla de inventario con buscador y columnas Pantalla · Tipo · Medio · Tarifa · Estatus · Propietario.</figcaption></figure>
+
+<h3>Vista «Inventario» (tabla)</h3>
+<p>Buscador («Buscar pantalla, código, distrito…») y tabla con columnas <b>Pantalla · Tipo · Ubicación · Medio · Tarifa · Estatus · Propietario · Renta · Cada cuándo</b>. La columna <b>Medio</b> muestra <span class="pill dig">Digital</span> o <span class="pill fija">Fija</span>. Un clic en la fila abre la ficha del sitio.</p>
+
+<h3>Cómo hacer una carga masiva</h3>
+<ol class="steps">
+  <li>Entra a Inventario y elige <span class="btn">Carga masiva</span>.</li>
+  <li>(Primera vez) pulsa <span class="btn">Descargar plantilla</span> y llena la hoja «Sitios». Requeridos: nombre, exhibición, unidad, tarifa y costo.</li>
+  <li>(Opcional) escribe el <b>precio por m²</b> para pantallas estáticas.</li>
+  <li>Arrastra el archivo <code>.xlsx</code>/<code>.csv</code> y revisa la <b>Vista previa</b>.</li>
+  <li>(Opcional) sube imágenes en lote nombradas por código de proveedor (<code>codigo.jpg</code>).</li>
+  <li>Si hay códigos duplicados, elige <b>Actualizar</b> o <b>Crear nueva versión</b>.</li>
+  <li>Pulsa <span class="btn">Procesar importación</span> y revisa el resumen (Total · Creadas · Actualizadas · Advertencias · Errores).</li>
+</ol>
+
+<h3>Cómo agregar una pantalla DIGITAL (alta manual)</h3>
+<ol class="steps">
+  <li>Inventario → <span class="btn">Alta manual</span>.</li>
+  <li>Pestaña <b>Básico</b>: nombre, dirección, y en <b>Exhibición</b> elige <b>«Digital (pantalla)»</b>; coordenadas, tipo y estado.</li>
+  <li>Pestaña <b>Especificaciones</b>: resolución (p. ej. 1920×1080) y, en «Configuración de slots», duración por slot (20), total (12) y disponibles (12). Si no los capturas, se usan 20/12/12 por ser digital.</li>
+  <li>Pestaña <b>IA/Vision</b> (opcional): activa Computer Vision y captura el ID de AdMobilize.</li>
+  <li>Pestaña <b>Precios</b>: tarifa publicada y costo de compra.</li>
+  <li>Pestaña <b>Imágenes</b>: sube la imagen promocional (obligatoria, máx. 5 MB).</li>
+  <li>Pulsa <span class="btn">Guardar pantalla</span>.</li>
+</ol>
+
+<h3>Cómo agregar una pantalla FIJA</h3>
+<p>Igual que la digital, pero en <b>Exhibición</b> deja <b>«Fija (impresa)»</b>, elige el <b>Tipo</b> (Espectacular, Valla, Muro, Puente, Mobiliario), marca las <b>Modalidades</b> (Mensual / Catorcenal) y captura el <b>Precio por m²</b> si aplica. Los slots no aplican a las fijas.</p>
+<div class="callout warn"><b>Diferencia clave</b>Al guardar una pantalla <b>Digital</b> el sistema la marca como rotativa y le asigna 12 slots (20 s c/u) por defecto. Una <b>Fija</b> no maneja slots y se reserva de forma exclusiva.</div>
+</section>
+
+<!-- ===================== 4. COMERCIAL ===================== -->
+<section id="comercial">
+<h2 class="sec"><span class="num">4</span>Comercial (mapa de inventario)</h2>
+<p class="lead-muted">Ruta: <code>/demo/comercial</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Es el <b>mapa/plano comercial</b> de todo el inventario. Permite filtrar, <b>seleccionar</b> espacios disponibles y <b>reservarlos</b>, dar de alta pantallas y confirmar/extender reservas tentativas.</p>
+
+<figure><img src="img/comercial.png" alt="Comercial"><figcaption>Lista de inventario con filtros a la izquierda y mapa con pines a la derecha.</figcaption></figure>
+
+<h3>Qué se ve</h3>
+<ul>
+  <li><b>Filtros:</b> buscador, tipo, distrito, disponibilidad y precio.</li>
+  <li><b>Lista</b> con checkbox de selección (solo libres), badge de <b>slots</b> (solo digitales) y badge de estatus.</li>
+  <li><b>Mapa</b> con leyenda: <span class="pill dig">Digital</span> (azul) · Disponible (verde) · Ocupado (rojo) · Reservado·tentativo (ámbar).</li>
+  <li>Si hay reservas tentativas, una tarjeta ámbar con botones <span class="btn">Extender</span> y <span class="btn">Confirmar</span>.</li>
+</ul>
+
+<h3>Cómo reservar espacios</h3>
+<ol class="steps">
+  <li>Filtra/busca y <b>marca los checkbox</b> de los sitios libres (o abre la ficha del sitio).</li>
+  <li>Pulsa <span class="btn">Reservar</span> en la barra inferior.</li>
+  <li>Captura <b>Cliente</b> (obligatorio), nombre de campaña (opcional), fechas y <b>Tipo de campaña</b> (Automático / Digital / Fijo / Híbrida).</li>
+  <li>En pantallas digitales indica cuántos <b>slots</b> reservar por sitio.</li>
+  <li>Pulsa <span class="btn">Reservar (tentativa)</span>. Se crea una reserva <b>TENTATIVA</b> (caduca sola a los 7 días).</li>
+</ol>
+<p>Después, en la tarjeta «Reservas tentativas», pulsa <span class="btn">Confirmar</span> para volverla firme, o <span class="btn">Extender</span> para mover la fecha de fin.</p>
+
+<h3>Ficha del sitio</h3>
+<p>Al hacer clic en un sitio se abre su ficha lateral con estatus, galería, características, datos comerciales (tarifa, costo, margen), propietario y renta, y —solo en digitales— el bloque de slots (total, disponibles, duración, CMS). Con permiso aparecen <span class="btn">Editar</span>, <span class="btn">Eliminar</span> y, si está disponible, <span class="btn">Reservar este sitio</span>.</p>
+</section>
+
+<!-- ===================== 5. DISPONIBILIDAD ===================== -->
+<section id="disponibilidad">
+<h2 class="sec"><span class="num">5</span>Disponibilidad</h2>
+<p class="lead-muted">Ruta: <code>/demo/disponibilidad</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Calendario de <b>ocupación futura</b> por catorcena o mes. Cruza las reservas vigentes (tentativas + confirmadas) contra el inventario para responder «¿qué tengo libre más adelante?».</p>
+
+<figure><img src="img/disponibilidad.png" alt="Disponibilidad"><figcaption>Rejilla de disponibilidad: filas = pantallas, columnas = periodos.</figcaption></figure>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Fija la fecha <b>Desde</b> y elige la vista <span class="btn">Catorcena</span> o <span class="btn">Mes</span>.</li>
+  <li>Ajusta el número de <b>Periodos</b> (4/6/8/12).</li>
+  <li>Filtra con «Buscar pantalla» y/o marca <b>«Solo con hueco libre»</b>.</li>
+  <li>Lee la rejilla: verde = libre, ámbar = parcial (digital con slots), rojo = ocupado; borde punteado = solo reservas tentativas.</li>
+</ol>
+<div class="callout info"><b>Fijos vs digitales aquí</b>Una pantalla <b>fija</b> aparece libre u ocupada (reserva exclusiva). Una <b>digital</b> muestra <code>usados/total</code> slots y queda <b>parcial</b> mientras le queden slots libres.</div>
+</section>
+
+<!-- ===================== 6. ARRENDADORES ===================== -->
+<section id="arrendadores">
+<h2 class="sec"><span class="num">6</span>Arrendadores</h2>
+<p class="lead-muted">Ruta: <code>/demo/arrendadores</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Gestiona a los <b>propietarios/arrendadores</b> (dueños de los predios donde están las pantallas), sus <b>contratos</b>, la <b>renta</b> que se les paga, los <b>vencimientos</b> y los <b>pagos de renta</b>. Es «el otro lado de la red».</p>
+
+<figure><img src="img/arrendadores.png" alt="Arrendadores"><figcaption>Propietarios, rentabilidad por pantalla, contratos y pagos de renta.</figcaption></figure>
+
+<h3>Qué se ve y cómo se usa</h3>
+<ul>
+  <li><b>Resumen:</b> Propietarios · Contratos · Por vencer · Renta vencida.</li>
+  <li><b>Rentabilidad por pantalla:</b> margen mensual = ingreso de reservas − renta del arrendador (los negativos, en rojo, son candidatos a renegociar).</li>
+  <li><b>Contratos</b> y <b>Pagos de renta</b>.</li>
+</ul>
+<p><b>Dar de alta un propietario:</b> pulsa <span class="btn">Nuevo propietario</span>, captura razón social (obligatoria), RFC, teléfono y correo, y <span class="btn">Guardar</span>. <b>Registrar un pago:</b> en «Pagos de renta», botón <span class="btn">Registrar pago</span> en el pago pendiente o vencido.</p>
+</section>
+
+<!-- ===================== 7. NETWORK ===================== -->
+<section id="network">
+<h2 class="sec"><span class="num">7</span>Network</h2>
+<p class="lead-muted">Ruta: <code>/demo/network</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Decide qué inventario <b>sin vender</b> se comparte a la <b>Network</b> (red de pantallas de la plataforma), muestra las reglas de comercialización por pantalla (Tradicional vs Programático), el CMS usado y el catálogo de toda la plataforma.</p>
+
+<figure><img src="img/network.png" alt="Network"><figcaption>KPIs de la Network, CMS utilizado y reglas de comercialización por pantalla.</figcaption></figure>
+
+<p><b>Compartir/quitar una pantalla:</b> en «Reglas de comercialización por pantalla», usa el <b>switch</b> de la columna «En Network». Aparece un aviso: «&lt;pantalla&gt; compartida a la Network» o «quitada de la Network».</p>
+</section>
+
+<!-- ===================== 8. CLIENTES ===================== -->
+<section id="clientes">
+<h2 class="sec"><span class="num">8</span>Clientes</h2>
+<p class="lead-muted">Ruta: <code>/demo/clientes</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Catálogo de clientes/anunciantes con sus <b>datos fiscales</b>. Un cliente es de tipo <b>Directo</b> o <b>Agencia</b>. La agencia porta la <b>comisión</b> y la <b>negociación</b> que condicionan las propuestas.</p>
+
+<figure><img src="img/clientes.png" alt="Clientes"><figcaption>Tabla de clientes con RFC, razón social, tipo y contacto.</figcaption></figure>
+
+<h3>Cómo dar de alta un cliente</h3>
+<ol class="steps">
+  <li>Pulsa <span class="btn">Nuevo cliente</span>.</li>
+  <li>Captura nombre (obligatorio), tipo (Directo/Agencia), contacto e <b>IVA</b>.</li>
+  <li>Si es <b>Agencia</b>: define la <b>comisión (%)</b> y, si aplica, los términos de la <b>negociación</b> y márcala como <b>validada</b>.</li>
+  <li>Llena los <b>datos fiscales</b> (RFC, C.P., razón social, régimen y uso de CFDI) y pulsa <span class="btn">Guardar</span>.</li>
+</ol>
+<div class="callout warn"><b>Regla importante</b>Una agencia con <b>negociación sin validar</b> bloquea la creación y aprobación de propuestas con esa agencia. Valídala aquí antes de cotizar.</div>
+</section>
+
+<!-- ===================== 9. PROPUESTAS ===================== -->
+<section id="propuestas">
+<h2 class="sec"><span class="num">9</span>Propuestas</h2>
+<p class="lead-muted">Ruta: <code>/demo/propuestas</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Cotizaciones al cliente calculadas con el <b>método del divisor</b> (bruto → neto de comisión de agencia). Una propuesta contiene sitios con su precio de lista, un descuento comercial y una comisión de agencia. Al aprobarse, se convierte en campaña. Estados: <b>Borrador → Enviada → Aprobada / Rechazada</b>.</p>
+
+<figure><img src="img/propuestas.png" alt="Propuestas"><figcaption>Listado de propuestas con el funnel comercial (En pipeline · Ganado · Perdido · Win rate).</figcaption></figure>
+
+<h3>Cómo crear y enviar una propuesta</h3>
+<ol class="steps">
+  <li>Pulsa <span class="btn">Nueva propuesta</span>. Captura nombre, <b>cliente</b> y <b>agencia</b>, fechas y comisión.</li>
+  <li>Selecciona los <b>sitios</b> (cada uno con badge <span class="pill dig">Digital</span>/<span class="pill fija">Fija</span>). El resumen del divisor (Bruto → Neto → IVA → Total) se calcula en vivo.</li>
+  <li>Pulsa <span class="btn">Crear propuesta</span> (nace en Borrador).</li>
+  <li>Pulsa <span class="btn">Enviar</span> para pasarla a <b>Enviada</b>.</li>
+  <li>Comparte con el cliente: en el detalle, botón <span class="btn">Copiar liga</span> (liga pública por token, sin login).</li>
+</ol>
+
+<figure><img src="img/propuesta-detalle.png" alt="Detalle de propuesta"><figcaption>Detalle de propuesta: resumen económico, sitios, mapa y método del divisor.</figcaption></figure>
+
+<h3>Aprobación y método del divisor</h3>
+<p>El cálculo: <code>divisor = 1 − comisión%/100</code>; <code>base = bruto − descuento</code>; <code>neto = base × divisor</code> (lo que recibe el medio); <code>total = base + IVA</code> (lo que paga el cliente). Puedes aprobar sitio por sitio (checkbox) y luego pulsar <span class="btn">Aprobar</span>. Al aprobar, el importe se <b>congela</b> en un snapshot inmutable y la propuesta queda lista para <span class="btn">Generar campaña</span>.</p>
+
+<div class="callout info"><b>El cliente puede aceptar en línea</b>Cuando la propuesta está <b>Enviada</b>, el cliente abre la liga pública, revisa el resumen y pulsa <span class="btn">Aceptar propuesta</span> escribiendo su nombre. Queda registrada la aceptación con fecha y hora. Ver <a href="#portales">§21</a>.</div>
+</section>
+
+<!-- ===================== 10. CAMPAÑAS ===================== -->
+<section id="campanas">
+<h2 class="sec"><span class="num">10</span>Campañas y pipeline</h2>
+<p class="lead-muted">Ruta: <code>/demo/campanas</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Cada campaña «viaja sola por la empresa» a través de un <b>pipeline</b> de etapas que se calcula automáticamente. Nace de una propuesta aprobada. Su tipo (<b>OOH</b> fija, <b>DOOH</b> digital, <b>Híbrida</b>) se deriva del medio de sus sitios.</p>
+
+<figure><img src="img/campanas.png" alt="Campañas"><figcaption>Listado de campañas con la cola «Por validar», buscador y pipeline en vivo por campaña.</figcaption></figure>
+
+<h3>De propuesta a campaña</h3>
+<ol class="steps">
+  <li>En una propuesta <b>Aprobada</b>, pulsa <span class="btn">Generar campaña</span>.</li>
+  <li>La campaña hereda cliente, fechas y <b>solo los sitios aprobados</b>, con el precio <b>neto</b> del snapshot. Nace <b>Confirmada</b>.</li>
+  <li>Es idempotente: si ya existe campaña para esa propuesta, no se duplica.</li>
+</ol>
+
+<h3>Las 12 etapas del pipeline</h3>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Etapa</th><th>Aplica a</th></tr>
+<tr><td>1</td><td>Reservada</td><td>Todas</td></tr>
+<tr><td>2</td><td>Confirmada</td><td>Todas</td></tr>
+<tr><td>3</td><td>OC recibida</td><td>Todas</td></tr>
+<tr><td>4</td><td>Creativo recibido</td><td>Digital / Híbrida</td></tr>
+<tr><td>5</td><td>Creativo validado</td><td>Digital / Híbrida</td></tr>
+<tr><td>6</td><td>Enviada al dominio</td><td>Digital / Híbrida</td></tr>
+<tr><td>7</td><td>Publicada</td><td>Digital / Híbrida</td></tr>
+<tr><td>8</td><td>En imprenta</td><td>Fija / Híbrida</td></tr>
+<tr><td>9</td><td>En producción</td><td>Fija / Híbrida</td></tr>
+<tr><td>10</td><td>Instalada / al aire</td><td>Todas</td></tr>
+<tr><td>11</td><td>Reporte generado</td><td>Todas</td></tr>
+<tr><td>12</td><td>Lista para facturar</td><td>Todas</td></tr>
+</table></div>
+<p>Las campañas <b>digitales</b> omiten «En imprenta»; las <b>fijas</b> omiten las etapas de creativo/dominio/publicada.</p>
+
+<figure><img src="img/campana-detalle.png" alt="Detalle de campaña"><figcaption>Detalle de campaña: pipeline, validación de publicación, candado de facturación, rentabilidad y sitios.</figcaption></figure>
+
+<h3>Enviar al dominio y validar la publicación</h3>
+<ol class="steps">
+  <li>En el detalle de la campaña, panel <b>«Validación de publicación»</b>, pulsa <span class="btn">Enviar al dominio</span> (en digitales exige al menos un creativo cargado).</li>
+  <li>Un revisor pulsa <span class="btn">Aprobar publicación</span> (o <span class="btn">Rechazar</span> indicando el motivo).</li>
+  <li>En campañas digitales, aprobar dispara la publicación a DOOHmain (ver <a href="#doohmain">§13</a>). Al aprobar, la campaña pasa a <b>Activa</b> y el pipeline avanza a <b>Publicada</b>.</li>
+</ol>
+
+<h3>El candado de facturación</h3>
+<p>El panel «Candado de facturación» exige tres condiciones: <b>OC recibida</b> (registrada con número, monto, fecha y documento), <b>fotografías comprobatorias</b> (de las OT) y <b>reporte de publicación</b>. Cuando las tres se cumplen, la campaña queda <b>Lista para facturar</b>.</p>
+</section>
+
+<!-- ===================== 11. COMISIONES ===================== -->
+<section id="comisiones">
+<h2 class="sec"><span class="num">11</span>Comisiones</h2>
+<p class="lead-muted">Ruta: <code>/demo/comisiones</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Ajusta la <b>comisión por agencia</b> y asigna la agencia a cada cliente directo (lo que determina la comisión aplicada). La comisión es un atributo de la <b>agencia</b>, no del cliente directo.</p>
+
+<figure><img src="img/comisiones.png" alt="Comisiones"><figcaption>Agencias y su comisión; clientes y su agencia asignada.</figcaption></figure>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Crea una agencia con <span class="btn">Nueva agencia</span> (comisión + negociación validada).</li>
+  <li>Ajusta la comisión en línea (edita el campo → <span class="btn">Guardar</span>).</li>
+  <li>Valida/quita la negociación de la agencia.</li>
+  <li>En la tabla «Clientes y su agencia», asigna a cada cliente su agencia; la comisión aplicada se toma automáticamente.</li>
+</ol>
+</section>
+
+<!-- ===================== 12. CREATIVOS ===================== -->
+<section id="creativos">
+<h2 class="sec"><span class="num">12</span>Creativos</h2>
+<p class="lead-muted">Ruta: <code>/demo/creativos</code> · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Subir y aprobar las imágenes/artes de cada campaña y asignar cuál se exhibe en cada slot reservado. Solo se listan campañas con slots reservados o con algún creativo.</p>
+
+<figure><img src="img/creativos.png" alt="Creativos"><figcaption>Tarjetas de campaña con sus creativos, estado de validación y slots reservados.</figcaption></figure>
+
+<h3>Cómo subir y aprobar un creativo</h3>
+<ol class="steps">
+  <li>En la tarjeta de la campaña, pulsa <span class="btn">Imagen</span> y elige un archivo (máx. 5 MB) — o <span class="btn">Código</span> para pegar HTML.</li>
+  <li>El creativo queda en <b>Pendiente</b>. Pulsa <span class="btn">Aprobar</span> para pasarlo a <b>Aprobado</b>.</li>
+  <li>Asigna el creativo aprobado a los slots reservados (input «veces» en digital, o el selector en fijo).</li>
+</ol>
+<div class="callout info"><b>HTML adaptativo con fondo difuminado</b>Toda imagen que subes se convierte en un creativo HTML que muestra la imagen completa (sin recorte) sobre un fondo difuminado de la misma imagen, para que se vea bien en cualquier proporción de pantalla.</div>
+
+<h3>Aprobar, rechazar, reemplazar y bajar</h3>
+<ul>
+  <li><b>Aprobar</b> es definitivo: una vez aprobado, el botón <span class="btn">Rechazar</span> se deshabilita.</li>
+  <li><b>Reemplazar</b> (<span class="btn">Reemplazar</span>): sube un arte nuevo; retira el anterior de DOOHmain (si estaba publicado) y deja el creativo en Pendiente para volver a aprobar y publicar.</li>
+  <li><b>Bajar/eliminar</b> (<span class="btn">Eliminar</span>): pide confirmación. Si el creativo ya estaba publicado, la campaña se finaliza pero el arte no se puede quitar de DOOHmain por API, así que queda marcado <b>«Retirado · pendiente en DOOHmain»</b> para que lo quites manualmente en el panel de DOOHmain.</li>
+</ul>
+<div class="callout warn"><b>Estado honesto</b>El sistema no «desaparece» un creativo que sigue físicamente en DOOHmain: lo muestra atenuado con la etiqueta «Retirado · pendiente en DOOHmain». Así siempre sabes qué artes quedaron pendientes de quitar en DOOHmain.</div>
+</section>
+
+<!-- ===================== 13. DOOHMAIN ===================== -->
+<section id="doohmain">
+<h2 class="sec"><span class="num">13</span>Publicar creativos a DOOHmain</h2>
+<p class="lead-muted">Se dispara desde el panel «Validación de publicación» de la campaña · <span class="role">Dueño</span> <span class="role">Comercial</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Publicar los creativos validados de una campaña en las <b>pantallas digitales</b> de DOOHmain (el CMS/red DOOH externo). La publicación se dispara al aprobar la publicación de la campaña.</p>
+
+<h3>Cómo se publica (paso a paso)</h3>
+<ol class="steps">
+  <li>Sube y <b>aprueba</b> los creativos de la campaña (§12).</li>
+  <li>En el detalle de la campaña, <span class="btn">Enviar al dominio</span>.</li>
+  <li>Pulsa <span class="btn">Aprobar publicación</span>. Aparece el aviso <b>«Aprobar y publicar en DOOHmain»</b>.</li>
+  <li>Confirma con <span class="btn">Sí, publicar</span>. Cada creativo validado se sube a la pantalla digital correspondiente.</li>
+</ol>
+
+<div class="callout warn">
+  <b>Aviso al publicar</b>
+  «Al aprobar, los anuncios se suben a DOOHmain. <b>Una vez publicados no se pueden eliminar ni reemplazar desde el sistema</b> (la API de DOOHmain no lo permite): cualquier cambio posterior deberá hacerse <b>manualmente en el panel de DOOHmain</b>.»
+</div>
+
+<h3>Reglas importantes de la publicación</h3>
+<ul>
+  <li><b>Solo pantallas digitales.</b> Los sitios <b>fijos</b> nunca se suben a DOOHmain. Una campaña <b>fija (OOH)</b> no publica nada; una <b>híbrida</b> publica solo su parte digital.</li>
+  <li><b>1 campaña = 1 sublista.</b> El <b>folio</b> de la campaña es el nombre de la sublista en DOOHmain.</li>
+  <li><b>Solo creativos validados</b> (aprobados) se publican.</li>
+  <li><b>Se sube la imagen</b>, no el HTML: el sistema extrae la imagen embebida del creativo (DOOHmain no acepta HTML).</li>
+</ul>
+
+<div class="callout info">
+  <b>Limitación de DOOHmain (importante)</b>
+  DOOHmain <b>no permite borrar ni editar</b> lo ya subido por API. «Bajar» un creativo publicado hace lo máximo posible: finaliza su campaña y fija fechas en el pasado para que deje de emitirse, pero el arte permanece en DOOHmain hasta que lo quites manualmente en su panel. Por eso el sistema marca esos creativos como «pendiente en DOOHmain».
+</div>
+<div class="callout ok">
+  <b>Nota de operación</b>
+  Si al publicar aparece el error «lista en edicion», significa que la pantalla de destino está abierta en modo edición en el panel de DOOHmain: guarda/cierra esa edición y la pantalla debe estar <b>en línea</b> para aceptar contenido.
+</div>
+</section>
+
+<!-- ===================== 14. IMPRENTA ===================== -->
+<section id="imprenta">
+<h2 class="sec"><span class="num">14</span>Imprenta (sitios fijos)</h2>
+<p class="lead-muted">Ruta: <code>/demo/imprenta</code> · <span class="role">Dueño</span> <span class="role">Imprenta</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Gestiona las <b>órdenes de impresión</b> para sitios <b>fijos</b> (OOH e híbridas), del arte al montaje. Las campañas 100 % digitales (DOOH) no imprimen y no aparecen aquí.</p>
+
+<figure><img src="img/imprenta.png" alt="Imprenta"><figcaption>Órdenes de impresión con su stepper de 5 etapas y la prueba de color.</figcaption></figure>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li>Pulsa <span class="btn">Nueva orden</span>, elige campaña (fija/híbrida), sitio, material, medidas y proveedor. <span class="btn">Crear orden</span> (nace en «Arte recibido»).</li>
+  <li>Pulsa <span class="btn">Avanzar</span> para recorrer el proceso: Arte recibido → Validado → En producción → Impreso → Listo para montaje.</li>
+  <li>Pulsa <span class="btn">Aprobar prueba de color</span> cuando corresponda.</li>
+</ol>
+</section>
+
+<!-- ===================== 15. OPERACIONES ===================== -->
+<section id="operaciones">
+<h2 class="sec"><span class="num">15</span>Operaciones (Órdenes de trabajo)</h2>
+<p class="lead-muted">Ruta: <code>/demo/operaciones</code> · <span class="role">Dueño</span> <span class="role">Operaciones</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Órdenes de trabajo (OT) para la cuadrilla en campo: montaje, mantenimiento, inspección e <b>instalación con evidencias</b> en sitios fijos, con seguimiento de SLA.</p>
+
+<figure><img src="img/operaciones.png" alt="Operaciones"><figcaption>Lista de OT con filtros, prioridad, SLA y estado.</figcaption></figure>
+
+<h3>Cómo crear y ejecutar una OT</h3>
+<ol class="steps">
+  <li>Pulsa <span class="btn">Nueva OT</span>: tipo de tarea, descripción, campaña/sitio, prioridad, <b>fecha compromiso</b> y responsable. <span class="btn">Crear OT</span>.</li>
+  <li>La cuadrilla abre la OT (<span class="btn">Abrir OT</span>), marca el <b>checklist</b>, toma la <b>foto comprobatoria</b> y pulsa <span class="btn">Capturar ubicación</span>.</li>
+  <li>Pulsa <span class="btn">Cerrar OT</span> (se habilita solo con checklist completo + foto + ubicación). La evidencia alimenta el candado de facturación de la campaña.</li>
+</ol>
+<div class="callout info"><b>Vista móvil de campo</b>La cuadrilla usa la vista móvil de la OT (sin menús) para ejecutar el checklist, tomar la foto y cerrar la orden desde el teléfono. Ver <a href="#portales">§21</a>.</div>
+</section>
+
+<!-- ===================== 16. FINANZAS ===================== -->
+<section id="finanzas">
+<h2 class="sec"><span class="num">16</span>Finanzas</h2>
+<p class="lead-muted">Ruta: <code>/demo/finanzas</code> · <span class="role">Dueño</span> <span class="role">Finanzas</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Facturación y cobranza de las campañas. Solo se puede facturar una campaña cuando cerró su <b>candado de facturación</b> (OC + fotos + reporte).</p>
+
+<figure><img src="img/finanzas.png" alt="Finanzas"><figcaption>Campañas «Listas para facturar» y tabla de cobranza con su semáforo.</figcaption></figure>
+
+<h3>Cómo se usa</h3>
+<ol class="steps">
+  <li><b>Generar factura:</b> en «Listas para facturar», pulsa <span class="btn">Generar factura</span>, elige plazo (60/90/120 días) y <span class="btn">Emitir factura</span>.</li>
+  <li><b>Registrar pago:</b> en la tabla de Cobranza, <span class="btn">Registrar pago</span>. Usa <span class="btn">Liquidar total</span> o <span class="btn">Registrar abono</span> (parcial).</li>
+  <li><b>Recordar cobro:</b> pulsa <span class="btn">Recordar</span> en la fila de la cobranza.</li>
+</ol>
+</section>
+
+<!-- ===================== 17. INTEGRACIONES ===================== -->
+<section id="integraciones">
+<h2 class="sec"><span class="num">17</span>Integraciones</h2>
+<p class="lead-muted">Ruta: <code>/demo/integraciones</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Panel de <b>conectores externos</b>: AdMobilize (Computer Vision), CMS/players DOOH, y facturación fiscal (CFDI). Sin credenciales devuelven datos simulados; se activan definiendo su variable de entorno.</p>
+
+<figure><img src="img/integraciones.png" alt="Integraciones"><figcaption>Conectores externos con su estado (Conectado / Modo demo) y variable de entorno.</figcaption></figure>
+
+<p>Puedes probar el conector AdMobilize: escribe un ID de dispositivo y pulsa <span class="btn">Consultar métricas</span> para ver vehículos, personas, velocidad promedio y ventana.</p>
+</section>
+
+<!-- ===================== 18. ACTIVIDAD ===================== -->
+<section id="actividad">
+<h2 class="sec"><span class="num">18</span>Actividad (bitácora)</h2>
+<p class="lead-muted">Ruta: <code>/demo/actividad</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p><b>Bitácora de acciones</b>: registra quién hizo qué y cuándo (reservar, confirmar, cerrar OT, facturar…). Es de solo consulta y filtrable por fecha, hora y usuario.</p>
+
+<figure><img src="img/actividad.png" alt="Actividad"><figcaption>Línea de tiempo de acciones con filtros por fecha, hora y usuario.</figcaption></figure>
+</section>
+
+<!-- ===================== 19. ADMINISTRACIÓN ===================== -->
+<section id="administracion">
+<h2 class="sec"><span class="num">19</span>Administración</h2>
+<p class="lead-muted">Ruta: <code>/demo/administracion</code> · <span class="role">Dueño</span></p>
+
+<h3>Para qué sirve</h3>
+<p>Centro de gestión de <b>usuarios</b>, <b>roles/permisos</b> y <b>configuración del negocio</b>. Tres pestañas: Usuarios, Roles y permisos, Configuración.</p>
+
+<figure><img src="img/administracion.png" alt="Administración"><figcaption>Gestión de usuarios del equipo, con rol y estatus.</figcaption></figure>
+
+<h3>Cómo invitar a un usuario</h3>
+<ol class="steps">
+  <li>Pestaña <b>Usuarios</b> → <span class="btn">Invitar usuario</span>.</li>
+  <li>Captura nombre, correo, cargo, <b>rol</b> y contraseña (≥6). <span class="btn">Crear usuario</span>.</li>
+  <li>Después puedes cambiar su <b>rol</b> o activarlo/desactivarlo desde la tabla.</li>
+</ol>
+<p>La pestaña <b>Configuración</b> ajusta el negocio: logo y nombre de la empresa, IVA(s), parámetros del <b>loop digital</b> (tamaño del loop, duración por slot, slots por loop), plazos de cobranza y tipos de tarea de cuadrilla.</p>
+</section>
+
+<!-- ===================== 20. CONFIGURACIÓN ===================== -->
+<section id="configuracion">
+<h2 class="sec"><span class="num">20</span>Configuración de la cuenta</h2>
+<p class="lead-muted">Ruta: <code>/demo/configuracion</code> · todos los usuarios internos</p>
+
+<h3>Para qué sirve</h3>
+<p>Ajustar el <b>nombre de la empresa</b> (solo Dueño) y los <b>datos de tu cuenta</b> (correo y contraseña). Se accede desde el menú de usuario en la barra superior.</p>
+
+<figure><img src="img/configuracion.png" alt="Configuración"><figcaption>Configuración: nombre de la empresa y datos de la cuenta personal.</figcaption></figure>
+
+<p><b>Cambiar tu correo/contraseña:</b> en «Mi cuenta», edita el correo y/o escribe una nueva contraseña (mín. 6; déjala en blanco para no cambiarla) y pulsa <span class="btn">Guardar cambios</span>.</p>
+</section>
+
+<!-- ===================== 21. PORTALES ===================== -->
+<section id="portales">
+<h2 class="sec"><span class="num">21</span>Portales del cliente y OT móvil</h2>
+<p class="lead-muted">Vistas externas para el cliente y la cuadrilla</p>
+
+<h3>Portal de seguimiento de campaña</h3>
+<p>El cliente abre un enlace con token (sin login) y ve el <b>avance de su campaña</b> (pipeline sin datos financieros), las <b>ubicaciones</b> reservadas y las <b>evidencias de instalación</b>. Es de solo lectura. Se comparte desde la campaña interna con el enlace «Portal del cliente».</p>
+
+<h3>Portal para subir creativos</h3>
+<p>El cliente abre su portal privado (por token) y <b>sube el material creativo</b> arrastrando el archivo (JPG, PNG, PDF, MP4, MOV, máx. 500 MB). Los materiales quedan como «Pendiente» hasta que internamente se aprueban/rechazan.</p>
+
+<h3>Propuesta pública (aceptación)</h3>
+<ol class="steps">
+  <li>El comercial comparte la liga de la propuesta (<span class="btn">Copiar liga</span>).</li>
+  <li>El cliente abre la liga, revisa sitios y total.</li>
+  <li>Escribe su nombre y pulsa <span class="btn">Aceptar propuesta</span>. Queda registrada la aceptación con fecha y hora, y el equipo comercial es notificado.</li>
+</ol>
+<p>También existe una entrada por <b>código</b>: el cliente teclea el folio de su propuesta para abrirla sin el enlace directo.</p>
+
+<h3>OT móvil (instalador en campo)</h3>
+<ol class="steps">
+  <li>El instalador abre el enlace de la OT en el teléfono.</li>
+  <li>Marca el <b>checklist</b>, pulsa <span class="btn">Tomar foto</span> (cámara) y <span class="btn">Capturar ubicación</span>.</li>
+  <li>Pulsa <span class="btn">Cerrar OT</span>. La evidencia se envía al pipeline de la campaña y aparece en el portal de seguimiento del cliente.</li>
+</ol>
+
+<h3>Portal de clientes con login (reportes de servicio)</h3>
+<p>Portal con cuenta (correo + contraseña) donde el cliente ve sus <b>sitios asignados</b>, los <b>reportes de servicio</b> (OT) de cada sitio y su detalle, con <b>chat cliente-técnico</b> (adjuntando fotos) y evidencias fotográficas.</p>
+</section>
+
+<!-- ===================== ANEXO A ===================== -->
+<section id="anexo-roles">
+<h2 class="sec">Anexo A · Roles y permisos</h2>
+<p>Capacidades: <b>V</b>=Ver, <b>C</b>=Crear, <b>A</b>=Aprobar, <b>F</b>=Facturar. El Dueño es superusuario.</p>
+<div class="tablewrap"><table>
+<tr><th>Módulo</th><th>Dueño</th><th>Comercial</th><th>Operaciones</th><th>Imprenta</th><th>Finanzas</th></tr>
+<tr><td>Dashboard</td><td>V</td><td>V</td><td>—</td><td>—</td><td>V</td></tr>
+<tr><td>Comercial</td><td>V C A</td><td>V C</td><td>V</td><td>—</td><td>—</td></tr>
+<tr><td>Arrendadores</td><td>V C A</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Network</td><td>V C</td><td>V</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Operaciones</td><td>V C A</td><td>—</td><td>V C</td><td>V</td><td>—</td></tr>
+<tr><td>Imprenta</td><td>V C A</td><td>—</td><td>V</td><td>V C</td><td>—</td></tr>
+<tr><td>Finanzas</td><td>V C F</td><td>—</td><td>—</td><td>—</td><td>V C F</td></tr>
+<tr><td>Administración</td><td>V C A</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</table></div>
+<p class="lead-muted">Creativos y Validación de publicación usan el permiso del módulo Comercial (crear) → Dueño y Comercial.</p>
+</section>
+
+<!-- ===================== ANEXO B ===================== -->
+<section id="anexo-nav">
+<h2 class="sec">Anexo B · Mapa de navegación (menú lateral)</h2>
+<div class="tablewrap"><table>
+<tr><th>Ítem del menú</th><th>Ruta</th><th>Roles que lo ven</th></tr>
+<tr><td>Dashboard</td><td><code>/demo</code></td><td>Dueño</td></tr>
+<tr><td>Agregar inventario</td><td><code>/demo/inventario</code></td><td>Dueño</td></tr>
+<tr><td>Campañas</td><td><code>/demo/campanas</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Arrendadores</td><td><code>/demo/arrendadores</code></td><td>Dueño</td></tr>
+<tr><td>Network</td><td><code>/demo/network</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Clientes</td><td><code>/demo/clientes</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Comercial</td><td><code>/demo/comercial</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Disponibilidad</td><td><code>/demo/disponibilidad</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Propuestas</td><td><code>/demo/propuestas</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Creativos</td><td><code>/demo/creativos</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Imprenta</td><td><code>/demo/imprenta</code></td><td>Dueño, Imprenta</td></tr>
+<tr><td>Operaciones</td><td><code>/demo/operaciones</code></td><td>Dueño, Operaciones</td></tr>
+<tr><td>Finanzas</td><td><code>/demo/finanzas</code></td><td>Dueño, Finanzas</td></tr>
+<tr><td>Comisiones</td><td><code>/demo/comisiones</code></td><td>Dueño, Comercial</td></tr>
+<tr><td>Integraciones</td><td><code>/demo/integraciones</code></td><td>Dueño</td></tr>
+<tr><td>Actividad</td><td><code>/demo/actividad</code></td><td>Dueño</td></tr>
+<tr><td>Administración</td><td><code>/demo/administracion</code></td><td>Dueño</td></tr>
+</table></div>
+</section>
+
+<!-- ===================== GLOSARIO ===================== -->
+<section id="glosario">
+<h2 class="sec">Anexo C · Glosario</h2>
+<div class="tablewrap"><table>
+<tr><th>Término</th><th>Significado</th></tr>
+<tr><td>OOH / DOOH</td><td>Out-Of-Home (medios exteriores fijos) / Digital-OOH (pantallas digitales).</td></tr>
+<tr><td>Sitio fijo</td><td>Espectacular, valla, muro, puente o mobiliario. Se imprime; reserva exclusiva por periodo.</td></tr>
+<tr><td>Pantalla digital</td><td>Pantalla que se comercializa por slots; se publica en DOOHmain.</td></tr>
+<tr><td>Slot</td><td>Espacio de reproducción en una pantalla digital (por defecto 12 slots de 20 s). 1 slot = 1 campaña.</td></tr>
+<tr><td>Sublista</td><td>Lista en DOOHmain que agrupa el contenido de una campaña; su nombre es el folio de la campaña.</td></tr>
+<tr><td>Método del divisor</td><td>Cálculo bruto → neto: <code>neto = base × (1 − comisión%)</code>.</td></tr>
+<tr><td>Candado de facturación</td><td>OC recibida + fotos comprobatorias + reporte de publicación. Habilita facturar.</td></tr>
+<tr><td>OT</td><td>Orden de trabajo para la cuadrilla en campo.</td></tr>
+<tr><td>Tentativa / Confirmada</td><td>Estados de reserva. La tentativa caduca sola a los 7 días.</td></tr>
+</table></div>
+<hr/>
+<p class="lead-muted">Manual de usuario de SPACES OS · RGB Catorce S de RL de CV (PIXELED) · Este documento describe el sistema tal como opera actualmente. Los importes se manejan en pesos mexicanos (MXN).</p>
+</section>
+
+</main>
+</div>
+</body>
+</html>

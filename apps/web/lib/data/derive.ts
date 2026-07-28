@@ -112,6 +112,13 @@ export function candadoFacturacion(c: Campana): boolean {
 // ─── Etapa actual del pipeline ──────────────────────────────────────────────
 // Devuelve la etapa MÁS avanzada que la campaña ha alcanzado.
 export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
+  // Etapas que aplican a esta campaña según su tipo (digital/fija/híbrida).
+  // INVARIANTE: esta función solo puede devolver una etapa contenida en
+  // `etapasPipeline(c)`. Si devuelve una que no está, `etapaIndex` da -1 y el
+  // Stepper pinta TODOS los pasos como pendientes (ni check ni etapa actual),
+  // que es como se veía el pipeline roto en el detalle de campaña.
+  const aplica = (e: EtapaPipeline) => etapasPipeline(c).includes(e)
+
   if (c.estadoComercial === 'LISTA_FACTURAR' || candadoFacturacion(c)) {
     return 'lista_facturar'
   }
@@ -123,15 +130,15 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   const tieneEvidencia = ots.some((o) =>
     state.evidencias.some((e) => e.otId === o.id),
   )
-  if (tieneEvidencia || ots.some((o) => o.estatus === 'COMPLETADA')) {
+  // `instalada` es etapa FÍSICA: una campaña DOOH la excluye de su pipeline
+  // aunque tenga OT de MONTAJE_DIGITAL completada. Su avance se expresa por
+  // `publicada`, más abajo.
+  if (aplica('instalada') && (tieneEvidencia || ots.some((o) => o.estatus === 'COMPLETADA'))) {
     return 'instalada'
   }
 
-  // Etapas que aplican a esta campaña según su tipo (digital/fija/híbrida).
-  const aplica = (e: EtapaPipeline) => etapasPipeline(c).includes(e)
-
   const ois = state.ordenesImpresion.filter((o) => o.campanaId === c.id)
-  if (ois.some((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')) {
+  if (aplica('en_produccion') && ois.some((o) => o.estatus === 'LISTO_MONTAJE' || o.estatus === 'IMPRESO')) {
     return 'en_produccion'
   }
   // "En imprenta" solo aplica a medios físicos (OOH/HÍBRIDA), no a digitales.
@@ -157,7 +164,12 @@ export function etapaIndex(
   etapa: EtapaPipeline,
   etapas: EtapaPipeline[] = ETAPAS_PIPELINE,
 ): number {
-  return etapas.indexOf(etapa)
+  const i = etapas.indexOf(etapa)
+  // Red de seguridad: un -1 se propaga al Stepper como "ningún paso alcanzado"
+  // y el pipeline se ve vacío. Si alguna vez vuelve a colarse una etapa que no
+  // pertenece a este tipo de campaña, degradamos al primer paso en vez de
+  // mostrar un timeline en blanco.
+  return i === -1 ? 0 : i
 }
 
 // Fecha conocida de cada etapa (donde se puede derivar del estado). Las que no
@@ -503,10 +515,22 @@ function construirAlertas(state: DemoState): Alerta[] {
     })
   }
 
-  // Contratos: por vencer (a 3 meses) y vencidos.
+  // Contratos: incompletos, por vencer (a 3 meses) y vencidos.
   for (const c of state.contratos) {
     const sit = state.sitios.find((s) => s.id === c.sitioId)
-    if (c.estatus === 'POR_VENCER') {
+    // Pendiente de captura: la pantalla se vendió pero no consta qué se le paga
+    // a su propietario, así que su margen sale inflado (ADR 0001). Sin esta
+    // alerta el contrato incompleto se queda en Arrendadores sin que nadie lo
+    // cierre.
+    if (c.estatus === 'INCOMPLETO') {
+      alertas.push({
+        id: `al-coninc-${c.id}`,
+        tipo: 'contrato',
+        nivel: 'ambar',
+        titulo: 'Contrato incompleto',
+        detalle: `${sit?.nombre ?? 'Sitio'} — falta arrendador e importe de renta`,
+      })
+    } else if (c.estatus === 'POR_VENCER' && c.fechaFin) {
       const dias = diasHasta(c.fechaFin)
       alertas.push({
         id: `al-con-${c.id}`,
@@ -515,7 +539,7 @@ function construirAlertas(state: DemoState): Alerta[] {
         titulo: 'Contrato por vencer',
         detalle: `${sit?.nombre ?? 'Sitio'} — vence en ${dias} días`,
       })
-    } else if (c.estatus === 'VENCIDO') {
+    } else if (c.estatus === 'VENCIDO' && c.fechaFin) {
       const dias = Math.abs(diasHasta(c.fechaFin))
       alertas.push({
         id: `al-conv-${c.id}`,
@@ -525,6 +549,52 @@ function construirAlertas(state: DemoState): Alerta[] {
         detalle: `${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`,
       })
     }
+  }
+
+  // Cobertura: lo vendido no puede exceder lo contratado con el propietario.
+  // Al generar la campaña debe existir un contrato que abarque TODO el periodo
+  // vendido (ADR 0001). Si la reserva termina después de que vence el contrato
+  // del sitio, estamos comprometiendo con el cliente un espacio sobre el que ya
+  // no tendremos derechos: hay que renovar antes o recortar la campaña.
+  // Se agrupa por sitio para no repetir la misma alerta por cada reserva.
+  const descubiertos = new Map<string, { sitio: string; campana: string; hasta: string; fin: string | null }>()
+  for (const r of state.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    // Contrato de referencia: el que cubre más lejos entre los que valen hoy.
+    // Un INCOMPLETO cuenta como cobertura porque la campaña ya lo estiró hasta
+    // su fin; lo que le falta (importe, arrendador) lo denuncia su propia alerta.
+    const suyos = state.contratos.filter(
+      (c) => c.sitioId === r.sitioId && (contratoActivo(c.estatus) || c.estatus === 'INCOMPLETO'),
+    )
+    if (!suyos.length) continue // sin contrato: ya lo cubre «Contrato incompleto»
+    const cubreHasta = suyos
+      .map((c) => c.fechaFin)
+      .filter(Boolean)
+      .sort()
+      .at(-1) as string | undefined
+    if (cubreHasta && cubreHasta.slice(0, 10) >= r.fechaFin.slice(0, 10)) continue
+    const sit = state.sitios.find((s) => s.id === r.sitioId)
+    const camp = state.campanas.find((c) => c.id === r.campanaId)
+    const prev = descubiertos.get(r.sitioId)
+    if (!prev || r.fechaFin > prev.hasta) {
+      descubiertos.set(r.sitioId, {
+        sitio: sit?.nombre ?? 'Sitio',
+        campana: camp?.nombre ?? 'campaña',
+        hasta: r.fechaFin,
+        fin: cubreHasta ?? null,
+      })
+    }
+  }
+  for (const [sitioId, d] of descubiertos) {
+    alertas.push({
+      id: `al-cobertura-${sitioId}`,
+      tipo: 'contrato',
+      nivel: 'rojo',
+      titulo: 'El contrato no cubre la campaña',
+      detalle: `${d.sitio} — «${d.campana}» va hasta ${formatFecha(d.hasta)} y el contrato ${
+        d.fin ? `vence el ${formatFecha(d.fin)}` : 'no tiene fecha de fin'
+      }`,
+    })
   }
 
   // Cobranzas vencidas / por vencer
@@ -664,7 +734,13 @@ export interface MargenSitio {
 // Normaliza el monto de renta a mensual según la periodicidad del contrato.
 // Enum canónico (M3): SEMANAL ×30/7 · CATORCENAL ×30/14 · QUINCENAL ×2 ·
 // MENSUAL ×1 · BIMESTRAL ÷2 · TRIMESTRAL ÷3 · SEMESTRAL ÷6 · ANUAL ÷12.
-function rentaAMensual(monto: number, periodicidad: string): number {
+// Acepta nulos porque un contrato INCOMPLETO todavía no tiene importe ni
+// periodicidad (ver ADR 0001). Aporta 0 al costo: un pendiente de captura no es
+// un costo conocido, y suponerle un valor falsearía el margen en la otra
+// dirección. Los llamadores ya filtran por `contratoActivo`, que excluye
+// INCOMPLETO; esto es la red de seguridad por si alguno deja de hacerlo.
+function rentaAMensual(monto: number | null, periodicidad: string | null): number {
+  if (monto == null) return 0
   const F: Record<string, number> = {
     SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
     BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,

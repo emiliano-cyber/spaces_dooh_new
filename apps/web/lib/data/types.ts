@@ -45,7 +45,12 @@ export type EstLegal =
 
 export type EstOperativo = 'ACTIVO' | 'EN_MANTENIMIENTO' | 'APAGADO' | 'DAÑADO' | 'BAJA'
 
-export type EstContrato = 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' | 'RENOVADO' | 'CANCELADO'
+// INCOMPLETO: el contrato existe como pendiente visible en Arrendadores pero aún
+// no tiene arrendador, importe, periodicidad ni fecha de fin. Lo crea solo la
+// generación de campaña (ver ADR 0001). NO cuenta como costo en el P&L ni
+// dispara alertas de vencimiento.
+export type EstContrato =
+  | 'VIGENTE' | 'POR_VENCER' | 'VENCIDO' | 'RENOVADO' | 'CANCELADO' | 'INCOMPLETO'
 
 export type TipoIncidencia =
   | 'CLIMA'
@@ -304,11 +309,13 @@ export interface RazonSocial {
 export interface ContratoArrendamiento {
   id: string
   sitioId: string
-  arrendadorId: string
+  // Estos cuatro son null SOLO mientras el contrato está INCOMPLETO; el CHECK
+  // `contrato_completo_ck` de la BD exige los cuatro en cualquier otro estatus.
+  arrendadorId: string | null
   fechaInicio: string
-  fechaFin: string
-  montoRenta: number
-  periodicidad: string
+  fechaFin: string | null
+  montoRenta: number | null
+  periodicidad: string | null
   montoMensualEquivalente?: number // renta normalizada a mensual (informativo)
   moneda: string
   autoRenovable: boolean
@@ -335,6 +342,10 @@ export interface PagoRenta {
   metodoPago?: string | null
   observaciones?: string | null
   estatus: EstPagoRenta
+  // Nombre de la pantalla, denormalizado en `listarPagosRenta`. Finanzas ve los
+  // pagos de renta pero NO el inventario ni los contratos, así que sin esto no
+  // podría decir de qué pantalla es cada pago.
+  sitioNombre?: string | null
   creadoEn: string
 }
 

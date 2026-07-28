@@ -48,6 +48,11 @@ export async function GET() {
   // Corre la consulta solo si el rol puede ver el módulo; si no, arreglo vacío.
   const si = <T>(modulo: string, consulta: () => Promise<T[]>): Promise<T[]> =>
     puede(modulo) ? consulta() : Promise.resolve([])
+  // Igual, pero basta con poder ver CUALQUIERA de los módulos. Se usa solo para
+  // los pagos de renta, que son a la vez patrimonio de Arrendadores (el contrato
+  // con el propietario) y de Finanzas (una salida de dinero con vencimiento).
+  const siAlguno = <T>(modulos: string[], consulta: () => Promise<T[]>): Promise<T[]> =>
+    modulos.some(puede) ? consulta() : Promise.resolve([])
 
   const verComercial = puede('comercial')
   const verOperaciones = puede('operaciones')
@@ -79,7 +84,7 @@ export async function GET() {
       si('administracion', listarAcciones),
       si('arrendadores', listarArrendadores),
       si('arrendadores', listarContratos),
-      si('arrendadores', listarPagosRenta),
+      siAlguno(['arrendadores', 'finanzas'], listarPagosRenta),
       si('arrendadores', listarIncidencias),
       si('comercial', listarPropuestas),
       si('comercial', listarOrdenesCompra),

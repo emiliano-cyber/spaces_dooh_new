@@ -199,7 +199,12 @@ export async function obtenerPropuestaPublica(codigo: string) {
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
-    ? await qPub<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
+    ? await qPub<any>(
+        `select id, nombre, alcaldia, tipo_medio, lat, lng,
+                direccion, plaza_ciudad, ciudad, estado
+           from sitios where id = any($1::uuid[])`,
+        [sitioIds],
+      )
     : []
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
@@ -230,6 +235,11 @@ export async function obtenerPropuestaPublica(codigo: string) {
         tipoMedio: s?.tipo_medio ?? null,
         lat: s?.lat != null ? Number(s.lat) : null,
         lng: s?.lng != null ? Number(s.lng) : null,
+        // Ubicación en texto: la liga pública debe poder situar la pantalla
+        // aunque el mapa no cargue (tiles externos) o el sitio no tenga coords.
+        direccion: s?.direccion ?? null,
+        ciudad: s?.plaza_ciudad ?? s?.ciudad ?? null,
+        estado: s?.estado ?? null,
         fechaInicio: it.fechaInicio,
         fechaFin: it.fechaFin,
         precio: it.precio,
@@ -381,6 +391,11 @@ export interface PropuestaInput {
     tarifaUnitaria?: number
     cantidad?: number
     spotsPorDia?: number | null
+    // Renta al propietario (ADR 0001). Con los tres, el contrato que nace con la
+    // campaña nace COMPLETO y con su calendario de pagos.
+    rentaMonto?: number | null
+    rentaPeriodicidad?: string | null
+    rentaArrendadorId?: string | null
   }[]
   notas?: string | null
 }
@@ -426,12 +441,19 @@ export async function crearPropuesta(input: PropuestaInput) {
     for (const it of input.items) {
       await client.query(
         `insert into propuesta_items
-           (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+           (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, tarifa_unitaria, spots_por_dia, tenant_id,
+            renta_monto, renta_periodicidad, renta_arrendador_id)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::periodicidad_pago,$13)`,
         [
           prop.id, it.sitioId, input.fechaInicio, input.fechaFin, it.precio ?? 0,
           it.unidad ?? 'mensual', it.cantidad ?? 1, it.tarifaUnitaria ?? (it.precio ?? 0),
           it.spotsPorDia ?? null, tId,
+          // Renta al propietario (opcional). El CHECK `propuesta_items_renta_ck`
+          // exige importe y periodicidad juntos, así que se normaliza a null si
+          // falta cualquiera de los dos en vez de dejar que reviente la BD.
+          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaMonto : null,
+          it.rentaMonto != null && it.rentaPeriodicidad ? it.rentaPeriodicidad : null,
+          it.rentaArrendadorId ?? null,
         ],
       )
     }

@@ -100,7 +100,14 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   const tieneDigital = c.tipoCampana === 'DOOH' || c.tipoCampana === 'HIBRIDA'
   const tieneFija = c.tipoCampana === 'OOH' || c.tipoCampana === 'HIBRIDA'
   const candadoHecho = c.ocRecibida && c.fotosComprobatorias && c.reportePublicacion
-  const validacionAplica = tieneDigital && c.enviadaDominio
+  // Que la validación APLIQUE depende solo del medio: toda campaña digital pasa
+  // por revisión antes de salir al aire. Antes esto exigía además
+  // `c.enviadaDominio`, y el resultado era el contrario del buscado: una campaña
+  // digital todavía sin enviar quedaba marcada "No aplica", que deja la sección
+  // PLEGADA y al final de la página (ver `Seccion`) — escondiendo justo el botón
+  // "Enviar al dominio" que hay que pulsar para que se publique en DOOHmain.
+  // No haberla enviado es el estado PENDIENTE, no un "no aplica".
+  const validacionAplica = tieneDigital
   const validacionHecha = c.validacionEstatus === 'APROBADA'
   const creativosHecho = misCreas.length > 0 && misCreas.every((cr) => cr.estatusValidacion === 'VALIDADA')
   const otsPendientes = misOts.length === 0 || misOts.some((o) => !['COMPLETADA', 'CANCELADA', 'RECHAZADA'].includes(o.estatus))

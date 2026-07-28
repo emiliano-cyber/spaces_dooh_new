@@ -7,6 +7,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
+import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import {
   StatusBadge,
@@ -23,6 +24,8 @@ import {
   usePagosRenta,
   useMargenPorSitio,
   useRazonesSociales,
+  useReservas,
+  useCampanas,
   formatMonto,
   formatFecha,
   diasHasta,
@@ -38,6 +41,8 @@ export default function ArrendadoresPage() {
   const pagos = usePagosRenta()
   const margenes = useMargenPorSitio()
   const razones = useRazonesSociales()
+  const reservas = useReservas()
+  const campanas = useCampanas()
 
   const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
   const [open, setOpen] = useState(false)
@@ -54,8 +59,28 @@ export default function ArrendadoresPage() {
   const nombreArr = (id: string) => arrendadores?.find((a) => a.id === id)?.nombre ?? '—'
   const sitioDe = (id: string) => sitios?.find((s) => s.id === id)
 
+  // Campañas que tienen vendida esa pantalla. Un contrato incompleto lo creó una
+  // venta (ADR 0001), y sin decir CUÁL la fila es irreconocible: se ve el nombre
+  // del sitio, no el de la campaña que obliga a capturar el contrato.
+  const campanasDelSitio = (sitioId: string) => {
+    const ids = new Set(
+      (reservas ?? []).filter((r) => r.sitioId === sitioId && r.estatus !== 'CANCELADA').map((r) => r.campanaId),
+    )
+    return (campanas ?? []).filter((c) => ids.has(c.id))
+  }
+
   const porVencer = (contratos ?? []).filter((c) => c.estatus === 'POR_VENCER').length
   const rentaVencida = (pagos ?? []).filter((p) => p.estatus === 'VENCIDO').length
+
+  // Renta mensual comprometida con los propietarios: suma del equivalente
+  // mensual de los contratos activos (un contrato anual de 120 000 cuenta como
+  // 10 000/mes). Los INCOMPLETO no suman porque su importe aún se desconoce
+  // (ADR 0001) — se cuentan aparte para no dar el total por definitivo.
+  const activos = (contratos ?? []).filter(
+    (c) => c.estatus === 'VIGENTE' || c.estatus === 'POR_VENCER' || c.estatus === 'RENOVADO',
+  )
+  const rentaMensual = activos.reduce((s, c) => s + (c.montoMensualEquivalente ?? 0), 0)
+  const incompletos = (contratos ?? []).filter((c) => c.estatus === 'INCOMPLETO').length
 
   return (
     <div className="w-full space-y-4">
@@ -77,12 +102,21 @@ export default function ArrendadoresPage() {
       </div>
 
       {/* Resumen */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Mini label="Propietarios" valor={`${arrendadores?.length ?? '—'}`} />
         <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
+        <Mini label="Renta mensual" valor={contratos ? formatMonto(rentaMensual) : '—'} />
         <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
         <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
       </div>
+      {incompletos > 0 && (
+        // El total de arriba NO es el definitivo mientras haya pendientes: si no
+        // se dice, se lee como la renta real y se subestima el costo.
+        <p className="-mt-1 text-[12px] text-muted">
+          La renta mensual no incluye {incompletos} contrato{incompletos === 1 ? '' : 's'} incompleto
+          {incompletos === 1 ? '' : 's'}: falta capturar su importe, así que el costo real es mayor.
+        </p>
+      )}
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
@@ -126,7 +160,10 @@ export default function ArrendadoresPage() {
                 </thead>
                 <tbody>
                   {contratos.map((c) => {
-                    const dias = diasHasta(c.fechaFin)
+                    // Un contrato INCOMPLETO no tiene aún arrendador, importe,
+                    // periodicidad ni fecha de fin (ADR 0001): las celdas
+                    // muestran «—» en vez de un cero o una fecha inventada.
+                    const dias = c.fechaFin ? diasHasta(c.fechaFin) : 0
                     return (
                       <tr
                         key={c.id}
@@ -136,12 +173,30 @@ export default function ArrendadoresPage() {
                         }}
                         className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
                       >
-                        <td className="px-4 py-2.5 text-ink">{nombreArr(c.arrendadorId)}</td>
-                        <td className="px-4 py-2.5 text-muted">{sitioDe(c.sitioId)?.nombre ?? '—'}</td>
-                        <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(c.montoRenta)}</td>
+                        <td className="px-4 py-2.5 text-ink">
+                          {c.arrendadorId ? nombreArr(c.arrendadorId) : <span className="text-muted">Por definir</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted">
+                          {sitioDe(c.sitioId)?.nombre ?? '—'}
+                          {/* Para un pendiente, la campaña que lo originó es el
+                              dato que lo hace reconocible y da la urgencia. */}
+                          {c.estatus === 'INCOMPLETO' &&
+                            (() => {
+                              const cs = campanasDelSitio(c.sitioId)
+                              if (!cs.length) return null
+                              return (
+                                <div className="mt-0.5 text-[11px] text-muted">
+                                  Vendida en {cs.map((x) => `«${x.nombre}»`).join(', ')}
+                                </div>
+                              )
+                            })()}
+                        </td>
+                        <td className="demo-num px-4 py-2.5 text-right text-ink">
+                          {c.montoRenta != null ? formatMonto(c.montoRenta) : <span className="text-muted">—</span>}
+                        </td>
                         <td className="px-4 py-2.5 capitalize text-muted">{c.periodicidad ? c.periodicidad.toLowerCase() : '—'}</td>
                         <td className="demo-num px-4 py-2.5 text-muted">
-                          {formatFecha(c.fechaFin)}
+                          {c.fechaFin ? formatFecha(c.fechaFin) : '—'}
                           {c.estatus === 'POR_VENCER' && (
                             <span className="ml-1 text-[11px] text-warning">({dias}d)</span>
                           )}
@@ -159,68 +214,9 @@ export default function ArrendadoresPage() {
         </CardContent>
       </Card>
 
-      {/* Pagos de renta */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Pagos de renta</CardTitle>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          {!pagos ? (
-            <div className="space-y-2 px-4 pb-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-              ))}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-[13px]">
-                <thead>
-                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                    <th className="px-4 py-2 font-medium">Sitio</th>
-                    <th className="px-4 py-2 font-medium">Periodo</th>
-                    <th className="px-4 py-2 text-right font-medium">Monto</th>
-                    <th className="px-4 py-2 font-medium">Estatus</th>
-                    <th className="px-4 py-2 font-medium">Pago</th>
-                    <th className="px-4 py-2"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagos.map((p) => {
-                    const con = contratos?.find((c) => c.id === p.contratoId)
-                    return (
-                      <tr key={p.id} className="border-b border-border last:border-0">
-                        <td className="px-4 py-2.5 text-ink">{con ? sitioDe(con.sitioId)?.nombre : '—'}</td>
-                        <td className="px-4 py-2.5 capitalize text-muted">{p.periodo}</td>
-                        <td className="demo-num px-4 py-2.5 text-right text-ink">{formatMonto(p.monto)}</td>
-                        <td className="px-4 py-2.5">
-                          <StatusBadge tono={PAGO_TONO[p.estatus]}>{PAGO_LABEL[p.estatus]}</StatusBadge>
-                        </td>
-                        <td className="demo-num px-4 py-2.5 text-muted">
-                          {p.fechaPago ? formatFecha(p.fechaPago) : '—'}
-                        </td>
-                        <td className="px-4 py-2.5 text-right">
-                          {p.estatus !== 'PAGADO' && (
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={async () => {
-                                await registrarPagoRentaApi(p.id)
-                                notify('Pago registrado')
-                              }}
-                            >
-                              Registrar pago
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
+          salida de dinero, y no debe divergir entre las dos pantallas) */}
+      <PagosRentaCard onToast={notify} />
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (
@@ -339,7 +335,10 @@ function RazonesSocialesCard({
   nombreArr: (id: string) => string
 }) {
   const esActivo = (e: string) => e === 'VIGENTE' || e === 'POR_VENCER' || e === 'RENOVADO'
-  const aMensual = (monto: number, per: string) => {
+  // Un contrato INCOMPLETO aporta 0 al consolidado: su importe aún se desconoce
+  // y `esActivo` ya lo excluye, pero el nulo tiene que ser seguro igualmente.
+  const aMensual = (monto: number | null, per: string | null) => {
+    if (monto == null) return 0
     const F: Record<string, number> = { SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1, BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12 }
     return monto * (F[(per || '').toUpperCase()] ?? 1)
   }

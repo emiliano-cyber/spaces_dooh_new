@@ -33,15 +33,26 @@ export default function CampanasPage() {
   const [q, setQ] = useState('')
   const [estado, setEstado] = useState('')
   const term = q.trim().toLowerCase()
-  const filtradas = (campanas ?? []).filter(({ campana: c, clienteNombre }) => {
-    if (estado && c.estadoComercial !== estado) return false
-    if (!term) return true
-    return (
-      c.nombre.toLowerCase().includes(term) ||
-      c.folio.toLowerCase().includes(term) ||
-      (clienteNombre ?? '').toLowerCase().includes(term)
+  const filtradas = (campanas ?? [])
+    .filter(({ campana: c, clienteNombre }) => {
+      if (estado && c.estadoComercial !== estado) return false
+      if (!term) return true
+      return (
+        c.nombre.toLowerCase().includes(term) ||
+        c.folio.toLowerCase().includes(term) ||
+        (clienteNombre ?? '').toLowerCase().includes(term)
+      )
+    })
+    // Más recientes arriba. El store llega en `creado_en asc` (el orden del
+    // servidor, que no tocamos porque lo comparten otras pantallas), así que el
+    // orden de presentación se decide aquí. `.filter` ya devolvió un arreglo
+    // nuevo: ordenarlo no muta el store. Desempate por folio para que el orden
+    // sea estable cuando dos campañas se crearon en el mismo instante (p. ej.
+    // una carga masiva), y no baile entre renders.
+    .sort((a, b) =>
+      b.campana.creadoEn.localeCompare(a.campana.creadoEn) ||
+      b.campana.folio.localeCompare(a.campana.folio),
     )
-  })
 
   return (
     <div className="w-full space-y-4">

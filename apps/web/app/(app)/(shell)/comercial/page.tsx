@@ -56,7 +56,8 @@ export default function ComercialPage() {
     const arrById = new Map((arrendadores ?? []).map((a) => [a.id, a.nombre]))
     const m = new Map<string, string>()
     for (const c of (contratos ?? []).slice().sort((a, b) => (PR[a.estatus] ?? 9) - (PR[b.estatus] ?? 9))) {
-      if (!m.has(c.sitioId)) m.set(c.sitioId, arrById.get(c.arrendadorId) ?? '—')
+      // INCOMPLETO no tiene arrendador todavía (ADR 0001): queda como «—».
+      if (!m.has(c.sitioId)) m.set(c.sitioId, (c.arrendadorId ? arrById.get(c.arrendadorId) : null) ?? '—')
     }
     return m
   }, [contratos, arrendadores])

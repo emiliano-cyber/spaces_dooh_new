@@ -384,8 +384,8 @@ export function ContratoWizard({
                   {contratoDelPredio && (
                     <p className="mt-2 rounded border border-info/30 bg-info/10 p-2 text-[12px] text-ink">
                       Este predio ya tiene un contrato vigente de{' '}
-                      <strong>{formatMonto(contratoDelPredio.montoRenta)}</strong>{' '}
-                      ({periodicidadLabel(contratoDelPredio.periodicidad)}). No se firma otro: la pantalla se agrega al
+                      <strong>{contratoDelPredio.montoRenta != null ? formatMonto(contratoDelPredio.montoRenta) : 'importe por definir'}</strong>{' '}
+                      ({periodicidadLabel(contratoDelPredio.periodicidad ?? '')}). No se firma otro: la pantalla se agrega al
                       predio y comparte esa renta con las demás. Para cambiar la renta, edita el contrato.
                     </p>
                   )}

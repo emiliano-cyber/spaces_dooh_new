@@ -68,7 +68,7 @@ export function ContratoSheet({
   const arrendador = arrendadores?.find((a) => a.id === contrato.arrendadorId)
   const sitio = sitios?.find((s) => s.id === contrato.sitioId)
   const misPagos = (pagos ?? []).filter((p) => p.contratoId === contrato.id)
-  const dias = diasHasta(contrato.fechaFin)
+  const dias = contrato.fechaFin ? diasHasta(contrato.fechaFin) : 0
 
   return (
     <>
@@ -82,7 +82,12 @@ export function ContratoSheet({
             <Button variant="secondary" className="flex-1" onClick={() => setIncOpen(true)}>
               <AlertTriangle className="h-4 w-4" /> Reportar incidencia
             </Button>
-            {(contrato.estatus === 'POR_VENCER' || dias <= 60) && contrato.estatus !== 'RENOVADO' && (
+            {/* ADR 0001: un contrato INCOMPLETO no se renueva (no hay acuerdo
+                que extender). Además su `dias` es 0 por no tener fecha de fin,
+                así que `dias <= 60` lo colaba aquí y el servidor respondía con
+                un error de base de datos. */}
+            {contrato.estatus !== 'INCOMPLETO' &&
+              (contrato.estatus === 'POR_VENCER' || dias <= 60) && contrato.estatus !== 'RENOVADO' && (
               <Button
                 className="flex-1"
                 onClick={async () => {
@@ -97,6 +102,14 @@ export function ContratoSheet({
         }
       >
         <div className="space-y-5">
+          {contrato.estatus === 'INCOMPLETO' && (
+            <p className="rounded border border-warning/40 bg-warning-soft p-2.5 text-[12.5px] text-ink">
+              Este contrato se abrió automáticamente al vender la pantalla, para que no
+              quedara sin registro. Falta capturar el arrendador, el importe de la renta,
+              la periodicidad y la fecha de fin. Mientras tanto no cuenta como costo en el
+              P&amp;L ni genera calendario de pagos.
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
             <StatusBadge tono={CONTRATO_TONO[contrato.estatus]}>
               {CONTRATO_LABEL[contrato.estatus]}
@@ -112,12 +125,15 @@ export function ContratoSheet({
           <div>
             <h4 className="mb-2 text-[13px] font-medium text-ink">Contrato de arrendamiento</h4>
             <dl className="space-y-2 text-[13px]">
-              <Fila label="Renta mensual" valor={formatMonto(contrato.montoRenta)} mono />
-              <Fila label="Periodicidad" valor={contrato.periodicidad.toLowerCase()} />
-              <Fila label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${formatFecha(contrato.fechaFin)}`} mono />
+              {/* Contrato INCOMPLETO (ADR 0001): estos campos aún no existen.
+                  Se marcan como pendientes en vez de mostrar 0 o una fecha
+                  inventada, que se leerían como dato real. */}
+              <Fila label="Renta mensual" valor={contrato.montoRenta != null ? formatMonto(contrato.montoRenta) : 'Por definir'} mono />
+              <Fila label="Periodicidad" valor={contrato.periodicidad ? contrato.periodicidad.toLowerCase() : 'Por definir'} />
+              <Fila label="Vigencia" valor={`${formatFecha(contrato.fechaInicio)} – ${contrato.fechaFin ? formatFecha(contrato.fechaFin) : 'por definir'}`} mono />
               <Fila
                 label="Tiempo restante"
-                valor={dias < 0 ? 'Vencido' : `${dias} días`}
+                valor={!contrato.fechaFin ? '—' : dias < 0 ? 'Vencido' : `${dias} días`}
               />
               <Fila label="Renovación automática" valor={contrato.autoRenovable ? 'Sí' : 'No'} />
             </dl>

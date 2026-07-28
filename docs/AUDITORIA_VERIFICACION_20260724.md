@@ -254,3 +254,39 @@ control_cambios_on=false
 comercial_arrend_grant=0
 ```
 Sin residuos. Estado de la BD restaurado al previo a la auditoría.
+
+---
+
+# Registro de cierre (post-auditoría) — 2026-07-24
+
+> Todo lo de arriba es la FOTO de la auditoría (hallazgos abiertos). Esta sección
+> registra la remediación posterior: qué se cerró, con qué commit, y qué se
+> desplegó a producción (droplet `209.97.146.136`, BD `spaces_prod`).
+
+## Commits de remediación (branch `feat/arrendadores-fase1-prod`)
+- `c64574a` — blindaje A-1..A-4 (remediación auditada).
+- `6bd284f` — N-1 (candado bancario sin exención de Dueño) + N-2 (lockfile).
+- `8f79551` — cierre de N-3..N-7.
+
+## Estado de cada hallazgo
+| # | Estado | Cierre | Evidencia |
+|---|---|---|---|
+| **N-1** | CERRADO · desplegado | Modo estricto `sinExenciones` en `cambios.ts`; el candado bancario ahora exige reconfirmación **también al Dueño**. Solo en el branch bancario. | `scripts/n1-candado-dueno.mjs` (6/6: b→403 al Dueño, c→200+audit, d→no-fuga). |
+| **N-2** | CERRADO · desplegado | `postcss` fijado a `8.5.23` exacto; lockfile regenerado; guardarraíl `.github/workflows/lockfile-check.yml` (`npm ci --dry-run`). | `npm ci` desde cero verde (local + **prod**); drift simulado → falla; doc `docs/DEPENDENCIAS.md`. |
+| **N-3** | CERRADO · desplegado | `seed.ts` 'PEN'→'MXN'. Confirmado **cosmético**: alimenta el estado inicial del store (sobreescrito por `/api/estado`), NUNCA escribió a la BD. | grep: 0 'PEN' en `seed.ts`. |
+| **N-4** | CERRADO · desplegado | Retirado el export MUERTO `data`/`mockAdapter` de `client.ts` (sin consumidores). Path vivo documentado: store+BFF. | tsc/build verdes tras el retiro. |
+| **N-5** | CERRADO · desplegado | `cerrarOT` (montaje lona) ya NO enciende `reporte_publicacion` en OOH (evidencia digital). | `scripts/a2-candado-digital.mjs` 5/5 tras el cambio. |
+| **N-6** | CERRADO · desplegado | Migración `20260724_n6_config_negocio_moneda_mxn.sql`: 'PEN'→'MXN' + default. | Aplicada en prod: `config_negocio.moneda=MXN` (corregidas=1). |
+| **N-7** | CERRADO · desplegado | Migración `20260724_n7_recalc_estatus_sitios.sql`: recalc DISPONIBLE→OCUPADO de sitios estáticos con reserva vigente. | Local: 4 corregidos, drift residual 0. **Prod: 0 (ya estaba limpio)**. |
+
+## Hallazgo nuevo detectado al cerrar N-7
+- **N-8 · doble-booking heredado en sitios estáticos** — En la BD LOCAL: 3 sitios con >1 reserva CONFIRMADA solapada (`AUTOPISTA MEX.-QRTO. #2998` ×3, `PATRIOTISMO Y PENSILVANIA` ×2, `REVOLUCION 267` ×2). Reservas previas al fix A-1 (`FOR UPDATE` + guard de colisión ya impide nuevas). **NO se resolvió**: cuál campaña conserva cada sitio es decisión humana.
+  - **Verificado en PROD (solo-lectura): LIMPIO.** Chequeo de "vigentes hoy" y de integridad total (cualquier par de fechas traslapadas, pasado/futuro incluido) → **0 resultados** sobre las 22 reservas no-canceladas de prod. N-8 es **exclusivo de la BD demo local**; producción no tiene el problema.
+
+## Despliegue
+Las 4 migraciones nuevas (`a1_carreras_endurecer`, `a3_moneda_default_mxn`, `n6_config_negocio_moneda_mxn`, `n7_recalc_estatus_sitios`) se aplicaron a `spaces_prod` como `postgres`; `npm ci` (lockfile reconciliado) + `next build` + `pm2 restart spaces-web` verdes; app externa `http://209.97.146.136/` → 302 → login. Nginx sin cambios (sin cambios de rutas).
+
+## Sigue ABIERTO (fuera del alcance de estos cierres)
+- **A-5 · `deploy.yml` completo** — pipeline automatizado (migraciones + `npm ci`) no reparado integralmente; el despliegue sigue manual por SSH.
+- **M-8 · config económica por-tenant** — `config_negocio` NO tiene `tenant_id` (es global); N-6 solo cerró el campo `moneda`. La config económica por-tenant sigue pendiente.
+- **N-8 · doble-booking local** — resolución humana de cuál campaña conserva cada sitio (solo BD demo local; prod limpio).
