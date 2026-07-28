@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2 } from 'lucide-react'
+import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
@@ -15,6 +15,9 @@ interface ItemPub {
   tipoMedio: string | null
   lat: number | null
   lng: number | null
+  direccion: string | null
+  ciudad: string | null
+  estado: string | null
   fechaInicio: string
   fechaFin: string
   precio: number
@@ -189,12 +192,34 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
             ) : (
               <ul className="divide-y divide-border">
                 {p.items.map((it, i) => (
-                  <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+                  <li key={i} className="flex items-start justify-between gap-3 py-2.5">
                     <div className="min-w-0">
                       <div className="truncate text-[13px] text-ink">{it.sitioNombre}</div>
-                      <div className="inline-flex items-center gap-1 text-[11px] text-muted">
-                        <MapPin className="h-3 w-3" /> {it.alcaldia ?? '—'}{it.tipoMedio ? ` · ${it.tipoMedio}` : ''}
+                      {/* Ubicación completa: dirección + zona. Redundante con el
+                          mapa a propósito — el cliente que abre la liga debe poder
+                          situar la pantalla aunque los tiles no carguen. */}
+                      <div className="flex items-start gap-1 text-[11px] text-muted">
+                        <MapPin className="mt-0.5 h-3 w-3 shrink-0" />
+                        <span>
+                          {it.direccion ? <span className="text-ink">{it.direccion}</span> : null}
+                          {it.direccion && zonaDe(it) ? <br /> : null}
+                          {zonaDe(it) ?? (it.direccion ? null : 'Ubicación no capturada')}
+                          {it.tipoMedio ? ` · ${it.tipoMedio}` : ''}
+                        </span>
                       </div>
+                      {it.lat != null && it.lng != null && (
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${it.lat},${it.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-info hover:underline"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          <span className="demo-num">
+                            {it.lat.toFixed(5)}, {it.lng.toFixed(5)}
+                          </span>
+                        </a>
+                      )}
                     </div>
                     <span className="demo-num shrink-0 text-[13px] text-ink">{formatMonto(it.precio)}</span>
                   </li>
@@ -204,17 +229,32 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
           </CardContent>
         </Card>
 
-        {/* Mapa con la ubicación de las pantallas */}
-        {puntos.length > 0 && (
-          <Card>
-            <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
-            <CardContent>
-              <div className="h-[340px] w-full overflow-hidden rounded border border-border">
-                <MapView points={puntos} zoom={11} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Mapa con la ubicación de las pantallas. Si ningún sitio tiene
+            coordenadas lo decimos en vez de ocultar la tarjeta en silencio: la
+            dirección de cada pantalla sigue estando en la lista de arriba. */}
+        <Card>
+          <CardHeader><CardTitle>Ubicación de las pantallas</CardTitle></CardHeader>
+          <CardContent>
+            {puntos.length > 0 ? (
+              <>
+                <div className="h-[340px] w-full overflow-hidden rounded border border-border">
+                  <MapView points={puntos} zoom={11} />
+                </div>
+                {puntos.length < p.items.length && (
+                  <p className="mt-2 text-[11px] text-muted">
+                    {p.items.length - puntos.length} de {p.items.length} pantallas no tienen
+                    coordenadas registradas; su dirección está en la lista de sitios.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-[13px] text-muted">
+                Las pantallas de esta propuesta aún no tienen coordenadas registradas. Consulta la
+                dirección de cada una en la lista de sitios.
+              </p>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Total */}
         <Card>
@@ -282,6 +322,14 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       </main>
     </div>
   )
+}
+
+// "Alcaldía · Ciudad · Estado" sin separadores huérfanos cuando falta un campo.
+function zonaDe(it: ItemPub): string | null {
+  const partes = [it.alcaldia, it.ciudad, it.estado].filter(Boolean) as string[]
+  // `ciudad` a veces repite la alcaldía (plaza_ciudad); no la mostramos dos veces.
+  const unicas = partes.filter((v, i) => partes.findIndex((o) => o.toLowerCase() === v.toLowerCase()) === i)
+  return unicas.length ? unicas.join(' · ') : null
 }
 
 function Meta({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {

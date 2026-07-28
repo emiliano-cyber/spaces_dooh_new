@@ -199,7 +199,12 @@ export async function obtenerPropuestaPublica(codigo: string) {
 
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
-    ? await qPub<any>('select id, nombre, alcaldia, tipo_medio, lat, lng from sitios where id = any($1::uuid[])', [sitioIds])
+    ? await qPub<any>(
+        `select id, nombre, alcaldia, tipo_medio, lat, lng,
+                direccion, plaza_ciudad, ciudad, estado
+           from sitios where id = any($1::uuid[])`,
+        [sitioIds],
+      )
     : []
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
@@ -230,6 +235,11 @@ export async function obtenerPropuestaPublica(codigo: string) {
         tipoMedio: s?.tipo_medio ?? null,
         lat: s?.lat != null ? Number(s.lat) : null,
         lng: s?.lng != null ? Number(s.lng) : null,
+        // Ubicación en texto: la liga pública debe poder situar la pantalla
+        // aunque el mapa no cargue (tiles externos) o el sitio no tenga coords.
+        direccion: s?.direccion ?? null,
+        ciudad: s?.plaza_ciudad ?? s?.ciudad ?? null,
+        estado: s?.estado ?? null,
         fechaInicio: it.fechaInicio,
         fechaFin: it.fechaFin,
         precio: it.precio,

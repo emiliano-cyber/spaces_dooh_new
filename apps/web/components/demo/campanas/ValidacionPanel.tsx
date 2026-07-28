@@ -216,9 +216,14 @@ export function ValidacionPanel({ campanaId }: { campanaId: string }) {
       )}
 
       {!c.enviadaDominio && c.validacionEstatus === 'PENDIENTE' && (
-        <p className="mt-3 flex items-center gap-1.5 text-[12px] text-muted">
-          <Clock className="h-3.5 w-3.5" />
-          Envía la campaña al dominio para que se valide antes de publicarse.
+        <p className="mt-3 flex items-start gap-1.5 text-[12px] text-muted">
+          <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>
+            Aprobar los creativos no los sube a DOOHmain.
+            {validadas.length > 0 && ` Tienes ${validadas.length} aprobado${validadas.length === 1 ? '' : 's'} listo${validadas.length === 1 ? '' : 's'}.`}{' '}
+            Envía la campaña al dominio y apruébala aquí: el arte se publica en DOOHmain
+            al aprobar la publicación.
+          </span>
         </p>
       )}
 

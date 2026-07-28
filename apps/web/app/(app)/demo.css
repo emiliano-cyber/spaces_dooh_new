@@ -69,6 +69,29 @@
   border-color: var(--border);
 }
 
+/* Elementos reemplazados: la parte del preflight que faltaba en el reset de
+   arriba. Sin `display: block` el <canvas> queda inline y arrastra el
+   line-height del contenedor, que es lo que rompe el mapa de MapLibre (el
+   canvas se inyecta dentro de .maplibregl-map con alto 100%).
+   NOTA: preflight incluye además `svg` en esta lista, pero aquí se deja FUERA a
+   propósito: toda la UI se construyó con los iconos inline y blockearlos ahora
+   desplazaría su alineación fuera de los contenedores flex. */
+.demo-root img,
+.demo-root video,
+.demo-root canvas,
+.demo-root audio,
+.demo-root iframe,
+.demo-root embed,
+.demo-root object {
+  display: block;
+  vertical-align: middle;
+}
+.demo-root img,
+.demo-root video {
+  max-width: 100%;
+  height: auto;
+}
+
 /* Títulos en Cabinet Grotesk, sentence case, tracking ajustado por escala. */
 .demo-root h1,
 .demo-root h2,

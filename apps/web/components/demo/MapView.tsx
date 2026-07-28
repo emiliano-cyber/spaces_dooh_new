@@ -186,6 +186,11 @@ export function MapView({
 
     const vistos = new Set<string>()
     for (const p of points) {
+      // MapLibre lanza «Invalid LngLat object» si lat/lng no son finitos, y ese
+      // throw ocurre DENTRO del efecto de React: revienta el árbol entero y la
+      // tarjeta del mapa desaparece de la página, no solo el pin. Descartamos
+      // aquí los puntos inservibles para que un dato sucio nunca tumbe el mapa.
+      if (!Number.isFinite(p.lat) || !Number.isFinite(p.lng)) continue
       vistos.add(p.id)
       const hex = TONO_HEX[p.tono]
       let marker = existing.get(p.id)

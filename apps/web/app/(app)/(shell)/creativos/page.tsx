@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { useRef, useState } from 'react'
-import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react'
+import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -16,7 +16,7 @@ import {
   eliminarCreatividadApi,
   reemplazarCreatividadApi,
 } from '@/lib/data/estado-api'
-import { useCampanas, useCreatividades, useReservas, useSitios } from '@/lib/data/client'
+import { useCampanas, useCreatividades, useReservas, useSitios, useClientes } from '@/lib/data/client'
 import { imagenAHtml } from '@/lib/creativo-html'
 import type { Campana, Creatividad, Reserva, Sitio, EstValidacionCreatividad } from '@/lib/data/types'
 
@@ -72,7 +72,12 @@ export default function CreativosPage() {
   const creatividades = useCreatividades()
   const reservas = useReservas()
   const sitios = useSitios()
+  const clientes = useClientes()
   const puede = usePuede('comercial', 'crear')
+  // Los hooks van antes del early-return del esqueleto: no pueden quedar detrás
+  // de un return condicional.
+  const [q, setQ] = useState('')
+  const [filtro, setFiltro] = useState('')
 
   if (!campanas || !creatividades || !reservas || !sitios) {
     return (
@@ -85,11 +90,41 @@ export default function CreativosPage() {
   }
 
   // Solo campañas con spots reservados o con creativos (algo que gestionar).
-  const visibles = campanas.filter(
+  const gestionables = campanas.filter(
     (c) =>
       reservas.some((r) => r.campanaId === c.id) ||
       creatividades.some((cr) => cr.campanaId === c.id),
   )
+
+  const term = q.trim().toLowerCase()
+  const visibles = gestionables
+    .filter((c) => {
+      const crs = creatividades.filter((cr) => cr.campanaId === c.id)
+      // El filtro de estado mira los creativos DE la campaña: la tarjeta
+      // aparece si alguno está en ese estado. "SIN" son las campañas con slots
+      // reservados que todavía no tienen ni un creativo — el pendiente real.
+      if (filtro === 'SIN') {
+        if (crs.length > 0) return false
+      } else if (filtro && !crs.some((cr) => cr.estatusValidacion === filtro)) {
+        return false
+      }
+      if (!term) return true
+      const cliente = clientes?.find((x) => x.id === c.clienteId)?.nombre ?? ''
+      return (
+        c.nombre.toLowerCase().includes(term) ||
+        c.folio.toLowerCase().includes(term) ||
+        cliente.toLowerCase().includes(term) ||
+        // También por nombre de archivo del creativo: estando en esta pantalla
+        // es tan natural buscar "banner_home.html" como el nombre de la campaña.
+        crs.some((cr) => cr.nombre.toLowerCase().includes(term))
+      )
+    })
+    // Más recientes arriba, igual que el listado de Campañas. El store llega en
+    // `creado_en asc`. Desempate por folio para que el orden sea estable.
+    .sort(
+      (a, b) =>
+        b.creadoEn.localeCompare(a.creadoEn) || b.folio.localeCompare(a.folio),
+    )
 
   return (
     <div className="w-full space-y-4">
@@ -100,11 +135,51 @@ export default function CreativosPage() {
         </p>
       </div>
 
-      {visibles.length === 0 ? (
+      {/* Filtro / búsqueda */}
+      {gestionables.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+              strokeWidth={1.75}
+            />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar por campaña, folio, cliente o nombre del creativo…"
+              className="h-9 w-full rounded border border-border-strong bg-surface pl-9 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </div>
+          <select
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+            className="h-9 rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <option value="">Todos los creativos</option>
+            <option value="PENDIENTE">Con pendientes de aprobar</option>
+            <option value="VALIDADA">Con aprobados</option>
+            <option value="RECHAZADA">Con rechazados</option>
+            <option value="SIN">Sin creativos todavía</option>
+          </select>
+          <span className="demo-num ml-auto text-[12px] text-muted">
+            {visibles.length} de {gestionables.length}
+          </span>
+        </div>
+      )}
+
+      {gestionables.length === 0 ? (
         <EmptyState
           icon={Images}
           titulo="Sin campañas con slots o creativos"
           detalle="Reserva sitios en Comercial o sube un creativo para gestionarlos aquí."
+        />
+      ) : visibles.length === 0 ? (
+        // Distinto del vacío de arriba: aquí SÍ hay campañas, solo que ninguna
+        // pasa el filtro. Decirlo evita que parezca que se perdieron los datos.
+        <EmptyState
+          icon={Search}
+          titulo="Ninguna campaña coincide"
+          detalle="Prueba con otro texto de búsqueda o quita el filtro de estado."
         />
       ) : (
         visibles.map((c) => (

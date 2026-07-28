@@ -23,7 +23,13 @@ export function CampanasNav({ activeId }: { activeId: string }) {
     )
   }
 
-  const ordenadas = [...campanas].sort((a, b) => a.nombre.localeCompare(b.nombre))
+  // Más recientes arriba, igual que el listado de Campañas: al saltar entre
+  // campañas desde aquí se espera el mismo orden que en la pantalla de la que
+  // vienes. Antes era alfabético, que dejaba las campañas nuevas enterradas.
+  // Desempate por folio para que el orden no baile entre renders.
+  const ordenadas = [...campanas].sort(
+    (a, b) => b.creadoEn.localeCompare(a.creadoEn) || b.folio.localeCompare(a.folio),
+  )
 
   return (
     <aside className="lg:w-64 lg:shrink-0">
