@@ -14,6 +14,14 @@ const inputCls =
 
 type Modo = 'login' | 'signup' | 'forgot'
 
+// Recuperar contraseña se apaga con NEXT_PUBLIC_RECUPERAR_PASSWORD=0.
+// Motivo: sin RESEND_API_KEY no se envía ningún correo, así que el usuario
+// recibe "revisa tu bandeja" y no le llega nada — peor que no ofrecerlo. La
+// bandera vive en el cliente Y en el servidor (app/api/auth/forgot y /reset),
+// para que apagarlo no deje el endpoint abierto emitiendo tokens.
+// Ausente o cualquier valor distinto de '0' = habilitado (no cambia dev).
+const RECUPERAR_HABILITADO = process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD !== '0'
+
 export default function LoginPage() {
   const router = useRouter()
   const [modo, setModo] = useState<Modo>('login')
@@ -176,8 +184,9 @@ export default function LoginPage() {
                   : esSignup ? 'Crear cuenta' : esForgot ? 'Enviar enlace' : 'Entrar'}
               </Button>
 
-              {/* Enlace a recuperar contraseña (solo en login) */}
-              {modo === 'login' && (
+              {/* Enlace a recuperar contraseña (solo en login, y solo si la
+                  función está habilitada — ver RECUPERAR_HABILITADO arriba). */}
+              {modo === 'login' && RECUPERAR_HABILITADO && (
                 <div className="text-center">
                   <button type="button" onClick={() => cambiarModo('forgot')} className="text-[12px] text-muted hover:text-info hover:underline">
                     ¿Olvidaste tu contraseña?

@@ -10,7 +10,23 @@ export const dynamic = 'force-dynamic'
 // PÚBLICO. Responde SIEMPRE lo mismo (exista o no el correo) para no filtrar qué
 // correos están registrados. En dev (sin correo configurado) imprime el enlace
 // en el log del servidor para poder probar el flujo.
+// Recuperar contraseña se apaga con NEXT_PUBLIC_RECUPERAR_PASSWORD=0. Se
+// comprueba también aquí y no solo en la UI: ocultar el enlace del login dejaría
+// el endpoint accesible y siguiendo emisión de tokens de restablecimiento.
+// Ausente o distinto de '0' = habilitado (no cambia el comportamiento en dev).
+function recuperarDeshabilitado(): NextResponse | null {
+  if (process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD === '0') {
+    return NextResponse.json(
+      { error: 'La recuperación de contraseña está deshabilitada temporalmente. Contacta al administrador.' },
+      { status: 503 },
+    )
+  }
+  return null
+}
+
 export async function POST(req: Request) {
+  const off = recuperarDeshabilitado()
+  if (off) return off
   const limIp = limitar(`forgot:${ipDe(req)}`, 5, 15 * 60_000)
   if (!limIp.ok) {
     return NextResponse.json({ error: `Demasiados intentos. Espera ${limIp.retrySeg}s.` }, { status: 429 })
