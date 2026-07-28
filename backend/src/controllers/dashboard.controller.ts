@@ -5,6 +5,7 @@ import { redis } from '../config/redis';
 import { z } from 'zod';
 import { deleteStored } from '../services/photoStorage.service';
 import { getIceServers } from '../utils/turn';
+import { armStreamWatchdog, disarmStreamWatchdog } from '../utils/streamWatchdog';
 
 // ICE servers (STUN + TURN) para WebRTC. Lo consumen el dashboard y el agente.
 export function iceServers(_req: Request, res: Response) {
@@ -201,6 +202,11 @@ export async function sendCommand(req: Request, res: Response) {
     device_id: Number(deviceId),
     command,
   }));
+
+  // Red de seguridad: ninguna transmision queda viva mas de 3 minutos aunque
+  // el navegador nunca mande el STOP_STREAM (pestaña cerrada, red caida...).
+  if (command_type === 'START_STREAM') armStreamWatchdog(Number(deviceId));
+  else if (command_type === 'STOP_STREAM') disarmStreamWatchdog(Number(deviceId));
 
   res.json({ command_id: (result as any).insertId });
 }

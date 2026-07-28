@@ -1,6 +1,18 @@
 // frontend/src/js/webrtc.js
+
+// Duracion maxima de una transmision. Si alguien abre el stream y se va sin
+// detenerlo, el telefono seguiria transmitiendo (gastando datos y bateria) y
+// dejaba sesiones WebRTC zombis: se veian en coturn reintentando con
+// credenciales ya vencidas. A los 3 minutos se corta solo.
+const STREAM_MAX_MS = 3 * 60 * 1000;
+// Si el equipo no manda su offer en este tiempo, no va a transmitir.
+const OFFER_TIMEOUT_MS = 20000;
+// Margen para que ICE conecte y empiece a llegar video antes de avisar.
+const MEDIA_CHECK_MS = 12000;
+
 class LiveStreamClient {
-  constructor(deviceId, videoElement) {
+  // opts: { onAutoStop, onError, onTick(segundosRestantes) }
+  constructor(deviceId, videoElement, opts = {}) {
     this.deviceId = deviceId;
     this.video = videoElement;
     this.pc = null;
@@ -9,6 +21,44 @@ class LiveStreamClient {
     // encolan y se aplican despues. Sin esto se descartaban y el stream
     // conectaba de forma intermitente (a veces negro).
     this.pendingCandidates = [];
+
+    this.onAutoStop = opts.onAutoStop || (() => {});
+    this.onError = opts.onError || (() => {});
+    this.onTick = opts.onTick || (() => {});
+    this._timers = [];
+    this._gotOffer = false;
+    this._stopped = false;
+    // Si se cierra la pestaña sin detener, avisamos al equipo igual.
+    this._onUnload = () => this._beaconStop();
+  }
+
+  _timer(fn, ms, repeat) {
+    const id = repeat ? setInterval(fn, ms) : setTimeout(fn, ms);
+    this._timers.push({ id, repeat });
+    return id;
+  }
+
+  _clearTimers() {
+    for (const t of this._timers) (t.repeat ? clearInterval : clearTimeout)(t.id);
+    this._timers = [];
+  }
+
+  // STOP_STREAM que sobrevive al cierre de la pestaña (keepalive), para que el
+  // telefono no se quede transmitiendo solo.
+  _beaconStop() {
+    if (this._stopped) return;
+    this._stopped = true;
+    try {
+      fetch(`${window.location.origin}/api/devices/${this.deviceId}/command`, {
+        method: 'POST',
+        keepalive: true,
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ command_type: 'STOP_STREAM' }),
+      });
+    } catch (e) { /* la pestaña ya se esta cerrando */ }
   }
 
   async start() {
@@ -80,14 +130,28 @@ class LiveStreamClient {
       }
     };
 
+    // Antes esto solo se imprimia en consola: si ICE fallaba, el recuadro se
+    // quedaba negro para siempre sin decir nada. Ahora se avisa y se corta.
     this.pc.oniceconnectionstatechange = () => {
-      console.log('[WebRTC] ICE state:', this.pc.iceConnectionState);
+      const st = this.pc ? this.pc.iceConnectionState : 'closed';
+      console.log('[WebRTC] ICE state:', st);
+      if (st === 'failed') {
+        this.onError('No se pudo establecer la conexión de video con el equipo (red del sitio). Vuelve a intentar.');
+      } else if (st === 'disconnected') {
+        // Puede recuperarse solo; damos margen antes de avisar.
+        this._timer(() => {
+          if (this.pc && this.pc.iceConnectionState === 'disconnected') {
+            this.onError('Se perdió la conexión de video con el equipo.');
+          }
+        }, 10000);
+      }
     };
 
     // Listen for offer from device (sdp comes as { type: "offer", sdp: "v=0..." })
     this.socket.on('webrtc_offer', async (data) => {
       try {
         const sdpObj = data.sdp;
+        this._gotOffer = true;
         console.log('[WebRTC] Received offer from device');
         await this.pc.setRemoteDescription(
           new RTCSessionDescription({ type: sdpObj.type, sdp: sdpObj.sdp })
@@ -138,6 +202,55 @@ class LiveStreamClient {
     });
 
     console.log('[WebRTC] START_STREAM command sent');
+
+    this.endsAt = Date.now() + STREAM_MAX_MS;
+    window.addEventListener('pagehide', this._onUnload);
+    window.addEventListener('beforeunload', this._onUnload);
+
+    // Corte automatico a los 3 minutos.
+    this._timer(() => this.onAutoStop(), STREAM_MAX_MS);
+    // Cuenta regresiva para la interfaz.
+    this._timer(() => {
+      this.onTick(Math.max(0, Math.round((this.endsAt - Date.now()) / 1000)));
+    }, 1000, true);
+
+    // El equipo no mando su offer: no esta transmitiendo.
+    this._timer(() => {
+      if (!this._gotOffer) {
+        this.onError('El equipo no respondió a la solicitud de transmisión. Puede estar sin señal o con la app reiniciándose.');
+      }
+    }, OFFER_TIMEOUT_MS);
+
+    // Conectado pero sin imagen: es el caso que se veia como recuadro negro.
+    this._timer(() => this._checkMedia(), MEDIA_CHECK_MS);
+  }
+
+  // Revisa por getStats si de verdad esta llegando video, y deja en consola el
+  // par de candidatos elegido (util para diagnosticar equipos tras CGNAT).
+  async _checkMedia() {
+    if (!this.pc) return;
+    try {
+      const stats = await this.pc.getStats();
+      let bytes = 0, pairLocal = '?', pairRemote = '?';
+      const byId = new Map();
+      stats.forEach((r) => byId.set(r.id, r));
+      stats.forEach((r) => {
+        if (r.type === 'inbound-rtp' && r.kind === 'video') bytes = r.bytesReceived || 0;
+        if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated) {
+          const l = byId.get(r.localCandidateId), rc = byId.get(r.remoteCandidateId);
+          if (l) pairLocal = `${l.candidateType}/${l.protocol}`;
+          if (rc) pairRemote = `${rc.candidateType}/${rc.protocol}`;
+        }
+      });
+      console.log(`[WebRTC] diagnostico: video recibido=${bytes} bytes; par=${pairLocal} <-> ${pairRemote}; ICE=${this.pc.iceConnectionState}`);
+      if (bytes === 0) {
+        this.onError(this.pc.iceConnectionState === 'connected'
+          ? 'Conectado con el equipo pero no está llegando imagen (cámara ocupada o codificador del teléfono).'
+          : 'No se logró conectar el video con el equipo (red del sitio).');
+      }
+    } catch (e) {
+      console.warn('[WebRTC] getStats falló:', e.message);
+    }
   }
 
   // Control manual de camara en vivo (zoom, enfoque, exposicion, WB, lock).
@@ -149,11 +262,18 @@ class LiveStreamClient {
   }
 
   async stop() {
-    try {
-      await API.post(`/api/devices/${this.deviceId}/command`, {
-        command_type: 'STOP_STREAM',
-      });
-    } catch (e) { /* ignore */ }
+    this._clearTimers();
+    window.removeEventListener('pagehide', this._onUnload);
+    window.removeEventListener('beforeunload', this._onUnload);
+
+    if (!this._stopped) {
+      this._stopped = true;
+      try {
+        await API.post(`/api/devices/${this.deviceId}/command`, {
+          command_type: 'STOP_STREAM',
+        });
+      } catch (e) { /* ignore */ }
+    }
 
     this.pc?.close();
     this.pc = null;

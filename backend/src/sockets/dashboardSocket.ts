@@ -2,9 +2,16 @@
 import { Server, Socket } from 'socket.io';
 import { userJwt } from '../utils/jwt';
 import { redis } from '../config/redis';
+import { stopStream } from '../utils/streamWatchdog';
 
 export function setupDashboardNamespace(io: Server) {
   const ns = io.of('/dashboard');
+
+  // Si ya nadie esta viendo el equipo, no tiene caso que siga transmitiendo.
+  const stopIfNobodyWatching = (deviceId: number) => {
+    const room = ns.adapter.rooms.get(`watching:${deviceId}`);
+    if (!room || room.size === 0) void stopStream(deviceId, 'sin espectadores');
+  };
 
   ns.use(async (socket: Socket, next) => {
     try {
@@ -22,13 +29,26 @@ export function setupDashboardNamespace(io: Server) {
 
   ns.on('connection', (socket) => {
     socket.join('dashboard');
+    const watching = new Set<number>();
 
     socket.on('watch_device', (deviceId: number) => {
       socket.join(`watching:${deviceId}`);
+      watching.add(Number(deviceId));
     });
 
     socket.on('unwatch_device', (deviceId: number) => {
       socket.leave(`watching:${deviceId}`);
+      watching.delete(Number(deviceId));
+    });
+
+    // Pestaña cerrada / navegador caido: el STOP_STREAM nunca llego, asi que lo
+    // manda el servidor en cuanto se cae el socket (sin esperar los 3 minutos).
+    socket.on('disconnect', () => {
+      for (const deviceId of watching) {
+        socket.leave(`watching:${deviceId}`);
+        stopIfNobodyWatching(deviceId);
+      }
+      watching.clear();
     });
 
     socket.on('webrtc_answer', async ({ device_id, sdp }) => {

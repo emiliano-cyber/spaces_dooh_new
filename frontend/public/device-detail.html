@@ -33,7 +33,13 @@
         <div class="lg:col-span-2 bg-white border border-neutral-200 rounded-lg overflow-hidden">
           <div class="p-4 border-b border-neutral-200 flex items-center justify-between">
             <h2 class="font-medium">Vista en vivo</h2>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
+              <!-- Corte automatico: el equipo deja de transmitir a los 3 min -->
+              <span x-show="streaming" style="display:none"
+                    class="text-xs text-neutral-500 tabular-nums"
+                    :title="'La transmisión se detiene sola para no gastar datos del equipo'">
+                Corte en <span x-text="streamLeftLabel()"></span>
+              </span>
               <button @click="startStream()" :disabled="streaming"
                 class="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
                 Iniciar stream

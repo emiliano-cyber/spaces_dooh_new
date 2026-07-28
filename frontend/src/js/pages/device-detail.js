@@ -11,6 +11,7 @@ function deviceDetail() {
     logs: [],
     streaming: false,
     streamClient: null,
+    streamLeft: 0, // segundos restantes antes del corte automatico
     lightbox: null,   // foto abierta en grande (null = cerrado)
     lbRotation: 0,    // rotacion de la foto en el visor
     albumDownloading: false,
@@ -348,7 +349,21 @@ function deviceDetail() {
 
     async startStream() {
       const video = document.getElementById('liveVideo');
-      this.streamClient = new LiveStreamClient(Number(this.deviceId), video);
+      this.streamLeft = 180;
+      this.streamClient = new LiveStreamClient(Number(this.deviceId), video, {
+        onTick: (s) => { this.streamLeft = s; },
+        // Corte a los 3 min: evita que un stream olvidado siga consumiendo
+        // datos del equipo y deje sesiones colgadas en el TURN.
+        onAutoStop: async () => {
+          await this.stopStream();
+          this.showToast('Transmisión detenida automáticamente a los 3 minutos', 'info');
+        },
+        onError: async (msg) => {
+          if (!this.streaming) return;
+          await this.stopStream();
+          this.showToast(msg, 'error');
+        },
+      });
       await this.streamClient.start();
       this.streaming = true;
       // Re-aplicar los ajustes que definiste, cuando la camara ya este lista.
@@ -359,7 +374,14 @@ function deviceDetail() {
       await this.streamClient?.stop();
       this.streamClient = null;
       this.streaming = false;
+      this.streamLeft = 0;
       // Se conservan zoom/exposicion/wb/foco/rotacion para el proximo stream.
+    },
+
+    // mm:ss para la cuenta regresiva del corte automatico.
+    streamLeftLabel() {
+      const s = Math.max(0, Number(this.streamLeft) || 0);
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
     },
 
     // Reenvia los ajustes actuales al device (persisten entre reconexiones).
