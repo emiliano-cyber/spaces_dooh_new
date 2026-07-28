@@ -72,9 +72,15 @@
     <!-- Visor de foto en grande -->
     <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
          class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
-      <img :src="lightbox?.storage_path" @click.stop
-           :style="'transform: rotate(' + lbRotation + 'deg)'"
-           class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
+      <div class="relative inline-block" @click.stop style="container-type: inline-size">
+        <img :src="lightbox?.storage_path"
+             :style="'transform: rotate(' + lbRotation + 'deg)'"
+             class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
+        <div x-show="lightbox && (lightbox.watermark_baked === 0 || lightbox.watermark_baked === false) && (lightbox.overlay_enabled === 1 || lightbox.overlay_enabled === true)"
+             class="absolute pointer-events-none whitespace-pre" :style="overlayCss(lightbox)">
+          <template x-for="l in overlayInfoLinesFor(lightbox)" :key="l"><div x-text="l"></div></template>
+        </div>
+      </div>
       <button @click.stop="lightbox = null"
               class="absolute top-4 right-6 text-white/80 hover:text-white text-4xl leading-none">&times;</button>
       <div class="absolute bottom-4 left-0 right-0 flex flex-wrap items-center justify-center gap-3 text-white/80 text-sm">

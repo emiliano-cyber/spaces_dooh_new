@@ -25,8 +25,9 @@ function deviceDetail() {
     rotation: 0,        // rotacion actual del video en el visor (0/90/180/270)
     savedRotation: 0,   // orientacion fija guardada en el servidor (la que ven todos)
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
-    // Marca de informacion (overlay) configurable: posicion en % (centro del bloque)
+    // Marca de informacion (overlay): posicion en % + estilo (se configura en "Ajustar texto").
     overlayX: 50, overlayY: 92, overlayEnabled: true,
+    overlayStyle: { size: 1.2, weight: 'bold', color: '#ffffff', shadow: true, bg: true, align: 'left', letterSpacing: 0, lineSpacing: 1.3 },
     _dragging: false,
     takingPhoto: false,
     toast: { show: false, msg: '', type: 'info' },
@@ -85,6 +86,10 @@ function deviceDetail() {
         if (this.device.overlay_x != null) this.overlayX = Number(this.device.overlay_x);
         if (this.device.overlay_y != null) this.overlayY = Number(this.device.overlay_y);
         this.overlayEnabled = this.device.overlay_enabled !== 0 && this.device.overlay_enabled !== false;
+        try {
+          const st = typeof this.device.overlay_style === 'string' ? JSON.parse(this.device.overlay_style || 'null') : this.device.overlay_style;
+          if (st) this.overlayStyle = { ...this.overlayStyle, ...st };
+        } catch (_) {}
       } catch (err) {
         console.error('Failed to load device:', err);
       }
@@ -284,9 +289,10 @@ function deviceDetail() {
         // Fotos limpias (APK v0.8.0): dibujamos la marca configurable (nombre/fecha/hora
         // de captura) en la posicion del dispositivo. Fotos con marca quemada: sin overlay.
         const clean = this.lightbox.watermark_baked === 0 || this.lightbox.watermark_baked === false;
-        const lines = clean ? overlayInfoLines(this.lightbox, this.device && this.device.name) : null;
-        const pos = clean && this.overlayEnabled ? { x: this.overlayX, y: this.overlayY } : null;
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines, pos);
+        const on = clean && this.overlayEnabled;
+        const lines = on ? overlayInfoLines(this.lightbox, this.device && this.device.name) : null;
+        const pos = on ? { x: this.overlayX, y: this.overlayY } : null;
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines, pos, on ? this.overlayStyle : null);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');
@@ -422,6 +428,23 @@ function deviceDetail() {
     overlayDragEnd() { this._dragging = false; },
     // Lineas de la marca para una foto (usa el helper global de photo-utils).
     overlayInfoLinesFor(photo) { return photo ? overlayInfoLines(photo, this.device && this.device.name) : []; },
+    // CSS del overlay para el lightbox (WYSIWYG con cqw, requiere container-type en el wrapper).
+    overlayCss() {
+      const s = this.overlayStyle || {};
+      const parts = [
+        `left:${this.overlayX}%`, `top:${this.overlayY}%`, `transform:translate(-50%,-50%)`,
+        `font-size:${((Number(s.size) || 1.2) * (100 / 42)).toFixed(3)}cqw`,
+        `font-weight:${s.weight === 'normal' ? '400' : '700'}`,
+        `color:${s.color || '#ffffff'}`,
+        `text-align:${s.align || 'left'}`,
+        `line-height:${Number(s.lineSpacing) || 1.3}`,
+        `letter-spacing:${Number(s.letterSpacing) || 0}em`,
+        `font-family:Arial,Helvetica,sans-serif`, `padding:0.6em 0.9em`, `border-radius:0.4em`,
+      ];
+      if (s.bg !== false) parts.push('background:rgba(0,0,0,0.55)');
+      if (s.shadow !== false) parts.push('text-shadow:0 0 4px rgba(0,0,0,0.9)');
+      return parts.join(';');
+    },
     async saveOverlay() {
       try {
         await API.put(`/api/devices/${this.deviceId}/overlay`, { x: this.overlayX, y: this.overlayY, enabled: this.overlayEnabled });

@@ -60,13 +60,37 @@ function gallery() {
     rotateLightbox() {
       this.lbRotation = (this.lbRotation + 90) % 360;
     },
+    // Marca configurable de una foto (para el visor). Usa los campos que trae /api/photos.
+    overlayInfoLinesFor(photo) { return photo ? overlayInfoLines(photo, photo.device_name) : []; },
+    overlayCss(photo) {
+      if (!photo) return '';
+      let s = photo.overlay_style;
+      if (typeof s === 'string') { try { s = JSON.parse(s); } catch (_) { s = null; } }
+      s = s || {};
+      const parts = [
+        `left:${photo.overlay_x != null ? photo.overlay_x : 50}%`,
+        `top:${photo.overlay_y != null ? photo.overlay_y : 92}%`,
+        `transform:translate(-50%,-50%)`,
+        `font-size:${((Number(s.size) || 1.2) * (100 / 42)).toFixed(3)}cqw`,
+        `font-weight:${s.weight === 'normal' ? '400' : '700'}`,
+        `color:${s.color || '#ffffff'}`,
+        `text-align:${s.align || 'left'}`,
+        `line-height:${Number(s.lineSpacing) || 1.3}`,
+        `letter-spacing:${Number(s.letterSpacing) || 0}em`,
+        `font-family:Arial,Helvetica,sans-serif`, `padding:0.6em 0.9em`, `border-radius:0.4em`,
+      ];
+      if (s.bg !== false) parts.push('background:rgba(0,0,0,0.55)');
+      if (s.shadow !== false) parts.push('text-shadow:0 0 4px rgba(0,0,0,0.9)');
+      return parts.join(';');
+    },
     async downloadCurrentPhoto() {
       if (!this.lightbox) return;
       const ts = new Date(this.lightbox.taken_at).toISOString().replace(/[:.]/g, '-').slice(0, 19);
       const base = (this.lightbox.device_name || 'foto').replace(/\s+/g, '_');
       try {
-        // La foto ya trae grabada la ubicacion y fecha/hora; solo aplicamos la rotacion.
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`);
+        // Fotos limpias (v0.8.0): dibuja la marca configurable del dispositivo.
+        const o = photoOverlayArgs(this.lightbox);
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, o.lines, o.pos, o.style);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');

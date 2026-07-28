@@ -95,22 +95,34 @@ export async function setStreamRotation(req: Request, res: Response) {
 // Guarda la posicion de la marca de informacion (overlay) del dispositivo.
 // x/y = centro del bloque de texto en % (0-100). Solo admin (ver ruta).
 export async function setOverlay(req: Request, res: Response) {
+  const styleSchema = z.object({
+    size: z.number().min(0.5).max(8).optional(),
+    weight: z.enum(['normal', 'bold']).optional(),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    shadow: z.boolean().optional(),
+    bg: z.boolean().optional(),
+    align: z.enum(['left', 'center', 'right']).optional(),
+    letterSpacing: z.number().min(-0.5).max(2).optional(),
+    lineSpacing: z.number().min(0.8).max(3).optional(),
+  }).optional();
   const schema = z.object({
     x: z.number().min(0).max(100),
     y: z.number().min(0).max(100),
     enabled: z.boolean().optional(),
+    style: styleSchema,
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
-  const { x, y, enabled } = parsed.data;
+  const { x, y, enabled, style } = parsed.data;
   const sets = ['overlay_x = ?', 'overlay_y = ?'];
   const values: any[] = [x, y];
   if (enabled !== undefined) { sets.push('overlay_enabled = ?'); values.push(enabled); }
+  if (style !== undefined) { sets.push('overlay_style = ?'); values.push(JSON.stringify(style)); }
 
   const [r] = await pool.query<any>(`UPDATE devices SET ${sets.join(', ')} WHERE id = ?`, [...values, req.params.id]);
   if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
-  res.json({ ok: true, overlay_x: x, overlay_y: y, overlay_enabled: enabled ?? true });
+  res.json({ ok: true, overlay_x: x, overlay_y: y, overlay_enabled: enabled ?? true, overlay_style: style ?? null });
 }
 
 export async function updateDevice(req: Request, res: Response) {
@@ -197,7 +209,7 @@ export async function sendCommand(req: Request, res: Response) {
 export async function listPhotos(req: Request, res: Response) {
   const { device_id, campaign_id, from, to, source, page = '1', limit = '20' } = req.query;
   let sql = `SELECT p.*, d.name as device_name,
-                    d.overlay_x, d.overlay_y, d.overlay_enabled
+                    d.overlay_x, d.overlay_y, d.overlay_enabled, d.overlay_style
              FROM photos p JOIN devices d ON p.device_id = d.id WHERE 1=1`;
   const params: any[] = [];
 

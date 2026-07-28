@@ -219,41 +219,6 @@
             </template>
           </div>
 
-          <!-- Marca de informacion (overlay) configurable -->
-          <div class="bg-white border border-neutral-200 rounded-lg p-4">
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="font-medium">Marca en la foto</h3>
-              <label class="flex items-center gap-1.5 text-xs text-neutral-500" x-show="isAdmin">
-                <input type="checkbox" x-model="overlayEnabled"> Mostrar
-              </label>
-            </div>
-            <p class="text-xs text-neutral-500 mb-2" x-show="isAdmin">Arrastra el recuadro para elegir dónde aparecerá <b>nombre · fecha · hora</b> en las fotos de este equipo.</p>
-            <p class="text-xs text-neutral-400 mb-2" x-show="!isAdmin">Posición de la marca (solo un administrador puede cambiarla).</p>
-            <!-- Preview 4:3 (misma proporcion que la foto) -->
-            <div class="relative w-full aspect-[4/3] bg-neutral-800 rounded overflow-hidden select-none"
-                 :class="isAdmin ? 'cursor-move' : ''"
-                 @mousedown="overlayDragStart($event)" @mousemove="overlayDragMove($event)"
-                 @mouseup="overlayDragEnd()" @mouseleave="overlayDragEnd()"
-                 @touchstart="overlayDragStart($event)" @touchmove.prevent="overlayDragMove($event)" @touchend="overlayDragEnd()">
-              <template x-if="overlayPreviewSrc()">
-                <img :src="overlayPreviewSrc()" class="absolute inset-0 w-full h-full object-cover opacity-90" alt="preview">
-              </template>
-              <template x-if="!overlayPreviewSrc()">
-                <div class="absolute inset-0 flex items-center justify-center text-neutral-400 text-xs">Sin foto de referencia</div>
-              </template>
-              <!-- Caja de la marca (centro en overlayX/Y %) -->
-              <div x-show="overlayEnabled"
-                   class="absolute px-2 py-1 rounded bg-black/55 text-white text-[9px] leading-tight shadow pointer-events-none"
-                   :style="`left:${overlayX}%; top:${overlayY}%; transform:translate(-50%,-50%);`">
-                <template x-for="l in overlayPreviewLines()" :key="l"><div x-text="l"></div></template>
-              </div>
-            </div>
-            <div class="mt-3 flex items-center justify-between" x-show="isAdmin">
-              <span class="text-xs text-neutral-400" x-text="`x:${overlayX}% y:${overlayY}%`"></span>
-              <button @click="saveOverlay()" class="px-3 py-1.5 text-sm bg-[#0A66FF] text-white rounded hover:bg-blue-700">Guardar posición</button>
-            </div>
-          </div>
-
           <!-- Device Config -->
           <div class="bg-white border border-neutral-200 rounded-lg p-4">
             <h3 class="font-medium mb-3">Configuracion</h3>
@@ -407,14 +372,13 @@
     <!-- Visor de foto en grande -->
     <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
          class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
-      <div class="relative inline-block" @click.stop>
+      <div class="relative inline-block" @click.stop style="container-type: inline-size">
         <img :src="lightbox?.storage_path"
              :style="'transform: rotate(' + lbRotation + 'deg)'"
              class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
         <!-- Marca configurable (solo fotos limpias v0.8.0). En fotos con marca quemada no se dibuja. -->
         <div x-show="lightbox && (lightbox.watermark_baked === 0 || lightbox.watermark_baked === false) && overlayEnabled"
-             class="absolute px-2 py-1 rounded bg-black/55 text-white text-xs leading-tight shadow pointer-events-none"
-             :style="`left:${overlayX}%; top:${overlayY}%; transform:translate(-50%,-50%);`">
+             class="absolute pointer-events-none whitespace-pre" :style="overlayCss()">
           <template x-for="l in overlayInfoLinesFor(lightbox)" :key="l"><div x-text="l"></div></template>
         </div>
       </div>
@@ -460,7 +424,8 @@
     </div>
 
     <!-- Modal editar nombre / sitio -->
-    <div x-show="editMode" style="display:none" x-transition.opacity @click="editMode = false"
+    <!-- El modal solo se cierra con Cancelar / Guardar (no al hacer click fuera ni al escribir). -->
+    <div x-show="editMode" style="display:none" x-transition.opacity
          class="fixed inset-0 z-[65] bg-black/50 flex items-center justify-center p-4">
       <div @click.stop class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
         <h3 class="font-medium mb-4">Editar nombre / sitio</h3>

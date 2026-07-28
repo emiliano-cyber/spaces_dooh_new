@@ -21,50 +21,77 @@ function _loadImage(url) {
   });
 }
 
-// Dibuja la marca de informacion en una caja centrada en pos={x,y} (en %, 0-100)
-// del canvas. Fondo semitransparente redondeado + sombra = legible sobre cualquier
-// fondo. Si pos es null, cae a una barra inferior (compatibilidad).
-function _drawOverlay(ctx, canvas, lines, pos) {
+// Dibuja la marca de informacion en una caja centrada en pos={x,y} (%,0-100) del
+// canvas, con el estilo `style` (tamaño, peso, color, sombra, fondo, alineacion,
+// espaciado). Fondo/sombra = legible sobre cualquier fondo.
+function _drawOverlay(ctx, canvas, lines, pos, style) {
   lines = (lines || []).filter(Boolean);
   if (!lines.length) return;
   const W = canvas.width, H = canvas.height;
-  const fs = Math.max(16, Math.round(W / 46));
+  const st = style || {};
+  const fs = Math.max(12, Math.round((W / 42) * (Number(st.size) || 1.2)));
+  const weight = st.weight === 'normal' ? '' : 'bold ';
+  const color = st.color || '#ffffff';
+  const align = st.align || 'left';
+  const lh = Math.round(fs * (Number(st.lineSpacing) || 1.3));
+  const letterSp = Number(st.letterSpacing) || 0;
+  const useBg = st.bg !== false;
+  const useShadow = st.shadow !== false;
   const padX = Math.round(fs * 0.9);
   const padY = Math.round(fs * 0.6);
-  const lh = Math.round(fs * 1.3);
 
-  ctx.font = 'bold ' + fs + 'px Arial, Helvetica, sans-serif';
+  ctx.font = weight + fs + 'px Arial, Helvetica, sans-serif';
   ctx.textBaseline = 'top';
-  let boxW = 0;
-  for (const l of lines) boxW = Math.max(boxW, ctx.measureText(l).width);
-  boxW += padX * 2;
+  try { ctx.letterSpacing = (letterSp * fs) + 'px'; } catch (_) {}
+
+  let textW = 0;
+  for (const l of lines) textW = Math.max(textW, ctx.measureText(l).width);
+  const boxW = textW + padX * 2;
   const boxH = lines.length * lh + padY * 2;
 
-  // Centro de la caja en (x%,y%), acotado para que no se salga.
   let cx = ((pos && pos.x != null) ? pos.x : 50) / 100 * W;
   let cy = ((pos && pos.y != null) ? pos.y : 92) / 100 * H;
-  let bx = Math.min(Math.max(cx - boxW / 2, 6), W - boxW - 6);
-  let by = Math.min(Math.max(cy - boxH / 2, 6), H - boxH - 6);
+  let bx = Math.min(Math.max(cx - boxW / 2, 6), Math.max(6, W - boxW - 6));
+  let by = Math.min(Math.max(cy - boxH / 2, 6), Math.max(6, H - boxH - 6));
 
-  // Fondo redondeado semitransparente.
-  const r = Math.round(fs * 0.4);
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.beginPath();
-  ctx.moveTo(bx + r, by);
-  ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
-  ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
-  ctx.arcTo(bx, by + boxH, bx, by, r);
-  ctx.arcTo(bx, by, bx + boxW, by, r);
-  ctx.closePath();
-  ctx.fill();
+  if (useBg) {
+    const r = Math.round(fs * 0.4);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(bx + r, by);
+    ctx.arcTo(bx + boxW, by, bx + boxW, by + boxH, r);
+    ctx.arcTo(bx + boxW, by + boxH, bx, by + boxH, r);
+    ctx.arcTo(bx, by + boxH, bx, by, r);
+    ctx.arcTo(bx, by, bx + boxW, by, r);
+    ctx.closePath();
+    ctx.fill();
+  }
 
-  // Texto blanco con sombra.
-  ctx.fillStyle = '#ffffff';
-  ctx.shadowColor = 'rgba(0,0,0,0.9)';
-  ctx.shadowBlur = 4;
+  ctx.fillStyle = color;
+  if (useShadow) { ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 4; }
+  ctx.textAlign = align === 'center' ? 'center' : align === 'right' ? 'right' : 'left';
+  const tx = align === 'center' ? bx + boxW / 2 : align === 'right' ? bx + boxW - padX : bx + padX;
   let ty = by + padY;
-  for (const line of lines) { ctx.fillText(line, bx + padX, ty); ty += lh; }
+  for (const line of lines) { ctx.fillText(line, tx, ty); ty += lh; }
   ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+  try { ctx.letterSpacing = '0px'; } catch (_) {}
+}
+
+// Devuelve {lines, pos, style} para dibujar la marca de una foto, o nulos si la
+// foto ya trae marca quemada (APK vieja) o el overlay esta desactivado. Usa los
+// campos que trae /api/photos (device_name, watermark_baked, overlay_x/y/enabled/style).
+function photoOverlayArgs(photo) {
+  const clean = photo.watermark_baked === 0 || photo.watermark_baked === false;
+  const enabled = photo.overlay_enabled !== 0 && photo.overlay_enabled !== false;
+  if (!clean || !enabled) return { lines: null, pos: null, style: null };
+  let style = photo.overlay_style;
+  if (typeof style === 'string') { try { style = JSON.parse(style); } catch (_) { style = null; } }
+  return {
+    lines: overlayInfoLines(photo, photo.device_name),
+    pos: { x: Number(photo.overlay_x != null ? photo.overlay_x : 50), y: Number(photo.overlay_y != null ? photo.overlay_y : 92) },
+    style: style || null,
+  };
 }
 
 // Lineas de la marca configurable: Nombre · Fecha · Hora, tomando la fecha/hora
@@ -79,7 +106,7 @@ function overlayInfoLines(photo, deviceName) {
 
 // Renderiza la foto girada `rotation` grados con la marca `overlayLines` y
 // devuelve un Blob JPEG.
-async function _renderPhoto(url, rotation, overlayLines, pos) {
+async function _renderPhoto(url, rotation, overlayLines, pos, style) {
   const img = await _loadImage(url);
   const r = ((Number(rotation) % 360) + 360) % 360;
   const swap = r === 90 || r === 270;
@@ -91,28 +118,29 @@ async function _renderPhoto(url, rotation, overlayLines, pos) {
   ctx.rotate((r * Math.PI) / 180);
   ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
   ctx.setTransform(1, 0, 0, 1, 0, 0); // vuelve a coords del canvas final
-  _drawOverlay(ctx, canvas, overlayLines, pos);
+  _drawOverlay(ctx, canvas, overlayLines, pos, style);
   return await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
 }
 
-// Descarga una foto girada `rotation` grados, con la marca `overlayLines` en pos {x,y}%.
-async function downloadRotatedImage(url, rotation, filename, overlayLines, pos) {
-  const blob = await _renderPhoto(url, rotation, overlayLines, pos);
+// Descarga una foto girada `rotation` grados, con la marca `overlayLines` en pos {x,y}% y `style`.
+async function downloadRotatedImage(url, rotation, filename, overlayLines, pos, style) {
+  const blob = await _renderPhoto(url, rotation, overlayLines, pos, style);
   const objUrl = URL.createObjectURL(blob);
   _triggerDownload(objUrl, filename);
   setTimeout(() => URL.revokeObjectURL(objUrl), 4000);
 }
 
-// Descarga una lista de fotos como .zip. `makeLines(photo)` (opcional) devuelve
-// las lineas de marca a grabar en cada foto. onProgress(hechas, total).
-async function downloadAlbumZip(photos, zipName, onProgress, makeLines) {
+// Descarga una lista de fotos como .zip, aplicando a cada foto su marca configurable
+// (nombre/fecha/hora en la posicion/estilo del dispositivo) si esta limpia. onProgress(hechas, total).
+async function downloadAlbumZip(photos, zipName, onProgress) {
   const zip = new JSZip();
   let done = 0;
   for (const p of photos) {
     try {
       let blob;
-      if (makeLines) {
-        blob = await _renderPhoto(p.storage_path, 0, makeLines(p));
+      const o = photoOverlayArgs(p);
+      if (o.lines) {
+        blob = await _renderPhoto(p.storage_path, 0, o.lines, o.pos, o.style);
       } else {
         blob = await (await fetch(p.storage_path)).blob();
       }

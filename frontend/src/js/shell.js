@@ -11,6 +11,7 @@
     { key: 'devices', label: 'Devices', href: '/dashboard.html' },
     { key: 'galeria', label: 'Galería', href: '/gallery.html' },
     { key: 'graficas', label: 'Gráficas', href: '/graficas.html' },
+    { key: 'ajustar-texto', label: 'Ajustar texto', href: '/ajustar-texto.html' },
     { key: 'programacion', label: 'Programación', href: '/scheduler.html' },
     { key: 'campanas', label: 'Campañas', href: '/campaigns.html' },
     { key: 'verificacion', label: 'Verificación', href: '/verification.html' },
@@ -20,6 +21,7 @@
     const p = location.pathname;
     if (p.includes('gallery')) return 'galeria';
     if (p.includes('graficas')) return 'graficas';
+    if (p.includes('ajustar-texto')) return 'ajustar-texto';
     if (p.includes('scheduler')) return 'programacion';
     if (p.includes('campaigns')) return 'campanas';
     if (p.includes('verification')) return 'verificacion';
@@ -152,10 +154,9 @@
       if (act === 'crear') return showCreateUser();
     }));
 
+    // El modal solo se cierra con el boton X o Cancelar (NO al hacer click fuera
+    // ni al escribir), para no perder lo que el usuario esta capturando.
     document.getElementById('hdr-modal-close').addEventListener('click', closeModal);
-    document.getElementById('hdr-modal').addEventListener('click', (e) => {
-      if (e.target.id === 'hdr-modal') closeModal();
-    });
   }
 
   async function loadUser() {
