@@ -409,7 +409,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
         arr: s.arrendadorId ?? '',
       }
     }
-    return { monto: '', per: 'MENSUAL', arr: s.arrendadorId ?? '' }
+    // Con un único propietario en la organización, proponerlo: obligar a
+    // elegirlo de una lista de uno solo invita a dejarlo vacío, y sin él el
+    // contrato nace pendiente aunque el importe sí se haya capturado.
+    const unico = (arrendadores ?? []).length === 1 ? arrendadores![0].id : ''
+    return { monto: '', per: 'MENSUAL', arr: s.arrendadorId ?? unico }
   }
 
   // Renta capturada a medias: hay importe pero falta el propietario (o al revés).
@@ -419,6 +423,15 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
     const monto = Number(c.rentaMonto) || 0
     return (monto > 0 && !c.rentaArrendadorId) || (monto <= 0 && !!c.rentaArrendadorId)
   }
+  // Señal de que el campo se entendió mal: si la renta que se paga al
+  // propietario iguala o supera lo que se le cobra al cliente, la campaña sale a
+  // pérdida. En la práctica suele ser que se tecleó ahí el precio de la campaña.
+  const rentaSospechosa = (s: any) => {
+    const c = cfgDe(s)
+    const renta = Number(c.rentaMonto) || 0
+    return renta > 0 && renta >= precioDe(s)
+  }
+
   const rentaMensualDe = (s: any) => {
     const c = cfgDe(s)
     return Math.round((Number(c.rentaMonto) || 0) * (A_MENSUAL[c.rentaPeriodicidad] ?? 1))
@@ -798,12 +811,34 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                             <option key={x.value} value={x.value}>{x.label}</option>
                           ))}
                         </select>
-                        <span className="flex-1 text-right text-[11px] text-muted">
-                          {rentaIncompleta(s)
-                            ? 'Falta propietario o importe: el contrato nacerá pendiente'
-                            : Number(c.rentaMonto) > 0
-                              ? `Costo ${formatMonto(rentaMensualDe(s))}/mes`
-                              : 'Opcional · sin esto el contrato nace pendiente'}
+                        {/* El aviso iba en gris al final de la fila y pasaba
+                            desapercibido: se han creado propuestas con importe
+                            pero sin propietario, que dejan el contrato pendiente
+                            sin que nadie se entere. Ahora los avisos van en
+                            ámbar y ocupan su propia línea. */}
+                        <span className="w-full text-[11px]">
+                          {rentaSospechosa(s) ? (
+                            <span className="font-medium text-warning">
+                              ⚠ La renta ({formatMonto(Number(c.rentaMonto))}) iguala o supera lo que
+                              le cobras al cliente ({formatMonto(precioDe(s))}): la campaña saldría a
+                              pérdida. Aquí va lo que le pagas al PROPIETARIO, no el precio de venta.
+                            </span>
+                          ) : rentaIncompleta(s) ? (
+                            <span className="font-medium text-warning">
+                              ⚠ Falta {!c.rentaArrendadorId ? 'elegir el propietario' : 'el importe'}:
+                              el contrato nacerá pendiente y no se generará el calendario de pagos.
+                            </span>
+                          ) : Number(c.rentaMonto) > 0 ? (
+                            <span className="text-muted">
+                              Costo {formatMonto(rentaMensualDe(s))}/mes · el contrato nacerá completo
+                              y con su calendario de pagos
+                            </span>
+                          ) : (
+                            <span className="text-muted">
+                              Opcional · sin esto el contrato nace pendiente y habrá que capturarlo
+                              después en Arrendadores
+                            </span>
+                          )}
                         </span>
                       </div>
                     )}
