@@ -9,6 +9,7 @@ function gallery() {
     totalPages: 1,
     lightbox: null,   // foto abierta en grande (null = cerrado)
     lbRotation: 0,
+    lbImgW: 0,        // ancho renderizado de la imagen en el visor (para el overlay)
     albumDownloading: false,
     albumProgress: '',
     toast: { show: false, msg: '', type: 'info' },
@@ -67,11 +68,12 @@ function gallery() {
       let s = photo.overlay_style;
       if (typeof s === 'string') { try { s = JSON.parse(s); } catch (_) { s = null; } }
       s = s || {};
+      const w = this.lbImgW || 600;
       const parts = [
         `left:${photo.overlay_x != null ? photo.overlay_x : 50}%`,
         `top:${photo.overlay_y != null ? photo.overlay_y : 92}%`,
         `transform:translate(-50%,-50%)`,
-        `font-size:${((Number(s.size) || 1.2) * (100 / 42)).toFixed(3)}cqw`,
+        `font-size:${(((Number(s.size) || 1.2) * w) / 42).toFixed(1)}px`,
         `font-weight:${s.weight === 'normal' ? '400' : '700'}`,
         `color:${s.color || '#ffffff'}`,
         `text-align:${s.align || 'left'}`,

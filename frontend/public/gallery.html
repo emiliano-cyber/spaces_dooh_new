@@ -72,8 +72,9 @@
     <!-- Visor de foto en grande -->
     <div x-show="lightbox" x-transition.opacity @click="lightbox = null" style="display:none"
          class="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 cursor-zoom-out">
-      <div class="relative inline-block" @click.stop style="container-type: inline-size">
-        <img :src="lightbox?.storage_path"
+      <div class="relative inline-block" @click.stop>
+        <img :src="lightbox?.storage_path" x-ref="lbimg"
+             @load="lbImgW = $refs.lbimg.clientWidth"
              :style="'transform: rotate(' + lbRotation + 'deg)'"
              class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
         <div x-show="lightbox && (lightbox.watermark_baked === 0 || lightbox.watermark_baked === false) && (lightbox.overlay_enabled === 1 || lightbox.overlay_enabled === true)"

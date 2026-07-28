@@ -28,6 +28,7 @@ function deviceDetail() {
     // Marca de informacion (overlay): posicion en % + estilo (se configura en "Ajustar texto").
     overlayX: 50, overlayY: 92, overlayEnabled: true,
     overlayStyle: { size: 1.2, weight: 'bold', color: '#ffffff', shadow: true, bg: true, align: 'left', letterSpacing: 0, lineSpacing: 1.3 },
+    lbImgW: 0,          // ancho renderizado de la imagen en el visor (para el overlay)
     _dragging: false,
     takingPhoto: false,
     toast: { show: false, msg: '', type: 'info' },
@@ -428,12 +429,14 @@ function deviceDetail() {
     overlayDragEnd() { this._dragging = false; },
     // Lineas de la marca para una foto (usa el helper global de photo-utils).
     overlayInfoLinesFor(photo) { return photo ? overlayInfoLines(photo, this.device && this.device.name) : []; },
-    // CSS del overlay para el lightbox (WYSIWYG con cqw, requiere container-type en el wrapper).
+    // CSS del overlay para el lightbox. Fuente en px segun el ancho real de la
+    // imagen (ancho/42*size), igual que el render de descarga.
     overlayCss() {
       const s = this.overlayStyle || {};
+      const w = this.lbImgW || 600;
       const parts = [
         `left:${this.overlayX}%`, `top:${this.overlayY}%`, `transform:translate(-50%,-50%)`,
-        `font-size:${((Number(s.size) || 1.2) * (100 / 42)).toFixed(3)}cqw`,
+        `font-size:${(((Number(s.size) || 1.2) * w) / 42).toFixed(1)}px`,
         `font-weight:${s.weight === 'normal' ? '400' : '700'}`,
         `color:${s.color || '#ffffff'}`,
         `text-align:${s.align || 'left'}`,
