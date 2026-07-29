@@ -34,10 +34,10 @@ begin
   select count(*) into n_monto from contratos_arrendamiento
    where monto_renta is not null and monto_renta <= 0;
   select count(*) into n_fechas from contratos_arrendamiento
-   where fecha_fin is not null and fecha_fin <= fecha_inicio;
+   where fecha_fin is not null and fecha_fin < fecha_inicio;
   if n_monto > 0 or n_fechas > 0 then
     raise exception
-      'Datos incompatibles: % contrato(s) con renta <= 0 y % con fecha_fin <= fecha_inicio. Corrígelos antes de aplicar esta migración.',
+      'Datos incompatibles: % contrato(s) con renta <= 0 y % con fecha_fin ANTERIOR a fecha_inicio. Corrígelos antes de aplicar esta migración.',
       n_monto, n_fechas;
   end if;
 end $$;
@@ -46,9 +46,15 @@ alter table contratos_arrendamiento drop constraint if exists contrato_monto_ck;
 alter table contratos_arrendamiento add constraint contrato_monto_ck
   check (monto_renta is null or monto_renta > 0);
 
+-- `>=` y no `>`: la especificación decía «fecha_fin > fecha_inicio», pero un
+-- alquiler de UN SOLO DÍA es legítimo y existe en los datos (demo g500 tiene 2
+-- reservas y 2 ítems de propuesta con inicio = fin). Con el `>` estricto,
+-- aprobar una de esas propuestas habría reventado al crear el contrato, porque
+-- hereda las fechas del ítem vendido. Lo que hay que impedir es la vigencia
+-- INVERTIDA, no la de un día.
 alter table contratos_arrendamiento drop constraint if exists contrato_fechas_ck;
 alter table contratos_arrendamiento add constraint contrato_fechas_ck
-  check (fecha_fin is null or fecha_fin > fecha_inicio);
+  check (fecha_fin is null or fecha_fin >= fecha_inicio);
 
 comment on constraint contrato_monto_ck on contratos_arrendamiento is
   'La renta de un contrato no puede ser cero ni negativa. NULL solo mientras está INCOMPLETO.';
@@ -72,7 +78,7 @@ select 'contratos_con_renta_invalida', count(*)::text from contratos_arrendamien
  where monto_renta is not null and monto_renta <= 0
 union all
 select 'contratos_con_fechas_invalidas', count(*)::text from contratos_arrendamiento
- where fecha_fin is not null and fecha_fin <= fecha_inicio
+ where fecha_fin is not null and fecha_fin < fecha_inicio
 union all
 select 'incompletos_intactos', count(*)::text from contratos_arrendamiento
  where estatus = 'INCOMPLETO';
