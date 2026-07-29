@@ -114,3 +114,31 @@ describe('contador de peticiones en vuelo', () => {
     expect(() => m.instalarContadorDeCarga()).not.toThrow()
   })
 })
+
+describe('peticiones de fondo', () => {
+  it('el sondeo de notificaciones NO enciende la barra', async () => {
+    let resolver: (v: any) => void = () => {}
+    const w = simularNavegador((() => new Promise((r) => { resolver = r })) as any)
+    const m = await cargarModulo()
+    m.instalarContadorDeCarga()
+
+    // El usuario no espera esta respuesta: encender la barra cada pocos
+    // segundos parecería que la aplicación va lenta.
+    const p = w.fetch('/spaces-dooh/api/notificaciones/nuevas/?sondeo=1&desde=2026-01-01')
+    expect(m.peticionesEnVuelo()).toBe(0)
+    resolver(new Response('{}'))
+    await p
+  })
+
+  it('la misma ruta SIN la marca sí la enciende', async () => {
+    let resolver: (v: any) => void = () => {}
+    const w = simularNavegador((() => new Promise((r) => { resolver = r })) as any)
+    const m = await cargarModulo()
+    m.instalarContadorDeCarga()
+
+    const p = w.fetch('/spaces-dooh/api/notificaciones/nuevas/?desde=2026-01-01')
+    expect(m.peticionesEnVuelo()).toBe(1)
+    resolver(new Response('{}'))
+    await p
+  })
+})

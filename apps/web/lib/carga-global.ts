@@ -12,6 +12,10 @@
 // ============================================================================
 
 const PREFIJO_API = '/spaces-dooh/api'
+// Marca para peticiones de fondo (el sondeo de notificaciones). El usuario no
+// está esperando su respuesta, así que encender la barra cada pocos segundos
+// sería un parpadeo permanente que además haría creer que la app va lenta.
+export const MARCA_SILENCIOSA = 'sondeo=1'
 
 let enVuelo = 0
 const oyentes = new Set<(n: number) => void>()
@@ -37,7 +41,7 @@ function esNuestraApi(input: RequestInfo | URL): boolean {
       : input instanceof URL ? input.href
       : input.url
     // Vale tanto la relativa (`/spaces-dooh/api/...`) como la absoluta.
-    return url.includes(PREFIJO_API)
+    return url.includes(PREFIJO_API) && !url.includes(MARCA_SILENCIOSA)
   } catch {
     return false
   }
