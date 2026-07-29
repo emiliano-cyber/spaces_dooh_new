@@ -8,6 +8,7 @@ import {
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
   crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
   adjuntarAPago, obtenerAdjuntoPago,
+  listarLicencias, crearLicencia, editarLicencia, borrarLicencia,
 } from './arrendadores-repo'
 import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 
@@ -335,4 +336,75 @@ export async function crearRazonSocialCtrl(body: unknown) {
   const d = validar(crearRazonSocialSchema, body)
   if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
   return crearRazonSocial(d)
+}
+
+// ─── Licencias y permisos con vigencia (F-2) ────────────────────────────────
+const TIPOS_LICENCIA = ['MUNICIPAL', 'AMBIENTAL', 'ESTRUCTURAL', 'OTRO'] as const
+
+// `fecha` ya valida el formato ISO. La vigencia es obligatoria porque es la razón
+// de ser del registro: una licencia sin fecha de vencimiento no puede alertar, que
+// es justo el hueco que esto viene a cerrar.
+const licenciaSchema = z.object({
+  predioId: z.string().uuid().nullish(),
+  sitioId: z.string().uuid().nullish(),
+  tipo: z.enum(TIPOS_LICENCIA),
+  folio: z.string().trim().max(60).nullish(),
+  autoridad: z.string().trim().max(120).nullish(),
+  fechaExpedicion: fecha.nullish(),
+  fechaVencimiento: fecha,
+  documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
+  notas: z.string().trim().max(500).nullish(),
+}).strict()
+
+function validarVigencia(d: { fechaExpedicion?: string | null; fechaVencimiento?: string }) {
+  if (d.fechaExpedicion && d.fechaVencimiento && d.fechaVencimiento < d.fechaExpedicion) {
+    throw new AppError('La licencia no puede vencer antes de expedirse.', 400)
+  }
+}
+
+export async function crearLicenciaCtrl(body: unknown) {
+  const d = licenciaSchema.parse(body)
+  validarVigencia(d)
+  return crearLicencia({
+    predioId: d.predioId ?? null,
+    sitioId: d.sitioId ?? null,
+    tipo: d.tipo,
+    folio: d.folio ?? null,
+    autoridad: d.autoridad ?? null,
+    fechaExpedicion: d.fechaExpedicion ?? null,
+    fechaVencimiento: d.fechaVencimiento,
+    documentoUrl: d.documentoUrl ?? null,
+    notas: d.notas ?? null,
+  })
+}
+
+// El anclaje (predio/pantalla) queda FUERA del esquema de edición a propósito:
+// moverlo convertiría el registro en otro permiso distinto y rompería el
+// histórico de renovaciones. Si se capturó mal, se borra y se vuelve a crear.
+const editarLicenciaSchema = licenciaSchema
+  .omit({ predioId: true, sitioId: true })
+  .partial()
+  .strict()
+
+export async function editarLicenciaCtrl(id: string, body: unknown) {
+  const d = editarLicenciaSchema.parse(body)
+  if (!Object.keys(d).length) throw new AppError('No hay nada que actualizar.', 400)
+  // Si solo llega una de las dos fechas hay que contrastarla contra la guardada,
+  // o se colaría una vigencia invertida editando un campo a la vez. El CHECK de
+  // la base lo atraparía igual, pero con un mensaje que no dice qué hacer.
+  const actual = (await listarLicencias()).find((l) => l.id === id)
+  if (!actual) throw new AppError('Licencia no encontrada', 404)
+  validarVigencia({
+    fechaExpedicion: d.fechaExpedicion ?? actual.fechaExpedicion,
+    fechaVencimiento: d.fechaVencimiento ?? actual.fechaVencimiento,
+  })
+  const r = await editarLicencia(id, d)
+  if (!r) throw new AppError('Licencia no encontrada', 404)
+  return r
+}
+
+export async function borrarLicenciaCtrl(id: string) {
+  const ok = await borrarLicencia(id)
+  if (!ok) throw new AppError('Licencia no encontrada', 404)
+  return { ok: true }
 }

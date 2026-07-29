@@ -301,7 +301,7 @@ export interface DashboardMetrics {
 
 // Tipos (categorías) de alerta. Sirven para que el usuario elija en el Dashboard
 // cuáles ver en pantalla y cuáles no (todas encendidas por default).
-export type TipoAlerta = 'pago' | 'contrato' | 'cobranza' | 'incidencia' | 'ot'
+export type TipoAlerta = 'pago' | 'contrato' | 'cobranza' | 'incidencia' | 'ot' | 'licencia'
 
 export interface Alerta {
   id: string
@@ -309,6 +309,17 @@ export interface Alerta {
   nivel: 'rojo' | 'ambar'
   titulo: string
   detalle: string
+}
+
+// Margen de aviso para licencias y permisos. Más ancho que el de contratos (90)
+// porque renovar ante la autoridad es un trámite, no una firma.
+export const DIAS_AVISO_LICENCIA = 120
+
+export const LICENCIA_LABEL: Record<string, string> = {
+  MUNICIPAL: 'Licencia municipal',
+  AMBIENTAL: 'Permiso ambiental',
+  ESTRUCTURAL: 'Dictamen estructural',
+  OTRO: 'Permiso',
 }
 
 export function dashboardMetrics(state: DemoState): DashboardMetrics {
@@ -563,6 +574,42 @@ function construirAlertas(state: DemoState): Alerta[] {
         detalle: `${sit?.nombre ?? 'Sitio'} — venció hace ${dias} días`,
       })
     }
+  }
+
+  // Licencias y permisos por vencer o vencidos (F-2 de la auditoría).
+  //
+  // Un permiso vencido AVISA pero NO bloquea la venta. Es decisión del dueño del
+  // producto: bloquear en automático frenaría ventas cuando el permiso ya está
+  // renovado pero todavía no capturado, que es el caso más frecuente.
+  //
+  // El umbral es más ancho que el de los contratos (120 días contra 90) porque un
+  // trámite ante la autoridad tarda: enterarse con un mes de margen no alcanza
+  // para renovarlo a tiempo.
+  for (const l of state.licencias ?? []) {
+    const dias = diasHasta(l.fechaVencimiento)
+    if (dias > DIAS_AVISO_LICENCIA) continue
+    // A quién ampara: el predio —y con él todas sus pantallas— o una suelta.
+    const donde = l.predioId
+      ? state.predios.find((p) => p.id === l.predioId)?.nombre
+      : state.sitios.find((s) => s.id === l.sitioId)?.nombre
+    const que = `${LICENCIA_LABEL[l.tipo] ?? 'Permiso'}${l.folio ? ` ${l.folio}` : ''}`
+    alertas.push(
+      dias < 0
+        ? {
+            id: `al-licv-${l.id}`,
+            tipo: 'licencia',
+            nivel: 'rojo',
+            titulo: 'Licencia vencida',
+            detalle: `${donde ?? 'Ubicación'} — ${que} venció hace ${Math.abs(dias)} días`,
+          }
+        : {
+            id: `al-lic-${l.id}`,
+            tipo: 'licencia',
+            nivel: dias <= 30 ? 'rojo' : 'ambar',
+            titulo: 'Licencia por vencer',
+            detalle: `${donde ?? 'Ubicación'} — ${que} vence en ${dias} días`,
+          },
+    )
   }
 
   // Cobertura: lo vendido no puede exceder lo contratado con el propietario.
@@ -907,7 +954,21 @@ export function margenPorSitio(state: DemoState): MargenSitio[] {
 export function diasHasta(iso: string): number {
   const ahora = new Date()
   ahora.setHours(0, 0, 0, 0)
-  const objetivo = new Date(iso)
+  // Todo lo que llega aquí es una fecha de CALENDARIO —vigencia de un contrato,
+  // periodo de un pago, vencimiento de un permiso—, nunca un instante.
+  //
+  // `new Date('2026-07-17')` la interpreta como medianoche UTC. En México (UTC−6)
+  // eso cae a las 18:00 del día ANTERIOR en hora local, y el `setHours(0,0,0,0)`
+  // de después la dejaba en el día 16: la cuenta salía corrida un día. Se veía en
+  // los avisos —«venció hace 13 días» cuando habían pasado 12— y también en los
+  // contratos, donde uno vencido ayer decía «hace 0 días».
+  //
+  // Por eso se toman los diez primeros caracteres (`YYYY-MM-DD`, que es lo que
+  // guardó la base) y se construye la fecha en hora LOCAL. Vale igual para el
+  // formato corto y para el timestamp completo que devuelve el driver.
+  const [a, m, d] = iso.slice(0, 10).split('-').map(Number)
+  const objetivo =
+    a && m && d ? new Date(a, m - 1, d) : new Date(iso)
   objetivo.setHours(0, 0, 0, 0)
   return Math.round((objetivo.getTime() - ahora.getTime()) / 86_400_000)
 }

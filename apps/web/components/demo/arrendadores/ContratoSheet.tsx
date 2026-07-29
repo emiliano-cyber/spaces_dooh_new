@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AlertTriangle, RefreshCw, Building2, FileText, Paperclip, X, Loader2 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
+import { LicenciasCard } from '@/components/demo/arrendadores/LicenciasCard'
 import { Button } from '@/components/demo/ui/Button'
 import {
   StatusBadge,
@@ -149,6 +150,15 @@ export function ContratoSheet({
               </a>
             )}
           </div>
+
+          {/* Licencias y permisos del emplazamiento. Se anclan igual que el
+              contrato: al predio si la pantalla pertenece a uno —y entonces
+              amparan a todas sus hermanas— o a la pantalla suelta. */}
+          <LicenciasCard
+            predioId={contrato.predioId ?? null}
+            sitioId={contrato.predioId ? null : contrato.sitioId}
+            onToast={onToast}
+          />
 
           {/* Pagos de renta */}
           <div>

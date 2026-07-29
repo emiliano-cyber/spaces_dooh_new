@@ -457,3 +457,12 @@ export function useConfigNegocio() {
 export function useActualizarConfig() {
   return useDemoStore((s) => s.actualizarConfig)
 }
+
+// Licencias y permisos con vigencia. Se filtran por anclaje en quien las use:
+// una licencia ampara un predio (y con él todas sus pantallas) o una pantalla
+// suelta, nunca las dos cosas.
+export function useLicencias() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.licencias)
+  return m ? v : undefined
+}

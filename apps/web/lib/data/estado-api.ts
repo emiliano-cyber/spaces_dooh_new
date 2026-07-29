@@ -31,6 +31,7 @@ export async function refrescarEstado(): Promise<void> {
     arrendadores: e.arrendadores ?? [],
     predios: e.predios ?? [],
     razonesSociales: e.razonesSociales ?? [],
+    licencias: e.licencias ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
@@ -601,4 +602,38 @@ export async function extenderCampanaApi(campanaId: string, fechaFin: string): P
   if (!r.ok) throw new Error(d.error ?? 'No se pudo extender')
   await refrescarEstado()
   return d
+}
+
+// ─── Licencias y permisos ───────────────────────────────────────────────────
+export async function crearLicenciaApi(input: {
+  predioId?: string | null; sitioId?: string | null; tipo: string
+  folio?: string | null; autoridad?: string | null
+  fechaExpedicion?: string | null; fechaVencimiento: string; notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/licencias/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la licencia')
+  await refrescarEstado()
+}
+
+export async function editarLicenciaApi(id: string, cambios: Record<string, unknown>): Promise<void> {
+  const r = await fetch(`${API}/licencias/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cambios),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la licencia')
+  await refrescarEstado()
+}
+
+export async function borrarLicenciaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/licencias/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo borrar la licencia')
+  await refrescarEstado()
 }

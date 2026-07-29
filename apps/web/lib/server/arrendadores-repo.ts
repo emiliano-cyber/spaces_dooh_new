@@ -951,3 +951,120 @@ export async function reanudarSitioLegal(sitioId: string): Promise<{ nombre: str
   )
   return rows[0] ?? null
 }
+
+// ─── Licencias y permisos con vigencia (F-2) ────────────────────────────────
+//
+// Anclaje EXCLUYENTE predio/pantalla, igual que el contrato: el permiso ampara
+// una instalación, y si el predio agrupa varias pantallas las cubre a todas. Lo
+// impone `licencia_anclaje_ck` en la base, no una convención de código.
+//
+// No hay columna de estatus: la vigencia se deduce de `fecha_vencimiento` contra
+// hoy, en la capa de lectura. Guardarla obligaría a un barrido que reescribiera
+// filas en cada carga, que es el hallazgo M-5 que sigue abierto en contratos.
+
+function rowToLicencia(r: any) {
+  return {
+    id: r.id,
+    predioId: r.predio_id ?? null,
+    sitioId: r.sitio_id ?? null,
+    tipo: r.tipo,
+    folio: r.folio ?? null,
+    autoridad: r.autoridad ?? null,
+    fechaExpedicion: r.fecha_expedicion ? iso(r.fecha_expedicion) : null,
+    fechaVencimiento: iso(r.fecha_vencimiento),
+    documentoUrl: r.documento_url ?? null,
+    notas: r.notas ?? null,
+    creadoEn: iso(r.creado_en),
+  }
+}
+
+export async function listarLicencias() {
+  const rows = await q(
+    'select * from licencias where tenant_id = $1 order by fecha_vencimiento asc',
+    [await tenantActual()],
+  )
+  return rows.map(rowToLicencia)
+}
+
+export interface LicenciaInput {
+  predioId?: string | null
+  sitioId?: string | null
+  tipo: string
+  folio?: string | null
+  autoridad?: string | null
+  fechaExpedicion?: string | null
+  fechaVencimiento: string
+  documentoUrl?: string | null
+  notas?: string | null
+}
+
+export async function crearLicencia(input: LicenciaInput) {
+  const tenantId = await tenantActual()
+  // El anclaje se valida aquí ADEMÁS de en el CHECK: así el usuario recibe un
+  // mensaje que dice qué hacer en vez de un 23514 opaco de la base.
+  const tienePredio = !!input.predioId
+  const tieneSitio = !!input.sitioId
+  if (tienePredio === tieneSitio) {
+    throw new AppError(
+      'Una licencia ampara un predio O una pantalla suelta, no ambos ni ninguno.',
+      400,
+    )
+  }
+  // El anclaje tiene que existir EN ESTE INQUILINO. La FK no lo garantiza: apunta
+  // a la tabla entera, y sin esta comprobación se podría colgar una licencia de
+  // un predio ajeno pasando su id a mano.
+  const tabla = tienePredio ? 'predios' : 'sitios'
+  const anclaId = tienePredio ? input.predioId : input.sitioId
+  const existe = await q(`select 1 from ${tabla} where id = $1 and tenant_id = $2`, [anclaId, tenantId])
+  if (!existe.length) {
+    throw new AppError(tienePredio ? 'El predio no existe.' : 'La pantalla no existe.', 404)
+  }
+  const rows = await q(
+    `insert into licencias
+       (tenant_id, predio_id, sitio_id, tipo, folio, autoridad, fecha_expedicion,
+        fecha_vencimiento, documento_url, notas)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning *`,
+    [
+      tenantId, input.predioId ?? null, input.sitioId ?? null, input.tipo,
+      input.folio ?? null, input.autoridad ?? null, input.fechaExpedicion ?? null,
+      input.fechaVencimiento, input.documentoUrl ?? null, input.notas ?? null,
+    ],
+  )
+  return rowToLicencia(rows[0])
+}
+
+const LICENCIA_COL: Record<string, string> = {
+  tipo: 'tipo', folio: 'folio', autoridad: 'autoridad',
+  fechaExpedicion: 'fecha_expedicion', fechaVencimiento: 'fecha_vencimiento',
+  documentoUrl: 'documento_url', notas: 'notas',
+}
+
+// Actualización parcial. El anclaje NO se puede mover: cambiar de predio a
+// pantalla convertiría el registro en otro permiso distinto y rompería el
+// histórico. Si se capturó mal, se borra y se vuelve a crear.
+export async function editarLicencia(id: string, cambios: Record<string, unknown>) {
+  const sets: string[] = []
+  const vals: unknown[] = []
+  for (const [k, v] of Object.entries(cambios)) {
+    const col = LICENCIA_COL[k]
+    if (!col) continue
+    vals.push(v)
+    sets.push(`${col} = $${vals.length}`)
+  }
+  if (!sets.length) return null
+  vals.push(id, await tenantActual())
+  const rows = await q(
+    `update licencias set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return rows[0] ? rowToLicencia(rows[0]) : null
+}
+
+export async function borrarLicencia(id: string) {
+  const rows = await q(
+    'delete from licencias where id = $1 and tenant_id = $2 returning id',
+    [id, await tenantActual()],
+  )
+  return rows.length > 0
+}
