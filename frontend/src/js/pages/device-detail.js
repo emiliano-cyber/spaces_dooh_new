@@ -453,6 +453,15 @@ function deviceDetail() {
       }
     },
 
+    // Los sitios con camara IP (agente de PC) no tienen vista en vivo: el
+    // navegador no reproduce RTSP y falta el puente que lo convierta. Se detecta
+    // por el identificador que genera el agente. Sin esto, el boton "Iniciar
+    // stream" se quedaba esperando 20 s y luego culpaba al equipo de no
+    // responder, que es justo lo contrario de lo que pasa.
+    esCamaraIP() {
+      return String(this.device?.device_uid || '').startsWith('pc-');
+    },
+
     // ---- Actualizacion remota de la app ----
     // Antes cada version nueva exigia ir sitio por sitio a reinstalar el APK.
     apkLatest: null,
