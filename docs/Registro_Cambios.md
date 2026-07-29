@@ -7,6 +7,53 @@ La entrada más reciente va arriba.
 
 ## 2026-07-28
 
+- **La renta de las pantallas individuales dejó de ser invisible.** Es el
+  arreglo más importante del día y cambia números reales. Hasta hoy, el cálculo
+  de rentabilidad solo entendía los contratos colgados de un *predio*. Una
+  pantalla suelta —sin predio, con su propio contrato— aparecía con **renta $0**,
+  con la ganancia completa como margen, y el sistema además afirmaba que **no
+  tenía contrato**, así que ni siquiera salía en la lista de pendientes. El
+  espacio figuraba como gratis y nada lo denunciaba.
+  - *Efecto concreto en producción:* la `PANTALLA DIGITAL DEMO` de **eyro** tiene
+    un contrato vigente de **$20,000 al mes** —el que capturamos esta semana— y
+    el sistema lo mostraba como $0. Ahora su costo de renta es $20,000 y el
+    margen de esa pantalla bajó en la misma cantidad. No es un error nuevo: es
+    dinero que siempre se pagó y que por fin se ve. **demo g500 no cambió**, sus
+    $65,000 mensuales ya se contaban bien.
+  - *La regla que quedó fija:* un predio tiene **un** contrato y lo comparten
+    todas sus pantallas; una pantalla suelta tiene el suyo. Nunca se suman los
+    dos, así que la renta no puede contarse doble. Las campañas siguen siendo por
+    pantalla, como hasta ahora.
+- **Vender la segunda cara de un predio ya no abre un contrato duplicado.** Al
+  aprobar una propuesta, el sistema buscaba si esa pantalla tenía contrato, pero
+  no miraba el del predio al que pertenece. Resultado: cada cara vendida
+  estrenaba su propia ficha, aunque el predio ya estuviera contratado. Eso
+  producía alertas falsas de "contrato incompleto" sobre espacios que sí estaban
+  cubiertos, y si alguien completaba una de esas fichas con un importe, quedaban
+  dos contratos vivos sobre el mismo predio: renta pagada dos veces.
+  - Se encontró **una ficha así en producción**: `BLVD. MAGNOCENTRO INTERLOMAS -
+    CARA B`, cuyo predio ya tenía un contrato vigente de $45,000. Quedó
+    **cancelada con su motivo**, no borrada, para que el registro explique por
+    qué desapareció. Los 9 pendientes de demo g500 y los 3 de eyro son legítimos
+    y siguen ahí.
+- **Ya no se puede registrar un contrato con renta de $0.** Era el hallazgo más
+  caro de la auditoría: un contrato en cero se daba por completo, salía de la
+  lista de pendientes y dejaba el espacio con la ganancia íntegra como margen,
+  sin ningún aviso. Ahora se rechaza al capturarlo **y** la base de datos lo
+  impide por su cuenta, junto con las vigencias que terminan antes de empezar.
+  - *Detalle que se respetó:* el alquiler de **un solo día** sigue siendo válido.
+    Se detectó a tiempo que hay propuestas de un día en demo g500 y que una regla
+    más estricta habría impedido aprobarlas.
+- **Una pantalla suelta ya no puede tener dos contratos activos a la vez.**
+  Faltaba ese candado: existía para los predios y para los pendientes, pero no
+  para este caso, y era alcanzable desde la aplicación.
+- *Despliegue:* respaldo de la base verificado antes de tocar nada (7.1 MB, 34
+  tablas, 17 contratos), migraciones aplicadas, aplicación reconstruida y
+  reiniciada, y comprobación posterior con datos reales de eyro. Sin incidencias.
+- *Sigue pendiente:* aparece en el registro técnico un error de React duplicado
+  (`styled-jsx`) que **ya existía antes** de estos cambios y conviene atacar
+  aparte; y las contraseñas del servidor compartidas por chat siguen sin rotar.
+
 - **Auditoría independiente del módulo de Arrendadores.** Se revisó el módulo
   regla por regla contra la especificación del dueño del producto, sin corregir
   nada: el objetivo era saber en qué estado real está de cara a la salida a
