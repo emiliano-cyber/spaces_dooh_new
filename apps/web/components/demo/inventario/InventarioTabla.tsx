@@ -5,7 +5,7 @@ import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X } from 'lu
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
-import { StatusBadge, SITIO_TONO, SITIO_LABEL } from '@/components/demo/StatusBadge'
+import { StatusBadge, SITIO_TONO, SITIO_LABEL, disponibilidadInventario } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { actualizarSitioApi, actualizarTarifasApi } from '@/lib/data/sitios-api'
 import {
@@ -250,7 +250,7 @@ export function InventarioTabla() {
               <th className="px-3 py-2 font-medium">Ubicación</th>
               <th className="px-3 py-2 font-medium">Medio</th>
               <th className="px-3 py-2 text-right font-medium">Tarifa</th>
-              <th className="px-3 py-2 font-medium">Estatus</th>
+              <th className="px-3 py-2 font-medium">Disponibilidad</th>
               <th className="px-3 py-2 font-medium">Arrendatario</th>
               <th className="px-3 py-2 text-right font-medium">Renta</th>
               <th className="px-3 py-2 font-medium">Cada cuándo</th>
@@ -301,7 +301,13 @@ export function InventarioTabla() {
                       <CeldaTarifa sitio={s} editable={puedeEditar} onSaved={notify} />
                     </td>
                     <td className="px-3 py-2.5">
-                      <StatusBadge tono={SITIO_TONO[s.estatusComercial]}>{SITIO_LABEL[s.estatusComercial]}</StatusBadge>
+                      {/* Disponibilidad comercial, no el estatus crudo: en una
+                          digital lo que importa es cuántos slots quedan, y en
+                          una fija basta con si se puede vender o no. */}
+                      {(() => {
+                        const d = disponibilidadInventario(s)
+                        return <StatusBadge tono={d.tono}>{d.texto}</StatusBadge>
+                      })()}
                     </td>
                     <td className="px-3 py-2.5">
                       <CeldaPropietario

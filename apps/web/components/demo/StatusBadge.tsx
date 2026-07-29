@@ -73,6 +73,56 @@ export const SITIO_TONO: Record<EstComercial, Tono> = {
   EN_MANTENIMIENTO: 'neutro',
   BAJA: 'neutro',
 }
+// ¿Es una pantalla digital/rotativa? Comparten slots, así que su disponibilidad
+// no es un sí/no sino "cuántos quedan". Mismo criterio que usa el servidor al
+// confirmar reservas (campanas-repo) y el calendario de disponibilidad.
+export function esDigital(s: {
+  tipoMedio?: string; esRotativo?: boolean; exhibicion?: string
+}): boolean {
+  return (
+    s.tipoMedio === 'PANTALLA_DIGITAL' || !!s.esRotativo ||
+    s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
+  )
+}
+
+// Disponibilidad tal como se muestra en INVENTARIO. Responde a una sola
+// pregunta: ¿puedo vender esta pantalla, y cuánto?
+//
+// · Digital → "N de M libres". El estatus sí/no no sirve: una pantalla con 3 de
+//   10 slots vendidos sigue siendo vendible, y decir "Reservado" u "Ocupado"
+//   haría creer que no.
+// · Fija → Disponible u Ocupado. RESERVADO se muestra como OCUPADO a propósito:
+//   desde el punto de vista comercial una reserva tentativa tampoco se puede
+//   vender, y distinguirla aquí solo añadía un estado intermedio que no cambia
+//   la decisión. (La reserva sigue siendo tentativa en la campaña, y caduca
+//   sola; esto es solo cómo se presenta el inventario.)
+// · BLOQUEADO / EN_MANTENIMIENTO / BAJA se conservan: son estados operativos
+//   reales, no comerciales, y esconderlos sí perdería información.
+export function disponibilidadInventario(s: {
+  estatusComercial: EstComercial
+  tipoMedio?: string; esRotativo?: boolean; exhibicion?: string
+  totalSpots?: number | null; spotsDisponibles?: number | null
+}): { texto: string; tono: Tono } {
+  if (s.estatusComercial === 'BLOQUEADO' || s.estatusComercial === 'EN_MANTENIMIENTO' || s.estatusComercial === 'BAJA') {
+    return { texto: SITIO_LABEL[s.estatusComercial], tono: SITIO_TONO[s.estatusComercial] }
+  }
+  if (esDigital(s)) {
+    const total = s.totalSpots ?? null
+    const libres = s.spotsDisponibles ?? null
+    if (total == null || libres == null) {
+      // Digital sin slots capturados: no se puede decir cuántos quedan.
+      return { texto: 'Sin slots capturados', tono: 'neutro' }
+    }
+    if (libres <= 0) return { texto: 'Sin slots libres', tono: 'rojo' }
+    return {
+      texto: `${libres} de ${total} libres`,
+      tono: libres < total ? 'ambar' : 'verde',
+    }
+  }
+  const ocupada = s.estatusComercial === 'OCUPADO' || s.estatusComercial === 'RESERVADO'
+  return ocupada ? { texto: 'Ocupado', tono: 'rojo' } : { texto: 'Disponible', tono: 'verde' }
+}
+
 // Color del PIN en los mapas (dashboard y comercial). Distinto de SITIO_TONO
 // (que es para badges de estatus): aquí el medio digital se resalta en azul.
 //   azul = digital · verde = disponible · rojo = ocupado · ámbar = reservado.
