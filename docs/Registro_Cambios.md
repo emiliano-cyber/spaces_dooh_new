@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-07-28
 
+- **Corregido el error intermitente que tumbaba el dibujado de algunas páginas.**
+  En el registro técnico aparecía de vez en cuando un fallo al generar la página
+  en el servidor. No rompía la aplicación entera —el sitio seguía respondiendo—
+  pero cada aparición era una página que se servía mal, y era imposible predecir
+  cuál.
+  - *Qué pasaba:* el proyecto tenía **dos versiones distintas de React** conviviendo.
+    La aplicación usaba la 18 y en la raíz había una 19. La librería que aplica los
+    estilos quedaba enganchada a la copia equivocada y se caía al intentar dibujar.
+  - *De dónde salía la segunda:* de `packages/ui`, un paquete de ejemplo que vino
+    con la plantilla del proyecto (tres componentes de muestra: botón, tarjeta y
+    bloque de código) y que **no se usa en ninguna parte**. Arrastraba React 19 sin
+    aportar nada.
+  - *Solución:* se alineó ese paquete a la misma versión de React que usa la
+    aplicación y se dejó un candado en la configuración para que ninguna
+    dependencia futura vuelva a meter una segunda copia. El candado se probó a
+    propósito: aun forzando la versión vieja, el sistema resuelve una sola.
+  - *Comprobación:* se vació el registro de errores y se volvieron a visitar las
+    páginas que fallaban (acceso, propuesta compartida, portal de cliente,
+    recuperar contraseña) además de entrar con un usuario real. **Cero
+    apariciones del fallo.**
+  - *Nota:* el despliegue exigió reinstalar las dependencias del servidor, lo que
+    obliga a detener la aplicación. **Hubo unos 4 minutos de interrupción.**
 - **La renta de las pantallas individuales dejó de ser invisible.** Es el
   arreglo más importante del día y cambia números reales. Hasta hoy, el cálculo
   de rentabilidad solo entendía los contratos colgados de un *predio*. Una
