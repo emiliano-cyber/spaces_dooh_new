@@ -1258,3 +1258,155 @@ export function disponibilidad(state: DemoState, opts: OpcionesDisponibilidad): 
   const filtradas = opts.soloDisponibles ? filas.filter((f) => f.libres > 0) : filas
   return { periodos, filas: filtradas, totalSitios: state.sitios.length }
 }
+
+// ─── Conciliación de renta por emplazamiento y arrendador (R3.7) ────────────
+//
+// Responde «¿qué le debo a cada propietario y qué ya le pagué?». Hasta ahora eso
+// solo se podía saber contrato por contrato: la información estaba, pero había
+// que sumarla a mano y nadie lo hacía.
+//
+// El agrupador intermedio es el EMPLAZAMIENTO, no el contrato ni la pantalla,
+// porque es la unidad que el negocio reconoce: un predio con seis caras es una
+// negociación con un propietario, no seis. Se resuelve con el mismo anclaje dual
+// del contrato — predio si lo tiene, pantalla suelta si no.
+//
+// Vive aquí y no en Finanzas a propósito: Finanzas recibe los pagos SIN los
+// contratos (ver `listarPagosRenta`), justamente para no exponerle importes ni
+// datos del propietario. Sin contratos no hay a quién agrupar.
+
+export interface ResumenRenta {
+  n: number
+  monto: number
+}
+
+export interface ConciliacionEmplazamiento {
+  id: string
+  tipo: 'PREDIO' | 'PANTALLA'
+  nombre: string
+  contratos: number
+  pagado: ResumenRenta
+  pendiente: ResumenRenta
+  vencido: ResumenRenta
+  /** Periodo impago más próximo. `null` si no queda nada por pagar. */
+  proximoPeriodo: string | null
+}
+
+export interface ConciliacionArrendador {
+  arrendadorId: string | null
+  arrendador: string
+  emplazamientos: ConciliacionEmplazamiento[]
+  pagado: ResumenRenta
+  pendiente: ResumenRenta
+  vencido: ResumenRenta
+  proximoPeriodo: string | null
+}
+
+const vacio = (): ResumenRenta => ({ n: 0, monto: 0 })
+
+function acumular(r: ResumenRenta, monto: number) {
+  r.n += 1
+  r.monto += monto || 0
+}
+
+export function conciliacionRenta(state: DemoState): ConciliacionArrendador[] {
+  const contratoPorId = new Map(state.contratos.map((c) => [c.id, c]))
+  const predioPorId = new Map((state.predios ?? []).map((p) => [p.id, p]))
+  const sitioPorId = new Map(state.sitios.map((s) => [s.id, s]))
+  const arrPorId = new Map((state.arrendadores ?? []).map((a) => [a.id, a]))
+
+  // clave = arrendador \u0000 emplazamiento, para no mezclar dos predios del mismo
+  // propietario ni el mismo predio de dos propietarios distintos.
+  const porGrupo = new Map<string, ConciliacionEmplazamiento & { arrendadorId: string | null }>()
+  const contratosVistos = new Map<string, Set<string>>()
+
+  for (const p of state.pagosRenta) {
+    const c = contratoPorId.get(p.contratoId)
+    // Un pago sin contrato no es agrupable por propietario. No se descarta en
+    // silencio: se agrupa aparte para que se vea que existe, en vez de
+    // desaparecer de un cuadre que pretende estar completo.
+    const emplId = c ? (c.predioId ?? c.sitioId) : null
+    const tipo: 'PREDIO' | 'PANTALLA' = c?.predioId ? 'PREDIO' : 'PANTALLA'
+    const nombre = !c
+      ? 'Sin contrato'
+      : c.predioId
+        ? predioPorId.get(c.predioId)?.nombre ?? 'Predio'
+        : sitioPorId.get(c.sitioId)?.nombre ?? 'Pantalla'
+    // El arrendador del contrato manda; si el contrato aún está incompleto no
+    // lo tiene, y entonces se hereda el del predio, que sí se conoce.
+    const arrId =
+      c?.arrendadorId ?? (c?.predioId ? predioPorId.get(c.predioId)?.arrendadorId ?? null : null)
+
+    const clave = `${arrId ?? '-'}\u0000${emplId ?? '-'}`
+    let g = porGrupo.get(clave)
+    if (!g) {
+      g = {
+        arrendadorId: arrId,
+        id: emplId ?? 'sin-contrato',
+        tipo,
+        nombre,
+        contratos: 0,
+        pagado: vacio(),
+        pendiente: vacio(),
+        vencido: vacio(),
+        proximoPeriodo: null,
+      }
+      porGrupo.set(clave, g)
+      contratosVistos.set(clave, new Set())
+    }
+    if (c) contratosVistos.get(clave)!.add(c.id)
+
+    if (p.estatus === 'PAGADO') acumular(g.pagado, p.monto)
+    else if (p.estatus === 'VENCIDO') acumular(g.vencido, p.monto)
+    else acumular(g.pendiente, p.monto)
+
+    // El próximo a pagar es el periodo impago más antiguo: es el que urge, no el
+    // más cercano en el futuro.
+    if (p.estatus !== 'PAGADO' && (!g.proximoPeriodo || p.periodo < g.proximoPeriodo)) {
+      g.proximoPeriodo = p.periodo
+    }
+  }
+
+  for (const [clave, g] of porGrupo) g.contratos = contratosVistos.get(clave)!.size
+
+  // Rollup a arrendador.
+  const porArrendador = new Map<string, ConciliacionArrendador>()
+  for (const g of porGrupo.values()) {
+    const k = g.arrendadorId ?? '-'
+    let a = porArrendador.get(k)
+    if (!a) {
+      a = {
+        arrendadorId: g.arrendadorId,
+        arrendador: g.arrendadorId
+          ? arrPorId.get(g.arrendadorId)?.nombre ?? 'Arrendador'
+          : 'Sin arrendador asignado',
+        emplazamientos: [],
+        pagado: vacio(),
+        pendiente: vacio(),
+        vencido: vacio(),
+        proximoPeriodo: null,
+      }
+      porArrendador.set(k, a)
+    }
+    const { arrendadorId: _omit, ...empl } = g
+    a.emplazamientos.push(empl)
+    for (const campo of ['pagado', 'pendiente', 'vencido'] as const) {
+      a[campo].n += g[campo].n
+      a[campo].monto += g[campo].monto
+    }
+    if (g.proximoPeriodo && (!a.proximoPeriodo || g.proximoPeriodo < a.proximoPeriodo)) {
+      a.proximoPeriodo = g.proximoPeriodo
+    }
+  }
+
+  // Primero quien tiene deuda vencida: es el orden en que hay que actuar.
+  const orden = (x: ConciliacionArrendador | ConciliacionEmplazamiento) =>
+    [-x.vencido.monto, -x.pendiente.monto] as const
+  const cmp = (a: any, b: any) => {
+    const [av, ap] = orden(a)
+    const [bv, bp] = orden(b)
+    return av - bv || ap - bp || String(a.nombre ?? a.arrendador).localeCompare(String(b.nombre ?? b.arrendador))
+  }
+  const salida = [...porArrendador.values()].sort(cmp)
+  for (const a of salida) a.emplazamientos.sort(cmp)
+  return salida
+}

@@ -33,6 +33,7 @@ import {
   type MargenSitio,
 } from '@/lib/data/client'
 import { registrarPagoRentaApi, crearArrendadorApi } from '@/lib/data/estado-api'
+import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
 
 export default function ArrendadoresPage() {
   const contratos = useContratos()
@@ -124,6 +125,10 @@ export default function ArrendadoresPage() {
 
       {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
       <RentabilidadCard margenes={margenes} />
+
+      {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
+          por emplazamiento. Antes solo se podía saber contrato por contrato. */}
+      <ConciliacionCard />
 
       {/* Consolidado por razón social (un propietario puede tener varias) */}
       <RazonesSocialesCard
