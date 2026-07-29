@@ -42,6 +42,17 @@ La entrada más reciente va arriba.
   redondeo**, de modo que siempre suman el total exacto de la factura. Cada
   parcialidad tiene su propio vencimiento y se cobra por separado; la factura
   solo queda saldada cuando se han pagado todas.
+  - *El número de cuotas ya no se teclea:* se calcula solo a partir de la
+    duración de la campaña, y únicamente se ofrecen los repartos que caben. La
+    regla es que las cuotas salgan enteras y sean al menos dos —cobrar en "una
+    parcialidad" no es fraccionar el pago, es el cobro único de siempre—, y de
+    ahí salen las restricciones: una campaña de **un mes** solo admite dos
+    quincenales; una de **dos meses**, como mucho mensuales; y las **anuales**
+    aparecen a partir de 24 meses, porque con 12 saldría una sola cuota. El
+    desplegable dice directamente "8 cuotas trimestrales" en vez de pedir dos
+    datos sueltos, y si la campaña no admite ningún reparto lo explica en vez de
+    ofrecer opciones que van a fallar. La comprobación se repite al guardar, así
+    que no depende de la pantalla.
   - *Cuotas anuales y semestrales,* además de quincenales, mensuales,
     bimestrales y trimestrales. Una campaña de 24 meses se cobra en 2
     anualidades y una de 36 en 3.
