@@ -51,6 +51,17 @@ async function main() {
   });
 }
 
+// Ultima red de seguridad: un fallo suelto (fuera de una peticion HTTP, p.ej. en
+// un worker o un socket) NO debe tumbar el backend de toda la flota. Se registra
+// y se sigue operando; la alternativa es dejar sin servicio a todos los equipos
+// por un error aislado.
+process.on('unhandledRejection', (err: any) => {
+  console.error('[FALLO NO CONTROLADO] promesa rechazada:', err?.sqlMessage || err?.stack || err);
+});
+process.on('uncaughtException', (err: any) => {
+  console.error('[FALLO NO CONTROLADO] excepcion:', err?.sqlMessage || err?.stack || err);
+});
+
 main().catch((err) => {
   console.error('Fatal error:', err);
   process.exit(1);

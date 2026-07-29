@@ -1,5 +1,6 @@
 // backend/src/routes/index.ts
 import { Router } from 'express';
+import { asyncRouter } from '../utils/asyncRouter';
 import multer from 'multer';
 import { requireUser, requireDevice, requireRole, requireWorker } from '../middleware/auth';
 import * as auth from '../controllers/auth.controller';
@@ -12,7 +13,9 @@ import * as users from '../controllers/users.controller';
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 export function createRoutes() {
-  const router = Router();
+  // asyncRouter: sin esto, el error de un handler asincrono mata el proceso
+  // entero (Express 4 no captura promesas rechazadas).
+  const router = asyncRouter();
 
   // --- Auth (public) ---
   router.post('/api/auth/login', auth.login);

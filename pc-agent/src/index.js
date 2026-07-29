@@ -116,13 +116,31 @@ async function main() {
   if (info) log(`camara detectada: ${info.modelo || '?'} fw ${info.firmware || '?'}`);
   else log('AVISO: no pude leer los datos de la camara (revisa IP, usuario y clave).');
 
-  const reg = await api.registrar({
+  // Registro con reintentos: un sitio desatendido no puede rendirse porque en ese
+  // momento no hubiera internet, el servidor estuviera reiniciando o la
+  // configuracion tuviera un dato mal. Antes el proceso moria aqui y no volvia
+  // hasta reiniciar la PC.
+  const datosRegistro = {
     device_uid: uid,
     app_version: `pc-agent ${VERSION}`,
     model: info?.modelo || cfg.camara.modelo || 'Camara IP',
     manufacturer: 'HiLook/Hikvision',
-    os_version: `${os.type()} ${os.release()}`,
-  });
+    // Se recorta: la columna del servidor tiene limite y un valor largo hacia
+    // fallar el registro.
+    os_version: `${os.type()} ${os.release()}`.slice(0, 60),
+  };
+
+  let reg = null;
+  for (let intento = 1; !reg; intento++) {
+    try {
+      reg = await api.registrar(datosRegistro);
+    } catch (e) {
+      const espera = Math.min(60, intento * 10);
+      log(`no pude registrarme (intento ${intento}): ${e.message}`);
+      log(`  -> reintento en ${espera}s. Revisa server_url en config.json y la conexion.`);
+      await dormir(espera * 1000);
+    }
+  }
   estado.device_id = reg.device_id;
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);

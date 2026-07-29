@@ -50,5 +50,14 @@ export function createApp() {
     }
   });
 
+  // Manejador de errores. Junto con asyncRouter, evita que el fallo de una sola
+  // peticion tumbe el backend de toda la flota: se responde 500, se registra, y
+  // el servidor sigue atendiendo a los demas equipos.
+  app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error(`[ERROR] ${req.method} ${req.path}:`, err?.sqlMessage || err?.message || err);
+    if (res.headersSent) return;
+    res.status(500).json({ error: 'server_error' });
+  });
+
   return app;
 }

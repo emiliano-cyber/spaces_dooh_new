@@ -7,12 +7,18 @@ import { z } from 'zod';
 import { uploadPhoto } from '../services/photoStorage.service';
 import { redis } from '../config/redis';
 
+// Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
+// largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
+// recorta en vez de rechazar: un equipo en campo no debe quedarse sin registrar
+// por un nombre de modelo largo.
+const recorta = (max: number) => z.string().transform((s) => s.slice(0, max));
+
 const registerSchema = z.object({
-  device_uid: z.string().min(16),
-  android_version: z.string(),
-  app_version: z.string(),
-  model: z.string(),
-  manufacturer: z.string(),
+  device_uid: recorta(64).pipe(z.string().min(16)),
+  android_version: recorta(64),   // version del SO (Android o Windows en el agente de PC)
+  app_version: recorta(64),
+  model: recorta(100),
+  manufacturer: recorta(100),
 });
 
 export async function register(req: Request, res: Response) {

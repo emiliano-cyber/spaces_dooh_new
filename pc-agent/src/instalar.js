@@ -5,6 +5,7 @@
 // instalar Node, editar JSON ni configurar el Programador de tareas a mano.
 const fs = require('fs');
 const os = require('os');
+const path = require('path');
 const readline = require('readline');
 const { execFileSync } = require('child_process');
 const rutas = require('./rutas');
@@ -28,17 +29,73 @@ function esAdministrador() {
   }
 }
 
+// La tarea se define por XML y no con los parametros simples de schtasks, porque
+// hacen falta cosas que esos no permiten y que aqui son imprescindibles:
+//   - arrancar al encender la PC, sin que nadie inicie sesion;
+//   - REPETIR cada 10 minutos: si el proceso muere, vuelve solo. Antes, con un
+//     unico disparador al encender, un fallo dejaba el sitio mudo hasta que
+//     alguien reiniciara la computadora;
+//   - IgnoreNew: si ya esta corriendo, la repeticion no abre otra copia;
+//   - reintentos ante fallo y sin limite de duracion (opera 24/7).
+function xmlTarea() {
+  const cmd = rutas.ejecutable.replace(/&/g, '&amp;');
+  return `<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.3" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Description>Agente SPACE EYE: captura fotos de la camara del sitio y reporta al dashboard.</Description>
+  </RegistrationInfo>
+  <Triggers>
+    <BootTrigger><Enabled>true</Enabled></BootTrigger>
+    <TimeTrigger>
+      <StartBoundary>2020-01-01T00:00:00</StartBoundary>
+      <Repetition>
+        <Interval>PT10M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-18</UserId>
+      <RunLevel>HighestAvailable</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <RestartOnFailure>
+      <Interval>PT1M</Interval>
+      <Count>99</Count>
+    </RestartOnFailure>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <Priority>5</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>${cmd}</Command>
+      <Arguments>--servicio</Arguments>
+      <WorkingDirectory>${rutas.BASE}</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>`;
+}
+
 function instalarTarea() {
-  // ONSTART + SYSTEM: arranca con Windows aunque nadie inicie sesion, que es
-  // como opera una PC de sitio.
-  execFileSync('schtasks', [
-    '/Create', '/F',
-    '/TN', TAREA,
-    '/SC', 'ONSTART',
-    '/RU', 'SYSTEM',
-    '/RL', 'HIGHEST',
-    '/TR', `"${rutas.ejecutable}" --servicio`,
-  ], { stdio: 'pipe' });
+  const xml = path.join(rutas.BASE, 'tarea.xml');
+  // El Programador de tareas exige UTF-16 para el XML.
+  fs.writeFileSync(xml, xmlTarea(), 'utf16le');
+  try {
+    execFileSync('schtasks', ['/Create', '/F', '/TN', TAREA, '/XML', xml], { stdio: 'pipe' });
+  } finally {
+    try { fs.unlinkSync(xml); } catch (_) {}
+  }
 }
 
 function arrancarTarea() {
