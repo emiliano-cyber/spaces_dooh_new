@@ -7,6 +7,43 @@ La entrada más reciente va arriba.
 
 ## 2026-07-28
 
+- **Auditoría independiente del módulo de Arrendadores.** Se revisó el módulo
+  regla por regla contra la especificación del dueño del producto, sin corregir
+  nada: el objetivo era saber en qué estado real está de cara a la salida a
+  producción con PIXELED. Informe completo en
+  `docs/CONFORMIDAD_ARRENDADORES_20260728.md`. Resultado: **20 reglas conformes,
+  8 parciales, 1 con desviación**. Los diez casos de cálculo se ejecutaron
+  contra el sistema real —no se razonaron sobre el papel— y nueve dieron el
+  número esperado al peso.
+  - *Lo que está bien:* el corazón del cálculo de rentabilidad. La renta es el
+    único costo del espacio (el viejo "costo de compra" ya no se resta por
+    ningún lado, se comprobó metiendo un valor falso de $99,999 y viendo que el
+    margen no se movía), se reparte en partes iguales entre las caras del
+    predio, un contrato vencido deja de sumar costo el mismo día, y el sistema
+    impide crear dos contratos vigentes solapados sobre el mismo predio.
+  - *Lo que hay que arreglar antes de facturarle a un cliente real:* **el
+    sistema acepta un contrato con renta de $0**. Si eso pasa, el contrato se da
+    por completo, desaparece de la lista de "contratos incompletos" y la
+    rentabilidad de ese espacio aparece como ganancia íntegra: el espacio parece
+    gratis. Es el error más caro posible en este módulo porque no da ningún
+    aviso. Relacionado: la base de datos tampoco rechaza fechas invertidas (fin
+    antes que inicio) — hoy solo lo frena la pantalla.
+  - *Aviso a futuro:* el reparto de renta por pantalla no distingue monedas.
+    Mientras todo sea en pesos no pasa nada, pero el primer contrato en dólares
+    haría que el total del tablero y la suma de los márgenes por pantalla dejen
+    de cuadrar, sin marcar error.
+  - *Faltantes detectados:* no hay dónde guardar la vigencia de licencias y
+    permisos, así que la alerta de permiso por vencer no puede existir todavía;
+    y el registro de un pago no guarda bajo qué razón social se pagó.
+  - *Sobre la documentación:* `docs/Reglas_Arrendadores.md` quedó desactualizado
+    —no menciona los contratos incompletos, ni el calendario automático de
+    pagos, ni que los campos de renta del sitio ya no se usan—. Conviene
+    rehacerlo antes de que alguien lo tome como referencia.
+  - *Alcance:* se auditó sobre la base local, no sobre producción, porque las
+    pruebas exigían crear contratos e incidencias y eso dejaría rastros
+    imborrables en la bitácora del cliente. Los datos de producción quedan sin
+    auditar: los 17 contratos incompletos siguen sin importe conocido. Todos los
+    datos de prueba se borraron y se comprobó que no quedó ninguno.
 - **El sistema ya vive en https://demo.space-os.io.** Se acabó entrar por la IP:
   cualquier acceso por `209.97.146.136` redirige de forma permanente al dominio,
   conservando la ruta, así que los enlaces guardados siguen funcionando.

@@ -59,7 +59,11 @@ const arrendadorRef = z.union([
 const contratoSchema = z.object({
   fechaInicio: z.string().min(1, 'Falta la fecha de inicio'),
   fechaFin: z.string().min(1, 'Falta la fecha de fin'),
-  montoRenta: z.coerce.number().nonnegative('La renta no puede ser negativa'),
+  // `positive`, no `nonnegative`: el cero pasaba y era el error más caro del
+  // módulo. Un contrato de $0 satisface `contrato_completo_ck`, sale de la lista
+  // de pendientes y deja el espacio con margen = ingreso íntegro: la pantalla
+  // aparece como gratis, sin ninguna alerta que lo denuncie.
+  montoRenta: z.coerce.number().positive('La renta debe ser mayor que cero'),
   periodicidad: z.enum(PERIODICIDADES).default('MENSUAL'),
   moneda: z.string().trim().default('MXN'),
   autoRenovable: z.boolean().default(false),
@@ -201,7 +205,8 @@ export async function borrarArrendadorCtrl(id: string) {
 const editarContratoSchema = z.object({
   fechaInicio: z.string().min(1).optional(),
   fechaFin: z.string().min(1).optional(),
-  montoRenta: z.coerce.number().nonnegative('La renta no puede ser negativa').optional(),
+  // Mismo motivo que en el alta: editar un contrato a $0 lo dejaría igual de roto.
+  montoRenta: z.coerce.number().positive('La renta debe ser mayor que cero').optional(),
   periodicidad: z.enum(PERIODICIDADES).optional(),
   moneda: z.string().trim().optional(),
   deposito: z.coerce.number().nonnegative('El depósito no puede ser negativo').nullish(),

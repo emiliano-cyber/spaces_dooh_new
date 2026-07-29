@@ -538,6 +538,16 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       // histórico vencido): ahí el dato ya existe. La unicidad la respalda el
       // índice parcial `contratos_sitio_incompleto_uq`, así que un reintento o
       // una carrera no dejan dos pendientes del mismo sitio.
+      //
+      // La cobertura se busca en los DOS anclajes posibles, y el orden importa:
+      // un predio tiene UN contrato que comparten todas sus pantallas, así que
+      // vender la segunda cara de un predio ya contratado NO debe abrir nada.
+      // Mirando solo `sitio_id` —como se hacía antes— el contrato del predio era
+      // invisible aquí y cada cara vendida estrenaba su propio contrato: un
+      // duplicado que el índice `contratos_predio_activo_uq` tampoco frena,
+      // porque nace con `predio_id` NULL. El resultado eran alertas de «contrato
+      // incompleto» sobre pantallas que sí estaban cubiertas y, si alguien las
+      // completaba con importe, renta pagada dos veces al mismo propietario.
       // El contrato nace cubriendo el periodo que se vendió: de la fecha de
       // inicio a la de fin del ítem. Así el pendiente ya dice CUÁNTO tiempo hay
       // que cubrir, no solo desde cuándo.
@@ -556,7 +566,22 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
          select gen_random_uuid(), $1, $5, $2, $4, $6, $7::periodicidad_pago,
                 coalesce((select moneda from tenants where id=$3),'MXN'),
                 false, $8::est_contrato, $3
-          where not exists (select 1 from contratos_arrendamiento c where c.sitio_id=$1)
+          where not exists (
+                  select 1 from contratos_arrendamiento c
+                   where -- contrato propio de esta pantalla (pantalla suelta).
+                         -- Cuenta en CUALQUIER estatus, como hasta ahora: si ya
+                         -- hay una ficha del propietario, el dato existe.
+                         (c.predio_id is null and c.sitio_id = $1)
+                         -- o el contrato del predio al que pertenece, que la
+                         -- cubre junto con sus hermanas. Si la pantalla no tiene
+                         -- predio, la comparación es NULL y no coincide con nada.
+                         -- Aquí sí se excluye CANCELADO: un acuerdo cancelado no
+                         -- cubre nada, y sin este filtro las pantallas hermanas
+                         -- de un predio con contrato cancelado se quedarían sin
+                         -- el pendiente que las hace visibles en Arrendadores.
+                      or (c.estatus <> 'CANCELADO'
+                          and c.predio_id = (select predio_id from sitios where id = $1))
+                )
          on conflict do nothing`,
         [
           it.sitio_id, iso(it.fecha_inicio), await tenantActual(), iso(it.fecha_fin),
@@ -588,8 +613,24 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
       // Arrendadores o Finanzas. Idempotente (on conflict) y silencioso si el
       // contrato aún está incompleto: sin importe no hay cuotas que calcular.
       if (rentaCompleta) {
+        // El contrato que gobierna esta pantalla, con la MISMA regla que usa el
+        // P&L (`contratoVigentePorSitio` en lib/data/derive.ts): primero el que
+        // está activo, y entre ellos manda el del predio; si el predio no tiene,
+        // el propio de la pantalla. El orden por estatus no es cosmético: un
+        // predio puede arrastrar contratos vencidos históricos, y sin él se
+        // generarían las cuotas del contrato muerto en vez de las del vigente.
+        // El `limit 1` de antes iba sin `order by` y sobre `sitio_id` a secas:
+        // no encontraba el contrato del predio y, con varias filas, elegía una
+        // cualquiera.
         const { rows: cRows } = await client.query(
-          `select * from contratos_arrendamiento where sitio_id=$1 and estatus <> 'CANCELADO' limit 1`,
+          `select * from contratos_arrendamiento c
+            where c.estatus <> 'CANCELADO'
+              and ( (c.predio_id is null and c.sitio_id = $1)
+                 or c.predio_id = (select predio_id from sitios where id = $1) )
+            order by (c.estatus in ('VIGENTE','POR_VENCER','RENOVADO')) desc,
+                     (c.predio_id is not null) desc,
+                     c.creado_en desc
+            limit 1`,
           [it.sitio_id],
         )
         if (cRows[0]) await generarCalendarioDeContratoEnTx(client, cRows[0])

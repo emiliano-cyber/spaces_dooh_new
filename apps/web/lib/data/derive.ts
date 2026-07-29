@@ -20,6 +20,7 @@ import type {
   OrdenTrabajo,
   EstOT,
   Propuesta,
+  ContratoArrendamiento,
 } from './types'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
@@ -778,33 +779,83 @@ function contratoActivo(estatus: string): boolean {
   return estatus === 'VIGENTE' || estatus === 'POR_VENCER' || estatus === 'RENOVADO'
 }
 
-// Renta mensual ATRIBUIDA a cada pantalla (Fase 1.6):
-//   rentaAtribuida(pantalla) = rentaMensualDelPredio × (caras_pantalla / Σ caras del predio).
-// rentaMensualDelPredio = renta del contrato ACTIVO del predio normalizada a mensual.
-// Si el predio no tiene contrato activo ⇒ 0 (sin renta). NUNCA usa costoCompra:
-// la renta ES el costo del espacio (un solo costo, sin doble conteo).
-export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
-  // 1) Renta mensual activa por predio (si hay varios activos, el de mayor renta).
-  const rentaPredio = new Map<string, number>()
+// Contrato que gobierna cada pantalla. Hay DOS anclajes posibles y son
+// EXCLUYENTES entre sí:
+//
+//   · Pantalla que pertenece a un PREDIO → manda el contrato del predio, que es
+//     el mismo para todas sus pantallas (un predio, un contrato).
+//   · Pantalla SUELTA (sin predio) → su propio contrato, anclado a ella.
+//
+// El discriminador es `predioId`, nunca `sitioId`: un contrato de predio TAMBIÉN
+// trae `sitioId` —la columna es NOT NULL y conserva una pantalla del predio por
+// histórico—, así que resolver por `sitioId` primero contaría el mismo contrato
+// dos veces y le cobraría la renta completa a una de las caras.
+//
+// Si una pantalla con predio arrastrara además un contrato propio (los crea el
+// flujo de propuesta cuando no encuentra cobertura), gana el del predio: es la
+// regla del negocio y de paso evita sumar la renta dos veces.
+export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoArrendamiento> {
+  const mayorRenta = (a: ContratoArrendamiento, b: ContratoArrendamiento) =>
+    rentaAMensual(a.montoRenta, a.periodicidad) >= rentaAMensual(b.montoRenta, b.periodicidad) ? a : b
+
+  const porPredio = new Map<string, ContratoArrendamiento>()
+  const porPantalla = new Map<string, ContratoArrendamiento>()
   for (const c of state.contratos) {
-    if (!c.predioId || !contratoActivo(c.estatus)) continue
-    const m = rentaAMensual(c.montoRenta, c.periodicidad)
-    const prev = rentaPredio.get(c.predioId)
-    if (prev == null || m > prev) rentaPredio.set(c.predioId, m)
+    if (!contratoActivo(c.estatus)) continue
+    if (c.predioId) {
+      // No debería haber dos activos en el mismo predio (lo impide el índice
+      // `contratos_predio_activo_uq`); si los hubiera, el de mayor renta.
+      const prev = porPredio.get(c.predioId)
+      porPredio.set(c.predioId, prev ? mayorRenta(prev, c) : c)
+    } else if (c.sitioId) {
+      // Pantalla suelta. Aquí NO hay índice único que lo garantice todavía, así
+      // que la desempata la misma regla conservadora: la renta mayor.
+      const prev = porPantalla.get(c.sitioId)
+      porPantalla.set(c.sitioId, prev ? mayorRenta(prev, c) : c)
+    }
   }
-  // 2) Σ caras por predio.
+
+  const out = new Map<string, ContratoArrendamiento>()
+  for (const s of state.sitios) {
+    // Manda el contrato del predio. Si el predio NO tiene contrato pero la
+    // pantalla arrastra uno propio, vale ese: el flujo de propuesta crea
+    // contratos VIGENTES con importe y sin predio (`campanas-repo.ts`, la renta
+    // que se captura en la propuesta), y descartarlos volvería a dejar renta
+    // real fuera del P&L. Nunca se suman los dos: si el predio tiene contrato,
+    // el propio de la pantalla se ignora.
+    const c = (s.predioId ? porPredio.get(s.predioId) : undefined) ?? porPantalla.get(s.id)
+    if (c) out.set(s.id, c)
+  }
+  return out
+}
+
+// Renta mensual ATRIBUIDA a cada pantalla:
+//   · Contrato de predio → se reparte entre las caras del predio:
+//       rentaAtribuida = rentaMensual × (caras_pantalla / Σ caras del predio).
+//   · Contrato de pantalla suelta → la renta ÍNTEGRA es de esa pantalla. No se
+//     divide entre sus caras: las caras son lados de la MISMA pantalla, no
+//     pantallas distintas entre las que repartir.
+// Sin contrato activo ⇒ 0. NUNCA usa costoCompra: la renta ES el costo del
+// espacio (un solo costo, sin doble conteo).
+export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
+  const contratoDe = contratoVigentePorSitio(state)
+  // Σ caras por predio: solo hace falta para repartir un contrato de predio.
   const carasPredio = new Map<string, number>()
   for (const s of state.sitios) {
     if (!s.predioId) continue
     carasPredio.set(s.predioId, (carasPredio.get(s.predioId) ?? 0) + (s.caras || 1))
   }
-  // 3) Atribución por pantalla (partes iguales ponderadas por caras).
   const out = new Map<string, number>()
   for (const s of state.sitios) {
-    const pid = s.predioId
-    if (!pid) { out.set(s.id, 0); continue }
-    const renta = rentaPredio.get(pid) ?? 0
-    const total = carasPredio.get(pid) ?? 0
+    const c = contratoDe.get(s.id)
+    if (!c) { out.set(s.id, 0); continue }
+    const renta = rentaAMensual(c.montoRenta, c.periodicidad)
+    // Quien decide si la renta se reparte es el ANCLAJE DEL CONTRATO, no el
+    // predio de la pantalla: un contrato sin predio cubre solo a esta pantalla,
+    // aunque ella pertenezca a un predio. Repartirlo entre las caras del predio
+    // le cobraría a pantallas que ese contrato no cubre.
+    if (!c.predioId) { out.set(s.id, renta); continue }
+    const total = carasPredio.get(c.predioId) ?? 0
     out.set(s.id, total > 0 ? renta * ((s.caras || 1) / total) : 0)
   }
   return out
@@ -823,14 +874,16 @@ export function margenPorSitio(state: DemoState): MargenSitio[] {
       activasPorSitio.set(r.sitioId, (activasPorSitio.get(r.sitioId) ?? 0) + r.precio)
     }
   }
-  // Renta atribuida por pantalla (partes iguales por caras del predio).
+  // Renta atribuida por pantalla (contrato de predio repartido entre sus caras,
+  // o contrato propio de la pantalla suelta).
   const rentaAtribuida = rentaAtribuidaPorSitio(state)
-  // Contrato ACTIVO del predio de cada sitio (para arrendador y "tieneContrato").
-  const contratoActivoDePredio = (predioId: string | null | undefined) =>
-    predioId ? state.contratos.find((c) => c.predioId === predioId && contratoActivo(c.estatus)) ?? null : null
+  // MISMA resolución que la renta: si aquí se buscara solo por predio, una
+  // pantalla suelta con contrato propio saldría con `tieneContrato: false` —
+  // diciendo que no hay contrato cuando sí lo hay, y sin arrendador a quién pagar.
+  const contratoDe = contratoVigentePorSitio(state)
 
   return state.sitios.map((s) => {
-    const con = contratoActivoDePredio(s.predioId)
+    const con = contratoDe.get(s.id) ?? null
     // rentaMensual = renta del predio ATRIBUIDA a esta pantalla (no la renta completa).
     const rentaMensual = rentaAtribuida.get(s.id) ?? 0
     const arr = con ? state.arrendadores.find((a) => a.id === con.arrendadorId) : null
