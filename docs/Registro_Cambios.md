@@ -5,6 +5,44 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-29
+
+- **Ya se puede registrar la vigencia de licencias y permisos, y el sistema avisa
+  antes de que venzan.** Era el hueco que la auditoría había marcado: el sistema
+  pedía alertar de tres cosas —contrato, renta y permiso— pero de la tercera no
+  avisaba nunca, sencillamente porque **no había dónde guardar la fecha**. El
+  estatus legal de una pantalla ya contemplaba "permiso vencido", pero solo se
+  llegaba ahí a mano.
+  - *Dónde se capturan:* en la ficha del contrato, en un apartado nuevo
+    "Licencias y permisos". Se registra el tipo (municipal, ambiental,
+    estructural u otro), el folio, la autoridad que lo expide y —lo importante—
+    la fecha de vencimiento.
+  - *A quién amparan:* el sistema lo decide solo, con la misma regla que los
+    contratos. Si la pantalla pertenece a un predio, el permiso es **del predio y
+    cubre a todas sus pantallas**; si es una pantalla suelta, el permiso es suyo.
+    No se le pide al usuario que elija, porque elegir mal dejaría media ubicación
+    sin amparo y nadie lo notaría.
+  - *Cuándo avisa:* **120 días antes**, más margen que los 90 de los contratos,
+    porque renovar ante la autoridad es un trámite y no una firma. El aviso pasa
+    a rojo dentro de los últimos 30 días y también cuando ya venció.
+  - *Qué NO hace:* un permiso vencido **no bloquea la venta**. Fue una decisión
+    deliberada: bloquear en automático frenaría ventas cuando el permiso ya está
+    renovado pero todavía no se ha capturado, que es el caso más habitual. Si más
+    adelante se prefiere que bloquee, se activa sin rehacer nada.
+  - *Renovaciones:* se guarda el histórico. Registrar la renovación no borra la
+    anterior, así que queda la trazabilidad de que la ubicación estuvo siempre
+    amparada. También caben varios permisos a la vez sobre el mismo sitio, y que
+    uno esté vigente no tapa que otro haya vencido.
+- **De paso se corrigió un error de conteo de días que venía de antes.** Los
+  avisos decían un día de más: un permiso vencido hacía 12 días reportaba 13, y
+  un contrato vencido ayer decía "hace 0 días". Era un problema de zona horaria
+  al interpretar las fechas. Afectaba a los avisos de contratos y de pagos de
+  renta, no solo a los nuevos.
+- *Despliegue:* respaldo verificado antes de tocar nada (7.1 MB, 34 tablas, 17
+  contratos), migración aplicada y comprobación posterior creando y borrando una
+  licencia real en producción. **Sin interrupción del servicio** esta vez: no
+  hizo falta reinstalar dependencias.
+
 ## 2026-07-28
 
 - **Corregido el error intermitente que tumbaba el dibujado de algunas páginas.**
