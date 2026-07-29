@@ -13,6 +13,11 @@
     "turbo": "^2.9.5",
     "typescript": "5.9.2"
   },
+  "//overrides": "UNA sola copia de React en todo el monorepo. Cuando dos workspaces piden majors distintos, npm sube uno a la raíz y anida el otro; `styled-jsx` (dependencia de Next) queda en la raíz y ahí encuentra el React equivocado. El resultado es un `Cannot read properties of null (reading 'useContext')` al renderizar en el servidor: styled-jsx llama a los hooks de una copia de React distinta a la que está renderizando, y esa copia tiene el dispatcher en null. La versión la manda apps/web, que es el producto: Next 14 va con React 18.",
+  "overrides": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
   "engines": {
     "node": ">=18"
   },
