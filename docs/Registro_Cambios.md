@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-07-29
 
+- **Nuevo cuadre de renta: cuánto se le debe a cada propietario.** En la pantalla
+  de Arrendadores aparece una tabla que responde de un vistazo lo que antes solo
+  se podía averiguar contrato por contrato: qué está vencido, qué está pendiente
+  y qué ya se pagó, con el desglose de cada propietario. La información siempre
+  estuvo ahí, pero había que sumarla a mano y en la práctica nadie lo hacía, así
+  que con un propietario de varios predios no se sabía el total.
+  - *Cómo se agrupa:* por **emplazamiento**, no por pantalla ni por contrato. Un
+    predio con seis caras es una negociación con un propietario, no seis. Se
+    despliega haciendo clic en el propietario para ver cada predio o pantalla
+    suelta por separado.
+  - *El orden es el orden en que hay que actuar:* arriba quien tiene deuda
+    vencida. La columna "próximo" muestra el periodo impago **más antiguo**, que
+    es el que urge, no el siguiente del calendario.
+  - *No se pierde ni se duplica nada:* si un pago quedara sin contrato asociado,
+    aparece igualmente en una fila aparte en vez de desaparecer. Un cuadre al que
+    le faltan renglones es peor que no tenerlo, porque se usa para pagarle a
+    alguien real. Se comprobó contra los datos reales de producción: 13 de 13
+    pagos y $260,000 de $260,000.
+  - *Dónde NO está:* en Finanzas. Ese módulo recibe los pagos a propósito **sin**
+    los contratos, para no exponerle importes ni datos del propietario, y sin
+    contratos no hay a quién agrupar. Si se quiere que Finanzas también lo vea,
+    es una decisión de permisos que hay que tomar aparte.
 - **Ya se puede registrar la vigencia de licencias y permisos, y el sistema avisa
   antes de que venzan.** Era el hueco que la auditoría había marcado: el sistema
   pedía alertar de tres cosas —contrato, renta y permiso— pero de la tercera no
