@@ -6,7 +6,9 @@ import { UserRound, FileText, Monitor, Check, ChevronLeft, ChevronRight, Loader2
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { crearContratoConSitioApi, agregarPantallaAPredioApi } from '@/lib/data/estado-api'
-import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, medioLabel, type TipoMedio, type Sitio } from '@/lib/data/client'
+import { useArrendadores, usePredios, useContratos, useSitios, formatMonto, formatFecha, medioLabel, type TipoMedio, type Sitio } from '@/lib/data/client'
+import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
+import { inicioMinimoContrato } from '@/lib/contrato-vigencia'
 
 // ============================================================================
 //  ContratoWizard — alta guiada "arrendatario → contrato → pantalla".
@@ -28,22 +30,12 @@ const TIPO_PANTALLA: { v: TipoMedio; label: string }[] = [
   { v: 'PUENTE_PEATONAL', label: 'Puente' },
   { v: 'OTRO', label: 'Otro' },
 ]
-const PERIODICIDADES: { v: string; label: string }[] = [
-  { v: 'SEMANAL', label: 'Semanal' },
-  { v: 'CATORCENAL', label: 'Catorcenal (cada 14 días)' },
-  { v: 'QUINCENAL', label: 'Quincenal' },
-  { v: 'MENSUAL', label: 'Mensual' },
-  { v: 'BIMESTRAL', label: 'Bimestral' },
-  { v: 'TRIMESTRAL', label: 'Trimestral' },
-  { v: 'SEMESTRAL', label: 'Semestral' },
-  { v: 'ANUAL', label: 'Anual' },
-]
-
-const periodicidadLabel = (v: string) =>
-  PERIODICIDADES.find((p) => p.v === v)?.label ?? v
+// La lista y sus etiquetas vienen de lib/renta-periodicidad.ts (fuente única
+// del enum `periodicidad_pago`): el selector del contrato y el P&L tienen que
+// conocer exactamente las mismas periodicidades.
 
 const PASOS = [
-  { n: 1, label: 'Arrendatario y predio', icon: UserRound },
+  { n: 1, label: 'Arrendador y predio', icon: UserRound },
   { n: 2, label: 'Contrato', icon: FileText },
   { n: 3, label: 'Pantalla', icon: Monitor },
 ]
@@ -128,9 +120,21 @@ export function ContratoWizard({
   const [lng, setLng] = useState('')
   const [caras, setCaras] = useState('')
   const [tarifa, setTarifa] = useState('')
-  const [costo, setCosto] = useState('')
   const [totalSpots, setTotalSpots] = useState('')
   const [duracionSpot, setDuracionSpot] = useState('')
+
+  // Historial del espacio elegido: si ya estuvo arrendado, el contrato nuevo no
+  // puede empezar antes de que terminara el anterior. Se solaparían, y por los
+  // días repetidos se generarían cuotas de los DOS contratos: renta pagada dos
+  // veces al mismo propietario. El servidor lo rechaza igual (es la regla de
+  // verdad); esto lo dice ANTES de llenar el formulario entero.
+  //
+  // El ancla es el predio si lo hay y, si no, la pantalla del inventario que se
+  // esté ligando. Una pantalla NUEVA no tiene historial que respetar.
+  const minimoVigencia = inicioMinimoContrato(contratos ?? [], {
+    predioId: modoPredio === 'existente' ? predioId : null,
+    sitioId: modoPantalla === 'inventario' ? sitioSelId : null,
+  })
 
   // Cuando el tipo es pantalla digital, la exhibición pasa a digital.
   function onTipo(v: TipoMedio) {
@@ -156,11 +160,20 @@ export function ContratoWizard({
 
   function siguiente() {
     setError(null)
-    if (paso === 1 && !arrOk) return setError('Elige un arrendatario existente o captura el nombre de uno nuevo.')
+    if (paso === 1 && !arrOk) return setError('Elige un arrendador existente o captura el nombre de uno nuevo.')
     if (paso === 1 && !predioOk) return setError('Elige el predio del contrato o captura el nombre de uno nuevo.')
     if (paso === 2) {
       if (!fechaInicio || !fechaFin) return setError('Captura el periodo del contrato (inicio y fin).')
       if (fechaFin < fechaInicio) return setError('La fecha de fin no puede ser anterior a la de inicio.')
+      // El `min` del input no basta: se puede teclear la fecha a mano y algunos
+      // navegadores lo aceptan igual. El servidor la rechaza de todos modos, pero
+      // avisar aquí evita perder el formulario lleno por un 409.
+      if (minimoVigencia && fechaInicio <= minimoVigencia.ultimoFin) {
+        return setError(
+          `Ese espacio estuvo arrendado hasta el ${formatFecha(minimoVigencia.ultimoFin)}. ` +
+            `El contrato nuevo debe empezar el ${formatFecha(minimoVigencia.desde)} o después.`,
+        )
+      }
       if (renta.trim() === '' || Number(renta) < 0) return setError('Captura la renta (no negativa).')
     }
     // El predio ya tiene contrato: no hay nada que capturar en el paso 2.
@@ -198,6 +211,19 @@ export function ContratoWizard({
   async function crear() {
     setError(null)
     if (!paso1Ok || !paso2Ok || !paso3Ok) return
+    // Se revalida AQUÍ y no solo al salir del paso 2 porque el orden del wizard
+    // lo exige: la vigencia se captura en el paso 2 y la pantalla se elige en el
+    // 3. Cuando el espacio del que hay historial es la PANTALLA (no el predio),
+    // en el paso 2 todavía no se sabe cuál es, así que el aviso de allá no puede
+    // verla. Sin esta segunda pasada, ese caso solo lo atrapaba el 409 del
+    // servidor, con el formulario entero ya lleno.
+    if (minimoVigencia && fechaInicio && fechaInicio <= minimoVigencia.ultimoFin) {
+      setPaso(2)
+      return setError(
+        `Ese espacio estuvo arrendado hasta el ${formatFecha(minimoVigencia.ultimoFin)}. ` +
+          `El contrato nuevo debe empezar el ${formatFecha(minimoVigencia.desde)} o después.`,
+      )
+    }
     setEnviando(true)
     try {
       const arrendador =
@@ -238,7 +264,11 @@ export function ContratoWizard({
         lng: lng ? Number(lng) : null,
         caras: Number(caras) || 1,
         tarifaPublicada: Number(tarifa) || 0,
-        costoCompra: Number(costo) || 0,
+        // Espejo de la renta del contrato, no un costo propio (ADR 0006). En la
+        // ruta `soloPantalla` la renta es la del predio y se reparte entre sus
+        // pantallas, así que aquí queda 0: el importe real lo calcula
+        // `rentaAtribuidaPorSitio()`, que es de donde lo lee el P&L.
+        costoCompra: soloPantalla ? 0 : Number(renta) || 0,
         estatusComercial: 'DISPONIBLE' as Sitio['estatusComercial'],
         comercializacion: 'TRADICIONAL',
         enNetwork: false,
@@ -290,7 +320,7 @@ export function ContratoWizard({
     setDocumento(null); setDocNombre(null)
     setModoPantalla('inventario'); setSitioSelId('')
     setNombre(''); setTipoMedio('ESPECTACULAR'); setExhibicion('fijo'); setDireccion(''); setAlcaldia(''); setCiudad('')
-    setLat(''); setLng(''); setCaras(''); setTarifa(''); setCosto(''); setTotalSpots(''); setDuracionSpot('')
+    setLat(''); setLng(''); setCaras(''); setTarifa(''); setTotalSpots(''); setDuracionSpot('')
   }
 
   return (
@@ -322,7 +352,7 @@ export function ContratoWizard({
         {/* ── Paso 1: arrendatario y predio ── */}
         {paso === 1 && (
           <div className="space-y-3">
-            <p className="text-[13px] text-muted">¿A quién le rentas este espacio? Elige un arrendatario ya registrado o da de alta uno nuevo.</p>
+            <p className="text-[13px] text-muted">¿A quién le rentas este espacio? Elige el arrendador ya registrado o da de alta uno nuevo.</p>
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
               <button type="button" onClick={() => onModoArr('existente')}
                 className={cn('rounded px-3 py-1.5', modoArr === 'existente' ? 'bg-surface-2 font-medium text-ink' : 'text-muted')}>
@@ -335,13 +365,13 @@ export function ContratoWizard({
             </div>
 
             {modoArr === 'existente' ? (
-              <Campo label="Arrendatario">
+              <Campo label="Arrendador">
                 <select value={arrId} onChange={(e) => onArrId(e.target.value)} className={inputCls}>
                   <option value="">— Selecciona —</option>
                   {(arrendadores ?? []).map((a) => <option key={a.id} value={a.id}>{a.nombre}</option>)}
                 </select>
                 {(arrendadores ?? []).length === 0 && (
-                  <span className="mt-1 block text-[11px] text-muted">No hay arrendatarios aún. Cambia a “Nuevo” para dar de alta uno.</span>
+                  <span className="mt-1 block text-[11px] text-muted">No hay arrendadores aún. Cambia a “Nuevo” para dar de alta uno.</span>
                 )}
               </Campo>
             ) : (
@@ -411,14 +441,31 @@ export function ContratoWizard({
               Condiciones del arrendamiento. <span className="text-ink">Puedes usar fechas pasadas</span> para registrar contratos ya firmados.
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="Inicio de vigencia"><input type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} className={inputCls} /></Campo>
+              <Campo label="Inicio de vigencia">
+                {/* `min` es la marca: el calendario del navegador no deja elegir
+                    una fecha que solape el contrato anterior. */}
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  min={minimoVigencia?.desde}
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className={inputCls}
+                />
+                {minimoVigencia && (
+                  <span className="mt-1 block text-[11px] text-muted">
+                    Este espacio estuvo arrendado hasta el{' '}
+                    <strong className="text-ink">{formatFecha(minimoVigencia.ultimoFin)}</strong>. El
+                    contrato nuevo empieza el {formatFecha(minimoVigencia.desde)} o después.
+                  </span>
+                )}
+              </Campo>
               <Campo label="Fin de vigencia"><input type="date" value={fechaFin} onChange={(e) => setFechaFin(e.target.value)} className={inputCls} /></Campo>
               <Campo label="Renta">
                 <input type="number" inputMode="decimal" value={renta} onChange={(e) => setRenta(e.target.value)} className={`demo-num ${inputCls}`} placeholder="Ej. 8000" />
               </Campo>
               <Campo label="Periodicidad del pago">
                 <select value={periodicidad} onChange={(e) => setPeriodicidad(e.target.value)} className={inputCls}>
-                  {PERIODICIDADES.map((p) => <option key={p.v} value={p.v}>{p.label}</option>)}
+                  {PERIODICIDADES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
                 </select>
               </Campo>
               <Campo label="Moneda">
@@ -459,7 +506,7 @@ export function ContratoWizard({
           <div className="space-y-3">
             <p className="text-[13px] text-muted">
               ¿Qué pantalla ampara este contrato? Si ya está en tu inventario, elígela y no captures
-              nada: se le asigna el arrendatario y el predio.
+              nada: se le asigna el arrendador y el predio.
             </p>
             <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
               <button type="button" onClick={() => setModoPantalla('inventario')}
@@ -474,7 +521,7 @@ export function ContratoWizard({
 
             {modoPantalla === 'inventario' && (
               <div className="space-y-3">
-                <Campo label={`Pantalla (${sitiosLibres.length} sin arrendatario)`}>
+                <Campo label={`Pantalla (${sitiosLibres.length} sin arrendador)`}>
                   <select value={sitioSelId} onChange={(e) => setSitioSelId(e.target.value)} className={inputCls}>
                     <option value="">— Selecciona —</option>
                     {sitiosLibres.map((s) => (
@@ -483,6 +530,17 @@ export function ContratoWizard({
                       </option>
                     ))}
                   </select>
+                  {/* La vigencia se capturó en el paso 2, ANTES de saber qué
+                      pantalla era. Si la elegida arrastra historial y la fecha
+                      ya no cuadra, se dice aquí en vez de dejar que reviente al
+                      crear. */}
+                  {minimoVigencia && fechaInicio && fechaInicio <= minimoVigencia.ultimoFin && (
+                    <span className="mt-1 block text-[11px] text-warning">
+                      Esta pantalla estuvo arrendada hasta el {formatFecha(minimoVigencia.ultimoFin)}. La
+                      vigencia que capturaste empieza el {formatFecha(fechaInicio)}: regresa al paso 2 y
+                      muévela al {formatFecha(minimoVigencia.desde)} o después.
+                    </span>
+                  )}
                   {sitiosLibres.length === 0 && (
                     <span className="mt-1 block text-[11px] text-muted">
                       Todas tus pantallas ya están asignadas a un predio. Cambia a “Pantalla nueva”.
@@ -523,7 +581,10 @@ export function ContratoWizard({
               <Campo label="Ciudad"><input value={ciudad} onChange={(e) => setCiudad(e.target.value)} className={inputCls} /></Campo>
               <Campo label="Caras"><input type="number" inputMode="numeric" min={1} value={caras} onChange={(e) => setCaras(e.target.value)} className={`demo-num ${inputCls}`} placeholder="1" /></Campo>
               <Campo label="Tarifa publicada"><input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} placeholder="Ej. 15000" /></Campo>
-              <Campo label="Costo de compra"><input type="number" inputMode="decimal" value={costo} onChange={(e) => setCosto(e.target.value)} className={`demo-num ${inputCls}`} placeholder="Ej. 9000" /></Campo>
+              {/* No hay "costo de compra" (ADR 0006): el costo de la pantalla es
+                  la renta del contrato, que ya se capturó en el paso del predio.
+                  Pedirlo aquí producía dos números distintos para el mismo
+                  espacio, y el que mandaba —el del P&L— era la renta. */}
               <Campo label="Lat (opcional)"><input value={lat} onChange={(e) => setLat(e.target.value)} className={`demo-num ${inputCls}`} placeholder="19.4326" /></Campo>
               <Campo label="Lng (opcional)"><input value={lng} onChange={(e) => setLng(e.target.value)} className={`demo-num ${inputCls}`} placeholder="-99.1332" /></Campo>
               {digital && (
@@ -547,7 +608,7 @@ export function ContratoWizard({
                   Se creará el contrato ({fechaInicio || '—'} → {fechaFin || '—'}, renta{' '}
                   {renta ? formatMonto(Number(renta)) : '—'} {periodicidad.toLowerCase()}) y se{' '}
                   {modoPantalla === 'inventario' ? 'asignará la pantalla' : 'creará la pantalla'} “
-                  {modoPantalla === 'inventario' ? sitioSel?.nombre ?? '—' : nombre || '—'}”, todo vinculado al arrendatario.
+                  {modoPantalla === 'inventario' ? sitioSel?.nombre ?? '—' : nombre || '—'}”, todo vinculado al arrendador.
                 </>
               )}
             </div>

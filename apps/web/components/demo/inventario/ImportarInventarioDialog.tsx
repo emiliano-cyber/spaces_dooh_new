@@ -21,6 +21,8 @@ import { validarArchivo, type FilaValidada } from '@/lib/inventario-import'
 import { importarSitiosApi } from '@/lib/data/sitios-api'
 import {
   useSitios,
+  useArrendadores,
+  usePredios,
   type ImportSummary,
   type ImportStatus,
   type ModoDuplicado,
@@ -43,15 +45,28 @@ export function ImportarInventarioDialog({
   open,
   onOpenChange,
   onNuevaPantalla,
+  onImportado,
   inline = false,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
   onNuevaPantalla: () => void
+  // Se llama al terminar una importación. Recibe el resumen para que quien
+  // contiene el diálogo decida qué hacer (p. ej. saltar al inventario si no
+  // hubo errores, o quedarse para que se lea el detalle si los hubo).
+  onImportado?: (resumen: ImportSummary) => void
   // En `inline` se renderiza dentro de la página (sin modal/overlay).
   inline?: boolean
 }) {
   const sitios = useSitios()
+  const arrendadores = useArrendadores()
+  const predios = usePredios()
+  const [arrendadorId, setArrendadorId] = useState('')
+  // Predio del lote (opcional). '' = pantallas sueltas; 'NUEVO' = crear uno.
+  const [mismoPredio, setMismoPredio] = useState(false)
+  const [predioId, setPredioId] = useState('')
+  const [predioNombre, setPredioNombre] = useState('')
+  const [predioDireccion, setPredioDireccion] = useState('')
   const [precioM2, setPrecioM2] = useState('')
   const [codificacion, setCodificacion] = useState('utf-8')
   const [filas, setFilas] = useState<FilaValidada[] | null>(null)
@@ -75,12 +90,34 @@ export function ImportarInventarioDialog({
     .filter((f) => f.datos && existentes.has(f.codigo_proveedor))
     .map((f) => f.codigo_proveedor)
 
+  // Un predio pertenece a UN arrendador, así que solo se ofrecen los suyos.
+  const prediosDelArrendador = (predios ?? []).filter((p) => p.arrendadorId === arrendadorId)
+  const creandoPredio = mismoPredio && predioId === 'NUEVO'
+  // Payload de predio: null = pantallas sueltas (una con su contrato cada una).
+  const predioDelLote = !mismoPredio
+    ? null
+    : creandoPredio
+      ? { nombre: predioNombre.trim(), direccion: predioDireccion.trim() || null }
+      : predioId
+        ? { id: predioId }
+        : null
+  // Marcar "mismo predio" y no terminar de decir cuál dejaría el lote suelto en
+  // silencio, que es justo lo contrario de lo que se pidió: mejor no dejar pasar.
+  const predioIncompleto =
+    mismoPredio && (!predioId || (creandoPredio && !predioNombre.trim()))
+  const listoParaImportar = !!filas && !!arrendadorId && !predioIncompleto
+
   function reset() {
     setFilas(null)
     setArchivoNombre('')
     setImagenes({})
     setSummary(null)
     setModo('ACTUALIZAR')
+    setArrendadorId('')
+    setMismoPredio(false)
+    setPredioId('')
+    setPredioNombre('')
+    setPredioDireccion('')
   }
 
   async function procesarArchivo(f: File) {
@@ -136,14 +173,25 @@ export function ImportarInventarioDialog({
       const clave = fn.replace(/\.[^.]+$/, '').trim().toLowerCase()
       if (clave) imagenesPorArchivo[clave] = dataUrl
     }
-    const res = await importarSitiosApi({
-      filas,
-      modoDuplicado: modo,
-      precioM2: precioM2 ? Number(precioM2) : null,
-      imagenes: Object.keys(imagenesPorArchivo).length ? imagenesPorArchivo : undefined,
-    })
-    setProcesando(false)
-    setSummary(res)
+    // importarSitiosApi lanza si la respuesta no es ok. Sin try/finally el throw
+    // se escapaba y `procesando` quedaba en true: el botón se quedaba en
+    // "Procesando…" para siempre y el usuario no veía el motivo del fallo.
+    try {
+      const res = await importarSitiosApi({
+        filas,
+        arrendadorId,
+        predio: predioDelLote,
+        modoDuplicado: modo,
+        precioM2: precioM2 ? Number(precioM2) : null,
+        imagenes: Object.keys(imagenesPorArchivo).length ? imagenesPorArchivo : undefined,
+      })
+      setSummary(res)
+      onImportado?.(res)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo importar')
+    } finally {
+      setProcesando(false)
+    }
   }
 
   const totalImagenes = Object.keys(imagenes).length
@@ -151,13 +199,19 @@ export function ImportarInventarioDialog({
   const footer = (
     <div className="flex items-center justify-between">
       <span className="text-[12px] text-muted">
-        {filas ? `${filas.length} filas leídas` : 'Sin archivo'}
+        {filas && !arrendadorId
+          ? 'Falta elegir el arrendador'
+          : filas && predioIncompleto
+            ? 'Falta indicar el predio'
+            : filas
+              ? `${filas.length} filas leídas`
+              : 'Sin archivo'}
       </span>
       <div className="flex gap-2">
         <Button variant="secondary" size="sm" onClick={() => { reset(); if (!inline) onOpenChange(false) }}>
           {inline ? 'Limpiar' : 'Cerrar'}
         </Button>
-        <Button size="sm" disabled={!filas || procesando || !!summary} onClick={procesar}>
+        <Button size="sm" disabled={!listoParaImportar || procesando || !!summary} onClick={procesar}>
           {procesando ? 'Procesando…' : 'Procesar importación'}
         </Button>
       </div>
@@ -192,6 +246,116 @@ export function ImportarInventarioDialog({
           </a>
         </div>
 
+        {/* Arrendador de las pantallas (obligatorio — ADR 0002) */}
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+          <div>
+            <div className="text-[13px] font-medium text-ink">Arrendador de estas pantallas</div>
+            <div className="text-[12px] text-muted">
+              {mismoPredio
+                ? 'El predio y su contrato se abrirán a nombre de este arrendador'
+                : 'A cada pantalla se le abrirá un contrato pendiente con este arrendador'}
+            </div>
+          </div>
+          <select
+            value={arrendadorId}
+            onChange={(e) => {
+              setArrendadorId(e.target.value)
+              // Los predios dependen del arrendador: cambiarlo invalida el elegido.
+              setPredioId('')
+            }}
+            className={cn(inputCls, 'w-56', !arrendadorId && 'border-[#f59e0b]')}
+          >
+            <option value="">Elige un arrendador…</option>
+            {(arrendadores ?? []).map((a) => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Aviso ámbar: falta el arrendador (requisito del ADR 0002). */}
+        {!arrendadorId && arrendadores && arrendadores.length > 0 && (
+          <div className="flex gap-2.5 rounded-md border border-[#f59e0b40] bg-warning-soft p-3 text-[12px] text-[#9a6700]">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <p>
+              <b>Se requiere el arrendador.</b> Elige el arrendador de estas pantallas
+              para poder importarlas: sin él no se puede abrir su contrato de
+              arrendamiento, y una pantalla sin contrato no se puede vender.
+            </p>
+          </div>
+        )}
+
+        {/* Predio del lote (OPCIONAL — ADR 0004) */}
+        <div className="rounded-md border border-border bg-surface px-3 py-2.5">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={mismoPredio}
+              disabled={!arrendadorId}
+              onChange={(e) => setMismoPredio(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#0a66ff]"
+            />
+            <span>
+              <span className="block text-[13px] font-medium text-ink">
+                Todas estas pantallas están en el mismo predio{' '}
+                <span className="font-normal text-muted">(opcional)</span>
+              </span>
+              <span className="block text-[12px] text-muted">
+                {mismoPredio
+                  ? 'Compartirán UN solo contrato: al completarlo se liberan todas para venta.'
+                  : 'Si no lo marcas, entran como pantallas sueltas y cada una lleva su propio contrato.'}
+              </span>
+            </span>
+          </label>
+
+          {mismoPredio && (
+            <div className="mt-2.5 space-y-2 border-t border-border pt-2.5">
+              <select
+                value={predioId}
+                onChange={(e) => setPredioId(e.target.value)}
+                className={cn(inputCls, !predioId && 'border-[#f59e0b]')}
+              >
+                <option value="">Elige el predio…</option>
+                {prediosDelArrendador.map((p) => (
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
+                ))}
+                <option value="NUEVO">+ Crear un predio nuevo…</option>
+              </select>
+              {creandoPredio && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input
+                    value={predioNombre}
+                    onChange={(e) => setPredioNombre(e.target.value)}
+                    placeholder="Nombre del predio *"
+                    className={cn(inputCls, !predioNombre.trim() && 'border-[#f59e0b]')}
+                  />
+                  <input
+                    value={predioDireccion}
+                    onChange={(e) => setPredioDireccion(e.target.value)}
+                    placeholder="Dirección (opcional)"
+                    className={inputCls}
+                  />
+                </div>
+              )}
+              {!predioId && prediosDelArrendador.length === 0 && (
+                <p className="text-[12px] text-[#9a6700]">
+                  Este arrendador no tiene predios todavía. Elige «Crear un predio nuevo».
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {arrendadores && arrendadores.length === 0 && (
+          <div className="flex gap-2.5 rounded-md border border-[#9a670033] bg-[#9a67000a] p-3 text-[12px] text-muted">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[#9a6700]" />
+            <p>
+              No hay arrendadores dados de alta. Crea al menos uno en{' '}
+              <b className="text-ink">Arrendadores</b> antes de importar inventario: sin
+              arrendador no se puede abrir el contrato de la pantalla.
+            </p>
+          </div>
+        )}
+
         {/* Precio de impresión por m² */}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
@@ -218,7 +382,22 @@ export function ImportarInventarioDialog({
             Sube el archivo usando la hoja <b className="text-ink">Sitios</b> de la plantilla. El
             sistema lee solo esa hoja, <b className="text-ink">limpia automáticamente los encabezados</b>{' '}
             y <b className="text-ink">agrupa por código de proveedor</b>: una fila por modalidad de
-            venta → un sitio con varias modalidades. Requeridos: nombre, exhibición, unidad, tarifa y costo.
+            venta → un sitio con varias modalidades. Requeridos: nombre, exhibición, unidad y tarifa.
+          </p>
+        </div>
+
+        {/* Aviso central del ADR 0006: una pantalla tiene UN costo. Sin esto, quien
+            trae la plantilla vieja no entiende por qué su "costo de compra"
+            aparece como renta, y quien trae la nueva no sabe que la columna existe. */}
+        <div className="flex gap-2.5 rounded-md border border-border bg-surface-2 p-3 text-[12px] text-muted">
+          <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+          <p>
+            El costo de una pantalla es <b className="text-ink">uno solo</b>: la columna{' '}
+            <b className="text-ink">renta_arrendador</b>, lo que se le paga al dueño del espacio. No
+            es la tarifa, que es lo que se le cobra al cliente. Si tu archivo trae la columna vieja{' '}
+            <b className="text-ink">costo_compra</b>, su importe se registra como la renta —es el
+            mismo dinero— y se te avisa fila por fila. Si no viene ninguna de las dos, el contrato
+            queda pendiente de completar en Arrendadores y la pantalla no se podrá reservar.
           </p>
         </div>
 

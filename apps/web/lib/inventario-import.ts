@@ -28,7 +28,19 @@ export interface SitioImport {
   vista: string
   tramo: string
   tarifa_publicada: number
+  // ESPEJO TRANSITORIO de `renta_arrendador` (ADR 0006, Fase 1). Ya no es un dato
+  // de entrada: una pantalla tiene UN solo costo, la renta al arrendador, y este
+  // campo existe solo para que los lectores que aún leen `sitios.costo_compra` no
+  // vean un cero repentino. Se borra en la Fase 2.
   costo_compra: number
+  // Renta que se le paga al ARRENDADOR por el espacio: el ÚNICO costo de la
+  // pantalla. Lo que entra del cliente es `tarifa_publicada`; no hay un tercer
+  // costo de "compra" (ADR 0006).
+  //
+  // Sigue pudiendo ser `null`: la plantilla vieja no trae la columna y el ADR
+  // 0001 admite que el contrato nazca pendiente de captura. `null` = no venía en
+  // el archivo, que NO es lo mismo que 0.
+  renta_arrendador: number | null
   spots_por_hora: number | null
   duracion_spot_seg: number | null
   horario: string
@@ -117,16 +129,35 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   const exhibicionRaw = txt(raw.exhibicion)
   const unidadRaw = txt(raw.unidad)
   const tarifa = num(raw.tarifa_publicada)
-  const costo = num(raw.costo_compra)
+  // El costo del espacio es UNO solo (ADR 0006). Se acepta con tres nombres, por
+  // orden de preferencia:
+  //   · `renta_arrendador` — el de la plantilla nueva.
+  //   · `costo_arrendador` — el que escribe quien lo piensa como un costo.
+  //   · `costo_compra`     — el de la plantilla VIEJA. Se lee como la renta
+  //     porque es el mismo dinero; ignorarlo tiraría a la basura el único costo
+  //     que traen los archivos que los clientes ya tienen.
+  // Rechazar un archivo por el sinónimo sería fricción sin motivo.
+  //
+  // Ojo con `??` aquí: `sheet_to_json` usa `defval: ''`, así que una celda vacía
+  // llega como cadena vacía y NO como null. Con `??`, un `renta_arrendador`
+  // vacío taparía al `costo_compra` que sí trae importe. Por eso se elige el
+  // primer valor NO VACÍO, no el primero no nulo.
+  const presente = (v: unknown) => txt(v) !== ''
+  const rentaRaw = [raw.renta_arrendador, raw.costo_arrendador, raw.costo_compra].find(presente)
+  const renta = num(rentaRaw)
+  // Se avisa cuando el importe vino de la columna vieja: el usuario capturó algo
+  // llamado "costo de compra" y necesita saber que se registró como la renta.
+  const vieneDeCostoCompra =
+    !presente(raw.renta_arrendador) && !presente(raw.costo_arrendador) && presente(raw.costo_compra)
 
   // Obligatorios (libro Instrucciones): nombre, exhibicion, unidad,
-  // tarifa_publicada, costo_compra.
+  // tarifa_publicada. `costo_compra` DEJÓ de ser obligatorio (ADR 0006): ya no es
+  // un dato propio, y exigirlo obligaba a inventar un número.
   const faltan: string[] = []
   if (!nombre) faltan.push('nombre')
   if (!exhibicionRaw) faltan.push('exhibicion')
   if (!unidadRaw) faltan.push('unidad')
   if (tarifa == null) faltan.push('tarifa_publicada')
-  if (costo == null) faltan.push('costo_compra')
   if (lat == null && txt(raw.latitud) !== '') faltan.push('latitud (no numérica)')
   if (lng == null && txt(raw.longitud) !== '') faltan.push('longitud (no numérica)')
   if (faltan.length) {
@@ -158,6 +189,25 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
   const iluTxt = txt(raw.iluminacion).toLowerCase()
   if (iluTxt && !SI_NO_OK.includes(iluTxt)) advertencias.push(`iluminacion "${iluTxt}" debe ser si/no`)
 
+  // La renta al arrendador es opcional, pero si viene tiene que servir. Un valor
+  // basura o un 0 NO se guardan como 0: `contrato_monto_ck` lo rechazaría, y
+  // sobre todo un 0 se lee como «el espacio es gratis» —satisface la regla de
+  // contrato completo, desaparece de la alerta de incompleto y el P&L reporta
+  // margen íntegro—. Es preferible dejarlo pendiente de captura y avisarlo.
+  const rentaTxt = txt(rentaRaw)
+  if (rentaTxt !== '' && renta == null) {
+    advertencias.push(`renta_arrendador "${rentaTxt}" no es un número — se deja pendiente de captura`)
+  } else if (renta != null && renta <= 0) {
+    advertencias.push('renta_arrendador debe ser mayor que cero — se deja pendiente de captura')
+  }
+  const rentaFinal = renta != null && renta > 0 ? renta : null
+  // Solo se avisa si el importe de la columna vieja SIRVIÓ. Si era basura, el
+  // mensaje de arriba ya explica que quedó pendiente; decir además de dónde salió
+  // sería ruido.
+  if (vieneDeCostoCompra && rentaFinal != null) {
+    advertencias.push('costo_compra se registró como la renta al arrendador (es el mismo costo)')
+  }
+
   // Coords default si vacías
   let pendiente = false
   let latFinal = lat
@@ -188,7 +238,12 @@ export function validarFila(raw: Record<string, unknown>, idx: number): FilaVali
     vista: txt(raw.vista),
     tramo: txt(raw.tramo),
     tarifa_publicada: tarifa ?? 0,
-    costo_compra: costo ?? 0,
+    // Espejo de la renta, no un costo propio (ADR 0006). Si la renta quedó
+    // pendiente, el espejo es 0: no hay ningún otro número que copiar, y
+    // conservar el `costo_compra` del archivo reintroduciría el segundo costo
+    // que este cambio elimina.
+    costo_compra: rentaFinal ?? 0,
+    renta_arrendador: rentaFinal,
     spots_por_hora: num(raw.spots_por_hora),
     duracion_spot_seg: num(raw.duracion_spot_seg),
     horario: txt(raw.horario),

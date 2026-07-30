@@ -50,12 +50,14 @@ import {
   useArrendadores,
   usePagosRenta,
   usePredios,
+  useMargenPorSitio,
   formatMonto,
   formatFecha,
   type Sitio,
   type TipoMedio,
 } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
+import { periodicidadLabel } from '@/lib/renta-periodicidad'
 
 const TIPO_LABEL: Record<TipoMedio, string> = {
   ESPECTACULAR: 'Espectacular',
@@ -74,19 +76,8 @@ const CMS_LABEL: Record<string, string> = {
   OTRO: 'Otros',
 }
 
-// Periodicidad de pago al propietario ("cada cuándo se le paga").
-const PERIODICIDAD_LABEL: Record<string, string> = {
-  SEMANAL: 'Semanal',
-  CATORCENAL: 'Catorcenal (cada 14 días)',
-  QUINCENAL: 'Quincenal',
-  MENSUAL: 'Mensual',
-  BIMESTRAL: 'Bimestral',
-  TRIMESTRAL: 'Trimestral',
-  SEMESTRAL: 'Semestral',
-  ANUAL: 'Anual',
-}
-const periodicidadLabel = (p: string) =>
-  PERIODICIDAD_LABEL[p?.toUpperCase()] ?? (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '—')
+// Periodicidad de pago al propietario ("cada cuándo se le paga"): la tabla de
+// etiquetas vive en lib/renta-periodicidad.ts, junto al enum que las define.
 
 const OPERATIVO_LABEL: Record<string, string> = {
   ACTIVO: 'Operativo',
@@ -119,6 +110,15 @@ export function SiteFicha({
   const contratos = useContratos()
   const arrendadores = useArrendadores()
   const pagos = usePagosRenta()
+  // Costo del espacio para la ficha: la MISMA renta atribuida que usa el P&L,
+  // no un `costoCompra` propio (ADR 0006).
+  const margenes = useMargenPorSitio()
+  // `undefined` = todavía no monta el cliente, que NO es lo mismo que "no hay
+  // contrato". Sin distinguirlos, la ficha afirmaba «Sin contrato activo» durante
+  // la hidratación y se corregía sola un instante después: un dato falso.
+  const cargandoMargen = margenes === undefined
+  const margenSitio = sitio ? margenes?.find((m) => m.sitioId === sitio.id) : undefined
+  const rentaMensual = margenSitio?.rentaMensual ?? 0
   const puedeEditar = usePuede('comercial', 'crear')
   // Pausa legal: acción del dominio Arrendadores (situaciones legales).
   const puedePausar = usePuede('arrendadores', 'crear')
@@ -397,9 +397,27 @@ export function SiteFicha({
           <h4 className="mb-2 text-[13px] font-medium text-ink">Datos comerciales</h4>
           <div className="space-y-2">
             <DatoComercial label={`Tarifa publicada (${sitio.unidad})`} valor={formatMonto(sitio.tarifaPublicada)} />
-            <DatoComercial label="Costo de compra" valor={formatMonto(sitio.costoCompra)} />
+            {/* El costo es la renta ATRIBUIDA a esta pantalla, la misma cifra que
+                usa el P&L (`rentaAtribuidaPorSitio`, vía useMargenPorSitio). Antes
+                aquí se restaba `costoCompra`, que nadie más usaba: la ficha y el
+                P&L mostraban dos márgenes distintos del mismo espacio (ADR 0006). */}
+            <DatoComercial
+              label="Renta al arrendador (mensual)"
+              valor={
+                cargandoMargen ? '—' : margenSitio?.tieneContrato ? formatMonto(rentaMensual) : 'Sin contrato activo'
+              }
+            />
             {(() => {
-              const margen = sitio.tarifaPublicada - sitio.costoCompra
+              if (cargandoMargen) return null
+              if (!margenSitio?.tieneContrato) {
+                return (
+                  <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+                    Sin contrato de arrendamiento activo no se puede calcular el margen: falta saber
+                    qué se paga por el espacio. Complétalo en <b className="text-ink">Arrendadores</b>.
+                  </div>
+                )
+              }
+              const margen = sitio.tarifaPublicada - rentaMensual
               const pct = sitio.tarifaPublicada > 0 ? (margen / sitio.tarifaPublicada) * 100 : 0
               const color = pct >= 30 ? 'text-success' : pct >= 10 ? 'text-ink' : 'text-error'
               return (
@@ -433,15 +451,15 @@ export function SiteFicha({
 
         {/* Propietario y renta (cada cuándo se le paga) */}
         <div>
-          <h4 className="mb-2 text-[13px] font-medium text-ink">Arrendatario y renta</h4>
+          <h4 className="mb-2 text-[13px] font-medium text-ink">Arrendador y renta</h4>
           {tienePropRenta ? (
             <div className="space-y-2.5">
               <div className="flex items-start gap-2.5 rounded-md border border-border bg-surface-2 p-3">
                 <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
                 <div className="min-w-0">
-                  <div className="text-[13px] font-medium text-ink">{propietarioEfectivo?.nombre ?? 'Arrendatario sin asignar'}</div>
+                  <div className="text-[13px] font-medium text-ink">{propietarioEfectivo?.nombre ?? 'Arrendador sin asignar'}</div>
                   <div className="text-[11px] text-muted">
-                    {[propietarioEfectivo?.telefono, propietarioEfectivo?.email].filter(Boolean).join(' · ') || 'Dueño del predio / pantalla'}
+                    {[propietarioEfectivo?.telefono, propietarioEfectivo?.email].filter(Boolean).join(' · ') || 'Arrendador del predio / pantalla'}
                   </div>
                 </div>
                 {contrato && (
@@ -481,7 +499,7 @@ export function SiteFicha({
               )}
             </div>
           ) : (
-            <p className="text-[12px] text-muted">Sin arrendatario ni renta registrados para este espacio.</p>
+            <p className="text-[12px] text-muted">Sin arrendador ni renta registrados para este espacio.</p>
           )}
         </div>
 
@@ -608,7 +626,6 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [alcaldia, setAlcaldia] = useState(sitio.alcaldia ?? '')
   const [direccionComercial, setDireccionComercial] = useState(sitio.direccionComercial ?? '')
   const [tarifa, setTarifa] = useState(String(sitio.tarifaPublicada ?? 0))
-  const [costoCompra, setCostoCompra] = useState(String(sitio.costoCompra ?? 0))
   const [estatusComercial, setEstatusComercial] = useState(sitio.estatusComercial)
   const [vista, setVista] = useState(sitio.vista ?? '')
   const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
@@ -637,7 +654,6 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setAlcaldia(sitio.alcaldia ?? '')
     setDireccionComercial(sitio.direccionComercial ?? '')
     setTarifa(String(sitio.tarifaPublicada ?? 0))
-    setCostoCompra(String(sitio.costoCompra ?? 0))
     setEstatusComercial(sitio.estatusComercial)
     setVista(sitio.vista ?? '')
     setArrendadorSel(sitio.arrendadorId ?? '')
@@ -694,8 +710,10 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         cambios.tarifaPublicada = tarifaNum
         cambios.tarifaMensual = tarifaNum
       }
-      const costoNum = Number(costoCompra) || 0
-      if (costoNum !== sitio.costoCompra) cambios.costoCompra = costoNum
+      // `costoCompra` ya NO se edita aquí (ADR 0006). Era la puerta lateral del
+      // costo: se movía con permiso de Comercial y sin candado, mientras que la
+      // renta —el mismo dinero— exige el candado ESTRICTO del ADR 0001. El costo
+      // del espacio se cambia donde vive: el contrato de arrendamiento.
       // Propietario/arrendador. La renta NO se edita aquí (vive en el contrato).
       if ((arrendadorSel || null) !== (sitio.arrendadorId ?? null)) cambios.arrendadorId = arrendadorSel || null
 
@@ -810,12 +828,9 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3">
           <CampoEdit label="Tarifa publicada (mensual)">
             <input type="number" inputMode="decimal" value={tarifa} onChange={(e) => setTarifa(e.target.value)} className={`demo-num ${inputCls}`} />
-          </CampoEdit>
-          <CampoEdit label="Costo de compra">
-            <input type="number" inputMode="decimal" value={costoCompra} onChange={(e) => setCostoCompra(e.target.value)} className={`demo-num ${inputCls}`} />
           </CampoEdit>
         </div>
 
@@ -823,8 +838,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             en el contrato del predio (módulo Arrendadores), que es su única
             fuente para el P&L. */}
         <div className="rounded-md border border-border bg-surface-2 p-3">
-          <div className="mb-2 text-[12px] font-medium text-ink">Arrendatario</div>
-          <CampoEdit label="Arrendatario">
+          <div className="mb-2 text-[12px] font-medium text-ink">Arrendador</div>
+          <CampoEdit label="Arrendador">
             <select value={arrendadorSel} onChange={(e) => setArrendadorSel(e.target.value)} className={inputCls}>
               <option value="">— Sin asignar —</option>
               {(arrendadores ?? []).map((a) => (
@@ -833,7 +848,8 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
             </select>
           </CampoEdit>
           <p className="mt-2 text-[11px] text-muted">
-            La renta y su periodicidad se editan en el contrato del predio, en el módulo de Arrendadores.
+            La renta y su periodicidad viven en el contrato, no en la pantalla. El importe se puede
+            corregir desde la tabla de Inventario; la periodicidad y la vigencia, en Arrendadores.
           </p>
         </div>
         {digital && (

@@ -2,6 +2,14 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import {
+  exigirArrendador,
+  asignarArrendadorYAbrirContrato,
+  resolverPredio,
+  ligarSitioAPredio,
+  abrirContratoDePredio,
+  type PredioDeCarga,
+} from './contratos-sitio'
 import type { PoolClient } from 'pg'
 
 // ============================================================================
@@ -90,8 +98,17 @@ const COLS = [
   'tarifa_mensual', 'tarifa_publicada', 'costo_compra', 'precio_m2', 'tarifa_impresion',
   'comercializacion', 'en_network', 'cms', 'estatus_comercial', 'estatus_legal', 'estatus_operativo',
   'fotos', 'imagen_promocional', 'notas',
-  'pausa_legal', 'motivo_pausa_legal', 'pausa_legal_en',
 ] as const
+
+// NO incluir aquí pausa_legal / motivo_pausa_legal / pausa_legal_en. Esas tres
+// son estado LEGAL, no inventario: las escribe solo arrendadores-repo con UPDATEs
+// dirigidos (pausarSitioPorLegal / reanudar). Meterlas en COLS traía dos fallos:
+//   1) valoresDe() no emitía sus valores → el insert/update pedía 53 parámetros y
+//      recibía 50 ("bind message supplies 50 parameters"), rompiendo el import.
+//   2) aun cuadrando el conteo, actualizarSitioCompleto() las sobreescribiría en
+//      cada re-importación, LEVANTANDO una pausa legal activa desde un Excel.
+// El insert las deja en su default de BD (pausa_legal = false) y el update no las
+// toca, que es justo lo que se quiere.
 
 function valoresDe(s: any): unknown[] {
   const digital = s.tipoMedio === 'PANTALLA_DIGITAL' || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
@@ -264,12 +281,40 @@ async function actualizarSitioCompleto(client: PoolClient, id: string, s: any): 
 // Error de negocio al dar de alta un sitio (p. ej. ya es de otro operador).
 export class SitioError extends Error {}
 
+// Renta utilizable, o null. Acepta número o cadena numérica (el cuerpo del alta
+// no pasa por zod). Descarta 0, negativos, NaN e Infinity: además de violar
+// `contrato_monto_ck`, un 0 se leería como «este espacio es gratis» y haría que
+// el contrato dejara de aparecer como pendiente con el P&L equivocado.
+export function rentaValida(v: unknown): number | null {
+  if (v == null || v === '') return null
+  const n = typeof v === 'number' ? v : Number(String(v).replace(',', '.'))
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 export async function crearSitio(s: any): Promise<any> {
+  const tenantId = await tenantActual()
   const client = await pool.connect()
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // ADR 0002: igual que el import, el alta manual exige arrendador y abre su
+    // contrato pendiente en la misma transacción.
+    const arrendadorId = await exigirArrendador(client, tenantId, s?.arrendadorId)
     const sitio = await insertarSitio(client, s)
+    await asignarArrendadorYAbrirContrato(client, {
+      tenantId, sitioId: sitio.id, arrendadorId,
+      // Renta al arrendador capturada en el alta. Opcional, igual que la columna
+      // del import: si no viene, el contrato nace sin importe y queda pendiente.
+      // NO se guarda en `sitios.renta_arrendador` —deprecado (M1)— sino en el
+      // contrato, que es de donde lo lee todo el mundo.
+      //
+      // POST /api/sitios NO valida el cuerpo con zod (solo exige `nombre`), así
+      // que el valor llega crudo: se coacciona aquí y lo que no sea un número
+      // finito y positivo se descarta. `asignarArrendadorYAbrirContrato` lo
+      // vuelve a filtrar, y `contrato_monto_ck` es la última red.
+      montoRenta: rentaValida(s?.rentaArrendador),
+    })
+    sitio.arrendadorId = arrendadorId
     await client.query('commit')
     return sitio
   } catch (e: any) {
@@ -293,11 +338,22 @@ const CAMPO_COL: Record<string, string> = {
   direccionPredio: 'direccion_predio', direccionComercial: 'direccion_comercial',
   alcaldia: 'alcaldia', plazaCiudad: 'plaza_ciudad', lat: 'lat', lng: 'lng',
   ancho: 'ancho', alto: 'alto', caras: 'caras', iluminado: 'iluminado',
-  tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual', costoCompra: 'costo_compra',
+  tarifaPublicada: 'tarifa_publicada', tarifaMensual: 'tarifa_mensual',
   arrendadorId: 'arrendador_id',
+  // `costo_compra` tampoco es editable por esta ruta (ADR 0006). Es el mismo
+  // dinero que la renta, y aquí se movía con permiso de Comercial y SIN candado,
+  // mientras que cambiar la renta exige el candado ESTRICTO del ADR 0001. Era una
+  // puerta lateral para alterar el costo de un espacio. Queda como espejo que
+  // solo escriben el alta y la importación; la Fase 2 borra la columna.
   // renta_arrendador / periodicidad_renta NO son editables por esta ruta: están
   // DEPRECADOS (M1) y la fuente de la renta es el contrato del predio. Dejarlos
   // aquí permitía cambiar la renta con permiso de Comercial y sin validación.
+  //
+  // Sigue siendo así aunque Inventario ya deje editar la renta en línea: esa
+  // celda NO pasa por aquí, escribe en el contrato vía PATCH /api/contratos/[id],
+  // que exige permiso de `arrendadores` y el guard de cambio sensible. Añadir
+  // estas dos columnas de vuelta reabriría el atajo sin ninguna de esas dos
+  // comprobaciones.
   precioM2: 'precio_m2', tarifaImpresion: 'tarifa_impresion', resolucionPx: 'resolucion_px',
   tipoContenido: 'tipo_contenido', notas: 'notas', imagenPromocional: 'imagen_promocional',
   fotos: 'fotos',
@@ -359,6 +415,14 @@ export async function importarSitios(args: {
   filas: any[]
   modoDuplicado: 'ACTUALIZAR' | 'NUEVA_VERSION'
   precioM2: number | null
+  // Arrendador dueño de TODAS las pantallas del archivo (ADR 0002). Es de lote y
+  // no por fila porque la plantilla no tiene columna de propietario: un Excel se
+  // carga por origen, y mezclar propietarios en uno solo no es el caso de uso.
+  arrendadorId: string
+  // OPCIONAL. Si la carga marca que todas las pantallas están en el mismo predio,
+  // se cuelgan de él y comparten UN contrato. Sin predio, cada pantalla es suelta
+  // y lleva el suyo.
+  predio?: PredioDeCarga | null
   // Imágenes por pantalla: clave = nombre de archivo SIN extensión en minúsculas
   // (= código de proveedor), valor = data URL base64.
   imagenes?: Record<string, string>
@@ -385,6 +449,18 @@ export async function importarSitios(args: {
   try {
     await client.query('begin')
     await fijarTenant(client)
+    // Se valida DENTRO de la transacción y con el tenant ya fijado: la RLS
+    // fail-closed hace que un arrendador de otra organización sea invisible aquí,
+    // así que la comprobación de pertenencia es la propia consulta.
+    const arrendadorId = await exigirArrendador(client, yo, args.arrendadorId)
+    const predioId = await resolverPredio(client, yo, arrendadorId, args.predio)
+    // Pantalla representante del predio: `contratos_arrendamiento.sitio_id` es
+    // NOT NULL, así que el contrato del predio guarda una de sus pantallas.
+    let primerSitioDelPredio: string | null = null
+    // Acumuladores del contrato de predio (ver abrirContratoDePredio más abajo).
+    let rentaPredio = 0
+    let nuevasEnPredio = 0
+    let nuevasSinRenta = 0
     for (const [, rows] of grupos) {
       const p = rows[0].datos
       const digital = p.exhibicion === 'digital'
@@ -450,10 +526,50 @@ export async function importarSitios(args: {
           while ((await client.query('select 1 from sitios where codigo_proveedor=$1', [`${p.codigo_proveedor}-v${v}`])).rowCount) v++
           codigo = `${p.codigo_proveedor}-v${v}`
         }
-        await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
+        // ADR 0002: la pantalla nace con su arrendador y su contrato pendiente.
+        // Va DENTRO de la misma transacción del import: si el contrato no se
+        // puede abrir, la pantalla tampoco entra. Media pantalla —cargada pero
+        // sin rastro de a quién se le paga— es justo lo que este cambio evita.
+        const nuevo = await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
+        if (predioId) {
+          // Un predio, un contrato: aquí solo se cuelga la pantalla. El contrato
+          // se abre una vez al terminar el lote.
+          await ligarSitioAPredio(client, { tenantId: yo, sitioId: nuevo.id, arrendadorId, predioId })
+          primerSitioDelPredio ??= nuevo.id
+          // Un predio tiene UN contrato para todas sus caras, así que su renta
+          // es la del inmueble entero: se acumula la de cada pantalla del lote.
+          // Se lleva también la cuenta de cuántas vinieron SIN importe, porque
+          // sumar solo las que sí lo traen daría un total parcial que se leería
+          // como el total real y subestimaría el costo (ver abajo).
+          if (p.renta_arrendador != null && p.renta_arrendador > 0) rentaPredio += p.renta_arrendador
+          else nuevasSinRenta++
+          nuevasEnPredio++
+        } else {
+          await asignarArrendadorYAbrirContrato(client, {
+            tenantId: yo, sitioId: nuevo.id, arrendadorId,
+            // Columna `renta_arrendador` del Excel. Una pantalla suelta tiene su
+            // propio contrato, así que su renta va tal cual, sin ambigüedad.
+            montoRenta: p.renta_arrendador ?? null,
+          })
+        }
         conAdv ? con_advertencias++ : creadas++
         detalle.push({ codigo_proveedor: codigo || '(sin código)', status: conAdv ? 'advertencia' : 'creado', mensaje: `Creado${sufijoMod}${conImg}` })
       }
+    }
+    // El contrato del predio, UNO para todo el lote. Si el predio ya tenía
+    // contrato (lo comprueba abrirContratoDePredio) no se abre otro, y si la
+    // carga no creó ninguna pantalla nueva no hay representante que anclar.
+    if (predioId && primerSitioDelPredio) {
+      await abrirContratoDePredio(client, {
+        tenantId: yo, predioId, arrendadorId, sitioId: primerSitioDelPredio,
+        // Solo se fija el importe si TODAS las pantallas nuevas del lote lo
+        // trajeron. Con una sola sin renta, la suma sería un total parcial —y un
+        // total parcial es peor que ninguno: se leería como la renta completa del
+        // predio y subestimaría el costo en silencio, que es exactamente el modo
+        // de fallo que el ADR 0001 persigue. Si falta alguna, el contrato queda
+        // pendiente de captura, como hasta ahora.
+        montoRenta: nuevasEnPredio > 0 && nuevasSinRenta === 0 ? rentaPredio : null,
+      })
     }
     await client.query('commit')
   } catch (e) {
