@@ -6,9 +6,23 @@
   <title>SPACE EYE — Login</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/src/css/styles.css">
+  <style>
+    /* Mientras se valida una sesion guardada no se muestra ni el login ni un
+       salto al dashboard: solo el aviso "Verificando sesion". */
+    html.checking-session #loginCard { display: none; }
+    html:not(.checking-session) #sessionCheck { display: none; }
+  </style>
+  <script>
+    // Corre antes de pintar: si hay token guardado, oculta el formulario hasta
+    // saber si la sesion sigue viva.
+    if (localStorage.getItem('access_token')) {
+      document.documentElement.classList.add('checking-session');
+    }
+  </script>
 </head>
 <body class="bg-neutral-50 min-h-screen flex items-center justify-center">
-  <div class="w-full max-w-sm">
+  <div id="sessionCheck" class="text-sm text-neutral-500">Verificando sesion…</div>
+  <div id="loginCard" class="w-full max-w-sm">
     <div class="bg-white rounded-lg border border-neutral-200 p-8">
       <div class="flex items-center gap-3 mb-8">
         <div class="w-10 h-10 bg-[#0A66FF] rounded-lg flex items-center justify-center text-white font-bold text-lg">E</div>
@@ -65,17 +79,44 @@
         localStorage.setItem('access_token', data.access_token);
         localStorage.setItem('refresh_token', data.refresh_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        window.location.href = '/dashboard.html';
+        window.location.replace('/dashboard.html');
       } catch (err) {
         errorEl.textContent = 'Error de conexion';
         errorEl.classList.remove('hidden');
       }
     });
 
-    // Redirect if already logged in
-    if (localStorage.getItem('access_token')) {
-      window.location.href = '/dashboard.html';
+    function showLogin() {
+      document.documentElement.classList.remove('checking-session');
     }
+
+    // Comprueba contra el backend que el token guardado sigue sirviendo.
+    async function tokenSirve() {
+      const token = localStorage.getItem('access_token');
+      if (!token) return false;
+      const res = await fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } });
+      return res.ok;
+    }
+
+    // Sesion ya iniciada: NO basta con que exista un access_token en
+    // localStorage. Si esta vencido (dura 15 min) o revocado (cambio de
+    // contrasena, 7 dias sin entrar, redespliegue), mandar al dashboard solo
+    // conseguia que el dashboard rebotara de vuelta aqui: parpadeo infinito.
+    // Por eso se valida primero, se intenta refrescar y, si nada sirve, se
+    // borra la sesion muerta y se muestra el login.
+    (async function () {
+      if (!localStorage.getItem('access_token')) return showLogin();
+      try {
+        let ok = await tokenSirve();
+        if (!ok && await API._refresh()) ok = await tokenSirve();
+        if (ok) return window.location.replace('/dashboard.html');
+        clearSession();
+        showLogin();
+      } catch (err) {
+        // Sin red o backend caido: se muestra el login sin borrar la sesion.
+        showLogin();
+      }
+    })();
   </script>
 </body>
 </html>

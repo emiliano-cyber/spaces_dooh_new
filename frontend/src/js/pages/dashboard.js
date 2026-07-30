@@ -1,5 +1,5 @@
 // frontend/src/js/pages/dashboard.js
-requireAuth();
+const _hasSession = requireAuth();
 
 function dashboard() {
   return {
@@ -33,6 +33,10 @@ function dashboard() {
     },
 
     async init() {
+      // Sin sesion ya estamos navegando al login: no arrancar sockets ni
+      // peticiones condenadas al 401.
+      if (!_hasSession) return;
+
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       this.userName = user.name || '';
 
@@ -116,8 +120,8 @@ function dashboard() {
 
     logout() {
       API.post('/api/auth/logout', { refresh_token: localStorage.getItem('refresh_token') }).catch(() => {});
-      localStorage.clear();
-      window.location.href = '/index.html';
+      clearSession();
+      window.location.replace('/index.html');
     },
   };
 }

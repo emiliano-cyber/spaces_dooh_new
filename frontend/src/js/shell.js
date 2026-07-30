@@ -265,8 +265,8 @@
 
   async function doLogout() {
     try { await API.post('/api/auth/logout', { refresh_token: localStorage.getItem('refresh_token') }); } catch (e) {}
-    localStorage.clear();
-    window.location.href = '/index.html';
+    clearSession();
+    window.location.replace('/index.html');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', render);
