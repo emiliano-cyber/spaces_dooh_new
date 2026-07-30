@@ -345,7 +345,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
                 <thead>
                   <tr className="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted">
                     <th className="py-2 pr-3 font-medium">Sitio</th>
-                    <th className="py-2 pr-3 font-medium">Propietario · renta</th>
+                    <th className="py-2 pr-3 font-medium">Arrendador · renta</th>
                     <th className="py-2 pr-3 text-right font-medium">Precio propuesta</th>
                     <th className="py-2 pl-3 text-right font-medium">Aprobado</th>
                   </tr>

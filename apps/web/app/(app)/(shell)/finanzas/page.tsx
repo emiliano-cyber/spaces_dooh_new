@@ -80,7 +80,7 @@ export default function FinanzasPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Finanzas</h1>
-        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a propietarios</p>
+        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a arrendadores</p>
       </div>
 
       {/* Listas para facturar */}

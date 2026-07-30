@@ -2,11 +2,13 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
+import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
-  crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
+  crearRazonSocial, editarRazonSocial, borrarRazonSocial, contratosDeRazonSocial,
+  crearPredio, editarPredio, agregarPantallaAPredio,
   adjuntarAPago, obtenerAdjuntoPago,
   listarLicencias, crearLicencia, editarLicencia, borrarLicencia,
 } from './arrendadores-repo'
@@ -44,7 +46,11 @@ export async function crearArrendadorCtrl(body: unknown) {
 }
 
 // ─── Alta unificada: arrendatario → contrato → pantalla ─────────────────────
-const PERIODICIDADES = ['SEMANAL', 'CATORCENAL', 'QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'] as const
+// Espejo del enum `periodicidad_pago`: lib/renta-periodicidad.ts. Estaba
+// copiado aquí, y una copia en la compuerta de validación es la peor de todas —
+// añadir una periodicidad al enum y a la UI sin tocar esta línea produce un 400
+// en el alta, sin pista de por qué.
+const PERIODICIDADES = PERIODICIDAD_VALUES
 
 const arrendadorRef = z.union([
   z.object({ id: z.string().min(1) }),
@@ -227,6 +233,13 @@ export async function editarContratoCtrl(id: string, body: unknown) {
   const r = await editarContrato(id, d)
   if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
   if ('cancelado' in r) throw new AppError('El contrato está CANCELADO; crea uno nuevo en su lugar', 409)
+  if ('firmado' in r) {
+    throw new AppError(
+      'Este contrato ya está firmado y su información no cambia: lo firmado dejaría de coincidir ' +
+        'con lo acordado. Si hay que modificar las condiciones, crea un contrato nuevo.',
+      409,
+    )
+  }
   return r.contrato
 }
 
@@ -336,6 +349,41 @@ export async function crearRazonSocialCtrl(body: unknown) {
   const d = validar(crearRazonSocialSchema, body)
   if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
   return crearRazonSocial(d)
+}
+
+// Edición: todos los campos son opcionales para poder COMPLETAR uno solo sin
+// tocar el resto. `arrendadorId` NO se puede cambiar: mover una razón social de
+// propietario reatribuiría en silencio los contratos que ya facturan a ella.
+const editarRazonSocialSchema = z.object({
+  razonSocial: z.string().trim().min(1, 'La razón social no puede quedar vacía').optional(),
+  rfc: z.string().trim().max(13).nullish(),
+  regimen: z.string().trim().max(120).nullish(),
+})
+export async function editarRazonSocialCtrl(id: string, body: unknown) {
+  const d = validar(editarRazonSocialSchema, body)
+  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  const rs = await editarRazonSocial(id, {
+    razonSocial: d.razonSocial,
+    // `null` explícito limpia el campo; `undefined` lo deja como estaba.
+    rfc: d.rfc === undefined ? undefined : (d.rfc || null),
+    regimen: d.regimen === undefined ? undefined : (d.regimen || null),
+  })
+  if (!rs) throw new AppError('No encontrada', 404)
+  return rs
+}
+
+export async function borrarRazonSocialCtrl(id: string) {
+  // La FK es ON DELETE SET NULL: borrar no falla, deja los contratos sin razón
+  // social sin avisar. Se bloquea y se dice cuántos la usan.
+  const enUso = await contratosDeRazonSocial(id)
+  if (enUso > 0) {
+    throw new AppError(
+      `No se puede eliminar: ${enUso} contrato${enUso === 1 ? '' : 's'} factura${enUso === 1 ? '' : 'n'} a esta razón social. ` +
+        'Cámbiala en esos contratos primero.',
+      409,
+    )
+  }
+  if (!(await borrarRazonSocial(id))) throw new AppError('No encontrada', 404)
 }
 
 // ─── Licencias y permisos con vigencia (F-2) ────────────────────────────────

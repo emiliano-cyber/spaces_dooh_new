@@ -1,6 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+// Alias: `toast` ya es el estado del toast local de esta página.
+import { toast as sonner } from 'sonner'
 import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card } from '@/components/demo/ui/Card'
@@ -16,8 +18,10 @@ import {
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
 import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
+import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import {
+  sitiosSinContratoCompleto,
   useSitios,
   useReservas,
   useCampanas,
@@ -49,6 +53,7 @@ export default function ComercialPage() {
   const contratos = useContratos()
   const arrendadores = useArrendadores()
   const puedeCrear = usePuede('comercial', 'crear')
+  const puedeArrendadores = usePuede('arrendadores', 'ver')
 
   // Propietario por sitio: del contrato vigente preferente (dueño del predio).
   const propietarioPorSitio = useMemo(() => {
@@ -56,11 +61,20 @@ export default function ComercialPage() {
     const arrById = new Map((arrendadores ?? []).map((a) => [a.id, a.nombre]))
     const m = new Map<string, string>()
     for (const c of (contratos ?? []).slice().sort((a, b) => (PR[a.estatus] ?? 9) - (PR[b.estatus] ?? 9))) {
-      // INCOMPLETO no tiene arrendador todavía (ADR 0001): queda como «—».
+      // Un INCOMPLETO nacido antes del ADR 0002 puede no tener arrendador; los
+      // nuevos siempre lo traen, porque el alta lo exige. Sin él queda «—».
       if (!m.has(c.sitioId)) m.set(c.sitioId, (c.arrendadorId ? arrById.get(c.arrendadorId) : null) ?? '—')
     }
     return m
   }, [contratos, arrendadores])
+
+  // ADR 0003: pantallas que la API rechazará por contrato incompleto. Se marcan
+  // aquí para que el comercial lo vea ANTES de armar la selección, en vez de
+  // descubrirlo al reservar con el cliente ya comprometido.
+  const sinContrato = useMemo(
+    () => sitiosSinContratoCompleto(sitios ?? [], contratos ?? []),
+    [sitios, contratos],
+  )
 
   const [q, setQ] = useState('')
   const [fTipo, setFTipo] = useState('')
@@ -262,9 +276,13 @@ export default function ComercialPage() {
                   s.exhibicion === 'digital' ||
                   s.exhibicion === 'rotativo'
                 const slotsLibres = s.spotsDisponibles ?? s.totalSpots ?? null
-                const libre = esDigital
+                const disponible = esDigital
                   ? s.estatusComercial !== 'BLOQUEADO' && (slotsLibres == null || slotsLibres > 0)
                   : s.estatusComercial === 'DISPONIBLE'
+                // Sin contrato completo no hay derecho que vender, aunque el
+                // inventario diga que está libre (ADR 0003).
+                const bloqueadaPorContrato = sinContrato.has(s.id)
+                const libre = disponible && !bloqueadaPorContrato
                 const sel = seleccion.has(s.id)
                 return (
                   <li
@@ -304,7 +322,7 @@ export default function ComercialPage() {
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin propietario'}</span>
+                        <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}</span>
                       </div>
                     </button>
                     {/* Disponibilidad por spots: las digitales muestran X/12 y las
@@ -312,9 +330,37 @@ export default function ComercialPage() {
                     {esDigital && s.totalSpots != null && (
                       <SlotsBadge disponibles={s.spotsDisponibles ?? null} total={s.totalSpots} />
                     )}
-                    <StatusBadge tono={libre ? 'verde' : 'rojo'}>
-                      {libre ? 'Disponible' : 'No disponible'}
-                    </StatusBadge>
+                    {/* El motivo importa: "no disponible" (sin slots / ya
+                        vendida) se arregla eligiendo otra pantalla; "contrato
+                        incompleto" se arregla en Arrendadores. Mismo badge con
+                        el mismo texto mandaría al comercial al sitio equivocado,
+                        así que el bloqueo contractual lleva su propio tono. */}
+                    {bloqueadaPorContrato ? (
+                      // Para quien puede entrar a Arrendadores, el badge es la
+                      // liga que lleva a arreglarlo: el comercial que topa con
+                      // esta pantalla bloqueada es quien más prisa tiene por
+                      // que se complete. Sin permiso queda como aviso a secas.
+                      puedeArrendadores ? (
+                        <Link
+                          href="/arrendadores"
+                          onClick={(e) => e.stopPropagation()}
+                          className="shrink-0"
+                          title="Completar el contrato en Arrendadores"
+                        >
+                          <StatusBadge tono="ambar" className="shrink-0 hover:underline">
+                            Contrato incompleto
+                          </StatusBadge>
+                        </Link>
+                      ) : (
+                        <StatusBadge tono="ambar" className="shrink-0">
+                          Contrato incompleto
+                        </StatusBadge>
+                      )
+                    ) : (
+                      <StatusBadge tono={libre ? 'verde' : 'rojo'}>
+                        {libre ? 'Disponible' : 'No disponible'}
+                      </StatusBadge>
+                    )}
                   </li>
                 )
               })
@@ -366,6 +412,16 @@ export default function ComercialPage() {
         open={fichaOpen}
         onOpenChange={setFichaOpen}
         onReservar={(id) => {
+          // La ficha puentea el checkbox de la lista, así que el bloqueo por
+          // contrato hay que repetirlo aquí: si no, esta es la puerta por la que
+          // una pantalla incompleta llega al diálogo de reserva y muere en la API.
+          if (sinContrato.has(id)) {
+            // sonner.error, NO notify(): el toast local de esta página
+            // lleva palomita verde de éxito, y un bloqueo con palomita verde se
+            // lee como "listo, hecho".
+            sonner.error('Esa pantalla tiene el contrato de arrendamiento incompleto. Complétalo en Arrendadores para poder venderla.')
+            return
+          }
           setSeleccion(new Set([id]))
           setFichaOpen(false)
           setReservaOpen(true)

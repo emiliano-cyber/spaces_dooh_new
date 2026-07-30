@@ -1,0 +1,280 @@
+import 'server-only'
+import { createHash, randomBytes } from 'crypto'
+import { pool, q, q1, fijarTenant, qRaw1, qConTenant } from './db'
+import { tenantActual } from './tenant'
+import { AppError } from './errores'
+import { expedienteContrato } from './contrato-expediente'
+import { documentoATexto, fechaISO } from '@/lib/contrato-documento'
+
+// ============================================================================
+//  lib/server/firmas-repo.ts — Firma electrónica simple del contrato.
+//
+//  El punto crítico es QUÉ se firma. El documento se redacta a partir de datos
+//  vivos, así que antes de pedir firmas se CONGELA: se renderiza el texto, se
+//  guarda literal y se sella con SHA-256. A partir de ahí, cada firma queda
+//  atada a ese hash.
+//
+//  Si el contrato (o el domicilio del arrendador, o cualquier dato que el texto
+//  recite) cambia después, el hash actual deja de coincidir y las firmas se
+//  muestran INVALIDADAS. Eso NO se guarda en una columna: se deriva comparando,
+//  porque un flag escrito a mano solo captura los cambios que alguien recordó
+//  marcar, y aquí el cambio puede venir de otra tabla.
+// ============================================================================
+
+export const HASH_ALGO = 'sha256'
+export function hashDocumento(texto: string): string {
+  return createHash(HASH_ALGO).update(texto, 'utf8').digest('hex')
+}
+
+const DIAS_VALIDEZ_TOKEN = 30
+
+export type Parte = 'ARRENDADOR' | 'ARRENDATARIO'
+
+export interface FirmaVista {
+  parte: Parte
+  estatus: 'PENDIENTE' | 'FIRMADA' | 'CANCELADA'
+  nombreEsperado: string | null
+  nombreFirmante: string | null
+  firmadoEn: string | null
+  ip: string | null
+  userAgent: string | null
+  documentoHash: string | null
+  // Derivado: la firma existe pero el documento ya no es el que se firmó.
+  invalidada: boolean
+  // Solo para la parte externa y solo dentro de la sesión del dueño.
+  token: string | null
+  tokenExpiraEn: string | null
+}
+
+const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : (v as string | null))
+
+// ─── Congelar y abrir el proceso de firma ───────────────────────────────────
+// Renderiza el documento, lo sella y crea las dos firmas pendientes. Es
+// idempotente en el sentido de que RE-congelar reemplaza el texto y reinicia
+// las firmas: es lo que ocurre cuando se corrigió algo y se vuelve a enviar.
+export async function enviarAFirma(contratoId: string): Promise<{ token: string }> {
+  const tenantId = await tenantActual()
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+
+    // La fecha de firma del documento pasa a ser la del congelado. Si siguiera
+    // siendo "hoy", el texto —y por tanto el hash— cambiaría cada medianoche y
+    // toda firma quedaría invalidada al día siguiente.
+    const hoy = new Date()
+    const fechaCongelado = fechaISO(hoy)!
+    const doc = await expedienteContrato(contratoId, fechaCongelado)
+    if (!doc) throw new AppError('El contrato no existe.', 404)
+    if (doc.faltantes.length) {
+      throw new AppError(
+        `No se puede enviar a firma: faltan ${doc.faltantes.length} datos por capturar (${doc.faltantes.join(', ')}).`,
+        409,
+      )
+    }
+
+    const texto = documentoATexto(doc)
+    const hash = hashDocumento(texto)
+
+    const { rowCount } = await client.query(
+      `update contratos_arrendamiento
+          set documento_congelado = $2, documento_hash = $3, congelado_en = now()
+        where id = $1 and tenant_id = $4`,
+      [contratoId, texto, hash, tenantId],
+    )
+    if (!rowCount) throw new AppError('El contrato no existe.', 404)
+
+    // Se reinician las firmas: el texto es nuevo, lo firmado antes ya no aplica.
+    await client.query('delete from contrato_firmas where contrato_id = $1', [contratoId])
+
+    const token = randomBytes(32).toString('hex')
+    const nombres = await client.query(
+      `select coalesce(rs.razon_social, a.nombre) as arrendador, a.email as correo,
+              coalesce(t.razon_social, t.nombre)  as arrendatario
+         from contratos_arrendamiento c
+         left join arrendadores a on a.id = c.arrendador_id
+         left join arrendador_razon_social rs on rs.id = c.razon_social_id
+         join tenants t on t.id = c.tenant_id
+        where c.id = $1`,
+      [contratoId],
+    )
+    const n = nombres.rows[0] ?? {}
+
+    await client.query(
+      `insert into contrato_firmas (tenant_id, contrato_id, parte, nombre_esperado, correo, token, token_expira_en)
+       values ($1, $2, 'ARRENDADOR', $3, $4, $5, now() + ($6 || ' days')::interval),
+              ($1, $2, 'ARRENDATARIO', $7, null, null, null)`,
+      [tenantId, contratoId, n.arrendador ?? null, n.correo ?? null, token, String(DIAS_VALIDEZ_TOKEN), n.arrendatario ?? null],
+    )
+
+    await client.query('commit')
+    return { token }
+  } catch (e) {
+    await client.query('rollback')
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
+// ─── Lectura ────────────────────────────────────────────────────────────────
+export async function firmasDeContrato(contratoId: string): Promise<{
+  firmas: FirmaVista[]
+  hashActual: string | null
+  hashCongelado: string | null
+  congeladoEn: string | null
+}> {
+  const tenantId = await tenantActual()
+  const c = await q1<Record<string, any>>(
+    `select documento_hash, congelado_en, documento_congelado
+       from contratos_arrendamiento where id = $1 and tenant_id = $2`,
+    [contratoId, tenantId],
+  )
+  if (!c) throw new AppError('El contrato no existe.', 404)
+
+  // Hash del documento TAL COMO ESTÁ HOY, para compararlo con lo firmado. Se
+  // renderiza con la fecha del congelado, no con la de hoy: si no, la única
+  // diferencia sería el día y toda firma se invalidaría sola al amanecer.
+  let hashActual: string | null = null
+  if (c.congelado_en) {
+    const doc = await expedienteContrato(contratoId, fechaISO(c.congelado_en)!)
+    if (doc) hashActual = hashDocumento(documentoATexto(doc))
+  }
+
+  const rows = await q<Record<string, any>>(
+    `select parte, estatus, nombre_esperado, nombre_firmante, firmado_en, ip, user_agent,
+            documento_hash, token, token_expira_en
+       from contrato_firmas where contrato_id = $1 order by parte`,
+    [contratoId],
+  )
+
+  return {
+    hashActual,
+    hashCongelado: c.documento_hash ?? null,
+    congeladoEn: iso(c.congelado_en),
+    firmas: rows.map((r) => ({
+      parte: r.parte,
+      estatus: r.estatus,
+      nombreEsperado: r.nombre_esperado ?? null,
+      nombreFirmante: r.nombre_firmante ?? null,
+      firmadoEn: iso(r.firmado_en),
+      ip: r.ip ?? null,
+      userAgent: r.user_agent ?? null,
+      documentoHash: r.documento_hash ?? null,
+      invalidada:
+        r.estatus === 'FIRMADA' && !!hashActual && r.documento_hash !== hashActual,
+      token: r.token ?? null,
+      tokenExpiraEn: iso(r.token_expira_en),
+    })),
+  }
+}
+
+// ─── Firma de la parte INTERNA (con sesión) ─────────────────────────────────
+export async function firmarComoArrendatario(args: {
+  contratoId: string
+  usuarioId: string
+  nombre: string
+  ip: string | null
+  userAgent: string | null
+}): Promise<void> {
+  const tenantId = await tenantActual()
+  const c = await q1<Record<string, any>>(
+    `select documento_hash from contratos_arrendamiento where id = $1 and tenant_id = $2`,
+    [args.contratoId, tenantId],
+  )
+  if (!c?.documento_hash) {
+    throw new AppError('El contrato todavía no se ha enviado a firma.', 409)
+  }
+  const r = await q(
+    `update contrato_firmas
+        set estatus = 'FIRMADA', firmado_en = now(), nombre_firmante = $3,
+            documento_hash = $4, ip = $5, user_agent = $6, usuario_id = $7
+      where contrato_id = $1 and tenant_id = $2
+        and parte = 'ARRENDATARIO' and estatus = 'PENDIENTE'
+      returning id`,
+    [args.contratoId, tenantId, args.nombre.trim(), c.documento_hash, args.ip, args.userAgent, args.usuarioId],
+  )
+  if (!r.length) throw new AppError('Esa firma ya no está pendiente.', 409)
+}
+
+// ─── Firma de la parte EXTERNA (enlace público, sin sesión) ─────────────────
+// Sin sesión no hay `app.tenant_id` fijado, y contrato_firmas es fail-closed:
+// una consulta directa devolvería CERO filas. Se sigue el mismo patrón que el
+// portal de campaña — una función SECURITY DEFINER resuelve el tenant a partir
+// del token y el resto corre bajo él. El token de 32 bytes ES la autorización.
+export async function firmaPorToken(token: string): Promise<{
+  contratoId: string
+  parte: Parte
+  estatus: string
+  nombreEsperado: string | null
+  documento: string
+  hash: string
+  expirado: boolean
+  yaFirmada: boolean
+} | null> {
+  // Formato antes de tocar la BD: descarta sondeos con basura sin consultar.
+  if (!/^[a-f0-9]{64}$/.test(token)) return null
+
+  const t = await qRaw1<{ tenant: string | null }>(
+    'select firma_tenant_por_token($1) as tenant',
+    [token],
+  )
+  const tenantId = t?.tenant
+  if (!tenantId) return null
+
+  const rows = await qConTenant<Record<string, any>>(
+    tenantId,
+    `select f.contrato_id, f.parte, f.estatus, f.nombre_esperado, f.token_expira_en,
+            c.documento_congelado, c.documento_hash
+       from contrato_firmas f
+       join contratos_arrendamiento c on c.id = f.contrato_id
+      where f.token = $1`,
+    [token],
+  )
+  const r = rows[0]
+  if (!r || !r.documento_congelado) return null
+
+  return {
+    contratoId: r.contrato_id,
+    parte: r.parte,
+    estatus: r.estatus,
+    nombreEsperado: r.nombre_esperado ?? null,
+    documento: r.documento_congelado,
+    hash: r.documento_hash,
+    expirado: !!r.token_expira_en && new Date(r.token_expira_en) < new Date(),
+    yaFirmada: r.estatus === 'FIRMADA',
+  }
+}
+
+export async function firmarPorToken(args: {
+  token: string
+  nombre: string
+  ip: string | null
+  userAgent: string | null
+}): Promise<void> {
+  const f = await firmaPorToken(args.token)
+  if (!f) throw new AppError('Enlace de firma no válido.', 404)
+  if (f.expirado) throw new AppError('El enlace de firma expiró. Pide uno nuevo.', 410)
+  if (f.yaFirmada) throw new AppError('Este contrato ya fue firmado con este enlace.', 409)
+  const nombre = args.nombre.trim()
+  if (nombre.length < 3) throw new AppError('Escribe tu nombre completo para firmar.', 400)
+
+  const t = await qRaw1<{ tenant: string | null }>(
+    'select firma_tenant_por_token($1) as tenant',
+    [args.token],
+  )
+  if (!t?.tenant) throw new AppError('Enlace de firma no válido.', 404)
+
+  // El `estatus = 'PENDIENTE'` en el WHERE es lo que hace la operación segura
+  // ante doble clic o reenvío: la segunda pasada no actualiza nada.
+  const filas = await qConTenant<{ id: string }>(
+    t.tenant,
+    `update contrato_firmas
+        set estatus = 'FIRMADA', firmado_en = now(), nombre_firmante = $2,
+            documento_hash = $3, ip = $4, user_agent = $5
+      where token = $1 and estatus = 'PENDIENTE'
+      returning id`,
+    [args.token, nombre, f.hash, args.ip, args.userAgent],
+  )
+  if (!filas.length) throw new AppError('Esa firma ya no está pendiente.', 409)
+}

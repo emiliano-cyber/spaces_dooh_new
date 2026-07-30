@@ -3,6 +3,7 @@ import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
+import { exigirContratoCompleto } from './contratos-sitio'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -331,6 +332,11 @@ export async function reservar(input: {
         )
       ).rows[0]
       const precio = s ? Number(s.tarifa_mensual ?? 0) : 0
+      // ADR 0003: no se vende un espacio sobre el que aún no consta qué se paga.
+      // Va ANTES de las validaciones de disponibilidad para que el motivo real
+      // salga primero: decirle al comercial "no hay slots" cuando el problema es
+      // que falta el contrato lo manda a buscar en el sitio equivocado.
+      await exigirContratoCompleto(client, { tenantId: await tenantActual(), sitioId })
       // S0-3: el tipo de medio manda. Solo PANTALLA_DIGITAL maneja slots; las
       // demás (espectacular, etc.) son estáticas = reserva exclusiva.
       const digital = !!s && s.tipo_medio === 'PANTALLA_DIGITAL'
@@ -606,6 +612,13 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
             and (fecha_fin is null or fecha_fin < $2::date)`,
         [it.sitio_id, iso(it.fecha_fin)],
       )
+
+      // ADR 0003: la pantalla no se vende con el contrato incompleto. El guard va
+      // DESPUÉS del bloque de arriba a propósito: si la propuesta capturó la renta
+      // (arrendador + importe + periodicidad), ese insert acaba de crear un
+      // contrato VIGENTE y la venta debe pasar. Comprobarlo antes bloquearía justo
+      // el caso que el sistema resuelve solo.
+      await exigirContratoCompleto(client, { tenantId: await tenantActual(), sitioId: it.sitio_id })
 
       // Calendario de pagos de la renta. La campaña nace SIN PAGO REGISTRADO:
       // se crean las cuotas que tocan según la periodicidad y ninguna se marca

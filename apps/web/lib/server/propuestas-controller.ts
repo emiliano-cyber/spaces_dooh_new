@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { crearPropuesta, aprobarItem, PropuestaError, type PropuestaInput } from './propuestas-repo'
 import { cantidadEfectiva, precioItem, UNIDADES, type Unidad } from '@/lib/periodos'
+import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 
 // ============================================================================
 //  lib/server/propuestas-controller.ts — Alta de propuestas y aprobación de sus
@@ -20,8 +21,9 @@ const UNIDADES_VALIDAS = UNIDADES.map((u) => u.unidad) as [Unidad, ...Unidad[]]
 // Campos numéricos opcionales: el front manda `null` cuando no aplican (p. ej.
 // spots/día vacío), así que van con `.nullish()` — `.optional()` solo aceptaría
 // `undefined` y `z.coerce.number()` convertiría null→0, fallando en `.positive()`.
-// Mismo enum que `periodicidad_pago` en la BD y que arrendadores-controller.
-const PERIODICIDADES_RENTA = ['SEMANAL', 'CATORCENAL', 'QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'] as const
+// Mismo enum que `periodicidad_pago` en la BD y que arrendadores-controller:
+// los tres lo toman ya de lib/renta-periodicidad.ts.
+const PERIODICIDADES_RENTA = PERIODICIDAD_VALUES
 
 const itemSchema = z.object({
   sitioId: z.string().min(1),

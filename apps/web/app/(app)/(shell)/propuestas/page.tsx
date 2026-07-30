@@ -37,27 +37,14 @@ import {
   fechaFinDesde,
   type Unidad,
 } from '@/lib/periodos'
+import { PERIODICIDADES, factorMensual } from '@/lib/renta-periodicidad'
 
-// Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD).
-// Las dos primeras son las que se usan casi siempre; el resto están porque el
-// contrato con el propietario puede pactarse en cualquiera de ellas.
-const PERIODICIDADES_RENTA = [
-  { value: 'MENSUAL', label: 'Mensual' },
-  { value: 'ANUAL', label: 'Anual' },
-  { value: 'SEMANAL', label: 'Semanal' },
-  { value: 'CATORCENAL', label: 'Catorcenal' },
-  { value: 'QUINCENAL', label: 'Quincenal' },
-  { value: 'BIMESTRAL', label: 'Bimestral' },
-  { value: 'TRIMESTRAL', label: 'Trimestral' },
-  { value: 'SEMESTRAL', label: 'Semestral' },
-] as const
-
-// Equivalencia a mensual, igual que en el P&L (derive.ts · rentaAMensual): un
-// contrato anual de 60 000 cuesta 5 000/mes.
-const A_MENSUAL: Record<string, number> = {
-  SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
-  BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
-}
+// Periodicidades de la renta al propietario (enum `periodicidad_pago` en la BD)
+// y su equivalencia a mensual: ambas vienen de lib/renta-periodicidad.ts, la
+// misma tabla que usa el P&L. Aquí había una copia con MENSUAL y ANUAL al
+// frente "porque son las que más se usan"; el precio de ese orden era que cada
+// periodicidad nueva había que acordarse de añadirla también aquí.
+const PERIODICIDADES_RENTA = PERIODICIDADES
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -434,7 +421,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   const rentaMensualDe = (s: any) => {
     const c = cfgDe(s)
-    return Math.round((Number(c.rentaMonto) || 0) * (A_MENSUAL[c.rentaPeriodicidad] ?? 1))
+    return Math.round((Number(c.rentaMonto) || 0) * factorMensual(c.rentaPeriodicidad))
   }
 
   const setCfgSitio = (id: string, patch: Partial<CfgSitio>) => {
@@ -766,10 +753,10 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                       // La renta ya está pactada: se muestra para que el
                       // comercial vea el costo, pero no se pide ni se toca.
                       const cv = contratoVigenteDe(s)!
-                      const mes = Math.round((cv.montoRenta ?? 0) * (A_MENSUAL[cv.periodicidad ?? 'MENSUAL'] ?? 1))
+                      const mes = Math.round((cv.montoRenta ?? 0) * factorMensual(cv.periodicidad))
                       return (
                         <div className="flex w-full items-center gap-2 rounded bg-surface-2 px-2 py-1.5 text-[11px] text-muted">
-                          <span className="font-medium">Renta al propietario</span>
+                          <span className="font-medium">Renta al arrendador</span>
                           <span className="text-ink">
                             {formatMonto(cv.montoRenta ?? 0)} {String(cv.periodicidad ?? '').toLowerCase()}
                           </span>
@@ -781,14 +768,14 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                     })()}
                     {!tieneContrato(s) && (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded bg-surface-2 px-2 py-1.5">
-                        <span className="text-[11px] font-medium text-muted">Renta al propietario</span>
+                        <span className="text-[11px] font-medium text-muted">Renta al arrendador</span>
                         <select
                           className="h-8 min-w-[9rem] rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                           value={c.rentaArrendadorId}
                           onChange={(e) => setCfgSitio(s.id, { rentaArrendadorId: e.target.value })}
                           title="A quién se le paga"
                         >
-                          <option value="">Propietario…</option>
+                          <option value="">Arrendador…</option>
                           {(arrendadores ?? []).map((a) => (
                             <option key={a.id} value={a.id}>{a.nombre}</option>
                           ))}

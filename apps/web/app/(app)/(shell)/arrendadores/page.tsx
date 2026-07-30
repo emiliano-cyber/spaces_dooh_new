@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { CheckCircle2, Plus, FileSignature } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CheckCircle2, Plus, FileSignature, Search, X } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { ContratoSheet } from '@/components/demo/arrendadores/ContratoSheet'
+import { GestionRazonesSociales } from '@/components/demo/arrendadores/GestionRazonesSociales'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import {
@@ -17,6 +18,16 @@ import {
   PAGO_LABEL,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { factorMensual, periodicidadLabel } from '@/lib/renta-periodicidad'
+import {
+  filtrarArrendadores,
+  filtrarContratos,
+  filtrarPagos,
+  sitiosDeContratos,
+  hayFiltro,
+  FILTRO_VACIO,
+  type FiltroArrendadores,
+} from '@/lib/arrendadores-filtro'
 import {
   useContratos,
   useArrendadores,
@@ -52,12 +63,63 @@ export default function ArrendadoresPage() {
   const [contratoOpen, setContratoOpen] = useState(false)
   const puedeCrear = usePuede('arrendadores', 'crear')
 
+  // Contratos que facturan a cada razón social. Se calcula aquí y no dentro de
+  // la tarjeta para no recorrer los contratos una vez por propietario.
+  const contratosPorRazon = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of contratos ?? []) {
+      if (c.razonSocialId) m.set(c.razonSocialId, (m.get(c.razonSocialId) ?? 0) + 1)
+    }
+    return m
+  }, [contratos])
+
   function notify(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 2600)
   }
 
   const nombreArr = (id: string) => arrendadores?.find((a) => a.id === id)?.nombre ?? '—'
+
+  // Filtro ÚNICO del módulo. Las tres listas (arrendadores, contratos y pagos)
+  // son la misma realidad vista desde distintos ángulos, y la pregunta habitual
+  // es «enséñame todo lo de este arrendador». Con un filtro por tarjeta habría
+  // que repetirlo tres veces y era fácil dejar dos desalineadas contando
+  // historias distintas.
+  const [filtro, setFiltro] = useState<FiltroArrendadores>(FILTRO_VACIO)
+  const set = (p: Partial<FiltroArrendadores>) => setFiltro((f) => ({ ...f, ...p }))
+
+  const contratosFiltrados = useMemo(
+    () => (contratos ? filtrarContratos(contratos, filtro, nombreArr) : undefined),
+    [contratos, filtro, arrendadores],
+  )
+  // Pantallas cubiertas por los contratos visibles (dos anclajes: predio o
+  // pantalla suelta). Lo necesita Rentabilidad, que se lista por pantalla.
+  const sitiosVisibles = useMemo(
+    () => sitiosDeContratos(contratosFiltrados ?? [], sitios ?? []),
+    [contratosFiltrados, sitios],
+  )
+  const margenesFiltrados = useMemo(
+    () => (!margenes || !hayFiltro(filtro) ? margenes : margenes.filter((m) => sitiosVisibles.has(m.sitioId))),
+    [margenes, filtro, sitiosVisibles],
+  )
+  const pagosFiltrados = useMemo(
+    () => (pagos ? filtrarPagos(pagos, contratosFiltrados ?? [], filtro) : undefined),
+    [pagos, contratosFiltrados, filtro],
+  )
+  // Depende de los contratos YA filtrados: un arrendador se queda si coincide él
+  // o si alguno de sus contratos sobrevivió (ver filtrarArrendadores).
+  const arrendadoresFiltrados = useMemo(
+    () => (arrendadores ? filtrarArrendadores(arrendadores, filtro, contratosFiltrados ?? []) : undefined),
+    [arrendadores, filtro, contratosFiltrados],
+  )
+
+  // Las razones sociales siguen a sus arrendadores visibles.
+  const razonesFiltradas = useMemo(() => {
+    if (!razones || !hayFiltro(filtro)) return razones
+    const ids = new Set((arrendadoresFiltrados ?? []).map((a) => a.id))
+    return razones.filter((r) => ids.has(r.arrendadorId))
+  }, [razones, filtro, arrendadoresFiltrados])
+
   const sitioDe = (id: string) => sitios?.find((s) => s.id === id)
 
   // Campañas que tienen vendida esa pantalla. Un contrato incompleto lo creó una
@@ -93,7 +155,7 @@ export default function ArrendadoresPage() {
         {puedeCrear && (
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="secondary" onClick={() => setNuevoOpen(true)}>
-              <Plus className="h-3.5 w-3.5" /> Nuevo propietario
+              <Plus className="h-3.5 w-3.5" /> Nuevo arrendador
             </Button>
             <Button size="sm" onClick={() => setContratoOpen(true)}>
               <FileSignature className="h-3.5 w-3.5" /> Nuevo contrato
@@ -102,9 +164,60 @@ export default function ArrendadoresPage() {
         )}
       </div>
 
+      {/* Filtro compartido: gobierna arrendadores, contratos y pagos a la vez. */}
+      <Card className="p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              value={filtro.texto}
+              onChange={(e) => set({ texto: e.target.value })}
+              placeholder="Buscar arrendador, pantalla o RFC…"
+              className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            />
+          </div>
+          <select
+            value={filtro.arrendadorId}
+            onChange={(e) => set({ arrendadorId: e.target.value })}
+            className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <option value="">Todos los arrendadores</option>
+            {(arrendadores ?? []).map((a) => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
+          <select
+            value={filtro.estatus}
+            onChange={(e) => set({ estatus: e.target.value })}
+            className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            <option value="">Contratos: todos</option>
+            {(['VIGENTE', 'POR_VENCER', 'VENCIDO', 'RENOVADO', 'INCOMPLETO', 'CANCELADO'] as const).map((e) => (
+              <option key={e} value={e}>{CONTRATO_LABEL[e]}</option>
+            ))}
+          </select>
+          {/* Con un filtro puesto, lo que se ve es un subconjunto: sin decirlo,
+              un total parcial se lee como el total. */}
+          {hayFiltro(filtro) && (
+            <>
+              <span className="text-[12px] text-muted">
+                {contratosFiltrados?.length ?? 0} de {contratos?.length ?? 0} contratos
+              </span>
+              <button
+                type="button"
+                onClick={() => setFiltro(FILTRO_VACIO)}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[12px] text-muted hover:text-ink"
+              >
+                <X className="h-3.5 w-3.5" /> Limpiar
+              </button>
+            </>
+          )}
+        </div>
+      </Card>
+
       {/* Resumen */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Mini label="Propietarios" valor={`${arrendadores?.length ?? '—'}`} />
+        <Mini label="Arrendadores" valor={`${arrendadores?.length ?? '—'}`} />
         <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
         <Mini label="Renta mensual" valor={contratos ? formatMonto(rentaMensual) : '—'} />
         <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
@@ -121,20 +234,30 @@ export default function ArrendadoresPage() {
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
-      <PropietariosCard arrendadores={arrendadores} contratos={contratos ?? []} />
+      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratosFiltrados ?? []} filtrado={hayFiltro(filtro)} />
+
+      {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
+          de propietarios porque es información SUYA; la tarjeta consolidada de
+          más abajo es otra cosa: el reporte de lo que se le debe a cada una. */}
+      <GestionRazonesSociales
+        arrendadores={arrendadoresFiltrados ?? []}
+        razones={razonesFiltradas ?? []}
+        contratosPorRazon={contratosPorRazon}
+        puedeEditar={puedeCrear}
+      />
 
       {/* Rentabilidad por pantalla (P&L: ingreso de reservas activas − renta) */}
-      <RentabilidadCard margenes={margenes} />
+      <RentabilidadCard margenes={margenesFiltrados} filtrado={hayFiltro(filtro)} />
 
       {/* Cuadre de renta (R3.7): qué se le debe a cada propietario, desglosado
           por emplazamiento. Antes solo se podía saber contrato por contrato. */}
-      <ConciliacionCard />
+      <ConciliacionCard contratosVisibles={contratosFiltrados} />
 
       {/* Consolidado por razón social (un propietario puede tener varias) */}
       <RazonesSocialesCard
-        razones={razones ?? []}
-        contratos={contratos ?? []}
-        pagos={pagos ?? []}
+        razones={razonesFiltradas ?? []}
+        contratos={contratosFiltrados ?? []}
+        pagos={pagosFiltrados ?? []}
         nombreArr={nombreArr}
       />
 
@@ -144,7 +267,7 @@ export default function ArrendadoresPage() {
           <CardTitle>Contratos de arrendamiento</CardTitle>
         </CardHeader>
         <CardContent className="px-0 pb-0">
-          {!contratos ? (
+          {!contratosFiltrados ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
@@ -164,7 +287,7 @@ export default function ArrendadoresPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {contratos.map((c) => {
+                  {contratosFiltrados.map((c) => {
                     // Un contrato INCOMPLETO no tiene aún arrendador, importe,
                     // periodicidad ni fecha de fin (ADR 0001): las celdas
                     // muestran «—» en vez de un cero o una fecha inventada.
@@ -199,7 +322,7 @@ export default function ArrendadoresPage() {
                         <td className="demo-num px-4 py-2.5 text-right text-ink">
                           {c.montoRenta != null ? formatMonto(c.montoRenta) : <span className="text-muted">—</span>}
                         </td>
-                        <td className="px-4 py-2.5 capitalize text-muted">{c.periodicidad ? c.periodicidad.toLowerCase() : '—'}</td>
+                        <td className="px-4 py-2.5 text-muted">{periodicidadLabel(c.periodicidad)}</td>
                         <td className="demo-num px-4 py-2.5 text-muted">
                           {c.fechaFin ? formatFecha(c.fechaFin) : '—'}
                           {c.estatus === 'POR_VENCER' && (
@@ -207,7 +330,29 @@ export default function ArrendadoresPage() {
                           )}
                         </td>
                         <td className="px-4 py-2.5">
-                          <StatusBadge tono={CONTRATO_TONO[c.estatus]}>{CONTRATO_LABEL[c.estatus]}</StatusBadge>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge tono={CONTRATO_TONO[c.estatus]}>{CONTRATO_LABEL[c.estatus]}</StatusBadge>
+                            {/* El badge nombra el problema; esto lo resuelve. La
+                                fila entera ya abría el detalle, pero eso había
+                                que adivinarlo: un contrato podía quedarse meses
+                                en «Incompleto» porque nadie sabía dónde se
+                                completaba. */}
+                            {c.estatus === 'INCOMPLETO' && (
+                              <button
+                                type="button"
+                                className="rounded border border-border px-2 py-0.5 text-[11px] text-info hover:bg-surface-2"
+                                onClick={(e) => {
+                                  // La fila también abre el sheet; sin esto se
+                                  // dispararían los dos manejadores.
+                                  e.stopPropagation()
+                                  setSel(c)
+                                  setOpen(true)
+                                }}
+                              >
+                                Completar
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     )
@@ -221,7 +366,7 @@ export default function ArrendadoresPage() {
 
       {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
           salida de dinero, y no debe divergir entre las dos pantallas) */}
-      <PagosRentaCard onToast={notify} />
+      <PagosRentaCard onToast={notify} contratosVisibles={contratosFiltrados} />
 
       <ContratoSheet contrato={sel} open={open} onOpenChange={setOpen} onToast={notify} />
       {nuevoOpen && (
@@ -233,7 +378,7 @@ export default function ArrendadoresPage() {
           onOpenChange={(v) => !v && setContratoOpen(false)}
           size="lg"
           title="Nuevo contrato de arrendamiento"
-          subtitle="Arrendatario → contrato (fechas pasadas permitidas) → pantalla"
+          subtitle="Arrendador → contrato (fechas pasadas permitidas) → pantalla"
         >
           <ContratoWizard
             bare
@@ -290,7 +435,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
     <Modal
       open
       onOpenChange={(v) => !v && onClose()}
-      title="Nuevo propietario"
+      title="Nuevo arrendador"
       subtitle="Alta de arrendador (dueño del predio)"
       footer={
         <div className="flex items-center justify-between">
@@ -321,7 +466,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         </div>
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
-          <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@propietario.com" />
+          <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@arrendador.com" />
         </label>
       </div>
     </Modal>
@@ -342,11 +487,8 @@ function RazonesSocialesCard({
   const esActivo = (e: string) => e === 'VIGENTE' || e === 'POR_VENCER' || e === 'RENOVADO'
   // Un contrato INCOMPLETO aporta 0 al consolidado: su importe aún se desconoce
   // y `esActivo` ya lo excluye, pero el nulo tiene que ser seguro igualmente.
-  const aMensual = (monto: number | null, per: string | null) => {
-    if (monto == null) return 0
-    const F: Record<string, number> = { SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1, BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12 }
-    return monto * (F[(per || '').toUpperCase()] ?? 1)
-  }
+  const aMensual = (monto: number | null, per: string | null) =>
+    monto == null ? 0 : monto * factorMensual(per)
   const filaDe = (id: string | null, nombre: string, rfc: string | null, arrId: string | null) => {
     const cs = contratos.filter((c) => (c.razonSocialId ?? null) === id)
     const activos = cs.filter((c) => esActivo(c.estatus))
@@ -370,7 +512,7 @@ function RazonesSocialesCard({
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
                 <th className="px-4 py-2 font-medium">Razón social</th>
-                <th className="px-4 py-2 font-medium">Propietario</th>
+                <th className="px-4 py-2 font-medium">Arrendador</th>
                 <th className="px-4 py-2 text-center font-medium">Contratos</th>
                 <th className="px-4 py-2 text-center font-medium">Predios</th>
                 <th className="px-4 py-2 text-right font-medium">Renta mensual</th>
@@ -424,7 +566,15 @@ function Mini({ label, valor, tono }: { label: string; valor: string; tono?: 'am
 }
 
 // P&L por pantalla: ingreso mensual de reservas activas − renta del arrendador.
-function RentabilidadCard({ margenes }: { margenes: MargenSitio[] | undefined }) {
+function RentabilidadCard({
+  margenes,
+  filtrado,
+}: {
+  margenes: MargenSitio[] | undefined
+  // Con filtro activo, una lista vacía significa «ninguna coincide», no
+  // «no hay pantallas»: son mensajes distintos y confundirlos desorienta.
+  filtrado?: boolean
+}) {
   // Solo pantallas con contrato o con ingreso activo; peores márgenes primero.
   const filas = (margenes ?? [])
     .filter((m) => m.tieneContrato || m.activo)
@@ -446,7 +596,11 @@ function RentabilidadCard({ margenes }: { margenes: MargenSitio[] | undefined })
             {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-8 animate-pulse rounded bg-surface-2" />)}
           </div>
         ) : filas.length === 0 ? (
-          <p className="px-4 pb-4 text-[13px] text-muted">Sin contratos ni reservas activas todavía.</p>
+          <p className="px-4 pb-4 text-[13px] text-muted">
+            {filtrado
+              ? 'Ninguna pantalla coincide con el filtro.'
+              : 'Sin contratos ni reservas activas todavía.'}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-[12px]">
@@ -494,14 +648,17 @@ function RentabilidadCard({ margenes }: { margenes: MargenSitio[] | undefined })
 function PropietariosCard({
   arrendadores,
   contratos,
+  filtrado,
 }: {
   arrendadores: ReturnType<typeof useArrendadores>
   contratos: ContratoArrendamiento[]
+  // Hay un filtro activo: cambia lo que significa una lista vacía.
+  filtrado: boolean
 }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Propietarios</CardTitle>
+        <CardTitle>Arrendadores</CardTitle>
         <p className="mt-0.5 text-[12px] text-muted">Dueños de predio dados de alta.</p>
       </CardHeader>
       <CardContent className="px-0 pb-0">
@@ -513,14 +670,19 @@ function PropietariosCard({
           </div>
         ) : arrendadores.length === 0 ? (
           <p className="px-4 pb-4 text-[13px] text-muted">
-            Aún no hay propietarios. Usa <b>“Nuevo propietario”</b> para dar de alta uno.
+            {/* Distinguir «no hay ninguno» de «ninguno coincide» importa: el
+                primer mensaje, mostrado con un filtro puesto, afirma algo falso
+                y manda a dar de alta un arrendador que ya existe. */}
+            {filtrado
+              ? 'Ningún arrendador coincide con el filtro.'
+              : (<>Aún no hay arrendadores. Usa <b>“Nuevo arrendador”</b> para dar de alta uno.</>)}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2 font-medium">Propietario</th>
+                  <th className="px-4 py-2 font-medium">Arrendador</th>
                   <th className="px-4 py-2 font-medium">RFC</th>
                   <th className="px-4 py-2 font-medium">Contacto</th>
                   <th className="px-4 py-2 text-right font-medium">Contratos</th>

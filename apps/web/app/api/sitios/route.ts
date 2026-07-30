@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { listarSitios, crearSitio, SitioError } from '@/lib/server/sitios-repo'
 import { registrarAccion } from '@/lib/server/acciones-repo'
+import { respuestaError } from '@/lib/server/errores'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -26,6 +27,9 @@ export async function POST(req: Request) {
     return NextResponse.json(sitio, { status: 201 })
   } catch (e) {
     if (e instanceof SitioError) return NextResponse.json({ error: e.message }, { status: 409 })
-    return NextResponse.json({ error: 'No se pudo dar de alta la pantalla' }, { status: 500 })
+    // respuestaError respeta el status y el mensaje de un AppError (p. ej. el 400
+    // de "elige el arrendador"); antes todo caía en un 500 genérico y el usuario
+    // no se enteraba de QUÉ le faltaba.
+    return respuestaError(e)
   }
 }

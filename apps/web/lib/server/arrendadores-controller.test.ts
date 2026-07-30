@@ -23,6 +23,22 @@ const repo = {
 }
 vi.mock('./arrendadores-repo', () => repo)
 
+// El controller también dispara las OT de montaje/retiro. Ese módulo arrastra
+// ot-repo → tenant.ts, que llama a `cache()` de React en el cuerpo del módulo:
+// fuera de Next eso es `cache is not a function` y el archivo entero fallaba al
+// importarse, sin llegar a ejecutar una sola prueba.
+//
+// Se mockea en vez de parchear `react` porque estas pruebas solo ejercitan la
+// VALIDACIÓN del controller —el mismo motivo por el que ya se mockea el repo— y
+// cargar la cadena real abriría además un pool de Postgres y tocaría
+// `next/headers`. Las OT son un efecto posterior, no parte de lo que se valida.
+const eventos = {
+  otRetiroPorCancelacion: vi.fn(async () => null),
+  otMontajePorAlta: vi.fn(async () => null),
+  otReubicacion: vi.fn(async () => null),
+}
+vi.mock('./operaciones-eventos', () => eventos)
+
 const {
   crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl,
   registrarPagoRentaCtrl, adjuntarAPagoCtrl, obtenerAdjuntoPagoCtrl,

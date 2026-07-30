@@ -74,6 +74,7 @@ export {
   estadoSLAOT,
   otAbierta,
   funnelPropuestas,
+  sitiosSinContratoCompleto,
   diasHasta,
   medioLabel,
   formatMonto,

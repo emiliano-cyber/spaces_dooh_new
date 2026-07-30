@@ -22,6 +22,7 @@ import type {
   Propuesta,
   ContratoArrendamiento,
 } from './types'
+import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -501,27 +502,52 @@ export function reporteCampana(c: Campana, state: DemoState): ReporteCampana {
 function construirAlertas(state: DemoState): Alerta[] {
   const alertas: Alerta[] = []
 
+  const contratoPorId = new Map(state.contratos.map((c) => [c.id, c]))
   const sitioDeContrato = (contratoId: string): string => {
-    const con = state.contratos.find((c) => c.id === contratoId)
+    const con = contratoPorId.get(contratoId)
     const sit = con && state.sitios.find((s) => s.id === con.sitioId)
     return sit?.nombre ?? 'Sitio'
   }
 
-  // Renta vencida: cada pago impago cuyo vencimiento ya pasó.
+  // Renta vencida: UNA alerta por contrato, con cuántas cuotas se deben y el
+  // total. Antes se emitía una por cuota, lo cual funcionaba mientras la renta
+  // era mensual o anual (uno o dos rezagos como mucho). Con periodicidades
+  // cortas deja de funcionar: un contrato diario impago un mes son 30 alertas
+  // rojas idénticas que empujan fuera del panel a las incidencias, las OT y las
+  // licencias. Agrupando, un contrato moroso pesa lo mismo que cualquier otro
+  // problema y el número de cuotas dice de un vistazo cuán atrasado va.
+  const vencidos = new Map<string, { n: number; total: number; masViejo: string }>()
   for (const p of state.pagosRenta) {
-    if (p.estatus === 'VENCIDO') {
-      alertas.push({
-        id: `al-pago-${p.id}`,
-        tipo: 'pago',
-        nivel: 'rojo',
-        titulo: 'Renta vencida',
-        detalle: `${sitioDeContrato(p.contratoId)} — pago ${p.periodo} sin liquidar`,
-      })
+    if (p.estatus !== 'VENCIDO') continue
+    const acc = vencidos.get(p.contratoId)
+    if (!acc) vencidos.set(p.contratoId, { n: 1, total: p.monto, masViejo: p.periodo })
+    else {
+      acc.n++
+      acc.total += p.monto
+      if (p.periodo < acc.masViejo) acc.masViejo = p.periodo
     }
   }
+  for (const [contratoId, v] of vencidos) {
+    alertas.push({
+      id: `al-pago-${contratoId}`,
+      tipo: 'pago',
+      nivel: 'rojo',
+      titulo: 'Renta vencida',
+      detalle:
+        v.n === 1
+          ? `${sitioDeContrato(contratoId)} — pago ${v.masViejo} sin liquidar (${formatMonto(v.total)})`
+          : `${sitioDeContrato(contratoId)} — ${v.n} cuotas sin liquidar desde ${v.masViejo} (${formatMonto(v.total)})`,
+    })
+  }
 
-  // Renta por vencer: se avisa con al menos 3 MESES (90 días) de anticipación.
-  // Un solo aviso por contrato (el próximo pago pendiente, anual o mensual).
+  // Renta por vencer: un solo aviso por contrato (el próximo pago pendiente).
+  //
+  // El margen de anticipación NO es fijo: escala con la periodicidad del
+  // contrato (`diasAvisoPago`, en lib/renta-periodicidad.ts). El 90 fijo de
+  // antes estaba pensado para rentas anuales; aplicado a una renta diaria o
+  // semanal avisaría de un pago meses antes de que exista, y el aviso dejaría
+  // de señalar nada porque siempre estaría encendido. Un contrato anual sigue
+  // avisando a 90 días y poniéndose rojo a 15, igual que antes.
   const proxPago = new Map<string, (typeof state.pagosRenta)[number]>()
   for (const p of state.pagosRenta) {
     if (p.estatus !== 'PENDIENTE') continue
@@ -529,14 +555,18 @@ function construirAlertas(state: DemoState): Alerta[] {
     if (!prev || p.periodo < prev.periodo) proxPago.set(p.contratoId, p)
   }
   for (const p of proxPago.values()) {
+    const periodicidad = contratoPorId.get(p.contratoId)?.periodicidad ?? null
     const dias = diasHasta(p.periodo)
-    if (dias < 0 || dias > 90) continue
+    if (dias < 0 || dias > diasAvisoPago(periodicidad)) continue
     alertas.push({
       id: `al-pagov-${p.id}`,
       tipo: 'pago',
-      nivel: dias <= 15 ? 'rojo' : 'ambar',
+      nivel: dias <= diasCriticoPago(periodicidad) ? 'rojo' : 'ambar',
       titulo: 'Renta por vencer',
-      detalle: `${sitioDeContrato(p.contratoId)} — vence en ${dias} días (${formatMonto(p.monto)})`,
+      detalle:
+        dias === 0
+          ? `${sitioDeContrato(p.contratoId)} — vence hoy (${formatMonto(p.monto)})`
+          : `${sitioDeContrato(p.contratoId)} — vence en ${dias} ${dias === 1 ? 'día' : 'días'} (${formatMonto(p.monto)})`,
     })
   }
 
@@ -793,8 +823,11 @@ export interface MargenSitio {
 }
 
 // Normaliza el monto de renta a mensual según la periodicidad del contrato.
-// Enum canónico (M3): SEMANAL ×30/7 · CATORCENAL ×30/14 · QUINCENAL ×2 ·
-// MENSUAL ×1 · BIMESTRAL ÷2 · TRIMESTRAL ÷3 · SEMESTRAL ÷6 · ANUAL ÷12.
+// La tabla de factores (incluidas las etiquetas legacy del seed viejo) vive en
+// lib/renta-periodicidad.ts, compartida con el servidor y la UI: tenerla
+// duplicada aquí hacía que añadir una periodicidad al enum la contara como
+// mensual en el P&L sin que nada fallara.
+//
 // Acepta nulos porque un contrato INCOMPLETO todavía no tiene importe ni
 // periodicidad (ver ADR 0001). Aporta 0 al costo: un pendiente de captura no es
 // un costo conocido, y suponerle un valor falsearía el margen en la otra
@@ -802,23 +835,7 @@ export interface MargenSitio {
 // INCOMPLETO; esto es la red de seguridad por si alguno deja de hacerlo.
 function rentaAMensual(monto: number | null, periodicidad: string | null): number {
   if (monto == null) return 0
-  const F: Record<string, number> = {
-    SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
-    BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
-  }
-  const p = (periodicidad || '').toUpperCase()
-  if (p in F) return monto * F[p]
-  // Compat con etiquetas legacy (minúsculas / otros idiomas).
-  const per = p.toLowerCase()
-  if (per.includes('anu') || per.includes('año') || per.includes('year')) return monto / 12
-  if (per.includes('semestr')) return monto / 6
-  if (per.includes('trimestr')) return monto / 3
-  if (per.includes('bimestr')) return monto / 2
-  if (per.includes('catorc')) return monto * (30 / 14)
-  if (per.includes('quinc')) return monto * 2
-  if (per.includes('seman')) return monto * (30 / 7)
-  if (per.includes('dia')) return monto * 30
-  return monto // mensual por defecto
+  return monto * factorMensual(periodicidad)
 }
 
 // ¿El contrato está activo (representa un costo de renta real hoy)?
@@ -841,6 +858,42 @@ function contratoActivo(estatus: string): boolean {
 // Si una pantalla con predio arrastrara además un contrato propio (los crea el
 // flujo de propuesta cuando no encuentra cobertura), gana el del predio: es la
 // regla del negocio y de paso evita sumar la renta dos veces.
+// Pantallas que NO se pueden vender todavía porque su contrato está incompleto
+// (ADR 0003). Devuelve el conjunto de ids bloqueados.
+//
+// Esta función es el ESPEJO en cliente de `exigirContratoCompleto()` del
+// servidor y las dos reglas deben coincidir: si divergen, el selector deja
+// elegir una pantalla que la API rechazará después, o —peor— tacha una que sí
+// era vendible. Concretamente:
+//
+//   · Solo INCOMPLETO y CANCELADO dejan de acreditar. VENCIDO SÍ cuenta como
+//     completo (está caducado, no incompleto), así que NO sirve `contratoActivo()`
+//     de aquí abajo, que además excluye VENCIDO.
+//   · La cobertura se mira en los dos anclajes y con el mismo discriminador que
+//     usa el resto del módulo: el contrato del predio cubre a todas sus pantallas;
+//     el contrato propio solo cuenta si NO tiene predio.
+const NO_ACREDITAN = new Set(['INCOMPLETO', 'CANCELADO'])
+
+export function sitiosSinContratoCompleto(
+  sitios: { id: string; predioId?: string | null }[],
+  contratos: { estatus: string; predioId?: string | null; sitioId: string }[],
+): Set<string> {
+  const prediosCubiertos = new Set<string>()
+  const pantallasCubiertas = new Set<string>()
+  for (const c of contratos) {
+    if (NO_ACREDITAN.has(c.estatus)) continue
+    if (c.predioId) prediosCubiertos.add(c.predioId)
+    else if (c.sitioId) pantallasCubiertas.add(c.sitioId)
+  }
+  const bloqueadas = new Set<string>()
+  for (const s of sitios) {
+    const cubierta =
+      (s.predioId != null && prediosCubiertos.has(s.predioId)) || pantallasCubiertas.has(s.id)
+    if (!cubierta) bloqueadas.add(s.id)
+  }
+  return bloqueadas
+}
+
 export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoArrendamiento> {
   const mayorRenta = (a: ContratoArrendamiento, b: ContratoArrendamiento) =>
     rentaAMensual(a.montoRenta, a.periodicidad) >= rentaAMensual(b.montoRenta, b.periodicidad) ? a : b

@@ -10,6 +10,7 @@ import {
   useSitios,
   useArrendadores,
   formatMonto,
+  type ContratoArrendamiento,
 } from '@/lib/data/client'
 import { conciliacionRenta, type ConciliacionArrendador } from '@/lib/data/derive'
 
@@ -37,11 +38,18 @@ function Importe({ monto, n, tono }: { monto: number; n: number; tono?: 'error' 
   )
 }
 
-export function ConciliacionCard() {
+export function ConciliacionCard({
+  // Contratos que sobrevivieron al filtro de la página. `undefined` = sin
+  // filtro. El cuadre se DERIVA de los contratos y sus pagos, así que acotarlos
+  // acota la tarjeta entera sin tocar su lógica.
+  contratosVisibles,
+}: {
+  contratosVisibles?: ContratoArrendamiento[]
+} = {}) {
   // Se piden solo las cinco listas que el cuadre necesita, en vez de todo el
   // store: así la tabla no se vuelve a dibujar cada vez que cambia cualquier
   // otra cosa del estado global.
-  const contratos = useContratos()
+  const todosLosContratos = useContratos()
   const pagosRenta = usePagosRenta()
   const predios = usePredios()
   const sitios = useSitios()
@@ -50,7 +58,8 @@ export function ConciliacionCard() {
 
   // `undefined` mientras el estado no ha hidratado: sin esto la tarjeta se
   // pintaría vacía un instante y parecería que no hay nada que cobrar.
-  if (!contratos || !pagosRenta) return null
+  if (!todosLosContratos || !pagosRenta) return null
+  const contratos = contratosVisibles ?? todosLosContratos
 
   const filas: ConciliacionArrendador[] = conciliacionRenta({
     contratos,
@@ -81,7 +90,7 @@ export function ConciliacionCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5">
-          <Scale className="h-4 w-4 text-muted" /> Cuadre de renta por propietario
+          <Scale className="h-4 w-4 text-muted" /> Cuadre de renta por arrendador
         </CardTitle>
         <p className="mt-0.5 text-[12px] text-muted">
           Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos.
@@ -92,7 +101,7 @@ export function ConciliacionCard() {
           <table className="w-full text-left text-[13px]">
             <thead>
               <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                <th className="px-4 py-2 font-medium">Propietario / emplazamiento</th>
+                <th className="px-4 py-2 font-medium">Arrendador / emplazamiento</th>
                 <th className="px-4 py-2 text-right font-medium">Vencido</th>
                 <th className="px-4 py-2 text-right font-medium">Pendiente</th>
                 <th className="px-4 py-2 text-right font-medium">Pagado</th>
