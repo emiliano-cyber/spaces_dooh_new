@@ -5,8 +5,9 @@ import { tenantActual } from './tenant'
 import { insertarSitio, rowToSitio } from './sitios-repo'
 import { AppError } from './errores'
 import { periodoDeIndice, montoMensualEquivalente } from '../renta-periodicidad'
-// Sin ciclo: contratos-sitio solo importa `errores` y los tipos de pg.
-import { exigirArrendador } from './contratos-sitio'
+// Sin ciclo: contratos-sitio solo importa `errores`, `predio-cercania` (puro) y
+// los tipos de pg.
+import { exigirArrendador, exigirSitioEnElPredio } from './contratos-sitio'
 import { sumarDias } from '../contrato-vigencia'
 
 // ============================================================================
@@ -378,6 +379,9 @@ export async function crearContratoConSitio(input: {
     // 3) Pantalla (misma transacción), ligada al predio: una del inventario que
     //    aún no tiene predio, o una nueva.
     const sitioId = await resolverSitioEnTx(client, tenantId, input.sitio, predioId)
+    // Misma regla que en `agregarPantallaAPredio`: la pantalla tiene que estar
+    // donde está el predio del que va a colgar su renta.
+    await exigirSitioEnElPredioPorId(client, tenantId, predioId, sitioId)
 
     // Un espacio no puede estar arrendado dos veces a la vez. Si el predio —o la
     // pantalla, cuando viene del inventario sin predio— ya tuvo un contrato, el
@@ -771,6 +775,25 @@ async function resolverSitioEnTx(
   return nuevo.id
 }
 
+// Comprueba que la pantalla ya guardada esté donde dice el predio. Se lee de la
+// BD y no del input porque `resolverSitioEnTx` acepta las dos formas —una
+// pantalla existente por id, o los datos de una nueva— y en la fila ya están
+// las dos resueltas al mismo shape.
+async function exigirSitioEnElPredioPorId(
+  client: PoolClient, tenantId: string | null, predioId: string, sitioId: string,
+): Promise<void> {
+  const { rows } = await client.query(
+    'select nombre, direccion, lat, lng from sitios where id=$1 and tenant_id=$2',
+    [sitioId, tenantId],
+  )
+  const s = rows[0]
+  if (!s) return
+  await exigirSitioEnElPredio(client, {
+    tenantId, predioId,
+    sitio: { lat: s.lat, lng: s.lng, direccion: s.direccion, nombre: s.nombre },
+  })
+}
+
 // ¿El predio ya tiene un contrato activo? La renta del predio es UNA sola: un
 // segundo contrato activo la duplicaría y el P&L solo contaría el mayor (M8 lo
 // impide también desde la BD, con un índice único parcial).
@@ -801,6 +824,9 @@ export async function agregarPantallaAPredio(predioId: string, sitio: { id: stri
     const arrendadorId = pr[0].arrendador_id
 
     const sitioId = await resolverSitioEnTx(client, tenantId, sitio, predioId)
+    // ANTES de colgarla: el predio reparte su renta entre sus pantallas, así que
+    // una que está en otra parte abarataría a las demás.
+    await exigirSitioEnElPredioPorId(client, tenantId, predioId, sitioId)
     const { rows } = await client.query(
       'update sitios set predio_id=$1, arrendador_id=$2 where id=$3 and tenant_id=$4 returning *',
       [predioId, arrendadorId, sitioId, tenantId],

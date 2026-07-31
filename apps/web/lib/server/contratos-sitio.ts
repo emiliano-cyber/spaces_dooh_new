@@ -1,6 +1,7 @@
 import 'server-only'
 import type { PoolClient } from 'pg'
 import { AppError } from './errores'
+import { evaluarCercania, RADIO_PREDIO_M, type Ubicacion } from '../predio-cercania'
 
 // ============================================================================
 //  lib/server/contratos-sitio.ts — Contrato de arrendamiento en el ALTA de una
@@ -81,6 +82,81 @@ export async function resolverPredio(
     [arrendadorId, nombre, predio.direccion?.trim() || null, tenantId],
   )
   return rows[0].id as string
+}
+
+// ─── ¿La pantalla está donde dice el predio? ────────────────────────────────
+//
+// Un predio es un inmueble físico y su renta es UNA sola, repartida entre sus
+// pantallas (`derive.ts`). Colgar de él una pantalla que está en otra parte
+// DILUYE esa renta: el costo del inmueble se reparte entre una cara de más y
+// todas sus pantallas salen más baratas de lo que son.
+//
+// La referencia se busca en dos sitios, en este orden:
+//
+//   1. Las coordenadas del PREDIO, si las tiene.
+//   2. Si no, las de una pantalla que ya cuelgue de él — la primera fijó de
+//      hecho dónde está el inmueble, aunque nadie capturara sus coordenadas.
+//
+// Si no hay ninguna de las dos, esta es la primera pantalla del predio: es ella
+// la que define el sitio y no hay nada contra qué comparar.
+//
+// `INDETERMINADO` (faltan coordenadas y las direcciones no coinciden letra por
+// letra) NO bloquea. Es ausencia de dato, no evidencia de error, y tratarlo como
+// fallo rechazaría cargas correctas cuyo Excel no trae latitud y longitud —que
+// son la mayoría—. Se bloquea solo cuando hay evidencia POSITIVA de que está
+// lejos.
+export async function exigirSitioEnElPredio(
+  client: PoolClient,
+  args: {
+    tenantId: string | null
+    predioId: string
+    sitio: Ubicacion & { nombre?: string | null }
+  },
+): Promise<void> {
+  const { tenantId, predioId, sitio } = args
+
+  const { rows } = await client.query(
+    `select p.nombre, p.direccion, p.lat, p.lng,
+            r.direccion as ref_direccion, r.latitud as ref_lat, r.longitud as ref_lng,
+            r.nombre    as ref_nombre
+       from predios p
+       left join lateral (
+         select s.nombre, s.direccion, s.lat as latitud, s.lng as longitud
+           from sitios s
+          where s.predio_id = p.id and s.tenant_id = p.tenant_id
+            and s.lat is not null and s.lng is not null
+          order by s.creado_en asc
+          limit 1
+       ) r on true
+      where p.id = $1 and p.tenant_id = $2`,
+    [predioId, tenantId],
+  )
+  const p = rows[0]
+  if (!p) return // Que el predio exista lo comprueba quien llama; aquí no se inventa un error.
+
+  // `lat`/`lng` llegan como texto (columnas `numeric`); `evaluarCercania` las
+  // coacciona, así que se pasan tal cual.
+  const referencia: Ubicacion & { que: string } =
+    p.lat != null && p.lng != null
+      ? { lat: p.lat, lng: p.lng, direccion: p.direccion, que: `el predio "${p.nombre}"` }
+      : p.ref_lat != null && p.ref_lng != null
+        ? { lat: p.ref_lat, lng: p.ref_lng, direccion: p.ref_direccion,
+            que: `"${p.ref_nombre}", que ya está en el predio "${p.nombre}"` }
+        : { lat: null, lng: null, direccion: p.direccion, que: `el predio "${p.nombre}"` }
+
+  const r = evaluarCercania(referencia, sitio)
+  if (r.estado !== 'LEJOS') return
+
+  const km = (r.metros / 1000).toFixed(1)
+  const cuanto = r.metros >= 1000 ? `${km} km` : `${r.metros} m`
+  const cual = sitio.nombre ? `"${sitio.nombre}"` : 'La pantalla'
+  throw new AppError(
+    `${cual} está a ${cuanto} de ${referencia.que}. Un predio es un solo inmueble y su renta ` +
+      `se reparte entre las pantallas que cuelgan de él, así que una que está lejos abarataría ` +
+      `a las demás. Revisa la dirección o las coordenadas, o dale su propio predio. ` +
+      `(El límite son ${RADIO_PREDIO_M} m.)`,
+    409,
+  )
 }
 
 // Cuelga una pantalla de su arrendador Y de su predio, sin abrir contrato: la

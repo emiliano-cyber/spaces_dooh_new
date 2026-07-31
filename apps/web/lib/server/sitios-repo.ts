@@ -8,6 +8,7 @@ import {
   resolverPredio,
   ligarSitioAPredio,
   abrirContratoDePredio,
+  exigirSitioEnElPredio,
   type PredioDeCarga,
 } from './contratos-sitio'
 import type { PoolClient } from 'pg'
@@ -532,6 +533,15 @@ export async function importarSitios(args: {
         // sin rastro de a quién se le paga— es justo lo que este cambio evita.
         const nuevo = await insertarSitio(client, { ...base, codigoProveedor: codigo || null })
         if (predioId) {
+          // Todas las pantallas del lote van al MISMO predio, así que cada una
+          // tiene que estar donde está el predio. Si una viene de otra colonia
+          // —un copiar/pegar en el Excel— aborta la carga entera: la
+          // transacción revierte y no queda medio lote cargado.
+          await exigirSitioEnElPredio(client, {
+            tenantId: yo,
+            predioId,
+            sitio: { lat: p.latitud, lng: p.longitud, direccion: p.direccion, nombre: p.nombre },
+          })
           // Un predio, un contrato: aquí solo se cuelga la pantalla. El contrato
           // se abre una vez al terminar el lote.
           await ligarSitioAPredio(client, { tenantId: yo, sitioId: nuevo.id, arrendadorId, predioId })
