@@ -1,3 +1,10 @@
+-- @tipo: datos
+--
+-- Esa marca la lee `.github/workflows/deploy.yml`: las migraciones de DATOS no
+-- se aplican en un despliegue normal. Hay que pedirlas explícitamente al lanzar
+-- el workflow, porque reescriben filas y no se deshacen solas. Las de esquema,
+-- al ser aditivas e idempotentes, sí van siempre.
+--
 -- ============================================================================
 --  Calendario de renta: realinear las cuotas que desbordó el mes corto.
 --
