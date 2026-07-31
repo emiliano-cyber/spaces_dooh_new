@@ -41,8 +41,11 @@ export interface FirmaVista {
   documentoHash: string | null
   // Derivado: la firma existe pero el documento ya no es el que se firmó.
   invalidada: boolean
-  // Solo para la parte externa y solo dentro de la sesión del dueño.
+  // Solo la parte externa lo tiene, y solo se entrega a quien puede comprometer
+  // a la empresa (permiso `crear` de arrendadores). Ver `firmasDeContrato`.
   token: string | null
+  // La FECHA sí viaja siempre: dice hasta cuándo sirve el enlace, que es estado
+  // del proceso, no la llave. Sin el token no abre nada.
   tokenExpiraEn: string | null
 }
 
@@ -118,7 +121,22 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
 }
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
-export async function firmasDeContrato(contratoId: string): Promise<{
+//
+// `incluirToken` NO es opcional a propósito. El token del arrendador es una
+// credencial portadora: con él se firma desde la ruta pública, sin sesión. Por
+// eso enviar a firma y firmar exigen permiso de `crear` («firmar compromete a la
+// empresa»), pero ESTA lectura iba con `ver` y devolvía el token igualmente —de
+// modo que un permiso de solo lectura entregaba la llave que se acababa de
+// negar—. Quién puede tenerlo lo decide el llamador, que es quien conoce la
+// sesión; hacerlo obligatorio fuerza a decidirlo en cada sitio nuevo en vez de
+// heredar un default silencioso.
+//
+// Ver el estado de las firmas —quién firmó, cuándo, si quedó invalidada— sigue
+// siendo de `ver`: es informacion del contrato, no una llave.
+export async function firmasDeContrato(
+  contratoId: string,
+  opts: { incluirToken: boolean },
+): Promise<{
   firmas: FirmaVista[]
   hashActual: string | null
   hashCongelado: string | null
@@ -163,7 +181,7 @@ export async function firmasDeContrato(contratoId: string): Promise<{
       documentoHash: r.documento_hash ?? null,
       invalidada:
         r.estatus === 'FIRMADA' && !!hashActual && r.documento_hash !== hashActual,
-      token: r.token ?? null,
+      token: opts.incluirToken ? (r.token ?? null) : null,
       tokenExpiraEn: iso(r.token_expira_en),
     })),
   }
@@ -207,7 +225,8 @@ export async function firmaPorToken(token: string): Promise<{
   parte: Parte
   estatus: string
   nombreEsperado: string | null
-  documento: string
+  // NULL cuando el enlace expiró: ver abajo por qué se decide aquí.
+  documento: string | null
   hash: string
   expirado: boolean
   yaFirmada: boolean
@@ -234,14 +253,34 @@ export async function firmaPorToken(token: string): Promise<{
   const r = rows[0]
   if (!r || !r.documento_congelado) return null
 
+  const expirado = !!r.token_expira_en && new Date(r.token_expira_en) < new Date()
+
   return {
     contratoId: r.contrato_id,
     parte: r.parte,
     estatus: r.estatus,
     nombreEsperado: r.nombre_esperado ?? null,
-    documento: r.documento_congelado,
+    // El TEXTO no viaja si el enlace expiró. El token es una credencial
+    // portadora: quien lo tenga puede leer el contrato entero —RFC, domicilio
+    // fiscal, importes— y devolverlo igualmente convertía una vigencia de 30
+    // días en acceso de lectura permanente. Firmar ya estaba cerrado
+    // (`firmarPorToken` responde 410), pero leer no, y el dato sensible es el
+    // texto, no la firma.
+    //
+    // La regla vive AQUÍ y no en cada consumidor porque hay DOS superficies
+    // públicas —la página /firmar/[token], que renderiza en servidor, y
+    // GET /api/firma/[token]— y una regla repetida en dos sitios es una regla
+    // que en algún momento solo se aplica en uno. Lo mismo vale para el tercer
+    // consumidor que venga.
+    //
+    // Ya FIRMADA sí sigue mostrándose mientras el enlace viva: quien acaba de
+    // firmar necesita poder volver y guardar su copia, y la ventana de 30 días
+    // es justamente el límite que se está haciendo valer.
+    documento: expirado ? null : r.documento_congelado,
+    // El hash se conserva: no es sensible —es un resumen, no el texto— y
+    // `firmarPorToken` lo necesita para sellar la firma. No se expone en la API.
     hash: r.documento_hash,
-    expirado: !!r.token_expira_en && new Date(r.token_expira_en) < new Date(),
+    expirado,
     yaFirmada: r.estatus === 'FIRMADA',
   }
 }

@@ -11,8 +11,10 @@ export const dynamic = 'force-dynamic'
 //
 // Nunca se devuelve el hash ni datos del inquilino más allá del propio texto del
 // contrato, que es justamente lo que esta persona tiene derecho a leer y firmar.
+// Y solo mientras el enlace viva: pasada su vigencia `firmaPorToken` deja de
+// mandar el texto y aquí llega ya en null.
 
-// GET /api/firma/[token] → el documento congelado a firmar.
+// GET /api/firma/[token] → el documento congelado a firmar (null si expiró).
 export async function GET(_req: Request, { params }: { params: { token: string } }) {
   const f = await firmaPorToken(params.token)
   if (!f) return NextResponse.json({ error: 'Enlace de firma no válido.' }, { status: 404 })

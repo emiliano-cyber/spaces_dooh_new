@@ -843,6 +843,44 @@ function contratoActivo(estatus: string): boolean {
   return estatus === 'VIGENTE' || estatus === 'POR_VENCER' || estatus === 'RENOVADO'
 }
 
+// ─── Qué le falta a un contrato INCOMPLETO ──────────────────────────────────
+// Los cuatro datos que exige `contrato_completo_ck`. Se dice CUÁL falta en vez
+// de dar por hecho que es el importe: un contrato abierto desde el alta de la
+// pantalla (ADR 0002) suele traer ya la renta —la trae el Excel del import— y
+// quedarse sin vigencia ni periodicidad. El aviso genérico «falta capturar su
+// importe» mandaba entonces a capturar algo que ya estaba capturado.
+interface ContratoIncompletoParcial {
+  arrendadorId?: string | null
+  fechaFin?: string | null
+  montoRenta?: number | null
+  periodicidad?: string | null
+}
+
+// Orden fijo: el mismo en que se capturan en la hoja del contrato, para que la
+// frase se lea como el recorrido del formulario y no en un orden arbitrario.
+const FALTANTES_ORDEN = ['arrendador', 'vigencia', 'importe', 'periodicidad'] as const
+
+export function faltantesDeContrato(c: ContratoIncompletoParcial): string[] {
+  const faltan: string[] = []
+  if (!c.arrendadorId) faltan.push('arrendador')
+  if (!c.fechaFin) faltan.push('vigencia')
+  if (c.montoRenta == null) faltan.push('importe')
+  if (!c.periodicidad) faltan.push('periodicidad')
+  return faltan
+}
+
+// Lo que falta EN CONJUNTO en un grupo de contratos, sin repetir, ya redactado
+// ("vigencia y periodicidad"). Cadena vacía si no falta nada: el llamador
+// decide entonces si el aviso tiene sentido siquiera.
+export function faltaEnContratos(contratos: ContratoIncompletoParcial[]): string {
+  const set = new Set<string>()
+  for (const c of contratos) for (const f of faltantesDeContrato(c)) set.add(f)
+  const l = FALTANTES_ORDEN.filter((f) => set.has(f))
+  if (!l.length) return ''
+  if (l.length === 1) return l[0]
+  return `${l.slice(0, -1).join(', ')} y ${l[l.length - 1]}`
+}
+
 // Contrato que gobierna cada pantalla. Hay DOS anclajes posibles y son
 // EXCLUYENTES entre sí:
 //
@@ -1052,8 +1090,34 @@ export function formatMontoCorto(n: number): string {
 }
 
 // Fecha dd/mm/yyyy (formato de la demo).
+//
+// Distingue DOS formas, porque llegan las dos y no se pintan igual:
+//
+//   · "YYYY-MM-DD" a secas — una fecha de CALENDARIO. Es lo que manda
+//     `pagos_renta.periodo`, que es una columna `text` y viaja literal.
+//     `new Date('2026-08-29')` la interpreta como medianoche UTC, y en México
+//     (UTC−6) eso cae a las 18:00 del día ANTERIOR: se imprimía 28/08/2026 para
+//     el 29. Es la MISMA trampa que `diasHasta` ya resolvía, y por eso la celda
+//     de vencimiento decía «28/08/2026 en 29 días» — la cuenta bien y la fecha
+//     mal, con el mismo dato. Se construye en hora LOCAL desde las partes.
+//
+//   · Con hora ("…T06:00:00.000Z") — o bien un INSTANTE real (pausa_legal_en,
+//     recordatorio_en, fecha_programada son `timestamptz`), o bien una columna
+//     `date` que el driver ya resolvió a la medianoche LOCAL del servidor. En
+//     ambos casos el día correcto es el local, así que se deja como estaba.
+//
+// OJO: eso segundo solo se sostiene mientras el servidor comparta zona con
+// quien mira. En un servidor en UTC, un `date` sale como "…T00:00:00.000Z" y un
+// navegador en México lo pinta un día antes — el mismo fallo, por la otra
+// punta. No se arregla aquí adivinando (un timestamptz legítimo puede caer
+// justo en medianoche UTC: las 18:00 de México); la solución de raíz es que el
+// driver devuelva las columnas `date` como texto plano, y entonces caen en la
+// primera rama.
 export function formatFecha(iso: string): string {
-  const d = new Date(iso)
+  const soloFecha = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  const d = soloFecha
+    ? new Date(Number(soloFecha[1]), Number(soloFecha[2]) - 1, Number(soloFecha[3]))
+    : new Date(iso)
   const dd = String(d.getDate()).padStart(2, '0')
   const mm = String(d.getMonth() + 1).padStart(2, '0')
   return `${dd}/${mm}/${d.getFullYear()}`

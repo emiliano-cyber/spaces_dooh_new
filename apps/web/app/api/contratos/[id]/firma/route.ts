@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { exigir } from '@/lib/server/auth'
+import { exigir, tienePermiso } from '@/lib/server/auth'
 import { enviarAFirma, firmasDeContrato, firmarComoArrendatario } from '@/lib/server/firmas-repo'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
@@ -9,11 +9,18 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // GET /api/contratos/[id]/firma → estado de las firmas + detección de invalidez.
+//
+// Ver el estado va con `ver`; el ENLACE del arrendador solo se entrega a quien
+// tiene `crear`. Con el token se firma desde la ruta pública sin sesión, así que
+// darlo a un permiso de solo lectura saltaba el candado que el POST de aquí
+// abajo pone justo para eso. La UI ya contempla que no venga: sin token no pinta
+// el botón de copiar el enlace.
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const g = await exigir('arrendadores', 'ver')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
-    return NextResponse.json(await firmasDeContrato(params.id))
+    const incluirToken = await tienePermiso(g.usuario.rol, 'arrendadores', 'crear')
+    return NextResponse.json(await firmasDeContrato(params.id, { incluirToken }))
   } catch (e) {
     return respuestaError(e)
   }
@@ -38,12 +45,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         userAgent: uaDeRequest(req),
       })
       await registrarAccion(g.usuario, 'Firmó contrato (arrendatario)', params.id)
-      return NextResponse.json(await firmasDeContrato(params.id))
+      // Aquí el token sí viaja: este handler ya exigió `crear` arriba.
+      return NextResponse.json(await firmasDeContrato(params.id, { incluirToken: true }))
     }
 
     const { token } = await enviarAFirma(params.id)
     await registrarAccion(g.usuario, 'Envió contrato a firma', params.id)
-    return NextResponse.json({ token, ...(await firmasDeContrato(params.id)) })
+    return NextResponse.json({ token, ...(await firmasDeContrato(params.id, { incluirToken: true })) })
   } catch (e) {
     return respuestaError(e)
   }

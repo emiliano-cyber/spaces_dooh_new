@@ -184,6 +184,13 @@ negativos) que el enum rechaza de plano. La validación en capas que da el enum
 
 ## Pendiente (no se resuelve aquí)
 
+> **RESUELTO por el [ADR 0007](0007-vencimientos-anclados-al-inicio-del-contrato.md)
+> (2026-07-31).** Se corrigió anclando cada vencimiento a la fecha de inicio y se
+> realinearon los calendarios ya generados con una migración de datos. Al medirlo
+> resultó además que el daño era mayor de lo descrito aquí: no es solo que «la
+> serie queda corrida», es que **un periodo entero desaparece** del calendario y
+> esa renta no se reclama. Lo que sigue es el texto original.
+
 `avanzarPeriodo` usa `Date.setMonth`, que **desborda en meses cortos**: del 31 de
 enero + 1 mes salen el 3 de marzo, no el 28 de febrero, y a partir de ahí la
 serie queda corrida. Es un defecto heredado, anterior a este ADR, que afecta solo

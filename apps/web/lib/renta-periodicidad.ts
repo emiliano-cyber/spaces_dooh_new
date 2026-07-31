@@ -101,33 +101,57 @@ export function montoMensualEquivalente(
 }
 
 // ─── Avance del calendario de pagos ─────────────────────────────────────────
-// Avanza una fecha de vencimiento un periodo. Los saltos en MESES usan setMonth
-// y no "N × 30 días" a propósito: sumar días se come los meses de 31 y 12 cuotas
-// mensuales desde el 1 de septiembre acabarían cayendo el 1, el 1, el 31, el 30…
+// Días o meses según la cadencia. Los saltos en MESES no son "N × 30 días" a
+// propósito: sumar días se come los meses de 31, y doce cuotas mensuales desde
+// el 1 de septiembre acabarían cayendo el 1, el 1, el 31, el 30…
+const DIAS_POR_PERIODO: Partial<Record<PeriodicidadRenta, number>> = {
+  DIARIA: 1, SEMANAL: 7, CATORCENAL: 14, QUINCENAL: 15,
+}
+const MESES_POR_PERIODO: Partial<Record<PeriodicidadRenta, number>> = {
+  MENSUAL: 1, BIMESTRAL: 2, TRIMESTRAL: 3, SEMESTRAL: 6, ANUAL: 12,
+}
+
+// Vencimiento número `k` de un contrato (k = 0 es el primero), contado desde su
+// fecha de inicio.
 //
-// OJO — defecto conocido, heredado y NO corregido aquí: setMonth desborda en los
-// meses cortos. Del 31 de enero + 1 mes salen el 3 de marzo (31 feb), no el 28,
-// y a partir de ahí la serie queda corrida. Afecta solo a contratos cuya fecha
-// de inicio cae en día 29, 30 o 31 con cadencia en meses. Corregirlo movería las
-// fechas de los calendarios YA generados —incluidos pagos ya conciliados—, así
-// que es un cambio con migración propia, no un arreglo de paso. Ver el ADR 0004,
-// «Pendiente». finanzas-calculo.ts no lo tiene porque delega en `interval` de
-// Postgres, que sí ajusta al último día del mes.
-export function avanzarPeriodo(d: Date, periodicidad: string | null | undefined): Date {
-  const n = new Date(d)
-  switch ((periodicidad || '').toUpperCase()) {
-    case 'DIARIA':     n.setDate(n.getDate() + 1); break
-    case 'SEMANAL':    n.setDate(n.getDate() + 7); break
-    case 'CATORCENAL': n.setDate(n.getDate() + 14); break
-    case 'QUINCENAL':  n.setDate(n.getDate() + 15); break
-    case 'BIMESTRAL':  n.setMonth(n.getMonth() + 2); break
-    case 'TRIMESTRAL': n.setMonth(n.getMonth() + 3); break
-    case 'SEMESTRAL':  n.setMonth(n.getMonth() + 6); break
-    case 'ANUAL':      n.setMonth(n.getMonth() + 12); break
-    case 'MENSUAL':
-    default:           n.setMonth(n.getMonth() + 1); break
+// La cuenta va ANCLADA al inicio y no acumulada sobre el vencimiento anterior, y
+// esa es toda la diferencia. Lo anterior avanzaba de uno en uno con
+// `Date.setMonth`, que DESBORDA en los meses cortos: 29 de enero + 1 mes daba el
+// 1 de marzo —febrero se quedaba sin cuota— y desde ahí la serie entera caía el
+// día 1. Se veía en la demo: un contrato del 29 sin cuota en febrero de 2027 y
+// con todos los vencimientos posteriores el día 1.
+//
+// Anclar no basta por sí solo: hay que recortar el día al último del mes destino
+// y volver a soltarlo en el siguiente. Con `k` meses sobre el ancla, febrero
+// recorta a 28 y marzo recupera el 29:
+//
+//     acumulado:  29-ene → 28-feb → 28-mar → 28-abr…   (el 28 se queda pegado)
+//     anclado:    29-ene → 28-feb → 29-mar → 29-abr…   (solo febrero cede)
+//
+// Es la misma semántica que `fecha + interval 'k months'` de PostgreSQL, que es
+// lo que ya hacía `lib/finanzas-calculo.ts` y por eso nunca tuvo este defecto.
+// Ver el ADR 0007 y la migración 20260731_calendario_meses_cortos.sql, que
+// realinea los calendarios generados antes de este cambio.
+export function periodoDeIndice(
+  inicio: Date,
+  k: number,
+  periodicidad: string | null | undefined,
+): Date {
+  const p = (periodicidad || '').toUpperCase() as PeriodicidadRenta
+  const dias = DIAS_POR_PERIODO[p]
+  if (dias) {
+    const d = new Date(inicio)
+    d.setDate(d.getDate() + k * dias)
+    return d
   }
-  return n
+  // Mensual por defecto, igual que la columna de la BD.
+  const meses = MESES_POR_PERIODO[p] ?? 1
+  const ancla = inicio.getDate()
+  const destino = new Date(inicio.getFullYear(), inicio.getMonth() + k * meses, 1)
+  // Día 0 del mes siguiente = último día del mes destino.
+  const ultimoDelMes = new Date(destino.getFullYear(), destino.getMonth() + 1, 0).getDate()
+  destino.setDate(Math.min(ancla, ultimoDelMes))
+  return destino
 }
 
 // ─── Recordatorios de pago ──────────────────────────────────────────────────

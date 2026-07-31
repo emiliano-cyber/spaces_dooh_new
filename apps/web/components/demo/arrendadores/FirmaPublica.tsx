@@ -13,7 +13,10 @@ export function FirmaPublica({
   yaFirmada,
 }: {
   token: string
-  documento: string
+  // Null cuando el enlace expiró: el servidor deja de mandar el texto (ver
+  // `firmaPorToken`). No es un caso de error — es la vigencia haciendo su
+  // trabajo— así que se explica, no se deja la hoja en blanco.
+  documento: string | null
   nombreEsperado: string | null
   expirado: boolean
   yaFirmada: boolean
@@ -81,9 +84,19 @@ export function FirmaPublica({
       </div>
 
       <article className="doc-hoja">
-        {/* El documento congelado se muestra tal cual se selló: texto plano, sin
-            reinterpretarlo. Cualquier reformateo cambiaría lo que se firma. */}
-        <pre className="doc-congelado">{documento}</pre>
+        {documento === null ? (
+          <div className="doc-aviso-caja">
+            <h1 className="doc-titulo">El enlace expiró</h1>
+            <p className="doc-p">
+              Por seguridad, el texto del contrato ya no se muestra desde este enlace. Pide
+              al remitente que te envíe uno nuevo y podrás leerlo y firmarlo.
+            </p>
+          </div>
+        ) : (
+          /* El documento congelado se muestra tal cual se selló: texto plano, sin
+             reinterpretarlo. Cualquier reformateo cambiaría lo que se firma. */
+          <pre className="doc-congelado">{documento}</pre>
+        )}
 
         {!cerrado && (
           <div className="doc-panel-firma doc-no-print">

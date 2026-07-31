@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { StatusBadge, CONTRATO_TONO, CONTRATO_LABEL } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
-import { useContratos, formatMonto, formatFecha, diasHasta } from '@/lib/data/client'
+import { useContratos, formatMonto, formatFecha, diasHasta, faltaEnContratos } from '@/lib/data/client'
 import { periodicidadLabel, textoVencimiento } from '@/lib/renta-periodicidad'
 
 // ============================================================================
@@ -40,6 +40,7 @@ export function CompromisoRentaCard() {
 
   const activos = contratos.filter((c) => ACTIVOS.includes(c.estatus))
   const incompletos = contratos.filter((c) => c.estatus === 'INCOMPLETO')
+  const faltaEnIncompletos = faltaEnContratos(incompletos)
   // Los VENCIDOS se LISTAN pero no se SUMAN. Antes se filtraban por completo y
   // desaparecían de Finanzas: un contrato caducado dejaba de existir en la
   // pantalla justo cuando hay que decidir si se renueva o se deja morir, y si
@@ -139,8 +140,10 @@ export function CompromisoRentaCard() {
         {incompletos.length > 0 && (
           // Sin esto el total se lee como el costo real y se subestima el gasto.
           <p className="px-4 py-2.5 text-[12px] text-muted">
-            El total no incluye {incompletos.length} contrato{incompletos.length === 1 ? '' : 's'} sin
-            importe capturado: el costo real es mayor.{' '}
+            El total no incluye {incompletos.length} contrato{incompletos.length === 1 ? '' : 's'}{' '}
+            incompleto{incompletos.length === 1 ? '' : 's'}
+            {/* Igual que en Arrendadores: qué falta se deriva, no se supone. */}
+            {faltaEnIncompletos ? ` (falta ${faltaEnIncompletos})` : ''}: el costo real es mayor.{' '}
             {puedeCompletar && (
               <Link href="/arrendadores" className="text-info hover:underline">
                 Completar información

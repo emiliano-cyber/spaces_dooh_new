@@ -75,6 +75,8 @@ export {
   otAbierta,
   funnelPropuestas,
   sitiosSinContratoCompleto,
+  faltantesDeContrato,
+  faltaEnContratos,
   diasHasta,
   medioLabel,
   formatMonto,

@@ -39,6 +39,7 @@ import {
   useCampanas,
   formatMonto,
   formatFecha,
+  faltaEnContratos,
   diasHasta,
   type ContratoArrendamiento,
   type MargenSitio,
@@ -143,7 +144,9 @@ export default function ArrendadoresPage() {
     (c) => c.estatus === 'VIGENTE' || c.estatus === 'POR_VENCER' || c.estatus === 'RENOVADO',
   )
   const rentaMensual = activos.reduce((s, c) => s + (c.montoMensualEquivalente ?? 0), 0)
-  const incompletos = (contratos ?? []).filter((c) => c.estatus === 'INCOMPLETO').length
+  const contratosIncompletos = (contratos ?? []).filter((c) => c.estatus === 'INCOMPLETO')
+  const incompletos = contratosIncompletos.length
+  const faltaEnIncompletos = faltaEnContratos(contratosIncompletos)
 
   return (
     <div className="w-full space-y-4">
@@ -228,7 +231,12 @@ export default function ArrendadoresPage() {
         // se dice, se lee como la renta real y se subestima el costo.
         <p className="-mt-1 text-[12px] text-muted">
           La renta mensual no incluye {incompletos} contrato{incompletos === 1 ? '' : 's'} incompleto
-          {incompletos === 1 ? '' : 's'}: falta capturar su importe, así que el costo real es mayor.
+          {incompletos === 1 ? '' : 's'}
+          {/* Qué falta se DERIVA de los contratos, no se supone: la mayoría de
+              los incompletos llega del alta de la pantalla ya con el importe y
+              sin vigencia, y el aviso fijo pedía capturar lo que ya estaba. */}
+          {faltaEnIncompletos ? `: falta capturar ${faltaEnIncompletos}` : ''}, así que el costo real
+          es mayor.
         </p>
       )}
 
