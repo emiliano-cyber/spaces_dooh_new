@@ -1,6 +1,25 @@
 # Runbook de despliegue — Fase 1 Arrendadores
 
-**Destino:** 209.97.146.136 · `/var/www/Spaces` · proceso PM2 `spaces-web`
+**Destino:** 209.97.146.136 · `/var/www/Spaces` · proceso PM2 `spaces-web` ·
+base de datos **`spaces_prod`** (no `spaces`, que es el nombre en local)
+
+> La revisión 1 de este runbook decía `-d spaces` en los nueve comandos de
+> `psql` y `pg_dump`, copiado del entorno local. En producción esa base **no
+> existe** y todos fallan con `FATAL: database "spaces" does not exist`. Es una
+> explicación plausible de por qué el despliegue del 2026-07-30 nunca se
+> completó. Antes de empezar, confírmalo en la máquina y no te fíes de este
+> documento:
+>
+> ```
+> sudo -u postgres psql -l
+> ```
+>
+> Y si hay duda de cuál usa la app de verdad, sale de su propia configuración,
+> sin exponer credenciales:
+>
+> ```
+> cd /var/www/Spaces && node -e "const u=new URL(require('fs').readFileSync('apps/web/.env.production','utf8').match(/DATABASE_URL=(.+)/)[1]); console.log(u.hostname+':'+(u.port||5432)+u.pathname)"
+> ```
 **Rama:** `main` — asume que `feat/arrendadores-fase1-prod` (punta `36acb4a`) ya
 está mergeada, como se hizo con el PR #8
 **Fecha:** 2026-07-31 (revisión 2; la 1 fue del 2026-07-30)
@@ -116,7 +135,7 @@ git log --oneline -1
 ## Bloque 1 — Backup
 
 ```
-sudo -u postgres pg_dump -d spaces -Fc -f ~/spaces_$(date +%Y%m%d_%H%M).dump
+sudo -u postgres pg_dump -d spaces_prod -Fc -f ~/spaces_$(date +%Y%m%d_%H%M).dump
 ls -lh ~/spaces_*.dump | tail -1
 ```
 
@@ -135,7 +154,7 @@ bloque 3B. No sigas sin él.
 Lectura: `1` = ya está aplicada · `0` = falta
 
 ```
-sudo -u postgres psql -d spaces -c "
+sudo -u postgres psql -d spaces_prod -c "
 select 'contrato_firmas' o, count(*) ok from information_schema.tables where table_name='contrato_firmas'
 union all select 'documento_congelado', count(*) from information_schema.columns where table_name='contratos_arrendamiento' and column_name='documento_congelado'
 union all select 'tenants.rfc', count(*) from information_schema.columns where table_name='tenants' and column_name='rfc'
@@ -151,7 +170,7 @@ Esto no cambia nada: cuenta el alcance del bloque 3B para poder compararlo
 después. Anota el número.
 
 ```
-sudo -u postgres psql -d spaces -c "
+sudo -u postgres psql -d spaces_prod -c "
 with contrato as (
   select c.id, c.fecha_inicio, c.fecha_fin,
          case c.periodicidad when 'MENSUAL' then 1 when 'BIMESTRAL' then 2
@@ -186,16 +205,16 @@ Todas idempotentes: si alguna ya corrió, no hace nada. Se aplican con `psql` co
 `.env`. `ON_ERROR_STOP` aborta al primer error.
 
 ```
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f db/migrations/20260729_licencias_permisos.sql
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f db/migrations/20260729_datos_contrato_documento.sql
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f db/migrations/20260729_firma_contrato.sql
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260729_licencias_permisos.sql
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260729_datos_contrato_documento.sql
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260729_firma_contrato.sql
 ```
 
 DIARIA va **sola y al final**: PostgreSQL no permite usar un valor de enum recién
 agregado dentro de la misma transacción que lo agrega.
 
 ```
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f db/migrations/20260729_periodicidad_diaria.sql
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260729_periodicidad_diaria.sql
 ```
 
 ---
@@ -210,7 +229,7 @@ pudo reparar solo existe ahí: no queda en ninguna tabla, y son los que necesita
 que una persona los mire.
 
 ```
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 \
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 \
   -f db/migrations/20260731_calendario_meses_cortos.sql \
   2>&1 | tee ~/migracion_0007_$(date +%Y%m%d_%H%M).log
 ```
@@ -328,7 +347,7 @@ npm ci && npm --prefix apps/web run build && pm2 reload spaces-web
 **Datos** (solo si además hay que deshacer el bloque 3B):
 
 ```
-sudo -u postgres pg_restore -d spaces --data-only --table=pagos_renta \
+sudo -u postgres pg_restore -d spaces_prod --data-only --table=pagos_renta \
   --clean <backup del bloque 1>
 ```
 

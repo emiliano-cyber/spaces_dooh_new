@@ -1,0 +1,78 @@
+name: CI
+
+# ============================================================================
+#  Verificación de cada PR: typecheck, pruebas y build de producción.
+#
+#  Hasta ahora ningún workflow corría las pruebas, y el typecheck y el build solo
+#  se hacían en `deploy.yml`, que se disparaba en `main`: cuando fallaban, ya
+#  estaba mergeado. En los PRs solo corría `lockfile-check`, así que un PR en
+#  verde no significaba gran cosa.
+#
+#  El build va incluido a propósito, aunque sea el paso más lento. El modo de
+#  fallo que cierra no es hipotético: la rama de la Fase 1 llegó a quedarse sin
+#  compilar en un clon limpio porque unos módulos que se importaban nunca se
+#  habían commiteado (ver 1d76f15). En el working tree todo pasaba; en un clon,
+#  no. Un runner siempre parte de un clon limpio, que es justo lo que hace falta.
+#
+#  SEGURIDAD — dos cosas que deben quedarse como están:
+#
+#   · El disparador es `pull_request` y NO `pull_request_target`. La diferencia
+#     importa: `pull_request_target` corre con los secretos del repo y con el
+#     contexto del repositorio base, así que un PR desde un fork podría alterar
+#     lo que se ejecuta —un script de build, una dependencia— y quedarse con los
+#     secretos. Con `pull_request` el código no confiable corre sin secretos.
+#   · Este workflow no necesita ningún secreto y no debe recibirlos nunca. Si
+#     algún día hace falta desplegar o publicar algo, va en OTRO workflow con su
+#     propio disparador, no aquí.
+#
+#  `permissions: contents: read` aplica el mismo criterio al GITHUB_TOKEN: solo
+#  leer el repo. Sin esto hereda los permisos por defecto de la organización, que
+#  pueden incluir escritura.
+# ============================================================================
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Un push nuevo al PR cancela la corrida anterior: lo que importa es el último
+# commit, y las anteriores solo gastan minutos y confunden el estado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck · pruebas · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # `npm ci` y no `npm install`: instala exactamente lo que dice el lockfile
+      # y falla si package.json y package-lock.json no están en sync, en vez de
+      # arreglarlo por su cuenta y hacer que el CI pruebe otro árbol de
+      # dependencias que el de nadie más.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # De más rápido a más lento, para que el fallo llegue cuanto antes.
+      - name: Typecheck
+        run: npx turbo run typecheck --filter=web
+
+      - name: Pruebas
+        run: npx turbo run test --filter=web
+
+      - name: Build de producción
+        run: npx turbo run build --filter=web
