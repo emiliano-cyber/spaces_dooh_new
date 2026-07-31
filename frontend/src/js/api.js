@@ -87,6 +87,10 @@ const API = {
         const data = await res.json();
         if (!data || !data.access_token) return false;
         localStorage.setItem('access_token', data.access_token);
+        // Sesion deslizante: cuando al refresh token le queda poca vida el
+        // backend manda uno nuevo. Si no lo guardaramos, la sesion moriria a
+        // los 7 dias aunque la persona use el sistema todos los dias.
+        if (data.refresh_token) localStorage.setItem('refresh_token', data.refresh_token);
         return true;
       } catch {
         return false;

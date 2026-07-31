@@ -3,13 +3,33 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { pool } from '../config/database';
-import { userJwt } from '../utils/jwt';
+import { userJwt, UserTokenPayload } from '../utils/jwt';
 import { z } from 'zod';
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6),
 });
+
+// Sesion deslizante: al refrescar se emite tambien un refresh token nuevo si al
+// actual ya le queda poca vida. Asi quien usa el sistema no vuelve a capturar
+// su contrasena cada 7 dias; solo caduca de verdad quien no entra en 7 dias.
+// Con JWT_REFRESH_TTL=7d, renovar cuando quedan <6 dias significa como mucho un
+// token nuevo al dia por navegador (y no uno por cada refresh, cada 15 min).
+const RENOVAR_SI_QUEDA_MENOS_DE_MS = 6 * 24 * 60 * 60 * 1000;
+
+// Guarda el hash de un refresh token con la MISMA caducidad que lleva el JWT
+// dentro (asi la fila de la BD y el token nunca se desincronizan aunque cambie
+// JWT_REFRESH_TTL).
+async function guardarRefreshToken(userId: number, token: string) {
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const { exp } = userJwt.verify(token) as UserTokenPayload & { exp: number };
+  await pool.query(
+    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+     VALUES (?, ?, FROM_UNIXTIME(?))`,
+    [userId, tokenHash, exp]
+  );
+}
 
 export async function login(req: Request, res: Response) {
   const parsed = loginSchema.safeParse(req.body);
@@ -38,12 +58,10 @@ export async function login(req: Request, res: Response) {
   const access = userJwt.sign({ uid: user.id, role: user.role }, 'access');
   const refresh = userJwt.sign({ uid: user.id, role: user.role }, 'refresh');
 
-  const refreshHash = crypto.createHash('sha256').update(refresh).digest('hex');
-  await pool.query(
-    `INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-     VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY))`,
-    [user.id, refreshHash]
-  );
+  await guardarRefreshToken(user.id, refresh);
+
+  // Limpieza: las filas ya caducadas no autorizan nada y la tabla solo crecia.
+  await pool.query(`DELETE FROM refresh_tokens WHERE expires_at < DATE_SUB(NOW(), INTERVAL 1 DAY)`);
 
   await pool.query(`UPDATE users SET last_login_at = NOW() WHERE id = ?`, [user.id]);
 
@@ -68,18 +86,31 @@ export async function refresh(req: Request, res: Response) {
 
     const tokenHash = crypto.createHash('sha256').update(refresh_token).digest('hex');
     const [rows] = await pool.query<any[]>(
-      `SELECT id FROM refresh_tokens
+      `SELECT id, expires_at FROM refresh_tokens
        WHERE user_id = ? AND token_hash = ? AND revoked = FALSE AND expires_at > NOW()
        LIMIT 1`,
       [payload.uid, tokenHash]
     );
 
-    if (!(rows as any[])[0]) {
+    const fila = (rows as any[])[0];
+    if (!fila) {
       return res.status(401).json({ error: 'invalid_refresh_token' });
     }
 
     const access = userJwt.sign({ uid: payload.uid, role: payload.role }, 'access');
-    res.json({ access_token: access });
+    const respuesta: { access_token: string; refresh_token?: string } = { access_token: access };
+
+    // Sesion deslizante (ver RENOVAR_SI_QUEDA_MENOS_DE_MS).
+    const restanteMs = new Date(fila.expires_at).getTime() - Date.now();
+    if (restanteMs < RENOVAR_SI_QUEDA_MENOS_DE_MS) {
+      const nuevoRefresh = userJwt.sign({ uid: payload.uid, role: payload.role }, 'refresh');
+      await guardarRefreshToken(payload.uid, nuevoRefresh);
+      // El anterior NO se revoca: otra pestana del mismo navegador puede estar a
+      // punto de usarlo y la cerrariamos sin motivo. Caduca solo (<=7 dias).
+      respuesta.refresh_token = nuevoRefresh;
+    }
+
+    res.json(respuesta);
   } catch {
     return res.status(401).json({ error: 'invalid_token' });
   }
