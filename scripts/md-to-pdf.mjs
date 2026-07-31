@@ -114,8 +114,16 @@ while (i < md.length) {
     continue
   }
 
-  // Párrafo
-  const buf = []
+  // Párrafo. La primera línea se consume SIEMPRE; el guard solo decide hasta
+  // dónde sigue el párrafo.
+  //
+  // Consumirla incondicionalmente no es cosmético: si el guard se aplicara
+  // también a ella, una línea que llega hasta aquí empezando por uno de esos
+  // caracteres —un backtick suelto al inicio de un renglón, un `|` sin fila
+  // separadora debajo— no entraría en el bucle, `buf` quedaría vacío, `i` no
+  // avanzaría y el bucle principal no terminaría nunca. No falla con un error:
+  // acumula `<p></p>` hasta agotar la memoria del proceso.
+  const buf = [inline(md[i++])]
   while (i < md.length && md[i].trim() !== '' && !/^[#>|`]/.test(md[i]) && !/^\s*[-*]\s+/.test(md[i]) && !/^---+\s*$/.test(md[i])) {
     buf.push(inline(md[i++]))
   }
