@@ -4,7 +4,7 @@ import { q, q1, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio, rowToSitio } from './sitios-repo'
 import { AppError } from './errores'
-import { avanzarPeriodo, montoMensualEquivalente } from '../renta-periodicidad'
+import { periodoDeIndice, montoMensualEquivalente } from '../renta-periodicidad'
 // Sin ciclo: contratos-sitio solo importa `errores` y los tipos de pg.
 import { exigirArrendador } from './contratos-sitio'
 import { sumarDias } from '../contrato-vigencia'
@@ -76,7 +76,11 @@ async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<n
 
   const params: unknown[] = []
   const values: string[] = []
-  let cursor = new Date(inicio)
+  // El vencimiento se calcula desde el ÍNDICE sobre la fecha de inicio, no
+  // avanzando sobre el anterior: acumular arrastra el recorte de los meses
+  // cortos y descuadra la serie entera. Ver `periodoDeIndice` y el ADR 0007.
+  let k = 0
+  let cursor = periodoDeIndice(inicio, 0, c.periodicidad)
   while (cursor <= fin) {
     if (values.length >= MAX_CUOTAS) {
       throw new AppError(
@@ -91,7 +95,8 @@ async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<n
     const b = params.length
     values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5}::est_pago_renta)`)
     params.push(c.id, c.tenantId, periodo, c.montoRenta, estatus)
-    cursor = avanzarPeriodo(cursor, c.periodicidad)
+    k += 1
+    cursor = periodoDeIndice(inicio, k, c.periodicidad)
   }
   if (!values.length) return 0
   const res = await client.query(

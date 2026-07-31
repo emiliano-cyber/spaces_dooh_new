@@ -5,7 +5,7 @@ import {
   DIAS_AVISO_PAGO,
   factorMensual,
   montoMensualEquivalente,
-  avanzarPeriodo,
+  periodoDeIndice,
   periodicidadLabel,
   diasAvisoPago,
   diasCriticoPago,
@@ -53,13 +53,14 @@ describe('cobertura del enum: ninguna tabla puede quedarse atrás', () => {
   })
 
   it('toda periodicidad avanza el vencimiento (ninguna cae en el default mensual por descuido)', () => {
-    // Un valor que no esté en el switch de `avanzarPeriodo` cae en el default y
-    // avanza un mes. Se detecta comprobando que cada cadencia produce un salto
-    // DISTINTO de los demás, salvo MENSUAL que es el default legítimo.
-    const desde = new Date('2026-01-01T00:00:00Z')
+    // Una cadencia que no esté en ninguna de las dos tablas de `periodoDeIndice`
+    // cae en el default y avanza un mes. Se detecta comprobando que cada una
+    // produce un salto DISTINTO de las demás, salvo MENSUAL que es el default
+    // legítimo.
+    const desde = new Date(2026, 0, 1)
     const saltos = new Map<number, PeriodicidadRenta[]>()
     for (const p of VALORES) {
-      const dias = Math.round((avanzarPeriodo(desde, p).getTime() - desde.getTime()) / 86_400_000)
+      const dias = Math.round((periodoDeIndice(desde, 1, p).getTime() - desde.getTime()) / 86_400_000)
       saltos.set(dias, [...(saltos.get(dias) ?? []), p])
     }
     for (const [dias, ps] of saltos) {
@@ -108,32 +109,88 @@ describe('factor mensual', () => {
 })
 
 describe('avance del calendario de pagos', () => {
+  // Fechas de CALENDARIO en hora local, que es como llegan aquí: el generador
+  // construye el inicio desde una columna `date`, que el driver resuelve a la
+  // medianoche local. Escribirlas como '2026-03-10T00:00:00Z' significaría el 9
+  // en México y el 10 en UTC, y el test diría cosas distintas según dónde corra.
+  const fecha = (a: number, m: number, d: number) => new Date(a, m - 1, d)
+  const ymd = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+  it('el índice 0 es la fecha de inicio', () => {
+    expect(ymd(periodoDeIndice(fecha(2026, 3, 10), 0, 'MENSUAL'))).toBe('2026-03-10')
+  })
+
   it('DIARIA avanza un día', () => {
-    expect(avanzarPeriodo(new Date('2026-03-10T00:00:00Z'), 'DIARIA').toISOString().slice(0, 10))
-      .toBe('2026-03-11')
+    expect(ymd(periodoDeIndice(fecha(2026, 3, 10), 1, 'DIARIA'))).toBe('2026-03-11')
   })
 
   it('los saltos en meses conservan el día del mes', () => {
-    const jun = avanzarPeriodo(new Date('2026-03-15T00:00:00Z'), 'TRIMESTRAL')
-    expect(jun.toISOString().slice(0, 10)).toBe('2026-06-15')
-    const dic = avanzarPeriodo(new Date('2026-10-01T00:00:00Z'), 'BIMESTRAL')
-    expect(dic.toISOString().slice(0, 10)).toBe('2026-12-01')
+    expect(ymd(periodoDeIndice(fecha(2026, 3, 15), 1, 'TRIMESTRAL'))).toBe('2026-06-15')
+    expect(ymd(periodoDeIndice(fecha(2026, 10, 1), 1, 'BIMESTRAL'))).toBe('2026-12-01')
   })
 
-  // Este test NO describe el comportamiento deseado: FIJA el defecto heredado
-  // para que el día que se corrija (con su migración de calendarios, ver ADR
-  // 0004) el cambio sea deliberado y no un efecto colateral silencioso.
-  it('DEFECTO CONOCIDO: los meses cortos desbordan al mes siguiente', () => {
-    // 31 de enero + 1 mes debería ser el 28 de febrero; setMonth da el 3 de marzo.
-    const feb = avanzarPeriodo(new Date('2026-01-31T00:00:00Z'), 'MENSUAL')
-    expect(feb.toISOString().slice(0, 10)).toBe('2026-03-03')
+  // ─── El defecto que corrigió el ADR 0007 ─────────────────────────────────
+  // Antes se avanzaba de uno en uno con `Date.setMonth`, que desborda: del 31 de
+  // enero + 1 mes salía el 3 de marzo. Febrero se quedaba SIN cuota y la serie
+  // entera pasaba a caer a principios de mes.
+  it('un mes corto recorta al último día, no desborda al siguiente', () => {
+    expect(ymd(periodoDeIndice(fecha(2026, 1, 31), 1, 'MENSUAL'))).toBe('2026-02-28')
+    expect(ymd(periodoDeIndice(fecha(2027, 1, 29), 1, 'MENSUAL'))).toBe('2027-02-28')
+    expect(ymd(periodoDeIndice(fecha(2026, 3, 31), 1, 'MENSUAL'))).toBe('2026-04-30')
+  })
+
+  // La otra mitad, y la razón de anclar al inicio en vez de acumular: tras el
+  // mes corto el día ANCLA se recupera. Acumulando, el 28 se quedaría pegado
+  // para siempre y la renta se cobraría un día antes cada mes a partir de ahí.
+  it('después del mes corto se recupera el día original', () => {
+    expect(ymd(periodoDeIndice(fecha(2027, 1, 29), 2, 'MENSUAL'))).toBe('2027-03-29')
+    expect(ymd(periodoDeIndice(fecha(2026, 1, 31), 2, 'MENSUAL'))).toBe('2026-03-31')
+    expect(ymd(periodoDeIndice(fecha(2026, 1, 31), 3, 'MENSUAL'))).toBe('2026-04-30')
+  })
+
+  it('el 29 de febrero solo existe en año bisiesto', () => {
+    expect(ymd(periodoDeIndice(fecha(2028, 1, 29), 1, 'MENSUAL'))).toBe('2028-02-29')
+    // ANUAL desde un 29 de febrero: el año siguiente no lo tiene.
+    expect(ymd(periodoDeIndice(fecha(2028, 2, 29), 1, 'ANUAL'))).toBe('2029-02-28')
+    expect(ymd(periodoDeIndice(fecha(2028, 2, 29), 4, 'ANUAL'))).toBe('2032-02-29')
   })
 
   it('cruza el año correctamente', () => {
-    expect(avanzarPeriodo(new Date('2026-12-31T00:00:00Z'), 'DIARIA').toISOString().slice(0, 10))
-      .toBe('2027-01-01')
-    expect(avanzarPeriodo(new Date('2026-05-20T00:00:00Z'), 'ANUAL').toISOString().slice(0, 10))
-      .toBe('2027-05-20')
+    expect(ymd(periodoDeIndice(fecha(2026, 12, 31), 1, 'DIARIA'))).toBe('2027-01-01')
+    expect(ymd(periodoDeIndice(fecha(2026, 5, 20), 1, 'ANUAL'))).toBe('2027-05-20')
+  })
+
+  // La serie completa de un contrato: es lo que genera `generarCalendarioEnTx`.
+  it('la serie de un contrato del día 29 no se salta febrero', () => {
+    const inicio = fecha(2026, 12, 29)
+    const serie = Array.from({ length: 4 }, (_, k) => ymd(periodoDeIndice(inicio, k, 'MENSUAL')))
+    expect(serie).toEqual(['2026-12-29', '2027-01-29', '2027-02-28', '2027-03-29'])
+  })
+
+  // Cruce con la MIGRACIÓN. `20260731_calendario_meses_cortos.sql` recalcula el
+  // calendario correcto en SQL (`inicio + k meses`), y esta función lo recalcula
+  // en TypeScript. Si divergieran, la migración realinearía los calendarios y la
+  // app volvería a torcerlos en la siguiente edición del contrato —o al revés—,
+  // y el desacuerdo se vería como cuotas que aparecen y desaparecen solas.
+  //
+  // La lista es la que devolvió la migración corriendo contra la base, para el
+  // contrato de la demo (29/07/2026 → 01/03/2028, MENSUAL).
+  it('coincide con la serie que calcula la migración en SQL', () => {
+    const inicio = fecha(2026, 7, 29)
+    const fin = fecha(2028, 3, 1)
+    const serie: string[] = []
+    for (let k = 0; ; k++) {
+      const d = periodoDeIndice(inicio, k, 'MENSUAL')
+      if (d > fin) break
+      serie.push(ymd(d))
+    }
+    expect(serie).toEqual([
+      '2026-07-29', '2026-08-29', '2026-09-29', '2026-10-29', '2026-11-29', '2026-12-29',
+      '2027-01-29', '2027-02-28', '2027-03-29', '2027-04-29', '2027-05-29', '2027-06-29',
+      '2027-07-29', '2027-08-29', '2027-09-29', '2027-10-29', '2027-11-29', '2027-12-29',
+      '2028-01-29', '2028-02-29',
+    ])
   })
 })
 
