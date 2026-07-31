@@ -49,7 +49,9 @@ function genInputFromRow(r: any): GenInput {
 
 // Genera (idempotente) la serie de pagos de un contrato dentro de su vigencia.
 // Un periodo cuyo vencimiento ya pasó e impago queda VENCIDO; el resto PENDIENTE.
-// NO inventa pagos (no marca PAGADO). Reejecutar no duplica (ON CONFLICT).
+// NO inventa pagos (no marca PAGADO). Reejecutar no duplica (ON CONFLICT), pero
+// sí pone al día el IMPORTE de las cuotas no pagadas: el calendario es una
+// proyección del contrato y tiene que seguirlo (ver el detalle abajo).
 // Recibe un client YA en transacción con el tenant fijado.
 // Genera el calendario de un contrato dentro de una transacción AJENA (la que
 // crea la campaña). Se expone esta y no las dos internas para que el llamador no
@@ -98,6 +100,39 @@ async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<n
      on conflict (contrato_id, periodo) do nothing`,
     params,
   )
+
+  // Reajuste del importe de las cuotas que YA existían. El `do nothing` de
+  // arriba, por definición, no las toca: al corregir la renta de un contrato
+  // solo los periodos NUEVOS nacían con el importe nuevo y los viejos se
+  // quedaban con el anterior, sin que nada lo dijera. El calendario acababa
+  // mezclando dos precios del mismo contrato —se ve en la demo: una cuota de
+  // 45 000 y diecinueve de 66 000— y Finanzas seguía programando la salida de
+  // dinero equivocada. Peor: no hay forma de editar una cuota suelta, así que
+  // tampoco había manera de arreglarlo a mano.
+  //
+  // Se reajusta TODO lo no pagado, no solo lo futuro, porque editar el importe
+  // aquí es una CORRECCIÓN y no un aumento de renta:
+  //
+  //   · `pagos_renta` es una proyección del contrato, no un libro aparte. El
+  //     único hecho consumado es PAGADO —ahí hubo una transferencia real— y por
+  //     eso es lo único que se respeta.
+  //   · Un contrato FIRMADO no se puede editar (`editarContrato` responde
+  //     `firmado`), así que todo lo que llega hasta aquí es un acuerdo que aún
+  //     no obliga a nadie. Un aumento de renta de verdad se modela con un
+  //     contrato NUEVO —el guard de traslape ya obliga a que empiece donde
+  //     termina el anterior—, no reescribiendo este.
+  //
+  // `is distinct from` y no `<>`: con `monto` NULL el `<>` daría NULL, la fila
+  // no entraría en el WHERE y la cuota se quedaría sin importe para siempre.
+  await client.query(
+    `update pagos_renta
+        set monto = $2
+      where contrato_id = $1
+        and estatus <> 'PAGADO'
+        and monto is distinct from $2`,
+    [c.id, c.montoRenta],
+  )
+
   return res.rowCount ?? 0
 }
 
@@ -1036,10 +1071,11 @@ export async function editarContrato(id: string, patch: {
         where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
       vals,
     )
-    // Sincroniza el calendario con las nuevas fechas/monto (idempotente: solo
-    // agrega los periodos faltantes; no toca los pagos existentes). Si esto falla
-    // —p. ej. la vigencia nueva excede MAX_CUOTAS— la transacción revierte también
-    // el UPDATE de arriba y el contrato queda como estaba.
+    // Sincroniza el calendario con las nuevas fechas/monto: agrega los periodos
+    // que falten y reajusta el importe de las cuotas que no estén PAGADAS, para
+    // que el calendario no quede con el precio viejo. Si esto falla —p. ej. la
+    // vigencia nueva excede MAX_CUOTAS— la transacción revierte también el
+    // UPDATE de arriba y el contrato queda como estaba.
     await generarCalendarioEnTx(client, genInputFromRow(rows[0]))
     return { contrato: rowToContrato(rows[0]) }
   })
