@@ -207,7 +207,8 @@ export async function firmaPorToken(token: string): Promise<{
   parte: Parte
   estatus: string
   nombreEsperado: string | null
-  documento: string
+  // NULL cuando el enlace expiró: ver abajo por qué se decide aquí.
+  documento: string | null
   hash: string
   expirado: boolean
   yaFirmada: boolean
@@ -234,14 +235,34 @@ export async function firmaPorToken(token: string): Promise<{
   const r = rows[0]
   if (!r || !r.documento_congelado) return null
 
+  const expirado = !!r.token_expira_en && new Date(r.token_expira_en) < new Date()
+
   return {
     contratoId: r.contrato_id,
     parte: r.parte,
     estatus: r.estatus,
     nombreEsperado: r.nombre_esperado ?? null,
-    documento: r.documento_congelado,
+    // El TEXTO no viaja si el enlace expiró. El token es una credencial
+    // portadora: quien lo tenga puede leer el contrato entero —RFC, domicilio
+    // fiscal, importes— y devolverlo igualmente convertía una vigencia de 30
+    // días en acceso de lectura permanente. Firmar ya estaba cerrado
+    // (`firmarPorToken` responde 410), pero leer no, y el dato sensible es el
+    // texto, no la firma.
+    //
+    // La regla vive AQUÍ y no en cada consumidor porque hay DOS superficies
+    // públicas —la página /firmar/[token], que renderiza en servidor, y
+    // GET /api/firma/[token]— y una regla repetida en dos sitios es una regla
+    // que en algún momento solo se aplica en uno. Lo mismo vale para el tercer
+    // consumidor que venga.
+    //
+    // Ya FIRMADA sí sigue mostrándose mientras el enlace viva: quien acaba de
+    // firmar necesita poder volver y guardar su copia, y la ventana de 30 días
+    // es justamente el límite que se está haciendo valer.
+    documento: expirado ? null : r.documento_congelado,
+    // El hash se conserva: no es sensible —es un resumen, no el texto— y
+    // `firmarPorToken` lo necesita para sellar la firma. No se expone en la API.
     hash: r.documento_hash,
-    expirado: !!r.token_expira_en && new Date(r.token_expira_en) < new Date(),
+    expirado,
     yaFirmada: r.estatus === 'FIRMADA',
   }
 }
