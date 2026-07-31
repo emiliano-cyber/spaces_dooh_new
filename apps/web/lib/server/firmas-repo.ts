@@ -41,8 +41,11 @@ export interface FirmaVista {
   documentoHash: string | null
   // Derivado: la firma existe pero el documento ya no es el que se firmó.
   invalidada: boolean
-  // Solo para la parte externa y solo dentro de la sesión del dueño.
+  // Solo la parte externa lo tiene, y solo se entrega a quien puede comprometer
+  // a la empresa (permiso `crear` de arrendadores). Ver `firmasDeContrato`.
   token: string | null
+  // La FECHA sí viaja siempre: dice hasta cuándo sirve el enlace, que es estado
+  // del proceso, no la llave. Sin el token no abre nada.
   tokenExpiraEn: string | null
 }
 
@@ -118,7 +121,22 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
 }
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
-export async function firmasDeContrato(contratoId: string): Promise<{
+//
+// `incluirToken` NO es opcional a propósito. El token del arrendador es una
+// credencial portadora: con él se firma desde la ruta pública, sin sesión. Por
+// eso enviar a firma y firmar exigen permiso de `crear` («firmar compromete a la
+// empresa»), pero ESTA lectura iba con `ver` y devolvía el token igualmente —de
+// modo que un permiso de solo lectura entregaba la llave que se acababa de
+// negar—. Quién puede tenerlo lo decide el llamador, que es quien conoce la
+// sesión; hacerlo obligatorio fuerza a decidirlo en cada sitio nuevo en vez de
+// heredar un default silencioso.
+//
+// Ver el estado de las firmas —quién firmó, cuándo, si quedó invalidada— sigue
+// siendo de `ver`: es informacion del contrato, no una llave.
+export async function firmasDeContrato(
+  contratoId: string,
+  opts: { incluirToken: boolean },
+): Promise<{
   firmas: FirmaVista[]
   hashActual: string | null
   hashCongelado: string | null
@@ -163,7 +181,7 @@ export async function firmasDeContrato(contratoId: string): Promise<{
       documentoHash: r.documento_hash ?? null,
       invalidada:
         r.estatus === 'FIRMADA' && !!hashActual && r.documento_hash !== hashActual,
-      token: r.token ?? null,
+      token: opts.incluirToken ? (r.token ?? null) : null,
       tokenExpiraEn: iso(r.token_expira_en),
     })),
   }

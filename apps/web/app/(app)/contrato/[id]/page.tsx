@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation'
-import { exigir } from '@/lib/server/auth'
+import { exigir, tienePermiso } from '@/lib/server/auth'
 import { expedienteContrato } from '@/lib/server/contrato-expediente'
 import { FALTA } from '@/lib/contrato-documento'
 import { BarraDocumento } from '@/components/demo/arrendadores/BarraDocumento'
@@ -65,7 +65,13 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   const hoy = new Date().toISOString().slice(0, 10)
   const doc = await expedienteContrato(params.id, hoy)
   if (!doc) notFound()
-  const estadoFirmas = await firmasDeContrato(params.id)
+  // El enlace del arrendador solo para quien puede comprometer a la empresa:
+  // con ese token se firma desde la ruta pública, sin sesión. Ver la misma
+  // regla en GET /api/contratos/[id]/firma. Esta página es la OTRA superficie
+  // que lo pintaba —`PanelFirmas` ofrece el botón de copiar el enlace— y llega
+  // aquí con permiso de solo `ver`.
+  const incluirToken = await tienePermiso(g.usuario.rol, 'arrendadores', 'crear')
+  const estadoFirmas = await firmasDeContrato(params.id, { incluirToken })
 
   return (
     <div className="doc-wrap">
