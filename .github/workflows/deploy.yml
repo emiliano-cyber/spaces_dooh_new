@@ -1,8 +1,30 @@
 name: Deploy to Production
 
+# ============================================================================
+#  SOLO MANUAL. Antes se disparaba con `push` a `main`, y eso convertía un merge
+#  en un despliegue a producción sin que nadie lo pidiera.
+#
+#  El problema no es desplegar solo: es el bucle de abajo, que aplica TODAS las
+#  migraciones del directorio. Mientras todas fueron aditivas e idempotentes eso
+#  era inocuo. Con `20260731_calendario_meses_cortos.sql` dejó de serlo: es una
+#  migración de DATOS que reescribe `pagos_renta` y no se deshace sola. Un merge
+#  la habría corrido sin el respaldo previo que exige el runbook.
+#
+#  Y su reporte se habría perdido. `apply-migration.mjs` usa `pool.query()`, que
+#  descarta los NOTICE del servidor, así que la lista de contratos que la
+#  migración se NIEGA a reparar —los que necesitan que una persona decida— no
+#  aparece por ningún lado. Comprobado: por esta vía la migración imprime
+#  "OK — migración aplicada" y nada más.
+#
+#  ATENCIÓN si lo disparas a mano: este workflow está DESACTUALIZADO. Apunta a
+#  `/var/www/Marketplace/spaces-dooh` y recarga `ecosystem.config.js`, mientras
+#  que el despliegue real vive en `/var/www/Spaces` con el proceso PM2
+#  `spaces-web`. El camino bueno es el manual por SSH que documenta
+#  `docs/Runbook_Deploy_Fase1_Arrendadores.md`.
+# ============================================================================
+
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
