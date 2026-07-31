@@ -5,6 +5,299 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-07-29
+
+- **Nuevo cuadre de renta: cuánto se le debe a cada propietario.** En la pantalla
+  de Arrendadores aparece una tabla que responde de un vistazo lo que antes solo
+  se podía averiguar contrato por contrato: qué está vencido, qué está pendiente
+  y qué ya se pagó, con el desglose de cada propietario. La información siempre
+  estuvo ahí, pero había que sumarla a mano y en la práctica nadie lo hacía, así
+  que con un propietario de varios predios no se sabía el total.
+  - *Cómo se agrupa:* por **emplazamiento**, no por pantalla ni por contrato. Un
+    predio con seis caras es una negociación con un propietario, no seis. Se
+    despliega haciendo clic en el propietario para ver cada predio o pantalla
+    suelta por separado.
+  - *El orden es el orden en que hay que actuar:* arriba quien tiene deuda
+    vencida. La columna "próximo" muestra el periodo impago **más antiguo**, que
+    es el que urge, no el siguiente del calendario.
+  - *No se pierde ni se duplica nada:* si un pago quedara sin contrato asociado,
+    aparece igualmente en una fila aparte en vez de desaparecer. Un cuadre al que
+    le faltan renglones es peor que no tenerlo, porque se usa para pagarle a
+    alguien real. Se comprobó contra los datos reales de producción: 13 de 13
+    pagos y $260,000 de $260,000.
+  - *Dónde NO está:* en Finanzas. Ese módulo recibe los pagos a propósito **sin**
+    los contratos, para no exponerle importes ni datos del propietario, y sin
+    contratos no hay a quién agrupar. Si se quiere que Finanzas también lo vea,
+    es una decisión de permisos que hay que tomar aparte.
+- **Ya se puede registrar la vigencia de licencias y permisos, y el sistema avisa
+  antes de que venzan.** Era el hueco que la auditoría había marcado: el sistema
+  pedía alertar de tres cosas —contrato, renta y permiso— pero de la tercera no
+  avisaba nunca, sencillamente porque **no había dónde guardar la fecha**. El
+  estatus legal de una pantalla ya contemplaba "permiso vencido", pero solo se
+  llegaba ahí a mano.
+  - *Dónde se capturan:* en la ficha del contrato, en un apartado nuevo
+    "Licencias y permisos". Se registra el tipo (municipal, ambiental,
+    estructural u otro), el folio, la autoridad que lo expide y —lo importante—
+    la fecha de vencimiento.
+  - *A quién amparan:* el sistema lo decide solo, con la misma regla que los
+    contratos. Si la pantalla pertenece a un predio, el permiso es **del predio y
+    cubre a todas sus pantallas**; si es una pantalla suelta, el permiso es suyo.
+    No se le pide al usuario que elija, porque elegir mal dejaría media ubicación
+    sin amparo y nadie lo notaría.
+  - *Cuándo avisa:* **120 días antes**, más margen que los 90 de los contratos,
+    porque renovar ante la autoridad es un trámite y no una firma. El aviso pasa
+    a rojo dentro de los últimos 30 días y también cuando ya venció.
+  - *Qué NO hace:* un permiso vencido **no bloquea la venta**. Fue una decisión
+    deliberada: bloquear en automático frenaría ventas cuando el permiso ya está
+    renovado pero todavía no se ha capturado, que es el caso más habitual. Si más
+    adelante se prefiere que bloquee, se activa sin rehacer nada.
+  - *Renovaciones:* se guarda el histórico. Registrar la renovación no borra la
+    anterior, así que queda la trazabilidad de que la ubicación estuvo siempre
+    amparada. También caben varios permisos a la vez sobre el mismo sitio, y que
+    uno esté vigente no tapa que otro haya vencido.
+- **De paso se corrigió un error de conteo de días que venía de antes.** Los
+  avisos decían un día de más: un permiso vencido hacía 12 días reportaba 13, y
+  un contrato vencido ayer decía "hace 0 días". Era un problema de zona horaria
+  al interpretar las fechas. Afectaba a los avisos de contratos y de pagos de
+  renta, no solo a los nuevos.
+- *Despliegue:* respaldo verificado antes de tocar nada (7.1 MB, 34 tablas, 17
+  contratos), migración aplicada y comprobación posterior creando y borrando una
+  licencia real en producción. **Sin interrupción del servicio** esta vez: no
+  hizo falta reinstalar dependencias.
+
+## 2026-07-28
+
+- **Corregido el error intermitente que tumbaba el dibujado de algunas páginas.**
+  En el registro técnico aparecía de vez en cuando un fallo al generar la página
+  en el servidor. No rompía la aplicación entera —el sitio seguía respondiendo—
+  pero cada aparición era una página que se servía mal, y era imposible predecir
+  cuál.
+  - *Qué pasaba:* el proyecto tenía **dos versiones distintas de React** conviviendo.
+    La aplicación usaba la 18 y en la raíz había una 19. La librería que aplica los
+    estilos quedaba enganchada a la copia equivocada y se caía al intentar dibujar.
+  - *De dónde salía la segunda:* de `packages/ui`, un paquete de ejemplo que vino
+    con la plantilla del proyecto (tres componentes de muestra: botón, tarjeta y
+    bloque de código) y que **no se usa en ninguna parte**. Arrastraba React 19 sin
+    aportar nada.
+  - *Solución:* se alineó ese paquete a la misma versión de React que usa la
+    aplicación y se dejó un candado en la configuración para que ninguna
+    dependencia futura vuelva a meter una segunda copia. El candado se probó a
+    propósito: aun forzando la versión vieja, el sistema resuelve una sola.
+  - *Comprobación:* se vació el registro de errores y se volvieron a visitar las
+    páginas que fallaban (acceso, propuesta compartida, portal de cliente,
+    recuperar contraseña) además de entrar con un usuario real. **Cero
+    apariciones del fallo.**
+  - *Nota:* el despliegue exigió reinstalar las dependencias del servidor, lo que
+    obliga a detener la aplicación. **Hubo unos 4 minutos de interrupción.**
+- **La renta de las pantallas individuales dejó de ser invisible.** Es el
+  arreglo más importante del día y cambia números reales. Hasta hoy, el cálculo
+  de rentabilidad solo entendía los contratos colgados de un *predio*. Una
+  pantalla suelta —sin predio, con su propio contrato— aparecía con **renta $0**,
+  con la ganancia completa como margen, y el sistema además afirmaba que **no
+  tenía contrato**, así que ni siquiera salía en la lista de pendientes. El
+  espacio figuraba como gratis y nada lo denunciaba.
+  - *Efecto concreto en producción:* la `PANTALLA DIGITAL DEMO` de **eyro** tiene
+    un contrato vigente de **$20,000 al mes** —el que capturamos esta semana— y
+    el sistema lo mostraba como $0. Ahora su costo de renta es $20,000 y el
+    margen de esa pantalla bajó en la misma cantidad. No es un error nuevo: es
+    dinero que siempre se pagó y que por fin se ve. **demo g500 no cambió**, sus
+    $65,000 mensuales ya se contaban bien.
+  - *La regla que quedó fija:* un predio tiene **un** contrato y lo comparten
+    todas sus pantallas; una pantalla suelta tiene el suyo. Nunca se suman los
+    dos, así que la renta no puede contarse doble. Las campañas siguen siendo por
+    pantalla, como hasta ahora.
+- **Vender la segunda cara de un predio ya no abre un contrato duplicado.** Al
+  aprobar una propuesta, el sistema buscaba si esa pantalla tenía contrato, pero
+  no miraba el del predio al que pertenece. Resultado: cada cara vendida
+  estrenaba su propia ficha, aunque el predio ya estuviera contratado. Eso
+  producía alertas falsas de "contrato incompleto" sobre espacios que sí estaban
+  cubiertos, y si alguien completaba una de esas fichas con un importe, quedaban
+  dos contratos vivos sobre el mismo predio: renta pagada dos veces.
+  - Se encontró **una ficha así en producción**: `BLVD. MAGNOCENTRO INTERLOMAS -
+    CARA B`, cuyo predio ya tenía un contrato vigente de $45,000. Quedó
+    **cancelada con su motivo**, no borrada, para que el registro explique por
+    qué desapareció. Los 9 pendientes de demo g500 y los 3 de eyro son legítimos
+    y siguen ahí.
+- **Ya no se puede registrar un contrato con renta de $0.** Era el hallazgo más
+  caro de la auditoría: un contrato en cero se daba por completo, salía de la
+  lista de pendientes y dejaba el espacio con la ganancia íntegra como margen,
+  sin ningún aviso. Ahora se rechaza al capturarlo **y** la base de datos lo
+  impide por su cuenta, junto con las vigencias que terminan antes de empezar.
+  - *Detalle que se respetó:* el alquiler de **un solo día** sigue siendo válido.
+    Se detectó a tiempo que hay propuestas de un día en demo g500 y que una regla
+    más estricta habría impedido aprobarlas.
+- **Una pantalla suelta ya no puede tener dos contratos activos a la vez.**
+  Faltaba ese candado: existía para los predios y para los pendientes, pero no
+  para este caso, y era alcanzable desde la aplicación.
+- *Despliegue:* respaldo de la base verificado antes de tocar nada (7.1 MB, 34
+  tablas, 17 contratos), migraciones aplicadas, aplicación reconstruida y
+  reiniciada, y comprobación posterior con datos reales de eyro. Sin incidencias.
+- *Sigue pendiente:* aparece en el registro técnico un error de React duplicado
+  (`styled-jsx`) que **ya existía antes** de estos cambios y conviene atacar
+  aparte; y las contraseñas del servidor compartidas por chat siguen sin rotar.
+
+- **Auditoría independiente del módulo de Arrendadores.** Se revisó el módulo
+  regla por regla contra la especificación del dueño del producto, sin corregir
+  nada: el objetivo era saber en qué estado real está de cara a la salida a
+  producción con PIXELED. Informe completo en
+  `docs/CONFORMIDAD_ARRENDADORES_20260728.md`. Resultado: **20 reglas conformes,
+  8 parciales, 1 con desviación**. Los diez casos de cálculo se ejecutaron
+  contra el sistema real —no se razonaron sobre el papel— y nueve dieron el
+  número esperado al peso.
+  - *Lo que está bien:* el corazón del cálculo de rentabilidad. La renta es el
+    único costo del espacio (el viejo "costo de compra" ya no se resta por
+    ningún lado, se comprobó metiendo un valor falso de $99,999 y viendo que el
+    margen no se movía), se reparte en partes iguales entre las caras del
+    predio, un contrato vencido deja de sumar costo el mismo día, y el sistema
+    impide crear dos contratos vigentes solapados sobre el mismo predio.
+  - *Lo que hay que arreglar antes de facturarle a un cliente real:* **el
+    sistema acepta un contrato con renta de $0**. Si eso pasa, el contrato se da
+    por completo, desaparece de la lista de "contratos incompletos" y la
+    rentabilidad de ese espacio aparece como ganancia íntegra: el espacio parece
+    gratis. Es el error más caro posible en este módulo porque no da ningún
+    aviso. Relacionado: la base de datos tampoco rechaza fechas invertidas (fin
+    antes que inicio) — hoy solo lo frena la pantalla.
+  - *Aviso a futuro:* el reparto de renta por pantalla no distingue monedas.
+    Mientras todo sea en pesos no pasa nada, pero el primer contrato en dólares
+    haría que el total del tablero y la suma de los márgenes por pantalla dejen
+    de cuadrar, sin marcar error.
+  - *Faltantes detectados:* no hay dónde guardar la vigencia de licencias y
+    permisos, así que la alerta de permiso por vencer no puede existir todavía;
+    y el registro de un pago no guarda bajo qué razón social se pagó.
+  - *Sobre la documentación:* `docs/Reglas_Arrendadores.md` quedó desactualizado
+    —no menciona los contratos incompletos, ni el calendario automático de
+    pagos, ni que los campos de renta del sitio ya no se usan—. Conviene
+    rehacerlo antes de que alguien lo tome como referencia.
+  - *Alcance:* se auditó sobre la base local, no sobre producción, porque las
+    pruebas exigían crear contratos e incidencias y eso dejaría rastros
+    imborrables en la bitácora del cliente. Los datos de producción quedan sin
+    auditar: los 17 contratos incompletos siguen sin importe conocido. Todos los
+    datos de prueba se borraron y se comprobó que no quedó ninguno.
+- **El sistema ya vive en https://demo.space-os.io.** Se acabó entrar por la IP:
+  cualquier acceso por `209.97.146.136` redirige de forma permanente al dominio,
+  conservando la ruta, así que los enlaces guardados siguen funcionando.
+  Certificado válido de Let's Encrypt (renovación automática comprobada), HTTP/2
+  y compresión. Los enlaces de recuperar contraseña ya apuntan al dominio y no a
+  la IP, y la cookie de sesión viaja marcada como `Secure`: solo por HTTPS.
+  Procedimiento completo y cómo revertirlo en `docs/runbook-dominio-https.md`.
+  - *Pendiente:* Cloudflare sigue sin hacer de proxy (nube gris). Al activarlo
+    hay que ejecutar `infra/nginx/cloudflare-realip.sh`; si no, todas las visitas
+    parecerán venir de una misma IP y el décimo intento de acceso fallido de
+    cualquiera bloquearía el ingreso de todos durante 5 minutos.
+- **Renombrar la organización queda reservado al Dueño.** Antes bastaba con el
+  permiso de Administración, que se puede conceder a otros roles sin tocar
+  código; el nombre identifica al negocio en toda la aplicación, así que ahora
+  depende del rol y no de un permiso configurable. La bitácora registra el
+  cambio completo ("nombre anterior → nombre nuevo") en vez de solo el nuevo.
+- **Aviso de carga en toda la aplicación.** Al guardar, aprobar, facturar o
+  registrar un pago no había ninguna señal de que el sistema estuviera
+  trabajando: la pantalla parecía congelada hasta que llegaba la respuesta. Ahora
+  una barra fina en el borde superior se enciende mientras haya alguna petición
+  en curso. Aparece solo si la espera se nota de verdad —las respuestas rápidas
+  no la disparan, porque un parpadeo se lee como un error— y no simula un
+  porcentaje de avance, que sería inventado. Respeta la preferencia del sistema
+  de reducir animaciones y se anuncia a los lectores de pantalla. Los avisos de
+  carga que ya había al abrir cada pantalla siguen igual; esto cubre el hueco de
+  las acciones.
+- **Una campaña ya se puede cobrar en parcialidades.** Hasta ahora se cobraba de
+  una sola vez, con un plazo de 60/90/120 días; no había forma de pactar
+  mensualidades, que es lo normal en contratos anuales. Al generar la factura hay
+  una casilla "Cobrar en parcialidades": eliges cuántas, cada cuánto (quincenal,
+  mensual, bimestral o trimestral) y desde qué fecha, y ves el importe de cada
+  cuota antes de emitir. Las cuotas son iguales y **la última ajusta el
+  redondeo**, de modo que siempre suman el total exacto de la factura. Cada
+  parcialidad tiene su propio vencimiento y se cobra por separado; la factura
+  solo queda saldada cuando se han pagado todas.
+  - *El número de cuotas ya no se teclea:* se calcula solo a partir de la
+    duración de la campaña, y únicamente se ofrecen los repartos que caben. La
+    regla es que las cuotas salgan enteras y sean al menos dos —cobrar en "una
+    parcialidad" no es fraccionar el pago, es el cobro único de siempre—, y de
+    ahí salen las restricciones: una campaña de **un mes** solo admite dos
+    quincenales; una de **dos meses**, como mucho mensuales; y las **anuales**
+    aparecen a partir de 24 meses, porque con 12 saldría una sola cuota. El
+    desplegable dice directamente "8 cuotas trimestrales" en vez de pedir dos
+    datos sueltos, y si la campaña no admite ningún reparto lo explica en vez de
+    ofrecer opciones que van a fallar. La comprobación se repite al guardar, así
+    que no depende de la pantalla.
+  - *Cuotas anuales y semestrales,* además de quincenales, mensuales,
+    bimestrales y trimestrales. Una campaña de 24 meses se cobra en 2
+    anualidades y una de 36 en 3.
+  - *Los vencimientos ya no se desplazan.* Las cuotas avanzaban 30 días fijos en
+    vez de un mes real, así que doce mensualidades desde el 1 de septiembre caían
+    el 1, el 1, el 31, el 30… acumulando casi una semana de desfase y dando al
+    cliente fechas que no coincidían con lo pactado. Ahora respetan el día del
+    mes y ajustan los meses cortos: del 31 de enero pasan al 28 de febrero y al
+    31 de marzo.
+  - *Alcance de esta versión:* cuotas iguales, plan decidido al facturar, sin
+    complemento de pago (REP) y con aviso —no bloqueo— si una parcialidad vence.
+    Un calendario libre (30 % al firmar, 70 % al cierre) o el timbrado del REP se
+    pueden añadir después sin rehacer el modelo. Ver
+    `docs/diseno-cobro-en-parcialidades.md`.
+  - *El cobro de siempre no cambia:* una factura sin plan de cuotas se comporta
+    igual que antes, y las cobranzas anteriores siguen intactas.
+- **La captura de la renta avisa cuando algo no cuadra.** Se detectaron dos
+  propuestas reales con la renta mal capturada: llevaban el precio del cliente
+  con IVA en vez de lo que se le paga al propietario —un importe **mayor** que lo
+  cobrado—, y además sin propietario asignado, lo que dejaba el contrato
+  pendiente sin que nadie se enterara. Ahora, si la organización tiene un solo
+  propietario viene ya seleccionado, y salta un aviso en ámbar si la renta iguala
+  o supera lo que se le cobra al cliente (la campaña saldría a pérdida) o si
+  falta algún dato, diciendo qué falta y qué consecuencia tiene.
+- **La renta al propietario se captura al crear la propuesta.** Cierra el hueco
+  que dejó el contrato incompleto: se indica a quién se le paga, cuánto y cada
+  cuánto (mensual, anual…), y el contrato nace **completo** con la campaña en vez
+  de como pendiente. El costo se conoce desde la venta, se muestra el equivalente
+  mensual mientras se escribe, y se genera el calendario de pagos con **todas las
+  cuotas pendientes** — nada se marca como pagado hasta que alguien lo registra.
+  - *Se autocompleta y respeta lo ya pactado:* si el **inmueble** ya tiene
+    contrato no se pregunta nada (la renta se pacta por predio y se reparte entre
+    sus pantallas); solo se muestra el importe vigente. Y cuando sí hay que
+    capturarla, los campos llegan propuestos con lo que ya se sabe de esa
+    pantalla, así que la segunda vez que se vende el sistema recuerda. *Nota:* las
+    pantallas actuales sin contrato no tienen ningún dato previo, así que la
+    primera captura sigue siendo manual.
+- **En Finanzas ya se ve cuánto cuesta la renta al mes y el detalle de cada
+  contrato.** Faltaban dos cosas distintas. Primero, la vista de lo
+  **comprometido**: nueva tarjeta "Renta comprometida a propietarios" con lo que
+  se paga por cada pantalla, cada cuánto, hasta cuándo y —clave— su equivalente
+  mensual, que es lo que permite comparar y sumar un contrato anual con uno
+  mensual (60 000 al año = 5 000/mes). El total va arriba.
+  - *Y segundo, había contratos sin calendario de pagos.* Los anteriores a la
+    generación automática se habían quedado sin cuotas: en producción había 2
+    contratos vigentes y **cero** pagos registrados, así que la pantalla salía
+    vacía aunque el contrato existiera. Se generaron las cuotas de su vigencia
+    (26 en producción), con los periodos ya pasados marcados como vencidos.
+    Ninguna se marca como pagada: eso solo ocurre cuando alguien lo registra.
+  - *Cuando no hay importe capturado se dice.* Antes la pantalla mostraba "no
+    hay rentas pendientes", que se lee como que la renta está al día. Ahora
+    explica que no se puede calcular lo que hay que pagar porque faltan importes,
+    y que al completarlos en Arrendadores el calendario se genera solo.
+- **Los pagos de renta también en Finanzas.** El calendario de lo que hay que
+  pagar a los propietarios solo vivía en Arrendadores, un módulo al que Finanzas
+  no tiene acceso, aunque es dinero que sale con vencimiento. Ahora aparece en
+  las dos pantallas: en Finanzas como "Renta por pagar a propietarios", con lo
+  vencido primero y el total pendiente a la vista. Finanzas lo ve en modo
+  lectura; registrar el pago sigue siendo de Arrendadores.
+- **"Olvidé mi contraseña" desactivado temporalmente.** El envío de correo no
+  está configurado, así que quien lo usaba recibía "revisa tu bandeja" y no le
+  llegaba nada. Se ocultó el enlace y se cerraron los endpoints. *Consecuencia a
+  tener presente:* quien olvide su contraseña queda fuera hasta que un
+  administrador se la reponga — delicado en organizaciones con un solo Dueño.
+  Se reactiva con una variable, sin revertir código.
+- **El botón para contraer el menú vuelve arriba**, en la cabecera de la barra
+  lateral, alineado con la barra superior. Con el menú contraído la cabecera
+  muestra solo ese botón: es la única forma de volver a expandirlo.
+- **Todo lo anterior, más lo del 27 de julio, quedó desplegado en producción.**
+  Con respaldo de la base tomado y verificado antes. El efecto visible: se
+  abrieron **14 contratos incompletos** — 10 en la organización *demo g500* y 4
+  en *eyro*. No son un error: son pantallas que se estaban vendiendo sin
+  constancia de qué se le paga a su propietario, y hasta ahora contaban con costo
+  cero, inflando el margen. Aparecen en Arrendadores con alerta y diciendo en qué
+  campaña se vendió cada una.
+  - *Pendiente, y es lo que da valor al cambio:* definir quién completa esos 14
+    contratos y en qué plazo. Mientras sigan vacíos, el costo real de esas
+    pantallas se desconoce.
+
 ## 2026-07-27
 
 - **Contrato de arrendamiento incompleto al vender una pantalla.** Hasta ahora se

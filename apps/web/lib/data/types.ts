@@ -297,6 +297,26 @@ export interface Predio {
   creadoEn: string
 }
 
+// Licencia o permiso con vigencia. Mismo anclaje EXCLUYENTE que el contrato y por
+// la misma razón física: el permiso ampara una instalación. Si el predio agrupa
+// varias pantallas, el permiso es del predio y las cubre a todas; una pantalla
+// suelta lleva el suyo. Lo impone el CHECK `licencia_anclaje_ck` en la base.
+export type TipoLicencia = 'MUNICIPAL' | 'AMBIENTAL' | 'ESTRUCTURAL' | 'OTRO'
+
+export interface Licencia {
+  id: string
+  predioId: string | null
+  sitioId: string | null
+  tipo: TipoLicencia
+  folio: string | null
+  autoridad: string | null
+  fechaExpedicion: string | null
+  fechaVencimiento: string // la razón de ser del registro: sin esto no hay alerta
+  documentoUrl: string | null
+  notas: string | null
+  creadoEn: string
+}
+
 export interface RazonSocial {
   id: string
   arrendadorId: string
@@ -325,6 +345,9 @@ export interface ContratoArrendamiento {
   razonSocialId?: string | null // razón social bajo la que se paga
   deposito?: number | null
   motivoCancelacion?: string | null
+  // Nombre de la pantalla, denormalizado en `listarContratos` (Finanzas ve los
+  // contratos pero no el inventario).
+  sitioNombre?: string | null
   creadoEn: string
 }
 
@@ -616,6 +639,12 @@ export interface Cobranza {
   recordatorioEn: string | null // último recordatorio de cobro enviado (null = ninguno)
   recordatoriosEnviados: number // cuántos recordatorios se han enviado
   creadoEn: string
+  // Cobro en parcialidades: `numero` de N y el importe DE ESTA cuota. Null en
+  // las tres = cobro único (histórico), y entonces el importe es el de la
+  // factura. Ver docs/diseno-cobro-en-parcialidades.md.
+  numero?: number | null
+  totalCuotas?: number | null
+  monto?: number | null
 }
 
 // ─── Estado raíz del store ──────────────────────────────────────────────────
@@ -667,6 +696,7 @@ export interface DemoState {
   arrendadores: Arrendador[]
   predios: Predio[]
   razonesSociales: RazonSocial[]
+  licencias: Licencia[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]
   incidencias: Incidencia[]

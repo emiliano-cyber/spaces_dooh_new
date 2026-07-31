@@ -41,6 +41,19 @@ export async function listarNotificaciones() {
   return rows.map(rowToNotif)
 }
 
+// Notificaciones creadas DESPUÉS de una marca de tiempo. Alimenta el sondeo del
+// cliente: se pide cada pocos segundos, así que va acotada y ordenada de más
+// antigua a más nueva, para que los avisos salgan en el orden en que ocurrieron.
+export async function notificacionesDesde(desde: string) {
+  const rows = await q(
+    `select * from notificaciones
+      where tenant_id = $1 and creado_en > $2::timestamptz
+      order by creado_en asc limit 20`,
+    [await tenantActual(), desde],
+  )
+  return rows.map(rowToNotif)
+}
+
 export async function marcarNotificacionLeida(id: string) {
   const rows = await q('update notificaciones set leida=true where id=$1 returning *', [id])
   return rows[0] ? rowToNotif(rows[0]) : null

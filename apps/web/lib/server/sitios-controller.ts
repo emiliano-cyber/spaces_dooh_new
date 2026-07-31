@@ -41,6 +41,24 @@ export async function borrarSitioCtrl(id: string) {
 
 const importSchema = z.object({
   filas: z.array(z.any()).min(1, 'No hay filas para importar'),
+  // ADR 0002: toda pantalla nace con propietario conocido. La pertenencia al
+  // tenant se comprueba contra la BD en importarSitios(); aquí solo la forma.
+  arrendadorId: z
+    .string()
+    .uuid('Elige el arrendador de las pantallas antes de importar.'),
+  // OPCIONAL: marca que todas las pantallas del archivo están en el mismo predio.
+  // Uno existente ({id}) o uno nuevo a crear ({nombre, direccion}). Sin esto, las
+  // pantallas entran sueltas. La pertenencia del predio al arrendador se
+  // comprueba contra la BD en resolverPredio().
+  predio: z
+    .union([
+      z.object({ id: z.string().uuid('Predio inválido') }),
+      z.object({
+        nombre: z.string().trim().min(1, 'El predio nuevo necesita un nombre.'),
+        direccion: z.string().nullish(),
+      }),
+    ])
+    .nullish(),
   modoDuplicado: z.enum(['ACTUALIZAR', 'NUEVA_VERSION']).default('ACTUALIZAR'),
   precioM2: z.coerce.number().nonnegative().nullish(),
   // Fotos de pantallas del import masivo: clave = código de proveedor, valor =
@@ -55,6 +73,8 @@ export async function importarSitiosCtrl(body: unknown) {
   const d = validar(importSchema, body ?? {})
   return importarSitios({
     filas: d.filas,
+    arrendadorId: d.arrendadorId,
+    predio: d.predio ?? null,
     modoDuplicado: d.modoDuplicado ?? 'ACTUALIZAR',
     precioM2: d.precioM2 ?? null,
     imagenes: d.imagenes && typeof d.imagenes === 'object' ? (d.imagenes as Record<string, string>) : undefined,

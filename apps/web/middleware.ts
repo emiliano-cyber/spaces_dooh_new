@@ -59,6 +59,9 @@ export function middleware(request: NextRequest) {
       normalizedPath.startsWith('/api/signup') ||
       normalizedPath.startsWith('/api/auth/logout') ||
       normalizedPath.startsWith('/api/portal/') ||
+      // Firma pública del contrato: el arrendador no tiene sesión, así que no
+      // hay cookie que proteger con CSRF. El token del enlace es la credencial.
+      normalizedPath.startsWith('/api/firma/') ||
       normalizedPath.startsWith('/api/propuestas/publica/')
     const sesion = request.cookies.get('spaces_sesion')?.value
     if (!exento && sesion) {
@@ -96,6 +99,7 @@ export function middleware(request: NextRequest) {
     normalizedPath.startsWith('/login/') ||
     normalizedPath.startsWith('/recuperar/') ||
     normalizedPath.startsWith('/p/') ||
+    normalizedPath.startsWith('/firmar/') ||
     normalizedPath.startsWith('/portal/')
 
   // Gate: sin cookie de sesión → redirige al login (no expone ninguna otra ruta).

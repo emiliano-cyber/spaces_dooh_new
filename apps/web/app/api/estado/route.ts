@@ -19,6 +19,7 @@ import {
   listarIncidencias,
   listarPredios,
   listarRazonesSociales,
+  listarLicencias,
   recomputarEstatusArrendadores,
 } from '@/lib/server/arrendadores-repo'
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
@@ -68,7 +69,7 @@ export async function GET() {
   // estatus congelado.
   if (puede('arrendadores')) await recomputarEstatusArrendadores()
 
-  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales] =
+  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias] =
     await Promise.all([
       si('network', listarSitios),
       si('network', listarSitiosRed),
@@ -83,7 +84,7 @@ export async function GET() {
       si('imprenta', listarOrdenesImpresion),
       si('administracion', listarAcciones),
       si('arrendadores', listarArrendadores),
-      si('arrendadores', listarContratos),
+      siAlguno(['arrendadores', 'finanzas'], listarContratos),
       siAlguno(['arrendadores', 'finanzas'], listarPagosRenta),
       si('arrendadores', listarIncidencias),
       si('comercial', listarPropuestas),
@@ -94,8 +95,9 @@ export async function GET() {
       obtenerConfig(),
       si('arrendadores', listarPredios),
       si('arrendadores', listarRazonesSociales),
+      si('arrendadores', listarLicencias),
     ])
   return NextResponse.json({
-    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales,
+    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias,
   })
 }

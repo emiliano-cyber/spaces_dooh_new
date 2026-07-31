@@ -26,12 +26,24 @@ const facturaSchema = z.object({
     .number()
     .refine((v) => [60, 90, 120].includes(v), 'Plazo inválido (60, 90 o 120 días)')
     .default(90),
+  // Cobro en parcialidades (opcional; sin esto, cobro único como siempre).
+  // Ni el NÚMERO DE CUOTAS ni los IMPORTES se aceptan del cliente: los deriva el
+  // servidor de la duración de la campaña y del total de la factura. Admitirlos
+  // permitiría facturar 100 000 y programar cuotas por 10, o pedir 40
+  // mensualidades en una campaña de dos meses.
+  plan: z
+    .object({
+      periodicidad: z.enum(['QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']),
+      primerVencimiento: z.string().min(1, 'Falta la fecha del primer vencimiento'),
+    })
+    .strict()
+    .nullish(),
 })
 
 export async function generarFacturaCtrl(campanaId: string, body: unknown) {
   const d = validar(facturaSchema, body ?? {})
   try {
-    return await generarFactura(campanaId, d.plazoDias as 60 | 90 | 120)
+    return await generarFactura(campanaId, d.plazoDias as 60 | 90 | 120, d.plan ?? null)
   } catch (e) {
     if (e instanceof FacturaError) {
       // A-1: "ya tiene factura" (incluida la carrera que rebota en el índice

@@ -124,3 +124,202 @@
   border-radius: 6px;
 }
 .demo-root ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* Barra de carga global (components/demo/ui/IndicadorCarga).
+   No representa progreso real —no se puede saber cuánto falta—, así que avanza
+   deprisa al principio y se frena cerca del final: comunica "esto sigue en
+   marcha" sin fingir un porcentaje que sería mentira. Se queda al 90 % hasta
+   que la petición termina y el componente la retira. */
+@keyframes carga-avance {
+  0%   { width: 0%;   opacity: 1; }
+  40%  { width: 55%;  }
+  70%  { width: 78%;  }
+  100% { width: 90%;  opacity: 1; }
+}
+.demo-root .carga-barra {
+  animation: carga-avance 2.4s cubic-bezier(0.15, 0.85, 0.3, 1) forwards;
+}
+
+/* Quien haya pedido menos animación en su sistema ve la barra fija al 90 %:
+   sigue sabiendo que algo carga, sin movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  .demo-root .carga-barra { animation: none; width: 90%; }
+}
+
+/* ── Documento del contrato de arrendamiento ─────────────────────────────────
+   Página imprimible (app/(app)/contrato/[id]). El PDF lo produce el navegador
+   con Ctrl+P → "Guardar como PDF": cero dependencias de servidor. Las medidas
+   van en cm y pt porque el destino es papel carta, no pantalla. */
+.demo-root .doc-wrap { background: #f4f4f2; min-height: 100vh; padding: 24px 16px 64px; }
+
+.demo-root .doc-barra {
+  max-width: 21.6cm; margin: 0 auto 16px; display: flex; flex-direction: column; gap: 10px;
+}
+.demo-root .doc-barra-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.demo-root .doc-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border-radius: 6px; background: #0a66ff; color: #fff; font-size: 13px; font-weight: 500;
+  border: none; cursor: pointer;
+}
+.demo-root .doc-btn:hover { background: #0a4fcc; }
+.demo-root .doc-barra-nota { font-size: 12px; color: #6b6b6b; }
+.demo-root .doc-barra-aviso {
+  display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px;
+  border: 1px solid #f59e0b40; background: #f59e0b0f; color: #9a6700; font-size: 12.5px;
+}
+.demo-root .doc-barra-lista { margin: 6px 0 0 16px; list-style: disc; }
+
+/* La hoja: carta (21.6 × 27.9 cm) con márgenes de 2.5 cm. */
+.demo-root .doc-hoja {
+  max-width: 21.6cm; margin: 0 auto; background: #fff; padding: 2.5cm;
+  box-shadow: 0 1px 3px rgba(0,0,0,.12); color: #111;
+  font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.7;
+  text-align: justify; hyphens: auto;
+}
+.demo-root .doc-titulo {
+  text-align: center; font-size: 13pt; font-weight: 700; letter-spacing: .02em;
+  margin: 0 0 24px; text-transform: uppercase;
+}
+.demo-root .doc-h2 {
+  text-align: center; font-size: 11.5pt; font-weight: 700; letter-spacing: .06em;
+  margin: 26px 0 12px;
+}
+.demo-root .doc-p { margin: 0 0 10px; }
+.demo-root .doc-preambulo { text-indent: 1.2cm; }
+.demo-root .doc-bloque { margin-bottom: 14px; }
+.demo-root .doc-strong { font-weight: 700; }
+.demo-root .doc-inciso { padding-left: .8cm; }
+.demo-root .doc-cierre { margin-top: 26px; text-indent: 1.2cm; }
+
+/* Hueco de dato pendiente. En pantalla se resalta; impreso queda como una línea
+   en blanco, que es exactamente lo que se firma a mano. */
+.demo-root .doc-falta {
+  background: #f59e0b26; border-bottom: 1px solid #9a6700; color: #9a6700; font-weight: 700;
+}
+
+.demo-root .doc-firmas {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1.5cm; margin-top: 2.2cm;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.demo-root .doc-firma { text-align: center; }
+.demo-root .doc-linea { border-top: 1px solid #111; margin-bottom: 6px; }
+.demo-root .doc-firma-rol { font-weight: 700; font-size: 10pt; margin: 0; }
+.demo-root .doc-firma-nombre { font-size: 10pt; margin: 0; }
+.demo-root .doc-aviso {
+  margin-top: 1.4cm; padding-top: 10px; border-top: 1px solid #ddd;
+  font-family: system-ui, sans-serif; font-size: 8.5pt; color: #666; text-align: left;
+}
+
+@media print {
+  /* Fondo y sombras fuera: gastan tinta y no aportan. */
+  .demo-root .doc-wrap { background: #fff; padding: 0; }
+  .demo-root .doc-hoja { box-shadow: none; max-width: none; margin: 0; padding: 0; }
+  .demo-root .doc-no-print { display: none !important; }
+  .demo-root .doc-falta { background: none; color: #111; }
+  /* Que no se parta un bloque de cláusula entre dos páginas. */
+  .demo-root .doc-bloque { page-break-inside: avoid; break-inside: avoid; }
+  @page { size: letter; margin: 2.5cm; }
+}
+
+/* ── Firma del contrato ──────────────────────────────────────────────────── */
+.demo-root .doc-congelado {
+  white-space: pre-wrap; word-wrap: break-word;
+  font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.7;
+  margin: 0; text-align: justify;
+}
+.demo-root .doc-aviso-caja { text-align: left; }
+.demo-root .doc-firma-ok {
+  display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 6px;
+  border: 1px solid #1da85040; background: #1da85014; color: #146c39; font-size: 13px;
+}
+.demo-root .doc-panel-firma {
+  margin-top: 2cm; padding: 20px; border: 1px solid #0a66ff40; border-radius: 8px;
+  background: #0a66ff08; font-family: system-ui, sans-serif; text-align: left;
+}
+.demo-root .doc-panel-titulo { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #111; }
+.demo-root .doc-panel-nota { margin: 8px 0 0; font-size: 12px; color: #5a5a5a; line-height: 1.5; }
+.demo-root .doc-panel-error { margin: 10px 0 0; font-size: 12.5px; color: #b42318; }
+.demo-root .doc-campo { display: block; margin-top: 14px; font-size: 13px; color: #333; }
+.demo-root .doc-campo > span { display: block; margin-bottom: 5px; font-weight: 500; }
+.demo-root .doc-input {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid #c9c9c9; border-radius: 6px;
+  font-size: 14px; background: #fff; color: #111;
+}
+.demo-root .doc-input:focus { outline: 2px solid #0a66ff; outline-offset: -1px; }
+.demo-root .doc-check {
+  display: flex; gap: 10px; align-items: flex-start; margin: 14px 0 16px;
+  font-size: 12.5px; color: #333; line-height: 1.55; cursor: pointer;
+}
+.demo-root .doc-check input { margin-top: 2px; width: 16px; height: 16px; accent-color: #0a66ff; }
+.demo-root .doc-btn:disabled { background: #b9c7dd; cursor: not-allowed; }
+
+/* Bloque de firmas registradas, dentro del documento generado. */
+.demo-root .doc-evidencia {
+  margin-top: 1.2cm; padding: 14px; border: 1px solid #ddd; border-radius: 6px;
+  font-family: system-ui, sans-serif; font-size: 9.5pt; color: #333; text-align: left;
+}
+.demo-root .doc-evidencia-titulo { font-weight: 700; margin: 0 0 8px; font-size: 10pt; }
+.demo-root .doc-evidencia-fila { margin: 0 0 6px; }
+.demo-root .doc-evidencia-hash {
+  font-family: ui-monospace, monospace; font-size: 8pt; word-break: break-all; color: #666;
+}
+.demo-root .doc-evidencia-mal { color: #b42318; font-weight: 600; }
+
+/* ── Constancia de firma electrónica (SE IMPRIME) ───────────────────────────── */
+/* Sello que sustituye a la línea en blanco cuando la parte ya firmó. */
+.demo-root .doc-sello {
+  border: 1px solid #1da850; border-radius: 4px; padding: 6px 8px; margin-bottom: 6px;
+  background: #1da8500d; text-align: center;
+}
+.demo-root .doc-sello-mal { border-color: #dc2626; background: #dc26260d; }
+.demo-root .doc-sello-titulo {
+  margin: 0; font-family: system-ui, sans-serif; font-size: 7pt; font-weight: 700;
+  letter-spacing: .08em; color: #146c39;
+}
+.demo-root .doc-sello-mal .doc-sello-titulo { color: #b42318; }
+.demo-root .doc-sello-nombre { margin: 2px 0 0; font-size: 10pt; font-style: italic; }
+.demo-root .doc-sello-fecha {
+  margin: 1px 0 0; font-family: system-ui, sans-serif; font-size: 7.5pt; color: #555;
+}
+
+.demo-root .doc-constancia {
+  margin-top: 1.2cm; padding: 12px 14px; border: 1px solid #999; border-radius: 4px;
+  font-family: system-ui, sans-serif; font-size: 8.5pt; color: #222; text-align: left;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.demo-root .doc-constancia-titulo {
+  margin: 0 0 8px; font-size: 10pt; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.demo-root .doc-constancia-alerta {
+  margin: 0 0 10px; padding: 8px 10px; border: 1px solid #dc2626; border-radius: 4px;
+  background: #dc26260f; color: #b42318; font-weight: 700; font-size: 8.5pt;
+}
+.demo-root .doc-constancia-intro { margin: 0 0 10px; line-height: 1.5; }
+.demo-root .doc-constancia-tabla { width: 100%; border-collapse: collapse; }
+.demo-root .doc-constancia-tabla th {
+  text-align: left; vertical-align: top; padding: 6px 10px 6px 0; white-space: nowrap;
+  font-size: 8pt; letter-spacing: .04em; border-top: 1px solid #ddd;
+}
+.demo-root .doc-constancia-tabla td {
+  padding: 6px 0; border-top: 1px solid #ddd; line-height: 1.5;
+}
+.demo-root .doc-constancia-mal { color: #b42318; font-weight: 700; }
+.demo-root .doc-constancia-ua { color: #555; font-size: 7.5pt; word-break: break-word; }
+.demo-root .doc-constancia-hash {
+  font-family: ui-monospace, monospace; font-size: 7pt; color: #555; word-break: break-all;
+}
+.demo-root .doc-constancia-nota {
+  margin: 10px 0 0; padding-top: 8px; border-top: 1px solid #ddd;
+  font-size: 7.5pt; color: #666; line-height: 1.45;
+}
+
+@media print {
+  /* La constancia y el sello son la razón de ser del PDF: se fuerzan los colores
+     para que el rojo de una firma invalidada no desaparezca al imprimir. */
+  .demo-root .doc-constancia,
+  .demo-root .doc-sello {
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .demo-root .doc-firmas { page-break-inside: avoid; break-inside: avoid; }
+}

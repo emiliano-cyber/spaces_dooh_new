@@ -6,6 +6,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
 import {
+  useArrendadores,
   type Sitio,
   type TipoMedio,
   type Comercializacion,
@@ -45,6 +46,8 @@ export function AltaSitioDialog({
   onOpenChange: (v: boolean) => void
   onCreado: (s: Sitio) => void
 }) {
+  const arrendadores = useArrendadores()
+  const [arrendadorId, setArrendadorId] = useState('')
   const [nombre, setNombre] = useState('')
   const [tipoMedio, setTipoMedio] = useState<TipoMedio>('ESPECTACULAR')
   const [distrito, setDistrito] = useState('')
@@ -64,13 +67,15 @@ export function AltaSitioDialog({
   const [enviando, setEnviando] = useState(false)
 
   const digital = tipoMedio === 'PANTALLA_DIGITAL'
-  const valido = nombre.trim() && distrito.trim() && direccionComercial.trim()
+  // ADR 0002: sin arrendador no hay contrato que abrir, y el alta se rechaza.
+  const valido = nombre.trim() && distrito.trim() && direccionComercial.trim() && arrendadorId
 
   async function submit() {
     if (!valido) return
     setEnviando(true)
     const s = await altaSitioApi({
       nombre: nombre.trim(),
+      arrendadorId,
       tipoMedio,
       distrito: distrito.trim(),
       direccionPredio: direccionPredio.trim() || direccionComercial.trim(),
@@ -90,6 +95,7 @@ export function AltaSitioDialog({
     setEnviando(false)
     onCreado(s)
     onOpenChange(false)
+    setArrendadorId('')
     setNombre('')
     setDistrito('')
     setDireccionPredio('')
@@ -115,6 +121,14 @@ export function AltaSitioDialog({
     >
       <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-1">
         <Seccion titulo="Identificación">
+          <Campo label="Arrendador (dueño del espacio) *">
+            <select className={inputCls} value={arrendadorId} onChange={(e) => setArrendadorId(e.target.value)}>
+              <option value="">Elige un arrendador…</option>
+              {(arrendadores ?? []).map((a) => (
+                <option key={a.id} value={a.id}>{a.nombre}</option>
+              ))}
+            </select>
+          </Campo>
           <Campo label="Nombre">
             <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="p. ej. Espectacular Av. Brasil" autoFocus />
           </Campo>

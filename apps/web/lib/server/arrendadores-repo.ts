@@ -1,9 +1,13 @@
 import 'server-only'
 import type { PoolClient } from 'pg'
-import { q, pool, fijarTenant, withTenantTx } from './db'
+import { q, q1, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio, rowToSitio } from './sitios-repo'
 import { AppError } from './errores'
+import { avanzarPeriodo, montoMensualEquivalente } from '../renta-periodicidad'
+// Sin ciclo: contratos-sitio solo importa `errores` y los tipos de pg.
+import { exigirArrendador } from './contratos-sitio'
+import { sumarDias } from '../contrato-vigencia'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -13,34 +17,21 @@ import { AppError } from './errores'
 
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
 
-// ─── Periodicidad: equivalente mensual y avance de periodo (fuente única) ─────
-// Equivalente mensual (coincide con M3 y con rentaAMensual de derive.ts):
-//   SEMANAL ×30/7 · CATORCENAL ×30/14 · QUINCENAL ×2 · MENSUAL ×1 ·
-//   BIMESTRAL ÷2 · TRIMESTRAL ÷3 · SEMESTRAL ÷6 · ANUAL ÷12.
-const FACTOR_MENSUAL: Record<string, number> = {
-  SEMANAL: 30 / 7, CATORCENAL: 30 / 14, QUINCENAL: 2, MENSUAL: 1,
-  BIMESTRAL: 1 / 2, TRIMESTRAL: 1 / 3, SEMESTRAL: 1 / 6, ANUAL: 1 / 12,
-}
-export function montoMensualEquivalente(monto: number, periodicidad: string): number {
-  return Math.round(monto * (FACTOR_MENSUAL[periodicidad] ?? 1) * 100) / 100
-}
+// Periodicidad (equivalente mensual y avance de periodo): la tabla canónica vive
+// en lib/renta-periodicidad.ts, compartida con derive.ts y con la UI. Se
+// reexporta `montoMensualEquivalente` porque varios módulos de servidor ya la
+// importaban desde aquí.
+export { montoMensualEquivalente }
 
-// Avanza la fecha de vencimiento un periodo según la periodicidad.
-function avanzarPeriodo(d: Date, periodicidad: string): Date {
-  const n = new Date(d)
-  switch (periodicidad) {
-    case 'SEMANAL':    n.setDate(n.getDate() + 7); break
-    case 'CATORCENAL': n.setDate(n.getDate() + 14); break
-    case 'QUINCENAL':  n.setDate(n.getDate() + 15); break
-    case 'BIMESTRAL':  n.setMonth(n.getMonth() + 2); break
-    case 'TRIMESTRAL': n.setMonth(n.getMonth() + 3); break
-    case 'SEMESTRAL':  n.setMonth(n.getMonth() + 6); break
-    case 'ANUAL':      n.setMonth(n.getMonth() + 12); break
-    case 'MENSUAL':
-    default:           n.setMonth(n.getMonth() + 1); break
-  }
-  return n
-}
+// Tope de cuotas que genera un solo contrato. Con periodicidad DIARIA un
+// contrato de 10 años son 3 650 vencimientos; por encima de eso lo más probable
+// es una fecha de fin mal capturada (un 2035 donde iba 2025), no un acuerdo
+// real. Antes el tope era 1 200 y el bucle simplemente DEJABA DE GENERAR al
+// alcanzarlo: el contrato quedaba con la mitad de su calendario y nadie se
+// enteraba —los pagos que faltaban no aparecían como pendientes ni como
+// vencidos, así que la renta se dejaba de reclamar en silencio—. Ahora falla
+// ruidosamente: es mejor que el alta se rechace a que el calendario mienta.
+const MAX_CUOTAS = 3700
 
 interface GenInput {
   id: string; tenantId: string; fechaInicio: string; fechaFin: string | null
@@ -84,15 +75,21 @@ async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<n
   const params: unknown[] = []
   const values: string[] = []
   let cursor = new Date(inicio)
-  let guard = 0
-  while (cursor <= fin && guard < 1200) {
+  while (cursor <= fin) {
+    if (values.length >= MAX_CUOTAS) {
+      throw new AppError(
+        `La vigencia del contrato genera más de ${MAX_CUOTAS} pagos con periodicidad ` +
+          `${c.periodicidad.toLowerCase()}. Revisa la fecha de fin: con esa cadencia el ` +
+          'calendario no puede cubrir un plazo tan largo.',
+        400,
+      )
+    }
     const periodo = cursor.toISOString().slice(0, 10)      // YYYY-MM-DD (vencimiento)
     const estatus = cursor < hoy ? 'VENCIDO' : 'PENDIENTE'
     const b = params.length
     values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5}::est_pago_renta)`)
     params.push(c.id, c.tenantId, periodo, c.montoRenta, estatus)
     cursor = avanzarPeriodo(cursor, c.periodicidad)
-    guard++
   }
   if (!values.length) return 0
   const res = await client.query(
@@ -102,11 +99,6 @@ async function generarCalendarioEnTx(client: PoolClient, c: GenInput): Promise<n
     params,
   )
   return res.rowCount ?? 0
-}
-
-// Regenera el calendario de un contrato (por su fila). Abre su propia transacción.
-async function generarCalendarioDesdeRow(r: any): Promise<number> {
-  return withTenantTx((client) => generarCalendarioEnTx(client, genInputFromRow(r)))
 }
 
 function rowToArrendador(r: any) {
@@ -150,6 +142,7 @@ function rowToContrato(r: any) {
     predioId: r.predio_id ?? null,
     razonSocialId: r.razon_social_id ?? null,
     motivoCancelacion: r.motivo_cancelacion ?? null,
+    sitioNombre: r.sitio_nombre ?? null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -197,7 +190,16 @@ export async function crearArrendador(input: {
 }
 
 export async function listarContratos() {
-  const rows = await q('select * from contratos_arrendamiento where tenant_id = $1 order by creado_en asc', [await tenantActual()])
+  // `sitio_nombre` denormalizado: Finanzas ve los contratos (son compromisos de
+  // dinero) pero NO el inventario, así que sin esto no podría decir de qué
+  // pantalla es cada renta. Mismo criterio que en listarPagosRenta.
+  const rows = await q(
+    `select c.*, s.nombre as sitio_nombre
+       from contratos_arrendamiento c
+       left join sitios s on s.id = c.sitio_id
+      where c.tenant_id = $1 order by c.creado_en asc`,
+    [await tenantActual()],
+  )
   return rows.map(rowToContrato)
 }
 
@@ -336,6 +338,37 @@ export async function crearContratoConSitio(input: {
     // 3) Pantalla (misma transacción), ligada al predio: una del inventario que
     //    aún no tiene predio, o una nueva.
     const sitioId = await resolverSitioEnTx(client, tenantId, input.sitio, predioId)
+
+    // Un espacio no puede estar arrendado dos veces a la vez. Si el predio —o la
+    // pantalla, cuando viene del inventario sin predio— ya tuvo un contrato, el
+    // nuevo tiene que empezar DESPUÉS de donde terminó aquel.
+    //
+    // El guard de `contratoActivoDePredio` de arriba no cubre esto: solo frena
+    // los contratos ACTIVOS. Con uno VENCIDO se podía firmar otro con fecha de
+    // inicio anterior a su fin, solapándolos, y entonces el P&L elige uno de los
+    // dos y el calendario genera cuotas de ambos para los días repetidos: renta
+    // pagada dos veces por el mismo periodo.
+    //
+    // Se comprueba aquí, con `sitioId` ya resuelto, porque el ancla depende de
+    // si la pantalla quedó colgada de un predio o no.
+    const { rows: prev } = await client.query(
+      `select max(fecha_fin) as ultimo_fin
+         from contratos_arrendamiento
+        where tenant_id = $1
+          and estatus <> 'CANCELADO'
+          and fecha_fin is not null
+          and ( ($2::uuid is not null and predio_id = $2)
+             or ($2::uuid is null and predio_id is null and sitio_id = $3) )`,
+      [tenantId, predioId, sitioId],
+    )
+    const ultimoFin = prev[0]?.ultimo_fin ? iso(prev[0].ultimo_fin).slice(0, 10) : null
+    if (ultimoFin && input.contrato.fechaInicio.slice(0, 10) <= ultimoFin) {
+      throw new AppError(
+        `Ese espacio ya estuvo arrendado hasta el ${ultimoFin}. El contrato nuevo debe empezar ` +
+          `el ${sumarDias(ultimoFin, 1)} o después, para no traslapar la vigencia anterior.`,
+        409,
+      )
+    }
     const { rows: sr } = await client.query(
       `update sitios set arrendador_id = $1, predio_id = $2 where id = $3 and tenant_id = $4 returning *`,
       [arrendadorId, predioId, sitioId, tenantId],
@@ -511,15 +544,107 @@ export async function listarRazonesSociales() {
   return rows.map(rowToRazonSocial)
 }
 
+// Alta de razón social. Además de insertarla, ADOPTA los contratos de ese
+// arrendador que se quedaron sin ninguna.
+//
+// El motivo: la herencia de razón social solo ocurría al CREAR el contrato
+// (`asignarArrendadorYAbrirContrato`, `crearContratoConSitio`) y nunca se ponía
+// al corriente. Si el arrendador aún no tenía razón social —el caso normal
+// cuando las pantallas entran por importación masiva— sus contratos nacían con
+// `razon_social_id` NULL, y capturar la razón social después NO los alcanzaba:
+// se quedaban huérfanos para siempre. Nada los reclamaba, porque la razón social
+// no es de los cuatro datos que exige `contrato_completo_ck`; solo aparecían
+// agrupados bajo «Sin razón social» en Finanzas. Y a nombre de quién se factura
+// la renta es dato fiscal: sin ella no hay a quién emitirle el pago.
+//
+// Devuelve también cuántos contratos adoptó, para poder decirlo en la UI en vez
+// de que el arreglo ocurra en silencio.
 export async function crearRazonSocial(input: {
   arrendadorId: string; razonSocial: string; rfc?: string | null; regimen?: string | null
-}) {
+}): Promise<{ razonSocial: ReturnType<typeof rowToRazonSocial>; contratosAdoptados: number }> {
+  const tenantId = await tenantActual()
+  return withTenantTx(async (client) => {
+    const { rows } = await client.query(
+      `insert into arrendador_razon_social (arrendador_id, razon_social, rfc, regimen, tenant_id)
+       values ($1,$2,$3,$4,$5) returning *`,
+      [input.arrendadorId, input.razonSocial, input.rfc ?? null, input.regimen ?? null, tenantId],
+    )
+    const creada = rows[0]
+
+    // Se adopta SOLO si esta queda como la ÚNICA del arrendador. Con varias no
+    // se puede adivinar cuál factura cada contrato —esa es decisión de quien
+    // captura— y elegir la recién creada sería arbitrario. Es la misma condición
+    // que ya usa la herencia al abrir un contrato.
+    const { rowCount } = await client.query(
+      `update contratos_arrendamiento c
+          set razon_social_id = $1
+        where c.tenant_id = $2
+          and c.arrendador_id = $3
+          and c.razon_social_id is null
+          -- Un contrato roto no se factura a nadie.
+          and c.estatus <> 'CANCELADO'
+          -- Y sobre todo: lo FIRMADO no se toca. El documento firmado nombra a
+          -- las partes; cambiarle la razón social después dejaría la firma
+          -- respaldando algo distinto de lo que se acordó.
+          and not exists (
+                select 1 from contrato_firmas f
+                 where f.contrato_id = c.id and f.estatus = 'FIRMADA'
+              )
+          and (select count(*) from arrendador_razon_social r2
+                where r2.arrendador_id = $3 and r2.tenant_id = $2) = 1`,
+      [creada.id, tenantId, input.arrendadorId],
+    )
+
+    return { razonSocial: rowToRazonSocial(creada), contratosAdoptados: rowCount ?? 0 }
+  })
+}
+
+// Edita una razón social. Solo toca lo que venga en `patch`: así se puede
+// COMPLETAR un dato que faltaba (p. ej. el RFC) sin reescribir los demás, que es
+// el caso normal cuando la razón social nació de una carga automática.
+export async function editarRazonSocial(
+  id: string,
+  patch: { razonSocial?: string; rfc?: string | null; regimen?: string | null },
+) {
+  const tenantId = await tenantActual()
+  const map: [string, unknown][] = [
+    ['razon_social', patch.razonSocial],
+    ['rfc', patch.rfc],
+    ['regimen', patch.regimen],
+  ]
+  const provided = map.filter(([, v]) => v !== undefined)
+  if (!provided.length) {
+    const cur = await q('select * from arrendador_razon_social where id=$1 and tenant_id=$2', [id, tenantId])
+    return cur[0] ? rowToRazonSocial(cur[0]) : null
+  }
+  const sets = provided.map(([c], i) => `${c} = $${i + 1}`)
+  const vals = provided.map(([, v]) => v)
+  vals.push(id, tenantId)
   const rows = await q(
-    `insert into arrendador_razon_social (arrendador_id, razon_social, rfc, regimen, tenant_id)
-     values ($1,$2,$3,$4,$5) returning *`,
-    [input.arrendadorId, input.razonSocial, input.rfc ?? null, input.regimen ?? null, await tenantActual()],
+    `update arrendador_razon_social set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
   )
-  return rowToRazonSocial(rows[0])
+  return rows[0] ? rowToRazonSocial(rows[0]) : null
+}
+
+// Cuántos contratos facturan a esta razón social. Se consulta ANTES de borrar:
+// la FK es ON DELETE SET NULL, así que un borrado no falla — deja los contratos
+// sin razón social en silencio, que es peor que un error.
+export async function contratosDeRazonSocial(id: string): Promise<number> {
+  const r = await q1<{ n: string }>(
+    'select count(*)::int as n from contratos_arrendamiento where razon_social_id = $1 and tenant_id = $2',
+    [id, await tenantActual()],
+  )
+  return Number(r?.n ?? 0)
+}
+
+export async function borrarRazonSocial(id: string): Promise<boolean> {
+  const rows = await q(
+    'delete from arrendador_razon_social where id=$1 and tenant_id=$2 returning id',
+    [id, await tenantActual()],
+  )
+  return rows.length > 0
 }
 
 // ─── Predios (listado; entidad central del módulo) ──────────────────────────
@@ -809,50 +934,115 @@ export async function editarContrato(id: string, patch: {
   fechaInicio?: string; fechaFin?: string; montoRenta?: number; periodicidad?: string
   moneda?: string; deposito?: number | null; documentoUrl?: string | null
   autoRenovable?: boolean; razonSocialId?: string | null; arrendadorId?: string
-}): Promise<{ noEncontrado: true } | { cancelado: true } | { contrato: ReturnType<typeof rowToContrato> }> {
+}): Promise<
+  | { noEncontrado: true }
+  | { cancelado: true }
+  | { firmado: true }
+  | { contrato: ReturnType<typeof rowToContrato> }
+> {
   const tenantId = await tenantActual()
-  const cur = await q('select * from contratos_arrendamiento where id=$1 and tenant_id=$2', [id, tenantId])
-  if (!cur[0]) return { noEncontrado: true }
-  if (cur[0].estatus === 'CANCELADO') return { cancelado: true }
+  // La edición y la sincronización del calendario van en UNA transacción, como
+  // en `iniciarRenovacion`. Antes el UPDATE se hacía suelto (`q`) y el
+  // calendario abría su propia transacción después: si la generación fallaba,
+  // el contrato YA estaba guardado y el usuario recibía un error como si nada
+  // se hubiera escrito. Eso dejó de ser hipotético al hacer que el tope de
+  // cuotas falle en vez de truncar — editar un contrato a periodicidad DIARIA
+  // con una fecha de fin lejana persistía las fechas nuevas y devolvía un 400
+  // pidiendo revisarlas.
+  return withTenantTx(async (client) => {
+    const { rows: cur } = await client.query(
+      'select * from contratos_arrendamiento where id=$1 and tenant_id=$2', [id, tenantId])
+    if (!cur[0]) return { noEncontrado: true }
+    if (cur[0].estatus === 'CANCELADO') return { cancelado: true }
 
-  const map: [string, unknown][] = [
-    ['fecha_inicio', patch.fechaInicio], ['fecha_fin', patch.fechaFin],
-    ['monto_renta', patch.montoRenta], ['periodicidad', patch.periodicidad],
-    ['moneda', patch.moneda], ['deposito', patch.deposito],
-    ['documento_url', patch.documentoUrl], ['auto_renovable', patch.autoRenovable],
-    ['razon_social_id', patch.razonSocialId], ['arrendador_id', patch.arrendadorId],
-  ]
-  const provided = map.filter(([, v]) => v !== undefined)
+    // Un contrato YA FIRMADO no se modifica. Lo que se firmó es un texto
+    // concreto; cambiar sus términos después dejaría la firma respaldando algo
+    // que nadie aceptó. Si hay que cambiar condiciones, se hace otro contrato.
+    //
+    // El sistema ya sabía DETECTARLO —`firmasDeContrato` marca `invalidada`
+    // cuando el hash del documento de hoy no coincide con el que se firmó— pero
+    // solo después del hecho: la edición pasaba, la firma quedaba inválida y
+    // nadie se enteraba salvo que abriera el panel de firmas. Impedirlo antes es
+    // lo que convierte esa detección en una regla.
+    const { rows: firmadas } = await client.query(
+      `select count(*)::int as n from contrato_firmas
+        where contrato_id = $1 and estatus = 'FIRMADA'`,
+      [id],
+    )
+    if ((firmadas[0]?.n ?? 0) > 0) return { firmado: true }
 
-  // Valores EFECTIVOS tras el patch (lo que quedará en la fila).
-  const fi = patch.fechaInicio ?? iso(cur[0].fecha_inicio)
-  const ff = patch.fechaFin ?? iso(cur[0].fecha_fin)
-  const arrendador = patch.arrendadorId ?? cur[0].arrendador_id
-  const monto = patch.montoRenta ?? cur[0].monto_renta
-  const per = patch.periodicidad ?? cur[0].periodicidad
+    // Las dos referencias que trae el patch se validan CONTRA EL TENANT antes
+    // de escribirlas. No basta con la FK ni con la RLS:
+    //   · La FK solo exige que la fila exista, no que sea de esta organización,
+    //     y en PostgreSQL su comprobación corre como dueño de la tabla, así que
+    //     ELUDE la política `tenant_isolation`.
+    //   · Esa política además lleva `with check (true)`: filtra lo que se LEE,
+    //     no lo que se ESCRIBE.
+    // Sin esto, un `arrendadorId` con el uuid de otra organización se guardaría
+    // sin protestar y la renta de esta pantalla quedaría atribuida a un
+    // propietario ajeno. Es la misma comprobación que `exigirArrendador()` hace
+    // en el alta (contratos-sitio.ts); faltaba aquí porque `arrendadorId` se
+    // añadió al esquema de edición para completar contratos INCOMPLETOS
+    // (ADR 0001) y hasta ahora ninguna pantalla lo enviaba.
+    if (patch.arrendadorId !== undefined) {
+      await exigirArrendador(client, tenantId, patch.arrendadorId)
+    }
+    // La razón social debe ser del tenant Y del arrendador que queda en la fila:
+    // es bajo la que se factura la renta, y colgar la de otro propietario haría
+    // que el pago se emitiera a nombre equivocado.
+    if (patch.razonSocialId != null) {
+      const arrEfectivo = patch.arrendadorId ?? cur[0].arrendador_id
+      const { rows: rs } = await client.query(
+        `select rs.id from arrendador_razon_social rs
+          where rs.id = $1 and rs.tenant_id = $2 and rs.arrendador_id = $3`,
+        [patch.razonSocialId, tenantId, arrEfectivo],
+      )
+      if (!rs[0]) {
+        throw new AppError('La razón social elegida no existe o es de otro arrendador.', 404)
+      }
+    }
 
-  // ADR 0001: un contrato solo sale de INCOMPLETO cuando tiene los cuatro datos.
-  // Mientras le falte alguno se queda como está, en vez de que `estatusPorFechas`
-  // lo mueva a VIGENTE y el CHECK `contrato_completo_ck` reviente la petición con
-  // un error de base de datos incomprensible para quien lo está capturando.
-  const completo = arrendador != null && ff != null && monto != null && per != null
-  provided.push(['estatus', completo ? estatusPorFechas(fi, ff) : 'INCOMPLETO'])
+    const map: [string, unknown][] = [
+      ['fecha_inicio', patch.fechaInicio], ['fecha_fin', patch.fechaFin],
+      ['monto_renta', patch.montoRenta], ['periodicidad', patch.periodicidad],
+      ['moneda', patch.moneda], ['deposito', patch.deposito],
+      ['documento_url', patch.documentoUrl], ['auto_renovable', patch.autoRenovable],
+      ['razon_social_id', patch.razonSocialId], ['arrendador_id', patch.arrendadorId],
+    ]
+    const provided = map.filter(([, v]) => v !== undefined)
 
-  const sets = provided.map(([c], i) =>
-    c === 'periodicidad' ? `${c} = $${i + 1}::periodicidad_pago`
-    : c === 'estatus'    ? `${c} = $${i + 1}::est_contrato`
-    : `${c} = $${i + 1}`)
-  const vals = provided.map(([, v]) => v)
-  vals.push(id, tenantId)
-  const rows = await q(
-    `update contratos_arrendamiento set ${sets.join(', ')}
-      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
-    vals,
-  )
-  // Sincroniza el calendario con las nuevas fechas/monto (idempotente: solo
-  // agrega los periodos faltantes; no toca los pagos existentes).
-  await generarCalendarioDesdeRow(rows[0])
-  return { contrato: rowToContrato(rows[0]) }
+    // Valores EFECTIVOS tras el patch (lo que quedará en la fila).
+    const fi = patch.fechaInicio ?? iso(cur[0].fecha_inicio)
+    const ff = patch.fechaFin ?? iso(cur[0].fecha_fin)
+    const arrendador = patch.arrendadorId ?? cur[0].arrendador_id
+    const monto = patch.montoRenta ?? cur[0].monto_renta
+    const per = patch.periodicidad ?? cur[0].periodicidad
+
+    // ADR 0001: un contrato solo sale de INCOMPLETO cuando tiene los cuatro datos.
+    // Mientras le falte alguno se queda como está, en vez de que `estatusPorFechas`
+    // lo mueva a VIGENTE y el CHECK `contrato_completo_ck` reviente la petición con
+    // un error de base de datos incomprensible para quien lo está capturando.
+    const completo = arrendador != null && ff != null && monto != null && per != null
+    provided.push(['estatus', completo ? estatusPorFechas(fi, ff) : 'INCOMPLETO'])
+
+    const sets = provided.map(([c], i) =>
+      c === 'periodicidad' ? `${c} = $${i + 1}::periodicidad_pago`
+      : c === 'estatus'    ? `${c} = $${i + 1}::est_contrato`
+      : `${c} = $${i + 1}`)
+    const vals = provided.map(([, v]) => v)
+    vals.push(id, tenantId)
+    const { rows } = await client.query(
+      `update contratos_arrendamiento set ${sets.join(', ')}
+        where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+      vals,
+    )
+    // Sincroniza el calendario con las nuevas fechas/monto (idempotente: solo
+    // agrega los periodos faltantes; no toca los pagos existentes). Si esto falla
+    // —p. ej. la vigencia nueva excede MAX_CUOTAS— la transacción revierte también
+    // el UPDATE de arriba y el contrato queda como estaba.
+    await generarCalendarioEnTx(client, genInputFromRow(rows[0]))
+    return { contrato: rowToContrato(rows[0]) }
+  })
 }
 
 // Cancela un contrato: estatus CANCELADO + motivo (no se borra, se conserva).
@@ -940,4 +1130,121 @@ export async function reanudarSitioLegal(sitioId: string): Promise<{ nombre: str
     [sitioId],
   )
   return rows[0] ?? null
+}
+
+// ─── Licencias y permisos con vigencia (F-2) ────────────────────────────────
+//
+// Anclaje EXCLUYENTE predio/pantalla, igual que el contrato: el permiso ampara
+// una instalación, y si el predio agrupa varias pantallas las cubre a todas. Lo
+// impone `licencia_anclaje_ck` en la base, no una convención de código.
+//
+// No hay columna de estatus: la vigencia se deduce de `fecha_vencimiento` contra
+// hoy, en la capa de lectura. Guardarla obligaría a un barrido que reescribiera
+// filas en cada carga, que es el hallazgo M-5 que sigue abierto en contratos.
+
+function rowToLicencia(r: any) {
+  return {
+    id: r.id,
+    predioId: r.predio_id ?? null,
+    sitioId: r.sitio_id ?? null,
+    tipo: r.tipo,
+    folio: r.folio ?? null,
+    autoridad: r.autoridad ?? null,
+    fechaExpedicion: r.fecha_expedicion ? iso(r.fecha_expedicion) : null,
+    fechaVencimiento: iso(r.fecha_vencimiento),
+    documentoUrl: r.documento_url ?? null,
+    notas: r.notas ?? null,
+    creadoEn: iso(r.creado_en),
+  }
+}
+
+export async function listarLicencias() {
+  const rows = await q(
+    'select * from licencias where tenant_id = $1 order by fecha_vencimiento asc',
+    [await tenantActual()],
+  )
+  return rows.map(rowToLicencia)
+}
+
+export interface LicenciaInput {
+  predioId?: string | null
+  sitioId?: string | null
+  tipo: string
+  folio?: string | null
+  autoridad?: string | null
+  fechaExpedicion?: string | null
+  fechaVencimiento: string
+  documentoUrl?: string | null
+  notas?: string | null
+}
+
+export async function crearLicencia(input: LicenciaInput) {
+  const tenantId = await tenantActual()
+  // El anclaje se valida aquí ADEMÁS de en el CHECK: así el usuario recibe un
+  // mensaje que dice qué hacer en vez de un 23514 opaco de la base.
+  const tienePredio = !!input.predioId
+  const tieneSitio = !!input.sitioId
+  if (tienePredio === tieneSitio) {
+    throw new AppError(
+      'Una licencia ampara un predio O una pantalla suelta, no ambos ni ninguno.',
+      400,
+    )
+  }
+  // El anclaje tiene que existir EN ESTE INQUILINO. La FK no lo garantiza: apunta
+  // a la tabla entera, y sin esta comprobación se podría colgar una licencia de
+  // un predio ajeno pasando su id a mano.
+  const tabla = tienePredio ? 'predios' : 'sitios'
+  const anclaId = tienePredio ? input.predioId : input.sitioId
+  const existe = await q(`select 1 from ${tabla} where id = $1 and tenant_id = $2`, [anclaId, tenantId])
+  if (!existe.length) {
+    throw new AppError(tienePredio ? 'El predio no existe.' : 'La pantalla no existe.', 404)
+  }
+  const rows = await q(
+    `insert into licencias
+       (tenant_id, predio_id, sitio_id, tipo, folio, autoridad, fecha_expedicion,
+        fecha_vencimiento, documento_url, notas)
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) returning *`,
+    [
+      tenantId, input.predioId ?? null, input.sitioId ?? null, input.tipo,
+      input.folio ?? null, input.autoridad ?? null, input.fechaExpedicion ?? null,
+      input.fechaVencimiento, input.documentoUrl ?? null, input.notas ?? null,
+    ],
+  )
+  return rowToLicencia(rows[0])
+}
+
+const LICENCIA_COL: Record<string, string> = {
+  tipo: 'tipo', folio: 'folio', autoridad: 'autoridad',
+  fechaExpedicion: 'fecha_expedicion', fechaVencimiento: 'fecha_vencimiento',
+  documentoUrl: 'documento_url', notas: 'notas',
+}
+
+// Actualización parcial. El anclaje NO se puede mover: cambiar de predio a
+// pantalla convertiría el registro en otro permiso distinto y rompería el
+// histórico. Si se capturó mal, se borra y se vuelve a crear.
+export async function editarLicencia(id: string, cambios: Record<string, unknown>) {
+  const sets: string[] = []
+  const vals: unknown[] = []
+  for (const [k, v] of Object.entries(cambios)) {
+    const col = LICENCIA_COL[k]
+    if (!col) continue
+    vals.push(v)
+    sets.push(`${col} = $${vals.length}`)
+  }
+  if (!sets.length) return null
+  vals.push(id, await tenantActual())
+  const rows = await q(
+    `update licencias set ${sets.join(', ')}
+      where id = $${vals.length - 1} and tenant_id = $${vals.length} returning *`,
+    vals,
+  )
+  return rows[0] ? rowToLicencia(rows[0]) : null
+}
+
+export async function borrarLicencia(id: string) {
+  const rows = await q(
+    'delete from licencias where id = $1 and tenant_id = $2 returning id',
+    [id, await tenantActual()],
+  )
+  return rows.length > 0
 }

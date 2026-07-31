@@ -4,6 +4,7 @@ import { AuthGate } from '@/components/demo/shell/AuthGate'
 import { SesionProvider } from '@/components/demo/shell/SesionContext'
 import { HidratarSitios } from '@/components/demo/shell/HidratarSitios'
 import { MenuMovilProvider } from '@/components/demo/shell/MenuMovilContext'
+import { SondeoNotificaciones } from '@/components/demo/shell/SondeoNotificaciones'
 
 // Chrome del shell: sidebar + topbar. Envuelve los módulos internos. El módulo
 // móvil (m/ot) y el portal del cliente NO usan este layout (van sin chrome).
@@ -13,6 +14,9 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
     <SesionProvider>
       <MenuMovilProvider>
         <HidratarSitios />
+        {/* Notificaciones en vivo. Solo dentro del shell: sin sesión no hay a
+            quién avisar, y el sondeo pediría por nada. */}
+        <SondeoNotificaciones />
         {/* Alto exacto de la ventana con overflow oculto: el sidebar queda fijo
             y el único que scrollea es <main>. `h-dvh` (no `h-screen`) para que
             la barra de direcciones móvil no recorte el pie del menú. */}

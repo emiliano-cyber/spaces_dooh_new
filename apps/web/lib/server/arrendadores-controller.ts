@@ -2,12 +2,15 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
+import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
   crearArrendador, iniciarRenovacion, registrarPagoRenta, crearContratoConSitio,
   editarArrendador, borrarArrendador, editarContrato, cancelarContrato,
-  crearRazonSocial, crearPredio, editarPredio, agregarPantallaAPredio,
+  crearRazonSocial, editarRazonSocial, borrarRazonSocial, contratosDeRazonSocial,
+  crearPredio, editarPredio, agregarPantallaAPredio,
   adjuntarAPago, obtenerAdjuntoPago,
+  listarLicencias, crearLicencia, editarLicencia, borrarLicencia,
 } from './arrendadores-repo'
 import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 
@@ -43,7 +46,11 @@ export async function crearArrendadorCtrl(body: unknown) {
 }
 
 // ─── Alta unificada: arrendatario → contrato → pantalla ─────────────────────
-const PERIODICIDADES = ['SEMANAL', 'CATORCENAL', 'QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL'] as const
+// Espejo del enum `periodicidad_pago`: lib/renta-periodicidad.ts. Estaba
+// copiado aquí, y una copia en la compuerta de validación es la peor de todas —
+// añadir una periodicidad al enum y a la UI sin tocar esta línea produce un 400
+// en el alta, sin pista de por qué.
+const PERIODICIDADES = PERIODICIDAD_VALUES
 
 const arrendadorRef = z.union([
   z.object({ id: z.string().min(1) }),
@@ -59,7 +66,11 @@ const arrendadorRef = z.union([
 const contratoSchema = z.object({
   fechaInicio: z.string().min(1, 'Falta la fecha de inicio'),
   fechaFin: z.string().min(1, 'Falta la fecha de fin'),
-  montoRenta: z.coerce.number().nonnegative('La renta no puede ser negativa'),
+  // `positive`, no `nonnegative`: el cero pasaba y era el error más caro del
+  // módulo. Un contrato de $0 satisface `contrato_completo_ck`, sale de la lista
+  // de pendientes y deja el espacio con margen = ingreso íntegro: la pantalla
+  // aparece como gratis, sin ninguna alerta que lo denuncie.
+  montoRenta: z.coerce.number().positive('La renta debe ser mayor que cero'),
   periodicidad: z.enum(PERIODICIDADES).default('MENSUAL'),
   moneda: z.string().trim().default('MXN'),
   autoRenovable: z.boolean().default(false),
@@ -201,7 +212,8 @@ export async function borrarArrendadorCtrl(id: string) {
 const editarContratoSchema = z.object({
   fechaInicio: z.string().min(1).optional(),
   fechaFin: z.string().min(1).optional(),
-  montoRenta: z.coerce.number().nonnegative('La renta no puede ser negativa').optional(),
+  // Mismo motivo que en el alta: editar un contrato a $0 lo dejaría igual de roto.
+  montoRenta: z.coerce.number().positive('La renta debe ser mayor que cero').optional(),
   periodicidad: z.enum(PERIODICIDADES).optional(),
   moneda: z.string().trim().optional(),
   deposito: z.coerce.number().nonnegative('El depósito no puede ser negativo').nullish(),
@@ -221,6 +233,13 @@ export async function editarContratoCtrl(id: string, body: unknown) {
   const r = await editarContrato(id, d)
   if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
   if ('cancelado' in r) throw new AppError('El contrato está CANCELADO; crea uno nuevo en su lugar', 409)
+  if ('firmado' in r) {
+    throw new AppError(
+      'Este contrato ya está firmado y su información no cambia: lo firmado dejaría de coincidir ' +
+        'con lo acordado. Si hay que modificar las condiciones, crea un contrato nuevo.',
+      409,
+    )
+  }
   return r.contrato
 }
 
@@ -330,4 +349,110 @@ export async function crearRazonSocialCtrl(body: unknown) {
   const d = validar(crearRazonSocialSchema, body)
   if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
   return crearRazonSocial(d)
+}
+
+// Edición: todos los campos son opcionales para poder COMPLETAR uno solo sin
+// tocar el resto. `arrendadorId` NO se puede cambiar: mover una razón social de
+// propietario reatribuiría en silencio los contratos que ya facturan a ella.
+const editarRazonSocialSchema = z.object({
+  razonSocial: z.string().trim().min(1, 'La razón social no puede quedar vacía').optional(),
+  rfc: z.string().trim().max(13).nullish(),
+  regimen: z.string().trim().max(120).nullish(),
+})
+export async function editarRazonSocialCtrl(id: string, body: unknown) {
+  const d = validar(editarRazonSocialSchema, body)
+  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  const rs = await editarRazonSocial(id, {
+    razonSocial: d.razonSocial,
+    // `null` explícito limpia el campo; `undefined` lo deja como estaba.
+    rfc: d.rfc === undefined ? undefined : (d.rfc || null),
+    regimen: d.regimen === undefined ? undefined : (d.regimen || null),
+  })
+  if (!rs) throw new AppError('No encontrada', 404)
+  return rs
+}
+
+export async function borrarRazonSocialCtrl(id: string) {
+  // La FK es ON DELETE SET NULL: borrar no falla, deja los contratos sin razón
+  // social sin avisar. Se bloquea y se dice cuántos la usan.
+  const enUso = await contratosDeRazonSocial(id)
+  if (enUso > 0) {
+    throw new AppError(
+      `No se puede eliminar: ${enUso} contrato${enUso === 1 ? '' : 's'} factura${enUso === 1 ? '' : 'n'} a esta razón social. ` +
+        'Cámbiala en esos contratos primero.',
+      409,
+    )
+  }
+  if (!(await borrarRazonSocial(id))) throw new AppError('No encontrada', 404)
+}
+
+// ─── Licencias y permisos con vigencia (F-2) ────────────────────────────────
+const TIPOS_LICENCIA = ['MUNICIPAL', 'AMBIENTAL', 'ESTRUCTURAL', 'OTRO'] as const
+
+// `fecha` ya valida el formato ISO. La vigencia es obligatoria porque es la razón
+// de ser del registro: una licencia sin fecha de vencimiento no puede alertar, que
+// es justo el hueco que esto viene a cerrar.
+const licenciaSchema = z.object({
+  predioId: z.string().uuid().nullish(),
+  sitioId: z.string().uuid().nullish(),
+  tipo: z.enum(TIPOS_LICENCIA),
+  folio: z.string().trim().max(60).nullish(),
+  autoridad: z.string().trim().max(120).nullish(),
+  fechaExpedicion: fecha.nullish(),
+  fechaVencimiento: fecha,
+  documentoUrl: uploadOUrlZod(LIMITES.contratoPdf.allowlist, LIMITES.contratoPdf.maxMB, 'documentoUrl').nullish(),
+  notas: z.string().trim().max(500).nullish(),
+}).strict()
+
+function validarVigencia(d: { fechaExpedicion?: string | null; fechaVencimiento?: string }) {
+  if (d.fechaExpedicion && d.fechaVencimiento && d.fechaVencimiento < d.fechaExpedicion) {
+    throw new AppError('La licencia no puede vencer antes de expedirse.', 400)
+  }
+}
+
+export async function crearLicenciaCtrl(body: unknown) {
+  const d = licenciaSchema.parse(body)
+  validarVigencia(d)
+  return crearLicencia({
+    predioId: d.predioId ?? null,
+    sitioId: d.sitioId ?? null,
+    tipo: d.tipo,
+    folio: d.folio ?? null,
+    autoridad: d.autoridad ?? null,
+    fechaExpedicion: d.fechaExpedicion ?? null,
+    fechaVencimiento: d.fechaVencimiento,
+    documentoUrl: d.documentoUrl ?? null,
+    notas: d.notas ?? null,
+  })
+}
+
+// El anclaje (predio/pantalla) queda FUERA del esquema de edición a propósito:
+// moverlo convertiría el registro en otro permiso distinto y rompería el
+// histórico de renovaciones. Si se capturó mal, se borra y se vuelve a crear.
+const editarLicenciaSchema = licenciaSchema
+  .omit({ predioId: true, sitioId: true })
+  .partial()
+  .strict()
+
+export async function editarLicenciaCtrl(id: string, body: unknown) {
+  const d = editarLicenciaSchema.parse(body)
+  if (!Object.keys(d).length) throw new AppError('No hay nada que actualizar.', 400)
+  // Si solo llega una de las dos fechas hay que contrastarla contra la guardada,
+  // o se colaría una vigencia invertida editando un campo a la vez. El CHECK de
+  // la base lo atraparía igual, pero con un mensaje que no dice qué hacer.
+  const actual = (await listarLicencias()).find((l) => l.id === id)
+  if (!actual) throw new AppError('Licencia no encontrada', 404)
+  validarVigencia({
+    fechaExpedicion: d.fechaExpedicion ?? actual.fechaExpedicion,
+    fechaVencimiento: d.fechaVencimiento ?? actual.fechaVencimiento,
+  })
+  const r = await editarLicencia(id, d)
+  if (!r) throw new AppError('Licencia no encontrada', 404)
+  return r
+}
+
+export async function borrarLicenciaCtrl(id: string) {
+  const ok = await borrarLicencia(id)
+  if (!ok) throw new AppError('Licencia no encontrada', 404)
+  return { ok: true }
 }

@@ -9,7 +9,7 @@ import { Tabs, TabPanel } from '@/components/demo/ui/Tabs'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import { altaSitioApi } from '@/lib/data/sitios-api'
-import { type Sitio, type TipoMedio } from '@/lib/data/client'
+import { useArrendadores, type Sitio, type TipoMedio } from '@/lib/data/client'
 
 // Formulario manual de "Nueva pantalla" con 5 tabs (Básico, Especificaciones,
 // IA/Vision, Precios, Imágenes). Crea la pantalla vía data.altaSitio.
@@ -52,6 +52,9 @@ export function NuevaPantallaForm({
   inline?: boolean
 }) {
   // Tab 1
+  const arrendadores = useArrendadores()
+  const [arrendadorId, setArrendadorId] = useState('')
+  const [renta, setRenta] = useState('')
   const [nombre, setNombre] = useState('')
   const [direccion, setDireccion] = useState('')
   const [lat, setLat] = useState('')
@@ -73,7 +76,6 @@ export function NuevaPantallaForm({
   const [verIA, setVerIA] = useState(false)
   // Tab 4
   const [tarifa, setTarifa] = useState('')
-  const [costo, setCosto] = useState('')
   const [precioM2, setPrecioM2] = useState('')
   // Tab 5
   const [imagen, setImagen] = useState<string | null>(null)
@@ -82,7 +84,7 @@ export function NuevaPantallaForm({
 
   const cvInvalido = cv && !admobilizeId.trim()
   // Para el alta de UNA sola pantalla, la imagen promocional es obligatoria.
-  const valido = !!nombre.trim() && !cvInvalido && !!imagen
+  const valido = !!nombre.trim() && !cvInvalido && !!imagen && !!arrendadorId
 
   function toggleModalidad(m: string) {
     setModalidades((prev) => (prev.includes(m) ? prev.filter((x) => x !== m) : [...prev, m]))
@@ -111,6 +113,10 @@ export function NuevaPantallaForm({
     const digital = exhibicion === 'digital'
     const s = await altaSitioApi({
       nombre: nombre.trim(),
+      arrendadorId,
+      // Solo se manda si es un importe usable. Un 0 lo rechaza
+      // `contrato_monto_ck` y, peor, se leería como «este espacio es gratis».
+      rentaArrendador: Number(renta) > 0 ? Number(renta) : null,
       tipoMedio,
       exhibicion,
       esRotativo: digital,
@@ -129,7 +135,10 @@ export function NuevaPantallaForm({
       resolucionPx: resAncho && resAlto ? `${resAncho}x${resAlto}` : '',
       tipoContenido: null,
       estatusComercial: estado,
-      costoCompra: Number(costo) || 0,
+      // Espejo de la renta, no un dato propio (ADR 0006): el costo de la pantalla
+      // es lo que se le paga al arrendador. Se manda para que los lectores que
+      // todavía leen `sitios.costo_compra` no vean un cero; la Fase 2 lo quita.
+      costoCompra: Number(renta) > 0 ? Number(renta) : 0,
       caras: Number(caras) || 1,
       modalidades,
       duracionSpotSeg: Number(duracionSpot) || (digital ? 20 : null),
@@ -178,6 +187,35 @@ export function NuevaPantallaForm({
         >
           <TabPanel value="basico" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Información básica</h3>
+            <Campo label="Arrendador (dueño del espacio) *">
+              <select
+                className={inputCls}
+                value={arrendadorId}
+                onChange={(e) => setArrendadorId(e.target.value)}
+              >
+                <option value="">Elige un arrendador…</option>
+                {(arrendadores ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>{a.nombre}</option>
+                ))}
+              </select>
+            </Campo>
+            {/* Va JUNTO al arrendador y no en la pestaña "Precios" a propósito:
+                ahí vive la tarifa, que es lo que ENTRA del cliente. Aquí la
+                pregunta es «¿a quién y cuánto le pago por este espacio?», que se
+                responde de una vez. Es el único costo de la pantalla (ADR 0006). */}
+            <Campo label="Renta al arrendador (opcional)">
+              <input
+                className={`demo-num ${inputCls}`}
+                inputMode="decimal"
+                value={renta}
+                onChange={(e) => setRenta(e.target.value)}
+                placeholder="Ej. 45000"
+              />
+              <span className="mt-1 block text-[11px] text-muted">
+                Lo que se le paga al arrendador, no lo que se le cobra al cliente. Puedes dejarlo
+                vacío y capturarlo después: el contrato queda pendiente en Arrendadores.
+              </span>
+            </Campo>
             <Campo label="Nombre de la pantalla">
               <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
             </Campo>
@@ -278,7 +316,15 @@ export function NuevaPantallaForm({
           <TabPanel value="precios" className="space-y-3 pt-3">
             <h3 className="text-base font-semibold text-ink">Precios</h3>
             <Campo label="Tarifa publicada"><input className={inputCls} inputMode="numeric" value={tarifa} onChange={(e) => setTarifa(e.target.value)} placeholder="Ej. 15000" /></Campo>
-            <Campo label="Costo de compra"><input className={inputCls} inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} placeholder="Ej. 9000" /></Campo>
+            {/* El costo NO se captura aquí (ADR 0006). Una pantalla tiene un solo
+                costo —la renta al arrendador— y se captura en la pestaña Básico,
+                junto a quién es ese arrendador. Tener aquí un "costo de compra"
+                producía dos números distintos para el mismo espacio. */}
+            <div className="rounded-md border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+              El costo de esta pantalla es la <b className="text-ink">renta al arrendador</b>, que se
+              captura en la pestaña <b className="text-ink">Básico</b>.{' '}
+              {Number(renta) > 0 ? `Actualmente: ${Number(renta).toLocaleString('es-MX')}.` : 'Aún sin capturar.'}
+            </div>
             <Campo label="Precio por m² (estáticas)">
               <input className={inputCls} value={precioM2} onChange={(e) => setPrecioM2(e.target.value)} placeholder="Se aplica a las estáticas del lote" />
             </Campo>

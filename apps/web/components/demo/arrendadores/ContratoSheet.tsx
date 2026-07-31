@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { AlertTriangle, RefreshCw, Building2, FileText, Paperclip, X, Loader2 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
+import { LicenciasCard } from '@/components/demo/arrendadores/LicenciasCard'
 import { Button } from '@/components/demo/ui/Button'
 import {
   StatusBadge,
@@ -31,7 +32,9 @@ import {
   urlAdjuntoPago,
   iniciarRenovacionApi,
   reportarIncidenciaApi,
+  editarContratoApi,
 } from '@/lib/data/estado-api'
+import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
 
 const TIPO_INC: { value: TipoIncidencia; label: string }[] = [
   { value: 'LEGAL', label: 'Legal / permiso' },
@@ -61,6 +64,7 @@ export function ContratoSheet({
   const sitios = useSitios()
   const pagos = usePagosRenta()
   const [incOpen, setIncOpen] = useState(false)
+  const [completarOpen, setCompletarOpen] = useState(false)
   // Pago cuyo modal está abierto (registrar el pago o adjuntar sus documentos).
   const [pagoActivo, setPagoActivo] = useState<PagoRenta | null>(null)
 
@@ -103,12 +107,20 @@ export function ContratoSheet({
       >
         <div className="space-y-5">
           {contrato.estatus === 'INCOMPLETO' && (
-            <p className="rounded border border-warning/40 bg-warning-soft p-2.5 text-[12.5px] text-ink">
-              Este contrato se abrió automáticamente al vender la pantalla, para que no
-              quedara sin registro. Falta capturar el arrendador, el importe de la renta,
-              la periodicidad y la fecha de fin. Mientras tanto no cuenta como costo en el
-              P&amp;L ni genera calendario de pagos.
-            </p>
+            <div className="rounded border border-warning/40 bg-warning-soft p-2.5 text-[12.5px] text-ink">
+              <p>
+                Este contrato se abrió automáticamente al vender la pantalla, para que no
+                quedara sin registro. Falta capturar el arrendador, el importe de la renta,
+                la periodicidad y la fecha de fin. Mientras tanto no cuenta como costo en el
+                P&amp;L ni genera calendario de pagos.
+              </p>
+              {/* El aviso decía qué faltaba pero no dejaba hacer nada al
+                  respecto: había que salir a buscar dónde se editaba. La acción
+                  va aquí, pegada al problema que describe. */}
+              <Button size="sm" className="mt-2" onClick={() => setCompletarOpen(true)}>
+                <FileText className="h-3.5 w-3.5" /> Completar información
+              </Button>
+            </div>
           )}
           <div className="flex flex-wrap gap-2">
             <StatusBadge tono={CONTRATO_TONO[contrato.estatus]}>
@@ -137,18 +149,42 @@ export function ContratoSheet({
               />
               <Fila label="Renovación automática" valor={contrato.autoRenovable ? 'Sí' : 'No'} />
             </dl>
-            {contrato.documentoUrl && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {/* Documento REDACTADO por el sistema a partir del expediente.
+                  Se abre en pestaña nueva porque vive fuera del shell (sin
+                  navegación) para poder imprimirse limpio. */}
               <a
-                href={contrato.documentoUrl}
+                href={`/spaces-dooh/contrato/${contrato.id}/`}
                 target="_blank"
                 rel="noopener noreferrer"
-                download="contrato.pdf"
-                className="mt-2 inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
+                className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
               >
-                <FileText className="h-3.5 w-3.5" /> Ver documento (PDF)
+                <FileText className="h-3.5 w-3.5" /> Generar contrato
               </a>
-            )}
+              {/* Documento FIRMADO que se subió, si lo hay. Es otra cosa: uno es
+                  el borrador que produce el sistema, el otro el papel firmado. */}
+              {contrato.documentoUrl && (
+                <a
+                  href={contrato.documentoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download="contrato.pdf"
+                  className="inline-flex items-center gap-1.5 rounded border border-border px-2.5 py-1.5 text-[12px] text-info hover:bg-surface-2"
+                >
+                  <FileText className="h-3.5 w-3.5" /> Ver documento firmado (PDF)
+                </a>
+              )}
+            </div>
           </div>
+
+          {/* Licencias y permisos del emplazamiento. Se anclan igual que el
+              contrato: al predio si la pantalla pertenece a uno —y entonces
+              amparan a todas sus hermanas— o a la pantalla suelta. */}
+          <LicenciasCard
+            predioId={contrato.predioId ?? null}
+            sitioId={contrato.predioId ? null : contrato.sitioId}
+            onToast={onToast}
+          />
 
           {/* Pagos de renta */}
           <div>
@@ -242,7 +278,183 @@ export function ContratoSheet({
           onError={(msg) => onToast(msg)}
         />
       )}
+
+      <CompletarContratoModal
+        open={completarOpen}
+        onOpenChange={setCompletarOpen}
+        contrato={contrato}
+        onHecho={onToast}
+      />
     </>
+  )
+}
+
+// ── Completar un contrato INCOMPLETO (ADR 0001) ─────────────────────────────
+//
+// El contrato nace sin arrendador, importe, periodicidad ni fecha de fin: lo
+// abre el sistema al dar de alta o vender la pantalla, para dejar constancia de
+// que hay un espacio del que alguien cobra renta. Este formulario es el que
+// cierra ese pendiente, y pide EXACTAMENTE esos cuatro datos porque son los que
+// exige el CHECK `contrato_completo_ck` para cualquier estatus que afirme un
+// acuerdo real.
+//
+// No es un editor general del contrato: la fecha de inicio, la moneda o el PDF
+// se editan en otro sitio. Mezclarlo todo aquí convertiría "completa lo que
+// falta" en "revisa doce campos", que es justo la fricción por la que estos
+// contratos se quedaban sin completar.
+function CompletarContratoModal({
+  open,
+  onOpenChange,
+  contrato,
+  onHecho,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  contrato: ContratoArrendamiento
+  onHecho: (msg: string) => void
+}) {
+  const arrendadores = useArrendadores()
+  // Se prellena con lo que YA tenga: un contrato puede estar incompleto por
+  // faltarle solo la fecha de fin, y volver a pedir el resto sería absurdo.
+  const [arrendadorId, setArrendadorId] = useState(contrato.arrendadorId ?? '')
+  const [monto, setMonto] = useState(contrato.montoRenta != null ? String(contrato.montoRenta) : '')
+  const [periodicidad, setPeriodicidad] = useState(contrato.periodicidad ?? 'MENSUAL')
+  const [fechaFin, setFechaFin] = useState(contrato.fechaFin ? contrato.fechaFin.slice(0, 10) : '')
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+
+  const inicio = contrato.fechaInicio.slice(0, 10)
+  const montoNum = Number(monto)
+  // El servidor valida esto igual (zod + CHECK en la BD); aquí solo se avisa
+  // antes de gastar un viaje, y se deshabilita el botón para que no parezca que
+  // guardar "no hizo nada".
+  const faltante =
+    !arrendadorId ? 'Elige el arrendador: es de quien se renta el espacio.'
+    : !monto || !Number.isFinite(montoNum) || montoNum <= 0 ? 'Captura un importe de renta mayor que cero.'
+    : !fechaFin ? 'Captura hasta cuándo va el contrato.'
+    : fechaFin < inicio ? `La fecha de fin no puede ser anterior al inicio (${formatFecha(inicio)}).`
+    : null
+
+  async function guardar() {
+    if (faltante) return
+    setEnviando(true)
+    setError(null)
+    try {
+      await editarContratoApi(contrato.id, {
+        arrendadorId,
+        montoRenta: montoNum,
+        periodicidad,
+        fechaFin,
+      })
+      // Al quedar completo el servidor recalcula el estatus por fechas y genera
+      // el calendario de pagos, así que conviene decirlo: es la consecuencia
+      // visible que el usuario va a buscar después.
+      onHecho('Contrato completado · se generó su calendario de pagos')
+      onOpenChange(false)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo guardar el contrato')
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Completar contrato de arrendamiento"
+      subtitle="Los cuatro datos que faltan para que cuente como acuerdo real"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>
+            Cancelar
+          </Button>
+          <Button size="sm" onClick={guardar} disabled={enviando || !!faltante}>
+            {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Guardar contrato
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Arrendador</span>
+          <select
+            className={inputCls}
+            value={arrendadorId}
+            onChange={(e) => setArrendadorId(e.target.value)}
+          >
+            <option value="">Elige el arrendador…</option>
+            {(arrendadores ?? []).map((a) => (
+              <option key={a.id} value={a.id}>{a.nombre}</option>
+            ))}
+          </select>
+        </label>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Importe de la renta</span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className={inputCls}
+              value={monto}
+              onChange={(e) => setMonto(e.target.value)}
+              placeholder="0.00"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Cada cuándo se paga</span>
+            <select
+              className={inputCls}
+              value={periodicidad}
+              onChange={(e) => setPeriodicidad(e.target.value)}
+            >
+              {PERIODICIDADES.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Desde</span>
+            {/* La fecha de inicio ya existe (la puso el sistema al abrir el
+                contrato) y NO se toca aquí: moverla recalcularía todo el
+                calendario de pagos. Se muestra para que la de fin se capture
+                con referencia. */}
+            <div className="demo-num flex h-9 items-center rounded border border-border bg-surface-2 px-3 text-[13px] text-muted">
+              {formatFecha(inicio)}
+            </div>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Hasta</span>
+            <input
+              type="date"
+              min={inicio}
+              className={inputCls}
+              value={fechaFin}
+              onChange={(e) => setFechaFin(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <p className="rounded border border-border bg-surface-2 p-2 text-[12px] text-muted">
+          Al guardar, el contrato deja de estar incompleto: empieza a contar como costo de
+          renta en el P&amp;L y se genera su calendario de pagos
+          {periodicidad ? ` ${periodicidadLabel(periodicidad).toLowerCase()}` : ''}.
+        </p>
+
+        {/* El aviso de lo que falta es informativo mientras se captura; el error
+            del servidor (p. ej. sesión bloqueada por control de cambios) manda. */}
+        {error ? (
+          <p className="text-[12px] text-error">{error}</p>
+        ) : faltante ? (
+          <p className="text-[12px] text-muted">{faltante}</p>
+        ) : null}
+      </div>
+    </Modal>
   )
 }
 

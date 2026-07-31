@@ -31,6 +31,7 @@ export async function refrescarEstado(): Promise<void> {
     arrendadores: e.arrendadores ?? [],
     predios: e.predios ?? [],
     razonesSociales: e.razonesSociales ?? [],
+    licencias: e.licencias ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
     incidencias: e.incidencias ?? [],
@@ -299,6 +300,71 @@ export async function iniciarRenovacionApi(contratoId: string): Promise<void> {
   await refrescarEstado()
 }
 
+// Edita un contrato. Es también la vía por la que se COMPLETA uno INCOMPLETO
+// (ADR 0001): se le fijan arrendador, importe, periodicidad y fecha de fin, y el
+// servidor recalcula el estatus por fechas al guardarlos.
+//
+// La ruta trata este PATCH como cambio sensible y, si el contrato está
+// incompleto, en modo estricto: puede responder 403 pidiendo desbloquear la
+// sesión desde la barra superior. Ese mensaje viene del servidor y se propaga
+// tal cual —no se reescribe aquí— para que quien lo lea sepa qué hacer.
+// Cambio MASIVO de la renta, un contrato por elemento. Mismo patrón que
+// `actualizarTarifasApi`: PATCH en paralelo y UN solo refresco al final, no uno
+// por contrato.
+//
+// El llamador debe mandar contratos DEDUPLICADOS. No es un detalle de eficiencia:
+// varias pantallas de un mismo predio comparten UN contrato, así que mandar uno
+// por pantalla escribiría el mismo importe N veces y contaría N éxitos donde
+// hubo un solo cambio — el resumen mentiría sobre cuánto se tocó.
+//
+// Cada PATCH pasa por el guard de cambio sensible y deja su propia entrada en la
+// bitácora, que para un cambio de dinero es lo que se quiere. Si alguno falla
+// (p. ej. expiró el desbloqueo a media tanda) el resto sí se aplica: se devuelve
+// la cuenta para poder decirlo.
+export async function actualizarRentasApi(
+  items: { contratoId: string; montoRenta: number }[],
+): Promise<{ ok: number; fallidas: number }> {
+  const res = await Promise.allSettled(
+    items.map((it) =>
+      fetch(`${API}/contratos/${it.contratoId}/`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ montoRenta: it.montoRenta }),
+      }).then((r) => {
+        if (!r.ok) throw new Error('patch falló')
+      }),
+    ),
+  )
+  const ok = res.filter((r) => r.status === 'fulfilled').length
+  await refrescarEstado()
+  return { ok, fallidas: items.length - ok }
+}
+
+export async function editarContratoApi(
+  contratoId: string,
+  patch: {
+    arrendadorId?: string
+    montoRenta?: number
+    periodicidad?: string
+    fechaInicio?: string
+    fechaFin?: string
+    moneda?: string
+    autoRenovable?: boolean
+    razonSocialId?: string | null
+    deposito?: number | null
+    documentoUrl?: string | null
+  },
+): Promise<void> {
+  const r = await fetch(`${API}/contratos/${contratoId}/`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(patch),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el contrato')
+  await refrescarEstado()
+}
+
 export async function reportarIncidenciaApi(input: {
   sitioId: string; tipo: string; descripcion: string
 }): Promise<void> {
@@ -386,11 +452,20 @@ export async function marcarOCApi(campanaId: string, ocUrl?: string): Promise<vo
 }
 
 // ─── Finanzas (facturación + cobranza) ──────────────────────────────────────
-export async function generarFacturaApi(campanaId: string, plazoDias: 60 | 90 | 120): Promise<void> {
+export interface PlanCuotasApi {
+  periodicidad: 'QUINCENAL' | 'MENSUAL' | 'BIMESTRAL' | 'TRIMESTRAL' | 'SEMESTRAL' | 'ANUAL'
+  primerVencimiento: string
+}
+
+export async function generarFacturaApi(
+  campanaId: string,
+  plazoDias: 60 | 90 | 120,
+  plan?: PlanCuotasApi | null,
+): Promise<void> {
   const r = await fetch(`${API}/campanas/${campanaId}/facturar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plazoDias }),
+    body: JSON.stringify({ plazoDias, plan: plan ?? null }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la factura')
@@ -592,4 +667,88 @@ export async function extenderCampanaApi(campanaId: string, fechaFin: string): P
   if (!r.ok) throw new Error(d.error ?? 'No se pudo extender')
   await refrescarEstado()
   return d
+}
+
+// ─── Licencias y permisos ───────────────────────────────────────────────────
+export async function crearLicenciaApi(input: {
+  predioId?: string | null; sitioId?: string | null; tipo: string
+  folio?: string | null; autoridad?: string | null
+  fechaExpedicion?: string | null; fechaVencimiento: string; notas?: string | null
+}): Promise<void> {
+  const r = await fetch(`${API}/licencias/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo registrar la licencia')
+  await refrescarEstado()
+}
+
+export async function editarLicenciaApi(id: string, cambios: Record<string, unknown>): Promise<void> {
+  const r = await fetch(`${API}/licencias/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cambios),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la licencia')
+  await refrescarEstado()
+}
+
+export async function borrarLicenciaApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/licencias/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo borrar la licencia')
+  await refrescarEstado()
+}
+
+// ─── Razones sociales del arrendador ────────────────────────────────────────
+// Una razón social es a nombre de QUIÉN factura el arrendador. Un mismo
+// arrendador puede tener varias (p. ej. una por inmueble), y el contrato ancla
+// la suya.
+
+// Devuelve cuántos contratos SIN razón social adoptó el alta. Si el arrendador
+// no tenía ninguna —el caso normal cuando sus pantallas entraron por importación
+// masiva—, sus contratos nacieron huérfanos y esta alta es la que los reclama.
+// El número se devuelve para poder DECIRLO: reatribuir contratos en silencio es
+// un cambio de dato fiscal que nadie pidió explícitamente.
+export async function crearRazonSocialApi(input: {
+  arrendadorId: string
+  razonSocial: string
+  rfc?: string | null
+  regimen?: string | null
+}): Promise<{ contratosAdoptados: number }> {
+  const r = await fetch(`${API}/razones-sociales/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la razón social')
+  await refrescarEstado()
+  return { contratosAdoptados: Number(d?.contratosAdoptados ?? 0) }
+}
+
+// Solo se mandan los campos presentes: así se puede COMPLETAR uno (el RFC que
+// faltaba) sin reescribir los demás.
+export async function editarRazonSocialApi(
+  id: string,
+  input: { razonSocial?: string; rfc?: string | null; regimen?: string | null },
+): Promise<void> {
+  const r = await fetch(`${API}/razones-sociales/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la razón social')
+  await refrescarEstado()
+}
+
+export async function borrarRazonSocialApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/razones-sociales/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo eliminar la razón social')
+  await refrescarEstado()
 }

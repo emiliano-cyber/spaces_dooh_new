@@ -16,12 +16,18 @@ import { cn } from '@/lib/cn'
 import { generarFacturaApi, recordarCobranzaApi, pagarCobranzaApi } from '@/lib/data/estado-api'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { PagosRentaCard } from '@/components/demo/arrendadores/PagosRentaCard'
+import { CompromisoRentaCard } from '@/components/demo/arrendadores/CompromisoRentaCard'
+import {
+  repartirCuotas, PERIODICIDAD_LABEL, duracionMeses, opcionesParcialidad,
+  type PeriodicidadCuota,
+} from '@/lib/finanzas-calculo'
 import {
   useCampanasResumen,
   useFacturas,
   useCobranzas,
   useClientes,
   estadoCobranza,
+  saldoCobranza,
   formatMonto,
   formatFecha,
   diasHasta,
@@ -74,7 +80,7 @@ export default function FinanzasPage() {
     <div className="w-full space-y-4">
       <div>
         <h1 className="text-2xl text-ink">Finanzas</h1>
-        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a propietarios</p>
+        <p className="mt-1 text-[13px] text-muted">Facturación, cobranza y renta a arrendadores</p>
       </div>
 
       {/* Listas para facturar */}
@@ -172,9 +178,16 @@ export default function FinanzasPage() {
                           </td>
                           <td className="px-4 py-2.5 text-muted">{fac ? cliNombre(fac.clienteId) : '—'}</td>
                           <td className="demo-num px-4 py-2.5 text-right text-ink">
-                            {fac ? formatMonto(fac.monto) : '—'}
+                            {/* Con parcialidades, el importe de la fila es el de
+                                LA CUOTA, no el de la factura entera. */}
+                            {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
+                            {cob.numero != null && (
+                              <div className="text-[10px] text-muted">
+                                cuota {cob.numero} de {cob.totalCuotas}
+                              </div>
+                            )}
                             {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
-                              <div className="text-[10px] text-warning">saldo {formatMonto(fac.monto - cob.montoPagado)}</div>
+                              <div className="text-[10px] text-warning">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
                             )}
                           </td>
                           <td className="demo-num px-4 py-2.5 text-muted">{cob.plazoDias} días</td>
@@ -197,7 +210,7 @@ export default function FinanzasPage() {
                                   {puedeCobrar && (
                                     <button
                                       type="button"
-                                      onClick={() => setPagoCob({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: fac ? fac.monto - cob.montoPagado : 0 })}
+                                      onClick={() => setPagoCob({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: saldoCobranza(cob, fac) })}
                                       className="rounded border border-[#10b98155] bg-[#10b9810d] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55] hover:bg-[#10b9811a]"
                                     >
                                       Registrar pago
@@ -234,6 +247,12 @@ export default function FinanzasPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Lo COMPROMETIDO: cuánto se paga por cada pantalla y cada cuánto, con
+          todo normalizado a mes para poder compararlo y sumarlo. Va antes que
+          las cuotas porque responde la pregunta de arriba: cuánto cuesta la
+          renta al mes. */}
+      <CompromisoRentaCard />
 
       {/* Renta a los propietarios: la otra mitad del flujo de caja. Cobranza
           es lo que ENTRA; esto es lo que SALE y cuándo vence. Mismo componente
@@ -290,6 +309,16 @@ function GenerarFacturaDialog({
 }) {
   const [plazo, setPlazo] = useState<60 | 90 | 120>(90)
   const [enviando, setEnviando] = useState(false)
+  // Cobro en parcialidades. Apagado por defecto: el comportamiento de siempre es
+  // una sola exhibición, y activarlo tiene que ser una decisión explícita.
+  const [enCuotas, setEnCuotas] = useState(false)
+  const [periodicidad, setPeriodicidad] = useState<PeriodicidadCuota | ''>('')
+  const [primerVenc, setPrimerVenc] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10))
+  // Duración de la campaña → qué reparto admite. Sin campaña aún, nada.
+  const meses = campana ? duracionMeses(campana.fechaInicio, campana.fechaFin) : 0
+  const opciones = opcionesParcialidad(meses)
+  const nCuotas = opciones.find((o) => o.periodicidad === periodicidad)?.cuotas ?? 0
+
   if (!campana) return null
   return (
     <Modal
@@ -308,7 +337,11 @@ function GenerarFacturaDialog({
             onClick={async () => {
               setEnviando(true)
               try {
-                await generarFacturaApi(campana.id, plazo)
+                await generarFacturaApi(
+                  campana.id,
+                  plazo,
+                  enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
+                )
                 onDone('generada')
                 onClose()
               } catch (e) {
@@ -349,8 +382,71 @@ function GenerarFacturaDialog({
             </span>
           </div>
         </div>
+        {/* Cobro en parcialidades. Las opciones y el nº de cuotas se DERIVAN de
+            la duración de la campaña: solo se ofrece lo que da un número entero
+            de cuotas y al menos 2. Cobrar en "una parcialidad" no es fraccionar
+            nada — eso es el cobro único, que es no marcar la casilla. */}
+        <div className="rounded-md border border-border px-3 py-2.5">
+          {opciones.length === 0 ? (
+            <p className="text-[12px] text-muted">
+              Esta campaña dura {meses} {meses === 1 ? 'mes' : 'meses'}: no admite un
+              reparto en cuotas iguales, así que se cobra en una sola exhibición.
+            </p>
+          ) : (
+            <>
+              <label className="flex cursor-pointer items-center gap-2 text-[13px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={enCuotas}
+                  onChange={(e) => {
+                    setEnCuotas(e.target.checked)
+                    if (e.target.checked && !periodicidad) setPeriodicidad(opciones[0].periodicidad)
+                  }}
+                />
+                Cobrar en parcialidades
+                <span className="text-[11px] text-muted">· campaña de {meses} {meses === 1 ? 'mes' : 'meses'}</span>
+              </label>
+              {enCuotas && (
+                <div className="mt-2.5 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={periodicidad}
+                      onChange={(e) => setPeriodicidad(e.target.value as PeriodicidadCuota)}
+                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                    >
+                      {opciones.map((o) => (
+                        <option key={o.periodicidad} value={o.periodicidad}>
+                          {o.cuotas} cuotas {PERIODICIDAD_LABEL[o.periodicidad]}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="text-[12px] text-muted">desde</span>
+                    <input
+                      type="date" value={primerVenc}
+                      onChange={(e) => setPrimerVenc(e.target.value)}
+                      className="h-9 rounded border border-border-strong bg-surface px-2 text-[13px] text-ink"
+                    />
+                  </div>
+                  {campana.presupuestoBruto != null && nCuotas > 0 && (
+                    <p className="text-[12px] text-muted">
+                      {nCuotas} cuotas de{' '}
+                      <span className="demo-num font-medium text-ink">
+                        {formatMonto(repartirCuotas(campana.presupuestoBruto, nCuotas)[0])}
+                      </span>
+                      {' '}(la última ajusta el redondeo) · suman{' '}
+                      <span className="demo-num text-ink">{formatMonto(campana.presupuestoBruto)}</span>
+                    </p>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
         <div>
-          <span className="mb-1.5 block text-[12px] font-medium text-ink">Plazo de cobranza</span>
+          <span className="mb-1.5 block text-[12px] font-medium text-ink">
+            Plazo de cobranza{enCuotas ? ' (informativo con parcialidades)' : ''}
+          </span>
           <div className="flex gap-2">
             {([60, 90, 120] as const).map((p) => (
               <button

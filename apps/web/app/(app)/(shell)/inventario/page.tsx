@@ -33,6 +33,15 @@ export default function AgregarInventarioPage() {
     setTimeout(() => setToast(null), 2600)
   }
 
+  // Terminar de agregar pantallas devuelve a la lista: el resultado del alta se
+  // ve donde vive el inventario, no en el formulario que acabas de usar. Además
+  // deja el formulario limpio (resetKey) para la próxima carga.
+  function alInventario(msg: string) {
+    notify(msg)
+    setResetKey((k) => k + 1)
+    setModo('lista')
+  }
+
   return (
     <div className="w-full space-y-4 p-6">
       <div className="flex items-center gap-3">
@@ -96,10 +105,7 @@ export default function AgregarInventarioPage() {
       ) : modo === 'contrato' ? (
         <ContratoWizard
           key={`contrato-${resetKey}`}
-          onCreado={(s) => {
-            notify(`Contrato y pantalla "${s.nombre}" creados`)
-            setResetKey((k) => k + 1)
-          }}
+          onCreado={(s) => alInventario(`Contrato y pantalla "${s.nombre}" creados`)}
         />
       ) : modo === 'masiva' ? (
         <ImportarInventarioDialog
@@ -108,6 +114,19 @@ export default function AgregarInventarioPage() {
           open
           onOpenChange={() => setResetKey((k) => k + 1)}
           onNuevaPantalla={() => setModo('manual')}
+          onImportado={(r) => {
+            // Con errores NO se salta: el detalle por fila —qué código falló y
+            // por qué— solo se ve en el resumen del importador, y saltando a la
+            // lista se perdería justo cuando hace falta. Las advertencias sí
+            // dejan pasar: esas filas SÍ entraron, y el aviso cabe en el toast.
+            if (r.errores > 0) return
+            const partes = [
+              r.creadas ? `${r.creadas} nueva${r.creadas === 1 ? '' : 's'}` : '',
+              r.actualizadas ? `${r.actualizadas} actualizada${r.actualizadas === 1 ? '' : 's'}` : '',
+              r.con_advertencias ? `${r.con_advertencias} con advertencias` : '',
+            ].filter(Boolean)
+            alInventario(`Inventario importado: ${partes.join(' · ') || 'sin cambios'}`)
+          }}
         />
       ) : (
         <NuevaPantallaForm
@@ -115,10 +134,7 @@ export default function AgregarInventarioPage() {
           inline
           open
           onOpenChange={() => setResetKey((k) => k + 1)}
-          onCreado={(s) => {
-            notify(`Pantalla "${s.nombre}" agregada al inventario`)
-            setResetKey((k) => k + 1)
-          }}
+          onCreado={(s) => alInventario(`Pantalla "${s.nombre}" agregada al inventario`)}
         />
       )}
 
