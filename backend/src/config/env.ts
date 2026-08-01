@@ -41,6 +41,20 @@ const schema = z.object({
   TURN_URL: z.string().default(''),
   TURN_SECRET: z.string().default(''),
 
+  // Servidor de medios (MediaMTX) para la vista en vivo de los equipos que NO
+  // son telefonos: la Raspberry y las PCs con camara IP empujan el video aqui y
+  // el dashboard lo consume por WebRTC. Los telefonos Android no lo usan: siguen
+  // con su WebRTC punto a punto.
+  // Si MEDIAMTX_HOST queda vacio se deduce de PUBLIC_BASE_URL.
+  MEDIAMTX_HOST: z.string().default(''),
+  MEDIAMTX_RTSP_PORT: z.coerce.number().default(8554),
+  MEDIAMTX_WEBRTC_PORT: z.coerce.number().default(8889),
+  MEDIAMTX_USER: z.string().default('spaceeye'),
+  MEDIAMTX_PASS: z.string().default(''),
+  // API interna del servidor de medios (no se publica al exterior): sirve para
+  // saber si un equipo ya empezo a transmitir.
+  MEDIAMTX_API: z.string().default('http://mediamtx:9997'),
+
   MEDIASOUP_LISTEN_IP: z.string().default('0.0.0.0'),
   MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),
   MEDIASOUP_MIN_PORT: z.coerce.number().default(40000),

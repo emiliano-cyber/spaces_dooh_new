@@ -64,12 +64,27 @@ Para quitar el arranque automatico: `SpaceEyeAgente.exe --desinstalar`
 | Galeria, marca de informacion, descarga, album | si |
 | Verificacion con IA | si |
 | Telemetria y registros remotos | si |
-| **Vista en vivo** | **no** — ver abajo |
+| **Vista en vivo** | **si** — requiere `ffmpeg.exe`, ver abajo |
 
-La vista en vivo de una camara IP requiere convertir su RTSP a WebRTC (con
-MediaMTX o go2rtc junto a los demas contenedores). Es una pieza aparte, todavia
-no construida. Mientras tanto el agente responde a `START_STREAM` con un error
-claro en lugar de dejar el comando colgado.
+## Vista en vivo
+
+La camara ya entrega H.264 por RTSP, asi que el agente **no recodifica nada**:
+reenvia ese mismo video al servidor de medios y el dashboard lo consume de ahi.
+El consumo de CPU de la PC es practicamente cero.
+
+**Requisito: `ffmpeg.exe` junto a `SpaceEyeAgente.exe`** (o en el PATH). Sin el,
+el boton de vista en vivo responde con un mensaje claro pidiendolo. Se descarga
+de https://www.gyan.dev/ffmpeg/builds/ (basta `ffmpeg.exe` de la version
+*essentials*).
+
+Opciones en `config.json`, dentro de `camara`:
+
+| Opcion | Para que | Por omision |
+|---|---|---|
+| `puerto_rtsp` | Puerto RTSP de la camara | `554` |
+| `canal_stream` | Canal para la vista en vivo. `102` (calidad secundaria) gasta mucho menos ancho de banda del sitio que `101` | el mismo `canal` de las fotos |
+
+Si el sitio tiene poco subida, poner `"canal_stream": 102`.
 
 ## Para desarrolladores
 

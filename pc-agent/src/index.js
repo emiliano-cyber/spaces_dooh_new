@@ -12,6 +12,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { io } = require('socket.io-client');
 const { Camara } = require('./camera');
+const { Transmision } = require('./transmision');
 const { Api } = require('./api');
 const rutas = require('./rutas');
 
@@ -147,6 +148,7 @@ async function main() {
   api.log('info', 'startup', `Agente de PC v${VERSION} iniciado en ${os.hostname()}`);
 
   const enCurso = new Set();
+  const transmision = new Transmision(log, cfg.camara);
 
   async function tomarYSubir(cmd) {
     if (enCurso.has(cmd.id)) return;
@@ -178,11 +180,20 @@ async function main() {
     switch (cmd.command_type) {
       case 'TAKE_PHOTO':
         return tomarYSubir(cmd);
-      case 'START_STREAM':
+      case 'START_STREAM': {
+        try {
+          const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+          const info = transmision.iniciar(payload.publish_url);
+          return api.resultadoComando(cmd.id, true, info);
+        } catch (e) {
+          log(`ERROR al iniciar la transmision: ${e.message}`);
+          api.log('error', 'stream', `No se pudo transmitir: ${e.message}`);
+          return api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500));
+        }
+      }
       case 'STOP_STREAM':
-        // La vista en vivo de una camara IP necesita convertir RTSP a WebRTC, que
-        // es una pieza aparte. Se responde para que el comando no quede colgado.
-        return api.resultadoComando(cmd.id, false, null, 'vista en vivo no disponible en el agente de PC');
+        transmision.detener('solicitado desde el dashboard');
+        return api.resultadoComando(cmd.id, true);
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
         await api.resultadoComando(cmd.id, true);

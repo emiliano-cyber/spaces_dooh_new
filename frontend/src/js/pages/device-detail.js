@@ -362,7 +362,12 @@ function deviceDetail() {
     async startStream() {
       const video = document.getElementById('liveVideo');
       this.streamLeft = 180;
-      this.streamClient = new LiveStreamClient(Number(this.deviceId), video, {
+      // Los telefonos transmiten punto a punto; la Raspberry y las PCs con
+      // camara IP pasan por el servidor de medios. Se distingue por la version
+      // del agente, que la ponemos nosotros ("pi-agent", "pc-agent").
+      const porServidor = /^(pi|pc)-agent/i.test(this.device?.app_version || '');
+      const Cliente = porServidor ? WhepStreamClient : LiveStreamClient;
+      this.streamClient = new Cliente(Number(this.deviceId), video, {
         onTick: (s) => { this.streamLeft = s; },
         // Corte a los 3 min: evita que un stream olvidado siga consumiendo
         // datos del equipo y deje sesiones colgadas en el TURN.

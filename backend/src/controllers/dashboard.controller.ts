@@ -8,6 +8,59 @@ import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog } from '../utils/streamWatchdog';
 import { apkInfo } from '../utils/apkInfo';
 import { env } from '../config/env';
+import crypto from 'crypto';
+
+// --- Vista en vivo de los equipos que NO son telefonos ---------------------
+// La Raspberry y las PCs con camara IP no pueden hacer WebRTC punto a punto sin
+// arrastrar GStreamer, asi que empujan el video al servidor de medios y el
+// dashboard lo consume de ahi. Se reconocen por su app_version, que la ponemos
+// nosotros ("pi-agent 0.1.0", "pc-agent 1.0.0").
+function usaServidorDeMedios(appVersion?: string | null) {
+  return !!appVersion && /^(pi|pc)-agent/i.test(String(appVersion));
+}
+
+// Estado de una transmision en el servidor de medios. Sin esto el dashboard
+// tenia que tocar la puerta del servidor de video hasta que el equipo empezara a
+// publicar, dejando una fila de errores 404 en la consola del navegador que
+// parecian una falla y no lo eran.
+export async function streamStatus(req: Request, res: Response) {
+  const clave = String(req.query.key || '');
+  // La clave la genera el backend en hexadecimal; se valida para no reenviar
+  // cualquier cosa al servidor de medios.
+  if (!/^[0-9a-f]{8,64}$/.test(clave)) return res.status(400).json({ error: 'clave_invalida' });
+
+  const medios = servidorDeMedios();
+  if (!medios) return res.status(503).json({ error: 'servidor_de_medios_no_configurado' });
+
+  try {
+    const auth = Buffer.from(`${medios.user}:${medios.pass}`).toString('base64');
+    const r = await fetch(`${env.MEDIAMTX_API}/v3/paths/get/${clave}`, {
+      headers: { Authorization: `Basic ${auth}` },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (!r.ok) return res.json({ listo: false });
+    const d: any = await r.json();
+    res.json({ listo: d?.ready === true, pistas: d?.tracks ?? [] });
+  } catch {
+    // Si el servidor de medios no contesta, el dashboard sigue esperando.
+    res.json({ listo: false });
+  }
+}
+
+function servidorDeMedios() {
+  let host = env.MEDIAMTX_HOST;
+  if (!host) {
+    try { host = new URL(env.PUBLIC_BASE_URL).hostname; } catch { host = ''; }
+  }
+  if (!host || !env.MEDIAMTX_PASS) return null;
+  return {
+    host,
+    rtsp: env.MEDIAMTX_RTSP_PORT,
+    webrtc: env.MEDIAMTX_WEBRTC_PORT,
+    user: env.MEDIAMTX_USER,
+    pass: env.MEDIAMTX_PASS,
+  };
+}
 
 // ICE servers (STUN + TURN) para WebRTC. Lo consumen el dashboard y el agente.
 export function iceServers(_req: Request, res: Response) {
@@ -49,7 +102,11 @@ export async function listDevices(req: Request, res: Response) {
     params.push(group_id);
   }
 
-  sql += ` ORDER BY d.pinned DESC, d.online DESC, d.last_seen_at DESC`;
+  // Orden ALFABETICO y estable. Antes se ordenaba por online y por last_seen_at,
+  // que cambia cada vez que un equipo reporta: la lista se reacomodaba sola cada
+  // pocos segundos y costaba encontrar un sitio (o se hacia clic en el que no
+  // era). Los fijados siguen arriba, que para eso se fijan.
+  sql += ` ORDER BY d.pinned DESC, d.name ASC, d.id ASC`;
 
   const [rows] = await pool.query(sql, params);
   res.json({ devices: rows });
@@ -250,6 +307,24 @@ export async function sendCommand(req: Request, res: Response) {
     };
   }
 
+  // Equipos que transmiten por el servidor de medios: se les da una ruta al azar
+  // y de un solo uso. El equipo recibe a donde publicar y el dashboard de donde
+  // ver; la ruta deja de existir en cuanto se corta la transmision.
+  let stream: { modo: string; whep: string } | null = null;
+  if (command_type === 'START_STREAM') {
+    const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
+    if (usaServidorDeMedios((filas as any[])[0]?.app_version)) {
+      const medios = servidorDeMedios();
+      if (!medios) return res.status(503).json({ error: 'servidor_de_medios_no_configurado' });
+      const clave = crypto.randomBytes(12).toString('hex');
+      payload = {
+        ...(payload ?? {}),
+        publish_url: `rtsp://${medios.user}:${medios.pass}@${medios.host}:${medios.rtsp}/${clave}`,
+      };
+      stream = { modo: 'relay', whep: `http://${medios.host}:${medios.webrtc}/${clave}/whep` };
+    }
+  }
+
   const [result] = await pool.query<any>(
     `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
      VALUES (?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
@@ -272,7 +347,7 @@ export async function sendCommand(req: Request, res: Response) {
   if (command_type === 'START_STREAM') armStreamWatchdog(Number(deviceId));
   else if (command_type === 'STOP_STREAM') disarmStreamWatchdog(Number(deviceId));
 
-  res.json({ command_id: (result as any).insertId });
+  res.json({ command_id: (result as any).insertId, ...(stream ? { stream } : {}) });
 }
 
 // --- PHOTOS ---
