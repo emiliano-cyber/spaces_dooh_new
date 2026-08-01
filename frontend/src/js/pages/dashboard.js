@@ -29,7 +29,15 @@ function dashboard() {
           (this.filter === 'maintenance' && d.status === 'maintenance');
 
         return matchSearch && matchFilter;
-      });
+      })
+        // Orden alfabetico estable, con los fijados arriba. Se ordena tambien
+        // aqui (no solo en el servidor) para que las actualizaciones en vivo por
+        // socket no muevan las tarjetas de lugar mientras alguien las mira.
+        // numeric: "Sitio 2" va antes que "Sitio 10", no al reves.
+        .sort((a, b) =>
+          (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
+          String(a.name || '').localeCompare(String(b.name || ''), 'es', { numeric: true, sensitivity: 'base' }) ||
+          (a.id - b.id));
     },
 
     async init() {
@@ -90,7 +98,21 @@ function dashboard() {
     },
 
     async deleteDevice(d) {
-      if (!confirm(`¿Eliminar "${d.name}"? Se borrarán sus fotos, estado y registros. Esta acción no se puede deshacer.`)) return;
+      // Borrar un equipo se lleva su historial completo y no hay vuelta atras:
+      // se exige escribir ELIMINAR, no solo aceptar un aviso.
+      const confirmar = window.confirmarEscribiendo
+        // Respaldo por si el encabezado no alcanzo a cargar: mismo criterio,
+        // sin modal. Nunca se borra sin escribir la palabra.
+        || (async ({ mensaje, palabra }) => prompt(`${mensaje}\n\nEscribe ${palabra} para confirmar:`) === palabra);
+
+      const ok = await confirmar({
+        titulo: 'Eliminar dispositivo',
+        mensaje: `Vas a eliminar "${d.name}"`,
+        detalle: 'Se borrarán sus fotos, su telemetría y todos sus registros. Esta acción no se puede deshacer.',
+        palabra: 'ELIMINAR',
+        textoBoton: 'Eliminar dispositivo',
+      });
+      if (!ok) return;
       try {
         await API.delete(`/api/devices/${d.id}`);
         this.devices = this.devices.filter((x) => x.id !== d.id);

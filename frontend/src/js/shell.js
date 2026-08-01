@@ -132,6 +132,70 @@
   }
   function closeModal() { document.getElementById('hdr-modal').classList.add('hidden'); }
 
+  // Confirmacion fuerte para lo que NO se puede deshacer: no basta con aceptar,
+  // hay que escribir la palabra. Un dispositivo borrado se lleva sus fotos, su
+  // telemetria y su historial; un clic de mas no deberia poder hacer eso.
+  // Devuelve una promesa que resuelve a true solo si se escribio la palabra.
+  // Queda en window para que cualquier pagina la use (shell.js carga en todas).
+  function confirmarEscribiendo({ titulo, mensaje, detalle, palabra = 'ELIMINAR', textoBoton = 'Eliminar' }) {
+    return new Promise((resolve) => {
+      openModal(titulo, `
+        <div class="space-y-4 text-sm">
+          <div class="flex gap-3 p-3 bg-red-50 border border-red-200 rounded">
+            <svg class="w-5 h-5 text-red-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            </svg>
+            <div>
+              <div class="font-medium text-red-800">${esc(mensaje)}</div>
+              ${detalle ? `<div class="text-red-700 mt-1">${esc(detalle)}</div>` : ''}
+            </div>
+          </div>
+          <div>
+            <label class="block text-neutral-600 mb-1">Para confirmar, escribe <b class="text-neutral-900">${esc(palabra)}</b></label>
+            <input id="hdr-conf-input" autocomplete="off" spellcheck="false"
+                   class="w-full px-3 py-2 border border-neutral-300 rounded focus:outline-none focus:ring-2 focus:ring-red-500"
+                   placeholder="${esc(palabra)}">
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button id="hdr-conf-cancel" class="px-4 py-2 bg-neutral-100 rounded hover:bg-neutral-200">Cancelar</button>
+            <button id="hdr-conf-ok" disabled class="px-4 py-2 rounded text-white bg-red-300 cursor-not-allowed">${esc(textoBoton)}</button>
+          </div>
+        </div>
+      `);
+
+      const input = document.getElementById('hdr-conf-input');
+      const ok = document.getElementById('hdr-conf-ok');
+      const cerrar = document.getElementById('hdr-modal-close');
+
+      let listo = false;
+      const alCerrar = () => terminar(false);
+      function terminar(valor) {
+        if (listo) return;
+        listo = true;
+        cerrar.removeEventListener('click', alCerrar);
+        closeModal();
+        resolve(valor);
+      }
+
+      // Se acepta con o sin mayusculas y sin importar espacios de sobra, pero
+      // tiene que ser la palabra: no vale cualquier cosa.
+      const coincide = () => input.value.trim().toUpperCase() === String(palabra).toUpperCase();
+      const revisar = () => {
+        const v = coincide();
+        ok.disabled = !v;
+        ok.className = `px-4 py-2 rounded text-white ${v ? 'bg-red-600 hover:bg-red-700' : 'bg-red-300 cursor-not-allowed'}`;
+      };
+
+      input.addEventListener('input', revisar);
+      input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && coincide()) terminar(true); });
+      ok.addEventListener('click', () => { if (coincide()) terminar(true); });
+      document.getElementById('hdr-conf-cancel').addEventListener('click', () => terminar(false));
+      cerrar.addEventListener('click', alCerrar);
+      setTimeout(() => input.focus(), 50);
+    });
+  }
+  window.confirmarEscribiendo = confirmarEscribiendo;
+
   let currentUser = null;
 
   function wire() {
