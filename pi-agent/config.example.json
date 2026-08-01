@@ -1,0 +1,12 @@
+{
+  "server_url": "http://159.203.188.58:4000",
+  "intervalo_estado_seg": 60,
+  "intervalo_sondeo_seg": 30,
+  "camara": {
+    "modo": "auto",
+    "ancho": 1920,
+    "alto": 1080,
+    "calidad": 90,
+    "espera_ms": 1500
+  }
+}
