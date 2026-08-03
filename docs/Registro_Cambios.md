@@ -7,6 +7,45 @@ La entrada más reciente va arriba.
 
 ## 2026-08-03
 
+- **Recordatorios diarios de contratos, en la app y por correo.** Hasta ahora los
+  avisos se calculaban al abrir la pantalla: si nadie entraba, nadie se
+  enteraba. Ahora una tarea programada revisa los contratos cada mañana y deja
+  el aviso en la campana de notificaciones, más un correo de resumen a los
+  Dueños. Avisa de tres cosas: contratos **sin capturar** (los que nacieron al
+  cargar o vender una pantalla y siguen sin renta), los que **vencen en los
+  próximos 3 días** y los que **ya vencieron**.
+  - *Por qué 3 días y no 90:* el aviso a 90 días ya existe en pantalla. Este es
+    el de «esto se te va encima mañana», y una ventana ancha lo convertiría en
+    ruido que se aprende a ignorar.
+  - *Un solo correo por organización, y solo si hay algo nuevo.* Nueve correos
+    seguidos se archivan sin leer, y el décimo —el que importaba— con ellos. Si
+    no hay novedades del día, no se manda nada.
+  - *No se duplica:* si la tarea se dispara dos veces, o alguien la lanza a mano
+    para probar, el aviso del día no se repite.
+  - *Sin correo configurado sigue funcionando:* las notificaciones aparecen igual
+    dentro de la app y el sistema lo dice en vez de fallar en silencio. Hoy en
+    producción falta la clave de envío, así que de momento solo hay campana.
+- **Descarga de contratos vigentes en Excel**, desde la pantalla de Arrendadores.
+  Deja fuera a propósito los contratos **sin capturar** —todavía no son un
+  acuerdo, y colarlos con columnas vacías haría creer que existe un trato que no
+  existe— y los cancelados o vencidos. Un contrato de predio cuenta **todas** las
+  pantallas del inmueble, no solo una: es lo que ampara de verdad.
+- **Al elegir el arrendador en «Completar contrato» ya se ve a quién se le va a
+  pagar.** Antes solo salía el nombre, y el nombre no dice si se le podrá
+  facturar: la renta se cobra contra una razón social con RFC y régimen fiscal.
+  Ahora se muestran esos datos y se avisa de los que falten, sin bloquear el
+  guardado — el acuerdo es real aunque el dato fiscal se capture después.
+- **Corregido: cambiar el rol de alguien dejaba su pantalla con el rol viejo.**
+  La sesión se leía una sola vez al abrir la aplicación, así que quien veía la
+  pantalla seguía con sus permisos anteriores hasta recargar a mano. No era un
+  agujero de seguridad —el servidor sí aplicaba el rol nuevo de inmediato— pero
+  la interfaz ofrecía botones que iban a fallar.
+- *Se revisó también* que no se pueda dar de alta una pantalla sin arrendador, y
+  **ya estaba bien**: se comprobó atacando directamente la API sin pasar por la
+  pantalla, y la rechaza en los tres casos (sin arrendador, vacío, o de otra
+  organización), sin dejar registros a medias.
+
+
 - **Corregida la carga masiva de inventario, que fallaba con «Sin acceso a ese
   registro» en cualquier organización que no fuera la primera.** Al subir
   pantallas desde Excel a un CRM recién creado, la carga se interrumpía entera y
