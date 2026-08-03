@@ -72,24 +72,26 @@ export async function POST(req: Request) {
       )
       const avisos = recordatoriosDeContratos(rows as ContratoParaAviso[], hoy)
 
-      // Los ya creados HOY para este contrato+motivo. El motivo va dentro de
-      // `tipo` para poder distinguirlos sin añadir columnas a la tabla.
-      const { rows: yaHoy } = await client.query(
-        `select tipo from notificaciones
-          where tipo like 'contrato:%' and creado_en >= date_trunc('day', now())`,
-      )
-      const existentes = new Set(yaHoy.map((r: { tipo: string }) => r.tipo))
-
+      // El «una vez al día» lo aplica la propia sentencia, con la MISMA regla
+      // que `notificar()` (notificaciones-repo.ts): insertar solo si no existe
+      // ya hoy una idéntica. Antes esto llevaba su propia comprobación en dos
+      // pasos —consultar y luego insertar— y tener dos reglas distintas para lo
+      // mismo era pedir que divergieran. El motivo va dentro de `tipo` para
+      // distinguirlos sin añadir columnas a la tabla.
       let creados = 0
       for (const a of avisos) {
         const tipo = `contrato:${a.motivo}:${a.contratoId}`
-        if (existentes.has(tipo)) continue
-        await client.query(
+        const r = await client.query(
           `insert into notificaciones (tipo, nivel, titulo, detalle, link, tenant_id)
-           values ($1,$2,$3,$4,$5,$6)`,
+           select $1,$2,$3,$4,$5,$6
+            where not exists (
+              select 1 from notificaciones
+               where tenant_id = $6 and tipo = $1
+                 and creado_en >= date_trunc('day', now())
+            )`,
           [tipo, a.nivel, a.titulo, a.detalle, '/arrendadores', t.id],
         )
-        creados++
+        creados += r.rowCount ?? 0
       }
       // Destinatarios DENTRO de la transacción: `usuarios` es fail-closed y aquí
       // el tenant ya está fijado, así que la RLS los acota sola. Leerlos fuera
