@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { AlertTriangle, RefreshCw, Building2, FileText, Paperclip, X, Loader2 } from 'lucide-react'
+import { cn } from '@/lib/cn'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
 import { LicenciasCard } from '@/components/demo/arrendadores/LicenciasCard'
@@ -17,6 +18,7 @@ import {
 } from '@/components/demo/StatusBadge'
 import {
   useArrendadores,
+  useRazonesSociales,
   useSitios,
   usePagosRenta,
   formatMonto,
@@ -314,6 +316,7 @@ function CompletarContratoModal({
   onHecho: (msg: string) => void
 }) {
   const arrendadores = useArrendadores()
+  const razones = useRazonesSociales()
   // Se prellena con lo que YA tenga: un contrato puede estar incompleto por
   // faltarle solo la fecha de fin, y volver a pedir el resto sería absurdo.
   const [arrendadorId, setArrendadorId] = useState(contrato.arrendadorId ?? '')
@@ -322,6 +325,25 @@ function CompletarContratoModal({
   const [fechaFin, setFechaFin] = useState(contrato.fechaFin ? contrato.fechaFin.slice(0, 10) : '')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+
+  // Datos del arrendador ELEGIDO. El selector solo mostraba su nombre, y el
+  // nombre no dice si se le va a poder pagar: la renta se factura contra una
+  // razón social con RFC y régimen, y eso vive en `arrendador_razon_social`, no
+  // en el arrendador. Quien completa el contrato aquí es quien puede ir a
+  // pedir el dato que falte, y después ya no vuelve a pasar por esta pantalla.
+  const elegido = (arrendadores ?? []).find((a) => a.id === arrendadorId) ?? null
+  const razonesDelElegido = (razones ?? []).filter((r) => r.arrendadorId === arrendadorId)
+  const razonPrincipal = razonesDelElegido[0] ?? null
+  // Falta = no se podrá emitir el pago de la renta. NO bloquea: el contrato es
+  // un acuerdo real aunque el dato fiscal se capture después, y bloquear aquí
+  // devolvería estos contratos al limbo del que este formulario los saca.
+  const faltaFiscal = elegido
+    ? [
+        !razonPrincipal ? 'razón social' : null,
+        !(razonPrincipal?.rfc ?? elegido.rfc) ? 'RFC' : null,
+        !razonPrincipal?.regimen ? 'régimen fiscal' : null,
+      ].filter(Boolean) as string[]
+    : []
 
   const inicio = contrato.fechaInicio.slice(0, 10)
   const montoNum = Number(monto)
@@ -389,6 +411,35 @@ function CompletarContratoModal({
             ))}
           </select>
         </label>
+
+        {/* Ficha del arrendador elegido: se ve ANTES de guardar, que es cuando
+            todavía se puede cambiar de opinión o ir a capturar lo que falte. */}
+        {elegido && (
+          <div className="rounded-md border border-border bg-surface-2 p-2.5 text-[12px]">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+              <DatoArrendador etiqueta="Razón social" valor={razonPrincipal?.razonSocial} />
+              <DatoArrendador etiqueta="RFC" valor={razonPrincipal?.rfc ?? elegido.rfc} mono />
+              <DatoArrendador etiqueta="Régimen fiscal" valor={razonPrincipal?.regimen} />
+              <DatoArrendador etiqueta="Correo" valor={elegido.email} />
+              <DatoArrendador etiqueta="Teléfono" valor={elegido.telefono} />
+            </div>
+            {razonesDelElegido.length > 1 && (
+              <p className="mt-1.5 text-[11px] text-muted">
+                Tiene {razonesDelElegido.length} razones sociales; se muestra la primera.
+                Cuál factura este contrato se elige en su ficha.
+              </p>
+            )}
+            {faltaFiscal.length > 0 && (
+              <p className="mt-2 flex gap-1.5 border-t border-border pt-2 text-[11px] text-[#9a6700]">
+                <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-warning" />
+                <span>
+                  Le falta {faltaFiscal.join(', ')}. Puedes guardar el contrato igual, pero
+                  sin eso no se le podrá facturar la renta cuando toque pagarle.
+                </span>
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
@@ -748,6 +799,21 @@ function Fila({ label, valor, mono }: { label: string; valor: string; mono?: boo
     <div className="flex items-center justify-between">
       <dt className="text-muted">{label}</dt>
       <dd className={mono ? 'demo-num text-ink' : 'text-ink'}>{valor}</dd>
+    </div>
+  )
+}
+
+// Un dato del arrendador en la ficha de «Completar contrato». El guión medio no
+// es decorativo: distingue «no lo tiene capturado» de que el campo no exista.
+function DatoArrendador({
+  etiqueta, valor, mono = false,
+}: { etiqueta: string; valor?: string | null; mono?: boolean }) {
+  return (
+    <div className="flex justify-between gap-2">
+      <span className="text-muted">{etiqueta}</span>
+      <span className={cn('text-right text-ink', mono && 'demo-num', !valor && 'text-muted')}>
+        {valor || '—'}
+      </span>
     </div>
   )
 }

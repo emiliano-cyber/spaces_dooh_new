@@ -73,8 +73,18 @@ export default function AdministracionPage() {
 
 // ─── Tab Usuarios ───────────────────────────────────────────────────────────
 function Usuarios({ onToast }: { onToast: (m: string) => void }) {
-  const { sesion } = useSesionCtx()
+  const { sesion, refrescar } = useSesionCtx()
   const yo = sesion?.usuario.id
+
+  // La sesión del shell se carga UNA vez al montar (lib/auth-real.ts). Si el
+  // cambio recae sobre el usuario que está viendo la pantalla, hay que releerla:
+  // si no, la barra superior sigue diciendo su rol anterior y `usePuede()` sigue
+  // ofreciéndole botones que el servidor ya le va a rechazar. El servidor SÍ se
+  // entera al momento (`auth_usuario_por_sesion` lee el rol vigente), así que
+  // esto es coherencia de la UI, no un permiso que se estuviera colando.
+  async function refrescarSiSoyYo(id: string) {
+    if (id === yo) await refrescar()
+  }
   const [usuarios, setUsuarios] = useState<UsuarioDemo[] | null>(null)
   const [invOpen, setInvOpen] = useState(false)
   // Usuario al que se le va a cambiar la contraseña (null = modal cerrado).
@@ -87,11 +97,13 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
     await actualizarUsuarioApi(id, { rol })
     onToast(`${nombre}: rol cambiado a ${rolLabel(rol)}`)
     cargar()
+    await refrescarSiSoyYo(id)
   }
   async function toggle(id: string, activo: boolean, nombre: string) {
     await actualizarUsuarioApi(id, { activo: !activo })
     onToast(`${nombre}: ${activo ? 'desactivado' : 'activado'}`)
     cargar()
+    await refrescarSiSoyYo(id)
   }
 
   return (
