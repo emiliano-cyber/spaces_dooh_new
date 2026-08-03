@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, FileSignature, Search, X } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature, Search, X, Download } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -35,6 +35,7 @@ import {
   usePagosRenta,
   useMargenPorSitio,
   useRazonesSociales,
+  usePredios,
   useReservas,
   useCampanas,
   formatMonto,
@@ -46,6 +47,7 @@ import {
 } from '@/lib/data/client'
 import { registrarPagoRentaApi, crearArrendadorApi, crearRazonSocialApi } from '@/lib/data/estado-api'
 import { esRfcValido } from '@/lib/rfc'
+import { descargarContratos } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
 
 export default function ArrendadoresPage() {
@@ -55,8 +57,34 @@ export default function ArrendadoresPage() {
   const pagos = usePagosRenta()
   const margenes = useMargenPorSitio()
   const razones = useRazonesSociales()
+  const predios = usePredios()
   const reservas = useReservas()
   const campanas = useCampanas()
+
+  // Genera el archivo en el navegador (no hay endpoint: los datos ya estan en
+  // el store). Si falla —un tenant con miles de contratos agotando memoria— se
+  // dice, en vez de dejar un boton que no hace nada.
+  function descargarVigentes() {
+    try {
+      const n = descargarContratos(
+        contratos ?? [],
+        {
+          arrendadores: arrendadores ?? [],
+          razones: razones ?? [],
+          sitios: sitios ?? [],
+          predios: predios ?? [],
+        },
+        'xlsx',
+      )
+      setToast(
+        n === 0
+          ? 'No hay contratos vigentes que descargar'
+          : `Descargados ${n} contrato${n === 1 ? '' : 's'} vigente${n === 1 ? '' : 's'}`,
+      )
+    } catch {
+      setToast('No se pudo generar el archivo')
+    }
+  }
 
   const [sel, setSel] = useState<ContratoArrendamiento | null>(null)
   const [open, setOpen] = useState(false)
@@ -272,8 +300,20 @@ export default function ArrendadoresPage() {
 
       {/* Contratos */}
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Contratos de arrendamiento</CardTitle>
+          {/* Descarga SOLO los vigentes, sin importar el filtro de pantalla: el
+              reporte es «que tengo en curso», y un filtro visual no deberia
+              cambiar lo que significa el archivo. Los INCOMPLETO quedan fuera a
+              proposito (ADR 0001): todavia no son un acuerdo. */}
+          <button
+            onClick={descargarVigentes}
+            disabled={!contratos}
+            className="inline-flex items-center gap-1.5 rounded border border-border-strong px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+            title="Descargar los contratos vigentes en Excel"
+          >
+            <Download className="h-3.5 w-3.5" /> Vigentes en Excel
+          </button>
         </CardHeader>
         <CardContent className="px-0 pb-0">
           {!contratosFiltrados ? (
