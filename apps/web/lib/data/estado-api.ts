@@ -198,9 +198,13 @@ export async function actualizarClienteApi(id: string, input: Partial<ClienteInp
 }
 
 // ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
+// Devuelve el arrendador creado. La ruta siempre lo respondió (201 + objeto);
+// el tipo decía `void` y se tiraba, así que quien necesitara encadenar algo a su
+// id —dar de alta su razón social en el mismo formulario, por ejemplo— no tenía
+// de dónde sacarlo. Los llamadores que lo ignoran siguen igual.
 export async function crearArrendadorApi(input: {
   nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
-}): Promise<void> {
+}): Promise<{ id: string; nombre: string }> {
   const r = await fetch(`${API}/arrendadores/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -209,6 +213,7 @@ export async function crearArrendadorApi(input: {
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el propietario')
   await refrescarEstado()
+  return { id: String(d?.id ?? ''), nombre: String(d?.nombre ?? input.nombre) }
 }
 
 // Alta unificada: arrendatario → contrato de arrendamiento → pantalla. El

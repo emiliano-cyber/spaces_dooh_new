@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2 } from 'lucide-react'
+import { Search, Cpu, Pencil, Loader2, CheckCircle2, UserPlus, Tag, X, Building2, Download } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
@@ -11,6 +11,7 @@ import { actualizarSitioApi, actualizarTarifasApi } from '@/lib/data/sitios-api'
 import { editarContratoApi, actualizarRentasApi } from '@/lib/data/estado-api'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { planearRentaMasiva } from '@/lib/renta-masiva'
+import { descargarInventario } from '@/lib/inventario-export'
 import {
   useSitios,
   useContratos,
@@ -61,6 +62,17 @@ export function InventarioTabla() {
   const [campoMasivo, setCampoMasivo] = useState<'tarifa' | 'renta'>('tarifa')
   const [valorTarifa, setValorTarifa] = useState('')
   const [aplicando, setAplicando] = useState(false)
+
+  // Generar el archivo es trabajo sincrono en el navegador y puede fallar (un
+  // inventario enorme agota memoria). Sin este catch el error moria en la
+  // consola y el usuario se quedaba mirando un boton que "no hizo nada".
+  function bajar(formato: 'xlsx' | 'csv') {
+    try {
+      descargarInventario(filtrados, formato)
+    } catch {
+      notify('No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas.')
+    }
+  }
 
   function abrirFicha(s: Sitio) {
     setActivo(s)
@@ -264,7 +276,31 @@ export function InventarioTabla() {
             className="h-9 w-full rounded border border-border-strong bg-surface pl-8 pr-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
-        <span className="shrink-0 text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-[12px] text-muted">{filtrados.length} de {sitios.length}</span>
+          {/* Descarga lo FILTRADO, no todo: si alguien buscó "Reforma" y pulsa
+              descargar, espera esas pantallas. Con el buscador vacío `filtrados`
+              es el inventario completo, así que el caso normal no cambia. */}
+          <div className="flex items-center gap-1 border-l border-border pl-2">
+            <Download className="h-3.5 w-3.5 text-muted" />
+            <button
+              onClick={() => bajar('xlsx')}
+              disabled={filtrados.length === 0}
+              title="Descargar en Excel, con el mismo formato que la plantilla de carga"
+              className="rounded px-1.5 py-1 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+            >
+              Excel
+            </button>
+            <button
+              onClick={() => bajar('csv')}
+              disabled={filtrados.length === 0}
+              title="Descargar en CSV, con el mismo formato que la plantilla de carga"
+              className="rounded px-1.5 py-1 text-[12px] font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+            >
+              CSV
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Barra de cambio MASIVO de tarifa (sin Excel): aparece al seleccionar. */}

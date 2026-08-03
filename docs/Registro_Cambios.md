@@ -49,10 +49,57 @@ La entrada más reciente va arriba.
     conocida, pero conviene tenerlo presente al validar con un CRM de prueba:
     cambiarle esos parámetros se los cambia también a la organización real. El
     nombre que se ve en la barra lateral sí es propio de cada organización.
-- *Despliegue:* **pendiente**. La corrección está verificada en local —se
-  reprodujo el fallo con una organización distinta, se confirmó que el arreglo lo
-  resuelve, y la batería completa (412 pruebas) queda en verde—, pero todavía no
-  se ha comprobado contra producción ni se ha desplegado.
+- *Comprobado contra producción:* el valor por omisión **existe** y apunta a la
+  organización más antigua. Hay **cinco** organizaciones dadas de alta, así que
+  las otras cuatro chocaban con esto. Y el daño ya estaba hecho: **15 modalidades
+  de venta de 16 pantallas de dos organizaciones distintas están guardadas a
+  nombre de la primera**. Esas pantallas no muestran hoy sus tarifas ni sus
+  costos a quien es su dueño. Es anterior al error reportado: hasta el hardening
+  del 20 de julio esto ocurría en silencio, y a partir de entonces empezó a dar
+  el error visible. Se barrieron doce tablas por organización y esta es la única
+  afectada; el resto cuadra.
+- *Falta una reparación de datos, además del arreglo de código:* con esas filas
+  viejas ahí, volver a subir esas mismas 16 pantallas seguiría fallando aunque el
+  arreglo esté desplegado (el archivo choca con un registro que la organización
+  no puede ver). Se comprobó reproduciéndolo. La reparación mueve cada modalidad
+  a la organización de su pantalla y necesita permisos de administrador de la
+  base; queda pendiente de autorización.
+- *Despliegue:* **pendiente**. El código está verificado en local —se reprodujo
+  el fallo con otra organización, se confirmó que el arreglo lo resuelve, y la
+  batería completa queda en verde—, pero no se ha desplegado.
+
+- **Alta de arrendador: se piden los datos fiscales y se avisa del RFC mal
+  escrito al teclearlo.** El RFC ya se rechazaba en el servidor, pero el aviso
+  llegaba después de enviar el formulario. Ahora se marca en el momento, con la
+  misma regla que aplica el servidor (antes estaba escrita por duplicado en dos
+  sitios; ahora es una sola). Además se pueden capturar **razón social y régimen
+  fiscal** en el alta, ambos opcionales: es a quien se le factura la renta, y
+  pedirlo cuando se tiene a la mano evita tener que volver a entrar a la ficha.
+  Si el arrendador se crea pero su razón social falla, se dice — antes ese caso
+  habría dejado un arrendador sin datos fiscales sin que nadie se enterara.
+- **Carga masiva más simple: se quitaron dos botones y ahora el archivo es quien
+  responde.** Desaparece la casilla «todas estas pantallas están en el mismo
+  predio» con su selector: se pedía al operador que AFIRMARA algo que el propio
+  Excel ya dice. Ahora solo se escribe el **nombre del predio** —y si ya existe,
+  se reutiliza en vez de duplicarlo— y al cargar el archivo el sistema
+  **comprueba que las direcciones sean la misma o parecidas**, avisando de las
+  que se salen del grupo y a qué distancia. Avisa, no bloquea: sin coordenadas en
+  el Excel la única evidencia es cómo está escrita la dirección, y eso no da para
+  rechazar un archivo. También se quitó el botón «Nueva pantalla» de dentro del
+  importador: el alta manual ya tiene su propia pestaña, y esconderla ahí obligaba
+  a entrar a «importar» para descubrir que también se podía dar de alta una sola.
+- **El precio de impresión por m² solo aparece si el archivo trae pantallas
+  estáticas.** La impresión es de la lona y una pantalla digital no lleva lona,
+  así que en un archivo solo-digital era un campo que invitaba a capturar un
+  número que no se iba a usar.
+- **Ya se puede descargar el inventario en Excel o CSV.** Sale con el **mismo
+  formato que la plantilla de carga**, así que el archivo descargado se puede
+  editar en masa y volver a subir sin traducir nada. Descarga lo que esté
+  filtrado en pantalla, no siempre todo. Dos detalles que se cuidaron: las
+  coordenadas puestas por defecto **no** se exportan (son «sin capturar», y
+  sacarlas las convertiría en dato bueno en la siguiente vuelta), y lo que no
+  tiene dato sale como celda vacía y no como cero — un cero en la renta se leería
+  como que el espacio es gratis.
 
 ## 2026-07-29
 

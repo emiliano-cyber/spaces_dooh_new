@@ -1,13 +1,12 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Upload,
   FileSpreadsheet,
   AlertTriangle,
   Image as ImageIcon,
-  Plus,
   Download,
   FileText,
   Eye,
@@ -18,6 +17,7 @@ import { Button } from '@/components/demo/ui/Button'
 import { InfoAnadidaModal } from './InfoAnadidaModal'
 import { cn } from '@/lib/cn'
 import { validarArchivo, type FilaValidada } from '@/lib/inventario-import'
+import { pantallasFueraDelGrupo } from '@/lib/predio-cercania'
 import { importarSitiosApi } from '@/lib/data/sitios-api'
 import {
   useSitios,
@@ -44,13 +44,11 @@ const STATUS_STYLE: Record<ImportStatus, string> = {
 export function ImportarInventarioDialog({
   open,
   onOpenChange,
-  onNuevaPantalla,
   onImportado,
   inline = false,
 }: {
   open: boolean
   onOpenChange: (v: boolean) => void
-  onNuevaPantalla: () => void
   // Se llama al terminar una importación. Recibe el resumen para que quien
   // contiene el diálogo decida qué hacer (p. ej. saltar al inventario si no
   // hubo errores, o quedarse para que se lea el detalle si los hubo).
@@ -62,11 +60,12 @@ export function ImportarInventarioDialog({
   const arrendadores = useArrendadores()
   const predios = usePredios()
   const [arrendadorId, setArrendadorId] = useState('')
-  // Predio del lote (opcional). '' = pantallas sueltas; 'NUEVO' = crear uno.
-  const [mismoPredio, setMismoPredio] = useState(false)
-  const [predioId, setPredioId] = useState('')
+  // Predio del lote (opcional): SOLO un nombre. Antes había una casilla «todas
+  // están en el mismo predio» más un selector; se pedía al operador que
+  // AFIRMARA algo que el propio archivo ya dice. Ahora se escribe el nombre y
+  // la coherencia se comprueba contra las direcciones del Excel (más abajo).
+  // Vacío = pantallas sueltas, cada una con su contrato.
   const [predioNombre, setPredioNombre] = useState('')
-  const [predioDireccion, setPredioDireccion] = useState('')
   const [precioM2, setPrecioM2] = useState('')
   const [codificacion, setCodificacion] = useState('utf-8')
   const [filas, setFilas] = useState<FilaValidada[] | null>(null)
@@ -92,20 +91,49 @@ export function ImportarInventarioDialog({
 
   // Un predio pertenece a UN arrendador, así que solo se ofrecen los suyos.
   const prediosDelArrendador = (predios ?? []).filter((p) => p.arrendadorId === arrendadorId)
-  const creandoPredio = mismoPredio && predioId === 'NUEVO'
+  // El nombre escrito puede ser uno que YA existe: entonces se reutiliza en vez
+  // de dar de alta un duplicado. La comparación ignora mayúsculas y espacios,
+  // que es como la gente escribe el mismo nombre dos veces.
+  const predioExistente = prediosDelArrendador.find(
+    (p) => p.nombre.trim().toLowerCase() === predioNombre.trim().toLowerCase(),
+  )
   // Payload de predio: null = pantallas sueltas (una con su contrato cada una).
-  const predioDelLote = !mismoPredio
+  const predioDelLote = !predioNombre.trim()
     ? null
-    : creandoPredio
-      ? { nombre: predioNombre.trim(), direccion: predioDireccion.trim() || null }
-      : predioId
-        ? { id: predioId }
-        : null
-  // Marcar "mismo predio" y no terminar de decir cuál dejaría el lote suelto en
-  // silencio, que es justo lo contrario de lo que se pidió: mejor no dejar pasar.
-  const predioIncompleto =
-    mismoPredio && (!predioId || (creandoPredio && !predioNombre.trim()))
-  const listoParaImportar = !!filas && !!arrendadorId && !predioIncompleto
+    : predioExistente
+      ? { id: predioExistente.id }
+      : { nombre: predioNombre.trim(), direccion: null }
+
+  // ¿Todas las pantallas del archivo están de verdad en el mismo sitio? Solo
+  // importa si se pidió agruparlas en un predio. Se avisa, no se bloquea: sin
+  // coordenadas en el Excel —el caso más común— la única evidencia es cómo está
+  // escrita la dirección, y eso no da para rechazar un archivo. El servidor sí
+  // bloquea cuando hay coordenadas y una pantalla está a más de 250 m.
+  // Depende de SI se agrupa en predio, no del texto: si no, cada tecla del
+  // nombre recorría el archivo entero de nuevo sin que el resultado cambiara.
+  const agrupaEnPredio = !!predioNombre.trim()
+  const fueraDelGrupo = useMemo(() => {
+    if (!agrupaEnPredio || !filas) return []
+    return pantallasFueraDelGrupo(
+      filas
+        .filter((f) => f.datos)
+        .map((f) => ({
+          clave: f.datos!.nombre || f.codigo_proveedor || 'sin nombre',
+          lat: f.datos!.latitud,
+          lng: f.datos!.longitud,
+          direccion: f.datos!.direccion,
+          // Las filas con coordenadas por defecto se marcan pendientes: usarlas
+          // diría que todas están en el mismo punto exacto.
+          coordsFiables: !f.datos!.pendienteVerificacion,
+        })),
+    )
+  }, [filas, agrupaEnPredio])
+
+  // El precio de impresión por m² solo aplica a pantallas ESTÁTICAS. Preguntarlo
+  // cuando el archivo trae solo digitales es pedir un dato que no se va a usar.
+  const hayFijas = (filas ?? []).some((f) => f.datos?.exhibicion === 'fijo')
+
+  const listoParaImportar = !!filas && !!arrendadorId
 
   function reset() {
     setFilas(null)
@@ -114,10 +142,7 @@ export function ImportarInventarioDialog({
     setSummary(null)
     setModo('ACTUALIZAR')
     setArrendadorId('')
-    setMismoPredio(false)
-    setPredioId('')
     setPredioNombre('')
-    setPredioDireccion('')
   }
 
   async function procesarArchivo(f: File) {
@@ -201,11 +226,9 @@ export function ImportarInventarioDialog({
       <span className="text-[12px] text-muted">
         {filas && !arrendadorId
           ? 'Falta elegir el arrendador'
-          : filas && predioIncompleto
-            ? 'Falta indicar el predio'
-            : filas
-              ? `${filas.length} filas leídas`
-              : 'Sin archivo'}
+          : filas
+            ? `${filas.length} filas leídas`
+            : 'Sin archivo'}
       </span>
       <div className="flex gap-2">
         <Button variant="secondary" size="sm" onClick={() => { reset(); if (!inline) onOpenChange(false) }}>
@@ -220,17 +243,6 @@ export function ImportarInventarioDialog({
   const cuerpo = (
     <>
       <div className={inline ? 'space-y-3 pr-1' : 'max-h-[64vh] space-y-3 overflow-y-auto pr-1'}>
-        {/* ¿Solo una pantalla? */}
-        <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
-          <div>
-            <div className="text-[13px] font-medium text-ink">¿Solo una pantalla?</div>
-            <div className="text-[12px] text-muted">Agrégala manualmente con el formulario</div>
-          </div>
-          <Button size="sm" onClick={onNuevaPantalla}>
-            <Plus className="h-3.5 w-3.5" /> Nueva pantalla
-          </Button>
-        </div>
-
         {/* ¿Primera vez? Descargar plantilla */}
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
@@ -251,18 +263,14 @@ export function ImportarInventarioDialog({
           <div>
             <div className="text-[13px] font-medium text-ink">Arrendador de estas pantallas</div>
             <div className="text-[12px] text-muted">
-              {mismoPredio
+              {predioNombre.trim()
                 ? 'El predio y su contrato se abrirán a nombre de este arrendador'
                 : 'A cada pantalla se le abrirá un contrato pendiente con este arrendador'}
             </div>
           </div>
           <select
             value={arrendadorId}
-            onChange={(e) => {
-              setArrendadorId(e.target.value)
-              // Los predios dependen del arrendador: cambiarlo invalida el elegido.
-              setPredioId('')
-            }}
+            onChange={(e) => setArrendadorId(e.target.value)}
             className={cn(inputCls, 'w-56', !arrendadorId && 'border-[#f59e0b]')}
           >
             <option value="">Elige un arrendador…</option>
@@ -284,63 +292,60 @@ export function ImportarInventarioDialog({
           </div>
         )}
 
-        {/* Predio del lote (OPCIONAL — ADR 0004) */}
+        {/* Predio del lote (OPCIONAL — ADR 0004). Solo el nombre: que estén de
+            verdad en el mismo sitio lo comprueba el archivo, no una casilla. */}
         <div className="rounded-md border border-border bg-surface px-3 py-2.5">
-          <label className="flex cursor-pointer items-start gap-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-medium text-ink">
+                Predio <span className="font-normal text-muted">(opcional)</span>
+              </div>
+              <div className="text-[12px] text-muted">
+                {predioNombre.trim()
+                  ? predioExistente
+                    ? 'Se añadirán al predio que ya existe, bajo su contrato.'
+                    : 'Se creará el predio y todas compartirán UN solo contrato.'
+                  : 'Sin nombre entran como pantallas sueltas, cada una con su contrato.'}
+              </div>
+            </div>
             <input
-              type="checkbox"
-              checked={mismoPredio}
+              value={predioNombre}
+              onChange={(e) => setPredioNombre(e.target.value)}
               disabled={!arrendadorId}
-              onChange={(e) => setMismoPredio(e.target.checked)}
-              className="mt-0.5 h-4 w-4 shrink-0 accent-[#0a66ff]"
+              list="predios-del-arrendador"
+              placeholder="Nombre del predio"
+              className={cn(inputCls, 'w-56')}
             />
-            <span>
-              <span className="block text-[13px] font-medium text-ink">
-                Todas estas pantallas están en el mismo predio{' '}
-                <span className="font-normal text-muted">(opcional)</span>
-              </span>
-              <span className="block text-[12px] text-muted">
-                {mismoPredio
-                  ? 'Compartirán UN solo contrato: al completarlo se liberan todas para venta.'
-                  : 'Si no lo marcas, entran como pantallas sueltas y cada una lleva su propio contrato.'}
-              </span>
-            </span>
-          </label>
+            {/* Sugiere los que ya tiene este arrendador para no duplicarlos. */}
+            <datalist id="predios-del-arrendador">
+              {prediosDelArrendador.map((p) => (
+                <option key={p.id} value={p.nombre} />
+              ))}
+            </datalist>
+          </div>
 
-          {mismoPredio && (
-            <div className="mt-2.5 space-y-2 border-t border-border pt-2.5">
-              <select
-                value={predioId}
-                onChange={(e) => setPredioId(e.target.value)}
-                className={cn(inputCls, !predioId && 'border-[#f59e0b]')}
-              >
-                <option value="">Elige el predio…</option>
-                {prediosDelArrendador.map((p) => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-                <option value="NUEVO">+ Crear un predio nuevo…</option>
-              </select>
-              {creandoPredio && (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    value={predioNombre}
-                    onChange={(e) => setPredioNombre(e.target.value)}
-                    placeholder="Nombre del predio *"
-                    className={cn(inputCls, !predioNombre.trim() && 'border-[#f59e0b]')}
-                  />
-                  <input
-                    value={predioDireccion}
-                    onChange={(e) => setPredioDireccion(e.target.value)}
-                    placeholder="Dirección (opcional)"
-                    className={inputCls}
-                  />
-                </div>
-              )}
-              {!predioId && prediosDelArrendador.length === 0 && (
-                <p className="text-[12px] text-[#9a6700]">
-                  Este arrendador no tiene predios todavía. Elige «Crear un predio nuevo».
+          {/* Aviso de coherencia: se calcula al cargar el archivo. */}
+          {fueraDelGrupo.length > 0 && (
+            <div className="mt-2.5 flex gap-2.5 border-t border-border pt-2.5 text-[12px] text-[#9a6700]">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+              <div>
+                <p>
+                  <b>
+                    {fueraDelGrupo.length === 1
+                      ? 'Una pantalla no parece estar en este predio.'
+                      : `${fueraDelGrupo.length} pantallas no parecen estar en este predio.`}
+                  </b>{' '}
+                  Un predio es un solo inmueble y su renta se reparte entre sus
+                  pantallas, así que una que está lejos abarataría a las demás.
+                  Puedes continuar si sabes que es correcto.
                 </p>
-              )}
+                <ul className="mt-1 space-y-0.5">
+                  {fueraDelGrupo.slice(0, 6).map((f) => (
+                    <li key={f.clave}>· <b className="text-ink">{f.clave}</b>: {f.motivo}</li>
+                  ))}
+                  {fueraDelGrupo.length > 6 && <li>· …y {fueraDelGrupo.length - 6} más</li>}
+                </ul>
+              </div>
             </div>
           )}
         </div>
@@ -356,7 +361,12 @@ export function ImportarInventarioDialog({
           </div>
         )}
 
-        {/* Precio de impresión por m² */}
+        {/* Precio de impresión por m². Solo si el archivo trae estáticas: la
+            impresión es de la lona, y una pantalla digital no lleva lona. Antes
+            se preguntaba siempre y en un archivo solo-digital era un campo que
+            no se usaba, invitando a capturar un número que no iba a ninguna
+            parte. Aparece al cargar el archivo, que es cuando se sabe. */}
+        {hayFijas && (
         <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
           <div>
             <div className="text-[13px] font-medium text-ink">Precio de impresión por m² (pantallas estáticas)</div>
@@ -374,6 +384,7 @@ export function ImportarInventarioDialog({
             <span className="text-[13px] text-muted">/m²</span>
           </div>
         </div>
+        )}
 
         {/* Info limpieza de encabezados */}
         <div className="flex gap-2.5 rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] p-3 text-[12px] text-muted">

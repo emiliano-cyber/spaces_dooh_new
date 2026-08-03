@@ -112,3 +112,83 @@ export function evaluarCercania(a: Ubicacion, b: Ubicacion): Cercania {
   if (da && db && da === db) return { estado: 'CERCA', metros: null }
   return { estado: 'INDETERMINADO', metros: null }
 }
+
+// ─── Direcciones PARECIDAS (no idénticas) ───────────────────────────────────
+//
+// `evaluarCercania` exige que la dirección sea idéntica tras normalizar, porque
+// es la que decide si se BLOQUEA una carga y ahí conviene no inventar. Para
+// avisar antes de importar hace falta algo más flexible: "Av. Reforma 222 piso 3"
+// y "Av. Reforma 222 local B" son el mismo inmueble escrito distinto, y exigir
+// igualdad literal llenaría la pantalla de avisos falsos.
+//
+// Se usa el coeficiente de Dice sobre las PALABRAS de la dirección normalizada:
+// 2·|comunes| / (|a| + |b|). Sobre palabras y no sobre letras a propósito —
+// comparar letras da parecidos altísimos entre direcciones distintas de la misma
+// ciudad, porque comparten "avenida", "colonia" y el nombre del municipio.
+export function similitudDireccion(a: string | null | undefined, b: string | null | undefined): number {
+  const pa = new Set(normalizarDireccion(a).split(' ').filter(Boolean))
+  const pb = new Set(normalizarDireccion(b).split(' ').filter(Boolean))
+  if (!pa.size || !pb.size) return 0
+  let comunes = 0
+  for (const t of pa) if (pb.has(t)) comunes++
+  return (2 * comunes) / (pa.size + pb.size)
+}
+
+// Por debajo de esto, dos direcciones se consideran de sitios distintos. 0.5 =
+// comparten la mitad de sus palabras. Es deliberadamente permisivo: este umbral
+// solo produce un AVISO, y un aviso que salta de más se acaba ignorando.
+export const SIMILITUD_MINIMA = 0.5
+
+export interface ItemUbicacion extends Ubicacion {
+  clave: string
+  // Las filas sin coordenadas en el archivo reciben una por defecto (el centro
+  // de la CDMX) y se marcan pendientes. Compararlas por coordenada diría que
+  // todas están en el mismo punto, que es exactamente lo contrario de la verdad.
+  coordsFiables?: boolean
+}
+
+export interface FueraDelGrupo {
+  clave: string
+  motivo: string
+}
+
+// Dada una lista de pantallas que dicen estar en el MISMO predio, devuelve las
+// que no encajan con las demás. Avisa; no decide. La referencia es la primera
+// pantalla utilizable: en un archivo por predio, es la que fija dónde está.
+export function pantallasFueraDelGrupo(items: ItemUbicacion[]): FueraDelGrupo[] {
+  const utilizable = (i: ItemUbicacion) =>
+    (i.coordsFiables !== false && puntoDe(i) != null) || normalizarDireccion(i.direccion) !== ''
+  const usables = items.filter(utilizable)
+  if (usables.length < 2) return [] // Con una sola no hay contra qué comparar.
+
+  const ubicacionDe = (i: ItemUbicacion): Ubicacion => ({
+    lat: i.coordsFiables === false ? null : i.lat,
+    lng: i.coordsFiables === false ? null : i.lng,
+    direccion: i.direccion,
+  })
+
+  const ref = usables[0]
+  const fuera: FueraDelGrupo[] = []
+  for (const i of usables.slice(1)) {
+    const r = evaluarCercania(ubicacionDe(ref), ubicacionDe(i))
+    if (r.estado === 'LEJOS') {
+      const km = (r.metros / 1000).toFixed(1)
+      fuera.push({
+        clave: i.clave,
+        motivo: `a ${r.metros >= 1000 ? `${km} km` : `${r.metros} m`} de «${ref.clave}»`,
+      })
+      continue
+    }
+    if (r.estado === 'CERCA') continue
+    // INDETERMINADO: no hay coordenadas fiables en ambos. Se cae al parecido de
+    // las direcciones, y solo se avisa cuando LAS DOS traen dirección — si una
+    // viene vacía no hay evidencia de nada.
+    const da = normalizarDireccion(ref.direccion)
+    const db = normalizarDireccion(i.direccion)
+    if (!da || !db) continue
+    if (similitudDireccion(da, db) < SIMILITUD_MINIMA) {
+      fuera.push({ clave: i.clave, motivo: `su dirección no se parece a la de «${ref.clave}»` })
+    }
+  }
+  return fuera
+}

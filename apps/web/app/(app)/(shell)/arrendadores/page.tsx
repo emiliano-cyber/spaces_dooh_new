@@ -44,7 +44,8 @@ import {
   type ContratoArrendamiento,
   type MargenSitio,
 } from '@/lib/data/client'
-import { registrarPagoRentaApi, crearArrendadorApi } from '@/lib/data/estado-api'
+import { registrarPagoRentaApi, crearArrendadorApi, crearRazonSocialApi } from '@/lib/data/estado-api'
+import { esRfcValido } from '@/lib/rfc'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
 
 export default function ArrendadoresPage() {
@@ -417,20 +418,56 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
   const [rfc, setRfc] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
+  // Datos fiscales: viven en `arrendador_razon_social`, no en el arrendador. Se
+  // piden aquí porque es cuando se tienen a la mano; capturarlos después obliga
+  // a volver a entrar. Opcionales: el ADR 0001 admite que el contrato nazca
+  // pendiente, y exigir el RFC de entrada frenaría altas legítimas.
+  const [razonSocial, setRazonSocial] = useState('')
+  const [regimen, setRegimen] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // El servidor rechaza el RFC mal formado con un 400, pero enterarse después de
+  // enviar (y perder el resto del formulario de vista) es peor que verlo al
+  // teclear. Misma expresión que usa el servidor: @/lib/rfc.
+  const rfcMalo = rfc.trim() !== '' && !esRfcValido(rfc)
+  // La razón social se guarda aparte, y sin ella el RFC fiscal no tiene dónde ir.
+  const puedeGuardar = !!nombre.trim() && !rfcMalo && !guardando
+
   async function guardar() {
-    if (!nombre.trim()) return
+    if (!puedeGuardar) return
     setGuardando(true)
     setError(null)
     try {
-      await crearArrendadorApi({
+      const arr = await crearArrendadorApi({
         nombre: nombre.trim(),
         rfc: rfc.trim() || null,
         telefono: telefono.trim() || null,
         email: email.trim() || null,
       })
+      // La razón social es un segundo registro. Si falla, el arrendador YA se
+      // creó: se avisa en vez de tragarse el error, porque quedaría un
+      // arrendador sin datos fiscales y nadie sabría que faltó capturarlos.
+      if (razonSocial.trim()) {
+        try {
+          await crearRazonSocialApi({
+            arrendadorId: arr.id,
+            razonSocial: razonSocial.trim(),
+            // El RFC del arrendador y el de su razón social son el mismo dato
+            // fiscal cuando solo hay una: se copia para no pedirlo dos veces.
+            rfc: rfc.trim() || null,
+            regimen: regimen.trim() || null,
+          })
+        } catch (e) {
+          onToast(
+            `Arrendador creado, pero su razón social no: ${
+              e instanceof Error ? e.message : 'error desconocido'
+            }. Agrégala desde su ficha.`,
+          )
+          onClose()
+          return
+        }
+      }
       onToast('Propietario agregado')
       onClose()
     } catch (e) {
@@ -450,7 +487,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+            <Button size="sm" disabled={!puedeGuardar} onClick={guardar}>
               {guardando ? 'Guardando…' : 'Guardar'}
             </Button>
           </div>
@@ -465,7 +502,19 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>
-            <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} />
+            <input
+              className={cn(inputCls, rfcMalo && 'border-error focus-visible:ring-error')}
+              value={rfc}
+              onChange={(e) => setRfc(e.target.value.toUpperCase())}
+              placeholder="XAXX010101000"
+              aria-invalid={rfcMalo}
+            />
+            {rfcMalo && (
+              <span className="mt-1 block text-[11px] text-error">
+                Formato inválido. Son 3 letras (empresa) o 4 (persona), fecha AAMMDD y
+                3 caracteres de homoclave.
+              </span>
+            )}
           </label>
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Teléfono</span>
@@ -476,6 +525,42 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
           <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@arrendador.com" />
         </label>
+
+        {/* Datos fiscales — opcionales. Van a `arrendador_razon_social`, que es
+            quien factura la renta; un arrendador puede tener varias. */}
+        <div className="space-y-3 rounded-md border border-border bg-surface-2 p-3">
+          <div>
+            <div className="text-[12px] font-medium text-ink">Datos fiscales (opcional)</div>
+            <div className="text-[11px] text-muted">
+              Es a quien se le factura la renta. Si lo dejas en blanco, el arrendador
+              queda dado de alta igual y puedes capturarlo después desde su ficha.
+            </div>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Razón social</span>
+            <input
+              className={inputCls}
+              value={razonSocial}
+              onChange={(e) => setRazonSocial(e.target.value)}
+              placeholder="Inmobiliaria Ejemplo SA de CV"
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[12px] font-medium text-ink">Régimen fiscal</span>
+            <input
+              className={inputCls}
+              value={regimen}
+              onChange={(e) => setRegimen(e.target.value)}
+              placeholder="601 — General de Ley Personas Morales"
+              disabled={!razonSocial.trim()}
+            />
+            {!razonSocial.trim() && regimen.trim() === '' && (
+              <span className="mt-1 block text-[11px] text-muted">
+                Se habilita al capturar la razón social: el régimen es de ella.
+              </span>
+            )}
+          </label>
+        </div>
       </div>
     </Modal>
   )

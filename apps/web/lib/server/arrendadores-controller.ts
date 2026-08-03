@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
+import { RFC_RE } from '@/lib/rfc'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
@@ -19,7 +20,8 @@ import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 //  Valida nombre (obligatorio), RFC y correo de contacto antes del model.
 // ============================================================================
 
-const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i
+// RFC_RE vive en @/lib/rfc: lo comparte el formulario del cliente, que avisa
+// antes de enviar. Ver el encabezado de ese archivo.
 const CURP_RE = /^[A-Z][AEIOUX][A-Z]{2}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/i
 
 // Fecha que Postgres pueda castear de verdad. Sin esto, un valor como "mañana"

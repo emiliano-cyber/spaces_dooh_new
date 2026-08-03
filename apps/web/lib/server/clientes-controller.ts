@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
+import { RFC_RE } from '@/lib/rfc'
 import { crearCliente, actualizarCliente, type ClienteInput } from './clientes-repo'
 
 // ============================================================================
@@ -10,7 +11,7 @@ import { crearCliente, actualizarCliente, type ClienteInput } from './clientes-r
 //  el model. La ruta queda delgada (auth + bitácora + mapeo de error).
 // ============================================================================
 
-const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i
+// RFC_RE vive en @/lib/rfc (compartido con el cliente); ver ese archivo.
 
 const clienteBase = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),

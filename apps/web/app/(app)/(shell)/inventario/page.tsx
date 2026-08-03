@@ -113,7 +113,6 @@ export default function AgregarInventarioPage() {
           inline
           open
           onOpenChange={() => setResetKey((k) => k + 1)}
-          onNuevaPantalla={() => setModo('manual')}
           onImportado={(r) => {
             // Con errores NO se salta: el detalle por fila —qué código falló y
             // por qué— solo se ve en el resumen del importador, y saltando a la

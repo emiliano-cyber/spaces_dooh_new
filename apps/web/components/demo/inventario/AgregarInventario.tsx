@@ -38,20 +38,21 @@ export function AgregarInventario() {
             </div>
           </div>
         </div>
-        <Button onClick={() => setImportOpen(true)}>
-          <PackagePlus className="h-4 w-4" /> Agregar inventario
-        </Button>
+        {/* Dos entradas explícitas. El alta manual colgaba de un botón DENTRO
+            del diálogo de carga masiva, que se quitó: pedía entrar a "importar"
+            para descubrir que también se podía dar de alta una sola. */}
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setNuevaOpen(true)}>
+            <PackagePlus className="h-4 w-4" /> Alta manual
+          </Button>
+          <Button onClick={() => setImportOpen(true)}>
+            <PackagePlus className="h-4 w-4" /> Carga masiva
+          </Button>
+        </div>
       </CardContent>
 
       {/* Modal 1 — carga masiva */}
-      <ImportarInventarioDialog
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onNuevaPantalla={() => {
-          setImportOpen(false)
-          setNuevaOpen(true)
-        }}
-      />
+      <ImportarInventarioDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Formulario manual de 5 tabs */}
       <NuevaPantallaForm
