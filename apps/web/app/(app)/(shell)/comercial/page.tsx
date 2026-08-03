@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 // Alias: `toast` ya es el estado del toast local de esta página.
 import { toast as sonner } from 'sonner'
-import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound } from 'lucide-react'
+import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download } from 'lucide-react'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -17,6 +17,7 @@ import {
   pinTono,
 } from '@/components/demo/StatusBadge'
 import { cn } from '@/lib/cn'
+import { descargarInventario } from '@/lib/inventario-export'
 import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
 import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -89,6 +90,18 @@ export default function ComercialPage() {
   const [altaOpen, setAltaOpen] = useState(false)
   const [extender, setExtender] = useState<{ id: string; nombre: string } | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+
+  // Generar el archivo es trabajo sincrono en el navegador y puede fallar con un
+  // inventario enorme. Sin este catch el error moria en la consola y el usuario
+  // se quedaba mirando un boton que "no hizo nada".
+  function bajarInventario(formato: 'xlsx' | 'csv') {
+    try {
+      descargarInventario(filtrados, formato)
+      notify(`Descargadas ${filtrados.length} pantalla${filtrados.length === 1 ? '' : 's'}`)
+    } catch {
+      notify('No se pudo generar el archivo. Prueba a filtrar para descargar menos pantallas.')
+    }
+  }
 
   function notify(msg: string) {
     setToast(msg)
@@ -251,7 +264,33 @@ export default function ComercialPage() {
             <span className="inline-flex items-center gap-1.5">
               <SlidersHorizontal className="h-3.5 w-3.5" /> Inventario
             </span>
-            <span>{filtrados.length} resultados</span>
+            <span className="inline-flex items-center gap-2">
+              <span>{filtrados.length} resultados</span>
+              {/* Baja lo que hay en pantalla, con los filtros aplicados. Aqui
+                  eso es lo util: se filtra por zona o disponibilidad para armar
+                  una propuesta, y el archivo tiene que ser ESE recorte, no el
+                  inventario entero. Mismo formato que la plantilla de carga, asi
+                  que tambien sirve para editar en masa y volver a subirlo. */}
+              <span className="flex items-center gap-1 border-l border-border pl-2">
+                <Download className="h-3.5 w-3.5" />
+                <button
+                  onClick={() => bajarInventario('xlsx')}
+                  disabled={filtrados.length === 0}
+                  title="Descargar estas pantallas en Excel"
+                  className="rounded px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+                >
+                  Excel
+                </button>
+                <button
+                  onClick={() => bajarInventario('csv')}
+                  disabled={filtrados.length === 0}
+                  title="Descargar estas pantallas en CSV"
+                  className="rounded px-1.5 py-0.5 font-medium text-ink hover:bg-surface-2 disabled:cursor-not-allowed disabled:text-muted"
+                >
+                  CSV
+                </button>
+              </span>
+            </span>
           </div>
           <ul className="flex-1 overflow-y-auto">
             {!sitios ? (
