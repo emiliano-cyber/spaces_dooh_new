@@ -110,7 +110,16 @@ export function filasDeInventario(sitios: Sitio[]): FilaExport[] {
         tarifa_publicada: numOVacio(m.tarifaPublicada),
         // `costoCompra` ES la renta al arrendador (ADR 0006): una pantalla tiene
         // UN solo costo. Sale bajo el nombre que lee el importador.
-        renta_arrendador: numOVacio(m.costoCompra),
+        //
+        // El CERO se exporta como celda VACÍA, y no es un capricho: el sistema
+        // nunca guarda un 0 legítimo aquí. El importador rechaza toda renta <= 0
+        // («debe ser mayor que cero — se deja pendiente de captura») y guarda
+        // `costo_compra: rentaFinal ?? 0`, así que un 0 almacenado significa
+        // exactamente «no se capturó». Sacarlo como 0 lo convertiría en un dato
+        // afirmativo —«el espacio es gratis»— y al reimportar levantaría una
+        // advertencia por una fila que en realidad está bien. Se detectó
+        // exportando de verdad una pantalla con la renta pendiente.
+        renta_arrendador: m.costoCompra ? numOVacio(m.costoCompra) : '',
       })
     }
   }

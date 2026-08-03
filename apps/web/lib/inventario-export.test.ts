@@ -112,6 +112,19 @@ describe('lo que NO se debe exportar', () => {
     expect(datos!.pendienteVerificacion).toBe(true)
   })
 
+  it('la renta en CERO sale vacía: un 0 guardado significa «pendiente», no «gratis»', () => {
+    // El importador rechaza toda renta <= 0, asi que el sistema nunca guarda un
+    // 0 legitimo. Exportarlo como 0 lo afirmaria como dato, y al reimportar
+    // levantaria una advertencia por una fila que esta bien.
+    const [fila] = filasDeInventario([
+      sitio({ modalidadesDetalle: [{ unidad: 'mensual', tarifaPublicada: 9500, costoCompra: 0 }] }),
+    ])
+    expect(fila.renta_arrendador).toBe('')
+    const { datos, status } = validarFila(fila as Record<string, unknown>, 0)
+    expect(datos!.renta_arrendador).toBeNull()
+    expect(status).toBe('ok') // sin advertencia: la fila viaja limpia
+  })
+
   it('deja la celda vacía —no un cero— cuando no hay dato', () => {
     // Un 0 en renta_arrendador se leería como «el espacio es gratis».
     const [fila] = filasDeInventario([
