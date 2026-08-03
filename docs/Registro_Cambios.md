@@ -5,6 +5,55 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-03
+
+- **Corregida la carga masiva de inventario, que fallaba con «Sin acceso a ese
+  registro» en cualquier organización que no fuera la primera.** Al subir
+  pantallas desde Excel a un CRM recién creado, la carga se interrumpía entera y
+  no entraba ni una pantalla. Con la organización original funcionaba sin ruido,
+  y por eso llevaba tiempo sin detectarse: el fallo solo aparece al dar de alta
+  un CRM nuevo, que es justo lo que se estaba haciendo para validar el ciclo
+  completo.
+  - *Qué pasaba:* cada pantalla guarda aparte sus modalidades de venta (mensual,
+    catorcenal, por spot…). Esa tabla arrastra un valor por omisión que apunta a
+    **una organización fija**, y al guardar no se indicaba a cuál pertenecía la
+    modalidad, así que se escribía siempre esa. El aislamiento entre
+    organizaciones —que existe para que nadie lea ni escriba datos de otra—
+    detectaba la incoherencia y rechazaba la operación. Al usuario le llegaba el
+    mensaje genérico de permisos, que no decía nada de la causa real.
+  - *Qué se cambió:* la modalidad hereda ahora, de forma explícita, la
+    organización **de su propia pantalla**. No es solo "mandar el dato que
+    faltaba": es la regla que vuelve imposible que una modalidad quede colgada de
+    una organización distinta a la de la pantalla a la que pertenece, aunque ese
+    valor por omisión desaparezca o cambie.
+  - *El alcance era mayor que el reportado:* el mismo defecto afectaba también al
+    alta manual de una pantalla y al alta de «contrato + pantalla» desde
+    Arrendadores, no solo a la carga masiva. Las tres pasan por el mismo guardado
+    y las tres quedan corregidas.
+  - *No se perdieron datos:* la carga masiva corre dentro de una transacción, así
+    que al fallar revierte completa y no deja medio lote cargado. Queda por
+    confirmar contra producción que no quedó nada del intento fallido.
+  - *Se añadió una prueba de regresión* que falla si alguien vuelve a omitir la
+    organización al guardar modalidades, comprobada revirtiendo la corrección
+    para verificar que efectivamente falla sin ella.
+- **De paso se detectaron dos cosas que NO se tocaron en este cambio**, para que
+  queden anotadas:
+  - *El valor por omisión está en 21 tablas, no en una,* y no vive en el
+    repositorio: se añadió a mano directamente en la base. Hoy ningún guardado
+    del sistema depende de él, pero mientras siga ahí convierte un descuido
+    ("olvidé indicar la organización") en un error de permisos en producción, en
+    lugar de un fallo inmediato y evidente en desarrollo. Se acordó quitarlo en
+    una migración aparte.
+  - *La configuración de negocio sigue siendo única y compartida* (moneda, IVA,
+    plazos de cobranza, loop/spot). Ya estaba documentado como limitación
+    conocida, pero conviene tenerlo presente al validar con un CRM de prueba:
+    cambiarle esos parámetros se los cambia también a la organización real. El
+    nombre que se ve en la barra lateral sí es propio de cada organización.
+- *Despliegue:* **pendiente**. La corrección está verificada en local —se
+  reprodujo el fallo con una organización distinta, se confirmó que el arreglo lo
+  resuelve, y la batería completa (412 pruebas) queda en verde—, pero todavía no
+  se ha comprobado contra producción ni se ha desplegado.
+
 ## 2026-07-29
 
 - **Nuevo cuadre de renta: cuánto se le debe a cada propietario.** En la pantalla

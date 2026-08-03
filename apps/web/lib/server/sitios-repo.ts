@@ -248,10 +248,17 @@ export async function insertarSitio(client: PoolClient, s: any): Promise<any> {
   const row = rows[0]
   const mods: any[] = s.modalidadesDetalle ?? []
   for (const m of mods) {
+    // `tenant_id` va EXPLÍCITO, tomado de la fila del sitio recién insertado. La
+    // columna tiene un DEFAULT con un tenant fijo (deriva de esquema, ver abajo),
+    // así que omitirla no dejaba NULL: escribía el tenant del default. Para ese
+    // tenant colaba, y para cualquier otro la RLS `with check` rechazaba el
+    // INSERT con 42501 → "Sin acceso a ese registro" al importar inventario.
+    // Derivarlo del padre hace que la modalidad no pueda quedar en otro tenant
+    // que su sitio, que es el invariante real.
     await client.query(
-      `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra) values ($1,$2,$3,$4)
+      `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra, tenant_id) values ($1,$2,$3,$4,$5)
        on conflict (sitio_id, unidad) do update set tarifa_publicada=excluded.tarifa_publicada, costo_compra=excluded.costo_compra`,
-      [row.id, m.unidad, m.tarifaPublicada ?? 0, m.costoCompra ?? 0],
+      [row.id, m.unidad, m.tarifaPublicada ?? 0, m.costoCompra ?? 0, row.tenant_id],
     )
   }
   // Reconstruye desde la fila insertada (misma conexión); no leer del pool
@@ -267,14 +274,21 @@ export async function insertarSitio(client: PoolClient, s: any): Promise<any> {
 // reservas_sitio_id_fkey ON DELETE RESTRICT). El UPDATE conserva esas reservas.
 async function actualizarSitioCompleto(client: PoolClient, id: string, s: any): Promise<void> {
   const set = COLS.map((c, i) => `${c} = $${i + 1}`).join(', ')
-  await client.query(`update sitios set ${set} where id = $${COLS.length + 1}`, [...valoresDe(s), id])
+  // `returning tenant_id` para dárselo explícito a las modalidades (mismo motivo
+  // que en insertarSitio: la columna tiene DEFAULT con un tenant fijo, y omitirla
+  // hacía que la RLS rechazara el INSERT con 42501 en cualquier otro tenant).
+  const { rows } = await client.query(
+    `update sitios set ${set} where id = $${COLS.length + 1} returning tenant_id`,
+    [...valoresDe(s), id],
+  )
+  const tenantDelSitio = rows[0]?.tenant_id ?? null
   // Reemplaza las modalidades por las del archivo.
   await client.query('delete from sitio_modalidades where sitio_id = $1', [id])
   for (const m of (s.modalidadesDetalle ?? [])) {
     await client.query(
-      `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra) values ($1,$2,$3,$4)
+      `insert into sitio_modalidades (sitio_id, unidad, tarifa_publicada, costo_compra, tenant_id) values ($1,$2,$3,$4,$5)
        on conflict (sitio_id, unidad) do update set tarifa_publicada=excluded.tarifa_publicada, costo_compra=excluded.costo_compra`,
-      [id, m.unidad, m.tarifaPublicada ?? 0, m.costoCompra ?? 0],
+      [id, m.unidad, m.tarifaPublicada ?? 0, m.costoCompra ?? 0, tenantDelSitio],
     )
   }
 }
