@@ -195,6 +195,9 @@
     });
   }
   window.confirmarEscribiendo = confirmarEscribiendo;
+  // El aviso flotante tambien queda disponible para las paginas: antes cada una
+  // resolvia sus mensajes con alert(), que corta la pagina y se ve de 1998.
+  window.toast = toast;
 
   let currentUser = null;
 

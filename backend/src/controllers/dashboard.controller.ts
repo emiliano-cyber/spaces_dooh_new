@@ -7,6 +7,7 @@ import { deleteStored } from '../services/photoStorage.service';
 import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog } from '../utils/streamWatchdog';
 import { apkInfo } from '../utils/apkInfo';
+import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
 import crypto from 'crypto';
 
@@ -350,6 +351,62 @@ export async function sendCommand(req: Request, res: Response) {
   res.json({ command_id: (result as any).insertId, ...(stream ? { stream } : {}) });
 }
 
+/**
+ * Foto ya, en varios equipos a la vez.
+ *
+ * Antes solo se podia pedir entrando al detalle de cada equipo, uno por uno: una
+ * ronda de evidencia de toda la flota eran seis pantallas y seis esperas. Sin
+ * device_ids se le pide a todos los que no estan dados de baja.
+ */
+export async function capturarAhora(req: Request, res: Response) {
+  const schema = z.object({ device_ids: z.array(z.number()).optional() });
+  const parsed = schema.safeParse(req.body ?? {});
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+
+  let equipos: any[];
+  if (parsed.data.device_ids?.length) {
+    const [filas] = await pool.query<any[]>(
+      `SELECT id, name, online FROM devices WHERE id IN (?)`,
+      [parsed.data.device_ids]
+    );
+    equipos = filas as any[];
+  } else {
+    const [filas] = await pool.query<any[]>(
+      `SELECT id, name, online FROM devices WHERE status NOT IN ('inactive','maintenance') ORDER BY name`
+    );
+    equipos = filas as any[];
+  }
+
+  if (equipos.length === 0) return res.status(404).json({ error: 'sin_equipos' });
+
+  const resultado: { device_id: number; name: string; online: boolean }[] = [];
+
+  for (const eq of equipos) {
+    const payload = await encuadreDe(eq.id);
+
+    const [ins] = await pool.query<any>(
+      `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
+       VALUES (?, 'TAKE_PHOTO', ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+      [eq.id, JSON.stringify(payload), req.user!.uid]
+    );
+
+    await redis.publish('device:command', JSON.stringify({
+      device_id: eq.id,
+      command: { id: (ins as any).insertId, command_type: 'TAKE_PHOTO', payload },
+    }));
+
+    resultado.push({ device_id: eq.id, name: eq.name, online: !!eq.online });
+  }
+
+  // Los equipos apagados reciben la orden cuando vuelvan, si no vencio antes:
+  // se avisa cuantos son para que nadie espere una foto que no va a llegar.
+  res.json({
+    enviados: resultado.length,
+    en_linea: resultado.filter(r => r.online).length,
+    equipos: resultado,
+  });
+}
+
 // --- PHOTOS ---
 export async function listPhotos(req: Request, res: Response) {
   const { device_id, campaign_id, from, to, source, page = '1', limit = '20' } = req.query;
@@ -417,77 +474,122 @@ export async function listDeviceLogs(req: Request, res: Response) {
 // --- SCHEDULES ---
 export async function listSchedules(req: Request, res: Response) {
   const [rows] = await pool.query(
-    `SELECT s.*, d.name as device_name
-     FROM schedules s LEFT JOIN devices d ON s.device_id = d.id
-     ORDER BY s.created_at DESC`
+    `SELECT s.*, d.name as device_name, g.name as group_name, c.name as campaign_name,
+       (SELECT COUNT(*) FROM photos p WHERE p.schedule_id = s.id) as fotos,
+       (SELECT COUNT(*) FROM photos p WHERE p.schedule_id = s.id
+          AND p.taken_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as fotos_semana
+     FROM schedules s
+     LEFT JOIN devices d ON s.device_id = d.id
+     LEFT JOIN device_groups g ON s.group_id = g.id
+     LEFT JOIN campaigns c ON s.campaign_id = c.id
+     ORDER BY s.active DESC, s.name ASC`
   );
   res.json({ schedules: rows });
 }
 
-export async function createSchedule(req: Request, res: Response) {
-  const schema = z.object({
-    name: z.string().min(1),
-    description: z.string().optional(),
-    device_id: z.number().nullable().optional(),
-    group_id: z.number().nullable().optional(),
-    campaign_id: z.number().nullable().optional(),
-    frequency_type: z.enum(['interval', 'cron', 'specific_times']),
-    interval_minutes: z.number().optional(),
-    cron_expression: z.string().optional(),
-    specific_times: z.array(z.string()).optional(),
-    timezone: z.string().default('America/Mexico_City'),
-    valid_from: z.string().nullable().optional(),
-    valid_until: z.string().nullable().optional(),
-  });
+const ventanaSchema = z.object({
+  ini: z.string().regex(/^\d{1,2}:\d{2}$/),
+  fin: z.string().regex(/^\d{1,2}:\d{2}$/),
+});
 
-  const parsed = schema.safeParse(req.body);
+const scheduleSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  device_id: z.number().nullable().optional(),
+  group_id: z.number().nullable().optional(),
+  campaign_id: z.number().nullable().optional(),
+  frequency_type: z.enum(['interval', 'cron', 'specific_times', 'random_windows']),
+  interval_minutes: z.number().int().min(1).optional(),
+  cron_expression: z.string().optional(),
+  specific_times: z.array(z.string()).optional(),
+  windows: z.array(ventanaSchema).optional(),
+  timezone: z.string().default('America/Mexico_City'),
+  valid_from: z.string().nullable().optional(),
+  valid_until: z.string().nullable().optional(),
+});
+
+/**
+ * El schedule debe traer los datos de su tipo de frecuencia.
+ *
+ * Sin equipo, grupo ni campana NO es un error: significa "toda la flota", que es
+ * lo que se quiere casi siempre con seis equipos. No hay ningun grupo dado de
+ * alta, asi que obligar a elegir destino solo dejaba la opcion de uno por uno.
+ */
+function revisarSchedule(d: any): string | null {
+  // Al editar, estos campos vienen de la base y segun el driver pueden llegar
+  // como texto en vez de arreglo.
+  const comoLista = (v: any) => (typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return null; } })() : v);
+
+  if (d.frequency_type === 'interval' && !d.interval_minutes) return 'falta_intervalo';
+  if (d.frequency_type === 'cron' && !d.cron_expression) return 'falta_cron';
+  if (d.frequency_type === 'specific_times' && !comoLista(d.specific_times)?.length) return 'faltan_horas';
+  if (d.frequency_type === 'random_windows' && !ventanasValidas(comoLista(d.windows))) return 'faltan_franjas';
+  return null;
+}
+
+export async function createSchedule(req: Request, res: Response) {
+  const parsed = scheduleSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
 
   const d = parsed.data;
+  const falla = revisarSchedule(d);
+  if (falla) return res.status(400).json({ error: falla });
 
-  // Calculate next_fire_at
-  let nextFire: Date | null = new Date();
-  if (d.frequency_type === 'interval' && d.interval_minutes) {
-    nextFire = new Date(Date.now() + d.interval_minutes * 60000);
-  }
+  // El primer disparo se calcula igual que los siguientes. Antes se guardaba la
+  // hora actual para todo lo que no fuera un intervalo, asi que un horario de
+  // "8 de la manana" tomaba una foto en el instante mismo de crearlo.
+  const nextFire = proximoDisparo(d, false);
 
   const [result] = await pool.query<any>(
     `INSERT INTO schedules (name, description, device_id, group_id, campaign_id, frequency_type,
-       interval_minutes, cron_expression, specific_times, timezone, valid_from, valid_until, next_fire_at, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       interval_minutes, cron_expression, specific_times, windows, timezone, valid_from, valid_until, next_fire_at, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [d.name, d.description ?? null, d.device_id ?? null, d.group_id ?? null, d.campaign_id ?? null,
      d.frequency_type, d.interval_minutes ?? null, d.cron_expression ?? null,
      d.specific_times ? JSON.stringify(d.specific_times) : null,
+     d.windows ? JSON.stringify(d.windows) : null,
      d.timezone, d.valid_from ?? null, d.valid_until ?? null, nextFire, req.user!.uid]
   );
 
-  res.json({ schedule_id: (result as any).insertId });
+  res.json({ schedule_id: (result as any).insertId, next_fire_at: nextFire });
 }
 
 export async function updateSchedule(req: Request, res: Response) {
-  const schema = z.object({
-    name: z.string().optional(),
-    active: z.boolean().optional(),
-    interval_minutes: z.number().optional(),
-    cron_expression: z.string().optional(),
-    specific_times: z.array(z.string()).optional(),
-    valid_from: z.string().nullable().optional(),
-    valid_until: z.string().nullable().optional(),
-  });
+  const parsed = scheduleSchema.partial().extend({ active: z.boolean().optional() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
 
-  const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  const cambios = Object.entries(parsed.data).filter(([, v]) => v !== undefined);
+  if (cambios.length === 0) return res.status(400).json({ error: 'no_fields' });
 
-  const fields = Object.entries(parsed.data).filter(([, v]) => v !== undefined);
-  if (fields.length === 0) return res.status(400).json({ error: 'no_fields' });
+  const [filas] = await pool.query<any[]>(`SELECT * FROM schedules WHERE id = ?`, [req.params.id]);
+  const actual = (filas as any[])[0];
+  if (!actual) return res.status(404).json({ error: 'not_found' });
 
-  const sets = fields.map(([k]) => {
-    if (k === 'specific_times') return `${k} = ?`;
-    return `${k} = ?`;
-  }).join(', ');
-  const values = fields.map(([k, v]) => k === 'specific_times' ? JSON.stringify(v) : v);
+  // Se valida y se reprograma sobre el schedule COMPLETO (lo guardado mas lo que
+  // cambia), no sobre el parche suelto: si no, cambiar solo las franjas dejaba el
+  // proximo disparo apuntando a las franjas viejas.
+  const fusion: any = { ...actual, ...parsed.data };
+  const falla = revisarSchedule(fusion);
+  if (falla) return res.status(400).json({ error: falla });
 
-  await pool.query(`UPDATE schedules SET ${sets} WHERE id = ?`, [...values, req.params.id]);
+  const campos = cambios.map(([k]) => `${k} = ?`);
+  const valores: any[] = cambios.map(([k, v]) =>
+    (k === 'specific_times' || k === 'windows') ? JSON.stringify(v) : v
+  );
+
+  // Reprogramar cuando cambia el cuando, o cuando se reactiva un schedule
+  // pausado (su next_fire_at quedo en el pasado y no significa nada).
+  const cambioElCuando = cambios.some(([k]) =>
+    ['frequency_type', 'interval_minutes', 'cron_expression', 'specific_times', 'windows', 'timezone'].includes(k)
+  );
+  const seReactiva = parsed.data.active === true && !actual.active;
+
+  if (cambioElCuando || seReactiva) {
+    campos.push('next_fire_at = ?');
+    valores.push(proximoDisparo(fusion, false));
+  }
+
+  await pool.query(`UPDATE schedules SET ${campos.join(', ')} WHERE id = ?`, [...valores, req.params.id]);
   res.json({ ok: true });
 }
 

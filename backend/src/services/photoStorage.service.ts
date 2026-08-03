@@ -79,6 +79,14 @@ interface UploadParams {
 }
 
 export async function uploadPhoto(p: UploadParams) {
+  // El origen lo decide el servidor, no el equipo. La APK manda "on_demand"
+  // siempre (esta escrito fijo en CommandHandler), asi que una foto por horario
+  // llegaba etiquetada como manual y el historial quedaba inservible para
+  // distinguir la evidencia programada. Si la foto trae schedule_id, vino de una
+  // programacion: punto. Asi queda bien tambien en los equipos que no se pueden
+  // actualizar por red.
+  const source = p.schedule_id ? 'scheduled' : p.source;
+
   const id = randomUUID();
   const date = p.taken_at.toISOString().slice(0, 10);
   const ext = p.mimetype === 'image/jpeg' ? 'jpg' : 'png';
@@ -100,7 +108,7 @@ export async function uploadPhoto(p: UploadParams) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [p.deviceId, p.campaign_id ?? null, p.command_id ?? null, p.schedule_id ?? null,
      storedFull, storedThumb, p.fileBuffer.length, meta.width, meta.height, p.taken_at,
-     p.gps_lat ?? null, p.gps_lng ?? null, p.source, p.watermark_baked ?? true]
+     p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true]
   );
 
   if (p.campaign_id) {

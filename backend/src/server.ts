@@ -40,10 +40,17 @@ async function main() {
   setupDeviceNamespace(io);
   setupDashboardNamespace(io);
 
-  // Start schedule worker inline (for dev)
-  if (env.NODE_ENV === 'development') {
-    import('./workers/scheduleWorker').catch(console.error);
-  }
+  // El worker de programacion corre DENTRO del backend, siempre.
+  //
+  // Antes solo arrancaba en desarrollo, y en el servidor no habia ningun proceso
+  // que lo levantara: la programacion de fotos existia en la base y en el
+  // dashboard, pero no habia quien la disparara. Por eso nunca se tomo una sola
+  // foto programada en produccion.
+  //
+  // Va aqui adentro en vez de en su propio contenedor porque el droplet tiene 2 GB
+  // y ya carga seis; el candado de Redis (schedule:tick) evita el disparo doble si
+  // algun dia se levanta mas de una instancia.
+  import('./workers/scheduleWorker').catch(console.error);
 
   server.listen(env.PORT, () => {
     console.log(`[SPACE EYE] API running on http://localhost:${env.PORT}`);

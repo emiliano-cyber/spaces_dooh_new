@@ -7,6 +7,7 @@
     "start": "node dist/server.js",
     "worker:schedule": "tsx src/workers/scheduleWorker.ts",
     "migrate": "tsx scripts/migrate.ts",
+    "prueba:horarios": "tsx scripts/prueba-horarios.ts",
     "script:create-admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {

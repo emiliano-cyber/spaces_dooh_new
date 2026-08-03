@@ -9,6 +9,8 @@ function dashboard() {
     userName: '',
     toast: { show: false, msg: '', type: 'info' },
     _toastT: null,
+    capturando: null,        // id del equipo al que se le esta pidiendo la foto
+    capturandoTodos: false,
 
     get onlineCount() {
       return this.devices.filter(d => d.online).length;
@@ -83,6 +85,48 @@ function dashboard() {
       this.toast = { show: true, msg, type };
       clearTimeout(this._toastT);
       this._toastT = setTimeout(() => { this.toast.show = false; }, 3200);
+    },
+
+    // --- Foto a peticion ----------------------------------------------------
+    // Se pide desde la lista para no tener que entrar equipo por equipo. La orden
+    // vence a los 10 minutos, asi que un equipo apagado no despierta mañana
+    // tomando una foto de ayer.
+
+    async capturarUno(d) {
+      if (this.capturando) return;
+      this.capturando = d.id;
+      try {
+        await API.post('/api/capture', { device_ids: [d.id] });
+        this.showToast(
+          d.online ? `Foto pedida a ${d.name}` : `${d.name} esta apagado: la tomara al reconectar`,
+          d.online ? 'success' : 'info'
+        );
+      } catch (e) {
+        this.showToast('No se pudo pedir la foto', 'error');
+      } finally {
+        // Deja ver el icono encendido un momento: la foto tarda unos segundos en
+        // llegar y sin esto el boton parece no haber hecho nada.
+        setTimeout(() => { this.capturando = null; }, 2500);
+      }
+    },
+
+    async capturarTodos() {
+      if (this.capturandoTodos) return;
+      this.capturandoTodos = true;
+      try {
+        const r = await API.post('/api/capture', {});
+        const apagados = r.enviados - r.en_linea;
+        this.showToast(
+          apagados > 0
+            ? `Foto pedida a ${r.enviados} equipos (${apagados} apagados: la tomaran al reconectar)`
+            : `Foto pedida a los ${r.enviados} equipos`,
+          'success'
+        );
+      } catch (e) {
+        this.showToast('No se pudieron pedir las fotos', 'error');
+      } finally {
+        setTimeout(() => { this.capturandoTodos = false; }, 2500);
+      }
     },
 
     // Fijar/desfijar: los fijados aparecen primero (orden del backend).

@@ -60,6 +60,8 @@ export function createRoutes() {
   router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
 
   // Photos
+  // Foto ya, en varios equipos de una vez (sin device_ids = toda la flota).
+  router.post('/api/capture', requireUser, requireRole('admin', 'operator'), dashboard.capturarAhora);
   router.get('/api/photos', requireUser, dashboard.listPhotos);
   router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), dashboard.deletePhoto);
 
