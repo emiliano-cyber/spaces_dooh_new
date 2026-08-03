@@ -2,8 +2,9 @@
 requireAuth();
 
 // Lo que pesa una foto en promedio, para estimar el consumo antes de crear la
-// programacion. Medido sobre las fotos que ya subieron los equipos.
-const MB_POR_FOTO = 1.4;
+// programacion. Medido sobre las 91 fotos que ya subieron los equipos: 1.52 MB
+// de promedio, 3.7 MB la mas pesada.
+const MB_POR_FOTO = 1.5;
 
 function schedulerPage() {
   return {
