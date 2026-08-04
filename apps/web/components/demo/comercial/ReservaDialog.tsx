@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { reservarApi } from '@/lib/data/estado-api'
-import { formatMonto, useConfigNegocio, type Sitio } from '@/lib/data/client'
+import { formatMonto, tarifaDeSitio, useConfigNegocio, type Sitio } from '@/lib/data/client'
 
 // Modal de reserva (Acto 3): captura cliente + fechas y crea una reserva
 // TENTATIVA sobre los sitios seleccionados. Llama a data.reservar (mock).
@@ -63,7 +63,7 @@ export function ReservaDialog({
 
   const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
 
-  const total = sitios.reduce((s, x) => s + x.tarifaMensual, 0)
+  const total = sitios.reduce((s, x) => s + tarifaDeSitio(x), 0)
 
   // Tipo que se asignaría en modo "Automático", según el medio de los sitios
   // seleccionados (pantallas digitales → DOOH; estáticas → OOH; mezcla → HIBRIDA).
@@ -195,7 +195,7 @@ export function ReservaDialog({
                 <li key={s.id} className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="truncate text-ink">{s.nombre}</span>
-                    <span className="demo-num text-muted">{formatMonto(s.tarifaMensual)}</span>
+                    <span className="demo-num text-muted">{formatMonto(tarifaDeSitio(s))}</span>
                   </div>
                   {digital && (
                     <div className="flex items-center justify-between gap-2 pl-1">

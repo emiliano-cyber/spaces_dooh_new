@@ -60,12 +60,19 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     let campana = null
     if (prop.estatus === 'APROBADA') {
       try {
-        campana = await generarCampanaDesdePropuesta(params.id)
-        await registrarAccion(g.usuario, 'Generó campaña desde propuesta', campana.nombre)
-        await notificar({
-          tipo: 'CAMPANA', nivel: 'ok', titulo: 'Campaña generada desde propuesta',
-          detalle: `${campana.folio} · ${campana.nombre}`, link: `/campanas/${campana.id}`,
-        })
+        const res = await generarCampanaDesdePropuesta(params.id)
+        campana = res.campana
+        // Igual que en /generar-campana: la bitácora y el aviso solo cuando de
+        // verdad se creó. Aprobar ya genera la campaña aquí, así que si además
+        // se pulsa "Generar campaña" el segundo paso es un no-op idempotente y
+        // anotarlo dejaba dos entradas para una sola campaña (A-5).
+        if (!res.yaExistia) {
+          await registrarAccion(g.usuario, 'Generó campaña desde propuesta', campana.nombre)
+          await notificar({
+            tipo: 'CAMPANA', nivel: 'ok', titulo: 'Campaña generada desde propuesta',
+            detalle: `${campana.folio} · ${campana.nombre}`, link: `/campanas/${campana.id}`,
+          })
+        }
       } catch (e) {
         // No bloquea la aprobación (p. ej. falta cliente); se puede generar luego.
         if (!(e instanceof PropuestaCampanaError)) throw e

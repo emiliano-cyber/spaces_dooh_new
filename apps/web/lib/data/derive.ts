@@ -323,6 +323,59 @@ export const LICENCIA_LABEL: Record<string, string> = {
   OTRO: 'Permiso',
 }
 
+// ─── Comisión → divisor: el neto NUNCA es negativo (C-2 de la auditoría QA) ─
+// Ojo con el nombre heredado: `divisor` MULTIPLICA (neto = bruto × divisor).
+// Se calculaba como `1 - comisionPct/100` sin acotar, así que una comisión de
+// 150% daba -0.5 y el neto salía NEGATIVO: así nació la campaña TEST_EdgeCase
+// con -135 333.33, que además contaminaba los KPI del dashboard sumándose.
+//
+// Una comisión ≥ 100% significa que la agencia se lleva todo: el neto es CERO,
+// nunca negativo. Acotar aquí es defensa en profundidad — el alta ya valida el
+// rango (propuestas-controller), pero las filas viejas siguen en la BD y se
+// leen en cada listado.
+export function divisorDeComision(comisionPct: number | null | undefined): number {
+  const pct = Number(comisionPct)
+  if (!Number.isFinite(pct) || pct <= 0) return 1
+  return Math.max(0, 1 - pct / 100)
+}
+
+// ─── Tarifa de un sitio: una sola fuente (A-8 de la auditoría QA) ───────────
+// `sitios` arrastra DOS columnas para el mismo número, en la MISMA unidad:
+// `tarifaPublicada` (la que mantienen las modalidades y la ficha) y
+// `tarifaMensual` (heredada). Al editar la ficha se escriben ambas, pero las
+// filas cargadas por importación quedaron descuadradas: tres pantallas de G500
+// tenían 45 000 en `tarifaMensual` y 85 000 en `tarifaPublicada`. Comercial leía
+// la primera y Network la segunda, así que el vendedor cotizaba a un precio y el
+// dueño veía otro para la misma pantalla.
+//
+// `tarifaPublicada` manda: es la que respaldan las modalidades por unidad.
+// `tarifaMensual` queda solo como respaldo para filas que aún no la tengan.
+export function tarifaDeSitio(s: { tarifaPublicada?: number | null; tarifaMensual?: number | null }): number {
+  return Number(s.tarifaPublicada) || Number(s.tarifaMensual) || 0
+}
+
+// ─── Ocupación: una sola definición (A-2 de la auditoría QA) ────────────────
+// Un sitio está ocupado HOY si tiene una reserva CONFIRMADA que cubre el día.
+// Es la MISMA regla que usa `ocupacionSerie` para la gráfica y la que refleja
+// Disponibilidad. Antes el KPI contaba `estatusComercial === 'OCUPADO'`, una
+// columna almacenada que ninguna ruta de reserva digital deja en ese valor
+// (las digitales quedan en 'RESERVADO' salvo que se agoten los spots): el
+// resultado era "Ocupación 0% · 0 de 12" junto a una gráfica marcando 42%.
+export function sitiosOcupadosHoy(state: DemoState): Set<string> {
+  const inicioDia = startOfToday().getTime()
+  const finDia = inicioDia + 86_400_000 - 1
+  const conReserva = new Set<string>()
+  for (const r of state.reservas) {
+    if (r.estatus !== 'CONFIRMADA') continue
+    const ri = new Date(r.fechaInicio).getTime()
+    const rf = new Date(r.fechaFin).getTime()
+    if (ri <= finDia && rf >= inicioDia) conReserva.add(r.sitioId)
+  }
+  // Solo sitios que existen en el estado: una reserva puede apuntar a un sitio
+  // dado de baja, y contarlo inflaría la ocupación por encima del 100%.
+  return new Set(state.sitios.filter((s) => conReserva.has(s.id)).map((s) => s.id))
+}
+
 export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const confirmadas = state.reservas.filter((r) => r.estatus === 'CONFIRMADA')
   const tentativas = state.reservas.filter((r) => r.estatus === 'TENTATIVA')
@@ -398,9 +451,7 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const moneda = monedasMixtas ? null : ([...monedasPresentes][0] ?? null)
 
   const sitiosTotales = state.sitios.length
-  const sitiosOcupados = state.sitios.filter(
-    (s) => s.estatusComercial === 'OCUPADO',
-  ).length
+  const sitiosOcupados = sitiosOcupadosHoy(state).size
   const ocupacionPct = sitiosTotales > 0 ? (sitiosOcupados / sitiosTotales) * 100 : 0
 
   return {

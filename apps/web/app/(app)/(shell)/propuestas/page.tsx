@@ -20,6 +20,7 @@ import {
   useArrendadores,
   formatMonto,
   formatMontoCorto,
+  divisorDeComision,
   type Propuesta,
   type EstPropuesta,
   type FunnelPropuestas,
@@ -296,10 +297,17 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null)
 
   // Completa "Hasta" cuando cambia "Desde" o la duración.
+  // Con duración inválida (0 o negativa) se LIMPIA "Hasta" en vez de dejar el
+  // valor anterior. El `if (fin)` de antes solo asignaba cuando el cálculo daba
+  // algo, así que al teclear -2 la fecha vieja se quedaba en pantalla y parecía
+  // que el sistema había aceptado la duración negativa (C-2 de la auditoría).
   useEffect(() => {
     const n = parseInt(duracionN, 10)
-    const fin = fechaInicio && n > 0 ? fechaFinDesde(fechaInicio, duracionUnidad, n) : ''
-    if (fin) setFechaFin(fin)
+    if (!fechaInicio || !Number.isFinite(n) || n <= 0) {
+      setFechaFin('')
+      return
+    }
+    setFechaFin(fechaFinDesde(fechaInicio, duracionUnidad, n))
   }, [fechaInicio, duracionN, duracionUnidad])
 
   // Al cerrar una zona en el mapa, la selección pasa a ser EXACTAMENTE las
@@ -432,7 +440,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
 
   const seleccionados = (sitios ?? []).filter((s) => sel.has(s.id))
   const bruto = seleccionados.reduce((acc, s) => acc + precioDe(s), 0)
-  const divisor = 1 - (Number(comision) || 0) / 100
+  const divisor = divisorDeComision(Number(comision))
   const neto = Math.round(bruto * divisor)
   const ivaPctSel = clientes?.find((c) => c.id === clienteId)?.ivaPct ?? 16
   const iva = Math.round(bruto * (ivaPctSel / 100))
@@ -440,7 +448,31 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
   // Gate de negociación: si la agencia tiene negociación sin validar, se bloquea.
   const agenciaSel = clientes?.find((c) => c.id === agenciaId)
   const negociacionPendiente = !!agenciaSel?.tieneNegociacion && !agenciaSel?.negociacionValidada
-  const valido = !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente
+
+  // Validación de dominio en el CLIENTE, con el mismo criterio que el servidor
+  // (propuestas-controller: comisión 0–100, fechaFin ≥ fechaInicio). El servidor
+  // ya rechazaba estos casos, pero el formulario los aceptaba y dejaba el botón
+  // habilitado: el usuario solo se enteraba al guardar (C-2 de la auditoría).
+  const comisionNum = Number(comision)
+  const errComision =
+    comision.trim() === '' || !Number.isFinite(comisionNum)
+      ? 'Escribe un porcentaje de comisión (0 si no hay).'
+      : comisionNum < 0
+        ? 'La comisión no puede ser negativa.'
+        : comisionNum >= 100
+          ? 'La comisión debe ser menor que 100%: al 100% el neto de la propuesta sería cero.'
+          : null
+  const duracionNum = parseInt(duracionN, 10)
+  const errDuracion =
+    !Number.isFinite(duracionNum) || duracionNum <= 0 ? 'La duración debe ser de al menos 1 periodo.' : null
+  const errFechas =
+    fechaInicio && fechaFin && new Date(fechaFin) < new Date(fechaInicio)
+      ? 'La fecha de fin no puede ser anterior a la de inicio.'
+      : null
+  const errFormulario = errComision ?? errDuracion ?? errFechas
+
+  const valido =
+    !!nombre.trim() && !!fechaInicio && !!fechaFin && sel.size > 0 && !negociacionPendiente && !errFormulario
 
   function toggle(id: string) {
     setSel((prev) => {
@@ -500,7 +532,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
       subtitle="Selecciona sitios; el método del divisor calcula bruto → neto"
       footer={
         <div className="flex items-center justify-between">
-          {error ? <span className="text-[12px] text-error">{error}</span> : (
+          {/* El error del servidor manda; si no lo hay, se avisa del problema de
+              validación local antes de que el usuario pulse un botón inerte. */}
+          {error ? <span className="text-[12px] text-error">{error}</span> : errFormulario ? (
+            <span className="text-[12px] text-error">{errFormulario}</span>
+          ) : (
             <span className="text-[12px] text-muted">Total c/IVA: <b className="demo-num text-ink">{formatMonto(total)}</b></span>
           )}
           <div className="flex gap-2">

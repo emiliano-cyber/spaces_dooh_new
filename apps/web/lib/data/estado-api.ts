@@ -11,11 +11,30 @@ import type { Campana } from './types'
 const API = '/spaces-dooh/api'
 
 // Hidrata el store con lo que vive en la BD (sitios, clientes, campañas, ...).
+//
+// Marca `estadoCarga` para que el shell sepa distinguir "todavía no llega" de
+// "llegó y está vacío". Antes devolvía en silencio si la petición fallaba y el
+// store se quedaba con el seed VACÍO: la app mostraba "0 de 0" en todos los
+// módulos, indistinguible de no tener datos (hallazgo C1 de la auditoría QA).
 export async function refrescarEstado(): Promise<void> {
-  const r = await fetch(`${API}/estado/`, { cache: 'no-store' })
-  if (!r.ok) return
+  let r: Response
+  try {
+    r = await fetch(`${API}/estado/`, { cache: 'no-store' })
+  } catch (err) {
+    console.error('[estado] no se pudo cargar el estado:', err)
+    useDemoStore.setState({ estadoCarga: 'error' })
+    return
+  }
+  if (!r.ok) {
+    console.error('[estado] /api/estado respondió', r.status)
+    // 401 = la sesión caducó; el AuthGate se encarga de mandar al login. Para
+    // cualquier otro fallo mostramos el error en vez de un sistema vacío.
+    useDemoStore.setState({ estadoCarga: r.status === 401 ? 'pendiente' : 'error' })
+    return
+  }
   const e = await r.json()
   useDemoStore.setState({
+    estadoCarga: 'listo',
     sitios: e.sitios ?? [],
     sitiosRed: e.sitiosRed ?? [],
     clientes: e.clientes ?? [],

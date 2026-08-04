@@ -28,10 +28,19 @@ function accion(state: { usuarioActivo: UsuarioDemo | null }, accion: string, en
   }
 }
 
+// Estado de la hidratación desde la BD (`refrescarEstado`). Existe porque el
+// store arranca con `buildSeed()`, que son arreglos VACÍOS: sin este semáforo
+// las pantallas renderizan "0 de 0" como si fuera un dato real mientras la
+// petición viaja, y si la petición falla se quedan así para siempre. Era el
+// hallazgo C1 de la auditoría QA ("se pierden los datos al recargar").
+export type EstadoCarga = 'pendiente' | 'listo' | 'error'
+
 export interface DemoStore extends DemoState {
   // Sesión del login mock. usuarioActivo = null => sin sesión (muestra login).
   usuarioActivo: UsuarioDemo | null
   rolActivo: RolDemo
+  estadoCarga: EstadoCarga
+  setEstadoCarga: (e: EstadoCarga) => void
   iniciarSesion: (usuario: UsuarioDemo) => void
   cerrarSesion: () => void
   // Administración: cambia el rol de un usuario. Si es el usuario en sesión,
@@ -51,6 +60,8 @@ export const useDemoStore = create<DemoStore>((set) => ({
   ...buildSeed(),
   usuarioActivo: null,
   rolActivo: 'DUENO',
+  estadoCarga: 'pendiente',
+  setEstadoCarga: (e) => set({ estadoCarga: e }),
   iniciarSesion: (usuario) => set({ usuarioActivo: usuario, rolActivo: usuario.rol }),
   cerrarSesion: () => set({ usuarioActivo: null }),
   cambiarRolUsuario: (usuarioId, rol) =>

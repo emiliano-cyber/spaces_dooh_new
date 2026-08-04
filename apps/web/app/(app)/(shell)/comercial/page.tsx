@@ -28,6 +28,7 @@ import {
   useCampanas,
   useContratos,
   useArrendadores,
+  tarifaDeSitio,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -120,7 +121,7 @@ export default function ComercialPage() {
       if (fTipo && s.tipoMedio !== fTipo) return false
       if (fDistrito && s.alcaldia !== fDistrito) return false
       if (fDisp && s.estatusComercial !== fDisp) return false
-      if (fPrecio && s.tarifaMensual > Number(fPrecio)) return false
+      if (fPrecio && tarifaDeSitio(s) > Number(fPrecio)) return false
       return true
     })
   }, [sitios, q, fTipo, fDistrito, fDisp, fPrecio])
@@ -135,7 +136,7 @@ export default function ComercialPage() {
 
   const sitioActivo = sitios?.find((s) => s.id === activo) ?? null
   const sitiosSeleccionados = (sitios ?? []).filter((s) => seleccion.has(s.id))
-  const totalSel = sitiosSeleccionados.reduce((a, s) => a + s.tarifaMensual, 0)
+  const totalSel = sitiosSeleccionados.reduce((a, s) => a + tarifaDeSitio(s), 0)
 
   // Campañas con reservas tentativas (para confirmar/extender — Acto 3).
   const tentativas = useMemo(() => {
@@ -354,7 +355,7 @@ export default function ComercialPage() {
                     >
                       <div className="truncate text-[15px] font-medium text-ink">{s.nombre}</div>
                       <div className="demo-num mt-0.5 text-[12.5px] text-muted">
-                        {s.codigoProveedor} · {s.alcaldia} · {formatMonto(s.tarifaMensual)}
+                        {s.codigoProveedor} · {s.alcaldia} · {formatMonto(tarifaDeSitio(s))}
                         {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
                           <> · {s.spotsPorHora} slots/h</>
                         )}

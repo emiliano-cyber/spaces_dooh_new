@@ -461,7 +461,12 @@ export function buildSeed(): DemoState {
   return {
     usuarios: [],
     configNegocio: {
-      nombreTenant: 'RGB Catorce',
+      // Vacío a propósito: el seed es el estado ANTES de hidratar desde la BD.
+      // Tenía 'RGB Catorce' hardcodeado —un tenant real— así que al recargar el
+      // sidebar anunciaba una empresa equivocada con toda seguridad, en vez de
+      // no anunciar ninguna (hallazgo C1/M5 de la auditoría QA). El nombre real
+      // llega en `configNegocio` desde /api/estado.
+      nombreTenant: '',
       razonSocial: null,
       nombreComercial: null,
       moneda: 'MXN',

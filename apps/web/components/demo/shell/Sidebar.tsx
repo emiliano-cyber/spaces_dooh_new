@@ -95,7 +95,9 @@ function SidebarContent({
         {!colapsado && (
           <div className="min-w-0 flex-1 leading-tight">
             <div className="demo-wordmark truncate text-[15px] text-ink">
-              {config?.nombreTenant ?? 'Space OS'}
+              {/* `||` y no `??`: el seed trae cadena vacía hasta que hidrata, y
+                  una cadena vacía no es nullish — dejaba el rótulo en blanco. */}
+              {config?.nombreTenant || 'Space OS'}
             </div>
             <div className="text-[10px] text-muted">AS SPACE OS</div>
           </div>

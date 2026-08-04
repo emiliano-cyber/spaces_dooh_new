@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
+import { divisorDeComision } from '@/lib/data/derive'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}
@@ -55,7 +56,7 @@ function armarPropuesta(p: any, items: any[]) {
   const comisionPct = Number(p.comision_pct)
   const descuentoPct = p.descuento_pct != null ? Number(p.descuento_pct) : 0
   const version = p.version != null ? Number(p.version) : 1
-  const divisor = 1 - comisionPct / 100
+  const divisor = divisorDeComision(comisionPct)
   // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
   const ivaP = p.cliente_iva != null ? Number(p.cliente_iva) : IVA_PCT
 
@@ -136,7 +137,7 @@ export async function congelarSnapshotEconomico(propuestaId: string, tenantId?: 
   const descuentoPct = prop.descuento_pct != null ? Number(prop.descuento_pct) : 0
   const ivaPct = prop.cliente_iva != null ? Number(prop.cliente_iva) : IVA_PCT
   const version = prop.version != null ? Number(prop.version) : 1
-  const divisor = 1 - comisionPct / 100
+  const divisor = divisorDeComision(comisionPct)
   const factorDesc = 1 - descuentoPct / 100
 
   const bruto = usar.reduce((s, it) => s + Number(it.precio), 0)

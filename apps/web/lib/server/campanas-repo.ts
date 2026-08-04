@@ -4,6 +4,7 @@ import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
+import { divisorDeComision } from '@/lib/data/derive'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -450,7 +451,14 @@ export async function sitiosAprobadosDePropuesta(propuestaId: string): Promise<S
 // (min/max de los items) y SOLO los sitios aprobados con su precio NETO de
 // comisión (item.precio × divisor). Idempotente. La campaña nace CONFIRMADA
 // (cliente comprometió), reservas CONFIRMADA, sitios RESERVADO hasta la OC.
-export async function generarCampanaDesdePropuesta(propuestaId: string) {
+// Devuelve además `yaExistia` para que el llamador distinga una CREACIÓN de un
+// no-op idempotente. Sin esa señal, el route registraba en bitácora y notificaba
+// también cuando no se había creado nada: la auditoría QA (A-5) vio dos entradas
+// "Generó campaña desde propuesta" para una sola campaña y lo leyó como una
+// duplicación de datos que nunca ocurrió.
+export async function generarCampanaDesdePropuesta(
+  propuestaId: string,
+): Promise<{ campana: ReturnType<typeof rowToCampana>; yaExistia: boolean }> {
   const prop = await q1<any>('select * from propuestas where id=$1', [propuestaId])
   if (!prop) throw new PropuestaCampanaError('Propuesta no encontrada')
   if (prop.estatus !== 'APROBADA') {
@@ -466,7 +474,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
   )
   if (!items.length) throw new PropuestaCampanaError('La propuesta no tiene sitios aprobados')
 
-  const divisor = 1 - Number(prop.comision_pct) / 100
+  const divisor = divisorDeComision(prop.comision_pct)
   const factorDesc = 1 - Number(prop.descuento_pct ?? 0) / 100
   // S0-1: economía congelada en la aceptación. Si existe, la campaña/factura la
   // heredan literalmente (nadie recalcula desde tarifas de lista).
@@ -488,7 +496,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     const ya = (await client.query('select * from campanas where propuesta_id=$1', [propuestaId])).rows[0]
     if (ya) {
       await client.query('commit')
-      return rowToCampana(ya)
+      return { campana: rowToCampana(ya), yaExistia: true }
     }
     // tipo de campaña derivado del medio de los sitios aprobados
     const flags = (
@@ -672,7 +680,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     // el commit la RLS fail-closed (Bloque B) devolvería 0 filas.
     const creada = (await client.query('select * from campanas where id=$1', [campanaId])).rows[0]
     await client.query('commit')
-    return rowToCampana(creada)
+    return { campana: rowToCampana(creada), yaExistia: false }
   } catch (e) {
     await client.query('rollback')
     // A-1: carrera con otra generación simultánea de la MISMA propuesta. La
@@ -680,7 +688,7 @@ export async function generarCampanaDesdePropuesta(propuestaId: string) {
     // devuelve (idempotente), no es un error para el usuario.
     if ((e as { code?: string })?.code === '23505') {
       const existente = await q1<any>('select * from campanas where propuesta_id=$1', [propuestaId])
-      if (existente) return rowToCampana(existente)
+      if (existente) return { campana: rowToCampana(existente), yaExistia: true }
     }
     throw e
   } finally {
