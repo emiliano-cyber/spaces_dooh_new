@@ -176,7 +176,34 @@ async function main() {
     }
   }
 
+  // Ordenes ya atendidas, para no repetirlas.
+  //
+  // Los comandos llegan por DOS caminos: el socket (al momento) y el sondeo de
+  // respaldo (por si el socket se cayo). El servidor marca la orden como
+  // entregada cuando la reparte por sondeo, y como "en curso" cuando el agente
+  // acusa recibo por socket... pero ese acuse llega despues, asi que entre uno y
+  // otro el sondeo alcanza a repartir la MISMA orden otra vez. Resultado medido
+  // en REVOLUCION 267: cada foto programada se tomaba y se subia dos veces, el
+  // doble de datos por nada.
+  //
+  // `enCurso` no alcanzaba: libera el id al terminar, y la segunda entrega suele
+  // llegar despues de que la primera foto ya subio. Esta lista se queda con los
+  // ids, acotada para no crecer sin fin.
+  const atendidas = new Set();
+  const recordar = (id) => {
+    atendidas.add(id);
+    if (atendidas.size > 500) {
+      for (const viejo of atendidas) { atendidas.delete(viejo); if (atendidas.size <= 400) break; }
+    }
+  };
+
   async function atender(cmd) {
+    // Sin id no se puede saber si es repetida; se atiende y ya (no deberia pasar).
+    if (cmd.id) {
+      if (atendidas.has(cmd.id)) return;
+      recordar(cmd.id);
+    }
+
     switch (cmd.command_type) {
       case 'TAKE_PHOTO':
         return tomarYSubir(cmd);
@@ -265,10 +292,47 @@ process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message |
 const flags = process.argv.slice(2);
 const { asistente, desinstalar, menu, pausar } = require('./instalar');
 
+// Candado de instancia unica.
+//
+// El agente arranca solo con la PC (tarea de Windows). Si ademas alguien abre el
+// programa a mano y elige "arrancar", quedan DOS agentes en la misma PC: los dos
+// se conectan, los dos reciben cada orden y los dos suben su propia foto. Se vio
+// en REVOLUCION 267, que reportaba 120 veces por hora en vez de 60 y subia cada
+// foto por duplicado: el doble de datos y la galeria llena de fotos repetidas.
+//
+// Se resuelve apartando un puerto local: solo un proceso puede tenerlo. No se
+// usa un archivo de bloqueo porque si la PC se apaga de golpe queda ahi tirado y
+// el agente ya no vuelve a arrancar nunca.
+const PUERTO_CANDADO = 47713;
+
+function tomarCandado() {
+  return new Promise((resolve) => {
+    const net = require('net');
+    const servidor = net.createServer();
+    servidor.once('error', (e) => resolve(e.code !== 'EADDRINUSE'));
+    servidor.once('listening', () => {
+      servidor.unref(); // que no impida al proceso terminar
+      resolve(true);
+    });
+    servidor.listen(PUERTO_CANDADO, '127.0.0.1');
+  });
+}
+
 // Arranca el agente. Si lo lanzo una persona (no la tarea de Windows) y algo
 // falla, la ventana NO se cierra de golpe: antes un dato mal escrito hacia que
 // el programa se cerrara al instante y no habia forma de corregirlo.
-function arrancar(interactivo) {
+async function arrancar(interactivo) {
+  if (!(await tomarCandado())) {
+    log('ya hay otro agente corriendo en esta PC: este no arranca');
+    if (interactivo) {
+      console.log('\n  Ya hay un agente funcionando en esta PC.');
+      console.log('  No hace falta abrirlo otra vez: arranca solo con Windows.');
+      console.log('  (Si abrieras dos, cada foto se subiria por duplicado.)');
+      pausar();
+    }
+    return;
+  }
+
   main().catch((e) => {
     log('ERROR FATAL:', e.message);
     if (interactivo) {

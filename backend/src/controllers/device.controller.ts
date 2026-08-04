@@ -179,9 +179,21 @@ export async function reportStatus(req: Request, res: Response) {
 
 export async function pendingCommands(req: Request, res: Response) {
   const did = req.device!.did;
+
+  // El sondeo es el camino de RESPALDO: la orden ya salio por socket en el
+  // instante en que se creo. Se le dan 20 segundos de gracia antes de repartirla
+  // por aqui, porque si no llegaba por los dos caminos y el equipo la obedecia
+  // dos veces: en REVOLUCION 267 cada foto programada se tomaba y se subia por
+  // duplicado, el doble de datos por nada.
+  //
+  // 20 segundos alcanzan de sobra: los tres agentes acusan recibo por socket en
+  // milisegundos, y ese acuse pasa la orden a 'executing', que ya no entra en
+  // esta consulta. Si el socket estaba caido, la orden se entrega aqui 20
+  // segundos mas tarde y no se pierde nada (vencen a los 10 minutos).
   const [rows] = await pool.query<any[]>(
     `SELECT id, command_type, payload, priority FROM commands
      WHERE device_id = ? AND status = 'pending'
+       AND created_at <= NOW() - INTERVAL 20 SECOND
        AND (expires_at IS NULL OR expires_at > NOW())
      ORDER BY priority ASC, created_at ASC LIMIT 10`,
     [did]

@@ -225,7 +225,35 @@ async function main() {
     }
   }
 
+  // Ordenes ya atendidas, para no repetirlas.
+  //
+  // Los comandos llegan por DOS caminos: el socket (al momento) y el sondeo de
+  // respaldo (por si el socket se cayo). El servidor marca la orden como
+  // entregada cuando la reparte por sondeo, y como "en curso" cuando el agente
+  // acusa recibo por socket... pero ese acuse llega despues, asi que entre uno y
+  // otro el sondeo alcanza a repartir la MISMA orden otra vez. Se vio en el
+  // agente de PC: cada foto programada se tomaba y se subia dos veces, el doble
+  // de datos por nada. Este agente tiene la misma estructura, asi que le puede
+  // pasar igual.
+  //
+  // `enCurso` no alcanzaba: libera el id al terminar, y la segunda entrega suele
+  // llegar despues de que la primera foto ya subio. Esta lista se queda con los
+  // ids, acotada para no crecer sin fin.
+  const atendidas = new Set();
+  const recordar = (id) => {
+    atendidas.add(id);
+    if (atendidas.size > 500) {
+      for (const viejo of atendidas) { atendidas.delete(viejo); if (atendidas.size <= 400) break; }
+    }
+  };
+
   async function atender(cmd) {
+    // Sin id no se puede saber si es repetida; se atiende y ya (no deberia pasar).
+    if (cmd.id) {
+      if (atendidas.has(cmd.id)) return;
+      recordar(cmd.id);
+    }
+
     switch (cmd.command_type) {
       case 'TAKE_PHOTO':
         return tomarYSubir(cmd);
