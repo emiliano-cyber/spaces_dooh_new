@@ -10,9 +10,10 @@ import { crearOrdenCompraApi } from '@/lib/data/estado-api'
 
 const hoyISO = () => new Date().toISOString().slice(0, 10)
 
-// Candado de facturación: OC + fotos comprobatorias + reporte. Cuando los tres
-// están, el candado se abre y la campaña queda lista para facturar. Para Telco
-// Andina se enciende EN VIVO al cerrar la OT móvil con foto (Acto 4).
+// Candado de facturación: OC + la evidencia del segmento que la campaña TIENE
+// (física para OOH, digital para DOOH, ambas para HÍBRIDA). Cuando están, el
+// candado se abre y la campaña queda lista para facturar. Para Telco Andina se
+// enciende EN VIVO al cerrar la OT móvil con foto (Acto 4).
 export function CandadoPanel({ campanaId }: { campanaId: string }) {
   const r = useReadiness(campanaId)
   const camp = useCampana(campanaId)
@@ -32,6 +33,11 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
     setMonto((v) => v || (camp.presupuestoBruto != null ? String(camp.presupuestoBruto) : ''))
     setFecha((v) => v || hoyISO())
   }, [camp])
+
+  // Segmentos que aplican a esta campaña (misma partición que derive.ts).
+  const tipo = camp?.tipoCampana
+  const exigeFisica = tipo === 'OOH' || tipo === 'HIBRIDA'
+  const exigeDigital = tipo === 'DOOH' || tipo === 'HIBRIDA'
 
   const inp =
     'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -75,10 +81,15 @@ export function CandadoPanel({ campanaId }: { campanaId: string }) {
           {abierto ? 'Lista para facturar' : 'Candado de facturación'}
         </span>
       </div>
+      {/* Solo las condiciones que APLICAN a esta campaña. Antes se pintaban las
+          tres siempre, así que una DOOH mostraba "Fotografías comprobatorias"
+          con ✗ —evidencia física que una digital no tiene— junto a un candado
+          "Completo": la contradicción visual del hallazgo C3. Los segmentos son
+          los mismos que decide `candadoDeSegmentos` en derive.ts. */}
       <ul className="space-y-2">
         <Condicion ok={r.ocRecibida} label="Orden de compra recibida" />
-        <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />
-        <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />
+        {exigeFisica && <Condicion ok={r.fotosComprobatorias} label="Fotografías comprobatorias" />}
+        {exigeDigital && <Condicion ok={r.reportePublicacion} label="Reporte de publicación" />}
       </ul>
       {!r.ocRecibida && puedeOC && (
         <div className="mt-3 space-y-2 rounded border border-border bg-surface p-3">
