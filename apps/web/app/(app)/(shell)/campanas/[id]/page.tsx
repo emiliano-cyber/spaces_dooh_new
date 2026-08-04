@@ -228,7 +228,11 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {margen && (
         <Seccion
           titulo="Rentabilidad"
-          estado="hecho"
+          // Un margen NEGATIVO no es una seccion "Completa": la campaña pierde
+          // dinero. Estaba fijo en "hecho", asi que se veia el check verde de
+          // Completo junto a "Margen -93%" (A-3 de la auditoria QA). Queda
+          // pendiente para que la seccion se abra y ordene primero.
+          estado={margen.margen >= 0 ? 'hecho' : 'pendiente'}
           accion={
             <span className={`text-[13px] font-semibold ${margen.margen >= 0 ? 'text-[#0f7a55]' : 'text-error'}`}>
               Margen {margen.margenPct.toFixed(0)}%
@@ -278,7 +282,10 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
       {reporte && (
         <Seccion
           titulo="Reporte de cumplimiento"
-          estado="hecho"
+          // "Completo" solo si se entrego todo lo contratado. Estaba fijo en
+          // "hecho" y producia el sinsentido "Completo · 0% entregado" (A-3):
+          // el badge no describia el cumplimiento, solo decia que habia datos.
+          estado={reporte.cumplimientoPct >= 100 ? 'hecho' : 'pendiente'}
           accion={
             <span className={`text-[13px] font-semibold ${reporte.cumplimientoPct >= 100 ? 'text-[#0f7a55]' : 'text-[#9a6700]'}`}>
               {reporte.cumplimientoPct.toFixed(0)}% entregado

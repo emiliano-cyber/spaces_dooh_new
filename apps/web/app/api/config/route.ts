@@ -7,6 +7,7 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 import { obtenerConfigRow, obtenerConfigAdmin } from '@/lib/server/config-repo'
 import { respuestaError, validar } from '@/lib/server/errores'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
+import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,8 +30,21 @@ const configSchema = z
     ivaTasas: z.array(z.coerce.number().min(0).max(100)),
     loopSeg: z.coerce.number().int().min(1).max(3600),
     spotSeg: z.coerce.number().int().min(1).max(3600),
+    // ADR 0008: cupo de clientes por defecto. `null` = sin límite, que es como
+    // nace la instalación; la regla se enciende capturando un número.
+    maxClientesPantalla: z.coerce
+      .number()
+      .int('El cupo de clientes debe ser un número entero')
+      .min(1, 'El cupo de clientes debe ser al menos 1')
+      .max(999, 'El cupo de clientes no puede pasar de 999')
+      .nullable(),
     razonSocial: z.string().trim().max(200).nullable(),
     nombreComercial: z.string().trim().max(200).nullable(),
+    // Datos fiscales de la parte ARRENDATARIA (los recita el contrato).
+    rfc: rfcTenant,
+    domicilioFiscal: textoTenant(300),
+    representanteLegal: textoTenant(200),
+    datosConstitucion: textoTenant(600),
   })
   .partial()
   .strict()
@@ -44,7 +58,7 @@ export async function GET() {
 }
 
 // PATCH /api/config → actualiza nombre/moneda/plazos/tipos de tarea (global) y
-// razón social / nombre comercial (POR TENANT → tabla tenants).
+// razón social / nombre comercial / datos fiscales (POR TENANT → tabla tenants).
 export async function PATCH(req: Request) {
   const g = await exigir('administracion', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
@@ -56,6 +70,7 @@ export async function PATCH(req: Request) {
     nombreTenant: 'nombre_tenant', moneda: 'moneda',
     plazosCobranza: 'plazos_cobranza', tiposTarea: 'tipos_tarea',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
+    maxClientesPantalla: 'max_clientes_pantalla',
   }
   const sets: string[] = []
   const vals: unknown[] = []
@@ -74,6 +89,8 @@ export async function PATCH(req: Request) {
   // Campos POR TENANT → tabla tenants (organización actual).
   const tenantMap: Record<string, string> = {
     razonSocial: 'razon_social', nombreComercial: 'nombre_comercial',
+    rfc: 'rfc', domicilioFiscal: 'domicilio_fiscal',
+    representanteLegal: 'representante_legal', datosConstitucion: 'datos_constitucion',
   }
   const tSets: string[] = []
   const tVals: unknown[] = []

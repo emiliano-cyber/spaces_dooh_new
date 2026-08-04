@@ -208,7 +208,13 @@ export function uploadOUrlZod(allowlist: readonly TipoPermitido[], maxMB: number
 // código. Cada uno viene del cuadro del Bloque D de la auditoría.
 export const LIMITES = {
   evidenciaOT: { allowlist: ['image/jpeg', 'image/png', 'image/webp'] as const, maxMB: 8 },
-  logoEmpresa: { allowlist: ['image/png', 'image/svg+xml', 'image/webp'] as const, maxMB: 2 },
+  // JPG entra a la lista: el UI siempre lo ofreció ("PNG/JPG") y el servidor lo
+  // rechazaba con 422, así que el logo más común que trae una empresa no se
+  // podía subir y el menú nunca cambiaba de imagen.
+  logoEmpresa: {
+    allowlist: ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'] as const,
+    maxMB: 2,
+  },
   creatividadImagen: { allowlist: ['image/jpeg', 'image/png', 'image/webp'] as const, maxMB: 15 },
   creatividadHtml: { allowlist: ['text/html'] as const, maxMB: 2 },
   fotoSitio: { allowlist: ['image/jpeg', 'image/png', 'image/webp'] as const, maxMB: 8 },

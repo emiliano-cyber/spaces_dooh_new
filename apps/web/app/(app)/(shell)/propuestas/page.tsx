@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
@@ -18,6 +18,10 @@ import {
   useCampanas,
   useContratos,
   useArrendadores,
+  useReservas,
+  useConfigNegocio,
+  clientesEnPantalla,
+  cupoDePantalla,
   formatMonto,
   formatMontoCorto,
   divisorDeComision,
@@ -118,6 +122,34 @@ function PropuestaCard({
   const router = useRouter()
   const [generando, setGenerando] = useState(false)
 
+  // ADR 0008 · pantallas de esta propuesta que ya tienen su cupo de clientes
+  // lleno en las fechas propuestas, para un cliente que no está entre ellos.
+  // Mismo cálculo que aplica el servidor al reservar (`clientesEnPantalla`).
+  const reservas = useReservas()
+  const config = useConfigNegocio()
+  const sinCupo = useMemo(() => {
+    const m = new Map<string, string>()
+    if (!sitios || !reservas || !campanas || !clientes) return m
+    const nombrePorCliente = new Map(clientes.map((c) => [c.id, c.nombre]))
+    for (const it of p.items) {
+      const s = sitios.find((x) => x.id === it.sitioId)
+      if (!s) continue
+      const cupo = cupoDePantalla(s, config)
+      if (cupo == null) continue
+      // Las fechas van POR ITEM: cada pantalla de la propuesta puede ir en un
+      // periodo distinto, y el cupo se mide contra el suyo.
+      const desde = new Date(it.fechaInicio).getTime()
+      const hasta = new Date(it.fechaFin).getTime()
+      if (isNaN(desde) || isNaN(hasta)) continue
+      const ocupantes = clientesEnPantalla({ reservas, campanas }, s.id, desde, hasta)
+      if (ocupantes.includes(p.clienteId ?? '')) continue // el cliente ya está: cabe
+      if (ocupantes.length >= cupo) {
+        m.set(it.sitioId, ocupantes.map((id) => nombrePorCliente.get(id) ?? '—').join(', '))
+      }
+    }
+    return m
+  }, [p, sitios, reservas, campanas, clientes, config])
+
   async function cambiar(estatus: EstPropuesta, confirmarCero = false) {
     try {
       await cambiarEstatusPropuestaApi(p.id, estatus, confirmarCero)
@@ -215,6 +247,19 @@ function PropuestaCard({
                       <span className={`truncate ${it.aprobado ? 'text-ink' : 'text-muted'}`}>{s?.nombre ?? it.sitioId}</span>
                       {it.aprobado && (
                         <span className="rounded-full border border-[#10b98140] px-1.5 text-[10px] text-[#0f7a55]">aprobado</span>
+                      )}
+                      {/* ADR 0008: AVISO, no bloqueo. Una propuesta es una
+                          intención comercial y el inventario puede liberarse
+                          antes de cerrarla; el bloqueo duro vive en la reserva.
+                          Pero saberlo aquí evita prometer una pantalla que no
+                          se va a poder entregar. */}
+                      {sinCupo.has(it.sitioId) && (
+                        <span
+                          className="rounded-full border border-[#f59e0b66] bg-warning-soft px-1.5 text-[10px] text-[#9a6700]"
+                          title={`La pantalla ya tiene su cupo de clientes en estas fechas (${sinCupo.get(it.sitioId)}). Al reservar se rechazará salvo que se libere o se suba el cupo.`}
+                        >
+                          cupo lleno
+                        </span>
                       )}
                     </label>
                     <span className="demo-num text-muted">{formatMonto(it.precio)}</span>

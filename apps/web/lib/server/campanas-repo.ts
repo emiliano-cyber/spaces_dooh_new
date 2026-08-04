@@ -1,9 +1,10 @@
 import 'server-only'
-import { randomBytes } from 'crypto'
+import type { PoolClient } from 'pg'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
+import { folioCampana } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
 
 // ============================================================================
@@ -134,16 +135,12 @@ async function prefijoTenant(tenantId: string | null): Promise<string> {
   return base.slice(0, 6) || 'CRM'
 }
 
-// Folio de campaña: <PREFIJO_TENANT> + año + mes + día + 3 dígitos aleatorios,
-// todo junto. p. ej. G50020260703482
-const folio = (prefijo: string) => {
-  const d = new Date()
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  const rnd = String(randomBytes(2).readUInt16BE(0) % 1000).padStart(3, '0')
-  return `${prefijo}${yyyy}${mm}${dd}${rnd}`
-}
+// Folio de campaña: <PREFIJO_TENANT> + año + mes + día + consecutivo del día.
+// p. ej. G50020260703004. Los tres dígitos eran ALEATORIOS: 1.000 combinaciones
+// por día, o sea >50% de probabilidad de repetir a las ~37 campañas de la misma
+// jornada, y como `campanas.folio` es UNIQUE la reserva moría enseñándole al
+// vendedor el error crudo de Postgres. Ahora salen de un contador atómico
+// (`lib/server/folios.ts`). Misma forma, sin lotería.
 
 type TipoCampana = 'OOH' | 'DOOH' | 'HIBRIDA'
 
@@ -247,6 +244,33 @@ export async function barrerReservasVencidas(): Promise<number> {
   }
 }
 
+// ─── ADR 0008 · cupo de clientes por pantalla ───────────────────────────────
+// Cupo efectivo = el de la pantalla; si no tiene, el default global. `null` en
+// los dos = SIN LÍMITE, que es como nace la instalación: la regla se enciende
+// capturando un número, nunca por desplegar código.
+export async function cupoGlobalClientes(client: PoolClient): Promise<number | null> {
+  const v = (await client.query('select max_clientes_pantalla from config_negocio limit 1')).rows[0]
+    ?.max_clientes_pantalla
+  return v != null ? Number(v) : null
+}
+
+export function cupoEfectivo(maxDelSitio: unknown, cupoGlobal: number | null): number | null {
+  return maxDelSitio != null ? Number(maxDelSitio) : cupoGlobal
+}
+
+// ¿Este cliente sobra en esta pantalla? La decisión, aislada de la BD para
+// poder probarla: un cliente que YA ocupa la pantalla nunca sobra (puede meter
+// otra campaña mientras le queden slots); el cupo solo frena al cliente NUEVO.
+export function excedeCupoClientes(opts: {
+  cupo: number | null
+  ocupantes: { cliente_id: string }[]
+  clienteId: string | null | undefined
+}): boolean {
+  if (opts.cupo == null) return false // sin cupo configurado = sin límite
+  const yaEsta = opts.clienteId != null && opts.ocupantes.some((o) => o.cliente_id === opts.clienteId)
+  return !yaEsta && opts.ocupantes.length >= opts.cupo
+}
+
 // ─── Reservar: crea cliente+campaña si hace falta, reservas CONFIRMADAS (sin
 //     tentativa) y consume el spot del sitio (digital: baja 1/12; fija: OCUPADO).
 // ────────────────────────────────────────────────────────────────────────────
@@ -289,16 +313,35 @@ export async function reservar(input: {
         tipoCampana = derivarTipoCampana(flags)
       }
       const tenantId = await tenantActual()
-      const cli = (
-        await client.query(`insert into clientes (nombre, tenant_id) values ($1,$2) returning id`, [
-          input.clienteNombre ?? 'Cliente nuevo', tenantId,
-        ])
-      ).rows[0]
+      // ADR 0008 · prerrequisito. Esto insertaba un cliente NUEVO en cada
+      // reserva, sin mirar si ya existía: reservar tres veces para "Telcel"
+      // dejaba tres fichas. Con eso, cualquier regla que cuente clientes
+      // distintos por pantalla —el cupo— contaría fantasmas.
+      // La coincidencia es EXACTA sobre el nombre normalizado (trim + minúsculas
+      // + espacios colapsados), nunca aproximada: fusionar "Telcel Norte" con
+      // "Telcel" sería peor que duplicar.
+      const nombreCliente = (input.clienteNombre ?? 'Cliente nuevo').trim() || 'Cliente nuevo'
+      const cli =
+        (
+          await client.query(
+            `select id from clientes
+              where tenant_id = $1
+                and lower(regexp_replace(btrim(nombre), '\\s+', ' ', 'g')) =
+                    lower(regexp_replace(btrim($2::text), '\\s+', ' ', 'g'))
+              order by creado_en asc limit 1`,
+            [tenantId, nombreCliente],
+          )
+        ).rows[0] ??
+        (
+          await client.query(`insert into clientes (nombre, tenant_id) values ($1,$2) returning id`, [
+            nombreCliente, tenantId,
+          ])
+        ).rows[0]
       campanaId = (
         await client.query(
           `insert into campanas (folio, nombre, cliente_id, marca, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, moneda, tenant_id)
            values ($1,$2,$3,$4,$5,$6,'COTIZACION',$7,coalesce((select moneda from tenants where id=$8),'MXN'),$8) returning id`,
-          [folio(await prefijoTenant(tenantId)), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
+          [await folioCampana(await prefijoTenant(tenantId), client), input.nombreCampana ?? `${input.clienteNombre ?? 'Campaña'} — nueva`, cli.id,
            input.clienteNombre ?? null, input.fechaInicio, input.fechaFin, tipoCampana, tenantId],
         )
       ).rows[0].id
@@ -321,6 +364,10 @@ export async function reservar(input: {
       }
     }
 
+    // Default global del cupo de clientes (ADR 0008). Una lectura por
+    // transacción, no una por pantalla.
+    const cupoGlobal = await cupoGlobalClientes(client)
+
     for (const sitioId of input.sitioIds) {
       // FOR UPDATE bloquea la fila del sitio durante la transacción: dos reservas
       // concurrentes del MISMO sitio se serializan, así el chequeo de colisión /
@@ -328,7 +375,7 @@ export async function reservar(input: {
       // sobreventa de slots — hallazgo A-1).
       const s = (
         await client.query(
-          'select nombre, tarifa_mensual, spots_disponibles, total_spots, es_rotativo, exhibicion, tipo_medio from sitios where id=$1 for update',
+          'select nombre, tarifa_mensual, spots_disponibles, total_spots, max_clientes, es_rotativo, exhibicion, tipo_medio from sitios where id=$1 for update',
           [sitioId],
         )
       ).rows[0]
@@ -366,19 +413,70 @@ export async function reservar(input: {
       } else {
         // Digital: 1 slot = 1 campaña. Ocupada cuando el nº de campañas con
         // reserva activa alcanza total_spots (no depende del contador almacenado).
+        //
+        // ADR 0008: el conteo ahora SOLAPA FECHAS, igual que el de las estáticas
+        // de arriba. Antes contaba toda reserva no cancelada desde el principio
+        // de los tiempos, así que una campaña terminada en 2024 seguía ocupando
+        // su slot para siempre y el inventario envejecía hacia "todo lleno".
         const tot = s?.total_spots != null ? Number(s.total_spots) : null
         const cnt = Number(
           (
             await client.query(
               `select count(distinct campana_id)::int as n from reservas
-                where sitio_id=$1 and estatus <> 'CANCELADA' and campana_id <> $2`,
-              [sitioId, campanaId],
+                where sitio_id=$1 and estatus <> 'CANCELADA' and campana_id <> $2
+                  and fecha_inicio <= $4::date and fecha_fin >= $3::date`,
+              [sitioId, campanaId, input.fechaInicio, input.fechaFin],
             )
           ).rows[0]?.n ?? 0,
         )
         if (tot != null && cnt >= tot) {
           throw new Error(
-            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles (${cnt}/${tot} campañas). Elige otra pantalla.`,
+            `"${s?.nombre ?? 'La pantalla'}" ya no tiene slots disponibles en esas fechas (${cnt}/${tot} campañas). Elige otras fechas u otra pantalla.`,
+          )
+        }
+      }
+
+      // ─── ADR 0008 · Cupo de clientes de la pantalla ─────────────────────────
+      // Segundo eje, independiente de los slots: cuántos ANUNCIANTES distintos
+      // pueden compartir la pantalla. Aplica a digitales y a fijas (una fija con
+      // cupo 1 no cambia de comportamiento: ya es exclusiva por fechas).
+      //
+      // Un cliente que YA está en la pantalla no consume cupo al volver: puede
+      // meter otra campaña mientras le queden slots. El cupo solo frena al
+      // cliente NUEVO. Va después del guard de slots a propósito: si no hay
+      // slots, ese es el motivo real y es el que debe salir.
+      const cupo = cupoEfectivo(s?.max_clientes, cupoGlobal)
+      if (cupo != null) {
+        const ocupacion = (
+          await client.query(
+            `select c.cliente_id, cl.nombre
+               from reservas r
+               join campanas c  on c.id  = r.campana_id
+               join clientes cl on cl.id = c.cliente_id
+              where r.sitio_id = $1
+                and r.estatus <> 'CANCELADA'
+                and r.campana_id <> $2
+                and r.fecha_inicio <= $4::date and r.fecha_fin >= $3::date
+              group by c.cliente_id, cl.nombre
+              order by cl.nombre`,
+            [sitioId, campanaId, input.fechaInicio, input.fechaFin],
+          )
+        ).rows as { cliente_id: string; nombre: string }[]
+
+        const clienteDeLaCampana = (
+          await client.query('select cliente_id from campanas where id=$1', [campanaId])
+        ).rows[0]?.cliente_id
+
+        if (excedeCupoClientes({ cupo, ocupantes: ocupacion, clienteId: clienteDeLaCampana })) {
+          // El mensaje nombra a los ocupantes: es información comercial, pero de
+          // este mismo tenant y el usuario ya la ve en Comercial. Sin ella el
+          // comercial no sabe si pedir una excepción o cambiar de pantalla.
+          throw new Error(
+            `"${s?.nombre ?? 'La pantalla'}" ya llegó a su cupo de ${cupo} ${
+              cupo === 1 ? 'cliente' : 'clientes'
+            } en esas fechas (${ocupacion
+              .map((o) => o.nombre)
+              .join(', ')}). Elige otras fechas, otra pantalla, o sube el cupo de esta.`,
           )
         }
       }
@@ -405,10 +503,17 @@ export async function reservar(input: {
         // 1 slot = 1 campaña. Estatus por conteo de campañas activas: OCUPADO al
         // llenar los slots, si no DISPONIBLE. El nº de disponibles se calcula al
         // leer (listarSitios = total − campañas activas), sin contador que drifte.
+        //
+        // ADR 0008: el conteo mira fechas (`fecha_fin >= current_date`), igual
+        // que el de `listarSitios`. Con el conteo histórico, una pantalla que
+        // llenó sus slots una vez se quedaba en OCUPADO para siempre aunque esas
+        // campañas hubieran terminado — dos criterios distintos para el mismo
+        // dato, que es justo el patrón que produjo el hallazgo A-2.
         await client.query(
           `update sitios s set estatus_comercial = (case
               when (select count(distinct campana_id) from reservas r
-                     where r.sitio_id = s.id and r.estatus <> 'CANCELADA')
+                     where r.sitio_id = s.id and r.estatus <> 'CANCELADA'
+                       and r.fecha_fin >= current_date)
                    >= coalesce(s.total_spots, 0) then 'OCUPADO'
               else 'DISPONIBLE' end)::est_comercial
             where s.id=$1`,
@@ -518,7 +623,7 @@ export async function generarCampanaDesdePropuesta(
       await client.query(
         `insert into campanas (folio, nombre, cliente_id, agencia, fecha_inicio, fecha_fin, estado_comercial, tipo_campana, propuesta_id, moneda, tenant_id)
          values ($1,$2,$3,$4,$5,$6,'CONFIRMADA',$7,$8,coalesce((select moneda from tenants where id=$9),'MXN'),$9) returning id`,
-        [folio(await prefijoTenant(await tenantActual())), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
+        [await folioCampana(await prefijoTenant(await tenantActual()), client), prop.nombre, prop.cliente_id, agenciaNombre, fechaInicio, fechaFin, tipoCampana, propuestaId, await tenantActual()],
       )
     ).rows[0].id
 

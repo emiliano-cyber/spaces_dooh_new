@@ -281,9 +281,17 @@ export interface DashboardMetrics {
   margen: number // S/
   margenPct: number // 0–100
   porCobrar: number
+  // Ocupación de la red PONDERADA por capacidad: un slot digital y una cara fija
+  // valen un espacio cada uno (ver `ocupacionRed`). No es el % de pantallas con
+  // algo vendido — ese dato es `sitiosOcupados/sitiosTotales`, más abajo.
   ocupacionPct: number
   sitiosOcupados: number
   sitiosTotales: number
+  espaciosOcupados: number // slots digitales vendidos + caras fijas tomadas
+  capacidadRed: number     // slots de las digitales + 1 por cada fija
+  ocupacionDigitales: { sitios: number; ocupados: number; capacidad: number }
+  ocupacionFijas: { sitios: number; ocupados: number; capacidad: number }
+  sinSlotsCapturados: number // digitales sin slots capturados (entran valiendo 1)
   reservasTentativas: number
   reservasConfirmadas: number
   valorTentativo: number
@@ -321,6 +329,45 @@ export const LICENCIA_LABEL: Record<string, string> = {
   AMBIENTAL: 'Permiso ambiental',
   ESTRUCTURAL: 'Dictamen estructural',
   OTRO: 'Permiso',
+}
+
+// ─── Vigencia por fechas vs estado guardado (A-1 de la auditoría QA) ────────
+// `estadoComercial` refleja el FLUJO (confirmar, publicar, facturar), no el
+// calendario, así que nadie lo mueve cuando pasa la fecha fin: la auditoría vio
+// campañas "Activa" terminadas hace días y "Completada" con vigencia hasta 2028.
+//
+// No se toca el estado guardado: COMPLETADA condiciona la facturación y
+// reescribirlo desde un job puede dar por entregado algo que nunca se entregó.
+// Lo que sí se puede es dejar de AFIRMAR algo falso: se deriva la vigencia real
+// y se marca la incoherencia para que la pantalla la muestre.
+export type VigenciaCampana = 'por_empezar' | 'vigente' | 'vencida'
+
+export function vigenciaCampana(
+  c: { fechaInicio: string; fechaFin: string },
+  hoy: Date = startOfToday(),
+): VigenciaCampana {
+  const ini = new Date(c.fechaInicio).getTime()
+  const fin = new Date(c.fechaFin).getTime()
+  const hoyMs = hoy.getTime()
+  if (Number.isNaN(ini) || Number.isNaN(fin)) return 'vigente'
+  if (hoyMs < ini) return 'por_empezar'
+  // El día de fin cuenta completo: una campaña que termina hoy sigue vigente.
+  if (hoyMs > fin + 86_399_999) return 'vencida'
+  return 'vigente'
+}
+
+// ¿El estado guardado contradice al calendario? Solo los dos casos que un
+// usuario percibe como error; el resto de combinaciones son legítimas (una
+// CANCELADA vencida no es incoherente, por ejemplo).
+export function estadoContradiceFechas(c: {
+  estadoComercial: string
+  fechaInicio: string
+  fechaFin: string
+}): boolean {
+  const v = vigenciaCampana(c)
+  if (c.estadoComercial === 'ACTIVA' && v === 'vencida') return true
+  if (c.estadoComercial === 'COMPLETADA' && v !== 'vencida') return true
+  return false
 }
 
 // ─── Comisión → divisor: el neto NUNCA es negativo (C-2 de la auditoría QA) ─
@@ -374,6 +421,104 @@ export function sitiosOcupadosHoy(state: DemoState): Set<string> {
   // Solo sitios que existen en el estado: una reserva puede apuntar a un sitio
   // dado de baja, y contarlo inflaría la ocupación por encima del 100%.
   return new Set(state.sitios.filter((s) => conReserva.has(s.id)).map((s) => s.id))
+}
+
+// ─── Ocupación de la red: ponderada por capacidad ───────────────────────────
+// Contar "pantallas ocupadas / pantallas totales" mezcla dos inventarios que no
+// se venden igual. Un espectacular es UNA cara: se toma entero o no se toma.
+// Una pantalla digital se vende por slots: 3 campañas en una de 12 dejan 9
+// slots vendibles. Con el conteo por pantalla, esa digital marcaba lo mismo que
+// el espectacular —100% ocupada— y el KPI de la red se disparaba.
+//
+//   capacidad = Σ digitales(totalSpots) + Σ fijas(1)
+//   ocupado   = Σ digitales(campañas distintas vigentes, tope totalSpots)
+//             + Σ fijas(1 si tiene reserva vigente)
+//
+// La unidad del lado digital son CAMPAÑAS DISTINTAS, no `spotsReservados`. Dos
+// razones: es la misma unidad con la que el servidor decide si aún se puede
+// vender (`campanas-repo.ts`, "1 slot = 1 campaña"), y `spotsReservados` no es
+// fiable como medida de ocupación —el diálogo de reserva manda por defecto
+// TODOS los spots libres, así que una sola campaña dejaría la pantalla al 100%.
+//
+// Sigue valiendo la regla A-2: solo cuentan las reservas CONFIRMADAS que cubren
+// la ventana. Reservar no es vender.
+export interface OcupacionRed {
+  /** 0–100, ponderado por capacidad. */
+  pct: number
+  /** Espacios vendidos: slots digitales ocupados + caras fijas tomadas. */
+  ocupados: number
+  /** Espacios vendibles de toda la red. */
+  capacidad: number
+  /** Pantallas con al menos un espacio vendido (para el subtítulo del KPI). */
+  sitiosOcupados: number
+  sitiosTotales: number
+  digitales: { sitios: number; ocupados: number; capacidad: number }
+  fijas: { sitios: number; ocupados: number; capacidad: number }
+  /** Digitales sin `totalSpots` capturado: entran valiendo 1 y se reportan. */
+  sinSlots: number
+}
+
+// Una digital sin slots capturados no se puede ponderar. Se cuenta como un solo
+// espacio (el trato más conservador: nunca infla la capacidad de la red) y se
+// devuelve el número aparte para poder decirlo en la UI en vez de esconderlo.
+const CAPACIDAD_SIN_SLOTS = 1
+
+export function ocupacionRed(
+  state: DemoState,
+  ventana?: { desde: number; hasta: number },
+): OcupacionRed {
+  const desde = ventana?.desde ?? startOfToday().getTime()
+  const hasta = ventana?.hasta ?? desde + 86_400_000 - 1
+
+  // Campañas distintas por sitio. Dos reservas de la MISMA campaña sobre la
+  // misma pantalla (p. ej. dos tramos de fechas) ocupan un slot, no dos.
+  const campanasPorSitio = new Map<string, Set<string>>()
+  for (const r of state.reservas) {
+    if (r.estatus !== 'CONFIRMADA') continue
+    const ri = new Date(r.fechaInicio).getTime()
+    const rf = new Date(r.fechaFin).getTime()
+    if (ri > hasta || rf < desde) continue
+    let set = campanasPorSitio.get(r.sitioId)
+    if (!set) campanasPorSitio.set(r.sitioId, (set = new Set()))
+    set.add(r.campanaId || r.id)
+  }
+
+  const digitales = { sitios: 0, ocupados: 0, capacidad: 0 }
+  const fijas = { sitios: 0, ocupados: 0, capacidad: 0 }
+  let sitiosOcupados = 0
+  let sinSlots = 0
+
+  for (const s of state.sitios) {
+    const vendidas = campanasPorSitio.get(s.id)?.size ?? 0
+    if (esDigital(s)) {
+      const slots = s.totalSpots != null && s.totalSpots > 0 ? s.totalSpots : null
+      if (slots == null) sinSlots++
+      const capacidad = slots ?? CAPACIDAD_SIN_SLOTS
+      // Tope: más campañas que slots es un dato imposible (el guard de reserva
+      // lo impide), pero si llegara, no debe empujar la red por encima del 100%.
+      digitales.capacidad += capacidad
+      digitales.ocupados += Math.min(vendidas, capacidad)
+      digitales.sitios++
+    } else {
+      fijas.capacidad += 1
+      fijas.ocupados += vendidas > 0 ? 1 : 0
+      fijas.sitios++
+    }
+    if (vendidas > 0) sitiosOcupados++
+  }
+
+  const capacidad = digitales.capacidad + fijas.capacidad
+  const ocupados = digitales.ocupados + fijas.ocupados
+  return {
+    pct: capacidad > 0 ? (ocupados / capacidad) * 100 : 0,
+    ocupados,
+    capacidad,
+    sitiosOcupados,
+    sitiosTotales: state.sitios.length,
+    digitales,
+    fijas,
+    sinSlots,
+  }
 }
 
 export function dashboardMetrics(state: DemoState): DashboardMetrics {
@@ -450,9 +595,13 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   const monedasMixtas = monedasPresentes.size > 1
   const moneda = monedasMixtas ? null : ([...monedasPresentes][0] ?? null)
 
-  const sitiosTotales = state.sitios.length
-  const sitiosOcupados = sitiosOcupadosHoy(state).size
-  const ocupacionPct = sitiosTotales > 0 ? (sitiosOcupados / sitiosTotales) * 100 : 0
+  // Ocupación ponderada por capacidad (slots en digitales, 1 cara en fijas).
+  // `sitiosOcupados/sitiosTotales` se conserva como dato secundario: responde
+  // "cuántas pantallas tienen algo vendido", que no es lo mismo que el %.
+  const red = ocupacionRed(state)
+  const sitiosTotales = red.sitiosTotales
+  const sitiosOcupados = red.sitiosOcupados
+  const ocupacionPct = red.pct
 
   return {
     ingresoMes,
@@ -467,6 +616,11 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
     ocupacionPct,
     sitiosOcupados,
     sitiosTotales,
+    espaciosOcupados: red.ocupados,
+    capacidadRed: red.capacidad,
+    ocupacionDigitales: red.digitales,
+    ocupacionFijas: red.fijas,
+    sinSlotsCapturados: red.sinSlots,
     reservasTentativas: tentativas.length,
     reservasConfirmadas: confirmadas.length,
     valorTentativo,
@@ -1193,6 +1347,7 @@ export type Granularidad = 'dia' | 'semana' | 'mes'
 export interface PuntoOcupacion {
   label: string
   pct: number
+  /** Espacios ocupados en el bucket (slots digitales + caras fijas), no pantallas. */
   ocupados: number
 }
 
@@ -1214,11 +1369,15 @@ function startOfToday(): Date {
   return d
 }
 
-// Ocupación = sitios con reserva CONFIRMADA que solapa el bucket / total sitios.
+// Ocupación por bucket, con la MISMA definición que el KPI: ponderada por
+// capacidad (slots en digitales, 1 cara en fijas). Antes esta serie contaba
+// pantallas y el KPI contaba otra cosa; A-2 se originó justo así, con dos
+// definiciones del mismo concepto divergiendo en pantalla.
+//
+// `diasOcupados`/`diasDisponibles` pasan a ser espacios·día (un slot vendido
+// durante un día es 1), no pantallas·día.
 export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupacion {
   const { buckets, dias } = CONFIG_GRAN[gran]
-  const total = state.sitios.length || 1
-  const confirmadas = state.reservas.filter((r) => r.estatus === 'CONFIRMADA')
   const inicio = startOfToday()
 
   const puntos: PuntoOcupacion[] = []
@@ -1232,17 +1391,11 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
     bEnd.setDate(bEnd.getDate() + dias - 1)
     bEnd.setHours(23, 59, 59, 999)
 
-    const sitiosOcupados = new Set<string>()
-    for (const r of confirmadas) {
-      const ri = new Date(r.fechaInicio).getTime()
-      const rf = new Date(r.fechaFin).getTime()
-      if (ri <= bEnd.getTime() && rf >= bStart.getTime()) sitiosOcupados.add(r.sitioId)
-    }
-    const ocupados = sitiosOcupados.size
-    diasOcupados += ocupados * dias
-    diasDisponibles += total * dias
+    const red = ocupacionRed(state, { desde: bStart.getTime(), hasta: bEnd.getTime() })
+    diasOcupados += red.ocupados * dias
+    diasDisponibles += red.capacidad * dias
 
-    puntos.push({ label: etiquetaBucket(bStart, gran), pct: (ocupados / total) * 100, ocupados })
+    puntos.push({ label: etiquetaBucket(bStart, gran), pct: red.pct, ocupados: red.ocupados })
   }
 
   return { puntos, diasOcupados, diasDisponibles }
@@ -1266,6 +1419,42 @@ function etiquetaBucket(d: Date, gran: Granularidad): string {
 //  (catorcena o mes) y marca cada sitio×periodo como LIBRE / PARCIAL / OCUPADO.
 //  Estáticas = ocupación única (solapa → OCUPADO). Digitales = por slots
 //  (usados vs total_spots): PARCIAL mientras queden slots, OCUPADO al agotarse.
+
+// ─── ADR 0008 · cupo de clientes de una pantalla ────────────────────────────
+// Quién ocupa una pantalla en un rango de fechas, en IDs de cliente. El servidor
+// hace exactamente esta cuenta dentro de la transacción de reserva
+// (`campanas-repo.ts`); esto es su espejo para que la UI pueda avisar ANTES de
+// mandar la reserva. No es una autorización: la decisión sigue siendo del
+// servidor. Vive aquí, y no en cada pantalla, para que la regla de solape se
+// escriba una sola vez.
+export function clientesEnPantalla(
+  datos: { reservas: Reserva[]; campanas: Campana[] },
+  sitioId: string,
+  desde: number,
+  hasta: number,
+): string[] {
+  const clientePorCampana = new Map(datos.campanas.map((c) => [c.id, c.clienteId]))
+  const ids = new Set<string>()
+  for (const r of datos.reservas) {
+    // Bloquean cupo las reservas NO canceladas (tentativas + confirmadas): una
+    // tentativa viva ya tiene el lugar apartado.
+    if (r.sitioId !== sitioId || r.estatus === 'CANCELADA') continue
+    const ri = new Date(r.fechaInicio).getTime()
+    const rf = new Date(r.fechaFin).getTime()
+    if (ri > hasta || rf < desde) continue
+    const cid = clientePorCampana.get(r.campanaId)
+    if (cid) ids.add(cid)
+  }
+  return [...ids]
+}
+
+// Cupo efectivo: el de la pantalla, o el default global. null = sin límite.
+export function cupoDePantalla(
+  sitio: { maxClientes?: number | null },
+  config?: { maxClientesPantalla?: number | null } | null,
+): number | null {
+  return sitio.maxClientes ?? config?.maxClientesPantalla ?? null
+}
 
 export type GranDisponibilidad = 'catorcena' | 'mes'
 export type EstadoCelda = 'LIBRE' | 'PARCIAL' | 'OCUPADO'

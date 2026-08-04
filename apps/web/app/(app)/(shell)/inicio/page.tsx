@@ -91,8 +91,10 @@ export default function DashboardPage() {
         {subtitulo && <p className="mt-1 text-[13px] text-muted">{subtitulo}</p>}
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {/* KPIs — 4 columnas solo desde xl (1280px). Entre 1024 y 1279 el sidebar
+          se come 240px y cada tarjeta quedaba en ~235px, demasiado angosta para
+          un monto de 14 caracteres en mono; ahí van 2 columnas. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {!m ? (
           <>
             <KPICardSkeleton />
@@ -123,10 +125,14 @@ export default function DashboardPage() {
               tono="ambar"
               icon={<HandCoins className="h-4 w-4" />}
             />
+            {/* % ponderado por capacidad: cada slot de una digital y cada cara
+                de una fija cuentan como un espacio. El subtítulo lleva el dato
+                crudo (espacios) y el reparto digital/fija, porque un mismo % se
+                lee muy distinto si viene de slots o de espectaculares. */}
             <KPICard
               label="Ocupación de la red"
               value={`${m.ocupacionPct.toFixed(0)}%`}
-              sub={`${m.sitiosOcupados} de ${m.sitiosTotales} sitios`}
+              sub={`${m.espaciosOcupados} de ${m.capacidadRed} espacios · digital ${m.ocupacionDigitales.ocupados}/${m.ocupacionDigitales.capacidad} · fijas ${m.ocupacionFijas.ocupados}/${m.ocupacionFijas.capacidad}`}
               tono="azul"
               icon={<Gauge className="h-4 w-4" />}
             />
@@ -153,7 +159,7 @@ export default function DashboardPage() {
               <CardTitle>Ocupación</CardTitle>
               {serie && (
                 <p className="mt-0.5 text-[12px] text-muted">
-                  {serie.diasOcupados.toLocaleString('es-PE')} días ocupados de{' '}
+                  {serie.diasOcupados.toLocaleString('es-PE')} espacios·día ocupados de{' '}
                   {serie.diasDisponibles.toLocaleString('es-PE')} disponibles
                 </p>
               )}
@@ -388,12 +394,17 @@ function Segmented({
   )
 }
 
+// Etiqueta y monto en dos renglones, no en una fila. En una sola fila el monto
+// (mono, ~100px) más la etiqueta no caben en los ~138px de media columna y se
+// salían encima de la leyenda vecina.
 function Leyenda({ color, label, valor }: { color: string; label: string; valor: string }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="h-2.5 w-2.5 rounded-sm" style={{ background: color }} />
-      <span className="text-muted">{label}</span>
-      <span className="demo-num ml-auto text-ink">{valor}</span>
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: color }} />
+        <span className="truncate text-muted">{label}</span>
+      </div>
+      <div className="demo-num mt-0.5 truncate text-ink">{valor}</div>
     </div>
   )
 }

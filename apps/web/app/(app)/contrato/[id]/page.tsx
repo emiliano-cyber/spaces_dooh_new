@@ -7,6 +7,7 @@ import { PanelFirmas } from '@/components/demo/arrendadores/PanelFirmas'
 import { ConstanciaFirmas, type FirmaConstancia } from '@/components/demo/arrendadores/ConstanciaFirmas'
 import { cn } from '@/lib/cn'
 import { firmasDeContrato } from '@/lib/server/firmas-repo'
+import { obtenerConfig } from '@/lib/server/config-repo'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -72,12 +73,25 @@ export default async function ContratoDocumentoPage({ params }: { params: { id: 
   // aquí con permiso de solo `ver`.
   const incluirToken = await tienePermiso(g.usuario.rol, 'arrendadores', 'crear')
   const estadoFirmas = await firmasDeContrato(params.id, { incluirToken })
+  // El logo es MEMBRETE: papelería, no contenido del contrato. Por eso se lee
+  // aquí y no entra en `DocumentoContrato` — `documentoATexto()` es la cadena que
+  // se SHA-256'ea al firmar, y meterle el logo invalidaría todas las firmas ya
+  // emitidas (sus hashes dejarían de coincidir). Cambiar el logo de la empresa no
+  // debe alterar lo que dice el documento.
+  const { logoUrl } = await obtenerConfig()
 
   return (
     <div className="doc-wrap">
       <BarraDocumento faltantes={doc.faltantes} />
 
       <article className="doc-hoja">
+        {logoUrl && (
+          <div className="doc-membrete">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt="" className="doc-logo" />
+          </div>
+        )}
+
         <h1 className="doc-titulo">{doc.titulo}</h1>
 
         <p className="doc-p doc-preambulo">

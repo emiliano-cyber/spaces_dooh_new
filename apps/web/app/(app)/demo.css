@@ -117,6 +117,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Tarjeta de KPI: contenedor de consulta para que el número de adentro se mida
+   contra el ANCHO DE LA TARJETA, no contra el de la ventana.
+   Hace falta porque la misma tarjeta cambia de ancho por tres motivos
+   independientes —el grid (1/2/4 columnas), el sidebar colapsado y el zoom del
+   navegador— y un breakpoint de viewport solo ve el tercero. Con un tamaño de
+   letra fijo, "$ 1,284,560.00" en mono (14 caracteres ≈ 227 px a 30 px) no cabe
+   en una tarjeta de 203 px de contenido: el "$" quedaba solo en un renglón y el
+   monto en el siguiente, saliéndose del borde. */
+.kpi-card {
+  container-type: inline-size;
+}
+
 /* Scrollbars discretas, cálidas. */
 .demo-root ::-webkit-scrollbar { width: 10px; height: 10px; }
 .demo-root ::-webkit-scrollbar-thumb {
@@ -176,6 +188,17 @@
   font-family: Georgia, "Times New Roman", serif; font-size: 11pt; line-height: 1.7;
   text-align: justify; hyphens: auto;
 }
+/* Membrete: el logo de la empresa, encima del título. Es papelería, no texto del
+   contrato (no entra en el hash de la firma). Se acota para que un PNG grande no
+   se coma la primera página. */
+.demo-root .doc-membrete {
+  text-align: center; margin: 0 0 18px; padding-bottom: 14px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.demo-root .doc-logo {
+  display: inline-block; max-height: 1.8cm; max-width: 7cm;
+  width: auto; height: auto; object-fit: contain;
+}
 .demo-root .doc-titulo {
   text-align: center; font-size: 13pt; font-weight: 700; letter-spacing: .02em;
   margin: 0 0 24px; text-transform: uppercase;
@@ -216,6 +239,10 @@
   .demo-root .doc-hoja { box-shadow: none; max-width: none; margin: 0; padding: 0; }
   .demo-root .doc-no-print { display: none !important; }
   .demo-root .doc-falta { background: none; color: #111; }
+  /* El navegador recorta colores de fondo al imprimir; sin esto un logo con
+     fondo o degradado sale desvaído o directamente en blanco. */
+  .demo-root .doc-logo { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .demo-root .doc-membrete { page-break-after: avoid; break-after: avoid; }
   /* Que no se parta un bloque de cláusula entre dos páginas. */
   .demo-root .doc-bloque { page-break-inside: avoid; break-inside: avoid; }
   @page { size: letter; margin: 2.5cm; }

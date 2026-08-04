@@ -1,0 +1,202 @@
+[
+  {
+    "id": "flow-login",
+    "nombre": "Login / Autenticación",
+    "categoria": "Autenticación",
+    "descripcion": "Inicio de sesión con correo y contraseña, emisión de la cookie de sesión y del token anti-CSRF, y carga de permisos del rol.",
+    "objetivo": "Dejar al usuario dentro del shell con su sesión resuelta y su rol aplicado en menú y rutas.",
+    "resultado": "Cookies spaces_sesion (httpOnly, 30 días) y spaces_csrf (legible por JS) emitidas; SesionContext con { usuario, permisos }; el shell renderiza solo los módulos del rol.",
+    "componentes": ["actor-interno", "proxy", "middleware", "ui-login", "api-auth", "infra-ratelimit", "infra-auth", "db-funciones", "db-identidad", "sesion-context", "authgate", "shell-layout"],
+    "archivos": ["apps/web/app/(app)/login/page.tsx", "apps/web/lib/auth-real.ts", "apps/web/app/api/auth/login/route.ts", "apps/web/lib/server/auth.ts", "apps/web/lib/server/rate-limit.ts", "apps/web/components/demo/shell/SesionContext.tsx", "apps/web/components/demo/shell/AuthGate.tsx"],
+    "apis": ["POST /api/auth/login", "GET /api/auth/me", "POST /api/auth/logout"],
+    "consultas": ["select … from auth_usuario_por_email($1)", "insert into sesiones (token, usuario_id, expira_en) values ($1,$2,$3)", "select modulo, accion from rol_permisos where rol = $1"],
+    "validaciones": ["Máximo 10 intentos por IP cada 5 minutos (429 con Retry-After)", "Correo y contraseña obligatorios", "usuario.activo = true", "bcrypt.compare contra password_hash", "Mensaje de error idéntico para correo inexistente y contraseña mala (no revela si el correo existe)"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-login", "titulo": "El usuario envía el formulario", "detalle": "La página llama a apiLogin(email, password), que hace POST a /spaces-dooh/api/auth/login/ con el cuerpo JSON.", "archivo": "apps/web/lib/auth-real.ts" },
+      { "n": 2, "nodo": "middleware", "titulo": "El middleware deja pasar", "detalle": "/api/auth/login está en la lista de exentos de CSRF: es el bootstrap de la sesión, todavía no hay cookie que proteger.", "archivo": "apps/web/middleware.ts" },
+      { "n": 3, "nodo": "infra-ratelimit", "titulo": "Límite de intentos por IP", "detalle": "limitar('login:'+ip, 10, 5·60_000). Si se pasó, responde 429 con Retry-After y no toca la base.", "archivo": "apps/web/lib/server/rate-limit.ts" },
+      { "n": 4, "nodo": "db-funciones", "titulo": "Resolver el usuario sin tenant", "detalle": "usuarios es RLS fail-closed + FORCE y aquí todavía no hay tenant que fijar, así que la lectura va por la función SECURITY DEFINER auth_usuario_por_email($1), que devuelve una sola fila.", "archivo": "apps/web/app/api/auth/login/route.ts" },
+      { "n": 5, "nodo": "infra-auth", "titulo": "Verificar la contraseña", "detalle": "verifyPassword usa bcrypt.compare. Si el usuario no existe, está inactivo o la contraseña no cuadra, responde 401 con el mismo mensaje en los tres casos.", "archivo": "apps/web/lib/server/auth.ts" },
+      { "n": 6, "nodo": "db-identidad", "titulo": "Crear la sesión", "detalle": "crearSesion() genera 32 bytes aleatorios en hexadecimal e inserta la fila en sesiones con expiración a 30 días.", "archivo": "apps/web/lib/server/auth.ts" },
+      { "n": 7, "nodo": "api-auth", "titulo": "Emitir las dos cookies", "detalle": "spaces_sesion httpOnly + sameSite lax + Secure (ON por defecto en producción, solo se apaga con COOKIE_SECURE=0) y spaces_csrf con httpOnly:false a propósito, porque el front DEBE poder leerla para reenviarla en X-CSRF-Token.", "archivo": "apps/web/app/api/auth/login/route.ts" },
+      { "n": 8, "nodo": "sesion-context", "titulo": "El shell carga la sesión", "detalle": "SesionProvider llama GET /api/auth/me una sola vez y reparte { usuario, permisos } a todo el shell.", "archivo": "apps/web/components/demo/shell/SesionContext.tsx" },
+      { "n": 9, "nodo": "authgate", "titulo": "Compuerta por ruta", "detalle": "AuthGate compara la ruta actual contra el MISMO arreglo NAV que dibuja el menú. Si el rol no tiene ese módulo, redirige a su landing: ocultar el ítem y bloquear la ruta no se pueden desincronizar.", "archivo": "apps/web/components/demo/shell/AuthGate.tsx" },
+      { "n": 10, "nodo": "shell-layout", "titulo": "Shell montado", "detalle": "Se montan Sidebar filtrado por rol, Topbar, la hidratación del estado y el sondeo de notificaciones.", "archivo": "apps/web/app/(app)/(shell)/layout.tsx" }
+    ]
+  },
+  {
+    "id": "flow-signup",
+    "nombre": "Alta de organización (autorregistro)",
+    "categoria": "Autenticación",
+    "descripcion": "Creación de un CRM nuevo desde la pantalla de login: organización + usuario Dueño, sin verificación de correo.",
+    "objetivo": "Que alguien pueda empezar a usar el producto sin intervención manual.",
+    "resultado": "Fila nueva en tenants, usuario con rol DUENO ligado a ella y sesión iniciada.",
+    "componentes": ["ui-login", "api-signup", "infra-ratelimit", "ctrl-cuentas", "infra-tenant", "repo-usuarios", "infra-auth", "db-identidad"],
+    "archivos": ["apps/web/app/(app)/login/page.tsx", "apps/web/app/api/signup/route.ts", "apps/web/lib/server/cuentas-controller.ts", "apps/web/lib/server/tenant.ts", "apps/web/lib/server/db.ts"],
+    "apis": ["POST /api/signup"],
+    "consultas": ["insert into tenants (nombre, slug) values ($1,$2) returning …", "qConTenant(tenantId, 'insert into usuarios …')"],
+    "validaciones": ["Bandera NEXT_PUBLIC_AUTOREGISTRO comprobada en el cliente Y en el servidor", "Límite de intentos por IP", "Política de contraseña: 8+, una letra, un número, sin espacios", "Correo único (auth_email_existe)", "Slug con sufijo automático si choca"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-login", "titulo": "Formulario de crear cuenta", "detalle": "Solo se muestra si NEXT_PUBLIC_AUTOREGISTRO no vale '0'. Apagar solo la UI dejaría el endpoint abierto, así que el servidor lo comprueba también.", "archivo": "apps/web/app/(app)/login/page.tsx" },
+      { "n": 2, "nodo": "api-signup", "titulo": "POST /api/signup", "detalle": "Ruta exenta de CSRF (no hay sesión que proteger) pero con límite de intentos por IP.", "archivo": "apps/web/app/api/signup/route.ts" },
+      { "n": 3, "nodo": "ctrl-cuentas", "titulo": "Validar y hashear", "detalle": "registrarCuentaCtrl valida nombre, correo y contraseña con zod y la política de contraseñas, y hashea con bcrypt.", "archivo": "apps/web/lib/server/cuentas-controller.ts" },
+      { "n": 4, "nodo": "infra-tenant", "titulo": "Crear la organización", "detalle": "crearTenant() normaliza el slug y le añade sufijo numérico si ya existe, hasta 50 intentos.", "archivo": "apps/web/lib/server/tenant.ts" },
+      { "n": 5, "nodo": "repo-usuarios", "titulo": "Insertar al Dueño bajo RLS", "detalle": "Se usa qConTenant(tenantId, …): el único caso legítimo en que hay tenant pero todavía no hay sesión. El id nunca viene del cliente, lo acaba de devolver crearTenant() en la misma petición.", "archivo": "apps/web/lib/server/db.ts" },
+      { "n": 6, "nodo": "infra-auth", "titulo": "Sesión iniciada", "detalle": "Se crea la sesión y se emiten las mismas dos cookies del login.", "archivo": "apps/web/lib/server/auth.ts" }
+    ],
+    "riesgos": ["Con la bandera encendida en un despliegue expuesto a internet, un registro anónimo aterriza en la MISMA base que producción: la demo pública y producción son hoy el mismo deploy. El .env.example lo advierte explícitamente."]
+  },
+  {
+    "id": "flow-reset-password",
+    "nombre": "Recuperar contraseña",
+    "categoria": "Autenticación",
+    "descripcion": "Solicitud de restablecimiento por correo con token de un solo uso que vence en una hora.",
+    "objetivo": "Devolver el acceso sin revelar qué correos existen.",
+    "resultado": "Contraseña nueva guardada, token consumido y todas las sesiones vivas del usuario invalidadas.",
+    "componentes": ["ui-login", "api-auth", "infra-ratelimit", "repo-varios", "infra-email", "ext-resend", "ui-recuperar", "db-identidad"],
+    "archivos": ["apps/web/app/api/auth/forgot/route.ts", "apps/web/app/api/auth/reset/route.ts", "apps/web/lib/server/password-reset-repo.ts", "apps/web/lib/server/email.ts", "apps/web/app/(app)/recuperar/[token]/page.tsx"],
+    "apis": ["POST /api/auth/forgot", "GET /api/auth/reset?token=…", "POST /api/auth/reset"],
+    "consultas": ["select … from auth_usuario_por_email($1)", "insert into password_resets (usuario_id, token, expira_en)", "update usuarios set password_hash = $1 where id = $2", "delete from sesiones where usuario_id = $1"],
+    "validaciones": ["Límite de intentos por IP", "La respuesta es siempre la misma exista o no el correo", "Token de un solo uso, vence en 1 hora", "Política de contraseña al fijar la nueva", "emailHabilitado() exige RESEND_API_KEY Y EMAIL_FROM: con la bandera encendida pero EMAIL_FROM vacío el usuario ve «revisa tu bandeja» y no le llega nada"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-login", "titulo": "¿Olvidaste tu contraseña?", "detalle": "POST /api/auth/forgot con el correo. La bandera NEXT_PUBLIC_RECUPERAR_PASSWORD controla si el enlace se muestra.", "archivo": "apps/web/app/(app)/login/page.tsx" },
+      { "n": 2, "nodo": "repo-varios", "titulo": "Crear el token", "detalle": "crearReset() genera un token aleatorio, lo guarda con expiración a una hora y lo asocia al usuario.", "archivo": "apps/web/lib/server/password-reset-repo.ts" },
+      { "n": 3, "nodo": "infra-email", "titulo": "Enviar el correo", "detalle": "htmlCorreoReset arma la plantilla y enviarEmail hace POST a la API de Resend. Si el correo no está configurado, en desarrollo el enlace se imprime en el log.", "archivo": "apps/web/lib/server/email.ts" },
+      { "n": 4, "nodo": "ui-recuperar", "titulo": "El usuario abre el enlace", "detalle": "/recuperar/[token] llama GET /api/auth/reset?token=… para comprobar que el token sigue vivo antes de mostrar el formulario.", "archivo": "apps/web/app/(app)/recuperar/[token]/page.tsx" },
+      { "n": 5, "nodo": "db-identidad", "titulo": "Consumir el token", "detalle": "consumirReset() valida, actualiza password_hash, marca el token como usado y BORRA las sesiones del usuario: si alguien había secuestrado una, muere aquí.", "archivo": "apps/web/lib/server/password-reset-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-hidratacion",
+    "nombre": "Hidratación del estado (GET /api/estado)",
+    "categoria": "Datos",
+    "descripcion": "El endpoint que llena de una sola vez el store del navegador con las 23 rebanadas del negocio, filtradas por los permisos del rol.",
+    "objetivo": "Que todas las pantallas trabajen sobre el mismo estado en memoria y se repinten solas al mutar.",
+    "resultado": "Store zustand poblado; los hooks de lectura devuelven datos y las derivaciones calculan KPIs, pipeline y alertas sin más peticiones.",
+    "componentes": ["shell-layout", "store", "estado-api", "api-estado", "infra-auth", "job-barridos-estado", "repo-sitios", "repo-campanas", "repo-ot", "repo-finanzas", "repo-arrendadores", "repo-propuestas", "db-postgres", "data-hooks", "derive"],
+    "archivos": ["apps/web/components/demo/shell/HidratarSitios.tsx", "apps/web/lib/data/estado-api.ts", "apps/web/app/api/estado/route.ts", "apps/web/lib/data/store.ts", "apps/web/lib/data/client.ts", "apps/web/lib/data/derive.ts"],
+    "apis": ["GET /api/estado"],
+    "consultas": ["23 consultas en Promise.all, una por rebanada", "select modulo, accion from rol_permisos where rol = $1"],
+    "validaciones": ["exigir() sin módulo: basta con tener sesión", "Cada rebanada solo se CONSULTA si el rol tiene 'ver' en su módulo; lo demás viaja como arreglo vacío, no como clave ausente, para no romper la forma del store", "pagosRenta se concede si el rol ve arrendadores O finanzas: es a la vez patrimonio del contrato y salida de dinero"],
+    "pasos": [
+      { "n": 1, "nodo": "shell-layout", "titulo": "HidratarSitios al montar", "detalle": "Un componente cliente sin UI llama refrescarEstado() una vez cuando entra al shell.", "archivo": "apps/web/components/demo/shell/HidratarSitios.tsx" },
+      { "n": 2, "nodo": "api-estado", "titulo": "Resolver permisos", "detalle": "exigir() valida la sesión; permisosDeRol(rol) trae el mapa { modulo: [acciones] } y se construye el helper puede(modulo).", "archivo": "apps/web/app/api/estado/route.ts" },
+      { "n": 3, "nodo": "job-barridos-estado", "titulo": "Barridos de mantenimiento", "detalle": "Solo los dispara quien puede ver el módulo que tocan: liberar reservas tentativas vencidas (comercial), avisar de OT vencidas (operaciones), recordar cobranzas vencidas (finanzas) y recomputar estatus de contratos y pagos contra hoy (arrendadores).", "archivo": "apps/web/app/api/estado/route.ts" },
+      { "n": 4, "nodo": "infra-db", "titulo": "23 consultas en paralelo", "detalle": "Promise.all sobre los repos. Cada q() abre su transacción y fija app.tenant_id transaction-local antes de consultar.", "archivo": "apps/web/lib/server/db.ts" },
+      { "n": 5, "nodo": "store", "titulo": "setState del store", "detalle": "refrescarEstado escribe las rebanadas en zustand. Cualquier escritura dispara las suscripciones: mapa, dashboard, pipeline y listas se repintan solos.", "archivo": "apps/web/lib/data/store.ts" },
+      { "n": 6, "nodo": "data-hooks", "titulo": "Los hooks entregan datos", "detalle": "useSitios, useCampanas, useDashboard… Devuelven undefined antes de montar para que la UI pinte esqueletos y no haya desajuste de hidratación por fechas relativas a hoy.", "archivo": "apps/web/lib/data/client.ts" },
+      { "n": 7, "nodo": "derive", "titulo": "Derivaciones puras", "detalle": "Métricas, etapa del pipeline, candado de facturación, saldo y antigüedad de cobranza, margen y alertas: todo se calcula en el cliente sobre el mismo estado, con funciones puras probadas.", "archivo": "apps/web/lib/data/derive.ts" }
+    ],
+    "notas": ["Toda mutación posterior vuelve a llamar refrescarEstado(): el patrón del producto es «muta y rehidrata», no actualización optimista."]
+  },
+  {
+    "id": "flow-import-inventario",
+    "nombre": "Importar inventario desde Excel",
+    "categoria": "Inventario",
+    "descripcion": "Carga masiva de pantallas desde un archivo de Excel, con agrupación automática por cercanía en predios y creación del contrato del propietario.",
+    "objetivo": "Meter cientos de pantallas de una vez sin que ninguna quede sin propietario conocido.",
+    "resultado": "Sitios creados o actualizados, predios resueltos o creados, contrato abierto (completo o INCOMPLETO) y fotos validadas guardadas.",
+    "componentes": ["actor-interno", "ui-inventario", "excel-cliente", "sitios-api-cli", "api-sitios", "ctrl-sitios", "infra-uploads", "repo-sitios", "repo-contratos-sitio", "db-inventario", "db-arrendadores", "repo-acciones"],
+    "archivos": ["apps/web/components/demo/inventario/ImportarInventarioDialog.tsx", "apps/web/lib/inventario-import.ts", "apps/web/lib/predio-cercania.ts", "apps/web/lib/data/sitios-api.ts", "apps/web/app/api/sitios/import/route.ts", "apps/web/lib/server/sitios-controller.ts", "apps/web/lib/server/sitios-repo.ts", "apps/web/lib/server/contratos-sitio.ts"],
+    "apis": ["POST /api/sitios/import"],
+    "consultas": ["insert into sitios … on conflict (clave_interna, tenant_id)", "insert into predios …", "insert into contratos_arrendamiento … (estatus INCOMPLETO si falta el importe)", "insert into sitio_modalidades …"],
+    "validaciones": ["arrendadorId obligatorio y con formato uuid (ADR 0002: toda pantalla nace con propietario conocido)", "La pertenencia del arrendador y del predio al tenant se comprueba contra la BASE, no contra el cuerpo", "Al menos una fila", "modoDuplicado ACTUALIZAR o NUEVA_VERSION", "Cada foto del lote se valida por separado: 8 MB máximo, magic bytes de JPG/PNG/WebP reales", "Renta normalizada a su periodicidad antes de guardar"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-inventario", "titulo": "Elegir archivo y arrendador", "detalle": "El diálogo pide el .xlsx y OBLIGA a elegir el arrendador antes de continuar. Opcionalmente marca que todas las pantallas están en el mismo predio (uno existente o uno nuevo).", "archivo": "apps/web/components/demo/inventario/ImportarInventarioDialog.tsx" },
+      { "n": 2, "nodo": "excel-cliente", "titulo": "Parseo en el navegador", "detalle": "inventario-import.ts lee el libro con SheetJS, detecta las columnas por nombre aproximado y normaliza la renta según su periodicidad (renta-masiva.ts).", "archivo": "apps/web/lib/inventario-import.ts" },
+      { "n": 3, "nodo": "excel-cliente", "titulo": "Agrupar por cercanía", "detalle": "predio-cercania.ts agrupa las filas por proximidad geográfica para proponer qué caras pertenecen al mismo inmueble: un predio tiene UN contrato que comparten todas sus pantallas.", "archivo": "apps/web/lib/predio-cercania.ts" },
+      { "n": 4, "nodo": "api-sitios", "titulo": "POST /api/sitios/import", "detalle": "El middleware ya exigió el header X-CSRF-Token; el handler exige sesión y permiso del módulo.", "archivo": "apps/web/app/api/sitios/import/route.ts" },
+      { "n": 5, "nodo": "ctrl-sitios", "titulo": "Validación del lote", "detalle": "importSchema de zod: filas no vacías, arrendadorId uuid, predio como { id } o { nombre, direccion }, modo de duplicado y el diccionario de imágenes donde cada valor pasa por uploadZod.", "archivo": "apps/web/lib/server/sitios-controller.ts" },
+      { "n": 6, "nodo": "infra-uploads", "titulo": "Magic bytes por foto", "detalle": "Antes esto era z.any(): entraba cualquier cosa, de cualquier peso, en lote. Ahora cada data URL se contrasta contra la firma binaria real y se corta por tamaño ANTES de decodificar.", "archivo": "apps/web/lib/server/uploads.ts" },
+      { "n": 7, "nodo": "repo-contratos-sitio", "titulo": "Resolver predio y contrato", "detalle": "resolverPredio() valida que el predio sea del arrendador y del tenant; ligarSitioAPredio() lo amarra; abrirContratoDePredio() crea el contrato si no hay ninguno que ya cubra ese anclaje.", "archivo": "apps/web/lib/server/contratos-sitio.ts" },
+      { "n": 8, "nodo": "repo-sitios", "titulo": "Insertar o actualizar", "detalle": "importarSitios() recorre las filas; con ACTUALIZAR hace upsert por clave interna, con NUEVA_VERSION crea una fila nueva. Devuelve un resultado por fila con su estado.", "archivo": "apps/web/lib/server/sitios-repo.ts" },
+      { "n": 9, "nodo": "repo-acciones", "titulo": "Bitácora", "detalle": "registrarAccion() deja constancia de quién importó y cuántas filas. La tabla es append-only por trigger.", "archivo": "apps/web/lib/server/acciones-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-alta-pantalla",
+    "nombre": "Alta manual de pantalla y contrato",
+    "categoria": "Inventario",
+    "descripcion": "Alta de una pantalla individual y el asistente que crea el contrato de arrendamiento con su calendario de pagos.",
+    "objetivo": "Que exista la pantalla Y conste desde el primer día cuánto se le paga al propietario.",
+    "resultado": "Sitio creado, ligado a su predio y a un contrato con calendario de pagos generado según periodicidad.",
+    "componentes": ["ui-inventario", "sitios-api-cli", "api-sitios", "repo-sitios", "repo-contratos-sitio", "api-contratos", "ctrl-arrendadores", "repo-arrendadores", "repo-eventos-op", "db-inventario", "db-arrendadores", "db-operaciones"],
+    "archivos": ["apps/web/components/demo/inventario/NuevaPantallaForm.tsx", "apps/web/components/demo/inventario/ContratoWizard.tsx", "apps/web/app/api/sitios/route.ts", "apps/web/app/api/contratos/route.ts", "apps/web/lib/server/arrendadores-repo.ts", "apps/web/lib/renta-periodicidad.ts", "apps/web/lib/contrato-vigencia.ts"],
+    "apis": ["POST /api/sitios", "POST /api/contratos", "POST /api/predios", "POST /api/predios/[id]/pantallas"],
+    "consultas": ["insert into sitios …", "insert into contratos_arrendamiento …", "generarCalendarioDeContratoEnTx: insert into pagos_renta … (una fila por periodo)"],
+    "validaciones": ["ADR 0002: arrendador obligatorio al dar de alta una pantalla", "ADR 0006: un solo costo por pantalla, la renta al arrendador (costo_compra no es un costo aparte)", "ADR 0007: los vencimientos se anclan al inicio del contrato, no al día del mes en que se capturó", "Periodicidad válida: semanal, catorcenal, quincenal, mensual, bimestral, trimestral, semestral, anual o diaria", "Índice único parcial contratos_pantalla_activo_uq: no puede haber dos contratos activos de la misma pantalla"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-inventario", "titulo": "Formulario de pantalla nueva", "detalle": "Captura tipo de medio, geolocalización, medidas, tarifa y — si es digital — total de spots del loop.", "archivo": "apps/web/components/demo/inventario/NuevaPantallaForm.tsx" },
+      { "n": 2, "nodo": "api-sitios", "titulo": "POST /api/sitios", "detalle": "El handler exige sesión y permiso; crearSitio() inserta con el tenant estampado.", "archivo": "apps/web/app/api/sitios/route.ts" },
+      { "n": 3, "nodo": "repo-contratos-sitio", "titulo": "Exigir arrendador", "detalle": "exigirArrendador() rechaza el alta si no viene propietario: es la puerta que hace cumplir el ADR 0002.", "archivo": "apps/web/lib/server/contratos-sitio.ts" },
+      { "n": 4, "nodo": "ui-inventario", "titulo": "Asistente de contrato", "detalle": "ContratoWizard pide vigencia, importe, periodicidad y datos bancarios, y muestra el calendario que se va a generar antes de guardarlo.", "archivo": "apps/web/components/demo/inventario/ContratoWizard.tsx" },
+      { "n": 5, "nodo": "repo-arrendadores", "titulo": "Generar el calendario", "detalle": "generarCalendarioDeContratoEnTx() crea una fila de pagos_renta por periodo, anclada al inicio del contrato y con el ajuste para meses cortos.", "archivo": "apps/web/lib/server/arrendadores-repo.ts" },
+      { "n": 6, "nodo": "repo-eventos-op", "titulo": "OT de montaje automática", "detalle": "otMontajePorAlta() abre la orden de trabajo del montaje sin que nadie tenga que acordarse.", "archivo": "apps/web/lib/server/operaciones-eventos.ts" }
+    ]
+  },
+  {
+    "id": "flow-propuesta",
+    "nombre": "Propuesta comercial y aceptación pública",
+    "categoria": "Comercial",
+    "descripcion": "Armado de la cotización con sitios y periodos, envío del enlace compartible al anunciante y aceptación sin cuenta.",
+    "objetivo": "Que el cliente decida sobre un precio congelado, no sobre tarifas de lista que pueden moverse después.",
+    "resultado": "Propuesta en estado APROBADA con snapshot_economico congelado en jsonb y sus ítems marcados como aprobados.",
+    "componentes": ["actor-interno", "ui-propuestas", "estado-api", "api-propuestas", "ctrl-propuestas", "repo-propuestas", "db-comercial", "actor-anunciante", "ui-propuesta-publica", "infra-ratelimit", "db-funciones", "repo-notificaciones"],
+    "archivos": ["apps/web/app/(app)/(shell)/propuestas/page.tsx", "apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx", "apps/web/app/api/propuestas/route.ts", "apps/web/app/api/propuestas/publica/[id]/route.ts", "apps/web/lib/server/propuestas-controller.ts", "apps/web/lib/server/propuestas-repo.ts", "apps/web/app/(app)/p/[id]/page.tsx"],
+    "apis": ["POST /api/propuestas", "PATCH /api/propuestas/[id]", "PATCH /api/propuestas/items/[id]", "GET /api/propuestas/publica/[id]", "POST /api/propuestas/publica/[id]"],
+    "consultas": ["insert into propuestas (… comision_pct, descuento_pct, token_publico, tenant_id)", "insert into propuesta_items (propuesta_id, sitio_id, fecha_inicio, fecha_fin, precio, unidad, cantidad, spots_por_dia)", "update propuesta_items set aprobado = true where id = $1", "select propuesta_tenant_por_token($1)", "update propuestas set estatus='APROBADA', snapshot_economico=$2"],
+    "validaciones": ["validarRangoFechas: fin no puede ser anterior a inicio", "Coherencia entre unidad de contratación (mensual/diaria/spots), cantidad de periodos y fechas", "La ruta pública lleva límite de intentos por IP y NO exige CSRF: no hay cookie de sesión que proteger, el token del enlace es la credencial", "El tenant lo resuelve Postgres desde el token (propuesta_tenant_por_token), nunca viene del cliente"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-propuestas", "titulo": "Armar la propuesta", "detalle": "Se eligen sitios sobre el mapa, se fijan periodos y unidad de contratación, y se capturan la comisión de agencia y el descuento.", "archivo": "apps/web/app/(app)/(shell)/propuestas/page.tsx" },
+      { "n": 2, "nodo": "ctrl-propuestas", "titulo": "Validar periodos", "detalle": "crearPropuestaCtrl traduce periodos y unidad a lo que espera el modelo y valida el rango de fechas.", "archivo": "apps/web/lib/server/propuestas-controller.ts" },
+      { "n": 3, "nodo": "repo-propuestas", "titulo": "Guardar con token público", "detalle": "La propuesta nace con un token para el enlace compartible. Cada ítem guarda su precio de lista, unidad, cantidad y spots por día.", "archivo": "apps/web/lib/server/propuestas-repo.ts" },
+      { "n": 4, "nodo": "ui-propuesta-publica", "titulo": "El cliente abre el enlace", "detalle": "/p/[id] muestra los sitios en el mapa y el desglose. También se puede entrar por /propuesta tecleando el código.", "archivo": "apps/web/app/(app)/p/[id]/page.tsx" },
+      { "n": 5, "nodo": "db-funciones", "titulo": "Resolver el tenant desde el token", "detalle": "propuesta_tenant_por_token($1) es SECURITY DEFINER: es el único modo de leer bajo RLS fail-closed cuando no hay sesión.", "archivo": "apps/web/app/api/propuestas/publica/[id]/route.ts" },
+      { "n": 6, "nodo": "repo-propuestas", "titulo": "Aceptar y congelar", "detalle": "aceptarPropuestaPublica() marca APROBADA y llama a congelarSnapshotEconomico(): guarda en jsonb el neto por sitio calculado con la comisión y el descuento de ESE momento. La campaña y la factura lo heredarán literalmente.", "archivo": "apps/web/lib/server/propuestas-repo.ts" },
+      { "n": 7, "nodo": "repo-notificaciones", "titulo": "Avisar al equipo", "detalle": "Se crea la notificación de propuesta aceptada, deduplicada por día para que un doble clic no genere dos avisos idénticos.", "archivo": "apps/web/lib/server/notificaciones-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-propuesta-campana",
+    "nombre": "Propuesta → Campaña",
+    "categoria": "Comercial",
+    "descripcion": "Generación de la campaña a partir de la propuesta aprobada: hereda cliente, fechas y solo los sitios aprobados con su precio neto congelado.",
+    "objetivo": "Convertir la venta en inventario comprometido, de forma idempotente y sin perder el precio pactado.",
+    "resultado": "Campaña CONFIRMADA con una reserva CONFIRMADA por sitio aprobado, sitios en RESERVADO y contrato INCOMPLETO abierto donde falte.",
+    "componentes": ["ui-propuestas", "estado-api", "api-propuestas", "repo-campanas", "repo-contratos-sitio", "db-comercial", "db-arrendadores", "repo-notificaciones"],
+    "archivos": ["apps/web/app/api/propuestas/[id]/generar-campana/route.ts", "apps/web/lib/server/campanas-repo.ts", "apps/web/lib/server/contratos-sitio.ts", "docs/adr/0001-contrato-incompleto-al-generar-campana.md"],
+    "apis": ["POST /api/propuestas/[id]/generar-campana"],
+    "consultas": ["select * from campanas where propuesta_id=$1  (idempotencia)", "insert into campanas (… estado_comercial='CONFIRMADA', propuesta_id, moneda del tenant)", "insert into reservas (… tipo_venta='FIXED_PKG', estatus='CONFIRMADA', unidad, cantidad, spots_por_dia)", "update sitios set estatus_comercial='RESERVADO' where id=$1", "insert into contratos_arrendamiento … estatus INCOMPLETO"],
+    "validaciones": ["La propuesta debe estar APROBADA", "Debe tener cliente asignado: sin cliente no se puede facturar", "Debe tener al menos un ítem aprobado", "Idempotencia dentro de la transacción respaldada por el índice único campanas_propuesta_uq; en carrera, la segunda inserción rebota con 23505 y devuelve la campaña existente", "El precio por sitio sale del snapshot congelado; sin snapshot, el respaldo es lista × (1−descuento) × (1−comisión)"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-propuestas", "titulo": "Generar campaña", "detalle": "Botón en la propuesta aprobada. El endpoint es idempotente, así que un doble clic no crea dos campañas.", "archivo": "apps/web/app/(app)/(shell)/propuestas/[id]/page.tsx" },
+      { "n": 2, "nodo": "repo-campanas", "titulo": "Comprobar si ya existe", "detalle": "Dentro de la transacción se busca campanas.propuesta_id. Si ya hay campaña, se devuelve esa y se termina.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 3, "nodo": "repo-campanas", "titulo": "Derivar tipo y fechas", "detalle": "El tipo (OOH / DOOH / HÍBRIDA) se deriva del medio de los sitios aprobados. Las fechas son el mínimo y el máximo de los ítems. Folio con prefijo del tenant.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 4, "nodo": "repo-campanas", "titulo": "Una reserva por ítem aprobado", "detalle": "La reserva hereda unidad, cantidad de periodos, tarifa unitaria y spots por día del ítem: la campaña conserva CÓMO se contrató, no solo el precio.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 5, "nodo": "repo-contratos-sitio", "titulo": "ADR 0001: contrato incompleto", "detalle": "Vender una pantalla es el indicio de que debe existir contrato con su propietario. Si no hay ninguno que cubra el sitio NI su predio, se abre uno INCOMPLETO cubriendo el periodo vendido, para que el pendiente sea visible en Arrendadores en vez de quedar como un costo cero que infla el margen.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 6, "nodo": "db-comercial", "titulo": "Sitios a RESERVADO", "detalle": "No pasan a OCUPADO todavía: eso ocurre cuando llega la orden de compra y se confirma.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 7, "nodo": "repo-notificaciones", "titulo": "Notificar", "detalle": "«Campaña generada desde propuesta», deduplicada por día y por enlace: en producción llegaron a aparecer dos idénticas con cuatro segundos de diferencia por un doble clic.", "archivo": "apps/web/lib/server/notificaciones-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-reserva",
+    "nombre": "Reserva directa desde el mapa",
+    "categoria": "Comercial",
+    "descripcion": "Venta rápida sobre el mapa de Comercial: crea cliente y campaña si hace falta y compromete el inventario en una transacción.",
+    "objetivo": "Vender sin doble-booking ni sobreventa de slots digitales.",
+    "resultado": "Campaña en COTIZACIÓN con reservas CONFIRMADAS; los sitios fijos pasan a OCUPADO y los digitales descuentan spots.",
+    "componentes": ["ui-comercial", "ui-mapa", "estado-api", "api-reservar", "ctrl-reservas", "repo-campanas", "repo-contratos-sitio", "db-comercial", "db-inventario"],
+    "archivos": ["apps/web/components/demo/comercial/ReservaDialog.tsx", "apps/web/app/api/reservar/route.ts", "apps/web/lib/server/reservas-controller.ts", "apps/web/lib/server/campanas-repo.ts", "docs/adr/0003-no-reservar-con-contrato-incompleto.md"],
+    "apis": ["POST /api/reservar"],
+    "consultas": ["barrerReservasVencidas() antes de nada", "select … from sitios where id=$1 FOR UPDATE", "insert into reservas …", "update sitios set spots_disponibles = spots_disponibles - $2", "update sitios set estatus_comercial='OCUPADO'"],
+    "validaciones": ["Fecha fin no anterior a la de inicio", "Si la campaña nació de una propuesta, solo admite sitios del conjunto APROBADO de esa propuesta", "ADR 0003: exigirContratoCompleto ANTES de comprobar disponibilidad, para que el motivo real salga primero — decirle al comercial «no hay slots» cuando el problema es que falta el contrato lo manda a buscar al lugar equivocado", "Solo PANTALLA_DIGITAL maneja slots; el tipo de medio manda", "SELECT … FOR UPDATE serializa dos reservas simultáneas del mismo sitio"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-comercial", "titulo": "Seleccionar sitios en el mapa", "detalle": "El comercial elige pantallas y abre el diálogo de reserva con fechas y — si son digitales — spots por día.", "archivo": "apps/web/components/demo/comercial/ReservaDialog.tsx" },
+      { "n": 2, "nodo": "repo-campanas", "titulo": "Liberar tentativas vencidas", "detalle": "barrerReservasVencidas() corre primero, para que el guard de colisión y el conteo de slots reflejen el inventario realmente disponible al momento de vender.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 3, "nodo": "repo-campanas", "titulo": "Crear cliente y campaña si faltan", "detalle": "Si no viene campanaId, se crea el cliente y una campaña en COTIZACIÓN con folio y la moneda del tenant.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 4, "nodo": "repo-campanas", "titulo": "Bloquear la fila del sitio", "detalle": "SELECT … FOR UPDATE mantiene bloqueada la fila durante la transacción: el chequeo de colisión, el conteo de slots y el INSERT son atómicos. Esto cierra el doble-booking y la sobreventa.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 5, "nodo": "repo-contratos-sitio", "titulo": "Exigir contrato completo", "detalle": "exigirContratoCompleto() rechaza la venta si no consta qué se paga por ese espacio.", "archivo": "apps/web/lib/server/contratos-sitio.ts" },
+      { "n": 6, "nodo": "db-inventario", "titulo": "Consumir el espacio", "detalle": "Digital: baja los spots disponibles y solo pasa a OCUPADO cuando llega a cero. Fija: OCUPADO directo.", "archivo": "apps/web/lib/server/campanas-repo.ts" }
+    ]
+  }
+]

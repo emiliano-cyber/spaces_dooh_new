@@ -1,9 +1,9 @@
 import 'server-only'
-import { randomBytes } from 'crypto'
 import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { notificar } from './notificaciones-repo'
+import { folioDocumento } from './folios'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
 // ============================================================================
@@ -119,7 +119,11 @@ export async function getOTcompleta(id: string) {
   }
 }
 
-const folioOT = () => `OT-${new Date().getFullYear()}-${randomBytes(2).toString('hex').toUpperCase()}`
+// Folio de OT: OT-2026-0001. Antes eran 2 bytes aleatorios (65.536 por año), lo
+// que da >50% de probabilidad de repetir a las ~300 OT del año — al alcance de
+// cualquier operación real, y `ordenes_trabajo.folio` es UNIQUE. Ahora sale del
+// contador atómico de `lib/server/folios.ts`.
+const folioOT = () => folioDocumento('ot')
 
 // Tipos de tarea que NO aplican a una pantalla fija: montaje de lona y herrería
 // son de espectacular físico, así que una DIGITAL no los lleva. El resto de las
@@ -154,7 +158,7 @@ export async function crearOT(input: {
     `insert into ordenes_trabajo (folio, tipo, sitio_id, campana_id, descripcion, instrucciones,
         checklist, prioridad, asignado_a, fecha_programada, estatus, requiere_revision, tenant_id)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'PENDIENTE',true,$11) returning *`,
-    [folioOT(), input.tipo, input.sitioId ?? null, input.campanaId ?? null, input.descripcion,
+    [await folioOT(), input.tipo, input.sitioId ?? null, input.campanaId ?? null, input.descripcion,
      input.instrucciones ?? null, JSON.stringify(input.checklist ?? []), input.prioridad ?? 'NORMAL',
      input.asignadoA ?? null, input.fechaProgramada ?? null, await tenantActual()],
   )
@@ -177,10 +181,17 @@ export async function cerrarOT(
     }
     // marca checklist completo + estatus COMPLETADA
     const checklist = (ot.checklist ?? []).map((c: any) => ({ ...c, hecho: true }))
+    // Una OT cerrada SIEMPRE queda con responsable. Antes podia terminar
+    // "COMPLETADA · Sin asignar" (A-3 de la auditoria QA), que deja el trabajo
+    // hecho sin nadie a quien atribuirlo. No se bloquea el cierre —la cuadrilla
+    // esta en campo y bloquearla ahi seria peor—: si no habia responsable, se
+    // estampa a quien cierra, que es quien de hecho lo hizo. `coalesce` para no
+    // pisar una asignacion previa.
     await client.query(
       `update ordenes_trabajo set estatus='COMPLETADA', checklist=$2,
+         asignado_a = coalesce(asignado_a, $3),
          fecha_inicio=coalesce(fecha_inicio, now()), fecha_completada=now() where id=$1`,
-      [id, JSON.stringify(checklist)],
+      [id, JSON.stringify(checklist), input.uploadedBy ?? null],
     )
     // Storage: si Spaces está habilitado y llega un data URL, lo subimos y
     // guardamos la KEY (no el base64). Si no, fallback: base64 en BD (como antes).

@@ -1,10 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
 import { reservarApi } from '@/lib/data/estado-api'
-import { formatMonto, tarifaDeSitio, useConfigNegocio, type Sitio } from '@/lib/data/client'
+import {
+  formatMonto,
+  tarifaDeSitio,
+  useConfigNegocio,
+  useReservas,
+  useCampanas,
+  useClientes,
+  clientesEnPantalla,
+  cupoDePantalla,
+  type Sitio,
+} from '@/lib/data/client'
 
 // Modal de reserva (Acto 3): captura cliente + fechas y crea una reserva
 // TENTATIVA sobre los sitios seleccionados. Llama a data.reservar (mock).
@@ -62,6 +73,47 @@ export function ReservaDialog({
   const spotsPorLoop = config && config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
 
   const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
+
+  // ─── ADR 0008 · aviso de cupo de clientes ─────────────────────────────────
+  // Aquí ya se sabe PARA QUIÉN se reserva, así que se puede decir por adelantado
+  // qué pantallas va a rechazar el servidor: las que tienen el cupo lleno y no
+  // cuentan todavía a este cliente. El servidor sigue siendo quien decide (esto
+  // es el mismo cálculo, no una autorización); el aviso solo evita el viaje.
+  const reservas = useReservas()
+  const campanas = useCampanas()
+  const clientes = useClientes()
+  // Mismo criterio de nombre que usa el servidor al deduplicar clientes.
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+
+  const sinCupo = useMemo(() => {
+    if (!cliente.trim() || !reservas || !campanas || !clientes) return []
+    const desde = new Date(`${inicio}T00:00:00`).getTime()
+    const hasta = new Date(`${fin}T23:59:59`).getTime()
+    if (isNaN(desde) || isNaN(hasta)) return []
+    const nombrePorCliente = new Map(clientes.map((c) => [c.id, c.nombre]))
+    // El cliente tecleado puede ser uno que YA existe: el servidor reutiliza la
+    // ficha por nombre normalizado en vez de crear otra, así que aquí se busca
+    // igual. Si es de verdad nuevo, no ocupa cupo en ninguna pantalla todavía.
+    const idsDelCliente = new Set(
+      clientes.filter((c) => norm(c.nombre) === norm(cliente)).map((c) => c.id),
+    )
+
+    const avisos: { nombre: string; cupo: number; ocupantes: string[] }[] = []
+    for (const s of sitios) {
+      const cupo = cupoDePantalla(s, config)
+      if (cupo == null) continue
+      const ocupantes = clientesEnPantalla({ reservas, campanas }, s.id, desde, hasta)
+      const yaEsta = ocupantes.some((id) => idsDelCliente.has(id))
+      if (!yaEsta && ocupantes.length >= cupo) {
+        avisos.push({
+          nombre: s.nombre,
+          cupo,
+          ocupantes: ocupantes.map((id) => nombrePorCliente.get(id) ?? '—'),
+        })
+      }
+    }
+    return avisos
+  }, [cliente, inicio, fin, sitios, reservas, campanas, clientes, config])
 
   const total = sitios.reduce((s, x) => s + tarifaDeSitio(x), 0)
 
@@ -181,6 +233,33 @@ export function ReservaDialog({
             <span className="demo-num font-medium">{config.spotSeg}s</span> →{' '}
             <span className="demo-num font-semibold">{spotsPorLoop}</span> slots por loop
             <span className="ml-1 text-muted">(configurable en Administración → Configuración)</span>
+          </div>
+        )}
+
+        {/* ADR 0008: el rechazo del servidor es de toda la reserva, así que más
+            vale decirlo antes y nombrar la pantalla que hay que quitar. */}
+        {sinCupo.length > 0 && (
+          <div className="rounded-md border border-[#f59e0b66] bg-warning-soft px-3 py-2 text-[12px] text-[#9a6700]">
+            <div className="flex items-start gap-1.5">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div>
+                <span className="font-semibold">
+                  {sinCupo.length === 1 ? 'Una pantalla ya llegó a su cupo de clientes' : `${sinCupo.length} pantallas ya llegaron a su cupo de clientes`}
+                </span>
+                <ul className="mt-1 space-y-0.5">
+                  {sinCupo.map((a) => (
+                    <li key={a.nombre}>
+                      <span className="font-medium">{a.nombre}</span> — {a.cupo}{' '}
+                      {a.cupo === 1 ? 'cliente' : 'clientes'} en esas fechas ({a.ocupantes.join(', ')})
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1">
+                  La reserva se rechazará completa. Quita esas pantallas, cambia las fechas, o sube su
+                  cupo desde su ficha.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

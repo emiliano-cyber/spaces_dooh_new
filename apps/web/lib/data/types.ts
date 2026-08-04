@@ -236,6 +236,11 @@ export interface Sitio {
   modalidadesDetalle?: { unidad: string; tarifaPublicada: number; costoCompra: number }[]
   totalSpots: number | null // total de spots por pantalla (DOOH)
   spotsDisponibles: number | null // spots disponibles
+  // ADR 0008 · cupo de clientes. `maxClientes` = cuántos anunciantes distintos
+  // admite ESTA pantalla (null = sin cupo propio, cae al default global).
+  // `clientesActivos` = cuántos tiene ahora, para pintar 3/4 sin recalcular.
+  maxClientes?: number | null
+  clientesActivos?: number
   precioM2: number | null // precio por m² (estáticas)
   tarifaImpresion: number | null // ancho × alto × precioM2 (estáticas)
   computerVision: boolean // tecnología AdMobilize
@@ -665,6 +670,14 @@ export interface ConfigNegocio {
   nombreTenant: string
   razonSocial: string | null      // razón social fiscal (encabezado del dashboard)
   nombreComercial: string | null  // nombre comercial / marca (encabezado del dashboard)
+  // Datos fiscales de la empresa (parte ARRENDATARIA). Viven en `tenants`, no en
+  // `config_negocio`: son POR organización. Solo los devuelve /api/config (panel
+  // de Administración); /api/estado los deja en null porque ninguna pantalla del
+  // shell los necesita y no hay razón para repartirlos a todos los roles.
+  rfc: string | null
+  domicilioFiscal: string | null
+  representanteLegal: string | null
+  datosConstitucion: string | null  // escritura / notaría / fecha de constitución
   moneda: string
   plazosCobranza: number[]
   tiposTarea: string[]
@@ -673,6 +686,9 @@ export interface ConfigNegocio {
   ivaTasas: number[]            // IVA(s) con los que trabaja (uno o varios)
   loopSeg: number               // tamaño del loop digital, en segundos
   spotSeg: number               // duración de cada spot, en segundos
+  // ADR 0008: cupo de clientes por defecto para las pantallas sin uno propio.
+  // null = sin límite; la regla se enciende capturando un número.
+  maxClientesPantalla: number | null
 }
 
 export interface Notificacion {

@@ -32,14 +32,19 @@ export function KPICard({
   className?: string
 }) {
   return (
-    <div className={cn('rounded-md border border-border bg-surface p-4', className)}>
-      <div className="flex items-center justify-between">
-        <span className="text-[13px] font-medium text-muted">{label}</span>
-        {icon ? <span className="text-muted">{icon}</span> : null}
+    <div className={cn('kpi-card rounded-md border border-border bg-surface p-4', className)}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 text-[13px] font-medium text-muted">{label}</span>
+        {icon ? <span className="shrink-0 text-muted">{icon}</span> : null}
       </div>
+      {/* El número nunca se parte en dos renglones: se encoge con la tarjeta.
+          9cqi = 9% del ancho de .kpi-card, acotado entre 20 y 30 px. A 30 px
+          (tarjeta ancha) se lee igual que antes; en la tarjeta más angosta del
+          dashboard toca el piso de 20 px, donde todavía caben 16 caracteres
+          ("$ 999,999,999.00") sin tocar el borde. */}
       <div
         className={cn(
-          'demo-num mt-2 text-3xl font-semibold leading-none tracking-tight',
+          'demo-num mt-2 whitespace-nowrap text-[length:clamp(1.25rem,9cqi,1.875rem)] font-semibold leading-none tracking-tight',
           TONO_NUM[tono],
         )}
       >

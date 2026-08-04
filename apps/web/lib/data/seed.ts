@@ -469,6 +469,10 @@ export function buildSeed(): DemoState {
       nombreTenant: '',
       razonSocial: null,
       nombreComercial: null,
+      rfc: null,
+      domicilioFiscal: null,
+      representanteLegal: null,
+      datosConstitucion: null,
       moneda: 'MXN',
       plazosCobranza: [60, 90, 120],
       tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
@@ -476,6 +480,9 @@ export function buildSeed(): DemoState {
       ivaTasas: [16],
       loopSeg: 240,
       spotSeg: 20,
+      // ADR 0008: sin cupo de clientes hasta que se capture uno. El seed no
+      // inventa una política comercial que nadie decidió.
+      maxClientesPantalla: null,
     },
     sitios: [],
     sitiosRed: [],

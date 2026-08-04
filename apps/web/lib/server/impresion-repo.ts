@@ -1,7 +1,7 @@
 import 'server-only'
-import { randomBytes } from 'crypto'
 import { q, q1 } from './db'
 import { tenantActual } from './tenant'
+import { folioDocumento } from './folios'
 
 // ============================================================================
 //  lib/server/impresion-repo.ts — Imprenta: órdenes de impresión (arte→montaje)
@@ -11,7 +11,9 @@ import { tenantActual } from './tenant'
 const PROCESO = ['ARTE_RECIBIDO', 'VALIDADO', 'EN_PRODUCCION', 'IMPRESO', 'LISTO_MONTAJE'] as const
 type EstOI = (typeof PROCESO)[number]
 
-const folioOI = () => `OI-${randomBytes(3).toString('hex').toUpperCase()}`
+// Folio de orden de impresión: OI-2026-0001. Antes 3 bytes aleatorios sobre una
+// columna UNIQUE; ahora consecutivo atómico (`lib/server/folios.ts`).
+const folioOI = () => folioDocumento('oi')
 
 // Error de regla de negocio (transición inválida) → el route lo mapea a 409.
 export class ImpresionError extends Error {}
@@ -69,7 +71,7 @@ export async function crearOrdenImpresion(input: {
     `insert into ordenes_impresion (folio, campana_id, sitio_id, material, alto, ancho, proveedor, tenant_id)
      values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
     [
-      folioOI(),
+      await folioOI(),
       input.campanaId,
       input.sitioId ?? null,
       input.material ?? null,

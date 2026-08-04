@@ -1,0 +1,53 @@
+{
+  "project": {
+    "nombre": "SPACE OS · spaces_doohmain_nueva",
+    "descripcion": "CRM/ERP multi-tenant para publicidad exterior (OOH) y digital (DOOH): inventario de pantallas, arrendadores y contratos, ciclo comercial (propuesta → campaña → reserva), producción (imprenta y órdenes de trabajo), publicación en CMS DOOHmain, facturación y cobranza.",
+    "arquitectura": "Monorepo Turborepo con UNA sola aplicación viva: apps/web (Next.js 14 App Router). El backend es un BFF de route handlers dentro de la misma app, en capas ruta → controller → repo → PostgreSQL. No hay servicio HTTP separado: apps/api (Fastify/Prisma) y el segundo frontend están archivados en /_archive.",
+    "idioma_codigo": "Español (identificadores, comentarios y mensajes de error de cara al usuario)",
+    "stack": [
+      "Next.js 14.2.29 (App Router, basePath /spaces-dooh, trailingSlash)",
+      "React 18.3.1 · TypeScript 5.9.2",
+      "PostgreSQL (pg 8, SQL crudo parametrizado; sin ORM en el camino vivo)",
+      "Row Level Security multi-tenant vía GUC app.tenant_id transaction-local",
+      "zustand (store en memoria del cliente) + @tanstack/react-query (residual)",
+      "Tailwind CSS 3 + Radix UI + lucide-react + sonner",
+      "maplibre-gl (mapa de sitios) · recharts (gráficas) · xlsx (import/export Excel)",
+      "bcryptjs (contraseñas) · zod (validación de entrada)",
+      "@aws-sdk/client-s3 (DigitalOcean Spaces) · Resend (correo)",
+      "Python 3 (doohmain_sdk, invocado por subproceso)",
+      "Turborepo 2 · npm workspaces · Vitest",
+      "Despliegue manual por SSH a droplet DigitalOcean (pm2 + Nginx)"
+    ],
+    "entradas": {
+      "web": "https://<host>/spaces-dooh/ → redirige a /inicio",
+      "shell_interno": "/inicio, /inventario, /comercial, /propuestas, /campanas, /creativos, /imprenta, /operaciones, /almacen, /finanzas, /arrendadores, /clientes, /network, /disponibilidad, /comisiones, /actividad, /integraciones, /administracion",
+      "publicas_sin_sesion": "/login, /recuperar/[token], /p/[id] (propuesta compartible), /portal/[token] (portal de campaña), /firmar/[token] (firma de contrato)",
+      "movil": "/m/ot/[id] (vista de OT para técnico en campo, sin chrome del shell)",
+      "api_bff": "/spaces-dooh/api/**"
+    },
+    "metricas": {
+      "route_handlers": 81,
+      "paginas_app_router": 31,
+      "modulos_lib_server": 52,
+      "componentes_react": 68,
+      "tablas_postgres": 35,
+      "migraciones_sql": 54,
+      "adrs": 8,
+      "archivos_de_prueba_vitest": 30
+    },
+    "capas": [
+      { "id": "actores", "nombre": "Actores", "descripcion": "Quién dispara el sistema: usuarios internos por rol, terceros con enlace por token y el cron del servidor." },
+      { "id": "borde", "nombre": "Borde / Enrutado", "descripcion": "Proxy inverso, middleware de Next (CSRF y compuerta de sesión) y configuración de basePath y cabeceras de seguridad." },
+      { "id": "jobs", "nombre": "Jobs y barridos", "descripcion": "Trabajo periódico: cron diario del droplet, barridos oportunistas dentro de GET /api/estado y sondeo del navegador." },
+      { "id": "frontend", "nombre": "Frontend (páginas y shell)", "descripcion": "App Router: shell autenticado con sidebar/topbar, un módulo por página, y las páginas públicas por token." },
+      { "id": "datos-cliente", "nombre": "Capa de datos del cliente", "descripcion": "Store zustand hidratado desde /api/estado, helpers *-api.ts para las mutaciones y derivaciones puras." },
+      { "id": "api", "nombre": "API BFF (route handlers)", "descripcion": "Los 81 route handlers de app/api. Autenticación, permiso de rol, candado de cambios y traducción de errores a HTTP." },
+      { "id": "controllers", "nombre": "Controllers", "descripcion": "Validación con zod, reglas de negocio de entrada y mapeo de errores de dominio a AppError con status." },
+      { "id": "repos", "nombre": "Repos / Modelos", "descripcion": "SQL parametrizado, transacciones explícitas y las reglas de integridad del dominio." },
+      { "id": "infra", "nombre": "Infraestructura de servidor", "descripcion": "Pool de Postgres, sesión y permisos, tenant activo, validación de subidas, límites de intentos, correo y almacenamiento." },
+      { "id": "datos", "nombre": "PostgreSQL", "descripcion": "Un solo esquema public, aislamiento por tenant con RLS fail-closed y funciones SECURITY DEFINER acotadas para el bootstrap pre-sesión." },
+      { "id": "externo", "nombre": "Integraciones externas", "descripcion": "DOOHmain (CMS DOOH), Space Eye (visión IA), Resend (correo), DigitalOcean Spaces (archivos) y conectores aún simulados." },
+      { "id": "devops", "nombre": "CI/CD e infraestructura", "descripcion": "GitHub Actions, migraciones SQL versionadas y despliegue manual al droplet." }
+    ]
+  }
+}

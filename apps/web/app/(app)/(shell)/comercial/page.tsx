@@ -12,6 +12,7 @@ import { SiteFicha } from '@/components/demo/comercial/SiteFicha'
 import { ReservaDialog } from '@/components/demo/comercial/ReservaDialog'
 import { AltaSitioDialog } from '@/components/demo/comercial/AltaSitioDialog'
 import { SlotsBadge } from '@/components/demo/SlotsBadge'
+import { ClientesBadge } from '@/components/demo/ClientesBadge'
 import {
   StatusBadge,
   pinTono,
@@ -28,6 +29,7 @@ import {
   useCampanas,
   useContratos,
   useArrendadores,
+  useConfigNegocio,
   tarifaDeSitio,
   formatMonto,
   formatFecha,
@@ -54,6 +56,9 @@ export default function ComercialPage() {
   const campanas = useCampanas()
   const contratos = useContratos()
   const arrendadores = useArrendadores()
+  // Default global del cupo de clientes (ADR 0008): la pantalla que no lleva el
+  // suyo hereda éste.
+  const config = useConfigNegocio()
   const puedeCrear = usePuede('comercial', 'crear')
   const puedeArrendadores = usePuede('arrendadores', 'ver')
 
@@ -370,6 +375,16 @@ export default function ComercialPage() {
                     {esDigital && s.totalSpots != null && (
                       <SlotsBadge disponibles={s.spotsDisponibles ?? null} total={s.totalSpots} />
                     )}
+                    {/* ADR 0008: segundo eje. La pantalla puede tener slots
+                        libres y aun así no admitir un cliente NUEVO. No bloquea
+                        la selección a propósito: aquí todavía no se sabe para
+                        qué cliente se va a reservar, y uno que ya está en la
+                        pantalla sí cabe. El diálogo de reserva lo avisa cuando
+                        ya hay nombre, y el servidor es quien decide. */}
+                    <ClientesBadge
+                      ocupados={s.clientesActivos ?? 0}
+                      cupo={s.maxClientes ?? config?.maxClientesPantalla ?? null}
+                    />
                     {/* El motivo importa: "no disponible" (sin slots / ya
                         vendida) se arregla eligiendo otra pantalla; "contrato
                         incompleto" se arregla en Arrendadores. Mismo badge con

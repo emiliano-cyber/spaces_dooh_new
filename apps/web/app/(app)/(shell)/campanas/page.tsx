@@ -15,6 +15,8 @@ import {
   useCampanasResumen,
   ETAPA_LABEL,
   etapasPipeline,
+  vigenciaCampana,
+  estadoContradiceFechas,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -175,6 +177,14 @@ export default function CampanasPage() {
                         <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
                           {CAMPANA_LABEL[c.estadoComercial]}
                         </StatusBadge>
+                        {/* El estado guardado sigue el flujo, no el calendario:
+                            se avisa cuando se contradicen en vez de mostrar
+                            "Activa" en algo terminado hace días (A-1). */}
+                        {estadoContradiceFechas(c) && (
+                          <StatusBadge tono="ambar">
+                            {vigenciaCampana(c) === 'vencida' ? 'Vencida' : 'Aún vigente'}
+                          </StatusBadge>
+                        )}
                         {candado ? (
                           <LockOpen className="h-4 w-4 text-success" strokeWidth={1.75} />
                         ) : (

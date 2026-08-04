@@ -18,6 +18,11 @@ export function rowToConfig(r: any) {
     // van como placeholder null y se resuelven en obtenerConfig()/…Admin().
     razonSocial: null as string | null,
     nombreComercial: null as string | null,
+    // Datos fiscales: también POR tenant. Solo los rellena obtenerConfigAdmin().
+    rfc: null as string | null,
+    domicilioFiscal: null as string | null,
+    representanteLegal: null as string | null,
+    datosConstitucion: null as string | null,
     moneda: r.moneda,
     plazosCobranza: r.plazos_cobranza ?? [],
     tiposTarea: r.tipos_tarea ?? [],
@@ -25,6 +30,8 @@ export function rowToConfig(r: any) {
     ivaTasas: (r.iva_tasas ?? [16]).map((x: any) => Number(x)),
     loopSeg: r.loop_seg != null ? Number(r.loop_seg) : 60,
     spotSeg: r.spot_seg != null ? Number(r.spot_seg) : 10,
+    // ADR 0008: cupo de clientes por defecto. null = sin límite (regla apagada).
+    maxClientesPantalla: r.max_clientes_pantalla != null ? Number(r.max_clientes_pantalla) : null,
   }
 }
 
@@ -51,16 +58,27 @@ export async function obtenerConfig() {
 }
 
 // Config para el panel de Administración: base global + los campos POR TENANT
-// (razón social, nombre comercial) del tenant actual. A diferencia de
-// obtenerConfig(), NO sobre-escribe nombreTenant (ese campo se edita como el
-// nombre de la organización, contra config_negocio).
+// (razón social, nombre comercial y datos fiscales) del tenant actual. A
+// diferencia de obtenerConfig(), NO sobre-escribe nombreTenant (ese campo se
+// edita como el nombre de la organización, contra config_negocio).
+//
+// Los datos fiscales SOLO salen por aquí (panel de Administración, que ya exige
+// permiso `administracion`). Son los que el generador del contrato recita en las
+// declaraciones de la parte arrendataria; sin ellos el documento sale con huecos
+// y no se puede enviar a firma (ver lib/contrato-documento.ts → `faltantes`).
 export async function obtenerConfigAdmin() {
   const cfg = rowToConfig(await obtenerConfigRow())
   const t = await q1<any>(
-    'select razon_social, nombre_comercial from tenants where id = $1',
+    `select razon_social, nombre_comercial, rfc, domicilio_fiscal,
+            representante_legal, datos_constitucion
+       from tenants where id = $1`,
     [await tenantActual()],
   )
   cfg.razonSocial = t?.razon_social ?? null
   cfg.nombreComercial = t?.nombre_comercial ?? null
+  cfg.rfc = t?.rfc ?? null
+  cfg.domicilioFiscal = t?.domicilio_fiscal ?? null
+  cfg.representanteLegal = t?.representante_legal ?? null
+  cfg.datosConstitucion = t?.datos_constitucion ?? null
   return cfg
 }

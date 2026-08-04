@@ -1,0 +1,341 @@
+[
+  {
+    "id": "flow-creativos-publicacion",
+    "nombre": "Creativos → validación → publicación en DOOHmain",
+    "categoria": "Publicación",
+    "descripcion": "Carga del arte, envío al dominio, revisión humana y publicación real en el CMS de pantallas digitales.",
+    "objetivo": "Que nada salga al aire sin que una persona lo haya revisado, y que lo aprobado llegue de verdad a la pantalla.",
+    "resultado": "Creativos publicados en DOOHmain con su auth y media_id; campaña ACTIVA o LISTA_FACTURAR con reporte_publicacion encendido.",
+    "componentes": ["ui-creativos", "ui-campanas", "estado-api", "api-creatividades", "ctrl-creativos", "infra-uploads", "repo-creativos", "api-campanas", "ctrl-campanas", "repo-campanas", "infra-doohmain", "ext-doohmain-sdk", "ext-doohmain-api", "repo-notificaciones", "db-comercial"],
+    "archivos": ["apps/web/components/demo/campanas/AgregarCreativo.tsx", "apps/web/app/api/creatividades/route.ts", "apps/web/lib/server/creativos-controller.ts", "apps/web/app/api/campanas/[id]/enviar-dominio/route.ts", "apps/web/app/api/campanas/[id]/validar/route.ts", "apps/web/lib/server/campanas-repo.ts", "apps/web/lib/server/doohmain.ts", "apps/web/components/demo/campanas/ValidacionPanel.tsx"],
+    "apis": ["POST /api/creatividades", "PATCH /api/creatividades/[id]", "POST /api/campanas/[id]/enviar-dominio", "POST /api/campanas/[id]/validar"],
+    "consultas": ["insert into creatividades (campana_id, nombre, archivo_url, codigo, formato, estatus_validacion)", "update campanas set enviada_dominio=true, validacion_estatus='PENDIENTE'", "update campanas set validacion_estatus='APROBADA', reporte_publicacion=true, estado_comercial=case …", "select … from reservas r join sitios s … where tipo_medio='PANTALLA_DIGITAL' or es_rotativo"],
+    "validaciones": ["Imagen: JPG/PNG/WebP, 15 MB máximo, magic bytes reales. HTML: 2 MB máximo", "No se puede enviar al dominio una campaña CANCELADA", "En DOOH o HÍBRIDA hace falta al menos un creativo cargado: es la información de los anuncios que hay que verificar", "No se valida lo que no se ha enviado al dominio", "Rechazar guarda el motivo y baja la bandera de envío, obligando a corregir y reenviar", "Solo pantallas DIGITALES van a DOOHmain: una campaña fija no publica nada, una híbrida solo su segmento digital"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-creativos", "titulo": "Subir la pieza", "detalle": "Imagen o HTML. La UI envuelve las imágenes en HTML para previsualizar (creativo-html.ts), lo que importa después al materializar.", "archivo": "apps/web/components/demo/campanas/AgregarCreativo.tsx" },
+      { "n": 2, "nodo": "infra-uploads", "titulo": "Validar el archivo", "detalle": "uploadZod contrasta el MIME declarado con los magic bytes y corta por tamaño antes de decodificar. Un .exe renombrado a .jpg se rechaza con 422.", "archivo": "apps/web/lib/server/uploads.ts" },
+      { "n": 3, "nodo": "repo-creativos", "titulo": "Guardar y validar la pieza", "detalle": "La creatividad nace PENDIENTE. Un revisor la marca VALIDADA o RECHAZADA; solo las validadas se publican.", "archivo": "apps/web/lib/server/creativos-repo.ts" },
+      { "n": 4, "nodo": "repo-campanas", "titulo": "Enviar al dominio", "detalle": "enviarADominio() enciende enviada_dominio y deja validacion_estatus en PENDIENTE, limpiando motivo, validador y fecha de una revisión anterior.", "archivo": "apps/web/lib/server/campanas-repo.ts" },
+      { "n": 5, "nodo": "ui-campanas", "titulo": "El revisor decide", "detalle": "ValidacionPanel muestra las piezas y los sitios. Aprobar o rechazar con motivo.", "archivo": "apps/web/components/demo/campanas/ValidacionPanel.tsx" },
+      { "n": 6, "nodo": "infra-doohmain", "titulo": "Publicar en el CMS", "detalle": "publicarCampanaEnDoohmain() materializa cada creativo a archivo temporal — prefiriendo SIEMPRE la imagen sobre el HTML, porque DOOHmain no acepta HTML — y ejecuta el CLI del SDK una vez por (creativo × pantalla), pasando la cuota diaria de spots si el sitio la tiene.", "archivo": "apps/web/lib/server/doohmain.ts" },
+      { "n": 7, "nodo": "ext-doohmain-sdk", "titulo": "SDK Python por subproceso", "detalle": "execFile('python', ['-m','doohmain_sdk','publish', …]) con timeout de 120 s. El CLI imprime JSON incluso al fallar, y ese JSON es el contrato. La idempotencia la resuelve el SDK contra sus propias tablas.", "archivo": "doohmain_sdk/__main__.py" },
+      { "n": 8, "nodo": "db-comercial", "titulo": "Candado digital", "detalle": "Aprobar enciende reporte_publicacion (la evidencia DIGITAL). La campaña pasa a LISTA_FACTURAR si además hay OC — y, si es HÍBRIDA, también fotos comprobatorias. Si no, pasa de CONFIRMADA a ACTIVA.", "archivo": "apps/web/lib/server/campanas-repo.ts" }
+    ],
+    "notas": ["Todo el camino a DOOHmain está detrás de DOOHMAIN_PUBLISH_ENABLED=1. Sin la bandera, la validación funciona igual pero no se publica nada."]
+  },
+  {
+    "id": "flow-playlogs",
+    "nombre": "Proof of play (playlogs de DOOHmain)",
+    "categoria": "Publicación",
+    "descripcion": "Consulta de las reproducciones reales de la campaña y guardado de la respuesta sin interpretarla.",
+    "objetivo": "Tener evidencia de que el anuncio salió al aire, para respaldar lo que se le cobra al anunciante.",
+    "resultado": "Fila en doohmain_consultas_play con el payload crudo, la marca de vacío y el rango consultado.",
+    "componentes": ["ui-campanas", "apis-cliente-varios", "api-campanas", "repo-playlogs", "infra-doohmain", "ext-doohmain-sdk", "ext-doohmain-api", "db-sistema"],
+    "archivos": ["apps/web/components/demo/campanas/PlaylogsPanel.tsx", "apps/web/lib/data/playlogs-api.ts", "apps/web/app/api/campanas/[id]/playlogs/route.ts", "apps/web/lib/server/playlogs-repo.ts", "db/migrations/20260716_doohmain_playlogs.sql"],
+    "apis": ["GET /api/campanas/[id]/playlogs", "POST /api/campanas/[id]/playlogs"],
+    "consultas": ["select auth from doohmain_remote_campaigns where …", "insert into doohmain_consultas_play (tipo, campana_id, auths, desde, hasta, payload, vacio, error)"],
+    "validaciones": ["Sin integración activa o sin campañas publicadas, devuelve error explicativo en vez de datos inventados", "respuestaVacia() solo afirma si el arreglo stats/metrics viene vacío; una forma DESCONOCIDA se marca como NO vacía a propósito, para que salte a la vista en vez de esconderse bajo un «sin datos» tranquilizador"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-campanas", "titulo": "Consultar reproducciones", "detalle": "PlaylogsPanel pide el rango de fechas y dispara la consulta.", "archivo": "apps/web/components/demo/campanas/PlaylogsPanel.tsx" },
+      { "n": 2, "nodo": "repo-playlogs", "titulo": "Reunir los auth", "detalle": "authsDeCampana() saca los identificadores de campaña de DOOHmain con los que se publicó.", "archivo": "apps/web/lib/server/playlogs-repo.ts" },
+      { "n": 3, "nodo": "infra-doohmain", "titulo": "Ejecutar stats", "detalle": "consultarStats() invoca el SDK con --start-date, --end-date y un --auth por campaña remota.", "archivo": "apps/web/lib/server/doohmain.ts" },
+      { "n": 4, "nodo": "db-sistema", "titulo": "Guardar el payload CRUDO", "detalle": "A propósito no se interpreta: al 16-jul-2026 la API siempre responde []. Inventarnos su forma acabaría en números equivocados en la pantalla con la que se le cobra al anunciante. Se guarda literal y se modela cuando se vea una respuesta con datos.", "archivo": "apps/web/lib/server/playlogs-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-ot-evidencia",
+    "nombre": "Orden de trabajo y evidencia fotográfica",
+    "categoria": "Operaciones",
+    "descripcion": "Alta de la OT, ejecución en campo desde el móvil y cierre con fotos que desbloquean el candado físico de facturación.",
+    "objetivo": "Que el trabajo de campo quede probado y que esa prueba sea condición para cobrar.",
+    "resultado": "OT COMPLETADA, evidencias guardadas (en Spaces si hay bucket, si no como data URL) y fotos_comprobatorias encendido en la campaña.",
+    "componentes": ["actor-tecnico", "ui-ot-movil", "ui-operaciones", "estado-api", "api-ot", "ctrl-ot", "infra-uploads", "repo-ot", "infra-storage", "ext-spaces", "repo-notificaciones", "db-operaciones", "db-comercial"],
+    "archivos": ["apps/web/components/operaciones/OTVista.tsx", "apps/web/app/(app)/m/ot/[id]/page.tsx", "apps/web/app/api/ot/route.ts", "apps/web/app/api/ot/[id]/cerrar/route.ts", "apps/web/lib/server/ot-repo.ts", "apps/web/lib/server/storage.ts", "apps/web/lib/exif.ts"],
+    "apis": ["GET /api/ot", "POST /api/ot", "GET /api/ot/[id]", "POST /api/ot/[id]/cerrar"],
+    "consultas": ["insert into ordenes_trabajo (tipo, prioridad, sitio_id, campana_id, fecha_compromiso, estatus='PENDIENTE')", "insert into evidencias_ot (ot_id, url, lat, lng, tomada_en)", "update ordenes_trabajo set estatus='COMPLETADA', cerrada_en=now()", "update campanas set fotos_comprobatorias=true"],
+    "validaciones": ["Evidencias: JPG/PNG/WebP, 8 MB máximo, magic bytes reales", "El EXIF de la foto aporta fecha y GPS", "notificarOTsVencidas() avisa cuando pasa la fecha comprometida sin cierre"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-operaciones", "titulo": "Crear la OT", "detalle": "Tipo (montaje de lona, montaje digital, desmontaje, mantenimiento, herrería, eléctrico, inspección), prioridad, sitio y fecha comprometida. Algunas nacen solas por evento: alta de pantalla, cancelación de contrato o reubicación.", "archivo": "apps/web/app/(app)/(shell)/operaciones/page.tsx" },
+      { "n": 2, "nodo": "actor-tecnico", "titulo": "El técnico abre la vista móvil", "detalle": "/m/ot/[id] usa el mismo componente OTVista pero sin el chrome del shell: el teléfono no tiene sitio para el menú lateral.", "archivo": "apps/web/app/(app)/m/ot/[id]/page.tsx" },
+      { "n": 3, "nodo": "infra-uploads", "titulo": "Validar cada foto", "detalle": "El límite del navegador se salta con un curl, así que la única validación que cuenta es la del servidor.", "archivo": "apps/web/lib/server/uploads.ts" },
+      { "n": 4, "nodo": "infra-storage", "titulo": "Guardar el binario", "detalle": "Si las DO_SPACES_* están definidas, sube a Spaces con ACL privada y guarda la key; si no, storageHabilitado() es false y el llamador guarda la data URL en la base. Degradación elegante, no fallo.", "archivo": "apps/web/lib/server/storage.ts" },
+      { "n": 5, "nodo": "db-comercial", "titulo": "Candado físico", "detalle": "Cerrar la OT de montaje enciende fotos_comprobatorias en la campaña: media llave del candado de facturación. La otra media es la OC.", "archivo": "apps/web/lib/server/ot-repo.ts" },
+      { "n": 6, "nodo": "repo-notificaciones", "titulo": "Avisar", "detalle": "Notificación de OT cerrada. Las evidencias quedan visibles además en el portal público del cliente.", "archivo": "apps/web/lib/server/notificaciones-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-imprenta",
+    "nombre": "Orden de impresión (medios fijos)",
+    "categoria": "Operaciones",
+    "descripcion": "Producción de la lona: recepción del arte, validación, prueba de color, producción e impresión, hasta quedar lista para montaje.",
+    "objetivo": "Coordinar la producción física con el montaje sin que una espere a la otra sin saberlo.",
+    "resultado": "Orden en LISTO_MONTAJE, que habilita la OT de montaje.",
+    "componentes": ["ui-imprenta", "estado-api", "api-impresion", "ctrl-impresion", "repo-impresion", "db-operaciones", "repo-acciones"],
+    "archivos": ["apps/web/app/(app)/(shell)/imprenta/page.tsx", "apps/web/app/api/impresion/route.ts", "apps/web/app/api/impresion/[id]/prueba-color/route.ts", "apps/web/lib/server/impresion-controller.ts", "apps/web/lib/server/impresion-repo.ts"],
+    "apis": ["GET /api/impresion", "POST /api/impresion", "PATCH /api/impresion/[id]", "PATCH /api/impresion/[id]/prueba-color"],
+    "consultas": ["insert into ordenes_impresion (campana_id, sitio_id, estatus='ARTE_RECIBIDO')", "update ordenes_impresion set estatus=$2 where id=$1", "update ordenes_impresion set prueba_color_aprobada=true"],
+    "validaciones": ["El avance de estado sigue el orden ARTE_RECIBIDO → VALIDADO → EN_PRODUCCION → IMPRESO → LISTO_MONTAJE", "La prueba de color se aprueba explícitamente"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-imprenta", "titulo": "Alta de la orden", "detalle": "Se crea desde la campaña con sus medidas y material.", "archivo": "apps/web/app/(app)/(shell)/imprenta/page.tsx" },
+      { "n": 2, "nodo": "ctrl-impresion", "titulo": "Avanzar de estado", "detalle": "avanzarOrdenCtrl valida que la transición sea legal antes de escribirla.", "archivo": "apps/web/lib/server/impresion-controller.ts" },
+      { "n": 3, "nodo": "repo-impresion", "titulo": "Prueba de color", "detalle": "aprobarPruebaColor() deja constancia de que alguien la validó antes de mandar a producción.", "archivo": "apps/web/lib/server/impresion-repo.ts" },
+      { "n": 4, "nodo": "db-operaciones", "titulo": "Lista para montaje", "detalle": "El estado final habilita la OT de montaje del lado de Operaciones.", "archivo": "apps/web/lib/server/impresion-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-facturacion",
+    "nombre": "Candado, facturación y cobranza",
+    "categoria": "Finanzas",
+    "descripcion": "La campaña solo se factura cuando reúne su evidencia; luego se genera la factura y se sigue el cobro, total o en parcialidades.",
+    "objetivo": "Que no se facture sin prueba de que el servicio se prestó, y que el saldo se persiga solo.",
+    "resultado": "Factura emitida con su folio fiscal, cobranza abierta con vencimiento y recordatorios automáticos hasta que se paga.",
+    "componentes": ["ui-campanas", "ui-finanzas", "estado-api", "api-campanas", "api-finanzas", "infra-cambios", "ctrl-finanzas", "repo-finanzas", "derive", "repo-notificaciones", "db-finanzas", "db-comercial", "ext-simulados"],
+    "archivos": ["apps/web/components/demo/campanas/CandadoPanel.tsx", "apps/web/components/demo/campanas/DatosFacturacion.tsx", "apps/web/app/api/campanas/[id]/facturar/route.ts", "apps/web/app/api/cobranzas/[id]/pagar/route.ts", "apps/web/lib/server/finanzas-controller.ts", "apps/web/lib/server/finanzas-repo.ts", "apps/web/lib/finanzas-calculo.ts", "docs/diseno-cobro-en-parcialidades.md"],
+    "apis": ["POST /api/campanas/[id]/oc", "POST /api/campanas/[id]/facturar", "POST /api/cobranzas/[id]/pagar", "POST /api/cobranzas/[id]/recordar", "POST /api/ordenes-compra"],
+    "consultas": ["update campanas set oc_recibida=true, oc_url=$2", "insert into facturas (campana_id, folio_fiscal, subtotal, iva, total)", "insert into cobranzas (factura_id, saldo, vence_en, estatus)", "update cobranzas set saldo = saldo - $2, estatus = case when saldo<=0 then 'PAGADA' …"],
+    "validaciones": ["Candado de facturación: la campaña necesita OC recibida más su evidencia — reporte de publicación en digital, fotos comprobatorias en fija, y AMBAS en híbrida (candadoDeSegmentos en derive.ts)", "Facturar exige el control de cambios: exigirCambioSensible('finanzas','facturar')", "Las parcialidades no pueden sumar más que el total", "El mismo cálculo de saldo y antigüedad se usa en el servidor y en el cliente: finanzas-repo importa derive.ts a propósito"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-campanas", "titulo": "Revisar el candado", "detalle": "CandadoPanel muestra qué falta: OC, fotos o reporte de publicación. Mientras falte algo, el botón de facturar no está disponible.", "archivo": "apps/web/components/demo/campanas/CandadoPanel.tsx" },
+      { "n": 2, "nodo": "api-finanzas", "titulo": "Registrar la orden de compra", "detalle": "POST /api/campanas/[id]/oc sube el documento validado (PDF o imagen, 10 MB) y enciende oc_recibida.", "archivo": "apps/web/app/api/campanas/[id]/oc/route.ts" },
+      { "n": 3, "nodo": "infra-cambios", "titulo": "Segunda confirmación", "detalle": "exigirCambioSensible pide la contraseña del control de cambios si el rol no es Dueño y el candado está activo. Devuelve 403 con requiereDesbloqueo:true para que la UI abra el modal en vez de mostrar un error rojo.", "archivo": "apps/web/lib/server/cambios.ts" },
+      { "n": 4, "nodo": "ctrl-finanzas", "titulo": "Generar la factura", "detalle": "generarFacturaCtrl calcula subtotal, IVA y total desde las reservas (o el snapshot congelado) y arma el plan de cuotas si se pidió cobro en parcialidades.", "archivo": "apps/web/lib/server/finanzas-controller.ts" },
+      { "n": 5, "nodo": "db-finanzas", "titulo": "Factura + cobranza", "detalle": "Se abre la cobranza con su vencimiento y su cadencia de recordatorio.", "archivo": "apps/web/lib/server/finanzas-repo.ts" },
+      { "n": 6, "nodo": "repo-finanzas", "titulo": "Recordatorios automáticos", "detalle": "recordarCobranzasVencidas() corre en cada hidratación de un rol de finanzas y notifica según la cadencia, sin repetir el mismo aviso el mismo día.", "archivo": "apps/web/lib/server/finanzas-repo.ts" },
+      { "n": 7, "nodo": "ui-finanzas", "titulo": "Registrar el pago", "detalle": "Total o parcial. El saldo baja y el estatus se recalcula; al llegar a cero la cobranza queda PAGADA.", "archivo": "apps/web/app/(app)/(shell)/finanzas/page.tsx" },
+      { "n": 8, "nodo": "ext-simulados", "titulo": "Timbrado fiscal (pendiente)", "detalle": "timbrarFactura() está declarado pero sin PAC: sin CFDI_PAC_KEY devuelve el folio simulado marcado como no timbrado.", "archivo": "apps/web/lib/server/integraciones.ts" }
+    ]
+  },
+  {
+    "id": "flow-firma-contrato",
+    "nombre": "Firma electrónica del contrato de arrendamiento",
+    "categoria": "Arrendadores",
+    "descripcion": "Congelado del documento, firma interna con sesión y firma del arrendador por enlace público, con expediente de evidencia.",
+    "objetivo": "Que el contrato quede firmado por ambas partes con indicios verificables de quién firmó y qué firmó.",
+    "resultado": "Dos filas en contrato_firmas con el hash sha256 del documento, IP, user-agent y fecha; constancia imprimible.",
+    "componentes": ["ui-arrendadores", "ui-contrato", "api-contratos", "repo-firmas", "infra-peticion", "infra-email", "actor-arrendador", "ui-firmar", "api-firma", "db-funciones", "db-arrendadores"],
+    "archivos": ["apps/web/app/(app)/contrato/[id]/page.tsx", "apps/web/lib/server/contrato-expediente.ts", "apps/web/lib/contrato-documento.ts", "apps/web/lib/server/firmas-repo.ts", "apps/web/app/api/contratos/[id]/firma/route.ts", "apps/web/app/api/firma/[token]/route.ts", "apps/web/app/(app)/firmar/[token]/page.tsx", "apps/web/components/demo/arrendadores/ConstanciaFirmas.tsx"],
+    "apis": ["GET /api/contratos/[id]/firma", "POST /api/contratos/[id]/firma", "GET /api/firma/[token]", "POST /api/firma/[token]"],
+    "consultas": ["select firma_tenant_por_token($1)", "insert into contrato_firmas (contrato_id, parte, nombre, hash_documento, ip, user_agent, firmado_en)", "update contratos_arrendamiento set documento_congelado=$2, hash=$3"],
+    "validaciones": ["El documento se CONGELA antes de emitir el enlace: lo que se firma no puede cambiar después", "hashDocumento() usa sha256 sobre el texto congelado", "La ruta pública de firma está exenta de CSRF: el arrendador no tiene sesión, el token del enlace es la credencial", "IP y user-agent se guardan LITERALES, sin limpiar: alterarlos destruiría justo lo que se quiere conservar como indicio", "El tenant lo resuelve Postgres desde el token (firma_tenant_por_token)"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-contrato", "titulo": "Armar el expediente", "detalle": "/contrato/[id] es un Server Component: expedienteContrato() junta contrato, arrendador, razón social, predio, sitios y datos del emisor, y contrato-documento.ts compone el texto.", "archivo": "apps/web/lib/server/contrato-expediente.ts" },
+      { "n": 2, "nodo": "repo-firmas", "titulo": "Congelar y emitir token", "detalle": "enviarAFirma() guarda el texto tal cual, calcula su hash sha256 y genera el token del enlace público.", "archivo": "apps/web/lib/server/firmas-repo.ts" },
+      { "n": 3, "nodo": "repo-firmas", "titulo": "Firma interna", "detalle": "firmarComoArrendatario() registra la firma de la parte con sesión, con su nombre, el hash del documento y los indicios de la petición.", "archivo": "apps/web/lib/server/firmas-repo.ts" },
+      { "n": 4, "nodo": "actor-arrendador", "titulo": "El propietario abre el enlace", "detalle": "/firmar/[token] muestra el documento congelado. No hay login.", "archivo": "apps/web/app/(app)/firmar/[token]/page.tsx" },
+      { "n": 5, "nodo": "infra-peticion", "titulo": "Recoger indicios", "detalle": "ipDeRequest toma el primer elemento de X-Forwarded-For (la IP real detrás del proxy de DigitalOcean) y uaDeRequest el user-agent, ambos acotados en longitud. Ninguno prueba por sí solo quién firmó: su valor es acumulativo.", "archivo": "apps/web/lib/server/peticion.ts" },
+      { "n": 6, "nodo": "db-arrendadores", "titulo": "Registrar la firma externa", "detalle": "firmarPorToken() inserta la fila ARRENDADOR con el mismo hash del documento congelado.", "archivo": "apps/web/lib/server/firmas-repo.ts" },
+      { "n": 7, "nodo": "ui-contrato", "titulo": "Constancia de firmas", "detalle": "ConstanciaFirmas imprime quién firmó, cuándo, desde dónde y sobre qué hash: el expediente completo en una hoja.", "archivo": "apps/web/components/demo/arrendadores/ConstanciaFirmas.tsx" }
+    ]
+  },
+  {
+    "id": "flow-renta",
+    "nombre": "Pago de renta al arrendador",
+    "categoria": "Arrendadores",
+    "descripcion": "Calendario de pagos generado desde el contrato, registro del pago con su comprobante y conciliación.",
+    "objetivo": "Que cada periodo de renta tenga su fila, su vencimiento y su prueba de pago.",
+    "resultado": "Pago marcado como PAGADO con comprobante y factura adjuntos, y conciliación al día.",
+    "componentes": ["ui-arrendadores", "ui-finanzas", "estado-api", "api-pagos-renta", "infra-cambios", "ctrl-arrendadores", "infra-uploads", "repo-arrendadores", "infra-storage", "db-arrendadores"],
+    "archivos": ["apps/web/components/demo/arrendadores/PagosRentaCard.tsx", "apps/web/components/demo/arrendadores/ConciliacionCard.tsx", "apps/web/app/api/pagos-renta/[id]/pagar/route.ts", "apps/web/app/api/pagos-renta/[id]/adjunto/[tipo]/route.ts", "apps/web/lib/server/arrendadores-repo.ts", "apps/web/lib/renta-periodicidad.ts"],
+    "apis": ["PATCH /api/pagos-renta/[id]", "POST /api/pagos-renta/[id]/pagar", "GET /api/pagos-renta/[id]/adjunto/[tipo]"],
+    "consultas": ["insert into pagos_renta … (una fila por periodo, anclada al inicio del contrato)", "update pagos_renta set estatus='PAGADO', pagado_en=$2, comprobante_url=$3", "select … from pagos_renta where estatus='VENCIDO'"],
+    "validaciones": ["ADR 0004: la periodicidad admite hasta pago diario", "ADR 0005: los recordatorios son proporcionales a la cadencia — no se avisa igual de un pago semanal que de uno anual", "ADR 0007: los vencimientos se anclan al inicio del contrato", "Los meses cortos se ajustan (migración 20260731_calendario_meses_cortos)", "Adjuntos: PDF o imagen, 5 MB máximo", "Pagar exige el control de cambios; cambiar los DATOS BANCARIOS del arrendador lo exige en modo ESTRICTO, sin exención ni para el Dueño"],
+    "pasos": [
+      { "n": 1, "nodo": "repo-arrendadores", "titulo": "El calendario ya existe", "detalle": "Se generó al crear el contrato: una fila de pagos_renta por periodo, con su vencimiento calculado.", "archivo": "apps/web/lib/server/arrendadores-repo.ts" },
+      { "n": 2, "nodo": "job-barridos-estado", "titulo": "Recomputar estatus", "detalle": "recomputarEstatusArrendadores() sincroniza contratos y pagos con la fecha de hoy (vigente / por vencer a 3 meses / vencido) para que el P&L y las alertas no usen un estatus congelado.", "archivo": "apps/web/lib/server/arrendadores-repo.ts" },
+      { "n": 3, "nodo": "infra-cambios", "titulo": "Candado", "detalle": "Registrar el pago pasa por exigirCambioSensible. Los datos bancarios usan sinExenciones: una sesión de Dueño desatendida no debe poder redirigir pagos sin reautenticar.", "archivo": "apps/web/lib/server/cambios.ts" },
+      { "n": 4, "nodo": "infra-uploads", "titulo": "Adjuntar comprobante", "detalle": "Comprobante y factura, validados por tipo y tamaño.", "archivo": "apps/web/lib/server/uploads.ts" },
+      { "n": 5, "nodo": "infra-storage", "titulo": "Descarga con URL firmada", "detalle": "GET /api/pagos-renta/[id]/adjunto/[tipo] devuelve una URL de Spaces firmada que expira, no el objeto público.", "archivo": "apps/web/lib/server/storage.ts" },
+      { "n": 6, "nodo": "ui-arrendadores", "titulo": "Conciliación", "detalle": "ConciliacionCard cruza lo comprometido contra lo pagado por periodo y señala los huecos.", "archivo": "apps/web/components/demo/arrendadores/ConciliacionCard.tsx" }
+    ]
+  },
+  {
+    "id": "flow-cron-recordatorios",
+    "nombre": "Cron diario de contratos",
+    "categoria": "Jobs",
+    "descripcion": "Barrido diario que recorre todos los tenants, detecta contratos que necesitan atención y avisa una sola vez al día.",
+    "objetivo": "Que nadie descubra un contrato vencido por accidente.",
+    "resultado": "Notificaciones creadas sin duplicar y un correo de resumen por tenant a sus Dueños, solo si hubo novedades.",
+    "componentes": ["actor-cron", "job-recordatorios", "infra-db", "db-identidad", "db-arrendadores", "db-sistema", "infra-email", "ext-resend"],
+    "archivos": ["apps/web/app/api/recordatorios/route.ts", "apps/web/lib/recordatorios-contratos.ts", "apps/web/lib/server/email.ts"],
+    "apis": ["POST /api/recordatorios"],
+    "consultas": ["select id, nombre from tenants order by creado_en", "select c.id, c.estatus, c.fecha_fin, a.nombre, s.nombre, p.nombre from contratos_arrendamiento c left join …", "insert into notificaciones … select … where not exists (… and creado_en >= date_trunc('day', now()))", "select email from usuarios where rol='DUENO' and activo=true"],
+    "validaciones": ["Sin RECORDATORIOS_TOKEN configurado la ruta responde 503, NO corre abierta: un endpoint que escribe notificaciones a todos los tenants no puede quedar expuesto por olvidar una variable de entorno", "La cabecera x-recordatorios-token debe coincidir exactamente", "Idempotente por día: la propia sentencia insert … where not exists aplica la regla, la misma que usa notificar()", "Un correo que falla no tumba el barrido de los demás tenants"],
+    "pasos": [
+      { "n": 1, "nodo": "actor-cron", "titulo": "El cron dispara", "detalle": "Una vez al día, con la cabecera del token compartido. No lleva exigir(): no hay sesión que comprobar.", "archivo": "apps/web/app/api/recordatorios/route.ts" },
+      { "n": 2, "nodo": "infra-db", "titulo": "Un tenant a la vez", "detalle": "Recorre TODOS los tenants porque el cron es del servidor y no de nadie en particular. Cada uno se procesa con fijarTenantExplicito() dentro de su propia transacción, así la RLS sigue aplicando igual que en una petición normal.", "archivo": "apps/web/lib/server/db.ts" },
+      { "n": 3, "nodo": "job-recordatorios", "titulo": "Calcular los avisos", "detalle": "recordatoriosDeContratos() decide qué contratos avisar y con qué nivel, en una función pura probada aparte.", "archivo": "apps/web/lib/recordatorios-contratos.ts" },
+      { "n": 4, "nodo": "db-sistema", "titulo": "Insertar sin duplicar", "detalle": "El motivo va dentro de `tipo` (contrato:<motivo>:<id>) para distinguirlos sin añadir columnas. La condición where not exists corta el eco del mismo día.", "archivo": "apps/web/app/api/recordatorios/route.ts" },
+      { "n": 5, "nodo": "infra-email", "titulo": "Un correo por tenant", "detalle": "Uno solo con el resumen, no uno por contrato: nueve correos seguidos se archivan sin leer y el décimo, el que importaba, con ellos. Y solo si hubo avisos NUEVOS hoy.", "archivo": "apps/web/app/api/recordatorios/route.ts" }
+    ],
+    "notas": ["Los destinatarios se leen DENTRO de la transacción: usuarios es fail-closed y leerlos fuera con qRaw habría devuelto cero filas en silencio, y el correo nunca se habría mandado sin que nada lo dijera."]
+  },
+  {
+    "id": "flow-notificaciones",
+    "nombre": "Notificaciones en vivo",
+    "categoria": "Jobs",
+    "descripcion": "Sondeo cada 15 segundos que trae eventos de negocio nuevos y los muestra como aviso emergente y en la campanita.",
+    "objetivo": "Enterarse de lo que pasa sin recargar, sin mantener una conexión permanente por usuario.",
+    "resultado": "Avisos emergentes por nivel (ok, advertencia, info) y contador en la campanita.",
+    "componentes": ["shell-layout", "job-sondeo", "api-notificaciones", "repo-notificaciones", "db-sistema", "shell-chrome", "carga-global"],
+    "archivos": ["apps/web/components/demo/shell/SondeoNotificaciones.tsx", "apps/web/app/api/notificaciones/nuevas/route.ts", "apps/web/lib/server/notificaciones-repo.ts", "apps/web/lib/carga-global.ts"],
+    "apis": ["GET /api/notificaciones/nuevas?sondeo=1&desde=…", "POST /api/notificaciones/[id]/leer", "POST /api/notificaciones/leer-todas"],
+    "consultas": ["select … from notificaciones where tenant_id=$1 and creado_en > $2 order by creado_en", "update notificaciones set leida=true where id=$1"],
+    "validaciones": ["Se PARA cuando la pestaña no está visible: sin esto, veinte pestañas olvidadas seguirían consultando toda la noche", "Al volver a la pestaña consulta de inmediato, sin esperar al siguiente ciclo", "La petición va marcada como de fondo (sondeo=1) para no encender la barra de carga", "La marca de inicio es «ahora»: avisar de todo el histórico al abrir sería ruido"],
+    "pasos": [
+      { "n": 1, "nodo": "job-sondeo", "titulo": "Ciclo de 15 segundos", "detalle": "Se hace por sondeo y no por WebSocket a propósito: son eventos de negocio, no un chat. Unos segundos de demora no cambian nada, y una conexión permanente por usuario habría que mantenerla viva y reconectarla en cada reinicio.", "archivo": "apps/web/components/demo/shell/SondeoNotificaciones.tsx" },
+      { "n": 2, "nodo": "api-notificaciones", "titulo": "Consulta incremental", "detalle": "notificacionesDesde(marca) devuelve solo lo nuevo desde la última vista.", "archivo": "apps/web/app/api/notificaciones/nuevas/route.ts" },
+      { "n": 3, "nodo": "shell-chrome", "titulo": "Aviso emergente y campanita", "detalle": "El nivel decide el estilo del toast (sonner). El contador de la campanita se actualiza y desde ahí se marcan como leídas.", "archivo": "apps/web/components/demo/shell/Topbar.tsx" }
+    ]
+  },
+  {
+    "id": "flow-portal-cliente",
+    "nombre": "Portal público de campaña",
+    "categoria": "Público",
+    "descripcion": "Vista de seguimiento para el anunciante por enlace con token: etapa del pipeline, sitios y galería de evidencias.",
+    "objetivo": "Dar transparencia al cliente sin darle acceso al CRM.",
+    "resultado": "El cliente ve dónde va su campaña y las fotos del montaje, sin cuenta ni contraseña.",
+    "componentes": ["actor-anunciante", "middleware", "ui-portal", "estado-api", "api-portal", "repo-portal", "db-funciones", "db-comercial", "db-operaciones"],
+    "archivos": ["apps/web/app/(app)/portal/[token]/page.tsx", "apps/web/app/api/portal/[token]/route.ts", "apps/web/lib/server/portal-repo.ts", "apps/web/components/demo/campanas/EvidenciaGaleria.tsx", "apps/web/components/demo/campanas/PipelineView.tsx"],
+    "apis": ["GET /api/portal/[token]"],
+    "consultas": ["select portal_tenant_por_token($1)", "select … from campanas / reservas / sitios / evidencias_ot / ordenes_trabajo / ordenes_impresion"],
+    "validaciones": ["Ruta pública: exenta del gate de sesión del middleware y de CSRF", "El tenant lo resuelve Postgres desde el token, nunca viene del cliente", "portal-repo devuelve una PROYECCIÓN: solo lo que el anunciante debe ver, no la fila completa"],
+    "pasos": [
+      { "n": 1, "nodo": "actor-anunciante", "titulo": "Abre el enlace", "detalle": "/portal/[token], sin login.", "archivo": "apps/web/app/(app)/portal/[token]/page.tsx" },
+      { "n": 2, "nodo": "db-funciones", "titulo": "Token → tenant", "detalle": "portal_tenant_por_token es SECURITY DEFINER y devuelve una sola fila; con ese id se fija app.tenant_id explícitamente.", "archivo": "apps/web/lib/server/db.ts" },
+      { "n": 3, "nodo": "repo-portal", "titulo": "Armar la vista", "detalle": "obtenerPortalPublico() reúne campaña, sitios, órdenes y evidencias en la forma que espera la página.", "archivo": "apps/web/lib/server/portal-repo.ts" },
+      { "n": 4, "nodo": "ui-portal", "titulo": "Pipeline y evidencias", "detalle": "Se reutilizan los mismos componentes del shell: PipelineView y EvidenciaGaleria.", "archivo": "apps/web/app/(app)/portal/[token]/page.tsx" }
+    ]
+  },
+  {
+    "id": "flow-space-eye",
+    "nombre": "SPACE Eyes — visión IA de la pantalla",
+    "categoria": "Integraciones",
+    "descripcion": "Consulta de la cámara instalada en el espectacular: foto real, estado del dispositivo y dictamen de la IA sobre si lo exhibido corresponde a la creatividad.",
+    "objetivo": "Verificar sin ir físicamente a la pantalla.",
+    "resultado": "En la ficha del sitio se muestra la foto real con su score de verificación, batería, señal y última conexión del equipo.",
+    "componentes": ["ui-comercial", "apis-cliente-varios", "api-sitios", "infra-spaceeye", "ext-spaceeye", "db-inventario"],
+    "archivos": ["apps/web/components/demo/comercial/SpaceEyeVision.tsx", "apps/web/lib/data/space-eye-api.ts", "apps/web/app/api/sitios/[id]/space-eye/route.ts", "apps/web/lib/server/space-eye.ts"],
+    "apis": ["GET /api/sitios/[id]/space-eye", "POST {SPACE_EYE_BASE_URL}/api/auth/login", "GET /api/devices", "GET /api/photos?device=…&limit=5"],
+    "consultas": ["select codigo_proveedor from sitios where id=$1"],
+    "validaciones": ["spaceEyeHabilitado() exige URL, usuario y contraseña por entorno; si falta algo devuelve { disponible:false, motivo:'no_configurado' }", "El enlace pantalla↔cámara es por código: sitios.codigo_proveedor == device.billboard_code, comparado en minúsculas y sin espacios", "Si el sitio no tiene código o no hay dispositivo, motivo 'sin_camara'", "Las credenciales viven SOLO en el servidor, nunca llegan al cliente", "Si falla la foto se devuelve igual el estado del dispositivo"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-comercial", "titulo": "Abrir la ficha del sitio", "detalle": "SiteFicha monta SpaceEyeVision, que pide la visión al BFF.", "archivo": "apps/web/components/demo/comercial/SiteFicha.tsx" },
+      { "n": 2, "nodo": "api-sitios", "titulo": "Resolver el código de proveedor", "detalle": "El handler lee el sitio y pasa su codigo_proveedor al cliente de Space Eye.", "archivo": "apps/web/app/api/sitios/[id]/space-eye/route.ts" },
+      { "n": 3, "nodo": "infra-spaceeye", "titulo": "Login y caché del token", "detalle": "El access token dura 15 minutos y se cachea 12 en memoria del proceso. Ante un 401 se limpia el caché, se vuelve a entrar y se reintenta UNA vez.", "archivo": "apps/web/lib/server/space-eye.ts" },
+      { "n": 4, "nodo": "ext-spaceeye", "titulo": "devices + photos", "detalle": "Se busca el dispositivo cuyo billboard_code coincide y se pide su última foto, filtrando por device_id por si el backend ignora el query param.", "archivo": "apps/web/lib/server/space-eye.ts" },
+      { "n": 5, "nodo": "ui-comercial", "titulo": "Mostrar el dictamen", "detalle": "Foto, fecha de captura, GPS, estado de verificación, si es correcta y el score.", "archivo": "apps/web/components/demo/comercial/SpaceEyeVision.tsx" }
+    ]
+  },
+  {
+    "id": "flow-control-cambios",
+    "nombre": "Control de cambios (candado del Dueño)",
+    "categoria": "Seguridad",
+    "descripcion": "Contraseña que el Dueño fija para que los demás roles reconfirmen antes de tocar dinero o catálogo.",
+    "objetivo": "Que un descuido en una sesión abierta no acabe en un cambio de precio, un pago redirigido o una pantalla borrada.",
+    "resultado": "La sesión queda desbloqueada 15 minutos; los cambios sensibles pasan sin fricción durante ese rato y vuelven a pedir contraseña después.",
+    "componentes": ["ui-administracion", "apis-cliente-varios", "api-cambios", "infra-cambios", "infra-auth", "db-identidad", "shell-chrome", "infra-ratelimit"],
+    "archivos": ["apps/web/components/demo/admin/ControlCambiosPanel.tsx", "apps/web/components/demo/shell/DesbloqueoCambios.tsx", "apps/web/lib/data/cambios-api.ts", "apps/web/app/api/cambios/route.ts", "apps/web/app/api/cambios/desbloquear/route.ts", "apps/web/lib/server/cambios.ts"],
+    "apis": ["GET /api/cambios", "PUT /api/cambios", "POST /api/cambios/desbloquear", "DELETE /api/cambios/desbloquear"],
+    "consultas": ["update tenants set cambios_password_hash = $1 where id = $2", "update sesiones set desbloqueo_expira_en = null where usuario_id in (select id from usuarios where tenant_id = $1)", "update sesiones set desbloqueo_expira_en = $1 where token = $2"],
+    "validaciones": ["Apagado por defecto (hash null): encenderlo por sorpresa dejaría al equipo sin poder trabajar", "La contraseña va en bcrypt en tenants.cambios_password_hash y NUNCA viaja al cliente, ni siquiera el hash", "El desbloqueo vive en el SERVIDOR (sesiones.desbloqueo_expira_en); en el navegador cualquiera se lo inventaría con las herramientas de desarrollo", "Rotar la contraseña cierra todos los desbloqueos vivos del tenant", "Modo estricto (sinExenciones) para datos bancarios: ni el Dueño está exento", "Límite de intentos en el desbloqueo"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-administracion", "titulo": "El Dueño fija la contraseña", "detalle": "ControlCambiosPanel llama PUT /api/cambios. La política de contraseñas es la misma del login.", "archivo": "apps/web/components/demo/admin/ControlCambiosPanel.tsx" },
+      { "n": 2, "nodo": "infra-cambios", "titulo": "Guard en la ruta sensible", "detalle": "exigirCambioSensible(modulo, accion) corre exigir() primero (permiso del rol) y luego exigirDesbloqueo(). Deja pasar si es el Dueño, si el control está apagado, o si la sesión está desbloqueada y no expiró.", "archivo": "apps/web/lib/server/cambios.ts" },
+      { "n": 3, "nodo": "shell-chrome", "titulo": "403 con requiereDesbloqueo", "detalle": "La respuesta lleva requiereDesbloqueo:true para que la UI abra el modal de contraseña en vez de enseñar un error rojo.", "archivo": "apps/web/components/demo/shell/DesbloqueoCambios.tsx" },
+      { "n": 4, "nodo": "db-identidad", "titulo": "Desbloquear 15 minutos", "detalle": "Se compara con bcrypt en el servidor y se escribe desbloqueo_expira_en en la fila de la sesión. Suficiente para una tanda de correcciones, corto para que un equipo dejado a medias no quede abierto toda la tarde.", "archivo": "apps/web/lib/server/cambios.ts" }
+    ]
+  },
+  {
+    "id": "flow-multitenant",
+    "nombre": "Aislamiento multi-tenant (RLS)",
+    "categoria": "Seguridad",
+    "descripcion": "Cómo se decide de qué organización son los datos de cada petición y por qué un olvido no filtra información.",
+    "objetivo": "Que dos organizaciones sobre la misma base no puedan verse nunca.",
+    "resultado": "Cada consulta corre con app.tenant_id fijado transaction-local y las políticas RLS fail-closed acotan las filas.",
+    "componentes": ["middleware", "infra-auth", "infra-tenant", "infra-db", "db-rls", "db-funciones", "db-postgres", "api-tenants"],
+    "archivos": ["apps/web/lib/server/db.ts", "apps/web/lib/server/tenant.ts", "apps/web/lib/server/auth.ts", "db/migrations/20260720_hard1_rls_todas_tablas.sql", "db/migrations/20260715_arr_m5_rls_failclosed.sql", "db/migrations/20260720_hard1_usuarios_rls.sql"],
+    "apis": ["POST /api/tenant-activo", "GET /api/tenants"],
+    "consultas": ["select set_config('app.tenant_id', $1, true)", "create policy … using (tenant_id = current_setting('app.tenant_id', true)::uuid)", "select id from tenants order by creado_en asc limit 1"],
+    "validaciones": ["El GUC se fija TRANSACTION-local (tercer parámetro true), nunca a nivel de sesión: el pool reusa conexiones entre tenants y un GUC de sesión filtraría datos de otro", "Fail-closed: sin GUC no se ve nada, así que un handler que olvide fijar el tenant devuelve cero filas en vez de datos ajenos", "Las tablas de bootstrap (tenants, usuarios, sesiones) están exentas y se leen con qRaw, porque el tenant es justo lo que se está resolviendo", "El override por cookie de CRM SOLO se acepta del Dueño del tenant más antiguo, y el id se comprueba contra la tabla antes de usarlo"],
+    "pasos": [
+      { "n": 1, "nodo": "infra-auth", "titulo": "Cookie → usuario", "detalle": "usuarioActual() lee spaces_sesion y resuelve al usuario por auth_usuario_por_sesion($1), función SECURITY DEFINER acotada.", "archivo": "apps/web/lib/server/auth.ts" },
+      { "n": 2, "nodo": "infra-tenant", "titulo": "Usuario → tenant activo", "detalle": "tenantActual() devuelve el tenant del usuario, salvo que haya override por cookie y quien lo pide sea el super-admin de la plataforma. Memoizado por petición con cache() de React.", "archivo": "apps/web/lib/server/tenant.ts" },
+      { "n": 3, "nodo": "infra-db", "titulo": "Fijar el GUC", "detalle": "q() abre transacción, hace set_config('app.tenant_id', tenant, true), ejecuta y hace commit. withTenantTx() hace lo mismo para operaciones de varias sentencias.", "archivo": "apps/web/lib/server/db.ts" },
+      { "n": 4, "nodo": "db-rls", "titulo": "Las políticas acotan", "detalle": "Cada tabla del negocio compara tenant_id contra el GUC. usuarios lleva además FORCE, que aplica la política incluso al dueño de la tabla.", "archivo": "db/migrations/20260720_hard1_rls_todas_tablas.sql" },
+      { "n": 5, "nodo": "db-funciones", "titulo": "Rutas públicas", "detalle": "Portal, propuesta pública y firma resuelven su tenant desde el TOKEN con funciones SECURITY DEFINER, y luego usan fijarTenantExplicito(). El id nunca viene del cliente.", "archivo": "apps/web/lib/server/db.ts" }
+    ],
+    "riesgos": ["21 tablas conservan un DEFAULT de tenant_id apuntando a un tenant concreto que no está en el repositorio; conviene revisarlo antes de dar de alta organizaciones nuevas."]
+  },
+  {
+    "id": "flow-csrf",
+    "nombre": "Defensa CSRF (double-submit)",
+    "categoria": "Seguridad",
+    "descripcion": "Toda mutación autenticada por cookie debe traer el token en la cabecera y coincidir con la cookie.",
+    "objetivo": "Que un sitio atacante no pueda ejecutar acciones en nombre del usuario aprovechando su cookie.",
+    "resultado": "Mutación aceptada solo si cookie y cabecera coinciden; si no, 403 antes de llegar al handler.",
+    "componentes": ["middleware", "infra-auth", "estado-api", "sitios-api-cli", "apis-cliente-varios"],
+    "archivos": ["apps/web/middleware.ts", "apps/web/lib/server/auth.ts", "apps/web/lib/csrf-client.ts"],
+    "apis": ["Todas las mutaciones POST/PUT/PATCH/DELETE de /api/*"],
+    "consultas": [],
+    "validaciones": ["Exentos: login, forgot, reset, signup, logout, /api/portal/*, /api/firma/* y /api/propuestas/publica/* — ninguno depende de la cookie de sesión", "Si NO hay cookie de sesión no hay credencial ambiental que proteger, y se deja pasar", "La cookie CSRF es httpOnly:false a propósito: el front debe poder leerla. Un sitio atacante no puede leerla (política de mismo origen) ni fijar la cabecera cross-site", "sameSite: lax se mantiene como primera capa"],
+    "pasos": [
+      { "n": 1, "nodo": "infra-auth", "titulo": "Emitir el par", "detalle": "Al iniciar sesión se emiten spaces_sesion (httpOnly) y spaces_csrf (legible).", "archivo": "apps/web/lib/server/auth.ts" },
+      { "n": 2, "nodo": "estado-api", "titulo": "Reenviar en la cabecera", "detalle": "Los helpers de mutación leen la cookie y la mandan en X-CSRF-Token.", "archivo": "apps/web/lib/csrf-client.ts" },
+      { "n": 3, "nodo": "middleware", "titulo": "Comparar", "detalle": "El middleware exige que cabecera == cookie en toda mutación con sesión. Si falta o no coincide, 403 con mensaje para el usuario.", "archivo": "apps/web/middleware.ts" }
+    ]
+  },
+  {
+    "id": "flow-usuarios-permisos",
+    "nombre": "Usuarios, roles y permisos",
+    "categoria": "Seguridad",
+    "descripcion": "Alta de usuarios del tenant y la matriz rol × módulo × acción que gobierna menú, rutas y endpoints.",
+    "objetivo": "Que el mismo conjunto de permisos decida lo que se ve, lo que se puede navegar y lo que el servidor acepta.",
+    "resultado": "Usuario creado con su rol; menú, rutas y respuestas del BFF acotados de forma consistente.",
+    "componentes": ["ui-administracion", "apis-cliente-varios", "api-usuarios", "ctrl-usuarios", "repo-usuarios", "db-identidad", "infra-auth", "authgate", "api-estado"],
+    "archivos": ["apps/web/app/(app)/(shell)/administracion/page.tsx", "apps/web/app/api/usuarios/route.ts", "apps/web/app/api/admin/permisos-matriz/route.ts", "apps/web/lib/server/usuarios-controller.ts", "apps/web/lib/server/usuarios-repo.ts", "apps/web/components/demo/admin/permisos.ts", "apps/web/components/demo/shell/nav.ts"],
+    "apis": ["GET /api/usuarios", "POST /api/usuarios", "PATCH /api/usuarios/[id]", "DELETE /api/usuarios/[id]", "GET /api/permisos", "GET /api/admin/permisos-matriz"],
+    "consultas": ["select modulo, accion from rol_permisos where rol = $1", "insert into usuarios (nombre, email, rol, password_hash, tenant_id)", "select 1 from rol_permisos where rol=$1 and modulo=$2 and accion=$3"],
+    "validaciones": ["Seis roles: DUENO, COMERCIAL, OPERACIONES, IMPRENTA, FINANZAS y CLIENTE", "Política de contraseñas compartida con login y perfil", "Correo único por tenant", "Los módulos que un rol no debe ver NO se montan en el DOM (regla de conjunto, no `disabled`)", "GET /api/estado ni siquiera consulta las rebanadas de módulos que el rol no puede ver"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-administracion", "titulo": "Invitar usuario", "detalle": "Nombre, correo, cargo y rol. La matriz de permisos se muestra al lado para ver qué implica cada rol.", "archivo": "apps/web/app/(app)/(shell)/administracion/page.tsx" },
+      { "n": 2, "nodo": "repo-usuarios", "titulo": "Insertar con el tenant estampado", "detalle": "crearUsuario() escribe bajo RLS: el usuario nace atado a la organización activa.", "archivo": "apps/web/lib/server/usuarios-repo.ts" },
+      { "n": 3, "nodo": "authgate", "titulo": "El menú y la ruta usan el mismo NAV", "detalle": "Sidebar y AuthGate leen el mismo arreglo, así que ocultar el ítem y bloquear la ruta nunca se desincronizan. Esto cierra las fugas por enlace directo.", "archivo": "apps/web/components/demo/shell/nav.ts" },
+      { "n": 4, "nodo": "infra-auth", "titulo": "El servidor decide igual", "detalle": "exigir(modulo, accion) consulta rol_permisos en cada handler: la UI puede mentir, el BFF no.", "archivo": "apps/web/lib/server/auth.ts" }
+    ]
+  },
+  {
+    "id": "flow-almacen",
+    "nombre": "Almacén de activos",
+    "categoria": "Operaciones",
+    "descripcion": "Inventario de activos físicos y su bitácora de entradas, salidas y traspasos.",
+    "objetivo": "Saber dónde está cada equipo y quién lo movió.",
+    "resultado": "Activo con su ubicación actual y un historial de movimientos.",
+    "componentes": ["ui-almacen", "apis-cliente-varios", "api-almacen", "repo-varios", "db-operaciones", "repo-acciones"],
+    "archivos": ["apps/web/app/(app)/(shell)/almacen/page.tsx", "apps/web/lib/data/almacen-api.ts", "apps/web/app/api/almacen/route.ts", "apps/web/app/api/almacen/[id]/movimiento/route.ts", "apps/web/lib/server/almacen-repo.ts", "db/migrations/20260723_almacen.sql"],
+    "apis": ["GET /api/almacen", "POST /api/almacen", "POST /api/almacen/[id]/movimiento"],
+    "consultas": ["insert into almacen_activos (nombre, tipo, estado, ubicacion, tenant_id)", "insert into almacen_movimientos (activo_id, tipo, origen, destino, usuario_id)"],
+    "validaciones": ["Tipo de movimiento acotado por enum", "El movimiento actualiza la ubicación del activo en la misma operación"],
+    "pasos": [
+      { "n": 1, "nodo": "ui-almacen", "titulo": "Registrar activo", "detalle": "Alta con tipo, estado y ubicación inicial.", "archivo": "apps/web/app/(app)/(shell)/almacen/page.tsx" },
+      { "n": 2, "nodo": "repo-varios", "titulo": "Movimiento", "detalle": "registrarMovimiento() escribe la bitácora y mueve el activo.", "archivo": "apps/web/lib/server/almacen-repo.ts" },
+      { "n": 3, "nodo": "repo-acciones", "titulo": "Bitácora general", "detalle": "Además queda la entrada en la bitácora append-only del sistema.", "archivo": "apps/web/lib/server/acciones-repo.ts" }
+    ]
+  },
+  {
+    "id": "flow-excel",
+    "nombre": "Exportación a Excel",
+    "categoria": "Datos",
+    "descripcion": "Descarga del inventario y de los contratos vigentes como libro de Excel, generado en el navegador.",
+    "objetivo": "Sacar los datos para trabajarlos fuera sin pedirle un reporte a nadie.",
+    "resultado": "Archivo .xlsx descargado con las columnas del módulo.",
+    "componentes": ["ui-inventario", "ui-comercial", "ui-arrendadores", "excel-cliente", "store", "derive"],
+    "archivos": ["apps/web/lib/inventario-export.ts", "apps/web/lib/contratos-export.ts", "apps/web/lib/inventario-export.test.ts", "apps/web/lib/contratos-export.test.ts", "apps/web/components/demo/inventario/InventarioTabla.tsx"],
+    "apis": [],
+    "consultas": [],
+    "validaciones": ["Se genera desde el store ya hidratado: lo que se exporta es exactamente lo que se ve", "La renta se expresa con su periodicidad para que la cifra no se lea como mensual cuando no lo es"],
+    "pasos": [
+      { "n": 1, "nodo": "store", "titulo": "Datos ya en memoria", "detalle": "No hay endpoint de exportación: se usa lo que ya trajo /api/estado.", "archivo": "apps/web/lib/data/store.ts" },
+      { "n": 2, "nodo": "excel-cliente", "titulo": "Componer el libro", "detalle": "SheetJS arma las hojas y dispara la descarga desde el navegador.", "archivo": "apps/web/lib/inventario-export.ts" }
+    ]
+  }
+]

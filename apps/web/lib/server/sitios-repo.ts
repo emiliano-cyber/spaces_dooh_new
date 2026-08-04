@@ -55,6 +55,11 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     duracionSpotSeg: n(r.duracion_spot_seg),
     totalSpots: n(r.total_spots),
     spotsDisponibles: n(r.spots_disponibles),
+    // ADR 0008 · cupo de clientes. `maxClientes` null = sin cupo propio (cae al
+    // default global). `clientesActivos` es cuántos anunciantes distintos tiene
+    // ahora mismo, para poder pintar 3/4 sin recalcularlo en cada pantalla.
+    maxClientes: n(r.max_clientes),
+    clientesActivos: Number(r.clientes_activos ?? 0),
     horario: r.horario,
     computerVision: !!r.computer_vision,
     admobilizeId: r.admobilize_id,
@@ -171,10 +176,19 @@ function horasOperacion(horario?: string | null): number {
 
 // ─── Lectura ────────────────────────────────────────────────────────────────
 export async function listarSitios(): Promise<any[]> {
+  // ADR 0008: los dos conteos miran FECHAS (`fecha_fin >= current_date`). Sin
+  // ese filtro, una campaña terminada hace dos años seguía ocupando su slot y el
+  // inventario envejecía hacia "todo lleno". Aquí no hay un periodo que vender,
+  // así que el criterio es "vigente hoy o a futuro".
   const sitios = await q(
     `select s.*,
             (select count(distinct r.campana_id) from reservas r
-              where r.sitio_id = s.id and r.estatus <> 'CANCELADA') as campanas_activas
+              where r.sitio_id = s.id and r.estatus <> 'CANCELADA'
+                and r.fecha_fin >= current_date) as campanas_activas,
+            (select count(distinct c.cliente_id) from reservas r
+               join campanas c on c.id = r.campana_id
+              where r.sitio_id = s.id and r.estatus <> 'CANCELADA'
+                and r.fecha_fin >= current_date) as clientes_activos
        from sitios s where s.tenant_id = $1 order by s.creado_en asc`,
     [await tenantActual()],
   )
@@ -375,6 +389,9 @@ const CAMPO_COL: Record<string, string> = {
   vista: 'vista', tramo: 'tramo', tipoEstructura: 'tipo_estructura', horario: 'horario',
   totalSpots: 'total_spots', spotsDisponibles: 'spots_disponibles',
   duracionSpotSeg: 'duracion_spot_seg', spotsPorHora: 'spots_por_hora',
+  // ADR 0008. Editable desde la ficha: quien puede tocar el inventario puede
+  // fijar el cupo. El valor se valida en el controller (entero ≥ 1 o null).
+  maxClientes: 'max_clientes',
 }
 export async function actualizarSitio(id: string, cambios: Record<string, unknown>): Promise<any | null> {
   const sets: string[] = []

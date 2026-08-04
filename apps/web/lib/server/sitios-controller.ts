@@ -12,6 +12,24 @@ import { LIMITES, uploadZod } from './uploads'
 
 const updateSchema = z.record(z.string(), z.unknown())
 
+// ADR 0008 · cupo de clientes. Entra por el mismo PATCH genérico que el resto
+// del inventario, pero no es un dato cualquiera: decide si una venta se puede
+// cerrar. Se valida aquí en vez de dejarlo caer crudo a la columna — un texto
+// reventaría en el driver con un 22P02 sin mensaje útil, y un 0 dejaría la
+// pantalla muerta (para eso está estatus_comercial='BLOQUEADO').
+// Vacío o null = quitar el cupo (vuelve al default global).
+const cupoSchema = z.object({
+  maxClientes: z.union([
+    z.null(),
+    z.literal(''),
+    z.coerce
+      .number()
+      .int('El cupo de clientes debe ser un número entero')
+      .min(1, 'El cupo de clientes debe ser al menos 1')
+      .max(999, 'El cupo de clientes no puede pasar de 999'),
+  ]),
+})
+
 export async function actualizarSitioCtrl(id: string, body: unknown) {
   const b = (body ?? {}) as Record<string, unknown>
   if (b.toggleNetwork) {
@@ -20,6 +38,10 @@ export async function actualizarSitioCtrl(id: string, body: unknown) {
     return { sitio: s, toggled: true }
   }
   const d = validar(updateSchema, b)
+  if ('maxClientes' in d) {
+    const { maxClientes } = validar(cupoSchema, { maxClientes: d.maxClientes })
+    d.maxClientes = maxClientes === '' ? null : maxClientes
+  }
   const s = await actualizarSitio(id, d)
   if (!s) throw new AppError('No encontrado', 404)
   return { sitio: s, toggled: false }

@@ -2,6 +2,7 @@ import 'server-only'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
+import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
@@ -29,7 +30,9 @@ async function agenciaBloqueada(
 
 const IVA_PCT = 16
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
-const folio = () => `PR-${randomBytes(3).toString('hex').toUpperCase()}`
+// Folio de propuesta: PR-2026-0001. Antes 3 bytes aleatorios sobre una columna
+// UNIQUE (`propuestas.folio`); ahora consecutivo atómico (`lib/server/folios.ts`).
+const folio = () => folioDocumento('propuesta')
 // S1-3: token aleatorio no enumerable (48 chars) para la liga pública.
 const tokenPublico = () => randomBytes(24).toString('hex')
 
@@ -426,7 +429,7 @@ export async function crearPropuesta(input: PropuestaInput) {
       await client.query(
         `insert into propuestas (folio, cliente_id, agencia_id, nombre, comision_pct, notas, token_publico, tenant_id)
          values ($1,$2,$3,$4,$5,$6,$7,$8) returning *`,
-        [folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), await tenantActual()],
+        [await folio(), input.clienteId ?? null, input.agenciaId ?? null, input.nombre, input.comisionPct ?? 0, input.notas ?? null, tokenPublico(), await tenantActual()],
       )
     ).rows[0]
     // Siempre asociar la agencia con el cliente: si la propuesta lleva cliente y

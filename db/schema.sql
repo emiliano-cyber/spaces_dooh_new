@@ -88,12 +88,26 @@ create table sesiones (
 );
 create index idx_sesiones_usuario on sesiones (usuario_id);
 
+-- Contador de folios por ámbito y periodo (ver db/migrations/20260804_folios_
+-- consecutivos.sql). Los folios eran aleatorios sobre espacios diminutos y
+-- chocaban contra sus propias restricciones UNIQUE. Global y sin RLS: solo
+-- guarda un entero por ámbito, y las UNIQUE de folio también son globales.
+create table folios_consecutivos (
+  ambito   text    not null,
+  periodo  text    not null,          -- '20260804' (día) o '2026' (año)
+  ultimo   integer not null default 0,
+  primary key (ambito, periodo)
+);
+
 create table config_negocio (
   id              uuid primary key default gen_random_uuid(),
   nombre_tenant   text not null,
   moneda          text not null default 'PEN',
   plazos_cobranza integer[] not null default '{60,90,120}',
   tipos_tarea     text[]   not null default '{}',
+  -- ADR 0008: cupo de clientes por defecto para las pantallas sin uno propio.
+  -- NULL = sin límite, que es como nace la instalación.
+  max_clientes_pantalla integer check (max_clientes_pantalla is null or max_clientes_pantalla >= 1),
   actualizado_en  timestamptz not null default now()
 );
 create trigger trg_config_upd before update on config_negocio
@@ -137,6 +151,11 @@ create table sitios (
   duracion_spot_seg   integer,
   total_spots         integer,
   spots_disponibles   integer,
+  -- ADR 0008: cupo de clientes distintos que admite la pantalla. NULL = sin
+  -- límite (cae al default global de config_negocio). Es política comercial,
+  -- no capacidad técnica: total_spots dice cuántos slots hay, esto cuántos
+  -- anunciantes distintos pueden compartirlos.
+  max_clientes        integer check (max_clientes is null or max_clientes >= 1),
   horario             text,
   computer_vision     boolean not null default false,
   admobilize_id       text,

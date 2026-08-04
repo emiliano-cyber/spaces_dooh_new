@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Logo de la empresa en el menú — SPACES OS</title>
+<style>
+  :root{
+    --ink:#1c1a17; --muted:#6b6459; --line:#e7e1d8; --bg:#faf8f5; --surface:#ffffff;
+    --surface2:#f4f0ea; --accent:#0A66FF; --accent-soft:#e8f0ff; --ok:#10b981; --warn:#f59e0b; --err:#ef4444;
+    --radius:12px; --maxw:900px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;font-size:15.5px}
+  a{color:var(--accent);text-decoration:none}
+  a:hover{text-decoration:underline}
+  main{max-width:var(--maxw);margin:0 auto;padding:0 24px 100px}
+  header.cover{padding:64px 0 32px;border-bottom:1px solid var(--line);margin-bottom:28px}
+  header.cover .kicker{color:var(--accent);font-weight:600;letter-spacing:.04em;text-transform:uppercase;font-size:13px}
+  header.cover h1{font-size:36px;line-height:1.1;margin:.2em 0 .3em;letter-spacing:-.02em}
+  header.cover p.lead{font-size:18px;color:var(--muted);max-width:620px}
+  header.cover .meta{margin-top:20px;font-size:13px;color:var(--muted)}
+  section{padding-top:26px;margin-top:26px;border-top:1px solid var(--line)}
+  section:first-of-type{border-top:none;margin-top:0}
+  h2.sec{font-size:25px;letter-spacing:-.01em;margin:.2em 0 .3em}
+  h2.sec .num{color:var(--accent);font-weight:700;margin-right:10px}
+  h3{font-size:18px;margin:1.3em 0 .3em}
+  p{margin:.5em 0}
+  ul,ol{margin:.4em 0 .8em;padding-left:1.3em}
+  li{margin:.25em 0}
+  code{background:var(--surface2);padding:.12em .4em;border-radius:5px;font-size:.9em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .btn{display:inline-block;background:var(--surface2);border:1px solid var(--line);border-radius:6px;
+    padding:.05em .5em;font-size:.88em;font-weight:600;white-space:nowrap}
+  .callout{border-radius:var(--radius);padding:14px 16px;margin:16px 0;border:1px solid var(--line);background:var(--surface)}
+  .callout.info{border-color:#bcd4ff;background:var(--accent-soft)}
+  .callout.warn{border-color:#f6d99a;background:#fff7e8}
+  .callout.ok{border-color:#a7e8cf;background:#e9faf3}
+  .callout b{display:block;margin-bottom:2px}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px;border-radius:10px;border:1px solid var(--line)}
+  th,td{text-align:left;padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:var(--surface2);font-weight:600}
+  tr:last-child td{border-bottom:none}
+  .steps{counter-reset:step;list-style:none;padding-left:0}
+  .steps li{counter-increment:step;position:relative;padding-left:38px;margin:.5em 0}
+  .steps li::before{content:counter(step);position:absolute;left:0;top:0;width:26px;height:26px;
+    background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700}
+  footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+
+<header class="cover">
+  <div class="kicker">SPACES OS · Administración</div>
+  <h1>Logo de la empresa en el menú</h1>
+  <p class="lead">Cómo subir el logotipo de la empresa para que sustituya la marca de Space OS
+  en el menú lateral, qué archivos se aceptan y qué hace el sistema cuando uno no es válido.</p>
+  <div class="meta">Módulo <b>Administración → Configuración → Identidad de la empresa</b> ·
+  Rol requerido: permiso <code>administracion / crear</code> (Dueño, Administrador)</div>
+</header>
+
+<section>
+  <h2 class="sec"><span class="num">1</span>Cómo se sube</h2>
+  <ol class="steps">
+    <li>Entra a <b>Administración</b> y abre la pestaña <b>Configuración</b>.</li>
+    <li>En la tarjeta <b>Identidad de la empresa</b>, pulsa <span class="btn">Subir logo</span>.</li>
+    <li>Elige el archivo. El sistema lo valida y lo guarda al instante: no hay botón de guardar.</li>
+    <li>El logo aparece de inmediato en la miniatura del formulario <b>y en el menú lateral</b>,
+        sin recargar la página. Sustituye al logotipo (burst) de Space OS.</li>
+  </ol>
+
+  <p>Para volver al logotipo de Space OS, pulsa <span class="btn">Quitar</span> junto al botón de subida.</p>
+
+  <div class="callout info">
+    <b>Dónde se ve</b>
+    El logo se muestra en la cabecera del menú lateral (escritorio y menú móvil), junto al nombre
+    de la organización. Con el menú colapsado a modo icono la cabecera la ocupa el botón de
+    expandir, así que el logo no se muestra hasta volver a expandirlo. Las pantallas de
+    <b>Inicio de sesión</b> y <b>Recuperar contraseña</b> siguen usando la marca Space OS.
+  </div>
+</section>
+
+<section>
+  <h2 class="sec"><span class="num">2</span>Qué archivos se aceptan</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Concepto</th><th>Regla</th></tr></thead>
+    <tbody>
+      <tr><td>Formatos</td><td>PNG, JPG/JPEG, WebP y SVG</td></tr>
+      <tr><td>Peso máximo</td><td>2 MB (del archivo ya decodificado)</td></tr>
+      <tr><td>Proporción</td><td>Cuadrado o casi cuadrado. En el menú se pinta en 28 × 28 px con
+        <code>object-contain</code>: no se recorta, pero un logo muy alargado se verá diminuto.</td></tr>
+      <tr><td>Fondo</td><td>Preferible transparente (PNG/WebP/SVG) para que respete el tema claro/oscuro.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Validación en dos capas</h3>
+  <p>El navegador valida antes de subir, para dar el motivo al momento; el servidor vuelve a
+  validar siempre, porque la validación del navegador se salta con un <code>curl</code>.</p>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Capa</th><th>Qué comprueba</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Navegador<br><span style="color:var(--muted);font-size:13px">Administración → Configuración</span></td>
+        <td>Tipo del archivo (o su extensión, si el sistema no reporta tipo), peso ≤ 2 MB y que la
+        imagen <b>se pueda decodificar</b>: si el navegador no la puede pintar, el menú tampoco podría,
+        así que se rechaza antes de guardarla.</td>
+      </tr>
+      <tr>
+        <td>Servidor<br><span style="color:var(--muted);font-size:13px">PATCH /api/config</span></td>
+        <td>Permiso del usuario, tipo dentro de la lista permitida, peso, y que el contenido real
+        del archivo corresponda a lo que dice ser (se leen los <i>magic bytes</i>: un ejecutable
+        renombrado a <code>.png</code> se rechaza). En SVG además se rechaza cualquier código
+        ejecutable —<code>&lt;script&gt;</code>, <code>onload=</code>, <code>javascript:</code>,
+        <code>&lt;iframe&gt;</code>, entidades XML—, porque un SVG se sirve desde nuestro propio
+        dominio y sería XSS almacenado.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout warn">
+    <b>Si algo no cuadra, el sistema lo dice</b>
+    Cualquier rechazo aparece como aviso en pantalla con el motivo concreto:
+    «El logo debe ser PNG, JPG, WebP o SVG», «El logo supera 2 MB», «El archivo no es una imagen
+    válida», o el mensaje que devuelva el servidor. El logo anterior se conserva intacto.
+  </div>
+</section>
+
+<section>
+  <h2 class="sec"><span class="num">3</span>Alcance del cambio</h2>
+  <p>El logo se guarda en <code>config_negocio.logo_url</code>, que es una configuración
+  <b>global</b> de la instalación, no una por organización: al cambiarlo, cambia para todos los
+  usuarios que entran a este CRM. La <b>razón social</b> y el <b>nombre comercial</b>, en cambio,
+  sí son por organización.</p>
+  <p>El archivo se almacena como <i>data URL</i> dentro del registro de configuración, y viaja al
+  navegador en <code>GET /api/estado</code> junto con el resto del estado. Por eso el límite de
+  2 MB es real y conviene subir un logo ligero: entra en cada carga de la aplicación.</p>
+</section>
+
+<section>
+  <h2 class="sec"><span class="num">4</span>Referencia técnica</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Pieza</th><th>Archivo</th></tr></thead>
+    <tbody>
+      <tr><td>Formulario y validación en cliente</td><td><code>apps/web/app/(app)/(shell)/administracion/page.tsx</code> · <code>subirLogo()</code></td></tr>
+      <tr><td>Endpoint</td><td><code>apps/web/app/api/config/route.ts</code> · <code>PATCH</code></td></tr>
+      <tr><td>Reglas de subida (tipos, peso, magic bytes, SVG)</td><td><code>apps/web/lib/server/uploads.ts</code> · <code>LIMITES.logoEmpresa</code></td></tr>
+      <tr><td>Pruebas</td><td><code>apps/web/lib/server/uploads.test.ts</code></td></tr>
+      <tr><td>Menú lateral que pinta el logo</td><td><code>apps/web/components/demo/shell/Sidebar.tsx</code></td></tr>
+      <tr><td>Marca por defecto</td><td><code>apps/web/components/demo/ui/SpaceOsMark.tsx</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="callout ok">
+    <b>Qué se corrigió en esta entrega</b>
+    <ul>
+      <li>El formulario ofrecía «PNG/JPG» pero el servidor no aceptaba JPG: el logo más común de una
+      empresa se rechazaba con un error 422 que además no se mostraba. Ahora JPG está permitido y el
+      límite anunciado (2 MB) es el mismo en las dos capas.</li>
+      <li>Los errores de guardado se perdían en una promesa sin capturar —el usuario elegía su logo y
+      «no pasaba nada»—. Ahora todo fallo se muestra con su motivo.</li>
+      <li>El menú lateral lee la configuración del estado global, que no se refrescaba al guardar: el
+      logo nuevo no aparecía hasta recargar la página. Ahora el cambio se propaga al momento.</li>
+      <li>Se añade una comprobación de que la imagen se puede decodificar antes de guardarla.</li>
+    </ul>
+  </div>
+</section>
+
+<footer>SPACES OS · Documento de módulo — Administración / Identidad de la empresa</footer>
+
+</main>
+</body>
+</html>

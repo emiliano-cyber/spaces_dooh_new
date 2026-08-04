@@ -51,6 +51,7 @@ import {
   usePagosRenta,
   usePredios,
   useMargenPorSitio,
+  useConfigNegocio,
   formatMonto,
   formatFecha,
   type Sitio,
@@ -630,6 +631,10 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
   const [vista, setVista] = useState(sitio.vista ?? '')
   const [arrendadorSel, setArrendadorSel] = useState(sitio.arrendadorId ?? '')
   const [slots, setSlots] = useState(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+  // ADR 0008 · cupo de clientes de ESTA pantalla. Vacío = sin cupo propio, cae
+  // al default global (que se muestra como placeholder para no editar a ciegas).
+  const [cupoClientes, setCupoClientes] = useState(sitio.maxClientes != null ? String(sitio.maxClientes) : '')
+  const cupoGlobal = useConfigNegocio()?.maxClientesPantalla ?? null
   const [duracionSlot, setDuracionSlot] = useState(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
   const [notas, setNotas] = useState(sitio.notas ?? '')
   // Detalles técnicos (características físicas + specs DOOH). Editables con las
@@ -658,6 +663,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
     setVista(sitio.vista ?? '')
     setArrendadorSel(sitio.arrendadorId ?? '')
     setSlots(sitio.totalSpots != null ? String(sitio.totalSpots) : '')
+    setCupoClientes(sitio.maxClientes != null ? String(sitio.maxClientes) : '')
     setDuracionSlot(sitio.duracionSpotSeg != null ? String(sitio.duracionSpotSeg) : '')
     setNotas(sitio.notas ?? '')
     setAncho(sitio.ancho != null ? String(sitio.ancho) : '')
@@ -716,6 +722,12 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
       // del espacio se cambia donde vive: el contrato de arrendamiento.
       // Propietario/arrendador. La renta NO se edita aquí (vive en el contrato).
       if ((arrendadorSel || null) !== (sitio.arrendadorId ?? null)) cambios.arrendadorId = arrendadorSel || null
+
+      // ADR 0008 · cupo de clientes. Vacío = quitar el cupo propio (vuelve al
+      // global), NO cero: un cupo de 0 dejaría la pantalla invendible, y para
+      // eso ya está el estatus BLOQUEADO.
+      const cupoNum = cupoClientes.trim() === '' ? null : Math.max(1, Math.round(Number(cupoClientes) || 1))
+      if (cupoNum !== (sitio.maxClientes ?? null)) cambios.maxClientes = cupoNum
 
       // Specs DOOH (solo digitales)
       if (digital) {
@@ -850,6 +862,34 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
           <p className="mt-2 text-[11px] text-muted">
             La renta y su periodicidad viven en el contrato, no en la pantalla. El importe se puede
             corregir desde la tabla de Inventario; la periodicidad y la vigencia, en Arrendadores.
+          </p>
+        </div>
+        {/* ADR 0008 · cupo de clientes. Fuera del bloque DOOH a propósito: aplica
+            también a las fijas (una fija con cupo 1 no cambia de comportamiento,
+            ya es exclusiva por fechas). No es capacidad técnica —eso son los
+            slots— sino política comercial: cuántos anunciantes conviven. */}
+        <div className="rounded-md border border-border bg-surface-2 p-3">
+          <div className="mb-2 text-[12px] font-medium text-ink">Cupo de clientes</div>
+          <CampoEdit label="Máximo de clientes distintos">
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={cupoClientes}
+              onChange={(e) => setCupoClientes(e.target.value)}
+              placeholder={cupoGlobal != null ? `Global: ${cupoGlobal}` : 'Sin límite'}
+              className={`demo-num ${inputCls}`}
+            />
+          </CampoEdit>
+          <p className="mt-2 text-[11px] text-muted">
+            Cuántos anunciantes distintos pueden compartir esta pantalla a la vez. Vacío ={' '}
+            {cupoGlobal != null
+              ? `usa el valor global (${cupoGlobal}), que se fija en Administración.`
+              : 'sin límite (no hay valor global configurado).'}{' '}
+            Un cliente que ya está en la pantalla puede seguir metiendo campañas mientras queden slots.
+            {sitio.clientesActivos != null && sitio.clientesActivos > 0 && (
+              <> Ahora mismo tiene <span className="demo-num font-medium text-ink">{sitio.clientesActivos}</span>.</>
+            )}
           </p>
         </div>
         {digital && (

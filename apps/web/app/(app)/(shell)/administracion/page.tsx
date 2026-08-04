@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -28,6 +28,7 @@ import {
   actualizarConfigApi,
   type PermisosMatriz,
 } from '@/lib/data/admin-api'
+import { useActualizarConfig } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 
 const inputCls =
@@ -366,27 +367,80 @@ function CapChip({ cap }: { cap: Capacidad }) {
 }
 
 // ─── Tab Configuración (BD) ─────────────────────────────────────────────────
+
+// Tipos y peso admitidos para el logo. Espejo de `LIMITES.logoEmpresa`
+// (apps/web/lib/server/uploads.ts): validar aquí no sustituye al servidor —que
+// es el que manda—, pero evita el viaje y da el motivo antes de subir. Antes el
+// input aceptaba `image/*` y el servidor devolvía 422 para todo lo que no fuera
+// PNG/SVG/WebP: el usuario elegía su logo y no pasaba nada.
+const LOGO_TIPOS = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']
+const LOGO_EXT = /\.(png|jpe?g|webp|svg)$/i
+const LOGO_MAX_MB = 2
+
+function leerDataUrl(f: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(new Error('lectura fallida'))
+    reader.readAsDataURL(f)
+  })
+}
+
+// El logo va a pintarse en el menú lateral: si el navegador no puede decodificar
+// el archivo, el sidebar tampoco podrá y quedaría un hueco. Se comprueba antes
+// de guardar, no después.
+function puedePintarse(dataUrl: string) {
+  return new Promise<boolean>((resolve) => {
+    const img = new window.Image()
+    img.onload = () => resolve(true)
+    img.onerror = () => resolve(false)
+    img.src = dataUrl
+  })
+}
+
 function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const [config, setConfig] = useState<ConfigNegocio | null>(null)
   const [nuevoPlazo, setNuevoPlazo] = useState('')
   const [nuevoTipo, setNuevoTipo] = useState('')
   const [nuevoIva, setNuevoIva] = useState('')
+  const sincronizarConfig = useActualizarConfig()
   useEffect(() => { getConfigApi().then(setConfig) }, [])
 
-  async function guardar(cambios: Partial<ConfigNegocio>, msg?: string) {
-    const c = await actualizarConfigApi(cambios)
-    setConfig(c)
-    if (msg) onToast(msg)
+  // Devuelve si se guardó. El error del servidor (422 de subida, permisos…) se
+  // muestra tal cual: antes se perdía en una promesa sin capturar y el usuario
+  // no sabía por qué no cambiaba nada.
+  async function guardar(cambios: Partial<ConfigNegocio>, msg?: string): Promise<boolean> {
+    try {
+      const c = await actualizarConfigApi(cambios)
+      setConfig(c)
+      // El sidebar lee el logo del store (hidratado por /api/estado), no de este
+      // formulario: sin esta sincronización el menú seguía con la imagen vieja
+      // hasta recargar la página.
+      if ('logoUrl' in cambios) sincronizarConfig({ logoUrl: c.logoUrl })
+      if (msg) onToast(msg)
+      return true
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : 'No se pudo guardar')
+      return false
+    }
   }
 
-  function subirLogo(e: React.ChangeEvent<HTMLInputElement>) {
+  async function subirLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
-    if (f.size > 1.5 * 1024 * 1024) { onToast('El logo supera 1.5 MB'); return }
-    const reader = new FileReader()
-    reader.onload = () => guardar({ logoUrl: reader.result as string }, 'Logo actualizado')
-    reader.readAsDataURL(f)
+    // Algunos sistemas no reportan MIME (típico en .svg): se cae a la extensión.
+    const tipoOk = f.type ? LOGO_TIPOS.includes(f.type) : LOGO_EXT.test(f.name)
+    if (!tipoOk) { onToast('El logo debe ser PNG, JPG, WebP o SVG'); return }
+    if (f.size > LOGO_MAX_MB * 1024 * 1024) { onToast(`El logo supera ${LOGO_MAX_MB} MB`); return }
+
+    const dataUrl = await leerDataUrl(f).catch(() => null)
+    if (!dataUrl) { onToast('No se pudo leer el archivo'); return }
+    if (!(await puedePintarse(dataUrl))) {
+      onToast('El archivo no es una imagen válida')
+      return
+    }
+    await guardar({ logoUrl: dataUrl }, 'Logo actualizado: ya se ve en el menú')
   }
 
   if (!config) return <div className="h-64 animate-pulse rounded-md bg-surface-2" />
@@ -412,14 +466,21 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               <div className="flex gap-2">
                 <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink hover:bg-surface-2">
                   <Upload className="h-3.5 w-3.5" /> Subir logo
-                  <input type="file" accept="image/*" className="hidden" onChange={subirLogo} />
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                    className="hidden"
+                    onChange={subirLogo}
+                  />
                 </label>
                 {config.logoUrl && (
                   <Button size="sm" variant="secondary" onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}>Quitar</Button>
                 )}
               </div>
             </div>
-            <span className="mt-1 block text-[11px] text-muted">Se muestra en el menú lateral. PNG/JPG, máx. 1.5 MB.</span>
+            <span className="mt-1 block text-[11px] text-muted">
+              Sustituye el logotipo de Space OS en el menú lateral. PNG, JPG, WebP o SVG, máx. {LOGO_MAX_MB} MB.
+            </span>
           </Campo>
 
           <Campo label="Nombre de la empresa">
@@ -445,6 +506,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           </Campo>
         </CardContent>
       </Card>
+
+      <DatosFiscales config={config} setConfig={setConfig} guardar={guardar} />
 
       {/* IVA(s) con los que trabaja */}
       <Card>
@@ -496,6 +559,43 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         </CardContent>
       </Card>
 
+      {/* ADR 0008 · cupo de clientes por pantalla (default de la instalación).
+          Vacío = sin límite, que es como nace: la regla se enciende capturando
+          un número, nunca por desplegar. Cada pantalla puede sobrescribirlo
+          desde su ficha en Comercial. */}
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2"><Users className="h-4 w-4 text-muted" /><CardTitle>Cupo de clientes por pantalla</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Campo label="Máximo de clientes (default)">
+              <input
+                type="number"
+                min={1}
+                placeholder="Sin límite"
+                className={`demo-num ${inputCls}`}
+                defaultValue={config.maxClientesPantalla ?? ''}
+                onBlur={(e) => {
+                  const txt = e.target.value.trim()
+                  const v = txt === '' ? null : Math.max(1, Math.round(Number(txt) || 1))
+                  if (v !== (config.maxClientesPantalla ?? null)) {
+                    guardar(
+                      { maxClientesPantalla: v },
+                      v == null ? 'Cupo de clientes desactivado' : `Cupo de clientes: ${v}`,
+                    )
+                  }
+                }}
+              />
+            </Campo>
+          </div>
+          <p className="mt-2 text-[11px] text-muted">
+            Cuántos anunciantes distintos pueden compartir una pantalla a la vez, además del límite de
+            slots. Déjalo vacío para no aplicar ningún cupo. Un cliente que ya está en la pantalla puede
+            seguir metiendo campañas mientras le queden slots; el cupo solo frena al cliente nuevo. Cada
+            pantalla puede llevar su propio valor desde su ficha en Comercial.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader><CardTitle>Plazos de cobranza (días)</CardTitle></CardHeader>
         <CardContent>
@@ -541,6 +641,93 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+// ─── Datos fiscales (parte ARRENDATARIA del contrato) ───────────────────────
+// Estas columnas ya existían en `tenants` (migración 20260729_datos_contrato_
+// documento.sql) pero NINGUNA pantalla las escribía: se quedaban en NULL y todo
+// contrato generado salía con las declaraciones de la empresa en blanco y con el
+// aviso de «faltan datos por capturar», que además bloquea el envío a firma
+// (lib/server/firmas-repo.ts). Aquí es donde se capturan, una sola vez.
+//
+// El único que NO entra en `faltantes` es «datos de constitución»: no toda parte
+// arrendataria es persona moral, y exigir escritura a una física dejaría el
+// contrato bloqueado sin remedio. El documento igual lo recita si está.
+const CAMPOS_CONTRATO = [
+  ['razonSocial', 'Razón social'],
+  ['rfc', 'RFC'],
+  ['domicilioFiscal', 'Domicilio fiscal'],
+  ['representanteLegal', 'Representante legal'],
+] as const
+
+function DatosFiscales({
+  config, setConfig, guardar,
+}: {
+  config: ConfigNegocio
+  setConfig: (c: ConfigNegocio) => void
+  guardar: (cambios: Partial<ConfigNegocio>, msg?: string) => Promise<boolean>
+}) {
+  // Espejo del bloque `exigir(arrendatario…)` de lib/contrato-documento.ts: se
+  // avisa aquí, donde se arregla, y no solo al abrir el documento ya generado.
+  const faltan = CAMPOS_CONTRATO.filter(([k]) => !String(config[k] ?? '').trim()).map(([, l]) => l)
+
+  // El campo se pinta desde `config` y se guarda al salir. `null` y no '' para
+  // que el servidor distinga «sin capturar» de «capturado en blanco».
+  const campo = (k: 'rfc' | 'domicilioFiscal' | 'representanteLegal' | 'datosConstitucion',
+                 label: string, placeholder: string, msg: string, area = false) => {
+    const props = {
+      value: config[k] ?? '',
+      placeholder,
+      onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+        setConfig({ ...config, [k]: e.target.value }),
+      onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+        guardar({ [k]: e.target.value.trim() || null }, msg),
+    }
+    return (
+      <Campo label={label}>
+        {area
+          ? <textarea {...props} rows={2} className={`${inputCls} h-auto py-2 leading-snug`} />
+          : <input {...props} className={inputCls} />}
+      </Campo>
+    )
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center gap-2">
+        <Scale className="h-4 w-4 text-muted" />
+        <CardTitle>Datos fiscales para contratos</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-[12px] text-muted">
+          Con estos datos comparece tu empresa como <b>parte arrendataria</b> en los contratos
+          de arrendamiento que genera el sistema. Se capturan una vez y valen para todos.
+        </p>
+
+        {faltan.length > 0 && (
+          <div className="flex items-start gap-2 rounded border border-warning/40 bg-warning/10 px-3 py-2 text-[12px] text-ink">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+            <span>
+              Falta{faltan.length === 1 ? '' : 'n'} <b>{faltan.join(', ')}</b>. Sin esto el contrato
+              sale con huecos y no se puede enviar a firma.
+            </span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {campo('rfc', 'RFC', 'p. ej. RGB140101AB1', 'RFC actualizado')}
+          {campo('representanteLegal', 'Representante legal', 'Nombre de quien firma', 'Representante legal actualizado')}
+        </div>
+        {campo('domicilioFiscal', 'Domicilio fiscal', 'Calle, número, colonia, CP, ciudad, estado', 'Domicilio fiscal actualizado', true)}
+        {campo('datosConstitucion', 'Datos de constitución (opcional)',
+          'p. ej. escritura pública 12,345 del 3 de marzo de 2014, ante el notario 45 de Guadalajara, Jalisco',
+          'Datos de constitución actualizados', true)}
+        <span className="-mt-1 block text-[11px] text-muted">
+          La razón social se captura arriba, en «Identidad de la empresa».
+        </span>
+      </CardContent>
+    </Card>
   )
 }
 

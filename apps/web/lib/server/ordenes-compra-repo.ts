@@ -1,7 +1,7 @@
 import 'server-only'
-import { randomBytes } from 'crypto'
 import { q, pool, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { folioDocumento } from './folios'
 
 // ============================================================================
 //  lib/server/ordenes-compra-repo.ts — Órdenes de compra del cliente (ODC).
@@ -11,7 +11,9 @@ import { tenantActual } from './tenant'
 // ============================================================================
 
 const iso = (v: any) => (v instanceof Date ? v.toISOString() : v)
-const folioODC = () => `ODC-${randomBytes(3).toString('hex').toUpperCase()}`
+// Folio de ODC: ODC-2026-0001. Antes 3 bytes aleatorios sobre una columna
+// UNIQUE; ahora consecutivo atómico (`lib/server/folios.ts`).
+const folioODC = () => folioDocumento('oc')
 
 function rowToOdc(r: any) {
   return {
@@ -55,7 +57,7 @@ export async function crearOrdenCompra(
       await client.query(
         `insert into ordenes_compra (folio, numero_oc, campana_id, monto, fecha, estatus, documento_url, notas, tenant_id)
          values ($1,$2,$3,$4, coalesce($5::date, current_date), 'RECIBIDA',$6,$7,$8) returning *`,
-        [folioODC(), input.numeroOc ?? null, campanaId, monto, input.fecha ?? null, input.documentoUrl ?? null, input.notas ?? null, await tenantActual()],
+        [await folioODC(), input.numeroOc ?? null, campanaId, monto, input.fecha ?? null, input.documentoUrl ?? null, input.notas ?? null, await tenantActual()],
       )
     ).rows[0]
     await client.query(

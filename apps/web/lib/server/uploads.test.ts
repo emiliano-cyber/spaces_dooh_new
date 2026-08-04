@@ -99,6 +99,19 @@ describe('validarUpload · SVG ejecutable (logo)', () => {
   const svg = (cuerpo: string) => dataUrl('image/svg+xml', cuerpo)
   const LOGO = { allowlist: LIMITES.logoEmpresa.allowlist, maxMB: LIMITES.logoEmpresa.maxMB }
 
+  // El punto de subida del logo ofrece JPG en el UI; si la allowlist no lo lleva,
+  // el logo más común de una empresa se rechaza con 422 y el menú nunca cambia.
+  it('acepta los cuatro formatos que ofrece el formulario (PNG, JPG, WebP, SVG)', () => {
+    for (const v of [PNG, JPG, WEBP, svg('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>')]) {
+      expect(validarUpload({ base64: v, ...LOGO }).tamanoBytes).toBeGreaterThan(0)
+    }
+  })
+
+  it('sigue rechazando un binario disfrazado de logo', () => {
+    expect(() => validarUpload({ base64: dataUrl('image/png', EXE_BYTES), ...LOGO }))
+      .toThrow(/no corresponde a un PNG real/)
+  })
+
   it('acepta un SVG limpio', () => {
     expect(() => validarUpload({ base64: svg('<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>'), ...LOGO }))
       .not.toThrow()
