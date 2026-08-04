@@ -76,6 +76,7 @@ interface UploadParams {
   gps_lng?: number;
   source: string;
   watermark_baked?: boolean;
+  phash?: string;
 }
 
 export async function uploadPhoto(p: UploadParams) {
@@ -104,11 +105,12 @@ export async function uploadPhoto(p: UploadParams) {
   const [result] = await pool.query<any>(
     `INSERT INTO photos
      (device_id, campaign_id, command_id, schedule_id, storage_path, thumbnail_path,
-      file_size_bytes, width, height, taken_at, gps_lat, gps_lng, source, watermark_baked)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      file_size_bytes, width, height, taken_at, gps_lat, gps_lng, source, watermark_baked, phash)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [p.deviceId, p.campaign_id ?? null, p.command_id ?? null, p.schedule_id ?? null,
      storedFull, storedThumb, p.fileBuffer.length, meta.width, meta.height, p.taken_at,
-     p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true]
+     p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true,
+     p.phash ? p.phash.toLowerCase() : null]
   );
 
   if (p.campaign_id) {

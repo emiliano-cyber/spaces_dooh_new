@@ -9,6 +9,7 @@ import * as dashboard from '../controllers/dashboard.controller';
 import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
+import * as creativos from '../controllers/creativos.controller';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
@@ -37,6 +38,9 @@ export function createRoutes() {
   router.post('/api/device/upload-photo', requireDevice, upload.single('photo'), device.uploadPhotoEndpoint);
   router.post('/api/device/log', requireDevice, device.logEvent);
   router.get('/api/device/ice-servers', requireDevice, dashboard.iceServers);
+  // Configuracion de vigilancia y catalogo de huellas del sitio. El equipo lo
+  // pide antes de cada recorrido; el resultado vuelve pegado a /device/status.
+  router.get('/api/device/creativos', requireDevice, creativos.paraElEquipo);
 
   // --- Dashboard endpoints (user JWT) ---
   // Devices
@@ -58,6 +62,12 @@ export function createRoutes() {
   router.get('/api/app/version', requireUser, dashboard.appVersion);
   // Posicion de la marca de informacion (overlay) del dispositivo (solo admin).
   router.put('/api/devices/:id/overlay', requireUser, requireRole('admin'), dashboard.setOverlay);
+
+  // Creativos detectados en la pantalla
+  router.get('/api/devices/:id/creativos', requireUser, creativos.listarDeEquipo);
+  router.put('/api/devices/:id/creativos', requireUser, requireRole('admin', 'operator'), creativos.configurar);
+  router.post('/api/devices/:id/creativos/reaprender', requireUser, requireRole('admin'), creativos.reaprender);
+  router.put('/api/creativos/:id', requireUser, requireRole('admin', 'operator'), creativos.descartar);
 
   // Photos
   // Foto ya, en varios equipos de una vez (sin device_ids = toda la flota).

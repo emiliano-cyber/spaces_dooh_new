@@ -5,6 +5,7 @@ import { pool } from '../config/database';
 import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { uploadPhoto } from '../services/photoStorage.service';
+import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
 import { redis } from '../config/redis';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
@@ -87,6 +88,15 @@ const statusSchema = z.object({
   // mandan, por eso son opcionales.
   device_owner: z.boolean().optional(),
   app_version_code: z.number().int().optional(),
+  // Resultado del ultimo recorrido del loop de la pantalla. Viaja AQUI, pegado
+  // al reporte que el equipo ya manda, en vez de en una peticion propia: son
+  // huellas de 64 caracteres: una docena de creativos no llegan a un kilobyte, y
+  // con cuatro recorridos al dia son ~120 KB al mes contra los ~20 MB que ya
+  // gasta cada equipo. Detectar un creativo nuevo no debe costar datos moviles.
+  creativos: z.object({
+    vistas: z.array(z.string()).optional(),
+    nuevas: z.array(z.string()).optional(),
+  }).optional(),
 });
 
 // IP publica desde la que el equipo habla con el backend. Si algun dia se pone
@@ -150,6 +160,17 @@ export async function reportStatus(req: Request, res: Response) {
        d.data_wifi_today ?? null, d.data_wifi_week ?? null,
        d.data_wifi_month ?? null, d.data_wifi_total ?? null]
     );
+  }
+
+  // Catalogo de creativos del sitio. Un fallo aqui no puede tumbar el reporte de
+  // estado: si algo sale mal se pierde un recorrido, no la telemetria del equipo.
+  if (d.creativos && (d.creativos.vistas?.length || d.creativos.nuevas?.length)) {
+    try {
+      const cfg = await configDe(did);
+      await registrarRecorrido(did, d.creativos.vistas || [], d.creativos.nuevas || [], !!cfg?.aprendiendo);
+    } catch (err) {
+      console.error('[creativos] no se pudo registrar el recorrido:', (err as any)?.message);
+    }
   }
 
   await redis.publish('device:status', JSON.stringify({ device_id: did, ...d }));
@@ -232,7 +253,9 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     campaign_id: z.coerce.number().optional(),
     gps_lat: z.coerce.number().optional(),
     gps_lng: z.coerce.number().optional(),
-    source: z.enum(['manual','scheduled','on_demand','boot']).default('manual'),
+    source: z.enum(['manual','scheduled','on_demand','boot','creative_change']).default('manual'),
+    // Huella del creativo que disparo la foto (solo en source=creative_change).
+    phash: z.string().regex(/^[0-9a-fA-F]{64}$/).optional(),
     // La APK v0.8.0 sube la foto SIN marca quemada -> envia watermark_baked="false",
     // y el dashboard dibuja el overlay configurable. APK previas no lo envian
     // (default true = ya trae la marca quemada, no se le agrega overlay).
@@ -249,5 +272,16 @@ export async function uploadPhotoEndpoint(req: Request, res: Response) {
     ...meta,
     watermark_baked: baked,
   });
+
+  // Evidencia de un creativo nuevo: se liga con su huella en el catalogo del
+  // sitio para que el dashboard pueda mostrar "asi se ve lo que aparecio".
+  if (meta.source === 'creative_change' && meta.phash) {
+    try {
+      await ligarFoto(did, meta.phash, result.photo_id);
+    } catch (err) {
+      console.error('[creativos] no se pudo ligar la foto:', (err as any)?.message);
+    }
+  }
+
   res.json(result);
 }
