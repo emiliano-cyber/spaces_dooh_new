@@ -22,6 +22,12 @@ type Modo = 'login' | 'signup' | 'forgot'
 // Ausente o cualquier valor distinto de '0' = habilitado (no cambia dev).
 const RECUPERAR_HABILITADO = process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD !== '0'
 
+// Auto-registro público ("Crear cuenta"). Mismo patrón que la bandera de arriba:
+// vive en el cliente Y en el servidor (app/api/signup), porque esconder el botón
+// dejaría el endpoint abierto y cualquiera podría seguir creando organizaciones.
+// Ausente o distinto de '0' = habilitado (no cambia dev).
+const AUTOREGISTRO_HABILITADO = process.env.NEXT_PUBLIC_AUTOREGISTRO !== '0'
+
 export default function LoginPage() {
   const router = useRouter()
   const [modo, setModo] = useState<Modo>('login')
@@ -42,6 +48,12 @@ export default function LoginPage() {
     setError(null)
     setAviso(null)
     setEnlaceDev(null)
+    // La contraseña NO se arrastra entre formularios: tecleada para entrar, se
+    // reenviaba precargada al alta y se registraban cuentas con la contraseña
+    // real de otra organización. El correo sí se conserva al ir a "recuperar"
+    // (ahí es la conveniencia esperada), pero no al ir al alta.
+    setPassword('')
+    if (m === 'signup') setEmail('')
   }
 
   async function entrar(mail: string, pass: string) {
@@ -202,12 +214,12 @@ export default function LoginPage() {
               <button type="button" onClick={() => cambiarModo('login')} className="hover:underline">
                 ← Volver a <span className="font-medium text-info">iniciar sesión</span>
               </button>
-            ) : (
+            ) : AUTOREGISTRO_HABILITADO || esSignup ? (
               <button type="button" onClick={() => cambiarModo(esSignup ? 'login' : 'signup')} className="hover:underline">
                 {esSignup ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
                 <span className="font-medium text-info">{esSignup ? 'Iniciar sesión' : 'Crear cuenta'}</span>
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

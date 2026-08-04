@@ -11,6 +11,7 @@ import {
   LockOpen,
   ArrowLeft,
 } from 'lucide-react'
+import { candadoDeSegmentos } from '@/lib/data/derive'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { Button } from '@/components/demo/ui/Button'
 import { Breadcrumbs, type Crumb } from '@/components/demo/ui/Breadcrumbs'
@@ -38,7 +39,10 @@ async function blobADataUrl(blobUrl: string): Promise<string> {
 interface OTData {
   ot: any
   sitio: { id: string; nombre: string; direccion: string; lat: number | null; lng: number | null } | null
-  campana: { id: string; nombre: string; ocRecibida: boolean; fotosComprobatorias: boolean; reportePublicacion: boolean } | null
+  campana: {
+    id: string; nombre: string; tipoCampana: string
+    ocRecibida: boolean; fotosComprobatorias: boolean; reportePublicacion: boolean
+  } | null
   evidencias: any[]
 }
 
@@ -121,9 +125,19 @@ export function OTVista({ id, embedded = false }: { id: string; embedded?: boole
     </div>
   )
 
+  // Regla única por segmento (derive.ts), no el AND de las tres evidencias: una
+  // DOOH no tiene segmento físico y nunca completaría el candado exigiendo fotos.
+  const candadoOT =
+    !!campana &&
+    candadoDeSegmentos(campana.tipoCampana, {
+      ocRecibida: campana.ocRecibida,
+      evidenciaFisica: campana.fotosComprobatorias,
+      evidenciaDigital: campana.reportePublicacion,
+    })
+
   const completadaView = (
     <CompletadaView
-      candado={!!campana && campana.ocRecibida && campana.fotosComprobatorias && campana.reportePublicacion}
+      candado={candadoOT}
       evidenciaUrls={(evidencias ?? []).map((e) => e.fotoUrl)}
     />
   )

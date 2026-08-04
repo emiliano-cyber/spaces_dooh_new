@@ -39,6 +39,7 @@ import {
   useMargenCampana,
   useOrdenesCompra,
   useReporteCampana,
+  candadoFacturacion,
   formatMonto,
   formatFecha,
 } from '@/lib/data/client'
@@ -99,7 +100,12 @@ export default function CampanaDetallePage({ params }: { params: { id: string } 
   //     arriba, junto con los demás hooks, para no romper el orden de hooks.) ──
   const tieneDigital = c.tipoCampana === 'DOOH' || c.tipoCampana === 'HIBRIDA'
   const tieneFija = c.tipoCampana === 'OOH' || c.tipoCampana === 'HIBRIDA'
-  const candadoHecho = c.ocRecibida && c.fotosComprobatorias && c.reportePublicacion
+  // El candado va POR SEGMENTO (derive.ts `candadoDeSegmentos`), no es el AND de
+  // las tres evidencias: una DOOH no tiene segmento físico, así que exigirle
+  // `fotosComprobatorias` la dejaba en "Pendiente" para siempre aunque el gate
+  // real del servidor (finanzas-repo) sí la dejara facturar. Se llama a la regla
+  // única en vez de reimplementarla aquí.
+  const candadoHecho = candadoFacturacion(c)
   // Que la validación APLIQUE depende solo del medio: toda campaña digital pasa
   // por revisión antes de salir al aire. Antes esto exigía además
   // `c.enviadaDominio`, y el resultado era el contrario del buscado: una campaña

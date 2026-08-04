@@ -11,7 +11,12 @@ import type { Tono } from './StatusBadge'
 //  (sin API key) para que la demo NUNCA dependa de una key que falte ese día.
 // ============================================================================
 
-const LIMA: [number, number] = [-77.037, -12.095]
+// Centro por defecto mientras no hay sitios que encuadrar (con sitios manda
+// `fitBounds`). Era Lima, heredado del seed demo "Billboards Perú SA", y el
+// efecto era que cualquier vista sin datos aterrizaba en Perú — el síntoma más
+// visible del hallazgo C1 de la auditoría QA. El inventario real es mexicano, y
+// `components/maps/SitiosMap.tsx` ya usaba CDMX: se unifica el criterio.
+const CENTRO_POR_DEFECTO: [number, number] = [-99.1332, 19.4326]
 
 // A partir de este nivel de zoom se muestran automáticamente los nombres de los
 // lugares (al alejarse se ocultan para no saturar el mapa).
@@ -140,7 +145,7 @@ export function MapView({
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: buildStyle(),
-      center: LIMA,
+      center: CENTRO_POR_DEFECTO,
       zoom,
       attributionControl: { compact: true },
     })

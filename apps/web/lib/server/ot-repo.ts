@@ -100,7 +100,7 @@ export async function getOTcompleta(id: string) {
   const ot = rowToOT(r)
   const sitio = ot.sitioId ? await q1('select id, nombre, direccion, lat, lng from sitios where id=$1', [ot.sitioId]) : null
   const campana = ot.campanaId
-    ? await q1('select id, nombre, oc_recibida, fotos_comprobatorias, reporte_publicacion from campanas where id=$1', [ot.campanaId])
+    ? await q1('select id, nombre, tipo_campana, oc_recibida, fotos_comprobatorias, reporte_publicacion from campanas where id=$1', [ot.campanaId])
     : null
   const evidencias = await resolverEvidencias(await q('select * from evidencias_ot where ot_id=$1 order by timestamp asc', [id]))
   return {
@@ -110,7 +110,8 @@ export async function getOTcompleta(id: string) {
       : null,
     campana: campana
       ? {
-          id: campana.id, nombre: campana.nombre, ocRecibida: !!campana.oc_recibida,
+          id: campana.id, nombre: campana.nombre, tipoCampana: campana.tipo_campana,
+          ocRecibida: !!campana.oc_recibida,
           fotosComprobatorias: !!campana.fotos_comprobatorias, reportePublicacion: !!campana.reporte_publicacion,
         }
       : null,
