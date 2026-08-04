@@ -8,40 +8,50 @@ import 'server-only'
 //  env vars y reemplazar el cuerpo simulado por la llamada real al proveedor.
 // ============================================================================
 
+// Lo que viaja al navegador. NO lleva el nombre de la variable de entorno: la
+// pantalla de Integraciones lo imprimía tal cual (ADMOBILIZE_API_KEY,
+// CMS_API_TOKEN, CFDI_PAC_KEY) y eso es inventario de infraestructura regalado
+// a cualquiera que abra la página — B8 de la auditoría del 04/08/2026. Saber
+// QUÉ variable falta le sirve a quien despliega, no a quien usa el producto, y
+// ése ya tiene .env.example.
 export interface EstadoIntegracion {
   clave: string
   nombre: string
   descripcion: string
-  envVar: string
   configurado: boolean
+}
+
+// El nombre de la variable se queda de este lado del muro: es la llave del
+// lookup, no un dato de presentación.
+const ENV_VAR: Record<string, string> = {
+  admobilize: 'ADMOBILIZE_API_KEY',
+  cms: 'CMS_API_TOKEN',
+  cfdi: 'CFDI_PAC_KEY',
 }
 
 // TODO (seguridad): hoy las credenciales se leen de variables de entorno (no hay
 // almacén en BD). Cuando se construya un almacén de credenciales por tenant,
 // debe cifrarse en reposo (AES con llave en secreto, nunca en el repo).
 export function estadoIntegraciones(): EstadoIntegracion[] {
-  const def = (envVar: string) => !!process.env[envVar]
+  const def = (clave: string) => !!process.env[ENV_VAR[clave]]
   return [
     {
       clave: 'admobilize',
       nombre: 'AdMobilize (Computer Vision)',
       descripcion: 'Conteo de audiencia y vehículos por dispositivo de visión.',
-      envVar: 'ADMOBILIZE_API_KEY',
-      configurado: def('ADMOBILIZE_API_KEY'),
+      configurado: def('admobilize'),
     },
     {
       clave: 'cms',
       nombre: 'CMS / players DOOH',
       descripcion: 'Publicar contenido y traer proof-of-play (Broadsign, Doohmain, etc.).',
-      envVar: 'CMS_API_TOKEN',
-      configurado: def('CMS_API_TOKEN'),
+      configurado: def('cms'),
     },
     {
       clave: 'cfdi',
       nombre: 'Facturación fiscal (CFDI / SUNAT)',
       descripcion: 'Timbrado fiscal de facturas por país (PAC en MX / SUNAT en PE).',
-      envVar: 'CFDI_PAC_KEY',
-      configurado: def('CFDI_PAC_KEY'),
+      configurado: def('cfdi'),
     },
   ]
 }

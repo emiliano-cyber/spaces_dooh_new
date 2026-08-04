@@ -12,6 +12,8 @@ import { editarContratoApi, actualizarRentasApi } from '@/lib/data/estado-api'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
 import { planearRentaMasiva } from '@/lib/renta-masiva'
 import { descargarInventario } from '@/lib/inventario-export'
+import { ubicacion } from '@/lib/ubicacion'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 import {
   useSitios,
   useContratos,
@@ -19,18 +21,7 @@ import {
   medioLabel,
   formatMonto,
   type Sitio,
-  type TipoMedio,
 } from '@/lib/data/client'
-
-const TIPO_LABEL: Record<TipoMedio, string> = {
-  ESPECTACULAR: 'Espectacular',
-  PANTALLA_DIGITAL: 'Pantalla digital',
-  PUENTE_PEATONAL: 'Puente peatonal',
-  MOBILIARIO_URBANO: 'Mobiliario urbano',
-  MURAL: 'Mural',
-  VALLA: 'Valla',
-  OTRO: 'Otro',
-}
 
 // Etiquetas de periodicidad: lib/renta-periodicidad.ts, junto al enum.
 
@@ -408,8 +399,13 @@ export function InventarioTabla() {
           <tbody className="divide-y divide-border">
             {filtrados.length === 0 ? (
               <tr>
+                {/* Sin búsqueda activa el inventario está vacío de verdad; decir
+                    "no coincide con la búsqueda" mandaba a limpiar un buscador
+                    que ya estaba limpio (M2 de la auditoría). */}
                 <td colSpan={puedeEditar ? 10 : 9} className="px-3 py-10 text-center text-muted">
-                  Ningún sitio coincide con la búsqueda.
+                  {q
+                    ? `Ningún sitio coincide con «${q}».`
+                    : 'Todavía no hay pantallas en el inventario. Agrégalas una a una o por carga masiva.'}
                 </td>
               </tr>
             ) : (
@@ -441,9 +437,9 @@ export function InventarioTabla() {
                       </div>
                       <div className="demo-num text-[11px] text-muted">{s.codigoProveedor}</div>
                     </td>
-                    <td className="px-3 py-2.5 text-muted">{TIPO_LABEL[s.tipoMedio]}</td>
+                    <td className="px-3 py-2.5 text-muted">{etiquetaTipoMedio(s.tipoMedio)}</td>
                     <td className="px-3 py-2.5 text-muted">
-                      {s.alcaldia ?? '—'}{s.ciudad ? `, ${s.ciudad}` : ''}
+                      {ubicacion([s.alcaldia, s.ciudad]) || '—'}
                     </td>
                     <td className="px-3 py-2.5 text-muted">{medioLabel(s)}</td>
                     <td className="px-3 py-2.5 text-right">

@@ -14,18 +14,9 @@ import {
   useEvidencias,
   usePipeline,
   formatFecha,
-  type TipoMedio,
 } from '@/lib/data/client'
-
-const TIPO_LABEL: Record<TipoMedio, string> = {
-  ESPECTACULAR: 'Espectacular',
-  PANTALLA_DIGITAL: 'Pantalla digital',
-  PUENTE_PEATONAL: 'Puente peatonal',
-  MOBILIARIO_URBANO: 'Mobiliario urbano',
-  MURAL: 'Mural',
-  VALLA: 'Valla',
-  OTRO: 'Otro',
-}
+import { ubicacion } from '@/lib/ubicacion'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 
 export default function PortalPage({ params }: { params: { token: string } }) {
   const campanas = useCampanas()
@@ -130,7 +121,7 @@ export default function PortalPage({ params }: { params: { token: string } }) {
                   <div className="min-w-0">
                     <div className="truncate text-[13px] text-ink">{s!.nombre}</div>
                     <div className="text-[11px] text-muted">
-                      {TIPO_LABEL[s!.tipoMedio]} · {s!.alcaldia}, {s!.ciudad}
+                      {ubicacion([etiquetaTipoMedio(s!.tipoMedio), ubicacion([s!.alcaldia, s!.ciudad])], ' · ')}
                     </div>
                   </div>
                 </li>

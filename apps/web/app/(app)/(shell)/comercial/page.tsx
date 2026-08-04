@@ -22,6 +22,7 @@ import { descargarInventario } from '@/lib/inventario-export'
 import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
 import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
+import { TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
 import {
   sitiosSinContratoCompleto,
   useSitios,
@@ -34,18 +35,7 @@ import {
   formatMonto,
   formatFecha,
   type Sitio,
-  type TipoMedio,
 } from '@/lib/data/client'
-
-const TIPO_LABEL: Record<TipoMedio, string> = {
-  ESPECTACULAR: 'Espectacular',
-  PANTALLA_DIGITAL: 'Pantalla digital',
-  PUENTE_PEATONAL: 'Puente peatonal',
-  MOBILIARIO_URBANO: 'Mobiliario urbano',
-  MURAL: 'Mural',
-  VALLA: 'Valla',
-  OTRO: 'Otro',
-}
 
 const selectCls =
   'h-9 rounded border border-border-strong bg-surface px-2.5 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -238,7 +228,7 @@ export default function ComercialPage() {
         </div>
         <select className={selectCls} value={fTipo} onChange={(e) => setFTipo(e.target.value)}>
           <option value="">Todos los tipos</option>
-          {Object.entries(TIPO_LABEL).map(([k, v]) => (
+          {Object.entries(TIPO_MEDIO_LABEL).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
         </select>

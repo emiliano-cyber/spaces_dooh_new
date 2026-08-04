@@ -11,7 +11,6 @@ interface Estado {
   clave: string
   nombre: string
   descripcion: string
-  envVar: string
   configurado: boolean
 }
 
@@ -46,10 +45,16 @@ export default function IntegracionesPage() {
         <p className="mt-1 text-[13px] text-muted">Conectores externos · listos para enchufar credenciales</p>
       </div>
 
-      <div className="rounded-md border border-[#f59e0b33] bg-[#fff7e9] px-4 py-2.5 text-[12px] text-[#9a6700]">
-        Modo demo: sin credenciales, los conectores devuelven datos <b>simulados</b>. Para activar cada
-        integración define su variable de entorno y se conecta al proveedor real.
-      </div>
+      {/* El aviso solo aparece si de verdad hay algún conector sin credenciales.
+          Antes era fijo, así que un despliegue con todo conectado seguía
+          anunciando "Modo demo" (B8). Se enseña el hecho, no la receta para
+          arreglarlo: el nombre de cada variable ya no viaja al navegador. */}
+      {items?.some((it) => !it.configurado) && (
+        <div className="rounded-md border border-[#f59e0b33] bg-[#fff7e9] px-4 py-2.5 text-[12px] text-[#9a6700]">
+          Hay conectores sin credenciales: devuelven datos <b>simulados</b> hasta que se
+          configuren en el servidor.
+        </div>
+      )}
 
       {!items ? (
         <div className="h-40 animate-pulse rounded-md bg-surface-2" />
@@ -69,12 +74,14 @@ export default function IntegracionesPage() {
                       : 'border-[#f59e0b40] text-[#9a6700]'
                   }`}
                 >
-                  {it.configurado ? 'Conectado' : 'Modo demo'}
+                  {it.configurado ? 'Conectado' : 'Sin credenciales'}
                 </span>
               </div>
               <p className="mt-1.5 text-[12px] text-muted">{it.descripcion}</p>
-              <p className="demo-num mt-2 text-[11px] text-muted">
-                Variable: <code className="rounded bg-surface-2 px-1.5 py-0.5">{it.envVar}</code>
+              <p className="mt-2 text-[11px] text-muted">
+                {it.configurado
+                  ? 'Credenciales cargadas · responde el proveedor real.'
+                  : 'Devuelve datos simulados.'}
               </p>
             </Card>
           ))}

@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/C
 import { Button } from '@/components/demo/ui/Button'
 import { MapView, type MapPoint } from '@/components/demo/MapView'
 import { formatMonto, formatFecha, formatFechaHora } from '@/lib/data/client'
+import { ubicacion } from '@/lib/ubicacion'
 
 const API = '/spaces-dooh/api'
 
@@ -324,12 +325,12 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
   )
 }
 
-// "Alcaldía · Ciudad · Estado" sin separadores huérfanos cuando falta un campo.
+// "Alcaldía · Ciudad · Estado" sin separadores huérfanos cuando falta un campo
+// y sin repetir la alcaldía cuando `ciudad` trae el mismo valor (plaza_ciudad).
+// La regla vive en @/lib/ubicacion: nació aquí y la ficha interna la necesitaba
+// igual, pero como estaba suelta en esta página aquélla imprimía "null".
 function zonaDe(it: ItemPub): string | null {
-  const partes = [it.alcaldia, it.ciudad, it.estado].filter(Boolean) as string[]
-  // `ciudad` a veces repite la alcaldía (plaza_ciudad); no la mostramos dos veces.
-  const unicas = partes.filter((v, i) => partes.findIndex((o) => o.toLowerCase() === v.toLowerCase()) === i)
-  return unicas.length ? unicas.join(' · ') : null
+  return ubicacion([it.alcaldia, it.ciudad, it.estado], ' · ') || null
 }
 
 function Meta({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {

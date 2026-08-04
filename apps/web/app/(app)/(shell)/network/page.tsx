@@ -12,6 +12,7 @@ import {
 import { cn } from '@/lib/cn'
 import { toggleNetworkApi } from '@/lib/data/sitios-api'
 import { useSitios, useSitiosRed, formatMonto, type CMS } from '@/lib/data/client'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 
 const CMS_LABEL: Record<CMS, string> = {
   BROADSIGN: 'Broadsign',
@@ -203,7 +204,7 @@ export default function NetworkPage() {
                           <span className="text-muted">{s.duenoTenant ?? 'Otro operador'}</span>
                         )}
                       </td>
-                      <td className="px-4 py-2.5 text-muted">{s.tipoMedio}</td>
+                      <td className="px-4 py-2.5 text-muted">{etiquetaTipoMedio(s.tipoMedio)}</td>
                       <td className="px-4 py-2.5 text-muted">{s.alcaldia || s.plazaCiudad || '—'}</td>
                       <td className="demo-num px-4 py-2.5 text-right text-ink">
                         {s.tarifaPublicada ? formatMonto(s.tarifaPublicada) : '—'}

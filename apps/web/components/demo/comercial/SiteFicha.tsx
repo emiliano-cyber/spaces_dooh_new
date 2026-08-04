@@ -59,16 +59,8 @@ import {
 } from '@/lib/data/client'
 import type { FotoMeta } from '@/lib/data/types'
 import { periodicidadLabel } from '@/lib/renta-periodicidad'
-
-const TIPO_LABEL: Record<TipoMedio, string> = {
-  ESPECTACULAR: 'Espectacular',
-  PANTALLA_DIGITAL: 'Pantalla digital',
-  PUENTE_PEATONAL: 'Puente peatonal',
-  MOBILIARIO_URBANO: 'Mobiliario urbano',
-  MURAL: 'Mural',
-  VALLA: 'Valla',
-  OTRO: 'Otro',
-}
+import { ubicacion } from '@/lib/ubicacion'
+import { etiquetaTipoMedio, TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
 
 const CMS_LABEL: Record<string, string> = {
   BROADSIGN: 'Broadsign',
@@ -252,7 +244,7 @@ export function SiteFicha({
       open={open}
       onOpenChange={onOpenChange}
       title={sitio.nombre}
-      subtitle={`${sitio.claveInterna} · ${sitio.alcaldia}, ${sitio.ciudad}`}
+      subtitle={ubicacion([sitio.claveInterna, ubicacion([sitio.alcaldia, sitio.ciudad])], ' · ')}
       footer={
         sitio.estatusComercial === 'DISPONIBLE' && onReservar ? (
           <Button className="w-full" onClick={() => onReservar(sitio.id)}>
@@ -347,7 +339,7 @@ export function SiteFicha({
           <h4 className="mb-2 text-[13px] font-medium text-ink">Características</h4>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2.5 text-[13px]">
             <Caracteristica icon={<Hash className="h-4 w-4" />} label="Código proveedor" valor={sitio.codigoProveedor} mono />
-            <Caracteristica icon={<MapPin className="h-4 w-4" />} label="Tipo" valor={TIPO_LABEL[sitio.tipoMedio]} />
+            <Caracteristica icon={<MapPin className="h-4 w-4" />} label="Tipo" valor={etiquetaTipoMedio(sitio.tipoMedio)} />
             <Caracteristica
               icon={<Ruler className="h-4 w-4" />}
               label="Medidas"
@@ -788,7 +780,7 @@ function EditarSitioDialog({ sitio, open, onClose }: { sitio: Sitio; open: boole
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoEdit label="Tipo de medio">
             <select value={tipoMedio} onChange={(e) => setTipoMedio(e.target.value as TipoMedio)} className={inputCls}>
-              {TIPOS.map((t) => <option key={t} value={t}>{TIPO_LABEL[t]}</option>)}
+              {TIPOS.map((t) => <option key={t} value={t}>{TIPO_MEDIO_LABEL[t]}</option>)}
             </select>
           </CampoEdit>
           <CampoEdit label="Disponibilidad">

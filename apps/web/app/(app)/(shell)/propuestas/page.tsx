@@ -35,7 +35,7 @@ import { withTrail } from '@/lib/nav-trail'
 import { crearPropuestaApi, cambiarEstatusPropuestaApi, aprobarItemPropuestaApi, generarCampanaDesdePropuestaApi, ConfirmacionCeroError } from '@/lib/data/estado-api'
 import {
   UNIDADES,
-  UNIDAD_CORTA,
+  unidadCorta,
   cantidadEfectiva,
   precioItem,
   periodosEnRango,
@@ -661,7 +661,7 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                   const n = parseInt(duracionN, 10) || 1
                   return (
                     <option key={u.unidad} value={u.unidad}>
-                      {UNIDAD_CORTA[u.unidad]}{n !== 1 ? 's' : ''}
+                      {unidadCorta(u.unidad, n)}
                     </option>
                   )
                 })}
@@ -801,11 +801,11 @@ function NuevaPropuestaDialog({ onClose }: { onClose: () => void }) {
                         className="h-8 w-20 rounded border border-border-strong bg-surface px-2 text-[12px] text-ink"
                         value={c.cantidadManual}
                         onChange={(e) => setCfgSitio(s.id, { cantidadManual: Math.max(1, parseInt(e.target.value, 10) || 1) })}
-                        title={`Nº de ${UNIDAD_CORTA[c.unidad]}s`}
+                        title={`Nº de ${unidadCorta(c.unidad, 2)}`}
                       />
                     ) : (
                       <span className="whitespace-nowrap text-muted" title="Periodos calculados del rango de fechas">
-                        {periodos} {UNIDAD_CORTA[c.unidad]}{periodos !== 1 ? 's' : ''}
+                        {periodos} {unidadCorta(c.unidad, periodos)}
                       </span>
                     )}
                     {/* Programación: spots por día — solo pantallas digitales */}

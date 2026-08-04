@@ -1284,14 +1284,46 @@ export function medioLabel(s: Pick<Sitio, 'tipoMedio' | 'esRotativo' | 'exhibici
   return digital ? 'Digital' : 'Fija'
 }
 
+// Monto con dos decimales y separador de miles. Los negativos van entre
+// paréntesis, que es la convención contable y lo que pidió la auditoría (M9):
+// «$ -156,986.66» se lee mal en una columna de cifras — el signo se pierde
+// entre dígitos y una cantidad que resta parece que suma. El color lo pone
+// quien lo pinta (`tono`), no el formateador.
 export function formatMonto(n: number): string {
-  return `$ ${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const cifra = Math.abs(n).toLocaleString('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  return n < 0 ? `($ ${cifra})` : `$ ${cifra}`
 }
 
-// Monto compacto para ejes/etiquetas ($ 18.5k).
+// Monto compacto para ejes, tarjetas y etiquetas ($ 18.5k, $ 4.9M).
+//
+// Antes dividía SIEMPRE entre mil, así que cuatro millones y medio salían como
+// «$ 4897.5k»: sin separador de miles, sin unidad reconocible y más largo que
+// la cifra que abreviaba. Se escala por magnitud y se apoya en toLocaleString
+// para que, si la cifra abreviada aún tiene miles (1,234.5M), lleve su coma.
 export function formatMontoCorto(n: number): string {
-  if (Math.abs(n) >= 1000) return `$ ${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`
-  return `$ ${n.toFixed(0)}`
+  // El redondeo puede DESBORDAR la escala: 999,999 cae en el tramo de miles,
+  // redondea a 1000 y sale «$ 1,000.0k» — el mismo defecto que este arreglo
+  // venía a quitar, reaparecido justo en el borde. Cuando pasa, se sube a la
+  // escala siguiente y sale «$ 1M», que es lo que uno diría en voz alta.
+  const abs = Math.abs(n)
+  const ESCALAS: [number, string][] = [[1, ''], [1_000, 'k'], [1_000_000, 'M']]
+  let i = 0
+  while (i < ESCALAS.length - 1 && abs >= ESCALAS[i + 1][0]) i++
+  const redondear = (indice: number) => Math.round((abs / ESCALAS[indice][0]) * 10) / 10
+  if (redondear(i) >= 1000 && i < ESCALAS.length - 1) i++
+  const valor = redondear(i)
+  const sufijo = ESCALAS[i][1]
+  // Un decimal solo si aporta: 4.9M sí, 5.0M no. Se mira el valor ya redondeado
+  // — sobre el crudo, 4,999,999 daba «5.0M» con un decimal que no dice nada.
+  const decimales = sufijo && valor % 1 !== 0 ? 1 : 0
+  const cifra = valor.toLocaleString('es-MX', {
+    minimumFractionDigits: decimales,
+    maximumFractionDigits: decimales,
+  })
+  return n < 0 ? `($ ${cifra}${sufijo})` : `$ ${cifra}${sufijo}`
 }
 
 // Fecha dd/mm/yyyy (formato de la demo).

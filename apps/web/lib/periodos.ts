@@ -12,21 +12,39 @@
 
 export type Unidad = 'mensual' | 'catorcenal' | 'semanal' | 'diaria' | 'spot' | 'hora'
 
-export const UNIDADES: { unidad: Unidad; label: string; corta: string }[] = [
-  { unidad: 'mensual', label: 'Mensual', corta: 'mes' },
-  { unidad: 'catorcenal', label: 'Catorcenal', corta: 'catorcena' },
-  { unidad: 'semanal', label: 'Semanal', corta: 'semana' },
-  { unidad: 'diaria', label: 'Diaria', corta: 'día' },
-  { unidad: 'spot', label: 'Por spot', corta: 'spot' },
-  { unidad: 'hora', label: 'Por hora', corta: 'hora' },
+// `plural` es explícito y no `corta + 's'`: en español una palabra terminada en
+// -s tónica pluraliza en -es, así que la regla automática escribía «2 mess» en
+// el selector de duración de propuestas (M10 de la auditoría del 04/08/2026).
+// Las demás unidades sí caían bien por accidente, que es justo lo que hacía que
+// el error pasara desapercibido.
+export const UNIDADES: { unidad: Unidad; label: string; corta: string; plural: string }[] = [
+  { unidad: 'mensual', label: 'Mensual', corta: 'mes', plural: 'meses' },
+  { unidad: 'catorcenal', label: 'Catorcenal', corta: 'catorcena', plural: 'catorcenas' },
+  { unidad: 'semanal', label: 'Semanal', corta: 'semana', plural: 'semanas' },
+  { unidad: 'diaria', label: 'Diaria', corta: 'día', plural: 'días' },
+  { unidad: 'spot', label: 'Por spot', corta: 'spot', plural: 'spots' },
+  { unidad: 'hora', label: 'Por hora', corta: 'hora', plural: 'horas' },
 ]
 
 export const UNIDAD_LABEL: Record<string, string> = Object.fromEntries(
   UNIDADES.map((u) => [u.unidad, u.label]),
 )
-export const UNIDAD_CORTA: Record<string, string> = Object.fromEntries(
+// Las dos tablas quedan privadas y se llega a ellas por `unidadCorta`: exportar
+// la singular es lo que invitaba a escribir `UNIDAD_CORTA[u] + 's'` en cada
+// pantalla, que es de donde salió el «mess».
+const UNIDAD_CORTA: Record<string, string> = Object.fromEntries(
   UNIDADES.map((u) => [u.unidad, u.corta]),
 )
+const UNIDAD_PLURAL: Record<string, string> = Object.fromEntries(
+  UNIDADES.map((u) => [u.unidad, u.plural]),
+)
+
+// Nombre de la unidad concordado con la cantidad ("1 mes", "2 meses"). Cero va
+// en plural, como se dice: "0 meses".
+export function unidadCorta(unidad: string, cantidad: number): string {
+  const tabla = Math.abs(cantidad) === 1 ? UNIDAD_CORTA : UNIDAD_PLURAL
+  return tabla[unidad] ?? unidad
+}
 
 // Días inclusivos entre dos fechas 'YYYY-MM-DD' (14→20 son 7 días).
 export function diasInclusivos(fechaInicio: string, fechaFin: string): number {

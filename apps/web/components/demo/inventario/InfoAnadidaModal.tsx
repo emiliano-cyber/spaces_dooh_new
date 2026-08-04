@@ -2,20 +2,11 @@
 
 import { MapPin, Layers } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
-import { formatMonto, type Sitio, type TipoMedio } from '@/lib/data/client'
+import { formatMonto, type Sitio } from '@/lib/data/client'
+import { etiquetaTipoMedio } from '@/lib/tipo-medio'
 
 // Mini-modal que muestra la información de las pantallas añadidas/actualizadas
 // tras importar un archivo. Lista compacta con lo esencial de cada sitio.
-
-const TIPO_LABEL: Record<TipoMedio, string> = {
-  ESPECTACULAR: 'Espectacular',
-  PANTALLA_DIGITAL: 'Pantalla digital',
-  PUENTE_PEATONAL: 'Puente',
-  MOBILIARIO_URBANO: 'Mobiliario urbano',
-  MURAL: 'Muro',
-  VALLA: 'Valla',
-  OTRO: 'Otro',
-}
 
 export function InfoAnadidaModal({
   open,
@@ -45,7 +36,7 @@ export function InfoAnadidaModal({
                   <div className="demo-num text-[11px] text-muted">{s.codigoProveedor}</div>
                 </div>
                 <span className="shrink-0 rounded-full border border-border bg-surface-2 px-2 py-0.5 text-[11px] text-muted">
-                  {TIPO_LABEL[s.tipoMedio]}
+                  {etiquetaTipoMedio(s.tipoMedio)}
                 </span>
               </div>
 

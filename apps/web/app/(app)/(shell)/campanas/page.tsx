@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Lock, LockOpen, ArrowRight, ShieldCheck, Search } from 'lucide-react'
+import { Lock, LockOpen, ArrowRight, ShieldCheck, Search, Megaphone } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
+import { Button } from '@/components/demo/ui/Button'
+import { EmptyState } from '@/components/demo/EmptyState'
 import {
   StatusBadge,
   CAMPANA_TONO,
@@ -35,6 +37,7 @@ export default function CampanasPage() {
   const [q, setQ] = useState('')
   const [estado, setEstado] = useState('')
   const term = q.trim().toLowerCase()
+  const hayFiltro = term !== '' || estado !== ''
   const filtradas = (campanas ?? [])
     .filter(({ campana: c, clienteNombre }) => {
       if (estado && c.estadoComercial !== estado) return false
@@ -140,11 +143,46 @@ export default function CampanasPage() {
           ))}
         </div>
       ) : filtradas.length === 0 ? (
-        <Card className="p-8 text-center">
-          <p className="text-[13px] text-muted">
-            No hay campañas que coincidan con el filtro.
-          </p>
-        </Card>
+        /* Dos vacíos distintos, porque la salida del usuario es distinta (M2 de
+           la auditoría del 04/08/2026): con filtro puesto lo que falla es el
+           filtro y se limpia; sin filtro no hay nada capturado todavía y el
+           camino es Propuestas, que es de donde nacen las campañas. Decir
+           siempre "no coinciden con el filtro" mandaba a revisar un filtro
+           vacío — y con C1 (el store sin hidratar) eso era exactamente lo que
+           veía el usuario cuando el problema no tenía nada que ver. */
+        hayFiltro ? (
+          <EmptyState
+            icon={Search}
+            titulo="Ninguna campaña coincide con la búsqueda"
+            detalle={
+              term
+                ? `No hay resultados para «${q.trim()}»${estado ? ` en estado ${CAMPANA_LABEL[estado as keyof typeof CAMPANA_LABEL]}` : ''}.`
+                : `No hay campañas en estado ${CAMPANA_LABEL[estado as keyof typeof CAMPANA_LABEL]}.`
+            }
+            accion={
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setQ('')
+                  setEstado('')
+                }}
+              >
+                Limpiar filtros
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={Megaphone}
+            titulo="Todavía no hay campañas"
+            detalle="Las campañas se generan al aprobar una propuesta. Crea una propuesta y apruébala para verla aquí."
+            accion={
+              <Link href="/propuestas">
+                <Button>Ir a Propuestas</Button>
+              </Link>
+            }
+          />
+        )
       ) : (
         <ul className="space-y-3">
           {filtradas.map(({ campana: c, clienteNombre, etapa, index, totalPasos, candado }) => {
