@@ -124,7 +124,12 @@ export default function LoginPage() {
           <SpaceOsMark className="h-9 w-9 shrink-0" />
           <div className="leading-tight">
             <div className="demo-wordmark text-lg text-ink">Space OS</div>
-            <div className="text-[11px] text-muted">RGB Catorce S de RL de CV (PIXELED)</div>
+            {/* Aquí decía «RGB Catorce S de RL de CV (PIXELED)» (M5). El login es
+                PRE-sesión: todavía no se sabe de qué organización eres, así que
+                no hay ningún nombre correcto que poner — y poner el de UNA le
+                daba la bienvenida a las otras cuatro con el nombre de un
+                competidor suyo. La empresa aparece en cuanto entras. */}
+            <div className="text-[11px] text-muted">Gestión de espacios publicitarios</div>
           </div>
         </div>
 

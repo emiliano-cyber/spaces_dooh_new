@@ -61,17 +61,27 @@ export async function GET() {
   return NextResponse.json(await obtenerConfigAdmin())
 }
 
-// PATCH /api/config → actualiza nombre/moneda/plazos/tipos de tarea (global) y
-// razón social / nombre comercial / datos fiscales (POR TENANT → tabla tenants).
+// PATCH /api/config → ajustes de negocio del tenant (config_negocio) e
+// identidad y datos fiscales del tenant (tabla tenants).
+//
+// Hasta el ADR 0011 la primera parte escribía sobre una fila GLOBAL: el Dueño
+// de cualquier organización que cambiara su IVA, su moneda o su logo se los
+// cambiaba a TODAS las demás. Ahora `obtenerConfigRow()` devuelve la fila de
+// este tenant y el `update` va contra su id, con RLS detrás.
 export async function PATCH(req: Request) {
   const g = await exigir('administracion', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
   const b = validar(configSchema, await req.json().catch(() => ({}))) as Record<string, unknown>
 
-  // Campos globales → config_negocio (fila única).
+  // Ajustes de negocio → la fila de config_negocio de ESTE tenant.
+  //
+  // `nombreTenant` ya no está aquí: el nombre de la organización es
+  // `tenants.nombre` y se escribe abajo, con el resto de su identidad. Tenerlo
+  // en las dos tablas es lo que hacía que el sidebar y Configuración dijeran
+  // cosas distintas (M5).
   const map: Record<string, string> = {
-    nombreTenant: 'nombre_tenant', moneda: 'moneda',
+    moneda: 'moneda',
     plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
@@ -90,8 +100,11 @@ export async function PATCH(req: Request) {
     await q(`update config_negocio set ${sets.join(', ')} where id = $${vals.length}`, vals)
   }
 
-  // Campos POR TENANT → tabla tenants (organización actual).
+  // Identidad y datos fiscales → tabla tenants (organización actual).
+  // `nombreTenant` entra aquí desde el ADR 0011: es el nombre de la
+  // organización y su única fuente.
   const tenantMap: Record<string, string> = {
+    nombreTenant: 'nombre',
     razonSocial: 'razon_social', nombreComercial: 'nombre_comercial',
     rfc: 'rfc', domicilioFiscal: 'domicilio_fiscal',
     representanteLegal: 'representante_legal', datosConstitucion: 'datos_constitucion',

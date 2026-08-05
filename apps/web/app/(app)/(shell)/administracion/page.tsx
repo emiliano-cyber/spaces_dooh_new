@@ -571,10 +571,18 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             </span>
           </Campo>
 
+          {/* ADR 0011: este campo escribe `tenants.nombre`, que es la ÚNICA
+              fuente del nombre de la organización. Antes escribía una fila
+              GLOBAL de config_negocio: renombrar tu empresa renombraba la que
+              leían todas las demás, y encima el sidebar (que sí leía el del
+              tenant) y esta pantalla mostraban cosas distintas. */}
           <Campo label="Nombre de la empresa">
             <input className={inputCls} value={config.nombreTenant}
               onChange={(e) => setConfig({ ...config, nombreTenant: e.target.value })}
               onBlur={(e) => guardar({ nombreTenant: e.target.value }, 'Nombre actualizado')} />
+            <span className="mt-1 block text-[11px] text-muted">
+              Es el que aparece en el menú lateral.
+            </span>
           </Campo>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Campo label="Razón social">

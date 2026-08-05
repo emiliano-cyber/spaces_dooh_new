@@ -99,9 +99,14 @@ create table folios_consecutivos (
   primary key (ambito, periodo)
 );
 
+-- ADR 0011: UNA FILA POR TENANT. `tenant_id` y su índice único se añaden más
+-- abajo, junto al bloque multi-tenant, porque `tenants` se declara después.
+--
+-- NO lleva `nombre_tenant`: el nombre de la organización es `tenants.nombre` y
+-- esa es su única fuente. Tenerlo aquí también es lo que hacía que el sidebar
+-- dijera «G500» y Configuración «RGB Catorce» (M5 de la auditoría).
 create table config_negocio (
   id              uuid primary key default gen_random_uuid(),
-  nombre_tenant   text not null,
   moneda          text not null default 'PEN',
   plazos_cobranza integer[] not null default '{60,90,120}',
   tipos_tarea     text[]   not null default '{}',
@@ -617,6 +622,33 @@ begin
       with check (true)$p$, t);
   end loop;
 end $$;
+
+-- ─── config_negocio: una fila POR TENANT (ADR 0011) ─────────────────────────
+-- Va aparte del bucle de arriba por dos motivos:
+--   · necesita un índice ÚNICO sobre tenant_id (una sola fila por organización),
+--     que el bucle genérico no pone;
+--   · NO lleva DEFAULT de tenant_id. Ese default —que el bucle sí aplica a las
+--     otras tablas apuntando a 'rgb'— es el que ha ido etiquetando como RGB
+--     filas de otras organizaciones cuando alguien olvidaba fijar el tenant.
+--     Aquí se prefiere que un insert sin tenant FALLE.
+--
+-- Antes era una fila global compartida por todas las organizaciones, y la
+-- pantalla de Configuración escribía sobre ella: cambiar tu IVA se lo cambiaba
+-- a todo el mundo.
+alter table config_negocio add column if not exists tenant_id uuid references tenants(id) on delete cascade;
+update config_negocio set tenant_id = (select id from tenants where slug='rgb') where tenant_id is null;
+insert into config_negocio (tenant_id, moneda)
+select t.id, 'MXN' from tenants t
+ where not exists (select 1 from config_negocio c where c.tenant_id = t.id);
+alter table config_negocio alter column tenant_id set not null;
+create unique index if not exists config_negocio_tenant_uidx on config_negocio (tenant_id);
+
+alter table config_negocio enable row level security;
+alter table config_negocio force row level security;
+drop policy if exists tenant_isolation on config_negocio;
+create policy tenant_isolation on config_negocio for all
+  using (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid)
+  with check (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid);
 
 -- ============================================================================
 --  Fin del esquema. Para datos semilla, mapear el seed de la demo

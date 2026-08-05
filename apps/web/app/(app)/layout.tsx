@@ -16,7 +16,10 @@ const jetbrains = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: 'Spaces — Demo',
-  description: 'Demo RGB Catorce S de RL de CV (PIXELED)',
+  // Sin nombre de empresa: el layout es común a todas las organizaciones y el
+  // título/descripción se resuelven antes de saber de cuál eres (M5). Además
+  // llevaba el prefijo «Demo», que se colaba en la pestaña del navegador.
+  description: 'Gestión de espacios publicitarios DOOH',
 }
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
