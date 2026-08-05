@@ -16,7 +16,7 @@ import {
 } from '@/components/demo/admin/permisos'
 import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
-import { restablecerPasswordApi } from '@/lib/data/cambios-api'
+import { restablecerPasswordApi, desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { areasDeModulo } from '@/lib/modulos'
 import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, tiposOtPara } from '@/lib/tipos-ot'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
@@ -211,6 +211,15 @@ function CambiarPasswordModal({
   // La temporal se enseña UNA vez: en cuanto se cierra el modal no hay forma de
   // volver a verla, porque en la base solo queda su hash.
   const [temporal, setTemporal] = useState<string | null>(null)
+  // Reautenticación del ACTOR, aquí dentro. El servidor la exige SIEMPRE para
+  // tocar el acceso de otra persona (ADR 0009), pero el único sitio donde se
+  // podía teclear era el botón de la barra superior — y ese solo aparece si el
+  // tenant tiene el control de cambios ENCENDIDO, que está apagado en los cinco
+  // de producción. Resultado: el 403 se pintaba en rojo y no había ningún lugar
+  // donde dar la contraseña, así que restablecer era INALCANZABLE. Se pide en
+  // el mismo modal, que es donde estás.
+  const [reautenticando, setReautenticando] = useState(false)
+  const [passActor, setPassActor] = useState('')
 
   async function guardarPropia() {
     setError(null)
@@ -240,6 +249,29 @@ function CambiarPasswordModal({
       const { temporal: t } = await restablecerPasswordApi(usuario.id)
       setTemporal(t)
     } catch (e) {
+      // Falta reautenticarse: no es un error, es un paso. Se pide la contraseña
+      // aquí mismo en vez de pintar un rojo sin salida.
+      if (esErrorDeDesbloqueo(e)) setReautenticando(true)
+      else setError(e instanceof Error ? e.message : 'No se pudo restablecer')
+    }
+    setEnviando(false)
+  }
+
+  // Desbloquea con la contraseña de QUIEN ESTÁ OPERANDO y reintenta. El reintento
+  // va aquí y no en un efecto: si volviera a pedir desbloqueo —desbloqueo
+  // expirado entre las dos llamadas, por ejemplo— se muestra el motivo en vez de
+  // reintentar en bucle.
+  async function reautenticarYRestablecer() {
+    if (!passActor) { setError('Escribe tu contraseña para confirmar.'); return }
+    setError(null)
+    setEnviando(true)
+    try {
+      await desbloquearApi(passActor)
+      setPassActor('')
+      const { temporal: t } = await restablecerPasswordApi(usuario.id)
+      setReautenticando(false)
+      setTemporal(t)
+    } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo restablecer')
     }
     setEnviando(false)
@@ -255,6 +287,13 @@ function CambiarPasswordModal({
         <div className="flex justify-end gap-2">
           {temporal ? (
             <Button size="sm" onClick={onDone}>Ya la copié</Button>
+          ) : reautenticando ? (
+            <>
+              <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+              <Button size="sm" disabled={enviando || !passActor} onClick={reautenticarYRestablecer}>
+                {enviando ? 'Confirmando…' : 'Confirmar y restablecer'}
+              </Button>
+            </>
           ) : esYo ? (
             <>
               <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
@@ -286,6 +325,19 @@ function CambiarPasswordModal({
               No se puede volver a ver: en la base solo queda su huella. Se cerraron las sesiones
               abiertas de {usuario.nombre} y el sistema le pedirá cambiarla en cuanto entre.
             </p>
+          </>
+        ) : reautenticando ? (
+          <>
+            <p className="text-[13px] text-ink">
+              Confirma con <b>tu</b> contraseña. Vas a cambiar el acceso de {usuario.nombre}, y la
+              bitácora tiene que poder probar que fuiste tú.
+            </p>
+            <Campo label="Tu contraseña">
+              <input type="password" className={inputCls} value={passActor}
+                onChange={(e) => setPassActor(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && passActor && !enviando) void reautenticarYRestablecer() }}
+                autoComplete="current-password" autoFocus />
+            </Campo>
           </>
         ) : esYo ? (
           <>

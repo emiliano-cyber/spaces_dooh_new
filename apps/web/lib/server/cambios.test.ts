@@ -54,8 +54,10 @@ vi.mock('./auth', async () => {
 
 const {
   exigirDesbloqueo, desbloquear, estadoControlCambios,
-  fijarExigirReautenticacion, exigirReautenticacionSiempre,
+  fijarExigirReautenticacion, exigirReautenticacionSiempre, respuestaDesbloqueo,
 } = await import('./cambios')
+const { esErrorDeDesbloqueo } = await import('@/lib/data/cambios-api')
+const { MENSAJE_DESBLOQUEO } = await import('@/lib/cambios-mensajes')
 
 const EN_15_MIN = () => new Date(Date.now() + 15 * 60_000).toISOString()
 const HACE_1_MIN = () => new Date(Date.now() - 60_000).toISOString()
@@ -237,6 +239,32 @@ describe('fijarExigirReautenticacion — el interruptor del Dueño', () => {
   it('al APAGARLO no toca las sesiones: no hay nada que revocar', async () => {
     await fijarExigirReautenticacion('t1', false)
     expect(consultas.some((s) => s.includes('update sesiones'))).toBe(false)
+  })
+})
+
+describe('la costura entre el 403 del servidor y la UI que pide la contraseña', () => {
+  // Esta costura NO tenía prueba, y de romperse no falla nada visible: la UI
+  // deja de reconocer el 403 y lo pinta como un error rojo. Donde eso importa
+  // es en «Restablecer contraseña», que exige reautenticación SIEMPRE: si el
+  // modal no la reconoce, no hay ningún sitio donde teclear la contraseña y la
+  // operación queda inalcanzable — que es como estuvo desde que se desplegó A7.
+  it('la UI reconoce el cuerpo que emite el servidor', async () => {
+    const res = respuestaDesbloqueo({
+      ok: false, status: 403, error: MENSAJE_DESBLOQUEO, requiereDesbloqueo: true,
+    })
+    const cuerpo = await res.json()
+    expect(res.status).toBe(403)
+    expect(cuerpo.requiereDesbloqueo).toBe(true)
+    // Los clientes API lanzan `Error(d.error)` y por el camino se pierde la
+    // marca, así que lo único que le llega a la UI es el texto. Este es el
+    // viaje completo.
+    expect(esErrorDeDesbloqueo(new Error(cuerpo.error))).toBe(true)
+  })
+
+  it('un error cualquiera NO se confunde con falta de desbloqueo', async () => {
+    // Si esto diera true, un fallo real abriría el modal de contraseña y el
+    // usuario teclearía la suya para nada.
+    expect(esErrorDeDesbloqueo(new Error('No se pudo restablecer'))).toBe(false)
   })
 })
 
