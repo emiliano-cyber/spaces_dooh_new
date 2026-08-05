@@ -3,6 +3,12 @@ import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 // tenants/sesiones están exentas de la RLS fail-closed (son pre-sesión), así que
 // se consultan RAW, igual que auth.ts. Usar q() aquí recursaría.
+// `q`/`q1` son las RAW (sin GUC): `tenants` y `sesiones` están exentas de la
+// RLS y se consultan así, igual que en auth.ts.
+//
+// `q1ConTenant` NO es un lujo: `usuarios` SÍ tiene RLS fail-closed + FORCE
+// desde Hardening 1, y en producción la app conecta con un rol NOBYPASSRLS. Una
+// lectura RAW de esa tabla devuelve CERO filas, siempre.
 import { qRaw as q, qRaw1 as q1, qConTenant } from './db'
 import { SESSION_COOKIE, exigir, usuarioActual, verifyPassword, type UsuarioSesion } from './auth'
 import { MENSAJE_DESBLOQUEO } from '@/lib/cambios-mensajes'
@@ -137,10 +143,26 @@ export async function desbloquear(
 ): Promise<{ ok: true; hasta: string } | { error: string; status: number }> {
   const u = await usuarioActual()
   if (!u) return { error: 'Sin sesión', status: 401 }
-  const fila = await q1<{ h: string | null }>(
-    'select password_hash as h from usuarios where id = $1',
-    [u.id],
+  // CON contexto de tenant. Leerlo con `q1` (raw) devolvía cero filas en
+  // producción —`usuarios` es fail-closed + FORCE y el rol de la app no puede
+  // saltarse la RLS—, así que TODO desbloqueo contestaba «tu usuario no tiene
+  // contraseña» y, con él, el restablecimiento de contraseñas de A7 quedaba
+  // inservible. Las unitarias no lo vieron porque simulan la BD; lo cazó la
+  // primera prueba de integración que lo ejerció de verdad.
+  //
+  // Y con `u.tenantId`, NO con `passwordHashDe()` de usuarios-repo, que hace
+  // esta misma consulta: aquel va por `q1()`, que toma el tenant de
+  // `tenantActual()`, y ese honra la cookie de cambio de CRM del super-admin de
+  // plataforma. Un Dueño de plataforma metido en OTRA organización tiene
+  // tenant activo ≠ el suyo, y su propia fila de `usuarios` vive en el suyo:
+  // la lectura daría cero filas y volveríamos al mismo 400. La contraseña que
+  // se verifica es la de QUIEN TECLEA, así que el tenant es el de su sesión.
+  const filas = await qConTenant<{ h: string | null }>(
+    u.tenantId ?? '',
+    'select password_hash as h from usuarios where id = $1 and tenant_id = $2',
+    [u.id, u.tenantId],
   )
+  const fila = filas[0] ?? null
   // Un usuario sin contraseña (alta a medias) no puede desbloquear. Mensaje
   // aparte: «incorrecta» lo mandaría a probar contraseñas que no existen.
   if (!fila?.h) {

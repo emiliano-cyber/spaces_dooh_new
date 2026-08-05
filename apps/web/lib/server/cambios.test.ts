@@ -19,14 +19,25 @@ let usuarioRow: { h: string | null } | null = { h: null }
 let usuario: { id: string; rol: string; tenantId: string | null } | null = null
 const consultas: string[] = []
 
+// La BD simulada distingue las DOS vías, porque en producción no son
+// equivalentes: `usuarios` es fail-closed + FORCE y la app conecta con un rol
+// NOBYPASSRLS, así que una lectura RAW —sin `app.tenant_id`— no devuelve NADA.
+// El mock anterior contestaba lo mismo por las dos, y por eso `desbloquear()`
+// pudo leer `usuarios` por `qRaw1` con todas las pruebas en verde y romperse
+// solo en producción. Aquí la vía raw devuelve el vacío que devolvería la RLS.
 vi.mock('./db', () => ({
-  qConTenant: vi.fn(async (_t: string, sql: string) => { consultas.push(`CON_TENANT ${sql}`); return [] }),
+  qConTenant: vi.fn(async (_t: string, sql: string) => {
+    consultas.push(`CON_TENANT ${sql}`)
+    if (sql.includes('from usuarios')) return usuarioRow ? [usuarioRow] : []
+    return []
+  }),
   qRaw: vi.fn(async (sql: string) => { consultas.push(sql); return [] }),
   qRaw1: vi.fn(async (sql: string) => {
     consultas.push(sql)
+    // `tenants` y `sesiones` SÍ están exentas de la RLS: son pre-sesión.
     if (sql.includes('from tenants')) return tenantRow
     if (sql.includes('from sesiones')) return sesionRow
-    if (sql.includes('from usuarios')) return usuarioRow
+    // `usuarios` no lo está. La RLS corta: cero filas, siempre.
     return null
   }),
 }))
@@ -149,6 +160,19 @@ describe('desbloquear — verifica la contraseña PROPIA', () => {
     await desbloquear('LaBuena123')
     expect(consultas.some((s) => s.includes('password_hash') && s.includes('from usuarios'))).toBe(true)
     expect(consultas.some((s) => s.includes('password_hash') && s.includes('from tenants'))).toBe(false)
+  })
+
+  it('lee `usuarios` CON contexto de tenant, no por la vía raw', async () => {
+    // El defecto que esto fija en el sitio: la lectura iba por `qRaw1`, y como
+    // `usuarios` es fail-closed + FORCE, en producción devolvía cero filas.
+    // Resultado: TODO desbloqueo contestaba «tu usuario no tiene contraseña» y
+    // el restablecimiento de contraseñas de A7 quedaba inservible. Con la vía
+    // raw devolviendo vacío —como devuelve de verdad—, volver a `qRaw1` pone
+    // esta prueba y las otras dos de este bloque en rojo.
+    await conPassword('LaBuena123')
+    await desbloquear('LaBuena123')
+    const lectura = consultas.find((s) => s.includes('password_hash') && s.includes('from usuarios'))
+    expect(lectura).toContain('CON_TENANT')
   })
 
   it('un usuario sin contraseña no desbloquea, y se le dice por qué', async () => {
