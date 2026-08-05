@@ -1,0 +1,191 @@
+===============================================================================
+ DESPLIEGUE — el desbloqueo de contrasena, que no funciona en produccion
+ Preparado: 2026-08-05
+===============================================================================
+
+ QUE SE DESPLIEGA
+   Commits : 43f9284  (servidor: la lectura de `usuarios` con contexto de tenant)
+             3865c4e  (UI: el modal pide la contrasena en vez de un rojo sin salida)
+   Sobre   : 1c563ab  (lo que corre hoy en el droplet)
+   Estado  : 634 pruebas en verde, typecheck limpio, lint sin avisos nuevos,
+             build de produccion correcto.
+
+ DONDE
+   Host : 209.97.146.136        Ruta : /var/www/Spaces
+   App  : pm2 spaces-web  ->  https://demo.space-os.io
+   BD   : spaces_prod           (NO se toca: este despliegue no lleva migraciones)
+
+-------------------------------------------------------------------------------
+ POR QUE HAY QUE HACERLO
+-------------------------------------------------------------------------------
+ «Restablecer contrasena» de otro usuario NO FUNCIONA desde que se desplego A7
+ el 05/08 a las 09:47. No es que falle a veces: no funciona nunca, por dos
+ motivos independientes, y cada commit tapa uno.
+
+   1. SERVIDOR. `desbloquear()` leia el hash de `usuarios` sin fijar
+      `app.tenant_id`. Esa tabla es fail-closed + FORCE desde Hardening 1 y la
+      app conecta como `spaces_user` (NOBYPASSRLS), asi que la lectura devuelve
+      CERO filas siempre. Teclearas la contrasena correcta y contestaba «Tu
+      usuario no tiene contrasena. Pide que te la restablezcan.»
+
+   2. UI. El servidor pide reautenticacion con un 403, pero el unico sitio donde
+      se podia teclear la contrasena era el candado de la barra superior — y ese
+      solo aparece si el tenant tiene el control de cambios ENCENDIDO, que esta
+      APAGADO en los cinco. El 403 se pintaba en rojo, sin salida.
+
+ LO QUE NO ESTA ROTO, Y ES SUERTE: las ocho rutas de `exigirCambioSensible`
+ (facturar, cobranza, pago de renta, ciclo de contratos) funcionan porque ese
+ mismo interruptor esta apagado y el guard deja pasar sin pedir nada.
+
+   >>> NO ENCIENDAS «Control de cambios» ANTES DE ESTE DESPLIEGUE. <<<
+   Con el defecto 1 vivo, encenderlo bloquea esas ocho rutas para TODOS sin
+   forma de desbloquear: el guard pide contrasena y el desbloqueo es
+   inalcanzable. Se arregla desplegando, no apagando el interruptor — aunque
+   apagarlo tambien devuelve el paso.
+
+-------------------------------------------------------------------------------
+ LO QUE **NO** HACE FALTA
+-------------------------------------------------------------------------------
+  · NO hay migraciones. La BD no se toca, asi que NO hace falta backup.
+    (Con la pila viene `db/migrations/20260805_objetos_solo_en_prod.sql`, del
+    commit del arnes. Es un NO-OP en produccion —los cuatro objetos ya existen y
+    todas sus sentencias son `if not exists`— y NO hay que correrla.)
+
+  · NO hace falta `npm ci`. Entre 1c563ab y 3865c4e no cambia ni una dependencia:
+    `package-lock.json` esta intacto y lo unico que cambia en `package.json` es
+    un script de pruebas. Saltarlo acorta la ventana y quita el unico paso que
+    ha dado problemas antes (el drift del lockfile).
+
+  · NO hay env vars nuevas, ni feature flags, ni cambios de rutas (nginx no se
+    toca).
+
+  El codigo de aplicacion que cambia son DOS archivos: `lib/server/cambios.ts` y
+  la pagina de Administracion. Todo lo demas que llega con el pull son pruebas y
+  documentacion, que en produccion no se ejecutan.
+
+===============================================================================
+ PASO 1 — TRAER EL CODIGO
+===============================================================================
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git checkout main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+  VERIFICA: debe decir  3865c4e fix(seguridad): el restablecimiento pide ...
+
+===============================================================================
+ PASO 2 — COMPILAR Y RECARGAR
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+  El build tarda ~2m30s. Entre que termina y el reload hay una ventana en la que
+  alguien con la pagina abierta puede recibir errores; no la alargues.
+
+===============================================================================
+ PASO 3 — COMPROBAR
+===============================================================================
+ Sin entrar (desde cualquier sitio):
+
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   ESPERADO: login 200
+
+ En el droplet:
+
+   pm2 list | grep spaces-web        (online, 1 solo reinicio nuevo)
+   pm2 logs spaces-web --err --lines 30    (sin errores nuevos)
+   cd /var/www/Spaces && git log --oneline -1
+
+ LA PRUEBA DE FUEGO (es la unica que demuestra que esto sirvio):
+
+   OJO: restablecer de verdad CIERRA LAS SESIONES de esa persona y la obliga a
+   cambiar la contrasena al entrar. No lo hagas sobre alguien que este
+   trabajando. Crea un usuario desechable y bórralo despues.
+
+   [ ] Administracion -> Usuarios -> «Crear usuario» (uno de prueba)
+   [ ] En ese usuario, boton «Cambiar» -> «Restablecer contrasena»
+   [ ] El modal AHORA pide TU contrasena («Confirma con tu contrasena»).
+       ANTES: salia el mensaje en rojo y no habia donde teclearla.
+   [ ] Tecleala y pulsa «Confirmar y restablecer»
+       ESPERADO: sale la contrasena temporal en el recuadro.
+       SI SALE «Tu usuario no tiene contrasena» -> el paso 1 no trajo 43f9284.
+   [ ] Con una contrasena EQUIVOCADA debe decir «Contrasena incorrecta» (403),
+       que es distinto del mensaje anterior: si dice lo de «no tiene
+       contrasena», el arreglo del servidor no esta puesto.
+   [ ] Borra el usuario de prueba.
+
+   [ ] Comprueba de paso que lo normal sigue igual: entra, navega, y factura o
+       registra un cobro. No deberia pedirte nada nuevo (el control de cambios
+       sigue apagado).
+
+===============================================================================
+ TRIGGERS DE ROLLBACK — decididos ANTES, no a ojo
+===============================================================================
+ Ventana de observacion: 30 minutos con alguien mirando.
+
+ Vuelve atras si pasa CUALQUIERA de estas:
+
+   · pm2 reinicia el proceso mas de 2 veces (`pm2 list`, columna restarts)
+   · login deja de dar 200
+   · aparecen 5xx en `pm2 logs spaces-web --err` que no estaban antes
+   · alguien no puede entrar o pierde la sesion
+   · el modal de restablecer deja de responder o rompe la pagina de
+     Administracion
+
+ NO vuelvas atras por: que la temporal no se vea bien, o cualquier detalle
+ cosmetico del modal. Eso se arregla en el siguiente commit; volver atras
+ devuelve el defecto que este despliegue viene a quitar.
+
+-------------------------------------------------------------------------------
+ COMO SE VUELVE ATRAS (~3 min)
+-------------------------------------------------------------------------------
+ Es limpio: no hay migraciones, no hay cambio de esquema y no hay dependencias
+ nuevas. Se vuelve solo el codigo.
+
+   cd /var/www/Spaces
+   git checkout 1c563ab
+   npx turbo run build --filter=web
+   pm2 reload spaces-web --update-env
+   pm2 list | grep spaces-web
+
+ Vuelves exactamente al estado de esta manana: todo funcionando salvo
+ «Restablecer contrasena», que ya no funcionaba.
+
+===============================================================================
+ CHECKLIST DE DESPLIEGUE
+===============================================================================
+  Codigo
+   [OK] Diff revisado (eng-code-review). Un apunte, resuelto en el commit: no
+        reusar `passwordHashDe()` porque resuelve el tenant por `tenantActual()`
+        y ese honra la cookie de cambio de CRM del super-admin de plataforma.
+   [OK] Build de produccion, no solo dev.
+   [OK] 634 pruebas en verde. Las dos nuevas verificadas POR MUTACION.
+   [OK] Sin console.log de datos sensibles ni codigo de depuracion.
+   [--] CI: se dispara con el push a main. COMPRUEBALO EN VERDE antes del paso 1
+        (github.com/emiliano-cyber/spaces_dooh_new -> Actions). No pude verlo
+        desde aqui: no hay `gh` instalado en esta maquina.
+
+  Base de datos
+   [NA] Sin migraciones. Sin backup, porque no se toca la BD.
+
+  Configuracion
+   [OK] Sin env vars nuevas. Sin secretos en el repo. Nada bajo NEXT_PUBLIC_*.
+
+  Feature flags
+   [NA] Ninguno. AVISO arriba: no enciendas «Control de cambios» antes.
+
+  Momento
+   [OK] Miercoles. Hay ventana y hay quien mire.
+
+  Salvedades honestas
+   [!!] La ruta de restablecer NO tiene prueba automatica de extremo a extremo:
+        el arnes de integracion existe pero le faltan los casos 4 y 5, y el
+        proyecto no tiene testing-library para probar el modal. Por eso el
+        PASO 3 se hace a mano, y por eso esta escrito con ese detalle.
+   [!!] La respuesta de restablecer lleva la temporal EN CLARO sobre TLS. No
+        registres cuerpos de respuesta de esa ruta en ningun proxy ni log.
+
+===============================================================================
