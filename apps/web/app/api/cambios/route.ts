@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
-import { estadoControlCambios, fijarPasswordCambios } from '@/lib/server/cambios'
+import { estadoControlCambios, fijarExigirReautenticacion } from '@/lib/server/cambios'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
@@ -20,28 +20,30 @@ export async function GET() {
   }
 }
 
-// PUT /api/cambios → el Dueño fija, cambia o quita la contraseña.
-// Body: { password: string } para fijar/cambiar · { password: null } para quitar.
+// PUT /api/cambios → el Dueño enciende o apaga la exigencia de reautenticación.
+// Body: { activo: boolean }.
+//
+// Ya NO recibe ninguna contraseña (ADR 0009): no hay secreto de tenant que
+// fijar. Cada quien se reautentica con la suya, así que esto es un interruptor.
 export async function PUT(req: Request) {
-  // Solo el Dueño: es su llave, y `administracion.aprobar` es exclusivo suyo.
+  // Solo el Dueño: `administracion.aprobar` es exclusivo suyo.
   const g = await exigir('administracion', 'aprobar')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   if (!g.usuario.tenantId) {
     return NextResponse.json({ error: 'Usuario sin organización' }, { status: 400 })
   }
   try {
-    const body = (await req.json().catch(() => ({}))) as { password?: unknown }
-    const plano =
-      body.password === null ? null : typeof body.password === 'string' ? body.password : undefined
-    if (plano === undefined) {
-      return NextResponse.json({ error: 'Falta la contraseña' }, { status: 400 })
+    const body = (await req.json().catch(() => ({}))) as { activo?: unknown }
+    if (typeof body.activo !== 'boolean') {
+      return NextResponse.json({ error: 'Falta `activo` (booleano)' }, { status: 400 })
     }
-    const r = await fijarPasswordCambios(g.usuario.tenantId, plano)
-    if ('error' in r) return NextResponse.json({ error: r.error }, { status: 400 })
+    const r = await fijarExigirReautenticacion(g.usuario.tenantId, body.activo)
     await registrarAccion(
       g.usuario,
       r.activo ? 'Activó el control de cambios' : 'Desactivó el control de cambios',
-      r.activo ? 'Los demás roles necesitarán contraseña para cambios sensibles' : 'Todos los roles vuelven a cambiar sin contraseña',
+      r.activo
+        ? 'Los cambios sensibles exigirán que cada quien reintroduzca su propia contraseña'
+        : 'Los cambios sensibles dejan de pedir contraseña',
     )
     return NextResponse.json({ ok: true, activo: r.activo })
   } catch (e) {

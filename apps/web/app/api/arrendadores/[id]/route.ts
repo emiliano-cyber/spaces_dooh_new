@@ -23,14 +23,16 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const tocaBanco =
       body && typeof body === 'object' && CAMPOS_BANCARIOS.some((c) => c in (body as object))
     // A-4 + N-1: cambiar la cuenta/forma de pago es el cambio MÁS sensible de
-    // dinero (a dónde se paga la renta). Exige reconfirmación de contraseña del
-    // control de cambios en modo ESTRICTO (`sinExenciones`): SIN la exención del
-    // Dueño, para que ni una sesión de Dueño desatendida/secuestrada pueda
-    // redirigir pagos sin reautenticar. El resto de campos (nombre, RFC,
-    // contacto…) siguen igual que antes.
+    // dinero (a dónde se paga la renta), así que exige reautenticación. El resto
+    // de campos (nombre, RFC, contacto…) siguen igual que antes.
+    //
+    // Antes esto pedía el modo ESTRICTO (`sinExenciones`) porque el Dueño estaba
+    // exento del candado por defecto. Desde el ADR 0009 NO hay exención para
+    // nadie, así que el guard normal ya da la garantía que aquí se quería: ni
+    // una sesión de Dueño desatendida puede redirigir pagos sin reautenticar.
     let previo: { cuentaBancaria: string | null; formaPago: string | null } | null = null
     if (tocaBanco) {
-      const gc = await exigirCambioSensible('arrendadores', 'crear', { sinExenciones: true })
+      const gc = await exigirCambioSensible('arrendadores', 'crear')
       if (!gc.ok) return gc.res
       // Snapshot del valor ANTERIOR antes de sobrescribirlo (para el audit).
       previo = await datosBancariosArrendador(params.id)

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 // POST /api/sitios/import  { filas, modoDuplicado, precioM2, imagenes? } → resumen
 export async function POST(req: Request) {
-  const g = await exigir('comercial', 'crear')
+  const g = await exigir('inventario', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const resumen = await importarSitiosCtrl(await req.json().catch(() => ({})))

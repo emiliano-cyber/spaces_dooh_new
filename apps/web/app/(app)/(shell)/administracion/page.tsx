@@ -16,6 +16,8 @@ import {
 } from '@/components/demo/admin/permisos'
 import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { restablecerPasswordApi } from '@/lib/data/cambios-api'
+import { areasDeModulo } from '@/lib/modulos'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import {
@@ -189,9 +191,14 @@ function Usuarios({ onToast }: { onToast: (m: string) => void }) {
   )
 }
 
-// Cambia la contraseña de un usuario. Para OTROS usuarios es un reset del Dueño
-// (solo la nueva). Para el propio usuario ("tú") exige la contraseña actual y va
-// por /api/perfil (misma re-autenticación que Configuración).
+// Contraseña de un usuario. Son DOS operaciones distintas y a propósito no se
+// parecen (ADR 0009):
+//
+//  · La propia ("tú") exige la contraseña actual y va por /api/perfil.
+//  · La de OTRO ya NO deja elegir la contraseña. Antes el Dueño fijaba una que
+//    él conocía, entraba como esa persona y todo quedaba registrado a nombre de
+//    ella — impersonación limpia (A7). Ahora el servidor genera una temporal de
+//    un solo uso, corta las sesiones del afectado y le obliga a cambiarla.
 function CambiarPasswordModal({
   usuario, esYo, onClose, onDone,
 }: { usuario: UsuarioDemo; esYo: boolean; onClose: () => void; onDone: () => void }) {
@@ -200,25 +207,24 @@ function CambiarPasswordModal({
   const [confirmar, setConfirmar] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  // La temporal se enseña UNA vez: en cuanto se cierra el modal no hay forma de
+  // volver a verla, porque en la base solo queda su hash.
+  const [temporal, setTemporal] = useState<string | null>(null)
 
-  async function guardar() {
+  async function guardarPropia() {
     setError(null)
     if (nueva.length < 8) { setError('La contraseña debe tener al menos 8 caracteres, con letra y número.'); return }
     if (nueva !== confirmar) { setError('Las contraseñas no coinciden.'); return }
-    if (esYo && !actual) { setError('Ingresa tu contraseña actual para confirmar.'); return }
+    if (!actual) { setError('Ingresa tu contraseña actual para confirmar.'); return }
     setEnviando(true)
     try {
-      if (esYo) {
-        const r = await fetch('/spaces-dooh/api/perfil/', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: nueva, passwordActual: actual }),
-        })
-        const d = await r.json().catch(() => ({}))
-        if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo cambiar la contraseña')
-      } else {
-        await actualizarUsuarioApi(usuario.id, { password: nueva })
-      }
+      const r = await fetch('/spaces-dooh/api/perfil/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: nueva, passwordActual: actual }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo cambiar la contraseña')
       onDone()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo cambiar la contraseña')
@@ -226,38 +232,79 @@ function CambiarPasswordModal({
     setEnviando(false)
   }
 
+  async function restablecer() {
+    setError(null)
+    setEnviando(true)
+    try {
+      const { temporal: t } = await restablecerPasswordApi(usuario.id)
+      setTemporal(t)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo restablecer')
+    }
+    setEnviando(false)
+  }
+
   return (
     <Modal
       open
-      onOpenChange={(v) => !v && onClose()}
-      title={esYo ? 'Cambiar mi contraseña' : `Contraseña de ${usuario.nombre}`}
+      onOpenChange={(v) => !v && (temporal ? onDone() : onClose())}
+      title={esYo ? 'Cambiar mi contraseña' : `Restablecer la contraseña de ${usuario.nombre}`}
       subtitle={esYo ? 'Confirma con tu contraseña actual' : usuario.email}
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={enviando || !nueva || !confirmar} onClick={guardar}>
-            {enviando ? 'Guardando…' : 'Guardar contraseña'}
-          </Button>
+          {temporal ? (
+            <Button size="sm" onClick={onDone}>Ya la copié</Button>
+          ) : esYo ? (
+            <>
+              <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+              <Button size="sm" disabled={enviando || !nueva || !confirmar} onClick={guardarPropia}>
+                {enviando ? 'Guardando…' : 'Guardar contraseña'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+              <Button size="sm" disabled={enviando} onClick={restablecer}>
+                {enviando ? 'Restableciendo…' : 'Restablecer contraseña'}
+              </Button>
+            </>
+          )}
         </div>
       }
     >
       <div className="space-y-3">
-        {!esYo && (
-          <p className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-[#9a6700]">
-            Como Dueño, fijas una contraseña nueva para <b>{usuario.nombre}</b>. Compártesela por un medio seguro; podrá cambiarla después desde su perfil.
+        {temporal ? (
+          <>
+            <p className="text-[13px] text-ink">
+              Contraseña temporal de <b>{usuario.nombre}</b>. Entrégasela por un medio seguro:
+            </p>
+            <div className="demo-num select-all rounded-md border border-border-strong bg-surface-2 px-3 py-2.5 text-center text-[15px] tracking-wider text-ink">
+              {temporal}
+            </div>
+            <p className="rounded-md border border-[#f59e0b40] bg-[#f59e0b0d] p-2.5 text-[12px] text-[#9a6700]">
+              No se puede volver a ver: en la base solo queda su huella. Se cerraron las sesiones
+              abiertas de {usuario.nombre} y el sistema le pedirá cambiarla en cuanto entre.
+            </p>
+          </>
+        ) : esYo ? (
+          <>
+            <Campo label="Contraseña actual">
+              <input type="password" className={inputCls} value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" autoFocus />
+            </Campo>
+            <Campo label="Nueva contraseña">
+              <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="mínimo 8, con letra y número" autoComplete="new-password" />
+            </Campo>
+            <Campo label="Confirmar contraseña">
+              <input type="password" className={inputCls} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
+            </Campo>
+          </>
+        ) : (
+          <p className="text-[13px] text-muted">
+            Se generará una contraseña <b>temporal</b> para {usuario.nombre}, se cerrarán sus
+            sesiones abiertas y tendrá que cambiarla al entrar. Tú no eliges la contraseña ni
+            conservas una que siga sirviendo.
           </p>
         )}
-        {esYo && (
-          <Campo label="Contraseña actual">
-            <input type="password" className={inputCls} value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" autoFocus />
-          </Campo>
-        )}
-        <Campo label="Nueva contraseña">
-          <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="mínimo 8, con letra y número" autoComplete="new-password" autoFocus={!esYo} />
-        </Campo>
-        <Campo label="Confirmar contraseña">
-          <input type="password" className={inputCls} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
-        </Campo>
         {error && <p className="text-[12px] text-error">{error}</p>}
       </div>
     </Modal>
@@ -304,6 +351,28 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   )
 }
 
+// Áreas del producto que gobierna un módulo (ADR 0010). Se omite el área que se
+// llama igual que el módulo: repetir «Comercial» bajo «Comercial» es ruido.
+//
+// Las que no tienen API propia se marcan: ocultarles el menú NO protege el dato
+// —lo protege el permiso con el que /api/estado filtra—, y confundir las dos
+// cosas es creerse un control que no existe.
+function AreasDelModulo({ modulo }: { modulo: string }) {
+  const areas = areasDeModulo(modulo).filter((a) => a.clave !== modulo)
+  if (areas.length === 0) return null
+  return (
+    <div className="mt-0.5 text-[11px] leading-relaxed text-muted">
+      {areas.map((a, i) => (
+        <span key={a.clave}>
+          {i > 0 && ' · '}
+          {a.label}
+          {!a.apiPropia && <span title="Sin API propia: el permiso lo aplica /api/estado">*</span>}
+        </span>
+      ))}
+    </div>
+  )
+}
+
 // ─── Tab Roles (matriz 100% desde BD, Bloque F) ─────────────────────────────
 // Módulos (filas), roles (columnas) y celdas vienen de GET
 // /api/admin/permisos-matriz, que las deriva de rol_permisos. No hay ninguna
@@ -328,14 +397,21 @@ function MatrizRoles() {
             <table className="w-full text-left text-[13px]">
               <thead>
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2 font-medium">Módulo</th>
+                  <th className="px-4 py-2 font-medium">Módulo · qué abre</th>
                   {data.roles.map((r) => <th key={r.rol} className="px-3 py-2 text-center font-medium">{r.label}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {data.modulos.map((mod) => (
                   <tr key={mod.key} className="border-b border-border last:border-0">
-                    <td className="px-4 py-2.5 font-medium text-ink">{mod.label}</td>
+                    <td className="px-4 py-2.5 align-top">
+                      <div className="font-medium text-ink">{mod.label}</div>
+                      {/* ADR 0010: qué áreas del producto abre esta casilla. La
+                          matriz mostraba 8 módulos y parecía completa, pero
+                          marcar `comercial` concede además Clientes, Propuestas
+                          y Campañas — y nada lo decía. */}
+                      <AreasDelModulo modulo={mod.key} />
+                    </td>
                     {data.roles.map((r) => {
                       const caps = CAPACIDADES.filter((c) => tiene(mod.key, r.rol, c))
                       return (
@@ -356,6 +432,7 @@ function MatrizRoles() {
           {CAPACIDADES.map((c) => (
             <span key={c} className="inline-flex items-center gap-1.5"><CapChip cap={c} /> {CAP_LABEL[c]}</span>
           ))}
+          <span>* el área no tiene API propia: su permiso lo aplica /api/estado</span>
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
 import 'server-only'
-import { q, q1, qConTenant, qRaw1 } from './db'
+import { q, q1, qConTenant, qRaw, qRaw1 } from './db'
 import { tenantActual } from './tenant'
 import { hashPassword } from './auth'
 
@@ -56,10 +56,25 @@ export async function crearUsuario(input: {
 
 export async function actualizarUsuario(
   id: string,
-  cambios: { nombre?: string; cargo?: string; rol?: string; activo?: boolean; passwordHash?: string },
+  cambios: {
+    nombre?: string
+    cargo?: string
+    rol?: string
+    activo?: boolean
+    passwordHash?: string
+    debeCambiarPassword?: boolean
+  },
 ) {
-  // passwordHash → columna password_hash (reset de contraseña por el Dueño).
-  const map: Record<string, string> = { nombre: 'nombre', cargo: 'cargo', rol: 'rol', activo: 'activo', passwordHash: 'password_hash' }
+  // passwordHash y debeCambiarPassword solo los escribe `restablecerPasswordCtrl`
+  // (ADR 0009); el PATCH público ya no los acepta.
+  const map: Record<string, string> = {
+    nombre: 'nombre',
+    cargo: 'cargo',
+    rol: 'rol',
+    activo: 'activo',
+    passwordHash: 'password_hash',
+    debeCambiarPassword: 'debe_cambiar_password',
+  }
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, v] of Object.entries(cambios)) {
@@ -79,6 +94,21 @@ export async function actualizarUsuario(
   // 0 filas = no existe O es de otro tenant. La ruta lo mapea a 404 (nunca 403:
   // un 403 confirmaría que el id existe en otra organización).
   return filas.length ? rowToUsuario(filas[0]) : null
+}
+
+// Cierra TODAS las sesiones vivas de un usuario (ADR 0009: restablecimiento de
+// contraseña). Si el motivo del reset es que le robaron la cuenta, dejar la
+// sesión abierta no arregla nada — la cookie robada seguiría entrando.
+//
+// Va por `qRaw` porque `sesiones` está exenta de la RLS fail-closed (es
+// pre-sesión, como `tenants`); `usuarios` NO lo está, así que aquí no se puede
+// filtrar por tenant leyendo esa tabla: con qRaw devolvería cero filas y el
+// borrado sería un no-op silencioso. La pertenencia al tenant ya la comprobó
+// quien llama, con el `update ... where tenant_id = $n` de `actualizarUsuario`:
+// si aquel devolvió un usuario, es de esta organización.
+export async function cerrarSesionesDeUsuario(usuarioId: string): Promise<number> {
+  const filas = await qRaw('delete from sesiones where usuario_id = $1 returning token', [usuarioId])
+  return filas.length
 }
 
 // Devuelve false si el usuario no existe o pertenece a otro tenant.
@@ -102,6 +132,11 @@ export async function actualizarPerfil(id: string, cambios: { email?: string; pa
   if (cambios.passwordHash) {
     vals.push(cambios.passwordHash)
     sets.push(`password_hash = $${vals.length}`)
+    // Cambiar la contraseña propia es EXACTAMENTE lo que el forzado esperaba
+    // (ADR 0009), así que aquí se levanta la bandera. Sin esto el usuario
+    // cambiaría la temporal y seguiría encerrado: `exigir()` le cerraría todas
+    // las rutas con módulo y el sistema quedaría inservible para él.
+    sets.push('debe_cambiar_password = false')
   }
   if (!sets.length) return false
   const tenantId = await tenantOblig()

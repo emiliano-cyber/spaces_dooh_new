@@ -23,6 +23,9 @@ export interface UsuarioSesion {
   rol: string
   activo: boolean
   tenantId: string | null
+  // ADR 0009: true tras un restablecimiento por un administrador. Mientras lo
+  // esté, `exigir()` cierra todo salvo el cambio de la propia contraseña.
+  debeCambiarPassword: boolean
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
@@ -70,7 +73,8 @@ export async function usuarioActual(): Promise<UsuarioSesion | null> {
   // hay tenant que fijar: la sesión es justo lo que estamos resolviendo. Va por
   // la función SECURITY DEFINER acotada, que devuelve una sola fila por token.
   const u = await q1<UsuarioSesion>(
-    `select id, nombre, email, cargo, rol, activo, tenant_id as "tenantId"
+    `select id, nombre, email, cargo, rol, activo, tenant_id as "tenantId",
+            debe_cambiar_password as "debeCambiarPassword"
        from auth_usuario_por_sesion($1)`,
     [token],
   )
@@ -106,6 +110,28 @@ export async function exigir(
 ): Promise<{ ok: true; usuario: UsuarioSesion } | { ok: false; status: number; error: string }> {
   const usuario = await usuarioActual()
   if (!usuario) return { ok: false, status: 401, error: 'Sin sesión' }
+  // ADR 0009: con una contraseña temporal recién puesta por un administrador,
+  // lo ÚNICO que se puede hacer es cambiarla.
+  //
+  // El corte NO puede condicionarse a que la ruta declare módulo. `/api/estado`
+  // llama a `exigir()` a secas y devuelve TODO el conjunto de datos del tenant
+  // —campañas, clientes, propuestas, cifras financieras—; con la condición
+  // puesta en `modulo`, quien tuviera la temporal podía leerlo entero sin
+  // cambiarla. Justo la ventana de suplantación que el forzado venía a cerrar.
+  //
+  // Por eso se corta SIEMPRE, sin excepciones ni listas que mantener. La salida
+  // no hace falta abrirla aquí porque las dos rutas que el usuario necesita para
+  // salir del estado —`/api/auth/me` (resolver la sesión) y `/api/perfil`
+  // (cambiar la contraseña)— resuelven con `usuarioActual()` y nunca pasan por
+  // este guard. Si alguna de las dos se migrara a `exigir()`, el usuario
+  // quedaría encerrado sin poder cambiarla: está anotado en ambas.
+  if (usuario.debeCambiarPassword) {
+    return {
+      ok: false,
+      status: 403,
+      error: 'Tienes una contraseña temporal. Cámbiala en Configuración antes de seguir.',
+    }
+  }
   if (modulo && accion && !(await tienePermiso(usuario.rol, modulo, accion))) {
     return { ok: false, status: 403, error: 'No tienes permiso para esta acción' }
   }

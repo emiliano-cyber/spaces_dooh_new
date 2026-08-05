@@ -19,7 +19,7 @@ const CAMPOS_SENSIBLES = [
 
 // PATCH /api/sitios/:id  → edición parcial. Body { toggleNetwork:true } alterna red.
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('comercial', 'crear')
+  const g = await exigir('inventario', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const body = await req.json().catch(() => ({}))
@@ -44,7 +44,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
 // DELETE /api/sitios/:id → catálogo: borrar inventario siempre es sensible.
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('comercial', 'crear')
+  const g = await exigir('inventario', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const d = await exigirDesbloqueo()
   if (!d.ok) return respuestaDesbloqueo(d)

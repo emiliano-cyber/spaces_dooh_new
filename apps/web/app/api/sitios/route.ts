@@ -15,9 +15,13 @@ export async function GET() {
   return NextResponse.json(await listarSitios())
 }
 
-// POST /api/sitios → alta de un sitio (requiere comercial.crear)
+// POST /api/sitios → alta de un sitio.
+//
+// Exige `inventario.crear`, no `comercial.crear` (ADR 0010): vender no debería
+// implicar poder reestructurar el activo que se vende. El rol COMERCIAL
+// conserva `inventario.ver`, así que sigue consultando el catálogo entero.
 export async function POST(req: Request) {
-  const g = await exigir('comercial', 'crear')
+  const g = await exigir('inventario', 'crear')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   const body = await req.json().catch(() => null)
   if (!body?.nombre) return NextResponse.json({ error: 'Falta nombre' }, { status: 400 })

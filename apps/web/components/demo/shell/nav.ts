@@ -63,7 +63,16 @@ export const ROLES: { value: RolDemo; label: string }[] = [
   { value: 'OPERACIONES', label: 'Operaciones' },
   { value: 'IMPRENTA', label: 'Imprenta' },
   { value: 'FINANZAS', label: 'Finanzas' },
-  { value: 'CLIENTE', label: 'Cliente externo' },
+  // 'CLIENTE' se retiró de esta lista (ADR 0010): `rol_permisos` no tiene NI UNA
+  // fila para ese rol y `tienePermiso` es fail-closed, así que crear uno producía
+  // un usuario que entraba y recibía 403 en todo. El cliente externo no necesita
+  // cuenta: su portal va por token público.
+  //
+  // El tipo `RolDemo` y el manejo de 'CLIENTE' en AuthGate/landingDeRol SÍ se
+  // conservan a propósito: el enum `rol_demo` de la base todavía admite el valor,
+  // y si algún tenant tuviera un usuario así de antes, esa rama lo lleva a su
+  // portal en vez de dejarlo en un bucle. Lo que se cierra es la puerta de
+  // creación, no el manejo de lo que ya exista.
 ]
 
 export function rolLabel(rol: RolDemo): string {
