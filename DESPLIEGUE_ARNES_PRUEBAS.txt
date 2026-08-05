@@ -1,0 +1,92 @@
+===============================================================================
+ RECONCILIACION — arnes de pruebas + objetos versionados
+ Preparado: 2026-08-05
+===============================================================================
+
+ ESTO NO ES UN DESPLIEGUE. Leelo antes de reservar una ventana.
+
+ Commit  : 96030d3
+ Sobre   : 1c563ab (lo que corre hoy)
+
+-------------------------------------------------------------------------------
+ POR QUE NO HACE FALTA CASI NADA
+-------------------------------------------------------------------------------
+ Entre lo desplegado y este commit NO cambia ni una linea de codigo de
+ aplicacion. Lo que cambia es:
+
+   · el arnes de pruebas de integracion (apps/web/lib/test/*, configs de vitest)
+   · un script `test:e2e` en package.json
+   · la migracion db/migrations/20260805_objetos_solo_en_prod.sql
+   · documentacion
+
+ Nada de eso se ejecuta en produccion. NO hace falta `npm ci`, NI build, NI
+ `pm2 reload`. El build actual sigue siendo valido.
+
+ Y la migracion es un NO-OP en produccion: se comprobo que los cuatro objetos
+ que versiona YA EXISTEN ahi (se crearon a mano en su dia), y todas sus
+ sentencias son `if not exists`.
+
+   creatividades.retirado_en  ✓ existe
+   doohmain_remote_campaigns  ✓ existe
+   doohmain_remote_lists      ✓ existe
+   media_uploads              ✓ existe
+
+ Su valor NO esta en prod: esta en que el REPO vuelva a poder construir una base
+ de datos completa. Hasta ahora no podia — y `creativos-repo.ts:103` escribe
+ `creatividades.retirado_en`, asi que retirar un creativo fallaba en cualquier
+ entorno levantado desde cero.
+
+-------------------------------------------------------------------------------
+ LO UNICO QUE HAY QUE HACER
+-------------------------------------------------------------------------------
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1        # debe decir 96030d3
+
+ Y ya. El proceso sigue corriendo el mismo build, que no ha cambiado.
+
+ COMPROBACION (opcional, 10 segundos):
+  curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+  # 200, igual que antes: no se toco nada que pudiera cambiarlo
+
+-------------------------------------------------------------------------------
+ CORRER LA MIGRACION (OPCIONAL — no cambia nada)
+-------------------------------------------------------------------------------
+ No hay tabla que registre que migraciones se aplicaron, asi que correrla en
+ prod tampoco deja constancia: su efecto es literalmente nulo.
+
+ Se deja el comando por si prefieres que quede ejecutada por coherencia:
+
+  cd /var/www/Spaces
+  sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260805_objetos_solo_en_prod.sql
+
+ Debe imprimir los cuatro objetos con 1 y salir 0, sin haber creado nada.
+
+-------------------------------------------------------------------------------
+ ROLLBACK
+-------------------------------------------------------------------------------
+ No aplica en el sentido habitual: no hay cambio funcional que revertir.
+
+ Si quisieras volver el arbol atras:
+  cd /var/www/Spaces && git checkout 1c563ab
+
+ No hace falta build ni reload, por lo mismo que no hicieron falta al avanzar.
+
+-------------------------------------------------------------------------------
+ DONDE ESTA EL VALOR DE ESTE COMMIT
+-------------------------------------------------------------------------------
+ En poder levantar un entorno nuevo, y en que CI empiece a cazar la deriva:
+
+  cd db && docker compose up -d
+  cd apps/web && npm run test:e2e
+
+ Cada corrida aplica schema.sql + las 60 migraciones DESDE CERO y comprueba el
+ aislamiento con un rol sin privilegios. Si una migracion deja de poder
+ aplicarse, o si alguien vuelve a crear una columna a mano solo en prod, se nota
+ ahi en vez de el dia que haga falta recuperar de un backup.
+
+ PENDIENTE (no entra aqui):
+  · Los 14 casos del flujo critico propuesta->campana->...->cobranza.
+  · Meter ambas suites en CI con un servicio de Postgres.
