@@ -1,0 +1,216 @@
+===============================================================================
+ DESPLIEGUE — A7 (contrasenas) + RBAC        Preparado: 2026-08-04
+                                             Para ejecutar: 2026-08-05
+===============================================================================
+
+QUE SE DESPLIEGA
+  Commit  : 69c4867  (rama main, ya publicada en origin)
+  ADR     : docs/adr/0009-*.md  y  docs/adr/0010-*.md
+  Estado  : typecheck limpio, build de produccion correcto, 592 pruebas en verde
+
+DONDE
+  Host : emiliano@209.97.146.136   (tu entras a la consola como root)
+  Ruta : /var/www/Spaces
+  App  : pm2 spaces-web  ->  https://demo.space-os.io
+  BD   : spaces_prod
+
+-------------------------------------------------------------------------------
+ !! LO MAS IMPORTANTE: EL ORDEN !!
+-------------------------------------------------------------------------------
+  LAS MIGRACIONES VAN **ANTES** QUE EL CODIGO.
+
+  La migracion le añade una columna a la funcion `auth_usuario_por_sesion`, y el
+  codigo nuevo la lee. Si despliegas el codigo primero, TODA resolucion de
+  sesion falla y nadie puede entrar.
+
+  Al reves no hay problema: las migraciones son compatibles con el codigo viejo,
+  que selecciona las columnas por nombre.
+
+-------------------------------------------------------------------------------
+ AVISOS QUE CONVIENE DAR ANTES (cambian el trabajo de alguien)
+-------------------------------------------------------------------------------
+  1. El rol COMERCIAL deja de poder DAR DE ALTA o EDITAR pantallas del catalogo.
+     Conserva la lectura. Si alguien de ventas venia dando de alta inventario,
+     dejara de poder.
+
+  2. El boton de "cambiar contrasena de otro usuario" desaparece. En su lugar
+     hay "Restablecer contrasena", que genera una TEMPORAL de un solo uso, cierra
+     las sesiones de esa persona y le obliga a cambiarla al entrar. La temporal
+     se enseña UNA vez: si se cierra el modal, no se puede volver a ver.
+
+  3. El "Control de cambios" ya no es una contrasena que fijas: es un
+     interruptor. Si lo enciendes, aplica A TODOS, tu incluido, y cada quien
+     usa SU propia contrasena. Se queda APAGADO tras la migracion, igual que
+     esta hoy — no cambia nada salvo que lo enciendas a proposito.
+
+
+===============================================================================
+ PASO 1 — BACKUP
+===============================================================================
+Corre esto en la consola del droplet:
+
+  ~/deploy/1_backup.sh; echo "---- salida: $? ----"
+
+  (si dice "no such file", usa: /home/emiliano/deploy/1_backup.sh)
+
+QUE ESPERAR: ~7 MB y 36+ tablas, salida 0.
+NO SIGAS si el tamaño es menor de 1 MB o si salen menos de 20 tablas.
+
+Si prefieres el comando crudo:
+
+  mkdir -p ~/backups && F=~/backups/spaces_prod_pre_a7_$(date +%Y%m%d_%H%M%S).sql.gz && sudo -u postgres pg_dump -d spaces_prod | gzip > "$F"; echo "salida: $?"; ls -lh "$F"; zcat "$F" | grep -c "^CREATE TABLE"
+
+
+===============================================================================
+ PASO 2 — TRAER EL CODIGO (todavia NO compila nada)
+===============================================================================
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git checkout main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+VERIFICA: debe decir  69c4867 feat(seguridad): A7 y RBAC ...
+
+Los .sql de las migraciones llegan con este paso. Antes de esto no existen en
+el droplet.
+
+
+===============================================================================
+ PASO 3 — MIGRACIONES (como postgres)
+===============================================================================
+  cd /var/www/Spaces
+  for M in db/migrations/20260804_reautenticacion_individual.sql db/migrations/20260804_modulo_inventario.sql; do
+    echo "=== $M ==="
+    sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f "$M" || { echo "FALLO EN $M"; break; }
+  done
+
+QUE HACE CADA UNA:
+  · 20260804_reautenticacion_individual.sql
+      - añade  tenants.exigir_reautenticacion  (booleano)
+      - añade  usuarios.debe_cambiar_password  (booleano)
+      - traspasa el estado: donde habia contrasena de equipo -> encendido.
+        HOY ESTA EN NULL EN LOS 5 TENANTS, asi que todos quedan en APAGADO,
+        que es exactamente como estan ahora. Nadie nota el cambio.
+      - BORRA la columna tenants.cambios_password_hash (es el objetivo)
+      - recrea auth_usuario_por_sesion con una columna mas, y rehace su GRANT
+
+  · 20260804_modulo_inventario.sql
+      - inserta 5 filas en rol_permisos para el modulo `inventario`
+        DUENO: ver/crear/aprobar · COMERCIAL: ver · OPERACIONES: ver
+
+Cada una va en su propia transaccion: si falla, revierte sola.
+
+QUE ESPERAR AL FINAL: las dos imprimen un bloque de verificacion.
+  De la primera : exigir_reautenticacion=1, debe_cambiar_password=1,
+                  cambios_password_hash=0  (ese 0 es correcto: se elimino)
+  De la segunda : filas de inventario=5, COMERCIAL-crear=0, DUENO-crear=1
+
+
+===============================================================================
+ PASO 4 — COMPILAR Y RECARGAR
+===============================================================================
+  cd /var/www/Spaces
+  npm ci
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+El build tarda ~2m30s. Entre que termina el build y el reload hay una ventana
+en la que alguien con la pagina abierta puede recibir errores; no la alargues.
+
+
+===============================================================================
+ PASO 5 — COMPROBAR
+===============================================================================
+Sin entrar (desde cualquier sitio):
+
+  curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+  curl -s -o /dev/null -w "signup: %{http_code}\n" -X POST https://demo.space-os.io/spaces-dooh/api/signup/ -H "Content-Type: application/json" -d '{}'
+
+  ESPERADO: login 200 · signup 503
+
+En el droplet:
+
+  pm2 list | grep spaces-web        (online, 1 solo reinicio nuevo)
+  cd /var/www/Spaces && git log --oneline -1
+
+Entrando con tu usuario:
+  [ ] Entra normal y navega — nada deberia haber cambiado en el dia a dia.
+  [ ] Administracion -> Roles y permisos:
+        · aparece la fila "Inventario"
+        · cada modulo dice debajo que areas abre (Comercial -> Clientes ·
+          Propuestas · Campañas ...)
+        · "Control de cambios" ahora es un boton, sin campos de contrasena
+  [ ] Administracion -> Usuarios -> boton junto a OTRO usuario:
+        dice "Restablecer contrasena" y explica que generara una temporal.
+        (Si lo pruebas: te pedira TU contrasena primero. Eso es lo correcto.)
+  [ ] Al crear usuario, en el desplegable de Rol YA NO aparece "Cliente externo".
+
+
+===============================================================================
+ SI ALGO SALE MAL — ROLLBACK
+===============================================================================
+CODIGO (~2 min). Las migraciones NO se revierten y no hace falta: son aditivas
+y el codigo anterior no las usa.
+
+  cd /var/www/Spaces
+  git checkout 3b118c6
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+  (3b118c6 es lo que esta corriendo hoy: fases 0-3 de la auditoria)
+
+  !! OJO CON ESTO — el rollback de codigo NO es del todo limpio !!
+
+  La migracion BORRA la columna tenants.cambios_password_hash, y el codigo viejo
+  la lee en `hashDelTenant()`. Esa funcion la usa `exigirDesbloqueo()`, que a su
+  vez cuelga de `exigirCambioSensible()` — o sea, de OCHO rutas:
+
+     facturar campaña · pagar cobranza · pagar renta · crear contrato ·
+     editar contrato · cancelar contrato · renovar contrato · editar arrendador
+
+  Con el codigo viejo y la columna ausente, esas ocho devuelven 500. No es "una
+  ruta que no se toca": es el cierre de facturacion y todo el flujo de contratos.
+
+  Asi que si haces rollback de codigo, RESTAURA TAMBIEN LA BASE:
+
+    zcat ~/backups/<el backup del paso 1>.sql.gz | sudo -u postgres psql -d spaces_prod
+
+  Alternativa mas rapida si no quieres perder los datos creados desde el backup:
+  devolver solo la columna, vacia. Deja el control de cambios apagado, que es
+  como esta hoy, y las ocho rutas vuelven a funcionar:
+
+    sudo -u postgres psql -d spaces_prod -c "alter table tenants add column if not exists cambios_password_hash text;"
+
+REVERTIR SOLO EL PERMISO DE INVENTARIO (si estorba a ventas y no quieres
+desplegar): devolver la escritura del catalogo a COMERCIAL es una fila.
+
+  sudo -u postgres psql -d spaces_prod -c "insert into rol_permisos (rol,modulo,accion) values ('COMERCIAL','inventario','crear') on conflict do nothing;"
+
+  Eso le devuelve a COMERCIAL el alta y edicion de pantallas sin tocar codigo.
+
+
+===============================================================================
+ DISPARADORES PARA REVERTIR (decidelo con esto, no a ojo)
+===============================================================================
+  · el login deja de dar 200
+  · cualquier 5xx en /api/estado, /api/campanas o /api/auth/me
+  · el Dashboard carga con los KPI en blanco
+  · pm2 reinicia el proceso mas de 2 veces
+  · alguien no puede entrar (mira los logs: pm2 logs spaces-web --err --lines 50)
+
+  Ventana de vigilancia sugerida: 20 minutos tras el reload.
+
+
+===============================================================================
+ PENDIENTE QUE NO ENTRA EN ESTE DESPLIEGUE
+===============================================================================
+  · Correo saliente (RESEND_API_KEY + EMAIL_FROM estan vacias). Mientras sigan
+    asi:
+      - "Olvide mi contrasena" seguira apagado (NEXT_PUBLIC_RECUPERAR_PASSWORD=0)
+      - el restablecimiento entrega una TEMPORAL en pantalla en vez de una liga
+        por correo. Esta reconocido en el ADR 0009 como deuda.
+  · M5 (branding) y la razon social "DEMO RGB CATORCE S DE RL DE CV" del tenant
+    g500.
+  · 2FA — queda como ADR posterior, encima de esta base.
