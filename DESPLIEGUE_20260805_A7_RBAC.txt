@@ -1,6 +1,24 @@
 ===============================================================================
  DESPLIEGUE — A7 (contrasenas) + RBAC        Preparado: 2026-08-04
                                              Para ejecutar: 2026-08-05
+-------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-05 09:47 (hora del droplet). NO VOLVER A CORRER. <<<
+
+ Las migraciones NO son idempotentes en el sentido que importa aqui: la primera
+ borra tenants.cambios_password_hash y recrea auth_usuario_por_sesion. Correrla
+ otra vez no rompe nada (el bloque do$$ comprueba que la columna exista antes de
+ tocarla), pero no hay motivo para hacerlo.
+
+ Backup previo : /root/backups/spaces_prod_pre_a7_20260805_091922.sql.gz
+                 (7.1 MB, 37 tablas)
+ Desplegado    : 47432bf  (contiene 69c4867)
+ Verificado    : esquema OK, login 200, signup 503, /api/estado 401,
+                 auth_usuario_por_sesion con sus 8 columnas y su GRANT intacto,
+                 cero errores en el log tras la recarga. Revisado tambien
+                 dentro de la app por el usuario.
+
+ Se conserva como registro de que se hizo y de como volver atras si hiciera
+ falta mas adelante — la seccion de ROLLBACK sigue siendo valida.
 ===============================================================================
 
 QUE SE DESPLIEGA
