@@ -680,7 +680,6 @@ export interface ConfigNegocio {
   datosConstitucion: string | null  // escritura / notaría / fecha de constitución
   moneda: string
   plazosCobranza: number[]
-  tiposTarea: string[]
   // Ajustes del negocio (multi-tenant):
   logoUrl: string | null        // logo de la empresa (data URL o ruta)
   ivaTasas: number[]            // IVA(s) con los que trabaja (uno o varios)

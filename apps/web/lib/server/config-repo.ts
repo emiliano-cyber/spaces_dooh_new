@@ -25,7 +25,6 @@ export function rowToConfig(r: any) {
     datosConstitucion: null as string | null,
     moneda: r.moneda,
     plazosCobranza: r.plazos_cobranza ?? [],
-    tiposTarea: r.tipos_tarea ?? [],
     logoUrl: r.logo_url ?? null,
     ivaTasas: (r.iva_tasas ?? [16]).map((x: any) => Number(x)),
     loopSeg: r.loop_seg != null ? Number(r.loop_seg) : 60,

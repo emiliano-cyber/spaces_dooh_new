@@ -26,40 +26,20 @@ import {
   useUsuarios,
   formatFecha,
   estadoSLAOT,
-  type TipoOT,
   type Prioridad,
   type EstOT,
 } from '@/lib/data/client'
+import { TIPO_OT_LABEL, tiposOtPara } from '@/lib/tipos-ot'
+import type { TipoOT } from '@/lib/data/types'
 
-const TIPO_OT_LABEL: Record<TipoOT, string> = {
-  MONTAJE_LONA: 'Montaje de lona',
-  MONTAJE_DIGITAL: 'Montaje digital',
-  DESMONTAJE: 'Desmontaje',
-  MANTENIMIENTO_PREVENTIVO: 'Mantenimiento preventivo',
-  MANTENIMIENTO_CORRECTIVO: 'Mantenimiento correctivo',
-  HERRERIA: 'Herrería',
-  ELECTRICO: 'Eléctrico',
-  INSPECCION: 'Inspección',
-  OTRO: 'Otro',
-}
-
-// Tipos de tarea aplicables según el tipo de pantalla. Una DIGITAL no lleva
-// montaje de lona ni herrería (no hay lona ni estructura de espectacular), y
-// TAMPOCO montaje digital: el arte se sube por "Subir a producción" (DOOHmain)
-// desde la campaña, no por una OT de montaje. Una FIJA no lleva montaje digital.
-// El resto (desmontaje, mantenimiento, eléctrico, inspección) aplica a ambas.
-const TIPO_OT_DIGITAL: TipoOT[] = ['DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'ELECTRICO', 'INSPECCION', 'OTRO']
-const TIPO_OT_FIJA: TipoOT[] = ['MONTAJE_LONA', 'DESMONTAJE', 'MANTENIMIENTO_PREVENTIVO', 'MANTENIMIENTO_CORRECTIVO', 'HERRERIA', 'ELECTRICO', 'INSPECCION', 'OTRO']
-const TODOS_TIPOS_OT = Object.keys(TIPO_OT_LABEL) as TipoOT[]
+// Las etiquetas y la aplicabilidad por tipo de pantalla viven en
+// @/lib/tipos-ot, que es lo que el servidor aplica al crear la OT. Estaban
+// duplicadas aquí y en `ot-repo`, diciendo la misma regla de dos formas
+// distintas — y el catálogo de Configuración decía una tercera cosa (M15).
 
 function esSitioDigital(s?: { tipoMedio?: string; esRotativo?: boolean; exhibicion?: string } | null): boolean {
   if (!s) return false
   return s.tipoMedio === 'PANTALLA_DIGITAL' || !!s.esRotativo || s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
-}
-// Tipos disponibles: filtrados por pantalla si hay sitio; todos si aún no se elige.
-function tiposParaSitio(digital: boolean | null): TipoOT[] {
-  if (digital == null) return TODOS_TIPOS_OT
-  return digital ? TIPO_OT_DIGITAL : TIPO_OT_FIJA
 }
 
 const PRIORIDAD_TONO: Record<Prioridad, Tono> = {
@@ -322,7 +302,7 @@ function NuevaOTModal({
   // digital no puede llevar montaje de lona; una fija no lleva montaje digital.
   const sitioSel = opcionesSitio.find((s) => s.id === sitioId)
   const digital = sitioId ? esSitioDigital(sitioSel) : null
-  const tiposDisponibles = tiposParaSitio(digital)
+  const tiposDisponibles = tiposOtPara(digital)
 
   // Si el tipo elegido deja de ser válido al cambiar de pantalla, cae al primero
   // disponible (p. ej. de "Montaje de lona" a "Montaje digital" en una digital).

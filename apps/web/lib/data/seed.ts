@@ -475,7 +475,6 @@ export function buildSeed(): DemoState {
       datosConstitucion: null,
       moneda: 'MXN',
       plazosCobranza: [60, 90, 120],
-      tiposTarea: ['Montaje de lona', 'Pegado de lona', 'Mantenimiento', 'Desmontaje', 'Inspección'],
       logoUrl: null,
       ivaTasas: [16],
       loopSeg: 240,

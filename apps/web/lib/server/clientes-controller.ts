@@ -1,7 +1,13 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { esEmailValido } from '@/lib/validacion'
+import {
+  esEmailValido,
+  esTelefonoValido,
+  esCpValido,
+  TELEFONO_INVALIDO,
+  CP_INVALIDO,
+} from '@/lib/validacion'
 import { RFC_RE } from '@/lib/rfc'
 import { crearCliente, actualizarCliente, type ClienteInput } from './clientes-repo'
 
@@ -40,11 +46,22 @@ const clienteBase = z.object({
 const crearSchema = clienteBase
 const actualizarSchema = clienteBase.partial()
 
-// Reglas de formato fiscal que zod deja pasar como texto (solo si vienen).
-function validarFiscales(d: { rfc?: string | null; cpFiscal?: string | null; contacto?: { email?: string } | null }) {
+// Reglas de formato que zod deja pasar como texto (solo si vienen). El
+// formulario comprueba lo mismo con los MISMOS helpers, pero la autoridad es
+// ésta: un cliente con RFC o CP mal rompe la facturación (CFDI) mucho después,
+// cuando ya nadie recuerda de dónde salió el dato.
+function validarFiscales(d: {
+  rfc?: string | null
+  cpFiscal?: string | null
+  contacto?: { email?: string; telefono?: string } | null
+}) {
   if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
-  if (d.cpFiscal && !/^\d{5}$/.test(d.cpFiscal)) throw new AppError('Código postal fiscal inválido (5 dígitos)', 400)
+  if (d.cpFiscal && !esCpValido(d.cpFiscal)) throw new AppError(CP_INVALIDO, 400)
   if (d.contacto?.email && !esEmailValido(d.contacto.email)) throw new AppError('Correo de contacto inválido', 400)
+  // M1: el teléfono no se validaba y entraba «abc123xyz» tal cual.
+  if (d.contacto?.telefono && !esTelefonoValido(d.contacto.telefono)) {
+    throw new AppError(TELEFONO_INVALIDO, 400)
+  }
 }
 
 export async function crearClienteCtrl(body: unknown) {

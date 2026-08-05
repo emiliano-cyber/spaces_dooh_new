@@ -8,6 +8,8 @@ import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
 import { crearClienteApi, actualizarClienteApi, type ClienteInput } from '@/lib/data/estado-api'
+import { esEmailValido, esTelefonoValido, esCpValido, EMAIL_INVALIDO, TELEFONO_INVALIDO, CP_INVALIDO } from '@/lib/validacion'
+import { esRfcValido } from '@/lib/rfc'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -119,9 +121,30 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
     .sort((a, b) => a - b)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Los errores solo se PINTAN tras el primer intento de guardar: marcar en rojo
+  // un formulario que aún no se ha tocado es hostil.
+  const [intento, setIntento] = useState(false)
+
+  // Se comprueba con los MISMOS helpers que el servidor (@/lib/validacion,
+  // @/lib/rfc). Cuando la regla vivía duplicada, la UI daba por bueno lo que la
+  // API rechazaba después con un 400 sin decir qué campo era.
+  const errores = {
+    nombre: nombre.trim() ? null : 'El nombre es obligatorio',
+    rfc: esRfcValido(rfc) ? null : 'RFC inválido. Formato SAT (p. ej. XAXX010101000)',
+    cpFiscal: esCpValido(cpFiscal) ? null : CP_INVALIDO,
+    email: !email.trim() || esEmailValido(email) ? null : EMAIL_INVALIDO,
+    telefono: esTelefonoValido(telefono) ? null : TELEFONO_INVALIDO,
+  }
+  const hayErrores = Object.values(errores).some(Boolean)
 
   async function guardar() {
-    if (!nombre.trim()) return
+    setIntento(true)
+    if (hayErrores) {
+      // Sin esto, el submit con datos malos no hacía NADA visible y el usuario
+      // se quedaba pulsando el botón.
+      setError('Revisa los campos marcados.')
+      return
+    }
     setGuardando(true)
     setError(null)
     const esAgencia = tipo === 'AGENCIA'
@@ -164,7 +187,10 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           {error ? <span className="text-[12px] text-error">{error}</span> : <span />}
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-            <Button size="sm" disabled={!nombre.trim() || guardando} onClick={guardar}>
+            {/* NO se deshabilita por datos inválidos a propósito: un botón muerto
+                no dice qué falta. Se deja pulsable y al pulsarlo se marcan los
+                campos. Solo se bloquea mientras se está guardando. */}
+            <Button size="sm" disabled={guardando} onClick={guardar}>
               {guardando ? 'Guardando…' : 'Guardar'}
             </Button>
           </div>
@@ -172,7 +198,7 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
       }
     >
       <div className="space-y-3">
-        <Campo label="Nombre del cliente">
+        <Campo label="Nombre del cliente" error={intento ? errores.nombre : null}>
           <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
         </Campo>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -181,13 +207,13 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
               {TIPOS.map((t) => <option key={t} value={t}>{t === 'AGENCIA' ? 'Agencia' : 'Directo'}</option>)}
             </select>
           </Campo>
-          <Campo label="Correo de contacto">
+          <Campo label="Correo de contacto" error={intento ? errores.email : null}>
             <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="cuentas@cliente.com" />
           </Campo>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Campo label="Teléfono">
-            <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} />
+          <Campo label="Teléfono" error={intento ? errores.telefono : null}>
+            <input className={inputCls} value={telefono} onChange={(e) => setTelefono(e.target.value)} placeholder="55 1234 5678" />
           </Campo>
           {/* La comisión es por AGENCIA; no aplica al cliente directo. */}
           {tipo === 'AGENCIA' && (
@@ -269,10 +295,10 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
           </div>
           <div className="space-y-3">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Campo label="RFC">
+              <Campo label="RFC" error={intento ? errores.rfc : null}>
                 <input className={inputCls} value={rfc} onChange={(e) => setRfc(e.target.value.toUpperCase())} placeholder="XAXX010101000" />
               </Campo>
-              <Campo label="C.P. fiscal">
+              <Campo label="C.P. fiscal" error={intento ? errores.cpFiscal : null}>
                 <input className={inputCls} value={cpFiscal} onChange={(e) => setCpFiscal(e.target.value)} placeholder="06700" />
               </Campo>
             </div>
@@ -298,11 +324,15 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   )
 }
 
-function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+// `error` pinta el motivo DEBAJO del campo que lo causa. Antes solo existía un
+// mensaje suelto al pie del modal, así que con dos datos malos el usuario
+// arreglaba uno, reenviaba, y descubría el otro (M1).
+function Campo({ label, children, error }: { label: string; children: React.ReactNode; error?: string | null }) {
   return (
     <label className="block">
       <span className="mb-1 block text-[12px] font-medium text-ink">{label}</span>
       {children}
+      {error ? <span className="mt-1 block text-[11px] text-error">{error}</span> : null}
     </label>
   )
 }

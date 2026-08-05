@@ -886,6 +886,45 @@ export async function enviarADominio(campanaId: string) {
         'La campaña no tiene anuncios (creativos) que enviar al dominio',
       )
     }
+    // M14: tener un creativo cargado NO es tenerlo asignado a cada pantalla.
+    // `reservas.creativos` es lo que dice QUÉ se exhibe en CADA slot, y estaba
+    // sin comprobar: la auditoría encontró campañas Publicadas y Completadas
+    // con todos sus slots en «Sin asignar». Eso rompe la trazabilidad
+    // creativo→pantalla, y sin ella el reporte al cliente no puede probar qué
+    // se exhibió — que es justamente lo que se le vende.
+    //
+    // Solo se exige a las pantallas DIGITALES: en una HÍBRIDA las fijas llevan
+    // lona y su trazabilidad va por la OT de montaje y sus fotos, no por aquí.
+    //
+    // El `case` sobre `jsonb_typeof` no es adorno: `jsonb_array_length` LANZA si
+    // el valor no es un arreglo, y entonces esto devolvería un 500 en vez de un
+    // mensaje. La columna es `not null default '[]'` y hoy las filas son todas
+    // arreglos, pero el mapper de este mismo archivo se defiende con
+    // `Array.isArray(r.creativos) ? … : []`, así que no me fío más que él. Un
+    // valor malformado cuenta como «sin asignar», que es lo correcto.
+    const sinAsignar = await q<{ nombre: string }>(
+      `select s.nombre
+         from reservas r
+         join sitios s on s.id = r.sitio_id
+        where r.campana_id = $1
+          and r.estatus <> 'CANCELADA'
+          and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo
+               or s.exhibicion in ('digital','rotativo'))
+          and jsonb_array_length(
+                case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                     else '[]'::jsonb end
+              ) = 0
+        order by s.nombre`,
+      [campanaId],
+    )
+    if (sinAsignar.length > 0) {
+      // Se nombran las pantallas: «asigna los creativos» a secas obliga a
+      // buscarlas una por una en una campaña de doce.
+      const lista = sinAsignar.map((r) => r.nombre).join(', ')
+      throw new ValidacionError(
+        `Hay pantallas sin creativo asignado: ${lista}. Asígnalo en Creativos antes de enviar al dominio.`,
+      )
+    }
   }
   const rows = await q(
     `update campanas

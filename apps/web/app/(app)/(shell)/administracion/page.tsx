@@ -18,6 +18,7 @@ import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { restablecerPasswordApi } from '@/lib/data/cambios-api'
 import { areasDeModulo } from '@/lib/modulos'
+import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, tiposOtPara } from '@/lib/tipos-ot'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import {
@@ -478,7 +479,6 @@ function puedePintarse(dataUrl: string) {
 function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const [config, setConfig] = useState<ConfigNegocio | null>(null)
   const [nuevoPlazo, setNuevoPlazo] = useState('')
-  const [nuevoTipo, setNuevoTipo] = useState('')
   const [nuevoIva, setNuevoIva] = useState('')
   const sincronizarConfig = useActualizarConfig()
   useEffect(() => { getConfigApi().then(setConfig) }, [])
@@ -696,25 +696,34 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         </CardContent>
       </Card>
 
+      {/* M15: esta tarjeta era un editor de texto libre que NO LEÍA NADIE — las
+          OT sacan su tipo de un enum con reglas por tipo de pantalla. Aparecía
+          vacía mientras Operaciones tenía una OT de «Montaje de lona», y la
+          auditoría pidió sembrarla. Sembrarla habría sido peor: seguiría sin
+          gobernar nada y encima parecería que sí. Ahora enseña lo que de verdad
+          rige, en solo lectura. */}
       <Card>
         <CardHeader><CardTitle>Tipos de tarea de cuadrilla</CardTitle></CardHeader>
         <CardContent>
-          <ul className="mb-3 space-y-1.5">
-            {config.tiposTarea.map((t) => (
-              <li key={t} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-[13px] text-ink">
-                <span className="inline-flex items-center gap-2"><Check className="h-3.5 w-3.5 text-success" /> {t}</span>
-                <button type="button" onClick={() => guardar({ tiposTarea: config.tiposTarea.filter((x) => x !== t) })} className="text-muted hover:text-error"><X className="h-3.5 w-3.5" /></button>
-              </li>
-            ))}
+          <p className="mb-3 text-[13px] text-muted">
+            Los fija el sistema, no se editan: cuáles aplican depende del tipo de pantalla y esa
+            regla la comprueba el servidor al crear la orden.
+          </p>
+          <ul className="space-y-1.5">
+            {tiposOtPara(null).map((t) => {
+              const soloFija = TIPO_OT_SOLO_FIJA.includes(t)
+              return (
+                <li key={t} className="flex items-center justify-between rounded border border-border px-3 py-1.5 text-[13px] text-ink">
+                  <span className="inline-flex items-center gap-2">
+                    <Check className="h-3.5 w-3.5 text-success" /> {TIPO_OT_LABEL[t]}
+                  </span>
+                  <span className="text-[11px] text-muted">
+                    {soloFija ? 'solo pantalla fija' : 'fija y digital'}
+                  </span>
+                </li>
+              )
+            })}
           </ul>
-          <div className="flex gap-2">
-            <input value={nuevoTipo} onChange={(e) => setNuevoTipo(e.target.value)} placeholder="Nuevo tipo de tarea" className={inputCls} />
-            <Button size="sm" variant="secondary" onClick={() => {
-              const t = nuevoTipo.trim()
-              if (t && !config.tiposTarea.includes(t)) guardar({ tiposTarea: [...config.tiposTarea, t] }, 'Tipo de tarea agregado')
-              setNuevoTipo('')
-            }}><Plus className="h-3.5 w-3.5" /> Agregar</Button>
-          </div>
         </CardContent>
       </Card>
     </div>

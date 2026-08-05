@@ -25,7 +25,11 @@ const configSchema = z
     nombreTenant: z.string().trim().min(1).max(120),
     moneda: z.string().trim().min(1).max(10),
     plazosCobranza: z.array(z.coerce.number().int().min(0).max(365)),
-    tiposTarea: z.array(z.string().trim().min(1).max(60)),
+    // `tiposTarea` se retiró (M15): la columna `config_negocio.tipos_tarea`
+    // sigue en la base pero NADIE la lee — los tipos de OT salen del enum de
+    // @/lib/tipos-ot, con sus reglas por tipo de pantalla. Aceptar escrituras
+    // aquí era ofrecer un ajuste que no ajustaba nada. Con `.strict()`, un
+    // cliente viejo que lo mande recibe 400 en vez de creer que guardó.
     logoUrl: logo.nullable(),
     ivaTasas: z.array(z.coerce.number().min(0).max(100)),
     loopSeg: z.coerce.number().int().min(1).max(3600),
@@ -68,7 +72,7 @@ export async function PATCH(req: Request) {
   // Campos globales → config_negocio (fila única).
   const map: Record<string, string> = {
     nombreTenant: 'nombre_tenant', moneda: 'moneda',
-    plazosCobranza: 'plazos_cobranza', tiposTarea: 'tipos_tarea',
+    plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
   }

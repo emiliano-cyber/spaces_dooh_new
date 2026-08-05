@@ -4,6 +4,7 @@ import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { notificar } from './notificaciones-repo'
 import { folioDocumento } from './folios'
+import { tipoOtAplica } from '@/lib/tipos-ot'
 import { storageHabilitado, subirDataUrl, urlFirmada } from './storage'
 
 // ============================================================================
@@ -125,10 +126,10 @@ export async function getOTcompleta(id: string) {
 // contador atómico de `lib/server/folios.ts`.
 const folioOT = () => folioDocumento('ot')
 
-// Tipos de tarea que NO aplican a una pantalla fija: montaje de lona y herrería
-// son de espectacular físico, así que una DIGITAL no los lleva. El resto de las
-// tareas (desmontaje, mantenimiento, eléctrico, inspección) aplica a ambas.
-const OT_SOLO_FIJA = new Set(['MONTAJE_LONA', 'HERRERIA'])
+// La regla de qué tarea aplica a qué pantalla vive en @/lib/tipos-ot, la misma
+// tabla con la que la UI arma el desplegable. Estaba escrita aquí como un Set y
+// allá como dos arreglos: dos formas de decir lo mismo que solo pueden
+// divergir.
 
 export async function crearOT(input: {
   tipo: string; sitioId?: string | null; campanaId?: string | null
@@ -149,7 +150,7 @@ export async function crearOT(input: {
     if (s) {
       const digital = s.tipo_medio === 'PANTALLA_DIGITAL' || s.es_rotativo === true ||
         s.exhibicion === 'digital' || s.exhibicion === 'rotativo'
-      if (digital && OT_SOLO_FIJA.has(input.tipo)) {
+      if (!tipoOtAplica(input.tipo, digital)) {
         throw new AppError('Esa tarea no aplica a una pantalla digital (no lleva lona ni herrería)', 409)
       }
     }
