@@ -33,12 +33,15 @@ export interface NavItem {
 }
 
 // Orden = flujo real de creación:
-//   1) Dashboard · 2) Agregar inventario · 3) Campañas (fijos, arriba)
+//   1) Dashboard · 2) Inventario · 3) Campañas (fijos, arriba)
 //   Base de inventario → ciclo comercial → producción → operación → cobranza
 //   Últimos 3 (Integraciones · Actividad · Administración) se mantienen al final.
 export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: ['DUENO'] },
-  { key: 'inventario', label: 'Agregar inventario', href: '/inventario', icon: PackagePlus, roles: ['DUENO'] },
+  // B3: se llamaba «Agregar inventario» pero abre el módulo entero —consulta,
+  // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
+  // que hay y escondía la consulta a quien no entraba a curiosear.
+  { key: 'inventario', label: 'Inventario', href: '/inventario', icon: PackagePlus, roles: ['DUENO'] },
   { key: 'campanas', label: 'Campañas', href: '/campanas', icon: GitBranch, roles: ['DUENO', 'COMERCIAL'] },
   { key: 'arrendadores', label: 'Arrendadores', href: '/arrendadores', icon: Building2, roles: ['DUENO'] },
   { key: 'network', label: 'Network', href: '/network', icon: Network, roles: ['DUENO', 'COMERCIAL'] },

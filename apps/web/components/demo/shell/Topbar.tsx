@@ -109,7 +109,16 @@ export function Topbar() {
                       />
                       <span className="text-[13px] font-medium text-ink">{n.titulo}</span>
                     </div>
-                    {n.detalle && <div className="ml-4 truncate text-[12px] text-muted">{n.detalle}</div>}
+                    {/* B6: `truncate` cortaba el detalle en «…el importe de la re…»
+                        y no había forma de ver el resto. Se deja en DOS líneas: la
+                        mayoría cabe entera, y el aviso sigue siendo una fila corta
+                        de lista y no un párrafo. El `title` da el texto íntegro al
+                        pasar el ratón, para el caso que aun así se pase. */}
+                    {n.detalle && (
+                      <div className="ml-4 line-clamp-2 text-[12px] text-muted" title={n.detalle}>
+                        {n.detalle}
+                      </div>
+                    )}
                   </button>
                 ))
               )}

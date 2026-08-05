@@ -24,6 +24,7 @@
   --ink: #1c1612;           /* tinta cálida: texto principal, centros de icono */
   --border: #eae4d8;        /* borde claro cálido (1px) */
   --border-strong: #d9d0c1; /* borde acentuado cálido */
+  --border-input: #94876f;  /* borde de CONTROL (input/select/textarea) — ver .demo-root input */
   --muted: #6e6155;         /* texto secundario cálido (legible, AA) */
 
   /* — Azul de SPACE OS (el ÚNICO color de producto en pantalla) ———————— */
@@ -109,6 +110,47 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+}
+
+/* ==========================================================================
+   Contorno de los controles de formulario (B1 de la auditoría del 04/08/2026).
+   --------------------------------------------------------------------------
+   El informe decía que el campo Dirección del alta manual «no tiene contorno
+   visible». El borde SÍ estaba —`border-border-strong` en todos los inputs—,
+   pero #d9d0c1 sobre blanco da 1.53:1, y WCAG 2.1 (1.4.11) pide 3:1 para el
+   contorno de un control. O sea: existía y no se veía, que a efectos del
+   usuario es lo mismo que no estar.
+
+   `--border-input` (#94876f) da 3.53:1 sobre la superficie blanca y 3.05:1
+   sobre el crema — los dos fondos donde viven los inputs.
+
+   Se arregla AQUÍ y no en los ~123 sitios que escriben `border-border-strong`
+   a mano: esta regla alcanza también a los formularios que aún no existen, y
+   los que sí existen no hay que tocarlos uno por uno. La especificidad
+   (0,1,1) gana a la utilidad de Tailwind (0,1,0) sin `!important`.
+
+   Al enfocar NO se toca: el anillo de foco (`focus-visible:ring-accent`) ya
+   marca el campo activo y pisar su color aquí lo apagaría.
+
+   Es seguro barrer así de ancho porque solo se toca `border-color`, y el
+   preflight de Tailwind deja `border-width: 0` en todo: un control que hoy no
+   tiene contorno NO gana uno, solo cambia de color el que ya tenía. La regla
+   recolorea; no dibuja.
+   ========================================================================== */
+.demo-root input:not(:focus),
+.demo-root select:not(:focus),
+.demo-root textarea:not(:focus) {
+  border-color: var(--border-input);
+}
+
+/* Los de tipo casilla/interruptor no llevan contorno propio: el control ya se
+   dibuja solo y forzarles el borde los deja con un halo que no es de nadie. */
+.demo-root input[type='checkbox']:not(:focus),
+.demo-root input[type='radio']:not(:focus),
+.demo-root input[type='range']:not(:focus),
+.demo-root input[type='color']:not(:focus),
+.demo-root input[type='file']:not(:focus) {
+  border-color: var(--border);
 }
 
 /* Datos numéricos técnicos (folios, IDs, montos, IPs) en JetBrains Mono. */

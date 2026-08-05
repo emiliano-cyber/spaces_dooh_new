@@ -9,7 +9,7 @@ import { InventarioTabla } from '@/components/demo/inventario/InventarioTabla'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 
-// Pantalla "Agregar inventario" (solo Dueño). Reemplaza al modal: las vías
+// Pantalla "Inventario" (solo Dueño). Reemplaza al modal: las vías
 // — contrato+pantalla, carga masiva y alta manual — viven aquí, en la página.
 export default function AgregarInventarioPage() {
   const { sesion } = useSesionCtx()
@@ -22,7 +22,7 @@ export default function AgregarInventarioPage() {
   if (sesion && sesion.usuario.rol !== 'DUENO') {
     return (
       <div className="w-full p-6">
-        <h1 className="text-lg font-semibold text-ink">Agregar inventario</h1>
+        <h1 className="text-lg font-semibold text-ink">Inventario</h1>
         <p className="mt-2 text-[13px] text-muted">Esta sección es exclusiva del Dueño.</p>
       </div>
     )

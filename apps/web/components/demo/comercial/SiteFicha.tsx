@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { Sheet } from '@/components/demo/ui/Sheet'
 import { Modal } from '@/components/demo/ui/Modal'
+import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
 import { Button } from '@/components/demo/ui/Button'
 import { FotoUploaderMock } from '@/components/demo/FotoUploaderMock'
 import { CalendarioDisponibilidad } from '@/components/demo/CalendarioDisponibilidad'
@@ -118,6 +119,7 @@ export function SiteFicha({
   const [fotos, setFotos] = useState<FotoMeta[]>([])
   const [editOpen, setEditOpen] = useState(false)
   const [borrando, setBorrando] = useState(false)
+  const [borrarOpen, setBorrarOpen] = useState(false)
   const [pausaOpen, setPausaOpen] = useState(false)
   const [motivoPausa, setMotivoPausa] = useState('')
   const [pausando, setPausando] = useState(false)
@@ -167,7 +169,6 @@ export function SiteFicha({
 
   async function eliminar() {
     if (!sitio) return
-    if (!window.confirm(`¿Eliminar la pantalla "${sitio.nombre}"? Esta acción no se puede deshacer.`)) return
     setBorrando(true)
     try {
       await borrarSitioApi(sitio.id)
@@ -176,6 +177,7 @@ export function SiteFicha({
       toast.error(e instanceof Error ? e.message : 'No se pudo eliminar la pantalla')
     }
     setBorrando(false)
+    setBorrarOpen(false)
   }
 
   // Reinicia la galería local al cambiar de sitio. Las fotos sembradas (string)
@@ -279,11 +281,6 @@ export function SiteFicha({
                 <Pencil className="h-3.5 w-3.5" /> Editar
               </Button>
             )}
-            {puedeEditar && (
-              <Button size="sm" variant="danger" disabled={borrando} onClick={eliminar}>
-                <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
-              </Button>
-            )}
             {puedePausar && !sitio.pausaLegal && (
               <Button size="sm" variant="secondary" onClick={() => setPausaOpen(true)}>
                 <Gavel className="h-3.5 w-3.5" /> Pausar por situación legal
@@ -292,6 +289,22 @@ export function SiteFicha({
             {puedePausar && (
               <Button size="sm" variant="secondary" onClick={() => setReubicarOpen(true)}>
                 <ArrowLeftRight className="h-3.5 w-3.5" /> Reubicar
+              </Button>
+            )}
+            {/* B7: «Eliminar» era un botón rojo sólido al lado de «Editar», con el
+                mismo peso visual que la acción más inocua de la ficha. Borrar una
+                pantalla no se deshace, así que se separa del grupo (`ml-auto`) y
+                baja a discreto: el rojo se reserva para el texto, no para un
+                bloque que atrae el clic. La confirmación es tipada. */}
+            {puedeEditar && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="ml-auto text-error hover:bg-error-soft"
+                disabled={borrando}
+                onClick={() => setBorrarOpen(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> {borrando ? 'Eliminando…' : 'Eliminar'}
               </Button>
             )}
           </div>
@@ -585,6 +598,22 @@ export function SiteFicha({
           </label>
         </div>
       </Modal>
+
+      {/* B7 · borrar una pantalla no se deshace: se escribe su nombre para
+          confirmar. No es fricción por gusto — obliga a LEER cuál es, que es
+          justo lo que un clic reflejo sobre un botón rojo no hace. */}
+      <ConfirmDialog
+        open={borrarOpen}
+        onOpenChange={setBorrarOpen}
+        title={`Eliminar ${sitio.nombre}`}
+        confirmLabel="Eliminar pantalla"
+        busy={borrando}
+        onConfirm={eliminar}
+        confirmarEscribiendo={sitio.nombre}
+      >
+        Se elimina la pantalla y deja de poder reservarse. Sus reservas y su historial
+        quedan como estén: <span className="text-ink">esta acción no se puede deshacer</span>.
+      </ConfirmDialog>
     </Sheet>
   )
 }

@@ -251,7 +251,15 @@ export default function ArrendadoresPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <Mini label="Arrendadores" valor={`${arrendadores?.length ?? '—'}`} />
         <Mini label="Contratos" valor={`${contratos?.length ?? '—'}`} />
-        <Mini label="Renta mensual" valor={contratos ? formatMonto(rentaMensual) : '—'} />
+        {/* B4: la salvedad («no incluye N contratos incompletos») estaba solo en
+            una nota al pie, así que el número se citaba fuera de contexto como si
+            fuera la renta real. Va pegada al propio KPI: quien lo lea de reojo se
+            entera igual. */}
+        <Mini
+          label="Renta mensual"
+          valor={contratos ? formatMonto(rentaMensual) : '—'}
+          nota={contratos && incompletos > 0 ? `+ ${incompletos} por capturar` : undefined}
+        />
         <Mini label="Por vencer" valor={`${porVencer}`} tono={porVencer ? 'ambar' : undefined} />
         <Mini label="Renta vencida" valor={`${rentaVencida}`} tono={rentaVencida ? 'rojo' : undefined} />
       </div>
@@ -682,7 +690,7 @@ function RazonesSocialesCard({
   )
 }
 
-function Mini({ label, valor, tono }: { label: string; valor: string; tono?: 'ambar' | 'rojo' }) {
+function Mini({ label, valor, tono, nota }: { label: string; valor: string; tono?: 'ambar' | 'rojo'; nota?: string }) {
   return (
     <div className="rounded-md border border-border bg-surface p-3">
       <div className="text-[12px] text-muted">{label}</div>
@@ -694,6 +702,7 @@ function Mini({ label, valor, tono }: { label: string; valor: string; tono?: 'am
       >
         {valor}
       </div>
+      {nota && <div className="mt-0.5 text-[11px] text-warning">{nota}</div>}
     </div>
   )
 }

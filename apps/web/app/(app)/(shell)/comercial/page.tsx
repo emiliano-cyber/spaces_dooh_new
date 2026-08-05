@@ -23,6 +23,7 @@ import { confirmarReservaApi, extenderCampanaApi } from '@/lib/data/estado-api'
 import Link from 'next/link'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { TIPO_MEDIO_LABEL } from '@/lib/tipo-medio'
+import { ubicacion } from '@/lib/ubicacion'
 import {
   sitiosSinContratoCompleto,
   useSitios,
@@ -348,16 +349,22 @@ export default function ComercialPage() {
                       onClick={() => abrirFicha(s.id)}
                       className="min-w-0 flex-1 text-left"
                     >
-                      <div className="truncate text-[15px] font-medium text-ink">{s.nombre}</div>
+                      {/* B2: los nombres largos se cortaban («AUTOPISTA MEX…») y no
+                          había forma de leerlos enteros sin abrir la ficha. El
+                          `title` los da al pasar el ratón; se deja el truncado
+                          porque la tarjeta tiene que caber en la rejilla. */}
+                      <div className="truncate text-[15px] font-medium text-ink" title={s.nombre}>{s.nombre}</div>
                       <div className="demo-num mt-0.5 text-[12.5px] text-muted">
-                        {s.codigoProveedor} · {s.alcaldia} · {formatMonto(tarifaDeSitio(s))}
+                        {s.codigoProveedor} · {ubicacion([s.alcaldia, s.ciudad])} · {formatMonto(tarifaDeSitio(s))}
                         {esDigital && s.totalSpots == null && s.spotsPorHora != null && (
                           <> · {s.spotsPorHora} slots/h</>
                         )}
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1.5 truncate text-[12px] text-muted">
                         <UserRound className="h-3.5 w-3.5 shrink-0" />
-                        <span className="truncate">{propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}</span>
+                        <span className="truncate" title={propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}>
+                          {propietarioPorSitio.get(s.id) ?? 'Sin arrendador'}
+                        </span>
                       </div>
                     </button>
                     {/* Disponibilidad por spots: las digitales muestran X/12 y las
