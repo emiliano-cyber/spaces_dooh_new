@@ -1,0 +1,184 @@
+===============================================================================
+ DESPLIEGUE — M5 · config_negocio por tenant (ADR 0011)
+ Preparado: 2026-08-05
+===============================================================================
+
+QUE SE DESPLIEGA
+  Commit  : 15da3b9   (rama main; publicar antes con `git push`)
+  Encima de: aebb509  (lo que corre hoy en produccion)
+  ADR     : docs/adr/0011-config-negocio-por-tenant.md
+  Estado  : typecheck limpio, lint sin errores, build correcto, 631 pruebas OK
+
+DONDE
+  Host : emiliano@209.97.146.136   (tu entras a la consola como root)
+  Ruta : /var/www/Spaces
+  App  : pm2 spaces-web  ->  https://demo.space-os.io
+  BD   : spaces_prod
+
+-------------------------------------------------------------------------------
+ QUE ARREGLA, EN UNA LINEA
+-------------------------------------------------------------------------------
+  Hoy `config_negocio` es UNA fila para las CINCO organizaciones, y la pantalla
+  de Configuracion ESCRIBE sobre ella: el Dueno de cualquiera que cambie su IVA,
+  su moneda o su logo se los cambia a todas las demas. Esto le da a cada
+  organizacion la suya, con RLS.
+
+-------------------------------------------------------------------------------
+ !! DOS COSAS ANTES DE EMPEZAR !!
+-------------------------------------------------------------------------------
+  1. LA MIGRACION VA ANTES QUE EL CODIGO. El codigo nuevo lee `tenant_id`; si va
+     primero, la lectura de config falla en toda la app.
+
+  2. ESTA MIGRACION NO LA HE PODIDO ENSAYAR. Necesita `postgres` y el Docker
+     local no esta levantado. Por eso el PASO 2 es un ENSAYO EN ROLLBACK contra
+     los datos reales: corre la migracion entera y la deshace. Si algo va a
+     fallar, falla ahi sin escribir nada. NO te saltes ese paso.
+
+-------------------------------------------------------------------------------
+ AVISO OPERATIVO
+-------------------------------------------------------------------------------
+  Despues de esto, cada organizacion puede tener su propio IVA, moneda, loop,
+  plazos de cobranza y logo. La migracion CLONA los valores actuales para todas,
+  asi que el dia del despliegue NADIE ve un cambio — pero a partir de ahi, tocar
+  los ajustes de una ya no toca los de las otras. Que es el objetivo.
+
+  El nombre de la empresa se edita ahora en un solo sitio de verdad
+  (`tenants.nombre`). Las dos pantallas que lo editaban —Configuracion → Empresa
+  y Administracion → Configuracion— pasan a escribir lo mismo.
+
+
+===============================================================================
+ PASO 1 — BACKUP
+===============================================================================
+  mkdir -p ~/backups && F=~/backups/spaces_prod_pre_m5_$(date +%Y%m%d_%H%M%S).sql.gz && sudo -u postgres pg_dump -d spaces_prod | gzip > "$F"; echo "salida: $?"; ls -lh "$F"; echo "tablas: $(zcat "$F" | grep -c '^CREATE TABLE')"
+
+  ESPERADO: ~7 MB, 37+ tablas, salida 0.
+  NO SIGAS si pesa menos de 1 MB o salen menos de 20 tablas.
+
+
+===============================================================================
+ PASO 2 — TRAER EL CODIGO (no compila nada todavia)
+===============================================================================
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+  VERIFICA: debe decir  15da3b9 fix(seguridad): M5 ...
+  Con este paso llega el .sql al droplet.
+
+
+===============================================================================
+ PASO 3 — ENSAYO DE LA MIGRACION (corre y DESHACE)  <-- NO SALTAR
+===============================================================================
+  cd /var/www/Spaces
+  sed 's/^commit;/rollback;/' db/migrations/20260805_config_negocio_por_tenant.sql > /tmp/ensayo_m5.sql
+  sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/ensayo_m5.sql; echo "---- salida: $? ----"
+
+  QUE ESPERAR: salida 0 y, al final, el bloque de verificacion con
+    filas de config = 5 · tenants = 5 · sin tenant = 0 ·
+    nombre_tenant = 0 · RLS activa = t
+
+  Como termina en `rollback`, la base queda EXACTAMENTE como estaba. Es solo
+  para saber que la migracion corre limpia contra tus datos.
+
+  Si la salida NO es 0, PARA y pegame el error. No sigas al paso 4.
+
+
+===============================================================================
+ PASO 4 — MIGRACION DE VERDAD
+===============================================================================
+  cd /var/www/Spaces
+  sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260805_config_negocio_por_tenant.sql; echo "---- salida: $? ----"
+
+  Mismos numeros que en el ensayo, pero esta vez se quedan.
+  Va en una transaccion: si algo falla, revierte solo.
+
+
+===============================================================================
+ PASO 5 — COMPILAR Y RECARGAR
+===============================================================================
+  cd /var/www/Spaces
+  npm ci
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+  El build tarda ~1m45s. Entre el build y el reload hay una ventana en la que
+  alguien con la pagina abierta puede ver errores; no la alargues.
+
+
+===============================================================================
+ PASO 6 — COMPROBAR
+===============================================================================
+Sin entrar:
+  curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+  curl -s -o /dev/null -w "signup: %{http_code}\n" -X POST https://demo.space-os.io/spaces-dooh/api/signup/ -H "Content-Type: application/json" -d '{}'
+  ESPERADO: 200 y 503
+
+En la consola:
+  sudo -u postgres psql -d spaces_prod -c "select t.slug, c.moneda, c.iva_tasas, c.loop_seg from config_negocio c join tenants t on t.id=c.tenant_id order by t.slug"
+  ESPERADO: CINCO filas, una por organizacion, todas con los mismos valores
+            (MXN, {16}, 60) — que es lo que veian antes.
+
+Entrando:
+  [ ] El menu lateral sigue diciendo el nombre de tu organizacion.
+  [ ] Administracion → Configuracion: «Nombre de la empresa» ya NO dice
+      «RGB Catorce» si estas en G500 — dice lo mismo que el menu lateral.
+      Ese era el sintoma que reporto la auditoria.
+  [ ] Cambia el IVA o los plazos de cobranza y guarda. Luego entra con otra
+      organizacion (si tienes acceso) y comprueba que a ELLA no le cambio nada.
+      Esa es la prueba de fuego del ADR.
+  [ ] El login ya no dice «RGB Catorce S de RL de CV (PIXELED)».
+
+
+===============================================================================
+ SI ALGO SALE MAL — ROLLBACK
+===============================================================================
+!! OJO: el rollback de codigo NO es limpio. Leelo antes de necesitarlo. !!
+
+La migracion ELIMINA `config_negocio.nombre_tenant`, y el codigo anterior la
+lee. Volviendo solo el codigo (comprobado leyendo aebb509, no de memoria):
+
+  · El MENU LATERAL sigue bien. `obtenerConfig()` ya pisaba ese campo con
+    `tenants.nombre`, asi que no depende de la columna borrada.
+  · Administracion → Configuracion muestra «Nombre de la empresa» VACIO:
+    `obtenerConfigAdmin()` no rellenaba ese campo a proposito, y ahora no hay
+    columna de donde sacarlo.
+  · Guardar ahi da 500: intenta escribir `nombre_tenant`, que ya no existe.
+  · El resto funciona. La lectura de config sigue devolviendo la fila del
+    tenant: el codigo viejo hace `select ... limit 1` pero consulta con
+    contexto de tenant, y con la RLS ya puesta ese `limit 1` solo puede ver la
+    fila propia.
+
+  OPCION A — codigo atras y devolver la columna (rapido, sin perder datos):
+
+    cd /var/www/Spaces && git checkout aebb509 && npx turbo run build --filter=web && pm2 reload spaces-web --update-env
+    sudo -u postgres psql -d spaces_prod -c "alter table config_negocio add column if not exists nombre_tenant text; update config_negocio c set nombre_tenant = t.nombre from tenants t where t.id = c.tenant_id and c.nombre_tenant is null; alter table config_negocio alter column nombre_tenant set not null;"
+
+    Deja la app como antes. Las filas por tenant se quedan (son inofensivas para
+    el codigo viejo: lee la del tenant y ya).
+
+  OPCION B — restaurar el backup del paso 1 (vuelve TODO al estado previo):
+
+    zcat ~/backups/<el backup del paso 1>.sql.gz | sudo -u postgres psql -d spaces_prod
+
+    Pierdes lo que se haya creado en la base desde el backup.
+
+DISPARADORES PARA REVERTIR
+  · el login deja de dar 200
+  · 5xx en /api/estado o /api/config
+  · el menu lateral sale sin nombre de empresa
+  · pm2 reinicia el proceso mas de 2 veces
+  Ventana de vigilancia: 20 minutos tras el reload.
+
+
+===============================================================================
+ LO QUE ESTE DESPLIEGUE NO ARREGLA
+===============================================================================
+  · `tenants.moneda` sigue duplicando `config_negocio.moneda`, desde antes de
+    este cambio. Nadie las sincroniza. Anotado en el ADR 0011.
+  · B5 (fotos de 11 de las 12 pantallas) y B9 (win rate 100%): son datos y
+    siguen esperando tu material y tu criterio.
+  · A1 completo (transicion automatica de estado por fecha): decision de
+    negocio pendiente, no deuda tecnica.
