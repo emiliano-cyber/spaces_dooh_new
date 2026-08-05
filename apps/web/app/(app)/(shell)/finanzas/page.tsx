@@ -1,12 +1,13 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useState } from 'react'
-import { CheckCircle2, FileText, Lock, Receipt } from 'lucide-react'
+import { Fragment, useMemo, useState } from 'react'
+import { CheckCircle2, ChevronRight, FileText, Lock, Receipt } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { EmptyState } from '@/components/demo/EmptyState'
+import type { Cobranza, Factura, EstCobranza } from '@/lib/data/types'
 import {
   StatusBadge,
   COBRANZA_TONO,
@@ -65,6 +66,52 @@ export default function FinanzasPage() {
   }
 
   const cliNombre = (id: string) => clientes?.find((c) => c.id === id)?.nombre ?? '—'
+
+  // ─── Cobranza agrupada por factura (M7) ────────────────────────────────────
+  const [expandidas, setExpandidas] = useState<Set<string>>(new Set())
+  const alternar = (id: string) =>
+    setExpandidas((prev) => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+
+  const grupos = useMemo(() => {
+    if (!cobranzas || !facturas) return []
+    // Índice por id: `facturas.find(...)` dentro del map recorría el arreglo
+    // entero por cada cuota — con 12 cuotas de 30 facturas son 360 barridos.
+    const porId = new Map(facturas.map((fx) => [fx.id, fx]))
+    const acc = new Map<string, { factura: typeof facturas[number] | undefined; cuotas: typeof cobranzas }>()
+    for (const c of cobranzas) {
+      const g = acc.get(c.facturaId) ?? { factura: porId.get(c.facturaId), cuotas: [] }
+      g.cuotas.push(c)
+      acc.set(c.facturaId, g)
+    }
+    return [...acc.values()]
+      .map((g) => {
+        const cuotas = [...g.cuotas].sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento))
+        const pendientes = cuotas.filter((c) => estadoCobranza(c) !== 'PAGADA')
+        // El estado del grupo es el PEOR de sus cuotas: una factura con once
+        // cuotas al corriente y una vencida está vencida, y mostrarla en verde
+        // sería justo el semáforo mentiroso que la auditoría reprocha.
+        const estados = cuotas.map(estadoCobranza)
+        const estado: EstCobranza = estados.includes('VENCIDA') ? 'VENCIDA'
+          : estados.includes('POR_VENCER') ? 'POR_VENCER'
+          : estados.every((e) => e === 'PAGADA') ? 'PAGADA'
+          : 'AL_CORRIENTE'
+        return {
+          factura: g.factura,
+          cuotas,
+          estado,
+          total: cuotas.reduce((a, c) => a + (c.monto ?? g.factura?.monto ?? 0), 0),
+          pagadas: cuotas.length - pendientes.length,
+          proxima: pendientes[0]?.fechaVencimiento ?? null,
+        }
+      })
+      // Primero lo que vence antes; las totalmente pagadas, al final.
+      .sort((a, b) => (a.proxima ?? '9999').localeCompare(b.proxima ?? '9999'))
+  }, [cobranzas, facturas])
+
 
   // Listas para facturar: candado encendido y sin factura todavía.
   const listas =
@@ -160,87 +207,56 @@ export default function FinanzasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {cobranzas
-                    .slice()
-                    .sort((a, b) => a.fechaVencimiento.localeCompare(b.fechaVencimiento))
-                    .map((cob) => {
-                      const fac = facturas.find((f) => f.id === cob.facturaId)
-                      const est = estadoCobranza(cob)
-                      const dias = diasHasta(cob.fechaVencimiento)
-                      return (
-                        <tr key={cob.id} className="border-b border-border last:border-0">
-                          <td className="demo-num px-4 py-2.5 text-ink">{fac?.folio ?? '—'}</td>
-                          <td className="px-4 py-2.5">
-                            <div className="demo-num text-[10px] leading-tight text-muted" title={fac?.folioFiscal ?? ''}>
-                              {fac?.folioFiscal ? `${fac.folioFiscal.slice(0, 13)}…` : '—'}
-                            </div>
-                            {fac?.rfc && <div className="demo-num text-[10px] text-muted">{fac.rfc}</div>}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted">{fac ? cliNombre(fac.clienteId) : '—'}</td>
-                          <td className="demo-num px-4 py-2.5 text-right text-ink">
-                            {/* Con parcialidades, el importe de la fila es el de
-                                LA CUOTA, no el de la factura entera. */}
-                            {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
-                            {cob.numero != null && (
-                              <div className="text-[10px] text-muted">
-                                cuota {cob.numero} de {cob.totalCuotas}
-                              </div>
-                            )}
-                            {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
-                              <div className="text-[10px] text-warning">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
-                            )}
-                          </td>
-                          <td className="demo-num px-4 py-2.5 text-muted">{cob.plazoDias} días</td>
-                          <td className="demo-num px-4 py-2.5 text-muted">
-                            {formatFecha(cob.fechaVencimiento)}
-                            <span
-                              className={cn(
-                                'ml-1 text-[11px]',
-                                dias < 0 ? 'text-error' : dias <= 30 ? 'text-warning' : 'text-muted',
-                              )}
-                            >
-                              ({dias < 0 ? `${Math.abs(dias)}d vencida` : `${dias}d`})
+                  {/* M7: la misma factura salía repetida una vez por cuota —la
+                      auditoría contó F001-CDE401E1 doce veces—, así que la tabla
+                      no dejaba ver cuántas facturas hay realmente. Ahora una
+                      fila por FACTURA, y sus cuotas se despliegan al pulsarla.
+                      Una factura de cuota única no se agrupa: sería un
+                      desplegable de un solo elemento. */}
+                  {grupos.map((g) => {
+                    const abierta = expandidas.has(g.factura?.id ?? '')
+                    if (g.cuotas.length === 1) {
+                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
+                    }
+                    return (
+                      <Fragment key={g.factura?.id ?? g.cuotas[0].id}>
+                        <tr
+                          className="cursor-pointer border-b border-border last:border-0 hover:bg-surface-2"
+                          onClick={() => alternar(g.factura?.id ?? '')}
+                        >
+                          <td className="demo-num px-4 py-2.5 text-ink">
+                            <span className="inline-flex items-center gap-1.5">
+                              <ChevronRight className={cn('h-3.5 w-3.5 text-muted transition-transform', abierta && 'rotate-90')} />
+                              {g.factura?.folio ?? '—'}
                             </span>
                           </td>
                           <td className="px-4 py-2.5">
-                            <div className="flex flex-col items-start gap-1.5">
-                              <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
-                              {est !== 'PAGADA' && (
-                                <div className="flex items-center gap-2">
-                                  {puedeCobrar && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setPagoCob({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: saldoCobranza(cob, fac) })}
-                                      className="rounded border border-[#10b98155] bg-[#10b9810d] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55] hover:bg-[#10b9811a]"
-                                    >
-                                      Registrar pago
-                                    </button>
-                                  )}
-                                  {puedeCobrar && (
-                                    <button
-                                      type="button"
-                                      onClick={() => recordar(cob.id)}
-                                      disabled={recordando === cob.id}
-                                      className="rounded border border-border-strong px-2 py-0.5 text-[11px] text-ink hover:bg-surface-2 disabled:opacity-50"
-                                    >
-                                      {recordando === cob.id ? 'Enviando…' : 'Recordar'}
-                                    </button>
-                                  )}
-                                  {cob.recordatoriosEnviados > 0 && (
-                                    <span
-                                      className="text-[10px] text-muted"
-                                      title={cob.recordatorioEn ? `Último: ${formatFecha(cob.recordatorioEn)}` : ''}
-                                    >
-                                      {cob.recordatoriosEnviados} enviado{cob.recordatoriosEnviados === 1 ? '' : 's'}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                            <div className="demo-num text-[10px] leading-tight text-muted" title={g.factura?.folioFiscal ?? ''}>
+                              {g.factura?.folioFiscal ? `${g.factura.folioFiscal.slice(0, 13)}…` : '—'}
+                            </div>
+                            {g.factura?.rfc && <div className="demo-num text-[10px] text-muted">{g.factura.rfc}</div>}
+                          </td>
+                          <td className="px-4 py-2.5 text-muted">{g.factura ? cliNombre(g.factura.clienteId) : '—'}</td>
+                          <td className="demo-num px-4 py-2.5 text-right text-ink">
+                            {formatMonto(g.total)}
+                            <div className="text-[10px] text-muted">
+                              {g.pagadas} de {g.cuotas.length} cuotas pagadas
                             </div>
                           </td>
+                          <td className="demo-num px-4 py-2.5 text-muted">{g.cuotas[0].plazoDias} días</td>
+                          <td className="demo-num px-4 py-2.5 text-muted">
+                            {/* La fecha del GRUPO es la de la próxima cuota sin
+                                pagar: es la que dice cuándo hay que actuar. */}
+                            {g.proxima ? formatFecha(g.proxima) : '—'}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
+                          </td>
                         </tr>
-                      )
-                    })}
+                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
+                      </Fragment>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -542,5 +558,94 @@ function PagoModal({
         </p>
       </div>
     </Modal>
+  )
+}
+
+// Una fila de CUOTA: las mismas celdas de siempre, con sangría si va dentro de
+// una factura desplegada.
+//
+// Va en el nivel SUPERIOR del módulo, no dentro de FinanzasPage. Definida
+// dentro, React ve un tipo de componente nuevo en cada render del padre y
+// desmonta y vuelve a montar TODAS las filas — el DOM entero de la tabla, en
+// cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
+// cinco props y las vale.
+function FilaCuota({
+cob, fac, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
+}: {
+cob: Cobranza
+fac?: Factura
+sangrada?: boolean
+cliNombre: (id: string) => string
+puedeCobrar: boolean
+recordando: string | null
+onPagar: (c: { id: string; folio: string; saldo: number }) => void
+onRecordar: (id: string) => void
+}) {
+  const est = estadoCobranza(cob)
+  const dias = diasHasta(cob.fechaVencimiento)
+  return (
+    <tr className={cn('border-b border-border last:border-0', sangrada && 'bg-surface-2/40')}>
+      <td className={cn('demo-num px-4 py-2.5 text-ink', sangrada && 'pl-10 text-muted')}>
+        {sangrada ? `Cuota ${cob.numero ?? '—'} de ${cob.totalCuotas ?? '—'}` : fac?.folio ?? '—'}
+      </td>
+      <td className="px-4 py-2.5">
+        {!sangrada && (
+          <>
+            <div className="demo-num text-[10px] leading-tight text-muted" title={fac?.folioFiscal ?? ''}>
+              {fac?.folioFiscal ? `${fac.folioFiscal.slice(0, 13)}…` : '—'}
+            </div>
+            {fac?.rfc && <div className="demo-num text-[10px] text-muted">{fac.rfc}</div>}
+          </>
+        )}
+      </td>
+      <td className="px-4 py-2.5 text-muted">{!sangrada && (fac ? cliNombre(fac.clienteId) : '—')}</td>
+      <td className="demo-num px-4 py-2.5 text-right text-ink">
+        {/* Con parcialidades, el importe de la fila es el de LA CUOTA, no el
+            de la factura entera. */}
+        {cob.monto != null ? formatMonto(cob.monto) : fac ? formatMonto(fac.monto) : '—'}
+        {cob.montoPagado > 0 && est !== 'PAGADA' && fac && (
+          <div className="text-[10px] text-warning">saldo {formatMonto(saldoCobranza(cob, fac))}</div>
+        )}
+      </td>
+      <td className="demo-num px-4 py-2.5 text-muted">{cob.plazoDias} días</td>
+      <td className="demo-num px-4 py-2.5 text-muted">
+        {/* El espacio es un carácter de verdad, no solo el margen: `ml-1`
+            separa a la vista pero al copiar la celda salía «27/08/2026(24d)»
+            pegado, que es lo que reportó M8. */}
+        {formatFecha(cob.fechaVencimiento)}{' '}
+        <span className={cn('text-[11px]', dias < 0 ? 'text-error' : dias <= 30 ? 'text-warning' : 'text-muted')}>
+          ({dias < 0 ? `${Math.abs(dias)}d vencida` : `${dias}d`})
+        </span>
+      </td>
+      <td className="px-4 py-2.5">
+        <div className="flex flex-col items-start gap-1.5">
+          <StatusBadge tono={COBRANZA_TONO[est]}>{COBRANZA_LABEL[est]}</StatusBadge>
+          {est !== 'PAGADA' && puedeCobrar && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onPagar({ id: cob.id, folio: fac?.folio ?? cob.id, saldo: saldoCobranza(cob, fac) })}
+                className="rounded border border-[#10b98155] bg-[#10b9810d] px-2 py-0.5 text-[11px] font-medium text-[#0f7a55] hover:bg-[#10b9811a]"
+              >
+                Registrar pago
+              </button>
+              <button
+                type="button"
+                onClick={() => onRecordar(cob.id)}
+                disabled={recordando === cob.id}
+                className="rounded border border-border-strong px-2 py-0.5 text-[11px] text-ink hover:bg-surface-2 disabled:opacity-50"
+              >
+                {recordando === cob.id ? 'Enviando…' : 'Recordar'}
+              </button>
+              {cob.recordatoriosEnviados > 0 && (
+                <span className="text-[10px] text-muted" title={cob.recordatorioEn ? `Último: ${formatFecha(cob.recordatorioEn)}` : ''}>
+                  {cob.recordatoriosEnviados} enviado{cob.recordatoriosEnviados === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </td>
+    </tr>
   )
 }

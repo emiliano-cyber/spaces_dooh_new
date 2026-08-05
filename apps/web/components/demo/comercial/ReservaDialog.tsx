@@ -71,6 +71,11 @@ export function ReservaDialog({
   const [enviando, setEnviando] = useState(false)
   const config = useConfigNegocio()
   const spotsPorLoop = config && config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
+  // Pantallas de esta reserva cuyo número de slots NO es el del loop global.
+  // Son las que hacen que el recuadro de arriba parezca contradecirse (M12).
+  const conSlotsPropios = sitios.filter(
+    (s) => (s.totalSpots ?? 0) > 0 && s.totalSpots !== spotsPorLoop && esDigital(s),
+  )
 
   const reservedOf = (s: Sitio) => spots[s.id] ?? dispOf(s)
 
@@ -226,13 +231,24 @@ export function ReservaDialog({
             <option value="HIBRIDA">Híbrida — con imprenta</option>
           </select>
         </Campo>
-        {/* Estructura del loop digital (de Ajustes) — solo si hay pantallas digitales */}
+        {/* Estructura del loop digital (de Ajustes) — solo si hay pantallas digitales.
+            M12: este número es de REFERENCIA. Lo que se aparta son los slots de
+            cada pantalla (`totalSpots`), y la auditoría vio «6 slots por loop»
+            aquí mientras se reservaban pantallas de 10 y 12 — sin nada que
+            dijera cuál de los dos mandaba. Ahora se avisa cuando difieren. */}
         {digitales > 0 && config && (
           <div className="rounded-md border border-[#0a66ff33] bg-[#0a66ff0a] px-3 py-2 text-[12px] text-ink">
             Loop de <span className="demo-num font-medium">{config.loopSeg}s</span> · slot de{' '}
             <span className="demo-num font-medium">{config.spotSeg}s</span> →{' '}
             <span className="demo-num font-semibold">{spotsPorLoop}</span> slots por loop
-            <span className="ml-1 text-muted">(configurable en Administración → Configuración)</span>
+            <span className="ml-1 text-muted">(referencia, de Administración → Configuración)</span>
+            {conSlotsPropios.length > 0 && (
+              <div className="mt-1 text-muted">
+                {conSlotsPropios.length === 1
+                  ? `${conSlotsPropios[0].nombre} tiene ${conSlotsPropios[0].totalSpots} slots propios y manda sobre este número.`
+                  : `${conSlotsPropios.length} de las pantallas elegidas tienen su propio número de slots, y manda el suyo.`}
+              </div>
+            )}
           </div>
         )}
 

@@ -198,7 +198,11 @@ export function ContratoSheet({
                 {misPagos.map((p) => (
                   <li key={p.id} className="flex items-center justify-between px-3 py-2">
                     <div className="min-w-0">
-                      <div className="text-[13px] capitalize text-ink">{p.periodo}</div>
+                      {/* `periodo` es una fecha YYYY-MM-DD, no un nombre de mes: se imprimía
+                          cruda («2026-07-16») junto a otras vistas que ya usaban
+                          dd/mm/aaaa (M8). El `capitalize` sobraba — era de cuando
+                          esto guardaba «agosto 2026». */}
+                      <div className="text-[13px] text-ink">{formatFecha(p.periodo)}</div>
                       <div className="demo-num text-[11px] text-muted">{formatMonto(p.monto)}</div>
                       {/* Qué documentos respaldan el pago (el archivo se pide por su ruta). */}
                       {(p.tieneFactura || p.tieneComprobante) && (
@@ -663,7 +667,7 @@ function PagoModal({
       open={open}
       onOpenChange={onOpenChange}
       title={yaPagado ? 'Adjuntos del pago' : 'Registrar pago'}
-      subtitle={`${pago.periodo} · ${formatMonto(pago.monto)}`}
+      subtitle={`${formatFecha(pago.periodo)} · ${formatMonto(pago.monto)}`}
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>

@@ -482,7 +482,7 @@ export function SiteFicha({
                   </span>
                   {proximoPago ? (
                     <span className="inline-flex items-center gap-1.5 text-muted">
-                      Próximo: <span className="text-ink">{proximoPago.periodo}</span>
+                      Próximo: <span className="text-ink">{formatFecha(proximoPago.periodo)}</span>
                       <StatusBadge tono={PAGO_TONO[proximoPago.estatus]}>{PAGO_LABEL[proximoPago.estatus]}</StatusBadge>
                     </span>
                   ) : (

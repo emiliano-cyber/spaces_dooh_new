@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import { History, User, X } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { EmptyState } from '@/components/demo/EmptyState'
+import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import { useAcciones, formatFechaHora } from '@/lib/data/client'
 
 const selectCls =
@@ -40,6 +41,10 @@ export default function ActividadPage() {
       return true
     })
   }, [acciones, fUsuario, fFecha, fHora])
+
+  // M7: 168 entradas se pintaban de una vez. La bitácora solo crece, así que el
+  // problema empeora con el uso.
+  const pag = usePaginacion(lista, 25)
 
   const hayFiltro = !!fUsuario || !!fFecha || fHora !== ''
   function limpiar() {
@@ -119,10 +124,10 @@ export default function ActividadPage() {
             </p>
           ) : (
             <ol className="relative space-y-0">
-              {lista.map((a, i) => (
+              {pag.visibles.map((a, i) => (
                 <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
                   {/* Línea de tiempo */}
-                  {i < lista.length - 1 && (
+                  {i < pag.visibles.length - 1 && (
                     <span className="absolute left-[15px] top-7 h-[calc(100%-12px)] w-px bg-border" aria-hidden />
                   )}
                   <span className="z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted">
@@ -144,6 +149,9 @@ export default function ActividadPage() {
             </ol>
           )}
         </CardContent>
+        {/* Fuera del CardContent para que la línea superior del control quede a
+            ras del borde de la tarjeta, como en el resto de tablas. */}
+        <Paginacion {...pag} etiqueta="acciones" />
       </Card>
     </div>
   )

@@ -31,7 +31,7 @@ import {
   actualizarConfigApi,
   type PermisosMatriz,
 } from '@/lib/data/admin-api'
-import { useActualizarConfig } from '@/lib/data/client'
+import { useActualizarConfig, useSitios } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
 
 const inputCls =
@@ -478,6 +478,8 @@ function puedePintarse(dataUrl: string) {
 
 function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   const [config, setConfig] = useState<ConfigNegocio | null>(null)
+  // Para contrastar el loop global contra los slots reales de cada pantalla (M12).
+  const sitios = useSitios()
   const [nuevoPlazo, setNuevoPlazo] = useState('')
   const [nuevoIva, setNuevoIva] = useState('')
   const sincronizarConfig = useActualizarConfig()
@@ -523,6 +525,15 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
   if (!config) return <div className="h-64 animate-pulse rounded-md bg-surface-2" />
 
   const spotsPorLoop = config.spotSeg > 0 ? Math.floor(config.loopSeg / config.spotSeg) : 0
+  // M12: el loop global NO gobierna las reservas — lo hace `totalSpots` de cada
+  // pantalla. La auditoría vio «6 slots» aquí junto a pantallas de 10 y 12, sin
+  // nada que explicara la contradicción. En vez de forzar que coincidan (cada
+  // pantalla puede tener su propio hardware y su propio loop), se cuenta cuántas
+  // difieren y se dice.
+  const digitales = (sitios ?? []).filter(
+    (x) => x.tipoMedio === 'PANTALLA_DIGITAL' || x.esRotativo || x.exhibicion === 'digital' || x.exhibicion === 'rotativo',
+  )
+  const conSlotsPropios = digitales.filter((x) => (x.totalSpots ?? 0) > 0 && x.totalSpots !== spotsPorLoop)
 
   return (
     <div className="space-y-4">
@@ -631,8 +642,18 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
             </Campo>
           </div>
           <p className="mt-2 text-[11px] text-muted">
-            Determina cuántos slots tiene un loop (loop ÷ slot). Se usa al apartar pantallas digitales en campañas.
+            Es la estructura de <b>referencia</b> (loop ÷ slot). Lo que se aparta en una campaña son los
+            slots que tiene cada pantalla, no éstos: una pantalla con su propio número manda sobre este
+            valor.
           </p>
+          {conSlotsPropios.length > 0 && (
+            <p className="mt-1.5 text-[11px] text-muted">
+              <b className="text-ink">{conSlotsPropios.length}</b> de {digitales.length} pantallas digitales
+              tienen un número propio distinto de {spotsPorLoop}
+              {' '}({Array.from(new Set(conSlotsPropios.map((x) => x.totalSpots))).sort((a, b) => (a ?? 0) - (b ?? 0)).join(', ')} slots).
+              Se edita en cada pantalla, desde Inventario.
+            </p>
+          )}
         </CardContent>
       </Card>
 

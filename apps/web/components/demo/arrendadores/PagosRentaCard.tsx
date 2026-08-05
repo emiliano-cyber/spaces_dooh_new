@@ -8,6 +8,7 @@ import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { usePagosRenta, useContratos, formatMonto, formatFecha, diasHasta } from '@/lib/data/client'
 import { registrarPagoRentaApi } from '@/lib/data/estado-api'
+import { Paginacion, usePaginacion } from '@/components/demo/ui/Paginacion'
 import {
   clasificarVencimiento, textoVencimiento, periodicidadLabel,
   type EstadoVencimiento,
@@ -76,25 +77,19 @@ export function PagosRentaCard({
   const puedeCompletar = usePuede('arrendadores', 'ver')
   const [busy, setBusy] = useState<string | null>(null)
 
-  if (!todosLosPagos) {
-    return (
-      <Card>
-        <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-          ))}
-        </CardContent>
-      </Card>
-    )
-  }
+  // El `return` de carga NO puede ir aquí: `usePaginacion` se llama más abajo y
+  // los hooks tienen que ejecutarse en el mismo orden en todos los renders.
+  // Se marca el estado y se sale al final, con las derivaciones trabajando
+  // sobre un arreglo vacío mientras tanto.
+  const cargando = !todosLosPagos
 
   // Filtro de la página, si lo hay. Se aplica ANTES que todo lo demás para que
   // los contadores del encabezado también hablen del subconjunto visible: un
   // «3 vencidas» calculado sobre todo el universo, junto a una tabla filtrada,
   // se lee como si esas tres estuvieran ahí abajo.
   const visiblesIds = contratosVisibles ? new Set(contratosVisibles.map((c) => c.id)) : null
-  const pagos = visiblesIds ? todosLosPagos.filter((p) => visiblesIds.has(p.contratoId)) : todosLosPagos
+  const base = todosLosPagos ?? []
+  const pagos = visiblesIds ? base.filter((p) => visiblesIds.has(p.contratoId)) : base
 
   // Se cuenta sobre lo VISIBLE cuando hay filtro: junto a una tabla filtrada,
   // un «7 contratos sin importe» calculado sobre todo el universo se lee como si
@@ -122,6 +117,25 @@ export function PagosRentaCard({
   const ordenados = [...visibles].sort(
     (a, b) => ORDEN[a.estado] - ORDEN[b.estado] || a.pago.periodo.localeCompare(b.pago.periodo),
   )
+
+  // M7: el calendario de pagos llega hasta 2027, así que la tabla salía con 30+
+  // filas de golpe. El orden ya pone delante lo vencido y lo próximo, que es lo
+  // único que se mira a diario; lo de dentro de ocho meses puede esperar a su
+  // página.
+  const pag = usePaginacion(ordenados, 20)
+
+  if (cargando) {
+    return (
+      <Card>
+        <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
+          ))}
+        </CardContent>
+      </Card>
+    )
+  }
 
   // Los contadores del encabezado se calculan sobre TODOS los pagos, no sobre
   // los visibles: en Finanzas la tabla oculta los pagados, y contar solo lo
@@ -214,7 +228,7 @@ export function PagosRentaCard({
                 </tr>
               </thead>
               <tbody>
-                {ordenados.map(({ pago: p, dias, estado, periodicidad, contratoHasta }) => (
+                {pag.visibles.map(({ pago: p, dias, estado, periodicidad, contratoHasta }) => (
                   <tr key={p.id} className="border-b border-border last:border-0">
                     <td className="px-4 py-2.5 text-ink">{p.sitioNombre ?? '—'}</td>
                     {/* Cada cuánto se paga esta renta: sin esto, "vence en 5
@@ -222,17 +236,19 @@ export function PagosRentaCard({
                         en un año. */}
                     <td className="px-4 py-2.5 text-muted">{periodicidadLabel(periodicidad)}</td>
                     <td className="demo-num px-4 py-2.5 text-muted">
-                      {formatFecha(p.periodo)}
+                      {/* El espacio va como carácter, no solo como margen: al
+                          copiar la celda salía «16/07/2026hace 18 días» (M8). */}
+                      {formatFecha(p.periodo)}{' '}
                       {/* La fecha sola obliga a restar mentalmente contra hoy.
                           Este es el dato que responde "cuál está cerca". */}
                       {estado !== 'PAGADO' && (
                         <span
                           className={
                             estado === 'VENCIDO'
-                              ? 'ml-1.5 font-medium text-error'
+                              ? 'font-medium text-error'
                               : estado === 'POR_VENCER'
-                                ? 'ml-1.5 font-medium text-warning'
-                                : 'ml-1.5 text-muted'
+                                ? 'font-medium text-warning'
+                                : 'text-muted'
                           }
                         >
                           {textoVencimiento(dias)}
@@ -271,6 +287,7 @@ export function PagosRentaCard({
           </div>
         )}
       </CardContent>
+      <Paginacion {...pag} etiqueta="pagos" />
     </Card>
   )
 }
