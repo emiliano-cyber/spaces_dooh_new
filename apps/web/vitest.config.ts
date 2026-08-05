@@ -18,5 +18,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['lib/**/*.test.ts'],
+    // Las de integración (*.e2e.test.ts) van en vitest.e2e.config.ts: necesitan
+    // Postgres y el servidor levantados. Si entraran aquí, `npm test` fallaría
+    // en cualquier máquina sin Docker y el rojo se acabaría ignorando.
+    exclude: ['**/node_modules/**', '**/*.e2e.test.ts'],
   },
 })

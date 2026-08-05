@@ -76,14 +76,30 @@ DONDE
   sed 's/^commit;/rollback;/' db/migrations/20260805_config_negocio_por_tenant.sql > /tmp/ensayo_m5.sql
   sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/ensayo_m5.sql; echo "---- salida: $? ----"
 
-  QUE ESPERAR: salida 0 y, al final, el bloque de verificacion con
-    filas de config = 5 · tenants = 5 · sin tenant = 0 ·
-    nombre_tenant = 0 · RLS activa = t
+  QUE ESPERAR — la secuencia de la migracion, en este orden:
+    BEGIN · ALTER TABLE · DO · INSERT 0 <n> · ALTER TABLE · CREATE INDEX ·
+    ALTER TABLE · ALTER TABLE · DROP POLICY · CREATE POLICY · DO · ROLLBACK
 
-  Como termina en `rollback`, la base queda EXACTAMENTE como estaba. Es solo
-  para saber que la migracion corre limpia contra tus datos.
+  El dato que confirma que funciono es el `INSERT 0 <n>`: son los tenants que
+  RECIBIERON su fila clonada. Con 5 organizaciones y la fila original asignada a
+  RGB, lo correcto es `INSERT 0 4`.
 
-  Si la salida NO es 0, PARA y pegame el error. No sigas al paso 4.
+  OJO — EL ENSAYO TERMINA CON UN ERROR, Y ES NORMAL:
+
+    ERROR: column "tenant_id" does not exist
+    ---- salida: 3 ----
+
+  El bloque de verificacion del final va FUERA de la transaccion, asi que se
+  ejecuta DESPUES del rollback, cuando la columna ya no existe otra vez. No es
+  un fallo: es la prueba de que el rollback deshizo lo que tenia que deshacer.
+  En la corrida real (paso 4) ese bloque va despues del `commit` y si imprime
+  sus numeros.
+
+  Lo que SI seria un fallo: que la secuencia de arriba se corte antes del
+  ROLLBACK, o que aparezca un error ENTRE el BEGIN y el ROLLBACK. Si pasa eso,
+  PARA y no sigas al paso 4.
+
+  Como termina en `rollback`, la base queda EXACTAMENTE como estaba.
 
 
 ===============================================================================
