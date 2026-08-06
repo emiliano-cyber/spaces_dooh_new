@@ -4,8 +4,16 @@ Corren contra **Postgres de verdad**, no simulado.
 
 ```bash
 cd db && docker compose up -d      # una vez
+docker exec spaces_db psql -U spaces -d postgres -c "create database spaces_e2e"   # una vez
 cd apps/web && npm run test:e2e
 ```
+
+> **La base es `spaces_e2e`, NO la `spaces` del compose.** Esto arranca cada
+> corrida con `drop schema public cascade`, y `spaces` es la base del **demo
+> local**: ahí se suben pantallas, campañas y creativos con sus imágenes, que no
+> viven en ningún otro sitio. Por eso `exigirBaseDePrueba()` rechaza cualquier
+> base cuyo nombre no termine en `_e2e` o `_test`: el borrado tiene que ser algo
+> que se pide, no algo que pasa por usar el nombre por defecto.
 
 Las unitarias (`npm test`) no las incluyen: necesitan Docker, y si `npm test`
 fallara en una máquina sin Docker el rojo se acabaría ignorando — que es la

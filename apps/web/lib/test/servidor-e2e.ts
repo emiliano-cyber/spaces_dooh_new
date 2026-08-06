@@ -1,0 +1,148 @@
+import { spawn, type ChildProcess } from 'node:child_process'
+import { URL_APP } from './db-e2e'
+
+// ============================================================================
+//  lib/test/servidor-e2e.ts — El servidor de Next, de verdad, contra la BD de
+//  prueba.
+// ----------------------------------------------------------------------------
+//  Por qué HTTP y no llamar a los repos directamente: `tenantActual()` resuelve
+//  el tenant desde `cookies()` de next/headers y desde la sesión. Fuera de una
+//  petición no hay ni cookies ni sesión, así que un repo llamado a pelo no
+//  sabría de quién es lo que consulta — y la mitad de estas pruebas van
+//  justamente de eso. Simularlo seria construir un mock mas complejo que lo
+//  probado, que es la señal de subir de nivel.
+//
+//  Por HTTP entra ademas el `middleware` (el gate de sesión) y el orden real en
+//  que componen los guards, que es donde vive lo que se quiere verificar.
+//
+//  Se REUTILIZA el build existente: `DATABASE_URL` se lee en tiempo de
+//  ejecución, así que basta arrancar con otra. Lo único horneado en el bundle
+//  son las `NEXT_PUBLIC_*`, que aquí no importan.
+// ============================================================================
+
+const PUERTO = Number(process.env.PUERTO_E2E ?? 3311)
+export const BASE = `http://127.0.0.1:${PUERTO}/spaces-dooh`
+
+let proceso: ChildProcess | null = null
+
+export async function arrancarServidor(): Promise<void> {
+  if (proceso) return
+  proceso = spawn('npx', ['next', 'start', '-p', String(PUERTO)], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      // ¡EL ROL IMPORTA! Con el superusuario del contenedor la RLS NO se
+      // aplica, y la app quedaría sin su capa de aislamiento — una prueba de
+      // «beta no puede tocar lo de alfa» pasaría o fallaría por el motivo
+      // equivocado. En produccion la app conecta como `spaces_user`
+      // (NOSUPERUSER, NOBYPASSRLS); aquí, como `spaces_app`, su equivalente.
+      DATABASE_URL: URL_APP,
+      NODE_ENV: 'production',
+      // Las pruebas hablan por http, y una cookie `Secure` no se guardaría:
+      // el login daría 200 y la sesión se perderia, que es el fallo que ya
+      // ocurrió en el droplet cuando prod iba sin TLS.
+      COOKIE_SECURE: '0',
+      // Mismas banderas que produccion: el autoregistro CERRADO (A6). Se
+      // comprueba en el servidor, no solo ocultando el boton, asi que la
+      // prueba necesita el mismo valor para verificar el guard de verdad.
+      NEXT_PUBLIC_AUTOREGISTRO: '0',
+    },
+    shell: process.platform === 'win32',
+    stdio: 'ignore',
+  })
+
+  // Espera por CONDICIÓN, no por reloj: un `sleep` fijo produce fallos
+  // intermitentes en cuanto la máquina va cargada.
+  const limite = Date.now() + 60_000
+  while (Date.now() < limite) {
+    try {
+      const r = await fetch(`${BASE}/login/`, { redirect: 'manual' })
+      if (r.status > 0) return
+    } catch {
+      // todavía no escucha
+    }
+    await new Promise((r) => setTimeout(r, 400))
+  }
+  throw new Error(`El servidor de pruebas no respondió en ${BASE} tras 60 s`)
+}
+
+export async function pararServidor(): Promise<void> {
+  if (!proceso) return
+  const pid = proceso.pid
+  proceso = null
+  if (!pid) return
+  if (process.platform === 'win32') {
+    // En Windows `kill()` mata el shell, no el árbol: `next start` sobrevive,
+    // se queda con el puerto y —lo peor— CONSERVA el limitador de intentos de
+    // login en memoria. La siguiente corrida se conecta a ese servidor viejo y
+    // el login empieza a dar 429, con un fallo que no señala nada de esto.
+    const { spawnSync } = await import('node:child_process')
+    spawnSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' })
+  } else {
+    try { process.kill(-pid, 'SIGTERM') } catch { try { process.kill(pid, 'SIGTERM') } catch { /* ya murió */ } }
+  }
+}
+
+// ─── Cliente HTTP con tarro de cookies ──────────────────────────────────────
+// Cada sesión es un cliente. Dos clientes = dos organizaciones distintas
+// hablando a la vez, que es como se prueba el aislamiento sin trampas.
+export class Cliente {
+  private cookies = new Map<string, string>()
+
+  async pedir(
+    ruta: string,
+    opts: { metodo?: string; cuerpo?: unknown } = {},
+  ): Promise<{ status: number; datos: any }> {
+    const cabeceras: Record<string, string> = {}
+    if (this.cookies.size) {
+      cabeceras.cookie = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ')
+    }
+    if (opts.cuerpo !== undefined) cabeceras['content-type'] = 'application/json'
+
+    const metodo = opts.metodo ?? (opts.cuerpo !== undefined ? 'POST' : 'GET')
+    // Double-submit anti-CSRF (Hardening 1 · Bloque E): el middleware exige que
+    // toda mutación autenticada lleve `x-csrf-token` igual a la cookie
+    // `spaces_csrf`. En el navegador lo hace un parche de `window.fetch`; aquí
+    // se replica, porque saltárselo obligaría a apagar una protección real
+    // durante las pruebas — y entonces dejaría de estar probada.
+    const tokenCsrf = this.cookies.get('spaces_csrf')
+    if (tokenCsrf && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(metodo)) {
+      cabeceras['x-csrf-token'] = decodeURIComponent(tokenCsrf)
+    }
+
+    const r = await fetch(`${BASE}${ruta}`, {
+      method: metodo,
+      headers: cabeceras,
+      body: opts.cuerpo !== undefined ? JSON.stringify(opts.cuerpo) : undefined,
+      redirect: 'manual',
+    })
+
+    for (const [nombre, valor] of r.headers) {
+      if (nombre.toLowerCase() !== 'set-cookie') continue
+      // `getSetCookie` no está en todos los runtimes; el split por coma falla
+      // con `Expires=..., dd Mon`, así que se parte solo por el primer `=`.
+      for (const trozo of valor.split(/,(?=\s*[^;=]+=)/)) {
+        const [par] = trozo.trim().split(';')
+        const i = par.indexOf('=')
+        if (i > 0) this.cookies.set(par.slice(0, i).trim(), par.slice(i + 1).trim())
+      }
+    }
+
+    const texto = await r.text()
+    let datos: any = null
+    try { datos = texto ? JSON.parse(texto) : null } catch { datos = texto }
+    return { status: r.status, datos }
+  }
+
+  async entrar(email: string, password: string): Promise<void> {
+    const r = await this.pedir('/api/auth/login/', { cuerpo: { email, password } })
+    if (r.status !== 200) {
+      throw new Error(`Login de ${email} falló (${r.status}): ${JSON.stringify(r.datos)}`)
+    }
+    // El login deja la cookie CSRF; si por lo que sea no llegó, `/api/auth/me`
+    // la crea (lo hace para las sesiones abiertas antes de Hardening 1). Sin
+    // ella, la primera mutación se iría en 403 y el fallo apuntaría al sitio
+    // equivocado.
+    if (!this.cookies.has('spaces_csrf')) await this.pedir('/api/auth/me/')
+  }
+}

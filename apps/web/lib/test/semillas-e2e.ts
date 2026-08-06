@@ -124,8 +124,13 @@ export async function asegurarPermisos(): Promise<void> {
        ('DUENO','arrendadores','ver'),('DUENO','arrendadores','crear'),('DUENO','arrendadores','aprobar'),
        ('DUENO','operaciones','ver'),('DUENO','operaciones','crear'),
        ('DUENO','dashboard','ver'),('DUENO','network','ver'),
+       -- Rejilla REAL de COMERCIAL en produccion (comercial ver/crear,
+       -- dashboard ver, network ver) MAS inventario.ver, que llego con el
+       -- ADR 0010. Si esto se inventa, las pruebas de permisos miden una
+       -- configuracion que no existe.
        ('COMERCIAL','comercial','ver'),('COMERCIAL','comercial','crear'),
-       ('COMERCIAL','inventario','ver'),('COMERCIAL','dashboard','ver')
+       ('COMERCIAL','dashboard','ver'),('COMERCIAL','network','ver'),
+       ('COMERCIAL','inventario','ver')
      on conflict do nothing`,
   )
 }

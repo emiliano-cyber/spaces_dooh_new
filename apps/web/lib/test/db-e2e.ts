@@ -18,21 +18,39 @@ import { Pool } from 'pg'
 //  contra otro esquema. Peor que no tenerlas.
 // ============================================================================
 
-// La misma cadena que documenta db/docker-compose.yml. Se puede apuntar a otra
-// con DATABASE_URL_TEST (en CI se usa el servicio de Postgres del runner).
+// Base DEDICADA (`spaces_e2e`), no la `spaces` del docker-compose. La
+// diferencia no es cosmética: `spaces` es la base del DEMO LOCAL, donde se
+// suben pantallas, campañas y CREATIVOS con sus imágenes — y esto corre
+// `drop schema public cascade` en cada arranque. Apuntar aquí la base del demo
+// la borra entera, sin preguntar y sin vuelta atrás (las imágenes viven solo
+// ahí). Se crea una vez:
+//
+//   docker exec spaces_db psql -U spaces -d postgres -c "create database spaces_e2e"
+//
+// Se puede apuntar a otra con DATABASE_URL_TEST (en CI, al Postgres del runner).
 export const URL_TEST =
-  process.env.DATABASE_URL_TEST ?? 'postgresql://spaces:spaces@localhost:5433/spaces'
+  process.env.DATABASE_URL_TEST ?? 'postgresql://spaces:spaces@localhost:5433/spaces_e2e'
 
-// NUNCA contra producción. El check es por nombre de base y por host: un
-// despiste con DATABASE_URL_TEST apuntando a spaces_prod borraría el esquema
-// entero, y esto corre `drop schema public cascade`.
+// NUNCA contra producción NI contra una base con datos de alguien. El check es
+// por NOMBRE de base y por host, y exige que el nombre DIGA que es de pruebas
+// (`_e2e` / `_test`). Antes solo rechazaba las que llevaran «prod» en el
+// nombre, y eso deja pasar la de la demo local —se llama `spaces` a secas—, que
+// es justo el despiste caro: un `drop schema` sobre datos reales.
 function exigirBaseDePrueba(url: string) {
   const u = new URL(url)
-  const base = u.pathname.replace('/', '')
-  const local = ['localhost', '127.0.0.1', 'db', 'postgres'].includes(u.hostname)
-  if (base.includes('prod') || !local) {
+  const nombre = u.pathname.replace('/', '')
+  if (!/(_e2e|_test)$/.test(nombre)) {
     throw new Error(
-      `db-e2e apunta a una base que NO parece de prueba (${u.hostname}/${base}). Abortado.`,
+      `db-e2e recrea el esquema desde cero (drop schema public cascade) y la base «${nombre}» ` +
+        `no se llama como una base de pruebas. Usa una que termine en _e2e o _test ` +
+        `(p. ej. spaces_e2e) o pásala en DATABASE_URL_TEST. Abortado.`,
+    )
+  }
+  // Y aun llamándose «de prueba»: ni producción ni un host remoto.
+  const local = ['localhost', '127.0.0.1', 'db', 'postgres'].includes(u.hostname)
+  if (nombre.includes('prod') || !local) {
+    throw new Error(
+      `db-e2e apunta a una base que NO parece de prueba (${u.hostname}/${nombre}). Abortado.`,
     )
   }
 }
@@ -56,7 +74,7 @@ function exigirBaseDePrueba(url: string) {
 // Si una prueba de aislamiento usara el pool admin, no probaría nada.
 export const URL_APP =
   process.env.DATABASE_URL_TEST_APP ??
-  'postgresql://spaces_app:spaces_app_dev@localhost:5433/spaces'
+  'postgresql://spaces_app:spaces_app_dev@localhost:5433/spaces_e2e'
 
 let poolAdminRef: Pool | null = null
 let poolAppRef: Pool | null = null
