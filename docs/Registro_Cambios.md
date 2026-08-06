@@ -7,6 +7,47 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **Los tres cambios de hoy están desplegados en producción y verificados.** Se
+  aplicaron las dos migraciones de base de datos (con respaldo tomado antes y un
+  ensayo previo que las corre enteras y las deshace, para que si algo falla,
+  falle sin escribir nada). La aplicación quedó en línea con un solo reinicio y
+  sin errores nuevos.
+  - *Ojo con una parte:* lo del correo por organización **está desplegado pero
+    dormido**. Mientras no se configure el servicio de envío, no sale ningún
+    correo — ni los nuevos ni los que ya existían. El Dueño ya puede capturar la
+    dirección de su organización y queda guardada; simplemente todavía no se usa
+    para nada. Lo mismo aplica a «olvidé mi contraseña», que hoy responde que
+    envió un enlace y no envía nada.
+  - *De paso quedó resuelta una duda que arrastrábamos:* no había forma de
+    confirmar si la separación de configuración por organización (del 05/08)
+    había llegado de verdad al servidor, porque su registro nunca se cerró.
+    **Sí había llegado**, y se comprobó contra la base.
+  - *Dos cosas salieron mal y se corrigieron en el momento*, y las dos solo se
+    ven ejecutando de verdad — ninguna aparece trabajando en local:
+    - La dirección desde la que se sirve el logo **necesitaba una barra final**.
+      Sin ella el servidor redirige, y aunque un navegador sigue la redirección
+      sin que nadie lo note, **un correo depende de que el programa de correo la
+      siga**. Si no lo hace, queda un hueco donde debería ir el logo — que es
+      justo lo que esa dirección venía a evitar. Corregido y vuelto a desplegar.
+    - El instructivo de despliegue **daba una indicación equivocada** que habría
+      detenido en seco un despliegue correcto: mandaba parar si un contador
+      salía en cero, cuando salir en cero era lo normal. Corregido en el
+      instructivo para que no vuelva a confundir a quien lo siga.
+- **Restablecer la contraseña de otra persona quedó comprobado en producción.**
+  Era lo único que faltaba por verificar del arreglo del 05/08, porque hacía
+  falta entrar a la aplicación y no se podía comprobar desde fuera. Se probó
+  sobre un usuario desechable —ninguna persona real perdió su sesión— y funciona
+  en los dos sentidos: entrega la contraseña temporal, y con una contraseña
+  equivocada dice «no correcta».
+  - *Por qué importaban las dos pruebas y no una:* eran **dos fallos distintos
+    que se parecían en pantalla**, y solo el texto del mensaje los distingue.
+    Que salga la temporal prueba que ya hay dónde teclear la contraseña; que una
+    contraseña equivocada se rechace prueba que la comprobación llega de verdad
+    a la base de datos.
+  - *Lo que sigue pendiente de esto:* que la liga de restablecimiento se envíe
+    **por correo**. Hoy la contraseña temporal hay que pasarla a mano, lo que
+    significa que quien la restablece ve una contraseña ajena. Se cierra solo en
+    cuanto haya correo configurado.
 - **Asignar creativos a las pantallas deja de ser de una en una.** Había que
   entrar pantalla por pantalla: una campaña de doce pantallas con dos creativos
   eran **veinticuatro campos que llenar a mano**. De ahí salían las campañas
@@ -30,6 +71,13 @@ La entrada más reciente va arriba.
     una.
   - *Lo que esto no resuelve:* el arte en sí. Si la campaña no tiene creativos
     subidos, esto no lo inventa.
+  - *Un hallazgo del propio trabajo:* la definición de «qué cuenta como pantalla
+    digital» estaba **escrita por triplicado**. Si el reparto hubiera usado un
+    criterio distinto al que exige el sistema al publicar, el resultado no sería
+    un error visible: repartes «a todas», la aplicación dice que quedó bien, y
+    al publicar se bloquea nombrando una pantalla que el reparto nunca tocó — y
+    el usuario repetiría el reparto sin entender por qué no avanza. Ahora la
+    definición vive en un solo sitio, con una prueba que lo sostiene.
 - **Los avisos ya salen a nombre de cada organización.** Hasta ahora todo el
   correo del sistema salía con la misma identidad para las cinco
   organizaciones. Se parte en dos: los avisos de **operación** (hoy, el resumen
