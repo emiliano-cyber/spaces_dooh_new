@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { LogIn, UserPlus, Mail, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/demo/ui/Button'
@@ -28,6 +28,27 @@ const RECUPERAR_HABILITADO = process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD !== '0'
 // Ausente o distinto de '0' = habilitado (no cambia dev).
 const AUTOREGISTRO_HABILITADO = process.env.NEXT_PUBLIC_AUTOREGISTRO !== '0'
 
+// Acceso con Google (ADR 0012). A diferencia de las DOS banderas de arriba, ésta
+// NO se lee con `process.env` aquí: `GOOGLE_OAUTH` no lleva prefijo
+// NEXT_PUBLIC_, justamente para que apagarla no exija recompilar. Así que el
+// botón se pinta según lo que responda el servidor en /api/auth/metodos/.
+const RUTA_GOOGLE = '/spaces-dooh/api/auth/google/inicio/'
+
+// El callback devuelve un CÓDIGO en `?google=…`, nunca el texto del error: lo
+// que llega por la URL no se interpola en la página. Aquí se traduce contra una
+// lista cerrada, y un código desconocido cae en el mensaje genérico en vez de
+// pintarse tal cual.
+const MOTIVOS_GOOGLE: Record<string, string> = {
+  no_disponible: 'El acceso con Google no está disponible en este momento.',
+  cancelado: 'Cancelaste el acceso con Google.',
+  invalido: 'No se pudo completar el acceso con Google. Vuelve a intentarlo.',
+  no_registrado:
+    'Esa cuenta de Google no está dada de alta. Pide a tu administrador que te agregue.',
+  inactivo: 'Tu usuario está desactivado. Pide a tu administrador que lo reactive.',
+  ya_vinculada:
+    'Tu usuario ya tiene otra cuenta de Google vinculada. Pide a tu administrador que la revise.',
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const [modo, setModo] = useState<Modo>('login')
@@ -39,6 +60,39 @@ export default function LoginPage() {
   const [aviso, setAviso] = useState<string | null>(null)
   const [enlaceDev, setEnlaceDev] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+  const [googleDisponible, setGoogleDisponible] = useState(false)
+
+  // Se pregunta al servidor porque la bandera no viaja al cliente (ver
+  // RUTA_GOOGLE arriba). Empieza en `false`: si la consulta falla, NO se pinta
+  // el botón. Al revés —optimista— se ofrecería una entrada que responde 503, y
+  // el usuario se quedaría culpando a su cuenta de Google.
+  useEffect(() => {
+    let vivo = true
+    fetch('/spaces-dooh/api/auth/metodos/')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (vivo && d?.google === true) setGoogleDisponible(true)
+      })
+      .catch(() => {
+        /* sin botón, que es el estado seguro */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [])
+
+  // Mensaje de vuelta del callback de Google, si lo hay. Se lee una sola vez y
+  // se limpia de la barra de direcciones: dejarlo ahí haría que recargar
+  // reprodujera un error que ya no corresponde a nada.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const motivo = p.get('google')
+    if (!motivo) return
+    setError(MOTIVOS_GOOGLE[motivo] ?? 'No se pudo entrar con Google.')
+    p.delete('google')
+    const q = p.toString()
+    window.history.replaceState({}, '', window.location.pathname + (q ? `?${q}` : ''))
+  }, [])
 
   const esSignup = modo === 'signup'
   const esForgot = modo === 'forgot'
@@ -210,6 +264,28 @@ export default function LoginPage() {
                   </button>
                 </div>
               )}
+
+              {/* Entrar con Google. Solo en login: en el alta no serviría —Google
+                  NO da de alta (ADR 0012)— y en recuperar contraseña sobra.
+                  Es un enlace y no un botón con onClick a propósito: /inicio/
+                  responde con una redirección 302 a accounts.google.com, y eso
+                  es una navegación del navegador, no un fetch. */}
+              {modo === 'login' && googleDisponible && (
+                <>
+                  <div className="flex items-center gap-3 pt-1">
+                    <span className="h-px flex-1 bg-border" />
+                    <span className="text-[11px] text-muted">o</span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                  <a
+                    href={RUTA_GOOGLE}
+                    className="flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong bg-surface text-[13px] font-medium text-ink hover:bg-bg"
+                  >
+                    <MarcaGoogle />
+                    Continuar con Google
+                  </a>
+                </>
+              )}
             </form>
           )}
 
@@ -229,5 +305,20 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+// La «G» oficial de Google. Va como SVG en línea y no como imagen remota porque
+// el login carga sin sesión y sin depender de terceros — y porque las
+// directrices de marca de Google exigen el logotipo con sus cuatro colores,
+// sin recolorear.
+function MarcaGoogle() {
+  return (
+    <svg className="h-4 w-4 shrink-0" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
+      <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
+      <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z" />
+      <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
+    </svg>
   )
 }
