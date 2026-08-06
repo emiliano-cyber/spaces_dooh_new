@@ -256,21 +256,24 @@ su IVA se lo cambiaba a todas las demás.
 
 ## 15 · Lo que este guion NO cubre, y por qué
 
-Cuatro hallazgos siguen abiertos. **Ninguno es código pendiente**: son datos por
-capturar o una configuración que no depende de la aplicación.
+Tres hallazgos siguen abiertos. **Ninguno es código pendiente**: son datos por
+capturar o una configuración que no depende de la aplicación. M13b se cerró el
+06/08 y se deja tachado abajo para que no se busque dos veces.
 
 | Hallazgo | Qué falta | Por qué no está aquí |
 |---|---|---|
 | M11 | El enlace «¿Olvidaste tu contraseña?» no se ve en producción | El flujo **está implementado** (`/api/auth/forgot` y `/reset`) y se auditó el 06/08 buscando el defecto de RLS que tumbó el desbloqueo dos veces: **no lo tiene**. Vive tras `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` porque `RESEND_API_KEY` y `EMAIL_FROM` están vacías. Se abre configurando el remitente, no tocando código. Procedimiento y comprobaciones en `HABILITAR_M11_RECUPERAR_PASSWORD.txt` — **ojo: hay que reconstruir, no basta reiniciar** |
-| M13b | La razón social del tenant `g500` conserva el prefijo `DEMO` | Es un dato, no código. Script listo en `docs/datos/20260806_m13b_razon_social_g500.sql`; se cierra al aplicarlo. Ver la nota de abajo |
+| ~~M13b~~ | ~~La razón social del tenant `g500` conserva el prefijo `DEMO`~~ | **CERRADO el 06/08.** `docs/datos/20260806_m13b_razon_social_g500.sql` aplicado sobre `spaces_prod` con captura previa y ensayo en rollback. Comprobar con las pruebas 12.12 y 12.13 |
 | B5 | Los sitios no tienen fotos cargadas | **Abierto por decisión, 06/08.** El mecanismo funciona (Comercial → ficha → «Agregar foto», persiste); faltan las fotos reales del inventario. No se desarrolla carga masiva |
 | B9 | El win rate aparece al 100% | **En curso, 06/08.** Sale así porque no hay propuestas perdidas capturadas. El cálculo ya es honesto (dice «sobre 7 cerradas» y devuelve «—» sin cierres), así que se cierra **registrando las propuestas que de verdad se perdieron** —Propuestas → marcar como rechazada—, no tocando la fórmula ni sembrando datos inventados |
 
-> **Sobre M13b, que no es solo cosmético.** `tenants.razon_social` de `g500`
-> dice `DEMO RGB CATORCE S DE RL DE CV`, y ese campo no es decorativo:
+> **Sobre M13b, que no era solo cosmético.** `tenants.razon_social` de `g500`
+> decía `DEMO RGB CATORCE S DE RL DE CV`, y ese campo no es decorativo:
 > `obtenerConfigAdmin()` lo usa como la parte arrendataria del **contrato de
-> arrendamiento que se manda a firma**. Mientras diga «DEMO», los contratos de
-> G500 salen a firma con esa palabra en el nombre de la empresa que se obliga.
+> arrendamiento que se manda a firma**. Mientras dijo «DEMO», los contratos de
+> G500 salieron a firma con esa palabra en el nombre de la empresa que se
+> obliga — por eso la prueba que cierra el hallazgo es la **12.13** (abrir un
+> contrato), no la 12.12 (mirar Configuración).
 >
 > El valor correcto es `RGB CATORCE S DE RL DE CV` —confirmado el 06/08—, y
 > conviene saber por qué no lleva «G500» dentro: **G500 es el nombre comercial

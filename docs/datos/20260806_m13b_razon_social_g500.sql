@@ -1,6 +1,16 @@
 -- ===========================================================================
 --  M13b (auditoria QA 04/08/2026) — la razon social del tenant G500.
 --
+--  >>> YA EJECUTADO — 2026-08-06, sobre spaces_prod. NO VOLVER A CORRER. <<<
+--
+--  El guard lo impide solo: la segunda pasada no encuentra la fila con el valor
+--  viejo y aborta sin tocar nada. Se deja el archivo entero, no se borra —
+--  el _rollback.sql sigue siendo el bueno si hiciera falta volver atras.
+--
+--  Ejecutado con el paso 0 (captura del estado previo de los cinco tenants) y
+--  el paso 1 (ensayo en seco con rollback) por delante, ambos con la salida
+--  esperada: UPDATE 1 y «RGB CATORCE S DE RL DE CV».
+--
 --  El informe lo reporto como cosmetico: «la razon social visible incluye el
 --  prefijo DEMO». Quedo fuera del A9 del 04/08 para resolverse junto con M5.
 --
