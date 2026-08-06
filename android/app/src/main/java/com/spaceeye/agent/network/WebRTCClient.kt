@@ -22,6 +22,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
+import android.os.Handler
+import android.os.Looper
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
 import androidx.camera.core.SurfaceOrientedMeteringPointFactory
@@ -212,6 +214,30 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         }
     }
 
+    /**
+     * Como se pide la resolucion de la camara. Definido UNA sola vez porque lo
+     * comparten la vista en vivo y la foto: si cada uno pidiera lo suyo, el stream
+     * y la foto encuadrarian distinto.
+     */
+    private fun resolucion43() = ResolutionSelector.Builder()
+        .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
+        .build()
+
+    /**
+     * El use case de foto, con la MISMA configuracion venga de donde venga la
+     * captura.
+     *
+     * Esto existe porque habia dos formas distintas de tomar una foto y daban
+     * resultados distintos: con la vista en vivo abierta salia bien, y sin ella
+     * salia desenfocada, con otro encuadre y peor calidad. Ahora la foto se toma
+     * siempre por aqui.
+     */
+    private fun construirImageCapture() = ImageCapture.Builder()
+        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+        .setResolutionSelector(resolucion43())
+        .setTargetRotation(Surface.ROTATION_0)  // pixeles crudos = igual al stream
+        .build()
+
     private fun bindCameraX() {
         lifecycleRegistry.currentState = Lifecycle.State.RESUMED
         val future = ProcessCameraProvider.getInstance(ctx)
@@ -223,9 +249,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 // 4:3 en AMBOS use cases: asi el stream muestra exactamente el
                 // mismo encuadre que la foto capturada (antes el preview era 16:9
                 // y la foto 4:3, por lo que no coincidian).
-                val res43 = ResolutionSelector.Builder()
-                    .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY)
-                    .build()
+                val res43 = resolucion43()
 
                 val preview = Preview.Builder()
                     .setResolutionSelector(res43)
@@ -237,11 +261,7 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                 // El sensor trasero suele estar a 90°, por lo que la foto salia
                 // girada respecto al stream. Compensamos para que la foto guardada
                 // coincida con lo que se ve en la vista en vivo (landscape).
-                val imgCap = ImageCapture.Builder()
-                    .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-                    .setResolutionSelector(res43)
-                    .setTargetRotation(Surface.ROTATION_0)  // pixeles crudos = igual al stream
-                    .build()
+                val imgCap = construirImageCapture()
                 imageCapture = imgCap
 
                 preview.setSurfaceProvider(mainExecutor) { request ->
@@ -345,6 +365,100 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     /** Hay una sesion CameraX activa (stream en curso). */
     fun isStreaming(): Boolean = imageCapture != null && cameraControl != null
+
+    /**
+     * Cuanto se espera a que la camara termine de enfocar y medir la luz antes de
+     * disparar, cuando se abre solo para la foto.
+     *
+     * Es LA razon por la que las fotos sin vista en vivo salian mal. Con el stream
+     * abierto la camara lleva rato funcionando y el enfoque, la exposicion y el
+     * balance de blancos ya convergieron; abriendola y disparando de inmediato,
+     * la foto sale con lo primero que alcanzo a calcular: desenfocada y mal
+     * expuesta. Un segundo y medio le basta para asentarse.
+     */
+    private val ESPERA_ENFOQUE_MS = 1500L
+
+    /**
+     * Toma una foto SIEMPRE con la misma configuracion del sitio, haya stream o no.
+     *
+     * Si la vista en vivo esta abierta se usa esa sesion (no se puede abrir la
+     * camara dos veces). Si no lo esta, se abre una sesion CameraX identica -mismo
+     * lente, mismo zoom, misma resolucion, mismo use case de foto-, se le da tiempo
+     * a enfocar y se cierra al terminar.
+     *
+     * Antes este segundo caso iba por otro camino completamente distinto (Camera2
+     * en crudo, sin vista previa y disparando al instante), y por eso la misma
+     * camara daba fotos buenas o malas segun si alguien habia abierto el visor.
+     */
+    fun capturarFoto(extraDegrees: Int, onResult: (ByteArray?) -> Unit) {
+        if (isStreaming()) {
+            captureStill(extraDegrees, onResult)
+            return
+        }
+        abrirSoloParaFoto(extraDegrees, onResult)
+    }
+
+    private fun abrirSoloParaFoto(extraDegrees: Int, onResult: (ByteArray?) -> Unit) {
+        lifecycleRegistry.currentState = Lifecycle.State.RESUMED
+        val future = ProcessCameraProvider.getInstance(ctx)
+        future.addListener({
+            var provider: ProcessCameraProvider? = null
+            try {
+                provider = future.get()
+                val imgCap = construirImageCapture()
+
+                provider.unbindAll()
+                val cam = provider.bindToLifecycle(this, selectorDeLente(), imgCap)
+                // El encuadre del sitio, igual que lo aplica el stream.
+                if (zoomInicial > 0f) cam.cameraControl.setLinearZoom(zoomInicial.coerceIn(0f, 1f))
+
+                Log.d(TAG, "foto sin stream: lente=$lente zoom=$zoomInicial")
+
+                val cerrar = {
+                    try { provider?.unbindAll() } catch (_: Exception) {}
+                    lifecycleRegistry.currentState = Lifecycle.State.CREATED
+                }
+
+                // Se le da tiempo a enfocar y medir la luz antes de disparar.
+                Handler(Looper.getMainLooper()).postDelayed({
+                    try {
+                        imgCap.takePicture(mainExecutor, object : ImageCapture.OnImageCapturedCallback() {
+                            override fun onCaptureSuccess(image: ImageProxy) {
+                                try {
+                                    val buffer = image.planes[0].buffer
+                                    val bytes = ByteArray(buffer.remaining())
+                                    buffer.get(bytes)
+                                    image.close()
+                                    cerrar()
+                                    onResult(bakeRotation(bytes, extraDegrees))
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "foto sin stream, fallo al leer: ${e.message}")
+                                    cerrar()
+                                    onResult(null)
+                                }
+                            }
+                            override fun onError(exc: ImageCaptureException) {
+                                Log.e(TAG, "foto sin stream, error: ${exc.message}")
+                                RemoteLog.error(ctx, "photo", "No se pudo capturar: ${exc.message}")
+                                cerrar()
+                                onResult(null)
+                            }
+                        })
+                    } catch (e: Exception) {
+                        Log.e(TAG, "foto sin stream, fallo al disparar: ${e.message}")
+                        cerrar()
+                        onResult(null)
+                    }
+                }, ESPERA_ENFOQUE_MS)
+            } catch (e: Exception) {
+                Log.e(TAG, "foto sin stream, no se pudo abrir la camara: ${e.message}", e)
+                RemoteLog.error(ctx, "camera", "No se pudo abrir la cámara para la foto: ${e.message}")
+                try { provider?.unbindAll() } catch (_: Exception) {}
+                lifecycleRegistry.currentState = Lifecycle.State.CREATED
+                onResult(null)
+            }
+        }, mainExecutor)
+    }
 
     /**
      * Toma una foto desde la sesion CameraX activa (no abre otra camara → sin

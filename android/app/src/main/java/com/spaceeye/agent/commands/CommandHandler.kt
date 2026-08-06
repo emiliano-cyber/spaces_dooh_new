@@ -163,22 +163,43 @@ class CommandHandler(
                         val zoom = (payload?.optDouble("camera_zoom", 0.0) ?: 0.0).toFloat()
                         webrtc.setEncuadre(lente, zoom)
 
-                        // Con stream activo: tomar desde la sesion CameraX (sin
-                        // conflicto de camara y con los ajustes en vivo). Sin
-                        // stream: abrir la camara con Camera2.
-                        val photo: ByteArray? = if (webrtc.isStreaming()) {
-                            suspendCancellableCoroutine { cont ->
-                                webrtc.captureStill(rotation) { bytes -> if (cont.isActive) cont.resume(bytes) }
+                        // UN SOLO camino para la foto, haya stream o no.
+                        //
+                        // Antes eran dos: con stream se usaba la sesion CameraX
+                        // (buena calidad, encuadre y ajustes del sitio) y sin
+                        // stream se abria la camara con Camera2 en crudo y se
+                        // disparaba al instante. Esa segunda salia desenfocada, mal
+                        // expuesta y con otro encuadre, asi que la misma camara
+                        // daba fotos buenas o malas segun si alguien habia abierto
+                        // el visor antes. Ahora las dos pasan por la misma sesion
+                        // con los mismos parametros.
+                        val estabaTransmitiendo = webrtc.isStreaming()
+                        val photo: ByteArray? = try {
+                            val porCameraX = suspendCancellableCoroutine<ByteArray?> { cont ->
+                                webrtc.capturarFoto(rotation) { bytes -> if (cont.isActive) cont.resume(bytes) }
                             }
-                        } else {
-                            try {
-                                photoCapture.captureNow(lente, zoom)
-                            } catch (e: Exception) {
-                                Log.e(TAG, "photoCapture failed: ${e.message}")
-                                null
-                            } finally {
-                                // Si no hay stream, libera el tipo camera tras la foto.
-                                if (!webrtc.isStreaming()) MonitorService.setCameraActive(false)
+                            // Respaldo: si la camara no se pudo abrir por CameraX
+                            // (otra app la tiene tomada, por ejemplo), se intenta
+                            // por el camino directo. Da una foto peor, pero una
+                            // foto peor es mejor que ninguna, y el sitio no se
+                            // queda sin evidencia del dia.
+                            porCameraX ?: run {
+                                Log.w(TAG, "CameraX no dio foto; se intenta por el camino directo")
+                                try {
+                                    photoCapture.captureNow(lente, zoom)
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "respaldo tambien fallo: ${e.message}")
+                                    null
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "captura fallida: ${e.message}")
+                            null
+                        } finally {
+                            // Si la camara se abrio solo para esta foto, se libera
+                            // el tipo camera del servicio al terminar.
+                            if (!estabaTransmitiendo && !webrtc.isStreaming()) {
+                                MonitorService.setCameraActive(false)
                             }
                         }
 

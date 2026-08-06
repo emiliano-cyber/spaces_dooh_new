@@ -12,8 +12,8 @@ android {
         applicationId = "com.spaceeye.agent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.11.0"
+        versionCode = 13
+        versionName = "0.12.0"
 
         // URL del backend. Default = IP LAN de la PC (Wi-Fi) para celular real.
         // Override sin tocar codigo:  ./gradlew assembleDebug -PserverUrl=http://192.168.1.80:4000
@@ -42,6 +42,12 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.2")
     implementation("androidx.activity:activity-compose:1.9.0")
+    // Fragment moderno. No se usa ningun Fragment en la app, pero llega por
+    // dependencias en una version vieja y lint bloquea la compilacion: las
+    // FragmentActivity previas a la 1.3.0 no llamaban a
+    // super.onRequestPermissionsResult, asi que el resultado de pedir permisos
+    // podia perderse. Fijar una version moderna lo resuelve de raiz.
+    implementation("androidx.fragment:fragment-ktx:1.8.2")
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")

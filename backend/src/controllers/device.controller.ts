@@ -6,6 +6,7 @@ import { deviceJwt } from '../utils/jwt';
 import { z } from 'zod';
 import { uploadPhoto } from '../services/photoStorage.service';
 import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
+import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
@@ -128,13 +129,29 @@ export async function reportStatus(req: Request, res: Response) {
      sourceIp(req)]
   );
 
+  // El NOMBRE de la version solo se guardaba al registrarse, y un equipo se
+  // registra una vez en su vida: si despues se le actualiza la app, el dashboard
+  // sigue mostrando la version del dia que se dio de alta. Paso de verdad con
+  // MAGNOCENTRO, que figuraba en "0.5.0" cuando en realidad corria la ultima, y
+  // parecia que alguien le habia bajado la version.
+  //
+  // El equipo si reporta su NUMERO de version en cada estado, asi que cuando ese
+  // numero coincide con el de la APK publicada, se sabe que nombre le toca.
+  const apk = apkInfo();
+  const nombreVersion =
+    apk.disponible && apk.version_code && d.app_version_code === apk.version_code
+      ? apk.version
+      : null;
+
   await pool.query(
     `UPDATE devices SET online = TRUE, last_seen_at = NOW(),
      lat = COALESCE(?, lat), lng = COALESCE(?, lng),
      device_owner = COALESCE(?, device_owner),
+     app_version = COALESCE(?, app_version),
      app_version_code = COALESCE(?, app_version_code) WHERE id = ?`,
     [d.gps_lat ?? null, d.gps_lng ?? null,
      d.device_owner === undefined ? null : (d.device_owner ? 1 : 0),
+     nombreVersion,
      d.app_version_code ?? null, did]
   );
 
