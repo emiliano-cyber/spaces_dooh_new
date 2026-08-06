@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **Subir una imagen ya avisa de que está trabajando.** Antes parecía que no
+  pasaba nada: elegías el archivo, la pantalla se quedaba igual, y lo natural
+  era volver a pulsar creyendo que no se había aceptado. **Desplegado.**
+  - *Por qué el aviso que ya existía no bastaba:* la aplicación tiene una barra
+    de carga que se enciende cuando hay algo en marcha, pero **solo cuenta las
+    peticiones al servidor**. Subir un logo son tres esperas y solo la última es
+    una petición: leer el archivo, comprobar que se puede mostrar, y enviarlo.
+    Durante las dos primeras no había ningún aviso posible.
+  - *Ahora el aviso está donde uno mira:* encima de la propia vista previa del
+    logo, no en una esquina de la pantalla. El logo anterior se atenúa detrás en
+    vez de desaparecer, para que se vea que sigue siendo el vigente hasta que el
+    nuevo termine de guardarse.
+  - *El mismo problema estaba en las fotos, y peor:* la carga de fotografías **no
+    tenía ningún aviso**. Cada foto se lee entera —hasta 8 MB— y se le extrae la
+    fecha, y se pueden subir varias de golpe: media docena tarda, y la pantalla
+    no se movía. Se usa justo donde más importa, en la ficha del sitio y en las
+    evidencias de la orden de trabajo, que son las que destraban la facturación.
+    Ahora dice **cuántas** está cargando, porque «6 fotos» es una espera muy
+    distinta de «1 foto».
+  - *Y no se queda colgado si algo falla:* si el archivo resulta ilegible o no
+    es una imagen, el aviso se apaga igual. Antes de este cambio no había aviso
+    que apagar, pero al añadirlo era el error fácil de cometer.
 - **El logo de la empresa ya sale también donde lo ve quien NO trabaja en
   ella.** Por la mañana se puso en el menú lateral, en el contrato y en la
   propuesta que se le comparte al cliente. Faltaban las dos páginas que abre
