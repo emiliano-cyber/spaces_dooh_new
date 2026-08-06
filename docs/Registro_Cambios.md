@@ -7,6 +7,32 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **El sistema abre más rápido: dejó de descargarse las imágenes que nadie está
+  mirando.** Se reportó que el tablero tardaba, y la sospecha era que las
+  consultas a la base iban lentas. **Se midió, y no era eso.** La base entera
+  pesa 21 MB, la consulta más pesada tarda **0.077 milésimas de segundo**, y hay
+  20 pantallas y 13 campañas. Optimizar consultas ahí habría sido acelerar algo
+  que ya es instantáneo.
+  - *Lo que sí pasaba:* cada vez que alguien abría **cualquier** pantalla, el
+    sistema se traía los creativos **con el arte dentro** — casi **3 MB de
+    imágenes en solo cuatro creativos**, para dibujar unos indicadores que no
+    usan ninguna de ellas. Ese era el tiempo de espera.
+  - *Ahora las imágenes se piden solo donde se ven*, y el navegador las guarda
+    en su caché. En la pantalla de Creativos aparecen igual, con la diferencia
+    de que se cargan al entrar ahí y no antes.
+  - *Y el sistema dejó de hacer cola consigo mismo:* antes de mostrar nada,
+    ejecutaba **cuatro tareas de mantenimiento una tras otra** (liberar reservas
+    vencidas, avisar de órdenes de trabajo vencidas, recordar cobranzas y
+    actualizar el estatus de los contratos). Ahora corren a la vez. Para un
+    Dueño, que ve todos los módulos, eran cuatro esperas encadenadas en cada
+    carga.
+  - *Lo que se descubrió de paso, y explica por qué no fue un cambio de una
+    línea:* la pantalla decidía si un creativo era código o imagen **mirando el
+    principio del archivo**. Como el archivo ya no viaja, eso dejaba de
+    funcionar — y al revisar los datos reales aparecieron **tres formas
+    distintas de guardar lo mismo** conviviendo. Ocho creativos se habrían
+    dejado de ver. Ahora la decisión se toma por el tipo declarado, que sí es
+    fiable.
 - **Subir una imagen ya avisa de que está trabajando.** Antes parecía que no
   pasaba nada: elegías el archivo, la pantalla se quedaba igual, y lo natural
   era volver a pulsar creyendo que no se había aceptado. **Desplegado.**
