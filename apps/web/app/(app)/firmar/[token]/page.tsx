@@ -30,6 +30,7 @@ export default async function FirmarPage({ params }: { params: { token: string }
       nombreEsperado={f.nombreEsperado}
       expirado={f.expirado}
       yaFirmada={f.yaFirmada}
+      logoUrl={f.logoUrl}
     />
   )
 }

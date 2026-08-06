@@ -63,9 +63,17 @@ export async function refrescarEstado(): Promise<void> {
 
 // Hidrata el store SOLO con los datos públicos de una campaña (por token), sin
 // sesión. Se usa en la liga pública del portal de campaña (/demo/portal/:token).
-export async function hidratarPortalPublico(token: string): Promise<boolean> {
+// Devuelve el membrete de la organización (o null si la liga no vale). No se
+// mete en el store como el resto: el store es del SHELL, que en el portal no
+// existe — ahí no hay sesión ni menú lateral de donde sacar la marca.
+export interface OrgPortal {
+  orgNombre: string | null
+  orgLogoUrl: string | null
+}
+
+export async function hidratarPortalPublico(token: string): Promise<OrgPortal | null> {
   const r = await fetch(`${API}/portal/${token}/`, { cache: 'no-store' })
-  if (!r.ok) return false
+  if (!r.ok) return null
   const e = await r.json()
   useDemoStore.setState({
     campanas: e.campanas ?? [],
@@ -76,7 +84,7 @@ export async function hidratarPortalPublico(token: string): Promise<boolean> {
     creatividades: e.creatividades ?? [],
     ordenesImpresion: e.ordenesImpresion ?? [],
   })
-  return true
+  return { orgNombre: e.orgNombre ?? null, orgLogoUrl: e.orgLogoUrl ?? null }
 }
 
 // ─── Notificaciones ──────────────────────────────────────────────────────────

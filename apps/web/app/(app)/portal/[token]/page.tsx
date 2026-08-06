@@ -5,7 +5,7 @@ import { Radio, MapPin, CalendarDays, CircleHelp } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { PipelineView } from '@/components/demo/campanas/PipelineView'
 import { EvidenciaGaleria } from '@/components/demo/campanas/EvidenciaGaleria'
-import { hidratarPortalPublico } from '@/lib/data/estado-api'
+import { hidratarPortalPublico, type OrgPortal } from '@/lib/data/estado-api'
 import {
   useCampanas,
   useReservas,
@@ -28,8 +28,12 @@ export default function PortalPage({ params }: { params: { token: string } }) {
   // Liga pública: hidrata el store SOLO con los datos de esta campaña (por token,
   // sin sesión), así cualquiera puede verla sin haber iniciado sesión.
   const [cargando, setCargando] = useState(true)
+  // El membrete NO va al store: el store es del shell, y aquí no hay shell.
+  const [org, setOrg] = useState<OrgPortal | null>(null)
   useEffect(() => {
-    hidratarPortalPublico(params.token).finally(() => setCargando(false))
+    hidratarPortalPublico(params.token)
+      .then(setOrg)
+      .finally(() => setCargando(false))
   }, [params.token])
 
   const campana = campanas?.find((c) => c.portalToken === params.token && c.portalActivo) ?? null
@@ -67,12 +71,26 @@ export default function PortalPage({ params }: { params: { token: string } }) {
       {/* Header público */}
       <header className="border-b border-border bg-surface">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
-              <Radio className="h-4 w-4" />
-            </span>
+          {/* El logo de quien presta el servicio, no el de la plataforma: este
+              portal lo abre el CLIENTE. Si la organización no tiene logo se
+              queda la marca genérica, que es lo que había — nunca peor. */}
+          <div className="flex items-center gap-2.5">
+            {org?.orgLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={org.orgLogoUrl}
+                alt={org.orgNombre ?? ''}
+                className="h-10 w-10 shrink-0 rounded object-contain"
+              />
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded bg-accent text-accent-fg">
+                <Radio className="h-5 w-5" />
+              </span>
+            )}
             <div className="leading-tight">
-              <div className="font-display text-[15px] font-bold text-ink">Spaces</div>
+              <div className="font-display text-[15px] font-bold text-ink">
+                {org?.orgNombre || 'Spaces'}
+              </div>
               <div className="text-[10px] text-muted">Portal del cliente</div>
             </div>
           </div>
@@ -145,8 +163,10 @@ export default function PortalPage({ params }: { params: { token: string } }) {
         <p className="pb-4 text-center text-[11px] text-muted">
           {/* Llevaba «RGB Catorce S de RL de CV (PIXELED)» fijo, así que el
               portal de un cliente de OTRA organización le mostraba el nombre de
-              una empresa que no es su proveedor (M5). */}
-          Spaces · portal de seguimiento
+              una empresa que no es su proveedor (M5). Al corregirlo se dejó
+              genérico —correcto pero mudo—; ahora dice el nombre de VERDAD, que
+              es el de quien le presta el servicio a quien está leyendo. */}
+          {org?.orgNombre || 'Spaces'} · portal de seguimiento
         </p>
       </main>
     </div>

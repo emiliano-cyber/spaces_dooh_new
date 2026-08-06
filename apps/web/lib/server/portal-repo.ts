@@ -3,6 +3,7 @@ import { qConTenant, qRaw1 } from './db'
 import { rowToCampana, rowToReserva } from './campanas-repo'
 import { rowToSitio } from './sitios-repo'
 import { rowToOT } from './ot-repo'
+import { rutaLogo } from '@/lib/logo-url'
 
 // ============================================================================
 //  lib/server/portal-repo.ts — Datos PÚBLICOS del portal de una campaña.
@@ -52,7 +53,18 @@ export async function obtenerPortalPublico(token: string) {
   const creasRows = await q<any>('select * from creatividades where campana_id = $1 order by creado_en asc', [c.id])
   const oisRows = await q<any>('select * from ordenes_impresion where campana_id = $1 order by creado_en asc', [c.id])
 
+  // Membrete de quien presta el servicio. El portal es de cara al CLIENTE y
+  // llevaba «Spaces» escrito a mano: el cliente veía la marca de la plataforma
+  // en vez de la de su proveedor. Antes de eso llevaba «RGB Catorce» fijo, que
+  // era peor —le enseñaba a un cliente el nombre de otra empresa (M5)—, y al
+  // corregirlo se dejó genérico. Esto lo cierra: cada organización se presenta
+  // con lo suyo.
+  const org = await q1<any>('select nombre from tenants where id = $1', [tenantId])
+  const cfg = await q1<any>('select logo_token from config_negocio where tenant_id = $1', [tenantId])
+
   return {
+    orgNombre: org?.nombre ?? null,
+    orgLogoUrl: rutaLogo(cfg?.logo_token ?? null),
     campanas: [rowToCampana(c)],
     reservas: reservasRows.map(rowToReserva),
     sitios: sitiosRows.map((r) => rowToSitio(r, [])),

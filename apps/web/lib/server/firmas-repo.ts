@@ -5,6 +5,7 @@ import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { expedienteContrato } from './contrato-expediente'
 import { documentoATexto, fechaISO } from '@/lib/contrato-documento'
+import { rutaLogo } from '@/lib/logo-url'
 
 // ============================================================================
 //  lib/server/firmas-repo.ts — Firma electrónica simple del contrato.
@@ -230,6 +231,11 @@ export async function firmaPorToken(token: string): Promise<{
   hash: string
   expirado: boolean
   yaFirmada: boolean
+  // Membrete de la organización que ofrece el contrato. Va por la ruta pública
+  // del logo y no como data URL: esta página la abre alguien de FUERA (el
+  // arrendador no tiene cuenta), y meterle hasta 2 MB de base64 en el HTML es
+  // peor que una petición más.
+  logoUrl: string | null
 } | null> {
   // Formato antes de tocar la BD: descarta sondeos con basura sin consultar.
   if (!/^[a-f0-9]{64}$/.test(token)) return null
@@ -255,7 +261,18 @@ export async function firmaPorToken(token: string): Promise<{
 
   const expirado = !!r.token_expira_en && new Date(r.token_expira_en) < new Date()
 
+  // El mismo contrato visto por dentro (/contrato/[id]) ya salía con membrete;
+  // aquí no, y aquí es donde lo ve QUIEN LO FIRMA. Un contrato sin membrete no
+  // es solo feo: es el documento con el que alguien se compromete, y no decía
+  // de qué empresa venía.
+  const cfg = await qConTenant<{ logo_token: string | null }>(
+    tenantId,
+    'select logo_token from config_negocio where tenant_id = $1',
+    [tenantId],
+  )
+
   return {
+    logoUrl: rutaLogo(cfg[0]?.logo_token ?? null),
     contratoId: r.contrato_id,
     parte: r.parte,
     estatus: r.estatus,

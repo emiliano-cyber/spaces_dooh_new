@@ -11,8 +11,13 @@ export function FirmaPublica({
   nombreEsperado,
   expirado,
   yaFirmada,
+  logoUrl,
 }: {
   token: string
+  // Membrete de la organización que ofrece el contrato. El mismo documento ya
+  // salía con logo por dentro (/contrato/[id]) y aquí no — justo donde lo lee
+  // quien lo firma.
+  logoUrl?: string | null
   // Null cuando el enlace expiró: el servidor deja de mandar el texto (ver
   // `firmaPorToken`). No es un caso de error — es la vigencia haciendo su
   // trabajo— así que se explica, no se deja la hoja en blanco.
@@ -84,6 +89,14 @@ export function FirmaPublica({
       </div>
 
       <article className="doc-hoja">
+        {/* Mismo membrete que /contrato/[id], con las mismas clases: el CSS de
+            impresión ya fuerza que el color no se pierda al mandar a papel. */}
+        {logoUrl && (
+          <div className="doc-membrete">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoUrl} alt="" className="doc-logo" />
+          </div>
+        )}
         {documento === null ? (
           <div className="doc-aviso-caja">
             <h1 className="doc-titulo">El enlace expiró</h1>
