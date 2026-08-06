@@ -1,0 +1,167 @@
+===============================================================================
+ DESPLIEGUE — M6 (filtro de precio de Comercial)   Preparado: 2026-08-06
+-------------------------------------------------------------------------------
+ Commit a desplegar : 05e5f41  (contiene 6491a5d, que es el codigo)
+ Ya publicado en    : emiliano-cyber/spaces_dooh_new, rama main
+ App                : pm2 spaces-web  ->  https://demo.space-os.io
+ BD                 : spaces_prod  (NO SE TOCA)
+===============================================================================
+
+
+QUE SE DESPLIEGA
+----------------
+El ultimo hallazgo de la auditoria QA que era codigo. Comercial ofrecia
+«≤ $8k · ≤ $15k · ≤ $25k» escritos a mano mientras todo el inventario esta en
+$45 000+: las tres opciones devolvian CERO resultados. Los cortes salen ahora de
+la distribucion real de tarifas.
+
+El codigo de aplicacion que cambia son DOS archivos: `lib/data/derive.ts` (la
+funcion nueva) y la pagina de Comercial. `lib/data/client.ts` solo reexporta.
+Lo demas que llega con el pull son pruebas y documentacion, que en produccion no
+se ejecutan.
+
+
+LO QUE NO LLEVA — dicho explicito para que nadie arrastre pasos por inercia
+--------------------------------------------------------------------------
+  · NO hay migraciones. La base no se toca: NO hay backup que tomar.
+  · NO hay dependencias nuevas: NO hay `npm ci` que correr.
+  · NO hay variables de entorno ni feature flags nuevos.
+  · NO se toca nginx.
+
+Un procedimiento que aparenta mas trabajo del que hay ensena a saltarselo.
+
+
+>>> LO QUE SI IMPORTA: ESTO ES CODIGO DE CLIENTE <<<
+----------------------------------------------------
+El cambio vive en una pagina 'use client'. Recargar pm2 SIN compilar no cambia
+absolutamente nada: el navegador seguiria sirviendo el bundle viejo con los
+rangos escritos a mano, y pareceria que el despliegue no sirvio.
+
+Es la misma trampa que se documento ayer para M11 (la bandera de recuperar
+contrasena, horneada en el build). HAY QUE COMPILAR. El PASO 2 no es opcional.
+
+
+===============================================================================
+ PASO 0 — CONFIRMAR DE DONDE TIRA EL DROPLET   (10 segundos, evita un susto)
+===============================================================================
+  cd /var/www/Spaces && git remote -v
+
+  VERIFICA: el remoto `origin` del DROPLET tiene que apuntar a
+            emiliano-cyber/spaces_dooh_new — que es donde se subio 05e5f41.
+
+  OJO: en el clon local del portatil, `origin` es OTRO repo
+  (CarlosMend87/spaces-dooh, que va muy por detras) y el de trabajo se llama
+  `emiliano`. Los nombres estan cruzados entre las dos maquinas. Si aqui saliera
+  el repo de CarlosMend87, el `git fetch` del paso 1 traeria codigo viejo y el
+  merge fallaria o desplegaria otra cosa: para antes de seguir.
+
+
+===============================================================================
+ PASO 1 — TRAER EL CODIGO
+===============================================================================
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git checkout main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+  VERIFICA: debe decir  05e5f41 docs(datos): M13b aplicado en produccion ...
+
+
+===============================================================================
+ PASO 2 — COMPILAR Y RECARGAR   (no se puede saltar, ver arriba)
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+  El build tarda ~2m30s. Entre que termina y el reload hay una ventana en la que
+  alguien con la pagina abierta puede recibir errores; no la alargues.
+
+
+===============================================================================
+ PASO 3 — COMPROBAR
+===============================================================================
+ Sin entrar (desde cualquier sitio):
+
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   ESPERADO: login 200
+
+ En el droplet:
+
+   pm2 list | grep spaces-web              (online, 1 solo reinicio nuevo)
+   pm2 logs spaces-web --err --lines 30    (sin errores nuevos)
+   cd /var/www/Spaces && git log --oneline -1
+
+ LA PRUEBA DE FUEGO (Comercial, con sesion iniciada):
+
+   [ ] Abre el desplegable de precio y LEE LAS OPCIONES. Deben corresponder al
+       inventario real — del orden de «≤ $ 45k». Si siguen diciendo
+       «≤ $ 8k · ≤ $ 15k · ≤ $ 25k», el navegador tiene el bundle viejo:
+       recarga con Ctrl+F5. Si aun asi salen, el PASO 2 no se hizo.
+
+   [ ] Elige CADA opcion, una por una. NINGUNA puede dejar la lista en cero.
+       Ese era el hallazgo entero.
+
+   [ ] Con un rango puesto, comprueba que las pantallas que quedan cuestan igual
+       o menos que el corte elegido.
+
+   [ ] Quita el filtro («Cualquier precio») y comprueba que vuelven las 12.
+
+
+ LO QUE NO ES UN FALLO, aunque lo parezca
+ ----------------------------------------
+   · Que salgan UNA o DOS opciones en vez de tres. Se descarta cualquier corte
+     que no separe nada: con nueve pantallas a 45 000 y tres a 85 000, el unico
+     corte util es uno.
+
+   · Que el desplegable de precio NO SE PINTE. Pasa si todas las pantallas
+     valen lo mismo, o si solo hay una. Un filtro que no puede cambiar lo que se
+     ve es ruido, y ademas sugiere que hay mas datos de los que hay — mismo
+     criterio que el paginador de M7. Si esto ocurre en G500, avisa: significa
+     que las tarifas se aplanaron y eso SI seria un dato a revisar.
+
+
+===============================================================================
+ DISPARADORES DE ROLLBACK
+===============================================================================
+ Volver atras si:
+
+   · pm2 reinicia el proceso mas de 2 veces (`pm2 list`, columna restarts)
+   · el login deja de responder 200
+   · aparecen 5xx en `pm2 logs spaces-web --err` que no estaban antes
+   · Comercial no carga la lista o el mapa
+
+ NO es motivo de rollback que el filtro muestre menos de tres opciones, ni que
+ no aparezca: ver el apartado de arriba.
+
+
+===============================================================================
+ ROLLBACK
+===============================================================================
+ Limpio y sin letra pequena: no hay cambio de esquema, ni de dependencias, ni de
+ variables. Volver a bc27cdb devuelve el estado anterior al cambio de codigo
+ (mantiene la documentacion y el registro de M13b, que no son ejecutables).
+
+   cd /var/www/Spaces
+   git checkout bc27cdb
+   npx turbo run build --filter=web     <- otra vez: compilar, no solo recargar
+   pm2 reload spaces-web --update-env
+   pm2 list | grep spaces-web
+
+ El filtro vuelve a los rangos escritos a mano, o sea al hallazgo M6 abierto.
+ No se pierde ningun dato: esto solo decide que opciones se pintan.
+
+
+===============================================================================
+ DESPUES
+===============================================================================
+ · Marcar las pruebas 4.6, 4.7 y 4.8 del guion de aceptacion
+   (docs/Pruebas_Aceptacion_Auditoria_20260805.md).
+ · Con esto no queda NINGUN hallazgo de la auditoria pendiente de codigo. Los
+   tres abiertos son: M11 (configurar el remitente de correo, runbook aparte en
+   HABILITAR_M11_RECUPERAR_PASSWORD.txt), B9 (marcar como rechazadas las
+   propuestas que de verdad se perdieron) y B5 (fotos de los sitios, abierto por
+   decision del 06/08).
+===============================================================================
