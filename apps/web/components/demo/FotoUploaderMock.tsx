@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef } from 'react'
-import { Camera, ImagePlus, Trash2, Clock, Upload } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Camera, ImagePlus, Trash2, Clock, Upload, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { leerFechaCreacion } from '@/lib/exif'
 import { formatFechaHora } from '@/lib/data/client'
@@ -28,6 +28,18 @@ export function FotoUploaderMock({
   className?: string
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  // Cuántas fotos se están procesando. No es un booleano porque se admiten
+  // VARIAS a la vez (`multiple`), y «leyendo 6 fotos» es una espera muy
+  // distinta de «leyendo 1»: decir cuántas es la diferencia entre esperar
+  // tranquilo y pensar que se colgó.
+  //
+  // Hasta ahora no había ningún aviso. Cada foto se lee entera a base64 —hasta
+  // 8 MB— y se le saca la fecha del EXIF, con lo que media docena tarda lo
+  // suyo; mientras tanto la rejilla no cambiaba y el botón seguía igual, así
+  // que parecía que no había pasado nada. Y se usa justo donde más importa: las
+  // fotos del sitio y las evidencias de la orden de trabajo, que son las que
+  // destraban la facturación.
+  const [procesando, setProcesando] = useState(0)
 
   async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -42,15 +54,25 @@ export function FotoUploaderMock({
         r.onerror = () => rej(new Error('No se pudo leer la imagen'))
         r.readAsDataURL(f)
       })
-    const nuevas = await Promise.all(
-      files.map(async (f): Promise<FotoMeta> => ({
-        url: await leerDataUrl(f),
-        tomadaEn: await leerFechaCreacion(f),
-        subidaEn,
-      })),
-    )
-    onChange([...fotos, ...nuevas])
+    // El input se limpia YA, no al final: si se deja para después, el usuario
+    // no puede volver a elegir el mismo archivo mientras esto corre, y encima
+    // se perdería si una lectura fallara.
     e.target.value = ''
+    setProcesando(files.length)
+    try {
+      const nuevas = await Promise.all(
+        files.map(async (f): Promise<FotoMeta> => ({
+          url: await leerDataUrl(f),
+          tomadaEn: await leerFechaCreacion(f),
+          subidaEn,
+        })),
+      )
+      onChange([...fotos, ...nuevas])
+    } finally {
+      // En `finally` porque `Promise.all` rechaza en cuanto UNA lectura falla:
+      // sin esto, una foto corrupta dejaba el contador girando para siempre.
+      setProcesando(0)
+    }
   }
 
   function quitar(url: string) {
@@ -87,15 +109,31 @@ export function FotoUploaderMock({
             </div>
           </div>
         ))}
+        {/* El aviso ocupa la MISMA casilla del botón, dentro de la rejilla de
+            fotos: es donde van a aparecer las nuevas, así que es donde se está
+            mirando. */}
         <button
           type="button"
+          disabled={procesando > 0}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            'flex aspect-square flex-col items-center justify-center gap-1 rounded border border-dashed border-border-strong text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-ink',
+            'flex aspect-square flex-col items-center justify-center gap-1 rounded border border-dashed border-border-strong text-muted transition-colors duration-150',
+            procesando > 0 ? 'cursor-default opacity-70' : 'hover:bg-surface-2 hover:text-ink',
           )}
         >
-          {capture ? <Camera className="h-5 w-5" /> : <ImagePlus className="h-5 w-5" />}
-          <span className="px-1 text-center text-[11px] leading-tight">{label}</span>
+          {procesando > 0 ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span className="px-1 text-center text-[11px] leading-tight">
+                {procesando === 1 ? 'Cargando foto…' : `Cargando ${procesando} fotos…`}
+              </span>
+            </>
+          ) : (
+            <>
+              {capture ? <Camera className="h-5 w-5" /> : <ImagePlus className="h-5 w-5" />}
+              <span className="px-1 text-center text-[11px] leading-tight">{label}</span>
+            </>
+          )}
         </button>
       </div>
       <input

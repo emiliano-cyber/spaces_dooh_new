@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -556,22 +556,46 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
     }
   }
 
+  // Subir el logo son TRES esperas, y solo la última es una petición:
+  //   1. leer el archivo a base64 (un JPG de 2 MB no es instantáneo),
+  //   2. comprobar que el navegador puede pintarlo,
+  //   3. mandarlo (~2.7 MB de base64 viajando en un PATCH).
+  //
+  // La barra de carga global solo se entera de la 3, porque cuenta peticiones.
+  // Durante 1 y 2 no pasaba NADA visible: la vista previa seguía enseñando el
+  // logo viejo y el botón seguía como si no lo hubieras pulsado, así que la
+  // impresión era que el archivo no se había aceptado — y la gente vuelve a
+  // pulsar. De ahí este estado propio, que cubre las tres.
+  const [subiendoLogo, setSubiendoLogo] = useState(false)
+
   async function subirLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]
     e.target.value = ''
     if (!f) return
+    // Guarda contra el doble envío: el control es un <label> con un input
+    // oculto y un <label> no se puede deshabilitar, así que taparlo con CSS no
+    // basta — el teclado sigue llegando.
+    if (subiendoLogo) return
     // Algunos sistemas no reportan MIME (típico en .svg): se cae a la extensión.
     const tipoOk = f.type ? LOGO_TIPOS.includes(f.type) : LOGO_EXT.test(f.name)
     if (!tipoOk) { onToast('El logo debe ser PNG, JPG, WebP o SVG'); return }
     if (f.size > LOGO_MAX_MB * 1024 * 1024) { onToast(`El logo supera ${LOGO_MAX_MB} MB`); return }
 
-    const dataUrl = await leerDataUrl(f).catch(() => null)
-    if (!dataUrl) { onToast('No se pudo leer el archivo'); return }
-    if (!(await puedePintarse(dataUrl))) {
-      onToast('El archivo no es una imagen válida')
-      return
+    setSubiendoLogo(true)
+    try {
+      const dataUrl = await leerDataUrl(f).catch(() => null)
+      if (!dataUrl) { onToast('No se pudo leer el archivo'); return }
+      if (!(await puedePintarse(dataUrl))) {
+        onToast('El archivo no es una imagen válida')
+        return
+      }
+      await guardar({ logoUrl: dataUrl }, 'Logo actualizado: ya se ve en el menú')
+    } finally {
+      // En `finally` y no al final del `try`: los tres `return` de arriba son
+      // salidas legítimas (archivo ilegible, no es imagen) y sin esto dejarían
+      // el control girando para siempre.
+      setSubiendoLogo(false)
     }
-    await guardar({ logoUrl: dataUrl }, 'Logo actualizado: ya se ve en el menú')
   }
 
   if (!config) return <div className="h-64 animate-pulse rounded-md bg-surface-2" />
@@ -599,26 +623,60 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
                 que poder ver qué está subiendo. A 56 no se distinguía si el
                 recorte estaba bien. */}
             <div className="flex items-center gap-3">
-              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
+              {/* El aviso va SOBRE la vista previa, que es donde está mirando
+                  quien acaba de elegir un archivo — no en una esquina de la
+                  pantalla. El logo viejo se atenúa detrás en vez de
+                  desaparecer: así se ve que sigue siendo el actual hasta que el
+                  nuevo termine de guardarse. */}
+              <div className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
                 {config.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={config.logoUrl} alt="logo" className="h-full w-full object-contain" />
+                  <img
+                    src={config.logoUrl}
+                    alt="logo"
+                    className={cn('h-full w-full object-contain', subiendoLogo && 'opacity-30')}
+                  />
                 ) : (
-                  <Building2 className="h-6 w-6 text-muted" />
+                  <Building2 className={cn('h-6 w-6 text-muted', subiendoLogo && 'opacity-30')} />
+                )}
+                {subiendoLogo && (
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted" />
+                  </span>
                 )}
               </div>
               <div className="flex gap-2">
-                <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink hover:bg-surface-2">
-                  <Upload className="h-3.5 w-3.5" /> Subir logo
+                <label
+                  className={cn(
+                    'inline-flex h-9 items-center gap-1.5 rounded border border-border-strong px-3 text-[13px] text-ink',
+                    subiendoLogo
+                      ? 'pointer-events-none opacity-60'
+                      : 'cursor-pointer hover:bg-surface-2',
+                  )}
+                >
+                  {subiendoLogo ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5" />
+                  )}
+                  {subiendoLogo ? 'Subiendo…' : 'Subir logo'}
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
                     className="hidden"
+                    disabled={subiendoLogo}
                     onChange={subirLogo}
                   />
                 </label>
                 {config.logoUrl && (
-                  <Button size="sm" variant="secondary" onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}>Quitar</Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={subiendoLogo}
+                    onClick={() => guardar({ logoUrl: null }, 'Logo quitado')}
+                  >
+                    Quitar
+                  </Button>
                 )}
               </div>
             </div>
