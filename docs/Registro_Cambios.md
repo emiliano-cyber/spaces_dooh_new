@@ -7,6 +7,42 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **El logo de la empresa ya sale también donde lo ve quien NO trabaja en
+  ella.** Por la mañana se puso en el menú lateral, en el contrato y en la
+  propuesta que se le comparte al cliente. Faltaban las dos páginas que abre
+  alguien de fuera, que son justo las que más representan a la empresa ante un
+  tercero. **Desplegado y verificado.**
+  - *El portal donde el cliente sigue su campaña* decía «Spaces» escrito a
+    mano. Su historia explica por qué: antes llevaba el nombre de una empresa
+    **fijo**, de modo que al cliente de otra organización se le mostraba el
+    nombre de alguien que no es su proveedor. Al corregir aquello se dejó
+    genérico — correcto, pero mudo. Ahora dice el nombre y pinta el logo de
+    quien de verdad le presta el servicio.
+  - *La hoja de firma del contrato* es la que más llamaba la atención: **el
+    mismo contrato salía con membrete visto por dentro y sin membrete visto
+    desde el enlace de firma**. O sea que el logo lo veía quien ya trabaja en la
+    empresa, y no lo veía el arrendador que se está comprometiendo. Un contrato
+    sin membrete no es solo feo: es el documento con el que alguien firma, y no
+    decía de qué empresa venía. Se le puso el mismo membrete que al contrato
+    interno, así que al imprimirlo tampoco se pierde.
+  - *Si una organización no ha cargado su logo*, las dos páginas se quedan
+    exactamente como estaban. Nunca peor que antes.
+  - *Lo que se deja fuera a propósito:* la pantalla de acceso y la de consultar
+    una propuesta por código. En las dos todavía no se sabe de qué organización
+    es quien está mirando, así que no hay ningún logo correcto que poner — es el
+    mismo criterio por el que se quitó de la pantalla de acceso el nombre de una
+    empresa concreta.
+- **AVISO OPERATIVO — el acceso con Google está en el servidor, apagado, y le
+  falta un paso.** Viajó al servidor dentro del despliegue de esta tarde, porque
+  se subió al repositorio antes y todo lo pendiente sale junto. **Hoy no hace
+  nada**: la llave de Google no está configurada, así que el botón ni se pinta y
+  todo ese camino queda inerte (comprobado en el servidor: responde que Google
+  no está disponible).
+  - *La trampa:* **su cambio de base de datos todavía NO se ha aplicado.** Si
+    alguien enciende la llave sin aplicarlo antes, entrar con Google fallará
+    contra una tabla que no existe. Se comprobó expresamente antes de desplegar
+    que, apagado, nada del sistema toca esa tabla — por eso se pudo desplegar
+    sin riesgo. Pero encenderlo **exige aplicar el cambio de base primero**.
 - **El filtro por precio de Comercial vuelve a servir para algo.** Ofrecía
   «≤ $8,000 · ≤ $15,000 · ≤ $25,000» escritos a mano, y como **todas** las
   pantallas cuestan $45,000 o más, las tres opciones devolvían cero resultados:
