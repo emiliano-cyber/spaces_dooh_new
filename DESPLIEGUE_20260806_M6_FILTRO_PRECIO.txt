@@ -1,6 +1,25 @@
 ===============================================================================
  DESPLIEGUE — M6 (filtro de precio de Comercial)   Preparado: 2026-08-06
 -------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-06. NO VOLVER A CORRER. <<<
+
+ Se marca ejecutado, no se borra: la seccion de ROLLBACK sigue siendo la buena
+ si hiciera falta volver atras.
+
+ Desplegado : bedb95e (contiene 6491a5d, que es el codigo)
+              El droplet venia de 104c019; entre medias solo entra M6 como
+              codigo de aplicacion, lo demas son pruebas y documentacion.
+ Build      : 1m57s, correcto. Reload con un solo reinicio (14 -> 15).
+ Verificado : login 200 · /api/estado 401 sin sesion · sin errores nuevos en el
+              log (los que hay son del 05/08, anteriores) · y sobre todo, el
+              BUNDLE SERVIDO grepeado en el droplet: cero rastro de los rangos
+              «≤ $8k/$15k/$25k» y presente el map sobre los cortes derivados.
+              Se comprueba el artefacto y no el `git log`, porque el commit
+              puede estar bien y el build ser viejo.
+ NO verificado: los cortes que se pintan de verdad en G500. Necesita sesion en
+              la app, y desde el droplet no hay acceso a la BD con el usuario de
+              despliegue. Queda pendiente la prueba de fuego de abajo.
+-------------------------------------------------------------------------------
  Commit a desplegar : 05e5f41  (contiene 6491a5d, que es el codigo)
  Ya publicado en    : emiliano-cyber/spaces_dooh_new, rama main
  App                : pm2 spaces-web  ->  https://demo.space-os.io
