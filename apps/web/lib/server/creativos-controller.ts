@@ -1,7 +1,12 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { crearCreatividad, setCreativosDeReserva, CreatividadError } from './creativos-repo'
+import {
+  crearCreatividad,
+  setCreativosDeReserva,
+  repartirCreativosEnCampana,
+  CreatividadError,
+} from './creativos-repo'
 import { LIMITES, validarUpload } from './uploads'
 
 // ============================================================================
@@ -121,4 +126,24 @@ export async function setCreativosReservaCtrl(reservaId: string, body: unknown) 
   const res = await setCreativosDeReserva(reservaId, creativos)
   if (!res) throw new AppError('Reserva no encontrada', 404)
   return { creativos: res }
+}
+
+// Reparto masivo a todas las pantallas digitales de la campaña.
+//
+// `creatividadIds` va ORDENADO y el orden importa: cuando los spots no dividen
+// exacto, el resto va a los primeros. Por eso es un arreglo y no un conjunto.
+//
+// `soloVacias` por defecto en `false`: quien pulsa «repartir» normalmente quiere
+// que quede repartido, no un resultado a medias. La UI ofrece el otro modo y
+// avisa de que sobrescribe.
+const repartirSchema = z.object({
+  creatividadIds: z.array(z.string().uuid()).min(1, 'Elige al menos un creativo'),
+  soloVacias: z.coerce.boolean().default(false),
+})
+
+export async function repartirCreativosCtrl(campanaId: string, body: unknown) {
+  const d = validar(repartirSchema, body ?? {})
+  const res = await repartirCreativosEnCampana(campanaId, d.creatividadIds, d.soloVacias ?? false)
+  if (!res) throw new AppError('Campaña no encontrada', 404)
+  return res
 }

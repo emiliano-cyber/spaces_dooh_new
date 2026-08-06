@@ -7,6 +7,29 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **Asignar creativos a las pantallas deja de ser de una en una.** Había que
+  entrar pantalla por pantalla: una campaña de doce pantallas con dos creativos
+  eran **veinticuatro campos que llenar a mano**. De ahí salían las campañas
+  publicadas con todos los slots en «Sin asignar» que reportó la auditoría — no
+  porque a nadie le importara, sino porque hacerlo bien costaba media tarde.
+  Ahora un botón reparte los creativos elegidos entre todas las pantallas de la
+  campaña.
+  - *Cada pantalla parte los suyos:* las pantallas **no tienen los mismos
+    slots** (las hay de 10 y de 12). Una de 12 con dos creativos queda 6 y 6;
+    una de 10, 5 y 5. Repartir una sola cifra y copiarla a todas dejaría a unas
+    cortas y a otras pasadas.
+  - *No se pierde ningún slot:* si el reparto no da exacto, el sobrante va al
+    primero de la lista, así que el cliente no paga un espacio que se queda
+    vacío. El orden lo eliges tú.
+  - *Respeta lo que ajustaste a mano:* si ya habías configurado algunas
+    pantallas, puedes pedirle que no las toque. Y queda registrado en la
+    bitácora, porque sobrescribe.
+  - *Avisa de las que no pudo:* una pantalla digital a la que nadie le capturó
+    sus slots no recibe reparto, y se dice **por su nombre** — el sistema se la
+    va a exigir igual al publicar, y sin el nombre habría que buscarla una por
+    una.
+  - *Lo que esto no resuelve:* el arte en sí. Si la campaña no tiene creativos
+    subidos, esto no lo inventa.
 - **Los avisos ya salen a nombre de cada organización.** Hasta ahora todo el
   correo del sistema salía con la misma identidad para las cinco
   organizaciones. Se parte en dos: los avisos de **operación** (hoy, el resumen

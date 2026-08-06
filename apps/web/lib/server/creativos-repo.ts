@@ -1,6 +1,8 @@
 import 'server-only'
-import { q, q1 } from './db'
+import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
+import { esPantallaDigitalSql } from './pantalla-digital-sql'
+import { asignacionDePantalla } from '@/lib/reparto-creativos'
 
 // ============================================================================
 //  lib/server/creativos-repo.ts — Creativos (imágenes) por campaña: alta,
@@ -163,4 +165,123 @@ export async function setCreativosDeReserva(
   }
   await q(`update reservas set creativos=$2::jsonb where id=$1`, [reservaId, JSON.stringify(validos)])
   return validos
+}
+
+// ─── Reparto masivo: asignar de golpe a todas las pantallas de la campaña ────
+//
+// Asignar era pantalla por pantalla, y una campaña de doce pantallas con dos
+// creativos son veinticuatro campos a mano. De ahí salían las campañas
+// Publicadas con todos los slots «Sin asignar» de la auditoría (M14): no porque
+// a nadie le diera igual, sino porque hacerlo bien costaba media tarde. El
+// guard de `enviarADominio` impide publicar así; esto es la otra mitad.
+//
+// TODO EN UNA TRANSACCIÓN, y no doce llamadas desde el navegador: con llamadas
+// sueltas, un fallo a mitad deja la campaña con seis pantallas asignadas y seis
+// no, que es el peor estado posible — parece hecho y el guard la sigue
+// bloqueando nombrando solo algunas.
+//
+// `soloVacias` existe para el caso real de retomar una campaña a medias: ya
+// ajustaste tres pantallas a mano y no quieres que el reparto te las pise.
+export interface ResultadoReparto {
+  asignadas: number
+  omitidasPorTenerYa: number
+  sinSlots: string[]
+}
+
+export async function repartirCreativosEnCampana(
+  campanaId: string,
+  creatividadIds: string[],
+  soloVacias: boolean,
+): Promise<ResultadoReparto | null> {
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    await fijarTenant(client)
+
+    const camp = await client.query('select id from campanas where id=$1', [campanaId])
+    if (camp.rowCount === 0) {
+      await client.query('rollback')
+      return null
+    }
+
+    // Solo creativos de ESTA campaña y APROBADOS — la misma regla que
+    // `setCreativosDeReserva` aplica de a uno. Se filtra contra la base y no
+    // contra lo que mande el cliente: el id llega del navegador.
+    //
+    // Se conserva el ORDEN en que los eligió el usuario, porque el reparto da
+    // el resto a los primeros: poner un creativo delante es cómo se decide
+    // cuál sale más veces cuando los spots no dividen exacto.
+    const ids = (creatividadIds ?? []).filter(Boolean)
+    const aprobados = await client.query<{ id: string }>(
+      `select id from creatividades
+        where campana_id = $1 and estatus_validacion = 'VALIDADA'
+          and retirado_en is null
+          and id = any($2::uuid[])`,
+      [campanaId, ids],
+    )
+    const validos = new Set(aprobados.rows.map((r) => r.id))
+    const elegidos = ids.filter((id) => validos.has(id))
+    if (elegidos.length === 0) {
+      // El `catch` de abajo hace el rollback; lanzar aquí y deshacer allí evita
+      // dos caminos de rollback que haya que mantener sincronizados.
+      throw new CreatividadError(
+        'Ninguno de los creativos elegidos está aprobado en esta campaña.',
+      )
+    }
+
+    // Las pantallas que el guard de M14 va a EXIGIR. Mismo predicado, de
+    // `pantalla-digital-sql`, para que no pueda quedar una fuera del reparto y
+    // dentro del guard — eso sería un bloqueo sin salida para el usuario.
+    const reservas = await client.query<{
+      id: string
+      spots_reservados: number | null
+      nombre: string
+      tiene: number
+    }>(
+      `select r.id, r.spots_reservados, s.nombre,
+              jsonb_array_length(
+                case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                     else '[]'::jsonb end
+              ) as tiene
+         from reservas r
+         join sitios s on s.id = r.sitio_id
+        where r.campana_id = $1
+          and r.estatus <> 'CANCELADA'
+          and ${esPantallaDigitalSql('s')}
+        order by s.nombre`,
+      [campanaId],
+    )
+
+    let asignadas = 0
+    let omitidasPorTenerYa = 0
+    const sinSlots: string[] = []
+
+    for (const r of reservas.rows) {
+      if (soloVacias && r.tiene > 0) {
+        omitidasPorTenerYa++
+        continue
+      }
+      const asignacion = asignacionDePantalla(elegidos, r.spots_reservados)
+      if (asignacion.length === 0) {
+        // Digital con 0 slots capturados: no se le inventan repeticiones que no
+        // caben en ningún loop. Se NOMBRA para que se pueda corregir, porque el
+        // guard sí se la va a exigir después y si no, el usuario no sabría cuál.
+        sinSlots.push(r.nombre)
+        continue
+      }
+      await client.query(`update reservas set creativos = $2::jsonb where id = $1`, [
+        r.id,
+        JSON.stringify(asignacion),
+      ])
+      asignadas++
+    }
+
+    await client.query('commit')
+    return { asignadas, omitidasPorTenerYa, sinSlots }
+  } catch (e) {
+    await client.query('rollback').catch(() => {})
+    throw e
+  } finally {
+    client.release()
+  }
 }

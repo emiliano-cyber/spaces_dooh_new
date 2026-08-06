@@ -625,6 +625,31 @@ export async function asignarCreativosApi(
   await refrescarEstado()
 }
 
+export interface ResultadoReparto {
+  asignadas: number
+  omitidasPorTenerYa: number
+  sinSlots: string[]
+}
+
+// Reparte los creativos elegidos entre TODAS las pantallas digitales de la
+// campaña, en una sola llamada. El orden de `creatividadIds` manda: cuando los
+// spots no dividen exacto, el resto va a los primeros.
+export async function repartirCreativosApi(
+  campanaId: string,
+  creatividadIds: string[],
+  soloVacias: boolean,
+): Promise<ResultadoReparto> {
+  const r = await fetch(`${API}/campanas/${campanaId}/creativos/repartir/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ creatividadIds, soloVacias }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error((d as any).error ?? 'No se pudieron repartir los creativos')
+  await refrescarEstado()
+  return d as ResultadoReparto
+}
+
 export async function reservarApi(input: {
   campanaId?: string
   clienteNombre?: string

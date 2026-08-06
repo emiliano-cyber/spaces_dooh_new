@@ -2,7 +2,7 @@
 
 import { toast } from 'sonner'
 import { useRef, useState } from 'react'
-import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search } from 'lucide-react'
+import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search, Shuffle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -13,6 +13,7 @@ import {
   crearCreatividadApi,
   validarCreatividadApi,
   asignarCreativosApi,
+  repartirCreativosApi,
   eliminarCreatividadApi,
   reemplazarCreatividadApi,
 } from '@/lib/data/estado-api'
@@ -194,6 +195,154 @@ export default function CreativosPage() {
         ))
       )}
     </div>
+  )
+}
+
+// ─── Repartir creativos a todas las pantallas de la campaña ─────────────────
+//
+// Asignar era pantalla por pantalla: doce pantallas con dos creativos son
+// veinticuatro campos a mano. De ahí salían las campañas Publicadas con todos
+// los slots «Sin asignar» que reportó la auditoría (M14) — no porque a nadie le
+// diera igual, sino porque hacerlo bien costaba media tarde.
+//
+// El reparto es POR PANTALLA, no una cifra copiada a todas: las pantallas no
+// tienen los mismos slots (M12: las hay de 10 y de 12), así que cada una parte
+// LOS SUYOS entre los creativos elegidos.
+function RepartirCreativos({
+  campanaId,
+  aprobados,
+  reservas,
+  puede,
+}: {
+  campanaId: string
+  aprobados: Creatividad[]
+  reservas: Reserva[]
+  puede: boolean
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [elegidos, setElegidos] = useState<string[]>([])
+  const [soloVacias, setSoloVacias] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+
+  // Digital = tiene slots. Es la MISMA señal con la que esta pantalla decide si
+  // muestra el reparto por «veces» o el selector único de la lona.
+  const digitales = reservas.filter((r) => r.spotsReservados != null)
+  const yaAsignadas = digitales.filter((r) => r.creativos.length > 0).length
+
+  if (!puede || aprobados.length === 0 || digitales.length === 0) return null
+
+  function alternar(id: string) {
+    // Se conserva el ORDEN de selección: cuando los spots no dividen exacto, el
+    // resto va a los primeros, así que elegir primero es cómo se decide cuál
+    // sale más veces.
+    setElegidos((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
+  }
+
+  function abrir() {
+    // Por defecto, todos los aprobados: es lo que quiere quien acaba de subir
+    // sus creativos y solo necesita que queden puestos.
+    setElegidos(aprobados.map((cr) => cr.id))
+    setSoloVacias(false)
+    setAbierto(true)
+  }
+
+  async function repartir() {
+    setEnviando(true)
+    try {
+      const r = await repartirCreativosApi(campanaId, elegidos, soloVacias)
+      const partes = [`${r.asignadas} pantalla(s) asignada(s)`]
+      if (r.omitidasPorTenerYa > 0) partes.push(`${r.omitidasPorTenerYa} sin tocar`)
+      toast.success(partes.join(' · '))
+      // Las digitales sin slots capturados se NOMBRAN: el guard de publicación
+      // se las va a exigir igual, y sin el nombre habría que buscarlas una por
+      // una para entender por qué sigue bloqueada.
+      if (r.sinSlots.length > 0) {
+        toast.warning(
+          `Sin slots capturados, no se les pudo asignar: ${r.sinSlots.join(', ')}`,
+          { duration: 8000 },
+        )
+      }
+      setAbierto(false)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudieron repartir los creativos')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  return (
+    <>
+      <Button size="sm" variant="secondary" onClick={abrir}>
+        <Shuffle className="h-3.5 w-3.5" /> Repartir a todas
+      </Button>
+
+      <Modal
+        open={abierto}
+        onOpenChange={(v) => { if (!enviando) setAbierto(v) }}
+        title="Repartir creativos"
+        subtitle={`Se asignarán a las ${digitales.length} pantallas digitales de esta campaña`}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" disabled={enviando} onClick={() => setAbierto(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={enviando || elegidos.length === 0} onClick={repartir}>
+              {enviando ? 'Repartiendo…' : 'Repartir'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <div>
+            <div className="mb-1.5 text-[12px] font-medium text-ink">Qué se reparte</div>
+            <ul className="space-y-1.5">
+              {aprobados.map((cr) => {
+                const pos = elegidos.indexOf(cr.id)
+                return (
+                  <li key={cr.id}>
+                    <label className="flex cursor-pointer items-center gap-2.5 rounded border border-border px-2.5 py-1.5 hover:bg-surface-2">
+                      <input
+                        type="checkbox"
+                        checked={pos >= 0}
+                        onChange={() => alternar(cr.id)}
+                        className="h-3.5 w-3.5"
+                      />
+                      <Thumb cr={cr} className="h-7 w-7" />
+                      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{cr.nombre}</span>
+                      {pos === 0 && elegidos.length > 1 && (
+                        <span className="shrink-0 text-[11px] text-muted">le toca el sobrante</span>
+                      )}
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+            <p className="mt-1.5 text-[11px] text-muted">
+              Los slots de <b>cada</b> pantalla se parten entre los elegidos. Una de 12 con dos
+              creativos queda 6 y 6; una de 10, 5 y 5. Si no divide exacto, el sobrante va al
+              primero de la lista.
+            </p>
+          </div>
+
+          {yaAsignadas > 0 && (
+            <label className="flex cursor-pointer items-start gap-2 rounded border border-border bg-surface-2 px-3 py-2">
+              <input
+                type="checkbox"
+                checked={soloVacias}
+                onChange={(e) => setSoloVacias(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5"
+              />
+              <span className="text-[12px] text-ink">
+                No tocar las {yaAsignadas} pantalla(s) que ya tienen creativo asignado.
+                <span className="mt-0.5 block text-[11px] text-muted">
+                  Sin esto, el reparto <b>sobrescribe</b> lo que hayas ajustado a mano.
+                </span>
+              </span>
+            </label>
+          )}
+        </div>
+      </Modal>
+    </>
   )
 }
 
@@ -539,7 +688,15 @@ function CampanaCard({
 
       {/* Spots reservados */}
       <div className="border-t border-border pt-3">
-        <div className="mb-2 text-[12px] font-medium text-muted">Slots reservados ({reservas.length})</div>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="text-[12px] font-medium text-muted">Slots reservados ({reservas.length})</div>
+          <RepartirCreativos
+            campanaId={campana.id}
+            aprobados={aprobados}
+            reservas={reservas}
+            puede={puede}
+          />
+        </div>
         {reservas.length === 0 ? (
           <p className="text-[12px] text-muted">Sin slots reservados todavía.</p>
         ) : (

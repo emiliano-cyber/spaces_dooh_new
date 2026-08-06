@@ -5,6 +5,7 @@ import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
 import { folioCampana } from './folios'
+import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { divisorDeComision } from '@/lib/data/derive'
 
 // ============================================================================
@@ -189,7 +190,7 @@ export async function barrerReservasVencidas(): Promise<number> {
     const vencidas = (
       await client.query(
         `select r.id, r.sitio_id, r.campana_id, r.spots_reservados,
-                (s.tipo_medio='PANTALLA_DIGITAL' or s.es_rotativo or s.exhibicion in ('digital','rotativo')) as digital
+                ${esPantallaDigitalSql('s')} as digital
            from reservas r join sitios s on s.id = r.sitio_id
           where r.tenant_id=$1 and r.estatus='TENTATIVA'
             and r.expira_en is not null and r.expira_en < now()
@@ -908,8 +909,7 @@ export async function enviarADominio(campanaId: string) {
          join sitios s on s.id = r.sitio_id
         where r.campana_id = $1
           and r.estatus <> 'CANCELADA'
-          and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo
-               or s.exhibicion in ('digital','rotativo'))
+          and ${esPantallaDigitalSql('s')}
           and jsonb_array_length(
                 case when jsonb_typeof(r.creativos) = 'array' then r.creativos
                      else '[]'::jsonb end
