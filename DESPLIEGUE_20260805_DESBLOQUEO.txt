@@ -1,6 +1,29 @@
 ===============================================================================
  DESPLIEGUE — el desbloqueo de contrasena, que no funciona en produccion
  Preparado: 2026-08-05
+-------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-05 17:05 (hora del droplet). <<<
+
+ CI en verde en 7140c11 antes de tocar nada (los dos checks: «Typecheck ·
+ pruebas · build» y «npm-ci-sync»).
+
+ Build 17:04:43, proceso arrancado 17:05:17, UN solo reinicio nuevo (11 -> 12),
+ online. login 200, /api/estado sin sesion 401, cero errores nuevos en el log
+ (los ultimos son de las 13:44, de antes del despliegue).
+
+ Comprobado que el artefacto que se sirve lleva LAS DOS mitades:
+   · .next/server/app/(app)/(shell)/administracion/page.js  -> el modal nuevo
+   · .next/server/app/api/usuarios/[id]/restablecer/route.js -> la consulta
+     acotada al tenant
+
+ Y el mecanismo, contra spaces_prod con el rol de la app (solo lectura):
+   sin app.tenant_id -> `usuarios` devuelve 0 filas   <- ESTE era el fallo
+   con app.tenant_id -> 3 filas, las 3 con hash
+
+ PENDIENTE DE COMPROBAR DENTRO DE LA APP: el PASO 3 de abajo (la prueba de
+ fuego). Necesita una sesion iniciada; no se puede hacer desde fuera.
+
+ Se conserva como registro y porque la seccion de ROLLBACK sigue siendo valida.
 ===============================================================================
 
  QUE SE DESPLIEGA
