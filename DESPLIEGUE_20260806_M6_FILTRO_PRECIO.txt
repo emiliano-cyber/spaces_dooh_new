@@ -16,9 +16,9 @@
               «≤ $8k/$15k/$25k» y presente el map sobre los cortes derivados.
               Se comprueba el artefacto y no el `git log`, porque el commit
               puede estar bien y el build ser viejo.
- NO verificado: los cortes que se pintan de verdad en G500. Necesita sesion en
-              la app, y desde el droplet no hay acceso a la BD con el usuario de
-              despliegue. Queda pendiente la prueba de fuego de abajo.
+ Prueba de fuego: HECHA por el usuario el mismo 06/08, dentro de la app. Los
+              rangos que pinta Comercial corresponden al inventario real. Con
+              eso M6 queda cerrado y verificado de punta a punta.
 -------------------------------------------------------------------------------
  Commit a desplegar : 05e5f41  (contiene 6491a5d, que es el codigo)
  Ya publicado en    : emiliano-cyber/spaces_dooh_new, rama main

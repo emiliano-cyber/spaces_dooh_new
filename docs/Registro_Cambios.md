@@ -7,7 +7,50 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
-- **Los tres cambios de hoy están desplegados en producción y verificados.** Se
+- **El filtro por precio de Comercial vuelve a servir para algo.** Ofrecía
+  «≤ $8,000 · ≤ $15,000 · ≤ $25,000» escritos a mano, y como **todas** las
+  pantallas cuestan $45,000 o más, las tres opciones devolvían cero resultados:
+  el filtro no filtraba, y de paso hacía parecer que no había inventario. Ahora
+  los cortes se calculan a partir de los precios que hay de verdad.
+  - *Dos reglas que se cumplen siempre:* ninguna opción puede dejar la lista
+    vacía, y ninguna puede devolver absolutamente todo — eso último sería
+    «Cualquier precio» con otro nombre.
+  - *Puede que veas una o dos opciones en vez de tres, y es correcto:* se
+    descarta cualquier corte que no separe nada. Con nueve pantallas a un precio
+    y tres a otro, solo hay un corte útil.
+  - *Y si todas las pantallas valieran lo mismo, el desplegable no aparece.* Un
+    filtro que no puede cambiar lo que ves es ruido, y además sugiere que hay
+    más datos de los que hay.
+  - Desplegado y verificado en producción el mismo día.
+- **La razón social de G500 pierde el prefijo «DEMO».** Parecía cosmético y no lo
+  era: ese dato es **la parte que se obliga en el contrato de arrendamiento que
+  se manda a firma**, así que los contratos salían con esa palabra dentro del
+  nombre de la empresa. Queda «RGB CATORCE S DE RL DE CV», que es la razón social
+  legal de la misma organización cuyo nombre comercial es G500 — que en pantalla
+  convivan los dos nombres es lo correcto, no una inconsistencia.
+- **Revisión del cierre de la auditoría: dos hallazgos estaban dados por
+  inexistentes.** Al repasar el informe contra el código apareció que el guion de
+  pruebas afirmaba que la numeración «saltaba» dos hallazgos y que no existían.
+  Sí existían. Uno era este filtro de precio; el otro, el enlace de «olvidé mi
+  contraseña».
+  - *Y una prueba que se aprobaba sola:* la del filtro de precio pedía que «los
+    resultados correspondan a la tarifa en pantalla» — y cero resultados
+    corresponde. Quien la corriera habría dado el hallazgo por bueno con el
+    fallo intacto. Reescrita.
+- **«Olvidé mi contraseña» está listo para encenderse, y se revisó antes de
+  decirlo.** No hacía falta programar nada: el flujo existe desde antes y solo
+  está apagado porque no hay servicio de correo configurado. Antes de darlo por
+  bueno se comprobó que no arrastra el fallo que ya dejó inservible al
+  desbloqueo dos veces —una consulta que devuelve vacío en silencio en lugar de
+  fallar—. **No lo tiene.**
+  - *El detalle que habría hecho fracasar el encendido:* poner la clave del
+    correo y reiniciar **no basta**. El enlace del login se fija al compilar, así
+    que sin recompilar se encenderían las funciones por detrás y el enlace
+    seguiría sin verse — la función viva y sin forma de llegar a ella, que es
+    exactamente el fallo que se corrigió el 05/08. Queda escrito en el
+    instructivo.
+- **Los tres cambios de la mañana —correo por organización, logo y reparto de
+  creativos— están desplegados en producción y verificados.** Se
   aplicaron las dos migraciones de base de datos (con respaldo tomado antes y un
   ensayo previo que las corre enteras y las deshace, para que si algo falla,
   falle sin escribir nada). La aplicación quedó en línea con un solo reinicio y
