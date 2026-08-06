@@ -20,8 +20,26 @@
    sin app.tenant_id -> `usuarios` devuelve 0 filas   <- ESTE era el fallo
    con app.tenant_id -> 3 filas, las 3 con hash
 
- PENDIENTE DE COMPROBAR DENTRO DE LA APP: el PASO 3 de abajo (la prueba de
- fuego). Necesita una sesion iniciada; no se puede hacer desde fuera.
+ PRUEBA DE FUEGO: HECHA Y EN VERDE — 2026-08-06, por el usuario dentro de la
+ app, sobre un usuario DESECHABLE. Ningun usuario real perdio la sesion. Ya no
+ queda nada pendiente de este despliegue.
+
+   · El modal PIDE la contrasena y devuelve la temporal, que pasa a ser la
+     contrasena de la cuenta. -> la mitad del CLIENTE (3865c4e) funciona: antes
+     no habia donde teclearla y el modal moria en un mensaje rojo.
+
+   · Con contrasenas EQUIVOCADAS responde «no correcta». -> la mitad del
+     SERVIDOR (43f9284) funciona. Este es el detalle que lo demuestra y por eso
+     el paso 5 estaba escrito aparte: si la lectura de `usuarios` siguiera sin
+     contexto de tenant, con la contrasena MAL el mensaje habria sido «no tiene
+     contrasena», no «no correcta». Son dos fallos distintos que se parecen en
+     pantalla, y solo el texto los distingue.
+
+ Con esto queda cerrado el hallazgo A7 de la auditoria QA del 04/08 en la parte
+ que dependia de codigo. Lo que sigue abierto de A7 NO es esto: es la entrega
+ por CORREO de la liga de restablecimiento, que necesita RESEND_API_KEY y
+ EMAIL_FROM (hoy vacias). Mientras tanto la temporal se entrega a mano, y eso
+ esta anotado como deuda en usuarios-controller.ts.
 
  Se conserva como registro y porque la seccion de ROLLBACK sigue siendo valida.
 ===============================================================================
