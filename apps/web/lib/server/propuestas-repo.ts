@@ -4,7 +4,7 @@ import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } fro
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
-import { rutaLogo } from '@/lib/logo-url'
+import { rutaLogo } from '@/lib/medios-url'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}

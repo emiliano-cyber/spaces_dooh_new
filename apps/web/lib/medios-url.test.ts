@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { rutaLogo, urlLogo } from './logo-url'
+import { rutaLogo, urlLogo, rutaArteCreativo } from './medios-url'
 
 // ============================================================================
 //  La URL del logo público.
@@ -49,5 +49,24 @@ describe('urlLogo', () => {
   it('sin token o sin base devuelve null, y el membrete no pinta el <img>', () => {
     expect(urlLogo('https://demo.space-os.io', null)).toBeNull()
     expect(urlLogo('', 'abc')).toBeNull()
+  })
+})
+
+describe('rutaArteCreativo', () => {
+  it('apunta a la ruta del arte y TERMINA EN BARRA', () => {
+    // Misma razón que el logo: la app corre con `trailingSlash` y sin barra
+    // responde 308. Aquí el consumidor es un <img>/<iframe> del propio
+    // navegador, que sí sigue la redirección — pero pagando un viaje de más en
+    // cada creativo de la rejilla, que es justo lo que este cambio venía a
+    // quitar.
+    expect(rutaArteCreativo('abc-123')).toBe('/spaces-dooh/api/creativos/abc-123/arte/')
+  })
+
+  it('sin id no hay ruta', () => {
+    // Un creativo sin id no existe, y devolver una ruta a medias haría que el
+    // <img> pidiera `/api/creativos//arte/` y pintara el icono de rota.
+    expect(rutaArteCreativo(null)).toBeNull()
+    expect(rutaArteCreativo(undefined)).toBeNull()
+    expect(rutaArteCreativo('')).toBeNull()
   })
 })

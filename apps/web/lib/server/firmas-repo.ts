@@ -5,7 +5,7 @@ import { tenantActual } from './tenant'
 import { AppError } from './errores'
 import { expedienteContrato } from './contrato-expediente'
 import { documentoATexto, fechaISO } from '@/lib/contrato-documento'
-import { rutaLogo } from '@/lib/logo-url'
+import { rutaLogo } from '@/lib/medios-url'
 
 // ============================================================================
 //  lib/server/firmas-repo.ts — Firma electrónica simple del contrato.

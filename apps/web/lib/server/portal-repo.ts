@@ -3,7 +3,7 @@ import { qConTenant, qRaw1 } from './db'
 import { rowToCampana, rowToReserva } from './campanas-repo'
 import { rowToSitio } from './sitios-repo'
 import { rowToOT } from './ot-repo'
-import { rutaLogo } from '@/lib/logo-url'
+import { rutaLogo } from '@/lib/medios-url'
 
 // ============================================================================
 //  lib/server/portal-repo.ts — Datos PÚBLICOS del portal de una campaña.

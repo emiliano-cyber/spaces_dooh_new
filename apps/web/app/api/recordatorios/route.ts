@@ -7,7 +7,7 @@ import {
   htmlMembrete,
   escaparHtml,
 } from '@/lib/server/email'
-import { urlLogo } from '@/lib/logo-url'
+import { urlLogo } from '@/lib/medios-url'
 import {
   recordatoriosDeContratos,
   resumenRecordatorios,

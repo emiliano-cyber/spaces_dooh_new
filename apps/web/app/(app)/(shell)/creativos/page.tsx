@@ -1,7 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search, Shuffle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -29,11 +29,26 @@ function imagenDeCodigo(codigo?: string | null): string | null {
   return m ? m[1] : null
 }
 
-// Un creativo es HTML si su formato es HTML o su archivo es un data:text/html /
-// .html — se renderiza en <iframe> (un <img> no puede pintar HTML).
+// Un creativo es HTML si su formato lo dice, o si su archivo es un
+// data:text/html / .html — se renderiza en <iframe> (un <img> no puede pintar
+// HTML).
+//
+// EL `formato` MANDA, y esto dejó de ser un detalle: el arte ya no viaja en el
+// payload —se sirve por `/api/creativos/<id>/arte/`— así que mirar el principio
+// de `archivoUrl` ya no dice nada, porque ahora todos empiezan igual. Antes
+// bastaba con `=== 'HTML'`; en producción conviven TRES formatos para lo mismo
+// («HTML», «text/html» y las imágenes envueltas en HTML), así que se compara en
+// minúsculas y por prefijo. Con `=== 'HTML'` a secas, los ocho creativos que
+// tienen «text/html» se habrían intentado pintar en un <img>.
+//
+// Las dos comprobaciones sobre la URL se conservan: el portal público sigue
+// mandando el arte incrustado y no pasa por aquí, pero un `.html` alojado fuera
+// sí llegaría con su extensión.
 function esCreativoHtml(cr?: { formato?: string | null; archivoUrl?: string | null } | null): boolean {
+  const f = (cr?.formato ?? '').toLowerCase()
+  if (f === 'html' || f.startsWith('text/html')) return true
   const url = cr?.archivoUrl ?? ''
-  return cr?.formato === 'HTML' || url.startsWith('data:text/html') || /\.html?(\?|#|$)/i.test(url)
+  return url.startsWith('data:text/html') || /\.html?(\?|#|$)/i.test(url)
 }
 
 // Fuente HTML de un creativo, venga como texto en `codigo` o embebida en un
@@ -368,6 +383,30 @@ function CampanaCard({
   const [codigo, setCodigo] = useState('')
   // Creativo cuyo HTML se está viendo en el modal (null = cerrado).
   const [verFuente, setVerFuente] = useState<Creatividad | null>(null)
+  // La fuente se PIDE al abrir el modal. Antes venía dentro del payload de
+  // hidratación, y por eso el shell se traía el arte de todos los creativos en
+  // cada carga de página — casi 3 MB medidos en producción — para que alguien
+  // pulsara «Ver HTML» en uno, de vez en cuando.
+  const [fuente, setFuente] = useState<string | null>(null)
+  const [cargandoFuente, setCargandoFuente] = useState(false)
+
+  useEffect(() => {
+    if (!verFuente) { setFuente(null); return }
+    // Si el creativo TODAVÍA trae la fuente (recién subido, o el portal, que
+    // sigue mandándola incrustada) no se pide nada: ya está aquí.
+    const local = htmlDeCreativo(verFuente)
+    if (local !== null) { setFuente(local); return }
+
+    let vivo = true
+    setCargandoFuente(true)
+    setFuente(null)
+    fetch(`/spaces-dooh/api/creativos/${verFuente.id}/arte/`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.text() : null))
+      .then((t) => { if (vivo) setFuente(t) })
+      .catch(() => { if (vivo) setFuente(null) })
+      .finally(() => { if (vivo) setCargandoFuente(false) })
+    return () => { vivo = false }
+  }, [verFuente])
   // Creativo que se está reemplazando (para el input de archivo).
   const [reemplazarId, setReemplazarId] = useState<string | null>(null)
   // Creativo cuya eliminación se está confirmando (null = cerrado).
@@ -603,7 +642,11 @@ function CampanaCard({
                 <div className="space-y-1.5 p-2">
                   <div className="flex items-center gap-1.5">
                     <div className="truncate text-[12px] text-ink" title={cr.nombre}>{cr.nombre}</div>
-                    {cr.codigo && (
+                    {/* Por `formato` y no por `cr.codigo`: la fuente ya no
+                        viaja en el payload, así que mirar `codigo` haría
+                        desaparecer la etiqueta de TODOS los creativos de
+                        código. */}
+                    {esCreativoHtml(cr) && (
                       <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-surface-2 px-1 text-[10px] text-muted">
                         <Code2 className="h-2.5 w-2.5" /> código
                       </span>
@@ -619,8 +662,10 @@ function CampanaCard({
                   ) : (
                     <EstadoCrea estatus={cr.estatusValidacion} motivo={cr.rechazadoMotivo} />
                   )}
-                  {/* Sólo si hay fuente que enseñar (codigo o data:text/html). */}
-                  {htmlDeCreativo(cr) !== null && (
+                  {/* Por `formato`, no por el contenido: la fuente ya no viaja
+                      en el payload, así que preguntar por ella aquí escondería
+                      el botón en todos los creativos de código. */}
+                  {esCreativoHtml(cr) && (
                     <Button
                       size="sm"
                       variant="ghost"
@@ -791,16 +836,22 @@ function CampanaCard({
         open={verFuente !== null}
         onOpenChange={(v) => !v && setVerFuente(null)}
         title={verFuente?.nombre ?? 'Creativo'}
-        subtitle={verFuente ? `${verFuente.formato ?? 'HTML'} · ${(htmlDeCreativo(verFuente) ?? '').length.toLocaleString('es-MX')} caracteres` : undefined}
+        subtitle={
+          verFuente
+            ? cargandoFuente
+              ? `${verFuente.formato ?? 'HTML'} · cargando…`
+              : `${verFuente.formato ?? 'HTML'} · ${(fuente ?? '').length.toLocaleString('es-MX')} caracteres`
+            : undefined
+        }
         size="xl"
         footer={
           <div className="flex justify-end gap-2">
             <Button
               size="sm"
               variant="secondary"
+              disabled={!fuente}
               onClick={() => {
-                const fuente = htmlDeCreativo(verFuente)
-                if (fuente) descargarHtml(verFuente!.nombre, fuente)
+                if (fuente && verFuente) descargarHtml(verFuente.nombre, fuente)
               }}
             >
               <Download className="h-3.5 w-3.5" /> Descargar .html
@@ -810,7 +861,9 @@ function CampanaCard({
         }
       >
         <pre className="max-h-[60vh] overflow-auto whitespace-pre-wrap break-all rounded border border-border bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-ink">
-          {htmlDeCreativo(verFuente) ?? ''}
+          {cargandoFuente
+            ? 'Cargando la fuente…'
+            : fuente ?? 'No se pudo cargar la fuente de este creativo.'}
         </pre>
       </Modal>
 

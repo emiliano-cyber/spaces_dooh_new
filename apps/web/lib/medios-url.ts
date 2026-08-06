@@ -1,14 +1,19 @@
 // ============================================================================
-//  lib/logo-url.ts — La URL del logo público de una organización.
+//  lib/medios-url.ts — Las URLs de lo que la app sirve como ARCHIVO.
 //
-//  Dos formas del mismo dato, y la diferencia no es cosmética:
+//  Todo lo pesado (logos, arte de creativos) se guarda incrustado en la base
+//  como `data:` URL, y se SIRVE por una ruta propia. Aquí viven las direcciones
+//  de esas rutas, juntas para que el `basePath` esté escrito UNA vez: es el
+//  tipo de literal que se copia a un segundo sitio y luego solo se actualiza en
+//  uno.
+//
+//  Del logo hay dos formas del mismo dato, y la diferencia no es cosmética:
 //    · `rutaLogo`  — ruta absoluta del sitio. Para el NAVEGADOR (portal público
 //      del cliente), que resuelve el origen solo.
 //    · `urlLogo`   — URL completa con esquema y host. Para el CORREO, que se
 //      abre fuera del sitio y no tiene desde dónde resolver una ruta.
 //
-//  Viven juntas para que el `basePath` esté escrito UNA vez: es el tipo de
-//  literal que se copia a un segundo sitio y luego solo se actualiza en uno.
+//  El arte del creativo solo tiene forma de ruta: nunca viaja en un correo.
 // ============================================================================
 
 const BASE_PATH = '/spaces-dooh'
@@ -31,4 +36,15 @@ export function urlLogo(base: string, token: string | null | undefined): string 
   const ruta = rutaLogo(token)
   if (!ruta || !base) return null
   return `${base.replace(/\/+$/, '')}${ruta}`
+}
+
+// El arte de un creativo. Por ID y no por token, al contrario que el logo: esta
+// ruta EXIGE sesión, así que no hace falta que la dirección sea inadivinable —
+// quien no tenga permiso recibe un 403 aunque acierte el id.
+//
+// Con barra final por lo mismo que el logo: la app corre con `trailingSlash` y
+// sin ella responde 308.
+export function rutaArteCreativo(id: string | null | undefined): string | null {
+  if (!id) return null
+  return `${BASE_PATH}/api/creativos/${id}/arte/`
 }

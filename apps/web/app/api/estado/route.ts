@@ -61,13 +61,32 @@ export async function GET() {
 
   // Barridos de mantenimiento: solo los dispara quien puede ver el módulo que
   // tocan, para que un rol ajeno no provoque escrituras que no le corresponden.
-  if (verComercial) await barrerReservasVencidas() // libera inventario reservado
-  if (verOperaciones) await notificarOTsVencidas() // alertas de OT vencidas
-  if (verFinanzas) await recordarCobranzasVencidas() // recordatorios de cobro
-  // Sincroniza el estatus de contratos y pagos con la fecha de hoy (vigente /
-  // por vencer a 3 meses / vencido), para que el P&L y las alertas no usen un
-  // estatus congelado.
-  if (puede('arrendadores')) await recomputarEstatusArrendadores()
+  //
+  // EN PARALELO, no uno detrás de otro. Antes eran cuatro `await` seguidos, así
+  // que para un Dueño —que puede verlo todo— la petición esperaba las cuatro
+  // ESCRITURAS en fila antes de empezar siquiera a leer, en CADA carga de
+  // página. No son un caso raro: este endpoint hidrata el shell entero, no solo
+  // el dashboard.
+  //
+  // Se pueden solapar porque tocan dominios distintos y ninguno lee lo que otro
+  // escribe: reservas vencidas, avisos de OT, recordatorios de cobranza y
+  // estatus de contratos. Si algún día uno pasara a depender de otro, hay que
+  // volver a encadenarlos — y entonces el orden sería una regla, no una
+  // casualidad como lo era antes.
+  //
+  // `Promise.all` y no `allSettled`: si un barrido falla, la petición debe
+  // fallar igual que fallaba antes. Tragarse el error dejaría datos rancios sin
+  // que nada lo dijera, que es justo el modo de fallo silencioso que este repo
+  // viene arrastrando (`refrescarEstado` con su `if (!r.ok) return`).
+  await Promise.all([
+    verComercial ? barrerReservasVencidas() : null,       // libera inventario reservado
+    verOperaciones ? notificarOTsVencidas() : null,       // alertas de OT vencidas
+    verFinanzas ? recordarCobranzasVencidas() : null,     // recordatorios de cobro
+    // Sincroniza el estatus de contratos y pagos con la fecha de hoy (vigente /
+    // por vencer a 3 meses / vencido), para que el P&L y las alertas no usen un
+    // estatus congelado.
+    puede('arrendadores') ? recomputarEstatusArrendadores() : null,
+  ])
 
   const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias] =
     await Promise.all([

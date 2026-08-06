@@ -6,6 +6,7 @@ import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
 import { folioCampana } from './folios'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
+import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
 
 // ============================================================================
@@ -116,10 +117,42 @@ export async function listarCampanas() {
 export async function listarReservas() {
   return (await q('select * from reservas where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map(rowToReserva)
 }
+// Alimenta `/api/estado`, que hidrata el shell ENTERO en cada carga de página.
+//
+// NO trae el arte, y esa es la razón de que exista esta nota. El arte se guarda
+// incrustado (`archivo_url` es un `data:` URL y `codigo` es HTML en texto), así
+// que devolver las filas tal cual metía las imágenes dentro del JSON: medido en
+// producción, 2,977 kB en CUATRO creativos de G500, sobre una base que entera
+// pesa 21 MB. Casi 3 MB viajando al navegador cada vez que alguien abre una
+// pantalla, para pintar unos KPI que no usan ninguna de esas imágenes.
+//
+// Las consultas nunca fueron el problema —la más pesada tarda 0.077 ms—, así
+// que optimizarlas o meterlas en una vista no habría cambiado nada: el coste
+// era el PESO de la respuesta.
+//
+// `archivoUrl` pasa a apuntar a `/api/creativos/<id>/arte/`, que sirve lo mismo
+// como archivo. El nombre del campo ya decía «Url»; ahora lo es de verdad. Los
+// `<img>` y los `<iframe>` que lo consumen siguen funcionando sin tocarlos,
+// porque una URL es una URL — solo cambia que el navegador la pide cuando la
+// necesita, en paralelo y con caché.
+//
+// `codigo` va en null a propósito y no se omite: quien lo lea verá «no hay
+// código» en vez de `undefined`, y quien necesite la fuente la pide a la ruta.
+// Ojo: `formato` SÍ viaja, y es lo que ahora distingue una imagen de un HTML —
+// antes eso se adivinaba mirando el principio del data URL.
+//
+// El portal público tiene su PROPIO mapeador (portal-repo) y sigue mandando el
+// arte incrustado: es una sola campaña, sin sesión, y no pasa por aquí.
 export async function listarCreatividades() {
-  return (await q('select * from creatividades where tenant_id = $1 order by creado_en asc', [await tenantActual()])).map((r: any) => ({
-    id: r.id, campanaId: r.campana_id, nombre: r.nombre, archivoUrl: r.archivo_url,
-    codigo: r.codigo ?? null,
+  return (await q(
+    `select id, campana_id, nombre, formato, resolucion, estatus_validacion,
+            rechazado_motivo, retirado_en, creado_en
+       from creatividades where tenant_id = $1 order by creado_en asc`,
+    [await tenantActual()],
+  )).map((r: any) => ({
+    id: r.id, campanaId: r.campana_id, nombre: r.nombre,
+    archivoUrl: rutaArteCreativo(r.id),
+    codigo: null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
     rechazadoMotivo: r.rechazado_motivo,
     retiradoEn: r.retirado_en ? iso(r.retirado_en) : null,
