@@ -2,6 +2,41 @@
  DESPLIEGUE — Correo por organizacion + logo en todas partes + reparto de
               creativos
  Preparado: 2026-08-06
+-------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-06. Migraciones aplicadas: NO VOLVER A CORRERLAS. <<<
+
+ Backup previo : /root/backups/spaces_prod_pre_correo_20260806_105519.sql.gz
+                 (7.1 MB, 37 tablas)
+ Desplegado    : 104c019 (paso por 50c4ab4 y se redesplego con el arreglo de la
+                 barra final, ver mas abajo)
+ pm2           : online, reinicios 12 -> 14 (uno por cada reload), cero errores
+                 nuevos en el log.
+
+ COMPROBADO desde fuera:
+   login 200 · /api/estado sin sesion 401 · signup 503 (autoregistro sigue
+   apagado) · 5 organizaciones con 5 tokens DISTINTOS de 64 caracteres · la
+   funcion `config_tenant_por_logo_token` existe · la ruta del logo devuelve
+   200 image/jpeg 76 KB con token real, y 404 tanto sin logo como con token
+   inventado — o sea que NO es un oraculo de que organizaciones existen.
+
+ -- DOS COSAS QUE SALIERON MAL EN EL RUNBOOK Y SE CORRIGEN AQUI --
+
+ 1. `UPDATE 5` NO ERA EL DATO CONFIRMATORIO. Salio `UPDATE 0` y esta BIEN: al
+    anadir la columna con un DEFAULT aleatorio, Postgres evalua el default FILA
+    POR FILA, asi que las cinco nacen ya con su token y el UPDATE posterior —que
+    es solo una red— no encuentra nada que rellenar. Lo que de verdad prueba que
+    los tokens son distintos es que el CREATE INDEX UNIQUE no fallo: con cinco
+    tokens iguales habria reventado ahi mismo. La instruccion original decia
+    «si dice 0, PARA», y habria detenido un despliegue correcto.
+
+ 2. LA URL DEL LOGO LE FALTABA LA BARRA FINAL. La app corre con `trailingSlash`
+    y sin barra la ruta responde 308. En el navegador no se nota, pero en un
+    correo depende de que el cliente siga la redireccion — el modo de fallo que
+    la ruta venia a evitar. Se arreglo (104c019) y se redesplego. NO se ve en
+    local: hay que probar contra el servidor.
+
+ PENDIENTE DE COMPROBAR DENTRO DE LA APP (necesita sesion): el bloque de
+ comprobaciones del PASO 6, desde «DENTRO DE LA APP» hasta el final.
 ===============================================================================
 
 QUE SE DESPLIEGA
@@ -120,10 +155,15 @@ DONDE
     BEGIN · ALTER TABLE · UPDATE 5 · ALTER TABLE · CREATE INDEX · ALTER TABLE ·
     ALTER TABLE · COMMENT · CREATE FUNCTION · DO · REVOKE · ROLLBACK
 
-  EL DATO QUE CONFIRMA QUE FUNCIONO es el `UPDATE 5`: son las organizaciones
-  que RECIBIERON su token. Con 5 organizaciones tiene que decir 5. Si dice 0,
-  o ya estaba migrado, o `config_negocio` no tiene una fila por tenant — y eso
-  ultimo significaria que M5 no llego, asi que PARA y revisa.
+  OJO: `UPDATE 0` es lo NORMAL y no hay que parar por ello (esto se corrigio
+  tras ejecutarlo de verdad; la version anterior decia lo contrario). Postgres
+  evalua un DEFAULT aleatorio fila por fila al anadir la columna, asi que las
+  cinco nacen ya con token y el UPDATE —que es solo una red por si el motor no
+  lo hiciera— no encuentra nada que rellenar.
+
+  EL DATO QUE CONFIRMA QUE FUNCIONO es que el `CREATE INDEX` unico NO falle:
+  con tokens repetidos reventaria justo ahi. Eso, mas la verificacion del PASO
+  4 (tokens distintos = filas), es la prueba de verdad.
 
   Si sale cualquier ERROR: no has escrito nada. Avisa y no sigas.
 
