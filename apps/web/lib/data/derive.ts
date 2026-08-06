@@ -401,6 +401,66 @@ export function tarifaDeSitio(s: { tarifaPublicada?: number | null; tarifaMensua
   return Number(s.tarifaPublicada) || Number(s.tarifaMensual) || 0
 }
 
+// ─── Rangos del filtro de precio (M-6 de la auditoría QA) ───────────────────
+// Comercial ofrecía «≤ $8k · ≤ $15k · ≤ $25k» escritos a mano mientras TODO el
+// inventario está en $45 000+: las tres opciones devolvían cero resultados, así
+// que el filtro no filtraba — aparentaba un inventario vacío. Arreglar contra
+// qué columna comparaba (A-8) no tocó esto: los rangos seguían inventados.
+//
+// Los cortes salen ahora de la distribución REAL, igual que la lista de
+// distritos del mismo formulario sale de los sitios y no de un catálogo escrito
+// aparte. Se toman tres cuartiles y no un reparto en partes iguales entre el
+// mínimo y el máximo: con nueve pantallas a 45 000 y tres a 85 000, el reparto
+// uniforme deja dos cortes en una franja donde no hay nada.
+//
+// Dos garantías, y las dos importan porque su ausencia ES el hallazgo:
+//
+//   · cada corte DEVUELVE algo — sale de un valor que existe en la lista y solo
+//     se redondea hacia ARRIBA, así que el sitio que lo originó siempre entra;
+//   · cada corte EXCLUYE algo — los que llegan al máximo se descartan, porque
+//     una opción que no quita nada es «Cualquier precio» con otro nombre.
+//
+// Si no queda ningún corte que cumpla las dos (un solo sitio, o todos al mismo
+// precio) se devuelve la lista vacía y el filtro no se pinta. Es el mismo
+// criterio que el paginador de M-7: un control que no puede cambiar lo que se
+// ve es ruido, y además sugiere que hay más datos de los que hay.
+export function rangosDePrecio(tarifas: number[]): number[] {
+  const vals = tarifas.filter((t) => Number.isFinite(t) && t > 0).sort((a, b) => a - b)
+  if (vals.length < 2) return []
+  const max = vals[vals.length - 1]
+  const brutos = [0.25, 0.5, 0.75].map(
+    (p) => vals[Math.min(vals.length - 1, Math.floor(p * vals.length))],
+  )
+
+  // El redondeo se prueba de la cifra más redonda a la más fina, y se toma la
+  // PRIMERA que deje algún corte en pie. Sin esto, un inventario caro y muy
+  // junto —cuatro pantallas entre 1.2M y 1.45M— sube los tres cuartiles al
+  // mismo 1.5M, que supera al máximo y se descarta: los tres cortes mueren y el
+  // filtro no se pinta, pese a haber dispersión de sobra para filtrar. Bajar la
+  // finura solo cuando hace falta deja intacto el caso normal.
+  for (const finura of [1, 5, 25]) {
+    const cortes: number[] = []
+    for (const bruto of brutos) {
+      const corte = redondearACifraLegible(bruto, finura)
+      if (corte < max && !cortes.includes(corte)) cortes.push(corte)
+    }
+    if (cortes.length > 0) return cortes
+  }
+  return []
+}
+
+// Un cuartil crudo es «$46,333.33», que en un desplegable se lee como un error
+// de cálculo. Se sube al múltiplo legible más cercano, con el paso escalado a la
+// magnitud (5 000 en decenas de miles, 500 en miles) para no redondear 8 200 a
+// 50 000, y dividido por `finura` cuando el paso grande resulta demasiado basto
+// para la dispersión que hay. SIEMPRE hacia arriba: hacia abajo el corte podría
+// caer por debajo del valor que lo originó y dejar la opción en cero
+// resultados, que es justo el defecto que esto viene a quitar.
+function redondearACifraLegible(v: number, finura: number): number {
+  const paso = Math.max(1, (Math.pow(10, Math.floor(Math.log10(v)) - 1) * 5) / finura)
+  return Math.ceil(v / paso) * paso
+}
+
 // ─── Ocupación: una sola definición (A-2 de la auditoría QA) ────────────────
 // Un sitio está ocupado HOY si tiene una reserva CONFIRMADA que cubre el día.
 // Es la MISMA regla que usa `ocupacionSerie` para la gráfica y la que refleja

@@ -33,7 +33,9 @@ import {
   useArrendadores,
   useConfigNegocio,
   tarifaDeSitio,
+  rangosDePrecio,
   formatMonto,
+  formatMontoCorto,
   formatFecha,
   type Sitio,
 } from '@/lib/data/client'
@@ -110,6 +112,21 @@ export default function ComercialPage() {
     [sitios],
   )
 
+  // Los cortes salen del inventario que se está viendo, no de una lista escrita
+  // a mano (M-6). Ver `rangosDePrecio` en derive.ts.
+  const rangosPrecio = useMemo(
+    () => rangosDePrecio((sitios ?? []).map(tarifaDeSitio)),
+    [sitios],
+  )
+
+  // El corte se valida AL LEER y no con un efecto que limpie el estado: si el
+  // inventario cambia (alta, baja, edición de tarifa), el corte elegido puede
+  // dejar de existir, y seguir aplicándolo filtraría por un número que ya no
+  // aparece en pantalla — un «0 resultados» sin causa visible. Es el mismo
+  // criterio con que M-7 acota la página al leerla.
+  const cortePrecio =
+    fPrecio && rangosPrecio.includes(Number(fPrecio)) ? Number(fPrecio) : null
+
   const filtrados = useMemo(() => {
     return (sitios ?? []).filter((s) => {
       if (q && !`${s.nombre} ${s.direccion} ${s.alcaldia}`.toLowerCase().includes(q.toLowerCase()))
@@ -117,10 +134,10 @@ export default function ComercialPage() {
       if (fTipo && s.tipoMedio !== fTipo) return false
       if (fDistrito && s.alcaldia !== fDistrito) return false
       if (fDisp && s.estatusComercial !== fDisp) return false
-      if (fPrecio && tarifaDeSitio(s) > Number(fPrecio)) return false
+      if (cortePrecio != null && tarifaDeSitio(s) > cortePrecio) return false
       return true
     })
-  }, [sitios, q, fTipo, fDistrito, fDisp, fPrecio])
+  }, [sitios, q, fTipo, fDistrito, fDisp, cortePrecio])
 
   const puntos: MapPoint[] = filtrados.map((s) => ({
     id: s.id,
@@ -245,12 +262,16 @@ export default function ComercialPage() {
           <option value="OCUPADO">No disponible</option>
           <option value="BLOQUEADO">Bloqueado</option>
         </select>
-        <select className={selectCls} value={fPrecio} onChange={(e) => setFPrecio(e.target.value)}>
-          <option value="">Cualquier precio</option>
-          <option value="8000">≤ $ 8k</option>
-          <option value="15000">≤ $ 15k</option>
-          <option value="25000">≤ $ 25k</option>
-        </select>
+        {rangosPrecio.length > 0 && (
+          <select className={selectCls} value={fPrecio} onChange={(e) => setFPrecio(e.target.value)}>
+            <option value="">Cualquier precio</option>
+            {rangosPrecio.map((c) => (
+              <option key={c} value={c}>
+                ≤ {formatMontoCorto(c)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Lista + Mapa */}
