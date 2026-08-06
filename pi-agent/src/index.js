@@ -195,7 +195,13 @@ async function main() {
         api.log('info', 'stream', 'Transmision cortada para atender una foto programada');
         await dormir(600);
       }
-      const jpeg = await camara.tomarFoto();
+      // Encuadre y ajustes de imagen que fija el dashboard por equipo. Viajan en
+      // la orden, igual que en los telefonos; antes se llamaba a tomarFoto() sin
+      // nada y la Raspberry ignoraba el zoom por completo.
+      const jpeg = await camara.tomarFoto({
+        zoom: payload.camera_zoom,
+        ajustes: payload.camera_ajustes,
+      });
       const meta = {
         taken_at: new Date().toISOString(),
         command_id: cmd.id,
@@ -265,7 +271,13 @@ async function main() {
         }
         try {
           const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
-          const info = transmision.iniciar(payload.publish_url, payload);
+          // El visor tiene que mostrar el mismo encuadre y el mismo color que va
+          // a tener la foto; si no, no sirve para decidir como encuadrar.
+          const ajustesArgs = await camara.argumentosDeCaptura({
+            zoom: payload.camera_zoom,
+            ajustes: payload.camera_ajustes,
+          });
+          const info = transmision.iniciar(payload.publish_url, { ...payload, ajustesArgs });
           return api.resultadoComando(cmd.id, true, info);
         } catch (e) {
           log(`ERROR al iniciar la transmision: ${e.message}`);

@@ -159,21 +159,63 @@ export async function setStreamRotation(req: Request, res: Response) {
 // captura abre la camara con Camera2 y no heredaba ningun ajuste). Guardandolo
 // aqui, el backend lo mete en el payload de cada TAKE_PHOTO y aplica igual a la
 // foto por horario que a la manual. Solo admin (ver ruta).
+// Ajustes de imagen del equipo. Lo que no entienda su agente lo ignora, asi que
+// un mismo formulario sirve para telefono, Raspberry y camara IP.
+const ajustesSchema = z.object({
+  centro_x: z.number().min(0).max(1).optional(),
+  centro_y: z.number().min(0).max(1).optional(),
+  brillo: z.number().min(-1).max(1).optional(),
+  contraste: z.number().min(0).max(2).optional(),
+  saturacion: z.number().min(0).max(2).optional(),
+  nitidez: z.number().min(0).max(2).optional(),
+  ev: z.number().min(-10).max(10).optional(),
+  awb: z.enum(['auto', 'incandescent', 'tungsten', 'fluorescent', 'indoor', 'daylight', 'cloudy']).optional(),
+  // Ganancias manuales de blanco. Son las que sirven contra el tinte morado de
+  // la camara sin filtro infrarrojo: el automatico se despista justo con eso.
+  awb_rojo: z.number().min(0.1).max(8).nullable().optional(),
+  awb_azul: z.number().min(0.1).max(8).nullable().optional(),
+  ruido: z.enum(['auto', 'off', 'cdn_off', 'cdn_fast', 'cdn_hq']).optional(),
+  // Perfil de color del sensor (Raspberry). 'noir' es el que libcamera elige
+  // solo con la camara sin filtro infrarrojo, pensado para vigilancia nocturna:
+  // de dia deja la imagen lechosa. 'estandar' junto con ganancias de blanco a
+  // mano devuelve cielo, nubes y colores naturales.
+  perfil: z.enum(['auto', 'noir', 'estandar']).optional(),
+  hflip: z.boolean().optional(),
+  vflip: z.boolean().optional(),
+});
+
 export async function setCamera(req: Request, res: Response) {
   const schema = z.object({
     // 'wide' = gran angular (0.5x). Si el equipo no lo tiene, la APK cae al principal.
-    lens: z.enum(['main', 'wide']),
-    zoom: z.number().min(0).max(1),
+    lens: z.enum(['main', 'wide']).optional(),
+    zoom: z.number().min(0).max(1).optional(),
+    ajustes: ajustesSchema.nullable().optional(),
+    // Giro que se aplica a la foto AL RECIBIRLA. Distinto de stream_rotation,
+    // que solo gira la vista en vivo en el navegador y no toca el archivo: hay
+    // un equipo con la vista en 90 cuya foto necesita 180.
+    photo_rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]).optional(),
   });
   const parsed = schema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const d = parsed.data;
+  const campos: string[] = [];
+  const valores: any[] = [];
+  if (d.lens !== undefined) { campos.push('camera_lens = ?'); valores.push(d.lens); }
+  if (d.zoom !== undefined) { campos.push('camera_zoom = ?'); valores.push(d.zoom); }
+  if (d.ajustes !== undefined) {
+    campos.push('camera_ajustes = ?');
+    valores.push(d.ajustes ? JSON.stringify(d.ajustes) : null);
+  }
+  if (d.photo_rotation !== undefined) { campos.push('photo_rotation = ?'); valores.push(d.photo_rotation); }
+  if (!campos.length) return res.status(400).json({ error: 'no_fields' });
 
   const [r] = await pool.query<any>(
-    `UPDATE devices SET camera_lens = ?, camera_zoom = ? WHERE id = ?`,
-    [parsed.data.lens, parsed.data.zoom, req.params.id]
+    `UPDATE devices SET ${campos.join(', ')} WHERE id = ?`,
+    [...valores, req.params.id]
   );
   if ((r as any).affectedRows === 0) return res.status(404).json({ error: 'not_found' });
-  res.json({ ok: true, ...parsed.data });
+  res.json({ ok: true, ...d });
 }
 
 // Guarda la posicion de la marca de informacion (overlay) del dispositivo.
@@ -264,12 +306,24 @@ export function appVersion(_req: Request, res: Response) {
 // Lente y zoom guardados del equipo, para adjuntarlos a las ordenes de foto.
 export async function encuadreDe(deviceId: number) {
   const [rows] = await pool.query<any[]>(
-    `SELECT camera_lens, camera_zoom FROM devices WHERE id = ?`,
+    `SELECT camera_lens, camera_zoom, camera_ajustes FROM devices WHERE id = ?`,
     [deviceId]
   );
   const d = (rows as any[])[0];
   if (!d) return {};
-  return { camera_lens: d.camera_lens || 'main', camera_zoom: Number(d.camera_zoom) || 0 };
+
+  // Los ajustes finos (color, exposicion, centro del recorte) viajan con el
+  // encuadre en TODAS las ordenes de foto y de vista en vivo. Solo se mandan si
+  // hay algo configurado, para no engordar cada orden sin necesidad.
+  const ajustes = typeof d.camera_ajustes === 'string'
+    ? (() => { try { return JSON.parse(d.camera_ajustes); } catch { return null; } })()
+    : d.camera_ajustes;
+
+  return {
+    camera_lens: d.camera_lens || 'main',
+    camera_zoom: Number(d.camera_zoom) || 0,
+    ...(ajustes && Object.keys(ajustes).length ? { camera_ajustes: ajustes } : {}),
+  };
 }
 
 export async function sendCommand(req: Request, res: Response) {

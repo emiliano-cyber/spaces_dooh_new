@@ -31,6 +31,24 @@ function deviceDetail() {
     savedLens: 'main',
     savedZoom: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
+    // --- Ajustes de imagen del equipo (encuadre fino y color) ---
+    // Viven en el servidor y viajan en cada orden de foto. Nacieron porque la
+    // Raspberry ignoraba hasta el zoom, y para corregir el tinte morado que da
+    // una camara sin filtro infrarrojo.
+    ajustesAbiertos: false,
+    ajustes: {},
+    manualWb: false,
+    fotoPrueba: '',
+    probandoAjustes: false,
+    guardandoAjustes: false,
+    controlesImagen: [
+      { campo: 'centro_x',   nombre: 'Centro horizontal', min: 0,  max: 1, pordefecto: 0.5 },
+      { campo: 'centro_y',   nombre: 'Centro vertical',   min: 0,  max: 1, pordefecto: 0.5 },
+      { campo: 'brillo',     nombre: 'Brillo',            min: -1, max: 1, pordefecto: 0 },
+      { campo: 'contraste',  nombre: 'Contraste',         min: 0,  max: 2, pordefecto: 1 },
+      { campo: 'saturacion', nombre: 'Saturación',        min: 0,  max: 2, pordefecto: 1 },
+      { campo: 'nitidez',    nombre: 'Nitidez',           min: 0,  max: 2, pordefecto: 1 },
+    ],
     // Marca de informacion (overlay): posicion en % + estilo (se configura en "Ajustar texto").
     overlayX: 50, overlayY: 92, overlayEnabled: true,
     overlayStyle: { size: 1.2, weight: 'bold', color: '#ffffff', shadow: true, bg: true, align: 'left', letterSpacing: 0, lineSpacing: 1.3 },
@@ -96,6 +114,14 @@ function deviceDetail() {
         this.savedLens = this.lens;
         this.savedZoom = Number(this.device.camera_zoom) || 0;
         this.zoom = this.savedZoom;
+        // Ajustes de imagen guardados (encuadre fino y color).
+        try {
+          const aj = typeof this.device.camera_ajustes === 'string'
+            ? JSON.parse(this.device.camera_ajustes || 'null')
+            : this.device.camera_ajustes;
+          this.ajustes = aj || {};
+        } catch (_) { this.ajustes = {}; }
+        this.manualWb = this.ajustes.awb_rojo != null && this.ajustes.awb_azul != null;
         // Marca de informacion (overlay) configurada para este dispositivo.
         if (this.device.overlay_x != null) this.overlayX = Number(this.device.overlay_x);
         if (this.device.overlay_y != null) this.overlayY = Number(this.device.overlay_y);
@@ -231,6 +257,160 @@ function deviceDetail() {
         .catch(() => this.showToast('No se pudo exportar', 'error'));
     },
 
+    // Equipos que transmiten por el servidor de medios (Raspberry, PC con camara
+    // IP). Importa para los controles del visor: los deslizadores de zoom,
+    // exposicion, balance y enfoque mandan ordenes por el canal de datos de
+    // WebRTC, que SOLO implementan los telefonos. En la Raspberry se movia el
+    // zoom y no pasaba absolutamente nada, sin un aviso ni un error: parecia
+    // descompuesto. Ahora se le muestran los controles que si le sirven.
+    get esRelay() {
+      return /^(pi|pc)-agent/i.test(this.device?.app_version || '');
+    },
+
+    // Encuadre del sitio en estos equipos: zoom y a donde apunta el recorte.
+    //
+    // NO es en vivo. El recorte se le da a la camara al arrancar, asi que para
+    // verlo hay que reabrir la transmision. Lo que se cuida es que eso no parezca
+    // una falla: el visor NO se apaga, se queda con un aviso encima mientras
+    // vuelve. Antes se cerraba entero y la imagen "se iba".
+    reencuadrando: false,
+
+    encuadreDeSitio(campo, valor) {
+      const v = Number(valor) || 0;
+      if (campo === 'zoom') this.zoom = v;
+      else this.ajustes = { ...this.ajustes, [campo]: v };
+
+      // Se espera a que suelte el deslizador: si no, se guardaria en cada pixel
+      // que arrastra y se reabriria la transmision decenas de veces.
+      if (this._encuadreT) clearTimeout(this._encuadreT);
+      this._encuadreT = setTimeout(() => this._aplicarEncuadre(), 800);
+    },
+
+    async _aplicarEncuadre() {
+      const cuerpo = { zoom: this.zoom, ajustes: this._cuerpoAjustes() };
+      try {
+        await API.put(`/api/devices/${this.deviceId}/camera`, cuerpo);
+        this.savedZoom = this.zoom;
+        if (this.device) this.device.camera_zoom = this.zoom;
+      } catch (err) {
+        this.showToast(err && err.status === 403 ? 'Necesitas rol admin' : 'No se pudo guardar el encuadre', 'error');
+        return;
+      }
+
+      if (!this.streaming) {
+        this.showToast('Encuadre guardado: se aplica a las fotos y a la vista en vivo', 'success');
+        return;
+      }
+
+      // Se reabre SIN bajar la bandera de streaming, para que el visor y sus
+      // controles sigan en pantalla y no parezca que se cayo la transmision.
+      this.reencuadrando = true;
+      try {
+        await this.streamClient?.stop();
+        this.streamClient = null;
+        // La camara del equipo tarda un instante en soltarse; sin esta pausa la
+        // nueva transmision arranca contra una camara todavia ocupada.
+        await new Promise((r) => setTimeout(r, 1200));
+        await this.startStream();
+      } catch (err) {
+        this.showToast('No se pudo reabrir la vista con el encuadre nuevo', 'error');
+      } finally {
+        this.reencuadrando = false;
+      }
+    },
+
+    // ---- Ajustes de imagen (encuadre fino y color) -------------------------
+
+    alternarWbManual(activado) {
+      this.manualWb = activado;
+      if (activado) {
+        if (this.ajustes.awb_rojo == null) this.ajustes.awb_rojo = 1.5;
+        if (this.ajustes.awb_azul == null) this.ajustes.awb_azul = 1.5;
+      } else {
+        this.ajustes.awb_rojo = null;
+        this.ajustes.awb_azul = null;
+      }
+    },
+
+    // Punto de partida para una camara SIN filtro infrarrojo (la Module 3 NoIR).
+    // La vegetacion refleja muchisimo infrarrojo cercano, esa luz entra al sensor
+    // y las hojas salen moradas. Se baja la ganancia de rojo, se sube algo la de
+    // azul y se quita saturacion. NO lo arregla del todo: es fisica del sensor y
+    // desde el software solo se atenua. Hay que afinarlo con "Probar".
+    presetSinFiltroIR() {
+      this.manualWb = true;
+      this.ajustes = {
+        ...this.ajustes,
+        awb_rojo: 1.05,
+        awb_azul: 1.9,
+        saturacion: 0.75,
+        contraste: 1.1,
+      };
+      this.showToast('Punto de partida aplicado. Dale a "Probar" y afina con los deslizadores.', 'info');
+    },
+
+    restablecerAjustes() {
+      this.ajustes = {};
+      this.manualWb = false;
+      this.showToast('Ajustes en blanco. Guarda para que el equipo los tome.', 'info');
+    },
+
+    _cuerpoAjustes() {
+      const a = { ...this.ajustes };
+      // Sin las dos ganancias no se manda ninguna: el agente las ignora sueltas.
+      if (!this.manualWb || a.awb_rojo == null || a.awb_azul == null) {
+        delete a.awb_rojo; delete a.awb_azul;
+      }
+      Object.keys(a).forEach((k) => { if (a[k] === null || a[k] === undefined) delete a[k]; });
+      return Object.keys(a).length ? a : null;
+    },
+
+    async guardarAjustes() {
+      if (this.guardandoAjustes) return;
+      this.guardandoAjustes = true;
+      try {
+        await API.put(`/api/devices/${this.deviceId}/camera`, { ajustes: this._cuerpoAjustes() });
+        this.showToast('Ajustes guardados: se aplican a todas las fotos del equipo', 'success');
+        return true;
+      } catch (err) {
+        this.showToast(err && err.status === 403 ? 'Necesitas rol admin' : 'No se pudieron guardar', 'error');
+        return false;
+      } finally {
+        this.guardandoAjustes = false;
+      }
+    },
+
+    // Guarda y pide una foto: los ajustes viajan al equipo dentro de la orden,
+    // asi que hay que guardarlos antes o la prueba saldria con los anteriores.
+    async probarAjustes() {
+      if (this.probandoAjustes) return;
+      if (!(await this.guardarAjustes())) return;
+      this.probandoAjustes = true;
+      try {
+        const antes = this.recentPhotos[0]?.id;
+        await API.post(`/api/devices/${this.deviceId}/command`, { command_type: 'TAKE_PHOTO', priority: 1 });
+        let intentos = 0;
+        const sondeo = setInterval(async () => {
+          intentos++;
+          await this.loadPhotos();
+          const nueva = this.recentPhotos[0];
+          if (nueva && nueva.id !== antes) {
+            clearInterval(sondeo);
+            this.probandoAjustes = false;
+            this.fotoPrueba = nueva.storage_path || nueva.thumbnail_path;
+            this.showToast('Así se ve con estos ajustes', 'success');
+          } else if (intentos >= 15) {   // ~30 s
+            clearInterval(sondeo);
+            this.probandoAjustes = false;
+            this.showToast('No llegó la foto: el equipo puede estar apagado o transmitiendo', 'error');
+          }
+        }, 2000);
+      } catch (err) {
+        this.probandoAjustes = false;
+        this.showToast('No se pudo pedir la foto de prueba', 'error');
+      }
+    },
+
     async takePhoto() {
       if (this.takingPhoto) return;
       this.takingPhoto = true;   // dispara el modal "Capturando fotografía…"
@@ -306,7 +486,7 @@ function deviceDetail() {
         const on = clean && this.overlayEnabled;
         const lines = on ? overlayInfoLines(this.lightbox, this.device && this.device.name) : null;
         const pos = on ? { x: this.overlayX, y: this.overlayY } : null;
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, lines, pos, on ? this.overlayStyle : null);
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation + giroDeFoto(this.lightbox), `${base}_${ts}.jpg`, lines, pos, on ? this.overlayStyle : null);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');

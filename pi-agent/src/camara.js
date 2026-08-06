@@ -66,7 +66,10 @@ async function hayCamaraMipi() {
     const txt = salida.toString();
     // Sin camara conectada imprime "No cameras available!".
     if (/no cameras available/i.test(txt)) return null;
-    return bin;
+    // El nombre del sensor ("0 : imx708_noir [4608x2592 ...]") hace falta para
+    // encontrar su archivo de perfil de color.
+    const cd = /^\s*\d+\s*:\s*([a-z0-9_]+)/im.exec(txt);
+    return { bin, sensor: cd ? cd[1] : null };
   } catch {
     return null;
   }
@@ -80,6 +83,75 @@ async function dispositivoUsb(preferido) {
     }
   } catch { /* sin /dev/video* */ }
   return candidatos.find((d) => fs.existsSync(d)) || null;
+}
+
+const entre = (v, min, max, porDefecto) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : porDefecto;
+};
+
+// Modos de balance de blancos que entiende rpicam-still.
+const MODOS_AWB = ['auto', 'incandescent', 'tungsten', 'fluorescent', 'indoor', 'daylight', 'cloudy'];
+
+/**
+ * Traduce el encuadre y los ajustes de imagen del dashboard a banderas de
+ * rpicam-still.
+ *
+ *   zoom     0 = cuadro completo .. 0.9 = muy cerrado. Es recorte digital
+ *            (--roi), no zoom optico: la Module 3 no tiene zoom de verdad, asi
+ *            que acercarse cuesta resolucion. Es el mismo criterio que en los
+ *            telefonos.
+ *   centro_x/y  a donde apunta el recorte (0.5, 0.5 = al centro). Sirve para
+ *            encuadrar la pantalla sin mover el poste.
+ *
+ * Sobre el color: esta camara es la NoIR, SIN filtro infrarrojo. La vegetacion
+ * refleja muchisimo infrarrojo cercano, esa luz entra al sensor y por eso las
+ * hojas salen moradas. Ningun ajuste de aqui lo arregla del todo -es fisica del
+ * sensor, no una mala configuracion-, pero bajar la ganancia de rojo con
+ * awb_rojo/awb_azul y quitarle algo de saturacion lo deja mucho mas presentable.
+ * El arreglo de verdad es un filtro de corte infrarrojo o la Module 3 estandar.
+ */
+function argumentosDeAjuste(opciones = {}) {
+  const a = opciones.ajustes || {};
+  const args = [];
+
+  // --- Encuadre -------------------------------------------------------------
+  const zoom = entre(opciones.zoom, 0, 0.9, 0);
+  if (zoom > 0.01) {
+    const lado = 1 - zoom;
+    const cx = entre(a.centro_x, 0, 1, 0.5);
+    const cy = entre(a.centro_y, 0, 1, 0.5);
+    // El recorte no puede salirse del cuadro.
+    const x = Math.min(1 - lado, Math.max(0, cx - lado / 2));
+    const y = Math.min(1 - lado, Math.max(0, cy - lado / 2));
+    args.push('--roi', `${x.toFixed(4)},${y.toFixed(4)},${lado.toFixed(4)},${lado.toFixed(4)}`);
+  }
+
+  // --- Imagen ---------------------------------------------------------------
+  if (a.brillo !== undefined) args.push('--brightness', String(entre(a.brillo, -1, 1, 0)));
+  if (a.contraste !== undefined) args.push('--contrast', String(entre(a.contraste, 0, 2, 1)));
+  if (a.saturacion !== undefined) args.push('--saturation', String(entre(a.saturacion, 0, 2, 1)));
+  if (a.nitidez !== undefined) args.push('--sharpness', String(entre(a.nitidez, 0, 2, 1)));
+  if (a.ev !== undefined) args.push('--ev', String(entre(a.ev, -10, 10, 0)));
+
+  // --- Balance de blancos ---------------------------------------------------
+  // Las ganancias manuales mandan sobre el modo: es lo que sirve contra el tinte
+  // morado, porque el automatico se despista justo con el infrarrojo.
+  const r = Number(a.awb_rojo), b = Number(a.awb_azul);
+  if (Number.isFinite(r) && Number.isFinite(b) && r > 0 && b > 0) {
+    args.push('--awbgains', `${entre(r, 0.1, 8, 1)},${entre(b, 0.1, 8, 1)}`);
+  } else if (a.awb && MODOS_AWB.includes(String(a.awb))) {
+    args.push('--awb', String(a.awb));
+  }
+
+  // --- Ruido y volteo -------------------------------------------------------
+  if (['auto', 'off', 'cdn_off', 'cdn_fast', 'cdn_hq'].includes(String(a.ruido))) {
+    args.push('--denoise', String(a.ruido));
+  }
+  if (a.hflip) args.push('--hflip');
+  if (a.vflip) args.push('--vflip');
+
+  return args;
 }
 
 class Camara {
@@ -96,10 +168,11 @@ class Camara {
     const forzado = this.cfg.modo && this.cfg.modo !== 'auto' ? this.cfg.modo : null;
 
     if (!forzado || forzado === 'libcamera') {
-      const bin = await hayCamaraMipi();
-      if (bin) {
-        this._bin = bin;
-        this._detalle = `camara oficial via ${bin}`;
+      const mipi = await hayCamaraMipi();
+      if (mipi) {
+        this._bin = mipi.bin;
+        this._sensor = mipi.sensor;
+        this._detalle = `camara oficial ${mipi.sensor || ''} via ${mipi.bin}`.replace(/\s+/g, ' ');
         return (this._modo = 'libcamera');
       }
       if (forzado) throw new Error('modo "libcamera" forzado pero no hay camara MIPI detectada');
@@ -139,11 +212,54 @@ class Camara {
     return this._detalle;
   }
 
+  /**
+   * Las banderas de encuadre y color para una captura, perfil incluido.
+   *
+   * Lo usan la foto Y la vista en vivo, para que lo que se ve en el visor sea lo
+   * que va a salir en la foto. Antes solo lo aplicaba la foto: en el dashboard se
+   * movia el zoom, no pasaba nada en el video, y el color de la transmision
+   * seguia igual de lavado aunque las fotos ya salieran bien.
+   */
+  async argumentosDeCaptura(opciones = {}) {
+    await this.detectar();
+    if (this._modo !== 'libcamera') return [];
+    const args = [];
+    const perfil = this._rutaPerfil((opciones.ajustes || {}).perfil);
+    if (perfil) args.push('--tuning-file', perfil);
+    args.push(...argumentosDeAjuste(opciones));
+    return args;
+  }
+
+  /**
+   * Ruta del archivo de perfil de color pedido, o null para dejar que libcamera
+   * elija. La carpeta cambia segun el modelo (pisp en la Pi 5, vc4 en las
+   * anteriores) y el sensor puede ser otro, asi que se busca en vez de darla por
+   * sentada: si no aparece, se sigue sin perfil en lugar de fallar la foto.
+   */
+  _rutaPerfil(perfil) {
+    if (!perfil || perfil === 'auto') return null;
+    if (this._perfilResuelto && this._perfilResuelto.clave === perfil) {
+      return this._perfilResuelto.ruta;
+    }
+
+    const base = '/usr/share/libcamera/ipa/rpi';
+    const sensor = (this._sensor || 'imx708').replace(/_noir$/, '');
+    const nombre = perfil === 'noir' ? `${sensor}_noir.json` : `${sensor}.json`;
+
+    let ruta = null;
+    for (const carpeta of ['pisp', 'vc4']) {
+      const candidata = `${base}/${carpeta}/${nombre}`;
+      if (fs.existsSync(candidata)) { ruta = candidata; break; }
+    }
+    this._perfilResuelto = { clave: perfil, ruta };
+    return ruta;
+  }
+
   esPrueba() {
     return this._modo === 'prueba';
   }
 
-  async tomarFoto() {
+  async tomarFoto(opciones = {}) {
     const modo = await this.detectar();
 
     if (modo === 'libcamera') {
@@ -153,6 +269,23 @@ class Camara {
         '--width', String(this.ancho), '--height', String(this.alto),
         '-q', String(this.cfg.calidad || 90),
       ];
+
+      // Perfil de color del sensor.
+      //
+      // libcamera elige solo el perfil "noir" porque la camara se identifica como
+      // imx708_noir. Ese perfil esta pensado para vigilancia nocturna y de dia
+      // deja la imagen lechosa y sin contraste. Con el perfil ESTANDAR mas unas
+      // ganancias de blanco a mano, la misma escena sale con cielo, nubes y
+      // colores naturales. (Comprobado a mediodia, comparando ocho variantes.)
+      //
+      // El perfil estandar SOLO, sin ganancias, tiñe todo de rosa: van juntos.
+      const perfil = this._rutaPerfil((opciones.ajustes || {}).perfil);
+      if (perfil) args.push('--tuning-file', perfil);
+
+      // Encuadre y color que manda el dashboard en la orden. Hasta ahora la Pi
+      // los ignoraba: el zoom que se ajustaba desde el dashboard funcionaba en
+      // los telefonos y en la Raspberry no hacia absolutamente nada.
+      args.push(...argumentosDeAjuste(opciones));
 
       // La Module 3 tiene autofoco, pero NO enfoca por su cuenta al capturar:
       // sin pedirselo la foto sale borrosa. Dos formas:
@@ -198,4 +331,4 @@ class Camara {
   }
 }
 
-module.exports = { Camara };
+module.exports = { Camara, argumentosDeAjuste };
