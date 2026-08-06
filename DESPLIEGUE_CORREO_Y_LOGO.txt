@@ -1,15 +1,25 @@
 ===============================================================================
- DESPLIEGUE — El correo de la organizacion + el logo en todas partes
+ DESPLIEGUE — Correo por organizacion + logo en todas partes + reparto de
+              creativos
  Preparado: 2026-08-06
 ===============================================================================
 
 QUE SE DESPLIEGA
-  Migraciones : db/migrations/20260805_correo_remitente_por_tenant.sql
-                db/migrations/20260805_logo_publico.sql
-  Encima de   : lo que corra hoy en el droplet (comprobar en el PASO 2)
-  Estado      : typecheck limpio, lint sin avisos nuevos, build correcto,
-                657 pruebas unitarias en verde (23 nuevas) y 37 de integracion
-                contra Postgres real.
+  DOS entregas de una vez. Van juntas porque se acumularon sin desplegar, no
+  porque dependan entre si.
+
+  Commit final : 714ac4c
+  Migraciones  : db/migrations/20260805_correo_remitente_por_tenant.sql
+                 db/migrations/20260805_logo_publico.sql
+                 (las DOS son de la primera entrega; el reparto de creativos NO
+                  lleva migraciones)
+  Encima de    : lo que corra hoy en el droplet (comprobar en el PASO 2)
+  Estado       : typecheck limpio, lint sin avisos nuevos, build correcto,
+                 677 pruebas unitarias (43 nuevas) y 37 de integracion contra
+                 Postgres real.
+
+  SIN DEPENDENCIAS NUEVAS. Comprobado: `git diff` de package.json y del lockfile
+  entre lo desplegado y 714ac4c sale VACIO. No corras `npm ci`.
 
 DONDE
   Host : emiliano@209.97.146.136       Ruta : /var/www/Spaces
@@ -26,6 +36,10 @@ DONDE
      el menu, en el portal del cliente y en los correos.
   3. Al guardar el correo, un modal explica ANTES que los avisos no salen
      «desde» esa direccion sino que las respuestas LLEGAN ahi.
+  4. (Segunda entrega) En Creativos, un boton reparte los creativos elegidos
+     entre TODAS las pantallas digitales de la campana de una vez. Cada pantalla
+     parte SUS slots, no una cifra copiada. Sin migraciones y sin efecto sobre
+     nada existente hasta que alguien lo pulse.
 
 -------------------------------------------------------------------------------
  !! TRES COSAS ANTES DE EMPEZAR !!
@@ -171,6 +185,20 @@ DONDE
        balde.)
    [ ] Abre una propuesta por su liga publica (/p/<token>): la cabecera debe
        mostrar el logo y el nombre de la organizacion, no «Spaces».
+
+ LA SEGUNDA ENTREGA (reparto de creativos):
+
+   [ ] Creativos -> una campana DOOH con creativos aprobados y pantallas
+       reservadas. En «Slots reservados» debe salir el boton «Repartir a todas».
+       Si NO sale, es que esa campana no tiene creativos aprobados o no tiene
+       pantallas digitales — no es un fallo del despliegue.
+   [ ] Pulsalo: el modal dice a cuantas pantallas va y deja elegir cuales
+       creativos. Cancelar NO debe cambiar nada.
+   [ ] Repartelo y comprueba en la misma pantalla que los contadores
+       «usados/reservados» quedan COMPLETOS y en negro, no en rojo. Rojo =
+       excede el loop, y eso seria un defecto del reparto: avisa.
+   [ ] Si esa campana ya tenia pantallas ajustadas a mano, marca primero «no
+       tocar las que ya tienen» y confirma que efectivamente no las toco.
 
 ===============================================================================
  SI ALGO SALE MAL — ROLLBACK
