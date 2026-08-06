@@ -11,6 +11,16 @@ node_modules
 .env.development.local
 .env.test.local
 .env.production.local
+# `.env.production` a secas NO estaba, y en el droplet existe: apps/web/.env.production
+# con los secretos de produccion, sin ignorar. Un `git add .` lo habria commiteado.
+# Se comprobo que nunca llego a la historia (2026-08-06), asi que no hay nada que
+# rotar por esto — pero faltaba la red.
+.env.production
+# Los respaldos que deja el despliegue al editarlo: en el droplet hay tres
+# (.bak.1784062399, .bak.1784755285, .bak.1784838580). Llevan los mismos
+# secretos que el original, asi que ignorar solo el original no bastaba.
+.env*.bak.*
+.env*.bak
 
 # Testing
 coverage
