@@ -92,7 +92,7 @@ function gallery() {
       try {
         // Fotos limpias (v0.8.0): dibuja la marca configurable del dispositivo.
         const o = photoOverlayArgs(this.lightbox);
-        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation, `${base}_${ts}.jpg`, o.lines, o.pos, o.style);
+        await downloadRotatedImage(this.lightbox.storage_path, this.lbRotation + giroDeFoto(this.lightbox), `${base}_${ts}.jpg`, o.lines, o.pos, o.style);
         this.showToast('Descargando foto…', 'success');
       } catch (e) {
         this.showToast('No se pudo descargar la foto', 'error');

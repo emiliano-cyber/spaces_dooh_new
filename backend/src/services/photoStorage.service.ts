@@ -7,6 +7,7 @@ import path from 'path';
 import { env } from '../config/env';
 import { pool } from '../config/database';
 import { verificationQueue } from './verification.service';
+import { estaTransmitiendo } from '../utils/streamWatchdog';
 
 const s3 = new S3Client({
   endpoint: env.SPACES_ENDPOINT,
@@ -79,6 +80,27 @@ interface UploadParams {
   phash?: string;
 }
 
+/**
+ * Cuanto habria que girar ESTA foto al mostrarla. No se toca el archivo.
+ *
+ * Solo se aplica a las fotos que llegan SIN vista en vivo: con el visor abierto
+ * la app ya las entrega derechas. Por eso el mismo equipo necesita giro en la
+ * foto programada y no en la que se toma desde la ficha.
+ */
+async function giroAlMostrar(deviceId: number): Promise<number> {
+  try {
+    if (estaTransmitiendo(deviceId)) return 0;
+    const [filas] = await pool.query<any[]>(
+      `SELECT photo_rotation FROM devices WHERE id = ?`,
+      [deviceId]
+    );
+    const giro = Number((filas as any[])[0]?.photo_rotation) || 0;
+    return [90, 180, 270].includes(giro) ? giro : 0;
+  } catch {
+    return 0; // ante la duda, no se gira
+  }
+}
+
 export async function uploadPhoto(p: UploadParams) {
   // El origen lo decide el servidor, no el equipo. La APK manda "on_demand"
   // siempre (esta escrito fijo en CommandHandler), asi que una foto por horario
@@ -105,12 +127,14 @@ export async function uploadPhoto(p: UploadParams) {
   const [result] = await pool.query<any>(
     `INSERT INTO photos
      (device_id, campaign_id, command_id, schedule_id, storage_path, thumbnail_path,
-      file_size_bytes, width, height, taken_at, gps_lat, gps_lng, source, watermark_baked, phash)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      file_size_bytes, width, height, taken_at, gps_lat, gps_lng, source, watermark_baked, phash,
+      display_rotation)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [p.deviceId, p.campaign_id ?? null, p.command_id ?? null, p.schedule_id ?? null,
      storedFull, storedThumb, p.fileBuffer.length, meta.width, meta.height, p.taken_at,
      p.gps_lat ?? null, p.gps_lng ?? null, source, p.watermark_baked ?? true,
-     p.phash ? p.phash.toLowerCase() : null]
+     p.phash ? p.phash.toLowerCase() : null,
+     await giroAlMostrar(p.deviceId)]
   );
 
   if (p.campaign_id) {

@@ -42,6 +42,17 @@ export function armStreamWatchdog(deviceId: number) {
   }, MAX_STREAM_MS));
 }
 
+/**
+ * Si el equipo tiene una transmision viva ahora mismo.
+ *
+ * Importa para la orientacion de la foto: con el visor abierto la app entrega la
+ * imagen ya girada, y sin visor la entrega como sale del sensor. Saber en cual de
+ * los dos casos estamos es lo que permite enderezarla sin romper la otra.
+ */
+export function estaTransmitiendo(deviceId: number): boolean {
+  return timers.has(deviceId);
+}
+
 export function disarmStreamWatchdog(deviceId: number) {
   const t = timers.get(deviceId);
   if (t) {

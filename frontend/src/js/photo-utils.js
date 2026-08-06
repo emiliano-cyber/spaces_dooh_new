@@ -104,6 +104,18 @@ function overlayInfoLines(photo, deviceName) {
   return [name, fecha, hora].filter(Boolean);
 }
 
+// Cuanto hay que girar ESTA foto para verla derecha.
+//
+// Lo decide el servidor foto por foto al recibirla, porque el mismo equipo
+// entrega orientaciones distintas: con la vista en vivo abierta la app ya la
+// manda derecha, y sin visor -el boton de foto a todas y las programadas- la
+// manda como sale del sensor. El archivo guardado NUNCA se toca: se gira solo al
+// mostrarla y al descargarla, para no recomprimir la evidencia.
+function giroDeFoto(photo) {
+  const g = Number(photo && photo.display_rotation) || 0;
+  return [90, 180, 270].includes(g) ? g : 0;
+}
+
 // Renderiza la foto girada `rotation` grados con la marca `overlayLines` y
 // devuelve un Blob JPEG.
 async function _renderPhoto(url, rotation, overlayLines, pos, style) {
@@ -139,8 +151,13 @@ async function downloadAlbumZip(photos, zipName, onProgress) {
     try {
       let blob;
       const o = photoOverlayArgs(p);
+      const giro = giroDeFoto(p);
       if (o.lines) {
-        blob = await _renderPhoto(p.storage_path, 0, o.lines, o.pos, o.style);
+        blob = await _renderPhoto(p.storage_path, giro, o.lines, o.pos, o.style);
+      } else if (giro) {
+        // Sin marca pero torcida: se endereza igual, si no el album saldria con
+        // unas fotos derechas y otras de cabeza.
+        blob = await _renderPhoto(p.storage_path, giro, null, null, null);
       } else {
         blob = await (await fetch(p.storage_path)).blob();
       }

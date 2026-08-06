@@ -35,6 +35,7 @@
           <div class="bg-white border border-neutral-200 rounded-lg overflow-hidden">
             <div class="relative group aspect-[4/3] bg-neutral-100">
               <img :src="photo.thumbnail_path" @click="openLightbox(photo)"
+                   :style="giroDeFoto(photo) ? `transform: rotate(${giroDeFoto(photo)}deg)` : ''"
                    class="w-full h-full object-contain cursor-pointer hover:opacity-90" :alt="'Photo ' + photo.id">
               <button @click.stop="deletePhoto(photo.id)" title="Eliminar fotografía"
                 class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-600/90 hover:bg-red-700 text-white rounded p-1.5 transition-opacity">
@@ -75,7 +76,7 @@
       <div class="relative inline-block" @click.stop>
         <img :src="lightbox?.storage_path" x-ref="lbimg"
              @load="lbImgW = $refs.lbimg.clientWidth"
-             :style="'transform: rotate(' + lbRotation + 'deg)'"
+             :style="'transform: rotate(' + (lbRotation + giroDeFoto(lightbox)) + 'deg)'"
              class="max-w-full max-h-[85vh] object-contain rounded shadow-2xl transition-transform">
         <div x-show="lightbox && (lightbox.watermark_baked === 0 || lightbox.watermark_baked === false) && (lightbox.overlay_enabled === 1 || lightbox.overlay_enabled === true)"
              class="absolute pointer-events-none whitespace-pre" :style="overlayCss(lightbox)">
