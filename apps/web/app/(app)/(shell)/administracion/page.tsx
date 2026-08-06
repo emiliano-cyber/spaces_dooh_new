@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -594,8 +594,12 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
         <CardContent className="space-y-4">
           {/* Logo */}
           <Campo label="Logo">
+            {/* 80px de vista previa: el logo ahora sale en el menú, en el
+                portal del cliente y en los correos, así que quien lo sube tiene
+                que poder ver qué está subiendo. A 56 no se distinguía si el
+                recorte estaba bien. */}
             <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
+              <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface-2">
                 {config.logoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={config.logoUrl} alt="logo" className="h-full w-full object-contain" />
@@ -619,7 +623,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
               </div>
             </div>
             <span className="mt-1 block text-[11px] text-muted">
-              Sustituye el logotipo de Space OS en el menú lateral. PNG, JPG, WebP o SVG, máx. {LOGO_MAX_MB} MB.
+              Se usa en el menú lateral, en el contrato impreso, en la propuesta que ve
+              el cliente y en los correos de aviso. PNG, JPG, WebP o SVG, máx. {LOGO_MAX_MB} MB.
             </span>
           </Campo>
 
@@ -654,6 +659,8 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           </Campo>
         </CardContent>
       </Card>
+
+      <CorreoDeAvisos config={config} guardar={guardar} />
 
       <DatosFiscales config={config} setConfig={setConfig} guardar={guardar} />
 
@@ -894,6 +901,167 @@ function DatosFiscales({
           La razón social se captura arriba, en «Identidad de la empresa».
         </span>
       </CardContent>
+    </Card>
+  )
+}
+
+// ─── Correo de avisos de la organización ────────────────────────────────────
+// La dirección a la que responden los avisos de OPERACIÓN (contratos y lo que
+// venga). NO es el correo del sistema: las contraseñas y las invitaciones salen
+// del buzón de la plataforma y no se configuran aquí.
+//
+// El aviso va en un modal ANTES de guardar, y no en una nota al pie, porque lo
+// que hay que entender es contraintuitivo: uno escribe su correo esperando que
+// los avisos salgan DESDE él, y lo que pasa es que salen desde el buzón de la
+// plataforma a nombre de la organización y las respuestas caen aquí. Quien no
+// lo sepa va a buscar los envíos en la bandeja de enviados de esta cuenta y no
+// los va a encontrar. Una nota al pie de un formulario no se lee; un modal que
+// hay que confirmar, sí.
+function CorreoDeAvisos({
+  config,
+  guardar,
+}: {
+  config: ConfigNegocio
+  guardar: (cambios: Partial<ConfigNegocio>, msg?: string) => Promise<boolean>
+}) {
+  const actual = config.emailRemitente ?? ''
+  const [borrador, setBorrador] = useState(actual)
+  const [confirmando, setConfirmando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  // El padre recarga `config` tras guardar; sin esto el input se quedaría con
+  // lo que se tecleó aunque el servidor hubiera normalizado el valor.
+  useEffect(() => { setBorrador(config.emailRemitente ?? '') }, [config.emailRemitente])
+
+  const limpio = borrador.trim()
+  const hayCambio = limpio !== actual
+
+  async function aplicar(valor: string | null) {
+    setGuardando(true)
+    const ok = await guardar(
+      { emailRemitente: valor },
+      valor ? 'Correo de avisos actualizado' : 'Correo de avisos quitado',
+    )
+    setGuardando(false)
+    if (ok) setConfirmando(false)
+  }
+
+  function intentar() {
+    setError(null)
+    // Vaciarlo es QUITARLO, y quitar no necesita advertencia: no estrena
+    // ningún comportamiento, lo apaga.
+    if (!limpio) { void aplicar(null); return }
+    // Se valida ANTES de abrir el modal. Al revés, el usuario leería el aviso
+    // completo, confirmaría, y recibiría un error de formato al final — se le
+    // habría hecho leer todo para nada.
+    if (!esEmailValido(limpio)) { setError(EMAIL_INVALIDO); return }
+    setConfirmando(true)
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center gap-2">
+        <Mail className="h-4 w-4 text-muted" />
+        <CardTitle>Correo de avisos</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Campo label="Correo de la organización">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input
+              className={inputCls}
+              type="email"
+              inputMode="email"
+              autoComplete="off"
+              placeholder="p. ej. avisos@tuempresa.com"
+              value={borrador}
+              onChange={(e) => { setBorrador(e.target.value); setError(null) }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); intentar() } }}
+            />
+            <Button
+              size="sm"
+              variant="secondary"
+              className="shrink-0"
+              disabled={!hayCambio || guardando}
+              onClick={intentar}
+            >
+              {limpio ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+              {actual && !limpio ? 'Quitar' : actual ? 'Actualizar' : 'Agregar'}
+            </Button>
+          </div>
+          {error && <span className="mt-1 block text-[11px] text-error">{error}</span>}
+          <span className="mt-1 block text-[11px] text-muted">
+            A esta dirección responden los avisos de operación que el sistema envía a tu
+            equipo. Las contraseñas y las invitaciones no salen de aquí: esas las manda
+            la plataforma.
+          </span>
+        </Campo>
+
+        {!actual && (
+          <p className="flex items-start gap-1.5 rounded border border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Sin correo configurado, los avisos salen sin dirección de respuesta: quien los
+            reciba no tendrá a quién contestarle.
+          </p>
+        )}
+      </CardContent>
+
+      <Modal
+        open={confirmando}
+        onOpenChange={(v) => { if (!guardando) setConfirmando(v) }}
+        title="Antes de guardar este correo"
+        subtitle="Cómo se va a usar la dirección que acabas de escribir"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" disabled={guardando} onClick={() => setConfirmando(false)}>
+              Cancelar
+            </Button>
+            <Button disabled={guardando} onClick={() => void aplicar(limpio)}>
+              {guardando ? 'Guardando…' : 'Entendido, guardar'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3 text-[13px] leading-relaxed text-ink">
+          <p className="rounded border border-border bg-surface-2 px-3 py-2">
+            <span className="demo-num font-medium">{limpio}</span>
+          </p>
+
+          <p className="flex items-start gap-2">
+            <CornerUpLeft className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            <span>
+              Los avisos <b>no se envían desde</b> esta dirección: salen del servidor de
+              correo de la plataforma, a nombre de <b>{config.nombreTenant || 'tu organización'}</b>,
+              y <b>las respuestas llegan aquí</b>. En la bandeja de enviados de esta cuenta
+              no vas a ver nada.
+            </span>
+          </p>
+
+          <p className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            <span>
+              Es así porque para enviar desde tu propio dominio hace falta autorizarlo en
+              los registros DNS de ese dominio. Sin esa autorización, un correo que dijera
+              venir de tu dominio lo marcarían como suplantación y acabaría en spam.{' '}
+              <b>Si quieres que salgan desde tu dominio, avísanos y lo configuramos.</b>
+            </span>
+          </p>
+
+          <p className="flex items-start gap-2">
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-muted" />
+            <span>
+              Afecta a los avisos de operación —hoy, el resumen diario de contratos que
+              necesitan atención—. Las contraseñas y las invitaciones seguirán saliendo del
+              correo de la plataforma.
+            </span>
+          </p>
+
+          <p className="text-[12px] text-muted">
+            Revisa que esté bien escrita: si la dirección no existe, las respuestas de tus
+            clientes se pierden sin que nadie se entere.
+          </p>
+        </div>
+      </Modal>
     </Card>
   )
 }

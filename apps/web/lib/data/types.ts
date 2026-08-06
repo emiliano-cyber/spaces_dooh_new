@@ -682,6 +682,11 @@ export interface ConfigNegocio {
   plazosCobranza: number[]
   // Ajustes del negocio (multi-tenant):
   logoUrl: string | null        // logo de la empresa (data URL o ruta)
+  // Correo de la organización para los avisos de OPERACIÓN (contratos y lo que
+  // venga). Viaja como Reply-To: el From es el buzón verificado de la
+  // plataforma, porque el proveedor de envío verifica DOMINIOS por DNS y los de
+  // los clientes no los controlamos. null = sin configurar.
+  emailRemitente: string | null
   ivaTasas: number[]            // IVA(s) con los que trabaja (uno o varios)
   loopSeg: number               // tamaño del loop digital, en segundos
   spotSeg: number               // duración de cada spot, en segundos

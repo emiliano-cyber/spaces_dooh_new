@@ -35,6 +35,10 @@ export function rowToConfig(r: any) {
     moneda: r.moneda,
     plazosCobranza: r.plazos_cobranza ?? [],
     logoUrl: r.logo_url ?? null,
+    // Correo de la organización para los avisos de OPERACIÓN. Viaja como
+    // Reply-To; el From es el buzón verificado de la plataforma. null = sin
+    // configurar, que es como nace toda organización.
+    emailRemitente: r.email_remitente ?? null,
     ivaTasas: (r.iva_tasas ?? [16]).map((x: any) => Number(x)),
     loopSeg: r.loop_seg != null ? Number(r.loop_seg) : 60,
     spotSeg: r.spot_seg != null ? Number(r.spot_seg) : 10,
@@ -70,6 +74,11 @@ export async function obtenerConfig() {
   cfg.nombreTenant = t?.nombre ?? ''
   cfg.razonSocial = t?.razon_social ?? null
   cfg.nombreComercial = t?.nombre_comercial ?? null
+  // El correo de avisos NO se reparte por /api/estado: ninguna pantalla del
+  // shell lo necesita y lo consume el servidor (el cron lo lee de la base, no
+  // de aquí). Mismo criterio que los datos fiscales — solo sale por
+  // /api/config, que ya exige permiso de `administracion`.
+  cfg.emailRemitente = null
   return cfg
 }
 

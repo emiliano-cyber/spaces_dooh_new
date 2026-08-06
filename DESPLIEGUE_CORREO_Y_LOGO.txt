@@ -1,0 +1,215 @@
+===============================================================================
+ DESPLIEGUE — El correo de la organizacion + el logo en todas partes
+ Preparado: 2026-08-06
+===============================================================================
+
+QUE SE DESPLIEGA
+  Migraciones : db/migrations/20260805_correo_remitente_por_tenant.sql
+                db/migrations/20260805_logo_publico.sql
+  Encima de   : lo que corra hoy en el droplet (comprobar en el PASO 2)
+  Estado      : typecheck limpio, lint sin avisos nuevos, build correcto,
+                657 pruebas unitarias en verde (23 nuevas) y 37 de integracion
+                contra Postgres real.
+
+DONDE
+  Host : emiliano@209.97.146.136       Ruta : /var/www/Spaces
+  App  : pm2 spaces-web  ->  https://demo.space-os.io
+  BD   : spaces_prod
+
+-------------------------------------------------------------------------------
+ QUE HACE, EN TRES LINEAS
+-------------------------------------------------------------------------------
+  1. Los avisos de OPERACION salen a nombre de cada organizacion, y las
+     respuestas van al correo que su Dueno configure. Los del SISTEMA
+     (contrasenas) siguen saliendo de la plataforma.
+  2. El logo de cada organizacion se puede SERVIR por URL, y con eso aparece en
+     el menu, en el portal del cliente y en los correos.
+  3. Al guardar el correo, un modal explica ANTES que los avisos no salen
+     «desde» esa direccion sino que las respuestas LLEGAN ahi.
+
+-------------------------------------------------------------------------------
+ !! TRES COSAS ANTES DE EMPEZAR !!
+-------------------------------------------------------------------------------
+  1. LAS MIGRACIONES VAN ANTES QUE EL CODIGO. El codigo nuevo lee
+     `email_remitente` y `logo_token`; si el codigo va primero, el cron de
+     recordatorios y la pantalla de Configuracion fallan hasta que migres.
+
+  2. LAS DOS MIGRACIONES SON INDEPENDIENTES entre si. Da igual el orden entre
+     ellas; lo que no da igual es que las dos vayan antes del build.
+
+  3. NO HAY DEPENDENCIAS NUEVAS. No corras `npm ci`. `git checkout --
+     package-lock.json` antes del pull, como siempre (el drift del lockfile).
+
+-------------------------------------------------------------------------------
+ AVISO OPERATIVO — lo que NO arregla este despliegue
+-------------------------------------------------------------------------------
+  MIENTRAS `RESEND_API_KEY` Y `EMAIL_FROM` SIGAN VACIAS, NO SALE NINGUN CORREO.
+  Ni los nuevos ni los de antes. Esto deja el sistema LISTO para cuando esten;
+  no las configura. Con la clave puesta:
+
+    · «Olvide mi contrasena» empieza a funcionar de verdad (hoy responde «te
+      enviamos un enlace» y no envia nada — el enlace solo va al log).
+    · El resumen diario de contratos empieza a salir.
+
+  Y OJO CON EL DOMINIO: Resend verifica DOMINIOS por DNS (SPF/DKIM). El buzon
+  de `EMAIL_FROM` tiene que ser de un dominio verificado en Resend, o los
+  correos rebotan. Para PROBAR sin verificar nada se puede usar el remitente de
+  pruebas de Resend (`onboarding@resend.dev`), que solo envia a la direccion
+  duena de la cuenta de Resend — sirve para comprobar el flujo de punta a punta.
+
+===============================================================================
+ PASO 1 — BACKUP
+===============================================================================
+  mkdir -p ~/backups && F=~/backups/spaces_prod_pre_correo_$(date +%Y%m%d_%H%M%S).sql.gz && sudo -u postgres pg_dump -d spaces_prod | gzip > "$F"; echo "salida: $?"; ls -lh "$F"; echo "tablas: $(zcat "$F" | grep -c '^CREATE TABLE')"
+
+  ESPERADO: ~7 MB, 37+ tablas, salida 0.
+  NO SIGAS si pesa menos de 1 MB o salen menos de 20 tablas.
+
+===============================================================================
+ PASO 2 — TRAER EL CODIGO (no compila nada todavia)
+===============================================================================
+  cd /var/www/Spaces
+  git log --oneline -1          <- ANOTA ESTO: es tu punto de retorno
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+  Con este paso llegan los dos .sql al droplet. El codigo YA esta en disco pero
+  todavia NO corre: `pm2` sigue sirviendo el build viejo hasta el PASO 5.
+
+===============================================================================
+ PASO 3 — ENSAYO EN ROLLBACK (corre las migraciones y las deshace)  <-- NO SALTAR
+===============================================================================
+  Comprueba que aplican contra los datos REALES sin dejar nada escrito. Si algo
+  va a fallar, falla aqui.
+
+  OJO CON EL METODO: los .sql traen su propio `begin; ... commit;`, asi que
+  envolverlos en una transaccion de psql (`-1`) NO los deshace — el `commit;`
+  de dentro escribe igualmente. Lo que se hace es CORTAR el archivo en el
+  `commit;` y cerrar con `rollback;`. Se corta en vez de sustituir (que es lo
+  que hizo el runbook de M5) porque estos dos llevan consultas de verificacion
+  DESPUES del commit: tras el rollback la columna ya no existe, esas consultas
+  darian error, y con ON_ERROR_STOP=1 el ensayo acabaria en un fallo que NO es
+  un fallo. Ensayado en local: los dos terminan en ROLLBACK con salida 0.
+
+  cd /var/www/Spaces/db/migrations
+
+  (sed '/^commit;/,$d' 20260805_correo_remitente_por_tenant.sql; echo "rollback;") | sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1; echo "---- salida: $? ----"
+
+  ESPERADO, en este orden:
+    BEGIN · ALTER TABLE · ALTER TABLE · ALTER TABLE · COMMENT · ROLLBACK
+
+  (sed '/^commit;/,$d' 20260805_logo_publico.sql; echo "rollback;") | sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1; echo "---- salida: $? ----"
+
+  ESPERADO, en este orden:
+    BEGIN · ALTER TABLE · UPDATE 5 · ALTER TABLE · CREATE INDEX · ALTER TABLE ·
+    ALTER TABLE · COMMENT · CREATE FUNCTION · DO · REVOKE · ROLLBACK
+
+  EL DATO QUE CONFIRMA QUE FUNCIONO es el `UPDATE 5`: son las organizaciones
+  que RECIBIERON su token. Con 5 organizaciones tiene que decir 5. Si dice 0,
+  o ya estaba migrado, o `config_negocio` no tiene una fila por tenant — y eso
+  ultimo significaria que M5 no llego, asi que PARA y revisa.
+
+  Si sale cualquier ERROR: no has escrito nada. Avisa y no sigas.
+
+===============================================================================
+ PASO 4 — MIGRAR DE VERDAD
+===============================================================================
+  cd /var/www/Spaces/db/migrations
+  sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f 20260805_correo_remitente_por_tenant.sql
+  sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f 20260805_logo_publico.sql
+
+  VERIFICA (debe dar 5 filas, una por organizacion, todas con token de 64):
+
+  sudo -u postgres psql -d spaces_prod -c "select count(*) organizaciones, count(logo_token) con_token, min(length(logo_token)) largo_min, count(distinct logo_token) tokens_unicos from config_negocio;"
+
+  ESPERADO: organizaciones = con_token = tokens_unicos, largo_min = 64.
+
+===============================================================================
+ PASO 5 — COMPILAR Y RECARGAR
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web
+  pm2 reload spaces-web --update-env
+
+  El build tarda ~2m30s. `--update-env` importa si vas a poner las variables de
+  correo: sin eso, el proceso sigue con las de antes.
+
+===============================================================================
+ PASO 6 — COMPROBAR
+===============================================================================
+ Desde cualquier sitio:
+
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   ESPERADO: login 200
+
+ En el droplet:
+
+   pm2 list | grep spaces-web              (online, 1 solo reinicio nuevo)
+   pm2 logs spaces-web --err --lines 30    (sin errores nuevos)
+
+ QUE EL LOGO SE SIRVE (sin sesion, es ruta publica). Saca un token real:
+
+   sudo -u postgres psql -d spaces_prod -tc "select logo_token from config_negocio where logo_url is not null limit 1;"
+
+   curl -s -o /dev/null -w "logo: %{http_code} %{content_type} %{size_download}b\n" \
+     https://demo.space-os.io/spaces-dooh/api/logo/PEGA_EL_TOKEN_AQUI
+
+   ESPERADO: logo: 200 image/png (o el tipo que sea) y un tamano > 0.
+   SI DA 404: esa organizacion no tiene logo cargado — prueba con otra, o
+   sube uno desde Administracion. 404 con un token inventado es lo CORRECTO.
+
+ DENTRO DE LA APP:
+
+   [ ] El logo del menu lateral se ve mas grande (40px, antes 28).
+   [ ] Administracion -> Configuracion -> «Correo de avisos»: escribe una
+       direccion y pulsa «Agregar».
+       ESPERADO: sale el MODAL de aviso ANTES de guardar. Cancelar no guarda.
+   [ ] Con una direccion mal escrita («sin-arroba») NO abre el modal: marca el
+       error en el campo. (Se valida antes para no hacerte leer el aviso en
+       balde.)
+   [ ] Abre una propuesta por su liga publica (/p/<token>): la cabecera debe
+       mostrar el logo y el nombre de la organizacion, no «Spaces».
+
+===============================================================================
+ SI ALGO SALE MAL — ROLLBACK
+===============================================================================
+ CODIGO (vuelve al commit que anotaste en el PASO 2):
+
+   cd /var/www/Spaces
+   git checkout <commit-anotado>
+   npx turbo run build --filter=web
+   pm2 reload spaces-web --update-env
+
+ BASE DE DATOS (solo si hace falta; el codigo viejo NO se molesta porque
+ sobren dos columnas, asi que normalmente basta con revertir el codigo):
+
+   sudo -u postgres psql -d spaces_prod <<'SQL'
+   begin;
+     alter table config_negocio drop constraint if exists config_negocio_email_remitente_ck;
+     alter table config_negocio drop column if exists email_remitente;
+     drop function if exists config_tenant_por_logo_token(text);
+     alter table config_negocio drop constraint if exists config_negocio_logo_token_ck;
+     drop index if exists config_negocio_logo_token_uidx;
+     alter table config_negocio drop column if exists logo_token;
+   commit;
+   SQL
+
+ OJO: revertir la BD BORRA los correos que los Duenos hayan configurado y
+ REGENERA los tokens si se vuelve a migrar — o sea, las URLs de logo que ya
+ hubieran viajado en correos enviados dejan de funcionar. Por eso el orden
+ correcto es revertir CODIGO primero y tocar la base solo si de verdad estorba.
+
+===============================================================================
+ LO QUE QUEDA PENDIENTE DESPUES DE ESTO
+===============================================================================
+  · `RESEND_API_KEY` y `EMAIL_FROM` en el .env del droplet (+ pm2 reload
+    --update-env). Sin eso no sale ningun correo.
+  · `APP_URL` tiene que estar puesta y apuntar a https://demo.space-os.io: el
+    cron corre desde el propio droplet y sin ella el logo de los correos
+    saldria apuntando a `localhost`, o sea roto para quien lo reciba.
+  · El aviso de «pantalla vendida» NO existe todavia: hoy el unico correo de
+    operacion es el resumen diario de contratos.
+  · Verificar el dominio del remitente en Resend (SPF/DKIM), o los correos
+    llegaran a spam.

@@ -4,6 +4,7 @@ import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } fro
 import { tenantActual } from './tenant'
 import { folioDocumento } from './folios'
 import { divisorDeComision } from '@/lib/data/derive'
+import { rutaLogo } from '@/lib/logo-url'
 
 // Error de regla de negocio (propuesta inmutable) → el route lo mapea a 409.
 export class PropuestaError extends Error {}
@@ -201,6 +202,14 @@ export async function obtenerPropuestaPublica(codigo: string) {
   const cliente = p.cliente_id ? await qPub1<any>('select nombre from clientes where id=$1', [p.cliente_id]) : null
   const agencia = p.agencia_id ? await qPub1<any>('select nombre from clientes where id=$1', [p.agencia_id]) : null
 
+  // Membrete de quien EMITE la propuesta. Esta página es la única cosa de la
+  // plataforma que ve el cliente final, y hasta ahora no llevaba ni el nombre
+  // ni el logo de la organización: llegaba una cotización sin remite. El logo
+  // va por `/api/logo/<token>` y no como data URL para no meter hasta 2 MB de
+  // base64 en un payload que se pide en cada apertura de la liga.
+  const org = await qPub1<any>('select nombre from tenants where id = $1', [tenantId])
+  const cfg = await qPub1<any>('select logo_token from config_negocio where tenant_id = $1', [tenantId])
+
   const sitioIds = (items as any[]).map((i) => i.sitio_id)
   const sitios = sitioIds.length
     ? await qPub<any>(
@@ -213,6 +222,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
   const byId = new Map(sitios.map((s) => [s.id, s]))
 
   return {
+    orgNombre: org?.nombre ?? null,
+    orgLogoUrl: rutaLogo(cfg?.logo_token ?? null),
     folio: armado.folio,
     nombre: armado.nombre,
     estatus: armado.estatus,

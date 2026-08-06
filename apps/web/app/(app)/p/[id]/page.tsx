@@ -25,6 +25,11 @@ interface ItemPub {
   aprobado: boolean
 }
 interface PropuestaPub {
+  // Membrete de quien emite. Esta página es lo ÚNICO de la plataforma que ve el
+  // cliente final, y hasta ahora llegaba con la marca genérica: una cotización
+  // sin remite. `orgLogoUrl` apunta a /api/logo/<token>, no a un data URL.
+  orgNombre: string | null
+  orgLogoUrl: string | null
   folio: string
   nombre: string
   estatus: string
@@ -134,12 +139,26 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
       {/* Header público */}
       <header className="border-b border-border bg-surface">
         <div className="flex w-full items-center justify-between px-6 py-3">
-          <div className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-accent-fg">
-              <Radio className="h-4 w-4" />
-            </span>
+          <div className="flex items-center gap-2.5">
+            {/* El logo de la organización si lo tiene; si no, la marca genérica.
+                No se inventa un cuadro vacío: una organización sin logo se ve
+                igual que antes, no peor. */}
+            {p.orgLogoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={p.orgLogoUrl}
+                alt={p.orgNombre ?? ''}
+                className="h-10 w-10 shrink-0 rounded object-contain"
+              />
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded bg-accent text-accent-fg">
+                <Radio className="h-5 w-5" />
+              </span>
+            )}
             <div className="leading-tight">
-              <div className="font-display text-[15px] font-bold text-ink">Spaces</div>
+              <div className="font-display text-[15px] font-bold text-ink">
+                {p.orgNombre || 'Spaces'}
+              </div>
               <div className="text-[10px] text-muted">Propuesta comercial</div>
             </div>
           </div>

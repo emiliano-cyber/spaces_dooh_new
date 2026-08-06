@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server'
 import { pool, fijarTenantExplicito, qRaw } from '@/lib/server/db'
-import { enviarEmail, emailHabilitado } from '@/lib/server/email'
+import {
+  enviarEmail,
+  emailHabilitado,
+  remitenteDeOrganizacion,
+  htmlMembrete,
+  escaparHtml,
+} from '@/lib/server/email'
+import { urlLogo } from '@/lib/logo-url'
 import {
   recordatoriosDeContratos,
   resumenRecordatorios,
@@ -51,6 +58,11 @@ export async function POST(req: Request) {
   }
 
   const hoy = new Date()
+  // Para el logo del membrete, que viaja dentro del correo y necesita URL
+  // absoluta. `APP_URL` primero: lo dispara el cron del droplet, y ahí el
+  // origen de la petición es `localhost`, que no le sirve a nadie que abra el
+  // correo desde fuera.
+  const base = process.env.APP_URL || new URL(req.url).origin
   const tenants = await qRaw<FilaTenant>('select id, nombre from tenants order by creado_en')
   const porTenant: { tenant: string; creados: number; total: number; correo: string }[] = []
 
@@ -101,9 +113,27 @@ export async function POST(req: Request) {
       const { rows: dest } = await client.query<{ email: string }>(
         `select email from usuarios where rol = 'DUENO' and activo = true`,
       )
+      // La identidad de correo de ESTA organización, y por el mismo motivo que
+      // los destinatarios: `config_negocio` es fail-closed + FORCE desde el ADR
+      // 0011, así que leerla fuera de la transacción —sin `app.tenant_id`—
+      // devolvería cero filas EN SILENCIO y todos los avisos saldrían con la
+      // identidad genérica sin que nada lo dijera. Es el mismo modo de fallo
+      // que dejó el desbloqueo de contraseña inservible durante un despliegue
+      // entero (43f9284): la consulta no falla, contesta vacío.
+      const { rows: cfg } = await client.query<{
+        email_remitente: string | null
+        logo_token: string | null
+      }>(
+        `select email_remitente, logo_token from config_negocio where tenant_id = $1`,
+        [t.id],
+      )
       await client.query('commit')
 
-      const correo = await avisarPorCorreo(dest, avisos, creados)
+      const correo = await avisarPorCorreo(dest, avisos, creados, {
+        nombreOrg: t.nombre,
+        replyTo: cfg[0]?.email_remitente ?? null,
+        logoUrl: urlLogo(base, cfg[0]?.logo_token ?? null),
+      })
       porTenant.push({ tenant: t.nombre, creados, total: avisos.length, correo })
     } catch (e) {
       await client.query('rollback').catch(() => {})
@@ -125,21 +155,33 @@ export async function POST(req: Request) {
 // seguidos se archivan sin leer y el décimo, el que importaba, con ellos.
 // Solo se manda si hubo avisos NUEVOS hoy; si no, sería un correo diario que
 // dice lo mismo y que se aprende a ignorar.
+interface IdentidadOrg {
+  nombreOrg: string
+  replyTo: string | null
+  logoUrl: string | null
+}
+
 async function avisarPorCorreo(
   dest: { email: string }[],
   avisos: Recordatorio[],
   creados: number,
+  org: IdentidadOrg,
 ): Promise<string> {
   if (creados === 0) return 'sin novedades'
   if (!emailHabilitado()) return 'correo no configurado (solo notificación en la app)'
   if (!dest.length) return 'sin destinatarios'
 
-  const html = htmlRecordatorios(avisos)
+  const html = htmlRecordatorios(avisos, org)
   const asunto = `Contratos que necesitan atención: ${resumenRecordatorios(avisos)}`
+  // Canal de OPERACIÓN: sale del buzón verificado de la plataforma pero a
+  // nombre de la organización, y quien responda le contesta a ELLA. Si el Dueño
+  // todavía no configuró su correo, `replyTo` va nulo y el aviso sale igual —
+  // sin dirección de respuesta, que es mejor que no mandarlo.
+  const from = remitenteDeOrganizacion(org.nombreOrg)
   let ok = 0
   for (const d of dest) {
     try {
-      await enviarEmail({ to: d.email, subject: asunto, html })
+      await enviarEmail({ to: d.email, subject: asunto, html, from, replyTo: org.replyTo })
       ok++
     } catch {
       /* un correo que falla no debe tumbar el barrido de los demás tenants */
@@ -148,26 +190,25 @@ async function avisarPorCorreo(
   return `${ok}/${dest.length} enviados`
 }
 
-function htmlRecordatorios(avisos: Recordatorio[]): string {
+function htmlRecordatorios(avisos: Recordatorio[], org: IdentidadOrg): string {
   const item = (a: Recordatorio) => `
     <li style="margin:0 0 10px;font-size:14px;line-height:1.45;color:#3f3f46">
       <b style="color:#18181b">${escapar(a.titulo)}</b><br/>${escapar(a.detalle)}
     </li>`
   return `
   <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#18181b">
+    ${htmlMembrete(org.logoUrl, org.nombreOrg)}
     <h2 style="font-size:18px;margin:0 0 12px">Contratos que necesitan atención</h2>
     <ul style="padding-left:18px;margin:0">${avisos.map(item).join('')}</ul>
     <p style="font-size:12px;color:#71717a;margin-top:20px">
-      Space OS · este aviso se envía una vez al día y solo cuando hay algo nuevo.
+      ${escapar(org.nombreOrg)} · este aviso se envía una vez al día y solo cuando hay algo nuevo.
     </p>
   </div>`
 }
 
 // El título lleva nombres de predio y arrendador, que los escribe una persona.
-function escapar(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-}
+// Se reexporta el de `email.ts` en vez de tener una copia: dos escapadores para
+// lo mismo acaban divergiendo, y aquí el que se quedara corto no daría un fallo
+// visible — daría un correo con HTML inyectado. Es el mismo motivo por el que
+// `TIPO_LABEL` dejó de estar copiado en cinco componentes (M10).
+const escapar = escaparHtml

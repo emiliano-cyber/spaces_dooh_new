@@ -476,6 +476,9 @@ export function buildSeed(): DemoState {
       moneda: 'MXN',
       plazosCobranza: [60, 90, 120],
       logoUrl: null,
+      // Nunca se rellena por /api/estado (solo sale por /api/config, que exige
+      // permiso de administración); aquí está para cumplir el tipo.
+      emailRemitente: null,
       ivaTasas: [16],
       loopSeg: 240,
       spotSeg: 20,

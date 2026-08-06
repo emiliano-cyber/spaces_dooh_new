@@ -5,6 +5,45 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-06
+
+- **Los avisos ya salen a nombre de cada organización.** Hasta ahora todo el
+  correo del sistema salía con la misma identidad para las cinco
+  organizaciones. Se parte en dos: los avisos de **operación** (hoy, el resumen
+  diario de contratos) salen a nombre de la organización y **las respuestas
+  llegan al correo que su Dueño configure**; los de **sistema** (contraseñas,
+  invitaciones) siguen saliendo de la plataforma, que es quien habla en esos.
+  - *Por qué las respuestas y no el envío:* el proveedor de correo verifica
+    **dominios**, no direcciones. Enviar desde el dominio de un cliente exige
+    que ese cliente autorice el envío en sus registros DNS, y son cinco
+    dominios que no controlamos. Sin esa autorización, un correo que dijera
+    venir de su dominio lo marcarían como suplantación y acabaría en spam. Así
+    que el correo sale del dominio verificado, **a nombre** de la organización,
+    y quien responda le contesta a ella. Se ve igual y llega. El día que un
+    cliente autorice su dominio, lo único que cambia es de dónde se lee ese
+    mismo dato.
+  - *Se avisa antes de guardar, no en una nota al pie.* Al capturar el correo
+    sale un aviso que hay que confirmar, porque lo que pasa es lo contrario de
+    lo que uno espera: en la bandeja de enviados de esa cuenta no se va a ver
+    nada. Una nota al pie de un formulario no se lee.
+  - *Aviso:* **mientras no esté configurada la clave de envío no sale ningún
+    correo**, ni los nuevos ni los de antes. Esto deja el sistema listo, no lo
+    enciende.
+- **El logo de la empresa ya se ve donde importa.** Estaba solo en el menú
+  lateral, y a un tamaño en el que no se distinguía. Ahora sale más grande en
+  el menú, en la **propuesta que ve el cliente** —que llegaba con marca
+  genérica, o sea una cotización sin remite— y en los correos de aviso. En el
+  contrato impreso ya estaba.
+  - *El detalle que lo obligaba:* el logo se guardaba incrustado dentro de la
+    propia página, y así funciona en pantalla pero **los correos lo descartan**
+    — Gmail y la mayoría no muestran imágenes incrustadas de esa forma. Se
+    añadió una dirección desde la que servirlo como imagen de verdad; el
+    archivo se sigue guardando igual, lo que cambia es que ahora se puede
+    entregar.
+  - *No es una dirección adivinable:* cuelga de una llave aleatoria por
+    organización y no del identificador de la empresa. Con el identificador,
+    probar direcciones diría quién existe y quién no.
+
 ## 2026-08-05
 
 - **Cada organización tiene por fin su propia configuración.** Hasta hoy la

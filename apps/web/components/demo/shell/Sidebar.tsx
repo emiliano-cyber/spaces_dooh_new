@@ -84,12 +84,19 @@ function SidebarContent({
         {/* Colapsado: el toggle ocupa la cabecera él solo. La barra mide 64px y
             no caben logo y botón en la misma fila sin apretarlos; se prioriza el
             botón, que es la única forma de volver a expandir. */}
+        {/* 40px y no 28: el logo de la organización es lo primero que se busca
+            para saber «dónde estoy», y a 28 quedaba por debajo del texto de al
+            lado. La cabecera mide 56, así que 40 deja 8 de aire arriba y abajo;
+            más que eso obliga a crecer la barra o a sacar el nombre. El hueco
+            reservado es cuadrado (`h-10 w-10`) aunque el logo no lo sea:
+            `object-contain` lo encaja dentro sin deformarlo, y así un logo
+            apaisado no desplaza el nombre a un sitio distinto en cada tenant. */}
         {!colapsado && (
           config?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={config.logoUrl} alt="logo" className="h-7 w-7 shrink-0 rounded object-contain" />
+            <img src={config.logoUrl} alt="logo" className="h-10 w-10 shrink-0 rounded object-contain" />
           ) : (
-            <SpaceOsMark className="h-7 w-7 shrink-0" />
+            <SpaceOsMark className="h-10 w-10 shrink-0" />
           )
         )}
         {!colapsado && (

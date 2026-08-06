@@ -8,6 +8,7 @@ import { obtenerConfigRow, obtenerConfigAdmin } from '@/lib/server/config-repo'
 import { respuestaError, validar } from '@/lib/server/errores'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
 import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
+import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,6 +42,16 @@ const configSchema = z
       .int('El cupo de clientes debe ser un número entero')
       .min(1, 'El cupo de clientes debe ser al menos 1')
       .max(999, 'El cupo de clientes no puede pasar de 999')
+      .nullable(),
+    // Correo de la organización para los avisos de OPERACIÓN (Reply-To).
+    // `null` = quitarlo, igual que el logo. La cadena vacía se normaliza a null
+    // más abajo: un input que se vacía manda '', y guardar '' haría que el
+    // correo saliera con un Reply-To vacío en vez de sin Reply-To.
+    emailRemitente: z
+      .string()
+      .trim()
+      .max(254, 'El correo no puede pasar de 254 caracteres')
+      .refine((v) => v === '' || esEmailValido(v), { message: EMAIL_INVALIDO })
       .nullable(),
     razonSocial: z.string().trim().max(200).nullable(),
     nombreComercial: z.string().trim().max(200).nullable(),
@@ -85,7 +96,12 @@ export async function PATCH(req: Request) {
     plazosCobranza: 'plazos_cobranza',
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
+    emailRemitente: 'email_remitente',
   }
+  // Vaciar el campo es QUITAR el correo, no guardar una cadena vacía: un
+  // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
+  // (acepta null o una dirección con forma, nada intermedio).
+  if (b.emailRemitente === '') b.emailRemitente = null
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, col] of Object.entries(map)) {
