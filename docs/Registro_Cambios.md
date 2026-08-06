@@ -5,6 +5,237 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-05
+
+- **Cada organización tiene por fin su propia configuración.** Hasta hoy la
+  moneda, el IVA, el logo, los plazos de cobranza y los tiempos de exhibición
+  eran **una sola fila compartida por las cinco organizaciones**. Las cinco
+  estaban viendo los valores de RGB. Y no era solo de lectura: el Dueño de
+  cualquier organización que cambiara su IVA o subiera su logo **se los cambiaba
+  a todas las demás**, desde una pantalla de administración normal, con permisos
+  legítimos y sin que quedara registro de que había tocado a terceros. Ahora hay
+  una fila por organización y ninguna alcanza a la otra.
+  - *Nadie estrena valores:* al migrar se copió la configuración actual a cada
+    organización, así que todas se quedaron con exactamente lo que ya estaban
+    viendo. El cambio no se nota hasta que alguien edita — que es el punto.
+  - *El nombre de la empresa tenía dos escritorios y dos lectores.*
+    «Configuración → Empresa» y «Administración → Configuración» guardaban el
+    nombre en lugares distintos, y por eso el menú lateral decía «G500» mientras
+    Configuración seguía diciendo «RGB Catorce». Ahora el nombre vive en un solo
+    sitio y no puede contradecirse consigo mismo.
+  - *Fuera el nombre grabado a mano:* la pantalla de inicio de sesión saludaba
+    con «RGB Catorce S de RL de CV (PIXELED)», y ahí todavía no se sabe de qué
+    organización es quien entra — a las otras cuatro las recibía con el nombre
+    de un competidor. Igual en el pie del portal del cliente y en el título de
+    la pestaña del navegador, que además arrastraba la palabra «Demo».
+  - *Queda desplegado y verificado en producción el mismo día*, comprobando la
+    prueba de fuego: cambiar el IVA en una organización y confirmar que a otra
+    no le cambió nada.
+- **Restablecer la contraseña de otra persona volvió a funcionar.** Estaba
+  inservible desde que se desplegó, por dos motivos independientes. Uno: el
+  sistema pedía reconfirmar identidad y **el único lugar de toda la aplicación
+  donde se podía teclear esa contraseña era un botón que no se muestra** salvo
+  que «Control de cambios» esté encendido — y está apagado en las cinco
+  organizaciones. Pulsabas «Restablecer», salía un mensaje en rojo como si fuera
+  un error, y no había dónde continuar. Ahora la contraseña se pide **en el
+  mismo cuadro donde estás**, con la frase que explica por qué: vas a cambiar el
+  acceso de otra persona y la bitácora tiene que poder probar que fuiste tú.
+  - *Y dos:* la comprobación de esa contraseña consultaba los usuarios sin decir
+    a qué organización pertenecen, y la protección de aislamiento la cortaba en
+    seco. El resultado era que **cualquier reconfirmación de identidad respondía
+    «tu usuario no tiene contraseña»**, siempre.
+  - *Lo que no estaba roto todavía, y era pura suerte:* las ocho operaciones de
+    dinero que pueden pedir reconfirmación (facturar, cobranza, pago de renta y
+    el ciclo de contratos) funcionaban solo porque ese interruptor está apagado.
+    El día que un Dueño lo encendiera, esas ocho quedaban bloqueadas sin salida
+    posible. Se arregló antes de que pasara.
+  - *Desplegado y verificado en producción*, salvo la prueba dentro de la
+    aplicación, que necesita una sesión iniciada y quedó anotada como pendiente
+    en lugar de darse por buena.
+- **No se puede publicar una campaña digital con pantallas sin creativo
+  asignado.** Tener un creativo *cargado* no es tenerlo *asignado*: el sistema
+  solo comprobaba que la campaña tuviera alguno, y por eso había campañas
+  publicadas y hasta completadas con todos sus espacios en «Sin asignar». Sin
+  esa liga, el reporte al cliente no puede probar que su anuncio salió en cada
+  sitio, que es justo lo que se le vendió. El aviso nombra **cuáles** pantallas
+  faltan, para no tener que buscarlas una por una en una campaña de doce.
+  - *Aviso operativo:* hoy 11 de las 13 campañas digitales en producción no
+    tienen ningún creativo asignado a sus pantallas. Las ya terminadas no se
+    vuelven a enviar, pero las **confirmadas** (mastercard2, EdgeCase Fechas y
+    `credito` en eyro) se van a bloquear cuando alguien intente publicarlas
+    hasta que se asignen los creativos en la pantalla de Creativos. Es el efecto
+    buscado, pero conviene saberlo antes de toparse con él.
+- **Listas largas paginadas y la misma factura, una sola vez.** Actividad
+  pintaba sus 168 entradas de golpe y los pagos de renta más de 30 filas
+  programadas hasta 2027. En Cobranza el problema era distinto: una factura a
+  doce parcialidades salía **doce veces**, así que no se podía saber cuántas
+  facturas hay de verdad. Ahora es una fila por factura, desplegable a sus
+  cuotas, y el estado del grupo es el **peor** de ellas: una factura con once al
+  corriente y una vencida está vencida, y pintarla en verde sería exactamente el
+  semáforo mentiroso que hay que evitar.
+- **Fechas y cifras que se leían mal.** El periodo de los pagos de renta se
+  imprimía en formato crudo (`2026-08-27`) en tres pantallas, junto a otras que
+  ya usaban dd/mm/aaaa. Y los sufijos de tipo «(24d)» o «hace 18 días» iban
+  pegados a la fecha al copiar la celda («27/08/2026(24d)»).
+- **El tiempo de exhibición global ya no dice gobernar lo que no gobierna.**
+  Configuración anunciaba «loop 60s / slot 10s = 6 espacios» y debajo afirmaba
+  que eso se usaba al apartar pantallas digitales. Es falso: lo que se aparta
+  son los espacios propios de cada pantalla, y por eso convivía un 6 con
+  pantallas de 10 y de 12 sin nada que dijera cuál mandaba. Ahora se presenta
+  como **referencia** y se indica cuántas pantallas tienen su propio número, con
+  sus valores. El mismo aviso aparece al reservar, que es donde más engañaba.
+- **Validación del teléfono y errores debajo del campo que los causa.** El RFC,
+  el código postal y el correo ya se validaban; el teléfono entraba tal cual
+  («abc123xyz» se guardaba). Se valida por cantidad de dígitos y no con una
+  plantilla rígida, porque «55 1234 5678», «(55) 1234-5678» y «+52 55 1234 5678»
+  son el mismo número correcto. Además, el motivo del rechazo ahora se pinta
+  **bajo el campo**: antes había un solo mensaje al pie, así que con dos datos
+  mal el usuario arreglaba uno, reenviaba y descubría el otro.
+- **El catálogo de tipos de tarea deja de mentir.** «Tipos de tarea de
+  cuadrilla» era un editor de texto libre que **no leía nadie** — las órdenes de
+  trabajo sacan su tipo de una regla del producto según el tipo de pantalla. Por
+  eso el catálogo salía vacío mientras Operaciones tenía una OT de «Montaje de
+  lona». Ahora es de **solo lectura** y muestra lo que de verdad rige y a qué
+  pantalla aplica cada tarea. Llenarlo habría sido peor: seguiría sin gobernar
+  nada y encima parecería que sí.
+- **Detalles visibles que estorbaban a diario.**
+  - Los campos de los formularios tenían contorno, pero de un color tan tenue
+    sobre blanco que **no se veía** — para el usuario es lo mismo que no
+    tenerlo. Se corrigió el color en un solo sitio, así que alcanza también a
+    los formularios que aún no existen.
+  - «Agregar inventario» pasa a llamarse **«Inventario»**: el menú prometía
+    menos de lo que hay dentro (consulta, carga masiva y exportación) y escondía
+    la consulta a quien no entraba a curiosear.
+  - El KPI «Renta mensual $65,000» dejaba fuera 9 contratos sin capturar y la
+    salvedad vivía en una nota al pie, así que la cifra se citaba fuera de
+    contexto como si fuera la renta real. Ahora la coletilla («+ 9 por
+    capturar») va pegada al propio número.
+  - Los nombres de pantalla cortados («AUTOPISTA MEX…») y el detalle de las
+    notificaciones cortado a media frase ya se pueden leer completos sin abrir
+    la ficha.
+  - **«Eliminar» deja de ser un botón rojo junto a «Editar».** Borrar una
+    pantalla no se deshace, y tenía el mismo peso visual que la acción más
+    inocua de la ficha. Se separa, se hace discreto, y la confirmación ahora
+    pide **escribir el nombre** de la pantalla. No es fricción por gusto:
+    obliga a leer cuál es, que es justo lo que un clic reflejo no hace.
+- **El repositorio vuelve a poder construir una base de datos que funciona**, y
+  hay un arnés de pruebas que lo comprueba en cada corrida contra una base real.
+  Al montarlo aparecieron **143 columnas faltantes** respecto a producción: la
+  definición base iba por detrás, la cadena de actualizaciones no se podía
+  reaplicar desde cero, y tres piezas existían **solo en producción**, creadas a
+  mano y nunca registradas. Eso último no era cosmético: en cualquier entorno
+  levantado desde el repositorio, **retirar un creativo fallaba**. Hoy la
+  diferencia con producción es de cero columnas.
+  - *El detalle que casi se cuela:* la primera versión de la prueba de
+    aislamiento daba verde, pero porque la tabla estaba vacía, no porque aislara
+    — se conectaba con un usuario con permisos totales, que ignora la
+    protección. Firmar un aislamiento inexistente es peor que no tener la
+    prueba: da confianza sin respaldarla. Ahora se siembra un dato antes de
+    comprobar, y se usa un usuario equivalente al de producción.
+
+## 2026-08-04
+
+- **Corregidos los hallazgos de la auditoría de calidad del 04/08.** Se
+  trabajaron por fases, de lo que rompe el sistema a lo que solo se ve feo.
+- **Los módulos ya no arrancan diciendo «0 de 0».** Al abrir la aplicación, las
+  pantallas se pintaban antes de que llegaran los datos: todos los módulos
+  mostraban cero, el menú lateral anunciaba «RGB Catorce» y el mapa salía sin
+  nada que encuadrar. Nunca se perdió la sesión ni la organización — faltaba un
+  estado de carga. De paso, cuando la carga fallaba, el sistema **se quedaba
+  vacío para siempre y sin avisar**; ahora avisa.
+- **La ocupación decía 0% junto a una gráfica marcando 42%.** El indicador
+  contaba pantallas marcadas como «ocupado» mientras la gráfica contaba reservas
+  confirmadas del periodo. En producción las 12 pantallas de G500 están en
+  «reservado» y ninguna en «ocupado», de ahí el cero. Los dos usan ya el mismo
+  criterio.
+- **Una sola tarifa por pantalla.** Había dos campos con el mismo número en la
+  misma unidad, y tres pantallas de G500 quedaron descuadradas (45 mil contra 85
+  mil): Comercial leía uno y Red leía el otro. Ahora hay una sola fuente — y con
+  eso se arregló también el filtro de precio, que comparaba contra el campo
+  rezagado.
+- **Importes negativos por una comisión mal acotada.** Una comisión del 150%
+  daba un neto **negativo**, y de ahí salían los −135,333.33 de la campaña
+  EdgeCase, que además se sumaban a los indicadores del tablero. Se acota en los
+  tres puntos donde se calculaba a mano, el formulario valida con el mismo
+  criterio que el servidor y explica el motivo.
+- **El candado de facturación dejaba de exigir fotos a las campañas digitales.**
+  La pantalla reimplementaba la regla por su cuenta y pedía evidencia física a
+  una campaña digital, así que **toda digital quedaba «Pendiente» para siempre**
+  aunque el servidor sí la dejara facturar. Además, el panel listaba las tres
+  condiciones siempre: una campaña digital aparecía con «Fotografías
+  comprobatorias» en rojo **junto a un candado completo**. Ahora solo se listan
+  las condiciones que a esa campaña le aplican.
+- **«Completo» que no lo era.** «Rentabilidad» y «Reporte de cumplimiento»
+  tenían el estado fijo en «hecho» pasara lo que pasara — de ahí el «Completo ·
+  0% entregado» y el «Completo · Margen 93%» sobre un total negativo. Ahora
+  cumplimiento exige el 100% entregado y rentabilidad no se da por buena con
+  margen negativo. También: una orden de trabajo podía quedar «Completada · Sin
+  asignar»; al cerrarla se estampa quién la cerró.
+- **Campañas cuyo estado contradice el calendario.** El estado sigue el flujo
+  (confirmar, publicar, facturar), no la fecha, así que nadie lo movía al vencer.
+  No se reescribe solo a propósito — «Completada» condiciona la facturación y
+  automatizarlo podría dar por entregado algo que nunca se entregó. En su lugar,
+  la lista muestra un distintivo cuando el estado y las fechas no cuadran.
+- **El registro público de cuentas queda apagado tras un interruptor.** La demo
+  pública y producción son el mismo despliegue sobre la misma base, así que un
+  registro anónimo aterrizaba en datos reales. Ocultar solo el botón no bastaba
+  (la dirección seguía abierta), así que se comprueba también en el servidor.
+- **Textos y cifras que se leían mal.** «null · EDOMEX, EDOMEX» en la ficha de
+  sitio; «PANTALLA_DIGITAL» en crudo en la tabla de la red; «mess» en el
+  selector de duración; «$ 4897.5k» para cuatro millones y medio, junto a un
+  «$ 2,505,600.00» en la misma tarjeta; y mensajes de «no hay resultados» que
+  mandaban a revisar un filtro que estaba vacío. También el mapa, que centraba
+  en **Lima** por herencia de la demo original, y la pantalla de error 404, que
+  salía oscura y sin marca.
+- **La pantalla de Integraciones dejaba ver los nombres de las claves de
+  acceso** de AdMobilize, del CMS y del timbrado fiscal. Ya no salen. El aviso
+  de «Modo demo» tampoco es fijo: aparece solo si algún conector realmente no
+  tiene credenciales.
+- **Se acabó la contraseña compartida para las operaciones sensibles.** Había
+  **una sola contraseña que tecleaba todo el equipo** para reconfirmar identidad
+  al facturar, cobrar o pagar renta. Un secreto colectivo no prueba identidad: la
+  bitácora afirmaba «Ana facturó» cuando lo único verificado era «alguien que
+  conoce el secreto del equipo facturó» — la peor propiedad posible para un
+  registro de auditoría en un sistema que mueve dinero. Ahora cada quien
+  reconfirma con **su propia contraseña de acceso**: no hay ningún secreto nuevo
+  que guardar ni rotar, y dar de baja a una persona basta para revocarle el
+  acceso.
+  - *Se retira la excepción del Dueño.* Con la contraseña propia el costo para
+    él es el mismo que para los demás — teclear lo que ya sabe —, así que la
+    excepción dejó de comprar comodidad y solo compraba riesgo: es su sesión la
+    que más daño hace desatendida.
+  - *Restablecer la contraseña de otro ya no permite elegirla.* Antes cualquier
+    Dueño fijaba la de otra persona, entraba como ella y todo quedaba registrado
+    a su nombre — suplantación indistinguible de actividad legítima. Ahora el
+    sistema genera una temporal de un solo uso, corta las sesiones vivas del
+    afectado y le obliga a cambiarla al entrar.
+  - *El envío por correo queda pendiente*, y se dice por qué: hoy producción no
+    tiene configurada la clave de envío, así que adoptarlo ahora habría dejado
+    el restablecimiento inoperante. Está preparado para que solo cambie la forma
+    de entrega.
+- **La matriz de permisos ahora declara qué abre cada fila.** No faltaban
+  módulos, como se creía: nueve áreas de la interfaz iban bajo un permiso
+  paraguas, así que marcar «comercial» abría además Clientes, Propuestas y
+  Campañas sin que nada lo dijera. La matriz mostraba 8 filas y parecía completa.
+  - *Lo que sí era un defecto:* el rol CLIENTE existía sin **un solo permiso**,
+    así que se podía crear un usuario que entraba y recibía «no autorizado» en
+    todo, incluido el tablero. Se retira; el cliente externo no necesita cuenta,
+    su portal va por enlace público.
+  - *Aviso a ventas:* **COMERCIAL pierde la escritura del catálogo** (conserva
+    la lectura). Vender no debería implicar poder reestructurar el activo que se
+    vende; a quien de ventas venga dando de alta pantallas hay que decírselo.
+- **Limpieza de datos de prueba en producción (13 filas del tenant g500).** Se
+  quitaron los prefijos `TEST_` de un cliente, dos campañas y sus dos propuestas
+  espejo, y los creativos llamados «WhatsApp Image 2026-07-13 at 17.06.24»
+  pasaron a nombres por campaña — solo cambia el rótulo, la imagen es la misma.
+  Además se corrigió el rango de fechas invertido de la campaña EdgeCase (31/08
+  → 01/08) en las tres tablas donde vive, con lo que su importe pasó de
+  −135,333.34 a +144,666.67 sin tocar un solo precio: el monto es derivado y con
+  el rango al revés salía en negativo.
+  - *Con respaldo y ensayo:* el rollback se capturó leyendo la base **antes** de
+    aplicar, y se hizo una pasada en seco para confirmar que tocaba 13 filas y
+    no una más. El registro queda en `docs/datos/`.
+
 ## 2026-08-03
 
 - **Recordatorios diarios de contratos, en la app y por correo.** Hasta ahora los
