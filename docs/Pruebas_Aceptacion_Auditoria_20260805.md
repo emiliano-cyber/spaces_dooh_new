@@ -92,6 +92,7 @@ usuario no tenía ninguna.
 | 3.2 | M9 | Mira los importes grandes del Dashboard | Se abrevian bien: `$4.9M`, no `$4897.5k`. Y no conviven un abreviado y un `$2,505,600.00` en la misma tarjeta | |
 | 3.3 | C2 | Revisa que ningún KPI muestre un importe **negativo** | Ninguno en rojo negativo. Si lo hay, anota cuál y de qué campaña | |
 | 3.4 | A3 | Abre una campaña terminada → secciones «Rentabilidad» y «Reporte de cumplimiento» | No dicen «Completo» porque sí: cumplimiento exige 100% entregado y rentabilidad no se da por buena con margen negativo | |
+| 3.5 | M13a | Recarga el Dashboard con F5 y mira el **primer segundo** | Sale un indicador de carga. En ningún momento aparecen los KPI en `$ 0.00` / `0%` para poblarse después: ese destello hacía creer que no había datos | |
 
 ---
 
@@ -104,11 +105,13 @@ usuario no tenía ninguna.
 | 4.3 | B2 | Busca una pantalla de nombre largo, que salga cortado | Al pasar el cursor sale el nombre completo. Igual con el arrendador | |
 | 4.4 | M10 | Mira la columna de tipo, aquí y en Network | Dice «Pantalla digital», «Puente peatonal», «Mural». Nunca `PANTALLA_DIGITAL` en crudo | |
 | 4.5 | A8 | Elige una pantalla y compara su tarifa en Comercial y en Network | El mismo número en las dos. No 45,000 en una y 85,000 en otra | |
-| 4.6 | M6 | Comercial → filtra por precio | Los resultados corresponden a la tarifa que se ve en pantalla | |
-| 4.7 | B7 | Ficha de una pantalla → botón **Eliminar** | Está separado de «Editar» y es discreto, no un bloque rojo. Al pulsarlo pide **escribir el nombre** de la pantalla | |
-| 4.8 | B7 | Cancela, abre el diálogo de otra pantalla distinta | El campo llega **vacío**, no con el nombre anterior escrito | |
-| 4.9 | M2 | Inventario sin ningún filtro puesto, y luego con un filtro que no encuentre nada | Los dos mensajes son distintos: uno dice que no hay nada capturado y por dónde empezar; el otro, que limpies el filtro | |
-| 4.10 | M3 | Comercial → mapa | Abre centrado en Ciudad de México, no en Lima | |
+| 4.6 | M6 | Comercial → abre el desplegable de precio y **lee las opciones** | Los cortes corresponden al inventario real (del orden de `≤ $45k`). Si siguen diciendo `≤ $8k · ≤ $15k · ≤ $25k` con todas las pantallas en $45,000+, el arreglo NO está puesto | |
+| 4.7 | M6 | Elige **cada** opción del desplegable, una por una | **Ninguna deja la lista en cero.** Ése era el defecto: los tres rangos estaban escritos a mano y ninguna pantalla bajaba de ellos | |
+| 4.8 | M6 | Con un rango puesto, compara los resultados contra la tarifa de la columna | Todas las que quedan cuestan igual o menos que el corte elegido | |
+| 4.9 | B7 | Ficha de una pantalla → botón **Eliminar** | Está separado de «Editar» y es discreto, no un bloque rojo. Al pulsarlo pide **escribir el nombre** de la pantalla | |
+| 4.10 | B7 | Cancela, abre el diálogo de otra pantalla distinta | El campo llega **vacío**, no con el nombre anterior escrito | |
+| 4.11 | M2 | Inventario sin ningún filtro puesto, y luego con un filtro que no encuentre nada | Los dos mensajes son distintos: uno dice que no hay nada capturado y por dónde empezar; el otro, que limpies el filtro | |
+| 4.12 | M3 | Comercial → mapa | Abre centrado en Ciudad de México, no en Lima | |
 
 ---
 
@@ -215,6 +218,8 @@ sin merecerlo y digitales que no se podían facturar nunca.
 | 12.9 | M7 | Actividad, baja hasta el final | Está paginada. No vuelca 168 entradas de una vez | |
 | 12.10 | B6 | Campana de notificaciones | El detalle se lee en dos líneas. No se corta en «…el importe de la re…» | |
 | 12.11 | B1 | Abre cualquier formulario (alta de cliente, de pantalla) | Todos los campos tienen un contorno visible sobre el fondo | |
+| 12.12 | M13b | Administración → Configuración → razón social *(solo si ya se aplicó el script de datos del 06/08)* | Dice `RGB CATORCE S DE RL DE CV`, sin `DEMO`. Que el nombre de la organización siga siendo **G500** es correcto: uno es el comercial y otro la razón social legal | |
+| 12.13 | M13b | Arrendadores → abre un contrato y mira la **parte arrendataria** | Sale con la razón social sin `DEMO`. Es lo único que ese cambio venía a arreglar: el contrato se manda a firma con ese nombre | |
 
 ---
 
@@ -245,22 +250,41 @@ su IVA se lo cambiaba a todas las demás.
 | 14.2 | Comprueba que no queda ningún `QA0805_` buscándolo en Clientes, Propuestas y Campañas | |
 | 14.3 | Si encendiste «Control de cambios» en alguna prueba, apágalo | |
 | 14.4 | A9 · Busca `TEST_` y `WhatsApp Image` en Clientes, Campañas y Creativos | No debe aparecer nada. Se limpiaron el 04/08 | |
+| 14.5 | B9 · Propuestas → marca como **rechazada** cada propuesta que de verdad se perdió | El win rate deja de decir 100% y empieza a reflejar el histórico real. Es captura, no un arreglo: no sembrar propuestas inventadas para bajar el número | |
 
 ---
 
 ## 15 · Lo que este guion NO cubre, y por qué
 
-Dos hallazgos siguen abiertos a propósito. **No son código: son datos**, y
-decidirlos no es una corrección técnica.
+Cuatro hallazgos siguen abiertos. **Ninguno es código pendiente**: son datos por
+capturar o una configuración que no depende de la aplicación.
 
 | Hallazgo | Qué falta | Por qué no está aquí |
 |---|---|---|
-| B5 | Los sitios no tienen fotos cargadas | Hay que subir las fotos reales del inventario. Es captura de datos, no un arreglo |
-| B9 | El win rate aparece al 100% | Sale así porque no hay propuestas perdidas capturadas. Se corrige registrando la realidad comercial, no tocando el cálculo |
+| M11 | El enlace «¿Olvidaste tu contraseña?» no se ve en producción | El flujo **está implementado** (`/api/auth/forgot` y `/reset`), pero vive tras `NEXT_PUBLIC_RECUPERAR_PASSWORD`, que está en `0` porque `RESEND_API_KEY` y `EMAIL_FROM` están vacías. Sin correo, el enlace diría «revisa tu bandeja» y no llegaría nada. Se abre configurando el remitente, no tocando código |
+| M13b | La razón social del tenant `g500` conserva el prefijo `DEMO` | Es un dato, no código. Script listo en `docs/datos/20260806_m13b_razon_social_g500.sql`; se cierra al aplicarlo. Ver la nota de abajo |
+| B5 | Los sitios no tienen fotos cargadas | **Abierto por decisión, 06/08.** El mecanismo funciona (Comercial → ficha → «Agregar foto», persiste); faltan las fotos reales del inventario. No se desarrolla carga masiva |
+| B9 | El win rate aparece al 100% | **En curso, 06/08.** Sale así porque no hay propuestas perdidas capturadas. El cálculo ya es honesto (dice «sobre 7 cerradas» y devuelve «—» sin cierres), así que se cierra **registrando las propuestas que de verdad se perdieron** —Propuestas → marcar como rechazada—, no tocando la fórmula ni sembrando datos inventados |
+
+> **Sobre M13b, que no es solo cosmético.** `tenants.razon_social` de `g500`
+> dice `DEMO RGB CATORCE S DE RL DE CV`, y ese campo no es decorativo:
+> `obtenerConfigAdmin()` lo usa como la parte arrendataria del **contrato de
+> arrendamiento que se manda a firma**. Mientras diga «DEMO», los contratos de
+> G500 salen a firma con esa palabra en el nombre de la empresa que se obliga.
+>
+> El valor correcto es `RGB CATORCE S DE RL DE CV` —confirmado el 06/08—, y
+> conviene saber por qué no lleva «G500» dentro: **G500 es el nombre comercial
+> y RGB Catorce S de RL de CV la razón social legal de la misma empresa.** No
+> son dos organizaciones. Que Configuración muestre los dos nombres a la vez es
+> lo correcto, no una inconsistencia como la que reportó M5.
+
+**M11 y M13 sí existen en el informe** (tabla resumen y sección 6). Una versión
+anterior de este guion decía lo contrario y los daba por inexistentes; era falso,
+y el efecto era que dos hallazgos quedaban sin resolver ni declarar. La parte de
+M13 que **sí** está cerrada es el destello de `$ 0.00` al cargar (prueba 3.5).
 
 Tampoco se comprueba desde aquí:
 
-- **La numeración de la auditoría salta M11 y M13.** No faltan: no existen en el informe.
 - **El aislamiento a nivel de base de datos** (que una organización no pueda leer los datos de otra ni forzando la dirección) está cubierto por las pruebas automáticas de integración, que verifican lo que un usuario no puede intentar desde la pantalla.
 
 ---
@@ -271,8 +295,8 @@ Tampoco se comprueba desde aquí:
 |---|---|---|---|
 | 1 · Restablecer contraseña (lo de hoy) | 6 | | |
 | 2 · Entrar y ver tus datos | 5 | | |
-| 3 · Dashboard y cifras | 4 | | |
-| 4 · Inventario y pantallas | 10 | | |
+| 3 · Dashboard y cifras | 5 | | |
+| 4 · Inventario y pantallas | 12 | | |
 | 5 · Clientes y propuestas | 9 | | |
 | 6 · Creativos y publicación | 5 | | |
 | 7 · Facturación | 6 | | |
@@ -280,9 +304,9 @@ Tampoco se comprueba desde aquí:
 | 9 · Arrendadores y contratos | 4 | | |
 | 10 · Operaciones | 3 | | |
 | 11 · Campañas | 2 | | |
-| 12 · Administración y permisos | 11 | | |
+| 12 · Administración y permisos | 13 | | |
 | 13 · Aislamiento entre organizaciones | 5 | | |
-| **Total** | **77** | | |
+| **Total** | **82** | | |
 
 **Fallos encontrados** (número de prueba, qué viste, en qué pantalla):
 
