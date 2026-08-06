@@ -13,9 +13,18 @@
 
 const BASE_PATH = '/spaces-dooh'
 
+// LA BARRA FINAL NO SOBRA. La app corre con `trailingSlash`, así que sin ella
+// la ruta responde 308 y redirige a la versión con barra. En el navegador eso
+// no se nota —sigue la redirección solo—, pero esta URL viaja sobre todo
+// DENTRO DE UN CORREO, y ahí un `<img>` que redirige depende de que el cliente
+// (o el proxy de imágenes de Gmail) siga el 308. No todos lo hacen, y el modo
+// de fallo es el mismo que esta ruta vino a evitar: un hueco donde va el logo.
+//
+// Encontrado desplegando: en local nunca aparece, porque `next dev` y el
+// navegador tapan la redirección.
 export function rutaLogo(token: string | null | undefined): string | null {
   if (!token) return null
-  return `${BASE_PATH}/api/logo/${token}`
+  return `${BASE_PATH}/api/logo/${token}/`
 }
 
 export function urlLogo(base: string, token: string | null | undefined): string | null {
