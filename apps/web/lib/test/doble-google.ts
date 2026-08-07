@@ -65,10 +65,16 @@ export function claimsBuenos(opts: {
   email: string
   nonce: string
   nombre?: string
+  // Para quién se emite. Por defecto el cliente de prueba, pero la pantalla de
+  // consentimiento pasa el `client_id` QUE RECIBE, igual que hace Google: si el
+  // doble firmara siempre con el suyo, un servidor configurado con credenciales
+  // reales rechazaría el token —correctamente— con «no es para esta
+  // aplicación», y el fallo parecería del código y no del doble.
+  aud?: string
 }): Record<string, unknown> {
   return {
     iss: 'https://accounts.google.com',
-    aud: CLIENT_ID_PRUEBA,
+    aud: opts.aud ?? CLIENT_ID_PRUEBA,
     exp: Math.floor(Date.now() / 1000) + 3600,
     iat: Math.floor(Date.now() / 1000),
     nonce: opts.nonce,
@@ -105,7 +111,10 @@ function paginaConsentimiento(url: URL): string {
 
   // Se prepara aquí el token porque es AHORA cuando se conoce el nonce que
   // emitió la aplicación. El callback lo exigirá igual al nonce de su cookie.
-  prepararIdToken(idTokenFalso(claimsBuenos({ sub: SUB_DEMO, email: EMAIL_DEMO, nonce })))
+  // El `aud` sale del client_id recibido, no de una constante: así el doble
+  // sirve igual con credenciales de prueba que con las reales.
+  const aud = url.searchParams.get('client_id') ?? CLIENT_ID_PRUEBA
+  prepararIdToken(idTokenFalso(claimsBuenos({ sub: SUB_DEMO, email: EMAIL_DEMO, nonce, aud })))
 
   const ok = `${redirect}?code=codigo-de-prueba&state=${encodeURIComponent(state)}`
   const no = `${redirect}?error=access_denied&state=${encodeURIComponent(state)}`
