@@ -7,6 +7,41 @@ La entrada más reciente va arriba.
 
 ## 2026-08-07
 
+- **⚠️ El registro público quedó ABIERTO en producción, por decisión del
+  usuario.** Desde hoy, en la pantalla de inicio de sesión aparece **«Crear
+  cuenta»**, y con ella se puede dar de alta una organización nueva —también con
+  una cuenta de Google—.
+  - *Lo que esto significa, dicho sin rodeos:* **cualquiera que llegue a la
+    dirección de la demo puede crear una organización y un usuario Dueño dentro
+    de la misma base de datos donde están los datos reales**, sin invitación y
+    sin que nadie lo apruebe. La demo pública y el sistema en uso son el mismo
+    servidor.
+  - *Estaba cerrado desde la auditoría de calidad*, que lo señaló como hallazgo
+    de seguridad (A6). Se abre a petición expresa, después de explicar el riesgo
+    dos veces, y queda escrito aquí para que sea una decisión con fecha y no un
+    descuido que nadie recuerda.
+  - *Cerrarlo otra vez cuesta un minuto:* se cambia una línea de configuración en
+    el servidor y se vuelve a compilar. El respaldo de la configuración anterior
+    quedó guardado antes de tocar nada.
+  - *Lo que NO cambia:* quien se dé de alta así entra a **su propia organización
+    nueva y vacía**. No ve ni toca los datos de ninguna otra — ese aislamiento es
+    independiente de esta decisión.
+- **Ya se pueden crear organizaciones desde dentro del sistema.** Antes había un
+  callejón sin salida: el panel de Organizaciones decía «para dar de alta una
+  organización nueva, usa Crear cuenta en el inicio de sesión»… y ese botón
+  estaba oculto. Es decir, no había ninguna forma de crear una organización.
+  - Ahora el panel tiene su propio formulario, y el Dueño de la organización
+    nueva **puede entrar con Google** sin que haya que inventarle contraseña.
+  - *Sigue siendo exclusivo del administrador de la plataforma*, que es quien
+    gobierna el conjunto de organizaciones.
+- **El panel de organizaciones ya explica por qué no lo ves.** Antes
+  desaparecía sin más para quien no fuera administrador de la plataforma, y eso
+  dejaba adivinando: el botón estaba anunciado y no aparecía. Ahora dice que esa
+  gestión está reservada y a quién pedírsela.
+  - *Se distingue «no tienes permiso» de «falló la carga»*, que hasta hoy se
+    trataban igual. Con un fallo de red no se inventa una explicación que podría
+    ser falsa.
+  - *No cambia ningún permiso:* el servidor responde exactamente igual que antes.
 - **Entrar con Google FUNCIONA EN PRODUCCIÓN.** Verificado por el usuario con su
   cuenta real, de principio a fin: se dio de alta desde Administración marcando
   la casilla nueva —sin inventar ni enviarse ninguna contraseña— y entró con su
