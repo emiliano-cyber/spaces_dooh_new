@@ -7,6 +7,31 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
+- **Un usuario con contraseña temporal ya no se queda encerrado.** Cuando a
+  alguien se le restablece la contraseña, el sistema le entrega una temporal y
+  **cierra el resto de los módulos** hasta que la cambie — eso está bien y es a
+  propósito: una contraseña temporal la conoce también quien se la entregó.
+  - *Lo que estaba mal:* la aplicación **no le decía nada**. Al entrar, todo le
+    daba error y veía «No se pudieron cargar los datos» con un botón de
+    reintentar **que no podía funcionar nunca**, sin ninguna pista de que su
+    contraseña era temporal ni de adónde ir a cambiarla. En la práctica quedaba
+    bloqueado.
+  - *Ahora* se le lleva directo a la pantalla de su cuenta, con un aviso que
+    explica por qué está ahí, y **en cuanto la cambia recupera el acceso** sin
+    tener que volver a entrar.
+  - *Es la tercera vez que aparece este mismo patrón* (ya pasó con el
+    restablecimiento de contraseñas y con el desbloqueo): el servidor exige algo
+    correctamente, y la pantalla no ofrece dónde hacerlo.
+- **Las miniaturas de Creativos volvieron a verse.** Fue un efecto secundario
+  del cambio de rendimiento de hoy: al dejar de mandar el arte por adelantado,
+  la pantalla pasó a montar **cada creativo como una página completa** en vez de
+  como una imagen. Son alrededor de un megabyte cada una, con un desenfoque
+  pesado; con once en pantalla **el navegador se quedaba colgado**.
+  - *Cómo se encontró:* abriendo uno en el navegador. La imagen se veía
+    perfectamente — lo que no aguantaba era montar once a la vez.
+  - *El arreglo:* ahora el servidor saca la imagen y manda solo la imagen, que
+    es justo lo que la pantalla hacía por su cuenta cuando el arte viajaba por
+    adelantado.
 - **El sistema abre más rápido: dejó de descargarse las imágenes que nadie está
   mirando.** Se reportó que el tablero tardaba, y la sospecha era que las
   consultas a la base iban lentas. **Se midió, y no era eso.** La base entera
