@@ -1,7 +1,8 @@
 import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { validarPassword } from './auth'
+import { validarPassword, passwordDeAlta } from './auth'
+import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import { crearTenant } from './tenant'
 import { crearUsuario, emailExiste } from './usuarios-repo'
@@ -25,7 +26,9 @@ const orgSchema = z.object({
   admin: z.object({
     nombre: z.string().trim().min(1, 'Falta el nombre del administrador'),
     email: z.string().trim().refine(esEmailValido, 'Correo inválido'),
-    password: z.string(),
+    // Opcional desde el ADR 0012: con `entraConGoogle` no se manda ninguna.
+    password: z.string().optional(),
+    entraConGoogle: z.boolean().optional(),
     cargo: z.string().trim().optional(),
   }),
 })
@@ -67,12 +70,22 @@ export async function registrarCuentaCtrl(body: unknown) {
 // Alta de CRM por super-admin (nombre/slug + objeto admin).
 export async function crearOrganizacionCtrl(body: unknown) {
   const d = validar(orgSchema, body)
+  // El Dueño de la organización nueva puede nacer entrando con Google, igual
+  // que un usuario suelto (ADR 0012, enmienda E1). Misma resolución para las
+  // dos altas, para que no diverjan.
+  const r = passwordDeAlta({
+    entraConGoogle: d.admin.entraConGoogle,
+    password: d.admin.password,
+    googleDisponible: googleHabilitado(),
+  })
+  if ('error' in r) throw new AppError(r.error, 400)
+
   return crearOrgConDueno({
     org: d.nombre,
     slug: d.slug,
     nombre: d.admin.nombre,
     email: d.admin.email,
-    password: d.admin.password,
+    password: r.password,
     cargo: d.admin.cargo,
   })
 }

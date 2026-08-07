@@ -61,6 +61,29 @@ export function passwordAleatoria(): string {
   return `${cuerpo}aA1`
 }
 
+// Resuelve con qué contraseña nace una cuenta. La usan las DOS altas que
+// admiten Google —usuario suelto y organización nueva—, y vive aquí para que no
+// diverjan: si una de las dos se olvidara de comprobar que Google está
+// habilitado, crearía cuentas incapaces de entrar y nadie sabría por qué.
+export function passwordDeAlta(opts: {
+  entraConGoogle?: boolean
+  password?: string
+  googleDisponible: boolean
+}): { password: string } | { error: string } {
+  if (opts.entraConGoogle) {
+    if (!opts.googleDisponible) {
+      return {
+        error:
+          'El acceso con Google no está disponible en este servidor. Crea la cuenta con una contraseña.',
+      }
+    }
+    return { password: passwordAleatoria() }
+  }
+  const err = validarPassword(opts.password)
+  if (err) return { error: err }
+  return { password: opts.password as string }
+}
+
 export function hashPassword(plano: string): Promise<string> {
   return bcrypt.hash(plano, 10)
 }

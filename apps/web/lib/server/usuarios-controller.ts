@@ -2,7 +2,7 @@ import 'server-only'
 import { randomInt } from 'node:crypto'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { validarPassword, hashPassword, passwordAleatoria } from './auth'
+import { validarPassword, hashPassword, passwordDeAlta } from './auth'
 import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import {
@@ -70,26 +70,13 @@ export function listarUsuariosCtrl() {
 export async function crearUsuarioCtrl(body: unknown) {
   const d = validar(crearSchema, body)
 
-  let password: string
-  if (d.entraConGoogle) {
-    // Si Google no está habilitado en ESTE servidor, el alta crearía a alguien
-    // que no puede entrar de ninguna forma: no tiene contraseña que le sirva y
-    // la puerta por la que debería pasar no existe. Se corta aquí en vez de
-    // dejar una cuenta muerta que nadie sabe por qué no funciona.
-    if (!googleHabilitado()) {
-      throw new AppError(
-        'El acceso con Google no está disponible en este servidor. Crea el usuario con una contraseña.',
-        400,
-      )
-    }
-    // Nadie la ve ni se comunica. Ver `passwordAleatoria` para por qué la fila
-    // conserva un hash en vez de quedarse sin él.
-    password = passwordAleatoria()
-  } else {
-    const errPass = validarPassword(d.password)
-    if (errPass) throw new AppError(errPass, 400)
-    password = d.password as string
-  }
+  const r = passwordDeAlta({
+    entraConGoogle: d.entraConGoogle,
+    password: d.password,
+    googleDisponible: googleHabilitado(),
+  })
+  if ('error' in r) throw new AppError(r.error, 400)
+  const password = r.password
 
   if (await emailExiste(d.email)) throw new AppError('Ya existe un usuario con ese correo', 409)
   // Se pasa la contraseña resuelta y NO `d`: mandar el objeto entero colaría
