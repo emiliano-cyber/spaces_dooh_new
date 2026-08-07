@@ -617,7 +617,17 @@ function CampanaCard({
                 key={cr.id}
                 className={`overflow-hidden rounded-md border border-border ${cr.retiradoEn ? 'opacity-60' : ''}`}
               >
-                {esCreativoHtml(cr) ? (
+                {/* `esImagen` MANDA sobre `esCreativoHtml`, y el orden de estas
+                    ramas es lo que hace la pantalla usable: la mayoría de los
+                    creativos son una imagen ENVUELTA en HTML, y montarlos como
+                    documento son ~1 MB y un desenfoque de 28 px cada uno. Con
+                    once en la rejilla el navegador se queda colgado —medido—.
+                    El servidor ya extrae la imagen para esos, así que aquí basta
+                    un <img>. El <iframe> queda para el HTML de verdad. */}
+                {cr.esImagen ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={cr.archivoUrl!} alt={cr.nombre} className="h-28 w-full object-cover" />
+                ) : esCreativoHtml(cr) ? (
                   <iframe
                     title={cr.nombre}
                     src={cr.archivoUrl!}
@@ -888,6 +898,13 @@ function CampanaCard({
 // Miniatura de un creativo: imagen si la hay, icono de código si es código,
 // o placeholder si no hay nada asignado.
 function Thumb({ cr, className }: { cr?: Creatividad; className: string }) {
+  // Igual que en la rejilla, y aquí importa MÁS: esta miniatura se repite por
+  // cada creativo Y por cada pantalla en la asignación de slots, así que un
+  // <iframe> de 1 MB por pieza se multiplica rápido.
+  if (cr?.esImagen && cr.archivoUrl) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={cr.archivoUrl} alt="" className={`${className} shrink-0 rounded border border-border object-cover`} />
+  }
   if (esCreativoHtml(cr)) {
     return (
       <iframe

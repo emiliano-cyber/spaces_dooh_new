@@ -1,6 +1,7 @@
 import { exigir } from '@/lib/server/auth'
 import { q1 } from '@/lib/server/db'
 import { decodificarDataUrl } from '@/lib/data-url'
+import { imagenDeHtml } from '@/lib/creativo-html'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,11 +35,22 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   )
   if (!r) return new Response(null, { status: 404 })
 
-  // Dos formas de guardar lo mismo, por historia: `archivo_url` es un data URL
-  // (imagen o HTML) y `codigo` es HTML en texto plano. Un creativo tiene uno de
-  // los dos. Se intenta primero el data URL porque es el caso de las imágenes,
-  // que es lo que pesa.
-  const img = decodificarDataUrl(r.archivo_url)
+  // Tres formas de guardar lo mismo, por historia, y el ORDEN importa:
+  //
+  //  1. `archivo_url` como data URL de imagen — el caso directo.
+  //  2. HTML que ENVUELVE una imagen (`imagenAHtml`): se sirve la IMAGEN, no el
+  //     documento. Esto no es un atajo, es lo que hace que la rejilla funcione:
+  //     cada uno de esos documentos pesa ~1 MB y lleva un desenfoque de 28 px,
+  //     así que once miniaturas montadas como HTML dejan al navegador
+  //     inutilizable — comprobado, el renderizador se cuelga. La interfaz ya
+  //     extraía la imagen así cuando el arte viajaba en el payload; al dejar de
+  //     mandarlo, la extracción se mudó aquí.
+  //  3. HTML de verdad — se sirve tal cual.
+  const img =
+    decodificarDataUrl(r.archivo_url) ??
+    decodificarDataUrl(imagenDeHtml(r.codigo)) ??
+    decodificarDataUrl(imagenDeHtml(htmlDeDataUrl(r.archivo_url)))
+
   const cuerpo: BodyInit | null = img
     ? new Uint8Array(img.bytes)
     : (r.codigo ?? htmlDeDataUrl(r.archivo_url))

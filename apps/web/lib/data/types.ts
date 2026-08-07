@@ -511,8 +511,16 @@ export interface Creatividad {
   id: string
   campanaId: string
   nombre: string
+  // Desde el 06/08 esto es una URL DE VERDAD (`/api/creativos/<id>/arte/`) y no
+  // el arte incrustado: mandarlo dentro del payload cargaba ~3 MB de imágenes
+  // en cada apertura de pantalla. El portal público sigue mandando el data URL.
   archivoUrl: string | null
   codigo: string | null // creativo como código (HTML/UTF) en vez de imagen
+  // Si el arte es una imagen (suelta, o envuelta en el HTML que genera
+  // `imagenAHtml`). La miniatura lo necesita para elegir entre <img> e <iframe>,
+  // y antes lo deducía mirando el contenido — que ya no viaja. Opcional porque
+  // el portal público no lo manda: ahí el arte sigue viniendo entero.
+  esImagen?: boolean
   formato: string | null
   resolucion: string | null
   estatusValidacion: EstValidacionCreatividad

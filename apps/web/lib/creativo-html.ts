@@ -24,3 +24,23 @@ export function imagenAHtml(dataUrl: string, nombre: string): string {
     '</div></body></html>'
   )
 }
+
+// La operación inversa: si un creativo HTML es una imagen ENVUELTA por
+// `imagenAHtml`, devuelve su data URL. null si es HTML de verdad.
+//
+// Vive aquí, junto a la función que lo genera, y no copiada en cada consumidor:
+// son las dos mitades de la misma convención, y si una cambia el `<img>` la otra
+// tiene que enterarse. La pantalla de Creativos tenía su propia copia de esta
+// expresión; ahora la importa.
+//
+// POR QUÉ IMPORTA EN EL SERVIDOR: la miniatura de la rejilla necesita una
+// IMAGEN, no el documento. Pintar el HTML entero cuesta ~1 MB y un desenfoque de
+// 28 px por creativo — con once en pantalla, el navegador se atasca. Extraer la
+// imagen es lo que la interfaz venía haciendo del lado del cliente cuando el
+// arte viajaba en el payload; al dejar de mandarlo, esa extracción tiene que
+// ocurrir donde ahora está el contenido: en el servidor.
+export function imagenDeHtml(codigo?: string | null): string | null {
+  if (!codigo) return null
+  const m = codigo.match(/<img[^>]+src="(data:image\/[^"]+)"/i)
+  return m ? m[1] : null
+}

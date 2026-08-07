@@ -71,20 +71,44 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const modulo = moduloDe(pathname)
   const noAutorizado = !!rol && rol !== 'CLIENTE' && !!modulo && !modulo.roles.includes(rol)
 
+  // Contraseña temporal (ADR 0009). El servidor corta TODAS las rutas menos
+  // `/api/auth/me` y `/api/perfil`, y deja el motivo en un 403 que nadie leía:
+  // el cliente no declaraba siquiera este campo. Resultado en producción — un
+  // usuario con temporal veía «No se pudieron cargar los datos» y un botón de
+  // reintentar que no podía funcionar NUNCA, sin decirle que su contraseña es
+  // temporal ni adónde ir. Encerrado, igual que lo estaba el restablecimiento
+  // antes de 3865c4e: el servidor pedía algo y la interfaz no tenía puerta.
+  const rutaLimpia = (pathname ?? '').replace(/\/spaces-dooh/, '').replace(/\/$/, '')
+  const debeCambiar = !!sesion?.usuario.debeCambiarPassword
+  const enConfiguracion = rutaLimpia === '/configuracion'
+
   useEffect(() => {
     if (sesion === undefined) return
     if (sesion === null) {
       router.replace('/login')
     } else if (sesion.usuario.rol === 'CLIENTE') {
       router.replace(landingDeRol('CLIENTE'))
-    } else if (noAutorizado) {
+    } else if (debeCambiar && !enConfiguracion) {
+      // Antes que cualquier otra comprobación de ruta: con la temporal puesta no
+      // hay módulo al que pueda entrar, así que mandarlo a su landing solo lo
+      // pasearía entre pantallas vacías.
+      router.replace('/configuracion')
+    } else if (!debeCambiar && noAutorizado) {
       router.replace(landingDeRol(sesion.usuario.rol))
     }
-  }, [sesion, noAutorizado, router])
+  }, [sesion, noAutorizado, debeCambiar, enConfiguracion, router])
 
-  if (sesion === undefined || sesion === null || sesion.usuario.rol === 'CLIENTE' || noAutorizado) {
+  if (sesion === undefined || sesion === null || sesion.usuario.rol === 'CLIENTE') {
     return <Cargando />
   }
+  if (debeCambiar) {
+    // En Configuración se RENDERIZA aunque el estado no haya cargado: /api/estado
+    // responde 403 mientras la temporal siga puesta, así que esperar a que
+    // cargue sería esperar para siempre. La pantalla de cuenta no necesita el
+    // store — solo la sesión, que sí llega.
+    return enConfiguracion ? <>{children}</> : <Cargando />
+  }
+  if (noAutorizado) return <Cargando />
 
   // El store arranca VACÍO (buildSeed) y se llena con /api/estado. Hasta que eso
   // ocurra no se renderizan los módulos: si no, muestran "0 de 0" y "No hay

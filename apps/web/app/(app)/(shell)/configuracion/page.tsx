@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { Building2, UserCircle2, Save } from 'lucide-react'
+import { Building2, UserCircle2, Save, KeyRound } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { useConfigNegocio } from '@/lib/data/client'
@@ -31,6 +31,20 @@ export default function ConfiguracionPage() {
           {puedeEmpresa ? 'Nombre de la empresa y datos de tu cuenta.' : 'Cambia el correo y la contraseña de tu cuenta.'}
         </p>
       </div>
+
+      {/* Con una contraseña temporal el servidor cierra el resto de la
+          aplicación (ADR 0009) y el usuario acaba aquí redirigido. Sin este
+          aviso llegaba sin saber por qué se le había cerrado todo. */}
+      {sesion?.usuario.debeCambiarPassword && (
+        <div className="flex items-start gap-2 rounded border border-[#f59e0b40] bg-warning-soft px-3 py-2.5 text-[13px] text-[#9a6700]">
+          <KeyRound className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>
+            <b>Tu contraseña es temporal.</b> Cámbiala aquí abajo para volver a entrar al
+            resto del sistema. Mientras tanto los demás módulos están cerrados, por
+            seguridad: una contraseña temporal la conoce quien te la entregó.
+          </span>
+        </div>
+      )}
       {/* La configuración del negocio (empresa, IVA, loop, plazos…) es solo del
           Dueño; los demás perfiles solo ven "Mi cuenta" (correo + contraseña). */}
       {puedeEmpresa && <EmpresaCard nombreActual={config?.nombreTenant ?? ''} />}
@@ -88,6 +102,11 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   const [password, setPassword] = useState('')
   const [passwordActual, setPasswordActual] = useState('')
   const [busy, setBusy] = useState(false)
+  // Para volver a leer la sesión tras guardar. Sin esto, quien acaba de salir de
+  // una contraseña temporal se quedaba encerrado IGUAL: el servidor ya le abría
+  // todo, pero la sesión del cliente seguía diciendo «temporal» —se leyó al
+  // montar— y la compuerta lo devolvía aquí una y otra vez.
+  const { refrescar } = useSesionCtx()
   useEffect(() => { setEmail(emailActual) }, [emailActual])
 
   const cambiaEmail = !!email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()
@@ -109,6 +128,9 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
       if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
       setPassword('')
       setPasswordActual('')
+      // Releer la sesión ANTES del aviso: si venía con temporal, esto es lo que
+      // baja la bandera y le devuelve el acceso al resto del sistema.
+      await refrescar()
       toast.success('Cuenta actualizada')
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error')

@@ -18,6 +18,12 @@ export interface UsuarioAuth {
   cargo: string | null
   rol: RolDemo
   activo: boolean
+  // El servidor lo MANDA desde el ADR 0009, pero este tipo no lo declaraba y por
+  // tanto nadie lo miraba. Con la contraseña temporal puesta, `exigir()` corta
+  // TODAS las rutas menos `/api/auth/me` y `/api/perfil` — así que la app se
+  // quedaba en «No se pudieron cargar los datos» con un botón de reintentar que
+  // no podía funcionar nunca, y sin decir por qué ni adónde ir.
+  debeCambiarPassword?: boolean
 }
 export type Permisos = Record<string, string[]>
 

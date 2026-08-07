@@ -145,13 +145,27 @@ export async function listarReservas() {
 // arte incrustado: es una sola campaña, sin sesión, y no pasa por aquí.
 export async function listarCreatividades() {
   return (await q(
+    // `es_imagen` se calcula EN POSTGRES y no en JavaScript: para saberlo hay
+    // que mirar dentro de `codigo`, que pesa ~1 MB por fila, y traerlo aquí
+    // para descartarlo sería volver a mover justo lo que este cambio quitó.
+    // Postgres lo evalúa donde está el dato y devuelve un booleano.
+    //
+    // El patrón es el espejo de `imagenAHtml` (lib/creativo-html.ts): si aquella
+    // cambia cómo escribe el `<img>`, esta condición deja de reconocerlo y las
+    // miniaturas se vuelven a montar como documentos de 1 MB. Hay una prueba que
+    // ata las dos.
     `select id, campana_id, nombre, formato, resolucion, estatus_validacion,
-            rechazado_motivo, retirado_en, creado_en
+            rechazado_motivo, retirado_en, creado_en,
+            (archivo_url like 'data:image%'
+             or codigo ~ '<img[^>]+src="data:image/') as es_imagen
        from creatividades where tenant_id = $1 order by creado_en asc`,
     [await tenantActual()],
   )).map((r: any) => ({
     id: r.id, campanaId: r.campana_id, nombre: r.nombre,
     archivoUrl: rutaArteCreativo(r.id),
+    // La miniatura tiene que saber si pintar <img> o <iframe>. Antes lo deducía
+    // del contenido, que ya no viaja.
+    esImagen: r.es_imagen === true,
     codigo: null,
     formato: r.formato, resolucion: r.resolucion, estatusValidacion: r.estatus_validacion,
     rechazadoMotivo: r.rechazado_motivo,
