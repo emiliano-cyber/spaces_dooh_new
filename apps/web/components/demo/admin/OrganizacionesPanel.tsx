@@ -20,15 +20,25 @@ interface Org {
 export function OrganizacionesPanel() {
   const [orgs, setOrgs] = useState<Org[] | null>(null)
   const [activo, setActivo] = useState<string | null>(null)
-  const [visible, setVisible] = useState(true)
+  // Se distingue NO TENER PERMISO de que la carga falle. Antes las dos cosas
+  // escondían el panel entero, y eso deja adivinando a quien esperaba
+  // encontrarlo aquí: no aparece, y nada dice por qué. Sin permiso se explica;
+  // con un fallo de red no se inventa una explicación que puede ser falsa.
+  const [estado, setEstado] = useState<'cargando' | 'ok' | 'sin-permiso' | 'error'>('cargando')
   const [busy, setBusy] = useState(false)
 
   async function cargar() {
-    const r = await fetch(`${API}/tenants/`, { cache: 'no-store' })
-    if (!r.ok) { setVisible(false); return }
-    const d = await r.json()
-    setOrgs(d.tenants ?? [])
-    setActivo(d.activo ?? null)
+    try {
+      const r = await fetch(`${API}/tenants/`, { cache: 'no-store' })
+      if (r.status === 401 || r.status === 403) { setEstado('sin-permiso'); return }
+      if (!r.ok) { setEstado('error'); return }
+      const d = await r.json()
+      setOrgs(d.tenants ?? [])
+      setActivo(d.activo ?? null)
+      setEstado('ok')
+    } catch {
+      setEstado('error')
+    }
   }
   useEffect(() => { cargar() }, [])
 
@@ -43,7 +53,31 @@ export function OrganizacionesPanel() {
     window.location.href = '/spaces-dooh/demo'
   }
 
-  if (!visible) return null
+  // Mientras carga no se pinta nada: un panel que aparece y desaparece al
+  // segundo es peor que uno que tarda un instante en aparecer.
+  if (estado === 'cargando' || estado === 'error') return null
+
+  // Sin permiso: se explica en vez de esfumarse, y se dice a quién pedírselo.
+  // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
+  if (estado === 'sin-permiso') {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center gap-2">
+          <Building2 className="h-4 w-4 text-muted" />
+          <CardTitle>Organizaciones (CRMs)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[12px] text-muted">
+            Crear organizaciones y cambiar entre ellas está reservado al
+            <b className="text-ink"> administrador de la plataforma</b>. Tu usuario administra
+            su propia organización, no el conjunto.
+            <br />
+            Si necesitas una organización nueva, pídesela a quien administre Space OS.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
