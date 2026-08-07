@@ -1,0 +1,154 @@
+===============================================================================
+ DESPLIEGUE — Acceso con cuenta de Google (ADR 0012)
+ Preparado: 2026-08-07
+-------------------------------------------------------------------------------
+ >>> PASO 1 (migracion) YA EJECUTADO — 2026-08-07 11:13. NO REPETIR. <<<
+ >>> PASOS 2 y 3 PENDIENTES: necesitan credenciales de Google Cloud.      <<<
+===============================================================================
+
+ El CODIGO ya esta en produccion desde el 06/08 (viajo dentro del despliegue de
+ correo+logo, porque estaba en el repositorio y todo lo pendiente sale junto).
+ Esta APAGADO e inerte: sin credenciales, `googleHabilitado()` devuelve false,
+ el boton no se pinta y `/api/auth/google/inicio/` responde 503.
+
+ Comprobado tras migrar: login 200, /api/auth/metodos {"google":false},
+ inicio 503, cero errores.
+
+-------------------------------------------------------------------------------
+ COMO FUNCIONA, EN CUATRO LINEAS (para saber que se esta encendiendo)
+-------------------------------------------------------------------------------
+  1. El boton lleva a una ruta NUESTRA, que responde 302 a Google. No hay
+     JavaScript de Google en la pagina (Authorization Code + PKCE, decision 2).
+  2. Al volver, el callback resuelve por `sub` (el id estable de Google).
+  3. Si no hay vinculo, busca por el correo VERIFICADO y lo vincula solo. NO
+     hace falta ninguna pantalla de vinculacion.
+  4. Si ese correo no corresponde a ningun usuario, NO se crea nada: responde
+     «no registrado». Google es un atajo de entrada, no un alta.
+
+  O sea: para que alguien entre con Google, su usuario tiene que existir ANTES
+  en Administracion, con el MISMO correo.
+
+===============================================================================
+ PASO 1 — LA MIGRACION            >>> HECHO el 2026-08-07 11:13 <<<
+===============================================================================
+  Respaldo previo:
+    ~/backups/spaces_prod_pre_google_20260807_111316.sql.gz  (7.1 MB, 37 tablas)
+
+  Se hizo con ensayo en rollback antes (termino en ROLLBACK, salida 0) y luego:
+    cd /var/www/Spaces/db/migrations
+    sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f 20260806_identidades_externas.sql
+
+  VERIFICADO: tabla `identidades_externas` con rls=t y force=t, funcion
+  `auth_usuario_por_identidad` creada, 0 filas.
+
+===============================================================================
+ PASO 2 — EL CLIENTE OAUTH EN GOOGLE CLOUD        (lo hace una persona)
+===============================================================================
+  Tipo: ID de cliente OAuth 2.0 → Aplicacion web.
+
+  URIs de redireccion autorizados — CON BARRA FINAL:
+
+    https://demo.space-os.io/spaces-dooh/api/auth/google/callback/
+
+  !! LA BARRA FINAL NO ES OPCIONAL !!  Google compara la URI CARACTER POR
+  CARACTER contra la registrada y NO sigue redirecciones en el callback. Sin la
+  barra, la app responde 308 y el acceso muere con un error opaco. Ya nos costo
+  un redespliegue el mismo detalle con la ruta del logo.
+
+  Origenes autorizados de JavaScript: NO HACEN FALTA. Ese campo es para los
+  flujos que llaman a Google DESDE la pagina (One Tap), que el ADR descarto
+  (alternativa B). Si la consola insiste, el valor correcto es el origen a
+  secas, SIN ruta y SIN barra final:
+
+    https://demo.space-os.io
+
+  Ojo a la contradiccion, que se presta a error: el ORIGEN va sin barra; la
+  REDIRECCION va con ella.
+
+  Para probar en local, anadir tambien (Google admite http solo en localhost):
+    http://localhost:3000
+    http://localhost:3000/spaces-dooh/api/auth/google/callback/
+
+  ADR decision 6: el proyecto de Google Cloud lo posee una CUENTA DE EMPRESA, no
+  la personal de nadie — para que no se vaya con quien se vaya.
+
+===============================================================================
+ PASO 3 — ENCENDERLO EN EL SERVIDOR
+===============================================================================
+  En /var/www/Spaces/apps/web/.env.production:
+
+    GOOGLE_CLIENT_ID=...
+    GOOGLE_CLIENT_SECRET=...
+    GOOGLE_REDIRECT_URI=https://demo.space-os.io/spaces-dooh/api/auth/google/callback/
+
+  La tercera es opcional pero SE RECOMIENDA explicita: deducirla del request
+  detras de nginx (protocolo, host, puerto) es justo donde se cuelan las
+  diferencias que hacen que Google la rechace.
+
+  Luego:
+    pm2 reload spaces-web --update-env
+
+  NO hace falta reconstruir. Las tres variables se leen EN TIEMPO DE PETICION
+  (no llevan prefijo NEXT_PUBLIC_, asi que Next no las hornea en el build), y
+  `/api/auth/metodos` es `force-dynamic` a proposito, justamente para esto.
+  Ojo: eso NO vale para `NEXT_PUBLIC_RECUPERAR_PASSWORD` ni
+  `NEXT_PUBLIC_AUTOREGISTRO`, que SI exigen reconstruir.
+
+===============================================================================
+ PASO 4 — COMPROBAR
+===============================================================================
+  Desde fuera:
+
+    curl -s https://demo.space-os.io/spaces-dooh/api/auth/metodos/
+    ESPERADO: {"google":true}     (antes de encenderlo decia false)
+
+    curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" \
+      https://demo.space-os.io/spaces-dooh/api/auth/google/inicio/
+    ESPERADO: 302 y una URL de accounts.google.com  (antes: 503)
+
+  En la app:
+
+    [ ] La pantalla de acceso muestra el boton de Google.
+    [ ] Entrar con una cuenta cuyo correo YA exista como usuario: entra y queda
+        vinculada (comprobar con la consulta de abajo).
+    [ ] Entrar con una cuenta cuyo correo NO exista: debe decir que no esta dada
+        de alta, y NO crear nada. Comprobar que `usuarios` no crecio.
+    [ ] El mismo usuario sigue pudiendo entrar con su CONTRASENA. Google es un
+        atajo, no un sustituto (decision 4) — si esto fallara, alguien podria
+        quedarse fuera sin poder recuperar la cuenta, y hoy no hay correo
+        saliente para restablecerla.
+
+  Ver los vinculos creados:
+    sudo -u postgres psql -d spaces_prod -c "select proveedor, usuario_id, email_externo, creado_en, ultimo_uso_en from identidades_externas;"
+
+===============================================================================
+ SI ALGO SALE MAL
+===============================================================================
+  APAGARLO es inmediato y no necesita revertir nada:
+
+    en .env.production →  GOOGLE_OAUTH=0
+    pm2 reload spaces-web --update-env
+
+  Eso corta el flujo entero (`googleHabilitado()` lo comprueba primero) sin
+  tocar la base ni el codigo. Los vinculos ya creados se quedan, inertes, y
+  todos los usuarios siguen entrando con su contrasena.
+
+  LA BASE NO HACE FALTA REVERTIRLA: la tabla vacia no estorba a nadie. Si aun
+  asi se quisiera:
+
+    begin;
+      drop function if exists auth_usuario_por_identidad(text, text);
+      drop table if exists identidades_externas;
+    commit;
+
+  Ojo: eso BORRA los vinculos, y quien ya entrara solo con Google tendria que
+  volver a vincularse (entrando una vez con su contrasena y repitiendo el flujo).
+
+===============================================================================
+ LO QUE ESTE DESPLIEGUE NO TRAE
+===============================================================================
+  · Reautenticacion por Google para las operaciones de dinero. Sigue siendo la
+    contrasena propia (ADR 0009). Es decision 4 del ADR 0012, no un olvido.
+  · Alta de usuarios por Google. Nadie entra si no existe antes.
+  · `GOOGLE_HD` (restringir a un dominio). Es una variable global y solo admite
+    un dominio, y aqui conviven cinco organizaciones (decision 5).
