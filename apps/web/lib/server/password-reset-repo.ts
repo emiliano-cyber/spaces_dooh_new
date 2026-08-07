@@ -15,6 +15,22 @@ import { AppError } from './errores'
 //  consumirReset: valida el token y, con el tenant guardado, actualiza la
 //  contraseña vía qConTenant, marca el token usado, invalida los demás tokens y
 //  cierra todas las sesiones del usuario.
+//
+//  ── `password_resets` es fail-closed desde el 07/08 ────────────────────────
+//  Antes NO llevaba RLS y estos accesos iban por `qRaw`. Ahora la tabla está
+//  bajo la misma política que el resto (20260807_password_resets_rls.sql), así
+//  que:
+//
+//    · LEER va por `auth_reset_por_token()`, SECURITY DEFINER, porque resolver
+//      un token es PRE-SESIÓN: todavía no se sabe de qué organización es quien
+//      lo presenta. Igual que `auth_usuario_por_email()`.
+//    · ESCRIBIR va por `qConTenant`, porque para entonces el tenant YA se
+//      conoce — del usuario al crear, y de la propia fila al consumir.
+//
+//  Si alguien devuelve cualquiera de estos accesos a `qRaw`, el flujo NO falla:
+//  devuelve cero filas y todos los enlaces pasan a ser «inválidos», en silencio.
+//  Es el modo de fallo que dejó el desbloqueo roto un despliegue entero
+//  (43f9284). Hay prueba de integración que lo cubre.
 // ============================================================================
 
 const VIGENCIA_MIN = 60
@@ -45,7 +61,11 @@ export async function crearReset(email: string): Promise<ResetCreado | null> {
 
   const token = randomBytes(32).toString('hex')
   const expira = new Date(Date.now() + VIGENCIA_MIN * 60_000)
-  await qRaw(
+  // `qConTenant` y no `qRaw`: desde 20260807_password_resets_rls.sql la tabla es
+  // fail-closed + FORCE, así que un INSERT sin `app.tenant_id` fallaría el WITH
+  // CHECK. El tenant lo acabamos de resolver del propio usuario.
+  await qConTenant(
+    u.tenant_id,
     `insert into password_resets (token, usuario_id, tenant_id, expira_en) values ($1,$2,$3,$4)`,
     [token, u.id, u.tenant_id, expira.toISOString()],
   )
@@ -63,7 +83,7 @@ interface ResetRow {
 export async function tokenResetValido(token: string): Promise<boolean> {
   if (!token) return false
   const row = await qRaw1<ResetRow>(
-    `select usuario_id, tenant_id, expira_en, usado_en from password_resets where token = $1`,
+    `select usuario_id, tenant_id, expira_en, usado_en from auth_reset_por_token($1)`,
     [token],
   )
   return !!row && !row.usado_en && new Date(row.expira_en) > new Date()
@@ -72,7 +92,7 @@ export async function tokenResetValido(token: string): Promise<boolean> {
 // Consume el token: valida, cambia la contraseña, invalida token y sesiones.
 export async function consumirReset(token: string, nuevaPassword: string): Promise<void> {
   const row = await qRaw1<ResetRow>(
-    `select usuario_id, tenant_id, expira_en, usado_en from password_resets where token = $1`,
+    `select usuario_id, tenant_id, expira_en, usado_en from auth_reset_por_token($1)`,
     [token],
   )
   if (!row) throw new AppError('El enlace no es válido.', 400)
@@ -89,10 +109,14 @@ export async function consumirReset(token: string, nuevaPassword: string): Promi
     `update usuarios set password_hash = $1 where id = $2 and tenant_id = $3`,
     [hash, row.usuario_id, row.tenant_id],
   )
-  // Un solo uso + invalida cualquier otro token pendiente del usuario.
-  await qRaw(`update password_resets set usado_en = now() where usuario_id = $1 and usado_en is null`, [
-    row.usuario_id,
-  ])
+  // Un solo uso + invalida cualquier otro token pendiente del usuario. Con el
+  // tenant de la fila y el filtro explícito además de la RLS — las dos capas.
+  await qConTenant(
+    row.tenant_id,
+    `update password_resets set usado_en = now()
+      where usuario_id = $1 and tenant_id = $2 and usado_en is null`,
+    [row.usuario_id, row.tenant_id],
+  )
   // Cierra todas las sesiones activas (fuerza reingreso con la nueva contraseña).
   await qRaw(`delete from sesiones where usuario_id = $1`, [row.usuario_id])
 }
