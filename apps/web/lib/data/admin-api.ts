@@ -21,8 +21,11 @@ export async function listarUsuariosApi(): Promise<UsuarioDemo[]> {
   if (!r.ok) return []
   return r.json()
 }
+// `entraConGoogle` sustituye a `password`: el servidor genera una que nadie ve
+// y la persona entra con su cuenta de Google (ADR 0012, enmienda E1).
 export async function invitarUsuarioApi(input: {
-  nombre: string; email: string; cargo?: string; rol: RolDemo; password?: string
+  nombre: string; email: string; cargo?: string; rol: RolDemo
+  password?: string; entraConGoogle?: boolean
 }): Promise<UsuarioDemo> {
   return jsonOk(
     await fetch(`${API}/usuarios/`, {

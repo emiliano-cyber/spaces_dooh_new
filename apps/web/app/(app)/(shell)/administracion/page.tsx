@@ -370,19 +370,49 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   const [cargo, setCargo] = useState('')
   const [rol, setRol] = useState<RolDemo>('COMERCIAL')
   const [password, setPassword] = useState('')
+  const [conGoogle, setConGoogle] = useState(false)
+  const [googleDisponible, setGoogleDisponible] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  const valido = nombre.trim() && email.trim() && password.trim().length >= 6
+
+  // La bandera de Google no viaja al cliente (no lleva prefijo NEXT_PUBLIC_,
+  // para que apagarla no exija recompilar), así que se pregunta al servidor.
+  // Empieza oculto: si la consulta falla, no se ofrece una opción que crearía
+  // un usuario incapaz de entrar.
+  useEffect(() => {
+    if (!open) return
+    let vivo = true
+    fetch('/spaces-dooh/api/auth/metodos/')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo && d?.google === true) setGoogleDisponible(true) })
+      .catch(() => { /* sin opción, que es el estado seguro */ })
+    return () => { vivo = false }
+  }, [open])
+
+  // Con Google no hace falta contraseña. Sin él, el mínimo es el que exige el
+  // SERVIDOR (validarPassword: 8, con letra y número) — antes pedía 6 aquí, así
+  // que una de 6 pasaba el formulario y el servidor la rechazaba después con un
+  // mensaje que parecía salido de la nada.
+  const valido = !!nombre.trim() && !!email.trim() && (conGoogle || password.trim().length >= 8)
 
   async function enviar() {
     if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
     setEnviando(true)
     setError(null)
     try {
-      await invitarUsuarioApi({ nombre: nombre.trim(), email: email.trim(), cargo: cargo.trim() || 'Miembro del equipo', rol, password: password.trim() })
+      await invitarUsuarioApi({
+        nombre: nombre.trim(),
+        email: email.trim(),
+        cargo: cargo.trim() || 'Miembro del equipo',
+        rol,
+        // Se manda UNA de las dos, nunca las dos: con `entraConGoogle` el
+        // servidor ignora cualquier contraseña, y mandarla igual dejaría en el
+        // cuerpo de la petición un secreto que no se va a usar.
+        ...(conGoogle ? { entraConGoogle: true } : { password: password.trim() }),
+      })
       onInvitado(nombre.trim())
       onOpenChange(false)
-      setNombre(''); setEmail(''); setCargo(''); setPassword('')
+      setNombre(''); setEmail(''); setCargo(''); setPassword(''); setConGoogle(false)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo invitar')
     }
@@ -390,14 +420,38 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   }
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle="Define su acceso y contraseña"
+    <Modal open={open} onOpenChange={onOpenChange} title="Crear usuario" subtitle={conGoogle ? 'Entrará con su cuenta de Google' : 'Define su acceso y contraseña'}
       footer={<div className="flex justify-end gap-2"><Button variant="secondary" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button><Button size="sm" disabled={!valido || enviando} onClick={enviar}>{enviando ? 'Creando…' : 'Crear usuario'}</Button></div>}>
       <div className="space-y-3">
         <Campo label="Nombre"><input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus /></Campo>
         <Campo label="Correo"><input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="correo@empresa.com" /></Campo>
         <Campo label="Cargo"><input className={inputCls} value={cargo} onChange={(e) => setCargo(e.target.value)} /></Campo>
         <Campo label="Rol"><select className={inputCls} value={rol} onChange={(e) => setRol(e.target.value as RolDemo)}>{ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}</select></Campo>
-        <Campo label="Contraseña"><input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 6 caracteres" /></Campo>
+        {googleDisponible && (
+          <label className="flex cursor-pointer items-start gap-2 rounded border border-border bg-bg p-2.5">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={conGoogle}
+              onChange={(e) => { setConGoogle(e.target.checked); setError(null) }}
+            />
+            <span className="text-[12px] leading-snug">
+              <span className="font-medium text-ink">Entra con su cuenta de Google</span>
+              <span className="block text-muted">
+                No tendrás que inventar ni enviarle ninguna contraseña. Su correo de
+                Google debe ser el mismo que escribiste arriba.
+              </span>
+            </span>
+          </label>
+        )}
+        {/* La contraseña desaparece —no se deshabilita— cuando entra con
+            Google: un campo gris que sigue ahí invita a preguntarse si hay que
+            rellenarlo igual. */}
+        {!conGoogle && (
+          <Campo label="Contraseña">
+            <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 8, con letra y número" />
+          </Campo>
+        )}
         {error && <p className="text-[12px] text-error">{error}</p>}
       </div>
     </Modal>

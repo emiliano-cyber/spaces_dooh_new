@@ -155,7 +155,24 @@ export async function arrancarDoble(): Promise<void> {
     })
   })
   await new Promise<void>((listo, falla) => {
-    servidor!.once('error', falla)
+    servidor!.once('error', (e: NodeJS.ErrnoException) => {
+      // Sin este mensaje, dejarse el doble SUELTO corriendo
+      // (`node lib/test/doble-google-suelto.mts`) hace que este `beforeAll`
+      // reviente y vitest SALTE las pruebas del fichero — y el resumen dice
+      // «6 passed» sin más. Silencio que se lee como éxito, que es peor que un
+      // rojo.
+      if (e.code === 'EADDRINUSE') {
+        falla(
+          new Error(
+            `El puerto ${PUERTO_DOBLE} ya está ocupado: seguramente tienes el doble suelto corriendo ` +
+              `(lib/test/doble-google-suelto.mts). Páralo y vuelve a lanzar las pruebas, ` +
+              `o cambia PUERTO_DOBLE_GOOGLE.`,
+          ),
+        )
+        return
+      }
+      falla(e)
+    })
     servidor!.listen(PUERTO_DOBLE, '127.0.0.1', listo)
   })
 }
