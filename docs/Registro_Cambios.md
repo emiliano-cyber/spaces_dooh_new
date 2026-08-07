@@ -7,7 +7,10 @@ La entrada más reciente va arriba.
 
 ## 2026-08-06
 
-- **Un usuario con contraseña temporal ya no se queda encerrado.** Cuando a
+- **Un usuario con contraseña temporal ya no se queda encerrado.** *(Comprobado
+  en producción: el usuario afectado entró, se le llevó a cambiarla, y al
+  guardarla recuperó el acceso — incluido el logo de su empresa, que tampoco
+  veía por lo mismo. Las miniaturas también quedaron verificadas.)* Cuando a
   alguien se le restablece la contraseña, el sistema le entrega una temporal y
   **cierra el resto de los módulos** hasta que la cambie — eso está bien y es a
   propósito: una contraseña temporal la conoce también quien se la entregó.
