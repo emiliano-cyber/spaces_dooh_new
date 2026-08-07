@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { URL_APP } from './db-e2e'
+import { CLIENT_ID_PRUEBA, CLIENT_SECRET_PRUEBA, ENDPOINT_DOBLE } from './doble-google'
 
 // ============================================================================
 //  lib/test/servidor-e2e.ts — El servidor de Next, de verdad, contra la BD de
@@ -46,6 +47,21 @@ export async function arrancarServidor(): Promise<void> {
       // comprueba en el servidor, no solo ocultando el boton, asi que la
       // prueba necesita el mismo valor para verificar el guard de verdad.
       NEXT_PUBLIC_AUTOREGISTRO: '0',
+
+      // ─── ADR 0012 · acceso con Google ───────────────────────────────────
+      // Encendido en las pruebas aunque en producción hoy esté apagado: sin
+      // esto las rutas responden 503 y el flujo no se puede ejercer. El resto
+      // de ficheros no lo toca.
+      GOOGLE_OAUTH: '1',
+      GOOGLE_CLIENT_ID: CLIENT_ID_PRUEBA,
+      GOOGLE_CLIENT_SECRET: CLIENT_SECRET_PRUEBA,
+      // El canje va al doble local, NO a Google. Es la razón de que esta
+      // variable exista.
+      GOOGLE_TOKEN_ENDPOINT: ENDPOINT_DOBLE,
+      // Explícita, como se recomienda en producción: deducirla del request
+      // detrás de un proxy es donde se cuelan las diferencias que Google
+      // rechaza con `redirect_uri_mismatch`. Con barra final (trailingSlash).
+      GOOGLE_REDIRECT_URI: `${BASE}/api/auth/google/callback/`,
     },
     shell: process.platform === 'win32',
     stdio: 'ignore',
@@ -86,14 +102,31 @@ export async function pararServidor(): Promise<void> {
 // ─── Cliente HTTP con tarro de cookies ──────────────────────────────────────
 // Cada sesión es un cliente. Dos clientes = dos organizaciones distintas
 // hablando a la vez, que es como se prueba el aislamiento sin trampas.
+let contadorClientes = 0
+
 export class Cliente {
   private cookies = new Map<string, string>()
+  // Cada cliente simula una IP distinta, como usuarios distintos en producción.
+  //
+  // Hace falta porque los limitadores (`limitar()`) van POR IP: sin esto, un
+  // fichero con más de diez inicios de flujo empieza a recibir 429 y el fallo
+  // no señala nada del código que se está probando.
+  //
+  // Es fiel y no una trampa: en producción nginx pone
+  // `X-Forwarded-For $remote_addr` —comprobado en
+  // infra/nginx/demo.space-os.io.conf:123—, o sea que REEMPLAZA la cabecera en
+  // vez de añadir a la que mande el cliente. Un usuario no puede elegir su
+  // cubo de rate limit; aquí no hay nginx delante, así que la ponemos nosotros.
+  private ip = `10.0.0.${(contadorClientes++ % 250) + 1}`
 
+  // Devuelve también `ubicacion` (la cabecera Location). Hace falta para el
+  // flujo de Google, donde TODO ocurre por redirecciones: el resultado de un
+  // callback no está en el cuerpo, está en a dónde te manda.
   async pedir(
     ruta: string,
     opts: { metodo?: string; cuerpo?: unknown } = {},
-  ): Promise<{ status: number; datos: any }> {
-    const cabeceras: Record<string, string> = {}
+  ): Promise<{ status: number; datos: any; ubicacion: string | null }> {
+    const cabeceras: Record<string, string> = { 'x-forwarded-for': this.ip }
     if (this.cookies.size) {
       cabeceras.cookie = [...this.cookies].map(([k, v]) => `${k}=${v}`).join('; ')
     }
@@ -131,7 +164,14 @@ export class Cliente {
     const texto = await r.text()
     let datos: any = null
     try { datos = texto ? JSON.parse(texto) : null } catch { datos = texto }
-    return { status: r.status, datos }
+    return { status: r.status, datos, ubicacion: r.headers.get('location') }
+  }
+
+  // ¿Está puesta esta cookie? Para comprobar que las de un solo uso del flujo
+  // de Google se borran, y que la de sesión aparece cuando debe.
+  tieneCookie(nombre: string): boolean {
+    const v = this.cookies.get(nombre)
+    return v !== undefined && v !== ''
   }
 
   async entrar(email: string, password: string): Promise<void> {

@@ -47,8 +47,17 @@ export async function GET(req: Request) {
   if (!googleHabilitado()) {
     return NextResponse.json({ error: 'El acceso con Google no está disponible.' }, { status: 503 })
   }
-  // Mismo criterio que el login: frena el abuso de un endpoint público que
-  // provoca tráfico saliente hacia Google.
+  // Mismo criterio que el login (10 cada 5 min por IP). Esta ruta NO llama a
+  // Google —solo construye la URL, fija tres cookies y redirige—, así que el
+  // límite no protege de tráfico saliente: la llamada de verdad está en el
+  // callback. Está por higiene, para que un endpoint público sin sesión no sea
+  // gratis de martillear.
+  //
+  // El cubo es por IP y nginx pone `X-Forwarded-For $remote_addr`
+  // (infra/nginx/demo.space-os.io.conf:123), o sea que REEMPLAZA lo que mande
+  // el cliente: nadie elige su propio cubo. La contrapartida es que una oficina
+  // entera detrás de un NAT comparte los 10 — mismo trato que ya tiene el
+  // login, y por eso se deja igual y no más flojo.
   const lim = limitar(`google:inicio:${ipDe(req)}`, 10, 5 * 60_000)
   if (!lim.ok) {
     return NextResponse.json(
