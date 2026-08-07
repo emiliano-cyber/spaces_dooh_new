@@ -79,9 +79,59 @@ export function claimsBuenos(opts: {
   }
 }
 
+// ─── Pantalla de consentimiento (solo para probar a mano en el navegador) ───
+// Las pruebas automáticas no la usan: llaman al callback directamente. Existe
+// para poder recorrer el flujo ENTERO haciendo clic, sin credenciales de Google
+// y sin salir de la máquina. `GOOGLE_AUTH_ENDPOINT` apunta aquí, y
+// `google-oauth.ts` solo acepta ese sustituto si es loopback.
+export const AUTH_DOBLE = `http://127.0.0.1:${PUERTO_DOBLE}/auth`
+
+// Con qué identidad se «entra». El correo tiene que existir como usuario ACTIVO
+// en la base, porque Google NO da de alta: si no existe, el flujo termina —
+// correctamente — en «esa cuenta no está dada de alta».
+const EMAIL_DEMO = process.env.GOOGLE_DOBLE_EMAIL ?? 'duenio@alfa.test'
+const SUB_DEMO = process.env.GOOGLE_DOBLE_SUB ?? 'sub-demo-local-0001'
+
+function escapar(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  )
+}
+
+function paginaConsentimiento(url: URL): string {
+  const redirect = url.searchParams.get('redirect_uri') ?? ''
+  const state = url.searchParams.get('state') ?? ''
+  const nonce = url.searchParams.get('nonce') ?? ''
+
+  // Se prepara aquí el token porque es AHORA cuando se conoce el nonce que
+  // emitió la aplicación. El callback lo exigirá igual al nonce de su cookie.
+  prepararIdToken(idTokenFalso(claimsBuenos({ sub: SUB_DEMO, email: EMAIL_DEMO, nonce })))
+
+  const ok = `${redirect}?code=codigo-de-prueba&state=${encodeURIComponent(state)}`
+  const no = `${redirect}?error=access_denied&state=${encodeURIComponent(state)}`
+  return `<!doctype html><meta charset="utf-8"><title>Google de mentira</title>
+<body style="font-family:system-ui;max-width:26rem;margin:15vh auto;text-align:center">
+  <p style="color:#b45309;background:#fef3c7;padding:.6rem;border-radius:.4rem">
+    Esto <b>no es Google</b>. Es el doble local para probar el flujo sin credenciales.
+  </p>
+  <h2 style="font-weight:600">Elige una cuenta</h2>
+  <p style="color:#555">para continuar a <b>Space OS</b></p>
+  <p><a href="${escapar(ok)}" style="display:block;padding:.8rem;border:1px solid #ccc;border-radius:.4rem;text-decoration:none;color:#111">
+    ${escapar(EMAIL_DEMO)}
+  </a></p>
+  <p><a href="${escapar(no)}" style="color:#666;font-size:.9rem">Cancelar</a></p>
+</body>`
+}
+
 export async function arrancarDoble(): Promise<void> {
   if (servidor) return
   servidor = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', `http://127.0.0.1:${PUERTO_DOBLE}`)
+    if (url.pathname === '/auth') {
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' })
+      res.end(paginaConsentimiento(url))
+      return
+    }
     let cuerpo = ''
     req.on('data', (c) => (cuerpo += c))
     req.on('end', () => {

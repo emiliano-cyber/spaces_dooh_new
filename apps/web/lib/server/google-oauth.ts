@@ -117,16 +117,45 @@ export function urlDeConsentimiento(opts: {
     p.set('prompt', 'login')
     p.set('max_age', '0')
   }
-  return `${AUTORIZACION}?${p.toString()}`
+  return `${endpointAutorizacion()}?${p.toString()}`
 }
 
 // ─── 2. Canje del código por el id_token ────────────────────────────────────
-// El endpoint es configurable SOLO para poder apuntarlo a un doble local en las
-// pruebas de integración: el arnés levanta un Next real y no puede hablar con
-// Google (consecuencia negativa anotada en el ADR). En producción esta variable
-// no se fija y se usa el endpoint real.
+// Los dos endpoints de Google son configurables SOLO para poder apuntarlos a un
+// doble local: el arnés levanta un Next real y no puede hablar con Google
+// (consecuencia negativa anotada en el ADR).
+//
+// SOLO SE ACEPTA UN DESTINO EN LOOPBACK, y esto no es celo de más. Sin el
+// filtro, quien pudiera fijar una variable de entorno apuntaría el canje a un
+// servidor suyo y le devolvería a la aplicación un `id_token` para CUALQUIER
+// correo: el callback lo daría por bueno —viene por «canal directo», que es
+// justo la premisa que permite no verificar la firma— y abriría sesión como esa
+// persona. Con el filtro, lo peor que consigue es apuntar a su propia máquina.
+//
+// Se comprueba el host y no `NODE_ENV`, porque el arnés arranca el servidor con
+// NODE_ENV=production a propósito (para probar el build real): filtrar por eso
+// dejaría las pruebas sin doble o el guard sin efecto donde importa.
+function endpointLocalPermitido(valor: string | undefined, real: string): string {
+  if (!valor) return real
+  try {
+    const h = new URL(valor).hostname
+    if (h === '127.0.0.1' || h === 'localhost' || h === '::1' || h === '[::1]') return valor
+  } catch {
+    /* URL inválida: se ignora y se usa el real */
+  }
+  console.warn('[google] se ignora un endpoint sustituto que no es local:', valor)
+  return real
+}
+
 function endpointToken(): string {
-  return process.env.GOOGLE_TOKEN_ENDPOINT || TOKEN
+  return endpointLocalPermitido(process.env.GOOGLE_TOKEN_ENDPOINT, TOKEN)
+}
+
+// Mismo trato para la pantalla de consentimiento. Existe para poder recorrer el
+// flujo entero en el navegador sin credenciales de Google; en producción se
+// ignora igual salvo que apunte a la propia máquina.
+function endpointAutorizacion(): string {
+  return endpointLocalPermitido(process.env.GOOGLE_AUTH_ENDPOINT, AUTORIZACION)
 }
 
 export async function canjearCodigo(opts: {

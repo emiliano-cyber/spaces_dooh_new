@@ -109,6 +109,19 @@ export async function GET(req: Request) {
     return alLogin(req, 'invalido')
   }
 
+  try {
+    return await resolverYEntrar(req, identidad)
+  } catch (e) {
+    // El usuario llega aquí NAVEGANDO: un fallo de base de datos le pintaría una
+    // página de error cruda del framework. Se registra entero y se le manda al
+    // login con un motivo. Encontrado probando en local con la migración de
+    // `identidades_externas` sin aplicar: la consulta reventaba y salía un 500.
+    console.error('[google/callback] fallo resolviendo la identidad:', e)
+    return alLogin(req, 'invalido')
+  }
+}
+
+async function resolverYEntrar(req: Request, identidad: { sub: string; email: string }) {
   // ── Resolución: primero por `sub`, que es el identificador estable ──────────
   let u = await usuarioPorIdentidad(PROVEEDOR_GOOGLE, identidad.sub)
   let recienVinculado = false
