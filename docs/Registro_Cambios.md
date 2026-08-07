@@ -7,6 +7,39 @@ La entrada más reciente va arriba.
 
 ## 2026-08-07
 
+- **Entrar con Google FUNCIONA EN PRODUCCIÓN.** Verificado por el usuario con su
+  cuenta real, de principio a fin: se dio de alta desde Administración marcando
+  la casilla nueva —sin inventar ni enviarse ninguna contraseña— y entró con su
+  cuenta de Google. Cero rechazos en el registro del servidor.
+  - *Lo que faltaba no era programación:* había que declarar en Google la
+    dirección exacta a la que devuelve al usuario. Hasta hacerlo, Google
+    rechazaba el acceso con un error que no dice mucho.
+- **Ya se puede dar de alta a alguien sin inventarle una contraseña.** En
+  Administración → Usuarios hay una casilla: «Entra con su cuenta de Google». Al
+  marcarla desaparece el campo de contraseña y la persona entra directamente con
+  su cuenta, siempre que su correo de Google sea el mismo que se capturó.
+  - *Por qué importa más de lo que parece:* hasta ahora había que inventar una
+    contraseña y **pasársela por chat o por correo**, donde queda escrita en el
+    historial de alguien. Esa es la fuga que esto elimina.
+  - *La cuenta conserva una contraseña interna que nadie ve ni necesita.* Suena
+    contradictorio y es deliberado: sin ella, esa persona no podría autorizar
+    operaciones de dinero ni cambiar sus propios datos, y si un administrador le
+    «restableciera la contraseña» quedaría **encerrada fuera del sistema**, con
+    la única salida pidiéndole algo que nunca tuvo.
+  - *La casilla solo aparece si el servidor tiene Google configurado.* Si no,
+    crearía una cuenta que no puede entrar de ninguna forma.
+  - *De paso se corrigió un desajuste viejo:* el formulario daba por buena una
+    contraseña de 6 caracteres y el sistema exige 8 con letra y número. Escribías
+    una de 6, la enviabas, y volvía rechazada con un mensaje que parecía salido
+    de la nada.
+- **También se puede crear una empresa entera con Google, pero solo donde el
+  registro público está abierto.** En producción **sigue cerrado**, igual que el
+  «Crear cuenta» de siempre y por el mismo motivo: la demo pública y el sistema
+  real son el mismo servidor sobre los mismos datos, así que dejarlo abierto
+  permitiría a cualquiera con una cuenta de Google crear organizaciones ahí.
+  Comprobado tras el despliegue: en producción responde que está deshabilitado.
+  - *El nombre de la empresa se pide antes de ir a Google*, porque es el único
+    dato que Google no puede aportar.
 - **Cerrada una puerta que las pruebas habían dejado abierta en producción.**
   Para poder ensayar el acceso con Google sin hablar con Google, el sistema
   permite sustituir la dirección con la que se verifica una identidad. Esa

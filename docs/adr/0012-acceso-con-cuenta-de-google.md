@@ -5,6 +5,10 @@
 - **Enmendada:** 2026-08-07 — ver «Enmienda» al final. Se revierte parcialmente
   el rechazo de la alternativa C: el alta de organización con Google **sí** se
   implementa, pero colgada del interruptor que ya la gobierna.
+- **En producción desde:** 2026-08-07. Entrar con Google **verificado por el
+  usuario con su cuenta real**, sobre un usuario dado de alta desde
+  Administración con la casilla «entra con su cuenta de Google» (enmienda E1).
+  Cero rechazos en el log del servidor.
 
 > **Lo que decide este ADR:** que Google sea una *puerta de entrada más* a la
 > sesión que ya existe, no un sistema de sesión nuevo. Lo que **no** decide: el
@@ -108,16 +112,26 @@ Esto **no es una advertencia teórica**: se comprobó contra producción el
 /spaces-dooh/api/auth/reset/?token=x  -> 503  (la ruta se alcanza)
 ```
 
-Google exige que el *redirect URI* coincida **carácter por carácter** y **no
-sigue redirecciones** en el callback. Por tanto la URI a registrar es, con barra
-final:
+Google exige que el *redirect URI* coincida **carácter por carácter** con el
+registrado en Cloud Console. Como la aplicación envía la versión **con barra
+final**, ésa es la que hay que registrar:
 
 ```
 https://demo.space-os.io/spaces-dooh/api/auth/google/callback/
 ```
 
-Registrarla sin la barra produce un 308 que Google no sigue, y el síntoma es un
-fallo opaco en el momento más difícil de depurar.
+**Corrección del 07/08.** La primera redacción justificaba la barra diciendo que
+«Google no sigue redirecciones en el callback». Eso **no se verificó y
+probablemente sea falso**: a la URL de callback llega el **navegador** —Google
+solo emite un 302 hacia ella—, y un navegador sí sigue un 308 conservando la
+query, como se comprobó con `/api/auth/reset`. La regla que sí importa, y que
+vale igual, es la de arriba: **registrar exactamente lo que se envía**. No se
+cambia lo que la aplicación manda; se corrige el motivo, para que nadie razone
+sobre una premisa equivocada.
+
+Registrar una URI distinta de la que se envía produce `redirect_uri_mismatch`,
+que es lo que ocurrió al probar en local el 07/08 hasta registrar la de
+`localhost`.
 
 **6. No hay correo saliente.**
 `RESEND_API_KEY` y `EMAIL_FROM` están vacías en producción, y por eso
