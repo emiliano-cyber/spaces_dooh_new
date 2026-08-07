@@ -30,7 +30,12 @@ const orgSchema = z.object({
   }),
 })
 
-async function crearOrgConDueno(args: {
+// Exportada desde el ADR 0012: el alta de empresa con Google la reutiliza en
+// vez de reimplementar la creación. Es la MISMA función que usa `/api/signup` y
+// el alta de CRM del super-admin, así que las tres crean organizaciones
+// idénticas — con su Dueño, su rol y sus comprobaciones de correo repetido.
+// Duplicarla habría sido la forma segura de que las tres divergieran.
+export async function crearOrgConDueno(args: {
   org: string
   slug?: string
   nombre: string

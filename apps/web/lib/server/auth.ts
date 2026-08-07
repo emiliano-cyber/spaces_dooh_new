@@ -41,6 +41,26 @@ export function validarPassword(plano: unknown): string | null {
   return null
 }
 
+// Contraseña que NADIE va a ver ni teclear, para las cuentas que entran por un
+// proveedor externo (ADR 0012). La fila conserva un `password_hash` de un
+// secreto aleatorio en vez de quedarse en NULL, y eso es deliberado:
+//
+//   · un usuario sin hash no puede desbloquear las operaciones de dinero ni
+//     cambiar su propio perfil, y si un administrador le «restablece» la
+//     contraseña queda ENCERRADO —la única salida le pide algo que nunca tuvo—.
+//     Es el estado terminal que el ADR describe en su restricción 4;
+//   · con hash, todo lo existente sigue funcionando igual y no hay que abrir un
+//     segundo camino en `cambios.ts`, que gobierna las ocho rutas de dinero.
+//
+// Se CONSTRUYE cumpliendo `validarPassword` en vez de confiar en que el azar
+// meta una letra y un dígito: base64url puede salir sin ninguno de los dos, y
+// entonces el alta fallaría una vez de cada tantas, que es el peor tipo de
+// fallo.
+export function passwordAleatoria(): string {
+  const cuerpo = randomBytes(24).toString('base64url').replace(/[^a-zA-Z0-9]/g, '')
+  return `${cuerpo}aA1`
+}
+
 export function hashPassword(plano: string): Promise<string> {
   return bcrypt.hash(plano, 10)
 }

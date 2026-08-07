@@ -2,6 +2,9 @@
 
 - **Fecha:** 2026-08-06
 - **Estado:** Aceptada (entrega 1; la reautenticación por Google queda fuera, ver decisión 4)
+- **Enmendada:** 2026-08-07 — ver «Enmienda» al final. Se revierte parcialmente
+  el rechazo de la alternativa C: el alta de organización con Google **sí** se
+  implementa, pero colgada del interruptor que ya la gobierna.
 
 > **Lo que decide este ADR:** que Google sea una *puerta de entrada más* a la
 > sesión que ya existe, no un sistema de sesión nuevo. Lo que **no** decide: el
@@ -455,3 +458,82 @@ alcance de la reautenticación (decisión 4) y la barra final del *redirect URI*
 
 Pendiente de operación, no de diseño: crear el proyecto en Google Cloud Console
 con la cuenta de empresa y registrar las URIs de cada entorno.
+
+---
+
+## Enmienda · 2026-08-07
+
+Se añaden dos formas de que una cuenta **nazca** ligada a Google. La decisión de
+fondo del ADR no cambia —Google sigue sin decidir a qué organización pertenece
+nadie, ni qué rol tiene— pero sí cambia el rechazo tajante de la alternativa C.
+
+### E1. Alta de usuario «entra con Google» (no toca ninguna decisión previa)
+
+En Administración → Usuarios, el alta acepta `entraConGoogle: true` y entonces
+**no se manda ninguna contraseña**: el servidor genera una aleatoria que nadie
+ve ni se comunica, y la persona entra con su cuenta de Google por el camino de
+vinculación por correo que ya existía (decisión 3, paso 2).
+
+Quita la fricción real del onboarding —inventar una contraseña y pasarla por
+chat, que además la deja escrita en el historial de alguien— sin tocar nada del
+modelo.
+
+**La fila conserva `password_hash`, y es lo que hace que esto NO sea la entrega
+2.** Un usuario sin hash no puede desbloquear las operaciones de dinero ni
+cambiar su propio perfil, y si un administrador le restablece la contraseña
+queda encerrado: la única salida le pide algo que nunca tuvo (restricción 4).
+Con hash, `cambios.ts` y `perfil-controller.ts` **no se tocan** y no hay segundo
+camino que mantener.
+
+Lo que se hereda y hay que decir: esa persona sigue sin poder ejecutar las ocho
+rutas de dinero si su tenant enciende la reautenticación, porque no conoce su
+contraseña. La salida es un restablecimiento normal. Se cierra de verdad en la
+entrega 2.
+
+Se rechaza el alta si Google no está habilitado en ese servidor: crearía a
+alguien que no puede entrar de ninguna forma, y una cuenta muerta sin motivo
+aparente es peor que un error.
+
+### E2. Alta de organización con Google (revierte en parte la alternativa C)
+
+**Qué se mantiene del rechazo original.** El motivo era correcto y sigue siéndolo:
+el mismo despliegue sirve la demo pública y producción sobre la misma base, así
+que un alta pública deja a cualquiera con un Gmail crear una organización y un
+usuario `DUENO` en datos reales.
+
+**Qué cambia.** Ese riesgo no es nuevo ni exclusivo de Google: es exactamente el
+que `NEXT_PUBLIC_AUTOREGISTRO=0` ya gobierna para `/api/signup`. Colgar el alta
+con Google del **mismo interruptor**, comprobado en el **servidor**, no abre una
+puerta nueva — le pone otra manija a una puerta que ya está cerrada con llave
+donde importa. En producción responde 503 igual que `/api/signup`; en local,
+donde el interruptor está abierto a propósito, funciona.
+
+Lo que decidió el rechazo original y ya no aplica: «sobra un dato que no se puede
+inventar, el nombre de la organización». Se resuelve pidiéndolo **antes** de ir a
+Google. Viaja en cookie httpOnly de vida corta, con `state`, `nonce` y el
+verifier de PKCE:
+
+- **no en el `state`**, que va y vuelve por la URL y ahí lo vería —y podría
+  cambiarlo— cualquiera que mire la barra de direcciones;
+- y su **presencia es lo que distingue «entrar» de «darse de alta»**, así que
+  decidirlo desde la URL de vuelta sería dejar que el visitante eligiera qué
+  operación ejecuta el servidor.
+
+La cookie se **borra** cuando el flujo no es un alta, no se deja estar: si no, un
+intento de alta abandonado convertiría el siguiente inicio de sesión en la
+creación de una organización que nadie pidió.
+
+La organización se crea con `crearOrgConDueno()`, la MISMA función que usan
+`/api/signup` y el alta de CRM del super-admin. Duplicarla habría sido la forma
+segura de que las tres divergieran.
+
+### Consecuencias de la enmienda
+
+- El caso 3 de la decisión 3 («ninguna de las dos → 401») deja de ser absoluto:
+  ahora tiene una excepción, y esa excepción **es** la superficie a vigilar. La
+  prueba que importa no es que el alta funcione, sino que con el interruptor
+  apagado responda 503 — verificado por mutación.
+- `activo`, `debe_cambiar_password` y el modelo de permisos siguen intactos: una
+  cuenta nacida con Google es indistinguible de una nacida con contraseña.
+- Sigue sin implementarse lo que la entrega 2 debe: usuarios sin contraseña y
+  reautenticación con Google.

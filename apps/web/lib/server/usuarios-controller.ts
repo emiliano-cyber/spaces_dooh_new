@@ -2,7 +2,8 @@ import 'server-only'
 import { randomInt } from 'node:crypto'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
-import { validarPassword, hashPassword } from './auth'
+import { validarPassword, hashPassword, passwordAleatoria } from './auth'
+import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import {
   listarUsuarios,
@@ -37,7 +38,11 @@ const crearSchema = z.object({
   email: z.string().trim().refine(esEmailValido, 'Correo inválido'),
   cargo: z.string().trim().optional(),
   rol: z.enum(ROLES).optional(),
-  password: z.string(),
+  // Opcional desde el ADR 0012: con `entraConGoogle` no se manda ninguna.
+  password: z.string().optional(),
+  // El alta no comunica ninguna contraseña: la persona entra con su cuenta de
+  // Google. Quita la fricción de inventar una y pasársela por chat.
+  entraConGoogle: z.boolean().optional(),
 })
 
 // `.strict()` importa aquí: al retirar `password` del esquema, un cliente viejo
@@ -64,10 +69,38 @@ export function listarUsuariosCtrl() {
 
 export async function crearUsuarioCtrl(body: unknown) {
   const d = validar(crearSchema, body)
-  const errPass = validarPassword(d.password)
-  if (errPass) throw new AppError(errPass, 400)
+
+  let password: string
+  if (d.entraConGoogle) {
+    // Si Google no está habilitado en ESTE servidor, el alta crearía a alguien
+    // que no puede entrar de ninguna forma: no tiene contraseña que le sirva y
+    // la puerta por la que debería pasar no existe. Se corta aquí en vez de
+    // dejar una cuenta muerta que nadie sabe por qué no funciona.
+    if (!googleHabilitado()) {
+      throw new AppError(
+        'El acceso con Google no está disponible en este servidor. Crea el usuario con una contraseña.',
+        400,
+      )
+    }
+    // Nadie la ve ni se comunica. Ver `passwordAleatoria` para por qué la fila
+    // conserva un hash en vez de quedarse sin él.
+    password = passwordAleatoria()
+  } else {
+    const errPass = validarPassword(d.password)
+    if (errPass) throw new AppError(errPass, 400)
+    password = d.password as string
+  }
+
   if (await emailExiste(d.email)) throw new AppError('Ya existe un usuario con ese correo', 409)
-  return crearUsuario(d)
+  // Se pasa la contraseña resuelta y NO `d`: mandar el objeto entero colaría
+  // `entraConGoogle` hasta el repo, que no sabe qué hacer con él.
+  return crearUsuario({
+    nombre: d.nombre,
+    email: d.email,
+    cargo: d.cargo,
+    rol: d.rol,
+    password,
+  })
 }
 
 export async function actualizarUsuarioCtrl(id: string, actorId: string, body: unknown) {

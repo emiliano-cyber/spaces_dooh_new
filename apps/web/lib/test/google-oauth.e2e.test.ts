@@ -332,6 +332,62 @@ describe('5 · claims que el callback debe rechazar', () => {
   })
 })
 
+// ─── Alta de empresa con Google (ADR 0012 · enmienda del 07/08) ─────────────
+
+describe('7 · crear empresa con Google', () => {
+  // El servidor de pruebas arranca con NEXT_PUBLIC_AUTOREGISTRO=0, igual que
+  // produccion. Eso hace que el caso importante aqui sea el NEGATIVO: que la
+  // puerta nueva este tan cerrada como `/api/signup`.
+
+  async function iniciarAlta(c: Cliente, organizacion: string) {
+    return c.pedir(
+      `/api/auth/google/inicio/?alta=1&organizacion=${encodeURIComponent(organizacion)}`,
+    )
+  }
+
+  it('con el autorregistro APAGADO, el alta responde 503 igual que /api/signup', async () => {
+    // Es la comprobacion que da sentido a toda la funcion: si esto pasara, se
+    // habria reabierto por otra puerta el agujero que el interruptor cerro —y
+    // el mismo despliegue sirve la demo publica y produccion sobre la misma
+    // base.
+    const r = await iniciarAlta(new Cliente(), 'Organizacion Nueva')
+    expect(r.status).toBe(503)
+  })
+
+  it('y no deja la cookie del alta puesta al responder 503', async () => {
+    const c = new Cliente()
+    await iniciarAlta(c, 'Organizacion Nueva')
+    expect(c.tieneCookie('g_alta_org')).toBe(false)
+  })
+
+  it('un «entrar» normal NO arrastra una cookie de alta anterior', async () => {
+    // Sin borrarla, un intento de alta fallido dejaria la cookie viva y el
+    // siguiente inicio de sesion crearia una organizacion que nadie pidio.
+    const c = new Cliente()
+    await iniciarAlta(c, 'Organizacion Nueva')
+    await iniciar(c) // ahora entra, sin alta
+    expect(c.tieneCookie('g_alta_org')).toBe(false)
+  })
+
+  it('un correo desconocido SIN cookie de alta sigue sin crear nada', async () => {
+    const antesU = await poolTest().query('select count(*)::int as n from usuarios')
+    const antesT = await poolTest().query('select count(*)::int as n from tenants')
+    const c = new Cliente()
+    const { state, nonce } = await iniciar(c)
+    prepararIdToken(
+      idTokenFalso(claimsBuenos({ sub: 'sub-sin-alta', email: 'sinalta@ejemplo.mx', nonce })),
+    )
+
+    const r = await callback(c, { code: 'x', state })
+
+    expect(motivoDe(r.ubicacion)).toBe('no_registrado')
+    const despuesU = await poolTest().query('select count(*)::int as n from usuarios')
+    const despuesT = await poolTest().query('select count(*)::int as n from tenants')
+    expect(despuesU.rows[0].n).toBe(antesU.rows[0].n)
+    expect(despuesT.rows[0].n).toBe(antesT.rows[0].n)
+  })
+})
+
 describe('6 · cuando Google falla', () => {
   it('un canje rechazado no abre sesión', async () => {
     const c = new Cliente()

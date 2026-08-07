@@ -270,19 +270,37 @@ export default function LoginPage() {
                   Es un enlace y no un botón con onClick a propósito: /inicio/
                   responde con una redirección 302 a accounts.google.com, y eso
                   es una navegación del navegador, no un fetch. */}
-              {modo === 'login' && googleDisponible && (
+              {(modo === 'login' || esSignup) && googleDisponible && (
                 <>
                   <div className="flex items-center gap-3 pt-1">
                     <span className="h-px flex-1 bg-border" />
                     <span className="text-[11px] text-muted">o</span>
                     <span className="h-px flex-1 bg-border" />
                   </div>
+                  {/* En el ALTA se manda el nombre de la organización: es el
+                      único dato que Google no puede aportar y que el servidor
+                      exige para crearla. Si aún no está escrito, el enlace se
+                      ve apagado en vez de mandar a Google para un viaje que
+                      termina en error. */}
                   <a
-                    href={RUTA_GOOGLE}
-                    className="flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong bg-surface text-[13px] font-medium text-ink hover:bg-bg"
+                    href={
+                      esSignup
+                        ? `${RUTA_GOOGLE}?alta=1&organizacion=${encodeURIComponent(organizacion.trim())}`
+                        : RUTA_GOOGLE
+                    }
+                    aria-disabled={esSignup && !organizacion.trim()}
+                    onClick={(e) => {
+                      if (esSignup && !organizacion.trim()) {
+                        e.preventDefault()
+                        setError('Escribe el nombre de tu organización antes de continuar con Google.')
+                      }
+                    }}
+                    className={`flex h-10 w-full items-center justify-center gap-2 rounded border border-border-strong bg-surface text-[13px] font-medium text-ink hover:bg-bg ${
+                      esSignup && !organizacion.trim() ? 'opacity-50' : ''
+                    }`}
                   >
                     <MarcaGoogle />
-                    Continuar con Google
+                    {esSignup ? 'Crear empresa con Google' : 'Continuar con Google'}
                   </a>
                 </>
               )}

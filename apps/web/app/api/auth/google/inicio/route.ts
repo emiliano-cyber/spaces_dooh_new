@@ -11,6 +11,8 @@ import {
   COOKIE_ESTADO,
   COOKIE_NONCE,
   COOKIE_VERIFIER,
+  COOKIE_ALTA_ORG,
+  autoregistroHabilitado,
 } from '@/lib/server/google-oauth'
 
 export const runtime = 'nodejs'
@@ -66,6 +68,28 @@ export async function GET(req: Request) {
     )
   }
 
+  // ── ¿Entrar, o darse de alta con una organización nueva? ───────────────────
+  // `?alta=1&organizacion=…`. El nombre lo pide la UI ANTES de ir a Google
+  // porque es el único dato que Google no puede aportar, y `crearOrgConDueno`
+  // lo exige.
+  const url = new URL(req.url)
+  const esAlta = url.searchParams.get('alta') === '1'
+  const organizacion = (url.searchParams.get('organizacion') ?? '').trim()
+  if (esAlta) {
+    if (!autoregistroHabilitado()) {
+      return NextResponse.json(
+        { error: 'El registro de cuentas nuevas está deshabilitado. Contacta al administrador.' },
+        { status: 503 },
+      )
+    }
+    // Se valida al SALIR y no solo al volver: mandar a alguien a Google para
+    // decirle al regresar que el nombre estaba vacío es hacerle dar el paseo
+    // para nada.
+    if (!organizacion || organizacion.length > 120) {
+      return NextResponse.json({ error: 'Falta el nombre de la organización.' }, { status: 400 })
+    }
+  }
+
   const state = nuevoEstado()
   const nonce = nuevoEstado()
   const verifier = nuevoVerifier()
@@ -81,5 +105,13 @@ export async function GET(req: Request) {
   res.cookies.set(cookieCorta(COOKIE_ESTADO, state))
   res.cookies.set(cookieCorta(COOKIE_NONCE, nonce))
   res.cookies.set(cookieCorta(COOKIE_VERIFIER, verifier))
+  // Se BORRA cuando no es un alta, no se deja estar: sin esto, una cookie viva
+  // de un intento de alta anterior convertiría un simple «entrar» en la
+  // creación de una organización que nadie pidió.
+  res.cookies.set(
+    esAlta
+      ? cookieCorta(COOKIE_ALTA_ORG, organizacion)
+      : { name: COOKIE_ALTA_ORG, value: '', path: '/', maxAge: 0 },
+  )
   return res
 }

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { qRaw1 } from '@/lib/server/db'
-import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken } from '@/lib/server/auth'
+import { crearSesion, cookieSesion, cookieCsrf, nuevoCsrfToken, passwordAleatoria } from '@/lib/server/auth'
+import { crearOrgConDueno } from '@/lib/server/cuentas-controller'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
 import {
   googleHabilitado,
@@ -13,6 +14,9 @@ import {
   COOKIE_ESTADO,
   COOKIE_NONCE,
   COOKIE_VERIFIER,
+  COOKIE_ALTA_ORG,
+  autoregistroHabilitado,
+  type IdentidadGoogle,
 } from '@/lib/server/google-oauth'
 import {
   PROVEEDOR_GOOGLE,
@@ -62,10 +66,23 @@ function alLogin(req: Request, motivo: Motivo): NextResponse {
 // Las tres cookies son de un solo uso: se borran SIEMPRE, se hayan usado o no.
 // Dejarlas vivas permitiría reintentar un callback con el mismo `state`.
 function limpiar(res: NextResponse): NextResponse {
-  for (const n of [COOKIE_ESTADO, COOKIE_NONCE, COOKIE_VERIFIER]) {
+  for (const n of [COOKIE_ESTADO, COOKIE_NONCE, COOKIE_VERIFIER, COOKIE_ALTA_ORG]) {
     res.cookies.set({ name: n, value: '', path: '/', maxAge: 0 })
   }
   return res
+}
+
+// Termina EXACTAMENTE donde termina el login (login/route.ts:46-56). Vive en
+// una función porque ahora hay dos caminos que llegan aquí —entrar y darse de
+// alta—, y son justo los sitios donde es fácil que uno se quede sin la cookie
+// anti-CSRF o sin limpiar las de un solo uso.
+async function abrirSesion(req: Request, usuarioId: string): Promise<NextResponse> {
+  const token = await crearSesion(usuarioId)
+  const base = process.env.APP_URL || new URL(req.url).origin
+  const res = NextResponse.redirect(`${base}/spaces-dooh/inicio/`, 302)
+  res.cookies.set(cookieSesion(token))
+  res.cookies.set(cookieCsrf(nuevoCsrfToken()))
+  return limpiar(res)
 }
 
 export async function GET(req: Request) {
@@ -121,7 +138,7 @@ export async function GET(req: Request) {
   }
 }
 
-async function resolverYEntrar(req: Request, identidad: { sub: string; email: string }) {
+async function resolverYEntrar(req: Request, identidad: IdentidadGoogle) {
   // ── Resolución: primero por `sub`, que es el identificador estable ──────────
   let u = await usuarioPorIdentidad(PROVEEDOR_GOOGLE, identidad.sub)
   let recienVinculado = false
@@ -138,8 +155,38 @@ async function resolverYEntrar(req: Request, identidad: { sub: string; email: st
          from auth_usuario_por_email($1)`,
       [identidad.email],
     )
-    // Google NO da de alta. Si el correo no existe, no se crea nada.
-    if (!porCorreo) return alLogin(req, 'no_registrado')
+    // ── El correo no existe ────────────────────────────────────────────────
+    // Por defecto Google NO da de alta y aquí se acaba. La excepción es que el
+    // flujo se haya iniciado como ALTA DE EMPRESA: entonces la organización se
+    // crea, con las mismas dos condiciones que `/api/signup` —el interruptor
+    // encendido y un nombre de organización—, porque es la misma operación por
+    // otra puerta y no puede tener la puerta más floja.
+    if (!porCorreo) {
+      const organizacion = (cookies().get(COOKIE_ALTA_ORG)?.value ?? '').trim()
+      if (!organizacion || !autoregistroHabilitado()) return alLogin(req, 'no_registrado')
+
+      const { tenant, usuario } = await crearOrgConDueno({
+        org: organizacion,
+        nombre: identidad.nombre ?? identidad.email,
+        email: identidad.email,
+        password: passwordAleatoria(), // nadie la ve; ver auth.ts
+      })
+      await vincularIdentidad({
+        proveedor: PROVEEDOR_GOOGLE,
+        sub: identidad.sub,
+        usuarioId: usuario.id,
+        tenantId: tenant.id,
+        emailExterno: identidad.email,
+      })
+      await registrarVinculo({
+        usuarioId: usuario.id,
+        usuarioNombre: usuario.nombre,
+        tenantId: tenant.id,
+        emailExterno: identidad.email,
+      })
+      return abrirSesion(req, usuario.id)
+    }
+
     if (!porCorreo.activo) return alLogin(req, 'inactivo')
 
     const vinculado = await vincularIdentidad({
@@ -173,10 +220,5 @@ async function resolverYEntrar(req: Request, identidad: { sub: string; email: st
     await marcarUso(PROVEEDOR_GOOGLE, identidad.sub, u.tenant_id)
   }
 
-  const token = await crearSesion(u.id)
-  const base = process.env.APP_URL || new URL(req.url).origin
-  const res = NextResponse.redirect(`${base}/spaces-dooh/inicio/`, 302)
-  res.cookies.set(cookieSesion(token))
-  res.cookies.set(cookieCsrf(nuevoCsrfToken()))
-  return limpiar(res)
+  return abrirSesion(req, u.id)
 }

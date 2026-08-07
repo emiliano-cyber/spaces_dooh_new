@@ -73,6 +73,22 @@ export function redirectUri(req: Request): string {
 export const COOKIE_ESTADO = 'g_state'
 export const COOKIE_NONCE = 'g_nonce'
 export const COOKIE_VERIFIER = 'g_verifier'
+// Nombre de la organización cuando el flujo es un ALTA de empresa. Va en cookie
+// httpOnly y no en el `state` porque el `state` viaja por Google y vuelve por la
+// URL: ahí lo vería —y podría cambiarlo— cualquiera que mire la barra de
+// direcciones. Su presencia es además lo que distingue «entrar» de «darse de
+// alta», así que decidirlo desde la URL de vuelta sería dejar que el visitante
+// eligiera qué operación ejecuta el servidor.
+export const COOKIE_ALTA_ORG = 'g_alta_org'
+
+// El auto-registro se apaga con NEXT_PUBLIC_AUTOREGISTRO=0. El alta de empresa
+// con Google cuelga del MISMO interruptor y se comprueba en el SERVIDOR, igual
+// que `/api/signup`: si no, esconder el botón dejaría abierta una segunda
+// puerta al mismo sitio — y el mismo despliegue sirve la demo pública y
+// producción sobre la misma base.
+export function autoregistroHabilitado(): boolean {
+  return process.env.NEXT_PUBLIC_AUTOREGISTRO !== '0'
+}
 
 // ─── PKCE ───────────────────────────────────────────────────────────────────
 // Protege contra la intercepción del `code`: quien lo robe no puede canjearlo
