@@ -5,6 +5,91 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-07
+
+- **Cerrada una puerta que las pruebas habían dejado abierta en producción.**
+  Para poder ensayar el acceso con Google sin hablar con Google, el sistema
+  permite sustituir la dirección con la que se verifica una identidad. Esa
+  facilidad —pensada solo para pruebas— **también funcionaba en el servidor de
+  producción**, y sin restricción sobre a dónde apuntaba.
+  - *Qué se podía hacer con ella:* quien pudiera cambiar la configuración del
+    servidor la habría apuntado a una máquina suya, que respondería «esta
+    persona es quien dice ser» para **cualquier correo**. El sistema lo daría
+    por bueno y abriría sesión como esa persona. No es algo que se pueda hacer
+    desde fuera —hace falta acceso al servidor, y quien lo tiene ya lo tiene
+    todo—, pero una facilidad de pruebas no debe seguir viva en producción.
+  - *Cómo queda:* la sustitución solo se acepta si apunta **a la propia
+    máquina**. Lo peor que consigue quien la toque es hablar consigo mismo.
+  - Salió al preparar la prueba manual, no de una revisión: es el tipo de cosa
+    que se ve montando el escenario real y no leyendo el código.
+- **Un error de base de datos ya no le enseña al usuario una pantalla rota.**
+  Al entrar con Google, si algo falla del lado de la base, antes salía la
+  página de error técnica del sistema — con su listado de líneas de código—,
+  porque a esta pantalla se llega **navegando**, no desde dentro de la
+  aplicación. Ahora el detalle queda en el registro del servidor y a la persona
+  se le devuelve al inicio de sesión con un mensaje que se entiende.
+  - *Apareció probando de verdad:* el fallo se provocó solo, al probar en un
+    entorno donde el cambio de base todavía no estaba aplicado. Las pruebas
+    automáticas no podían verlo porque ellas siempre corren con la base al día.
+- **El inicio de sesión con Google se probó a mano, de principio a fin.** Sin
+  credenciales de Google todavía: se montó un «Google de mentira» local —que se
+  identifica como tal en pantalla, para que ninguna captura confunda— y se
+  recorrió el camino completo haciendo clic. Entra, reconoce a la persona por su
+  correo, deja la sesión abierta, **guarda la vinculación** y la anota en la
+  bitácora de actividad. Funciona.
+  - *Lo que sigue faltando es solo la llave:* la credencial de Google no está
+    puesta, así que en cualquier entorno real el botón sigue sin aparecer. No es
+    un paso de programación, es de configuración.
+
+- **El acceso con Google ya se prueba solo, de punta a punta.** Antes de
+  encenderlo para nadie, el camino completo queda cubierto por **18 pruebas
+  automáticas** que corren contra un *Google de mentira*: un doble local que
+  responde lo que la prueba le pida. Así se puede ensayar lo que Google nunca
+  haría a petición — un correo sin verificar, un permiso caducado, un intento
+  repetido.
+  - *Por qué había que hacerlo antes y no después:* un fallo aquí **no se ve**.
+    No sale un error ni se rompe una pantalla; simplemente deja entrar a quien
+    no debería, y por dentro parece un inicio de sesión perfectamente normal.
+  - *Casi todas las pruebas comprueban que algo NO pasa.* Que un correo que
+    Google **no ha verificado** no entra —es la barrera que impide que alguien
+    se apropie de una cuenta ajena dando de alta ese correo en Google—; que un
+    correo desconocido no entra **y no crea ningún usuario**; que una persona
+    desactivada no puede colarse por esta puerta aunque su cuenta de Google
+    siga viva; y que un intento rechazado no deja media sesión abierta.
+  - *También se comprueba que la puerta sirve*, no solo que se abre: después de
+    entrar se pide un dato real de la organización y tiene que llegar.
+  - *Y que reconoce a la persona aunque le cambien el correo:* la segunda vez
+    se entra por el identificador permanente que da Google, no por el correo.
+    Era la razón entera de guardarlo.
+  - *Se verificó que las pruebas de verdad detectan:* se quitó a propósito una
+    de las protecciones del código y cayó exactamente la prueba que la cubre.
+    Una prueba que pasa siempre no prueba nada.
+  - *Un hallazgo de paso, y conviene que quede escrito:* se confirmó que
+    **nadie puede falsear su dirección de internet** para saltarse el límite de
+    intentos, porque el servidor web la reemplaza en vez de creerse la que
+    manda el visitante. Si algún día alguien cambia esa línea de configuración,
+    el límite de intentos **del acceso normal** pasaría a ser burlable.
+  - Todo en verde: 55 pruebas de integración, 729 de las otras, y la
+    compilación de producción correcta.
+- **El acceso con Google ya tiene su sitio en la base de datos. Sigue apagado:
+  ahora solo le falta la llave.** Ayer quedó anotado aquí como aviso que el
+  código estaba en el servidor pero **su cambio de base no**, y que encenderlo
+  sin aplicarlo antes lo habría roto. Ese paso **ya está hecho** (11:13 de hoy),
+  con respaldo de la base tomado antes y un ensayo previo que se deshace solo.
+  - *Qué cambia hoy para quien usa el sistema:* **nada**. Sin la llave de
+    Google el botón no se pinta y todo ese camino sigue inerte. Comprobado
+    después de aplicarlo: el acceso normal responde bien y no hay ni un error.
+  - *Lo que falta son dos cosas, y una la tiene que hacer una persona:* crear
+    la credencial en Google —desde una **cuenta de empresa**, no la personal de
+    nadie, para que no se vaya con quien se vaya— y anotarla en el servidor.
+    Encenderlo después no obliga a recompilar nada.
+  - *Conviene recordar qué es y qué no es:* para entrar con Google hay que
+    **existir antes** como usuario, con el mismo correo. Google es un atajo
+    para entrar, **no un alta**: a quien no esté dado de alta se le dice que no
+    lo está, y no se le crea nada.
+  - *Y si algo saliera mal, apagarlo es inmediato* y no obliga a deshacer nada
+    de la base. El detalle completo está en `DESPLIEGUE_GOOGLE.txt`.
+
 ## 2026-08-06
 
 - **Un usuario con contraseña temporal ya no se queda encerrado.** *(Comprobado
@@ -119,6 +204,8 @@ La entrada más reciente va arriba.
     contra una tabla que no existe. Se comprobó expresamente antes de desplegar
     que, apagado, nada del sistema toca esa tabla — por eso se pudo desplegar
     sin riesgo. Pero encenderlo **exige aplicar el cambio de base primero**.
+    *(RESUELTO el 07/08: el cambio de base ya se aplicó en producción. Ver la
+    entrada de ese día.)*
 - **El filtro por precio de Comercial vuelve a servir para algo.** Ofrecía
   «≤ $8,000 · ≤ $15,000 · ≤ $25,000» escritos a mano, y como **todas** las
   pantallas cuestan $45,000 o más, las tres opciones devolvían cero resultados:
