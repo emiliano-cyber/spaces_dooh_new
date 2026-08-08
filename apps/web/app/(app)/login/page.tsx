@@ -81,6 +81,34 @@ export default function LoginPage() {
     }
   }, [])
 
+  // Con sesión válida, /login no debe enseñar el formulario: se va a donde
+  // aterriza ese rol (INC-08 del plan de incidencias).
+  //
+  // Se VALIDA la sesión contra el servidor en vez de redirigir desde el
+  // middleware por la mera presencia de la cookie, y no es celo de más: una
+  // cookie caducada seguiría estando ahí —`/api/auth/me` responde 401 pero NO
+  // la borra—, así que el middleware mandaría a /inicio, el AuthGate rebotaría
+  // a /login por no haber sesión, y el middleware otra vez a /inicio. Bucle
+  // infinito, y del que se nota en producción y no en una prueba.
+  //
+  // El coste es que el formulario se ve un instante antes de redirigir. Es el
+  // caso raro —quien llega aquí con sesión suele venir de un enlace viejo— y es
+  // preferible a arriesgar el bucle o a dejar en blanco el caso normal.
+  useEffect(() => {
+    let vivo = true
+    fetch('/spaces-dooh/api/auth/me/')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (vivo && d?.usuario?.rol) router.replace(landingDeRol(d.usuario.rol))
+      })
+      .catch(() => {
+        /* sin sesión o sin red: se queda el formulario, que es lo correcto */
+      })
+    return () => {
+      vivo = false
+    }
+  }, [router])
+
   // Mensaje de vuelta del callback de Google, si lo hay. Se lee una sola vez y
   // se limpia de la barra de direcciones: dejarlo ahí haría que recargar
   // reprodujera un error que ya no corresponde a nada.

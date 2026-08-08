@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-08-07
 
+- **La plantilla de configuración del servidor tenía mal el nombre de una
+  variable, y eso dejaba el correo apagado sin avisar.** Decía `RESEND_FROM`
+  donde el sistema espera `EMAIL_FROM`. Quien montara un servidor nuevo
+  siguiéndola se quedaba **sin correo saliente y sin ningún error**: el sistema
+  simplemente lo daba por deshabilitado.
+  - *Se comprobó contra el servidor real* antes de decidir qué corregir: el
+    droplet usa `EMAIL_FROM`, así que el código siempre tuvo razón y la
+    equivocada era la plantilla.
+  - *Se deja escrito el aviso que faltaba:* van **las dos o ninguna**. Con la
+    clave puesta y el remitente vacío, quien pide recuperar su contraseña ve
+    «revisa tu bandeja» y no le llega nada.
+- **Al entrar con la sesión ya iniciada, el inicio de sesión ya no muestra el
+  formulario:** lleva directo a donde corresponde a cada rol.
+  - *Se comprueba la sesión de verdad contra el servidor*, en vez de fiarse de
+    que exista la cookie. Una cookie caducada sigue estando ahí, así que el
+    atajo fácil habría producido un ida y vuelta infinito entre el inicio de
+    sesión y el tablero — de los que solo se notan en producción.
 - **⚠️ El registro público quedó ABIERTO en producción, por decisión del
   usuario.** Desde hoy, en la pantalla de inicio de sesión aparece **«Crear
   cuenta»**, y con ella se puede dar de alta una organización nueva —también con
