@@ -5,6 +5,11 @@ node_modules
 .pnp
 .pnp.js
 
+# Bóveda de seguimiento del proyecto (Obsidian). Las NOTAS sí se versionan
+# —son la memoria del proyecto entre sesiones—; la configuración local del
+# editor no: es de cada máquina y cambia sola con solo abrir el programa.
+vault/.obsidian/
+
 # Local env files
 .env
 .env.local
