@@ -1,0 +1,210 @@
+===============================================================================
+ DESPLIEGUE — INC-09 + INC-03 (juntos)            Preparado: 2026-08-10
+-------------------------------------------------------------------------------
+ Commit a desplegar : 90b4f48  (INC-03; arrastra 16af243 INC-09 y 6b52fa3)
+ Droplet viene de   : 9788b59
+ App                : pm2 spaces-web  ->  https://demo.space-os.io
+ BD                 : spaces_prod  (sin migraciones — ver abajo)
+===============================================================================
+
+
+QUE SE DESPLIEGA
+----------------
+Dos incidencias, a peticion explicita del usuario en un solo despliegue.
+
+  INC-09 (16af243) — tres detalles de interfaz:
+     .5  etapa «Facturada» al final del pipeline, derivada de que exista la
+         factura de esa campana
+     .4  concordancia de plural en 12 sitios («1 resultado», no «1 resultados»)
+     .6  el IVA que se propone a un cliente nuevo sale del catalogo del tenant
+
+  INC-03 (90b4f48) — el estado de la campana sigue al calendario. Barrido
+     `recomputarEstadoCampanas()` en `/api/estado`, detras de `comercial.ver`.
+     Y en la pantalla de Campanas se retira el segundo distintivo.
+
+Entre medias entra 6b52fa3, que es la DOCUMENTACION del cambio de datos de
+INC-05 — los datos ya se aplicaron el 10/08 por la manana, directo en la base.
+No ejecuta nada.
+
+
+LO QUE NO LLEVA
+---------------
+  · NO hay migraciones. `git diff 9788b59..90b4f48 -- db` esta VACIO.
+  · NO hay dependencias nuevas: NO hay `npm ci`.
+  · NO hay variables de entorno ni feature flags nuevos.
+  · NO se toca nginx.
+
+
+>>> LO QUE SI IMPORTA, Y ES DISTINTO DE TODOS LOS DESPLIEGUES ANTERIORES <<<
+----------------------------------------------------------------------------
+ESTE DESPLIEGUE CAMBIA DATOS DE PRODUCCION SOLO, SIN QUE NADIE LO PIDA.
+
+En cuanto alguien con permiso de comercial abra una pantalla, `/api/estado`
+dispara el barrido y DOS campanas cambian de estado en la base. No es un efecto
+secundario indeseado: es lo que INC-03 viene a hacer. Pero tiene una consecuencia
+que hay que tener presente:
+
+    VOLVER ATRAS EL CODIGO NO DESHACE LO QUE EL BARRIDO YA ESCRIBIO.
+
+Por eso el rollback de este despliegue son DOS piezas, no una: el codigo y los
+datos. La de datos ya esta capturada y versionada:
+
+    docs/datos/20260810_inc03_estados_campana_rollback.sql
+
+Tambien es codigo de CLIENTE (paginas 'use client'), asi que recargar pm2 sin
+compilar no cambiaria nada de lo visible. HAY QUE COMPILAR.
+
+
+ENSAYO EN SECO — ya hecho, 2026-08-10, contra spaces_prod
+---------------------------------------------------------
+Se corrieron los dos WHERE del barrido como SELECT, sin escribir nada:
+
+  REGLA 1 -> COMPLETADA .... 2 filas
+      KFC                       g500  ACTIVA  termino el 2026-08-08
+      Propuesta para cliente 1  g500  ACTIVA  termino el 2026-07-31
+
+  REGLA 2 -> ACTIVA ........ 0 filas
+
+Las dos terminaron de verdad (hoy es 2026-08-10). El radio de impacto son esas
+dos filas y ni una mas.
+
+Lo que NO se mueve, y conviene mirarlo para no confundirlo con un fallo: hay
+cinco campanas en COMPLETADA con fecha de fin FUTURA (`pruebas_produccion`
+hasta 2027-02, `card` hasta 2027-05, `prueba anual` hasta 2028-07, `mastercard`
+y `prueba final` hasta 2026-09). El barrido las deja como estan a proposito:
+son cierres anticipados, decisiones de una persona. En pantalla pasaran de
+llevar un badge «Aun vigente» a una nota discreta «· cerrada antes de tiempo».
+
+
+===============================================================================
+ PASO 0 — CONFIRMAR DE DONDE TIRA EL DROPLET
+===============================================================================
+  cd /var/www/Spaces && git remote -v && git log --oneline -1
+
+  VERIFICA: `origin` = emiliano-cyber/spaces_dooh_new  y  HEAD = 9788b59
+
+  (En el clon local del portatil `origin` es OTRO repo, mas atrasado. Los
+  nombres estan cruzados entre las dos maquinas.)
+
+
+===============================================================================
+ PASO 1 — TRAER EL CODIGO
+===============================================================================
+  cd /var/www/Spaces
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1
+
+  VERIFICA: 90b4f48 feat(comercial): el estado de la campana sigue al calendario
+
+
+===============================================================================
+ PASO 2 — COMPILAR   (y MIRAR EL CODIGO DE SALIDA antes de recargar)
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web ; echo "EXIT=$?"
+
+  >>> NO SIGAS SI EXIT NO ES 0. <<<
+
+  Esto no es celo de mas: el 10/08 por la manana turbo imprimio «Compiled
+  successfully» y varias lineas despues `Failed: web#build` — son fases
+  distintas (webpack compila, y luego el typecheck puede tumbarlo). Recargar
+  ahi deja migracion/codigo descuadrados, que es justo lo que un runbook existe
+  para evitar. Lee EXIT, no el texto.
+
+
+===============================================================================
+ PASO 3 — RECARGAR
+===============================================================================
+  pm2 reload spaces-web --update-env
+  pm2 list | grep spaces-web        (online, UN solo reinicio nuevo: 27 -> 28)
+
+
+===============================================================================
+ PASO 4 — COMPROBAR
+===============================================================================
+ Desde cualquier sitio:
+
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   ESPERADO: login 200
+
+ En el droplet:
+
+   pm2 logs spaces-web --err --lines 30      (sin errores NUEVOS)
+
+ EL ARTEFACTO SERVIDO, no el git log — el commit puede estar bien y el build
+ ser viejo:
+
+   grep -rl "completada automaticamente al vencer" /var/www/Spaces/apps/web/.next/server 2>/dev/null | head -3
+   (con o sin tildes segun como quede el bundle; basta con que aparezca)
+
+ Y QUE EL BARRIDO CORRIO DE VERDAD — esta es la comprobacion que importa,
+ despues de que alguien haya abierto la app con sesion:
+
+   sudo -u postgres psql -d spaces_prod -c "
+     select nombre, estado_comercial, fecha_fin from campanas
+      where id in ('61d39881-79f0-4366-9e1b-99ede64ac5ef',
+                   '7cca5163-1c50-4710-a7cd-cbca67820320')"
+
+   ESPERADO: las dos en COMPLETADA.
+
+   sudo -u postgres psql -d spaces_prod -c "
+     select accion, entidad, usuario_nombre, timestamp from acciones
+      where accion like 'Campaña %automáticamente%' order by timestamp desc limit 5"
+
+   ESPERADO: dos apuntes, a nombre de «Sistema», uno por campana.
+
+
+ LA PRUEBA DE FUEGO (con sesion, en g500)
+ ----------------------------------------
+   [ ] Campanas: «KFC» y «Propuesta para cliente 1» aparecen COMPLETADAS, y ya
+       NO llevan al lado un segundo distintivo «Vencida».
+
+   [ ] Las que estan completadas con fecha futura (`prueba anual`, `card`…)
+       muestran la nota gris «· cerrada antes de tiempo», no un badge ambar.
+
+   [ ] Una campana con factura emitida muestra el pipeline con «Facturada» al
+       final, y el paso anterior en verde (INC-09.5).
+
+   [ ] Donde antes decia «1 resultados» ahora dice «1 resultado» (INC-09.4).
+
+   [ ] Alta de cliente nuevo: el IVA propuesto es la primera tasa configurada
+       de la organizacion (INC-09.6).
+
+
+===============================================================================
+ DISPARADORES DE ROLLBACK
+===============================================================================
+   · pm2 reinicia el proceso mas de 2 veces (`pm2 list`, columna restarts)
+   · el login deja de responder 200
+   · aparecen 5xx nuevos en `pm2 logs spaces-web --err`
+   · Campanas o Comercial no cargan
+   · el barrido mueve campanas que NO son las dos del ensayo en seco
+
+ NO es motivo de rollback que esas dos campanas cambien de estado: es el
+ objetivo del cambio.
+
+
+===============================================================================
+ ROLLBACK — DOS PIEZAS, EN ESTE ORDEN
+===============================================================================
+ 1) CODIGO — primero, para que el barrido deje de correr. Si se hicieran al
+    reves, la siguiente carga de pantalla volveria a completar las campanas.
+
+      cd /var/www/Spaces
+      git checkout 9788b59
+      npx turbo run build --filter=web ; echo "EXIT=$?"
+      pm2 reload spaces-web --update-env
+
+ 2) DATOS — solo si el barrido llego a correr (comprueba los estados antes):
+
+      sudo -u postgres psql -d spaces_prod \
+        -f /var/www/Spaces/docs/datos/20260810_inc03_estados_campana_rollback.sql
+
+    Lleva su propio guardarrail: si las dos campanas no estan como se capturo,
+    aborta sin tocar nada.
+
+ La bitacora NO se limpia: es append-only y los apuntes se quedan. Correcto —
+ paso. Lo que se deshace es el estado, no la historia.
+===============================================================================
