@@ -31,6 +31,28 @@ archivos: []
 | Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | Zona de entrada para agentes nuevos |
 | Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08 y **validada contra el código el 10/08** ([[2026-08-10]]) |
 
+> [!important] `eyro` es el tenant de PRUEBAS (confirmado el 10/08)
+> Reclasifica el «pendiente» de Z8: las 2 pantallas sin creativo asignado son de
+> `eyro`, o sea **datos de ensayo**, no un cliente esperando. Sigue siendo cierto
+> que rebotarán con 409 si alguien las aprueba — pero eso es la guarda haciendo
+> su trabajo, no una incidencia. Ver [[multi-tenancy-y-rls]].
+>
+> Lo que **no** cambia: `DOOHMAIN_PUBLISH_ENABLED=1`, así que lo que salga por
+> `eyro` llega a pantallas de verdad.
+
+> [!danger] Trabajo VERIFICADO pero FUERA de `main`: rama `feat/estado-ligero`
+> Segunda validación del 10/08 (tarde). `main` va por `6ecf136` y **no contiene
+> V2-01**: los tres archivos nuevos no existen ahí y `arrendadores-repo.ts:319`
+> sigue con `select c.*`, así que la hidratación sigue pesando 6.12 MB en
+> producción.
+>
+> La rama tiene 4 commits que `main` no tiene; `main` tiene 2 que la rama no
+> tiene. Al fusionar habrá **conflicto en el diario y en este tablero**: las dos
+> ramas escribieron en ellos el mismo día.
+>
+> La rama trae además, ya resueltos: recuentos (66 migraciones, 88 endpoints),
+> los dos enlaces rotos al ADR 0013, y el hallazgo de INC-06.
+
 ## Archivos de alto contacto
 
 Claim aparte, aunque estés en otra zona. Lista completa en [[AGENTES]].

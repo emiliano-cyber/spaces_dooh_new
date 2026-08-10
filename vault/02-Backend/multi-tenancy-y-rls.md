@@ -128,6 +128,36 @@ Postgres a partir del token del enlace, para que el id nunca venga del cliente:
 `portal_tenant_por_token()` y `propuesta_tenant_por_token()`
 (`20260720_hard1_rls_todas_tablas.sql`).
 
+## Qué es cada organización en producción
+
+Sin esto, los datos de producción se leen mal — y ya pasó: el «pendiente» de
+INC-02 se contabilizó como incidencia operativa cuando era de un tenant de
+pruebas.
+
+| Slug | Qué es | Evidencia |
+|---|---|---|
+| `rgb` | **Tenant de plataforma** (el más antiguo). Su Dueño es el único que puede cambiar de CRM. **Está vacío**: cero campañas, reservas y creativos | `tenant.ts:26-29`; `DESPLIEGUE_20260810_INC02.txt:11` |
+| `g500` | La organización de la demo, nombre comercial `PIXELED`. Es la que tiene datos de negocio | `docs/datos/20260810_inc05_residuos_demo_g500.sql` |
+| `eyro` | **Perfil de PRUEBAS del usuario** (confirmado el 10/08). Sus campañas, pantallas y usuarios existen para ensayar, no para operar | Indicación directa del usuario |
+
+> [!important] Lo que hay en `eyro` NO es deuda operativa
+> Las 2 pantallas sin creativo asignado que INC-02 dejó como pendiente son de
+> `eyro`. Son **datos de prueba**, no un cliente esperando. Reclasificado el
+> 10/08 — antes figuraba como pendiente real en el tablero y en la bitácora.
+
+> [!danger] Pero `eyro` publica de verdad
+> `DOOHMAIN_PUBLISH_ENABLED=1` en producción, y hay folios reales
+> (`EYRO20260709622` en `docs/doohmain-integracion-diseno.md:69`). Que el tenant
+> sea de pruebas **no** hace de juguete lo que sale por él: lo publicado llegó a
+> DOOHmain. Borrar filas de la base **no retira nada de las pantallas** — eso lo
+> decide el SDK, no el `delete`. Ver [[integraciones-externas]].
+
+> [!note] El super-admin no ve los otros tenants, y eso confunde
+> `jose.lopez@h3dm.com.mx` es Dueño de `rgb`. Con la RLS **no ve** las campañas
+> de `eyro` ni las de `g500`, y como `rgb` está vacío, la aplicación le sale en
+> blanco. No es un fallo: es el aislamiento funcionando. Para mirar otra
+> organización hay que entrar con un usuario suyo, o usar el cambio de CRM.
+
 ## Deriva conocida de datos
 
 21 tablas tienen `DEFAULT` de `tenant_id` apuntando al tenant `rgb`

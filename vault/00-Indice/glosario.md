@@ -81,7 +81,9 @@ archivos:
 | Término | Significado | Dónde vive |
 |---|---|---|
 | **Tenant / organización / CRM** | Cada empresa cliente. Tres nombres para lo mismo. | `tenants` |
-| **Tenant de plataforma** | El tenant más antiguo. Solo su Dueño puede cambiar de CRM. | `lib/server/tenant.ts:26-29` |
+| **Tenant de plataforma** | El tenant más antiguo (`rgb`). Solo su Dueño puede cambiar de CRM. Está **vacío**. | `lib/server/tenant.ts:26-29` |
+| **`g500`** | La organización con datos de negocio. Nombre comercial `PIXELED`. | — |
+| **`eyro`** | **Perfil de PRUEBAS del usuario.** Lo que aparezca ahí no es deuda operativa — pero sí publica de verdad en DOOHmain. Ver [[multi-tenancy-y-rls]]. | — |
 | **Desbloqueo** | Reautenticación con la contraseña propia que abre 15 min para cambios sensibles (ADR 0009). | `sesiones.desbloqueo_expira_en` |
 | **Cambio sensible** | Operación sobre dinero o catálogo que exige desbloqueo. | `lib/server/cambios.ts` |
 | **Contraseña temporal** | La que entrega un administrador al restablecer. Fuerza cambio al entrar. | `usuarios.debe_cambiar_password` |
