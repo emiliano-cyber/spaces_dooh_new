@@ -1042,3 +1042,124 @@ export async function validarPublicacion(
   )
   return rows[0] ? rowToCampana(rows[0]) : null
 }
+
+// ─── Barrido: el estado de la campaña sigue al calendario (INC-03) ──────────
+//
+// `campanas.estado_comercial` es un campo ALMACENADO que solo cambiaba por
+// acción de una persona, así que se quedaba congelado: campañas ACTIVA con la
+// fecha de fin ya pasada, y CONFIRMADA que llevaban semanas al aire. De ahí
+// salía el doble distintivo «Completada + Aún vigente», que transparentaba el
+// desfase pero no lo arreglaba (A1/N5 de la auditoría).
+//
+// Sigue el patrón de `recomputarEstatusArrendadores()`: un UPDATE por regla,
+// con un WHERE lo bastante preciso como para que una segunda pasada no toque
+// nada. Se dispara donde se disparan los demás barridos.
+//
+// Lo que NO hace, y es deliberado:
+//
+//   · No completa nada cuya fecha de fin sea FUTURA. Una campaña marcada
+//     «Completada» antes de tiempo es un dato metido a mano —legítimo: una
+//     cancelación anticipada de facto— y adivinar por qué sería inventar.
+//   · No toca CANCELADA, DRAFT ni COTIZACION: ninguna depende del calendario.
+//   · La transición a ACTIVA no publica nada por sí misma. Solo refleja lo que
+//     YA está publicado; si se equivocara, lo peor que hace es adelantar un
+//     rótulo, nunca sacar algo al aire.
+
+// «Publicada» no significa lo mismo en cada medio, y usar una sola condición
+// dejaría fuera a la mitad del catálogo:
+//
+//   · DOOH/HÍBRIDA — enviada al dominio y con la validación APROBADA. Es la
+//     misma pareja de banderas que enciende el candado digital.
+//   · OOH — instalada en campo: una OT de montaje de lona COMPLETADA. Es el
+//     equivalente físico que usa `pipelineStage()` para la etapa `instalada`, y
+//     se replica aquí para que la interfaz y el servidor no diverjan.
+//
+// Una HÍBRIDA entra por la primera rama: su segmento digital es el que marca la
+// salida al aire.
+//
+// Va en una constante porque LAS DOS reglas la necesitan, y dos copias de esta
+// condición se separarían en el primer cambio. Es texto fijo del módulo, no
+// entra nada de fuera: los datos siguen viajando como parámetros.
+const SQL_PUBLICADA = `(
+     (c.tipo_campana in ('DOOH','HIBRIDA')
+        and c.enviada_dominio and c.validacion_estatus = 'APROBADA')
+     or
+     (c.tipo_campana = 'OOH' and exists (
+        select 1 from ordenes_trabajo ot
+         where ot.campana_id = c.id
+           and ot.tipo = 'MONTAJE_LONA'
+           and ot.estatus = 'COMPLETADA'))
+   )`
+
+export async function recomputarEstadoCampanas(): Promise<void> {
+  // ── Regla 1 · el periodo ya terminó → COMPLETADA ─────────────────────────
+  //
+  // Entran dos orígenes, no uno:
+  //   · las que estaban ACTIVA, el caso corriente;
+  //   · las que se quedaron en CONFIRMADA habiendo salido al aire y habiendo
+  //     terminado ya. Ése es el atasco que INC-03 viene a limpiar —campañas
+  //     que nadie avanzó a mano— y sin esta rama se quedarían en CONFIRMADA
+  //     para siempre, porque la regla 2 ya no las alcanza.
+  const completadas = await q<{ id: string; nombre: string }>(
+    `update campanas c
+        set estado_comercial = 'COMPLETADA'
+      where c.fecha_fin < current_date
+        and (c.estado_comercial = 'ACTIVA'
+             or (c.estado_comercial = 'CONFIRMADA' and ${SQL_PUBLICADA}))
+      returning id, nombre`,
+  )
+
+  // ── Regla 2 · CONFIRMADA que ya empezó y está publicada → ACTIVA ─────────
+  //
+  // EL ORDEN IMPORTA y no es casual: la regla 1 ya se llevó por delante las
+  // CONFIRMADA cuyo periodo terminó, así que aquí solo quedan las vigentes. Sin
+  // ese orden, una campaña atascada se activaría hoy y se completaría mañana,
+  // dejando en el historial dos apuntes que se contradicen.
+  //
+  // Se pensó en blindarlo con un `fecha_fin >= current_date` aquí. Se quitó: es
+  // inalcanzable después de la regla 1 —lo comprobó una mutación que no rompió
+  // ninguna prueba— y una condición que nunca se evalúa se lee como si guardara
+  // algo. Lo que sí queda amarrado son los estados finales, que es lo que
+  // importa: hay prueba de que una CONFIRMADA publicada y vencida acaba en
+  // COMPLETADA con UNA sola anotación.
+  const activadas = await q<{ id: string; nombre: string }>(
+    `update campanas c
+        set estado_comercial = 'ACTIVA'
+      where c.estado_comercial = 'CONFIRMADA'
+        and c.fecha_inicio <= current_date
+        and ${SQL_PUBLICADA}
+      returning id, nombre`,
+  )
+
+  // Bitácora: una entrada por campaña movida, y solo si de verdad se movió
+  // algo. Un barrido que corre en cada hidratación y anota «no hice nada»
+  // ahogaría el historial — que es justo lo que este repo cuida de la bitácora.
+  await anotarEnBitacora('Campaña completada automáticamente al vencer su periodo', completadas)
+  await anotarEnBitacora('Campaña activada automáticamente al iniciar y estar publicada', activadas)
+}
+
+// Entradas de bitácora sin actor humano: las escribe el propio barrido. Se hace
+// aquí y no con `registrarAccion()` porque aquélla espera un `UsuarioSesion` y
+// resuelve el tenant desde la cookie; el barrido corre dentro de la petición de
+// hidratación, donde el tenant ya está fijado por `q()`.
+//
+// Un solo INSERT para todas: en la primera pasada sobre una base con atasco
+// esto puede ser una veintena de campañas, y una escritura por cada una son
+// veinte idas y vueltas dentro de la petición que hidrata el shell.
+async function anotarEnBitacora(accion: string, campanas: { nombre: string }[]): Promise<void> {
+  if (campanas.length === 0) return
+  try {
+    await q(
+      `insert into acciones (accion, entidad, usuario_id, usuario_nombre, tenant_id)
+       select $1, nombre, null, 'Sistema', $3
+         from unnest($2::text[]) as nombre`,
+      [accion, campanas.map((c) => c.nombre), await tenantActual()],
+    )
+  } catch (e) {
+    // No se relanza: el estado YA se movió y tumbar la petición por la anotación
+    // dejaría la pantalla en blanco por un fallo de historial. Pero tampoco se
+    // traga en silencio —el cambio se habría quedado sin rastro en una bitácora
+    // que aquí se usa como prueba—, así que queda en el log del servidor.
+    console.error('[recomputarEstadoCampanas] no se pudo anotar en la bitácora:', e)
+  }
+}

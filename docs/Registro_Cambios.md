@@ -7,6 +7,45 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **El estado de una campaña ya no se queda congelado esperando que alguien lo
+  mueva a mano.** Había campañas marcadas **«Activa»** cuyo periodo terminó hace
+  semanas, y otras **«Confirmada»** que llevaban días al aire. De ahí salía el
+  doble rótulo «Completada + Aún vigente», que enseñaba el desfase pero no lo
+  arreglaba. Ahora el sistema lo pone al día solo, con dos reglas:
+  - **Terminó su periodo → Completada.** Se aplica tanto a las que estaban
+    «Activa» como a las que se quedaron atascadas en «Confirmada» habiendo
+    salido al aire. Las que **nunca se publicaron** no se completan: «terminó»
+    y «nunca ocurrió» no son lo mismo.
+  - **Empezó y ya está publicada → Activa.** «Publicada» significa lo que
+    corresponde a cada medio: en pantalla digital, enviada al dominio y con la
+    validación aprobada; en lona, la orden de montaje completada. Una campaña
+    física **no** se da por publicada por las banderas digitales.
+  - *El último día cuenta.* Una campaña que termina **hoy** sigue Activa hoy; se
+    completa mañana.
+  - *No mueve nada que dependa de una decisión de alguien:* «Cancelada»,
+    «Borrador», «Cotización» y «Lista para facturar» se quedan como están. Y una
+    campaña cerrada antes de tiempo **no se reabre**: ese cierre anticipado es
+    legítimo —una cancelación de facto— y deshacerlo sería pisar una decisión
+    humana.
+  - *Queda constancia:* cada campaña que se mueve deja su apunte en la bitácora
+    a nombre del Sistema. Y solo cuando de verdad se movió — un barrido que se
+    ejecuta en cada carga de pantalla y anota «no hice nada» ahogaría el
+    historial.
+  - *En la pantalla de Campañas, un rótulo menos.* Donde antes había dos
+    distintivos compitiendo, ahora está el estado y, en el único caso que
+    queda —una campaña cerrada antes de su fecha de fin—, una nota discreta al
+    lado.
+  - *Lo que el plan pedía y no aplica:* pedir un motivo cuando alguien marca
+    «Completada» una campaña que aún no termina. **No hay dónde ponerlo**: en el
+    sistema no existe ninguna pantalla ni endpoint que permita fijar el estado a
+    mano. El único camino a «Completada» por acción de una persona es **emitir
+    la factura**, que ya queda registrada por sí sola (bitácora, folio y aviso).
+    Inventar un campo para un flujo que no existe habría sido trabajo muerto.
+  - *Verificado a conciencia:* 23 pruebas nuevas contra Postgres de verdad, por
+    HTTP y con la sesión real, más cuatro mutaciones deliberadas del código para
+    comprobar que las pruebas muerden. Una de ellas descubrió una condición del
+    SQL que **no protegía nada** —ninguna prueba se rompía al quitarla— y se
+    eliminó en lugar de dejarla ahí aparentando que guardaba algo.
 - **Una campaña ya facturada deja de aparecer como si le faltara algo.** El
   recorrido de la campaña terminaba en «Lista para facturar», así que una que
   **ya tenía su factura emitida** se quedaba ahí, en ámbar, como un paso

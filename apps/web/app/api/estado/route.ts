@@ -7,6 +7,7 @@ import {
   listarReservas,
   listarCreatividades,
   barrerReservasVencidas,
+  recomputarEstadoCampanas,
 } from '@/lib/server/campanas-repo'
 import { listarOT, listarEvidencias, notificarOTsVencidas } from '@/lib/server/ot-repo'
 import { listarFacturas, listarCobranzas, recordarCobranzasVencidas } from '@/lib/server/finanzas-repo'
@@ -80,6 +81,11 @@ export async function GET() {
   // viene arrastrando (`refrescarEstado` con su `if (!r.ok) return`).
   await Promise.all([
     verComercial ? barrerReservasVencidas() : null,       // libera inventario reservado
+    // Sincroniza el estado de la campaña con el calendario (INC-03), como el
+    // de contratos de abajo. Mismo criterio por permiso que el resto: lo
+    // dispara quien puede ver comercial, para que un rol ajeno no provoque
+    // escrituras que no le corresponden.
+    verComercial ? recomputarEstadoCampanas() : null,
     verOperaciones ? notificarOTsVencidas() : null,       // alertas de OT vencidas
     verFinanzas ? recordarCobranzasVencidas() : null,     // recordatorios de cobro
     // Sincroniza el estatus de contratos y pagos con la fecha de hoy (vigente /

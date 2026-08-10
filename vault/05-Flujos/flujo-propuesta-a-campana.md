@@ -74,14 +74,29 @@ stateDiagram-v2
     [*] --> DRAFT
     DRAFT --> COTIZACION
     COTIZACION --> CONFIRMADA
-    CONFIRMADA --> ACTIVA
+    CONFIRMADA --> ACTIVA: ⏱ empezó y está publicada
+    CONFIRMADA --> COMPLETADA: ⏱ publicada y ya venció
+    ACTIVA --> COMPLETADA: ⏱ fecha_fin < hoy
     ACTIVA --> LISTA_FACTURAR: candado completo
-    LISTA_FACTURAR --> COMPLETADA
+    LISTA_FACTURAR --> COMPLETADA: al facturar
     DRAFT --> CANCELADA
     COTIZACION --> CANCELADA
     CONFIRMADA --> CANCELADA
     ACTIVA --> CANCELADA
 ```
+
+Las marcadas con ⏱ **las hace el sistema solo** (INC-03, 10/08): el barrido
+`recomputarEstadoCampanas()` corre en `/api/estado` detrás de `comercial.ver`.
+Ver [[2026-08-10]] para las reglas exactas y qué NO mueve.
+
+> [!note] «Publicada» depende del medio
+> DOOH/HÍBRIDA: `enviada_dominio` **y** `validacion_estatus = 'APROBADA'`.
+> OOH: una OT `MONTAJE_LONA` en `COMPLETADA`. Es el mismo criterio que usa
+> `pipelineStage()` para la etapa `instalada` — si cambias uno, cambia el otro.
+
+No existe ninguna transición que fije `estado_comercial` **a mano**: no hay
+`PATCH /api/campanas/[id]`. La única que provoca una persona es `LISTA_FACTURAR
+→ COMPLETADA` al emitir la factura (`finanzas-repo.ts`).
 
 ## Reservas y su caducidad
 

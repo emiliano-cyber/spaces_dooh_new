@@ -215,13 +215,29 @@ export default function CampanasPage() {
                         <StatusBadge tono={CAMPANA_TONO[c.estadoComercial]}>
                           {CAMPANA_LABEL[c.estadoComercial]}
                         </StatusBadge>
-                        {/* El estado guardado sigue el flujo, no el calendario:
-                            se avisa cuando se contradicen en vez de mostrar
-                            "Activa" en algo terminado hace días (A-1). */}
+                        {/* Antes había aquí un SEGUNDO distintivo del mismo peso
+                            visual —«Vencida» / «Aún vigente»— junto al estado.
+                            Transparentaba el desfase pero dejaba la pregunta en
+                            el aire: «¿está completada o está vigente?».
+
+                            Desde INC-03 el estado se sincroniza solo con el
+                            calendario, así que el desfase ya casi no ocurre. El
+                            caso que QUEDA es legítimo y no un error: una campaña
+                            que alguien dio por completada antes de su fecha de
+                            fin (una cancelación anticipada de facto). Para ése
+                            basta una nota discreta, no un badge que compita con
+                            el estado. */}
                         {estadoContradiceFechas(c) && (
-                          <StatusBadge tono="ambar">
-                            {vigenciaCampana(c) === 'vencida' ? 'Vencida' : 'Aún vigente'}
-                          </StatusBadge>
+                          <span
+                            className="text-[11px] text-muted"
+                            title={
+                              vigenciaCampana(c) === 'vencida'
+                                ? 'El periodo contratado ya terminó.'
+                                : 'Se marcó como completada antes de que terminara su periodo.'
+                            }
+                          >
+                            {vigenciaCampana(c) === 'vencida' ? '· periodo terminado' : '· cerrada antes de tiempo'}
+                          </span>
                         )}
                         {candado ? (
                           <LockOpen className="h-4 w-4 text-success" strokeWidth={1.75} />
