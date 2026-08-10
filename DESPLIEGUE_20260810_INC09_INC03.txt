@@ -1,6 +1,29 @@
 ===============================================================================
  DESPLIEGUE — INC-09 + INC-03 (juntos)            Preparado: 2026-08-10
 -------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-10, 11:30. NO VOLVER A CORRER. <<<
+
+ Se marca ejecutado, no se borra: la seccion de ROLLBACK sigue siendo la buena.
+
+ Desplegado : 484e768 (contiene 90b4f48 INC-03 y 16af243 INC-09)
+              El droplet venia de 9788b59. Sin migraciones: el diff sobre db/
+              salio en 0 archivos, como decia el runbook.
+ Build      : 2m11s, EXIT=0 leido antes de recargar (la leccion de esta manana).
+ Reload     : un solo reinicio, 27 -> 28. Login 200.
+ Verificado : el ARTEFACTO SERVIDO, no el git log —
+                · `completada autom...` presente en server/chunks/5736.js
+                · `cerrada antes de tiempo` en el bundle de Campanas, servidor
+                  y cliente
+                · «Aun vigente» / «Aún vigente»: CERO rastros. El badge viejo
+                  desaparecio del artefacto
+              /api/estado 401 sin sesion · sin errores nuevos en el log (los
+              que hay son del 09/08, anteriores al despliegue)
+
+ PENDIENTE DE COMPROBAR: que el barrido corrio. No puede hacerse desde aqui —
+ necesita una peticion CON SESION y permiso de comercial. Al cierre del
+ despliegue las dos campanas seguian en ACTIVA, que es lo correcto: nadie habia
+ abierto la app todavia. Las consultas para confirmarlo estan en el PASO 4.
+-------------------------------------------------------------------------------
  Commit a desplegar : 90b4f48  (INC-03; arrastra 16af243 INC-09 y 6b52fa3)
  Droplet viene de   : 9788b59
  App                : pm2 spaces-web  ->  https://demo.space-os.io

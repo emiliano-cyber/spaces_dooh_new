@@ -22,7 +22,7 @@ archivos: []
 | Z2 · Tenant 🔴 | LIBRE | — | — | — | — | — |
 | Z3 · Inventario 🟡 | LIBRE | — | — | — | — | — |
 | Z4 · Arrendadores 🔴 | LIBRE | — | — | — | — | — |
-| Z5 · Comercial 🟡 | LIBRE | — | — | — | — | **INC-03 hecho el 10/08, sin desplegar todavía** (sale junto con INC-09). `recomputarEstadoCampanas()` en `campanas-repo.ts` sincroniza `estado_comercial` con el calendario desde `/api/estado`. Si tocas la definición de «publicada», está en la constante `SQL_PUBLICADA` y la comparten las dos reglas — y `pipelineStage()` usa el mismo criterio para `instalada`: cámbialos juntos |
+| Z5 · Comercial 🟡 | LIBRE | — | — | — | — | **INC-03 desplegado el 10/08** junto con INC-09 (`484e768`). Falta confirmar que el barrido corrio: necesita una peticion con sesion. `recomputarEstadoCampanas()` en `campanas-repo.ts` sincroniza `estado_comercial` con el calendario desde `/api/estado`. Si tocas la definición de «publicada», está en la constante `SQL_PUBLICADA` y la comparten las dos reglas — y `pipelineStage()` usa el mismo criterio para `instalada`: cámbialos juntos |
 | Z6 · Operaciones 🟡 | LIBRE | — | — | — | — | — |
 | Z7 · Finanzas 🔴 | LIBRE | — | — | — | — | — |
 | Z8 · Integraciones 🟡 | LIBRE | — | — | — | — | **Trabajo identificado sin empezar:** `doohmain.ts:260` publica *todos* los creativos validados de la campaña, no el asignado a cada reserva. La asignación ya se guarda pero al publicar NO se usa — INC-02 punto 2. Antes de tocar: confirmar si `DOOHMAIN_PUBLISH_ENABLED` está encendido en producción |

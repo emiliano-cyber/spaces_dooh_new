@@ -68,18 +68,33 @@ export async function notificar(input: {
   }
 }
 
+// Las ARCHIVADAS no se listan: es lo que hace que «Borrar todas» vacíe el panel.
+// La fila sigue en la base; lo que se pierde es el sitio en la campanita, que es
+// justo lo que el usuario quería quitarse de encima.
 export async function listarNotificaciones() {
-  const rows = await q('select * from notificaciones where tenant_id = $1 order by creado_en desc limit 100', [await tenantActual()])
+  const rows = await q(
+    `select * from notificaciones
+      where tenant_id = $1 and archivada_en is null
+      order by creado_en desc limit 100`,
+    [await tenantActual()],
+  )
   return rows.map(rowToNotif)
 }
 
 // Notificaciones creadas DESPUÉS de una marca de tiempo. Alimenta el sondeo del
 // cliente: se pide cada pocos segundos, así que va acotada y ordenada de más
 // antigua a más nueva, para que los avisos salgan en el orden en que ocurrieron.
+//
+// Filtra las archivadas, y NO es por simetría con `listarNotificaciones`: sin
+// esto hay una carrera real. El sondeo pregunta «¿qué hay desde que abrí la
+// pestaña?», no «desde el último clic». Si llega un aviso a las 10:00:05 y a las
+// 10:00:07 pulsas «Borrar todas», el ciclo siguiente lo devolvería —se creó
+// después de la marca— y saltaría el aviso emergente de algo que acabas de
+// vaciar. El panel sí quedaría limpio, y el usuario vería un fantasma.
 export async function notificacionesDesde(desde: string) {
   const rows = await q(
     `select * from notificaciones
-      where tenant_id = $1 and creado_en > $2::timestamptz
+      where tenant_id = $1 and creado_en > $2::timestamptz and archivada_en is null
       order by creado_en asc limit 20`,
     [await tenantActual(), desde],
   )
@@ -91,6 +106,23 @@ export async function marcarNotificacionLeida(id: string) {
   return rows[0] ? rowToNotif(rows[0]) : null
 }
 
-export async function marcarTodasLeidas() {
-  await q('update notificaciones set leida=true where leida=false')
+// «Borrar todas»: las saca del panel y las da por leídas de paso. Se marca
+// `leida` además de archivar para que el contador de la campanita cuadre aunque
+// alguien liste por otra vía; archivada pero sin leer sería un estado que no
+// significa nada.
+//
+// Lleva filtro de tenant EXPLÍCITO además de la RLS. `marcarTodasLeidas`, que
+// esto sustituye, iba sin él: un `update` sin `where tenant_id` que solo acotaba
+// la política de la base. Funcionaba —la app conecta con un rol NOBYPASSRLS—,
+// pero deja el aislamiento a UNA capa en una escritura masiva, y este repo se
+// exige dos.
+export async function archivarTodasNotificaciones(): Promise<number> {
+  const rows = await q(
+    `update notificaciones
+        set archivada_en = now(), leida = true
+      where tenant_id = $1 and archivada_en is null
+      returning id`,
+    [await tenantActual()],
+  )
+  return rows.length
 }

@@ -41,11 +41,18 @@ La entrada más reciente va arriba.
     mano. El único camino a «Completada» por acción de una persona es **emitir
     la factura**, que ya queda registrada por sí sola (bitácora, folio y aviso).
     Inventar un campo para un flujo que no existe habría sido trabajo muerto.
-  - *Verificado a conciencia:* 23 pruebas nuevas contra Postgres de verdad, por
+  - *Verificado a conciencia:* 24 pruebas nuevas contra Postgres de verdad, por
     HTTP y con la sesión real, más cuatro mutaciones deliberadas del código para
     comprobar que las pruebas muerden. Una de ellas descubrió una condición del
     SQL que **no protegía nada** —ninguna prueba se rompía al quitarla— y se
     eliminó en lugar de dejarla ahí aparentando que guardaba algo.
+  - **Ya está en producción**, desplegado junto con los tres detalles de
+    interfaz de abajo. *Antes de subirlo* se comprobó contra los datos reales,
+    sin escribir nada, exactamente a qué campañas iba a afectar: **dos**, «KFC»
+    (que terminó el 8 de agosto) y «Propuesta para cliente 1» (que terminó el 31
+    de julio). Ninguna otra. Y se dejó preparada la vuelta atrás de **esos dos
+    datos** por separado, porque deshacer el programa no desharía el cambio de
+    estado.
 - **Una campaña ya facturada deja de aparecer como si le faltara algo.** El
   recorrido de la campaña terminaba en «Lista para facturar», así que una que
   **ya tenía su factura emitida** se quedaba ahí, en ámbar, como un paso

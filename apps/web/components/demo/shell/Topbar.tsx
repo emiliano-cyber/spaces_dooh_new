@@ -3,14 +3,14 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, UserCircle2, LogOut, Bell, CheckCheck, Menu, Settings } from 'lucide-react'
+import { ChevronDown, UserCircle2, LogOut, Bell, Trash2, Menu, Settings } from 'lucide-react'
 import { apiLogout } from '@/lib/auth-real'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
 import { useMenuMovil } from './MenuMovilContext'
 import { DesbloqueoCambios } from './DesbloqueoCambios'
 import { useNotificaciones } from '@/lib/data/client'
-import { marcarNotificacionLeidaApi, marcarTodasNotificacionesApi } from '@/lib/data/estado-api'
+import { marcarNotificacionLeidaApi, archivarTodasNotificacionesApi } from '@/lib/data/estado-api'
 
 export function Topbar() {
   const router = useRouter()
@@ -80,13 +80,19 @@ export function Topbar() {
             >
               <div className="flex items-center justify-between px-2 py-1.5">
                 <span className="text-[13px] font-medium text-ink">Notificaciones</span>
-                {noLeidas > 0 && (
+                {/* Aparece siempre que HAYA algo en la lista, no solo si queda
+                    algo sin leer: el panel enseña también las leídas, y son
+                    justo las que se acumulan y hay que poder quitar de encima.
+                    Con la condición anterior (`noLeidas > 0`) el botón
+                    desaparecía dejando la lista llena, que es cuando más falta
+                    hacía. */}
+                {notificaciones.length > 0 && (
                   <button
                     type="button"
-                    onClick={() => marcarTodasNotificacionesApi()}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-info transition-colors hover:bg-accent-soft"
+                    onClick={() => { void archivarTodasNotificacionesApi() }}
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-medium text-muted transition-colors hover:bg-surface-2 hover:text-ink"
                   >
-                    <CheckCheck className="h-3.5 w-3.5" /> Marcar todas
+                    <Trash2 className="h-3.5 w-3.5" /> Borrar todas
                   </button>
                 )}
               </div>

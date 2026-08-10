@@ -92,8 +92,11 @@ export async function marcarNotificacionLeidaApi(id: string): Promise<void> {
   const r = await fetch(`${API}/notificaciones/${id}/leer/`, { method: 'POST' })
   if (r.ok) await refrescarEstado()
 }
-export async function marcarTodasNotificacionesApi(): Promise<void> {
-  const r = await fetch(`${API}/notificaciones/leer-todas/`, { method: 'POST' })
+// Vacía el panel. Archiva en vez de borrar (ver la migración
+// `20260810_notificaciones_archivada_en`), así que el nombre habla del efecto
+// que ve el usuario y el servidor conserva la fila.
+export async function archivarTodasNotificacionesApi(): Promise<void> {
+  const r = await fetch(`${API}/notificaciones/archivar-todas/`, { method: 'POST' })
   if (r.ok) await refrescarEstado()
 }
 
