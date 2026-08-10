@@ -26,7 +26,7 @@ archivos: []
 | Z6 · Operaciones 🟡 | LIBRE | — | — | — | — | — |
 | Z7 · Finanzas 🔴 | LIBRE | — | — | — | — | — |
 | Z8 · Integraciones 🟡 | LIBRE | — | — | — | — | **Trabajo identificado sin empezar:** `doohmain.ts:260` publica *todos* los creativos validados de la campaña, no el asignado a cada reserva. La asignación ya se guarda pero al publicar NO se usa — INC-02 punto 2. Antes de tocar: confirmar si `DOOHMAIN_PUBLISH_ENABLED` está encendido en producción |
-| Z9 · Datos 🔴 | LIBRE | — | — | — | — | Última migración **aplicada en producción el 10/08**: `20260807_password_resets_rls.sql`. Invariante: 0 tablas con `tenant_id` sin RLS+FORCE |
+| Z9 · Datos 🔴 | LIBRE | — | — | — | — | ⚠️ **HAY UNA MIGRACIÓN EN `main` SIN APLICAR EN PRODUCCIÓN**: `20260810_notificaciones_archivada_en.sql` (llegó en `dcb03a8`; producción está en `484e768`, que NO la incluye). **El próximo despliegue tiene que aplicarla antes de recargar.** Última migración aplicada en producción: `20260807_password_resets_rls.sql` el 10/08. Invariante: 0 tablas con `tenant_id` sin RLS+FORCE |
 | Z10 · UI base 🟡 | LIBRE | — | — | — | — | — |
 | Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | Zona de entrada para agentes nuevos |
 | Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08 y **validada contra el código el 10/08** ([[2026-08-10]]) |
