@@ -47,6 +47,13 @@ La entrada más reciente va arriba.
     con dos anuncios aprobados se dejan sin tocar a propósito: ahí sí habría que
     adivinar.
   - *Nada de esto republica nada,* ni afecta a las campañas de lona.
+  - **Ya está en producción.** Las 16 pantallas quedaron anotadas.
+  - *Queda un pendiente, y conviene saberlo:* dos campañas de la organización
+    **eyro** tienen **dos** anuncios aprobados y su pantalla sin asignar, así
+    que el sistema no elige por ellas. No pasa nada mientras nadie las vuelva a
+    aprobar —lo que está al aire sigue igual—, pero el día que alguien lo haga,
+    el sistema pedirá que se asigne primero. Se resuelve con un clic desde un
+    usuario de esa organización.
 - **Ya no se puede dar de alta dos veces al mismo propietario.** Pasó de verdad:
   el 7 de julio alguien dio de alta «ADMINISTRADORA DE GASOLINERAS INTERLOMAS»,
   no lo vio en la lista y lo volvió a dar de alta **un minuto y once segundos

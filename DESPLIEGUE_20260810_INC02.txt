@@ -1,6 +1,49 @@
 ===============================================================================
  DESPLIEGUE — INC-02 · cada pantalla recibe SU pieza    Preparado: 2026-08-10
 -------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-10, 16:20. NO VOLVER A CORRER. <<<
+
+ Se marca ejecutado, no se borra: la seccion de ROLLBACK sigue siendo la buena.
+
+ >>> EL GATE SE SALTO, POR DECISION EXPLICITA DEL USUARIO <<<
+ Las dos campanas de eyro seguian en `[]` al desplegar y siguen asi. El motivo
+ por el que no se pudieron asignar esta abajo, y NO era descuido: el usuario
+ (`jose.lopez@h3dm.com.mx`) es Dueno de `rgb`, y esas campanas son de `eyro`.
+ Con la RLS no las ve. `rgb` no tiene ni una campana. Se aviso dos veces; el
+ usuario decidio desplegar igual y asumir el pendiente.
+
+ Desplegado : c610592 (contiene 42bb856, INC-02). El droplet venia de 7d27d25.
+ Respaldo   : ~/spaces_prod_pre_inc02_20260810.sql.gz — 7.1 MB, 38 bloques COPY
+              con datos, como `postgres`.
+ Build      : 1m50s, EXIT=0 leido antes de recargar.
+ Reload     : un reinicio, 29 -> 30. Login 200. Cero errores nuevos.
+ Backfill   : UPDATE 16, guardarrail sin excepcion, COMMIT. Las 16 pantallas de
+              KFC (12), mastercard (2), card (1) y prueba final (1) con su pieza.
+ Verificado : artefacto SERVIDO — «sin creativo aprobado asignado» en
+              server/chunks/5736.js y la autoasignacion en
+              server/app/api/creatividades/[id]/route.js.
+
+ QUEDAN 11 pantallas digitales sin asignar, y NO son un problema salvo dos:
+   · 9 son de campanas con CERO creativos aprobados (Propuesta para cliente 1
+     —OOH, 4—, mastercard2 2, EdgeCase Fechas 2, credito 1). No hay nada que
+     asignar; el guard las frenara al enviar al dominio, que es lo correcto.
+   · 2 son LAS DE EYRO. Ver el pendiente de abajo.
+
+ >>> PENDIENTE ABIERTO <<<
+ «Campana lista — publicar a DOOHmain» (ACTIVA hasta el 13/08) y
+ «pruebas_produccion» (COMPLETADA), las dos de eyro, con DOS creativos
+ aprobados y su pantalla sin asignar.
+
+ No pasa nada mientras nadie las apruebe: lo ya publicado sigue al aire y este
+ despliegue no republica nada. PERO el dia que alguien de eyro apruebe la
+ publicacion de cualquiera de las dos, el guard la rebotara con 409 pidiendo
+ asignar. Es el comportamiento correcto, pero conviene saberlo antes de que
+ pase.
+
+ Para cerrarlo: entrar como `emistreg@gmail.com` o `yahel@adavailable.com`
+ (Dueno de eyro), Creativos, y elegir la pieza de cada una. La primera tiene 1
+ spot contratado (una pieza); la segunda, selector unico.
+-------------------------------------------------------------------------------
  Commit a desplegar : cde5f58  (contiene 42bb856, que es INC-02)
  Droplet viene de   : 7d27d25
  App                : pm2 spaces-web  ->  https://demo.space-os.io
