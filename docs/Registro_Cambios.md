@@ -7,6 +7,19 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **La contraseña que pide el registro es la que de verdad se exige.** Al crear
+  una cuenta, el formulario daba por buena una contraseña de **6 caracteres** y
+  dejaba pulsar «Crear cuenta»; el servidor exige **8, con letra y número**, así
+  que devolvía un error después de enviar. En la primera pantalla de un registro
+  que ahora está abierto al público, eso es el primer tropiezo de cualquiera.
+  - Ahora el aviso sale **mientras se teclea** y dice qué falta («debe incluir
+    al menos un número»), en vez de esperar al envío.
+  - *El mismo arreglo tapó otro hueco:* los formularios de alta de usuario y de
+    organización pedían 8 caracteres pero no comprobaban letra ni número, así
+    que «aaaaaaaa» también rebotaba contra el servidor.
+  - *La causa de fondo:* la regla vivía en un sitio donde los formularios no
+    podían leerla, así que cada uno la reescribía a ojo. Ahora hay **una sola**,
+    y una prueba que falla si alguien vuelve a escribir la suya.
 - **Ahora se sabe qué anuncio salió en qué pantalla.** Era el hallazgo más
   grave que quedaba. Al publicar, el sistema mandaba **todos** los anuncios
   aprobados de la campaña a **todas** sus pantallas, así que no existía tal cosa

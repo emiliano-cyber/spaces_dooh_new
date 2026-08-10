@@ -29,17 +29,13 @@ export interface UsuarioSesion {
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
-// Política de contraseñas: mínimo 8, con al menos una letra y un número. Devuelve
-// un mensaje de error si no cumple, o null si es válida. Único origen de verdad
-// para signup, alta de usuarios y cambio de contraseña (perfil).
-export function validarPassword(plano: unknown): string | null {
-  const p = typeof plano === 'string' ? plano : ''
-  if (p.length < 8) return 'La contraseña debe tener al menos 8 caracteres'
-  if (!/[a-zA-Z]/.test(p)) return 'La contraseña debe incluir al menos una letra'
-  if (!/[0-9]/.test(p)) return 'La contraseña debe incluir al menos un número'
-  if (/\s/.test(p)) return 'La contraseña no puede contener espacios'
-  return null
-}
+// La política vive en `lib/password.ts`, FUERA de `server-only`, para que los
+// formularios puedan usar la misma función en vez de reimplementarla a ojo —
+// que es lo que hacían, y por eso el registro público pedía 6 donde el servidor
+// exige 8. Se reexporta para no tocar a sus llamadores.
+export { validarPassword, REGLA_PASSWORD } from '@/lib/password'
+// Además del reexport: este módulo la usa internamente (`passwordDeAlta`).
+import { validarPassword } from '@/lib/password'
 
 // Contraseña que NADIE va a ver ni teclear, para las cuentas que entran por un
 // proveedor externo (ADR 0012). La fila conserva un `password_hash` de un

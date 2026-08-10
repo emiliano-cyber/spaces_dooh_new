@@ -55,9 +55,12 @@ guardas»**, que no es «no hacer nada» — implica tres trabajos pendientes:
 1. **Verificación de correo** para el alta por contraseña (la de Google está
    exenta: Google ya verificó). Hoy cualquiera se da de alta con un correo que no
    controla.
-2. **Unificar la política de contraseña**: el signup pide mínimo 6 caracteres
-   mientras `validarPassword()` (`auth.ts:35-57`) exige 8 con letra y número.
-   Es la política fuerte la que debe ganar.
+2. ~~**Unificar la política de contraseña**~~ **HECHO el 10/08.** Ganó la
+   fuerte. La regla se movió a `lib/password.ts` —fuera de `server-only`— para
+   que los formularios usen LA MISMA función en vez de reimplementarla: ése era
+   el fallo de fondo, no el número. Los otros dos formularios pedían 8 pero sin
+   letra ni número, así que «aaaaaaaa» también rebotaba. Hay una prueba que lee
+   los tres ficheros y falla si alguien vuelve a contar caracteres a mano.
 3. **Anti-abuso**: el rate limit de signup es 5/hora por IP
    (`app/api/signup/route.ts:25`); revisar si basta con el alta abierta a
    internet, y que el error de slug no permita enumerar organizaciones.

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Building2, Check, LogIn, RotateCcw, Plus } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
+import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const API = '/spaces-dooh/api'
 
@@ -173,7 +174,9 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
 
   // El mínimo es el que exige el SERVIDOR (8, con letra y número). Pedir menos
   // aquí deja pasar algo que vuelve rechazado sin motivo aparente.
-  const valido = !!org.trim() && !!nombre.trim() && !!email.trim() && (conGoogle || password.trim().length >= 8)
+  // La misma funcion que corre el servidor: `length >= 8` dejaba pasar
+  // «aaaaaaaa», que rebota con «debe incluir al menos un numero».
+  const valido = !!org.trim() && !!nombre.trim() && !!email.trim() && (conGoogle || !validarPassword(password))
 
   async function crear() {
     setEnviando(true)
@@ -253,7 +256,7 @@ function NuevaOrganizacion({ onCreada }: { onCreada: () => void }) {
       {!conGoogle && (
         <div>
           <label className="mb-1 block text-[11px] text-muted">Contraseña del Dueño</label>
-          <input className={campoCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 8, con letra y número" />
+          <input className={campoCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
         </div>
       )}
 

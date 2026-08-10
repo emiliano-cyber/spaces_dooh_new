@@ -8,6 +8,7 @@ import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { apiLogin } from '@/lib/auth-real'
 import { landingDeRol } from '@/lib/data/client'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const inputCls =
   'h-10 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -186,10 +187,15 @@ export default function LoginPage() {
     }
   }
 
+  // La MISMA función que corre el servidor (`lib/password.ts`), no una copia a
+  // ojo: aquí se pedían 6 caracteres mientras el servidor exigía 8 con letra y
+  // número, así que el formulario dejaba pulsar «Crear cuenta» para devolver un
+  // 400. En la primera pantalla de un registro abierto a internet.
+  const errorPassword = esSignup ? validarPassword(password) : null
   const puedeEnviar = esForgot
     ? !!email.trim()
     : esSignup
-      ? organizacion.trim() && nombre.trim() && email.trim() && password.trim().length >= 6
+      ? !!organizacion.trim() && !!nombre.trim() && !!email.trim() && !errorPassword
       : email && password
 
   const titulo = esSignup ? 'Crear cuenta' : esForgot ? 'Recuperar contraseña' : 'Iniciar sesión'
@@ -271,8 +277,15 @@ export default function LoginPage() {
                     className={inputCls}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={esSignup ? 'mínimo 6 caracteres' : '••••••••'}
+                    placeholder={esSignup ? REGLA_PASSWORD : '••••••••'}
+                    aria-invalid={!!errorPassword && password.length > 0}
                   />
+                  {/* El motivo concreto, en cuanto se empieza a teclear. Antes
+                      solo se sabía después de enviar, y en forma de error del
+                      servidor. */}
+                  {esSignup && password.length > 0 && errorPassword && (
+                    <span className="mt-1 block text-[11.5px] text-muted">{errorPassword}</span>
+                  )}
                 </label>
               )}
               {error && <p className="text-[12px] text-error">{error}</p>}

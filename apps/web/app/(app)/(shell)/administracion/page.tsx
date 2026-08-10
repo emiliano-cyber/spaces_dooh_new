@@ -34,6 +34,7 @@ import {
 } from '@/lib/data/admin-api'
 import { useActualizarConfig, useSitios } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
+import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const inputCls =
   'h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
@@ -346,7 +347,7 @@ function CambiarPasswordModal({
               <input type="password" className={inputCls} value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" autoFocus />
             </Campo>
             <Campo label="Nueva contraseña">
-              <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder="mínimo 8, con letra y número" autoComplete="new-password" />
+              <input type="password" className={inputCls} value={nueva} onChange={(e) => setNueva(e.target.value)} placeholder={REGLA_PASSWORD} autoComplete="new-password" />
             </Campo>
             <Campo label="Confirmar contraseña">
               <input type="password" className={inputCls} value={confirmar} onChange={(e) => setConfirmar(e.target.value)} autoComplete="new-password" />
@@ -394,7 +395,9 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
   // SERVIDOR (validarPassword: 8, con letra y número) — antes pedía 6 aquí, así
   // que una de 6 pasaba el formulario y el servidor la rechazaba después con un
   // mensaje que parecía salido de la nada.
-  const valido = !!nombre.trim() && !!email.trim() && (conGoogle || password.trim().length >= 8)
+  // La misma funcion que corre el servidor: `length >= 8` dejaba pasar
+  // «aaaaaaaa», que rebota con «debe incluir al menos un numero».
+  const valido = !!nombre.trim() && !!email.trim() && (conGoogle || !validarPassword(password))
 
   async function enviar() {
     if (!esEmailValido(email)) { setError(EMAIL_INVALIDO); return }
@@ -450,7 +453,7 @@ function InvitarModal({ open, onOpenChange, onInvitado }: { open: boolean; onOpe
             rellenarlo igual. */}
         {!conGoogle && (
           <Campo label="Contraseña">
-            <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mínimo 8, con letra y número" />
+            <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={REGLA_PASSWORD} />
           </Campo>
         )}
         {error && <p className="text-[12px] text-error">{error}</p>}
