@@ -7,6 +7,32 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **Fuera los rótulos de prueba que se veían en la demo.** Tres cosas que un
+  cliente leía mientras alguien le explicaba otra cosa:
+  - El nombre comercial de la organización decía **`DEMO PIXELED.`**; ahora dice
+    **`PIXELED`**.
+  - Un creativo de la campaña KFC se llamaba **`upsivale 1920.jpg`**; ahora
+    `creativo-kfc.jpg`. **Solo cambió el rótulo**: la imagen es exactamente la
+    misma.
+  - El usuario que aparecía como **`DEMO`** ahora se llama **`Operador Demo`**.
+    No se borró a propósito: tiene historial en la bitácora, y borrarlo dejaría
+    referencias a alguien que ya no existe.
+  - *Las entradas de bitácora antiguas siguen diciendo «DEMO»*, y es lo
+    correcto: guardan el nombre que tenía la persona en ese momento. Reescribir
+    el pasado sería justo lo que una bitácora no debe permitir.
+  - *Con respaldo y ensayo*, como manda la convención: se corrió el cambio
+    entero contra los datos reales y se deshizo, para confirmar que tocaba tres
+    filas y ni una más. Solo después se aplicó.
+- **Lo que NO se tocó, y conviene decir por qué.** El plan pedía asignarle un
+  responsable a las órdenes de trabajo que aparecen «Sin asignar». **No se
+  hizo.** Al mirarlo resulta que son **las dos únicas órdenes que existen**, o
+  sea que ese campo nunca se ha usado — no es un registro suelto que se quedó
+  atrás. Escribir ahí el nombre de alguien sería afirmar que hizo un trabajo de
+  campo que nadie sabe si hizo, en un sistema cuya bitácora se usa como prueba.
+  Eso lo decide una persona, no una limpieza de datos.
+- **Y lo que sigue viéndose, porque son datos que hay que capturar:** 11 de las
+  12 pantallas no tienen fotografía, y el «win rate» marca 100% porque no hay
+  ninguna propuesta registrada como perdida.
 - **La tabla que guarda los enlaces de «olvidé mi contraseña» ya está aislada
   entre organizaciones, igual que el resto.** Era lo que quedó apuntado el
   viernes para hoy, y ya está en producción.
