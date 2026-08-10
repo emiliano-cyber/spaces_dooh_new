@@ -1,0 +1,251 @@
+===============================================================================
+ DESPLIEGUE — las dos migraciones que quedaron en main   Preparado: 2026-08-10
+-------------------------------------------------------------------------------
+ >>> YA EJECUTADO — 2026-08-10, 13:05. NO VOLVER A CORRER. <<<
+
+ Se marca ejecutado, no se borra: la seccion de ROLLBACK sigue siendo la buena.
+
+ Desplegado : 7d27d25. El droplet venia de 484e768.
+ Respaldo   : ~/spaces_prod_pre_migraciones_20260810.sql.gz — 7.1 MB, 38
+              bloques COPY CON DATOS (tomado como `postgres`, no con el rol de
+              la app, que con la RLS habria dado un dump vacio con buena pinta).
+ Ensayo     : las DOS migraciones dentro de un `begin`, con el `commit;` de los
+              ficheros quitado a mano para que el rollback deshiciera de verdad.
+              Aplico limpio y al deshacer quedaron 0 indices y 0 columna — o
+              sea que el ensayo probo de verdad y no confirmo por la puerta de
+              atras. La comprobacion de RFC repetidos: 0 filas.
+ Migraciones: las dos con EXIT=0. La verificacion final de la del RFC, 0 filas.
+ Build      : 2m00s, EXIT=0 leido ANTES de recargar.
+ Reload     : un solo reinicio, 28 -> 29. Login 200.
+ Verificado : estructura — `archivada_en timestamptz`, `idx_notif_vivas` (no
+              unico) y `arrendadores_tenant_rfc_uq` (UNICO: comprobado
+              `indisunique = t`, que es lo que de verdad protege).
+              Artefacto SERVIDO — `archivar-todas` construida, INC-07 en el
+              bundle de Arrendadores (servidor y cliente), y la ruta vieja
+              `leer-todas` ya NO existe en el build.
+              Endpoints — `archivar-todas` 401 sin sesion (existe y esta
+              protegida), `leer-todas` 404 (retirada), `arrendadores` 401.
+              Cero errores nuevos en el log.
+              182 notificaciones, las 182 vivas: la columna nace en NULL y no
+              archivo nada, como decia el ensayo.
+
+ PENDIENTE DE COMPROBAR: la prueba de fuego con sesion (abajo, PASO 6). Lo que
+ no se puede ver desde fuera es que «Borrar todas» vacie el panel de verdad y
+ que el aviso de nombre repetido deje continuar.
+-------------------------------------------------------------------------------
+ Commit a desplegar : 7d27d25
+ Droplet viene de   : 484e768
+ App                : pm2 spaces-web  ->  https://demo.space-os.io
+ BD                 : spaces_prod  — ESTA VEZ SÍ SE TOCA (dos migraciones)
+===============================================================================
+
+
+QUE SE DESPLIEGA
+----------------
+Cuatro commits, de los cuales dos son solo documentacion:
+
+  7d27d25  INC-07 — un RFC es de un solo arrendador; el nombre repetido avisa
+           y se puede confirmar. Boton que se bloquea solo en vuelo.
+  8197947  (docs) confirmacion de que el barrido de INC-03 corrio
+  2f28be0  (docs) el aviso de la migracion pendiente
+  dcb03a8  (docs del despliegue anterior) + el trabajo de NOTIFICACIONES de
+           otra sesion, que se colo en ese commit: «Borrar todas» archiva en
+           vez de marcar leidas.
+
+DOS MIGRACIONES, y van juntas porque las dos llevan desde esta manana en main
+sin aplicar. Ninguna de las dos toca datos existentes:
+
+  20260810_notificaciones_archivada_en.sql
+      alter table notificaciones add column if not exists archivada_en timestamptz;
+      + indice parcial `idx_notif_vivas`. 182 filas.
+
+  20260810_arrendadores_rfc_unico.sql
+      indice unico parcial `arrendadores_tenant_rfc_uq` sobre
+      (tenant_id, upper(btrim(rfc))). 8 filas. Comprobado: CERO repetidos hoy,
+      asi que no hay nada que deduplicar. La migracion lo comprueba igualmente
+      y aborta con la lista si aparecieran.
+
+Comprobado tambien: ninguna de las dos esta aplicada ya (0 columnas
+`archivada_en`, 0 indices `arrendadores_tenant_rfc_uq`).
+
+
+>>> EL ORDEN NO ES NEGOCIABLE: MIGRACION ANTES QUE CODIGO <<<
+-------------------------------------------------------------
+El codigo nuevo hace `where archivada_en is null` en `listarNotificaciones`, que
+es lo que alimenta `/api/estado`. Recargar el codigo ANTES de migrar deja el
+endpoint que hidrata el shell entero devolviendo 500 por columna inexistente:
+la aplicacion ENTERA en blanco, no una pantalla.
+
+Al reves no pasa nada. Las dos migraciones son aditivas y el codigo viejo las
+tolera:
+  · `select *` sobre notificaciones devuelve una columna de mas, que el
+    mapeador ignora.
+  · El indice del RFC solo actua si alguien intenta duplicar uno, y entonces el
+    codigo viejo responde el 409 generico («El registro ya existe») en vez del
+    mensaje con nombre. Peor mensaje, nunca un dato malo.
+
+Es codigo de CLIENTE ademas (Topbar, pagina de Arrendadores, Button), asi que
+recargar pm2 sin compilar no cambiaria nada de lo visible. HAY QUE COMPILAR.
+
+
+LO QUE NO LLEVA
+---------------
+  · NO hay dependencias nuevas: NO hay `npm ci`.
+  · NO hay variables de entorno ni feature flags nuevos.
+  · NO se toca nginx.
+  · NO hay cambios de DATOS. Las dos migraciones anaden estructura y nada mas;
+    `archivada_en` nace en NULL en las 182 filas. No hace falta capturar un
+    rollback de datos como en INC-03.
+
+
+===============================================================================
+ PASO 0 — TRAER EL CODIGO   (primero, para tener los .sql en disco)
+===============================================================================
+  cd /var/www/Spaces
+  git remote -v                          -> emiliano-cyber/spaces_dooh_new
+  git log --oneline -1                   -> 484e768
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1                   -> 7d27d25
+
+  Traer la fuente NO cambia lo que se esta sirviendo: hasta el build y el
+  reload, pm2 sigue con el artefacto anterior. Esto va antes del ensayo porque
+  el 10/08 por la manana el runbook tenia el pull DESPUES y el ensayo fallo con
+  «No such file or directory».
+
+
+===============================================================================
+ PASO 1 — RESPALDO   (hay migracion: no se salta)
+===============================================================================
+  sudo -u postgres pg_dump spaces_prod | gzip > ~/spaces_prod_pre_migraciones_$(date +%Y%m%d_%H%M%S).sql.gz
+  ls -lh ~/spaces_prod_pre_migraciones_*.sql.gz
+  zcat ~/spaces_prod_pre_migraciones_*.sql.gz | grep -c "^COPY"
+
+  COMO `postgres`, NO con el rol de la app. `spaces_user` es NOBYPASSRLS y con
+  la RLS fail-closed el dump saldria SIN FILAS — y pareceria un respaldo bueno.
+  Se comprueba contando bloques COPY: tienen que ser ~38.
+
+
+===============================================================================
+ PASO 2 — ENSAYO EN SECO   (las dos migraciones, y ROLLBACK)
+===============================================================================
+  cd /var/www/Spaces/db/migrations
+  sudo -u postgres psql -d spaces_prod --set ON_ERROR_STOP=1 <<'SQL'
+  begin;
+  \i 20260810_notificaciones_archivada_en.sql
+  \i 20260810_arrendadores_rfc_unico.sql
+  select count(*) as notif_archivadas from notificaciones where archivada_en is not null;
+  select indexname from pg_indexes where indexname in ('idx_notif_vivas','arrendadores_tenant_rfc_uq');
+  rollback;
+  SQL
+
+  ESPERADO: notif_archivadas = 0 (la columna nace vacia, no archiva nada) y las
+  DOS filas de indices. Y al final, ROLLBACK.
+
+  OJO: los .sql traen su propio `commit;`. Dentro de un `begin` externo, ese
+  commit CIERRA la transaccion y el `rollback` de abajo no deshace nada. Si el
+  ensayo confirma en vez de deshacer, no es un problema —las migraciones son
+  idempotentes y es exactamente lo que se iba a aplicar en el paso 3— pero hay
+  que SABERLO y no creer que se probo sin escribir. Se comprueba mirando si los
+  indices siguen ahi despues del rollback.
+
+
+===============================================================================
+ PASO 3 — APLICAR
+===============================================================================
+  cd /var/www/Spaces/db/migrations
+  sudo -u postgres psql -d spaces_prod --set ON_ERROR_STOP=1 -f 20260810_notificaciones_archivada_en.sql
+  sudo -u postgres psql -d spaces_prod --set ON_ERROR_STOP=1 -f 20260810_arrendadores_rfc_unico.sql
+
+  La segunda termina con su verificacion: DEBE devolver 0 filas.
+
+
+===============================================================================
+ PASO 4 — COMPILAR   (y MIRAR EL CODIGO DE SALIDA)
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web ; echo "EXIT=$?"
+
+  >>> NO SIGAS SI EXIT NO ES 0. <<<
+
+  Turbo imprime «Compiled successfully» y varias lineas despues puede imprimir
+  `Failed: web#build` — son fases distintas. Lee EXIT, no el texto. Con la
+  migracion ya aplicada, recargar un build fallido deja base nueva con codigo
+  viejo: aqui eso NO rompe nada (ver el apartado del orden), pero el habito
+  importa.
+
+
+===============================================================================
+ PASO 5 — RECARGAR
+===============================================================================
+  pm2 reload spaces-web --update-env
+  pm2 list | grep spaces-web        (online, UN reinicio nuevo: 28 -> 29)
+
+
+===============================================================================
+ PASO 6 — COMPROBAR
+===============================================================================
+ Desde fuera:
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   ESPERADO: 200
+
+ En el droplet:
+   pm2 logs spaces-web --err --lines 30       (sin errores NUEVOS)
+
+ La estructura:
+   sudo -u postgres psql -d spaces_prod -c "
+     select column_name from information_schema.columns
+      where table_name='notificaciones' and column_name='archivada_en'"
+   sudo -u postgres psql -d spaces_prod -c "
+     select indexname, indexdef from pg_indexes
+      where indexname in ('idx_notif_vivas','arrendadores_tenant_rfc_uq')"
+
+ El artefacto SERVIDO (no el git log: el commit puede estar bien y el build ser viejo):
+   grep -rl "archivar-todas" /var/www/Spaces/apps/web/.next/server | head -2
+   grep -rl "Crear de todos modos" /var/www/Spaces/apps/web/.next/server | head -2
+
+ LA PRUEBA DE FUEGO (con sesion):
+   [ ] Campanita → «Borrar todas» aparece aunque no quede nada sin leer, y al
+       pulsarlo el panel queda VACIO (antes solo se atenuaba).
+   [ ] Recargar: sigue vacio. Y no salta ningun aviso emergente fantasma.
+   [ ] Arrendadores → Nuevo, con el RFC de uno que ya existe (p. ej.
+       AGI990422EL7, de «ADMINISTRADORA DE GASOLINERAS INTERLOMAS»): NO guarda y
+       el mensaje NOMBRA a quien lo tiene.
+   [ ] Nuevo, con el nombre de uno que ya existe y sin RFC: sale el aviso ambar
+       y el boton pasa a «Crear de todos modos». Al volver a pulsar, entra.
+   [ ] Un arrendador nuevo de verdad se crea a la primera, como siempre.
+
+
+===============================================================================
+ DISPARADORES DE ROLLBACK
+===============================================================================
+   · pm2 reinicia mas de 2 veces
+   · el login deja de responder 200
+   · 5xx nuevos en `pm2 logs spaces-web --err`
+   · la campanita o Arrendadores no cargan
+   · el PASO 3 deja la migracion del RFC a medias (abortaria sola si hubiera
+     duplicados, sin escribir nada)
+
+
+===============================================================================
+ ROLLBACK
+===============================================================================
+ 1) CODIGO primero:
+      cd /var/www/Spaces
+      git checkout 484e768
+      npx turbo run build --filter=web ; echo "EXIT=$?"
+      pm2 reload spaces-web --update-env
+
+ 2) ESTRUCTURA — solo si de verdad hace falta. NO es urgente: el codigo viejo
+    convive sin problema con las dos migraciones puestas (son aditivas), asi
+    que lo normal es dejarlas y no tocar nada mas.
+
+      sudo -u postgres psql -d spaces_prod -c "drop index if exists arrendadores_tenant_rfc_uq"
+      sudo -u postgres psql -d spaces_prod -c "drop index if exists idx_notif_vivas"
+      -- La COLUMNA se deja. Quitarla borraria el archivado de quien ya hubiera
+      -- pulsado «Borrar todas», y volver a listarle 182 avisos que ya habia
+      -- despachado. Una columna de sobra no molesta a nadie.
+
+ 3) Si hubiera que volver del todo: el respaldo del PASO 1.
+===============================================================================
