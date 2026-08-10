@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [frontend, estado, fetch, react-query, zustand]
 archivos:
   - apps/web/app/providers.tsx
@@ -66,6 +66,38 @@ Solo cuenta **peticiones al servidor**. Subir un logo son tres esperas y solo la
 última es una petición (leer el archivo, comprobar que se puede mostrar,
 enviarlo). Por eso los puntos de subida tienen su propio aviso local
 (`docs/Registro_Cambios.md`, entrada del 06/08).
+
+## La hidratación viaja LIGERA — y hay una prueba que lo exige
+
+`/api/estado` llegó a pesar **6.12 MB** y a tardar 6–12 s en frío, dejando la
+pantalla en blanco en cada F5. No eran las consultas —la más pesada tarda
+0.077 ms— sino `select *` arrastrando columnas con archivos dentro.
+
+| Rebanada | Pesaba | Por qué |
+|---|---|---|
+| `contratos` | 3.95 MB / 13 filas | `documento_url`, el PDF en data URL |
+| `sitios` | 1.0 MB / 12 filas | `fotos` (`text[]` de data URLs) |
+| `sitiosRed` | 1.0 MB / 12 filas | **las mismas filas otra vez** |
+
+> [!danger] REGLA: nada que se guarde como `data:` URL entra en `/api/estado`
+> Se sirve por su propia ruta y se pide al abrir la pantalla que lo enseña:
+> `/api/logo/[token]`, `/api/creativos/[id]/arte`,
+> `/api/contratos/[id]/documento`, `/api/sitios/[id]/media`.
+>
+> Ha pasado **tres veces** (arte de creativos el 06/08; documento y fotos el
+> 10/08), así que está fijado con una prueba:
+> `lib/test/hidratacion-ligera.e2e.test.ts` rechaza cualquier `data:` de más de
+> 200 bytes en **toda** la hidratación — también en rebanadas que aún no
+> existen. Si añades una columna grande a un listado, ahí se cae.
+
+Para vigilarlo: `MEDIR_ESTADO=1` imprime kB por rebanada. Va detrás de bandera
+porque medir es serializar el cuerpo una segunda vez, en la ruta que se quería
+abaratar.
+
+**Los listados mienten un poco, a propósito**: `sitio.fotos` llega `[]` e
+`imagenPromocional` `null` aunque la pantalla tenga galería. Por eso existe
+`sitio.tieneFotos` — sin él, «no tiene fotos» y «aún no las he pedido» se verían
+igual, y la ficha pediría la galería de todas.
 
 ## Clientes de API
 

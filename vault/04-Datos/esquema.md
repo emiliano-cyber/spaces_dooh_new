@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -11,11 +11,11 @@ archivos:
 # Esquema de datos
 
 **PostgreSQL, un solo schema (`public`), 38 tablas, sin ORM.** `db/schema.sql`
-(657 líneas) + 64 migraciones aditivas.
+(657 líneas) + 66 migraciones aditivas.
 
 > [!warning] `schema.sql` no es el estado final
 > Varias columnas y **todas** las políticas RLS fail-closed llegan por
-> migración. El estado real = `schema.sql` + las 63 en orden. Ver
+> migración. El estado real = `schema.sql` + las 66 en orden. Ver
 > [[migraciones]].
 
 ## Diagrama ER (núcleo)

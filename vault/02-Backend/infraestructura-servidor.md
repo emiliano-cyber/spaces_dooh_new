@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, infraestructura, transversal, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -90,6 +90,24 @@ cron usa **la misma regla** escrita en su propia sentencia
 
 `acciones (accion, entidad, usuario_id, usuario_nombre, timestamp)`.
 `20260629_bitacora_append_only.sql` la hace **append-only**.
+
+> [!danger] La bitácora NO es atómica con la operación que registra (INC-06)
+> Verificado el 10/08. `registrarAccion` abre su **propio** `q()` —su propia
+> transacción— **después** de que la operación ya hizo commit, y además:
+>
+> ```ts
+> try { await q(`insert into acciones ...`) }
+> catch { /* la bitácora nunca rompe la operación principal */ }
+> ```
+>
+> Los **8 de 8** handlers `DELETE` registran, pero **0 de 8** de forma atómica.
+> Un fallo al anotar deja el borrado hecho y sin rastro.
+>
+> No tumbar la operación principal es una decisión defendible. Lo que **no** lo
+> es: el `catch` está **vacío**, ni un `console.error`. En un sistema cuya
+> bitácora se usa como prueba —y donde el ADR 0009 rehízo la reautenticación
+> entera para que «cada desbloqueo pruebe quién era»— una auditoría que falla en
+> silencio es un punto ciego. Ver [[preguntas-abiertas]] P19.
 
 Qué se registra y qué no (ADR 0009): se registra la **acción sensible**; **no**
 se registra cada desbloqueo — «anotar 15 desbloqueos por persona y día ahogaría

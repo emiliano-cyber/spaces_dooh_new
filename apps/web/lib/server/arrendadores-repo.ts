@@ -9,6 +9,7 @@ import { periodoDeIndice, montoMensualEquivalente } from '../renta-periodicidad'
 // los tipos de pg.
 import { exigirArrendador, exigirSitioEnElPredio } from './contratos-sitio'
 import { sumarDias } from '../contrato-vigencia'
+import { rutaDocumentoContrato } from '../medios-url'
 
 // ============================================================================
 //  lib/server/arrendadores-repo.ts — Arrendadores, contratos de arrendamiento
@@ -177,7 +178,12 @@ function rowToContrato(r: any) {
       r.monto_renta != null ? montoMensualEquivalente(Number(r.monto_renta), r.periodicidad) : null,
     moneda: r.moneda,
     autoRenovable: r.auto_renovable,
-    documentoUrl: r.documento_url ?? null,
+    // El documento NO viaja incrustado. En el listado (`/api/estado`) la
+    // consulta ni siquiera lo trae: pide `tiene_documento` y aquí se convierte
+    // en la RUTA que lo sirve. Las consultas de detalle siguen haciendo
+    // `select *`, así que si el valor está, gana el valor — un `??` y no un
+    // `if`, para que las dos formas convivan sin que el llamador declare cuál.
+    documentoUrl: r.documento_url ?? (r.tiene_documento ? rutaDocumentoContrato(r.id) : null),
     estatus: r.estatus,
     deposito: r.deposito != null ? Number(r.deposito) : null,
     predioId: r.predio_id ?? null,
@@ -315,8 +321,33 @@ export async function listarContratos() {
   // `sitio_nombre` denormalizado: Finanzas ve los contratos (son compromisos de
   // dinero) pero NO el inventario, así que sin esto no podría decir de qué
   // pantalla es cada renta. Mismo criterio que en listarPagosRenta.
+  // COLUMNAS EXPLÍCITAS, no `c.*`, y no es estilo: es lo que hacía que
+  // `/api/estado` pesara 6 MB. `c.*` arrastraba DOS columnas enormes en cada
+  // fila y las traía en la petición que hidrata todo el shell:
+  //
+  //  · `documento_url`     — el PDF del contrato en data URL. El mapper SÍ lo
+  //    exponía, así que viajaba hasta el navegador. ~300 kB por contrato.
+  //  · `documento_congelado` — el texto íntegro del contrato sellado para firma
+  //    (`firmas-repo`). El mapper ni lo mira, así que se traía de Postgres a
+  //    Node para tirarlo. No costaba ancho de banda del cliente, pero sí de la
+  //    base, y en la misma consulta.
+  //
+  // De `documento_url` solo se necesitan aquí DOS cosas —si existe, y poder
+  // abrirlo—, y las dos las da un booleano más una ruta (`rowToContrato`). Sus
+  // únicos consumidores son el enlace de `ContratoSheet` y el `tiene_documento`
+  // del export a Excel; ninguno lee los bytes.
+  //
+  // Al añadir una columna a la tabla hay que añadirla AQUÍ si el front la
+  // necesita. Es el coste de la lista explícita, y se paga a gusto: la
+  // alternativa es que el próximo `text` grande vuelva a colarse solo.
   const rows = await q(
-    `select c.*, s.nombre as sitio_nombre
+    `select c.id, c.sitio_id, c.arrendador_id, c.fecha_inicio, c.fecha_fin,
+            c.monto_renta, c.periodicidad, c.moneda, c.auto_renovable, c.deposito,
+            c.motivo_cancelacion, c.predio_id, c.razon_social_id, c.estatus,
+            c.creado_en, c.tenant_id, c.ciudad_firma, c.dia_pago,
+            c.incremento_anual_pct, c.uso_permitido, c.congelado_en,
+            (c.documento_url is not null) as tiene_documento,
+            s.nombre as sitio_nombre
        from contratos_arrendamiento c
        left join sitios s on s.id = c.sitio_id
       where c.tenant_id = $1 order by c.creado_en asc`,

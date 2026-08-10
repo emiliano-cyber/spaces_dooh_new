@@ -21,7 +21,20 @@ import type { PoolClient } from 'pg'
 
 const n = (v: unknown): number | null => (v == null || v === '' ? null : Number(v))
 
-export function rowToSitio(r: any, modalidades: any[] = []): any {
+// `conMedia: false` deja fuera `fotos` e `imagenPromocional`. Es para los
+// LISTADOS que viajan en `/api/estado`: las fotos se guardan como data URL
+// base64 dentro de un `text[]`, y las de doce pantallas pesaban 1.0 MB — que
+// además viajaban DOS VECES, porque `sitios` y `sitiosRed` son las mismas filas
+// serializadas por separado.
+//
+// No se quita del `select`: son ~48 columnas y escribirlas a mano para excluir
+// dos es cambiar un peso medido por el riesgo de que a alguien se le caiga una
+// y ese campo pase a `undefined` en todo el inventario sin que nada falle. Lo
+// que sobra es el PESO DE LA RESPUESTA, y eso se corta aquí. Queda pendiente el
+// tráfico Postgres→Node, que no lo ve el usuario.
+//
+// Quien necesite las fotos las pide a `GET /api/sitios/:id/media`.
+export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true): any {
   return {
     id: r.id,
     claveInterna: r.clave_interna,
@@ -81,8 +94,11 @@ export function rowToSitio(r: any, modalidades: any[] = []): any {
     pausaLegal: r.pausa_legal ?? false,
     motivoPausaLegal: r.motivo_pausa_legal ?? null,
     pausaLegalEn: r.pausa_legal_en ? new Date(r.pausa_legal_en).toISOString() : null,
-    fotos: r.fotos ?? [],
-    imagenPromocional: r.imagen_promocional,
+    fotos: conMedia ? (r.fotos ?? []) : [],
+    imagenPromocional: conMedia ? r.imagen_promocional : null,
+    // Para que la ficha sepa si hay galería que pedir sin traérsela: sin esto,
+    // «todavía no cargó» y «no tiene fotos» se ven igual.
+    tieneFotos: (r.fotos?.length ?? 0) > 0,
     notas: r.notas,
     modalidades: modalidades.map((m) => m.unidad),
     modalidadesDetalle: modalidades.map((m) => ({
@@ -196,7 +212,7 @@ export async function listarSitios(): Promise<any[]> {
   const porSitio = new Map<string, any[]>()
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
   return sitios.map((r) => {
-    const base = rowToSitio(r, porSitio.get(r.id) ?? [])
+    const base = rowToSitio(r, porSitio.get(r.id) ?? [], false)
     // Slots de digitales: 1 slot = 1 campaña. Disponibles = total − nº de campañas
     // con reserva activa. Se calcula por conteo (no del contador almacenado, que
     // se desincroniza si una reserva no traía cantidad de spots).
@@ -227,7 +243,7 @@ export async function listarSitiosRed(): Promise<any[]> {
   for (const m of mods) (porSitio.get(m.sitio_id) ?? porSitio.set(m.sitio_id, []).get(m.sitio_id)!).push(m)
   return sitios.map((r) => {
     const propio = !!r.es_propio
-    const base = rowToSitio(r, propio ? (porSitio.get(r.id) ?? []) : [])
+    const base = rowToSitio(r, propio ? (porSitio.get(r.id) ?? []) : [], false)
     if (propio) return { ...base, esPropio: true, duenoTenant: r.dueno_tenant ?? null }
     return {
       ...base,

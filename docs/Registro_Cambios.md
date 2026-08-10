@@ -7,6 +7,51 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **AVISO — el arreglo del arranque lento está hecho pero TODAVÍA NO
+  DESPLEGADO.** Todo lo de esta entrada funciona en local y está probado; en
+  producción **aún no se nota nada**. Hasta que se despliegue y se vuelva a
+  medir, la pantalla en blanco al recargar sigue igual.
+- **El sistema dejaba de responder 6 a 12 segundos en cada recarga, y ya se sabe
+  por qué.** Al abrir la aplicación —o al pulsar F5, o al entrar por un enlace
+  directo— el contenido se quedaba en blanco varios segundos. Se midió en
+  producción: la petición con la que arranca todo pesaba **6.12 MB**.
+  - *No eran las consultas.* La más pesada de la base tarda siete centésimas de
+    milésima de segundo. Lo que tardaba era **descargar 6 MB de archivos** que
+    nadie estaba mirando.
+  - *Qué venía dentro:* el **PDF de cada contrato de arrendamiento** (unos 300
+    kB por contrato, casi 4 MB en total) y las **fotografías de las pantallas**
+    (1 MB, y por partida doble, porque el inventario y la vista de red se
+    traían las mismas fotos cada una por su lado). Todo eso se descargaba en
+    **cada carga de página**, para pintar tablas y unos indicadores que no
+    enseñan ni un documento ni una foto.
+  - *Ahora cada cosa se pide donde se ve:* el contrato al abrir su ficha, la
+    galería al abrir la de la pantalla. En las listas solo viaja el dato de si
+    hay documento o no, que es lo único que necesitan.
+  - *Lo que no cambia para quien usa el sistema:* el contrato se abre igual, la
+    galería se ve igual, y el enlace de firma y la exportación a Excel siguen
+    funcionando igual. Solo dejan de descargarse por adelantado.
+  - *Es la tercera vez que pasa lo mismo* (el 06/08 fue con el arte de los
+    creativos), así que esta vez queda una **prueba automática** que rechaza
+    cualquier archivo incrustado en el arranque. Si alguien vuelve a meter uno,
+    la prueba falla antes de llegar a producción.
+- **Comprobado, y NO era lo que parecía: la bitácora de borrados no es a prueba
+  de fallos.** Se revisó a fondo porque el plan daba por hecho que sí.
+  - *Lo bueno:* **las 8 acciones de borrado** que existen —arrendador, creativo,
+    licencia, razón social, pantalla, usuario, pausa legal y desbloqueo— dejan su
+    entrada en la bitácora. Ahí no falta ninguna.
+  - *Lo que hay que saber:* la anotación se hace **después** del borrado y por
+    separado. Si la anotación fallara, **el borrado ya está hecho** y no se
+    deshace. Está escrito así a propósito, para que un problema al anotar no
+    tumbe la operación de quien está trabajando.
+  - *Lo que sí conviene arreglar, y queda anotado:* hoy ese fallo **no se
+    registra en ningún sitio** — no deja ni una línea de aviso. En un sistema
+    donde la bitácora sirve como prueba de quién hizo qué, un borrado sin rastro
+    y sin avisar es un punto ciego. **Pendiente de decidir** si basta con dejar
+    aviso o hay que llegar a que el borrado se revierta.
+- **Las fechas de Arrendadores ya estaban bien.** Se revisó porque el plan las
+  daba por pendientes: se comprobó pantalla por pantalla y **no había ninguna
+  fecha en formato crudo** («2026-07-16») ni el «28/10/2026(80d)» pegado. Se
+  corrigieron en su día. No se tocó nada.
 - **La contraseña que pide el registro es la que de verdad se exige.** Al crear
   una cuenta, el formulario daba por buena una contraseña de **6 caracteres** y
   dejaba pulsar «Crear cuenta»; el servidor exige **8, con letra y número**, así

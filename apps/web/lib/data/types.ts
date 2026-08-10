@@ -251,6 +251,11 @@ export interface Sitio {
   computerVision: boolean // tecnología AdMobilize
   admobilizeId: string | null // ID del dispositivo AdMobilize
   imagenPromocional: string | null // url/nombre de la imagen promocional
+  // En los LISTADOS (`/api/estado`) `fotos` llega vacío e `imagenPromocional`
+  // nulo: pesaban 1.0 MB por duplicado y solo se ven en la ficha. Esta bandera
+  // distingue «no tiene fotos» de «todavía no se han pedido», y es lo que hace
+  // que la ficha sepa si merece la pena llamar a `/api/sitios/:id/media`.
+  tieneFotos?: boolean
   pendienteVerificacion: boolean // coords default → verificar
   creadoEn: string
 }

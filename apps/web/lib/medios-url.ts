@@ -48,3 +48,18 @@ export function rutaArteCreativo(id: string | null | undefined): string | null {
   if (!id) return null
   return `${BASE_PATH}/api/creativos/${id}/arte/`
 }
+
+// El PDF del contrato de arrendamiento. Mismo motivo que el arte: viajaba
+// INCRUSTADO como data URL en la rebanada `contratos` de `/api/estado`, y ahí
+// pesaba lo que pesa un PDF escaneado —cientos de kB por contrato— en la
+// petición que hidrata TODO el shell. Se pedía en cada carga para pintar una
+// tabla que solo necesita saber si el documento existe.
+//
+// Por ID y con sesión, como el arte. Ojo con el permiso al servirlo: la
+// rebanada `contratos` la ven `arrendadores` O `finanzas` (un contrato es a la
+// vez patrimonio y compromiso de dinero), así que la ruta tiene que aceptar los
+// dos o Finanzas vería el enlace y recibiría un 403 al pulsarlo.
+export function rutaDocumentoContrato(id: string | null | undefined): string | null {
+  if (!id) return null
+  return `${BASE_PATH}/api/contratos/${id}/documento/`
+}

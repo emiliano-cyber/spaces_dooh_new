@@ -20,6 +20,17 @@ const TIPOS_SERVIBLES = new Set([
   'image/gif',
 ])
 
+// El documento de un contrato es un PDF (o una imagen escaneada). NO se añade a
+// `TIPOS_SERVIBLES`: esa lista gobierna el logo y el arte, que se pintan con un
+// `<img>`, y meterle un PDF ahí ampliaría en silencio lo que aceptan esas dos
+// rutas. Cada llamador declara lo que sabe servir.
+export const TIPOS_DOCUMENTO = new Set([
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+])
+
 export interface ImagenDecodificada {
   bytes: Buffer
   tipo: string
@@ -30,7 +41,13 @@ export interface ImagenDecodificada {
 // o una URL http (que en su día pudo guardarse en `logo_url`, porque la columna
 // es un `text` sin restricción). El llamador responde 404 y ya: un logo que no
 // se puede decodificar no es un error del servidor, es que no hay logo.
-export function decodificarDataUrl(dataUrl: string | null | undefined): ImagenDecodificada | null {
+export function decodificarDataUrl(
+  dataUrl: string | null | undefined,
+  // Qué tipos sabe servir QUIEN LLAMA. Por omisión, imágenes: es lo que
+  // necesitan el logo y el arte, y así ninguna ruta existente cambia de
+  // comportamiento por añadir un llamador nuevo.
+  tiposPermitidos: Set<string> = TIPOS_SERVIBLES,
+): ImagenDecodificada | null {
   if (!dataUrl || typeof dataUrl !== 'string') return null
 
   // `[\s\S]` y no `.` con la bandera `s`: el objetivo de compilación es
@@ -41,7 +58,7 @@ export function decodificarDataUrl(dataUrl: string | null | undefined): ImagenDe
   if (!m) return null
 
   const tipo = m[1].toLowerCase()
-  if (!TIPOS_SERVIBLES.has(tipo)) return null
+  if (!tiposPermitidos.has(tipo)) return null
 
   // `Buffer.from(..., 'base64')` no falla con basura: ignora lo que no es
   // base64 y devuelve lo que pudo decodificar, así que una cadena inválida da

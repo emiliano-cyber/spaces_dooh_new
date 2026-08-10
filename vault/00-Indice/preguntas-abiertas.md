@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -175,6 +175,22 @@ Ese default es lo que ha etiquetado filas de otras organizaciones como RGB.
 tenant falle en vez de mentir?
 
 ## 🟢 Menor
+
+### P19 · El `catch` vacío de la bitácora (INC-06, 10/08)
+
+`registrarAccion` (`lib/server/acciones-repo.ts`) se traga el error **sin
+registrarlo** y va en su propia transacción, después del commit de la operación.
+**8 de 8** handlers `DELETE` registran; **0 de 8** de forma atómica.
+
+**Pregunta, en dos partes:**
+1. ¿Basta con **loguear** el fallo (arreglo de una línea en `acciones-repo.ts`),
+   o hace falta que la operación se revierta si no se pudo auditar?
+2. Si hace falta atomicidad: implica pasar el cliente de transacción a
+   `registrarAccion` y envolver los 8 handlers. Es un cambio en zona 🔴.
+
+Contexto para decidirlo: la bitácora se usa **como prueba** en este sistema (es
+el argumento entero del ADR 0009). Un borrado sin rastro y sin aviso es
+exactamente lo que esa decisión intentaba evitar en otro flujo.
 
 ### P16 · `vault/.obsidian/` no está en `.gitignore`
 

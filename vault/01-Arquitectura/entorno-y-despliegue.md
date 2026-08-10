@@ -22,7 +22,7 @@ cd db && docker compose up -d
 
 # 2. Aplicar esquema + migraciones
 psql -d spaces -f db/schema.sql
-# … y las 64 de db/migrations/ en orden lexicográfico ([[migraciones]])
+# … y las 66 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
 # 3. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/

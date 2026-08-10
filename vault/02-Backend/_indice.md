@@ -10,14 +10,14 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: 86 Route Handlers sobre
+El backend es un **BFF dentro de la propia app Next**: 88 Route Handlers sobre
 ~75 archivos en `apps/web/lib/server/`. No hay servicio aparte.
 
 ## Notas de este apartado
 
 | Nota | Cubre |
 |---|---|
-| [[api-endpoints]] | Los 86 endpoints con método, guard y módulo |
+| [[api-endpoints]] | Los 88 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |

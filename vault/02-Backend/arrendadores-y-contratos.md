@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, arrendadores, contratos, dinero, rojo]
 archivos:
   - apps/web/lib/server/arrendadores-repo.ts
@@ -90,6 +90,31 @@ predio (lo normal) o de una pantalla individual (legado). Las columnas
 
 Todo a **mejor esfuerzo**: si la OT falla, la acción principal no se rompe
 (`operaciones-eventos.ts:11-14`).
+
+## El documento del contrato NO viaja en la hidratación (10/08)
+
+`listarContratos()` usa **columnas explícitas**, no `select c.*`. Dos columnas
+quedan fuera a propósito:
+
+| Columna | Por qué fuera |
+|---|---|
+| `documento_url` | El PDF en data URL. Pesaba ~300 kB por contrato **y llegaba al navegador**: el mapper lo exponía |
+| `documento_congelado` | El texto sellado para firma. El mapper ni lo mira — se traía de Postgres para tirarlo |
+
+En su lugar la consulta pide `(documento_url is not null) as tiene_documento` y
+`rowToContrato` emite la **ruta** `/api/contratos/{id}/documento/`, o `null` si
+no hay documento. Ese `null` importa: el export a Excel hace
+`c.documentoUrl ? 'si' : 'no'`, y emitir siempre una ruta pondría «si» en toda
+la columna.
+
+> [!warning] Al añadir una columna a `contratos_arrendamiento`
+> Si el front la necesita, hay que **añadirla a la lista explícita** de
+> `listarContratos()`. Es el coste de la lista, y se paga a gusto: la
+> alternativa es que el próximo `text` grande se cuele solo. Ver
+> [[estado-y-data-fetching]].
+
+Las consultas de **detalle** siguen haciendo `select *`, así que no cambian:
+`rowToContrato` resuelve con `??` y el valor real gana cuando está.
 
 ## Columnas deprecadas
 

@@ -10,7 +10,7 @@ archivos:
   - apps/web/lib/server/cambios.ts
 ---
 
-# API — los 86 endpoints
+# API — los 88 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 `https://demo.space-os.io/spaces-dooh/api/...`.
@@ -71,6 +71,13 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 > habilitado en ese servidor (`googleDisponible`), porque crearían a alguien que
 > no puede entrar de ninguna forma. Ver [[flujo-acceso-con-google]].
 
+> [!important] Lo pesado se sirve aparte, nunca dentro de `/api/estado`
+> Tres rutas siguen el mismo patrón: `/api/logo/[token]`,
+> `/api/creativos/[id]/arte` y —desde el 10/08— `/api/contratos/[id]/documento`
+> y `/api/sitios/[id]/media`. Todo lo que se guarda como `data:` URL se sirve
+> por su propia ruta y **no** viaja en la hidratación. Ver [[flujo-login]] y el
+> apartado de hidratación en [[estado-y-data-fetching]].
+
 > [!danger] `/api/estado` devuelve TODO el tenant
 > Campañas, clientes, propuestas y cifras financieras en una sola respuesta.
 > Por eso el corte de `debe_cambiar_password` en `exigir()` es incondicional
@@ -86,6 +93,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | POST·DELETE | `/api/sitios/[id]/pausa-legal` | exigir |
 | POST | `/api/sitios/[id]/reubicar` | exigir |
 | GET | `/api/sitios/[id]/space-eye` | exigir |
+| GET | `/api/sitios/[id]/media` | exigir (`network.ver`) |
 | POST | `/api/sitios/import` | exigir |
 | POST | `/api/predios` · PATCH `/api/predios/[id]` · POST `/api/predios/[id]/pantallas` | exigir |
 | POST | `/api/incidencias` | exigir |
@@ -102,6 +110,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | PATCH | `/api/contratos/[id]` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/cancelar` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/renovar` | **SENSIBLE** |
+| GET | `/api/contratos/[id]/documento` | `arrendadores` **o** `finanzas` |
 | GET·POST | `/api/contratos/[id]/firma` | exigir |
 | PATCH | `/api/pagos-renta/[id]` | exigir |
 | POST | `/api/pagos-renta/[id]/pagar` | **SENSIBLE** |

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, inventario, sitios, amarillo]
 archivos:
   - apps/web/lib/server/sitios-repo.ts
@@ -59,6 +59,25 @@ a escritura desde el cliente.
 
 `PATCH·DELETE /api/sitios/[id]` exige **desbloqueo** (catálogo = cambio
 sensible). Ver [[autenticacion-y-sesion]].
+
+## La galería no viaja en la hidratación (10/08)
+
+`sitios.fotos` es un `text[]` de **data URLs base64**, e `imagen_promocional`
+otro. En los listados pesaban 1.0 MB por doce pantallas — y **dos veces**,
+porque `sitios` y `sitiosRed` son las mismas filas serializadas por separado.
+
+`rowToSitio(r, modalidades, conMedia)` lleva un tercer parámetro: los dos
+listados pasan `false` y reciben `fotos: []`, `imagenPromocional: null` y
+`tieneFotos: boolean`. `getSitio` y el portal público siguen con `true`.
+
+La galería se pide a **`GET /api/sitios/[id]/media`** (permiso `network.ver`, el
+mismo con el que la rebanada viaja) y la carga `SiteFicha` al abrirse.
+
+> [!note] Por qué el `select s.*` se quedó como estaba
+> Convertirlo en lista explícita son ~48 columnas. Cambiar un peso medido por el
+> riesgo de que a alguien se le caiga una y ese campo pase a `undefined` en todo
+> el inventario no compensa. Lo que sobraba —el peso de la RESPUESTA— se corta
+> en el mapper; el tráfico Postgres→Node sigue ahí y está anotado en el código.
 
 ## Estados
 
