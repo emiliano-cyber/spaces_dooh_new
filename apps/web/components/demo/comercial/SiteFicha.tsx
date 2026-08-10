@@ -180,11 +180,35 @@ export function SiteFicha({
     setBorrarOpen(false)
   }
 
-  // Reinicia la galería local al cambiar de sitio. Las fotos sembradas (string)
-  // se adaptan a FotoMeta sin fechas conocidas.
+  // La galería se PIDE al abrir la ficha; ya no viene en el store. Las fotos
+  // son data URLs base64 y viajaban en `/api/estado` —1.0 MB en doce pantallas,
+  // por duplicado— para pintar tablas y un mapa que no enseñan ninguna. Aquí es
+  // donde de verdad se ven, así que aquí se cargan.
+  //
+  // El `cancelado` no es ceremonia: cambiar de pantalla rápido lanza dos
+  // peticiones y la primera puede volver después, pisando la galería de la
+  // segunda con la de la anterior.
   useEffect(() => {
-    setFotos((sitio?.fotos ?? []).map((url) => ({ url, tomadaEn: '', subidaEn: '' })))
-  }, [sitio?.id])
+    setFotos([])
+    if (!sitio?.id || !sitio.tieneFotos) return
+    let cancelado = false
+    ;(async () => {
+      try {
+        const r = await fetch(`/spaces-dooh/api/sitios/${sitio.id}/media/`)
+        if (!r.ok || cancelado) return
+        const d = (await r.json()) as { fotos?: string[] }
+        if (cancelado) return
+        setFotos((d.fotos ?? []).map((url) => ({ url, tomadaEn: '', subidaEn: '' })))
+      } catch {
+        // Sin galería se sigue viendo la ficha entera: el resto de la
+        // información no depende de las fotos, y un error aquí no debe dejar la
+        // pantalla en blanco.
+      }
+    })()
+    return () => {
+      cancelado = true
+    }
+  }, [sitio?.id, sitio?.tieneFotos])
 
   // Guarda la galería en el sitio (fotos como data URLs base64; la 1ª es la
   // imagen principal). Persiste al agregar o quitar una foto, así se ve después.

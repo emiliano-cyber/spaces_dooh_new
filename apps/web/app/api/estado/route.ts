@@ -122,7 +122,33 @@ export async function GET() {
       si('arrendadores', listarRazonesSociales),
       si('arrendadores', listarLicencias),
     ])
-  return NextResponse.json({
+  const cuerpo = {
     sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias,
-  })
+  }
+  if (process.env.MEDIR_ESTADO === '1') medirRebanadas(cuerpo)
+  return NextResponse.json(cuerpo)
+}
+
+// Peso de cada rebanada, en bytes serializados. DETRÁS DE BANDERA a propósito:
+// medir es volver a serializar TODO el cuerpo una segunda vez, y esta es la
+// petición que hidrata el shell en cada carga — dejarlo encendido cambiaría el
+// coste de la ruta que existe para abaratar.
+//
+// Existe porque esta ruta ya se descontroló una vez sin que nada avisara: llegó
+// a 6.12 MB (contratos 3.95 · sitios 1.0 · sitiosRed 1.0) y el síntoma fue una
+// pantalla en blanco de 6–12 s, no un error. Un `SELECT *` con una columna
+// nueva y grande basta para repetirlo, así que conviene tener con qué mirarlo.
+//
+//   MEDIR_ESTADO=1 npm run dev
+function medirRebanadas(cuerpo: Record<string, unknown>): void {
+  const filas = Object.entries(cuerpo)
+    .map(([clave, valor]) => ({
+      rebanada: clave,
+      kB: +(Buffer.byteLength(JSON.stringify(valor ?? null), 'utf8') / 1024).toFixed(1),
+      filas: Array.isArray(valor) ? valor.length : 1,
+    }))
+    .sort((a, b) => b.kB - a.kB)
+  const total = filas.reduce((s, f) => s + f.kB, 0)
+  console.log(`[estado] total ${total.toFixed(1)} kB`)
+  console.table(filas.filter((f) => f.kB >= 1))
 }
