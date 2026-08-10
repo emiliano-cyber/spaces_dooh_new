@@ -64,7 +64,8 @@ export async function crearCreatividad(input: {
 }
 
 // Aprueba o rechaza un creativo. Al rechazar se guarda el motivo; al aprobar se
-// limpia. Si se rechaza, se desasigna de cualquier spot que lo tuviera.
+// limpia. Si se rechaza, se desasigna de cualquier spot que lo tuviera; si se
+// aprueba y queda como el ÚNICO aprobado de su campaña, se autoasigna.
 export async function validarCreatividad(id: string, aprobar: boolean, motivo?: string | null) {
   const estatus = aprobar ? 'VALIDADA' : 'RECHAZADA'
   const rows = await q(
@@ -72,16 +73,82 @@ export async function validarCreatividad(id: string, aprobar: boolean, motivo?: 
     [id, estatus, aprobar ? null : (motivo ?? null)],
   )
   if (!rows[0]) return null
+  const campanaId: string = rows[0].campana_id
+
   if (!aprobar) {
     // Al rechazar, se quita de cualquier spot que lo tuviera asignado.
+    //
+    // ACOTADO A SU CAMPAÑA. Este `update` iba sin `where` ninguno: reescribía
+    // la columna `creativos` de TODAS las reservas del tenant en cada rechazo.
+    // El resultado salía igual —el filtro del `jsonb_agg` no encuentra el id en
+    // las demás y las deja como estaban—, así que no corrompía nada, pero era
+    // una escritura masiva sobre filas que no tienen nada que ver, en cada
+    // clic de «rechazar». Un creativo solo puede estar asignado a reservas de
+    // su propia campaña, así que ése es el alcance real.
     await q(
       `update reservas set creativos = coalesce(
-         (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
-         '[]'::jsonb)`,
-      [id],
+         (select jsonb_agg(e) from jsonb_array_elements(creativos) e
+           where e->>'creatividadId' <> $1),
+         '[]'::jsonb)
+        where campana_id = $2
+          and creativos @> jsonb_build_array(jsonb_build_object('creatividadId', $1::text))`,
+      [id, campanaId],
     )
+    return rowToCreatividad(rows[0])
   }
-  return rowToCreatividad(rows[0])
+
+  const autoasignadas = await autoasignarSiEsElUnico(campanaId)
+  // `autoasignadas` viaja aparte del creativo para que la ruta pueda dejarlo en
+  // bitácora A NOMBRE DE QUIEN APROBÓ. La asignación la calcula el sistema,
+  // pero la provoca una persona con un clic, y en un historial que se usa como
+  // prueba eso no es lo mismo que «Sistema».
+  return Object.assign(rowToCreatividad(rows[0]), { autoasignadas })
+}
+
+// ─── Autoasignación del creativo único (M14 / INC-02) ───────────────────────
+//
+// Cuando una campaña tiene EXACTAMENTE UN creativo aprobado, no hay nada que
+// decidir: esa pieza es la que va en todas sus pantallas. Pedirle al usuario
+// que la elija doce veces —una por pantalla— es pedirle que teclee la única
+// respuesta posible, y de ahí salían las campañas Publicadas con todos los
+// slots en «Sin asignar» que encontró la auditoría.
+//
+// Con DOS o más NO se hace nada, y es lo importante: ahí sí hay una decisión de
+// negocio —qué pieza va en qué pantalla y con cuántos pases— y adivinarla sería
+// inventar. Esos casos siguen topando con el guard de `enviarADominio`.
+//
+// Solo toca las reservas DIGITALES que están VACÍAS. Una asignación puesta a
+// mano no se pisa nunca.
+async function autoasignarSiEsElUnico(campanaId: string): Promise<number> {
+  const aprobados = await q<{ id: string }>(
+    `select id from creatividades
+      where campana_id = $1 and estatus_validacion = 'VALIDADA' and retirado_en is null`,
+    [campanaId],
+  )
+  if (aprobados.length !== 1) return 0
+  const unico = aprobados[0].id
+
+  // `veces` = los spots de esa pantalla, porque al ser el único se lleva el
+  // loop entero. Es lo mismo que devolvería `asignacionDePantalla([unico], n)`,
+  // y se hace en SQL para no traer las reservas y volver a escribirlas una a
+  // una. En una fija (`spots_por_dia` nulo) va 1: una lona no se reparte.
+  const asignadas = await q<{ nombre: string }>(
+    `update reservas r
+        set creativos = jsonb_build_array(jsonb_build_object(
+              'creatividadId', $2::text,
+              'veces', greatest(coalesce(r.spots_por_dia, 1), 1)))
+       from sitios s
+      where s.id = r.sitio_id
+        and r.campana_id = $1
+        and r.estatus <> 'CANCELADA'
+        and ${esPantallaDigitalSql('s')}
+        and jsonb_array_length(
+              case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                   else '[]'::jsonb end) = 0
+      returning s.nombre`,
+    [campanaId, unico],
+  )
+  return asignadas.length
 }
 
 // Elimina un creativo: lo desasigna de cualquier spot y lo borra. Devuelve el
@@ -90,9 +157,13 @@ export async function eliminarCreatividad(id: string) {
   const rows = await q(`delete from creatividades where id=$1 returning *`, [id])
   if (!rows[0]) return null
   await q(
+    // Acotado a las reservas que DE VERDAD lo tienen (ver la nota en
+    // `validarCreatividad`): sin el `where`, esto reescribía la columna de
+    // todas las reservas del tenant en cada baja.
     `update reservas set creativos = coalesce(
        (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
-       '[]'::jsonb)`,
+       '[]'::jsonb)
+      where creativos @> jsonb_build_array(jsonb_build_object('creatividadId', $1::text))`,
     [id],
   )
   return rowToCreatividad(rows[0])
@@ -105,9 +176,13 @@ export async function retirarCreatividadSoft(id: string) {
   const rows = await q(`update creatividades set retirado_en = now() where id=$1 returning *`, [id])
   if (!rows[0]) return null
   await q(
+    // Acotado a las reservas que DE VERDAD lo tienen (ver la nota en
+    // `validarCreatividad`): sin el `where`, esto reescribía la columna de
+    // todas las reservas del tenant en cada baja.
     `update reservas set creativos = coalesce(
        (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
-       '[]'::jsonb)`,
+       '[]'::jsonb)
+      where creativos @> jsonb_build_array(jsonb_build_object('creatividadId', $1::text))`,
     [id],
   )
   return rowToCreatividad(rows[0])
@@ -137,9 +212,13 @@ export async function reemplazarCreatividad(
   )
   if (!rows[0]) return null
   await q(
+    // Acotado a las reservas que DE VERDAD lo tienen (ver la nota en
+    // `validarCreatividad`): sin el `where`, esto reescribía la columna de
+    // todas las reservas del tenant en cada baja.
     `update reservas set creativos = coalesce(
        (select jsonb_agg(e) from jsonb_array_elements(creativos) e where e->>'creatividadId' <> $1),
-       '[]'::jsonb)`,
+       '[]'::jsonb)
+      where creativos @> jsonb_build_array(jsonb_build_object('creatividadId', $1::text))`,
     [id],
   )
   return rowToCreatividad(rows[0])

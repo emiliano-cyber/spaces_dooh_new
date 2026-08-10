@@ -916,6 +916,64 @@ const ESTADOS_NO_ENVIABLES = new Set(['CANCELADA'])
 // que un revisor verifique la información de los anuncios antes de publicar.
 // Requiere campaña comprometida y, en medios digitales (DOOH/HÍBRIDA), al menos
 // un creativo cargado (es la "información de los anuncios" a verificar).
+// ─── M14 / INC-02 · ninguna pantalla digital se queda sin pieza ─────────────
+//
+// Tener un creativo cargado NO es tenerlo asignado a cada pantalla.
+// `reservas.creativos` es lo que dice QUÉ se exhibe en CADA slot, y estaba sin
+// comprobar: la auditoría encontró campañas Publicadas y Completadas con todos
+// sus slots en «Sin asignar». Eso rompe la trazabilidad creativo→pantalla, y
+// sin ella el reporte al cliente no puede probar qué se exhibió — que es
+// justamente lo que se le vende.
+//
+// Se exige DOS VECES, y no es redundante: al enviar al dominio y otra vez al
+// aprobar. Entre las dos hay una revisión humana que puede tardar días, y en
+// medio alguien puede rechazar un creativo (que se desasigna solo) o repartir
+// de nuevo. Desde que la publicación manda a cada pantalla LO SUYO, un hueco
+// aquí ya no significa «sale de más»: significa que esa pantalla contratada se
+// queda a oscuras.
+//
+// Solo se exige a las pantallas DIGITALES: en una HÍBRIDA las fijas llevan lona
+// y su trazabilidad va por la OT de montaje y sus fotos, no por aquí.
+//
+// El `case` sobre `jsonb_typeof` no es adorno: `jsonb_array_length` LANZA si el
+// valor no es un arreglo, y entonces esto devolvería un 500 en vez de un
+// mensaje. La columna es `not null default '[]'` y hoy las filas son todas
+// arreglos, pero el mapper de este mismo archivo se defiende con
+// `Array.isArray(r.creativos) ? … : []`, así que no me fío más que él. Un valor
+// malformado cuenta como «sin asignar», que es lo correcto.
+//
+// Cuenta como asignada solo si lo asignado sigue APROBADO: un slot cuya única
+// pieza se rechazó después está tan vacío como uno que nunca se llenó.
+async function exigirTodaPantallaConCreativo(campanaId: string, accion: string): Promise<void> {
+  const sinAsignar = await q<{ nombre: string }>(
+    `select s.nombre
+       from reservas r
+       join sitios s on s.id = r.sitio_id
+      where r.campana_id = $1
+        and r.estatus <> 'CANCELADA'
+        and ${esPantallaDigitalSql('s')}
+        and not exists (
+          select 1
+            from jsonb_array_elements(
+                   case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                        else '[]'::jsonb end) e
+            join creatividades cr
+                   on cr.id = (e->>'creatividadId')::uuid
+                  and cr.campana_id = r.campana_id
+                  and cr.estatus_validacion = 'VALIDADA'
+                  and cr.retirado_en is null)
+      order by s.nombre`,
+    [campanaId],
+  )
+  if (sinAsignar.length === 0) return
+  // Se nombran las pantallas: «asigna los creativos» a secas obliga a buscarlas
+  // una por una en una campaña de doce.
+  const lista = sinAsignar.map((r) => r.nombre).join(', ')
+  throw new ValidacionError(
+    `Hay pantallas sin creativo aprobado asignado: ${lista}. Asígnalo en Creativos antes de ${accion}.`,
+  )
+}
+
 export async function enviarADominio(campanaId: string) {
   const camp = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!camp) return null
@@ -944,34 +1002,7 @@ export async function enviarADominio(campanaId: string) {
     // Solo se exige a las pantallas DIGITALES: en una HÍBRIDA las fijas llevan
     // lona y su trazabilidad va por la OT de montaje y sus fotos, no por aquí.
     //
-    // El `case` sobre `jsonb_typeof` no es adorno: `jsonb_array_length` LANZA si
-    // el valor no es un arreglo, y entonces esto devolvería un 500 en vez de un
-    // mensaje. La columna es `not null default '[]'` y hoy las filas son todas
-    // arreglos, pero el mapper de este mismo archivo se defiende con
-    // `Array.isArray(r.creativos) ? … : []`, así que no me fío más que él. Un
-    // valor malformado cuenta como «sin asignar», que es lo correcto.
-    const sinAsignar = await q<{ nombre: string }>(
-      `select s.nombre
-         from reservas r
-         join sitios s on s.id = r.sitio_id
-        where r.campana_id = $1
-          and r.estatus <> 'CANCELADA'
-          and ${esPantallaDigitalSql('s')}
-          and jsonb_array_length(
-                case when jsonb_typeof(r.creativos) = 'array' then r.creativos
-                     else '[]'::jsonb end
-              ) = 0
-        order by s.nombre`,
-      [campanaId],
-    )
-    if (sinAsignar.length > 0) {
-      // Se nombran las pantallas: «asigna los creativos» a secas obliga a
-      // buscarlas una por una en una campaña de doce.
-      const lista = sinAsignar.map((r) => r.nombre).join(', ')
-      throw new ValidacionError(
-        `Hay pantallas sin creativo asignado: ${lista}. Asígnalo en Creativos antes de enviar al dominio.`,
-      )
-    }
+    await exigirTodaPantallaConCreativo(campanaId, 'enviar al dominio')
   }
   const rows = await q(
     `update campanas
@@ -1005,6 +1036,14 @@ export async function validarPublicacion(
     )
   }
   if (aprobar) {
+    // Se vuelve a exigir la asignación (INC-02). Entre el envío al dominio y
+    // esta aprobación hay una revisión humana que puede tardar días, y en medio
+    // se puede haber rechazado un creativo —que se desasigna solo— o repartido
+    // de nuevo. Aprobar dispara la publicación real, y desde que cada pantalla
+    // recibe LO SUYO, un hueco aquí deja esa pantalla a oscuras.
+    if (camp.tipo_campana === 'DOOH' || camp.tipo_campana === 'HIBRIDA') {
+      await exigirTodaPantallaConCreativo(campanaId, 'aprobar la publicación')
+    }
     // Candado de facturación para DIGITALES (A-2): aprobar la publicación (= salió
     // al aire en DOOHmain) enciende la evidencia DIGITAL "reporte_publicacion"
     // (igual que el proof-of-play). La evidencia FÍSICA (fotos_comprobatorias) va

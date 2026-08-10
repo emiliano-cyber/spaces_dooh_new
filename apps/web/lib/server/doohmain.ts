@@ -17,6 +17,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { q, q1 } from './db'
+import { esPantallaDigitalSql } from './pantalla-digital-sql'
 
 const pexec = promisify(execFile)
 
@@ -41,6 +42,10 @@ export interface ResultadoPublicacion {
   creativoNombre: string
   sitio: string
   screen: string | null
+  // Pases diarios pedidos para ESTA pieza en ESTA pantalla (INC-02). Viaja en
+  // el resultado porque es la mitad de la trazabilidad: saber que algo se
+  // publicó no dice cuánto se publicó, y es lo que se le factura al anunciante.
+  cantDia?: number | null
   ok: boolean
   auth?: string
   mediaId?: number
@@ -249,65 +254,150 @@ export async function retirarCreativoEnDoohmain(
   }
 }
 
-// Publica todos los creativos VALIDADOS de la campaña en las pantallas de sus
-// sitios. Nunca lanza: devuelve un resultado por (creativo × pantalla).
+// Publica en DOOHmain LO QUE CADA PANTALLA TIENE ASIGNADO (M14 / INC-02).
+//
+// Antes mandaba el producto cruzado: cada creativo VALIDADO de la campaña a
+// CADA pantalla digital. Dos cosas mal, y las dos importan:
+//
+//   · No quedaba rastro de qué pieza iba en qué pantalla, porque no había tal
+//     cosa: iban todas a todas. El reporte al cliente no podía probar lo que se
+//     exhibió, que es justo lo que se le vende.
+//   · Sobrevendía el loop. `cantDia` era el total de spots de la pantalla, PARA
+//     CADA creativo: dos creativos en una pantalla de 8 pedían 8 pases diarios
+//     cada uno, 16 en un loop de 8.
+//
+// Ahora la unidad es la RESERVA —el slot de esa campaña en esa pantalla— y su
+// columna `creativos`, que es `[{creatividadId, veces}]`: exactamente qué sale
+// ahí y cuántos pases al día le tocan. `veces` va como `cantDia`, así que el
+// reparto que se hizo en la pantalla de Creativos es el que llega al CMS.
+//
+// Solo pantallas DIGITALES. Los sitios FIJOS (espectaculares, vallas, murales)
+// no se suben — misma regla de «digital» que usa el resto del sistema. Una
+// campaña OOH no tiene sitios digitales → no publica nada; una HÍBRIDA solo
+// publica su segmento digital.
+//
+// Nunca lanza: devuelve un resultado por (creativo × pantalla) publicado.
 export async function publicarCampanaEnDoohmain(campanaId: string): Promise<ResultadoPublicacion[]> {
   const camp = await q1<any>('select id, folio, nombre, cliente_id, fecha_inicio, fecha_fin from campanas where id=$1', [campanaId])
   if (!camp) return []
   const cliente = await q1<any>('select nombre from clientes where id=$1', [camp.cliente_id])
   const anunciante = cliente?.nombre ?? 'Sin cliente'
 
-  const creativos = await q<any>(
-    "select id, nombre, archivo_url, codigo, formato from creatividades where campana_id=$1 and estatus_validacion='VALIDADA'",
+  // Una fila por (pantalla × creativo asignado). El `join` contra
+  // `creatividades` filtra por VALIDADA aquí mismo: un creativo asignado que
+  // luego se rechazó no debe salir al aire, y como es un `join` y no un `left
+  // join`, esa fila simplemente no aparece — el hueco se detecta abajo.
+  //
+  // `veces` puede venir como texto dentro del jsonb; se castea explícitamente.
+  const asignaciones = await q<any>(
+    `select r.id as reserva_id, s.clave_interna, s.nombre as sitio_nombre,
+            r.spots_por_dia,
+            cr.id as creativo_id, cr.nombre as creativo_nombre,
+            cr.archivo_url, cr.codigo, cr.formato,
+            (e->>'veces')::int as veces
+       from reservas r
+       join sitios s on s.id = r.sitio_id
+       cross join lateral jsonb_array_elements(
+              case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                   else '[]'::jsonb end) e
+       join creatividades cr
+              on cr.id = (e->>'creatividadId')::uuid
+             and cr.campana_id = r.campana_id
+             and cr.estatus_validacion = 'VALIDADA'
+      where r.campana_id = $1
+        and r.estatus <> 'CANCELADA'
+        and ${esPantallaDigitalSql('s')}
+      order by s.nombre, cr.nombre`,
     [campanaId],
   )
-  // Solo pantallas DIGITALES van a DOOHmain. Los sitios FIJOS (espectaculares,
-  // vallas, murales, etc.) no se suben — misma regla de "digital" que usa el resto
-  // del sistema (sitios-repo). Una campaña FIJA no tiene sitios digitales → no
-  // publica nada; una HÍBRIDA solo publica sus pantallas digitales.
-  const sitios = await q<any>(
-    `select s.id, s.clave_interna, s.nombre,
-            max(r.spots_por_dia) as spots_por_dia
+
+  // Las pantallas digitales que NO tienen ni una pieza publicable: o el slot
+  // quedó vacío, o lo único que tenía asignado se rechazó después. Se REPORTAN
+  // como fallo en vez de omitirse. Antes esto no podía pasar —iban todos a
+  // todas— y saltárselo en silencio dejaría una pantalla contratada sin nada al
+  // aire y sin que nadie se enterara.
+  const huecos = await q<any>(
+    `select s.clave_interna, s.nombre
        from reservas r join sitios s on s.id = r.sitio_id
-      where r.campana_id=$1
-        and (s.tipo_medio = 'PANTALLA_DIGITAL' or s.es_rotativo = true
-             or s.exhibicion in ('digital', 'rotativo'))
-      group by s.id, s.clave_interna, s.nombre`,
+      where r.campana_id = $1
+        and r.estatus <> 'CANCELADA'
+        and ${esPantallaDigitalSql('s')}
+        and not exists (
+          select 1
+            from jsonb_array_elements(
+                   case when jsonb_typeof(r.creativos) = 'array' then r.creativos
+                        else '[]'::jsonb end) e
+            join creatividades cr
+                   on cr.id = (e->>'creatividadId')::uuid
+                  and cr.campana_id = r.campana_id
+                  and cr.estatus_validacion = 'VALIDADA')
+      order by s.nombre`,
     [campanaId],
   )
-  if (sitios.length === 0) return []
 
   const mapa = screenMap()
   const out: ResultadoPublicacion[] = []
 
-  for (const cr of creativos) {
-    const mat = await materializar(cr)
-    if (!mat) {
-      out.push({ creativoId: cr.id, creativoNombre: cr.nombre, sitio: '', screen: null, ok: false, error: 'creativo sin contenido subible', category: 'validation' })
-      continue
-    }
-    try {
-      for (const s of sitios) {
-        const screen = mapa[s.clave_interna] ?? DEFAULT_SCREEN
-        if (!screen) {
-          out.push({ creativoId: cr.id, creativoNombre: cr.nombre, sitio: s.clave_interna, screen: null, ok: false, error: 'sitio sin pantalla DOOHmain mapeada', category: 'validation' })
-          continue
-        }
-        const r = await ejecutarPublish({
-          version: cr.id, anunciante, campana: camp.nombre,
-          fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
-          filepath: mat.path, screen, list: camp.folio,
-          cantDia: s.spots_por_dia != null ? Number(s.spots_por_dia) : null,
+  for (const h of huecos) {
+    out.push({
+      creativoId: '', creativoNombre: '', sitio: h.clave_interna, screen: null, ok: false,
+      error: 'la pantalla no tiene ningún creativo aprobado asignado',
+      category: 'validation',
+    })
+  }
+
+  // Se materializa UNA vez por creativo aunque salga en varias pantallas: es un
+  // archivo temporal en disco y bajarlo doce veces para doce pantallas de la
+  // misma campaña sería doce veces el mismo trabajo.
+  const materiales = new Map<string, Awaited<ReturnType<typeof materializar>>>()
+  try {
+    for (const a of asignaciones) {
+      let mat = materiales.get(a.creativo_id)
+      if (mat === undefined) {
+        mat = await materializar({
+          id: a.creativo_id, nombre: a.creativo_nombre,
+          archivo_url: a.archivo_url, codigo: a.codigo, formato: a.formato,
         })
-        out.push({
-          creativoId: cr.id, creativoNombre: cr.nombre, sitio: s.clave_interna, screen,
-          ok: r.ok === true, auth: r.auth, mediaId: r.media_id, estado: r.estado,
-          error: r.ok === true ? undefined : r.error, category: r.category,
-        })
+        materiales.set(a.creativo_id, mat)
       }
-    } finally {
-      await mat.cleanup()
+      if (!mat) {
+        out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'creativo sin contenido subible', category: 'validation' })
+        continue
+      }
+      const screen = mapa[a.clave_interna] ?? DEFAULT_SCREEN
+      if (!screen) {
+        out.push({ creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen: null, ok: false, error: 'sitio sin pantalla DOOHmain mapeada', category: 'validation' })
+        continue
+      }
+      // `veces` manda: es lo que el reparto decidió para ESTA pantalla.
+      //
+      // Pero SOLO si la reserva tiene programación diaria contratada. Cuando
+      // `spots_por_dia` es null no hay cuota pactada —así están hoy todas las
+      // reservas de producción—, y ahí la asignación guarda `veces: 1` como
+      // simple marca de «esta pieza va aquí». Mandar ese 1 como `--cant-dia`
+      // sería IMPONER un pase al día donde antes no se mandaba la bandera y el
+      // CMS ponía los que cupieran: pasaríamos de la pauta completa a uno.
+      //
+      // O sea: sin cuota contratada, no se dicta cuota. Igual que antes.
+      const cantDia = a.spots_por_dia == null
+        ? null
+        : (Number.isFinite(Number(a.veces)) && Number(a.veces) > 0
+            ? Number(a.veces)
+            : Number(a.spots_por_dia))
+      const r = await ejecutarPublish({
+        version: a.creativo_id, anunciante, campana: camp.nombre,
+        fi: fecha(camp.fecha_inicio), ff: fecha(camp.fecha_fin),
+        filepath: mat.path, screen, list: camp.folio,
+        cantDia,
+      })
+      out.push({
+        creativoId: a.creativo_id, creativoNombre: a.creativo_nombre, sitio: a.clave_interna, screen, cantDia,
+        ok: r.ok === true, auth: r.auth, mediaId: r.media_id, estado: r.estado,
+        error: r.ok === true ? undefined : r.error, category: r.category,
+      })
     }
+  } finally {
+    for (const mat of materiales.values()) if (mat) await mat.cleanup()
   }
   return out
 }

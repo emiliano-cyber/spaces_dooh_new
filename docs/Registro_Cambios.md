@@ -7,6 +7,33 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **Ahora se sabe qué anuncio salió en qué pantalla.** Era el hallazgo más
+  grave que quedaba. Al publicar, el sistema mandaba **todos** los anuncios
+  aprobados de la campaña a **todas** sus pantallas, así que no existía tal cosa
+  como «el anuncio de esta pantalla» — y el reporte al cliente no podía probar
+  qué se exhibió, que es justo lo que se le vende. En la pantalla de Creativos
+  se veía como campañas ya publicadas con todos sus espacios en «Sin asignar».
+  - **Ahora cada pantalla recibe lo suyo**, y solo lo suyo.
+  - **Con un solo anuncio aprobado, se asigna solo.** No hay nada que decidir, y
+    pedir que se elija doce veces la única respuesta posible es de donde venía
+    el problema. Queda anotado en el historial, a nombre de quien aprobó.
+  - **Con dos o más, no se adivina.** Ahí sí es una decisión —qué pieza va en
+    qué pantalla y cuántas veces— y la toma una persona.
+  - **No se publica una pantalla vacía.** Si a alguna le falta su anuncio, ni se
+    envía al dominio ni se aprueba la publicación, y el aviso **dice cuáles**
+    son. Se comprueba en los dos momentos, porque entre uno y otro pueden pasar
+    días y algo puede cambiar.
+  - **Se corrigió también el número de pases al día.** Antes cada anuncio pedía
+    el total de la pantalla: dos anuncios en una de 8 pases pedían 8 cada uno,
+    16 en un hueco de 8. Ahora cada uno pide los suyos. *Y donde no hay pauta
+    diaria contratada no se impone ninguna*, igual que hasta hoy.
+  - **Las campañas ya publicadas se dejan anotadas.** 16 pantallas de cuatro
+    campañas (KFC, mastercard, card y prueba final). *No se inventa el dato*:
+    como en esas cuatro solo hay un anuncio aprobado, ése es exactamente el que
+    salió en cada pantalla. Se está escribiendo lo que ocurrió. Las dos campañas
+    con dos anuncios aprobados se dejan sin tocar a propósito: ahí sí habría que
+    adivinar.
+  - *Nada de esto republica nada,* ni afecta a las campañas de lona.
 - **Ya no se puede dar de alta dos veces al mismo propietario.** Pasó de verdad:
   el 7 de julio alguien dio de alta «ADMINISTRADORA DE GASOLINERAS INTERLOMAS»,
   no lo vio en la lista y lo volvió a dar de alta **un minuto y once segundos

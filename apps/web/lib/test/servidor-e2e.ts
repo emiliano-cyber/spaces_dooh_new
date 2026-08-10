@@ -62,6 +62,23 @@ export async function arrancarServidor(): Promise<void> {
       // detrás de un proxy es donde se cuelan las diferencias que Google
       // rechaza con `redirect_uri_mismatch`. Con barra final (trailingSlash).
       GOOGLE_REDIRECT_URI: `${BASE}/api/auth/google/callback/`,
+
+      // ─── DOOHmain (M14 / INC-02) ────────────────────────────────────────
+      // ENCENDIDO, con un intérprete que NO EXISTE. Suena raro y es a
+      // propósito: lo que hay que probar es QUÉ SE MANDA —qué pieza, a qué
+      // pantalla y con cuántos pases al día—, no lo que conteste el CMS.
+      //
+      // Con el flag apagado, `publicarCampanaEnDoohmain` ni se llama y el
+      // reparto por pantalla se queda sin probar. Con él encendido, cada
+      // intento falla al arrancar el proceso y `ejecutarPublish` devuelve
+      // `{ok:false, category:'network'}` — pero ANTES ha construido la fila del
+      // resultado con el sitio, el creativo y `cantDia`. Ahí es donde se mira.
+      //
+      // No hay riesgo de tocar un DOOHmain real: el binario no existe.
+      DOOHMAIN_PUBLISH_ENABLED: '1',
+      DOOHMAIN_PY: 'python-que-no-existe-en-las-pruebas',
+      DOOHMAIN_DEFAULT_SCREEN: 'pantalla_de_prueba',
+      DOOHMAIN_SCREEN_MAP: '{}',
     },
     shell: process.platform === 'win32',
     stdio: 'ignore',

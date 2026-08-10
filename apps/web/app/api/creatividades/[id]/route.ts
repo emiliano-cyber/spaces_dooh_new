@@ -10,6 +10,7 @@ import { registrarAccion } from '@/lib/server/acciones-repo'
 import { doohmainHabilitado, retirarCreativoEnDoohmain } from '@/lib/server/doohmain'
 import { validarReemplazoCreatividad } from '@/lib/server/creativos-controller'
 import { respuestaError } from '@/lib/server/errores'
+import { conteo } from '@/lib/plural'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -25,6 +26,18 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const crea = await validarCreatividad(params.id, body.aprobar, body.motivo)
   if (!crea) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
   await registrarAccion(g.usuario, body.aprobar ? 'Aprobó creativo' : 'Rechazó creativo', crea.nombre)
+  // Autoasignación del creativo único (M14 / INC-02): se anota aparte porque es
+  // un cambio en OTRAS filas —las reservas— que el usuario no pidió
+  // explícitamente. Que aparezca en el historial es lo que hace que «yo no puse
+  // eso» tenga respuesta.
+  const autoasignadas = (crea as { autoasignadas?: number }).autoasignadas ?? 0
+  if (autoasignadas > 0) {
+    await registrarAccion(
+      g.usuario,
+      `Se asignó automáticamente a ${conteo(autoasignadas, 'pantalla')} por ser el único creativo aprobado`,
+      crea.nombre,
+    )
+  }
   return NextResponse.json(crea)
 }
 
