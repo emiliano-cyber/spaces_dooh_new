@@ -19,10 +19,26 @@
               /api/estado 401 sin sesion · sin errores nuevos en el log (los
               que hay son del 09/08, anteriores al despliegue)
 
- PENDIENTE DE COMPROBAR: que el barrido corrio. No puede hacerse desde aqui —
- necesita una peticion CON SESION y permiso de comercial. Al cierre del
- despliegue las dos campanas seguian en ACTIVA, que es lo correcto: nadie habia
- abierto la app todavia. Las consultas para confirmarlo estan en el PASO 4.
+ BARRIDO CONFIRMADO — 11:57, al abrir el usuario la app en g500:
+
+     KFC                       ACTIVA -> COMPLETADA   (termino el 08/08)
+     Propuesta para cliente 1  ACTIVA -> COMPLETADA   (termino el 31/07)
+
+   · Exactamente las 2 del ensayo en seco. Las otras 11 campanas siguen con el
+     estado que tenian antes del despliegue, comparado fila a fila.
+   · DOS apuntes en bitacora, a nombre de «Sistema», con el MISMO timestamp
+     (11:57:15.885027) — o sea un solo INSERT, que es lo que hace el `unnest`.
+   · Cero errores nuevos en el log · pm2 sigue en 28 reinicios, sin bucle.
+
+   Matiz que conviene dejar dicho: la idempotencia en PRODUCCION tiene un solo
+   dato, no varios. Segun el access.log solo ha habido UNA hidratacion de g500
+   desde el despliegue (11:57). La idempotencia esta probada en la suite —tres
+   pasadas seguidas dejan un unico apunte— pero en produccion aun no se ha
+   repetido. Se cierra sola en la proxima recarga: si tras varias cargas siguen
+   siendo 2 apuntes, confirmado.
+
+     select count(*) from acciones where accion like 'Campaña %automáticamente%';
+     -- tiene que seguir dando 2
 -------------------------------------------------------------------------------
  Commit a desplegar : 90b4f48  (INC-03; arrastra 16af243 INC-09 y 6b52fa3)
  Droplet viene de   : 9788b59
