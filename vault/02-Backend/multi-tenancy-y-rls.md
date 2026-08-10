@@ -158,6 +158,49 @@ pruebas.
 > blanco. No es un fallo: es el aislamiento funcionando. Para mirar otra
 > organización hay que entrar con un usuario suyo, o usar el cambio de CRM.
 
+## Borrar una organización entera: lo que hay que saber
+
+Escrito al preparar el reinicio de `eyro`
+(`docs/datos/20260810_reset_tenant_eyro.sql`). Sirve para cualquier tenant.
+
+**El orden lo dictan 13 claves foráneas con `RESTRICT`** —`facturas→campanas`,
+`reservas→sitios`, `sitios→predios`, `predios→arrendadores`,
+`contratos→arrendadores|predios|sitios`, `propuesta_items→sitios`,
+`campanas|facturas→clientes`—. Con el orden mal, el borrado revienta a mitad y
+deja la organización **medio vacía**. Hijos primero, siempre.
+
+`clientes.agencia_id` y `propuestas.agencia_id` se autorreferencian con
+`NO ACTION`: se comprueban al final de la sentencia, así que un único `DELETE`
+por tabla funciona aunque una agencia sea cliente de otra.
+
+> [!danger] Tres cosas que un `DELETE` NO deshace
+> **1 · Lo publicado en DOOHmain sigue en las pantallas.** Borrar filas no retira
+> nada: eso lo decide el SDK. Y al borrar las campañas se pierde el rastro de
+> *qué* se publicó, así que después ya no se sabe qué hay que retirar. Retira
+> **antes**, por el flujo normal.
+>
+> **2 · La bitácora no se puede borrar.** El trigger `acciones_append_only`
+> rechaza `DELETE` **incluso para el superusuario**
+> (`20260629_bitacora_append_only.sql`). Las únicas salidas serían `TRUNCATE`
+> —que se lleva la de **todas** las organizaciones— o tirar el trigger, que es
+> justo la garantía que le da valor. Sus filas quedan huérfanas de tenant:
+> invisibles por RLS e inertes. **Se aceptan.**
+>
+> **3 · Los folios no se devuelven.** `folios_consecutivos` es global y sin
+> `tenant_id`. Correcto: reemitir folios ya usados sería peor que saltárselos.
+
+> [!warning] El correo del nuevo Dueño es único GLOBAL
+> `usuarios_email_lower_uidx` no lleva `tenant_id`. Si al recrear usas un correo
+> que pertenece a otra organización, **la recreación falla después de haber
+> borrado todo**. El script lo comprueba **antes** de tocar nada y nombra la
+> organización culpable. Lo cazó el ensayo: `emistreg@gmail.com` resultó ser de
+> `emis-pruebas`, no de `eyro`.
+
+> [!tip] `psql` no interpola variables dentro de `$$ … $$`
+> `:'var'` se sustituye en el lexer, que **se salta** el texto entre comillas de
+> dólar. Dentro de un `do $$ … $$` llega el literal y el bloque muere con
+> `syntax error at or near ":"`. Se pasan por una tabla temporal.
+
 ## Deriva conocida de datos
 
 21 tablas tienen `DEFAULT` de `tenant_id` apuntando al tenant `rgb`

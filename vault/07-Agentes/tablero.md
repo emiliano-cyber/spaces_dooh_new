@@ -54,6 +54,13 @@ archivos: []
 >
 > Lo que **no** cambia: `DOOHMAIN_PUBLISH_ENABLED=1`, así que lo que salga por
 > `eyro` llega a pantallas de verdad.
+>
+> **Reinicio pedido y escrito, SIN EJECUTAR:**
+> `docs/datos/20260810_reset_tenant_eyro.sql`. Borra todo `eyro` y lo recrea
+> vacío. Antes de correrlo hay que **editar el correo del Dueño** (`\set
+> duenio_email`) — el script aborta si no. Y **retirar de DOOHmain** lo que siga
+> publicado: el borrado no lo baja de las pantallas y además pierde el rastro de
+> qué era.
 
 ## Archivos de alto contacto
 
