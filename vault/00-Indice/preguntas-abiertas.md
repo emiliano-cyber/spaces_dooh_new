@@ -44,16 +44,26 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 
 **Pregunta:** ¿qué cuenta posee el proyecto y quién rota el `client_secret`?
 
-### P3b · El registro público quedó ABIERTO en producción
+### P3b · ~~¿El registro público es temporal o permanente?~~ **DECIDIDA el 10/08**
 
-`NEXT_PUBLIC_AUTOREGISTRO` pasó de `0` a `1` el 07/08 **por decisión explícita
-del usuario**, con el riesgo escrito en la bitácora (`6dadc9d`): cualquiera que
-llegue a `demo.space-os.io` puede crear una organización y un usuario Dueño en la
-base real, ahora también con un clic de Google.
+**El autorregistro es ABIERTO y permanente.** Decisión del usuario, confirmada el
+10/08. `NEXT_PUBLIC_AUTOREGISTRO=1` se queda.
 
-**Pregunta:** ¿es temporal para una demo concreta, o permanente? Si es
-permanente, ¿hace falta moderación, verificación de dominio o un límite por IP
-más estricto que los 5/hora actuales?
+Eso convierte V2-05 del plan de incidencias en la **opción (A), «abierta con
+guardas»**, que no es «no hacer nada» — implica tres trabajos pendientes:
+
+1. **Verificación de correo** para el alta por contraseña (la de Google está
+   exenta: Google ya verificó). Hoy cualquiera se da de alta con un correo que no
+   controla.
+2. **Unificar la política de contraseña**: el signup pide mínimo 6 caracteres
+   mientras `validarPassword()` (`auth.ts:35-57`) exige 8 con letra y número.
+   Es la política fuerte la que debe ganar.
+3. **Anti-abuso**: el rate limit de signup es 5/hora por IP
+   (`app/api/signup/route.ts:25`); revisar si basta con el alta abierta a
+   internet, y que el error de slug no permita enumerar organizaciones.
+
+Hasta que eso exista, sigue siendo cierto que cualquiera que llegue a
+`demo.space-os.io` crea una organización y un usuario Dueño en la base real.
 
 ### P3c · El aislamiento de `password_resets`, a medias
 

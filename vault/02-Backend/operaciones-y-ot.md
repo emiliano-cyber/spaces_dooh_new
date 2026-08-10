@@ -27,6 +27,14 @@ mantenimiento, herrería, eléctrico, inspección (`tipo_ot`, `db/schema.sql:53`
 | `operaciones-eventos.ts` | 86 | OT automáticas desde Arrendadores |
 | `almacen-repo.ts` | 96 | Activos y traslados |
 
+> [!warning] No existe forma de reasignar una OT ya creada
+> Las rutas son `GET·POST /api/ot`, `GET /api/ot/[id]` y `POST /api/ot/[id]/cerrar`.
+> **No hay `PATCH`.** `asignado_a` solo se escribe en dos momentos: al **crear**
+> la OT (`crearOTCtrl`, campo `asignadoA`) y al **cerrarla**, donde
+> `ot-repo.ts:193` hace `asignado_a = coalesce(asignado_a, $3)` para estampar a
+> quien cierra. Cambiar el responsable de una OT existente exige un script de
+> datos — o un endpoint nuevo.
+
 ## El cierre de OT es lo que destraba la facturación
 
 `ot-repo.ts:11-14`: cerrar una OT con foto guarda la evidencia, completa la OT

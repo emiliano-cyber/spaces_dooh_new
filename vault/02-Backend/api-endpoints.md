@@ -135,7 +135,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 
 | Método | Path | Guard |
 |---|---|---|
-| GET·POST | `/api/ot` · GET `/api/ot/[id]` · PATCH `/api/ot/[id]` | exigir |
+| GET·POST | `/api/ot` | exigir |
+| GET | `/api/ot/[id]` | exigir |
 | POST | `/api/ot/[id]/cerrar` | exigir |
 | GET·POST | `/api/impresion` · PATCH `/api/impresion/[id]` | exigir |
 | PATCH | `/api/impresion/[id]/prueba-color` | exigir |
