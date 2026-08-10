@@ -38,6 +38,11 @@ const crearSchema = z.object({
   telefono: z.string().trim().max(30).nullish(),
   email: z.string().trim().nullish(),
   notas: z.string().trim().nullish(),
+  // A5 / INC-07: quien da el alta ya vio «se llama igual que otro» y responde
+  // que es distinto. Va en el cuerpo y no como cabecera ni parámetro para que
+  // quede en el mismo sitio que el resto del alta, y por defecto es `false`:
+  // omitirlo NUNCA salta el aviso.
+  confirmaNombreRepetido: z.boolean().optional(),
 })
 
 export async function crearArrendadorCtrl(body: unknown) {

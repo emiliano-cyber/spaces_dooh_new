@@ -7,6 +7,32 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **Ya no se puede dar de alta dos veces al mismo propietario.** Pasó de verdad:
+  el 7 de julio alguien dio de alta «ADMINISTRADORA DE GASOLINERAS INTERLOMAS»,
+  no lo vio en la lista y lo volvió a dar de alta **un minuto y once segundos
+  después**. Ahora hay dos protecciones, y son distintas a propósito:
+  - **El RFC es de un solo propietario, y punto.** Si se captura un RFC que ya
+    tiene otro, no se guarda y se dice **de quién es**, para poder ir a su ficha
+    en vez de buscarlo a mano. Esto no se puede saltar: un RFC identifica a un
+    contribuyente. Funciona igual escrito en minúsculas o con espacios de más.
+  - **El nombre repetido avisa, pero deja continuar.** Si ya hay un propietario
+    que se llama igual, se advierte y el botón pasa a decir «Crear de todos
+    modos». *No se prohíbe* porque dos propietarios distintos **pueden**
+    llamarse igual —son personas, no solo empresas—, y prohibirlo dejaría sin
+    poder dar de alta al segundo. También avisa si el que ya existe está dado de
+    baja, que suele ser alguien recuperando lo que borró.
+  - *El RFC sigue siendo opcional:* se pueden dar de alta varios propietarios
+    sin RFC, como hasta ahora.
+  - *Cada organización va por su cuenta:* un mismo propietario puede estar en
+    dos empresas del sistema sin que ninguna se entere de la otra.
+- **El botón de guardar ya no puede dispararse dos veces con un doble clic.**
+  Los formularios ya se bloqueaban al enviar —eso estaba bien hecho y no se
+  tocó—, pero quedaba una rendija de una fracción de segundo entre el primer
+  clic y el momento en que el botón se apaga. Ahora el bloqueo es inmediato, y
+  vale para todos los botones de la aplicación a la vez.
+  - *Lo que esto NO cubre, y por eso hacía falta lo de arriba:* dos pestañas,
+    dos dispositivos o un reintento de la red. Un bloqueo del navegador no llega
+    ahí; la base de datos sí.
 - **El estado de una campaña ya no se queda congelado esperando que alguien lo
   mueva a mano.** Había campañas marcadas **«Activa»** cuyo periodo terminó hace
   semanas, y otras **«Confirmada»** que llevaban días al aire. De ahí salía el

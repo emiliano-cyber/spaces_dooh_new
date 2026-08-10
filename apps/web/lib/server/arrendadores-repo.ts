@@ -219,15 +219,96 @@ export async function listarArrendadores() {
   return rows.map(rowToArrendador)
 }
 
-// Alta de un propietario/arrendador.
+// ─── Alta de un propietario/arrendador (A5 / INC-07) ────────────────────────
+//
+// Dos redes distintas contra el duplicado, porque protegen de cosas distintas:
+//
+//   · RFC — índice único en la base (`arrendadores_tenant_rfc_uq`). Es DURO y
+//     no se puede saltar: dos arrendadores con el mismo RFC en una organización
+//     son el mismo, siempre. Al ser un índice, cubre también la carrera: dos
+//     peticiones a la vez desde dos pestañas y solo una entra.
+//
+//   · NOMBRE — comprobación aquí, con salida. Dos propietarios distintos SÍ
+//     pueden llamarse igual (son personas, no solo empresas), así que un índice
+//     único frenaría un alta legítima sin forma de continuar. Se avisa y, si
+//     quien da el alta confirma que es otro, pasa.
+//
+// El caso que motivó esto —el único duplicado real de la bitácora— fue una
+// repetición humana a 71 segundos, y cae en la segunda red: mismo nombre,
+// mismos datos, un minuto después.
+export class ArrendadorDuplicado extends AppError {
+  // Puede venir null: si el choque lo provocó otra petición en el mismo
+  // instante, su fila quizá no sea visible todavía cuando se va a buscar.
+  existente: ReturnType<typeof rowToArrendador> | null
+  motivo: 'rfc' | 'nombre'
+  constructor(mensaje: string, motivo: 'rfc' | 'nombre', existente: ReturnType<typeof rowToArrendador> | null) {
+    super(mensaje, 409)
+    this.name = 'ArrendadorDuplicado'
+    this.motivo = motivo
+    this.existente = existente
+  }
+}
+
 export async function crearArrendador(input: {
   nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+  /** El alta ya vio el aviso de «se llama igual que otro» y confirma que es distinto. */
+  confirmaNombreRepetido?: boolean
 }) {
-  const rows = await q(
-    `insert into arrendadores (nombre, rfc, telefono, email, notas, tenant_id) values ($1,$2,$3,$4,$5,$6) returning *`,
-    [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null, await tenantActual()],
-  )
-  return rowToArrendador(rows[0])
+  const tenant = await tenantActual()
+
+  // Red del nombre. Se mira ANTES de insertar y a propósito no se blinda contra
+  // la carrera: si dos altas idénticas entran en el mismo milisegundo y ninguna
+  // ve a la otra, quedan dos filas — que es exactamente lo que la regla permite
+  // cuando alguien confirma. Lo que esta comprobación evita es el caso real:
+  // una persona repitiendo un minuto después.
+  //
+  // Incluye los dados de baja (sin filtrar por `activo`): un nombre que
+  // reaparece suele ser alguien recuperando lo que borró, y decírselo es más
+  // útil que crear un segundo registro en la sombra.
+  if (!input.confirmaNombreRepetido) {
+    const previo = await q1<any>(
+      `select * from arrendadores
+        where tenant_id = $1 and upper(btrim(nombre)) = upper(btrim($2))
+        order by creado_en asc limit 1`,
+      [tenant, input.nombre],
+    )
+    if (previo) {
+      throw new ArrendadorDuplicado(
+        `Ya existe un arrendador llamado «${previo.nombre}»` +
+          (previo.activo === false ? ' (dado de baja)' : '') +
+          '. Si es otro distinto, confírmalo para darlo de alta igualmente.',
+        'nombre',
+        rowToArrendador(previo),
+      )
+    }
+  }
+
+  try {
+    const rows = await q(
+      `insert into arrendadores (nombre, rfc, telefono, email, notas, tenant_id) values ($1,$2,$3,$4,$5,$6) returning *`,
+      [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null, tenant],
+    )
+    return rowToArrendador(rows[0])
+  } catch (e) {
+    // 23505 sobre el índice del RFC. Sin esto saldría el 409 genérico («El
+    // registro ya existe»), que no dice cuál ni deja llegar a él — y el usuario
+    // no puede adivinar que el choque es por un RFC que quizá ni recuerda haber
+    // capturado en otro propietario.
+    if ((e as { code?: string })?.code !== '23505') throw e
+    if (!String((e as { constraint?: string })?.constraint ?? '').includes('rfc')) throw e
+    const dueno = await q1<any>(
+      `select * from arrendadores
+        where tenant_id = $1 and upper(btrim(rfc)) = upper(btrim($2)) limit 1`,
+      [tenant, input.rfc ?? ''],
+    )
+    throw new ArrendadorDuplicado(
+      dueno
+        ? `El RFC ${String(input.rfc).toUpperCase()} ya es de «${dueno.nombre}». Un RFC pertenece a un solo arrendador.`
+        : 'Ese RFC ya está registrado en otro arrendador.',
+      'rfc',
+      dueno ? rowToArrendador(dueno) : null,
+    )
+  }
 }
 
 export async function listarContratos() {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, FileSignature, Search, X, Download } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature, Search, X, Download, AlertTriangle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -45,7 +45,7 @@ import {
   type ContratoArrendamiento,
   type MargenSitio,
 } from '@/lib/data/client'
-import { registrarPagoRentaApi, crearArrendadorApi, crearRazonSocialApi } from '@/lib/data/estado-api'
+import { registrarPagoRentaApi, crearArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
 import { esRfcValido } from '@/lib/rfc'
 import { descargarContratos } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
@@ -474,6 +474,11 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
   const [regimen, setRegimen] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Aviso de «ya hay uno que se llama igual» (A5 / INC-07). No bloquea: dos
+  // propietarios distintos pueden llamarse igual. Mientras esté puesto, el
+  // botón principal pasa a «Crear de todos modos», y se limpia en cuanto se
+  // toca el nombre — si lo cambias, el aviso ya no habla de lo que hay escrito.
+  const [nombreRepetido, setNombreRepetido] = useState<string | null>(null)
 
   // El servidor rechaza el RFC mal formado con un 400, pero enterarse después de
   // enviar (y perder el resto del formulario de vista) es peor que verlo al
@@ -492,6 +497,8 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         rfc: rfc.trim() || null,
         telefono: telefono.trim() || null,
         email: email.trim() || null,
+        // Solo va en `true` si el usuario ya vio el aviso y volvió a pulsar.
+        confirmaNombreRepetido: nombreRepetido !== null,
       })
       // La razón social es un segundo registro. Si falla, el arrendador YA se
       // creó: se avisa en vez de tragarse el error, porque quedaría un
@@ -519,7 +526,15 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
       onToast('Propietario agregado')
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      // Nombre repetido: NO es un error, es una pregunta. Se pinta como aviso y
+      // el botón se convierte en «Crear de todos modos». El RFC repetido sí es
+      // un error y cae por la rama de abajo: un RFC es de un solo arrendador y
+      // no hay confirmación que valga.
+      if (e instanceof DuplicadoError && e.motivo === 'nombre') {
+        setNombreRepetido(e.message)
+      } else {
+        setError(e instanceof Error ? e.message : 'No se pudo guardar')
+      }
       setGuardando(false)
     }
   }
@@ -536,7 +551,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
           <div className="flex gap-2">
             <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
             <Button size="sm" disabled={!puedeGuardar} onClick={guardar}>
-              {guardando ? 'Guardando…' : 'Guardar'}
+              {guardando ? 'Guardando…' : nombreRepetido ? 'Crear de todos modos' : 'Guardar'}
             </Button>
           </div>
         </div>
@@ -545,8 +560,26 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
       <div className="space-y-3">
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Nombre / razón social</span>
-          <input className={inputCls} value={nombre} onChange={(e) => setNombre(e.target.value)} autoFocus />
+          <input
+            className={cn(inputCls, nombreRepetido && 'border-accent')}
+            value={nombre}
+            onChange={(e) => { setNombre(e.target.value); setNombreRepetido(null) }}
+            autoFocus
+          />
         </label>
+        {nombreRepetido && (
+          <div className="flex items-start gap-2 rounded border border-accent/50 bg-[#f59e0b0d] px-3 py-2 text-[12px] text-ink">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#9a6700]" strokeWidth={2} />
+            <span>
+              {nombreRepetido}
+              {' '}
+              <span className="text-muted">
+                Si te equivocaste, cierra y búscalo en la lista; si de verdad es otro propietario
+                distinto, vuelve a pulsar.
+              </span>
+            </span>
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">RFC</span>

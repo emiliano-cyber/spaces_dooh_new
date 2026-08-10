@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { crearArrendadorCtrl } from '@/lib/server/arrendadores-controller'
+import { ArrendadorDuplicado } from '@/lib/server/arrendadores-repo'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
@@ -16,6 +17,17 @@ export async function POST(req: Request) {
     await registrarAccion(g.usuario, 'Creó propietario', arr.nombre)
     return NextResponse.json(arr, { status: 201 })
   } catch (e) {
+    // El 409 por duplicado lleva ADEMÁS el arrendador que ya estaba (A5 /
+    // INC-07). Sin él, la pantalla solo puede decir «ya existe» y deja al
+    // usuario buscándolo a mano en una lista; con él puede llevarlo hasta su
+    // ficha. `motivo` distingue el RFC —que no se puede saltar— del nombre,
+    // que sí se puede confirmar.
+    if (e instanceof ArrendadorDuplicado) {
+      return NextResponse.json(
+        { error: e.message, motivo: e.motivo, existente: e.existente },
+        { status: e.status },
+      )
+    }
     return respuestaError(e)
   }
 }

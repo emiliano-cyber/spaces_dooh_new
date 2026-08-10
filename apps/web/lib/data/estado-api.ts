@@ -232,8 +232,25 @@ export async function actualizarClienteApi(id: string, input: Partial<ClienteInp
 // el tipo decía `void` y se tiraba, así que quien necesitara encadenar algo a su
 // id —dar de alta su razón social en el mismo formulario, por ejemplo— no tenía
 // de dónde sacarlo. Los llamadores que lo ignoran siguen igual.
+// Duplicado detectado por el servidor (A5 / INC-07). Es un error aparte y no un
+// `Error` pelado porque la pantalla necesita DECIDIR con él: si el choque es por
+// nombre puede ofrecer «es otro, créalo igual»; si es por RFC no, y lo único
+// útil es llevar al arrendador que ya lo tiene.
+export class DuplicadoError extends Error {
+  motivo: 'rfc' | 'nombre'
+  existente: { id: string; nombre: string } | null
+  constructor(mensaje: string, motivo: 'rfc' | 'nombre', existente: { id: string; nombre: string } | null) {
+    super(mensaje)
+    this.name = 'DuplicadoError'
+    this.motivo = motivo
+    this.existente = existente
+  }
+}
+
 export async function crearArrendadorApi(input: {
   nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+  /** Solo tras haber visto el aviso de nombre repetido y responder que es otro. */
+  confirmaNombreRepetido?: boolean
 }): Promise<{ id: string; nombre: string }> {
   const r = await fetch(`${API}/arrendadores/`, {
     method: 'POST',
@@ -241,6 +258,13 @@ export async function crearArrendadorApi(input: {
     body: JSON.stringify(input),
   })
   const d = await r.json().catch(() => ({}))
+  if (r.status === 409 && (d?.motivo === 'rfc' || d?.motivo === 'nombre')) {
+    throw new DuplicadoError(
+      d.error ?? 'Ese arrendador ya existe',
+      d.motivo,
+      d.existente ? { id: String(d.existente.id), nombre: String(d.existente.nombre) } : null,
+    )
+  }
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el propietario')
   await refrescarEstado()
   return { id: String(d?.id ?? ''), nombre: String(d?.nombre ?? input.nombre) }
