@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [despliegue, entorno, ci, env]
 archivos:
   - apps/web/package.json
@@ -22,7 +22,7 @@ cd db && docker compose up -d
 
 # 2. Aplicar esquema + migraciones
 psql -d spaces -f db/schema.sql
-# … y las 63 de db/migrations/ en orden lexicográfico ([[migraciones]])
+# … y las 64 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
 # 3. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
@@ -97,8 +97,8 @@ para el redirect URI de Google.
 | Variable | Para qué | Evidencia |
 |---|---|---|
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
-| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:148` |
-| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:145-149` |
+| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:191` |
+| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:188-192` |
 | `APP_URL` | Base de enlaces en correos | `app/api/auth/forgot/route.ts:50` |
 | `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:40` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
@@ -124,10 +124,13 @@ para el redirect URI de Google.
 y `NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
 Son restos del backend archivado.
 
-> [!bug] Discrepancia real
-> `.env.production.example` declara **`RESEND_FROM`**, pero `lib/server/email.ts`
-> lee **`EMAIL_FROM`**. Quien despliegue siguiendo la plantilla deja el correo
-> apagado sin que nada lo diga. Ver [[preguntas-abiertas]].
+> [!note] Discrepancia `RESEND_FROM`/`EMAIL_FROM` — **corregida el 07/08**
+> La plantilla declaraba `RESEND_FROM` y el código lee `EMAIL_FROM`. Se comprobó
+> contra el `.env.production` real del droplet: gana **`EMAIL_FROM`**, y la
+> plantilla ya lleva el nombre bueno más la advertencia de «las dos o ninguna»
+> (`e7c3517`). Quien desplegara con la plantilla vieja se quedaba **sin correo y
+> sin aviso**, porque `emailHabilitado()` exige las dos y devuelve `false` en
+> silencio. Ver [[preguntas-abiertas]] P1.
 
 ## Relacionadas
 [[vision-general]] · [[stack-y-dependencias]] · [[migraciones]] ·

@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [flujo, auth, google, oidc, rojo]
 archivos:
   - docs/adr/0012-acceso-con-cuenta-de-google.md
@@ -151,6 +151,12 @@ httpOnly**:
 - y su **presencia** es lo que distingue «entrar» de «darse de alta», así que
   decidirlo desde la URL de vuelta sería dejar que el visitante eligiera qué
   operación ejecuta el servidor.
+
+Mecánica: la UI llama a `/api/auth/google/inicio?alta=1&organizacion=…`, el
+servidor lo guarda en `COOKIE_ALTA_ORG` (corta, httpOnly) y el callback lo lee de
+ahí (`inicio/route.ts:72-113`, `callback/route.ts:165-169`). El callback además
+vuelve a comprobar `autoregistroHabilitado()` — no se fía de que `/inicio` ya lo
+hiciera.
 
 ## Lo que sigue fuera
 

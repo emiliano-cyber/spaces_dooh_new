@@ -5,6 +5,31 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-10
+
+- **La tabla que guarda los enlaces de «olvidé mi contraseña» ya está aislada
+  entre organizaciones, igual que el resto.** Era lo que quedó apuntado el
+  viernes para hoy, y ya está en producción.
+  - *Qué se gana:* una segunda barrera. El enlace de recuperación ya era
+    imposible de adivinar —es de un solo uso y caduca—, y esa sigue siendo la
+    protección principal. Lo que se añade es que, si algún día un error del
+    programa consultara esa tabla sin decir de qué organización habla, no
+    obtendría nada en vez de poder ver los enlaces de todas.
+  - *Por qué no se hizo el mismo día:* el cambio va en **dos piezas que
+    dependen una de otra** —la base y el programa—, y aplicar solo la primera
+    habría dejado «recuperar contraseña» **sin funcionar y sin avisar**: los
+    enlaces empezarían a salir como inválidos, sin ningún error en ningún sitio.
+    Se prefirió escribir el procedimiento y ejecutarlo con calma.
+  - *Cómo se hizo:* respaldo completo de la base antes de tocar nada (7 MB, 38
+    tablas con datos), y un ensayo previo que corre el cambio entero contra los
+    datos reales y lo deshace solo. Solo después se aplicó de verdad.
+  - *Comprobado después:* **ninguna tabla del sistema queda sin aislar** —era
+    la única que faltaba y llevaba así desde el 23 de julio—, la aplicación
+    responde con normalidad y no hubo ni un error nuevo.
+  - *Nada cambia para quien usa el sistema.* Recuperar contraseña sigue
+    apagado en producción por falta del servicio de correo, así que este cambio
+    es preparación: el día que se encienda, ya estará sano.
+
 ## 2026-08-07
 
 - **La plantilla de configuración del servidor tenía mal el nombre de una

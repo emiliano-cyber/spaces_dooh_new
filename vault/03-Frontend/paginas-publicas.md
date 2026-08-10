@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -37,7 +37,7 @@ Más `/contrato/[id]` (vista interna del contrato) y `/propuesta`.
 
 ## Qué se expone, y qué no
 
-`lib/server/portal-repo.ts:10-12`: el portal devuelve **solo** lo de esa
+`lib/server/portal-repo.ts:11-13`: el portal devuelve **solo** lo de esa
 campaña — nada de otros clientes ni datos financieros.
 
 > [!danger] Al añadir un campo al portal, comprueba que no arrastre precio

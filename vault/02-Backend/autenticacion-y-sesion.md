@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -24,12 +24,13 @@ No hay NextAuth, ni `jose`, ni iron-session.
 
 | Pieza | Valor | Evidencia |
 |---|---|---|
-| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15-16,152-162` |
-| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:53-62` |
+| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15,195-211` |
+| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:96-105` |
 | Validez | Fila viva en `sesiones` con `expira_en > now()` | `auth_usuario_por_sesion()` |
-| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:44-46` |
-| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:170-187` |
-| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:145-149` |
+| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:87-94` |
+| Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:59` |
+| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:213-230` |
+| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:188-192` |
 
 ## El camino de una petición autenticada
 
@@ -52,11 +53,12 @@ sequenceDiagram
     A-->>R: {ok:true, usuario} | {ok:false, 401|403}
 ```
 
-## Las tres funciones `SECURITY DEFINER`
+## Las cuatro funciones `SECURITY DEFINER`
 
 `usuarios` es RLS **fail-closed + FORCE** (`20260720_hard1_usuarios_rls.sql:109-114`),
 y el login ocurre **antes** de conocer el tenant. Una lectura directa devolvería
-cero filas. Por eso hay exactamente tres funciones acotadas:
+cero filas. Por eso hay exactamente cuatro funciones acotadas (tres del
+Hardening 1, más la del ADR 0012):
 
 | Función | Para qué |
 |---|---|
@@ -122,8 +124,11 @@ tenant. Es lo que protege `/api/usuarios/[id]/restablecer`.
 
 ## Contraseñas
 
-Política única (`auth.ts:35-42`): ≥8 caracteres, al menos una letra y un número,
-sin espacios. La comparten signup, alta de usuarios y cambio de perfil.
+Política única (`auth.ts:35-57`): ≥8 caracteres, al menos una letra y un número,
+sin espacios. La comparten signup, alta de usuarios y cambio de perfil — y
+`passwordAleatoria()` (`auth.ts:59`) la **construye** en vez de confiar en el
+azar, porque base64url puede salir sin letra o sin dígito y el alta fallaría una
+vez de cada tantas.
 
 Restablecimiento por correo: `password_resets`, token de 256 bits, un solo uso,
 60 minutos, y **borra todas las sesiones del usuario**
@@ -152,8 +157,10 @@ algún día se escala a varias, deja de valer.
 ## Deuda conocida
 
 1. `app/api/tenant-activo/route.ts:23` usa `process.env.COOKIE_SECURE === '1'`
-   en vez de `cookieSecure()`: en producción sin esa variable, la cookie de
-   tenant activo va **sin `Secure`**.
+   en vez de `cookieSecure()`. **Hoy no es un bug**: `COOKIE_SECURE=1` está
+   puesta en el droplet (comprobado el 07/08). Es deuda: el día que falte esa
+   variable, esta cookie perderá `Secure` **y las otras dos no**, porque
+   `cookieSecure()` cae a `NODE_ENV === 'production'`. Ver [[preguntas-abiertas]] P9.
 2. No hay purga de `sesiones` ni `password_resets` vencidos.
 3. No hay rotación de sesión ni sliding expiration.
 

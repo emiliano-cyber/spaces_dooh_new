@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -90,7 +90,12 @@ cobranza.
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-07]] — entrada de hoy
+- [[2026-08-10]] — **última entrada**: validación de la bóveda
+- [[2026-08-07]] — creación de la bóveda y la tarde de Google
+
+> [!tip] Esta bóveda caduca
+> Última validación completa contra el código: **10/08/2026**. El procedimiento
+> para repetirla (cuatro chequeos y sus dos trampas) está en [[convenciones]].
 
 ## Advertencia sobre la documentación existente
 

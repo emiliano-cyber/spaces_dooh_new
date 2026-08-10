@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -18,7 +18,7 @@ archivos: []
 
 | Zona | Estado | Agente | Archivos | Rama | Desde | Notas |
 |---|---|---|---|---|---|---|
-| Z1 · Auth 🔴 | LIBRE | — | — | — | — | Sesión externa cerró el 07/08 y **commiteó todo** (`e7c3517`). Google verificado en producción; ADR 0012 enmendado; `/login` ya redirige con sesión. **Pendiente 10/08:** desplegar el aislamiento de `password_resets` — lleva migración Y código, no son independientes (`PENDIENTE_20260810_PASSWORD_RESETS_RLS.txt`) |
+| Z1 · Auth 🔴 | LIBRE | — | — | — | — | Sesión externa cerró el 07/08 y **commiteó todo** (`e7c3517`). Google verificado en producción; ADR 0012 enmendado; `/login` ya redirige con sesión. **DESPLEGADO el 10/08**: `password_resets` aislada en producción, con respaldo y ensayo previos. El invariante de hardening vuelve a dar 0 tablas sin RLS. |
 | Z2 · Tenant 🔴 | LIBRE | — | — | — | — | — |
 | Z3 · Inventario 🟡 | LIBRE | — | — | — | — | — |
 | Z4 · Arrendadores 🔴 | LIBRE | — | — | — | — | — |
@@ -26,10 +26,10 @@ archivos: []
 | Z6 · Operaciones 🟡 | LIBRE | — | — | — | — | — |
 | Z7 · Finanzas 🔴 | LIBRE | — | — | — | — | — |
 | Z8 · Integraciones 🟡 | LIBRE | — | — | — | — | **Trabajo identificado sin empezar:** `doohmain.ts:260` publica *todos* los creativos validados de la campaña, no el asignado a cada reserva. La asignación ya se guarda pero al publicar NO se usa — INC-02 punto 2. Antes de tocar: confirmar si `DOOHMAIN_PUBLISH_ENABLED` está encendido en producción |
-| Z9 · Datos 🔴 | LIBRE | — | — | — | — | Última migración: `20260807_password_resets_rls.sql` |
+| Z9 · Datos 🔴 | LIBRE | — | — | — | — | Última migración **aplicada en producción el 10/08**: `20260807_password_resets_rls.sql`. Invariante: 0 tablas con `tenant_id` sin RLS+FORCE |
 | Z10 · UI base 🟡 | LIBRE | — | — | — | — | — |
 | Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | Zona de entrada para agentes nuevos |
-| Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08 |
+| Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08 y **validada contra el código el 10/08** ([[2026-08-10]]) |
 
 ## Archivos de alto contacto
 

@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -20,8 +20,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | Guard | Qué exige | Definido en |
 |---|---|---|
 | `PÚBLICO` | Nada. Se auto-protege por token o es bootstrap de sesión. | — |
-| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:107-139` |
-| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:69-83` |
+| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:150-182` |
+| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:112-126` |
 | `DESBLOQ` | Además, desbloqueo vigente si el tenant lo exige | `lib/server/cambios.ts:199-210` |
 | `REAUTH` | Además, desbloqueo **siempre**, ignore el interruptor del tenant | `lib/server/cambios.ts:221-226` |
 | `SENSIBLE` | `exigir(modulo,accion)` + `exigirDesbloqueo()` juntos | `lib/server/cambios.ts:236-245` |
@@ -50,23 +50,31 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 
 ## Usuarios y organización
 
-| Método | Path | Guard |
-|---|---|---|
-| GET·POST | `/api/usuarios` | exigir |
-| PATCH·DELETE | `/api/usuarios/[id]` | exigir |
-| POST | `/api/usuarios/[id]/restablecer` | **REAUTH + DESBLOQ** |
-| GET·POST | `/api/tenants` | exigir |
-| POST | `/api/tenant-activo` | exigir |
-| PATCH | `/api/organizacion` | exigir |
-| GET·PATCH | `/api/config` | exigir |
-| GET·PUT | `/api/cambios` | exigir |
-| POST·DELETE | `/api/cambios/desbloquear` | exigir |
-| GET | `/api/estado` | exigir |
+| Método | Path | Guard | Nota |
+|---|---|---|---|
+| GET·POST | `/api/usuarios` | exigir | acepta `entraConGoogle` (sin contraseña) |
+| PATCH·DELETE | `/api/usuarios/[id]` | exigir | |
+| POST | `/api/usuarios/[id]/restablecer` | **REAUTH + DESBLOQ** | |
+| GET·POST | `/api/tenants` | exigir | el admin acepta `entraConGoogle` |
+| POST | `/api/tenant-activo` | exigir | Cambio de CRM del super-admin |
+| PATCH | `/api/organizacion` | exigir | |
+| GET·PATCH | `/api/config` | exigir | |
+| GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
+| POST·DELETE | `/api/cambios/desbloquear` | exigir | |
+| GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
+
+> [!note] Alta con Google (ADR 0012 enmendado, 07/08)
+> `POST /api/usuarios` y `POST /api/tenants` aceptan `entraConGoogle: true` y
+> entonces **no se manda contraseña**: el servidor genera una con
+> `passwordAleatoria()` que nadie ve (`usuarios-controller.ts:45,74`,
+> `cuentas-controller.ts:31,77`). Ambos rechazan el alta si Google no está
+> habilitado en ese servidor (`googleDisponible`), porque crearían a alguien que
+> no puede entrar de ninguna forma. Ver [[flujo-acceso-con-google]].
 
 > [!danger] `/api/estado` devuelve TODO el tenant
 > Campañas, clientes, propuestas y cifras financieras en una sola respuesta.
 > Por eso el corte de `debe_cambiar_password` en `exigir()` es incondicional
-> (`lib/server/auth.ts:113-127`) y **no** puede condicionarse a que la ruta
+> (`lib/server/auth.ts:156-171`) y **no** puede condicionarse a que la ruta
 > declare módulo.
 
 ## Inventario

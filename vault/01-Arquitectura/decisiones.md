@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -56,7 +56,7 @@ Están razonadas en comentarios, no en `docs/adr/`. Se documentan aquí porque
 tienen el mismo peso operativo.
 
 ### D-1 · La sesión es opaca y se resuelve contra la tabla, no criptográficamente
-`lib/server/auth.ts:53-62` genera 256 bits aleatorios y los guarda en `sesiones`.
+`lib/server/auth.ts:96-105` genera 256 bits aleatorios y los guarda en `sesiones`.
 No hay JWT ni firma. **Ventaja:** la revocación es real (borrar la fila).
 **Costo:** cada petición hace una consulta.
 

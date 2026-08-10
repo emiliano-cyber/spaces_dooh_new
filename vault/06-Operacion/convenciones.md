@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/lib/server/errores.ts
@@ -121,6 +121,63 @@ escrito. Ver [[stack-y-dependencias]].
 | Runbook (`DESPLIEGUE_*.txt`) | Pasos de un despliegue, marcados cuando se ejecutan |
 | Bitácora | Qué cambió, para el negocio |
 | Esta bóveda | Cómo funciona el sistema, para quien va a tocarlo |
+
+## Validar la bóveda contra el código
+
+La bóveda **caduca**. Se escribió el 07/08 y en cinco horas quedaron obsoletas
+cuatro afirmaciones. Estos cuatro chequeos son mecánicos y detectan la mayoría de
+la deriva. Correrlos al retomar el proyecto tras unos días, y siempre después de
+un lote grande de commits.
+
+### 1 · Los recuentos siguen cuadrando
+
+```powershell
+"endpoints: $((Get-ChildItem apps\web\app\api -Recurse -Filter route.ts).Count)"
+"migraciones: $((Get-ChildItem db\migrations\*.sql).Count)"
+"tablas: $(Select-String db\schema.sql,db\migrations\*.sql -Pattern '^create table' | Measure-Object).Count"
+```
+Contrastar con [[MOC-Proyecto]], [[api-endpoints]], [[esquema]] y
+[[migraciones]].
+
+### 2 · Todo wikilink resuelve y nada queda huérfano
+
+Extraer los enlaces internos (dobles corchetes) de cada nota y comprobar que
+existe un `.md` con ese `BaseName` — o con esa ruta relativa, para los que van
+con carpeta, tipo `02-Backend/_indice`. Al 10/08: **395 enlaces, 0 rotos, 0
+huérfanas**.
+
+> [!tip] Ojo con los ejemplos de sintaxis
+> Un extractor ingenuo también captura los dobles corchetes escritos como
+> ejemplo dentro de una nota, aunque estén entre backticks, y los reporta como
+> rotos. Por eso esta sección los describe en palabras en vez de escribirlos.
+
+### 3 · Toda ruta citada existe
+
+Tanto las de `archivos:` en el frontmatter como las de los cuerpos entre
+backticks. **Dos avisos** si automatizas esto:
+
+- las rutas se escriben relativas al **repo** (`apps/web/lib/…`) o a
+  **`apps/web`** (`lib/server/…`); hay que probar las dos bases;
+- `Test-Path` trata `[token]` y `[id]` como comodines — usa **`-LiteralPath`** o
+  darán falsos negativos en todas las rutas dinámicas de Next.
+
+### 4 · Los números de línea no han derivado
+
+Es el chequeo que más deriva encuentra y el único que no es binario. Por cada
+cita `archivo.ts:N`, leer la línea N y comprobar que dice lo que la nota afirma.
+
+> [!warning] Un archivo que crece invalida todas sus citas de golpe
+> `lib/server/auth.ts` pasó de 188 a 230 líneas al añadir `passwordAleatoria()`,
+> y con eso **ocho** citas de cinco notas distintas apuntaron a la línea
+> equivocada. Ninguna daba error: simplemente mandaban al sitio erróneo.
+
+### Y lo que ningún script detecta
+
+Que una nota describa correctamente algo que **ya se decidió de otra forma**. El
+ADR 0012 pasó de «Google no da de alta» a lo contrario en una tarde, y las rutas,
+los enlaces y los recuentos seguían perfectos. Para eso: leer
+`git log --since` y `docs/Registro_Cambios.md` desde la fecha del último
+`actualizado:`.
 
 ## Relacionadas
 [[zonas-de-riesgo]] · [[AGENTES]] · [[migraciones]] ·

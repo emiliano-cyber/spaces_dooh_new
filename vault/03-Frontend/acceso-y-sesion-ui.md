@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -52,6 +52,18 @@ botón no existe. Ver [[flujo-acceso-con-google]].
 > **no** llevan ese prefijo y se leen en tiempo de petición, por eso encender
 > Google solo necesita `pm2 reload --update-env`
 > (`DESPLIEGUE_GOOGLE.txt:91-95`).
+
+## Con sesión abierta, `/login` no se queda a la vista
+
+Desde `e7c3517` (INC-08), la página **valida la sesión contra el servidor** y
+redirige, en vez de decidirlo desde el cliente
+(`app/(app)/login/page.tsx:87-95`).
+
+> [!note] Por qué se ve el formulario un instante
+> Es deliberado: se valida contra `/api/auth/me` en vez de fiarse de la mera
+> presencia de la cookie, que es lo único que puede mirar el middleware. El coste
+> es ese parpadeo; la ventaja es que una cookie caducada no te deja en una página
+> que no lleva a ningún sitio.
 
 ## Recuperar contraseña
 

@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -33,6 +33,16 @@ archivos:
 | `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | — |
 | `/comisiones` | Comisiones | derivado | — |
 | `/administracion` | Usuarios, permisos, organizaciones | `/api/usuarios`, `/api/tenants` | `OrganizacionesPanel`, `ControlCambiosPanel`, `permisos.ts` |
+
+> [!tip] Un panel que no aplica **se explica**, no se esfuma
+> `OrganizacionesPanel.tsx` mostraba nada cuando no eras el super-admin de
+> plataforma, y eso se lee como avería. Desde `2326149` dice **por qué** no lo
+> ves. Es el mismo patrón que la contraseña temporal: si el servidor niega algo,
+> la pantalla tiene que decirlo.
+
+Desde el 07/08 el alta de usuario y la de organización llevan casilla **«entra
+con su cuenta de Google»**: no se teclea contraseña y el servidor genera una que
+nadie ve. Ver [[flujo-acceso-con-google]].
 | `/configuracion` | Config del negocio | `/api/config`, `/api/organizacion` | — |
 | `/integraciones` | Estado de conectores | `/api/integraciones` | — |
 
