@@ -20,8 +20,8 @@ archivos: []
 |---|---|---|---|---|---|---|
 | Z1 · Auth 🔴 | LIBRE | — | — | — | — | Sesión externa cerró el 07/08 y **commiteó todo** (`e7c3517`). Google verificado en producción; ADR 0012 enmendado; `/login` ya redirige con sesión. **DESPLEGADO el 10/08**: `password_resets` aislada en producción, con respaldo y ensayo previos. El invariante de hardening vuelve a dar 0 tablas sin RLS. |
 | Z2 · Tenant 🔴 | LIBRE | — | — | — | — | — |
-| Z3 · Inventario 🟡 | LIBRE | — | — | — | — | — |
-| Z4 · Arrendadores 🔴 | LIBRE | — | — | — | — | **INC-07 desplegado el 10/08** (`7d27d25`). `arrendadores_tenant_rfc_uq` hace único el RFC por organización; el nombre repetido avisa con 409 y se puede confirmar. Antes de tocar el alta: [[0013-altas-que-no-se-pueden-duplicar]] |
+| Z3 · Inventario 🟡 | LIBRE | — | — | — | — | **Sin desplegar (10/08):** `rowToSitio` lleva un tercer parámetro `conMedia`; los listados van sin galería y `SiteFicha` la pide a `/api/sitios/:id/media`. Si añades un consumidor de `sitio.fotos`, recuerda que en los listados llega `[]` — mira `tieneFotos` |
+| Z4 · Arrendadores 🔴 | LIBRE | — | — | — | — | **INC-07 desplegado el 10/08** (`7d27d25`). `arrendadores_tenant_rfc_uq` hace único el RFC por organización; el nombre repetido avisa con 409 y se puede confirmar. Antes de tocar el alta: `docs/adr/0013-altas-que-no-se-pueden-duplicar.md` |
 | Z5 · Comercial 🟡 | LIBRE | — | — | — | — | **INC-03 desplegado y CONFIRMADO el 10/08** junto con INC-09 (`484e768`). El barrido corrio a las 11:57 y movio las 2 campanas del ensayo en seco (`KFC`, `Propuesta para cliente 1`), ni una mas. `recomputarEstadoCampanas()` en `campanas-repo.ts` sincroniza `estado_comercial` con el calendario desde `/api/estado`. Si tocas la definición de «publicada», está en la constante `SQL_PUBLICADA` y la comparten las dos reglas — y `pipelineStage()` usa el mismo criterio para `instalada`: cámbialos juntos |
 | Z6 · Operaciones 🟡 | LIBRE | — | — | — | — | — |
 | Z7 · Finanzas 🔴 | LIBRE | — | — | — | — | — |
@@ -29,7 +29,23 @@ archivos: []
 | Z9 · Datos 🔴 | LIBRE | — | — | — | — | **Al día.** Últimas migraciones aplicadas en producción el 10/08: `20260807_password_resets_rls.sql`, `20260810_notificaciones_archivada_en.sql` y `20260810_arrendadores_rfc_unico.sql`. Producción en `7d27d25`, sin migraciones pendientes. Invariante: 0 tablas con `tenant_id` sin RLS+FORCE |
 | Z10 · UI base 🟡 | LIBRE | — | — | — | — | `Button` se bloquea solo mientras su `onClick` esté en vuelo (10/08, A5). No cambia su API y ningún formulario se tocó. La guarda vive en `lib/clic-unico.ts` y tiene sus propias pruebas |
 | Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | Zona de entrada para agentes nuevos |
-| Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08 y **validada contra el código el 10/08** ([[2026-08-10]]) |
+| Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08, **validada contra el código el 10/08** y actualizada con la tarde del 10/08 ([[2026-08-10]]) |
+
+> [!warning] Hay trabajo HECHO Y SIN FUSIONAR: rama `feat/estado-ligero`
+> **V2-01** — `/api/estado` deja de llevar el PDF de los contratos y las fotos
+> de las pantallas. Verde en local (typecheck · 772 unitarias · 129 e2e · build)
+> pero **fuera de `main`**, y su métrica (`<500 kB`, `<1 s` en frío) **no está
+> tomada**: solo se puede medir en producción.
+>
+> **El despliegue hace `git pull` sobre `main`**, así que mientras la rama no se
+> fusione, esto NO sale — y el síntoma sería «lo arreglamos y sigue igual».
+>
+> Tocó: `arrendadores-repo`, `sitios-repo`, `estado/route`, `SiteFicha`,
+> `medios-url`, `data-url`, `data/types`, más dos rutas nuevas. Si vas a entrar
+> en Z3, Z4 o Z10, mira antes el árbol.
+>
+> Al desplegar hay que comprobar **la firma `/firmar/[token]` y el export de
+> contratos**: son los dos flujos que leían el documento.
 
 ## Archivos de alto contacto
 

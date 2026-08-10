@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -18,7 +18,7 @@ archivos:
 
 ## Cómo funciona
 
-- **64 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **66 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
 - Se aplican en **orden lexicográfico** del nombre.
 - **No hay tabla de control de migraciones** ni herramienta (`migrate`, Prisma
   Migrate). El orden lo da el nombre y el registro de que se aplicaron son las
@@ -67,7 +67,9 @@ quien compare el repo con lo desplegado»* (`db-e2e.ts`).
 | `20260805_config_negocio_por_tenant.sql` | ADR 0011 |
 | `20260805_objetos_solo_en_prod.sql` | **Ver abajo** |
 | `20260806_identidades_externas.sql` | ADR 0012 — aplicada en prod el 07/08 11:13 |
-| `20260807_password_resets_rls.sql` | `password_resets` pasa a fail-closed |
+| `20260807_password_resets_rls.sql` | `password_resets` pasa a fail-closed — aplicada en prod el 10/08 09:14 |
+| `20260810_notificaciones_archivada_en.sql` | `notificaciones.archivada_en` |
+| `20260810_arrendadores_rfc_unico.sql` | `arrendadores_tenant_rfc_uq` — un RFC, un propietario (ADR 0013) |
 
 ## La migración que revela el mayor riesgo del proyecto
 

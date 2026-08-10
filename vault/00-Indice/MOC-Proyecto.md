@@ -27,9 +27,9 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
 | Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
-| Endpoints | 86 route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 38 | [[esquema]] |
-| Migraciones | 64 | [[migraciones]] |
+| Migraciones | 66 | [[migraciones]] |
 
 ## Antes de tocar nada
 
@@ -52,7 +52,7 @@ cobranza.
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
-- [[api-endpoints]] — los 86 endpoints con método, guard y módulo
+- [[api-endpoints]] — los 88 endpoints con método, guard y módulo
 - [[autenticacion-y-sesion]] — cookie, sesión, CSRF, permisos, reautenticación
 - [[multi-tenancy-y-rls]] — cómo se aísla cada organización
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
@@ -73,7 +73,7 @@ cobranza.
 
 ### 04 · Datos
 - [[esquema]] — diagrama ER y las 38 tablas
-- [[migraciones]] — las 63 en orden, y las trampas de orden
+- [[migraciones]] — las 66 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
@@ -90,7 +90,7 @@ cobranza.
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-10]] — **última entrada**: validación de la bóveda
+- [[2026-08-10]] — **última entrada**: despliegues del día + V2-01
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
 > [!tip] Esta bóveda caduca
