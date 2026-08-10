@@ -1,0 +1,195 @@
+===============================================================================
+ DESPLIEGUE — INC-02 · cada pantalla recibe SU pieza    Preparado: 2026-08-10
+-------------------------------------------------------------------------------
+ Commit a desplegar : cde5f58  (contiene 42bb856, que es INC-02)
+ Droplet viene de   : 7d27d25
+ App                : pm2 spaces-web  ->  https://demo.space-os.io
+ BD                 : spaces_prod  — SIN migraciones, pero SI un cambio de datos
+===============================================================================
+
+
+>>> ESTE ES EL DESPLIEGUE CON MAS RIESGO DE LA SEMANA <<<
+---------------------------------------------------------
+No cambia una pantalla: cambia LO QUE SE LE MANDA A UN SERVIDOR DE ANUNCIOS EN
+VIVO. `DOOHMAIN_PUBLISH_ENABLED=1` esta encendido en produccion — comprobado en
+el `.env.production` del droplet.
+
+  ANTES:  al aprobar la publicacion se mandaba CADA creativo validado de la
+          campana a CADA pantalla digital (producto cruzado), y `cant-dia` era
+          el total de la pantalla PARA CADA UNO.
+  AHORA:  cada pantalla recibe LO QUE TIENE ASIGNADO, con sus pases.
+
+O sea que a partir de aqui, una pantalla sin asignacion NO RECIBE NADA. Por eso
+existe el bloqueo previo (no deja aprobar con huecos) y por eso hay que mirar
+el estado ANTES de subir.
+
+
+===============================================================================
+ GATE — MIRAR ESTO ANTES DE EMPEZAR
+===============================================================================
+Dos campañas de eyro tienen DOS creativos aprobados y su pantalla SIN asignar.
+El sistema no las autoasigna a proposito: con dos, cual va en cual es una
+decision de negocio.
+
+  sudo -u postgres psql -d spaces_prod -c "
+    select c.nombre, c.estado_comercial, r.creativos::text
+      from reservas r join campanas c on c.id = r.campana_id
+     where c.nombre in ('Campaña lista — publicar a DOOHmain','pruebas_produccion')
+       and r.estatus <> 'CANCELADA'"
+
+  ESPERADO ANTES DE SEGUIR: las dos con algo distinto de `[]`.
+
+  · «Campaña lista — publicar a DOOHmain» esta ACTIVA hasta el 13/08. ES LA QUE
+    IMPORTA: si se republicara sin asignacion, esa pantalla se quedaria a
+    oscuras.
+  · «pruebas_produccion» esta COMPLETADA. No urge, pero se deja igual.
+
+  Se asignan en Creativos, un clic cada una (la primera tiene 1 spot
+  contratado → una pieza; la segunda no tiene spots → selector unico).
+
+  SI SIGUEN EN `[]`: PARA. Desplegar no rompe nada por si solo —nada se
+  republica sin que alguien apruebe—, pero deja una trampa armada para el
+  proximo que apruebe esa campana.
+
+
+LO QUE NO LLEVA
+---------------
+  · NO hay migraciones (`git diff 7d27d25..cde5f58 -- db` vacio salvo
+    docs/datos, que no se ejecuta solo).
+  · NO hay dependencias nuevas ni variables nuevas.
+  · NO se toca nginx.
+  · NO republica nada por si mismo. La publicacion solo ocurre cuando alguien
+    APRUEBA una campana enviada al dominio.
+
+Es codigo de cliente y de servidor: HAY QUE COMPILAR.
+
+
+===============================================================================
+ PASO 0 — TRAER EL CODIGO
+===============================================================================
+  cd /var/www/Spaces
+  git log --oneline -1                   -> 7d27d25
+  git checkout -- package-lock.json
+  git fetch origin main
+  git merge --ff-only origin/main
+  git log --oneline -1                   -> cde5f58
+
+
+===============================================================================
+ PASO 1 — RESPALDO   (hay cambio de datos en el paso 3)
+===============================================================================
+  sudo -u postgres pg_dump spaces_prod | gzip > ~/spaces_prod_pre_inc02_$(date +%Y%m%d_%H%M%S).sql.gz
+  zcat ~/spaces_prod_pre_inc02_*.sql.gz | grep -c "^COPY"     -> ~38
+
+  Como `postgres`, NO con el rol de la app: con la RLS fail-closed, un dump con
+  `spaces_user` sale SIN FILAS y parece bueno.
+
+
+===============================================================================
+ PASO 2 — COMPILAR   (mirar EXIT antes de recargar)
+===============================================================================
+  cd /var/www/Spaces
+  npx turbo run build --filter=web ; echo "EXIT=$?"
+
+  >>> NO SIGAS SI EXIT NO ES 0. <<<
+  Turbo imprime «Compiled successfully» y despues puede imprimir
+  `Failed: web#build`: son fases distintas. Lee EXIT, no el texto.
+
+
+===============================================================================
+ PASO 3 — RECARGAR
+===============================================================================
+  pm2 reload spaces-web --update-env
+  pm2 list | grep spaces-web       (online, UN reinicio nuevo: 29 -> 30)
+
+
+===============================================================================
+ PASO 4 — BACKFILL de las 16 reservas ya publicadas
+===============================================================================
+Va DESPUES del codigo, y da igual el orden: no se republica nada. Se pone aqui
+para que, si el build fallara, no se hubiera tocado ningun dato.
+
+  cd /var/www/Spaces/docs/datos
+  sudo -u postgres psql -d spaces_prod --set ON_ERROR_STOP=1 \
+    -f 20260810_inc02_asignar_creativo_unico.sql
+
+  ESPERADO: `UPDATE 16`, el guardarrail sin excepcion, y el listado final con
+  las 16 pantallas de KFC (12), mastercard (2), card (1) y prueba final (1) ya
+  con su pieza.
+
+  Ensayo ya hecho el 10/08 contra spaces_prod: UPDATE 16, guardarrail en 0,
+  ROLLBACK.
+
+  ESTO NO INVENTA UN DATO. Con el codigo anterior la publicacion mandaba todos
+  los creativos aprobados a todas las pantallas; como en esas cuatro campanas
+  solo hay UNO aprobado, ese creativo es exactamente el que salio en cada
+  pantalla. Se anota lo que ocurrio.
+
+
+===============================================================================
+ PASO 5 — COMPROBAR
+===============================================================================
+ Desde fuera:
+   curl -sL -o /dev/null -w "login: %{http_code}\n" https://demo.space-os.io/spaces-dooh/login/
+   -> 200
+
+ En el droplet:
+   pm2 logs spaces-web --err --lines 30        (sin errores NUEVOS)
+
+ El artefacto SERVIDO (no el git log):
+   grep -rl "sin creativo aprobado asignado" /var/www/Spaces/apps/web/.next/server | head -2
+
+ Los datos:
+   sudo -u postgres psql -d spaces_prod -c "
+     select count(*) as sin_asignar
+       from reservas r join sitios s on s.id = r.sitio_id
+      where r.estatus <> 'CANCELADA'
+        and (s.tipo_medio='PANTALLA_DIGITAL' or s.es_rotativo
+             or s.exhibicion in ('digital','rotativo'))
+        and jsonb_array_length(case when jsonb_typeof(r.creativos)='array'
+                                    then r.creativos else '[]'::jsonb end) = 0"
+   -> 0 si el GATE se hizo. Si sale 2, son las de eyro y el gate se salto.
+
+ PRUEBA DE FUEGO (con sesion):
+   [ ] Creativos: ninguna campana publicada muestra ya «Sin asignar».
+   [ ] Sube un creativo nuevo a una campana que no tenga ninguno, apruebalo, y
+       comprueba que aparece asignado solo en todas sus pantallas — y que queda
+       el apunte «Se asignó automáticamente a N pantallas» en Actividad.
+   [ ] En una campana con dos creativos, vacia un slot y prueba a enviarla al
+       dominio: debe rebotar NOMBRANDO esa pantalla.
+
+
+===============================================================================
+ DISPARADORES DE ROLLBACK
+===============================================================================
+   · pm2 reinicia mas de 2 veces
+   · el login deja de responder 200
+   · 5xx nuevos en el log
+   · Creativos o Campanas no cargan
+   · al aprobar una publicacion, el resultado de DOOHmain trae pantallas con
+     «la pantalla no tiene ningun creativo aprobado asignado» que SI tenian
+     pieza asignada
+
+
+===============================================================================
+ ROLLBACK — dos piezas
+===============================================================================
+ 1) CODIGO:
+      cd /var/www/Spaces
+      git checkout 7d27d25
+      npx turbo run build --filter=web ; echo "EXIT=$?"
+      pm2 reload spaces-web --update-env
+
+    Con el codigo viejo vuelve el producto cruzado. Las asignaciones que haya
+    en la base pasan a ser ignoradas otra vez, no estorban.
+
+ 2) DATOS — solo si se quiere deshacer el backfill (normalmente NO hace falta:
+    la asignacion es informacion correcta y el codigo viejo la ignora):
+
+      sudo -u postgres psql -d spaces_prod \
+        -f /var/www/Spaces/docs/datos/20260810_inc02_asignar_creativo_unico_rollback.sql
+
+    Acotado: solo vacia las que tengan UNA pieza con `veces` = 1 que sea el
+    unico aprobado de su campana — o sea, exactamente lo que escribio el
+    backfill. Una asignacion hecha a mano despues NO cumple y se queda.
+===============================================================================
