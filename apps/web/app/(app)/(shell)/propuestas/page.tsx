@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { conteo } from '@/lib/plural'
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { Plus, FileText, Send, Check, X, ChevronDown, ChevronRight, Monitor, Square, List, Map as MapIcon } from 'lucide-react'
@@ -194,7 +195,7 @@ function PropuestaCard({
               <div className="text-[12px] text-muted">
                 {cliente?.nombre ?? 'Sin cliente'}
                 {agencia ? <> · vía <span className="text-ink">{agencia.nombre}</span></> : ''}
-                {' '}· {p.items.length} sitios
+                {' '}· {conteo(p.items.length, 'sitio')}
               </div>
             </div>
           </button>
@@ -223,7 +224,7 @@ function PropuestaCard({
             </div>
             {/* Neto vs aprobado (aprobación granular) */}
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-[#10b98133] bg-[#10b9810d] px-3 py-2 text-[12px]">
-              <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{p.items.length} sitios</span>
+              <span className="font-medium text-ink">Aprobado · {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}</span>
               <span className="text-muted">
                 Neto aprobado <b className="demo-num text-[#0f7a55]">{formatMonto(p.netoAprobado)}</b>
                 {' '}de {formatMonto(p.neto)} · Total <b className="demo-num text-ink">{formatMonto(p.totalAprobado)}</b>

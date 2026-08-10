@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { conteo } from '@/lib/plural'
 import { AlertTriangle } from 'lucide-react'
 import { Modal } from '@/components/demo/ui/Modal'
 import { Button } from '@/components/demo/ui/Button'
@@ -260,7 +261,7 @@ export function ReservaDialog({
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <div>
                 <span className="font-semibold">
-                  {sinCupo.length === 1 ? 'Una pantalla ya llegó a su cupo de clientes' : `${sinCupo.length} pantallas ya llegaron a su cupo de clientes`}
+                  {sinCupo.length === 1 ? 'Una pantalla ya llegó a su cupo de clientes' : `${conteo(sinCupo.length, 'pantalla')} ya llegaron a su cupo de clientes`}
                 </span>
                 <ul className="mt-1 space-y-0.5">
                   {sinCupo.map((a) => (

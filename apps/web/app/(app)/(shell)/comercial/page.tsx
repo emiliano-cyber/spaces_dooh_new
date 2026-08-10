@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { conteo } from '@/lib/plural'
 // Alias: `toast` ya es el estado del toast local de esta página.
 import { toast as sonner } from 'sonner'
 import { Search, SlidersHorizontal, MapPin, Check, CheckCircle2, CalendarClock, Plus, UserRound, Download } from 'lucide-react'
@@ -183,7 +184,7 @@ export default function ComercialPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl text-ink">Comercial</h1>
-          <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {filtrados.length} sitios</p>
+          <p className="mt-1 text-[13px] text-muted">Tu red en el mapa · {conteo(filtrados.length, 'sitio')}</p>
         </div>
         {puedeCrear && (
           <Button size="sm" onClick={() => setAltaOpen(true)}>
@@ -210,7 +211,7 @@ export default function ComercialPage() {
                   <div className="min-w-0">
                     <div className="text-[13px] font-medium text-ink">{c.nombre}</div>
                     <div className="demo-num text-[11px] text-muted">
-                      {rs.length} sitios · {formatMonto(total)}/mes ·{' '}
+                      {conteo(rs.length, 'sitio')} · {formatMonto(total)}/mes ·{' '}
                       {rs[0] ? `${formatFecha(rs[0].fechaInicio)}–${formatFecha(rs[0].fechaFin)}` : ''}
                     </div>
                   </div>
@@ -283,7 +284,7 @@ export default function ComercialPage() {
               <SlidersHorizontal className="h-3.5 w-3.5" /> Inventario
             </span>
             <span className="inline-flex items-center gap-2">
-              <span>{filtrados.length} resultados</span>
+              <span>{conteo(filtrados.length, 'resultado')}</span>
               {/* Baja lo que hay en pantalla, con los filtros aplicados. Aqui
                   eso es lo util: se filtra por zona o disponibilidad para armar
                   una propuesta, y el archivo tiene que ser ESE recorte, no el

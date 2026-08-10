@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { conteo } from '@/lib/plural'
 import { useMemo, useState } from 'react'
 import {
   Upload,
@@ -333,7 +334,7 @@ export function ImportarInventarioDialog({
                   <b>
                     {fueraDelGrupo.length === 1
                       ? 'Una pantalla no parece estar en este predio.'
-                      : `${fueraDelGrupo.length} pantallas no parecen estar en este predio.`}
+                      : `${conteo(fueraDelGrupo.length, 'pantalla')} no parecen estar en este predio.`}
                   </b>{' '}
                   Un predio es un solo inmueble y su renta se reparte entre sus
                   pantallas, así que una que está lejos abarataría a las demás.

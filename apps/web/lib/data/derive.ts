@@ -38,6 +38,7 @@ export const ETAPAS_PIPELINE: EtapaPipeline[] = [
   'instalada',
   'reporte_generado',
   'lista_facturar',
+  'facturada',
 ]
 
 export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
@@ -53,6 +54,7 @@ export const ETAPA_LABEL: Record<EtapaPipeline, string> = {
   instalada: 'Instalada / al aire',
   reporte_generado: 'Reporte generado',
   lista_facturar: 'Lista para facturar',
+  facturada: 'Facturada',
 }
 
 // ─── Etapas aplicables a una campaña según su tipo ──────────────────────────
@@ -120,6 +122,13 @@ export function pipelineStage(c: Campana, state: DemoState): EtapaPipeline {
   // Stepper pinta TODOS los pasos como pendientes (ni check ni etapa actual),
   // que es como se veía el pipeline roto en el detalle de campaña.
   const aplica = (e: EtapaPipeline) => etapasPipeline(c).includes(e)
+
+  // Facturada va ANTES que «lista para facturar»: es su continuación natural y
+  // si se comprobara después, una campaña con factura emitida se quedaría en
+  // «Lista para facturar» —en ámbar, como si faltara algo— que es justo el
+  // defecto de INC-09.5. Se deriva de que exista la factura y no de una bandera
+  // nueva: la relación ya estaba, solo no se miraba desde aquí.
+  if (state.facturas.some((f) => f.campanaId === c.id)) return 'facturada'
 
   if (c.estadoComercial === 'LISTA_FACTURAR' || candadoFacturacion(c)) {
     return 'lista_facturar'

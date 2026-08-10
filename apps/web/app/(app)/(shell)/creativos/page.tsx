@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { conteo } from '@/lib/plural'
 import { useEffect, useRef, useState } from 'react'
 import { Images, Upload, Check, X, Clock, Code2, Eye, Download, RefreshCw, Trash2, AlertTriangle, Search, Shuffle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
@@ -295,7 +296,7 @@ function RepartirCreativos({
         open={abierto}
         onOpenChange={(v) => { if (!enviando) setAbierto(v) }}
         title="Repartir creativos"
-        subtitle={`Se asignarán a las ${digitales.length} pantallas digitales de esta campaña`}
+        subtitle={`Se asignarán a las ${conteo(digitales.length, 'pantalla')} digitales de esta campaña`}
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" disabled={enviando} onClick={() => setAbierto(false)}>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { conteo } from '@/lib/plural'
 import { Radio, CalendarDays, Wallet, Coins, Receipt, Building2, MapPin, CircleHelp, CheckCircle2, ExternalLink } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -262,7 +263,7 @@ export default function PropuestaPublicaPage({ params }: { params: { id: string 
                 </div>
                 {puntos.length < p.items.length && (
                   <p className="mt-2 text-[11px] text-muted">
-                    {p.items.length - puntos.length} de {p.items.length} pantallas no tienen
+                    {p.items.length - puntos.length} de {conteo(p.items.length, 'pantalla')} no tienen
                     coordenadas registradas; su dirección está en la lista de sitios.
                   </p>
                 )}

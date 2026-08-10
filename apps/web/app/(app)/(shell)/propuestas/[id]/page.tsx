@@ -2,6 +2,7 @@
 
 
 import { toast } from 'sonner'
+import { conteo } from '@/lib/plural'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -436,7 +437,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
           </div>
           {puntos.length > 0 && sinCoords > 0 && (
             <p className="mt-2 text-[11px] text-muted">
-              {sinCoords} de {p.items.length} pantallas no tienen coordenadas y no aparecen en el mapa.
+              {sinCoords} de {conteo(p.items.length, 'pantalla')} no tienen coordenadas y no aparecen en el mapa.
             </p>
           )}
         </CardContent>
@@ -447,7 +448,7 @@ export default function PropuestaDetallePage({ params }: { params: { id: string 
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Costo · método del divisor</CardTitle>
           <span className="text-[12px] text-muted">
-            Aprobado {p.itemsAprobados}/{p.items.length} sitios
+            Aprobado {p.itemsAprobados}/{conteo(p.items.length, 'sitio')}
           </span>
         </CardHeader>
         <CardContent>

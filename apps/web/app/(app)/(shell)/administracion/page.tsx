@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { conteo } from '@/lib/plural'
 import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
@@ -827,7 +828,7 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           </p>
           {conSlotsPropios.length > 0 && (
             <p className="mt-1.5 text-[11px] text-muted">
-              <b className="text-ink">{conSlotsPropios.length}</b> de {digitales.length} pantallas digitales
+              <b className="text-ink">{conSlotsPropios.length}</b> de {conteo(digitales.length, 'pantalla')} digitales
               tienen un número propio distinto de {spotsPorLoop}
               {' '}({Array.from(new Set(conSlotsPropios.map((x) => x.totalSpots))).sort((a, b) => (a ?? 0) - (b ?? 0)).join(', ')} slots).
               Se edita en cada pantalla, desde Inventario.

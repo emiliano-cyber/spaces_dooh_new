@@ -7,6 +7,27 @@ La entrada más reciente va arriba.
 
 ## 2026-08-10
 
+- **Una campaña ya facturada deja de aparecer como si le faltara algo.** El
+  recorrido de la campaña terminaba en «Lista para facturar», así que una que
+  **ya tenía su factura emitida** se quedaba ahí, en ámbar, como un paso
+  pendiente. Ahora hay un paso más al final —**«Facturada»**— y el anterior se
+  marca como cumplido.
+  - *No hace falta capturar nada nuevo:* se deduce de que exista la factura de
+    esa campaña, que es un dato que ya estaba.
+  - *No cambia nada del candado ni de la facturación.* Solo se añade un paso
+    después del último; todo lo anterior se comporta igual.
+- **«1 resultados» ya dice «1 resultado».** El fallo de concordancia estaba
+  repetido en **doce sitios** —«sitios», «pantallas», «resultados»—, así que se
+  arregló con una pieza común en vez de uno por uno.
+  - *Con la lección de un fallo anterior incorporada:* en julio, la regla
+    ingenua de «añadir una s» produjo «mess» al pluralizar «mes». Ahora la forma
+    plural se puede indicar a mano cuando la palabra lo pide.
+- **El IVA que se propone al dar de alta un cliente sale del catálogo de la
+  organización.** Antes arrancaba siempre en 16% escrito a mano, así que una
+  organización que trabaja al 15% veía el desplegable ofreciendo **15 y 16** —y
+  ese 16 no era suyo—. Ahora se propone la primera tasa configurada.
+  - *La tasa que ya tenga un cliente se sigue respetando* aunque no esté en el
+    catálogo: al editarlo no se le cambia por sorpresa.
 - **Fuera los rótulos de prueba que se veían en la demo.** Tres cosas que un
   cliente leía mientras alguien le explicaba otra cosa:
   - El nombre comercial de la organización decía **`DEMO PIXELED.`**; ahora dice

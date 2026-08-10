@@ -147,6 +147,11 @@ export type EtapaPipeline =
   | 'instalada'
   | 'reporte_generado'
   | 'lista_facturar'
+  // Última etapa. Antes el pipeline terminaba en «Lista para facturar», así que
+  // una campaña YA FACTURADA se quedaba ahí, pintada en ámbar como si faltara
+  // algo por hacer (INC-09.5). Se deriva de que exista una factura, no de una
+  // bandera nueva: la relación `facturas.campanaId` ya existía.
+  | 'facturada'
 
 // Rol de la demo. No es auth real.
 export type RolDemo =

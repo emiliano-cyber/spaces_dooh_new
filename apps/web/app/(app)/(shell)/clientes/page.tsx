@@ -106,7 +106,14 @@ function ClienteDialog({ cliente, onClose }: { cliente?: Cliente; onClose: () =>
   const [cpFiscal, setCpFiscal] = useState(cliente?.cpFiscal ?? '')
   const [usoCfdi, setUsoCfdi] = useState(cliente?.usoCfdi ?? '')
   const [tipo, setTipo] = useState(cliente?.tipo ?? 'DIRECTO')
-  const [ivaPct, setIvaPct] = useState(String(cliente?.ivaPct ?? 16))
+  // Un cliente NUEVO arranca con la PRIMERA tasa del catálogo de la
+  // organización, no con un 16 escrito a mano (INC-09.6). Con el 16 fijo, una
+  // organización que usa 15 veía el desplegable con «15 y 16» —porque la línea
+  // de abajo añade la tasa actual para no perderla al editar— y ese 16 no era
+  // suyo: salía de este valor por omisión, no de su configuración.
+  //
+  // El 16 se conserva como último recurso por si la configuración aún no cargó.
+  const [ivaPct, setIvaPct] = useState(String(cliente?.ivaPct ?? config?.ivaTasas?.[0] ?? 16))
   const [comisionAgencia, setComisionAgencia] = useState(String(cliente?.comisionAgenciaPct ?? 0))
   const [tieneNegociacion, setTieneNegociacion] = useState(!!cliente?.tieneNegociacion)
   const [negociacionValidada, setNegociacionValidada] = useState(!!cliente?.negociacionValidada)
