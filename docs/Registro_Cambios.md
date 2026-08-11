@@ -29,6 +29,12 @@ La entrada más reciente va arriba.
     módulos que antes. Solo cambia el orden y se añaden los títulos.
   - *Con el menú plegado* los títulos no caben, así que las fases se marcan con
     una línea de separación: el agrupamiento se conserva aunque el rótulo no.
+  - **Ya está en producción.**
+- **Las pantallas y los contratos dejan de mandar sus archivos en cada carga.**
+  Cambio de otra sesión que entró en el mismo despliegue: al abrir la aplicación
+  ya no viajan las fotos ni los documentos de contrato dentro de los datos, sino
+  un enlace para pedirlos cuando hagan falta. Se verificó junto con el menú:
+  build limpio, 787 pruebas de unidad y 129 de integración en verde.
 
 ---
 
