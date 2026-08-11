@@ -33,7 +33,7 @@ archivos:
 > secciones son la excepción** y se leyeron del repo directamente el mismo día,
 > para cerrar los pendientes P-01 a P-04: **§7.1** (arranque local y scripts),
 > **§7.1.1** (pruebas) y **§8.1** (`apply-migration.mjs`). Lo que sigue sin cubrir
-> está al final, en [[#PENDIENTE]], redactado como pregunta concreta. Si una
+> está al final, en [[#PENDIENTES]], redactado como pregunta concreta. Si una
 > sección te parece corta, es que la fuente no daba para más — no que el tema sea
 > pequeño.
 
@@ -61,7 +61,7 @@ archivos:
 9. [[#9 · Despliegue y runbook]]
 10. [[#10 · Zonas de riesgo]]
 11. [[#11 · Cómo seguir leyendo la bóveda]]
-12. [[#PENDIENTE]]
+12. [[#PENDIENTES]]
 
 ---
 
@@ -1045,7 +1045,7 @@ En **producción no se usa este script**: los `DESPLIEGUE_*.txt` aplican con
 rol `postgres` (§9.2) y no el rol de la app.
 
 Cómo se aplica en producción, con su ensayo y su respaldo: §9.2. Cómo se **revierte**:
-no consta un procedimiento → [[#PENDIENTE]] P-06.
+no consta un procedimiento → [[#PENDIENTES]] P-06.
 
 ---
 
@@ -1096,7 +1096,7 @@ archivo (`deploy.yml:3-37`). Hoy usa la ruta correcta, aplica migraciones como
 **Cómo revertir:** volver al commit anterior (mismo procedimiento: `pull` de la ref
 anterior → build → `pm2 reload`). Como no hubo cambios de esquema, el rollback de
 código es suficiente. **No consta un script de rollback automatizado**
-([[#PENDIENTE]] P-06).
+([[#PENDIENTES]] P-06).
 
 ### 9.2 Procedimiento B — Desplegar **con** migraciones
 
@@ -1127,7 +1127,7 @@ para la app.
 **Cómo revertir:** no hay migraciones «down». Las opciones reales son (a) una
 migración correctiva nueva, o (b) restaurar el `pg_dump` del paso 2 —lo que implica
 **perder todo lo escrito desde el respaldo**. Elige antes de empezar, no durante.
-Procedimiento exacto de restauración: [[#PENDIENTE]] P-07.
+Procedimiento exacto de restauración: [[#PENDIENTES]] P-07.
 
 ### 9.3 Procedimiento C — Corrección de datos en producción
 
@@ -1148,7 +1148,7 @@ Procedimiento exacto de restauración: [[#PENDIENTE]] P-07.
 - Si hoy es un día sin despliegue, hoy no hay respaldo nuevo. Tenlo presente antes de
   cualquier operación destructiva.
 - Política de retención, ubicación de los respaldos y quién los custodia: **no
-  constan** → [[#PENDIENTE]] P-08.
+  constan** → [[#PENDIENTES]] P-08.
 
 ### 9.5 Tareas programadas
 
@@ -1188,7 +1188,7 @@ en esa situación:
 - Los comandos de comprobación **sin efectos secundarios** están recogidos en
   [[verificacion-de-produccion]] (estado `sin-ejecutar`).
 
-Todo lo demás → [[#PENDIENTE]] P-09, P-10.
+Todo lo demás → [[#PENDIENTES]] P-09, P-10.
 
 ---
 
@@ -1253,7 +1253,21 @@ y el desfase se anota. Este manual sigue esa regla.
 
 ---
 
-## PENDIENTE
+## Relacionadas
+
+[[inventario-2026-08-11]] · [[MOC-Proyecto]] · [[vision-general]] ·
+[[stack-y-dependencias]] · [[entorno-y-despliegue]] · [[decisiones]] ·
+[[api-endpoints]] · [[autenticacion-y-sesion]] · [[multi-tenancy-y-rls]] ·
+[[esquema]] · [[migraciones]] · [[zonas-de-riesgo]] · [[convenciones]] ·
+[[verificacion-de-produccion]] · [[preguntas-abiertas]] · [[glosario]] ·
+[[shell-y-navegacion]] · [[modulos-internos]] · [[paginas-publicas]] ·
+[[estado-y-data-fetching]] · [[flujo-login]] · [[flujo-acceso-con-google]] ·
+[[flujo-propuesta-a-campana]] · [[flujo-facturacion-y-cobranza]] ·
+[[flujo-orden-de-trabajo]] · [[AGENTES]] · [[tablero]]
+
+---
+
+## PENDIENTES
 
 Huecos reales de este manual. Cada uno es una pregunta accionable: **qué falta para
 poder documentar qué**. Ninguna se ha rellenado con conocimiento general ni con
@@ -1365,17 +1379,3 @@ suposiciones.
   `3164aaa` sigue corriendo y si las pruebas pasan hoy: **los cuatro tienen runbook
   propio en [[verificacion-de-produccion]]** (estado `sin-ejecutar`). Nada de este
   manual sobre producción debe darse por confirmado hasta que ese runbook se ejecute.
-
----
-
-## Relacionadas
-
-[[inventario-2026-08-11]] · [[MOC-Proyecto]] · [[vision-general]] ·
-[[stack-y-dependencias]] · [[entorno-y-despliegue]] · [[decisiones]] ·
-[[api-endpoints]] · [[autenticacion-y-sesion]] · [[multi-tenancy-y-rls]] ·
-[[esquema]] · [[migraciones]] · [[zonas-de-riesgo]] · [[convenciones]] ·
-[[verificacion-de-produccion]] · [[preguntas-abiertas]] · [[glosario]] ·
-[[shell-y-navegacion]] · [[modulos-internos]] · [[paginas-publicas]] ·
-[[estado-y-data-fetching]] · [[flujo-login]] · [[flujo-acceso-con-google]] ·
-[[flujo-propuesta-a-campana]] · [[flujo-facturacion-y-cobranza]] ·
-[[flujo-orden-de-trabajo]] · [[AGENTES]] · [[tablero]]

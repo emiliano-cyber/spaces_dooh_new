@@ -96,8 +96,13 @@ cobranza.
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
 ### 08 · Manuales
-- [[manual-tecnico]] — entrada para un dev nuevo: arquitectura, datos, API,
-  entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
+Los dos salen del [[inventario-2026-08-11]] y llevan fecha en el nombre: cada corrida
+escribe uno nuevo en vez de pisar el anterior.
+- [[manual-tecnico-2026-08-11]] — entrada para un dev nuevo: arquitectura, datos, API,
+  entornos, despliegue y operación. 31 pendientes al cierre
+- [[manual-usuario-2026-08-11]] — para quien usa la aplicación sin saber programar,
+  ordenado por tarea. Borrador: 20 pendientes, y ninguna pantalla se puede nombrar por
+  su rótulo todavía
 
 > [!tip] Esta bóveda caduca
 > Última validación completa contra el código: **10/08/2026**. El procedimiento

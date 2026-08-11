@@ -7,6 +7,31 @@ La entrada más reciente va arriba.
 
 ## 2026-08-11
 
+- **Manual de usuario, y las reglas de redacción metidas dentro de los agentes.**
+  Ya existe el manual para quien usa la aplicación sin saber programar:
+  `vault/08-Manuales/manual-usuario-2026-08-11.md`, nueve capítulos ordenados por
+  lo que la persona quiere lograr —no por pantallas— con treinta tareas en pasos
+  numerados, qué debe verse cuando algo sale bien, y un capítulo de qué hacer
+  cuando algo falla escrito en lenguaje de negocio. Deja fuera a propósito las
+  pantallas de administración y sistema. Va como **borrador** y con veinte
+  pendientes.
+  - **El hueco que lo mantiene en borrador:** el inventario no contiene ni un solo
+    rótulo de botón o de campo, solo los del menú. Los pasos describen la acción
+    pero no pueden nombrar el control que hay que tocar, que es justo lo que hace
+    utilizable un manual. Eso no se arregla escribiendo a mano: hace falta que el
+    reconocimiento recoja los textos de la interfaz y volver a generar.
+  - **Las reglas de redacción ahora viven dentro de la definición de cada
+    agente**, numeradas, en vez de repetirse en cada encargo. Cubren de dónde
+    puede sacar la información, cómo escribir, qué formato entregar y a quién le
+    habla cada manual. Con eso dejan de depender de que quien pida el manual se
+    acuerde de dictarlas.
+  - **Los dos redactores ya no pueden explorar el repositorio.** Su única fuente
+    es el inventario. Al de manual técnico se le retiró además la herramienta de
+    línea de comandos, para que la restricción no dependa de que la recuerde.
+  - **Los manuales pasan a llevar fecha en el nombre**, así que cada corrida deja
+    uno nuevo y las versiones anteriores quedan como histórico en lugar de
+    perderse. El manual técnico de hoy se renombró para cumplirlo.
+
 - **Cerrados cuatro pendientes del manual técnico: ya se puede levantar el
   proyecto siguiendo el manual.** Eran los cuatro más baratos —los comandos de
   arranque, las versiones mínimas, cómo se aplica una migración y cómo se corren
