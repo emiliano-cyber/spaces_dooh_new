@@ -288,6 +288,11 @@ export interface Arrendador {
   rfc: string | null
   telefono: string | null
   email: string | null
+  // Domicilio. El servidor SIEMPRE lo mandó (`rowToArrendador` lo mapea) pero
+  // este tipo no lo declaraba, así que para el navegador no existía: no había
+  // forma de pintarlo ni de saber que faltaba. El contrato de arrendamiento lo
+  // exige dos veces — ver `lib/contrato-documento.ts`.
+  direccion: string | null
   notas: string | null
   creadoEn: string
 }

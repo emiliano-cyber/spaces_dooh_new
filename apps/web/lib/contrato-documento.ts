@@ -76,7 +76,17 @@ export interface DocumentoContrato {
   firmas: { rol: string; nombre: string }[]
   // Datos que el expediente no tiene. El documento los deja marcados en vez de
   // inventarlos: un contrato con un dato falso es peor que uno con un hueco.
-  faltantes: string[]
+  //
+  // Cada uno dice DÓNDE se captura. Sin eso, el aviso nombra cuatro datos y deja
+  // al usuario buscándolos por la aplicación — y tres viven en Administración
+  // mientras el cuarto está en la ficha del arrendador, que no es adivinable.
+  faltantes: Faltante[]
+}
+
+export interface Faltante {
+  etiqueta: string
+  /** Dónde se captura, en palabras de la propia aplicación. */
+  donde: string
 }
 
 // Marcador visible de dato ausente. Se busca literalmente en la UI para
@@ -232,23 +242,30 @@ export function generarContrato(args: {
   fechaFirma: string | null
 }): DocumentoContrato {
   const { arrendatario, arrendador, espacio, terminos, fechaFirma } = args
-  const faltantes: string[] = []
-  const exigir = (valor: string | number | null | undefined, etiqueta: string) => {
-    if (valor == null || String(valor).trim() === '') faltantes.push(etiqueta)
+  const faltantes: Faltante[] = []
+  const exigir = (valor: string | number | null | undefined, etiqueta: string, donde: string) => {
+    if (valor == null || String(valor).trim() === '') faltantes.push({ etiqueta, donde })
   }
 
-  exigir(arrendatario.razonSocial, 'Razón social de tu empresa')
-  exigir(arrendatario.rfc, 'RFC de tu empresa')
-  exigir(arrendatario.domicilioFiscal, 'Domicilio fiscal de tu empresa')
-  exigir(arrendatario.representanteLegal, 'Representante legal de tu empresa')
-  exigir(arrendador.nombre, 'Nombre del arrendador')
-  exigir(arrendador.rfc, 'RFC del arrendador')
-  exigir(arrendador.direccion, 'Domicilio del arrendador')
-  exigir(espacio.direccion, 'Dirección del espacio')
-  exigir(terminos.fechaInicio, 'Fecha de inicio')
-  exigir(terminos.fechaFin, 'Fecha de fin')
-  exigir(terminos.montoRenta, 'Importe de la renta')
-  exigir(terminos.periodicidad, 'Periodicidad del pago')
+  // Los datos fiscales de TU empresa son los mismos para todos los contratos: se
+  // capturan una vez y sirven para siempre. Los del arrendador, una vez por
+  // arrendador. Decirlo evita que se busquen contrato por contrato.
+  const ADMIN = 'Administración › Datos fiscales de la empresa'
+  const FICHA = 'Arrendadores › ficha del arrendador'
+  const CONTRATO = 'la ficha de este contrato'
+
+  exigir(arrendatario.razonSocial, 'Razón social de tu empresa', ADMIN)
+  exigir(arrendatario.rfc, 'RFC de tu empresa', ADMIN)
+  exigir(arrendatario.domicilioFiscal, 'Domicilio fiscal de tu empresa', ADMIN)
+  exigir(arrendatario.representanteLegal, 'Representante legal de tu empresa', ADMIN)
+  exigir(arrendador.nombre, 'Nombre del arrendador', FICHA)
+  exigir(arrendador.rfc, 'RFC del arrendador', FICHA)
+  exigir(arrendador.direccion, 'Domicilio del arrendador', FICHA)
+  exigir(espacio.direccion, 'Dirección del espacio', 'Inventario › ficha de la pantalla o del predio')
+  exigir(terminos.fechaInicio, 'Fecha de inicio', CONTRATO)
+  exigir(terminos.fechaFin, 'Fecha de fin', CONTRATO)
+  exigir(terminos.montoRenta, 'Importe de la renta', CONTRATO)
+  exigir(terminos.periodicidad, 'Periodicidad del pago', CONTRATO)
 
   const ARR = 'EL ARRENDADOR'
   const ATA = 'EL ARRENDATARIO'

@@ -18,7 +18,7 @@ import type { ContratoArrendamiento, Arrendador, Sitio, Predio } from './data/ty
 const HOY = new Date(2026, 7, 3) // 2026-08-03
 
 const ARR: Arrendador[] = [
-  { id: 'a1', nombre: 'Predios del Norte SA', rfc: 'PNO900101AAA', telefono: null, email: null, notas: null, creadoEn: '' },
+  { id: 'a1', nombre: 'Predios del Norte SA', rfc: 'PNO900101AAA', telefono: null, email: null, direccion: null, notas: null, creadoEn: '' },
 ]
 const RAZONES = [
   { id: 'r1', arrendadorId: 'a1', razonSocial: 'Predios SA de CV', rfc: 'PSA010101AAA' },

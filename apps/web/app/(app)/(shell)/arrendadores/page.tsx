@@ -46,7 +46,7 @@ import {
   type ContratoArrendamiento,
   type MargenSitio,
 } from '@/lib/data/client'
-import { registrarPagoRentaApi, crearArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
+import { registrarPagoRentaApi, crearArrendadorApi, editarArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
 import { esRfcValido } from '@/lib/rfc'
 import { descargarContratos } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
@@ -280,7 +280,7 @@ export default function ArrendadoresPage() {
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
-      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratosFiltrados ?? []} filtrado={hayFiltro(filtro)} />
+      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratosFiltrados ?? []} filtrado={hayFiltro(filtro)} onToast={notify} />
 
       {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
           de propietarios porque es información SUYA; la tarjeta consolidada de
@@ -467,6 +467,11 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
   const [rfc, setRfc] = useState('')
   const [telefono, setTelefono] = useState('')
   const [email, setEmail] = useState('')
+  // El domicilio NO es un dato de contacto más: el contrato de arrendamiento lo
+  // usa dos veces —la declaración de la parte y la cláusula de notificaciones—.
+  // No se pedía en ningún formulario, así que el documento salía con dos huecos
+  // y el aviso reclamaba un dato que no había dónde teclear.
+  const [direccion, setDireccion] = useState('')
   // Datos fiscales: viven en `arrendador_razon_social`, no en el arrendador. Se
   // piden aquí porque es cuando se tienen a la mano; capturarlos después obliga
   // a volver a entrar. Opcionales: el ADR 0001 admite que el contrato nazca
@@ -498,6 +503,7 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         rfc: rfc.trim() || null,
         telefono: telefono.trim() || null,
         email: email.trim() || null,
+        direccion: direccion.trim() || null,
         // Solo va en `true` si el usuario ya vio el aviso y volvió a pulsar.
         confirmaNombreRepetido: nombreRepetido !== null,
       })
@@ -606,6 +612,21 @@ function NuevoPropietarioDialog({ onClose, onToast }: { onClose: () => void; onT
         <label className="block">
           <span className="mb-1 block text-[12px] font-medium text-ink">Correo</span>
           <input className={inputCls} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="contacto@arrendador.com" />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">Domicilio</span>
+          <input
+            className={inputCls}
+            value={direccion}
+            onChange={(e) => setDireccion(e.target.value)}
+            placeholder="Calle, número, colonia, CP, ciudad, estado"
+          />
+          {/* Se dice para qué sirve: es un campo que se deja en blanco por
+              parecer opcional y luego bloquea el envío del contrato a firma. */}
+          <span className="mt-1 block text-[11px] text-muted">
+            El contrato de arrendamiento lo necesita para las notificaciones. Sin él,
+            el documento sale con ese hueco en blanco.
+          </span>
         </label>
 
         {/* Datos fiscales — opcionales. Van a `arrendador_razon_social`, que es
@@ -814,16 +835,56 @@ function RentabilidadCard({
 
 // Lista de propietarios (arrendadores) dados de alta. Se muestran aquí aunque
 // aún no tengan contrato — así un alta reciente es visible de inmediato.
+// Input compacto de la edición en línea. Se nombra porque se repite en dos
+// celdas y las clases sueltas se desincronizan al primer retoque.
+const inputMini =
+  'h-8 rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
+
 function PropietariosCard({
   arrendadores,
   contratos,
   filtrado,
+  onToast,
 }: {
   arrendadores: ReturnType<typeof useArrendadores>
   contratos: ContratoArrendamiento[]
   // Hay un filtro activo: cambia lo que significa una lista vacía.
   filtrado: boolean
+  onToast: (m: string) => void
 }) {
+  // Edición en la propia fila. Antes NO había forma de editar un arrendador ya
+  // dado de alta: el endpoint existía (PATCH) pero ninguna pantalla lo usaba, y
+  // el domicilio —que el contrato exige— solo podía ponerse al crearlo. Los
+  // arrendadores anteriores se quedaban sin manera de completarlo.
+  const [editando, setEditando] = useState<string | null>(null)
+  const [borrador, setBorrador] = useState({ rfc: '', direccion: '' })
+  const [guardando, setGuardando] = useState(false)
+  const puedeCrear = usePuede('arrendadores', 'crear')
+
+  function abrir(a: { id: string; rfc: string | null; direccion: string | null }) {
+    setEditando(a.id)
+    setBorrador({ rfc: a.rfc ?? '', direccion: a.direccion ?? '' })
+  }
+
+  async function guardar(id: string) {
+    if (borrador.rfc.trim() && !esRfcValido(borrador.rfc)) {
+      onToast('El RFC no tiene un formato válido')
+      return
+    }
+    setGuardando(true)
+    try {
+      await editarArrendadorApi(id, {
+        rfc: borrador.rfc.trim() || null,
+        direccion: borrador.direccion.trim() || null,
+      })
+      onToast('Propietario actualizado')
+      setEditando(null)
+    } catch (e) {
+      onToast(e instanceof Error ? e.message : 'No se pudo guardar')
+    }
+    setGuardando(false)
+  }
+
   return (
     <CardColapsable
       titulo="Arrendadores"
@@ -852,8 +913,13 @@ function PropietariosCard({
                 <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
                   <th className="px-4 py-2 font-medium">Arrendador</th>
                   <th className="px-4 py-2 font-medium">RFC</th>
+                  {/* El domicilio se enseña porque el CONTRATO lo exige: si no
+                      se ve, nadie sabe que falta hasta que el documento sale
+                      con el hueco en blanco. */}
+                  <th className="px-4 py-2 font-medium">Domicilio</th>
                   <th className="px-4 py-2 font-medium">Contacto</th>
                   <th className="px-4 py-2 text-right font-medium">Contratos</th>
+                  <th className="px-4 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -862,7 +928,31 @@ function PropietariosCard({
                   return (
                     <tr key={a.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-2.5 font-medium text-ink">{a.nombre}</td>
-                      <td className="demo-num px-4 py-2.5 text-muted">{a.rfc || '—'}</td>
+                      <td className="demo-num px-4 py-2.5 text-muted">
+                        {editando === a.id ? (
+                          <input
+                            className={inputMini + ' w-36'}
+                            value={borrador.rfc}
+                            onChange={(e) => setBorrador((b) => ({ ...b, rfc: e.target.value.toUpperCase() }))}
+                            placeholder="XAXX010101000"
+                          />
+                        ) : (
+                          a.rfc || <span className="text-accent">Falta</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted">
+                        {editando === a.id ? (
+                          <input
+                            className={inputMini + ' w-full min-w-[220px]'}
+                            value={borrador.direccion}
+                            onChange={(e) => setBorrador((b) => ({ ...b, direccion: e.target.value }))}
+                            placeholder="Calle, número, colonia, CP, ciudad"
+                            autoFocus
+                          />
+                        ) : (
+                          a.direccion || <span className="text-accent">Falta</span>
+                        )}
+                      </td>
                       <td className="px-4 py-2.5 text-muted">
                         {a.email || a.telefono ? (
                           <span>{a.email ?? ''}{a.email && a.telefono ? ' · ' : ''}{a.telefono ?? ''}</span>
@@ -871,6 +961,27 @@ function PropietariosCard({
                         )}
                       </td>
                       <td className="demo-num px-4 py-2.5 text-right text-ink">{nContratos}</td>
+                      <td className="px-4 py-2.5 text-right">
+                        {puedeCrear &&
+                          (editando === a.id ? (
+                            <span className="flex justify-end gap-1.5">
+                              <Button size="sm" onClick={() => guardar(a.id)}>
+                                {guardando ? 'Guardando…' : 'Guardar'}
+                              </Button>
+                              <Button size="sm" variant="secondary" onClick={() => setEditando(null)}>
+                                Cancelar
+                              </Button>
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant={!a.rfc || !a.direccion ? 'primary' : 'secondary'}
+                              onClick={() => abrir(a)}
+                            >
+                              {!a.rfc || !a.direccion ? 'Completar' : 'Editar'}
+                            </Button>
+                          ))}
+                      </td>
                     </tr>
                   )
                 })}

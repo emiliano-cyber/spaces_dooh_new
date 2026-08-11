@@ -221,7 +221,11 @@
   display: flex; gap: 10px; padding: 12px 14px; border-radius: 6px;
   border: 1px solid #f59e0b40; background: #f59e0b0f; color: #9a6700; font-size: 12.5px;
 }
-.demo-root .doc-barra-lista { margin: 6px 0 0 16px; list-style: disc; }
+.demo-root .doc-barra-lista { margin: 4px 0 0 16px; list-style: disc; }
+/* Los faltantes van agrupados por DÓNDE se capturan: los de una misma pantalla
+   se resuelven de una sentada, y la lista plana anterior no lo dejaba ver. */
+.demo-root .doc-barra-grupo { margin-top: 8px; }
+.demo-root .doc-barra-donde { font-weight: 600; }
 
 /* La hoja: carta (21.6 × 27.9 cm) con márgenes de 2.5 cm. */
 .demo-root .doc-hoja {

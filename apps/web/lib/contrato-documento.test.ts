@@ -168,11 +168,43 @@ describe('generarContrato', () => {
       arrendatario: { ...completo.arrendatario, rfc: null, domicilioFiscal: null },
       terminos: { ...completo.terminos, montoRenta: null },
     })
-    expect(d.faltantes).toContain('RFC de tu empresa')
-    expect(d.faltantes).toContain('Domicilio fiscal de tu empresa')
-    expect(d.faltantes).toContain('Importe de la renta')
+    const etiquetas = d.faltantes.map((f) => f.etiqueta)
+    expect(etiquetas).toContain('RFC de tu empresa')
+    expect(etiquetas).toContain('Domicilio fiscal de tu empresa')
+    expect(etiquetas).toContain('Importe de la renta')
     // Y el hueco es visible en el cuerpo del documento, no silencioso.
     expect(d.declaraciones[1].incisos.join(' ')).toContain(FALTA)
+  })
+
+  it('cada dato que falta dice DÓNDE se captura', () => {
+    // Sin esto el aviso nombra cuatro datos y deja al usuario recorriendo la
+    // aplicación: tres viven juntos en Administración y el cuarto está en la
+    // ficha del arrendador, que no hay forma de adivinar.
+    const d = generarContrato({
+      ...completo,
+      arrendatario: { ...completo.arrendatario, rfc: null, representanteLegal: null },
+      arrendador: { ...completo.arrendador, direccion: null },
+    })
+    const donde = Object.fromEntries(d.faltantes.map((f) => [f.etiqueta, f.donde]))
+    expect(donde['RFC de tu empresa']).toContain('Administración')
+    expect(donde['Representante legal de tu empresa']).toContain('Administración')
+    expect(donde['Domicilio del arrendador']).toContain('Arrendadores')
+  })
+
+  it('ninguno se queda sin sitio donde capturarlo', () => {
+    // Un faltante sin «dónde» es un callejón sin salida: se le dice al usuario
+    // que capture algo y no dónde. Se prueba con TODO vacío para cubrirlos.
+    const d = generarContrato({
+      arrendatario: { razonSocial: null, rfc: null, domicilioFiscal: null, representanteLegal: null, datosConstitucion: null },
+      arrendador: { nombre: null, rfc: null, curp: null, direccion: null, nacionalidad: null, razonSocial: null },
+      espacio: { nombre: null, codigo: null, tipoMedio: null, direccion: null, ciudad: null, ancho: null, alto: null, predio: null },
+      terminos: { ...completo.terminos, fechaInicio: null, fechaFin: null, montoRenta: null, periodicidad: null },
+      fechaFirma: null,
+    })
+    expect(d.faltantes.length).toBeGreaterThan(0)
+    for (const f of d.faltantes) {
+      expect(f.donde, `«${f.etiqueta}» no dice dónde se captura`).toBeTruthy()
+    }
   })
 
   it('describe al arrendador persona moral como tal', () => {

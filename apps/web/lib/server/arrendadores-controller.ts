@@ -37,6 +37,12 @@ const crearSchema = z.object({
   rfc: z.string().trim().max(13).nullish(),
   telefono: z.string().trim().max(30).nullish(),
   email: z.string().trim().nullish(),
+  // El DOMICILIO del arrendador no es un dato de contacto más: el contrato de
+  // arrendamiento lo exige dos veces —en la declaración de la parte y en la
+  // cláusula de notificaciones—, y sin él el documento sale con dos huecos.
+  // Estaba en la tabla y en el PATCH, pero el alta ni lo aceptaba ni lo
+  // guardaba, así que no había forma de capturarlo al dar de alta.
+  direccion: z.string().trim().nullish(),
   notas: z.string().trim().nullish(),
   // A5 / INC-07: quien da el alta ya vio «se llama igual que otro» y responde
   // que es distinto. Va en el cuerpo y no como cabecera ni parámetro para que

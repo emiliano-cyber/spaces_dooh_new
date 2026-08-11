@@ -72,7 +72,7 @@ export async function enviarAFirma(contratoId: string): Promise<{ token: string 
     if (!doc) throw new AppError('El contrato no existe.', 404)
     if (doc.faltantes.length) {
       throw new AppError(
-        `No se puede enviar a firma: faltan ${doc.faltantes.length} datos por capturar (${doc.faltantes.join(', ')}).`,
+        `No se puede enviar a firma: faltan ${doc.faltantes.length} datos por capturar (${doc.faltantes.map((f) => f.etiqueta).join(', ')}).`,
         409,
       )
     }

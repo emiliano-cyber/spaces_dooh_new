@@ -7,6 +7,31 @@ La entrada más reciente va arriba.
 
 ## 2026-08-11
 
+- **El contrato ya puede llevar todos sus datos, y el aviso dice dónde
+  capturarlos.** El documento salía con «Faltan 4 datos por capturar» y no había
+  forma de resolverlo del todo. Al revisarlo, los cuatro no eran el mismo
+  problema:
+  - **Tres eran de tu empresa** (RFC, domicilio fiscal y representante legal) y
+    **sí se capturan**, en *Administración › Datos fiscales*. Simplemente
+    estaban vacíos: ninguna de las organizaciones los tenía puestos.
+  - **El cuarto no se podía capturar.** El **domicilio del arrendador** existía
+    en la base de datos y el contrato lo exige dos veces —en la declaración de
+    la parte y en la cláusula de notificaciones—, pero **ningún formulario lo
+    pedía**, y el alta ni siquiera lo guardaba si se mandaba. Era un dato
+    obligatorio sin ninguna casilla donde escribirlo.
+  - **Ahora se pide al dar de alta** un arrendador, con una nota que explica
+    para qué sirve.
+  - **Y se puede completar en los que ya existen:** la lista de Arrendadores
+    muestra una columna de Domicilio, marca en ámbar los que **Falta**n, y trae
+    un botón **Completar** para escribir el domicilio y el RFC sin salir de la
+    lista. Hasta ahora no había ninguna pantalla para editar un arrendador ya
+    dado de alta.
+  - **El aviso del contrato ahora dice dónde va cada dato**, agrupado por
+    pantalla: los tres de la empresa se resuelven de una sentada en
+    Administración, y el del arrendador en su ficha. Antes solo los nombraba.
+  - *El documento sigue sin inventar nada:* lo que falta se deja en blanco, y
+    un contrato con huecos no se puede enviar a firma.
+
 - **El menú lateral ahora cuenta el proceso, en el orden en que ocurre.** Era
   una lista de dieciocho opciones sin orden aparente: **Campañas salía tercera**,
   tres puestos por encima de Propuestas — cuando una campaña nace justo de

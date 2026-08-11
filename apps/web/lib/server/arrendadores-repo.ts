@@ -256,7 +256,11 @@ export class ArrendadorDuplicado extends AppError {
 }
 
 export async function crearArrendador(input: {
-  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null
+  // Lo exige el contrato de arrendamiento (declaración de la parte y cláusula
+  // de notificaciones). Se aceptaba en el PATCH pero no en el alta.
+  direccion?: string | null
+  notas?: string | null
   /** El alta ya vio el aviso de «se llama igual que otro» y confirma que es distinto. */
   confirmaNombreRepetido?: boolean
 }) {
@@ -291,8 +295,10 @@ export async function crearArrendador(input: {
 
   try {
     const rows = await q(
-      `insert into arrendadores (nombre, rfc, telefono, email, notas, tenant_id) values ($1,$2,$3,$4,$5,$6) returning *`,
-      [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null, input.notas ?? null, tenant],
+      `insert into arrendadores (nombre, rfc, telefono, email, direccion, notas, tenant_id)
+       values ($1,$2,$3,$4,$5,$6,$7) returning *`,
+      [input.nombre, input.rfc ?? null, input.telefono ?? null, input.email ?? null,
+       input.direccion ?? null, input.notas ?? null, tenant],
     )
     return rowToArrendador(rows[0])
   } catch (e) {

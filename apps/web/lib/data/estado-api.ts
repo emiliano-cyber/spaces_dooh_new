@@ -248,7 +248,10 @@ export class DuplicadoError extends Error {
 }
 
 export async function crearArrendadorApi(input: {
-  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null; notas?: string | null
+  nombre: string; rfc?: string | null; telefono?: string | null; email?: string | null
+  /** Domicilio. Lo exige el contrato de arrendamiento; ver `contrato-documento`. */
+  direccion?: string | null
+  notas?: string | null
   /** Solo tras haber visto el aviso de nombre repetido y responder que es otro. */
   confirmaNombreRepetido?: boolean
 }): Promise<{ id: string; nombre: string }> {
@@ -268,6 +271,32 @@ export async function crearArrendadorApi(input: {
   if (!r.ok) throw new Error(d.error ?? 'No se pudo crear el propietario')
   await refrescarEstado()
   return { id: String(d?.id ?? ''), nombre: String(d?.nombre ?? input.nombre) }
+}
+
+// Edita un arrendador ya dado de alta. Existía el endpoint (PATCH) y no el
+// cliente: los datos que el contrato exige —empezando por el domicilio— solo se
+// podían poner al crearlo, así que los arrendadores anteriores se quedaban sin
+// forma de completarlos.
+export async function editarArrendadorApi(
+  id: string,
+  input: {
+    nombre?: string
+    rfc?: string | null
+    telefono?: string | null
+    email?: string | null
+    direccion?: string | null
+    curp?: string | null
+    notas?: string | null
+  },
+): Promise<void> {
+  const r = await fetch(`${API}/arrendadores/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el propietario')
+  await refrescarEstado()
 }
 
 // Alta unificada: arrendatario → contrato de arrendamiento → pantalla. El

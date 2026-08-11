@@ -168,7 +168,7 @@ const arrendadores: Arrendador[] = [
   a('arr-urbanas', 'Rentas Urbanas del Perú SA', '20512345673', 'cobranza@rentasurbanas.pe'),
 ]
 function a(id: string, nombre: string, rfc: string, email: string): Arrendador {
-  return { id, nombre, rfc, telefono: '+51 1 234 5678', email, notas: null, creadoEn: offsetISO(-500) }
+  return { id, nombre, rfc, telefono: '+51 1 234 5678', email, direccion: null, notas: null, creadoEn: offsetISO(-500) }
 }
 
 const contratos: ContratoArrendamiento[] = [
