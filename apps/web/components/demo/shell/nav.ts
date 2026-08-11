@@ -34,15 +34,24 @@ import type { RolDemo } from '@/lib/data/types'
 // Ahora va por fases, y cada fase es un tramo real del negocio:
 //
 //   Dashboard ......... dónde estás. Va solo y sin título: es la portada.
-//   Lo que tienes ..... el patrimonio que se vende: pantallas, sus dueños, y
+//   Inventario ........ el patrimonio que se vende: pantallas, sus dueños, y
 //                       lo que se comparte con terceros.
 //   Vender ............ el ciclo comercial, en su orden: a quién, dónde, si
 //                       está libre, y la propuesta.
 //   Entregar .......... lo vendido se ejecuta. Campañas ABRE el tramo porque
 //                       es lo que sale de la propuesta aprobada.
-//   Cobrar ............ el dinero, después de entregar.
+//   Finanzas .......... el dinero, después de entregar.
 //   Sistema ........... lo que no es el proceso: conexiones, historial y
 //                       ajustes.
+//
+// Los títulos de los grupos son ROTULOS y las claves (`patrimonio`, `cobrar`)
+// son internas: se dejan como están a propósito. Renombrar las claves obligaría
+// a tocar las dieciocho entradas para no cambiar nada de lo que se ve, y sería
+// un diff largo donde el cambio real son dos palabras.
+//
+// Dos grupos se llaman igual que una de sus entradas —Inventario e Inventario,
+// Finanzas y Finanzas—. Es a propósito: el encabezado nombra la fase y la
+// entrada es la pantalla principal de esa fase.
 //
 // Los títulos NO son decoración: sin ellos el reordenamiento es invisible y
 // pasa por un cambio arbitrario. Con ellos, el menú enseña el proceso.
@@ -65,17 +74,17 @@ export interface NavItem {
 // ruido: ya se explica sola.
 export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'inicio', titulo: null },
-  { key: 'patrimonio', titulo: 'Lo que tienes' },
+  { key: 'patrimonio', titulo: 'Inventario' },
   { key: 'vender', titulo: 'Vender' },
   { key: 'entregar', titulo: 'Entregar' },
-  { key: 'cobrar', titulo: 'Cobrar' },
+  { key: 'cobrar', titulo: 'Finanzas' },
   { key: 'sistema', titulo: 'Sistema' },
 ]
 
 export const NAV: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', href: '/inicio', icon: LayoutDashboard, roles: ['DUENO'], grupo: 'inicio' },
 
-  // ─── Lo que tienes ───────────────────────────────────────────────────────
+  // ─── Inventario ──────────────────────────────────────────────────────────
   // B3: se llamaba «Agregar inventario» pero abre el módulo entero —consulta,
   // carga masiva, exportación—, no solo el alta. El nombre prometía menos de lo
   // que hay y escondía la consulta a quien no entraba a curiosear.
@@ -104,7 +113,7 @@ export const NAV: NavItem[] = [
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
 
-  // ─── Cobrar ──────────────────────────────────────────────────────────────
+  // ─── Finanzas ────────────────────────────────────────────────────────────
   { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
   { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'], grupo: 'cobrar' },
 
