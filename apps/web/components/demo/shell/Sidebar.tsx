@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn'
 import { SpaceOsMark } from '@/components/demo/ui/SpaceOsMark'
 import { TOKEN_TELCO, useConfigNegocio } from '@/lib/data/client'
 import { useSesionCtx } from './SesionContext'
-import { NAV } from './nav'
+import { NAV, GRUPOS } from './nav'
 import { useMenuMovil } from './MenuMovilContext'
 
 // Globo con el nombre de la opción, para el sidebar colapsado. Va por el portal
@@ -61,6 +61,13 @@ function SidebarContent({
 
   // Cliente externo: no ve módulos internos, sólo su portal.
   const items = NAV.filter((n) => n.roles.includes(rol))
+
+  // El menú va por fases del proceso (ver `nav.ts`). Se arma aquí y no en el
+  // arreglo para que un grupo SIN ítems visibles no deje su título colgando:
+  // un rol de Operaciones ve dos entradas, no seis encabezados vacíos.
+  const secciones = GRUPOS
+    .map((g) => ({ ...g, items: items.filter((n) => n.grupo === g.key) }))
+    .filter((g) => g.items.length > 0)
 
   // Normaliza el basePath para marcar el activo.
   const norm = (p: string) => p.replace(/\/spaces-dooh/, '').replace(/\/$/, '') || '/'
@@ -158,7 +165,23 @@ function SidebarContent({
           )
         ) : (
           <ul className="space-y-px">
-            {items.map((n) => {
+            {secciones.flatMap((seccion, iSeccion) => [
+              // Cabecera de fase. Colapsado NO cabe texto, así que se marca con
+              // una línea: la separación se conserva aunque el rótulo no quepa.
+              // La primera sección (Dashboard) no lleva ninguna de las dos: no
+              // hay nada de lo que separarla todavía.
+              seccion.titulo && iSeccion > 0 ? (
+                colapsado ? (
+                  <li key={`sep-${seccion.key}`} aria-hidden className="mx-2 my-1.5 border-t border-border" />
+                ) : (
+                  <li key={`tit-${seccion.key}`}>
+                    <h2 className="px-2.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                      {seccion.titulo}
+                    </h2>
+                  </li>
+                )
+              ) : null,
+              ...seccion.items.map((n) => {
               const active = esActivo(n.href)
               const Icon = n.icon
               return (
@@ -188,7 +211,8 @@ function SidebarContent({
                   </Globo>
                 </li>
               )
-            })}
+              }),
+            ])}
           </ul>
         )}
       </nav>

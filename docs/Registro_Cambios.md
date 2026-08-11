@@ -5,6 +5,33 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-11
+
+- **El menú lateral ahora cuenta el proceso, en el orden en que ocurre.** Era
+  una lista de dieciocho opciones sin orden aparente: **Campañas salía tercera**,
+  tres puestos por encima de Propuestas — cuando una campaña nace justo de
+  aprobar una propuesta. Quien entraba nuevo lo leía de arriba abajo y no
+  encontraba por dónde se empieza. Ahora va por fases, con su título:
+  - **Dashboard** — abre siempre, y va solo: es la portada.
+  - **Lo que tienes** — Inventario · Arrendadores · Network. *Arrendadores sube
+    aquí:* una pantalla no es tuya, es de alguien que te la renta, y ese
+    contrato es lo que te deja venderla. Antes quedaba suelta en medio del ciclo
+    de venta.
+  - **Vender** — Clientes · Comercial · Disponibilidad · Propuestas, en el orden
+    en que se hace.
+  - **Entregar** — Campañas · Creativos · Imprenta · Operaciones · Almacén.
+    *Campañas abre el tramo*, que es su sitio: es lo que sale de la propuesta
+    aprobada.
+  - **Cobrar** — Finanzas · Comisiones.
+  - **Sistema** — Integraciones · **Actividad** · **Administración**, que cierran
+    el menú siempre.
+  - *No cambia ningún permiso:* cada quien sigue viendo exactamente los mismos
+    módulos que antes. Solo cambia el orden y se añaden los títulos.
+  - *Con el menú plegado* los títulos no caben, así que las fases se marcan con
+    una línea de separación: el agrupamiento se conserva aunque el rótulo no.
+
+---
+
 ## 2026-08-10
 
 - **AVISO — el arreglo del arranque lento está hecho pero TODAVÍA NO
