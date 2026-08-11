@@ -85,6 +85,8 @@ cobranza.
 ### 06 · Operación
 - [[zonas-de-riesgo]] — ROJO / AMARILLO / VERDE con evidencia
 - [[convenciones]] — cómo se escribe código y documentación aquí
+- [[verificacion-de-produccion]] — comandos para comprobar qué corre de verdad
+  en el droplet y qué hay en `spaces_prod` (sin ejecutar)
 
 ### 07 · Agentes
 - [[AGENTES]] — particionado, claims, ramas, conflictos
@@ -92,6 +94,10 @@ cobranza.
 - [[_plantilla-diaria]] — plantilla del diario
 - [[2026-08-10]] — **última entrada**: despliegues del día + V2-01
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
+
+### 08 · Manuales
+- [[manual-tecnico]] — entrada para un dev nuevo: arquitectura, datos, API,
+  entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
 
 > [!tip] Esta bóveda caduca
 > Última validación completa contra el código: **10/08/2026**. El procedimiento

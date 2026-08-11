@@ -7,6 +7,69 @@ La entrada más reciente va arriba.
 
 ## 2026-08-11
 
+- **Cerrados cuatro pendientes del manual técnico: ya se puede levantar el
+  proyecto siguiendo el manual.** Eran los cuatro más baratos —los comandos de
+  arranque, las versiones mínimas, cómo se aplica una migración y cómo se corren
+  las pruebas— y para resolverlos sí hubo que leer el repositorio. El manual pasa
+  de describir las piezas a dar la secuencia exacta: instalar, levantar Postgres,
+  crear el rol restringido, apuntar la conexión y arrancar. Tres cosas
+  aparecieron por el camino que no estaban en el inventario y que ahora quedan
+  advertidas:
+  - **El `README.md` de la raíz manda al camino equivocado.** Describe el backend
+    archivado (Fastify, Prisma, Redis, un API en el 3001) que hoy no corre.
+    Alguien que entre nuevo y lo siga pierde la tarde. El manual lo dice en el
+    primer aviso del capítulo de entorno.
+  - **El aplicador de migraciones prefiere la configuración de producción.**
+    Busca a qué base conectarse en un orden fijo, y `.env.production` va **antes**
+    que la de tu máquina. Si alguien copió ese archivo del servidor para revisar
+    algo, el script escribe en producción creyendo estar en local. Queda marcado
+    como peligro, con la indicación de leer el destino que imprime antes de
+    aplicar.
+  - **Las pruebas no se lanzan desde la raíz**, sino desde `apps/web`.
+  - **Se corrieron TODAS las pruebas y todas pasan: 789 unitarias y 136 de
+    integración**, exactamente las cifras que decía el diario. Es la primera vez
+    que se confirma contra la máquina y no contra la nota.
+  - **Las pruebas de integración necesitan compilar antes, y si no lo haces el
+    error no te lo dice.** Levantan el servidor de verdad, que reutiliza el
+    programa ya compilado; si no hay compilación previa, el servidor muere al
+    instante, pero el arnés descarta su mensaje de error. Lo que se ve son doce
+    ficheros esperando un minuto cada uno y una corrida de diez minutos sin
+    ninguna pista. Pasó en la primera corrida. Queda documentado con la
+    comprobación de un vistazo, y el paso de compilar añadido al runbook.
+
+- **Manual técnico para quien entra nuevo al proyecto.** Queda en
+  `vault/08-Manuales/manual-tecnico.md` (carpeta nueva): once capítulos que van
+  del panorama general al runbook de operación, pasando por arquitectura, modelo
+  de datos, la lista de endpoints con sus candados, autenticación, entornos,
+  migraciones, despliegue y zonas de riesgo. Está escrito para alguien que no
+  conoce el sistema y necesita situarse, levantarlo y saber qué no debe tocar.
+  La fuente fue **únicamente** el inventario del 11 de agosto: no se volvió a
+  explorar el código, así que el manual no puede contradecirlo ni adelantarse a
+  él. Lo que el inventario no cubría **no se rellenó a ojo**: quedaron **35
+  puntos marcados como PENDIENTE** al final del manual, cada uno redactado como
+  la pregunta concreta que hay que responder. Los más gruesos son el runbook de
+  incidente y la restauración de un respaldo (hoy son enunciados, no comandos),
+  los contratos de entrada y salida de los ~90 endpoints, y la política de
+  respaldos. Las cuatro cosas que no se pudieron verificar de producción no se
+  dan por buenas: se remiten al runbook de verificación, que sigue sin ejecutar.
+
+- **Runbook para comprobar el estado real de producción.** El inventario cerró
+  con cuatro cosas que no se pudieron verificar por ser un encargo de solo
+  lectura: qué hay de verdad en la base de producción (filas, organizaciones,
+  migraciones aplicadas), qué dice el entorno del servidor, si lo que corre
+  sigue siendo el despliegue del 11 de agosto, y si las pruebas pasan hoy. Queda
+  en `vault/06-Operacion/verificacion-de-produccion.md` la secuencia exacta de
+  comandos para cerrarlas, cada uno con la respuesta que se espera, para que la
+  salida se pueda contrastar y no solo leer. Va marcado `sin-ejecutar`: mientras
+  lo diga, lo que sabemos de producción sigue viniendo de las notas de
+  despliegue y del diario, no de la máquina. **No se corrió nada**: ni sondeos a
+  producción ni pruebas. Tres avisos van dentro porque ya nos han mordido antes:
+  los conteos se piden como `postgres` y no con el rol de la app (con la RLS
+  cerrada saldrían en cero con buena pinta), los valores secretos del entorno
+  salen como longitud y nunca como texto, y el arnés de pruebas arrasa el
+  esquema de la base a la que apunte — de ahí la comprobación previa de que no
+  apunte a la base del demo local, donde hay datos reales.
+
 - **Inventario completo del sistema, verificado contra el código.** Se recorrió
   la bóveda entera y se comprobó nota por nota contra el repositorio. Queda en
   `vault/00-Inventario/inventario-2026-08-11.md`: 88 archivos de rutas (110
