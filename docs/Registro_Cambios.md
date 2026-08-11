@@ -7,6 +7,36 @@ La entrada más reciente va arriba.
 
 ## 2026-08-11
 
+- **Inventario completo del sistema, verificado contra el código.** Se recorrió
+  la bóveda entera y se comprobó nota por nota contra el repositorio. Queda en
+  `vault/00-Inventario/inventario-2026-08-11.md`: 88 archivos de rutas (110
+  métodos HTTP), 38 tablas, 66 migraciones, 13 decisiones de arquitectura, 22
+  pantallas internas y 8 flujos de punta a punta. No se tocó código ni base de
+  datos; es solo lectura.
+  - **Se corrigió una idea equivocada sobre la arquitectura.** Se creía que
+    había dos pistas de código y que una segunda (`apps/api`, con Fastify y
+    Prisma) esperaba turno. No es así: hay **una sola pista viva**, `apps/web`,
+    y un único proceso corriendo. El Fastify vive en `_archive/api`, fuera de
+    los paquetes del proyecto. Los grupos de pantallas `(comercial)` y
+    `(operaciones)` que las notas mencionaban **no existen**.
+  - **La ruta `/demo` ya no existe.** Las pantallas viven ahora en el grupo
+    `(app)`: `/login`, `/p/[id]`, `/portal/[token]`, `/m/ot/[id]`. Cualquier
+    nota que hable de `/demo/…` está desfasada.
+  - **Once puntos desfasados** entre la bóveda y el código, con su evidencia.
+    Los que más pesan: un endpoint de notificaciones que cambió de nombre
+    (`leer-todas` → `archivar-todas`, la vieja da 404); las citas a
+    `lib/server/auth.ts` corridas cuatro líneas en cinco notas; y la política de
+    contraseñas, que se mudó a `lib/password.ts`.
+  - **Cuatro componentes no los usa nadie** — `OTMovil`, `PermissionGuard`,
+    `ReadinessPanel` y `ReporteVisual`. La orden de trabajo en campo la pinta
+    `OTVista`, no `OTMovil`. Esto responde una pregunta que llevaba tiempo
+    abierta y baja el riesgo de retirar el `AuthProvider` viejo.
+  - **El `deploy.yml` ya no está desactualizado:** se reescribió el 31 de julio
+    y hoy apunta al servidor y las rutas correctas.
+  - Quedan **20 dudas** anotadas para resolver contigo; las que estorban para
+    escribir manuales son quién ocupa cada rol, por dónde se entra a
+    `/configuracion` y si `/almacen` está en uso.
+
 - **El contrato ya puede llevar todos sus datos, y el aviso dice dónde
   capturarlos.** El documento salía con «Faltan 4 datos por capturar» y no había
   forma de resolverlo del todo. Al revisarlo, los cuatro no eran el mismo
