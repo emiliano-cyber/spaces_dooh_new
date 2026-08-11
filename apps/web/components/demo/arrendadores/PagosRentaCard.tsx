@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { StatusBadge, type Tono } from '@/components/demo/StatusBadge'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -126,14 +126,11 @@ export function PagosRentaCard({
 
   if (cargando) {
     return (
-      <Card>
-        <CardHeader><CardTitle>{titulo}</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
-          ))}
-        </CardContent>
-      </Card>
+      <CardColapsable titulo={titulo} contentClassName="space-y-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="h-10 animate-pulse rounded bg-surface-2" />
+        ))}
+      </CardColapsable>
     )
   }
 
@@ -165,10 +162,11 @@ export function PagosRentaCard({
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle>{titulo}</CardTitle>
-        {porPagar.length > 0 && (
+    <CardColapsable
+      titulo={titulo}
+      contentClassName="px-0 pb-0"
+      resumen={
+        porPagar.length > 0 ? (
           <span className="demo-num text-[12px] text-muted">
             {/* El importe vencido va junto al conteo: "3 vencidas" no dice si
                 son 900 o 90 000, y es el número con el que se decide qué se
@@ -183,9 +181,9 @@ export function PagosRentaCard({
             )}
             {formatMonto(totalPorPagar)} por pagar
           </span>
-        )}
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+        ) : null
+      }
+    >
         {ordenados.length === 0 ? (
           // Distinguir "no debes nada" de "no se sabe cuánto debes" es lo
           // importante aquí: sin importe capturado no hay cuotas que calcular, y
@@ -286,8 +284,10 @@ export function PagosRentaCard({
             </table>
           </div>
         )}
-      </CardContent>
+      {/* Dentro del contenido, no fuera: al plegar la sección tiene que irse
+          con la tabla. Suelto en la tarjeta, quedaba un paginador huérfano
+          bajo un encabezado cerrado. */}
       <Paginacion {...pag} etiqueta="pagos" />
-    </Card>
+    </CardColapsable>
   )
 }

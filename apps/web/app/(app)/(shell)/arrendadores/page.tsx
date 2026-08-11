@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { CheckCircle2, Plus, FileSignature, Search, X, Download, AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { Card } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
@@ -307,13 +308,14 @@ export default function ArrendadoresPage() {
       />
 
       {/* Contratos */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Contratos de arrendamiento</CardTitle>
-          {/* Descarga SOLO los vigentes, sin importar el filtro de pantalla: el
-              reporte es «que tengo en curso», y un filtro visual no deberia
-              cambiar lo que significa el archivo. Los INCOMPLETO quedan fuera a
-              proposito (ADR 0001): todavia no son un acuerdo. */}
+      <CardColapsable
+        titulo="Contratos de arrendamiento"
+        contentClassName="px-0 pb-0"
+        accion={
+          // Descarga SOLO los vigentes, sin importar el filtro de pantalla: el
+          // reporte es «que tengo en curso», y un filtro visual no deberia
+          // cambiar lo que significa el archivo. Los INCOMPLETO quedan fuera a
+          // proposito (ADR 0001): todavia no son un acuerdo.
           <button
             onClick={descargarVigentes}
             disabled={!contratos}
@@ -322,8 +324,8 @@ export default function ArrendadoresPage() {
           >
             <Download className="h-3.5 w-3.5" /> Vigentes en Excel
           </button>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
+        }
+      >
           {!contratosFiltrados ? (
             <div className="space-y-2 px-4 pb-4">
               {Array.from({ length: 4 }).map((_, i) => (
@@ -418,8 +420,7 @@ export default function ArrendadoresPage() {
               </table>
             </div>
           )}
-        </CardContent>
-      </Card>
+      </CardColapsable>
 
       {/* Pagos de renta (compartido con Finanzas: es a la vez contrato y
           salida de dinero, y no debe divergir entre las dos pantallas) */}
@@ -678,9 +679,7 @@ function RazonesSocialesCard({
   if (todas.length === 0) return null
 
   return (
-    <Card>
-      <CardHeader><CardTitle>Por razón social</CardTitle></CardHeader>
-      <CardContent className="px-0 pb-0">
+    <CardColapsable titulo="Por razón social" contentClassName="px-0 pb-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -718,8 +717,7 @@ function RazonesSocialesCard({
             </tbody>
           </table>
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -758,14 +756,11 @@ function RentabilidadCard({
   const totalRenta = filas.reduce((s, m) => s + m.rentaMensual, 0)
   const totalMargen = totalIngreso - totalRenta
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Rentabilidad por pantalla</CardTitle>
-        <p className="mt-0.5 text-[12px] text-muted">
-          Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja.
-        </p>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+    <CardColapsable
+      titulo="Rentabilidad por pantalla"
+      subtitulo="Margen mensual = ingreso de reservas vigentes − renta del arrendador. Las de margen negativo son candidatas a renegociar o dar de baja."
+      contentClassName="px-0 pb-0"
+    >
         {!margenes ? (
           <div className="space-y-2 px-4 pb-4">
             {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-8 animate-pulse rounded bg-surface-2" />)}
@@ -813,8 +808,7 @@ function RentabilidadCard({
             </table>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
 
@@ -831,12 +825,11 @@ function PropietariosCard({
   filtrado: boolean
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Arrendadores</CardTitle>
-        <p className="mt-0.5 text-[12px] text-muted">Dueños de predio dados de alta.</p>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+    <CardColapsable
+      titulo="Arrendadores"
+      subtitulo="Dueños de predio dados de alta."
+      contentClassName="px-0 pb-0"
+    >
         {!arrendadores ? (
           <div className="space-y-2 px-4 pb-4">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -885,7 +878,6 @@ function PropietariosCard({
             </table>
           </div>
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

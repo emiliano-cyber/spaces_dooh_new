@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { ChevronRight, ChevronDown, Scale } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import {
   useContratos,
   usePagosRenta,
@@ -87,16 +87,12 @@ export function ConciliacionCard({
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-1.5">
-          <Scale className="h-4 w-4 text-muted" /> Cuadre de renta por arrendador
-        </CardTitle>
-        <p className="mt-0.5 text-[12px] text-muted">
-          Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos.
-        </p>
-      </CardHeader>
-      <CardContent className="px-0 pb-0">
+    <CardColapsable
+      titulo="Cuadre de renta por arrendador"
+      icono={<Scale className="h-4 w-4 text-muted" />}
+      subtitulo="Qué se le debe a cada uno y qué ya se le pagó. Primero quien tiene vencidos."
+      contentClassName="px-0 pb-0"
+    >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-[13px]">
             <thead>
@@ -196,7 +192,6 @@ export function ConciliacionCard({
             </tfoot>
           </table>
         </div>
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }

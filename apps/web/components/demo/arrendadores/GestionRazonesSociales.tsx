@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
+import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
 import {
@@ -183,15 +183,11 @@ export function GestionRazonesSociales({
   )
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Razones sociales</CardTitle>
-        <p className="mt-0.5 text-[12px] text-muted">
-          A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el
-          contrato elige cuál usa.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4 pb-4">
+    <CardColapsable
+      titulo="Razones sociales"
+      subtitulo="A nombre de quién factura cada arrendador. Un mismo arrendador puede tener varias; el contrato elige cuál usa."
+      contentClassName="space-y-4 pb-4"
+    >
         {arrendadores.length === 0 ? (
           <p className="text-[13px] text-muted">
             Aún no hay arrendadores dados de alta.
@@ -276,7 +272,6 @@ export function GestionRazonesSociales({
             )
           })
         )}
-      </CardContent>
-    </Card>
+    </CardColapsable>
   )
 }
