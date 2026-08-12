@@ -175,6 +175,16 @@ const ajustesSchema = z.object({
   awb_rojo: z.number().min(0.1).max(8).nullable().optional(),
   awb_azul: z.number().min(0.1).max(8).nullable().optional(),
   ruido: z.enum(['auto', 'off', 'cdn_off', 'cdn_fast', 'cdn_hq']).optional(),
+  // Enfoque fijo del sitio. En un espectacular la distancia NO cambia nunca, asi
+  // que el autofoco continuo solo estorba: cada vez que pasa un creativo de
+  // muchos colores la camara vuelve a buscar foco y la imagen "salta". Con esto
+  // el enfoque se bloquea al abrir la vista en vivo, para todos y siempre, sin
+  // depender de que alguien se acuerde de pulsar el boton.
+  enfoque_fijo: z.boolean().optional(),
+  // Donde enfocar antes de bloquear (0..1 sobre el cuadro). Por omision, el
+  // centro; conviene apuntarlo a la pantalla, no al cielo.
+  enfoque_x: z.number().min(0).max(1).optional(),
+  enfoque_y: z.number().min(0).max(1).optional(),
   // Perfil de color del sensor (Raspberry). 'noir' es el que libcamera elige
   // solo con la camara sin filtro infrarrojo, pensado para vigilancia nocturna:
   // de dia deja la imagen lechosa. 'estandar' junto con ganancias de blanco a

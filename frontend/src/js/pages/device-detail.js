@@ -122,6 +122,9 @@ function deviceDetail() {
           this.ajustes = aj || {};
         } catch (_) { this.ajustes = {}; }
         this.manualWb = this.ajustes.awb_rojo != null && this.ajustes.awb_azul != null;
+        // Enfoque fijo del sitio: si esta guardado, el visor arranca bloqueado
+        // para todos, no solo para quien lo puso.
+        this.focusLocked = this.ajustes.enfoque_fijo === true;
         // Marca de informacion (overlay) configurada para este dispositivo.
         if (this.device.overlay_x != null) this.overlayX = Number(this.device.overlay_x);
         if (this.device.overlay_y != null) this.overlayY = Number(this.device.overlay_y);
@@ -607,7 +610,13 @@ function deviceDetail() {
       if (Number(this.zoom) > 0) this.onZoom();
       if (Number(this.exposure) !== 0) this.onExposure();
       if (this.wb !== 'auto') this.onWb();
-      if (this.focusLocked) this.camControl({ action: 'lock_focus', x: 0.5, y: 0.5 });
+      if (this.focusLocked) {
+        this.camControl({
+          action: 'lock_focus',
+          x: Number(this.ajustes.enfoque_x ?? 0.5),
+          y: Number(this.ajustes.enfoque_y ?? 0.5),
+        });
+      }
     },
 
     // Estilo del video segun la rotacion. En 90°/270° escala x(4/3) para LLENAR
@@ -787,16 +796,44 @@ function deviceDetail() {
     onZoom() { this.camControl({ action: 'zoom', value: Number(this.zoom) }); },
     onExposure() { this.camControl({ action: 'exposure', value: Number(this.exposure) }); },
     onWb() { this.camControl({ action: 'wb', value: this.wb }); },
-    toggleFocusLock() {
+    // Bloquear el enfoque se GUARDA en el equipo. Antes vivia solo en esta
+    // pestaña: al cortarse la transmision (a los 3 minutos) o al abrirla otra
+    // persona, la camara volvia a enfoque continuo y la imagen saltaba cada vez
+    // que pasaba un creativo de muchos colores.
+    async toggleFocusLock() {
       this.focusLocked = !this.focusLocked;
-      this.camControl({ action: this.focusLocked ? 'lock_focus' : 'unlock_focus', x: 0.5, y: 0.5 });
+      const x = Number(this.ajustes.enfoque_x ?? 0.5);
+      const y = Number(this.ajustes.enfoque_y ?? 0.5);
+      this.camControl({ action: this.focusLocked ? 'lock_focus' : 'unlock_focus', x, y });
+      await this._guardarEnfoque();
+    },
+
+    // Tocar el video enfoca ahi. Si el enfoque esta bloqueado, ese punto pasa a
+    // ser el punto fijo del sitio: es la forma natural de decir "enfoca AQUI".
+    async _guardarEnfoque() {
+      this.ajustes = { ...this.ajustes, enfoque_fijo: this.focusLocked };
+      try {
+        await API.put(`/api/devices/${this.deviceId}/camera`, { ajustes: this._cuerpoAjustes() });
+        this.showToast(
+          this.focusLocked
+            ? 'Enfoque fijado: se aplica solo cada vez que se abra la vista'
+            : 'Enfoque libre: la cámara vuelve a enfocar sola',
+          'success'
+        );
+      } catch (err) {
+        this.showToast(err && err.status === 403 ? 'Necesitas rol admin' : 'No se pudo guardar el enfoque', 'error');
+      }
     },
     focusPoint(evt) {
       if (!this.streaming) return;
       const rect = evt.currentTarget.getBoundingClientRect();
       const x = (evt.clientX - rect.left) / rect.width;
       const y = (evt.clientY - rect.top) / rect.height;
-      this.camControl({ action: 'focus', x, y });
+      this.camControl({ action: this.focusLocked ? 'lock_focus' : 'focus', x, y });
+      if (this.focusLocked) {
+        this.ajustes = { ...this.ajustes, enfoque_x: Math.round(x * 100) / 100, enfoque_y: Math.round(y * 100) / 100 };
+        this._guardarEnfoque();
+      }
     },
 
     async rebootApp() {
