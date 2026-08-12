@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-11
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/app/(app)/(shell)/layout.tsx
@@ -9,6 +9,8 @@ archivos:
   - apps/web/components/demo/shell/SesionContext.tsx
   - apps/web/components/demo/shell/nav.ts
   - apps/web/components/demo/shell/Sidebar.tsx
+  - apps/web/app/not-found.tsx
+  - apps/web/lib/atajos-404.ts
   - apps/web/middleware.ts
 ---
 
@@ -59,6 +61,40 @@ Comportamiento:
 > [!warning] `nav.ts` es archivo de alto contacto
 > Añadir un módulo toca el menú **y** el control de acceso a la vez. Requiere
 > claim exclusivo — ver [[AGENTES]].
+
+## La 404 es la excepción: fuera del shell, pero con el mismo `NAV`
+
+`app/not-found.tsx` es **la única pantalla del producto fuera del grupo `(app)`**.
+No la envuelve ningún layout del shell, así que no tiene sidebar, ni topbar, ni
+`SesionProvider`. De ahí sus dos rarezas:
+
+1. **Se pone la marca a mano**: importa `(app)/demo.css` y se cuelga la clase
+   `.demo-root`. Sin eso sale en tema oscuro y sin logo — es el fallo M4 de la
+   auditoría del 04/08.
+2. **Necesita su propia navegación** (11/08). Con un solo enlace al inicio, quien
+   caía en un enlace roto tenía que volver a la portada y buscar el módulo a
+   mano. Ahora pinta una rejilla de nueve atajos.
+
+Los nueve **salen de `NAV`**, igual que el menú y que `AuthGate`. La lista de
+claves vive en `lib/atajos-404.ts`; las etiquetas, rutas e iconos no se
+reescriben. Misma razón que arriba: una segunda lista con los mismos textos
+diverge.
+
+> [!note] Filtra en vez de lanzar, y la prueba paga la diferencia
+> Si una clave dejara de existir en `NAV`, `ATAJOS_404` la descarta en silencio.
+> Es deliberado: lanzar convertiría la pantalla de error en un 500, justo cuando
+> algo ya salió mal. Quien avisa es `lib/atajos-404.test.ts`, que corre en CI —
+> ahí el rojo no le cuesta nada a nadie.
+
+**La rejilla no es un agujero de permisos.** Es igual para todos los roles
+porque aquí no hay sesión que consultar, pero no abre ninguna puerta: quien pique
+un módulo que no le toca lo rebota `AuthGate` a su *landing*, exactamente igual
+que si tecleara la ruta.
+
+> [!warning] Sin sesión NO se llega a la 404
+> El gate del middleware manda al `/login` cualquier ruta no pública, así que una
+> URL inventada sin cookie **nunca** llega aquí. Se comprueba con una ruta
+> pública sin página detrás: `/login/lo-que-sea/` sí devuelve 404.
 
 ## Sesión compartida
 

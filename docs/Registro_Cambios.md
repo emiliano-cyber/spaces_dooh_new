@@ -7,6 +7,22 @@ La entrada más reciente va arriba.
 
 ## 2026-08-11
 
+- **La pantalla de «página no encontrada» ya deja ir a otro sitio.** Antes tenía
+  un solo enlace, *Volver al inicio*: quien llegaba desde un enlace roto o un
+  registro borrado aterrizaba en la portada y tenía que buscar su módulo a mano.
+  Ahora, debajo del aviso, hay una rejilla con nueve accesos —Dashboard,
+  Inventario, Clientes, Propuestas, Campañas, Operaciones, Finanzas, Actividad y
+  Administración—, uno por cada fase del proceso que cuenta el menú lateral.
+  - **Los nombres y las direcciones se toman del propio menú**, no se escriben
+    aparte. Si mañana un módulo cambia de nombre o de ruta, esta pantalla se
+    entera sola en vez de quedarse con el rótulo viejo.
+  - **La lista es la misma para todos los perfiles.** Esa pantalla no sabe quién
+    la está mirando —no hay sesión ahí—, pero no abre ninguna puerta: quien pique
+    un módulo que no le corresponde acaba en su pantalla de inicio habitual,
+    igual que si tecleara la dirección.
+  - Sigue haciendo falta haber iniciado sesión para verla: una dirección
+    inventada sin haber entrado lleva al acceso, como antes.
+
 - **Manual de usuario, y las reglas de redacción metidas dentro de los agentes.**
   Ya existe el manual para quien usa la aplicación sin saber programar:
   `vault/08-Manuales/manual-usuario-2026-08-11.md`, nueve capítulos ordenados por

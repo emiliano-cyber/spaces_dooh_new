@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-11
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/lib/server/errores.ts
@@ -70,6 +70,33 @@ Las e2e:
 > unitarias sin despeinarse. **Todo lo que toque tenant o sesión necesita e2e.**
 
 Las semillas usan fechas **relativas a hoy** (`enDias()`), nunca literales.
+
+### Antes de `build`: mirar si hay un `next dev` de otro
+
+`apps/web/.next` es un **recurso compartido**, y ni el build ni el dev server
+avisan de que hay otro encima. Un `turbo run build` mientras otra sesión sirve la
+aplicación deja dos destrozos a la vez:
+
+- el build **falla en páginas que no tocaste** (`PageNotFoundError: Cannot find
+  module for page: …`) y parece un fallo de tu código;
+- y el dev server se queda **sin CSS**: sigue respondiendo `200`, pero su hoja de
+  estilos da 404 y todo se sirve en crudo. No se cura solo — hay que matarlo,
+  **borrar `.next`** y levantarlo otra vez.
+
+```
+netstat -ano | findstr :3000     # ¿hay alguien sirviendo?
+```
+
+Si lo hay, es de otro: verifica contra **su** servidor (dev compila al vuelo, así
+que ya tiene tus cambios) o haz el build en un worktree aparte. Pasó el 11/08 y
+le cortó las capturas a otro agente ([[2026-08-11]]).
+
+### Verificar el marcado no es verificar la pantalla
+
+Comprobar por `curl` que las etiquetas y las rutas están en el HTML servido es
+necesario y **no es suficiente**: la rejilla de la 404 pasó todas esas
+comprobaciones mientras pintaba tres viñetas sueltas al lado de las tarjetas. Si
+el cambio se ve, hay que mirarlo.
 
 ## Nombres
 
