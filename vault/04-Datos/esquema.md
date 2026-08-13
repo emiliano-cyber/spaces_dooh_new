@@ -11,11 +11,11 @@ archivos:
 # Esquema de datos
 
 **PostgreSQL, un solo schema (`public`), 38 tablas, sin ORM.** `db/schema.sql`
-(657 líneas) + 66 migraciones aditivas.
+(657 líneas) + 67 migraciones aditivas.
 
 > [!warning] `schema.sql` no es el estado final
 > Varias columnas y **todas** las políticas RLS fail-closed llegan por
-> migración. El estado real = `schema.sql` + las 66 en orden. Ver
+> migración. El estado real = `schema.sql` + las 67 en orden. Ver
 > [[migraciones]].
 
 ## Diagrama ER (núcleo)

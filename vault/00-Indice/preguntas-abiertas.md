@@ -165,14 +165,28 @@ demo) y `HidratarSitios` lo rellena desde el BFF.
 **Pregunta:** ¿la dirección es retirar el store, o se queda como caché de UI? Un
 agente que añada pantalla necesita saber de cuál lee.
 
-### P15 · Deriva del `tenant_id` por defecto
+### P15 · Deriva del `tenant_id` por defecto — ✅ RESPONDIDA el 2026-08-13
 
-21 tablas tienen `DEFAULT` de `tenant_id` al tenant `rgb` (`db/schema.sql:615`).
-Ese default es lo que ha etiquetado filas de otras organizaciones como RGB.
-`config_negocio` se dejó **sin** default a propósito.
+**23** tablas —no 21, el conteo viejo era del 03/08— tienen `DEFAULT` de
+`tenant_id` al tenant `rgb` (`db/schema.sql:604-609` y `:615`). Ese default es lo
+que ha etiquetado filas de otras organizaciones como RGB. `config_negocio` se dejó
+**sin** default a propósito (ADR 0011).
 
-**Pregunta:** ¿se quitan los defaults de las otras 21 para que un insert sin
-tenant falle en vez de mentir?
+**Pregunta:** ¿se quitan los defaults para que un insert sin tenant falle en vez de
+mentir?
+
+**Respuesta: sí.** La migración `db/migrations/20260812_sin_default_tenant.sql`
+(F1.2 del plan v3, commit `65bf9b5`) los retira recorriendo el **catálogo**, no una
+lista, porque producción tiene tablas que `schema.sql` no trae. Lleva guard —aborta
+si alguna tabla tuviera `DEFAULT` sin `NOT NULL`— y assert final.
+
+> [!warning] Escrita y probada en local; **NO aplicada en producción**
+> Aplicarla al droplet es **F1.5**, y la corre una persona. Hasta entonces
+> producción sigue etiquetando en silencio. Ver
+> [[07-Agentes/ejecucion-plan-v3]] y [[verificacion-de-produccion]].
+
+Lo que **no** resuelve: las filas ya mal etiquetadas. Eso se decide en la Fase 7,
+tenant por tenant. Quitar el default detiene la hemorragia, no cura la herida.
 
 ## 🟢 Menor
 

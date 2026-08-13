@@ -24,7 +24,7 @@ cd db && docker compose up -d
 
 # 2. Aplicar esquema + migraciones
 psql -d spaces -f db/schema.sql
-# … y las 66 de db/migrations/ en orden lexicográfico ([[migraciones]])
+# … y las 67 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
 # 3. Permisos por rol + usuario inicial (idempotente)
 #    DATABASE_URL es OBLIGATORIA: el script no elige base por ti

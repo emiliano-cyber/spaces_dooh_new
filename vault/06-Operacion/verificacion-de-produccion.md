@@ -141,8 +141,20 @@ sudo -u postgres psql -d spaces_prod -c "
    order by 1"
 ```
 
-**Esperado:** 21 tablas, todas con el mismo UUID (el de `rgb`). El inventario lo
-afirma leyendo `schema.sql:615`; esto lo confirma o lo desmiente en la máquina.
+**Esperado:** **23 o más** tablas, todas con el mismo UUID (el de `rgb` **de esa
+base** — el uuid se genera distinto en cada instalación, así que no lo compares
+contra el local). Verificado el 2026-08-13 contra `db/schema.sql:604-609` y contra
+la copia local: **23**, ni una más ni una menos.
+
+> [!warning] Más de 23 no es un desfase: es el hallazgo
+> Producción tiene tablas y columnas que `schema.sql` no trae —lo documenta
+> `apps/web/lib/test/db-e2e.ts:103-112`—, así que el catálogo real puede devolver
+> más. **Si salen más de 23, anótalas: eso es justo lo que F1.1 busca.** La
+> migración `20260812_sin_default_tenant.sql` está diseñada para ese caso, porque
+> recorre el catálogo y no una lista copiada a mano.
+>
+> Y ojo con la cifra vieja: hasta el 13/08 varias notas decían **21**. Era de un
+> conteo del 03/08 y quedó desfasada; el dato bueno es 23.
 
 ```bash
 # Definitivo — huella completa del esquema, para diferenciar contra el repo
@@ -151,8 +163,10 @@ sudo -u postgres pg_dump --schema-only --no-owner --no-privileges spaces_prod \
 wc -l ~/esquema_prod_*.sql
 ```
 
-Y desde la máquina local, para poder compararlo contra `db/schema.sql` + las 66
-migraciones:
+Y desde la máquina local, para poder compararlo contra `db/schema.sql` + las
+migraciones de `db/migrations/` (**67** en el repo al 13/08; producción tiene
+aplicadas **66** hasta que F1.5 aplique `20260812_sin_default_tenant.sql`, así que
+esa diferencia es esperada, no un desfase):
 
 ```powershell
 scp <usuario>@<host-del-droplet>:~/esquema_prod_*.sql .

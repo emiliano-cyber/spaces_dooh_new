@@ -29,7 +29,7 @@ cobranza.
 | Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
 | Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 38 | [[esquema]] |
-| Migraciones | 66 | [[migraciones]] |
+| Migraciones | 67 | [[migraciones]] |
 
 ## Antes de tocar nada
 
@@ -74,7 +74,7 @@ cobranza.
 
 ### 04 · Datos
 - [[esquema]] — diagrama ER y las 38 tablas
-- [[migraciones]] — las 66 en orden, y las trampas de orden
+- [[migraciones]] — las 67 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
