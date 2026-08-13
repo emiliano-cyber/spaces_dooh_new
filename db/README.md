@@ -58,9 +58,16 @@ psql -d spaces -f db/schema.sql
 ## 1b. Probar inserts desde cero
 En Adminer (8081) o psql, por ejemplo:
 ```sql
-insert into usuarios (nombre, email, rol) values ('Tu Nombre', 'tu@correo.com', 'DUENO');
-insert into clientes (nombre) values ('Cliente Real');
+-- `usuarios` y `clientes` llevan `tenant_id` NOT NULL: van en el bucle de
+-- schema.sql que añade la columna y enciende la RLS. La organización se resuelve
+-- por SLUG, nunca escribiendo el uuid: ese id se genera distinto en cada base.
+insert into usuarios (tenant_id, nombre, email, rol)
+select id, 'Tu Nombre', 'tu@correo.com', 'DUENO' from tenants where slug = 'rgb';
+insert into clientes (tenant_id, nombre)
+select id, 'Cliente Real' from tenants where slug = 'rgb';
 -- el id se genera solo (uuid); usa los ids al enlazar llaves foráneas.
+-- Si el `select` no encuentra la organización, el insert afecta 0 filas y NO da
+-- error: comprueba siempre que psql conteste `INSERT 0 1` y no `INSERT 0 0`.
 ```
 
 ## 2. Qué incluye

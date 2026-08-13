@@ -1,10 +1,12 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-13
 tags: [despliegue, entorno, ci, env]
 archivos:
   - apps/web/package.json
+  - apps/web/scripts/bootstrap-auth.mjs
+  - db/README.md
   - ecosystem.config.js
   - .github/workflows/ci.yml
   - .github/workflows/deploy.yml
@@ -24,9 +26,51 @@ cd db && docker compose up -d
 psql -d spaces -f db/schema.sql
 # … y las 66 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
-# 3. La app
+# 3. Permisos por rol + usuario inicial (idempotente)
+cd apps/web && node scripts/bootstrap-auth.mjs
+
+# 4. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
 ```
+
+### El bootstrap del usuario inicial
+
+`apps/web/scripts/bootstrap-auth.mjs` siembra la matriz de `rol_permisos` (36
+filas) y el usuario dueño, con la contraseña de `SEED_PASSWORD` (por omisión
+`spaces123`). Es el único consumidor de esa variable. Sin él una base recién
+creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y el tenant
+`rgb`, pero ni un solo usuario.
+
+> [!danger] Estuvo roto y no lo dijo nadie — corregido el 13/08
+> El script **fallaba siempre**, en cualquier base, por dos defectos del mismo
+> `insert`. Ninguno se notó porque nadie volvió a correrlo tras cambiar el
+> esquema:
+>
+> 1. **42P10.** Usaba `on conflict (email)`, pero la unicidad de correo es un
+>    índice **funcional** sobre `lower(email)` (`db/schema.sql:72`), y Postgres no
+>    lo infiere desde el nombre de la columna. El conflicto va por
+>    `on conflict (lower(email))`.
+> 2. **23502.** No fijaba `tenant_id`. Se apoyaba en el `DEFAULT` cableado por el
+>    bucle de `db/schema.sql:600-624` — un uuid de otra base, y en retirada.
+>
+> Ahora la organización se resuelve **por slug** (`insert … select … from tenants
+> where slug='rgb'`), nunca por uuid: el id se genera distinto en cada base.
+>
+> Y si esa organización **no existe**, el script **aborta con error y salida 1**.
+> No es un detalle: con esa forma de `insert`, la ausencia del tenant hace que la
+> consulta afecte 0 filas y **termine con éxito sin crear nada**. Es el mismo modo
+> de fallo silencioso de [[zonas-de-riesgo]] R2, y aquí dejaría una base sin
+> usuario con el operador convencido de haberla sembrado. Se detecta por
+> `rowCount === 0`.
+
+> [!warning] Su `DATABASE_URL` por omisión apunta a la base con datos reales
+> `bootstrap-auth.mjs:9-10` cae en `postgresql://spaces:spaces@localhost:5433/spaces`
+> si no le pasas `DATABASE_URL`. Esa es la base de desarrollo **con datos de
+> verdad**, no una de pruebas. Pásale siempre la cadena a mano.
+
+Los mismos dos inserts de ejemplo de `db/README.md` llevaban el mismo defecto:
+`usuarios` y `clientes` están las dos en el bucle de RLS, así que sin `tenant_id`
+no entran.
 
 | Script | Qué hace | Dónde |
 |---|---|---|
