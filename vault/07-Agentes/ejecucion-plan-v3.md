@@ -28,7 +28,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 | P2 · fecha de migración de PIXELED | ABIERTA | — | — |
 | P3 · cuenta DO de las instancias | ABIERTA | — | — |
 | P4 · nombre del registry | ABIERTA | — | — |
-| **P4-bis · autoregistro fuera del build (a: dos imágenes / b: bandera de servidor)** | **ABIERTA — bloquea F2.3 y F2.6** | — | — |
+| **P4-bis · autoregistro fuera del build** | **RESUELTA** | **(b) la bandera sale del build**, como ya se hizo con `GOOGLE_OAUTH`. Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar | 2026-08-13 |
 | P5 · «DEMO» de la Fase 3 = droplet nuevo de la Fase 4 | ASUMIDA por el plan (F3.5 depende de F4.5) | sí | 2026-08-13 |
 | P6 · `/api/version` con token de flota o pública | ABIERTA (afecta Fase 6, fuera de alcance actual) | — | — |
 | **T-01a · alcance del arreglo de `bootstrap-auth.mjs`** | RESUELTA | Las **dos** causas en el mismo commit: `on conflict` y `tenant_id` | 2026-08-13 |
@@ -57,10 +57,10 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 |---|---|---|---|---|---|
 | F2.1 | [código] | ejecutor | — | PENDIENTE | `output: 'standalone'`. **Paralelizable con F3.1**. Alto contacto: `next.config.mjs` |
 | F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 | PENDIENTE | Dockerfile + `.dockerignore` |
-| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, **P4-bis** | BLOQUEADA | Con (a) publica dos imágenes; con (b) una. Validación local: lint del YAML |
-| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | BLOQUEADA | Promoción manual a `estable` |
+| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅ | **BLOQUEADA por P4** | Publica **una** imagen (P4-bis resuelta). Pero sigue frenada por el **nombre del registry** (§8.4 / P4), que sigue abierto |
+| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | BLOQUEADA (arrastre de P4) | Promoción manual a `estable` |
 | F2.5 | [verificación] | ensayista-local | F2.2 | PENDIENTE | Smoke de imagen contra Postgres desechable en localhost |
-| F2.6 | [código] | ejecutor | **P4-bis = (b)** | BLOQUEADA | Condicionada; si Jochelo elige (a), se descarta |
+| F2.6 | [código] | ejecutor | F2.1 | **DESBLOQUEADA — y ahora es obligatoria** | P4-bis = (b) la convierte en necesaria, no opcional. ⚠️ **Invierte la polaridad por omisión**: ver bitácora |
 
 ### Fase 3 · `update.sh` + runner de migraciones
 
@@ -184,6 +184,9 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-13 | Refuerzo que nadie había declarado, comprobado por esa auditoría: **el script no carga dotenv**. `apps/web/.env.local` sí define `DATABASE_URL`, y aun así la corrida con la variable desactivada aborta. El fail-closed no tiene la puerta trasera de heredar el destino de un `.env` que el operador no leyó. |
 | 2026-08-13 | **Contrato nuevo que heredan las Fases 2 y 3:** cuando se escriba el aprovisionamiento de una instancia, el paso que siembre su primer usuario **tiene que pasar `DATABASE_URL` explícito** o fallará. Hoy no hay ningún llamador en el repo, así que nada está roto — pero es una condición nueva que esas tareas no conocen. |
 | 2026-08-13 | **Fase 1 cerrada en todo lo ejecutable en local.** F1.3, F1.4, F1.2 y las dos tareas fuera de plan (T-01, T-02) commiteadas y auditadas; F1.1 ensayada. Quedan **F1.5** y el censo de **TH-02**, ambas de persona. Cinco commits ROJOS esperan visto bueno humano antes del merge. |
+| 2026-08-13 | **P4-bis RESUELTA: (b), la bandera sale del build.** Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar, como `GOOGLE_OAUTH`. El precedente es más fuerte de lo que dice el plan: **el propio código ya lo documenta** en `apps/web/lib/server/google-oauth.ts:35-36` — «apaga la función EN EL SERVIDOR, no solo escondiendo el botón — **misma lección que `NEXT_PUBLIC_AUTOREGISTRO`**. Y NO lleva prefijo». Alguien ya aprendió esto y dejó escrito que esta bandera era el siguiente caso. |
+| 2026-08-13 | ⚠️ **F2.6 invierte la polaridad por omisión, y eso no es un detalle.** Hoy `NEXT_PUBLIC_AUTOREGISTRO !== '0'` significa **encendido si la variable no está** (`signup/route.ts:18`, `login/page.tsx:30`, `google-oauth.ts:90`). El criterio de F2.6 exige lo contrario: **sin variable → `false`**, fail-closed, «una instancia cuyo `.env` se quedó corto no abre el registro por descuido». Consecuencia práctica: **cualquier despliegue que hoy dependa del valor implícito se quedará sin autoregistro tras F2.6 salvo que ponga `AUTOREGISTRO=1` explícito** — incluida DEMO, que lo necesita encendido. Hay que comprobar el `.env` de cada entorno vivo antes de desplegarla. |
+| 2026-08-13 | Con P4-bis resuelta, la Fase 2 queda ejecutable en **F2.1, F2.2, F2.5 y F2.6**. **F2.3 y F2.4 siguen bloqueadas, pero por otra decisión**: el nombre del registry (§8.4 / P4), que sigue abierta. |
 | 2026-08-13 | **Hallazgo abierto de F1.4**, escalado a Jochelo: el plan exige que «el rewrite de `portal` siga igual», y con `Host` en mayúsculas (`PORTAL.space-os.io`) o con punto final (`portal.space-os.io.`, FQDN legal) **el comportamiento cambia**. La guarda `etiquetas.some(e => e === '')` de `host.ts:44-45` lo justifica como «basura», sin mencionar el FQDN. No es agujero de seguridad —`/portal/*` es público por token— y los navegadores normalizan, así que no es alcanzable desde un cliente real. |
 
 ---
