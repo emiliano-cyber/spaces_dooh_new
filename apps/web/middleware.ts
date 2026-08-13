@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { etiquetaDeHost } from './lib/host'
 
 // Must match basePath in next.config.mjs
 const BASE_PATH = '/spaces-dooh'
@@ -9,15 +10,6 @@ const BASE_PATH = '/spaces-dooh'
 // portal externo, que sí es parte del producto vivo.
 const moduleMap: Record<string, string> = {
   portal: '/portal',
-}
-
-function extractSubdomain(host: string): string | null {
-  // Strip port
-  const hostname = host.split(':')[0]
-  const parts = hostname.split('.')
-  // e.g. admin.westmedia.spaces.com → parts[0] = 'admin'
-  if (parts.length >= 3) return parts[0]
-  return null
 }
 
 export function middleware(request: NextRequest) {
@@ -76,13 +68,15 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Ruteo por subdominio (producción multi-subdominio): admin.x.com → /admin
+  // Ruteo por subdominio: portal.x.com → /portal. `etiquetaDeHost` (lib/host.ts)
+  // descarta las IP literales, que la versión anterior confundía con subdominios
+  // —entrar por 209.97.146.136 daba la etiqueta «209»—.
   if (!isDev) {
-    const subdomain = extractSubdomain(host)
-    if (subdomain && moduleMap[subdomain]) {
+    const etiqueta = etiquetaDeHost(host)
+    if (etiqueta && moduleMap[etiqueta]) {
       const url = request.nextUrl.clone()
-      if (!normalizedPath.startsWith(moduleMap[subdomain])) {
-        url.pathname = BASE_PATH + moduleMap[subdomain] + normalizedPath
+      if (!normalizedPath.startsWith(moduleMap[etiqueta])) {
+        url.pathname = BASE_PATH + moduleMap[etiqueta] + normalizedPath
         return NextResponse.rewrite(url)
       }
     }

@@ -27,7 +27,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | `SENSIBLE` | `exigir(modulo,accion)` + `exigirDesbloqueo()` juntos | `lib/server/cambios.ts:236-245` |
 
 > [!info] El middleware NO valida la sesión
-> `apps/web/middleware.ts:106` solo comprueba que **exista** la cookie
+> `apps/web/middleware.ts:100` solo comprueba que **exista** la cookie
 > `spaces_sesion` (corre en Edge, sin `pg`). Todas las `/api/` quedan fuera de
 > ese gate: **se auto-protegen**. Un endpoint nuevo sin guard queda abierto.
 
@@ -168,7 +168,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 ## Públicos por token (sin sesión)
 
 Estos **no** dependen de la cookie: la credencial es el token del enlace. Por eso
-están exentos de CSRF (`middleware.ts:55-65`).
+están exentos de CSRF (`middleware.ts:47-57`).
 
 | Método | Path | Credencial |
 |---|---|---|

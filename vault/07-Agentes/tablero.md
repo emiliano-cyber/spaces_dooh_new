@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-13
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -28,7 +28,7 @@ archivos: []
 | Z8 · Integraciones 🟡 | LIBRE | — | — | — | — | **INC-02 DESPLEGADO el 10/08** (`c610592`), con backfill de 16 reservas. ⚠️ Quedan 2 pantallas de **eyro** sin asignar («Campaña lista — publicar a DOOHmain» y «pruebas_produccion», 2 aprobados cada una): el día que alguien las apruebe, el guard las rebotará. Se cierra desde un usuario de eyro. `DOOHMAIN_PUBLISH_ENABLED=1` en producción: la publicación es REAL. `publicarCampanaEnDoohmain()` ya no manda el producto cruzado — cada pantalla recibe su pieza asignada, con `veces` como `cantDia`. Sin `spots_por_dia` NO se manda cuota (las 16 reservas de prod lo tienen en NULL). Antes de tocar: [[2026-08-10]] |
 | Z9 · Datos 🔴 | LIBRE | — | — | — | — | **Al día.** Últimas migraciones aplicadas en producción el 10/08: `20260807_password_resets_rls.sql`, `20260810_notificaciones_archivada_en.sql` y `20260810_arrendadores_rfc_unico.sql`. Producción en `7d27d25`, sin migraciones pendientes. Invariante: 0 tablas con `tenant_id` sin RLS+FORCE |
 | Z10 · UI base 🟡 | LIBRE | — | — | — | — | `Button` se bloquea solo mientras su `onClick` esté en vuelo (10/08, A5). No cambia su API y ningún formulario se tocó. La guarda vive en `lib/clic-unico.ts` y tiene sus propias pruebas. **11/08: el menú va por fases del proceso** (`nav.ts`, campo `grupo` + `GRUPOS`); si añades un módulo, ponle grupo o `nav.test.ts` se pone roja |
-| Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | Zona de entrada para agentes nuevos |
+| Z11 · Utilidades 🟢 | LIBRE | — | — | — | — | **F1.4 hecha (13/08):** nace `lib/host.ts` con `etiquetaDeHost()`, la **única** función que mira el `Host`. Una IP desnuda (`209.97.146.136`) ya no se confunde con el subdominio `209`. No resuelve marcas ni organizaciones: solo decide si el rewrite a `/portal` se dispara. Zona de entrada para agentes nuevos |
 | Z12 · Docs 🟢 | LIBRE | — | — | — | — | Bóveda creada el 07/08, **validada contra el código el 10/08** y actualizada con la tarde del 10/08 ([[2026-08-10]]) |
 
 > [!warning] V2-01 ya está en `main` — FUSIONADO el 10/08, pero SIN DESPLEGAR

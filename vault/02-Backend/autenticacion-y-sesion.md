@@ -73,7 +73,7 @@ Con `revoke execute … from public` y `grant` solo al rol de la app, más un
 
 ## CSRF — double-submit
 
-`middleware.ts:53-77`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
+`middleware.ts:45-69`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
 sesión, exige `x-csrf-token == spaces_csrf`. El front parcha `window.fetch` para
 reenviarlo (`lib/csrf-client.ts:36-66`).
 

@@ -41,7 +41,7 @@ Lo que **no** cuelga de `(shell)` va sin chrome: `login`, `recuperar/[token]`,
 El grupo de rutas se llama `(app)` pero internamente todo el CSS y los
 componentes siguen diciendo **«demo»** (`components/demo/…`, `.demo-root`,
 `demo.css`). Es histórico. El segmento `/demo` **ya no existe en las URLs**:
-`middleware.ts:37-45` redirige `/demo/*` → `/*` con 308 permanente.
+`middleware.ts:29-37` redirige `/demo/*` → `/*` con 308 permanente.
 
 ## `_legacy`
 

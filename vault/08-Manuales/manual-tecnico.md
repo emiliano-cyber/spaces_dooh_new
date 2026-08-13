@@ -101,7 +101,7 @@ Léelas antes que nada; son cuatro trampas de nomenclatura ya confirmadas.
 3. **No existen los grupos de rutas `(comercial)` ni `(operaciones)`.** Los únicos
    grupos del repo son `(app)`, `(app)/(shell)` y `_legacy/(auth)` (inventario §1.6,
    D-0).
-4. **El segmento `/demo` ya no existe en las URLs**: `middleware.ts:44` redirige
+4. **El segmento `/demo` ya no existe en las URLs**: `middleware.ts:36` redirige
    `/demo/*` → `/*` con 308. El nombre «demo» solo sobrevive en `components/demo/`,
    la clase `.demo-root` y `demo.css` — **no significa que sea código de mentira**.
 
@@ -403,7 +403,7 @@ conocido, ver §5.5).
 ### 5.1 Regla número uno para quien añada un endpoint
 
 > [!danger] El middleware **no valida la sesión** y las rutas `/api/` quedan fuera del gate
-> `middleware.ts:92-109` solo comprueba que la cookie **exista**. **Un endpoint nuevo
+> `middleware.ts:85-104` solo comprueba que la cookie **exista**. **Un endpoint nuevo
 > sin guard queda abierto a internet.** El guard se pone en el handler, siempre.
 
 ### 5.2 Leyenda de guards
@@ -639,7 +639,7 @@ Es el origen de verdad para tres formularios y una prueba que los vigila
 
 ### 6.1 Login con contraseña
 
-`POST /api/auth/login` (**exento de CSRF**, `middleware.ts:49-50`) → rate limit
+`POST /api/auth/login` (**exento de CSRF**, `middleware.ts:48`) → rate limit
 10/5 min → función `auth_usuario_por_email()` **SECURITY DEFINER** → `verifyPassword`
 (bcrypt) → `crearSesion()` (`auth.ts:92`) → dos cookies:
 
@@ -673,7 +673,7 @@ todo salvo `GET /api/auth/me` y `PATCH /api/perfil`.
 
 | Capa | Qué comprueba | Evidencia | ¿Es seguridad? |
 |---|---|---|---|
-| `middleware.ts` | Que **exista** la cookie `spaces_sesion` | `middleware.ts:92-109` | **No** (UX) |
+| `middleware.ts` | Que **exista** la cookie `spaces_sesion` | `middleware.ts:85-104` | **No** (UX) |
 | `AuthGate` (cliente) | Sesión real + rol contra el módulo del `NAV` | `AuthGate.tsx:18-23` | **No** (UX) |
 | `exigir()` en cada handler | Sesión válida + permiso `modulo/accion` | `auth.ts:146` | **SÍ** |
 

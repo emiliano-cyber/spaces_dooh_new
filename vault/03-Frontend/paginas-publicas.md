@@ -47,7 +47,7 @@ campaña — nada de otros clientes ni datos financieros.
 
 ## Exención de CSRF
 
-Estas rutas están exentas del double-submit (`middleware.ts:55-65`) porque **no
+Estas rutas están exentas del double-submit (`middleware.ts:47-57`) porque **no
 dependen de la cookie de sesión**: la credencial es el token del enlace. Si
 alguna empezara a leer la cookie, la exención se vuelve un agujero.
 
