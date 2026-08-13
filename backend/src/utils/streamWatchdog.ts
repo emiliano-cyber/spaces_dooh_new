@@ -28,7 +28,8 @@ const timers = new Map<number, NodeJS.Timeout>();
  * cortan igual, asi que un registro persistente no aportaria nada.
  */
 export type SesionDeVista = {
-  userId: number;
+  // null cuando no hay persona detras: una foto programada no la pide nadie.
+  userId: number | null;
   nombre: string;
   desde: number;        // Date.now()
   modo: 'relay' | 'p2p';

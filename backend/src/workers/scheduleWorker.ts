@@ -2,38 +2,41 @@
 import cron from 'node-cron';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
-import { encuadreDe } from '../controllers/dashboard.controller';
+import { encuadreDe, capturaPorStream, usaServidorDeMedios } from '../controllers/dashboard.controller';
 import { proximoDisparo } from '../utils/horarios';
 
 async function fireSchedule(schedule: any) {
-  const targets: number[] = [];
+  // Se traen las columnas que hacen falta para decidir COMO tomar la foto, no
+  // solo a quien: si es telefono o relay, si esta encendido, y su orientacion.
+  const columnas = `id, name, online, app_version, stream_rotation`;
+  let equipos: any[] = [];
 
   if (schedule.device_id) {
-    targets.push(schedule.device_id);
+    const [rows] = await pool.query<any[]>(`SELECT ${columnas} FROM devices WHERE id = ?`, [schedule.device_id]);
+    equipos = rows as any[];
   } else if (schedule.group_id) {
-    const [rows] = await pool.query<any[]>(
-      `SELECT id as device_id FROM devices WHERE group_id = ?`,
-      [schedule.group_id]
-    );
-    targets.push(...(rows as any[]).map((r: any) => r.device_id));
+    const [rows] = await pool.query<any[]>(`SELECT ${columnas} FROM devices WHERE group_id = ?`, [schedule.group_id]);
+    equipos = rows as any[];
   } else if (schedule.campaign_id) {
     const [rows] = await pool.query<any[]>(
-      `SELECT device_id FROM campaign_devices WHERE campaign_id = ?`,
+      `SELECT ${columnas.split(', ').map((c) => `d.${c}`).join(', ')}
+         FROM devices d JOIN campaign_devices cd ON cd.device_id = d.id
+        WHERE cd.campaign_id = ?`,
       [schedule.campaign_id]
     );
-    targets.push(...(rows as any[]).map((r: any) => r.device_id));
+    equipos = rows as any[];
   } else {
     // Sin equipo, grupo ni campana: toda la flota. Se excluyen los dados de baja
     // y los que estan en mantenimiento, pero NO se filtra por status='active':
     // ese campo nunca se promueve y todos los equipos en operacion siguen en
     // 'provisioning', asi que filtrar por activo no le mandaria la orden a nadie.
     const [rows] = await pool.query<any[]>(
-      `SELECT id as device_id FROM devices WHERE status NOT IN ('inactive','maintenance')`
+      `SELECT ${columnas} FROM devices WHERE status NOT IN ('inactive','maintenance')`
     );
-    targets.push(...(rows as any[]).map((r: any) => r.device_id));
+    equipos = rows as any[];
   }
 
-  for (const deviceId of targets) {
+  for (const eq of equipos) {
     // El encuadre fijo del equipo (lente y zoom) viaja en la orden. Sin esto, la
     // foto por horario salia siempre al encuadre por defecto del lente principal:
     // el ajuste hecho en la vista en vivo no la alcanzaba.
@@ -41,20 +44,31 @@ async function fireSchedule(schedule: any) {
     // schedule_id tambien viaja en el payload: la columna de la tabla commands no
     // la ve el equipo, y sin el la foto subia suelta, sin quedar ligada a su
     // programacion (asi es como todas las fotos aparecian como "a peticion").
-    const payload = {
-      campaign_id: schedule.campaign_id,
-      schedule_id: schedule.id,
-      ...(await encuadreDe(deviceId)),
-    };
+    const extra = { campaign_id: schedule.campaign_id, schedule_id: schedule.id };
+
+    // Los telefonos encendidos toman la foto DESDE la vista en vivo, igual que el
+    // boton de foto a todos: es el unico camino que da fotos parejas sin depender
+    // de la version de APK instalada en cada sitio. La evidencia diaria es
+    // precisamente donde mas importa que todas se vean igual.
+    if (eq.online && !usaServidorDeMedios(eq.app_version)) {
+      void capturaPorStream(eq, { scheduleId: schedule.id, extra });
+      continue;
+    }
+
+    // Relay y equipos apagados: orden directa. En la Raspberry y las camaras IP
+    // el agente corta la transmision para poder fotografiar, asi que abrir el
+    // visor antes no aportaria nada; y a un equipo apagado hay que dejarle la
+    // orden, que vence sola a los 10 minutos.
+    const payload = { ...extra, ...(await encuadreDe(eq.id)) };
 
     const [result] = await pool.query<any>(
       `INSERT INTO commands (device_id, command_type, payload, schedule_id, priority, expires_at)
        VALUES (?, 'TAKE_PHOTO', ?, ?, 5, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-      [deviceId, JSON.stringify(payload), schedule.id]
+      [eq.id, JSON.stringify(payload), schedule.id]
     );
 
     await redis.publish('device:command', JSON.stringify({
-      device_id: deviceId,
+      device_id: eq.id,
       command: {
         id: (result as any).insertId,
         command_type: 'TAKE_PHOTO',

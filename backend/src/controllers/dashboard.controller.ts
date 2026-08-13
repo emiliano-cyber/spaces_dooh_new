@@ -16,7 +16,7 @@ import crypto from 'crypto';
 // arrastrar GStreamer, asi que empujan el video al servidor de medios y el
 // dashboard lo consume de ahi. Se reconocen por su app_version, que la ponemos
 // nosotros ("pi-agent 0.1.0", "pc-agent 1.0.0").
-function usaServidorDeMedios(appVersion?: string | null) {
+export function usaServidorDeMedios(appVersion?: string | null) {
   return !!appVersion && /^(pi|pc)-agent/i.test(String(appVersion));
 }
 
@@ -469,11 +469,17 @@ export async function sendCommand(req: Request, res: Response) {
  * device_ids se le pide a todos los que no estan dados de baja.
  */
 /** Manda una orden a un equipo y devuelve su id. */
-async function enviarOrden(deviceId: number, tipo: string, payload: any, userId: number) {
+async function enviarOrden(
+  deviceId: number,
+  tipo: string,
+  payload: any,
+  userId: number | null,
+  scheduleId: number | null = null,
+) {
   const [ins] = await pool.query<any>(
-    `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
-     VALUES (?, ?, ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-    [deviceId, tipo, JSON.stringify(payload ?? null), userId]
+    `INSERT INTO commands (device_id, command_type, payload, schedule_id, priority, created_by, expires_at)
+     VALUES (?, ?, ?, ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+    [deviceId, tipo, JSON.stringify(payload ?? null), scheduleId, userId]
   );
   const id = (ins as any).insertId;
   await redis.publish('device:command', JSON.stringify({
@@ -512,7 +518,12 @@ const ESPERA_SUBIDA_MS = 7000;
  * transmision para poder tomar la foto (es el mismo sensor), asi que abrir el
  * stream antes no aportaria nada y si gastaria ancho de banda de subida.
  */
-async function capturaPorStream(eq: any, userId: number) {
+export async function capturaPorStream(
+  eq: any,
+  opciones: { userId?: number | null; scheduleId?: number | null; extra?: any } = {},
+) {
+  const userId = opciones.userId ?? null;
+  const scheduleId = opciones.scheduleId ?? null;
   const encuadre = await encuadreDe(eq.id);
   const yaAbierta = sesionDeVista(eq.id);
 
@@ -522,7 +533,7 @@ async function capturaPorStream(eq: any, userId: number) {
       armStreamWatchdog(eq.id);
       registrarSesion(eq.id, {
         userId,
-        nombre: 'una captura automática',
+        nombre: scheduleId ? 'una foto programada' : 'una captura automática',
         desde: Date.now(),
         modo: 'p2p',
       });
@@ -532,13 +543,19 @@ async function capturaPorStream(eq: any, userId: number) {
     // La orientacion del visor viaja en la orden: es lo que hace que la foto
     // quede como se ve en la vista en vivo.
     const giro = Number(eq.stream_rotation) || 0;
-    await enviarOrden(eq.id, 'TAKE_PHOTO', { ...encuadre, ...(giro ? { rotation: giro } : {}) }, userId);
+    await enviarOrden(
+      eq.id,
+      'TAKE_PHOTO',
+      { ...(opciones.extra ?? {}), ...encuadre, ...(giro ? { rotation: giro } : {}) },
+      userId,
+      scheduleId,
+    );
 
     if (!yaAbierta) {
       await dormir(ESPERA_SUBIDA_MS);
       // Si mientras tanto una persona abrio el visor, no se le corta.
       const ahora = sesionDeVista(eq.id);
-      if (!ahora || ahora.nombre === 'una captura automática') {
+      if (!ahora || ahora.userId === userId) {
         await stopStream(eq.id, 'captura terminada');
       }
     }
@@ -587,7 +604,7 @@ export async function capturarAhora(req: Request, res: Response) {
     if (usaVisor) {
       // En segundo plano: son ~13 segundos por equipo y el navegador no puede
       // quedarse esperando. Todos arrancan a la vez, no en fila.
-      void capturaPorStream(eq, req.user!.uid);
+      void capturaPorStream(eq, { userId: req.user!.uid });
     } else {
       await enviarOrden(eq.id, 'TAKE_PHOTO', await encuadreDe(eq.id), req.user!.uid);
     }

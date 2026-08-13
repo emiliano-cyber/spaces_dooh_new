@@ -514,7 +514,9 @@ sequenceDiagram
          group_id  → equipos del grupo
          campaign_id → equipos de la campaña
          los tres NULL → TODA la flota (status NOT IN inactive, maintenance)
-     - INSERT commands + publish
+     - Telefono ENCENDIDO -> capturaPorStream(): abre la vista, espera 6 s,
+       dispara con la orientacion del visor, cierra a los 7 s
+     - Relay o equipo apagado -> INSERT commands + publish (orden directa)
      - UPDATE next_fire_at = proximoDisparo(schedule, yaDisparo=true)
 ```
 

@@ -394,6 +394,16 @@ evidencia es más débil.
 **Cada cierto tiempo.** Cada N minutos. Ojo con el consumo: el formulario te
 avisa cuántas fotos al día son.
 
+### Cómo se toman las fotos programadas
+
+Igual que las del botón "Foto a todos": en los teléfonos el sistema **abre la
+vista en vivo, espera a que la cámara enfoque, dispara y cierra**. Así la
+evidencia diaria sale siempre con el mismo encuadre y la misma calidad, sin
+depender de la versión de app de cada sitio.
+
+No consume datos extra —nadie está mirando, así que el video no se transmite—,
+pero sí mantiene la cámara encendida unos 13 segundos por foto.
+
 ### El estimado de consumo
 
 Antes de guardar, la pantalla te dice cuántas fotos al día son y **cuántos MB al
