@@ -46,7 +46,9 @@ son estados puntuales, no decoración. Fondos siempre blanco/crema.
 
 ## 2. Tipografía
 
-Dos familias, y solo dos. Sistema **Institucional**, vigente desde el 13/08/2026.
+Dos familias descargadas, y solo dos. Sistema **Institucional**, vigente desde el
+13/08/2026. (La monoespaciada del sistema es un tercer papel, sin descarga: ver
+«Monoespaciada» más abajo.)
 
 - **Source Serif 4** 600–700 → display y títulos (`h1`–`h3`), wordmark. Sentence
   case; tracking ajustado por escala (`h1` −0.01em … `h3` −0.005em). Wordmark en
@@ -57,24 +59,49 @@ Dos familias, y solo dos. Sistema **Institucional**, vigente desde el 13/08/2026
   `font-mono` de Tailwind, las dos con `tnum`. Lo que alineaba una columna de
   importes nunca fue la monoespaciada, sino la cifra de ancho fijo — por eso la
   mono desapareció sin que se movieran las tablas.
+- **Monoespaciada** (`--font-codigo` → clase `font-codigo`, `ui-monospace`) →
+  **solo código en pantalla**. Ver abajo.
 - **Nunca Title Case.** Siempre sentence case.
+
+> [!warning] `font-mono` ya NO da monoespaciada
+> La clase sobrevivió al cambio de tipografía con su nombre viejo para no tocar
+> los componentes que la escriben, pero hoy es **sinónimo de Inter con cifras
+> tabulares**. Si la usas esperando ancho fijo de letra, no lo vas a tener. Para
+> código, la clase es `font-codigo`.
 
 Las carga `next/font/google` en `app/layout.tsx` con `display: 'swap'`, y publica
 las variables `--font-display` (Source Serif 4, fallback Georgia) y `--font-sans`
 (Inter, fallback system-ui) sobre `<html>`. Los tokens de `demo.css`
 (`--font-body`, `--font-mono`) y las claves de `tailwind.config.ts` (`display`,
 `sans`, `mono`) conservan su nombre y cuelgan de esas dos variables: **cambiar de
-tipografía es cambiar el layout raíz, ningún componente**.
+tipografía es cambiar el layout raíz, ningún componente**. `--font-codigo` es la
+excepción y no cuelga de ninguna: no se descarga.
 
 > **Cero peticiones a un CDN de fuentes.** `next/font` las descarga en el BUILD y
 > las sirve desde `/_next/static/media/*.woff2`. Es requisito del modelo de
 > instancias soberanas: una instancia sin salida a internet tiene que verse
 > igual. No se añaden `<link>` a Google Fonts ni a ningún otro proveedor.
 
-> **Los documentos impresos van aparte** (`.doc-hoja` y siguientes en
-> `demo.css`): Georgia 11pt para el cuerpo y `system-ui`/`ui-monospace` para
-> etiquetas y hashes, medidos en puntos. Es la tipografía de un contrato en
-> papel, no la de la aplicación, y no sigue esta escala.
+### Los dos usos legítimos de monoespaciada
+
+Que los números hayan dejado la mono no la borra del producto. Quedan dos sitios
+donde sí gana, y los dos por el mismo motivo: ahí el ancho fijo **significa
+algo** —alinea indentación, deja contar caracteres, hace visible un espacio de
+más—, mientras que en una columna de importes eso lo resolvía la cifra tabular.
+
+1. **Código en pantalla** — token `--font-codigo` (`ui-monospace, monospace`),
+   clase `font-codigo`. Tres consumidores, todos el HTML de un creativo: el
+   `<pre>` que muestra la fuente y los dos `<textarea rows={5}>` donde se pega
+   («Pega aquí el código del creativo»), en `creativos/page.tsx` y en
+   `components/demo/campanas/AgregarCreativo.tsx`. **No se descarga nada**:
+   `ui-monospace` es la mono del sistema operativo.
+2. **Documentos impresos** — `.doc-hoja` y siguientes en `demo.css`: Georgia
+   11pt de cuerpo, `system-ui` en etiquetas y `ui-monospace` en hashes y URLs
+   largas, todo medido en puntos. Es la tipografía de un contrato en papel, no
+   la de la aplicación, y **no sigue esta escala**.
+
+> **La regla, en una línea:** monoespaciada **solo si es código o va a papel**.
+> Números, jamás — esos son Inter con `tnum`.
 
 ## 3. Escala de espaciado y radios
 

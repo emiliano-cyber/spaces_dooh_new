@@ -58,6 +58,14 @@
   --font-body: var(--font-sans), system-ui, sans-serif;
   --font-mono: var(--font-sans), system-ui, sans-serif;
 
+  /* La ÚNICA monoespaciada que queda en pantalla, y es para código de verdad:
+     el HTML del creativo, que se pega y se revisa a ojo. Ahí la indentación y
+     el ancho fijo sí dicen algo, al revés que en una columna de importes.
+     No lleva familia descargada: `ui-monospace` resuelve a la mono del sistema
+     (SF Mono, Consolas, …), que en un bloque de código se lee igual de bien y
+     no cuesta ni un byte de red. */
+  --font-codigo: ui-monospace, monospace;
+
   background: var(--bg);
   color: var(--ink);
   font-family: var(--font-body);

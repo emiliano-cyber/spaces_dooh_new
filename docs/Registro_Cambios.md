@@ -27,6 +27,16 @@ La entrada más reciente va arriba.
   - **No cambió nada más**: ni un color, ni un espacio, ni una pantalla, ni un
     cálculo. Solo la letra.
 
+- **El código de los creativos conserva su letra de máquina de escribir.** Al
+  cambiar la tipografía se detectó que tres recuadros no muestran texto normal
+  sino **código HTML**: el que enseña el código de un creativo ya guardado, y las
+  dos cajas donde se pega ese código —una en Creativos y otra al añadir un
+  creativo a una campaña—. En esos tres, y solo en esos tres, las letras siguen
+  teniendo todas el mismo ancho, que es lo que deja ver de un vistazo la sangría
+  y los espacios de sobra al revisar el código pegado. En un importe eso no
+  aportaba nada, por eso los números sí cambiaron. Esa letra la pone el propio
+  equipo del usuario: no se descarga nada.
+
 ---
 
 ## 2026-08-11

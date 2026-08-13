@@ -103,7 +103,7 @@ export function AgregarCreativo({ campanaId }: { campanaId: string }) {
             onChange={(e) => setCodigo(e.target.value)}
             placeholder="Pega aquí el código del creativo (HTML/UTF)…"
             rows={5}
-            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-mono text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 font-codigo text-[12px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="secondary" onClick={() => setCodeOpen(false)}>Cancelar</Button>
