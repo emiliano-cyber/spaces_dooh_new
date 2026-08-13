@@ -40,7 +40,7 @@ Tamaño = superficie de conflicto entre agentes. Ver [[AGENTES]].
 | Archivo | Líneas | Zona |
 |---|---|---|
 | `lib/server/arrendadores-repo.ts` | 1317 | [[arrendadores-y-contratos]] |
-| `lib/server/campanas-repo.ts` | 1044 | [[comercial-propuestas-campanas]] |
+| `lib/server/campanas-repo.ts` | 1214 | [[comercial-propuestas-campanas]] |
 | `lib/server/sitios-repo.ts` | 624 | [[inventario-y-sitios]] |
 | `lib/server/propuestas-repo.ts` | 593 | [[comercial-propuestas-campanas]] |
 | `lib/server/arrendadores-controller.ts` | 460 | [[arrendadores-y-contratos]] |

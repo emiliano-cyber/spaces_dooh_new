@@ -42,9 +42,9 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
 | F1.1 | [verificación] | ensayista-local (SOLO LECTURA sobre 5433) + tarjeta humana | — | PENDIENTE | El censo autoritativo es el de producción; el local es indicio |
-| F1.2 | [migración] | ejecutor | F1.1-local | PENDIENTE | Descubre tablas por catálogo, no por lista; ensayo de idempotencia ×2 en `spaces_e2e` |
-| F1.3 | [código] | ejecutor | — | PENDIENTE | `campanas-repo.ts:300` → `qConTenant`. **Paralelizable con F1.4** |
-| F1.4 | [código] | ejecutor | — | PENDIENTE | `middleware.ts:14-21`, una IP no es subdominio. **Paralelizable con F1.3** |
+| F1.2 | [migración] | ejecutor | F1.1-local | PENDIENTE | Descubre tablas por catálogo, no por lista; ensayo de idempotencia ×2 en `spaces_e2e`. ⚠️ El plan manda reverificar el `insert into reservas` que cita en `campanas-repo.ts:687-696`: tras F1.3 arranca en **`:697`** |
+| F1.3 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `c50344a`. Veredicto AMARILLO (aceptada). ROJO por R2: **pendiente de visto bueno humano antes del merge** |
+| F1.4 | [código] | ejecutor | — | EN_CURSO | `middleware.ts:14-21`, una IP no es subdominio. Va **secuencial** tras F1.3, no en paralelo: ver nota de abajo |
 | F1.5 | [verificación] | tarjeta humana | F1.1 real, F1.2 | PENDIENTE_SERVIDOR | Aplicación al droplet: la corre una persona |
 
 ### Fase 2 · Release versionado
@@ -87,13 +87,34 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 *(El orquestador las agrega aquí conforme se generan: ID de tarea, comandos exactos
 del plan, respuestas esperadas y qué desbloquean. Se presentan a Jochelo en bloque.)*
 
-- — ninguna todavía —
+### TH-01 · de F1.3 — comprobar `config_negocio` en producción
+
+Emitida por el verificador el 2026-08-13. **Solo lectura**, la corre una persona.
+
+```bash
+psql -d spaces_prod -c "select count(*) total, count(*) filter (where tenant_id is null) sin_tenant, count(*) filter (where max_clientes_pantalla is not null) con_cupo from config_negocio;"
+```
+
+**Respuesta esperada:** `sin_tenant = 0`. En el 5433 local son 6 filas, 0 sin tenant,
+0 con cupo capturado.
+
+**Qué pasa si no cuadra:** si producción tuviera alguna fila con `tenant_id` nulo
+(esquema divergente), el filtro explícito que introdujo F1.3 dejaría a esa
+organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esquema
+(`db/schema.sql:643`) no debería ocurrir; esto lo confirma.
+
+**Qué desbloquea:** el visto bueno humano del merge de `c50344a`.
 
 ## Bitácora de orquestación
 
 | Fecha | Evento |
 |---|---|
 | 2026-08-13 | Tablero creado. Alcance: Fases 1–4 en local. Diseño de agentes: ejecutor / verificador / ensayista-local + comando /orquestar. Pendiente crítico: respuesta a P4-bis antes de F2.3/F2.6. |
+| 2026-08-13 | Entorno montado: `npm install`, los dos `.env` copiados, `spaces_db` revivido con `docker start` (había quedado `Exited` al reiniciar Docker). Línea base medida: typecheck limpio, 789 unitarias en 71 archivos. |
+| 2026-08-13 | **El par aprobado (F1.3 ∥ F1.4) NO se paraleliza.** `vitest.e2e.config.ts:16-17`: las e2e corren en serie porque comparten la única base `spaces_e2e` y cada archivo la recrea con `drop schema public cascade`. Dos agentes a la vez se borran la base a media corrida. El DAG las aprobó por no compartir zona ni archivos —cierto— pero no contempló la base compartida. Regla escrita en `orquestar.md`. |
+| 2026-08-13 | **Trampa de entorno documentada:** las e2e exigen build de Next previo (`servidor-e2e.ts:31` usa `npx next start`, que no construye). Sin `.next/BUILD_ID` fallan las 12 por timeout tras 636 s; con build, 61 s. Costó 10 min al ejecutor de F1.3. Escrito en `CLAUDE.md` y en los tres agentes. |
+| 2026-08-13 | **F1.3 COMPLETADA_LOCAL** (`c50344a`, AMARILLO). Auditoría independiente confirmó el criterio con la RLS desactivada de facto: con GUC ajeno la consulta vieja devolvía 1 fila (fuga), la nueva 0. Tres asperezas menores, ninguna bloqueante. Emitida TH-01. |
+| 2026-08-13 | Corregido en la bóveda el conteo de `campanas-repo.ts`: decía 1044 líneas en tres notas vivas, son **1214**. La de `comercial-propuestas-campanas` afirmaba `actualizado: 2026-08-13` con el dato viejo dentro. |
 
 ---
 *Preparado por Ana · 2026-08-13*

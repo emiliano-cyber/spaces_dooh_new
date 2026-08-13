@@ -26,7 +26,7 @@ Cliente → Propuesta (folio, ítems, comisión) → aprobada
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `campanas-repo.ts` | 1044 | Clientes, campañas, reservas, confirmar/extender |
+| `campanas-repo.ts` | 1214 | Clientes, campañas, reservas, confirmar/extender |
 | `propuestas-repo.ts` | 593 | Propuestas, ítems, liga pública, aceptación |
 | `creativos-repo.ts` | 287 | Alta, validación y asignación de creativos |
 | `propuestas-controller.ts` | 121 | Validación zod |

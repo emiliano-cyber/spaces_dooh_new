@@ -170,7 +170,7 @@ despliegue entero.
 
 > **Las pruebas unitarias no ven los fallos de RLS**: simulan la base. Los dos
 > peores fallos de aislamiento del proyecto pasaron las unitarias sin despeinarse.
-> Todo lo que toque tenant o sesión necesita `npm run test:e2e`.
+> Todo lo que toque tenant o sesión necesita `cd apps/web && npm run test:e2e`.
 
 ---
 
@@ -190,13 +190,33 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 - **Commits convencionales en español y sin acentos**:
   `fix(seguridad): el desbloqueo leia usuarios sin contexto de tenant`. El cuerpo se
   usa de verdad: explica el porqué, lo que apareció al hacerlo y qué se verificó.
-- **Dos suites**: `npm test` (~729 unitarias, sin Docker) y `npm run test:e2e`
-  (~55 de integración, Postgres real en el 5433, en serie, contra un Next real en el
-  puerto 3311).
+- **Dos suites, y las dos se corren desde `apps/web/`**: `cd apps/web && npm test`
+  (789 unitarias en 71 archivos, sin Docker) y `cd apps/web && npm run test:e2e`
+  (12 archivos, 136 pruebas + 1 saltada, contra Postgres real en el 5433, en serie,
+  contra un Next real en el puerto 3311). Ambas cifras medidas el 2026-08-13.
 - **Migraciones** `YYYYMMDD_descripcion.sql`, transaccionales e idempotentes. **No
   se edita una ya aplicada** y **no se toca `db/schema.sql` directo**.
 - **La bitácora es parte del trabajo**: si el cambio se nota desde la aplicación,
   tiene entrada en `docs/Registro_Cambios.md`, en lenguaje llano.
+
+> [!warning] Los scripts de pruebas NO existen en la raíz del repo
+> `test`, `test:e2e` y `typecheck` viven en `apps/web/package.json`. Corridos desde
+> la raíz devuelven `npm error Missing script`, que es fácil de confundir con «el
+> entorno está roto». La raíz solo tiene `build`, `dev`, `lint`, `format` y
+> `check-types` (este último delega en turbo). **Antepón siempre `cd apps/web`.**
+
+> [!danger] Las e2e exigen un build de Next hecho ANTES, o fallan las 12 en falso
+> `apps/web/lib/test/servidor-e2e.ts:31` arranca el servidor con `npx next start`,
+> que **reutiliza el build existente y no construye nada**. En un worktree recién
+> clonado no hay `.next/BUILD_ID`, así que los 12 archivos e2e mueren con «El
+> servidor de pruebas no respondió … tras 60 s» — y tardan **636 s** en hacerlo.
+> El rojo no dice nada del código: dice que falta el build.
+>
+> ```
+> cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
+> ```
+>
+> Comprobado el 2026-08-13 al montar el worktree `servidor-padre`.
 
 ### La trampa del orden de migraciones
 
@@ -348,9 +368,9 @@ bandera del build y decidirla en el servidor — como ya se hizo con `GOOGLE_OAU
 La lista está en `AGENTES.md`:
 
 - [ ] Zona liberada en el tablero
-- [ ] `npm run typecheck` limpio
-- [ ] `npm test` en verde
-- [ ] `npm run test:e2e` si tocaste auth, tenant, dinero o migraciones
+- [ ] `cd apps/web && npm run typecheck` limpio
+- [ ] `cd apps/web && npm test` en verde
+- [ ] `cd apps/web && npm run test:e2e` si tocaste auth, tenant, dinero o migraciones
 - [ ] Nota de la bóveda actualizada **en el mismo commit**
 - [ ] Entrada en la bitácora, si se nota desde la aplicación
 - [ ] Ningún secreto en el diff

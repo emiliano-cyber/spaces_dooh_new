@@ -20,7 +20,13 @@ lo asigna al ejecutor. Tú solo corres.
    si la tarea lo pide, p. ej. el ensayo de la auditoría F1.1). Toda escritura va a
    bases cuyo nombre termine en `_e2e` o `_test`, o a un contenedor Postgres
    desechable que tú mismo levantas y destruyes.
-3. **Los ensayos no commitean.** Contenedores, imágenes, volúmenes y logs son
+3. **Las suites se corren desde `apps/web`.** `test`, `test:e2e` y `typecheck` están
+   en `apps/web/package.json`, no en la raíz: `cd apps/web && npm run test:e2e`. Un
+   `npm error Missing script` significa directorio equivocado, no ensayo fallido.
+   Y las e2e exigen build previo (`servidor-e2e.ts:31` usa `npx next start`, que
+   reutiliza el build): sin `.next/BUILD_ID` fallan las 12 por timeout tras 636 s.
+   `cd apps/web && npm run build` primero.
+4. **Los ensayos no commitean.** Contenedores, imágenes, volúmenes y logs son
    efímeros; deja `docker ps -a` y el 5433 como los encontraste (excepto la base de
    desarrollo que ya corría). Los logs de ensayo se guardan fuera del árbol de git o
    en una ruta ignorada que el orquestador te indique.

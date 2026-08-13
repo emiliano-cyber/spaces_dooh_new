@@ -13,9 +13,20 @@ se resuelve.
 1. Lee `vault/07-Agentes/ejecucion-plan-v3.md` (estado + DAG). Si no existe, créalo
    desde la plantilla que contiene ese mismo archivo en este repo de entregables.
 2. Lee `vault/07-Agentes/tablero.md` para saber qué zonas están tomadas.
-3. Verifica el entorno una sola vez: worktree `feat/servidor-padre-instancias`,
-   remoto `emiliano` presente, Postgres de desarrollo arriba en el 5433, Docker
-   disponible. Si algo falta, repórtalo a Jochelo antes de lanzar nada.
+3. Verifica el entorno una sola vez, y en este orden — los cuatro últimos puntos
+   son los que de verdad fallan al montar el worktree:
+   - worktree `feat/servidor-padre-instancias` y remoto `emiliano` presente;
+   - Docker arriba **y el contenedor `spaces_db` corriendo**: al reiniciar Docker
+     Desktop queda `Exited`, y el 5433 cerrado. Se revive con
+     `docker start spaces_db` — con `start`, no con `compose up`, para reusar el
+     volumen `db_spaces_pgdata`, que tiene datos reales;
+   - `node_modules` en el worktree (`npm install`);
+   - `apps/web/.env` y `apps/web/.env.local` copiados desde la raíz del repo;
+   - **build de Next hecho** (`cd apps/web && npm run build`): sin él las e2e
+     fallan las 12 por timeout tras 636 s y el rojo parece del código.
+   Mide la línea base antes de lanzar a nadie: `cd apps/web && npm run typecheck`
+   y `cd apps/web && npm test`. Todo rojo posterior es del agente, no de partida.
+   Si algo falta, repórtalo a Jochelo antes de lanzar nada.
 4. Resume en 5 líneas: tareas COMPLETADAS, EN CURSO, BLOQUEADAS y la(s) siguiente(s)
    ejecutable(s) según el DAG.
 
@@ -29,6 +40,14 @@ se resuelve.
   otro paralelo, propónselo a Jochelo antes.
   Ojo con `docs/Registro_Cambios.md`: si ambas tareas del par la tocan, sus commits
   chocan — secuencia el commit final o pide al segundo agente rebasar.
+  > **Los pares aprobados dejan de serlo si ambas tareas verifican con e2e.** El DAG
+  > los aprobó por no compartir zona ni archivos, y eso sigue siendo cierto; pero
+  > `vitest.e2e.config.ts:16-17` dice que las e2e corren en serie porque **comparten
+  > una única base `spaces_e2e` y cada archivo la recrea** con `recrearEsquema()`
+  > (`drop schema public cascade`). Dos agentes a la vez se borran la base a media
+  > corrida. Comprobado el 2026-08-13: **(F1.3 ∥ F1.4) va secuencial**, y (F2.1 ∥
+  > F3.1) también en cuanto F3.1 sea `[migración]`. El paralelo solo es seguro si
+  > como mucho UNA de las dos toca la e2e.
 - **Ciclo por tarea:** ejecutor (o ensayista) → verificador en sesión NUEVA →
   actualizar estado → siguiente. Un ROJO del verificador abre una sesión nueva del
   ejecutor con los hallazgos; nunca la misma sesión se autocorrige.

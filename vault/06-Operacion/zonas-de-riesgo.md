@@ -146,7 +146,7 @@ cubren y **tardan** (necesitan Docker).
 | Archivo | Líneas | Riesgo |
 |---|---|---|
 | `arrendadores-repo.ts` | 1317 | Conflictos entre agentes garantizados |
-| `campanas-repo.ts` | 1044 | Idem |
+| `campanas-repo.ts` | 1214 | Idem |
 | `sitios-repo.ts` | 624 | Whitelist `CAMPO_COL` — expone columnas a escritura |
 | `propuestas-repo.ts` | 593 | Sin unitarias |
 

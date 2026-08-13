@@ -18,8 +18,14 @@ mal, lo documentas con evidencia; jamás lo arreglas ni sugieres "un cambio ráp
    extra es hallazgo.
 3. Corre el comando de verificación EXACTO del plan. No lo parafrasees ni lo
    sustituyas por uno "equivalente".
-4. Corre `npm run typecheck` y `npm test`. Si la tarea toca auth, tenant, dinero o
-   migraciones, corre `npm run test:e2e` completa — incluida
+4. Corre `npm run typecheck` y `npm test` — **los tres scripts están en
+   `apps/web/package.json`, no en la raíz**, así que van con `cd apps/web &&`
+   delante o devuelven `npm error Missing script`. Si la tarea toca auth, tenant,
+   dinero o migraciones, corre `npm run test:e2e` completa. Esa suite exige un
+   build de Next hecho antes (`servidor-e2e.ts:31` usa `npx next start`, que no
+   construye): sin `.next/BUILD_ID` los 12 archivos fallan por timeout tras 636 s
+   y el rojo es de entorno, no del commit — `cd apps/web && npm run build` y
+   repite. Va incluida
    `aislamiento.e2e.test.ts`, que debe pasar SIN haber sido modificada
    (`git log --oneline -- apps/web/lib/test/aislamiento.e2e.test.ts` no debe mostrar
    el commit auditado).

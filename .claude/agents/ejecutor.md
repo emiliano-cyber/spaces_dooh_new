@@ -32,6 +32,17 @@ de tarea del orquestador y produces UN commit. Nada más.
 3. Corre el comando de verificación EXACTO de la tarea, más `npm run typecheck` y
    `npm test`. Si la tarea toca auth, tenant, dinero o migraciones, corre también
    `npm run test:e2e` (Postgres real en 5433, base `spaces_e2e`).
+   > **Los tres scripts viven en `apps/web/package.json`, NO en la raíz.** Desde la
+   > raíz devuelven `npm error Missing script`. Córrelos siempre así:
+   > `cd apps/web && npm run typecheck` · `cd apps/web && npm test` ·
+   > `cd apps/web && npm run test:e2e`. Un `Missing script` no es un fallo de la
+   > tarea: es que estás en el directorio equivocado.
+   >
+   > **Y las e2e necesitan un build de Next hecho antes.** `servidor-e2e.ts:31`
+   > levanta con `npx next start`, que reutiliza el build y no construye: sin
+   > `.next/BUILD_ID` los 12 archivos fallan por timeout tras 636 s. Si ves «El
+   > servidor de pruebas no respondió», corre `cd apps/web && npm run build` y
+   > repite — no es un rojo de tu tarea.
 4. Actualiza la nota de la bóveda correspondiente (campo `actualizado:` con la fecha
    de hoy) y, si el cambio se nota desde la aplicación, agrega la entrada en
    `docs/Registro_Cambios.md` en lenguaje llano.
