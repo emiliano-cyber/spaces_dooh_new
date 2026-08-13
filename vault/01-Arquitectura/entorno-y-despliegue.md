@@ -43,7 +43,7 @@ filas) y el usuario dueño, con la contraseña de `SEED_PASSWORD` (por omisión
 creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y el tenant
 `rgb`, pero ni un solo usuario.
 
-**`DATABASE_URL` es obligatoria** (`bootstrap-auth.mjs:9-33`): sin ella el script
+**`DATABASE_URL` es obligatoria** (`bootstrap-auth.mjs:10-34`): sin ella el script
 no arranca, imprime qué variable falta con un ejemplo en bash y en PowerShell, y
 sale con código 1.
 
