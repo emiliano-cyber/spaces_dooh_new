@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-13
 tags: [frontend, indice]
 archivos:
   - apps/web/app/
@@ -28,7 +28,7 @@ Router en uso**.
 
 | Layout | Qué aporta |
 |---|---|
-| `app/layout.tsx` | HTML raíz, fuentes Fontshare, `Providers` |
+| `app/layout.tsx` | HTML raíz, las dos fuentes por `next/font` (`--font-display` = Source Serif 4, `--font-sans` = Inter), `Providers` |
 | `app/(app)/layout.tsx` | Tokens del design system (`.demo-root`), `demo.css`, Toaster |
 | `app/(app)/(shell)/layout.tsx` | Sidebar + Topbar + sesión + guards |
 

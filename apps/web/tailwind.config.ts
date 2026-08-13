@@ -55,10 +55,16 @@ const config: Config = {
           soft: 'var(--warning-soft)',
         },
       },
+      // Las tres claves se quedan con su nombre —`font-display`, `font-sans` y
+      // `font-mono` están escritas en decenas de componentes— y lo que cambia
+      // es a qué familia resuelve cada variable (ver app/layout.tsx y
+      // demo.css). `font-mono` ya no es monoespaciada: hereda Inter y a cambio
+      // enciende las cifras tabulares, que es lo que en realidad alineaba las
+      // columnas de importes y folios.
       fontFamily: {
         display: ['var(--font-display)'],
         sans: ['var(--font-body)'],
-        mono: ['var(--font-mono)'],
+        mono: ['var(--font-mono)', { fontFeatureSettings: '"tnum"' }],
       },
       borderRadius: {
         sm: '4px',

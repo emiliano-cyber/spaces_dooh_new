@@ -1,18 +1,14 @@
 import type { Metadata } from 'next'
-import { JetBrains_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { IndicadorCarga } from '@/components/demo/ui/IndicadorCarga'
 import './demo.css'
 
-// Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
-// mono (JetBrains) y el aislamiento respecto a la app de producción. El chrome
-// (sidebar/topbar) lo añade (shell)/layout.tsx; m/ y portal/ van sin chrome.
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-  display: 'swap',
-})
+// Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root) y el
+// aislamiento respecto a la app de producción. El chrome (sidebar/topbar) lo
+// añade (shell)/layout.tsx; m/ y portal/ van sin chrome.
+// Las fuentes NO se cargan aquí: las dos familias institucionales las declara
+// el root layout sobre <html>, para que también alcancen a `not-found.tsx`,
+// que se pinta fuera de este grupo de rutas.
 
 export const metadata: Metadata = {
   title: 'Spaces — Demo',
@@ -24,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`demo-root ${jetbrains.variable} min-h-screen`}>
+    <div className="demo-root min-h-screen">
       <IndicadorCarga />
       {children}
       <Toaster position="bottom-right" richColors closeButton expand />

@@ -5,6 +5,30 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-13
+
+- **La aplicación cambió de letra.** Los títulos pasan a una tipografía con
+  remates (Source Serif 4), que es la que usan los documentos serios: da el aire
+  institucional que se buscaba y separa de un vistazo el encabezado del resto de
+  la pantalla. Todo lo demás —menús, tablas, formularios, botones, avisos y
+  **todos los números**— va en Inter, una letra pensada para leerse en pantalla a
+  tamaño pequeño. Desaparecen las tres tipografías anteriores.
+  - **Las columnas de dinero siguen alineando.** Antes los importes y los folios
+    iban en letra de máquina de escribir para que las cifras quedaran una debajo
+    de otra. Eso ya no hace falta: los números usan «cifras de ancho fijo», así
+    que el punto decimal de una columna de importes cae en la misma vertical que
+    antes, pero con una letra que se lee mejor.
+  - **Las letras ya no se descargan de internet al abrir la aplicación.** Venían
+    de un servicio externo, y eso hacía dos cosas malas: la primera pantalla
+    aparecía un instante con una letra distinta y luego «saltaba», y si ese
+    servicio no respondía la aplicación se veía mal. Ahora las tipografías viajan
+    dentro de la propia instalación. Efecto secundario: cada empresa con su
+    servidor propio se ve igual aunque su servidor no tenga salida a internet.
+  - **No cambió nada más**: ni un color, ni un espacio, ni una pantalla, ni un
+    cálculo. Solo la letra.
+
+---
+
 ## 2026-08-11
 
 - **La pantalla de «página no encontrada» ya deja ir a otro sitio.** Antes tenía

@@ -17,7 +17,8 @@ SaaS genérico de IA.
    de un template genérico. Tinta `#1C1612`, crema, bordes cálidos.
 3. **Flat absoluto.** Cero gradientes, cero sombras, bordes de 1px. La jerarquía se
    construye con color, peso tipográfico y espacio — no con profundidad falsa.
-4. **Certeza, cero hype.** Sentence case siempre, copy afirmativo, números en mono.
+4. **Certeza, cero hype.** Sentence case siempre, copy afirmativo, números en
+   cifras tabulares.
 
 ## 1. Color
 
@@ -45,15 +46,35 @@ son estados puntuales, no decoración. Fondos siempre blanco/crema.
 
 ## 2. Tipografía
 
-- **Cabinet Grotesk** 700–800 → display y títulos (`h1`–`h3`), wordmark. Sentence
-  case; tracking ajustado por escala (`h1` −0.02em … `h3` −0.01em). Wordmark en
+Dos familias, y solo dos. Sistema **Institucional**, vigente desde el 13/08/2026.
+
+- **Source Serif 4** 600–700 → display y títulos (`h1`–`h3`), wordmark. Sentence
+  case; tracking ajustado por escala (`h1` −0.01em … `h3` −0.005em). Wordmark en
   caps con tracking +0.03em (`.demo-wordmark`).
-- **General Sans** 400–600 → UI y cuerpo.
-- **JetBrains Mono** → números técnicos: folios, IDs, montos, IPs, tags
-  (`.demo-num`, con `tabular-nums`).
+- **Inter** → **todo lo demás**: UI, cuerpo, tablas, formularios, badges, botones
+  y **todos los números** (importes, folios, fechas, códigos).
+- **Cifras tabulares** donde hay que alinear columnas: `.demo-num` y la clave
+  `font-mono` de Tailwind, las dos con `tnum`. Lo que alineaba una columna de
+  importes nunca fue la monoespaciada, sino la cifra de ancho fijo — por eso la
+  mono desapareció sin que se movieran las tablas.
 - **Nunca Title Case.** Siempre sentence case.
 
-Se cargan por Fontshare (`<head>` del root layout) y next/font (mono).
+Las carga `next/font/google` en `app/layout.tsx` con `display: 'swap'`, y publica
+las variables `--font-display` (Source Serif 4, fallback Georgia) y `--font-sans`
+(Inter, fallback system-ui) sobre `<html>`. Los tokens de `demo.css`
+(`--font-body`, `--font-mono`) y las claves de `tailwind.config.ts` (`display`,
+`sans`, `mono`) conservan su nombre y cuelgan de esas dos variables: **cambiar de
+tipografía es cambiar el layout raíz, ningún componente**.
+
+> **Cero peticiones a un CDN de fuentes.** `next/font` las descarga en el BUILD y
+> las sirve desde `/_next/static/media/*.woff2`. Es requisito del modelo de
+> instancias soberanas: una instancia sin salida a internet tiene que verse
+> igual. No se añaden `<link>` a Google Fonts ni a ningún otro proveedor.
+
+> **Los documentos impresos van aparte** (`.doc-hoja` y siguientes en
+> `demo.css`): Georgia 11pt para el cuerpo y `system-ui`/`ui-monospace` para
+> etiquetas y hashes, medidos en puntos. Es la tipografía de un contrato en
+> papel, no la de la aplicación, y no sigue esta escala.
 
 ## 3. Escala de espaciado y radios
 
@@ -83,7 +104,7 @@ Se cargan por Fontshare (`<head>` del root layout) y next/font (mono).
 - [ ] Bordes de 1px, cálidos (`--border`).
 - [ ] Ningún gris frío (todo pasa por los tokens cálidos).
 - [ ] Azul como único primario; ámbar solo «live».
-- [ ] Títulos en Cabinet Grotesk; números en JetBrains Mono; sentence case.
+- [ ] Títulos en Source Serif 4; números en Inter con cifras tabulares; sentence case.
 
 ## Estado de implementación
 

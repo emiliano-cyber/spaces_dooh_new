@@ -5,7 +5,7 @@ import type { Tono } from './StatusBadge'
 
 // ============================================================================
 //  KPICard — tarjeta de indicador grande, legible a 3 metros (proyector).
-//  Número en JetBrains Mono (dato técnico). Plano, 1px, sin sombra.
+//  Número en Inter con cifras tabulares (.demo-num). Plano, 1px, sin sombra.
 // ============================================================================
 
 const TONO_NUM: Record<Tono, string> = {

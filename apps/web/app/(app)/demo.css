@@ -6,8 +6,8 @@
      · Neutros CÁLIDOS (blanco/crema), nunca grises fríos → esto es lo que
        distingue la marca de un SaaS genérico.
      · Flat absoluto: cero gradientes, cero sombras, bordes 1px.
-     · Tipografía: Cabinet Grotesk (display), General Sans (UI), JetBrains Mono
-       (números). Sentence case siempre.
+     · Tipografía institucional: Source Serif 4 (display) e Inter (todo lo
+       demás, números incluidos, con cifras tabulares). Sentence case siempre.
    Todo vive bajo `.demo-root` para no tocar la app de producción. El accent y
    los neutros viven en variables → cambiar la marca es cambiar valores aquí.
    ========================================================================== */
@@ -46,11 +46,17 @@
   --error-soft: #fdecec;
   --info: #0a66ff;
 
-  /* — Tipografías. Cabinet Grotesk y General Sans se cargan vía Fontshare en
-       el <head> del root layout; JetBrains Mono por next/font. ———————————— */
-  --font-display: 'Cabinet Grotesk', 'Space Grotesk', system-ui, sans-serif;
-  --font-body: 'General Sans', 'Inter', system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'Courier New', monospace;
+  /* — Tipografías. Las DOS familias las carga next/font en el root layout
+       (`app/layout.tsx`), que publica `--font-display` (Source Serif 4, con su
+       fallback Georgia) y `--font-sans` (Inter, con system-ui). Aquí solo se
+       reparten los papeles: por eso no se redefine `--font-display`, que baja
+       heredada desde <html>.
+       `--font-mono` conserva el NOMBRE porque lo usan `.demo-num` y la clave
+       `mono` de Tailwind en ~200 sitios, pero ya no apunta a una monoespaciada:
+       lo que alineaba las columnas de importes era la cifra tabular, no el
+       ancho fijo de la letra, y eso Inter lo da con `tnum`. ———————————————— */
+  --font-body: var(--font-sans), system-ui, sans-serif;
+  --font-mono: var(--font-sans), system-ui, sans-serif;
 
   background: var(--bg);
   color: var(--ink);
@@ -93,21 +99,25 @@
   height: auto;
 }
 
-/* Títulos en Cabinet Grotesk, sentence case, tracking ajustado por escala. */
+/* Títulos en Source Serif 4, sentence case.
+   El tracking se abre respecto a la grotesca anterior (−0.02em → −0.01em en h1)
+   porque una serif de texto pierde legibilidad al apretarla: los remates se
+   tocan. Y el peso baja de 800 a 700 —el máximo que se carga— porque a partir
+   de ahí Source Serif 4 engorda más de lo que la jerarquía necesita. */
 .demo-root h1,
 .demo-root h2,
 .demo-root h3 {
   font-family: var(--font-display);
   color: var(--ink);
 }
-.demo-root h1 { font-weight: 800; letter-spacing: -0.02em; }
-.demo-root h2 { font-weight: 700; letter-spacing: -0.015em; }
-.demo-root h3 { font-weight: 700; letter-spacing: -0.01em; }
+.demo-root h1 { font-weight: 700; letter-spacing: -0.01em; }
+.demo-root h2 { font-weight: 700; letter-spacing: -0.008em; }
+.demo-root h3 { font-weight: 600; letter-spacing: -0.005em; }
 
-/* Wordmark de SPACE OS: Cabinet Grotesk 800, caps, tracking abierto (.03em). */
+/* Wordmark de SPACE OS: Source Serif 4 700, caps, tracking abierto (.03em). */
 .demo-wordmark {
   font-family: var(--font-display);
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -153,10 +163,16 @@
   border-color: var(--border);
 }
 
-/* Datos numéricos técnicos (folios, IDs, montos, IPs) en JetBrains Mono. */
+/* Datos numéricos técnicos (folios, IDs, montos, IPs) en Inter con cifras
+   tabulares: es la cifra de ancho fijo la que hace que una columna de importes
+   alinee el punto decimal, no la letra monoespaciada. `font-feature-settings`
+   va junto a `font-variant-numeric` porque son la misma orden por dos caminos:
+   basta con que uno de los dos sobreviva a una utilidad de Tailwind que pise el
+   otro. */
 .demo-num {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
 }
 
 /* Tarjeta de KPI: contenedor de consulta para que el número de adentro se mida
@@ -164,9 +180,9 @@
    Hace falta porque la misma tarjeta cambia de ancho por tres motivos
    independientes —el grid (1/2/4 columnas), el sidebar colapsado y el zoom del
    navegador— y un breakpoint de viewport solo ve el tercero. Con un tamaño de
-   letra fijo, "$ 1,284,560.00" en mono (14 caracteres ≈ 227 px a 30 px) no cabe
-   en una tarjeta de 203 px de contenido: el "$" quedaba solo en un renglón y el
-   monto en el siguiente, saliéndose del borde. */
+   letra fijo, "$ 1,284,560.00" en cifras tabulares (14 caracteres ≈ 227 px a
+   30 px) no cabe en una tarjeta de 203 px de contenido: el "$" quedaba solo en
+   un renglón y el monto en el siguiente, saliéndose del borde. */
 .kpi-card {
   container-type: inline-size;
 }
