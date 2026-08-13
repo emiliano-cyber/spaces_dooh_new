@@ -41,10 +41,10 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
-| F1.1 | [verificación] | ensayista-local (SOLO LECTURA sobre 5433) + tarjeta humana | — | PENDIENTE | El censo autoritativo es el de producción; el local es indicio |
+| F1.1 | [verificación] | ensayista-local (SOLO LECTURA sobre 5433) + tarjeta humana | — | **ENSAYADA_LOCAL** → PENDIENTE_SERVIDOR | Catálogo confirmado (23 tablas, y los 6 nombres de enganche existen). **Los datos NO: la base local es fixture** y da ceros vacuos. Censo real en TH-02 |
 | F1.2 | [migración] | ejecutor | F1.1-local | PENDIENTE | Descubre tablas por catálogo, no por lista; ensayo de idempotencia ×2 en `spaces_e2e`. ⚠️ El plan manda reverificar el `insert into reservas` que cita en `campanas-repo.ts:687-696`: tras F1.3 arranca en **`:697`** |
 | F1.3 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `c50344a`. Veredicto AMARILLO (aceptada). ROJO por R2: **pendiente de visto bueno humano antes del merge** |
-| F1.4 | [código] | ejecutor | — | EN_CURSO | `middleware.ts:14-21`, una IP no es subdominio. Va **secuencial** tras F1.3, no en paralelo: ver nota de abajo |
+| F1.4 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `3671e8a`, AMARILLO. `lib/host.ts` nuevo y `extractSubdomain` borrada. ⚠️ Abierto: el rewrite de `portal` **sí cambia** con `Host` en mayúsculas o con punto final — fuera de los pasos que la tarea autorizaba. Pendiente de decisión |
 | F1.5 | [verificación] | tarjeta humana | F1.1 real, F1.2 | PENDIENTE_SERVIDOR | Aplicación al droplet: la corre una persona |
 
 ### Fase 2 · Release versionado
@@ -105,6 +105,48 @@ organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esque
 
 **Qué desbloquea:** el visto bueno humano del merge de `c50344a`.
 
+---
+
+### TH-02 · de F1.1 — el censo real de los `DEFAULT` a `rgb`
+
+Emitida por el ensayista el 2026-08-13 tras el ensayo local. **Solo lectura**, la
+corre una persona. Son **dos pasos**: el comando de verificación del plan
+(`Plan_Instancias_Soberanas_v3.md:434`) invoca `/tmp/auditoria_tenant.sql` con `-f`,
+pero **ese archivo no existe ni el plan lo crea**. Hay que materializarlo antes.
+
+**Paso 1 — dejar el SQL en el droplet** (las tres consultas literales del plan, sin
+modificar; están en `Plan_Instancias_Soberanas_v3.md:390-419`):
+
+```bash
+ssh root@209.97.146.136 "cat > /tmp/auditoria_tenant.sql" <<'SQL'
+… las tres consultas de F1.1, copiadas literalmente del plan …
+SQL
+```
+
+**Paso 2 — el comando de verificación exacto de F1.1:**
+
+```bash
+ssh root@209.97.146.136 "sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/auditoria_tenant.sql"
+```
+
+**Respuestas esperadas, a la luz del ensayo local:**
+
+| Consulta | Qué se espera | Qué significa lo contrario |
+|---|---|---|
+| 1 · tablas con `DEFAULT` | **23 o más**, nunca menos | Si salen más de 23, **ese es el hallazgo de la tarea**: confirma §1.2 punto 7. Anotar la lista |
+| 2 · modalidades mal etiquetadas | ~15 filas, `rgb` contra `g500`/`eyro` | Un cero es **sospechoso**: querría decir que ya se reparó. Confirmarlo antes de darlo por bueno |
+| 3 · los cinco enganches | No debe fallar por nombre de columna | Los seis nombres se verificaron contra el catálogo local y existen. Si aun así truena, **el error es el resultado**: se reporta literal, no se parchea |
+
+> El uuid de `rgb` en producción **no** es el de la base local (`f2fa79e7-…`): esa se
+> recreó. Y el conteo local de 23 no autoriza a esperar 23 allá.
+
+**Qué desbloquea:** que **F1.2** pueda *aplicarse* en producción (hoy solo está
+autorizada a escribirse), más **F1.5** y la **Fase 7**.
+
+> [!important] Si aparecen filas sospechosas, **no se corrigen en esta fase**
+> Se anotan y su destino se decide en la Fase 7. Quitar el `DEFAULT` sigue adelante
+> igual: detiene la hemorragia aunque no cure la herida.
+
 ## Bitácora de orquestación
 
 | Fecha | Evento |
@@ -115,6 +157,13 @@ organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esque
 | 2026-08-13 | **Trampa de entorno documentada:** las e2e exigen build de Next previo (`servidor-e2e.ts:31` usa `npx next start`, que no construye). Sin `.next/BUILD_ID` fallan las 12 por timeout tras 636 s; con build, 61 s. Costó 10 min al ejecutor de F1.3. Escrito en `CLAUDE.md` y en los tres agentes. |
 | 2026-08-13 | **F1.3 COMPLETADA_LOCAL** (`c50344a`, AMARILLO). Auditoría independiente confirmó el criterio con la RLS desactivada de facto: con GUC ajeno la consulta vieja devolvía 1 fila (fuga), la nueva 0. Tres asperezas menores, ninguna bloqueante. Emitida TH-01. |
 | 2026-08-13 | Corregido en la bóveda el conteo de `campanas-repo.ts`: decía 1044 líneas en tres notas vivas, son **1214**. La de `comercial-propuestas-campanas` afirmaba `actualizado: 2026-08-13` con el dato viejo dentro. |
+| 2026-08-13 | **Primer paralelo real, aprobado por Jochelo:** F1.1-local (ensayista, solo lee `spaces`) junto a F1.4 (ejecutor, usa `spaces_e2e` + puerto 3311). No es par del DAG, pero no comparten base, archivos ni git — el ensayista no commitea. Sin interferencia. |
+| 2026-08-13 | **F1.1 ENSAYADA_LOCAL.** Catálogo confirmado: 23 tablas exactas contra `db/schema.sql:604-609`, los 6 nombres de enganche `[SIN VERIFICAR]` del plan existen tal cual, y 0 tablas con default y `attnotnull=false` (el guard de F1.2 no abortaría). **La mitad de datos es muda:** la base local es fixture (33 filas, `sitio_modalidades` vacía, sin `g500` ni `eyro`), así que sus ceros son vacuos. Emitida TH-02. |
+| 2026-08-13 | Agujero del plan detectado por el ensayo: el comando de verificación de F1.1 (`:434`) hace `psql -f /tmp/auditoria_tenant.sql`, y **ese archivo no existe ni el plan lo crea**. TH-02 lo resuelve en dos pasos. El plan NO se tocó. |
+| 2026-08-13 | **F1.4 COMPLETADA_LOCAL** (`3671e8a`, AMARILLO). El ejecutor mostró dos rojos: el módulo ausente y, después, la lógica vieja extraída tal cual fallando los casos que la tarea predice (`209.97.146.136` → `'209'`). Reajustó de oficio las citas desplazadas en 7 notas **sin subirles `actualizado:`**, por no afirmar más de lo que hizo. |
+| 2026-08-13 | La auditoría de F1.4 no se fio de las pruebas: compiló `host.ts` con `tsc` y lo comparó contra la lógica vieja reimplementada, levantó `next start` en el **3312** y mandó encabezados `Host` a mano. También comprobó que el bundle correspondía al código (`middleware.js` sin `parts.length`, con la guarda IPv6 nueva) en vez de fiarse de la marca de tiempo. |
+| 2026-08-13 | **Regresión de puntero, corregida por el orquestador.** `acceso-y-sesion-ui.md:74` citaba `middleware.ts:92` (= `normalizedPath === '/login'`); la línea correcta es `:94`. Antes del commit la cita era `:100` y **era correcta**: el ejecutor aplicó −8 donde tocaba −6, porque el corrimiento no era uniforme (el comentario del ruteo creció de 1 a 3 líneas). Es el precio de reparar punteros con aritmética sin abrir el archivo. |
+| 2026-08-13 | **Hallazgo abierto de F1.4**, escalado a Jochelo: el plan exige que «el rewrite de `portal` siga igual», y con `Host` en mayúsculas (`PORTAL.space-os.io`) o con punto final (`portal.space-os.io.`, FQDN legal) **el comportamiento cambia**. La guarda `etiquetas.some(e => e === '')` de `host.ts:44-45` lo justifica como «basura», sin mencionar el FQDN. No es agujero de seguridad —`/portal/*` es público por token— y los navegadores normalizan, así que no es alcanzable desde un cliente real. |
 
 ---
 *Preparado por Ana · 2026-08-13*

@@ -71,7 +71,7 @@ redirige, en vez de decidirlo desde el cliente
 /api/auth/reset` lo valida antes de mostrar el formulario; `POST` lo aplica y
 **borra todas las sesiones del usuario**.
 
-Ruta pública en el middleware (`middleware.ts:92`).
+Ruta pública en el middleware (`middleware.ts:94`).
 
 ## Contraseña temporal
 
