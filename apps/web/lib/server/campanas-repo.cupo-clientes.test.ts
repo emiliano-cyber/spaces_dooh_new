@@ -19,9 +19,16 @@ const { cupoEfectivo, excedeCupoClientes, cupoGlobalClientes } = await import('.
 
 const ocupantes = (...ids: string[]) => ids.map((cliente_id) => ({ cliente_id }))
 
-function fakeClient(rows: Record<string, unknown>[]) {
+// Cliente falso que además APUNTA lo que se le pidió: hace falta para poder
+// afirmar sobre el SQL, no solo sobre el valor devuelto (ver el último caso).
+type Consulta = { text: string; params: unknown[] | undefined }
+
+function fakeClient(rows: Record<string, unknown>[], consultas: Consulta[] = []) {
   return {
-    query: async () => ({ rows }),
+    query: async (text: string, params?: unknown[]) => {
+      consultas.push({ text, params })
+      return { rows }
+    },
   } as unknown as PoolClient
 }
 
@@ -100,5 +107,20 @@ describe('cupoGlobalClientes', () => {
 
   it('null cuando no hay fila de configuración todavía', async () => {
     expect(await cupoGlobalClientes(fakeClient([]))).toBeNull()
+  })
+
+  it('la consulta filtra por tenant de forma explícita', async () => {
+    // Segunda capa sobre la RLS. Hoy la salva el llamador, que fija el tenant
+    // antes de entrar; pero un `limit 1` sin `where` devolvería la fila de
+    // CUALQUIER organización el día que alguien llame a esto desde otra
+    // transacción — y la RLS falla en silencio, no con un error.
+    const consultas: Consulta[] = []
+    await cupoGlobalClientes(fakeClient([{ max_clientes_pantalla: 4 }], consultas))
+
+    expect(consultas).toHaveLength(1)
+    const sql = consultas[0].text.toLowerCase()
+    expect(sql).toContain('from config_negocio')
+    expect(sql).toMatch(/where[\s\S]*tenant_id/)
+    expect(sql).toContain("current_setting('app.tenant_id', true)")
   })
 })

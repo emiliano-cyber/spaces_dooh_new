@@ -296,9 +296,19 @@ export async function barrerReservasVencidas(): Promise<number> {
 // Cupo efectivo = el de la pantalla; si no tiene, el default global. `null` en
 // los dos = SIN LÍMITE, que es como nace la instalación: la regla se enciende
 // capturando un número, nunca por desplegar código.
+// El filtro por `tenant_id` es la SEGUNDA capa, la misma que el resto del repo
+// aplica en toda operación por id; la primera (RLS sobre `config_negocio`) sigue
+// ahí. Hace falta porque un `limit 1` sin `where` devolvería la fila de otra
+// organización el día que alguien llame a esto fuera de una transacción con el
+// tenant fijado — y ese fallo no da error, contesta en silencio (R2).
 export async function cupoGlobalClientes(client: PoolClient): Promise<number | null> {
-  const v = (await client.query('select max_clientes_pantalla from config_negocio limit 1')).rows[0]
-    ?.max_clientes_pantalla
+  const v = (
+    await client.query(
+      `select max_clientes_pantalla from config_negocio
+        where tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
+        limit 1`,
+    )
+  ).rows[0]?.max_clientes_pantalla
   return v != null ? Number(v) : null
 }
 
