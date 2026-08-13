@@ -1,12 +1,14 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-13
 tags: [backend, multi-tenant, rls, seguridad, rojo]
 archivos:
   - apps/web/lib/server/db.ts
   - apps/web/lib/server/tenant.ts
   - db/schema.sql
+  - db/migrations/20260812_sin_default_tenant.sql
+  - apps/web/lib/test/tenant-sin-default.e2e.test.ts
   - db/migrations/20260715_arr_m5_rls_failclosed.sql
   - db/migrations/20260720_hard1_rls_todas_tablas.sql
   - db/migrations/20260720_hard1_usuarios_rls.sql
@@ -203,11 +205,25 @@ por tabla funciona aunque una agencia sea cliente de otra.
 
 ## Deriva conocida de datos
 
-21 tablas tienen `DEFAULT` de `tenant_id` apuntando al tenant `rgb`
-(`db/schema.sql:615`). Ese default es lo que ha etiquetado como RGB filas de
-otras organizaciones cuando alguien olvidó fijar el tenant. `config_negocio` se
-dejó **sin default a propósito** para que un insert sin tenant falle
-(`db/schema.sql:630-633`).
+**23 tablas** (no 21: contadas una a una en `db/schema.sql:604-609`) nacen con un
+`DEFAULT` de `tenant_id` apuntando al tenant `rgb` (`db/schema.sql:615`). Ese
+default es lo que ha etiquetado como RGB filas de otras organizaciones cuando
+alguien olvidó fijar el tenant. `config_negocio` se dejó **sin default a
+propósito** para que un insert sin tenant falle (`db/schema.sql:630-633`).
+
+> [!important] La migración que lo retira ya existe — pero NO está aplicada en producción
+> `db/migrations/20260812_sin_default_tenant.sql` (F1.2) quita el default de las
+> 23, recorriendo el **catálogo** y no una lista escrita a mano. A partir de ella
+> un insert sin `tenant_id` falla con **23502** en vez de nacer atribuido a RGB
+> en silencio — que es el modo de fallo de R2: no da error.
+>
+> `db/schema.sql` **no se toca**: sigue creando el default y la migración lo
+> retira después, que es exactamente cómo se comporta una instalación nueva.
+> Así que cualquier base levantada desde el repo ya sale sin default; **la de
+> producción no**, hasta que se aplique (F1.5, la corre una persona).
+>
+> Lo cubre `apps/web/lib/test/tenant-sin-default.e2e.test.ts`, que además
+> comprueba por catálogo que no reaparezca ninguno.
 
 ## Relacionadas
 [[autenticacion-y-sesion]] · [[esquema]] · [[migraciones]] ·
