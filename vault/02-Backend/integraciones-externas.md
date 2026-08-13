@@ -76,7 +76,7 @@ Credenciales **solo por env, nunca al cliente**.
 ## Almacenamiento S3
 
 `lib/server/storage.ts` — `PutObject` + URL firmada. Si no está configurado, el
-llamador cae a data URL en base de datos sin romperse. `next.config.mjs:11-22`
+llamador cae a data URL en base de datos sin romperse. `next.config.mjs:22-33`
 autoriza `*.digitaloceanspaces.com` en `next/image`.
 
 ## Conectores en modo demo

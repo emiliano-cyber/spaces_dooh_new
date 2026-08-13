@@ -216,7 +216,7 @@ configuración local.
 
 ### P17 · `BASE_PATH` está duplicado
 
-`middleware.ts:6` y `next.config.mjs:8`, con un comentario que dice que deben
+`middleware.ts:6` y `next.config.mjs:19`, con un comentario que dice que deben
 coincidir. **¿Se extrae a una constante compartida?**
 
 ### P18 · `README.md` describe una arquitectura que ya no existe

@@ -5,6 +5,7 @@ actualizado: 2026-08-13
 tags: [despliegue, entorno, ci, env]
 archivos:
   - apps/web/package.json
+  - apps/web/next.config.mjs
   - apps/web/scripts/bootstrap-auth.mjs
   - db/README.md
   - ecosystem.config.js
@@ -95,12 +96,41 @@ no entran.
 | `npm run build` | Next build | `apps/web/package.json:7` |
 | `npm start` | `next start -p 3000` | `apps/web/package.json:8` |
 | `npm test` | Vitest unitarias (799 en 72 archivos) | `apps/web/package.json:10` |
-| `npm run test:e2e` | Vitest integración (136 + 1 saltada, en 12 archivos) | `apps/web/package.json:11` |
+| `npm run test:e2e` | Vitest integración (140 + 1 saltada, en 13 archivos) | `apps/web/package.json:11` |
 | `npm run typecheck` | `tsc --noEmit` | `apps/web/package.json:12` |
 
 Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
 `_test` (`apps/web/lib/test/db-e2e.ts`, `exigirBaseDePrueba()`). Ver
 [[convenciones]].
+
+### Hay DOS formas de arrancar, y las dos son válidas (13/08, F2.1)
+
+`apps/web/next.config.mjs` declara `output: 'standalone'`, así que un mismo
+`npm run build` deja **dos** puntos de arranque. No es un reemplazo: mientras el
+droplet actual siga vivo con pm2, romper el primero dejaría el servidor de
+producción sin levantar.
+
+| Forma | Comando | Quién la usa hoy |
+|---|---|---|
+| La de siempre | `npm start` → `next start -p 3000` (`apps/web/package.json:8`) | `ecosystem.config.js` en el droplet, y el arnés e2e (`lib/test/servidor-e2e.ts:31`, en el 3311) |
+| La autocontenida | `node .next/standalone/apps/web/server.js` | La imagen de una instancia ([[modelo-instancias-soberanas]], F2.2) |
+
+Comprobadas las dos el 13/08: `/spaces-dooh/login/` responde 200 en el 3000 y en
+el standalone, y la raíz del `basePath` sigue dando el 307 a `/inicio`.
+
+> [!important] El trazado parte de la RAIZ del monorepo, no de `apps/web`
+> `experimental.outputFileTracingRoot` apunta a `../../`. Con npm workspaces
+> (`apps/*`, `packages/*`) las dependencias quedan **hoisted** en el
+> `node_modules` de la raíz: sin esa opción el artefacto sale incompleto y
+> arranca sin la mitad de sus paquetes.
+
+> [!warning] El standalone **no** trae los estáticos — los copia la imagen
+> Next nunca mete `.next/static` ni `public/` dentro de `.next/standalone`. Se
+> comprobó: el CSS que la propia página de login pide
+> (`/spaces-dooh/_next/static/css/…`) responde **404** si se arranca el
+> standalone tal cual, y `apps/web/public` no existe dentro del artefacto.
+> **No es un defecto del trazado**: copiarlos es paso explícito del `Dockerfile`
+> (F2.2), y que el login se vea con estilos se verifica en F2.5.
 
 ## CI
 
@@ -141,7 +171,7 @@ Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
 
 ### `basePath` + `trailingSlash`: la trampa recurrente
 
-`apps/web/next.config.mjs:8-9` fija `basePath: '/spaces-dooh'` y
+`apps/web/next.config.mjs:19-20` fija `basePath: '/spaces-dooh'` y
 `trailingSlash: true`. Toda URL absoluta que se registre en un tercero debe
 llevar la barra final o la app responde 308 y el tercero no la sigue. Ya costó
 un redespliegue con la ruta del logo, y `DESPLIEGUE_GOOGLE.txt:49-56` lo repite
@@ -161,7 +191,7 @@ para el redirect URI de Google.
 | `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:191` |
 | `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:188-192` |
 | `APP_URL` | Base de enlaces en correos | `app/api/auth/forgot/route.ts:50` |
-| `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:40` |
+| `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
 | `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública | `app/api/signup/route.ts:18` |

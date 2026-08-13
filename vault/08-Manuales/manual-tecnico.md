@@ -183,7 +183,7 @@ flowchart TD
 
 - **Todo entra por nginx** con TLS y HSTS y sale a `http://spaces_web`
   (`infra/nginx/demo.space-os.io.conf:68-70,112`). La ruta pública es
-  `https://demo.space-os.io/spaces-dooh/` (`basePath`, `next.config.mjs:8-9`).
+  `https://demo.space-os.io/spaces-dooh/` (`basePath`, `next.config.mjs:19-20`).
 - **No hay red interna de servicios**: el «backend» son los Route Handlers de la
   misma app Next. Una llamada del navegador a `/api/...` no sale de la máquina.
 - **La capa de servidor** (`lib/server/`, 76 archivos) separa *controllers* de
@@ -907,7 +907,7 @@ servidor de pruebas y el doble de Google; ver §7.3.
 | Pieza | Valor | Evidencia |
 |---|---|---|
 | Host | Droplet de DigitalOcean | [[entorno-y-despliegue]] |
-| Dominio | `https://demo.space-os.io`, ruta pública `/spaces-dooh/` | `next.config.mjs:8-9` |
+| Dominio | `https://demo.space-os.io`, ruta pública `/spaces-dooh/` | `next.config.mjs:19-20` |
 | Directorio | `/var/www/Spaces` | `deploy.yml:88` |
 | Proceso | pm2 `spaces-web`, **fork, 1 instancia**, puerto 3000, usuario `emiliano` | `ecosystem.config.js:10-12` |
 | Base | `spaces_prod`; las migraciones se aplican como rol `postgres` | `deploy.yml:14-19` |
@@ -936,7 +936,7 @@ Los valores están en `apps/web/.env.production` **del droplet**, cubierto por
 | `NODE_ENV` | Modo y default de `Secure` | `auth.ts:187` |
 | `COOKIE_SECURE` | Fuerza o apaga `Secure` en las cookies | `auth.ts:184-188` |
 | `APP_URL` | Base de los enlaces de los correos (5 usos) | `api/auth/forgot/route.ts` |
-| `HSTS` | Cabecera Strict-Transport-Security | `next.config.mjs:40` |
+| `HSTS` | Cabecera Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente — hacen falta **las dos** | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin ella la ruta da **503** | `api/recordatorios/route.ts:39,49` |
 | `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública (UI **y** servidor) | `api/signup/route.ts:19` |

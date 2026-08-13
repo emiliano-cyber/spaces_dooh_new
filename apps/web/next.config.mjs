@@ -5,6 +5,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // El build deja ademas un servidor autocontenido en .next/standalone, para que
+  // la imagen de la instancia arranque sin el node_modules del monorepo.
+  // No sustituye a `npm start` (`next start -p 3000`): las dos formas de arrancar
+  // conviven mientras el droplet actual siga levantando la app con pm2.
+  output: 'standalone',
+  experimental: {
+    // El trazado tiene que partir de la RAIZ del monorepo, no de apps/web: con
+    // npm workspaces (`apps/*`, `packages/*`) las dependencias quedan hoisted en
+    // el node_modules de la raiz, y sin esto el artefacto sale incompleto.
+    outputFileTracingRoot: path.join(__dirname, '../../'),
+  },
   basePath: '/spaces-dooh',
   trailingSlash: true,
   transpilePackages: ['@spaces-dooh/types'],
