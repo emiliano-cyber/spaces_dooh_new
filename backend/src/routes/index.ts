@@ -90,6 +90,11 @@ export function createRoutes() {
   router.get('/api/campaigns', requireUser, dashboard.listCampaigns);
   router.post('/api/campaigns', requireUser, requireRole('admin', 'operator'), dashboard.createCampaign);
   router.get('/api/campaigns/:id', requireUser, dashboard.getCampaign);
+  router.put('/api/campaigns/:id', requireUser, requireRole('admin', 'operator'), dashboard.actualizarCampana);
+  // La creatividad de referencia: la imagen contra la que se compara lo que
+  // aparece en la pantalla. Sin ella una campana no se puede verificar ni buscar.
+  router.post('/api/campaigns/:id/creative', requireUser, requireRole('admin', 'operator'),
+    upload.single('creative'), dashboard.subirCreatividad);
 
   // Verifications
   router.get('/api/verifications', requireUser, dashboard.listVerifications);

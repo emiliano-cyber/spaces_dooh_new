@@ -3,7 +3,8 @@ import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { redis } from '../config/redis';
 import { z } from 'zod';
-import { deleteStored } from '../services/photoStorage.service';
+import { deleteStored, storeBuffer } from '../services/photoStorage.service';
+import sharp from 'sharp';
 import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog, registrarSesion, sesionDeVista, stopStream } from '../utils/streamWatchdog';
 import { apkInfo } from '../utils/apkInfo';
@@ -869,6 +870,81 @@ export async function createCampaign(req: Request, res: Response) {
   }
 
   res.json({ campaign_id: campaignId });
+}
+
+/**
+ * Sube la creatividad de referencia de una campana.
+ *
+ * Es la imagen contra la que se compara lo que hay en la pantalla. Sin ella la
+ * campana no puede verificarse ni buscarse: el sistema no sabe que esta buscando.
+ * Faltaba en la pantalla de campanas, asi que la unica campana existente llevaba
+ * la verificacion activada sin poder hacer nada.
+ *
+ * Se guarda con la foto del sitio, no en la base: son imagenes de varios cientos
+ * de kilobytes.
+ */
+export async function subirCreatividad(req: Request, res: Response) {
+  if (!req.file) return res.status(400).json({ error: 'sin_archivo' });
+
+  const campaignId = Number(req.params.id);
+  const [filas] = await pool.query<any[]>(`SELECT id FROM campaigns WHERE id = ?`, [campaignId]);
+  if (!(filas as any[])[0]) return res.status(404).json({ error: 'not_found' });
+
+  const ext = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
+  // Se normaliza a un tamano razonable: la referencia se usa para comparar
+  // formas y color, no hace falta que pese lo que la original.
+  const imagen = await sharp(req.file.buffer)
+    .resize(1600, 1600, { fit: 'inside', withoutEnlargement: true })
+    .toBuffer();
+
+  const ruta = await storeBuffer(
+    `creatividades/${campaignId}/referencia.${ext}`,
+    imagen,
+    req.file.mimetype
+  );
+
+  await pool.query(`UPDATE campaigns SET creative_path = ? WHERE id = ?`, [ruta, campaignId]);
+  res.json({ ok: true, creative_path: ruta });
+}
+
+/** Editar una campana: datos, vigencia, verificacion y equipos. */
+export async function actualizarCampana(req: Request, res: Response) {
+  const schema = z.object({
+    name: z.string().min(1).optional(),
+    advertiser: z.string().nullable().optional(),
+    start_date: z.string().optional(),
+    end_date: z.string().optional(),
+    active: z.boolean().optional(),
+    verification_enabled: z.boolean().optional(),
+    expected_text: z.string().nullable().optional(),
+    device_ids: z.array(z.number()).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const d = parsed.data;
+  const campaignId = Number(req.params.id);
+
+  const campos = Object.entries(d).filter(([k, v]) => k !== 'device_ids' && v !== undefined);
+  if (campos.length) {
+    await pool.query(
+      `UPDATE campaigns SET ${campos.map(([k]) => `${k} = ?`).join(', ')} WHERE id = ?`,
+      [...campos.map(([, v]) => v), campaignId]
+    );
+  }
+
+  // Los equipos se reemplazan enteros: es lo que espera quien edita la lista.
+  if (d.device_ids) {
+    await pool.query(`DELETE FROM campaign_devices WHERE campaign_id = ?`, [campaignId]);
+    if (d.device_ids.length) {
+      await pool.query(
+        `INSERT INTO campaign_devices (campaign_id, device_id) VALUES ?`,
+        [d.device_ids.map((id) => [campaignId, id])]
+      );
+    }
+  }
+
+  res.json({ ok: true });
 }
 
 export async function getCampaign(req: Request, res: Response) {
