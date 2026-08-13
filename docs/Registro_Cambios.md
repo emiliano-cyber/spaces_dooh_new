@@ -5,6 +5,33 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-13
+
+- **El avance de la corrección del modelo de despliegue queda por escrito, en la
+  bóveda.** Nueva nota `vault/01-Arquitectura/modelo-instancias-soberanas.md`, con
+  lo que se hizo con el documento que aprobó Jochelo el 12/08 —una instancia
+  dedicada por owner, en vez de un renglón en una base compartida— y en qué estado
+  quedó: las nueve fases desarrolladas en 40 tareas, los diez veredictos sobre el
+  plan del 11, y **cero tareas ejecutadas**. Lo hecho hasta hoy es análisis y
+  planeación; no se ha construido nada.
+  - **Dice también lo que va a costar:** ≈ $28 USD al mes de infraestructura nueva
+    (droplet padre, droplet de DEMO, backups, registry y snapshot) y ≈ $15 por cada
+    instancia de owner. Son precios de lista de DigitalOcean, **no la factura**: la
+    cuenta no se consultó, y la nota deja escritos los comandos `doctl` para
+    sustituirlos por los números reales.
+  - **Y deja por escrito un desacuerdo con el calendario**, antes de arrancar para
+    poder contrastarlo al terminar: las «~2 semanas» del documento salen de sumar
+    13 días hábiles en secuencia y suponen paralelismo perfecto. La estimación de
+    la nota es de **3 a 4 semanas** para las fases 0–6, con la Fase 7 —mover los
+    datos reales de `spaces_prod`— fuera de esa cuenta.
+  - Las cuatro decisiones de negocio siguen abiertas y bloquean 7 de las 40 tareas.
+    El siguiente paso no depende de ninguna: es el `curl` a `/api/signup` que dice
+    si el autoregistro está abierto en el droplet.
+  - Misma información en `Downloads\server padre\avance-correccion-jochelo.html` y
+    `.pdf` (14 páginas), para mandar fuera del equipo.
+
+---
+
 ## 2026-08-12
 
 - **Plan de trabajo para que cada cliente tenga su propio sistema, en su propio

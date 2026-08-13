@@ -49,6 +49,7 @@ cobranza.
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
 - [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
 - [[decisiones]] — los 12 ADR y las decisiones deducidas del código
+- [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
