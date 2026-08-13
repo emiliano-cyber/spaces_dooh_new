@@ -55,7 +55,12 @@ export function createRoutes() {
   router.post('/api/devices/:id/command', requireUser, requireRole('admin', 'operator'), dashboard.sendCommand);
   // Fijar orientacion por defecto del stream (solo admin).
   router.put('/api/devices/:id/stream-rotation', requireUser, requireRole('admin'), dashboard.setStreamRotation);
-  router.put('/api/devices/:id/camera', requireUser, requireRole('admin'), dashboard.setCamera);
+  // Encuadre, color y enfoque: tambien el operador. Ajustar la vista de un sitio
+  // es operarlo, y dejarlo solo en manos de admin obligaba a que un operador
+  // pidiera ayuda para algo que hace desde el visor. La orientacion fija y la
+  // marca de datos SI siguen siendo de admin: se definen al instalar y cambian
+  // lo que ve todo el mundo.
+  router.put('/api/devices/:id/camera', requireUser, requireRole('admin', 'operator'), dashboard.setCamera);
   // Si el equipo ya empezo a transmitir (equipos que pasan por el servidor de medios).
   router.get('/api/devices/:id/stream-status', requireUser, dashboard.streamStatus);
   // Version del APK publicado, para saber que equipos estan atrasados.

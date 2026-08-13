@@ -108,6 +108,33 @@
               </p>
             </div>
 
+            <!-- Otra persona tiene abierta la vista de este equipo.
+                 Solo ocurre en telefonos: ahi cada espectador es otra conexion
+                 de video saliendo del equipo, o sea el doble de datos moviles. -->
+            <div x-show="vistaOcupada" style="display:none"
+                 class="absolute inset-0 z-20 flex items-center justify-center bg-black/80 text-white px-6">
+              <div class="text-center max-w-sm">
+                <svg class="w-10 h-10 mx-auto mb-3 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                <p class="font-medium">Vista en uso</p>
+                <p class="text-sm text-white/70 mt-1">
+                  <span class="font-medium text-white" x-text="vistaOcupada?.con"></span>
+                  está viendo este equipo desde hace
+                  <span x-text="vistaOcupada?.minutos"></span> min.
+                </p>
+                <p class="text-xs text-white/50 mt-3">
+                  Este equipo solo admite un espectador a la vez: cada conexión de video
+                  gasta datos móviles del sitio. La transmisión se corta sola a los 3 minutos.
+                </p>
+                <button @click="vistaOcupada = null; startStream()"
+                        class="mt-4 px-3 py-1.5 text-xs bg-white/15 hover:bg-white/25 rounded">
+                  Reintentar
+                </button>
+              </div>
+            </div>
+
             <!-- Aviso mientras la vista vuelve con el encuadre nuevo. Sin esto la
                  imagen simplemente desaparecia y parecia que se habia caido. -->
             <div x-show="reencuadrando" style="display:none"
@@ -161,7 +188,7 @@
 
                 <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
                      no se llega con zoom. Solo en equipos que lo tengan. -->
-                <select x-show="isAdmin" style="display:none" x-model="lens"
+                <select x-show="puedeAjustar" style="display:none" x-model="lens"
                         class="bg-white/15 hover:bg-white/25 text-white text-xs rounded px-2 py-1.5 border-0 outline-none cursor-pointer backdrop-blur-sm"
                         title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
                   <option class="text-black" value="main">Lente normal</option>
@@ -169,7 +196,7 @@
                 </select>
 
                 <!-- Fija lente + zoom para las fotos, incluidas las programadas -->
-                <button x-show="isAdmin" style="display:none" @click="saveCamera()"
+                <button x-show="puedeAjustar" style="display:none" @click="saveCamera()"
                   :disabled="!encuadreCambiado()"
                   class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-xs rounded px-3 py-1.5"
                   title="Guarda el lente y el zoom actuales. Se aplican también a las fotos programadas.">
@@ -186,11 +213,11 @@
                 <!-- Reset a la orientacion fija (no-admin y admin) -->
                 <button x-show="rotation !== savedRotation" @click="resetRotation()" style="display:none"
                   class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-xs rounded px-3 py-1.5"
-                  :class="isAdmin ? '' : 'ml-auto'">
+                  :class="puedeAjustar ? '' : 'ml-auto'">
                   Volver a la fija
                 </button>
               </div>
-              <p class="text-[10px] text-white/60 mt-2">Toca el video para enfocar. El zoom, exposición y balance son temporales; la orientación fija (por admin) es la que todos ven al recargar.</p>
+              <p class="text-[10px] text-white/60 mt-2">Toca el video para enfocar. El zoom, exposición y balance son temporales hasta que pulses <strong>Fijar encuadre</strong>; la orientación fija (solo admin) es la que todos ven al recargar.</p>
             </div>
           </div>
         </div>

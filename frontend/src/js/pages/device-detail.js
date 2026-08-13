@@ -31,6 +31,9 @@ function deviceDetail() {
     savedLens: 'main',
     savedZoom: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
+    // Quien puede GUARDAR ajustes de camara (encuadre, color, enfoque). El
+    // operador tambien: ajustar la vista de un sitio es parte de operarlo.
+    puedeAjustar: false,
     // --- Ajustes de imagen del equipo (encuadre fino y color) ---
     // Viven en el servidor y viajan en cada orden de foto. Nacieron porque la
     // Raspberry ignoraba hasta el zoom, y para corregir el tinte morado que da
@@ -75,7 +78,11 @@ function deviceDetail() {
       }
 
       // Rol del usuario (para habilitar "Fijar orientacion" solo a admin).
-      try { this.isAdmin = JSON.parse(localStorage.getItem('user') || '{}').role === 'admin'; } catch (_) {}
+      try {
+        const rol = JSON.parse(localStorage.getItem('user') || '{}').role;
+        this.isAdmin = rol === 'admin';
+        this.puedeAjustar = rol === 'admin' || rol === 'operator';
+      } catch (_) {}
 
       await this.loadDevice();
       await this.loadPhotos();
@@ -277,6 +284,7 @@ function deviceDetail() {
     // una falla: el visor NO se apaga, se queda con un aviso encima mientras
     // vuelve. Antes se cerraba entero y la imagen "se iba".
     reencuadrando: false,
+    vistaOcupada: null,   // {con, minutos} si otra persona tiene la vista
 
     encuadreDeSitio(campo, valor) {
       const v = Number(valor) || 0;
@@ -564,8 +572,35 @@ function deviceDetail() {
           this.showToast(msg, 'error');
         },
       });
-      await this.streamClient.start();
+      try {
+        await this.streamClient.start();
+      } catch (err) {
+        this.streamClient = null;
+        // Alguien mas tiene abierta la vista de este equipo.
+        //
+        // Solo pasa en los telefonos: ahi cada espectador es OTRA conexion de
+        // video saliendo del equipo, o sea el doble de datos moviles, asi que no
+        // se comparte a proposito. En la Raspberry y las camaras IP el servidor
+        // de medios reparte el mismo video y el backend nos habria unido sin
+        // avisar de nada.
+        if (err && err.status === 409 && err.body && err.body.error === 'vista_ocupada') {
+          this.vistaOcupada = { con: err.body.con, minutos: err.body.minutos };
+          this.showToast(
+            `${err.body.con} está viendo este equipo desde hace ${err.body.minutos} min`,
+            'error'
+          );
+          return;
+        }
+        throw err;
+      }
+
+      this.vistaOcupada = null;
       this.streaming = true;
+      // Se esta compartiendo la vista que otra persona abrio: conviene saberlo,
+      // porque el corte a los 3 minutos lo manda quien la abrio primero.
+      if (this.streamClient.compartida) {
+        this.showToast(`Viendo la transmisión que abrió ${this.streamClient.compartidaCon}`, 'info');
+      }
       // Re-aplicar los ajustes que definiste, cuando la camara ya este lista.
       setTimeout(() => this.reapplyControls(), 1500);
     },

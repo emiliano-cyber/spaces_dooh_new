@@ -5,7 +5,7 @@ import { redis } from '../config/redis';
 import { z } from 'zod';
 import { deleteStored } from '../services/photoStorage.service';
 import { getIceServers } from '../utils/turn';
-import { armStreamWatchdog, disarmStreamWatchdog } from '../utils/streamWatchdog';
+import { armStreamWatchdog, disarmStreamWatchdog, registrarSesion, sesionDeVista, stopStream } from '../utils/streamWatchdog';
 import { apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
@@ -376,9 +376,43 @@ export async function sendCommand(req: Request, res: Response) {
   // y de un solo uso. El equipo recibe a donde publicar y el dashboard de donde
   // ver; la ruta deja de existir en cuanto se corta la transmision.
   let stream: { modo: string; whep: string } | null = null;
+  let compartida = false;
+
   if (command_type === 'START_STREAM') {
     const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
-    if (usaServidorDeMedios((filas as any[])[0]?.app_version)) {
+    const porServidorDeMedios = usaServidorDeMedios((filas as any[])[0]?.app_version);
+    const abierta = sesionDeVista(Number(deviceId));
+
+    // Ya hay alguien viendo este equipo. Antes esto no se comprobaba y la segunda
+    // persona se llevaba la camara: el primero se quedaba con la imagen congelada
+    // (telefonos) o en negro (relay), sin ningun aviso para ninguno de los dos.
+    if (abierta) {
+      if (porServidorDeMedios && abierta.modo === 'relay' && abierta.whep) {
+        // El servidor de medios reparte el MISMO video a cuantos quieran verlo, y
+        // al equipo no le cuesta un byte de mas: publica una sola vez. Asi que se
+        // le devuelve la transmision que ya esta corriendo, sin molestar al
+        // equipo con otra orden.
+        return res.json({
+          command_id: null,
+          compartida: true,
+          con: abierta.nombre,
+          desde: new Date(abierta.desde).toISOString(),
+          stream: { modo: 'relay', whep: abierta.whep },
+        });
+      }
+
+      // Punto a punto (telefonos): cada espectador es OTRA conexion de video
+      // saliendo del telefono, o sea el doble de datos moviles. No se comparte a
+      // proposito; se avisa quien la tiene.
+      return res.status(409).json({
+        error: 'vista_ocupada',
+        con: abierta.nombre,
+        desde: new Date(abierta.desde).toISOString(),
+        minutos: Math.max(1, Math.round((Date.now() - abierta.desde) / 60000)),
+      });
+    }
+
+    if (porServidorDeMedios) {
       const medios = servidorDeMedios();
       if (!medios) return res.status(503).json({ error: 'servidor_de_medios_no_configurado' });
       const clave = crypto.randomBytes(12).toString('hex');
@@ -409,8 +443,20 @@ export async function sendCommand(req: Request, res: Response) {
 
   // Red de seguridad: ninguna transmision queda viva mas de 3 minutos aunque
   // el navegador nunca mande el STOP_STREAM (pestaña cerrada, red caida...).
-  if (command_type === 'START_STREAM') armStreamWatchdog(Number(deviceId));
-  else if (command_type === 'STOP_STREAM') disarmStreamWatchdog(Number(deviceId));
+  if (command_type === 'START_STREAM') {
+    armStreamWatchdog(Number(deviceId));
+    // Se anota quien abrio la vista, para poder decirselo al siguiente que llegue.
+    const [u] = await pool.query<any[]>(`SELECT full_name FROM users WHERE id = ?`, [req.user!.uid]);
+    registrarSesion(Number(deviceId), {
+      userId: req.user!.uid,
+      nombre: (u as any[])[0]?.full_name || 'otro usuario',
+      desde: Date.now(),
+      modo: stream ? 'relay' : 'p2p',
+      whep: stream?.whep,
+    });
+  } else if (command_type === 'STOP_STREAM') {
+    disarmStreamWatchdog(Number(deviceId));
+  }
 
   res.json({ command_id: (result as any).insertId, ...(stream ? { stream } : {}) });
 }
@@ -422,44 +468,136 @@ export async function sendCommand(req: Request, res: Response) {
  * ronda de evidencia de toda la flota eran seis pantallas y seis esperas. Sin
  * device_ids se le pide a todos los que no estan dados de baja.
  */
+/** Manda una orden a un equipo y devuelve su id. */
+async function enviarOrden(deviceId: number, tipo: string, payload: any, userId: number) {
+  const [ins] = await pool.query<any>(
+    `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
+     VALUES (?, ?, ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
+    [deviceId, tipo, JSON.stringify(payload ?? null), userId]
+  );
+  const id = (ins as any).insertId;
+  await redis.publish('device:command', JSON.stringify({
+    device_id: deviceId,
+    command: { id, command_type: tipo, payload: payload ?? null },
+  }));
+  return id;
+}
+
+const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Cuanto se le da a la camara para abrirse y asentar enfoque y exposicion antes
+// de disparar, y cuanto se espera despues para que la foto suba antes de cortar.
+const ESPERA_CAMARA_MS = 6000;
+const ESPERA_SUBIDA_MS = 7000;
+
+/**
+ * Foto tomada DESDE la vista en vivo, para que todas salgan iguales.
+ *
+ * El problema que resuelve: en los telefonos hay dos formas de tomar una foto y
+ * dan resultados distintos. Con la vista en vivo abierta la foto sale de la
+ * sesion de camara que ya lleva rato funcionando -enfoque y exposicion
+ * asentados, encuadre del sitio aplicado, orientacion la del visor-. Sin visor,
+ * las APK anteriores a la v0.12.0 abren la camara en frio y disparan al
+ * instante: sale desenfocada y con otro encuadre.
+ *
+ * En vez de esperar a que alguien pueda ir a cada sitio a instalar la APK nueva,
+ * el servidor hace lo mismo que haria una persona: abre la vista, toma la foto y
+ * cierra. Asi TODAS las fotos salen por el mismo camino.
+ *
+ * No cuesta datos moviles extra: si nadie esta mirando, la conexion de video
+ * nunca llega a establecerse y el telefono no transmite nada. Solo viaja el
+ * ofrecimiento inicial, que son un par de kilobytes.
+ *
+ * NO se hace en la Raspberry ni en las camaras IP: ahi el agente CORTA la
+ * transmision para poder tomar la foto (es el mismo sensor), asi que abrir el
+ * stream antes no aportaria nada y si gastaria ancho de banda de subida.
+ */
+async function capturaPorStream(eq: any, userId: number) {
+  const encuadre = await encuadreDe(eq.id);
+  const yaAbierta = sesionDeVista(eq.id);
+
+  try {
+    if (!yaAbierta) {
+      await enviarOrden(eq.id, 'START_STREAM', encuadre, userId);
+      armStreamWatchdog(eq.id);
+      registrarSesion(eq.id, {
+        userId,
+        nombre: 'una captura automática',
+        desde: Date.now(),
+        modo: 'p2p',
+      });
+      await dormir(ESPERA_CAMARA_MS);
+    }
+
+    // La orientacion del visor viaja en la orden: es lo que hace que la foto
+    // quede como se ve en la vista en vivo.
+    const giro = Number(eq.stream_rotation) || 0;
+    await enviarOrden(eq.id, 'TAKE_PHOTO', { ...encuadre, ...(giro ? { rotation: giro } : {}) }, userId);
+
+    if (!yaAbierta) {
+      await dormir(ESPERA_SUBIDA_MS);
+      // Si mientras tanto una persona abrio el visor, no se le corta.
+      const ahora = sesionDeVista(eq.id);
+      if (!ahora || ahora.nombre === 'una captura automática') {
+        await stopStream(eq.id, 'captura terminada');
+      }
+    }
+  } catch (err) {
+    console.error(`[captura] equipo ${eq.id}:`, (err as any)?.message);
+    // Que no quede una transmision colgada por un fallo a media orquestacion.
+    if (!yaAbierta) await stopStream(eq.id, 'fallo en la captura').catch(() => {});
+  }
+}
+
 export async function capturarAhora(req: Request, res: Response) {
-  const schema = z.object({ device_ids: z.array(z.number()).optional() });
+  const schema = z.object({
+    device_ids: z.array(z.number()).optional(),
+    // Por omision la foto se toma desde la vista en vivo, para que todas salgan
+    // iguales. `via_stream: false` vuelve a la captura directa de siempre.
+    via_stream: z.boolean().optional(),
+  });
   const parsed = schema.safeParse(req.body ?? {});
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
+  const columnas = `id, name, online, app_version, stream_rotation`;
   let equipos: any[];
   if (parsed.data.device_ids?.length) {
     const [filas] = await pool.query<any[]>(
-      `SELECT id, name, online FROM devices WHERE id IN (?)`,
+      `SELECT ${columnas} FROM devices WHERE id IN (?)`,
       [parsed.data.device_ids]
     );
     equipos = filas as any[];
   } else {
     const [filas] = await pool.query<any[]>(
-      `SELECT id, name, online FROM devices WHERE status NOT IN ('inactive','maintenance') ORDER BY name`
+      `SELECT ${columnas} FROM devices WHERE status NOT IN ('inactive','maintenance') ORDER BY name`
     );
     equipos = filas as any[];
   }
 
   if (equipos.length === 0) return res.status(404).json({ error: 'sin_equipos' });
 
-  const resultado: { device_id: number; name: string; online: boolean }[] = [];
+  const porStream = parsed.data.via_stream !== false;
+  const resultado: { device_id: number; name: string; online: boolean; via: string }[] = [];
 
   for (const eq of equipos) {
-    const payload = await encuadreDe(eq.id);
+    // La Raspberry y las camaras IP van por el camino directo: ahi la foto ya
+    // sale de la misma configuracion, y abrir el stream solo gastaria subida.
+    const usaVisor = porStream && !usaServidorDeMedios(eq.app_version) && !!eq.online;
 
-    const [ins] = await pool.query<any>(
-      `INSERT INTO commands (device_id, command_type, payload, priority, created_by, expires_at)
-       VALUES (?, 'TAKE_PHOTO', ?, 1, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`,
-      [eq.id, JSON.stringify(payload), req.user!.uid]
-    );
+    if (usaVisor) {
+      // En segundo plano: son ~13 segundos por equipo y el navegador no puede
+      // quedarse esperando. Todos arrancan a la vez, no en fila.
+      void capturaPorStream(eq, req.user!.uid);
+    } else {
+      await enviarOrden(eq.id, 'TAKE_PHOTO', await encuadreDe(eq.id), req.user!.uid);
+    }
 
-    await redis.publish('device:command', JSON.stringify({
+    resultado.push({
       device_id: eq.id,
-      command: { id: (ins as any).insertId, command_type: 'TAKE_PHOTO', payload },
-    }));
-
-    resultado.push({ device_id: eq.id, name: eq.name, online: !!eq.online });
+      name: eq.name,
+      online: !!eq.online,
+      via: usaVisor ? 'vista en vivo' : 'directa',
+    });
   }
 
   // Los equipos apagados reciben la orden cuando vuelvan, si no vencio antes:
@@ -467,6 +605,10 @@ export async function capturarAhora(req: Request, res: Response) {
   res.json({
     enviados: resultado.length,
     en_linea: resultado.filter(r => r.online).length,
+    por_vista_en_vivo: resultado.filter(r => r.via === 'vista en vivo').length,
+    segundos_aprox: resultado.some(r => r.via === 'vista en vivo')
+      ? Math.round((ESPERA_CAMARA_MS + ESPERA_SUBIDA_MS) / 1000)
+      : 0,
     equipos: resultado,
   });
 }

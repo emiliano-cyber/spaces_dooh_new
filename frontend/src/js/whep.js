@@ -72,6 +72,13 @@ class WhepStreamClient {
     this.whepUrl = res.stream.whep;
     this.clave = (res.stream.whep.match(/\/([0-9a-f]{8,})\/whep$/) || [])[1] || null;
 
+    // El servidor de medios reparte el MISMO video a varios espectadores sin que
+    // al equipo le cueste un byte de mas, asi que si ya habia una vista abierta
+    // el backend nos devuelve esa en vez de arrancar otra. Se recuerda para
+    // poder avisar con quien la estamos compartiendo.
+    this.compartida = res.compartida === true;
+    this.compartidaCon = res.con || null;
+
     this.endsAt = Date.now() + WHEP_STREAM_MAX_MS;
     window.addEventListener('pagehide', this._onUnload);
     window.addEventListener('beforeunload', this._onUnload);

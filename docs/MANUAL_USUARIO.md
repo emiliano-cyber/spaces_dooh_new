@@ -137,8 +137,16 @@ Es la pantalla principal. Muestra una tarjeta por cada equipo de la flota.
 Manda la orden a todos los equipos que no estén dados de baja. Te dice cuántos
 recibieron la orden y cuántos estaban apagados.
 
+**Cómo se toman esas fotos:** en los teléfonos el sistema **abre la vista en vivo,
+espera a que la cámara enfoque, dispara y cierra**. Tarda unos 13 segundos, y a
+cambio todas las fotos salen con el mismo encuadre, la misma orientación y la
+misma calidad que ves en el visor. La Raspberry y las cámaras IP la toman directo,
+que en ellas es lo mismo.
+
 > **Cuidado con el consumo:** una ronda completa gasta entre 5 y 7 MB de datos
 > móviles sumando toda la flota. Úsalo cuando lo necesites, no por costumbre.
+> Abrir la vista para la foto **no cuesta datos extra**: si nadie está mirando, el
+> video nunca llega a transmitirse.
 
 ### Sobre eliminar un equipo
 
@@ -173,6 +181,14 @@ El recuadro negro de arriba a la izquierda.
 **Por qué se corta sola:** transmitir consume datos del equipo continuamente. El
 corte automático evita que una pestaña olvidada se coma el plan de datos del
 sitio. Si cierras la pestaña, el servidor también lo detecta y corta.
+
+**¿Pueden verla varias personas a la vez?** Depende del equipo:
+
+- **Raspberry y PC con cámara IP:** sí. Te unes a la transmisión que ya está
+  abierta y el sistema te dice con quién la compartes.
+- **Teléfonos:** solo una persona. Si alguien más la tiene, verás un aviso
+  *"Vista en uso"* con su nombre y desde hace cuánto. No es un fallo: en un
+  teléfono cada espectador gasta datos móviles del sitio por separado.
 
 **Controles sobre el video (solo teléfonos Android):**
 
@@ -436,7 +452,7 @@ Arriba a la derecha, con tu nombre.
 | Rol | Puede |
 |---|---|
 | **admin** | Todo: fijar orientación, configurar la marca, eliminar equipos, crear usuarios |
-| **operator** | Operar: pedir fotos, crear programaciones, eliminar fotos |
+| **operator** | Operar: pedir fotos, crear programaciones, eliminar fotos, **ajustar encuadre, color y enfoque** |
 | **viewer** | Solo mirar |
 
 > **Recomendación:** hoy casi todo el equipo comparte una sola cuenta de

@@ -318,11 +318,11 @@ metadatos: `taken_at`, `command_id`, `schedule_id`, `campaign_id`, `gps_*`,
 | DELETE | `/api/devices/:id` | admin | Eliminar equipo |
 | POST | `/api/devices/:id/command` | admin/operator | Enviar orden |
 | PUT | `/api/devices/:id/stream-rotation` | admin | Giro del **video** |
-| PUT | `/api/devices/:id/camera` | admin | Lente, zoom, ajustes, giro de foto |
+| PUT | `/api/devices/:id/camera` | admin/operator | Lente, zoom, ajustes de imagen, enfoque fijo |
 | GET | `/api/devices/:id/stream-status` | usuario | ¿Ya publica en MediaMTX? |
 | GET | `/api/app/version` | usuario | Versión de APK publicada |
 | PUT | `/api/devices/:id/overlay` | admin | Marca de datos |
-| POST | `/api/capture` | admin/operator | **Foto a varios equipos** |
+| POST | `/api/capture` | admin/operator | **Foto a varios equipos.** Por omisión los teléfonos la toman desde la vista en vivo (`via_stream:false` para la captura directa) |
 | GET | `/api/photos` | usuario | Galería con filtros |
 | DELETE | `/api/photos/:id` | admin/operator | Eliminar foto |
 | GET/POST | `/api/schedules` | usuario / admin+op | Programaciones |
@@ -339,6 +339,14 @@ metadatos: `taken_at`, `command_id`, `schedule_id`, `campaign_id`, `gps_*`,
 > **`POST /api/capture` con `device_ids: []` o `{}` dispara a TODA la flota.**
 > Una lista vacía significa "todos". Para probar sin gastar datos móviles, usa un
 > equipo concreto.
+>
+> **Captura uniforme.** En los teléfonos el servidor abre la vista en vivo, espera
+> 6 s a que la cámara asiente enfoque y exposición, dispara con la orientación del
+> visor y cierra a los 7 s. Así todas las fotos salen por el mismo camino sin
+> depender de la versión de APK instalada. La orquestación corre **en segundo
+> plano**: la respuesta HTTP no espera los ~13 s. La Raspberry y las cámaras IP
+> van por el camino directo, porque ahí el agente corta la transmisión para poder
+> fotografiar y abrir el stream solo gastaría subida.
 
 ### Internos (ai-worker, `X-Worker-Secret`)
 
@@ -557,6 +565,18 @@ credenciales; la contraseña de publicación (`MEDIAMTX_PASS`) vive en
 
 > ⚠️ **Desplegar siempre con `--env-file backend/.env`** o `MEDIAMTX_PASS` queda
 > vacía y la publicación se rompe.
+
+### Quién puede ver: uno o varios
+
+| Tipo | Espectadores simultáneos | Por qué |
+|---|---|---|
+| **Relay** (Raspberry, PC) | **Varios** | El servidor de medios reparte el mismo video; al equipo no le cuesta un byte de más |
+| **Teléfono** | **Uno** | Cada espectador es otra conexión de video saliendo del equipo: el doble de datos móviles |
+
+En relay, un segundo `START_STREAM` devuelve la transmisión ya abierta
+(`compartida: true`). En teléfonos responde **409 `vista_ocupada`** con quién la
+tiene y desde cuándo. `utils/streamWatchdog.ts` guarda el dueño en memoria y lo
+libera con el corte.
 
 **Tres cortes de seguridad** para que una transmisión no quede viva:
 1. El navegador corta a los 3 minutos.

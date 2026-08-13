@@ -16,6 +16,41 @@ const MAX_STREAM_MS = 3 * 60 * 1000 + 15000;
 
 const timers = new Map<number, NodeJS.Timeout>();
 
+/**
+ * Quien tiene abierta la vista en vivo de cada equipo.
+ *
+ * Hacia falta porque hasta ahora la transmision no tenia dueño: si dos personas
+ * abrian el mismo equipo, la segunda se llevaba la camara y la primera se quedaba
+ * con la imagen congelada, sin un solo aviso. Ninguna de las dos entendia que
+ * estaba pasando.
+ *
+ * Vive en memoria a proposito: si el backend se reinicia, las transmisiones se
+ * cortan igual, asi que un registro persistente no aportaria nada.
+ */
+export type SesionDeVista = {
+  userId: number;
+  nombre: string;
+  desde: number;        // Date.now()
+  modo: 'relay' | 'p2p';
+  whep?: string;        // solo en relay: a donde conectarse
+};
+
+const sesiones = new Map<number, SesionDeVista>();
+
+export function registrarSesion(deviceId: number, sesion: SesionDeVista) {
+  sesiones.set(deviceId, sesion);
+}
+
+export function sesionDeVista(deviceId: number): SesionDeVista | null {
+  // Si el vigilante ya no tiene temporizador, la transmision murio: la sesion
+  // que quedara aqui seria mentira.
+  if (!timers.has(deviceId)) {
+    sesiones.delete(deviceId);
+    return null;
+  }
+  return sesiones.get(deviceId) ?? null;
+}
+
 export async function stopStream(deviceId: number, reason: string) {
   disarmStreamWatchdog(deviceId);
   try {
@@ -59,4 +94,6 @@ export function disarmStreamWatchdog(deviceId: number) {
     clearTimeout(t);
     timers.delete(deviceId);
   }
+  // La transmision se acabo: su dueño tambien.
+  sesiones.delete(deviceId);
 }

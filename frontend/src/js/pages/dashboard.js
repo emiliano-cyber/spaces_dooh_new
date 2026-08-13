@@ -116,12 +116,19 @@ function dashboard() {
       try {
         const r = await API.post('/api/capture', {});
         const apagados = r.enviados - r.en_linea;
-        this.showToast(
-          apagados > 0
-            ? `Foto pedida a ${r.enviados} equipos (${apagados} apagados: la tomaran al reconectar)`
-            : `Foto pedida a los ${r.enviados} equipos`,
-          'success'
-        );
+        // Los telefonos toman la foto DESDE la vista en vivo, para que todas
+        // salgan iguales. Eso tarda unos segundos mas, y conviene decirlo o
+        // parece que no pasa nada.
+        const partes = [`Foto pedida a ${r.enviados} equipos`];
+        if (r.por_vista_en_vivo > 0) {
+          partes.push(`${r.por_vista_en_vivo} por vista en vivo (~${r.segundos_aprox}s)`);
+        }
+        if (apagados > 0) partes.push(`${apagados} apagados: la tomarán al reconectar`);
+        this.showToast(partes.join(' · '), 'success');
+        // Las fotos por vista en vivo llegan despues: se refresca la lista.
+        if (r.por_vista_en_vivo > 0) {
+          setTimeout(() => this.loadDevices(), (r.segundos_aprox + 3) * 1000);
+        }
       } catch (e) {
         this.showToast('No se pudieron pedir las fotos', 'error');
       } finally {
