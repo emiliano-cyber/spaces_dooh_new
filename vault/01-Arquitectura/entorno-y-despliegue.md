@@ -27,7 +27,9 @@ psql -d spaces -f db/schema.sql
 # … y las 66 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
 # 3. Permisos por rol + usuario inicial (idempotente)
-cd apps/web && node scripts/bootstrap-auth.mjs
+#    DATABASE_URL es OBLIGATORIA: el script no elige base por ti
+cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
+  node scripts/bootstrap-auth.mjs
 
 # 4. La app
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
@@ -40,6 +42,10 @@ filas) y el usuario dueño, con la contraseña de `SEED_PASSWORD` (por omisión
 `spaces123`). Es el único consumidor de esa variable. Sin él una base recién
 creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y el tenant
 `rgb`, pero ni un solo usuario.
+
+**`DATABASE_URL` es obligatoria** (`bootstrap-auth.mjs:9-33`): sin ella el script
+no arranca, imprime qué variable falta con un ejemplo en bash y en PowerShell, y
+sale con código 1.
 
 > [!danger] Estuvo roto y no lo dijo nadie — corregido el 13/08
 > El script **fallaba siempre**, en cualquier base, por dos defectos del mismo
@@ -63,10 +69,21 @@ creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y el tena
 > usuario con el operador convencido de haberla sembrado. Se detecta por
 > `rowCount === 0`.
 
-> [!warning] Su `DATABASE_URL` por omisión apunta a la base con datos reales
-> `bootstrap-auth.mjs:9-10` cae en `postgresql://spaces:spaces@localhost:5433/spaces`
-> si no le pasas `DATABASE_URL`. Esa es la base de desarrollo **con datos de
-> verdad**, no una de pruebas. Pásale siempre la cadena a mano.
+> [!danger] Ya no hay base por omisión — cerrado el 13/08 (T-02)
+> Hasta hoy el script caía en `postgresql://spaces:spaces@localhost:5433/spaces`
+> si nadie le pasaba `DATABASE_URL`: la base de desarrollo **con datos de
+> verdad**, cuyo rol `spaces` es **superusuario con `rolbypassrls`** (comprobado
+> contra `pg_roles`), así que además se salta la RLS `FORCE` que
+> `db/migrations/20260720_hard1_usuarios_rls.sql` puso sobre `usuarios`.
+>
+> Ese destino era **inerte** mientras el insert moría con 42P10. Arreglarlo lo
+> volvió operativo: el script pasó a **escribir**. Por eso `DATABASE_URL` es
+> ahora obligatoria y el script aborta si falta, con el mismo criterio que aplica
+> al tenant ausente — **antes negarse a arrancar que arrancar contra un destino
+> que el operador no eligió**.
+>
+> Sigue siendo legítimo apuntarlo a `spaces` en local: lo que cambia es que hay
+> que **decirlo**, no que ocurra solo.
 
 Los mismos dos inserts de ejemplo de `db/README.md` llevaban el mismo defecto:
 `usuarios` y `clientes` están las dos en el bucle de RLS, así que sin `tenant_id`

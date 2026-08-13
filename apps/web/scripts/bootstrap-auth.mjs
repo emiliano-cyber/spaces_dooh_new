@@ -1,13 +1,38 @@
 // ============================================================================
 //  bootstrap-auth.mjs — Crea permisos por rol + usuarios iniciales (bcrypt).
-//  Idempotente. Correr desde apps/web:  node scripts/bootstrap-auth.mjs
-//  Usa DATABASE_URL o el Postgres local del docker-compose (5433).
+//  Idempotente. Correr desde apps/web:
+//    DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/bootstrap-auth.mjs
+//  DATABASE_URL es OBLIGATORIA: el script no elige base por ti (ver abajo).
 // ============================================================================
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 
-const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgresql://spaces:spaces@localhost:5433/spaces'
+// El destino NO tiene valor por omisión, y eso es deliberado.
+//
+// Antes caía en `postgresql://spaces:spaces@localhost:5433/spaces`: la base de
+// desarrollo del docker-compose, que tiene DATOS REALES, y cuyo rol `spaces` es
+// superusuario con BYPASSRLS — o sea que ni siquiera la RLS `FORCE` sobre
+// `usuarios` (`db/migrations/20260720_hard1_usuarios_rls.sql`) lo frenaría.
+// Mientras el insert moría con 42P10 ese destino era inerte; al arreglarlo, el
+// script pasó a escribir de verdad y un `node scripts/bootstrap-auth.mjs` sin
+// variables habría sembrado credenciales en una base que nadie eligió.
+//
+// Mismo criterio que con el tenant ausente unas líneas más abajo: es preferible
+// que el script se niegue a arrancar y diga qué le falta, a que arranque contra
+// un destino por omisión.
+const DATABASE_URL = process.env.DATABASE_URL
+if (!DATABASE_URL) {
+  console.error(
+    'ERROR bootstrap: falta la variable DATABASE_URL.\n' +
+      'Este script siembra credenciales, así que no adivina la base: tienes que\n' +
+      'decirle explícitamente contra cuál corre.\n' +
+      '  bash:        DATABASE_URL=postgresql://spaces:spaces@localhost:5433/mi_base node scripts/bootstrap-auth.mjs\n' +
+      '  PowerShell:  $env:DATABASE_URL="postgresql://spaces:spaces@localhost:5433/mi_base"; node scripts/bootstrap-auth.mjs\n' +
+      'Ojo: la base "spaces" del 5433 tiene datos reales.',
+  )
+  process.exit(1)
+}
+
 const PASSWORD_DEFAULT = process.env.SEED_PASSWORD ?? 'spaces123'
 
 // Matriz roles × módulos × acciones (espejo de components/demo/admin/permisos.ts)
