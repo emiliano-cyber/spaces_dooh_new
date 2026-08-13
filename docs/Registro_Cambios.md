@@ -5,6 +5,47 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-12
+
+- **Plan de trabajo para que cada cliente tenga su propio sistema, en su propio
+  servidor.** Queda en `docs/Plan_Instancias_Soberanas_v2.md`. Traduce a tareas
+  concretas la corrección de rumbo que aprobó Jochelo el 12 de agosto: hasta
+  ahora todos los clientes vivían dentro de una misma base de datos, separados
+  por una etiqueta interna; el modelo correcto es que cada uno corra una copia
+  completa del sistema en su propio servidor, con su propia base y entrando por
+  el dominio que él elija. El motivo es comercial antes que técnico: la promesa
+  de SPACE OS es que el cliente es dueño de su sistema, y un cliente que es un
+  renglón en la base de otro no lo es. Son **40 tareas**; 33 se pueden hacer hoy
+  y 7 esperan decisiones de negocio. Cada tarea trae la prueba que tiene que
+  fallar primero, el criterio de aceptación y cómo se revierte si sale mal.
+
+  Al contrastar el plan contra el código aparecieron seis cosas que los
+  documentos daban por buenas y no lo eran:
+  - **La pieza que el documento decía "rescatar tal cual" nunca se escribió.**
+    Se daba por hecho que ya existía código para dar de alta una organización y
+    su dueño en una sola operación. No existe: hay que escribirlo.
+  - **Las tablas por limpiar son 23, no 21.** Dos se agregaron después de que se
+    escribiera el número.
+  - **El despliegue automático de hoy hace justo lo que el modelo nuevo
+    prohíbe:** entra al servidor del cliente, compila ahí y reinicia. Eso deja a
+    ese servidor distinto a todos los demás. Se retira, pero no antes de que
+    exista el mecanismo que lo sustituye, o nos quedamos sin forma de desplegar.
+  - **Los scripts muertos del sistema anterior son cuatro, no uno**, y uno llama
+    a otro: borrar solo el que se había señalado dejaba roto al que lo invoca.
+  - **Las migraciones no se aplican en orden alfabético.** Hay dos excepciones
+    reales que las pruebas conocen y el despliegue no. Un cliente nuevo no
+    arrancaría si el instalador las aplica por nombre.
+  - **La limpieza pendiente es menos arriesgada de lo que parecía:** el sistema
+    ya manda siempre a qué organización pertenece cada registro, así que quitar
+    el valor por defecto no rompe nada en uso; solo deja de tapar los registros
+    hechos a mano.
+
+  Queda una contradicción que tiene que resolver Jochelo: el interruptor del
+  registro público se graba dentro del programa al compilarlo, así que "todos los
+  clientes reciben exactamente el mismo programa" y "el registro público solo
+  está abierto en la demo" no pueden cumplirse las dos a la vez. Hay dos salidas
+  y ambas están escritas en el plan.
+
 ## 2026-08-11
 
 - **Cerrados cuatro pendientes del manual técnico: ya se puede levantar el
