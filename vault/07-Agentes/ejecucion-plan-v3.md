@@ -129,6 +129,26 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F4.4 | [infra] | ensayista-local (datos de juguete + autoregistro según P4-bis) | F4.2-local | PENDIENTE | |
 | F4.5 | [verificación] | ensayista-local (smoke en localhost) + tarjeta humana | F4.4 | PENDIENTE | El cierre del riesgo es contra la DEMO real |
 
+## Commits que esperan visto bueno humano
+
+> [!important] El criterio, porque los dos expedientes lo contaron distinto
+> **ROJO = lo que su ejecutor declaró ROJO en el reporte de la tarea.** Ni más ni
+> menos. «Toca un tema sensible» **no** basta: si el ejecutor lo declaró AMARILLO
+> tras juzgarlo, AMARILLO se queda — esa distinción es lo que hace útil el color.
+
+| Commit | Tarea | Por qué es ROJO |
+|---|---|---|
+| `c50344a` | F1.3 | R2, aislamiento entre organizaciones |
+| `65bf9b5` | F1.2 | **Migración Y tenant**, los dos disparadores |
+| `b976b54` | T-01 | Siembra credenciales en `usuarios` |
+| `3ac2bba` | T-02 | Cambia a qué base escribe el bootstrap |
+| `70ca3f0` | F2.6 | Invierte la polaridad de una bandera de seguridad |
+| `ef70aa9` | T-03 | Cookie de sesión + aislamiento entre instancias |
+
+**Son seis.** Declarados AMARILLO por su ejecutor, y por tanto **fuera** de esta
+lista aunque toquen temas próximos: `3671e8a` (F1.4), `6044732` (F0.3), `8ae8f77`
+(F2.1) y `3f16386` (F2.2). Ninguno de los diez está en `main`.
+
 ## Tarjetas humanas emitidas
 
 *(El orquestador las agrega aquí conforme se generan: ID de tarea, comandos exactos
@@ -151,6 +171,45 @@ organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esque
 (`db/schema.sql:643`) no debería ocurrir; esto lo confirma.
 
 **Qué desbloquea:** el visto bueno humano del merge de `c50344a`.
+
+---
+
+### TH-F0.1 · ¿está abierto el registro HOY en el droplet?
+
+De F0.1, que **nunca se ejecutó**. **Solo lectura**, la corre una persona.
+Según el plan (`:260`) **bloquea toda la Fase 4** — es la tarjeta más cara de las
+cuatro.
+
+**Paso 1 — desde cualquier máquina con red, sin tocar el servidor** (`:267-271`):
+
+```bash
+curl -s -w '\nHTTP %{http_code}\n' -X POST \
+  https://demo.space-os.io/spaces-dooh/api/signup/ \
+  -H 'Content-Type: application/json' -d '{}'
+```
+
+Con cuerpo vacío no se crea nada: zod revienta antes de tocar la base.
+
+**Paso 2 — confirmar la causa en el servidor, solo lectura** (`:275`):
+
+```bash
+ssh root@209.97.146.136 "grep -rs AUTOREGISTRO /var/www/Spaces/.env /var/www/Spaces/apps/web/.env*; echo '[fin]'"
+```
+
+| Respuesta | Significa |
+|---|---|
+| **HTTP 503** | Registro **apagado**. No hay nada que apagar |
+| **HTTP 400** | Registro **abierto**: zod rechazó el cuerpo vacío, o sea que pasó el guard |
+
+> [!warning] Si sale 400, **F0.2 ya NO se ejecuta como está escrita**
+> El plan manda un `sed` sobre `NEXT_PUBLIC_AUTOREGISTRO` y recompilar. Con la
+> decisión del 14/08 —registro cerrado en toda la flota— y el renombrado de F2.6,
+> lo correcto es **borrar la línea vieja y no poner nada**: ausente = cerrado
+> (`lib/entorno.ts`). Poner `AUTOREGISTRO=1` sería lo contrario de lo decidido.
+>
+> Y ojo: el droplet corre **un build anterior a `70ca3f0`**, que todavía lee la
+> variable vieja horneada. Hasta que tome un release con F2.6, el `sed` del plan
+> sigue siendo lo que funciona ahí.
 
 ---
 
@@ -260,6 +319,10 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Desfase del plan en F2.5, registrado y NO corregido**: su criterio justifica el 503 con «el autoregistro viene apagado **horneado**, invariante 9», y tras `70ca3f0` eso es **definitivamente falso** — nada se hornea. Y su paso 3 manda arrancar con `NEXT_PUBLIC_AUTOREGISTRO=0`, **variable que ya no lee nadie**: quien lo copie literal obtendrá 503 igual, pero por la ausencia de `AUTOREGISTRO`, no por lo que cree. Dos frases, ningún cambio de código. |
 | 2026-08-14 | Para las tarjetas futuras: **F4.5 (smoke de DEMO) tiene que arrancar con `AUTOREGISTRO=1` y esperar `signup` 400**, no 503 — es la única instancia con el registro abierto. Una instancia de owner espera **503** con `AUTOREGISTRO=0` u omitida. |
 | 2026-08-14 | 🔵 **DECISIÓN DE JOCHELO: el autoregistro va CERRADO en local y en producción.** Revierte P3b del 10/08 («abierto y permanente»). Efecto inmediato: `.env.example` baja de `AUTOREGISTRO=1` a **`=0`** — la plantilla del repo dejaba el registro abierto en cualquier clon, que era justo el agujero que F0.3 iba a cerrar. `.env.production.example` ya estaba en `0` y `apps/web/.env` local **no tiene la variable**, o sea ya cerrado por fail-closed. **La tarjeta humana del droplet cambia de sentido: ya no hay que poner `AUTOREGISTRO=1`, sino borrar la línea vieja y no poner nada.** |
+| 2026-08-14 | **Los dos expedientes contaron los ROJO distinto** —seis el de la Fase 1, ocho el de la Fase 2— porque nadie había escrito el criterio. Zanjado arriba, en su propia sección: **ROJO es lo que su ejecutor declaró ROJO**, y «toca un tema sensible» no basta. Son **seis**. Sin esa regla escrita, el PDF habría salido contradiciéndose a sí mismo entre capítulos. |
+| 2026-08-14 | **TH-F0.1 no tenía ficha**, solo menciones de pasada — y es la tarjeta que **bloquea toda la Fase 4**. Escrita ahora con sus dos comandos literales del plan (`:267-271` y `:275`), la tabla de respuestas y el aviso de que **si sale 400, F0.2 ya no se ejecuta como está escrita**. Lo levantó el expediente de la Fase 2. |
+| 2026-08-14 | Otro error de briefing mío, cazado por ese mismo expediente: le dije que F0.3 (`6044732`) «ocurrió después» del suyo. **Es al revés**: `6044732` son las 14:05 y `84fe410` las 14:09 — es **ancestro**. El documentalista anterior arrancó con HEAD en `42c0f4e` (13:37) y F0.3 le pasó por debajo a media escritura, que es **por qué sus anclas ya estaban mal al commitear**. |
+| 2026-08-14 | Y la lección que ese expediente saca de su propia historia, que vale más que el documento: **se quedó desactualizado a las cuatro horas**, y no porque nadie tocara la Fase 2, sino porque dos tareas de **otra** fase escribieron sobre los mismos archivos. Es la demostración práctica de que un `archivo:línea` no sobrevive una tarde en una rama activa. |
 | 2026-08-14 | 🔴 **La cuenta de commits ROJO que venía dando el orquestador estaba mal, y lo levantó el expediente de la Fase 1.** Venía diciendo «ocho»; los declarados ROJO por su ejecutor son **seis**: `c50344a`, `65bf9b5`, `b976b54`, `3ac2bba` (Fase 1), `70ca3f0` (F2.6) y `ef70aa9` (T-03). `3671e8a` (F1.4), `6044732` (F0.3), `8ae8f77` (F2.1) y `3f16386` (F2.2) los declararon **AMARILLO**, no ROJO. Se estaba confundiendo «toca un tema sensible» con «su ejecutor lo declaró ROJO». |
 | 2026-08-14 | Y este tablero **tampoco lo tenía bien**: la fila de **F1.2 no llevaba ni el hash ni la marca de pendiente**, siendo la más roja de todas —migración **y** tenant, los dos disparadores a la vez—. Corregido. Quien mergee mirando solo las filas marcadas se habría saltado justo esa. |
 | 2026-08-14 | 🔴 **Desviación de proceso, y es del orquestador: F0.3 se ejecutó fuera del orden de dependencias.** El plan dice en `:337` «**Depende de: F0.1**», y F0.1 **nunca corrió** —es de servidor y no se ejecuta desde aquí. Se lanzó F0.3 igual, sin declararlo. Materialmente es inocuo (F0.3 no necesita el censo del droplet para escribirse), pero **la regla de ejecución dice respetar el campo «Depende de»**, y saltárselo en silencio es justo lo que esa regla previene. Lo levantó el expediente de la Fase 0, no yo. |
