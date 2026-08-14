@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -38,12 +38,12 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | POST | `/api/auth/login` | PÚBLICO | 10/5min por IP. Emite `spaces_sesion` + `spaces_csrf` |
 | POST | `/api/auth/logout` | PÚBLICO | Exento de CSRF |
 | GET | `/api/auth/me` | usuarioActual | Rellena `spaces_csrf` si falta |
-| GET | `/api/auth/metodos` | PÚBLICO | `{"google":bool}`, `force-dynamic` |
+| GET | `/api/auth/metodos` | PÚBLICO | `{"google":bool,"autoregistro":bool}`, `force-dynamic`, `no-store` |
 | POST | `/api/auth/forgot` | PÚBLICO | 5/15min IP + 3/h correo |
 | GET·POST | `/api/auth/reset` | PÚBLICO | GET valida token, POST aplica |
 | GET | `/api/auth/google/inicio` | PÚBLICO | 302 a Google; 503 si apagado |
 | GET | `/api/auth/google/callback` | PÚBLICO | Canjea código, abre sesión |
-| POST | `/api/signup` | PÚBLICO | 503 si `NEXT_PUBLIC_AUTOREGISTRO=0`. **Abierto en producción desde el 07/08** |
+| POST | `/api/signup` | PÚBLICO | 503 salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08; se lee al arrancar, no en el build) |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
 | GET | `/api/permisos` | exigir | |
 | GET | `/api/admin/permisos-matriz` | exigir | |

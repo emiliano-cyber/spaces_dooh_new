@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -47,7 +47,17 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 ### P3b · ~~¿El registro público es temporal o permanente?~~ **DECIDIDA el 10/08**
 
 **El autorregistro es ABIERTO y permanente.** Decisión del usuario, confirmada el
-10/08. `NEXT_PUBLIC_AUTOREGISTRO=1` se queda.
+10/08. La bandera encendida se queda.
+
+> [!warning] Ojo: la bandera se RENOMBRÓ el 14/08 y ahora es fail-closed (F2.6)
+> Ya no se llama `NEXT_PUBLIC_AUTOREGISTRO` sino **`AUTOREGISTRO`**, y solo `1`
+> la enciende. Un `.env` que siga diciendo `NEXT_PUBLIC_AUTOREGISTRO=1` **no
+> tiene efecto**, y el resultado por omisión es el registro **CERRADO** — o sea,
+> lo contrario de lo que esta decisión pide. Todo entorno donde el registro deba
+> seguir abierto necesita la línea nueva `AUTOREGISTRO=1`.
+>
+> Y el alcance de la decisión cambió con el modelo de instancias soberanas: el
+> registro abierto es de **DEMO**, no de cada instancia de owner.
 
 Eso convierte V2-05 del plan de incidencias en la **opción (A), «abierta con
 guardas»**, que no es «no hacer nada» — implica tres trabajos pendientes:

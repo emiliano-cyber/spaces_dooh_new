@@ -335,8 +335,8 @@ describe('5 · claims que el callback debe rechazar', () => {
 // ─── Alta de empresa con Google (ADR 0012 · enmienda del 07/08) ─────────────
 
 describe('7 · crear empresa con Google', () => {
-  // El servidor de pruebas arranca con NEXT_PUBLIC_AUTOREGISTRO=0, igual que
-  // produccion. Eso hace que el caso importante aqui sea el NEGATIVO: que la
+  // El servidor de pruebas arranca con AUTOREGISTRO=0, igual que una instancia
+  // de owner. Eso hace que el caso importante aqui sea el NEGATIVO: que la
   // puerta nueva este tan cerrada como `/api/signup`.
 
   async function iniciarAlta(c: Cliente, organizacion: string) {

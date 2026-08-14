@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHash, randomBytes } from 'crypto'
 import { AppError } from './errores'
+import { autoregistroActivo } from '../entorno'
 
 // ============================================================================
 //  lib/server/google-oauth.ts — ADR 0012 · Authorization Code + PKCE.
@@ -33,7 +34,7 @@ const MARGEN_RELOJ_SEG = 60
 
 // ─── Interruptor ────────────────────────────────────────────────────────────
 // GOOGLE_OAUTH=0 apaga la función EN EL SERVIDOR, no solo escondiendo el botón
-// — misma lección que NEXT_PUBLIC_AUTOREGISTRO. Y NO lleva prefijo
+// — misma lección que AUTOREGISTRO. Y NO lleva prefijo
 // NEXT_PUBLIC_: con él, Next lo hornearía en el build y apagarlo exigiría
 // recompilar, que es la trampa documentada para M11 en
 // HABILITAR_M11_RECUPERAR_PASSWORD.txt.
@@ -81,13 +82,16 @@ export const COOKIE_VERIFIER = 'g_verifier'
 // eligiera qué operación ejecuta el servidor.
 export const COOKIE_ALTA_ORG = 'g_alta_org'
 
-// El auto-registro se apaga con NEXT_PUBLIC_AUTOREGISTRO=0. El alta de empresa
-// con Google cuelga del MISMO interruptor y se comprueba en el SERVIDOR, igual
-// que `/api/signup`: si no, esconder el botón dejaría abierta una segunda
-// puerta al mismo sitio — y el mismo despliegue sirve la demo pública y
-// producción sobre la misma base.
+// El auto-registro se enciende con AUTOREGISTRO=1. El alta de empresa con
+// Google cuelga del MISMO interruptor y se comprueba en el SERVIDOR, igual que
+// `/api/signup`: si no, esconder el botón dejaría abierta una segunda puerta al
+// mismo sitio.
+//
+// Se delega en `lib/entorno.ts` para que las dos puertas no puedan divergir:
+// mientras cada una leía `process.env` por su cuenta, bastaba con corregir una
+// para dejar la otra abierta sin que nada avisara.
 export function autoregistroHabilitado(): boolean {
-  return process.env.NEXT_PUBLIC_AUTOREGISTRO !== '0'
+  return autoregistroActivo()
 }
 
 // ─── PKCE ───────────────────────────────────────────────────────────────────

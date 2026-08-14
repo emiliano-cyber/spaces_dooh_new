@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: verificado
-actualizado: 2026-08-11
+actualizado: 2026-08-14
 tags: [manual, tecnico, onboarding, arquitectura, despliegue, runbook]
 archivos:
   - apps/web/
@@ -708,7 +708,7 @@ saliente). La tabla es **fail-closed desde el 07/08**: leer va por
 
 Cualquiera con la URL puede crear una organización desde `/login` modo `signup`
 (`login/page.tsx:126`) → `POST /api/signup` (`signup/route.ts:18`). Guardas: **503**
-si `NEXT_PUBLIC_AUTOREGISTRO=0` (`:19-24`) y rate limit **5/hora por IP** (`:26`).
+salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08: ausente = apagado) y rate limit **5/hora por IP** (`:26`).
 Cadena: `registrarCuentaCtrl` → `crearOrgConDueno` → `crearTenant()` + `crearUsuario()`
 (`cuentas-controller.ts:41-63`); inserta en `tenants` y `usuarios` (rol `DUENO`) y
 `config_negocio` obtiene su fila.
@@ -939,7 +939,7 @@ Los valores están en `apps/web/.env.production` **del droplet**, cubierto por
 | `HSTS` | Cabecera Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente — hacen falta **las dos** | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin ella la ruta da **503** | `api/recordatorios/route.ts:39,49` |
-| `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública (UI **y** servidor) | `api/signup/route.ts:19` |
+| `AUTOREGISTRO` | Solo `'1'` enciende el alta pública (UI **y** servidor). **Sin prefijo NEXT_PUBLIC_ desde el 14/08: se lee al arrancar, no se hornea** | `lib/entorno.ts` |
 | `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga «recuperar contraseña» | `login/page.tsx:24` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas | `components/maps/SitiosMap.tsx` |
 | `DO_SPACES_KEY` · `DO_SPACES_SECRET` · `DO_SPACES_ENDPOINT` · `DO_SPACES_BUCKET` · `DO_SPACES_CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts` |

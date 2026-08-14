@@ -5,6 +5,33 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-14
+
+- **El botón «Crear cuenta» ya no aparece donde el registro está cerrado.** Hasta
+  hoy la pantalla de acceso enseñaba ese botón siempre, sin importar la
+  configuración del servidor: al pulsarlo el sistema contestaba «El registro de
+  cuentas nuevas está deshabilitado». Una puerta pintada en la pared. Ahora la
+  pantalla le pregunta al servidor qué ofrece y solo pinta lo que de verdad
+  funciona — igual que ya hacía con el botón de Google.
+  - **Por qué pasaba:** la pantalla de acceso se genera al compilar el programa, y
+    la decisión de mostrar el botón iba escrita dentro de esa página ya generada.
+    Cambiarla obligaba a recompilar el sistema entero, no bastaba con reiniciarlo.
+  - **Qué cambia para quien opera un servidor:** la opción se llamaba
+    `NEXT_PUBLIC_AUTOREGISTRO` y ahora se llama **`AUTOREGISTRO`**. Se lee al
+    encender el sistema, así que abrir o cerrar el registro es cambiar una línea y
+    reiniciar, sin recompilar nada.
+  - **Cuidado, y es lo importante:** ahora **solo `AUTOREGISTRO=1` abre el
+    registro**. Si la línea falta, o conserva el nombre viejo, o dice cualquier
+    otra cosa, el registro queda **cerrado**. Es a propósito: entre dejar un
+    servidor sin registro por error y dejarlo con el registro abierto a internet
+    por error, se prefiere lo primero, porque se nota enseguida y no deja entrar a
+    nadie mientras tanto.
+  - **Un servidor cuyo archivo de configuración siga diciendo
+    `NEXT_PUBLIC_AUTOREGISTRO=1` amanecerá con el registro cerrado.** Los que deban
+    seguir abiertos necesitan la línea nueva.
+
+---
+
 ## 2026-08-13
 
 - **El avance de la corrección del modelo de despliegue queda por escrito, en la

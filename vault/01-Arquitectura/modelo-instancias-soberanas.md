@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-13
+actualizado: 2026-08-14
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -136,14 +136,27 @@ cambian tareas concretas.
 | **P3** · ¿Las instancias nacen en la cuenta DO de AS OOH o en la del owner? | Modo por defecto del script de aprovisionamiento y todo el runbook | Define quién guarda las llaves, quién renueva el certificado y quién vigila las actualizaciones |
 | **P4** · Nombre del registry de imágenes | Solo el *valor* en F2.3/F2.4 | No bloquea escribir el workflow; sí el login y el límite de almacenamiento |
 
-> [!warning] Una contradicción del propio documento
-> DEMO necesita el autoregistro encendido, y esa bandera **se hornea en el build**.
-> Con la regla «el artefacto es idéntico para todas las instancias», las dos cosas
-> no pueden ser ciertas a la vez. Las salidas son dos: publicar **dos imágenes por
-> versión** (una con la bandera encendida para el canal beta), o **sacar la bandera
-> del build** y decidirla en el servidor — que es lo que ya se hizo con
-> `GOOGLE_OAUTH`, así que hay precedente en el repo. La segunda es más limpia, pero
-> cambia el comportamiento de la bandera: se pregunta antes de escribirla.
+> [!success] P4-bis · RESUELTA el 13/08 y EJECUTADA el 14/08 (F2.6)
+> **La contradicción era esta:** DEMO necesita el autoregistro encendido, esa
+> bandera se horneaba en el build, y la regla dice que el artefacto es idéntico
+> para todas las instancias. Las dos cosas no podían ser ciertas a la vez.
+>
+> **Salida elegida: (b), sacar la bandera del build.** Un solo artefacto por
+> versión. `NEXT_PUBLIC_AUTOREGISTRO` pasó a llamarse **`AUTOREGISTRO`** y se lee
+> al arrancar (`apps/web/lib/entorno.ts`), igual que `GOOGLE_OAUTH` — el
+> precedente que ya existía en el repo. Se descarta publicar dos imágenes por
+> versión, así que **F2.3 publica un solo artefacto**.
+>
+> Como se advirtió, **cambia el comportamiento de la bandera**: es *fail-closed*.
+> Solo `AUTOREGISTRO=1` enciende; ausente o cualquier otro valor deja el registro
+> cerrado. Antes era al revés (ausente = abierto). Comprobado con la misma imagen
+> sin recompilar: sin variable → 503, `=0` → 503, `=1` → 400.
+>
+> Y apareció una segunda mitad que el documento no había visto: el **cliente**
+> también estaba horneado, y horneado **encendido**. `/login` se prerrenderiza en
+> el build y su HTML traía el botón «Crear cuenta» dentro, con el servidor
+> contestando 503 al pulsarlo. Se resolvió preguntando a `/api/auth/metodos/`,
+> que ahora devuelve `{"google":…,"autoregistro":…}`.
 
 Dos preguntas técnicas menores:
 
