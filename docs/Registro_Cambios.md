@@ -7,6 +7,29 @@ La entrada más reciente va arriba.
 
 ## 2026-08-14
 
+- **Los expedientes de evidencia de las fases 0, 1 y 2 caben ya en un solo PDF.**
+  Está en `docs/evidencias/Expediente_Evidencias_SPACE_OS.pdf`: 49 páginas con
+  portada, índice, un resumen de las nueve fases del plan y un capítulo por fase,
+  con el texto de su expediente reproducido entero, sin resumir ni reordenar.
+  - **Para qué sirve:** poder leer de una sentada en qué estado quedó el trabajo
+    sin abrir el repositorio ni ir archivo por archivo. Se entrega a quien tiene
+    que dar el visto bueno.
+  - **Qué se ve primero, a propósito:** lo que **no** está probado. Cada capítulo
+    abre con la lista de lo que su expediente declara sin probar, y esas secciones
+    van marcadas en rojo dentro del texto, no escondidas al final.
+  - **Las fases 3 a 8 también salen**, aunque no tengan expediente: aparecen en el
+    resumen con su estado —sin empezar, bloqueada o fuera de alcance— para que el
+    hueco se vea en vez de desaparecer.
+  - **Añade una página del editor** con las cuatro tareas que solo puede hacer una
+    persona (las «tarjetas humanas»), qué desbloquea cada una, y los **seis**
+    commits que esperan visto bueno humano. Los capítulos de las fases 1 y 2
+    cuentan ocho: se escribieron antes de que ese criterio estuviera por escrito y
+    se dejan tal cual, porque son documentos históricos; esa página explica cuál es
+    el número bueno y por qué.
+  - **No añade evidencia nueva.** No se corrió ninguna prueba ni se tocó ningún
+    servidor para hacerlo: lo que falta se declara como faltante. El PDF se puede
+    volver a generar desde los mismos archivos y sale igual.
+
 - **El botón «Crear cuenta» ya no aparece donde el registro está cerrado.** Hasta
   hoy la pantalla de acceso enseñaba ese botón siempre, sin importar la
   configuración del servidor: al pulsarlo el sistema contestaba «El registro de
