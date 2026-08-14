@@ -238,7 +238,7 @@ para el redirect URI de Google.
 | `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin él la ruta da 503 | `app/api/recordatorios/route.ts` |
-| `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública | `app/api/signup/route.ts:18` |
+| **`AUTOREGISTRO`** | **solo `'1'` enciende** el alta pública; **ausente = apagado**. Se lee en cada petición, no se hornea (F2.6, 14/08) | `lib/entorno.ts` · `app/api/signup/route.ts:19-20` |
 | `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga recuperar contraseña | `app/api/auth/forgot/route.ts:18` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas | `components/maps/SitiosMap.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts:12-16` |

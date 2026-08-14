@@ -707,8 +707,8 @@ saliente). La tabla es **fail-closed desde el 07/08**: leer va por
 ### 6.6 Autorregistro — **abierto en producción**
 
 Cualquiera con la URL puede crear una organización desde `/login` modo `signup`
-(`login/page.tsx:126`) → `POST /api/signup` (`signup/route.ts:18`). Guardas: **503**
-salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08: ausente = apagado) y rate limit **5/hora por IP** (`:26`).
+(`login/page.tsx:134`) → `POST /api/signup` (`signup/route.ts:21`). Guardas: **503**
+salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08: ausente = apagado) y rate limit **5/hora por IP** (`:28`).
 Cadena: `registrarCuentaCtrl` → `crearOrgConDueno` → `crearTenant()` + `crearUsuario()`
 (`cuentas-controller.ts:41-63`); inserta en `tenants` y `usuarios` (rol `DUENO`) y
 `config_negocio` obtiene su fila.

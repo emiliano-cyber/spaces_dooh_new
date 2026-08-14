@@ -44,10 +44,21 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 
 **Pregunta:** ¿qué cuenta posee el proyecto y quién rota el `client_secret`?
 
-### P3b · ~~¿El registro público es temporal o permanente?~~ **DECIDIDA el 10/08**
+### P3b · ~~¿El registro público es temporal o permanente?~~ **REDECIDIDA el 14/08**
 
-**El autorregistro es ABIERTO y permanente.** Decisión del usuario, confirmada el
-10/08. La bandera encendida se queda.
+> [!important] La decisión del 10/08 quedó revertida
+> **El autorregistro va CERRADO en local y en producción.** Decisión de Jochelo del
+> **2026-08-14**, que sustituye a la del 10/08 («abierto y permanente»). Se conserva
+> aquí la anterior porque explica por qué el código y varias notas hablaban de un
+> registro abierto.
+>
+> Lo que **sigue abierto**, y no lo decide esta respuesta: si la **DEMO** de la Fase 4
+> nace con el registro encendido. El modelo de instancias soberanas la describe como
+> la única con autoregistro, y **F4.4 del plan lo da por hecho**. Preguntar antes de
+> ejecutar F4.4 — ver [[07-Agentes/ejecucion-plan-v3]].
+
+*Decisión anterior, del 10/08, ya no vigente:* el autorregistro era **abierto y
+permanente**, y la bandera encendida se quedaba.
 
 > [!warning] Ojo: la bandera se RENOMBRÓ el 14/08 y ahora es fail-closed (F2.6)
 > Ya no se llama `NEXT_PUBLIC_AUTOREGISTRO` sino **`AUTOREGISTRO`**, y solo `1`

@@ -55,10 +55,11 @@ contraseña». Los dos últimos se apagan por variable:
 > botón lo decide la respuesta de `/api/auth/metodos/`.
 
 > [!danger] Ocultar el botón no es apagar la función
-> `app/api/signup/route.ts:12-16` lo dice explícitamente: el mismo despliegue
-> sirve la demo pública y producción, así que ocultar el botón dejaría el
-> endpoint abierto y cualquiera con la URL crearía organizaciones y usuarios
-> `DUENO` en la base real. **Toda bandera de UI necesita su gemela en servidor.**
+> `app/api/signup/route.ts:15-18` lo dice explícitamente: la misma imagen sirve a
+> DEMO —la única con el registro abierto— y a cada instancia de owner, así que
+> ocultar el botón dejaría el endpoint abierto y cualquiera con la URL crearía
+> organizaciones y usuarios `DUENO` en la base de esa instancia.
+> **Toda bandera de UI necesita su gemela en servidor.**
 
 ## Qué ofrece este despliegue: `GET /api/auth/metodos`
 
