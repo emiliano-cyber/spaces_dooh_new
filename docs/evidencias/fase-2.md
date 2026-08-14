@@ -1,8 +1,14 @@
 # Instancias Soberanas · Fase 2 — Expediente de cierre **PARCIAL**
 
 Rama: `feat/servidor-padre-instancias` (worktree `.claude/worktrees/servidor-padre`)
-Fecha: **2026-08-14** · HEAD al levantar el expediente: `42c0f4e`
+Fecha: **2026-08-14** · HEAD al levantar el expediente: `38ace2f`
 Plan de autoridad: `docs/Plan_Instancias_Soberanas_v3.md` §FASE 2 (`:675-915`)
+
+> [!note] Segunda emisión, mismo día
+> La primera versión se commiteó como `84fe410` con HEAD en `42c0f4e`. En las
+> horas siguientes entraron **nueve commits más** —ninguno de la Fase 2— y tres de
+> ellos movieron anclas de este documento. **Lo que cambia en esta emisión está en
+> §18**; el resto del contenido se mantiene porque los hechos no han cambiado.
 
 > [!danger] La Fase 2 **NO está completa**. Esto es un cierre parcial.
 > De sus **seis** tareas, **dos siguen BLOQUEADAS por una decisión de negocio
@@ -10,10 +16,10 @@ Plan de autoridad: `docs/Plan_Instancias_Soberanas_v3.md` §FASE 2 (`:675-915`)
 > esperan **P4 · el nombre del registry**. Sin ese valor no hay canal `beta`, no
 > hay canal `estable` y **ninguna instancia puede jalar nada**: la fase entrega
 > una imagen que hoy solo existe en la máquina donde se construyó.
-> Verificado al escribir esto: `.github/workflows/` contiene `ci.yml`,
-> `deploy.yml` y `lockfile-check.yml` — **no existen `release.yml` ni
-> `promover.yml`**; `git tag -l` no devuelve ningún `v*.*.*`; y `grep -rn REGISTRY
-> .github/` no devuelve nada.
+> Reverificado al reemitir: `.github/workflows/` contiene `ci.yml`, `deploy.yml` y
+> `lockfile-check.yml` — **no existen `release.yml` ni `promover.yml`**; `git tag
+> -l` devuelve solo `pre-hardening-1-archive`, **ningún `v*.*.*`**; y `grep -rn
+> REGISTRY .github/` no devuelve nada.
 
 > [!important] Alcance: **ejecución LOCAL**. No incluye servidor.
 > Todo lo que este expediente da por probado se probó en esta máquina: `docker
@@ -47,12 +53,17 @@ El hilo narrativo de la fase es la secuencia **F2.5 → F2.6 → F2.5**: el prim
 ensayo de F2.5 destapó un defecto que ninguna tarea había previsto, F2.6 lo arregló,
 y el segundo ensayo lo confirmó con la misma imagen. Está contado en §5, §6 y §7.
 
-Rango de commits, verificado hoy con `git log --format='%h %ad %s' --date=short` y
-`git rev-list --count fef7499..42c0f4e` (= 15, más el propio `fef7499` = **16**): de
-`fef7499` (13/08, P4-bis resuelta) a `42c0f4e` (14/08). De esos 16, **12 son de la
-Fase 2** —tres de código (los de la tabla) y nueve de orquestación, bóveda o
-entorno— y **4 son de otra cosa**: el cierre de la Fase 1 (`fb09b91`, `13e0a53`) y
-la infraestructura del agente documentalista (`2091646`, `3634a75`).
+**Rango de commits.** La Fase 2 va de `fef7499` (13/08, P4-bis resuelta) a `42c0f4e`
+(14/08 13:37). Medido hoy: `git rev-list --count fef7499..42c0f4e` = **15**, más el
+propio `fef7499` = **16**. De esos 16, **12 son de la Fase 2** —tres de código (los
+de la tabla) y nueve de orquestación, bóveda o entorno— y **4 son de otra cosa**: el
+cierre de la Fase 1 (`fb09b91`, `13e0a53`) y la infraestructura del agente
+documentalista (`2091646`, `3634a75`).
+
+Desde `42c0f4e` han entrado **9 commits más** hasta `38ace2f`
+(`git rev-list --count fef7499..38ace2f` = 24). **Ninguno es de la Fase 2**: son los
+expedientes de las Fases 0 y 2, la Fase 0 (`6044732`), la tarea fuera de plan T-03
+(`ef70aa9`) y sus actas. Tres de ellos rozan a esta fase y están tratados en §18.
 
 ---
 
@@ -76,23 +87,25 @@ Commits de acompañamiento, todos de documentación salvo donde se dice:
 | `42c0f4e` | Mueve los expedientes a `docs/evidencias/` (renombra `fase-1.md`, 0 cambios de contenido) |
 
 Los archivos citados existen hoy en el árbol y su contenido corresponde al que
-describen los commits. Comprobado archivo por archivo, no por el reporte.
+describen los commits. Comprobado archivo por archivo, no por el reporte, y
+**vuelto a comprobar al reemitir**: los tres `git show --stat` devuelven 7, 4 y 18
+archivos.
 
 ---
 
 ## 3. Evidencia — F2.1, el artefacto autocontenido
 
-**Qué cambió** (`apps/web/next.config.mjs`, leído hoy):
+**Qué cambió** (`apps/web/next.config.mjs`, releído hoy):
 
-- `:13` `output: 'standalone'`
+- `:12` `output: 'standalone'`
 - `:17` `outputFileTracingRoot: path.join(__dirname, '../../')` — la raíz del
   monorepo, porque con npm workspaces las dependencias quedan *hoisted* y desde
   `apps/web` el trazado saldría corto.
 - `:19-20` `basePath: '/spaces-dooh'` y `trailingSlash: true` — **se desplazaron**
   desde `:8-9`, y eso rompió citas ajenas (§11).
 
-**Lo que produce**, medido hoy sobre el build local (`apps/web/.next/`, marca de
-tiempo 13:21 del 14/08):
+**Lo que produce**, medido sobre el build local (`apps/web/.next/`, marca de tiempo
+13:21 del 14/08):
 
 ```
 apps/web/.next/standalone/apps/web/server.js        5 836 bytes
@@ -103,13 +116,14 @@ apps/web/.next/standalone/apps/web/public           No such file or directory
 
 **El standalone NO trae los estáticos, y eso es correcto.** No hay `public/` ni
 `.next/static/` dentro: `copyTracedFiles` de Next no los copia por diseño.
-Copiarlos es paso del `Dockerfile` (`Dockerfile:88-89`), no un defecto de F2.1. La
-auditoría lo confirmó por tres vías independientes (`ejecucion-plan-v3.md:231`).
+Copiarlos es paso del `Dockerfile` (`Dockerfile:88-89`, releído hoy), no un defecto
+de F2.1. La auditoría lo confirmó por tres vías independientes
+(`ejecucion-plan-v3.md:307`).
 
 ### El hallazgo de F2.1 que sostiene toda la seguridad de F2.2
 
 > [!danger] El artefacto standalone **se lleva el `.env` dentro**, y no avisa
-> Reverificado por mí hoy:
+> Reverificado por mí, dos veces el mismo día:
 >
 > ```
 > $ md5sum apps/web/.next/standalone/apps/web/.env apps/web/.env
@@ -138,20 +152,20 @@ la propia línea `**/.env*` (`:13`).
 formas de arrancar** — `npm start` (la que usa `ecosystem.config.js` en el droplet)
 y `node .next/standalone/apps/web/server.js` —, con **200** en `/spaces-dooh/login/`
 y **307** en la raíz del `basePath` en ambas: producción no se queda sin arrancar
-(`ejecucion-plan-v3.md:230`). Yo hoy reverifiqué la existencia del `server.js` y
-volví a correr las unitarias (§14); **no re-corrí las e2e** (§15).
+(`ejecucion-plan-v3.md:306`). Yo reverifiqué la existencia del `server.js` y volví a
+correr las unitarias (§14); **no re-corrí las e2e** (§15).
 
 ---
 
 ## 4. Evidencia — F2.2, la imagen, y cómo se probó que no lleva credenciales
 
-**Qué es** (`Dockerfile`, leído hoy, 107 líneas): tres etapas sobre `node:20-alpine`.
+**Qué es** (`Dockerfile`, 107 líneas): tres etapas sobre `node:20-alpine`.
 
 | Etapa | Qué hace | Líneas |
 |---|---|---|
 | `deps` | `libc6-compat` (los binarios de SWC y turbo son glibc), solo los manifiestos, `npm ci` **y nunca `npm install`** | `:15-38` |
 | `build` | Copia el árbol entero de `deps` —no solo `node_modules`, porque npm anida dentro de algunos workspaces— y `npx turbo run build --filter=web` | `:43-59` |
-| `runtime` | `NODE_ENV=production`, `PORT`/`HOSTNAME=0.0.0.0`, `ARG VERSION` → `ENV SPACE_OS_VERSION`, el standalone, los estáticos, `public/`, **`db/`**, `USER node`, `EXPOSE 3000` | `:64-107` |
+| `runtime` | `NODE_ENV=production`, `PORT`/`HOSTNAME=0.0.0.0`, `ARG VERSION` (`:78`) → `ENV SPACE_OS_VERSION` (`:79`), el standalone, los estáticos, `public/`, **`db/`**, `USER node` (`:103`), `EXPOSE 3000` (`:105`) | `:64-107` |
 
 Las dos decisiones que importan al modelo de instancias:
 
@@ -162,8 +176,9 @@ Las dos decisiones que importan al modelo de instancias:
 
 ### Lo que verifiqué yo, dentro de la imagen
 
-La imagen `space-os:dev` (`sha256:ce261aed…`, construida el 14/08 a las 12:13, **es
-la de F2.2, anterior a F2.6**) sigue viva en esta máquina. Corrí sobre ella:
+La imagen `space-os:dev` (`ce261aed83e7`, construida el 14/08 a las 12:13, **es la
+de F2.2, anterior a F2.6**) sigue viva en esta máquina — `docker images` la da de
+**240 MB**. Corrí sobre ella, y volví a correrlo al reemitir:
 
 ```
 $ docker run --rm space-os:dev sh -c 'ls /app/db; ls /app/db/migrations | wc -l; whoami; echo $SPACE_OS_VERSION'
@@ -194,15 +209,15 @@ Sin corrupción de finales de línea pese a construirse desde un host Windows.
 
 Esto es lo mejor que hizo la fase, y por eso F2.2 es el único **VERDE**. La
 auditoría no se limitó a buscar secretos en la imagen: **montó un control positivo**
-(`ejecucion-plan-v3.md:217`). Extrajo los valores literales de `apps/web/.env` y
+(`ejecucion-plan-v3.md:293`). Extrajo los valores literales de `apps/web/.env` y
 `.env.local`, comprobó que ese juego de patrones **sí acierta** sobre un artefacto
 donde el `.env` sí está —el `standalone` local— y **solo entonces** afirmó que en la
 imagen no aparece ninguno. También materializó el stage `build` para ver que el
 `.env` **nunca entra al contexto**, en vez de conformarse con que no esté al final.
 
-**Lo reproduje hoy, de forma independiente**, con este método (el archivo de
-patrones se creó fuera del repositorio y se borró al terminar; ningún valor se
-transcribe aquí):
+**Lo reproduje de forma independiente al levantar la primera emisión de este
+expediente**, con este método (el archivo de patrones se creó fuera del repositorio
+y se borró al terminar; ningún valor se transcribe aquí):
 
 | Paso | Resultado |
 |---|---|
@@ -214,12 +229,18 @@ transcribe aquí):
 Un cero **con** control positivo detrás es una afirmación; un cero sin él es un
 cero vacuo. Este tiene el control positivo.
 
+> Esa tabla es del barrido del 14/08 a las ~14:00, no de la reemisión: en la
+> segunda pasada **no** se volvió a extraer el juego de patrones. Lo que sí se
+> repitió es el comando de aceptación del plan (`ok: sin .env`) y el md5 de los 68
+> archivos, los dos con resultado idéntico.
+
 ### Lo que la imagen NO se lleva, y sí hace falta
 
 `db/dev-rol-app.sql` **no viaja** (el `COPY` es de `schema.sql` y `migrations/`, y
 el `ls /app/db` de arriba lo confirma). Aunque viajara, no serviría: se declara
-«SOLO DESARROLLO» en `:2`, crea el rol `spaces_app` con contraseña en claro, y en
-producción el rol es `spaces_user` (`:4`). Esto es la raíz del hallazgo de §8.1.
+«SOLO DESARROLLO — NO APLICAR EN PRODUCCIÓN» en `:2-3`, crea el rol `spaces_app` con
+contraseña en claro, y en producción el rol es `spaces_user` (`:4`). Esto es la raíz
+del hallazgo de §8.1.
 
 ---
 
@@ -237,7 +258,7 @@ estado  401
 Y lo que más importaba de F2.1: **el login carga con estilos**. Los activos que la
 página pide responden 200 y el CSS grande trae **707 reglas** con las utilidades del
 login dentro — no es un 200 vacío. El `COPY` de `.next/static` y `public` está bien
-hecho: **no hay que volver a F2.1** (`ejecucion-plan-v3.md:221`). La app además
+hecho: **no hay que volver a F2.1** (`ejecucion-plan-v3.md:297`). La app además
 habló de verdad con la base como `spaces_app`, un rol **sin `bypassrls`**: un login
 con credenciales falsas devolvió 401 desde una consulta real.
 
@@ -252,17 +273,17 @@ con credenciales falsas devolvió 401 desde una consulta real.
 > durante el build y Next no sustituyó ningún literal. Medido en el compilado,
 > `signup/route.js` y el chunk de `google-oauth` **leen el entorno en tiempo de
 > ejecución** — comprobado con la **misma imagen sin recompilar**: `=0` → 503,
-> `=1` → 400 (`ejecucion-plan-v3.md:223`).
+> `=1` → 400 (`ejecucion-plan-v3.md:299`).
 >
 > **Lo horneado era la otra mitad, y estaba horneado ENCENDIDO.**
 > `.next/server/app/login.html` es un prerender de build que **ya traía dentro el
 > botón «Crear cuenta»**, y ningún valor de entorno lo cambiaba. Consecuencia
 > operativa para toda la flota: **cada instancia de owner habría enseñado un botón
 > que al pulsarse devuelve `503 «El registro de cuentas nuevas está
-> deshabilitado»`** (`:224`). Una puerta pintada en la pared.
+> deshabilitado»`** (`:300`). Una puerta pintada en la pared.
 
 **Verifiqué esa medición yo mismo**, sobre la imagen pre-F2.6 que sigue en esta
-máquina:
+máquina, y la repetí al reemitir:
 
 ```
 $ docker run --rm space-os:dev sh -c 'ls -l apps/web/.next/server/app/login.html; grep -o "Crear cuenta" apps/web/.next/server/app/login.html | wc -l'
@@ -275,7 +296,7 @@ $ docker run --rm space-os:dev sh -c 'ls -l apps/web/.next/server/app/login.html
 El ensayo resolvió de paso el `[SIN VERIFICAR]` del paso 3 de F2.6: la vía de props
 desde el layout **queda descartada por evidencia** —la página se prerrenderiza, así
 que sería el mismo render de build y el mismo defecto por otra puerta—, y el valor
-tiene que llegar por `GET /api/auth/metodos/` (`:225`).
+tiene que llegar por `GET /api/auth/metodos/` (`:301`).
 
 ---
 
@@ -283,29 +304,38 @@ tiene que llegar por `GET /api/auth/metodos/` (`:225`).
 
 **La decisión que la habilita.** F2.6 estaba *condicionada* a P4-bis. Se resolvió el
 **13/08** hacia la salida **(b)**: la bandera sale del build, un solo artefacto por
-versión (`ejecucion-plan-v3.md:31` y `:195`). El precedente resultó más fuerte de lo
+versión (`ejecucion-plan-v3.md:31` y `:251`). El precedente resultó más fuerte de lo
 que decía el plan: el propio código ya lo dejaba escrito en
 `apps/web/lib/server/google-oauth.ts` — «apaga la función EN EL SERVIDOR, no solo
 escondiendo el botón — **misma lección que AUTOREGISTRO**. Y NO lleva prefijo
-NEXT_PUBLIC_» (leído hoy en `:35-39`). Alguien ya había aprendido esto y dejó
-apuntado que esta bandera era el siguiente caso.
+NEXT_PUBLIC_». Alguien ya había aprendido esto y dejó apuntado que esta bandera era
+el siguiente caso.
 
-**Qué se hizo** (leído hoy, no del reporte):
+**Qué se hizo** (leído en el árbol de hoy, no del reporte):
 
 - **`apps/web/lib/entorno.ts:26-27`** — `autoregistroActivo()` devuelve
   `process.env.AUTOREGISTRO === '1'`. Sin prefijo `NEXT_PUBLIC_`, a propósito.
-- **`apps/web/lib/entorno.test.ts`** — dos casos, `:22-30` (cambia de valor entre
-  llamadas, sin recompilar) y `:32-38` (sin la variable → `false`). Su cabecera
-  `:7-11` explica por qué el archivo no podía existir antes: con el prefijo, Next
+- **`apps/web/lib/entorno.test.ts`** — dos casos, `:24-32` (cambia de valor entre
+  llamadas, sin recompilar) y `:34-40` (sin la variable → `false`). Su cabecera
+  `:9-13` explica por qué el archivo no podía existir antes: con el prefijo, Next
   inlinea el valor y cambiar `process.env` entre dos llamadas no cambiaba nada.
 - **`apps/web/app/api/signup/route.ts:21-26`** — el guard, con 503.
 - **`apps/web/app/api/auth/metodos/route.ts:41-48`** — la ruta pública devuelve
   ahora `{ google, autoregistro }`, `force-dynamic` (`:7`) y `cache-control:
   no-store` (`:47`).
-- **`apps/web/lib/server/google-oauth.ts:95-97`** — `autoregistroHabilitado()`
+- **`apps/web/lib/server/google-oauth.ts:93-94`** — `autoregistroHabilitado()`
   delega en `lib/entorno.ts` «para que las dos puertas no puedan divergir».
 - **`apps/web/app/(app)/login/page.tsx:78-83`** — el cliente pregunta y solo
   enciende el botón si la respuesta trae `autoregistro === true`.
+
+> [!warning] Ese archivo de prueba ya no es el que dejó F2.6
+> `entorno.test.ts` nació con **39 líneas y 2 casos** en `70ca3f0`. Hoy tiene **122
+> líneas y 6 casos**: **F0.3** (`6044732`) le añadió dos que leen `.env.example`, y
+> **T-03** (`ef70aa9`) otros dos que leen `.env.production.example`. Los cuatro son
+> de la **Fase 0**, no de esta. Las citas de arriba están recalculadas contra el
+> archivo de hoy; las de la primera emisión de este expediente (`:22-30`, `:32-38`,
+> `:7-11`) ya apuntaban al sitio equivocado — el modo de fallo que `CLAUDE.md §5`
+> describe, ocurrido en cuatro horas.
 
 ### La polaridad se invirtió, y es deliberado
 
@@ -322,9 +352,9 @@ público, no con la puerta abierta».
 ### El invariante 7 se respetó
 
 `apps/web/lib/test/aislamiento.e2e.test.ts` **no aparece en el `git show --stat` de
-`70ca3f0`**: pasó sin tocarse. Su bloque `:200-213` —leído hoy— sigue diciendo que
-`NEXT_PUBLIC_AUTOREGISTRO` «la INLINEA Next en tiempo de BUILD», lo cual **ya es
-falso**; el propio plan (`:898-901`) manda retirarlo en un release posterior
+`70ca3f0`**: pasó sin tocarse. Su bloque `:200-213` —releído hoy— sigue diciendo en
+`:203` que `NEXT_PUBLIC_AUTOREGISTRO` «la INLINEA Next en tiempo de BUILD», lo cual
+**ya es falso**; el propio plan (`:898-901`) manda retirarlo en un release posterior
 (expand → contract), no aquí. Queda como deuda declarada.
 
 Lo que sí cambió del arnés es `lib/test/servidor-e2e.ts`, que fijaba
@@ -337,7 +367,7 @@ razona bien: sin ese cambio «las e2e habrían seguido en verde **por casualidad
 El segundo rojo de F2.6 —poner la polaridad vieja a propósito para verlo fallar—
 **no es verificable desde el repositorio**: no hay commit intermedio ni reflog que
 lo conserve. El auditor lo dijo él mismo y lo dio «por creíble, no por probado»
-(`ejecucion-plan-v3.md:211`). Lo dejo aquí con la misma etiqueta.
+(`ejecucion-plan-v3.md:287`). Lo dejo aquí con la misma etiqueta.
 
 ---
 
@@ -352,19 +382,19 @@ Tras `70ca3f0` se reensayó con **una sola construcción y tres arranques**:
 | `AUTOREGISTRO=1` | **400** (cuerpo vacío) | `autoregistro: true` |
 
 Misma imagen (`sha256:12de895f…`), **sin recompilar**. Y el smoke literal siguió en
-verde: `200 · 200 · 503 · 401` (`ejecucion-plan-v3.md:70`, `:198`, `:201`).
+verde: `200 · 200 · 503 · 401` (`ejecucion-plan-v3.md:254`, `:257`, `:286`).
 
-**El botón, medido dentro de las dos imágenes** (`:210`):
+**El botón, medido dentro de las dos imágenes** (`:286`):
 
 | Imagen | `login.html` | Apariciones de «Crear cuenta» |
 |---|---|---|
 | `space-os:dev` (pre-F2.6) | **15 234 bytes** | **1** |
 | la de `70ca3f0` | **15 104 bytes** | **0** |
 
-> **La primera fila la reverifiqué yo hoy** (§5): 15 234 y 1, exactas.
+> **La primera fila la reverifiqué yo, dos veces** (§5): 15 234 y 1, exactas.
 > **La segunda no puedo reverificarla**: la imagen post-F2.6 **ya no existe en esta
-> máquina** (`docker images -a` solo devuelve `space-os:dev sha256:ce261aed…`, de
-> las 12:13). Lo que sí medí es el **build local** posterior a F2.6 (13:21):
+> máquina** (`docker images` solo devuelve `space-os:dev ce261aed83e7`, de las
+> 12:13). Lo que sí medí es el **build local** posterior a F2.6 (13:21):
 > `apps/web/.next/server/app/login.html` = **14 594 bytes** y **0 apariciones**. La
 > conclusión coincide —el botón no se hornea—; el número de bytes no, y no tiene por
 > qué: es otro artefacto (el build local sí lleva `.env`, el de la imagen no). Los
@@ -374,9 +404,9 @@ verde: `200 · 200 · 503 · 401` (`ejecucion-plan-v3.md:70`, `:198`, `:201`).
 
 «0 apariciones en el HTML» prueba que **no se hornea**, no que **se pinte cuando
 toca**. El ensayista cerró el eslabón que faltaba yendo al bundle de cliente
-servido por la imagen (`ejecucion-plan-v3.md:202`). **Lo reproduje sobre el bundle
-local de hoy**, `apps/web/.next/static/chunks/app/(app)/login/page-7d0b869b1d67121c.js`
-(17 330 bytes):
+servido por la imagen (`ejecucion-plan-v3.md:258`). **Lo reproduje sobre el bundle
+local**, `apps/web/.next/static/chunks/app/(app)/login/page-7d0b869b1d67121c.js`
+(17 330 bytes), y lo repetí al reemitir con el mismo resultado:
 
 ```
 Crear cuenta   : 3 apariciones   → el JSX del botón SÍ viaja al cliente
@@ -390,7 +420,7 @@ Es decir: el botón viaja, y su **única** puerta es un setter que solo dispara 
 `autoregistro === true` venido de esa ruta. El estado arranca en `false`
 (`login/page.tsx:65-66`), y ese detalle de diseño no lo pidió nadie: si la consulta
 a `/api/auth/metodos/` falla, **no se pinta nada**. Ofrecer una entrada que contesta
-503 es peor que no ofrecerla (`ejecucion-plan-v3.md:199`).
+503 es peor que no ofrecerla (`ejecucion-plan-v3.md:255`).
 
 **Dónde se corta la cadena:** en la hidratación. Ver §8.2.
 
@@ -402,9 +432,9 @@ Esta sección pesa lo mismo que las anteriores.
 
 ### 8.1 La imagen **no puede levantar una base virgen ella sola**
 
-Es el hallazgo gordo de F2.5 (`ejecucion-plan-v3.md:222`), y sigue vigente.
+Es el hallazgo gordo de F2.5 (`ejecucion-plan-v3.md:298`), y sigue vigente.
 
-`db/migrations/20260729_licencias_permisos.sql:96-97`, leído hoy:
+`db/migrations/20260729_licencias_permisos.sql:96-97`, releído hoy:
 
 ```sql
   if n = 0 then
@@ -413,8 +443,8 @@ Es el hallazgo gordo de F2.5 (`ejecucion-plan-v3.md:222`), y sigue vigente.
 
 En una base recién creada **no hay rol de aplicación**, así que la cadena se corta
 en la migración `20260729`. **13 de las 67 migraciones** referencian ese rol
-(`grep -l` sobre `db/migrations/*.sql`, contado hoy). Y la imagen **no trae nada que
-lo cree**: `Dockerfile:94-95` copia solo `schema.sql` y `migrations/`, y
+(`grep -l` sobre `db/migrations/*.sql`, recontado hoy). Y la imagen **no trae nada
+que lo cree**: `Dockerfile:94-95` copia solo `schema.sql` y `migrations/`, y
 `db/dev-rol-app.sql` no viaja —ni serviría, es de desarrollo (§4).
 
 **El orden obligatorio es: crear el rol de aplicación → `schema.sql` → las 67
@@ -436,21 +466,30 @@ no aparece), pero es **cobertura perdida, no cobertura equivalente**. La alterna
 cara —prueba de regresión permanente— se descartó con motivo: `apps/web` no trae
 `jsdom`, ni `@testing-library/react`, ni Playwright, y `vitest.config.ts:19` fija
 `environment: 'node'`; exigiría devDeps nuevas, y **eso no es decisión de un ensayo**
-(`ejecucion-plan-v3.md:203`).
+(`ejecucion-plan-v3.md:259`).
 
 **La salida acordada:** añadir «se ve el botón *Crear cuenta*» a la tarjeta de
 **F4.5**, que ya está prevista. Queda escrito aquí para que no se pierda.
 
-### 8.3 **Ningún test ejerce `GET /api/auth/metodos/`**
+### 8.3 **Ningún test ejerce `GET /api/auth/metodos/`** — y sigue sin ejercerlo
 
-Comprobado hoy: `grep -rn "auth/metodos" --include=*.test.ts apps/web` **no devuelve
-nada**. La ruta la consumen tres piezas de producto —`login/page.tsx:78`,
-`administracion/page.tsx:387` y `components/demo/admin/OrganizacionesPanel.tsx:168`—
-y ninguna prueba.
+Recomprobado al reemitir, después de F0.3 y T-03:
+`grep -rn "auth/metodos" --include=*.test.ts apps/web` **no devuelve nada**. La ruta
+la consumen tres piezas de producto —`login/page.tsx:78`,
+`administracion/page.tsx:387` y `components/demo/admin/OrganizacionesPanel.tsx:168`,
+las tres líneas verificadas hoy— y ninguna prueba.
 
-El nombre del campo `autoregistro` en ese JSON es hoy **la única atadura** entre el
-servidor y el botón. Si alguien lo renombra, **el botón desaparece en silencio**:
-fail-closed, no rompe nada y no avisa nadie (`ejecucion-plan-v3.md:215`).
+El nombre del campo `autoregistro` en ese JSON **sigue siendo la única atadura**
+entre el servidor y el botón. Si alguien lo renombra, **el botón desaparece en
+silencio**: fail-closed, no rompe nada y no avisa nadie
+(`ejecucion-plan-v3.md:291`).
+
+> [!note] Lo que F0.3 y T-03 sí taparon, y no es esto
+> Los cuatro casos que esas dos tareas añadieron a `entorno.test.ts` vigilan el
+> **valor de las dos plantillas** (`AUTOREGISTRO=0` y ausencia de `COOKIE_DOMAIN`).
+> Eso cierra un agujero vecino —que alguien devolviera la plantilla a `=1` con la
+> suite en verde— pero **no toca la ruta ni el nombre del campo**. La brecha de
+> §8.3 está entera.
 
 ### 8.4 Lo que el entorno del ensayo no reproduce
 
@@ -483,14 +522,14 @@ de P4.
 ## 9. F2.3 y F2.4 — lo que no se hizo, y por qué
 
 **Ninguna de las dos se escribió.** No hay `release.yml` ni `promover.yml`, no hay
-ningún tag `v*.*.*`, y `REGISTRY` no aparece en ningún workflow (verificado hoy,
-§cabecera).
+ningún tag `v*.*.*` —el único tag de la rama es `pre-hardening-1-archive`, de otra
+época— y `REGISTRY` no aparece en ningún workflow (recomprobado al reemitir).
 
 El plan dice que la Fase 2 está «parcialmente bloqueada» y que todo se escribe con
 el registry **como parámetro** (`vars.REGISTRY`), «así que las tareas se hacen hoy;
 lo único que espera es el valor» (`Plan…v3.md:678-680`). **Eso no se siguió**: se
 optó por no escribir los workflows hasta tener P4. El orquestador lo registró así
-(`ejecucion-plan-v3.md:68-69`, `:197`), y es una decisión defendible —un workflow de
+(`ejecucion-plan-v3.md:253`, `:276`), y es una decisión defendible —un workflow de
 release sin destino no se puede correr ni una vez, y F2.3 se acepta justamente
 comprobando que **una suite en rojo impide publicar**, que solo se ve corriéndolo—
 pero conviene que quede dicho: **el plan permitía escribirlas y no se escribieron**.
@@ -511,16 +550,20 @@ del propio workflow más un token de solo lectura para que cada instancia jale.
 | Decisión | Fecha | Resolución | Ancla |
 |---|---|---|---|
 | **P4-bis · ¿dos imágenes por versión, o la bandera fuera del build?** | **2026-08-13** | **Salida (b): la bandera sale del build.** Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar, como ya se hizo con `GOOGLE_OAUTH` | `ejecucion-plan-v3.md:31` · commit `fef7499` · ejecutada en `70ca3f0` |
-| **P3b-bis · ¿el registro va abierto o cerrado?** | **2026-08-14** | **CERRADO en todas partes: local, producción y DEMO.** Ninguna instancia lo abre. Revierte P3b del 10/08 («abierto y permanente») | `ejecucion-plan-v3.md:32`, `:206`, `:207` · commits `0dbccb8` y `39379bf` |
+| **P3b-bis · ¿el registro va abierto o cerrado?** | **2026-08-14** | **CERRADO en todas partes: local, producción y DEMO.** Ninguna instancia lo abre. Revierte P3b del 10/08 («abierto y permanente») | `ejecucion-plan-v3.md:32`, `:262`, `:283` · commits `0dbccb8` y `39379bf` |
 
 La segunda se tomó **en dos tiempos**, y el matiz importa: `0dbccb8` (13:31) cerró
 local y producción y dejó **expresamente sin decidir** la DEMO —«toda la
 contradicción P4-bis se resolvió para que pudiera tenerlo abierto», dice su cuerpo—;
 `39379bf` (13:34) la cerró también, al preguntárselo a Jochelo. Efecto medible en el
-repositorio: `.env.example:33` → `AUTOREGISTRO=0` y `.env.production.example:39` →
-`AUTOREGISTRO=0` (leídos hoy).
+repositorio, **releído hoy**: `.env.example:35` → `AUTOREGISTRO=0` y
+`.env.production.example:49` → `AUTOREGISTRO=0`.
 
-**Que nadie encienda la bandera no invalida F2.6** (`ejecucion-plan-v3.md:209`):
+> Esas dos líneas estaban en la `:33` y la `:39` cuando se emitió este expediente
+> por primera vez. Las movieron `6044732` (F0.3) y `ef70aa9` (T-03) horas después,
+> que reescribieron cabeceras de las mismas plantillas. Los valores no cambiaron.
+
+**Que nadie encienda la bandera no invalida F2.6** (`ejecucion-plan-v3.md:285`):
 sacarla del build sigue siendo lo correcto —un solo artefacto para toda la flota— y
 de paso arregló el botón horneado, que era un defecto real con el registro abierto
 **o** cerrado.
@@ -539,46 +582,51 @@ de paso arregló el botón horneado, que era un defecto real con el registro abi
 
 ### Decisiones abiertas que bloquean lo siguiente
 
+Reverificadas contra la tabla «Decisiones registradas» de `ejecucion-plan-v3.md:25-36`
+al reemitir: **ninguna se ha cerrado desde la primera versión de este expediente**.
+
 | Decisión | Estado | Qué bloquea |
 |---|---|---|
-| **P4 · nombre del registry** | **ABIERTA** | **F2.3 y F2.4 de esta fase**, y el `REGISTRY` del `.env` de cada instancia (F5.3). Sin esto la Fase 2 no cierra |
-| **P1 · destino del tenant `rgb` y del droplet actual** | ABIERTA | F7.2, F7.3, el cierre de la Fase 4 — y ahora también **cómo nace la organización de cada instancia** (consecuencia 3 de arriba) |
-| **P2 · fecha de migración de PIXELED** | ABIERTA | F5.7 y F7.2 |
-| **P3 · cuenta DO de las instancias** | ABIERTA | El modo por defecto de `provision-instancia.sh` (F5.4) y el runbook |
-| **P6 · `/api/version` con token de flota o pública** | ABIERTA | Fase 6, fuera del alcance actual |
+| **P4 · nombre del registry** | **ABIERTA** (`:30`) | **F2.3 y F2.4 de esta fase**, y el `REGISTRY` del `.env` de cada instancia (F5.3). Sin esto la Fase 2 no cierra |
+| **P1 · destino del tenant `rgb` y del droplet actual** | ABIERTA (`:27`) | F7.2, F7.3, el cierre de la Fase 4 — y ahora también **cómo nace la organización de cada instancia** (consecuencia 3 de arriba) |
+| **P2 · fecha de migración de PIXELED** | ABIERTA (`:28`) | F5.7 y F7.2 |
+| **P3 · cuenta DO de las instancias** | ABIERTA (`:29`) | El modo por defecto de `provision-instancia.sh` (F5.4) y el runbook |
+| **P6 · `/api/version` con token de flota o pública** | ABIERTA (`:34`) | Fase 6, fuera del alcance actual |
 
 ---
 
 ## 11. Lo que el plan afirmaba y el repositorio desmintió
 
-**El plan no se tocó en ningún caso.** La evidencia vive aquí y en la bitácora.
+**El plan no se tocó en ningún caso.** Comprobado: `git log main..HEAD --
+docs/Plan_Instancias_Soberanas_v3.md` devuelve un solo commit, `1ad1045`, el que lo
+metió al repo. La evidencia vive aquí y en la bitácora.
 
 | Dónde | Lo que dice el plan | Lo que es cierto hoy |
 |---|---|---|
 | **F2.5 `:849`** | El 503 sale porque «el autoregistro viene apagado **horneado**, invariante 9» | **Falso.** El servidor ya leía la variable en runtime; lo horneado era el botón. Tras `70ca3f0` no se hornea nada |
 | **F2.5 `:846`** | Arrancar el contenedor con `NEXT_PUBLIC_AUTOREGISTRO=0` | **Variable que ya no lee nadie.** Quien lo copie literal obtendrá 503 igual, pero por la **ausencia** de `AUTOREGISTRO`, no por lo que cree |
 | **F2.2 `:726`** | `basePath` y `trailingSlash` en `next.config.mjs:8-9`, dentro de «Hechos del repo **verificados**» | Tras F2.1 viven en **`:19-20`**; la `:8-9` es hoy un comentario. Lo desfasó el commit anterior de la propia fase |
-| **F0.3 `:341-352`** | Prueba que busca `/^NEXT_PUBLIC_AUTOREGISTRO=0$/m` en `.env.example`, y que «falla hoy porque `.env.example:23` dice `=1`» | **Doblemente rota.** La regex no puede casar nunca tras el renombrado; y el valor ya está en `0` (`.env.example:33`, por `0dbccb8`), así que **su rojo de TDD tampoco es posible** |
+| **F0.3 `:341,:352`** | Prueba que busca `/^NEXT_PUBLIC_AUTOREGISTRO=0$/m` en `.env.example`, y paso 3 que manda bajar el valor de `=1` a `=0` | **Su texto literal es inejecutable.** La regex no puede casar tras el renombrado, y el valor ya estaba en `0` por `0dbccb8`. Se ejecutó igual el 14/08 (`6044732`), leyéndola traducida a `/^AUTOREGISTRO=0$/m` — ver §18 |
 | **F4.4 `:1345`** | `.env` de DEMO con `NEXT_PUBLIC_AUTOREGISTRO=1` | **La peor de las cuatro.** Copiado literal, **DEMO nacería con el registro CERRADO** — justo lo contrario de lo que P4-bis compró. Con la decisión del 14/08 eso ya es lo querido, pero **por accidente, no por la instrucción** |
 | **F5.3 `:1497,:1504`** | La plantilla de instancia lleva `NEXT_PUBLIC_AUTOREGISTRO=0` | Grabaría **una variable muerta** en el `.env` de todas las instancias |
 | **F0.2 `:302-307`** | `sed` sobre `NEXT_PUBLIC_AUTOREGISTRO` en el `.env` del droplet | Vale **solo mientras el droplet corra el build viejo**. En cuanto se despliegue el nuevo, esa línea no la lee nadie |
 
 Las cuatro últimas son el mismo hecho: **el renombrado de F2.6 rompe cuatro tareas
-del plan** (`ejecucion-plan-v3.md:200`, `:214`), y ninguna se ha tocado.
+del plan** (`ejecucion-plan-v3.md:256`, `:290`), y ninguna se ha tocado.
 
-Fuera del plan, dos afirmaciones más que hoy no se sostienen y que verifiqué:
+Fuera del plan, dos afirmaciones más que no se sostenían y que verifiqué:
 
-- **`CLAUDE.md` §4** (raíz y worktree) dice «789 unitarias en 71 archivos … medidas
-  el 2026-08-14». **Corrí la suite hoy: 801 en 73 archivos** (§14). El desfase venía
-  de antes (`:240` lo anotó como 799/72) y F2.6 sumó `+2` pruebas y `+1` archivo.
-- **`next.config.mjs:58-66`** conserva un alias de webpack a
+- **`CLAUDE.md` §4** decía «789 unitarias en 71 archivos … medidas el 2026-08-14»
+  cuando eran 801 en 73. **Ya está corregido**, y de la forma más interesante
+  posible: `703649e` **retiró el número en vez de actualizarlo**. Ver §18.
+- **`next.config.mjs:62-65`** conserva un alias de webpack a
   `apps/web/node_modules/styled-jsx` que **no existe** (`ls` → *No such file or
-  directory*), justificado por un comentario que habla de «styled-jsx (React 19) …
-  while react-dom is still v18» cuando el árbol tiene styled-jsx **5.1.1** y
-  react/react-dom **18.3.1**. Es **preexistente**, inocuo hoy, y dentro del stage
-  `build` de la imagen ese directorio ni siquiera existe. Código muerto con una
-  justificación falsa que alguien creerá: **merece tarea propia**
-  (`ejecucion-plan-v3.md:219`, `:239`).
+  directory*, recomprobado hoy), justificado por un comentario (`:59-61`) que habla
+  de «styled-jsx (React 19) … while react-dom is still v18» cuando el árbol tiene
+  styled-jsx **5.1.1** y react-dom **18.3.1** (medido con `require('…/package.json')`).
+  Es **preexistente**, inocuo hoy, y dentro del stage `build` de la imagen ese
+  directorio ni siquiera existe. Código muerto con una justificación falsa que
+  alguien creerá: **merece tarea propia** (`ejecucion-plan-v3.md:295`, `:315`).
 
 ---
 
@@ -586,11 +634,11 @@ Fuera del plan, dos afirmaciones más que hoy no se sostienen y que verifiqué:
 
 | Commit | Tarea | Por qué es ROJO |
 |---|---|---|
-| **`70ca3f0`** | F2.6 | **Z1 · Auth 🔴.** Cambia una bandera de seguridad **y le invierte la polaridad**. Marcado explícitamente en `ejecucion-plan-v3.md:71` y en la fila de Z1 del tablero |
+| **`70ca3f0`** | F2.6 | **Z1 · Auth 🔴.** Cambia una bandera de seguridad **y le invierte la polaridad**. Declarado en `ejecucion-plan-v3.md:106` y en la fila de Z1 del tablero |
 
-`8ae8f77` (F2.1) y `3f16386` (F2.2) **no se declararon ROJO**, y es defendible:
-ninguno toca sesión, tenant, migración ni dinero. Dos matices que dejo anotados como
-hallazgos, no como correcciones:
+**De la Fase 2 sigue habiendo uno solo.** `8ae8f77` (F2.1) y `3f16386` (F2.2) **no se
+declararon ROJO**, y es defendible: ninguno toca sesión, tenant, migración ni dinero.
+Dos matices que dejo anotados como hallazgos, no como correcciones:
 
 - `8ae8f77` toca **`apps/web/next.config.mjs`**, que es **archivo de alto contacto**
   (`AGENTES.md:61`) y se reclama en su propia fila del tablero. No consta que se
@@ -602,9 +650,19 @@ hallazgos, no como correcciones:
   `infra/nginx/demo.space-os.io.conf` y `ecosystem.config.js`: **los dos archivos
   nuevos no están clasificados en ninguna zona de riesgo**.
 
-Con los cinco de la Fase 1 (`b976b54`, `3ac2bba`, `c50344a`, `65bf9b5`, `3671e8a`),
-son **seis commits ROJO** esperando visto bueno humano en esta rama. Ninguno está
-mergeado a `main`.
+### El total de la rama subió a ocho, y uno de los ocho no está declarado
+
+| Origen | Commits | Dónde consta el ROJO |
+|---|---|---|
+| Fase 1 | `b976b54` · `3ac2bba` · `c50344a` · `65bf9b5` · `3671e8a` | `ejecucion-plan-v3.md:82-86`, y §9 del expediente de la Fase 1 |
+| **Fase 2** | **`70ca3f0`** | `ejecucion-plan-v3.md:106` · `tablero.md` Z1 |
+| Fase 0 | `ef70aa9` (T-03) | `ejecucion-plan-v3.md:58` («ROJO por tema») · `tablero.md` Z11 («ROJA por tema») |
+| Fase 0 | `6044732` (F0.3) | **En ninguna parte.** Su fila (`ejecucion-plan-v3.md:57`) solo dice «AMARILLO», y la celda Z11 del tablero no lo marca |
+
+Ese último es un hallazgo, no una corrección: `6044732` cambia `.env.example`, que es
+la plantilla de la que salen las banderas de sesión de un clon, y el commit se titula
+`fix(seguridad)`. Si cuenta como ROJO —y el orquestador lo cuenta— **falta escribirlo
+donde se lee**. Ninguno de los ocho está mergeado a `main`.
 
 ---
 
@@ -618,81 +676,99 @@ mergeado a `main`.
   única lectura buena del episodio. El resto es coste: trabajo pagado dos veces.
   Decisión de Jochelo (14/08): sigue la sesión que tenía el ejecutor de F2.2 a
   medias; la otra se retira. **Regla que faltaba y quedó escrita:** antes de lanzar a
-  nadie, comprobar que no haya otra orquestación viva (`ejecucion-plan-v3.md:235`).
+  nadie, comprobar que no haya otra orquestación viva (`ejecucion-plan-v3.md:311`).
 - **La primera auditoría de F2.1 murió a mitad por un login expirado** —no por el
-  código— y hubo que relanzarla de cero (`:230`).
+  código— y hubo que relanzarla de cero (`:306`).
 - **Z12 aparece `LIBRE` antes y después** de `8ae8f77` y de `3f16386`: no queda
   rastro de la reclamación ni de la liberación de zona, que es la regla 1 de
   AGENTES. **Lo verifiqué en los diffs del tablero de los dos commits.** Es
-  costumbre de la tanda, no descuido puntual (`:220`).
+  costumbre de la tanda, no descuido puntual (`:296`).
 - **El hallazgo de F2.1 sobre el `.env` en el standalone** (§3) no lo pedía ninguna
   tarea, y es lo que convirtió el criterio de F2.2 en algo comprobable en serio.
 - **El hallazgo de F2.5 sobre el botón horneado** (§5) no lo pedía ninguna tarea, y
   es lo que dio contenido real a F2.6: sin él, F2.6 se habría limitado a renombrar
   una variable que el servidor ya leía bien, y **cada instancia habría nacido con la
   puerta pintada**.
-- **`docs/Registro_Cambios.md` recibió por fin una entrada** (`:8-33`, del commit
+- **`docs/Registro_Cambios.md` recibió por fin una entrada** (`:8-31`, del commit
   `70ca3f0`): la primera de toda la ejecución del plan v3. La Fase 1 entera no dejó
   una sola línea allí. El criterio es el correcto —este cambio **sí** se nota desde
-  la aplicación— y el aviso duro está en la única forma en que alguien que no
-  programa puede actuar sobre él.
+  la aplicación— y el aviso duro (`:29-31`) está en la única forma en que alguien que
+  no programa puede actuar sobre él.
 - **Un comentario de producto quedó caduco a propósito, y está anotado:**
   `apps/web/app/api/signup/route.ts:15` sigue llamando a DEMO «la única con el
-  registro abierto». El punto que defiende sigue en pie; el ejemplo, no. No se tocó
-  por ser código (`39379bf`).
+  registro abierto» (releído hoy: la línea no ha cambiado). El punto que defiende
+  sigue en pie; el ejemplo, no. No se tocó por ser código (`39379bf`).
+- **Este expediente tuvo que reemitirse el mismo día que se escribió** porque dos
+  commits de otra fase movieron sus anclas en cuatro horas (§18). No es anécdota: es
+  la demostración de que un `archivo:línea` no sobrevive ni una tarde en una rama
+  activa, y de que un expediente sin reverificación es un documento que envejece
+  peor que la bóveda.
 
 ---
 
-## 14. Verificación global — lo que corrí yo, hoy (2026-08-14)
+## 14. Verificación global — lo que corrí yo (2026-08-14)
 
-Todo lo de esta tabla lo ejecuté al levantar el expediente, no lo copié de un
-reporte.
+Dos pasadas: la primera al levantar el expediente (~14:00), la segunda al reemitirlo
+(~14:45–14:50). La columna «pasada» dice de cuál viene cada resultado. Nada de esta
+tabla está copiado de un reporte.
 
-| Comprobación | Comando | Resultado |
-|---|---|---|
-| Los tres commits existen y tocan lo que dicen | `git show --stat 8ae8f77 3f16386 70ca3f0` | 7, 4 y 18 archivos — coincide con §2 |
-| Suite unitaria | `cd apps/web && npm test` | **73 archivos, 801 pruebas, todas en verde**, 6.82 s |
-| El standalone existe | `ls -l apps/web/.next/standalone/apps/web/server.js` | 5 836 bytes |
-| El standalone se lleva el `.env` | `md5sum` de los dos | **idénticos** (`6032654f…`), con `GOOGLE_CLIENT_SECRET` |
-| El `.env` no está en git | `git ls-files apps/web/.env` | 0 archivos |
-| La imagen lleva el esquema y las migraciones | `docker run --rm space-os:dev sh -c 'ls /app/db/migrations \| wc -l'` | **67** (+ `schema.sql` = 68) |
-| …y son los mismos bytes | md5 de los 68, ordenados y rehasheados | **`886ff521…` a los dos lados** |
-| La imagen no lleva `.env` | el comando exacto del plan (`:750`) | `ok: sin .env` |
-| La imagen no lleva credenciales | 11 patrones del `.env`/`.env.local`, con **control positivo** | positivo **4/4**, imagen **0 coincidencias** |
-| La imagen corre sin privilegios | `whoami` dentro | `node` |
-| La versión va sellada | `echo $SPACE_OS_VERSION` | `v0.0.0-dev` |
-| El botón estaba horneado (pre-F2.6) | `ls -l` + `grep -o "Crear cuenta" \| wc -l` sobre `login.html` en `space-os:dev` | **15 234 bytes, 1 aparición** |
-| El botón ya no se hornea (post-F2.6) | lo mismo sobre el build local de las 13:21 | **14 594 bytes, 0 apariciones** |
-| El botón sí viaja al cliente, bajo su bandera | `grep` sobre `static/chunks/app/(app)/login/page-7d0b869b1d67121c.js` | 3 «Crear cuenta», 1 `autoregistro`, gate `===!0&&I(!0)` |
-| La migración que aborta sin rol | `sed -n '96,97p' db/migrations/20260729_licencias_permisos.sql` | `raise exception 'No se encontró el rol de la aplicación…'` |
-| Cuántas migraciones necesitan el rol | `grep -l` sobre `db/migrations/*.sql` | **13** de 67 |
-| Ningún test toca `/api/auth/metodos/` | `grep -rn "auth/metodos" --include=*.test.ts apps/web` | **sin resultados** |
-| `aislamiento.e2e.test.ts` no se tocó | `git show --stat 70ca3f0` | no aparece en el diff |
-| No hay workflows de release ni tags | `ls .github/workflows/`, `git tag -l` | `ci`, `deploy`, `lockfile-check`; ningún `v*.*.*` |
-| Las citas de plan desfasadas | `sed -n` sobre `:302-310,:339-354,:724-728,:844-852,:1342-1348,:1494-1506` | las siete de §11, confirmadas |
-| El alias muerto de styled-jsx | `ls apps/web/node_modules/styled-jsx` | *No such file or directory*; hoisted 5.1.1, react-dom 18.3.1 |
+| Comprobación | Comando | Resultado | Pasada |
+|---|---|---|---|
+| Los tres commits existen y tocan lo que dicen | `git show --stat 8ae8f77 3f16386 70ca3f0` | 7, 4 y 18 archivos — coincide con §2 | las dos |
+| Suite unitaria | `cd apps/web && npm test` | **73 archivos, 805 pruebas, todas en verde**, 6.92 s (14:48) | 2.ª |
+| Typecheck | `cd apps/web && npm run typecheck` | limpio, sin salida | 2.ª |
+| El standalone existe | `ls -l apps/web/.next/standalone/apps/web/server.js` | 5 836 bytes | las dos |
+| El standalone se lleva el `.env` | `md5sum` de los dos | **idénticos** (`6032654f…`), con `GOOGLE_CLIENT_SECRET` | las dos |
+| El `.env` no está en git | `git ls-files apps/web/.env` | 0 archivos | las dos |
+| La imagen lleva el esquema y las migraciones | `docker run --rm space-os:dev sh -c 'ls /app/db/migrations \| wc -l'` | **67** (+ `schema.sql` = 68) | las dos |
+| …y son los mismos bytes | md5 de los 68, ordenados y rehasheados | **`886ff521…` a los dos lados** | las dos |
+| La imagen no lleva `.env` | el comando exacto del plan (`:750`) | `ok: sin .env` | las dos |
+| La imagen no lleva credenciales | 11 patrones del `.env`/`.env.local`, con **control positivo** | positivo **4/4**, imagen **0 coincidencias** | 1.ª |
+| La imagen corre sin privilegios | `whoami` dentro | `node` | las dos |
+| La versión va sellada | `echo $SPACE_OS_VERSION` | `v0.0.0-dev` | las dos |
+| El botón estaba horneado (pre-F2.6) | `ls -l` + `grep -o "Crear cuenta" \| wc -l` sobre `login.html` en `space-os:dev` | **15 234 bytes, 1 aparición** | las dos |
+| El botón ya no se hornea (post-F2.6) | lo mismo sobre el build local de las 13:21 | **14 594 bytes, 0 apariciones** | las dos |
+| El botón sí viaja al cliente, bajo su bandera | `grep` sobre `static/chunks/app/(app)/login/page-7d0b869b1d67121c.js` (17 330 B) | 3 «Crear cuenta», 1 `autoregistro`, gate `===!0&&I(!0)` | las dos |
+| La migración que aborta sin rol | `awk 'NR>=94&&NR<=98'` sobre `db/migrations/20260729_licencias_permisos.sql` | `raise exception 'No se encontró el rol de la aplicación…'` en `:97` | las dos |
+| Cuántas migraciones necesitan el rol | `grep -l` sobre `db/migrations/*.sql` | **13** de 67 | las dos |
+| Ningún test toca `/api/auth/metodos/` | `grep -rn "auth/metodos" --include=*.test.ts apps/web` | **sin resultados** | las dos |
+| Los tres consumidores de esa ruta | `grep -rn "auth/metodos" apps/web` | `login/page.tsx:78`, `administracion/page.tsx:387`, `OrganizacionesPanel.tsx:168` | 2.ª |
+| `aislamiento.e2e.test.ts` no se tocó, y su bloque sigue igual | `git show --stat 70ca3f0` + `awk 'NR>=200&&NR<=213'` | no aparece en el diff; `:203` sigue afirmando lo ya falso | las dos |
+| No hay workflows de release ni tags de versión | `ls .github/workflows/`, `git tag -l`, `grep -rn REGISTRY .github/` | `ci`, `deploy`, `lockfile-check`; solo `pre-hardening-1-archive`; sin `REGISTRY` | las dos |
+| El plan no se ha tocado | `git log main..HEAD -- docs/Plan_Instancias_Soberanas_v3.md` | un solo commit, `1ad1045` (el que lo metió) | 2.ª |
+| Las citas de plan desfasadas | `awk` sobre `:302,:307,:341,:352,:678-680,:726,:744,:749,:750,:846,:849,:1345,:1497,:1504,:2085` | las siete de §11, confirmadas literal | las dos |
+| Las anclas de código de §6 | `grep -n` sobre `entorno.ts`, `entorno.test.ts`, `signup/route.ts`, `metodos/route.ts`, `google-oauth.ts`, `login/page.tsx` | **cuatro habían derivado** — corregidas, ver §18 | 2.ª |
+| El alias muerto de styled-jsx | `ls apps/web/node_modules/styled-jsx` + versiones reales | *No such file or directory*; hoisted 5.1.1, react-dom 18.3.1 | las dos |
 
 ### Lo que **no** corrí, y por qué
 
 - **`npm run test:e2e`.** La suite usa la única base `spaces_e2e` y el puerto 3311, y
-  cada archivo la recrea con `drop schema public cascade`; había otro agente
-  trabajando en este mismo worktree. La cifra vigente —**13 archivos, 140 pruebas +
-  1 saltada**— viene del cuerpo del commit `70ca3f0` (corrida del 14/08) y la
-  ratifica `CLAUDE.md §4`. **No es una medición mía.**
+  cada archivo la recrea con `drop schema public cascade`; había otros agentes
+  trabajando en este mismo worktree. La cifra que circula —**13 archivos, 140 pruebas
+  + 1 saltada**— viene del cuerpo del commit `70ca3f0` (corrida del 14/08). **No es
+  una medición mía**, y `CLAUDE.md` ya no la respalda: desde `703649e` ese archivo
+  dejó de publicar recuentos.
 - **El smoke de F2.5 completo.** Exigiría levantar Postgres, crear el rol a mano y
   arrancar el contenedor tres veces. Los códigos `200 · 200 · 503 · 401`, los **22
   activos a 200**, las **707 reglas** de CSS y los tres arranques de la bandera son
-  del ensayo del 14/08 (`ejecucion-plan-v3.md:70`, `:201`, `:221`), no míos.
+  del ensayo del 14/08 (`ejecucion-plan-v3.md:257`, `:297`, `:298`), no míos.
 - **La medición de 15 104 bytes.** La imagen post-F2.6 ya no existe localmente (§7).
+- **La extracción de los 11 patrones de secretos.** Se hizo en la primera pasada y no
+  se repitió en la segunda; lo que sí se repitió es el comando de aceptación (§4).
 
 ---
 
 ## 15. Acciones humanas que la Fase 2 deja pendientes
 
-> [!warning] **Ninguna de estas está formalizada como tarjeta humana** en
-> `vault/07-Agentes/ejecucion-plan-v3.md`. Su sección «Tarjetas humanas emitidas»
-> solo contiene **TH-01** y **TH-02**, las dos de la Fase 1 y las dos todavía
-> vigentes. Estas cuatro quedan aquí, con su comando, para que no se pierdan.
+> [!warning] **Ninguna de estas está formalizada como tarjeta humana**
+> Recomprobado al reemitir: la sección «Tarjetas humanas emitidas» de
+> `vault/07-Agentes/ejecucion-plan-v3.md` contiene hoy **tres fichas** — **TH-01**
+> (`:137`), **TH-T03** (`:157`) y **TH-02** (`:178`)—, ninguna de esta fase. Las
+> cuatro acciones de abajo siguen viviendo **solo aquí**.
+>
+> Y de paso: **TH-F0.1 tampoco tiene ficha propia** en esa sección. Se nombra en la
+> tabla de la Fase 0 (`:55`) y en la bitácora (`:281`), y su texto completo está en
+> el expediente de la Fase 0. Cuatro tarjetas vigentes, tres con ficha.
 
 **1 · Responder P4 — el nombre del registry.** Es lo único que separa a la Fase 2 de
 estar cerrada. Desbloquea F2.3, F2.4 y el `REGISTRY` del `.env` de F5.3. Las dos
@@ -701,7 +777,7 @@ opciones y sus consecuencias están en `Plan…v3.md:2085-2089`.
 **2 · El `.env` del droplet, cuando se despliegue el build nuevo.** La instrucción
 **cambió de sentido** con la decisión del 14/08: ya no hay que poner
 `AUTOREGISTRO=1`, sino **borrar la línea vieja y no poner nada**
-(`ejecucion-plan-v3.md:206`). Hasta que ese build se despliegue, el droplet sigue
+(`ejecucion-plan-v3.md:262`). Hasta que ese build se despliegue, el droplet sigue
 gobernado por la variable vieja y no hay urgencia; el día del despliegue, sí.
 
 ```bash
@@ -709,18 +785,23 @@ gobernado por la variable vieja y no hay urgencia; el día del despliegue, sí.
 ssh root@209.97.146.136 "grep -n 'AUTOREGISTRO' /var/www/Spaces/apps/web/.env"
 ```
 
+Se solapa con **TH-F0.1**, que va al mismo archivo del mismo servidor. Conviene
+correrlas juntas.
+
 **3 · Añadir «se ve el botón *Crear cuenta*» a la tarjeta de F4.5.** Es el único
 eslabón de la cadena del botón que no está probado (§8.2). Ojo con el valor
 esperado: con el registro **cerrado en todas partes** (decisión del 14/08), F4.5
 debe esperar **`signup` 503** y **el botón ausente**, no lo contrario. La nota
-`:205` de la bitácora dice justo lo opuesto porque es **anterior** a `:207`; manda
+`:261` de la bitácora dice justo lo opuesto porque es **anterior** a `:283`; manda
 la de las 13:34.
 
 **4 · Visto bueno humano de `70ca3f0`** antes de cualquier merge (§12).
 
-Y siguen vigentes de la Fase 1: **TH-01** (comprobar `config_negocio` en producción)
-y **TH-02** (el censo real de los `DEFAULT`), completas en
-`docs/evidencias/fase-1.md` §8.
+Y siguen vigentes de otras fases: **TH-01** (comprobar `config_negocio` en
+producción) y **TH-02** (el censo real de los `DEFAULT`), completas en
+`docs/evidencias/fase-1.md`; **TH-F0.1** (el `curl` al droplet, que según el plan
+`:260` bloquea toda la Fase 4), en `docs/evidencias/fase-0.md`; y **TH-T03** (la
+cookie comodín en los `.env` ya desplegados), en `ejecucion-plan-v3.md:157-174`.
 
 ---
 
@@ -730,15 +811,22 @@ y **TH-02** (el censo real de los `DEFAULT`), completas en
 - [ ] Primer `docker build` **en frío** y primer push a un registry real.
 - [ ] **F3.2/Fase 5:** el runner tiene que crear el rol de aplicación **antes** del
       `schema.sql`, o la imagen no levanta una base virgen (§8.1).
-- [ ] **F0.3** hay que leerla traducida (`/^AUTOREGISTRO=0$/m`) y sabiendo que su
-      rojo ya no es posible: el valor ya está en `0`.
 - [ ] **F4.4** hay que leerla al revés de como está escrita: DEMO va **cerrada**.
 - [ ] **F5.3** no debe grabar `NEXT_PUBLIC_AUTOREGISTRO` en la plantilla.
 - [ ] Retirar el bloque `aislamiento.e2e.test.ts:200-213`, ya obsoleto, **en un
       release posterior** (expand → contract).
 - [ ] Tarea propia para el alias muerto de `styled-jsx` (§11).
 - [ ] Clasificar `Dockerfile` y `.dockerignore` en `zonas-de-riesgo.md` (§12).
-- [ ] Corregir el conteo de unitarias de `CLAUDE.md`: son **801 en 73**.
+- [ ] Escribir el ROJO de `6044732` donde se lee, o declarar que no lo es (§12).
+- [ ] Formalizar como tarjeta humana las cuatro acciones de §15.
+
+### Resueltos entre la primera emisión y esta
+
+- [x] ~~**F0.3** hay que leerla traducida y sabiendo que su rojo ya no es posible~~ →
+      **ejecutada** el 14/08 como `6044732`, leída traducida y con el rojo forzado a
+      mano por el auditor. Ver §18.
+- [x] ~~Corregir el conteo de unitarias de `CLAUDE.md`~~ → **corregido retirándolo**
+      en `703649e`. Ver §18.
 
 ---
 
@@ -749,13 +837,88 @@ Todo se hizo en el worktree `.claude/worktrees/servidor-padre`, sobre
 construye desde un host Windows y aun así los 68 archivos de `/app/db` salen **byte
 a byte idénticos** al repo: no hay corrupción de finales de línea (§14).
 
-Las e2e exigen un build de Next hecho **antes**, o los 13 archivos mueren por
-timeout en ~636 s sin decir nada del código (`CLAUDE.md §4`,
-`servidor-e2e.ts` arranca con `npx next start`, que no construye).
+Las e2e exigen un build de Next hecho **antes**, o los archivos e2e mueren por
+timeout en ~636 s sin decir nada del código (`CLAUDE.md §4`, `servidor-e2e.ts:31`
+arranca con `npx next start`, que no construye).
 
-Al levantar este expediente había **otro documentalista trabajando en el mismo
-worktree** sobre `docs/evidencias/fase-0.md`. Por eso no se corrió la suite e2e ni se
-tocó la base `spaces_e2e`, y por eso el `git add` de este expediente fue **por ruta
-explícita**.
+Al levantar este expediente había **otros dos documentalistas trabajando en el mismo
+worktree**, sobre `docs/evidencias/fase-0.md` y `docs/evidencias/fase-1.md`. Por eso
+no se corrió la suite e2e ni se tocó la base `spaces_e2e`, y por eso el `git add` de
+este expediente fue **por ruta explícita**.
 
 La base `spaces` del 5433 **no se tocó en esta fase**, ni para leer.
+
+---
+
+## 18. Qué cambió en esta segunda emisión
+
+Entre `84fe410` (la primera versión, HEAD `42c0f4e`) y `38ace2f` entraron nueve
+commits, **ninguno de la Fase 2**. Tres tocaron cosas que este documento afirma.
+
+### 18.1 La discrepancia del recuento de pruebas: resuelta, y con cambio de política
+
+La primera emisión anotaba en §11 que `CLAUDE.md` §4 seguía diciendo «789 unitarias
+en 71 archivos … medidas el 2026-08-14» cuando eran 801 en 73. **`703649e` lo
+corrigió, y no actualizando el número sino retirándolo.** Hoy esa sección dice
+«unitarias, sin Docker» y añade un callout: *«No copies de aquí un recuento de
+pruebas — mídelo»*, con el dato de que en esta rama pasaron de 789 a 803 en dos días
+y el aviso de que la raíz del repo y este worktree **son ramas distintas con
+recuentos distintos**. Lo mismo se hizo en `entorno-y-despliegue.md`.
+
+**Es una decisión de política, no una corrección puntual:** los recuentos globales se
+están retirando de la documentación a propósito, porque envejecen a cada commit.
+Consecuencia para este expediente: toda cifra de suite que aparezca aquí lleva de
+dónde viene. Las **805 pruebas en 73 archivos** de §14 son **mi medición del
+2026-08-14 a las 14:48 en este worktree**, no una cita.
+
+*(Ironía registrada por el propio orquestador en `ejecucion-plan-v3.md:265`: doce
+minutos después de retirar los recuentos, el tablero escribió «805 pruebas en 73
+archivos». Retirado también.)*
+
+### 18.2 F0.3 se ejecutó, y con ella cae un pendiente de §16
+
+`6044732` (14/08 14:05) ejecutó F0.3 —de la **Fase 0**, no de esta— leyéndola
+traducida: la regex pasó a `/^AUTOREGISTRO=0$/m`. El caso nació verde porque el valor
+ya estaba en `0` desde `0dbccb8`, así que el auditor **forzó el rojo** poniendo la
+plantilla en `=1`, lo vio fallar y restauró. También sacó `COOKIE_DOMAIN=localhost`
+de `.env.example:4`.
+
+Efecto sobre este expediente: la fila de F0.3 en §11 se reescribe —el texto literal
+del plan sigue siendo inejecutable, pero la tarea **está hecha**— y el checkbox
+correspondiente de §16 pasa a resuelto.
+
+### 18.3 Cuatro anclas de esta fase derivaron en cuatro horas
+
+`6044732` (F0.3) y `ef70aa9` (T-03) escribieron sobre tres archivos que **F2.6 había
+creado o tocado**. Ninguna afirmación de este expediente cambió de valor; cuatro
+punteros sí:
+
+| Ancla en la 1.ª emisión | Hoy | Quién la movió |
+|---|---|---|
+| `entorno.test.ts:22-30` (cambia de valor) | **`:24-32`** | `6044732` (cabecera nueva) |
+| `entorno.test.ts:32-38` (sin variable) | **`:34-40`** | `6044732` |
+| `.env.example:33` (`AUTOREGISTRO=0`) | **`:35`** | `6044732` |
+| `.env.production.example:39` (`AUTOREGISTRO=0`) | **`:49`** | `ef70aa9` |
+
+Y de paso, dos citas que ya estaban mal en la primera emisión y que esta corrige:
+`next.config.mjs:13` para `output: 'standalone'` es **`:12`**, y
+`google-oauth.ts:95-97` para `autoregistroHabilitado()` es **`:93-94`**.
+
+El archivo `entorno.test.ts` pasó además de **39 líneas y 2 casos** (lo que dejó
+F2.6) a **122 líneas y 6 casos**. Los cuatro casos nuevos son de la Fase 0.
+
+### 18.4 Lo que se comprobó que NO cambió
+
+- **§8.3 sigue entera:** ningún test ejerce `GET /api/auth/metodos/`, y el nombre del
+  campo `autoregistro` sigue siendo la única atadura entre el servidor y el botón.
+  Los cuatro casos que F0.3 y T-03 añadieron miran plantillas, no la ruta.
+- **P4 sigue ABIERTA** (`ejecucion-plan-v3.md:30`), así que **F2.3 y F2.4 siguen
+  bloqueadas y la fase sigue siendo un cierre PARCIAL**. Ninguna de las cinco
+  decisiones abiertas de §10 se ha cerrado.
+- **De la Fase 2 sigue habiendo un solo commit ROJO** (`70ca3f0`). Lo que subió es el
+  total de la rama, a ocho (§12).
+- **No hay `release.yml`, ni `promover.yml`, ni tag `v*.*.*`, ni `REGISTRY`** en
+  ningún workflow.
+- Las mediciones de la imagen `space-os:dev` (68 archivos, md5 `886ff521…`, sin
+  `.env`, `node`, `v0.0.0-dev`, `login.html` de 15 234 B con 1 «Crear cuenta») dan
+  **exactamente lo mismo** en la segunda pasada.
