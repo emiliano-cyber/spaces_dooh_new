@@ -192,8 +192,9 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
   usa de verdad: explica el porqué, lo que apareció al hacerlo y qué se verificó.
 - **Dos suites, y las dos se corren desde `apps/web/`**: `cd apps/web && npm test`
   (789 unitarias en 71 archivos, sin Docker) y `cd apps/web && npm run test:e2e`
-  (12 archivos, 136 pruebas + 1 saltada, contra Postgres real en el 5433, en serie,
-  contra un Next real en el puerto 3311). Ambas cifras medidas el 2026-08-13.
+  (13 archivos, 140 pruebas + 1 saltada, contra Postgres real en el 5433, en serie,
+  contra un Next real en el puerto 3311). Ambas cifras medidas el 2026-08-14 — y
+  **crecen**: F1.2 añadió el archivo 13. Remídelas, no las copies.
 - **Migraciones** `YYYYMMDD_descripcion.sql`, transaccionales e idempotentes. **No
   se edita una ya aplicada** y **no se toca `db/schema.sql` directo**.
 - **La bitácora es parte del trabajo**: si el cambio se nota desde la aplicación,
@@ -208,7 +209,7 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > [!danger] Las e2e exigen un build de Next hecho ANTES, o fallan las 12 en falso
 > `apps/web/lib/test/servidor-e2e.ts:31` arranca el servidor con `npx next start`,
 > que **reutiliza el build existente y no construye nada**. En un worktree recién
-> clonado no hay `.next/BUILD_ID`, así que los 12 archivos e2e mueren con «El
+> clonado no hay `.next/BUILD_ID`, así que **todos** los archivos e2e mueren con «El
 > servidor de pruebas no respondió … tras 60 s» — y tardan **636 s** en hacerlo.
 > El rojo no dice nada del código: dice que falta el build.
 >
