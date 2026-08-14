@@ -57,10 +57,16 @@ se resuelve.
   desbloquea). Las tarjetas se acumulan en la sección correspondiente del estado y
   se le presentan a Jochelo en bloque, no gota a gota.
 - **Decisiones abiertas (P1–P6 y §8):** si la siguiente tarea depende de una,
-  DETENTE y pregúntale a Jochelo con las opciones del plan. En particular:
-  **P4-bis bloquea cómo se escriben F2.3 y F2.6** — no arranques la Fase 2 más allá
-  de F2.1/F2.2 sin respuesta. Registra cada respuesta en el estado con fecha; a
-  partir de ahí es un hecho, no una pregunta.
+  DETENTE y pregúntale a Jochelo con las opciones del plan. Registra cada respuesta
+  en el estado con fecha; a partir de ahí es un hecho, no una pregunta.
+  > **P4-bis quedó RESUELTA el 2026-08-13** (salida b: la bandera sale del build) y
+  > **ejecutada** en `70ca3f0`. Ya no bloquea nada. **Lo que bloquea hoy es P4** —el
+  > nombre del registry—, que mantiene F2.3 y F2.4 detenidas y es lo único que separa
+  > a la Fase 2 del cierre.
+- **Respeta el campo «Depende de», incluso cuando la dependencia sea de servidor.**
+  Si una tarea depende de otra que no se puede ejecutar desde aquí, **no la lances en
+  silencio**: o la declaras como desviación consciente en el estado, o preguntas.
+  Pasó con **F0.3**, que declara «Depende de: F0.1» y se lanzó igual sin decirlo.
 - **No se replanea.** Si un agente reporta que el repo contradice una tarea, la
   tarea pasa a DETENIDA con la evidencia y se escala a Jochelo. Tú no reinterpretas
   el plan.
@@ -72,16 +78,22 @@ se resuelve.
   si hay capturas tras login. La fase NO se declara cerrada en
   `ejecucion-plan-v3.md` hasta que el expediente de evidencia esté commiteado.
   Incluye la ruta del expediente en el parte de cierre a Jochelo.
-  > El expediente vive en `docs/Instancias_Fase<N>_Expediente_Cierre.md` y lo
-  > commitea el propio documentalista; tú solo declaras la fase cerrada **después**.
+  > El expediente vive en **`docs/evidencias/fase-<N>.md`** y lo commitea el propio
+  > documentalista. Esa ruta es contrato con el agente `editor-expediente`, que solo
+  > lee `docs/evidencias/` y compila el PDF — si se escribe fuera, no entra.
   > Las credenciales de juguete son las de `bootstrap-auth.mjs` (`SEED_PASSWORD`,
   > por omisión `spaces123`) sobre una base desechable — **nunca las de un entorno
   > real**, y solo si la fase tiene pantallas que capturar: las de migración, build
   > o release no llevan imágenes.
   >
-  > **La Fase 1 se cerró antes de que esta regla existiera** (2026-08-14) y no tiene
-  > expediente. Emítelo retroactivamente cuando puedas; los datos están completos en
-  > `ejecucion-plan-v3.md`.
+  > **Las fases 0, 1 y 2 ya tienen expediente** (`docs/evidencias/fase-0.md`,
+  > `fase-1.md`, `fase-2.md`, regenerados el 2026-08-14).
+- **La compuerta de cierre:** con el expediente commiteado, invoca al agente
+  **`validador-plan`**. Valida contra el plan que **todo** lo que la fase prometía se
+  cumplió —tareas, invariantes globales, bóveda, bitácora, decisiones y tarjetas— y
+  emite **VERDE o ROJO**. **Sin su VERDE la fase no se cierra**, ni en el tablero ni
+  en el parte a Jochelo. Un ROJO suyo no se discute: se arregla lo que señale y se
+  vuelve a pasar.
 
 ## Estado (mantenlo tú, en cada transición)
 
