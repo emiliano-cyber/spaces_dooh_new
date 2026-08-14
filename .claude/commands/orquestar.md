@@ -66,6 +66,19 @@ se resuelve.
   el plan.
 - **Presupuesto de intentos:** máximo 2 ciclos ejecutor→verificador por tarea. Al
   segundo ROJO, escala a Jochelo con ambos veredictos.
+- **Cierre de fase:** cuando la última tarea de una fase quede COMPLETADA_LOCAL o
+  ENSAYADA_LOCAL, invoca al agente `documentalista` con: número de fase, tabla de
+  tareas con sus commits y veredictos, y credenciales de juguete de la DEMO local
+  si hay capturas tras login. La fase NO se declara cerrada en
+  `ejecucion-plan-v3.md` hasta que el expediente de evidencia esté commiteado.
+  Incluye la ruta del expediente en el parte de cierre a Jochelo.
+  > **El agente `documentalista` todavía NO existe** (al 2026-08-14 `.claude/agents/`
+  > tiene ejecutor, verificador, ensayista-local, explorador-app, manual-tecnico y
+  > manual-usuario). Hasta que se escriba, esta regla **detiene el cierre de fase**:
+  > no la saltes ni improvises el expediente por tu cuenta — avisa a Jochelo de que
+  > falta el agente y espera. Las credenciales de juguete son las de
+  > `bootstrap-auth.mjs` (`SEED_PASSWORD`, por omisión `spaces123`) sobre una base
+  > desechable; **nunca las de un entorno real**.
 
 ## Estado (mantenlo tú, en cada transición)
 
