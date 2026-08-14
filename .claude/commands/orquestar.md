@@ -72,13 +72,16 @@ se resuelve.
   si hay capturas tras login. La fase NO se declara cerrada en
   `ejecucion-plan-v3.md` hasta que el expediente de evidencia esté commiteado.
   Incluye la ruta del expediente en el parte de cierre a Jochelo.
-  > **El agente `documentalista` todavía NO existe** (al 2026-08-14 `.claude/agents/`
-  > tiene ejecutor, verificador, ensayista-local, explorador-app, manual-tecnico y
-  > manual-usuario). Hasta que se escriba, esta regla **detiene el cierre de fase**:
-  > no la saltes ni improvises el expediente por tu cuenta — avisa a Jochelo de que
-  > falta el agente y espera. Las credenciales de juguete son las de
-  > `bootstrap-auth.mjs` (`SEED_PASSWORD`, por omisión `spaces123`) sobre una base
-  > desechable; **nunca las de un entorno real**.
+  > El expediente vive en `docs/Instancias_Fase<N>_Expediente_Cierre.md` y lo
+  > commitea el propio documentalista; tú solo declaras la fase cerrada **después**.
+  > Las credenciales de juguete son las de `bootstrap-auth.mjs` (`SEED_PASSWORD`,
+  > por omisión `spaces123`) sobre una base desechable — **nunca las de un entorno
+  > real**, y solo si la fase tiene pantallas que capturar: las de migración, build
+  > o release no llevan imágenes.
+  >
+  > **La Fase 1 se cerró antes de que esta regla existiera** (2026-08-14) y no tiene
+  > expediente. Emítelo retroactivamente cuando puedas; los datos están completos en
+  > `ejecucion-plan-v3.md`.
 
 ## Estado (mantenlo tú, en cada transición)
 
