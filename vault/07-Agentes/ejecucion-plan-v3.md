@@ -109,7 +109,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
-| F3.1 | [migración] | ejecutor | — | PENDIENTE | `schema_migrations` + backfill. **Paralelizable con F2.1** |
+| F3.1 | [migración] | ejecutor | — | **COMPLETADA_LOCAL** | `6cb16d4`, AMARILLO. `schema_migrations` + backfill de **65** (no 66 ni 67 — ver bitácora). ROJO: **pendiente de visto bueno humano**. ⚠️ **Su ASSERT se romperá en cuanto exista F3.2** — insumo obligado de esa tarea |
 | F3.2 | [código] | ejecutor | F3.1 | PENDIENTE | Runner: DEBE reproducir el mapa `ANTES_DE` de `db-e2e.ts:145-155`; el ensayista fuerza el caso que distingue el orden |
 | F3.3 | [código] | ejecutor | F3.2 | PENDIENTE | Migración alterada (checksum) aborta |
 | F3.4 | [infra→código local] | ejecutor escribe, ensayista ensaya | F3.2, F2.5 | PENDIENTE | `update.sh` contra instancia local desechable |
@@ -171,6 +171,38 @@ organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esque
 (`db/schema.sql:643`) no debería ocurrir; esto lo confirma.
 
 **Qué desbloquea:** el visto bueno humano del merge de `c50344a`.
+
+---
+
+### TH-F3.1 · aplicar `schema_migrations` al droplet — **y en este orden**
+
+De F3.1 (`6cb16d4`). **Es ROJO**: migración. La corre una persona con el ritual
+completo de `vault/04-Datos/migraciones.md` §«Antes de aplicar en producción»
+—respaldo `pg_dump`, ensayo en `ROLLBACK`, `ON_ERROR_STOP=1`, nota
+`DESPLIEGUE_*.txt`—.
+
+> [!danger] El orden importa, y al revés rompe
+> **Primero `20260812_schema_migrations.sql`, después `20260812_sin_default_tenant.sql`**
+> (la de F1.5). Al revés, la de F1.2 quedaría registrada como aplicada sin haberlo
+> sido, y el runner **no la aplicaría nunca**.
+
+Verificación que la propia migración deja escrita al pie:
+
+```sql
+select count(*) as registradas, max(archivo) as ultima from schema_migrations;
+```
+
+**Esperado: 65** y `20260810_notificaciones_archivada_en.sql`. Si da distinto, **la
+lista literal no describe a esa instancia** y hay que censar antes de seguir — el
+repo ya divergió una vez de `spaces_prod` en 27 columnas
+(`20260805_objetos_solo_en_prod.sql`).
+
+**Dos cosas que solo se pueden resolver ahí:**
+1. Si `20260731_calendario_meses_cortos.sql` **corrió alguna vez** en producción. Se
+   decide mirando los datos que corregía o el historial de `psql` del 31/07, no desde
+   el repo.
+2. Qué migraciones tiene **de verdad** aplicadas el droplet. La lista de 65 es una
+   afirmación sobre producción hecha desde el repositorio.
 
 ---
 
@@ -319,6 +351,12 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Desfase del plan en F2.5, registrado y NO corregido**: su criterio justifica el 503 con «el autoregistro viene apagado **horneado**, invariante 9», y tras `70ca3f0` eso es **definitivamente falso** — nada se hornea. Y su paso 3 manda arrancar con `NEXT_PUBLIC_AUTOREGISTRO=0`, **variable que ya no lee nadie**: quien lo copie literal obtendrá 503 igual, pero por la ausencia de `AUTOREGISTRO`, no por lo que cree. Dos frases, ningún cambio de código. |
 | 2026-08-14 | Para las tarjetas futuras: **F4.5 (smoke de DEMO) tiene que arrancar con `AUTOREGISTRO=1` y esperar `signup` 400**, no 503 — es la única instancia con el registro abierto. Una instancia de owner espera **503** con `AUTOREGISTRO=0` u omitida. |
 | 2026-08-14 | 🔵 **DECISIÓN DE JOCHELO: el autoregistro va CERRADO en local y en producción.** Revierte P3b del 10/08 («abierto y permanente»). Efecto inmediato: `.env.example` baja de `AUTOREGISTRO=1` a **`=0`** — la plantilla del repo dejaba el registro abierto en cualquier clon, que era justo el agujero que F0.3 iba a cerrar. `.env.production.example` ya estaba en `0` y `apps/web/.env` local **no tiene la variable**, o sea ya cerrado por fail-closed. **La tarjeta humana del droplet cambia de sentido: ya no hay que poner `AUTOREGISTRO=1`, sino borrar la línea vieja y no poner nada.** |
+| 2026-08-14 | **F3.1 COMPLETADA_LOCAL** (`6cb16d4`, AMARILLO). Arranca la Fase 3. El backfill registra **65** migraciones, no las 66 que dice el plan ni las 67 del repo, y las tres exclusiones son la parte valiosa: (a) **`20260812_sin_default_tenant.sql` fuera** porque está escrita y **no aplicada en producción** — marcarla como hecha habría hecho que el runner **no la aplicara nunca**, dejando el `DEFAULT` de `tenant_id` vivo en el droplet **con el registro jurando lo contrario**; (b) **`20260731_calendario_meses_cortos.sql` fuera** por ser la única `@tipo: datos`, que `deploy.yml:141-148` no aplica en un despliegue normal; (c) **no se registra a sí misma**, para quedar con su checksum real y no con `'backfill'`, que F3.3 se salta por diseño. |
+| 2026-08-14 | El ejecutor resolvió sin escalar el problema que le señalé —un `.sql` no puede listar un directorio— con un argumento que el auditor validó: **la lista literal no envejece**, porque no es «lo que haya en `db/migrations/`» sino **lo que la flota tenía aplicado al 2026-08-12**, que es un hecho histórico. El auditor **intentó romper la hipótesis técnica y no cedió**: un `insert` SQL suelto que nombre `tenants` en base virgen falla **al analizarse** aunque su `where` nunca se cumpla; dentro de `do $$` con el guard delante, no. El `do $$` no es adorno. |
+| 2026-08-14 | 🔴 **Hallazgo que F3.2 hereda y no puede ignorar: el ASSERT de `20260812_schema_migrations.sql:221-223` se volverá un falso positivo.** Comprueba `where archivo >= '20260812'` sobre **toda la tabla**, sin distinguir una fila del backfill de una que ponga legítimamente el runner. El auditor lo reprodujo simulando F3.2: insertó `20260812_sin_default_tenant.sql` y al reaplicar la migración **abortó**. O sea que es idempotente **solo mientras no exista ninguna fila ≥ 20260812**, condición que F3.2 destruye por diseño — y contradice lo que el propio archivo declara en `:72`. Peor: el despliegue de hoy reaplica **todas** las migraciones en cada corrida (`deploy.yml:141-148`, con `ON_ERROR_STOP=1`), así que entre F3.2 y el retiro de ese workflow **un despliegue normal abortaría**, con un mensaje que además miente sobre la causa. |
+| 2026-08-14 | 🔴 **Y la prueba contradice a la migración.** `migraciones.e2e.test.ts:107-112` construye el conjunto esperado **leyendo el directorio** (`readdirSync().filter(f => f < '20260812')`), así que ante una migración **retrofechada** añadida mañana el oráculo **obligaría a meterla en la lista** — que es exactamente lo que `20260812_schema_migrations.sql:30-35` declara que no debe pasar jamás. Es la grieta concreta del argumento «no envejece», dentro del archivo que lo defiende. Probabilidad baja; contradicción real. |
+| 2026-08-14 | Matiz que el auditor añadió a la exclusión (b), y que la nota de bóveda callaba: **sí hay rastro documental** de que se pidió aplicar la migración de datos a mano — `docs/Runbook_Deploy_Fase1_Arrendadores.md:230-235` la lleva como paso explícito. No prueba que se ejecutara, así que «no consta que corriera» es defendible, pero la nota presentaba la ausencia de evidencia como si no existiera ninguna. El juicio sigue siendo a favor de excluirla: es la dirección segura en los dos escenarios. |
+| 2026-08-14 | Corregida la deriva que el propio commit de F3.1 introdujo: `MOC-Proyecto.md` seguía diciendo **38 tablas y 67 migraciones** mientras `esquema` y `migraciones` pasaban a **39 y 68** en ese mismo commit. Y `esquema.md:14` reafirmó al editar que `db/schema.sql` tiene 657 líneas: son **656**, medidas. |
 | 2026-08-14 | **Los dos expedientes contaron los ROJO distinto** —seis el de la Fase 1, ocho el de la Fase 2— porque nadie había escrito el criterio. Zanjado arriba, en su propia sección: **ROJO es lo que su ejecutor declaró ROJO**, y «toca un tema sensible» no basta. Son **seis**. Sin esa regla escrita, el PDF habría salido contradiciéndose a sí mismo entre capítulos. |
 | 2026-08-14 | **TH-F0.1 no tenía ficha**, solo menciones de pasada — y es la tarjeta que **bloquea toda la Fase 4**. Escrita ahora con sus dos comandos literales del plan (`:267-271` y `:275`), la tabla de respuestas y el aviso de que **si sale 400, F0.2 ya no se ejecuta como está escrita**. Lo levantó el expediente de la Fase 2. |
 | 2026-08-14 | Otro error de briefing mío, cazado por ese mismo expediente: le dije que F0.3 (`6044732`) «ocurrió después» del suyo. **Es al revés**: `6044732` son las 14:05 y `84fe410` las 14:09 — es **ancestro**. El documentalista anterior arrancó con HEAD en `42c0f4e` (13:37) y F0.3 le pasó por debajo a media escritura, que es **por qué sus anclas ya estaban mal al commitear**. |

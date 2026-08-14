@@ -28,8 +28,8 @@ cobranza.
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
 | Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
 | Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | 38 | [[esquema]] |
-| Migraciones | 67 | [[migraciones]] |
+| Tablas | 39 | [[esquema]] |
+| Migraciones | 68 | [[migraciones]] |
 
 ## Antes de tocar nada
 
@@ -73,8 +73,8 @@ cobranza.
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 
 ### 04 · Datos
-- [[esquema]] — diagrama ER y las 38 tablas
-- [[migraciones]] — las 67 en orden, y las trampas de orden
+- [[esquema]] — diagrama ER y las 39 tablas
+- [[migraciones]] — las 68 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
