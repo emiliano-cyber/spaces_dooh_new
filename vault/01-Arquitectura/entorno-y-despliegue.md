@@ -4,6 +4,8 @@ estado: verificado
 actualizado: 2026-08-14
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
+  - .env.example
+  - apps/web/lib/entorno.test.ts
   - apps/web/package.json
   - apps/web/next.config.mjs
   - Dockerfile
@@ -255,9 +257,28 @@ para el redirect URI de Google.
 
 ### Declaradas pero **no leídas** por `apps/web`
 
-`JWT_SECRET`, `REDIS_URL`, `COOKIE_DOMAIN`, `LOG_LEVEL`, `NEXT_PUBLIC_TENANT_SLUG`
-y `NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
+`JWT_SECRET`, `REDIS_URL`, `LOG_LEVEL`, `NEXT_PUBLIC_TENANT_SLUG` y
+`NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
 Son restos del backend archivado.
+
+**`COOKIE_DOMAIN` ya no está en la plantilla** (F0.3, 14/08): la declaraba
+`.env.example:4` con valor `localhost` y no la leía ni una línea de `apps/`.
+Sigue viva solo en `_archive/api/src/core/auth/auth.routes.ts:17`.
+
+> [!important] La plantilla de entorno la vigila una prueba desde el 14/08
+> `apps/web/lib/entorno.test.ts` lee `.env.example` desde la raíz del repo y
+> exige dos cosas: que diga `AUTOREGISTRO=0` y que **no** declare un
+> `COOKIE_DOMAIN` con valor. Antes de F0.3 no había nada así — la decisión del
+> 14/08 («autoregistro cerrado en toda la flota») la sostenía un valor en una
+> plantilla que nadie miraba, y devolverlo a `=1` dejaba `npm test` en verde y
+> al CI mudo. `autoregistroActivo()` es fail-closed, pero eso solo salva a quien
+> **no** declara la variable: quien copia la plantilla se lleva lo que diga.
+>
+> Las cookies son **host-only a propósito** — `cookieSesion()`
+> (`lib/server/auth.ts:191-201`) y `cookieCsrf()` (`:216-226`) no fijan
+> `domain`, y es el **invariante 4** del plan v3
+> (`docs/Plan_Instancias_Soberanas_v3.md:219`): cada instancia manda su cookie y
+> ninguna sesión cruza de dominio. Ver [[modelo-instancias-soberanas]].
 
 > [!note] Discrepancia `RESEND_FROM`/`EMAIL_FROM` — **corregida el 07/08**
 > La plantilla declaraba `RESEND_FROM` y el código lee `EMAIL_FROM`. Se comprobó

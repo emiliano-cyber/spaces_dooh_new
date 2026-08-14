@@ -956,7 +956,8 @@ Los valores están en `apps/web/.env.production` **del droplet**, cubierto por
 
 **Declaradas en las plantillas pero NO leídas por código vivo** (restos del backend
 archivado; no las «arregles» ni las borres sin leer §10): `JWT_SECRET`, `REDIS_URL`,
-`COOKIE_DOMAIN`, `LOG_LEVEL`, `PORT`.
+`LOG_LEVEL`, `PORT`. **`COOKIE_DOMAIN` salió de `.env.example` el 14/08** (F0.3): las
+cookies son host-only a propósito y `apps/web/lib/entorno.test.ts` impide que vuelva.
 
 **Leídas solo por código muerto o `_legacy`:** `NEXT_PUBLIC_API_URL` (6 archivos) y
 `NEXT_PUBLIC_TENANT_SLUG` (4 archivos). La bóveda dice que solo las lee un archivo
