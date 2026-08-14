@@ -74,3 +74,49 @@ describe('.env.example', () => {
     expect(PLANTILLA).not.toMatch(/^COOKIE_DOMAIN=.+$/m)
   })
 })
+
+// ============================================================================
+//  La plantilla de PRODUCCIÓN (T-03).
+// ----------------------------------------------------------------------------
+//  F0.3 puso bajo llave `.env.example`, pero esa no es la plantilla que se
+//  copia para montar una instancia real: esa es `.env.production.example`, y
+//  quedó fuera del candado con los dos mismos problemas.
+//
+//  El de la cookie era el grave. Declaraba
+//  `COOKIE_DOMAIN=.{TENANT_SLUG}.spaces.com`, una cookie comodín de segundo
+//  nivel del modelo de subdominios por tenant, muerto desde el 2026-08-12.
+//  Hoy es inocuo —`apps/web` no lee la variable— pero es LATENTE: el código
+//  que sí la consume sigue en el repo
+//  (`_archive/api/src/core/auth/auth.routes.ts:17` hace
+//  `domain: process.env.COOKIE_DOMAIN`), así que el día que alguien haga
+//  configurable el `domain` de `cookieSesion()`, todos los `.env` nacidos de
+//  esta plantilla comparten sesión por `*.spaces.com`: fuga entre instancias
+//  soberanas, y del tipo que no da error.
+// ============================================================================
+
+// A diferencia de la constante de arriba, la plantilla se lee DENTRO de cada
+// caso. Si el archivo desapareciera, debe caer el caso que lo mira y solo ese:
+// leerlo al cargar el módulo convierte un archivo ausente en un error de
+// importación que tumba también los casos de `autoregistroActivo()`, que no
+// tienen nada que ver con las plantillas.
+function plantillaProduccion(): string {
+  return readFileSync(join(__dirname, '..', '..', '..', '.env.production.example'), 'utf8')
+}
+
+describe('.env.production.example', () => {
+  it('la plantilla de produccion no propone un dominio de cookie', () => {
+    // Invariante 4 del plan v3 (`docs/Plan_Instancias_Soberanas_v3.md:219`):
+    // «las cookies siguen sin `domain`». `cookieSesion()`
+    // (`lib/server/auth.ts:191-201`) y `cookieCsrf()` (`:216-226`) no lo fijan,
+    // y la plantilla que lee el operador no puede decir lo contrario.
+    expect(plantillaProduccion()).not.toMatch(/^COOKIE_DOMAIN=.+$/m)
+  })
+
+  it('la plantilla de produccion nace con el autoregistro apagado', () => {
+    // El mismo candado que F0.3 puso en la plantilla de desarrollo: se exige
+    // el valor EXPLÍCITO `=0` y no la mera ausencia, porque la plantilla es
+    // además donde se documenta la decisión del 14/08 (cerrado en TODA la
+    // flota) y una variable ausente no la documenta.
+    expect(plantillaProduccion()).toMatch(/^AUTOREGISTRO=0$/m)
+  })
+})

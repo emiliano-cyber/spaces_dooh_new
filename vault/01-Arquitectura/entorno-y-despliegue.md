@@ -5,6 +5,7 @@ actualizado: 2026-08-14
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - .env.example
+  - .env.production.example
   - apps/web/lib/entorno.test.ts
   - apps/web/package.json
   - apps/web/next.config.mjs
@@ -261,36 +262,48 @@ para el redirect URI de Google.
 `NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
 Son restos del backend archivado.
 
-**`COOKIE_DOMAIN` salió de `.env.example`** (F0.3, 14/08): la declaraba su línea 4
-con valor `localhost` y no la lee ni una línea de `apps/`.
+**`COOKIE_DOMAIN` ya no la declara ninguna plantilla del repo.** Salió de
+`.env.example:4` en F0.3 (14/08, valor `localhost`) y de `.env.production.example:9`
+en T-03 (14/08, valor `.{TENANT_SLUG}.spaces.com`). No la lee ni una línea de
+`apps/`. En las dos plantillas quedó un comentario diciendo **por qué** no va, que es
+lo que impide que alguien la «reponga» creyendo que faltaba.
 
-> [!danger] Pero **sigue viva en la plantilla de PRODUCCIÓN**, y con lo peor
-> `.env.production.example:9` declara
-> `COOKIE_DOMAIN=.{TENANT_SLUG}.spaces.com` — una cookie **comodín de segundo
-> nivel** del modelo de subdominios por tenant, **muerto desde el 2026-08-12**. Es
-> la plantilla que se copia para montar una instancia real, y la prueba de F0.3
-> **no la cubre**: solo lee `.env.example`.
+> [!danger] Lo que decía la plantilla de PRODUCCIÓN hasta el 14/08 — y por qué era lo peor
+> `.env.production.example:9` declaraba `COOKIE_DOMAIN=.{TENANT_SLUG}.spaces.com`:
+> una cookie **comodín de segundo nivel** del modelo de subdominios por tenant,
+> **muerto desde el 2026-08-12**. Y es la plantilla que se copia para montar una
+> instancia real, no la de desarrollo.
 >
-> Hoy es inocuo porque `apps/web` no lee la variable. Es **latente** porque el
-> código que sí la consume existe en el repo
+> Era inocuo porque `apps/web` no lee la variable. Era **latente** porque el
+> código que sí la consume sigue en el repo
 > (`_archive/api/src/core/auth/auth.routes.ts:17` hace
-> `domain: process.env.COOKIE_DOMAIN`): el día que alguien haga configurable el
-> `domain` de `cookieSesion()`, los `.env` nacidos de esa plantilla convierten la
-> sesión en compartida por todo `*.spaces.com` — **fuga entre instancias
-> soberanas**, R1 y R2 a la vez, y en silencio.
+> `domain: process.env.COOKIE_DOMAIN`): el día que alguien hiciera configurable el
+> `domain` de `cookieSesion()`, los `.env` nacidos de esa plantilla habrían
+> convertido la sesión en compartida por todo `*.spaces.com` — **fuga entre
+> instancias soberanas**, R1 y R2 a la vez, y en silencio. Además mandaba al
+> operador a pedir DNS y certificados comodín para un modelo que ya no existe.
 >
-> Y **ninguna tarea del plan la limpia**: F5.3 crea una plantilla *nueva*
-> (`infra/env/instancia.env.example`) sin esa variable, pero no toca esta. Queda
-> huérfana. Ver [[07-Agentes/ejecucion-plan-v3]].
+> **Ninguna tarea del plan la limpiaba**: F5.3 crea una plantilla *nueva*
+> (`infra/env/instancia.env.example`) sin esa variable, pero no tocaba esta. Quedó
+> huérfana hasta T-03, que es una tarea fuera del plan.
 
-> [!important] La plantilla de entorno la vigila una prueba desde el 14/08
-> `apps/web/lib/entorno.test.ts` lee `.env.example` desde la raíz del repo y
-> exige dos cosas: que diga `AUTOREGISTRO=0` y que **no** declare un
-> `COOKIE_DOMAIN` con valor. Antes de F0.3 no había nada así — la decisión del
-> 14/08 («autoregistro cerrado en toda la flota») la sostenía un valor en una
-> plantilla que nadie miraba, y devolverlo a `=1` dejaba `npm test` en verde y
-> al CI mudo. `autoregistroActivo()` es fail-closed, pero eso solo salva a quien
-> **no** declara la variable: quien copia la plantilla se lleva lo que diga.
+> [!important] Las DOS plantillas las vigila una prueba desde el 14/08
+> `apps/web/lib/entorno.test.ts` lee `.env.example` **y** `.env.production.example`
+> desde la raíz del repo, y exige de cada una lo mismo: que diga `AUTOREGISTRO=0` y
+> que **no** declare un `COOKIE_DOMAIN` con valor. F0.3 puso los dos primeros casos
+> (desarrollo) y T-03 los dos segundos (producción), porque el candado de F0.3
+> **cubría una sola plantilla** y la otra guardaba la peor de las dos líneas.
+>
+> Antes no había nada así — la decisión del 14/08 («autoregistro cerrado en toda la
+> flota») la sostenía un valor en una plantilla que nadie miraba, y devolverlo a
+> `=1` dejaba `npm test` en verde y al CI mudo. Comprobado que muerde en las dos:
+> con la plantilla en `=1`, sus casos se ponen rojos. `autoregistroActivo()` es
+> fail-closed, pero eso solo salva a quien **no** declara la variable: quien copia
+> una plantilla se lleva lo que diga.
+>
+> Los dos casos de producción leen el archivo **dentro** del `it`, no al cargar el
+> módulo como los de F0.3: si la plantilla desapareciera debe caer el caso que la
+> mira, no el fichero entero por un error de importación.
 >
 > Las cookies son **host-only a propósito** — `cookieSesion()`
 > (`lib/server/auth.ts:191-201`) y `cookieCsrf()` (`:216-226`) no fijan
