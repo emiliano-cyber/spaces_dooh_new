@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-13
+actualizado: 2026-08-14
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -55,8 +55,8 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
-| F2.1 | [código] | ejecutor | — | PENDIENTE | `output: 'standalone'`. **Paralelizable con F3.1**. Alto contacto: `next.config.mjs` |
-| F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 | PENDIENTE | Dockerfile + `.dockerignore` |
+| F2.1 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `8ae8f77`, AMARILLO (auditada el 14/08 — la primera auditoría murió por un login expirado y se relanzó de cero). Las dos formas de arrancar comprobadas: `npm start` y el standalone, 200 y 307 en ambas. Alto contacto: `next.config.mjs` |
+| F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 ✅ | EN_CURSO | Dockerfile + `.dockerignore`. ⚠️ **`**/.env*` en el `.dockerignore` no es opcional**: el standalone se lleva el `.env` con `GOOGLE_CLIENT_SECRET` dentro — ver bitácora |
 | F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅ | **BLOQUEADA por P4** | Publica **una** imagen (P4-bis resuelta). Pero sigue frenada por el **nombre del registry** (§8.4 / P4), que sigue abierto |
 | F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | BLOQUEADA (arrastre de P4) | Promoción manual a `estable` |
 | F2.5 | [verificación] | ensayista-local | F2.2 | PENDIENTE | Smoke de imagen contra Postgres desechable en localhost |
@@ -187,7 +187,15 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-13 | **P4-bis RESUELTA: (b), la bandera sale del build.** Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar, como `GOOGLE_OAUTH`. El precedente es más fuerte de lo que dice el plan: **el propio código ya lo documenta** en `apps/web/lib/server/google-oauth.ts:35-36` — «apaga la función EN EL SERVIDOR, no solo escondiendo el botón — **misma lección que `NEXT_PUBLIC_AUTOREGISTRO`**. Y NO lleva prefijo». Alguien ya aprendió esto y dejó escrito que esta bandera era el siguiente caso. |
 | 2026-08-13 | ⚠️ **F2.6 invierte la polaridad por omisión, y eso no es un detalle.** Hoy `NEXT_PUBLIC_AUTOREGISTRO !== '0'` significa **encendido si la variable no está** (`signup/route.ts:18`, `login/page.tsx:30`, `google-oauth.ts:90`). El criterio de F2.6 exige lo contrario: **sin variable → `false`**, fail-closed, «una instancia cuyo `.env` se quedó corto no abre el registro por descuido». Consecuencia práctica: **cualquier despliegue que hoy dependa del valor implícito se quedará sin autoregistro tras F2.6 salvo que ponga `AUTOREGISTRO=1` explícito** — incluida DEMO, que lo necesita encendido. Hay que comprobar el `.env` de cada entorno vivo antes de desplegarla. |
 | 2026-08-13 | Con P4-bis resuelta, la Fase 2 queda ejecutable en **F2.1, F2.2, F2.5 y F2.6**. **F2.3 y F2.4 siguen bloqueadas, pero por otra decisión**: el nombre del registry (§8.4 / P4), que sigue abierta. |
+| 2026-08-14 | **F2.1 COMPLETADA_LOCAL** (`8ae8f77`, AMARILLO). Su primera auditoría murió a mitad por un login expirado —no por el código— y se relanzó de cero. La segunda comprobó **las dos formas de arrancar** levantando las dos de verdad: `npm start` (la que usa `ecosystem.config.js` en el droplet) y el standalone, 200 en `/login/` y 307 en la raíz del `basePath` en ambas. Producción no queda sin arrancar. |
+| 2026-08-14 | **Confirmado que el standalone NO trae los estáticos, y que eso es normal**, por tres vías independientes: el trazado sí funcionó (33 paquetes hoisted en `.next/standalone/node_modules`), el SSR completo renderiza, y `copyTracedFiles` de Next no copia `public` ni `static` por diseño. **F2.2 no se construye sobre una premisa falsa**: copiarlos en el `Dockerfile` es lo correcto. |
+| 2026-08-14 | ⚠️ **El standalone SE LLEVA el `.env` dentro, y nadie lo había dicho.** `apps/web/.next/standalone/apps/web/.env` es byte a byte el mismo que `apps/web/.env` (md5 `6032654f…`), con `GOOGLE_CLIENT_SECRET` incluido. **No hay fuga a git** (`.gitignore:14` lo cubre, árbol limpio) y no incumple ningún criterio de F2.1. Pero el criterio de aceptación de **F2.2** —«no contiene ningún `.env` ni credenciales»— **depende enteramente de que `**/.env*` esté en el `.dockerignore`**: si el contexto de build lleva un `.env`, Next lo hornea en el standalone **sin avisar**. Pasado a F2.2 como insumo duro, con la orden de comprobarlo **dentro de la imagen** y no solo en el `.dockerignore`. |
+| 2026-08-14 | Hallazgos menores de esa auditoría, anotados sin corregir: `inventario-2026-08-11.md` conserva cuatro citas a `next.config.mjs` ya desplazadas (es foto fechada, se deja), y el cuerpo del commit dice «10 líneas» donde fueron **11** — las citas sí se recalcularon con +11, así que el error está en la narración y no en el resultado. |
 | 2026-08-13 | **Hallazgo abierto de F1.4**, escalado a Jochelo: el plan exige que «el rewrite de `portal` siga igual», y con `Host` en mayúsculas (`PORTAL.space-os.io`) o con punto final (`portal.space-os.io.`, FQDN legal) **el comportamiento cambia**. La guarda `etiquetas.some(e => e === '')` de `host.ts:44-45` lo justifica como «basura», sin mencionar el FQDN. No es agujero de seguridad —`/portal/*` es público por token— y los navegadores normalizan, así que no es alcanzable desde un cliente real. |
+| 2026-08-14 | **Sesión reabierta.** Entorno verde sin montar nada: `spaces_db` llevaba 21 h arriba y sano, `node_modules`, los dos `.env` y el `.next/BUILD_ID` seguían en su sitio. Línea base remedida: typecheck limpio y **799 unitarias en 72 archivos**. Todas las zonas del tablero LIBRE. |
+| 2026-08-14 | **F2.1 estaba commiteada y sin auditar.** `8ae8f77` se hizo el 13/08 a las 17:56 —después del último apunte de esta bitácora— y la sesión cerró sin registrarla ni pasarla por el verificador; la tabla la seguía dando PENDIENTE. Es el primer hueco de estado de la orquestación: el ciclo ejecutor→verificador se cortó a la mitad. Auditoría lanzada hoy. |
+| 2026-08-14 | **El par (F2.1 ∥ F3.1) del DAG no se usa.** Lo que queda de F2.1 es su *verificación*, cuyo comando exacto termina en `npm run test:e2e`, y F3.1 es `[migración]`, o sea que también acabará en e2e. Las dos comparten la única base `spaces_e2e` y cada archivo la recrea con `drop schema public cascade`: se borrarían a media corrida. Se aplica la regla del 13/08 — el paralelo solo vale si como mucho UNA toca la e2e. Va secuencial. |
+| 2026-08-14 | Desfase detectado de paso: `CLAUDE.md` (raíz y worktree) sigue diciendo «789 unitarias en 71 archivos» cuando son **799 en 72**, y en la misma frase se declara medido el 14/08. Su conteo de e2e (13 archivos, 140 + 1 saltada) sí es el bueno. No se tocó: va con el commit de quien lo corrija, no suelto. |
 
 ---
-*Preparado por Ana · 2026-08-13*
+*Preparado por Ana · 2026-08-13 · reabierto 2026-08-14*
