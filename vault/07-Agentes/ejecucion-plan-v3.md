@@ -55,7 +55,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F0.1 | [verificación] | **NO EJECUTADA** → PENDIENTE_SERVIDOR | `curl` + `ssh` al droplet. Según el plan (`:260`) **bloquea toda la Fase 4**. Tarjeta **TH-F0.1** |
 | F0.2 | [infra] | **NO EJECUTADA** | Condicionada a que F0.1 dé 400. Su `sed` sobre el nombre viejo **caduca** en cuanto el droplet tome un release con F2.6 |
 | F0.3 | [código] | **COMPLETADA_LOCAL** | `6044732`, AMARILLO. La prueba que faltaba ya existe **y muerde**: comprobado por el auditor poniendo la plantilla en `=1` y viéndola roja. `COOKIE_DOMAIN=localhost` fuera. 803 pruebas en 73 archivos |
-| **T-03** | [código] · **fuera del plan** | **EN_VERIFICACION** | `ef70aa9`, ROJO. Depende de F0.3. Quita la **cookie comodín** de `.env.production.example` y extiende el candado a la segunda plantilla. 805 pruebas en 73 archivos |
+| **T-03** | [código] · **fuera del plan** | **COMPLETADA_LOCAL** | `ef70aa9`, AMARILLO. Depende de F0.3. Fuera la **cookie comodín** de `.env.production.example`, y el candado extendido a la segunda plantilla. ROJO por tema: **pendiente de visto bueno humano**. ⚠️ Limpia la plantilla, **no los `.env` ya desplegados** — TH-T03 |
 
 > [!tip] La mitad que faltaba de F0.3, **ya cerrada** (`6044732`)
 > Hasta el 14/08 ninguna prueba leía `.env.example`, así que devolverla a
@@ -154,6 +154,27 @@ organización **«sin límite» de cupo sin avisar**. Con `NOT NULL` en el esque
 
 ---
 
+### TH-T03 · la cookie comodín en los `.env` YA desplegados
+
+Emitida por el verificador de T-03 el 2026-08-14. **Solo lectura**, la corre una persona.
+
+T-03 limpió la **plantilla**; los `.env` que ya se copiaron de ella **no**. Si el
+droplet —o cualquier instancia aprovisionada desde esa plantilla— declara
+`COOKIE_DOMAIN`, sigue ahí.
+
+```bash
+grep -n '^COOKIE_DOMAIN' /var/www/Spaces/apps/web/.env.production
+```
+
+**Respuesta esperada:** sin resultados. Si aparece, **borrar la línea**: hoy es
+inocua —`apps/web` no lee la variable— pero es el mismo riesgo latente que motivó
+T-03, y ahí sí sobre un archivo vivo.
+
+**Qué desbloquea:** nada bloqueado; es higiene antes de que el `domain` de la cookie
+se vuelva configurable alguna vez.
+
+---
+
 ### TH-02 · de F1.1 — el censo real de los `DEFAULT` a `rgb`
 
 Emitida por el ensayista el 2026-08-13 tras el ensayo local. **Solo lectura**, la
@@ -239,6 +260,9 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Desfase del plan en F2.5, registrado y NO corregido**: su criterio justifica el 503 con «el autoregistro viene apagado **horneado**, invariante 9», y tras `70ca3f0` eso es **definitivamente falso** — nada se hornea. Y su paso 3 manda arrancar con `NEXT_PUBLIC_AUTOREGISTRO=0`, **variable que ya no lee nadie**: quien lo copie literal obtendrá 503 igual, pero por la ausencia de `AUTOREGISTRO`, no por lo que cree. Dos frases, ningún cambio de código. |
 | 2026-08-14 | Para las tarjetas futuras: **F4.5 (smoke de DEMO) tiene que arrancar con `AUTOREGISTRO=1` y esperar `signup` 400**, no 503 — es la única instancia con el registro abierto. Una instancia de owner espera **503** con `AUTOREGISTRO=0` u omitida. |
 | 2026-08-14 | 🔵 **DECISIÓN DE JOCHELO: el autoregistro va CERRADO en local y en producción.** Revierte P3b del 10/08 («abierto y permanente»). Efecto inmediato: `.env.example` baja de `AUTOREGISTRO=1` a **`=0`** — la plantilla del repo dejaba el registro abierto en cualquier clon, que era justo el agujero que F0.3 iba a cerrar. `.env.production.example` ya estaba en `0` y `apps/web/.env` local **no tiene la variable**, o sea ya cerrado por fail-closed. **La tarjeta humana del droplet cambia de sentido: ya no hay que poner `AUTOREGISTRO=1`, sino borrar la línea vieja y no poner nada.** |
+| 2026-08-14 | **T-03 COMPLETADA_LOCAL** (`ef70aa9`, AMARILLO). El auditor **demostró la decisión de diseño en vez de opinarla**: borró cada plantilla y corrió el archivo. Sin `.env.production.example` (patrón nuevo, lectura dentro del `it`) → **2 fallan y 4 siguen corriendo**. Sin `.env.example` (patrón viejo, constante de módulo) → **«no tests»: ninguno de los 6 llega a ejecutarse**, el error revienta en la importación. El patrón nuevo no es cosmético. |
+| 2026-08-14 | Residuo que ese mismo auditor levantó y **no es culpa de T-03**: mientras `PLANTILLA` (`entorno.test.ts:58`) se lea al cargar el módulo, **la protección de T-03 sigue siendo rehén de la otra plantilla** — si desaparece `.env.example`, los dos casos de producción tampoco corren. El candado a rehacer es el de F0.3, y la restricción de no tocar los 4 casos verdes era explícita. Queda como mejora pendiente, pequeña. |
+| 2026-08-14 | 🔴 **Y me pilló otra vez, con razón.** `tablero.md:31` escribía «805 pruebas en 73 archivos» **doce minutos después** de que `703649e` retirara los recuentos globales de `CLAUDE.md` y de `entorno-y-despliegue.md` con el argumento de que crecen y hay que medirlos. Meter el total de la suite en la bóveda justo después va contra una decisión recién tomada. Retirado. (Los «4 casos» y «6 casos» de esa misma celda **no** son lo mismo: son el tamaño del candado, una afirmación de contrato, no una medición del entorno.) |
 | 2026-08-14 | **T-03 ejecutada** (`ef70aa9`, ROJO, en verificación al escribir esto): fuera la cookie comodín de `.env.production.example` y el candado extendido a la segunda plantilla — su `AUTOREGISTRO=0` estaba tan desvigilado como estuvo el otro. **Aquí el rojo salió solo**, sin tener que forzarlo: la línea existía. 805 pruebas en 73 archivos. |
 | 2026-08-14 | Detalle de oficio de T-03: sus dos casos leen la plantilla **dentro del `it`**, no en una constante de módulo como los de F0.3 — recogiendo el hallazgo de calidad que dejó aquella auditoría (leer al cargar el módulo hace que un archivo ausente tumbe también los casos de F2.6 con un error de importación). **No tocó la constante existente** para no mover los 4 casos que ya pasaban, y lo declaró. |
 | 2026-08-14 | **F0.3 COMPLETADA_LOCAL** (`6044732`, AMARILLO). Con eso la Fase 0 queda terminada en todo lo que no exige una persona. El auditor **comprobó que la prueba muerde**: puso `.env.example` en `AUTOREGISTRO=1`, la vio roja, y restauró dejando el árbol como estaba. Y añadió una comprobación que nadie pidió: el archivo tiene finales **CRLF** en el árbol y la regex casa igual, porque en JS el `$` con flag `m` ancla antes del `\r` — **no hay falso rojo esperando a un clon en Windows**. |
