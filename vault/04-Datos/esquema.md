@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -10,13 +10,17 @@ archivos:
 
 # Esquema de datos
 
-**PostgreSQL, un solo schema (`public`), 38 tablas, sin ORM.** `db/schema.sql`
-(657 líneas) + 67 migraciones aditivas.
+**PostgreSQL, un solo schema (`public`), 39 tablas, sin ORM.** `db/schema.sql`
+(657 líneas) + 68 migraciones aditivas.
 
 > [!warning] `schema.sql` no es el estado final
 > Varias columnas y **todas** las políticas RLS fail-closed llegan por
-> migración. El estado real = `schema.sql` + las 67 en orden. Ver
+> migración. El estado real = `schema.sql` + las 68 en orden. Ver
 > [[migraciones]].
+>
+> Las 39 son las de una base levantada **desde el repo** (medido el 14/08 sobre
+> `spaces_e2e`). Producción tiene 38: le falta `schema_migrations`, cuya
+> migración está escrita y sin aplicar.
 
 ## Diagrama ER (núcleo)
 
@@ -73,6 +77,7 @@ erDiagram
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
 | `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
+| `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |
 | `notificaciones` | fail-closed | Dedupe por día |
 

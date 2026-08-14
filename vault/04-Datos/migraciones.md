@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-13
+actualizado: 2026-08-14
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -18,11 +18,13 @@ archivos:
 
 ## Cómo funciona
 
-- **67 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **68 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
 - Se aplican en **orden lexicográfico** del nombre.
-- **No hay tabla de control de migraciones** ni herramienta (`migrate`, Prisma
-  Migrate). El orden lo da el nombre y el registro de que se aplicaron son las
-  notas `DESPLIEGUE_*.txt` de la raíz.
+- **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
+  producción**: la crea `20260812_schema_migrations.sql`, escrita el 14/08 y sin
+  aplicar (ver abajo). Hasta que se aplique, el registro de qué corrió sigue
+  siendo las notas `DESPLIEGUE_*.txt` de la raíz. Herramienta de migraciones
+  (`migrate`, Prisma Migrate) no hay ninguna: el runner propio es F3.2.
 - En producción se aplican **a mano como `postgres`**:
   ```
   sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f <archivo>.sql
@@ -30,9 +32,53 @@ archivos:
 - El arnés de pruebas las reaplica todas desde cero
   (`apps/web/lib/test/db-e2e.ts`, `recrearEsquema()`).
 
-> [!warning] Sin tabla de control, el estado real solo se sabe mirando la base
-> No hay forma de preguntarle al repo qué está aplicado. Ver
-> [[preguntas-abiertas]].
+> [!warning] En producción, el estado real todavía solo se sabe mirando la base
+> `schema_migrations` existe en el repo desde el 14/08, pero el droplet no la
+> tiene hasta que alguien aplique la migración. Mientras tanto sigue sin haber
+> forma de preguntarle al repo qué está aplicado. Ver [[preguntas-abiertas]].
+
+## La tabla de control (`schema_migrations`)
+
+La crea `20260812_schema_migrations.sql`. Existe porque con **una instancia por
+owner** deja de haber alguien mirando: sin registro no hay forma de saber en qué
+versión de esquema está un droplet.
+
+| Columna | Para qué |
+|---|---|
+| `archivo` (PK) | El nombre del `.sql`, tal cual. La PK es lo que hace imposible registrar dos veces lo mismo |
+| `checksum` | `sha256` del archivo aplicado, o `'backfill'` |
+| `aplicada_en` | Cuándo. En las filas de backfill, cuándo se **rellenó** el registro |
+| `tipo` | `esquema` o `datos`, para que el runner omita las de datos como hace `deploy.yml:141-148` |
+
+**Sin RLS a propósito**, igual que `folios_consecutivos`: es infraestructura de
+la instancia, no dato de negocio. Con RLS activa y sin `app.tenant_id` fijado
+devolvería cero filas —sin error— y el runner concluiría que no hay nada
+aplicado.
+
+### El backfill, y las tres cosas que deja FUERA
+
+Sin él, la primera corrida del runner en el droplet «aplicaría» la historia
+entera: son idempotentes y no romperían, pero el registro nacería mintiendo.
+
+La lista de 65 archivos va **escrita dentro de la migración**: un `.sql` no
+puede listar un directorio (`pg_ls_dir` es de superusuario y leería el disco del
+servidor de base de datos, no el repo). Y **no envejece**, que es la objeción
+evidente: no es «lo que haya en `db/migrations/`», es *lo que la flota tenía
+aplicado al 2026-08-12*. Un hecho histórico. Lo que se escriba mañana debe
+aplicarse de verdad.
+
+Quedan fuera, cada una por su motivo:
+
+| Fuera | Por qué |
+|---|---|
+| `20260812_sin_default_tenant.sql` | Escrita pero **no aplicada en producción** (F1.2 → F1.5). Marcarla dejaría el `DEFAULT` de `tenant_id` vivo en el droplet, con el registro jurando lo contrario |
+| `20260731_calendario_meses_cortos.sql` | Es `@tipo: datos`, y esas `deploy.yml` no las aplica nunca en un despliegue normal. No consta que corriera, así que no se afirma |
+| La propia `20260812_schema_migrations.sql` | La registra quien la aplique, y así queda con su checksum real en vez de `'backfill'` |
+
+**Heurística de «base con historia»:** existe `tenants` **y** tiene filas. Que la
+tabla deba existir es el punto: en una base recién creada, donde ni `schema.sql`
+ha corrido, no hay historia que respetar y `schema_migrations` queda vacía para
+que el runner lo aplique todo.
 
 ## Dos migraciones cuyo nombre miente sobre el orden
 
@@ -71,6 +117,7 @@ quien compare el repo con lo desplegado»* (`db-e2e.ts`).
 | `20260810_notificaciones_archivada_en.sql` | `notificaciones.archivada_en` |
 | `20260810_arrendadores_rfc_unico.sql` | `arrendadores_tenant_rfc_uq` — un RFC, un propietario (ADR 0013) |
 | `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **escrita, NO aplicada en producción** (eso es F1.2 → F1.5) |
+| `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
 
 ## La migración que revela el mayor riesgo del proyecto
 
