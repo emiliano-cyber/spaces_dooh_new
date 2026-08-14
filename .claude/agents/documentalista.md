@@ -85,16 +85,28 @@ Si la fase sí tiene interfaz que mostrar (la DEMO simulada de la Fase 4):
 > [!danger] `manuales/capturas/` está IGNORADO en git, y a propósito
 > `.gitignore` lo excluye porque esas capturas llevan datos reales del entorno local
 > sin difuminar. **El expediente tiene que commitearse**, así que sus imágenes no
-> pueden vivir ahí. Guárdalas junto al expediente, en `docs/evidencia/fase-<N>/`, y
+> pueden vivir ahí. Guárdalas junto al expediente, en `docs/evidencias/fase-<N>/`, y
 > **solo si no contienen ni un dato real**. Ante la duda, describe la pantalla con
 > palabras: un expediente sin imágenes es peor que uno que filtra datos de un
 > cliente.
 
 ## Dónde vive y cómo se llama
 
-`docs/Instancias_Fase<N>_Expediente_Cierre.md`, siguiendo el precedente de
-`Arrendadores_Fase1_Reporte_Cierre.md`. Cabecera con **rama, fecha y alcance** — y
-que el alcance diga explícitamente si es *ejecución local* o incluye servidor.
+**`docs/evidencias/fase-<N>.md`** — un archivo por fase, numerado, sin ceros a la
+izquierda (`fase-0.md`, `fase-1.md`, `fase-2.md`).
+
+> [!important] Esa ruta es un contrato con otro agente
+> El agente `editor-expediente` **solo lee `docs/evidencias/`** y compila un PDF con
+> un capítulo por fase. Si escribes fuera de ahí, tu expediente no entra en el PDF.
+
+Sigue la **forma** del precedente `docs/Arrendadores_Fase1_Reporte_Cierre.md`
+—tabla de qué se creó, secciones de evidencia con salidas reales, verificación
+global, pendientes declarados, nota de entorno—, pero **no su ruta**.
+
+Cabecera con **rama, fecha y alcance**, y que el alcance diga explícitamente si es
+*ejecución local*, si incluye servidor, y **si la fase está completa o no**. Una fase
+con tareas bloqueadas se documenta como cierre **parcial**, diciendo cuáles faltan y
+por qué — no se presenta como cerrada.
 
 Va en `docs/` y no en `vault/` porque es **histórico y no caduca**: registra lo que
 era cierto el día que se cerró la fase. La bóveda describe cómo funciona el sistema
