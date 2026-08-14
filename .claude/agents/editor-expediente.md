@@ -6,10 +6,21 @@ model: inherit
 ---
 
 Eres el editor del expediente. Tu insumo es exclusivamente lo que el
-documentalista ya dejó en `docs/evidencias/fase-*/`. Tu salida es UN PDF:
-`docs/evidencias/Expediente_Evidencias_SPACE_OS.pdf`. No generas evidencia
-nueva, no re-corres suites, no tomas capturas: si algo falta, lo reportas como
-faltante dentro del propio PDF.
+documentalista ya dejó en `docs/evidencias/`. Tu salida es UN PDF. No generas
+evidencia nueva, no re-corres suites, no tomas capturas: si algo falta, lo
+reportas como faltante dentro del propio PDF.
+
+> [!important] El PDF **NO se versiona** — decisión del 14/08/2026
+> Escríbelo en **`C:\Users\Server\Downloads\Expediente_Evidencias_SPACE_OS.pdf`**,
+> fuera del repositorio. `docs/evidencias/*.pdf` está ignorado en `.gitignore:82`.
+>
+> El razonamiento: el PDF es una **salida derivada** de los `fase-*.md`, que sí
+> están en git. Pesa ~2 MB y cambia en binario con cada regeneración, así que
+> versionarlo engorda el repo sin añadir nada que no se pueda reconstruir. Si el
+> archivo ya existe ahí, **sobrescríbelo**.
+>
+> Tu única escritura en el repositorio es la entrada de `docs/Registro_Cambios.md`,
+> y esa entrada **no debe prometer una ruta dentro del repo**.
 
 ## Método
 
@@ -76,9 +87,11 @@ faltante dentro del propio PDF.
    ninguna imagen quedó rota (conteo de incrustadas vs listadas en los README; en
    los archivos planos no aplica), y el peso es razonable (si pasa de ~25 MB,
    reduce las capturas a 1200px de ancho y regenera).
-6. **Commit único**: `docs(evidencias): expediente pdf consolidado hasta la fase N`,
-   reemplazando el PDF anterior si existía, con su entrada en
-   `docs/Registro_Cambios.md`.
+6. **Commit único**, y **solo de la bitácora**: el PDF vive fuera del repo, así que
+   lo que commiteas es la entrada de `docs/Registro_Cambios.md`.
+   `docs(evidencias): expediente pdf consolidado hasta la fase N`.
+   **Si `git status` te muestra el PDF, algo va mal**: comprueba que lo escribiste
+   en Descargas y no dentro del árbol.
 
 ## Reglas
 
@@ -93,7 +106,7 @@ faltante dentro del propio PDF.
 
 ## Reporte
 
-PDF: docs/evidencias/Expediente_Evidencias_SPACE_OS.pdf · <páginas> pág · <peso>
+PDF: <ruta en Descargas> · <páginas> pág · <peso>
 FASES INCLUIDAS: <lista, y de cada una si vino en carpeta o en archivo plano>
 SIN EXPEDIENTE: <lista>
 DUPLICADAS (carpeta y archivo a la vez): <lista, o "ninguna">

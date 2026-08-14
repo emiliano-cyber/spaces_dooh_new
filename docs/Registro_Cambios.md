@@ -8,9 +8,14 @@ La entrada más reciente va arriba.
 ## 2026-08-14
 
 - **Los expedientes de evidencia de las fases 0, 1 y 2 caben ya en un solo PDF.**
-  Está en `docs/evidencias/Expediente_Evidencias_SPACE_OS.pdf`: 49 páginas con
-  portada, índice, un resumen de las nueve fases del plan y un capítulo por fase,
-  con el texto de su expediente reproducido entero, sin resumir ni reordenar.
+  49 páginas con portada, índice, un resumen de las nueve fases del plan y un
+  capítulo por fase, con el texto de su expediente reproducido entero, sin resumir
+  ni reordenar.
+  - **Dónde está:** **no en el repositorio**. El PDF es una salida derivada —pesa
+    ~1,7 MB y cambia en binario con cada regeneración—, así que se entrega como
+    archivo y `docs/evidencias/*.pdf` queda ignorado en git. Lo que sí se versiona
+    son los expedientes de texto (`docs/evidencias/fase-0.md`, `fase-1.md`,
+    `fase-2.md`), que es de donde se vuelve a generar cuando haga falta.
   - **Para qué sirve:** poder leer de una sentada en qué estado quedó el trabajo
     sin abrir el repositorio ni ir archivo por archivo. Se entrega a quien tiene
     que dar el visto bueno.

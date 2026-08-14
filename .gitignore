@@ -74,3 +74,9 @@ venv/
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
 visual-identity-project-space-os/
+
+# El PDF del expediente de evidencias NO se versiona (decisión del 14/08/2026).
+# Se genera con el agente `editor-expediente` a partir de docs/evidencias/fase-*,
+# que sí están en git: el PDF es una salida derivada, pesa ~2 MB y cambiaría en
+# binario con cada regeneración. Su destino es fuera del repo.
+docs/evidencias/*.pdf
