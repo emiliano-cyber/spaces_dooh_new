@@ -261,9 +261,27 @@ para el redirect URI de Google.
 `NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
 Son restos del backend archivado.
 
-**`COOKIE_DOMAIN` ya no está en la plantilla** (F0.3, 14/08): la declaraba
-`.env.example:4` con valor `localhost` y no la leía ni una línea de `apps/`.
-Sigue viva solo en `_archive/api/src/core/auth/auth.routes.ts:17`.
+**`COOKIE_DOMAIN` salió de `.env.example`** (F0.3, 14/08): la declaraba su línea 4
+con valor `localhost` y no la lee ni una línea de `apps/`.
+
+> [!danger] Pero **sigue viva en la plantilla de PRODUCCIÓN**, y con lo peor
+> `.env.production.example:9` declara
+> `COOKIE_DOMAIN=.{TENANT_SLUG}.spaces.com` — una cookie **comodín de segundo
+> nivel** del modelo de subdominios por tenant, **muerto desde el 2026-08-12**. Es
+> la plantilla que se copia para montar una instancia real, y la prueba de F0.3
+> **no la cubre**: solo lee `.env.example`.
+>
+> Hoy es inocuo porque `apps/web` no lee la variable. Es **latente** porque el
+> código que sí la consume existe en el repo
+> (`_archive/api/src/core/auth/auth.routes.ts:17` hace
+> `domain: process.env.COOKIE_DOMAIN`): el día que alguien haga configurable el
+> `domain` de `cookieSesion()`, los `.env` nacidos de esa plantilla convierten la
+> sesión en compartida por todo `*.spaces.com` — **fuga entre instancias
+> soberanas**, R1 y R2 a la vez, y en silencio.
+>
+> Y **ninguna tarea del plan la limpia**: F5.3 crea una plantilla *nueva*
+> (`infra/env/instancia.env.example`) sin esa variable, pero no toca esta. Queda
+> huérfana. Ver [[07-Agentes/ejecucion-plan-v3]].
 
 > [!important] La plantilla de entorno la vigila una prueba desde el 14/08
 > `apps/web/lib/entorno.test.ts` lee `.env.example` desde la raíz del repo y

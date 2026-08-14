@@ -54,17 +54,17 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 |---|---|---|---|
 | F0.1 | [verificación] | **NO EJECUTADA** → PENDIENTE_SERVIDOR | `curl` + `ssh` al droplet. Según el plan (`:260`) **bloquea toda la Fase 4**. Tarjeta **TH-F0.1** |
 | F0.2 | [infra] | **NO EJECUTADA** | Condicionada a que F0.1 dé 400. Su `sed` sobre el nombre viejo **caduca** en cuanto el droplet tome un release con F2.6 |
-| F0.3 | [código] | **NO EJECUTADA**, especificación rota, objetivo **a medias** | Ver el aviso de abajo |
+| F0.3 | [código] | **COMPLETADA_LOCAL** | `6044732`, AMARILLO. La prueba que faltaba ya existe **y muerde**: comprobado por el auditor poniendo la plantilla en `=1` y viéndola roja. `COOKIE_DOMAIN=localhost` fuera. 803 pruebas en 73 archivos |
 
-> [!danger] La mitad que falta de F0.3 y que nadie había visto
-> El objetivo de F0.3 era que «la regla deje de depender de la memoria». Hoy
-> `.env.example` dice `AUTOREGISTRO=0` (`0dbccb8`) — pero **ninguna prueba lo ancla**:
-> comprobado, el único `env.example` en `apps/web` es un comentario en
-> `integraciones.ts:16`. **Devolverlo a `=1` deja la suite verde y el CI mudo.**
+> [!tip] La mitad que faltaba de F0.3, **ya cerrada** (`6044732`)
+> Hasta el 14/08 ninguna prueba leía `.env.example`, así que devolverla a
+> `AUTOREGISTRO=1` dejaba la suite verde y el CI mudo. Ya no: `entorno.test.ts`
+> la vigila, y el auditor comprobó que **muerde de verdad** poniendo la plantilla en
+> `=1` y viéndola roja. La decisión del 14/08 ya no depende de que nadie mire.
 >
-> O sea que la decisión del 14/08 la sostiene hoy **un valor en una plantilla que
-> nada vigila**. Escribir esa prueba —con la forma nueva, `/^AUTOREGISTRO=0$/m`— es
-> trabajo real que sigue pendiente.
+> **Pero solo cubre `.env.example`.** `.env.production.example` tiene su propio
+> `AUTOREGISTRO=0` (`:39`) igual de desvigilado, y además la línea `:9` con la cookie
+> comodín — candidatas de **T-03**.
 
 ### Fase 1 · Limpieza de los 23 `DEFAULT` de `tenant_id`
 
@@ -238,6 +238,10 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Desfase del plan en F2.5, registrado y NO corregido**: su criterio justifica el 503 con «el autoregistro viene apagado **horneado**, invariante 9», y tras `70ca3f0` eso es **definitivamente falso** — nada se hornea. Y su paso 3 manda arrancar con `NEXT_PUBLIC_AUTOREGISTRO=0`, **variable que ya no lee nadie**: quien lo copie literal obtendrá 503 igual, pero por la ausencia de `AUTOREGISTRO`, no por lo que cree. Dos frases, ningún cambio de código. |
 | 2026-08-14 | Para las tarjetas futuras: **F4.5 (smoke de DEMO) tiene que arrancar con `AUTOREGISTRO=1` y esperar `signup` 400**, no 503 — es la única instancia con el registro abierto. Una instancia de owner espera **503** con `AUTOREGISTRO=0` u omitida. |
 | 2026-08-14 | 🔵 **DECISIÓN DE JOCHELO: el autoregistro va CERRADO en local y en producción.** Revierte P3b del 10/08 («abierto y permanente»). Efecto inmediato: `.env.example` baja de `AUTOREGISTRO=1` a **`=0`** — la plantilla del repo dejaba el registro abierto en cualquier clon, que era justo el agujero que F0.3 iba a cerrar. `.env.production.example` ya estaba en `0` y `apps/web/.env` local **no tiene la variable**, o sea ya cerrado por fail-closed. **La tarjeta humana del droplet cambia de sentido: ya no hay que poner `AUTOREGISTRO=1`, sino borrar la línea vieja y no poner nada.** |
+| 2026-08-14 | **F0.3 COMPLETADA_LOCAL** (`6044732`, AMARILLO). Con eso la Fase 0 queda terminada en todo lo que no exige una persona. El auditor **comprobó que la prueba muerde**: puso `.env.example` en `AUTOREGISTRO=1`, la vio roja, y restauró dejando el árbol como estaba. Y añadió una comprobación que nadie pidió: el archivo tiene finales **CRLF** en el árbol y la regex casa igual, porque en JS el `$` con flag `m` ancla antes del `\r` — **no hay falso rojo esperando a un clon en Windows**. |
+| 2026-08-14 | Corregidas **dos afirmaciones falsas que ese mismo commit escribió** en la bóveda: `entorno-y-despliegue.md` decía «`COOKIE_DOMAIN` ya no está en la plantilla … sigue viva solo en `_archive/`», y `manual-tecnico.md` prometía que la prueba «impide que vuelva». Las dos ignoran que **`.env.production.example:9` la sigue declarando**. La prueba lee **una sola** plantilla. |
+| 2026-08-14 | 🔴 **Dimensionado el riesgo de `.env.production.example:9`** (`COOKIE_DOMAIN=.{TENANT_SLUG}.spaces.com`), y es más que cosmético. **Inocuo hoy**: `apps/web` no lee la variable. **Latente por tres vías**: (a) el código que sí la consume existe en el repo —`_archive/api/src/core/auth/auth.routes.ts:17` hace `domain: process.env.COOKIE_DOMAIN`—, así que el día que alguien haga configurable el `domain` de `cookieSesion()`, los `.env` nacidos de esa plantilla comparten sesión por todo `*.spaces.com`: **fuga entre instancias soberanas, R1 y R2 a la vez, en silencio**; (b) es una instrucción explícita al operador, que tomará decisiones de DNS y certificados sobre un modelo muerto; (c) **ninguna tarea del plan la limpia** — F5.3 crea una plantilla *nueva* sin la variable pero **no toca esta**. Queda huérfana. |
+| 2026-08-14 | Hallazgos menores de esa auditoría, no corregidos: la constante `PLANTILLA` de `entorno.test.ts:57` se lee **al cargar el módulo**, así que si `.env.example` desapareciera caerían también los 2 casos de F2.6 con un error de importación, en vez de fallar el caso que toca. Y el paso 4 pedía «un comentario de una línea» y quedaron tres — la sustancia es la pedida. |
 | 2026-08-14 | **Expediente de la Fase 2 commiteado** (`84fe410`, `docs/evidencias/fase-2.md`), como **cierre parcial**. El documentalista **reprodujo el control positivo de secretos por su cuenta** en vez de citarlo: 11 patrones extraídos de los `.env`, 4/4 detectados en el standalone donde el `.env` sí está, **0 dentro de la imagen**. Y rehasheó los 68 archivos de `/app/db`: md5 agregado **idéntico** al repo a los dos lados. |
 | 2026-08-14 | Honestidad de ese expediente: **no pudo reverificar los 15 104 bytes** de `login.html` post-F2.6 porque esa imagen ya no existe en la máquina. Reconstruyó y midió **14 594 bytes con 0 apariciones** — misma conclusión, otro artefacto — y lo dijo en vez de repetir el número ajeno. |
 | 2026-08-14 | 🔴 **Y me pilló a mí.** `CLAUDE.md` §4 seguía diciendo «789 unitarias en 71 archivos» con la coletilla «medidas el 2026-08-14» que **yo mismo puse**: re-fechar con el dato viejo dentro, el defecto que llevo toda la sesión señalando en otros. Medido hoy: **803 en 73**. Corregido, y esta vez **sin número**: la línea ahora dice que el recuento crece y hay que medirlo. Lo mismo en `entorno-y-despliegue.md:102-103`. |
