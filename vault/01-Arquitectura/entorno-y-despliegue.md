@@ -1,11 +1,13 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-13
-tags: [despliegue, entorno, ci, env]
+actualizado: 2026-08-14
+tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - apps/web/package.json
   - apps/web/next.config.mjs
+  - Dockerfile
+  - .dockerignore
   - apps/web/scripts/bootstrap-auth.mjs
   - db/README.md
   - ecosystem.config.js
@@ -129,8 +131,50 @@ el standalone, y la raíz del `basePath` sigue dando el 307 a `/inicio`.
 > comprobó: el CSS que la propia página de login pide
 > (`/spaces-dooh/_next/static/css/…`) responde **404** si se arranca el
 > standalone tal cual, y `apps/web/public` no existe dentro del artefacto.
-> **No es un defecto del trazado**: copiarlos es paso explícito del `Dockerfile`
-> (F2.2), y que el login se vea con estilos se verifica en F2.5.
+> **No es un defecto del trazado**: copiarlos es paso explícito del `Dockerfile`,
+> que desde F2.2 (14/08) los copia — el CSS del login ya responde **200** dentro
+> del contenedor. El smoke formal sigue siendo F2.5.
+
+## La imagen de la instancia (`Dockerfile`, 14/08, F2.2)
+
+Un solo artefacto para todas las instancias. Se construye **desde la raíz** del
+monorepo, nunca desde `apps/web`: el trazado de Next parte de ahí
+(`next.config.mjs:17`) porque npm workspaces deja las dependencias *hoisted* en
+el `node_modules` de la raíz.
+
+| Etapa | Qué hace |
+|---|---|
+| `deps` | Solo los manifiestos + `npm ci`. Capa cacheada mientras el lockfile no cambie |
+| `build` | `npx turbo run build --filter=web` sobre `node:20-alpine` |
+| `runtime` | `.next/standalone` + `.next/static` + `public` + **`db/schema.sql` y `db/migrations/`** en `/app/db`; `USER node`, `EXPOSE 3000`, `CMD node apps/web/server.js` |
+
+Medido el 14/08 sobre `space-os:dev`: **240 MB**, **67 migraciones** dentro de
+`/app/db/migrations`, `SPACE_OS_VERSION` sellada desde `--build-arg VERSION`, y
+el contenedor levanta en **68 ms** dando 200 en `/spaces-dooh/login/` con su CSS.
+
+> [!danger] El `.env` es el riesgo real de esta imagen, y no avisa
+> `**/.env*` en `.dockerignore` **no es opcional**. El artefacto standalone se
+> lleva el `.env` dentro: al construir F2.1 se comprobó que
+> `.next/standalone/apps/web/.env` salía **byte a byte idéntico** a
+> `apps/web/.env` (mismo md5), con `GOOGLE_CLIENT_SECRET` incluido. Si un `.env`
+> entra al contexto de build, Next lo hornea **sin decir nada** y la copia que
+> corren todos los owners sale con las credenciales de uno.
+>
+> Por eso la verificación **no se fía del `.dockerignore`** y busca dentro de la
+> imagen ya construida. El 14/08: `find / -name '.env*'` no devolvió **nada**, y
+> `grep -rl 'GOOGLE_CLIENT_SECRET=' /app` tampoco.
+
+> [!tip] Los patrones de extensión del `.dockerignore` son de RAÍZ a propósito
+> `*.xlsx`, `*.pdf`, `*.csv`, `*.png` van sin `**` porque en Docker un patrón
+> sin barra solo casa en la raíz del contexto. Convertir `*.xlsx` en `**/*.xlsx`
+> se llevaría por delante `apps/web/public/plantilla-sitios-set.xlsx`, que la app
+> sirve como plantilla de importación de inventario
+> (`components/demo/inventario/ImportarInventarioDialog.tsx`). Se verificó que
+> sigue dentro de la imagen.
+
+Nada más escribe en disco: solo `apps/web/.next/cache`, que la imagen crea y
+entrega al usuario `node` para que `next/image` pueda optimizar remotas. **La
+instancia no necesita volumen.**
 
 ## CI
 
