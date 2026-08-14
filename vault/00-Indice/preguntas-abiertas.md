@@ -47,15 +47,26 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 ### P3b · ~~¿El registro público es temporal o permanente?~~ **REDECIDIDA el 14/08**
 
 > [!important] La decisión del 10/08 quedó revertida
-> **El autorregistro va CERRADO en local y en producción.** Decisión de Jochelo del
-> **2026-08-14**, que sustituye a la del 10/08 («abierto y permanente»). Se conserva
-> aquí la anterior porque explica por qué el código y varias notas hablaban de un
-> registro abierto.
+> **El autorregistro va CERRADO en TODAS partes: local, producción y DEMO.** Decisión
+> de Jochelo del **2026-08-14**, que sustituye a la del 10/08 («abierto y
+> permanente»). Se conserva la anterior más abajo porque explica por qué el código y
+> varias notas hablaban de un registro abierto.
 >
-> Lo que **sigue abierto**, y no lo decide esta respuesta: si la **DEMO** de la Fase 4
-> nace con el registro encendido. El modelo de instancias soberanas la describe como
-> la única con autoregistro, y **F4.4 del plan lo da por hecho**. Preguntar antes de
-> ejecutar F4.4 — ver [[07-Agentes/ejecucion-plan-v3]].
+> **Ninguna instancia lo abre.** La bandera `AUTOREGISTRO` existe y funciona (F2.6),
+> pero hoy nadie la enciende.
+>
+> Esto **contradice F4.4 del plan** (`Plan_Instancias_Soberanas_v3.md:1345`), que
+> manda encender el registro en DEMO. El plan no se ha tocado; la contradicción está
+> registrada en [[07-Agentes/ejecucion-plan-v3]].
+
+> [!warning] Y deja una pregunta nueva: ¿cómo nace una organización?
+> Con el registro cerrado en toda la flota, **`POST /api/signup` queda sin uso** y el
+> alta de una organización nueva **ya no tiene camino por la aplicación**. Lo único
+> que queda es el tenant `rgb` que siembra `db/schema.sql:598` y el usuario que crea
+> `bootstrap-auth.mjs` —que lo resuelve **por slug `rgb`** y aborta si falta—, así que
+> **cada instancia nueva nacería con una organización llamada `rgb`**.
+>
+> Enlaza directamente con **P1** (destino del tenant `rgb`), que sigue abierta.
 
 *Decisión anterior, del 10/08, ya no vigente:* el autorregistro era **abierto y
 permanente**, y la bandera encendida se quedaba.
