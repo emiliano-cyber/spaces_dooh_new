@@ -40,6 +40,32 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 Leyenda de estado: PENDIENTE · EN_CURSO · EN_VERIFICACION · COMPLETADA_LOCAL ·
 ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
+### Fase 0 · Cerrar el autoregistro fuera de DEMO — **sobrepasada por los hechos**
+
+> [!important] Ninguna tarea ejecutada, y la fase perdió su premisa — 2026-08-14
+> Expediente: **[`docs/evidencias/fase-0.md`](../../docs/evidencias/fase-0.md)** (commit `29c6b9e`).
+>
+> Se titula «cerrar el autoregistro **fuera de DEMO**», y la decisión del 14/08 lo
+> cierra **en todas partes**: la asimetría que perseguía ya no existe. Parte de lo
+> que quería F0.3 lo hicieron F2.6 y `0dbccb8` por otra vía. **F0.1 sigue siendo la
+> única forma de saber con evidencia si el registro está abierto hoy en el droplet.**
+
+| Tarea | Tipo | Estado | Notas |
+|---|---|---|---|
+| F0.1 | [verificación] | **NO EJECUTADA** → PENDIENTE_SERVIDOR | `curl` + `ssh` al droplet. Según el plan (`:260`) **bloquea toda la Fase 4**. Tarjeta **TH-F0.1** |
+| F0.2 | [infra] | **NO EJECUTADA** | Condicionada a que F0.1 dé 400. Su `sed` sobre el nombre viejo **caduca** en cuanto el droplet tome un release con F2.6 |
+| F0.3 | [código] | **NO EJECUTADA**, especificación rota, objetivo **a medias** | Ver el aviso de abajo |
+
+> [!danger] La mitad que falta de F0.3 y que nadie había visto
+> El objetivo de F0.3 era que «la regla deje de depender de la memoria». Hoy
+> `.env.example` dice `AUTOREGISTRO=0` (`0dbccb8`) — pero **ninguna prueba lo ancla**:
+> comprobado, el único `env.example` en `apps/web` es un comentario en
+> `integraciones.ts:16`. **Devolverlo a `=1` deja la suite verde y el CI mudo.**
+>
+> O sea que la decisión del 14/08 la sostiene hoy **un valor en una plantilla que
+> nada vigila**. Escribir esa prueba —con la forma nueva, `/^AUTOREGISTRO=0$/m`— es
+> trabajo real que sigue pendiente.
+
 ### Fase 1 · Limpieza de los 23 `DEFAULT` de `tenant_id`
 
 > [!important] **FASE 1 CERRADA EN LOCAL** — 2026-08-14
@@ -204,6 +230,11 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Desfase del plan en F2.5, registrado y NO corregido**: su criterio justifica el 503 con «el autoregistro viene apagado **horneado**, invariante 9», y tras `70ca3f0` eso es **definitivamente falso** — nada se hornea. Y su paso 3 manda arrancar con `NEXT_PUBLIC_AUTOREGISTRO=0`, **variable que ya no lee nadie**: quien lo copie literal obtendrá 503 igual, pero por la ausencia de `AUTOREGISTRO`, no por lo que cree. Dos frases, ningún cambio de código. |
 | 2026-08-14 | Para las tarjetas futuras: **F4.5 (smoke de DEMO) tiene que arrancar con `AUTOREGISTRO=1` y esperar `signup` 400**, no 503 — es la única instancia con el registro abierto. Una instancia de owner espera **503** con `AUTOREGISTRO=0` u omitida. |
 | 2026-08-14 | 🔵 **DECISIÓN DE JOCHELO: el autoregistro va CERRADO en local y en producción.** Revierte P3b del 10/08 («abierto y permanente»). Efecto inmediato: `.env.example` baja de `AUTOREGISTRO=1` a **`=0`** — la plantilla del repo dejaba el registro abierto en cualquier clon, que era justo el agujero que F0.3 iba a cerrar. `.env.production.example` ya estaba en `0` y `apps/web/.env` local **no tiene la variable**, o sea ya cerrado por fail-closed. **La tarjeta humana del droplet cambia de sentido: ya no hay que poner `AUTOREGISTRO=1`, sino borrar la línea vieja y no poner nada.** |
+| 2026-08-14 | **Expediente de la Fase 0 commiteado** (`29c6b9e`, `docs/evidencias/fase-0.md`): una fase **sin una sola tarea ejecutada** y que además **perdió su premisa**. El documentalista **corrigió al orquestador dos veces**: (a) el punto (d) de la auditoría de F2.6 estaba contado de más — el campo `Archivos:` de F0.3 apunta a `.env.example` «líneas 17-23 **y línea 4**», y **la línea 4 sigue siendo `COOKIE_DOMAIN=localhost`**, así que el paso 4 de F0.3 sigue aplicando tal cual; (b) el comando de F0.1 no está en `:262-273` como le dije, sino el `curl` en `:267-271` y el `ssh` en `:275`. |
+| 2026-08-14 | 🔴 **Lo que nadie había visto: el criterio de F0.3 sigue sin cumplirse, y afecta a la decisión de hoy.** `.env.example` bajó a `AUTOREGISTRO=0`, pero **ninguna prueba lo ancla** — comprobado: el único `env.example` en `apps/web` es un comentario en `integraciones.ts:16`. **Devolverlo a `=1` deja la suite verde y el CI mudo.** La decisión de Jochelo del 14/08 la sostiene hoy un valor en una plantilla que nada vigila. La mitad «que una prueba impida volver atrás» sigue **entera sin hacer**. |
+| 2026-08-14 | Dos arrastres más que localizó ese expediente: **F5.3 depende de F0.3** (`:1493`) y escribe el nombre viejo tres veces (`:1497,:1504`); y el recuento de pruebas del plan (`:2037`) presupone **6 casos** en `entorno.test.ts` cuando hay **2**. |
+| 2026-08-14 | ⚠️ **TH-F0.1 emitida, con una advertencia que cambia el guion:** si el `curl` al droplet devuelve 400 (registro abierto), **F0.2 NO se ejecuta como está escrita**. Con la decisión del 14/08 la acción correcta es **borrar la línea vieja**, no poner la bandera a 1. |
+| 2026-08-14 | Y una cobertura ausente por una razón que ya no es la razón: `aislamiento.e2e.test.ts:200-213` sigue con su `it.skip` justificado en que «la bandera se hornea en el build» — **falso desde `70ca3f0`**. El bloque se retira en un release posterior (expand → contract), pero conviene no leer ese `skip` como si siguiera siendo inevitable. |
 | 2026-08-14 | 🔵 **Cerrada también la DEMO.** Jochelo lo confirmó al preguntárselo: **ninguna instancia abre el registro**, DEMO incluida. La bandera existe y funciona, pero hoy **nadie la enciende**. |
 | 2026-08-14 | **Consecuencias de que el registro quede cerrado en todas partes**, ninguna resuelta aquí: (a) **F4.4 (`:1345`) queda contradicha** — manda `.env` de DEMO con el autoregistro encendido, y ahora va apagado; (b) **`POST /api/signup` pasa a ser código sin uso** en toda la flota, y `/api/auth/metodos/` devolverá siempre `autoregistro:false`; (c) **el alta de una organización nueva ya no tiene camino por la aplicación** — queda solo el tenant `rgb` que siembra `db/schema.sql:598` más el usuario que crea `bootstrap-auth.mjs`, que resuelve **por slug `rgb` y aborta si falta**. O sea que **cada instancia nueva nacería con una organización llamada `rgb`**, lo cual enlaza directamente con **P1** (destino del tenant `rgb`), que sigue abierta. |
 | 2026-08-14 | Nota sobre P4-bis: que nadie encienda la bandera **no invalida F2.6**. Sacarla del build sigue siendo lo correcto —un solo artefacto para toda la flota, y encender el registro deja de exigir recompilar— y de paso arregló el botón horneado, que era un defecto real con el registro abierto **o** cerrado. |
