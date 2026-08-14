@@ -99,8 +99,8 @@ no entran.
 | `npm run dev` | Next dev | `apps/web/package.json:6` |
 | `npm run build` | Next build | `apps/web/package.json:7` |
 | `npm start` | `next start -p 3000` | `apps/web/package.json:8` |
-| `npm test` | Vitest unitarias (799 en 72 archivos) | `apps/web/package.json:10` |
-| `npm run test:e2e` | Vitest integración (140 + 1 saltada, en 13 archivos) | `apps/web/package.json:11` |
+| `npm test` | Vitest unitarias — **el recuento crece; mídelo, no lo copies** | `apps/web/package.json:10` |
+| `npm run test:e2e` | Vitest integración — **ídem** | `apps/web/package.json:11` |
 | `npm run typecheck` | `tsc --noEmit` | `apps/web/package.json:12` |
 
 Las e2e necesitan una base aparte cuyo nombre **debe** terminar en `_e2e` o
