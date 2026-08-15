@@ -191,10 +191,18 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
   `fix(seguridad): el desbloqueo leia usuarios sin contexto de tenant`. El cuerpo se
   usa de verdad: explica el porqué, lo que apareció al hacerlo y qué se verificó.
 - **Dos suites, y las dos se corren desde `apps/web/`**: `cd apps/web && npm test`
-  (789 unitarias en 71 archivos, sin Docker) y `cd apps/web && npm run test:e2e`
-  (13 archivos, 140 pruebas + 1 saltada, contra Postgres real en el 5433, en serie,
-  contra un Next real en el puerto 3311). Ambas cifras medidas el 2026-08-14 — y
-  **crecen**: F1.2 añadió el archivo 13. Remídelas, no las copies.
+  (unitarias, sin Docker) y `cd apps/web && npm run test:e2e` (integración contra
+  Postgres real en el 5433, en serie, contra un Next real en el puerto 3311).
+
+> [!warning] No copies de aquí un recuento de pruebas — mídelo
+> **Crecen con cada tarea.** En `feat/servidor-padre-instancias` pasaron de 789 a
+> **803** unitarias en dos días, y las e2e de 12 a 13 archivos. Cualquier cifra
+> escrita aquí caduca al siguiente commit, y **este archivo ya la tuvo mal dos
+> veces** — la segunda con la fecha de hoy encima, que es peor que no ponerla.
+> Si necesitas el número, córrelo: `cd apps/web && npm test`.
+>
+> Y ojo con dónde lo corres: la raíz del repo y `.claude/worktrees/servidor-padre`
+> son **ramas distintas con recuentos distintos** (796 y 803 el 14/08).
 - **Migraciones** `YYYYMMDD_descripcion.sql`, transaccionales e idempotentes. **No
   se edita una ya aplicada** y **no se toca `db/schema.sql` directo**.
 - **La bitácora es parte del trabajo**: si el cambio se nota desde la aplicación,
