@@ -70,6 +70,19 @@ __pycache__/
 .venv/
 venv/
 
+# Capturas del manual ilustrado.
+#
+# El SCRIPT sí se versiona (manuales/capturas.spec.ts): es lo que permite
+# regenerar las imágenes cuando el manual cambie. Lo que NO entra:
+#
+#   .auth/estado.json  guarda una COOKIE DE SESIÓN viva. Nunca a git.
+#   capturas/          pesan, se regeneran, y hoy llevan datos reales
+#                      del entorno local sin difuminar (decisión del humano):
+#                      razón de más para que no salgan del equipo.
+manuales/.auth/
+manuales/capturas/
+manuales/.playwright-artifacts/
+
 # Material de referencia de identidad visual (handoff de marca; no se versiona)
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
