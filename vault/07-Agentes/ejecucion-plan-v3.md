@@ -182,10 +182,24 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | `3ac2bba` | T-02 | Cambia a qué base escribe el bootstrap |
 | `70ca3f0` | F2.6 | Invierte la polaridad de una bandera de seguridad |
 | `ef70aa9` | T-03 | Cookie de sesión + aislamiento entre instancias |
+| `6cb16d4` | F3.1 | **Migración.** Nace `schema_migrations` y su backfill de 65 |
+| `4c484fa` | **T-04** | **Edita DOS migraciones ya aplicadas en producción** (R3), autorizado por Jochelo el 17/08 |
+| `d293865` | F3.2 (1.º) | Runner de migraciones: ejecuta DDL sobre la base que le pongan delante |
+| `024759c` | F3.2 (2.º) | El guard que decide si una instancia reaplica su historia |
+| `d31a7b8` | F3.2 (3.º) | La señal derivada que verifica `--instalacion-nueva` |
+| `dc6df52` | F3.3 | Decide si una instancia **se niega a actualizarse** |
 
-**Son seis.** Declarados AMARILLO por su ejecutor, y por tanto **fuera** de esta
-lista aunque toquen temas próximos: `3671e8a` (F1.4), `6044732` (F0.3), `8ae8f77`
-(F2.1) y `3f16386` (F2.2). Ninguno de los diez está en `main`.
+**Son doce.** Las seis primeras venían del 13–14/08; las seis de abajo salieron el 17/08.
+
+> [!warning] La fila de `6cb16d4` faltaba, y llevaba tres días fuera
+> Su propia fila de la Fase 3 dice «ROJO: pendiente de visto bueno humano» desde el
+> 14/08, y esta tabla no la recogía. **Es una migración**: exactamente el tipo de commit
+> que esta lista existe para no perder. Añadida el 17/08 al revisar el recuento.
+
+**Y siguen fuera, por el mismo criterio** —declarados AMARILLO o VERDE por su propio
+ejecutor, aunque toquen temas próximos—: `3671e8a` (F1.4), `6044732` (F0.3), `8ae8f77`
+(F2.1), `3f16386` (F2.2), `958a3e6` (F2.3) y `0584d97` (F2.4). **Ninguno de los
+dieciocho está en `main`.**
 
 ## Tarjetas humanas emitidas
 
