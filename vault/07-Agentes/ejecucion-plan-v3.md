@@ -139,7 +139,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F2.1 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `8ae8f77`, AMARILLO (auditada el 14/08 — la primera auditoría murió por un login expirado y se relanzó de cero). Las dos formas de arrancar comprobadas: `npm start` y el standalone, 200 y 307 en ambas. Alto contacto: `next.config.mjs` |
 | F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 ✅ | **COMPLETADA_LOCAL** | `3f16386`, **VERDE**. Imagen de 240 MB con `db/` dentro (68 archivos md5-idénticos al repo). Sin `.env`, probado **con control positivo**. La línea `**/.env*` del `.dockerignore` es lo que lo sostiene — ver bitácora |
 | F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅, ~~P4~~ ✅ | **ESCRITA (`958a3e6`) · pendiente de auditoría** — su parte de servidor es **TH-F2.3** | ✅ Nace `.github/workflows/release.yml`. **El gate no es una comprobación: es el orden** — el `docker push` es el último paso del último job y ese job cuelga de `needs: pruebas`, así que no hay camino por el que `beta` se mueva sin typecheck + unitarias + e2e en verde. Detalle que el plan no pide y sí importa: **primero la etiqueta de versión y después `beta`**, porque la de versión es inmutable y `beta` es un puntero — si el primer push falla, `beta` sigue apuntando al release anterior, que sí está entero. Resolvió las dos trampas que le pasé: **el build de Next va entre las unitarias y las e2e** (sin él, los 15 archivos morirían por timeout tras 636 s con un rojo que no habla del código), y **el rol de aplicación lo monta el arnés, no el YAML** — `recrearEsquema()` aplica `dev-rol-app.sql` antes que nada; montarlo por otro camino sería una segunda copia que divergiría. Van **las dos** conexiones (`DATABASE_URL_TEST` con superusuario y `DATABASE_URL_TEST_APP` con `spaces_app`): con una sola, la RLS no se aplica y **el aislamiento pasaría por casualidad** | Publica **una** imagen (P4-bis resuelta). El registry va como parámetro `vars.REGISTRY` y el login se elige por `vars.REGISTRY_TIPO` (`plan:785-786`) — con P4 en DOCR, el valor lo pone una persona en **TH-P4** |
-| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | **PENDIENTE** (desbloqueada el 17/08) | Promoción manual a `estable`. Reetiqueta **sin reconstruir**: el digest no cambia |
+| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | **ESCRITA (`0584d97`) · pendiente de auditoría** — su parte de servidor es **TH-F2.4** | ✅ Nace `.github/workflows/promover.yml`. Reetiqueta con **`docker buildx imagetools create`**, que opera sobre el **manifiesto en el registry**: no baja capas ni pasa por el demonio local. Descartó `pull`+`tag`+`push` con un motivo decisivo que el plan no menciona: **el demonio local guarda UNA plataforma**, así que de un índice multi-arquitectura saldría un manifiesto de una sola — otro digest. Dos refuerzos suyos: **el origen es el digest, no la etiqueta `beta`** (entre comprobar y reetiquetar puede entrar un release y mover `beta`), y **no se cree a `imagetools`: lo comprueba** — relee el digest de `estable` y falla en rojo si difiere, imprimiendo la vuelta atrás. **Patrón estricto sin sufijos**, deliberadamente distinto del de `release.yml`: `-rc1` es material de `beta`, no de `estable`, y el porqué está escrito en los dos archivos para que nadie los «unifique» de buena fe |
 | F2.5 | [verificación] | ensayista-local | F2.2 | **ENSAYADA_LOCAL** (×2) | Reensayada tras F2.6: `200 · 200 · 503 · 401` y **la bandera obedece al arranque** con la misma imagen (`sha256:12de895f`). Login con estilos: **22 activos a 200**, CSS con 707 reglas. Queda vigente que **la imagen no puede levantar una base virgen sola** (falta el rol de app) → F3.2/Fase 5 |
 | F2.6 | [código] | ejecutor | F2.1 | **COMPLETADA_LOCAL** | `70ca3f0`, AMARILLO. `AUTOREGISTRO` sin prefijo, fail-closed, y el botón deja de hornearse. ROJO: **pendiente de visto bueno humano**. ⚠️ Rompe cuatro tareas del plan por el renombrado — ver bitácora |
 
@@ -518,6 +518,49 @@ aceptación de F2.3 es exactamente ése, y no se ve con un tag que pasa.
 **Vuelta atrás si publica una imagen mala:** mover `beta` a la anterior y borrar el tag.
 `beta` solo lo consume DEMO.
 
+---
+
+### TH-F2.4 · promover una versión a `estable`
+
+Emitida el **2026-08-17**. Depende de **TH-P4** (variables del registry) y de que exista
+una imagen en `beta` (**TH-F2.3**). Y de una condición que se olvida fácil: **el workflow
+no aparece en Actions hasta que esta rama esté fusionada a `main`** — `workflow_dispatch`
+exige que el archivo esté en la rama por omisión.
+
+```bash
+# 0 · Configuracion, una sola vez (parte de TH-P4)
+gh variable set DEMO_URL --body "https://demo.space-os.io/spaces-dooh"
+# recomendado: exigir aprobacion humana antes de mover estable
+gh api -X PUT repos/:owner/:repo/environments/flota \
+  -f 'reviewers[][type]=User' -F 'reviewers[][id]=<tu id>'
+
+# 1 · El comando de verificacion del plan, tal cual (:824-829)
+gh workflow run promover.yml -f version=v0.1.0 && gh run watch
+docker buildx imagetools inspect "$REGISTRY/space-os:estable" | head -5
+docker buildx imagetools inspect "$REGISTRY/space-os:v0.1.0"  | head -5
+
+# 2 · El criterio de aceptacion, medido en una linea
+A=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$REGISTRY/space-os:estable")
+B=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$REGISTRY/space-os:v0.1.0")
+[ "$A" = "$B" ] && echo "ok: promover no cambio el digest ($A)" || echo "FALLO: $A != $B"
+
+# 3 · Vuelta atras (la etiqueta, NO las instancias que ya jalaron: eso es F3.4)
+docker buildx imagetools create --tag "$REGISTRY/space-os:estable" "$REGISTRY/space-os@<digest anterior>"
+```
+
+| Respuesta | Significa |
+|---|---|
+| **Verde y los dos digests iguales** | Listo |
+| Rojo en «la versión existe y es la que lleva `beta`» | O no se publicó esa versión, o ya salió una `beta` más nueva. **Promover una vieja es un rollback y va a mano** |
+| Rojo en el smoke | DEMO no está sana, y promover **afirmaría algo falso** |
+| Rojo en «promover no cambió el digest» | `imagetools create` no se comportó como se espera en ese registry. El error trae el comando para devolver `estable`: **parar y avisar** |
+
+> [!danger] Hoy no hay red debajo
+> Promover por error manda a **toda la flota** a jalar esa imagen. Reetiquetar `estable`
+> a la anterior arregla la etiqueta, pero **las instancias que ya jalaron no vuelven
+> solas**: necesitan su rollback local, que es **F3.4 y todavía no existe**. Armar el
+> `environment: flota` con revisores es lo que hoy sustituye a esa red.
+
 ## Bitácora de orquestación
 
 | Fecha | Evento |
@@ -729,6 +772,12 @@ aceptación de F2.3 es exactamente ése, y no se ve con un tag que pasa.
 | 2026-08-17 | **Y resolvió las dos trampas del briefing sin inventarse nada.** El **build de Next** va entre las unitarias y las e2e, con el porqué escrito encima: en un runner limpio no hay `.next/BUILD_ID` y los 15 archivos morirían por timeout tras 636 s con un rojo que no habla del código. Y **el rol de aplicación lo monta el arnés, no el YAML**: el servicio solo crea `spaces_e2e` —nombre que no es cosmético, `db-e2e.ts` se niega si no acaba en `_e2e`/`_test`— y `recrearEsquema()` aplica `dev-rol-app.sql` antes que nada, que es lo que salva el `raise exception` de las **13** migraciones que referencian el rol. Su argumento para no montarla aparte: **dos copias divergen, y el CI acabaría probando un montaje que no usa nadie más.** |
 | 2026-08-17 | **Lo que declara que no puede verificar, y midió lo que sí se podía:** que las e2e pasen **sin `.env`** en el runner. Comprobó que **ningún** archivo e2e lee `DO_SPACES`/`RESEND`/`SPACE_EYE`/`CFDI`/`ADMOBILIZE`, y que `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_TENANT_SLUG` tienen valor por omisión en las **seis** rutas que las leen. Riesgo bajo, **no cero**. Quedan también sin verificar el login de DOCR, los tiempos (`timeout-minutes: 45` puesto sin medir un runner real) y **el criterio de aceptación mismo**. |
 | 2026-08-17 | Desviación menor declarada: el patrón de versión admite sufijo (`-rc1`, `-beta.1`) **porque el propio comando de verificación de la tarea usa `v0.0.1-rc1`** y el filtro `v*.*.*` lo deja pasar. Con un patrón estricto, el primer tag de ensayo moriría en un sitio que no explica por qué. |
+
+| 2026-08-17 | **F2.4 ESCRITA** (`0584d97`, **VERDE** — no toca código ejecutable). **El ejercicio de guards encontró un defecto real, que es para lo que servía**: en la **primera** promoción `estable` no existe, y tanto el assert como el resumen imprimían `space-os@ninguno (primera promocion)` — **una línea impegable justo en el momento en que alguien la pegaría a ciegas**. Ahora ambos ramifican por `sha256:*` y dicen «no hay digest al que volver». 35 casos de guard con dobles de `docker`/`curl`/`jq`, sin red. |
+| 2026-08-17 | **Su argumento decisivo contra `pull`+`tag`+`push`, que el plan no menciona:** el demonio local guarda **UNA** plataforma, así que de un índice multi-arquitectura saldría un manifiesto de una sola — **otro digest**. Aun con una sola plataforma, el manifiesto **se vuelve a serializar** al empujar y eso también puede cambiarlo. `imagetools create` opera sobre el manifiesto en el registry. Y dos refuerzos que no son adorno: **el origen es el digest, no la etiqueta `beta`** —entre comprobar y reetiquetar puede entrar un release y moverla—, y **no se cree a `imagetools`: relee el digest de `estable` y falla en rojo si difiere**, imprimiendo la vuelta atrás. El criterio es medible, así que se mide dentro del run. |
+| 2026-08-17 | **Tres decisiones suyas más allá de la letra del plan, bien defendidas.** (a) **`DEMO_URL` obligatoria y el smoke es puerta, no adorno**: el plan solo pide dejar el resultado en el resumen, pero el objetivo de la tarea es que ningún owner reciba nada no validado en DEMO — si no se puede mirar DEMO, **la afirmación implícita de promover es falsa**. (b) **No añadió un segundo input de confirmación** aunque sería lo más a prueba de accidentes, porque **rompería el comando de verificación exacto del plan**; puso `environment: flota`, que es el mecanismo nativo, no frena nada hoy, y armarlo con revisores queda en la tarjeta. (c) **`/api/version` se consulta pero no bloquea**: bloquear haría el workflow inutilizable hasta F6.1, que es Fase 6, y esto se necesita en la Fase 2 — la honestidad va al resumen, que escribe «qué versión corre DEMO: **NO COMPROBADO**». |
+| 2026-08-17 | ⚠️ **Desviación declarada por el propio ejecutor, y la registro porque la declaró él:** dos llamadas suyas **salieron a la red sin querer**. Al probar un caso suelto usó una ruta estilo Windows en `PATH`, que Cygwin no interpreta, así que corrió el `docker` real y `imagetools inspect` intentó autenticarse **anónimamente** contra `api.digitalocean.com` → **401, solo lectura, sin credenciales y sin efecto**. Lo repitió con ruta POSIX y quedó hermético. Va contra la regla de no tocar nada remoto; el daño es nulo y **el valor está en que lo dijo sin que nadie lo hubiera notado**. De paso confirma que las 35 corridas del arnés sí usaron los dobles. |
+| 2026-08-17 | ⚠️ **Desviación de proceso, y es MÍA:** encadené F2.4 sobre una F2.3 **sin auditar**, por instrucción de Jochelo. El riesgo concreto es acotado pero real —F2.4 reutiliza las convenciones de F2.3 para el registry y el login, así que un defecto ahí lo heredarían las dos— y por eso las dos auditorías van juntas, con el encargo expreso al auditor de F2.4 de **comparar los dos archivos entre sí**: es la comprobación que ningún ejecutor pudo hacer solo. |
 
 ---
 *Preparado por Ana · 2026-08-13 · reabierto 2026-08-14 · retomado 2026-08-17*
