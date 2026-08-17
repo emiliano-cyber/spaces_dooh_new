@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-14
+actualizado: 2026-08-17
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -27,7 +27,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 | P1 · destino de `rgb` y del droplet actual | ABIERTA | — | — |
 | P2 · fecha de migración de PIXELED | ABIERTA | — | — |
 | P3 · cuenta DO de las instancias | ABIERTA | — | — |
-| P4 · nombre del registry | ABIERTA | — | — |
+| **P4 · nombre del registry** | **RESUELTA** | **DigitalOcean Container Registry.** Login con `secrets.DO_REGISTRY_TOKEN`. **No cambia una línea de F2.3/F2.4**: el plan (`:785-786`) ya manda elegir el login según `vars.REGISTRY_TIPO` para no reescribir el workflow cuando cayera esta decisión. Lo que fija son **dos variables de repositorio en GitHub** → tarjeta **TH-P4**. ⚠️ **Arrastra P3**: un registry de DO vive en una cuenta concreta, y en cuál nacen las instancias sigue abierto. Mirar además el límite de almacenamiento del plan contratado | 2026-08-17 |
 | **P4-bis · autoregistro fuera del build** | **RESUELTA y EJECUTADA** (`70ca3f0`) | **(b) la bandera sale del build**, como ya se hizo con `GOOGLE_OAUTH`. Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar | 2026-08-13 |
 | **P3b-bis · ¿el registro va abierto o cerrado?** | **REDECIDIDA y COMPLETA — revierte la del 10/08** | **CERRADO en todas partes: local, producción y DEMO.** Ninguna instancia lo abre. `.env.example` baja a `AUTOREGISTRO=0`; el droplet se queda sin la bandera. **Contradice F4.4 del plan** (`:1345`), que manda encenderlo en DEMO | 2026-08-14 |
 | P5 · «DEMO» de la Fase 3 = droplet nuevo de la Fase 4 | ASUMIDA por el plan (F3.5 depende de F4.5) | sí | 2026-08-13 |
@@ -73,12 +73,26 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
 ### Fase 1 · Limpieza de los 23 `DEFAULT` de `tenant_id`
 
-> [!important] **FASE 1 CERRADA EN LOCAL** — 2026-08-14
-> Expediente de evidencia: **[`docs/evidencias/fase-1.md`](../../docs/evidencias/fase-1.md)** (commit `fb09b91`).
+> [!important] **FASE 1 CERRADA EN LOCAL** — validada el 2026-08-17
+> ✅ **`validador-plan`: AMARILLO** sobre HEAD `04952a7`. **Ningún hallazgo toca el
+> código, la migración ni las pruebas**: los siete son de tablero y expediente, y tres
+> eran míos (H1, H2, H3), corregidos aquí mismo. Suites corridas por el validador, no
+> reportadas: typecheck limpio, **805 unitarias en 73 archivos** y **147 e2e + 1 saltada
+> en 14 archivos**, exit 0. Invariantes limpios: `aislamiento.e2e.test.ts` intacto en
+> **toda la rama**, `db/schema.sql` sin tocar, ninguna migración preexistente modificada,
+> cero `qRaw` nuevo y cero secretos.
+>
+> Expediente de evidencia: **[`docs/evidencias/fase-1.md`](../../docs/evidencias/fase-1.md)**,
+> commit vivo **`7138f89`** (14/08 14:50), que **reescribió** el original `fb09b91` —
+> aquel escribió 593 líneas en la ruta vieja `docs/Instancias_Fase1_Expediente_Cierre.md`
+> y `42c0f4e` la mudó. El contenido de hoy **no** es el de `fb09b91`.
 >
 > **Cerrada en local, NO en producción.** El `DEFAULT` sigue vivo en `spaces_prod`:
-> F1.2 está escrita y probada, no aplicada. Quedan **F1.5** y el censo de **TH-02**,
-> las dos de persona, más **cinco commits ROJO** esperando visto bueno humano.
+> F1.2 está escrita y probada, no aplicada. Quedan **F1.5** (tarjeta **TH-F1.5**) y el
+> censo de **TH-02**, las dos de persona, más **cuatro commits ROJO** esperando visto
+> bueno humano — `c50344a`, `65bf9b5`, `b976b54` y `3ac2bba`. **Son cuatro, no cinco**:
+> `3671e8a` (F1.4) lo declaró AMARILLO su ejecutor, y el criterio vigente es el de la
+> sección «Commits que esperan visto bueno humano».
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
@@ -88,15 +102,21 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F1.2 | [migración] | ejecutor | F1.1-local + T-01 ✅ | **COMPLETADA_LOCAL** | **`65bf9b5`**, AMARILLO. Descubre tablas por catálogo, no por lista; idempotencia probada ×3 y el guard visto saltar. **ROJO — migración Y tenant, los dos disparadores: pendiente de visto bueno humano.** ⚠️ El plan manda reverificar el `insert into reservas` que cita en `campanas-repo.ts:687-696`: tras F1.3 arranca en **`:697`** |
 | F1.3 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `c50344a`. Veredicto AMARILLO (aceptada). ROJO por R2: **pendiente de visto bueno humano antes del merge** |
 | F1.4 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `3671e8a`, AMARILLO. `lib/host.ts` nuevo y `extractSubdomain` borrada. ⚠️ Abierto: el rewrite de `portal` **sí cambia** con `Host` en mayúsculas o con punto final — fuera de los pasos que la tarea autorizaba. Pendiente de decisión |
-| F1.5 | [verificación] | tarjeta humana | F1.1 real, F1.2 | PENDIENTE_SERVIDOR | Aplicación al droplet: la corre una persona |
+| F1.5 | [verificación] | tarjeta humana | F1.1 real, F1.2 | PENDIENTE_SERVIDOR | Aplicación al droplet: la corre una persona. Tarjeta **TH-F1.5**, emitida el 17/08 — llevaba desde el 13/08 en este estado **sin tarjeta**, que es lo que la leyenda exige. Va después de TH-02 y **después de TH-F3.1** |
 
 ### Fase 2 · Release versionado — **cierre PARCIAL**
 
 > [!important] Todo lo ejecutable, hecho — pero la fase NO está cerrada
-> Expediente: **[`docs/evidencias/fase-2.md`](../../docs/evidencias/fase-2.md)** (commit `84fe410`).
+> Expediente: **[`docs/evidencias/fase-2.md`](../../docs/evidencias/fase-2.md)**, commit
+> vivo **`fc04607`** («reemitido con las anclas remedidas»), que **sustituye** al
+> `84fe410` de las 14:09.
 >
-> **F2.3 y F2.4 siguen BLOQUEADAS por P4** (el nombre del registry). Es lo único que
-> separa a esta fase del cierre. `COMPLETADA_LOCAL` tampoco es «hecho»: la rama no
+> **P4 quedó RESUELTA el 2026-08-17** (DigitalOcean Container Registry), así que
+> **F2.3 y F2.4 dejan de estar bloqueadas y pasan a PENDIENTE**. Ojo con lo que eso
+> significa de verdad: el plan (`:785-786`) ya las diseñó para escribirse **sin** esa
+> decisión —el login se elige por `vars.REGISTRY_TIPO`—, o sea que lo desbloqueado no es
+> el código sino **el valor de dos variables de repositorio**, que pone una persona
+> (**TH-P4**). `COMPLETADA_LOCAL` tampoco es «hecho»: la rama no
 > está mergeada y producción corre el build viejo, donde `NEXT_PUBLIC_AUTOREGISTRO`
 > todavía manda.
 
@@ -104,8 +124,8 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 |---|---|---|---|---|---|
 | F2.1 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `8ae8f77`, AMARILLO (auditada el 14/08 — la primera auditoría murió por un login expirado y se relanzó de cero). Las dos formas de arrancar comprobadas: `npm start` y el standalone, 200 y 307 en ambas. Alto contacto: `next.config.mjs` |
 | F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 ✅ | **COMPLETADA_LOCAL** | `3f16386`, **VERDE**. Imagen de 240 MB con `db/` dentro (68 archivos md5-idénticos al repo). Sin `.env`, probado **con control positivo**. La línea `**/.env*` del `.dockerignore` es lo que lo sostiene — ver bitácora |
-| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅ | **BLOQUEADA por P4** | Publica **una** imagen (P4-bis resuelta). Pero sigue frenada por el **nombre del registry** (§8.4 / P4), que sigue abierto |
-| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | BLOQUEADA (arrastre de P4) | Promoción manual a `estable` |
+| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅, ~~P4~~ ✅ | **PENDIENTE** (desbloqueada el 17/08) | Publica **una** imagen (P4-bis resuelta). El registry va como parámetro `vars.REGISTRY` y el login se elige por `vars.REGISTRY_TIPO` (`plan:785-786`) — con P4 en DOCR, el valor lo pone una persona en **TH-P4** |
+| F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | **PENDIENTE** (desbloqueada el 17/08) | Promoción manual a `estable`. Reetiqueta **sin reconstruir**: el digest no cambia |
 | F2.5 | [verificación] | ensayista-local | F2.2 | **ENSAYADA_LOCAL** (×2) | Reensayada tras F2.6: `200 · 200 · 503 · 401` y **la bandera obedece al arranque** con la misma imagen (`sha256:12de895f`). Login con estilos: **22 activos a 200**, CSS con 707 reglas. Queda vigente que **la imagen no puede levantar una base virgen sola** (falta el rol de app) → F3.2/Fase 5 |
 | F2.6 | [código] | ejecutor | F2.1 | **COMPLETADA_LOCAL** | `70ca3f0`, AMARILLO. `AUTOREGISTRO` sin prefijo, fail-closed, y el botón deja de hornearse. ROJO: **pendiente de visto bueno humano**. ⚠️ Rompe cuatro tareas del plan por el renombrado — ver bitácora |
 
@@ -277,12 +297,31 @@ corre una persona. Son **dos pasos**: el comando de verificación del plan
 (`Plan_Instancias_Soberanas_v3.md:434`) invoca `/tmp/auditoria_tenant.sql` con `-f`,
 pero **ese archivo no existe ni el plan lo crea**. Hay que materializarlo antes.
 
-**Paso 1 — dejar el SQL en el droplet** (las tres consultas literales del plan, sin
-modificar; están en `Plan_Instancias_Soberanas_v3.md:390-419`):
+**Paso 1 — dejar el SQL en el droplet.** Son las tres consultas literales del plan
+(`Plan_Instancias_Soberanas_v3.md:390-419`), **materializadas aquí a propósito**: la
+versión anterior de esta tarjeta ponía una elipsis y obligaba a transcribirlas a mano,
+justo en el paso donde una errata produce un censo falso.
 
 ```bash
 ssh root@209.97.146.136 "cat > /tmp/auditoria_tenant.sql" <<'SQL'
-… las tres consultas de F1.1, copiadas literalmente del plan …
+select c.relname as tabla, pg_get_expr(d.adbin, d.adrelid) as por_defecto
+  from pg_attrdef d
+  join pg_class c on c.oid = d.adrelid
+  join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+  join pg_namespace n on n.oid = c.relnamespace
+ where n.nspname = 'public' and a.attname = 'tenant_id'
+ order by 1;
+
+select sm.tenant_id as tenant_modalidad, s.tenant_id as tenant_sitio, count(*)
+  from sitio_modalidades sm join sitios s on s.id = sm.sitio_id
+ where sm.tenant_id is distinct from s.tenant_id
+ group by 1,2;
+
+select 'predios' t, p.tenant_id, a.tenant_id, count(*) from predios p join arrendadores a on a.id=p.arrendador_id where p.tenant_id is distinct from a.tenant_id group by 1,2,3
+union all select 'reservas', r.tenant_id, c.tenant_id, count(*) from reservas r join campanas c on c.id=r.campana_id where r.tenant_id is distinct from c.tenant_id group by 1,2,3
+union all select 'propuesta_items', pi.tenant_id, pr.tenant_id, count(*) from propuesta_items pi join propuestas pr on pr.id=pi.propuesta_id where pi.tenant_id is distinct from pr.tenant_id group by 1,2,3
+union all select 'contratos_arrendamiento', ca.tenant_id, s.tenant_id, count(*) from contratos_arrendamiento ca join sitios s on s.id=ca.sitio_id where ca.tenant_id is distinct from s.tenant_id group by 1,2,3
+union all select 'cobranzas', cb.tenant_id, f.tenant_id, count(*) from cobranzas cb join facturas f on f.id=cb.factura_id where cb.tenant_id is distinct from f.tenant_id group by 1,2,3;
 SQL
 ```
 
@@ -309,6 +348,87 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 > [!important] Si aparecen filas sospechosas, **no se corrigen en esta fase**
 > Se anotan y su destino se decide en la Fase 7. Quitar el `DEFAULT` sigue adelante
 > igual: detiene la hemorragia aunque no cure la herida.
+
+---
+
+### TH-F1.5 · aplicar `sin_default_tenant` al droplet
+
+De **F1.5** (`Plan_Instancias_Soberanas_v3.md:646-671`). **Es ROJO**: migración. La corre
+una persona con el ritual completo de `vault/04-Datos/migraciones.md` §«Antes de aplicar
+en producción». Emitida el **2026-08-17**, a raíz del hallazgo H1 de la validación de la
+Fase 1: la tarea llevaba desde el 13/08 en `PENDIENTE_SERVIDOR` **sin tarjeta**, y su
+ritual solo se narraba en prosa dentro del expediente.
+
+> [!danger] Antes que nada: esta tarjeta va DESPUÉS de TH-02 y DESPUÉS de TH-F3.1
+> **TH-02** (el censo) es la que autoriza a *aplicar* esto: hoy F1.2 solo está autorizada
+> a escribirse. Y el orden contra **TH-F3.1** no es negociable —
+> **primero `20260812_schema_migrations.sql`, después `20260812_sin_default_tenant.sql`**.
+> Al revés, ésta quedaría registrada como aplicada sin haberlo sido, y el runner de F3.2
+> **no la aplicaría nunca**.
+
+**Paso 1 — respaldo, y comprobar que no está vacío** (`plan:649-654`; el patrón existe
+porque un dump fallido se ve casi igual que uno bueno, `deploy.yml:117-125`):
+
+```bash
+ssh root@209.97.146.136 "BK=/root/spaces_$(date +%Y%m%d_%H%M%S).dump; sudo -u postgres pg_dump -d spaces_prod -Fc -f \$BK; [ -s \$BK ] && ls -lh \$BK || echo 'BACKUP VACIO — ABORTAR'"
+```
+
+**Paso 2 — ensayo en seco:** aplicar la migración con el `commit` cambiado por `rollback`
+y comprobar que el ASSERT pasa. **El guard del paso 1 de la migración es lo que importa
+aquí**: aborta si encuentra una tabla con `DEFAULT` y **sin** `NOT NULL`, o sea una
+columna que el default fuera lo único que la sostenía. En local no saltó (0 tablas), pero
+producción **no es el repo** — el esquema desplegado ya divergió una vez en 27 columnas.
+
+**Paso 3 — aplicar de verdad, como `postgres`** (`plan:657`):
+
+```bash
+ssh root@209.97.146.136 "cd /var/www/Spaces && sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f db/migrations/20260812_sin_default_tenant.sql"
+```
+
+**Paso 4 — el comando de verificación exacto del plan** (`:664-668`):
+
+```bash
+ssh root@209.97.146.136 "sudo -u postgres psql -d spaces_prod -Atc \"select count(*) from pg_attrdef d join pg_attribute a on a.attrelid=d.adrelid and a.attnum=d.adnum where a.attname='tenant_id'\""
+curl -s -o /dev/null -w '%{http_code}\n' https://demo.space-os.io/spaces-dooh/login/
+```
+
+**Esperado: `0` y `200`.** El `0` dice que no queda ningún default; el `200` dice que la
+aplicación sigue en pie.
+
+> [!warning] Lo que hay que mirar la hora siguiente
+> Si algún proceso externo insertaba sin `tenant_id`, **empezará a fallar en voz alta**
+> con `23502` — que es el objetivo de la tarea, no un accidente. Conviene mirar los logs.
+> Y **`bootstrap-auth.mjs` es el caso conocido**: hoy funciona en producción porque el
+> default rellena; tras esto exige el arreglo de T-01 (`b976b54`), que **no está
+> desplegado**. Sembrar el primer usuario de una instancia con el binario viejo, después
+> de aplicar esto, revienta.
+
+**Qué desbloquea:** cierra la Fase 1 **en producción**, y con ella **F4.2**, que declara
+depender de F1.5 (`plan:1267`). Necesita además **entrada en `docs/Registro_Cambios.md`**
+— es la tarea de la Fase 1 que sí se nota, y la fase entera no tiene ni una línea.
+
+---
+
+### TH-P4 · fijar el registry en las variables del repositorio
+
+De la decisión **P4**, tomada por Jochelo el **2026-08-17**: DigitalOcean Container
+Registry. **No hay nada que programar** — F2.3 y F2.4 se escriben con el registry como
+parámetro. Esto es configuración de GitHub, y la pone una persona con permisos sobre
+`emiliano-cyber/spaces_dooh_new`.
+
+```bash
+gh variable set REGISTRY      --body "registry.digitalocean.com/<NOMBRE-DEL-REGISTRY>"
+gh variable set REGISTRY_TIPO --body "docr"
+gh secret   set DO_REGISTRY_TOKEN   # pide el token por stdin; NO se escribe en un archivo
+```
+
+**Lo que falta para poder correrlos:** el `<NOMBRE-DEL-REGISTRY>` no existe todavía, y
+**dónde se crea es P3** — la cuenta de DigitalOcean en la que nacen las instancias, que
+sigue abierta. Al crearlo, mirar el **límite de almacenamiento** del plan contratado: una
+imagen de 240 MB por versión publicada se acumula.
+
+**Qué desbloquea:** que F2.3 y F2.4, una vez escritas, puedan **correrse** de verdad. Sin
+esto se escriben y quedan esperando.
 
 ## Bitácora de orquestación
 
@@ -431,5 +551,14 @@ autorizada a escribirse), más **F1.5** y la **Fase 7**.
 | 2026-08-14 | ⚠️ **Hallazgo nuevo de esa validación, sin corregir:** `.env.production.example:54` sigue proponiendo `NEXT_PUBLIC_API_URL=https://{TENANT_SLUG}.spaces.com/api` — el modelo de subdominios muerto el 12/08. T-03 limpió la cookie comodín **de ese mismo archivo** argumentando que era grave *aunque ninguna línea de `apps/` la leyera*; esta variable **sí se lee, en seis archivos vivos** (`api-client.ts:1`, `auth-context.tsx:16`, `data/adapters/http.ts:15`, `portal-cliente-api.ts:1`, `ReadinessPanel.tsx:17`, `_legacy/portal/[token]/page.tsx:7`), quince líneas más abajo, y nadie la miró. Preexistente —por eso el criterio 3 pasa— pero es insumo para **F5.3**, que hereda esta plantilla. |
 | 2026-08-14 | Menor de la misma validación: `apps/web/app/api/signup/route.ts:15` sigue llamando a DEMO «la única con el registro abierto», falso desde `39379bf`. Y F0.3 se ejecutó **sin su dependencia F0.1** (`plan:337`) — materialmente inocuo, porque opera sobre archivos del repo y su resultado no cambia con lo que conteste el droplet, y ya estaba declarado. Se registra para que conste en el veredicto de fase, no para reabrirlo. |
 
+| 2026-08-17 | **Sesión nueva.** Docker estaba **caído** —el daemon no respondía— y hubo que levantar Docker Desktop antes de nada; `spaces_db` revivido con `docker start`, no con `compose up`, para reusar el volumen `db_spaces_pgdata` con los datos reales. Lo demás seguía montado: `node_modules`, los dos `.env` y `.next/BUILD_ID`. Línea base: typecheck limpio y **805 pruebas en 73 archivos**, idéntica a la del validador del 14/08. Ninguna zona `TOMADA`, árbol limpio, sin otra orquestación viva. |
+| 2026-08-17 | 🔵 **DECISIÓN DE JOCHELO — P4 RESUELTA: DigitalOcean Container Registry.** Y el matiz que importa: **no desbloquea código**. El plan ya había previsto esta indecisión en F2.3 paso 5 (`:785-786`), donde manda elegir el login según `vars.REGISTRY_TIPO` «para no reescribir el workflow cuando se decida §8.4». O sea que F2.3/F2.4 se podían escribir desde siempre —el expediente de la Fase 2 ya lo había dicho (`:387`)— y lo que la decisión fija es **el valor de dos variables de repositorio**, que pone una persona: tarjeta **TH-P4**. ⚠️ **Arrastra P3**, que sigue abierta: un registry de DO vive en una cuenta concreta y aún no se sabe en cuál nacen las instancias. F2.3 y F2.4 pasan de BLOQUEADA a PENDIENTE. |
+| 2026-08-17 | ✅ **FASE 1 VALIDADA por `validador-plan` — veredicto AMARILLO**, sobre HEAD `04952a7`. **Ningún hallazgo toca el código, la migración ni las pruebas**: los siete son de tablero y expediente. El validador corrió las suites él mismo en vez de creerse los reportes: typecheck limpio, **805 unitarias en 73 archivos** y —esto es lo que la Fase 1 exigía y nadie había corrido en la compuerta— **147 e2e + 1 saltada en 14 archivos, exit 0**, respetando el guard de nombre de base. Invariantes limpios los seis, incluido `aislamiento.e2e.test.ts` intacto en **toda la rama** y cero `qRaw` nuevo. Abrió las **30 citas a código** del expediente y **todas resuelven hoy**. |
+| 2026-08-17 | **Tres de los siete hallazgos eran míos, y se corrigen en este mismo commit.** **(H1)** F1.5 llevaba desde el 13/08 en `PENDIENTE_SERVIDOR` **sin tarjeta emitida**, cuando la leyenda dice que ese estado exige tarjeta; su ritual solo existía en prosa dentro del expediente, y peor: **TH-F3.1 se refería a «la de F1.5» como si existiera**. Emitida **TH-F1.5** con los cuatro pasos literales del plan. **(H2)** El titular de la Fase 1 decía «cinco commits ROJO» tres líneas encima de una tabla que lista **cuatro** — el criterio «ROJO es lo que su ejecutor declaró ROJO» excluye a `3671e8a`. Es el mismo defecto que la validación de la Fase 0 ya me había levantado: **un callout de cabecera no se actualiza solo porque se actualicen sus filas**. **(H3)** El expediente estaba citado por el commit equivocado, `fb09b91` en vez de **`7138f89`** — aquel escribió 593 líneas en la ruta vieja y `7138f89` lo reescribió a las 739 de hoy. Lo mismo pasaba con la Fase 2: citaba `84fe410` cuando el vivo es **`fc04607`**. **Van tres validaciones y las tres han encontrado el mismo tipo de defecto en este archivo.** |
+| 2026-08-17 | **H6 corregido también: TH-02 ya es copiable-pegable.** Su paso 1 tenía una elipsis —«… las tres consultas de F1.1, copiadas literalmente del plan …»— y obligaba a transcribir a mano `plan:390-419` justo en el paso donde **una errata produce un censo falso**. Materializadas las tres consultas dentro de la tarjeta. Veinte líneas a cambio de quitar el único paso manual de la tarjeta más cara de la fase. |
+| 2026-08-17 | **H4 y H5 se anotan sin corregir, y la recomendación que dejan vale más que ellos.** De las ~28 citas que el expediente de la Fase 1 dirige a **este** archivo, hoy resuelven **dos**: TH-02 se movió +95 líneas, la decisión del registro cerrado +111. Lo que salva al expediente es que se declara histórico y sus anclas resolvían contra `38ace2f`; lo que **no** lo salva es que ya nacieron con +4 de error, porque `affa785` metió cuatro líneas entre su ancla y su commit. Tercer episodio del mismo defecto. **Regla nueva para los expedientes: citar este archivo por título de sección, nunca por número de línea** — es el único documento del repositorio que crece cada hora. (H5 es de la misma familia: el expediente dice 67 migraciones y 13 archivos e2e, hoy son **68** y **14**, movidos por `6cb16d4`, de otra fase.) |
+| 2026-08-17 | **H7 — la bitácora vacía de la Fase 1: el validador la juzga ACEPTABLE para cerrar, y razona por qué**, que era lo que le pedí. El paso 4 de F1.1 condiciona la entrada **al censo**, y el censo no se ha corrido: escribirla hoy sería inventar datos. F1.2 está escrita y no aplicada, F1.3 es endurecimiento invisible, T-01 y T-02 son un script de operador. El único caso discutible es **F1.4** —entrar por la IP desnuda ya no reescribe a `/portal`— pero es acceso directo por IP al droplet, no un flujo de usuario. Y la ausencia está **declarada** en los dos sitios que la regla exige. Lo que sí queda anotado: **son dos fases consecutivas sin una línea**, y la entrada de F1.5 debe escribirse **en el momento de aplicar la migración**, junto con el censo, no después. |
+| 2026-08-17 | Dependencia hacia adelante que el validador confirma bien declarada y conviene no perder: **F4.2 depende de F1.5** (`plan:1267`), y F1.5 sigue sin correr. **La Fase 4 no puede arrancar creyendo que la Fase 1 está «hecha»** — está cerrada en local, y en producción el `DEFAULT` sigue vivo. |
+
 ---
-*Preparado por Ana · 2026-08-13 · reabierto 2026-08-14*
+*Preparado por Ana · 2026-08-13 · reabierto 2026-08-14 · retomado 2026-08-17*
