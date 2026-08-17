@@ -138,7 +138,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 |---|---|---|---|---|---|
 | F2.1 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `8ae8f77`, AMARILLO (auditada el 14/08 — la primera auditoría murió por un login expirado y se relanzó de cero). Las dos formas de arrancar comprobadas: `npm start` y el standalone, 200 y 307 en ambas. Alto contacto: `next.config.mjs` |
 | F2.2 | [infra→código local] | ejecutor escribe, ensayista construye | F2.1 ✅ | **COMPLETADA_LOCAL** | `3f16386`, **VERDE**. Imagen de 240 MB con `db/` dentro (68 archivos md5-idénticos al repo). Sin `.env`, probado **con control positivo**. La línea `**/.env*` del `.dockerignore` es lo que lo sostiene — ver bitácora |
-| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅, ~~P4~~ ✅ | **PENDIENTE** (desbloqueada el 17/08) | Publica **una** imagen (P4-bis resuelta). El registry va como parámetro `vars.REGISTRY` y el login se elige por `vars.REGISTRY_TIPO` (`plan:785-786`) — con P4 en DOCR, el valor lo pone una persona en **TH-P4** |
+| F2.3 | [release] | ejecutor escribe workflow; NO se corre | F2.2, ~~P4-bis~~ ✅, ~~P4~~ ✅ | **ESCRITA (`958a3e6`) · pendiente de auditoría** — su parte de servidor es **TH-F2.3** | ✅ Nace `.github/workflows/release.yml`. **El gate no es una comprobación: es el orden** — el `docker push` es el último paso del último job y ese job cuelga de `needs: pruebas`, así que no hay camino por el que `beta` se mueva sin typecheck + unitarias + e2e en verde. Detalle que el plan no pide y sí importa: **primero la etiqueta de versión y después `beta`**, porque la de versión es inmutable y `beta` es un puntero — si el primer push falla, `beta` sigue apuntando al release anterior, que sí está entero. Resolvió las dos trampas que le pasé: **el build de Next va entre las unitarias y las e2e** (sin él, los 15 archivos morirían por timeout tras 636 s con un rojo que no habla del código), y **el rol de aplicación lo monta el arnés, no el YAML** — `recrearEsquema()` aplica `dev-rol-app.sql` antes que nada; montarlo por otro camino sería una segunda copia que divergiría. Van **las dos** conexiones (`DATABASE_URL_TEST` con superusuario y `DATABASE_URL_TEST_APP` con `spaces_app`): con una sola, la RLS no se aplica y **el aislamiento pasaría por casualidad** | Publica **una** imagen (P4-bis resuelta). El registry va como parámetro `vars.REGISTRY` y el login se elige por `vars.REGISTRY_TIPO` (`plan:785-786`) — con P4 en DOCR, el valor lo pone una persona en **TH-P4** |
 | F2.4 | [release] | ejecutor escribe; NO se corre | F2.3 | **PENDIENTE** (desbloqueada el 17/08) | Promoción manual a `estable`. Reetiqueta **sin reconstruir**: el digest no cambia |
 | F2.5 | [verificación] | ensayista-local | F2.2 | **ENSAYADA_LOCAL** (×2) | Reensayada tras F2.6: `200 · 200 · 503 · 401` y **la bandera obedece al arranque** con la misma imagen (`sha256:12de895f`). Login con estilos: **22 activos a 200**, CSS con 707 reglas. Queda vigente que **la imagen no puede levantar una base virgen sola** (falta el rol de app) → F3.2/Fase 5 |
 | F2.6 | [código] | ejecutor | F2.1 | **COMPLETADA_LOCAL** | `70ca3f0`, AMARILLO. `AUTOREGISTRO` sin prefijo, fail-closed, y el botón deja de hornearse. ROJO: **pendiente de visto bueno humano**. ⚠️ Rompe cuatro tareas del plan por el renombrado — ver bitácora |
@@ -485,6 +485,39 @@ teórico a bloqueante.
 **Qué desbloquea:** nada, pero es insumo directo de **F3.6** (retirar `deploy.yml`), que
 hoy se plantea como si el workflow estuviera vivo y funcionando.
 
+---
+
+### TH-F2.3 · correr el workflow de release contra un tag de ensayo
+
+Emitida el **2026-08-17**. **Va DESPUÉS de TH-P4**, que a su vez espera a **P3** (en qué
+cuenta de DigitalOcean nace el registry). Sin las variables el workflow se para en su
+primer paso, a propósito.
+
+```bash
+# 0 · Precondicion: TH-P4 hecha
+gh variable list          # deben salir REGISTRY y REGISTRY_TIPO
+gh secret   list          # debe salir DO_REGISTRY_TOKEN
+
+# 1 · El comando de verificacion exacto de la tarea (plan:790-795)
+git tag v0.0.1-rc1 && git push emiliano v0.0.1-rc1
+gh run list --workflow=release.yml --limit 3
+gh run view <id> --log | grep -E "test:e2e|beta"
+```
+
+**Paso 2 — la mitad que el plan no pide, y es la que de verdad prueba el criterio:** un
+tag sobre un commit **con la suite en rojo NO debe publicar nada**. El criterio de
+aceptación de F2.3 es exactamente ése, y no se ve con un tag que pasa.
+
+| Respuesta | Significa |
+|---|---|
+| **Verde + imagen publicada** | Listo |
+| **Verde sin imagen** | Falta permiso de escritura en el registry |
+| **Rojo en e2e** | Revisar `DATABASE_URL_TEST` y el servicio de Postgres |
+| **Rojo en el primer paso, «faltan las variables»** | **TH-P4 sin hacer.** No hay nada que investigar |
+
+**Vuelta atrás si publica una imagen mala:** mover `beta` a la anterior y borrar el tag.
+`beta` solo lo consume DEMO.
+
 ## Bitácora de orquestación
 
 | Fecha | Evento |
@@ -690,6 +723,12 @@ hoy se plantea como si el workflow estuviera vivo y funcionando.
 | 2026-08-17 | ✅ **Zanjada la contradicción del backfill: los DOS tenían razón, en instantes distintos.** **Instante intermedio** —al aplicar `20260812_schema_migrations.sql` en una instalación nueva— son **65 filas, las 65 `'backfill'`**: ahí acierta el auditor de T-04. **Estado final** —tras `migrar.mjs --instalacion-nueva` de punta a punta— son **67 filas y 0 `'backfill'`**, porque el `on conflict … do update` las reescribe en la misma pasada: ahí acierta el ejecutor de F3.3, y es lo que importa para la flota. El corolario que de verdad decide si T-04 muerde: en esa instalación nueva los dos archivos editados quedan con el **sha del archivo ya editado**, así que cuadran; en el droplet son backfill de verdad y se saltan por la marca. **Ninguna de las dos direcciones rompe la actualización**, y la bóveda ya cuenta las dos. |
 | 2026-08-17 | **El hueco que F3.3 deja fuera: aceptable, pero es SILENCIO, no aviso.** Una fila registrada cuyo archivo no está en el directorio → **salida 0 y ni una palabra**. El auditor lo juzga bien acotado —el objetivo y la prueba del plan hablan de *contenido alterado*, y sobre un archivo ausente no hay sha que comparar— y añade una razón que nadie había dado: **abortar ahí rompería el rollback de F3.4**, porque una imagen anterior carece por definición de las migraciones nuevas que su registro afirma. Queda como **decisión mía antes de F3.4**: el operador hoy no se entera. |
 | 2026-08-17 | Hallazgos menores: **(1)** mi propia cita de la entrada anterior decía `migrar.mjs:203-208` y son **`:202-206`** — corregida arriba. **(2)** El arnés nuevo **reescribe archivos reales de `db/migrations/`** durante la corrida (zona R3), mitigado con `finally` por caso, restauradores en `afterAll` y `fileParallelism: false`; verificado `git status` limpio tras **cinco** corridas. Riesgo residual: un Ctrl-C a mitad deja una migración editada — justo el estado que este runner existe para detectar. **(3)** Confirmada la **fragilidad de orden heredada de F3.2**: con `--sequence.shuffle.tests` y semillas 13 y 4242 se rompen `migraciones.e2e.test.ts:476` y `:512`; **los 8 casos nuevos de F3.3 pasan en las cuatro semillas**. El ejecutor tenía razón en las dos mitades de su afirmación. |
+
+| 2026-08-17 | **F2.3 ESCRITA** (`958a3e6`, AMARILLO). Es `[release]`: **se escribe, no se corre** — su comando de verificación empuja un tag y usa `gh`, así que sale como **TH-F2.3**. Sin TDD, y **lo dice la propia tarea** (`:766-767`): el gate no es una prueba, es que el workflow corra la suite entera antes de publicar. La disciplina sustituta fue corrección por lectura, y la ejerció: parseó el YAML con `js-yaml`, corrió `bash -n` en **los 11 bloques `run`**, y **ejercitó los guards con valores de muestra** — `v0.1.0` y `v10.2.33-beta.1` pasan; `beta`, `v1.2`, vacío y `v1.2.3; rm -rf /` salen 1; `REGISTRY` con `; curl evil` sale 1; `REGISTRY_TIPO` desconocido sale 1; `docr` sin token sale 1. Verificó además que **`:estable` no aparece en el archivo**: eso es F2.4. |
+| 2026-08-17 | **Dos decisiones suyas que nadie pidió y son las buenas.** (a) **Primero la etiqueta de versión, después `beta`**: la de versión es inmutable y `beta` es un puntero, así que si el primer push falla, `beta` se queda apuntando al release anterior, **que sí está entero**. (b) **`permissions: {contents: read}` solo en el job `pruebas`** — es el que ejecuta código de pruebas y arranca un servidor, y no tiene por qué sostener un token capaz de publicar. Es un **estrechamiento** del contrato del plan, no un cambio. Y el host del `docker login` se **deriva** del primer segmento de `REGISTRY` en vez de inventar una tercera variable que se desincronice; contraseña siempre por `--password-stdin`. |
+| 2026-08-17 | **Y resolvió las dos trampas del briefing sin inventarse nada.** El **build de Next** va entre las unitarias y las e2e, con el porqué escrito encima: en un runner limpio no hay `.next/BUILD_ID` y los 15 archivos morirían por timeout tras 636 s con un rojo que no habla del código. Y **el rol de aplicación lo monta el arnés, no el YAML**: el servicio solo crea `spaces_e2e` —nombre que no es cosmético, `db-e2e.ts` se niega si no acaba en `_e2e`/`_test`— y `recrearEsquema()` aplica `dev-rol-app.sql` antes que nada, que es lo que salva el `raise exception` de las **13** migraciones que referencian el rol. Su argumento para no montarla aparte: **dos copias divergen, y el CI acabaría probando un montaje que no usa nadie más.** |
+| 2026-08-17 | **Lo que declara que no puede verificar, y midió lo que sí se podía:** que las e2e pasen **sin `.env`** en el runner. Comprobó que **ningún** archivo e2e lee `DO_SPACES`/`RESEND`/`SPACE_EYE`/`CFDI`/`ADMOBILIZE`, y que `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_TENANT_SLUG` tienen valor por omisión en las **seis** rutas que las leen. Riesgo bajo, **no cero**. Quedan también sin verificar el login de DOCR, los tiempos (`timeout-minutes: 45` puesto sin medir un runner real) y **el criterio de aceptación mismo**. |
+| 2026-08-17 | Desviación menor declarada: el patrón de versión admite sufijo (`-rc1`, `-beta.1`) **porque el propio comando de verificación de la tarea usa `v0.0.1-rc1`** y el filtro `v*.*.*` lo deja pasar. Con un patrón estricto, el primer tag de ensayo moriría en un sitio que no explica por qué. |
 
 ---
 *Preparado por Ana · 2026-08-13 · reabierto 2026-08-14 · retomado 2026-08-17*
