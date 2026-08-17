@@ -18,6 +18,9 @@ archivos:
   - .github/workflows/release.yml
   - .github/workflows/promover.yml
   - .github/workflows/deploy.yml
+  - infra/scripts/update.sh
+  - infra/scripts/README.md
+  - scripts/migrar.mjs
   - infra/nginx/demo.space-os.io.conf
   - db/docker-compose.yml
 ---
@@ -289,8 +292,74 @@ descuido, y reconstruir daría un binario distinto del validado (invariante 3).
 > tenerlo.
 
 > [!danger] Promover manda a **toda la flota** a jalar esa imagen
-> Y las instancias que ya jalaron **no vuelven solas**: necesitan su rollback local,
-> que es F3.4 y hoy no existe. Hasta entonces, debajo de este botón no hay red.
+> Y las instancias que ya jalaron **no vuelven solas** por sí mismas: dependen de su
+> rollback local, que es `update.sh` (F3.4, abajo). Desde el 17/08 ese rollback
+> **existe escrito**, pero **no se ha corrido en ningún servidor** — el ensayo es
+> F3.5. Hasta entonces, debajo de este botón sigue sin haber red probada.
+
+### `update.sh` — la instancia jala su versión (17/08, F3.4)
+
+**Escrito, NUNCA corrido en un servidor.** Vive en `infra/scripts/update.sh`, se
+instala en `/opt/space-os/update.sh` y lo lanza el cron de la propia instancia. Su
+manual completo —configuración, códigos de salida, cron— está en
+`infra/scripts/README.md`.
+
+> [!important] El padre no aparece por ningún lado
+> El script habla con el **registry** y con **su propia base**. Con nadie más. No hay
+> SSH entrante, no hay repositorio clonado, no hay compilación en el servidor: la
+> instancia **jala**, el padre no empuja.
+
+El orden importa y está elegido para que cada paso falle antes de haber hecho daño:
+`pull` y comparar digest (igual → sale 0 sin tocar nada) → **respaldo** `pg_dump -Fc`
+→ anotar la versión anterior → **migrar** → **solo entonces** conmutar el tráfico →
+health check → vuelta atrás si no responde.
+
+**Un respaldo vacío detiene el update.** El criterio se copió de
+`.github/workflows/deploy.yml:117-125`: un `pg_dump` que falla deja un archivo de 0
+bytes y su salida se ve casi igual que la de uno bueno, así que se mira el tamaño y
+no el código de salida. En el log aparece como `BACKUP VACIO`.
+
+**El health check va contra `/spaces-dooh/api/auth/metodos/`** y no contra
+`/api/version`, que todavía no existe (F6.1). Es la misma ruta que usa el smoke de
+`promover.yml`, y por el mismo motivo: pública, sin sesión y sin datos de negocio. Su
+URL vive en **una** variable, `SALUD_URL`, para que F6.1 la cambie en una línea.
+
+> [!warning] Los cuatro códigos del runner **no** son intercambiables
+> `scripts/migrar.mjs:21-32` distingue **1** (no puede empezar) · **2** (aplicó y no
+> pudo registrar) · **3** (una migración aplicada cambió de contenido). `update.sh`
+> los propaga uno a uno en vez de aplanarlos en «falló», que es lo que hace un `set -e`
+> distraído. La diferencia decide si hay que ir a mirar la base: con un **2** la base
+> ya cambió; con un **3** no se aplicó nada. Y cuando el runner **se niega a arrancar**
+> —base con datos y sin `schema_migrations`, que es el estado del droplet de hoy— su
+> mensaje, que dice el comando exacto que falta, se vuelca al log en vez de tragárselo.
+
+> [!danger] El runner de migraciones **no viaja en la imagen**
+> El paso 5 de F3.4 manda correr `node scripts/migrar.mjs` dentro de la imagen nueva,
+> pero `Dockerfile:94-95` copia `db/schema.sql` y `db/migrations` y **no** `scripts/`.
+> Comprobado contra la imagen real: `/app` tiene `apps db node_modules package.json`.
+> Mientras siga así, `update.sh` **monta** el runner de la instancia en
+> `/app/scripts/migrar.mjs`; funciona porque el runner resuelve rutas desde su propio
+> archivo (`scripts/migrar.mjs:43-48`), así que lee **las migraciones de la imagen**
+> (medido: `67 pendientes`, las de la imagen, con 68 en el repositorio).
+>
+> **El costo:** el runner queda versionado con el *aprovisionamiento* y no con la
+> imagen — una instancia aprovisionada antes de F3.3 migraría sin comprobación de
+> checksum aunque jale imágenes nuevas. El arreglo duradero es una línea `COPY` en el
+> `Dockerfile`, que es **F2.2 y ya está auditada**: no se toca desde aquí. El script
+> ya lo prevé — si la imagen trae el runner, no monta nada.
+
+**La vuelta atrás y el registro de migraciones.** El dump es de la base entera, así
+que `schema_migrations` viaja dentro: restaurarlo devuelve esquema **y** registro al
+mismo instante, y la instancia vuelve a afirmar exactamente lo que la imagen anterior
+lleva dentro. Si la restauración no llega a correr, el registro nombra migraciones que
+la imagen anterior no tiene, y eso **no aborta nada** a propósito ([[migraciones]]):
+una imagen anterior carece por definición de las migraciones nuevas que su registro
+afirma, y abortar ahí rompería la propia vuelta atrás. Restaurar **solo** se hace si
+corrieron migraciones, y **nunca** con la versión anterior sirviendo: un
+`pg_restore --clean` sobre una base viva tumbaría una instancia que funciona.
+
+**El respaldo se queda en el droplet** (`/var/lib/space-os/respaldos/`). Sacarlo de la
+máquina es F3.7.
 
 ## Producción
 
