@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-17
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - .env.example
@@ -15,6 +15,7 @@ archivos:
   - db/README.md
   - ecosystem.config.js
   - .github/workflows/ci.yml
+  - .github/workflows/release.yml
   - .github/workflows/deploy.yml
   - infra/nginx/demo.space-os.io.conf
   - db/docker-compose.yml
@@ -184,6 +185,7 @@ instancia no necesita volumen.**
 | Workflow | Disparo | Qué corre |
 |---|---|---|
 | `ci.yml` | `pull_request` + push a `main` | typecheck → test → build (Node 20) |
+| `release.yml` | **push de un tag `v*.*.*`** | typecheck → unitarias → build → **e2e** → imagen a `beta` |
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` (Node 22) |
 | `deploy.yml` | **`workflow_dispatch` manual** | backup → build → migraciones → `pm2 reload` |
 
@@ -192,6 +194,43 @@ instancia no necesita volumen.**
 > manual por SSH. `ci.yml:1-30` documenta que el disparador es `pull_request` y
 > **no** `pull_request_target` a propósito: el segundo daría secretos a código de
 > un fork. No cambiarlo.
+
+### `release.yml` — un tag publica en `beta` (17/08, F2.3)
+
+**Escrito, NUNCA corrido.** No puede correrse todavía: el destino sale de dos
+variables del repositorio que aún no existen (**TH-P4**), y hacerlo exige empujar
+un tag, que es cosa de una persona.
+
+Dos jobs, y el orden **es** el mecanismo de seguridad:
+
+| Job | Qué hace | Por qué está antes/después |
+|---|---|---|
+| `pruebas` | `npm ci` → typecheck → unitarias → **build** → e2e contra `postgres:16` | Es lo que `ci.yml:74-75` no llega a correr: allí `turbo run test` son **solo unitarias** y las e2e no corren en ningún CI |
+| `imagen` | `docker build --build-arg VERSION=<tag>` y push con **dos** etiquetas: la versión y `beta` | `needs: pruebas`, y el push es el **último** paso del **último** job |
+
+- **El build de Next dentro de `pruebas` no es un extra**: `lib/test/servidor-e2e.ts:31`
+  arranca con `npx next start`, que **reutiliza el build y no construye**. Un runner
+  parte de un clon limpio, o sea sin `.next/BUILD_ID`: sin ese paso fallan **todas**
+  las e2e por timeout y el rojo no dice nada del código.
+- **La base del runner la monta el propio arnés.** El servicio solo crea `spaces_e2e`
+  (el guard de `db-e2e.ts:43-60` exige que el nombre acabe en `_e2e`/`_test`); el rol
+  `spaces_app` lo crea `recrearEsquema()` aplicando `db/dev-rol-app.sql` **antes** que
+  nada, que es lo que salva el `raise exception` de
+  `20260729_licencias_permisos.sql:96-97` — 13 migraciones exigen ese rol. Montar la
+  base por otro camino sería una segunda copia del procedimiento, y dos copias
+  divergen.
+- **Dos conexiones**, como en local: `DATABASE_URL_TEST` con el superusuario
+  (`postgres` en el runner, `spaces` en local) y `DATABASE_URL_TEST_APP` con
+  `spaces_app`, que **sí** respeta la RLS.
+- **El destino es un parámetro, nunca un literal**: `vars.REGISTRY` dice a dónde y
+  `vars.REGISTRY_TIPO` (`docr` | `ghcr`) con qué credencial se entra. Si falta
+  cualquiera de las dos, el job se para **antes** de construir, con el comando que
+  hay que correr escrito en el error.
+- **`estable` no se toca aquí.** Promover es decisión humana y vive en
+  `promover.yml` (F2.4): reetiqueta **sin** reconstruir, así el digest no cambia.
+- `concurrency` **sin** cancelación, al revés que `ci.yml`: cada corrida publica un
+  artefacto, y cortarla a medias podría dejar la etiqueta de versión subida y `beta`
+  apuntando a otra cosa.
 
 ## Producción
 
