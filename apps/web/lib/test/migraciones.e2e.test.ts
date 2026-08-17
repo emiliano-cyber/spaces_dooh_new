@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
@@ -312,7 +313,7 @@ describe('runner de migraciones', () => {
     // dispara: el prólogo corre `schema.sql`, que siembra el tenant 'rgb'
     // (`db/schema.sql:598`), así que al llegarle el turno a
     // `20260812_schema_migrations.sql` sus 65 filas nacen. Lo que las sustituye
-    // es el `on conflict … do update` del propio runner (`migrar.mjs:453-455`),
+    // es el `on conflict … do update` del propio runner (`migrar.mjs:627-629`),
     // y aquí eso es lo correcto: esas 65 las acaba de aplicar ÉL en esta misma
     // pasada, con un contenido que conoce. Medido cambiando solo esa cláusula:
     // con `do update` salen 0; con `do nothing`, 65.
@@ -325,7 +326,7 @@ describe('runner de migraciones', () => {
     // por bueno las demás pruebas de integración. Lo que esto atrapa es que el
     // runner se salte un archivo o que deje la base distinta. Lo que NO atrapa
     // es un orden equivocado: los dos lados ordenan con la MISMA `ordenar()`
-    // (definida en `migrar.mjs:68`; la llaman `migrar.mjs:186` y
+    // (definida en `migrar.mjs:76`; la llaman `migrar.mjs:236` y
     // `db-e2e.ts:145`), así que un orden malo saldría igual
     // de mal a los dos lados. Quien ancla el orden es la unitaria
     // `scripts/migrar.test.ts`.
@@ -362,7 +363,7 @@ describe('runner de migraciones', () => {
 
   it('si aplica y NO puede registrar, sale 2 — no 1 con un volcado de pila', async () => {
     // El contrato de códigos de salida lo escribe el propio runner en su
-    // cabecera (`migrar.mjs:18-24`) y es lo ÚNICO que mira el `set -e` del
+    // cabecera (`migrar.mjs:21-32`) y es lo ÚNICO que mira el `set -e` del
     // `update.sh` de F3.4: el 2 significa «se aplicaron y no se pudieron
     // registrar», o sea «ve a mirar esa base a mano». Si el insert del registro
     // escapa sin capturar, Node sale 1 con un volcado de pila y el operador lee
@@ -547,5 +548,250 @@ describe('runner contra una instancia rezagada', () => {
     const arnes = await poolTest().query(COLUMNAS)
     const rezagada = await pool.query(COLUMNAS)
     expect(rezagada.rows).toEqual(arnes.rows)
+  }, 60_000)
+})
+
+// ============================================================================
+//  Integridad: una migración YA APLICADA que cambia en disco — F3.3.
+// ----------------------------------------------------------------------------
+//  El registro guarda el sha256 de lo que se aplicó. Si el archivo que trae la
+//  imagen ya no es ese, el registro y la imagen no cuentan la misma historia, y
+//  todo lo que se aplique encima parte de una base que nadie sabe describir. La
+//  instancia tiene que NEGARSE a actualizarse, y decir qué archivo.
+//
+//  Dos casos con signo opuesto, y el segundo es el que evita romper la flota:
+//
+//    · checksum REAL que ya no cuadra  → aborta (salida 3) sin aplicar nada;
+//    · checksum `'backfill'`           → se salta la comprobación. Esas filas
+//      son las que el droplet registró SIN checksum de origen, y
+//      `20260812_schema_migrations.sql:51-56` declara que la marca existe justo
+//      para esto. Importa hoy y no en abstracto: T-04 (`4c484fa`) editó dos
+//      migraciones ya aplicadas —entre ellas la de abajo— para volver
+//      reaplicable la cadena, así que su checksum en disco cambió de verdad.
+//
+//  Escenario: el droplet ya puesto al día. Las 65 históricas quedan como
+//  'backfill' (las mete el backfill de la migración de registro) y las
+//  posteriores al corte las aplica y registra el runner con su checksum real.
+//  Así conviven en la misma base los dos tipos de fila.
+// ============================================================================
+
+const BASE_INTEGRIDAD = 'spaces_integridad_e2e'
+// Registrada por el RUNNER, con checksum real: es de las posteriores al corte.
+const CON_CHECKSUM_REAL = '20260812_sin_default_tenant.sql'
+// Registrada por el BACKFILL, con la marca 'backfill'. Y es una de las dos que
+// T-04 editó: el caso real, no uno inventado.
+const CON_MARCA_BACKFILL = '20260720_hard1_usuarios_rls.sql'
+
+// El sha256 se calcula AQUÍ, no importando `checksumDe()` del runner: si la
+// expectativa saliera del propio código que se prueba, la prueba no diría nada.
+function sha256De(archivo: string): string {
+  return createHash('sha256')
+    .update(readFileSync(join(DIR_MIGRACIONES, archivo), 'utf8'))
+    .digest('hex')
+}
+
+// Reescribe el archivo en disco y devuelve cómo dejarlo como estaba. Un
+// comentario al final basta: el plan dice en voz alta que «un cambio inocente de
+// comentario aborta el update», y eso es exactamente lo que se quiere.
+function alterarEnDisco(archivo: string): () => void {
+  const ruta = join(DIR_MIGRACIONES, archivo)
+  const original = readFileSync(ruta, 'utf8')
+  writeFileSync(ruta, `${original}\n-- comentario anadido por la prueba de integridad (F3.3)\n`)
+  return () => writeFileSync(ruta, original)
+}
+
+describe('integridad de lo ya aplicado', () => {
+  let pool: Pool
+  let puestaAlDia: ReturnType<typeof correrRunner>
+  // Se restauran pase lo que pase: son archivos del repositorio, no del arnés.
+  const restauradores: (() => void)[] = []
+
+  beforeAll(async () => {
+    const admin = poolTest()
+    if (!BASE_INTEGRIDAD.endsWith('_e2e')) throw new Error('la base desechable debe acabar en _e2e')
+    await admin.query(`drop database if exists ${BASE_INTEGRIDAD} with (force)`)
+    await admin.query(`create database ${BASE_INTEGRIDAD}`)
+    pool = new Pool({ connectionString: urlDe(BASE_INTEGRIDAD), max: 2 })
+    await prepararInstanciaRezagada(pool)
+    // El remedio que indica el propio runner: registro primero (backfill de las
+    // 65 históricas), y después el runner aplica y registra lo que falta.
+    await pool.query(readFileSync(join(DIR_MIGRACIONES, MIGRACION_REGISTRO), 'utf8'))
+    puestaAlDia = correrRunner(BASE_INTEGRIDAD)
+  }, 180_000)
+
+  afterAll(async () => {
+    for (const restaurar of restauradores.reverse()) restaurar()
+    if (pool) await pool.end()
+    await poolTest().query(`drop database if exists ${BASE_INTEGRIDAD} with (force)`)
+  })
+
+  it('el escenario tiene las dos clases de fila: con checksum real y con backfill', async () => {
+    // Precondición explícita. Sin esto, cualquiera de los casos de abajo podría
+    // pasar por el motivo equivocado —comparando contra una fila que no existe—
+    // y nadie lo notaría.
+    expect(puestaAlDia.status).toBe(0)
+    const { rows } = await pool.query(
+      'select archivo, checksum from schema_migrations where archivo = any($1)',
+      [[CON_CHECKSUM_REAL, CON_MARCA_BACKFILL]],
+    )
+    const porArchivo = new Map(rows.map((r: any) => [r.archivo, r.checksum]))
+    expect(porArchivo.get(CON_MARCA_BACKFILL)).toBe('backfill')
+    expect(porArchivo.get(CON_CHECKSUM_REAL)).toBe(sha256De(CON_CHECKSUM_REAL))
+  })
+
+  it('si una migración ya aplicada cambia en disco, aborta con 3 y nombra los dos checksums', async () => {
+    const registrado = sha256De(CON_CHECKSUM_REAL)
+    const restaurar = alterarEnDisco(CON_CHECKSUM_REAL)
+    restauradores.push(restaurar)
+    try {
+      const enDisco = sha256De(CON_CHECKSUM_REAL)
+      expect(enDisco).not.toBe(registrado)
+
+      const r = correrRunner(BASE_INTEGRIDAD)
+      // El 3 es código propio: `update.sh` tiene que poder distinguir «historia
+      // que no cuadra» de «una migración falló» (2) y de «no se pudo ni
+      // empezar» (1).
+      expect(r.status).toBe(3)
+      expect(r.stderr).toContain(CON_CHECKSUM_REAL)
+      // Los DOS checksums, que es lo que permite decidir cuál de los dos lados
+      // está mal sin ir a mirar la base.
+      expect(r.stderr).toContain(registrado)
+      expect(r.stderr).toContain(enDisco)
+
+      // Y no tocó nada: el registro sigue afirmando lo que afirmaba.
+      const { rows } = await pool.query(
+        'select checksum from schema_migrations where archivo = $1',
+        [CON_CHECKSUM_REAL],
+      )
+      expect(rows[0].checksum).toBe(registrado)
+    } finally {
+      restaurar()
+      restauradores.pop()
+    }
+  }, 60_000)
+
+  it('y no aplica NADA más: la de datos pendiente se queda sin aplicar', async () => {
+    // «Aborta» tiene que significar antes de aplicar, no a mitad. Con
+    // `--con-datos` hay una migración pendiente de verdad
+    // (`20260731_calendario_meses_cortos.sql`): si el guard corriera después del
+    // bucle, esa quedaría aplicada y registrada.
+    const restaurar = alterarEnDisco(CON_CHECKSUM_REAL)
+    restauradores.push(restaurar)
+    try {
+      const r = correrRunner(BASE_INTEGRIDAD, ['--con-datos'])
+      expect(r.status).toBe(3)
+      const { rows } = await pool.query(
+        "select archivo from schema_migrations where archivo = '20260731_calendario_meses_cortos.sql'",
+      )
+      expect(rows).toEqual([])
+    } finally {
+      restaurar()
+      restauradores.pop()
+    }
+  }, 60_000)
+
+  it('--pendientes tampoco calla: es la orden que se teclea justo antes', () => {
+    // Mismo criterio que el guard de la instancia rezagada: `--pendientes` es la
+    // consulta previa a actualizar. Si contestara la lista tan tranquila sobre
+    // una base cuya historia no cuadra, el operador seguiría adelante.
+    const restaurar = alterarEnDisco(CON_CHECKSUM_REAL)
+    restauradores.push(restaurar)
+    try {
+      const r = correrRunner(BASE_INTEGRIDAD, ['--pendientes'])
+      expect(r.status).toBe(3)
+      expect(r.stderr).toContain(CON_CHECKSUM_REAL)
+    } finally {
+      restaurar()
+      restauradores.pop()
+    }
+  }, 60_000)
+
+  it('las filas de backfill se saltan la comprobación: T-04 no rompe la flota', async () => {
+    // Sin esta excepción, el runner se negaría a actualizar TODAS las instancias
+    // reales: sus 65 filas históricas se registraron sin checksum de origen y
+    // T-04 editó dos de esos archivos. Comparar contra 'backfill' daría
+    // divergencia siempre, y el remedio sería peor —inventar un checksum
+    // afirmaría que lo aplicado coincide con lo que hoy hay en disco, que es
+    // precisamente lo que no sabemos (`20260812_schema_migrations.sql:51-56`).
+    const restaurar = alterarEnDisco(CON_MARCA_BACKFILL)
+    restauradores.push(restaurar)
+    try {
+      const r = correrRunner(BASE_INTEGRIDAD)
+      expect(r.status).toBe(0)
+      expect(r.stderr).toBe('')
+      // Y la fila sigue marcada: la comprobación no la «arregla» por el camino.
+      const { rows } = await pool.query(
+        'select checksum from schema_migrations where archivo = $1',
+        [CON_MARCA_BACKFILL],
+      )
+      expect(rows[0].checksum).toBe('backfill')
+    } finally {
+      restaurar()
+      restauradores.pop()
+    }
+  }, 60_000)
+
+  it('--forzar-checksum=<archivo> deja pasar ESE archivo y pone al día su registro', async () => {
+    const registrado = sha256De(CON_CHECKSUM_REAL)
+    const restaurar = alterarEnDisco(CON_CHECKSUM_REAL)
+    restauradores.push(restaurar)
+    try {
+      const enDisco = sha256De(CON_CHECKSUM_REAL)
+      const r = correrRunner(BASE_INTEGRIDAD, [`--forzar-checksum=${CON_CHECKSUM_REAL}`])
+      expect(r.status).toBe(0)
+      // Que diga en voz alta qué se está saltando, y con qué se queda.
+      expect(r.stdout).toContain(CON_CHECKSUM_REAL)
+      expect(r.stdout).toContain(registrado)
+      expect(r.stdout).toContain(enDisco)
+
+      const { rows } = await pool.query(
+        'select checksum from schema_migrations where archivo = $1',
+        [CON_CHECKSUM_REAL],
+      )
+      expect(rows[0].checksum).toBe(enDisco)
+
+      // Y el escape no se vuelve permanente: la siguiente corrida ya no necesita
+      // la bandera. Una bandera que hay que dejar puesta para siempre en
+      // `update.sh` es un agujero para siempre.
+      const siguiente = correrRunner(BASE_INTEGRIDAD)
+      expect(siguiente.status).toBe(0)
+    } finally {
+      restaurar()
+      restauradores.pop()
+      // El registro se deja como estaba: este caso es el único que lo reescribe,
+      // y dejarlo apuntando al contenido alterado volvería rojos a los de abajo
+      // por un motivo que nada tiene que ver con lo que prueban.
+      await pool.query('update schema_migrations set checksum = $1 where archivo = $2', [
+        registrado,
+        CON_CHECKSUM_REAL,
+      ])
+    }
+  }, 60_000)
+
+  it('--forzar-checksum sobre un archivo que NO diverge se rechaza', () => {
+    // Misma disciplina que `--instalacion-nueva`: la bandera afirma algo
+    // concreto —«este archivo se reescribió a conciencia»— y el runner lo
+    // comprueba antes de creérselo. Aquí lo que se atrapa es la bandera olvidada
+    // en un script: si colara en silencio, seguiría desactivando la
+    // comprobación de ese archivo el día que sí divergiera.
+    const r = correrRunner(BASE_INTEGRIDAD, [`--forzar-checksum=${CON_CHECKSUM_REAL}`])
+    expect(r.status).toBe(1)
+    expect(r.stderr).toContain(CON_CHECKSUM_REAL)
+  }, 60_000)
+
+  it('--forzar-checksum sin nombre de archivo se rechaza: no perdona a bulto', () => {
+    // Fail-closed. Una bandera suelta desactivaría la comprobación entera, que
+    // es justo lo que F3.3 existe para impedir; nombrar el archivo obliga a
+    // decidir sobre uno concreto.
+    const restaurar = alterarEnDisco(CON_CHECKSUM_REAL)
+    restauradores.push(restaurar)
+    try {
+      const r = correrRunner(BASE_INTEGRIDAD, ['--forzar-checksum'])
+      expect(r.status).toBe(1)
+      expect(r.stderr).toMatch(/--forzar-checksum=/)
+    } finally {
+      restaurar()
+      restauradores.pop()
+    }
   }, 60_000)
 })

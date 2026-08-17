@@ -8,6 +8,9 @@
 //    DATABASE_URL=...  node scripts/migrar.mjs --instalacion-nueva
 //                                       # la base acaba de nacer: no hay historia.
 //                                       # Se comprueba: si la base la enseña, aborta
+//    DATABASE_URL=...  node scripts/migrar.mjs --forzar-checksum=AAAAMMDD_x.sql
+//                                       # ese archivo se reescribio a conciencia:
+//                                       # acepta el contenido nuevo (repetible)
 //
 //  Lo invoca `update.sh` en cada instancia. Sustituye al bucle de
 //  `.github/workflows/deploy.yml:141-148`, que reaplica TODAS las migraciones en
@@ -19,9 +22,14 @@
 //    0  nada que aplicar, o todo aplicado y registrado
 //    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido, no
 //       se puede saber si la base es nueva o rezagada (ver el guard de abajo),
-//       o `--instalacion-nueva` afirma algo que la base desmiente
+//       o una bandera afirma algo que la base desmiente (`--instalacion-nueva`
+//       sobre una base con historia; `--forzar-checksum` sin nombre de archivo
+//       o nombrando uno que no diverge)
 //    2  una migración falló (se nombra), o se aplicaron y no se pudieron
 //       registrar
+//    3  el registro y la imagen NO cuentan la misma historia: una migración ya
+//       aplicada tiene otro contenido en disco. Se nombra el archivo con los dos
+//       checksums y no se aplica nada. Escape: `--forzar-checksum=<archivo>`
 // ============================================================================
 import pg from 'pg'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -171,6 +179,48 @@ export function checksumDe(contenido) {
   return createHash('sha256').update(contenido).digest('hex')
 }
 
+// ─── Integridad de lo YA aplicado ──────────────────────────────────────────
+//
+// El registro guarda el sha256 de lo que se aplicó. Si el archivo que trae la
+// imagen ya no es ese, el registro y la imagen no cuentan la misma historia: lo
+// que se aplique encima parte de un estado que nadie sabe describir. La
+// instancia se niega a actualizarse (salida 3) y nombra el archivo.
+//
+// El valor literal `'backfill'` NO es un checksum y las filas que lo llevan se
+// saltan la comprobación a conciencia — así lo declara quien las escribe
+// (`db/migrations/20260812_schema_migrations.sql:51-56`): son las migraciones
+// aplicadas a mano antes del 2026-08-12, de las que nadie guardó el hash de
+// origen. Inventarlo hoy afirmaría que lo aplicado coincide con lo que hay en
+// disco, que es precisamente lo que no sabemos. Y no es un caso teórico: T-04
+// editó dos de esos archivos para volver reaplicable la cadena, así que sin
+// esta excepción el runner se negaría a actualizar TODA la flota.
+export const MARCA_SIN_CHECKSUM = 'backfill'
+
+/**
+ * Migraciones registradas cuyo contenido en disco ya no es el que se aplicó.
+ *
+ * Solo mira las que están en los dos lados. Una fila registrada cuyo archivo NO
+ * viaja en la imagen también es una discrepancia —y una que haría daño: sería
+ * una instancia por delante de su propia imagen— pero queda FUERA de F3.3, que
+ * es sobre contenido alterado; hacerla abortar aquí rechazaría de paso el día
+ * que se retire una migración del repositorio, y eso merece su propia decisión.
+ *
+ * @param {Map<string,string>} registradas archivo → checksum guardado
+ * @param {{archivo: string, checksum: string}[]} enDisco
+ * @returns {{archivo: string, registrado: string, enDisco: string}[]}
+ */
+export function divergencias(registradas, enDisco) {
+  const fuera = []
+  for (const m of enDisco) {
+    const registrado = registradas.get(m.archivo)
+    if (registrado === undefined) continue // pendiente: no hay con qué comparar
+    if (registrado === MARCA_SIN_CHECKSUM) continue
+    if (registrado === m.checksum) continue
+    fuera.push({ archivo: m.archivo, registrado, enDisco: m.checksum })
+  }
+  return fuera
+}
+
 /** Destino SIN credenciales: host/puerto/base. Esto se imprime; la URL no. */
 export function destinoSeguro(u) {
   try {
@@ -222,19 +272,56 @@ async function testigosPresentes(cli, tablas) {
   return rows.map((r) => r.t)
 }
 
-const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos] [--instalacion-nueva]
+const FORZAR = '--forzar-checksum'
+
+const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos] [--instalacion-nueva] [--forzar-checksum=<archivo>]
   --pendientes         lista lo que falta y NO aplica nada
   --con-datos          incluye también las migraciones marcadas "-- @tipo: datos"
   --instalacion-nueva  declara que la base acaba de nacer (rol de app + schema.sql
                        y nada más): sin registro y sin historia que respetar. Se
-                       VERIFICA contra la base — si enseña historia, no aplica nada`
+                       VERIFICA contra la base — si enseña historia, no aplica nada
+  --forzar-checksum=<archivo>
+                       acepta que ESE archivo se reescribió a conciencia: pone al
+                       día su checksum registrado en vez de abortar. Se repite una
+                       vez por archivo; no reaplica nada. Se VERIFICA: si el
+                       archivo no diverge, se rechaza`
 
 export async function main(argv = process.argv) {
   const args = argv.slice(2)
   const banderas = ['--pendientes', '--con-datos', '--instalacion-nueva']
-  const desconocidos = args.filter((a) => !banderas.includes(a))
+  // `--forzar-checksum` EXIGE nombre de archivo, y eso es la decisión: una
+  // bandera suelta desactivaría la comprobación entera —justo lo que existe para
+  // impedir— y se quedaría puesta para siempre en el `update.sh` de alguien.
+  // Nombrando el archivo, perdonar es una decisión sobre un archivo concreto y
+  // el runner puede comprobarla, que es la lección que costó dos ciclos con
+  // `--instalacion-nueva`.
+  const forzados = []
+  const desconocidos = []
+  let forzarSinNombre = false
+  for (const a of args) {
+    if (banderas.includes(a)) continue
+    if (a === FORZAR || a === `${FORZAR}=`) {
+      forzarSinNombre = true
+      continue
+    }
+    if (a.startsWith(`${FORZAR}=`)) {
+      forzados.push(a.slice(FORZAR.length + 1).trim())
+      continue
+    }
+    desconocidos.push(a)
+  }
   if (desconocidos.length) {
     console.error(`ERROR migrar: argumento desconocido: ${desconocidos.join(' ')}\n${USO}`)
+    return 1
+  }
+  if (forzarSinNombre) {
+    console.error(
+      `ERROR migrar: ${FORZAR} necesita el nombre del archivo: ${FORZAR}=AAAAMMDD_lo_que_sea.sql\n` +
+        'Sin nombre perdonaria a bulto cualquier migracion alterada, presente y futura,\n' +
+        'y esta bandera existe para lo contrario: aceptar UNA reescritura concreta,\n' +
+        'hecha a conciencia, que el runner pueda comprobar. Repitela si son varias.\n' +
+        `${USO}`,
+    )
     return 1
   }
   const soloListar = args.includes('--pendientes')
@@ -411,11 +498,98 @@ export async function main(argv = process.argv) {
       )
     }
 
-    const aplicadas = hayRegistro
-      ? new Set(
-          (await cli.query('select archivo from schema_migrations')).rows.map((r) => r.archivo),
+    const registradas = hayRegistro
+      ? new Map(
+          (await cli.query('select archivo, checksum from schema_migrations')).rows.map((r) => [
+            r.archivo,
+            r.checksum,
+          ]),
         )
-      : new Set()
+      : new Map()
+    const aplicadas = new Set(registradas.keys())
+
+    // ─── La historia de la base contra la de la imagen ───────────────────
+    //
+    // Va ANTES de todo lo demás —incluido `--pendientes`, que es la orden que se
+    // teclea justo antes de actualizar— y antes de aplicar el primer archivo:
+    // «aborta» tiene que significar sin tocar nada, no a mitad.
+    const diferentes = divergencias(registradas, todas)
+
+    // La bandera afirma que ESE archivo se reescribió a conciencia, y eso se
+    // comprueba: si el archivo no diverge, o ni siquiera está registrado, quien
+    // la teclea está hablando de otra cosa —o la dejó puesta de una vez
+    // anterior, que es cómo un escape se vuelve un agujero permanente.
+    const impostoras = forzados.filter((f) => !diferentes.some((d) => d.archivo === f))
+    if (impostoras.length) {
+      console.error(
+        `ERROR migrar: ${FORZAR} nombra archivos que NO divergen:\n` +
+          impostoras
+            .map(
+              (f) =>
+                `  · ${f}   (${
+                  !registradas.has(f)
+                    ? 'no esta registrado en esta base'
+                    : registradas.get(f) === MARCA_SIN_CHECKSUM
+                      ? "registrado como 'backfill': ya se salta la comprobacion, no hay nada que forzar"
+                      : 'su contenido en disco coincide con lo registrado'
+                })`,
+            )
+            .join('\n') +
+          `\nEsta bandera acepta una reescritura CONCRETA, no se deja puesta por si acaso:\n` +
+          'mientras siga ahi, desactiva la comprobacion de ese archivo el dia que si\n' +
+          'divergiera. Quitala y repite el comando. No se aplico nada.',
+      )
+      return 1
+    }
+
+    const perdonadas = new Set(forzados)
+    const alarma = diferentes.filter((d) => !perdonadas.has(d.archivo))
+    if (alarma.length) {
+      console.error(
+        'ERROR migrar: una migracion YA APLICADA tiene otro contenido en disco.\n' +
+          'El registro de esta base y los archivos de esta imagen no cuentan la misma\n' +
+          'historia, asi que nadie sabe describir el estado sobre el que se aplicaria lo\n' +
+          'pendiente. NO se aplico nada.\n' +
+          alarma
+            .map(
+              (d) =>
+                `  · ${d.archivo}\n      registrado: ${d.registrado}\n      en disco:   ${d.enDisco}`,
+            )
+            .join('\n') +
+          '\nQue hacer:\n' +
+          '  · si la imagen es la equivocada (una version distinta de la que toca),\n' +
+          '    actualizala y repite: el archivo volvera a ser el registrado;\n' +
+          '  · si la migracion se reescribio A CONCIENCIA y esta base ya tiene aplicado\n' +
+          '    lo que el archivo nuevo describe, aceptalo archivo por archivo:\n' +
+          alarma.map((d) => `      node scripts/migrar.mjs ${FORZAR}=${d.archivo}`).join('\n') +
+          '\n    (no reaplica nada: solo pone al dia lo que el registro AFIRMA)',
+      )
+      return 3
+    }
+
+    if (forzados.length) {
+      for (const d of diferentes.filter((x) => perdonadas.has(x.archivo))) {
+        if (soloListar) {
+          console.log(
+            `  ${FORZAR} ${d.archivo}: se pondria al dia ${d.registrado} -> ${d.enDisco} ` +
+              '(nada se escribio: --pendientes solo lista)',
+          )
+          continue
+        }
+        // Se actualiza el checksum y NO `aplicada_en`: la fecha dice cuando se
+        // aplico el archivo, y forzar el checksum no lo aplica. Refrescarla
+        // borraria el unico dato que cuenta cuando se puso al dia la instancia.
+        await cli.query('update schema_migrations set checksum = $1 where archivo = $2', [
+          d.enDisco,
+          d.archivo,
+        ])
+        console.log(
+          `${FORZAR} aceptado para ${d.archivo}: el registro pasa de ${d.registrado} a ` +
+            `${d.enDisco}. El archivo NO se reaplica —la base conserva lo que se le aplico en ` +
+            'su dia—; lo que cambia es lo que el registro afirma sobre el.',
+        )
+      }
+    }
 
     const pendientes = todas.filter((m) => !aplicadas.has(m.archivo))
     const deDatos = pendientes.filter((m) => m.tipo === 'datos')

@@ -110,7 +110,15 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
                                                           node scripts/migrar.mjs --pendientes  # lista, no aplica
                                                           node scripts/migrar.mjs --con-datos   # incluye las @tipo: datos
                                                           node scripts/migrar.mjs --instalacion-nueva  # la base acaba de nacer
+                                                          node scripts/migrar.mjs --forzar-checksum=AAAAMMDD_x.sql  # esa se reescribio a conciencia
 ```
+
+**Códigos de salida** (`scripts/migrar.mjs:21-32`), que es lo único que mira el
+`set -e` de `update.sh`: **0** nada que hacer o todo aplicado y registrado; **1**
+no se puede ni empezar (falta `DATABASE_URL`, argumento desconocido, no se sabe
+si la base es nueva o rezagada, o una bandera afirma algo que la base desmiente);
+**2** una migración falló, o se aplicaron y no se pudieron registrar; **3** el
+registro y la imagen no cuentan la misma historia.
 
 > [!warning] Se corre desde la RAÍZ del repositorio, no desde `apps/web`
 > El script vive en `scripts/`, no en `apps/web/scripts/`. El comando de
@@ -125,6 +133,7 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
 | Solo imprime `host:puerto/base` | El destino se registra **sin credenciales**, igual que `apply-migration.mjs:28-37` |
 | Sin registro **y con datos** = se para y pregunta (salida 1) | La heurística que mira ahí —la del backfill— no distingue una instancia rezagada de una recién instalada, y las dos suposiciones hacen daño en silencio. Ver «El guard», abajo |
 | `--instalacion-nueva` **se verifica** contra la base (salida 1 si no se sostiene) | Una afirmación que nadie comprueba es una heurística con otro nombre. Ver «La bandera afirma, y se comprueba», abajo |
+| Una migración ya aplicada que cambió en disco **aborta** (salida 3) | El registro guarda el `sha256` de lo aplicado. Si el archivo de la imagen ya no es ese, nadie sabe describir el estado sobre el que se aplicaría lo pendiente. Ver «La historia tiene que cuadrar», abajo |
 | La tabla de registro la crea una migración, no el runner | El runner **no duplica ese DDL**: una segunda copia es la forma de que las dos dejen de coincidir. Lo aplicado antes de que la tabla exista se registra en cuanto aparece |
 | Cada archivo con **su propia transacción** | **48 de los 68** traen su `begin; … commit;`, y envolverlos en otra no anida: el `commit` de dentro cerraría el de fuera. Los otros 20 viajan como sentencia simple, que Postgres ejecuta en su transacción implícita. En los dos casos, si el archivo falla no queda aplicado a medias. Se aborta **sin registrarlo** y con el nombre del archivo en el error (salida 2) |
 | Si aplica y **no puede registrar**, salida 2 | El insert del registro también puede fallar (permisos, disco, réplica en solo lectura). Escapaba sin capturar, o sea salida **1 con volcado de pila** —«no se pudo ni empezar»— sobre una base que sí cambió. El 2 es lo que un `set -e` necesita distinguir para saber si hay que ir a mirar |
@@ -257,6 +266,75 @@ contrario.
 > despliegue por el workflow viejo abortará con un mensaje que además miente
 > sobre la causa.
 
+### La historia tiene que cuadrar: el checksum de lo ya aplicado (F3.3, 17/08)
+
+`schema_migrations.checksum` guarda el `sha256` de lo que se aplicó. Desde el
+17/08 el runner **lo compara** antes de tocar nada: si un archivo ya registrado
+llega con otro contenido, la instancia **se niega a actualizarse** (salida 3),
+nombra el archivo y enseña **los dos checksums**. Escribir el checksum ya lo
+hacía F3.2; lo que faltaba —y es lo que añade F3.3— era compararlo.
+
+Que la comprobación vaya **antes de todo**, incluido `--pendientes`, es el punto:
+«aborta» tiene que significar *sin tocar nada*, no *a mitad*. Y `--pendientes` es
+la orden que se teclea justo antes de actualizar, así que tampoco puede callarse.
+
+| Fila del registro | Qué hace el runner |
+|---|---|
+| Checksum real que **coincide** | Sigue: la migración está aplicada y no se reaplica |
+| Checksum real que **no** coincide | **Salida 3**, sin aplicar nada, nombrando archivo y los dos hashes |
+| `'backfill'` | **Se la salta a conciencia** |
+| Archivo pendiente (sin fila) | Nada que comparar: se aplica |
+
+> [!important] La excepción de `'backfill'` es lo que impide negarse a actualizar la flota entera
+> Esas filas son las 65 migraciones que el droplet aplicó **a mano** antes del
+> 2026-08-12; nadie guardó el hash de origen, y por eso
+> `20260812_schema_migrations.sql:51-56` deja escrito que la marca existe *«para
+> que la comprobación de integridad de F3.3 se las salte a conciencia»*.
+> Inventar hoy un checksum afirmaría que lo aplicado coincide con lo que hay en
+> disco, que es precisamente lo que no se sabe.
+>
+> **No es teórico: T-04 editó dos de esos archivos.** Medido en las dos
+> direcciones, ninguna muerde: en el droplet están marcados `'backfill'` y se
+> saltan; y en una **instalación nueva** el runner los aplica él mismo y los
+> registra con su checksum real —calculado sobre el archivo ya editado—, así que
+> coinciden. (En una instalación nueva **no queda ni una fila `'backfill'`**: el
+> backfill sí dispara, porque `schema.sql` siembra `rgb`, pero el `on conflict …
+> do update` del runner reescribe esas 65 filas con el checksum real en la misma
+> pasada.)
+
+**`--forzar-checksum=<archivo>` es el escape, y exige el nombre del archivo.**
+Desviación consciente del paso 3 de F3.3, que la describe sin argumento:
+
+- **suelta, perdonaría a bulto** cualquier migración alterada, presente y futura
+  — justo lo que la comprobación existe para impedir— y se quedaría puesta para
+  siempre en el `update.sh` de alguien. Sin nombre, **salida 1**;
+- nombrando el archivo, perdonar es una decisión sobre **uno concreto**, y el
+  runner **puede comprobarla**: si ese archivo no diverge —o está registrado como
+  `'backfill'`, donde no hay nada que forzar—, **salida 1**. Es la lección que
+  costó dos ciclos con `--instalacion-nueva`, aplicada a lo que aquí sí se puede
+  verificar: la bandera no afirma un estado de la base, afirma una decisión sobre
+  un archivo, y lo verificable es que ese archivo sea de verdad el que diverge;
+- **no reaplica nada**: pone al día lo que el registro *afirma*. Actualiza el
+  `checksum` y **no** `aplicada_en` — esa fecha dice cuándo se aplicó el archivo,
+  y forzar el checksum no lo aplica. Con eso el escape **no se vuelve
+  permanente**: la corrida siguiente ya no necesita la bandera.
+
+> [!note] Lo que F3.3 deja fuera, dicho en voz alta
+> Una fila registrada **cuyo archivo no viaja en la imagen** también es una
+> discrepancia —una instancia por delante de su propia imagen— y **no** dispara
+> nada: la comprobación solo mira los archivos que están en los dos lados. Se dejó
+> fuera a propósito: F3.3 es sobre contenido alterado, y abortar ahí rechazaría de
+> paso el día que se retire una migración del repositorio, que merece su propia
+> decisión.
+
+Lo cubren **ocho** casos en `migraciones.e2e.test.ts`, sobre una base desechable
+que llega al estado del droplet ya puesto al día —así conviven filas `'backfill'`
+y filas con checksum real—: la alterada aborta con 3, **con `--con-datos` la
+migración de datos pendiente sigue sin aplicarse** (prueba de que aborta antes del
+bucle), `--pendientes` tampoco calla, la fila `'backfill'` se salta, y las tres
+formas de usar `--forzar-checksum` (acepta y pone al día; rechaza el archivo que
+no diverge; rechaza la bandera suelta).
+
 ## La cadena tiene que poder REAPLICARSE (T-04, 17/08)
 
 `deploy.yml:141-148` reaplica **todas** las migraciones de esquema en cada
@@ -305,11 +383,15 @@ pero deja una función en su forma vieja sería el mismo fallo silencioso, sin
 rojo. El censo lista **todas** las roturas, no solo la primera.
 
 > [!note] Editar el archivo cambia su checksum, y aun así **no** dispara F3.3
+> Ya no es una previsión: F3.3 está implementada desde el 17/08 y se midió.
 > En el droplet estas migraciones están registradas por el backfill con el valor
 > literal `'backfill'`, y `20260812_schema_migrations.sql:51-56` declara que esa
-> marca existe *«para que la comprobación de integridad de F3.3 se las salte a
+> marca existe *«para que la comprobación de integridad se las salte a
 > conciencia»*. Como el checksum de origen nunca se guardó, no hay nada con lo
-> que comparar y no hay alarma que disparar.
+> que comparar y no hay alarma que disparar. **En una instalación nueva tampoco
+> muerde, pero por el motivo contrario**: ahí las aplica el runner y las registra
+> con el checksum del archivo **ya editado**, así que cuadra. Ver «La historia
+> tiene que cuadrar», arriba.
 
 ## Dos migraciones cuyo nombre miente sobre el orden
 
