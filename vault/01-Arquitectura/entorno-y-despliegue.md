@@ -16,6 +16,7 @@ archivos:
   - ecosystem.config.js
   - .github/workflows/ci.yml
   - .github/workflows/release.yml
+  - .github/workflows/promover.yml
   - .github/workflows/deploy.yml
   - infra/nginx/demo.space-os.io.conf
   - db/docker-compose.yml
@@ -186,6 +187,7 @@ instancia no necesita volumen.**
 |---|---|---|
 | `ci.yml` | `pull_request` + push a `main` | typecheck → test → build (Node 20) |
 | `release.yml` | **push de un tag `v*.*.*`** | typecheck → unitarias → build → **e2e** → imagen a `beta` |
+| `promover.yml` | **`workflow_dispatch` manual** | comprobar que la versión **es** `beta` → smoke en DEMO → **reetiquetar** `estable` |
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` (Node 22) |
 | `deploy.yml` | **`workflow_dispatch` manual** | backup → build → migraciones → `pm2 reload` |
 
@@ -231,6 +233,64 @@ Dos jobs, y el orden **es** el mecanismo de seguridad:
 - `concurrency` **sin** cancelación, al revés que `ci.yml`: cada corrida publica un
   artefacto, y cortarla a medias podría dejar la etiqueta de versión subida y `beta`
   apuntando a otra cosa.
+
+### `promover.yml` — `estable` se mueve a mano y sin reconstruir (17/08, F2.4)
+
+**Escrito, NUNCA corrido.** Necesita tres variables del repositorio que aún no
+existen (`REGISTRY`, `REGISTRY_TIPO` y `DEMO_URL`, tarjeta **TH-P4**) y una imagen
+en el canal `beta`, que sale de `release.yml`. Además, **`workflow_dispatch` solo se
+puede disparar cuando el archivo está en la rama por omisión**: mientras viva solo en
+`feat/servidor-padre-instancias`, ni aparece en la pestaña Actions.
+
+Un solo job, y **sin `checkout`**: este workflow no lee ni una línea del repositorio.
+No es un ahorro — no tener el código delante es lo que impide reconstruir por
+descuido, y reconstruir daría un binario distinto del validado (invariante 3).
+
+**Las tres puertas, en orden:**
+
+| Puerta | Qué exige | Por qué |
+|---|---|---|
+| 1 | La versión existe **y es la que lleva `beta` hoy** | `estable` nunca recibe algo que no esté ahora mismo en el canal que prueba DEMO |
+| 2 | DEMO contesta 200 en `/login/` y en `/api/auth/metodos/` | Restricción global 13: nada llega a un owner sin pasar por DEMO |
+| 3 | Tras reetiquetar, **el digest de `estable` es el mismo** | El criterio de aceptación de F2.4 es medible, así que se mide en el propio run |
+
+> [!important] Reetiquetar es `imagetools create`, no `pull` + `tag` + `push`
+> `docker buildx imagetools create --tag …:estable …@sha256:…` trabaja sobre el
+> **manifiesto** en el registry: no baja capas y conserva el digest. La ruta que
+> *parece* equivalente —`docker pull`, `docker tag`, `docker push`— pasa por el
+> demonio local, que guarda **una** plataforma y **vuelve a serializar** el
+> manifiesto al empujar: el digest cambia, y con él la promesa de que `estable` es
+> exactamente el artefacto que se probó.
+>
+> El origen es el **digest**, no la etiqueta `beta`: entre la comprobación y el
+> reetiquetado puede entrar un release nuevo y mover `beta`.
+
+- **El patrón de la versión es ESTRICTO** (`^v[0-9]+\.[0-9]+\.[0-9]+$`), **al revés
+  que `release.yml`**, que sí admite sufijo. La diferencia es deliberada y no se debe
+  unificar: una `-rc1` es material de `beta`, y en `estable` sería una precandidata
+  corriendo en la flota entera.
+- **Consecuencia operativa de la puerta 1:** si ya salió una `beta` más nueva, la
+  versión vieja **ya no se puede promover por aquí**. Devolver la flota a una versión
+  anterior es un *rollback*, no una promoción, y va a mano con el comando que el
+  propio resumen del run deja escrito.
+- **El resumen del run** trae versión, quién, cuándo, motivo, digest, a dónde
+  apuntaba `estable` antes y el resultado del smoke. Ese digest anterior es el punto
+  de vuelta atrás y se captura **antes** de mover nada.
+- `environment: flota` es el gancho para exigir aprobación humana. **Hoy no frena
+  nada** —un entorno sin reglas se crea al vuelo y deja pasar—; ponerle revisores es
+  una orden aparte, escrita en el propio archivo.
+
+> [!warning] El smoke dice que DEMO responde, **no** que DEMO corra esa versión
+> Saber qué versión corre una instancia es `/api/version`, que **no existe todavía**
+> (F6.1) y que, cuando exista, no la dirá sin `X-Flota-Token`. El workflow ya manda
+> la cabecera si hay secreto `FLOTA_TOKEN` y **compara**; mientras no haya ruta, deja
+> escrito en el resumen, con todas sus letras, que ese punto **no está comprobado**.
+> Un smoke verde que se leyera como «DEMO corre esta versión» sería peor que no
+> tenerlo.
+
+> [!danger] Promover manda a **toda la flota** a jalar esa imagen
+> Y las instancias que ya jalaron **no vuelven solas**: necesitan su rollback local,
+> que es F3.4 y hoy no existe. Hasta entonces, debajo de este botón no hay red.
 
 ## Producción
 

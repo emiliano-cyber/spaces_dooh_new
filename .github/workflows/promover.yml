@@ -1,0 +1,384 @@
+name: Promover a estable
+
+# ============================================================================
+#  Mueve la etiqueta `estable` a una versión que HOY lleva `beta`, REETIQUETANDO
+#  la imagen ya construida y validada. No construye nada: aquí no hay
+#  `docker build` ni siquiera un checkout, y eso es el punto — reconstruir
+#  produciría un binario distinto del que se probó, que es justo lo que prohíbe
+#  el invariante 3 del plan («el artefacto es idéntico»).
+#
+#  Hermano de `release.yml` (F2.3), y a propósito con sus mismas convenciones:
+#  el destino sale de `vars.REGISTRY`, la credencial se elige por
+#  `vars.REGISTRY_TIPO`, el host del login se DERIVA del primer segmento del
+#  registry, la contraseña entra por `--password-stdin`, y lo barato que puede
+#  faltar se comprueba primero para que un rojo por variable ausente llegue en
+#  dos segundos. Dos workflows hermanos resolviendo lo mismo de dos formas
+#  distintas es la clase de divergencia que este repositorio ya paga cara.
+#
+#  QUÉ SIGNIFICA DISPARAR ESTO. `estable` es el canal que jala TODA la flota de
+#  owners (`update.sh`, F3.4). Promover por error manda a todas las instancias a
+#  esa imagen. La vuelta atrás es reetiquetar `estable` a la anterior — y el
+#  resumen del run deja escrito ese comando con el digest exacto — pero **las
+#  instancias que ya jalaron no vuelven solas**: necesitan su rollback local, que
+#  es F3.4 y hoy no existe. Por eso este archivo es desconfiado: hoy no hay red
+#  de seguridad debajo.
+#
+#  LAS TRES PUERTAS, en orden, y ninguna es decorativa:
+#
+#   1. La versión existe en el registry Y es la que lleva `beta` hoy. Lo segundo
+#      es más fuerte que «estuvo en beta alguna vez» y tiene una consecuencia
+#      operativa que hay que conocer: si ya salió una beta más nueva, la vieja
+#      YA NO se puede promover por aquí. Devolver la flota a una versión
+#      anterior es un rollback, no una promoción, y se hace a mano con el
+#      comando que este mismo workflow escribe en su resumen.
+#   2. DEMO responde. Ninguna instancia de owner recibe nada que no se haya
+#      validado antes en DEMO (restricción global 13 del plan).
+#   3. Después de reetiquetar, se COMPRUEBA que el digest no cambió. El criterio
+#      de aceptación de F2.4 es medible, así que se mide aquí en vez de
+#      confiarse: si `estable` acabara apuntando a otro digest, el run se pone
+#      rojo y dice cómo devolverlo.
+#
+#  SEGURIDAD — las mismas reglas de `ci.yml:17-30` y `release.yml:26-37`:
+#  la entrada `version` viaja como VARIABLE DE ENTORNO y se valida ANTES de
+#  usarse. Un `${{ ... }}` dentro del texto de un script se sustituye ANTES de
+#  que exista el shell, así que un valor con `; rm -rf /` se ejecutaría; como
+#  variable, es un dato. El motivo está escrito en `deploy.yml:70-102`.
+# ============================================================================
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version a promover, exactamente vX.Y.Z (sin sufijos: -rc1 es material de beta)'
+        required: true
+        type: string
+      motivo:
+        # Opcional a propósito: un input obligatorio de más rompería el comando
+        # de verificación del plan (`gh workflow run promover.yml -f version=…`).
+        description: 'Por que se promueve (queda escrito en el resumen del run)'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+  packages: write
+
+# SIN cancelación, y el grupo no lleva `github.ref`: lo que no puede haber son
+# dos promociones moviendo `estable` a la vez, vengan de donde vengan.
+concurrency:
+  group: promover-estable
+  cancel-in-progress: false
+
+jobs:
+  promover:
+    name: Reetiquetar como estable la imagen ya validada
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # El gancho para exigir aprobación humana. HOY NO FRENA NADA: un entorno sin
+    # reglas de protección se crea al vuelo en la primera corrida y deja pasar.
+    # Ponerle revisores es una orden que corre una persona, y es lo único que
+    # convierte «difícil de disparar por accidente» en «imposible de disparar
+    # solo»:
+    #   gh api -X PUT repos/:owner/:repo/environments/flota \
+    #     -f 'reviewers[][type]=User' -F 'reviewers[][id]=<id>'
+    environment: flota
+
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      VERSION: ${{ inputs.version }}
+      MOTIVO: ${{ inputs.motivo }}
+      REGISTRY: ${{ vars.REGISTRY }}
+      REGISTRY_TIPO: ${{ vars.REGISTRY_TIPO }}
+      DEMO_URL: ${{ vars.DEMO_URL }}
+      QUIEN: ${{ github.actor }}
+
+    steps:
+      # Primero lo que puede faltar y no cuesta nada comprobar. Fail-closed: sin
+      # destino no se promueve, y el error trae los comandos que hay que correr.
+      - name: Comprobar que el destino y DEMO estan configurados
+        run: |
+          set -euo pipefail
+          if [ -z "${REGISTRY:-}" ] || [ -z "${REGISTRY_TIPO:-}" ]; then
+            echo "::error::Faltan las variables del repositorio REGISTRY y/o REGISTRY_TIPO."
+            echo "El destino de la imagen es un PARÁMETRO, nunca un literal en este archivo."
+            echo "Las fija una persona (tarjeta TH-P4), por ejemplo:"
+            echo '  gh variable set REGISTRY      --body "registry.digitalocean.com/<nombre>"'
+            echo '  gh variable set REGISTRY_TIPO --body "docr"'
+            exit 1
+          fi
+          case "$REGISTRY" in
+            *[!A-Za-z0-9._:/-]*)
+              echo "::error::REGISTRY no válido: '$REGISTRY' (solo letras, dígitos y . _ : / -)"
+              exit 1 ;;
+          esac
+
+          # DEMO no es opcional: promover afirma que esto se validó en DEMO
+          # (restricción global 13). Si no se puede mirar DEMO, no se promueve.
+          if [ -z "${DEMO_URL:-}" ]; then
+            echo "::error::Falta la variable del repositorio DEMO_URL."
+            echo "Es la base pública de DEMO, CON el basePath, sin barra final:"
+            echo '  gh variable set DEMO_URL --body "https://demo.space-os.io/spaces-dooh"'
+            exit 1
+          fi
+          case "$DEMO_URL" in
+            https://*) ;;
+            *) echo "::error::DEMO_URL debe empezar por https:// — recibido: '$DEMO_URL'"; exit 1 ;;
+          esac
+          case "$DEMO_URL" in
+            *[!A-Za-z0-9._:/-]*)
+              echo "::error::DEMO_URL no válida: '$DEMO_URL' (solo letras, dígitos y . _ : / -)"
+              exit 1 ;;
+          esac
+
+      # ESTRICTO, y la diferencia con `release.yml:207` es deliberada: allí el
+      # patrón admite sufijo (`v0.0.1-rc1`) porque el filtro `v*.*.*` del
+      # disparador lo deja pasar y una precandidata SÍ es material de `beta`.
+      # Aquí no: una `-rc1` en `estable` sería una precandidata corriendo en la
+      # flota entera. No unificar los dos patrones — esa diferencia es el que
+      # impide promover un candidato.
+      - name: Validar la version
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Versión no válida: '$VERSION'. Aquí se espera vX.Y.Z exacto, SIN sufijo."
+            echo "Una precandidata (v1.2.3-rc1) se queda en el canal beta: eso es lo que prueba DEMO."
+            exit 1
+          fi
+          echo "Versión a promover: $VERSION"
+
+      # Idéntico a `release.yml:225-252`: el login se elige por REGISTRY_TIPO y
+      # el host es el primer segmento de REGISTRY, derivado y no una tercera
+      # variable que pudiera quedarse desincronizada. La contraseña por STDIN.
+      - name: Entrar al registry
+        env:
+          DO_REGISTRY_TOKEN: ${{ secrets.DO_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          HOST="${REGISTRY%%/*}"
+          case "$REGISTRY_TIPO" in
+            docr)
+              if [ -z "${DO_REGISTRY_TOKEN:-}" ]; then
+                echo "::error::REGISTRY_TIPO=docr pero falta el secreto DO_REGISTRY_TOKEN."
+                exit 1
+              fi
+              printf '%s' "$DO_REGISTRY_TOKEN" \
+                | docker login "$HOST" --username "$DO_REGISTRY_TOKEN" --password-stdin
+              ;;
+            ghcr)
+              printf '%s' "$GITHUB_TOKEN" \
+                | docker login "$HOST" --username "$ACTOR" --password-stdin
+              ;;
+            *)
+              echo "::error::REGISTRY_TIPO='$REGISTRY_TIPO' desconocido. Valores admitidos: docr, ghcr."
+              exit 1 ;;
+          esac
+          echo "Sesión abierta en $HOST"
+
+      # Puerta 1. Todo se resuelve leyendo MANIFIESTOS del registry: ni un
+      # `docker pull`, o sea ni una capa bajada. `imagetools inspect` habla con
+      # el registry, no con el demonio local.
+      - name: Comprobar que la version existe y que hoy es la que lleva beta
+        run: |
+          set -euo pipefail
+
+          # El digest de una referencia. Camino principal: `--format`. Respaldo:
+          # la salida legible, que trae la línea `Digest: sha256:…` (es la misma
+          # que enseña el comando de verificación del plan). El respaldo existe
+          # porque `--format` depende de la versión de buildx del runner, y un
+          # rojo por eso no diría nada de la imagen.
+          digest_de() {
+            local ref="$1" d
+            d=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$ref" 2>/dev/null || true)
+            case "$d" in sha256:*) printf '%s' "$d"; return 0 ;; esac
+            d=$(docker buildx imagetools inspect "$ref" 2>/dev/null | awk '/^Digest:/ {print $2; exit}')
+            case "$d" in sha256:*) printf '%s' "$d"; return 0 ;; esac
+            return 1
+          }
+
+          if ! DIGEST_VERSION=$(digest_de "$REGISTRY/space-os:$VERSION"); then
+            echo "::error::No existe '$REGISTRY/space-os:$VERSION' en el registry (o no hay permiso de lectura)."
+            echo "Una versión se publica taggeando el repositorio: eso corre release.yml y la deja en beta."
+            exit 1
+          fi
+
+          if ! DIGEST_BETA=$(digest_de "$REGISTRY/space-os:beta"); then
+            echo "::error::No existe la etiqueta 'beta' en el registry. Nada que promover todavía."
+            exit 1
+          fi
+
+          if [ "$DIGEST_VERSION" != "$DIGEST_BETA" ]; then
+            echo "::error::$VERSION NO es la versión que lleva 'beta' hoy."
+            echo "  $VERSION -> $DIGEST_VERSION"
+            echo "  beta     -> $DIGEST_BETA"
+            echo "'estable' no puede recibir una imagen que no esté ahora mismo en beta, que es lo que prueba DEMO."
+            echo "Si lo que quieres es DEVOLVER la flota a una versión anterior, eso es un rollback y va a mano:"
+            echo "  docker buildx imagetools create --tag \"\$REGISTRY/space-os:estable\" \"\$REGISTRY/space-os@<digest anterior>\""
+            exit 1
+          fi
+
+          # El digest de 'estable' ANTES de tocarlo: es el punto de vuelta atrás
+          # y se captura ahora, mientras todavía se puede. En la primera
+          # promoción no existe, y eso no es un error.
+          if ! DIGEST_ESTABLE_PREVIO=$(digest_de "$REGISTRY/space-os:estable"); then
+            DIGEST_ESTABLE_PREVIO='ninguno (primera promocion)'
+          fi
+
+          echo "Coinciden: $VERSION y beta apuntan a $DIGEST_VERSION"
+          echo "estable apuntaba a: $DIGEST_ESTABLE_PREVIO"
+          {
+            echo "DIGEST_VERSION=$DIGEST_VERSION"
+            echo "DIGEST_ESTABLE_PREVIO=$DIGEST_ESTABLE_PREVIO"
+          } >> "$GITHUB_ENV"
+
+      # Puerta 2. Se mira DEMO ANTES de mover nada.
+      - name: Smoke en DEMO
+        env:
+          FLOTA_TOKEN: ${{ secrets.FLOTA_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE="${DEMO_URL%/}"
+
+          codigo() {
+            curl -s -o /dev/null -w '%{http_code}' --max-time 20 --retry 2 --retry-delay 5 "$1" || true
+          }
+
+          # Las dos rutas públicas y sin datos de negocio. `auth/metodos/` es la
+          # misma que F3.4 usa como health check de una instancia, y por el mismo
+          # motivo (`app/api/auth/metodos/route.ts`): pública, sin sesión, y toca
+          # la aplicación de verdad.
+          LOGIN=$(codigo "$BASE/login/")
+          METODOS=$(codigo "$BASE/api/auth/metodos/")
+          echo "login   -> $LOGIN"
+          echo "metodos -> $METODOS"
+          if [ "$LOGIN" != "200" ] || [ "$METODOS" != "200" ]; then
+            echo "::error::DEMO no está sana (login $LOGIN, metodos $METODOS). No se promueve nada."
+            echo "Promover afirma que esta versión se validó en DEMO; si DEMO no contesta, esa afirmación es falsa."
+            exit 1
+          fi
+
+          # QUÉ VERSIÓN CORRE DEMO. Solo se puede saber por `/api/version`, que
+          # NO EXISTE todavía (llega en F6.1) y que, cuando exista, no dirá la
+          # versión sin `X-Flota-Token` — su contrato devuelve `{ ok: true }` y
+          # nada más a un desconocido. Así que hoy esto es informativo y mañana
+          # se vuelve estricto solo, sin tocar el archivo.
+          #
+          # Se deja ESCRITO en el resumen que no está comprobado. Un smoke verde
+          # que se lea como «DEMO corre esta versión» sería peor que no tenerlo.
+          COMPROBADA=no
+          if [ -n "${FLOTA_TOKEN:-}" ]; then
+            CUERPO=$(curl -s --max-time 20 -H "X-Flota-Token: $FLOTA_TOKEN" "$BASE/api/version/" || true)
+            VERSION_DEMO=$(printf '%s' "$CUERPO" | jq -r '.version // empty' 2>/dev/null || true)
+            if [ -n "$VERSION_DEMO" ]; then
+              if [ "$VERSION_DEMO" != "$VERSION" ]; then
+                echo "::error::DEMO corre '$VERSION_DEMO' y se está promoviendo '$VERSION'. No es lo que se validó."
+                exit 1
+              fi
+              COMPROBADA=si
+            fi
+          fi
+
+          if [ "$COMPROBADA" = "si" ]; then
+            SMOKE="login 200 · metodos 200 · DEMO corre \`$VERSION\` (comprobado por /api/version)"
+          else
+            SMOKE="login 200 · metodos 200 · **qué versión corre DEMO: NO COMPROBADO** (falta /api/version con token, F6.1)"
+          fi
+          echo "SMOKE=$SMOKE" >> "$GITHUB_ENV"
+
+      # El paso que promueve. `imagetools create` trabaja sobre el MANIFIESTO en
+      # el registry: no baja capas, no reconstruye y no pasa por el demonio
+      # local, así que el manifiesto que queda bajo `estable` es byte a byte el
+      # mismo y el digest se conserva.
+      #
+      # POR QUÉ NO `docker pull` + `docker tag` + `docker push`, que es lo que
+      # parece equivalente y no lo es:
+      #   · El demonio local guarda UNA plataforma. Si la imagen fuese un índice
+      #     multi-arquitectura, al empujar saldría un manifiesto de una sola
+      #     plataforma: otro digest, y `estable` dejaría de ser el mismo
+      #     artefacto que se probó.
+      #   · Aun con una sola plataforma, el manifiesto se vuelve a serializar al
+      #     empujar (tipos de medio, orden, esquema) y eso también cambia el
+      #     digest.
+      #   · Y bajaría cientos de MB de capas para no cambiar nada.
+      #
+      # El origen es el DIGEST, no la etiqueta `beta`: entre la comprobación y
+      # este paso puede haber entrado un release nuevo y movido `beta`. Fijando
+      # el digest se promueve exactamente la imagen que pasó las tres puertas.
+      - name: Reetiquetar como estable, sin reconstruir
+        run: |
+          set -euo pipefail
+          docker buildx imagetools create \
+            --tag "$REGISTRY/space-os:estable" \
+            "$REGISTRY/space-os@$DIGEST_VERSION"
+
+      # Puerta 3. El criterio de aceptación de F2.4 se mide, no se supone.
+      - name: Comprobar que promover no cambio el digest
+        run: |
+          set -euo pipefail
+          DIGEST_ESTABLE=$(docker buildx imagetools inspect --format '{{.Manifest.Digest}}' "$REGISTRY/space-os:estable" 2>/dev/null || true)
+          case "$DIGEST_ESTABLE" in
+            sha256:*) ;;
+            *) DIGEST_ESTABLE=$(docker buildx imagetools inspect "$REGISTRY/space-os:estable" | awk '/^Digest:/ {print $2; exit}') ;;
+          esac
+
+          if [ "$DIGEST_ESTABLE" != "$DIGEST_VERSION" ]; then
+            echo "::error::Promover CAMBIÓ el digest. 'estable' no es la imagen validada."
+            echo "  esperado (la validada): $DIGEST_VERSION"
+            echo "  quedó:                  $DIGEST_ESTABLE"
+            # En la PRIMERA promoción no hay digest anterior, y escribir el
+            # comando con 'ninguno' dentro daría una línea que no se puede
+            # pegar — justo en el momento en que alguien la pegaría a ciegas.
+            case "$DIGEST_ESTABLE_PREVIO" in
+              sha256:*)
+                echo "Vuelta atrás — devolver 'estable' a donde estaba:"
+                echo "  docker buildx imagetools create --tag '$REGISTRY/space-os:estable' '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO'"
+                echo "Ojo: las instancias que ya jalaron NO vuelven solas (necesitan su rollback local, F3.4)." ;;
+              *)
+                echo "No había 'estable' antes de este run: no hay digest al que volver." ;;
+            esac
+            exit 1
+          fi
+          echo "estable -> $DIGEST_ESTABLE (el mismo de $VERSION)"
+
+      - name: Resumen del run
+        run: |
+          set -euo pipefail
+          CUANDO=$(date -u '+%Y-%m-%d %H:%M UTC')
+          {
+            echo "### Promovido a \`estable\`"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Versión | \`$VERSION\` |"
+            echo "| Quién | @$QUIEN |"
+            echo "| Cuándo | $CUANDO |"
+            echo "| Motivo | ${MOTIVO:-—} |"
+            echo "| Digest | \`$DIGEST_VERSION\` (el mismo que tenía en \`beta\`: promover NO reconstruye) |"
+            echo "| \`estable\` apuntaba antes a | \`$DIGEST_ESTABLE_PREVIO\` |"
+            echo "| Smoke en DEMO | $SMOKE |"
+            echo ""
+            echo "**Toda la flota jalará esta imagen** en su próxima actualización (\`update.sh\`, canal \`estable\`)."
+            echo ""
+            case "$DIGEST_ESTABLE_PREVIO" in
+              sha256:*)
+                echo "Vuelta atrás — devuelve la etiqueta, **no** las instancias que ya jalaron (eso es el rollback local, F3.4):"
+                echo ""
+                echo '```bash'
+                echo "docker buildx imagetools create --tag '$REGISTRY/space-os:estable' '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO'"
+                echo '```' ;;
+              *)
+                echo "Vuelta atrás: **no hay a dónde volver por etiqueta** — \`estable\` no existía antes de este run." ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Que no quede el token en `~/.docker/config.json` del runner. Es efímero,
+      # así que esto es defensa en profundidad, no la única barrera.
+      - name: Cerrar la sesion del registry
+        if: always()
+        run: docker logout "${REGISTRY%%/*}" || true
