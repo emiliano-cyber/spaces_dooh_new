@@ -26,7 +26,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 |---|---|---|---|
 | P1 · destino de `rgb` y del droplet actual | ABIERTA | — | — |
 | P2 · fecha de migración de PIXELED | ABIERTA | — | — |
-| P3 · cuenta DO de las instancias | ABIERTA | — | — |
+| **P3 · cuenta DO** | **RESUELTA EN SU MITAD QUE NOS BLOQUEABA** | **El registry nace en la cuenta de PIXELED.** Con eso **TH-P4 deja de estar bloqueada** y la Fase 2 puede cerrarse en cuanto una persona la ejecute. ⚠️ **Pero la pregunta que el plan escribe en P3 (`:2076-2083`) es otra**: «¿las instancias nacen en la cuenta DO de AS OOH o en la del owner?», y **eso sigue abierto**. Bloquea `provision-instancia.sh` (F5.4) y el runbook de operación — **Fase 5, fuera del alcance actual**, así que no detiene nada hoy. ⚠️ Y una consecuencia que conviene mirar antes de crear nada: **PIXELED figura en el plan como un tenant a migrar** (P2, `:2070`), o sea un **owner**. Si esa cuenta es la de un cliente, el registry del que jala **toda la flota** viviría dentro de la cuenta de un cliente | 2026-08-17 |
 | **P4 · nombre del registry** | **RESUELTA** | **DigitalOcean Container Registry.** Login con `secrets.DO_REGISTRY_TOKEN`. **No cambia una línea de F2.3/F2.4**: el plan (`:785-786`) ya manda elegir el login según `vars.REGISTRY_TIPO` para no reescribir el workflow cuando cayera esta decisión. Lo que fija son **dos variables de repositorio en GitHub** → tarjeta **TH-P4**. ⚠️ **Arrastra P3**: un registry de DO vive en una cuenta concreta, y en cuál nacen las instancias sigue abierto. Mirar además el límite de almacenamiento del plan contratado | 2026-08-17 |
 | **P4-bis · autoregistro fuera del build** | **RESUELTA y EJECUTADA** (`70ca3f0`) | **(b) la bandera sale del build**, como ya se hizo con `GOOGLE_OAUTH`. Un solo artefacto por versión; el autoregistro se decide en el `.env` al arrancar | 2026-08-13 |
 | **P3b-bis · ¿el registro va abierto o cerrado?** | **REDECIDIDA y COMPLETA — revierte la del 10/08** | **CERRADO en todas partes: local, producción y DEMO.** Ninguna instancia lo abre. `.env.example` baja a `AUTOREGISTRO=0`; el droplet se queda sin la bandera. **Contradice F4.4 del plan** (`:1345`), que manda encenderlo en DEMO | 2026-08-14 |
@@ -450,10 +450,17 @@ gh variable set REGISTRY_TIPO --body "docr"
 gh secret   set DO_REGISTRY_TOKEN   # pide el token por stdin; NO se escribe en un archivo
 ```
 
-**Lo que falta para poder correrlos:** el `<NOMBRE-DEL-REGISTRY>` no existe todavía, y
-**dónde se crea es P3** — la cuenta de DigitalOcean en la que nacen las instancias, que
-sigue abierta. Al crearlo, mirar el **límite de almacenamiento** del plan contratado: una
-imagen de 240 MB por versión publicada se acumula.
+**Dónde se crea: la cuenta de PIXELED** (decisión de Jochelo, 2026-08-17). El
+`<NOMBRE-DEL-REGISTRY>` no existe todavía y hay que crearlo ahí, con `doctl registry
+create <nombre>` o desde el panel. Al crearlo, mirar el **límite de almacenamiento** del
+plan contratado: una imagen de 240 MB por versión publicada se acumula.
+
+> [!warning] Antes de crearlo, una comprobación de una línea
+> **PIXELED figura en el plan como un tenant a migrar** (P2, `Plan…v3.md:2070`), o sea
+> un **owner**. Si esa cuenta es la de un cliente y no la de la casa, el registry del que
+> jala **toda la flota** quedaría dentro de la cuenta de un cliente: su facturación, sus
+> accesos, y el día que ese cliente se vaya se va con él. Confirmar de quién es la cuenta
+> antes de crear nada — si es la de la casa, no hay nada que discutir.
 
 **Qué desbloquea:** que F2.3 y F2.4, una vez escritas, puedan **correrse** de verdad. Sin
 esto se escriben y quedan esperando.
