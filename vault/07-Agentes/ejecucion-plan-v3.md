@@ -103,6 +103,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F1.2 | [migración] | ejecutor | F1.1-local + T-01 ✅ | **COMPLETADA_LOCAL** | **`65bf9b5`**, AMARILLO. Descubre tablas por catálogo, no por lista; idempotencia probada ×3 y el guard visto saltar. **ROJO — migración Y tenant, los dos disparadores: pendiente de visto bueno humano.** ⚠️ El plan manda reverificar el `insert into reservas` que cita en `campanas-repo.ts:687-696`: tras F1.3 arranca en **`:697`** |
 | F1.3 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `c50344a`. Veredicto AMARILLO (aceptada). ROJO por R2: **pendiente de visto bueno humano antes del merge** |
 | F1.4 | [código] | ejecutor | — | **COMPLETADA_LOCAL** | `3671e8a`, AMARILLO. `lib/host.ts` nuevo y `extractSubdomain` borrada. ⚠️ Abierto: el rewrite de `portal` **sí cambia** con `Host` en mayúsculas o con punto final — fuera de los pasos que la tarea autorizaba. Pendiente de decisión |
+| **T-04** | [migración] · **fuera del plan** | ejecutor | — | **EN_VERIFICACION** | `4c484fa`, ROJO por su ejecutor: **edita dos migraciones ya aplicadas en producción** (R3), autorizado expresamente por Jochelo el 17/08. Desbloquea el criterio de F3.2 que el auditor tumbó. **Aparecieron DOS roturas, no una** — la primera tapaba a la segunda, y su arnés sigue tras cada fallo para censarlas todas. 157 e2e + 1 saltada en 15 archivos |
 | F1.5 | [verificación] | tarjeta humana | F1.1 real, F1.2 | PENDIENTE_SERVIDOR | Aplicación al droplet: la corre una persona. Tarjeta **TH-F1.5**, emitida el 17/08 — llevaba desde el 13/08 en este estado **sin tarjeta**, que es lo que la leyenda exige. Va después de TH-02 y **después de TH-F3.1** |
 
 ### Fase 2 · Release versionado — **cierre PARCIAL, validado**
@@ -443,6 +444,35 @@ imagen de 240 MB por versión publicada se acumula.
 **Qué desbloquea:** que F2.3 y F2.4, una vez escritas, puedan **correrse** de verdad. Sin
 esto se escriben y quedan esperando.
 
+---
+
+### TH-T04 · ¿ha completado `deploy.yml` un despliegue desde el 4 de agosto?
+
+Emitida el **2026-08-17** a raíz del hallazgo 1 de T-04. **Solo lectura**, la corre una
+persona. No bloquea nada del plan; es una pregunta cuya respuesta cambia lo que creemos
+del despliegue actual.
+
+**Lo que T-04 midió:** `.github/workflows/deploy.yml:141-148` reaplica **todas** las
+migraciones con `ON_ERROR_STOP=1`, y hasta `4c484fa` esa reaplicación **abortaba** en
+`20260720_hard1_usuarios_rls.sql` — desde el momento en que existe
+`20260804_reautenticacion_individual.sql`. O sea que **ese workflow no puede haber
+completado un despliegue desde el 2026-08-04**.
+
+```bash
+gh run list --workflow=deploy.yml --limit 20
+```
+
+**Las dos lecturas posibles, y las dos importan:**
+
+| Respuesta | Significa |
+|---|---|
+| **No hay runs, o todos anteriores al 04/08** | El despliegue real es el manual por SSH, como dice la bóveda. El workflow lleva dos semanas siendo decorativo |
+| **Hay runs posteriores en verde** | **Nuestra medición está incompleta**: algo del entorno real difiere del que reprodujimos. Hay que entender qué antes de fiarse de T-04 |
+| **Hay runs posteriores en rojo** | Alguien lo vio fallar y no quedó escrito en ninguna parte |
+
+**Qué desbloquea:** nada, pero es insumo directo de **F3.6** (retirar `deploy.yml`), que
+hoy se plantea como si el workflow estuviera vivo y funcionando.
+
 ## Bitácora de orquestación
 
 | Fecha | Evento |
@@ -596,6 +626,15 @@ esto se escriben y quedan esperando.
 | 2026-08-17 | **Lo que hacía falta para que esto no volviera: una prueba.** Nace `apps/web/lib/test/reaplicacion.e2e.test.ts` (4 casos). Nadie cubría la segunda pasada —`recrearEsquema()` aplica siempre sobre base vaciada, así que ejercita la primera y nunca la siguiente—, y por eso dos migraciones de **julio** llegaron rotas a agosto. Aplica la cadena tres veces sobre la misma base, censa todas las roturas y comprueba que **el esquema converge**: una reaplicación que no da error pero deja una función en su forma vieja sería el mismo fallo silencioso sin rojo. Verde a los ~3 s. |
 | 2026-08-17 | **Una desviación deliberada del patrón pedido, por si alguien la audita.** El encargo pedía `drop function if exists` delante del `create`. En `auth_usuario_por_sesion` se usó una **guarda** (`to_regprocedure(...) is null`) en su lugar: dropear y recrear degradaría la función a la versión de 7 columnas durante los segundos que la cadena tarda en volver a la migración de agosto, y `auth.ts:116-117` pide `debe_cambiar_password` en **cada** petición autenticada — con `ON_ERROR_STOP=1`, un fallo en ese hueco deja la instancia sin resolver ni una sesión. En `20260729_datos_contrato_documento.sql` sí se usó el patrón canónico del repo (`20260715_arr_m2_tablas.sql:45-59`). |
 | 2026-08-17 | **Y la pregunta que iba a hacer quien apruebe el merge, contestada leyendo la migración:** editar estos archivos **cambia su checksum**, pero **no** dispara la comprobación de integridad de F3.3. En el droplet están registrados por el backfill con el valor literal `'backfill'`, y `20260812_schema_migrations.sql:51-56` dice que esa marca existe *«para que la comprobación de integridad de F3.3 se las salte a conciencia»*: el checksum de origen nunca se guardó, así que no hay con qué comparar. |
+
+| 2026-08-17 | 🔵 **DECISIÓN DE JOCHELO: se arregla también la cadena de migraciones**, no solo el guard del runner. Se le advirtió una vez que eso es **abrir migraciones ya aplicadas en producción** (R3, y una de ellas la del endurecimiento de RLS sobre `usuarios`) y lo decidió igual. Sale como **T-04**, tarea propia fuera del plan, y no dentro de F3.2: meterlo ahí habría inflado un diff que ya estaba en revisión, y son dos cosas que se aprueban por separado. Mismo precedente que T-01. |
+| 2026-08-17 | **T-04 COMPLETADA por el ejecutor** (`4c484fa`, ROJO, en verificación al escribir esto). **Aparecieron DOS roturas, no una**, y la razón de que solo se conociera una es instructiva: la primera aborta la pasada y **tapa** a la segunda. Su arnés continúa tras cada fallo para censarlas todas. La segunda es `20260729_datos_contrato_documento.sql` — `constraint "contrato_dia_pago_ck" … already exists`. Resuelta con `if not exists` sobre `pg_constraint`, el patrón que el repo ya usa en `20260715_arr_m2_tablas.sql:45-59` (Postgres no admite `IF NOT EXISTS` en `add constraint`). |
+| 2026-08-17 | 🔴 **Mi briefing de T-04 llevaba la causa equivocada, y el ejecutor la corrigió.** Le pasé que el tipo de retorno lo cambiaban `20260806_identidades_externas.sql` y `20260807_password_resets_rls.sql`; quien lo cambia es **`20260804_reautenticacion_individual.sql:70-71`**, y lo explica en `:65-69`. Las otras dos crean funciones nuevas y propias y no nombran a las de julio salvo en un comentario. **El error no es mío de origen: venía del reporte del auditor de F3.2 y yo lo propagué sin abrirlo.** No paró la tarea porque el síntoma medido sí era real y su criterio de terminado era empírico —«que la reaplicación llegue al final»—, que es exactamente por lo que se escribió así. Corregido en la bóveda por él. |
+| 2026-08-17 | **Desviación deliberada del patrón que yo pedí, y está bien argumentada.** Pedí `drop function if exists` delante del `create`; usó una guarda `to_regprocedure(...) is null` (`20260720_hard1_usuarios_rls.sql:78-101`). El porqué: dropear y recrear **degradaría la función a la versión de 7 columnas** durante los segundos que la cadena tarda en llegar a la migración de agosto, y `apps/web/lib/server/auth.ts:116-117` pide `debe_cambiar_password` en **cada** petición autenticada — con `ON_ERROR_STOP=1`, un fallo en ese hueco deja la instancia **sin resolver ni una sesión**. Justificado dentro del propio archivo. |
+| 2026-08-17 | **La verificación de las dos bases, que era la condición de la tarea, se hizo bien y con más rigor del pedido.** Comparó la **firma completa** del esquema —columnas, `relrowsecurity`/`relforcerowsecurity`, constraints, índices, políticas con `using`/`with check`, funciones con retorno, `prosecdef`, `proconfig`, `prosrc`, ACLs, enums, triggers, comentarios y secuencias: 9 946 líneas de JSON— y sale **idéntica** en base virgen. Y comprobó que la referencia era legítima: `git diff --stat c29d700..HEAD -- db/` vacío, o sea que **es** el `recrearEsquema()` de `c29d700`. La base rezagada converge a esa misma firma en los tres modos. |
+| 2026-08-17 | **Confirmado lo que pedí verificar y no asumir: T-04 no dispara F3.3.** `20260812_schema_migrations.sql:51-56` lo dice literal — las filas de backfill llevan `checksum = 'backfill'` y la comprobación de integridad **se las salta a conciencia**, porque «no hay checksum que poner, e inventarlo afirmaría que lo aplicado coincide con lo que hoy hay en disco, que es precisamente lo que no sabemos». En el droplet esas dos migraciones son filas de backfill: no hay valor de origen contra el que comparar. |
+| 2026-08-17 | 🔴 **Hallazgo operativo gordo de T-04, y no es del código: `deploy.yml` no puede haber completado un despliegue desde el 2026-08-04.** Corre con `ON_ERROR_STOP=1` y abortaba en `20260720_hard1_usuarios_rls.sql` desde que existe `20260804_reautenticacion_individual.sql`. O ese workflow no se ha usado —el despliegue real es el manual por SSH— o alguien lo vio fallar y no quedó escrito. Emitida **TH-T04** para mirar el historial de runs. Es insumo directo de **F3.6**, que hoy se plantea como si el workflow estuviera vivo. |
+| 2026-08-17 | Nota de proceso que el propio ejecutor declaró sin que nadie se lo pidiera: **reclamó Z9 después de las primeras ediciones, no antes.** La zona estaba `LIBRE` y nadie más trabajaba en ella, así que el efecto práctico fue nulo, pero el orden correcto es el inverso. Es la regla 1 de AGENTES y van varias veces en esta tanda. |
 
 ---
 *Preparado por Ana · 2026-08-13 · reabierto 2026-08-14 · retomado 2026-08-17*
