@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
 
@@ -163,4 +164,170 @@ describe('registro de migraciones aplicadas', () => {
       await admin.query(`drop database if exists ${BASE_VIRGEN} with (force)`)
     }
   }, 30_000)
+})
+
+// ============================================================================
+//  El RUNNER (`scripts/migrar.mjs`) — F3.2.
+// ----------------------------------------------------------------------------
+//  Se ejecuta como PROCESO, no importando sus funciones: lo que va a correr en
+//  el droplet es `node scripts/migrar.mjs` desde `update.sh` (F3.4), y lo que
+//  hay que probar es eso — incluido su código de salida, que es lo único que
+//  mira un `set -e`.
+//
+//  Ojo con la base de prueba: se crea y se destruye una desechable acabada en
+//  `_e2e`. `spaces_e2e` no sirve para el caso de la instancia nueva porque
+//  `recrearEsquema()` ya le aplicó TODO; y la `spaces` del 5433 tiene datos
+//  reales.
+// ============================================================================
+
+const RAIZ = join(process.cwd(), '..', '..')
+const BASE_RUNNER = 'spaces_runner_e2e'
+
+// El mismo prólogo que `recrearEsquema()` (`db-e2e.ts:120-133`), y por el mismo
+// motivo: el rol de la app va PRIMERO. `20260729_licencias_permisos.sql:96-97`
+// aborta con `raise exception` si no encuentra ningún rol de aplicación con
+// grants, y son 13 las migraciones que dependen de ese rol. O sea que el runner
+// NO es autosuficiente contra una base recién creada: la secuencia real de una
+// instancia es rol de app → `schema.sql` → migraciones, y de las dos primeras
+// hoy no se encarga nadie (`Dockerfile:94-95` ni siquiera mete `dev-rol-app.sql`
+// en la imagen). Aquí se reproduce ese prólogo tal cual para poder probar la
+// tercera parte, que es la que esta tarea construye.
+async function prepararBaseVacia(pool: Pool) {
+  const raizDb = join(RAIZ, 'db')
+  await pool.query(readFileSync(join(raizDb, 'dev-rol-app.sql'), 'utf8'))
+  await pool.query(readFileSync(join(raizDb, 'schema.sql'), 'utf8'))
+}
+
+function correrRunner(base: string | null, args: string[] = []) {
+  const env: NodeJS.ProcessEnv = { ...process.env }
+  if (base) env.DATABASE_URL = urlDe(base)
+  else delete env.DATABASE_URL
+  return spawnSync(process.execPath, [join('scripts', 'migrar.mjs'), ...args], {
+    cwd: RAIZ,
+    env,
+    encoding: 'utf8',
+  })
+}
+
+// Las de ESQUEMA del directorio, calculadas aquí a mano y no con la función del
+// runner: si la expectativa saliera del propio código que se prueba, la prueba
+// no diría nada. El marcador se busca en la PRIMERA línea, que es donde está de
+// verdad (`20260731_calendario_meses_cortos.sql:1`).
+function migracionesDeEsquema(): string[] {
+  return readdirSync(DIR_MIGRACIONES)
+    .filter((f) => f.endsWith('.sql'))
+    .filter((f) => {
+      const primera = readFileSync(join(DIR_MIGRACIONES, f), 'utf8').split('\n')[0]
+      return !/^--\s*@tipo:\s*datos/i.test(primera)
+    })
+    .sort()
+}
+
+const COLUMNAS = `select table_name, column_name, data_type, is_nullable, column_default
+                    from information_schema.columns
+                   where table_schema = 'public'
+                   order by table_name, column_name`
+
+describe('runner de migraciones', () => {
+  let pool: Pool
+  let pendientesAntes: ReturnType<typeof correrRunner>
+  let primera: ReturnType<typeof correrRunner>
+  // Se mide JUSTO después de `--pendientes` y antes de aplicar nada: después ya
+  // no probaría lo que dice, porque la tabla la crea la propia migración.
+  let registroTrasListar: boolean
+
+  beforeAll(async () => {
+    const admin = poolTest()
+    if (!BASE_RUNNER.endsWith('_e2e')) throw new Error('la base desechable debe acabar en _e2e')
+    await admin.query(`drop database if exists ${BASE_RUNNER} with (force)`)
+    await admin.query(`create database ${BASE_RUNNER}`)
+    pool = new Pool({ connectionString: urlDe(BASE_RUNNER), max: 2 })
+    await prepararBaseVacia(pool)
+    pendientesAntes = correrRunner(BASE_RUNNER, ['--pendientes'])
+    registroTrasListar = (
+      await pool.query("select to_regclass('public.schema_migrations') is not null as hay")
+    ).rows[0].hay
+    primera = correrRunner(BASE_RUNNER)
+  }, 120_000)
+
+  afterAll(async () => {
+    if (pool) await pool.end()
+    await poolTest().query(`drop database if exists ${BASE_RUNNER} with (force)`)
+  })
+
+  it('sin DATABASE_URL aborta y no adivina la base', () => {
+    // Desviación consciente de `apply-migration.mjs:16-24`, que cae en un
+    // default local. Ese default es `…@localhost:5433/spaces`: la base de
+    // desarrollo con DATOS REALES, cuyo rol `spaces` es superusuario con
+    // BYPASSRLS. Es lo mismo que T-02 le quitó a `bootstrap-auth.mjs`
+    // (`apps/web/scripts/bootstrap-auth.mjs:10-22`), y aquí pesa más: un runner
+    // de migraciones escribe DDL, no una fila.
+    const r = correrRunner(null)
+    expect(r.status).not.toBe(0)
+    expect(r.stderr).toMatch(/DATABASE_URL/)
+  })
+
+  it('--pendientes lista sin aplicar y sin crear nada', () => {
+    expect(pendientesAntes.status).toBe(0)
+    expect(pendientesAntes.stdout).toContain('20260625_agencia_en_propuesta.sql')
+    expect(pendientesAntes.stdout).toContain('20260731_calendario_meses_cortos.sql')
+    // Y lo que importa: no dejó rastro. Si `--pendientes` creara la tabla de
+    // registro, ya no sería una consulta.
+    expect(registroTrasListar).toBe(false)
+  })
+
+  it('el destino se registra SIN credenciales', () => {
+    expect(pendientesAntes.stdout).toContain(`/${BASE_RUNNER}`)
+    expect(pendientesAntes.stdout).not.toContain('spaces:spaces')
+  })
+
+  it('contra una base vacía aplica todas y deja el esquema de recrearEsquema()', async () => {
+    expect(primera.stderr).toBe('')
+    expect(primera.status).toBe(0)
+
+    const registradas = await pool.query('select archivo from schema_migrations order by archivo')
+    expect(registradas.rows.map((r: any) => r.archivo)).toEqual(migracionesDeEsquema())
+    expect(registradas.rows.length).toBeGreaterThanOrEqual(66)
+
+    // El checksum es REAL, no 'backfill': estas migraciones las aplicó el runner
+    // ahora mismo y sabe con qué contenido. La marca 'backfill' es solo para las
+    // que se aplicaron a mano antes de que existiera registro.
+    const backfill = await pool.query(
+      "select count(*)::int as n from schema_migrations where checksum = 'backfill'",
+    )
+    expect(backfill.rows[0].n).toBe(0)
+
+    // Y el esquema resultante es el mismo que el del arnés, que es el que las
+    // 147 pruebas de integración dan por bueno. Si el runner aplicara en otro
+    // orden o se saltara un archivo, aquí se vería.
+    const arnes = await poolTest().query(COLUMNAS)
+    const runner = await pool.query(COLUMNAS)
+    expect(runner.rows).toEqual(arnes.rows)
+  }, 60_000)
+
+  it('la de DATOS queda fuera y se anuncia como pendiente', async () => {
+    // Igual que `deploy.yml:141-148`: las de datos reescriben filas y no se
+    // deshacen solas, así que se piden a mano. Pero no se ocultan.
+    const { rows } = await pool.query(
+      "select archivo from schema_migrations where archivo = '20260731_calendario_meses_cortos.sql'",
+    )
+    expect(rows).toEqual([])
+    expect(primera.stdout).toContain('20260731_calendario_meses_cortos.sql')
+  })
+
+  it('correrlo dos veces no aplica nada la segunda y devuelve 0', async () => {
+    const antes = await pool.query(
+      'select count(*)::int as n, max(aplicada_en) as ultima from schema_migrations',
+    )
+    const segunda = correrRunner(BASE_RUNNER)
+    expect(segunda.status).toBe(0)
+    expect(segunda.stdout).toMatch(/0 aplicadas/)
+    const despues = await pool.query(
+      'select count(*)::int as n, max(aplicada_en) as ultima from schema_migrations',
+    )
+    // Ni una fila más, y sobre todo: ni una fila REESCRITA. Un runner que
+    // refrescara `aplicada_en` en cada corrida borraría el único dato que dice
+    // cuándo se puso al día una instancia.
+    expect(despues.rows[0]).toEqual(antes.rows[0])
+  }, 60_000)
 })

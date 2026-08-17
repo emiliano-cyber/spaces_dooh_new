@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-17
 tags: [agentes, coordinacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -77,8 +77,8 @@ zona, y suéltalos en cuanto acabes.
 > [!tip] `db/migrations/` no necesita claim, pero sí coordinación de nombre
 > Cada agente crea **su propio archivo**, así que no hay conflicto de contenido.
 > Pero mira el directorio antes de nombrarlo: el orden es lexicográfico y ya hay
-> varias del mismo día. Y comprueba el mapa `ANTES_DE` de
-> `apps/web/lib/test/db-e2e.ts` ([[migraciones]]).
+> varias del mismo día. Y comprueba el mapa `ANTES_DE` de `scripts/migrar.mjs`
+> —el runner, que es de donde lo importa el arnés de e2e— ([[migraciones]]).
 
 ---
 

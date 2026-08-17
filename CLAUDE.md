@@ -229,9 +229,11 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 
 ### La trampa del orden de migraciones
 
-El orden **no es lexicográfico puro**. `apps/web/lib/test/db-e2e.ts:145-155`
-mantiene un mapa `ANTES_DE` con dos excepciones reales. Cualquier cosa que aplique
-migraciones tiene que reproducir ese orden o una base nueva no levanta.
+El orden **no es lexicográfico puro**. El mapa `ANTES_DE` con las dos excepciones
+reales vive en **`scripts/migrar.mjs`** desde el 17/08 (F3.2) y se declara una
+sola vez: `apps/web/lib/test/db-e2e.ts` tenía una copia y ahora importa
+`ordenar()` de ahí. Cualquier cosa que aplique migraciones tiene que reproducir
+ese orden o una base nueva no levanta.
 
 ### La base del 5433 no es de pruebas
 

@@ -1,12 +1,15 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-17
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
   - db/schema.sql
+  - scripts/migrar.mjs
+  - scripts/migrar.test.ts
   - apps/web/lib/test/db-e2e.ts
+  - apps/web/lib/test/migraciones.e2e.test.ts
   - db/migrations/20260805_objetos_solo_en_prod.sql
 ---
 
@@ -19,12 +22,14 @@ archivos:
 ## Cómo funciona
 
 - **68 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
-- Se aplican en **orden lexicográfico** del nombre.
+- Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
+  abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
   producción**: la crea `20260812_schema_migrations.sql`, escrita el 14/08 y sin
   aplicar (ver abajo). Hasta que se aplique, el registro de qué corrió sigue
-  siendo las notas `DESPLIEGUE_*.txt` de la raíz. Herramienta de migraciones
-  (`migrate`, Prisma Migrate) no hay ninguna: el runner propio es F3.2.
+  siendo las notas `DESPLIEGUE_*.txt` de la raíz. Herramienta de migraciones de
+  terceros (`migrate`, Prisma Migrate) no hay ninguna: el runner es propio y
+  vive en **`scripts/migrar.mjs`** desde el 17/08 (F3.2).
 - En producción se aplican **a mano como `postgres`**:
   ```
   sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f <archivo>.sql
@@ -80,10 +85,56 @@ tabla deba existir es el punto: en una base recién creada, donde ni `schema.sql
 ha corrido, no hay historia que respetar y `schema_migrations` queda vacía para
 que el runner lo aplique todo.
 
+## El runner (`scripts/migrar.mjs`)
+
+Es lo que corre una instancia al actualizarse (lo invocará `update.sh`, F3.4).
+Sustituye al bucle de `deploy.yml:141-148`, que reaplica **todas** las
+migraciones en cada despliegue y no deja registro.
+
+```
+DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
+                                                          node scripts/migrar.mjs --pendientes  # lista, no aplica
+                                                          node scripts/migrar.mjs --con-datos   # incluye las @tipo: datos
+```
+
+| Decisión | Por qué |
+|---|---|
+| **`DATABASE_URL` obligatoria**: sin ella aborta con salida 1 | Desviación consciente de `apply-migration.mjs:16-24`, que cae en un default local. Ese default es la base de **desarrollo con datos reales**, cuyo rol `spaces` es superusuario con `BYPASSRLS`. Es lo que T-02 le quitó a `bootstrap-auth.mjs`, y aquí pesa más: este script ejecuta **DDL** |
+| Solo imprime `host:puerto/base` | El destino se registra **sin credenciales**, igual que `apply-migration.mjs:28-37` |
+| Sin registro previo = instancia nueva | La tabla la crea una migración más; el runner **no duplica su DDL**. Lo aplicado antes de que la tabla exista se registra en cuanto aparece |
+| Cada archivo con **su propia transacción** | Los `.sql` traen su `begin; … commit;`; envolverlos en otra no anida, y el `commit` de dentro cerraría el de fuera. Si uno falla, se aborta **sin registrarlo** y con el nombre del archivo en el error (salida 2) |
+| Las `@tipo: datos` se **omiten** y se nombran | Mismo criterio que `deploy.yml:151-159`: reescriben filas y no se deshacen solas. Pero una migración que no se aplica y que nadie menciona es una que se olvida |
+| El tipo se lee de la **primera línea** | `20260812_schema_migrations.sql` **menciona** la cadena `-- @tipo: datos` en su prosa (`:44` y `:168`). Un filtro por «el archivo contiene la marca» se saltaría, en silencio, justo la migración que crea la tabla de registro. Lo ancla `scripts/migrar.test.ts` |
+
+> [!warning] El runner NO levanta una base virgen él solo
+> `20260729_licencias_permisos.sql:96-97` aborta si no existe un rol de
+> aplicación con grants, y **13 migraciones** dependen de ese rol. La secuencia
+> real de una instancia es **crear el rol de app → `schema.sql` → migraciones**,
+> y de las dos primeras hoy no se encarga nadie: `Dockerfile:94-95` copia solo
+> `db/schema.sql` y `db/migrations`, y `db/dev-rol-app.sql` no viaja en la
+> imagen (además es de desarrollo: en producción el rol es `spaces_user`).
+> `recrearEsquema()` lo resuelve aplicando `dev-rol-app.sql` primero, y la prueba
+> de la base vacía reproduce ese mismo prólogo. Queda abierto para el
+> aprovisionamiento (Fase 5).
+
+> [!danger] El ASSERT de `20260812_schema_migrations.sql:221-223` y este runner
+> Ese ASSERT comprueba `archivo >= '20260812'` sobre **toda** la tabla, sin
+> distinguir una fila del backfill de una que ponga legítimamente el runner. En
+> cuanto el runner registre `20260812_schema_migrations.sql` o
+> `20260812_sin_default_tenant.sql`, **reaplicar esa migración aborta** — y
+> `deploy.yml:141-148` reaplica todas en cada despliegue. Hoy no se dispara
+> (nadie corre el runner en el droplet todavía), y se retira con `deploy.yml` en
+> F3.6. Si alguien corre el runner contra el droplet antes de eso, el siguiente
+> despliegue por el workflow viejo abortará con un mensaje que además miente
+> sobre la causa.
+
 ## Dos migraciones cuyo nombre miente sobre el orden
 
-`db-e2e.ts` mantiene un mapa `ANTES_DE` con las excepciones. **Si aplicas por
-orden alfabético a ciegas, estas dos fallan:**
+El mapa `ANTES_DE` vive en **`scripts/migrar.mjs`** y se declara **una sola
+vez**: `db-e2e.ts` tenía su copia y desde el 17/08 la importa (`ordenar()`). Dos
+copias divergen, y divergir aquí significa que las pruebas apliquen en un orden y
+el droplet en otro. **Si aplicas por orden alfabético a ciegas, estas dos
+fallan:**
 
 | Debe ir ANTES | Que | Por qué |
 |---|---|---|
@@ -91,7 +142,7 @@ orden alfabético a ciegas, estas dos fallan:**
 | `20260727_contrato_incompleto_enum.sql` | `20260727_contrato_incompleto.sql` | La segunda usa el valor `'INCOMPLETO'`, y lo añade la primera (`.` < `_`) |
 
 No se renombraron a propósito: *«renombrar migraciones ya aplicadas confunde a
-quien compare el repo con lo desplegado»* (`db-e2e.ts`).
+quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 
 ## Hitos
 
