@@ -55,23 +55,50 @@ as $$
 $$;
 
 -- Resolución de sesión: token → usuario. Solo sesiones no expiradas.
-create or replace function auth_usuario_por_sesion(p_token text)
-returns table (
-  id uuid, nombre text, email text, cargo text,
-  rol text, activo boolean, tenant_id uuid
-)
-language sql
-stable
-security definer
-set search_path = public, pg_temp
-as $$
-  select u.id, u.nombre, u.email, u.cargo, u.rol::text, u.activo, u.tenant_id
-    from sesiones s
-    join usuarios u on u.id = s.usuario_id
-   where s.token = p_token
-     and s.expira_en > now()
-   limit 1;
-$$;
+--
+-- ── Por qué esto va guardado y NO es un `create or replace` a secas ─────────
+-- `20260804_reautenticacion_individual.sql:70-71` le añade a esta función una
+-- columna de retorno (`debe_cambiar_password`). A partir de ahí, REAPLICAR esta
+-- migración sobre una base que ya está al día aborta con «cannot change return
+-- type of existing function»: `create or replace` no puede cambiar el retorno de
+-- una función que devuelve `table(...)`, y aquí intentaría devolverla a su forma
+-- de julio. Y reaplicar no es hipotético: `deploy.yml:141-148` reaplica TODAS
+-- las migraciones en cada despliegue.
+--
+-- Se guarda con `to_regprocedure` en vez de anteponer un `drop function if
+-- exists` —el patrón habitual para esto, y el que usa la propia migración de
+-- agosto— porque aquí ese patrón tiene un coste real: dropear y recrear
+-- DEGRADARÍA la función a la versión de 7 columnas durante los segundos que
+-- tarda la cadena en llegar otra vez a la migración de agosto, y `auth.ts:116-117`
+-- pide `debe_cambiar_password` en CADA petición autenticada. Si la cadena
+-- abortara en ese hueco (psql corre con ON_ERROR_STOP=1), la instancia quedaría
+-- sin resolver ni una sesión. Con la guarda, una base al día no se toca y una
+-- base limpia crea exactamente lo mismo que antes: la migración de agosto sigue
+-- siendo la dueña de la forma actual.
+do $guarda$
+begin
+  if to_regprocedure('auth_usuario_por_sesion(text)') is null then
+    execute $crear$
+      create function auth_usuario_por_sesion(p_token text)
+      returns table (
+        id uuid, nombre text, email text, cargo text,
+        rol text, activo boolean, tenant_id uuid
+      )
+      language sql
+      stable
+      security definer
+      set search_path = public, pg_temp
+      as $cuerpo$
+        select u.id, u.nombre, u.email, u.cargo, u.rol::text, u.activo, u.tenant_id
+          from sesiones s
+          join usuarios u on u.id = s.usuario_id
+         where s.token = p_token
+           and s.expira_en > now()
+         limit 1;
+      $cuerpo$;
+    $crear$;
+  end if;
+end $guarda$;
 
 -- Unicidad de correo: es GLOBAL a propósito (el login es por email sin tenant,
 -- así que dos usuarios con el mismo correo en tenants distintos harían el login

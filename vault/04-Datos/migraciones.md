@@ -10,6 +10,7 @@ archivos:
   - scripts/migrar.test.ts
   - apps/web/lib/test/db-e2e.ts
   - apps/web/lib/test/migraciones.e2e.test.ts
+  - apps/web/lib/test/reaplicacion.e2e.test.ts
   - db/migrations/20260805_objetos_solo_en_prod.sql
 ---
 
@@ -18,6 +19,13 @@ archivos:
 > [!danger] ZONA ROJA
 > Una migración ya aplicada en producción **no se edita nunca**. Se escribe una
 > nueva. Ver [[zonas-de-riesgo]].
+>
+> **Excepción registrada, y única: T-04 (17/08).** Jochelo autorizó editar dos
+> migraciones ya aplicadas para volver reaplicable la cadena. La condición que
+> lo hizo aceptable —y la que hay que exigir si vuelve a plantearse— es que
+> **toda edición sea un no-op semántico en una instalación limpia**: se comprobó
+> objeto a objeto que una base virgen queda idéntica. Ver «La cadena tiene que
+> poder reaplicarse», abajo.
 
 ## Cómo funciona
 
@@ -63,7 +71,9 @@ aplicado.
 ### El backfill, y las tres cosas que deja FUERA
 
 Sin él, la primera corrida del runner en el droplet «aplicaría» la historia
-entera: son idempotentes y no romperían, pero el registro nacería mintiendo.
+entera: el registro nacería mintiendo. Y hasta el 17/08 habría hecho algo peor
+que mentir —**abortar a mitad**—, porque dos de esas migraciones no se podían
+reaplicar; eso lo arregló T-04, abajo.
 
 La lista de 65 archivos va **escrita dentro de la migración**: un `.sql` no
 puede listar un directorio (`pg_ls_dir` es de superusuario y leería el disco del
@@ -127,6 +137,60 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
 > F3.6. Si alguien corre el runner contra el droplet antes de eso, el siguiente
 > despliegue por el workflow viejo abortará con un mensaje que además miente
 > sobre la causa.
+
+## La cadena tiene que poder REAPLICARSE (T-04, 17/08)
+
+`deploy.yml:141-148` reaplica **todas** las migraciones de esquema en cada
+despliegue y confía en que sean idempotentes. Esa confianza **no la comprobaba
+nadie**: `recrearEsquema()` las aplica siempre sobre una base recién vaciada, o
+sea que ejercita la primera pasada y **nunca la segunda**. Por eso el repo llegó
+al 17/08 con dos migraciones de julio que abortaban al reaplicarse, y se
+descubrieron auditando F3.2 en vez de en CI.
+
+| Rotura | Error | Por qué |
+|---|---|---|
+| `20260720_hard1_usuarios_rls.sql` | `cannot change return type of existing function` | `create or replace` no puede devolver `auth_usuario_por_sesion` a su forma de julio después de que `20260804_reautenticacion_individual.sql:70-71` le añadiera la columna `debe_cambiar_password` |
+| `20260729_datos_contrato_documento.sql` | `constraint "contrato_dia_pago_ck" ... already exists` | `add constraint` **no admite `IF NOT EXISTS`** en Postgres |
+
+Fueron **dos, no una**: la primera aborta la pasada y tapa a la siguiente, así
+que el censo hay que hacerlo continuando tras cada fallo.
+
+> [!important] La causa NO es la que quedó escrita el 17/08
+> El veredicto de F3.2 ([[07-Agentes/ejecucion-plan-v3]]) atribuye el cambio de tipo de
+> retorno a `20260806_identidades_externas.sql` y `20260807_password_resets_rls
+> .sql`. **No es así**, y se comprueba en un grep: esas dos crean funciones
+> nuevas y propias (`auth_usuario_por_identidad`, `auth_reset_por_token`) y no
+> tocan las de julio. Quien redefine `auth_usuario_por_sesion` es
+> `20260804_reautenticacion_individual.sql:70-71`, y lo dice en su propio
+> comentario (`:65-69`).
+
+**El patrón: guarda delante, no cambio de semántica.** Cada edición es un no-op
+en una instalación limpia:
+
+- `20260729_datos_contrato_documento.sql` envuelve los dos `add constraint` en un
+  `do $$ … if not exists (select 1 from pg_constraint …) $$`, que es el patrón ya
+  usado en `20260715_arr_m2_tablas.sql:45-59`.
+- `20260720_hard1_usuarios_rls.sql:78-101` guarda la creación de
+  `auth_usuario_por_sesion` con `to_regprocedure(...) is null`. Aquí **no** se usó
+  el `drop function if exists` habitual, y la razón está escrita en el archivo
+  (`:59-77`): dropear y recrear **degradaría** la función a la versión de 7
+  columnas durante los segundos que la cadena tarda en volver a la migración de
+  agosto, y `auth.ts:116-117` pide `debe_cambiar_password` en **cada** petición
+  autenticada. Si la cadena abortara en ese hueco (`ON_ERROR_STOP=1`), la
+  instancia se queda sin resolver ni una sesión.
+
+Lo cubre **`apps/web/lib/test/reaplicacion.e2e.test.ts`** (4 casos): monta el
+prólogo real de una instancia, aplica la cadena tres veces sobre la misma base y
+comprueba además que **el esquema converge** — una reaplicación que no da error
+pero deja una función en su forma vieja sería el mismo fallo silencioso, sin
+rojo. El censo lista **todas** las roturas, no solo la primera.
+
+> [!note] Editar el archivo cambia su checksum, y aun así **no** dispara F3.3
+> En el droplet estas migraciones están registradas por el backfill con el valor
+> literal `'backfill'`, y `20260812_schema_migrations.sql:51-56` declara que esa
+> marca existe *«para que la comprobación de integridad de F3.3 se las salte a
+> conciencia»*. Como el checksum de origen nunca se guardó, no hay nada con lo
+> que comparar y no hay alarma que disparar.
 
 ## Dos migraciones cuyo nombre miente sobre el orden
 

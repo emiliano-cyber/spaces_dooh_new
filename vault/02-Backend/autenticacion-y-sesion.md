@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-17
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -55,7 +55,7 @@ sequenceDiagram
 
 ## Las cuatro funciones `SECURITY DEFINER`
 
-`usuarios` es RLS **fail-closed + FORCE** (`20260720_hard1_usuarios_rls.sql:109-114`),
+`usuarios` es RLS **fail-closed + FORCE** (`20260720_hard1_usuarios_rls.sql:136-141`),
 y el login ocurre **antes** de conocer el tenant. Una lectura directa devolvería
 cero filas. Por eso hay exactamente cuatro funciones acotadas (tres del
 Hardening 1, más la del ADR 0012):
@@ -69,7 +69,15 @@ Hardening 1, más la del ADR 0012):
 
 Con `revoke execute … from public` y `grant` solo al rol de la app, más un
 `ASSERT` que hace fallar la migración si ese rol tiene `SUPERUSER`/`BYPASSRLS`
-(`20260720_hard1_usuarios_rls.sql:119-130`).
+(`20260720_hard1_usuarios_rls.sql:146-157`).
+
+> [!note] La creación de `auth_usuario_por_sesion` va guardada desde T-04 (17/08)
+> `20260720_hard1_usuarios_rls.sql:78-101` solo la crea si no existe ya
+> (`to_regprocedure`), porque su forma vigente la fija
+> `20260804_reautenticacion_individual.sql:70-71` —la que añade
+> `debe_cambiar_password`— y reaplicar la cadena la degradaría a la versión de
+> julio. Con eso, **quien manda sobre la firma de esta función es la migración de
+> agosto**, no la de julio. Ver [[migraciones]].
 
 ## CSRF — double-submit
 
