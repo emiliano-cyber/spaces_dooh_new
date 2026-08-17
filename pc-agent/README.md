@@ -5,14 +5,19 @@ conectada a una PC que permanece encendida.
 
 ## Instalacion en el sitio
 
-1. Copia **`SpaceEyeAgente.exe`** a la PC (donde sea, por ejemplo el Escritorio).
-2. **Clic derecho → Ejecutar como administrador.**
+1. Copia a la PC (donde sea, por ejemplo el Escritorio) **los dos archivos
+   juntos, en la misma carpeta**: `SpaceEyeAgente.exe` y `ffmpeg.exe`.
+2. **Clic derecho sobre `SpaceEyeAgente.exe` → Ejecutar como administrador.**
 3. Contesta tres preguntas: IP de la camara, usuario y clave.
+4. Antes de irte, comprueba la vista en vivo:
+   `SpaceEyeAgente.exe --probar-stream`
 
 Eso es todo. El programa prueba la camara, guarda una foto de muestra para que
 confirmes el encuadre, y queda arrancando solo cada vez que prende la PC.
 
-No hace falta instalar nada mas: el ejecutable lleva todo dentro.
+No hace falta instalar nada mas: el ejecutable lleva todo dentro. El unico
+archivo aparte es `ffmpeg.exe`, y solo lo necesita la **vista en vivo** (las
+fotos funcionan sin el). Si falta, el instalador te lo dice al terminar.
 
 > **Las credenciales son las de la camara**, las que usas para entrar a
 > `http://<ip-de-la-camara>` desde el navegador. **No son las de Hik-Connect.**
@@ -37,6 +42,11 @@ en el servidor: manda comandos `TAKE_PHOTO` igual que a los telefonos.
   ficha del equipo.
 - Para verificar solo la camara, sin tocar el servidor: `SpaceEyeAgente.exe --instalar`
   vuelve a probarla y guarda `prueba.jpg`.
+- Para verificar solo la **vista en vivo**, tambien sin tocar el servidor:
+  `SpaceEyeAgente.exe --probar-stream`. Dice si `ffmpeg.exe` esta, si la camara
+  acepta el RTSP y que entrega cada canal (resolucion, fps, ancho de banda).
+  Tarda unos segundos por canal. Tambien esta como opcion **[3]** al abrir el
+  programa con doble clic.
 - Windows puede advertir que el programa no esta firmado (SmartScreen):
   *Mas informacion → Ejecutar de todas formas*. Es porque no compramos un
   certificado de firma de codigo.
@@ -49,8 +59,9 @@ Sin preguntas, para automatizar:
 SpaceEyeAgente.exe --instalar --camara 192.168.1.64 --usuario admin --clave LACLAVE
 ```
 
-Parametros opcionales: `--servidor`, `--puerto`, `--canal` (`101` = calidad
-principal, `102` = secundaria).
+Parametros opcionales: `--servidor`, `--puerto`, `--canal` (canal de las FOTOS,
+`101` = calidad principal), `--canal-stream` (canal de la VISTA EN VIVO, `102` =
+calidad secundaria) y `--puerto-rtsp`.
 
 Para quitar el arranque automatico: `SpaceEyeAgente.exe --desinstalar`
 (conserva la configuracion y la identidad del equipo).
@@ -73,26 +84,41 @@ reenvia ese mismo video al servidor de medios y el dashboard lo consume de ahi.
 El consumo de CPU de la PC es practicamente cero.
 
 **Requisito: `ffmpeg.exe` junto a `SpaceEyeAgente.exe`** (o en el PATH). Sin el,
-el boton de vista en vivo responde con un mensaje claro pidiendolo. Se descarga
-de https://www.gyan.dev/ffmpeg/builds/ (basta `ffmpeg.exe` de la version
-*essentials*).
+el boton de vista en vivo del dashboard responde con el motivo exacto. Se
+descarga de https://github.com/BtbN/FFmpeg-Builds/releases (basta `bin/ffmpeg.exe`
+del paquete `win64-lgpl`, que es estatico y no necesita DLLs).
 
 Opciones en `config.json`, dentro de `camara`:
 
 | Opcion | Para que | Por omision |
 |---|---|---|
 | `puerto_rtsp` | Puerto RTSP de la camara | `554` |
-| `canal_stream` | Canal para la vista en vivo. `102` (calidad secundaria) gasta mucho menos ancho de banda del sitio que `101` | el mismo `canal` de las fotos |
+| `canal` | Canal de las **fotos**. Siempre el principal, a maxima calidad | `101` |
+| `canal_stream` | Canal de la **vista en vivo**. `102` (calidad secundaria) gasta mucho menos ancho de banda del sitio que `101` | `102` |
 
-Si el sitio tiene poco subida, poner `"canal_stream": 102`.
+El instalador escribe `"canal_stream": 102` para gastar menos subida. **No todas
+las camaras traen el sub-stream habilitado**: si ese canal no responde, el agente
+se cae solo al principal y lo deja anotado en `agente.log`. Para habilitarlo,
+entra a `http://<ip-de-la-camara>` → Configuracion → Video → Sub-stream.
+
+Las instalaciones anteriores a esto no tienen `canal_stream` en su `config.json`
+y siguen usando el canal de siempre; para que ahorren datos, agregalo a mano o
+reconfigura con el asistente.
 
 ## Para desarrolladores
 
 ```bat
 npm install
+npm run bajar-ffmpeg         REM una sola vez: deja vendor/ffmpeg.exe
 npm start                    REM correrlo con Node, sin empaquetar
-npm run build                REM genera dist/SpaceEyeAgente.exe
+npm run probar-stream        REM probar la vista en vivo contra config.json
+npm run build                REM genera dist/ (SpaceEyeAgente.exe + ffmpeg.exe)
 ```
+
+`ffmpeg.exe` **no se versiona**: pesa 110 MB y engordaria el repo para
+siempre. `npm run bajar-ffmpeg` lo descarga a `vendor/` (build estatica LGPL de
+BtbN) y `npm run build` lo copia a `dist/`. Al sitio se llevan **los dos
+archivos de `dist/`**.
 
 El ejecutable se arma con **SEA** (Single Executable Applications, nativo de
 Node 20+): `build.js` empaqueta el codigo con esbuild, genera la carga y la

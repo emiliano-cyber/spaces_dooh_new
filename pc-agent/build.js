@@ -18,6 +18,8 @@ const BUNDLE = path.join(DIST, 'bundle.js');
 const BLOB = path.join(DIST, 'sea.blob');
 const SALIDA = path.join(DIST, 'SpaceEyeAgente.exe');
 const CONFIG_SEA = path.join(DIST, 'sea-config.json');
+const FFMPEG_VENDOR = path.join(RAIZ, 'vendor', 'ffmpeg.exe');
+const FFMPEG_DIST = path.join(DIST, 'ffmpeg.exe');
 
 const paso = (n, t) => console.log(`\n[${n}] ${t}`);
 
@@ -53,9 +55,23 @@ const paso = (n, t) => console.log(`\n[${n}] ${t}`);
     sentinelFuse: 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
   });
 
+  // La vista en vivo necesita ffmpeg, que no viene con Windows y no cabe en el
+  // repo (110 MB). Se copia aqui para que dist/ sea exactamente lo que se
+  // lleva al sitio y nadie tenga que acordarse de bajarlo aparte.
+  paso(5, 'Agregando ffmpeg (vista en vivo)...');
+  if (fs.existsSync(FFMPEG_VENDOR)) {
+    fs.copyFileSync(FFMPEG_VENDOR, FFMPEG_DIST);
+    console.log(`    ${(fs.statSync(FFMPEG_DIST).size / 1048576).toFixed(0)} MB`);
+  } else {
+    console.log('    FALTA. Sin el, el sitio tendra fotos pero NO vista en vivo.');
+    console.log('    Consiguelo con:  npm run bajar-ffmpeg');
+  }
+
   const mb = (fs.statSync(SALIDA).size / 1048576).toFixed(0);
   console.log(`\nLISTO: ${SALIDA} (${mb} MB)`);
-  console.log('Ese archivo es todo lo que hay que llevar al sitio.');
+  console.log(fs.existsSync(FFMPEG_DIST)
+    ? 'Lleva al sitio los DOS archivos de dist/: SpaceEyeAgente.exe y ffmpeg.exe.'
+    : 'Ese archivo es todo lo que hay que llevar al sitio (sin vista en vivo).');
 })().catch((e) => {
   console.error('\nFallo la compilacion:', e.message);
   process.exit(1);

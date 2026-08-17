@@ -10,6 +10,7 @@ const readline = require('readline');
 const { execFileSync } = require('child_process');
 const rutas = require('./rutas');
 const { Camara } = require('./camera');
+const { hayFfmpegVecino, rutaVecina } = require('./transmision');
 
 const SERVIDOR_POR_DEFECTO = 'http://159.203.188.58:4000';
 const TAREA = 'SPACE EYE Agente';
@@ -113,6 +114,7 @@ function pausar() {
 
 // Permite instalar sin contestar preguntas, util para varios sitios de golpe:
 //   SpaceEyeAgente.exe --instalar --camara 192.168.1.64 --usuario admin --clave xxx
+// Opcionales: --servidor --puerto --canal --canal-stream --puerto-rtsp
 function leerParametros(argv) {
   const p = {};
   for (let i = 0; i < argv.length; i++) {
@@ -185,7 +187,20 @@ async function asistente() {
   const { host, puerto } = partirHost(destino, Number(par.puerto) || 80);
   const cfg = {
     server_url: servidor,
-    camara: { host, puerto, usuario, clave, canal: Number(par.canal) || 101, timeout_ms: 15000 },
+    camara: {
+      host,
+      puerto,
+      usuario,
+      clave,
+      // canal = de donde sale la FOTO: siempre el principal, a maxima calidad.
+      canal: Number(par.canal) || 101,
+      // canal_stream = de donde sale la VISTA EN VIVO. El secundario gasta mucha
+      // menos subida, que es lo que importa en un sitio con modem LTE. Si la
+      // camara no lo tiene habilitado, el agente se cae solo al principal.
+      canal_stream: Number(par['canal-stream'] || par.canal_stream) || 102,
+      puerto_rtsp: Number(par['puerto-rtsp'] || par.puerto_rtsp) || 554,
+      timeout_ms: 15000,
+    },
     intervalo_estado_seg: 60,
     intervalo_sondeo_seg: 30,
   };
@@ -217,6 +232,17 @@ async function asistente() {
 
   fs.writeFileSync(rutas.config, JSON.stringify(cfg, null, 2));
   console.log(`\n  Configuracion guardada.`);
+
+  // La vista en vivo necesita ffmpeg, que no viene con Windows. Se avisa AQUI,
+  // con la persona todavia en el sitio: si se entera despues, hay que volver.
+  if (!hayFfmpegVecino()) {
+    console.log('');
+    console.log('  AVISO: falta ffmpeg.exe para la VISTA EN VIVO.');
+    console.log(`         Copialo junto a este programa: ${rutaVecina()}`);
+    console.log('         Las fotos funcionan sin el; solo el video en vivo lo necesita.');
+    console.log('         Despues puedes comprobarlo con:');
+    console.log(`         "${rutas.ejecutable}" --probar-stream`);
+  }
 
   if (!esAdministrador()) {
     console.log('');
@@ -279,14 +305,21 @@ async function menu(cfgActual) {
   console.log('');
   console.log(`  Servidor: ${cfgActual.server_url}`);
   console.log(`  Camara:   ${cfgActual.camara?.host}:${cfgActual.camara?.puerto || 80}`);
+  console.log(`  Vivo:     canal ${cfgActual.camara?.canal_stream || cfgActual.camara?.canal || 101}` +
+    (hayFfmpegVecino() ? '' : '   (SIN ffmpeg.exe: la vista en vivo no funcionara)'));
   console.log('');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  const r = (await preguntar(rl, '  ¿Que quieres hacer?  [1] Reconfigurar  [2] Arrancar el agente  [3] Salir', '1')).trim();
+  const r = (await preguntar(
+    rl,
+    '  ¿Que quieres hacer?  [1] Reconfigurar  [2] Arrancar el agente  [3] Probar la vista en vivo  [4] Salir',
+    '1',
+  )).trim();
   rl.close();
 
   if (r === '2') return 'arrancar';
-  if (r === '3') return 'salir';
+  if (r === '3') return 'probar';
+  if (r === '4') return 'salir';
   await asistente();
   return 'salir';
 }

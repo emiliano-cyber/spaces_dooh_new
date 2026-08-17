@@ -210,7 +210,10 @@ async function main() {
       case 'START_STREAM': {
         try {
           const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
-          const info = transmision.iniciar(payload.publish_url);
+          // Se espera a que la transmision arranque de verdad antes de contestar:
+          // asi el dashboard recibe el motivo del fallo (falta ffmpeg, la camara
+          // rechazo la clave...) en vez de un "OK" que termina en 40 s de espera.
+          const info = await transmision.iniciar(payload.publish_url);
           return api.resultadoComando(cmd.id, true, info);
         } catch (e) {
           log(`ERROR al iniciar la transmision: ${e.message}`);
@@ -283,12 +286,90 @@ async function main() {
   log('agente listo; esperando comandos del dashboard');
 }
 
+/**
+ * Prueba de la vista en vivo, para hacerla en el sitio.
+ *
+ * Lee la camara igual que lo haria una transmision real, pero SIN publicar nada
+ * en el servidor: dice si ffmpeg esta, si la camara acepta el RTSP y que
+ * entrega cada canal. Asi quien va al sitio confirma en unos segundos, frente a
+ * la camara, en vez de depender de que el dashboard responda.
+ */
+async function probarStream() {
+  const { hayFfmpegVecino, rutaVecina, buscarFfmpeg } = require('./transmision');
+  const cfg = cargarConfig();
+
+  console.log('');
+  console.log('  ===========================================');
+  console.log('   SPACE EYE — prueba de la vista en vivo');
+  console.log('  ===========================================');
+  console.log('');
+  console.log(`  Camara: ${cfg.camara.host}:${cfg.camara.puerto_rtsp || 554} (RTSP)`);
+
+  if (hayFfmpegVecino()) {
+    console.log(`  ffmpeg: ${buscarFfmpeg()}`);
+  } else {
+    console.log('');
+    console.log('  AVISO: no hay ffmpeg.exe junto al agente.');
+    console.log(`         Deberia estar en: ${rutaVecina()}`);
+    console.log(`         Probare con "${buscarFfmpeg()}" del PATH, pero si tampoco`);
+    console.log('         esta ahi, la vista en vivo NO va a funcionar en este sitio.');
+    console.log('         (Las fotos si funcionan: no usan ffmpeg.)');
+  }
+
+  const transmision = new Transmision((m) => console.log(`  ${m}`), cfg.camara);
+  console.log('\n  Probando... (unos segundos por canal)\n');
+
+  const resultados = await transmision.probar(6);
+  let alguno = false;
+
+  for (const r of resultados) {
+    const cual = r.canal === 101 ? 'principal' : r.canal === 102 ? 'secundario' : 'extra';
+    if (r.ok) {
+      alguno = true;
+      const detalle = [r.resolucion, r.codec, r.fps ? `${r.fps} fps` : null, r.tasa]
+        .filter(Boolean).join('  ');
+      console.log(`  [OK]    canal ${r.canal} (${cual}):  ${detalle}   ${r.cuadros} cuadros`);
+    } else {
+      console.log(`  [FALLA] canal ${r.canal} (${cual}):  ${r.error}`);
+    }
+  }
+
+  console.log('');
+  if (alguno) {
+    const bueno = resultados.find((r) => r.ok);
+    console.log('  LA VISTA EN VIVO VA A FUNCIONAR.');
+    console.log(`  Se usara el canal ${bueno.canal}${bueno.canal === 102 ? ' (secundario: gasta mucha menos subida)' : ''}.`);
+    if (bueno.canal === 101 && resultados.some((r) => r.canal === 102 && !r.ok)) {
+      console.log('');
+      console.log('  Ojo: el canal secundario (102) no respondio. Es el que ahorra datos.');
+      console.log('  Si el sitio va por modem LTE, conviene habilitarlo en la camara:');
+      console.log('  entra a http://' + cfg.camara.host + ' -> Configuracion -> Video -> Sub-stream.');
+    }
+  } else {
+    console.log('  LA VISTA EN VIVO NO VA A FUNCIONAR TODAVIA.');
+    console.log('  Que hacer, segun lo que dice arriba:');
+    console.log('   - no encuentro ffmpeg  -> copia ffmpeg.exe junto a este programa.');
+    console.log('   - usuario o clave      -> son las de entrar a http://' + cfg.camara.host);
+    console.log('                             desde el navegador, NO las de Hik-Connect.');
+    console.log('   - no contesto          -> revisa la IP y que la camara este encendida.');
+    console.log('   - RTSP cerrado         -> habilitalo en la camara: Configuracion ->');
+    console.log('                             Red -> Avanzada -> Protocolos (puerto 554).');
+    console.log('   - ese canal no existe  -> habilita el sub-stream en la camara, o quita');
+    console.log('                             "canal_stream" de config.json.');
+    console.log('');
+    console.log('  Las FOTOS no dependen de nada de esto: si el equipo ya aparece en el');
+    console.log('  dashboard, siguen funcionando aunque el video en vivo no.');
+  }
+  console.log('');
+}
+
 process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message || e));
 
 // Como lo abran decide que hace:
-//   --servicio     -> corre el agente (asi lo lanza la tarea de Windows)
-//   --desinstalar  -> quita el arranque automatico
-//   doble clic     -> asistente de instalacion, o el agente si ya esta configurado
+//   --servicio       -> corre el agente (asi lo lanza la tarea de Windows)
+//   --desinstalar    -> quita el arranque automatico
+//   --probar-stream  -> prueba la vista en vivo sin tocar el servidor
+//   doble clic       -> asistente de instalacion, o el agente si ya esta configurado
 const flags = process.argv.slice(2);
 const { asistente, desinstalar, menu, pausar } = require('./instalar');
 
@@ -351,6 +432,10 @@ if (flags.includes('--desinstalar')) {
   desinstalar();
 } else if (flags.includes('--instalar') || flags.includes('--configurar')) {
   asistente().catch((e) => { console.error('Fallo la instalacion:', e.message); process.exit(1); });
+} else if (flags.includes('--probar-stream')) {
+  probarStream()
+    .catch((e) => console.log(`\n  No pude completar la prueba: ${e.message}\n`))
+    .finally(() => pausar());
 } else if (flags.includes('--servicio')) {
   arrancar(false);
 } else if (fs.existsSync(RUTA_CONFIG)) {
@@ -358,7 +443,14 @@ if (flags.includes('--desinstalar')) {
   let cfgActual = {};
   try { cfgActual = JSON.parse(fs.readFileSync(RUTA_CONFIG, 'utf8')); } catch (_) {}
   menu(cfgActual)
-    .then((accion) => { if (accion === 'arrancar') arrancar(true); })
+    .then((accion) => {
+      if (accion === 'arrancar') arrancar(true);
+      else if (accion === 'probar') {
+        probarStream()
+          .catch((e) => console.log(`\n  No pude completar la prueba: ${e.message}\n`))
+          .finally(() => pausar());
+      }
+    })
     .catch((e) => { console.error('Error:', e.message); pausar(); });
 } else {
   asistente().catch((e) => {

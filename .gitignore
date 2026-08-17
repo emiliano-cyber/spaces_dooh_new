@@ -41,6 +41,9 @@ local.properties
 cap.png
 inc.png
 
+# ---- ffmpeg del agente de PC (mas de 70 MB; se baja con npm run bajar-ffmpeg) ----
+pc-agent/vendor/
+
 # ---- Editor / OS ----
 .idea/
 .vscode/

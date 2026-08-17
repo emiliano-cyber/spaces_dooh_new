@@ -84,6 +84,33 @@ Camara IP     --RTSP (ffmpeg)-->   (droplet)
 de la camara **sin recodificar**. Requiere dejar `ffmpeg.exe` junto a
 `SpaceEyeAgente.exe`. Opcion `canal_stream: 102` para gastar menos subida.
 
+**Preparativos para esa prueba (14-ago).** Se cerraron tres huecos que la habrian
+hecho fallar en el sitio por motivos tontos:
+
+- **`ffmpeg.exe` ya no hay que acordarse de bajarlo**: `npm run bajar-ffmpeg` lo
+  descarga (build estatica LGPL de BtbN, no necesita DLLs) a `pc-agent/vendor/`,
+  y `build.js` lo copia a `dist/` junto al agente. El binario NO se versiona
+  (pesa demasiado para el repo); `vendor/` esta en `.gitignore` y el build avisa
+  fuerte si falta.
+- **El sub-stream era inalcanzable desde el instalador**: escribia solo
+  `canal: 101`, nunca `canal_stream`, asi que toda instalacion hecha con el
+  asistente transmitia el stream principal a maxima calidad — justo lo que no
+  conviene sobre LTE. Ahora escribe `canal_stream: 102` y, si ese canal no
+  responde (hay camaras sin sub-stream habilitado), `transmision.js` **se cae
+  solo al principal** en vez de dejar el sitio sin vista en vivo.
+- **Un fallo del vivo era invisible en el dashboard**: `iniciar()` respondia
+  "comando OK" en cuanto lanzaba el proceso, y el `ENOENT` de ffmpeg llegaba
+  despues. En el navegador eso eran 40 s de espera y un "el equipo no comenzo a
+  transmitir". Ahora `iniciar()` es asincrono: espera hasta 15 s a que la camara
+  **entregue cuadros de verdad** (ffmpeg `-progress`, no basta con que el proceso
+  siga vivo) y **rechaza con el motivo real**, que es lo que ve el dashboard.
+
+Y para verificar estando en el sitio, sin depender del dashboard ni de que la red
+alcance al servidor: **`SpaceEyeAgente.exe --probar-stream`** (o la opcion `[3]`
+al abrir el programa). Prueba cada canal y reporta resolucion, fps y ancho de
+banda, o el motivo del fallo traducido (401 = clave mal, 404 = ese canal no
+existe, Connection refused = RTSP cerrado).
+
 ### 5. Borrar un dispositivo exige escribir ELIMINAR
 
 Modal con el nombre del equipo, lo que se pierde, y un campo donde hay que
