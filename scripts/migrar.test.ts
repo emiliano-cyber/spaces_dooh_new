@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ordenar, tipoDeMigracion, ANTES_DE } from './migrar.mjs'
+import { ordenar, tipoDeMigracion, ANTES_DE, tablasQueCrea, testigosDeHistoria } from './migrar.mjs'
 
 // ============================================================================
 //  La parte PURA del runner de migraciones: el orden y el tipo.
@@ -98,5 +98,124 @@ describe('tipoDeMigracion()', () => {
 
   it('la marca en una línea que no es la primera NO cuenta', () => {
     expect(tipoDeMigracion('begin;\n-- @tipo: datos\ncommit;\n')).toBe('esquema')
+  })
+})
+
+// ============================================================================
+//  La señal que VERIFICA `--instalacion-nueva`.
+// ----------------------------------------------------------------------------
+//  La bandera afirma un hecho —«esta base acaba de nacer»— y hasta ahora nadie
+//  comprobaba que fuera verdad en la dirección peligrosa: sobre el droplet de
+//  hoy (historia aplicada a mano, sin registro) el runner se la creía y le
+//  reaplicaba las 67 migraciones.
+//
+//  La señal se DERIVA del repositorio en vez de escribirse a mano: las tablas
+//  que crean las migraciones y que `db/schema.sql` NO crea. Una instalación
+//  recién nacida es rol de app + `schema.sql` y nada más, así que ninguna de
+//  esas tablas puede existir en ella; si existe alguna, la base tiene historia.
+//
+//  Estas pruebas son el aviso de caducidad de esa señal. Si se derivara a cero
+//  el runner se niega (fail-closed) y nadie se enteraría del porqué; aquí sí.
+// ============================================================================
+
+const RUTA_ESQUEMA = join(__dirname, '..', 'db', 'schema.sql')
+
+function migracionesDelRepo() {
+  return readdirSync(DIR_MIGRACIONES)
+    .filter((f) => f.endsWith('.sql'))
+    .sort()
+    .map((archivo) => ({
+      archivo,
+      contenido: readFileSync(join(DIR_MIGRACIONES, archivo), 'utf8'),
+    }))
+}
+
+describe('tablasQueCrea()', () => {
+  it('lee los `create table`, con o sin `if not exists` y con o sin `public.`', () => {
+    const sql = [
+      'create table usuarios (',
+      'create table if not exists almacen_activos (',
+      'CREATE TABLE public."comillada" (',
+    ].join('\n')
+    expect([...tablasQueCrea(sql)].sort()).toEqual(['almacen_activos', 'comillada', 'usuarios'])
+  })
+
+  it('no se traga un `create table` comentado ni un `drop table`', () => {
+    // `20260812_schema_migrations.sql:234` lleva `--   drop table if exists
+    // schema_migrations;` como rollback comentado. Un parser que lo contara
+    // daría por testigo una tabla que ese archivo NO crea.
+    const sql = '--   drop table if exists schema_migrations;\n-- create table fantasma (\n'
+    expect([...tablasQueCrea(sql)]).toEqual([])
+  })
+
+  it('solo mira TABLAS: un índice o un tipo con ese nombre no cuenta', () => {
+    // Es la razón de que la señal sean tablas y no índices. Un índice puede
+    // nacer de un `constraint … unique` declarado dentro del `create table` de
+    // `schema.sql`, con el MISMO nombre y sin un `create index` que lo delate:
+    // se derivaría como testigo y una instalación legítima sería rechazada.
+    // Con las tablas eso no pasa — un nombre de tabla solo llega de un
+    // `create table`.
+    const sql = 'create index almacen_activos on x(y);\ncreate type est_activo as enum (\'A\');\n'
+    expect([...tablasQueCrea(sql)]).toEqual([])
+  })
+})
+
+describe('testigosDeHistoria()', () => {
+  it('una tabla que también crea schema.sql NO es testigo', () => {
+    // `folios_consecutivos` está en los dos sitios (`schema.sql:95` y
+    // `20260804_folios_consecutivos.sql:26`): existe en una instalación recién
+    // nacida, así que no prueba nada.
+    const testigos = testigosDeHistoria('create table folios_consecutivos (\n', [
+      { archivo: '20260804_folios_consecutivos.sql', contenido: 'create table if not exists folios_consecutivos (\n' },
+      { archivo: '20260723_almacen.sql', contenido: 'create table if not exists almacen_activos (\n' },
+    ])
+    expect(testigos).toEqual([{ tabla: 'almacen_activos', archivo: '20260723_almacen.sql' }])
+  })
+
+  it('sin testigos derivables devuelve lista vacía — y el runner se niega', () => {
+    // El caso fail-closed: si `schema.sql` acabara creándolas todas, la señal
+    // deja de separar nada. La lista vacía es lo que el runner mira para
+    // negarse en vez de creerse la bandera a ciegas.
+    expect(testigosDeHistoria('create table sitios (\n', [])).toEqual([])
+  })
+
+  it('sobre el repo real la señal existe y es amplia', () => {
+    const testigos = testigosDeHistoria(readFileSync(RUTA_ESQUEMA, 'utf8'), migracionesDelRepo())
+    expect(testigos.length).toBeGreaterThanOrEqual(10)
+    // Ninguna de ellas puede estar en `schema.sql`: es la definición misma de
+    // testigo, y comprobarlo aquí atrapa un parser que lea mal cualquiera de
+    // los dos lados.
+    const esquema = readFileSync(RUTA_ESQUEMA, 'utf8')
+    for (const t of testigos) {
+      expect([...tablasQueCrea(esquema)]).not.toContain(t.tabla)
+    }
+  })
+
+  it('CANARIO: `almacen_activos` sigue siendo testigo — si esto cae, la señal caducó', () => {
+    // Escrito a mano a propósito, y es lo ÚNICO escrito a mano de toda la
+    // señal. El runner no cablea este nombre: lo deriva. Pero si algún día
+    // `almacen_activos` se renombra, se retira o entra en `schema.sql`, la
+    // señal pierde cobertura EN SILENCIO — y este caso rojo es el aviso.
+    // Quien lo vea: revisar que sigan quedando testigos suficientes y volver a
+    // elegir el canario, no borrar la prueba.
+    const testigos = testigosDeHistoria(readFileSync(RUTA_ESQUEMA, 'utf8'), migracionesDelRepo())
+    expect(testigos).toContainEqual({ tabla: 'almacen_activos', archivo: '20260723_almacen.sql' })
+  })
+
+  it('la señal cubre la ventana [20260723, 20260807) desde su PRIMER archivo', () => {
+    // Es la ventana en la que reaplicar la historia aborta a mitad y deja la
+    // base con migraciones aplicadas y cero registradas. Empieza justo en
+    // `20260723_almacen.sql`, que es testigo: cualquier base parada dentro de
+    // esa ventana enseña historia y el runner la rechaza.
+    //
+    // Lo que la señal NO cubre, dicho en voz alta: una base parada ANTES de
+    // `20260716_doohmain_playlogs.sql` —la primera migración que crea una tabla
+    // propia— es indistinguible de una recién nacida por este criterio. Ninguna
+    // instancia real está ahí (el droplet va por 20260810) y la ventana
+    // peligrosa queda entera dentro de la cobertura.
+    const testigos = testigosDeHistoria(readFileSync(RUTA_ESQUEMA, 'utf8'), migracionesDelRepo())
+    const primero = testigos.map((t) => t.archivo).sort()[0]
+    expect(primero < '20260723').toBe(true)
+    expect(testigos.some((t) => t.archivo >= '20260723' && t.archivo < '20260807')).toBe(true)
   })
 })

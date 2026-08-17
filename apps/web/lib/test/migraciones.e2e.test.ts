@@ -248,10 +248,11 @@ describe('runner de migraciones', () => {
     await prepararBaseVacia(pool)
     // `--instalacion-nueva` no es un adorno: `schema.sql` siembra el tenant
     // 'rgb' (`db/schema.sql:598`), así que a partir de ese punto la base ya
-    // cumple la heurística de «base con historia» del backfill y es
-    // INDISTINGUIBLE de un droplet rezagado. El runner se niega a adivinar; aquí
-    // se le dice cuál de los dos casos es, que es justo lo que sabe el
-    // aprovisionamiento y no sabe el script.
+    // cumple la heurística de «base con historia» del backfill, que POR ESA
+    // heurística la vuelve idéntica a un droplet rezagado. El runner se niega a
+    // adivinar; aquí se le dice cuál de los dos casos es, que es justo lo que
+    // sabe el aprovisionamiento y no sabe el script — y el runner lo comprueba
+    // antes de creérselo (el caso de abajo, sobre la base rezagada).
     pendientesAntes = correrRunner(BASE_RUNNER, ['--pendientes', '--instalacion-nueva'])
     registroTrasListar = (
       await pool.query("select to_regclass('public.schema_migrations') is not null as hay")
@@ -285,6 +286,15 @@ describe('runner de migraciones', () => {
     expect(registroTrasListar).toBe(false)
   })
 
+  it('sobre una base recién creada la bandera se VERIFICA y pasa', () => {
+    // El camino legítimo, que es la razón de existir de la bandera: aquí la
+    // base es rol de app + `schema.sql` y nada más, así que ninguna de las
+    // tablas testigo existe y la afirmación se sostiene. La verificación se
+    // dice en voz alta para que quede en el log del aprovisionamiento.
+    expect(pendientesAntes.stdout).toMatch(/instalacion-nueva.*verificad/i)
+    expect(pendientesAntes.status).toBe(0)
+  })
+
   it('el destino se registra SIN credenciales', () => {
     expect(pendientesAntes.stdout).toContain(`/${BASE_RUNNER}`)
     expect(pendientesAntes.stdout).not.toContain('spaces:spaces')
@@ -302,7 +312,7 @@ describe('runner de migraciones', () => {
     // dispara: el prólogo corre `schema.sql`, que siembra el tenant 'rgb'
     // (`db/schema.sql:598`), así que al llegarle el turno a
     // `20260812_schema_migrations.sql` sus 65 filas nacen. Lo que las sustituye
-    // es el `on conflict … do update` del propio runner (`migrar.mjs:215-218`),
+    // es el `on conflict … do update` del propio runner (`migrar.mjs:453-455`),
     // y aquí eso es lo correcto: esas 65 las acaba de aplicar ÉL en esta misma
     // pasada, con un contenido que conoce. Medido cambiando solo esa cláusula:
     // con `do update` salen 0; con `do nothing`, 65.
@@ -315,7 +325,8 @@ describe('runner de migraciones', () => {
     // por bueno las demás pruebas de integración. Lo que esto atrapa es que el
     // runner se salte un archivo o que deje la base distinta. Lo que NO atrapa
     // es un orden equivocado: los dos lados ordenan con la MISMA `ordenar()`
-    // (`db-e2e.ts:145` y `migrar.mjs:107`), así que un orden malo saldría igual
+    // (definida en `migrar.mjs:68`; la llaman `migrar.mjs:186` y
+    // `db-e2e.ts:145`), así que un orden malo saldría igual
     // de mal a los dos lados. Quien ancla el orden es la unitaria
     // `scripts/migrar.test.ts`.
     const arnes = await poolTest().query(COLUMNAS)
@@ -351,7 +362,7 @@ describe('runner de migraciones', () => {
 
   it('si aplica y NO puede registrar, sale 2 — no 1 con un volcado de pila', async () => {
     // El contrato de códigos de salida lo escribe el propio runner en su
-    // cabecera (`migrar.mjs:15-19`) y es lo ÚNICO que mira el `set -e` del
+    // cabecera (`migrar.mjs:18-24`) y es lo ÚNICO que mira el `set -e` del
     // `update.sh` de F3.4: el 2 significa «se aplicaron y no se pudieron
     // registrar», o sea «ve a mirar esa base a mano». Si el insert del registro
     // escapa sin capturar, Node sale 1 con un volcado de pila y el operador lee
@@ -388,9 +399,10 @@ describe('runner de migraciones', () => {
 //  aplicar (`vault/04-Datos/migraciones.md`). Sobre esa base, «no hay registro»
 //  no significa «instancia nueva»: significa exactamente lo contrario.
 //
-//  Y el runner NO puede distinguirlas, porque después de `schema.sql` las dos
-//  tienen el tenant 'rgb' y ninguna tiene registro. Las dos salidas equivocadas
-//  hacen daño por lados opuestos:
+//  Y la heurística con la que el runner mira esto —la del backfill: existe
+//  `tenants` y tiene filas— NO las distingue, porque después de `schema.sql` las
+//  dos tienen el tenant 'rgb' y ninguna tiene registro. Las dos salidas
+//  equivocadas hacen daño por lados opuestos:
 //
 //    · tratar la rezagada como nueva → reaplica su historia entera. Una base
 //      parada en la ventana [20260723, 20260807) aborta a mitad al hacerlo, y
@@ -401,6 +413,11 @@ describe('runner de migraciones', () => {
 //      `db-e2e.ts:107-112`—, así que el esquema queda incompleto SIN dar error.
 //
 //  Por eso el runner se niega y pregunta, en vez de adivinar.
+//
+//  Otra señal SÍ las separa, y es la que verifica `--instalacion-nueva`: las
+//  tablas que crean las migraciones y `schema.sql` no (`testigosDeHistoria()`).
+//  No decide sola —la pregunta explícita se queda, porque decidir solo por una
+//  señal es volver a la heurística— pero desmiente a quien afirma en falso.
 // ============================================================================
 
 const BASE_REZAGADA = 'spaces_rezagada_e2e'
@@ -473,6 +490,32 @@ describe('runner contra una instancia rezagada', () => {
     expect(listado.stdout).not.toContain('Aplicadas: 0')
     expect(listado.stderr).toContain(MIGRACION_REGISTRO)
   })
+
+  it('--instalacion-nueva NO se cree a ciegas: la base enseña historia y se niega', async () => {
+    // El agujero que dejaba abierto el guard: la bandera AFIRMA un hecho y
+    // nadie comprobaba que fuera verdad en la dirección que hace daño. El
+    // mensaje de error del propio runner le pone al operador esta línea exacta
+    // para copiar, así que tecleada sobre el droplet —que es una instancia
+    // rezagada, no nueva— le reaplicaba su historia entera.
+    //
+    // La señal se DERIVA: tablas que crean las migraciones y que `schema.sql`
+    // no crea. Una instalación recién nacida es rol de app + `schema.sql`, así
+    // que ninguna puede existir en ella.
+    const r = correrRunner(BASE_REZAGADA, ['--instalacion-nueva'])
+    expect(r.status).toBe(1)
+
+    // Los dos nombres van escritos a mano AQUÍ (el runner los deriva, no los
+    // cablea): son el canario. El día que `almacen_activos` se renombre o
+    // entre en `schema.sql`, esta prueba se pone roja en vez de perder
+    // cobertura en silencio. Su gemela pura vive en `scripts/migrar.test.ts`.
+    expect(r.stderr).toContain('almacen_activos')
+    expect(r.stderr).toContain('20260723_almacen.sql')
+
+    // Y no aplicó nada: dos testigos, los mismos que usa el caso de arriba.
+    const reg = await pool.query("select to_regclass('public.schema_migrations') is null as vacio")
+    expect(reg.rows[0].vacio).toBe(true)
+    expect(r.stdout).not.toMatch(/aplicadas/)
+  }, 60_000)
 
   it('aplicado el registro, el runner aplica SOLO lo que falta', async () => {
     // El remedio que indica el propio mensaje de error, tecleado tal cual.

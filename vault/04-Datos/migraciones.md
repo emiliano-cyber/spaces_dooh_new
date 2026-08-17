@@ -123,7 +123,8 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
 |---|---|
 | **`DATABASE_URL` obligatoria**: sin ella aborta con salida 1 | Desviación consciente de `apply-migration.mjs:16-24`, que cae en un default local. Ese default es la base de **desarrollo con datos reales**, cuyo rol `spaces` es superusuario con `BYPASSRLS`. Es lo que T-02 le quitó a `bootstrap-auth.mjs`, y aquí pesa más: este script ejecuta **DDL** |
 | Solo imprime `host:puerto/base` | El destino se registra **sin credenciales**, igual que `apply-migration.mjs:28-37` |
-| Sin registro **y con datos** = se para y pregunta (salida 1) | No puede distinguir una instancia rezagada de una recién instalada, y las dos suposiciones hacen daño en silencio. Ver «El guard», abajo |
+| Sin registro **y con datos** = se para y pregunta (salida 1) | La heurística que mira ahí —la del backfill— no distingue una instancia rezagada de una recién instalada, y las dos suposiciones hacen daño en silencio. Ver «El guard», abajo |
+| `--instalacion-nueva` **se verifica** contra la base (salida 1 si no se sostiene) | Una afirmación que nadie comprueba es una heurística con otro nombre. Ver «La bandera afirma, y se comprueba», abajo |
 | La tabla de registro la crea una migración, no el runner | El runner **no duplica ese DDL**: una segunda copia es la forma de que las dos dejen de coincidir. Lo aplicado antes de que la tabla exista se registra en cuanto aparece |
 | Cada archivo con **su propia transacción** | **48 de los 68** traen su `begin; … commit;`, y envolverlos en otra no anida: el `commit` de dentro cerraría el de fuera. Los otros 20 viajan como sentencia simple, que Postgres ejecuta en su transacción implícita. En los dos casos, si el archivo falla no queda aplicado a medias. Se aborta **sin registrarlo** y con el nombre del archivo en el error (salida 2) |
 | Si aplica y **no puede registrar**, salida 2 | El insert del registro también puede fallar (permisos, disco, réplica en solo lectura). Escapaba sin capturar, o sea salida **1 con volcado de pila** —«no se pudo ni empezar»— sobre una base que sí cambió. El 2 es lo que un `set -e` necesita distinguir para saber si hay que ir a mirar |
@@ -138,9 +139,11 @@ y **sin** `schema_migrations`, porque la crea una migración que nadie ha aplica
 todavía. Leído como «instancia nueva», el runner le reaplicaba **su historia
 entera**.
 
-Y no hay forma de distinguirlas: después de `schema.sql` las dos tienen el tenant
-`rgb` y ninguna tiene registro. **Las dos suposiciones hacen daño, por lados
-opuestos:**
+Y **la heurística que el runner reutiliza aquí no las distingue** —es la del
+backfill: existe `tenants` y tiene filas—, porque después de `schema.sql` las dos
+tienen el tenant `rgb` y ninguna tiene registro. (Otra señal sí las separa, y es
+la que verifica la bandera: ver «La bandera afirma, y se comprueba».) **Las dos
+suposiciones hacen daño, por lados opuestos:**
 
 | Suposición equivocada | Qué pasa |
 |---|---|
@@ -155,9 +158,64 @@ heurística de «base con historia» es la **misma, literal**, que la del backfi
 dos divergieran, runner y backfill discreparían sobre qué es una instancia nueva,
 y esa discrepancia no da error: deja un registro que miente.
 
-`--instalacion-nueva` sobre una base que **ya** tiene registro también se rechaza:
-la bandera afirma un hecho, el registro dice que es falso, y quien la teclea cree
-estar hablando de otra base.
+### La bandera afirma, y se comprueba
+
+`--instalacion-nueva` declara un hecho —«esta base acaba de nacer»— y **el runner
+lo verifica antes de creérselo**. Las dos direcciones, porque las dos hacen daño:
+
+| Sobre qué base | Qué pasa |
+|---|---|
+| Con `schema_migrations` | Se rechaza (salida 1): el registro desmiente a la bandera, y quien la teclea cree estar hablando de otra base |
+| Sin registro pero **con historia** | Se rechaza (salida 1) nombrando las tablas que la delatan y quién las crea. **No se aplica nada** |
+| Recién nacida (rol de app + `schema.sql`) | Se acepta, y lo dice en voz alta: `--instalacion-nueva verificada: ninguna de las 11 tablas …` |
+
+La segunda fila es la que faltaba, y no era un caso rebuscado: **el mensaje del
+guard le pone al operador esa línea exacta para copiar**. Tecleada sobre el
+droplet de hoy —que es rezagado, no nuevo— le reaplicaba las 67 migraciones **con
+salida 0**, en silencio.
+
+**La señal se DERIVA del repositorio, no se escribe a mano:** `schema.sql` dice
+qué tablas trae una instalación recién nacida (es lo único que se le aplica, con
+el rol de app), y las migraciones dicen cuáles añaden ellas. La diferencia son
+**11 tablas** —`almacen_activos`, `password_resets`, `licencias`,
+`identidades_externas`…— que en una base recién nacida **no pueden existir**. Si
+alguna existe, la bandera miente. Las dos partes viajan en la imagen
+(`Dockerfile:94-95` copia `db/schema.sql` y `db/migrations`), así que la
+derivación funciona igual en el droplet que en el repo.
+
+> [!warning] Por qué tablas y no índices, y por qué eso importa
+> Los índices darían más resolución y también **falsos positivos**: un
+> `constraint … unique` declarado dentro de un `create table` de `schema.sql`
+> crea un índice con ese nombre **sin** que haya ningún `create index` que lo
+> delate, así que se derivaría como testigo y una instalación legítima quedaría
+> rechazada — justo lo que la bandera existe para permitir. Un nombre de **tabla**
+> solo puede venir de un `create table`, y eso se lee igual de bien en los dos
+> lados.
+
+**Cobertura y su límite, dicho en voz alta:** la primera migración que crea tabla
+propia es `20260716_doohmain_playlogs.sql`, así que una base parada **antes** de
+esa fecha es indistinguible de una nueva por este criterio. Ninguna instancia real
+está ahí (el droplet va por `20260810`) y **la ventana peligrosa —`[20260723,
+20260807)`, donde reaplicar aborta a mitad— queda cubierta desde su primer
+archivo**, que es `20260723_almacen.sql`.
+
+**Fail-closed en las tres formas de no poder verificar** —sin `schema.sql` que
+leer, sin señal derivable, o sin poder preguntárselo a la base—: salida 1 y no se
+aplica nada. Una verificación que ante la duda deja pasar no verifica, decora.
+
+> [!important] La señal puede caducar, y hay un canario para que se oiga
+> El día que `almacen_activos` se renombre, se retire o entre en `schema.sql`, la
+> derivación pierde cobertura **en silencio**. Por eso `scripts/migrar.test.ts`
+> lleva un caso escrito a mano —el único nombre cableado de todo el mecanismo— que
+> se pone **rojo** ese día. Quien lo vea: comprobar que quedan testigos
+> suficientes y volver a elegir el canario, no borrar la prueba.
+
+> [!note] La bandera **no** desaparece a favor de la señal
+> Sería tentador dejar que el runner decidiera solo mirando los testigos. No:
+> convertiría una pregunta explícita en otra heurística, y esa heurística es
+> **fail-open** —una base sin testigos se daría por nueva sin que nadie lo haya
+> afirmado—. Descartado expresamente el 17/08. La bandera se queda; lo que gana es
+> comprobación.
 
 > [!danger] El orden importa y no es simétrico
 > Sobre una instalación recién creada, aplicar `20260812_schema_migrations.sql`
@@ -167,12 +225,13 @@ estar hablando de otra base.
 > propio archivo asume al decir que «acaban de aplicarse en esta misma pasada»
 > (`:66-70`).
 
-Lo cubren cuatro casos en `migraciones.e2e.test.ts`, que montan el droplet de hoy
-(rol de app → `schema.sql` → la historia anterior al corte, sin registro) y
+Lo cubren **cinco** casos en `migraciones.e2e.test.ts`, que montan el droplet de
+hoy (rol de app → `schema.sql` → la historia anterior al corte, sin registro) y
 comprueban que el runner **se niega y no toca la base**, que `--pendientes`
-tampoco contesta «Aplicadas: 0», y que tras aplicar el registro el runner aplica
-**solo lo que falta** — las 65 filas siguen marcadas `'backfill'`, que es el
-rastro que dejaría lo contrario.
+tampoco contesta «Aplicadas: 0», que **`--instalacion-nueva` tampoco cuela sobre
+esa base**, y que tras aplicar el registro el runner aplica **solo lo que falta**
+— las 65 filas siguen marcadas `'backfill'`, que es el rastro que dejaría lo
+contrario.
 
 > [!warning] El runner NO levanta una base virgen él solo
 > `20260729_licencias_permisos.sql:96-97` aborta si no existe un rol de

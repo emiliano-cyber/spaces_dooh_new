@@ -6,7 +6,8 @@
 //    DATABASE_URL=...  node scripts/migrar.mjs --pendientes   # lista, no aplica
 //    DATABASE_URL=...  node scripts/migrar.mjs --con-datos    # incluye @tipo: datos
 //    DATABASE_URL=...  node scripts/migrar.mjs --instalacion-nueva
-//                                       # la base acaba de nacer: no hay historia
+//                                       # la base acaba de nacer: no hay historia.
+//                                       # Se comprueba: si la base la enseña, aborta
 //
 //  Lo invoca `update.sh` en cada instancia. Sustituye al bucle de
 //  `.github/workflows/deploy.yml:141-148`, que reaplica TODAS las migraciones en
@@ -16,8 +17,9 @@
 //
 //  Códigos de salida (los mira el `set -e` de update.sh, y solo eso):
 //    0  nada que aplicar, o todo aplicado y registrado
-//    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido, o no
-//       se puede saber si la base es nueva o rezagada (ver el guard de abajo)
+//    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido, no
+//       se puede saber si la base es nueva o rezagada (ver el guard de abajo),
+//       o `--instalacion-nueva` afirma algo que la base desmiente
 //    2  una migración falló (se nombra), o se aplicaron y no se pudieron
 //       registrar
 // ============================================================================
@@ -32,6 +34,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 // migraciones viven junto al esquema en `/app/db` (`Dockerfile:94-95`).
 const AQUI = dirname(fileURLToPath(import.meta.url))
 export const DIR_MIGRACIONES = join(AQUI, '..', 'db', 'migrations')
+// El esquema base viaja al lado de las migraciones, tanto en el repo como en la
+// imagen (`Dockerfile:94-95` copia los dos a `/app/db`). Se lee para DERIVAR la
+// señal que verifica `--instalacion-nueva`; ver `testigosDeHistoria()`.
+export const RUTA_ESQUEMA = join(AQUI, '..', 'db', 'schema.sql')
 
 // ─── El orden, declarado UNA sola vez ──────────────────────────────────────
 //
@@ -90,6 +96,76 @@ export function tipoDeMigracion(contenido) {
   return /^\uFEFF?--\s*@tipo:\s*datos/i.test(primera) ? 'datos' : 'esquema'
 }
 
+// ─── La señal que VERIFICA `--instalacion-nueva` ───────────────────────────
+//
+// La bandera afirma un hecho —«esta base acaba de nacer»— y un hecho afirmado
+// que nadie comprueba es una heurística con otro nombre. Aquí se comprueba.
+//
+// La señal se DERIVA del repositorio en vez de escribirse a mano: `schema.sql`
+// dice qué tablas trae una instalación recién nacida (es lo ÚNICO que se le
+// aplica, junto al rol de app), y las migraciones dicen cuáles añaden ellas. La
+// diferencia son tablas que en una base recién nacida no pueden existir; si
+// alguna existe, la base tiene historia y la bandera miente.
+//
+// Se derivan TABLAS y solo tablas, a propósito. Los índices darían más
+// resolución y también falsos positivos: un `constraint … unique` declarado
+// dentro de un `create table` de `schema.sql` crea un índice con ese nombre sin
+// que aparezca ningún `create index`, así que se derivaría como testigo y una
+// instalación legítima quedaría rechazada — justo lo que la bandera existe para
+// permitir. Un nombre de TABLA, en cambio, solo puede venir de un `create
+// table`, y eso se lee igual de bien en los dos lados.
+//
+// Límite, dicho en voz alta: la primera migración que crea tabla propia es
+// `20260716_doohmain_playlogs.sql`, así que una base parada ANTES de esa fecha
+// es indistinguible de una nueva por este criterio. La ventana peligrosa
+// —`[20260723, 20260807)`, donde reaplicar aborta a mitad— empieza en
+// `20260723_almacen.sql` y queda cubierta entera. Lo ancla
+// `scripts/migrar.test.ts`, que además lleva un canario para que la señal no
+// pierda cobertura en silencio el día que una de esas tablas se renombre.
+
+// `create table [if not exists] [public.]nombre`, anclado a principio de línea:
+// así una línea comentada (`--   drop table if exists …`, el rollback de
+// `20260812_schema_migrations.sql:234`) no entra.
+const RE_CREATE_TABLE =
+  /^[ \t]*create[ \t]+table[ \t]+(?:if[ \t]+not[ \t]+exists[ \t]+)?(?:public\.)?"?([a-zA-Z_][\w$]*)"?/gim
+
+/**
+ * Nombres de tabla que un `.sql` crea explícitamente.
+ * @param {string} sql
+ * @returns {Set<string>}
+ */
+export function tablasQueCrea(sql) {
+  const nombres = new Set()
+  for (const m of sql.matchAll(RE_CREATE_TABLE)) nombres.add(m[1].toLowerCase())
+  return nombres
+}
+
+/**
+ * Las tablas que solo pueden existir si ya corrieron migraciones: las que crea
+ * alguna migración y `schema.sql` NO.
+ *
+ * Devuelve lista vacía si no hay ninguna derivable, y quien la use tiene que
+ * tratar esa lista vacía como «no se puede verificar» y negarse. Ante la duda
+ * no se aplica nada.
+ *
+ * @param {string} sqlEsquema contenido de `db/schema.sql`
+ * @param {{archivo: string, contenido: string}[]} migraciones
+ * @returns {{tabla: string, archivo: string}[]}
+ */
+export function testigosDeHistoria(sqlEsquema, migraciones) {
+  const delEsquema = tablasQueCrea(sqlEsquema)
+  const testigos = []
+  const vistas = new Set()
+  for (const m of migraciones) {
+    for (const tabla of tablasQueCrea(m.contenido)) {
+      if (delEsquema.has(tabla) || vistas.has(tabla)) continue
+      vistas.add(tabla)
+      testigos.push({ tabla, archivo: m.archivo })
+    }
+  }
+  return testigos
+}
+
 /** sha256 del contenido tal cual está en disco. */
 export function checksumDe(contenido) {
   return createHash('sha256').update(contenido).digest('hex')
@@ -133,11 +209,25 @@ async function baseConHistoria(cli) {
   return hay[0].hay
 }
 
+/**
+ * Cuáles de esas tablas testigo existen de verdad en la base. Una sola basta
+ * para desmentir `--instalacion-nueva`.
+ */
+async function testigosPresentes(cli, tablas) {
+  const { rows } = await cli.query(
+    `select t from unnest($1::text[]) as t
+      where to_regclass('public.' || quote_ident(t)) is not null`,
+    [tablas],
+  )
+  return rows.map((r) => r.t)
+}
+
 const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos] [--instalacion-nueva]
   --pendientes         lista lo que falta y NO aplica nada
   --con-datos          incluye también las migraciones marcadas "-- @tipo: datos"
   --instalacion-nueva  declara que la base acaba de nacer (rol de app + schema.sql
-                       y nada más): sin registro y sin historia que respetar`
+                       y nada más): sin registro y sin historia que respetar. Se
+                       VERIFICA contra la base — si enseña historia, no aplica nada`
 
 export async function main(argv = process.argv) {
   const args = argv.slice(2)
@@ -197,10 +287,13 @@ export async function main(argv = process.argv) {
     // una migración escrita el 14/08 que nadie ha aplicado. Suponiendo «nueva»,
     // el runner le reaplicaba su historia entera.
     //
-    // Y no se puede distinguir de una instalación recién nacida: después de
-    // `schema.sql` las dos tienen el tenant 'rgb' (`db/schema.sql:598`) y
-    // ninguna tiene registro. Las dos salidas equivocadas hacen daño en
-    // silencio, por lados opuestos:
+    // Y la heurística que se mira aquí —la del backfill: existe `tenants` y
+    // tiene filas— NO las distingue: después de `schema.sql` las dos tienen el
+    // tenant 'rgb' (`db/schema.sql:598`) y ninguna tiene registro. (Sí las
+    // separa otra señal, la de `testigosDeHistoria()`, que es la que verifica
+    // la bandera más abajo; no se usa para decidir sola, a propósito: la
+    // pregunta explícita se queda y lo que gana es comprobación.) Las dos
+    // salidas equivocadas hacen daño en silencio, por lados opuestos:
     //
     //   · tratar la rezagada como nueva → reaplica la historia. Hoy la cadena
     //     aguanta una segunda pasada (T-04), pero una base parada en la ventana
@@ -233,22 +326,89 @@ export async function main(argv = process.argv) {
           '      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/20260812_schema_migrations.sql\n' +
           '  · Instalacion RECIEN creada (rol de app + schema.sql y nada mas):\n' +
           '      node scripts/migrar.mjs --instalacion-nueva\n' +
+          '    (la bandera NO se cree a ciegas: si la base ensena tablas que solo crean\n' +
+          '     las migraciones, se niega y te lo dice)\n' +
           'Ojo con cruzarlos: aplicar 20260812_schema_migrations.sql a una instalacion\n' +
           'nueva daria por aplicadas 65 migraciones que nunca corrieron.',
       )
       return 1
     }
 
-    if (hayRegistro && instalacionNueva) {
-      // La bandera afirma un hecho, y el hecho es falso: esta base ya tiene
-      // registro, o sea que no es nueva. Se para en vez de ignorarla, porque
-      // quien la teclea cree estar hablando de otra base.
-      console.error(
-        'ERROR migrar: --instalacion-nueva sobre una base que YA tiene `schema_migrations`.\n' +
-          'Esa bandera declara que la base acaba de nacer, y el registro dice que no.\n' +
-          'Corre el comando SIN la bandera: aplicara solo lo pendiente.',
+    // ─── La bandera afirma un hecho, y el hecho se COMPRUEBA ─────────────
+    //
+    // Las dos direcciones, porque las dos hacen daño y solo una estaba cerrada:
+    //   · sobre una base CON registro, la bandera se contradice sola;
+    //   · sobre una base con historia y sin registro —el droplet de hoy— la
+    //     bandera se la creía a ciegas y le reaplicaba las 67 migraciones con
+    //     salida 0. Y el mensaje del guard de arriba le pone al operador esa
+    //     línea exacta para copiar, así que no es un caso rebuscado: es el
+    //     siguiente comando que va a teclear.
+    if (instalacionNueva) {
+      if (hayRegistro) {
+        console.error(
+          'ERROR migrar: --instalacion-nueva sobre una base que YA tiene `schema_migrations`.\n' +
+            'Esa bandera declara que la base acaba de nacer, y el registro dice que no.\n' +
+            'Corre el comando SIN la bandera: aplicara solo lo pendiente.',
+        )
+        return 1
+      }
+
+      // Fail-closed en las tres formas de no poder verificar: sin esquema que
+      // leer, sin señal derivable, o sin poder preguntárselo a la base. En
+      // ninguna se aplica nada — una verificación que ante la duda deja pasar
+      // no verifica, decora.
+      let testigos
+      try {
+        testigos = testigosDeHistoria(readFileSync(RUTA_ESQUEMA, 'utf8'), todas)
+      } catch (e) {
+        console.error(
+          `ERROR migrar: --instalacion-nueva no se puede verificar sin ${RUTA_ESQUEMA}: ${e.message}\n` +
+            'Esa bandera afirma que la base acaba de nacer y eso se comprueba comparando\n' +
+            'las tablas de schema.sql con las que crean las migraciones. Sin el esquema no\n' +
+            'hay con que comparar, asi que no se aplica nada.',
+        )
+        return 1
+      }
+      if (!testigos.length) {
+        console.error(
+          'ERROR migrar: --instalacion-nueva no se puede verificar: ninguna migracion crea\n' +
+            'una tabla que schema.sql no cree ya, asi que no hay forma de ver si esta base\n' +
+            'tiene historia. Antes de tocar nada, revisa scripts/migrar.test.ts (la senal\n' +
+            'lleva un canario) y aplica el registro a mano si la instancia es rezagada.',
+        )
+        return 1
+      }
+      let presentes
+      try {
+        presentes = await testigosPresentes(
+          cli,
+          testigos.map((t) => t.tabla),
+        )
+      } catch (e) {
+        console.error(
+          `ERROR migrar: --instalacion-nueva no se pudo verificar contra la base: ${e.message}`,
+        )
+        return 1
+      }
+      if (presentes.length) {
+        const porQuien = new Map(testigos.map((t) => [t.tabla, t.archivo]))
+        console.error(
+          'ERROR migrar: --instalacion-nueva sobre una base que SI tiene historia.\n' +
+            'Esa bandera declara que la base acaba de nacer (rol de app + schema.sql y nada\n' +
+            'mas), y estas tablas no las crea schema.sql: solo pueden estar ahi porque ya se\n' +
+            'aplicaron migraciones.\n' +
+            presentes.map((t) => `  · ${t}   (la crea ${porQuien.get(t)})`).join('\n') +
+            '\nNo se aplico nada. Si es la instancia rezagada, aplicale primero el registro y\n' +
+            'repite SIN la bandera:\n' +
+            '  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/20260812_schema_migrations.sql\n' +
+            '  node scripts/migrar.mjs',
+        )
+        return 1
+      }
+      console.log(
+        `--instalacion-nueva verificada: ninguna de las ${testigos.length} tablas que solo ` +
+          'crean las migraciones existe en esta base.',
       )
-      return 1
     }
 
     const aplicadas = hayRegistro
