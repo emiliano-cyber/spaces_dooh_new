@@ -4,6 +4,9 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
+// Solo para MONTAR el escenario de la instancia rezagada: aplicar su historia
+// en el orden real. Las expectativas de estas pruebas nunca salen de aquí.
+import { ordenar } from '../../../../scripts/migrar.mjs'
 
 // ============================================================================
 //  `schema_migrations` — cada instancia sabe qué migraciones ya corrió.
@@ -243,11 +246,17 @@ describe('runner de migraciones', () => {
     await admin.query(`create database ${BASE_RUNNER}`)
     pool = new Pool({ connectionString: urlDe(BASE_RUNNER), max: 2 })
     await prepararBaseVacia(pool)
-    pendientesAntes = correrRunner(BASE_RUNNER, ['--pendientes'])
+    // `--instalacion-nueva` no es un adorno: `schema.sql` siembra el tenant
+    // 'rgb' (`db/schema.sql:598`), así que a partir de ese punto la base ya
+    // cumple la heurística de «base con historia» del backfill y es
+    // INDISTINGUIBLE de un droplet rezagado. El runner se niega a adivinar; aquí
+    // se le dice cuál de los dos casos es, que es justo lo que sabe el
+    // aprovisionamiento y no sabe el script.
+    pendientesAntes = correrRunner(BASE_RUNNER, ['--pendientes', '--instalacion-nueva'])
     registroTrasListar = (
       await pool.query("select to_regclass('public.schema_migrations') is not null as hay")
     ).rows[0].hay
-    primera = correrRunner(BASE_RUNNER)
+    primera = correrRunner(BASE_RUNNER, ['--instalacion-nueva'])
   }, 120_000)
 
   afterAll(async () => {
@@ -289,17 +298,26 @@ describe('runner de migraciones', () => {
     expect(registradas.rows.map((r: any) => r.archivo)).toEqual(migracionesDeEsquema())
     expect(registradas.rows.length).toBeGreaterThanOrEqual(66)
 
-    // El checksum es REAL, no 'backfill': estas migraciones las aplicó el runner
-    // ahora mismo y sabe con qué contenido. La marca 'backfill' es solo para las
-    // que se aplicaron a mano antes de que existiera registro.
+    // Ni una fila de 'backfill', y NO porque el backfill no se dispare —se
+    // dispara: el prólogo corre `schema.sql`, que siembra el tenant 'rgb'
+    // (`db/schema.sql:598`), así que al llegarle el turno a
+    // `20260812_schema_migrations.sql` sus 65 filas nacen. Lo que las sustituye
+    // es el `on conflict … do update` del propio runner (`migrar.mjs:215-218`),
+    // y aquí eso es lo correcto: esas 65 las acaba de aplicar ÉL en esta misma
+    // pasada, con un contenido que conoce. Medido cambiando solo esa cláusula:
+    // con `do update` salen 0; con `do nothing`, 65.
     const backfill = await pool.query(
       "select count(*)::int as n from schema_migrations where checksum = 'backfill'",
     )
     expect(backfill.rows[0].n).toBe(0)
 
-    // Y el esquema resultante es el mismo que el del arnés, que es el que las
-    // 147 pruebas de integración dan por bueno. Si el runner aplicara en otro
-    // orden o se saltara un archivo, aquí se vería.
+    // Y el esquema resultante es el mismo que el del arnés, que es el que dan
+    // por bueno las demás pruebas de integración. Lo que esto atrapa es que el
+    // runner se salte un archivo o que deje la base distinta. Lo que NO atrapa
+    // es un orden equivocado: los dos lados ordenan con la MISMA `ordenar()`
+    // (`db-e2e.ts:145` y `migrar.mjs:107`), así que un orden malo saldría igual
+    // de mal a los dos lados. Quien ancla el orden es la unitaria
+    // `scripts/migrar.test.ts`.
     const arnes = await poolTest().query(COLUMNAS)
     const runner = await pool.query(COLUMNAS)
     expect(runner.rows).toEqual(arnes.rows)
@@ -329,5 +347,162 @@ describe('runner de migraciones', () => {
     // refrescara `aplicada_en` en cada corrida borraría el único dato que dice
     // cuándo se puso al día una instancia.
     expect(despues.rows[0]).toEqual(antes.rows[0])
+  }, 60_000)
+
+  it('si aplica y NO puede registrar, sale 2 — no 1 con un volcado de pila', async () => {
+    // El contrato de códigos de salida lo escribe el propio runner en su
+    // cabecera (`migrar.mjs:15-19`) y es lo ÚNICO que mira el `set -e` del
+    // `update.sh` de F3.4: el 2 significa «se aplicaron y no se pudieron
+    // registrar», o sea «ve a mirar esa base a mano». Si el insert del registro
+    // escapa sin capturar, Node sale 1 con un volcado de pila y el operador lee
+    // «no se pudo ni empezar» sobre una base que SÍ cambió.
+    //
+    // El fallo se fabrica con un trigger que rechaza el insert: es la forma
+    // barata de reproducir un registro que no acepta escrituras (permisos,
+    // disco lleno, una réplica en solo lectura).
+    await pool.query("delete from schema_migrations where archivo = '20260812_sin_default_tenant.sql'")
+    await pool.query(`create or replace function rechazar_registro() returns trigger
+                        language plpgsql as $$ begin raise exception 'registro no disponible'; end $$`)
+    await pool.query(`create trigger rechazar_registro before insert on schema_migrations
+                        for each row execute function rechazar_registro()`)
+    try {
+      const r = correrRunner(BASE_RUNNER)
+      expect(r.status).toBe(2)
+      // Y dice QUÉ quedó aplicado sin constar, que es el dato con el que se
+      // repara a mano.
+      expect(r.stderr).toContain('20260812_sin_default_tenant.sql')
+      expect(r.stderr).not.toMatch(/^\s+at /m)
+    } finally {
+      await pool.query('drop trigger if exists rechazar_registro on schema_migrations')
+      await pool.query('drop function if exists rechazar_registro()')
+      correrRunner(BASE_RUNNER) // deja el registro completo para quien venga detrás
+    }
+  }, 60_000)
+})
+
+// ============================================================================
+//  Una instancia REZAGADA — el caso que tumbaba al runner y no probaba nadie.
+// ----------------------------------------------------------------------------
+//  Es el droplet de hoy: historia aplicada a mano durante meses y NINGUNA tabla
+//  de registro, porque `20260812_schema_migrations.sql` está escrita y sin
+//  aplicar (`vault/04-Datos/migraciones.md`). Sobre esa base, «no hay registro»
+//  no significa «instancia nueva»: significa exactamente lo contrario.
+//
+//  Y el runner NO puede distinguirlas, porque después de `schema.sql` las dos
+//  tienen el tenant 'rgb' y ninguna tiene registro. Las dos salidas equivocadas
+//  hacen daño por lados opuestos:
+//
+//    · tratar la rezagada como nueva → reaplica su historia entera. Una base
+//      parada en la ventana [20260723, 20260807) aborta a mitad al hacerlo, y
+//      queda con migraciones aplicadas y cero registradas.
+//    · tratar la nueva como rezagada (aplicarle el backfill antes que nada) →
+//      da por aplicadas 65 migraciones que NUNCA corrieron, y `schema.sql` es un
+//      SUBCONJUNTO de lo desplegado —le faltan 143 columnas, medidas en
+//      `db-e2e.ts:107-112`—, así que el esquema queda incompleto SIN dar error.
+//
+//  Por eso el runner se niega y pregunta, en vez de adivinar.
+// ============================================================================
+
+const BASE_REZAGADA = 'spaces_rezagada_e2e'
+const MIGRACION_REGISTRO = '20260812_schema_migrations.sql'
+
+// Reproduce el droplet: rol de app → `schema.sql` → toda la historia de esquema
+// anterior al corte del 2026-08-12, aplicada «a mano» y sin registrar. Que sea
+// justo el corte del backfill no es casualidad: es lo que la flota tenía el
+// 2026-08-12 (`20260812_schema_migrations.sql:29-35`).
+async function prepararInstanciaRezagada(pool: Pool): Promise<string[]> {
+  await prepararBaseVacia(pool)
+  const historicas = ordenar(migracionesDeEsquema()).filter((f: string) => f < '20260812')
+  for (const archivo of historicas) {
+    try {
+      await pool.query(readFileSync(join(DIR_MIGRACIONES, archivo), 'utf8'))
+    } catch (e) {
+      throw new Error(`Montando la instancia rezagada falló ${archivo}: ${(e as Error).message}`)
+    }
+  }
+  return historicas
+}
+
+describe('runner contra una instancia rezagada', () => {
+  let pool: Pool
+  let historicas: string[]
+  let listado: ReturnType<typeof correrRunner>
+  let aplicar: ReturnType<typeof correrRunner>
+
+  beforeAll(async () => {
+    const admin = poolTest()
+    if (!BASE_REZAGADA.endsWith('_e2e')) throw new Error('la base desechable debe acabar en _e2e')
+    await admin.query(`drop database if exists ${BASE_REZAGADA} with (force)`)
+    await admin.query(`create database ${BASE_REZAGADA}`)
+    pool = new Pool({ connectionString: urlDe(BASE_REZAGADA), max: 2 })
+    historicas = await prepararInstanciaRezagada(pool)
+    listado = correrRunner(BASE_REZAGADA, ['--pendientes'])
+    aplicar = correrRunner(BASE_REZAGADA)
+  }, 180_000)
+
+  afterAll(async () => {
+    if (pool) await pool.end()
+    await poolTest().query(`drop database if exists ${BASE_REZAGADA} with (force)`)
+  })
+
+  it('se niega a aplicar y dice qué hacer, en vez de suponer que es nueva', () => {
+    expect(aplicar.status).not.toBe(0)
+    // El mensaje tiene que nombrar la migración que hay que aplicar primero: sin
+    // eso, el operador solo sabe que algo falló.
+    expect(aplicar.stderr).toContain(MIGRACION_REGISTRO)
+  })
+
+  it('y no toca la base: ni una migración reaplicada', async () => {
+    // Dos testigos independientes. El registro sigue sin existir…
+    const reg = await pool.query("select to_regclass('public.schema_migrations') is null as vacio")
+    expect(reg.rows[0].vacio).toBe(true)
+    // …y el `DEFAULT` de `tenant_id` sigue vivo, o sea que
+    // `20260812_sin_default_tenant.sql` —la única pendiente de verdad— no corrió.
+    const def = await pool.query(
+      `select count(*)::int as n from information_schema.columns
+        where table_schema = 'public' and column_name = 'tenant_id' and column_default is not null`,
+    )
+    expect(def.rows[0].n).toBeGreaterThan(0)
+  })
+
+  it('--pendientes tampoco miente: no dice «Aplicadas: 0» sobre una base con historia', () => {
+    // Es la orden que se teclea JUSTO antes de actualizar, así que su respuesta
+    // pesa más que la del propio `migrar`: contestaba «68 pendientes …
+    // Aplicadas: 0» sobre una base que las tenía casi todas.
+    expect(listado.status).not.toBe(0)
+    expect(listado.stdout).not.toContain('Aplicadas: 0')
+    expect(listado.stderr).toContain(MIGRACION_REGISTRO)
+  })
+
+  it('aplicado el registro, el runner aplica SOLO lo que falta', async () => {
+    // El remedio que indica el propio mensaje de error, tecleado tal cual.
+    await pool.query(readFileSync(join(DIR_MIGRACIONES, MIGRACION_REGISTRO), 'utf8'))
+    const backfill = await pool.query(
+      "select count(*)::int as n from schema_migrations where checksum = 'backfill'",
+    )
+    expect(backfill.rows[0].n).toBe(historicas.length)
+
+    const faltan = migracionesDeEsquema().length - historicas.length
+    const r = correrRunner(BASE_REZAGADA)
+    expect(r.status).toBe(0)
+    expect(r.stdout).toContain(`${faltan} aplicadas`)
+
+    // Y las 65 históricas siguen marcadas como backfill: si el runner las
+    // hubiera reaplicado, su `on conflict … do update` habría escrito checksums
+    // reales encima. Esto es «aplica solo lo que le falta», comprobado por el
+    // rastro que dejaría lo contrario.
+    const despues = await pool.query(
+      "select count(*)::int as n from schema_migrations where checksum = 'backfill'",
+    )
+    expect(despues.rows[0].n).toBe(historicas.length)
+
+    const registradas = await pool.query('select archivo from schema_migrations order by archivo')
+    expect(registradas.rows.map((x: any) => x.archivo)).toEqual(migracionesDeEsquema())
+
+    // Y queda en el mismo esquema que el arnés: ponerse al día por este camino
+    // llega al mismo sitio que aplicarlas todas desde cero.
+    const arnes = await poolTest().query(COLUMNAS)
+    const rezagada = await pool.query(COLUMNAS)
+    expect(rezagada.rows).toEqual(arnes.rows)
   }, 60_000)
 })

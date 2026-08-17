@@ -5,6 +5,8 @@
 //    DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
 //    DATABASE_URL=...  node scripts/migrar.mjs --pendientes   # lista, no aplica
 //    DATABASE_URL=...  node scripts/migrar.mjs --con-datos    # incluye @tipo: datos
+//    DATABASE_URL=...  node scripts/migrar.mjs --instalacion-nueva
+//                                       # la base acaba de nacer: no hay historia
 //
 //  Lo invoca `update.sh` en cada instancia. Sustituye al bucle de
 //  `.github/workflows/deploy.yml:141-148`, que reaplica TODAS las migraciones en
@@ -14,7 +16,8 @@
 //
 //  Códigos de salida (los mira el `set -e` de update.sh, y solo eso):
 //    0  nada que aplicar, o todo aplicado y registrado
-//    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido
+//    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido, o no
+//       se puede saber si la base es nueva o rezagada (ver el guard de abajo)
 //    2  una migración falló (se nombra), o se aplicaron y no se pudieron
 //       registrar
 // ============================================================================
@@ -116,19 +119,37 @@ async function tablaDeRegistroExiste(cli) {
   return rows[0].t !== null
 }
 
-const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos]
-  --pendientes  lista lo que falta y NO aplica nada
-  --con-datos   incluye también las migraciones marcadas "-- @tipo: datos"`
+/**
+ * ¿La base ya tiene historia? El criterio es el MISMO que usa el backfill de
+ * `db/migrations/20260812_schema_migrations.sql:99-110`: existe `tenants` y
+ * tiene filas. Se reutiliza a propósito en vez de inventar otro — si los dos
+ * criterios divergieran, el runner y el backfill discreparían sobre qué es una
+ * instancia nueva, y esa discrepancia no da error: deja un registro que miente.
+ */
+async function baseConHistoria(cli) {
+  const { rows } = await cli.query("select to_regclass('public.tenants') as t")
+  if (rows[0].t === null) return false
+  const { rows: hay } = await cli.query('select exists (select 1 from tenants) as hay')
+  return hay[0].hay
+}
+
+const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos] [--instalacion-nueva]
+  --pendientes         lista lo que falta y NO aplica nada
+  --con-datos          incluye también las migraciones marcadas "-- @tipo: datos"
+  --instalacion-nueva  declara que la base acaba de nacer (rol de app + schema.sql
+                       y nada más): sin registro y sin historia que respetar`
 
 export async function main(argv = process.argv) {
   const args = argv.slice(2)
-  const desconocidos = args.filter((a) => !['--pendientes', '--con-datos'].includes(a))
+  const banderas = ['--pendientes', '--con-datos', '--instalacion-nueva']
+  const desconocidos = args.filter((a) => !banderas.includes(a))
   if (desconocidos.length) {
     console.error(`ERROR migrar: argumento desconocido: ${desconocidos.join(' ')}\n${USO}`)
     return 1
   }
   const soloListar = args.includes('--pendientes')
   const conDatos = args.includes('--con-datos')
+  const instalacionNueva = args.includes('--instalacion-nueva')
 
   // ─── El destino NO tiene valor por omisión, y es una decisión ────────────
   //
@@ -168,11 +189,68 @@ export async function main(argv = process.argv) {
   }
 
   try {
-    // Sin tabla de registro, nada consta como aplicado: es una instancia nueva.
-    // La tabla la crea `20260812_schema_migrations.sql`, que es una migración
-    // más — el runner no la duplica aquí, porque una segunda copia del DDL es
-    // la forma de que las dos dejen de coincidir.
+    // ─── Sin registro NO significa «instancia nueva» ─────────────────────
+    //
+    // Esto es lo que este runner suponía y era exactamente al revés en el único
+    // servidor que hoy existe: el droplet lleva meses con las migraciones
+    // aplicadas A MANO y `schema_migrations` todavía sin crear, porque la crea
+    // una migración escrita el 14/08 que nadie ha aplicado. Suponiendo «nueva»,
+    // el runner le reaplicaba su historia entera.
+    //
+    // Y no se puede distinguir de una instalación recién nacida: después de
+    // `schema.sql` las dos tienen el tenant 'rgb' (`db/schema.sql:598`) y
+    // ninguna tiene registro. Las dos salidas equivocadas hacen daño en
+    // silencio, por lados opuestos:
+    //
+    //   · tratar la rezagada como nueva → reaplica la historia. Hoy la cadena
+    //     aguanta una segunda pasada (T-04), pero una base parada en la ventana
+    //     [20260723, 20260807) aborta a mitad, y queda con migraciones
+    //     aplicadas y CERO registradas — un estado que nadie sabe diagnosticar.
+    //   · tratar la nueva como rezagada (aplicarle el backfill antes de nada) →
+    //     da por aplicadas 65 migraciones que nunca corrieron, y `schema.sql` es
+    //     un SUBCONJUNTO de lo desplegado (le faltan 143 columnas, medidas en
+    //     `apps/web/lib/test/db-e2e.ts:107-112`). El esquema queda incompleto
+    //     sin dar ni un error.
+    //
+    // Así que no se adivina: se para y se pregunta. Fail-closed.
+    //
+    // La tabla la sigue creando `20260812_schema_migrations.sql` — el runner no
+    // duplica ese DDL aquí, porque una segunda copia es la forma de que las dos
+    // dejen de coincidir.
     const hayRegistro = await tablaDeRegistroExiste(cli)
+
+    if (!hayRegistro && !instalacionNueva && (await baseConHistoria(cli))) {
+      console.error(
+        'ERROR migrar: esta base no tiene `schema_migrations` pero YA tiene datos.\n' +
+          'No se puede saber si es una instancia CON HISTORIA (aplicada a mano durante\n' +
+          'meses, sin registro) o una instalacion RECIEN CREADA, y equivocarse no da\n' +
+          'error, hace dano en silencio:\n' +
+          '  · si es rezagada y aplico todo, le reaplico su historia entera;\n' +
+          '  · si es nueva y doy la historia por aplicada, el esquema queda incompleto.\n' +
+          'Asi que no lo adivino. Dime cual es:\n' +
+          '  · Instancia CON historia (el droplet de hoy): aplicale primero el registro,\n' +
+          '    que hace el backfill de lo ya aplicado, y repite este comando:\n' +
+          '      psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/migrations/20260812_schema_migrations.sql\n' +
+          '  · Instalacion RECIEN creada (rol de app + schema.sql y nada mas):\n' +
+          '      node scripts/migrar.mjs --instalacion-nueva\n' +
+          'Ojo con cruzarlos: aplicar 20260812_schema_migrations.sql a una instalacion\n' +
+          'nueva daria por aplicadas 65 migraciones que nunca corrieron.',
+      )
+      return 1
+    }
+
+    if (hayRegistro && instalacionNueva) {
+      // La bandera afirma un hecho, y el hecho es falso: esta base ya tiene
+      // registro, o sea que no es nueva. Se para en vez de ignorarla, porque
+      // quien la teclea cree estar hablando de otra base.
+      console.error(
+        'ERROR migrar: --instalacion-nueva sobre una base que YA tiene `schema_migrations`.\n' +
+          'Esa bandera declara que la base acaba de nacer, y el registro dice que no.\n' +
+          'Corre el comando SIN la bandera: aplicara solo lo pendiente.',
+      )
+      return 1
+    }
+
     const aplicadas = hayRegistro
       ? new Set(
           (await cli.query('select archivo from schema_migrations')).rows.map((r) => r.archivo),
@@ -244,7 +322,28 @@ export async function main(argv = process.argv) {
       porRegistrar.push(m)
       aplicadasAhora++
       if (!hayTabla) hayTabla = await tablaDeRegistroExiste(cli)
-      if (hayTabla) await volcarRegistro()
+      if (hayTabla) {
+        try {
+          await volcarRegistro()
+        } catch (e) {
+          // El insert del registro también puede fallar (permisos sobre la
+          // tabla, disco, una réplica en solo lectura), y este era el único
+          // camino que se escapaba de `main()`: sin este catch, el error salía
+          // como excepción no capturada, o sea código 1 —«no se pudo ni
+          // empezar»— y un volcado de pila, sobre una base que SÍ cambió. El
+          // contrato de arriba dice 2, y 2 es lo que un `set -e` necesita
+          // distinguir para saber si hay que ir a mirar esa base.
+          console.error(
+            `ERROR migrar: se aplicaron ${aplicadasAhora} migraciones y no se pudieron ` +
+              `registrar: ${e.message}`,
+          )
+          console.error(`  sin registrar: ${porRegistrar.map((x) => x.archivo).join(', ')}`)
+          console.error(
+            '  la base SI cambio. La proxima corrida las daria por pendientes y las reaplicaria.',
+          )
+          return 2
+        }
+      }
     }
 
     if (porRegistrar.length) {

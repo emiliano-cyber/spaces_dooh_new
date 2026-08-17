@@ -93,7 +93,11 @@ Quedan fuera, cada una por su motivo:
 **Heurística de «base con historia»:** existe `tenants` **y** tiene filas. Que la
 tabla deba existir es el punto: en una base recién creada, donde ni `schema.sql`
 ha corrido, no hay historia que respetar y `schema_migrations` queda vacía para
-que el runner lo aplique todo.
+que el runner lo aplique todo. El runner **reutiliza esta misma heurística** en su
+guard, en vez de inventarse otra (ver «El guard», abajo). Ojo con su límite:
+`schema.sql` siembra `rgb` (`db/schema.sql:598`), así que **en cuanto corre, la
+heurística ya dice «con historia»** — por eso esta migración solo es segura
+aplicada **en su turno**, después de las 65.
 
 ## El runner (`scripts/migrar.mjs`)
 
@@ -105,16 +109,70 @@ migraciones en cada despliegue y no deja registro.
 DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
                                                           node scripts/migrar.mjs --pendientes  # lista, no aplica
                                                           node scripts/migrar.mjs --con-datos   # incluye las @tipo: datos
+                                                          node scripts/migrar.mjs --instalacion-nueva  # la base acaba de nacer
 ```
+
+> [!warning] Se corre desde la RAÍZ del repositorio, no desde `apps/web`
+> El script vive en `scripts/`, no en `apps/web/scripts/`. El comando de
+> verificación de F3.2 (`Plan_Instancias_Soberanas_v3.md:994-998`) hereda un `cd
+> apps/web` de su primera línea y por eso su segunda línea falla con
+> `Cannot find module … apps\web\scripts\migrar.mjs`. Es un defecto del plan, no
+> del runner.
 
 | Decisión | Por qué |
 |---|---|
 | **`DATABASE_URL` obligatoria**: sin ella aborta con salida 1 | Desviación consciente de `apply-migration.mjs:16-24`, que cae en un default local. Ese default es la base de **desarrollo con datos reales**, cuyo rol `spaces` es superusuario con `BYPASSRLS`. Es lo que T-02 le quitó a `bootstrap-auth.mjs`, y aquí pesa más: este script ejecuta **DDL** |
 | Solo imprime `host:puerto/base` | El destino se registra **sin credenciales**, igual que `apply-migration.mjs:28-37` |
-| Sin registro previo = instancia nueva | La tabla la crea una migración más; el runner **no duplica su DDL**. Lo aplicado antes de que la tabla exista se registra en cuanto aparece |
-| Cada archivo con **su propia transacción** | Los `.sql` traen su `begin; … commit;`; envolverlos en otra no anida, y el `commit` de dentro cerraría el de fuera. Si uno falla, se aborta **sin registrarlo** y con el nombre del archivo en el error (salida 2) |
+| Sin registro **y con datos** = se para y pregunta (salida 1) | No puede distinguir una instancia rezagada de una recién instalada, y las dos suposiciones hacen daño en silencio. Ver «El guard», abajo |
+| La tabla de registro la crea una migración, no el runner | El runner **no duplica ese DDL**: una segunda copia es la forma de que las dos dejen de coincidir. Lo aplicado antes de que la tabla exista se registra en cuanto aparece |
+| Cada archivo con **su propia transacción** | **48 de los 68** traen su `begin; … commit;`, y envolverlos en otra no anida: el `commit` de dentro cerraría el de fuera. Los otros 20 viajan como sentencia simple, que Postgres ejecuta en su transacción implícita. En los dos casos, si el archivo falla no queda aplicado a medias. Se aborta **sin registrarlo** y con el nombre del archivo en el error (salida 2) |
+| Si aplica y **no puede registrar**, salida 2 | El insert del registro también puede fallar (permisos, disco, réplica en solo lectura). Escapaba sin capturar, o sea salida **1 con volcado de pila** —«no se pudo ni empezar»— sobre una base que sí cambió. El 2 es lo que un `set -e` necesita distinguir para saber si hay que ir a mirar |
 | Las `@tipo: datos` se **omiten** y se nombran | Mismo criterio que `deploy.yml:151-159`: reescriben filas y no se deshacen solas. Pero una migración que no se aplica y que nadie menciona es una que se olvida |
 | El tipo se lee de la **primera línea** | `20260812_schema_migrations.sql` **menciona** la cadena `-- @tipo: datos` en su prosa (`:44` y `:168`). Un filtro por «el archivo contiene la marca» se saltaría, en silencio, justo la migración que crea la tabla de registro. Lo ancla `scripts/migrar.test.ts` |
+
+### El guard: «sin registro» NO significa «instancia nueva»
+
+Era la suposición del primer runner, y en el único servidor que hoy existe es
+exactamente al revés: el droplet lleva meses con las migraciones aplicadas a mano
+y **sin** `schema_migrations`, porque la crea una migración que nadie ha aplicado
+todavía. Leído como «instancia nueva», el runner le reaplicaba **su historia
+entera**.
+
+Y no hay forma de distinguirlas: después de `schema.sql` las dos tienen el tenant
+`rgb` y ninguna tiene registro. **Las dos suposiciones hacen daño, por lados
+opuestos:**
+
+| Suposición equivocada | Qué pasa |
+|---|---|
+| La rezagada tratada como nueva | Reaplica la historia. Desde T-04 la cadena aguanta una segunda pasada, pero una base parada en la ventana `[20260723, 20260807)` **aborta a mitad** y queda con migraciones aplicadas y **cero** registradas |
+| La nueva tratada como rezagada | El backfill da por aplicadas 65 migraciones que **nunca corrieron**, y `schema.sql` es un SUBCONJUNTO de lo desplegado (le faltan 143 columnas, `db-e2e.ts:107-112`). El esquema queda incompleto **sin dar un solo error** |
+
+Así que **el runner no adivina: se para con salida 1 y pregunta**, nombrando las
+dos salidas — aplicar primero `20260812_schema_migrations.sql` si la instancia
+tiene historia, o repetir con `--instalacion-nueva` si acaba de nacer. La
+heurística de «base con historia» es la **misma, literal**, que la del backfill
+(`20260812_schema_migrations.sql:99-110`): existe `tenants` y tiene filas. Si las
+dos divergieran, runner y backfill discreparían sobre qué es una instancia nueva,
+y esa discrepancia no da error: deja un registro que miente.
+
+`--instalacion-nueva` sobre una base que **ya** tiene registro también se rechaza:
+la bandera afirma un hecho, el registro dice que es falso, y quien la teclea cree
+estar hablando de otra base.
+
+> [!danger] El orden importa y no es simétrico
+> Sobre una instalación recién creada, aplicar `20260812_schema_migrations.sql`
+> **antes** que el resto es justo lo que NO hay que hacer: su backfill da por
+> aplicadas las 65 históricas. En una instalación nueva esa migración debe llegar
+> **en su turno**, aplicada por el runner después de las 65 — que es lo que el
+> propio archivo asume al decir que «acaban de aplicarse en esta misma pasada»
+> (`:66-70`).
+
+Lo cubren cuatro casos en `migraciones.e2e.test.ts`, que montan el droplet de hoy
+(rol de app → `schema.sql` → la historia anterior al corte, sin registro) y
+comprueban que el runner **se niega y no toca la base**, que `--pendientes`
+tampoco contesta «Aplicadas: 0», y que tras aplicar el registro el runner aplica
+**solo lo que falta** — las 65 filas siguen marcadas `'backfill'`, que es el
+rastro que dejaría lo contrario.
 
 > [!warning] El runner NO levanta una base virgen él solo
 > `20260729_licencias_permisos.sql:96-97` aborta si no existe un rol de
@@ -125,7 +183,9 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
 > imagen (además es de desarrollo: en producción el rol es `spaces_user`).
 > `recrearEsquema()` lo resuelve aplicando `dev-rol-app.sql` primero, y la prueba
 > de la base vacía reproduce ese mismo prólogo. Queda abierto para el
-> aprovisionamiento (Fase 5).
+> aprovisionamiento (Fase 5) — que además es **quien tendrá que pasar
+> `--instalacion-nueva`**: es el único que sabe con certeza que la base acaba de
+> nacer.
 
 > [!danger] El ASSERT de `20260812_schema_migrations.sql:221-223` y este runner
 > Ese ASSERT comprueba `archivo >= '20260812'` sobre **toda** la tabla, sin
