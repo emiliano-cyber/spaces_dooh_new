@@ -159,7 +159,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F3.6 | [release] | ejecutor escribe el retiro; **NO se mergea a main** | canal probado en real | PENDIENTE_SERVIDOR | Retirar `deploy.yml` antes de que exista el canal real dejaría sin despliegue: se prepara, no se aplica |
 | F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `f369b4c`, auditada **AMARILLO y aceptada**; **sus tres hallazgos (H1, H2, H4) corregidos el 18/08** —ver el cierre del bloque de auditoría— | Nace `infra/scripts/respaldo.sh` (258 líneas) y el paso 3 de `update.sh` hace tres cosas: dump, poda local y subida. Arnés de **37·165 con 10 mutantes** a **48 escenarios · 218 comprobaciones · 0 rojas** con **17 mutantes, 0 escapan** (~45 min), y tras la corrección a **51 · 236 · 0** con **21 mutantes**. ▸ ⚠️ **Su ejecutor dijo haber encontrado y corregido un defecto propio —la poda bajo el `set -e` de `update.sh`— y la auditoría lo falsó**: el contrafactual sobrevive y llega a las migraciones, porque `respaldo.sh:237` ya neutraliza `set -e` por su cuenta. La defensa que añadió está bien puesta pero su rama es **inalcanzable**. Sí es cierto que volvió a medir el arnés entero tras tocarlo. ▸ Credenciales **solo documentadas** —ninguna entra al repo— y **no viajan en `argv`**: archivo temporal con `chmod 600` pedido ANTES de escribir el secreto. ▸ **Fail-closed**: sin `respaldo.sh` al lado, el update se para ANTES del `pull`. La subida real a Spaces es tarjeta humana (TH-F37-A a D). **Cierra la segunda mitad de D4**: la retención de 3 respaldos locales que pide su paso 4 es exactamente la poda de `DIR_RESPALDOS` que hoy no existe. ⚠️ La retención remota (30 días) va por **regla de ciclo de vida del bucket, NO por un `rm` en el script** — el plan explica por qué y no es una preferencia de estilo |
 | F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `84c6c20`, auditada **AMARILLO y aceptada** (18/08, veredicto en el bloque de abajo); su hallazgo **H-1 sigue abierto** y Jochelo aprobó cerrarlo con H1 y H2 | `PULL_ESPERAS="1 5 30"` configurable desde `instancia.env` (vacío = ningún reintento), `pull_una_vez()`/`pull_con_reintentos()` en `update.sh:399-435`, y la bandera **`--simular-fallo-pull`** que el plan pide en su comando de verificación. **La migración no se tocó**: sigue siendo una sola llamada a `correr_runner`, y ahora hay dos escenarios que lo cuentan. El comando literal del plan, corrido contra un `/opt/space-os` simulado: **salida 1, `grep -c reintento` = 3, 36,9 s reales** (1+5+30) y **el directorio de estado vacío** — ni respaldo, ni `version-anterior`. Arnés: de **32·121 con 7 mutantes** a **37 escenarios · 165 comprobaciones · 0 rojas** con **10 mutantes, 0 escapan**. ⚠️ La cuarta fila de la tabla del plan —el **reporte al padre**— es **F6.4**: queda documentada y **explícitamente sin implementar**. ▸ Hallazgo declarado por su ejecutor, medido y no defectuoso: un `PULL_ESPERAS` no numérico **no rompe el update** — `sleep` protesta por stderr (que **no llega a `update.log`**), no espera, y el pull se rinde igual sin tocar nada. Fail-safe, escrito en la tabla de configuración del README |
-| F3.9 | [infra] | ejecutor + ensayista parcial | **F3.7** ✅ (`plan:1206`, no F3.4) | ✅ **COMPLETADA_LOCAL** — `d540833`, AMARILLO, **pendiente de auditoría** | **El diagnóstico cambió la forma de la tarea.** Medido antes de diseñar: `update.log` ya llevaba salida **cruda** —el runner (un error de Postgres arrastra la fila que lo provocó), `pg_dump`, `pg_restore`, y sobre todo **`docker logs --tail 30` del contenedor nuevo**, que son los registros de la aplicación—. Subirlo tal cual **habría incumplido el criterio**, así que la tarea no fue añadir una subida sino **separar lo que el script emite de lo que emiten sus herramientas**. ▸ **Dos logs, una sola regla**: `registrar` escribe en los dos; `eco` solo en el local. Viaja `update-publicable.log` —solo esta corrida, solo líneas del script y su código de salida—; se queda `update.log`, crudo y acumulado. **Sin lista de palabras prohibidas ni filtro por regex**, a propósito: un filtro se olvida de un caso y nadie se entera. Comprobado **leyendo** el archivo que viaja en un escenario de vuelta atrás: sale el diagnóstico entero y **ni una fila, ni una credencial, ni un nombre de tabla**. ▸ Arnés: **58 escenarios · 278 comprobaciones · 0 rojas** y **25 mutantes, 0 escapan** (~100 min). Rojo primero: **12 comprobaciones** en E52–E56. ▸ 🔴 **Límite declarado**: la subida cuelga de `salir()`, así que **si el proceso muere por una señal no hay log en el bucket**. Se intentó un `trap EXIT` y **no vale**: `respaldo.sh:168` hace `trap - EXIT INT TERM HUP` al cerrar su subida, así que quedaría **desarmado desde el paso 3**, justo donde las cosas salen mal. Cerrarlo exige tocar `respaldo.sh`, que está auditado: reportado, no arreglado. ▸ El bucket es **`space-os-logs`, distinto de `space-os-respaldos`**: dos buckets, dos reglas (90 días aquí, 30 allí) y **la llave de F3.7 a secas devuelve 403**. Tarjetas en `README.md` §8, hermanas de las de §7 |
+| F3.9 | [infra] | ejecutor + ensayista parcial | **F3.7** ✅ (`plan:1206`, no F3.4) | 🔴 **EN CORRECCIÓN** — `d540833` auditado **ROJO** (18/08). Ciclo 1 de 2 | **El diagnóstico cambió la forma de la tarea.** Medido antes de diseñar: `update.log` ya llevaba salida **cruda** —el runner (un error de Postgres arrastra la fila que lo provocó), `pg_dump`, `pg_restore`, y sobre todo **`docker logs --tail 30` del contenedor nuevo**, que son los registros de la aplicación—. Subirlo tal cual **habría incumplido el criterio**, así que la tarea no fue añadir una subida sino **separar lo que el script emite de lo que emiten sus herramientas**. ▸ **Dos logs, una sola regla**: `registrar` escribe en los dos; `eco` solo en el local. Viaja `update-publicable.log` —solo esta corrida, solo líneas del script y su código de salida—; se queda `update.log`, crudo y acumulado. **Sin lista de palabras prohibidas ni filtro por regex**, a propósito: un filtro se olvida de un caso y nadie se entera. Comprobado **leyendo** el archivo que viaja en un escenario de vuelta atrás: sale el diagnóstico entero y **ni una fila, ni una credencial, ni un nombre de tabla**. ▸ Arnés: **58 escenarios · 278 comprobaciones · 0 rojas** y **25 mutantes, 0 escapan** (~100 min). Rojo primero: **12 comprobaciones** en E52–E56. ▸ 🔴 **Límite declarado**: la subida cuelga de `salir()`, así que **si el proceso muere por una señal no hay log en el bucket**. Se intentó un `trap EXIT` y **no vale**: `respaldo.sh:168` hace `trap - EXIT INT TERM HUP` al cerrar su subida, así que quedaría **desarmado desde el paso 3**, justo donde las cosas salen mal. Cerrarlo exige tocar `respaldo.sh`, que está auditado: reportado, no arreglado. ▸ El bucket es **`space-os-logs`, distinto de `space-os-respaldos`**: dos buckets, dos reglas (90 días aquí, 30 allí) y **la llave de F3.7 a secas devuelve 403**. Tarjetas en `README.md` §8, hermanas de las de §7 |
 
 > [!important] ✅ `2633bcb` auditado **AMARILLO** y aceptado — 2026-08-18
 > `verificador` en sesión aparte. **Reprodujo el rojo de forma independiente**: corrió el
@@ -310,6 +310,48 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > camino que devuelve ≠0**, así que el `AVISO` de **`update.sh:653`** dejó de ser código
 > muerto. La defensa que su ejecutor puso —y que la auditoría demostró inalcanzable— hoy se
 > alcanza, y **E50 la ejerce**.
+
+> [!danger] 🔴 `d540833` (F3.9) auditado **ROJO** — 2026-08-18. En corrección, ciclo 1 de 2
+> **El rechazo NO es por fuga de datos.** La auditoría leyó el archivo que viaja en los **58
+> escenarios** y no encontró ni una fila de negocio, ni una credencial, ni salida cruda de
+> ninguna herramienta; la regla «`registrar` escribe en los dos, `eco` solo en el local` **no
+> tiene fugas**, y los cuatro mutantes que la defienden muerden. El diseño de dos logs es
+> correcto. **Se rechaza porque tres documentos afirman cosas que el código no cumple.**
+>
+> **Invalidante 1 · el proceso que pierde el candado escribe en el log de la corrida que lo
+> tiene.** `update.sh:386` exporta `SPACE_OS_UPDATE_EN_CANDADO=1` **antes** del `flock` de
+> `:388`, así que cuando `flock -n -E 75` devuelve 75 el proceso exterior conserva la variable,
+> pasa el guard de `:312` y su línea acaba dentro del `update-publicable.log` ajeno —
+> **reproducido**. Lo desmienten `README.md:597-598`, `update.sh:248-250` y
+> `entorno-y-despliegue.md:610-611`, los tres con la frase «no escribe ni sube nada». **El arnés
+> no lo veía**: su escenario de candado solo afirma `no_hubo 's3cmd'`, la mitad «no sube», y
+> **nunca abre el archivo publicable**.
+>
+> **Invalidante 2 · «salga bien o mal» no se cumple en 12 salidas.** `subir_log_remoto`
+> (`:337`) depende de funciones de `respaldo.sh`, que no se sourcea hasta `:533`; las doce
+> salidas anteriores (`:384, :404, :436, :437, :440, :467, :469, :521-:524, :531`) escriben el
+> publicable y **no suben nada**. Son los fallos de **instancia mal aprovisionada**, o sea la
+> clase que el criterio del plan quiere diagnosticar sin entrar al servidor. Y el 75 ni siquiera
+> pasa por `salir()`: `:392` sale con un `exit` pelado.
+>
+> ⚠️ **Elevado a prioritario por el orquestador, aunque la auditoría lo dejó fuera de los
+> invalidantes:** `destino_de_url` (`:445-447`) **no corta la credencial** cuando la contraseña
+> lleva `@` o `/` sin codificar (`p@ssw0rd` → `ssw0rd@localhost…`; `pa/ss` → `spaces:pa/ss@…`),
+> y su salida es **la primera línea de todo log que viaja** (`:539`). La función es anterior al
+> commit, pero **el commit le cambió el perfil de riesgo**: lo que se quedaba en el droplet
+> ahora sale a un bucket.
+
+> [!important] La barrida de mutación ya no cabe en un ciclo — dato medido el 18/08
+> La auditoría **no pudo terminarla: la mató el entorno tras ~5 h**, con 12 de 25 cazados y 0
+> escapes. Midió **~25 min por mutante en esta máquina**, contra los ~4 que implican los 100 min
+> declarados por el ejecutor. Verificó **16 de 25** (12 de la corrida + los 4 de F3.9 aislados
+> con `probar_mutante_en`), **0 escapan**; los 9 restantes son ajenos a la tarea. La afirmación
+> «25 mutantes · 0 escapan» **no queda desmentida, pero tampoco reproducida entera**, y el
+> motivo es de entorno, no del commit.
+>
+> **Consecuencia práctica:** a 25 mutantes × 25 min, la barrida completa pasa de **10 horas**.
+> Con el arnés creciendo cada tarea, exigirla por ciclo bloquea la ejecución. Decisión pendiente
+> de Jochelo.
 
 > [!warning] Hueco de la bóveda detectado por F3.9 — `modelo-instancias-soberanas.md:93-101`
 > Su tabla «Las nueve fases, convertidas en tareas» **conserva los recuentos del plan v2**:
