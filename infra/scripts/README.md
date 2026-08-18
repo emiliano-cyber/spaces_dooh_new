@@ -193,7 +193,36 @@ Si `flock` no está instalado, el script **no corre**.
 
 ---
 
-## Siete cosas que hay que saber antes de tocarlo
+## Ocho cosas que hay que saber antes de tocarlo
+
+### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
+
+**Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
+`--con-datos`** (`update.sh:407-413`), así que una instancia **nunca** aplica una
+migración marcada `-- @tipo: datos` en su primera línea. Eso es deliberado, no un
+olvido: una corrección de datos no debe colarse en una actualización automática que
+corre de madrugada por `cron` sin nadie mirando.
+
+Lo que hasta hoy faltaba no era el comportamiento, **era decir quién las aplica**.
+La respuesta es: **una persona, a mano, con el ritual de
+`vault/04-Datos/migraciones.md` §«Antes de aplicar en producción»** — respaldo,
+ensayo en `ROLLBACK`, `ON_ERROR_STOP=1` y nota de despliegue.
+
+Cómo se ve desde el log, y por qué no es una alarma:
+
+```
+0 aplicadas, 1 de datos pendientes.
+```
+
+Ese `1 de datos pendientes` es **informativo y permanente** hasta que alguien la
+aplique. `update.sh` sale 0 y la instancia queda al día en todo lo demás. Hoy la
+pendiente es `db/migrations/20260731_calendario_meses_cortos.sql`.
+
+> [!warning] Quien publique un release con una migración de datos tiene que avisar
+> El runner **no** la aplicará en ninguna instancia de la flota, y el update **no**
+> falla por ello. Si nadie avisa, la corrección sencillamente no ocurre — en
+> silencio y en todas partes a la vez.
+
 
 ### 1 · El runner de migraciones NO viaja en la imagen
 
