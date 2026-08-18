@@ -14,7 +14,8 @@ archivos:
 # Ejecución del plan v3 — Fases 1–4 en local
 
 Estado vivo de la orquestación. Lo mantiene el orquestador; los humanos lo leen.
-El plan de autoridad es [[../../docs/Plan_Instancias_Soberanas_v3]] — este archivo
+El plan de autoridad es
+[`Plan_Instancias_Soberanas_v3`](../../docs/Plan_Instancias_Soberanas_v3.md) — este archivo
 no lo replantea, solo registra su ejecución local.
 
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor

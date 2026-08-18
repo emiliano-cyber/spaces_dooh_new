@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -48,7 +48,7 @@ cobranza.
 - [[vision-general]] — diagrama de componentes y por qué hay una sola pista viva
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
 - [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
-- [[decisiones]] — los 12 ADR y las decisiones deducidas del código
+- [[decisiones]] — los 13 ADR y las decisiones deducidas del código
 - [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
@@ -93,7 +93,13 @@ cobranza.
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-10]] — **última entrada**: despliegues del día + V2-01
+- [[2026-08-17]] — **última entrada**: el runner de migraciones en tres ciclos,
+  T-04, F3.3, el workflow de release y `update.sh`
+- [[2026-08-14]] — expedientes de evidencia, Fase 2 y el registro cerrado en toda la flota
+- [[2026-08-13]] — entra el plan v3 con sus tres agentes; Fase 1 cerrada en local
+- [[2026-08-12]] — nace el plan del servidor padre
+- [[2026-08-11]] — el menú lateral cuenta el proceso
+- [[2026-08-10]] — despliegues del día + V2-01
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
 ### 08 · Manuales

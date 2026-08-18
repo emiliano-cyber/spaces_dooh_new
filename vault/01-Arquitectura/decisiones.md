@@ -31,6 +31,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0010 | Catálogo explícito de módulos, retiro del rol `CLIENTE` | Aceptada | `lib/modulos.ts`; el enum aún lo tiene |
 | 0011 | `config_negocio` por tenant | **Propuesta** | Ya implementado (`db/schema.sql:626-651`) |
 | 0012 | **Acceso con cuenta de Google** | Aceptada + **enmendada el 07/08** | [[flujo-acceso-con-google]] |
+| 0013 | **Altas que no se pueden duplicar** | Aceptada | `arrendadores_tenant_rfc_uq` (`20260810_arrendadores_rfc_unico.sql`); el nombre repetido avisa con 409 y se puede confirmar — ver [[arrendadores-y-contratos]] |
 
 > [!warning] ADR 0011 dice "Propuesta" pero ya está en producción
 > El código y la migración `20260805_config_negocio_por_tenant.sql` están
@@ -40,7 +41,8 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 > [!note] ADR 0012 se enmendó el mismo día que se desplegó
 > La versión original decía «Google autentica, no da de alta». La enmienda
 > (`4206ab2`) permite crear usuarios y organizaciones con Google, colgándolo del
-> **mismo interruptor** `NEXT_PUBLIC_AUTOREGISTRO` que ya gobernaba `/api/signup`.
+> **mismo interruptor** `AUTOREGISTRO` (`apps/web/lib/entorno.ts:27`; se llamaba
+> `NEXT_PUBLIC_AUTOREGISTRO` hasta que F2.6 lo renombró) que ya gobernaba `/api/signup`.
 > Google sigue sin decidir organización ni rol.
 >
 > La decisión 4 (reautenticación por Google) **sigue fuera**, y deja de ser un
@@ -56,7 +58,7 @@ Están razonadas en comentarios, no en `docs/adr/`. Se documentan aquí porque
 tienen el mismo peso operativo.
 
 ### D-1 · La sesión es opaca y se resuelve contra la tabla, no criptográficamente
-`lib/server/auth.ts:96-105` genera 256 bits aleatorios y los guarda en `sesiones`.
+`lib/server/auth.ts:92-101` genera 256 bits aleatorios y los guarda en `sesiones`.
 No hay JWT ni firma. **Ventaja:** la revocación es real (borrar la fila).
 **Costo:** cada petición hace una consulta.
 

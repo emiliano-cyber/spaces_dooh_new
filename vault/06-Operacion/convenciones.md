@@ -144,7 +144,14 @@ Contrastar con [[MOC-Proyecto]], [[api-endpoints]], [[esquema]] y
 Extraer los enlaces internos (dobles corchetes) de cada nota y comprobar que
 existe un `.md` con ese `BaseName` — o con esa ruta relativa, para los que van
 con carpeta, tipo `02-Backend/_indice`. Al 10/08: **395 enlaces, 0 rotos, 0
-huérfanas**.
+huérfanas**. Al 17/08, con el diario recuperado: **606 enlaces, 0 rotos, 0
+huérfanas** sobre 48 notas.
+
+> [!warning] Dos `_indice.md` distintos rompen los verificadores ingenuos
+> `02-Backend/_indice.md` y `03-Frontend/_indice.md` comparten `BaseName`. Un
+> script que indexe por nombre y no por ruta colapsa los dos en uno y declara
+> **huérfana** a la que pierda el sorteo. Pasó el 17/08 y el falso positivo
+> parecía real. Resuelve por ruta cuando el enlace la traiga.
 
 > [!tip] Ojo con los ejemplos de sintaxis
 > Un extractor ingenuo también captura los dobles corchetes escritos como
@@ -160,6 +167,16 @@ backticks. **Dos avisos** si automatizas esto:
   **`apps/web`** (`lib/server/…`); hay que probar las dos bases;
 - `Test-Path` trata `[token]` y `[id]` como comodines — usa **`-LiteralPath`** o
   darán falsos negativos en todas las rutas dinámicas de Next.
+
+> [!warning] Segunda trampa de la misma familia: los paréntesis de los *route groups*
+> Un verificador que recorte la puntuación final de la cadena se come el `)` de
+> `apps/web/app/(app)/(shell)/` (frontmatter de [[modulos-internos]]) y la marca como
+> rota. **Es un falso positivo**: el directorio existe. Trata `(`, `)`, `[` y `]` como
+> **literales**, no como sintaxis ni como puntuación a limpiar.
+> Descubierto en la auditoría del 17/08, que también tropezó con el caso contrario:
+> exigir la ruta completa marca como rotas todas las migraciones y los ADR, porque la
+> bóveda los cita por nombre a secas (`20260720_hard1_usuarios_rls.sql`, sin
+> `db/migrations/`). Hace falta resolver también por sufijo y por nombre de archivo.
 
 ### 4 · Los números de línea no han derivado
 

@@ -456,8 +456,8 @@ para el redirect URI de Google.
 | Variable | Para qué | Evidencia |
 |---|---|---|
 | `DATABASE_URL` | Conexión Postgres | `lib/server/db.ts:23` |
-| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:191` |
-| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:188-192` |
+| `NODE_ENV` | Modo, default de `Secure`, pool en dev | `lib/server/auth.ts:187` |
+| `COOKIE_SECURE` | Fuerza/apaga `Secure` en cookies | `lib/server/auth.ts:184-188` |
 | `APP_URL` | Base de enlaces en correos | `app/api/auth/forgot/route.ts:50` |
 | `HSTS` | Activa Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente | `lib/server/email.ts` |

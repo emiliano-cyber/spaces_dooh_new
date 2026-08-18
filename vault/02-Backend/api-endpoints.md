@@ -20,8 +20,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | Guard | Qué exige | Definido en |
 |---|---|---|
 | `PÚBLICO` | Nada. Se auto-protege por token o es bootstrap de sesión. | — |
-| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:150-182` |
-| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:112-126` |
+| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:146-178` |
+| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:108-122` |
 | `DESBLOQ` | Además, desbloqueo vigente si el tenant lo exige | `lib/server/cambios.ts:199-210` |
 | `REAUTH` | Además, desbloqueo **siempre**, ignore el interruptor del tenant | `lib/server/cambios.ts:221-226` |
 | `SENSIBLE` | `exigir(modulo,accion)` + `exigirDesbloqueo()` juntos | `lib/server/cambios.ts:236-245` |
@@ -81,7 +81,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 > [!danger] `/api/estado` devuelve TODO el tenant
 > Campañas, clientes, propuestas y cifras financieras en una sola respuesta.
 > Por eso el corte de `debe_cambiar_password` en `exigir()` es incondicional
-> (`lib/server/auth.ts:156-171`) y **no** puede condicionarse a que la ruta
+> (`lib/server/auth.ts:152-167`) y **no** puede condicionarse a que la ruta
 > declare módulo.
 
 ## Inventario

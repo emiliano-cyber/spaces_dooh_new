@@ -24,13 +24,13 @@ No hay NextAuth, ni `jose`, ni iron-session.
 
 | Pieza | Valor | Evidencia |
 |---|---|---|
-| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15,195-211` |
-| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:96-105` |
+| Cookie de sesión | `spaces_sesion`, httpOnly, sameSite lax, 30 días | `lib/server/auth.ts:15,191-201` |
+| Token | 256 bits aleatorios, **opaco y sin firma** | `lib/server/auth.ts:92-101` |
 | Validez | Fila viva en `sesiones` con `expira_en > now()` | `auth_usuario_por_sesion()` |
-| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:87-94` |
-| Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:59` |
-| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:213-230` |
-| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:188-192` |
+| Hash de contraseña | bcrypt costo 10 | `lib/server/auth.ts:83-85` |
+| Contraseña generada (alta con Google) | `passwordAleatoria()`, cumple la política por construcción | `lib/server/auth.ts:55` |
+| Cookie CSRF | `spaces_csrf`, **httpOnly:false a propósito** | `lib/server/auth.ts:216-226` |
+| `Secure` | ON en producción salvo `COOKIE_SECURE=0` | `lib/server/auth.ts:184-188` |
 
 ## El camino de una petición autenticada
 
@@ -132,9 +132,11 @@ tenant. Es lo que protege `/api/usuarios/[id]/restablecer`.
 
 ## Contraseñas
 
-Política única (`auth.ts:35-57`): ≥8 caracteres, al menos una letra y un número,
-sin espacios. La comparten signup, alta de usuarios y cambio de perfil — y
-`passwordAleatoria()` (`auth.ts:59`) la **construye** en vez de confiar en el
+Política única (`apps/web/lib/password.ts:26-39`): ≥8 caracteres, al menos una
+letra y un número, sin espacios. **Ya no vive en `auth.ts`** — salió a
+`lib/password.ts` el 10/08 (`cde5f58`) y `auth.ts:36` solo la reexporta.
+La comparten signup, alta de usuarios y cambio de perfil — y
+`passwordAleatoria()` (`auth.ts:55`) la **construye** en vez de confiar en el
 azar, porque base64url puede salir sin letra o sin dígito y el alta fallaría una
 vez de cada tantas.
 

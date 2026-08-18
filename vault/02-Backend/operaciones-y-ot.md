@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts

@@ -33,13 +33,15 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la 0013), los **planes**
 
 ### Qué es, técnicamente
 
-**43 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**48 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-08-10 tenía **395 enlaces internos, 0 rotos y 0 notas huérfanas**.
+Al 2026-08-17 tenía **606 enlaces internos, 0 rotos y 0 notas huérfanas**.
+La medición del 10/08 daba 395 enlaces sobre 43 notas: crecio con el diario y
+con las notas de la ejecucion del plan v3.
 
 ### La estructura
 
@@ -65,7 +67,7 @@ vault/
 ├── 06-Operacion/     zonas-de-riesgo · convenciones ·
 │                     verificacion-de-produccion
 ├── 07-Agentes/       AGENTES · tablero · diario/ (una nota por día)
-└── 08-Manuales/      manual-tecnico · manual-usuario
+└── 08-Manuales/      manual-tecnico
 ```
 
 El prefijo numérico impone el orden de lectura natural: índice → arquitectura →
@@ -230,9 +232,9 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 ### La trampa del orden de migraciones
 
 El orden **no es lexicográfico puro**. El mapa `ANTES_DE` con las dos excepciones
-reales vive en **`scripts/migrar.mjs`** desde el 17/08 (F3.2) y se declara una
+reales vive en **`scripts/migrar.mjs:61`** desde el 17/08 (F3.2) y se declara una
 sola vez: `apps/web/lib/test/db-e2e.ts` tenía una copia y ahora importa
-`ordenar()` de ahí. Cualquier cosa que aplique migraciones tiene que reproducir
+`ordenar()` de ahí (`db-e2e.ts:145`). Cualquier cosa que aplique migraciones tiene que reproducir
 ese orden o una base nueva no levanta.
 
 ### La base del 5433 no es de pruebas

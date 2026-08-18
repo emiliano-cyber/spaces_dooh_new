@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: sin-ejecutar
-actualizado: 2026-08-11
+actualizado: 2026-08-13
 tags: [operacion, produccion, verificacion, runbook]
 archivos:
   - db/schema.sql
@@ -70,7 +70,8 @@ sudo -u postgres psql -d spaces_prod -c "
 > [!danger] Como `postgres`, NUNCA con `spaces_user`
 > `spaces_user` es `NOBYPASSRLS`. Con la RLS fail-closed y sin `app.tenant_id`
 > fijado, los conteos salen en **cero con buena pinta** — la misma trampa que
-> documenta el PASO 1 de [[DESPLIEGUE_20260810_MIGRACIONES]] para los dumps.
+> documenta el PASO 1 de
+> [`DESPLIEGUE_20260810_MIGRACIONES.txt`](../../DESPLIEGUE_20260810_MIGRACIONES.txt) para los dumps.
 
 ```bash
 # Total por tabla
@@ -208,7 +209,7 @@ configurado, `COOKIE_SECURE`, `APP_URL`, `MEDIR_ESTADO` y los `NEXT_PUBLIC_*`.
 
 Tres evidencias distintas, porque el `git log` por sí solo no prueba nada: el
 commit puede estar bien y el artefacto servido ser viejo (lo dice el PASO 6 de
-[[DESPLIEGUE_20260810_MIGRACIONES]]).
+[`DESPLIEGUE_20260810_MIGRACIONES.txt`](../../DESPLIEGUE_20260810_MIGRACIONES.txt)).
 
 ```bash
 cd /var/www/Spaces

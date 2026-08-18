@@ -1,7 +1,7 @@
 ---
 tipo: glosario
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-10
 tags: [dominio, negocio, vocabulario]
 archivos:
   - db/schema.sql
