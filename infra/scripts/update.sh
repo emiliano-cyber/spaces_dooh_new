@@ -42,6 +42,21 @@
 #  seria justamente el error que este script no puede cometer, porque de esa
 #  distincion depende si hay que ir a mirar la base o no.
 #
+# ── LA VENTANA: durante la conmutacion la instancia NO responde ─────────────
+#  Conmutar es `docker stop` + `docker run`, no un cambio de puerto en caliente.
+#  O sea que hay un hueco sin servicio, y conviene tenerlo escrito:
+#    · caso bueno  ~10-20 s  (el `stop` espera hasta 10 s al SIGTERM, y el
+#                             contenedor nuevo tarda en contestar el primer curl)
+#    · caso malo   hasta ~3 min: el sondeo de salud puede costar
+#                  SALUD_INTENTOS x (5 s de `--max-time` + SALUD_ESPERA) = 80 s,
+#                  luego el `pg_restore`, y luego OTRO sondeo igual sobre la
+#                  version anterior.
+#  Por eso el cron va a las 4 de la manana. "El owner no se entera" del criterio
+#  de aceptacion de F3.4 hay que leerlo como "se queda en la version anterior y
+#  no pierde datos", NO como "no hay corte": el corte existe y se mide en
+#  minutos. Cerrarlo de verdad (arrancar el nuevo en otro puerto y mover nginx)
+#  es otra tarea; aqui se documenta, no se disimula.
+#
 # ── Configuracion: /etc/space-os/instancia.env ─────────────────────────────
 #  Lo escribe el aprovisionamiento (Fase 5). Claves (o=obligatoria):
 #    CANAL=estable|beta            (o)  el canal que sigue esta instancia
@@ -105,6 +120,42 @@
 #  caso fuera precisamente porque una imagen anterior carece por definicion de
 #  las migraciones nuevas que su registro afirma, y abortar ahi romperia esta
 #  vuelta atras. El runner las trata como aplicadas y no las toca.
+#
+# ── AVISO 3 · como sabe este script si la base cambio: PREGUNTANDOSELO ──────
+#  La primera version de este archivo lo deducia leyendo la PROSA del runner con
+#  un `sed` ("N aplicadas."). Fallaba, y no en teoria:
+#
+#    · `migrar.mjs:694-696` imprime "67 aplicadas, 1 de datos pendientes." en
+#      cuanto hay una migracion `@tipo: datos` pendiente — y la hay:
+#      `db/migrations/20260731_calendario_meses_cortos.sql`. El patron pedia un
+#      punto pegado a "aplicadas", no casaba, la cuenta caia a 0 y la VUELTA
+#      ATRAS NO RESTAURABA LA BASE: el contenedor volvia a la version vieja
+#      sobre un esquema nuevo, en silencio.
+#    · `migrar.mjs:670-678` y `:687-692` imprimen "se aplicaron N migraciones y
+#      no se pudieron registrar", que tampoco casaba, y el log acababa diciendo
+#      "no consta ninguna migracion aplicada; suele ser que no pudo conectar"
+#      justo debajo del mensaje del runner que decia lo contrario.
+#
+#  La leccion no es afinar el patron: es que la redaccion de OTRO programa no
+#  puede ser la fuente de verdad de una decision que lanza `pg_restore --clean`.
+#  Asi que este script no cuenta migraciones a partir del texto. Toma una HUELLA
+#  de la base ANTES y DESPUES de migrar —esquema (columnas, indices,
+#  restricciones, politicas RLS, funciones) mas el contenido de
+#  `schema_migrations`— y compara. Si la huella cambio, la base cambio. Punto.
+#
+#  Lo importante de esa eleccion:
+#    · funciona aunque `schema_migrations` NO exista (el caso de `migrar.mjs
+#      :687-692`, alcanzable HOY porque la imagen no lleva
+#      20260812_schema_migrations.sql): el hash del esquema ya es distinto.
+#    · NO se mueve con el trafico normal de la app —un `insert` no cambia
+#      columnas ni indices— asi que la version anterior puede seguir sirviendo
+#      entre las dos lecturas sin producir un falso "cambio".
+#    · si la huella no se puede leer ANTES de migrar, el update se PARA (codigo
+#      1) sin migrar: sin punto de partida no hay decision de vuelta atras que
+#      se pueda defender.
+#  El numero de migraciones que sale en el log es la diferencia de filas de
+#  `schema_migrations`, o "?" si la tabla no existe. Es informativo: la decision
+#  cuelga de la huella, no del numero.
 # ============================================================================
 set -Eeuo pipefail
 
@@ -128,7 +179,10 @@ DRY_RUN=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
-    -h|--help) sed -n '2,60p' "$0"; exit 0 ;;
+    # Hasta la linea 78: uso, codigos de salida, la ventana de corte y las
+    # claves de instancia.env. Los AVISOS 1-3 no salen en el --help a proposito:
+    # son para quien va a TOCAR el script, no para quien lo corre.
+    -h|--help) sed -n '2,78p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -237,7 +291,55 @@ elif [ -n "$URL_APP" ] && [ "$(destino_de_url "$DATABASE_URL")" != "$(destino_de
   salir "$EX_CONFIG" "ERROR update: $CONF y $ENV_APP apuntan a bases DISTINTAS ($(destino_de_url "$DATABASE_URL") vs $(destino_de_url "$URL_APP")). Se para: migrar una y servir la otra no da error, deja dos bases a medias."
 fi
 [ -n "$DATABASE_URL" ] || salir "$EX_CONFIG" "ERROR update: falta DATABASE_URL (ni en $CONF ni en $ENV_APP). El runner de migraciones la exige y no adivina la base (scripts/migrar.mjs:344-355)."
+# EXPORTADA a proposito, y no es cosmetico: los contenedores efimeros la reciben
+# con `docker run --env DATABASE_URL` (sin valor), que toma el valor del entorno
+# del proceso. Sin `export` docker no pasa NADA y el runner sale 1 en todas las
+# instancias — un fallo total que no se ve leyendo el diff.
 export DATABASE_URL
+
+# ─── La contrasena NO viaja en argv ────────────────────────────────────────
+# `pg_dump --dbname="postgresql://usuario:clave@…"` deja la clave visible en
+# `ps` para cualquier usuario de la maquina. `deploy.yml:119` lo evita con
+# `sudo -u postgres` (autenticacion peer, sin clave); aqui la conexion es por
+# red, asi que se parte: usuario y destino en argv, clave por PGPASSWORD.
+PG_URL_SEGURA="$DATABASE_URL"
+PG_CLAVE=""
+if printf '%s' "$DATABASE_URL" | grep -Eq '^[a-zA-Z+]+://[^@/]+@'; then
+  pg_esquema="${DATABASE_URL%%://*}"
+  pg_resto="${DATABASE_URL#*://}"
+  pg_userinfo="${pg_resto%%@*}"
+  pg_destino="${pg_resto#*@}"
+  pg_usuario="${pg_userinfo%%:*}"
+  pg_clave_cruda=""
+  case "$pg_userinfo" in *:*) pg_clave_cruda="${pg_userinfo#*:}" ;; esac
+  if [ -z "$pg_clave_cruda" ]; then
+    : # sin clave en la URL (peer, trust o .pgpass): no hay nada que esconder
+  elif case "$pg_clave_cruda" in *\\*) true ;; *) false ;; esac; then
+    # `printf '%b'` interpretaria la barra invertida como escape y corromperia
+    # la clave. Mejor una clave visible en `ps` que un respaldo que no corre.
+    registrar "AVISO update: la contrasena de DATABASE_URL trae una barra invertida sin codificar; se deja la URL completa en argv (visible en \`ps\`) porque decodificarla podria corromperla. Codificala como %5C en $CONF y este aviso se va."
+  else
+    # Percent-decoding: en una URL un '%' literal va como %25, asi que
+    # convertir cada '%' en '\x' y pasarlo por `printf '%b'` es exacto.
+    case "$pg_clave_cruda" in
+      *%*) PG_CLAVE="$(printf '%b' "${pg_clave_cruda//%/\\x}")" ;;
+      *)   PG_CLAVE="$pg_clave_cruda" ;;
+    esac
+    PG_URL_SEGURA="$pg_esquema://$pg_usuario@$pg_destino"
+  fi
+fi
+
+# `pg_dump`/`pg_restore` siempre por aqui: un solo sitio decide como viaja la
+# clave. `$binario` se pasa como argumento para respetar PG_DUMP/PG_RESTORE.
+correr_pg() {
+  local binario="$1"
+  shift
+  if [ -n "$PG_CLAVE" ]; then
+    PGPASSWORD="$PG_CLAVE" "$binario" --dbname="$PG_URL_SEGURA" "$@"
+  else
+    "$binario" --dbname="$PG_URL_SEGURA" "$@"
+  fi
+}
 
 # ─── Herramientas ──────────────────────────────────────────────────────────
 command -v docker >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`docker\` en el PATH."
@@ -310,6 +412,92 @@ correr_runner() {
     "$IMAGEN" node scripts/migrar.mjs "$@"
 }
 
+# ─── La huella de la base — ver AVISO 3 ────────────────────────────────────
+# Se ejecuta con el `node` y el `pg` de la MISMA imagen, por la MISMA red y con
+# la MISMA DATABASE_URL que el runner: si esto lee la base, el runner tambien.
+# El guion va por STDIN y no por `-e` ni por un montaje: asi no hay comillas que
+# escapar ni rutas del anfitrion que existan dentro del contenedor.
+guion_huella() {
+  cat <<'FIN_GUION_HUELLA'
+const { Client } = require('pg')
+const cli = new Client({ connectionString: process.env.DATABASE_URL })
+// Todo lo que una migracion puede cambiar y el trafico normal de la app no:
+// columnas (y sus DEFAULT), indices, restricciones, politicas RLS y funciones.
+// Un `insert` de la version anterior sirviendo NO mueve ninguna de las cinco.
+const SQL_ESQUEMA = `
+  select coalesce(md5(string_agg(t, chr(10) order by t)), 'vacia') as h from (
+    select 'c:'||table_schema||'.'||table_name||'.'||column_name||':'||data_type
+           ||':'||coalesce(column_default,'') as t
+      from information_schema.columns
+     where table_schema not in ('pg_catalog','information_schema')
+    union all
+    select 'i:'||schemaname||'.'||indexname||':'||indexdef from pg_indexes
+     where schemaname not in ('pg_catalog','information_schema')
+    union all
+    select 'k:'||n.nspname||'.'||cl.relname||':'||co.conname||':'||pg_get_constraintdef(co.oid)
+      from pg_constraint co
+      join pg_class cl on cl.oid = co.conrelid
+      join pg_namespace n on n.oid = cl.relnamespace
+     where n.nspname not in ('pg_catalog','information_schema')
+    union all
+    select 'p:'||schemaname||'.'||tablename||':'||policyname||':'
+           ||coalesce(qual,'')||':'||coalesce(with_check,'')
+      from pg_policies
+     where schemaname not in ('pg_catalog','information_schema')
+    union all
+    select 'f:'||n.nspname||'.'||p.proname||':'||md5(coalesce(p.prosrc,''))
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname not in ('pg_catalog','information_schema')
+  ) s`
+const SQL_REGISTRO = `
+  select count(*)::int as n,
+         coalesce(md5(string_agg(archivo||':'||checksum, chr(10) order by archivo)), 'vacia') as h
+    from schema_migrations`
+cli
+  .connect()
+  .then(async () => {
+    const esquema = (await cli.query(SQL_ESQUEMA)).rows[0].h
+    // La tabla puede no existir (instalacion nueva, o imagen sin
+    // 20260812_schema_migrations.sql): eso no es un error, es un dato.
+    const hay = (await cli.query("select to_regclass('public.schema_migrations') is not null as hay")).rows[0].hay
+    let registro = 'sin-tabla'
+    let cuantas = -1
+    if (hay) {
+      const r = (await cli.query(SQL_REGISTRO)).rows[0]
+      registro = r.h
+      cuantas = r.n
+    }
+    // Una sola linea, con marca al principio: la lee `huella_base()` treinta
+    // lineas mas arriba, en ESTE archivo. No es prosa de otro programa.
+    console.log('HUELLA ' + esquema + ' ' + registro + ' ' + cuantas)
+    await cli.end()
+  })
+  .catch(async (e) => {
+    console.error('huella: ' + e.message)
+    await cli.end().catch(() => {})
+    process.exit(9)
+  })
+FIN_GUION_HUELLA
+}
+
+# Imprime "<huella_esquema> <huella_registro> <filas_de_schema_migrations>".
+# Devuelve != 0 y no imprime nada si la base no se pudo leer.
+huella_base() {
+  local salida codigo=0 linea
+  salida="$(guion_huella | docker run --rm --interactive \
+    --network "$RED_MIGRACION" --env DATABASE_URL "$IMAGEN" node 2>&1)" || codigo=$?
+  if [ "$codigo" -ne 0 ]; then
+    printf '%s\n' "$salida" >>"$LOG"
+    return 1
+  fi
+  linea="$(printf '%s\n' "$salida" | sed -n 's/^HUELLA //p' | tail -n1)"
+  [ -n "$linea" ] || { printf '%s\n' "$salida" >>"$LOG"; return 1; }
+  printf '%s' "$linea"
+}
+
+# Tercer campo de la huella: filas de `schema_migrations`, o -1 si no hay tabla.
+registradas_de_huella() { printf '%s' "$1" | awk '{print $3}'; }
+
 # ─── --dry-run: mira y cuenta ──────────────────────────────────────────────
 if [ "$DRY_RUN" = 1 ]; then
   # `--pendientes` lista y no aplica (`scripts/migrar.mjs:598-604`): es la
@@ -318,6 +506,11 @@ if [ "$DRY_RUN" = 1 ]; then
   codigo=0
   correr_runner --pendientes >"$salida_seca" 2>&1 || codigo=$?
   eco <"$salida_seca"
+  # ESTE `sed` si lee la prosa del runner, y se queda a proposito: aqui el
+  # numero es DECORADO de una linea de log, no decide nada. Si la redaccion de
+  # `migrar.mjs` cambia, el peor caso es que el log diga "? migraciones
+  # pendientes" — no que se deje de restaurar una base. La cuenta que SI decide
+  # (la del update real) no pasa por aqui: ver AVISO 3.
   pendientes="$(sed -n 's/^\([0-9][0-9]*\) pendientes.*/\1/p' "$salida_seca" | tail -n1)"
   rm -f "$salida_seca"
   case "$codigo" in
@@ -336,7 +529,7 @@ mkdir -p "$DIR_RESPALDOS"
 BK="$DIR_RESPALDOS/spaces_$(date +%Y%m%d_%H%M%S).dump"
 registrar "3 · respaldo -> $BK"
 codigo=0
-"$PG_DUMP" --dbname="$DATABASE_URL" --format=custom --file="$BK" 2>&1 | eco || codigo=$?
+correr_pg "$PG_DUMP" --format=custom --file="$BK" 2>&1 | eco || codigo=$?
 if [ "$codigo" -ne 0 ] || [ ! -s "$BK" ]; then
   salir "$EX_CONFIG" "BACKUP VACIO — abortado. No se toco ni la base ni el contenedor. Revisa $PG_DUMP contra $(destino_de_url "$DATABASE_URL")."
 fi
@@ -354,44 +547,71 @@ ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"
 registrar "4 · version anterior anotada en $ARCHIVO_ANTERIOR"
 
 # ─── 5a · Migraciones, ANTES de conmutar ───────────────────────────────────
-registrar "5 · migraciones (imagen nueva, contenedor efimero)"
+# La huella de partida. Si no se puede leer, no se migra: ver AVISO 3.
+HUELLA_ANTES="$(huella_base || true)"
+if [ -z "$HUELLA_ANTES" ]; then
+  salir "$EX_CONFIG" "ABORTADO: no se pudo leer la huella de la base antes de migrar (el mensaje esta en $LOG). Sin punto de partida no se puede decidir despues si hay que restaurar, asi que NO se migra. Nada se aplico y nada se conmuto. El respaldo de este intento esta en $BK."
+fi
+registrar "5 · migraciones (imagen nueva, contenedor efimero) · huella previa: $HUELLA_ANTES"
 salida_mig="$(mktemp)"
 codigo=0
 correr_runner >"$salida_mig" 2>&1 || codigo=$?
 eco <"$salida_mig"
-# "N aplicadas." al final de una corrida buena; "  N aplicadas antes del fallo."
-# cuando aborta a medias. Las dos cuentan para decidir si hay que restaurar.
-APLICADAS="$(sed -n -e 's/^\([0-9][0-9]*\) aplicadas\..*/\1/p' -e 's/^ *\([0-9][0-9]*\) aplicadas antes del fallo.*/\1/p' "$salida_mig" | tail -n1)"
-APLICADAS="${APLICADAS:-0}"
 rm -f "$salida_mig"
+
+# Si la base cambio NO se deduce del texto del runner (ver AVISO 3): se lee la
+# base otra vez y se compara la huella. `desconocido` solo si la segunda lectura
+# falla, y entonces se dice, no se supone.
+HUELLA_DESPUES="$(huella_base || true)"
+BASE_CAMBIO=desconocido
+if [ -n "$HUELLA_DESPUES" ]; then
+  if [ "$HUELLA_ANTES" = "$HUELLA_DESPUES" ]; then BASE_CAMBIO=no; else BASE_CAMBIO=si; fi
+fi
+# Cuenta informativa para el log. La decision NO cuelga de ella.
+APLICADAS='?'
+reg_antes="$(registradas_de_huella "$HUELLA_ANTES")"
+reg_despues="$(registradas_de_huella "${HUELLA_DESPUES:-}")"
+if [ -n "$reg_antes" ] && [ -n "$reg_despues" ] && [ "$reg_antes" -ge 0 ] && [ "$reg_despues" -ge 0 ]; then
+  APLICADAS=$(( reg_despues - reg_antes ))
+fi
 
 case "$codigo" in
   0)
-    registrar "   $APLICADAS migraciones aplicadas y registradas"
+    registrar "   base tras migrar: cambio=$BASE_CAMBIO · $APLICADAS migraciones nuevas en schema_migrations · huella: ${HUELLA_DESPUES:-ILEGIBLE}"
     ;;
   3)
     salir "$EX_HISTORIA" "ABORTADO (3): una migracion ya aplicada cambio de contenido. NADA se aplico y NADA se conmuto — la instancia sigue en la version anterior. El mensaje de arriba nombra el archivo y los dos checksums."
     ;;
   2)
-    # El 2 tapa dos cosas muy distintas y el log tiene que decir cual: "no se
-    # pudo conectar" (nada cambio) y "se aplicaron N y algo se torcio" (la base
-    # SI cambio). Lo dice la propia cuenta del runner, no una suposicion.
+    # El 2 tapa dos cosas muy distintas y el log tiene que decir CUAL, porque es
+    # la unica pregunta que el 2 existe para responder: ¿hay que ir a mirar la
+    # base? Antes se contestaba leyendo la prosa del runner, y con el mensaje de
+    # `migrar.mjs:687-692` —"se aplicaron 66 migraciones y no se pudieron
+    # registrar"— el log acababa diciendo lo contrario de lo que habia pasado.
+    # Ahora se contesta mirando la base (AVISO 3).
     #
-    # Por que NO se restaura aqui: el trafico no se conmuto, o sea que la
-    # version ANTERIOR sigue sirviendo y con clientes dentro. Restaurar el dump
-    # es un `--clean` sobre la base viva: tumbaria la instancia que ahora mismo
-    # funciona y perderia lo que se haya escrito desde el respaldo. Se para y se
-    # avisa; el dump esta ahi para quien decida usarlo.
-    if [ "$APLICADAS" -gt 0 ]; then
-      salir "$EX_MIGRACION" "ABORTADO (2): se aplicaron $APLICADAS migraciones y quedaron a medias o sin registrar: LA BASE CAMBIO. NO se conmuto el trafico —sigue sirviendo la version anterior— y NO se restaura nada automaticamente estando la base viva y en uso. Respaldo: $BK"
-    fi
-    salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo sin aplicar nada (no consta ninguna migracion aplicada; suele ser que no pudo conectar). No se conmuto el trafico. Respaldo: $BK"
+    # Por que NO se restaura aqui, en ninguno de los tres casos: el trafico no
+    # se conmuto, o sea que la version ANTERIOR sigue sirviendo y con clientes
+    # dentro. Restaurar el dump es un `--clean` sobre la base viva: tumbaria la
+    # instancia que ahora mismo funciona y perderia lo que se haya escrito desde
+    # el respaldo. Se para y se avisa; el dump esta ahi para quien decida usarlo.
+    case "$BASE_CAMBIO" in
+      si)
+        salir "$EX_MIGRACION" "ABORTADO (2): LA BASE CAMBIO. Comprobado leyendo la base antes y despues, no el mensaje del runner: la huella paso de [$HUELLA_ANTES] a [$HUELLA_DESPUES] ($APLICADAS filas nuevas en schema_migrations; '?' significa que la tabla no existe, o sea que se aplico esquema SIN registro y la proxima corrida lo reaplicaria). NO se conmuto el trafico —sigue sirviendo la version anterior— y NO se restaura nada automaticamente estando la base viva y en uso. Alguien tiene que mirar esto. Respaldo: $BK"
+        ;;
+      no)
+        salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo y la base NO cambio — misma huella antes y despues [$HUELLA_ANTES]. Tipicamente no pudo conectar o no pudo abrir la transaccion; el mensaje de arriba es suyo. No se conmuto el trafico. Respaldo: $BK"
+        ;;
+      *)
+        salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo y NO se pudo volver a leer la huella de la base, asi que este script NO sabe si cambio. Trata el caso como el peor: alguien tiene que mirar la base. Huella previa: [$HUELLA_ANTES]. No se conmuto el trafico. Respaldo: $BK"
+        ;;
+    esac
     ;;
   1)
     salir "$EX_CONFIG" "ABORTADO (1): el runner de migraciones no pudo ni empezar. Su mensaje esta arriba y dice exactamente que hacer (por ejemplo: aplicar primero db/migrations/20260812_schema_migrations.sql). Nada se aplico y nada se conmuto."
     ;;
   *)
-    salir "$EX_MIGRACION" "ABORTADO: el runner salio con un codigo que este script no conoce ($codigo). Se trata como el peor caso: la base pudo cambiar. No se conmuto. Respaldo: $BK"
+    salir "$EX_MIGRACION" "ABORTADO: el runner salio con un codigo que este script no conoce ($codigo). Se trata como el peor caso. La base, segun su huella, cambio=$BASE_CAMBIO. No se conmuto. Respaldo: $BK"
     ;;
 esac
 
@@ -400,20 +620,40 @@ esac
 # exacta (puertos, env, red, politica de reinicio), asi que volver atras es
 # arrancarlo otra vez y no reconstruir a mano como se levanto.
 ANTERIOR="${CONTENEDOR}-anterior"
+RENOMBRADO=0
 docker rm -f "$ANTERIOR" >/dev/null 2>&1 || true
 if [ -n "$ID_ACTUAL" ]; then
   registrar "5b · parando $CONTENEDOR y guardandolo como $ANTERIOR"
+  # A partir de aqui la instancia NO responde. Ver "LA VENTANA" en la cabecera.
   docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
-  docker rename "$CONTENEDOR" "$ANTERIOR" 2>&1 | eco || true
+  # El resultado del rename se GUARDA en vez de tragarse con `|| true`: si el
+  # rename falla, el contenedor viejo conserva su nombre original, y entonces la
+  # vuelta atras no debe ni renombrarlo de vuelta ni borrar "$CONTENEDOR" —que
+  # seria borrar justo el contenedor que se pretendia conservar.
+  if docker rename "$CONTENEDOR" "$ANTERIOR" 2>&1 | eco; then
+    RENOMBRADO=1
+  else
+    registrar "5b · AVISO: no se pudo renombrar $CONTENEDOR a $ANTERIOR. El contenedor viejo conserva su nombre; el contenedor nuevo no va a poder nacer con ese nombre y la vuelta atras se limitara a levantarlo otra vez."
+  fi
 fi
 
 # Las opciones del contenedor las decide el aprovisionamiento y llegan como una
 # cadena; se parten en palabras a proposito (son opciones, no un valor).
 read -r -a opciones_app <<<"$DOCKER_OPCIONES_APP"
 registrar "5c · levantando $CONTENEDOR con $VERSION_NUEVA"
+# El ID del contenedor nuevo se guarda para poder retirarlo por ID en la vuelta
+# atras. Retirarlo por NOMBRE era el error: si el rename de arriba fallo, el
+# nombre lo lleva todavia el contenedor VIEJO.
+CONTENEDOR_NUEVO_ID=""
+salida_run="$(mktemp)"
 codigo=0
 docker run --detach --name "$CONTENEDOR" --restart unless-stopped \
-  --env-file "$ENV_APP" "${opciones_app[@]}" "$IMAGEN" 2>&1 | eco || codigo=$?
+  --env-file "$ENV_APP" "${opciones_app[@]}" "$IMAGEN" >"$salida_run" 2>&1 || codigo=$?
+eco <"$salida_run"
+if [ "$codigo" -eq 0 ]; then
+  CONTENEDOR_NUEVO_ID="$(tail -n1 "$salida_run" | tr -d '\r' | tr -d '[:space:]')"
+fi
+rm -f "$salida_run"
 
 # ─── 6 · Health check ──────────────────────────────────────────────────────
 salud() {
@@ -446,40 +686,59 @@ if [ "$sano" -eq 0 ]; then
     echo "version=$VERSION_NUEVA"
     echo "fecha=$(date '+%Y-%m-%d %H:%M:%S%z')"
   } >"$DIR_ESTADO/version-actual"
-  salir "$EX_OK" "OK: $VERSION_NUEVA sirviendo, $APLICADAS migraciones aplicadas. Respaldo en $BK"
+  salir "$EX_OK" "OK: $VERSION_NUEVA sirviendo. La base cambio=$BASE_CAMBIO ($APLICADAS filas nuevas en schema_migrations). Respaldo en $BK"
 fi
 
 # ─── 7 · Vuelta atras ──────────────────────────────────────────────────────
 registrar "7 · VUELTA ATRAS: la version nueva no contesta 200 en $SALUD_URL"
-docker logs --tail 30 "$CONTENEDOR" 2>&1 | eco || true
-docker rm -f "$CONTENEDOR" >/dev/null 2>&1 || true
+# Por ID, nunca por nombre: si el rename de 5b fallo, el nombre "$CONTENEDOR" lo
+# lleva el contenedor VIEJO y un `docker rm -f` por nombre lo destruiria, que es
+# justo la configuracion que renombrar pretendia conservar.
+if [ -n "$CONTENEDOR_NUEVO_ID" ]; then
+  docker logs --tail 30 "$CONTENEDOR_NUEVO_ID" 2>&1 | eco || true
+  docker rm -f "$CONTENEDOR_NUEVO_ID" >/dev/null 2>&1 || true
+else
+  registrar "7 · no hay contenedor nuevo que retirar: no llego a crearse."
+fi
 
 if [ -z "$ID_ACTUAL" ]; then
   salir "$EX_VUELTA_FALLO" "VUELTA ATRAS IMPOSIBLE: no habia version anterior corriendo. La instancia queda SIN servicio. Respaldo en $BK"
 fi
 
-# El dump se restaura SOLO si corrieron migraciones. Si no corrio ninguna, la
-# base no cambio y restaurar solo podria perder lo que se haya escrito.
-if [ "$APLICADAS" -gt 0 ]; then
-  registrar "7a · restaurando $BK ($APLICADAS migraciones aplicadas). Se restaura ANTES de levantar la version anterior, para que no vea un esquema que no conoce."
+# Se restaura si la BASE CAMBIO — medido con la huella, no leyendo cuantas
+# migraciones dijo el runner que aplico (AVISO 3). Y con `desconocido` tambien
+# se restaura: dejar la version vieja sobre un esquema nuevo es el fallo
+# silencioso que nadie denuncia despues; restaurar de mas cuesta, como mucho, lo
+# que se haya escrito desde el respaldo de hace unos minutos.
+if [ "$BASE_CAMBIO" != "no" ]; then
+  if [ "$BASE_CAMBIO" = "si" ]; then
+    registrar "7a · restaurando $BK: la huella de la base cambio al migrar ($APLICADAS filas nuevas en schema_migrations). [$HUELLA_ANTES] -> [$HUELLA_DESPUES]. Se restaura ANTES de levantar la version anterior, para que no vea un esquema que no conoce."
+  else
+    registrar "7a · restaurando $BK POR PRUDENCIA: no se pudo releer la huella de la base, asi que no consta que NO haya cambiado. Se prefiere restaurar de mas a dejar la version anterior sobre un esquema nuevo, que no da error y no lo denuncia nadie."
+  fi
   if ! command -v "$PG_RESTORE" >/dev/null 2>&1; then
     salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. Una persona tiene que mirar esto."
   fi
   codigo=0
-  "$PG_RESTORE" --clean --if-exists --single-transaction --dbname="$DATABASE_URL" "$BK" 2>&1 | eco || codigo=$?
+  # `--clean --if-exists --single-transaction` no son adorno y no se quitan:
+  # sin `--clean` la restauracion muere objeto por objeto contra lo que ya
+  # existe; sin `--if-exists` los DROP de lo que no existe la abortan; y sin
+  # `--single-transaction` un fallo a la mitad deja la base medio limpiada, que
+  # es peor que no haber restaurado.
+  correr_pg "$PG_RESTORE" --clean --if-exists --single-transaction "$BK" 2>&1 | eco || codigo=$?
   if [ "$codigo" -ne 0 ]; then
     salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. Una persona tiene que mirar esto."
   fi
   registrar "7a · base restaurada (esquema Y registro de migraciones: schema_migrations viaja dentro del dump)"
 else
-  registrar "7a · no corrio ninguna migracion: la base no se toca."
+  registrar "7a · la huella de la base es la misma antes y despues de migrar [$HUELLA_ANTES]: no se toca. Restaurar solo podria perder lo escrito desde el respaldo."
 fi
 
 registrar "7b · levantando otra vez la version anterior"
 # Los dos comandos se miran POR SEPARADO: si el segundo pisara el codigo del
 # primero, un rename fallido con un start que "funciona" (sobre otro
 # contenedor) se leeria como vuelta atras buena.
-if ! docker rename "$ANTERIOR" "$CONTENEDOR" 2>&1 | eco; then
+if [ "$RENOMBRADO" = 1 ] && ! docker rename "$ANTERIOR" "$CONTENEDOR" 2>&1 | eco; then
   salir "$EX_VUELTA_FALLO" "VUELTA ATRAS FALLIDA: no se pudo devolver el nombre a $ANTERIOR. La instancia queda SIN servicio. Respaldo en $BK"
 fi
 if ! docker start "$CONTENEDOR" 2>&1 | eco; then

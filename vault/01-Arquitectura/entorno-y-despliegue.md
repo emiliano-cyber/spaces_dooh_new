@@ -4,6 +4,7 @@ estado: verificado
 actualizado: 2026-08-17
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
+  - infra/scripts/pruebas-update.sh
   - .env.example
   - .env.production.example
   - apps/web/lib/entorno.test.ts
@@ -348,6 +349,42 @@ URL vive en **una** variable, `SALUD_URL`, para que F6.1 la cambie en una línea
 > `Dockerfile`, que es **F2.2 y ya está auditada**: no se toca desde aquí. El script
 > ya lo prevé — si la imagen trae el runner, no monta nada.
 
+> [!danger] La primera versión no restauraba la base — corregido el 17/08
+> Auditada en **rojo** y arreglada en el segundo ciclo de F3.4. El script decidía si
+> restaurar leyendo la **prosa** del runner con un `sed` que exigía un punto pegado a
+> «aplicadas». Y `scripts/migrar.mjs:694-696` imprime
+> `67 aplicadas, 1 de datos pendientes.` en cuanto hay una migración `@tipo: datos`
+> pendiente — y la hay: `db/migrations/20260731_calendario_meses_cortos.sql`. El
+> patrón no casaba, la cuenta caía a **0** y la vuelta atrás **dejaba la base con el
+> esquema nuevo bajo la aplicación vieja**, en silencio y sin que nada lo denunciara
+> después. Reproducido de punta a punta contra la imagen real y una base desechable.
+>
+> El mismo `sed` hacía que el código **2** mintiera: con
+> `se aplicaron 66 migraciones y no se pudieron registrar` (`migrar.mjs:687-692`,
+> alcanzable hoy porque la imagen no lleva `20260812_schema_migrations.sql`), el log
+> escribía *«no consta ninguna migración aplicada; suele ser que no pudo conectar»*
+> cuatro líneas debajo del mensaje que decía lo contrario — y esa es **la única
+> pregunta que el 2 existe para responder**.
+
+**Cómo sabe hoy si la base cambió: preguntándoselo a la base.** No cuenta migraciones
+leyendo texto. Toma una **huella** —columnas con sus `DEFAULT`, índices,
+restricciones, políticas RLS, funciones, más el contenido de `schema_migrations`—
+**antes y después** de migrar, y compara. Tres propiedades que la hacen válida, las
+tres medidas contra Postgres real: funciona **aunque `schema_migrations` no exista**
+(el hash del esquema ya difiere, que es justo el caso de `migrar.mjs:687-692`); **no
+se mueve con el tráfico normal** de la versión anterior, que sigue sirviendo entre las
+dos lecturas; y si la huella **no se puede leer antes** de migrar, el update **se para
+sin migrar** (código 1). Si no se puede releer después, se **restaura igual**, por
+prudencia. El número de migraciones que sale en el log es la diferencia de filas de
+`schema_migrations` y es informativo: la decisión cuelga de la huella.
+
+> [!warning] Conmutar es `stop` + `run`: hay corte, y se mide en minutos
+> ~10-20 s con un release bueno; **hasta ~3 min** con uno malo (80 s de sondeo de
+> salud + el `pg_restore` + otros 80 s sobre la versión anterior). El «el owner no se
+> entera» del criterio de F3.4 hay que leerlo como *se queda en la versión anterior y
+> no pierde datos*, **no** como *no hay corte*. Cerrarla de verdad —puerto nuevo y
+> nginx moviéndose cuando ya conteste— es otra tarea.
+
 **La vuelta atrás y el registro de migraciones.** El dump es de la base entera, así
 que `schema_migrations` viaja dentro: restaurarlo devuelve esquema **y** registro al
 mismo instante, y la instancia vuelve a afirmar exactamente lo que la imagen anterior
@@ -355,8 +392,24 @@ lleva dentro. Si la restauración no llega a correr, el registro nombra migracio
 la imagen anterior no tiene, y eso **no aborta nada** a propósito ([[migraciones]]):
 una imagen anterior carece por definición de las migraciones nuevas que su registro
 afirma, y abortar ahí rompería la propia vuelta atrás. Restaurar **solo** se hace si
-corrieron migraciones, y **nunca** con la versión anterior sirviendo: un
+la huella dice que la base cambió, y **nunca** con la versión anterior sirviendo: un
 `pg_restore --clean` sobre una base viva tumbaría una instancia que funciona.
+
+**El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
+diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
+sin que existieran en ningún sitio. Hoy se corre y lo imprime:
+`28 escenarios · 101 comprobaciones · 0 rojas` y, con `--mutantes`,
+`6 mutantes · 0 escapan`. Cada mutante se **valida antes de correrlo** —una sola
+línea de diff, mismo número de líneas, `bash -n` limpio— porque el ciclo anterior tuvo
+un falso verde por un `sed` que dejó el archivo vacío y «pasó». Dos de los seis son
+los que el arnés viejo no veía: quitar `export DATABASE_URL` (rompería **todas** las
+migraciones de la flota) y quitar `--clean --if-exists --single-transaction` del
+`pg_restore` (la vuelta atrás moriría objeto por objeto).
+
+**La contraseña ya no viaja en `argv`.** `pg_dump`/`pg_restore` reciben la URL sin
+credenciales y la clave por `PGPASSWORD`: antes era visible en `ps` para cualquier
+usuario local. `deploy.yml:119` lo evita con `sudo -u postgres`; aquí la conexión es
+por red, así que se parte la URL.
 
 **El respaldo se queda en el droplet** (`/var/lib/space-os/respaldos/`). Sacarlo de la
 máquina es F3.7.

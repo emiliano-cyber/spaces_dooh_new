@@ -50,11 +50,13 @@ tail -n 40 /var/log/space-os/update.log
    `.github/workflows/deploy.yml:117-125`: *un `pg_dump` que falla deja un
    archivo de 0 bytes y su salida se ve casi igual que la de uno bueno.*
 4. Anota la versión que corría en `/var/lib/space-os/version-anterior`.
-5. Corre `migrar.mjs` **con las migraciones de la imagen nueva**, y **solo
-   entonces** conmuta el tráfico al contenedor nuevo.
+5. Toma la **huella** de la base, corre `migrar.mjs` **con las migraciones de
+   la imagen nueva**, vuelve a tomar la huella, y **solo entonces** conmuta el
+   tráfico al contenedor nuevo. Ahí hay corte: ver **§4, la ventana**.
 6. **Health check** 10 × 3 s contra `SALUD_URL`.
 7. Si la salud falla: vuelve al contenedor anterior, restaura el dump **solo si
-   corrieron migraciones**, y sale ≠ 0 dejando el motivo en el log.
+   la huella dice que la base cambió** (§3), y sale ≠ 0 dejando el motivo en el
+   log.
 8. Lo lanza `cron` una vez al día, con `flock`.
 
 ### Códigos de salida — no son intercambiables
@@ -62,8 +64,8 @@ tail -n 40 /var/log/space-os/update.log
 | Código | Qué pasó | ¿Hay que ir a mirar la base? |
 |---|---|---|
 | `0` | sin cambios, o actualizada y sana | no |
-| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, o el runner se negó a arrancar | no: **nada se tocó** |
-| `2` | las migraciones fallaron a medias o no se pudieron registrar | **sí**: la base pudo cambiar |
+| `1` | no se pudo ni empezar: falta configuración, falló el pull, **el respaldo salió vacío**, no se pudo leer la huella de la base (§3), o el runner se negó a arrancar | no: **nada se tocó** |
+| `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |
 | `5` | la salud falló y **la vuelta atrás no** | **sí, urgente** |
@@ -127,7 +129,7 @@ Si `flock` no está instalado, el script **no corre**.
 
 ---
 
-## Dos cosas que hay que saber antes de tocarlo
+## Cinco cosas que hay que saber antes de tocarlo
 
 ### 1 · El runner de migraciones NO viaja en la imagen
 
@@ -169,12 +171,77 @@ migraciones nuevas que su registro afirma*, y abortar ahí rompería esta vuelta
 atrás. El runner las trata como aplicadas y no las toca.
 
 > [!warning] Restaurar el dump pierde lo que se haya escrito desde el respaldo
-> Por eso solo se hace en el camino de vuelta atrás, y **solo si corrieron
-> migraciones**. Cuando el runner sale **2** —la base cambió pero el tráfico
-> **no** se conmutó— el script **no restaura**: la versión anterior está
-> sirviendo, con clientes dentro, y un `pg_restore --clean` sobre una base viva
-> tumbaría una instancia que en ese momento funciona. Se para y se avisa; el
-> dump queda ahí para quien decida usarlo.
+> Por eso solo se hace en el camino de vuelta atrás, y **solo si la base
+> cambió**. Cuando el runner sale **2** —la base cambió pero el tráfico **no**
+> se conmutó— el script **no restaura**: la versión anterior está sirviendo, con
+> clientes dentro, y un `pg_restore --clean` sobre una base viva tumbaría una
+> instancia que en ese momento funciona. Se para y se avisa; el dump queda ahí
+> para quien decida usarlo.
+
+### 3 · Cómo sabe el script si la base cambió: **preguntándoselo a la base**
+
+Esto se arregló el 17/08, en el segundo ciclo de F3.4, después de que la
+auditoría lo pusiera en **rojo**. La primera versión lo deducía leyendo la
+**prosa** del runner con un `sed`, y fallaba en los dos sitios donde importaba:
+
+| Lo que imprime `scripts/migrar.mjs` | Lo que hacía el `sed` |
+|---|---|
+| `67 aplicadas, 1 de datos pendientes.` (`:694-696`, en cuanto hay una migración `@tipo: datos` pendiente — y la hay: `db/migrations/20260731_calendario_meses_cortos.sql`) | no casaba → la cuenta caía a **0** → **la vuelta atrás no restauraba la base** |
+| `ERROR migrar: se aplicaron 66 migraciones y no se pudieron registrar…` (`:670-678` y `:687-692`) | no casaba → el log decía *«no consta ninguna migración aplicada; suele ser que no pudo conectar»*, justo debajo del mensaje que decía lo contrario |
+
+La lección no era afinar el patrón: **la redacción de otro programa no puede ser
+la fuente de verdad de una decisión que lanza `pg_restore --clean`.** Así que el
+script ya no cuenta migraciones leyendo texto. Toma una **huella** de la base
+*antes* y *después* de migrar y compara:
+
+- **Qué entra en la huella:** columnas (con sus `DEFAULT`), índices,
+  restricciones, políticas RLS, funciones — y el contenido de
+  `schema_migrations`.
+- **Funciona aunque `schema_migrations` no exista**, que es el caso de
+  `migrar.mjs:687-692` y es alcanzable **hoy**: la imagen no lleva
+  `20260812_schema_migrations.sql`. El hash del esquema ya es distinto.
+- **No se mueve con el tráfico normal**: un `insert` de la versión anterior, que
+  sigue sirviendo entre las dos lecturas, no cambia ninguna de esas cinco cosas.
+  Comprobado contra Postgres real.
+- **Si la huella no se puede leer *antes* de migrar, el update se para** (código
+  1) sin migrar: sin punto de partida no hay decisión de vuelta atrás
+  defendible.
+- **Si no se puede releer *después*, se restaura igual**, por prudencia: dejar la
+  versión vieja sobre un esquema nuevo es el fallo silencioso que nadie denuncia
+  después.
+
+La lee `node` con el `pg` **de la misma imagen**, por la misma red y con la misma
+`DATABASE_URL` que el runner: si la sonda lee la base, el runner también.
+
+El número de migraciones que aparece en el log es la diferencia de filas de
+`schema_migrations` (o `?` si la tabla no existe) y es **informativo**: la
+decisión cuelga de la huella, no del número.
+
+### 4 · La ventana: durante la conmutación la instancia **no responde**
+
+Conmutar es `docker stop` + `docker run`, no un cambio de puerto en caliente.
+Hay corte, y conviene tenerlo escrito en vez de descubrirlo:
+
+| Caso | Corte |
+|---|---|
+| Release bueno | ~10-20 s (`stop` espera hasta 10 s al `SIGTERM` + arranque) |
+| Release malo | hasta ~3 min: `SALUD_INTENTOS × (5 s de --max-time + SALUD_ESPERA)` = 80 s de sondeo, luego el `pg_restore`, luego **otro** sondeo igual sobre la versión anterior |
+
+Por eso el cron va a las 4 de la mañana. El *«el owner no se entera»* del
+criterio de aceptación de F3.4 hay que leerlo como **«se queda en la versión
+anterior y no pierde datos»**, no como «no hay corte». Cerrar la ventana de
+verdad —arrancar el contenedor nuevo en otro puerto y mover nginx cuando ya
+conteste— es otra tarea; aquí se documenta, no se disimula.
+
+### 5 · La contraseña no viaja en `argv`
+
+`pg_dump --dbname="postgresql://usuario:clave@…"` deja la clave visible en `ps`
+para **cualquier** usuario de la máquina. `deploy.yml:119` lo evita con
+`sudo -u postgres` (autenticación *peer*, sin clave); aquí la conexión es por
+red, así que el script parte la URL: usuario y destino en `argv`, clave por
+`PGPASSWORD`. Si la contraseña trae una barra invertida sin codificar el script
+**avisa y no la toca** —decodificarla podría corromperla, y un respaldo que no
+corre es peor—; codifícala como `%5C` en `instancia.env` y el aviso se va.
 
 > [!note] El respaldo se queda en el droplet
 > Hoy vive en `/var/lib/space-os/respaldos/`. Sacarlo de la máquina —para que
@@ -184,18 +251,60 @@ atrás. El runner las trata como aplicadas y no las toca.
 
 ## Cómo se verificó (sin tocar ningún servidor)
 
-- `bash -n infra/scripts/update.sh`.
-- **18 escenarios con dobles** de `docker`, `curl`, `flock`, `pg_dump` y
-  `pg_restore` (58 comprobaciones): sin cambios · dry-run · respaldo vacío ·
-  los cuatro códigos del runner · camino feliz · vuelta atrás con y sin
-  restauración · vuelta atrás fallida · sin versión anterior · candado tomado ·
-  dos bases distintas · sin `DATABASE_URL` · imagen con y sin runner dentro ·
-  canal inválido · pull fallido · el log no lleva la contraseña.
-- **Se comprobó que esas comprobaciones muerden**: tres mutantes del script
-  —quitar la comprobación del respaldo vacío, aplanar la salida 3 en 1, y
-  restaurar siempre— ponen el ejercicio en rojo.
-- El montaje del runner se probó **contra la imagen real** (`space-os:dev`) y
-  una base **desechable** (`spaces_f34_test`, ya destruida).
+> [!important] El arnés está **en el repositorio**, y por eso esta sección se
+> puede repetir
+> La versión anterior de este README afirmaba «18 escenarios y 58
+> comprobaciones» y **esos escenarios no estaban en ningún sitio**: nadie podía
+> repetirlos, y cuando la auditoría los reconstruyó aparecieron dos agujeros
+> (abajo). Una afirmación que no se puede repetir no es una verificación.
+
+```bash
+bash -n infra/scripts/update.sh
+bash infra/scripts/pruebas-update.sh              # los escenarios
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~4 min)
+```
+
+El arnés no sale a la red, no habla con Docker y no toca ninguna base: monta
+dobles POSIX de `docker`, `curl`, `flock`, `pg_dump` y `pg_restore` en un `PATH`
+propio y mira **qué se les pide**. El resultado del 2026-08-17, y el que imprime
+el comando:
+
+```
+28 escenarios · 101 comprobaciones · 0 rojas
+6 mutantes · 0 escapan
+```
+
+Cubre: sin cambios · dry-run · respaldo vacío · los cuatro códigos del runner ·
+camino feliz · vuelta atrás con y sin restauración · vuelta atrás fallida · sin
+versión anterior · candado tomado · dos bases distintas · imagen con y sin runner
+dentro · canal inválido · pull fallido · huella ilegible antes y después · el
+padre no aparece · la contraseña no sale en `argv`.
+
+**Se comprueba que las comprobaciones muerden.** Seis mutantes de una sola línea,
+y cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
+número de líneas, `bash -n` limpio— porque el ciclo anterior tuvo un falso verde
+por un `sed` que dejó el archivo vacío y «pasó». Dos de los seis son justo los
+que el arnés viejo **no** cazaba:
+
+| Mutante | Qué rompería en un servidor |
+|---|---|
+| quitar `export DATABASE_URL` | `docker run --env DATABASE_URL` no pasa nada y **todas** las migraciones fallan |
+| `pg_restore` sin `--clean --if-exists --single-transaction` | la vuelta atrás muere objeto por objeto en vez de volver |
+| quitar el guard del respaldo vacío | se actualiza sin red |
+| restaurar siempre / no restaurar nunca | los dos lados de la decisión de la vuelta atrás |
+| retirar el contenedor nuevo por **nombre** | si el `rename` falló, borra el contenedor **viejo** |
+
+Y contra material real, no solo dobles:
+
+- El montaje del runner y la sonda de huella, **contra la imagen real**
+  (`space-os:dev`) y bases **desechables** (`spaces_f34b_test`,
+  `spaces_f34c_test`, `spaces_f34d_test`, ya destruidas).
+- Los dos rojos de la auditoría se **reprodujeron** con la salida literal del
+  runner antes de arreglarlos: `67 aplicadas, 1 de datos pendientes.` (exit 0) y
+  `se aplicaron 66 migraciones y no se pudieron registrar` (exit 2).
+- La huella **no se mueve** con un `insert` normal: mismo hash antes y después.
 
 **Lo que NO se ha hecho: correrlo en un servidor.** El ensayo completo —release
-bueno, release roto a propósito y vuelta atrás— es **F3.5, en DEMO**.
+bueno, release roto a propósito y vuelta atrás— es **F3.5, en DEMO**. El comando
+de verificación de F3.4 (`/opt/space-os/update.sh --dry-run` en el droplet) es de
+servidor y sigue pendiente de una persona.
