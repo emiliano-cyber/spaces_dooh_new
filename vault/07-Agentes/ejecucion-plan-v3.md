@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-17
+actualizado: 2026-08-18
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -182,7 +182,8 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
 >
-> - **H1** · `update.sh:872` y `:882` —**remedidas y verificadas el 18/08 a las 04:00**; ver el
+> - **H1** · `update.sh:876` y `:886` —**remedidas leyendo la línea el 18/08 a las 07:50**, tras
+>   `d9d3747`, que movió el archivo 4 líneas; ver el
 >   aviso de más abajo sobre las tres veces que estas citas han derivado— la frase «el
 >   contenedor de la version anterior esta
 >   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
@@ -289,12 +290,14 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > (`find -printf '%T@'` + desempate por ruta), el resumen cuenta lo retirado y devuelve
 > **≠0** si no pudo con todo, y el temporal con la llave tiene `trap` para `TERM`, `INT`,
 > `HUP` y `EXIT`. Arnés: **51 escenarios · 236 comprobaciones · 0 rojas** y **21 mutantes ·
-> 0 escapan**; los tres escenarios nuevos (E49, E50, E51) se vieron **en rojo, 8
-> comprobaciones**, antes de tocar una línea.
+> 0 escapan**; los tres escenarios nuevos (E49, E50, E51) se vieron **en rojo, 9
+> comprobaciones**, antes de tocar una línea — **9 medidas por el auditor**; el commit y el
+> tablero dicen 8, y la explicación probable es benigna: E51 ganó su cuarta comprobación
+> *después* de medir el rojo. Tal como estaba escrito no se reproducía.
 >
 > **Y las citas de este bloque son de `f369b4c`: ya no valen.** `respaldo.sh` pasó de 258 a
-> **324** líneas y `update.sh` de 903 a **907**. Hoy: el `find` de la poda es
-> **`respaldo.sh:280`**, el resumen **`:298`** (y **`:300`** la rama del fallo parcial), las
+> **331** líneas y `update.sh` de 903 a **907**. Hoy: el `find` de la poda es
+> **`respaldo.sh:287`**, el resumen **`:305`** (y **`:307`** la rama del fallo parcial), las
 > llamadas son **`update.sh:652`** (poda) y **`:660`** (subida), y el `pg_restore` **sin
 > guarda `-s "$BK"`** —que **NO se tocó**: es zona de D1— es **`update.sh:884`**.
 > `respaldo.sh:11` sigue donde estaba.
@@ -305,13 +308,21 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > alcanza, y **E50 la ejerce**.
 
 > [!danger] Estas citas han derivado TRES veces en un solo día — remídelas, no las restes
-> `update.sh` pasó de 786 → 847 → **903 líneas** entre `2633bcb`, `84c6c20` y `f369b4c`. Las
+> `update.sh` pasó de 786 a 847, a 903 y a **907 líneas** entre `2633bcb`, `84c6c20`,
+> `f369b4c` y `d9d3747`. Las
 > citas de H1 se recalcularon dos veces y **las dos mal**: la segunda, en `d7775b3`, sumó 47
 > donde el archivo había crecido 56, y arrastró `comando_rescate()` a `:641-647`, que hoy es el
 > comentario de la poda de F3.7. Corregidas y **verificadas leyendo la línea** el 18/08 04:00.
 >
-> Es exactamente lo que `CLAUDE.md` §5 avisa, dos veces en la misma noche y en el archivo que
-> más rápido crece del repositorio. **Si citas `update.sh`, ábrelo.**
+> **Y volvió a pasar una cuarta vez**, en `d9d3747` — el commit cuyo párrafo de arriba existe
+> justamente para remedir citas: dio `respaldo.sh` en 324 líneas cuando son **331**, y sus
+> cuatro citas nuevas erraban **las cuatro por 7**. Lo cazó la auditoría; quedan corregidas
+> leyendo la línea.
+>
+> Es lo que `CLAUDE.md` §5 avisa, **cuatro veces en la misma noche** y en los dos archivos que
+> más rápido crecen del repositorio. La lección ya no es «ten cuidado»: es que **una cita
+> recalculada a mano es una cita rota**. Si citas `update.sh` o `respaldo.sh`, ábrelo — y si
+> escribes un párrafo para remedir citas, remídelas de verdad.
 
 > [!warning] Hueco del plan detectado por F3.7 — para cuando llegue **F5.3**
 > F3.7 nombra «la plantilla `.env` de F5.3» entre sus archivos, y su ejecutor **no la creó**,
