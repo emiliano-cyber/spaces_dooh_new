@@ -33,6 +33,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 | **P3b-bis · ¿el registro va abierto o cerrado?** | **REDECIDIDA y COMPLETA — revierte la del 10/08** | **CERRADO en todas partes: local, producción y DEMO.** Ninguna instancia lo abre. `.env.example` baja a `AUTOREGISTRO=0`; el droplet se queda sin la bandera. **Contradice F4.4 del plan** (`:1345`), que manda encenderlo en DEMO | 2026-08-14 |
 | **D1 · qué hacer con la vuelta atrás que no devuelve el esquema** | **RESUELTA** | **Arreglarlo de fondo: restaurar sobre un esquema limpio**, no solo avisar. Decisión de Jochelo el 2026-08-18. Con eso la vuelta atrás hace lo que su README promete. ⚠️ Trae dos riesgos que la propia decisión nombró y que la tarea tiene que despachar con evidencia: (1) es un **`drop` dentro del script que corre en todas las instancias**; (2) hay que **demostrar que el dump SIEMPRE basta para reconstruir**, y el proyecto ya sabe que una base virgen no levanta sola — `db/migrations/20260729_licencias_permisos.sql:96-97` aborta si falta el rol de aplicación y **13 migraciones lo referencian**. Es ROJO: lleva TDD y verificador en sesión aparte | 2026-08-18 |
 | **H1, H2 y H-1 · los tres sitios donde el script afirma algo falso** | **RESUELTA** | **Se cierran en un ciclo corto**, los tres juntos, porque son el mismo defecto. Decisión de Jochelo el 2026-08-18. Van después de D1 | 2026-08-18 |
+| **M1 · cómo se exige la barrida de mutación** | **RESUELTA** | **Por tarea se corre el arnés entero (~4 min) más los mutantes que tocan el propio cambio, aislados con `probar_mutante_en`. La barrida completa deja de ser obligatoria por ciclo, y quien no la corra lo declara por escrito en su informe** — no se supone, se escribe. Decisión de Jochelo el 2026-08-18, tras medirse **~25 min por mutante** en esta máquina: a 25 mutantes la barrida pasa de 10 h y el arnés crece con cada tarea. ⚠️ **Coste aceptado a sabiendas**: una regresión en una pieza vieja **no se ve** hasta que alguien corra la barrida completa. Conviene lanzarla de vez en cuando fuera del ciclo, cuando la máquina esté libre | 2026-08-18 |
 | P5 · «DEMO» de la Fase 3 = droplet nuevo de la Fase 4 | ASUMIDA por el plan (F3.5 depende de F4.5) | sí | 2026-08-13 |
 | P6 · `/api/version` con token de flota o pública | ABIERTA (afecta Fase 6, fuera de alcance actual) | — | — |
 | **P7 · ¿quién aplica las migraciones `@tipo: datos` en la flota?** | **RESUELTA** | **Una persona, a mano — no el update.** `update.sh:407-413` llama al runner **sin `--con-datos`**, y eso es deliberado: una corrección de datos no debe colarse en una actualización automática que corre de madrugada por `cron`. El ritual es el de `vault/04-Datos/migraciones.md`. ⚠️ **Quien publique un release con una migración de datos tiene que avisar**: el update no la aplica y **tampoco falla**, así que sin aviso la corrección no ocurre — en silencio y en toda la flota a la vez | 2026-08-18 |
@@ -350,8 +351,8 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > motivo es de entorno, no del commit.
 >
 > **Consecuencia práctica:** a 25 mutantes × 25 min, la barrida completa pasa de **10 horas**.
-> Con el arnés creciendo cada tarea, exigirla por ciclo bloquea la ejecución. Decisión pendiente
-> de Jochelo.
+> Con el arnés creciendo cada tarea, exigirla por ciclo bloquea la ejecución. **Resuelto en M1**,
+> arriba: se exige el arnés entero más los mutantes del propio cambio, y lo no corrido se declara.
 
 > [!warning] Hueco de la bóveda detectado por F3.9 — `modelo-instancias-soberanas.md:93-101`
 > Su tabla «Las nueve fases, convertidas en tareas» **conserva los recuentos del plan v2**:
