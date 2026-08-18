@@ -155,8 +155,49 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F3.5 | [verificación] | ensayista-local (DEMO simulada) + tarjeta humana | F3.4, F4-local | PENDIENTE | El ensayo real en DEMO depende de F4.5 real (P5). ✅ **Su tarjeta ya está escrita** —**TH-F3.5**, abajo— con lo que el ensayo local del 18/08 **no pudo** ver: el `docker pull` de verdad (digest de registry, autenticación, movimiento de etiquetas), las rutas y permisos reales (`/etc/space-os/instancia.env` a 600 y de root), el `cron` de las 4 a. m., una imagen de release construida de verdad —las del ensayo derivan de `space-os:dev`, anterior a F3.1, con 67 migraciones y no 68—, la escala del `pg_dump`, nginx/TLS delante y el reinicio del droplet |
 | F3.6 | [release] | ejecutor escribe el retiro; **NO se mergea a main** | canal probado en real | PENDIENTE_SERVIDOR | Retirar `deploy.yml` antes de que exista el canal real dejaría sin despliegue: se prepara, no se aplica |
 | F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 | PENDIENTE | La subida real a Spaces es tarjeta humana |
-| F3.8 | [infra] | ejecutor + ensayista | F3.4 | PENDIENTE | Backoff con límite, ensayable 100% local |
+| F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | **EN_CURSO** (18/08 00:55) | Backoff con límite, ensayable 100% local. Ojo: la cuarta fila de su tabla —«reporte al padre»— es **F6.4, fuera de alcance**: se documenta, no se implementa |
 | F3.9 | [infra] | ejecutor + ensayista parcial | F3.4 | PENDIENTE | Log legible sin entrar al servidor; envío real = tarjeta |
+
+> [!important] ✅ `2633bcb` auditado **AMARILLO** y aceptado — 2026-08-18
+> `verificador` en sesión aparte. **Reprodujo el rojo de forma independiente**: corrió el
+> arnés de hoy contra el `update.sh` del commit padre (`ab965a8`) y obtuvo **las 12 rojas
+> exactas** que el ejecutor declaraba, en vez de creérselas. Cifras medidas por él, no
+> copiadas: **32 escenarios · 121 comprobaciones · 0 rojas** (82 s) y **7 mutantes · 0
+> escapan** (11 m 20 s). typecheck limpio, **821 unitarias en 74 archivos**.
+>
+> **D2 quedó cerrado del todo, y lo probó con los cuatro casos:**
+>
+> ```
+> 200_ok      ANTES=200      (=200? si)   AHORA=200      (=200? si)
+> 200_fallo   ANTES=200000   (=200? NO)   AHORA=200      (=200? si)   <- el release sano que se tiraba
+> 000_fallo   ANTES=000000   (=200? NO)   AHORA=000      (=200? NO)
+> mudo        ANTES=000      (=200? NO)   AHORA=000      (=200? NO)   <- sigue valiendo 000
+> ```
+>
+> Confirmado además que es el **único** `curl` que lee códigos en el script, que el mutante
+> nuevo es real (una línea de diff, mismo número de líneas, `bash -n` limpio, y el guard no
+> lo neutraliza) y que **D1 no se tocó**: la región de restauración solo cambió en los dos
+> textos de `salir` de D3. `aislamiento.e2e.test.ts` intacto, cero secretos, e2e no corridas
+> con argumento que se sostiene (cero archivos bajo `apps/web/`, `db/` o `scripts/`).
+>
+> **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
+>
+> - **H1** · `update.sh:755` y `:765` — la frase «el contenedor de la version anterior esta
+>   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
+>   (`:641-647`) existe justo porque ese estado no siempre es cierto: si el `rename` de 5b
+>   falló (`RENOMBRADO=0`), el viejo conserva su nombre y `${CONTENEDOR}-anterior` **no
+>   existe** —lo borró `docker rm -f` en `:648`—. El camino es alcanzable. El comando que se
+>   imprime **sí** es correcto en las dos ramas; lo que miente es la frase que va delante, en
+>   el mensaje que alguien lee a las cuatro de la mañana. El README sí trae el matiz
+>   (`infra/scripts/README.md:88-90`); el log no.
+> - **H2** · el arnés no cubre la rama `else` de `comando_rescate()` (`:645`): E18 y E32 solo
+>   ejercitan `RENOMBRADO=1`, y E21 fuerza el fallo del rename pero termina en la vuelta
+>   atrás normal, no en un código 5. Un mutante que invirtiera la condición de `:642`
+>   **no lo vería nadie**.
+>
+> Para VERDE bastaría con calcular esa frase igual que se calcula el comando, y un escenario
+> que combine `D_RENAME_FALLA=1` con un código 5 y afirme que el log dice `docker start` **y
+> calla** `docker rename`.
 
 > [!danger] 🔴 D1 · La vuelta atrás de `update.sh` **no devuelve el esquema** — abierta, espera decisión
 > Salió del ensayo local del 18/08 y **no se tocó a propósito**: toca migraciones y pide
