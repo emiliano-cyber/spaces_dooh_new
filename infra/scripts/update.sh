@@ -232,7 +232,8 @@
 #  Filtrar no es perder: lo crudo sigue entero en el droplet para quien tenga
 #  que entrar. Lo que cambia es que ya casi nunca hace falta entrar.
 #
-#  Dos limites, escritos para que nadie los descubra tarde:
+#  Los limites, escritos para que nadie los descubra tarde. Son seis, y
+#  ninguno se disimula: un README que promete de mas es peor que uno corto.
 #    · la subida cuelga de `salir()`, que es la unica puerta de salida del script
 #      una vez tomado el candado. Si el proceso muere por una senal o por un
 #      error no previsto, NO hay log en el bucket. Un `trap EXIT` parecia la
@@ -241,6 +242,22 @@
 #      desarmado justo en la segunda mitad del script — la mitad en la que las
 #      cosas salen mal. Un trap que deja de existir a medias es peor que no
 #      tenerlo, porque el README afirmaria algo falso.
+#    · por esa puerta pasan SEIS de los siete codigos documentados, no los
+#      siete: el 75 —ya habia otro update en marcha— lo devuelve el proceso
+#      de FUERA del candado con un `exit` pelado, a proposito, y ese no
+#      escribe ni sube nada.
+#    · antes de sourcear `respaldo.sh` no hay CON QUE subir: el cliente de S3
+#      sale de ahi, y eso se hace justo despues de leer $CONF. Se quedan en el
+#      droplet TRES salidas y solo esas tres: falta $CONF y falta el propio
+#      `respaldo.sh` —las dos lo DICEN en el log en vez de callarselo—, y falta
+#      `flock`, que ademas sale antes del candado y por eso ni siquiera tiene
+#      log publicable propio. Ojo con el porque: lo que falta ahi no son las
+#      credenciales —esas vienen de $CONF—, son las FUNCIONES.
+#    · una subida que FALLA no cambia el codigo de salida (ver `salir`), pero
+#      una SENAL a media subida SI lo cambia: los `trap` de `respaldo.sh`
+#      salen con 130/129/143. Esa ventana existia ya en el paso 3 y ahora
+#      existe en TODAS las salidas, incluida la buena. Cerrarla exige tocar
+#      `respaldo.sh`, que esta auditado: queda escrito, no arreglado.
 #    · el `--dry-run` TAMBIEN manda su log, y es a proposito: es la corrida
 #      obligatoria la primera vez en cada instancia, o sea justo la que alguien
 #      quiere leer desde fuera para saber si quedo bien montada. No toca nada
@@ -248,6 +265,11 @@
 #    · el proceso de FUERA del candado —el que se encuentra otro update en
 #      marcha y sale con 75— no escribe ni sube nada: el log publicable es de la
 #      corrida que TIENE el candado, y ensuciarselo seria mezclar dos historias.
+#      Esto ES cierto desde el 18/08 y antes no lo era: la variable que marca
+#      "estoy dentro del candado" se EXPORTABA antes del `flock`, asi que el
+#      proceso de fuera se quedaba con ella puesta y su linea de "ya hay otro
+#      update en marcha" acababa dentro del archivo que la OTRA corrida sube
+#      al bucket. Ahora se le pasa al hijo en la misma linea del `flock`.
 # ============================================================================
 set -Eeuo pipefail
 
@@ -321,8 +343,11 @@ eco() { tee -a "$LOG"; }
 # Sube SOLO `$LOG_PUBLICABLE`, nunca `$LOG`: ver AVISO 5. Reutiliza el cliente y
 # la disciplina de credenciales de `respaldo.sh` (F3.7) en vez de repetirlas —la
 # llave no viaja en `argv` ni aqui—, y por eso comprueba antes que ese archivo ya
-# se haya sourceado: si el update murio antes, no hay con que subir y tampoco
-# habria credenciales que usar.
+# se haya sourceado. Ojo con el porque, que estuvo mal escrito: lo que falta si
+# el update murio pronto NO son las credenciales —esas vienen de $CONF y ya
+# estarian cargadas—, son las FUNCIONES. Por eso `respaldo.sh` se sourcea justo
+# despues de $CONF, y por eso este caso ahora se DICE en vez de devolver 0 en
+# silencio: un limite que no se lee se descubre tarde.
 LOG_SUBIDO=0
 subir_log_remoto() {
   local codigo="${1:-0}" instancia destino cliente resultado=0
@@ -334,7 +359,13 @@ subir_log_remoto() {
   # El codigo de salida es media respuesta del diagnostico: sin el, el log cuenta
   # que paso pero no con que se quedo el cron. La tarea lo pide expresamente.
   printf '%s  salida: %s\n' "$(date '+%Y-%m-%d %H:%M:%S%z')" "$codigo" >>"$LOG_PUBLICABLE"
-  declare -F respaldo_subir_s3cmd >/dev/null 2>&1 || return 0
+  if ! declare -F respaldo_subir_s3cmd >/dev/null 2>&1; then
+    # `${RESPALDO_SH:-…}` y no `$RESPALDO_SH` a secas: si el update murio antes
+    # de leer $CONF esa variable todavia no existe, y bajo `set -u` este aviso
+    # mataria al script en vez de dejarlo salir con su codigo.
+    registrar "   log remoto: no hay con que subirlo. El cliente de S3 sale de ${RESPALDO_SH:-respaldo.sh}, que se sourcea justo despues de leer $CONF; si el update se paro antes de eso —o si ese archivo falta— el registro de esta corrida se queda en $LOG_PUBLICABLE y diagnosticarla exige entrar al servidor del owner."
+    return 0
+  fi
   if [ -z "${SPACES_KEY:-}" ] || [ -z "${SPACES_SECRET:-}" ] || [ -z "$LOGS_BUCKET" ]; then
     registrar "   log remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET (o LOGS_BUCKET). El registro de esta corrida se queda en $LOG_PUBLICABLE, o sea que diagnosticarla exige entrar al servidor del owner."
     return 0
@@ -383,9 +414,16 @@ if [ "${SPACE_OS_UPDATE_EN_CANDADO:-}" != "1" ]; then
   if ! command -v flock >/dev/null 2>&1; then
     salir "$EX_CONFIG" "ERROR update: falta \`flock\` (paquete util-linux). Sin candado no se corre: dos updates a la vez pueden migrar la misma base en paralelo."
   fi
-  export SPACE_OS_UPDATE_EN_CANDADO=1
   codigo_candado=0
-  flock -n -E "$EX_OCUPADO" "$CANDADO" "$0" "$@" || codigo_candado=$?
+  # La marca va en la MISMA linea del `flock`, no en un `export` de antes.
+  # Con el `export`, este proceso —el de FUERA— se quedaba tambien con la
+  # variable a 1, y entonces su `registrar` de aqui abajo cumplia el guard de
+  # la bitacora y escribia en `$LOG_PUBLICABLE`… que es el de la corrida que SI
+  # tiene el candado. Esa linea viajaba al bucket dentro del objeto de la otra
+  # corrida: dos historias mezcladas, que es justo lo que este diseno evita.
+  # Un prefijo de asignacion solo entra en el entorno del comando que lanza
+  # —`flock` es un binario, no una funcion— y el hijo lo hereda igual. E59.
+  SPACE_OS_UPDATE_EN_CANDADO=1 flock -n -E "$EX_OCUPADO" "$CANDADO" "$0" "$@" || codigo_candado=$?
   if [ "$codigo_candado" -eq "$EX_OCUPADO" ]; then
     registrar "update: ya hay otro update en marcha (candado $CANDADO). Este no hace nada."
   fi
@@ -410,6 +448,31 @@ case "$permisos" in
 esac
 # shellcheck disable=SC1090
 . "$CONF"
+
+# `respaldo.sh` se SOURCEA: trae la subida a Spaces y la poda local (AVISO 4),
+# y tambien el cliente con el que `salir()` manda el log al bucket (AVISO 5).
+# Se resuelve al lado de este archivo —en una instancia los dos viven en
+# /opt/space-os— y la variable de entorno existe para poder ensayarlo fuera.
+# Si falta, se para AQUI: antes del pull, antes del respaldo y antes de la base.
+#
+# Y va JUSTO DESPUES de $CONF, ni antes ni mas abajo, por dos razones medidas:
+#   · antes no puede ir: `respaldo.sh` deriva SPACES_ENDPOINT de SPACES_REGION
+#     EN EL MOMENTO de sourcearse, asi que una instancia con SPACES_REGION=sfo3
+#     en su configuracion acabaria hablando con el endpoint de nyc3.
+#   · mas abajo tampoco: sourcearlo al final del bloque de comprobaciones
+#     dejaba DOCE `salir "$EX_CONFIG"` por encima suyo sin nada con que subir
+#     —`subir_log_remoto` se rendia en su `declare -F`, y ademas en silencio—, y
+#     esos doce son precisamente los fallos de una instancia mal aprovisionada:
+#     la clase que uno mas quiere diagnosticar sin entrar al servidor del owner.
+#     Desde aqui suben NUEVE de esos doce. Los tres que siguen sin poder son los
+#     que no tienen con que: falta `flock` (que ademas cae fuera del candado y no
+#     escribe ni el publicable), falta el propio $CONF, y falta este mismo
+#     archivo. Esos tres lo DICEN. "Salga bien o mal" no admitia doce
+#     excepciones; tres que son imposibles por definicion, y escritas, si. E60.
+RESPALDO_SH="${SPACE_OS_RESPALDO_SH:-$(dirname "$0")/respaldo.sh}"
+[ -f "$RESPALDO_SH" ] || salir "$EX_CONFIG" "ERROR update: falta $RESPALDO_SH. Es donde viven la subida del respaldo a Spaces y la poda del disco; sin el, la instancia se actualizaria sin respaldo fuera del droplet y llenando el disco. Nada se toco."
+# shellcheck disable=SC1090
+. "$RESPALDO_SH"
 
 CANAL="${CANAL:-}"
 REGISTRY="${REGISTRY:-}"
@@ -443,8 +506,20 @@ esac
 # ─── La base: una sola, y se comprueba ─────────────────────────────────────
 # `host:puerto/base` de una URL de conexion, SIN credenciales — este valor se
 # imprime. Mismo criterio que `destinoSeguro()` en `scripts/migrar.mjs:225-232`.
+#
+# Corta por el ULTIMO `@` y despues de quitar la consulta. El `[^@/]*@` de
+# antes daba por hecha una URL bien formada —en una URL bien formada la clave
+# lleva el `@` como %40 y la `/` como %2F— y las de una instancia de verdad no
+# siempre lo estan. Medido: de `spaces:p@ssw0rd@localhost:5433/spaces` dejaba
+# `ssw0rd@localhost:5433/spaces`, o sea un TROZO DE LA CONTRASENA, y de
+# `spaces:pa/ss@localhost:5433/spaces` no cortaba nada porque el `@` llegaba
+# despues de la primera barra. Y esta linea es la PRIMERA de todo log que
+# viaja al bucket desde F3.9: lo que antes se quedaba en el droplet ahora sale.
+# Cortar de mas puede esconder el host —se diagnostica peor—; cortar de menos
+# manda la llave de la base a un objeto de un bucket. Se elige lo primero.
+# Lo fijan E62 y E63.
 destino_de_url() {
-  printf '%s' "$1" | sed -E 's#^[a-zA-Z+]+://([^@/]*@)?##; s#\?.*$##'
+  printf '%s' "$1" | sed -E 's#\?.*$##; s#^[a-zA-Z+]+://##; s#^.*@##'
 }
 
 url_de_env_app() {
@@ -522,15 +597,6 @@ command -v docker >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`
 command -v curl >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`curl\`. Sin health check no se conmuta: seria actualizar a ciegas."
 command -v "$PG_DUMP" >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`$PG_DUMP\`. Sin respaldo no se actualiza."
 [ -f "$ENV_APP" ] || salir "$EX_CONFIG" "ERROR update: no existe $ENV_APP; el contenedor nuevo naceria sin variables de entorno."
-
-# `respaldo.sh` se SOURCEA: trae la subida a Spaces y la poda local (AVISO 4).
-# Se resuelve al lado de este archivo —en una instancia los dos viven en
-# /opt/space-os— y la variable de entorno existe para poder ensayarlo fuera.
-# Si falta, se para AQUI: antes del pull, antes del respaldo y antes de la base.
-RESPALDO_SH="${SPACE_OS_RESPALDO_SH:-$(dirname "$0")/respaldo.sh}"
-[ -f "$RESPALDO_SH" ] || salir "$EX_CONFIG" "ERROR update: falta $RESPALDO_SH. Es donde viven la subida del respaldo a Spaces y la poda del disco; sin el, la instancia se actualizaria sin respaldo fuera del droplet y llenando el disco. Nada se toco."
-# shellcheck disable=SC1090
-. "$RESPALDO_SH"
 
 IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
 

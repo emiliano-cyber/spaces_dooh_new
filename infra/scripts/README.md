@@ -204,9 +204,11 @@ Si `flock` no está instalado, el script **no corre**.
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:626-632`, remedido leyendo el 18/08: la cita anterior
-decía `407-413` y **ya apuntaba mal antes de que este archivo creciera** —en el
-commit que la escribió, `correr_runner` estaba en la 501—), así que una instancia
+`--con-datos`** (`update.sh:692-698`, remedido leyendo **dos veces** el 18/08: la
+cita decía `407-413` y **ya apuntaba mal antes de que este archivo creciera** —en el
+commit que la escribió, `correr_runner` estaba en la 501—, se corrigió a `626-632` y
+la corrección de esa misma tarde volvió a moverla 60 líneas. Un archivo que crece
+invalida todas sus citas de golpe), así que una instancia
 **nunca** aplica una
 migración marcada `-- @tipo: datos` en su primera línea. Eso es deliberado, no un
 olvido: una corrección de datos no debe colarse en una actualización automática que
@@ -579,26 +581,72 @@ caso y nadie se entera—: **lo que no se emite no puede filtrarse.**
 > … salida: 4
 > ```
 >
-> Ni una fila, ni una credencial. Ni siquiera nombres de tabla: la huella es un
-> **hash**, que para diagnosticar sirve igual.
+> **Ni una fila y ni una credencial.** Eso es el criterio y se comprueba leyendo
+> el archivo que viaja (E53, E62, E63).
+>
+> Lo que **sí** sale del droplet, dicho con nombres para que nadie se lleve una
+> sorpresa: el **destino de la base** (`base=localhost:5433/spaces`, sin el
+> `usuario:clave@`), la **URL de la imagen** en el registry y la **ruta local**
+> del dump. Nombres de tabla no salen —la huella es un **hash**, que para
+> diagnosticar sirve igual—, pero eso es una consecuencia, no una promesa: todo
+> lo anterior está **dentro** de lo que el plan permite («nombres y conteos, sí;
+> filas, no»). Decir «ni siquiera un nombre de tabla» sugería una asepsia mayor
+> que la real, y por eso esta línea se corrigió el 18/08.
 
-#### Tres cosas que conviene no descubrir tarde
+#### Seis cosas que conviene no descubrir tarde
+
+> [!warning] Tres de estas seis las escribió mal la primera versión, y la
+> auditoría del 18/08 lo reprodujo
+> Decían «por ahí pasan los siete códigos», «al terminar —salga bien o mal—
+> subir» y «el proceso de fuera no escribe nada», y ninguna de las tres era
+> cierta. Las tres están corregidas **en el código**, no en la redacción; lo que
+> sigue describe lo que el script hace hoy y lo fija el arnés.
 
 1. **La subida cuelga de `salir()`**, que es la única puerta de salida del
-   script una vez tomado el candado — y por ahí pasan los **siete** códigos
-   documentados. Si el proceso muere **por una señal o por un error no
-   previsto**, no hay log en el bucket. Un `trap EXIT` parecía la respuesta y
-   **no lo es**: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al cerrar su
-   subida (`respaldo_conf_limpiar`), así que el trap quedaría **desarmado justo
-   en la segunda mitad** del script — la mitad en la que las cosas salen mal. Un
-   trap que deja de existir a medias es peor que no tenerlo, porque este README
-   afirmaría algo falso.
+   script una vez tomado el candado. Si el proceso muere **por una señal o por
+   un error no previsto**, no hay log en el bucket. Un `trap EXIT` parecía la
+   respuesta y **no lo es**: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al
+   cerrar su subida (`respaldo_conf_limpiar`), así que el trap quedaría
+   **desarmado justo en la segunda mitad** del script — la mitad en la que las
+   cosas salen mal. Un trap que deja de existir a medias es peor que no tenerlo,
+   porque este README afirmaría algo falso.
 
-2. **El proceso de fuera del candado** —el que se encuentra otro update en
+2. Por esa puerta pasan **seis de los siete** códigos documentados, no los
+   siete. El **`75`** —ya había otro update en marcha— lo devuelve el proceso
+   de **fuera** del candado con un `exit` pelado, a propósito: ese no escribe ni
+   sube nada.
+
+3. **Antes de leer `instancia.env` no hay con qué subir.** El cliente de S3 sale
+   de `respaldo.sh`, que se sourcea **justo después** de la configuración; los
+   dos únicos `salir` anteriores —falta `flock`, falta el propio archivo— se
+   quedan en el droplet, y con ellos un tercero: la falta del propio
+   `respaldo.sh`. Los dos últimos **lo dicen** con esas palabras (`log remoto: no
+   hay con que subirlo…`) en vez de callárselo; el de `flock` sale **antes del
+   candado**, así que ni siquiera llega a tener log publicable propio.
+   **Todo lo demás sí sube**: hasta el
+   18/08 había **doce** `salir` de configuración por encima del `source`, que
+   escribían el log publicable y no lo subían; hoy **nueve de esos doce viajan**,
+   y son justo los de una instancia mal aprovisionada — la clase de fallo que uno
+   más quiere diagnosticar sin entrar al servidor del owner.
+
+4. Una subida que **falla** no cambia el código de salida (§siguiente), pero una
+   **señal a media subida sí lo cambia**: los `trap` de `respaldo.sh` salen con
+   `130`/`129`/`143`. Esa ventana existía ya en el paso 3 y ahora existe en
+   **todas** las salidas, incluida la buena. Cerrarla exige tocar `respaldo.sh`,
+   que está auditado: **queda escrito, no arreglado**.
+
+5. **El proceso de fuera del candado** —el que se encuentra otro update en
    marcha y sale con `75`— no escribe ni sube nada: el log publicable es de la
    corrida que **tiene** el candado, y ensuciárselo sería mezclar dos historias.
+   Esto **es cierto desde el 18/08 y antes no lo era**: la marca de «estoy dentro
+   del candado» se **exportaba** antes del `flock`, así que el proceso de fuera se
+   quedaba con ella puesta y su línea de «ya hay otro update en marcha» caía
+   dentro del archivo que la **otra** corrida sube al bucket. Ahora se le pasa al
+   hijo en la misma línea del `flock`. Lo caza **E59**, que es el escenario que
+   faltaba: el anterior comprobaba «no sube» y **nunca abría el archivo que
+   viaja**.
 
-3. **El `--dry-run` también manda su log**, y es a propósito: es la corrida
+6. **El `--dry-run` también manda su log**, y es a propósito: es la corrida
    **obligatoria la primera vez en cada instancia**, o sea justo la que alguien
    quiere leer desde fuera para saber si quedó bien montada. Sigue sin tocar
    nada: lo único que sale del droplet es el relato de que no se hizo nada.
@@ -681,9 +729,17 @@ y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
 archivo que viaja**. El resultado del 2026-08-18, y el que imprime el comando:
 
 ```
-58 escenarios · 278 comprobaciones · 0 rojas
-25 mutantes · 0 escapan
+63 escenarios · 300 comprobaciones · 0 rojas
 ```
+
+> [!warning] La barrida de mutantes **no se volvió a correr entera** el 18/08
+> Los mutantes son **28** desde la corrección de esa tarde, pero en esta máquina
+> la barrida completa va a ~4× de lo declarado —dos horas para 8 de 25— así que
+> se corrieron **siete aislados**: los **tres nuevos** (los dos invalidantes de la
+> auditoría y el hallazgo 3) y los **cuatro de F3.9**, cada uno contra el arnés
+> completo. Los siete **CAZADOS**. `28 mutantes · 0 escapan` es de la corrida
+> anterior más esos siete, **no** de una barrida entera: quien la necesite entera,
+> que la corra y lo escriba aquí.
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
 se quede en disco** · los cuatro códigos del runner · camino feliz · vuelta
@@ -717,7 +773,18 @@ y no el histórico acumulado** (E56), que el `--dry-run` **también mande el suy
 (E57) y que **`LOGS_BUCKET` de `instancia.env` mande** sin arrastrar al bucket de
 respaldos (E58).
 
-**Se comprueba que las comprobaciones muerden.** **Veinticinco** mutantes de una
+Y, desde la **auditoría de F3.9** (18/08), los cinco que faltaban —los tres
+primeros se vieron **en rojo**, 10 comprobaciones, antes de tocar una línea—:
+
+| Escenario | Qué fija |
+|---|---|
+| **E59** | el que se encuentra el candado tomado **no escribe** en el publicable de quien lo tiene. Se comprueba **abriendo el archivo**, no mirando si hubo `s3cmd`: esa era la mitad que faltaba |
+| **E60** | el log sube **también en los fallos de configuración**, que son los de una instancia mal aprovisionada — nueve de las doce salidas que antes se quedaban dentro; las otras tres no tienen con qué subir y lo dicen (E61) |
+| **E61** | si el update muere antes de leer `instancia.env` el log **no puede** viajar, y eso **se dice** en vez de callarse |
+| **E62** | una contraseña con `@` sin codificar **no sale**: antes viajaba un trozo (`ssw0rd@localhost…`) |
+| **E63** | una contraseña con `/` sin codificar **no sale**: antes viajaba entera, usuario incluido |
+
+**Se comprueba que las comprobaciones muerden.** **Veintiocho** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -750,6 +817,9 @@ el arnés viejo **no** cazaba:
 | que `eco` escriba **también** en el publicable | la misma fuga por la otra puerta: bastaría una línea para deshacer toda la separación |
 | subir el log **solo cuando el update sale bien** | justo la corrida que hay que diagnosticar es la que no llegaría |
 | **no vaciar** el publicable al empezar | cada noche se subiría todo lo que la instancia registró desde que nació |
+| **exportar** la marca del candado antes del `flock` | el invalidante 1: el proceso de fuera escribe en el log que sube **otra** corrida |
+| no subir el log de los **fallos de configuración** | el invalidante 2: las salidas de una instancia mal aprovisionada no llegan al bucket |
+| `destino_de_url` cortando por el **primer `@`** | el hallazgo 3: un trozo de la contraseña de Postgres en la primera línea de cada log que viaja |
 
 Y contra material real, no solo dobles:
 

@@ -332,6 +332,10 @@ preparar() {
   export SPACE_OS_RESPALDO_SH="${RESPALDO_MUT:-$RAIZ/infra/scripts/respaldo.sh}"
   export CONTENEDOR_NOMBRE=space-os
   SALIDA="$RAIZ_TMP/salida.txt"
+  # El log que VIAJA, en el disco de la instancia. Se mira aparte de `$SALIDA`
+  # y de `update.log`: los escenarios del candado necesitan saber que hay
+  # DENTRO de este archivo, no solo si se subio.
+  PUBLICABLE="$SPACE_OS_DIR_LOG/update-publicable.log"
 
   # La clave lleva un %40 a proposito: comprueba el percent-decoding y que la
   # clave NO acabe en argv.
@@ -393,6 +397,22 @@ correr() {
 
 limpiar() { rm -rf "$RAIZ_TMP"; }
 
+# Cambia la URL de la base en los DOS sitios que la declaran. Existe porque los
+# escenarios del hallazgo 3 usan urls con `@` y `/` sin codificar dentro de la
+# contrasena, que un `sed -i` sobre el archivo no puede escribir sin pelearse
+# con sus propios delimitadores.
+usar_url() {
+  cat >"$RAIZ_TMP/app.env" <<FIN
+DATABASE_URL=$1
+NODE_ENV=production
+FIN
+  grep -v '^DATABASE_URL=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp"
+  mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+  cat >>"$SPACE_OS_CONF" <<FIN
+DATABASE_URL=$1
+FIN
+}
+
 # ─── Predicados ────────────────────────────────────────────────────────────
 codigo_es() { if [ "$CODIGO" = "$1" ]; then bien; else mal "codigo esperado $1, real $CODIGO"; fi; }
 log_dice() { if grep -qF -- "$1" "$SALIDA"; then bien; else mal "el log no dice: $1"; fi; }
@@ -424,6 +444,12 @@ subido_calla() { if grep -qF -- "$1" "$REG_S3_SUBIDO" 2>/dev/null; then mal "lo 
 # Sobre `update.log`, el que se queda en el droplet: la separacion solo vale si
 # lo crudo SIGUE estando en el disco de la instancia. Filtrar no es perder.
 log_local_dice() { if grep -qF -- "$1" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null; then bien; else mal "update.log no dice: $1"; fi; }
+# Sobre el ARCHIVO que viaja, tal cual esta en el disco de la instancia. No es lo
+# mismo que `subido_*`: eso mira lo que el doble de `s3cmd` recibio, y hay una
+# corrida —la que se encuentra el candado tomado— que no sube nada y aun asi
+# puede escribir en el publicable de OTRA. Ese caso solo se ve abriendo el archivo.
+publicable_dice()  { if grep -qF -- "$1" "$PUBLICABLE" 2>/dev/null; then bien; else mal "el log publicable no dice: $1"; fi; }
+publicable_calla() { if grep -qF -- "$1" "$PUBLICABLE" 2>/dev/null; then mal "el log publicable NO deberia decir: $1"; else bien; fi; }
 
 # ============================================================================
 #  ESCENARIOS
@@ -1266,6 +1292,90 @@ no_hubo 's3://space-os-logs/'
 hubo_regex '^s3cmd .* put .* s3://space-os-respaldos/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump$'
 limpiar
 
+# E59 · INVALIDANTE 1 DE LA AUDITORIA · el que se encuentra el candado TOMADO
+#       no escribe en el log publicable, porque ese archivo es de la OTRA
+#       corrida. E7 comprobaba solo la mitad —«no sube», con `no_hubo s3cmd`—
+#       y nunca abria el archivo que viaja. Y la otra mitad estaba rota: con
+#       `SPACE_OS_UPDATE_EN_CANDADO` EXPORTADA antes del `flock`, el proceso de
+#       fuera se quedaba con la variable a 1, asi que su linea de «ya hay otro
+#       update en marcha» caia dentro del publicable de quien SI lo tenia y
+#       viajaba al bucket dentro del objeto de esa corrida: dos historias
+#       mezcladas en el mismo archivo, que es justo lo que el diseno evita.
+preparar 'E59 el que encuentra el candado no ensucia el log de quien lo tiene (F3.9)'
+export FLOCK_OCUPADO=1
+mkdir -p "$SPACE_OS_DIR_LOG"
+# El publicable de la corrida que TIENE el candado, a medio escribir.
+printf '%s\n' '2026-08-18 10:00:00-0600  -- update · LA-CORRIDA-CON-EL-CANDADO' >"$PUBLICABLE"
+correr
+codigo_es 75
+log_dice 'ya hay otro update en marcha'
+# Lo de la otra corrida sigue intacto...
+publicable_dice 'LA-CORRIDA-CON-EL-CANDADO'
+# ...y no le han metido nada dentro.
+publicable_calla 'ya hay otro update en marcha'
+publicable_calla 'salida: 75'
+limpiar
+
+# E60 · INVALIDANTE 2 DE LA AUDITORIA · «al terminar, salga bien o mal, subir»
+#       tambien vale para los fallos de CONFIGURACION, que son los de una
+#       instancia mal aprovisionada: justo la clase de fallo que uno quiere
+#       diagnosticar sin entrar al servidor del owner. Doce `salir "$EX_CONFIG"`
+#       caian ANTES de que `respaldo.sh` estuviera sourceado, asi que escribian
+#       el publicable y no subian nada: `subir_log_remoto` se rendia en su
+#       `declare -F` sin decir una palabra.
+preparar 'E60 el log sube tambien cuando la configuracion esta mal (F3.9)'
+sed -i 's/^CANAL=.*/CANAL=produccion/' "$SPACE_OS_CONF"
+correr
+codigo_es 1
+hubo_regex '^s3cmd .* put .* s3://space-os-logs/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.log$'
+subido_dice 'no es ni estable ni beta'
+subido_dice 'salida: 1'
+# Y sigue sin tocarse nada: lo que sube es el log, no el update.
+no_hubo 'docker pull'
+no_hubo 'pg_dump'
+limpiar
+
+# E61 · EL LIMITE QUE QUEDA, Y QUEDA DICHO · si el update muere ANTES de leer
+#       `instancia.env` no hay credenciales de Spaces con que subir nada, asi
+#       que ese log no puede viajar por definicion. Antes se callaba —un
+#       `declare -F … || return 0` mudo—; ahora lo dice en el log local, que es
+#       el unico sitio donde alguien puede leerlo en ese caso.
+preparar 'E61 sin instancia.env el log no puede viajar, y se dice (F3.9)'
+rm -f "$SPACE_OS_CONF"
+correr
+codigo_es 1
+log_dice 'no existe'
+log_dice 'no hay con que subirlo'
+no_hubo 's3://space-os-logs'
+limpiar
+
+# E62 · HALLAZGO 3 · una contrasena con `@` sin codificar no sale del droplet.
+#       `destino_de_url` corta el `usuario:clave@` y su salida es la PRIMERA
+#       linea de todo log que viaja. Cortaba por el PRIMER `@`, asi que de
+#       `spaces:p@ssw0rd@localhost` dejaba `ssw0rd@localhost…`: un trozo de la
+#       contrasena de Postgres. Hasta F3.9 eso se quedaba en el droplet; desde
+#       F3.9 sale a un bucket, que es lo que cambio el perfil de riesgo.
+preparar 'E62 la clave con @ sin codificar no sale del droplet (F3.9, hallazgo 3)'
+usar_url 'postgresql://spaces:p@ssw0rd@localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'ssw0rd'
+limpiar
+
+# E63 · HALLAZGO 3, la otra mitad · con una `/` sin codificar en la contrasena
+#       no se cortaba NADA: `postgresql://spaces:pa/ss@localhost:5433/spaces`
+#       salia entera —usuario y clave— porque el patron exigia que el `@`
+#       llegara antes de la primera barra.
+preparar 'E63 la clave con / sin codificar no sale del droplet (F3.9, hallazgo 3)'
+usar_url 'postgresql://spaces:pa/ss@localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'pa/ss'
+subido_calla 'spaces:pa'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -1389,6 +1499,17 @@ if [ "${1:-}" = '--mutantes' ]; then
     's#^  subir_log_remoto "$codigo" || true$#  case "$codigo" in 0) subir_log_remoto 0 || true ;; esac#'
   probar_mutante 'no vaciar el publicable: sube el historico entero (F3.9)' \
     's#^: >"$LOG_PUBLICABLE"$#: no_vaciar         #'
+
+  # Y los tres de la correccion del 18/08, que son los dos invalidantes de la
+  # auditoria de F3.9 y su hallazgo 3. Los tres reintroducen el defecto EXACTO
+  # que se acaba de quitar, que es la unica forma de saber que las
+  # comprobaciones nuevas muerden y no solo acompanan.
+  probar_mutante 'exportar la marca del candado ANTES del flock (invalidante 1)' \
+    's#^  SPACE_OS_UPDATE_EN_CANDADO=1 flock#  export SPACE_OS_UPDATE_EN_CANDADO=1; flock#'
+  probar_mutante 'no subir el log de los fallos de configuracion (invalidante 2)' \
+    's#^  subir_log_remoto "$codigo" || true$#  case "$codigo" in "$EX_CONFIG") : ;; *) subir_log_remoto "$codigo" || true ;; esac#'
+  probar_mutante 'destino_de_url cortando por el PRIMER @ (hallazgo 3)' \
+    's|s#\^\.\*@##|s#^[^@/]*@##|'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

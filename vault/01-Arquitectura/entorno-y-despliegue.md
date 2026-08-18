@@ -434,9 +434,13 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`51 escenarios · 236 comprobaciones · 0 rojas` y, con `--mutantes`,
-`21 mutantes · 0 escapan` (medido el 18/08 tras corregir F3.7; venía de `48 · 218`
-con 17 mutantes, y antes de F3.7 de `37 · 165` con 10). Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
+`63 escenarios · 300 comprobaciones · 0 rojas` (medido el 18/08 tras corregir la
+auditoría de F3.9; venía de `58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de
+`48 · 218` y, antes de F3.7, de `37 · 165`). Los mutantes son **28**; la barrida
+completa **no se corrió entera** en el ciclo del 18/08 —a ~25 min por mutante en esta
+máquina pasa de diez horas— y en su lugar se corrieron **siete aislados**: los tres
+nuevos y los cuatro de F3.9, todos cazados. Está escrito porque la decisión M1 obliga
+a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
 `update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
 porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
 «pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
@@ -587,29 +591,86 @@ noche, todo lo que la instancia registró desde siempre.
 > que ya casi nunca hace falta. Una vuelta atrás completa, leída **solo desde el
 > bucket** (medido con el arnés el 18/08): pull, respaldo, huella previa, los dos
 > intentos de salud con su `500`, `7 · VUELTA ATRAS`, la restauración y `salida: 4`.
-> **Ni una fila, ni una credencial, ni siquiera un nombre de tabla** —la huella es un
-> hash, y para diagnosticar sirve igual—. El plan permitía nombres de tabla y conteos;
-> esto se queda por debajo de ese límite.
+> **Ni una fila y ni una credencial** —eso es el criterio, y se comprueba abriendo el
+> archivo que viaja (E53, E62, E63)—.
 >
-> La **contraseña de Postgres** tampoco sale, y no por casualidad: cada línea que
-> nombra la conexión pasa por `destino_de_url`, que corta el `usuario:clave@` —el
-> mismo criterio que sacó `PGPASSWORD` de `ps`—. **E53 lo fija** para que un
-> `registrar` futuro que imprima `$DATABASE_URL` a secas no mande la llave de la
-> base a un bucket sin que nadie lo vea.
+> Lo que **sí** sale, dicho con nombres: el **destino de la base**
+> (`base=localhost:5433/spaces`, sin el `usuario:clave@`), la **URL de la imagen** en
+> el registry y la **ruta local del dump**. Nombres de tabla no salen porque la huella
+> es un hash, pero eso es una consecuencia, no una promesa. Todo ello está **dentro**
+> de lo que el plan permite —«nombres y conteos, sí; filas, no»—; lo que estaba de más
+> era la redacción anterior, «ni siquiera un nombre de tabla», que sugería una asepsia
+> mayor que la real. Corregida el 18/08.
 
-> [!warning] Dos límites, escritos para que nadie los descubra tarde
+> [!danger] La contraseña de Postgres: la promesa era cierta **y la función que la
+> sostiene no lo era**
+> Cada línea que nombra la conexión pasa por `destino_de_url`, que corta el
+> `usuario:clave@` —el mismo criterio que sacó `PGPASSWORD` de `ps`—, y su salida es la
+> **primera línea de todo log que viaja**. Pero cortaba por el **primer `@`** y daba por
+> hecha una URL bien formada. Medido el 18/08, con la función tal como estaba:
+>
+> | `DATABASE_URL` | lo que viajaba |
+> |---|---|
+> | `…spaces:cl%40ve@localhost:5433/spaces` | `localhost:5433/spaces` ✅ |
+> | `…spaces:p@ssw0rd@localhost:5433/spaces` | `ssw0rd@localhost:5433/spaces` — **trozo de la clave** |
+> | `…spaces:pa/ss@localhost:5433/spaces` | `spaces:pa/ss@localhost:5433/…` — **usuario y clave enteros** |
+>
+> La función es anterior a F3.9; lo que F3.9 le cambió fue **el perfil de riesgo**: lo
+> que se quedaba en el droplet pasó a salir a un bucket. Ahora corta por el **último**
+> `@` y después de quitar la consulta, y **E62 y E63** cubren los dos casos que el arnés
+> no ejercitaba —solo probaba el `%40`, que era el que ya funcionaba—.
+
+> [!warning] Los límites, escritos para que nadie los descubra tarde. Son **seis**
 > **La subida cuelga de `salir()`**, que es la única puerta de salida una vez tomado el
-> candado, y por ahí pasan los **siete** códigos documentados. Si el proceso muere por
-> una **señal** o por un error no previsto, **no hay log en el bucket**. Un `trap EXIT`
-> parecía la respuesta y **no lo es**: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al
-> cerrar su subida, así que el trap quedaría **desarmado justo en la segunda mitad** del
-> script —la mitad en la que las cosas salen mal—, y un trap que deja de existir a
-> medias es peor que ninguno porque hace falsa la documentación. Cerrarlo de verdad
-> exige tocar `respaldo.sh`, que está auditado: **reportado, no arreglado.**
+> candado. Si el proceso muere por una **señal** o por un error no previsto, **no hay
+> log en el bucket**. Un `trap EXIT` parecía la respuesta y **no lo es**: `respaldo.sh`
+> hace `trap - EXIT INT TERM HUP` al cerrar su subida, así que el trap quedaría
+> **desarmado justo en la segunda mitad** del script —la mitad en la que las cosas salen
+> mal—, y un trap que deja de existir a medias es peor que ninguno porque hace falsa la
+> documentación. Cerrarlo de verdad exige tocar `respaldo.sh`, que está auditado:
+> **reportado, no arreglado.**
+>
+> Por esa puerta pasan **seis de los siete** códigos, no los siete: el **`75`** lo
+> devuelve el proceso de fuera del candado con un `exit` pelado, a propósito.
+>
+> **Antes de leer `instancia.env` no hay con qué subir**: el cliente de S3 sale de
+> `respaldo.sh`, que se sourcea **justo después** de la configuración. Los dos únicos
+> `salir` anteriores —falta `flock`, falta el propio archivo— se quedan en el droplet, y
+> ahora el log **lo dice** en vez de callárselo (E61).
+>
+> Una subida que **falla** no cambia el código de salida, pero una **señal a media
+> subida sí**: los `trap` de `respaldo.sh` salen con `130`/`129`/`143`. Esa ventana
+> existía ya en el paso 3 y ahora existe en **todas** las salidas, incluida la buena.
+> Mismo dueño que el punto anterior: `respaldo.sh`, **escrito y no arreglado**.
 >
 > Y el proceso de **fuera** del candado —el que se encuentra otro update en marcha y
 > sale con `75`— no escribe ni sube nada: el publicable es de la corrida que **tiene**
 > el candado.
+
+> [!danger] Dos de esas afirmaciones eran **falsas cuando se escribieron**, y una se
+> reprodujo
+> La auditoría del 18/08 abrió los tres documentos que las sostienen y comprobó el
+> código:
+>
+> - **«el proceso de fuera no escribe ni sube nada».** `SPACE_OS_UPDATE_EN_CANDADO=1`
+>   se **exportaba** antes del `flock`, así que cuando `flock -n -E 75` devolvía 75 sin
+>   ejecutar al hijo, el proceso de fuera **conservaba la variable** y su línea de «ya
+>   hay otro update en marcha» acababa dentro del **`update-publicable.log` de la otra**
+>   **corrida** — y viajaba al bucket dentro de su objeto. Reproducido con un doble de
+>   `flock`. Ahora la marca se le pasa al hijo **en la misma línea** del `flock`.
+> - **«al terminar —salga bien o mal— subir».** No se cumplía en **doce** salidas. Hoy
+>   viajan **nueve** de ellas. Las tres que siguen sin poder no tienen con qué subir por
+>   definición: falta `instancia.env` y falta `respaldo.sh` —esas dos **lo dicen** ahora
+>   en el log local (E61)—, y falta `flock`, que sale **antes del candado** y por eso no
+>   llega a tener log publicable propio. Las doce eran `salir "$EX_CONFIG"` que
+>   caían **antes** de que `respaldo.sh` estuviera sourceado, y son
+>   precisamente los fallos de una **instancia mal aprovisionada**, la clase que uno más
+>   quiere diagnosticar sin entrar. Ahora `respaldo.sh` se sourcea justo después de
+>   `instancia.env` — y no antes, porque deriva `SPACES_ENDPOINT` de `SPACES_REGION` al
+>   sourcearse y se llevaría el endpoint equivocado.
+>
+> **El arnés no las veía**: su escenario del candado afirmaba `no_hubo s3cmd` —la mitad
+> «no sube»— y **nunca abría el archivo que viaja**. De ahí E59, E60 y E61.
 
 Una subida fallida **no cambia el código de salida** —sería cambiar lo que el cron lee
 por un problema de red— pero deja `LOG REMOTO FALLIDO` en el log local. Sin
