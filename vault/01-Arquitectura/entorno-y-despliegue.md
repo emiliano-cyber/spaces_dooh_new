@@ -546,6 +546,87 @@ una instancia sin respaldo remoto configurado: el log lo dice así
 > comando de verificación de F3.7 —`s3cmd ls s3://space-os-respaldos/demo/ | tail -3`—
 > **no se ha corrido**, y no puede correrse desde aquí.
 
+### El log sale del droplet, y va filtrado (18/08, F3.9)
+
+El modelo prohíbe entrar por SSH a la máquina de un owner, así que una actualización
+fallida hay que poder diagnosticarla **desde fuera**. Al terminar —**salga bien o
+mal**— `update.sh` sube su registro a
+`s3://space-os-logs/<instancia>/<AAAA-MM-DD-HHMM>.log`, con **90 días** de retención
+por **regla de ciclo de vida del bucket** (aquí tampoco hay un solo borrado remoto,
+por la misma razón que en F3.7). Reutiliza el cliente y la disciplina de credenciales
+de `respaldo.sh` —la llave no viaja en `argv`— pero **es otro bucket**: `space-os-logs`
+no es `space-os-respaldos`, y son dos reglas de retención y posiblemente dos permisos.
+
+> [!danger] El criterio de aceptación va en **negativo**, y el archivo que ya existía **no lo cumplía**
+> «**Ni un dato de negocio aparece en el log.**» Y en `update.log` cae, por `eco`, la
+> salida **cruda** de las herramientas: el runner de migraciones —un error de Postgres
+> arrastra **la fila que lo provocó**: `Ya existe la llave (tenant_id, rfc)=(…)`—,
+> `pg_dump`, `pg_restore`, la sonda de huella y, la peor, **`docker logs --tail 30`
+> del contenedor nuevo** en el paso 7, que son los registros de **la aplicación**:
+> rutas, cuerpos, correos, importes.
+>
+> Así que la tarea **no era «añadir una subida»**: era **separar lo que el script
+> emite de lo que emiten sus herramientas**. Se midió antes de diseñar.
+
+Hay **dos** logs, y una sola regla los separa:
+
+| Archivo | Qué lleva | Quién lo escribe | Dónde vive |
+|---|---|---|---|
+| `/var/log/space-os/update.log` | **todo**, crudo, acumulado desde que nació la instancia | `registrar` **y `eco`** | solo el droplet |
+| `/var/log/space-os/update-publicable.log` | **solo esta corrida**, y solo las líneas del propio script **más su código de salida** | `registrar`, y nadie más | **es lo que viaja al bucket** |
+
+Toda la separación cabe en las dos funciones de la «Bitácora» de `update.sh`:
+`registrar` escribe en los dos archivos, `eco` **solo en el local**. No hay lista de
+palabras prohibidas ni filtro por expresión regular —un filtro se olvida de un caso y
+nadie se entera—: **lo que no se emite no puede filtrarse.** El publicable se **vacía
+al empezar**, ya dentro del candado; subir el acumulado sería mandar al bucket, cada
+noche, todo lo que la instancia registró desde siempre.
+
+> [!tip] Filtrar no es perder
+> Lo crudo **sigue entero en el droplet** para quien tenga que entrar; lo que cambia es
+> que ya casi nunca hace falta. Una vuelta atrás completa, leída **solo desde el
+> bucket** (medido con el arnés el 18/08): pull, respaldo, huella previa, los dos
+> intentos de salud con su `500`, `7 · VUELTA ATRAS`, la restauración y `salida: 4`.
+> **Ni una fila, ni una credencial, ni siquiera un nombre de tabla** —la huella es un
+> hash, y para diagnosticar sirve igual—. El plan permitía nombres de tabla y conteos;
+> esto se queda por debajo de ese límite.
+>
+> La **contraseña de Postgres** tampoco sale, y no por casualidad: cada línea que
+> nombra la conexión pasa por `destino_de_url`, que corta el `usuario:clave@` —el
+> mismo criterio que sacó `PGPASSWORD` de `ps`—. **E53 lo fija** para que un
+> `registrar` futuro que imprima `$DATABASE_URL` a secas no mande la llave de la
+> base a un bucket sin que nadie lo vea.
+
+> [!warning] Dos límites, escritos para que nadie los descubra tarde
+> **La subida cuelga de `salir()`**, que es la única puerta de salida una vez tomado el
+> candado, y por ahí pasan los **siete** códigos documentados. Si el proceso muere por
+> una **señal** o por un error no previsto, **no hay log en el bucket**. Un `trap EXIT`
+> parecía la respuesta y **no lo es**: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al
+> cerrar su subida, así que el trap quedaría **desarmado justo en la segunda mitad** del
+> script —la mitad en la que las cosas salen mal—, y un trap que deja de existir a
+> medias es peor que ninguno porque hace falsa la documentación. Cerrarlo de verdad
+> exige tocar `respaldo.sh`, que está auditado: **reportado, no arreglado.**
+>
+> Y el proceso de **fuera** del candado —el que se encuentra otro update en marcha y
+> sale con `75`— no escribe ni sube nada: el publicable es de la corrida que **tiene**
+> el candado.
+
+Una subida fallida **no cambia el código de salida** —sería cambiar lo que el cron lee
+por un problema de red— pero deja `LOG REMOTO FALLIDO` en el log local. Sin
+`SPACES_KEY`/`SPACES_SECRET` no es un fallo: es una instancia sin diagnóstico remoto
+configurado, y se dice así (`log remoto NO CONFIGURADO`).
+
+> [!warning] El bucket **no existe todavía**, y la primera revisión es **a ojo**
+> Crear `space-os-logs`, dar a la llave de cada instancia permiso sobre su prefijo
+> **también en este bucket** (con la de F3.7 a secas, la subida da `403`) y poner la
+> **regla de 90 días** son pasos de servidor: tarjeta humana en
+> `infra/scripts/README.md` §8. El comando de verificación de F3.9
+> —`s3cmd get s3://space-os-logs/demo/$(date +%F)*.log - | head -40`— **no se ha
+> corrido**. Y la última mitad del criterio es trabajo de una persona: **la primera
+> subida de cada instancia se lee entera a ojo** y lo que se encontró se anota en
+> `docs/Registro_Cambios.md`. Un log es una vía de fuga clásica, y la revisión mecánica
+> solo cubre lo que alguien pensó en comprobar.
+
 ## Producción
 
 | Pieza | Valor |

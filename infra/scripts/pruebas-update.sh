@@ -118,7 +118,11 @@ case "$sub" in
         printf 'HUELLA %s\n' "$valor"
         exit 0 ;;
     esac ;;
-  stop|logs) exit 0 ;;
+  stop) exit 0 ;;
+  # `docker logs` del contenedor nuevo es la peor via de fuga del paso 7: son
+  # los registros de la APLICACION, y ahi caben correos, importes y nombres de
+  # clientes. Por omision no dice nada; E53 lo llena a proposito.
+  logs) [ -n "${D_LOGS_SALIDA:-}" ] && printf '%s\n' "$D_LOGS_SALIDA"; exit 0 ;;
   rename)
     if [ "$1" = "${CONTENEDOR_NOMBRE:-space-os}" ] && [ "${D_RENAME_FALLA:-0}" = 1 ]; then
       echo 'Error: no such container'
@@ -210,6 +214,20 @@ done
 # `S3_LENTO` mantiene la subida abierta unos segundos: sin eso no hay "media
 # subida" que interrumpir. Duerme con el `sleep` DE VERDAD — el de $BIN es un
 # doble que vuelve enseguida y no serviria de nada aqui.
+# Lo que se sube DE VERDAD, no solo que se subio: el criterio de F3.9 va en
+# NEGATIVO —«ni un dato de negocio aparece en el log»— y eso no se puede
+# comprobar mirando la linea de comandos. Hay que leer el archivo que viaja.
+prev=''
+for a in "$@"; do
+  case "$a" in
+    s3://*)
+      if [ -n "${REG_S3_SUBIDO:-}" ] && [ -f "$prev" ]; then
+        printf '=== SUBIDO %s ===\n' "$a" >>"$REG_S3_SUBIDO"
+        cat "$prev" >>"$REG_S3_SUBIDO"
+      fi ;;
+  esac
+  prev="$a"
+done
 if [ -n "${S3_LENTO:-}" ]; then /bin/sleep "$S3_LENTO" 2>/dev/null || /usr/bin/sleep "$S3_LENTO" 2>/dev/null || true; fi
 [ "${S3_FALLA:-0}" = 1 ] && { echo 'ERROR: S3 error: 403 (AccessDenied)'; exit 1; }
 exit 0
@@ -221,6 +239,20 @@ printf 'aws %s
 ' "$*" >>"$REG_LLAMADAS"
 printf 'aws ENV AWS_ACCESS_KEY_ID=[%s] AWS_SECRET_ACCESS_KEY=[%s]
 '   "${AWS_ACCESS_KEY_ID-<NO-DEFINIDA>}" "${AWS_SECRET_ACCESS_KEY-<NO-DEFINIDA>}" >>"$REG_S3ENV"
+# Lo que se sube DE VERDAD, no solo que se subio: el criterio de F3.9 va en
+# NEGATIVO —«ni un dato de negocio aparece en el log»— y eso no se puede
+# comprobar mirando la linea de comandos. Hay que leer el archivo que viaja.
+prev=''
+for a in "$@"; do
+  case "$a" in
+    s3://*)
+      if [ -n "${REG_S3_SUBIDO:-}" ] && [ -f "$prev" ]; then
+        printf '=== SUBIDO %s ===\n' "$a" >>"$REG_S3_SUBIDO"
+        cat "$prev" >>"$REG_S3_SUBIDO"
+      fi ;;
+  esac
+  prev="$a"
+done
 [ "${S3_FALLA:-0}" = 1 ] && { echo 'upload failed: 403 Forbidden'; exit 1; }
 exit 0
 FIN
@@ -286,7 +318,8 @@ preparar() {
   export REG_CURL_N="$RAIZ_TMP/curl.n"
   export REG_PULL_N="$RAIZ_TMP/pull.n"
   export REG_S3ENV="$RAIZ_TMP/s3env.txt"
-  : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"
+  export REG_S3_SUBIDO="$RAIZ_TMP/s3-subido.txt"
+  : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"; : >"$REG_S3_SUBIDO"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
@@ -321,6 +354,7 @@ INSTANCIA=demo
 SPACES_KEY=LLAVE_FALSA
 SPACES_SECRET=SECRETO_FALSO
 SPACES_BUCKET=space-os-respaldos
+LOGS_BUCKET=space-os-logs
 SPACES_REGION=nyc3
 FIN
   printf '// runner falso de la instancia\n' >"$RAIZ_TMP/migrar.mjs"
@@ -337,7 +371,8 @@ FIN
   export C_CODIGOS='200'
   export C_SALIDAS='0'
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
-        PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO 2>/dev/null || true
+        PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
+        D_LOGS_SALIDA 2>/dev/null || true
   export PGR_CODIGO=0
   export PGD_VACIO=0
   export PGD_FALLA=0
@@ -380,6 +415,15 @@ veces_en_log() {
   n="$(grep -c -- "$2" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null || true)"
   if [ "$n" = "$1" ]; then bien; else mal "se esperaban $1 lineas con '$2' en update.log, hubo $n"; fi
 }
+
+# Sobre el CONTENIDO de lo que se subio al bucket, que es lo unico que puede
+# responder al criterio en NEGATIVO de F3.9. `log_dice` mira la consola y
+# `veces_en_log` mira `update.log`; ninguno de los dos sabe que viajo fuera.
+subido_dice() { if grep -qF -- "$1" "$REG_S3_SUBIDO" 2>/dev/null; then bien; else mal "lo subido al bucket no dice: $1"; fi; }
+subido_calla() { if grep -qF -- "$1" "$REG_S3_SUBIDO" 2>/dev/null; then mal "lo subido al bucket NO deberia decir: $1"; else bien; fi; }
+# Sobre `update.log`, el que se queda en el droplet: la separacion solo vale si
+# lo crudo SIGUE estando en el disco de la instancia. Filtrar no es perder.
+log_local_dice() { if grep -qF -- "$1" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null; then bien; else mal "update.log no dice: $1"; fi; }
 
 # ============================================================================
 #  ESCENARIOS
@@ -440,8 +484,12 @@ log_dice 'BACKUP VACIO'
 hubo 'pg_dump'
 # Un dump de 0 bytes no se sube a ningun sitio: en el bucket seria el mas
 # reciente y el que alguien elegiria para restaurar.
-no_hubo 's3cmd'
-no_hubo 'aws s3 cp'
+#
+# Ojo: hasta F3.9 esto se comprobaba con `no_hubo 's3cmd'`, y desde F3.9 ese
+# atajo dice otra cosa —el LOG de la corrida SI sube, precisamente porque el
+# update fallo (E54)—. Lo que no puede subir es un DUMP, y eso es lo que se
+# afirma ahora; el atajo afirmaba de mas.
+no_hubo_regex 's3://[^ ]*\.dump'
 no_hubo 'node scripts/migrar.mjs'
 no_hubo '--detach'
 # El archivo de 0 bytes NO se queda junto a los buenos: en un `ls` del directorio
@@ -455,6 +503,10 @@ export FLOCK_OCUPADO=1
 correr
 codigo_es 75
 log_dice 'ya hay otro update en marcha'
+# Y no sube NADA (F3.9): el log publicable es de la corrida que TIENE el candado,
+# y esta no hizo nada que valga la pena diagnosticar. Escribirle encima seria
+# mezclar dos historias en el mismo objeto del bucket.
+no_hubo 's3cmd'
 no_hubo 'docker pull'
 limpiar
 
@@ -1084,6 +1136,136 @@ if [ "$CODIGO" != 0 ]; then bien; else mal 'el script salio con 0 despues de un 
 log_dice 'a media subida'
 limpiar
 
+# E52 · LA TAREA · el log de la corrida sale al bucket con la ruta EXACTA del
+#       plan: s3://space-os-logs/<instancia>/<AAAA-MM-DD-HHMM>.log. Y es OTRO
+#       bucket, no el de F3.7: otra regla de ciclo de vida (90 dias, no 30) y
+#       otro permiso.
+preparar 'E52 el log sube al bucket (F3.9)'
+correr
+codigo_es 0
+hubo_regex '^s3cmd .* put .* s3://space-os-logs/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.log$'
+log_dice 'log remoto OK'
+# Lo que viaja son las lineas del propio script mas el codigo de salida, que es
+# con lo que se diagnostica una corrida sin entrar por ssh.
+subido_dice '1 · pull reg.example.com/space-os-flota/space-os:estable'
+subido_dice 'OK: v0.4.2 sirviendo'
+subido_dice 'salida: 0'
+limpiar
+
+# E53 · EL CORAZON DE F3.9, Y VA EN NEGATIVO · ni un dato de negocio en el log
+#       que sale del droplet. Las dos vias de fuga son reales y estan medidas:
+#       la salida cruda del runner de migraciones —un error de Postgres arrastra
+#       la fila que lo provoco— y `docker logs --tail 30` del contenedor nuevo,
+#       que son los registros de la APLICACION. Las dos entran hoy en
+#       `update.log` por `eco`, y por eso `update.log` NO es lo que se sube.
+#       Nombres de tabla y conteos son aceptables; cualquier fila, no.
+preparar 'E53 ni un dato de negocio en el log que se sube (F3.9)'
+export D_MIGRAR_SALIDA='ERROR: llave duplicada viola la restriccion de unicidad "arrendadores_tenant_rfc_uq" DETALLE: Ya existe la llave (tenant_id, rfc)=(rgb, XAXX010101000).'
+export D_LOGS_SALIDA='[app] POST /api/clientes 500 cliente="Grupo Salinas SA de CV" contacto=jose.lopez@ejemplo.mx importe=184500.00'
+export C_CODIGOS='500 500 200 200'
+correr
+codigo_es 4
+# Lo crudo NO se pierde: sigue entero en el droplet, que es donde se mira
+# cuando el bucket no basta. Filtrar no es tirar.
+log_local_dice 'XAXX010101000'
+log_local_dice 'Grupo Salinas SA de CV'
+log_local_dice 'jose.lopez@ejemplo.mx'
+# Y no sale de ahi.
+subido_calla 'XAXX010101000'
+subido_calla 'Grupo Salinas SA de CV'
+subido_calla 'jose.lopez@ejemplo.mx'
+subido_calla '184500.00'
+# Tampoco las credenciales, que viven en el mismo entorno que todo lo demas.
+subido_calla 'SECRETO_FALSO'
+subido_calla 'LLAVE_FALSA'
+# Y menos que ninguna la contrasena de Postgres, que es el peor string del
+# entorno: hoy no sale porque cada linea que imprime la conexion pasa por
+# `destino_de_url`, que corta el `usuario:clave@`. Un `registrar` que algun dia
+# imprima "$DATABASE_URL" a secas mandaria la llave de la base a un bucket.
+subido_calla 'cl@ve'
+subido_calla 'cl%40ve'
+# Y lo que SI tiene que llegar, porque sin eso el log no diagnostica nada.
+subido_dice '7 · VUELTA ATRAS'
+subido_dice 'salida: 4'
+limpiar
+
+# E54 · «salga bien o mal» es literal · el update aborta antes de migrar
+#       —respaldo vacio, codigo 1— y el log viaja igual. Una actualizacion que
+#       falla es justo la que hay que poder leer sin entrar al servidor.
+preparar 'E54 el log sube tambien cuando el update falla (F3.9)'
+export PGD_VACIO=1
+correr
+codigo_es 1
+hubo_regex '^s3cmd .* put .* s3://space-os-logs/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.log$'
+subido_dice 'BACKUP VACIO'
+subido_dice 'salida: 1'
+limpiar
+
+# E55 · sin credenciales el log no sale, y se dice con esas palabras: esa
+#       instancia solo se puede diagnosticar entrando por ssh, que es justo lo
+#       que el modelo evita. Mismo criterio que E42 con el respaldo.
+preparar 'E55 sin credenciales el log no sale del droplet (F3.9)'
+sed -i '/^SPACES_KEY=/d; /^SPACES_SECRET=/d' "$SPACE_OS_CONF"
+correr
+codigo_es 0
+log_dice 'log remoto NO CONFIGURADO'
+no_hubo 's3://space-os-logs'
+limpiar
+
+# E56 · lo que sube es ESTA corrida, no el historico. `update.log` se acumula
+#       desde que la instancia nacio; subir el acumulado seria subir cada corrida
+#       otra vez —y con ella todo lo que se filtrara en cualquiera de las
+#       anteriores—. El publicable se vacia al empezar, dentro del candado.
+preparar 'E56 el log del bucket es solo el de esta corrida (F3.9)'
+export D_LOGS_SALIDA='rastro-de-la-primera-corrida'
+export C_CODIGOS='500 500 200 200'
+correr
+# Segunda corrida, esta buena, con el `update.log` ya poblado por la primera.
+export D_ID_CONTENEDOR='sha256:vieja'
+unset D_LOGS_SALIDA
+export C_CODIGOS='200'
+: >"$REG_S3_SUBIDO"
+correr
+codigo_es 0
+subido_dice 'salida: 0'
+subido_calla 'VUELTA ATRAS'
+subido_calla 'rastro-de-la-primera-corrida'
+# Y el `update.log` del droplet SI conserva las dos corridas: es el historico.
+log_local_dice 'VUELTA ATRAS'
+limpiar
+
+# E57 · el `--dry-run` tambien manda su log, y es a proposito: es la corrida
+#       OBLIGATORIA la primera vez en cada instancia, o sea justo la que alguien
+#       quiere leer desde fuera para saber si esa instancia quedo bien montada.
+#       Sale de que la subida cuelga de `salir()`, que es la unica puerta.
+preparar 'E57 el --dry-run tambien manda su log (F3.9)'
+correr --dry-run
+codigo_es 0
+hubo_regex '^s3cmd .* put .* s3://space-os-logs/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.log$'
+subido_dice 'migraciones pendientes'
+subido_dice 'salida: 0'
+# Pero sigue sin tocar nada: ni respaldo, ni contenedor. Lo unico que sale del
+# droplet es el relato de que no se hizo nada.
+no_hubo 'pg_dump'
+no_hubo_regex 's3://[^ ]*\.dump'
+limpiar
+
+# E58 · `LOGS_BUCKET` de la configuracion MANDA. Parece obvio y no lo es: el
+#       valor por omision se declara arriba del todo, ANTES de sourcear
+#       `instancia.env` —tiene que estar definido por si `salir()` se dispara
+#       antes de leer la configuracion—, asi que si ese orden se invirtiera algun
+#       dia la clave documentada dejaria de servir para nada y todas las
+#       instancias escribirian en el mismo bucket sin que nadie lo notara.
+preparar 'E58 LOGS_BUCKET de instancia.env manda (F3.9)'
+sed -i 's/^LOGS_BUCKET=.*/LOGS_BUCKET=space-os-logs-de-pruebas/' "$SPACE_OS_CONF"
+correr
+codigo_es 0
+hubo_regex '^s3cmd .* put .* s3://space-os-logs-de-pruebas/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.log$'
+no_hubo 's3://space-os-logs/'
+# Y el bucket de los RESPALDOS no se mueve con el: son dos claves distintas.
+hubo_regex '^s3cmd .* put .* s3://space-os-respaldos/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump$'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -1196,6 +1378,17 @@ if [ "${1:-}" = '--mutantes' ]; then
     's#^  trap .respaldo_conf_limpiar "\$conf" TERM. TERM$#  : sin trap                               #'
   probar_mutante_respaldo 'tragarse el fallo de la subida' \
     's#^  return "\$resultado"$#  return 0#'
+
+  # Y los cuatro de F3.9. El primero es EL defecto de la tarea: subir el log
+  # crudo, con la salida de las herramientas dentro.
+  probar_mutante 'subir `update.log` crudo en vez del publicable (F3.9)' \
+    's#respaldo_subir_s3cmd "$LOG_PUBLICABLE"#respaldo_subir_s3cmd "$LOG"           #'
+  probar_mutante 'que `eco` escriba tambien en el publicable (F3.9)' \
+    's#^eco() { tee -a "$LOG"; }$#eco() { tee -a "$LOG" "$LOG_PUBLICABLE"; }#'
+  probar_mutante 'subir el log solo cuando el update sale bien (F3.9)' \
+    's#^  subir_log_remoto "$codigo" || true$#  case "$codigo" in 0) subir_log_remoto 0 || true ;; esac#'
+  probar_mutante 'no vaciar el publicable: sube el historico entero (F3.9)' \
+    's#^: >"$LOG_PUBLICABLE"$#: no_vaciar         #'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

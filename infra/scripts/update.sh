@@ -14,7 +14,9 @@
 #                                        # el pull falla A PROPOSITO: ensaya la
 #                                        # politica de reintentos sin cortarle
 #                                        # la red al droplet. No toca nada.
-#    tail -n 40 /var/log/space-os/update.log
+#    tail -n 40 /var/log/space-os/update.log        # todo, crudo, en el droplet
+#    cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
+#                                                   # es lo que viaja al bucket
 #
 #  Respuestas del --dry-run:
 #    "sin cambios"                        → la instancia esta al dia
@@ -84,6 +86,10 @@
 #                                       permiso solo sobre SU prefijo. Nunca la
 #                                       llave maestra de la cuenta
 #    SPACES_BUCKET=space-os-respaldos   a donde sale el respaldo
+#    LOGS_BUCKET=space-os-logs          a donde sale el LOG de cada corrida. NO
+#                                       es el bucket de los respaldos: otra regla
+#                                       de ciclo de vida (90 dias contra 30) y,
+#                                       si se quiere, otro permiso en la llave
 #    SPACES_REGION=nyc3                 decide el endpoint de Spaces
 #    RESPALDOS_LOCALES=3                cuantos dumps se guardan en el disco
 #
@@ -197,6 +203,51 @@
 #  El numero de migraciones que sale en el log es la diferencia de filas de
 #  `schema_migrations`, o "?" si la tabla no existe. Es informativo: la decision
 #  cuelga de la huella, no del numero.
+#
+# ── AVISO 5 · el log SALE del droplet, y por eso hay DOS logs ──────────────
+#  El modelo prohibe entrar por ssh a la instancia de un owner, asi que una
+#  actualizacion fallida hay que poder diagnosticarla desde fuera. De ahi que al
+#  terminar —salga bien o mal— este script suba su registro a
+#  `s3://<LOGS_BUCKET>/<instancia>/<AAAA-MM-DD-HHMM>.log`. Los 90 dias de
+#  retencion los pone la REGLA DE CICLO DE VIDA DEL BUCKET, igual que en F3.7 y
+#  por lo mismo: aqui no hay ni un borrado remoto.
+#
+#  Lo que NO se puede subir es `$LOG`, y esto es el corazon de la tarea. En
+#  `update.log` cae, por `eco`, la salida CRUDA de las herramientas:
+#    · el runner de migraciones — un error de Postgres arrastra la fila que lo
+#      provoco ("Ya existe la llave (tenant_id, rfc)=(…)").
+#    · `docker logs --tail 30` del contenedor nuevo (paso 7) — son los registros
+#      de la APLICACION: rutas, cuerpos, correos, importes.
+#    · `pg_dump`, `pg_restore`, `docker run` y la sonda de huella.
+#  El criterio de aceptacion de F3.9 va en NEGATIVO —«ni un dato de negocio
+#  aparece en el log»— y con eso dentro no se cumple. Nombres de tabla y conteos
+#  son aceptables; cualquier fila, no.
+#
+#  Asi que hay dos archivos y una sola regla que los separa:
+#    $LOG             todo, crudo, acumulado desde que nacio la instancia. Se
+#                     queda en el droplet. Lo escriben `registrar` Y `eco`.
+#    $LOG_PUBLICABLE  solo esta corrida, y SOLO las lineas que este script emite
+#                     mas su codigo de salida. Lo escribe `registrar` y nadie
+#                     mas. Es lo unico que viaja al bucket.
+#  Filtrar no es perder: lo crudo sigue entero en el droplet para quien tenga
+#  que entrar. Lo que cambia es que ya casi nunca hace falta entrar.
+#
+#  Dos limites, escritos para que nadie los descubra tarde:
+#    · la subida cuelga de `salir()`, que es la unica puerta de salida del script
+#      una vez tomado el candado. Si el proceso muere por una senal o por un
+#      error no previsto, NO hay log en el bucket. Un `trap EXIT` parecia la
+#      respuesta y no lo es: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al
+#      cerrar su subida (`respaldo_conf_limpiar`), asi que el trap se quedaria
+#      desarmado justo en la segunda mitad del script — la mitad en la que las
+#      cosas salen mal. Un trap que deja de existir a medias es peor que no
+#      tenerlo, porque el README afirmaria algo falso.
+#    · el `--dry-run` TAMBIEN manda su log, y es a proposito: es la corrida
+#      obligatoria la primera vez en cada instancia, o sea justo la que alguien
+#      quiere leer desde fuera para saber si quedo bien montada. No toca nada
+#      igualmente: lo unico que sale es el relato de que no se hizo nada.
+#    · el proceso de FUERA del candado —el que se encuentra otro update en
+#      marcha y sale con 75— no escribe ni sube nada: el log publicable es de la
+#      corrida que TIENE el candado, y ensuciarselo seria mezclar dos historias.
 # ============================================================================
 set -Eeuo pipefail
 
@@ -206,6 +257,14 @@ DIR_ESTADO="${SPACE_OS_DIR_ESTADO:-/var/lib/space-os}"
 DIR_LOG="${SPACE_OS_DIR_LOG:-/var/log/space-os}"
 CANDADO="${SPACE_OS_CANDADO:-/var/lock/space-os-update.lock}"
 LOG="$DIR_LOG/update.log"
+# El log que SALE del droplet, que NO es `$LOG`: ver AVISO 5. Se puede mover
+# como las demas rutas, solo para ensayar fuera de una instancia.
+LOG_PUBLICABLE="${SPACE_OS_LOG_PUBLICABLE:-$DIR_LOG/update-publicable.log}"
+# El bucket de los LOGS no es el de los respaldos: 90 dias contra 30. Se
+# declara aqui, y no con el resto de la configuracion, porque `salir()` puede
+# dispararse antes de leer $CONF; si $CONF lo define, gana el suyo — se
+# sourcea despues de esta linea.
+LOGS_BUCKET="${LOGS_BUCKET:-space-os-logs}"
 
 # ─── Codigos de salida, con nombre ─────────────────────────────────────────
 EX_OK=0
@@ -225,12 +284,13 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
-    # Hasta la linea 103: uso, codigos de salida, la ventana de corte, las
+    # Hasta la linea 109: uso, codigos de salida, la ventana de corte, las
     # claves de instancia.env y la politica de reintentos. Los AVISOS 1-4 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
     # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
-    # de Spaces (F3.7): un rango fijo caduca en cuanto la cabecera crece.
-    -h|--help) sed -n '2,103p' "$0"; exit 0 ;;
+    # de Spaces (F3.7): un rango fijo caduca en cuanto la cabecera crece, y ya
+    # volvio a crecer con LOGS_BUCKET (F3.9). Se remide leyendo, no restando.
+    -h|--help) sed -n '2,109p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -247,14 +307,72 @@ registrar() {
   linea="$(date '+%Y-%m-%d %H:%M:%S%z')  $*"
   printf '%s\n' "$linea"
   printf '%s\n' "$linea" >>"$LOG"
+  # Y al publicable, que es el que viaja al bucket. Solo dentro del candado: el
+  # proceso de fuera no tiene que escribir en el log de la corrida que lo tiene.
+  if [ "${SPACE_OS_UPDATE_EN_CANDADO:-}" = "1" ]; then printf '%s\n' "$linea" >>"$LOG_PUBLICABLE"; fi
 }
-# Para la salida de un comando: a la consola y al log.
+# Para la salida de un comando: a la consola y al log LOCAL, nunca al publicable.
+# Por aqui entra TODO lo que no puede salir del droplet —la salida cruda del
+# runner, de `pg_dump`, de `pg_restore` y de `docker logs`—, y esa es justamente
+# la linea que separa los dos archivos. Ver AVISO 5.
 eco() { tee -a "$LOG"; }
+
+# ─── El log que sale del droplet (F3.9) ────────────────────────────────────
+# Sube SOLO `$LOG_PUBLICABLE`, nunca `$LOG`: ver AVISO 5. Reutiliza el cliente y
+# la disciplina de credenciales de `respaldo.sh` (F3.7) en vez de repetirlas —la
+# llave no viaja en `argv` ni aqui—, y por eso comprueba antes que ese archivo ya
+# se haya sourceado: si el update murio antes, no hay con que subir y tampoco
+# habria credenciales que usar.
+LOG_SUBIDO=0
+subir_log_remoto() {
+  local codigo="${1:-0}" instancia destino cliente resultado=0
+  # Fuera del candado no hay log de esta corrida que subir.
+  [ "${SPACE_OS_UPDATE_EN_CANDADO:-}" = "1" ] || return 0
+  # Una sola subida por corrida, aunque `salir` se llamara dos veces.
+  [ "$LOG_SUBIDO" = 0 ] || return 0
+  LOG_SUBIDO=1
+  # El codigo de salida es media respuesta del diagnostico: sin el, el log cuenta
+  # que paso pero no con que se quedo el cron. La tarea lo pide expresamente.
+  printf '%s  salida: %s\n' "$(date '+%Y-%m-%d %H:%M:%S%z')" "$codigo" >>"$LOG_PUBLICABLE"
+  declare -F respaldo_subir_s3cmd >/dev/null 2>&1 || return 0
+  if [ -z "${SPACES_KEY:-}" ] || [ -z "${SPACES_SECRET:-}" ] || [ -z "$LOGS_BUCKET" ]; then
+    registrar "   log remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET (o LOGS_BUCKET). El registro de esta corrida se queda en $LOG_PUBLICABLE, o sea que diagnosticarla exige entrar al servidor del owner."
+    return 0
+  fi
+  # Mismo criterio que el respaldo: sin prefijo no se sube, porque la RAIZ del
+  # bucket es donde viven los logs de las demas instancias.
+  instancia="$(respaldo_instancia)"
+  if [ -z "$instancia" ]; then
+    registrar "   log remoto: no hay INSTANCIA en la configuracion y el hostname salio vacio, asi que no se sabe a que prefijo del bucket subir. No se sube a la raiz."
+    return 1
+  fi
+  destino="$(printf 's3://%s/%s/%s.log' "$LOGS_BUCKET" "$instancia" "$(date '+%Y-%m-%d-%H%M')")"
+  cliente="$(respaldo_cliente)" || {
+    registrar "   log remoto: no hay cliente de S3 en el PATH (ni \`s3cmd\` ni \`aws\`). Instala uno: \`apt-get install -y s3cmd\`."
+    return 1
+  }
+  registrar "   log remoto -> $destino (por $cliente)"
+  case "$cliente" in
+    s3cmd) respaldo_subir_s3cmd "$LOG_PUBLICABLE" "$destino" || resultado=$? ;;
+    aws)   respaldo_subir_aws   "$LOG_PUBLICABLE" "$destino" || resultado=$? ;;
+  esac
+  if [ "$resultado" -eq 0 ]; then
+    registrar "   log remoto OK: $destino"
+  else
+    registrar "LOG REMOTO FALLIDO — el registro de esta corrida se quedo SOLO en este droplet ($LOG_PUBLICABLE). Para diagnosticar esta actualizacion hay que entrar al servidor, que es justo lo que este modelo evita. El motivo esta en la linea de arriba."
+  fi
+  return "$resultado"
+}
 
 salir() {
   local codigo="$1"
   shift || true
   if [ "$#" -gt 0 ]; then registrar "$@"; fi
+  # El log sale del droplet SALGA BIEN O MAL, y `salir` es la unica puerta una
+  # vez tomado el candado. El `|| true` no es descuido: una subida que falla no
+  # puede cambiar el codigo con el que este script se despide, que es lo que el
+  # cron mira y lo que distingue "la base pudo cambiar" de "no se toco nada".
+  subir_log_remoto "$codigo" || true
   exit "$codigo"
 }
 
@@ -273,6 +391,13 @@ if [ "${SPACE_OS_UPDATE_EN_CANDADO:-}" != "1" ]; then
   fi
   exit "$codigo_candado"
 fi
+
+# ─── El log de ESTA corrida, en limpio ─────────────────────────────────────
+# `$LOG` se acumula desde que la instancia nacio; el publicable es solo esta
+# corrida, y por eso se vacia AQUI —ya dentro del candado, para no vaciarle el
+# suyo a un update que este a media faena—. Subir el acumulado seria mandar al
+# bucket, cada noche, todo lo que la instancia ha registrado desde siempre.
+: >"$LOG_PUBLICABLE"
 
 # ─── Configuracion ─────────────────────────────────────────────────────────
 if [ ! -f "$CONF" ]; then

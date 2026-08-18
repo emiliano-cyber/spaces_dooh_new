@@ -31,7 +31,9 @@ raíz, para poner o mantener una instancia en pie.
 /opt/space-os/update.sh --dry-run     # mira y cuenta. NO toca nada
 /opt/space-os/update.sh               # actualiza de verdad
 /opt/space-os/update.sh --simular-fallo-pull   # ensaya los reintentos (§ abajo)
-tail -n 40 /var/log/space-os/update.log
+tail -n 40 /var/log/space-os/update.log        # todo, crudo, solo en el droplet
+cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
+                                               # es lo que viaja al bucket (§8)
 ```
 
 **El `--dry-run` es obligatorio la primera vez en cada instancia.** Respuestas:
@@ -66,7 +68,10 @@ tail -n 40 /var/log/space-os/update.log
 7. Si la salud falla: vuelve al contenedor anterior, restaura el dump **solo si
    la huella dice que la base cambió** (§3), y sale ≠ 0 dejando el motivo en el
    log.
-8. Lo lanza `cron` una vez al día, con `flock`.
+8. **Salga bien o mal**, sube el registro de la corrida a `s3://space-os-logs/`
+   —el **filtrado**, no `update.log`— para poder diagnosticarla sin entrar por
+   SSH (§8). Una subida fallida **no** cambia el código de salida.
+9. Lo lanza `cron` una vez al día, con `flock`.
 
 ### Códigos de salida — no son intercambiables
 
@@ -110,9 +115,10 @@ root** — el script avisa si no lo está.
 | `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. Vacío = ningún reintento. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
 | `RUNNER_MIGRACIONES` | no | `/opt/space-os/migrar.mjs` (ver el aviso 1) |
 | `PG_DUMP` / `PG_RESTORE` | no | rutas, si conviven varias versiones de Postgres |
-| `INSTANCIA` | no (*) | el prefijo de esta instancia dentro del bucket de respaldos. Si falta, se usa el `hostname -s` |
+| `INSTANCIA` | no (*) | el prefijo de esta instancia dentro de los buckets —de respaldos **y de logs**—. Si falta, se usa el `hostname -s` |
 | `SPACES_KEY` / `SPACES_SECRET` | no (*) | la llave de Spaces. **Una por instancia y con permiso solo sobre su prefijo.** Sin ellas no hay respaldo fuera del droplet, y el log lo dice |
-| `SPACES_BUCKET` | no | `space-os-respaldos` |
+| `SPACES_BUCKET` | no | `space-os-respaldos`, a dónde sale el **respaldo** |
+| `LOGS_BUCKET` | no | `space-os-logs`, a dónde sale el **log** de cada corrida. **Otro bucket**: 90 días de retención en vez de 30, y puede pedir otro permiso en la llave (§8) |
 | `SPACES_REGION` | no | `nyc3`; de ahí sale el endpoint `https://nyc3.digitaloceanspaces.com` |
 | `SPACES_ENDPOINT` | no | se calcula de la región; existe para poder apuntar a otra cosa al ensayar |
 | `SPACES_CLIENTE` | no | `auto` (prefiere `s3cmd`), `s3cmd` o `aws` |
@@ -193,12 +199,15 @@ Si `flock` no está instalado, el script **no corre**.
 
 ---
 
-## Ocho cosas que hay que saber antes de tocarlo
+## Nueve cosas que hay que saber antes de tocarlo
 
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:407-413`), así que una instancia **nunca** aplica una
+`--con-datos`** (`update.sh:626-632`, remedido leyendo el 18/08: la cita anterior
+decía `407-413` y **ya apuntaba mal antes de que este archivo creciera** —en el
+commit que la escribió, `correr_runner` estaba en la 501—), así que una instancia
+**nunca** aplica una
 migración marcada `-- @tipo: datos` en su primera línea. Eso es deliberado, no un
 olvido: una corrección de datos no debe colarse en una actualización automática que
 corre de madrugada por `cron` sin nadie mirando.
@@ -504,6 +513,141 @@ A mano, sin actualizar nada:
 
 ---
 
+### 8 · El log **sale** del droplet — y por eso hay **dos** logs
+
+El modelo de instancias soberanas **prohíbe entrar por SSH** a la máquina de un
+owner. Bien, ¿y entonces cómo se diagnostica la actualización que falló anoche?
+Desde F3.9, leyendo el bucket: al terminar —**salga bien o mal**— `update.sh`
+sube su registro a
+
+```
+s3://space-os-logs/<instancia>/<AAAA-MM-DD-HHMM>.log
+```
+
+> [!warning] **`space-os-logs` no es `space-os-respaldos`**
+> Son **dos buckets distintos**, con **dos reglas de ciclo de vida distintas**
+> —**90 días** aquí, **30** allí— y, si se quiere, dos permisos. Reutilizan la
+> misma llave (`SPACES_KEY`/`SPACES_SECRET`) y el mismo cliente, no el mismo
+> destino. El bucket se elige con `LOGS_BUCKET` en `instancia.env`.
+>
+> Y otra vez: **los 90 días los poda la regla del bucket, no el script.** Aquí
+> tampoco hay un solo borrado remoto, por la misma razón de siempre.
+
+#### Lo delicado no es subirlo: es **qué** se sube
+
+El criterio de aceptación de F3.9 está escrito **en negativo**:
+
+> **ni un dato de negocio aparece en el log.**
+
+Y el archivo que ya existía **no lo cumplía**. En `update.log` cae, por `eco`,
+la salida **cruda** de las herramientas, y ahí sí hay datos:
+
+| Quién escribe | Qué puede arrastrar |
+|---|---|
+| el runner de migraciones | un error de Postgres trae **la fila que lo provocó**: `Ya existe la llave (tenant_id, rfc)=(rgb, XAXX010101000)` |
+| **`docker logs --tail 30`** (paso 7) | son los registros de **la aplicación**: rutas, cuerpos, correos, importes |
+| `pg_dump` · `pg_restore` · `docker run` · la sonda de huella | mensajes por objeto, nombres, conteos |
+
+La línea que el plan traza es exacta: **nombres de tabla y conteos son
+aceptables; cualquier fila, no.** Así que subir `update.log` tal cual **habría
+sido una fuga**, y la tarea no era «añadir una subida» sino **separar lo que el
+script emite de lo que emiten sus herramientas**:
+
+| Archivo | Qué lleva | Quién lo escribe | Dónde vive |
+|---|---|---|---|
+| `/var/log/space-os/update.log` | **todo**, crudo, acumulado desde que nació la instancia | `registrar` **y `eco`** | solo el droplet |
+| `/var/log/space-os/update-publicable.log` | **solo esta corrida**, y solo las líneas del propio script **más su código de salida** | `registrar`, y nadie más | **es lo que viaja al bucket** |
+
+Toda la separación cabe en dos funciones (`update.sh`, «Bitácora»): `registrar`
+escribe en los dos archivos, `eco` **solo en el local**. No hay lista de
+palabras prohibidas ni filtro por expresión regular —un filtro se olvida de un
+caso y nadie se entera—: **lo que no se emite no puede filtrarse.**
+
+> [!tip] Filtrar no es perder
+> Lo crudo **sigue entero en el droplet** para quien tenga que entrar. Lo que
+> cambia es que ya casi nunca hace falta. Así se ve una vuelta atrás completa
+> leída **solo desde el bucket**, sin abrir una sesión en el servidor:
+>
+> ```
+> … 1 · pull reg.example.com/space-os-flota/space-os:estable
+> … 3 · respaldo -> /var/lib/space-os/respaldos/spaces_20260818_130614.dump
+> … 5 · migraciones (imagen nueva, contenedor efimero) · huella previa: 8f3a… 0
+> … 6 · salud: intento 2/2 -> 500
+> … 7 · VUELTA ATRAS: la version nueva no contesta 200 en http://127.0.0.1:3000/…
+> … 7a · base restaurada (esquema Y registro de migraciones)
+> … VUELTA ATRAS COMPLETA: la instancia sirve otra vez la version anterior
+> … salida: 4
+> ```
+>
+> Ni una fila, ni una credencial. Ni siquiera nombres de tabla: la huella es un
+> **hash**, que para diagnosticar sirve igual.
+
+#### Tres cosas que conviene no descubrir tarde
+
+1. **La subida cuelga de `salir()`**, que es la única puerta de salida del
+   script una vez tomado el candado — y por ahí pasan los **siete** códigos
+   documentados. Si el proceso muere **por una señal o por un error no
+   previsto**, no hay log en el bucket. Un `trap EXIT` parecía la respuesta y
+   **no lo es**: `respaldo.sh` hace `trap - EXIT INT TERM HUP` al cerrar su
+   subida (`respaldo_conf_limpiar`), así que el trap quedaría **desarmado justo
+   en la segunda mitad** del script — la mitad en la que las cosas salen mal. Un
+   trap que deja de existir a medias es peor que no tenerlo, porque este README
+   afirmaría algo falso.
+
+2. **El proceso de fuera del candado** —el que se encuentra otro update en
+   marcha y sale con `75`— no escribe ni sube nada: el log publicable es de la
+   corrida que **tiene** el candado, y ensuciárselo sería mezclar dos historias.
+
+3. **El `--dry-run` también manda su log**, y es a propósito: es la corrida
+   **obligatoria la primera vez en cada instancia**, o sea justo la que alguien
+   quiere leer desde fuera para saber si quedó bien montada. Sigue sin tocar
+   nada: lo único que sale del droplet es el relato de que no se hizo nada.
+
+Si la subida falla, el update **no cambia de código de salida** (sería cambiar
+lo que el cron lee por un problema de red), pero queda escrito:
+
+```
+LOG REMOTO FALLIDO — el registro de esta corrida se quedo SOLO en este droplet …
+```
+
+Y sin `SPACES_KEY`/`SPACES_SECRET` no es un fallo, es una instancia sin
+diagnóstico remoto configurado, y el log lo dice con esas palabras
+(`log remoto NO CONFIGURADO`).
+
+> [!danger] Lo que no se puede hacer desde el repositorio: **el bucket de logs y
+> su regla de 90 días**
+> Hermana de la tarjeta de §7, y **no es la misma**: otro bucket. Lo hace una
+> persona:
+>
+> 1. `s3cmd mb s3://space-os-logs` (o desde el panel de DigitalOcean).
+> 2. Dar a la llave de cada instancia permiso de escritura sobre **su prefijo**
+>    (`demo/*`) también en **este** bucket. Con la llave de §7 a secas, la
+>    subida del log devuelve `403`.
+> 3. La regla de ciclo de vida, **90 días** —la poda remota que el script *no*
+>    hace—:
+>    ```bash
+>    s3cmd expire s3://space-os-logs --expiry-days=90 --expiry-prefix=''
+>    ```
+>    Comprobar después: `s3cmd info s3://space-os-logs` tiene que mencionarla.
+> 4. Escribir `LOGS_BUCKET=space-os-logs` en `/etc/space-os/instancia.env`.
+>
+> Comprobación de que quedó hecho —el **comando de verificación de F3.9**—:
+> ```bash
+> s3cmd get s3://space-os-logs/demo/$(date +%F)*.log - | head -40
+> ```
+>
+> 5. **Y la parte que ningún script puede hacer:** la **primera subida de cada
+>    instancia se lee a ojo**, entera, buscando cualquier cosa que parezca un
+>    dato de un cliente, y **lo que se encontró se anota en
+>    `docs/Registro_Cambios.md`**. El criterio de F3.9 lo exige por escrito, y
+>    tiene razón: un log es una vía de fuga clásica y la revisión mecánica solo
+>    cubre lo que alguien pensó en comprobar.
+
+Que el `LOG REMOTO FALLIDO` salga además en el **reporte de flota** es **F6.4**,
+que todavía no existe: hoy solo está en el log de la instancia y en el bucket.
+
+---
+
 ## Cómo se verificó (sin tocar ningún servidor)
 
 > [!important] El arnés está **en el repositorio**, y por eso esta sección se
@@ -516,7 +660,7 @@ A mano, sin actualizar nada:
 ```bash
 bash -n infra/scripts/update.sh
 bash infra/scripts/pruebas-update.sh              # los escenarios
-bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~45 min)
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~100 min)
 ```
 
 El arnés no sale a la red, no habla con Docker, no toca ninguna base y **no sube
@@ -530,12 +674,15 @@ verdad pero anota la llamada, porque en un sistema de archivos sin permisos POSI
 `stat` devuelve `644` aunque el `chmod 600` se haya ejecutado. Y `rm` también
 delega en el de verdad, con un interruptor para que falle **solo** el borrado de
 un dump: es la única forma de comprobar que el resumen de la poda cuenta lo que
-borró y no lo que se proponía borrar. El resultado del 2026-08-18, y el que
-imprime el comando:
+borró y no lo que se proponía borrar. Y desde F3.9 los dobles de `s3cmd` y `aws`
+**guardan también el CONTENIDO de lo que suben**, no solo que lo subieron: el
+criterio de esa tarea va en negativo —«ni un dato de negocio aparece en el log»—
+y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
+archivo que viaja**. El resultado del 2026-08-18, y el que imprime el comando:
 
 ```
-51 escenarios · 236 comprobaciones · 0 rojas
-21 mutantes · 0 escapan
+58 escenarios · 278 comprobaciones · 0 rojas
+25 mutantes · 0 escapan
 ```
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
@@ -559,7 +706,18 @@ tiene cliente de S3, el prefijo sacado del `hostname`, **la falta de
 resumen cuente **lo retirado y no lo que iba a retirar** (E50) y que el temporal
 con la llave de Spaces **no sobreviva a un SIGTERM a media subida** (E51)—.
 
-**Se comprueba que las comprobaciones muerden.** **Veintiun** mutantes de una
+Y, desde **F3.9**: que el log de la corrida **suba al bucket con la ruta exacta
+del plan** (E52), que **ni un dato de negocio viaje dentro** —con el runner y
+`docker logs` escupiendo un RFC, un nombre de cliente, un correo y un importe a
+propósito, y comprobando que **los cuatro siguen en `update.log`** y **ninguno
+sale del droplet**, ni tampoco las llaves de Spaces ni **la contraseña de
+Postgres** (E53)—, que **suba también cuando el update falla** (E54), que
+sin credenciales **no salga y se diga** (E55), que lo que sube sea **esta corrida
+y no el histórico acumulado** (E56), que el `--dry-run` **también mande el suyo**
+(E57) y que **`LOGS_BUCKET` de `instancia.env` mande** sin arrastrar al bucket de
+respaldos (E58).
+
+**Se comprueba que las comprobaciones muerden.** **Veinticinco** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -588,6 +746,10 @@ el arnés viejo **no** cazaba:
 | que el resumen de la poda cuente lo que **iba** a borrar | «3 retirados» con los 6 dumps intactos: la línea que se lee para saber si el disco baja |
 | que el `trap` **no borre** el temporal con la llave | un `systemctl stop` a media subida deja el secreto en el disco |
 | quitar el `trap` de **TERM** | la interrupción no queda dicha: bash corre el `trap` de `EXIT` igual, así que el archivo desaparece **y nadie se entera** |
+| **subir `update.log` crudo** en vez del publicable | **el defecto de F3.9**: se van al bucket los registros de la aplicación y las filas que arrastra Postgres |
+| que `eco` escriba **también** en el publicable | la misma fuga por la otra puerta: bastaría una línea para deshacer toda la separación |
+| subir el log **solo cuando el update sale bien** | justo la corrida que hay que diagnosticar es la que no llegaría |
+| **no vaciar** el publicable al empezar | cada noche se subiría todo lo que la instancia registró desde que nació |
 
 Y contra material real, no solo dobles:
 
