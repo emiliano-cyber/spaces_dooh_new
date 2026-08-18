@@ -159,7 +159,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F3.6 | [release] | ejecutor escribe el retiro; **NO se mergea a main** | canal probado en real | PENDIENTE_SERVIDOR | Retirar `deploy.yml` antes de que exista el canal real dejaría sin despliegue: se prepara, no se aplica |
 | F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `f369b4c`, auditada **AMARILLO y aceptada**; **sus tres hallazgos (H1, H2, H4) corregidos el 18/08** —ver el cierre del bloque de auditoría— | Nace `infra/scripts/respaldo.sh` (258 líneas) y el paso 3 de `update.sh` hace tres cosas: dump, poda local y subida. Arnés de **37·165 con 10 mutantes** a **48 escenarios · 218 comprobaciones · 0 rojas** con **17 mutantes, 0 escapan** (~45 min), y tras la corrección a **51 · 236 · 0** con **21 mutantes**. ▸ ⚠️ **Su ejecutor dijo haber encontrado y corregido un defecto propio —la poda bajo el `set -e` de `update.sh`— y la auditoría lo falsó**: el contrafactual sobrevive y llega a las migraciones, porque `respaldo.sh:237` ya neutraliza `set -e` por su cuenta. La defensa que añadió está bien puesta pero su rama es **inalcanzable**. Sí es cierto que volvió a medir el arnés entero tras tocarlo. ▸ Credenciales **solo documentadas** —ninguna entra al repo— y **no viajan en `argv`**: archivo temporal con `chmod 600` pedido ANTES de escribir el secreto. ▸ **Fail-closed**: sin `respaldo.sh` al lado, el update se para ANTES del `pull`. La subida real a Spaces es tarjeta humana (TH-F37-A a D). **Cierra la segunda mitad de D4**: la retención de 3 respaldos locales que pide su paso 4 es exactamente la poda de `DIR_RESPALDOS` que hoy no existe. ⚠️ La retención remota (30 días) va por **regla de ciclo de vida del bucket, NO por un `rm` en el script** — el plan explica por qué y no es una preferencia de estilo |
 | F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `84c6c20`, auditada **AMARILLO y aceptada** (18/08, veredicto en el bloque de abajo); su hallazgo **H-1 sigue abierto** y Jochelo aprobó cerrarlo con H1 y H2 | `PULL_ESPERAS="1 5 30"` configurable desde `instancia.env` (vacío = ningún reintento), `pull_una_vez()`/`pull_con_reintentos()` en `update.sh:399-435`, y la bandera **`--simular-fallo-pull`** que el plan pide en su comando de verificación. **La migración no se tocó**: sigue siendo una sola llamada a `correr_runner`, y ahora hay dos escenarios que lo cuentan. El comando literal del plan, corrido contra un `/opt/space-os` simulado: **salida 1, `grep -c reintento` = 3, 36,9 s reales** (1+5+30) y **el directorio de estado vacío** — ni respaldo, ni `version-anterior`. Arnés: de **32·121 con 7 mutantes** a **37 escenarios · 165 comprobaciones · 0 rojas** con **10 mutantes, 0 escapan**. ⚠️ La cuarta fila de la tabla del plan —el **reporte al padre**— es **F6.4**: queda documentada y **explícitamente sin implementar**. ▸ Hallazgo declarado por su ejecutor, medido y no defectuoso: un `PULL_ESPERAS` no numérico **no rompe el update** — `sleep` protesta por stderr (que **no llega a `update.log`**), no espera, y el pull se rinde igual sin tocar nada. Fail-safe, escrito en la tabla de configuración del README |
-| F3.9 | [infra] | ejecutor + ensayista parcial | **F3.7** ✅ (`plan:1206`, no F3.4) | SIGUIENTE | Log legible sin entrar al servidor; envío real = tarjeta. Reutiliza credenciales y bucket de F3.7, por eso va después. ⚠️ Su criterio va **en negativo**: «**ni un dato de negocio aparece en el log**» — sube solo las líneas que el script emite y los códigos de salida, **nunca la salida cruda de `psql`** |
+| F3.9 | [infra] | ejecutor + ensayista parcial | **F3.7** ✅ (`plan:1206`, no F3.4) | ✅ **COMPLETADA_LOCAL** — `d540833`, AMARILLO, **pendiente de auditoría** | **El diagnóstico cambió la forma de la tarea.** Medido antes de diseñar: `update.log` ya llevaba salida **cruda** —el runner (un error de Postgres arrastra la fila que lo provocó), `pg_dump`, `pg_restore`, y sobre todo **`docker logs --tail 30` del contenedor nuevo**, que son los registros de la aplicación—. Subirlo tal cual **habría incumplido el criterio**, así que la tarea no fue añadir una subida sino **separar lo que el script emite de lo que emiten sus herramientas**. ▸ **Dos logs, una sola regla**: `registrar` escribe en los dos; `eco` solo en el local. Viaja `update-publicable.log` —solo esta corrida, solo líneas del script y su código de salida—; se queda `update.log`, crudo y acumulado. **Sin lista de palabras prohibidas ni filtro por regex**, a propósito: un filtro se olvida de un caso y nadie se entera. Comprobado **leyendo** el archivo que viaja en un escenario de vuelta atrás: sale el diagnóstico entero y **ni una fila, ni una credencial, ni un nombre de tabla**. ▸ Arnés: **58 escenarios · 278 comprobaciones · 0 rojas** y **25 mutantes, 0 escapan** (~100 min). Rojo primero: **12 comprobaciones** en E52–E56. ▸ 🔴 **Límite declarado**: la subida cuelga de `salir()`, así que **si el proceso muere por una señal no hay log en el bucket**. Se intentó un `trap EXIT` y **no vale**: `respaldo.sh:168` hace `trap - EXIT INT TERM HUP` al cerrar su subida, así que quedaría **desarmado desde el paso 3**, justo donde las cosas salen mal. Cerrarlo exige tocar `respaldo.sh`, que está auditado: reportado, no arreglado. ▸ El bucket es **`space-os-logs`, distinto de `space-os-respaldos`**: dos buckets, dos reglas (90 días aquí, 30 allí) y **la llave de F3.7 a secas devuelve 403**. Tarjetas en `README.md` §8, hermanas de las de §7 |
 
 > [!important] ✅ `2633bcb` auditado **AMARILLO** y aceptado — 2026-08-18
 > `verificador` en sesión aparte. **Reprodujo el rojo de forma independiente**: corrió el
@@ -185,8 +185,9 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
 >
-> - **H1** · `update.sh:876` y `:886` —**remedidas leyendo la línea el 18/08 a las 07:50**, tras
->   `d9d3747`, que movió el archivo 4 líneas; ver el
+> - **H1** · `update.sh:1001` y `:1011` —**remedidas leyendo la línea el 18/08 a las 15:10**, tras
+>   `d540833`, que llevó el archivo de 907 a **1032** líneas. El `pg_restore` sin guarda
+>   `-s "$BK"` de la misma zona está hoy en **`:1009`**; ver el
 >   aviso de más abajo sobre las tres veces que estas citas han derivado— la frase «el
 >   contenedor de la version anterior esta
 >   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
@@ -227,7 +228,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **Hallazgos abiertos, ninguno invalidante:**
 >
 > - **H-1 (el único que separa esto del verde)** · `update.sh:279-281` y `README.md:106` afirman
->   que `PULL_ESPERAS` vacío desactiva los reintentos (hoy en `update.sh:303-305` y `README.md:110`). **Es falso**: `${VAR:-default}` sustituye
+>   que `PULL_ESPERAS` vacío desactiva los reintentos (hoy en `update.sh:430` y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
 >   también cuando la variable está **vacía**, no solo cuando falta. Medido escribiendo
 >   `PULL_ESPERAS=""` en `instancia.env`, que es lo que haría un operador: **3 reintentos igual**.
 >   Con un espacio (`" "`) sí da 0, y eso no está escrito en ningún sitio. Falla del lado seguro
@@ -310,7 +311,13 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > muerto. La defensa que su ejecutor puso —y que la auditoría demostró inalcanzable— hoy se
 > alcanza, y **E50 la ejerce**.
 
-> [!danger] Estas citas han derivado TRES veces en un solo día — remídelas, no las restes
+> [!warning] Hueco de la bóveda detectado por F3.9 — `modelo-instancias-soberanas.md:93-101`
+> Su tabla «Las nueve fases, convertidas en tareas» **conserva los recuentos del plan v2**:
+> Fase 2 dice 5 y son 6, **Fase 3 dice 6 y son 9**, Fase 5 dice 7 y son 8, Fase 6 dice 3 y son 4.
+> Suma ~34 contra las **46** del v3. Quien lea esa nota para saber cuánto falta, se llevará una
+> cifra del plan archivado.
+
+> [!danger] Estas citas han derivado CINCO veces en dos días — remídelas, no las restes — remídelas, no las restes
 > `update.sh` pasó de 786 a 847, a 903 y a **907 líneas** entre `2633bcb`, `84c6c20`,
 > `f369b4c` y `d9d3747`. Las
 > citas de H1 se recalcularon dos veces y **las dos mal**: la segunda, en `d7775b3`, sumó 47
