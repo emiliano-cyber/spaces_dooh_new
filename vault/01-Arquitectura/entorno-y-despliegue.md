@@ -434,9 +434,9 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`48 escenarios · 218 comprobaciones · 0 rojas` y, con `--mutantes`,
-`17 mutantes · 0 escapan` (medido el 18/08, tras F3.7; venía de `37 · 165` y 10
-mutantes). Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
+`51 escenarios · 236 comprobaciones · 0 rojas` y, con `--mutantes`,
+`21 mutantes · 0 escapan` (medido el 18/08 tras corregir F3.7; venía de `48 · 218`
+con 17 mutantes, y antes de F3.7 de `37 · 165` con 10). Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
 `update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
 porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
 «pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
@@ -485,7 +485,8 @@ hay `s3cmd`, con `aws s3 cp --endpoint-url https://<region>.digitaloceanspaces.c
 salen de `instancia.env` (`SPACES_KEY`, `SPACES_SECRET`, `SPACES_BUCKET`), son **una
 llave por instancia con permiso solo sobre su prefijo** —nunca la maestra de la
 cuenta— y **no viajan en `argv`**: con `s3cmd`, en un archivo temporal `chmod 600`
-antes de escribirle el secreto dentro; con la CLI de AWS, por el entorno. Es el mismo
+antes de escribirle el secreto dentro **y borrado también si el script muere por una
+señal** (`trap`, corregido el 18/08); con la CLI de AWS, por el entorno. Es el mismo
 criterio que sacó la contraseña de Postgres de `ps`.
 
 > [!important] La retención es **asimétrica**, y eso es lo importante de la tarea
@@ -496,10 +497,40 @@ criterio que sacó la contraseña de Postgres de `ps`.
 > configura una vez, a mano, y la revisa una persona: **es tarjeta humana, no código**.
 
 La poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
-'spaces_*.dump'` ordenado por nombre —que es la fecha—, nunca subdirectorios, nunca
-menos de 1, y **después** de comprobar que el dump nuevo es bueno (podar antes sería
-tirar un respaldo viejo a cambio de nada). Con eso queda cerrada la **segunda mitad de
-D4**.
+'spaces_*.dump'` **ordenado por la fecha del archivo** (`-printf '%T@'`), nunca
+subdirectorios, nunca menos de 1, y **después** de comprobar que el dump nuevo es
+bueno (podar antes sería tirar un respaldo viejo a cambio de nada). Con eso queda
+cerrada la **segunda mitad de D4**.
+
+> [!danger] Ordenaba por NOMBRE, y con eso podía borrar el respaldo de la corrida en marcha
+> **H1 de la auditoría de `f369b4c`, corregido el 18/08.** `sort` ordena **la ruta**,
+> no la antigüedad, así que basta un dump con otro nombre —`spaces_x.dump`, el que
+> el propio script documenta para el uso a mano— para que ordene **después** de
+> `spaces_2026…` y cuente como «de los más recientes». El que sobraba pasaba a ser
+> **el de la corrida en marcha**.
+>
+> Lo grave es la cadena: la poda va **antes** de la subida, así que sin ese archivo
+> la subida se salta, el log escribe `RESPALDO REMOTO FALLIDO` sin que haya fallado
+> ninguna subida, y si el release sale malo el `pg_restore` de la vuelta atrás
+> apunta a un archivo que ya no existe —instancia **sin servicio, sin respaldo
+> local y sin respaldo remoto**—. Nadie lo había visto porque el arnés **solo
+> sembraba nombres con formato de fecha**; ahora lo cazan **E49** y un mutante
+> propio, y las cinco defensas que ya estaban bien —solo archivos regulares que
+> casen el patrón, `LEEME.txt`, subdirectorios que casen el patrón, nombres que
+> empiezan por guion y rutas con espacios— se reverificaron una a una.
+>
+> Dos más del mismo repaso: la línea de resumen contaba lo que **iba** a retirar
+> —con los `rm` fallando decía «3 retirados» con los 6 dumps intactos— y ahora
+> cuenta lo retirado, devolviendo **!= 0** si no pudo con todos; eso además hace
+> **alcanzable** el `if !` de `update.sh`, que la auditoría había marcado como rama
+> muerta. Y el temporal con la llave de Spaces tenía `rm -f` **solo** en el camino
+> feliz: con un SIGTERM a media subida sobrevivía en el disco (H4). Ahora hay
+> `trap` para `TERM`, `INT`, `HUP` y `EXIT`, y lo comprueba **E51** matando al
+> script de verdad a media subida. Un detalle que salió de medirlo: **bash corre el
+> `trap` de `EXIT` también cuando lo mata una señal**, así que el borrado ya lo
+> garantiza ese solo; los de `TERM`/`INT`/`HUP` estan por la línea de log y por el
+> código de salida. Se comprueban por separado porque el primer mutante que quitaba
+> uno **escapaba**.
 
 **Si la subida falla, el update sigue** —el respaldo local ya existe y con él se vuelve
 atrás— pero el log escribe `RESPALDO REMOTO FALLIDO`, pensado para buscarse con

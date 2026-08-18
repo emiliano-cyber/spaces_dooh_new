@@ -201,6 +201,16 @@ for a in "$@"; do
 '         "$(stat -c '%a' "$f" 2>/dev/null || echo '?')"         "$(grep -c "${S3_SECRETO_ESPERADO:-SECRETO_FALSO}" "$f" 2>/dev/null || echo 0)" >>"$REG_S3ENV" ;;
   esac
 done
+# La RUTA del temporal, aparte de su contenido: E51 tiene que saber que archivo
+# mirar despues de matar al script a media subida.
+for a in "$@"; do
+  case "$a" in --config=*) printf 's3cmd CONFIG_RUTA %s
+' "${a#--config=}" >>"$REG_S3ENV" ;; esac
+done
+# `S3_LENTO` mantiene la subida abierta unos segundos: sin eso no hay "media
+# subida" que interrumpir. Duerme con el `sleep` DE VERDAD — el de $BIN es un
+# doble que vuelve enseguida y no serviria de nada aqui.
+if [ -n "${S3_LENTO:-}" ]; then /bin/sleep "$S3_LENTO" 2>/dev/null || /usr/bin/sleep "$S3_LENTO" 2>/dev/null || true; fi
 [ "${S3_FALLA:-0}" = 1 ] && { echo 'ERROR: S3 error: 403 (AccessDenied)'; exit 1; }
 exit 0
 FIN
@@ -224,6 +234,21 @@ FIN
 #!/usr/bin/env bash
 printf 'chmod %s\n' "$*" >>"$REG_LLAMADAS"
 for real in /bin/chmod /usr/bin/chmod; do [ -x "$real" ] && exec "$real" "$@"; done
+exit 0
+FIN
+
+  # `rm` delega en el de verdad. Existe solo para poder hacer que falle UN
+  # borrado —el de un dump— sin romper los demas `rm` del script: es la unica
+  # forma de comprobar que el resumen de la poda cuenta lo que BORRO y no lo que
+  # se proponia borrar.
+  cat >"$BIN/rm" <<'FIN'
+#!/usr/bin/env bash
+if [ "${D_RM_DUMP_FALLA:-0}" = 1 ]; then
+  for a in "$@"; do
+    case "$a" in *spaces_*.dump) echo "rm: no se pudo retirar $a" >&2; exit 1 ;; esac
+  done
+fi
+for real in /bin/rm /usr/bin/rm; do [ -x "$real" ] && exec "$real" "$@"; done
 exit 0
 FIN
 
@@ -312,7 +337,7 @@ FIN
   export C_CODIGOS='200'
   export C_SALIDAS='0'
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
-        PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO 2>/dev/null || true
+        PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO 2>/dev/null || true
   export PGR_CODIGO=0
   export PGD_VACIO=0
   export PGD_FALLA=0
@@ -320,6 +345,7 @@ FIN
   export D_PULL_FALLA=0
   export D_PULL_FALLA_VECES=0
   export S3_FALLA=0
+  export D_RM_DUMP_FALLA=0
   export D_RUN_FALLA=0
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
@@ -965,6 +991,99 @@ hubo_regex 's3://space-os-respaldos/demo-owner/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{
 no_hubo_regex 's3://space-os-respaldos/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump'
 limpiar
 
+# E49 · H1 · LA PODA ORDENA POR ANTIGUEDAD, NO POR NOMBRE. E40 solo sembraba
+#       nombres con formato de fecha, y por eso nadie vio esto: `sort` ordena la
+#       RUTA, asi que cualquier dump con otro nombre —`spaces_x.dump`, el que el
+#       propio `respaldo.sh` documenta para el uso a mano— ordena DESPUES de
+#       `spaces_2026...` y cuenta como "de los mas recientes". El que sobra pasa
+#       a ser el de ESTA corrida, y con el se van la subida a Spaces y el
+#       archivo que la vuelta atras del paso 7a necesita.
+#       Las fechas se ponen con `touch -t`: aqui la antiguedad real y el nombre
+#       dicen cosas distintas a proposito.
+preparar 'E49 la poda ordena por antiguedad, no por nombre (F3.7, H1)'
+mkdir -p "$SPACE_OS_DIR_ESTADO/respaldos"
+for suelto in x y z; do
+  printf 'respaldo viejo\n' >"$SPACE_OS_DIR_ESTADO/respaldos/spaces_$suelto.dump"
+done
+touch -t 202501010000 "$SPACE_OS_DIR_ESTADO/respaldos/spaces_x.dump"
+touch -t 202501020000 "$SPACE_OS_DIR_ESTADO/respaldos/spaces_y.dump"
+touch -t 202501030000 "$SPACE_OS_DIR_ESTADO/respaldos/spaces_z.dump"
+correr
+codigo_es 0
+bk_actual="$(sed -n 's/^respaldo=//p' "$SPACE_OS_DIR_ESTADO/version-anterior" 2>/dev/null)"
+if [ -s "$bk_actual" ]; then bien; else mal "la poda se llevo el respaldo de esta corrida ($bk_actual): ordena por nombre, no por antiguedad"; fi
+if [ -e "$SPACE_OS_DIR_ESTADO/respaldos/spaces_x.dump" ]; then mal 'el dump mas ANTIGUO (spaces_x.dump) sigue ahi: la poda no ordena por antiguedad'; else bien; fi
+if [ -e "$SPACE_OS_DIR_ESTADO/respaldos/spaces_z.dump" ]; then bien; else mal 'se podo spaces_z.dump, que estaba entre los 3 mas recientes'; fi
+n_dumps="$(ls -1 "$SPACE_OS_DIR_ESTADO/respaldos"/spaces_*.dump 2>/dev/null | wc -l | tr -d ' ')"
+if [ "$n_dumps" = 3 ]; then bien; else mal "quedaron $n_dumps respaldos locales, se esperaban 3"; fi
+# La cadena de consecuencias, que es lo que hace grave el defecto: sin el dump
+# de esta corrida no hay nada que subir, y el update escribe RESPALDO REMOTO
+# FALLIDO sin que haya fallado ninguna subida.
+hubo_regex 's3cmd .*put .*respaldos/spaces_[0-9]+_[0-9]+\.dump'
+log_calla 'RESPALDO REMOTO FALLIDO'
+limpiar
+
+# E50 · H2 · el resumen de la poda cuenta lo que RETIRO, no lo que se proponia
+#       retirar. Con los `rm` fallando quedan los 6 dumps y la linea de resumen
+#       decia "3 respaldo(s) retirados, quedan los 3 mas recientes": lo
+#       contrario de lo ocurrido, y justo en la linea que alguien leeria para
+#       saber si el disco se esta vaciando.
+preparar 'E50 el resumen de la poda cuenta lo retirado de verdad (F3.7, H2)'
+mkdir -p "$SPACE_OS_DIR_ESTADO/respaldos"
+for viejo in 20250101_000000 20250102_000000 20250103_000000 20250104_000000 20250105_000000; do
+  printf 'respaldo viejo\n' >"$SPACE_OS_DIR_ESTADO/respaldos/spaces_$viejo.dump"
+done
+export D_RM_DUMP_FALLA=1
+correr
+codigo_es 0
+n_dumps="$(ls -1 "$SPACE_OS_DIR_ESTADO/respaldos"/spaces_*.dump 2>/dev/null | wc -l | tr -d ' ')"
+if [ "$n_dumps" = 6 ]; then bien; else mal "el doble de rm no fallo como se esperaba: quedaron $n_dumps dumps, no 6"; fi
+log_dice 'AVISO poda: no se pudo retirar'
+log_calla 'poda local: 3 respaldo(s) retirados'
+log_dice 'se querian retirar 3 y solo se retiraron 0'
+# Y el fallo parcial sale por el codigo de retorno, que es lo que hace que el
+# `if !` de update.sh —escrito en F3.7 y hasta hoy inalcanzable— sirva de algo.
+log_dice 'AVISO: la poda de'
+log_dice 'OK: v0.4.2 sirviendo'
+limpiar
+
+# E51 · H4 · el temporal con la llave de Spaces no sobrevive a una senal. El
+#       `rm -f "$conf"` del final solo corre si el flujo LLEGA ahi: con un
+#       SIGTERM a media subida el archivo con el secreto se queda en el disco.
+#       Se ejecuta `respaldo.sh` a mano —la via que su propia cabecera
+#       documenta— y se le manda TERM mientras el cliente sigue subiendo.
+preparar 'E51 el temporal con la llave se borra tambien por senal (F3.7, H4)'
+export S3_LENTO=3
+suelto="$RAIZ_TMP/spaces_suelto.dump"
+printf 'respaldo suelto\n' >"$suelto"
+PATH="$BIN:$PATH" INSTANCIA=demo SPACES_KEY=LLAVE_FALSA SPACES_SECRET=SECRETO_FALSO \
+  bash "$SPACE_OS_RESPALDO_SH" subir "$suelto" >"$SALIDA" 2>&1 &
+hijo=$!
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  grep -q CONFIG_RUTA "$REG_S3ENV" 2>/dev/null && break
+  sleep 0.3
+done
+kill -TERM "$hijo" 2>/dev/null || true
+wait "$hijo"; CODIGO=$?
+conf_temporal="$(sed -n 's/^s3cmd CONFIG_RUTA //p' "$REG_S3ENV" 2>/dev/null | tail -n1)"
+if [ -n "$conf_temporal" ]; then bien; else mal 'el cliente no llego a recibir el archivo de configuracion: el escenario no probo nada'; fi
+if [ -n "$conf_temporal" ] && [ -e "$conf_temporal" ]; then
+  mal "el temporal con la llave de Spaces sobrevivio al SIGTERM: $conf_temporal"
+  rm -f "$conf_temporal"
+else
+  bien
+fi
+# Y morir por una senal no es salir bien: el codigo lo tiene que decir.
+if [ "$CODIGO" != 0 ]; then bien; else mal 'el script salio con 0 despues de un SIGTERM a media subida'; fi
+# Y tiene que quedar DICHO. Esta comprobacion no es decoracion: medido el 18/08,
+# bash ejecuta el `trap ... EXIT` tambien cuando lo mata una senal, asi que el
+# archivo desaparece con el `trap` de EXIT solo. Lo que unicamente pueden dar los
+# traps de TERM/INT/HUP es esta linea y un codigo de salida elegido; sin
+# comprobarla, quitarlos no lo veria nadie (y de hecho no lo vio: el mutante
+# escapaba).
+log_dice 'a media subida'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -1058,7 +1177,23 @@ if [ "${1:-}" = '--mutantes' ]; then
   probar_mutante_respaldo 'subir la retencion local a 99 (o sea, no podar)' \
     's#^RESPALDOS_LOCALES="\${RESPALDOS_LOCALES:-3}"$#RESPALDOS_LOCALES="${RESPALDOS_LOCALES:-99}"#'
   probar_mutante_respaldo 'podar del reves: se borran los MAS NUEVOS' \
-    "s#| sort)\$#| sort -r)#"
+    "s#| sort -k1,1n -k2 | cut -f2-)\$#| sort -k1,1nr -k2r | cut -f2-)#"
+  # Y los tres de la auditoria de F3.7 (H1, H2 y H4). El primero es el defecto
+  # tal cual estaba: ordenar por NOMBRE se lleva por delante el dump de la
+  # corrida en marcha en cuanto hay un `spaces_x.dump` en el directorio.
+  probar_mutante_respaldo 'podar por NOMBRE en vez de por fecha del archivo (H1)' \
+    's#-printf .*| cut -f2-)$#2>/dev/null | sort)#'
+  probar_mutante_respaldo 'el resumen de la poda cuenta lo que iba a borrar (H2)' \
+    's#^  if \[ "\$retirados" -eq "\$sobran" \]; then$#  if true                                 ; then#'
+  # Dos por H4, uno por propiedad: que el temporal se BORRE (lo hace el `trap` de
+  # EXIT, que bash corre tambien al morir por una senal) y que la interrupcion
+  # quede DICHA (eso solo lo dan los traps de TERM/INT/HUP). Un solo mutante no
+  # cubre las dos: quitar la linea de TERM escapaba porque el archivo se borraba
+  # igual.
+  probar_mutante_respaldo 'que el trap no borre el temporal con la llave (H4)' \
+    's#^  if \[ -n "\$conf" \]; then rm -f "\$conf"; fi$#  if [ -n "$conf" ]; then :             ; fi#'
+  probar_mutante_respaldo 'quitar el trap de TERM: la interrupcion no queda dicha (H4)' \
+    's#^  trap .respaldo_conf_limpiar "\$conf" TERM. TERM$#  : sin trap                               #'
   probar_mutante_respaldo 'tragarse el fallo de la subida' \
     's#^  return "\$resultado"$#  return 0#'
 

@@ -31,9 +31,10 @@
 #  El arnes lo comprueba (E41): ninguna llamada de este script borra en el bucket.
 #
 #  Y la poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
-#  'spaces_*.dump'`, ordenado por nombre (que es la fecha), y se retiran los mas
-#  viejos dejando los N mas recientes. Nunca menos de 1, nunca subdirectorios,
-#  nunca un archivo que no case con el patron.
+#  'spaces_*.dump'`, ordenado por la FECHA DEL ARCHIVO —no por su nombre: ver el
+#  comentario de `respaldo_local_podar`—, y se retiran los mas viejos dejando
+#  los N mas recientes. Nunca menos de 1, nunca subdirectorios, nunca un archivo
+#  que no case con el patron.
 #
 # ── CONFIGURACION (en /etc/space-os/instancia.env, 0600 y de root) ─────────
 #    SPACES_KEY      llave de acceso de Spaces. UNA POR INSTANCIA, con permiso
@@ -58,7 +59,8 @@
 #  `s3cmd --access_key=… --secret_key=…` deja las dos visibles en `ps` para
 #  cualquier usuario de la maquina. Mismo problema que tenia la contrasena de
 #  Postgres en `update.sh`, y misma solucion: por otro camino. Con `s3cmd`, un
-#  archivo de configuracion temporal en 0600 que se borra al terminar; con la
+#  archivo de configuracion temporal en 0600 que se borra al terminar y tambien
+#  si el script muere por una senal (`trap`, ver `respaldo_conf_limpiar`); con la
 #  CLI de AWS, variables de entorno del propio proceso.
 #
 # ── `gsutil` NO ────────────────────────────────────────────────────────────
@@ -142,16 +144,55 @@ signature_v2 = False
 FIN
 }
 
+# Borra el temporal con la llave dentro y, si vino por una senal, se lleva el
+# script con ella. Existe porque `rm -f "$conf"` al final de la funcion SOLO
+# corre si el flujo llega ahi: con un SIGTERM a media subida —un `systemctl
+# stop`, el `docker stop` de quien actualiza, la sesion de ssh que se corta— el
+# archivo con el secreto sobrevivia. Medido: sobrevivia. Atenuante: `mktemp` lo
+# crea en 0600 y en el droplet esto corre como root, asi que el residuo solo lo
+# lee root; aun asi, un secreto que se queda en el disco por accidente es un
+# secreto que se queda.
+#
+# El `trap -` de dentro devuelve el shell como estaba. Hoy `update.sh` no pone
+# ningun `trap` propio; si algun dia pone uno, este quitarlo hay que revisarlo.
+#
+# Reparto de trabajo entre los cuatro `trap`, medido y no supuesto (18/08): bash
+# ejecuta el de EXIT TAMBIEN cuando lo mata una senal, asi que **el borrado ya lo
+# garantiza EXIT por si solo**. Los de TERM/INT/HUP no estan por duplicar eso:
+# estan por la linea de log y por el codigo de salida elegido, que sin ellos
+# serian silencio. Por eso el arnes comprueba las dos cosas por separado —y por
+# eso el primer mutante de «quitar el trap» ESCAPABA—.
+respaldo_conf_limpiar() {
+  local conf="${1:-}" senal="${2:-}"
+  if [ -n "$conf" ]; then rm -f "$conf"; fi
+  trap - EXIT INT TERM HUP
+  if [ -n "$senal" ]; then
+    registrar "   respaldo remoto: $senal a media subida. El temporal con la llave de Spaces se borro. La subida queda a medias y NO se reintenta: la vuelta atras se hace con el respaldo local, que sigue en su sitio."
+    case "$senal" in
+      INT) exit 130 ;;
+      HUP) exit 129 ;;
+      *)   exit 143 ;;
+    esac
+  fi
+}
+
 respaldo_subir_s3cmd() {
   local archivo="$1" destino="$2" conf codigo=0
   # 0600 ANTES de escribir el secreto dentro, no despues: entre el `cat` y el
   # `chmod` habria una ventana con la llave legible por cualquiera.
   conf="$(mktemp)"
   chmod 600 "$conf"
+  # Y el `trap` ANTES de escribirlo, por lo mismo: a partir de la linea de abajo
+  # hay un archivo con la llave de Spaces dentro, y tiene que morir pase lo que
+  # pase. Lo caza E51.
+  trap 'respaldo_conf_limpiar "$conf"' EXIT
+  trap 'respaldo_conf_limpiar "$conf" TERM' TERM
+  trap 'respaldo_conf_limpiar "$conf" INT' INT
+  trap 'respaldo_conf_limpiar "$conf" HUP' HUP
   respaldo_config_s3cmd >"$conf"
   s3cmd --config="$conf" put "$archivo" "$destino" 2>&1 | eco
   codigo=${PIPESTATUS[0]}
-  rm -f "$conf"
+  respaldo_conf_limpiar "$conf"
   return "$codigo"
 }
 
@@ -205,7 +246,7 @@ respaldo_remoto_subir() {
 # se podaba NUNCA. En el ensayo quedaron diez dumps en siete minutos; en una
 # instancia con datos de verdad son gigas por noche hasta llenar el disco.
 respaldo_local_podar() {
-  local dir="$1" cuantos="${2:-$RESPALDOS_LOCALES}" archivo total sobran i=0
+  local dir="$1" cuantos="${2:-$RESPALDOS_LOCALES}" archivo total sobran i=0 retirados=0
   local -a dumps=()
   [ -d "$dir" ] || return 0
   case "$cuantos" in
@@ -220,23 +261,55 @@ respaldo_local_podar() {
     return 0
   fi
   # Por `find -type f` y por patron: ni subdirectorios, ni archivos que no sean
-  # un dump nuestro. El nombre lleva la fecha, asi que ordenar por nombre es
-  # ordenar por antiguedad.
+  # un dump nuestro.
+  #
+  # Y ordenado por ANTIGUEDAD REAL (`mtime`), no por nombre. Ordenar por nombre
+  # parecia lo mismo —el nombre lleva la fecha— y NO lo es: `sort` ordena la
+  # ruta, asi que cualquier dump con otro nombre —`spaces_x.dump`, el que la
+  # cabecera de este mismo archivo documenta para el uso a mano— ordena
+  # DESPUES de `spaces_2026…` y pasa por "de los mas recientes". El que sobra
+  # resultaba ser entonces el de ESTA corrida, y borrarlo encadena todo lo demas:
+  # la subida se salta (no hay archivo), el log dice RESPALDO REMOTO FALLIDO sin
+  # que haya fallado ninguna subida, y si el release sale malo el `pg_restore` de
+  # la vuelta atras (`update.sh` paso 7a) apunta a un archivo que ya no esta.
+  # Lo caza E49; E40 no lo veia porque solo sembraba nombres con formato de fecha.
+  #
+  # El desempate por ruta (`-k2`) es para que dos dumps del mismo instante se
+  # ordenen igual en dos corridas seguidas. `-printf` es de GNU find (el droplet
+  # es Ubuntu); donde no exista, la lista sale vacia y no se poda nada —se llena
+  # el disco, que entre los dos fallos posibles es el que no pierde datos.
+  #
   # `if` y no `[ … ] && …`: un `&&` cuyo lado izquierdo sale falso deja el cuerpo
   # del bucle con codigo != 0, y bajo el `set -e` de quien sourcea esto eso es
   # una salida, no una iteracion que no hizo nada.
   while IFS= read -r archivo; do
     if [ -n "$archivo" ]; then dumps+=("$archivo"); fi
-  done < <(find "$dir" -maxdepth 1 -type f -name 'spaces_*.dump' 2>/dev/null | sort)
+  done < <(find "$dir" -maxdepth 1 -type f -name 'spaces_*.dump' -printf '%T@\t%p\n' 2>/dev/null | sort -k1,1n -k2 | cut -f2-)
   total=${#dumps[@]}
   [ "$total" -gt "$cuantos" ] || return 0
   sobran=$((total - cuantos))
   for archivo in "${dumps[@]}"; do
     [ "$i" -lt "$sobran" ] || break
     i=$((i + 1))
-    rm -f "$archivo" || registrar "   AVISO poda: no se pudo retirar $archivo."
+    if rm -f "$archivo"; then
+      retirados=$((retirados + 1))
+    else
+      registrar "   AVISO poda: no se pudo retirar $archivo."
+    fi
   done
-  registrar "   poda local: $sobran respaldo(s) retirados, quedan los $cuantos mas recientes en $dir. Lo del bucket lo poda la regla de ciclo de vida (30 dias), no este script."
+  # Se cuenta lo RETIRADO, no lo que se iba a retirar. Con los `rm` fallando
+  # —directorio de solo lectura, bit inmutable— quedaban los 6 dumps y esta
+  # linea afirmaba "3 retirados, quedan los 3 mas recientes": lo contrario de lo
+  # ocurrido, y en la unica linea que alguien lee para saber si el disco baja.
+  if [ "$retirados" -eq "$sobran" ]; then
+    registrar "   poda local: $retirados respaldo(s) retirados, quedan los $cuantos mas recientes en $dir. Lo del bucket lo poda la regla de ciclo de vida (30 dias), no este script."
+  else
+    registrar "   poda local: se querian retirar $sobran y solo se retiraron $retirados; quedan $((total - retirados)) en $dir, no $cuantos. El motivo esta en los AVISO de arriba."
+    # El fallo parcial sale por el codigo de retorno: es lo que hace que el
+    # `if !` con el que `update.sh` llama a esta funcion sirva de algo. El update
+    # SIGUE igual (llenar el disco es un problema de manana), pero queda escrito.
+    return 1
+  fi
 }
 
 # ─── Ejecutado a mano, no sourceado ────────────────────────────────────────

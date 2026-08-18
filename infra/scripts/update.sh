@@ -637,7 +637,11 @@ registrar "   respaldo de $(wc -c <"$BK") bytes"
 # La poda va DESPUES de comprobar que el dump nuevo es bueno: si se podara antes,
 # un `pg_dump` que luego falla habria tirado un respaldo viejo a cambio de nada.
 # Y el de esta corrida esta entre los que se conservan, que es lo que la vuelta
-# atras necesita dentro de los proximos minutos.
+# atras necesita dentro de los proximos minutos. Esta ultima frase era FALSA
+# hasta el 18/08 y por eso vale la pena dejarla escrita: la poda ordenaba por
+# NOMBRE, asi que un `spaces_x.dump` cualquiera en el directorio la convertia en
+# "borra el dump que acabas de hacer". Ahora ordena por la fecha del archivo
+# (`respaldo.sh`, `respaldo_local_podar`) y la frase se sostiene.
 #
 # Va en un `if !` y no como llamada suelta, y eso NO es estilo: una llamada
 # suelta corre con el `set -e` de este script activo dentro de la funcion, asi

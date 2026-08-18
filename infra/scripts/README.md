@@ -116,7 +116,7 @@ root** — el script avisa si no lo está.
 | `SPACES_REGION` | no | `nyc3`; de ahí sale el endpoint `https://nyc3.digitaloceanspaces.com` |
 | `SPACES_ENDPOINT` | no | se calcula de la región; existe para poder apuntar a otra cosa al ensayar |
 | `SPACES_CLIENTE` | no | `auto` (prefiere `s3cmd`), `s3cmd` o `aws` |
-| `RESPALDOS_LOCALES` | no | `3` respaldos en el disco. **Nunca menos de 1**: con 0 se borraría el de la corrida en marcha |
+| `RESPALDOS_LOCALES` | no | `3` respaldos en el disco, los 3 **más recientes por la fecha del archivo** (no por su nombre: §7). **Nunca menos de 1**: con 0 se borraría el de la corrida en marcha |
 
 (*) Si falta, se toma la de `ENV_APP` y se avisa. Y si **las dos** existen y
 apuntan a **bases distintas**, el script se para: migrar una base mientras la
@@ -307,12 +307,11 @@ red, así que el script parte la URL: usuario y destino en `argv`, clave por
 **avisa y no la toca** —decodificarla podría corromperla, y un respaldo que no
 corre es peor—; codifícala como `%5C` en `instancia.env` y el aviso se va.
 
-> [!note] El respaldo se queda en el droplet, y **nadie lo poda**
-> Hoy vive en `/var/lib/space-os/respaldos/` y el script **no borra nunca** los
-> anteriores: cada actualización deja un `pg_dump` de la base entera, así que en
-> una instancia con datos de verdad eso son gigas por noche hasta llenar el
-> disco. Sacarlo de la máquina —para que sobreviva a la muerte del droplet que
-> lo generó— **y la retención** son **F3.7**, que es la tarea del respaldo.
+> [!note] El respaldo **ya no se queda solo en el droplet**, y el disco sí se poda
+> Esta nota decía que nadie podaba y que sacarlo de la máquina era «materia de
+> F3.7». F3.7 está hecha (18/08): el paso 3 poda a **3 respaldos locales** y sube
+> el nuevo a Spaces. Lo que hace cada cosa, y por qué la retención local y la
+> remota se podan por caminos distintos, está en **§7**.
 
 ### 6 · Un código `5` deja la instancia **caída**: cómo devolverle el servicio
 
@@ -371,10 +370,30 @@ disco no es lo que este script promete.
 > en cada release. El arnés lo comprueba (E41).
 
 La poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
-'spaces_*.dump'`, ordenado por nombre —que es la fecha—, y se retiran los más
-viejos dejando los N más recientes. Ni subdirectorios, ni archivos que no casen
-con el patrón, ni nunca menos de uno. Va **después** de comprobar que el dump
-nuevo es bueno: podar antes sería tirar un respaldo viejo a cambio de nada.
+'spaces_*.dump'`, **ordenado por la fecha del archivo** (`-printf '%T@'`), y se
+retiran los más viejos dejando los N más recientes. Ni subdirectorios, ni
+archivos que no casen con el patrón, ni nunca menos de uno. Va **después** de
+comprobar que el dump nuevo es bueno: podar antes sería tirar un respaldo viejo
+a cambio de nada.
+
+> [!danger] Ordenaba por NOMBRE, y por eso podía borrar el dump de la corrida en marcha
+> Corregido el 18/08 (auditoría de F3.7, H1). `sort` ordena **la ruta**, no la
+> antigüedad: cualquier dump con otro nombre —`spaces_x.dump`, el que este mismo
+> README documenta tres párrafos más abajo para el uso a mano— ordena
+> **después** de `spaces_2026…` y contaba como «de los más recientes». El que
+> sobraba pasaba a ser **el de la corrida en marcha**.
+>
+> Y de ahí en cascada: sin ese archivo la subida se salta, el log escribe
+> `RESPALDO REMOTO FALLIDO` sin que haya fallado ninguna subida, y si el release
+> sale malo el `pg_restore` de la vuelta atrás (§7a) apunta a un archivo que ya
+> no existe —instancia sin servicio, sin respaldo local y sin respaldo remoto—.
+> Nadie lo había visto porque el arnés **solo sembraba nombres con formato de
+> fecha**; ahora lo cazan **E49** y un mutante propio.
+>
+> La línea de resumen también mentía: contaba los que **iba** a retirar, así que
+> con los `rm` fallando decía «3 retirados» con los 6 dumps intactos. Ahora
+> cuenta los retirados de verdad y, si no pudo con todos, **devuelve != 0** —que
+> es lo que hace útil el `if !` con el que `update.sh` la llama—.
 
 **Ruta remota**, tal cual la fija el plan:
 
@@ -386,7 +405,10 @@ s3://space-os-respaldos/<instancia>/<AAAA-MM-DD-HHMM>.dump
 Postgres (§5): `s3cmd --access_key=… --secret_key=…` las deja visibles en `ps`
 para cualquier usuario de la máquina. Con `s3cmd` van en un archivo de
 configuración temporal, `chmod 600` **antes** de escribir el secreto dentro y
-borrado al terminar; con la CLI de AWS, por variables de entorno del proceso.
+borrado al terminar **y también si el script muere por una señal**: hay un
+`trap` para `TERM`, `INT`, `HUP` y `EXIT`, y sin él un `systemctl stop` a media
+subida dejaba el archivo con la llave **en el disco** (auditoría de F3.7, H4; lo
+caza **E51**). Con la CLI de AWS, por variables de entorno del proceso.
 
 > [!warning] `gsutil` no
 > Es el cliente de Google Cloud Storage y **no habla con Spaces**. El plan lo
@@ -470,17 +492,21 @@ bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~45 mi
 
 El arnés no sale a la red, no habla con Docker, no toca ninguna base y **no sube
 nada a ningún bucket**: monta dobles POSIX de `docker`, `curl`, `flock`, `sleep`,
-`pg_dump`, `pg_restore`, `s3cmd`, `aws`, `chmod` y `hostname` en un `PATH` propio
+`pg_dump`, `pg_restore`, `s3cmd`, `aws`, `chmod`, `rm` y `hostname` en un `PATH`
+propio
 y mira **qué se les pide**. `sleep` es un doble a propósito: un backoff de
 1+5+30 s se comprueba por lo que se **pide**, no por el reloj, o el arnés
 tardaría 36 s en cada escenario. `chmod` lo es por otra razón: delega en el de
 verdad pero anota la llamada, porque en un sistema de archivos sin permisos POSIX
-`stat` devuelve `644` aunque el `chmod 600` se haya ejecutado. El resultado del
-2026-08-18, y el que imprime el comando:
+`stat` devuelve `644` aunque el `chmod 600` se haya ejecutado. Y `rm` también
+delega en el de verdad, con un interruptor para que falle **solo** el borrado de
+un dump: es la única forma de comprobar que el resumen de la poda cuenta lo que
+borró y no lo que se proponía borrar. El resultado del 2026-08-18, y el que
+imprime el comando:
 
 ```
-48 escenarios · 218 comprobaciones · 0 rojas
-17 mutantes · 0 escapan
+51 escenarios · 236 comprobaciones · 0 rojas
+21 mutantes · 0 escapan
 ```
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
@@ -498,10 +524,13 @@ del respaldo a Spaces con la ruta exacta del plan**, una subida que falla y
 **deja seguir el update dejándolo escrito**, la retención de 3 locales, que el
 script **nunca borra en el bucket**, que la llave **no sale en `argv`**, el
 fallback a `aws s3 cp --endpoint-url`, la instancia sin credenciales, la que no
-tiene cliente de S3, el prefijo sacado del `hostname` y **la falta de
-`respaldo.sh`, que para el update antes del `pull`**.
+tiene cliente de S3, el prefijo sacado del `hostname`, **la falta de
+`respaldo.sh`, que para el update antes del `pull`** —y, desde la auditoría del
+18/08, **que la poda ordene por antigüedad real y no por el nombre** (E49), que su
+resumen cuente **lo retirado y no lo que iba a retirar** (E50) y que el temporal
+con la llave de Spaces **no sobreviva a un SIGTERM a media subida** (E51)—.
 
-**Se comprueba que las comprobaciones muerden.** **Diecisiete** mutantes de una
+**Se comprueba que las comprobaciones muerden.** **Veintiun** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -526,6 +555,10 @@ el arnés viejo **no** cazaba:
 | retención local a **99** | vuelve a no podar nada |
 | podar **del revés** | se borrarían los respaldos **más nuevos**, incluido el de la corrida en marcha |
 | tragarse el fallo de la subida | `RESPALDO REMOTO FALLIDO` no se escribiría nunca |
+| **podar por NOMBRE en vez de por la fecha del archivo** | el defecto **H1**: un `spaces_x.dump` en el directorio y se borra **el dump de la corrida en marcha** |
+| que el resumen de la poda cuente lo que **iba** a borrar | «3 retirados» con los 6 dumps intactos: la línea que se lee para saber si el disco baja |
+| que el `trap` **no borre** el temporal con la llave | un `systemctl stop` a media subida deja el secreto en el disco |
+| quitar el `trap` de **TERM** | la interrupción no queda dicha: bash corre el `trap` de `EXIT` igual, así que el archivo desaparece **y nadie se entera** |
 
 Y contra material real, no solo dobles:
 
