@@ -328,6 +328,27 @@ restaurar a mano bajo presión.
 `promover.yml`, y por el mismo motivo: pública, sin sesión y sin datos de negocio. Su
 URL vive en **una** variable, `SALUD_URL`, para que F6.1 la cambie en una línea.
 
+**Qué se reintenta, y qué no (18/08, F3.8).** El `pull` se reintenta **3 veces**,
+esperando **1 s, 5 s y 30 s**; si a la cuarta tampoco llega, aborta con código `1`
+**antes de tocar nada** —no hay respaldo, ni contenedor parado, ni una sentencia
+contra la base— y el log lo dice literal. Una **migración** que falla **no se
+reintenta nunca**: es la mitad importante de la política, porque una migración que
+murió a la mitad deja la base en un estado que su segunda corrida no espera, y
+repetirla a ciegas es como se corrompe una base. El health check conserva sus 10 × 3 s
+de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
+cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
+se cambian con `PULL_ESPERAS` en `instancia.env`.
+
+> [!tip] `--simular-fallo-pull` ensaya la política sin cortarle la red al droplet
+> Falla el `pull` a propósito —ni llama a `docker`, así que tampoco depende del
+> registry—, enseña los tres reintentos con sus esperas y sale `1` sin respaldar, sin
+> migrar y sin tocar el contenedor. Tarda los 36 s del backoff. Es el comando de
+> verificación de F3.8, y **corrido en local** el 18/08 dio `salida: 1` y
+> `grep -c reintento` = **3**, con el directorio de estado vacío.
+>
+> La cuarta fila de la política del plan —el **reporte al padre**, 2 reintentos, que
+> nunca aborta— es **F6.4** y **no está implementada**: solo documentada.
+
 > [!warning] El código HTTP de la salud es el que decide si se restaura la base
 > `curl -w '%{http_code}'` imprime un código **pase lo que pase** —`000` si no hubo
 > respuesta—, así que el `|| echo 000` que había detrás **concatenaba un segundo
@@ -412,11 +433,12 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`32 escenarios · 121 comprobaciones · 0 rojas` y, con `--mutantes`,
-`7 mutantes · 0 escapan` (~10 min, medido el 18/08). Cada mutante se **valida antes de
-correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio— porque
-el ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y «pasó».
-Tres de los siete son los que el arnés no veía en su momento: quitar
+`37 escenarios · 165 comprobaciones · 0 rojas` y, con `--mutantes`,
+`10 mutantes · 0 escapan` (medido el 18/08, tras F3.8). Cada mutante se **valida antes
+de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
+porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
+«pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
+corrompería bases, y también los que el arnés no veía en su momento: quitar
 `export DATABASE_URL` (rompería **todas** las migraciones de la flota), quitar
 `--clean --if-exists --single-transaction` del `pg_restore` (la vuelta atrás moriría
 objeto por objeto) y devolver el `|| echo 000` al `curl` de la salud.

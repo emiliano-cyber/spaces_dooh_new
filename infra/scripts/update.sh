@@ -10,6 +10,10 @@
 #  Uso:
 #    /opt/space-os/update.sh --dry-run   # mira y cuenta; NO toca nada
 #    /opt/space-os/update.sh             # actualiza, con respaldo y vuelta atras
+#    /opt/space-os/update.sh --simular-fallo-pull
+#                                        # el pull falla A PROPOSITO: ensaya la
+#                                        # politica de reintentos sin cortarle
+#                                        # la red al droplet. No toca nada.
 #    tail -n 40 /var/log/space-os/update.log
 #
 #  Respuestas del --dry-run:
@@ -72,10 +76,24 @@
 #    RED_MIGRACION=host                 red del contenedor efimero que migra
 #    SALUD_URL=http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
 #    SALUD_INTENTOS=10  SALUD_ESPERA=3
+#    PULL_ESPERAS="1 5 30"              esperas entre reintentos del pull, en s
 #    RUNNER_MIGRACIONES=/opt/space-os/migrar.mjs   (ver el aviso de abajo)
 #    PG_DUMP=pg_dump    PG_RESTORE=pg_restore      rutas si hay varias versiones
 #
 #  El archivo lleva credenciales: 0600 y de root. El script avisa si no.
+#
+# ── Que se reintenta y que NO ──────────────────────────────────────────────
+#    docker pull   3 reintentos esperando 1 s, 5 s y 30 s. Si a la cuarta
+#                  tampoco llega, se ABORTA ANTES DE TOCAR LA BASE: sin
+#                  respaldo, sin contenedor parado, sin migrar. Sale 1.
+#    migracion     CERO reintentos, y es lo importante de esta politica:
+#                  reintentar una migracion a medias es como se corrompe una
+#                  base. Falla una vez y se para (codigos 2 y 3).
+#    health check  SALUD_INTENTOS x SALUD_ESPERA (10 x 3 s) y, si no contesta
+#                  200, vuelta atras a la version anterior.
+#  Cada reintento sale NUMERADO en el log ("reintento 2/3"): tres lineas
+#  iguales no se distinguen de una repetida, y ademas se puede contar desde
+#  fuera con `grep -c reintento /var/log/space-os/update.log`.
 #
 # ── Cron: una vez al dia, con candado ──────────────────────────────────────
 #  /etc/cron.d/space-os-update:
@@ -176,14 +194,20 @@ EX_VUELTA_FALLO=5
 EX_OCUPADO=75
 
 DRY_RUN=0
+# `--simular-fallo-pull` existe para ENSAYAR la politica de reintentos en una
+# instancia de verdad sin tener que cortarle la red al droplet. Falla el pull y
+# nada mas: no llama a docker, asi que tampoco depende del registry.
+SIMULAR_FALLO_PULL=0
 for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
-    # Hasta la linea 78: uso, codigos de salida, la ventana de corte y las
-    # claves de instancia.env. Los AVISOS 1-3 no salen en el --help a proposito:
-    # son para quien va a TOCAR el script, no para quien lo corre.
-    -h|--help) sed -n '2,78p' "$0"; exit 0 ;;
-    *) echo "update: argumento desconocido: $arg (usa --dry-run o --help)" >&2; exit "$EX_CONFIG" ;;
+    --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
+    # Hasta la linea 96: uso, codigos de salida, la ventana de corte, las
+    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-3 no
+    # salen en el --help a proposito: son para quien va a TOCAR el script, no
+    # para quien lo corre.
+    -h|--help) sed -n '2,96p' "$0"; exit 0 ;;
+    *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
 
@@ -252,6 +276,9 @@ RED_MIGRACION="${RED_MIGRACION:-host}"
 SALUD_URL="${SALUD_URL:-http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/}"
 SALUD_INTENTOS="${SALUD_INTENTOS:-10}"
 SALUD_ESPERA="${SALUD_ESPERA:-3}"
+# Una espera por reintento del pull, y el numero de reintentos sale de cuantas
+# haya: "1 5 30" son tres reintentos. Vacio = ninguno.
+PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"
 RUNNER_MIGRACIONES="${RUNNER_MIGRACIONES:-/opt/space-os/migrar.mjs}"
 PG_DUMP="${PG_DUMP:-pg_dump}"
 PG_RESTORE="${PG_RESTORE:-pg_restore}"
@@ -369,9 +396,43 @@ version_de_imagen() {
 
 ID_ACTUAL="$(id_del_contenedor "$CONTENEDOR")"
 
+# ─── El pull, con reintentos y espera creciente ────────────────────────────
+# La red de un droplet parpadea y un registry devuelve un 500 de vez en cuando;
+# eso no puede dejar a una instancia sin actualizar. Y el pull es el ultimo
+# sitio donde rendirse sale GRATIS: aqui todavia no hay respaldo, ni contenedor
+# parado, ni una sola sentencia contra la base. Por eso los reintentos viven en
+# este paso y no mas abajo — abajo, en las migraciones, el limite es CERO.
+pull_una_vez() {
+  if [ "$SIMULAR_FALLO_PULL" = 1 ]; then
+    registrar "   simulacion: el pull falla a proposito (--simular-fallo-pull); ni se llama a docker."
+    return 1
+  fi
+  docker pull "$IMAGEN" 2>&1 | eco
+}
+
+pull_con_reintentos() {
+  local esperas espera i=0 n
+  read -r -a esperas <<<"$PULL_ESPERAS"
+  n=${#esperas[@]}
+  if pull_una_vez; then return 0; fi
+  while [ "$i" -lt "$n" ]; do
+    espera="${esperas[$i]}"
+    i=$((i + 1))
+    registrar "1 · el pull no llego; reintento $i/$n dentro de $espera s"
+    sleep "$espera"
+    if pull_una_vez; then
+      registrar "1 · pull OK en el reintento $i/$n"
+      return 0
+    fi
+  done
+  return 1
+}
+
 registrar "1 · pull $IMAGEN"
-if ! docker pull "$IMAGEN" 2>&1 | eco; then
-  salir "$EX_CONFIG" "ERROR update: fallo el \`docker pull\` de $IMAGEN. La instancia se queda como estaba."
+if ! pull_con_reintentos; then
+  # "Se queda como estaba" es literal, y se comprueba contando llamadas en
+  # `pruebas-update.sh` (E33/E34): ni pg_dump, ni runner, ni `docker run`.
+  salir "$EX_CONFIG" "ERROR update: fallo el \`docker pull\` de $IMAGEN, y tampoco llego en los intentos siguientes (esperas de ${PULL_ESPERAS:-ninguna} s). La instancia se queda EXACTAMENTE como estaba: no se respaldo, no se migro y no se toco el contenedor."
 fi
 
 ID_NUEVO="$(id_de_imagen "$IMAGEN")"

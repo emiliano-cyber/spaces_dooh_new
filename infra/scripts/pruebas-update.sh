@@ -14,7 +14,7 @@
 #    bash infra/scripts/pruebas-update.sh --mutantes   # ademas, que MUERDEN
 #
 #  No sale a la red, no habla con Docker, no toca ninguna base. Monta dobles
-#  POSIX de `docker`, `curl`, `flock`, `pg_dump` y `pg_restore` en un PATH
+#  POSIX de `docker`, `curl`, `flock`, `sleep`, `pg_dump` y `pg_restore` en un PATH
 #  propio y observa que se les pide. Corre en cualquier sitio con bash.
 #
 #  Los dobles son FIELES en un punto que importa: si no ven `DATABASE_URL` en
@@ -53,7 +53,13 @@ sub="$1"; shift
 case "$sub" in
   pull)
     printf 'pull de %s\n' "$1"
+    # Cuantas veces se ha pedido el pull: `D_PULL_FALLA` falla siempre;
+    # `D_PULL_FALLA_VECES=2` falla las dos primeras y a la tercera va bien, que
+    # es la red intermitente que F3.8 existe para aguantar.
+    n=$(cat "$REG_PULL_N" 2>/dev/null || echo 0); n=$((n + 1))
+    printf '%s' "$n" >"$REG_PULL_N"
     [ "${D_PULL_FALLA:-0}" = 1 ] && exit 1
+    [ "$n" -le "${D_PULL_FALLA_VECES:-0}" ] && exit 1
     exit 0 ;;
   image)
     shift  # "inspect"
@@ -145,6 +151,15 @@ sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | sed -n "${n}p")"
 exit "$sal"
 FIN
 
+  # `sleep` tambien es un doble: el arnes no puede tardar 36 s en comprobar un
+  # backoff de 1+5+30 s. Anota lo que le piden y vuelve enseguida, asi que las
+  # esperas se comprueban por lo que se PIDE, no por el reloj.
+  cat >"$BIN/sleep" <<'FIN'
+#!/usr/bin/env bash
+printf 'sleep %s\n' "$*" >>"$REG_LLAMADAS"
+exit 0
+FIN
+
   cat >"$BIN/flock" <<'FIN'
 #!/usr/bin/env bash
 while [ $# -gt 0 ]; do
@@ -193,6 +208,7 @@ preparar() {
   export REG_PGENV="$RAIZ_TMP/pgenv.txt"
   export REG_HUELLA_N="$RAIZ_TMP/huella.n"
   export REG_CURL_N="$RAIZ_TMP/curl.n"
+  export REG_PULL_N="$RAIZ_TMP/pull.n"
   : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"
   montar_dobles
 
@@ -241,6 +257,7 @@ FIN
   export PGD_FALLA=0
   export FLOCK_OCUPADO=0
   export D_PULL_FALLA=0
+  export D_PULL_FALLA_VECES=0
   export D_RUN_FALLA=0
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
@@ -261,6 +278,20 @@ hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then bien; else mal "no se llamo: 
 no_hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then mal "no deberia haberse llamado: $1"; else bien; fi; }
 hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then bien; else mal "ninguna llamada casa con: $1"; fi; }
 no_hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then mal "alguna llamada casa con lo prohibido: $1"; else bien; fi; }
+# Cuantas veces. "Ninguna" y "una sola" son afirmaciones distintas: que una
+# migracion fallida NO se reintente solo se puede comprobar CONTANDO.
+veces_regex() {
+  local n
+  n="$(grep -cE -- "$2" "$REG_LLAMADAS" || true)"
+  if [ "$n" = "$1" ]; then bien; else mal "se esperaban $1 llamadas que casen con '$2', hubo $n"; fi
+}
+# Sobre el ARCHIVO de log, no sobre la salida: es lo que cuenta el comando de
+# verificacion de F3.8 (`grep -c "reintento" /var/log/space-os/update.log`).
+veces_en_log() {
+  local n
+  n="$(grep -c -- "$2" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/null || true)"
+  if [ "$n" = "$1" ]; then bien; else mal "se esperaban $1 lineas con '$2' en update.log, hubo $n"; fi
+}
 
 # ============================================================================
 #  ESCENARIOS
@@ -619,6 +650,100 @@ log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 no_hubo 'pg_restore '
 limpiar
 
+# ── F3.8 · reintentos con backoff, y un limite ─────────────────────────────
+
+# E33 · LA BANDERA DEL COMANDO DE VERIFICACION · `--simular-fallo-pull` deja
+#       ejercitar la politica de reintentos en una instancia de verdad sin
+#       cortarle la red al droplet. El pull no llega: la instancia tiene que
+#       quedar EXACTAMENTE como estaba, y los tres reintentos NUMERADOS en el
+#       log. El conteo es el del plan: `grep -c "reintento" update.log` == 3.
+preparar 'E33 --simular-fallo-pull (F3.8)'
+correr --simular-fallo-pull
+codigo_es 1
+veces_en_log 3 'reintento'
+log_dice 'reintento 1/3'
+log_dice 'reintento 2/3'
+log_dice 'reintento 3/3'
+log_dice 'fallo el `docker pull`'
+# El backoff, comprobado por lo que se le PIDE a `sleep`: 1 s, 5 s y 30 s.
+hubo 'sleep 1'
+hubo 'sleep 5'
+hubo 'sleep 30'
+# La simulacion no habla con el registry: se para antes de llamar a docker.
+no_hubo 'docker pull'
+# "Deja la instancia exactamente como estaba": ni respaldo, ni base, ni
+# contenedor. Las tres se comprueban por separado.
+no_hubo 'pg_dump'
+no_hubo 'pg_restore'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+no_hubo_regex 'docker (stop|rename|start) '
+if [ -e "$SPACE_OS_DIR_ESTADO/version-anterior" ]; then mal 'se anoto version-anterior con un pull que no llego'; else bien; fi
+if [ -z "$(ls -A "$SPACE_OS_DIR_ESTADO/respaldos" 2>/dev/null)" ]; then bien; else mal 'se respaldo con un pull que no llego'; fi
+limpiar
+
+# E34 · el pull falla DE VERDAD (no simulado): 1 intento + 3 reintentos = 4
+#       llamadas a `docker pull`, y despues se rinde. Sin esto, "3 reintentos"
+#       podria ser 1, 7 o infinito y el arnes no notaria la diferencia.
+preparar 'E34 pull fallido: 4 intentos y se rinde (F3.8)'
+export D_PULL_FALLA=1
+correr
+codigo_es 1
+veces_regex 4 '^docker pull '
+veces_en_log 3 'reintento'
+hubo 'sleep 1'
+hubo 'sleep 5'
+hubo 'sleep 30'
+no_hubo 'pg_dump'
+no_hubo 'node scripts/migrar.mjs'
+no_hubo '--detach'
+limpiar
+
+# E35 · la red intermitente, que es el caso que F3.8 existe para aguantar: los
+#       dos primeros pull fallan, el tercero entra y el update SIGUE. Un
+#       reintento que no reintenta de verdad no sirve de nada.
+preparar 'E35 pull que se recupera al tercer intento (F3.8)'
+export D_PULL_FALLA_VECES=2
+correr
+codigo_es 0
+veces_regex 3 '^docker pull '
+log_dice 'reintento 2/3'
+log_dice 'OK: v0.4.2 sirviendo'
+hubo 'sleep 1'
+hubo 'sleep 5'
+no_hubo 'sleep 30'
+hubo 'pg_dump'
+hubo '--detach'
+limpiar
+
+# E36 · EL LIMITE · una migracion que falla NO se reintenta NUNCA. Es la mitad
+#       importante de F3.8: reintentar una migracion a medias es como se
+#       corrompe una base. Se comprueba CONTANDO las llamadas al runner —una y
+#       solo una—, porque "no se reintenta" no se ve en un log.
+preparar 'E36 la migracion fallida no se reintenta (F3.8)'
+export D_MIGRAR_CODIGO=2
+export D_MIGRAR_SALIDA='ERROR migrar: 20260812_x.sql fallo a la mitad.'
+correr
+codigo_es 2
+veces_regex 1 'node scripts/migrar.mjs'
+veces_en_log 0 'reintento'
+no_hubo '--detach'
+no_hubo 'pg_restore'
+limpiar
+
+# E37 · lo mismo con el codigo 3 (historia distinta): tampoco se reintenta.
+#       Los dos codigos salen por ramas distintas del `case`, asi que se
+#       comprueban por separado.
+preparar 'E37 el codigo 3 tampoco se reintenta (F3.8)'
+export D_MIGRAR_CODIGO=3
+export D_MIGRAR_SALIDA='ERROR migrar: 20260715_x.sql cambio de contenido.'
+correr
+codigo_es 3
+veces_regex 1 'node scripts/migrar.mjs'
+veces_en_log 0 'reintento'
+no_hubo '--detach'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -679,6 +804,14 @@ if [ "${1:-}" = '--mutantes' ]; then
   # Y el que reintroduce D2: el `|| echo 000` pegado al `-w '%{http_code}'`
   probar_mutante 'el `|| echo 000` que concatena dos codigos http' \
     's#2>/dev/null)" || true#2>/dev/null || echo 000)"      #'
+  # Y los tres de F3.8: el pull sin reintentos, la espera aplanada, y la
+  # migracion reintentada — este ultimo es el que corrompe bases.
+  probar_mutante 'dejar el pull sin reintentos' \
+    's/^PULL_ESPERAS="\${PULL_ESPERAS:-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS:-}"        /'
+  probar_mutante 'aplanar la espera del backoff a 1 s' \
+    's/^PULL_ESPERAS="\${PULL_ESPERAS:-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS:-1 1 1}"/'
+  probar_mutante 'reintentar la migracion fallida' \
+    's#^correr_runner >"\$salida_mig" 2>&1 || codigo=\$?$#correr_runner >"$salida_mig" 2>\&1 || correr_runner >"$salida_mig" 2>\&1 || codigo=$?#'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

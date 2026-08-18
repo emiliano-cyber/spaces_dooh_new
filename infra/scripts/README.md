@@ -29,6 +29,7 @@ raíz, para poner o mantener una instancia en pie.
 ```bash
 /opt/space-os/update.sh --dry-run     # mira y cuenta. NO toca nada
 /opt/space-os/update.sh               # actualiza de verdad
+/opt/space-os/update.sh --simular-fallo-pull   # ensaya los reintentos (§ abajo)
 tail -n 40 /var/log/space-os/update.log
 ```
 
@@ -43,7 +44,8 @@ tail -n 40 /var/log/space-os/update.log
 ### Qué hace, en orden
 
 1. Lee su canal y su registry de `/etc/space-os/instancia.env`.
-2. `docker pull` y **compara el digest** con el que corre. Igual → sale 0 sin
+2. `docker pull` —con **3 reintentos** y espera creciente, ver «Qué se
+   reintenta»— y **compara el digest** con el que corre. Igual → sale 0 sin
    tocar nada.
 3. **Respaldo** `pg_dump -Fc`, y comprueba que **no esté vacío**. Sin respaldo
    bueno, el update se detiene ahí **y borra el archivo de 0 bytes**: si se
@@ -101,6 +103,7 @@ root** — el script avisa si no lo está.
 | `RED_MIGRACION` | no | `host` |
 | `SALUD_URL` | no | `http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/` |
 | `SALUD_INTENTOS` / `SALUD_ESPERA` | no | `10` y `3` |
+| `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. Vacío = ningún reintento. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
 | `RUNNER_MIGRACIONES` | no | `/opt/space-os/migrar.mjs` (ver el aviso 1) |
 | `PG_DUMP` / `PG_RESTORE` | no | rutas, si conviven varias versiones de Postgres |
 
@@ -127,6 +130,41 @@ release **sano** acabaría tirado por una vuelta atrás que además pierde lo
 escrito desde el respaldo. Por eso la salida y el código de salida de `curl` se
 recogen **por separado**: lo que imprimió es el valor, y si no imprimió nada,
 `000`.
+
+### Qué se reintenta, y qué no
+
+| Paso que falla | Reintentos | Espera | Qué pasa al agotarse |
+|---|---|---|---|
+| `docker pull` | **3** | 1 s, 5 s, 30 s | aborta **antes de tocar la base** y sale `1` |
+| **migración** | **0** | — | se para en el sitio (códigos `2` o `3`). **Nunca se repite** |
+| health check | 10 | 3 s | vuelta atrás al digest anterior (códigos `4` o `5`) |
+
+**La fila que importa es la de en medio.** Reintentar un `pull` es gratis:
+todavía no hay respaldo, ni contenedor parado, ni una sola sentencia contra la
+base, así que rendirse deja la instancia **exactamente** como estaba. Reintentar
+una **migración** es lo contrario: una migración que murió a la mitad dejó la
+base en un estado que su segunda corrida no espera, y repetirla a ciegas es como
+se corrompe una base. Por eso el límite ahí es **cero**, y está probado
+contando llamadas al runner, no leyendo el log (`pruebas-update.sh`, E36 y E37).
+
+Cada reintento sale **numerado** en el log —`reintento 2/3`—, así que se puede
+contar desde fuera sin leerlo entero:
+
+```bash
+grep -c reintento /var/log/space-os/update.log
+```
+
+Para **ensayar** la política en una instancia de verdad sin cortarle la red al
+droplet está `--simular-fallo-pull`: el `pull` falla a propósito —ni se llama a
+`docker`, así que tampoco depende del registry—, se ven los tres reintentos con
+sus esperas y el script sale `1` **sin respaldar, sin migrar y sin tocar el
+contenedor**. Tarda los 36 s del backoff. Las esperas se pueden cambiar desde
+`instancia.env` con `PULL_ESPERAS`.
+
+> [!note] La cuarta fila de la política todavía **no existe**
+> El plan (F3.8) también describe el **reporte al padre**: 2 reintentos, 5 s y
+> 30 s, se guarda en disco si no llega y **nunca aborta el update**. Ese reporte
+> es **F6.4** y no está escrito: aquí queda la política, no la implementación.
 
 ### El cron
 
@@ -309,17 +347,19 @@ nombre y el mensaje dice `docker start space-os` a secas.
 ```bash
 bash -n infra/scripts/update.sh
 bash infra/scripts/pruebas-update.sh              # los escenarios
-bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~10 min)
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~14 min)
 ```
 
 El arnés no sale a la red, no habla con Docker y no toca ninguna base: monta
-dobles POSIX de `docker`, `curl`, `flock`, `pg_dump` y `pg_restore` en un `PATH`
-propio y mira **qué se les pide**. El resultado del 2026-08-18, y el que imprime
-el comando:
+dobles POSIX de `docker`, `curl`, `flock`, `sleep`, `pg_dump` y `pg_restore` en
+un `PATH` propio y mira **qué se les pide**. `sleep` es un doble a propósito: un
+backoff de 1+5+30 s se comprueba por lo que se **pide**, no por el reloj, o el
+arnés tardaría 36 s en cada escenario. El resultado del 2026-08-18, y el que
+imprime el comando:
 
 ```
-32 escenarios · 121 comprobaciones · 0 rojas
-7 mutantes · 0 escapan
+37 escenarios · 165 comprobaciones · 0 rojas
+10 mutantes · 0 escapan
 ```
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
@@ -329,13 +369,16 @@ rescate** · sin versión anterior · candado tomado · dos bases distintas · i
 con y sin runner dentro · canal inválido · pull fallido · huella ilegible antes
 y después · **un `curl` que imprime 200 y sale ≠ 0**, uno que imprime `000` y
 sale ≠ 0 y uno que no imprime nada · el padre no aparece · la contraseña no sale
-en `argv`.
+en `argv` · **`--simular-fallo-pull` con sus tres reintentos numerados y la
+instancia intacta** · un `pull` que falla de verdad (4 intentos y se rinde) · un
+`pull` intermitente que **entra al tercero** y deja seguir el update · y la
+migración fallida que **no se reintenta**, con los códigos 2 y 3.
 
-**Se comprueba que las comprobaciones muerden.** Siete mutantes de una sola línea,
+**Se comprueba que las comprobaciones muerden.** Diez mutantes de una sola línea,
 y cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
-número de líneas, `bash -n` limpio— porque el ciclo anterior tuvo un falso verde
-por un `sed` que dejó el archivo vacío y «pasó». Dos de los seis son justo los
-que el arnés viejo **no** cazaba:
+número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
+por un `sed` que dejó el archivo vacío y «pasó». Dos de ellos son justo los que
+el arnés viejo **no** cazaba:
 
 | Mutante | Qué rompería en un servidor |
 |---|---|
@@ -345,6 +388,9 @@ que el arnés viejo **no** cazaba:
 | restaurar siempre / no restaurar nunca | los dos lados de la decisión de la vuelta atrás |
 | retirar el contenedor nuevo por **nombre** | si el `rename` falló, borra el contenedor **viejo** |
 | devolver el `\|\| echo 000` al `curl` de la salud | un `200` con salida ≠ 0 se lee `200000`: **tira un release sano** y restaura la base |
+| dejar el `pull` sin reintentos | un parpadeo de red deja la instancia sin actualizar |
+| aplanar la espera del backoff a 1 s | tres reintentos en 3 s no aguantan un registry que tarda en volver |
+| **reintentar la migración fallida** | la corrida repetida encuentra la base a medias: **así se corrompe una base** |
 
 Y contra material real, no solo dobles:
 
