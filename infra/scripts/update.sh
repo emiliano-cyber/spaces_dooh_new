@@ -531,7 +531,12 @@ registrar "3 · respaldo -> $BK"
 codigo=0
 correr_pg "$PG_DUMP" --format=custom --file="$BK" 2>&1 | eco || codigo=$?
 if [ "$codigo" -ne 0 ] || [ ! -s "$BK" ]; then
-  salir "$EX_CONFIG" "BACKUP VACIO — abortado. No se toco ni la base ni el contenedor. Revisa $PG_DUMP contra $(destino_de_url "$DATABASE_URL")."
+  # El archivo de 0 bytes se BORRA antes de abortar. Si se queda, en un `ls` del
+  # directorio de respaldos parece uno mas —mismo nombre, misma extension, misma
+  # hora— y el bueno es el de al lado; el dia que alguien restaure a mano bajo
+  # presion, elegir el mas reciente seria elegir el vacio.
+  rm -f "$BK"
+  salir "$EX_CONFIG" "BACKUP VACIO — abortado. El archivo de 0 bytes se borro para que no se confunda con un respaldo bueno. No se toco ni la base ni el contenedor. Revisa $PG_DUMP contra $(destino_de_url "$DATABASE_URL")."
 fi
 registrar "   respaldo de $(wc -c <"$BK") bytes"
 
@@ -600,7 +605,13 @@ case "$codigo" in
         salir "$EX_MIGRACION" "ABORTADO (2): LA BASE CAMBIO. Comprobado leyendo la base antes y despues, no el mensaje del runner: la huella paso de [$HUELLA_ANTES] a [$HUELLA_DESPUES] ($APLICADAS filas nuevas en schema_migrations; '?' significa que la tabla no existe, o sea que se aplico esquema SIN registro y la proxima corrida lo reaplicaria). NO se conmuto el trafico —sigue sirviendo la version anterior— y NO se restaura nada automaticamente estando la base viva y en uso. Alguien tiene que mirar esto. Respaldo: $BK"
         ;;
       no)
-        salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo y la base NO cambio — misma huella antes y despues [$HUELLA_ANTES]. Tipicamente no pudo conectar o no pudo abrir la transaccion; el mensaje de arriba es suyo. No se conmuto el trafico. Respaldo: $BK"
+        # Aqui habia una suposicion —"tipicamente no pudo conectar o no pudo
+        # abrir la transaccion"— y en el ensayo local la causa medida fue otra:
+        # una migracion que fallo contra un objeto que ya existia. El mensaje
+        # del runner va impreso JUSTO ENCIMA y ese si es exacto, asi que este
+        # script no adivina: remite. Cambiar una suposicion por otra seria
+        # repetir el fallo con distinta redaccion.
+        salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo y la base NO cambio — misma huella antes y despues [$HUELLA_ANTES]. El motivo lo dice el mensaje del runner, aqui arriba; este script no lo adivina. No se conmuto el trafico. Respaldo: $BK"
         ;;
       *)
         salir "$EX_MIGRACION" "ABORTADO (2): el runner fallo y NO se pudo volver a leer la huella de la base, asi que este script NO sabe si cambio. Trata el caso como el peor: alguien tiene que mirar la base. Huella previa: [$HUELLA_ANTES]. No se conmuto el trafico. Respaldo: $BK"
@@ -621,6 +632,19 @@ esac
 # arrancarlo otra vez y no reconstruir a mano como se levanto.
 ANTERIOR="${CONTENEDOR}-anterior"
 RENOMBRADO=0
+# Con que comando se devuelve el servicio A MANO si la vuelta atras se queda a
+# medias. Se calcula en vez de escribirse fijo porque depende de si el rename de
+# 5b llego a hacerse: si se hizo, el contenedor viejo esta aparcado como
+# `-anterior` y hay que devolverle el nombre; si no, conserva el suyo y basta
+# con arrancarlo. Un comando equivocado en un mensaje de urgencia es peor que
+# ninguno.
+comando_rescate() {
+  if [ "$RENOMBRADO" = 1 ]; then
+    printf 'docker rename %s %s && docker start %s' "$ANTERIOR" "$CONTENEDOR" "$CONTENEDOR"
+  else
+    printf 'docker start %s' "$CONTENEDOR"
+  fi
+}
 docker rm -f "$ANTERIOR" >/dev/null 2>&1 || true
 if [ -n "$ID_ACTUAL" ]; then
   registrar "5b · parando $CONTENEDOR y guardandolo como $ANTERIOR"
@@ -659,7 +683,18 @@ rm -f "$salida_run"
 salud() {
   local i codigo_http
   for i in $(seq 1 "$SALUD_INTENTOS"); do
-    codigo_http="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$SALUD_URL" 2>/dev/null || echo 000)"
+    # `-w '%{http_code}'` YA imprime un codigo pase lo que pase —000 si no hubo
+    # respuesta—, asi que el `|| echo 000` que habia aqui pegaba un SEGUNDO
+    # codigo detras del primero. Con un fallo de conexion solo se veia feo en el
+    # log ("intento 1/5 -> 000000"); pero con un curl que alcanza a leer el 200 y
+    # LUEGO sale != 0 —un `--max-time` agotado a mitad del cuerpo, un contenedor
+    # recien arrancado y lento— la variable valia "200000", no casaba con "200",
+    # y esta linea es la que gobierna si se restaura la base: un release SANO
+    # acababa tirado por un `pg_restore` que ademas pierde lo escrito desde el
+    # respaldo. Por eso la salida y el codigo de salida se recogen POR SEPARADO:
+    # lo que curl imprimio es el valor, y si no imprimio nada, 000.
+    codigo_http="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 "$SALUD_URL" 2>/dev/null)" || true
+    case "$codigo_http" in ''|*[!0-9]*) codigo_http=000 ;; esac
     if [ "$codigo_http" = "200" ]; then
       registrar "6 · salud: 200 en el intento $i/$SALUD_INTENTOS"
       return 0
@@ -717,7 +752,7 @@ if [ "$BASE_CAMBIO" != "no" ]; then
     registrar "7a · restaurando $BK POR PRUDENCIA: no se pudo releer la huella de la base, asi que no consta que NO haya cambiado. Se prefiere restaurar de mas a dejar la version anterior sobre un esquema nuevo, que no da error y no lo denuncia nadie."
   fi
   if ! command -v "$PG_RESTORE" >/dev/null 2>&1; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. Una persona tiene que mirar esto."
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. La instancia queda SIN servicio: el contenedor de la version anterior esta PARADO y aparcado como $ANTERIOR. Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
   fi
   codigo=0
   # `--clean --if-exists --single-transaction` no son adorno y no se quitan:
@@ -727,7 +762,7 @@ if [ "$BASE_CAMBIO" != "no" ]; then
   # es peor que no haber restaurado.
   correr_pg "$PG_RESTORE" --clean --if-exists --single-transaction "$BK" 2>&1 | eco || codigo=$?
   if [ "$codigo" -ne 0 ]; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. Una persona tiene que mirar esto."
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. La instancia queda SIN servicio: el contenedor de la version anterior esta PARADO y aparcado como $ANTERIOR. Para devolver el servicio ya: $(comando_rescate) — con la base en el estado en que la dejo la restauracion fallida, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
   fi
   registrar "7a · base restaurada (esquema Y registro de migraciones: schema_migrations viaja dentro del dump)"
 else

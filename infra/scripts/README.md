@@ -46,7 +46,10 @@ tail -n 40 /var/log/space-os/update.log
 2. `docker pull` y **compara el digest** con el que corre. Igual → sale 0 sin
    tocar nada.
 3. **Respaldo** `pg_dump -Fc`, y comprueba que **no esté vacío**. Sin respaldo
-   bueno, el update se detiene ahí. El criterio está copiado de
+   bueno, el update se detiene ahí **y borra el archivo de 0 bytes**: si se
+   quedara, en un `ls` del directorio parecería un respaldo más —mismo nombre,
+   misma extensión, más reciente que el bueno— y restaurar «el último» bajo
+   presión sería restaurar la nada. El criterio está copiado de
    `.github/workflows/deploy.yml:117-125`: *un `pg_dump` que falla deja un
    archivo de 0 bytes y su salida se ve casi igual que la de uno bueno.*
 4. Anota la versión que corría en `/var/lib/space-os/version-anterior`.
@@ -68,7 +71,7 @@ tail -n 40 /var/log/space-os/update.log
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |
-| `5` | la salud falló y **la vuelta atrás no** | **sí, urgente** |
+| `5` | la salud falló y **la vuelta atrás no**. **La instancia queda SIN servicio** y el mensaje del log trae el **comando exacto** que la devuelve (§6) | **sí, urgente** |
 | `75` | ya había otro update en marcha (candado) | no |
 
 Los códigos 1, 2 y 3 vienen tal cual de `scripts/migrar.mjs:21-32`. Aplanarlos
@@ -113,6 +116,18 @@ app habla con otra no da ningún error, deja dos bases a medias.
 variable** para que F6.1 la cambie en una línea. Es la misma ruta que usa el
 smoke de `.github/workflows/promover.yml`, y por el mismo motivo.
 
+**El código HTTP se lee con cuidado, porque es el que decide si se restaura la
+base.** `curl -w '%{http_code}'` imprime un código *pase lo que pase* —`000` si
+no hubo respuesta—, así que un `|| echo 000` detrás **concatenaría un segundo
+código**. Con un fallo de conexión eso solo se ve feo en el log
+(`intento 1/5 -> 000000`); pero cuando `curl` alcanza a leer el **200** y luego
+sale ≠ 0 —un `--max-time` agotado a mitad del cuerpo, un contenedor recién
+arrancado y lento— la variable valdría `200000`, no casaría con `200`, y un
+release **sano** acabaría tirado por una vuelta atrás que además pierde lo
+escrito desde el respaldo. Por eso la salida y el código de salida de `curl` se
+recogen **por separado**: lo que imprimió es el valor, y si no imprimió nada,
+`000`.
+
 ### El cron
 
 ```cron
@@ -129,7 +144,7 @@ Si `flock` no está instalado, el script **no corre**.
 
 ---
 
-## Cinco cosas que hay que saber antes de tocarlo
+## Seis cosas que hay que saber antes de tocarlo
 
 ### 1 · El runner de migraciones NO viaja en la imagen
 
@@ -243,9 +258,42 @@ red, así que el script parte la URL: usuario y destino en `argv`, clave por
 **avisa y no la toca** —decodificarla podría corromperla, y un respaldo que no
 corre es peor—; codifícala como `%5C` en `instancia.env` y el aviso se va.
 
-> [!note] El respaldo se queda en el droplet
-> Hoy vive en `/var/lib/space-os/respaldos/`. Sacarlo de la máquina —para que
-> sobreviva a la muerte del droplet que lo generó— es **F3.7**.
+> [!note] El respaldo se queda en el droplet, y **nadie lo poda**
+> Hoy vive en `/var/lib/space-os/respaldos/` y el script **no borra nunca** los
+> anteriores: cada actualización deja un `pg_dump` de la base entera, así que en
+> una instancia con datos de verdad eso son gigas por noche hasta llenar el
+> disco. Sacarlo de la máquina —para que sobreviva a la muerte del droplet que
+> lo generó— **y la retención** son **F3.7**, que es la tarea del respaldo.
+
+### 6 · Un código `5` deja la instancia **caída**: cómo devolverle el servicio
+
+Todas las salidas con `5` dicen **«La instancia queda SIN servicio»** —la
+última, cuando la versión anterior tampoco contesta, dice «la instancia está
+caída»—. Y las **dos** que se van por la restauración —no hay `pg_restore`, o
+falló— traen además el **comando exacto** de rescate: son las únicas en las que
+el script se para **antes de haber intentado** levantar nada, y es lo que
+alguien va a leer a las cuatro de la mañana, no el momento de reconstruir de
+memoria cómo se levantó el contenedor.
+
+En ese punto el contenedor nuevo ya se retiró y el viejo está **parado y
+aparcado** como `${CONTENEDOR}-anterior` — conserva puertos, `--env-file`, red y
+política de reinicio, así que devolverlo es renombrarlo y arrancarlo:
+
+```bash
+docker rename space-os-anterior space-os && docker start space-os
+```
+
+Medido en el ensayo local: tras un código `5` el contenedor de la app **no
+existía**, el `-anterior` estaba parado y la salud daba `000`; con ese comando
+volvió en **8 s**. El script lo calcula en vez de escribirlo fijo: si el
+`rename` del paso 5b **no** llegó a hacerse, el contenedor viejo conserva su
+nombre y el mensaje dice `docker start space-os` a secas.
+
+> [!warning] El rescate devuelve el servicio, **no** resuelve el estado de la base
+> En los dos códigos `5` que salen de la restauración —no hay `pg_restore`, o
+> falló— eso levanta la versión **anterior** sobre una base que **ya tiene las
+> migraciones nuevas**. Es un parche para que la instancia responda mientras
+> alguien mira; el dump está en `/var/lib/space-os/respaldos/`.
 
 ---
 
@@ -261,26 +309,29 @@ corre es peor—; codifícala como `%5C` en `instancia.env` y el aviso se va.
 ```bash
 bash -n infra/scripts/update.sh
 bash infra/scripts/pruebas-update.sh              # los escenarios
-bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~4 min)
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~10 min)
 ```
 
 El arnés no sale a la red, no habla con Docker y no toca ninguna base: monta
 dobles POSIX de `docker`, `curl`, `flock`, `pg_dump` y `pg_restore` en un `PATH`
-propio y mira **qué se les pide**. El resultado del 2026-08-17, y el que imprime
+propio y mira **qué se les pide**. El resultado del 2026-08-18, y el que imprime
 el comando:
 
 ```
-28 escenarios · 101 comprobaciones · 0 rojas
-6 mutantes · 0 escapan
+32 escenarios · 121 comprobaciones · 0 rojas
+7 mutantes · 0 escapan
 ```
 
-Cubre: sin cambios · dry-run · respaldo vacío · los cuatro códigos del runner ·
-camino feliz · vuelta atrás con y sin restauración · vuelta atrás fallida · sin
-versión anterior · candado tomado · dos bases distintas · imagen con y sin runner
-dentro · canal inválido · pull fallido · huella ilegible antes y después · el
-padre no aparece · la contraseña no sale en `argv`.
+Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
+se quede en disco** · los cuatro códigos del runner · camino feliz · vuelta
+atrás con y sin restauración · vuelta atrás fallida **con su comando de
+rescate** · sin versión anterior · candado tomado · dos bases distintas · imagen
+con y sin runner dentro · canal inválido · pull fallido · huella ilegible antes
+y después · **un `curl` que imprime 200 y sale ≠ 0**, uno que imprime `000` y
+sale ≠ 0 y uno que no imprime nada · el padre no aparece · la contraseña no sale
+en `argv`.
 
-**Se comprueba que las comprobaciones muerden.** Seis mutantes de una sola línea,
+**Se comprueba que las comprobaciones muerden.** Siete mutantes de una sola línea,
 y cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque el ciclo anterior tuvo un falso verde
 por un `sed` que dejó el archivo vacío y «pasó». Dos de los seis son justo los
@@ -293,6 +344,7 @@ que el arnés viejo **no** cazaba:
 | quitar el guard del respaldo vacío | se actualiza sin red |
 | restaurar siempre / no restaurar nunca | los dos lados de la decisión de la vuelta atrás |
 | retirar el contenedor nuevo por **nombre** | si el `rename` falló, borra el contenedor **viejo** |
+| devolver el `\|\| echo 000` al `curl` de la salud | un `200` con salida ≠ 0 se lee `200000`: **tira un release sano** y restaura la base |
 
 Y contra material real, no solo dobles:
 

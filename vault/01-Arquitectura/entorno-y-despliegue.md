@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-17
+actualizado: 2026-08-18
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -315,15 +315,29 @@ El orden importa y está elegido para que cada paso falle antes de haber hecho d
 → anotar la versión anterior → **migrar** → **solo entonces** conmutar el tráfico →
 health check → vuelta atrás si no responde.
 
-**Un respaldo vacío detiene el update.** El criterio se copió de
-`.github/workflows/deploy.yml:117-125`: un `pg_dump` que falla deja un archivo de 0
-bytes y su salida se ve casi igual que la de uno bueno, así que se mira el tamaño y
-no el código de salida. En el log aparece como `BACKUP VACIO`.
+**Un respaldo vacío detiene el update**, y el archivo de 0 bytes **se borra** al
+abortar. El criterio se copió de `.github/workflows/deploy.yml:117-125`: un `pg_dump`
+que falla deja un archivo de 0 bytes y su salida se ve casi igual que la de uno bueno,
+así que se mira el tamaño y no el código de salida. En el log aparece como
+`BACKUP VACIO`. Se borra porque, si se quedara, en un `ls` del directorio de respaldos
+parecería uno más —y el **más reciente**, que es justo el que alguien elegiría para
+restaurar a mano bajo presión.
 
 **El health check va contra `/spaces-dooh/api/auth/metodos/`** y no contra
 `/api/version`, que todavía no existe (F6.1). Es la misma ruta que usa el smoke de
 `promover.yml`, y por el mismo motivo: pública, sin sesión y sin datos de negocio. Su
 URL vive en **una** variable, `SALUD_URL`, para que F6.1 la cambie en una línea.
+
+> [!warning] El código HTTP de la salud es el que decide si se restaura la base
+> `curl -w '%{http_code}'` imprime un código **pase lo que pase** —`000` si no hubo
+> respuesta—, así que el `|| echo 000` que había detrás **concatenaba un segundo
+> código**. Con un fallo de conexión solo se veía feo en el log
+> (`intento 1/5 -> 000000`); pero con un `curl` que alcanza a leer el **200** y luego
+> sale ≠ 0 —un `--max-time` agotado a mitad del cuerpo, un contenedor recién arrancado
+> y lento— la variable valía `200000`, no casaba con `200` y **tiraba un release sano**
+> con una vuelta atrás que además pierde lo escrito desde el respaldo. Corregido el
+> 18/08: la salida y el código de salida de `curl` se recogen **por separado**, y solo
+> se cae a `000` si no imprimió nada.
 
 > [!warning] Los cuatro códigos del runner **no** son intercambiables
 > `scripts/migrar.mjs:21-32` distingue **1** (no puede empezar) · **2** (aplicó y no
@@ -398,21 +412,45 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`28 escenarios · 101 comprobaciones · 0 rojas` y, con `--mutantes`,
-`6 mutantes · 0 escapan`. Cada mutante se **valida antes de correrlo** —una sola
-línea de diff, mismo número de líneas, `bash -n` limpio— porque el ciclo anterior tuvo
-un falso verde por un `sed` que dejó el archivo vacío y «pasó». Dos de los seis son
-los que el arnés viejo no veía: quitar `export DATABASE_URL` (rompería **todas** las
-migraciones de la flota) y quitar `--clean --if-exists --single-transaction` del
-`pg_restore` (la vuelta atrás moriría objeto por objeto).
+`32 escenarios · 121 comprobaciones · 0 rojas` y, con `--mutantes`,
+`7 mutantes · 0 escapan` (~10 min, medido el 18/08). Cada mutante se **valida antes de
+correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio— porque
+el ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y «pasó».
+Tres de los siete son los que el arnés no veía en su momento: quitar
+`export DATABASE_URL` (rompería **todas** las migraciones de la flota), quitar
+`--clean --if-exists --single-transaction` del `pg_restore` (la vuelta atrás moriría
+objeto por objeto) y devolver el `|| echo 000` al `curl` de la salud.
+
+### El ensayo local del 18/08: cuatro defectos corregidos y uno pendiente
+
+El ensayo de F3.4 —sin servidor, contra los dobles y con la imagen local— salió
+**DEMOSTRADO en los nueve puntos** y dejó **cinco defectos**. Cuatro se arreglaron en
+el mismo ciclo, con su escenario en rojo antes del arreglo:
+
+| | Qué pasaba | Cómo quedó |
+|---|---|---|
+| **D2** | el `\|\| echo 000` concatenaba un segundo código HTTP: `200000` tiraba un release **sano** con `pg_restore` | salida y código de salida de `curl` por separado; `000` solo si no imprimió nada |
+| **D3** | los dos códigos `5` de la restauración no decían que la instancia quedaba **caída** ni cómo levantarla | dicen «La instancia queda SIN servicio» y traen el comando de rescate, **calculado** según si el `rename` llegó a hacerse |
+| **D4** | el respaldo vacío se quedaba en disco junto a los buenos | se borra al abortar |
+| **D5** | el código `2` con la base intacta **adivinaba** la causa («típicamente no pudo conectar») y en el caso medido era otra | remite al mensaje del runner, que va impreso justo encima |
+
+> [!danger] D1 sigue abierto: la vuelta atrás **no devuelve el esquema entero**
+> `pg_restore --clean --if-exists` solo suelta los objetos **que están en el dump**,
+> así que los que creó el release fallido **sobreviven** a la restauración. Con una
+> migración no idempotente encima, la instancia se queda atascada en **código 2** en
+> cada corrida del cron. Toca migraciones —es **ROJO**— y exige una decisión de
+> diseño: **no se arregló**, está esperando a Jochelo. Mientras tanto, un `4` significa
+> «la instancia volvió», no «la base volvió tal cual estaba».
 
 **La contraseña ya no viaja en `argv`.** `pg_dump`/`pg_restore` reciben la URL sin
 credenciales y la clave por `PGPASSWORD`: antes era visible en `ps` para cualquier
 usuario local. `deploy.yml:119` lo evita con `sudo -u postgres`; aquí la conexión es
 por red, así que se parte la URL.
 
-**El respaldo se queda en el droplet** (`/var/lib/space-os/respaldos/`). Sacarlo de la
-máquina es F3.7.
+**El respaldo se queda en el droplet** (`/var/lib/space-os/respaldos/`) **y nadie lo
+poda**: cada actualización deja un `pg_dump` de la base entera, que en una instancia
+con datos de verdad son gigas por noche hasta llenar el disco. Sacarlo de la máquina
+**y la retención** son F3.7, la tarea del respaldo.
 
 ## Producción
 

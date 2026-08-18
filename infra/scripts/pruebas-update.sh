@@ -134,7 +134,15 @@ n=$(cat "$REG_CURL_N" 2>/dev/null || echo 0); n=$((n + 1))
 printf '%s' "$n" >"$REG_CURL_N"
 cod="$(printf '%s\n' "${C_CODIGOS:-200}" | tr ' ' '\n' | sed -n "${n}p")"
 [ -n "$cod" ] || cod="$(printf '%s\n' "${C_CODIGOS:-200}" | tr ' ' '\n' | tail -n1)"
-printf '%s' "$cod"
+# `C_SALIDAS` = el codigo de SALIDA de curl en cada intento (0 por omision), que
+# NO es el codigo HTTP que imprime. Los dos se mueven por separado porque en la
+# vida real se mueven por separado: `-w '%{http_code}'` imprime el codigo Y curl
+# puede salir != 0 justo despues (un `--max-time` agotado a mitad del cuerpo).
+# Un codigo `NADA` significa que curl no llego ni a imprimir.
+sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | sed -n "${n}p")"
+[ -n "$sal" ] || sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | tail -n1)"
+[ "$cod" = NADA ] || printf '%s' "$cod"
+exit "$sal"
 FIN
 
   cat >"$BIN/flock" <<'FIN'
@@ -225,6 +233,7 @@ FIN
   export D_HUELLA_1='esq-viejo reg-viejo 0'
   export D_HUELLA_2='esq-nuevo reg-nuevo 67'
   export C_CODIGOS='200'
+  export C_SALIDAS='0'
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO 2>/dev/null || true
   export PGR_CODIGO=0
@@ -312,6 +321,9 @@ log_dice 'BACKUP VACIO'
 hubo 'pg_dump'
 no_hubo 'node scripts/migrar.mjs'
 no_hubo '--detach'
+# El archivo de 0 bytes NO se queda junto a los buenos: en un `ls` del directorio
+# de respaldos parece uno mas, y el bueno es el de al lado.
+if [ -z "$(ls -A "$SPACE_OS_DIR_ESTADO/respaldos" 2>/dev/null)" ]; then bien; else mal 'el respaldo vacio se quedo en disco'; fi
 limpiar
 
 # E7 · ya hay otro update dentro del candado
@@ -383,6 +395,10 @@ correr
 codigo_es 2
 log_dice 'la base NO cambio'
 log_calla 'LA BASE CAMBIO'
+# El porque del fallo lo dice el runner, que imprime justo encima. Este script no
+# lo adivina: en el ensayo local la causa medida fue una migracion que fallo
+# contra un objeto que ya existia, no una conexion caida.
+log_calla 'Tipicamente no pudo conectar'
 no_hubo 'pg_restore'
 limpiar
 
@@ -453,6 +469,11 @@ export PGR_CODIGO=1
 correr
 codigo_es 5
 log_dice 'VUELTA ATRAS A MEDIAS'
+# Un codigo 5 deja la instancia SIN servicio, con el contenedor viejo aparcado y
+# parado. El mensaje que alguien lee a las cuatro de la manana tiene que decir
+# las dos cosas: que no hay servicio, y el comando exacto que lo devuelve.
+log_dice 'La instancia queda SIN servicio'
+log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 limpiar
 
 # E19 · no habia version anterior a la que volver
@@ -546,6 +567,58 @@ log_dice 'Sin runner no se migra'
 no_hubo 'pg_dump'
 limpiar
 
+# E29 · EL DEFECTO D2 · curl imprime 200 y LUEGO sale != 0 (contenedor recien
+#       arrancado, `--max-time` agotado a mitad del cuerpo). La instancia
+#       contesto 200: es un release SANO y no se toca. Antes el `|| echo 000`
+#       pegaba un segundo codigo detras, "200000" no casaba con "200", y esto
+#       terminaba en un `pg_restore` que pierde lo escrito desde el respaldo.
+preparar 'E29 curl contesta 200 y sale != 0 (D2)'
+export C_CODIGOS='200'
+export C_SALIDAS='28'
+correr
+codigo_es 0
+log_dice 'salud: 200 en el intento 1/2'
+log_calla '200000'
+no_hubo 'pg_restore'
+no_hubo_regex 'docker start space-os$'
+limpiar
+
+# E30 · EL DEFECTO D2, su mitad cosmetica · un curl que falla imprime 000 por
+#       `-w` y ademas sale != 0: en el log tiene que verse UN codigo, no dos.
+preparar 'E30 el log ensena un solo codigo (D2)'
+export C_CODIGOS='000 000 200 200'
+export C_SALIDAS='7 7 0 0'
+correr
+codigo_es 4
+log_dice 'salud: intento 1/2 -> 000'
+log_calla '000000'
+limpiar
+
+# E31 · curl no llega ni a imprimir (binario ausente, OOM): sigue dando 000
+preparar 'E31 curl mudo -> 000'
+export C_CODIGOS='NADA NADA 200 200'
+export C_SALIDAS='7 7 0 0'
+correr
+codigo_es 4
+log_dice 'salud: intento 1/2 -> 000'
+log_calla '000000'
+limpiar
+
+# E32 · EL DEFECTO D3 · no hay `pg_restore` con el que restaurar: codigo 5. En
+#       ese punto la instancia esta CAIDA y el contenedor viejo esta aparcado
+#       como `-anterior` y parado. Medido en el ensayo local: se rescato con un
+#       `rename` + `start` en 8 s, y ese comando tiene que estar en el mensaje.
+preparar 'E32 sin pg_restore: codigo 5 con rescate (D3)'
+printf 'PG_RESTORE=pg_restore_que_no_existe\n' >>"$SPACE_OS_CONF"
+export C_CODIGOS='000 000 200 200'
+correr
+codigo_es 5
+log_dice 'VUELTA ATRAS A MEDIAS'
+log_dice 'La instancia queda SIN servicio'
+log_dice 'docker rename space-os-anterior space-os && docker start space-os'
+no_hubo 'pg_restore '
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -603,6 +676,9 @@ if [ "${1:-}" = '--mutantes' ]; then
   # Y el que reintroduce el rojo 1: decidir por el texto del runner
   probar_mutante 'retirar el contenedor nuevo por nombre' \
     's/^  docker rm -f "\$CONTENEDOR_NUEVO_ID" >\/dev\/null 2>&1 || true$/  docker rm -f "$CONTENEDOR" >\/dev\/null 2>\&1 || true      /'
+  # Y el que reintroduce D2: el `|| echo 000` pegado al `-w '%{http_code}'`
+  probar_mutante 'el `|| echo 000` que concatena dos codigos http' \
+    's#2>/dev/null)" || true#2>/dev/null || echo 000)"      #'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
