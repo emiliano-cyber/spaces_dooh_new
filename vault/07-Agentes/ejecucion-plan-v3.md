@@ -154,8 +154,8 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F3.4 | [infra→código local] | ejecutor escribe, ensayista ensaya | **F3.2, F3.3, F2.4** (`plan:1034`) | ✅ **ENSAYADA_LOCAL** (18/08 · turno nocturno) — 2.º ciclo auditado **AMARILLO**, **ensayo local DEMOSTRADO en los nueve puntos**, y sus defectos reparados en `2633bcb` salvo **D1, que es ROJO y espera decisión**. Solo le queda su parte de servidor (F3.5) | ✅ **No parcheó el patrón: cambió de fuente de verdad.** El script ya no cuenta migraciones leyendo la prosa del runner — **le pregunta a la base**. `huella_base()` toma un hash de columnas y `DEFAULT`, índices, restricciones, políticas RLS, funciones y el contenido de `schema_migrations`, **antes y después** de migrar, ejecutado con el `pg` de la misma imagen y la misma `DATABASE_URL` que el runner. Medido contra Postgres real: discrimina base virgen · 66 sin registro · 67 con registro, **funciona sin `schema_migrations`** —que es justo el caso del código 2— y **no se mueve con un `insert`** de la versión anterior sirviendo entre las dos lecturas. Fail-closed en las dos direcciones: si no puede leer la huella **antes**, no migra; si no puede releerla **después**, **restaura por prudencia**. ▸ *1.er ciclo, `acbbe0b`, ROJO:* la vuelta atrás no restauraba la base, y el código 2 mentía en el log | 🔴 **La vuelta atrás NO restaura la base, y el fallo es permanente y mudo.** `update.sh:364` decide si restaurar con un `sed` que exige un punto pegado a «aplicadas» (`^\([0-9]*\) aplicadas\.`), y `migrar.mjs:694-696` imprime hoy `67 aplicadas, 1 de datos pendientes.` — así que **en cuanto hay una migración `@tipo: datos` pendiente, `APLICADAS` cae a 0** y el rollback anuncia «no corrió ninguna migración: la base no se toca». No es hipotético: `20260731_calendario_meses_cortos.sql` es `@tipo: datos` **y su primera línea lleva CRLF**, por eso un grep ingenuo no la ve. Reproducido de punta a punta: `[pg_restore: 0 llamadas]`. La instancia queda **sirviendo la imagen vieja sobre un esquema nuevo**, y **nada lo denuncia después** — por el hueco de `migrar.mjs:212-222`, que es el mismo que hace posible la vuelta atrás. 🔴 **Y el código 2 miente en el log**: `se aplicaron N migraciones y no se pudieron registrar` tampoco casa, así que reporta «no consta ninguna migración aplicada; suele ser que no pudo conectar» — **miente sobre la única pregunta que el 2 existe para responder**, y es alcanzable hoy. | ✅ Nacen `infra/scripts/update.sh` y su README. **Confirmada y medida la contradicción (1)**: `Dockerfile:94-95` no copia `scripts/`, y sin montaje el contenedor muere con `MODULE_NOT_FOUND`. **La resolvió montando el runner en solo lectura, sin tocar el `Dockerfile`** —que es F2.2, ya auditada— y **reportó el arreglo duradero en vez de aplicarlo**. La prueba de que funciona es preciosa: el runner montado informa **67 pendientes** y el repo tiene **68 archivos**, o sea que está leyendo **las migraciones de la imagen y no el disco del host**. El script **sonda la imagen** y si algún día trae el runner, no monta nada. **Los cuatro códigos del runner se distinguen** (1 vuelca el mensaje accionable al log; 2 **no conmuta y no restaura**, con dos redacciones según lo que el runner diga; 3 nada aplicado) más tres propios: 4 vuelta atrás buena, 5 vuelta atrás fallida, 75 candado tomado | `update.sh` contra instancia local desechable. ⚠️ Esta fila declaraba «F3.2, F2.5»: **perdía F3.3 y cambiaba F2.4 —que no está escrita— por F2.5, que sí está hecha**, haciendo parecer arrancable la tarea en cuanto cayera F3.2. **Su dependencia real no existe todavía**: sin F2.4 no hay canal del que jalar | ▸ **Ensayo local del 18/08:** montado en WSL con Postgres propio **sin puerto publicado** —el 5433 no recibió ni un SELECT— y destruido al terminar. Único doble: `docker pull` (no hay registry local y la guarda prohíbe uno remoto). **Demostrado:** digest igual sale 0 sin efectos · **respaldo vacío DETIENE** · las migraciones son las de la imagen, no las del host (el `--dry-run` listó un archivo que no existe en disco) · health con reintentos en verde y en rojo · **la vuelta atrás se decide por la huella de la base, no por la prosa del runner** —la regresión de `8151772`, probada en las dos direcciones y con la frase exacta que mató a la versión vieja— · los siete códigos provocados uno a uno · `flock` real: el segundo update sale 75 · `--dry-run` no toca nada · y el padre no aparece: registry, base propia y `127.0.0.1`. **Cinco defectos:** D1 🔴 (abajo), y D2/D3/D4a/D5 reparados en `2633bcb`. ⚠️ **`Dockerfile:94-95` sigue sin copiar `scripts/`**, confirmado contra HEAD: el runner viaja con el aprovisionamiento y no con la imagen. Es F2.2, ya auditada |
 | F3.5 | [verificación] | ensayista-local (DEMO simulada) + tarjeta humana | F3.4, F4-local | PENDIENTE | El ensayo real en DEMO depende de F4.5 real (P5). ✅ **Su tarjeta ya está escrita** —**TH-F3.5**, abajo— con lo que el ensayo local del 18/08 **no pudo** ver: el `docker pull` de verdad (digest de registry, autenticación, movimiento de etiquetas), las rutas y permisos reales (`/etc/space-os/instancia.env` a 600 y de root), el `cron` de las 4 a. m., una imagen de release construida de verdad —las del ensayo derivan de `space-os:dev`, anterior a F3.1, con 67 migraciones y no 68—, la escala del `pg_dump`, nginx/TLS delante y el reinicio del droplet |
 | F3.6 | [release] | ejecutor escribe el retiro; **NO se mergea a main** | canal probado en real | PENDIENTE_SERVIDOR | Retirar `deploy.yml` antes de que exista el canal real dejaría sin despliegue: se prepara, no se aplica |
-| F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 | PENDIENTE | La subida real a Spaces es tarjeta humana |
-| F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | **EN_CURSO** (18/08 00:55) | Backoff con límite, ensayable 100% local. Ojo: la cuarta fila de su tabla —«reporte al padre»— es **F6.4, fuera de alcance**: se documenta, no se implementa |
+| F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 ✅ | **EN_CURSO** (18/08 01:35) | La subida real a Spaces es tarjeta humana. **Cierra de paso la segunda mitad de D4**: la retención de 3 respaldos locales que pide su paso 4 es exactamente la poda de `DIR_RESPALDOS` que hoy no existe. ⚠️ La retención remota (30 días) va por **regla de ciclo de vida del bucket, NO por un `rm` en el script** — el plan explica por qué y no es una preferencia de estilo |
+| F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `84c6c20`, AMARILLO, **en auditoría** al escribir esto | `PULL_ESPERAS="1 5 30"` configurable desde `instancia.env` (vacío = ningún reintento), `pull_una_vez()`/`pull_con_reintentos()` en `update.sh:399-435`, y la bandera **`--simular-fallo-pull`** que el plan pide en su comando de verificación. **La migración no se tocó**: sigue siendo una sola llamada a `correr_runner`, y ahora hay dos escenarios que lo cuentan. El comando literal del plan, corrido contra un `/opt/space-os` simulado: **salida 1, `grep -c reintento` = 3, 36,9 s reales** (1+5+30) y **el directorio de estado vacío** — ni respaldo, ni `version-anterior`. Arnés: de **32·121 con 7 mutantes** a **37 escenarios · 165 comprobaciones · 0 rojas** con **10 mutantes, 0 escapan**. ⚠️ La cuarta fila de la tabla del plan —el **reporte al padre**— es **F6.4**: queda documentada y **explícitamente sin implementar**. ▸ Hallazgo declarado por su ejecutor, medido y no defectuoso: un `PULL_ESPERAS` no numérico **no rompe el update** — `sleep` protesta por stderr (que **no llega a `update.log`**), no espera, y el pull se rinde igual sin tocar nada. Fail-safe, escrito en la tabla de configuración del README |
 | F3.9 | [infra] | ejecutor + ensayista parcial | F3.4 | PENDIENTE | Log legible sin entrar al servidor; envío real = tarjeta |
 
 > [!important] ✅ `2633bcb` auditado **AMARILLO** y aceptado — 2026-08-18
@@ -182,7 +182,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
 >
-> - **H1** · `update.sh:755` y `:765` — la frase «el contenedor de la version anterior esta
+> - **H1** · `update.sh:816` y `:826` —desde `84c6c20`; la auditoría las citó como `:755` y `:765`, antes de que el archivo creciera de 786 a 847 líneas— la frase «el contenedor de la version anterior esta
 >   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
 >   (`:641-647`) existe justo porque ese estado no siempre es cierto: si el `rename` de 5b
 >   falló (`RENOMBRADO=0`), el viejo conserva su nombre y `${CONTENEDOR}-anterior` **no
@@ -198,6 +198,54 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > Para VERDE bastaría con calcular esa frase igual que se calcula el comando, y un escenario
 > que combine `D_RENAME_FALLA=1` con un código 5 y afirme que el log dice `docker start` **y
 > calla** `docker rename`.
+
+> [!important] ✅ `84c6c20` (F3.8) auditado **AMARILLO** y aceptado — 2026-08-18
+> Cifras reproducidas por el verificador, no copiadas: **37 escenarios · 165 comprobaciones ·
+> 0 rojas** y **10 mutantes · 0 escapan**. Reconstruyó el rojo previo corriendo el arnés nuevo
+> contra `84c6c20^` y obtuvo **las 21 rojas exactas**, con E36/E37 en verde — o sea que el TDD
+> declarado es cierto y esos dos **sí nacieron fijando un invariante que ya se cumplía**.
+>
+> **Y comprobó que muerden**, que era lo que se le pidió: aplicó él mismo el mutante «reintentar
+> la migración fallida» y los vio caer, `se esperaban 1 llamadas … hubo 2`. Un caso que nace verde
+> solo vale si algo demuestra que puede ponerse rojo.
+>
+> Las tres partes del criterio, medidas: **1 s, 5 s, 30 s exactos y tres reintentos, ni dos ni
+> cuatro** (37,3 s de reloj) · el pull fallido dejó el directorio de estado **vacío**, sin
+> `version-anterior` y sin que el de respaldos llegara a crearse, con **una sola llamada a docker**
+> (`inspect`, de solo lectura) · y cada reintento numerado. **Ningún reintento sobre la migración
+> está garantizado por estructura**, no por casualidad: `correr_runner` tiene exactamente dos
+> sitios de llamada en 847 líneas, y el de la migración real es un comando único sin bucle.
+>
+> **F6.4 no se implementó**, correcto. D1, H1 y H2 intactos, comparados byte a byte.
+>
+> **Hallazgos abiertos, ninguno invalidante:**
+>
+> - **H-1 (el único que separa esto del verde)** · `update.sh:279-281` y `README.md:106` afirman
+>   que `PULL_ESPERAS` vacío desactiva los reintentos. **Es falso**: `${VAR:-default}` sustituye
+>   también cuando la variable está **vacía**, no solo cuando falta. Medido escribiendo
+>   `PULL_ESPERAS=""` en `instancia.env`, que es lo que haría un operador: **3 reintentos igual**.
+>   Con un espacio (`" "`) sí da 0, y eso no está escrito en ningún sitio. Falla del lado seguro
+>   —más reintentos sobre el paso que no toca la base— pero el código y su documentación **dicen
+>   cosas distintas**. Colateral: el `${PULL_ESPERAS:-ninguna}` de `:435` es rama muerta.
+> - **H-3** · el comando de verificación **del plan** (`:1193`) solo da 3 sobre un **log fresco**.
+>   `update.log` no rota y el `cron` corre a diario, así que en un droplet con historial
+>   `grep -c "reintento"` dará bastante más de 3 **sin que nada esté mal**. Es defecto del plan,
+>   no del commit: **va en la tarjeta**, o quien la corra leerá un falso rojo.
+> - **H-4** · «ningún reintento» es **dentro de una corrida**. El `cron` relanza cada noche, así
+>   que una migración fallida sí se reintenta al día siguiente — es **D1**, y el plan no pide
+>   cortacircuito. Que nadie lea el verde de F3.8 como «una migración rota nunca se vuelve a
+>   intentar».
+> - **H-2** · `pruebas-update.sh` es un archivo más de los que declara la tarea (`:1177`), y el
+>   plan dice «prueba que falla primero: no aplica». Desviación declarada en el commit y
+>   justificada: sin ese arnés no habría rojo que reproducir.
+
+> [!note] Sobre el orden: F3.8 se hizo antes que F3.5, F3.6 y F3.7 — **deliberado**
+> El plan ordena las tareas pero manda el campo «Depende de», y el de F3.8 es **F3.4**, que está
+> ✅. F3.5 exige la DEMO real y F3.6 no puede aplicarse antes de que exista el canal —retirar
+> `deploy.yml` hoy dejaría al proyecto sin despliegue—, así que ninguna de las dos es ejecutable
+> desde aquí. **Lo que sí estaba mal era el orden que traía el turno nocturno**: ponía F3.9 antes
+> que F3.7, y F3.9 declara «Depende de: F3.7 (reutiliza credenciales y bucket)» (`:1206`).
+> Corregido: **F3.7 primero**, y F3.9 después.
 
 > [!danger] 🔴 D1 · La vuelta atrás de `update.sh` **no devuelve el esquema** — abierta, espera decisión
 > Salió del ensayo local del 18/08 y **no se tocó a propósito**: toca migraciones y pide
