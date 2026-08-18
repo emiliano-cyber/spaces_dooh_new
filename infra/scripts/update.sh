@@ -79,6 +79,13 @@
 #    PULL_ESPERAS="1 5 30"              esperas entre reintentos del pull, en s
 #    RUNNER_MIGRACIONES=/opt/space-os/migrar.mjs   (ver el aviso de abajo)
 #    PG_DUMP=pg_dump    PG_RESTORE=pg_restore      rutas si hay varias versiones
+#    INSTANCIA=demo                     prefijo de esta instancia en el bucket
+#    SPACES_KEY=…  SPACES_SECRET=…      llave de Spaces, UNA POR INSTANCIA y con
+#                                       permiso solo sobre SU prefijo. Nunca la
+#                                       llave maestra de la cuenta
+#    SPACES_BUCKET=space-os-respaldos   a donde sale el respaldo
+#    SPACES_REGION=nyc3                 decide el endpoint de Spaces
+#    RESPALDOS_LOCALES=3                cuantos dumps se guardan en el disco
 #
 #  El archivo lleva credenciales: 0600 y de root. El script avisa si no.
 #
@@ -138,6 +145,22 @@
 #  caso fuera precisamente porque una imagen anterior carece por definicion de
 #  las migraciones nuevas que su registro afirma, y abortar ahi romperia esta
 #  vuelta atras. El runner las trata como aplicadas y no las toca.
+#
+# ── AVISO 4 · el respaldo SALE del droplet, y el disco no se llena ─────────
+#  El paso 3 hace tres cosas y no una: `pg_dump`, poda local y subida a Spaces.
+#    · LOCAL  3 respaldos, podados por `respaldo.sh`. Antes no se podaba NUNCA:
+#             el ensayo de F3.4 dejo diez dumps en siete minutos, y en una
+#             instancia con datos de verdad son gigas por noche (defecto D4).
+#    · REMOTO 30 dias, y los poda LA REGLA DE CICLO DE VIDA DEL BUCKET. Aqui no
+#             hay ni un borrado remoto: un `rm` mal escrito en un script que
+#             corre en todas las instancias es una forma elegante de perderlo
+#             todo. Esa regla se configura una vez, a mano, en la cuenta.
+#  Si la subida falla, el update SIGUE —el respaldo local ya existe y basta para
+#  la vuelta atras— pero el log dice `RESPALDO REMOTO FALLIDO`. Que salga tambien
+#  en el reporte de flota es F6.4, que todavia no existe.
+#  La logica vive en `respaldo.sh`, al lado de este archivo, y se SOURCEA. Si no
+#  esta, el update se para antes de tocar nada: actualizar sin respaldo fuera del
+#  droplet y sin podar el disco no es lo que aqui se prometio.
 #
 # ── AVISO 3 · como sabe este script si la base cambio: PREGUNTANDOSELO ──────
 #  La primera version de este archivo lo deducia leyendo la PROSA del runner con
@@ -202,11 +225,12 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
-    # Hasta la linea 96: uso, codigos de salida, la ventana de corte, las
-    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-3 no
+    # Hasta la linea 103: uso, codigos de salida, la ventana de corte, las
+    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-4 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
-    # para quien lo corre.
-    -h|--help) sed -n '2,96p' "$0"; exit 0 ;;
+    # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
+    # de Spaces (F3.7): un rango fijo caduca en cuanto la cabecera crece.
+    -h|--help) sed -n '2,103p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -373,6 +397,15 @@ command -v docker >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`
 command -v curl >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`curl\`. Sin health check no se conmuta: seria actualizar a ciegas."
 command -v "$PG_DUMP" >/dev/null 2>&1 || salir "$EX_CONFIG" "ERROR update: no hay \`$PG_DUMP\`. Sin respaldo no se actualiza."
 [ -f "$ENV_APP" ] || salir "$EX_CONFIG" "ERROR update: no existe $ENV_APP; el contenedor nuevo naceria sin variables de entorno."
+
+# `respaldo.sh` se SOURCEA: trae la subida a Spaces y la poda local (AVISO 4).
+# Se resuelve al lado de este archivo —en una instancia los dos viven en
+# /opt/space-os— y la variable de entorno existe para poder ensayarlo fuera.
+# Si falta, se para AQUI: antes del pull, antes del respaldo y antes de la base.
+RESPALDO_SH="${SPACE_OS_RESPALDO_SH:-$(dirname "$0")/respaldo.sh}"
+[ -f "$RESPALDO_SH" ] || salir "$EX_CONFIG" "ERROR update: falta $RESPALDO_SH. Es donde viven la subida del respaldo a Spaces y la poda del disco; sin el, la instancia se actualizaria sin respaldo fuera del droplet y llenando el disco. Nada se toco."
+# shellcheck disable=SC1090
+. "$RESPALDO_SH"
 
 IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
 
@@ -600,6 +633,29 @@ if [ "$codigo" -ne 0 ] || [ ! -s "$BK" ]; then
   salir "$EX_CONFIG" "BACKUP VACIO — abortado. El archivo de 0 bytes se borro para que no se confunda con un respaldo bueno. No se toco ni la base ni el contenedor. Revisa $PG_DUMP contra $(destino_de_url "$DATABASE_URL")."
 fi
 registrar "   respaldo de $(wc -c <"$BK") bytes"
+
+# La poda va DESPUES de comprobar que el dump nuevo es bueno: si se podara antes,
+# un `pg_dump` que luego falla habria tirado un respaldo viejo a cambio de nada.
+# Y el de esta corrida esta entre los que se conservan, que es lo que la vuelta
+# atras necesita dentro de los proximos minutos.
+#
+# Va en un `if !` y no como llamada suelta, y eso NO es estilo: una llamada
+# suelta corre con el `set -e` de este script activo dentro de la funcion, asi
+# que un `rm` que fallara —directorio de solo lectura, un archivo con el bit
+# inmutable— mataria el update AQUI, entre el respaldo y las migraciones, con un
+# codigo de salida a secas y sin una linea que lo explicara. Llenar el disco es
+# un problema de manana; no actualizar es uno de hoy.
+if ! respaldo_local_podar "$DIR_RESPALDOS"; then
+  registrar "   AVISO: la poda de $DIR_RESPALDOS no se pudo completar. El update SIGUE; el disco hay que mirarlo."
+fi
+
+# La subida NO puede detener el update: el respaldo local ya existe y con el se
+# vuelve atras. Pero tampoco puede pasar desapercibida — una instancia que lleva
+# semanas sin subir nada es exactamente la que pierde los datos el dia que el
+# droplet muere. Por eso: se sigue, y se escribe la frase que se busca con grep.
+if ! respaldo_remoto_subir "$BK"; then
+  registrar "RESPALDO REMOTO FALLIDO — el dump se quedo SOLO en este droplet ($BK). El update SIGUE porque con el respaldo local se puede volver atras, pero si esta maquina desaparece, este respaldo desaparece con ella. El motivo esta en la linea de arriba."
+fi
 
 # ─── 4 · La version anterior, por escrito ──────────────────────────────────
 ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"

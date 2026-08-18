@@ -1,0 +1,258 @@
+#!/usr/bin/env bash
+# ============================================================================
+#  respaldo.sh — el respaldo SALE del droplet, y el disco no se llena.
+# ----------------------------------------------------------------------------
+#  Se instala junto a `update.sh` (/opt/space-os/respaldo.sh) y `update.sh` lo
+#  SOURCEA: no es un programa aparte que se lance por su cuenta en cada corrida.
+#  Tambien se puede llamar a mano, que es lo que hace falta el dia que alguien
+#  quiera subir un dump suelto o podar un directorio sin actualizar nada.
+#
+#  Uso a mano:
+#    /opt/space-os/respaldo.sh subir   /var/lib/space-os/respaldos/spaces_x.dump
+#    /opt/space-os/respaldo.sh podar   /var/lib/space-os/respaldos [3]
+#    /opt/space-os/respaldo.sh destino          # imprime a donde subiria hoy
+#
+# ── POR QUE EXISTE ─────────────────────────────────────────────────────────
+#  `update.sh` hace un `pg_dump -Fc` antes de migrar y lo deja en el disco de la
+#  propia instancia. Eso sirve para la vuelta atras de un release malo, que es su
+#  trabajo, pero NO sirve para nada si el droplet desaparece — y ese escenario es
+#  MAS probable con el modelo de instancias, no menos: son muchos droplets
+#  pequenos en vez de uno cuidado. Un respaldo que vive solo en la maquina que
+#  puede morir es un respaldo de mentira.
+#
+# ── LA ASIMETRIA DE LA RETENCION, QUE ES DELIBERADA ────────────────────────
+#    LOCAL  · 3 respaldos, y los poda ESTE script.
+#    REMOTO · 30 dias, y los poda LA REGLA DE CICLO DE VIDA DEL BUCKET.
+#
+#  Aqui NO hay ni un solo borrado remoto, y no es un olvido: un `rm` mal escrito
+#  en un script que corre en TODAS las instancias es una forma elegante de
+#  perderlo todo a la vez. Borrar lo viejo del bucket es configuracion de la
+#  cuenta —se hace una vez, la revisa una persona y no viaja en cada release—.
+#  El arnes lo comprueba (E41): ninguna llamada de este script borra en el bucket.
+#
+#  Y la poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
+#  'spaces_*.dump'`, ordenado por nombre (que es la fecha), y se retiran los mas
+#  viejos dejando los N mas recientes. Nunca menos de 1, nunca subdirectorios,
+#  nunca un archivo que no case con el patron.
+#
+# ── CONFIGURACION (en /etc/space-os/instancia.env, 0600 y de root) ─────────
+#    SPACES_KEY      llave de acceso de Spaces. UNA POR INSTANCIA, con permiso
+#    SPACES_SECRET   solo sobre SU prefijo. NUNCA la llave maestra de la cuenta:
+#                    si se filtra la de una instancia, se pierde esa instancia,
+#                    no la flota entera.
+#    SPACES_BUCKET   por omision `space-os-respaldos`
+#    SPACES_REGION   por omision `nyc3` (decide el endpoint)
+#    SPACES_ENDPOINT por omision https://<region>.digitaloceanspaces.com
+#    SPACES_CLIENTE  auto|s3cmd|aws. `auto` prefiere s3cmd si esta instalado
+#    INSTANCIA       el prefijo dentro del bucket. Si falta, se usa el hostname
+#    RESPALDOS_LOCALES  cuantos dumps se conservan en el disco (3)
+#
+#  Sin SPACES_KEY/SPACES_SECRET no se sube nada y se escribe en el log que esa
+#  instancia NO tiene respaldo fuera del droplet. No es un error: es una
+#  instancia sin respaldo remoto configurado, y conviene que se lea asi.
+#
+#  Ruta remota, tal cual la fija el plan (F3.7):
+#    s3://<bucket>/<instancia>/<AAAA-MM-DD-HHMM>.dump
+#
+# ── LAS CREDENCIALES NO VIAJAN EN `argv` ───────────────────────────────────
+#  `s3cmd --access_key=… --secret_key=…` deja las dos visibles en `ps` para
+#  cualquier usuario de la maquina. Mismo problema que tenia la contrasena de
+#  Postgres en `update.sh`, y misma solucion: por otro camino. Con `s3cmd`, un
+#  archivo de configuracion temporal en 0600 que se borra al terminar; con la
+#  CLI de AWS, variables de entorno del propio proceso.
+#
+# ── `gsutil` NO ────────────────────────────────────────────────────────────
+#  Es el cliente de Google Cloud Storage y no habla con Spaces. El plan lo avisa
+#  expresamente porque es un error facil de cometer leyendo por encima.
+# ============================================================================
+
+# `registrar` y `eco` los trae `update.sh`. Cuando este archivo se ejecuta solo,
+# no hay ninguna de las dos: se definen equivalentes minimas en vez de suponer.
+if ! declare -F registrar >/dev/null 2>&1; then
+  registrar() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S%z')" "$*"; }
+fi
+if ! declare -F eco >/dev/null 2>&1; then
+  eco() { cat; }
+fi
+
+SPACES_KEY="${SPACES_KEY:-}"
+SPACES_SECRET="${SPACES_SECRET:-}"
+SPACES_BUCKET="${SPACES_BUCKET:-space-os-respaldos}"
+SPACES_REGION="${SPACES_REGION:-nyc3}"
+SPACES_ENDPOINT="${SPACES_ENDPOINT:-https://$SPACES_REGION.digitaloceanspaces.com}"
+SPACES_CLIENTE="${SPACES_CLIENTE:-auto}"
+INSTANCIA="${INSTANCIA:-}"
+RESPALDOS_LOCALES="${RESPALDOS_LOCALES:-3}"
+
+# ─── El prefijo dentro del bucket ──────────────────────────────────────────
+# Con una llave por instancia y permiso solo sobre su prefijo, equivocarse aqui
+# no mezcla respaldos: da un 403. Aun asi se prefiere no equivocarse.
+respaldo_instancia() {
+  local nombre="$INSTANCIA"
+  if [ -z "$nombre" ]; then
+    nombre="$(hostname -s 2>/dev/null || true)"
+  fi
+  printf '%s' "$nombre"
+}
+
+# Imprime la ruta remota completa. Falla (y no imprime) si no hay prefijo: subir
+# a la RAIZ del bucket seria escribir en el sitio de otra instancia.
+respaldo_destino_remoto() {
+  local instancia
+  instancia="$(respaldo_instancia)"
+  [ -n "$instancia" ] || return 1
+  printf 's3://%s/%s/%s.dump' "$SPACES_BUCKET" "$instancia" "$(date '+%Y-%m-%d-%H%M')"
+}
+
+respaldo_remoto_configurado() {
+  [ -n "$SPACES_KEY" ] && [ -n "$SPACES_SECRET" ] && [ -n "$SPACES_BUCKET" ]
+}
+
+# Imprime `s3cmd` o `aws`. Falla si no hay ninguno de los dos en el PATH.
+respaldo_cliente() {
+  case "$SPACES_CLIENTE" in
+    s3cmd|aws)
+      command -v "$SPACES_CLIENTE" >/dev/null 2>&1 || return 1
+      printf '%s' "$SPACES_CLIENTE" ;;
+    auto)
+      if command -v s3cmd >/dev/null 2>&1; then
+        printf 's3cmd'
+      elif command -v aws >/dev/null 2>&1; then
+        printf 'aws'
+      else
+        return 1
+      fi ;;
+    *) return 1 ;;
+  esac
+}
+
+# El archivo de configuracion de `s3cmd`, apuntado a Spaces. Va por STDOUT para
+# que quien lo escriba controle los permisos ANTES de que tenga nada dentro.
+respaldo_config_s3cmd() {
+  local anfitrion="${SPACES_ENDPOINT#https://}"
+  anfitrion="${anfitrion#http://}"
+  cat <<FIN
+[default]
+access_key = $SPACES_KEY
+secret_key = $SPACES_SECRET
+host_base = $anfitrion
+host_bucket = %(bucket)s.$anfitrion
+use_https = True
+signature_v2 = False
+FIN
+}
+
+respaldo_subir_s3cmd() {
+  local archivo="$1" destino="$2" conf codigo=0
+  # 0600 ANTES de escribir el secreto dentro, no despues: entre el `cat` y el
+  # `chmod` habria una ventana con la llave legible por cualquiera.
+  conf="$(mktemp)"
+  chmod 600 "$conf"
+  respaldo_config_s3cmd >"$conf"
+  s3cmd --config="$conf" put "$archivo" "$destino" 2>&1 | eco
+  codigo=${PIPESTATUS[0]}
+  rm -f "$conf"
+  return "$codigo"
+}
+
+respaldo_subir_aws() {
+  local archivo="$1" destino="$2" codigo=0
+  # La CLI de AWS lee las credenciales del ENTORNO, que tampoco es `argv`. El
+  # `--endpoint-url` es lo unico que la hace hablar con Spaces en vez de con AWS.
+  AWS_ACCESS_KEY_ID="$SPACES_KEY" AWS_SECRET_ACCESS_KEY="$SPACES_SECRET" AWS_DEFAULT_REGION="$SPACES_REGION" aws s3 cp "$archivo" "$destino" --endpoint-url "$SPACES_ENDPOINT" 2>&1 | eco
+  codigo=${PIPESTATUS[0]}
+  return "$codigo"
+}
+
+# Sube un respaldo. Devuelve:
+#   0  se subio, O no hay respaldo remoto configurado (y se dijo en el log)
+#   1  estaba configurado y NO se pudo subir
+# Quien llama decide que hacer con el 1. `update.sh` decide que el update SIGUE:
+# el respaldo local ya existe y basta para la vuelta atras.
+respaldo_remoto_subir() {
+  local archivo="$1" destino cliente resultado=0
+  if ! respaldo_remoto_configurado; then
+    registrar "   respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET. Esta instancia NO tiene respaldo fuera del droplet: si la maquina desaparece, el dump desaparece con ella."
+    return 0
+  fi
+  if [ ! -s "$archivo" ]; then
+    registrar "   respaldo remoto: $archivo no existe o esta vacio; no se sube nada."
+    return 1
+  fi
+  destino="$(respaldo_destino_remoto)" || {
+    registrar "   respaldo remoto: no hay INSTANCIA en la configuracion y el hostname salio vacio, asi que no se sabe a que prefijo del bucket subir. No se sube a la raiz: ahi viven los respaldos de otras instancias."
+    return 1
+  }
+  cliente="$(respaldo_cliente)" || {
+    registrar "   respaldo remoto: no hay cliente de S3 en el PATH (ni \`s3cmd\` ni \`aws\`, y SPACES_CLIENTE=$SPACES_CLIENTE). Instala uno: \`apt-get install -y s3cmd\`."
+    return 1
+  }
+  registrar "   respaldo remoto -> $destino (por $cliente)"
+  case "$cliente" in
+    s3cmd) respaldo_subir_s3cmd "$archivo" "$destino" || resultado=$? ;;
+    aws)   respaldo_subir_aws   "$archivo" "$destino" || resultado=$? ;;
+  esac
+  if [ "$resultado" -eq 0 ]; then
+    registrar "   respaldo remoto OK: $destino"
+  fi
+  # El codigo se PROPAGA. Tragarselo aqui seria decidir en silencio algo que
+  # decide quien llama, y ademas dejaria la subida fallida sin una sola linea.
+  return "$resultado"
+}
+
+# ─── La poda LOCAL. La remota no existe: es regla del bucket ───────────────
+# Cierra la segunda mitad de D4 (ensayo de F3.4): el directorio de respaldos no
+# se podaba NUNCA. En el ensayo quedaron diez dumps en siete minutos; en una
+# instancia con datos de verdad son gigas por noche hasta llenar el disco.
+respaldo_local_podar() {
+  local dir="$1" cuantos="${2:-$RESPALDOS_LOCALES}" archivo total sobran i=0
+  local -a dumps=()
+  [ -d "$dir" ] || return 0
+  case "$cuantos" in
+    ''|*[!0-9]*)
+      registrar "   AVISO poda: RESPALDOS_LOCALES='$cuantos' no es un numero; no se poda nada."
+      return 0 ;;
+  esac
+  # Nunca 0. Con 0 se borraria el respaldo de ESTA corrida, que es justo el que
+  # la vuelta atras necesita dentro de los proximos minutos.
+  if [ "$cuantos" -lt 1 ]; then
+    registrar "   AVISO poda: RESPALDOS_LOCALES=$cuantos dejaria cero respaldos, incluido el de esta corrida. No se poda nada."
+    return 0
+  fi
+  # Por `find -type f` y por patron: ni subdirectorios, ni archivos que no sean
+  # un dump nuestro. El nombre lleva la fecha, asi que ordenar por nombre es
+  # ordenar por antiguedad.
+  # `if` y no `[ … ] && …`: un `&&` cuyo lado izquierdo sale falso deja el cuerpo
+  # del bucle con codigo != 0, y bajo el `set -e` de quien sourcea esto eso es
+  # una salida, no una iteracion que no hizo nada.
+  while IFS= read -r archivo; do
+    if [ -n "$archivo" ]; then dumps+=("$archivo"); fi
+  done < <(find "$dir" -maxdepth 1 -type f -name 'spaces_*.dump' 2>/dev/null | sort)
+  total=${#dumps[@]}
+  [ "$total" -gt "$cuantos" ] || return 0
+  sobran=$((total - cuantos))
+  for archivo in "${dumps[@]}"; do
+    [ "$i" -lt "$sobran" ] || break
+    i=$((i + 1))
+    rm -f "$archivo" || registrar "   AVISO poda: no se pudo retirar $archivo."
+  done
+  registrar "   poda local: $sobran respaldo(s) retirados, quedan los $cuantos mas recientes en $dir. Lo del bucket lo poda la regla de ciclo de vida (30 dias), no este script."
+}
+
+# ─── Ejecutado a mano, no sourceado ────────────────────────────────────────
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then
+  set -uo pipefail
+  case "${1:-}" in
+    subir)
+      [ -n "${2:-}" ] || { echo "respaldo: falta el archivo. Uso: $0 subir <archivo.dump>" >&2; exit 1; }
+      respaldo_remoto_subir "$2" ;;
+    podar)
+      [ -n "${2:-}" ] || { echo "respaldo: falta el directorio. Uso: $0 podar <directorio> [cuantos]" >&2; exit 1; }
+      respaldo_local_podar "$2" "${3:-}" ;;
+    destino)
+      respaldo_destino_remoto && printf '\n' ;;
+    *)
+      sed -n '2,15p' "$0"
+      exit 1 ;;
+  esac
+fi

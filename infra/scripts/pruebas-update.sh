@@ -185,6 +185,57 @@ if [ "${PGD_VACIO:-0}" = 1 ]; then : >"$archivo"; else printf 'respaldo falso\n'
 exit 0
 FIN
 
+  # `s3cmd` y `aws` son los dos clientes que el plan nombra para Spaces (F3.7).
+  # Anotan lo que reciben por ARGV y, aparte, lo que reciben por el ENTORNO o
+  # por un archivo de configuracion: la diferencia entre las dos cosas es justo
+  # lo que decide si un secreto acaba siendo visible en `ps`.
+  cat >"$BIN/s3cmd" <<'FIN'
+#!/usr/bin/env bash
+printf 's3cmd %s
+' "$*" >>"$REG_LLAMADAS"
+for a in "$@"; do
+  case "$a" in
+    --config=*)
+      f="${a#--config=}"
+      printf 's3cmd CONFIG modo=%s secreto=%s
+'         "$(stat -c '%a' "$f" 2>/dev/null || echo '?')"         "$(grep -c "${S3_SECRETO_ESPERADO:-SECRETO_FALSO}" "$f" 2>/dev/null || echo 0)" >>"$REG_S3ENV" ;;
+  esac
+done
+[ "${S3_FALLA:-0}" = 1 ] && { echo 'ERROR: S3 error: 403 (AccessDenied)'; exit 1; }
+exit 0
+FIN
+
+  cat >"$BIN/aws" <<'FIN'
+#!/usr/bin/env bash
+printf 'aws %s
+' "$*" >>"$REG_LLAMADAS"
+printf 'aws ENV AWS_ACCESS_KEY_ID=[%s] AWS_SECRET_ACCESS_KEY=[%s]
+'   "${AWS_ACCESS_KEY_ID-<NO-DEFINIDA>}" "${AWS_SECRET_ACCESS_KEY-<NO-DEFINIDA>}" >>"$REG_S3ENV"
+[ "${S3_FALLA:-0}" = 1 ] && { echo 'upload failed: 403 Forbidden'; exit 1; }
+exit 0
+FIN
+
+  # `chmod` delega en el de verdad y anota lo que se le pidio. Hace falta porque
+  # el permiso del archivo de credenciales se comprueba por lo que el script
+  # PIDE: en un sistema de archivos sin permisos POSIX (msys, un volumen NTFS
+  # montado) `stat` devuelve 644 aunque el `chmod 600` se haya ejecutado, y esa
+  # comprobacion daria un rojo que no dice nada del script.
+  cat >"$BIN/chmod" <<'FIN'
+#!/usr/bin/env bash
+printf 'chmod %s\n' "$*" >>"$REG_LLAMADAS"
+for real in /bin/chmod /usr/bin/chmod; do [ -x "$real" ] && exec "$real" "$@"; done
+exit 0
+FIN
+
+  # El prefijo del bucket sale de INSTANCIA y, si falta, del hostname. Subir a
+  # la RAIZ del bucket seria escribir en el prefijo de otra instancia.
+  cat >"$BIN/hostname" <<'FIN'
+#!/usr/bin/env bash
+printf '%s
+' "${D_HOSTNAME:-demo-owner}"
+exit 0
+FIN
+
   cat >"$BIN/pg_restore" <<'FIN'
 #!/usr/bin/env bash
 printf 'pg_restore %s\n' "$*" >>"$REG_LLAMADAS"
@@ -209,13 +260,18 @@ preparar() {
   export REG_HUELLA_N="$RAIZ_TMP/huella.n"
   export REG_CURL_N="$RAIZ_TMP/curl.n"
   export REG_PULL_N="$RAIZ_TMP/pull.n"
-  : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"
+  export REG_S3ENV="$RAIZ_TMP/s3env.txt"
+  : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
   export SPACE_OS_DIR_ESTADO="$RAIZ_TMP/estado"
   export SPACE_OS_DIR_LOG="$RAIZ_TMP/log"
   export SPACE_OS_CANDADO="$RAIZ_TMP/candado"
+  # El mutante corre una COPIA de update.sh en /tmp, y ahi no hay respaldo.sh al
+  # lado. Sin esta linea, todos los escenarios de todos los mutantes moririan por
+  # el mismo motivo y "cazado" no significaria nada.
+  export SPACE_OS_RESPALDO_SH="${RESPALDO_MUT:-$RAIZ/infra/scripts/respaldo.sh}"
   export CONTENEDOR_NOMBRE=space-os
   SALIDA="$RAIZ_TMP/salida.txt"
 
@@ -236,6 +292,11 @@ ENV_APP=$RAIZ_TMP/app.env
 RUNNER_MIGRACIONES=$RAIZ_TMP/migrar.mjs
 SALUD_INTENTOS=2
 SALUD_ESPERA=0
+INSTANCIA=demo
+SPACES_KEY=LLAVE_FALSA
+SPACES_SECRET=SECRETO_FALSO
+SPACES_BUCKET=space-os-respaldos
+SPACES_REGION=nyc3
 FIN
   printf '// runner falso de la instancia\n' >"$RAIZ_TMP/migrar.mjs"
 
@@ -258,6 +319,7 @@ FIN
   export FLOCK_OCUPADO=0
   export D_PULL_FALLA=0
   export D_PULL_FALLA_VECES=0
+  export S3_FALLA=0
   export D_RUN_FALLA=0
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
@@ -350,6 +412,10 @@ correr
 codigo_es 1
 log_dice 'BACKUP VACIO'
 hubo 'pg_dump'
+# Un dump de 0 bytes no se sube a ningun sitio: en el bucket seria el mas
+# reciente y el que alguien elegiria para restaurar.
+no_hubo 's3cmd'
+no_hubo 'aws s3 cp'
 no_hubo 'node scripts/migrar.mjs'
 no_hubo '--detach'
 # El archivo de 0 bytes NO se queda junto a los buenos: en un `ls` del directorio
@@ -744,6 +810,161 @@ veces_en_log 0 'reintento'
 no_hubo '--detach'
 limpiar
 
+# ── F3.7 · el respaldo sale del droplet ────────────────────────────────────
+
+# E38 · LA TAREA · el respaldo se sube a Spaces con la ruta EXACTA del plan:
+#       s3://space-os-respaldos/<instancia>/<AAAA-MM-DD-HHMM>.dump
+preparar 'E38 el respaldo sube a Spaces (F3.7)'
+correr
+codigo_es 0
+hubo_regex '^s3cmd .* put .* s3://space-os-respaldos/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump$'
+log_dice 'respaldo remoto'
+log_calla 'RESPALDO REMOTO FALLIDO'
+# `gsutil` es Google Cloud Storage y no habla con Spaces: el plan lo avisa
+# expresamente y aqui se comprueba que nadie lo colo.
+no_hubo_regex '(^| )gsutil( |$)'
+# Se sube el respaldo de esta corrida, no otra cosa.
+hubo_regex 's3cmd .*put .*respaldos/spaces_[0-9]+_[0-9]+\.dump'
+limpiar
+
+# E39 · EL CRITERIO DE ACEPTACION, SEGUNDA MITAD · la subida falla y el update
+#       SIGUE —el respaldo local ya existe y basta para la vuelta atras— pero
+#       NO pasa desapercibida.
+preparar 'E39 subida fallida: el update sigue y queda escrito (F3.7)'
+export S3_FALLA=1
+correr
+codigo_es 0
+log_dice 'RESPALDO REMOTO FALLIDO'
+log_dice 'OK: v0.4.2 sirviendo'
+hubo '--detach'
+# El respaldo local sigue en su sitio: es lo que hace que la subida pueda fallar
+# sin detener nada.
+if [ -n "$(ls -A "$SPACE_OS_DIR_ESTADO/respaldos" 2>/dev/null)" ]; then bien; else mal 'la subida fallida se llevo por delante el respaldo local'; fi
+limpiar
+
+# E40 · RETENCION LOCAL · 3 respaldos y ni uno mas. Cierra la segunda mitad de
+#       D4: el directorio no se podaba NUNCA y en una instancia real son gigas
+#       por noche. Los 3 que quedan son los mas recientes, y el de esta corrida
+#       es uno de ellos (la vuelta atras lo necesita).
+preparar 'E40 retencion: 3 respaldos locales (D4, F3.7)'
+mkdir -p "$SPACE_OS_DIR_ESTADO/respaldos"
+for viejo in 20250101_000000 20250102_000000 20250103_000000 20250104_000000 20250105_000000; do
+  printf 'respaldo viejo\n' >"$SPACE_OS_DIR_ESTADO/respaldos/spaces_$viejo.dump"
+done
+correr
+codigo_es 0
+n_dumps="$(ls -1 "$SPACE_OS_DIR_ESTADO/respaldos"/spaces_*.dump 2>/dev/null | wc -l | tr -d ' ')"
+if [ "$n_dumps" = 3 ]; then bien; else mal "quedaron $n_dumps respaldos locales, se esperaban 3"; fi
+# El mas viejo se fue; el mas nuevo de los viejos se queda; el de esta corrida
+# tambien (es el que nombra version-anterior).
+if [ -e "$SPACE_OS_DIR_ESTADO/respaldos/spaces_20250101_000000.dump" ]; then mal 'el respaldo mas viejo no se podo'; else bien; fi
+if [ -e "$SPACE_OS_DIR_ESTADO/respaldos/spaces_20250105_000000.dump" ]; then bien; else mal 'se podo un respaldo que estaba entre los 3 mas recientes'; fi
+bk_actual="$(sed -n 's/^respaldo=//p' "$SPACE_OS_DIR_ESTADO/version-anterior" 2>/dev/null)"
+if [ -s "$bk_actual" ]; then bien; else mal "la poda se llevo el respaldo de esta corrida ($bk_actual)"; fi
+limpiar
+
+# E41 · LA ASIMETRIA DE LA RETENCION · la poda REMOTA no la hace el script: son
+#       30 dias por regla de ciclo de vida del bucket. Un `rm` mal escrito en un
+#       script que corre en TODAS las instancias es una forma elegante de
+#       perderlo todo, asi que aqui se comprueba que ese `rm` no existe.
+preparar 'E41 el script NUNCA borra en el bucket (F3.7)'
+correr
+codigo_es 0
+no_hubo_regex '^s3cmd .*(del|rm|expire|setlifecycle)'
+no_hubo_regex '^aws s3 (rm|rb)'
+no_hubo_regex '^aws s3api (delete-object|put-bucket-lifecycle)'
+limpiar
+
+# E42 · sin credenciales no se sube nada, y se dice con todas las letras: esa
+#       instancia NO tiene respaldo fuera del droplet.
+preparar 'E42 sin credenciales de Spaces (F3.7)'
+sed -i '/^SPACES_KEY=/d; /^SPACES_SECRET=/d' "$SPACE_OS_CONF"
+correr
+codigo_es 0
+log_dice 'respaldo remoto NO CONFIGURADO'
+no_hubo 's3cmd'
+no_hubo 'aws s3 cp'
+hubo 'pg_dump'
+hubo '--detach'
+limpiar
+
+# E43 · LAS CREDENCIALES NO VIAJAN EN ARGV · mismo criterio que la contrasena de
+#       Postgres (E25): `--access_key=` en la linea de comandos es visible en
+#       `ps` para cualquier usuario de la maquina.
+preparar 'E43 la llave de Spaces no sale en ps (F3.7)'
+correr
+no_hubo 'SECRETO_FALSO'
+no_hubo 'LLAVE_FALSA'
+no_hubo_regex 's3cmd .*(--secret_key|--access_key)'
+# Pero el cliente SI las recibe: por un archivo de configuracion aparte, y con
+# el secreto dentro (si no, la subida "funcionaria" sin credenciales).
+if grep -q 'CONFIG .*secreto=1' "$REG_S3ENV"; then bien; else mal 'el cliente no recibio las credenciales por un archivo de configuracion'; fi
+# Y ese archivo se pide en 0600 ANTES de escribirle el secreto dentro.
+hubo_regex '^chmod 600 '
+limpiar
+
+# E44 · no hay cliente de S3 instalado: es un fallo de subida como cualquier
+#       otro. El update sigue y el log dice que instalar.
+preparar 'E44 sin cliente s3 instalado (F3.7)'
+rm -f "$BIN/s3cmd" "$BIN/aws"
+correr
+codigo_es 0
+log_dice 'RESPALDO REMOTO FALLIDO'
+log_dice 's3cmd'
+hubo '--detach'
+limpiar
+
+# E45 · el segundo cliente que nombra el plan: sin `s3cmd`, `aws s3 cp` con
+#       `--endpoint-url`, que es lo que hace hablar a la CLI de AWS con Spaces.
+preparar 'E45 fallback a aws s3 cp --endpoint-url (F3.7)'
+rm -f "$BIN/s3cmd"
+correr
+codigo_es 0
+hubo_regex '^aws s3 cp .* s3://space-os-respaldos/demo/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump --endpoint-url https://nyc3\.digitaloceanspaces\.com$'
+log_calla 'RESPALDO REMOTO FALLIDO'
+no_hubo 'SECRETO_FALSO'
+if grep -q 'AWS_SECRET_ACCESS_KEY=\[SECRETO_FALSO\]' "$REG_S3ENV"; then bien; else mal 'aws no recibio el secreto por el entorno'; fi
+limpiar
+
+# E46 · la poda solo mira los respaldos. Un `rm` con un patron flojo, en el
+#       directorio de estado de todas las instancias, no se arregla despues.
+preparar 'E46 la poda no toca lo que no es un respaldo (F3.7)'
+mkdir -p "$SPACE_OS_DIR_ESTADO/respaldos/subdirectorio"
+printf 'no soy un respaldo\n' >"$SPACE_OS_DIR_ESTADO/respaldos/LEEME.txt"
+for viejo in 20250101_000000 20250102_000000 20250103_000000 20250104_000000; do
+  printf 'respaldo viejo\n' >"$SPACE_OS_DIR_ESTADO/respaldos/spaces_$viejo.dump"
+done
+correr
+codigo_es 0
+if [ -e "$SPACE_OS_DIR_ESTADO/respaldos/LEEME.txt" ]; then bien; else mal 'la poda borro un archivo que no es un respaldo'; fi
+if [ -d "$SPACE_OS_DIR_ESTADO/respaldos/subdirectorio" ]; then bien; else mal 'la poda borro un subdirectorio'; fi
+limpiar
+
+# E47 · sin `respaldo.sh` al lado no se actualiza. Fail-closed y ANTES de tocar
+#       nada: mejor una instancia que no se actualiza que una que se actualiza
+#       sin respaldo fuera del droplet y sin podar el disco.
+preparar 'E47 falta respaldo.sh: se para antes de tocar nada (F3.7)'
+export SPACE_OS_RESPALDO_SH="$RAIZ_TMP/respaldo.sh"   # no existe: es un tmp vacio
+correr
+codigo_es 1
+log_dice 'respaldo.sh'
+no_hubo 'docker pull'
+no_hubo 'pg_dump'
+no_hubo '--detach'
+limpiar
+
+# E48 · si falta INSTANCIA el prefijo sale del hostname. Subir a la RAIZ del
+#       bucket seria escribir donde no toca —y con una llave por instancia con
+#       permiso solo a su prefijo, ademas, fallaria con un 403.
+preparar 'E48 sin INSTANCIA, el prefijo sale del hostname (F3.7)'
+sed -i '/^INSTANCIA=/d' "$SPACE_OS_CONF"
+export D_HOSTNAME=demo-owner
+correr
+codigo_es 0
+hubo_regex 's3://space-os-respaldos/demo-owner/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump'
+no_hubo_regex 's3://space-os-respaldos/[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}\.dump'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -756,19 +977,27 @@ printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMP
 # ============================================================================
 if [ "${1:-}" = '--mutantes' ]; then
   printf '\n── mutantes ────────────────────────────────────────────\n'
-  LINEAS_ORIG="$(wc -l <"$GUION")"
   MUT_FALLOS=0
   MUT_TOTAL=0
+  # Desde F3.7 hay DOS archivos que mutar: `update.sh` y el `respaldo.sh` que
+  # sourcea. Un mutante que solo pudiera tocar el primero dejaria la subida a
+  # Spaces y la poda del disco sin nadie que comprobara que sus comprobaciones
+  # muerden — que es justo lo que este bloque existe para evitar.
+  RESPALDO_ORIG="$RAIZ/infra/scripts/respaldo.sh"
 
-  probar_mutante() {
-    local nombre="$1" programa_sed="$2" copia difs
+  probar_mutante()          { probar_mutante_en "$GUION"         "$1" "$2"; }
+  probar_mutante_respaldo() { probar_mutante_en "$RESPALDO_ORIG" "$1" "$2"; }
+
+  probar_mutante_en() {
+    local objetivo="$1" nombre="$2" programa_sed="$3" copia difs lineas_orig
     MUT_TOTAL=$((MUT_TOTAL + 1))
     copia="$(mktemp)"
-    sed "$programa_sed" "$GUION" >"$copia"
-    difs="$(diff "$GUION" "$copia" | grep -c '^[<>]' || true)"
-    if [ "$(wc -l <"$copia")" != "$LINEAS_ORIG" ]; then
+    sed "$programa_sed" "$objetivo" >"$copia"
+    lineas_orig="$(wc -l <"$objetivo")"
+    difs="$(diff "$objetivo" "$copia" | grep -c '^[<>]' || true)"
+    if [ "$(wc -l <"$copia")" != "$lineas_orig" ]; then
       printf '  INVALIDO %s: el mutante cambio el numero de lineas (%s vs %s)\n' \
-        "$nombre" "$(wc -l <"$copia")" "$LINEAS_ORIG"
+        "$nombre" "$(wc -l <"$copia")" "$lineas_orig"
       MUT_FALLOS=$((MUT_FALLOS + 1)); rm -f "$copia"; return
     fi
     if [ "$difs" != 2 ]; then
@@ -780,7 +1009,11 @@ if [ "${1:-}" = '--mutantes' ]; then
       MUT_FALLOS=$((MUT_FALLOS + 1)); rm -f "$copia"; return
     fi
     local rojas
-    rojas="$(GUION_UPDATE="$copia" bash "$0" 2>/dev/null | tail -n1 | awk '{print $(NF-1)}')"
+    if [ "$objetivo" = "$GUION" ]; then
+      rojas="$(GUION_UPDATE="$copia" bash "$0" 2>/dev/null | tail -n1 | awk '{print $(NF-1)}')"
+    else
+      rojas="$(RESPALDO_MUT="$copia" bash "$0" 2>/dev/null | tail -n1 | awk '{print $(NF-1)}')"
+    fi
     if [ "${rojas:-0}" -gt 0 ] 2>/dev/null; then
       printf '  CAZADO   %s (%s comprobaciones en rojo)\n' "$nombre" "$rojas"
     else
@@ -812,6 +1045,22 @@ if [ "${1:-}" = '--mutantes' ]; then
     's/^PULL_ESPERAS="\${PULL_ESPERAS:-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS:-1 1 1}"/'
   probar_mutante 'reintentar la migracion fallida' \
     's#^correr_runner >"\$salida_mig" 2>&1 || codigo=\$?$#correr_runner >"$salida_mig" 2>\&1 || correr_runner >"$salida_mig" 2>\&1 || codigo=$?#'
+  # Y los de F3.7. Los dos primeros viven en `update.sh`; los cinco siguientes,
+  # en `respaldo.sh`.
+  probar_mutante 'la subida fallida ABORTA el update' \
+    's#^if ! respaldo_remoto_subir "\$BK"; then$#if ! respaldo_remoto_subir "$BK"; then salir "$EX_CONFIG" x;#'
+  probar_mutante 'quitar la poda local (que es el defecto D4)' \
+    's#^if ! respaldo_local_podar "\$DIR_RESPALDOS"; then$#if ! : no_podar        "$DIR_RESPALDOS"; then#'
+  probar_mutante_respaldo 'subir con `del` en vez de `put` (borrar en el bucket)' \
+    's#^  s3cmd --config="\$conf" put "\$archivo" "\$destino" 2>&1 | eco$#  s3cmd --config="$conf" del "$archivo" "$destino" 2>\&1 | eco#'
+  probar_mutante_respaldo 'las credenciales de Spaces en argv (visibles en ps)' \
+    's#^  s3cmd --config="\$conf" put "\$archivo" "\$destino" 2>&1 | eco$#  s3cmd --access_key="$SPACES_KEY" --secret_key="$SPACES_SECRET" put "$archivo" "$destino" 2>\&1 | eco#'
+  probar_mutante_respaldo 'subir la retencion local a 99 (o sea, no podar)' \
+    's#^RESPALDOS_LOCALES="\${RESPALDOS_LOCALES:-3}"$#RESPALDOS_LOCALES="${RESPALDOS_LOCALES:-99}"#'
+  probar_mutante_respaldo 'podar del reves: se borran los MAS NUEVOS' \
+    "s#| sort)\$#| sort -r)#"
+  probar_mutante_respaldo 'tragarse el fallo de la subida' \
+    's#^  return "\$resultado"$#  return 0#'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

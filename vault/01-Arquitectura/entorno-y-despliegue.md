@@ -20,6 +20,7 @@ archivos:
   - .github/workflows/promover.yml
   - .github/workflows/deploy.yml
   - infra/scripts/update.sh
+  - infra/scripts/respaldo.sh
   - infra/scripts/README.md
   - scripts/migrar.mjs
   - infra/nginx/demo.space-os.io.conf
@@ -312,8 +313,8 @@ manual completo —configuración, códigos de salida, cron— está en
 
 El orden importa y está elegido para que cada paso falle antes de haber hecho daño:
 `pull` y comparar digest (igual → sale 0 sin tocar nada) → **respaldo** `pg_dump -Fc`
-→ anotar la versión anterior → **migrar** → **solo entonces** conmutar el tráfico →
-health check → vuelta atrás si no responde.
+**que se poda a 3 y se sube a Spaces** → anotar la versión anterior → **migrar** →
+**solo entonces** conmutar el tráfico → health check → vuelta atrás si no responde.
 
 **Un respaldo vacío detiene el update**, y el archivo de 0 bytes **se borra** al
 abortar. El criterio se copió de `.github/workflows/deploy.yml:117-125`: un `pg_dump`
@@ -433,9 +434,10 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`37 escenarios · 165 comprobaciones · 0 rojas` y, con `--mutantes`,
-`10 mutantes · 0 escapan` (medido el 18/08, tras F3.8). Cada mutante se **valida antes
-de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
+`48 escenarios · 218 comprobaciones · 0 rojas` y, con `--mutantes`,
+`17 mutantes · 0 escapan` (medido el 18/08, tras F3.7; venía de `37 · 165` y 10
+mutantes). Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
+`update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
 porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
 «pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
 corrompería bases, y también los que el arnés no veía en su momento: quitar
@@ -453,7 +455,7 @@ el mismo ciclo, con su escenario en rojo antes del arreglo:
 |---|---|---|
 | **D2** | el `\|\| echo 000` concatenaba un segundo código HTTP: `200000` tiraba un release **sano** con `pg_restore` | salida y código de salida de `curl` por separado; `000` solo si no imprimió nada |
 | **D3** | los dos códigos `5` de la restauración no decían que la instancia quedaba **caída** ni cómo levantarla | dicen «La instancia queda SIN servicio» y traen el comando de rescate, **calculado** según si el `rename` llegó a hacerse |
-| **D4** | el respaldo vacío se quedaba en disco junto a los buenos | se borra al abortar |
+| **D4** | el respaldo vacío se quedaba en disco junto a los buenos, **y el directorio no se podaba nunca** | se borra al abortar; y desde F3.7 la retención local es de **3** (arriba). **D4 queda cerrada entera** |
 | **D5** | el código `2` con la base intacta **adivinaba** la causa («típicamente no pudo conectar») y en el caso medido era otra | remite al mensaje del runner, que va impreso justo encima |
 
 > [!danger] D1 sigue abierto: la vuelta atrás **no devuelve el esquema entero**
@@ -469,10 +471,49 @@ credenciales y la clave por `PGPASSWORD`: antes era visible en `ps` para cualqui
 usuario local. `deploy.yml:119` lo evita con `sudo -u postgres`; aquí la conexión es
 por red, así que se parte la URL.
 
-**El respaldo se queda en el droplet** (`/var/lib/space-os/respaldos/`) **y nadie lo
-poda**: cada actualización deja un `pg_dump` de la base entera, que en una instancia
-con datos de verdad son gigas por noche hasta llenar el disco. Sacarlo de la máquina
-**y la retención** son F3.7, la tarea del respaldo.
+### El respaldo sale del droplet (18/08, F3.7)
+
+Hasta hoy el `pg_dump` se quedaba en `/var/lib/space-os/respaldos/` y **nadie lo
+podaba**. Las dos mitades del problema se cierran aquí, y la lógica vive en un archivo
+propio, **`infra/scripts/respaldo.sh`**, que `update.sh` *sourcea*: si no está al lado,
+**el update se para antes del `pull`** en vez de actualizar sin red.
+
+El respaldo se sube a
+`s3://space-os-respaldos/<instancia>/<AAAA-MM-DD-HHMM>.dump` con `s3cmd put` o, si no
+hay `s3cmd`, con `aws s3 cp --endpoint-url https://<region>.digitaloceanspaces.com`.
+**`gsutil` no**: es de Google Cloud Storage y no habla con Spaces. Las credenciales
+salen de `instancia.env` (`SPACES_KEY`, `SPACES_SECRET`, `SPACES_BUCKET`), son **una
+llave por instancia con permiso solo sobre su prefijo** —nunca la maestra de la
+cuenta— y **no viajan en `argv`**: con `s3cmd`, en un archivo temporal `chmod 600`
+antes de escribirle el secreto dentro; con la CLI de AWS, por el entorno. Es el mismo
+criterio que sacó la contraseña de Postgres de `ps`.
+
+> [!important] La retención es **asimétrica**, y eso es lo importante de la tarea
+> **3 respaldos locales**, podados por el script. **30 días en Spaces, podados por la
+> regla de ciclo de vida del bucket** — en `respaldo.sh` **no hay un solo borrado
+> remoto**, y no es un olvido: *un `rm` mal escrito en un script que corre en todas las
+> instancias es una forma elegante de perderlo todo a la vez*. La regla del bucket se
+> configura una vez, a mano, y la revisa una persona: **es tarjeta humana, no código**.
+
+La poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
+'spaces_*.dump'` ordenado por nombre —que es la fecha—, nunca subdirectorios, nunca
+menos de 1, y **después** de comprobar que el dump nuevo es bueno (podar antes sería
+tirar un respaldo viejo a cambio de nada). Con eso queda cerrada la **segunda mitad de
+D4**.
+
+**Si la subida falla, el update sigue** —el respaldo local ya existe y con él se vuelve
+atrás— pero el log escribe `RESPALDO REMOTO FALLIDO`, pensado para buscarse con
+`grep`. Que además salga en el **reporte de flota** es **F6.4**, que no existe todavía:
+hoy solo está en el log de la instancia. Y si no hay credenciales, no es un fallo sino
+una instancia sin respaldo remoto configurado: el log lo dice así
+(`respaldo remoto NO CONFIGURADO`).
+
+> [!warning] Escrito y probado contra dobles; **el bucket no existe todavía**
+> Crear el bucket, emitir **una llave por instancia limitada a su prefijo** y poner la
+> **regla de ciclo de vida de 30 días** son pasos de servidor: salen como tarjeta
+> humana en `infra/scripts/README.md` §7, con su comando y su respuesta esperada. El
+> comando de verificación de F3.7 —`s3cmd ls s3://space-os-respaldos/demo/ | tail -3`—
+> **no se ha corrido**, y no puede correrse desde aquí.
 
 ## Producción
 

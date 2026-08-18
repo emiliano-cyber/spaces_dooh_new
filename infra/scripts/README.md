@@ -6,6 +6,7 @@ raíz, para poner o mantener una instancia en pie.
 | Script | Modelo | Qué hace |
 |---|---|---|
 | **`update.sh`** | **instancias soberanas** | **Una instancia se actualiza sola: jala su canal del registry, respalda, migra, conmuta y se devuelve si la salud falla.** |
+| **`respaldo.sh`** | **instancias soberanas** | **El respaldo sale del droplet: lo sube a Spaces y poda el disco. Lo *sourcea* `update.sh`; también se llama a mano.** |
 | `setup-droplet.sh` | anterior | Prepara un Ubuntu 22.04 desde cero (nginx, node, pm2) |
 | `deploy.sh` | anterior | Despliegue manual **por SSH**, compilando en el servidor |
 | `new-tenant.sh`, `setup-first-tenant.sh`, `migrate-all-tenants.sh` | anterior | Alta y migración de tenants dentro de un único droplet compartido |
@@ -54,6 +55,9 @@ tail -n 40 /var/log/space-os/update.log
    presión sería restaurar la nada. El criterio está copiado de
    `.github/workflows/deploy.yml:117-125`: *un `pg_dump` que falla deja un
    archivo de 0 bytes y su salida se ve casi igual que la de uno bueno.*
+   Con el dump bueno delante, y solo entonces, **poda el disco a 3 respaldos y
+   sube el nuevo a Spaces** (§7). Si la subida falla, **el update sigue** y el
+   log dice `RESPALDO REMOTO FALLIDO`.
 4. Anota la versión que corría en `/var/lib/space-os/version-anterior`.
 5. Toma la **huella** de la base, corre `migrar.mjs` **con las migraciones de
    la imagen nueva**, vuelve a tomar la huella, y **solo entonces** conmuta el
@@ -106,6 +110,13 @@ root** — el script avisa si no lo está.
 | `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. Vacío = ningún reintento. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
 | `RUNNER_MIGRACIONES` | no | `/opt/space-os/migrar.mjs` (ver el aviso 1) |
 | `PG_DUMP` / `PG_RESTORE` | no | rutas, si conviven varias versiones de Postgres |
+| `INSTANCIA` | no (*) | el prefijo de esta instancia dentro del bucket de respaldos. Si falta, se usa el `hostname -s` |
+| `SPACES_KEY` / `SPACES_SECRET` | no (*) | la llave de Spaces. **Una por instancia y con permiso solo sobre su prefijo.** Sin ellas no hay respaldo fuera del droplet, y el log lo dice |
+| `SPACES_BUCKET` | no | `space-os-respaldos` |
+| `SPACES_REGION` | no | `nyc3`; de ahí sale el endpoint `https://nyc3.digitaloceanspaces.com` |
+| `SPACES_ENDPOINT` | no | se calcula de la región; existe para poder apuntar a otra cosa al ensayar |
+| `SPACES_CLIENTE` | no | `auto` (prefiere `s3cmd`), `s3cmd` o `aws` |
+| `RESPALDOS_LOCALES` | no | `3` respaldos en el disco. **Nunca menos de 1**: con 0 se borraría el de la corrida en marcha |
 
 (*) Si falta, se toma la de `ENV_APP` y se avisa. Y si **las dos** existen y
 apuntan a **bases distintas**, el script se para: migrar una base mientras la
@@ -182,7 +193,7 @@ Si `flock` no está instalado, el script **no corre**.
 
 ---
 
-## Seis cosas que hay que saber antes de tocarlo
+## Siete cosas que hay que saber antes de tocarlo
 
 ### 1 · El runner de migraciones NO viaja en la imagen
 
@@ -335,6 +346,113 @@ nombre y el mensaje dice `docker start space-os` a secas.
 
 ---
 
+### 7 · El respaldo **sale** del droplet, y el disco no se llena
+
+`update.sh` guardaba el `pg_dump` en el disco de la propia instancia. Eso sirve
+para la vuelta atrás de un release malo —que es su trabajo— pero **no sirve para
+nada si el droplet desaparece**, y ese escenario es *más* probable con el modelo
+de instancias, no menos: son muchos droplets pequeños en vez de uno cuidado.
+
+Desde F3.7 el paso 3 hace tres cosas, y la lógica vive en **`respaldo.sh`**, que
+`update.sh` *sourcea*. **Si `respaldo.sh` no está al lado, el update se para
+antes del `pull`**: actualizar sin respaldo fuera del droplet y sin podar el
+disco no es lo que este script promete.
+
+> [!important] La asimetría de la retención es deliberada
+> | | Cuánto | Quién lo borra |
+> |---|---|---|
+> | **Local** | **3 respaldos** | **este script** |
+> | **Remoto** | **30 días** | **la regla de ciclo de vida del bucket**, no el script |
+>
+> En `respaldo.sh` **no hay ni un solo borrado remoto**, y no es un olvido: *un
+> `rm` mal escrito en un script que corre en todas las instancias es una forma
+> elegante de perderlo todo a la vez.* Borrar lo viejo del bucket es
+> configuración de la cuenta: se hace una vez, la revisa una persona y no viaja
+> en cada release. El arnés lo comprueba (E41).
+
+La poda local tampoco es un `rm` con glob: `find -maxdepth 1 -type f -name
+'spaces_*.dump'`, ordenado por nombre —que es la fecha—, y se retiran los más
+viejos dejando los N más recientes. Ni subdirectorios, ni archivos que no casen
+con el patrón, ni nunca menos de uno. Va **después** de comprobar que el dump
+nuevo es bueno: podar antes sería tirar un respaldo viejo a cambio de nada.
+
+**Ruta remota**, tal cual la fija el plan:
+
+```
+s3://space-os-respaldos/<instancia>/<AAAA-MM-DD-HHMM>.dump
+```
+
+**Las credenciales no viajan en `argv`**, por lo mismo que la contraseña de
+Postgres (§5): `s3cmd --access_key=… --secret_key=…` las deja visibles en `ps`
+para cualquier usuario de la máquina. Con `s3cmd` van en un archivo de
+configuración temporal, `chmod 600` **antes** de escribir el secreto dentro y
+borrado al terminar; con la CLI de AWS, por variables de entorno del proceso.
+
+> [!warning] `gsutil` no
+> Es el cliente de Google Cloud Storage y **no habla con Spaces**. El plan lo
+> avisa expresamente porque es un error fácil de cometer leyendo por encima. Los
+> dos clientes que valen son `s3cmd put` y `aws s3 cp --endpoint-url`.
+
+**Si la subida falla, el update sigue.** El respaldo local ya existe y con él se
+vuelve atrás; detener la actualización por no poder hablar con el bucket sería
+cambiar un problema pequeño por uno grande. Pero **no pasa desapercibida**: el
+log escribe
+
+```
+RESPALDO REMOTO FALLIDO — el dump se quedo SOLO en este droplet …
+```
+
+que es una línea pensada para buscarse con `grep`. Que además salga en el
+**reporte de flota** es **F6.4**, que todavía no existe: hoy solo está en el log
+de la instancia.
+
+Y si no hay `SPACES_KEY`/`SPACES_SECRET`, no es un fallo: es una instancia sin
+respaldo remoto configurado, y el log lo dice con esas palabras
+(`respaldo remoto NO CONFIGURADO`) para que se lea como lo que es —**esa
+instancia no tiene respaldo fuera del droplet**—.
+
+A mano, sin actualizar nada:
+
+```bash
+/opt/space-os/respaldo.sh destino                      # a dónde subiría hoy
+/opt/space-os/respaldo.sh subir /var/lib/space-os/respaldos/spaces_x.dump
+/opt/space-os/respaldo.sh podar /var/lib/space-os/respaldos 3
+```
+
+> [!danger] Lo que no se puede hacer desde el repositorio: **el bucket, la llave
+> y la regla de 30 días**
+> Nada de esto lo crea un script del repo, y sin ello la subida devuelve `403` y
+> el log dirá `RESPALDO REMOTO FALLIDO` en todas las corridas. Lo hace una
+> persona, una vez por instancia:
+>
+> 1. **El bucket**, una sola vez para toda la flota:
+>    `s3cmd mb s3://space-os-respaldos` (o desde el panel de DigitalOcean).
+> 2. **Una llave por instancia**, con permiso **solo sobre su prefijo**
+>    (`demo/*`), nunca la llave maestra de la cuenta. Si se filtra la de una
+>    instancia, se pierde esa instancia y no la flota entera.
+> 3. **La regla de ciclo de vida de 30 días** sobre el bucket — la poda remota
+>    que el script *no* hace:
+>    ```bash
+>    s3cmd expire s3://space-os-respaldos --expiry-days=30 --expiry-prefix=''
+>    ```
+>    Comprobar después: `s3cmd info s3://space-os-respaldos` tiene que
+>    mencionar la regla. Si no aparece, la revisión de los 30 días no existe y
+>    el bucket crece para siempre.
+> 4. Escribir `SPACES_KEY`, `SPACES_SECRET` e `INSTANCIA` en
+>    `/etc/space-os/instancia.env` (0600, de root) y comprobar con
+>    `/opt/space-os/respaldo.sh destino`.
+>
+> Comprobación de que quedó hecho —el **comando de verificación de F3.7**—:
+> ```bash
+> s3cmd ls s3://space-os-respaldos/demo/ | tail -3
+> ```
+> Se esperan las últimas líneas con fecha de hoy. Si sale vacío, la subida no
+> llegó: mirar `RESPALDO REMOTO FALLIDO` en `/var/log/space-os/update.log`. Si
+> sale `403`, la llave no tiene permiso sobre **ese** prefijo. Si sale
+> `NoSuchBucket`, falta el paso 1.
+
+---
+
 ## Cómo se verificó (sin tocar ningún servidor)
 
 > [!important] El arnés está **en el repositorio**, y por eso esta sección se
@@ -347,19 +465,22 @@ nombre y el mensaje dice `docker start space-os` a secas.
 ```bash
 bash -n infra/scripts/update.sh
 bash infra/scripts/pruebas-update.sh              # los escenarios
-bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~14 min)
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~45 min)
 ```
 
-El arnés no sale a la red, no habla con Docker y no toca ninguna base: monta
-dobles POSIX de `docker`, `curl`, `flock`, `sleep`, `pg_dump` y `pg_restore` en
-un `PATH` propio y mira **qué se les pide**. `sleep` es un doble a propósito: un
-backoff de 1+5+30 s se comprueba por lo que se **pide**, no por el reloj, o el
-arnés tardaría 36 s en cada escenario. El resultado del 2026-08-18, y el que
-imprime el comando:
+El arnés no sale a la red, no habla con Docker, no toca ninguna base y **no sube
+nada a ningún bucket**: monta dobles POSIX de `docker`, `curl`, `flock`, `sleep`,
+`pg_dump`, `pg_restore`, `s3cmd`, `aws`, `chmod` y `hostname` en un `PATH` propio
+y mira **qué se les pide**. `sleep` es un doble a propósito: un backoff de
+1+5+30 s se comprueba por lo que se **pide**, no por el reloj, o el arnés
+tardaría 36 s en cada escenario. `chmod` lo es por otra razón: delega en el de
+verdad pero anota la llamada, porque en un sistema de archivos sin permisos POSIX
+`stat` devuelve `644` aunque el `chmod 600` se haya ejecutado. El resultado del
+2026-08-18, y el que imprime el comando:
 
 ```
-37 escenarios · 165 comprobaciones · 0 rojas
-10 mutantes · 0 escapan
+48 escenarios · 218 comprobaciones · 0 rojas
+17 mutantes · 0 escapan
 ```
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
@@ -371,11 +492,18 @@ y después · **un `curl` que imprime 200 y sale ≠ 0**, uno que imprime `000` 
 sale ≠ 0 y uno que no imprime nada · el padre no aparece · la contraseña no sale
 en `argv` · **`--simular-fallo-pull` con sus tres reintentos numerados y la
 instancia intacta** · un `pull` que falla de verdad (4 intentos y se rinde) · un
-`pull` intermitente que **entra al tercero** y deja seguir el update · y la
-migración fallida que **no se reintenta**, con los códigos 2 y 3.
+`pull` intermitente que **entra al tercero** y deja seguir el update · la
+migración fallida que **no se reintenta**, con los códigos 2 y 3 · **la subida
+del respaldo a Spaces con la ruta exacta del plan**, una subida que falla y
+**deja seguir el update dejándolo escrito**, la retención de 3 locales, que el
+script **nunca borra en el bucket**, que la llave **no sale en `argv`**, el
+fallback a `aws s3 cp --endpoint-url`, la instancia sin credenciales, la que no
+tiene cliente de S3, el prefijo sacado del `hostname` y **la falta de
+`respaldo.sh`, que para el update antes del `pull`**.
 
-**Se comprueba que las comprobaciones muerden.** Diez mutantes de una sola línea,
-y cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
+**Se comprueba que las comprobaciones muerden.** **Diecisiete** mutantes de una
+sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
+cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
 por un `sed` que dejó el archivo vacío y «pasó». Dos de ellos son justo los que
 el arnés viejo **no** cazaba:
@@ -391,6 +519,13 @@ el arnés viejo **no** cazaba:
 | dejar el `pull` sin reintentos | un parpadeo de red deja la instancia sin actualizar |
 | aplanar la espera del backoff a 1 s | tres reintentos en 3 s no aguantan un registry que tarda en volver |
 | **reintentar la migración fallida** | la corrida repetida encuentra la base a medias: **así se corrompe una base** |
+| que la **subida fallida aborte** el update | una instancia se queda sin actualizar porque no pudo hablar con un bucket |
+| quitar la poda local | el defecto **D4**: el disco se llena de dumps hasta reventar |
+| subir con **`del`** en vez de `put` | el script **borraría** en el bucket en lugar de escribir |
+| las credenciales de Spaces en `argv` | la llave visible en `ps` para cualquier usuario de la máquina |
+| retención local a **99** | vuelve a no podar nada |
+| podar **del revés** | se borrarían los respaldos **más nuevos**, incluido el de la corrida en marcha |
+| tragarse el fallo de la subida | `RESPALDO REMOTO FALLIDO` no se escribiría nunca |
 
 Y contra material real, no solo dobles:
 
