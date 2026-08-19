@@ -7,6 +7,30 @@ La entrada más reciente va arriba.
 
 ## 2026-08-19
 
+- **Una instancia nueva ya nace con los permisos puestos, y su Dueño puede entrar
+  a trabajar.** Quién puede ver, crear, aprobar o facturar en cada módulo se guarda
+  en una tabla de la base. Esa tabla estaba **configurada a mano** en la base de
+  desarrollo desde hace meses y **no viajaba con el programa**: de las 25 líneas que
+  la hacen funcionar, solo cinco estaban escritas en el repositorio.
+  - **Qué pasaba en la práctica:** una copia recién instalada nacía con permisos
+    para un solo módulo, Inventario. Y como el programa **no le da ningún atajo al
+    Dueño** —comprueba sus permisos en la tabla igual que a cualquiera—, el dueño de
+    esa instancia entraba y se encontraba la aplicación cerrada de arriba abajo:
+    tampoco podía abrir Administración, que es justo desde donde tendría que dar de
+    alta a su equipo. La instancia no servía para nada desde el primer minuto.
+  - **Qué cambia:** las 25 líneas se escribieron en el repositorio, de modo que
+    cualquier instalación nueva las trae de fábrica: Dueño, Comercial y Operaciones
+    con lo que cada uno necesita, tal y como funciona hoy la instalación de trabajo.
+    No se inventó ni un permiso: es exactamente la configuración que ya se usa.
+  - **A las instalaciones que ya existen no les cambia nada.** Se comprobó: sobre
+    una base que ya tiene esos permisos, la actualización no toca ni una línea, y
+    tampoco los duplica si se aplica dos veces.
+  - **Queda una cosa medida y sin decidir, y se anota aquí para que no se pierda:**
+    el módulo de **Imprenta** no tiene permisos para nadie —tampoco para el Dueño—,
+    y los roles **Imprenta** y **Finanzas** se pueden elegir al dar de alta a una
+    persona pero no abren nada. No se han tocado a propósito: decidir quién imprime
+    o quién ve las finanzas es una decisión del negocio, no un arreglo técnico.
+
 - **Una instalación nueva ya no nace con la empresa de otro dentro.** Hasta hoy,
   cualquier base creada desde cero salía con una organización ya dada de alta —«RGB
   Catorce»— y con su ficha de configuración detrás. Nadie la había creado: venía

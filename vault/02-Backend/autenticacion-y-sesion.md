@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-17
+actualizado: 2026-08-19
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -10,6 +10,7 @@ archivos:
   - apps/web/lib/server/password-reset-repo.ts
   - apps/web/middleware.ts
   - db/migrations/20260720_hard1_usuarios_rls.sql
+  - db/migrations/20260819_semilla_rol_permisos.sql
 ---
 
 # Autenticación y sesión
@@ -99,6 +100,26 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 > [!warning] La matriz de permisos es GLOBAL
 > `rol_permisos` **no tiene `tenant_id` ni RLS** (`db/schema.sql:75-80`). El RBAC
 > es de la instalación entera, no por organización. Ver [[preguntas-abiertas]].
+
+> [!danger] No hay atajo para el Dueño: si la tabla está vacía, no ve nada
+> `permisosDeRol` y `tienePermiso` (`auth.ts:126-142`) son consultas directas a
+> `rol_permisos`, **sin excepción por rol**, y `exigir()` es fail-closed. Ningún
+> rol —tampoco `DUENO`— tiene privilegio implícito.
+>
+> Eso convierte el contenido de la tabla en parte del producto, y hasta el
+> 19/08 **no viajaba con él**: `db/schema.sql:75-80` la crea vacía y lo único
+> que la sembraba era `20260804_modulo_inventario.sql:22`, cinco filas de un
+> módulo. Una instancia recién aprovisionada nacía con el Dueño encerrado fuera
+> de su propia aplicación. Lo siembra
+> `db/migrations/20260819_semilla_rol_permisos.sql` — **25 filas · 8 módulos ·
+> 3 roles**; el detalle, en [[migraciones]].
+
+> [!warning] Dos roles del enum siguen sin una sola fila
+> `IMPRENTA` y `FINANZAS` se pueden elegir al dar de alta un usuario
+> (`components/demo/shell/nav.ts:132-133`) y **no tienen ningún permiso**, igual
+> que le pasaba a `CLIENTE` antes del ADR 0010 (`nav.ts:134`): la cuenta se
+> crea, entra y recibe 403 en todo. Medido el 19/08 y **sin decidir** — darles
+> permisos es política de acceso, no una corrección.
 
 ## Reautenticación para cambios sensibles (ADR 0009)
 

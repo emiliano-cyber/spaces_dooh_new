@@ -12,7 +12,9 @@ archivos:
   - apps/web/lib/test/db-e2e.ts
   - apps/web/lib/test/migraciones.e2e.test.ts
   - apps/web/lib/test/reaplicacion.e2e.test.ts
+  - apps/web/lib/test/permisos-semilla.e2e.test.ts
   - db/migrations/20260805_objetos_solo_en_prod.sql
+  - db/migrations/20260819_semilla_rol_permisos.sql
 ---
 
 # Migraciones
@@ -47,7 +49,7 @@ archivos:
 
 ## Cómo funciona
 
-- **68 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **69 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
@@ -477,6 +479,7 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 | `20260810_notificaciones_archivada_en.sql` | `notificaciones.archivada_en` |
 | `20260810_arrendadores_rfc_unico.sql` | `arrendadores_tenant_rfc_uq` — un RFC, un propietario (ADR 0013) |
 | `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **escrita, NO aplicada en producción** (eso es F1.2 → F1.5) |
+| `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **escrita, NO aplicada en producción**, donde es no-op |
 | `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
 
 ## La migración que revela el mayor riesgo del proyecto
@@ -497,6 +500,65 @@ No era cosmético:
 > Un objeto creado a mano en producción y no versionado **no falla donde se
 > creó**: falla en el entorno nuevo, o en la recuperación desde cero, que es el
 > peor momento posible. Cualquier cambio de esquema va como migración, siempre.
+
+## El catálogo de permisos también estaba solo en la base (19/08)
+
+Exactamente la misma lección de la sección anterior, cuatro días después y en
+otra tabla: **`rol_permisos` se configuró a mano y nunca entró al repositorio.**
+
+Medido antes de escribir la migración:
+
+| Base | `rol_permisos` |
+|---|---|
+| Recién aprovisionada (rol de app → `db/schema.sql` → `migrar.mjs --instalacion-nueva`) | **5 filas · 1 módulo** |
+| De desarrollo | **25 filas · 8 módulos · 3 roles** |
+
+`db/schema.sql:75-80` crea la tabla vacía y el único sembrado que viajaba en la
+cadena era `20260804_modulo_inventario.sql:22` — las cinco filas de `inventario`
+del ADR 0010. Las otras veinte no estaban en ninguna parte de lo que se
+despliega.
+
+> [!danger] Y no hay red debajo: el Dueño no tiene atajo
+> `permisosDeRol` y `tienePermiso` (`apps/web/lib/server/auth.ts:126-142`) son
+> consultas directas a la tabla, **sin excepción para ningún rol**, y `exigir()`
+> es fail-closed. Con cinco filas de `inventario`, el Dueño de una instancia
+> recién creada entraba y la veía **entera cerrada** — ni Administración, desde
+> donde da de alta a su equipo. No es una fuga: es una instancia inservible
+> desde el minuto uno. Bloqueaba F4.4 y toda la Fase 5.
+
+`20260819_semilla_rol_permisos.sql` siembra las 25, con `on conflict do nothing`.
+Tres decisiones que conviene no rehacer:
+
+- **Migración y no `bootstrap-auth.mjs`** (decisión de Jochelo, 19/08). El
+  catálogo es configuración de producto, idéntica en toda la flota, y así llega
+  también a las instancias que ya existan cuando se actualicen. El bootstrap
+  crea la identidad de **cada** instancia, que es lo contrario.
+- **No lleva `-- @tipo: datos`.** Con esa marca el runner la saltaría salvo
+  `--con-datos` y `deploy.yml:141-148` no la aplicaría nunca, así que la
+  instancia nueva seguiría naciendo sin permisos. Mismo criterio que
+  `20260804_modulo_inventario.sql`, que tampoco la lleva.
+- **El ASSERT comprueba PRESENCIA, no el total.** Un `count(*) = 25` abortaría
+  en cualquier base donde alguien haya concedido un permiso de más a propósito
+  —`apps/web/scripts/a4-candado-banco.mjs:101` hace justo eso— y negarse a
+  actualizar la flota por eso sería peor que el problema.
+
+> [!warning] Lo que la migración NO decide, y está anotado a propósito
+> - El módulo **`imprenta`** (`apps/web/lib/modulos.ts:42`) sigue **sin una sola
+>   fila**. Es el único módulo del catálogo del ADR 0010 en esa situación: la
+>   pantalla de Imprenta no la abre nadie, tampoco el Dueño.
+> - Los roles **`IMPRENTA`** y **`FINANZAS`** tampoco tienen ninguna, y
+>   `components/demo/shell/nav.ts:132-133` sí los ofrece al dar de alta un
+>   usuario. Es la misma trampa que el ADR 0010 le cerró a `CLIENTE`
+>   (`nav.ts:134`): se crea, entra y recibe 403 en todo.
+>
+> Sembrarlos sería **inventar política de acceso**, y eso se decide, no se
+> deduce. Queda medido y esperando decisión.
+
+Lo fija `apps/web/lib/test/permisos-semilla.e2e.test.ts` (5 casos, dos bases
+desechables): la receta completa deja 25 · 8 · 3, reaplicar no duplica, una base
+que ya las tenía no cambia, y —el que importa— un Dueño recién creado obtiene
+sus ocho módulos **a través de `permisosDeRol`**, que es la función de la que
+cuelgan `/api/auth/login`, `/api/auth/me` y `/api/estado`.
 
 ## Antes de aplicar en producción
 
