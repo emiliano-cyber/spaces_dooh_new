@@ -457,14 +457,15 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`73 escenarios · 358 comprobaciones · 0 rojas` (medido el 19/08 al unificar el parseo
-de la credencial; venía de `63 · 300` el 18/08 tras corregir la auditoría de F3.9, de
+`79 escenarios · 399 comprobaciones · 0 rojas` (medido el 19/08 al cerrar la credencial
+de la **consulta**; venía de `73 · 358` ese mismo día al unificar el parseo, de
+`63 · 300` el 18/08 tras corregir la auditoría de F3.9, de
 `58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de `48 · 218` y, antes de F3.7,
-de `37 · 165`). Los mutantes son **32**; la barrida completa **no se corrió entera** ni
-el 18/08 ni el 19/08 —a ~4 min por mutante en esta máquina, las 32 pasan de dos horas, y
+de `37 · 165`). Los mutantes son **37**; la barrida completa **no se corrió entera** ni
+el 18/08 ni el 19/08 —a ~4 min por mutante en esta máquina, los 37 pasan de dos horas, y
 la medición anterior daba ~25 min por mutante— y en su lugar se corren **aislados los
-que tocan el cambio**: siete en el ciclo del 18/08 y **cinco** en el del 19/08, todos
-cazados. Está escrito porque la decisión M1 obliga a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
+que tocan el cambio**: siete en el ciclo del 18/08, **cinco** en el ciclo 2 del 19/08 y
+**cinco** en el ciclo 3, todos cazados. Está escrito porque la decisión M1 obliga a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
 `update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
 porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
 «pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
@@ -497,7 +498,9 @@ el mismo ciclo, con su escenario en rojo antes del arreglo:
 **La contraseña ya no viaja en `argv`.** `pg_dump`/`pg_restore` reciben la URL sin
 credenciales y la clave por `PGPASSWORD`: antes era visible en `ps` para cualquier
 usuario local. `deploy.yml:119` lo evita con `sudo -u postgres`; aquí la conexión es
-por red, así que se parte la URL.
+por red, así que se parte la URL. Y se parte **entera**: la credencial también puede
+venir en la **consulta** (`?password=`, `?sslpassword=`), que es la vía que quedó
+abierta hasta el ciclo 3 del 19/08.
 
 ### El respaldo sale del droplet (18/08, F3.7)
 
@@ -626,7 +629,7 @@ noche, todo lo que la instancia registró desde siempre.
 > era la redacción anterior, «ni siquiera un nombre de tabla», que sugería una asepsia
 > mayor que la real. Corregida el 18/08.
 
-> [!danger] La contraseña de Postgres: **había dos recortes distintos, y los dos estaban mal**
+> [!danger] La contraseña de Postgres: **dos recortes distintos, los dos mal, y una tercera vía que no miraba nadie**
 > Cada línea que nombra la conexión pasa por `destino_de_url` —su salida es la
 > **primera línea de todo log que viaja**— y el `--dbname` de `pg_dump`/`pg_restore`
 > pasaba por **otro** recorte, escrito aparte, 36 líneas más abajo. Dos
@@ -663,9 +666,87 @@ noche, todo lo que la instancia registró desde siempre.
 > que no es una URL— y **cada uno afirma las dos cosas**: qué sale al archivo que viaja
 > y qué llega a `argv`.
 >
+> **Y quedaba una TERCERA vía, que se cerró el mismo día (ciclo 3):** la
+> **consulta**. `partir_url` desarmaba el `usuario:clave@` pero la consulta se
+> conservaba entera —a propósito, «quitarla cambiaría cómo se conecta»—, así que
+> `postgresql://spaces@host:5433/spaces?password=secreto` llegaba **entero** al
+> `--dbname`. No es una forma inventada: libpq la acepta —medido con `psql` 16— y
+> `pg-connection-string` 2.14.0 —el parser de la app y de `scripts/migrar.mjs`— la lee
+> **como la contraseña**. Y hay más: **gana sobre la del `userinfo`** en los dos
+> clientes (medido contra un Postgres efímero: con la del `userinfo` mala y la de la
+> consulta buena, la conexión entra; al revés, «password authentication failed»). Por
+> eso ahora se quitan del `--dbname` **sólo** `password` y `sslpassword` —los dos
+> únicos parámetros de libpq cuyo valor es un secreto; `passfile` y `sslkey` son
+> **rutas**—. La contraseña viaja por `PGPASSWORD`; la de `sslpassword` **no viaja**,
+> y ahí hubo otro error propio: se escribió mandándola por `PGSSLPASSWORD`, que
+> **no existe**. Medido sobre `libpq.so.5` de `postgres:16-alpine`: `PGSSLMODE`,
+> `PGSSLKEY`, `PGSSLCERT` y `PGSSLROOTCERT` están en el binario y `PGSSLPASSWORD`
+> tiene **cero apariciones** — y «funcionaba» porque una variable que nadie lee
+> tampoco estorba. Así que se **descarta y se dice en el log**: con la llave del
+> cliente cifrada el respaldo fallará y el update se parará en `BACKUP VACIO` sin
+> tocar nada, y la salida es dejar esa llave sin cifrar. Un descarte silencioso
+> habría dejado a esa instancia sin respaldo y sin explicación. **El resto de la consulta se
+> conserva intacto**: `sslmode`, `sslrootcert`, `options`, `application_name`,
+> `connect_timeout` o `target_session_attrs` deciden **cómo** se conecta, y quitarlos
+> dejaría sin poder actualizarse a instancias que hoy funcionan — el error opuesto y
+> peor. Si no hay ningún parámetro de credencial la URL **no se reescribe**, pasa byte
+> a byte. **E74 a E77 y E79**, y los dos mutantes que son los dos errores opuestos.
+>
+> > [!danger] Y el arreglo introdujo la misma fuga por otra puerta — se cazó **leyendo
+> > el diff**, no con el arnés
+> > La primera versión de este cambio pasaba los secretos con
+> > `env PGPASSWORD="$PG_CLAVE" pg_dump …`. Eso deja la asignación **en el `argv` de
+> > `env`**, o sea la contraseña otra vez en `ps`: exactamente lo que el bloque existe
+> > para cerrar. El prefijo de asignación de bash (`PGPASSWORD=… pg_dump …`) no, porque
+> > entra en el entorno del hijo y no aparece en ninguna línea de comandos. **El arnés
+> > pasó en verde**: los dobles ven su propio `argv`, no el del proceso que los lanza,
+> > así que esta clase de defecto **no la puede ver** y no hay mutante que valga.
+> > `correr_pg` conserva el prefijo de asignación de bash —ni `env`, ni un `PGPASSWORD=""`
+> > incondicional, que no es lo mismo que no definirla y rompería `peer`, `trust` y
+> > `.pgpass`— y el porqué está escrito ahí mismo, que es lo único que impide que
+> > alguien lo "simplifique" mañana. Y de la misma clase, cazado igual —escribiendo el
+> > arreglo, no auditándolo—: decidir si la URL se reescribe mirando **«hay
+> > contraseña»** en vez de **«había algo que quitar»** deja la URL entera en `argv`
+> > cuando la consulta trae `?password=` **vacío**, porque esa consulta vacía **pisa**
+> > la clave del `userinfo`. **E79** lo fija, y se vio en rojo contra una copia con la
+> > condición anterior. **Tres defectos propios en el mismo cambio** —éste, el de
+> > `?password=` vacío y el de `PGSSLPASSWORD` (arriba)—, los tres del ejecutor y
+> > ninguno de la auditoría, y **ninguno de los tres lo vio el arnés en verde**:
+> > escribir el arreglo de una fuga resultó tan peligroso como la fuga.
+>
+> **Y una promesa que rompía instancias, borrada:** el README y la cabecera decían que
+> la contraseña podía llevar `@`, `/`, `?` o `\` **sin codificar**. Medido: de los
+> cuatro, sólo la barra invertida la aceptan los dos clientes —y en `instancia.env`
+> tampoco, que lo *sourcea* bash—. `pa/ss` y `cl?ve` hacen que
+> `pg-connection-string` lance `Invalid URL`; `@` y `/` los rechaza libpq. Quien
+> siguiera esa instrucción se quedaba con una instancia **cuyo respaldo corría y cuya
+> aplicación y cuyas migraciones no**. Ahora los dos documentos dicen lo mismo:
+> **percent-encoded siempre** (`%40`, `%2F`, `%3F`, `%5C`).
+>
+> **Y la ambigüedad estaba mal descrita, en los dos sitios:** «ante una URL ambigua el
+> update se para con salida 1» sólo es cierto **si la URL no lleva puerto**. Con
+> puerto (`…:5433/spaces?application_name=space-os@demo`) `localhost` cuela como
+> usuario, `demo` cuela como host, se publica un **`base=demo` falso** y el update
+> muere cuatro pasos después como **`BACKUP VACIO`** — o sea que un fallo de **parseo**
+> se presenta como un fallo de **respaldo** y manda a una persona a mirar el sitio
+> equivocado. Arreglar el parseo quedó **fuera de alcance por decisión de Jochelo**;
+> lo que sí cambió es que ese mensaje ahora manda a mirar el **`base=`** antes que
+> `pg_dump`, y que **E78 fija el comportamiento medido** para que el día que se toque
+> se entere alguien. Siguen fuera, y sin tocar: el **multi-host** (`host1,host2`) y la
+> URL de **socket**, que son parada dura.
+>
+> **Y un comentario que decía lo contrario de lo medido**, corregido: `update.sh`
+> afirmaba que cortar por el primer `@` «ni siquiera es lo que hace libpq». **Sí lo
+> hace** —`psql 'postgresql://spaces:p@ssw0rd@host/spaces'` se queja de
+> `could not translate host name "ssw0rd@host"`—. La regla implementada, la del
+> **último** `@`, es la de WHATWG y node-pg; y esa discrepancia entre los dos clientes
+> es justo **lo que hace correcta** la decisión de mandar la clave por el entorno. El
+> comentario, al decirlo al revés, socavaba la razón del diseño.
+>
 > **Y un defecto propio, que salió de remedir:** documentar todo esto en la cabecera
 > del script **descuadró el `--help`**, que imprime un rango de líneas **fijo**
-> (`sed -n '2,113p' "$0"`) y se comió las cuatro últimas sin decir nada. Corregido y
+> (`sed -n '2,121p' "$0"`, y era `2,113p` hasta el ciclo 3) y se comió las cuatro
+> últimas sin decir nada. Corregido y
 > fijado por **E73**, que lo comprueba por los **dos** extremos —la última línea que le
 > toca y la primera que ya no—; hasta el 19/08 no había nada que lo mirara.
 

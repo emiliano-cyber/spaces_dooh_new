@@ -71,10 +71,18 @@
 #    DATABASE_URL=postgresql://…   (o*) conexion PRIVILEGIADA: migraciones y
 #                                       respaldo. NO es la del app (esa es
 #                                       `spaces_app`, sin DDL). (*) si falta,
-#                                       se toma la de ENV_APP y se avisa. La
-#                                       clave puede llevar @ / ? o \ sin
-#                                       codificar; el host tiene que quedar
-#                                       DETRAS del ultimo @ o el update se para.
+#                                       se toma la de ENV_APP y se avisa.
+#                                       La clave va SIEMPRE percent-encoded:
+#                                       %40 por @, %2F por /, %3F por ? y %5C
+#                                       por la barra invertida. Sin codificar,
+#                                       cada cliente se rompe con un caracter
+#                                       distinto —medido el 19/08— y este
+#                                       archivo ademas lo sourcea bash. Si la
+#                                       clave va en la CONSULTA (`?password=`)
+#                                       tambien vale: el update la saca de ahi
+#                                       y la manda por PGPASSWORD, conservando
+#                                       el resto de la consulta. `?sslpassword=`
+#                                       tambien sale, pero se PIERDE: avisa.
 #    IMAGEN_NOMBRE=space-os             nombre de la imagen dentro del registry
 #    CONTENEDOR=space-os                nombre del contenedor que sirve
 #    ENV_APP=/etc/space-os/app.env      variables de la app (docker --env-file)
@@ -318,7 +326,7 @@ for arg in "$@"; do
     # documentar como se lee DATABASE_URL: un rango fijo caduca en cuanto la
     # cabecera crece, y las tres veces se descubrio tarde. Se remide leyendo, no
     # restando — y desde el 19/08 lo comprueba E73 por los dos extremos.
-    -h|--help) sed -n '2,113p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,121p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -517,10 +525,16 @@ esac
 # recortes distintos a 36 lineas uno del otro, y cada uno estaba mal a su
 # manera: el del log quitaba la consulta ANTES de cortar por el ultimo `@`, asi
 # que una clave con `?` decapitaba la cadena y publicaba `spaces:cl`; el de
-# argv cortaba por el PRIMER `@`, que ademas ni siquiera es lo que hace libpq
-# —`postgresql://spaces@ssw0rd@localhost/spaces` no conecta: "could not
-# translate host name"— o sea que esa instancia no podia ni respaldar ni
-# actualizarse. Dos implementaciones del mismo recorte se separan otra vez al
+# argv cortaba por el PRIMER `@`, y con eso dejaba media contrasena en `ps` y
+# una URL que no conecta. Ojo con el porque, que este comentario tuvo AL REVES
+# hasta el 19/08: cortar por el primer `@` SI es lo que hace libpq —medido
+# contra `psql` 16, `postgresql://spaces:p@ssw0rd@host/spaces` se queja de
+# «could not translate host name "ssw0rd@host"»—. La regla implementada, la del
+# ULTIMO `@`, es la de WHATWG y la de `pg-connection-string`, o sea la del
+# parser de la app y del runner de migraciones. Y esa discrepancia entre los dos
+# clientes NO es un detalle: es exactamente lo que obliga a sacar la clave de la
+# URL y mandarla por el entorno, en vez de confiar en que los dos recorten
+# igual. Dos implementaciones del mismo recorte se separan otra vez al
 # siguiente cambio; por eso ahora hay una.
 #
 # Las reglas, que son las de un parser de URL y no las de un `sed`:
@@ -529,7 +543,11 @@ esac
 #     estar ausente, y puede no haber ni usuario ni `@` ninguno;
 #   · el usuario NO puede llevar `/`, `?` ni `#` sin codificar, y el host tiene
 #     que parecer un host: eso es lo que distingue "se entendio la cadena" de
-#     "se le dio un tijeretazo".
+#     "se le dio un tijeretazo";
+#   · y la CONSULTA tambien puede llevar credencial: `?password=` y
+#     `?sslpassword=` son parametros de libpq y hay que separarlos igual que el
+#     `userinfo`. Los demas parametros de la consulta se conservan INTACTOS —ver
+#     `quitar_credencial_de_consulta`, abajo—.
 # Si algo de eso no cuadra, FALLA CERRADO: devuelve 1 y no se publica NADA de
 # esa cadena, porque lo que no se entiende bien puede ser la contrasena entera.
 # Cortar de mas esconde el host y se diagnostica peor; cortar de menos manda la
@@ -538,19 +556,91 @@ esac
 # `scripts/migrar.mjs:225-232`, que alli se puede escribir con `new URL()`.
 #
 # Queda una ambiguedad que ninguna regla resuelve: una URL SIN credencial cuya
-# CONSULTA lleve un `@` (`…/spaces?opt=a@b`) es indistinguible de una con clave
-# rara, y se lee como si tuviera credencial. Se recorta de mas, el `--dbname`
-# no conecta y el update se para — que es el lado barato de equivocarse.
+# CONSULTA lleve un `@` (`…/spaces?application_name=space-os@demo`, que libpq
+# acepta) es indistinguible de una con clave rara, y se lee como si tuviera
+# credencial. Lo que pasa despues depende de si la URL lleva PUERTO, y hasta el
+# 19/08 aqui y en el README se afirmaba solo la mitad buena («se para con
+# salida 1»):
+#   · SIN puerto (`…/spaces?opt=a@b`): lo que queda delante del `@` lleva `/` y
+#     `?`, no pasa por usuario, se falla cerrado y el update se para con 1.
+#   · CON puerto (`…:5433/spaces?opt=a@b`): `localhost` cuela como usuario y `b`
+#     cuela como host. NO se para: publica un `base=b` falso y muere cuatro
+#     pasos mas adelante en el respaldo, como `BACKUP VACIO`. Un fallo de
+#     PARSEO disfrazado de fallo de RESPALDO manda a una persona a mirar el
+#     sitio equivocado; por eso ese mensaje dice ahora que se mire el `base=`
+#     antes que `pg_dump`.
+# Cerrar el caso con puerto exige distinguir "usuario" de "host" sin poder, y
+# queda fuera de alcance a proposito. Lo fija E78: si alguien lo cambia, se
+# entera.
 URL_ESQUEMA=''
 URL_USUARIO=''
 URL_CLAVE_CRUDA=''
 URL_HAY_CLAVE=0
 URL_DESTINO=''
 URL_DESTINO_COMPLETO=''
+# Lo que sale de la CONSULTA: la parte que si puede ir a argv, y las dos
+# credenciales que libpq admite ahi dentro.
+URL_DESTINO_SIN_CLAVE=''
+URL_CONSULTA_CLAVE=''
+URL_HAY_CONSULTA_CLAVE=0
+URL_CONSULTA_SSLCLAVE=''
+URL_HAY_CONSULTA_SSLCLAVE=0
+
+# De `host[:puerto][/base][?consulta]` quita SOLO los parametros que llevan
+# credencial, y deja el resto de la consulta byte a byte como estaba.
+#
+# Cuales llevan credencial: `password` —la contrasena de Postgres— y
+# `sslpassword` —la frase de paso de la llave del certificado de cliente—. Son
+# los dos unicos parametros de libpq cuyo VALOR es un secreto. `passfile` y
+# `sslkey` son RUTAS a un archivo, no el secreto, y quitarlas cambiaria como se
+# conecta.
+#
+# Y lo que NO se toca importa mas que lo que se quita: `sslmode`, `sslrootcert`,
+# `options`, `application_name`, `connect_timeout` o `target_session_attrs`
+# deciden COMO se conecta. Quitar la consulta entera —la solucion facil— dejaria
+# sin poder actualizarse a instancias que hoy funcionan, y eso es peor que la
+# fuga que se cierra. Lo fija E77, con la clave EN MEDIO de los otros seis.
+#
+# Si no aparece ningun parametro de credencial la cadena NO se reconstruye:
+# vuelve tal cual entro. Asi el caso normal —la inmensa mayoria de las
+# instancias, que no llevan `password=` en la consulta— no puede romperse por
+# un error al volver a pegar los `&`.
+quitar_credencial_de_consulta() {
+  local completo="$1" base consulta par nombre resto nueva=''
+  URL_DESTINO_SIN_CLAVE="$completo"
+  URL_CONSULTA_CLAVE=''; URL_HAY_CONSULTA_CLAVE=0
+  URL_CONSULTA_SSLCLAVE=''; URL_HAY_CONSULTA_SSLCLAVE=0
+  case "$completo" in *'?'*) ;; *) return 0 ;; esac
+  base="${completo%%'?'*}"
+  consulta="${completo#*'?'}"
+  resto="$consulta"
+  while [ -n "$resto" ]; do
+    par="${resto%%&*}"
+    case "$resto" in *'&'*) resto="${resto#*&}" ;; *) resto='' ;; esac
+    nombre=''
+    case "$par" in *=*) nombre="${par%%=*}" ;; esac
+    # Los nombres van EXACTAMENTE como los escribe libpq, en minusculas y sin
+    # tolerancia: `?PASSWORD=` en mayusculas no es un parametro de conexion —
+    # libpq lo rechaza con «invalid URI query parameter»—, asi que esa URL no ha
+    # funcionado nunca en ninguna instancia y aqui no se le inventa un
+    # significado. Limite conocido y aceptado: en ese caso el parametro SI viaja
+    # en argv, y el update muere en el respaldo con el mensaje del propio libpq.
+    case "$nombre" in
+      password)    URL_HAY_CONSULTA_CLAVE=1;    URL_CONSULTA_CLAVE="${par#*=}";    continue ;;
+      sslpassword) URL_HAY_CONSULTA_SSLCLAVE=1; URL_CONSULTA_SSLCLAVE="${par#*=}"; continue ;;
+    esac
+    if [ -z "$nueva" ]; then nueva="$par"; else nueva="$nueva&$par"; fi
+  done
+  if [ "$URL_HAY_CONSULTA_CLAVE" = 1 ] || [ "$URL_HAY_CONSULTA_SSLCLAVE" = 1 ]; then
+    if [ -n "$nueva" ]; then URL_DESTINO_SIN_CLAVE="$base?$nueva"; else URL_DESTINO_SIN_CLAVE="$base"; fi
+  fi
+  return 0
+}
 partir_url() {
   local url="$1" resto credencial usuario destino
   URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0
   URL_DESTINO=''; URL_DESTINO_COMPLETO=''
+  quitar_credencial_de_consulta ''
   # Sin `esquema://` no es una URL: puede ser una cadena `clave=valor` de libpq,
   # que lleva la contrasena en mitad del texto y no tiene nada que recortar.
   case "$url" in *://*) ;; *) return 1 ;; esac
@@ -581,6 +671,10 @@ partir_url() {
     return 1
   fi
   URL_DESTINO="$destino"
+  # La credencial tambien puede venir en la consulta, y se separa AQUI: en el
+  # unico parseo, para que no vuelvan a existir dos recortes que se
+  # desincronizan al siguiente cambio.
+  quitar_credencial_de_consulta "$URL_DESTINO_COMPLETO"
   return 0
 }
 
@@ -636,7 +730,7 @@ export DATABASE_URL
 # `pg_dump --dbname="postgresql://usuario:clave@…"` deja la clave visible en
 # `ps` para cualquier usuario de la maquina. `deploy.yml:119` lo evita con
 # `sudo -u postgres` (autenticacion peer, sin clave); aqui la conexion es por
-# red, asi que se parte: usuario y destino en argv, clave por PGPASSWORD.
+# red, asi que se parte: usuario y destino en argv, la clave por PGPASSWORD.
 #
 # El recorte es el MISMO que el del log —`partir_url`, arriba—, y no una copia:
 # cuando eran dos, uno cortaba por el ultimo `@` y el otro por el primero, y el
@@ -646,25 +740,83 @@ export DATABASE_URL
 # —media contrasena en `ps` y una URL que libpq tampoco entiende—, y de
 # `spaces:pa/ss@…` salia la URL ENTERA, con la clave dentro, porque el guard
 # `[^@/]+@` ni dejaba entrar al bloque.
+#
+# Y hasta el 19/08 quedaba la otra mitad: el `userinfo` se desarmaba pero la
+# CONSULTA se pasaba entera, asi que
+# `postgresql://spaces@host:5433/spaces?password=secreto` viajaba a argv con la
+# contrasena dentro. No es una forma inventada —libpq la acepta, medido con
+# `psql` 16— y ademas es la que GANA: con una clave en el `userinfo` y otra en
+# `?password=`, libpq y `pg-connection-string` 2.14.0 usan las dos la de la
+# consulta (medido contra un Postgres real: con `userinfo` mala y consulta
+# buena la conexion entra; al reves, «password authentication failed»). Por eso
+# la de la consulta pisa a la del `userinfo` tambien aqui: elegir la otra
+# arreglaria la fuga a cambio de un respaldo que ya no corre.
+#
+# `PGPASSWORD` es la de MENOR precedencia de las tres —userinfo, consulta y
+# entorno—: solo la mira libpq cuando la URL no trae ninguna. Por eso hay que
+# quitarlas de la URL: no basta con exportar la buena.
 PG_URL_SEGURA="$DATABASE_URL"
 PG_CLAVE=""
+# `reescribir` no es lo mismo que "hay clave": una consulta con `?password=` y el
+# valor VACIO tambien obliga a reescribir. Si se decidiera mirando `$PG_CLAVE`,
+# `postgresql://spaces:SECRETO@host/db?password=` acabaria con PG_CLAVE vacia —la
+# consulta pisa al userinfo, y esta vacia— y la URL ENTERA, con SECRETO dentro,
+# pasaria a argv. Medido al escribir esto. Lo fija E79.
+reescribir=0
 if partir_url "$DATABASE_URL"; then
   if [ "$URL_HAY_CLAVE" = 1 ] && [ -n "$URL_CLAVE_CRUDA" ]; then
     PG_CLAVE="$(decodificar_porciento "$URL_CLAVE_CRUDA")"
-    # La consulta (`?sslmode=…`) se conserva: quitarla cambiaria como se conecta.
-    PG_URL_SEGURA="$URL_ESQUEMA://$URL_USUARIO@$URL_DESTINO_COMPLETO"
+    reescribir=1
   fi
-  # Sin clave en la URL (peer, trust o .pgpass) no hay nada que esconder y la
-  # URL pasa tal cual: no lleva credencial que quitar.
+  # La de la consulta manda sobre la del `userinfo`, como en los dos clientes.
+  if [ "$URL_HAY_CONSULTA_CLAVE" = 1 ]; then
+    PG_CLAVE="$(decodificar_porciento "$URL_CONSULTA_CLAVE")"
+    reescribir=1
+  fi
+  # `sslpassword` —la frase de paso de la llave del certificado de cliente— es
+  # credencial igual y sale de la URL igual, pero NO hay por donde reenviarla:
+  # libpq no tiene variable de entorno para ella. Medido el 19/08 sobre el
+  # binario de `postgres:16-alpine`: dentro de `libpq.so.5` estan `PGSSLMODE`,
+  # `PGSSLKEY`, `PGSSLCERT` y `PGSSLROOTCERT`, y `PGSSLPASSWORD` **no aparece ni
+  # una vez**. Este bloque se escribio primero usandola —es el error facil:
+  # parece que tiene que existir, y "funciona" porque una variable que nadie lee
+  # tampoco estorba—. Asi que se DESCARTA, y queda dicho en el log: si la llave
+  # del cliente esta cifrada, `pg_dump` va a pedir la frase por una consola que
+  # no existe, el respaldo fallara y el update se parara en BACKUP VACIO **sin
+  # tocar nada** — que es el lado bueno de equivocarse. La salida para esa
+  # instancia es dejar esa llave sin cifrar, que es lo que necesita cualquier
+  # proceso desatendido. El aviso NO dice el valor: solo que estaba.
+  if [ "$URL_HAY_CONSULTA_SSLCLAVE" = 1 ]; then
+    registrar "AVISO update: DATABASE_URL trae \`sslpassword\` en la consulta. Se quita de la URL —en argv seria visible con \`ps\` para cualquier proceso del droplet— y NO se puede reenviar: PGSSLPASSWORD no existe en libpq 16 (medido sobre libpq.so.5). Si la llave del certificado de cliente esta cifrada, el respaldo va a fallar y el update se parara antes de tocar nada; la salida es dejar esa llave sin cifrar."
+    reescribir=1
+  fi
+  # La URL solo se REESCRIBE si habia algo que quitar. Si no habia credencial
+  # en ningun sitio (peer, trust o .pgpass) pasa tal cual, byte a byte: no hay
+  # forma de estropear la consulta de una instancia que hoy funciona.
+  if [ "$reescribir" = 1 ]; then
+    PG_URL_SEGURA="$URL_ESQUEMA://${URL_USUARIO:+$URL_USUARIO@}$URL_DESTINO_SIN_CLAVE"
+  fi
 else
   # Falla CERRADO. La alternativa —pasarla entera a `--dbname`— es exactamente
   # la fuga que esta tarea quita, y encima no funcionaria: si aqui no se pudo
   # separar la clave, libpq tampoco va a poder.
-  salir "$EX_CONFIG" "ERROR update: no se puede interpretar DATABASE_URL como URL de conexion; base=(url no parseable). No se publica ni un trozo de esa cadena —lo que no se entiende puede ser la contrasena— y sin separarla no se puede respaldar sin dejarla en argv, visible con \`ps\` para cualquier proceso del droplet. Nada se toco. La forma esperada es esquema://[usuario[:clave]@]host[:puerto]/base: la clave puede llevar @, / o ? sin codificar, pero el host tiene que quedar DETRAS del ultimo @. Revisa DATABASE_URL en $CONF o en $ENV_APP."
+  salir "$EX_CONFIG" "ERROR update: no se puede interpretar DATABASE_URL como URL de conexion; base=(url no parseable). No se publica ni un trozo de esa cadena —lo que no se entiende puede ser la contrasena— y sin separarla no se puede respaldar sin dejarla en argv, visible con \`ps\` para cualquier proceso del droplet. Nada se toco. La forma esperada es esquema://[usuario[:clave]@]host[:puerto]/base con la clave PERCENT-ENCODED: %40 por @, %2F por /, %3F por ? y %5C por la barra invertida. Sin codificar cada cliente se rompe con un caracter distinto —libpq corta por el PRIMER @ y no admite / en la clave; el parser de la app y del runner no admite / ? ni #— y este archivo, ademas, lo sourcea bash. Revisa DATABASE_URL en $CONF o en $ENV_APP."
 fi
 
 # `pg_dump`/`pg_restore` siempre por aqui: un solo sitio decide como viaja la
 # clave. `$binario` se pasa como argumento para respetar PG_DUMP/PG_RESTORE.
+#
+# Las dos formas cortas de escribir esto estan las dos MAL:
+#   · `env PGPASSWORD="$PG_CLAVE" "$binario" …` deja la asignacion en el ARGV
+#     DE `env`, o sea otra vez la contrasena en `ps` — justo la fuga que este
+#     bloque existe para cerrar. El prefijo de asignacion de bash no: entra en el
+#     entorno del hijo y no aparece en ninguna linea de comandos. Se escribio con
+#     `env` mientras se hacia este cambio y el arnes NO lo vio: los dobles
+#     reciben su propio argv, no el del proceso que los lanza.
+#   · un `PGPASSWORD="$PG_CLAVE"` incondicional "por si acaso" tampoco: una
+#     variable VACIA no es lo mismo que no definirla —libpq leeria una
+#     contrasena vacia en vez de caer a `.pgpass`— y ahi se pierden las
+#     instancias que se autentican por `peer`, `trust` o `.pgpass`.
 correr_pg() {
   local binario="$1"
   shift
@@ -904,7 +1056,11 @@ if [ "$codigo" -ne 0 ] || [ ! -s "$BK" ]; then
   # hora— y el bueno es el de al lado; el dia que alguien restaure a mano bajo
   # presion, elegir el mas reciente seria elegir el vacio.
   rm -f "$BK"
-  salir "$EX_CONFIG" "BACKUP VACIO — abortado. El archivo de 0 bytes se borro para que no se confunda con un respaldo bueno. No se toco ni la base ni el contenedor. Revisa $PG_DUMP contra $(destino_de_url "$DATABASE_URL")."
+  # El `base=` va DELANTE de "revisa pg_dump" a proposito. Una URL ambigua —una
+  # consulta con un `@` dentro— no se para: se recorta mal, apunta a un host
+  # inventado y el respaldo muere aqui. Sin esta frase, un fallo de PARSEO se
+  # lee como un fallo de RESPALDO y manda a mirar el sitio equivocado.
+  salir "$EX_CONFIG" "BACKUP VACIO — abortado. El archivo de 0 bytes se borro para que no se confunda con un respaldo bueno. No se toco ni la base ni el contenedor. Mira primero base=$(destino_de_url "$DATABASE_URL"): si esa NO es la base de esta instancia, lo que fallo fue interpretar DATABASE_URL —no el respaldo— y hay que revisar la URL en $CONF. Si si lo es, revisa $PG_DUMP contra ella."
 fi
 registrar "   respaldo de $(wc -c <"$BK") bytes"
 

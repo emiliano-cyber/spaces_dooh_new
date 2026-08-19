@@ -182,6 +182,7 @@ FIN
 #!/usr/bin/env bash
 printf 'pg_dump %s\n' "$*" >>"$REG_LLAMADAS"
 printf 'pg_dump PGPASSWORD=[%s]\n' "${PGPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
+printf 'pg_dump PGSSLPASSWORD=[%s]\n' "${PGSSLPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
 archivo=''
 for a in "$@"; do case "$a" in --file=*) archivo="${a#--file=}" ;; esac; done
 [ "${PGD_FALLA:-0}" = 1 ] && exit 1
@@ -297,6 +298,7 @@ FIN
 #!/usr/bin/env bash
 printf 'pg_restore %s\n' "$*" >>"$REG_LLAMADAS"
 printf 'pg_restore PGPASSWORD=[%s]\n' "${PGPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
+printf 'pg_restore PGSSLPASSWORD=[%s]\n' "${PGSSLPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
 exit "${PGR_CODIGO:-0}"
 FIN
 
@@ -461,6 +463,15 @@ pgpassword_es() {
 pgpassword_sin_definir() {
   if grep -qF -- 'PGPASSWORD=[<NO-DEFINIDA>]' "$REG_PGENV" 2>/dev/null; then bien
   else mal "se esperaba PGPASSWORD sin definir, y fue: $(tr '\n' ' ' <"$REG_PGENV" 2>/dev/null)"; fi
+}
+# La frase de paso de la llave del certificado de cliente. NO viaja por el
+# entorno —`PGSSLPASSWORD` no existe en libpq: medido sobre `libpq.so.5`—, asi
+# que el unico predicado que tiene sentido es el negativo: sale de la URL y no
+# la sustituye nada. `PGSSLPASSWORD` no contiene la cadena `PGPASSWORD`, asi que
+# este predicado y `pgpassword_es` no se pisan.
+pgsslpassword_sin_definir() {
+  if grep -qF -- 'PGSSLPASSWORD=[<NO-DEFINIDA>]' "$REG_PGENV" 2>/dev/null; then bien
+  else mal "se esperaba PGSSLPASSWORD sin definir, y fue: $(tr '\n' ' ' <"$REG_PGENV" 2>/dev/null)"; fi
 }
 # El `--dbname` EXACTO que llego a argv. Se compara entero y con `-F`: media
 # comprobacion ("no aparece la clave") deja pasar la URL rota que no conecta.
@@ -1564,6 +1575,137 @@ log_dice 'fuera con `grep -c reintento'
 log_calla 'Cron: una vez al dia'
 limpiar
 
+# ─── LA CREDENCIAL EN LA CONSULTA (E74-E79) ────────────────────────────────
+#  La familia de E62-E72 mira la credencial del `userinfo`. Esta mira la OTRA
+#  via, la que hasta el 19/08 no miraba nadie: la CONSULTA. `?password=` y
+#  `?sslpassword=` son parametros documentados de libpq y viajaban ENTEROS al
+#  `--dbname`, o sea a `argv`, o sea a un `ps` de cualquier proceso del droplet.
+#  Medido contra un Postgres real (contenedor efimero, 19/08):
+#    · `?password=` no es una forma inventada: libpq la acepta, y `pg-connection
+#      -string` 2.14.0 —el parser de la app y de `scripts/migrar.mjs`— tambien;
+#    · y GANA sobre la clave del `userinfo` en los DOS. Con `userinfo` mala y
+#      consulta buena la conexion entra; al reves, falla la autenticacion.
+#  Por eso la clave efectiva que va a PGPASSWORD es la de la consulta cuando
+#  las dos estan.
+#  La otra mitad de estos escenarios es la que evita el arreglo destructivo:
+#  `sslmode`, `sslrootcert`, `options`, `application_name`, `connect_timeout` y
+#  `target_session_attrs` CAMBIAN COMO SE CONECTA. Quitar la consulta entera
+#  dejaria sin poder actualizarse a instancias que hoy funcionan, que es peor
+#  que la fuga que se cierra.
+
+# E74 · `?password=` y ninguna clave en el userinfo. La fuga en su forma mas
+#       pura: no habia NADA que recortar por el `@`, asi que la URL entera
+#       —contrasena incluida— se pasaba a `--dbname`.
+preparar 'E74 la clave de la consulta no llega a argv (F3.9, ciclo 3)'
+usar_url 'postgresql://spaces@localhost:5433/spaces?password=CLAVE-EN-LA-CONSULTA'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-EN-LA-CONSULTA'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'CLAVE-EN-LA-CONSULTA'
+no_hubo 'password='
+pgpassword_es 'CLAVE-EN-LA-CONSULTA'
+limpiar
+
+# E75 · `?sslpassword=` — la frase de paso de la llave del certificado de
+#       cliente. Es credencial igual, viajaba entera a argv, y sale de ahi; pero
+#       NO se reenvia por el entorno, porque **libpq no tiene variable para ella**
+#       (medido el 19/08 sobre `libpq.so.5`: `PGSSLPASSWORD` no aparece ni una
+#       vez, y `PGSSLMODE`/`PGSSLKEY`/`PGSSLCERT`/`PGSSLROOTCERT` si). El primer
+#       intento de este ciclo la mandaba por `PGSSLPASSWORD` y "funcionaba":
+#       una variable que nadie lee tampoco estorba. Asi que se DESCARTA y el log
+#       lo dice — un descarte silencioso dejaria sin respaldo, sin explicacion, a
+#       una instancia con la llave cifrada. Y el `sslmode` que la acompana NO se
+#       toca: el escenario afirma las tres cosas a la vez.
+preparar 'E75 la frase de la llave sale de argv, se descarta y se dice (F3.9, ciclo 3)'
+usar_url 'postgresql://spaces:cl%40ve@localhost:5433/spaces?sslmode=verify-full&sslpassword=FRASE-DE-LA-LLAVE'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'FRASE-DE-LA-LLAVE'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces?sslmode=verify-full'
+no_hubo 'FRASE-DE-LA-LLAVE'
+no_hubo 'sslpassword'
+pgpassword_es 'cl@ve'
+pgsslpassword_sin_definir
+log_dice 'PGSSLPASSWORD no existe en libpq 16'
+limpiar
+
+# E76 · las dos vias a la vez y las TRES credenciales en la misma URL. Fija la
+#       precedencia medida: gana la de la consulta. Si se eligiera la del
+#       `userinfo`, `pg_dump` se autenticaria con una clave distinta de la que
+#       usa la app y el respaldo no correria — una fuga arreglada a cambio de
+#       una instancia que ya no se actualiza.
+preparar 'E76 con clave en el userinfo Y en la consulta, gana la de la consulta (F3.9, ciclo 3)'
+usar_url 'postgresql://spaces:CLAVE-DEL-USERINFO@localhost:5433/spaces?password=CLAVE-DE-LA-CONSULTA&sslpassword=FRASE-DE-LA-LLAVE'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-DEL-USERINFO'
+subido_calla 'CLAVE-DE-LA-CONSULTA'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'CLAVE-DEL-USERINFO'
+no_hubo 'CLAVE-DE-LA-CONSULTA'
+no_hubo 'FRASE-DE-LA-LLAVE'
+pgpassword_es 'CLAVE-DE-LA-CONSULTA'
+pgsslpassword_sin_definir
+limpiar
+
+# E77 · EL ESCENARIO QUE IMPIDE EL ARREGLO DESTRUCTIVO. Seis parametros que
+#       cambian como se conecta, con la contrasena EN MEDIO —la posicion dificil,
+#       la que obliga a volver a pegar los `&` bien—. Los seis tienen que llegar
+#       intactos, en su orden y con su percent-encoding sin tocar: `options` sin
+#       su `%20` no es el mismo `options`.
+preparar 'E77 lo que cambia como se conecta llega intacto a argv (F3.9, ciclo 3)'
+usar_url 'postgresql://spaces@localhost:5433/spaces?sslmode=require&password=CLAVE-EN-MEDIO&application_name=space-os-update&options=-c%20statement_timeout%3D0&connect_timeout=10&target_session_attrs=read-write&sslrootcert=/etc/ssl/ca.crt'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-EN-MEDIO'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces?sslmode=require&application_name=space-os-update&options=-c%20statement_timeout%3D0&connect_timeout=10&target_session_attrs=read-write&sslrootcert=/etc/ssl/ca.crt'
+no_hubo 'CLAVE-EN-MEDIO'
+pgpassword_es 'CLAVE-EN-MEDIO'
+limpiar
+
+# E78 · LA AMBIGUEDAD, TAL Y COMO ES · una URL SIN credencial cuya consulta
+#       lleva un `@` (`?application_name=space-os@demo`, que libpq acepta) se lee
+#       como si tuviera credencial. Lo que documentaban el README y la cabecera
+#       —"se para con salida 1"— solo pasa si la URL NO lleva puerto: con puerto,
+#       `localhost` cuela como usuario, `demo` cuela como host y el update SIGUE.
+#       Esto NO es lo deseable, es lo MEDIDO: arreglar el parseo esta fuera del
+#       alcance de este ciclo por decision de Jochelo, asi que se fija aqui para
+#       que nadie lo cambie sin enterarse, y los documentos se corrigen para que
+#       digan esto y no otra cosa. Lo que si cambia es el mensaje: un fallo de
+#       PARSEO se presentaba como un fallo de RESPALDO, y eso manda a una
+#       persona a mirar `pg_dump` cuando el problema esta en la URL.
+preparar 'E78 la URL ambigua CON puerto no se para: el mensaje lo dice (F3.9, ciclo 3)'
+usar_url 'postgresql://localhost:5433/spaces?application_name=space-os@demo'
+export PGD_FALLA=1
+correr
+codigo_es 1
+log_dice 'BACKUP VACIO'
+log_dice 'base=demo'
+log_dice 'lo que fallo fue interpretar DATABASE_URL'
+limpiar
+
+# E79 · `?password=` con el valor VACIO y una clave de verdad en el `userinfo`.
+#       Sale de escribir el arreglo, no de la auditoria: si la reescritura de la
+#       URL se decide mirando «hay contrasena» en vez de «habia algo que quitar»,
+#       la consulta vacia **pisa** a la del userinfo —gana la de la consulta—, la
+#       clave efectiva queda vacia, no se reescribe nada y la URL ENTERA, con
+#       `SECRETO-DEL-USERINFO` dentro, se va a argv. Un caso absurdo de escribir a
+#       mano que produce exactamente la fuga que este ciclo cierra.
+preparar 'E79 la consulta vacia no deja la clave del userinfo en argv (F3.9, ciclo 3)'
+usar_url 'postgresql://spaces:SECRETO-DEL-USERINFO@localhost:5433/spaces?password='
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'SECRETO-DEL-USERINFO'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'SECRETO-DEL-USERINFO'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -1711,6 +1853,22 @@ if [ "${1:-}" = '--mutantes' ]; then
     "s,else printf '%s' '(url no parseable)',else printf \"%s\" \"\$1\","
   probar_mutante 'no duplicar la barra invertida antes del printf %b' \
     's,^    \*%\*) s=.*,    *%*) s="$1"; printf "%b" "${s//%/\\\\\\\\x}" ;;,'
+
+  # Y los cinco del 19/08 (ciclo 3): la credencial que viajaba en la CONSULTA.
+  # Los dos primeros son los dos errores opuestos del mismo arreglo —no quitar
+  # nada, y quitar la consulta entera—, que es justo el par que hay que poder
+  # distinguir para no cambiar una fuga por una instancia que ya no se
+  # actualiza.
+  probar_mutante 'pasar la consulta ENTERA a argv, con `?password=` dentro' \
+    's#{URL_USUARIO:+\$URL_USUARIO@}\$URL_DESTINO_SIN_CLAVE#{URL_USUARIO:+$URL_USUARIO@}$URL_DESTINO_COMPLETO#'
+  probar_mutante 'quitar la consulta ENTERA: se lleva por delante sslmode y options' \
+    's#{URL_USUARIO:+\$URL_USUARIO@}\$URL_DESTINO_SIN_CLAVE#{URL_USUARIO:+$URL_USUARIO@}$URL_DESTINO#'
+  probar_mutante 'que gane la clave del userinfo sobre la de la consulta' \
+    's#^  if \[ "\$URL_HAY_CONSULTA_CLAVE" = 1 \]; then$#  if false                              ; then#'
+  probar_mutante 'no reconocer `sslpassword`: se queda en la URL y se va a argv' \
+    's,^      sslpassword) URL_HAY,      sslpasswordx) URL_HAY,'
+  probar_mutante 'decidir la reescritura por "hay clave" en vez de "habia algo que quitar"' \
+    's#^  if \[ "\$reescribir" = 1 \]; then$#  if [ -n "$PG_CLAVE" ]; then#'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
