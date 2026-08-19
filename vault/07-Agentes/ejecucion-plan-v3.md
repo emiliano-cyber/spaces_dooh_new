@@ -188,13 +188,15 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
 >
-> - **H1** · `update.sh:1150` y `:1160` —**remedidas leyendo tras `6fb93ec`**, que dejó el archivo
->   en **1181** líneas. El `pg_restore` sin guarda `-s "$BK"` de la misma zona está hoy en
->   **`:1158`**; ver el
+> - **H1** · **los dos `salir "$EX_VUELTA_FALLO"` con «VUELTA ATRAS A MEDIAS»**, dentro de §7a
+>   (al 19/08 tras `32042e5`: `update.sh:1397` y `:1407`, archivo de **1428** líneas). El
+>   `pg_restore` sin guarda `-s "$BK"` es la **única llamada a `correr_pg "$PG_RESTORE"`**
+>   (`:1405`). **Cítalas por lo que son, no por su número**: este archivo ha movido esas líneas
+>   ocho veces en tres días; ver el
 >   aviso de más abajo sobre las tres veces que estas citas han derivado— la frase «el
 >   contenedor de la version anterior esta
 >   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
->   (`update.sh:953`) existe justo porque ese estado no siempre es cierto: si el `rename` de 5b
+>   (la función `comando_rescate()`, hoy `update.sh:1283`) existe justo porque ese estado no siempre es cierto: si el `rename` de 5b
 >   falló (`RENOMBRADO=0`), el viejo conserva su nombre y `${CONTENEDOR}-anterior` **no
 >   existe** —lo borró `docker rm -f` en `:765`—. El camino es alcanzable. El comando que se
 >   imprime **sí** es correcto en las dos ramas; lo que miente es la frase que va delante, en
@@ -231,7 +233,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **Hallazgos abiertos, ninguno invalidante:**
 >
 > - **H-1 (el único que separa esto del verde)** · `update.sh:279-281` y `README.md:106` afirman
->   que `PULL_ESPERAS` vacío desactiva los reintentos (hoy en `update.sh:499` y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
+>   que `PULL_ESPERAS` vacío desactiva los reintentos (la asignación `PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"`, hoy `update.sh:507`, y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
 >   también cuando la variable está **vacía**, no solo cuando falta. Medido escribiendo
 >   `PULL_ESPERAS=""` en `instancia.env`, que es lo que haría un operador: **3 reintentos igual**.
 >   Con un espacio (`" "`) sí da 0, y eso no está escrito en ningún sitio. Falla del lado seguro
@@ -424,6 +426,28 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > Fase 2 dice 5 y son 6, **Fase 3 dice 6 y son 9**, Fase 5 dice 7 y son 8, Fase 6 dice 3 y son 4.
 > Suma ~34 contra las **46** del v3. Quien lea esa nota para saber cuánto falta, se llevará una
 > cifra del plan archivado.
+
+> [!important] ✅ Adoptado el 19/08: **`update.sh` se cita por NOMBRE, no por número**
+> Van **ocho** correcciones de citas en tres días sobre este archivo, que ha pasado de **786 a
+> 1428 líneas**. El patrón no es descuido: **cualquier cita numérica a `update.sh` caduca en el
+> commit siguiente**. Anclas estables, medidas el 19/08 tras `32042e5`:
+>
+> | Ancla | Hoy |
+> |---|---|
+> | `subir_log_remoto()` | `:366` |
+> | `clasificar_consulta()` | `:647` |
+> | `partir_url()` | `:689` |
+> | `destino_de_url()` | `:749` |
+> | `decodificar_porciento()` | `:759` |
+> | `correr_pg()` | `:912` |
+> | `correr_runner()` | `:1018` |
+> | `comando_rescate()` | `:1283` |
+>
+> **La regla**: nombra la función o la frase única del mensaje; el número, si acaso, como «hoy
+> está en». Es la misma lección que **M3**: no persigas cada instancia de un problema cuando
+> puedes cerrar la clase.
+> ⚠️ **Quedan ~20 citas numéricas sin remedir en este archivo** y las del diario del 17/08, que
+> es histórico y no se toca. Se convierten a nombre según se vayan tocando.
 
 > [!warning] Propuesta: dejar de citar `update.sh` por número de línea en el tablero
 > Van **siete** correcciones de citas en tres días sobre este archivo, que ha pasado de 786 a
@@ -689,6 +713,25 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > ▸ Y dos roles del enum, **`IMPRENTA` y `FINANZAS`**, se ofrecen al dar de alta un usuario
 > (`components/demo/shell/nav.ts:132-133`) y **no abren nada**: la misma trampa que el ADR 0010 le
 > cerró a `CLIENTE`. Medido, no resuelto: es decisión de negocio.
+
+> [!important] ✅ **M3 EJECUTADA** — `32042e5`, **SIN AUDITAR** (19/08)
+> `pg_dump`/`pg_restore` dejan de recibir la URL: banderas sueltas y `PG*` por entorno. Arnés de
+> **79·399** a **85 escenarios · 532 comprobaciones · 0 rojas**; 40 mutantes, **7 del cambio
+> aislados y cazados** (el clave, «no decodificar el NOMBRE del parámetro», cae con 12 rojas).
+> Rojo primero: **45 comprobaciones**, con la fuga literal a la vista en `argv`.
+>
+> ▸ **Disciplina de medición que merece copiarse:** las tres codificaciones se probaron con
+> `scram-sha-256` **forzado y con control negativo** — porque con el `pg_hba` por omisión de
+> `postgres:16-alpine` **`127.0.0.1` va por `trust` y todo conecta**, así que su primera tanda de
+> «CONECTA» **no valía nada** y la tiró. Salió por la IP de red del contenedor. Igual con
+> `PGSSLROOTCERT`/`PGSSLCERT`/`PGSSLKEY`: sin TLS **no se pueden aislar** —cualquier valor da el
+> mismo «server does not support SSL»—, así que levantó el servidor con certificado.
+>
+> ▸ Corrigió otra cita mía: `README.md:786-788` **no existe** —el README de la raíz tiene 130
+> líneas—; era `infra/scripts/README.md:788`.
+>
+> 🔴 **NO AUDITADA, por decisión de Jochelo de parar aquí.** Es trabajo hecho, **no confirmado**.
+> Las tres veces anteriores que este archivo se dio por bueno, la auditoría encontró algo.
 
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
