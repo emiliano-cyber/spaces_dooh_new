@@ -537,6 +537,28 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > WHATWG/node-pg, y **eso es justamente lo que hace correcto** mandar la clave por `PGPASSWORD`.
 > El tablero y el mensaje del commit lo dicen bien; el comentario dice lo contrario.
 
+> [!important] ✅ **D1 EJECUTADO** — `9d609f0`, pendiente de auditoría (19/08)
+> `rgb` sale del esquema base y vive ahora en **`db/semilla-desarrollo.sql`**, que **no viaja en
+> la imagen**; lo aplican el compose local y `recrearEsquema()` **entre `schema.sql` y las
+> migraciones** — esa posición es la que mantiene el arnés reproduciendo el droplet y la que hace
+> disparar el backfill. Medido: base nueva con **`tenants=0`, `config_negocio=0`**, luego
+> **67 aplicadas / 39 tablas / exit 0**, y 2.ª corrida **0 aplicadas**. E2E corridas por ser
+> tenant: **181 + 1 saltada en 16 archivos**, con `aislamiento.e2e.test.ts` intacto.
+>
+> ▸ **Consecuencia operativa que conviene saber antes del merge:** quien tenga un volumen de
+> Docker viejo **no ve el cambio** (`schema.sql` solo corre al crear el volumen), y quien levante
+> uno nuevo necesita la semilla — el compose ya la monta como `02_semilla_desarrollo.sql`.
+>
+> ▸ **Desbloquea F5.2**, que asume `count(*) from tenants = 0` para su ruta de un solo uso: antes
+> habría dado 1 y **habría contestado 404 siempre**.
+
+> [!danger] 🔴 Hallazgo del mismo ciclo, para la Fase 5: **todas las instancias nacen con la misma
+> contraseña conocida**
+> `apps/web/scripts/bootstrap-auth.mjs` usa `SEED_PASSWORD ?? 'spaces123'` y **el insert no marca
+> `debe_cambiar_password`**. Preexistente y fuera del enunciado, pero en el modelo de instancias
+> deja de ser un detalle de desarrollo: **cada owner nuevo nacería con la credencial que todos
+> conocen**. Material de **F5.2**.
+
 > [!danger] 🔴 El ensayo de Fase 4 encontró DOS defectos que impiden que el modelo funcione
 > **D1 · `db/schema.sql:598` siembra el tenant `rgb` en TODA base nueva.** ROJO: toca tenant.
 > ```sql
