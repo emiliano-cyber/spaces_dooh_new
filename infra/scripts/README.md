@@ -104,7 +104,7 @@ root** — el script avisa si no lo está.
 |---|---|---|
 | `CANAL` | sí | `estable` o `beta`. Cualquier otra cosa detiene el script |
 | `REGISTRY` | sí | de dónde se jala la imagen |
-| `DATABASE_URL` | sí (*) | conexión **privilegiada**: migraciones y respaldo. **No** es la de la app (`spaces_app` no tiene DDL). **La contraseña va percent-encoded** (`%40`, `%2F`, `%3F`, `%5C`): en crudo, cada cliente se rompe con un carácter distinto y la instancia acaba respaldando bien y sirviendo mal — la tabla de §5 dice cuál con cuál. Si la clave viene en la consulta (`?password=`) el update la saca de ahí y la manda por `PGPASSWORD`, **conservando el resto de la consulta**; `?sslpassword=` también sale, pero **se pierde** (§5). Si la cadena no se entiende como URL, el update **se para con salida 1** y no publica ni un trozo de ella; ojo con la excepción de §5: una URL **ambigua con puerto** no se para |
+| `DATABASE_URL` | sí (*) | conexión **privilegiada**: migraciones y respaldo. **No** es la de la app (`spaces_app` no tiene DDL). **La contraseña va percent-encoded** (`%40`, `%2F`, `%3F`, `%5C`): en crudo, cada cliente se rompe con un carácter distinto y la instancia acaba respaldando bien y sirviendo mal — la tabla de §5 dice cuál con cuál. Desde el 19/08 **nada de la URL viaja en `argv`**: el update la desarma y pasa `-h`, `-p`, `-U` y `-d`, con la contraseña y el resto de la consulta por variables `PG*` (§5). Da igual cómo esté escrito el parámetro de la consulta —`?password=`, `?%70assword=`, `?passwor%64=`—: el nombre se percent-decodifica **antes** de mirarse. `?sslpassword=` también sale, pero **se pierde**; y un parámetro de la consulta **sin variable `PG*`** para el update en seco, nombrándolo (§5). Si la cadena no se entiende como URL, el update **se para con salida 1** y no publica ni un trozo de ella; ojo con la excepción de §5: una URL **ambigua con puerto** no se para |
 | `IMAGEN_NOMBRE` | no | `space-os` |
 | `CONTENEDOR` | no | `space-os` |
 | `ENV_APP` | no | `/etc/space-os/app.env`, las variables de la app |
@@ -204,9 +204,9 @@ Si `flock` no está instalado, el script **no corre**.
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:924-930`, remedido leyendo el archivo el 19/08 por
-**segunda vez ese día**: la cita decía `407-413`, luego `626-632`, luego
-`692-698`, luego `775-781`, y la credencial de la consulta la movió otras **149
+`--con-datos`** (`update.sh:1018-1024`, remedido leyendo el archivo el 19/08 por
+**tercera vez ese día**: la cita decía `407-413`, luego `626-632`, luego
+`692-698`, luego `775-781`, luego `924-930`, y M3 la movió otras **94
 líneas**. Un archivo que crece invalida todas sus
 citas de golpe), así que una instancia
 **nunca** aplica una
@@ -337,13 +337,44 @@ anterior y no pierde datos»**, no como «no hay corte». Cerrar la ventana de
 verdad —arrancar el contenedor nuevo en otro puerto y mover nginx cuando ya
 conteste— es otra tarea; aquí se documenta, no se disimula.
 
-### 5 · La contraseña no viaja en `argv`
+### 5 · La conexión no viaja como URL
 
 `pg_dump --dbname="postgresql://usuario:clave@…"` deja la clave visible en `ps`
 para **cualquier** usuario de la máquina. `deploy.yml:119` lo evita con
 `sudo -u postgres` (autenticación *peer*, sin clave); aquí la conexión es por
-red, así que el script parte la URL: **usuario y destino en `argv`, la contraseña
-por `PGPASSWORD`**.
+red, así que desde el **19/08 (decisión M3)** el script **no le pasa ninguna URL**:
+la desarma y le da **cuatro banderas sueltas** —`-h`, `-p`, `-U`, `-d`— con **todo
+lo demás por variables `PG*` del entorno**.
+
+> [!important] Por qué se cambió el método, y no se añadió otro caso
+> Esto era una **lista negra**: se pasaba la URL entera a `--dbname=` después de
+> quitarle los parámetros que se reconocían como credencial. Fueron **tres
+> ciclos**, y cada uno encontró **otra codificación del mismo nombre**:
+>
+> | Ciclo | Lo que se filtró | Lo que apareció después |
+> |---|---|---|
+> | 1 | `?password=` y `?sslpassword=`, por su nombre literal | `?PASSWORD=` |
+> | 2 | nada: `?PASSWORD=` se declaró «límite conocido» | `?%70assword=` |
+> | 3 | — | `?passwor%64=`, `?%70%61%73%73%77%6f%72%64=` |
+>
+> Las tres del ciclo 3 **funcionan**: libpq percent-decodifica el **nombre** del
+> parámetro antes de mirarlo, y `pg-connection-string` 2.14.0 —el parser de la
+> app y de `scripts/migrar.mjs`— también. Medido conectando de verdad contra un
+> Postgres con `scram-sha-256` **forzado** y con control negativo (ojo: con el
+> `pg_hba` por omisión de la imagen, `127.0.0.1` va por `trust` y **todo**
+> conecta — así es como se mide esto mal).
+>
+> El fondo no es que faltara un caso: **una lista negra sobre un espacio de
+> nombres que se decodifica no se puede demostrar completa.** Siempre queda otra
+> codificación. Reconstruir la conexión sí se puede demostrar, y eso es lo que se
+> hace ahora.
+
+**El invariante, que es con lo que se audita esto:** en `argv` **no aparece nada
+que venga del `userinfo` ni de la consulta, bajo ninguna codificación**. Lo fija
+E77 con nueve parámetros y la contraseña en medio, y lo fija **en global**
+`argv_sin_marca`, que corre en **los 85 escenarios**: toda credencial del arnés
+lleva dentro una cadena marcadora, y ningún escenario puede dejarla en la línea de
+comandos de ninguna llamada doblada.
 
 **La contraseña se escribe siempre percent-encoded** en `instancia.env`: `%40`
 por `@`, `%2F` por `/`, `%3F` por `?` y `%5C` por la barra invertida. Esta
@@ -363,15 +394,45 @@ un error que apunte a la contraseña. El `update.sh` sí sabe leer los cuatro
 crudos (E62, E63, E64 y E70), pero eso es tolerancia suya, **no una forma
 válida**: lo que hay que escribir es `%40`.
 
-**La consulta también puede llevar credencial**, y hasta el 19/08 viajaba entera
-a `argv`. `?password=` es una forma que libpq acepta y que `pg-connection-string`
-lee **como la contraseña** —y que **gana** sobre la del `usuario:clave@`, medido
-contra un Postgres real—. Desde ese día el script **quita del `--dbname` sólo
-`password` y `sslpassword`**; **el resto de la
-consulta se conserva intacto**, porque `sslmode`, `sslrootcert`, `options`,
-`application_name`, `connect_timeout` o `target_session_attrs` **cambian cómo se
-conecta** y quitarlos dejaría sin poder actualizarse a instancias que hoy
-funcionan (E75 y E77).
+**La consulta también puede llevar credencial.** `?password=` es una forma que
+libpq acepta y que `pg-connection-string` lee **como la contraseña** —y que
+**gana** sobre la del `usuario:clave@`—. Con **una salvedad medida**: eso vale
+para un valor no vacío. Con `?password=` **vacío los dos clientes se separan**,
+libpq se queda con la vacía de la consulta (y falla la autenticación) y
+`pg-connection-string` conserva la del `userinfo`. El script sigue a **libpq**,
+que es quien va a conectar (E79).
+
+Y lo que **no** es credencial no se pierde: va por su variable de entorno. Las
+ocho equivalencias están **medidas una a una** contra libpq 16 el 19/08, no
+sacadas de la documentación:
+
+| Parámetro de la consulta | Variable | Cómo se midió |
+|---|---|---|
+| `application_name` | `PGAPPNAME` | `show application_name` lo devuelve |
+| `options` | `PGOPTIONS` | `-c statement_timeout=1234` → `show statement_timeout` da `1234ms` |
+| `connect_timeout` | `PGCONNECT_TIMEOUT` | contra un host que no contesta, corta a los 2 s |
+| `sslmode` | `PGSSLMODE` | con `require` la conexión deja de entrar |
+| `target_session_attrs` | `PGTARGETSESSIONATTRS` | con `read-only` deja de entrar |
+| `sslrootcert` | `PGSSLROOTCERT` | con TLS levantado: ruta buena entra, ruta mala no |
+| `sslcert` | `PGSSLCERT` | ídem — una ruta **inexistente** libpq la ignora, una **existente y mala** da error de certificado |
+| `sslkey` | `PGSSLKEY` | ídem |
+
+Los tres de SSL **no se pueden aislar sin un servidor que hable TLS**: sin él,
+cualquier valor da el mismo *«server does not support SSL»*. Por eso el Postgres
+efímero de la medición se levantó con certificado. Y en la tabla
+`PQconninfoOptions` del binario cada palabra clave está **pegada** a su variable
+—`sslcert` en el byte 212560 y `PGSSLCERT` en el 212568; `sslkey` en el 212594 y
+`PGSSLKEY` en el 212601—, mientras que `sslpassword` está (212660) y
+`PGSSLPASSWORD` **no aparece ni una vez**.
+
+> [!warning] Es una **lista blanca**: lo que no está, para el update en seco
+> Un parámetro de la consulta sin variable `PG*` **para el update con salida 1,
+> sin tocar nada, y el mensaje lo nombra** (nunca su valor). Es el precio del
+> método y es el precio correcto: dejarlo pasar a `argv` es la fuga que se acaba
+> de cerrar, y tragárselo en silencio cambia cómo se conecta la instancia sin
+> decirlo. `?PASSWORD=` en mayúsculas cae por aquí, y con eso deja de ser el
+> «límite conocido y aceptado» del ciclo 2 — libpq lo rechaza igualmente con
+> *«invalid URI query parameter»*, o sea que esa URL no ha conectado nunca (E83).
 
 > [!warning] `sslpassword` se quita **y se pierde**: libpq no tiene variable de
 > entorno para ella
@@ -746,7 +807,7 @@ diagnóstico remoto configurado, y el log lo dice con esas palabras
 >    `docs/Registro_Cambios.md`**. El criterio de F3.9 lo exige por escrito, y
 >    tiene razón: un log es una vía de fuga clásica y la revisión mecánica solo
 >    cubre lo que alguien pensó en comprobar.
-79 escenarios · 399 comprobaciones · 0 rojas
+
 Que el `LOG REMOTO FALLIDO` salga además en el **reporte de flota** es **F6.4**,
 que todavía no existe: hoy solo está en el log de la instancia y en el bucket.
 
@@ -785,18 +846,27 @@ y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
 archivo que viaja**. El resultado del 2026-08-19, y el que imprime el comando:
 
 ```
-78 escenarios · 393 comprobaciones · 0 rojas
+85 escenarios · 532 comprobaciones · 0 rojas
 ```
 
 > [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08 ni el 19/08
-> Los mutantes son **37** desde el ciclo 3 del 19/08. La barrida completa cuesta
-> ~4 min por mutante en esta máquina —más de dos horas los 37— así que se corren
-> **aislados los que tocan el cambio**, cada uno contra el arnés completo:
-> **siete** el 18/08 (los dos invalidantes de la auditoría, el hallazgo 3 y los
-> cuatro de F3.9), **cinco** en el ciclo 2 del 19/08 (los del parseo único de la
-> credencial) y **cinco** en el ciclo 3 (los de la credencial en la consulta).
-> Los diecisiete **CAZADOS**. `37 mutantes · 0 escapan` **no** es de una barrida
-> entera: quien la necesite entera, que la corra y lo escriba aquí.
+> Los mutantes son **40** desde M3: 31 sobre `update.sh` y 9 sobre `respaldo.sh`.
+> La barrida completa cuesta varios minutos por mutante en esta máquina —los 40
+> pasan de las quince horas— así que se corren **aislados los que tocan el
+> cambio**, cada uno contra el arnés completo: **siete** el 18/08 (los dos
+> invalidantes de la auditoría, el hallazgo 3 y los cuatro de F3.9), **cinco** en
+> el ciclo 2 del 19/08 (los del parseo único de la credencial), **cinco** en el
+> ciclo 3 (los de la credencial en la consulta) y **siete** en M3 (los seis de la
+> conexión sin URL más el de fallar abierto, que hubo que reescribir). Todos
+> **CAZADOS**. `40 mutantes · 0 escapan` **no** es de una barrida entera: quien la
+> necesite entera, que la corra y lo escriba aquí.
+>
+> **Tres mutantes del ciclo 3 desaparecieron de la lista y no se sustituyeron**:
+> apuntaban a la línea que **reconstruía** la URL —pasarla entera, quitarle la
+> consulta entera, o decidir la reescritura por «hay contraseña»—. Esa línea ya
+> no existe, así que esas tres formas de equivocarse **ya no se pueden
+> escribir**. Eso, y no otra cosa, es lo que M3 ganó: la clase de fallo se
+> eliminó en vez de vigilarse.
 >
 > Y una trampa medida el 19/08 que se repite: la **copia reducida** del arnés que
 > corre sólo unos mutantes **no puede vivir en `/tmp`**. `RAIZ` sale de
@@ -848,39 +918,52 @@ primeros se vieron **en rojo**, 10 comprobaciones, antes de tocar una línea—:
 | **E63** | una contraseña con `/` sin codificar **no sale**: antes viajaba entera, usuario incluido |
 
 Y, desde el **ciclo de credenciales del 19/08**, los ocho que cierran el parseo. Cada
-uno afirma **dos** cosas de la misma URL —qué sale al archivo que viaja y qué llega a
-`argv`—, porque hasta ese día eran **dos recortes distintos** y cada uno estaba mal a
-su manera. Los cinco primeros se vieron **en rojo** (23 comprobaciones) antes de tocar
-una línea:
+uno afirma **tres** cosas de la misma URL —qué sale al archivo que viaja, qué llega a
+`argv` y qué entra por el **entorno**—, porque hasta ese día eran **dos recortes
+distintos** y cada uno estaba mal a su manera. Los cinco primeros se vieron **en rojo**
+(23 comprobaciones) antes de tocar una línea; desde M3 todos comprueban en `argv`
+las **cuatro banderas de conexión** en vez de un `--dbname` que ya no existe:
 
 | Escenario | Qué fija |
 |---|---|
-| **E62**, **E63** | ampliados: además del log, el `--dbname` que llega a `argv` y el `PGPASSWORD` que llega entero |
+| **E62**, **E63** | ampliados: además del log, las banderas que llegan a `argv` y el `PGPASSWORD` que llega entero |
 | **E64** | una `?` en la contraseña: el log publicaba `spaces:cl` — **usuario y prefijo de la clave**. Era una **regresión**: el recorte anterior a `70b8cc5` acertaba |
 | **E65** | varias `@`: se corta por la **última**, no por la segunda |
 | **E66** | el caso bien formado (`%40`), que es el que no puede romperse al arreglar los demás |
-| **E67**, **E68** | sin contraseña y sin `@`: la URL pasa tal cual y **no** se inventa un `PGPASSWORD` |
+| **E67**, **E68** | sin contraseña y sin `@`: llega el usuario y **no** se inventa un `PGPASSWORD`. Y sin usuario **no se pasa `-U`**, que no es lo mismo que pasarlo vacío: libpq caería al usuario del sistema |
 | **E69** | `@` al final y sin host: **falla cerrado**, salida 1, y no publica nada de la cadena |
 | **E70** | una barra invertida cruda: antes se dejaba la URL entera en `argv` **a propósito** |
+| **E25** | el mismo criterio en el camino normal, no solo en la familia de la credencial |
 | **E71**, **E72** | lo que no es una URL —una cadena `clave=valor` de libpq— se publicaba **entera, con la contraseña dentro**; ahora sale `(url no parseable)`. E72 lo comprueba por la otra puerta: la URL de `app.env` en el mensaje de «bases DISTINTAS» |
 | **E73** | el `--help` imprime su cabecera **entera**. Es un rango de líneas **fijo** (`sed -n '2,121p'`) y se descuadra en silencio cada vez que alguien añade una línea arriba: pasó el 19/08 al documentar la URL de la base, y se comió cuatro líneas sin decir nada. Se fija por los **dos** extremos |
 
 Y, desde el **ciclo 3 del 19/08**, los seis de la credencial que viajaba en la
-**consulta** — la vía que hasta ese día no miraba nadie. Los cuatro primeros se
-vieron **en rojo** (16 comprobaciones) antes de tocar una línea; el quinto (E78)
-sólo falló en la frase nueva del mensaje, porque lo demás **ya era así**; y el
-sexto (E79) salió de escribir el arreglo, no de la auditoría:
+**consulta** — la vía que hasta ese día no miraba nadie. El quinto (E78) sólo falló
+en la frase nueva del mensaje, porque lo demás **ya era así**; y el sexto (E79)
+salió de escribir el arreglo, no de la auditoría:
 
 | Escenario | Qué fija |
 |---|---|
 | **E74** | `?password=` sin nada en el `userinfo`: no había **nada** que recortar por el `@`, así que la URL entera —con la contraseña— llegaba a `--dbname`. Es una forma que libpq acepta y que `pg-connection-string` lee como la contraseña: medido, no supuesto |
 | **E75** | `?sslpassword=` sale de `argv` **y** el `sslmode` que la acompaña se queda. Y como `PGSSLPASSWORD` **no existe** en libpq, se **descarta** y el log lo dice: un descarte silencioso dejaría sin respaldo, y sin explicación, a una instancia con la llave del cliente cifrada |
 | **E76** | las tres credenciales en la misma URL: gana la de la **consulta**, como en libpq y en `pg-connection-string` (medido contra un Postgres real). Elegir la del `userinfo` cambiaría una fuga por un respaldo que no corre |
-| **E77** | **el que impide el arreglo destructivo**: `sslmode`, `application_name`, `options` con su `%20`, `connect_timeout`, `target_session_attrs` y `sslrootcert` llegan intactos y en su orden, con la contraseña **en medio** |
+| **E77** | **el que impide el arreglo destructivo**: `sslmode`, `application_name`, `options`, `connect_timeout`, `target_session_attrs`, `sslrootcert`, `sslcert` y `sslkey` llegan **cada uno en su variable `PG*` y decodificado**, con la contraseña **en medio**. Lo de «decodificado» es lo que M3 cambió: `options=-c%20statement_timeout%3D0` en una URL es `-c statement_timeout=0` en `PGOPTIONS`, porque una variable de entorno no lleva percent-encoding y Postgres recibiría un `-c` que no entiende |
 | **E78** | la **ambigüedad, tal y como es**: con puerto el update **no se para** —publica un `base=` falso y muere cuatro pasos después como `BACKUP VACIO`—. Fija lo medido, no lo deseable: el parseo no se toca, y lo que cambia es que el mensaje mande a mirar el `base=` antes que `pg_dump` |
-| **E79** | `?password=` con el valor **vacío** y una clave de verdad en el `userinfo`: la consulta **pisa** al `userinfo`, así que decidir la reescritura mirando «hay contraseña» dejaba la URL entera —con el secreto— en `argv`. Salió de escribir el arreglo; se vio **en rojo** contra una copia con la condición anterior |
+| **E79** | `?password=` con el valor **vacío** y una clave de verdad en el `userinfo`. Fija la **precedencia**, que es el único caso en que los dos clientes **no coinciden**: libpq se queda con la vacía de la consulta, `pg-connection-string` con la del `userinfo`. Se sigue a libpq. La forma de equivocarse que este escenario cazaba en el ciclo 3 —decidir la reescritura por «hay contraseña»— **ya no se puede escribir**: no queda ninguna URL que reconstruir |
 
-**Se comprueba que las comprobaciones muerden.** **Treinta y siete** mutantes de una
+Y, desde **M3 (19/08)**, los cuatro de la **codificación del nombre** y los dos
+límites que M3 **no** arregla. Los cuatro primeros son el mismo parámetro
+`password` escrito de otra manera, uno por ciclo perdido:
+
+| Escenario | Qué fija |
+|---|---|
+| **E80** | `?%70assword=` — la que rompió el ciclo 3. La lista negra buscaba la cadena `password` y aquí no está escrita |
+| **E81** | `?passwor%64=` — la misma clase por el otro extremo de la palabra: un filtro por prefijo tampoco la ve |
+| **E82** | `?%70%61%73%73%77%6f%72%64=` — el nombre entero codificado, el caso límite: no queda ni una letra a la vista |
+| **E83** | `?PASSWORD=` en mayúsculas. Deja de ser un «límite aceptado»: cae por la lista blanca, el update **se para con 1 sin tocar nada** y el mensaje nombra el parámetro, nunca su valor |
+| **E84**, **E85** | los dos límites que **siguen fuera de alcance** —multi-host y URL de socket unix—, fijados para saber que **no empeoran**: los dos paran en seco con salida 1 y sin publicar nada, igual que antes de M3. Comprobado corriéndolos también contra la versión anterior del script |
+
+**Se comprueba que las comprobaciones muerden.** **Cuarenta** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -920,11 +1003,14 @@ el arnés viejo **no** cazaba:
 | fallar **abierto** cuando la URL no se entiende | vuelve la fuga peor: la cadena entera —contraseña incluida— a `--dbname`, visible en `ps` |
 | `destino_de_url` publicando la cadena que **no entendió** | una cadena `clave=valor` con `password=` dentro, en la primera línea del log que sube al bucket |
 | **no duplicar la barra invertida** antes del `printf '%b'` | `cl\v%40e` se decodifica como `cl<VT>@e`: la contraseña se corrompe y el respaldo no corre |
-| pasar la **consulta entera** a `argv` | el defecto del ciclo 3: `?password=` viaja dentro del `--dbname` y se lee con `ps` |
-| **quitar la consulta entera** | el arreglo destructivo, el error opuesto: se van `sslmode`, `options` y `sslrootcert` con la contraseña, y la instancia deja de poder conectarse |
 | que gane la clave del **`userinfo`** sobre la de la consulta | `pg_dump` se autenticaría con una clave distinta de la que usa la app: fuga cerrada a cambio de un respaldo que no corre |
-| **no reconocer `sslpassword`** en la consulta | se queda dentro del `--dbname` y vuelve a `argv`: la frase de paso de la llave, visible en `ps` |
-| decidir la reescritura por «hay contraseña» y no por «había algo que quitar» | `?password=` vacío pisa la clave del `userinfo` y la URL entera, con el secreto dentro, vuelve a `argv` |
+| **no reconocer `sslpassword`** en la consulta | se queda en la consulta y vuelve a `argv`: la frase de paso de la llave, visible en `ps` |
+| **volver a mandar la URL entera en `--dbname`** | el defecto de M3 en su forma pura: la contraseña vuelve a `ps`, venga de donde venga y esté codificada como esté |
+| **no decodificar el nombre del parámetro** | **el que se les escapó a los tres ciclos**: `?%70assword=` deja de reconocerse como `password` y el valor se va con la consulta |
+| no decodificar el **valor** | `PGOPTIONS` llegaría como `-c%20statement_timeout%3D0` y Postgres recibiría un `-c` que no entiende |
+| **no fallar cerrado** ante un parámetro sin variable `PG*` | vuelve el «límite aceptado»: lo desconocido se cuela en vez de parar |
+| **no reenviar la consulta** por el entorno | el arreglo destructivo: se van `sslmode`, `options` y `sslrootcert`, y la instancia deja de poder conectarse |
+| pasar un **`-U` vacío** cuando la URL no trae usuario | libpq deja de caer al usuario del sistema: se pierden las instancias que se autentican por `peer` |
 
 Y contra material real, no solo dobles:
 

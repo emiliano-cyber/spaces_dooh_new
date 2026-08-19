@@ -31,6 +31,21 @@ COMPROBACIONES=0
 FALLOS=0
 ESCENARIO_ACTUAL=''
 
+# La cadena marcadora de la contrasena. TODA credencial de TODO escenario la
+# lleva dentro —la del `userinfo`, la de la consulta y la frase de la llave del
+# certificado—, y `limpiar` afirma, escenario por escenario, que NO aparece en
+# el argv de ninguna llamada doblada.
+#
+# Por que hacia falta: hasta el 19/08 este arnes probaba codificacion por
+# codificacion —`?password=`, `?sslpassword=`, `?PASSWORD=`— y por eso se le
+# escaparon TRES seguidas: `?%70assword=`, `?passwor%64=` y
+# `?%70%61%73%73%77%6f%72%64=`, las tres aceptadas por libpq 16 y por
+# `pg-connection-string` 2.14.0 (medido). Una lista negra sobre un espacio de
+# nombres que se decodifica no se puede demostrar completa: siempre queda otra
+# codificacion. Esta afirmacion GLOBAL cierra la clase del lado de las pruebas,
+# igual que reconstruir la conexion la cierra del lado del codigo.
+MARCA_CLAVE='M4RCA-DE-LA-CLAVE'
+
 bien() { COMPROBACIONES=$((COMPROBACIONES + 1)); }
 mal() {
   COMPROBACIONES=$((COMPROBACIONES + 1))
@@ -178,11 +193,18 @@ shift   # el archivo de candado
 exec "$@"
 FIN
 
+  # Desde el 19/08 la conexion NO viaja como URL: `pg_dump` recibe `-h -p -U -d`
+  # y todo lo demas por el entorno. Asi que el doble tiene que anotar el entorno
+  # ENTERO que libpq mira, y no solo las dos contrasenas: si `sslmode` se perdiera
+  # por el camino, el respaldo de una instancia con TLS obligatorio dejaria de
+  # correr y en argv no se veria nada raro.
   cat >"$BIN/pg_dump" <<'FIN'
 #!/usr/bin/env bash
 printf 'pg_dump %s\n' "$*" >>"$REG_LLAMADAS"
-printf 'pg_dump PGPASSWORD=[%s]\n' "${PGPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
-printf 'pg_dump PGSSLPASSWORD=[%s]\n' "${PGSSLPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
+for v in PGPASSWORD PGSSLPASSWORD PGSSLMODE PGSSLROOTCERT PGSSLCERT PGSSLKEY \
+         PGAPPNAME PGOPTIONS PGCONNECT_TIMEOUT PGTARGETSESSIONATTRS; do
+  printf 'pg_dump %s=[%s]\n' "$v" "${!v-<NO-DEFINIDA>}" >>"$REG_PGENV"
+done
 archivo=''
 for a in "$@"; do case "$a" in --file=*) archivo="${a#--file=}" ;; esac; done
 [ "${PGD_FALLA:-0}" = 1 ] && exit 1
@@ -297,8 +319,10 @@ FIN
   cat >"$BIN/pg_restore" <<'FIN'
 #!/usr/bin/env bash
 printf 'pg_restore %s\n' "$*" >>"$REG_LLAMADAS"
-printf 'pg_restore PGPASSWORD=[%s]\n' "${PGPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
-printf 'pg_restore PGSSLPASSWORD=[%s]\n' "${PGSSLPASSWORD-<NO-DEFINIDA>}" >>"$REG_PGENV"
+for v in PGPASSWORD PGSSLPASSWORD PGSSLMODE PGSSLROOTCERT PGSSLCERT PGSSLKEY \
+         PGAPPNAME PGOPTIONS PGCONNECT_TIMEOUT PGTARGETSESSIONATTRS; do
+  printf 'pg_restore %s=[%s]\n' "$v" "${!v-<NO-DEFINIDA>}" >>"$REG_PGENV"
+done
 exit "${PGR_CODIGO:-0}"
 FIN
 
@@ -340,8 +364,10 @@ preparar() {
   PUBLICABLE="$SPACE_OS_DIR_LOG/update-publicable.log"
 
   # La clave lleva un %40 a proposito: comprueba el percent-decoding y que la
-  # clave NO acabe en argv.
-  URL_BASE='postgresql://spaces:cl%40ve@localhost:5433/spaces'
+  # clave NO acabe en argv. Y lleva la MARCA, como todas: asi la comprobacion
+  # global de `limpiar` tiene algo que buscar en los ~80 escenarios, y no solo en
+  # los de la familia de la credencial.
+  URL_BASE="postgresql://spaces:cl%40ve-$MARCA_CLAVE@localhost:5433/spaces"
   cat >"$RAIZ_TMP/app.env" <<FIN
 DATABASE_URL=$URL_BASE
 NODE_ENV=production
@@ -397,7 +423,18 @@ correr() {
   CODIGO=$?
 }
 
-limpiar() { rm -rf "$RAIZ_TMP"; }
+# LA comprobacion global, y la razon de que exista la marca. Corre en TODOS los
+# escenarios, uno por uno, justo antes de tirar el directorio temporal: ningun
+# escenario puede dejar la contrasena en la linea de comandos de ninguna llamada
+# doblada, venga del `userinfo` o de la consulta, y este codificada como este.
+# Los escenarios sueltos siguen afirmando su caso concreto; esta afirma la CLASE.
+argv_sin_marca() {
+  if grep -qF -- "$MARCA_CLAVE" "$REG_LLAMADAS" 2>/dev/null; then
+    mal "la marca de la contrasena aparece en argv: $(grep -F -- "$MARCA_CLAVE" "$REG_LLAMADAS" | head -n1)"
+  else bien; fi
+}
+
+limpiar() { argv_sin_marca; rm -rf "$RAIZ_TMP"; }
 
 # Cambia la URL de la base en los DOS sitios que la declaran. Existe porque los
 # escenarios del hallazgo 3 usan urls con `@` y `/` sin codificar dentro de la
@@ -473,11 +510,26 @@ pgsslpassword_sin_definir() {
   if grep -qF -- 'PGSSLPASSWORD=[<NO-DEFINIDA>]' "$REG_PGENV" 2>/dev/null; then bien
   else mal "se esperaba PGSSLPASSWORD sin definir, y fue: $(tr '\n' ' ' <"$REG_PGENV" 2>/dev/null)"; fi
 }
-# El `--dbname` EXACTO que llego a argv. Se compara entero y con `-F`: media
-# comprobacion ("no aparece la clave") deja pasar la URL rota que no conecta.
-argv_dbname_es() {
-  if grep -qF -- "--dbname=$1 " "$REG_LLAMADAS" 2>/dev/null; then bien
-  else mal "el --dbname de argv no fue '$1', sino: $(grep -F 'pg_dump ' "$REG_LLAMADAS" 2>/dev/null | head -n1)"; fi
+# Las BANDERAS DE CONEXION exactas con las que se llamo a `pg_dump`, en orden y
+# desde el principio de la linea. Sustituye al viejo `argv_dbname_es`: desde el
+# 19/08 no hay ningun `--dbname`, porque la conexion dejo de viajar como URL.
+# Se compara entera y con `-F`: media comprobacion ("no aparece la clave") deja
+# pasar una conexion rota, que impide actualizar igual que la fuga.
+argv_pg_es() {
+  if grep -qF -- "pg_dump $1 " "$REG_LLAMADAS" 2>/dev/null; then bien
+  else mal "las banderas de pg_dump no fueron '$1', sino: $(grep -F 'pg_dump ' "$REG_LLAMADAS" 2>/dev/null | head -n1)"; fi
+}
+# Una variable PG* concreta del entorno de `pg_dump`. Es la otra mitad de
+# `argv_pg_es`: lo que sale de argv tiene que ENTRAR por el entorno, o la
+# instancia se queda sin poder respaldar — una fuga cerrada a cambio de un
+# respaldo que ya no corre no es un arreglo.
+pgenv_es() {
+  if grep -qF -- "pg_dump $1=[$2]" "$REG_PGENV" 2>/dev/null; then bien
+  else mal "$1 no fue [$2], sino: $(grep -F "pg_dump $1=" "$REG_PGENV" 2>/dev/null | head -n1)"; fi
+}
+pgenv_sin_definir() {
+  if grep -qF -- "pg_dump $1=[<NO-DEFINIDA>]" "$REG_PGENV" 2>/dev/null; then bien
+  else mal "se esperaba $1 sin definir, y fue: $(grep -F "pg_dump $1=" "$REG_PGENV" 2>/dev/null | head -n1)"; fi
 }
 
 # ============================================================================
@@ -760,14 +812,16 @@ if grep -q 'NO-EXPORTADA' "$REG_DBURL"; then mal 'algun `docker run --env DATABA
 if grep -q 'localhost:5433/spaces' "$REG_DBURL"; then bien; else mal 'los contenedores efimeros no recibieron la URL'; fi
 limpiar
 
-# E25 · la contrasena no viaja en argv, y llega decodificada por el entorno
+# E25 · la contrasena no viaja en argv, y llega decodificada por el entorno.
+#       Desde M3 (19/08) tampoco viaja la URL: lo que se comprueba en argv son
+#       las cuatro banderas de conexion y nada mas.
 preparar 'E25 la clave no sale en ps'
 export C_CODIGOS='000 000 200 200'
 correr
 no_hubo 'cl%40ve'
 no_hubo 'cl@ve'
-if grep -q 'PGPASSWORD=\[cl@ve\]' "$REG_PGENV"; then bien; else mal 'PGPASSWORD no llego decodificada'; fi
-hubo_regex 'pg_dump .*--dbname=postgresql://spaces@localhost:5433/spaces'
+pgenv_es PGPASSWORD "cl@ve-$MARCA_CLAVE"
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 limpiar
 
 # E26 · el padre no aparece por ningun lado
@@ -1379,18 +1433,23 @@ no_hubo 's3://space-os-logs'
 limpiar
 
 # ─── LA CREDENCIAL, CASO POR CASO (E62-E71) ────────────────────────────────
-#  Cada escenario afirma DOS cosas de la misma URL, porque son dos fugas
-#  distintas y hasta el 19/08 vivian en dos parseos distintos, cada uno mal a su
+#  Cada escenario afirma TRES cosas de la misma URL, porque son tres fugas
+#  distintas y hasta el 19/08 vivian en parseos distintos, cada uno mal a su
 #  manera:
 #    · que sale al ARCHIVO QUE VIAJA al bucket   -> `subido_*`
 #    · que llega a ARGV, visible con `ps` para cualquier proceso del droplet
-#      -> `argv_dbname_es` + `no_hubo`, y `pgpassword_es` para el entorno.
-#  El criterio desde el 19/08 es que no salga NADA de la credencial por ninguna
-#  de las dos vias: un trozo de contrasena tambien es una contrasena quemada.
-#  Y la mitad de argv no es solo confidencialidad: libpq tambien corta por el
-#  PRIMER `@`, asi que una URL mal recortada NO CONECTA —"could not translate
-#  host name \"ssw0rd@…\""— y con eso el respaldo aborta y la instancia se queda
-#  sin poder actualizarse nunca.
+#      -> `argv_pg_es` + `no_hubo`
+#    · que ENTRA por el entorno, entera -> `pgenv_es` / `pgenv_sin_definir`.
+#  La tercera no es adorno: una contrasena que se pierde por el camino deja un
+#  respaldo que no corre, y eso impide actualizar igual que la fuga.
+#
+#  Desde el 19/08 (decision M3) la conexion **dejo de viajar como URL**: en argv
+#  van `-h`, `-p`, `-U` y `-d`, y nada mas. Por eso `argv_dbname_es` ya no
+#  existe: no hay ningun `--dbname` que comprobar. Lo que se afirma ahora es que
+#  las banderas son EXACTAMENTE esas cuatro, o sea que en la linea de comandos no
+#  queda ni un byte que venga del `userinfo` ni de la consulta — bajo ninguna
+#  codificacion, que es la parte que tres ciclos de lista negra no consiguieron.
+#  Y aparte de esto, `limpiar` corre `argv_sin_marca` en TODOS los escenarios.
 
 # E62 · HALLAZGO 3 · una contrasena con `@` sin codificar.
 #       `destino_de_url` corta el `usuario:clave@` y su salida es la PRIMERA
@@ -1400,14 +1459,14 @@ limpiar
 #       F3.9 sale a un bucket, que es lo que cambio el perfil de riesgo.
 #       En argv pasaba lo mismo con el otro parseo: `--dbname=…spaces@ssw0rd@…`.
 preparar 'E62 la clave con @ sin codificar no sale del droplet (F3.9, hallazgo 3)'
-usar_url 'postgresql://spaces:p@ssw0rd@localhost:5433/spaces'
+usar_url "postgresql://spaces:p@ssw0rd-$MARCA_CLAVE@localhost:5433/spaces"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'ssw0rd'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'ssw0rd'
-pgpassword_es 'p@ssw0rd'
+pgenv_es PGPASSWORD "p@ssw0rd-$MARCA_CLAVE"
 limpiar
 
 # E63 · HALLAZGO 3, la otra mitad · con una `/` sin codificar en la contrasena
@@ -1417,15 +1476,15 @@ limpiar
 #       la URL ENTERA se pasara a `--dbname=`: la clave en `ps`, y sin
 #       PGPASSWORD.
 preparar 'E63 la clave con / sin codificar no sale del droplet (F3.9, hallazgo 3)'
-usar_url 'postgresql://spaces:pa/ss@localhost:5433/spaces'
+usar_url "postgresql://spaces:pa/ss-$MARCA_CLAVE@localhost:5433/spaces"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'pa/ss'
 subido_calla 'spaces:pa'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'pa/ss'
-pgpassword_es 'pa/ss'
+pgenv_es PGPASSWORD "pa/ss-$MARCA_CLAVE"
 limpiar
 
 # E64 · REGRESION · una `?` dentro de la contrasena. El recorte del log quitaba
@@ -1435,27 +1494,27 @@ limpiar
 #       version anterior a 70b8cc5 acertaba en este caso; libpq acepta esa URL,
 #       o sea que es una instancia que funciona de verdad.
 preparar 'E64 la clave con ? sin codificar no sale del droplet'
-usar_url 'postgresql://spaces:cl?ve@localhost:5433/spaces'
+usar_url "postgresql://spaces:cl?ve-$MARCA_CLAVE@localhost:5433/spaces"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'spaces:cl'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'cl?ve'
-pgpassword_es 'cl?ve'
+pgenv_es PGPASSWORD "cl?ve-$MARCA_CLAVE"
 limpiar
 
 # E65 · varias `@` seguidas: el corte tiene que ser por la ULTIMA, siempre. Es
 #       el caso que separa "corta por el ultimo @" de "corta por el segundo @".
 preparar 'E65 la clave con varias @ se corta por la ultima'
-usar_url 'postgresql://spaces:a@b@c@localhost:5433/spaces'
+usar_url "postgresql://spaces:a@b@c-$MARCA_CLAVE@localhost:5433/spaces"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'b@c'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'b@c'
-pgpassword_es 'a@b@c'
+pgenv_es PGPASSWORD "a@b@c-$MARCA_CLAVE"
 limpiar
 
 # E66 · el caso BIEN FORMADO, que es el que no puede romperse al arreglar los
@@ -1466,32 +1525,34 @@ codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'cl%40ve'
 subido_calla 'cl@ve'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'cl%40ve'
 no_hubo 'cl@ve'
-pgpassword_es 'cl@ve'
+pgenv_es PGPASSWORD "cl@ve-$MARCA_CLAVE"
 limpiar
 
 # E67 · sin contrasena en la URL (peer, trust o .pgpass). No hay nada que
-#       esconder y la URL pasa tal cual; lo que NO puede es inventarse un
-#       PGPASSWORD vacio ni romper el usuario.
-preparar 'E67 URL sin contrasena: pasa entera y sin PGPASSWORD'
+#       esconder; lo que NO puede es inventarse un PGPASSWORD vacio —libpq
+#       leeria una contrasena vacia en vez de caer a `.pgpass`— ni perder el
+#       usuario.
+preparar 'E67 URL sin contrasena: el usuario llega y no hay PGPASSWORD'
 usar_url 'postgresql://spaces@localhost:5433/spaces'
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
-pgpassword_sin_definir
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
+pgenv_sin_definir PGPASSWORD
 limpiar
 
-# E68 · sin `@` ninguno: ni usuario ni clave.
-preparar 'E68 URL sin @: no hay credencial que recortar'
+# E68 · sin `@` ninguno: ni usuario ni clave. Sin `-U`, que no es lo mismo que
+#       un `-U` vacio: libpq cae al usuario del sistema.
+preparar 'E68 URL sin @: no hay usuario que pasar'
 usar_url 'postgresql://localhost:5433/spaces'
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
-argv_dbname_es 'postgresql://localhost:5433/spaces'
-pgpassword_sin_definir
+argv_pg_es '-h localhost -p 5433 -d spaces'
+pgenv_sin_definir PGPASSWORD
 limpiar
 
 # E69 · `@` al final y nada detras: no hay host. Antes seguia adelante con
@@ -1499,7 +1560,7 @@ limpiar
 #       respaldaba contra una URL sin destino. Ahora falla CERRADO: se para
 #       antes de tocar nada y la cadena no se publica ni entera ni a trozos.
 preparar 'E69 @ al final sin host: se para y no publica nada'
-usar_url 'postgresql://spaces:clavefinal@'
+usar_url "postgresql://spaces:clavefinal-$MARCA_CLAVE@"
 correr
 codigo_es 1
 log_dice 'no se puede interpretar'
@@ -1518,16 +1579,16 @@ limpiar
 #       La URL solo va en `app.env`: `. "$CONF"` se comeria la barra invertida al
 #       sourcear, que es un problema del formato de ese archivo y no del recorte.
 preparar 'E70 la clave con barra invertida tampoco llega a argv'
-printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'postgresql://spaces:cl\v%40e@localhost:5433/spaces' >"$RAIZ_TMP/app.env"
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' "postgresql://spaces:cl\\v%40e-$MARCA_CLAVE@localhost:5433/spaces" >"$RAIZ_TMP/app.env"
 grep -v '^DATABASE_URL=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp"
 mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'cl\v'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'cl\v'
-pgpassword_es 'cl\v@e'
+pgenv_es PGPASSWORD "cl\\v@e-$MARCA_CLAVE"
 limpiar
 
 # E71 · lo que NO es una URL. Una cadena de conexion en formato `clave=valor`
@@ -1537,15 +1598,15 @@ limpiar
 #       cadena. Mismo criterio y mismas palabras que `destinoSeguro()` en
 #       `scripts/migrar.mjs:225-232`.
 preparar 'E71 lo que no es una URL no se publica a trozos'
-printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'host=localhost port=5433 dbname=spaces password=cl4v3-secreta' >"$RAIZ_TMP/app.env"
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' "host=localhost port=5433 dbname=spaces password=cl4v3-$MARCA_CLAVE" >"$RAIZ_TMP/app.env"
 grep -v '^DATABASE_URL=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp"
 mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
 correr
 codigo_es 1
 subido_dice '(url no parseable)'
-subido_calla 'cl4v3-secreta'
+subido_calla 'cl4v3'
 subido_calla 'password='
-no_hubo 'cl4v3-secreta'
+no_hubo 'cl4v3'
 limpiar
 
 # E72 · la que no se entiende es la de `app.env`, y la del `instancia.env` esta
@@ -1553,7 +1614,7 @@ limpiar
 #       de que el update se pare —el de "bases DISTINTAS" imprime las dos—, asi
 #       que es donde se ve si `destino_de_url` falla abierto o cerrado.
 preparar 'E72 la URL de app.env que no se entiende tampoco se publica'
-printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'host=localhost dbname=spaces password=cl4v3-de-la-app' >"$RAIZ_TMP/app.env"
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' "host=localhost dbname=spaces password=cl4v3-de-la-app-$MARCA_CLAVE" >"$RAIZ_TMP/app.env"
 correr
 codigo_es 1
 log_dice 'bases DISTINTAS'
@@ -1575,60 +1636,69 @@ log_dice 'fuera con `grep -c reintento'
 log_calla 'Cron: una vez al dia'
 limpiar
 
-# ─── LA CREDENCIAL EN LA CONSULTA (E74-E79) ────────────────────────────────
+# ─── LA CREDENCIAL EN LA CONSULTA (E74-E83) ────────────────────────────────
 #  La familia de E62-E72 mira la credencial del `userinfo`. Esta mira la OTRA
 #  via, la que hasta el 19/08 no miraba nadie: la CONSULTA. `?password=` y
 #  `?sslpassword=` son parametros documentados de libpq y viajaban ENTEROS al
 #  `--dbname`, o sea a `argv`, o sea a un `ps` de cualquier proceso del droplet.
-#  Medido contra un Postgres real (contenedor efimero, 19/08):
+#  Medido contra un Postgres real (contenedor efimero con `scram-sha-256`
+#  forzado y control negativo, 19/08 — ojo, con el `pg_hba` por omision el
+#  127.0.0.1 va por `trust` y TODO conecta, que es como se puede medir esto mal):
 #    · `?password=` no es una forma inventada: libpq la acepta, y `pg-connection
 #      -string` 2.14.0 —el parser de la app y de `scripts/migrar.mjs`— tambien;
 #    · y GANA sobre la clave del `userinfo` en los DOS. Con `userinfo` mala y
 #      consulta buena la conexion entra; al reves, falla la autenticacion.
-#  Por eso la clave efectiva que va a PGPASSWORD es la de la consulta cuando
-#  las dos estan.
+#      **Con el valor VACIO no**: ahi libpq usa la vacia (y falla) mientras que
+#      `pg-connection-string` se queda con la del `userinfo`. Los dos clientes
+#      se separan justo en ese caso — E79.
+#  Y la que se le escapo a TRES ciclos: el NOMBRE del parametro se
+#  percent-decodifica antes de mirarse, asi que `?%70assword=`, `?passwor%64=` y
+#  `?%70%61%73%73%77%6f%72%64=` son las tres `password` para libpq y para
+#  `pg-connection-string`. Medidas las tres, contra los dos. E80-E82.
 #  La otra mitad de estos escenarios es la que evita el arreglo destructivo:
 #  `sslmode`, `sslrootcert`, `options`, `application_name`, `connect_timeout` y
-#  `target_session_attrs` CAMBIAN COMO SE CONECTA. Quitar la consulta entera
-#  dejaria sin poder actualizarse a instancias que hoy funcionan, que es peor
-#  que la fuga que se cierra.
+#  `target_session_attrs` CAMBIAN COMO SE CONECTA. Perderlos dejaria sin poder
+#  actualizarse a instancias que hoy funcionan, que es peor que la fuga que se
+#  cierra. Desde M3 no van en argv: van por su variable PG*, medida una a una.
 
 # E74 · `?password=` y ninguna clave en el userinfo. La fuga en su forma mas
 #       pura: no habia NADA que recortar por el `@`, asi que la URL entera
 #       —contrasena incluida— se pasaba a `--dbname`.
 preparar 'E74 la clave de la consulta no llega a argv (F3.9, ciclo 3)'
-usar_url 'postgresql://spaces@localhost:5433/spaces?password=CLAVE-EN-LA-CONSULTA'
+usar_url "postgresql://spaces@localhost:5433/spaces?password=CLAVE-EN-LA-CONSULTA-$MARCA_CLAVE"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'CLAVE-EN-LA-CONSULTA'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'CLAVE-EN-LA-CONSULTA'
 no_hubo 'password='
-pgpassword_es 'CLAVE-EN-LA-CONSULTA'
+pgenv_es PGPASSWORD "CLAVE-EN-LA-CONSULTA-$MARCA_CLAVE"
 limpiar
 
 # E75 · `?sslpassword=` — la frase de paso de la llave del certificado de
 #       cliente. Es credencial igual, viajaba entera a argv, y sale de ahi; pero
 #       NO se reenvia por el entorno, porque **libpq no tiene variable para ella**
-#       (medido el 19/08 sobre `libpq.so.5`: `PGSSLPASSWORD` no aparece ni una
-#       vez, y `PGSSLMODE`/`PGSSLKEY`/`PGSSLCERT`/`PGSSLROOTCERT` si). El primer
-#       intento de este ciclo la mandaba por `PGSSLPASSWORD` y "funcionaba":
-#       una variable que nadie lee tampoco estorba. Asi que se DESCARTA y el log
-#       lo dice — un descarte silencioso dejaria sin respaldo, sin explicacion, a
-#       una instancia con la llave cifrada. Y el `sslmode` que la acompana NO se
-#       toca: el escenario afirma las tres cosas a la vez.
+#       (medido el 19/08 sobre `libpq.so.5.16` de `postgres:16-alpine`:
+#       `PGSSLPASSWORD` no aparece ni una vez, y `PGSSLMODE`/`PGSSLKEY`/
+#       `PGSSLCERT`/`PGSSLROOTCERT` si, cada una pegada a su palabra clave en la
+#       tabla `PQconninfoOptions`). El primer intento de este ciclo la mandaba
+#       por `PGSSLPASSWORD` y "funcionaba": una variable que nadie lee tampoco
+#       estorba. Asi que se DESCARTA y el log lo dice — un descarte silencioso
+#       dejaria sin respaldo, sin explicacion, a una instancia con la llave
+#       cifrada. Y el `sslmode` que la acompana NO se pierde: se va a PGSSLMODE.
 preparar 'E75 la frase de la llave sale de argv, se descarta y se dice (F3.9, ciclo 3)'
-usar_url 'postgresql://spaces:cl%40ve@localhost:5433/spaces?sslmode=verify-full&sslpassword=FRASE-DE-LA-LLAVE'
+usar_url "postgresql://spaces:cl%40ve-$MARCA_CLAVE@localhost:5433/spaces?sslmode=verify-full&sslpassword=FRASE-DE-LA-LLAVE-$MARCA_CLAVE"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'FRASE-DE-LA-LLAVE'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces?sslmode=verify-full'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'FRASE-DE-LA-LLAVE'
 no_hubo 'sslpassword'
-pgpassword_es 'cl@ve'
-pgsslpassword_sin_definir
+pgenv_es PGPASSWORD "cl@ve-$MARCA_CLAVE"
+pgenv_es PGSSLMODE 'verify-full'
+pgenv_sin_definir PGSSLPASSWORD
 log_dice 'PGSSLPASSWORD no existe en libpq 16'
 limpiar
 
@@ -1638,34 +1708,49 @@ limpiar
 #       usa la app y el respaldo no correria — una fuga arreglada a cambio de
 #       una instancia que ya no se actualiza.
 preparar 'E76 con clave en el userinfo Y en la consulta, gana la de la consulta (F3.9, ciclo 3)'
-usar_url 'postgresql://spaces:CLAVE-DEL-USERINFO@localhost:5433/spaces?password=CLAVE-DE-LA-CONSULTA&sslpassword=FRASE-DE-LA-LLAVE'
+usar_url "postgresql://spaces:CLAVE-DEL-USERINFO-$MARCA_CLAVE@localhost:5433/spaces?password=CLAVE-DE-LA-CONSULTA-$MARCA_CLAVE&sslpassword=FRASE-DE-LA-LLAVE-$MARCA_CLAVE"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'CLAVE-DEL-USERINFO'
 subido_calla 'CLAVE-DE-LA-CONSULTA'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'CLAVE-DEL-USERINFO'
 no_hubo 'CLAVE-DE-LA-CONSULTA'
 no_hubo 'FRASE-DE-LA-LLAVE'
-pgpassword_es 'CLAVE-DE-LA-CONSULTA'
-pgsslpassword_sin_definir
+pgenv_es PGPASSWORD "CLAVE-DE-LA-CONSULTA-$MARCA_CLAVE"
+pgenv_sin_definir PGSSLPASSWORD
 limpiar
 
-# E77 · EL ESCENARIO QUE IMPIDE EL ARREGLO DESTRUCTIVO. Seis parametros que
-#       cambian como se conecta, con la contrasena EN MEDIO —la posicion dificil,
-#       la que obliga a volver a pegar los `&` bien—. Los seis tienen que llegar
-#       intactos, en su orden y con su percent-encoding sin tocar: `options` sin
-#       su `%20` no es el mismo `options`.
-preparar 'E77 lo que cambia como se conecta llega intacto a argv (F3.9, ciclo 3)'
-usar_url 'postgresql://spaces@localhost:5433/spaces?sslmode=require&password=CLAVE-EN-MEDIO&application_name=space-os-update&options=-c%20statement_timeout%3D0&connect_timeout=10&target_session_attrs=read-write&sslrootcert=/etc/ssl/ca.crt'
+# E77 · EL ESCENARIO QUE IMPIDE EL ARREGLO DESTRUCTIVO. Siete parametros que
+#       cambian como se conecta, con la contrasena EN MEDIO —la posicion dificil—.
+#       Ninguno puede perderse, y ninguno puede viajar en argv: cada uno tiene
+#       que aparecer en su variable PG*, y DECODIFICADO, que es lo que cambia
+#       respecto del ciclo anterior. `options=-c%20statement_timeout%3D0` en una
+#       URL es `-c statement_timeout=0` en `PGOPTIONS`: una variable de entorno
+#       no lleva percent-encoding, y reenviarla codificada le daria a Postgres un
+#       `-c` que no entiende. Las ocho equivalencias estan medidas una a una
+#       contra libpq 16 (19/08), con el servidor hablando TLS para poder aislar
+#       las tres de SSL.
+preparar 'E77 lo que cambia como se conecta llega intacto, por el entorno (F3.9, ciclo 3)'
+usar_url "postgresql://spaces@localhost:5433/spaces?sslmode=require&password=CLAVE-EN-MEDIO-$MARCA_CLAVE&application_name=space-os-update&options=-c%20statement_timeout%3D0&connect_timeout=10&target_session_attrs=read-write&sslrootcert=/etc/ssl/ca.crt&sslcert=/etc/ssl/cli.crt&sslkey=/etc/ssl/cli.key"
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'CLAVE-EN-MEDIO'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces?sslmode=require&application_name=space-os-update&options=-c%20statement_timeout%3D0&connect_timeout=10&target_session_attrs=read-write&sslrootcert=/etc/ssl/ca.crt'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'CLAVE-EN-MEDIO'
-pgpassword_es 'CLAVE-EN-MEDIO'
+no_hubo 'sslmode'
+no_hubo 'statement_timeout'
+pgenv_es PGPASSWORD "CLAVE-EN-MEDIO-$MARCA_CLAVE"
+pgenv_es PGSSLMODE 'require'
+pgenv_es PGAPPNAME 'space-os-update'
+pgenv_es PGOPTIONS '-c statement_timeout=0'
+pgenv_es PGCONNECT_TIMEOUT '10'
+pgenv_es PGTARGETSESSIONATTRS 'read-write'
+pgenv_es PGSSLROOTCERT '/etc/ssl/ca.crt'
+pgenv_es PGSSLCERT '/etc/ssl/cli.crt'
+pgenv_es PGSSLKEY '/etc/ssl/cli.key'
 limpiar
 
 # E78 · LA AMBIGUEDAD, TAL Y COMO ES · una URL SIN credencial cuya consulta
@@ -1690,20 +1775,128 @@ log_dice 'lo que fallo fue interpretar DATABASE_URL'
 limpiar
 
 # E79 · `?password=` con el valor VACIO y una clave de verdad en el `userinfo`.
-#       Sale de escribir el arreglo, no de la auditoria: si la reescritura de la
-#       URL se decide mirando «hay contrasena» en vez de «habia algo que quitar»,
-#       la consulta vacia **pisa** a la del userinfo —gana la de la consulta—, la
-#       clave efectiva queda vacia, no se reescribe nada y la URL ENTERA, con
-#       `SECRETO-DEL-USERINFO` dentro, se va a argv. Un caso absurdo de escribir a
-#       mano que produce exactamente la fuga que este ciclo cierra.
+#       Salio de escribir el arreglo del ciclo anterior, no de la auditoria: si
+#       la URL se RECONSTRUIA mirando «hay contrasena» en vez de «habia algo que
+#       quitar», la consulta vacia pisaba a la del userinfo, la clave efectiva
+#       quedaba vacia, no se reescribia nada y la URL ENTERA se iba a argv.
+#       Desde M3 esa clase de fallo ya no se puede escribir: no hay ninguna URL
+#       que reconstruir, asi que no hay decision de "reescribir o no" que
+#       equivocarse. El escenario se queda porque fija la PRECEDENCIA, que es lo
+#       unico que aqui sigue siendo una decision — y es el caso en el que los dos
+#       clientes NO coinciden: libpq se queda con la vacia de la consulta,
+#       `pg-connection-string` con la del `userinfo` (medido, 19/08). Se sigue a
+#       libpq, que es quien va a conectar.
 preparar 'E79 la consulta vacia no deja la clave del userinfo en argv (F3.9, ciclo 3)'
-usar_url 'postgresql://spaces:SECRETO-DEL-USERINFO@localhost:5433/spaces?password='
+usar_url "postgresql://spaces:SECRETO-DEL-USERINFO-$MARCA_CLAVE@localhost:5433/spaces?password="
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'SECRETO-DEL-USERINFO'
-argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
 no_hubo 'SECRETO-DEL-USERINFO'
+pgenv_sin_definir PGPASSWORD
+limpiar
+
+# ─── LAS CODIFICACIONES DEL NOMBRE (E80-E83) ───────────────────────────────
+#  Los tres casos que cazaron a los tres ciclos anteriores, uno por ciclo, mas
+#  el que se habia declarado "limite conocido". Todos son el MISMO parametro
+#  `password` escrito de otra manera, porque libpq percent-decodifica el NOMBRE
+#  del parametro antes de mirarlo. Filtrar por nombre literal nunca los iba a
+#  ver: no hay lista negra completa sobre un espacio que se decodifica.
+
+# E80 · `?%70assword=` — la `p` codificada. Es la que rompio el ciclo 3: la
+#       lista negra buscaba la cadena `password` y aqui no esta escrita.
+#       Comprobado conectando de verdad contra un Postgres con `scram-sha-256`:
+#       libpq la usa, y `pg-connection-string` 2.14.0 tambien.
+preparar 'E80 ?%70assword= es `password` para libpq, y tampoco llega a argv (M3)'
+usar_url "postgresql://spaces@localhost:5433/spaces?%70assword=CLAVE-CODIFICADA-$MARCA_CLAVE"
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-CODIFICADA'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
+no_hubo 'CLAVE-CODIFICADA'
+no_hubo '%70assword'
+pgenv_es PGPASSWORD "CLAVE-CODIFICADA-$MARCA_CLAVE"
+limpiar
+
+# E81 · `?passwor%64=` — la `d` codificada, o sea la misma clase por el otro
+#       extremo de la palabra. Un filtro por prefijo tampoco la ve.
+preparar 'E81 ?passwor%64= tampoco llega a argv (M3)'
+usar_url "postgresql://spaces@localhost:5433/spaces?passwor%64=CLAVE-POR-EL-FINAL-$MARCA_CLAVE"
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-POR-EL-FINAL'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
+no_hubo 'CLAVE-POR-EL-FINAL'
+no_hubo 'passwor%64'
+pgenv_es PGPASSWORD "CLAVE-POR-EL-FINAL-$MARCA_CLAVE"
+limpiar
+
+# E82 · `?%70%61%73%73%77%6f%72%64=` — el nombre entero codificado. El caso
+#       limite de la clase: no queda ni una letra de `password` a la vista.
+preparar 'E82 el nombre entero codificado tampoco llega a argv (M3)'
+usar_url "postgresql://spaces@localhost:5433/spaces?%70%61%73%73%77%6f%72%64=CLAVE-TODA-CODIFICADA-$MARCA_CLAVE"
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'CLAVE-TODA-CODIFICADA'
+argv_pg_es '-h localhost -p 5433 -U spaces -d spaces'
+no_hubo 'CLAVE-TODA-CODIFICADA'
+no_hubo '%70%61'
+pgenv_es PGPASSWORD "CLAVE-TODA-CODIFICADA-$MARCA_CLAVE"
+limpiar
+
+# E83 · `?PASSWORD=` en mayusculas. El ciclo 2 lo declaro "limite conocido y
+#       aceptado": libpq lo rechaza («invalid URI query parameter: "PASSWORD"»,
+#       medido), asi que esa URL no ha funcionado nunca en ninguna instancia
+#       —pero el parametro SI viajaba a argv, con su valor dentro, antes de que
+#       el respaldo muriera con el mensaje de libpq. Desde M3 no hay limite que
+#       aceptar: lo que no tiene equivalente PG* no pasa, se para ANTES de tocar
+#       nada, y el mensaje nombra el parametro (nunca su valor).
+preparar 'E83 ?PASSWORD= en mayusculas se para y no deja el valor en argv (M3)'
+usar_url "postgresql://spaces@localhost:5433/spaces?PASSWORD=CLAVE-EN-MAYUSCULAS-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`PASSWORD` en la consulta y no hay variable de entorno PG*'
+log_calla 'CLAVE-EN-MAYUSCULAS'
+subido_calla 'CLAVE-EN-MAYUSCULAS'
+no_hubo 'CLAVE-EN-MAYUSCULAS'
+no_hubo 'pg_dump'
+limpiar
+
+# ─── LOS DOS LIMITES QUE M3 NO ARREGLA (E84-E85) ───────────────────────────
+#  Estan aqui para saber que NO EMPEORAN, no porque funcionen. Los dos paran en
+#  seco con salida 1 y sin tocar nada, que es el fallo correcto aunque no sea el
+#  comportamiento deseable; arreglarlos esta fuera del alcance por decision de
+#  Jochelo. Comprobado que dan lo mismo antes y despues de M3.
+
+# E84 · multi-host (`host1:5432,host2:5432`), que libpq acepta para failover. La
+#       coma no pasa el guard del destino, asi que falla cerrado. Con banderas
+#       sueltas tampoco se podria: `-h` acepta la lista, pero repartir puertos
+#       por host exige entender la sintaxis entera y no se entiende.
+preparar 'E84 la URL multi-host sigue parando en seco, sin publicar nada (M3)'
+usar_url "postgresql://spaces:CLAVE-MULTIHOST-$MARCA_CLAVE@host1:5432,host2:5432/spaces"
+correr
+codigo_es 1
+log_dice 'no se puede interpretar'
+subido_dice '(url no parseable)'
+subido_calla 'CLAVE-MULTIHOST'
+no_hubo 'pg_dump'
+limpiar
+
+# E85 · la URL de socket unix (`postgresql:///spaces?host=/var/run/postgresql`).
+#       No hay host antes de la barra, asi que el guard del destino la rechaza
+#       ANTES de mirar la consulta — el `host=` de ahi dentro no llega ni a
+#       clasificarse. Mismo fallo cerrado que antes de M3.
+preparar 'E85 la URL de socket unix sigue parando en seco (M3)'
+usar_url 'postgresql:///spaces?host=/var/run/postgresql'
+correr
+codigo_es 1
+log_dice 'no se puede interpretar'
+subido_dice '(url no parseable)'
+no_hubo 'pg_dump'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -1848,27 +2041,42 @@ if [ "${1:-}" = '--mutantes' ]; then
   probar_mutante 'quitar el guard del destino: cualquier cosa pasa por host' \
     's,^  if ! printf .*then$,  if false; then,'
   probar_mutante 'fallar ABIERTO: la URL que no se entiende se pasa entera a argv' \
-    's,^  salir "\$EX_CONFIG" "ERROR update: no se puede interpretar.*,  PG_URL_SEGURA="$DATABASE_URL",'
+    's,^  salir "\$EX_CONFIG" "ERROR update: no se puede interpretar.*,  PG_BANDERAS=(--dbname="$DATABASE_URL"),'
   probar_mutante 'destino_de_url publicando la cadena que no entendio' \
     "s,else printf '%s' '(url no parseable)',else printf \"%s\" \"\$1\","
   probar_mutante 'no duplicar la barra invertida antes del printf %b' \
     's,^    \*%\*) s=.*,    *%*) s="$1"; printf "%b" "${s//%/\\\\\\\\x}" ;;,'
 
-  # Y los cinco del 19/08 (ciclo 3): la credencial que viajaba en la CONSULTA.
-  # Los dos primeros son los dos errores opuestos del mismo arreglo —no quitar
-  # nada, y quitar la consulta entera—, que es justo el par que hay que poder
-  # distinguir para no cambiar una fuga por una instancia que ya no se
-  # actualiza.
-  probar_mutante 'pasar la consulta ENTERA a argv, con `?password=` dentro' \
-    's#{URL_USUARIO:+\$URL_USUARIO@}\$URL_DESTINO_SIN_CLAVE#{URL_USUARIO:+$URL_USUARIO@}$URL_DESTINO_COMPLETO#'
-  probar_mutante 'quitar la consulta ENTERA: se lleva por delante sslmode y options' \
-    's#{URL_USUARIO:+\$URL_USUARIO@}\$URL_DESTINO_SIN_CLAVE#{URL_USUARIO:+$URL_USUARIO@}$URL_DESTINO#'
+  # Y los dos del 19/08 (ciclo 3) que M3 no dejo sin sitio: la precedencia entre
+  # las dos claves y el reconocimiento de `sslpassword`.
   probar_mutante 'que gane la clave del userinfo sobre la de la consulta' \
     's#^  if \[ "\$URL_HAY_CONSULTA_CLAVE" = 1 \]; then$#  if false                              ; then#'
   probar_mutante 'no reconocer `sslpassword`: se queda en la URL y se va a argv' \
     's,^      sslpassword) URL_HAY,      sslpasswordx) URL_HAY,'
-  probar_mutante 'decidir la reescritura por "hay clave" en vez de "habia algo que quitar"' \
-    's#^  if \[ "\$reescribir" = 1 \]; then$#  if [ -n "$PG_CLAVE" ]; then#'
+
+  # ── Y los seis de M3 (19/08): la conexion dejo de viajar como URL ─────────
+  # Tres mutantes del ciclo 3 desaparecieron de esta lista y no se sustituyen:
+  # apuntaban a la linea que RECONSTRUIA la URL —pasarla entera, quitarle la
+  # consulta entera, o decidir la reescritura por "hay clave"—. Esa linea ya no
+  # existe, asi que esas tres formas de equivocarse ya no se pueden escribir.
+  # Eso, y no otra cosa, es lo que se gano: la clase de fallo se elimino en vez
+  # de vigilarse.
+  #
+  # El primero es EL defecto: volver a meter la URL en argv. El segundo es la
+  # fuga exacta que se le escapo a los tres ciclos —el nombre del parametro sin
+  # decodificar—, y es el que mas importa que muerda.
+  probar_mutante 'volver a mandar la URL entera en `--dbname` (la fuga de M3)' \
+    's#^    exec "\$binario" \${PG_BANDERAS\[@\]+"\${PG_BANDERAS\[@\]}"} "\$@"$#    exec "$binario" --dbname="$DATABASE_URL" "$@"#'
+  probar_mutante 'no decodificar el NOMBRE del parametro: `?%70assword=` se cuela' \
+    's#^    nombre="\$(decodificar_porciento "\$nombre")"$#    nombre="$nombre"#'
+  probar_mutante 'no decodificar el VALOR: PGOPTIONS llega con percent-encoding' \
+    's#^    valor="\$(decodificar_porciento "\$valor")"$#    valor="$valor"#'
+  probar_mutante 'no fallar cerrado ante un parametro sin variable PG*' \
+    's#^  if \[ -n "\$URL_CONSULTA_NO_SOPORTADO" \]; then$#  if false                                    ; then#'
+  probar_mutante 'perder lo que cambia como se conecta: no reenviar la consulta' \
+    's,^  if \[ "\${#URL_CONSULTA_ENV\[@\]}" -gt 0 \]; then.*$,  : sin reenviar la consulta,'
+  probar_mutante 'pasar un `-U` vacio cuando la URL no trae usuario' \
+    's,^  if \[ -n "\$URL_USUARIO" \]; then PG_BANDERAS+=(-U .*$,  PG_BANDERAS+=(-U "$(decodificar_porciento "$URL_USUARIO")"),'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
