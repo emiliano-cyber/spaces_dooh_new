@@ -537,6 +537,53 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > WHATWG/node-pg, y **eso es justamente lo que hace correcto** mandar la clave por `PGPASSWORD`.
 > El tablero y el mensaje del commit lo dicen bien; el comentario dice lo contrario.
 
+> [!danger] 🔴 El ensayo de Fase 4 encontró DOS defectos que impiden que el modelo funcione
+> **D1 · `db/schema.sql:598` siembra el tenant `rgb` en TODA base nueva.** ROJO: toca tenant.
+> ```sql
+> insert into tenants (nombre, slug) values ('RGB Catorce','rgb') on conflict (slug) do nothing;
+> ```
+> Medido en una base recién nacida: `tenants = 1` (`rgb`) y `config_negocio = 1`.
+> **Rompe el criterio de F4.2** —«ni una fila de ningún owner»: es 1, no 0— y **rompe el comando
+> de verificación de F4.5**, que exige que los slugs de DEMO y de `spaces_prod` **no compartan
+> ninguno**: `rgb` estaría en las dos listas. Y lo de fondo: **cada instancia de owner nace
+> cargando la identidad de otro owner**, que es justo lo que el modelo de instancias soberanas
+> existe para evitar.
+>
+> **D2 · `rol_permisos` nace con 5 filas de un solo módulo.** Único sembrado del repo:
+> `db/migrations/20260804_modulo_inventario.sql:22`. Base nueva: **5 filas / 1 módulo**. Base de
+> desarrollo: **25 filas / 8 módulos**. Sin respaldo en código —`auth.ts:126-134` lee la tabla y
+> nada más—, así que **un Dueño en una instancia recién aprovisionada ve la aplicación entera
+> vacía**. Falla cerrado, no es fuga, pero **bloquea F4.4 y toda la Fase 5**.
+
+> [!warning] Y cuatro más del mismo ensayo, ninguno de decisión
+> **D3 · `Dockerfile:94-95` no copia `scripts/migrar.mjs`**, contradiciendo su comentario de
+> `:90-92`. `pg` sí viaja. **El arreglo es una línea y está probado**:
+> `COPY --chown=node:node scripts/migrar.mjs ./scripts/migrar.mjs`.
+>
+> **D4 · Una migración fallida deja la base irrecuperable.** Tras abortar en la 52,
+> `schema_migrations` **no existe** pero 51 migraciones ya corrieron. El runner sin bandera dice
+> «no tiene registro pero YA tiene datos, no lo adivino» (exit 1) y `--instalacion-nueva` dice
+> «sobre una base que SÍ tiene historia» (exit 1). **Los dos caminos se niegan; único recobro,
+> `drop database`.**
+>
+> **D5 · El rol debe existir ANTES del runner y nada lo obliga.**
+> `20260715_arr_m6_rol_restringido.sql:20-21` es `if exists (…) then` → **no-op silencioso** sin
+> rol; una vez registrada como aplicada no vuelve a correr, así que crear el rol después deja un
+> rol de app **sin ningún GRANT**. **D6**: `db/dev-rol-app.sql` está marcado *solo desarrollo*,
+> lleva la contraseña en claro y no viaja en la imagen. Insumo de la Fase 5.
+
+> [!tip] Dos hechos que corrigen lo que creíamos
+> **① La imagen de release con las 68 migraciones YA se construyó.** El intento que dimos por
+> «colgado» en realidad **completó el primer `docker build` del `Dockerfile` real**: tres etapas,
+> 240 MB, las 68 dentro. Llevábamos días repitiendo que nadie la había construido. Se reconstruye
+> con `docker build -t space-os:f4-ensayo --build-arg VERSION=v0.0.0-ensayo-f4 .`
+>
+> **② El autoregistro quedó cerrado de punta a punta**, salvo el ojo humano: **503** en el
+> endpoint, `{"autoregistro":false}` en `metodos`, y **0 ocurrencias de «Crear cuenta» en el HTML
+> servido** (15 104 B contra 15 234 B con el botón horneado). Cerrado además por construcción en
+> `login/page.tsx:66,83,365`. Pero **van dos ensayos que no lo ven con un navegador**: sigue en
+> la tarjeta.
+
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
 > el droplet que **solo puede correr una persona** (tarjeta **TH-F0.1**, emitida y sin correr).
@@ -555,10 +602,10 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
 |---|---|---|---|---|---|
 | F4.1 | [verificación] | tarjeta humana | — | PENDIENTE_SERVIDOR | Censo del droplet actual: solo una persona |
-| F4.2 | [infra] | ensayista-local (compose: imagen + Postgres propio) | F2.5 | PENDIENTE | Droplet real = tarjeta humana |
+| F4.2 | [infra] | ensayista-local | F2.5 | ⚠️ **ENSAYADA_LOCAL — criterio de datos INCUMPLIDO por D1** | **La receta exacta**, medida: (1) `db/dev-rol-app.sql` **antes que nada**, (2) `db/schema.sql`, (3) `migrar.mjs --instalacion-nueva` → 67 aplicadas, **39 tablas**, exit 0; 2.ª corrida = 0 aplicadas. **Sin el paso 1 aborta en la 52 de 68.** Rol `spaces_app` NOSUPERUSER/NOBYPASSRLS ✅ |
 | F4.3 | [infra] | tarjeta humana | F4.2 real | PENDIENTE_SERVIDOR | Dominio + certificado: no se simula con hosts falsos |
-| F4.4 | [infra] | ensayista-local (datos de juguete + autoregistro según P4-bis) | F4.2-local | PENDIENTE | |
-| F4.5 | [verificación] | ensayista-local (smoke en localhost) + tarjeta humana | F4.4 | PENDIENTE | El cierre del riesgo es contra la DEMO real. 🔴 **Su tarjeta, cuando se escriba, tiene DOS instrucciones opuestas en la bitácora y solo una vale.** La del 14/08 —arrancar con `AUTOREGISTRO=1` y esperar `signup` **400**— quedó **invertida** el mismo día al cerrar el registro en toda la flota, DEMO incluida: lo correcto es **503 y el botón «Crear cuenta» AUSENTE**. Y esa comprobación del botón es el único eslabón que el ensayo de F2.5 no pudo probar (hidratación en navegador real), así que **tiene que ir en la tarjeta o se pierde** |
+| F4.4 | [infra] | ensayista-local | F4.2-local | ⚠️ **ENSAYADA_LOCAL — bloqueada por D2** | Los datos entran y se leen bajo RLS, pero `/api/estado/` los devolvía **vacíos**, y **no es RLS ni tenant: es el catálogo de permisos** (D2). ⚠️ **El plan está desactualizado**: `:1345` pide `NEXT_PUBLIC_AUTOREGISTRO=1` y la bandera ya es `AUTOREGISTRO` de runtime; `:1351` espera 400 y lo correcto es **503** |
+| F4.5 | [verificación] | ensayista-local + tarjeta humana | F4.4 | ⚠️ **SMOKE LOCAL EN VERDE**; el real, tarjeta | El cierre del riesgo es contra la DEMO real. 🔴 **Su tarjeta, cuando se escriba, tiene DOS instrucciones opuestas en la bitácora y solo una vale.** La del 14/08 —arrancar con `AUTOREGISTRO=1` y esperar `signup` **400**— quedó **invertida** el mismo día al cerrar el registro en toda la flota, DEMO incluida: lo correcto es **503 y el botón «Crear cuenta» AUSENTE**. Y esa comprobación del botón es el único eslabón que el ensayo de F2.5 no pudo probar (hidratación en navegador real), así que **tiene que ir en la tarjeta o se pierde** |
 
 ## Commits que esperan visto bueno humano
 
