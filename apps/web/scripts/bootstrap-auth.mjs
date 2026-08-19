@@ -1,8 +1,14 @@
 // ============================================================================
-//  bootstrap-auth.mjs — Crea permisos por rol + usuarios iniciales (bcrypt).
-//  Idempotente. Correr desde apps/web:
-//    DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/bootstrap-auth.mjs
-//  DATABASE_URL es OBLIGATORIA: el script no elige base por ti (ver abajo).
+//  bootstrap-auth.mjs — Crea la organización de la instancia, su Dueño y los
+//  permisos por rol (bcrypt). Idempotente. Correr desde apps/web:
+//
+//    DATABASE_URL=postgresql://usuario:clave@host:puerto/base \
+//    ORG_SLUG=mi-org ORG_NOMBRE='Mi Organizacion SA' \
+//    ADMIN_EMAIL=duena@mi-org.mx ADMIN_NOMBRE='Nombre de la duena' \
+//    node scripts/bootstrap-auth.mjs
+//
+//  Las cinco variables son OBLIGATORIAS y ninguna tiene valor por omisión: el
+//  script no elige la base por ti (ver abajo) ni de quién es la instancia.
 // ============================================================================
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
@@ -28,7 +34,50 @@ if (!DATABASE_URL) {
       'decirle explícitamente contra cuál corre.\n' +
       '  bash:        DATABASE_URL=postgresql://spaces:spaces@localhost:5433/mi_base node scripts/bootstrap-auth.mjs\n' +
       '  PowerShell:  $env:DATABASE_URL="postgresql://spaces:spaces@localhost:5433/mi_base"; node scripts/bootstrap-auth.mjs\n' +
-      'Ojo: la base "spaces" del 5433 tiene datos reales.',
+      'Ojo: la base "spaces" del 5433 es de pruebas, pero es la del demo local.',
+  )
+  process.exit(1)
+}
+
+// ─── De quién es esta instancia: se PREGUNTA, no se hereda ─────────────────
+//
+// Hasta el 2026-08-19 la organización venía horneada ('rgb') y el Dueño también
+// ('Cliente_ RGB Catorce' / jose@pixeled.com.mx). Con el modelo de instancias
+// soberanas eso es un defecto de identidad: cada instancia que se aprovisionara
+// —la de PIXELED, la de Telcel— habría nacido con la organización de otro owner
+// y con una cuenta DUENO ajena capaz de entrar. `db/schema.sql` dejó de sembrar
+// el tenant el mismo día; esto es la otra mitad.
+//
+// Sin valores por omisión, y por el mismo motivo que `DATABASE_URL` (T-02): un
+// default aquí es exactamente el dato horneado que se acaba de retirar, y el
+// día que alguien corriera el script sin variables volvería a sembrarlo.
+const ORG_SLUG = (process.env.ORG_SLUG ?? '').trim()
+const ORG_NOMBRE = (process.env.ORG_NOMBRE ?? '').trim()
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL ?? '').trim()
+const ADMIN_NOMBRE = (process.env.ADMIN_NOMBRE ?? '').trim()
+
+const FALTAN = [
+  ['ORG_SLUG', ORG_SLUG],
+  ['ORG_NOMBRE', ORG_NOMBRE],
+  ['ADMIN_EMAIL', ADMIN_EMAIL],
+  ['ADMIN_NOMBRE', ADMIN_NOMBRE],
+]
+  .filter(([, v]) => !v)
+  .map(([k]) => k)
+
+if (FALTAN.length) {
+  console.error(
+    `ERROR bootstrap: faltan variables de entorno: ${FALTAN.join(', ')}.\n` +
+      'Este script crea la organización de la instancia y su Dueño, así que no\n' +
+      'los adivina: antes venían horneados (la organización "rgb" y la cuenta\n' +
+      'jose@pixeled.com.mx) y eso hacía que toda instancia nueva naciera con la\n' +
+      'identidad de otro owner dentro.\n' +
+      '  bash:        ORG_SLUG=mi-org ORG_NOMBRE="Mi Organizacion SA" \\\n' +
+      '               ADMIN_EMAIL=duena@mi-org.mx ADMIN_NOMBRE="Nombre de la duena" \\\n' +
+      '               DATABASE_URL=... node scripts/bootstrap-auth.mjs\n' +
+      '  PowerShell:  $env:ORG_SLUG="mi-org"; $env:ORG_NOMBRE="Mi Organizacion SA"; ...\n' +
+      'En desarrollo local, la organización de siempre es\n' +
+      '  ORG_SLUG=rgb ORG_NOMBRE="RGB Catorce" (db/semilla-desarrollo.sql).',
   )
   process.exit(1)
 }
@@ -49,19 +98,37 @@ const MATRIZ = {
   administracion: { DUENO: ['ver', 'crear', 'aprobar'] },
 }
 
-// BD desde cero: solo el cliente/usuario RGB para hacer pruebas reales.
+// El Dueño de la instancia. Uno solo: los demás usuarios los da de alta él
+// desde la aplicación.
 const USUARIOS = [
-  { nombre: 'Cliente_ RGB Catorce', email: 'jose@pixeled.com.mx', cargo: 'Dueño', rol: 'DUENO' },
+  { nombre: ADMIN_NOMBRE, email: ADMIN_EMAIL, cargo: 'Dueño', rol: 'DUENO' },
 ]
 
 // La organización a la que pertenece el usuario inicial. Se resuelve SIEMPRE por
 // slug y nunca por uuid: el id de `tenants` se genera en cada base, así que un
 // uuid escrito aquí solo sería correcto en la base donde se copió.
-const TENANT_SLUG = 'rgb'
+const TENANT_SLUG = ORG_SLUG
 
 const pool = new pg.Pool({ connectionString: DATABASE_URL })
 
 async function main() {
+  // 0) La organización de la instancia.
+  //
+  // Antes la creaba `db/schema.sql` sembrando 'rgb', y este script se limitaba
+  // a buscarla. Ahora el esquema nace sin ninguna —una instancia no hereda la
+  // identidad de otro owner— así que quien la crea es el aprovisionamiento, y
+  // esto es el aprovisionamiento.
+  //
+  // `on conflict (slug) do nothing` para que correrlo dos veces no cambie nada
+  // ni pise el nombre que la organización tenga hoy. Ojo: eso significa que
+  // esta consulta puede afectar 0 filas legítimamente, así que NO se usa su
+  // `rowCount` para concluir nada — quien comprueba que la organización existe
+  // de verdad es el insert del Dueño, unas líneas más abajo.
+  await pool.query(
+    `insert into tenants (nombre, slug) values ($1, $2) on conflict (slug) do nothing`,
+    [ORG_NOMBRE, TENANT_SLUG],
+  )
+
   // 1) Permisos por rol
   let permisos = 0
   for (const [modulo, porRol] of Object.entries(MATRIZ)) {
@@ -104,18 +171,23 @@ async function main() {
     // afecta 0 y la consulta termina CON ÉXITO sin haber creado nada. Ese no-op
     // silencioso es el peor final posible para un bootstrap: la base queda sin
     // usuario y el operador cree que sembró. Se aborta ruidosamente.
+    //
+    // El guard NO sobra ahora que el paso 0 crea la organización: sigue siendo
+    // lo único que distingue «se creó» de «pareció crearse». Si el insert de
+    // `tenants` no dejó fila —un trigger, una política, una réplica en solo
+    // lectura— aquí es donde se nota, y es el motivo de T-01b (13/08).
     if (r.rowCount === 0) {
       throw new Error(
-        `no existe la organización con slug "${TENANT_SLUG}", así que el usuario ` +
-          `${u.email} no se pudo crear. Aplica db/schema.sql (crea el tenant "${TENANT_SLUG}") ` +
-          `o inserta la organización antes de volver a correr este script.`,
+        `la organización con slug "${TENANT_SLUG}" no existe ni quedó creada, así que ` +
+          `el usuario ${u.email} no se pudo crear. La base no acepta el alta de la ` +
+          `organización: revísala antes de volver a correr este script.`,
       )
     }
   }
 
   console.log(`OK · permisos sembrados: ${permisos} · usuarios: ${USUARIOS.length} · organización: ${TENANT_SLUG}`)
   console.log(`Contraseña inicial para todos: "${PASSWORD_DEFAULT}" (cámbiala después)`)
-  console.log('Admin: jose@pixeled.com.mx')
+  console.log(`Dueño: ${ADMIN_EMAIL}`)
   await pool.end()
 }
 

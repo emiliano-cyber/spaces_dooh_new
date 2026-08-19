@@ -14,6 +14,7 @@ archivos:
   - .dockerignore
   - apps/web/scripts/bootstrap-auth.mjs
   - db/README.md
+  - db/semilla-desarrollo.sql
   - ecosystem.config.js
   - .github/workflows/ci.yml
   - .github/workflows/release.yml
@@ -39,9 +40,15 @@ cd db && docker compose up -d
 psql -d spaces -f db/schema.sql
 # … y las 67 de db/migrations/ en orden lexicográfico ([[migraciones]])
 
-# 3. Permisos por rol + usuario inicial (idempotente)
-#    DATABASE_URL es OBLIGATORIA: el script no elige base por ti
+# 2b. La organización de PRUEBAS (solo en local; el esquema ya no siembra ninguna)
+psql -d spaces -f db/semilla-desarrollo.sql
+
+# 3. Permisos por rol + organización + su Dueño (idempotente)
+#    Ninguna variable tiene valor por omisión: el script no elige base por ti
+#    ni adivina de quién es la instancia
 cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
+  ORG_SLUG=rgb ORG_NOMBRE='RGB Catorce' \
+  ADMIN_EMAIL=jose@pixeled.com.mx ADMIN_NOMBRE='Cliente_ RGB Catorce' \
   node scripts/bootstrap-auth.mjs
 
 # 4. La app
@@ -53,12 +60,25 @@ cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
 `apps/web/scripts/bootstrap-auth.mjs` siembra la matriz de `rol_permisos` (36
 filas) y el usuario dueño, con la contraseña de `SEED_PASSWORD` (por omisión
 `spaces123`). Es el único consumidor de esa variable. Sin él una base recién
-creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y el tenant
-`rgb`, pero ni un solo usuario.
+creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y **ninguna
+organización**, así que tampoco un solo usuario.
 
-**`DATABASE_URL` es obligatoria** (`bootstrap-auth.mjs:10-34`): sin ella el script
-no arranca, imprime qué variable falta con un ejemplo en bash y en PowerShell, y
-sale con código 1.
+**`DATABASE_URL` es obligatoria**: sin ella el script no arranca, imprime qué
+variable falta con un ejemplo en bash y en PowerShell, y sale con código 1.
+
+> [!important] Y desde el 19/08 la identidad también se pregunta
+> El script **crea** la organización de la instancia en vez de buscar una
+> sembrada por el esquema, y la pide por entorno: **`ORG_SLUG`, `ORG_NOMBRE`,
+> `ADMIN_EMAIL` y `ADMIN_NOMBRE`**. Ninguna tiene valor por omisión, por el mismo
+> motivo que `DATABASE_URL`: **un default aquí es exactamente el dato horneado que
+> se acaba de retirar**. Antes venían escritos en el archivo —la organización
+> `rgb` y la cuenta `jose@pixeled.com.mx` con rol DUENO—, así que toda instancia
+> nueva habría nacido con la organización de otro owner y con un acceso ajeno
+> capaz de entrar. Si falta alguna, sale con código 1 nombrando las que faltan.
+>
+> El guard de abajo **no se tocó**, y ahora cubre un caso más: que el `insert` de
+> `tenants` no llegue a dejar fila. Sigue siendo lo único que distingue «se creó»
+> de «pareció crearse».
 
 > [!danger] Estuvo roto y no lo dijo nadie — corregido el 13/08
 > El script **fallaba siempre**, en cualquier base, por dos defectos del mismo
@@ -69,11 +89,14 @@ sale con código 1.
 >    índice **funcional** sobre `lower(email)` (`db/schema.sql:72`), y Postgres no
 >    lo infiere desde el nombre de la columna. El conflicto va por
 >    `on conflict (lower(email))`.
-> 2. **23502.** No fijaba `tenant_id`. Se apoyaba en el `DEFAULT` cableado por el
->    bucle de `db/schema.sql:600-624` — un uuid de otra base, y en retirada.
+> 2. **23502.** No fijaba `tenant_id`. Se apoyaba en el `DEFAULT` que cableaba el
+>    bucle multi-tenant de `db/schema.sql` — un uuid de otra base. Ese `DEFAULT`
+>    ya no existe: el bucle dejó de ponerlo el 19/08, con el mismo cambio que
+>    sacó del esquema el tenant sembrado.
 >
 > Ahora la organización se resuelve **por slug** (`insert … select … from tenants
-> where slug='rgb'`), nunca por uuid: el id se genera distinto en cada base.
+> where slug = $6`, el de `ORG_SLUG`), nunca por uuid: el id se genera distinto en
+> cada base.
 >
 > Y si esa organización **no existe**, el script **aborta con error y salida 1**.
 > No es un detalle: con esa forma de `insert`, la ausencia del tenant hace que la

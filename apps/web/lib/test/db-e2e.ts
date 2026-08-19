@@ -101,8 +101,8 @@ export function poolApp(): Pool {
   return poolAppRef
 }
 
-// Deja la base como recién creada: `schema.sql` MÁS todas las migraciones, en
-// orden de nombre.
+// Deja la base como el droplet: `schema.sql`, la organización de desarrollo y
+// todas las migraciones, en orden de nombre.
 //
 // Lo de las migraciones no es un extra: `schema.sql` es un SUBCONJUNTO de lo
 // que corre en producción. Se comparó columna a columna y le faltan 143 —
@@ -135,6 +135,26 @@ export async function recrearEsquema(): Promise<void> {
   await p.query('drop schema if exists public cascade')
   await p.query('create schema public')
   await p.query(readFileSync(join(raizDb, 'schema.sql'), 'utf8'))
+
+  // La organización de trabajo va ENTRE el esquema y las migraciones, y esa
+  // posición es la que hace válido lo que prueban las demás.
+  //
+  // Desde el 19/08 `schema.sql` ya no siembra ningún tenant: una instancia
+  // nueva no debe nacer con la identidad de otro owner (ver la cabecera de
+  // `db/semilla-desarrollo.sql`). Pero el estado que el arnés tiene que
+  // reproducir NO es el de una instancia recién nacida, sino el del DROPLET:
+  // una base que ya tenía organización cuando le llegaron las migraciones. De
+  // eso dependen dos cosas medibles:
+  //   · el backfill de `20260812_schema_migrations.sql` solo dispara si
+  //     `tenants` tiene filas — sembrar DESPUÉS lo dejaría sin disparar y
+  //     `migraciones.e2e.test.ts` mediría otra cosa;
+  //   · las migraciones que rellenan por organización (`config_negocio`,
+  //     moneda, razón social) no tendrían a quién rellenar.
+  //
+  // Quien prueba el caso contrario —una base sin owner, que es como nace una
+  // instancia— es `esquema-sin-owner.e2e.test.ts`, con su propia base y sin
+  // pasar por aquí.
+  await p.query(readFileSync(join(raizDb, 'semilla-desarrollo.sql'), 'utf8'))
 
   const dirMigraciones = join(raizDb, 'migrations')
   // El orden lo decide `ordenar()`, del runner (`scripts/migrar.mjs`). Aquí

@@ -5,6 +5,33 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-19
+
+- **Una instalación nueva ya no nace con la empresa de otro dentro.** Hasta hoy,
+  cualquier base creada desde cero salía con una organización ya dada de alta —«RGB
+  Catorce»— y con su ficha de configuración detrás. Nadie la había creado: venía
+  escrita en el archivo que levanta la base. Para una sola instalación era cómodo;
+  con el modelo de una instancia por cliente era un error de identidad: la copia de
+  cada cliente empezaba con la empresa de otro cliente adentro.
+  - **Qué cambia en la práctica:** una base recién creada sale **vacía de
+    organizaciones**, y la organización del cliente se crea **al darlo de alta**, no
+    se hereda. Quien monta una instancia tiene que decir de quién es: el programa de
+    arranque pide ahora el nombre y la clave de la organización y el nombre y correo
+    de su Dueño, y **se niega a arrancar si no se los dan**, en vez de inventarse
+    unos. Es la misma decisión que ya se tomó con la base de datos: no adivinar.
+  - **Y sigue avisando cuando algo falla de verdad.** Si la organización no llega a
+    crearse, el arranque **se detiene con error** en lugar de terminar «bien» sin
+    haber creado a nadie. Ese final silencioso ya costó un despliegue entero, y es lo
+    único que no se podía perder al hacer este cambio.
+  - **Nada de esto toca las bases que ya existen.** Producción y la de desarrollo
+    conservan su organización y siguen funcionando igual. El cambio es para las que
+    nacen a partir de hoy.
+  - **Para trabajar en local no se pierde nada:** la organización de pruebas de
+    siempre se mudó a un archivo aparte que se aplica a mano y que **no viaja** en lo
+    que se instala en los servidores.
+
+---
+
 ## 2026-08-14
 
 - **Los expedientes de evidencia de las fases 0, 1 y 2 caben ya en un solo PDF.**

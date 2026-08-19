@@ -6,12 +6,19 @@ import { recrearEsquema, poolTest, cerrarPool } from './db-e2e'
 // ============================================================================
 //  El DEFAULT de tenant_id no debe existir: un insert descuidado TRUENA.
 // ----------------------------------------------------------------------------
-//  `db/schema.sql:615` pone un DEFAULT apuntando al tenant 'rgb' en las 23
-//  tablas del bucle. Su modo de fallo es el peor que hay: no da error. Una fila
+//  `db/schema.sql` ponía un DEFAULT apuntando al tenant 'rgb' en las 23 tablas
+//  del bucle. Su modo de fallo es el peor que hay: no da error. Una fila
 //  insertada sin fijar tenant no queda huérfana ni revienta — nace atribuida a
 //  RGB, en silencio, dentro de otra organización. Es la misma familia de fallo
 //  que R2 en [[zonas-de-riesgo]], y ya dejó 15 modalidades de g500/eyro
 //  etiquetadas como RGB.
+//
+//  Desde el 19/08 el esquema ya no lo pone —el mismo cambio que le quitó el
+//  tenant sembrado— así que una base nueva nace sin defaults y la migración no
+//  tiene nada que quitarle. Donde SÍ los hay es en el droplet, que lleva meses
+//  con ellos y con la migración sin aplicar; por eso el último caso de este
+//  archivo le devuelve el default a una tabla y comprueba que la migración se
+//  lo quita de verdad, en vez de dar por buena una base que nunca lo tuvo.
 //
 //  La migración `20260812_sin_default_tenant.sql` lo retira. Estas pruebas
 //  miden el esquema REAL del repo: `recrearEsquema()` aplica `schema.sql` más
@@ -77,5 +84,36 @@ describe('tenant_id sin DEFAULT', () => {
     const sql = readFileSync(RUTA_MIGRACION, 'utf8')
     await expect(poolTest().query(sql)).resolves.toBeDefined()
     await expect(poolTest().query(sql)).resolves.toBeDefined()
+  })
+
+  it('y sobre una base que SÍ lo tiene —el droplet— se lo quita', async () => {
+    // Va al final a propósito: deja la base como la encontró. Sin este caso, los
+    // de arriba pasarían aunque la migración no hiciera nada, porque desde el
+    // 19/08 `schema.sql` ya no crea el default que ella retira. El droplet sí lo
+    // tiene, así que se reproduce ese estado y se mide el efecto.
+    const t = await poolTest().query("select id from tenants where slug = 'rgb'")
+    await poolTest().query(
+      `alter table clientes alter column tenant_id set default '${t.rows[0].id}'::uuid`,
+    )
+    const conDefault = await poolTest().query(
+      `select count(*)::int as n from information_schema.columns
+        where table_schema = 'public' and table_name = 'clientes'
+          and column_name = 'tenant_id' and column_default is not null`,
+    )
+    expect(conDefault.rows[0].n).toBe(1)
+
+    await poolTest().query(readFileSync(RUTA_MIGRACION, 'utf8'))
+
+    const despues = await poolTest().query(
+      `select count(*)::int as n from information_schema.columns
+        where table_schema = 'public' and column_name = 'tenant_id'
+          and column_default is not null`,
+    )
+    expect(despues.rows[0].n).toBe(0)
+    // Y el efecto que importa, que no es el catálogo: el insert descuidado
+    // vuelve a tronar en vez de nacer etiquetado como RGB.
+    await expect(
+      poolTest().query("insert into clientes (nombre) values ('Sin dueño otra vez')"),
+    ).rejects.toMatchObject({ code: '23502' })
   })
 })

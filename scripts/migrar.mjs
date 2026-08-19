@@ -375,12 +375,15 @@ export async function main(argv = process.argv) {
     // el runner le reaplicaba su historia entera.
     //
     // Y la heurística que se mira aquí —la del backfill: existe `tenants` y
-    // tiene filas— NO las distingue: después de `schema.sql` las dos tienen el
-    // tenant 'rgb' (`db/schema.sql:598`) y ninguna tiene registro. (Sí las
-    // separa otra señal, la de `testigosDeHistoria()`, que es la que verifica
-    // la bandera más abajo; no se usa para decidir sola, a propósito: la
-    // pregunta explícita se queda y lo que gana es comprobación.) Las dos
-    // salidas equivocadas hacen daño en silencio, por lados opuestos:
+    // tiene filas— es la que separa los dos casos. Hasta el 19/08 NO los
+    // separaba, porque `schema.sql` sembraba el tenant 'rgb' y una instalación
+    // recién nacida enseñaba organización igual que el droplet; desde que el
+    // esquema nace sin owner, una base recién creada tiene `tenants` vacía y
+    // este guard ya no le sale al paso. La pregunta explícita se queda de todas
+    // formas —una heurística que hoy acierta no es una respuesta— y sigue
+    // habiendo una segunda señal, la de `testigosDeHistoria()`, que es la que
+    // VERIFICA la bandera más abajo. Las dos salidas equivocadas hacen daño en
+    // silencio, por lados opuestos:
     //
     //   · tratar la rezagada como nueva → reaplica la historia. Hoy la cadena
     //     aguanta una segunda pasada (T-04), pero una base parada en la ventana

@@ -1,17 +1,18 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-19
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
+  - db/semilla-desarrollo.sql
   - db/migrations/
 ---
 
 # Esquema de datos
 
 **PostgreSQL, un solo schema (`public`), 39 tablas, sin ORM.** `db/schema.sql`
-(656 líneas) + 68 migraciones aditivas.
+(679 líneas) + 68 migraciones aditivas — 67 de esquema y una de datos.
 
 > [!warning] `schema.sql` no es el estado final
 > Varias columnas y **todas** las políticas RLS fail-closed llegan por
@@ -19,8 +20,44 @@ archivos:
 > [[migraciones]].
 >
 > Las 39 son las de una base levantada **desde el repo** (medido el 14/08 sobre
-> `spaces_e2e`). Producción tiene 38: le falta `schema_migrations`, cuya
-> migración está escrita y sin aplicar.
+> `spaces_e2e`, y otra vez el 19/08 sobre una base desechable con la receta
+> completa). Producción tiene 38: le falta `schema_migrations`, cuya migración
+> está escrita y sin aplicar.
+
+> [!important] El esquema nace SIN NINGUNA ORGANIZACIÓN — desde el 2026-08-19
+> `db/schema.sql` sembraba el tenant `RGB Catorce` / `rgb` y, detrás, su fila de
+> `config_negocio`. Una base recién nacida salía con **`tenants = 1` y
+> `config_negocio = 1`**: cada instancia de cada owner heredaba la identidad de
+> otro. Rompía dos criterios del plan v3 —F4.2 («ni una fila de ningún owner») y
+> F4.5 (los slugs de DEMO y de `spaces_prod` no pueden compartir ninguno)— y era
+> justo lo que el modelo de instancias soberanas existe para evitar.
+>
+> Hoy una base recién nacida sale con **`tenants = 0` y `config_negocio = 0`**, y
+> la receta completa —`db/dev-rol-app.sql` → `db/schema.sql` → `node
+> scripts/migrar.mjs --instalacion-nueva`— sigue dando **67 aplicadas, 39 tablas,
+> salida 0**, y **0 aplicadas** en la segunda corrida (medido el 19/08).
+>
+> Con el mismo cambio se fueron dos líneas que solo existían por ese seed: el
+> `select id into def from tenants where slug='rgb'` que alimentaba los `DEFAULT`
+> de `tenant_id` —los que etiquetaron 15 modalidades de g500/eyro como RGB, y que
+> `20260812_sin_default_tenant.sql` retira— y el `update config_negocio … where
+> slug='rgb'`. **Una base nueva ya no trae ningún `DEFAULT` de `tenant_id`**: un
+> insert descuidado truena con 23502 desde el primer día.
+>
+> **Quién crea la organización ahora:** el aprovisionamiento.
+> `apps/web/scripts/bootstrap-auth.mjs` la crea y la pide por entorno —`ORG_SLUG`,
+> `ORG_NOMBRE`, `ADMIN_EMAIL`, `ADMIN_NOMBRE`, ninguna con valor por omisión— y
+> **sigue abortando con salida 1** si la organización no queda creada de verdad
+> (el guard de T-01b: ese insert afecta 0 filas y termina con éxito). En F5.2 lo
+> sustituye la ruta de bootstrap de un solo uso.
+>
+> **Para desarrollo local, `rgb` no desapareció:** vive en
+> `db/semilla-desarrollo.sql`, que **no viaja en la imagen** (`Dockerfile:94-95`
+> copia `schema.sql` y `db/migrations/`, nada más). El arnés de integración la
+> aplica **entre el esquema y las migraciones** (`apps/web/lib/test/db-e2e.ts`),
+> porque el estado que reproduce es el del droplet —una base que ya tenía
+> organización cuando le llegaron las migraciones— y de eso depende que dispare
+> el backfill de `20260812_schema_migrations.sql`.
 
 ## Diagrama ER (núcleo)
 
@@ -69,13 +106,13 @@ erDiagram
 ### Plataforma y acceso
 | Tabla | RLS | Nota |
 |---|---|---|
-| `tenants` | **Exenta** | Una fila por organización |
+| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba) |
 | `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
 | `sesiones` | **Exenta** | + `desbloqueo_expira_en` |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`) |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |

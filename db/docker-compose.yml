@@ -8,8 +8,14 @@
 # Conexión:   postgresql://spaces:spaces@localhost:5433/spaces
 # Reiniciar a cero (borra TODO):  docker compose down -v && docker compose up -d
 #
-# Nota: schema.sql se ejecuta UNA sola vez (al crear el volumen). Lo que insertes
-# persiste entre reinicios (docker compose stop/up).
+# Nota: los .sql de abajo se ejecutan UNA sola vez (al crear el volumen). Lo que
+# insertes persiste entre reinicios (docker compose stop/up).
+#
+# Van DOS archivos y la separación es deliberada: `schema.sql` es lo que viaja a
+# cada instancia y desde el 19/08 no siembra ninguna organización —una instancia
+# no debe nacer con la identidad de otro owner—; `semilla-desarrollo.sql` crea la
+# organización de pruebas 'rgb' y solo se aplica AQUÍ, en local. La imagen
+# (`Dockerfile:94-95`) no la copia.
 services:
   db:
     image: postgres:16-alpine
@@ -22,6 +28,7 @@ services:
       - "5433:5432"
     volumes:
       - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ./semilla-desarrollo.sql:/docker-entrypoint-initdb.d/02_semilla_desarrollo.sql:ro
       - spaces_pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U spaces -d spaces"]

@@ -34,9 +34,10 @@ const ARCHIVO = '20260812_schema_migrations.sql'
 const SQL = () => readFileSync(join(DIR_MIGRACIONES, ARCHIVO), 'utf8')
 
 // Base desechable para el caso «instalación nueva». Hace falta una base APARTE
-// de verdad: `spaces_e2e` la deja poblada `recrearEsquema()` (`schema.sql:598`
-// siembra el tenant 'rgb'), así que ahí el backfill SIEMPRE dispara y el caso de
-// la base virgen no se podría distinguir. El nombre acaba en `_e2e` a propósito:
+// de verdad: `spaces_e2e` la deja poblada `recrearEsquema()` (aplica
+// `db/semilla-desarrollo.sql` entre el esquema y las migraciones), así que ahí
+// el backfill SIEMPRE dispara y el caso de la base virgen no se podría
+// distinguir. El nombre acaba en `_e2e` a propósito:
 // es la misma disciplina que exige `exigirBaseDePrueba()` en `db-e2e.ts:39-56`.
 const BASE_VIRGEN = 'spaces_virgen_e2e'
 
@@ -98,8 +99,9 @@ describe('registro de migraciones aplicadas', () => {
   })
 
   it('una base con historia NO reejecuta su pasado: queda backfilleada', async () => {
-    // `recrearEsquema()` deja la base como el droplet: `schema.sql` (que siembra
-    // el tenant 'rgb') más todas las migraciones. Ahí el backfill debe haber
+    // `recrearEsquema()` deja la base como el droplet: `schema.sql`, la
+    // organización de desarrollo (`db/semilla-desarrollo.sql`, aplicada ANTES de
+    // migrar a propósito) y todas las migraciones. Ahí el backfill debe haber
     // disparado.
     const { rows } = await poolTest().query(
       'select archivo, checksum, tipo from schema_migrations order by archivo',
@@ -247,13 +249,13 @@ describe('runner de migraciones', () => {
     await admin.query(`create database ${BASE_RUNNER}`)
     pool = new Pool({ connectionString: urlDe(BASE_RUNNER), max: 2 })
     await prepararBaseVacia(pool)
-    // `--instalacion-nueva` no es un adorno: `schema.sql` siembra el tenant
-    // 'rgb' (`db/schema.sql:598`), así que a partir de ese punto la base ya
-    // cumple la heurística de «base con historia» del backfill, que POR ESA
-    // heurística la vuelve idéntica a un droplet rezagado. El runner se niega a
-    // adivinar; aquí se le dice cuál de los dos casos es, que es justo lo que
-    // sabe el aprovisionamiento y no sabe el script — y el runner lo comprueba
-    // antes de creérselo (el caso de abajo, sobre la base rezagada).
+    // `--instalacion-nueva` se pasa a conciencia aunque desde el 19/08 esta
+    // base ya no la necesite: `schema.sql` dejó de sembrar organización, así
+    // que aquí `tenants` está vacía y el guard de «no sé si eres nueva o
+    // rezagada» no salta. La bandera se queda porque es lo que va a escribir el
+    // aprovisionamiento —afirmar el caso en vez de confiar en una heurística— y
+    // porque así se ejercita su verificación, que es lo que desmiente a quien
+    // afirma en falso (el caso de abajo, sobre la base rezagada).
     pendientesAntes = correrRunner(BASE_RUNNER, ['--pendientes', '--instalacion-nueva'])
     registroTrasListar = (
       await pool.query("select to_regclass('public.schema_migrations') is not null as hay")
@@ -309,14 +311,16 @@ describe('runner de migraciones', () => {
     expect(registradas.rows.map((r: any) => r.archivo)).toEqual(migracionesDeEsquema())
     expect(registradas.rows.length).toBeGreaterThanOrEqual(66)
 
-    // Ni una fila de 'backfill', y NO porque el backfill no se dispare —se
-    // dispara: el prólogo corre `schema.sql`, que siembra el tenant 'rgb'
-    // (`db/schema.sql:598`), así que al llegarle el turno a
-    // `20260812_schema_migrations.sql` sus 65 filas nacen. Lo que las sustituye
-    // es el `on conflict … do update` del propio runner (`migrar.mjs:627-629`),
-    // y aquí eso es lo correcto: esas 65 las acaba de aplicar ÉL en esta misma
-    // pasada, con un contenido que conoce. Medido cambiando solo esa cláusula:
-    // con `do update` salen 0; con `do nothing`, 65.
+    // Ni una fila de 'backfill'. Desde el 19/08 hay DOS motivos, y los dos
+    // apuntan al mismo sitio: el prólogo ya no siembra organización —`schema
+    // .sql` dejó de traer el tenant 'rgb'—, así que al llegarle el turno a
+    // `20260812_schema_migrations.sql` su backfill ni siquiera dispara («base
+    // con esquema pero sin organizaciones: no hay historia que respetar»); y
+    // aunque disparara, el `on conflict … do update` del propio runner
+    // (`migrar.mjs:627-629`) las sustituiría por el checksum real, que aquí es
+    // lo correcto: esas 65 las acaba de aplicar ÉL en esta misma pasada. Medido
+    // en su día cambiando solo esa cláusula: con `do update` salen 0; con `do
+    // nothing`, 65.
     const backfill = await pool.query(
       "select count(*)::int as n from schema_migrations where checksum = 'backfill'",
     )
@@ -400,10 +404,11 @@ describe('runner de migraciones', () => {
 //  aplicar (`vault/04-Datos/migraciones.md`). Sobre esa base, «no hay registro»
 //  no significa «instancia nueva»: significa exactamente lo contrario.
 //
-//  Y la heurística con la que el runner mira esto —la del backfill: existe
-//  `tenants` y tiene filas— NO las distingue, porque después de `schema.sql` las
-//  dos tienen el tenant 'rgb' y ninguna tiene registro. Las dos salidas
-//  equivocadas hacen daño por lados opuestos:
+//  La heurística con la que el runner mira esto es la del backfill: existe
+//  `tenants` y tiene filas. Por eso esta base se siembra a mano una organización
+//  —un droplet con meses de historia tiene organizaciones, y desde el 19/08
+//  `schema.sql` ya no las regala—. Las dos salidas equivocadas hacen daño por
+//  lados opuestos:
 //
 //    · tratar la rezagada como nueva → reaplica su historia entera. Una base
 //      parada en la ventana [20260723, 20260807) aborta a mitad al hacerlo, y
@@ -430,6 +435,30 @@ const MIGRACION_REGISTRO = '20260812_schema_migrations.sql'
 // 2026-08-12 (`20260812_schema_migrations.sql:29-35`).
 async function prepararInstanciaRezagada(pool: Pool): Promise<string[]> {
   await prepararBaseVacia(pool)
+  // La organización se siembra AQUÍ desde el 19/08, y no es un detalle del
+  // montaje: es lo que distingue a esta base de una recién nacida. Antes la
+  // ponía `schema.sql` gratis (sembraba 'rgb'), y al retirar ese seed —una
+  // instancia no hereda la identidad de otro owner— la base rezagada se
+  // quedaba SIN tenants, o sea indistinguible de una nueva para la heurística
+  // del runner (`migrar.mjs:baseConHistoria`). Un droplet con meses de historia
+  // tiene organizaciones; se dicen en voz alta.
+  await pool.query(readFileSync(join(RAIZ, 'db', 'semilla-desarrollo.sql'), 'utf8'))
+  // Y el DEFAULT de `tenant_id`, por lo mismo: el droplet lo TIENE —`schema.sql`
+  // lo cableaba hasta el 19/08 y `20260812_sin_default_tenant.sql` sigue sin
+  // aplicarse en producción—, así que una base rezagada sin él no sería una
+  // base rezagada. Es además el segundo testigo de que el runner no tocó nada.
+  await pool.query(`do $$
+    declare t text; def uuid;
+    begin
+      select id into def from tenants where slug = 'rgb';
+      foreach t in array array['usuarios','sitios','clientes','propuestas','propuesta_items',
+        'ordenes_compra','campanas','creatividades','reservas','ordenes_trabajo','evidencias_ot',
+        'ordenes_impresion','facturas','cobranzas','arrendadores','contratos_arrendamiento',
+        'pagos_renta','incidencias','notificaciones','acciones','sitio_modalidades','predios',
+        'arrendador_razon_social'] loop
+        execute format('alter table %I alter column tenant_id set default %L', t, def);
+      end loop;
+    end $$`)
   const historicas = ordenar(migracionesDeEsquema()).filter((f: string) => f < '20260812')
   for (const archivo of historicas) {
     try {
