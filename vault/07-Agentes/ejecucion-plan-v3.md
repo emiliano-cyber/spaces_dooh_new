@@ -639,11 +639,19 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > ▸ Límite escrito en el código: **`?PASSWORD=` en mayúsculas sí viaja** a `argv`. libpq rechaza
 > esa URL, así que nunca funcionó en ninguna instancia; no se le inventa significado.
 
-> [!important] ✅ **D2 EJECUTADO** como **T-05** — `9c41606`, pendiente de auditoría (19/08)
+> [!important] ✅ **T-05 AUDITADO: VERDE y aceptado** — `9c41606` (19/08)
 > Nace `db/migrations/20260819_semilla_rol_permisos.sql`: **25 filas, 8 módulos, 3 roles** en toda
 > base nueva, idempotente y no-op sobre una base que ya las tenga. E2E obligatorias corridas:
 > **186 + 1 saltada en 17 archivos**, `aislamiento.e2e.test.ts` intacto. Antes, un Dueño recién
 > creado recibía de `permisosDeRol` **una sola área abierta de 18**.
+>
+> **El auditor lo midió de punta a punta, no lo dedujo del diff**: reprodujo el estado anterior
+> en otra base (`schema.sql` + solo `20260804_modulo_inventario.sql`, las únicas dos migraciones
+> del repo que tocan la tabla) y obtuvo **5 filas / 1 módulo**; tras la migración, las 25. La
+> prueba lo ata a `permisosDeRol` y a `tienePermiso`, **no a un `count(*)`**. Convivencia con
+> `20260804` verificada: **25, no 30** — el `on conflict` absorbe las cinco repetidas.
+> Transaccional, en orden, fuera de las dos excepciones de `ANTES_DE`, y **ninguna migración
+> existente editada**: cero riesgo de `--forzar-checksum`.
 
 > [!warning] Y corrigió un dato que el orquestador dio mal — la corrección importa
 > **No son «19 módulos y 11 sin permisos».** `apps/web/lib/modulos.ts` declara **18 ÁREAS** y de
@@ -665,6 +673,17 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > Desmiente además la frase con la que se encargó la tarea —«el único sembrado de todo el repo»—:
 > era el único **en SQL**, no en el repo. Decisión pendiente para la Fase 5.
+>
+> **✅ MEDIDO por el auditor, secuencia completa contra base desechable: la unión son 41 filas /
+> 9 módulos / 5 roles, salida 0 y cero errores.** Y un matiz que muerde más que el número: el
+> Dueño acaba con **24 filas, no 19** — el bootstrap le concede `imprenta` ver/crear/aprobar,
+> `operaciones aprobar` y `network crear`, **deshaciendo en silencio la decisión expresa de la
+> migración de no inventar política de acceso sobre Imprenta**. Y nacen los roles `IMPRENTA` y
+> `FINANZAS`, que la migración dejó a propósito sin nada.
+>
+> ▸ **Atenuante medido:** hoy **nadie invoca `bootstrap-auth.mjs`** desde ningún `.sh`, workflow
+> ni script de aprovisionamiento (grep en todo el repo). Es un peligro **latente del diseño de la
+> Fase 5**, no un defecto vivo — por eso no tiñe el commit.
 >
 > ▸ Y dos roles del enum, **`IMPRENTA` y `FINANZAS`**, se ofrecen al dar de alta un usuario
 > (`components/demo/shell/nav.ts:132-133`) y **no abren nada**: la misma trampa que el ADR 0010 le
