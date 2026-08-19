@@ -639,6 +639,37 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > ▸ Límite escrito en el código: **`?PASSWORD=` en mayúsculas sí viaja** a `argv`. libpq rechaza
 > esa URL, así que nunca funcionó en ninguna instancia; no se le inventa significado.
 
+> [!important] ✅ **D2 EJECUTADO** como **T-05** — `9c41606`, pendiente de auditoría (19/08)
+> Nace `db/migrations/20260819_semilla_rol_permisos.sql`: **25 filas, 8 módulos, 3 roles** en toda
+> base nueva, idempotente y no-op sobre una base que ya las tenga. E2E obligatorias corridas:
+> **186 + 1 saltada en 17 archivos**, `aislamiento.e2e.test.ts` intacto. Antes, un Dueño recién
+> creado recibía de `permisosDeRol` **una sola área abierta de 18**.
+
+> [!warning] Y corrigió un dato que el orquestador dio mal — la corrección importa
+> **No son «19 módulos y 11 sin permisos».** `apps/web/lib/modulos.ts` declara **18 ÁREAS** y de
+> ellas **deriva** los módulos (`:57-60`, con el comentario «dos listas divergen, una no puede»).
+> `actividad`, `almacen`, `campanas`, `clientes`, `comisiones`, `creativos`, `disponibilidad`,
+> `integraciones` y `propuestas` son **áreas**, no módulos, y las gobiernan `comercial`,
+> `operaciones` y `administracion`, **que sí tienen permisos**: son accesibles.
+> **El único módulo huérfano es `imprenta`** (`modulos.ts:42`). No se sembró —sería inventar
+> política de acceso— y queda fijado por la prueba.
+
+> [!danger] 🔴 Hay DOS catálogos de permisos en el repo y NO coinciden — muerde en la Fase 5
+> `apps/web/scripts/bootstrap-auth.mjs:90-99` lleva su propia `MATRIZ` de **36 filas**, con el
+> módulo `imprenta` y con los roles `FINANZAS` e `IMPRENTA`, y **sin `inventario`** — es anterior
+> al ADR 0010.
+>
+> **Si el aprovisionamiento corre el bootstrap después de las migraciones, la instancia acaba con
+> la UNIÓN: 41 filas, no 25 — y sin dar un solo error.** Es exactamente el modo de fallo que el
+> comentario de `modulos.ts:56` advierte para otra cosa: «dos listas divergen, una no puede».
+>
+> Desmiente además la frase con la que se encargó la tarea —«el único sembrado de todo el repo»—:
+> era el único **en SQL**, no en el repo. Decisión pendiente para la Fase 5.
+>
+> ▸ Y dos roles del enum, **`IMPRENTA` y `FINANZAS`**, se ofrecen al dar de alta un usuario
+> (`components/demo/shell/nav.ts:132-133`) y **no abren nada**: la misma trampa que el ADR 0010 le
+> cerró a `CLIENTE`. Medido, no resuelto: es decisión de negocio.
+
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
 > el droplet que **solo puede correr una persona** (tarjeta **TH-F0.1**, emitida y sin correr).
