@@ -450,6 +450,24 @@ log_local_dice() { if grep -qF -- "$1" "$SPACE_OS_DIR_LOG/update.log" 2>/dev/nul
 # puede escribir en el publicable de OTRA. Ese caso solo se ve abriendo el archivo.
 publicable_dice()  { if grep -qF -- "$1" "$PUBLICABLE" 2>/dev/null; then bien; else mal "el log publicable no dice: $1"; fi; }
 publicable_calla() { if grep -qF -- "$1" "$PUBLICABLE" 2>/dev/null; then mal "el log publicable NO deberia decir: $1"; else bien; fi; }
+# Sobre el ENTORNO de `pg_dump`/`pg_restore`, que es por donde tiene que viajar
+# la contrasena. Afirmar solo que no esta en argv no basta: una contrasena que
+# se pierde por el camino deja un respaldo que no corre, y eso tambien impide
+# actualizar. Hay que decir cual llego, entera.
+pgpassword_es() {
+  if grep -qF -- "PGPASSWORD=[$1]" "$REG_PGENV" 2>/dev/null; then bien
+  else mal "PGPASSWORD no fue [$1], sino: $(tr '\n' ' ' <"$REG_PGENV" 2>/dev/null)"; fi
+}
+pgpassword_sin_definir() {
+  if grep -qF -- 'PGPASSWORD=[<NO-DEFINIDA>]' "$REG_PGENV" 2>/dev/null; then bien
+  else mal "se esperaba PGPASSWORD sin definir, y fue: $(tr '\n' ' ' <"$REG_PGENV" 2>/dev/null)"; fi
+}
+# El `--dbname` EXACTO que llego a argv. Se compara entero y con `-F`: media
+# comprobacion ("no aparece la clave") deja pasar la URL rota que no conecta.
+argv_dbname_es() {
+  if grep -qF -- "--dbname=$1 " "$REG_LLAMADAS" 2>/dev/null; then bien
+  else mal "el --dbname de argv no fue '$1', sino: $(grep -F 'pg_dump ' "$REG_LLAMADAS" 2>/dev/null | head -n1)"; fi
+}
 
 # ============================================================================
 #  ESCENARIOS
@@ -1349,24 +1367,44 @@ log_dice 'no hay con que subirlo'
 no_hubo 's3://space-os-logs'
 limpiar
 
-# E62 · HALLAZGO 3 · una contrasena con `@` sin codificar no sale del droplet.
+# ─── LA CREDENCIAL, CASO POR CASO (E62-E71) ────────────────────────────────
+#  Cada escenario afirma DOS cosas de la misma URL, porque son dos fugas
+#  distintas y hasta el 19/08 vivian en dos parseos distintos, cada uno mal a su
+#  manera:
+#    · que sale al ARCHIVO QUE VIAJA al bucket   -> `subido_*`
+#    · que llega a ARGV, visible con `ps` para cualquier proceso del droplet
+#      -> `argv_dbname_es` + `no_hubo`, y `pgpassword_es` para el entorno.
+#  El criterio desde el 19/08 es que no salga NADA de la credencial por ninguna
+#  de las dos vias: un trozo de contrasena tambien es una contrasena quemada.
+#  Y la mitad de argv no es solo confidencialidad: libpq tambien corta por el
+#  PRIMER `@`, asi que una URL mal recortada NO CONECTA —"could not translate
+#  host name \"ssw0rd@…\""— y con eso el respaldo aborta y la instancia se queda
+#  sin poder actualizarse nunca.
+
+# E62 · HALLAZGO 3 · una contrasena con `@` sin codificar.
 #       `destino_de_url` corta el `usuario:clave@` y su salida es la PRIMERA
 #       linea de todo log que viaja. Cortaba por el PRIMER `@`, asi que de
 #       `spaces:p@ssw0rd@localhost` dejaba `ssw0rd@localhost…`: un trozo de la
 #       contrasena de Postgres. Hasta F3.9 eso se quedaba en el droplet; desde
 #       F3.9 sale a un bucket, que es lo que cambio el perfil de riesgo.
+#       En argv pasaba lo mismo con el otro parseo: `--dbname=…spaces@ssw0rd@…`.
 preparar 'E62 la clave con @ sin codificar no sale del droplet (F3.9, hallazgo 3)'
 usar_url 'postgresql://spaces:p@ssw0rd@localhost:5433/spaces'
 correr
 codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'ssw0rd'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'ssw0rd'
+pgpassword_es 'p@ssw0rd'
 limpiar
 
 # E63 · HALLAZGO 3, la otra mitad · con una `/` sin codificar en la contrasena
 #       no se cortaba NADA: `postgresql://spaces:pa/ss@localhost:5433/spaces`
 #       salia entera —usuario y clave— porque el patron exigia que el `@`
-#       llegara antes de la primera barra.
+#       llegara antes de la primera barra. En argv, el mismo `[^@/]+@` hacia que
+#       la URL ENTERA se pasara a `--dbname=`: la clave en `ps`, y sin
+#       PGPASSWORD.
 preparar 'E63 la clave con / sin codificar no sale del droplet (F3.9, hallazgo 3)'
 usar_url 'postgresql://spaces:pa/ss@localhost:5433/spaces'
 correr
@@ -1374,6 +1412,156 @@ codigo_es 0
 subido_dice 'base=localhost:5433/spaces'
 subido_calla 'pa/ss'
 subido_calla 'spaces:pa'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'pa/ss'
+pgpassword_es 'pa/ss'
+limpiar
+
+# E64 · REGRESION · una `?` dentro de la contrasena. El recorte del log quitaba
+#       la consulta ANTES de cortar por el ultimo `@`, y con eso decapitaba la
+#       cadena: de `spaces:cl?ve@localhost:5433/spaces` quedaba `spaces:cl`
+#       —usuario y prefijo de la clave— y eso es lo que viajaba al bucket. La
+#       version anterior a 70b8cc5 acertaba en este caso; libpq acepta esa URL,
+#       o sea que es una instancia que funciona de verdad.
+preparar 'E64 la clave con ? sin codificar no sale del droplet'
+usar_url 'postgresql://spaces:cl?ve@localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'spaces:cl'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'cl?ve'
+pgpassword_es 'cl?ve'
+limpiar
+
+# E65 · varias `@` seguidas: el corte tiene que ser por la ULTIMA, siempre. Es
+#       el caso que separa "corta por el ultimo @" de "corta por el segundo @".
+preparar 'E65 la clave con varias @ se corta por la ultima'
+usar_url 'postgresql://spaces:a@b@c@localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'b@c'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'b@c'
+pgpassword_es 'a@b@c'
+limpiar
+
+# E66 · el caso BIEN FORMADO, que es el que no puede romperse al arreglar los
+#       demas: la clave va como %40 y hay que decodificarla para PGPASSWORD.
+preparar 'E66 la clave codificada como %40 llega decodificada y no sale'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'cl%40ve'
+subido_calla 'cl@ve'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'cl%40ve'
+no_hubo 'cl@ve'
+pgpassword_es 'cl@ve'
+limpiar
+
+# E67 · sin contrasena en la URL (peer, trust o .pgpass). No hay nada que
+#       esconder y la URL pasa tal cual; lo que NO puede es inventarse un
+#       PGPASSWORD vacio ni romper el usuario.
+preparar 'E67 URL sin contrasena: pasa entera y sin PGPASSWORD'
+usar_url 'postgresql://spaces@localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+pgpassword_sin_definir
+limpiar
+
+# E68 · sin `@` ninguno: ni usuario ni clave.
+preparar 'E68 URL sin @: no hay credencial que recortar'
+usar_url 'postgresql://localhost:5433/spaces'
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+argv_dbname_es 'postgresql://localhost:5433/spaces'
+pgpassword_sin_definir
+limpiar
+
+# E69 · `@` al final y nada detras: no hay host. Antes seguia adelante con
+#       `--dbname=postgresql://spaces@` y un `base=` vacio en el log; o sea,
+#       respaldaba contra una URL sin destino. Ahora falla CERRADO: se para
+#       antes de tocar nada y la cadena no se publica ni entera ni a trozos.
+preparar 'E69 @ al final sin host: se para y no publica nada'
+usar_url 'postgresql://spaces:clavefinal@'
+correr
+codigo_es 1
+log_dice 'no se puede interpretar'
+subido_dice '(url no parseable)'
+subido_calla 'clavefinal'
+no_hubo 'pg_dump'
+limpiar
+
+# E70 · una barra invertida CRUDA en la contrasena, y ademas un %40 al lado.
+#       Se resolvia dejando la URL entera en argv A PROPOSITO —"mejor una clave
+#       visible en ps que un respaldo que no corre"—, y desde la regla del 19/08
+#       esa salida ya no existe: la barra se DUPLICA antes del `printf '%b'`, y
+#       con eso se puede decodificar el %40 sin comerse la `\v` como un tabulador
+#       vertical. Las dos cosas en la misma clave porque el orden importa: al
+#       reves, `cl\v%40e` saldria como `cl<VT>@e` y el respaldo no correria.
+#       La URL solo va en `app.env`: `. "$CONF"` se comeria la barra invertida al
+#       sourcear, que es un problema del formato de ese archivo y no del recorte.
+preparar 'E70 la clave con barra invertida tampoco llega a argv'
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'postgresql://spaces:cl\v%40e@localhost:5433/spaces' >"$RAIZ_TMP/app.env"
+grep -v '^DATABASE_URL=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp"
+mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+correr
+codigo_es 0
+subido_dice 'base=localhost:5433/spaces'
+subido_calla 'cl\v'
+argv_dbname_es 'postgresql://spaces@localhost:5433/spaces'
+no_hubo 'cl\v'
+pgpassword_es 'cl\v@e'
+limpiar
+
+# E71 · lo que NO es una URL. Una cadena de conexion en formato `clave=valor`
+#       —que libpq acepta— no tiene nada que recortar, asi que el recorte la
+#       publicaba ENTERA, contrasena incluida, en la primera linea del log que
+#       viaja. Falla cerrado: si no se puede parsear, no se publica NADA de esa
+#       cadena. Mismo criterio y mismas palabras que `destinoSeguro()` en
+#       `scripts/migrar.mjs:225-232`.
+preparar 'E71 lo que no es una URL no se publica a trozos'
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'host=localhost port=5433 dbname=spaces password=cl4v3-secreta' >"$RAIZ_TMP/app.env"
+grep -v '^DATABASE_URL=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp"
+mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+correr
+codigo_es 1
+subido_dice '(url no parseable)'
+subido_calla 'cl4v3-secreta'
+subido_calla 'password='
+no_hubo 'cl4v3-secreta'
+limpiar
+
+# E72 · la que no se entiende es la de `app.env`, y la del `instancia.env` esta
+#       bien. Es el unico camino por el que la cadena entra en un mensaje ANTES
+#       de que el update se pare —el de "bases DISTINTAS" imprime las dos—, asi
+#       que es donde se ve si `destino_de_url` falla abierto o cerrado.
+preparar 'E72 la URL de app.env que no se entiende tampoco se publica'
+printf 'DATABASE_URL=%s\nNODE_ENV=production\n' 'host=localhost dbname=spaces password=cl4v3-de-la-app' >"$RAIZ_TMP/app.env"
+correr
+codigo_es 1
+log_dice 'bases DISTINTAS'
+subido_dice '(url no parseable)'
+subido_calla 'cl4v3-de-la-app'
+no_hubo 'cl4v3-de-la-app'
+limpiar
+
+# E73 · el `--help` imprime un rango de lineas FIJO de la propia cabecera, asi
+#       que se descuadra en silencio cada vez que alguien anade una linea
+#       arriba. Paso el 19/08: documentar como se lee la URL de la base le comio
+#       cuatro lineas a la ayuda y nada lo dijo. Se fija por los DOS extremos —la
+#       ultima linea que le toca y la primera que ya no—, porque comprobar solo
+#       una deja pasar la mitad de los descuadres.
+preparar 'E73 el --help imprime la cabecera ENTERA, sin comerse el final'
+correr --help
+codigo_es 0
+log_dice 'fuera con `grep -c reintento'
+log_calla 'Cron: una vez al dia'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -1508,8 +1696,21 @@ if [ "${1:-}" = '--mutantes' ]; then
     's#^  SPACE_OS_UPDATE_EN_CANDADO=1 flock#  export SPACE_OS_UPDATE_EN_CANDADO=1; flock#'
   probar_mutante 'no subir el log de los fallos de configuracion (invalidante 2)' \
     's#^  subir_log_remoto "$codigo" || true$#  case "$codigo" in "$EX_CONFIG") : ;; *) subir_log_remoto "$codigo" || true ;; esac#'
-  probar_mutante 'destino_de_url cortando por el PRIMER @ (hallazgo 3)' \
-    's|s#\^\.\*@##|s#^[^@/]*@##|'
+  # Y los cinco del 19/08, que son los del parseo unico de la credencial. El
+  # mutante del hallazgo 3 que habia aqui —`destino_de_url` cortando por el
+  # PRIMER `@`— ya no se puede escribir: esa linea era un `sed` y ahora no
+  # existe. Su sitio lo ocupa el primero de estos, que reintroduce el MISMO
+  # defecto en el sitio nuevo.
+  probar_mutante 'partir_url cortando por el PRIMER @ (hallazgo 3)' \
+    's#{resto%@\*}#{resto%%@*}#'
+  probar_mutante 'quitar el guard del destino: cualquier cosa pasa por host' \
+    's,^  if ! printf .*then$,  if false; then,'
+  probar_mutante 'fallar ABIERTO: la URL que no se entiende se pasa entera a argv' \
+    's,^  salir "\$EX_CONFIG" "ERROR update: no se puede interpretar.*,  PG_URL_SEGURA="$DATABASE_URL",'
+  probar_mutante 'destino_de_url publicando la cadena que no entendio' \
+    "s,else printf '%s' '(url no parseable)',else printf \"%s\" \"\$1\","
+  probar_mutante 'no duplicar la barra invertida antes del printf %b' \
+    's,^    \*%\*) s=.*,    *%*) s="$1"; printf "%b" "${s//%/\\\\\\\\x}" ;;,'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

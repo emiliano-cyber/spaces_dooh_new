@@ -26,9 +26,10 @@
 #  Codigos de salida (los mira el cron, y los lee una persona en el log):
 #    0  sin cambios, o actualizada y sana
 #    1  no se puede ni empezar: falta configuracion, falta docker o pg_dump,
-#       el pull fallo, el respaldo salio VACIO, o el runner de migraciones se
-#       nego a arrancar (por ejemplo: base con datos y sin `schema_migrations`,
-#       que pide intervencion humana). NADA se toco.
+#       DATABASE_URL no se entiende como URL de conexion, el pull fallo, el
+#       respaldo salio VACIO, o el runner de migraciones se nego a arrancar
+#       (por ejemplo: base con datos y sin `schema_migrations`, que pide
+#       intervencion humana). NADA se toco.
 #    2  las migraciones fallaron a medias, o se aplicaron y no se pudieron
 #       registrar: LA BASE PUDO CAMBIAR. No se conmuto el trafico —la version
 #       anterior sigue sirviendo— y NO se restaura nada automaticamente (ver
@@ -70,7 +71,10 @@
 #    DATABASE_URL=postgresql://…   (o*) conexion PRIVILEGIADA: migraciones y
 #                                       respaldo. NO es la del app (esa es
 #                                       `spaces_app`, sin DDL). (*) si falta,
-#                                       se toma la de ENV_APP y se avisa.
+#                                       se toma la de ENV_APP y se avisa. La
+#                                       clave puede llevar @ / ? o \ sin
+#                                       codificar; el host tiene que quedar
+#                                       DETRAS del ultimo @ o el update se para.
 #    IMAGEN_NOMBRE=space-os             nombre de la imagen dentro del registry
 #    CONTENEDOR=space-os                nombre del contenedor que sirve
 #    ENV_APP=/etc/space-os/app.env      variables de la app (docker --env-file)
@@ -310,9 +314,11 @@ for arg in "$@"; do
     # claves de instancia.env y la politica de reintentos. Los AVISOS 1-4 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
     # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
-    # de Spaces (F3.7): un rango fijo caduca en cuanto la cabecera crece, y ya
-    # volvio a crecer con LOGS_BUCKET (F3.9). Se remide leyendo, no restando.
-    -h|--help) sed -n '2,109p' "$0"; exit 0 ;;
+    # de Spaces (F3.7), a 109 con LOGS_BUCKET (F3.9) y a 113 el 19/08 al
+    # documentar como se lee DATABASE_URL: un rango fijo caduca en cuanto la
+    # cabecera crece, y las tres veces se descubrio tarde. Se remide leyendo, no
+    # restando — y desde el 19/08 lo comprueba E73 por los dos extremos.
+    -h|--help) sed -n '2,113p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -504,22 +510,100 @@ case "$CANAL" in
 esac
 
 # ─── La base: una sola, y se comprueba ─────────────────────────────────────
-# `host:puerto/base` de una URL de conexion, SIN credenciales — este valor se
-# imprime. Mismo criterio que `destinoSeguro()` en `scripts/migrar.mjs:225-232`.
+# UN SOLO parseo de la URL de conexion, y de el cuelgan sus DOS consumidores:
+# la linea que se PUBLICA (`destino_de_url`, primera de todo log que viaja al
+# bucket desde F3.9) y el `--dbname` que llega a ARGV (`PG_URL_SEGURA`, visible
+# con `ps` para cualquier proceso del droplet). Hasta el 19/08 eran dos
+# recortes distintos a 36 lineas uno del otro, y cada uno estaba mal a su
+# manera: el del log quitaba la consulta ANTES de cortar por el ultimo `@`, asi
+# que una clave con `?` decapitaba la cadena y publicaba `spaces:cl`; el de
+# argv cortaba por el PRIMER `@`, que ademas ni siquiera es lo que hace libpq
+# —`postgresql://spaces@ssw0rd@localhost/spaces` no conecta: "could not
+# translate host name"— o sea que esa instancia no podia ni respaldar ni
+# actualizarse. Dos implementaciones del mismo recorte se separan otra vez al
+# siguiente cambio; por eso ahora hay una.
 #
-# Corta por el ULTIMO `@` y despues de quitar la consulta. El `[^@/]*@` de
-# antes daba por hecha una URL bien formada —en una URL bien formada la clave
-# lleva el `@` como %40 y la `/` como %2F— y las de una instancia de verdad no
-# siempre lo estan. Medido: de `spaces:p@ssw0rd@localhost:5433/spaces` dejaba
-# `ssw0rd@localhost:5433/spaces`, o sea un TROZO DE LA CONTRASENA, y de
-# `spaces:pa/ss@localhost:5433/spaces` no cortaba nada porque el `@` llegaba
-# despues de la primera barra. Y esta linea es la PRIMERA de todo log que
-# viaja al bucket desde F3.9: lo que antes se quedaba en el droplet ahora sale.
-# Cortar de mas puede esconder el host —se diagnostica peor—; cortar de menos
-# manda la llave de la base a un objeto de un bucket. Se elige lo primero.
-# Lo fijan E62 y E63.
+# Las reglas, que son las de un parser de URL y no las de un `sed`:
+#   · usuario y clave se separan del host por el ULTIMO `@`, no por el primero;
+#   · la clave puede llevar `@`, `/`, `?`, `#`, `%XX` o barra invertida, puede
+#     estar ausente, y puede no haber ni usuario ni `@` ninguno;
+#   · el usuario NO puede llevar `/`, `?` ni `#` sin codificar, y el host tiene
+#     que parecer un host: eso es lo que distingue "se entendio la cadena" de
+#     "se le dio un tijeretazo".
+# Si algo de eso no cuadra, FALLA CERRADO: devuelve 1 y no se publica NADA de
+# esa cadena, porque lo que no se entiende bien puede ser la contrasena entera.
+# Cortar de mas esconde el host y se diagnostica peor; cortar de menos manda la
+# llave de la base a un objeto de un bucket. Se elige lo primero. Mismo
+# criterio —y mismas palabras— que `destinoSeguro()` en
+# `scripts/migrar.mjs:225-232`, que alli se puede escribir con `new URL()`.
+#
+# Queda una ambiguedad que ninguna regla resuelve: una URL SIN credencial cuya
+# CONSULTA lleve un `@` (`…/spaces?opt=a@b`) es indistinguible de una con clave
+# rara, y se lee como si tuviera credencial. Se recorta de mas, el `--dbname`
+# no conecta y el update se para — que es el lado barato de equivocarse.
+URL_ESQUEMA=''
+URL_USUARIO=''
+URL_CLAVE_CRUDA=''
+URL_HAY_CLAVE=0
+URL_DESTINO=''
+URL_DESTINO_COMPLETO=''
+partir_url() {
+  local url="$1" resto credencial usuario destino
+  URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0
+  URL_DESTINO=''; URL_DESTINO_COMPLETO=''
+  # Sin `esquema://` no es una URL: puede ser una cadena `clave=valor` de libpq,
+  # que lleva la contrasena en mitad del texto y no tiene nada que recortar.
+  case "$url" in *://*) ;; *) return 1 ;; esac
+  URL_ESQUEMA="${url%%://*}"
+  case "$URL_ESQUEMA" in ''|*[!a-zA-Z0-9+.-]*) URL_ESQUEMA=''; return 1 ;; esac
+  resto="${url#*://}"
+  case "$resto" in
+    *@*)
+      # `%@*` quita el sufijo MAS CORTO que casa con `@*`: corta por el ULTIMO
+      # `@`. `##*@` se queda con lo que va detras de ese mismo `@`.
+      credencial="${resto%@*}"
+      URL_DESTINO_COMPLETO="${resto##*@}"
+      usuario="${credencial%%:*}"
+      case "$credencial" in *:*) URL_HAY_CLAVE=1; URL_CLAVE_CRUDA="${credencial#*:}" ;; esac
+      # Un usuario con `/`, `?` o `#` significa que ese `@` no separaba ninguna
+      # credencial, asi que no se sabe donde empieza el host ni si lo que se
+      # tomo por clave lo es. No se adivina: no se publica.
+      case "$usuario" in ''|*[!a-zA-Z0-9._~%+-]*) URL_ESQUEMA=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0; URL_DESTINO_COMPLETO=''; return 1 ;; esac
+      URL_USUARIO="$usuario"
+      ;;
+    *) URL_DESTINO_COMPLETO="$resto" ;;
+  esac
+  # `host[:puerto][/base]`, ya sin consulta ni fragmento: esto es lo unico de la
+  # cadena que se puede publicar.
+  destino="${URL_DESTINO_COMPLETO%%[?#]*}"
+  if ! printf '%s' "$destino" | grep -Eq '^(\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9._~%+-]+)(:[0-9]+)?(/[^/?#]*)?$'; then
+    URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0; URL_DESTINO_COMPLETO=''
+    return 1
+  fi
+  URL_DESTINO="$destino"
+  return 0
+}
+
+# `host:puerto/base` de una URL de conexion, SIN credenciales — este valor se
+# imprime, y es la primera linea del log que viaja al bucket. Se llama siempre
+# dentro de `$(…)`, o sea en un subshell: las globales de `partir_url` no se
+# escapan de ahi. Lo fijan E62 a E72.
 destino_de_url() {
-  printf '%s' "$1" | sed -E 's#\?.*$##; s#^[a-zA-Z+]+://##; s#^.*@##'
+  if partir_url "$1"; then printf '%s' "$URL_DESTINO"; else printf '%s' '(url no parseable)'; fi
+}
+
+# Percent-decoding: en una URL un '%' literal va como %25, asi que convertir
+# cada '%' en '\x' y pasarlo por `printf '%b'` es exacto. La barra invertida se
+# DUPLICA antes —`%b` la leeria como escape y corromperia la clave—, y con eso
+# desaparece la excepcion que antes dejaba la URL entera en argv "porque
+# decodificarla podria corromperla": una clave visible en `ps` ya no es una
+# salida aceptable.
+decodificar_porciento() {
+  local s
+  case "$1" in
+    *%*) s="${1//\\/\\\\}"; printf '%b' "${s//%/\\x}" ;;
+    *)   printf '%s' "$1" ;;
+  esac
 }
 
 url_de_env_app() {
@@ -553,31 +637,30 @@ export DATABASE_URL
 # `ps` para cualquier usuario de la maquina. `deploy.yml:119` lo evita con
 # `sudo -u postgres` (autenticacion peer, sin clave); aqui la conexion es por
 # red, asi que se parte: usuario y destino en argv, clave por PGPASSWORD.
+#
+# El recorte es el MISMO que el del log —`partir_url`, arriba—, y no una copia:
+# cuando eran dos, uno cortaba por el ultimo `@` y el otro por el primero, y el
+# de argv era el peor de los dos. Medido en `argv` real antes de unificarlos:
+# de `spaces:p@ssw0rd@localhost:5433/spaces` salia
+# `--dbname=postgresql://spaces@ssw0rd@localhost:5433/spaces` con PGPASSWORD=`p`
+# —media contrasena en `ps` y una URL que libpq tampoco entiende—, y de
+# `spaces:pa/ss@…` salia la URL ENTERA, con la clave dentro, porque el guard
+# `[^@/]+@` ni dejaba entrar al bloque.
 PG_URL_SEGURA="$DATABASE_URL"
 PG_CLAVE=""
-if printf '%s' "$DATABASE_URL" | grep -Eq '^[a-zA-Z+]+://[^@/]+@'; then
-  pg_esquema="${DATABASE_URL%%://*}"
-  pg_resto="${DATABASE_URL#*://}"
-  pg_userinfo="${pg_resto%%@*}"
-  pg_destino="${pg_resto#*@}"
-  pg_usuario="${pg_userinfo%%:*}"
-  pg_clave_cruda=""
-  case "$pg_userinfo" in *:*) pg_clave_cruda="${pg_userinfo#*:}" ;; esac
-  if [ -z "$pg_clave_cruda" ]; then
-    : # sin clave en la URL (peer, trust o .pgpass): no hay nada que esconder
-  elif case "$pg_clave_cruda" in *\\*) true ;; *) false ;; esac; then
-    # `printf '%b'` interpretaria la barra invertida como escape y corromperia
-    # la clave. Mejor una clave visible en `ps` que un respaldo que no corre.
-    registrar "AVISO update: la contrasena de DATABASE_URL trae una barra invertida sin codificar; se deja la URL completa en argv (visible en \`ps\`) porque decodificarla podria corromperla. Codificala como %5C en $CONF y este aviso se va."
-  else
-    # Percent-decoding: en una URL un '%' literal va como %25, asi que
-    # convertir cada '%' en '\x' y pasarlo por `printf '%b'` es exacto.
-    case "$pg_clave_cruda" in
-      *%*) PG_CLAVE="$(printf '%b' "${pg_clave_cruda//%/\\x}")" ;;
-      *)   PG_CLAVE="$pg_clave_cruda" ;;
-    esac
-    PG_URL_SEGURA="$pg_esquema://$pg_usuario@$pg_destino"
+if partir_url "$DATABASE_URL"; then
+  if [ "$URL_HAY_CLAVE" = 1 ] && [ -n "$URL_CLAVE_CRUDA" ]; then
+    PG_CLAVE="$(decodificar_porciento "$URL_CLAVE_CRUDA")"
+    # La consulta (`?sslmode=…`) se conserva: quitarla cambiaria como se conecta.
+    PG_URL_SEGURA="$URL_ESQUEMA://$URL_USUARIO@$URL_DESTINO_COMPLETO"
   fi
+  # Sin clave en la URL (peer, trust o .pgpass) no hay nada que esconder y la
+  # URL pasa tal cual: no lleva credencial que quitar.
+else
+  # Falla CERRADO. La alternativa —pasarla entera a `--dbname`— es exactamente
+  # la fuga que esta tarea quita, y encima no funcionaria: si aqui no se pudo
+  # separar la clave, libpq tampoco va a poder.
+  salir "$EX_CONFIG" "ERROR update: no se puede interpretar DATABASE_URL como URL de conexion; base=(url no parseable). No se publica ni un trozo de esa cadena —lo que no se entiende puede ser la contrasena— y sin separarla no se puede respaldar sin dejarla en argv, visible con \`ps\` para cualquier proceso del droplet. Nada se toco. La forma esperada es esquema://[usuario[:clave]@]host[:puerto]/base: la clave puede llevar @, / o ? sin codificar, pero el host tiene que quedar DETRAS del ultimo @. Revisa DATABASE_URL en $CONF o en $ENV_APP."
 fi
 
 # `pg_dump`/`pg_restore` siempre por aqui: un solo sitio decide como viaja la

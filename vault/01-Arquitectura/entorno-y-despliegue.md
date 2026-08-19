@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-18
+actualizado: 2026-08-19
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -434,13 +434,14 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`63 escenarios · 300 comprobaciones · 0 rojas` (medido el 18/08 tras corregir la
-auditoría de F3.9; venía de `58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de
-`48 · 218` y, antes de F3.7, de `37 · 165`). Los mutantes son **28**; la barrida
-completa **no se corrió entera** en el ciclo del 18/08 —a ~25 min por mutante en esta
-máquina pasa de diez horas— y en su lugar se corrieron **siete aislados**: los tres
-nuevos y los cuatro de F3.9, todos cazados. Está escrito porque la decisión M1 obliga
-a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
+`73 escenarios · 358 comprobaciones · 0 rojas` (medido el 19/08 al unificar el parseo
+de la credencial; venía de `63 · 300` el 18/08 tras corregir la auditoría de F3.9, de
+`58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de `48 · 218` y, antes de F3.7,
+de `37 · 165`). Los mutantes son **32**; la barrida completa **no se corrió entera** ni
+el 18/08 ni el 19/08 —a ~4 min por mutante en esta máquina, las 32 pasan de dos horas, y
+la medición anterior daba ~25 min por mutante— y en su lugar se corren **aislados los
+que tocan el cambio**: siete en el ciclo del 18/08 y **cinco** en el del 19/08, todos
+cazados. Está escrito porque la decisión M1 obliga a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
 `update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
 porque un ciclo anterior tuvo un falso verde por un `sed` que dejó el archivo vacío y
 «pasó». Entre ellos está **reintentar la migración fallida**, que es el mutante que
@@ -592,7 +593,7 @@ noche, todo lo que la instancia registró desde siempre.
 > bucket** (medido con el arnés el 18/08): pull, respaldo, huella previa, los dos
 > intentos de salud con su `500`, `7 · VUELTA ATRAS`, la restauración y `salida: 4`.
 > **Ni una fila y ni una credencial** —eso es el criterio, y se comprueba abriendo el
-> archivo que viaja (E53, E62, E63)—.
+> archivo que viaja (E53 y E62-E72)—.
 >
 > Lo que **sí** sale, dicho con nombres: el **destino de la base**
 > (`base=localhost:5433/spaces`, sin el `usuario:clave@`), la **URL de la imagen** en
@@ -602,23 +603,48 @@ noche, todo lo que la instancia registró desde siempre.
 > era la redacción anterior, «ni siquiera un nombre de tabla», que sugería una asepsia
 > mayor que la real. Corregida el 18/08.
 
-> [!danger] La contraseña de Postgres: la promesa era cierta **y la función que la
-> sostiene no lo era**
-> Cada línea que nombra la conexión pasa por `destino_de_url`, que corta el
-> `usuario:clave@` —el mismo criterio que sacó `PGPASSWORD` de `ps`—, y su salida es la
-> **primera línea de todo log que viaja**. Pero cortaba por el **primer `@`** y daba por
-> hecha una URL bien formada. Medido el 18/08, con la función tal como estaba:
+> [!danger] La contraseña de Postgres: **había dos recortes distintos, y los dos estaban mal**
+> Cada línea que nombra la conexión pasa por `destino_de_url` —su salida es la
+> **primera línea de todo log que viaja**— y el `--dbname` de `pg_dump`/`pg_restore`
+> pasaba por **otro** recorte, escrito aparte, 36 líneas más abajo. Dos
+> implementaciones del mismo corte, cada una equivocada a su manera. Medido el 19/08
+> **antes** de tocar nada, con el arnés espiando el archivo que sube y el `argv` que
+> reciben los dobles:
 >
-> | `DATABASE_URL` | lo que viajaba |
-> |---|---|
-> | `…spaces:cl%40ve@localhost:5433/spaces` | `localhost:5433/spaces` ✅ |
-> | `…spaces:p@ssw0rd@localhost:5433/spaces` | `ssw0rd@localhost:5433/spaces` — **trozo de la clave** |
-> | `…spaces:pa/ss@localhost:5433/spaces` | `spaces:pa/ss@localhost:5433/…` — **usuario y clave enteros** |
+> | `DATABASE_URL` | lo que viajaba al bucket | lo que llegaba a `argv` | `PGPASSWORD` |
+> |---|---|---|---|
+> | `…spaces:cl%40ve@localhost:5433/spaces` | `localhost:5433/spaces` ✅ | `…spaces@localhost:5433/spaces` ✅ | `cl@ve` ✅ |
+> | `…spaces:p@ssw0rd@localhost:5433/spaces` | `localhost:5433/spaces` ✅ | `…spaces@ssw0rd@localhost:…` — **trozo de la clave** | solo `p` |
+> | `…spaces:pa/ss@localhost:5433/spaces` | `localhost:5433/spaces` ✅ | **la URL entera, clave incluida** | vacía |
+> | `…spaces:cl?ve@localhost:5433/spaces` | `spaces:cl` — **usuario y prefijo de la clave** | `…spaces@localhost:5433/spaces` ✅ | `cl?ve` ✅ |
+> | `…spaces:a@b@c@localhost:5433/spaces` | `localhost:5433/spaces` ✅ | `…spaces@b@c@localhost:…` | solo `a` |
+> | `host=localhost … password=…` (no es URL) | **la cadena entera, con la contraseña** | la cadena entera | vacía |
 >
-> La función es anterior a F3.9; lo que F3.9 le cambió fue **el perfil de riesgo**: lo
-> que se quedaba en el droplet pasó a salir a un bucket. Ahora corta por el **último**
-> `@` y después de quitar la consulta, y **E62 y E63** cubren los dos casos que el arnés
-> no ejercitaba —solo probaba el `%40`, que era el que ya funcionaba—.
+> El de `argv` es **visible con `ps` para cualquier proceso del droplet**, y además
+> **impide actualizar**: libpq corta por el primer `@` igual que él, así que
+> `…spaces@ssw0rd@localhost` no conecta —`could not translate host name "ssw0rd@…"`—,
+> el respaldo aborta y **esa instancia no puede actualizarse nunca**. Es
+> disponibilidad, no solo confidencialidad. El del log era una **regresión**: la
+> versión anterior a `70b8cc5` acertaba con el `?`, y el `sed` nuevo quitaba la
+> consulta **antes** de cortar por el último `@`, con lo que decapitaba la cadena.
+>
+> Desde el 19/08 hay **un solo parseo**, `partir_url`, y de él cuelgan los dos
+> consumidores. Corta por el **último** `@`; el usuario y el host tienen que parecerlo;
+> y si la cadena no se entiende **falla cerrado**: no publica `(url no parseable)` —las
+> mismas palabras que `destinoSeguro()` en `scripts/migrar.mjs:225-232`— y el update se
+> para con salida 1 antes de tocar nada, porque pasarla entera a `--dbname` sería la
+> fuga que se acaba de quitar. Con eso desaparece también la excepción de la **barra
+> invertida**, que dejaba la URL completa en `argv` a propósito: ahora se duplica antes
+> del `printf '%b'` y se decodifica sin corromperla. **E62 a E72** lo cubren caso por
+> caso —`@`, `/`, `?`, `@` repetida, `%40`, `\`, sin clave, sin `@`, `@` al final, lo
+> que no es una URL— y **cada uno afirma las dos cosas**: qué sale al archivo que viaja
+> y qué llega a `argv`.
+>
+> **Y un defecto propio, que salió de remedir:** documentar todo esto en la cabecera
+> del script **descuadró el `--help`**, que imprime un rango de líneas **fijo**
+> (`sed -n '2,113p' "$0"`) y se comió las cuatro últimas sin decir nada. Corregido y
+> fijado por **E73**, que lo comprueba por los **dos** extremos —la última línea que le
+> toca y la primera que ya no—; hasta el 19/08 no había nada que lo mirara.
 
 > [!warning] Los límites, escritos para que nadie los descubra tarde. Son **seis**
 > **La subida cuelga de `salir()`**, que es la única puerta de salida una vez tomado el

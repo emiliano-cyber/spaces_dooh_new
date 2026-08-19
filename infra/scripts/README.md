@@ -104,7 +104,7 @@ root** — el script avisa si no lo está.
 |---|---|---|
 | `CANAL` | sí | `estable` o `beta`. Cualquier otra cosa detiene el script |
 | `REGISTRY` | sí | de dónde se jala la imagen |
-| `DATABASE_URL` | sí (*) | conexión **privilegiada**: migraciones y respaldo. **No** es la de la app (`spaces_app` no tiene DDL) |
+| `DATABASE_URL` | sí (*) | conexión **privilegiada**: migraciones y respaldo. **No** es la de la app (`spaces_app` no tiene DDL). La contraseña puede llevar `@`, `/`, `?` o `\` sin codificar; lo que **no** puede es dejar el host delante del último `@`. Si la cadena no se entiende como URL, el update **se para con salida 1** y no publica ni un trozo de ella |
 | `IMAGEN_NOMBRE` | no | `space-os` |
 | `CONTENEDOR` | no | `space-os` |
 | `ENV_APP` | no | `/etc/space-os/app.env`, las variables de la app |
@@ -204,11 +204,10 @@ Si `flock` no está instalado, el script **no corre**.
 ### 0 · Las migraciones `@tipo: datos` **no las aplica el update: las aplica una persona**
 
 **Decisión de Jochelo, 2026-08-18.** `update.sh` llama al runner **sin
-`--con-datos`** (`update.sh:692-698`, remedido leyendo **dos veces** el 18/08: la
-cita decía `407-413` y **ya apuntaba mal antes de que este archivo creciera** —en el
-commit que la escribió, `correr_runner` estaba en la 501—, se corrigió a `626-632` y
-la corrección de esa misma tarde volvió a moverla 60 líneas. Un archivo que crece
-invalida todas sus citas de golpe), así que una instancia
+`--con-datos`** (`update.sh:775-781`, remedido leyendo el archivo el 19/08: la
+cita decía `407-413`, luego `626-632`, luego `692-698`, y el parseo único de la
+credencial la volvió a mover **77 líneas**. Un archivo que crece invalida todas sus
+citas de golpe), así que una instancia
 **nunca** aplica una
 migración marcada `-- @tipo: datos` en su primera línea. Eso es deliberado, no un
 olvido: una corrección de datos no debe colarse en una actualización automática que
@@ -726,20 +725,20 @@ borró y no lo que se proponía borrar. Y desde F3.9 los dobles de `s3cmd` y `aw
 **guardan también el CONTENIDO de lo que suben**, no solo que lo subieron: el
 criterio de esa tarea va en negativo —«ni un dato de negocio aparece en el log»—
 y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
-archivo que viaja**. El resultado del 2026-08-18, y el que imprime el comando:
+archivo que viaja**. El resultado del 2026-08-19, y el que imprime el comando:
 
 ```
-63 escenarios · 300 comprobaciones · 0 rojas
+73 escenarios · 358 comprobaciones · 0 rojas
 ```
 
-> [!warning] La barrida de mutantes **no se volvió a correr entera** el 18/08
-> Los mutantes son **28** desde la corrección de esa tarde, pero en esta máquina
-> la barrida completa va a ~4× de lo declarado —dos horas para 8 de 25— así que
-> se corrieron **siete aislados**: los **tres nuevos** (los dos invalidantes de la
-> auditoría y el hallazgo 3) y los **cuatro de F3.9**, cada uno contra el arnés
-> completo. Los siete **CAZADOS**. `28 mutantes · 0 escapan` es de la corrida
-> anterior más esos siete, **no** de una barrida entera: quien la necesite entera,
-> que la corra y lo escriba aquí.
+> [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08 ni el 19/08
+> Los mutantes son **32** desde el ciclo de credenciales del 19/08. La barrida
+> completa cuesta ~4 min por mutante en esta máquina —más de dos horas las 32— así
+> que se corren **aislados los que tocan el cambio**, cada uno contra el arnés
+> completo: **siete** el 18/08 (los dos invalidantes de la auditoría, el hallazgo 3
+> y los cuatro de F3.9) y **cinco** el 19/08 (los del parseo único de la
+> credencial). Los doce **CAZADOS**. `32 mutantes · 0 escapan` **no** es de una
+> barrida entera: quien la necesite entera, que la corra y lo escriba aquí.
 
 Cubre: sin cambios · dry-run · respaldo vacío **y que su archivo de 0 bytes no
 se quede en disco** · los cuatro códigos del runner · camino feliz · vuelta
@@ -784,7 +783,25 @@ primeros se vieron **en rojo**, 10 comprobaciones, antes de tocar una línea—:
 | **E62** | una contraseña con `@` sin codificar **no sale**: antes viajaba un trozo (`ssw0rd@localhost…`) |
 | **E63** | una contraseña con `/` sin codificar **no sale**: antes viajaba entera, usuario incluido |
 
-**Se comprueba que las comprobaciones muerden.** **Veintiocho** mutantes de una
+Y, desde el **ciclo de credenciales del 19/08**, los ocho que cierran el parseo. Cada
+uno afirma **dos** cosas de la misma URL —qué sale al archivo que viaja y qué llega a
+`argv`—, porque hasta ese día eran **dos recortes distintos** y cada uno estaba mal a
+su manera. Los cinco primeros se vieron **en rojo** (23 comprobaciones) antes de tocar
+una línea:
+
+| Escenario | Qué fija |
+|---|---|
+| **E62**, **E63** | ampliados: además del log, el `--dbname` que llega a `argv` y el `PGPASSWORD` que llega entero |
+| **E64** | una `?` en la contraseña: el log publicaba `spaces:cl` — **usuario y prefijo de la clave**. Era una **regresión**: el recorte anterior a `70b8cc5` acertaba |
+| **E65** | varias `@`: se corta por la **última**, no por la segunda |
+| **E66** | el caso bien formado (`%40`), que es el que no puede romperse al arreglar los demás |
+| **E67**, **E68** | sin contraseña y sin `@`: la URL pasa tal cual y **no** se inventa un `PGPASSWORD` |
+| **E69** | `@` al final y sin host: **falla cerrado**, salida 1, y no publica nada de la cadena |
+| **E70** | una barra invertida cruda: antes se dejaba la URL entera en `argv` **a propósito** |
+| **E71**, **E72** | lo que no es una URL —una cadena `clave=valor` de libpq— se publicaba **entera, con la contraseña dentro**; ahora sale `(url no parseable)`. E72 lo comprueba por la otra puerta: la URL de `app.env` en el mensaje de «bases DISTINTAS» |
+| **E73** | el `--help` imprime su cabecera **entera**. Es un rango de líneas **fijo** (`sed -n '2,113p'`) y se descuadra en silencio cada vez que alguien añade una línea arriba: pasó el 19/08 al documentar la URL de la base, y se comió cuatro líneas sin decir nada. Se fija por los **dos** extremos |
+
+**Se comprueba que las comprobaciones muerden.** **Treinta y dos** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -819,7 +836,11 @@ el arnés viejo **no** cazaba:
 | **no vaciar** el publicable al empezar | cada noche se subiría todo lo que la instancia registró desde que nació |
 | **exportar** la marca del candado antes del `flock` | el invalidante 1: el proceso de fuera escribe en el log que sube **otra** corrida |
 | no subir el log de los **fallos de configuración** | el invalidante 2: las salidas de una instancia mal aprovisionada no llegan al bucket |
-| `destino_de_url` cortando por el **primer `@`** | el hallazgo 3: un trozo de la contraseña de Postgres en la primera línea de cada log que viaja |
+| `partir_url` cortando por el **primer `@`** | el hallazgo 3: un trozo de la contraseña de Postgres en la primera línea de cada log que viaja **y** en `argv`. Ocupa el sitio del mutante viejo, que ya no se puede escribir: aquella línea era un `sed` y ha dejado de existir |
+| quitar el **guard del destino** | cualquier cosa pasa por host: se publica el trozo que quede y `--dbname` apunta a una URL sin destino |
+| fallar **abierto** cuando la URL no se entiende | vuelve la fuga peor: la cadena entera —contraseña incluida— a `--dbname`, visible en `ps` |
+| `destino_de_url` publicando la cadena que **no entendió** | una cadena `clave=valor` con `password=` dentro, en la primera línea del log que sube al bucket |
+| **no duplicar la barra invertida** antes del `printf '%b'` | `cl\v%40e` se decodifica como `cl<VT>@e`: la contraseña se corrompe y el respaldo no corre |
 
 Y contra material real, no solo dobles:
 
