@@ -234,7 +234,7 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 El orden **no es lexicográfico puro**. El mapa `ANTES_DE` con las dos excepciones
 reales vive en **`scripts/migrar.mjs:61`** desde el 17/08 (F3.2) y se declara una
 sola vez: `apps/web/lib/test/db-e2e.ts` tenía una copia y ahora importa
-`ordenar()` de ahí (`db-e2e.ts:145`). Cualquier cosa que aplique migraciones tiene que reproducir
+`ordenar()` de ahí (`db-e2e.ts:165`). Cualquier cosa que aplique migraciones tiene que reproducir
 ese orden o una base nueva no levanta.
 
 ### Las bases son de PRUEBAS — incluida la de producción

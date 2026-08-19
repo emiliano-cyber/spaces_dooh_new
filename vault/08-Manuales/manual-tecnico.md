@@ -376,8 +376,10 @@ sepas exactamente por qué no:
 | `qConTenant` | Tenant explícito, sin sesión | Rutas por token, cron |
 | `fijarTenant` / `fijarTenantExplicito` | Dentro de una transacción | Casos compuestos |
 
-**Las 23 tablas con `DEFAULT` de `tenant_id` a `rgb`** (enumeradas en
-`schema.sql:604-609`; el default se aplica en `:615`) son la
+**Las 23 tablas que HASTA EL 19/08 nacían con un `DEFAULT` de `tenant_id` a `rgb`**
+(hoy ya no: `9d609f0` sacó el `rgb` del esquema base y `20260812_sin_default_tenant.sql`
+retira los `DEFAULT` de las bases que los tengan; el bucle que los descubre está en esa
+migración) eran la
 causa conocida de la deriva de datos: un `INSERT` que olvide el tenant **no falla,
 miente**. `config_negocio` se dejó **sin default a propósito**
 (`schema.sql:630-633`).
@@ -1211,7 +1213,7 @@ Esto es lo que **no** debes tocar sin avisar:
 | R-2 | **`X-Forwarded-For $remote_addr` en nginx** (`:123`) | Reemplaza en vez de añadir, **a propósito**. «Arreglarlo» a `$proxy_add_x_forwarded_for` deja que el cliente elija su cubo de rate limit |
 | R-3 | **Orden migración → código** | Migración primero, código después. Siempre (§8) |
 | R-4 | **Respaldo con el rol equivocado** | Un `pg_dump` con el rol de la app sale **vacío y con buena cara** por la RLS fail-closed (§9.2) |
-| R-5 | **23 tablas con `DEFAULT tenant_id → rgb`** (`schema.sql:604-609`) | Un insert sin tenant **no falla, miente**. Es la causa de la deriva de datos conocida. `config_negocio` se dejó sin default a propósito (`:630-633`) |
+| R-5 | **23 tablas con `DEFAULT tenant_id → rgb`** — riesgo **vivo en producción**, ya **no** en bases nuevas (`9d609f0`, 19/08) | Un insert sin tenant **no falla, miente**. Es la causa de la deriva de datos conocida. `config_negocio` se dejó sin default a propósito (`:630-633`) |
 | R-6 | **Endpoint nuevo sin `exigir()`** | El middleware no cubre `/api/`. Queda abierto (§5.1) |
 | R-7 | **`rol_permisos` sin `tenant_id`** | Tocar los permisos de un rol los toca **en las cinco organizaciones** |
 | R-8 | **`clave_interna` y `codigo_proveedor` UNIQUE globales** (`schema.sql:124-125`) | Dos organizaciones **no pueden** usar el mismo código de proveedor |
@@ -1354,7 +1356,9 @@ suposiciones.
   en la bóveda)?
 - **P-28** — **¿`rol_permisos` global es deliberado** o es la misma deuda que el ADR
   0011 resolvió para `config_negocio`? (P4)
-- **P-29** — **¿Se quitan los `DEFAULT tenant_id → rgb` de las 23 tablas** para que un
+- **P-29** — ~~¿Se quitan los `DEFAULT tenant_id → rgb` de las 23 tablas?~~ **RESUELTA: sí.**
+  La migración `20260812_sin_default_tenant.sql` los retira y `9d609f0` impide que vuelvan a
+  nacer. **Queda aplicarla a producción.** La pregunta original era: para que un
   insert sin tenant falle en vez de mentir? (P15)
 - **P-30** — **¿Es deseado que `clave_interna` y `codigo_proveedor` sean UNIQUE
   globales**, impidiendo que dos organizaciones compartan código de proveedor? (P12)

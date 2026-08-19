@@ -93,11 +93,11 @@ owner elige en SU DNS. A un owner **no se le dice «tenant»** a nivel de negoci
 |---|---|---|
 | **0** · Cerrar el autoregistro fuera de DEMO | 3 | Completa — arranca con una verificación que hay que correr |
 | **1** · Migración de limpieza de los `DEFAULT` | 5 | Completa — incluye la auditoría previa de filas mal etiquetadas |
-| **2** · Release versionado (el artefacto) | 5 | Completa — falta solo el *nombre* del registry (§8.4) |
-| **3** · `update.sh` + runner de migraciones | 6 | Completa — incluye retirar el despliegue por SSH, que hoy viola el modelo |
+| **2** · Release versionado (el artefacto) | 6 | Completa — falta solo el *nombre* del registry (§8.4) |
+| **3** · `update.sh` + runner de migraciones | 9 | Completa — incluye retirar el despliegue por SSH, que hoy viola el modelo |
 | **4** · Separar DEMO como instancia real | 5 | Completa |
-| **5** · `provision-instancia.sh` (alta de un owner) | 7 | 6 de 7 — el alta real espera §8.2 y §8.3 |
-| **6** · Visibilidad de flota | 3 | Completa — el panel va fuera del artefacto |
+| **5** · `provision-instancia.sh` (alta de un owner) | 8 | 6 de 7 — el alta real espera §8.2 y §8.3 |
+| **6** · Visibilidad de flota | 4 | Completa — el panel va fuera del artefacto |
 | **7** · Desenredar `spaces_prod` | 3 | **Solo el censo** — mueve datos reales y §8.1 no está decidida |
 | **8** · Cierre documental | 3 | Completa — ADR 0014, archivo de los documentos del 11, bóveda al día |
 
@@ -116,7 +116,7 @@ cambian tareas concretas.
 | Hallazgo | Qué implica |
 |---|---|
 | `withTxBootstrap` **no existe** | El documento lo da por «rescatado tal cual». Era una propuesta del plan del 11 que nunca se escribió: es **código nuevo** (F5.1) |
-| Los `DEFAULT` de `tenant_id` son **23, no 21** | Contados uno a uno en `db/schema.sql:604-609`. La migración los descubre por catálogo, no por lista |
+| Los `DEFAULT` de `tenant_id` son **23, no 21** | Contados uno a uno en `db/schema.sql` **antes del 19/08**; desde `9d609f0` el esquema ya no los crea y esas líneas son otra cosa. La migración los descubre por catálogo, no por lista |
 | `deploy.yml` entra por SSH, compila en el servidor y recarga pm2 | Es exactamente lo que el modelo prohíbe. No se puede borrar hasta que exista el canal: se retira en F3.6 — ver [[entorno-y-despliegue]] |
 | Los scripts muertos de la pista Prisma son **cuatro**, y uno llama a otro | Borrar solo `new-tenant.sh` dejaría `setup-first-tenant.sh:28` roto |
 | El orden de migraciones **no es alfabético** (`db-e2e.ts:145-155`) | El runner de la Fase 3 tiene que reproducir dos excepciones reales o una instancia nueva no levanta — ver [[migraciones]] |
