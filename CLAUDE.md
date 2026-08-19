@@ -237,13 +237,26 @@ sola vez: `apps/web/lib/test/db-e2e.ts` tenía una copia y ahora importa
 `ordenar()` de ahí (`db-e2e.ts:145`). Cualquier cosa que aplique migraciones tiene que reproducir
 ese orden o una base nueva no levanta.
 
-### La base del 5433 no es de pruebas
+### Las bases son de PRUEBAS — incluida la de producción
 
-`db/docker-compose.yml` levanta Postgres en el **5433** con la base `spaces`, que
-tiene **datos reales**. Las e2e usan otra (`spaces_e2e`) y el arnés **se niega a
-apuntar a una base cuyo nombre no acabe en `_e2e` o `_test`**, precisamente porque
-`recrearEsquema()` hace `drop schema public cascade`. No desactives ese guard y no
-hagas borrados masivos en el 5433.
+> **Corregido el 2026-08-19 por Jochelo.** Hasta esa fecha este apartado afirmaba que
+> el 5433 tenía «datos reales» y prohibía borrar. **Era falso**, y esa frase hizo que
+> media docena de ensayos se ataran las manos sin necesidad.
+
+`db/docker-compose.yml` levanta Postgres en el **5433** con la base `spaces`. Esa base,
+la de integración (`spaces_e2e`) y **también `spaces_prod` en el droplet** son **datos de
+prueba**: se pueden reiniciar y borrar si conviene, y **preguntar antes ya no hace falta**.
+
+Consecuencia práctica más importante: **una migración contra producción no arriesga datos
+de clientes**, así que se puede ensayar contra ella. Lo que sí sigue costando es el tiempo
+de dejar el servicio caído, y eso no lo cambia nada de esto.
+
+> [!warning] El guard del arnés se queda, y no es una contradicción
+> El arnés **sigue negándose a apuntar a una base cuyo nombre no acabe en `_e2e` o
+> `_test`**, porque `recrearEsquema()` hace `drop schema public cascade` y ese guard evita
+> el borrado **accidental** —el que nadie decidió—. Que los datos sean de prueba no
+> significa que convenga perderlos a mitad de una corrida sin enterarse. **No lo
+> desactives**: si quieres reiniciar una base, hazlo a propósito y por su nombre.
 
 ---
 
