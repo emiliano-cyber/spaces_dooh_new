@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-19
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -59,14 +59,27 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 > manda encender el registro en DEMO. El plan no se ha tocado; la contradicción está
 > registrada en [[07-Agentes/ejecucion-plan-v3]].
 
-> [!warning] Y deja una pregunta nueva: ¿cómo nace una organización?
+> [!warning] Y dejó una pregunta nueva: ¿cómo nace una organización? — ✅ **CERRADA el 2026-08-19**
 > Con el registro cerrado en toda la flota, **`POST /api/signup` queda sin uso** y el
-> alta de una organización nueva **ya no tiene camino por la aplicación**. Lo único
-> que queda es el tenant `rgb` que siembra `db/schema.sql:598` y el usuario que crea
-> `bootstrap-auth.mjs` —que lo resuelve **por slug `rgb`** y aborta si falta—, así que
-> **cada instancia nueva nacería con una organización llamada `rgb`**.
+> alta de una organización nueva **ya no tiene camino por la aplicación**.
 >
-> Enlaza directamente con **P1** (destino del tenant `rgb`), que sigue abierta.
+> **Hasta el 19/08 lo único que quedaba era el tenant `rgb`**: lo sembraba
+> `db/schema.sql` y `bootstrap-auth.mjs` lo resolvía **por slug `rgb`**, así que
+> **cada instancia nueva habría nacido con una organización llamada `rgb`** —la
+> identidad de otro owner dentro de la instancia de cada cliente, que es justo lo
+> que el modelo de instancias soberanas existe para evitar.
+>
+> **Lo cerró `9d609f0`.** El esquema nace sin ninguna organización
+> (`db/schema.sql:598-611`) y quien la crea es el **aprovisionamiento**:
+> `apps/web/scripts/bootstrap-auth.mjs` la crea y pide la identidad por entorno
+> —`ORG_SLUG`, `ORG_NOMBRE`, `ADMIN_EMAIL`, `ADMIN_NOMBRE`, ninguna con valor por
+> omisión (`bootstrap-auth.mjs:54-82`)— y aborta con salida 1 si falta cualquiera
+> o si la organización no queda creada de verdad. En F5.2 lo sustituye la ruta de
+> bootstrap de un solo uso. Ver [[esquema]] y [[migraciones]].
+>
+> **Lo que NO cierra:** **P1** (destino del tenant `rgb` y del droplet actual)
+> sigue abierta. Se resolvió cómo nace una instancia nueva, no qué se hace con el
+> `rgb` que ya existe en producción.
 
 *Decisión anterior, del 10/08, ya no vigente:* el autorregistro era **abierto y
 permanente**, y la bandera encendida se quedaba.
@@ -199,22 +212,29 @@ agente que añada pantalla necesita saber de cuál lee.
 
 ### P15 · Deriva del `tenant_id` por defecto — ✅ RESPONDIDA el 2026-08-13
 
-**23** tablas —no 21, el conteo viejo era del 03/08— tienen `DEFAULT` de
-`tenant_id` al tenant `rgb` (`db/schema.sql:604-609` y `:615`). Ese default es lo
-que ha etiquetado filas de otras organizaciones como RGB. `config_negocio` se dejó
-**sin** default a propósito (ADR 0011).
+**23** tablas —no 21, el conteo viejo era del 03/08— **tenían** `DEFAULT` de
+`tenant_id` al tenant `rgb`. Ese default es lo que ha etiquetado filas de otras
+organizaciones como RGB. `config_negocio` se dejó **sin** default a propósito
+(ADR 0011).
 
 **Pregunta:** ¿se quitan los defaults para que un insert sin tenant falle en vez de
 mentir?
 
-**Respuesta: sí.** La migración `db/migrations/20260812_sin_default_tenant.sql`
-(F1.2 del plan v3, commit `65bf9b5`) los retira recorriendo el **catálogo**, no una
-lista, porque producción tiene tablas que `schema.sql` no trae. Lleva guard —aborta
-si alguna tabla tuviera `DEFAULT` sin `NOT NULL`— y assert final.
+**Respuesta: sí**, y por dos vías distintas, cada una para un tipo de base:
+
+1. **Las que ya existen** — la migración `db/migrations/20260812_sin_default_tenant.sql`
+   (F1.2 del plan v3, commit `65bf9b5`) los retira recorriendo el **catálogo**, no
+   una lista, porque producción tiene tablas que `schema.sql` no trae. Lleva guard
+   —aborta si alguna tabla tuviera `DEFAULT` sin `NOT NULL`— y assert final.
+2. **Las que nacen** — desde el **2026-08-19** (`9d609f0`) `db/schema.sql` ya **no
+   los crea**. Se fue con el seed del tenant `rgb`, que era lo único que les daba a
+   qué apuntar. El array de las 23 tablas sigue en `db/schema.sql:617-621` y el
+   bucle que las recorre en `:631-640`, pero ese bucle ya no pone ningún `DEFAULT`.
 
 > [!warning] Escrita y probada en local; **NO aplicada en producción**
 > Aplicarla al droplet es **F1.5**, y la corre una persona. Hasta entonces
-> producción sigue etiquetando en silencio. Ver
+> producción sigue etiquetando en silencio — y sigue haciendo falta, porque el
+> cambio del 19/08 solo afecta a las bases que **nacen**. Ver
 > [[07-Agentes/ejecucion-plan-v3]] y [[verificacion-de-produccion]].
 
 Lo que **no** resuelve: las filas ya mal etiquetadas. Eso se decide en la Fase 7,

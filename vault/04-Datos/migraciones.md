@@ -1,11 +1,12 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-17
+actualizado: 2026-08-19
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
   - db/schema.sql
+  - db/semilla-desarrollo.sql
   - scripts/migrar.mjs
   - scripts/migrar.test.ts
   - apps/web/lib/test/db-e2e.ts
@@ -26,6 +27,23 @@ archivos:
 > **toda edición sea un no-op semántico en una instalación limpia**: se comprobó
 > objeto a objeto que una base virgen queda idéntica. Ver «La cadena tiene que
 > poder reaplicarse», abajo.
+
+> [!warning] DOS migraciones llevan prosa desfasada, y NO se corrige — son dos, no una
+> Sus comentarios describen un `db/schema.sql` que ya no existe: el que sembraba
+> el tenant `rgb` y ponía el `DEFAULT` de `tenant_id`. Lo cambió `9d609f0` el
+> 2026-08-19 y las citas de las dos apuntan hoy a otra cosa.
+>
+> | Archivo | Lo que dice | Lo que es verdad hoy |
+> |---|---|---|
+> | `20260812_schema_migrations.sql:66-67` | «en cuanto `schema.sql` ha corrido siempre hay al menos un tenant (`db/schema.sql:598` siembra 'rgb')» | El esquema nace **sin ninguna organización** (`db/schema.sql:598-611`). Tras `schema.sql`, una base recién nacida tiene `tenants` **vacía** |
+> | `20260812_sin_default_tenant.sql:3` y `:5` | «Ese default (`db/schema.sql:615`)» y «`config_negocio` ya nació sin él (`db/schema.sql:626+`)» | `:615` es hoy `t text;`; el bucle (`db/schema.sql:631-640`) ya no crea ningún `DEFAULT`, y el comentario de `config_negocio` está en `db/schema.sql:647-650` |
+>
+> **Editarlas les cambia el `sha256`**, y ninguna de las dos está marcada
+> `'backfill'` —la primera se excluye a sí misma del backfill a propósito, la
+> segunda ni siquiera entra—, así que toda base que ya las tenga registradas
+> abortaría con **salida 3** hasta que alguien teclee `--forzar-checksum` (ver «La
+> historia tiene que cuadrar»). Un comentario no vale eso. **Queda anotado aquí,
+> que es donde se busca.**
 
 ## Cómo funciona
 
@@ -94,10 +112,28 @@ Quedan fuera, cada una por su motivo:
 tabla deba existir es el punto: en una base recién creada, donde ni `schema.sql`
 ha corrido, no hay historia que respetar y `schema_migrations` queda vacía para
 que el runner lo aplique todo. El runner **reutiliza esta misma heurística** en su
-guard, en vez de inventarse otra (ver «El guard», abajo). Ojo con su límite:
-`schema.sql` siembra `rgb` (`db/schema.sql:598`), así que **en cuanto corre, la
-heurística ya dice «con historia»** — por eso esta migración solo es segura
-aplicada **en su turno**, después de las 65.
+guard, en vez de inventarse otra (ver «El guard», abajo).
+
+> [!important] Desde el 19/08 la heurística SÍ distingue una instalación nueva
+> **Hasta esa fecha no lo hacía, y esta nota lo decía así**: `schema.sql` sembraba
+> el tenant `rgb`, de modo que **en cuanto corría, la heurística ya decía «con
+> historia»**. Era el peor sitio posible para esa frase, porque es la que se lee
+> justo antes de decidir si una base es nueva o rezagada.
+>
+> El esquema ya no siembra ninguna organización (`db/schema.sql:598-611`, desde
+> `9d609f0`), así que tras `schema.sql` una base recién nacida tiene `tenants`
+> **vacía** y el backfill **no dispara**: sale por el segundo `return` del bloque,
+> con el NOTICE *«Base con esquema pero sin organizaciones: no hay historia que
+> respetar»* (`20260812_schema_migrations.sql:107-110`). Medido el 19/08 —lo fija
+> `apps/web/lib/test/migraciones.e2e.test.ts:324-327`, que exige **cero** filas
+> `'backfill'` tras la primera corrida sobre base vacía.
+>
+> Lo que **no** cambia: en una base que ya tiene organización —el droplet— la
+> heurística sigue diciendo «con historia» en cuanto se la pregunta, así que esta
+> migración solo es segura aplicada **en su turno**, después de las 65. Lo que
+> desapareció es el falso positivo de la instalación recién nacida. Y la prosa de
+> la propia migración (`:66-67`) todavía cuenta la versión vieja: ver el aviso del
+> principio de esta nota.
 
 ## El runner (`scripts/migrar.mjs`)
 
@@ -148,10 +184,15 @@ y **sin** `schema_migrations`, porque la crea una migración que nadie ha aplica
 todavía. Leído como «instancia nueva», el runner le reaplicaba **su historia
 entera**.
 
-Y **la heurística que el runner reutiliza aquí no las distingue** —es la del
-backfill: existe `tenants` y tiene filas—, porque después de `schema.sql` las dos
-tienen el tenant `rgb` y ninguna tiene registro. (Otra señal sí las separa, y es
-la que verifica la bandera: ver «La bandera afirma, y se comprueba».) **Las dos
+**Hasta el 19/08 la heurística que el runner reutiliza aquí —la del backfill:
+existe `tenants` y tiene filas— no las distinguía**, porque después de
+`schema.sql` las dos enseñaban el tenant `rgb` y ninguna tenía registro. Desde que
+el esquema nace sin organización (`db/schema.sql:598-611`) **sí las separa**: una
+base recién creada tiene `tenants` vacía y este guard ya no le sale al paso. La
+pregunta explícita se queda de todas formas —una heurística que hoy acierta no es
+una respuesta— y sigue habiendo una segunda señal, la de `testigosDeHistoria()`,
+que es la que **verifica** la bandera (ver «La bandera afirma, y se comprueba»).
+Lo escribe así el propio runner en `scripts/migrar.mjs:377-386`. **Las dos
 suposiciones hacen daño, por lados opuestos:**
 
 | Suposición equivocada | Qué pasa |
@@ -297,10 +338,13 @@ la orden que se teclea justo antes de actualizar, así que tampoco puede callars
 > direcciones, ninguna muerde: en el droplet están marcados `'backfill'` y se
 > saltan; y en una **instalación nueva** el runner los aplica él mismo y los
 > registra con su checksum real —calculado sobre el archivo ya editado—, así que
-> coinciden. (En una instalación nueva **no queda ni una fila `'backfill'`**: el
-> backfill sí dispara, porque `schema.sql` siembra `rgb`, pero el `on conflict …
-> do update` del runner reescribe esas 65 filas con el checksum real en la misma
-> pasada.)
+> coinciden. (En una instalación nueva **no queda ni una fila `'backfill'`**, y
+> desde el 19/08 por **dos** motivos que apuntan al mismo sitio: el backfill ni
+> siquiera dispara —`schema.sql` dejó de sembrar organización, así que sale por su
+> NOTICE «Base con esquema pero sin organizaciones»—; y aunque disparara, el `on
+> conflict … do update` del runner (`scripts/migrar.mjs:631-632`) reescribiría esas
+> 65 filas con el checksum real en la misma pasada. Lo mide
+> `apps/web/lib/test/migraciones.e2e.test.ts:324-327`.)
 
 **`--forzar-checksum=<archivo>` es el escape, y exige el nombre del archivo.**
 Desviación consciente del paso 3 de F3.3, que la describe sin argumento:

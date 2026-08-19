@@ -125,8 +125,12 @@ describe('el esquema base no trae la organización de nadie', () => {
   })
 
   it('tras `schema.sql` no hay ninguna organización ni su configuración', () => {
-    // El hallazgo, medido: hoy salen 1 y 1 — 'RGB Catorce' y su fila de
-    // `config_negocio`, sembradas por `db/schema.sql:598` y `:640`.
+    // El hallazgo que motivó esta prueba, en su día: salían 1 y 1 —'RGB
+    // Catorce' y su fila de `config_negocio`—, sembradas por un `insert into
+    // tenants` y un `update config_negocio … where slug='rgb'` que `schema.sql`
+    // traía hasta el 19/08. Hoy en su lugar hay el comentario que explica por
+    // qué ya no están (`db/schema.sql:598-611`) y el `insert` genérico de
+    // `config_negocio` (`:663-665`), que sin organizaciones no inserta nada.
     expect(trasEsquema).toEqual({ tenants: 0, config: 0 })
   })
 

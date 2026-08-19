@@ -317,7 +317,7 @@ describe('runner de migraciones', () => {
     // `20260812_schema_migrations.sql` su backfill ni siquiera dispara («base
     // con esquema pero sin organizaciones: no hay historia que respetar»); y
     // aunque disparara, el `on conflict … do update` del propio runner
-    // (`migrar.mjs:627-629`) las sustituiría por el checksum real, que aquí es
+    // (`migrar.mjs:631-632`) las sustituiría por el checksum real, que aquí es
     // lo correcto: esas 65 las acaba de aplicar ÉL en esta misma pasada. Medido
     // en su día cambiando solo esa cláusula: con `do update` salen 0; con `do
     // nothing`, 65.
@@ -331,7 +331,7 @@ describe('runner de migraciones', () => {
     // runner se salte un archivo o que deje la base distinta. Lo que NO atrapa
     // es un orden equivocado: los dos lados ordenan con la MISMA `ordenar()`
     // (definida en `migrar.mjs:76`; la llaman `migrar.mjs:236` y
-    // `db-e2e.ts:145`), así que un orden malo saldría igual
+    // `db-e2e.ts:165`), así que un orden malo saldría igual
     // de mal a los dos lados. Quien ancla el orden es la unitaria
     // `scripts/migrar.test.ts`.
     const arnes = await poolTest().query(COLUMNAS)

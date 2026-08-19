@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-13
+actualizado: 2026-08-19
 tags: [backend, multi-tenant, rls, seguridad, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -63,7 +63,8 @@ reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
 
 ## Las dos generaciones de política RLS
 
-`db/schema.sql:600-624` crea las políticas **permisivas** (la versión vieja):
+`db/schema.sql:636-639` —dentro del bucle `do $$` de `:613-641`— crea las políticas
+**permisivas** (la versión vieja):
 
 ```sql
 using (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
@@ -92,7 +93,7 @@ with check (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid)
 `propuesta_items`, `propuestas`, `reservas`, `sitio_modalidades`.
 
 Más `usuarios` (`20260720_hard1_usuarios_rls.sql`), `config_negocio`
-(`db/schema.sql:646-651`), `identidades_externas`
+(`db/schema.sql:669-674`), `identidades_externas`
 (`20260806_identidades_externas.sql`) y `password_resets`
 (`20260807_password_resets_rls.sql`, del 07/08).
 
@@ -205,25 +206,43 @@ por tabla funciona aunque una agencia sea cliente de otra.
 
 ## Deriva conocida de datos
 
-**23 tablas** (no 21: contadas una a una en `db/schema.sql:604-609`) nacen con un
-`DEFAULT` de `tenant_id` apuntando al tenant `rgb` (`db/schema.sql:615`). Ese
-default es lo que ha etiquetado como RGB filas de otras organizaciones cuando
-alguien olvidó fijar el tenant. `config_negocio` se dejó **sin default a
-propósito** para que un insert sin tenant falle (`db/schema.sql:630-633`).
+**23 tablas** —no 21: son las del array de `db/schema.sql:617-621`— **nacieron
+hasta el 2026-08-19** con un `DEFAULT` de `tenant_id` apuntando al tenant `rgb`.
+Ese default es lo que ha etiquetado como RGB filas de otras organizaciones cuando
+alguien olvidó fijar el tenant, y es la causa de la deriva conocida.
+`config_negocio` se dejó **sin default a propósito** desde el principio, para que
+un insert sin tenant falle (`db/schema.sql:647-650`).
 
-> [!important] La migración que lo retira ya existe — pero NO está aplicada en producción
+> [!important] Ya NO nacen con él — `db/schema.sql` dejó de ponerlo el 2026-08-19
+> **Esta nota afirmaba lo contrario hasta esa fecha**, y con estas palabras:
+> «`db/schema.sql` **no se toca**: sigue creando el default y la migración lo
+> retira después». Se tocó, en `9d609f0`, con la excepción a la convención
+> declarada en el propio commit: el esquema dejó de sembrar el tenant `rgb`
+> (`db/schema.sql:598-611`) y con el seed se fue el `select id into def … where
+> slug='rgb'` que era lo único que alimentaba esos `DEFAULT`.
+>
+> El bucle de `db/schema.sql:631-640` sigue poniendo `not null`, RLS y política a
+> las 23 tablas, pero **ningún `DEFAULT`**. Medido: sobre una base levantada desde
+> el repo el catálogo devuelve **cero** columnas `tenant_id` con default — lo fija
+> `apps/web/lib/test/tenant-sin-default.e2e.test.ts:66-78`, que lo pregunta a
+> `pg_attrdef` y no a una lista escrita a mano.
+>
+> Consecuencia práctica: **en una instancia recién nacida, un insert sin
+> `tenant_id` truena con 23502 desde el primer día**, sin esperar a ninguna
+> migración.
+
+> [!important] La migración que lo retira sigue haciendo falta — y NO está aplicada en producción
 > `db/migrations/20260812_sin_default_tenant.sql` (F1.2) quita el default de las
-> 23, recorriendo el **catálogo** y no una lista escrita a mano. A partir de ella
-> un insert sin `tenant_id` falla con **23502** en vez de nacer atribuido a RGB
-> en silencio — que es el modo de fallo de R2: no da error.
+> 23, recorriendo el **catálogo** y no una lista escrita a mano. Sirve para las
+> bases que **ya** lo tienen: producción y cualquier base levantada desde el repo
+> **antes** del 19/08. Aplicarla al droplet es **F1.5, y la corre una persona**;
+> hasta entonces producción sigue etiquetando en silencio, que es el modo de fallo
+> de R2: no da error.
 >
-> `db/schema.sql` **no se toca**: sigue creando el default y la migración lo
-> retira después, que es exactamente cómo se comporta una instalación nueva.
-> Así que cualquier base levantada desde el repo ya sale sin default; **la de
-> producción no**, hasta que se aplique (F1.5, la corre una persona).
->
-> Lo cubre `apps/web/lib/test/tenant-sin-default.e2e.test.ts`, que además
-> comprueba por catálogo que no reaparezca ninguno.
+> Sobre una base nueva no tiene ya nada que quitar, así que sus pruebas habrían
+> pasado **sin ejercitarla**. Por eso `tenant-sin-default.e2e.test.ts:89` le
+> devuelve el `DEFAULT` a una tabla a mano —el estado del droplet— y comprueba que
+> la migración se lo quita de verdad.
 
 ## Relacionadas
 [[autenticacion-y-sesion]] · [[esquema]] · [[migraciones]] ·

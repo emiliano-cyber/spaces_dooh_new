@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: sin-ejecutar
-actualizado: 2026-08-13
+actualizado: 2026-08-19
 tags: [operacion, produccion, verificacion, runbook]
 archivos:
   - db/schema.sql
@@ -62,8 +62,11 @@ sudo -u postgres psql -d spaces_prod -c "
   select slug, nombre, moneda, creado_en, id from tenants order by creado_en"
 ```
 
-**Esperado:** cinco organizaciones. `rgb` es el tenant por defecto del esquema
-(`schema.sql:598`) y `eyro` está reclasificado como tenant de pruebas.
+**Esperado:** cinco organizaciones. `rgb` es la más antigua: la sembraba
+`db/schema.sql` cuando el esquema todavía la traía, **hasta el 2026-08-19**. Desde
+`9d609f0` el esquema **nace sin ninguna organización** (`db/schema.sql:598-611`),
+pero eso solo cambia cómo nacen las bases nuevas: **producción conserva su `rgb`**
+y esta comprobación no cambia. `eyro` está reclasificado como tenant de pruebas.
 
 ## 17b · Cuántas filas hay, y de quién
 
@@ -113,9 +116,11 @@ siguen ahí las **15 modalidades de `g500`/`eyro` etiquetadas como `rgb`** por e
 
 ## 17c · Qué migraciones están aplicadas
 
-No hay tabla de control de migraciones: los 66 ficheros de `db/migrations/` se
-aplican a mano. La única respuesta honesta es **estructural** — se comprueba que
-estén los objetos, no que esté anotado.
+En producción todavía no hay tabla de control: los **68** ficheros de
+`db/migrations/` se aplican a mano. (`schema_migrations` está escrita —F3.1— pero
+**sin aplicar en el droplet**; ver [[migraciones]].) La única respuesta honesta
+sigue siendo **estructural** — se comprueba que estén los objetos, no que esté
+anotado.
 
 ```bash
 # Rápido — los objetos de las 2 últimas migraciones (las del 10/08)
@@ -144,12 +149,23 @@ sudo -u postgres psql -d spaces_prod -c "
 
 **Esperado:** **23 o más** tablas, todas con el mismo UUID (el de `rgb` **de esa
 base** — el uuid se genera distinto en cada instalación, así que no lo compares
-contra el local). Verificado el 2026-08-13 contra `db/schema.sql:604-609` y contra
-la copia local: **23**, ni una más ni una menos.
+contra el local). Verificado el 2026-08-13 contra la copia local de entonces:
+**23**, ni una más ni una menos.
+
+> [!warning] Desde el 19/08 la copia local ya NO sirve de contraste
+> `db/schema.sql` **dejó de crear el `DEFAULT`** (`9d609f0`), así que una base
+> levantada hoy desde el repo devuelve **cero filas** en esta consulta. Las 23
+> tablas siguen enumeradas en `db/schema.sql:617-621` y el bucle que las recorre
+> en `:631-640`, pero ese bucle ya no pone ningún default.
+>
+> **Eso NO invalida la comprobación contra producción**, que es lo que este
+> runbook mide: el droplet nació antes y sí los tiene. Lo que cambia es de dónde
+> sacas el contraste — de una base levantada antes de esa fecha, o poniendo el
+> default a mano como hace `apps/web/lib/test/tenant-sin-default.e2e.test.ts:89`.
 
 > [!warning] Más de 23 no es un desfase: es el hallazgo
 > Producción tiene tablas y columnas que `schema.sql` no trae —lo documenta
-> `apps/web/lib/test/db-e2e.ts:103-112`—, así que el catálogo real puede devolver
+> `apps/web/lib/test/db-e2e.ts:107-112`—, así que el catálogo real puede devolver
 > más. **Si salen más de 23, anótalas: eso es justo lo que F1.1 busca.** La
 > migración `20260812_sin_default_tenant.sql` está diseñada para ese caso, porque
 > recorre el catálogo y no una lista copiada a mano.
