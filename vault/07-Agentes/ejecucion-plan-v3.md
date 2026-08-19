@@ -733,6 +733,54 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > 🔴 **NO AUDITADA, por decisión de Jochelo de parar aquí.** Es trabajo hecho, **no confirmado**.
 > Las tres veces anteriores que este archivo se dio por bueno, la auditoría encontró algo.
 
+> [!important] ✅ **Fase 4 re-ensayada con D1 y T-05 dentro — los CUATRO criterios pasan** (19/08)
+> Segunda pasada, **sin auditoría por decisión de Jochelo**. Medido, no deducido:
+> `tenants=0` y `config_negocio=0` tras el esquema **y tras las migraciones** (antes 1 y 1) ·
+> **68 aplicadas / 39 tablas / exit 0** sobre 69 archivos —la pendiente es
+> `20260731_calendario_meses_cortos.sql`, `@tipo: datos`, fuera por diseño— · 2.ª corrida no-op ·
+> el Dueño abre **nueve módulos**, medido **por `permisosDeRol` y por el camino del producto**
+> (`POST /api/auth/login/`) · smoke completo en verde · y **la intersección de slugs DEMO ∩ prod
+> es vacía**, con contrafactual: con el `schema.sql` anterior habría sido `{rgb}`.
+> El rol `spaces_app` verificado `f|f`, sin ver filas sin `app.tenant_id`, y **rechazado** al
+> intentar `disable row level security`.
+>
+> 🟢 **P4-bis queda cerrada CON EVIDENCIA, y el plan sigue describiéndola abierta.** Se relanzó
+> **la misma imagen** (`sha256:65269dcd9ba9…`, verificado) añadiendo solo `-e AUTOREGISTRO=1`:
+> `signup` pasó de **503** a **400** y `metodos` a `autoregistro:true`. **Un solo artefacto sirve
+> a DEMO y a las instancias de owner.** La contradicción del `CLAUDE.md` §7 ya no existe en el
+> código.
+
+> [!danger] 🔴 Tres ROJO del re-ensayo → **reporte para Jochelo en
+> `Descargas\Avisos_ROJO_fase4_19ago2026.md`**
+> **ROJO-1 · La contraseña compartida NO es teórica.** `bootstrap-auth.mjs:85` (`?? 'spaces123'`)
+> y **la imprime** en `:189`. En el ensayo **se entró con ella y el correo público del Dueño**:
+> HTTP 200, sesión válida y **los nueve módulos**, incluidos `administracion` y `finanzas`.
+> Idéntica en toda la flota; bcrypt no protege —no hay que romperla, hay que teclearla—.
+>
+> **ROJO-2 · Los dos catálogos, medidos en el orden real:** **41 filas / 9 módulos / 5 roles**
+> contra 25/8/3. El Dueño pasa de 19 a **24** porque el alta le abre `imprenta`, que la migración
+> se negó a sembrar **a propósito**. Cero errores, cero avisos. **La política de acceso efectiva
+> la fija el último script que corrió.**
+>
+> **ROJO-3 · El PLAN manda crear el rol con un archivo que lleva la clave en claro.**
+> `plan:1272-1275` cita `db/dev-rol-app.sql`, cuya primera línea dice de sí misma *«SOLO
+> DESARROLLO — la contraseña está aquí en claro»*. **Es un arreglo de una frase del plan**, pero
+> el plan es lo que una persona va a seguir.
+
+> [!warning] Dos hallazgos de método del re-ensayo, y uno es culpa de mi encargo
+> **`space-os:dev` es UNA HORA ANTERIOR a `70ca3f0`** (imagen 12:13, commit 13:11 −0600), así que
+> **mide el producto de antes de P4-bis**. El primer smoke, hecho sobre una imagen derivada de
+> ella —**el atajo que yo recomendé en el encargo**—, dio `signup` **400**, `metodos` sin campo
+> `autoregistro` y «Crear cuenta» **presente**: **tres falsos negativos**. El ensayista la
+> reconstruyó y midió bien. **Borrar o re-etiquetar `space-os:dev`**: cualquier ensayo que la
+> reutilice concluirá lo contrario de la verdad.
+>
+> **La comprobación de «Crear cuenta» en el HTML NO discrimina**: da 0 ocurrencias con el registro
+> abierto **y** cerrado, porque desde F2.6 el botón lo pinta el navegador tras consultar
+> `/api/auth/metodos/`. **Un smoke que se quede en ese grep pasa siempre.** Lo único que distingue
+> los dos estados es el **503 contra 400**. ⚠️ Ese grep está escrito en la tarjeta de F4.5: hay
+> que sustituirlo.
+
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
 > el droplet que **solo puede correr una persona** (tarjeta **TH-F0.1**, emitida y sin correr).
