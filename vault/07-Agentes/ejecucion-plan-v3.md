@@ -499,6 +499,19 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > Mientras siga abierta: **el código 4 no significa «la base volvió tal cual estaba»**.
 
+> [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
+> El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
+> el droplet que **solo puede correr una persona** (tarjeta **TH-F0.1**, emitida y sin correr).
+> Se entra igual **por decisión explícita de Jochelo**, y queda escrito aquí en vez de lanzarse en
+> silencio — que es lo que la regla del orquestador exige.
+>
+> **Alcance de la desviación:** solo lo simulable en local (**F4.2**, **F4.4** y el smoke de
+> **F4.5** contra `localhost`). **Nada de lo ensayado puede depender del estado real del droplet**;
+> lo que lo necesite sale como tarjeta. **F4.1** y **F4.3** no se tocan.
+>
+> **Lo que la desviación NO resuelve:** si el registro estuviera abierto hoy en el droplet, seguirá
+> abierto. Ensayar DEMO en local no lo cierra ni lo mide.
+
 ### Fase 4 · DEMO como instancia real → en local: DEMO simulada
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
