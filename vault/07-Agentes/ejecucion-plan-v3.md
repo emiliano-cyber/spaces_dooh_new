@@ -187,9 +187,9 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **Dos hallazgos ABIERTOS, no invalidantes, que valen un ciclo corto cuando haya hueco:**
 >
-> - **H1** · `update.sh:1067` y `:1077` —**remedidas leyendo la línea tras `70b8cc5`**, que llevó
->   el archivo a **1098** líneas. El `pg_restore` sin guarda `-s "$BK"` de la misma zona está hoy
->   en **`:1075`**; ver el
+> - **H1** · `update.sh:1150` y `:1160` —**remedidas leyendo tras `6fb93ec`**, que dejó el archivo
+>   en **1181** líneas. El `pg_restore` sin guarda `-s "$BK"` de la misma zona está hoy en
+>   **`:1158`**; ver el
 >   aviso de más abajo sobre las tres veces que estas citas han derivado— la frase «el
 >   contenedor de la version anterior esta
 >   PARADO y aparcado como `$ANTERIOR`» **se afirma fija**, pero `comando_rescate()`
@@ -230,7 +230,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **Hallazgos abiertos, ninguno invalidante:**
 >
 > - **H-1 (el único que separa esto del verde)** · `update.sh:279-281` y `README.md:106` afirman
->   que `PULL_ESPERAS` vacío desactiva los reintentos (hoy en `update.sh:493` y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
+>   que `PULL_ESPERAS` vacío desactiva los reintentos (hoy en `update.sh:499` y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
 >   también cuando la variable está **vacía**, no solo cuando falta. Medido escribiendo
 >   `PULL_ESPERAS=""` en `instancia.env`, que es lo que haría un operador: **3 reintentos igual**.
 >   Con un espacio (`" "`) sí da 0, y eso no está escrito en ningún sitio. Falla del lado seguro
@@ -423,6 +423,13 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > Fase 2 dice 5 y son 6, **Fase 3 dice 6 y son 9**, Fase 5 dice 7 y son 8, Fase 6 dice 3 y son 4.
 > Suma ~34 contra las **46** del v3. Quien lea esa nota para saber cuánto falta, se llevará una
 > cifra del plan archivado.
+
+> [!warning] Propuesta: dejar de citar `update.sh` por número de línea en el tablero
+> Van **siete** correcciones de citas en tres días sobre este archivo, que ha pasado de 786 a
+> **1181** líneas. El patrón está claro y no es descuido de nadie: **cualquier cita a `update.sh`
+> caduca en el siguiente commit**. La salida barata es citar **por nombre de función**
+> —`partir_url`, `comando_rescate`, `respaldo_local_podar`— que no derivan, y dejar el número de
+> línea solo donde de verdad haga falta señalar una línea concreta. Pendiente de decidir.
 
 > [!danger] Estas citas han derivado CINCO veces en dos días — remídelas, no las restes — remídelas, no las restes
 > `update.sh` pasó de 786 a 847, a 903 y a **907 líneas** entre `2633bcb`, `84c6c20`,
