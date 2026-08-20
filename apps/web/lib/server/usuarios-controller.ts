@@ -1,6 +1,9 @@
 import 'server-only'
-import { randomInt } from 'node:crypto'
 import { z } from 'zod'
+// El generador vive en un modulo aparte porque lo comparte con el alta de una
+// instancia (`apps/web/scripts/bootstrap-auth.mjs`), que es un script suelto:
+// dos copias del generador de contrasenas pueden divergir sin dar error.
+import { generarPasswordTemporal } from '../password-temporal.mjs'
 import { AppError, validar } from './errores'
 import { validarPassword, hashPassword, passwordDeAlta } from './auth'
 import { googleHabilitado } from './google-oauth'
@@ -128,20 +131,6 @@ export async function restablecerPasswordCtrl(id: string, actorId: string) {
   if (!u) throw new AppError('No encontrado', 404)
   await cerrarSesionesDeUsuario(id)
   return { usuario: u, temporal }
-}
-
-// Contraseña temporal legible pero no adivinable: 4 grupos de 4 caracteres de un
-// alfabeto SIN los pares que se confunden al dictarla por teléfono (0/O, 1/l/I).
-// 28^16 ≈ 2^77 combinaciones — de sobra para algo que solo vive hasta el primer
-// login, y mucho mejor que dejar al administrador inventarse "Temporal123".
-//
-// `randomInt` del módulo crypto, no Math.random: el segundo es predecible desde
-// otras salidas del mismo generador, y aquí lo que está en juego es una cuenta.
-function generarPasswordTemporal(): string {
-  const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
-  const grupo = () =>
-    Array.from({ length: 4 }, () => ALFABETO[randomInt(ALFABETO.length)]).join('')
-  return Array.from({ length: 4 }, grupo).join('-')
 }
 
 export async function borrarUsuarioCtrl(id: string, actorId: string) {

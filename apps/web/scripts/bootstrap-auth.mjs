@@ -12,9 +12,14 @@
 //
 //  Los PERMISOS ya no se siembran aquí: viajan en las migraciones desde el
 //  2026-08-20 (ROJO-2). Este script comprueba que estén y se niega si no.
+//
+//  La CONTRASEÑA del Dueño la genera el script y la imprime UNA vez, solo si de
+//  verdad creó la cuenta. Ya no existe `SEED_PASSWORD` ni contraseña por
+//  omisión (ROJO-1), y el Dueño nace obligado a cambiarla.
 // ============================================================================
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
+import { generarPasswordTemporal } from '../lib/password-temporal.mjs'
 
 // El destino NO tiene valor por omisión, y eso es deliberado.
 //
@@ -85,7 +90,23 @@ if (FALTAN.length) {
   process.exit(1)
 }
 
-const PASSWORD_DEFAULT = process.env.SEED_PASSWORD ?? 'spaces123'
+// ─── La contraseña del Dueño se GENERA, y solo se ve una vez ───────────────
+//
+// Hasta el 2026-08-20 esto era `process.env.SEED_PASSWORD ?? 'spaces123'`, y en
+// el re-ensayo de la Fase 4 se entró con ella y el correo público del Dueño:
+// HTTP 200, sesión válida y los nueve módulos, incluidos `administracion` y
+// `finanzas`. Idéntica en toda la flota. Bcrypt no protege de eso: no hay que
+// romperla, hay que teclearla. Es ROJO-1.
+//
+// `SEED_PASSWORD` se retira ENTERA y no solo su valor por omisión: una variable
+// que fija la contraseña es exactamente el mismo riesgo en cuanto el
+// aprovisionamiento la escriba una vez para toda la flota. Nadie la elige y
+// nadie la repite.
+//
+// El generador es el mismo que usa el restablecimiento desde la aplicación
+// (`lib/server/usuarios-controller.ts`), extraído a `lib/password-temporal.mjs`
+// para que no haya dos.
+const PASSWORD_TEMPORAL = generarPasswordTemporal()
 
 // ─── El catálogo de permisos NO vive aquí, y es una decisión ───────────────
 //
@@ -177,14 +198,30 @@ async function main() {
   //  · El `tenant_id` se fija aquí a propósito. Antes lo ponía el DEFAULT que
   //    db/schema.sql cablea en la tabla, pero ese default es un uuid de otra
   //    base y está en retirada: sin fijarlo, el insert cae con 23502.
-  const hash = await bcrypt.hash(PASSWORD_DEFAULT, 10)
+  const hash = await bcrypt.hash(PASSWORD_TEMPORAL, 10)
+  const creados = []
   for (const u of USUARIOS) {
     const r = await pool.query(
-      `insert into usuarios (tenant_id, nombre, email, cargo, rol, password_hash, activo)
-       select t.id, $1,$2,$3,$4,$5,true from tenants t where t.slug = $6
+      // `debe_cambiar_password = true` en el alta, no despues: la columna es
+      // `not null default false` (`20260804_reautenticacion_individual.sql:35`),
+      // asi que sin ponerlo el Dueno nacia con una contrasena conocida Y sin
+      // obligacion de cambiarla — la peor combinacion de las dos. Con la marca,
+      // `exigir()` (`lib/server/auth.ts:167`) corta con 403 hasta que la cambie,
+      // dejando abiertas a proposito `/api/auth/me` y `/api/perfil` para que
+      // pueda salir del estado.
+      //
+      // Y el `on conflict` ya NO reescribe `password_hash`. Con una contrasena
+      // fija daba igual: la reescribia con la misma. Con una generada, repetir
+      // el alta dejaria al Dueno fuera de su propia instancia — y este script se
+      // anuncia como idempotente. `xmax = 0` distingue el insert real de la
+      // actualizacion, que es lo unico que decide si hay contrasena que
+      // entregar.
+      `insert into usuarios (tenant_id, nombre, email, cargo, rol, password_hash, activo, debe_cambiar_password)
+       select t.id, $1,$2,$3,$4,$5,true,true from tenants t where t.slug = $6
        on conflict (lower(email)) do update set
          nombre = excluded.nombre, cargo = excluded.cargo, rol = excluded.rol,
-         password_hash = excluded.password_hash, activo = true`,
+         activo = true
+       returning (xmax = 0) as creado`,
       [u.nombre, u.email, u.cargo, u.rol, hash, TENANT_SLUG],
     )
     // Si la organización no existe, el `select` no devuelve filas, el insert
@@ -203,11 +240,22 @@ async function main() {
           `organización: revísala antes de volver a correr este script.`,
       )
     }
+    if (r.rows[0]?.creado) creados.push(u.email)
   }
 
   console.log(`OK · usuarios: ${USUARIOS.length} · organización: ${TENANT_SLUG}`)
-  console.log(`Contraseña inicial para todos: "${PASSWORD_DEFAULT}" (cámbiala después)`)
   console.log(`Dueño: ${ADMIN_EMAIL}`)
+  // La contraseña se enseña UNA vez y solo si de verdad se creó la cuenta. Si el
+  // Dueño ya existía, la suya no se ha tocado: imprimir la generada aquí sería
+  // entregar una que no funciona, que es peor que no entregar ninguna.
+  if (creados.length) {
+    console.log(`Contraseña temporal (se muestra UNA sola vez): ${PASSWORD_TEMPORAL}`)
+    console.log('Entrégasela al Dueño por un canal aparte. La aplicación le exigirá')
+    console.log('cambiarla antes de dejarle hacer nada: hasta entonces todo responde 403.')
+  } else {
+    console.log('El Dueño ya existía: su contraseña NO se ha tocado. Si la perdió, se')
+    console.log('restablece desde Administración, no repitiendo este script.')
+  }
   await pool.end()
 }
 

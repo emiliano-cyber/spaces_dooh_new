@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
+import bcrypt from 'bcryptjs'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
 
 // ============================================================================
@@ -150,5 +151,96 @@ describe('el alta ya no siembra el catálogo de permisos', () => {
     // Y no deja a medias lo que no pudo terminar: sin catálogo, sin Dueño.
     const { rows } = await sinCatalogo.query('select count(*)::int n from usuarios')
     expect(rows[0].n).toBe(0)
+  }, 60_000)
+})
+
+describe('el Dueño ya no nace con una contraseña compartida', () => {
+  // ── ROJO-1, medido en el re-ensayo de la Fase 4 ─────────────────────────
+  //
+  //  `bootstrap-auth.mjs:85` sembraba `SEED_PASSWORD ?? 'spaces123'` y la
+  //  imprimía. En el ensayo se entró con ella y el correo público del Dueño:
+  //  HTTP 200, sesión válida y los nueve módulos, incluidos `administracion` y
+  //  `finanzas`. Idéntica en toda la flota, y bcrypt no protege de eso — no hay
+  //  que romperla, hay que teclearla.
+  //
+  //  Y el insert NO tocaba `debe_cambiar_password`, cuya columna es
+  //  `not null default false` (`20260804_reautenticacion_individual.sql:35`):
+  //  el Dueño nacía con una contraseña conocida Y sin obligación de cambiarla,
+  //  que es la peor combinación de las dos.
+  //
+  //  Las piezas del arreglo ya existían: `restablecerPasswordCtrl`
+  //  (`usuarios-controller.ts:119`) hace este flujo entero para el
+  //  restablecimiento, y `exigir()` (`auth.ts:167`) corta con 403 mientras la
+  //  marca esté puesta, dejando abiertas a propósito `/api/auth/me` y
+  //  `/api/perfil` para que el usuario pueda salir del estado.
+
+  let pool: Pool
+  let alta: ReturnType<typeof correrAlta>
+  let segunda: ReturnType<typeof correrAlta>
+  let hashInicial: string
+
+  const BASE_PW = 'spaces_alta_pw_e2e'
+
+  beforeAll(async () => {
+    pool = await crearBase(BASE_PW)
+    const runner = spawnSync(process.execPath, [join('scripts', 'migrar.mjs'), '--instalacion-nueva'], {
+      cwd: RAIZ,
+      env: { ...process.env, DATABASE_URL: urlDe(BASE_PW) },
+      encoding: 'utf8',
+    })
+    if (runner.status !== 0) throw new Error(`el runner fallo: ${runner.stderr}`)
+    alta = correrAlta(BASE_PW)
+    const { rows } = await pool.query('select password_hash from usuarios')
+    hashInicial = rows[0]?.password_hash
+  }, 180_000)
+
+  afterAll(async () => {
+    if (pool) await pool.end()
+    await poolTest().query(`drop database if exists ${BASE_PW} with (force)`)
+  })
+
+  it('la contraseña compartida ya no se USA en el alta', () => {
+    // Se mide el USO, no la prosa: el comentario que explica el defecto nombra
+    // `spaces123` y `SEED_PASSWORD` a propósito — es lo único que impide que
+    // vuelvan. Lo que no puede quedar es una asignación ni una lectura.
+    const fuente = readFileSync(join(RAIZ, 'apps', 'web', 'scripts', 'bootstrap-auth.mjs'), 'utf8')
+    const codigo = fuente.replace(/^\s*\/\/.*$/gm, '')
+    expect(codigo).not.toMatch(/spaces123/)
+    expect(codigo).not.toMatch(/SEED_PASSWORD/)
+    expect(codigo).toMatch(/generarPasswordTemporal\(\)/)
+  })
+
+  it('y la que quedó guardada NO es "spaces123"', async () => {
+    expect(alta.status).toBe(0)
+    expect(hashInicial).toBeTruthy()
+    expect(await bcrypt.compare('spaces123', hashInicial)).toBe(false)
+  })
+
+  it('el alta la entrega UNA vez, y es la que de verdad quedó', async () => {
+    // Se lee del stdout como la leería quien corre el alta. Si el script dejara
+    // de imprimirla, el Dueño no podría entrar y nadie se enteraría hasta el
+    // primer intento.
+    const m = alta.stdout.match(/[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}/)
+    expect(m, `el alta no imprimio ninguna contrasena temporal:\n${alta.stdout}`).toBeTruthy()
+    expect(await bcrypt.compare(m![0], hashInicial)).toBe(true)
+  })
+
+  it('nace OBLIGADO a cambiarla', async () => {
+    const { rows } = await pool.query('select debe_cambiar_password from usuarios')
+    expect(rows[0].debe_cambiar_password).toBe(true)
+  })
+
+  it('correrlo dos veces NO le rota la contraseña al Dueño', async () => {
+    // Con una contraseña fija daba igual: la reescribía con la misma. Con una
+    // generada, el `on conflict do update` de antes dejaría al Dueño fuera de su
+    // propia instancia cada vez que alguien repitiera el alta — y el script se
+    // anuncia como idempotente.
+    segunda = correrAlta(BASE_PW)
+    expect(segunda.status).toBe(0)
+    const { rows } = await pool.query('select password_hash from usuarios')
+    expect(rows[0].password_hash).toBe(hashInicial)
+    // Y lo dice, en vez de callar: quien repite el alta tiene que saber que la
+    // contraseña que imprimió la primera vez sigue siendo la buena.
+    expect(segunda.stdout).toMatch(/ya exist/i)
   }, 60_000)
 })

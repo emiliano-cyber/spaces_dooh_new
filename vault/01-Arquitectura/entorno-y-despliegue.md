@@ -81,6 +81,47 @@ solo usuario.
 > no el total, porque un `count(*) > 0` lo cumpliría una base con solo las cinco
 > filas de `inventario`, que es exactamente el estado inservible.
 
+> [!danger] Y desde el 2026-08-20 la contraseña del Dueño se GENERA — ROJO-1
+> Hasta ese día el alta sembraba `SEED_PASSWORD ?? 'spaces123'` y **la imprimía**.
+> En el re-ensayo de la Fase 4 se entró con ella y el correo público del Dueño:
+> **HTTP 200, sesión válida y los nueve módulos**, incluidos `administracion` y
+> `finanzas`. La misma en toda la flota, y bcrypt no protege de eso — **no hay
+> que romperla, hay que teclearla**.
+>
+> Peor todavía: el `insert` **no tocaba `debe_cambiar_password`**, cuya columna es
+> `not null default false` (`20260804_reautenticacion_individual.sql:35`). O sea
+> que el Dueño nacía con una contraseña conocida **y sin obligación de
+> cambiarla**: la peor combinación de las dos.
+>
+> Lo que hace hoy:
+>
+> 1. **Genera** la temporal con `lib/password-temporal.mjs` — cuatro grupos de
+>    cuatro sobre un alfabeto sin caracteres ambiguos, pensado para dictarse.
+> 2. La guarda con **`debe_cambiar_password = true`**, así que `exigir()`
+>    (`lib/server/auth.ts:167`) corta con **403** hasta que la cambie. Las dos
+>    puertas de salida —`/api/auth/me` y `/api/perfil`— siguen abiertas a
+>    propósito.
+> 3. La **imprime una sola vez**, y **solo si de verdad creó la cuenta**.
+>
+> **`SEED_PASSWORD` se retiró entera**, no solo su valor por omisión: una variable
+> que fija la contraseña es el mismo riesgo en cuanto el aprovisionamiento la
+> escriba una vez para toda la flota.
+>
+> **El `on conflict` ya no reescribe `password_hash`.** Con una contraseña fija
+> daba igual; con una generada, repetir el alta dejaría al Dueño fuera de su
+> propia instancia — y el script se anuncia como idempotente. `xmax = 0` distingue
+> el alta real de la repetición.
+
+> [!warning] Consecuencia para los scripts de humo locales
+> `smoke-e2e.mjs`, `a1-concurrencia.mjs`, `a2-candado-digital.mjs`,
+> `a3-moneda.mjs`, `a4-candado-banco.mjs`, `n1-candado-dueno.mjs` y
+> `e2e-prod-review.mjs` llevan `spaces123` escrito dentro y entran como el Dueño.
+> Contra una base recién dada de alta **ya no valen por dos motivos**: la
+> contraseña es otra, y aunque acertaran, el 403 de `debe_cambiar_password` les
+> cerraría todo. Hay que cambiar la contraseña del Dueño desde la aplicación
+> antes de correrlos. **No es un defecto de esos scripts: es el precio de que el
+> Dueño ya no nazca con una contraseña que sirve en toda la flota.**
+
 **`DATABASE_URL` es obligatoria**: sin ella el script no arranca, imprime qué
 variable falta con un ejemplo en bash y en PowerShell, y sale con código 1.
 
@@ -1156,7 +1197,10 @@ para el redirect URI de Google.
 ### Solo pruebas
 `DATABASE_URL_TEST`, `DATABASE_URL_TEST_APP`, `PUERTO_E2E`,
 `PUERTO_DOBLE_GOOGLE`, `GOOGLE_DOBLE_SUB`, `GOOGLE_DOBLE_EMAIL`,
-`GOOGLE_AUTH_ENDPOINT`, `GOOGLE_TOKEN_ENDPOINT`, `SEED_PASSWORD`, `SMOKE_BASE`.
+`GOOGLE_AUTH_ENDPOINT`, `GOOGLE_TOKEN_ENDPOINT`, `SMOKE_BASE`.
+
+> **`SEED_PASSWORD` ya no existe** — retirada el 2026-08-20 al cerrar ROJO-1.
+> El alta genera la contraseña del Dueño y la imprime una vez.
 
 ### Declaradas pero **no leídas** por `apps/web`
 
