@@ -712,10 +712,25 @@ function deviceDetail() {
 
     // Estilo del video segun la rotacion. En 90°/270° escala x(4/3) para LLENAR
     // el recuadro 4:3 (si no, quedarian barras negras al girar). El frame es 4:3.
+    //
+    // Devuelve un OBJETO, no una cadena, y eso NO es cosmetico. Con una cadena
+    // Alpine reescribe el atributo `style` entero, y ahi se lleva por delante el
+    // `display:none` que `x-show` le habia puesto al video.
+    //
+    // Pasaba en CADA carga de la ficha: Alpine arranca y esconde el video, pero
+    // enseguida loadDevice() asigna this.rotation, esta expresion se recalcula,
+    // el atributo se reescribe y el video vuelve a existir en el acomodo. Como
+    // es negro sobre negro no se ve, pero ocupa su lugar: el recuadro es flex y
+    // el bloque de "Stream no activo" quedaba empujado a la derecha. Al detener
+    // el stream se enderezaba solo, porque ahi `streaming` cambia y x-show
+    // vuelve a escribir display:none.
+    //
+    // Con un objeto, Alpine toca unicamente la propiedad `transform` y deja en
+    // paz al resto.
     videoStyle() {
       const r = ((Number(this.rotation) % 360) + 360) % 360;
       const scale = (r === 90 || r === 270) ? (4 / 3) : 1;
-      return `transform: rotate(${r}deg) scale(${scale});`;
+      return { transform: `rotate(${r}deg) scale(${scale})` };
     },
     // Rotacion del video en el visor (CSS simple; el frame ya llega 4:3 correcto).
     // Es temporal por navegador; al recargar vuelve a la orientacion fija (savedRotation).

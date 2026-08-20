@@ -58,7 +58,11 @@
           <div class="aspect-[4/3] bg-neutral-900 flex items-center justify-center relative overflow-hidden select-none"
                :class="streaming ? 'cursor-crosshair' : ''"
                @click="streaming && focusPoint($event)">
-            <video id="liveVideo" autoplay playsinline muted class="w-full h-full object-contain transition-transform"
+            <!-- El display:none inicial evita que el video ocupe lugar en el
+                 primer pintado, antes de que Alpine llegue a esconderlo: es un
+                 elemento w-full y desacomodaba lo que va al lado. -->
+            <video id="liveVideo" autoplay playsinline muted style="display:none"
+                   class="w-full h-full object-contain transition-transform"
                    x-show="streaming" :style="videoStyle()"></video>
             <!-- Recuadro sin imagen. El arranque vive AQUI DENTRO, junto al hueco
                  negro que la gente mira, en vez de solo en la barra de arriba; y
@@ -89,13 +93,17 @@
                 </button>
               </div>
 
-              <!-- En reposo -->
+              <!-- En reposo. El boton es la accion principal del panel, asi que
+                   pesa visualmente: es lo unico encendido sobre el recuadro
+                   negro y se lee de un vistazo desde el otro lado del cuarto. -->
               <div x-show="!streamStarting && !streamError">
-                <p class="text-neutral-500 text-sm">Stream no activo</p>
+                <p class="text-neutral-400 text-sm">Stream no activo</p>
                 <button @click="startStream()" :disabled="streamStarting"
-                        class="mt-3 px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="mt-4 inline-flex items-center gap-2.5 px-5 py-3 bg-green-600 text-white text-sm font-medium rounded-lg shadow-lg shadow-black/40 ring-1 ring-green-500/50 hover:bg-green-500 focus:outline-none focus:ring-2 focus:ring-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                  <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.14v13.72a1 1 0 0 0 1.54.84l10.29-6.86a1 1 0 0 0 0-1.68L9.54 4.3A1 1 0 0 0 8 5.14z"/></svg>
                   Iniciar stream
                 </button>
+                <p class="text-neutral-500 text-xs mt-3">La transmisión se detiene sola a los 3 minutos.</p>
               </div>
             </div>
             <!-- PC con el agente anterior a la vista en vivo: se dice que hacer -->
