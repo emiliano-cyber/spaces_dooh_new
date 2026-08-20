@@ -14,9 +14,19 @@ const { io } = require('socket.io-client');
 const { Camara } = require('./camera');
 const { Transmision } = require('./transmision');
 const { Api } = require('./api');
+const actualizar = require('./actualizar');
 const rutas = require('./rutas');
 
-const VERSION = '1.0.0';
+// OJO: subir esto en CADA build que se lleve a un sitio.
+//
+// Se quedo en 1.0.0 durante tres versiones distintas del programa, y eso costo
+// caro: el sitio de REVOLUCION 267 seguia con el binario ORIGINAL -el anterior a
+// que existiera la vista en vivo- pero se anunciaba como "pc-agent 1.0.0" igual
+// que los demas. El dashboard le ofrecia el boton de transmitir, el agente
+// contestaba "vista en vivo no disponible en el agente de PC", y en el navegador
+// eso salia como "la camara esta ocupada". Nadie podia saber, mirando el
+// dashboard, que ese equipo tenia un programa viejo.
+const VERSION = '1.1.0';
 const RAIZ = rutas.BASE;
 const RUTA_CONFIG = rutas.config;
 const RUTA_ESTADO = rutas.estado;
@@ -108,6 +118,10 @@ async function main() {
   const intervaloSondeo = (cfg.intervalo_sondeo_seg || 30) * 1000;
 
   log(`SPACE EYE — agente de PC v${VERSION}`);
+  // Si venimos de una actualizacion, el programa anterior sigue en la carpeta.
+  // Se borra ahora y no antes: mientras este proceso no arranque bien, ese
+  // archivo es la unica forma de volver atras.
+  actualizar.limpiarAnterior(log);
   log(`servidor: ${cfg.server_url}`);
   log(`camara:   ${cfg.camara.host}:${cfg.camara.puerto || 80} (canal ${cfg.camara.canal || 101})`);
 
@@ -224,6 +238,29 @@ async function main() {
       case 'STOP_STREAM':
         transmision.detener('solicitado desde el dashboard');
         return api.resultadoComando(cmd.id, true);
+      case 'UPDATE_APP': {
+        try {
+          const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+          // Transmitir mientras se reemplaza el programa no tiene sentido: el
+          // proceso se va a ir en unos segundos.
+          transmision.detener('actualizacion del agente');
+          const r = await actualizar.instalar(payload, log, VERSION);
+
+          // Se avisa ANTES de reiniciar: si el agente se fuera primero, el
+          // dashboard esperaria un resultado que ya nadie va a mandar.
+          await api.resultadoComando(cmd.id, true, { version: r.version, ya_estaba: !!r.yaEstaba });
+          if (r.yaEstaba) return;
+
+          api.log('info', 'update', `Actualizado a la version ${r.version}`);
+          const ok = await r.arrancar();
+          if (ok) process.exit(0);   // el nuevo ya esta corriendo; este sobra
+          return;                    // se volvio al anterior: este sigue trabajando
+        } catch (e) {
+          log(`ERROR al actualizar: ${e.message}`);
+          api.log('error', 'update', `No se pudo actualizar: ${e.message}`);
+          return api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500));
+        }
+      }
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
         await api.resultadoComando(cmd.id, true);
@@ -426,6 +463,15 @@ async function arrancar(interactivo) {
       process.exit(1);
     }
   });
+}
+
+// --version es la prueba de vida de la actualizacion por red: antes de sustituir
+// el programa, el agente viejo arranca el nuevo con esta bandera para comprobar
+// que es un ejecutable sano. Tiene que imprimir la version y salir con 0, sin
+// tocar nada mas (ni configuracion, ni red).
+if (flags.includes('--version') || flags.includes('-v')) {
+  console.log(VERSION);
+  process.exit(0);
 }
 
 if (flags.includes('--desinstalar')) {

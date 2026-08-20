@@ -7,7 +7,7 @@ import { deleteStored, storeBuffer } from '../services/photoStorage.service';
 import sharp from 'sharp';
 import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog, registrarSesion, sesionDeVista, stopStream } from '../utils/streamWatchdog';
-import { apkInfo } from '../utils/apkInfo';
+import { agentePcInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
 import crypto from 'crypto';
@@ -359,16 +359,34 @@ export async function sendCommand(req: Request, res: Response) {
     payload = { ...(payload ?? {}), ...(await encuadreDe(Number(deviceId))) };
   }
 
-  // La orden de actualizar lleva de donde bajar el APK, su huella y que version
-  // se espera: el equipo verifica antes de instalar y no reinstala la misma.
+  // La orden de actualizar lleva de donde bajar el programa, su huella y que
+  // version se espera: el equipo verifica antes de instalar y no reinstala la
+  // misma.
+  //
+  // Cada tipo de equipo baja lo suyo. Los telefonos, el APK; las PCs con camara
+  // IP, su propio ejecutable. Antes esto solo contemplaba Android, asi que a un
+  // sitio con PC no habia forma de actualizarlo por red: habia que ir. Y se noto
+  // -REVOLUCION 267 llevaba TRES versiones de atraso sin que se viera en el
+  // dashboard, porque el numero de version no cambiaba.
   if (command_type === 'UPDATE_APP') {
-    const apk = apkInfo();
-    if (!apk.disponible) return res.status(409).json({ error: 'apk_no_publicado' });
+    const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
+    const version = String((filas as any[])[0]?.app_version || '');
+
+    if (/^pi-agent/i.test(version)) {
+      return res.status(409).json({ error: 'sin_actualizacion_remota', equipo: 'raspberry' });
+    }
+
+    const esPc = /^pc-agent/i.test(version);
+    const publicado = esPc ? agentePcInfo() : apkInfo();
+    if (!publicado.disponible) {
+      return res.status(409).json({ error: esPc ? 'agente_no_publicado' : 'apk_no_publicado' });
+    }
+
     payload = {
-      url: `${env.PUBLIC_BASE_URL || ''}/space-eye.apk`,
-      sha256: apk.sha256,
-      version_code: apk.version_code,
-      version: apk.version,
+      url: `${env.PUBLIC_BASE_URL || ''}/${esPc ? 'SpaceEyeAgente.exe' : 'space-eye.apk'}`,
+      sha256: publicado.sha256,
+      version_code: publicado.version_code,
+      version: publicado.version,
       ...(payload ?? {}),
     };
   }

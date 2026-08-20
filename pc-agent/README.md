@@ -3,6 +3,33 @@
 Para sitios donde en lugar de un telefono hay una **camara IP** (HiLook / Hikvision)
 conectada a una PC que permanece encendida.
 
+## De donde se baja
+
+Los dos archivos estan publicados en el servidor, asi que no hace falta llevarlos
+en USB:
+
+- **http://159.203.188.58:4000/SpaceEyeAgente.exe** (el agente)
+- **http://159.203.188.58:4000/ffmpeg.exe** (solo lo necesita la vista en vivo)
+
+Tambien salen de `pc-agent/dist/` despues de `npm run build`.
+
+## Actualizacion por red
+
+A partir de la **v1.1.0** el agente se actualiza solo desde el dashboard: en la
+ficha del equipo, boton de actualizar. Baja el programa publicado, **comprueba su
+huella SHA-256**, lo arranca con `--version` para ver que no este roto, y recien
+entonces lo sustituye. Si el programa nuevo no levanta, **vuelve solo al
+anterior**; y si algo saliera muy mal, la tarea de Windows reintenta cada 10 min.
+
+Para publicar una version nueva: `npm run build`, copiar `dist/SpaceEyeAgente.exe`
+a `frontend/public/` del servidor y actualizar ahi `space-eye-agente.json` con la
+version y la huella (`sha256sum`). **Subir siempre `VERSION` en `src/index.js`**:
+si dos builds distintos dicen la misma version, no hay forma de saber que corre
+cada sitio — ya paso.
+
+> La primera instalacion **si** hay que hacerla a mano: un equipo con el agente
+> viejo no sabe actualizarse. De ahi en adelante, todo por red.
+
 ## Instalacion en el sitio
 
 1. Copia a la PC (donde sea, por ejemplo el Escritorio) **los dos archivos

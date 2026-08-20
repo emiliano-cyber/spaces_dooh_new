@@ -38,8 +38,16 @@ local.properties
 
 # ---- Artefactos de build / debug (no versionar) ----
 *.apk
+
+# El agente de PC publicado para la actualizacion por red: 82 MB, se genera con
+# "npm run build" en pc-agent y se copia aqui. No tiene por que vivir en el repo.
+frontend/public/SpaceEyeAgente.exe
 cap.png
 inc.png
+
+# Capturas sueltas con las que se probo el verificador a mano (fotos de sitio,
+# recortes, camara tapada). Son material de banco de pruebas, no del producto.
+ev/
 
 # ---- ffmpeg del agente de PC (mas de 70 MB; se baja con npm run bajar-ffmpeg) ----
 pc-agent/vendor/

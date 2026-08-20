@@ -29,26 +29,34 @@ export interface ApkInfo {
   modificado?: string;
 }
 
-// La huella cuesta leer 50 MB: se cachea contra la fecha de modificacion para no
-// recalcularla en cada consulta del dashboard.
-let cache: { mtimeMs: number; info: ApkInfo } | null = null;
+// El agente de las PCs con camara IP se publica igual que el APK: el binario y
+// un JSON con su version al lado. Es lo que permite actualizar esos sitios sin
+// que nadie vaya. Ver `pc-agent/src/actualizar.js`.
+const AGENTE_PC = path.join(PUBLIC, 'SpaceEyeAgente.exe');
+const AGENTE_PC_META = path.join(PUBLIC, 'space-eye-agente.json');
 
-export function apkInfo(): ApkInfo {
-  if (!fs.existsSync(APK)) return { disponible: false };
+// La huella cuesta leer 50-80 MB: se cachea contra la fecha de modificacion para
+// no recalcularla en cada consulta del dashboard.
+const cache = new Map<string, { mtimeMs: number; info: ApkInfo }>();
 
-  const st = fs.statSync(APK);
-  if (cache && cache.mtimeMs === st.mtimeMs) return cache.info;
+/** Huella, tamaño y version de un binario publicado en frontend/public. */
+function publicado(archivo: string, meta: string): ApkInfo {
+  if (!fs.existsSync(archivo)) return { disponible: false };
 
-  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(APK)).digest('hex');
+  const st = fs.statSync(archivo);
+  const enCache = cache.get(archivo);
+  if (enCache && enCache.mtimeMs === st.mtimeMs) return enCache.info;
+
+  const sha256 = crypto.createHash('sha256').update(fs.readFileSync(archivo)).digest('hex');
 
   let version: string | undefined;
   let version_code: number | undefined;
   try {
     // Se quita el BOM: PowerShell escribe los archivos UTF-8 con marca de orden
     // de bytes y JSON.parse no la tolera (el archivo se leia pero fallaba).
-    const meta = JSON.parse(fs.readFileSync(META, 'utf8').replace(/^﻿/, ''));
-    version = meta.version;
-    version_code = Number(meta.version_code) || undefined;
+    const datos = JSON.parse(fs.readFileSync(meta, 'utf8').replace(/^﻿/, ''));
+    version = datos.version;
+    version_code = Number(datos.version_code) || undefined;
   } catch { /* sin metadatos: se sirve igual */ }
 
   const info: ApkInfo = {
@@ -59,6 +67,14 @@ export function apkInfo(): ApkInfo {
     bytes: st.size,
     modificado: st.mtime.toISOString(),
   };
-  cache = { mtimeMs: st.mtimeMs, info };
+  cache.set(archivo, { mtimeMs: st.mtimeMs, info });
   return info;
+}
+
+export function apkInfo(): ApkInfo {
+  return publicado(APK, META);
+}
+
+export function agentePcInfo(): ApkInfo {
+  return publicado(AGENTE_PC, AGENTE_PC_META);
 }
