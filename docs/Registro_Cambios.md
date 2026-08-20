@@ -5,6 +5,65 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-20
+
+- **Imprenta y Finanzas por fin sirven para algo, y el Dueño puede abrir Imprenta.**
+  Ayer quedó anotado que el módulo de **Imprenta** no tenía permisos para nadie
+  —tampoco para el Dueño— y que los roles **Imprenta** y **Finanzas** se podían
+  elegir al dar de alta a una persona pero no abrían nada: entraban y recibían un
+  «no tienes permiso» en todo. Era una decisión del negocio y hoy se tomó.
+  - **Qué puede hacer cada uno a partir de ahora:**
+    - **Imprenta** ve y crea sus trabajos, y **mira** Operaciones para saber qué se
+      va a instalar. **No aprueba nada**: no cierra trabajos por su cuenta.
+    - **Finanzas** ve, crea y **factura**, y ve el tablero. Facturar es una acción
+      que no se puede deshacer, y aun así va incluida a propósito: un Finanzas que
+      no puede facturar obliga al Dueño a hacer el trabajo diario, y eso acaba con
+      todo el mundo entrando como Dueño, que es peor. Queda registrado quién
+      facturó, igual que antes.
+    - **Operaciones** pasa de solo mirar el catálogo de pantallas a **ver y crear
+      lo suyo**, y a mirar Comercial e Imprenta.
+    - **El Dueño** gana Imprenta completo, más aprobar en Operaciones y crear en
+      Network. Ya no le queda **ni una pantalla cerrada**.
+  - **Ojo, esto amplía permisos en las instalaciones que ya existen.** Al
+    actualizarse, la instalación de trabajo gana esas líneas. **No es un efecto
+    colateral: es la decisión**, y se dice antes para que nadie se lo encuentre
+    después mirando un tablero.
+
+- **Se acabó que la lista de permisos estuviera escrita en dos sitios.** El programa
+  que da de alta una instalación llevaba su propia lista, y la actualización llevaba
+  otra distinta. No coincidían, y **mandaba la que se ejecutara en último lugar** —
+  sin dar ningún error ni ningún aviso. Según el orden, el Dueño acababa con 19
+  permisos o con 24. Ahora la lista está **en un solo sitio**, la actualización, y el
+  programa de alta se limita a **comprobar que esté**; si no la encuentra, **se
+  niega a terminar** en vez de entregar una instalación en la que el Dueño no puede
+  abrir nada.
+
+- **El dueño de cada instalación deja de nacer con la misma contraseña que todos.**
+  Hasta hoy, toda copia recién instalada creaba a su dueño con una contraseña fija e
+  idéntica en todas partes, la escribía en pantalla, y **no le obligaba a
+  cambiarla**. Cualquiera que la conociera —y estaba escrita en el programa— entraba
+  como dueño en cualquier instalación, con acceso a todo, incluidas Administración y
+  Finanzas. No hacía falta romper nada: bastaba con teclearla.
+  - **Qué cambia:** el alta **genera una contraseña distinta cada vez**, en cuatro
+    grupos de cuatro caracteres pensados para poder dictarse por teléfono —sin
+    letras y números que se confundan—, la **enseña una sola vez** para que se le
+    entregue al dueño por otro canal, y la cuenta nace **obligada a cambiarla**: la
+    aplicación no le deja hacer nada hasta que lo haga.
+  - **Y repetir el alta ya no le cambia la contraseña a quien ya existe.** Antes se
+    la reescribía con la misma de siempre, así que daba igual; ahora, hacerlo lo
+    dejaría fuera de su propia instalación. Si la pierde, se restablece desde
+    Administración, como con cualquier otra persona.
+
+- **Una instalación no puede nacer con la base a medio permiso sin que nadie se
+  entere.** El programa que aplica las actualizaciones de la base ahora **comprueba
+  antes de empezar** que exista el usuario técnico con el que la aplicación se
+  conecta a su base de datos. Si no está, **se para y lo dice**, en vez de aplicar
+  todo con éxito aparente y dejar una instalación donde la aplicación no puede leer
+  ni una sola tabla. Y se añadió una actualización que **repara** las instalaciones
+  que ya hubieran nacido así.
+
+---
+
 ## 2026-08-19
 
 - **Una instancia nueva ya nace con los permisos puestos, y su Dueño puede entrar
