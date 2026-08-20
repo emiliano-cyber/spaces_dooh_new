@@ -16,6 +16,7 @@ archivos:
   - db/migrations/20260805_objetos_solo_en_prod.sql
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260820_grants_rol_app.sql
+  - db/migrations/20260820_catalogo_permisos_completo.sql
 ---
 
 # Migraciones
@@ -50,7 +51,7 @@ archivos:
 
 ## Cómo funciona
 
-- **70 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **71 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
@@ -484,6 +485,7 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 | `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **escrita, NO aplicada en producción** (eso es F1.2 → F1.5) |
 | `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **escrita, NO aplicada en producción**, donde es no-op |
 | `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
+| `20260820_catalogo_permisos_completo.sql` | El catálogo COMPLETO: **41 filas · 9 módulos · 5 perfiles** (ver abajo) — **escrita, NO aplicada en producción**. Cierra ROJO-2: hasta el 20/08 había **dos** catálogos y ganaba el que corriera último |
 | `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a `spaces_app` y **aborta si no existe** (ROJO-3) — **escrita, NO aplicada en producción**. ⚠️ Sobre una instancia que aún corra como `spaces_user` **aborta a propósito**: hay que normalizar el rol a `spaces_app` antes de tomar un release con ella |
 
 ## La migración que revela el mayor riesgo del proyecto
@@ -515,7 +517,7 @@ Medido antes de escribir la migración:
 | Base | `rol_permisos` |
 |---|---|
 | Recién aprovisionada (rol de app → `db/schema.sql` → `migrar.mjs --instalacion-nueva`) | **5 filas · 1 módulo** |
-| De desarrollo | **25 filas · 8 módulos · 3 roles** |
+| De desarrollo | **25 filas · 8 módulos · 3 roles** (antes del 20/08; con la migración del 20/08, **41 · 9 · 5**) |
 
 `db/schema.sql:75-80` crea la tabla vacía y el único sembrado que viajaba en la
 cadena era `20260804_modulo_inventario.sql:22` — las cinco filas de `inventario`
@@ -530,8 +532,9 @@ despliega.
 > donde da de alta a su equipo. No es una fuga: es una instancia inservible
 > desde el minuto uno. Bloqueaba F4.4 y toda la Fase 5.
 
-`20260819_semilla_rol_permisos.sql` siembra las 25, con `on conflict do nothing`.
-Tres decisiones que conviene no rehacer:
+`20260819_semilla_rol_permisos.sql` sembró las 25 y
+`20260820_catalogo_permisos_completo.sql` las lleva a **41 · 9 · 5**, las dos
+con `on conflict do nothing`. Tres decisiones que conviene no rehacer:
 
 - **Migración y no `bootstrap-auth.mjs`** (decisión de Jochelo, 19/08). El
   catálogo es configuración de producto, idéntica en toda la flota, y así llega
@@ -546,23 +549,38 @@ Tres decisiones que conviene no rehacer:
   —`apps/web/scripts/a4-candado-banco.mjs:101` hace justo eso— y negarse a
   actualizar la flota por eso sería peor que el problema.
 
-> [!warning] Lo que la migración NO decide, y está anotado a propósito
-> - El módulo **`imprenta`** (`apps/web/lib/modulos.ts:42`) sigue **sin una sola
->   fila**. Es el único módulo del catálogo del ADR 0010 en esa situación: la
->   pantalla de Imprenta no la abre nadie, tampoco el Dueño.
-> - Los roles **`IMPRENTA`** y **`FINANZAS`** tampoco tienen ninguna, y
->   `components/demo/shell/nav.ts:132-133` sí los ofrece al dar de alta un
->   usuario. Es la misma trampa que el ADR 0010 le cerró a `CLIENTE`
->   (`nav.ts:134`): se crea, entra y recibe 403 en todo.
+> [!important] Lo que la migración del 19/08 dejaba sin decidir, DECIDIDO el 20/08
+> Aquella se negó a sembrar `imprenta` y los perfiles `IMPRENTA` y `FINANZAS`
+> porque hacerlo era **inventar política de acceso**, y eso se decide, no se
+> deduce. Quedó medido y esperando decisión, y la decisión llegó al cerrar
+> **ROJO-2**: manda el contenido que llevaba el alta y se adopta **entero**.
 >
-> Sembrarlos sería **inventar política de acceso**, y eso se decide, no se
-> deduce. Queda medido y esperando decisión.
+> `20260820_catalogo_permisos_completo.sql` añade **16 filas** sobre aquellas 25:
+>
+> | Perfil | Gana |
+> |---|---|
+> | **DUEÑO** (19 → 24) | `imprenta` completo, `operaciones: aprobar`, `network: crear` |
+> | **OPERACIONES** (1 → 5) | `operaciones: ver/crear`, y mirar `comercial` e `imprenta` |
+> | **IMPRENTA** (0 → 3) | `imprenta: ver/crear` y mirar `operaciones`. **Sin `aprobar`** |
+> | **FINANZAS** (0 → 4) | `finanzas: ver/crear/**facturar**` y el tablero |
+>
+> `facturar` para FINANZAS es **dinero irreversible (R4)** y va por decisión
+> expresa: un Finanzas que no puede facturar obliga al Dueño a hacer el trabajo
+> diario, y eso acaba con todo el mundo entrando como Dueño — que es peor. La
+> traza de quién facturó no cambia. `CLIENTE` sigue fuera, por el ADR 0010.
 
-Lo fija `apps/web/lib/test/permisos-semilla.e2e.test.ts` (5 casos, dos bases
-desechables): la receta completa deja 25 · 8 · 3, reaplicar no duplica, una base
-que ya las tenía no cambia, y —el que importa— un Dueño recién creado obtiene
-sus ocho módulos **a través de `permisosDeRol`**, que es la función de la que
-cuelgan `/api/auth/login`, `/api/auth/me` y `/api/estado`.
+> [!warning] Esto AMPLÍA permisos en instancias que ya existen
+> La migración es aditiva, así que al actualizarse desarrollo y el droplet
+> **ganan filas**. No es un efecto colateral: es la decisión. Pero conviene
+> decirlo antes, no descubrirlo después en un tablero de producción.
+
+Lo fija `apps/web/lib/test/permisos-semilla.e2e.test.ts` (6 casos, dos bases
+desechables): la receta completa deja **41 · 9 · 5**, el reparto por perfil es
+24/5/5/3/4, reaplicar las dos migraciones no duplica, una base que ya las tenía
+no cambia, y —el que importa— un Dueño recién creado obtiene sus **nueve**
+módulos **a través de `permisosDeRol`**, que es la función de la que cuelgan
+`/api/auth/login`, `/api/auth/me` y `/api/estado`. Al Dueño ya no le queda **ni
+un área cerrada**.
 
 ## Antes de aplicar en producción
 

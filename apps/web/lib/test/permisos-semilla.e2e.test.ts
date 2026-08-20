@@ -21,10 +21,15 @@ import { AREAS, MODULOS } from '../modulos'
 //  Dueño entra y ve la aplicación entera vacía — falla cerrado, no es una fuga,
 //  pero deja la instancia inservible desde el minuto uno.
 //
-//  Lo que estas pruebas fijan es el estado que se sabe que funciona (las 25
-//  filas de la base de desarrollo), no un catálogo inventado aquí. La
+//  Lo que estas pruebas fijan es el catálogo decidido el 2026-08-20 al cerrar
+//  ROJO-2 —41 filas · 9 módulos · 5 perfiles—, que adopta ENTERO el contenido
+//  que llevaba el alta, el más completo de los dos catálogos que convivían. La
 //  expectativa se escribe literal a propósito: si saliera de la propia
 //  migración, la prueba no diría nada.
+//
+//  Hasta ese día había DOS catálogos que podían divergir y de hecho divergían
+//  —25 filas en la migración contra 36 en `bootstrap-auth.mjs`— y la política de
+//  acceso efectiva de una instancia la fijaba el último script que corrió.
 // ============================================================================
 
 const RAIZ = join(process.cwd(), '..', '..')
@@ -70,6 +75,63 @@ const CATALOGO = [
 ]
 
 const MIGRACION = '20260819_semilla_rol_permisos.sql'
+const MIGRACION_COMPLETA = '20260820_catalogo_permisos_completo.sql'
+
+// El catálogo OBJETIVO, decidido el 2026-08-20 al cerrar ROJO-2: 41 filas · 9
+// módulos · 5 perfiles. Sale del contenido del alta (`bootstrap-auth.mjs`), que
+// era el más completo de los dos catálogos que convivían, adoptado ENTERO y no
+// solo en sus dos perfiles nuevos. Se escribe literal aquí a propósito: si
+// saliera de la propia migración, la prueba no diría nada.
+//
+//   · IMPRENTA ve y crea sus trabajos y mira operaciones, para saber qué se
+//     instala. NO tiene `aprobar`: no cierra nada por su cuenta.
+//   · FINANZAS ve, crea y FACTURA, más el tablero. `facturar` es acción de
+//     dinero irreversible (R4) y va por decisión expresa: un Finanzas que no
+//     puede facturar obliga al Dueño a hacer el trabajo diario, y eso acaba con
+//     todo el mundo entrando como Dueño, que es peor.
+const CATALOGO_COMPLETO = [
+  'COMERCIAL|comercial|crear',
+  'COMERCIAL|comercial|ver',
+  'COMERCIAL|dashboard|ver',
+  'COMERCIAL|inventario|ver',
+  'COMERCIAL|network|ver',
+  'DUENO|administracion|aprobar',
+  'DUENO|administracion|crear',
+  'DUENO|administracion|ver',
+  'DUENO|arrendadores|aprobar',
+  'DUENO|arrendadores|crear',
+  'DUENO|arrendadores|ver',
+  'DUENO|comercial|aprobar',
+  'DUENO|comercial|crear',
+  'DUENO|comercial|ver',
+  'DUENO|dashboard|ver',
+  'DUENO|finanzas|crear',
+  'DUENO|finanzas|facturar',
+  'DUENO|finanzas|ver',
+  'DUENO|imprenta|aprobar',
+  'DUENO|imprenta|crear',
+  'DUENO|imprenta|ver',
+  'DUENO|inventario|aprobar',
+  'DUENO|inventario|crear',
+  'DUENO|inventario|ver',
+  'DUENO|network|crear',
+  'DUENO|network|ver',
+  'DUENO|operaciones|aprobar',
+  'DUENO|operaciones|crear',
+  'DUENO|operaciones|ver',
+  'FINANZAS|dashboard|ver',
+  'FINANZAS|finanzas|crear',
+  'FINANZAS|finanzas|facturar',
+  'FINANZAS|finanzas|ver',
+  'IMPRENTA|imprenta|crear',
+  'IMPRENTA|imprenta|ver',
+  'IMPRENTA|operaciones|ver',
+  'OPERACIONES|comercial|ver',
+  'OPERACIONES|imprenta|ver',
+  'OPERACIONES|inventario|ver',
+  'OPERACIONES|operaciones|crear',
+  'OPERACIONES|operaciones|ver',
+]
 
 function urlDe(base: string): string {
   const u = new URL(URL_TEST)
@@ -148,16 +210,34 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     expect(runner.status).toBe(0)
   })
 
-  it('nace con las 25 filas: 8 módulos y 3 roles, ni una más', async () => {
-    // El «ni una más» importa tanto como el «ni una menos»: la migración corre
-    // DESPUÉS de `20260804_modulo_inventario.sql`, que ya sembró 5 de estas
-    // filas. Un `insert` sin `on conflict` dejaría 30 o abortaría.
-    expect(await catalogoDe(pool)).toEqual(CATALOGO)
+  it('nace con las 41 filas: 9 módulos y 5 roles, ni una más', async () => {
+    // El «ni una más» importa tanto como el «ni una menos»: las dos migraciones
+    // corren DESPUÉS de `20260804_modulo_inventario.sql`, que ya sembró 5 de
+    // estas filas, y la segunda repite las 25 de la primera. Un `insert` sin
+    // `on conflict` dejaría 46 o abortaría.
+    expect(await catalogoDe(pool)).toEqual(CATALOGO_COMPLETO)
 
     const { rows } = await pool.query(
       'select count(*)::int filas, count(distinct modulo)::int modulos, count(distinct rol)::int roles from rol_permisos',
     )
-    expect(rows[0]).toEqual({ filas: 25, modulos: 8, roles: 3 })
+    expect(rows[0]).toEqual({ filas: 41, modulos: 9, roles: 5 })
+  })
+
+  it('los dos perfiles que no existían ya pueden entrar a algo', async () => {
+    // Antes del 20/08, `IMPRENTA` y `FINANZAS` estaban en el enum `rol_demo` y
+    // `nav.ts` los ofrecía al dar de alta un usuario, pero no tenían NI UNA fila
+    // en `rol_permisos`: se podían crear, entraban, y recibían 403 en todo. Es
+    // la misma trampa que el ADR 0010 le cerró a `CLIENTE`.
+    const { rows } = await pool.query(
+      "select rol::text rol, count(*)::int n from rol_permisos group by 1 order by 1",
+    )
+    expect(rows).toEqual([
+      { rol: 'COMERCIAL', n: 5 },
+      { rol: 'DUENO', n: 24 },
+      { rol: 'FINANZAS', n: 4 },
+      { rol: 'IMPRENTA', n: 3 },
+      { rol: 'OPERACIONES', n: 5 },
+    ])
   })
 
   it('reaplicar la migración no duplica ni cambia nada (idempotente)', async () => {
@@ -165,8 +245,9 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     // despliegue, así que la segunda pasada no es hipotética.
     const antes = await catalogoDe(pool)
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION), 'utf8'))
+    await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_COMPLETA), 'utf8'))
     expect(await catalogoDe(pool)).toEqual(antes)
-    expect(antes).toHaveLength(25)
+    expect(antes).toHaveLength(41)
   })
 
   it('un Dueño recién creado ve sus módulos', async () => {
@@ -202,6 +283,7 @@ describe('el catálogo de permisos de una instancia nueva', () => {
       'comercial',
       'dashboard',
       'finanzas',
+      'imprenta',
       'inventario',
       'network',
       'operaciones',
@@ -210,15 +292,14 @@ describe('el catálogo de permisos de una instancia nueva', () => {
     // donde da de alta al resto de su equipo— contesta 403.
     expect(await tienePermiso(sesion!.rol, 'administracion', 'ver')).toBe(true)
 
-    // Y en términos de producto: qué áreas del menú le quedan abiertas.
-    // `imprenta` es la única que sigue cerrada, porque es el único módulo del
-    // catálogo (`lib/modulos.ts`) sin NI UNA fila en `rol_permisos` — igual que
-    // le pasaba al rol CLIENTE antes del ADR 0010. NO se siembra aquí: decidir
-    // quién imprime es política de acceso y no es de esta tarea. Si alguien la
-    // siembra, este rojo es el recordatorio de anotarlo.
+    // Y en términos de producto: al Dueño no le queda NI UN área cerrada.
+    // Hasta el 20/08 `imprenta` era la única sin ni una fila en `rol_permisos`
+    // —el único módulo del catálogo (`lib/modulos.ts`) en esa situación, igual
+    // que le pasaba a CLIENTE antes del ADR 0010—. La decisión de ROJO-2 la
+    // siembra: quién imprime ya está escrito.
     const cerradas = AREAS.filter((a) => !permisos[a.modulo]?.includes('ver')).map((a) => a.clave)
-    expect(cerradas).toEqual(['imprenta'])
-    expect(MODULOS.filter((m) => !permisos[m])).toEqual(['imprenta'])
+    expect(cerradas).toEqual([])
+    expect(MODULOS.filter((m) => !permisos[m])).toEqual([])
   })
 })
 
