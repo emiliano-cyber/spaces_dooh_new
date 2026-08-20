@@ -464,17 +464,21 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`88 escenarios · 557 comprobaciones · 0 rojas` (medido el 20/08 al cerrar el ciclo de
+`95 escenarios · 621 comprobaciones · 0 rojas` (medido el 20/08 al cerrar los cuatro
+hallazgos de las auditorías; venía de `95 · 619` con D1, y de
+`88 · 557` al cerrar el ciclo de
 los cinco mensajes que decían algo que no era verdad; venía de `85 · 532` el 19/08 al
 cerrar M3, la
 conexión que dejó de viajar como URL; de `79 · 399` ese mismo día al cerrar la
 credencial de la **consulta**, de `73 · 358` al unificar el parseo, de
 `63 · 300` el 18/08 tras corregir la auditoría de F3.9, de
 `58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de `48 · 218` y, antes de F3.7,
-de `37 · 165`). Los mutantes son **44** —35 sobre `update.sh` y 9 sobre `respaldo.sh`—;
-la barrida completa **no se corrió entera** ni el 18/08, ni el 19/08, ni el 20/08 —los 44 pasan de las
-quince horas en esta máquina— y en su lugar se corren **aislados los
-que tocan el cambio**: siete en el ciclo del 18/08, **cinco** en el ciclo 2 del 19/08,
+de `37 · 165`). Los mutantes son **52** —**43** sobre `update.sh` y **9** sobre
+`respaldo.sh`, contados con `grep -c` el 20/08, no recordados: la cifra de **44** que
+estuvo aquí dos días era la de antes de D1, que añadió ocho—.
+La barrida completa **no se ha corrido entera** ni el 18/08, ni el 19/08, ni el 20/08
+—los 52 pasan de las quince horas en esta máquina— y en su lugar se corren **aislados
+los que tocan el cambio**: siete en el ciclo del 18/08, **cinco** en el ciclo 2 del 19/08,
 **cinco** en el ciclo 3, **siete** en M3 y **cuatro** el 20/08, todos cazados. Los cuatro
 del 20/08 se corrieron contra una copia **reducida** del arnés (9 escenarios, 74
 comprobaciones, 33 s por corrida) y no contra los 88, que es lo que hicieron los ciclos
@@ -1011,6 +1015,68 @@ Reproduce el defecto, la consecuencia, el arreglo y el aislamiento del rol
 restringido. **Extrae el SQL de limpieza y la consulta de la huella de `update.sh`**
 en vez de copiarlos: una copia se habría quedado vieja sin que nadie se enterase. Su
 guard es el de las e2e — se niega si la base no acaba en `_test` o `_e2e`.
+
+### El actualizador contaba mal lo suyo (20/08) 🟡
+
+Cuatro hallazgos de las dos auditorías del día, y **uno solo de fondo**: *algo del
+actualizador afirmaba o contaba lo que ya no era cierto*. Ninguno cambia lo que el
+guion **hace**; los cuatro cambian lo que **dice de sí mismo**, que es de lo que vive
+quien lo diagnostica sin entrar al servidor.
+
+| # | Dónde | Qué decía | Qué se hizo |
+|---|---|---|---|
+| ① | los dos mutantes de `PULL_ESPERAS` en `pruebas-update.sh` | mutaban `${PULL_ESPERAS:-1 5 30}`, **con** los dos puntos, que es la forma que H-1 quitó ese mismo día | reescritos contra la línea de hoy, **conservando lo que cada uno sabotea**, y los dos vuelven a salir **CAZADOS** |
+| ② | la tabla de códigos de la **cabecera de `update.sh`** | `0,1,2,3,4,5,75`: **ni el 6 ni el 7**, dos días después de que D1 los añadiera | añadidos con su explicación; y el `--help`, que imprime un rango **fijo** de esa cabecera, se remidió a `2,131p` |
+| ③ | el ejemplo de registro publicable del README | `7a · base restaurada (esquema Y registro de migraciones)` — **cadena que D1 borró del código** — y un `VUELTA ATRAS COMPLETA` sin la coletilla de la base | **regenerado de una corrida real** (escenario E13), no escrito a mano |
+| ④ | dos afirmaciones de `update.sh` | «`pg_restore --list` rechaza un dump truncado» y «La base NO se vacio» | **acotadas**: ver abajo |
+
+> [!danger] ①  no era «la barrida no se ha corrido», era «la barrida **no se podía correr**»
+> El validador del propio arnés daba esos dos mutantes por
+> `INVALIDO … toco 0 lineas, no una`, y con eso `--mutantes` **salía con 1** al llegar
+> ahí: la barrida completa era **imposible** desde el commit anterior. Se comprobó
+> además que **ningún otro** hubiera derivado, pasando los **52** por las tres
+> comprobaciones de validez: **52 válidos, 0 inválidos** (20/08).
+
+**②  importa por dónde vive la tabla.** La cabecera de `update.sh` dice de sí misma que
+es el archivo que se instala en `/opt/space-os/update.sh`: quien abre un fallo a las
+cuatro de la mañana tiene **el guion** delante, no el README. Y el que faltaba era el
+**7 · LA BASE QUEDO VACIA**, el estado más urgente que este guion puede producir. De
+paso se corrigió el «pasan seis de los **siete** códigos» del AVISO 5, que llevaba dos
+días diciendo siete cuando ya eran **nueve**.
+
+**④, las dos acotaciones**, que son la misma lección de H1 —*lo que no se sabe no se
+afirma*—:
+
+- `pg_restore --list` **valida el índice del dump, no los bloques de datos**. Medido en
+  la auditoría: un dump truncado al **99,5 %** pasa el guard, el `drop` se ejecuta y la
+  restauración muere dejando la base vacía. El camino **está cubierto** —tiene su
+  código 7 y sus dos comandos en orden—, pero la prosa prometía una garantía que el
+  guard no da. Lo que sí caza: el archivo que no es un dump, el cortado por arriba y el
+  ilegible.
+- «La base NO se vacio» se afirmaba **también** cuando lo que murió fue el cliente
+  `psql` **después** de que el servidor confirmara la limpieza — y en ese caso el
+  esquema está recreado y **vacío**. Desde este lado solo se ve un código de salida, así
+  que ahora el mensaje dice lo que sabe («este script NO lo comprobo», «Mira la base
+  ANTES de decidir») y trae **los dos** comandos según lo que se encuentre. **E95 exige
+  ahora lo contrario de lo que exigía**: que la frase incondicional **no** esté.
+
+> [!warning] Un sexto sitio del mismo patrón, medido y **no** arreglado
+> `update.sh` registra `5b · parando … y guardandolo como space-os-anterior`
+> **antes** de intentar el `rename`, así que en la rama en la que el `rename` falla el
+> log conserva esa frase. Está **mitigado** —el `AVISO` que sale justo después la
+> desmiente, y `estado_del_viejo()` decide por la variable, no por el log—, pero es el
+> mismo defecto que los cinco de la mañana: **el log cuenta el plan, no el resultado**.
+> Queda declarado, no corregido.
+
+> [!note] Y una limpieza pendiente del arnés real
+> `pruebas-vuelta-atras-real.sh` destruye su base al terminar pero **no los roles que
+> creó**: `d1r_mig_test` y `d1r_app_test` se quedan en el clúster. No estorban —son
+> `nosuperuser` y sin objetos una vez cae la base— pero el ensayo no deja el clúster
+> como lo encontró. Otro ciclo.
+
+**Verificado:** `bash infra/scripts/pruebas-update.sh` →
+`95 escenarios · 621 comprobaciones · 0 rojas`. Los **dos** mutantes reparados,
+corridos contra el arnés **entero**, **CAZADOS**.
 
 ## Producción
 

@@ -77,6 +77,14 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 
 ### Códigos de salida — no son intercambiables
 
+> [!warning] Esta tabla vive **dos veces**, y la que se lee a las cuatro de la mañana es la otra
+> La cabecera de `update.sh` trae la suya, y **ése** es el archivo que se instala
+> en el droplet: quien diagnostica un fallo tiene el guion delante, no este
+> README. Estuvo **dos días** listando `0,1,2,3,4,5,75` después de que D1
+> añadiera el **6** y el **7** —o sea que el estado más urgente que este guion
+> puede producir, «LA BASE QUEDO VACIA», no estaba donde se busca—. Corregida el
+> **20/08**. Si añades un código, las **dos** se tocan en el mismo commit.
+
 | Código | Qué pasó | ¿Hay que ir a mirar la base? |
 |---|---|---|
 | `0` | sin cambios, o actualizada y sana | no |
@@ -84,7 +92,7 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |
-| `5` | la salud falló y **la vuelta atrás no**. **La instancia queda SIN servicio** y el mensaje del log trae el **comando exacto** que la devuelve (§6). Desde el 20/08 todas las salidas `5` de la restauración dejan la base **sin tocar**: se paran **antes** del `drop` | **sí, urgente** |
+| `5` | la salud falló y **la vuelta atrás no**. **La instancia queda SIN servicio** y el mensaje del log trae el **comando exacto** que la devuelve (§6). Desde el 20/08 las salidas `5` de la restauración se paran **antes** del `drop`, así que la base se queda con las migraciones nuevas. Con una excepción que el propio mensaje declara: si lo que falló fue el **cliente** `psql` **después** de que el servidor confirmara la limpieza, el esquema puede estar recreado y **vacío**; desde este script eso no se distingue de un rechazo, y por eso ya no se afirma | **sí, urgente** |
 | `6` | la vuelta atrás dejó la instancia **sirviendo**, pero la base **no volvió** a la huella que tenía antes de migrar — o **no se pudo comprobar** que volviera. El mensaje distingue las dos cosas y no afirma la que no sabe | **sí**, sin prisa: hay servicio |
 | `7` | **la base quedó vacía**: el esquema se tiró para restaurar encima y la restauración falló. Levantar la versión anterior **no basta**; el mensaje trae los dos comandos, **en orden**: primero restaurar la base, después el contenedor | **sí, urgente** |
 | `75` | ya había otro update en marcha (candado) | no |
@@ -763,18 +771,51 @@ caso y nadie se entera—: **lo que no se emite no puede filtrarse.**
 > [!tip] Filtrar no es perder
 > Lo crudo **sigue entero en el droplet** para quien tenga que entrar. Lo que
 > cambia es que ya casi nunca hace falta. Así se ve una vuelta atrás completa
-> leída **solo desde el bucket**, sin abrir una sesión en el servidor:
+> leída **solo desde el bucket**, sin abrir una sesión en el servidor.
+>
+> Lo que sigue **no está escrito a mano**: es la salida literal de
+> `update-publicable.log` en el escenario **E13** del arnés, capturada el
+> **20/08**. La versión anterior de este bloque sí estaba escrita a mano y por
+> eso se quedó **mintiendo**: enseñaba `7a · base restaurada (esquema Y registro
+> de migraciones)`, una línea que D1 **borró del código**, y un `VUELTA ATRAS
+> COMPLETA` sin la coletilla de la base que hoy lleva **siempre**. Un ejemplo
+> falso justo aquí engaña a quien está diagnosticando **sin** entrar al servidor,
+> que es para lo que existe este archivo. Para regenerarlo: copia el arnés hasta
+> antes de su primer `preparar`, pega detrás el escenario E13 y termina con un
+> `cat "$PUBLICABLE"`.
+>
+> Las rutas son las del directorio temporal del arnés (`/tmp/tmp.…`); en una
+> instancia de verdad son `/var/lib/space-os/respaldos/…`.
 >
 > ```
-> … 1 · pull reg.example.com/space-os-flota/space-os:estable
-> … 3 · respaldo -> /var/lib/space-os/respaldos/spaces_20260818_130614.dump
-> … 5 · migraciones (imagen nueva, contenedor efimero) · huella previa: 8f3a… 0
-> … 6 · salud: intento 2/2 -> 500
-> … 7 · VUELTA ATRAS: la version nueva no contesta 200 en http://127.0.0.1:3000/…
-> … 7a · base restaurada (esquema Y registro de migraciones)
-> … VUELTA ATRAS COMPLETA: la instancia sirve otra vez la version anterior
-> … salida: 4
+> 2026-08-20 10:38:57-0600  1 · pull reg.example.com/space-os-flota/space-os:estable
+> 2026-08-20 10:38:57-0600  2 · hay version nueva: sha256:vieja -> sha256:nueva (v0.4.2)
+> 2026-08-20 10:38:57-0600     runner: montado desde /tmp/tmp.LUIxMFJCwZ/migrar.mjs (la imagen no lo trae; ver AVISO 1)
+> 2026-08-20 10:38:57-0600  3 · respaldo -> /tmp/tmp.LUIxMFJCwZ/estado/respaldos/spaces_20260820_103857.dump
+> 2026-08-20 10:38:57-0600     respaldo de 15 bytes
+> 2026-08-20 10:38:57-0600     respaldo remoto -> s3://space-os-respaldos/demo/2026-08-20-1038.dump (por s3cmd)
+> 2026-08-20 10:38:58-0600     respaldo remoto OK: s3://space-os-respaldos/demo/2026-08-20-1038.dump
+> 2026-08-20 10:38:58-0600  4 · version anterior anotada en /tmp/tmp.LUIxMFJCwZ/estado/version-anterior
+> 2026-08-20 10:38:58-0600  5 · migraciones (imagen nueva, contenedor efimero) · huella previa: esq-viejo reg-viejo 0
+> 2026-08-20 10:38:59-0600     base tras migrar: cambio=si · 67 migraciones nuevas en schema_migrations · huella: esq-nuevo reg-nuevo 67
+> 2026-08-20 10:38:59-0600  5b · parando space-os y guardandolo como space-os-anterior
+> 2026-08-20 10:38:59-0600  5c · levantando space-os con v0.4.2
+> 2026-08-20 10:38:59-0600  6 · salud: intento 1/2 -> 000
+> 2026-08-20 10:39:00-0600  6 · salud: intento 2/2 -> 000
+> 2026-08-20 10:39:00-0600  7 · VUELTA ATRAS: la version nueva no contesta 200 en http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
+> 2026-08-20 10:39:00-0600  7a · restaurando …/spaces_20260820_103857.dump: la huella de la base cambio al migrar (67 filas nuevas en schema_migrations). [esq-viejo reg-viejo 0] -> [esq-nuevo reg-nuevo 67]. Se restaura ANTES de levantar la version anterior, para que no vea un esquema que no conoce.
+> 2026-08-20 10:39:00-0600  7a · dejando el esquema limpio antes de restaurar (respaldo comprobado: …/spaces_20260820_103857.dump)
+> 2026-08-20 10:39:00-0600  7a · base restaurada sobre un esquema limpio y COMPROBADA: la huella es otra vez la de antes de migrar [esq-viejo reg-viejo 0].
+> 2026-08-20 10:39:00-0600  7b · levantando otra vez la version anterior
+> 2026-08-20 10:39:01-0600  6 · salud: 200 en el intento 1/2
+> 2026-08-20 10:39:01-0600  VUELTA ATRAS COMPLETA: la instancia sirve otra vez la version anterior y la base volvio a su huella de antes de migrar [esq-viejo reg-viejo 0], comprobado releyendola. El release v0.4.2 queda descartado. Respaldo en …/spaces_20260820_103857.dump
+> 2026-08-20 10:39:01-0600  salida: 4
+> 2026-08-20 10:39:01-0600     log remoto -> s3://space-os-logs/demo/2026-08-20-1039.log (por s3cmd)
+> 2026-08-20 10:39:02-0600     log remoto OK: s3://space-os-logs/demo/2026-08-20-1039.log
 > ```
+>
+> (Las únicas tres líneas acortadas son las que repetían la ruta completa del
+> dump, sustituida por `…/`; nada más se tocó.)
 >
 > **Ni una fila y ni una credencial.** Eso es el criterio y se comprueba leyendo
 > el archivo que viaja (E53, E62, E63).
@@ -967,9 +1008,13 @@ archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 > la mitad» —y entonces la base quedó **vacía**—.
 
 > [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08, ni el 19/08, ni el 20/08
-> Los mutantes son **44** desde el 20/08: 35 sobre `update.sh` y 9 sobre
-> `respaldo.sh`. La barrida completa cuesta varios minutos por mutante en esta
-> máquina —los 44 pasan de las quince horas— así que se corren **aislados los que
+> Los mutantes son **52**, y esta vez el número está **contado, no recordado**:
+> `grep -c '^  probar_mutante '` da **43** sobre `update.sh` y
+> `grep -c '^  probar_mutante_respaldo '` da **9** sobre `respaldo.sh` (medido el
+> **20/08**). Aquí ponía **44** —el recuento de antes de D1, que añadió ocho— y
+> ese número llevaba dos días conviviendo, dos párrafos más abajo, con el «los
+> ocho de D1». La barrida completa cuesta varios minutos por mutante en esta
+> máquina —los 52 pasan de las quince horas— así que se corren **aislados los que
 > tocan el cambio**: **siete** el 18/08 (los dos
 > invalidantes de la auditoría, el hallazgo 3 y los cuatro de F3.9), **cinco** en
 > el ciclo 2 del 19/08 (los del parseo único de la credencial), **cinco** en el
@@ -977,8 +1022,21 @@ archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 > conexión sin URL más el de fallar abierto, que hubo que reescribir) y **cuatro**
 > el 20/08 (las dos ramas de `estado_del_viejo`, la condición de
 > `comando_rescate` y `PULL_ESPERAS`). Todos
-> **CAZADOS**. `44 mutantes · 0 escapan` **no** es de una barrida entera: quien la
+> **CAZADOS**. `52 mutantes · 0 escapan` **no** es de una barrida entera: quien la
 > necesite entera, que la corra y lo escriba aquí.
+>
+> > [!danger] Y hasta el 20/08 la barrida entera **no se podía correr**, no es que
+> > no se hubiera corrido
+> > Los dos mutantes de `PULL_ESPERAS` de F3.8 —«dejar el pull sin reintentos» y
+> > «aplanar el backoff a 1 s»— mutaban `${PULL_ESPERAS:-1 5 30}`, **con** los dos
+> > puntos. H-1 quitó esos dos puntos ese mismo día y los dejó apuntando a una
+> > línea que ya no existe: el validador del arnés los daba por
+> > `INVALIDO … toco 0 lineas, no una` y `--mutantes` **salía con 1** al llegar
+> > ahí. O sea que la barrida completa era imposible desde el commit anterior, y
+> > lo que la paraba no era el tiempo. Reescritos contra la línea de hoy
+> > **conservando lo que cada uno sabotea** (el primero deja el valor por omisión
+> > vacío, el segundo aplana el backoff) y **los dos vuelven a salir CAZADOS**.
+> > El mutante de H-1, que es el que reintroduce los dos puntos, ya apuntaba bien.
 >
 > **Y los ocho de D1** (20/08, mismo día, ciclo siguiente): no limpiar el esquema ·
 > no releer la huella · tirar el esquema sin comprobar que el respaldo **existe** ·
@@ -1147,7 +1205,7 @@ siete se vieron **en rojo**, 37 comprobaciones, antes de tocar una línea de
 | **E92** | el respaldo **desaparece** entre el `pg_dump` y la vuelta atrás (disco lleno, o la poda de F3.7 que ordenaba por nombre): **no se tira el esquema** y la base queda intacta. Es el `pg_restore` sin guarda `-s "$BK"`, cerrado |
 | **E93** | el respaldo está y **no está vacío**, pero `pg_restore --list` no lo puede leer (un dump truncado pesa): tampoco se tira nada |
 | **E94** | **no hay `psql`**: se para antes de tocar la base, con el comando de rescate, igual que la falta de `pg_restore` (E32) |
-| **E95** | el `drop` se pide y **la base lo rechaza** («must be owner of schema public», medido): no se restaura encima y el mensaje dice que **la base NO se vació** |
+| **E95** | el `drop` se pide y **la limpieza falla** (el caso medido es «must be owner of schema public»): no se restaura encima, y desde el 20/08 el escenario exige lo **contrario** de lo que exigía —que el mensaje **no** diga «La base NO se vacio»—, porque con un código de salida de `psql` no se sabe si el servidor llegó a confirmar. Lo que sí exige es que lo **diga**: «este script NO lo comprobo» y «Mira la base ANTES de decidir» |
 | **E18**, **E86** | pasan al **peor caso**: el esquema ya se tiró y la restauración falla. Código **7** propio, «LA BASE QUEDO VACIA», y los **dos** comandos en orden |
 | **E14**, **E17** | ampliados: en el camino que **no** restaura, el mensaje no puede decir «comprobado releyéndola»; y en una corrida **buena** no aparece ningún `drop` **ni se pide** —la función lo rechazaría y lo diría— |
 

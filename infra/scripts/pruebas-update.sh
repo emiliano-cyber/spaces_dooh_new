@@ -2161,17 +2161,26 @@ log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 no_hubo_regex 'pg_restore .*--single-transaction'
 limpiar
 
-# E95 · el `drop` se pide y la base lo RECHAZA (el rol no es dueno del esquema:
-#       medido, «must be owner of schema public», y la base queda intacta). No
-#       se restaura encima: restaurar sobre el esquema sucio es justo el defecto
-#       D1, y hacerlo callando seria peor que no restaurar.
-preparar 'E95 la limpieza del esquema falla: la base no se vacio (D1)'
+# E95 · el `drop` se pide y la limpieza FALLA (el caso medido es el rol que no es
+#       dueno del esquema: «must be owner of schema public», y ahi la base queda
+#       intacta). No se restaura encima: restaurar sobre el esquema sucio es
+#       justo el defecto D1, y hacerlo callando seria peor que no restaurar.
+#
+#       Y el mensaje NO puede afirmar que la base sigue entera. Desde este lado
+#       solo se ve un codigo de salida de `psql`: si el que murio fue el CLIENTE
+#       despues de que el servidor confirmara el bloque, el esquema quedo
+#       recreado y VACIO con este mismo codigo 1. Es la clase H1 —lo que no se
+#       sabe no se afirma— y por eso aqui se exige lo contrario de lo que se
+#       exigia hasta el 20/08: que la frase incondicional NO este.
+preparar 'E95 la limpieza del esquema falla: no se restaura, y no se afirma de mas (D1)'
 export C_CODIGOS='000 000'
 export PSQL_CODIGO=1
 correr
 codigo_es 5
 log_dice 'no se pudo dejar el esquema limpio'
-log_dice 'La base NO se vacio'
+log_calla 'La base NO se vacio'
+log_dice 'este script NO lo comprobo'
+log_dice 'Mira la base ANTES de decidir'
 hubo 'drop schema public cascade'
 no_hubo_regex 'pg_restore .*--single-transaction'
 log_dice 'La instancia queda SIN servicio'
@@ -2251,10 +2260,19 @@ if [ "${1:-}" = '--mutantes' ]; then
     's#2>/dev/null)" || true#2>/dev/null || echo 000)"      #'
   # Y los tres de F3.8: el pull sin reintentos, la espera aplanada, y la
   # migracion reintentada — este ultimo es el que corrompe bases.
+  #
+  # Los dos primeros apuntaban a `${PULL_ESPERAS:-1 5 30}` —con los dos puntos—,
+  # que es la forma que H-1 quito el 20/08. Desde ese commit tocaban CERO lineas:
+  # el validador los daba por INVALIDOS y la barrida entera se paraba ahi con
+  # salida 1, o sea que `--mutantes` no se podia correr entera. Van a la forma de
+  # hoy SIN cambiar lo que cada uno sabotea: el primero deja el valor por omision
+  # vacio (ningun reintento, contra E33/E34) y el segundo aplana el backoff a 1 s
+  # (contra los `sleep 5` y `sleep 30` de E33). El mutante de H-1, mas abajo, es
+  # el contrario: reintroduce los dos puntos.
   probar_mutante 'dejar el pull sin reintentos' \
-    's/^PULL_ESPERAS="\${PULL_ESPERAS:-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS:-}"        /'
+    's/^PULL_ESPERAS="\${PULL_ESPERAS-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS-}"         /'
   probar_mutante 'aplanar la espera del backoff a 1 s' \
-    's/^PULL_ESPERAS="\${PULL_ESPERAS:-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS:-1 1 1}"/'
+    's/^PULL_ESPERAS="\${PULL_ESPERAS-1 5 30}"$/PULL_ESPERAS="${PULL_ESPERAS-1 1 1}"/'
   probar_mutante 'reintentar la migracion fallida' \
     's#^correr_runner >"\$salida_mig" 2>&1 || codigo=\$?$#correr_runner >"$salida_mig" 2>\&1 || correr_runner >"$salida_mig" 2>\&1 || codigo=$?#'
   # Y los de F3.7. Los dos primeros viven en `update.sh`; los cinco siguientes,

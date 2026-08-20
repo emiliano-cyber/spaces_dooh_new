@@ -41,6 +41,15 @@
 #       sirviendo la version anterior. Esto es el exito del mecanismo.
 #    5  el health check fallo y la vuelta atras NO se pudo completar. La
 #       instancia puede estar caida. Urgente.
+#    6  el health check fallo, la vuelta atras devolvio el SERVICIO, pero la
+#       base NO volvio a la huella que tenia antes de migrar —o no se pudo
+#       comprobar que volviera—. Hay servicio, asi que no es un 5; y no esta
+#       todo en su sitio, asi que tampoco es un 4. Hay que mirarlo, sin prisa.
+#    7  LA BASE QUEDO VACIA. Es el peor estado que este guion puede producir:
+#       el esquema se tiro para restaurar encima y el `pg_restore` fallo, asi
+#       que la base no tiene ni esquema ni datos. Levantar la version anterior
+#       NO devuelve el servicio: primero se restaura la base y despues el
+#       contenedor, y el mensaje trae los dos comandos EN ESE ORDEN. Urgente.
 #   75  ya habia otro update en marcha (candado `flock`). No es un error.
 #
 #  Los codigos 1, 2 y 3 vienen de `scripts/migrar.mjs:21-32` y NO son
@@ -259,11 +268,13 @@
 #      siempre es el 75 —ya habia otro update en marcha—, que lo devuelve el
 #      proceso de FUERA del candado a proposito y no escribe ni sube nada. Los
 #      otros dos estan en el parseo de argumentos, o sea antes de todo: `--help`
-#      sale con 0 y un argumento desconocido con 1. Asi que "pasan seis de los
-#      siete codigos" es verdad para las corridas de verdad —las del cron— y
-#      falso al pie de la letra: los codigos 0 y 1 tambien se pueden devolver
-#      sin pasar por `salir`, aunque solo escribiendo mal la linea de comandos.
-#      Corregido el 20/08; antes esta lista excepcionaba solo el 75.
+#      sale con 0 y un argumento desconocido con 1. Asi que "pasan ocho de los
+#      nueve codigos" —son NUEVE desde D1, que anadio el 6 y el 7— es verdad
+#      para las corridas de verdad —las del cron— y falso al pie de la letra:
+#      los codigos 0 y 1 tambien se pueden devolver sin pasar por `salir`,
+#      aunque solo escribiendo mal la linea de comandos. Corregido el 20/08;
+#      antes esta lista excepcionaba solo el 75 y contaba siete codigos cuando
+#      ya eran nueve.
 #    · antes de sourcear `respaldo.sh` no hay CON QUE subir: el cliente de S3
 #      sale de ahi, y eso se hace justo despues de leer $CONF. Se quedan en el
 #      droplet TRES salidas y solo esas tres: falta $CONF y falta el propio
@@ -332,15 +343,16 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
-    # Hasta la linea 109: uso, codigos de salida, la ventana de corte, las
+    # Hasta la linea 131: uso, codigos de salida, la ventana de corte, las
     # claves de instancia.env y la politica de reintentos. Los AVISOS 1-4 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
     # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
-    # de Spaces (F3.7), a 109 con LOGS_BUCKET (F3.9) y a 113 el 19/08 al
-    # documentar como se lee DATABASE_URL: un rango fijo caduca en cuanto la
-    # cabecera crece, y las tres veces se descubrio tarde. Se remide leyendo, no
-    # restando — y desde el 19/08 lo comprueba E73 por los dos extremos.
-    -h|--help) sed -n '2,121p' "$0"; exit 0 ;;
+    # de Spaces (F3.7), a 109 con LOGS_BUCKET (F3.9), a 113 el 19/08 al
+    # documentar como se lee DATABASE_URL, a 121 con D1 y a 131 el 20/08 al
+    # listar por fin los codigos 6 y 7: un rango fijo caduca en cuanto la
+    # cabecera crece, y cada vez se ha descubierto tarde. Se remide leyendo,
+    # no restando — y desde el 19/08 lo comprueba E73 por los dos extremos.
+    -h|--help) sed -n '2,131p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -1454,9 +1466,17 @@ limpiar_esquema() {
   fi
   # (2) Sin respaldo BUENO no se tira nada. Las dos mitades: que el archivo
   # exista y no este vacio —el `pg_restore` de aqui abajo no lo comprobaba— y
-  # que se pueda LEER, que no es lo mismo: un dump truncado a la mitad pesa y
-  # `pg_restore --list` lo rechaza (medido, codigo 1). Comprobarlo despues del
-  # `drop` no comprobaria nada.
+  # que se pueda LEER, que no es lo mismo. Comprobarlo DESPUES del `drop` no
+  # comprobaria nada, y por eso va aqui.
+  #
+  # Hasta donde llega ese "se puede leer", que conviene no venderlo de mas:
+  # `pg_restore --list` valida la CABECERA y el indice del dump, no los bloques
+  # de datos. Medido en la auditoria del 20/08: un dump truncado al 99,5% PASA
+  # este guard —el indice esta entero—, el `drop` se ejecuta y la restauracion
+  # muere despues, dejando la base vacia (codigo 7, que existe justo para eso).
+  # Lo que este guard caza es el archivo que no es un dump, el que se corto por
+  # arriba y el que no se puede abrir; NO promete que la restauracion vaya a
+  # salir bien.
   if [ ! -s "$BK" ]; then
     registrar "7a · el respaldo $BK no existe o esta vacio: no se toca el esquema."
     return "$EX_LIMPIEZA_SIN_RESPALDO"
@@ -1544,7 +1564,7 @@ if [ "$BASE_CAMBIO" != "no" ]; then
       salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: el respaldo $BK no sirve para restaurar —no existe, esta vacio, o \`$PG_RESTORE --list\` no lo puede leer—. NO se toco la base: tirar el esquema fiandose de un respaldo que no vale seria perderlo todo de golpe. La base sigue con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto, y lo primero es de donde salen los respaldos de esta instancia."
       ;;
     *)
-      salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no se pudo dejar el esquema limpio para restaurar $BK (codigo $codigo; el motivo lo dice la linea de arriba, que viene de la base). La base NO se vacio y NO se restauro nada: sigue con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+      salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no se pudo dejar el esquema limpio para restaurar $BK (codigo $codigo; el motivo lo dice la linea de arriba, que viene de la base). NO se restauro nada. Lo que la base tenga ahora mismo este script NO lo comprobo: lo esperable es que siga con las migraciones nuevas —el \`drop\` y el \`create schema\` van dentro del mismo bloque, asi que una orden RECHAZADA no deja el esquema a medias—, pero si lo que fallo fue \`$PSQL\` DESPUES de que el servidor confirmara, el esquema esta recreado y VACIO. Mira la base ANTES de decidir. La instancia queda SIN servicio: $(estado_del_viejo). Si la base sigue entera, para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Si esta vacia, primero la base: $(comando_restaurar) —la contrasena es la de DATABASE_URL en $CONF—, y solo despues el contenedor. Una persona tiene que mirar esto."
       ;;
   esac
 
