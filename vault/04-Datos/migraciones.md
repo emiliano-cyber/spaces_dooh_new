@@ -15,6 +15,7 @@ archivos:
   - apps/web/lib/test/permisos-semilla.e2e.test.ts
   - db/migrations/20260805_objetos_solo_en_prod.sql
   - db/migrations/20260819_semilla_rol_permisos.sql
+  - db/migrations/20260820_grants_rol_app.sql
 ---
 
 # Migraciones
@@ -49,7 +50,7 @@ archivos:
 
 ## Cómo funciona
 
-- **69 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **70 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
@@ -483,6 +484,7 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 | `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **escrita, NO aplicada en producción** (eso es F1.2 → F1.5) |
 | `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **escrita, NO aplicada en producción**, donde es no-op |
 | `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
+| `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a `spaces_app` y **aborta si no existe** (ROJO-3) — **escrita, NO aplicada en producción**. ⚠️ Sobre una instancia que aún corra como `spaces_user` **aborta a propósito**: hay que normalizar el rol a `spaces_app` antes de tomar un release con ella |
 
 ## La migración que revela el mayor riesgo del proyecto
 
