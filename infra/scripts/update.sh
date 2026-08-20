@@ -724,7 +724,23 @@ clasificar_consulta() {
     if variable="$(env_de_parametro "$nombre")"; then
       URL_CONSULTA_ENV+=("$variable=$valor")
     else
-      [ -n "$URL_CONSULTA_NO_SOPORTADO" ] || URL_CONSULTA_NO_SOPORTADO="$nombre"
+      # Se guarda SOLO hasta el primer `=`, y esa poda no es cosmetica: es lo
+      # unico que impide que una contrasena salga del droplet.
+      #
+      # Cuando el `=` que separa nombre y valor va PERCENT-ENCODED
+      # (`?password%3DSECRETO`) no hay separador que partir arriba: `nombre` se
+      # queda con el par entero y `decodificar_porciento` lo convierte en
+      # `password=SECRETO`. Ese token acababa entero en el mensaje de `:891`,
+      # que va al log PUBLICABLE — el que sube al bucket de la flota, donde dura
+      # 90 dias y lo lee quien tenga la llave de logs, no la de la base. Podado
+      # aqui, en el ORIGEN, el secreto no entra en la variable y no puede
+      # filtrarse por ninguna otra puerta que se abra manana.
+      #
+      # Con separador de verdad no cambia nada: `raro=X` ya llegaba como `raro`.
+      # Hallazgo de la auditoria de F3.9/M3 del 20/08; cae por M2 (cualquier
+      # fragmento de credencial que salga de la instancia es invalidante). Lo
+      # fijan E96-E98, y el tercero es el que impide podar de mas.
+      [ -n "$URL_CONSULTA_NO_SOPORTADO" ] || URL_CONSULTA_NO_SOPORTADO="${nombre%%=*}"
     fi
   done
   return 0

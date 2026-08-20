@@ -2186,6 +2186,62 @@ no_hubo_regex 'pg_restore .*--single-transaction'
 log_dice 'La instancia queda SIN servicio'
 limpiar
 
+# ─── EL `=` PERCENT-ENCODED (E96-E98) ──────────────────────────────────────
+#  Hallazgo de la auditoria de F3.9 y M3 del 20/08, medido con este mismo arnes.
+#  Familia de E83 aunque lleven numero alto: aqui se numera por orden de
+#  creacion, no por tema.
+#
+#  Cuando el `=` que separa nombre y valor va PERCENT-ENCODED, no hay separador
+#  que partir: `nombre` se queda con el par entero y `decodificar_porciento` lo
+#  convierte en `password=SECRETO`. Ese token acababa en
+#  `URL_CONSULTA_NO_SOPORTADO` y de ahi al mensaje de `update.sh`, que va al log
+#  PUBLICABLE — el que sube al bucket de la flota, donde dura 90 dias y lo lee
+#  quien tenga la llave de logs, no la de la base.
+#
+#  El propio codigo promete lo contrario dos lineas antes: «El mensaje nombra el
+#  PARAMETRO, nunca su valor». Era cierto solo mientras hubiera separador.
+#
+#  Cae por M2 (19/08): cualquier fragmento de credencial que salga de la
+#  instancia es invalidante. La atenuante esta medida y no lo salva: una URL asi
+#  NUNCA conecta —libpq exige un `=` crudo— pero el escenario real no es un
+#  ataque, es un dedo, y el update publica la clave al fallar.
+
+preparar 'E96 el = percent-encoded no publica la clave en el log que sale (M2)'
+usar_url "postgresql://spaces@localhost:5433/spaces?password%3DCLAVE-PCT-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`password`'
+log_calla 'CLAVE-PCT'
+publicable_calla 'CLAVE-PCT'
+subido_calla 'CLAVE-PCT'
+no_hubo 'CLAVE-PCT'
+no_hubo 'pg_dump'
+limpiar
+
+preparar 'E97 lo mismo con sslpassword, que es la otra que lleva secreto (M2)'
+usar_url "postgresql://spaces@localhost:5433/spaces?sslpassword%3DCLAVE-SSLPCT-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`sslpassword`'
+log_calla 'CLAVE-SSLPCT'
+publicable_calla 'CLAVE-SSLPCT'
+subido_calla 'CLAVE-SSLPCT'
+no_hubo 'CLAVE-SSLPCT'
+limpiar
+
+# E98 · el contrafactual, y es el que impide que el arreglo se pase de listo:
+#       con separador de verdad, el mensaje SIGUE nombrando el parametro entero
+#       —incluido uno cuyo nombre lleve percent-encoding— y el valor sigue sin
+#       salir. Si alguien "arreglara" esto cortando por lo bruto, aqui se ve.
+preparar 'E98 con separador de verdad el mensaje sigue nombrando el parametro'
+usar_url "postgresql://spaces@localhost:5433/spaces?raro=CLAVE-RARA-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`raro`'
+log_calla 'CLAVE-RARA'
+publicable_calla 'CLAVE-RARA'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2439,6 +2495,13 @@ if [ "${1:-}" = '--mutantes' ]; then
   # EXTRAE ese SQL de este archivo y lo corre contra Postgres — comprobado
   # mutandolo a mano el 20/08: «el esquema public conserva su dueno de antes»
   # se pone en rojo.
+
+  # M2-MUT · quitar la poda del `=`: es literalmente el codigo que tenia el
+  # guion antes del arreglo del 20/08, o sea el hallazgo ROJO de la auditoria de
+  # F3.9/M3 devuelto a su sitio. Si este mutante escapa, la contrasena vuelve a
+  # poder salir al bucket de la flota y nadie se entera.
+  probar_mutante 'guardar el parametro entero, con el = percent-encoded dentro' \
+    's@URL_CONSULTA_NO_SOPORTADO="\${nombre%%=\*}"@URL_CONSULTA_NO_SOPORTADO="$nombre"      @'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
