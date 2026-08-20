@@ -313,6 +313,14 @@ EX_MIGRACION=2
 EX_HISTORIA=3
 EX_VUELTA_OK=4
 EX_VUELTA_FALLO=5
+# La vuelta atras dejo la instancia sirviendo la version anterior, pero la base
+# NO volvio a estar como estaba —o no se pudo comprobar que volviera—. No es un
+# 4: un 4 dice "todo en su sitio". Tampoco es un 5: hay servicio.
+EX_BASE_DISTINTA=6
+# El precio de restaurar sobre un esquema limpio: el `drop` se hizo y la
+# restauracion fallo. La base no esta "a medias": esta VACIA, y levantar la
+# version anterior no sirve de nada hasta restaurarla a mano.
+EX_BASE_VACIA=7
 EX_OCUPADO=75
 
 DRY_RUN=0
@@ -526,6 +534,11 @@ PULL_ESPERAS="${PULL_ESPERAS-1 5 30}"
 RUNNER_MIGRACIONES="${RUNNER_MIGRACIONES:-/opt/space-os/migrar.mjs}"
 PG_DUMP="${PG_DUMP:-pg_dump}"
 PG_RESTORE="${PG_RESTORE:-pg_restore}"
+# `psql` SOLO lo usa la vuelta atras, para dejar el esquema limpio antes de
+# restaurar (§7a). No se comprueba aqui arriba a proposito: exigirlo al empezar
+# pararia updates que hoy funcionan en instancias que quiza no lo tengan
+# instalado, y el unico momento en que hace falta es el que ya va mal.
+PSQL="${PSQL:-psql}"
 DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
 
 [ -n "$CANAL" ] || salir "$EX_CONFIG" "ERROR update: falta CANAL en $CONF (estable o beta)."
@@ -1321,6 +1334,12 @@ estado_del_viejo() {
     printf 'el contenedor de la version anterior esta PARADO y conserva su nombre %s (el rename de 5b fallo, asi que %s no existe)' "$CONTENEDOR" "$ANTERIOR"
   fi
 }
+# LO UNICO QUE AUTORIZA EL `drop` DE 7a. Se pone a 1 al entrar en la vuelta
+# atras y en ningun otro sitio. `limpiar_esquema` lo mira y se niega si no esta:
+# es un `drop schema ... cascade` dentro de un guion que corre en TODAS las
+# instancias, y el dia que alguien mueva la llamada de sitio —o la copie a un
+# camino nuevo— tiene que fallar cerrado y decirlo, no vaciar una base.
+VUELTA_ATRAS_EN_CURSO=0
 docker rm -f "$ANTERIOR" >/dev/null 2>&1 || true
 if [ -n "$ID_ACTUAL" ]; then
   registrar "5b · parando $CONTENEDOR y guardandolo como $ANTERIOR"
@@ -1400,6 +1419,82 @@ if [ "$sano" -eq 0 ]; then
   salir "$EX_OK" "OK: $VERSION_NUEVA sirviendo. La base cambio=$BASE_CAMBIO ($APLICADAS filas nuevas en schema_migrations). Respaldo en $BK"
 fi
 
+# ─── El esquema limpio: EL unico `drop` de este guion ──────────────────────
+# Por que existe: `pg_restore --clean --if-exists` solo suelta los objetos que
+# estan DENTRO del dump. Los que creo la migracion del release fallido NO estan
+# ahi, asi que SOBREVIVIAN a la vuelta atras. Medido contra Postgres 16.14: tras
+# una "VUELTA ATRAS COMPLETA" la tabla del release seguia existiendo y
+# `schema_migrations` habia vuelto a sus filas de antes SIN ella. Con una
+# migracion no idempotente eso deja la instancia atascada: el siguiente intento
+# muere con «relation ... already exists» y sale 2, cada noche, hasta que va una
+# persona. Este script decia «esquema Y registro» y solo devolvia el registro.
+#
+# Y por que se puede hacer: el dump BASTA para rehacer la base entera. Medido,
+# no supuesto (`pruebas-vuelta-atras-real.sh`): tras `drop schema public
+# cascade` + restaurar, vuelven tablas, indices, restricciones, POLITICAS de
+# RLS, el `force row level security`, la extension `pgcrypto`, los GRANT del rol
+# restringido y los `alter default privileges`; el rol de la aplicacion vive en
+# el SERVIDOR y el `drop` no lo toca; y la app sigue viendo solo sus filas, sin
+# poder desactivar la RLS. La huella vuelve a ser byte a byte la de antes.
+#
+# Lo que el dump NO trae, y por eso el esquema se recrea a mano: `pg_dump` no
+# emite `CREATE SCHEMA public` —solo sus GRANT—, asi que sin esta linea la
+# restauracion moriria con «schema public does not exist». El `authorization`
+# conserva al dueno de antes (medido: `pg_database_owner`); crearlo sin el lo
+# cambiaria al rol que corre el update, en silencio.
+EX_LIMPIEZA_SIN_RESPALDO=91
+limpiar_esquema() {
+  local sql codigo=0
+  # (1) NO se dispara fuera de la vuelta atras. Es un `drop` en un guion que
+  # corre en todas las instancias: si algun dia se llama desde otro sitio, tiene
+  # que negarse y dejarlo escrito, no vaciar una base.
+  if [ "${VUELTA_ATRAS_EN_CURSO:-0}" != 1 ]; then
+    registrar "LIMPIEZA DE ESQUEMA RECHAZADA: se pidio fuera de la vuelta atras. No se toco la base."
+    return 90
+  fi
+  # (2) Sin respaldo BUENO no se tira nada. Las dos mitades: que el archivo
+  # exista y no este vacio —el `pg_restore` de aqui abajo no lo comprobaba— y
+  # que se pueda LEER, que no es lo mismo: un dump truncado a la mitad pesa y
+  # `pg_restore --list` lo rechaza (medido, codigo 1). Comprobarlo despues del
+  # `drop` no comprobaria nada.
+  if [ ! -s "$BK" ]; then
+    registrar "7a · el respaldo $BK no existe o esta vacio: no se toca el esquema."
+    return "$EX_LIMPIEZA_SIN_RESPALDO"
+  fi
+  if ! correr_pg "$PG_RESTORE" --list "$BK" >/dev/null 2>&1; then
+    registrar "7a · el respaldo $BK esta ahi pero \`$PG_RESTORE --list\` no lo puede leer: no se toca el esquema."
+    return "$EX_LIMPIEZA_SIN_RESPALDO"
+  fi
+  # Se tira SOLO `public`. Si un release dejo algo fuera de ese esquema, esto no
+  # lo alcanza — y por eso la huella se relee DESPUES de restaurar: lo que este
+  # `drop` no limpie, la comparacion lo denuncia en vez de callarlo.
+  sql="$(cat <<'FIN_SQL_LIMPIAR'
+do $$
+declare duenio text;
+begin
+  select pg_get_userbyid(nspowner) into duenio from pg_namespace where nspname = 'public';
+  if duenio is null then
+    raise exception 'no existe el esquema public: esta base no es la que se respaldo';
+  end if;
+  execute 'drop schema public cascade';
+  execute format('create schema public authorization %I', duenio);
+end $$;
+FIN_SQL_LIMPIAR
+)"
+  registrar "7a · dejando el esquema limpio antes de restaurar (respaldo comprobado: $BK)"
+  correr_pg "$PSQL" --no-psqlrc -v ON_ERROR_STOP=1 -q -c "$sql" 2>&1 | eco || codigo=$?
+  return "$codigo"
+}
+
+# El comando que devuelve la BASE a mano, con las mismas banderas de conexion
+# con las que este script la respalda —y sin la contrasena dentro, que viaja por
+# el entorno—. Se calcula por lo mismo que `comando_rescate`: un comando
+# equivocado en un mensaje de urgencia es peor que ninguno.
+comando_restaurar() {
+  printf '%s %s --clean --if-exists --single-transaction %s' \
+    "$PG_RESTORE" "${PG_BANDERAS[*]-}" "$BK"
+}
+
 # ─── 7 · Vuelta atras ──────────────────────────────────────────────────────
 registrar "7 · VUELTA ATRAS: la version nueva no contesta 200 en $SALUD_URL"
 # Por ID, nunca por nombre: si el rename de 5b fallo, el nombre "$CONTENEDOR" lo
@@ -1428,20 +1523,72 @@ if [ "$BASE_CAMBIO" != "no" ]; then
     registrar "7a · restaurando $BK POR PRUDENCIA: no se pudo releer la huella de la base, asi que no consta que NO haya cambiado. Se prefiere restaurar de mas a dejar la version anterior sobre un esquema nuevo, que no da error y no lo denuncia nadie."
   fi
   if ! command -v "$PG_RESTORE" >/dev/null 2>&1; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. NO se toco la base: se quedo con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
   fi
+  # Sin `psql` no hay con que dejar el esquema limpio, y restaurar SIN limpiarlo
+  # es el defecto D1: los objetos del release fallido sobreviven dentro. Se para
+  # aqui, ANTES de tocar nada, por el mismo criterio que la falta de
+  # `pg_restore`. No se exige al empezar el update: exigirlo arriba pararia
+  # updates que hoy funcionan.
+  if ! command -v "$PSQL" >/dev/null 2>&1; then
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PSQL\` con el que dejar el esquema limpio antes de restaurar $BK, y restaurar sin limpiarlo dejaria dentro los objetos que creo el release fallido. NO se toco la base: se quedo con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+  fi
+
+  # EL `drop` DE ESTE SCRIPT. Va aqui, y solo aqui.
+  VUELTA_ATRAS_EN_CURSO=1
+  codigo=0
+  limpiar_esquema || codigo=$?
+  case "$codigo" in
+    0) ;;
+    "$EX_LIMPIEZA_SIN_RESPALDO")
+      salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: el respaldo $BK no sirve para restaurar —no existe, esta vacio, o \`$PG_RESTORE --list\` no lo puede leer—. NO se toco la base: tirar el esquema fiandose de un respaldo que no vale seria perderlo todo de golpe. La base sigue con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto, y lo primero es de donde salen los respaldos de esta instancia."
+      ;;
+    *)
+      salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no se pudo dejar el esquema limpio para restaurar $BK (codigo $codigo; el motivo lo dice la linea de arriba, que viene de la base). La base NO se vacio y NO se restauro nada: sigue con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+      ;;
+  esac
+
   codigo=0
   # `--clean --if-exists --single-transaction` no son adorno y no se quitan:
   # sin `--clean` la restauracion muere objeto por objeto contra lo que ya
   # existe; sin `--if-exists` los DROP de lo que no existe la abortan; y sin
   # `--single-transaction` un fallo a la mitad deja la base medio limpiada, que
-  # es peor que no haber restaurado.
+  # es peor que no haber restaurado. Sobre el esquema recien creado los DROP no
+  # encuentran nada y no estorban: se conservan porque son los que hacen que
+  # esta linea siga siendo correcta el dia que la limpieza se quite o cambie.
   correr_pg "$PG_RESTORE" --clean --if-exists --single-transaction "$BK" 2>&1 | eco || codigo=$?
   if [ "$codigo" -ne 0 ]; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — con la base en el estado en que la dejo la restauracion fallida, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+    # EL PEOR CASO, y por eso tiene codigo propio: el estado tambien lo es. El
+    # esquema ya se tiro, asi que la base no se quedo "con las migraciones
+    # nuevas" — no se quedo con NADA. Los dos comandos van en el orden en que
+    # hay que correrlos: primero la base, y solo despues el servicio.
+    salir "$EX_BASE_VACIA" "VUELTA ATRAS FALLIDA — LA BASE QUEDO VACIA: el esquema se tiro para restaurar encima y la restauracion de $BK fallo (codigo $codigo). La base no tiene ni esquema ni datos ahora mismo, asi que levantar la version anterior sola NO devuelve el servicio. Primero la base y despues el servicio: $(comando_restaurar) —la contrasena es la de DATABASE_URL en $CONF— y luego $(comando_rescate). La instancia queda SIN servicio: $(estado_del_viejo). Una persona tiene que mirar esto."
   fi
-  registrar "7a · base restaurada (esquema Y registro de migraciones: schema_migrations viaja dentro del dump)"
+
+  # Y AHORA SE COMPRUEBA. La huella de despues de restaurar contra la de antes de
+  # migrar, leyendo la base las dos veces. Hasta el 20/08 aqui se escribia "base
+  # restaurada (esquema Y registro)" sin haber mirado, y era FALSO: lo que el
+  # release fallido creaba y el dump no conocia se quedaba dentro. El instrumento
+  # que lo denunciaba ya estaba en este archivo —la huella— y nadie lo leia
+  # despues de restaurar.
+  HUELLA_RESTAURADA="$(huella_base || true)"
+  if [ -z "$HUELLA_RESTAURADA" ]; then
+    BASE_VOLVIO=desconocido
+    registrar "7a · base restaurada, pero NO se pudo releer la huella para comprobarlo (el mensaje esta en $LOG)."
+  elif [ "$HUELLA_RESTAURADA" = "$HUELLA_ANTES" ]; then
+    BASE_VOLVIO=si
+    FRASE_BASE="y la base volvio a su huella de antes de migrar [$HUELLA_ANTES], comprobado releyendola"
+    registrar "7a · base restaurada sobre un esquema limpio y COMPROBADA: la huella es otra vez la de antes de migrar [$HUELLA_ANTES]."
+  else
+    BASE_VOLVIO=no
+    registrar "7a · base restaurada y la huella NO coincide: [$HUELLA_ANTES] -> [$HUELLA_RESTAURADA]."
+  fi
 else
+  BASE_VOLVIO=si
+  # Aqui NO se restauro nada, asi que la frase del final tampoco puede decir que
+  # se comprobo: la base no se movio y no se toco. Es la misma linea que el
+  # arreglo de H1 — lo que no se hizo no se cuenta como hecho.
+  FRASE_BASE="y la base no se toco: su huella era la misma antes y despues de migrar [$HUELLA_ANTES]"
   registrar "7a · la huella de la base es la misma antes y despues de migrar [$HUELLA_ANTES]: no se toca. Restaurar solo podria perder lo escrito desde el respaldo."
 fi
 
@@ -1457,6 +1604,17 @@ if ! docker start "$CONTENEDOR" 2>&1 | eco; then
 fi
 
 if salud; then
-  salir "$EX_VUELTA_OK" "VUELTA ATRAS COMPLETA: la instancia sirve otra vez la version anterior. El release $VERSION_NUEVA queda descartado. Respaldo en $BK"
+  # El 4 dice "todo en su sitio", y eso incluye la base. Se lo gana solo si la
+  # huella de despues de restaurar es la de antes de migrar; si no coincide —o
+  # si no se pudo releer— el servicio ha vuelto igual, pero alguien tiene que
+  # mirar la base, y el codigo tiene que decirlo o no se entera nadie.
+  case "$BASE_VOLVIO" in
+    si)
+      salir "$EX_VUELTA_OK" "VUELTA ATRAS COMPLETA: la instancia sirve otra vez la version anterior $FRASE_BASE. El release $VERSION_NUEVA queda descartado. Respaldo en $BK" ;;
+    no)
+      salir "$EX_BASE_DISTINTA" "VUELTA ATRAS CON LA BASE DISTINTA: la instancia sirve otra vez la version anterior —el servicio ha vuelto— pero LA BASE NO VOLVIO a como estaba: la huella paso de [$HUELLA_ANTES] a [$HUELLA_RESTAURADA] DESPUES de restaurar. Se restauro sobre un esquema limpio, asi que lo que sobra no esta en \`public\`: mira si el release fallido creo algo en otro esquema. El release $VERSION_NUEVA queda descartado. Respaldo en $BK. Una persona tiene que mirar esto." ;;
+    *)
+      salir "$EX_BASE_DISTINTA" "VUELTA ATRAS SIN COMPROBAR LA BASE: la instancia sirve otra vez la version anterior y la restauracion de $BK no dio error, pero no se pudo releer la huella despues, asi que NO consta que la base haya vuelto a como estaba (no se afirma que cambiara: no se sabe). El release $VERSION_NUEVA queda descartado. Respaldo en $BK. Una persona tiene que mirar esto." ;;
+  esac
 fi
 salir "$EX_VUELTA_FALLO" "VUELTA ATRAS SIN SALUD: se levanto la version anterior y tampoco contesta 200. La instancia esta caida. Respaldo en $BK"

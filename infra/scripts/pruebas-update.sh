@@ -113,6 +113,12 @@ case "$sub" in
             printf '%s\n' "${D_PENDIENTES_SALIDA:-67 pendientes (66 de esquema, 1 de datos). Aplicadas: 0. Nada se aplico: --pendientes solo lista.}"
             exit "${D_PENDIENTES_CODIGO:-0}" ;;
         esac
+        # El respaldo puede DESAPARECER entre el `pg_dump` y la vuelta atras:
+        # un disco que se llena, o una poda mal escrita —el H1 de F3.7 ordenaba
+        # por NOMBRE y borraba justo el dump de la corrida en marcha—. Se
+        # provoca aqui porque es el ultimo punto en el que el update ya no puede
+        # volver a respaldar y todavia le queda una vuelta atras por delante.
+        if [ -n "${D_BORRAR_RESPALDOS_EN:-}" ]; then rm -f "$D_BORRAR_RESPALDOS_EN"/*.dump; fi
         [ -n "${D_MIGRAR_SALIDA:-}" ] && printf '%s\n' "$D_MIGRAR_SALIDA"
         exit "${D_MIGRAR_CODIGO:-0}" ;;
       *)
@@ -323,7 +329,29 @@ for v in PGPASSWORD PGSSLPASSWORD PGSSLMODE PGSSLROOTCERT PGSSLCERT PGSSLKEY \
          PGAPPNAME PGOPTIONS PGCONNECT_TIMEOUT PGTARGETSESSIONATTRS; do
   printf 'pg_restore %s=[%s]\n' "$v" "${!v-<NO-DEFINIDA>}" >>"$REG_PGENV"
 done
+# `--list` NO es la restauracion: es la comprobacion PREVIA de que el respaldo se
+# puede leer, la que decide si se tira el esquema o si no se toca nada. Tiene su
+# propia variable porque si compartiera la del `pg_restore` de verdad no se
+# podrian distinguir los dos lados del peor caso: "el respaldo no se puede ni
+# abrir" —y entonces la base queda intacta— de "la restauracion murio a la
+# mitad" —y entonces la base quedo vacia—.
+case " $* " in *" --list "*) exit "${PGR_LIST_CODIGO:-0}" ;; esac
 exit "${PGR_CODIGO:-0}"
+FIN
+
+  # `psql` es el cliente con el que la vuelta atras deja el esquema limpio antes
+  # de restaurar. Anota la sentencia entera —que es el unico `drop` de este
+  # script— y el entorno por el que viaja la credencial: el `drop` va por la
+  # MISMA conexion que el respaldo y la restauracion, no por una propia, y eso
+  # solo se puede comprobar leyendo lo que recibe.
+  cat >"$BIN/psql" <<'FIN'
+#!/usr/bin/env bash
+printf 'psql %s\n' "$*" >>"$REG_LLAMADAS"
+for v in PGPASSWORD PGSSLPASSWORD PGSSLMODE PGSSLROOTCERT PGSSLCERT PGSSLKEY \
+         PGAPPNAME PGOPTIONS PGCONNECT_TIMEOUT PGTARGETSESSIONATTRS; do
+  printf 'psql %s=[%s]\n' "$v" "${!v-<NO-DEFINIDA>}" >>"$REG_PGENV"
+done
+exit "${PSQL_CODIGO:-0}"
 FIN
 
   chmod +x "$BIN"/*
@@ -404,8 +432,10 @@ FIN
   export C_SALIDAS='0'
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
-        D_LOGS_SALIDA 2>/dev/null || true
+        D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN 2>/dev/null || true
   export PGR_CODIGO=0
+  export PGR_LIST_CODIGO=0
+  export PSQL_CODIGO=0
   export PGD_VACIO=0
   export PGD_FALLA=0
   export FLOCK_OCUPADO=0
@@ -460,6 +490,18 @@ hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then bien; else mal "no se llamo: 
 no_hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then mal "no deberia haberse llamado: $1"; else bien; fi; }
 hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then bien; else mal "ninguna llamada casa con: $1"; fi; }
 no_hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then mal "alguna llamada casa con lo prohibido: $1"; else bien; fi; }
+# El ORDEN entre dos llamadas. Que las dos hayan ocurrido no dice nada si
+# ocurrieron al reves: tirar el esquema DESPUES de restaurar deja la base vacia,
+# y comprobar el respaldo DESPUES de tirarlo no comprueba nada. Se compara la
+# PRIMERA aparicion de cada una en el registro de llamadas.
+antes_que() {
+  local a b
+  a="$(grep -nF -- "$1" "$REG_LLAMADAS" 2>/dev/null | head -n1 | cut -d: -f1)"
+  b="$(grep -nF -- "$2" "$REG_LLAMADAS" 2>/dev/null | head -n1 | cut -d: -f1)"
+  if [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]; then bien
+  else mal "se esperaba '$1' ANTES que '$2' (lineas: ${a:-ninguna} / ${b:-ninguna})"; fi
+}
+
 # Cuantas veces. "Ninguna" y "una sola" son afirmaciones distintas: que una
 # migracion fallida NO se reintente solo se puede comprobar CONTANDO.
 veces_regex() {
@@ -707,7 +749,14 @@ export C_CODIGOS='000 000 200 200'
 correr
 codigo_es 4
 no_hubo 'pg_restore'
+no_hubo 'drop schema public cascade'
 log_dice 'no se toca'
+# Y el mensaje final NO puede decir que se comprobo nada: aqui no se restauro ni
+# se releyo la huella. Es la misma leccion de H1 —lo que no se hizo no se
+# cuenta como hecho— y se escribio porque al arreglar D1 la frase de "comprobado
+# releyendola" se colo TAMBIEN en este camino, donde es falsa.
+log_dice 'la base no se toco'
+log_calla 'comprobado releyendola'
 limpiar
 
 # E15 · la huella no se puede releer y la salud falla: se restaura por prudencia
@@ -740,22 +789,36 @@ hubo 'pg_dump'
 hubo 'node scripts/migrar.mjs'
 hubo '--detach'
 no_hubo 'pg_restore'
+# EL `drop` NO SE DISPARA FUERA DE LA VUELTA ATRAS. Es un `drop schema ...
+# cascade` dentro de un guion que corre en TODAS las instancias: que en una
+# corrida buena no aparezca por ningun lado es la mitad de la comprobacion, y
+# que ni siquiera se PIDA —que nadie llame a la funcion y esta lo rechace— es la
+# otra. Por eso las dos, la del `psql` y la de la frase del rechazo.
+no_hubo 'drop schema public cascade'
+no_hubo 'psql'
+log_calla 'LIMPIEZA DE ESQUEMA RECHAZADA'
 if [ -s "$SPACE_OS_DIR_ESTADO/version-actual" ]; then bien; else mal 'no se escribio version-actual'; fi
 if [ -s "$SPACE_OS_DIR_ESTADO/version-anterior" ]; then bien; else mal 'no se escribio version-anterior'; fi
 limpiar
 
-# E18 · la restauracion falla en la vuelta atras
-preparar 'E18 pg_restore fallido'
+# E18 · EL PEOR CASO DE D1 · el esquema ya se tiro y la restauracion falla. Es
+#       el precio de restaurar sobre limpio y por eso tiene CODIGO PROPIO (7) y
+#       mensaje propio: aqui la base no esta "a medias", esta VACIA, y levantar
+#       la version anterior no sirve de nada hasta que alguien la restaure. El
+#       mensaje trae los dos comandos y EN ORDEN: primero la base, luego el
+#       servicio.
+preparar 'E18 el esquema tirado y la restauracion fallida: codigo 7 (D1)'
 export C_CODIGOS='000 000'
 export PGR_CODIGO=1
 correr
-codigo_es 5
-log_dice 'VUELTA ATRAS A MEDIAS'
-# Un codigo 5 deja la instancia SIN servicio, con el contenedor viejo aparcado y
-# parado. El mensaje que alguien lee a las cuatro de la manana tiene que decir
-# las dos cosas: que no hay servicio, y el comando exacto que lo devuelve.
+codigo_es 7
+log_dice 'LA BASE QUEDO VACIA'
+log_calla 'VUELTA ATRAS A MEDIAS'
 log_dice 'La instancia queda SIN servicio'
 log_dice 'aparcado como space-os-anterior'
+# El comando que devuelve la BASE, con las mismas banderas de conexion con las
+# que este script la respalda, y sin la contrasena dentro.
+log_dice 'pg_restore -h localhost -p 5433 -U spaces -d spaces --clean --if-exists --single-transaction'
 log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 limpiar
 
@@ -1927,8 +1990,8 @@ export D_RENAME_FALLA=1
 export D_RUN_FALLA=1
 export PGR_CODIGO=1
 correr
-codigo_es 5
-log_dice 'VUELTA ATRAS A MEDIAS'
+codigo_es 7
+log_dice 'LA BASE QUEDO VACIA'
 log_dice 'La instancia queda SIN servicio'
 log_calla 'aparcado como space-os-anterior'
 log_dice 'conserva su nombre space-os'
@@ -1967,6 +2030,153 @@ veces_en_log 0 'reintento'
 no_hubo_regex '^sleep '
 log_dice 'esperas de ninguna s'
 limpiar
+# ── D1 · LA VUELTA ATRAS DEVUELVE LA BASE COMO ESTABA ──────────────────────
+# El defecto, medido: `pg_restore --clean --if-exists` solo suelta los objetos
+# que estan DENTRO del dump. Los que creo la migracion del release fallido
+# SOBREVIVEN a la restauracion —medido en Postgres 16.14: la tabla del ensayo
+# seguia ahi (`existe? t`) y `schema_migrations` volvia a sus filas de antes sin
+# ella (`registrada? f`)—. Con una migracion no idempotente encima, el mismo
+# release ya no se puede volver a aplicar NUNCA: el segundo intento muere con
+# «relation ... already exists» y sale 2, y el cron lo reintenta cada noche.
+# La prueba de que el dump BASTA para rehacer la base entera —incluida la RLS y
+# los permisos del rol restringido— no cabe aqui, que no habla con ninguna base:
+# esta en `pruebas-vuelta-atras-real.sh`, contra un Postgres de verdad.
+
+# E89 · EL ARREGLO DE D1 · la restauracion va sobre un esquema LIMPIO, y en este
+#       orden: se comprueba que el respaldo se puede leer, se tira el esquema, se
+#       restaura, y se RELEE la huella para comprobar que la base volvio. El
+#       orden es la mitad del contrato: tirar el esquema despues de restaurar
+#       dejaria la base vacia, y comprobar el respaldo despues de tirarlo no
+#       comprobaria nada.
+preparar 'E89 la vuelta atras restaura sobre un esquema limpio (D1)'
+export C_CODIGOS='000 000 200 200'
+correr
+codigo_es 4
+hubo 'drop schema public cascade'
+hubo 'create schema public authorization'
+# El `drop` va por la MISMA conexion que el respaldo y la restauracion: mismas
+# banderas y la credencial por el ENTORNO, nunca por argv. Una conexion propia
+# seria otra forma de acabar tirando el esquema de la base equivocada.
+hubo 'psql -h localhost -p 5433 -U spaces -d spaces'
+if grep -qF -- "psql PGPASSWORD=[cl@ve-$MARCA_CLAVE]" "$REG_PGENV" 2>/dev/null; then bien
+else mal 'el psql del drop no recibio la credencial por el entorno'; fi
+# Y el SQL viaja LITERAL. Si el `$$` del bloque se expandiera —heredoc sin
+# comillas— psql recibiria un numero de proceso donde va el delimitador, y el
+# `drop` moriria en la base con un error de sintaxis en vez de limpiar nada.
+hubo 'do $$'
+# UNA sola limpieza, y ni una peticion rechazada por el camino: si aparece la
+# frase del rechazo es que alguien llamo a la funcion fuera de su sitio, y eso
+# hay que verlo aunque el guard lo haya parado.
+veces_regex 1 'drop schema public cascade'
+log_calla 'LIMPIEZA DE ESQUEMA RECHAZADA'
+antes_que '--list' 'drop schema public cascade'
+antes_que 'drop schema public cascade' '--single-transaction'
+# La tercera lectura de la huella: la de DESPUES de restaurar. Sin ella el
+# arreglo no se comprueba a si mismo, y un arreglo que no se comprueba vuelve.
+veces_regex 3 'docker run --rm --interactive'
+log_dice 'la base volvio a su huella de antes de migrar'
+log_dice 'comprobado releyendola'
+log_dice 'VUELTA ATRAS COMPLETA'
+limpiar
+
+# E90 · Y SI NO VOLVIO, SE GRITA · la huella de despues de restaurar no coincide
+#       con la de antes de migrar. Puede pasar: el `drop` limpia el esquema
+#       `public` y un release podria haber dejado algo FUERA de el. La instancia
+#       sirve —el servicio vuelve— pero el codigo NO puede ser el mismo 4 de una
+#       vuelta atras limpia, o nadie se entera nunca.
+preparar 'E90 la huella no coincide tras restaurar: se grita (D1)'
+export C_CODIGOS='000 000 200 200'
+export D_HUELLA_3='esq-otro reg-otro 66'
+correr
+codigo_es 6
+log_dice 'LA BASE NO VOLVIO'
+log_dice 'esq-viejo reg-viejo 0'
+log_dice 'esq-otro reg-otro 66'
+log_calla 'VUELTA ATRAS COMPLETA'
+limpiar
+
+# E91 · LO QUE NO SE PUEDE SABER NO SE AFIRMA (la leccion de H1) · si la huella
+#       no se puede releer despues de restaurar, el mensaje no dice que la base
+#       cambio ni que volvio: dice que NO CONSTA. El codigo es el mismo 6, que
+#       es "mirala", no el 4 de "todo en su sitio".
+preparar 'E91 la huella no se puede releer tras restaurar: no consta (D1)'
+export C_CODIGOS='000 000 200 200'
+export D_HUELLA_3='FALLA'
+correr
+codigo_es 6
+log_dice 'NO consta que la base haya vuelto'
+# Y NO dice lo de E90: no consta que volviera no es lo mismo que no volvio. La
+# frase que se calla es LA MISMA que el otro escenario afirma, palabra por
+# palabra, o esta comprobacion no estaria comprobando nada.
+log_calla 'LA BASE NO VOLVIO'
+log_calla 'VUELTA ATRAS COMPLETA'
+limpiar
+
+# E92 · EL `pg_restore` SIN GUARDA `-s "$BK"` · el respaldo desaparece entre el
+#       `pg_dump` y la vuelta atras (disco lleno, o la poda que ordenaba por
+#       nombre y se llevaba el dump de la corrida en marcha, H1 de F3.7). Sin
+#       respaldo NO se tira el esquema: eso seria perderlo todo. La base queda
+#       intacta —con las migraciones nuevas— y hay que mirarla.
+preparar 'E92 el respaldo desaparecio: no se tira nada (D1)'
+export C_CODIGOS='000 000'
+export D_BORRAR_RESPALDOS_EN="$SPACE_OS_DIR_ESTADO/respaldos"
+correr
+codigo_es 5
+log_dice 'no sirve para restaurar'
+log_dice 'NO se toco la base'
+no_hubo 'drop schema public cascade'
+no_hubo_regex 'pg_restore .*--single-transaction'
+log_dice 'La instancia queda SIN servicio'
+log_dice 'docker rename space-os-anterior space-os && docker start space-os'
+limpiar
+
+# E93 · el respaldo esta ahi y NO ESTA VACIO, pero no se puede leer: truncado a
+#       la mitad, o de otra version. Medido: `pg_restore --list` sobre un dump
+#       truncado sale 1. Es la unica forma barata de saber ANTES de tirar el
+#       esquema que ese respaldo no va a servir para rehacerlo.
+preparar 'E93 el respaldo no se puede ni listar: no se tira nada (D1)'
+export C_CODIGOS='000 000'
+export PGR_LIST_CODIGO=1
+correr
+codigo_es 5
+log_dice 'no sirve para restaurar'
+log_dice 'NO se toco la base'
+no_hubo 'drop schema public cascade'
+no_hubo_regex 'pg_restore .*--single-transaction'
+limpiar
+
+# E94 · no hay `psql` con el que dejar el esquema limpio. Mismo criterio que la
+#       falta de `pg_restore` (E32): se para ANTES de tocar nada, la base se
+#       queda con las migraciones nuevas y el mensaje trae el comando que
+#       devuelve el servicio.
+preparar 'E94 sin psql no se puede limpiar el esquema (D1)'
+printf 'PSQL=psql_que_no_existe\n' >>"$SPACE_OS_CONF"
+export C_CODIGOS='000 000'
+correr
+codigo_es 5
+log_dice 'VUELTA ATRAS A MEDIAS'
+log_dice 'NO se toco la base'
+log_dice 'La instancia queda SIN servicio'
+log_dice 'docker rename space-os-anterior space-os && docker start space-os'
+no_hubo_regex 'pg_restore .*--single-transaction'
+limpiar
+
+# E95 · el `drop` se pide y la base lo RECHAZA (el rol no es dueno del esquema:
+#       medido, «must be owner of schema public», y la base queda intacta). No
+#       se restaura encima: restaurar sobre el esquema sucio es justo el defecto
+#       D1, y hacerlo callando seria peor que no restaurar.
+preparar 'E95 la limpieza del esquema falla: la base no se vacio (D1)'
+export C_CODIGOS='000 000'
+export PSQL_CODIGO=1
+correr
+codigo_es 5
+log_dice 'no se pudo dejar el esquema limpio'
+log_dice 'La base NO se vacio'
+hubo 'drop schema public cascade'
+no_hubo_regex 'pg_restore .*--single-transaction'
+log_dice 'La instancia queda SIN servicio'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2164,6 +2374,53 @@ if [ "${1:-}" = '--mutantes' ]; then
   # `PULL_ESPERAS=""` no desactivaba nada.
   probar_mutante 'PULL_ESPERAS con los dos puntos otra vez (el defecto H-1)' \
     's@^PULL_ESPERAS="\${PULL_ESPERAS-1 5 30}"$@PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"@'
+
+  # ── Y los siete de D1 (20/08): la vuelta atras devuelve la base ──────────
+  # Van marcados con `# D1-MUT` porque son los del cambio y se corren AISLADOS:
+  # la barrida entera pasa de 5 h con 51 mutantes a 6 min por corrida del arnes.
+  # El primero es EL defecto: restaurar sin limpiar el esquema.
+  # D1-MUT
+  probar_mutante 'no limpiar el esquema antes de restaurar (el defecto D1)' \
+    's@^  limpiar_esquema ||@  : sin limpiar    ||@'
+  # D1-MUT
+  probar_mutante 'no releer la huella despues de restaurar: nadie comprueba nada' \
+    's@^  HUELLA_RESTAURADA="\$(huella_base || true)"$@  HUELLA_RESTAURADA="$HUELLA_ANTES"           @'
+  # D1-MUT · el guard que la tarea pedia cerrar de paso: el `pg_restore` iba
+  # sobre `$BK` sin comprobar siquiera que el archivo existiera.
+  probar_mutante 'tirar el esquema sin comprobar que el respaldo existe' \
+    's@^  if \[ ! -s "\$BK" \]; then$@  if false            ; then@'
+  # D1-MUT
+  probar_mutante 'tirar el esquema sin comprobar que el respaldo se puede LEER' \
+    's@^  if ! correr_pg "\$PG_RESTORE" --list "\$BK" >/dev/null 2>&1; then$@  if false                                                        ; then@'
+  # D1-MUT · el `drop` disparado FUERA de su sitio. Va enganchado a la PRIMERA
+  # linea de la vuelta atras, que es antes de que 7a levante la marca: ahi la
+  # funcion ya esta definida y la marca todavia vale 0, o sea que el guard tiene
+  # que rechazarlo y DECIRLO. Engancharlo en el paso 3 —el primer intento— no
+  # probaba nada: alli `limpiar_esquema` ni siquiera esta definida todavia
+  # (bash define funciones cuando la ejecucion pasa por ellas), el `|| true` se
+  # tragaba el "command not found" y el mutante ESCAPABA. El mutante contrario
+  # —quitar el guard— no se puede escribir: hoy no hay ninguna llamada fuera de
+  # sitio que lo ejercite, y eso es justo lo que el guard existe para vigilar.
+  probar_mutante 'llamar a limpiar_esquema antes de que la vuelta atras levante su marca' \
+    's@^registrar "7 · VUELTA ATRAS: la version nueva no contesta 200 en \$SALUD_URL"$@limpiar_esquema || true; registrar "7 · VUELTA ATRAS"@'
+  # D1-MUT · el peor caso pierde su codigo propio y se confunde con el de al
+  # lado: «la base se quedo con las migraciones nuevas» cuando esta VACIA.
+  probar_mutante 'el peor caso vuelve a salir como un 5 cualquiera' \
+    's@salir "\$EX_BASE_VACIA"@salir "$EX_VUELTA_FALLO"@'
+  # D1-MUT · afirmar que se comprobo la base tambien cuando no se restauro nada.
+  # Es como se escribio la primera version del arreglo, y solo se vio releyendo.
+  probar_mutante 'decir "comprobado releyendola" en el camino que no restaura' \
+    's@^  FRASE_BASE="y la base no se toco.*$@  FRASE_BASE="y la base volvio a su huella, comprobado releyendola"@'
+  # D1-MUT · que el 4 se lo lleve tambien una base que no volvio, que es
+  # justamente lo que hacia hasta hoy.
+  probar_mutante 'dar VUELTA ATRAS COMPLETA sin mirar si la base volvio' \
+    's@^  case "\$BASE_VOLVIO" in$@  case si                in@'
+  # Y uno que este arnes NO puede ver, dicho aqui para que no se busque: crear el
+  # esquema sin `authorization` (que cambiaria su dueno en silencio). `psql` es
+  # un doble y no tiene catalogo. Lo caza `pruebas-vuelta-atras-real.sh`, que
+  # EXTRAE ese SQL de este archivo y lo corre contra Postgres — comprobado
+  # mutandolo a mano el 20/08: «el esquema public conserva su dueno de antes»
+  # se pone en rojo.
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

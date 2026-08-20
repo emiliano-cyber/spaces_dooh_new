@@ -5,6 +5,7 @@ actualizado: 2026-08-20
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
+  - infra/scripts/pruebas-vuelta-atras-real.sh
   - .env.example
   - .env.production.example
   - apps/web/lib/entorno.test.ts
@@ -503,13 +504,13 @@ el mismo ciclo, con su escenario en rojo antes del arreglo:
 | **D4** | el respaldo vacío se quedaba en disco junto a los buenos, **y el directorio no se podaba nunca** | se borra al abortar; y desde F3.7 la retención local es de **3** (arriba). **D4 queda cerrada entera** |
 | **D5** | el código `2` con la base intacta **adivinaba** la causa («típicamente no pudo conectar») y en el caso medido era otra | remite al mensaje del runner, que va impreso justo encima |
 
-> [!danger] D1 sigue abierto: la vuelta atrás **no devuelve el esquema entero**
+> [!success] D1 CERRADO el 20/08: la vuelta atrás restaura sobre un esquema limpio
 > `pg_restore --clean --if-exists` solo suelta los objetos **que están en el dump**,
-> así que los que creó el release fallido **sobreviven** a la restauración. Con una
-> migración no idempotente encima, la instancia se queda atascada en **código 2** en
-> cada corrida del cron. Toca migraciones —es **ROJO**— y exige una decisión de
-> diseño: **no se arregló**, está esperando a Jochelo. Mientras tanto, un `4` significa
-> «la instancia volvió», no «la base volvió tal cual estaba».
+> así que los que creó el release fallido **sobrevivían** a la restauración. Aprobado
+> el arreglo de fondo por Jochelo el 18/08, hecho el 20/08: se tira `public` y se
+> rehace desde el respaldo, y **la huella se relee después para comprobarlo**. Ahora
+> un `4` sí significa «la base volvió tal cual estaba» — y cuando no, sale `6`.
+> Abajo, «La vuelta atrás devuelve la base como estaba».
 
 **La conexión ya no viaja como URL** (decisión **M3**, 19/08). `pg_dump`/`pg_restore`
 reciben **cuatro banderas sueltas** —`-h`, `-p`, `-U`, `-d`— y **todo lo demás por
@@ -902,9 +903,114 @@ mal** lo que hizo. Lo que un operador lee a las cuatro de la mañana es texto, n
 > en esa situación: la otra es el `env VAR=… cmd` de `correr_pg`, que filtra por el
 > `argv` de `env` y ninguna prueba puede ver porque los dobles reciben su propio `argv`.
 
-> [!note] D1 sigue sin tocarse
-> Este ciclo cambió el **texto** de los dos mensajes de la vuelta atrás, nada de su
-> comportamiento. La restauración sobre un esquema limpio es la tarea siguiente.
+> [!note] D1 se cerró en el ciclo siguiente, ese mismo día
+> Aquel ciclo cambió el **texto** de los dos mensajes de la vuelta atrás, nada de su
+> comportamiento. La restauración sobre un esquema limpio es lo que viene ahora.
+
+### La vuelta atrás devuelve la base como estaba (20/08, D1) 🔴
+
+**El defecto, medido:** `pg_restore --clean --if-exists` solo suelta **los objetos
+que están dentro del dump**. Lo que creó la migración del release fallido no está
+ahí, así que **sobrevivía a la vuelta atrás**. Contra Postgres 16.14: tras una
+«VUELTA ATRAS COMPLETA» la tabla del ensayo seguía existiendo (`existe? t`) y
+`schema_migrations` había vuelto a sus filas de antes **sin ella** (`registrada? f`).
+El registro volvía; el esquema, a medias. Y el propio instrumento del script lo
+denunciaba sin que nadie lo mirase: **la huella de después de restaurar no era la de
+antes de migrar**.
+
+**La consecuencia, reproducida de punta a punta** con una migración no idempotente:
+el primer intento aplica, la salud falla, restaura y sale **4** dejando la tabla
+dentro sin registrar; el segundo muere con `relation … already exists` y sale **2**.
+Ese release **no se puede volver a aplicar nunca** y el `cron` lo reintenta cada
+noche.
+
+**Lo que se midió ANTES de escribir una línea**, porque el arreglo es un `drop`:
+que el dump BASTE para reconstruir. La duda era razonable —`20260729_licencias_permisos.sql:96-97`
+aborta si falta el rol de la aplicación y **13 migraciones lo referencian**—. Medido
+con base desechable, rol privilegiado **no superusuario** y rol de app restringido:
+
+| Lo que se preguntó | Lo que se midió |
+|---|---|
+| ¿el rol de la app sobrevive al `drop schema`? | **sí**: vive en el **servidor**, no dentro del esquema |
+| ¿vuelven sus `GRANT` y los `alter default privileges`? | **sí**, los dos: viajan en el dump |
+| ¿vuelven RLS, políticas y `force row level security`? | **sí**, las 24 políticas y el `force` de `config_negocio` |
+| ¿vuelve `pgcrypto`, que el `drop` se lleva? | **sí** — y es **trusted** desde PG13, así que hasta el dueño no superusuario puede recrearla |
+| ¿la app sigue aislada? | **sí**: ve su fila con el tenant fijado, **0** sin él, no toca las de otro y **no puede** desactivar la RLS ni tirar la política |
+| ¿la huella vuelve a ser la de antes? | **sí**, idéntica (`88a9fd76…`) |
+| ¿el release descartado se puede reaplicar? | **sí** — eso es justo lo que antes era imposible |
+
+> [!warning] Lo único que el dump NO trae: `CREATE SCHEMA public`
+> `pg_dump` emite los `GRANT` del esquema pero **no** su creación. Sin recrearlo a
+> mano, la restauración moriría con «schema public does not exist». Se crea con
+> `authorization` al dueño leído antes del `drop` (medido: `pg_database_owner`);
+> crearlo sin él cambiaría el dueño **en silencio**.
+
+**Cómo quedó**, en `limpiar_esquema()` de `update.sh` — el único `drop` del guion, y
+con cuatro cerrojos porque corre en **todas** las instancias:
+
+1. **No se dispara fuera de la vuelta atrás**: mira `VUELTA_ATRAS_EN_CURSO`, que
+   solo se pone a 1 en §7a. Si se llama desde otro sitio, se **niega** y lo escribe.
+2. **Exige respaldo verificado**: que el archivo exista y **no esté vacío** —esto
+   cierra de paso el viejo `pg_restore` sin guarda `-s "$BK"`— y que **se pueda
+   leer** (`pg_restore --list`; medido: un dump truncado pesa y sale 1).
+3. **Si algo falla antes del `drop`, la base no se toca** y el mensaje trae el
+   comando de rescate, como sus vecinos.
+4. **El peor caso tiene código y mensaje propios**: `drop` bien + restauración mal =
+   **base vacía**, código **7**, con los dos comandos **en orden** (primero la base,
+   después el contenedor).
+
+Y **se comprueba a sí mismo**: al terminar se relee la huella y se compara con la de
+antes de migrar. Coincide → **4** («y la base volvió a su huella, comprobado
+releyéndola»). No coincide → **6**, gritando los dos valores. No se puede releer →
+**6** también, pero diciendo **«no consta»**, que no es lo mismo que «cambió» — la
+lección de H1: lo que no se sabe no se afirma.
+
+> [!important] Dos códigos de salida nuevos: `6` y `7`
+> `6` = la instancia **sirve** pero la base no volvió (o no consta). `7` = **la base
+> quedó vacía**. Estaban en 7 códigos y ahora son 9; `infra/scripts/README.md` los
+> documenta en su tabla.
+
+> [!danger] Dos hallazgos del camino, MEDIDOS y NO arreglados (fuera de alcance)
+> Los dos son del mismo sitio —qué rol corre el update— y los dos deciden si una
+> instancia puede actualizarse:
+>
+> 1. **`pg_dump` falla si el rol privilegiado no salta la RLS.** `config_negocio`
+>    tiene `force row level security`, así que un rol que sea dueño pero **no**
+>    superusuario ni `BYPASSRLS` no puede volcarla: *«query would be affected by
+>    row-level security policy»*, **salida 1** y —ojo— un archivo de **110 092
+>    bytes**, o sea **no vacío**. Lo caza el guard por **código de salida**, no el
+>    de tamaño. Efecto: `BACKUP VACIO` y **esa instancia no se actualiza nunca**.
+>    Le toca al aprovisionamiento (Fase 5) dar `BYPASSRLS` al rol de las
+>    migraciones, o usar el superusuario.
+> 2. **Si `pgcrypto` la instaló OTRO rol, la vuelta atrás de HOY no restauraba
+>    nada.** `pg_restore --clean` empieza con `DROP EXTENSION IF EXISTS pgcrypto`;
+>    si el rol no es su dueño, *«must be owner of extension pgcrypto»*, y con
+>    `--single-transaction` **se revierte todo**: código 5 con la base intacta y
+>    a medio migrar. **El arreglo de D1 quita esa vía de fallo de paso**: sobre un
+>    esquema limpio no hay extensión que tirar, y `CREATE EXTENSION` la puede
+>    hacer el dueño de la base porque `pgcrypto` es **trusted** desde PG13
+>    (medido). Aun así, el aprovisionamiento debería crearla con el mismo rol que
+>    corre las migraciones.
+
+**Lo que se comprueba de que las comprobaciones muerden:** **ocho mutantes** de una
+línea, todos **CAZADOS** y contra el arnés **entero** (95 escenarios, ~6 min por
+corrida), no contra una copia reducida. Dos no salieron a la primera y por eso vale
+la pena dejarlo escrito: uno era **inválido** —`\?` en GNU `sed` es cuantificador y
+el patrón no casaba— y otro **escapaba** porque, enganchado al paso 3,
+`limpiar_esquema` **aún no está definida** y el `|| true` se tragaba el «command not
+found». Y **tres más contra la base de verdad**, que es lo que los dobles no pueden
+ver: crear el esquema sin `authorization` (1 roja), una limpieza que aborta antes del
+`drop` (**4 rojas**, incluida la de punta a punta) y sustituir el `drop`, que el
+**guard anti-deriva** del propio ensayo para en seco. El único mutante que **no se
+puede escribir** es quitar el guard de `VUELTA_ATRAS_EN_CURSO`: hoy nada lo llama
+fuera de sitio, que es justo lo que ese guard vigila.
+
+**El ensayo que lo prueba está en el repositorio**: `infra/scripts/pruebas-vuelta-atras-real.sh`,
+contra un Postgres de verdad y una base desechable —**27 comprobaciones · 0 rojas**—.
+Reproduce el defecto, la consecuencia, el arreglo y el aislamiento del rol
+restringido. **Extrae el SQL de limpieza y la consulta de la huella de `update.sh`**
+en vez de copiarlos: una copia se habría quedado vieja sin que nadie se enterase. Su
+guard es el de las e2e — se niega si la base no acaba en `_test` o `_e2e`.
 
 ## Producción
 

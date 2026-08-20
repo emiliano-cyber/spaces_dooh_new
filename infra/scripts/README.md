@@ -65,9 +65,11 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
    la imagen nueva**, vuelve a tomar la huella, y **solo entonces** conmuta el
    tráfico al contenedor nuevo. Ahí hay corte: ver **§4, la ventana**.
 6. **Health check** 10 × 3 s contra `SALUD_URL`.
-7. Si la salud falla: vuelve al contenedor anterior, restaura el dump **solo si
-   la huella dice que la base cambió** (§3), y sale ≠ 0 dejando el motivo en el
-   log.
+7. Si la salud falla: **solo si la huella dice que la base cambió** (§3)
+   comprueba que el respaldo se puede leer, **tira el esquema `public` y lo
+   rehace desde el dump** (§2), **relee la huella** para comprobar que la base
+   volvió a como estaba, y luego vuelve al contenedor anterior. Sale ≠ 0 dejando
+   el motivo en el log.
 8. **Salga bien o mal**, sube el registro de la corrida a `s3://space-os-logs/`
    —el **filtrado**, no `update.log`— para poder diagnosticarla sin entrar por
    SSH (§8). Una subida fallida **no** cambia el código de salida.
@@ -82,7 +84,9 @@ cat /var/log/space-os/update-publicable.log    # solo esta corrida, filtrado:
 | `2` | las migraciones fallaron a medias o no se pudieron registrar | **el log lo dice, medido contra la base** (§3): `LA BASE CAMBIO` = sí; `la base NO cambio` = no |
 | `3` | el registro de la base y las migraciones de la imagen **no cuentan la misma historia** | no: **no se aplicó nada** |
 | `4` | la salud falló y **la vuelta atrás salió bien** — la instancia sirve la versión anterior | no, pero hay que mirar el release |
-| `5` | la salud falló y **la vuelta atrás no**. **La instancia queda SIN servicio** y el mensaje del log trae el **comando exacto** que la devuelve (§6) | **sí, urgente** |
+| `5` | la salud falló y **la vuelta atrás no**. **La instancia queda SIN servicio** y el mensaje del log trae el **comando exacto** que la devuelve (§6). Desde el 20/08 todas las salidas `5` de la restauración dejan la base **sin tocar**: se paran **antes** del `drop` | **sí, urgente** |
+| `6` | la vuelta atrás dejó la instancia **sirviendo**, pero la base **no volvió** a la huella que tenía antes de migrar — o **no se pudo comprobar** que volviera. El mensaje distingue las dos cosas y no afirma la que no sabe | **sí**, sin prisa: hay servicio |
+| `7` | **la base quedó vacía**: el esquema se tiró para restaurar encima y la restauración falló. Levantar la versión anterior **no basta**; el mensaje trae los dos comandos, **en orden**: primero restaurar la base, después el contenedor | **sí, urgente** |
 | `75` | ya había otro update en marcha (candado) | no |
 
 Los códigos 1, 2 y 3 vienen tal cual de `scripts/migrar.mjs:21-32`. Aplanarlos
@@ -115,6 +119,7 @@ root** — el script avisa si no lo está.
 | `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. **Vacío = ningún reintento** — cierto desde el **20/08** y no antes: la asignación usaba `${PULL_ESPERAS:-…}` y los dos puntos sustituyen **también el valor vacío**, así que `PULL_ESPERAS=""` dejaba los tres reintentos de siempre (medido) y solo un **espacio** los apagaba. Hoy es `${PULL_ESPERAS-…}`: ausente = los tres por omisión, vacío = ninguno. Lo fija **E88**. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
 | `RUNNER_MIGRACIONES` | no | `/opt/space-os/migrar.mjs` (ver el aviso 1) |
 | `PG_DUMP` / `PG_RESTORE` | no | rutas, si conviven varias versiones de Postgres |
+| `PSQL` | no | ruta de `psql`. **Solo lo usa la vuelta atrás**, para dejar el esquema limpio antes de restaurar (§2). No se exige al empezar el update —eso pararía instancias que hoy se actualizan bien—: se comprueba en el momento en que hace falta, y si falta, el update **no toca la base** y sale `5` con el comando de rescate |
 | `INSTANCIA` | no (*) | el prefijo de esta instancia dentro de los buckets —de respaldos **y de logs**—. Si falta, se usa el `hostname -s` |
 | `SPACES_KEY` / `SPACES_SECRET` | no (*) | la llave de Spaces. **Una por instancia y con permiso solo sobre su prefijo.** Sin ellas no hay respaldo fuera del droplet, y el log lo dice |
 | `SPACES_BUCKET` | no | `space-os-respaldos`, a dónde sale el **respaldo** |
@@ -266,6 +271,48 @@ del dump. Restaurarlo devuelve **a la vez** el esquema y el registro al mismo
 instante: la instancia vuelve a afirmar exactamente las migraciones que la
 imagen anterior lleva dentro, y la comprobación de checksum de F3.3 no tiene de
 qué quejarse.
+
+> [!danger] Esa frase era **falsa** hasta el 20/08, y este es el defecto **D1**
+> `pg_restore --clean --if-exists` solo suelta **los objetos que están dentro del
+> dump**. Lo que creó la migración del release fallido **no está ahí**, así que
+> **sobrevivía a la vuelta atrás**. Medido contra Postgres 16.14: tras una
+> «VUELTA ATRAS COMPLETA» la tabla del release seguía existiendo y
+> `schema_migrations` había vuelto a sus filas de antes **sin ella**. El registro
+> volvía; el esquema, a medias.
+>
+> Con una migración **no idempotente** eso deja la instancia **atascada**: el
+> primer intento aplica, la salud falla, restaura y sale `4` dejando la tabla
+> dentro sin registrar; el segundo muere con `relation … already exists` y sale
+> `2`. Ese release **no se puede volver a aplicar nunca**, y el `cron` lo
+> reintenta cada noche.
+
+**Cómo se arregló:** la vuelta atrás restaura **sobre un esquema limpio**. Antes
+de tocar nada comprueba que el respaldo existe, no está vacío y **se puede leer**
+(`pg_restore --list`); entonces tira `public` con `drop schema … cascade`, lo
+vuelve a crear **conservando su dueño** y restaura encima; y al terminar
+**relee la huella** y la compara con la de antes de migrar. Si no coincide, lo
+grita y sale `6` en vez de `4`.
+
+> [!important] Lo que el dump **sí** devuelve, medido y no supuesto
+> `bash infra/scripts/pruebas-vuelta-atras-real.sh` lo comprueba contra un
+> Postgres de verdad, con una base desechable: vuelven tablas, índices,
+> restricciones, **políticas de RLS**, el `force row level security`, la
+> extensión `pgcrypto`, los `GRANT` del rol restringido y los `alter default
+> privileges`; el **rol de la aplicación vive en el servidor**, así que el `drop`
+> no lo toca; la app sigue viendo **solo sus filas** con el tenant fijado, no ve
+> nada sin él y **no puede** desactivar la RLS; y la huella vuelve a ser
+> exactamente la de antes. Después de eso, **el release descartado se vuelve a
+> aplicar sin quejarse**, que es lo que hoy era imposible.
+>
+> Lo único que el dump **no** trae es el `CREATE SCHEMA public` —`pg_dump` solo
+> emite sus `GRANT`—, y por eso el esquema se recrea a mano, con
+> `authorization` al dueño de antes: crearlo sin él cambiaría el dueño en
+> silencio.
+
+> [!warning] El `drop` solo alcanza al esquema `public`
+> Si un release dejó algo **fuera** de `public`, la limpieza no lo toca — y por
+> eso la huella se relee **después** de restaurar: lo que el `drop` no limpie,
+> la comparación lo **denuncia** (código `6`) en vez de callarlo.
 
 Si la restauración **no** llega a correr —porque no corrió ninguna migración, o
 porque falló— el registro se queda nombrando migraciones cuyo archivo la imagen
@@ -514,10 +561,22 @@ volvió en **8 s**.
 > del aparcado y **E86/E87** la del nombre conservado.
 
 > [!warning] El rescate devuelve el servicio, **no** resuelve el estado de la base
-> En los dos códigos `5` que salen de la restauración —no hay `pg_restore`, o
-> falló— eso levanta la versión **anterior** sobre una base que **ya tiene las
-> migraciones nuevas**. Es un parche para que la instancia responda mientras
-> alguien mira; el dump está en `/var/lib/space-os/respaldos/`.
+> En los códigos `5` que salen de la restauración —no hay `pg_restore`, no hay
+> `psql`, el respaldo no sirve, o la limpieza del esquema falló— eso levanta la
+> versión **anterior** sobre una base que **ya tiene las migraciones nuevas**. Es
+> un parche para que la instancia responda mientras alguien mira; el dump está en
+> `/var/lib/space-os/respaldos/`. Los cuatro tienen algo en común desde el 20/08:
+> **la base no se tocó**, porque los cuatro se paran **antes** del `drop`.
+
+> [!danger] El código `7` es distinto: ahí levantar el contenedor **no sirve**
+> Es el precio de restaurar sobre un esquema limpio, y su mensaje lo dice con
+> esas palabras: el `drop` se hizo y la restauración falló, así que la base **no
+> tiene ni esquema ni datos**. El orden importa y va escrito en el propio
+> mensaje: **primero la base** —con el `pg_restore` que trae, con las mismas
+> banderas de conexión que usa el script y sin la contraseña dentro— y **después**
+> el contenedor. Que ese camino exista es lo que obliga a comprobar el respaldo
+> **antes** de tirar nada: sin respaldo legible, el `drop` no se intenta
+> siquiera.
 
 ---
 
@@ -861,14 +920,28 @@ que todavía no existe: hoy solo está en el log de la instancia y en el bucket.
 
 ```bash
 bash -n infra/scripts/update.sh
-bash infra/scripts/pruebas-update.sh              # los escenarios
-bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (~100 min)
+bash infra/scripts/pruebas-update.sh              # los escenarios (~6 min)
+bash infra/scripts/pruebas-update.sh --mutantes   # además, que muerden (horas)
+bash infra/scripts/pruebas-vuelta-atras-real.sh   # la vuelta atrás contra Postgres
 ```
+
+> [!important] Hay **dos** arneses, y responden a preguntas distintas
+> `pruebas-update.sh` monta dobles y mira **qué se le pide** a cada herramienta:
+> fija el orden, los códigos y los mensajes, y corre en cualquier sitio.
+> `pruebas-vuelta-atras-real.sh` (20/08, D1) habla con **Postgres de verdad**
+> sobre una base desechable, porque hay una pregunta que los dobles no pueden
+> responder: **¿basta el dump para rehacer la base?** Reproduce el defecto D1, su
+> consecuencia —el release que ya no se podía reaplicar—, el arreglo, y que el
+> rol restringido **siga viendo solo sus filas y sin poder apagar la RLS**.
+> **27 comprobaciones · 0 rojas** el 20/08. Se niega a tocar una base cuyo nombre
+> no acabe en `_test` o `_e2e`, igual que `recrearEsquema()` de las e2e, y
+> **extrae de `update.sh`** el SQL de limpieza y la consulta de la huella en vez
+> de copiarlos: una copia se habría quedado vieja sin que nadie se enterase.
 
 El arnés no sale a la red, no habla con Docker, no toca ninguna base y **no sube
 nada a ningún bucket**: monta dobles POSIX de `docker`, `curl`, `flock`, `sleep`,
-`pg_dump`, `pg_restore`, `s3cmd`, `aws`, `chmod`, `rm` y `hostname` en un `PATH`
-propio
+`pg_dump`, `pg_restore`, **`psql`**, `s3cmd`, `aws`, `chmod`, `rm` y `hostname`
+en un `PATH` propio
 y mira **qué se les pide**. `sleep` es un doble a propósito: un backoff de
 1+5+30 s se comprueba por lo que se **pide**, no por el reloj, o el arnés
 tardaría 36 s en cada escenario. `chmod` lo es por otra razón: delega en el de
@@ -883,8 +956,15 @@ y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
 archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 
 ```
-88 escenarios · 557 comprobaciones · 0 rojas
+95 escenarios · 619 comprobaciones · 0 rojas
 ```
+
+> [!note] Y una pieza nueva del doble de `pg_restore`: `--list` va aparte
+> Desde D1, la comprobación **previa** del respaldo (`pg_restore --list`) tiene su
+> propio interruptor en el arnés, separado del de la restauración. Si compartieran
+> uno, no se podrían distinguir los dos lados del peor caso: «el respaldo no se
+> puede ni abrir» —y entonces la base **no se toca**— de «la restauración murió a
+> la mitad» —y entonces la base quedó **vacía**—.
 
 > [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08, ni el 19/08, ni el 20/08
 > Los mutantes son **44** desde el 20/08: 35 sobre `update.sh` y 9 sobre
@@ -900,9 +980,42 @@ archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 > **CAZADOS**. `44 mutantes · 0 escapan` **no** es de una barrida entera: quien la
 > necesite entera, que la corra y lo escriba aquí.
 >
-> **Y un matiz del 20/08 que no estaba en los ciclos anteriores:** esos cuatro se
+> **Y los ocho de D1** (20/08, mismo día, ciclo siguiente): no limpiar el esquema ·
+> no releer la huella · tirar el esquema sin comprobar que el respaldo **existe** ·
+> ni que **se puede leer** · llamar a `limpiar_esquema` **antes de que la vuelta
+> atrás levante su marca** · el peor caso saliendo como un `5` cualquiera · dar
+> «VUELTA ATRAS COMPLETA» sin mirar si la base volvió · y decir «comprobado
+> releyéndola» en el camino que **no** restaura. **Los ocho CAZADOS, y contra el
+> arnés ENTERO —95 escenarios— no contra una copia reducida**: 6 min por corrida,
+> ~50 min los ocho. Dos de ellos no salieron a la primera y eso vale la pena
+> dejarlo escrito: uno era **INVÁLIDO** —`\?` en GNU `sed` es un cuantificador, así
+> que el patrón no casaba con ninguna línea— y otro **ESCAPABA** por un motivo
+> real: enganchado al paso 3, `limpiar_esquema` **todavía no está definida**
+> (bash define funciones cuando la ejecución pasa por ellas), el `|| true` se
+> tragaba el «command not found» y no probaba nada. Movido a la primera línea de
+> la vuelta atrás —función ya definida, marca todavía en 0— **muerde**.
+>
+> **Tres mutantes más, contra la base de verdad**, porque hay cosas que los dobles
+> no pueden ver (`psql` es un doble: no tiene catálogo). Sobre
+> `pruebas-vuelta-atras-real.sh`, que **extrae el SQL de `update.sh`**: crear el
+> esquema **sin `authorization`** → 1 roja («el esquema public conserva su dueño de
+> antes»: sale `d1r_mig_test` en vez de `pg_database_owner`); una limpieza que
+> **aborta antes del `drop`** → **4 rojas**, incluida la de punta a punta («el
+> release sigue sin poder reaplicarse: relation "ensayo_marca_dos" already
+> exists»); y sustituir el `drop` por otra cosa → el guard **anti-deriva** del
+> propio arnés lo para en seco («ABORTADO: no se pudo extraer de update.sh el SQL
+> de limpieza»).
+>
+> **Y uno que NO se puede escribir, dicho para que no se busque:** quitar el guard
+> de `VUELTA_ATRAS_EN_CURSO`. Hoy no hay ninguna llamada fuera de sitio que lo
+> ejercite —y eso es exactamente lo que el guard existe para vigilar—, así que
+> ese mutante escaparía por construcción.
+>
+> **Y un matiz del 20/08 que no estaba en los ciclos anteriores:** los **cuatro**
+> de los mensajes que mentían se
 > corrieron contra una copia **reducida** del arnés —9 escenarios, 74
-> comprobaciones, 33 s por corrida— y no contra los 88. Es más rápido y basta
+> comprobaciones, 33 s por corrida— y no contra los 88. Los ocho de D1 sí fueron
+> contra el arnés entero. Es más rápido y basta
 > para decir que **esas** comprobaciones muerden, pero **no** dice nada de si el
 > mutante rompía además algún otro escenario. Los ciclos anteriores usaron el
 > arnés completo; esta diferencia queda escrita para que nadie compare peras con
@@ -1022,7 +1135,23 @@ era verdad. Los siete rojos se vieron **antes** de tocar una línea de
 | **E18**, **E32** | ampliados con la rama **contraria**: en el caso normal el mensaje sí dice «aparcado como `space-os-anterior`». Entre los cuatro, la condición queda mordida por los dos lados |
 | **E47** | ampliado: la falta de `respaldo.sh` **dice** que no hay con qué subir el log. Era una de las tres salidas que la cabecera daba por dichas sin que nadie lo comprobara (**H-B**) |
 
-**Se comprueba que las comprobaciones muerden.** **Cuarenta y cuatro** mutantes de una
+Y, desde **D1** (20/08), los siete de la vuelta atrás que devuelve la base —los
+siete se vieron **en rojo**, 37 comprobaciones, antes de tocar una línea de
+`update.sh`—:
+
+| Escenario | Qué fija |
+|---|---|
+| **E89** | la vuelta atrás **restaura sobre un esquema limpio**, y **en orden**: comprobar el respaldo → tirar `public` → restaurar → **releer la huella**. El orden es la mitad del contrato, y se comprueba con un predicado nuevo (`antes_que`): tirar el esquema **después** de restaurar dejaría la base vacía, y comprobar el respaldo **después** de tirarlo no comprobaría nada |
+| **E90** | si la huella de después **no coincide**, se grita: código `6` en vez de `4`, con los dos valores en el mensaje |
+| **E91** | si la huella **no se puede releer**, el mensaje dice **«no consta»** — ni que volvió ni que cambió. Misma lección que **H1** |
+| **E92** | el respaldo **desaparece** entre el `pg_dump` y la vuelta atrás (disco lleno, o la poda de F3.7 que ordenaba por nombre): **no se tira el esquema** y la base queda intacta. Es el `pg_restore` sin guarda `-s "$BK"`, cerrado |
+| **E93** | el respaldo está y **no está vacío**, pero `pg_restore --list` no lo puede leer (un dump truncado pesa): tampoco se tira nada |
+| **E94** | **no hay `psql`**: se para antes de tocar la base, con el comando de rescate, igual que la falta de `pg_restore` (E32) |
+| **E95** | el `drop` se pide y **la base lo rechaza** («must be owner of schema public», medido): no se restaura encima y el mensaje dice que **la base NO se vació** |
+| **E18**, **E86** | pasan al **peor caso**: el esquema ya se tiró y la restauración falla. Código **7** propio, «LA BASE QUEDO VACIA», y los **dos** comandos en orden |
+| **E14**, **E17** | ampliados: en el camino que **no** restaura, el mensaje no puede decir «comprobado releyéndola»; y en una corrida **buena** no aparece ningún `drop` **ni se pide** —la función lo rechazaría y lo diría— |
+
+**Se comprueba que las comprobaciones muerden.** **Cincuenta y dos** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
