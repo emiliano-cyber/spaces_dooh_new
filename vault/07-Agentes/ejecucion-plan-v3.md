@@ -161,7 +161,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F3.5 | [verificación] | ensayista-local (DEMO simulada) + tarjeta humana | F3.4, F4-local | PENDIENTE | El ensayo real en DEMO depende de F4.5 real (P5). ✅ **Su tarjeta ya está escrita** —**TH-F3.5**, abajo— con lo que el ensayo local del 18/08 **no pudo** ver: el `docker pull` de verdad (digest de registry, autenticación, movimiento de etiquetas), las rutas y permisos reales (`/etc/space-os/instancia.env` a 600 y de root), el `cron` de las 4 a. m., una imagen de release construida de verdad —las del ensayo derivan de `space-os:dev`, anterior a F3.1, con 67 migraciones y no 68—, la escala del `pg_dump`, nginx/TLS delante y el reinicio del droplet |
 | F3.6 | [release] | ejecutor escribe el retiro; **NO se mergea a main** | canal probado en real | PENDIENTE_SERVIDOR | Retirar `deploy.yml` antes de que exista el canal real dejaría sin despliegue: se prepara, no se aplica |
 | F3.7 | [infra] | ejecutor escribe script; ensayo parcial (destino local en vez de Spaces) | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `f369b4c`, auditada **AMARILLO y aceptada**; **sus tres hallazgos (H1, H2, H4) corregidos el 18/08** —ver el cierre del bloque de auditoría— | Nace `infra/scripts/respaldo.sh` (258 líneas) y el paso 3 de `update.sh` hace tres cosas: dump, poda local y subida. Arnés de **37·165 con 10 mutantes** a **48 escenarios · 218 comprobaciones · 0 rojas** con **17 mutantes, 0 escapan** (~45 min), y tras la corrección a **51 · 236 · 0** con **21 mutantes**. ▸ ⚠️ **Su ejecutor dijo haber encontrado y corregido un defecto propio —la poda bajo el `set -e` de `update.sh`— y la auditoría lo falsó**: el contrafactual sobrevive y llega a las migraciones, porque `respaldo.sh:237` ya neutraliza `set -e` por su cuenta. La defensa que añadió está bien puesta pero su rama es **inalcanzable**. Sí es cierto que volvió a medir el arnés entero tras tocarlo. ▸ Credenciales **solo documentadas** —ninguna entra al repo— y **no viajan en `argv`**: archivo temporal con `chmod 600` pedido ANTES de escribir el secreto. ▸ **Fail-closed**: sin `respaldo.sh` al lado, el update se para ANTES del `pull`. La subida real a Spaces es tarjeta humana (TH-F37-A a D). **Cierra la segunda mitad de D4**: la retención de 3 respaldos locales que pide su paso 4 es exactamente la poda de `DIR_RESPALDOS` que hoy no existe. ⚠️ La retención remota (30 días) va por **regla de ciclo de vida del bucket, NO por un `rm` en el script** — el plan explica por qué y no es una preferencia de estilo |
-| F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `84c6c20`, auditada **AMARILLO y aceptada** (18/08, veredicto en el bloque de abajo); su hallazgo **H-1 sigue abierto** y Jochelo aprobó cerrarlo con H1 y H2 | `PULL_ESPERAS="1 5 30"` configurable desde `instancia.env` (vacío = ningún reintento), `pull_una_vez()`/`pull_con_reintentos()` en `update.sh:399-435`, y la bandera **`--simular-fallo-pull`** que el plan pide en su comando de verificación. **La migración no se tocó**: sigue siendo una sola llamada a `correr_runner`, y ahora hay dos escenarios que lo cuentan. El comando literal del plan, corrido contra un `/opt/space-os` simulado: **salida 1, `grep -c reintento` = 3, 36,9 s reales** (1+5+30) y **el directorio de estado vacío** — ni respaldo, ni `version-anterior`. Arnés: de **32·121 con 7 mutantes** a **37 escenarios · 165 comprobaciones · 0 rojas** con **10 mutantes, 0 escapan**. ⚠️ La cuarta fila de la tabla del plan —el **reporte al padre**— es **F6.4**: queda documentada y **explícitamente sin implementar**. ▸ Hallazgo declarado por su ejecutor, medido y no defectuoso: un `PULL_ESPERAS` no numérico **no rompe el update** — `sleep` protesta por stderr (que **no llega a `update.log`**), no espera, y el pull se rinde igual sin tocar nada. Fail-safe, escrito en la tabla de configuración del README |
+| F3.8 | [infra] | ejecutor + ensayista | F3.4 ✅ | ✅ **COMPLETADA_LOCAL** — `84c6c20`, auditada **AMARILLO y aceptada** (18/08, veredicto en el bloque de abajo); su hallazgo **H-1 quedó cerrado** en `f295514` (20/08): el código pasa a `${PULL_ESPERAS-…}` y vacío significa vacío | `PULL_ESPERAS="1 5 30"` configurable desde `instancia.env` (vacío = ningún reintento), `pull_una_vez()`/`pull_con_reintentos()` en `update.sh:399-435`, y la bandera **`--simular-fallo-pull`** que el plan pide en su comando de verificación. **La migración no se tocó**: sigue siendo una sola llamada a `correr_runner`, y ahora hay dos escenarios que lo cuentan. El comando literal del plan, corrido contra un `/opt/space-os` simulado: **salida 1, `grep -c reintento` = 3, 36,9 s reales** (1+5+30) y **el directorio de estado vacío** — ni respaldo, ni `version-anterior`. Arnés: de **32·121 con 7 mutantes** a **37 escenarios · 165 comprobaciones · 0 rojas** con **10 mutantes, 0 escapan**. ⚠️ La cuarta fila de la tabla del plan —el **reporte al padre**— es **F6.4**: queda documentada y **explícitamente sin implementar**. ▸ Hallazgo declarado por su ejecutor, medido y no defectuoso: un `PULL_ESPERAS` no numérico **no rompe el update** — `sleep` protesta por stderr (que **no llega a `update.log`**), no espera, y el pull se rinde igual sin tocar nada. Fail-safe, escrito en la tabla de configuración del README |
 | F3.9 | [infra] | ejecutor + ensayista parcial | **F3.7** ✅ (`plan:1206`, no F3.4) | **CICLO 3 HECHO, en auditoría** — `d540833` ROJO → `70b8cc5` AMARILLO → `6fb93ec` ROJO → **`a490dd3`**. El tercero lo autorizó Jochelo fuera de presupuesto **con alcance cerrado en cuatro puntos**. Arnés: **79 escenarios · 399 comprobaciones · 0 rojas**, 37 mutantes con 5 aislados y cazados | **El diagnóstico cambió la forma de la tarea.** Medido antes de diseñar: `update.log` ya llevaba salida **cruda** —el runner (un error de Postgres arrastra la fila que lo provocó), `pg_dump`, `pg_restore`, y sobre todo **`docker logs --tail 30` del contenedor nuevo**, que son los registros de la aplicación—. Subirlo tal cual **habría incumplido el criterio**, así que la tarea no fue añadir una subida sino **separar lo que el script emite de lo que emiten sus herramientas**. ▸ **Dos logs, una sola regla**: `registrar` escribe en los dos; `eco` solo en el local. Viaja `update-publicable.log` —solo esta corrida, solo líneas del script y su código de salida—; se queda `update.log`, crudo y acumulado. **Sin lista de palabras prohibidas ni filtro por regex**, a propósito: un filtro se olvida de un caso y nadie se entera. Comprobado **leyendo** el archivo que viaja en un escenario de vuelta atrás: sale el diagnóstico entero y **ni una fila, ni una credencial, ni un nombre de tabla**. ▸ Arnés: **58 escenarios · 278 comprobaciones · 0 rojas** y **25 mutantes, 0 escapan** (~100 min). Rojo primero: **12 comprobaciones** en E52–E56. ▸ 🔴 **Límite declarado**: la subida cuelga de `salir()`, así que **si el proceso muere por una señal no hay log en el bucket**. Se intentó un `trap EXIT` y **no vale**: `respaldo.sh:168` hace `trap - EXIT INT TERM HUP` al cerrar su subida, así que quedaría **desarmado desde el paso 3**, justo donde las cosas salen mal. Cerrarlo exige tocar `respaldo.sh`, que está auditado: reportado, no arreglado. ▸ El bucket es **`space-os-logs`, distinto de `space-os-respaldos`**: dos buckets, dos reglas (90 días aquí, 30 allí) y **la llave de F3.7 a secas devuelve 403**. Tarjetas en `README.md` §8, hermanas de las de §7 |
 
 > [!important] ✅ `2633bcb` auditado **AMARILLO** y aceptado — 2026-08-18
@@ -233,7 +233,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **Hallazgos abiertos, ninguno invalidante:**
 >
 > - **H-1 (el único que separa esto del verde)** · `update.sh:279-281` y `README.md:106` afirman
->   que `PULL_ESPERAS` vacío desactiva los reintentos (la asignación `PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"`, hoy `update.sh:507`, y `README.md:115`). **Es falso**: `${VAR:-default}` sustituye
+>   que `PULL_ESPERAS` vacío desactiva los reintentos (**cerrado el 20/08 en `f295514`**; la asignación es hoy `${PULL_ESPERAS-1 5 30}`, `update.sh:533`). **Es falso**: `${VAR:-default}` sustituye
 >   también cuando la variable está **vacía**, no solo cuando falta. Medido escribiendo
 >   `PULL_ESPERAS=""` en `instancia.env`, que es lo que haría un operador: **3 reintentos igual**.
 >   Con un espacio (`" "`) sí da 0, y eso no está escrito en ningún sitio. Falla del lado seguro
@@ -797,6 +797,36 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > los dos estados es el **503 contra 400**. ⚠️ Ese grep está escrito en la tarjeta de F4.5: hay
 > que sustituirlo.
 
+> [!important] ✅ `f295514` (los cinco mensajes) auditado **AMARILLO y aceptado** — 20/08
+> **Los cinco dicen ahora la verdad**, comprobados uno a uno **contra la versión del archivo que
+> trae ese commit**, no contra el estado actual —que `79447d7` ya movió—. Cifras exactas:
+> `85·532·0` → `88·557·**7**` (rojo previo) → `88·557·0`, y la aritmética de las +25 comprobaciones
+> cuadra. Las cuatro combinaciones de la frase del contenedor provocadas; `PULL_ESPERAS`
+> **ausente/vacía/con valor** medido en las **dos** versiones; y las cinco afirmaciones sobre esa
+> variable en todo el árbol dicen lo mismo que el código.
+>
+> ▸ **Corrió los 4 mutantes contra los 88 escenarios**, no contra la copia reducida de 9 que el
+> ejecutor declaró: **los cuatro siguen cazados y ninguno rompe nada más**. La limitación que él
+> marcó con honestidad **no ocultaba nada** — ahora medido.
+
+> [!danger] 🔴 H-A · **El commit dejó DOS mutantes muertos, y la barrida completa sale con error**
+> `pruebas-update.sh:2255` y `:2257` mutan `${PULL_ESPERAS:-1 5 30}`, y la línea es hoy
+> `${PULL_ESPERAS-1 5 30}` (`update.sh:533`). Medido con el validador del propio arnés:
+> **«INVALIDO … toco 0 lineas, no una»**. Consecuencia: **`--mutantes` sale con 1** en cuanto llega
+> ahí, y el README sigue prometiendo «Cuarenta y cuatro mutantes»: son **42 vivos y 2 rotos**.
+>
+> **Nadie lo vio porque la barrida completa no se corrió** — que es exactamente **el coste que M1
+> aceptó a sabiendas**, materializado. Falla **ruidosamente**, no en falso verde, y no afecta a
+> producción. Pero conviene verlo por lo que es: **la primera factura de esa decisión**.
+
+> [!note] Dos correcciones de la auditoría **a mí**, ya aplicadas arriba
+> **① Las defensas sin prueba son DOS, no tres.** La ventana de señal a media subida es **un
+> límite aceptado y escrito**, no una defensa implementada sin prueba. No es lo mismo «hay un guard
+> que nadie vigila» que «hay un caso que decidimos no cubrir». Yo las metí en el mismo saco.
+>
+> **② H-1 estaba cerrado y mi estado decía que seguía abierto**, con la cita en `:507` cuando la
+> asignación está en `:533`. Corregido.
+
 > [!important] ✅ **D1 auditado AMARILLO y aceptado** — 20/08. Los cerrojos se intentaron romper
 > Cifras reproducidas idénticas: **95 escenarios · 619 comprobaciones · 0 rojas** y el arnés real
 > **27 · 0**. La reconstrucción, medida por el auditor: 29 tablas, 79 índices, 79 restricciones,
@@ -857,17 +887,20 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > extensión que tirar— pero **el aprovisionamiento debe crearla con el mismo rol** que migra.
 
 > [!tip] La categoría que llevamos tres veces encontrando: **defensas que el arnés no puede ver**
-> Van **tres** en `update.sh`, y no es casualidad — son **lo que ocurre antes o fuera del proceso
-> que el arnés observa**:
+> **Corregido el 20/08 por la auditoría: son DOS, no tres**, y la distinción importa. Son **lo que
+> ocurre antes o fuera del proceso que el arnés observa**:
 > 1. **`env VAR=… cmd`** filtra por el `argv` de `env`: los dobles reciben su propio `argv`, no el
 >    de quien los lanza.
 > 2. **`flock` ausente**: exigiría que el binario **no esté** en el sistema, y el arnés **monta**
 >    dobles, no los quita.
 > 3. **El guard de `VUELTA_ATRAS_EN_CURSO`**: su mutante **escaparía por construcción**, porque hoy
->    nada llama a esa función fuera de sitio.
+>    nada llama a esa función fuera de sitio. *(Confirmado por la auditoría de D1.)*
 >
-> Las tres están medidas a mano y **ninguna tiene prueba que la fije**. Hoy las sostienen los
-> comentarios del código. **Conviene tratarlo como categoría, no como tres anécdotas.**
+> **Lo que NO pertenece a esta familia**, y yo lo metí mal: la ventana de señal a media subida
+> (`update.sh:278`, `README.md:790`) es **un límite aceptado y escrito**, no una defensa
+> implementada sin prueba. No es lo mismo «hay un guard que nadie vigila» que «hay un caso que
+> decidimos no cubrir». Las de arriba están medidas a mano y **ninguna tiene prueba que la fije**:
+> hoy las sostienen los comentarios del código.
 
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
