@@ -47,7 +47,7 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 | **Todo es demo** | **CONTEXTO FIJADO** | Los datos son de prueba en los **tres** entornos —el 5433 local, la base e2e y `spaces_prod` en el droplet—. Si hace falta, la información se recrea desde cero. **Cierra P1 y P2.** Y **desprioriza D4** sin desmentirlo: `drop database` *es* una respuesta aceptable hoy, así que cambia el plazo, no la necesidad. ⚠️ **Deja de valer el día que se dé de alta la primera instancia de un owner con datos suyos** — conviene que quede escrito cuándo, no solo que hoy aplica | 2026-08-20 |
 | **D3 · el `Dockerfile` no copia el runner** | **RESUELTA** | **Seguir montándolo desde fuera.** No se reabre F2.2: `update.sh` ya lo resuelve, con una sonda que detecta si algún día la imagen lo trae. ⚠️ **Deuda viva que hay que repetir en cada runbook**: el runner queda versionado con el **aprovisionamiento**, no con la imagen, así que una instancia dada de alta antes de F3.3 migraría **sin comprobación de checksum** aunque jale imágenes nuevas | 2026-08-20 |
 | **D4 · una migración fallida deja la base sin recobro** | **RESUELTA — tarea propia, antes de la Fase 5** | Medido: tras abortar en la migración 52, `schema_migrations` **no existe** pero 51 ya corrieron, el runner se niega **por sus dos caminos** y el único recobro es `drop database`. Salidas naturales: que el runner sepa **reanudar**, o que el alta **envuelva** la primera corrida y limpie sola si falla. La Fase 5 crea bases nuevas en serie: que una a medias sea irrecuperable es un fallo de diseño, no un accidente. **Despriorizada mientras las bases sean desechables**, no retirada | 2026-08-20 |
-| **P8 · ¿quién crea las cuentas?** | **RESUELTA** | **Nadie crea su propia cuenta, en ninguna instancia.** El **super admin del PADRE** —`rgb` en producción— es el único que crea **instancias** y el usuario **Dueño** de cada una; ese Dueño da de alta al resto de su equipo, con otros roles, **dentro de su instancia**. El autoregistro **no se abre en ningún sitio, ni en DEMO**. Confirma y endurece P3b-bis, y **mata definitivamente la contradicción de F4.4** (`plan:1345`), que pedía encenderlo en DEMO. ⚠️ Fija además que **`rgb` se conserva como el tenant del super admin del PADRE** aunque sus datos de negocio se recreen (P1). ❓ Queda una pregunta abierta: si nadie se autorregistra nunca, **¿se retira la capacidad del producto** o basta con que la bandera no se encienda? Hoy `AUTOREGISTRO` es fail-closed, así que operativamente da igual; la diferencia es cuánta superficie queda | 2026-08-20 |
+| **P8 · ¿quién crea las cuentas?** | **RESUELTA** | **Nadie crea su propia cuenta, en ninguna instancia.** El **super admin del PADRE** —`rgb` en producción— es el único que crea **instancias** y el usuario **Dueño** de cada una; ese Dueño da de alta al resto de su equipo, con otros roles, **dentro de su instancia**. El autoregistro **no se abre en ningún sitio, ni en DEMO**. Confirma y endurece P3b-bis, y **mata definitivamente la contradicción de F4.4** (`plan:1345`), que pedía encenderlo en DEMO. ⚠️ Fija además que **`rgb` se conserva como el tenant del super admin del PADRE** aunque sus datos de negocio se recreen (P1). ✅ **Y su pregunta abierta, cerrada el mismo día: el autoregistro se queda APAGADO, SIN RETIRARLO.** La capacidad sigue en el producto; lo que no se enciende es la bandera. **Ya es el estado, y ya lo vigila una prueba**: las dos plantillas nacen con `AUTOREGISTRO=0` (`.env.example:35`, `.env.production.example:49`) y `entorno.test.ts:61` y `:115` se ponen rojas si alguien las devuelve a `1`. Cero código que tocar. ⚠️ Lo que **no** cubre ninguna prueba es el `.env` del droplet: eso es **TH-T03** y se mira a mano | 2026-08-20 |
 | **P9 · ¿un solo nombre de rol en toda la flota?** | **RESUELTA — NO** | **Producción se queda con `spaces_user`**, no se le cambia el nombre. Y **las instancias deben poder abrirse con otros nombres**: el nombre se **declara** (`ROL_APP` / `space_os.rol_app`) en vez de cablearse. Revierte la decisión «nombre fijo» del mismo día. ⚠️ **Límite medido, y por eso `spaces_app` sigue siendo el nombre por omisión de una instancia nueva:** una base **virgen** con nombre nuevo aborta en `20260729_licencias_permisos.sql:88-97` —archivo **52 de 70**, 33 tablas— porque esa migración deriva el rol de quién ya tiene grants. `ROL_APP` sirve para **renombrar una instancia ya migrada**, no para parir una. Ejecutada en `551f6c1` | 2026-08-20 |
 | P5 · «DEMO» de la Fase 3 = droplet nuevo de la Fase 4 | ASUMIDA por el plan (F3.5 depende de F4.5) | sí | 2026-08-13 |
 | P6 · `/api/version` con token de flota o pública | ABIERTA (afecta Fase 6, fuera de alcance actual) | — | — |
@@ -1086,6 +1086,45 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | F4.4 | [infra] | ensayista-local | F4.2-local | ✅ **ENSAYADA_LOCAL — desbloqueada** (re-ensayo del 19/08). ⚠️ Decía «bloqueada por D2» y también llevaba desfasada: **D2 era el catálogo de permisos**, cerrado por `9c41606` y completado a 41 filas por `1edbcce` (20/08). El Dueño abre **nueve módulos**, medido por `permisosDeRol` y por el camino del producto. Corregido el 20/08 al auditar | Los datos entran y se leen bajo RLS, pero `/api/estado/` los devolvía **vacíos**, y **no es RLS ni tenant: es el catálogo de permisos** (D2). ⚠️ **El plan está desactualizado**: `:1345` pide `NEXT_PUBLIC_AUTOREGISTRO=1` y la bandera ya es `AUTOREGISTRO` de runtime; `:1351` espera 400 y lo correcto es **503** |
 | F4.5 | [verificación] | ensayista-local + tarjeta humana | F4.4 | ⚠️ **SMOKE LOCAL EN VERDE**; el real, tarjeta | El cierre del riesgo es contra la DEMO real. 🔴 **Su tarjeta, cuando se escriba, tiene DOS instrucciones opuestas en la bitácora y solo una vale.** La del 14/08 —arrancar con `AUTOREGISTRO=1` y esperar `signup` **400**— quedó **invertida** el mismo día al cerrar el registro en toda la flota, DEMO incluida: lo correcto es **503 y el botón «Crear cuenta» AUSENTE**. Y esa comprobación del botón es el único eslabón que el ensayo de F2.5 no pudo probar (hidratación en navegador real), así que **tiene que ir en la tarjeta o se pierde** |
 
+> [!success] ✅ **El ROJO de F3.9, CERRADO** — `8f81c3e` (20/08)
+> Jochelo decidió **arreglarlo en vez de bajarle el color**. El arreglo va en el
+> **origen y no en el mensaje**: se poda al asignar (`update.sh:727`,
+> `${nombre%%=*}`), así el secreto **no entra nunca** en
+> `URL_CONSULTA_NO_SOPORTADO` y no puede filtrarse por otra puerta que se abra
+> mañana. La auditoría proponía podar al imprimir; esto es más fuerte.
+>
+> **Rojo primero, con el arnés real:** E96 y E97 con **8 comprobaciones**, y el
+> secreto saliendo por las **tres** puertas — el log, el publicable y **lo subido
+> al bucket**. Más **E98**, el contrafactual que impide pasarse de listo: con
+> separador de verdad el mensaje sigue nombrando el parámetro entero.
+>
+> Arnés: **98 escenarios · 641 comprobaciones · 0 rojas** (antes 95 · 621).
+> **M2-MUT** —devuelve el código exacto de antes— **CAZADO** con 8 rojas, corrido
+> aislado. **Declarado, como manda M1: la barrida completa NO se corrió.**
+>
+> ⚠️ **Sigue vivo el aviso de la auditoría**, y no lo cierra este commit: **tres
+> mutantes cuelgan de UNA SOLA comprobación.** Si alguien retoca ese escenario,
+> el defecto vuelve a pasar en verde y nadie se entera.
+
+> [!danger] 🔴 Cuatro commits ROJO NUEVOS, todos del 20/08 y **ninguno auditado**
+> Nacen después de la tanda que Jochelo aprobó, así que **no están en la tabla de
+> abajo** y **no los cubre ningún visto bueno**:
+>
+> | Commit | Qué es | Por qué es ROJO |
+> |---|---|---|
+> | `61f2668` | El candado del rol en el runner | Decide si una instancia se actualiza |
+> | `3561bf9` | La migración de GRANT sin lista blanca | **Migración** |
+> | `551f6c1` | El nombre del rol se declara (P9) | Reescribe los dos de arriba |
+> | `8f81c3e` | La poda del `=` percent-encoded | **Credenciales** (M2) |
+>
+> Los tres primeros son **la misma pieza** —el rol de aplicación— y conviene
+> verlos juntos. Implementan una decisión ya tomada (**P9**), así que lo que falta
+> no es decidir: es **confirmar que están bien hechos**. El cuarto cierra el ROJO
+> de F3.9 y lo escribió el mismo que lo arregló.
+>
+> **En los cuatro, el remediador fui yo.** El modelo dice que no se autoconfirma:
+> piden un verificador en sesión aparte.
+
 ## Commits que esperan visto bueno humano
 
 > [!important] El criterio, porque los dos expedientes lo contaron distinto
@@ -1116,7 +1155,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | `de6860a` | ROJO-2 | El alta deja de sembrar permisos y **se niega** si el catálogo no está |
 | `a2353d6` | ROJO-1 | **Credenciales y sesión**: la contraseña del Dueño y el 403 de `debe_cambiar_password` |
 
-> [!success] ✅ **DOCE APROBADOS por Jochelo el 2026-08-20.** Quedan cinco
+> [!success] ✅ **QUINCE APROBADOS por Jochelo el 2026-08-20.** Quedan tres
 > Se le presentaron **ocho preguntas** derivadas de lo que cada commit pedía decidir
 > —no de su título— y contestó a las ocho. **Aprobar no es desplegar:** las
 > migraciones siguen sin aplicarse.
@@ -1136,12 +1175,21 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > dos migraciones en su día; lo que no está desplegado es **la edición**. Es justo lo
 > que T-04 arregla, para que reaplicarlas no truene.
 >
-> **LOS CINCO QUE SIGUEN PENDIENTES**, y por qué:
+> **`c50344a`, `3ac2bba` y `b976b54` — APROBADOS también**, en la misma vuelta. Eran los
+> tres que no llevaban decisión detrás: una consulta que le faltaba el filtro de
+> organización, `DATABASE_URL` obligatoria y las dos causas del alta rota.
+>
+> **LOS TRES QUE SIGUEN PENDIENTES**, y por qué no se dan por buenos:
 >
 > | Commit | Por qué sigue esperando |
 > |---|---|
-> | `c50344a` · `3ac2bba` · `b976b54` | Se presentaron como «solo necesitan un aprobado» —no llevan decisión detrás— y **no se pidieron explícitamente**. Falta decir «sí» |
-> | `61f2668` · `3561bf9` | **La respuesta 3 los reescribió.** Ya no exigen `spaces_app`: exigen que haya rol. Se auditan de nuevo desde cero, junto con `551f6c1`, que es donde vive el cambio |
+> | `61f2668` · `3561bf9` | **La respuesta 3 los reescribió.** Ya no exigen `spaces_app`: exigen **que haya rol**. Los que se revisaron ya no son los que hay |
+> | `551f6c1` | Donde vive ese cambio. **Nace ROJO y sin auditar** |
+>
+> Los tres son **la misma pieza** —el rol de aplicación— y conviene verlos juntos.
+> Implementan una decisión que Jochelo ya tomó (**P9**), así que lo que falta no es
+> decidir: es **confirmar que están bien hechos**. Y eso pide un verificador en sesión
+> aparte: el remediador no se autoconfirma, y aquí el remediador fui yo.
 
 > [!warning] Recuento al 2026-08-20: **esperan visto bueno DIECISIETE**, no doce
 > El «Son doce» era del 17/08 y se quedó ahí. Desde entonces entraron **siete** commits ROJO
