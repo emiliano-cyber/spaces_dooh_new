@@ -1271,8 +1271,30 @@ al padre (§3).
      (`infra/scripts/setup-droplet.sh:66-72` ya lo hace así).
   2. Postgres con **dos roles**: `postgres` para migraciones y uno de app
      `NOSUPERUSER NOBYPASSRLS` — **no es opcional**: con un superusuario la RLS no se
-     aplica y el aislamiento interno desaparece (`db/dev-rol-app.sql`; los GRANT los da
-     `db/migrations/20260715_arr_m6_rol_restringido.sql`).
+     aplica y el aislamiento interno desaparece.
+
+     > **ENMIENDA 2026-08-20 (ROJO-3).** El rol de la app se llama **`spaces_app`**,
+     > igual en toda la flota, y se crea **con una contraseña propia de esa
+     > instancia**:
+     >
+     > ```sql
+     > create role spaces_app login password '<clave propia de esta instancia>'
+     >   nosuperuser nobypassrls;
+     > ```
+     >
+     > **`db/dev-rol-app.sql` es solo la plantilla de la instrucción, NO la fuente**:
+     > su propio encabezado dice *«SOLO DESARROLLO — NO APLICAR EN PRODUCCIÓN: la
+     > contraseña está aquí en claro»*, y crea el rol con la clave `spaces_app_dev`
+     > **visible en el repositorio**. Citarlo como paso de una instalación real le
+     > pedía a una persona que publicara una credencial.
+     >
+     > **El nombre no es negociable y la contraseña sí es propia.** Trece migraciones
+     > conceden sus GRANT a una lista blanca de dos nombres, guardados por existencia
+     > (`20260715_arr_m6_rol_restringido.sql:21` y `:38`, y el `foreach` de otras
+     > once): con cualquier otro nombre **no conceden nada y no dan error**. Lo cierra
+     > por los dos lados `20260820_grants_rol_app.sql` —concede sin lista blanca y
+     > aborta si el rol falta— y el candado de `scripts/migrar.mjs`, que se niega a
+     > aplicar nada sin `spaces_app`.
   3. Base vacía + `db/schema.sql` + `node scripts/migrar.mjs` (F3.2).
   4. Correr la imagen (F2.2) con canal **`beta`**.
 - **Criterio de aceptación:** **la base de DEMO no contiene ni una fila de ningún
