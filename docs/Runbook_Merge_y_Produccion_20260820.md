@@ -32,13 +32,25 @@ turbo (`ci.yml:71-78`). **No corre e2e**, así que no necesita Postgres.
 | Secretos en el diff | barrido sobre `main...HEAD` | ✅ ninguno |
 | Forma del merge | `git merge-base --is-ancestor main HEAD` | ✅ **fast-forward, 0 conflictos** |
 
-**El merge aterriza 146 commits · 110 archivos · 26 443 líneas**, de los cuales
-**7 son archivos de migración** (2 editados por T-04, 5 nuevos).
+**El merge aterriza 154 commits**, de los cuales **7 son archivos de migración**
+(2 editados por T-04, 5 nuevos). Medido de nuevo a las 17:40 del 20/08, con los
+tres pasos de CI corridos **por separado, como los corre CI** — corriéndolos en
+una sola invocación de turbo se pisan entre ellos y dan un falso rojo.
 
 > [!warning] Lo único que falta para el merge no es técnico
-> **Diecisiete commits ROJO esperan visto bueno humano.** La lista vive en
-> `vault/07-Agentes/ejecucion-plan-v3.md`, sección «Commits que esperan visto
-> bueno humano». Sin eso, el merge se salta la regla 5 de `AGENTES.md`.
+> **Quince commits ROJO están aprobados** (Jochelo, 20/08). Pero hay **cuatro
+> más, todos de ese mismo día y ninguno auditado**, que nacieron después de la
+> tanda aprobada:
+>
+> | Commit | Qué es |
+> |---|---|
+> | `61f2668` · `3561bf9` · `551f6c1` | La pieza del **rol de aplicación** — implementan P9 |
+> | `8f81c3e` | La poda del `=` percent-encoded — cierra el ROJO de F3.9 (**M2**) |
+>
+> Implementan decisiones **ya tomadas**, así que lo que falta no es decidir: es
+> **confirmar que están bien hechos**. En los cuatro el remediador fue el mismo
+> que los escribió, y el modelo dice que no se autoconfirma. Detalle en
+> `vault/07-Agentes/ejecucion-plan-v3.md`.
 
 > [!note] Lo que NO va en este merge, y es deliberado
 > **F3.6 — retirar `deploy.yml`.** El plan lo marca `NO se mergea a main` hasta
