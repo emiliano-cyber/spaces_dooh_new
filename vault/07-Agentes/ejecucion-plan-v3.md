@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-18
+actualizado: 2026-08-20
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -36,6 +36,17 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 | **M1 · cómo se exige la barrida de mutación** | **RESUELTA** | **Por tarea se corre el arnés entero (~4 min) más los mutantes que tocan el propio cambio, aislados con `probar_mutante_en`. La barrida completa deja de ser obligatoria por ciclo, y quien no la corra lo declara por escrito en su informe** — no se supone, se escribe. Decisión de Jochelo el 2026-08-18, tras medirse **~25 min por mutante** en esta máquina: a 25 mutantes la barrida pasa de 10 h y el arnés crece con cada tarea. ⚠️ **Coste aceptado a sabiendas**: una regresión en una pieza vieja **no se ve** hasta que alguien corra la barrida completa. Conviene lanzarla de vez en cuando fuera del ciclo, cuando la máquina esté libre | 2026-08-18 |
 | **M2 · las credenciales, criterio de rechazo** | **RESUELTA** | **Cualquier fragmento de credencial que salga de la instancia es INVALIDANTE**, sin importar cuán estrecho sea el caso que lo produce. Decisión de Jochelo el 2026-08-19. Se suma a la regla de oro —sesión, tenant, migración o dinero— como quinto disparador. **Nació de una necesidad real**: la auditoría de `70b8cc5` encontró una regresión que devolvía usuario y prefijo de clave al bucket y **tuvo que preguntar cómo clasificarla, porque el criterio no existía**. A partir de ahora no se pregunta. ▸ `70b8cc5` se aceptó en **AMARILLO** —decisión del mismo día— porque los dos invalidantes que se le encargaban quedaron cerrados y comprobados, y la regresión es un defecto **nuevo hallado al auditar**, no un encargo incumplido. La regla rige de aquí en adelante | 2026-08-19 |
 | **M3 · la conexión deja de viajar como URL** | **RESUELTA** | **`pg_dump`/`pg_restore` dejan de recibir un `--dbname` con la URL y pasan a recibir banderas sueltas (`-h -p -U -d`), con todo lo demás por variables `PG*` del entorno.** Decisión de Jochelo el 2026-08-19, tras **tres ciclos en los que cada uno encontró una codificación distinta de la misma idea** —`?password=`, luego el nombre en mayúsculas, luego **`?%70assword=` percent-encoded, que libpq decodifica y usa**—. ▸ **El fondo:** una **lista negra sobre un espacio de nombres decodificable no se puede demostrar completa**; siempre queda otra codificación. Reconstruir la conexión sí: **si en `argv` no hay URL, no hay nada que filtrar**. ▸ Coste asumido: hay que mapear los parámetros de consulta a sus `PG*` equivalentes, y **lo que no tenga equivalente falla cerrado** | 2026-08-19 |
+| **P1 · destino de `rgb` y del droplet actual** | **CERRADA** | **El droplet actual pasa a ser el PADRE** — el plano de control, la consola del super admin — y **sus datos, incluido el tenant `rgb`, se recrean desde cero**: son de prueba. No hay que archivar ni migrar nada. ⚠️ Cambia el sentido de la **Fase 7** («desenredar `spaces_prod`»), que se escribió dando por hecho que ese servidor seguía siendo el entorno de producción del negocio: **revisarla antes de ejecutarla**, no darla por válida | 2026-08-20 |
+| **P2 · fecha de migración de PIXELED** | **CERRADA** | **No hay migración.** Los datos de PIXELED son de prueba: nace como instancia nueva y la información se recarga. **F5.7 vuelve a ser un aprovisionamiento limpio**, no una migración con respaldo, ensayo y ventana | 2026-08-20 |
+| **P3 · cuenta DO (la mitad que faltaba)** | **CERRADA** | **Todas las instancias de owner nacen en la cuenta de DigitalOcean de la casa**, la misma donde vive el registry. Desbloquea **F5.4** (el modo por defecto de `provision-instancia.sh` es `--crear-droplet`) y el runbook de operación entero. **F5.7 pasa a depender solo de P2**, ya cerrada. ⚠️ Contrapartida dicha una vez: una sola cuenta y el padre guardando las llaves de cada droplet **concentra el riesgo** — quien comprometa esa cuenta alcanza toda la flota. El runbook tiene que decir **quién tiene esas llaves, dónde se guardan y cómo se rotan**. No contradice el invariante de F3.4, que habla de la instancia YA corriendo: `update.sh` sigue sin hablar con el padre | 2026-08-20 |
+| **ROJO-1 · la contraseña compartida del Dueño** | **RESUELTA y EJECUTADA** (`a2353d6`) | **El alta la GENERA, la marca como temporal y la imprime una vez.** `SEED_PASSWORD` se retira entera, no solo su valor por omisión. El generador se **extrae** a `apps/web/lib/password-temporal.mjs` —opción (a)— porque dos copias de un generador de contraseñas divergen sin dar error. ⚠️ **Superseded para el DUEÑO por «el modelo de acceso»** (abajo): el día que entre solo con Google, el alta deja de sembrarle contraseña alguna. Eso **no se puede construir hoy** —exige códigos de recuperación, que no existen— así que esto es lo correcto mientras tanto, y sigue siéndolo **entero** para el resto del equipo | 2026-08-20 |
+| **ROJO-2 · los dos catálogos de permisos** | **RESUELTA y EJECUTADA** (`1edbcce` + `de6860a`) | **Manda el contenido del alta y se adopta ENTERO**: 41 filas · 9 módulos · 5 perfiles. Sigue viviendo en la **migración**, no en el script de alta — es configuración de PRODUCTO. Y el alta **deja de llevar su MATRIZ**: mientras existan dos listas pueden divergir. `IMPRENTA` (3) y `FINANZAS` (4, **con `facturar`**) nacen con permisos; el Dueño pasa de 19 a 24 y ya no le queda ni un área cerrada. ⚠️ **Amplía permisos en instancias que ya existen**: la migración es aditiva, así que al actualizarse desarrollo y el droplet ganan filas. **Es la decisión, no un efecto colateral** | 2026-08-20 |
+| **ROJO-3 (+D5, +D6) · el rol de aplicación de una instancia** | **RESUELTA y EJECUTADA** (`61f2668` + `3561bf9` + `736a3b1`) | **Se llama `spaces_app` en toda la flota, incluida producción**; lo propio de cada instancia es la **contraseña**. El riesgo se cierra por las **dos vías**: **A** candado en `migrar.mjs` —se niega a aplicar nada sin el rol— y **B** `20260820_grants_rol_app.sql`, que concede sin lista blanca y es lo único que repara una instancia ya nacida sin permisos. Y se **enmienda** `plan:1272-1275`, que mandaba crear el rol con un archivo que lleva la clave en claro. **D6 queda resuelto por arrastre**: `db/dev-rol-app.sql` sigue siendo solo de desarrollo | 2026-08-20 |
+| **El droplet actual pasa a ser el PADRE** | **RESUELTA** | Deja de ser una instancia de negocio y pasa a ser el **plano de control**: desde ahí se dan de alta instancias y se crea el usuario dueño de cada una, que después invita a su equipo. Es la razón por la que el nombre del rol puede unificarse: un PADRE recién definido no arrastra compromisos de un entorno vivo | 2026-08-20 |
+| **El modelo de acceso** | **RESUELTA — y NO construida** | (1) En el PADRE **solo existe el perfil DUEÑO**. (2) Las cuentas de máximo privilegio entran **solo con Google**: heredan su segundo factor sin construir TOTP. (3) Además, **códigos de recuperación**, entregados en el alta. (4) Si la instancia nace sin configuración de Google, **el alta FALLA y no la entrega**. (5) Al entrar con un código de recuperación **se obliga a re-vincular Google antes de seguir**. ⚠️ **Nada de esto está construido y no es un ajuste:** `GOOGLE_OAUTH` pasa de bandera opcional a **requisito de entrega**, el correo del Dueño tiene que ser una cuenta de Google —dato que Comercial recoge en el onboarding— y **los códigos de recuperación no existen**: de un solo uso, guardados con hash, mostrados una vez, con límite de intentos y forma de regenerarlos. El estado «entró por recuperación» tiene **patrón que copiar**, no que inventar: es la misma figura que `debe_cambiar_password` (`auth.ts:167`, con `/api/auth/me` y `/api/perfil` abiertas). **Necesita su propia tarea** | 2026-08-20 |
+| **Todo es demo** | **CONTEXTO FIJADO** | Los datos son de prueba en los **tres** entornos —el 5433 local, la base e2e y `spaces_prod` en el droplet—. Si hace falta, la información se recrea desde cero. **Cierra P1 y P2.** Y **desprioriza D4** sin desmentirlo: `drop database` *es* una respuesta aceptable hoy, así que cambia el plazo, no la necesidad. ⚠️ **Deja de valer el día que se dé de alta la primera instancia de un owner con datos suyos** — conviene que quede escrito cuándo, no solo que hoy aplica | 2026-08-20 |
+| **D3 · el `Dockerfile` no copia el runner** | **RESUELTA** | **Seguir montándolo desde fuera.** No se reabre F2.2: `update.sh` ya lo resuelve, con una sonda que detecta si algún día la imagen lo trae. ⚠️ **Deuda viva que hay que repetir en cada runbook**: el runner queda versionado con el **aprovisionamiento**, no con la imagen, así que una instancia dada de alta antes de F3.3 migraría **sin comprobación de checksum** aunque jale imágenes nuevas | 2026-08-20 |
+| **D4 · una migración fallida deja la base sin recobro** | **RESUELTA — tarea propia, antes de la Fase 5** | Medido: tras abortar en la migración 52, `schema_migrations` **no existe** pero 51 ya corrieron, el runner se niega **por sus dos caminos** y el único recobro es `drop database`. Salidas naturales: que el runner sepa **reanudar**, o que el alta **envuelva** la primera corrida y limpie sola si falla. La Fase 5 crea bases nuevas en serie: que una a medias sea irrecuperable es un fallo de diseño, no un accidente. **Despriorizada mientras las bases sean desechables**, no retirada | 2026-08-20 |
 | P5 · «DEMO» de la Fase 3 = droplet nuevo de la Fase 4 | ASUMIDA por el plan (F3.5 depende de F4.5) | sí | 2026-08-13 |
 | P6 · `/api/version` con token de flota o pública | ABIERTA (afecta Fase 6, fuera de alcance actual) | — | — |
 | **P7 · ¿quién aplica las migraciones `@tipo: datos` en la flota?** | **RESUELTA** | **Una persona, a mano — no el update.** `update.sh:407-413` llama al runner **sin `--con-datos`**, y eso es deliberado: una corrección de datos no debe colarse en una actualización automática que corre de madrugada por `cron`. El ritual es el de `vault/04-Datos/migraciones.md`. ⚠️ **Quien publique un release con una migración de datos tiene que avisar**: el update no la aplica y **tampoco falla**, así que sin aviso la corrección no ocurre — en silencio y en toda la flota a la vez | 2026-08-18 |
@@ -766,6 +777,41 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > a DEMO y a las instancias de owner.** La contradicción del `CLAUDE.md` §7 ya no existe en el
 > código.
 
+> [!important] ✅ **LOS TRES ROJO DEL RE-ENSAYO, CERRADOS** — 2026-08-20, seis commits
+> Validados primero **contra el código**, no dados por buenos desde el reporte; los tres se
+> confirmaron con `archivo:línea` antes de tocar nada. Cada uno con su prueba **en rojo
+> primero**.
+>
+> | Rojo | Commits | Qué quedó |
+> |---|---|---|
+> | **ROJO-1** | `a2353d6` | El alta **genera** la contraseña, la marca `debe_cambiar_password` y la imprime **una vez y solo si creó la cuenta**. `SEED_PASSWORD` retirada. Generador extraído a `lib/password-temporal.mjs` |
+> | **ROJO-2** | `1edbcce` · `de6860a` | La migración lleva el catálogo a **41 · 9 · 5**; el alta **deja de llevar su MATRIZ** y pasa a **comprobar** que el catálogo esté, negándose si no |
+> | **ROJO-3** | `61f2668` · `3561bf9` · `736a3b1` | Candado del rol en `migrar.mjs` (vía A), `20260820_grants_rol_app.sql` sin lista blanca (vía B) y la **enmienda** de `plan:1272-1275` |
+>
+> **Lo que se demostró, no se dedujo:**
+> · El candado del rol, **de punta a punta en un Postgres desechable sin `spaces_app`**: salida
+> 1, mensaje con la línea a teclear, y la base con **cero tablas**. Contrafactual en el mismo
+> servidor: creado el rol, vuelve a listar sus 69 con salida 0.
+> · La reparación de los GRANT, **reproduciendo el defecto**: revocados los permisos, la app
+> muere con `permission denied`; aplicada la migración, lee y escribe. Y su ASSERT **se niega**
+> si el rol tuviera `BYPASSRLS` — una migración de GRANT es donde se colaría (R2).
+> · Que quitar la MATRIZ **no era cosmético**: la prueba «el alta no cambia ni una fila»
+> **pasaba con la MATRIZ dentro**, porque sus 36 filas son subconjunto de las 41. Lo que impide
+> que diverjan no es que hoy coincidan: es que solo exista una.
+>
+> **Dos defectos que aparecieron al arreglar, y no estaban en el reporte:**
+> ① El `on conflict do update` del alta **reescribía `password_hash`**. Con una contraseña fija
+> daba igual; con una generada, repetir el alta dejaría al Dueño **fuera de su propia
+> instancia** — y el script se anuncia como idempotente. Cerrado con `xmax = 0`.
+> ② El **paso 4 del reinicio local estaba mal**: `recrearEsquema()` recrea el **esquema**, no la
+> base. Con `spaces_e2e` borrada, **las 18 suites e2e mueren en el `beforeAll`** con «database
+> does not exist», que no dice nada del código. Hay que crear la base a mano.
+>
+> **Consecuencia declarada y no disimulada:** los siete scripts de humo locales que llevan
+> `spaces123` escrito dentro (`smoke-e2e.mjs`, `a1`…`a4`, `n1`, `e2e-prod-review`) dejan de
+> funcionar contra una base recién dada de alta — por la contraseña y, aunque acertaran, por el
+> 403. Es el precio de que el Dueño ya no nazca con una contraseña que sirve en toda la flota.
+
 > [!danger] 🔴 Tres ROJO del re-ensayo → **reporte para Jochelo en
 > `Descargas\Avisos_ROJO_fase4_19ago2026.md`**
 > **ROJO-1 · La contraseña compartida NO es teórica.** `bootstrap-auth.mjs:85` (`?? 'spaces123'`)
@@ -981,7 +1027,26 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 | `d31a7b8` | F3.2 (3.º) | La señal derivada que verifica `--instalacion-nueva` |
 | `dc6df52` | F3.3 | Decide si una instancia **se niega a actualizarse** |
 
-**Son doce.** Las seis primeras venían del 13–14/08; las seis de abajo salieron el 17/08.
+| `9d609f0` | **D1 de Fase 4** | Toca **tenant**: el esquema deja de sembrar `rgb` — ✅ **APROBADO por Jochelo el 19/08** |
+| `9c41606` | **T-05** | Decide **quién puede qué** en toda instancia nueva — ✅ **APROBADO por Jochelo el 19/08** |
+| `61f2668` | ROJO-3 (vía A) | El runner **se niega a aplicar DDL** si falta el rol de aplicación |
+| `3561bf9` | ROJO-3 (vía B) | **Migración**: concede los GRANT de la app y **aborta** si el rol no existe |
+| `1edbcce` | ROJO-2 | **Migración** que amplía la política de acceso de toda la flota (25 → 41 filas) |
+| `de6860a` | ROJO-2 | El alta deja de sembrar permisos y **se niega** si el catálogo no está |
+| `a2353d6` | ROJO-1 | **Credenciales y sesión**: la contraseña del Dueño y el 403 de `debe_cambiar_password` |
+
+> [!warning] Recuento al 2026-08-20: **esperan visto bueno DIECISIETE**, no doce
+> El «Son doce» era del 17/08 y se quedó ahí. Desde entonces entraron **siete** commits ROJO
+> más, y **dos de ellos ya los aprobó Jochelo el 19/08** (`9d609f0` y `9c41606`) — que nunca
+> llegaron a esta tabla, y ese es el defecto de libro que este proyecto lleva encontrando en
+> cada validación: **un titular no se actualiza solo porque cambien sus filas**.
+>
+> **Doce del 13–17/08 + cinco del 20/08 = diecisiete pendientes.** Los dos aprobados se dejan
+> en la tabla, marcados, para que no vuelvan a perderse.
+>
+> **Y siguen fuera, por el criterio de arriba**, los del 19–20/08 cuyo ejecutor no declaró
+> color ROJO en su cuerpo: `a490dd3` y `32042e5` (sin declaración explícita), y `f295514`,
+> `79447d7` y `b4c2522`, **auditados AMARILLO y aceptados**.
 
 > [!warning] La fila de `6cb16d4` faltaba, y llevaba tres días fuera
 > Su propia fila de la Fase 3 dice «ROJO: pendiente de visto bueno humano» desde el
@@ -1677,6 +1742,15 @@ sudo /opt/space-os/update.sh & sleep 3; sudo /opt/space-os/update.sh; echo "codi
 | 2026-08-17 | 🔴 **Consecuencia no documentada que sale de esta auditoría y necesita decisión humana: una instancia NUNCA aplica migraciones `@tipo: datos`.** `update.sh:407-413` llama al runner **sin `--con-datos`**, y medido: `node scripts/migrar.mjs` sin banderas imprime `0 aplicadas, **1 de datos pendientes**.` y deja `20260731_calendario_meses_cortos.sql` pendiente **para siempre**. Es conservador y probablemente correcto —una migración de datos no debería colarse en un update automático— pero **ni el plan, ni el README, ni la bóveda dicen quién y cuándo las aplica en la flota**. Hoy la respuesta es «nadie». |
 
 | 2026-08-18 | 🔵 **DECISIÓN DE JOCHELO: las migraciones `@tipo: datos` las aplica una persona, no el update.** Confirma que el comportamiento actual de `update.sh` es el correcto —llama al runner **sin `--con-datos`**— así que **no hay nada que arreglar en el código**. Lo que se arregla es **el silencio**, que era el hallazgo real: hasta hoy ni el plan, ni el README ni la bóveda decían quién las aplicaba, y la respuesta de facto era «nadie». Escrito ahora como sección **0** de `infra/scripts/README.md` —antes que las otras siete, porque es lo primero que hay que saber— con el aviso que le falta a todo lo demás: **quien publique un release con una migración de datos tiene que avisar**, porque el update no la aplica **y tampoco falla**, así que sin aviso la corrección no ocurre en silencio y en toda la flota a la vez. |
+| 2026-08-20 | 🟢 **LOS TRES ROJO DEL RE-ENSAYO DE LA FASE 4, CERRADOS EN SEIS COMMITS.** Y lo primero que se hizo **no fue arreglarlos, sino validarlos**: los tres se confirmaron contra el código con `archivo:línea` antes de tocar una tecla — `bootstrap-auth.mjs:85`/`:163`/`:189`, la `MATRIZ` de `:90` contra las 25 de la migración, y la lista blanca de dos nombres en **trece** migraciones. Ninguno era una exageración del reporte. |
+| 2026-08-20 | **El candado del rol se demostró de verdad, no por prueba unitaria con doble.** Como `pg_roles` es del CLÚSTER, producir la ausencia dentro de la suite exigiría borrar el rol que usan todas las demás. Así que se montó un **Postgres desechable sin `spaces_app`** y se corrió el runner real: **salida 1**, el mensaje nombra el rol y da la línea a teclear, y la base quedó con **cero tablas**. Contrafactual en el mismo servidor: creado el rol, vuelve a listar sus 69 con salida 0. El contenedor se destruyó al terminar. |
+| 2026-08-20 | 🔑 **Quitar la MATRIZ del alta no era cosmético, y la prueba lo enseñó.** El caso «el alta no cambia ni una fila del catálogo» **pasaba con la MATRIZ todavía dentro** — sus 36 filas son subconjunto de las 41. Lo que impide que dos catálogos diverjan **no es que hoy coincidan**: es que solo exista uno, y eso solo se mide leyendo el archivo. Es la misma lección del mapa `ANTES_DE` duplicado, por tercera vez en esta rama. |
+| 2026-08-20 | ⚠️ **Un defecto NUEVO que apareció al arreglar ROJO-1 y no estaba en ningún reporte:** el `on conflict do update` del alta **reescribía `password_hash`**. Con `spaces123` daba igual —la reescribía con la misma—; con una contraseña generada, **repetir el alta dejaría al Dueño fuera de su propia instancia**, y el script se anuncia como idempotente. Cerrado con `xmax = 0`, que distingue el alta real de la repetición y es además lo único que decide si hay contraseña que entregar. |
+| 2026-08-20 | ⚠️ **El paso 4 del reinicio local estaba equivocado y lo pagó la primera corrida.** Decía que `spaces_e2e` «la recrea el propio arnés»: `recrearEsquema()` recrea el **esquema**, no la **base**. Con la base borrada, las e2e mueren en el `beforeAll` con `database "spaces_e2e" does not exist` — un rojo que no dice nada del código, exactamente el mismo modo de fallo que el «falta el build» de `CLAUDE.md`. Hay que crear la base a mano antes. |
+| 2026-08-20 | 🔵 **Entorno local reiniciado por decisión de Jochelo**, con las tres bases y la imagen tóxica. `space-os:dev` **ya no existía** en este Docker. La receta medida vuelve a cuadrar con un archivo más: **68 aplicadas · 39 tablas · exit 0** sobre 69, segunda corrida 0. Imagen reconstruida como `space-os:f4-ensayo`. |
+| 2026-08-20 | 🔵 **Volcadas las decisiones de la conversación del 20/08**: P1, P2 y P3 **cerradas**, el droplet pasa a ser el **PADRE**, el modelo de acceso (Google + códigos de recuperación) **decidido y NO construido**, D3 y D4 resueltas, y «todo es demo» como contexto fijado. El documento de trabajo era `Descargas\Rojos_y_reinicio_local_2026-08-20.md`; **este archivo es ahora el registro**. |
+| 2026-08-20 | 🔴 **Recuento de commits ROJO corregido: son DIECISIETE pendientes, no doce.** El titular era del 17/08 y no se movió mientras entraban siete más — dos de ellos (`9d609f0`, `9c41606`) **aprobados por Jochelo el 19/08 sin llegar nunca a la tabla**. Van cuatro validaciones y las cuatro han encontrado el mismo defecto en este archivo: **un titular no se actualiza solo porque cambien sus filas**. |
+
 
 ---
 *Preparado por Ana · 2026-08-13 · reabierto 2026-08-14 · retomado 2026-08-17*
