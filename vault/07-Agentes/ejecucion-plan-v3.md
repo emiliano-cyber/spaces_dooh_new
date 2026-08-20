@@ -1093,6 +1093,19 @@ ejecutor, aunque toquen temas próximos—: `3671e8a` (F1.4), `6044732` (F0.3), 
 (F2.1), `3f16386` (F2.2), `958a3e6` (F2.3) y `0584d97` (F2.4). **Ninguno de los
 dieciocho está en `main`.**
 
+> [!important] 📋 Runbook de merge y primer despliegue — `docs/Runbook_Merge_y_Produccion_20260820.md`
+> Escrito el 2026-08-20 con la compuerta de `main` medida (typecheck · 826 unitarias ·
+> build · `npm ci --dry-run` · 205 e2e · zonas libres · sin secretos · fast-forward
+> limpio de 146 commits).
+>
+> Trae los siete pasos en orden, con respuestas esperadas y vuelta atrás, y **el aviso
+> que evita romper el despliegue**: sin crear `spaces_app` en el droplet, el bucle de
+> `deploy.yml` aborta en la séptima migración y deja el esquema nuevo con el código
+> viejo. Ver [[entorno-y-despliegue]].
+>
+> Lo que **no** cubre, y está dicho ahí: no prueba `update.sh` —el droplet corre pm2, no
+> un contenedor— ni publica imagen —falta **TH-P4**—.
+
 ## Tarjetas humanas emitidas
 
 *(El orquestador las agrega aquí conforme se generan: ID de tarea, comandos exactos

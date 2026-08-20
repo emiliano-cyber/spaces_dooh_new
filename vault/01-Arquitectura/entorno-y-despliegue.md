@@ -56,6 +56,35 @@ cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
 ```
 
+> [!danger] 🔴 Tras el merge, el PRIMER despliegue ABORTA a mitad — medido el 2026-08-20
+> `deploy.yml:141-148` recorre **todas** las migraciones de esquema en orden
+> lexicográfico y las aplica como `postgres` con `ON_ERROR_STOP=1`. No lleva
+> registro: reaplica el juego entero en cada despliegue.
+>
+> Tras fusionar `feat/servidor-padre-instancias` encontrará **siete archivos que el
+> droplet no ha visto**, y el séptimo —`20260820_grants_rol_app.sql`— **exige que
+> exista el rol `spaces_app`**. El droplet corre con **`spaces_user`**
+> (`20260715_arr_m6_rol_restringido.sql:3-5` lo dice literal).
+>
+> **Qué pasa entonces:** `ON_ERROR_STOP=1` corta el despliegue en el **paso 3 de 5**.
+> El `pm2 reload` está en el paso 5 (`deploy.yml:171`), así que **no llega a correr**:
+> la base queda con las seis primeras migraciones aplicadas y **la aplicación sigue
+> sirviendo el código viejo sobre un esquema nuevo**. Es exactamente el modo de fallo
+> que D1 describe para `update.sh`.
+>
+> **Se evita con un comando previo**, y no tocando la migración: crear `spaces_app` en
+> el droplet con una contraseña propia, **sin cambiar todavía** a qué usuario se conecta
+> la aplicación. Son dos cosas distintas y separarlas es lo que hace el paso seguro.
+> Receta completa, con respuestas esperadas y vuelta atrás, en
+> `docs/Runbook_Merge_y_Produccion_20260820.md`.
+
+> [!warning] 🟡 Y dos tarjetas humanas dejarían de ser una decisión
+> En ese mismo bucle van `20260812_schema_migrations.sql` (**TH-F3.1**) y
+> `20260812_sin_default_tenant.sql` (**F1.5**), que existen para aplicarse **a
+> conciencia**, con su ritual. `deploy.yml` las aplicaría **sin preguntar**, como una
+> más. Hoy importa menos de lo que parece —P1 decidió que los datos del droplet se
+> recrean— pero **tiene que ser una decisión, no una sorpresa**.
+
 ### El bootstrap del usuario inicial
 
 `apps/web/scripts/bootstrap-auth.mjs` crea **la organización de la instancia y su
