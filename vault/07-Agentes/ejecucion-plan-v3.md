@@ -797,6 +797,39 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > los dos estados es el **503 contra 400**. ⚠️ Ese grep está escrito en la tarjeta de F4.5: hay
 > que sustituirlo.
 
+> [!important] ✅ **Los cuatro hallazgos de las auditorías, CERRADOS** — `b4c2522` (20/08)
+> **La barrida vuelve a poder correrse.** Los dos mutantes rotos, reescritos contra la línea de hoy
+> conservando lo que cada uno saboteaba: **CAZADOS otra vez** (20 y 5 rojas), contra el arnés
+> **entero**. Arnés: **95 escenarios · 621 comprobaciones · 0 rojas**.
+>
+> 🟢 **Y un sustituto inteligente de la barrida completa**, que cuesta >5 h: corrió **los 52
+> mutantes por sus tres comprobaciones de validez** → **todos VÁLIDOS**. Es exactamente la clase de
+> fallo que la rompió —un `sed` apuntando a una línea que ya no existe—, así que **ahora consta que
+> ningún otro había derivado**. Cuando no cabe la prueba cara, buscar la barata que cubre *ese*
+> modo de fallo.
+>
+> **La tabla de códigos del guion ya lista el 6 y el 7**, con su explicación y el orden de los dos
+> comandos. **El ejemplo del README se regeneró de una corrida real** (E13), no a mano, con la
+> receta para repetirlo. Y las dos promesas se acotaron: `--list` valida el **índice**, no los
+> datos; y «La base NO se vacio» deja de afirmarse cuando quien murió fue el cliente **después** de
+> que el servidor confirmara — **E95 ahora exige lo contrario de lo que exigía**.
+
+> [!warning] 🟡 Lo que ese ciclo deja abierto, declarado y medido
+> **① Un SEXTO sitio del mismo patrón**: `update.sh` registra `5b · parando … y guardandolo como
+> …-anterior` **antes** de intentar el `rename`, así que en la rama fallida el log conserva una
+> frase que no ocurrió. **Mitigado** —el `AVISO` siguiente la desmiente y `estado_del_viejo()`
+> decide por la variable, no por el log— pero es el mismo defecto que el ciclo de los cinco vino a
+> cerrar, y **había uno más de los que se contaron**.
+>
+> **② El arnés real no deja el clúster como lo encontró**: destruye su base pero **no los roles**
+> (`d1r_mig_test`, `d1r_app_test`). No estorban, pero **un ensayo que deja residuos acaba dando
+> falsos verdes**. Arreglarlo pide una corrida contra Postgres real: otro ciclo.
+>
+> **③ El `--help` imprime un RANGO FIJO de líneas y se descuadra cada vez que la cabecera crece.**
+> Va la **cuarta vez**, y las cuatro lo ha descubierto la prueba `E73`, **nunca una persona**. Es
+> el mismo patrón que las citas por número: **una referencia posicional a un archivo que crece**.
+> La salida es la misma que se adoptó para las citas — anclar por marca, no por número.
+
 > [!important] ✅ `f295514` (los cinco mensajes) auditado **AMARILLO y aceptado** — 20/08
 > **Los cinco dicen ahora la verdad**, comprobados uno a uno **contra la versión del archivo que
 > trae ese commit**, no contra el estado actual —que `79447d7` ya movió—. Cifras exactas:
