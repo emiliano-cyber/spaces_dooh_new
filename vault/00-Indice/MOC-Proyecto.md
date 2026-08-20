@@ -92,6 +92,9 @@ cobranza.
 ### 07 · Agentes
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
+- [[ejecucion-plan-v3]] — estado vivo de la ejecución del plan v3, tarea por tarea
+- [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
+  cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
 - [[2026-08-20]] — **última entrada**: los tres ROJO del re-ensayo de la Fase 4,
   cerrados; el catálogo de permisos completo y la contraseña del Dueño

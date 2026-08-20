@@ -105,6 +105,52 @@ describe('la migración que concede los GRANT sin lista blanca', () => {
     expect(filas[0].n).toBeGreaterThanOrEqual(0)
   })
 
+  it('una instancia puede llamar a su rol como quiera, declarándolo', async () => {
+    // Decisión del 2026-08-20: **las instancias deben poder abrirse con otros
+    // nombres**. El nombre se DECLARA en `space_os.rol_app`; el runner lo fija
+    // desde `ROL_APP` antes de aplicar nada, y `deploy.yml` puede fijarlo con
+    // `PGOPTIONS`. Declararlo es EXCLUYENTE: si dices cómo se llama, es ése y no
+    // otro — dejar una lista abierta debajo sería volver al no-op silencioso por
+    // otra puerta.
+    await admin.query("create role rol_propio_e2e login password 'x' nosuperuser nobypassrls")
+    try {
+      await admin.query("select set_config('space_os.rol_app', 'rol_propio_e2e', false)")
+      await admin.query(sql(join('migrations', MIGRACION)))
+      const { rows } = await admin.query(
+        "select has_table_privilege('rol_propio_e2e','tenants','select') as puede",
+      )
+      expect(rows[0].puede).toBe(true)
+    } finally {
+      await admin.query("select set_config('space_os.rol_app', '', false)")
+      await admin.query('reassign owned by rol_propio_e2e to spaces').catch(() => {})
+      await admin.query('drop owned by rol_propio_e2e').catch(() => {})
+      await admin.query('drop role if exists rol_propio_e2e').catch(() => {})
+    }
+  }, 60_000)
+
+  it('y si el nombre declarado NO existe, ABORTA en vez de no conceder nada', async () => {
+    // El corazón de ROJO-3: lo que cerraba el agujero no era el nombre único,
+    // era que la migración se niegue cuando no encuentra rol. Aquí se produce de
+    // verdad — declarando un nombre que no existe— y no con un doble.
+    await admin.query("select set_config('space_os.rol_app', 'rol_que_no_existe_e2e', false)")
+    try {
+      await expect(admin.query(sql(join('migrations', MIGRACION)))).rejects.toThrow(
+        /rol_que_no_existe_e2e/,
+      )
+    } finally {
+      await admin.query("select set_config('space_os.rol_app', '', false)")
+    }
+  }, 60_000)
+
+  it('sin declarar nada, sigue sirviendo a los dos nombres históricos', async () => {
+    // Producción corre como `spaces_user` y NO se le cambia el nombre (decisión
+    // del 20/08). Sin declaración, los candidatos son los dos que ya nombran las
+    // trece migraciones, así que el droplet se actualiza sin preparar nada.
+    const fuente = readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION), 'utf8')
+    expect(fuente).toMatch(/spaces_app/)
+    expect(fuente).toMatch(/spaces_user/)
+  })
+
   it('es idempotente: la segunda pasada no cambia nada', async () => {
     const antes = await admin.query(
       `select grantee, table_name, privilege_type from information_schema.role_table_grants

@@ -7,7 +7,12 @@ import { Pool } from 'pg'
 import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
 // Solo para MONTAR el escenario de la instancia rezagada: aplicar su historia
 // en el orden real. Las expectativas de estas pruebas nunca salen de aquí.
-import { ordenar, revisarRolDeAplicacion, ROL_APLICACION } from '../../../../scripts/migrar.mjs'
+import {
+  ordenar,
+  revisarRolDeAplicacion,
+  ROLES_APLICACION,
+  candidatosDeRol,
+} from '../../../../scripts/migrar.mjs'
 
 // ============================================================================
 //  `schema_migrations` — cada instancia sabe qué migraciones ya corrió.
@@ -854,24 +859,41 @@ describe('el candado del rol de aplicacion', () => {
     expect(await revisarRolDeAplicacion(pool)).toBeNull()
   })
 
-  it('si no existe, devuelve un mensaje que lo NOMBRA y dice qué hacer', async () => {
-    // El nombre se le pasa por parámetro solo aquí: `pg_roles` es del clúster,
+  it('si NINGUNO de los candidatos existe, devuelve un mensaje que los nombra', async () => {
+    // Los nombres se pasan por parámetro solo aquí: `pg_roles` es del CLÚSTER,
     // así que producir la ausencia de verdad exigiría borrar el rol que usan
     // todas las demás suites. La consulta que se ejercita es la real.
-    const mensaje = await revisarRolDeAplicacion(pool, 'rol_que_no_existe_e2e')
+    const mensaje = await revisarRolDeAplicacion(pool, ['rol_que_no_existe_e2e'])
     expect(mensaje).toBeTruthy()
     expect(mensaje).toContain('rol_que_no_existe_e2e')
-    expect(mensaje).toMatch(/dev-rol-app|create role/i)
+    expect(mensaje).toMatch(/create role/i)
   })
 
-  it('el nombre que el runner exige es el que conceden las migraciones', async () => {
+  it('basta con que exista UNO de los candidatos', async () => {
+    // Producción corre como `spaces_user` y no se le cambia el nombre. El
+    // candado no puede exigir los dos: exige que haya rol de aplicación.
+    expect(await revisarRolDeAplicacion(pool, ['rol_que_no_existe_e2e', 'spaces_app'])).toBeNull()
+  })
+
+  it('sin declarar nada, los candidatos son los que conceden las migraciones', () => {
     // La otra mitad del candado, y la que se rompe sola: si alguien cambiara la
-    // constante, el runner exigiría un rol al que ninguna migración concede
-    // nada — el mismo fallo, con otro disfraz.
-    const nombran = readdirSync(DIR_MIGRACIONES)
-      .filter((f) => f.endsWith('.sql'))
-      .filter((f) => readFileSync(join(DIR_MIGRACIONES, f), 'utf8').includes(ROL_APLICACION))
-    expect(ROL_APLICACION).toBe('spaces_app')
-    expect(nombran.length).toBeGreaterThanOrEqual(13)
+    // lista, el runner exigiría un rol al que ninguna migración concede nada —
+    // el mismo fallo, con otro disfraz.
+    expect(ROLES_APLICACION).toEqual(['spaces_app', 'spaces_user'])
+    for (const rol of ROLES_APLICACION) {
+      const nombran = readdirSync(DIR_MIGRACIONES)
+        .filter((f) => f.endsWith('.sql'))
+        .filter((f) => readFileSync(join(DIR_MIGRACIONES, f), 'utf8').includes(rol))
+      expect(nombran.length, rol).toBeGreaterThanOrEqual(2)
+    }
+  })
+
+  it('ROL_APP declarado es EXCLUYENTE: manda ese y solo ese', () => {
+    // Si dices como se llama el rol de tu instancia, es ese. Dejar los dos
+    // historicos debajo seria volver al no-op silencioso por otra puerta: una
+    // instancia mal declarada acabaria funcionando por casualidad.
+    expect(candidatosDeRol({ ROL_APP: 'mi_rol' })).toEqual(['mi_rol'])
+    expect(candidatosDeRol({})).toEqual(['spaces_app', 'spaces_user'])
+    expect(candidatosDeRol({ ROL_APP: '  ' })).toEqual(['spaces_app', 'spaces_user'])
   })
 })

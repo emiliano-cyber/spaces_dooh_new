@@ -4,11 +4,15 @@
 **Lo escribe un agente; lo corre una persona.** Ningún comando de este documento
 se ha ejecutado contra un servidor.
 
-> [!danger] Léete el §2 antes de disparar nada
-> Tal como está hoy, **un despliegue a producción aborta a mitad** y deja la base
-> con el esquema nuevo y la aplicación sirviendo el código viejo. Está medido, se
-> sabe exactamente por qué, y se arregla con **un comando previo**. Pero si se
-> dispara sin ese comando, hay que entrar a mano a reparar.
+> [!success] Corregido el mismo 2026-08-20 — ya no hace falta preparar el droplet
+> Este runbook nació avisando de que **el despliegue abortaba a mitad** porque
+> `20260820_grants_rol_app.sql` exigía el rol `spaces_app` y el droplet corre con
+> `spaces_user`. **Eso ya no pasa:** por decisión de Jochelo, producción **se
+> queda con `spaces_user`** y la migración pasó a conceder a los candidatos que
+> existan, abortando solo si **no hay ninguno**.
+>
+> **Consecuencia práctica: el Paso 1 dejó de ser obligatorio.** El §2 conserva la
+> historia porque explica por qué la migración está escrita así.
 
 ---
 
@@ -62,20 +66,27 @@ Tras el merge, ese bucle encontrará **siete archivos que el droplet no ha visto
 | 4 | `20260812_sin_default_tenant.sql` | **Retira el `DEFAULT` de `tenant_id` de 23 tablas** |
 | 5 | `20260819_semilla_rol_permisos.sql` | Siembra 25 permisos |
 | 6 | `20260820_catalogo_permisos_completo.sql` | Lleva el catálogo a **41** |
-| 7 | `20260820_grants_rol_app.sql` | **🔴 ABORTA** |
+| 7 | `20260820_grants_rol_app.sql` | ✅ Concede a **`spaces_user`**, que ya existe |
 
-### Por qué aborta la séptima
+### Por qué abortaba, y por qué ya no
 
-`20260820_grants_rol_app.sql` exige que exista el rol **`spaces_app`**, y **el
-droplet corre con `spaces_user`** (`20260715_arr_m6_rol_restringido.sql:3-5` lo
-dice literal: «prod: `spaces_user`, ya existente»).
+En su primera versión, `20260820_grants_rol_app.sql` exigía el rol **`spaces_app`**
+y **el droplet corre con `spaces_user`** (`20260715_arr_m6_rol_restringido.sql:3-5`
+lo dice literal: «prod: `spaces_user`, ya existente»).
 
-El guard es deliberado —cerró ROJO-3, donde trece migraciones no concedían nada
-en silencio— y con `ON_ERROR_STOP=1` **corta el despliegue en el paso 3 de 5**.
-El `pm2 reload` está en el paso 5 (`deploy.yml:171`), así que **no llega a
-correr**: la base queda con las seis primeras aplicadas y **la aplicación sigue
-sirviendo el código viejo sobre un esquema nuevo**. Es exactamente el modo de
-fallo que D1 describe para `update.sh`.
+Con `ON_ERROR_STOP=1` eso **cortaba el despliegue en el paso 3 de 5**. El
+`pm2 reload` está en el paso 5 (`deploy.yml:171`), así que **no llegaba a
+correr**: la base se quedaba con las seis primeras aplicadas y **la aplicación
+sirviendo el código viejo sobre un esquema nuevo** — el mismo modo de fallo que
+D1 describe para `update.sh`.
+
+**Lo que cambió:** el guard ya no exige un nombre, exige **que haya rol**. Sin
+declaración, los candidatos son los dos nombres históricos —`spaces_app` y
+`spaces_user`—, así que el droplet recibe los GRANT **sin tocarle nada**. De
+hecho **gana los que no tenía**: `arr_m6` solo le dio DML sobre seis tablas.
+
+Lo que cierra ROJO-3 no era el nombre: **era el aborte** cuando no hay ningún
+rol, en vez de no conceder nada en silencio. Eso se conserva entero.
 
 ### Y dos migraciones que dejarían de ser una decisión
 
@@ -94,11 +105,15 @@ recrean desde cero— pero **tiene que ser una decisión, no una sorpresa**.
 
 No es un comando. Sin él, no se sigue.
 
-### Paso 1 · Crear `spaces_app` en el droplet
+### Paso 1 · ~~Crear `spaces_app` en el droplet~~ — **YA NO HACE FALTA**
 
-**Esto es lo que evita que el despliegue aborte.** Se crea el rol **sin cambiar
-todavía a qué usuario se conecta la aplicación**: son dos cosas distintas y
-separarlas es lo que hace este paso seguro.
+> **Opcional.** Producción se queda con `spaces_user` por decisión del 20/08, y
+> la migración ya le concede a él. Este paso se conserva **solo** por si algún
+> día quieres normalizar el nombre; no es requisito del despliegue.
+>
+> ⚠️ Y si lo haces, **no cambies a qué usuario se conecta la aplicación en el
+> mismo movimiento**: son dos cosas distintas y separarlas es lo que lo hace
+> seguro.
 
 ```bash
 ssh root@<IP-del-droplet>
@@ -238,9 +253,18 @@ Y desde fuera:
 curl -s -o /dev/null -w '%{http_code}\n' https://demo.space-os.io/spaces-dooh/login/
 curl -s -o /dev/null -w '%{http_code}\n' -X POST https://demo.space-os.io/spaces-dooh/api/signup/
 ```
-**Esperado:** `200` en la primera. En la segunda, **`503`** si el registro está
-cerrado —que es lo decidido— o **`400`** si está abierto. **Ese número es la
-respuesta a F0.1**, que lleva desde el 13/08 sin medirse: anótalo.
+**Esperado:** `200` en la primera y **`503`** en la segunda.
+
+**Ese número es la respuesta a F0.1**, que lleva desde el 13/08 sin medirse:
+anótalo. Y ojo con cómo se lee — decisión de Jochelo del 2026-08-20:
+
+> **Nadie crea su propia cuenta, en ninguna instancia.** El super admin del PADRE
+> (`rgb` en producción) es el único que crea instancias y el usuario **Dueño** de
+> cada una; ese Dueño da de alta al resto de su equipo, con otros roles, **dentro
+> de su instancia**. El autoregistro **no se abre en ningún sitio, ni en DEMO**.
+
+Así que un **`400`** aquí **no es un estado válido**: significa que el registro
+está abierto y hay que cerrarlo, no que la demo esté «como debe».
 
 ### Paso 7 · Vuelta atrás, si algo sale mal
 

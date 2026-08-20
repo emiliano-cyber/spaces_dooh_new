@@ -1273,9 +1273,12 @@ al padre (§3).
      `NOSUPERUSER NOBYPASSRLS` — **no es opcional**: con un superusuario la RLS no se
      aplica y el aislamiento interno desaparece.
 
-     > **ENMIENDA 2026-08-20 (ROJO-3).** El rol de la app se llama **`spaces_app`**,
-     > igual en toda la flota, y se crea **con una contraseña propia de esa
-     > instancia**:
+     > **ENMIENDA 2026-08-20 (ROJO-3), corregida el mismo día.** El rol de la app de
+     > una instancia nueva se llama **`spaces_app`** y se crea **con una contraseña
+     > propia de esa instancia**. El nombre **no está cableado** —se declara con
+     > `ROL_APP` / `space_os.rol_app`— pero **hoy `spaces_app` es el único que
+     > funciona al parir una instancia**: ver el límite medido, más abajo. El droplet
+     > actual se queda con `spaces_user` y **no se le cambia**.
      >
      > ```sql
      > create role spaces_app login password '<clave propia de esta instancia>'
@@ -1288,13 +1291,23 @@ al padre (§3).
      > **visible en el repositorio**. Citarlo como paso de una instalación real le
      > pedía a una persona que publicara una credencial.
      >
-     > **El nombre no es negociable y la contraseña sí es propia.** Trece migraciones
-     > conceden sus GRANT a una lista blanca de dos nombres, guardados por existencia
+     > **La contraseña sí es propia de cada instancia.** Trece migraciones conceden
+     > sus GRANT a una lista blanca de dos nombres, guardados por existencia
      > (`20260715_arr_m6_rol_restringido.sql:21` y `:38`, y el `foreach` de otras
      > once): con cualquier otro nombre **no conceden nada y no dan error**. Lo cierra
      > por los dos lados `20260820_grants_rol_app.sql` —concede sin lista blanca y
-     > aborta si el rol falta— y el candado de `scripts/migrar.mjs`, que se niega a
-     > aplicar nada sin `spaces_app`.
+     > **aborta** si no hay ningún rol— y el candado de `scripts/migrar.mjs`, que se
+     > niega a aplicar nada sin rol de aplicación. **Lo que cierra el agujero no es el
+     > nombre: es el aborte.**
+     >
+     > ⚠️ **Límite medido el 2026-08-20.** Una base **virgen** cuyo rol lleve un nombre
+     > nuevo **no llega** a esa migración: la cadena aborta antes, en
+     > `20260729_licencias_permisos.sql:88-97`, que deriva el rol de quién tiene grants
+     > sobre `contratos_arrendamiento` — y con un nombre fuera de la lista blanca nadie
+     > se los concedió. Reproducido con `pixeled_app`: **aborta en el archivo 52 de 70
+     > y deja 33 tablas**. Así que `ROL_APP` sirve para **renombrar una instancia ya
+     > migrada**, no para **parir una con nombre propio**; eso exige tocar
+     > `licencias_permisos` (R3) o reordenar la cadena.
   3. Base vacía + `db/schema.sql` + `node scripts/migrar.mjs` (F3.2).
   4. Correr la imagen (F2.2) con canal **`beta`**.
 - **Criterio de aceptación:** **la base de DEMO no contiene ni una fila de ningún

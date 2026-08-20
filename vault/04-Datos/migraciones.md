@@ -486,7 +486,7 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 | `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **escrita, NO aplicada en producción**, donde es no-op |
 | `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
 | `20260820_catalogo_permisos_completo.sql` | El catálogo COMPLETO: **41 filas · 9 módulos · 5 perfiles** (ver abajo) — **escrita, NO aplicada en producción**. Cierra ROJO-2: hasta el 20/08 había **dos** catálogos y ganaba el que corriera último |
-| `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a `spaces_app` y **aborta si no existe** (ROJO-3) — **escrita, NO aplicada en producción**. ⚠️ Sobre una instancia que aún corra como `spaces_user` **aborta a propósito**: hay que normalizar el rol a `spaces_app` antes de tomar un release con ella |
+| `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a los candidatos que existan y **aborta si no hay ninguno** (ROJO-3) — **escrita, NO aplicada en producción**. El nombre se **declara** con `ROL_APP` / `space_os.rol_app`, y sin declaración valen `spaces_app` y `spaces_user`, así que **el droplet actual se actualiza sin tocarle el rol**. ⚠️ Límite medido: una base virgen con nombre nuevo aborta antes, en `20260729_licencias_permisos.sql:88-97` (archivo 52 de 70) |
 
 ## La migración que revela el mayor riesgo del proyecto
 

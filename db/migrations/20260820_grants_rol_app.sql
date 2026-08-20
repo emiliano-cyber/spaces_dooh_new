@@ -19,15 +19,48 @@
 --  Esta migración es la ÚNICA que repara una instancia ya nacida, porque viaja
 --  con el código y se aplica al actualizarse. Es la vía B de la decisión del
 --  2026-08-20; la vía A es el candado de `scripts/migrar.mjs`, que se niega a
---  aplicar nada si el rol no existe. Las dos porque protegen momentos
---  distintos: el candado, el alta; esta, todas las actualizaciones posteriores.
+--  aplicar nada si no hay rol. Las dos porque protegen momentos distintos: el
+--  candado, el alta; ésta, todas las actualizaciones posteriores.
 --
---  ─── El nombre es UNO en toda la flota ────────────────────────────────────
+--  ─── El nombre lo elige cada instancia, y se DECLARA ───────────────────────
 --
---  `spaces_app`, decidido el 2026-08-20. Lo propio de cada instancia es la
---  CONTRASEÑA, no el nombre: un nombre por instancia es justo lo que hace que
---  las trece migraciones no concedan nada. Las trece siguen sin tocarse —son
---  zona R3, ya aplicadas— y no hace falta: esta concede lo mismo, sin guard.
+--  Decisión del 2026-08-20: **las instancias deben poder abrirse con otros
+--  nombres**, y producción se queda como está (`spaces_user`). Así que el nombre
+--  no se cablea: se **declara** en `space_os.rol_app`. Lo fija el runner desde
+--  `ROL_APP` antes de aplicar nada (`scripts/migrar.mjs`), y un `psql -f` puede
+--  fijarlo con `PGOPTIONS="-c space_os.rol_app=<nombre>"`.
+--
+--  Declararlo es **EXCLUYENTE**: si dices cómo se llama, es ése y no otro. Dejar
+--  los históricos debajo como red sería volver al no-op silencioso por otra
+--  puerta — una instancia mal declarada acabaría funcionando por casualidad y
+--  nadie se enteraría de que el nombre estaba mal.
+--
+--  **Sin declaración**, los candidatos son los DOS nombres que ya nombran las
+--  trece migraciones históricas. Eso es lo que permite que el droplet actual
+--  —que corre como `spaces_user`— se actualice **sin cambiarle el rol y sin
+--  preparar nada**.
+--
+--  Lo que cierra el agujero **no es el nombre**: es que esta migración **ABORTE**
+--  cuando no encuentra rol, en vez de no conceder nada en silencio. Ese guard
+--  vale para cualquier nombre.
+--
+--  ⚠️ LÍMITE MEDIDO EL 2026-08-20, y es el motivo de que `spaces_app` siga siendo
+--  el nombre por omisión de una instancia nueva: **una base VIRGEN cuyo rol tenga
+--  un nombre nuevo NO llega hasta aquí.** La cadena aborta antes, en
+--  `20260729_licencias_permisos.sql:88-97`, que deriva el rol de «quién tiene
+--  grants sobre `contratos_arrendamiento`» — y con un nombre fuera de la lista
+--  blanca de `arr_m6` nadie se los concedió, así que encuentra cero y hace
+--  `raise`. Reproducido de punta a punta contra un Postgres desechable con el rol
+--  `pixeled_app`: **aborta en el archivo 52 de 70 y deja 33 tablas**.
+--
+--  O sea que `ROL_APP` sirve hoy para **renombrar una instancia ya migrada**, no
+--  para **parir una con nombre propio**. Hacer lo segundo exige tocar
+--  `licencias_permisos` (zona R3) o reordenar la cadena, y ninguna de las dos se
+--  hace de refilón. El fallo, al menos, es **ruidoso**: aborta y nombra el
+--  archivo, no se aplica a medias en silencio.
+--
+--  Las trece originales siguen sin tocarse —son zona R3, ya aplicadas— y no hace
+--  falta: ésta concede lo mismo, sin lista blanca.
 --
 --  ─── Lo que esto NO hace, a propósito ─────────────────────────────────────
 --
@@ -36,10 +69,9 @@
 --    el mismo motivo, que `20260715_arr_m6_rol_restringido.sql:7-11`.
 --  · NO le da `BYPASSRLS` ni `SUPERUSER`. El rol de la app RESPETA la RLS: es
 --    el invariante R2 y una migración de GRANT es exactamente donde se colaría.
---  · NO concede a `spaces_user`. Si una instancia todavía corre con ese nombre,
---    esta migración ABORTA y no la deja actualizarse a medias. Es deliberado y
---    tiene tarjeta humana: normalizar el rol a `spaces_app` antes de tomar un
---    release con esta migración.
+--  · NO renombra nada. El droplet actual corre como `spaces_user` y se queda
+--    así: sin declaración es uno de los dos candidatos y recibe los GRANT igual.
+--    De hecho GANA los que no tenía — `arr_m6` solo le dio DML sobre seis tablas.
 --
 --  Idempotente: solo `grant`, ni un `revoke`. Aplicarla dos veces no cambia una
 --  sola fila de `information_schema.role_table_grants`.
@@ -47,65 +79,89 @@
 
 begin;
 
--- ─── 1. Guard: el rol tiene que existir ────────────────────────────────────
--- Fail-closed, misma doctrina que el runner. Sin esto volveríamos al no-op
--- silencioso que este archivo viene a cerrar: conceder a un rol ausente no es
--- un error de Postgres, es una migración que no hizo nada y lo dio por bueno.
 do $$
+declare
+  declarado  text   := nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), '');
+  candidatos text[] := case when declarado is not null
+                            then array[declarado]
+                            else array['spaces_app', 'spaces_user'] end;
+  r           text;
+  encontrados int := 0;
 begin
-  if not exists (select 1 from pg_roles where rolname = 'spaces_app') then
+  -- ─── 1. Conceder a los candidatos que existan ────────────────────────────
+  foreach r in array candidatos loop
+    if exists (select 1 from pg_roles where rolname = r) then
+      execute format('grant usage on schema public to %I', r);
+      execute format('grant select, insert, update, delete on all tables in schema public to %I', r);
+      execute format('grant usage, select on all sequences in schema public to %I', r);
+      -- Y las que se creen DESPUÉS. Sin esto el arreglo dura una versión: la
+      -- próxima migración que cree una tabla vuelve a dejar al rol fuera.
+      execute format('alter default privileges in schema public grant select, insert, update, delete on tables to %I', r);
+      execute format('alter default privileges in schema public grant usage, select on sequences to %I', r);
+      encontrados := encontrados + 1;
+    end if;
+  end loop;
+
+  -- ─── 2. Fail-closed: si no hay NINGUNO, se aborta ───────────────────────
+  -- Esto es lo que cierra ROJO-3, y no el nombre: conceder a un rol ausente no
+  -- es un error de Postgres, es una migración que no hizo nada y lo dio por
+  -- bueno. Trece migraciones lo hacen así hoy, guardadas por existencia.
+  if encontrados = 0 then
     raise exception using message =
-      'No existe el rol de aplicacion "spaces_app". Esta migracion concede sus permisos y sin el rol no concederia nada, en silencio. Crealo antes (plantilla: db/dev-rol-app.sql; en una instancia real la contrasena es propia de ella) y repite la actualizacion.';
+      'No existe ninguno de los roles de aplicacion candidatos (' ||
+      array_to_string(candidatos, ', ') ||
+      '). Esta migracion concede sus permisos, y sin rol no concederia nada en silencio. ' ||
+      'Crea el rol antes de repetir (la plantilla de la instruccion es db/dev-rol-app.sql; ' ||
+      'en una instancia real la contrasena es propia de ella): ' ||
+      'create role <nombre> login password ''<clave propia>'' nosuperuser nobypassrls; ' ||
+      'Si tu instancia usa otro nombre, declaralo con ROL_APP en el runner o con ' ||
+      'PGOPTIONS="-c space_os.rol_app=<nombre>".';
   end if;
-end $$;
 
--- ─── 2. Los permisos, sin condiciones ──────────────────────────────────────
-grant usage on schema public to spaces_app;
-grant select, insert, update, delete on all tables in schema public to spaces_app;
-grant usage, select on all sequences in schema public to spaces_app;
-
--- Y las que se creen DESPUÉS. Sin esto el arreglo dura una versión: la próxima
--- migración que cree una tabla vuelve a dejar al rol fuera.
-alter default privileges in schema public
-  grant select, insert, update, delete on tables to spaces_app;
-alter default privileges in schema public
-  grant usage, select on sequences to spaces_app;
-
--- ─── 3. ASSERT: el rol trabaja, y sigue sin poder saltarse la RLS ──────────
--- Se comprueba lo que la migración PROMETE, no lo que ejecutó: que el rol tenga
--- de verdad `usage` sobre el esquema y DML sobre una tabla concreta del núcleo.
-do $$
-begin
-  if not has_schema_privilege('spaces_app', 'public', 'usage') then
-    raise exception 'spaces_app se quedo sin USAGE sobre el esquema public';
-  end if;
-  if not has_table_privilege('spaces_app', 'tenants', 'select')
-     or not has_table_privilege('spaces_app', 'tenants', 'insert') then
-    raise exception 'spaces_app se quedo sin DML sobre tenants';
-  end if;
-  -- El invariante R2. Si alguien "arreglara" un permission denied dandole
-  -- BYPASSRLS, el aislamiento entre organizaciones desapareceria sin un error.
-  if exists (select 1 from pg_roles
-              where rolname = 'spaces_app' and (rolbypassrls or rolsuper)) then
-    raise exception 'spaces_app tiene BYPASSRLS o SUPERUSER: la RLS dejaria de aislar';
-  end if;
+  -- ─── 3. ASSERT: el rol trabaja, y sigue sin poder saltarse la RLS ───────
+  foreach r in array candidatos loop
+    if not exists (select 1 from pg_roles where rolname = r) then
+      continue;
+    end if;
+    if not has_schema_privilege(r, 'public', 'usage') then
+      raise exception '% se quedo sin USAGE sobre el esquema public', r;
+    end if;
+    if not has_table_privilege(r, 'tenants', 'select')
+       or not has_table_privilege(r, 'tenants', 'insert') then
+      raise exception '% se quedo sin DML sobre tenants', r;
+    end if;
+    -- El invariante R2. Si alguien «arreglara» un permission denied dándole
+    -- BYPASSRLS, el aislamiento entre organizaciones desaparecería sin un error.
+    if exists (select 1 from pg_roles where rolname = r and (rolbypassrls or rolsuper)) then
+      raise exception '% tiene BYPASSRLS o SUPERUSER: la RLS dejaria de aislar', r;
+    end if;
+  end loop;
 end $$;
 
 commit;
 
 -- ─── Verificación ──────────────────────────────────────────────────────────
 select rolname, rolsuper, rolbypassrls, rolcanlogin
-  from pg_roles where rolname = 'spaces_app';
-select count(*) as tablas_con_dml
+  from pg_roles
+ where rolname in ('spaces_app', 'spaces_user',
+                   nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), ''))
+ order by rolname;
+
+select grantee, count(*) as tablas_con_select
   from information_schema.role_table_grants
- where grantee = 'spaces_app' and privilege_type = 'SELECT';
+ where privilege_type = 'SELECT'
+   and grantee in ('spaces_app', 'spaces_user',
+                   nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), ''))
+ group by grantee
+ order by grantee;
 
 -- ─── ROLLBACK ──────────────────────────────────────────────────────────────
 -- ⚠️ Deshacer esto deja a la aplicación sin poder leer su propia base.
+-- Sustituye <rol> por el rol de aplicación de esa instancia.
 --
---   revoke select, insert, update, delete on all tables in schema public from spaces_app;
---   revoke usage, select on all sequences in schema public from spaces_app;
+--   revoke select, insert, update, delete on all tables in schema public from <rol>;
+--   revoke usage, select on all sequences in schema public from <rol>;
 --   alter default privileges in schema public
---     revoke select, insert, update, delete on tables from spaces_app;
+--     revoke select, insert, update, delete on tables from <rol>;
 --   alter default privileges in schema public
---     revoke usage, select on sequences from spaces_app;
+--     revoke usage, select on sequences from <rol>;

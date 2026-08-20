@@ -285,34 +285,66 @@ async function testigosPresentes(cli, tablas) {
 // que no puede leer ni una tabla, y eso se descubre en el primer login, lejos
 // del alta que lo causo.
 //
-// Por eso el nombre es FIJO en toda la flota (decision del 2026-08-20): lo que
-// distingue a una instancia de otra es la CONTRASENA del rol, no su nombre. Y
-// por eso el candado vive aqui y no solo en el aprovisionamiento: esta pieza
-// esta en TODOS los caminos que aplican DDL, el alta es solo uno.
-export const ROL_APLICACION = 'spaces_app'
+// Lo que cierra ese agujero NO es el nombre: es que el runner SE NIEGUE cuando
+// no hay rol. Por eso el nombre se puede elegir —decision del 2026-08-20: las
+// instancias deben poder abrirse con otros nombres, y produccion se queda como
+// esta— y por eso el candado vive aqui y no solo en el aprovisionamiento: esta
+// pieza esta en TODOS los caminos que aplican DDL, el alta es solo uno.
+
+// Los dos nombres que ya nombran las trece migraciones historicas. Son los
+// candidatos cuando la instancia no declara el suyo.
+export const ROLES_APLICACION = ['spaces_app', 'spaces_user']
 
 /**
- * `null` si el rol existe; si no, el mensaje que se le ensena al operador.
+ * Los nombres que se van a buscar.
  *
- * El nombre se acepta por parametro SOLO para poder probar el caso negativo:
+ * `ROL_APP` es EXCLUYENTE: si una instancia declara como se llama su rol, es ese
+ * y no otro. Dejar los historicos debajo como red seria volver al no-op
+ * silencioso por otra puerta — una instancia mal declarada acabaria funcionando
+ * por casualidad y nadie sabria que el nombre estaba mal.
+ *
+ * LIMITE MEDIDO EL 2026-08-20: `ROL_APP` sirve para RENOMBRAR una instancia ya
+ * migrada, NO para parir una con nombre propio. Sobre una base virgen la cadena
+ * aborta antes de llegar a `20260820_grants_rol_app.sql`, en
+ * `20260729_licencias_permisos.sql:88-97`, que deriva el rol de quien ya tiene
+ * grants sobre `contratos_arrendamiento` — y con un nombre fuera de la lista
+ * blanca de `arr_m6` nadie se los concedio. Reproducido con `pixeled_app`:
+ * aborta en el archivo 52 de 70 dejando 33 tablas. Por eso una instancia nueva
+ * nace con `spaces_app` mientras eso no se arregle.
+ *
+ * @param {Record<string, string | undefined>} [entorno]
+ * @returns {string[]}
+ */
+export function candidatosDeRol(entorno = process.env) {
+  const declarado = (entorno.ROL_APP ?? '').trim()
+  return declarado ? [declarado] : ROLES_APLICACION
+}
+
+/**
+ * `null` si existe alguno de los candidatos; si no, el mensaje para el operador.
+ *
+ * La lista se acepta por parametro SOLO para poder probar el caso negativo:
  * `pg_roles` es del CLUSTER y no de la base, asi que una prueba que quisiera
  * producir la ausencia de verdad tendria que borrar el rol que usan todas las
  * demas suites. `main()` nunca le pasa argumento.
  */
-export async function revisarRolDeAplicacion(cli, rol = ROL_APLICACION) {
-  const { rows } = await cli.query('select 1 from pg_roles where rolname = $1', [rol])
+export async function revisarRolDeAplicacion(cli, roles = candidatosDeRol()) {
+  const { rows } = await cli.query(
+    'select rolname from pg_roles where rolname = any($1::text[])',
+    [roles],
+  )
   if (rows.length) return null
   return (
-    `ERROR migrar: no existe el rol de aplicacion "${rol}" en este servidor.\n` +
-    'Trece migraciones conceden sus GRANT solo a ese rol y van guardadas por su\n' +
-    'existencia: si aplico ahora, NO conceden nada y NO dan error: la instancia\n' +
-    'quedaria con un rol de aplicacion sin permiso para leer una sola tabla, y el\n' +
+    `ERROR migrar: no existe ningun rol de aplicacion. Buscados: ${roles.join(', ')}.\n` +
+    'Trece migraciones conceden sus GRANT a un rol de aplicacion y van guardadas\n' +
+    'por su existencia: si aplico ahora, NO conceden nada y NO dan error: la\n' +
+    'instancia quedaria con un rol sin permiso para leer una sola tabla, y el\n' +
     'registro diria que todo se aplico bien. Asi que no aplico nada.\n' +
     'Crea el rol antes de repetir este comando (la plantilla de la instruccion es\n' +
     'db/dev-rol-app.sql; en una instancia real la contrasena es propia de ella):\n' +
-    `  create role ${rol} login password '<clave propia de esta instancia>' nosuperuser nobypassrls;\n` +
-    'El nombre NO es negociable: es el que nombran las migraciones. Lo que cambia\n' +
-    'de una instancia a otra es la contrasena.'
+    `  create role ${roles[0]} login password '<clave propia de esta instancia>' nosuperuser nobypassrls;\n` +
+    'Si tu instancia usa OTRO nombre, declaralo con ROL_APP=<nombre> delante de\n' +
+    'este comando. Declararlo es excluyente: manda ese y solo ese.'
   )
 }
 
@@ -419,6 +451,15 @@ export async function main(argv = process.argv) {
       console.error(faltaElRol)
       return 1
     }
+    // Y el nombre se le PASA a las migraciones. `20260820_grants_rol_app.sql`
+    // lee `space_os.rol_app` para saber a quien conceder; sin esto, una
+    // instancia con nombre propio se quedaria sin GRANT en silencio, que es
+    // justo el defecto que ese archivo viene a cerrar. Va a nivel de SESION —el
+    // tercer argumento en `false`— porque cada migracion trae su propia
+    // transaccion y un `set local` moriria con ella.
+    const rolDeclarado = (process.env.ROL_APP ?? '').trim()
+    await cli.query("select set_config('space_os.rol_app', $1, false)", [rolDeclarado])
+    if (rolDeclarado) console.log(`rol de aplicacion declarado: ${rolDeclarado}`)
 
     // ─── Sin registro NO significa «instancia nueva» ─────────────────────
     //
