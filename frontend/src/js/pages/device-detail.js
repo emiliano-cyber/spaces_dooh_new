@@ -12,6 +12,11 @@ function deviceDetail() {
     streaming: false,
     streamClient: null,
     streamLeft: 0, // segundos restantes antes del corte automatico
+    // Hay un intento de conexion en curso. Conectar tarda: el visor espera hasta
+    // 40 s a que el equipo empiece a publicar, y en ese silencio la gente volvia
+    // a picarle al boton, encimando un START_STREAM sobre otro.
+    streamStarting: false,
+    streamError: '',   // motivo del ultimo intento fallido, para explicarlo en el visor
     lightbox: null,   // foto abierta en grande (null = cerrado)
     lbRotation: 0,    // rotacion de la foto en el visor
     albumDownloading: false,
@@ -551,6 +556,18 @@ function deviceDetail() {
     },
 
     async startStream() {
+      // Un solo intento a la vez. El boton ya se deshabilita en la vista, pero
+      // aqui se entra tambien desde el "Reintentar" de vista ocupada, desde el
+      // cambio de lente y desde _aplicarEncuadre, y dos START_STREAM encimados
+      // dejaban al equipo publicando en una ruta y al visor esperando en otra.
+      //
+      // El candado mira SOLO el intento en curso, no `streaming`: _aplicarEncuadre
+      // reabre la vista a proposito con la bandera arriba para que el visor no
+      // parpadee, y mirar `streaming` aqui lo romperia.
+      if (this.streamStarting) return;
+      this.streamStarting = true;
+      this.streamError = '';
+
       const video = document.getElementById('liveVideo');
       this.streamLeft = 180;
       // Los telefonos transmiten punto a punto; la Raspberry y las PCs con
@@ -567,8 +584,16 @@ function deviceDetail() {
           this.showToast('Transmisión detenida automáticamente a los 3 minutos', 'info');
         },
         onError: async (msg) => {
+          // El fallo puede llegar ANTES de que la vista se de por activa: el
+          // visor de los equipos relay avisa por aqui y su start() termina
+          // normal, sin lanzar. Con el "if (!this.streaming)" de antes ese
+          // motivo se tiraba a la basura y el usuario se quedaba mirando un
+          // recuadro negro sin una sola explicacion. Se guarda para que lo
+          // recoja startStream.
+          if (this.streamStarting) { this.streamError = msg; return; }
           if (!this.streaming) return;
           await this.stopStream();
+          this.streamError = msg;
           this.showToast(msg, 'error');
         },
       });
@@ -591,7 +616,35 @@ function deviceDetail() {
           );
           return;
         }
-        throw err;
+        // Antes se relanzaba y moria como promesa sin capturar: en pantalla no
+        // pasaba absolutamente nada. Ahora el visor lo dice y ofrece reintentar.
+        const motivos = {
+          servidor_de_medios_no_configurado:
+            'El servidor de video no está configurado. Es cosa del servidor, no del equipo.',
+        };
+        this.streamError = motivos[err?.body?.error]
+          || `No se pudo iniciar la transmisión${err?.message ? ` (${err.message})` : ''}.`;
+        // Puede venir de _aplicarEncuadre, que reabre con la bandera arriba: si
+        // el reintento falla hay que bajarla o el visor se queda diciendo "en
+        // vivo" sobre una transmision que ya no existe.
+        this.streaming = false;
+        this.showToast(this.streamError, 'error');
+        return;
+      } finally {
+        this.streamStarting = false;
+      }
+
+      // Los visores avisan de los fallos de conexion por onError y su start()
+      // termina sin lanzar, asi que hay que mirar si quedo un motivo antes de
+      // dar la vista por buena. Si no, se marcaba "en vivo" un recuadro negro.
+      if (this.streamError) {
+        const motivo = this.streamError;
+        await this.streamClient?.stop();
+        this.streamClient = null;
+        this.streaming = false;
+        this.streamError = motivo;
+        this.showToast(motivo, 'error');
+        return;
       }
 
       this.vistaOcupada = null;
@@ -610,6 +663,9 @@ function deviceDetail() {
       this.streamClient = null;
       this.streaming = false;
       this.streamLeft = 0;
+      // Detener a mano limpia el aviso del intento anterior: quien vuelve a
+      // "Iniciar" no deberia seguir leyendo el error de hace rato.
+      this.streamError = '';
       // Se conservan zoom/exposicion/wb/foco/rotacion para el proximo stream.
     },
 
@@ -682,13 +738,23 @@ function deviceDetail() {
       }
     },
 
-    // Los sitios con camara IP (agente de PC) no tienen vista en vivo: el
-    // navegador no reproduce RTSP y falta el puente que lo convierta. Se detecta
-    // por el identificador que genera el agente. Sin esto, el boton "Iniciar
-    // stream" se quedaba esperando 20 s y luego culpaba al equipo de no
-    // responder, que es justo lo contrario de lo que pasa.
-    esCamaraIP() {
-      return String(this.device?.device_uid || '').startsWith('pc-');
+    // Los sitios con camara IP SI tienen vista en vivo desde el agente de PC
+    // v1.1.0: ffmpeg toma el RTSP de la camara y lo publica en el servidor de
+    // medios, que es de donde lo lee el navegador (startStream ya los manda por
+    // WhepStreamClient). Los que siguen en 1.0.0 no lo traen, y ahi el boton se
+    // quedaba esperando 20 s para acabar culpando al equipo de no responder,
+    // que es justo lo contrario de lo que pasa.
+    //
+    // El bloqueo mira la VERSION, no el tipo de equipo: cuando una PC se
+    // actualiza por red, el boton se enciende solo. Cuando el bloqueo miraba el
+    // tipo, REVOLUCION 267 quedo con el boton apagado aun corriendo la v1.1.0 y
+    // publicando bien -- el equipo estaba listo y el dashboard no dejaba verlo.
+    sinVistaEnVivo() {
+      const m = /^pc-agent\s*v?(\d+)\.(\d+)/i.exec(String(this.device?.app_version || ''));
+      if (!m) return false;
+      const mayor = Number(m[1]);
+      const menor = Number(m[2]);
+      return mayor < 1 || (mayor === 1 && menor < 1);
     },
 
     // ---- Actualizacion remota de la app ----
@@ -713,10 +779,18 @@ function deviceDetail() {
     puedeActualizarSolo() {
       return this.device?.device_owner === 1 || this.device?.device_owner === true;
     },
+    // Las PCs con camara IP se actualizan solas SIEMPRE: no hay pantalla donde
+    // confirmar nada. El aviso de "device owner" es cosa de Android y en un
+    // equipo de estos solo confunde.
+    esAgenteDePc() {
+      return /^pc-agent/i.test(String(this.device?.app_version || ''));
+    },
     async updateApp() {
-      const aviso = this.puedeActualizarSolo()
-        ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
-        : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
+      const aviso = this.esAgenteDePc()
+        ? `Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior.`
+        : this.puedeActualizarSolo()
+          ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
+          : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
       if (!confirm(aviso)) return;
       this.updating = true;
       try {
@@ -725,9 +799,12 @@ function deviceDetail() {
           ? 'Actualización enviada; el equipo se reiniciará al terminar'
           : 'Orden enviada: falta confirmar la instalación en el equipo', 'success');
       } catch (e) {
-        this.showToast(e?.body?.error === 'apk_no_publicado'
-          ? 'No hay APK publicada en el servidor'
-          : 'No se pudo enviar la actualización', 'error');
+        const motivos = {
+          apk_no_publicado: 'No hay APK publicada en el servidor',
+          agente_no_publicado: 'No hay agente de PC publicado en el servidor',
+          sin_actualizacion_remota: 'La Raspberry todavía no se puede actualizar por red',
+        };
+        this.showToast(motivos[e?.body?.error] || 'No se pudo enviar la actualización', 'error');
       } finally {
         this.updating = false;
       }
