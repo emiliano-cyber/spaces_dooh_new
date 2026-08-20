@@ -1,12 +1,23 @@
 {
   "server_url": "http://159.203.188.58:4000",
-  "intervalo_estado_seg": 60,
-  "intervalo_sondeo_seg": 30,
+
+  "_comentario_intervalos": "Cada cuanto habla el equipo sin que pase nada. Es casi todo lo que gasta al mes: 180/300 son ~40 MB/mes; bajarlos a 60/30 lo sube a ~230 MB/mes. El servidor da por caido a un equipo a los 10 minutos.",
+  "intervalo_estado_seg": 180,
+  "intervalo_sondeo_seg": 300,
+  "intervalo_sondeo_caido_seg": 30,
+
   "camara": {
     "modo": "auto",
     "ancho": 1920,
     "alto": 1080,
     "calidad": 90,
     "espera_ms": 1500
+  },
+
+  "_comentario_stream": "Vista en vivo. El caudal se calcula del tamano (720p15 = ~1.5 Mbps = ~11 MB/min). Fijar 'bitrate' solo si un sitio necesita otra cosa: sin limite, rpicam-vid manda ~7 Mbps, o sea 50 MB por minuto.",
+  "stream": {
+    "ancho": 1280,
+    "alto": 720,
+    "fps": 15
   }
 }

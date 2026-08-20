@@ -11,9 +11,22 @@ ver `docs/PLAN_RASPBERRY_PI5.md`.
 
 La vista en vivo no va punto a punto como en los telefonos: la Pi 5 no trae
 codificador de video por hardware ni GStreamer, asi que codifica H.264 por
-software (720p a 15 fps, ~1.2 Mbps) y **empuja** el video al servidor de medios
+software (720p a 15 fps, ~1.5 Mbps) y **empuja** el video al servidor de medios
 del droplet, de donde lo consume el dashboard. El equipo no guarda credenciales:
 el backend le manda una ruta al azar y de un solo uso en cada `START_STREAM`.
+
+## Cuanto gasta al mes
+
+Con los valores por omision, un equipo que nadie mira gasta **~40 MB al mes**
+(telemetria cada 3 min + sondeo cada 5 min) mas **~40 MB** de las tres fotos
+diarias de evidencia: **~80 MB/mes**.
+
+**La vista en vivo es otra cosa: ~11 MB por MINUTO.** Es el unico rubro capaz de
+disparar la factura de un SIM, asi que conviene saberlo antes de dejar el visor
+abierto: tres minutos de video cuestan mas que un dia entero de operacion.
+
+Medido el 17-ago: sin `--bitrate`, `rpicam-vid` mandaba ~7 Mbps, o sea **50 MB
+por minuto**. Ese era el gasto real de cada vistazo hasta esa fecha.
 
 ---
 

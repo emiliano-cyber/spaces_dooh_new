@@ -123,8 +123,20 @@ async function main() {
   const camara = new Camara(cfg.camara);
   const api = new Api(cfg.server_url);
 
-  const intervaloEstado = (cfg.intervalo_estado_seg || 60) * 1000;
-  const intervaloSondeo = (cfg.intervalo_sondeo_seg || 30) * 1000;
+  // Cada cuanto habla el equipo cuando NO esta pasando nada. Es casi todo lo que
+  // gasta un sitio al mes, asi que los numeros importan:
+  //
+  //   telemetria cada 60 s + sondeo cada 30 s = ~230 MB/mes de puro "sigo aqui".
+  //   telemetria cada 180 s + sondeo cada 300 s = ~40 MB/mes.
+  //
+  // No se pierde nada: el servidor da por caido a un equipo a los 10 MINUTOS
+  // (offline_minutes en telemetry.controller.ts), asi que 3 minutos deja margen
+  // de sobra; y las ordenes no llegan por el sondeo sino por el socket, al
+  // instante. El sondeo es solo el respaldo por si el socket se cayo... y
+  // justamente por eso se acelera cuando eso pasa.
+  const intervaloEstado = (cfg.intervalo_estado_seg || 180) * 1000;
+  const intervaloSondeo = (cfg.intervalo_sondeo_seg || 300) * 1000;
+  const intervaloSondeoCaido = (cfg.intervalo_sondeo_caido_seg || 30) * 1000;
 
   log(`SPACE EYE — agente de Raspberry Pi v${VERSION}`);
   log(`equipo:    ${identidad.model}`);
@@ -328,7 +340,10 @@ async function main() {
           try { await api.registrar(datosRegistro); } catch { /* reintenta en el siguiente ciclo */ }
         }
       }
-      await dormir(intervaloSondeo);
+      // Con el socket vivo el sondeo no aporta nada -las ordenes ya llegaron por
+      // ahi- y solo gasta datos. Sin el, es el UNICO camino, y entonces si
+      // conviene preguntar seguido.
+      await dormir(socket.connected ? intervaloSondeo : intervaloSondeoCaido);
     }
   })();
 

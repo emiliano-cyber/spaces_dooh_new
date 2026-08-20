@@ -17,6 +17,19 @@ const { spawn } = require('child_process');
 // transmitiendo para siempre: en LTE eso se come los datos del sitio.
 const DURACION_MAX_MS = 4 * 60 * 1000;
 
+// Bits por pixel y por cuadro con los que se calcula el caudal del video.
+//
+// SIN esto, rpicam-vid usa su caudal de fabrica y manda ~7 Mbps: son 50 MB por
+// MINUTO de vista en vivo (medido el 17-ago contra el servidor de medios, y
+// encima apuntando a una pared lisa, que es lo mas facil de comprimir). Una
+// sesion de tres minutos costaba 150 MB, mas de la mitad de lo que el equipo
+// gasta en todo el mes. En un sitio con modem LTE eso se lleva el plan de datos
+// en una semana.
+//
+// 0.11 bpp deja 720p a 15 fps en ~1.5 Mbps, de sobra para decidir si la pantalla
+// muestra el creativo correcto, que es para lo unico que sirve el visor.
+const BITS_POR_PIXEL = 0.11;
+
 class Transmision {
   constructor(log, cfg = {}) {
     this.log = log;
@@ -39,6 +52,13 @@ class Transmision {
     const alto = Number(opts.alto || this.cfg.alto || 720);
     const fps = Number(opts.fps || this.cfg.fps || 15);
 
+    // Se calcula a partir del tamano para que cambiar la resolucion no deje el
+    // caudal descuadrado. Se puede fijar a mano con "stream": { "bitrate": N }
+    // en config.json si un sitio necesita otra cosa.
+    const bitrate = Math.round(
+      Number(opts.bitrate || this.cfg.bitrate) || ancho * alto * fps * BITS_POR_PIXEL
+    );
+
     // Encuadre y color: los MISMOS que va a tener la foto. Los calcula el modulo
     // de camara y llegan aqui ya traducidos a banderas.
     //
@@ -56,6 +76,7 @@ class Transmision {
       '-t', '0', '-n',
       '--width', String(ancho), '--height', String(alto),
       '--framerate', String(fps), '--intra', String(fps),
+      '--bitrate', String(bitrate),
       ...ajustes,
       '--codec', 'h264', '--libav-format', 'h264', '--inline',
       '-o', '-',
@@ -123,8 +144,9 @@ class Transmision {
       this.detener('limite de tiempo');
     }, DURACION_MAX_MS);
 
-    this.log(`transmision iniciada (${ancho}x${alto} @ ${fps} fps${ajustes.length ? ', con encuadre y color del sitio' : ''})`);
-    return { ancho, alto, fps };
+    const mbps = (bitrate / 1e6).toFixed(1);
+    this.log(`transmision iniciada (${ancho}x${alto} @ ${fps} fps, ${mbps} Mbps ~ ${Math.round(bitrate / 8e6 * 60)} MB/min${ajustes.length ? ', con encuadre y color del sitio' : ''})`);
+    return { ancho, alto, fps, bitrate };
   }
 
   detener(motivo) {

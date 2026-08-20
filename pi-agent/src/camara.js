@@ -227,6 +227,7 @@ class Camara {
     const perfil = this._rutaPerfil((opciones.ajustes || {}).perfil);
     if (perfil) args.push('--tuning-file', perfil);
     args.push(...argumentosDeAjuste(opciones));
+    args.push(...this._argumentosDeEnfoque(opciones.ajustes || {}, { video: true }));
     return args;
   }
 
@@ -257,6 +258,38 @@ class Camara {
 
   esPrueba() {
     return this._modo === 'prueba';
+  }
+
+  /**
+   * Banderas de enfoque.
+   *
+   * El enfoque fijo lo decide el DASHBOARD, por equipo (`camera_ajustes`), y
+   * viaja en cada orden igual que el zoom y el color. Antes solo se miraba
+   * `config.json` del propio equipo, asi que la casilla del dashboard estaba
+   * marcada y la Raspberry seguia haciendo una pasada de autofoco en cada
+   * disparo: en un espectacular la distancia no cambia nunca y ese autofoco solo
+   * hace que la imagen "salte" cada vez que pasa un creativo de muchos colores.
+   *
+   * Sin nada del dashboard se respeta lo que diga config.json, como siempre.
+   *
+   * Al VIDEO solo se le tocan las banderas si el enfoque es fijo. Si no lo es,
+   * se deja tal cual venia funcionando: no es momento de cambiarle el
+   * comportamiento a la vista en vivo en un equipo que no se puede actualizar
+   * por red.
+   */
+  _argumentosDeEnfoque(ajustes = {}, { video = false } = {}) {
+    const fijo = ajustes.enfoque_fijo !== undefined
+      ? !!ajustes.enfoque_fijo
+      : this.cfg.enfoque === 'manual';
+
+    if (fijo) {
+      // Dioptrias = 1/metros; 0 = infinito, que es lo que corresponde a una
+      // pantalla a decenas de metros.
+      const d = Number(ajustes.enfoque_dioptrias ?? this.cfg.lente_dioptrias ?? 0);
+      return ['--autofocus-mode', 'manual', '--lens-position', String(Number.isFinite(d) ? d : 0)];
+    }
+
+    return video ? [] : ['--autofocus-mode', 'auto', '--autofocus-on-capture'];
   }
 
   async tomarFoto(opciones = {}) {
@@ -293,12 +326,7 @@ class Camara {
       //   manual -> enfoque fijo en dioptrias (1/metros; 0 = infinito). Es lo
       //             que conviene en un espectacular: la distancia no cambia y
       //             se evita que el autofoco se despiste de noche o con lluvia.
-      if (this.cfg.enfoque === 'manual') {
-        args.push('--autofocus-mode', 'manual',
-          '--lens-position', String(this.cfg.lente_dioptrias ?? 0));
-      } else {
-        args.push('--autofocus-mode', 'auto', '--autofocus-on-capture');
-      }
+      args.push(...this._argumentosDeEnfoque(opciones.ajustes || {}));
 
       args.push('-o', '-');
       return ejecutar(this._bin, args);
