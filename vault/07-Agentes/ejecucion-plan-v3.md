@@ -493,7 +493,23 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > que F3.7, y F3.9 declara «Depende de: F3.7 (reutiliza credenciales y bucket)» (`:1206`).
 > Corregido: **F3.7 primero**, y F3.9 después.
 
-> [!danger] 🔴 D1 · La vuelta atrás de `update.sh` **no devuelve el esquema** — abierta, espera decisión
+> [!important] ✅ **D1 CERRADO** — `79447d7` (20/08). Lo que sigue es su historia
+> **La medición fue primero, y era la condición de parada: el dump BASTA.** Contra Postgres 16.14
+> real, con rol privilegiado **no superusuario**: vuelven tablas, índices, restricciones, **24
+> políticas de RLS**, el `force row level security`, `pgcrypto` con `gen_random_uuid()`
+> respondiendo, **116 GRANT** y los 2 `alter default privileges`. La app ve **1** fila con su
+> tenant, **0** sin él, **0** ajenas, y **no puede** desactivar la RLS. La huella vuelve idéntica.
+> **Lo único que el dump no trae es `CREATE SCHEMA public`**, y por eso el esquema se recrea con
+> `authorization` al dueño leído antes.
+>
+> El arreglo **se comprueba a sí mismo**: relee la huella tras restaurar y sale con código propio
+> si no coincide. Arnés: **95 escenarios · 619 comprobaciones · 0 rojas**, más uno nuevo contra
+> Postgres de verdad (**27 comprobaciones**). **8 mutantes del cambio, cazados contra el arnés
+> ENTERO**, no contra copia reducida.
+>
+> ▸ Historia del defecto, que explica por qué costó:
+
+> [!danger] 🔴 D1 · La vuelta atrás de `update.sh` **no devolvía el esquema** — CERRADO el 20/08
 > Salió del ensayo local del 18/08 y **no se tocó a propósito**: toca migraciones y pide
 > una decisión de diseño, no un parche.
 >
@@ -780,6 +796,32 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > `/api/auth/metodos/`. **Un smoke que se quede en ese grep pasa siempre.** Lo único que distingue
 > los dos estados es el **503 contra 400**. ⚠️ Ese grep está escrito en la tarjeta de F4.5: hay
 > que sustituirlo.
+
+> [!danger] 🔴 Dos ROJO nuevos de D1, **los dos del aprovisionamiento (Fase 5)** — no introducidos
+> **① Un respaldo que NO está vacío y aun así está incompleto.** `pg_dump` **no puede volcar
+> `config_negocio`** si el rol privilegiado no salta la RLS (esa tabla lleva `force row level
+> security`). Medido: **salida 1 y un archivo de 110 092 bytes** — o sea que **el guard de tamaño
+> NO lo caza**; lo caza el de código de salida. Consecuencia: `BACKUP VACIO` y **esa instancia no
+> se actualiza nunca**. **La Fase 5 tiene que dar `BYPASSRLS`** al rol que corre las migraciones.
+>
+> **② Si `pgcrypto` la instaló otro rol, la vuelta atrás de ANTES no restauraba nada.**
+> `pg_restore --clean` empieza por `DROP EXTENSION` y muere con «must be owner of extension
+> pgcrypto»; el `--single-transaction` revierte todo. Habría dado **código 5 con la base a medio
+> migrar y nadie sabiendo por qué**. El arreglo lo cierra de paso —sobre esquema limpio no hay
+> extensión que tirar— pero **el aprovisionamiento debe crearla con el mismo rol** que migra.
+
+> [!tip] La categoría que llevamos tres veces encontrando: **defensas que el arnés no puede ver**
+> Van **tres** en `update.sh`, y no es casualidad — son **lo que ocurre antes o fuera del proceso
+> que el arnés observa**:
+> 1. **`env VAR=… cmd`** filtra por el `argv` de `env`: los dobles reciben su propio `argv`, no el
+>    de quien los lanza.
+> 2. **`flock` ausente**: exigiría que el binario **no esté** en el sistema, y el arnés **monta**
+>    dobles, no los quita.
+> 3. **El guard de `VUELTA_ATRAS_EN_CURSO`**: su mutante **escaparía por construcción**, porque hoy
+>    nada llama a esa función fuera de sitio.
+>
+> Las tres están medidas a mano y **ninguna tiene prueba que la fije**. Hoy las sostienen los
+> comentarios del código. **Conviene tratarlo como categoría, no como tres anécdotas.**
 
 > [!warning] Desviación declarada: se entra a la Fase 4 con **F0.1 sin ejecutar** — 2026-08-19
 > El plan dice que **F0.1 bloquea toda la Fase 4** (`plan:260`), y F0.1 es una comprobación contra
