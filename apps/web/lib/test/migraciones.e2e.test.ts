@@ -7,7 +7,7 @@ import { Pool } from 'pg'
 import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
 // Solo para MONTAR el escenario de la instancia rezagada: aplicar su historia
 // en el orden real. Las expectativas de estas pruebas nunca salen de aquí.
-import { ordenar } from '../../../../scripts/migrar.mjs'
+import { ordenar, revisarRolDeAplicacion, ROL_APLICACION } from '../../../../scripts/migrar.mjs'
 
 // ============================================================================
 //  `schema_migrations` — cada instancia sabe qué migraciones ya corrió.
@@ -823,4 +823,55 @@ describe('integridad de lo ya aplicado', () => {
       restauradores.pop()
     }
   }, 60_000)
+})
+
+
+describe('el candado del rol de aplicacion', () => {
+  // ── Por qué existe este candado ─────────────────────────────────────────
+  //
+  //  Los GRANT de la app no se conceden a quien sea: **13 migraciones** los dan
+  //  a una lista blanca de dos nombres —`20260715_arr_m6_rol_restringido.sql:21`
+  //  y `:38`, y el `foreach r in array array['spaces_user','spaces_app']` de
+  //  otras once—, y todas van guardadas por existencia del rol. O sea que si el
+  //  aprovisionamiento creara el rol de la instancia con CUALQUIER otro nombre,
+  //  ninguna concedería nada y ninguna daría error: el runner registra la
+  //  migración como aplicada y no vuelve a intentarlo nunca. La instancia
+  //  arranca con un rol de aplicación que no puede leer ni una tabla, y eso se
+  //  descubre en el primer login, lejos del alta que lo causó.
+  //
+  //  Medido el 2026-08-20; es el fondo común de ROJO-3, D5 y D6.
+
+  let pool: Pool
+
+  beforeAll(async () => {
+    // El rol es del CLÚSTER, no de la base. `dev-rol-app.sql` es idempotente:
+    // se aplica para que la prueba no dependa de qué suite corrió antes.
+    pool = poolTest()
+    await pool.query(readFileSync(join(process.cwd(), '..', '..', 'db', 'dev-rol-app.sql'), 'utf8'))
+  }, 60_000)
+
+  it('con el rol presente no estorba', async () => {
+    expect(await revisarRolDeAplicacion(pool)).toBeNull()
+  })
+
+  it('si no existe, devuelve un mensaje que lo NOMBRA y dice qué hacer', async () => {
+    // El nombre se le pasa por parámetro solo aquí: `pg_roles` es del clúster,
+    // así que producir la ausencia de verdad exigiría borrar el rol que usan
+    // todas las demás suites. La consulta que se ejercita es la real.
+    const mensaje = await revisarRolDeAplicacion(pool, 'rol_que_no_existe_e2e')
+    expect(mensaje).toBeTruthy()
+    expect(mensaje).toContain('rol_que_no_existe_e2e')
+    expect(mensaje).toMatch(/dev-rol-app|create role/i)
+  })
+
+  it('el nombre que el runner exige es el que conceden las migraciones', async () => {
+    // La otra mitad del candado, y la que se rompe sola: si alguien cambiara la
+    // constante, el runner exigiría un rol al que ninguna migración concede
+    // nada — el mismo fallo, con otro disfraz.
+    const nombran = readdirSync(DIR_MIGRACIONES)
+      .filter((f) => f.endsWith('.sql'))
+      .filter((f) => readFileSync(join(DIR_MIGRACIONES, f), 'utf8').includes(ROL_APLICACION))
+    expect(ROL_APLICACION).toBe('spaces_app')
+    expect(nombran.length).toBeGreaterThanOrEqual(13)
+  })
 })

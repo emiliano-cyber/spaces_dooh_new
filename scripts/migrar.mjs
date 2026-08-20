@@ -20,7 +20,8 @@
 //
 //  Códigos de salida (los mira el `set -e` de update.sh, y solo eso):
 //    0  nada que aplicar, o todo aplicado y registrado
-//    1  no se puede ni empezar: falta DATABASE_URL, argumento desconocido, no
+//    1  no se puede ni empezar: falta DATABASE_URL, no existe el rol de
+//       aplicacion (`spaces_app`), argumento desconocido, no
 //       se puede saber si la base es nueva o rezagada (ver el guard de abajo),
 //       o una bandera afirma algo que la base desmiente (`--instalacion-nueva`
 //       sobre una base con historia; `--forzar-checksum` sin nombre de archivo
@@ -272,6 +273,49 @@ async function testigosPresentes(cli, tablas) {
   return rows.map((r) => r.t)
 }
 
+// ─── El rol de aplicacion tiene que EXISTIR antes de migrar ────────────────
+//
+// Los GRANT de la app no se conceden a quien sea: **13 migraciones** se los dan
+// a una lista blanca de dos nombres —`20260715_arr_m6_rol_restringido.sql:21` y
+// `:38`, y el `foreach r in array array['spaces_user','spaces_app']` de otras
+// once—, y todas van guardadas por existencia del rol. Si el aprovisionamiento
+// creara el rol de la instancia con cualquier OTRO nombre, ninguna concederia
+// nada y ninguna daria error: el runner registra la migracion como aplicada y
+// no vuelve a intentarlo nunca. La instancia arranca con un rol de aplicacion
+// que no puede leer ni una tabla, y eso se descubre en el primer login, lejos
+// del alta que lo causo.
+//
+// Por eso el nombre es FIJO en toda la flota (decision del 2026-08-20): lo que
+// distingue a una instancia de otra es la CONTRASENA del rol, no su nombre. Y
+// por eso el candado vive aqui y no solo en el aprovisionamiento: esta pieza
+// esta en TODOS los caminos que aplican DDL, el alta es solo uno.
+export const ROL_APLICACION = 'spaces_app'
+
+/**
+ * `null` si el rol existe; si no, el mensaje que se le ensena al operador.
+ *
+ * El nombre se acepta por parametro SOLO para poder probar el caso negativo:
+ * `pg_roles` es del CLUSTER y no de la base, asi que una prueba que quisiera
+ * producir la ausencia de verdad tendria que borrar el rol que usan todas las
+ * demas suites. `main()` nunca le pasa argumento.
+ */
+export async function revisarRolDeAplicacion(cli, rol = ROL_APLICACION) {
+  const { rows } = await cli.query('select 1 from pg_roles where rolname = $1', [rol])
+  if (rows.length) return null
+  return (
+    `ERROR migrar: no existe el rol de aplicacion "${rol}" en este servidor.\n` +
+    'Trece migraciones conceden sus GRANT solo a ese rol y van guardadas por su\n' +
+    'existencia: si aplico ahora, NO conceden nada y NO dan error: la instancia\n' +
+    'quedaria con un rol de aplicacion sin permiso para leer una sola tabla, y el\n' +
+    'registro diria que todo se aplico bien. Asi que no aplico nada.\n' +
+    'Crea el rol antes de repetir este comando (la plantilla de la instruccion es\n' +
+    'db/dev-rol-app.sql; en una instancia real la contrasena es propia de ella):\n' +
+    `  create role ${rol} login password '<clave propia de esta instancia>' nosuperuser nobypassrls;\n` +
+    'El nombre NO es negociable: es el que nombran las migraciones. Lo que cambia\n' +
+    'de una instancia a otra es la contrasena.'
+  )
+}
+
 const FORZAR = '--forzar-checksum'
 
 const USO = `uso: DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs [--pendientes] [--con-datos] [--instalacion-nueva] [--forzar-checksum=<archivo>]
@@ -366,6 +410,16 @@ export async function main(argv = process.argv) {
   }
 
   try {
+    // ─── Lo primero: el rol de aplicacion existe ─────────────────────────
+    // Antes que cualquier lectura de estado y mucho antes de aplicar nada. Si
+    // falta, ninguna decision posterior importa: lo que se aplicaria quedaria
+    // sin GRANT y en silencio.
+    const faltaElRol = await revisarRolDeAplicacion(cli)
+    if (faltaElRol) {
+      console.error(faltaElRol)
+      return 1
+    }
+
     // ─── Sin registro NO significa «instancia nueva» ─────────────────────
     //
     // Esto es lo que este runner suponía y era exactamente al revés en el único

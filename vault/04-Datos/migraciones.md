@@ -151,10 +151,11 @@ DATABASE_URL=postgresql://usuario:clave@host:puerto/base node scripts/migrar.mjs
                                                           node scripts/migrar.mjs --forzar-checksum=AAAAMMDD_x.sql  # esa se reescribio a conciencia
 ```
 
-**Códigos de salida** (`scripts/migrar.mjs:21-32`), que es lo único que mira el
+**Códigos de salida** (`scripts/migrar.mjs:21-33`), que es lo único que mira el
 `set -e` de `update.sh`: **0** nada que hacer o todo aplicado y registrado; **1**
-no se puede ni empezar (falta `DATABASE_URL`, argumento desconocido, no se sabe
-si la base es nueva o rezagada, o una bandera afirma algo que la base desmiente);
+no se puede ni empezar (falta `DATABASE_URL`, **no existe el rol de aplicación**,
+argumento desconocido, no se sabe si la base es nueva o rezagada, o una bandera
+afirma algo que la base desmiente);
 **2** una migración falló, o se aplicaron y no se pudieron registrar; **3** el
 registro y la imagen no cuentan la misma historia.
 
@@ -167,6 +168,7 @@ registro y la imagen no cuentan la misma historia.
 
 | Decisión | Por qué |
 |---|---|
+| **El rol de aplicación `spaces_app` tiene que existir**: si no, salida 1 y no se aplica nada | **13 migraciones** conceden sus GRANT a una lista blanca de dos nombres —`20260715_arr_m6_rol_restringido.sql:21` y `:38`, y el `foreach r in array array['spaces_user','spaces_app']` de otras once—, todas guardadas por existencia del rol. Con cualquier otro nombre **no conceden nada y no dan error**: el runner registra la migración como aplicada y no vuelve a intentarlo nunca. Medido el 2026-08-20 (ROJO-3). El nombre es **fijo en toda la flota**; lo propio de cada instancia es la **contraseña** |
 | **`DATABASE_URL` obligatoria**: sin ella aborta con salida 1 | Desviación consciente de `apply-migration.mjs:16-24`, que cae en un default local. Ese default es la base de **desarrollo con datos reales**, cuyo rol `spaces` es superusuario con `BYPASSRLS`. Es lo que T-02 le quitó a `bootstrap-auth.mjs`, y aquí pesa más: este script ejecuta **DDL** |
 | Solo imprime `host:puerto/base` | El destino se registra **sin credenciales**, igual que `apply-migration.mjs:28-37` |
 | Sin registro **y con datos** = se para y pregunta (salida 1) | La heurística que mira ahí —la del backfill— no distingue una instancia rezagada de una recién instalada, y las dos suposiciones hacen daño en silencio. Ver «El guard», abajo |
