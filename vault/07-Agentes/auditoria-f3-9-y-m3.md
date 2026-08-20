@@ -167,17 +167,36 @@ cada uno —más de cinco horas— y sigue sin correrse nunca. Aquí se corriero
 comprobaciones de validez del propio arnés (una línea, mismo recuento, `bash -n`
 lo acepta):
 
-> [!note] Barrida **en curso** al escribir esta nota — resultados parciales
-> Los dos primeros, que son los que más importan, salieron **CAZADOS** contra el
-> arnés entero:
->
-> | Mutante | Resultado |
-> |---|---|
-> | volver a mandar la URL entera en `--dbname` — **LA fuga de M3** | **CAZADO**, 110 comprobaciones en rojo |
-> | no decodificar el **nombre** del parámetro (`?%70assword=` se cuela) — la fuga que se le escapó a los tres ciclos | **CAZADO**, 12 en rojo |
->
-> Los once restantes —el resto de M3, los cuatro de F3.9 y los dos invalidantes
-> del 18/08— siguen corriendo. **Esta tabla se completa cuando terminen.**
+```
+13 mutantes dirigidos · 0 escapan
+```
+
+| Mutante | Comprobaciones en rojo |
+|---|---|
+| **M3** · volver a mandar la URL entera en `--dbname` — **LA fuga** | **110** |
+| **M3** · no decodificar el **nombre** del parámetro (`?%70assword=` se cuela) | 12 |
+| **M3** · no reconocer `sslpassword`: se queda en la URL y va a `argv` | 12 |
+| **M3** · fallar **abierto**: la URL que no se entiende se pasa entera a `argv` | 14 |
+| **M3** · que gane la clave del `userinfo` sobre la de la consulta | 7 |
+| **M3** · no fallar cerrado ante un parámetro sin variable `PG*` | 3 |
+| **M3** · no decodificar el **valor**: `PGOPTIONS` llega con percent-encoding | **1** |
+| **F3.9** · subir `update.log` **crudo** en vez del publicable — **EL defecto** | 12 |
+| **F3.9** · que `eco` escriba también en el publicable | 4 |
+| **F3.9** · subir el log **solo** cuando el update sale bien | 15 |
+| **F3.9** · no vaciar el publicable: sube el histórico entero | **1** |
+| **18/08** · no subir el log de los fallos de configuración (invalidante 2) | 13 |
+| **18/08** · exportar la marca del candado **antes** del `flock` (invalidante 1) | **1** |
+
+Los dos defectos que dan nombre a cada tarea son los que más muerden: la fuga de
+M3 pone **110** comprobaciones en rojo, y subir el log crudo, **12**. Eso es lo
+que se quería saber.
+
+> [!warning] Tres mutantes cuelgan de **una sola** comprobación
+> `no decodificar el VALOR`, `no vaciar el publicable` y `exportar la marca del
+> candado antes del flock` mueren con **1 comprobación en rojo** cada uno. Están
+> cazados, pero por un hilo: si alguien retoca o quita ese único escenario, el
+> defecto vuelve a pasar en verde y **nadie se entera**. No es un defecto de hoy
+> — es dónde mirar la próxima vez que se toque el arnés.
 
 ### Lo estructural
 
