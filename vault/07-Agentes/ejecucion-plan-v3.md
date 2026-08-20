@@ -797,6 +797,52 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > los dos estados es el **503 contra 400**. ⚠️ Ese grep está escrito en la tarjeta de F4.5: hay
 > que sustituirlo.
 
+> [!important] ✅ **D1 auditado AMARILLO y aceptado** — 20/08. Los cerrojos se intentaron romper
+> Cifras reproducidas idénticas: **95 escenarios · 619 comprobaciones · 0 rojas** y el arnés real
+> **27 · 0**. La reconstrucción, medida por el auditor: 29 tablas, 79 índices, 79 restricciones,
+> **24 políticas de RLS**, 116 GRANT, 2 `alter default privileges`, `pgcrypto` respondiendo, la
+> app con **1/0/0** filas y **sin** poder apagar la RLS, y **el release descartado se vuelve a
+> aplicar** — el criterio real de D1. La huella coincidió **byte a byte** con la de la nota.
+>
+> **Los seis ataques a los cerrojos, todos rechazados:** no hay camino al `drop` fuera de la
+> vuelta atrás · sin respaldo no se llega · dump truncado o basura → `--list` sale 1 · `drop` bien
+> + restauración mal → **código 7** con sus dos comandos · base sin esquema `public` → aborta con
+> la base intacta.
+>
+> 🟢 **Y encontró una defensa que el commit NO reclama:** el bloque `do $$` es **atómico**, así que
+> si el `create schema … authorization` fallara, **el `drop` se revierte con él**. Medido.
+>
+> **Los dos ROJO de Fase 5, CONFIRMADOS por medición independiente:** el dump sin `BYPASSRLS` dio
+> **109 347 bytes con salida 1** (su fixture dio 110 092: mismo fenómeno) y `pgcrypto` de otro
+> dueño **revertía la restauración entera** contra el commit padre. ▸ Efecto colateral nuevo: tras
+> el arreglo la extensión vuelve **a nombre del rol de migraciones**, no del que la instaló — el
+> dueño cambia en silencio, justo lo que el `authorization` evita para el esquema.
+
+> [!warning] 🟡 Once hallazgos del auditor de D1, ninguno invalidante. Los cuatro que pesan
+> **① La tabla de códigos de salida del PROPIO guion no lista el 6 ni el 7** (`update.sh:26-44`,
+> sigue en `0,1,2,3,4,5,75`). Y **el archivo que se instala en el droplet es ése, no el README**.
+> El **7 · LA BASE QUEDO VACIA** es el estado más urgente que este guion puede producir, y quien
+> lo abra a las cuatro de la mañana **no lo encuentra**. Es exactamente la clase de defecto que el
+> ciclo de los mensajes vino a cerrar. **El que más pesa.**
+>
+> **② Una ventana nueva sin `trap`:** un SIGTERM entre el `do $$` confirmado y el fin del
+> `pg_restore` deja la base **vacía y muda** —ni código 7 ni mensaje—. Antes ese mismo corte la
+> dejaba «a medias» y el contenedor viejo la levantaba. El razonamiento que rechazó un `trap EXIT`
+> (`:251-255`) **es anterior a que existiera un estado «vacía»**.
+>
+> **③ `pg_restore --list` es más estrecho que su prosa:** valida el TOC, **no los bloques de
+> datos**. Un dump truncado al **99,5 %** pasa el guard, el `drop` se ejecuta y la restauración
+> muere dejando 0 tablas. El camino está cubierto —sale 7— pero ni el comentario ni el README lo
+> acotan.
+>
+> **④ El `drop` también se dispara sobre una conjetura:** con `BASE_CAMBIO=desconocido` se
+> restaura «POR PRUDENCIA», y eso **ahora destruye el esquema** aunque quizá no se migrara nada.
+> Coherente con la política, **pero nadie lo nombra**.
+>
+> ▸ Menores: «rojo previo 37» se reproduce en **43** · dos cifras internas del arnés dicen 7 y 51
+> donde son **8 y 52** · el arnés real **no limpia los roles** que crea · y en Windows **falla en
+> falso sin `MSYS_NO_PATHCONV=1`**, que el README ofrece sin ese aviso.
+
 > [!danger] 🔴 Dos ROJO nuevos de D1, **los dos del aprovisionamiento (Fase 5)** — no introducidos
 > **① Un respaldo que NO está vacío y aun así está incompleto.** `pg_dump` **no puede volcar
 > `config_negocio`** si el rol privilegiado no salta la RLS (esa tabla lleva `force row level
