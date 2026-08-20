@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-14
+actualizado: 2026-08-20
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -125,9 +125,35 @@ cambian tareas concretas.
 
 ## 7 · Lo que está bloqueado, y por quién
 
-> [!danger] Las cuatro decisiones de la §8 siguen abiertas al 2026-08-13
-> No se eligió ninguna por cuenta propia. Entre las cuatro bloquean 7 de las 40
-> tareas y el arranque de la Fase 7 completa. Ver [[preguntas-abiertas]].
+> [!success] Las cuatro decisiones de la §8, **CERRADAS al 2026-08-20**
+> La tabla de abajo es el estado en que nacieron, y se conserva porque explica qué
+> bloqueaba cada una. **Ninguna sigue abierta.**
+>
+> | | Respuesta | Fecha |
+> |---|---|---|
+> | **P1** | El **droplet actual pasa a ser el PADRE** y sus datos —`rgb` incluido— **se recrean desde cero**: son de prueba | 20/08 |
+> | **P2** | **No hay migración de PIXELED.** Nace como instancia nueva y la información se recarga | 20/08 |
+> | **P3** | Las instancias nacen en la **cuenta de DigitalOcean de la casa**, la misma del registry | 20/08 |
+> | **P4** | **DigitalOcean Container Registry**, en la cuenta de PIXELED | 17/08 |
+>
+> **Lo que P1 arrastra y hay que mirar antes de ejecutarla:** el droplet deja de
+> ser el entorno de producción del negocio, así que **la Fase 7 entera**
+> («desenredar `spaces_prod`», 3 de las 46 tareas) **se vacía de contenido** — se
+> escribió para mover datos reales de un entorno compartido, y no hay datos reales
+> que mover. **Revisarla antes de ejecutarla**, no darla por válida tal cual.
+>
+> Y P3 tiene contrapartida, dicha una vez: una sola cuenta y **el padre guardando
+> las llaves de cada droplet** concentra el riesgo — quien comprometa esa cuenta
+> alcanza **toda la flota**. El runbook tiene que decir quién tiene esas llaves,
+> dónde se guardan y cómo se rotan. No contradice el invariante de F3.4, que habla
+> de la instancia **ya corriendo**: `update.sh` sigue sin hablar con el padre.
+>
+> ⚠️ La premisa que las cierra es **«todo es demo»**, y **deja de valer el día que
+> se dé de alta la primera instancia de un owner con datos suyos**.
+>
+> Detalle y trazabilidad en [[ejecucion-plan-v3]] · [[preguntas-abiertas]].
+
+*Estado en que nacieron, al 2026-08-13:*
 
 | Decisión (la toma Jochelo) | Bloquea | Qué cambia según la respuesta |
 |---|---|---|

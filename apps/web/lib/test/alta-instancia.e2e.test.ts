@@ -14,7 +14,7 @@ import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
 //  flota (el catálogo de permisos, el esquema) viaja en las migraciones.
 //
 //  Hasta el 2026-08-20 el alta también sembraba permisos, con su propia MATRIZ
-//  (`bootstrap-auth.mjs:90-99`, 36 filas) que no coincidía con la de la
+//  (`bootstrap-auth.mjs:90-99` hasta `de6860a`, 36 filas) que no coincidía con la de la
 //  migración (25). Eran DOS catálogos que podían divergir, y la política de
 //  acceso efectiva de una instancia la fijaba el último script que corrió. Eso
 //  es ROJO-2, y se cierra por los dos lados: la migración adopta el catálogo
@@ -157,7 +157,7 @@ describe('el alta ya no siembra el catálogo de permisos', () => {
 describe('el Dueño ya no nace con una contraseña compartida', () => {
   // ── ROJO-1, medido en el re-ensayo de la Fase 4 ─────────────────────────
   //
-  //  `bootstrap-auth.mjs:85` sembraba `SEED_PASSWORD ?? 'spaces123'` y la
+  //  `bootstrap-auth.mjs:85` (hasta `a2353d6`) sembraba `SEED_PASSWORD ?? 'spaces123'` y la
   //  imprimía. En el ensayo se entró con ella y el correo público del Dueño:
   //  HTTP 200, sesión válida y los nueve módulos, incluidos `administracion` y
   //  `finanzas`. Idéntica en toda la flota, y bcrypt no protege de eso — no hay
@@ -169,7 +169,7 @@ describe('el Dueño ya no nace con una contraseña compartida', () => {
   //  que es la peor combinación de las dos.
   //
   //  Las piezas del arreglo ya existían: `restablecerPasswordCtrl`
-  //  (`usuarios-controller.ts:119`) hace este flujo entero para el
+  //  (`usuarios-controller.ts:122`) hace este flujo entero para el
   //  restablecimiento, y `exigir()` (`auth.ts:167`) corta con 403 mientras la
   //  marca esté puesta, dejando abiertas a propósito `/api/auth/me` y
   //  `/api/perfil` para que el usuario pueda salir del estado.

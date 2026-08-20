@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-20
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -29,7 +29,7 @@ cobranza.
 | Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
 | Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
-| Migraciones | 68 | [[migraciones]] |
+| Migraciones | 71 | [[migraciones]] |
 
 ## Antes de tocar nada
 
@@ -93,8 +93,10 @@ cobranza.
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-17]] — **última entrada**: el runner de migraciones en tres ciclos,
-  T-04, F3.3, el workflow de release y `update.sh`
+- [[2026-08-20]] — **última entrada**: los tres ROJO del re-ensayo de la Fase 4,
+  cerrados; el catálogo de permisos completo y la contraseña del Dueño
+- [[2026-08-17]] — el runner de migraciones en tres ciclos, T-04, F3.3, el
+  workflow de release y `update.sh`. ⚠️ **Faltan las entradas del 18 y del 19/08**
 - [[2026-08-14]] — expedientes de evidencia, Fase 2 y el registro cerrado en toda la flota
 - [[2026-08-13]] — entra el plan v3 con sus tres agentes; Fase 1 cerrada en local
 - [[2026-08-12]] — nace el plan del servidor padre

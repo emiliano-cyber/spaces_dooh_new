@@ -6,7 +6,8 @@
 --
 --    - la migracion `20260819_semilla_rol_permisos.sql` sembraba 25 filas,
 --      8 modulos, 3 roles;
---    - `apps/web/scripts/bootstrap-auth.mjs:90-99` llevaba su propia MATRIZ, con
+--    - `apps/web/scripts/bootstrap-auth.mjs:90-99` (hasta `de6860a`) llevaba su
+--      propia MATRIZ, con
 --      36 filas -- y con `inventario`, que viene de otra migracion, la union da
 --      41, 9 modulos y 5 roles.
 --

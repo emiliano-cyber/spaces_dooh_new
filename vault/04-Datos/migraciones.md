@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-19
+actualizado: 2026-08-20
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/

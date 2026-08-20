@@ -338,7 +338,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > tiene.** `update.sh:386` exporta `SPACE_OS_UPDATE_EN_CANDADO=1` **antes** del `flock` de
 > `:388`, así que cuando `flock -n -E 75` devuelve 75 el proceso exterior conserva la variable,
 > pasa el guard de `:312` y su línea acaba dentro del `update-publicable.log` ajeno —
-> **reproducido**. Lo desmienten `README.md:597-598`, `update.sh:248-250` y
+> **reproducido**. Lo desmienten `infra/scripts/README.md:597-598`, `update.sh:248-250` y
 > `entorno-y-despliegue.md:610-611`, los tres con la frase «no escribe ni sube nada». **El arnés
 > no lo veía**: su escenario de candado solo afirma `no_hubo 's3cmd'`, la mitad «no sube», y
 > **nunca abre el archivo publicable**.
@@ -754,7 +754,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > `PGSSLROOTCERT`/`PGSSLCERT`/`PGSSLKEY`: sin TLS **no se pueden aislar** —cualquier valor da el
 > mismo «server does not support SSL»—, así que levantó el servidor con certificado.
 >
-> ▸ Corrigió otra cita mía: `README.md:786-788` **no existe** —el README de la raíz tiene 130
+> ▸ Corrigió otra cita mía: `infra/scripts/README.md:786-788` **no existe** —el README de la raíz tiene 130
 > líneas—; era `infra/scripts/README.md:788`.
 >
 > 🔴 **NO AUDITADA, por decisión de Jochelo de parar aquí.** Es trabajo hecho, **no confirmado**.
@@ -977,7 +977,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >    nada llama a esa función fuera de sitio. *(Confirmado por la auditoría de D1.)*
 >
 > **Lo que NO pertenece a esta familia**, y yo lo metí mal: la ventana de señal a media subida
-> (`update.sh:278`, `README.md:790`) es **un límite aceptado y escrito**, no una defensa
+> (`update.sh:286-287`, `infra/scripts/README.md:886-889`) es **un límite aceptado y escrito**, no una defensa
 > implementada sin prueba. No es lo mismo «hay un guard que nadie vigila» que «hay un caso que
 > decidimos no cubrir». Las de arriba están medidas a mano y **ninguna tiene prueba que la fije**:
 > hoy las sostienen los comentarios del código.
@@ -1720,7 +1720,7 @@ sudo /opt/space-os/update.sh & sleep 3; sudo /opt/space-os/update.sh; echo "codi
 | 2026-08-17 | **Contrato que la Fase 5 hereda de F3.4 y todavía no existe**, listado por el ejecutor: `/etc/space-os/instancia.env` a 0600, `/etc/space-os/app.env`, `/opt/space-os/migrar.mjs`, `flock` y `pg_dump` disponibles. Y un detalle que romperá aprovisionamientos si se ignora: **`DATABASE_URL` es la privilegiada, no la de `spaces_app`**, y si `instancia.env` y `app.env` apuntan a bases distintas el script se para. |
 
 | 2026-08-17 | 🔴 **F3.4 AUDITADA ROJO. El script no restaura la base en la vuelta atrás, y el auditor lo encontró leyendo lo que el repositorio produce HOY en vez de lo que el script espera.** `update.sh:364` exige un punto pegado a «aplicadas»; `migrar.mjs:694-696` imprime `67 aplicadas, **1 de datos pendientes**.`. Basta **una** migración `@tipo: datos` pendiente para que `APLICADAS` caiga a 0 — y la hay: `20260731_calendario_meses_cortos.sql`, **cuya primera línea lleva CRLF**, detalle por el que un grep ingenuo no la ve. Lo reprodujo entero con dobles: el log dice «no corrió ninguna migración: la base no se toca» tras 67, y `pg_restore` recibe **0 llamadas**. Incumple `plan:1053-1054` y media del criterio de `:1058-1060`. |
-| 2026-08-17 | **Y lo peor de ese hallazgo es la simetría que señala:** la instancia queda **sirviendo la imagen vieja sobre un esquema nuevo**, con el registro nombrando migraciones que esa imagen no lleva, **y nada lo denuncia después** — porque el hueco de `migrar.mjs:212-222` no dispara ahí. O sea que **el mecanismo que hace posible la vuelta atrás es el mismo que hace este fallo permanente y mudo**. El commit se contradice a sí mismo en tres sitios (`README.md:156-169`, `update.sh:95-107`, `entorno-y-despliegue.md:351-359`), que es lo que hace que nadie lo hubiera visto leyendo la documentación. |
+| 2026-08-17 | **Y lo peor de ese hallazgo es la simetría que señala:** la instancia queda **sirviendo la imagen vieja sobre un esquema nuevo**, con el registro nombrando migraciones que esa imagen no lleva, **y nada lo denuncia después** — porque el hueco de `migrar.mjs:212-222` no dispara ahí. O sea que **el mecanismo que hace posible la vuelta atrás es el mismo que hace este fallo permanente y mudo**. El commit se contradice a sí mismo en tres sitios (`infra/scripts/README.md:156-169`, `update.sh:95-107`, `entorno-y-despliegue.md:351-359`), que es lo que hace que nadie lo hubiera visto leyendo la documentación. |
 | 2026-08-17 | 🔴 **Segundo rojo: el código 2 miente en el log.** `se aplicaron N migraciones y no se pudieron registrar` tampoco casa con ninguno de los dos patrones, así que `update.sh` imprime «no consta ninguna migración aplicada; **suele ser que no pudo conectar**» cuatro líneas debajo del mensaje del runner que dice lo contrario. **La decisión es correcta** —salida 2, no conmuta, no restaura— pero miente sobre **la única pregunta que el 2 existe para responder**: si hay que ir a mirar la base. Y es alcanzable hoy: `space-os:dev` no lleva `20260812_schema_migrations.sql`, así que una primera corrida real aplica 67 y cae por ahí. |
 | 2026-08-17 | **El auditor encontró además los DOS mutantes que el arnés del ejecutor no caza**, que era el encargo fino: quitar `export DATABASE_URL` (`:240`) → **cero rojas**, y en un servidor rompe **todas** las migraciones; y quitar `--clean --if-exists --single-transaction` de `pg_restore` (`:469`) → **cero rojas**, porque sus comprobaciones miran **que** se llamó a `pg_restore`, no **cómo** — y es esa línea la que hace que la vuelta atrás vuelva de verdad en vez de morir objeto por objeto. **Validó cada mutante antes de correrlo** (diff de una línea, `bash -n` limpio, longitud intacta), precisamente por el falso verde que el ejecutor había declarado. |
 | 2026-08-17 | **Lo que sí resistió, y es mucho:** la resolución de la contradicción del `Dockerfile` es **correcta** —parar habría bloqueado la fase por una línea que pertenece a F2.2— y **su prueba del 67 se sostiene**: el auditor comprobó que la diferencia es un archivo concreto, `20260812_schema_migrations.sql`, porque la imagen es anterior a F3.1, y descartó que viniera de la exclusión de datos. La sonda muerde en los dos sentidos; **los cuatro códigos del runner llegan a la decisión correcta** (el 1 vuelca el mensaje accionable, el 2 no conmuta ni restaura, un código desconocido se trata como el peor caso); **el respaldo vacío detiene el update**; la escalera de vuelta atrás tiene ocho ramas y las ocho se comportan; `flock` suelta el candado también en los caminos de error; y **el padre no aparece por ningún lado** — 20 escenarios trazados sin una sola llamada que no sea al registry o a la base. |

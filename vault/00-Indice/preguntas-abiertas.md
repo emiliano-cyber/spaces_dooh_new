@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-19
+actualizado: 2026-08-20
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -77,9 +77,17 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 > o si la organización no queda creada de verdad. En F5.2 lo sustituye la ruta de
 > bootstrap de un solo uso. Ver [[esquema]] y [[migraciones]].
 >
-> **Lo que NO cierra:** **P1** (destino del tenant `rgb` y del droplet actual)
-> sigue abierta. Se resolvió cómo nace una instancia nueva, no qué se hace con el
-> `rgb` que ya existe en producción.
+> **Lo que NO cerraba:** **P1** (destino del tenant `rgb` y del droplet actual).
+> Se resolvió cómo nace una instancia nueva, no qué se hacía con el `rgb` que ya
+> existe en producción.
+>
+> **P1 quedó CERRADA el 2026-08-20**, y por una vía que no era ninguna de las
+> previstas: **el droplet actual pasa a ser el PADRE** —el plano de control, no un
+> entorno de negocio— y **sus datos, `rgb` incluido, se recrean desde cero**,
+> porque son de prueba. No hay que archivarlos ni migrarlos. Con eso **P2 también
+> cae**: PIXELED nace como instancia nueva y su información se recarga, así que
+> F5.7 vuelve a ser un aprovisionamiento limpio. Ver [[ejecucion-plan-v3]] y
+> [[modelo-instancias-soberanas]].
 
 *Decisión anterior, del 10/08, ya no vigente:* el autorregistro era **abierto y
 permanente**, y la bandera encendida se quedaba.
