@@ -54,6 +54,22 @@ class EvidenceBuilder:
         conf = verification_result.get("confidence", 0)
         pdf.cell(0, 7, f"{conf * 100:.1f}%", ln=True)
 
+        # Lo que de verdad decide el veredicto: cuantos puntos de la creatividad
+        # se localizaron en la foto y que parte del cuadro ocupa. Va primero
+        # porque es lo que hay que mirar al revisar un caso dudoso; el SSIM y los
+        # demas quedan de apoyo.
+        if verification_result.get("puntos_encajan") is not None:
+            pdf.cell(60, 7, "Puntos que encajan:", border=0)
+            pdf.cell(0, 7, "%s (de %s emparejados)" % (
+                verification_result.get("puntos_encajan"),
+                verification_result.get("puntos_emparejados", "?"),
+            ), ln=True)
+
+            area = verification_result.get("area_creatividad")
+            if area is not None:
+                pdf.cell(60, 7, "Ocupa del cuadro:", border=0)
+                pdf.cell(0, 7, f"{area * 100:.0f}%", ln=True)
+
         pdf.cell(60, 7, "SSIM Score:", border=0)
         pdf.cell(0, 7, str(verification_result.get("ssim_score", "N/A")), ln=True)
 
