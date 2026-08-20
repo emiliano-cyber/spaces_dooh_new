@@ -995,6 +995,41 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **Lo que la desviación NO resuelve:** si el registro estuviera abierto hoy en el droplet, seguirá
 > abierto. Ensayar DEMO en local no lo cierra ni lo mide.
 
+> [!danger] 🔴 `update.sh` NO puede actualizar el droplet de HOY, y conviene saberlo antes de planear una puesta en producción — 2026-08-20
+> **Medido, no supuesto.** `update.sh` actualiza un **contenedor Docker**: conmutar es
+> `docker stop` + `docker run` (`update.sh:62`), el nombre del contenedor es
+> configuración (`:96`) y sin `docker` ni siquiera arranca (`:28`). El droplet actual
+> **no corre un contenedor**: corre la app con **pm2** —`PM2_APP=spaces-web`
+> (`deploy.yml:87`)— desplegada por SSH con `git checkout --detach` + build +
+> `pm2 reload` (`:132`, `:171`).
+>
+> **Son dos modelos de despliegue distintos, y el de la Fase 3 sirve al que todavía no
+> existe.** Toda la maquinaria de F3.4–F3.9 —pull, respaldo, migración, vuelta atrás,
+> log publicable— está escrita para una **instancia** de las que nacen en la Fase 5. Por
+> eso **F3.5 (su ensayo real) depende de la DEMO de la Fase 4**, que es un **droplet
+> nuevo**, y no del droplet de hoy.
+>
+> **Consecuencia práctica:** «terminar la Fase 3 y pasar todo a producción» no es un paso
+> posible tal cual. El camino real es **Fase 5 → aprovisionar una instancia → esa
+> instancia sí se actualiza con `update.sh`**. El droplet actual seguirá desplegándose
+> como hoy hasta que deje de ser un entorno de negocio — que es justo lo que decidió P1
+> al convertirlo en **PADRE**.
+
+> [!warning] 🟡 P1 vacía de sentido a TH-02 y a TH-F1.5, y nadie lo había propagado — 2026-08-20
+> Las dos tarjetas existen para **reparar datos** del droplet: TH-02 censa las filas mal
+> etiquetadas como `rgb` por el `DEFAULT`, y TH-F1.5 aplica la migración que lo retira.
+>
+> Pero **P1 se cerró el 20/08 decidiendo que el droplet pasa a ser el PADRE y que sus
+> datos —`rgb` incluido— se recrean desde cero**, porque son de prueba. Un censo de filas
+> que se van a borrar no informa ninguna decisión, y migrar con cuidado una base que se va
+> a tirar es trabajo que se pierde.
+>
+> **No se retiran aquí**: retirar una tarjeta emitida es decisión de Jochelo, no del
+> orquestador. Queda escrito para que se decida a conciencia y no se corran por inercia.
+> ⚠️ Lo que **sigue teniendo sentido pase lo que pase** es **F0.1** —saber si el registro
+> está abierto hoy en el droplet—, porque eso es cierto ahora y no depende de qué se haga
+> con los datos.
+
 ### Fase 4 · DEMO como instancia real → en local: DEMO simulada
 
 | Tarea | Tipo | Agente | Depende de | Estado | Notas |
