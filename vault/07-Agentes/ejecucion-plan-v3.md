@@ -920,8 +920,9 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > extensión que tirar— pero **el aprovisionamiento debe crearla con el mismo rol** que migra.
 
 > [!tip] La categoría que llevamos tres veces encontrando: **defensas que el arnés no puede ver**
-> **Corregido el 20/08 por la auditoría: son DOS, no tres**, y la distinción importa. Son **lo que
-> ocurre antes o fuera del proceso que el arnés observa**:
+> **Son TRES, y las tres medidas.** Lo que la auditoría corrigió no fue el número sino **qué entra
+> en la familia**: ver el cierre del bloque. Son **lo que ocurre antes o fuera del proceso que el
+> arnés observa**:
 > 1. **`env VAR=… cmd`** filtra por el `argv` de `env`: los dobles reciben su propio `argv`, no el
 >    de quien los lanza.
 > 2. **`flock` ausente**: exigiría que el binario **no esté** en el sistema, y el arnés **monta**
