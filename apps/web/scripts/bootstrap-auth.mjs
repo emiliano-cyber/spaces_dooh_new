@@ -1,6 +1,6 @@
 // ============================================================================
-//  bootstrap-auth.mjs — Crea la organización de la instancia, su Dueño y los
-//  permisos por rol (bcrypt). Idempotente. Correr desde apps/web:
+//  bootstrap-auth.mjs — Crea la organización de la instancia y su Dueño
+//  (bcrypt). Idempotente. Correr desde apps/web:
 //
 //    DATABASE_URL=postgresql://usuario:clave@host:puerto/base \
 //    ORG_SLUG=mi-org ORG_NOMBRE='Mi Organizacion SA' \
@@ -9,6 +9,9 @@
 //
 //  Las cinco variables son OBLIGATORIAS y ninguna tiene valor por omisión: el
 //  script no elige la base por ti (ver abajo) ni de quién es la instancia.
+//
+//  Los PERMISOS ya no se siembran aquí: viajan en las migraciones desde el
+//  2026-08-20 (ROJO-2). Este script comprueba que estén y se niega si no.
 // ============================================================================
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
@@ -84,19 +87,21 @@ if (FALTAN.length) {
 
 const PASSWORD_DEFAULT = process.env.SEED_PASSWORD ?? 'spaces123'
 
-// Matriz roles × módulos × acciones (espejo de components/demo/admin/permisos.ts)
-// El DUENO es superusuario (crear/aprobar en todos los módulos; facturar en
-// finanzas). Los demás roles tienen permisos acotados a su función.
-const MATRIZ = {
-  dashboard:      { DUENO: ['ver'], COMERCIAL: ['ver'], FINANZAS: ['ver'] },
-  comercial:      { DUENO: ['ver', 'crear', 'aprobar'], COMERCIAL: ['ver', 'crear'], OPERACIONES: ['ver'] },
-  arrendadores:   { DUENO: ['ver', 'crear', 'aprobar'] },
-  operaciones:    { DUENO: ['ver', 'crear', 'aprobar'], OPERACIONES: ['ver', 'crear'], IMPRENTA: ['ver'] },
-  imprenta:       { DUENO: ['ver', 'crear', 'aprobar'], IMPRENTA: ['ver', 'crear'], OPERACIONES: ['ver'] },
-  finanzas:       { DUENO: ['ver', 'crear', 'facturar'], FINANZAS: ['ver', 'crear', 'facturar'] },
-  network:        { DUENO: ['ver', 'crear'], COMERCIAL: ['ver'] },
-  administracion: { DUENO: ['ver', 'crear', 'aprobar'] },
-}
+// ─── El catálogo de permisos NO vive aquí, y es una decisión ───────────────
+//
+// Hasta el 2026-08-20 este archivo llevaba su propia MATRIZ de 36 filas y la
+// sembraba. La migración `20260819_semilla_rol_permisos.sql` sembraba otras 25.
+// Eran DOS catálogos que podían divergir, y de hecho divergían: la política de
+// acceso efectiva de una instancia la fijaba EL ÚLTIMO SCRIPT QUE CORRIÓ, sin un
+// error y sin un aviso. En el re-ensayo de la Fase 4 el Dueño pasó de 19
+// permisos a 24 solo por el orden. Eso fue ROJO-2.
+//
+// El catálogo es configuración de PRODUCTO —igual para toda la flota— así que
+// viaja en las migraciones, que además lo llevan a las instancias que YA existan
+// cuando se actualicen. Este script crea la IDENTIDAD de cada instancia, que es
+// justo lo contrario: lo único que no debe ser igual en dos droplets.
+//
+// Lo que queda aquí es la comprobación de que el catálogo está: ver el paso 1.
 
 // El Dueño de la instancia. Uno solo: los demás usuarios los da de alta él
 // desde la aplicación.
@@ -129,19 +134,34 @@ async function main() {
     [ORG_NOMBRE, TENANT_SLUG],
   )
 
-  // 1) Permisos por rol
-  let permisos = 0
-  for (const [modulo, porRol] of Object.entries(MATRIZ)) {
-    for (const [rol, acciones] of Object.entries(porRol)) {
-      for (const accion of acciones) {
-        await pool.query(
-          `insert into rol_permisos (rol, modulo, accion) values ($1,$2,$3)
-           on conflict (rol, modulo, accion) do nothing`,
-          [rol, modulo, accion],
-        )
-        permisos++
-      }
-    }
+  // 1) El catálogo de permisos tiene que ESTAR — no se siembra aquí
+  //
+  // Fail-closed, mismo criterio que T-01b (13/08): el no-op silencioso es el
+  // modo de fallo que ya costó un despliegue. `permisosDeRol` y `tienePermiso`
+  // (`lib/server/auth.ts:126-142`) son consultas directas a `rol_permisos`, SIN
+  // excepción para el Dueño, y `exigir()` es fail-closed. Un alta que terminara
+  // «bien» sobre una base sin catálogo entregaría una instancia en la que el
+  // Dueño entra y no puede abrir nada — ni Administración, desde donde daría de
+  // alta a su equipo. Entregar eso es peor que no entregar.
+  //
+  // Se comprueba una puerta CONCRETA y no el total: un `count(*) > 0` lo
+  // cumpliría una base con las cinco filas de `inventario` que siembra
+  // `20260804_modulo_inventario.sql`, que es exactamente el estado inservible.
+  const { rows: puerta } = await pool.query(
+    `select exists (
+       select 1 from rol_permisos
+        where rol = 'DUENO' and modulo = 'administracion' and accion = 'ver'
+     ) as hay`,
+  )
+  if (!puerta[0].hay) {
+    const { rows: cuenta } = await pool.query('select count(*)::int as n from rol_permisos')
+    throw new Error(
+      `esta base no tiene el catálogo de permisos: rol_permisos tiene ${cuenta[0].n} fila(s) y ` +
+        `ninguna deja al Dueño abrir Administración. El catálogo lo siembran las migraciones ` +
+        `(20260819_semilla_rol_permisos.sql y 20260820_catalogo_permisos_completo.sql), no este ` +
+        `script. Corre primero "node scripts/migrar.mjs" contra esta base y repite el alta: si ` +
+        `siguiera, la instancia se entregaría con el Dueño sin poder abrir ni Administración.`,
+    )
   }
 
   // 2) Usuarios con contraseña encriptada
@@ -185,7 +205,7 @@ async function main() {
     }
   }
 
-  console.log(`OK · permisos sembrados: ${permisos} · usuarios: ${USUARIOS.length} · organización: ${TENANT_SLUG}`)
+  console.log(`OK · usuarios: ${USUARIOS.length} · organización: ${TENANT_SLUG}`)
   console.log(`Contraseña inicial para todos: "${PASSWORD_DEFAULT}" (cámbiala después)`)
   console.log(`Dueño: ${ADMIN_EMAIL}`)
   await pool.end()

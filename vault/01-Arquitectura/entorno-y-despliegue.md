@@ -58,11 +58,28 @@ cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
 
 ### El bootstrap del usuario inicial
 
-`apps/web/scripts/bootstrap-auth.mjs` siembra la matriz de `rol_permisos` (36
-filas) y el usuario dueño, con la contraseña de `SEED_PASSWORD` (por omisión
-`spaces123`). Es el único consumidor de esa variable. Sin él una base recién
-creada **no tiene por dónde entrar**: `db/schema.sql` crea las tablas y **ninguna
-organización**, así que tampoco un solo usuario.
+`apps/web/scripts/bootstrap-auth.mjs` crea **la organización de la instancia y su
+Dueño**, y nada más. Sin él una base recién creada **no tiene por dónde entrar**:
+`db/schema.sql` crea las tablas y **ninguna organización**, así que tampoco un
+solo usuario.
+
+> [!important] Desde el 2026-08-20 ya NO siembra permisos — había dos catálogos
+> Hasta ese día el script llevaba su propia `MATRIZ` de **36 filas** y la
+> sembraba, mientras `20260819_semilla_rol_permisos.sql` sembraba otras **25**.
+> Eran dos catálogos que podían divergir, y **la política de acceso efectiva de
+> una instancia la fijaba el último script que corrió** — sin un error y sin un
+> aviso. En el re-ensayo de la Fase 4 el Dueño pasó de 19 permisos a 24 solo por
+> el orden. Es **ROJO-2**.
+>
+> El catálogo es **configuración de producto** —igual para toda la flota— así que
+> vive en las migraciones, que además lo llevan a las instancias que ya existan
+> cuando se actualicen. Este script crea la **identidad** de cada instancia, que
+> es justo lo contrario: lo único que no debe ser igual en dos droplets.
+>
+> Lo que hace ahora en su lugar: **comprobar que el catálogo esté**, y negarse si
+> no. Y comprueba una puerta concreta —que `DUENO` tenga `administracion.ver`— y
+> no el total, porque un `count(*) > 0` lo cumpliría una base con solo las cinco
+> filas de `inventario`, que es exactamente el estado inservible.
 
 **`DATABASE_URL` es obligatoria**: sin ella el script no arranca, imprime qué
 variable falta con un ejemplo en bash y en PowerShell, y sale con código 1.
