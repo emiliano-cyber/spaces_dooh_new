@@ -755,6 +755,7 @@ log_dice 'VUELTA ATRAS A MEDIAS'
 # parado. El mensaje que alguien lee a las cuatro de la manana tiene que decir
 # las dos cosas: que no hay servicio, y el comando exacto que lo devuelve.
 log_dice 'La instancia queda SIN servicio'
+log_dice 'aparcado como space-os-anterior'
 log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 limpiar
 
@@ -899,6 +900,7 @@ correr
 codigo_es 5
 log_dice 'VUELTA ATRAS A MEDIAS'
 log_dice 'La instancia queda SIN servicio'
+log_dice 'aparcado como space-os-anterior'
 log_dice 'docker rename space-os-anterior space-os && docker start space-os'
 no_hubo 'pg_restore '
 limpiar
@@ -1134,6 +1136,12 @@ preparar 'E47 falta respaldo.sh: se para antes de tocar nada (F3.7)'
 export SPACE_OS_RESPALDO_SH="$RAIZ_TMP/respaldo.sh"   # no existe: es un tmp vacio
 correr
 codigo_es 1
+# Y lo DICE: este es uno de los dos `salir` de antes del `source` que si llegan
+# a avisar de que su log no puede viajar —el otro es el de E61, sin
+# instancia.env—. El tercero, `flock` ausente, NO lo dice y no puede: sale antes
+# del candado. La cabecera de update.sh afirmaba que "esos tres lo DICEN"; se
+# midio el 20/08 y son dos. Este es el que la afirmacion tenia sin comprobar.
+log_dice 'no hay con que subirlo'
 log_dice 'respaldo.sh'
 no_hubo 'docker pull'
 no_hubo 'pg_dump'
@@ -1899,6 +1907,66 @@ subido_dice '(url no parseable)'
 no_hubo 'pg_dump'
 limpiar
 
+
+# ─── LOS MENSAJES DE URGENCIA, EN SUS DOS CARAS (E86-E88) ──────────────────
+#  La frase del contenedor aparcado se escribia FIJA en los dos `salir` de
+#  "VUELTA ATRAS A MEDIAS", pero solo es cierta cuando el `rename` de 5b se
+#  hizo. Si fallo, el contenedor viejo conserva SU nombre y `-anterior` NO
+#  existe —lo borro el `docker rm -f` de 5b—, asi que el mensaje mandaba al
+#  operador, a las cuatro de la manana, a un contenedor que no esta. El comando
+#  de rescate ya se calculaba; la frase que va delante, no. Estos dos escenarios
+#  fijan la cara que faltaba, y E18/E32 fijan la otra: entre los cuatro, la
+#  condicion de `comando_rescate` queda mordida por los dos lados.
+
+# E86 · el rename de 5b fallo Y la restauracion fallo: codigo 5 por la puerta de
+#       `pg_restore` fallido. `D_RUN_FALLA=1` acompana al rename fallido porque
+#       es lo que pasa de verdad: si el viejo conserva el nombre, el nuevo no
+#       puede nacer con el.
+preparar 'E86 rename fallido + restauracion fallida: la frase no miente (H1)'
+export D_RENAME_FALLA=1
+export D_RUN_FALLA=1
+export PGR_CODIGO=1
+correr
+codigo_es 5
+log_dice 'VUELTA ATRAS A MEDIAS'
+log_dice 'La instancia queda SIN servicio'
+log_calla 'aparcado como space-os-anterior'
+log_dice 'conserva su nombre space-os'
+log_dice 'docker start space-os'
+log_calla 'docker rename space-os-anterior space-os'
+limpiar
+
+# E87 · la MISMA situacion por la otra puerta: no hay `pg_restore` con el que
+#       restaurar. Son dos `salir` distintos con el mismo parrafo, y hasta hoy
+#       los dos lo tenian mal.
+preparar 'E87 rename fallido y sin pg_restore: la otra cara del mismo mensaje (H1)'
+printf 'PG_RESTORE=pg_restore_que_no_existe\n' >>"$SPACE_OS_CONF"
+export D_RENAME_FALLA=1
+export D_RUN_FALLA=1
+correr
+codigo_es 5
+log_dice 'VUELTA ATRAS A MEDIAS'
+log_dice 'La instancia queda SIN servicio'
+log_calla 'aparcado como space-os-anterior'
+log_dice 'conserva su nombre space-os'
+log_dice 'docker start space-os'
+log_calla 'docker rename space-os-anterior space-os'
+no_hubo 'pg_restore '
+limpiar
+
+# E88 · `PULL_ESPERAS=` vacio en instancia.env = NINGUN reintento, que es lo que
+#       dicen el comentario del codigo y el README. Con `${PULL_ESPERAS:-…}` no
+#       era cierto: los dos puntos sustituyen tambien el valor vacio, salian los
+#       tres reintentos de siempre y el operador que queria desactivarlos no
+#       tenia forma de saber que no lo habia hecho (solo un ESPACIO funcionaba).
+preparar 'E88 PULL_ESPERAS vacio = ningun reintento (H-1)'
+printf 'PULL_ESPERAS=\n' >>"$SPACE_OS_CONF"
+correr --simular-fallo-pull
+codigo_es 1
+veces_en_log 0 'reintento'
+no_hubo_regex '^sleep '
+log_dice 'esperas de ninguna s'
+limpiar
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2077,6 +2145,25 @@ if [ "${1:-}" = '--mutantes' ]; then
     's,^  if \[ "\${#URL_CONSULTA_ENV\[@\]}" -gt 0 \]; then.*$,  : sin reenviar la consulta,'
   probar_mutante 'pasar un `-U` vacio cuando la URL no trae usuario' \
     's,^  if \[ -n "\$URL_USUARIO" \]; then PG_BANDERAS+=(-U .*$,  PG_BANDERAS+=(-U "$(decodificar_porciento "$URL_USUARIO")"),'
+
+  # ── Y los cuatro del 20/08: los mensajes que decian algo que no era verdad ──
+  # Los dos primeros van con direccion de RANGO, no por numero de linea: las
+  # condiciones de `comando_rescate` y `estado_del_viejo` son la MISMA linea
+  # escrita dos veces, y un `s@…@…@` suelto tocaria las dos —dos lineas, mutante
+  # INVALIDO—. Por numero tampoco: `update.sh` se movio 94 lineas en M3 y ya van
+  # ocho correcciones de citas, cuatro de ellas erroneas a su vez.
+  probar_mutante 'estado_del_viejo siempre "aparcado" (el defecto H1)' \
+    '/^estado_del_viejo() {$/,/^}$/s@^  if \[ "\$RENOMBRADO" = 1 \]; then$@  if true                        ; then@'
+  probar_mutante 'estado_del_viejo siempre "conserva su nombre"' \
+    '/^estado_del_viejo() {$/,/^}$/s@^  if \[ "\$RENOMBRADO" = 1 \]; then$@  if false                       ; then@'
+  # H2: hasta hoy NINGUN escenario ejercitaba la rama `else` de `comando_rescate`,
+  # asi que este mutante escapaba entero. Lo cazan E86/E87.
+  probar_mutante 'comando_rescate con la condicion invertida (H2)' \
+    '/^comando_rescate() {$/,/^}$/s@^  if \[ "\$RENOMBRADO" = 1 \]; then$@  if [ "$RENOMBRADO" = 0 ]; then@'
+  # H-1: los dos puntos sustituyen tambien el valor VACIO, o sea que
+  # `PULL_ESPERAS=""` no desactivaba nada.
+  probar_mutante 'PULL_ESPERAS con los dos puntos otra vez (el defecto H-1)' \
+    's@^PULL_ESPERAS="\${PULL_ESPERAS-1 5 30}"$@PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

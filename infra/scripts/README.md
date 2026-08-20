@@ -112,7 +112,7 @@ root** — el script avisa si no lo está.
 | `RED_MIGRACION` | no | `host` |
 | `SALUD_URL` | no | `http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/` |
 | `SALUD_INTENTOS` / `SALUD_ESPERA` | no | `10` y `3` |
-| `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. Vacío = ningún reintento. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
+| `PULL_ESPERAS` | no | `1 5 30`: una espera **por reintento** del `pull`, en segundos. **Vacío = ningún reintento** — cierto desde el **20/08** y no antes: la asignación usaba `${PULL_ESPERAS:-…}` y los dos puntos sustituyen **también el valor vacío**, así que `PULL_ESPERAS=""` dejaba los tres reintentos de siempre (medido) y solo un **espacio** los apagaba. Hoy es `${PULL_ESPERAS-…}`: ausente = los tres por omisión, vacío = ninguno. Lo fija **E88**. Medido el 18/08: un valor que no sean números **no rompe el update** —`sleep` protesta por stderr, no espera, y el `pull` se rinde igual sin tocar nada— pero tampoco hay backoff |
 | `RUNNER_MIGRACIONES` | no | `/opt/space-os/migrar.mjs` (ver el aviso 1) |
 | `PG_DUMP` / `PG_RESTORE` | no | rutas, si conviven varias versiones de Postgres |
 | `INSTANCIA` | no (*) | el prefijo de esta instancia dentro de los buckets —de respaldos **y de logs**—. Si falta, se usa el `hostname -s` |
@@ -372,7 +372,7 @@ lo demás por variables `PG*` del entorno**.
 **El invariante, que es con lo que se audita esto:** en `argv` **no aparece nada
 que venga del `userinfo` ni de la consulta, bajo ninguna codificación**. Lo fija
 E77 con nueve parámetros y la contraseña en medio, y lo fija **en global**
-`argv_sin_marca`, que corre en **los 85 escenarios**: toda credencial del arnés
+`argv_sin_marca`, que corre en **los 88 escenarios**: toda credencial del arnés
 lleva dentro una cadena marcadora, y ningún escenario puede dejarla en la línea de
 comandos de ninguna llamada doblada.
 
@@ -480,19 +480,38 @@ el script se para **antes de haber intentado** levantar nada, y es lo que
 alguien va a leer a las cuatro de la mañana, no el momento de reconstruir de
 memoria cómo se levantó el contenedor.
 
-En ese punto el contenedor nuevo ya se retiró y el viejo está **parado y
-aparcado** como `${CONTENEDOR}-anterior` — conserva puertos, `--env-file`, red y
-política de reinicio, así que devolverlo es renombrarlo y arrancarlo:
+En ese punto el contenedor nuevo ya se retiró. Dónde quedó el **viejo** depende
+de si el `rename` del paso 5b llegó a hacerse, y **el mensaje lo dice**, no lo
+supone:
 
-```bash
-docker rename space-os-anterior space-os && docker start space-os
-```
+- **El caso normal** — el `rename` se hizo: el viejo está **parado y aparcado**
+  como `${CONTENEDOR}-anterior`, conservando puertos, `--env-file`, red y
+  política de reinicio. Devolverlo es renombrarlo y arrancarlo:
+
+  ```bash
+  docker rename space-os-anterior space-os && docker start space-os
+  ```
+
+- **El `rename` falló**: el viejo **conserva su nombre**, está parado, y
+  `${CONTENEDOR}-anterior` **no existe** —lo borró el `docker rm -f` con el que
+  empieza el 5b—. Ahí basta con arrancarlo:
+
+  ```bash
+  docker start space-os
+  ```
 
 Medido en el ensayo local: tras un código `5` el contenedor de la app **no
 existía**, el `-anterior` estaba parado y la salud daba `000`; con ese comando
-volvió en **8 s**. El script lo calcula en vez de escribirlo fijo: si el
-`rename` del paso 5b **no** llegó a hacerse, el contenedor viejo conserva su
-nombre y el mensaje dice `docker start space-os` a secas.
+volvió en **8 s**.
+
+> [!warning] Hasta el 20/08 la frase de ese mensaje mentía en la segunda rama
+> El **comando** ya se calculaba, pero el párrafo que va delante afirmaba
+> siempre «el contenedor de la versión anterior está PARADO y aparcado como
+> `space-os-anterior`». Con el `rename` fallido eso manda a mirar un contenedor
+> **que no está**, y el mensaje se contradecía a sí mismo dos líneas después.
+> Ahora las dos frases salen de la misma condición (`estado_del_viejo` junto a
+> `comando_rescate`), y el arnés muerde por los dos lados: E18/E32 fijan la rama
+> del aparcado y **E86/E87** la del nombre conservado.
 
 > [!warning] El rescate devuelve el servicio, **no** resuelve el estado de la base
 > En los dos códigos `5` que salen de la restauración —no hay `pg_restore`, o
@@ -728,10 +747,18 @@ caso y nadie se entera—: **lo que no se emite no puede filtrarse.**
    cosas salen mal. Un trap que deja de existir a medias es peor que no tenerlo,
    porque este README afirmaría algo falso.
 
-2. Por esa puerta pasan **seis de los siete** códigos documentados, no los
-   siete. El **`75`** —ya había otro update en marcha— lo devuelve el proceso
-   de **fuera** del candado con un `exit` pelado, a propósito: ese no escribe ni
-   sube nada.
+2. Por esa puerta pasan **seis de los siete** códigos documentados **de una
+   corrida de verdad**, no los siete. El **`75`** —ya había otro update en
+   marcha— lo devuelve el proceso de **fuera** del candado con un `exit` pelado,
+   a propósito: ese no escribe ni sube nada.
+
+   **Precisado el 20/08:** `exit` pelados hay **tres**, no uno. Los otros dos
+   están en el parseo de argumentos, antes de todo: `--help` sale con `0` y un
+   argumento desconocido con `1`. Así que al pie de la letra los códigos `0` y
+   `1` **también** pueden salir sin pasar por `salir()`, aunque solo escribiendo
+   mal la línea de comandos — el cron nunca los produce. El punto 1 ya acota
+   «una vez tomado el candado»; esto solo lo deja dicho donde se cuentan los
+   códigos.
 
 3. **Antes de leer `instancia.env` no hay con qué subir.** El cliente de S3 sale
    de `respaldo.sh`, que se sourcea **justo después** de la configuración; los
@@ -745,6 +772,16 @@ caso y nadie se entera—: **lo que no se emite no puede filtrarse.**
    escribían el log publicable y no lo subían; hoy **nueve de esos doce viajan**,
    y son justo los de una instancia mal aprovisionada — la clase de fallo que uno
    más quiere diagnosticar sin entrar al servidor del owner.
+
+   **Medido el 20/08**, porque la cabecera de `update.sh` decía lo contrario
+   («esos tres lo DICEN»): con `respaldo.sh` ausente el log sí trae `no hay con
+   que subirlo` (**E47** lo fija desde hoy) y sin `instancia.env` también
+   (**E61**); con `flock` ausente el log trae **solo** `ERROR update: falta
+   flock…` y **no existe siquiera** el archivo publicable — el aviso no puede
+   emitirse porque `subir_log_remoto` se rinde en su primer guard, fuera del
+   candado. Ese tercer caso **no lo puede comprobar el arnés**: haría falta que
+   `flock` no estuviera en el `PATH` del sistema, y el arnés monta dobles, no los
+   quita.
 
 4. Una subida que **falla** no cambia el código de salida (§siguiente), pero una
    **señal a media subida sí lo cambia**: los `trap` de `respaldo.sh` salen con
@@ -843,23 +880,33 @@ borró y no lo que se proponía borrar. Y desde F3.9 los dobles de `s3cmd` y `aw
 **guardan también el CONTENIDO de lo que suben**, no solo que lo subieron: el
 criterio de esa tarea va en negativo —«ni un dato de negocio aparece en el log»—
 y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
-archivo que viaja**. El resultado del 2026-08-19, y el que imprime el comando:
+archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 
 ```
-85 escenarios · 532 comprobaciones · 0 rojas
+88 escenarios · 557 comprobaciones · 0 rojas
 ```
 
-> [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08 ni el 19/08
-> Los mutantes son **40** desde M3: 31 sobre `update.sh` y 9 sobre `respaldo.sh`.
-> La barrida completa cuesta varios minutos por mutante en esta máquina —los 40
-> pasan de las quince horas— así que se corren **aislados los que tocan el
-> cambio**, cada uno contra el arnés completo: **siete** el 18/08 (los dos
+> [!warning] La barrida de mutantes **no se ha vuelto a correr entera** — ni el 18/08, ni el 19/08, ni el 20/08
+> Los mutantes son **44** desde el 20/08: 35 sobre `update.sh` y 9 sobre
+> `respaldo.sh`. La barrida completa cuesta varios minutos por mutante en esta
+> máquina —los 44 pasan de las quince horas— así que se corren **aislados los que
+> tocan el cambio**: **siete** el 18/08 (los dos
 > invalidantes de la auditoría, el hallazgo 3 y los cuatro de F3.9), **cinco** en
 > el ciclo 2 del 19/08 (los del parseo único de la credencial), **cinco** en el
-> ciclo 3 (los de la credencial en la consulta) y **siete** en M3 (los seis de la
-> conexión sin URL más el de fallar abierto, que hubo que reescribir). Todos
-> **CAZADOS**. `40 mutantes · 0 escapan` **no** es de una barrida entera: quien la
+> ciclo 3 (los de la credencial en la consulta), **siete** en M3 (los seis de la
+> conexión sin URL más el de fallar abierto, que hubo que reescribir) y **cuatro**
+> el 20/08 (las dos ramas de `estado_del_viejo`, la condición de
+> `comando_rescate` y `PULL_ESPERAS`). Todos
+> **CAZADOS**. `44 mutantes · 0 escapan` **no** es de una barrida entera: quien la
 > necesite entera, que la corra y lo escriba aquí.
+>
+> **Y un matiz del 20/08 que no estaba en los ciclos anteriores:** esos cuatro se
+> corrieron contra una copia **reducida** del arnés —9 escenarios, 74
+> comprobaciones, 33 s por corrida— y no contra los 88. Es más rápido y basta
+> para decir que **esas** comprobaciones muerden, pero **no** dice nada de si el
+> mutante rompía además algún otro escenario. Los ciclos anteriores usaron el
+> arnés completo; esta diferencia queda escrita para que nadie compare peras con
+> manzanas.
 >
 > **Tres mutantes del ciclo 3 desaparecieron de la lista y no se sustituyeron**:
 > apuntaban a la línea que **reconstruía** la URL —pasarla entera, quitarle la
@@ -963,7 +1010,19 @@ límites que M3 **no** arregla. Los cuatro primeros son el mismo parámetro
 | **E83** | `?PASSWORD=` en mayúsculas. Deja de ser un «límite aceptado»: cae por la lista blanca, el update **se para con 1 sin tocar nada** y el mensaje nombra el parámetro, nunca su valor |
 | **E84**, **E85** | los dos límites que **siguen fuera de alcance** —multi-host y URL de socket unix—, fijados para saber que **no empeoran**: los dos paran en seco con salida 1 y sin publicar nada, igual que antes de M3. Comprobado corriéndolos también contra la versión anterior del script |
 
-**Se comprueba que las comprobaciones muerden.** **Cuarenta** mutantes de una
+Y, desde el **ciclo del 20/08**, los tres de los mensajes que decían algo que no
+era verdad. Los siete rojos se vieron **antes** de tocar una línea de
+`update.sh`:
+
+| Escenario | Qué fija |
+|---|---|
+| **E86** | `rename` fallido **y** restauración fallida: el mensaje del código `5` dice que el viejo **conserva su nombre**, no que esté aparcado como `-anterior` —que no existe—, y el comando de rescate es `docker start` a secas. Además es el primer escenario que ejercita la rama `else` de `comando_rescate` (**H2**), que hasta hoy no cubría nadie |
+| **E87** | lo mismo por la **otra** puerta: no hay `pg_restore` con el que restaurar. Son dos `salir` distintos con el mismo párrafo, y los dos lo tenían mal |
+| **E88** | **`PULL_ESPERAS=` vacío = ningún reintento**, que es lo que dicen el código y este README. Antes salían **tres** igual: cero líneas de `reintento` en `update.log`, ninguna llamada a `sleep`, y el mensaje del `pull` fallido dice «esperas de ninguna s» |
+| **E18**, **E32** | ampliados con la rama **contraria**: en el caso normal el mensaje sí dice «aparcado como `space-os-anterior`». Entre los cuatro, la condición queda mordida por los dos lados |
+| **E47** | ampliado: la falta de `respaldo.sh` **dice** que no hay con qué subir el log. Era una de las tres salidas que la cabecera daba por dichas sin que nadie lo comprobara (**H-B**) |
+
+**Se comprueba que las comprobaciones muerden.** **Cuarenta y cuatro** mutantes de una
 sola línea —sobre `update.sh` **y, desde F3.7, también sobre `respaldo.sh`**—, y
 cada uno se **valida antes de correrlo** —diff de exactamente una línea, mismo
 número de líneas, `bash -n` limpio— porque un ciclo anterior tuvo un falso verde
@@ -1011,6 +1070,10 @@ el arnés viejo **no** cazaba:
 | **no fallar cerrado** ante un parámetro sin variable `PG*` | vuelve el «límite aceptado»: lo desconocido se cuela en vez de parar |
 | **no reenviar la consulta** por el entorno | el arreglo destructivo: se van `sslmode`, `options` y `sslrootcert`, y la instancia deja de poder conectarse |
 | pasar un **`-U` vacío** cuando la URL no trae usuario | libpq deja de caer al usuario del sistema: se pierden las instancias que se autentican por `peer` |
+| **`estado_del_viejo` siempre «aparcado»** | el defecto **H1** en su forma pura: el mensaje del código `5` manda a buscar `space-os-anterior` cuando el `rename` falló y ese contenedor **no existe** — y el comando que va dos líneas después dice lo contrario |
+| `estado_del_viejo` siempre «conserva su nombre» | la mentira simétrica: en el caso normal manda a arrancar un contenedor que ya no tiene ese nombre |
+| **`comando_rescate` con la condición invertida** | el **H2**: hasta el 20/08 **ningún** escenario ejercitaba su rama `else`, así que este mutante escapaba entero. El comando de urgencia saldría al revés en las dos ramas |
+| **`PULL_ESPERAS` con los dos puntos** | el **H-1**: `PULL_ESPERAS=""` en `instancia.env` vuelve a dejar los **tres** reintentos, y quien quería apagarlos no tiene forma de enterarse |
 
 Y contra material real, no solo dobles:
 

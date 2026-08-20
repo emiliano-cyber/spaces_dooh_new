@@ -90,7 +90,7 @@
 #    RED_MIGRACION=host                 red del contenedor efimero que migra
 #    SALUD_URL=http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
 #    SALUD_INTENTOS=10  SALUD_ESPERA=3
-#    PULL_ESPERAS="1 5 30"              esperas entre reintentos del pull, en s
+#    PULL_ESPERAS="1 5 30"              esperas del pull, en s. Vacio = ninguna
 #    RUNNER_MIGRACIONES=/opt/space-os/migrar.mjs   (ver el aviso de abajo)
 #    PG_DUMP=pg_dump    PG_RESTORE=pg_restore      rutas si hay varias versiones
 #    INSTANCIA=demo                     prefijo de esta instancia en el bucket
@@ -254,10 +254,16 @@
 #      desarmado justo en la segunda mitad del script — la mitad en la que las
 #      cosas salen mal. Un trap que deja de existir a medias es peor que no
 #      tenerlo, porque el README afirmaria algo falso.
-#    · por esa puerta pasan SEIS de los siete codigos documentados, no los
-#      siete: el 75 —ya habia otro update en marcha— lo devuelve el proceso
-#      de FUERA del candado con un `exit` pelado, a proposito, y ese no
-#      escribe ni sube nada.
+#    · `salir` es la unica puerta UNA VEZ TOMADO EL CANDADO (punto de arriba), y
+#      fuera de ella quedan TRES `exit` pelados, no uno. El que se nombra
+#      siempre es el 75 —ya habia otro update en marcha—, que lo devuelve el
+#      proceso de FUERA del candado a proposito y no escribe ni sube nada. Los
+#      otros dos estan en el parseo de argumentos, o sea antes de todo: `--help`
+#      sale con 0 y un argumento desconocido con 1. Asi que "pasan seis de los
+#      siete codigos" es verdad para las corridas de verdad —las del cron— y
+#      falso al pie de la letra: los codigos 0 y 1 tambien se pueden devolver
+#      sin pasar por `salir`, aunque solo escribiendo mal la linea de comandos.
+#      Corregido el 20/08; antes esta lista excepcionaba solo el 75.
 #    · antes de sourcear `respaldo.sh` no hay CON QUE subir: el cliente de S3
 #      sale de ahi, y eso se hace justo despues de leer $CONF. Se quedan en el
 #      droplet TRES salidas y solo esas tres: falta $CONF y falta el propio
@@ -479,10 +485,16 @@ esac
 #     esos doce son precisamente los fallos de una instancia mal aprovisionada:
 #     la clase que uno mas quiere diagnosticar sin entrar al servidor del owner.
 #     Desde aqui suben NUEVE de esos doce. Los tres que siguen sin poder son los
-#     que no tienen con que: falta `flock` (que ademas cae fuera del candado y no
-#     escribe ni el publicable), falta el propio $CONF, y falta este mismo
-#     archivo. Esos tres lo DICEN. "Salga bien o mal" no admitia doce
-#     excepciones; tres que son imposibles por definicion, y escritas, si. E60.
+#     que no tienen con que: falta el propio $CONF, falta este mismo archivo y
+#     falta `flock`. Los DOS primeros lo DICEN, con esas palabras ("log remoto:
+#     no hay con que subirlo…"), porque ya corren dentro del candado y `salir`
+#     llama a `subir_log_remoto`. El de `flock` NO lo dice y no puede: sale
+#     ANTES de tomar el candado, y ahi `subir_log_remoto` se rinde en su primer
+#     guard —sin `SPACE_OS_UPDATE_EN_CANDADO` no hay log de esta corrida— sin
+#     registrar nada; en el log solo queda "ERROR update: falta flock…" (medido
+#     el 20/08). Ese caso ni siquiera tiene log publicable propio. "Salga bien o
+#     mal" no admitia doce excepciones; tres que son imposibles por definicion,
+#     y escritas tal como son, si. E60.
 RESPALDO_SH="${SPACE_OS_RESPALDO_SH:-$(dirname "$0")/respaldo.sh}"
 [ -f "$RESPALDO_SH" ] || salir "$EX_CONFIG" "ERROR update: falta $RESPALDO_SH. Es donde viven la subida del respaldo a Spaces y la poda del disco; sin el, la instancia se actualizaria sin respaldo fuera del droplet y llenando el disco. Nada se toco."
 # shellcheck disable=SC1090
@@ -503,8 +515,14 @@ SALUD_URL="${SALUD_URL:-http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/}"
 SALUD_INTENTOS="${SALUD_INTENTOS:-10}"
 SALUD_ESPERA="${SALUD_ESPERA:-3}"
 # Una espera por reintento del pull, y el numero de reintentos sale de cuantas
-# haya: "1 5 30" son tres reintentos. Vacio = ninguno.
-PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"
+# haya: "1 5 30" son tres reintentos. Vacio = ninguno, y desde el 20/08 eso es
+# verdad: con `${PULL_ESPERAS:-…}` no lo era, porque los dos puntos sustituyen
+# tambien cuando la variable esta DEFINIDA Y VACIA. O sea que quien escribia
+# `PULL_ESPERAS=""` en instancia.env para desactivar los reintentos se quedaba
+# con los tres de siempre y sin ninguna forma de enterarse — solo un ESPACIO
+# los apagaba, y eso no estaba escrito en ningun sitio. Sin los dos puntos:
+# ausente = los tres por omision, vacio = ninguno. E88.
+PULL_ESPERAS="${PULL_ESPERAS-1 5 30}"
 RUNNER_MIGRACIONES="${RUNNER_MIGRACIONES:-/opt/space-os/migrar.mjs}"
 PG_DUMP="${PG_DUMP:-pg_dump}"
 PG_RESTORE="${PG_RESTORE:-pg_restore}"
@@ -1287,6 +1305,22 @@ comando_rescate() {
     printf 'docker start %s' "$CONTENEDOR"
   fi
 }
+# DONDE quedo el contenedor viejo, con las mismas palabras con las que un
+# operador lo va a buscar. Se calcula por lo mismo que `comando_rescate` y a la
+# vez que el: el parrafo de los dos "VUELTA ATRAS A MEDIAS" afirmaba SIEMPRE
+# que estaba "aparcado como -anterior", y eso es falso justo cuando el rename
+# de 5b fallo — ahi el viejo conserva SU nombre y `-anterior` NO existe, porque
+# lo borro el `docker rm -f` de unas lineas mas abajo. El comando que iba detras
+# si era correcto en las dos ramas, asi que el mensaje se contradecia a si mismo
+# y mandaba a mirar un contenedor que no esta. E86/E87 fijan esta cara y E18/E32
+# la otra.
+estado_del_viejo() {
+  if [ "$RENOMBRADO" = 1 ]; then
+    printf 'el contenedor de la version anterior esta PARADO y aparcado como %s' "$ANTERIOR"
+  else
+    printf 'el contenedor de la version anterior esta PARADO y conserva su nombre %s (el rename de 5b fallo, asi que %s no existe)' "$CONTENEDOR" "$ANTERIOR"
+  fi
+}
 docker rm -f "$ANTERIOR" >/dev/null 2>&1 || true
 if [ -n "$ID_ACTUAL" ]; then
   registrar "5b · parando $CONTENEDOR y guardandolo como $ANTERIOR"
@@ -1394,7 +1428,7 @@ if [ "$BASE_CAMBIO" != "no" ]; then
     registrar "7a · restaurando $BK POR PRUDENCIA: no se pudo releer la huella de la base, asi que no consta que NO haya cambiado. Se prefiere restaurar de mas a dejar la version anterior sobre un esquema nuevo, que no da error y no lo denuncia nadie."
   fi
   if ! command -v "$PG_RESTORE" >/dev/null 2>&1; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. La instancia queda SIN servicio: el contenedor de la version anterior esta PARADO y aparcado como $ANTERIOR. Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: no hay \`$PG_RESTORE\` para restaurar $BK. La base se quedo con las migraciones nuevas. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — eso levanta la version ANTERIOR sobre la base YA MIGRADA, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
   fi
   codigo=0
   # `--clean --if-exists --single-transaction` no son adorno y no se quitan:
@@ -1404,7 +1438,7 @@ if [ "$BASE_CAMBIO" != "no" ]; then
   # es peor que no haber restaurado.
   correr_pg "$PG_RESTORE" --clean --if-exists --single-transaction "$BK" 2>&1 | eco || codigo=$?
   if [ "$codigo" -ne 0 ]; then
-    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. La instancia queda SIN servicio: el contenedor de la version anterior esta PARADO y aparcado como $ANTERIOR. Para devolver el servicio ya: $(comando_rescate) — con la base en el estado en que la dejo la restauracion fallida, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
+    salir "$EX_VUELTA_FALLO" "VUELTA ATRAS A MEDIAS: fallo la restauracion de $BK (codigo $codigo). La base puede tener las migraciones nuevas y la app va a ser la vieja. La instancia queda SIN servicio: $(estado_del_viejo). Para devolver el servicio ya: $(comando_rescate) — con la base en el estado en que la dejo la restauracion fallida, asi que es un parche hasta que alguien mire. Una persona tiene que mirar esto."
   fi
   registrar "7a · base restaurada (esquema Y registro de migraciones: schema_migrations viaja dentro del dump)"
 else

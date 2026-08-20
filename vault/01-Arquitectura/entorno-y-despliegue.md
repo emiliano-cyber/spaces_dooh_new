@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-19
+actualizado: 2026-08-20
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -361,7 +361,13 @@ murió a la mitad deja la base en un estado que su segunda corrida no espera, y
 repetirla a ciegas es como se corrompe una base. El health check conserva sus 10 × 3 s
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
-se cambian con `PULL_ESPERAS` en `instancia.env`.
+se cambian con `PULL_ESPERAS` en `instancia.env`, y **dejarla vacía apaga los
+reintentos** — cierto desde el **20/08** y no antes: la asignación usaba
+`${PULL_ESPERAS:-…}` y los dos puntos sustituyen también el valor **vacío**, así que
+`PULL_ESPERAS=""` dejaba los tres de siempre (medido: 3 reintentos) mientras el
+comentario del código y `infra/scripts/README.md` afirmaban lo contrario. Sólo un
+**espacio** los apagaba, y eso no estaba escrito en ningún sitio. Hoy es
+`${PULL_ESPERAS-…}`: ausente = los tres, vacío = ninguno. Lo fija **E88**.
 
 > [!tip] `--simular-fallo-pull` ensaya la política sin cortarle la red al droplet
 > Falla el `pull` a propósito —ni llama a `docker`, así que tampoco depende del
@@ -457,16 +463,23 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`85 escenarios · 532 comprobaciones · 0 rojas` (medido el 19/08 al cerrar M3, la
-conexión que dejó de viajar como URL; venía de `79 · 399` ese mismo día al cerrar la
+`88 escenarios · 557 comprobaciones · 0 rojas` (medido el 20/08 al cerrar el ciclo de
+los cinco mensajes que decían algo que no era verdad; venía de `85 · 532` el 19/08 al
+cerrar M3, la
+conexión que dejó de viajar como URL; de `79 · 399` ese mismo día al cerrar la
 credencial de la **consulta**, de `73 · 358` al unificar el parseo, de
 `63 · 300` el 18/08 tras corregir la auditoría de F3.9, de
 `58 · 278` con F3.9, de `51 · 236` tras corregir F3.7, de `48 · 218` y, antes de F3.7,
-de `37 · 165`). Los mutantes son **40** —31 sobre `update.sh` y 9 sobre `respaldo.sh`—;
-la barrida completa **no se corrió entera** ni el 18/08 ni el 19/08 —los 40 pasan de las
+de `37 · 165`). Los mutantes son **44** —35 sobre `update.sh` y 9 sobre `respaldo.sh`—;
+la barrida completa **no se corrió entera** ni el 18/08, ni el 19/08, ni el 20/08 —los 44 pasan de las
 quince horas en esta máquina— y en su lugar se corren **aislados los
 que tocan el cambio**: siete en el ciclo del 18/08, **cinco** en el ciclo 2 del 19/08,
-**cinco** en el ciclo 3 y **siete** en M3, todos cazados. Tres mutantes del ciclo 3
+**cinco** en el ciclo 3, **siete** en M3 y **cuatro** el 20/08, todos cazados. Los cuatro
+del 20/08 se corrieron contra una copia **reducida** del arnés (9 escenarios, 74
+comprobaciones, 33 s por corrida) y no contra los 88, que es lo que hicieron los ciclos
+anteriores: basta para decir que **esas** comprobaciones muerden, pero no dice nada de
+si el mutante rompía además otro escenario. Queda declarado porque la diferencia importa
+al comparar. Tres mutantes del ciclo 3
 **se retiraron sin sustituto**: apuntaban a la línea que reconstruía la URL, que ya no
 existe, así que esas tres formas de equivocarse ya no se pueden escribir. Está escrito porque la decisión M1 obliga a declararlo, no a suponerlo. Desde F3.7 los mutantes muerden **también en `respaldo.sh`**, no solo en
 `update.sh`. Cada mutante se **valida antes de correrlo** —una sola línea de diff, mismo número de líneas, `bash -n` limpio—
@@ -486,7 +499,7 @@ el mismo ciclo, con su escenario en rojo antes del arreglo:
 | | Qué pasaba | Cómo quedó |
 |---|---|---|
 | **D2** | el `\|\| echo 000` concatenaba un segundo código HTTP: `200000` tiraba un release **sano** con `pg_restore` | salida y código de salida de `curl` por separado; `000` solo si no imprimió nada |
-| **D3** | los dos códigos `5` de la restauración no decían que la instancia quedaba **caída** ni cómo levantarla | dicen «La instancia queda SIN servicio» y traen el comando de rescate, **calculado** según si el `rename` llegó a hacerse |
+| **D3** | los dos códigos `5` de la restauración no decían que la instancia quedaba **caída** ni cómo levantarla | dicen «La instancia queda SIN servicio» y traen el comando de rescate, **calculado** según si el `rename` llegó a hacerse. **Completado el 20/08 (H1)**: la frase que va delante también se calcula (`estado_del_viejo`), porque afirmaba sin condición que el viejo estaba «aparcado como `-anterior`» y con el `rename` fallido eso manda a mirar un contenedor **que no existe** |
 | **D4** | el respaldo vacío se quedaba en disco junto a los buenos, **y el directorio no se podaba nunca** | se borra al abortar; y desde F3.7 la retención local es de **3** (arriba). **D4 queda cerrada entera** |
 | **D5** | el código `2` con la base intacta **adivinaba** la causa («típicamente no pudo conectar») y en el caso medido era otra | remite al mensaje del runner, que va impreso justo encima |
 
@@ -508,7 +521,7 @@ en `ps` para cualquier usuario local. `deploy.yml:119` se libra de esto con
 
 El invariante, y lo que hay que mirar en cualquier revisión de `correr_pg`: **en `argv`
 no aparece nada que venga del `userinfo` ni de la consulta, bajo ninguna codificación**.
-Lo fija `argv_sin_marca`, una comprobación **global** que corre en los 85 escenarios del
+Lo fija `argv_sin_marca`, una comprobación **global** que corre en los 88 escenarios del
 arnés: toda credencial lleva dentro una cadena marcadora y ninguna puede acabar en la
 línea de comandos de ninguna llamada doblada.
 
@@ -757,7 +770,7 @@ noche, todo lo que la instancia registró desde siempre.
 >
 > Y el contrapunto en las pruebas, que es la otra mitad de M3: el arnés probaba
 > **codificación por codificación**, y por eso se le escaparon tres. Ahora hay una
-> afirmación **global** —`argv_sin_marca`, en los 85 escenarios— que cierra la clase
+> afirmación **global** —`argv_sin_marca`, en los 88 escenarios— que cierra la clase
 > también del lado de las pruebas. **E80 a E83** cazan las cuatro codificaciones, y
 > **E84-E85** fijan los dos límites que M3 **no** arregla —multi-host y URL de socket
 > unix— para saber que no empeoran: siguen parando en seco con salida 1, comprobado
@@ -866,6 +879,32 @@ configurado, y se dice así (`log remoto NO CONFIGURADO`).
 > subida de cada instancia se lee entera a ojo** y lo que se encontró se anota en
 > `docs/Registro_Cambios.md`. Un log es una vía de fuga clásica, y la revisión mecánica
 > solo cubre lo que alguien pensó en comprobar.
+
+### Los cinco sitios donde `update.sh` decía algo que no era verdad (20/08)
+
+Un ciclo entero sin una línea de lógica nueva: **cinco cosas que no eran verdad** —dos en
+mensajes del código, dos en comentarios y documentación, y una laguna del arnés—.
+Todas comparten el mismo defecto de fondo: el script **calcula bien** y luego **cuenta
+mal** lo que hizo. Lo que un operador lee a las cuatro de la mañana es texto, no código.
+
+| | Dónde | Qué decía | Qué pasa de verdad |
+|---|---|---|---|
+| **H1** | los dos `salir "$EX_VUELTA_FALLO"` de «VUELTA ATRAS A MEDIAS» | «el contenedor de la version anterior esta PARADO y **aparcado como `-anterior`**», sin condición | si el `rename` de 5b falló, el viejo **conserva su nombre** y `-anterior` **no existe** —lo borró el `docker rm -f` del propio 5b—. El **comando** que iba dos líneas después ya era correcto en las dos ramas: el mensaje se contradecía a sí mismo. Ahora la frase sale de `estado_del_viejo()`, hermana de `comando_rescate()` |
+| **H2** | el arnés | ningún escenario ejercitaba la rama `else` de `comando_rescate()` | un mutante que invirtiera esa condición **escapaba entero**. Lo cubren **E86** y **E87** |
+| **H-1** | `PULL_ESPERAS="${PULL_ESPERAS:-1 5 30}"` | «vacío = ningún reintento», en el comentario del código y en el README | los dos puntos sustituyen **también** el valor vacío: `PULL_ESPERAS=""` daba **3 reintentos** (medido). Sólo un **espacio** los apagaba. Se arregló el **código**, no la documentación: `${PULL_ESPERAS-…}`. Lo fija **E88** |
+| **H-B** | el comentario del `source` de `respaldo.sh` | «esos **tres** lo DICEN» —las tres salidas que no pueden subir su log— | son **dos**. Con `flock` ausente el log trae **sólo** `ERROR update: falta flock…`: sale **antes** del candado, así que `subir_log_remoto` se rinde en su primer guard y no llega a emitir el aviso. Ni siquiera existe el archivo publicable (medido) |
+| **H-C** | el AVISO 5 y el README | «por esa puerta pasan **seis de los siete** códigos», excepcionando sólo el `75` | `exit` pelados hay **tres**: el `75`, `--help` (`0`) y un argumento desconocido (`1`). Los dos últimos son del parseo de argumentos, anteriores al candado, así que la frase es cierta para el cron y falsa al pie de la letra. Precisión, no defecto |
+
+> [!warning] Lo que aquí **no** se puede comprobar con el arnés
+> El caso de `flock` ausente (**H-B**) exigiría que `flock` **no estuviera en el
+> `PATH` del sistema**, y el arnés monta dobles, no los quita. Está **medido a mano**
+> (20/08) y escrito, no fijado por una prueba. Es la segunda defensa de este archivo
+> en esa situación: la otra es el `env VAR=… cmd` de `correr_pg`, que filtra por el
+> `argv` de `env` y ninguna prueba puede ver porque los dobles reciben su propio `argv`.
+
+> [!note] D1 sigue sin tocarse
+> Este ciclo cambió el **texto** de los dos mensajes de la vuelta atrás, nada de su
+> comportamiento. La restauración sobre un esquema limpio es la tarea siguiente.
 
 ## Producción
 
