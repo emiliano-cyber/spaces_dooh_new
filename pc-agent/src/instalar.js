@@ -194,10 +194,14 @@ async function asistente() {
       clave,
       // canal = de donde sale la FOTO: siempre el principal, a maxima calidad.
       canal: Number(par.canal) || 101,
-      // canal_stream = de donde sale la VISTA EN VIVO. El secundario gasta mucha
-      // menos subida, que es lo que importa en un sitio con modem LTE. Si la
-      // camara no lo tiene habilitado, el agente se cae solo al principal.
+      // canal_stream = QUE canal usar si se pide el ahorro de datos; solo entra
+      // en juego con "sub_stream": true. Por omision la vista en vivo sale del
+      // mismo canal que la foto, para que el encuadre sea el mismo.
       canal_stream: Number(par['canal-stream'] || par.canal_stream) || 102,
+      // Ahorro de subida a costa de mostrar OTRO encuadre (el secundario suele
+      // ser 4:3 contra el 16:9 del principal). Se pide a proposito, sitio por
+      // sitio; tipicamente donde hay modem LTE con tope de datos.
+      sub_stream: par['sub-stream'] === true || par.sub_stream === true,
       puerto_rtsp: Number(par['puerto-rtsp'] || par.puerto_rtsp) || 554,
       timeout_ms: 15000,
     },
@@ -305,7 +309,9 @@ async function menu(cfgActual) {
   console.log('');
   console.log(`  Servidor: ${cfgActual.server_url}`);
   console.log(`  Camara:   ${cfgActual.camara?.host}:${cfgActual.camara?.puerto || 80}`);
-  console.log(`  Vivo:     canal ${cfgActual.camara?.canal_stream || cfgActual.camara?.canal || 101}` +
+  console.log(`  Vivo:     canal ${cfgActual.camara?.sub_stream === true
+      ? `${cfgActual.camara?.canal_stream || 102} (ahorro de datos, otro encuadre)`
+      : `${cfgActual.camara?.canal || 101} (el mismo de la foto)`}` +
     (hayFfmpegVecino() ? '' : '   (SIN ffmpeg.exe: la vista en vivo no funcionara)'));
   console.log('');
 

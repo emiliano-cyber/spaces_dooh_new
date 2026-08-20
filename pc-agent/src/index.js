@@ -26,7 +26,7 @@ const rutas = require('./rutas');
 // contestaba "vista en vivo no disponible en el agente de PC", y en el navegador
 // eso salia como "la camara esta ocupada". Nadie podia saber, mirando el
 // dashboard, que ese equipo tenia un programa viejo.
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const RAIZ = rutas.BASE;
 const RUTA_CONFIG = rutas.config;
 const RUTA_ESTADO = rutas.estado;

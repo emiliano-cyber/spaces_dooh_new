@@ -7,6 +7,7 @@
     "usuario": "admin",
     "clave": "LA_CLAVE_DE_LA_CAMARA",
     "canal": 101,
+    "sub_stream": false,
     "canal_stream": 102,
     "puerto_rtsp": 554,
     "timeout_ms": 15000

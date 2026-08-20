@@ -120,17 +120,24 @@ Opciones en `config.json`, dentro de `camara`:
 | Opcion | Para que | Por omision |
 |---|---|---|
 | `puerto_rtsp` | Puerto RTSP de la camara | `554` |
-| `canal` | Canal de las **fotos**. Siempre el principal, a maxima calidad | `101` |
-| `canal_stream` | Canal de la **vista en vivo**. `102` (calidad secundaria) gasta mucho menos ancho de banda del sitio que `101` | `102` |
+| `canal` | Canal de las **fotos**, y tambien de la vista en vivo. Siempre el principal, a maxima calidad | `101` |
+| `sub_stream` | Sacar la vista en vivo del canal secundario para gastar menos subida. **Cambia el encuadre** | `false` |
+| `canal_stream` | Que canal usar cuando `sub_stream` esta encendido | `102` |
 
-El instalador escribe `"canal_stream": 102` para gastar menos subida. **No todas
-las camaras traen el sub-stream habilitado**: si ese canal no responde, el agente
-se cae solo al principal y lo deja anotado en `agente.log`. Para habilitarlo,
-entra a `http://<ip-de-la-camara>` → Configuracion → Video → Sub-stream.
+**La vista en vivo sale del MISMO canal que la foto.** Es a proposito: en estas
+camaras el canal principal suele ser 16:9 y el secundario 4:3, asi que el
+sub-stream no es "la misma imagen con menos calidad" sino **otro encuadre, con
+menos campo de vision**. Quien revisa un sitio compara lo que ve en vivo contra
+la foto de evidencia, y no cuadraban.
 
-Las instalaciones anteriores a esto no tienen `canal_stream` en su `config.json`
-y siguen usando el canal de siempre; para que ahorren datos, agregalo a mano o
-reconfigura con el asistente.
+Si un sitio necesita ahorrar datos (modem LTE con tope), enciende
+`"sub_stream": true` sabiendo que el visor va a mostrar un recorte distinto del
+que llega en las fotos. **No todas las camaras traen el sub-stream habilitado**:
+para habilitarlo, entra a `http://<ip-de-la-camara>` → Configuracion → Video →
+Sub-stream.
+
+Si el canal principal no responde, el agente se cae solo al secundario antes que
+dejar al sitio sin vista en vivo, y lo deja anotado en `agente.log`.
 
 ## Para desarrolladores
 

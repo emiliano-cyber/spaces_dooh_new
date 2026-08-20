@@ -100,11 +100,21 @@ class Transmision {
     return `rtsp://${usuario}:${clave}@${this.cam.host}:${puerto}/Streaming/Channels/${canal}`;
   }
 
-  // Que canales intentar y en que orden. El sub-stream (102) gasta mucha menos
-  // subida, pero NO todas las camaras lo traen habilitado: si no responde, se
-  // cae al principal en vez de dejar al sitio sin vista en vivo. Las
-  // instalaciones viejas no traen canal_stream en su config.json y siguen
-  // yendo directo al canal de siempre.
+  // Que canales intentar y en que orden.
+  //
+  // POR OMISION, EL MISMO CANAL QUE LA FOTO. Antes se prefería el sub-stream
+  // (102) para gastar menos subida, y eso mostraba en vivo algo distinto de lo
+  // que despues llegaba como evidencia: en estas camaras el principal suele ser
+  // 16:9 y el secundario 4:3, asi que no era "la misma imagen con menos
+  // calidad" sino OTRO encuadre, con menos campo de vision. Quien revisa un
+  // sitio compara lo que ve en vivo contra la foto, y no cuadraban.
+  //
+  // El ahorro sigue disponible, pero hay que pedirlo: "sub_stream": true en
+  // config.json. Ahi el encuadre cambia y es una decision consciente del sitio
+  // (un modem LTE con tope de datos, tipicamente).
+  //
+  // El secundario queda de ultimo recurso: si el principal no responde, mejor
+  // ver el sitio con otro encuadre que no verlo.
   canales() {
     const lista = [];
     const add = (v) => {
@@ -112,9 +122,10 @@ class Transmision {
       if (Number.isFinite(n) && n > 0 && !lista.includes(n)) lista.push(n);
     };
     add(this.canalBueno);
-    add(this.cam.canal_stream);
+    if (this.cam.sub_stream === true) add(this.cam.canal_stream || 102);
     add(this.cam.canal);
     add(101);
+    add(this.cam.canal_stream);
     return lista;
   }
 
