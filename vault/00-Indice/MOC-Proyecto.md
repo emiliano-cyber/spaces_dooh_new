@@ -95,8 +95,12 @@ cobranza.
 - [[_plantilla-diaria]] — plantilla del diario
 - [[2026-08-20]] — **última entrada**: los tres ROJO del re-ensayo de la Fase 4,
   cerrados; el catálogo de permisos completo y la contraseña del Dueño
+- [[2026-08-19]] — la fuga de credenciales cerrada al cuarto intento, la Fase 4
+  ensayada, y «las bases son de pruebas»
+- [[2026-08-18]] — turno nocturno de guardia: F3.4 ensayada, F3.8, F3.7 y la poda;
+  F3.9 en dos ciclos
 - [[2026-08-17]] — el runner de migraciones en tres ciclos, T-04, F3.3, el
-  workflow de release y `update.sh`. ⚠️ **Faltan las entradas del 18 y del 19/08**
+  workflow de release y `update.sh`
 - [[2026-08-14]] — expedientes de evidencia, Fase 2 y el registro cerrado en toda la flota
 - [[2026-08-13]] — entra el plan v3 con sus tres agentes; Fase 1 cerrada en local
 - [[2026-08-12]] — nace el plan del servidor padre
