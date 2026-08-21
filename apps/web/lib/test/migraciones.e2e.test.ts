@@ -11,7 +11,6 @@ import {
   ordenar,
   revisarRolDeAplicacion,
   ROLES_APLICACION,
-  candidatosDeRol,
 } from '../../../../scripts/migrar.mjs'
 
 // ============================================================================
@@ -875,25 +874,19 @@ describe('el candado del rol de aplicacion', () => {
     expect(await revisarRolDeAplicacion(pool, ['rol_que_no_existe_e2e', 'spaces_app'])).toBeNull()
   })
 
-  it('sin declarar nada, los candidatos son los que conceden las migraciones', () => {
+  it('los candidatos son los que conceden las migraciones, y son DOS', () => {
     // La otra mitad del candado, y la que se rompe sola: si alguien cambiara la
     // lista, el runner exigiría un rol al que ninguna migración concede nada —
-    // el mismo fallo, con otro disfraz.
+    // el mismo fallo, con otro disfraz. El umbral se mide, no se afloja: cada
+    // uno de los dos nombres aparece en varias migraciones históricas.
     expect(ROLES_APLICACION).toEqual(['spaces_app', 'spaces_user'])
-    for (const rol of ROLES_APLICACION) {
-      const nombran = readdirSync(DIR_MIGRACIONES)
-        .filter((f) => f.endsWith('.sql'))
-        .filter((f) => readFileSync(join(DIR_MIGRACIONES, f), 'utf8').includes(rol))
-      expect(nombran.length, rol).toBeGreaterThanOrEqual(2)
-    }
-  })
-
-  it('ROL_APP declarado es EXCLUYENTE: manda ese y solo ese', () => {
-    // Si dices como se llama el rol de tu instancia, es ese. Dejar los dos
-    // historicos debajo seria volver al no-op silencioso por otra puerta: una
-    // instancia mal declarada acabaria funcionando por casualidad.
-    expect(candidatosDeRol({ ROL_APP: 'mi_rol' })).toEqual(['mi_rol'])
-    expect(candidatosDeRol({})).toEqual(['spaces_app', 'spaces_user'])
-    expect(candidatosDeRol({ ROL_APP: '  ' })).toEqual(['spaces_app', 'spaces_user'])
+    const cuenta = (rol: string) =>
+      readdirSync(DIR_MIGRACIONES)
+        .filter((f) => f.endsWith('.sql') && f < '20260820')
+        .filter((f) => readFileSync(join(DIR_MIGRACIONES, f), 'utf8').includes(rol)).length
+    // Medido el 2026-08-20 contando archivo por archivo. Se afirman las dos
+    // cifras exactas: un umbral flojo dejaría pasar que la lista se vacíe.
+    expect(cuenta('spaces_app')).toBe(13)
+    expect(cuenta('spaces_user')).toBe(13)
   })
 })

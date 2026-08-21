@@ -1,20 +1,30 @@
 -- ============================================================================
 --  Los GRANT del rol de aplicación dejan de depender de una lista blanca.
 -- ----------------------------------------------------------------------------
---  MEDIDO el 2026-08-20 (ROJO-3 del re-ensayo de la Fase 4):
+--  MEDIDO el 2026-08-20 (ROJO-3 del re-ensayo de la Fase 4), y **contado archivo
+--  por archivo** en `db/migrations/`, que es lo que hay que hacer antes de
+--  escribir una cifra:
 --
---    · `20260715_arr_m6_rol_restringido.sql:21` concede a `spaces_app` y `:38`
---      a `spaces_user`, los dos guardados por EXISTENCIA del rol;
---    · otras once migraciones repiten el patrón con
---      `foreach r in array array['spaces_user','spaces_app']`;
---    · trece archivos de `db/migrations/` nombran el rol.
+--    · **13** nombran alguno de los dos roles (`spaces_app`, `spaces_user`);
+--    · **11** les CONCEDEN por lista blanca: `20260715_arr_m6_rol_restringido.sql:21`
+--      y `:38`, `20260716_doohmain_playlogs.sql:56-62`, y el
+--      `foreach r in array array['spaces_user','spaces_app']` de otras **9**;
+--    · `20260729_licencias_permisos.sql:88-97` concede por **derivación** —mira
+--      quién ya tiene grants sobre `contratos_arrendamiento`— y **aborta** si no
+--      encuentra a nadie;
+--    · `20260805_config_negocio_por_tenant.sql` **no concede nada**: solo tiene
+--      un ASSERT de `BYPASSRLS` en `:94`.
 --
---  El modo de fallo no da error: si el rol NO existía cuando la migración
---  corrió, el bloque entero es un no-op, el runner registra la migración como
---  aplicada y NO vuelve a intentarlo nunca. El rol se crea después y queda sin
---  un solo permiso. La aplicación conecta y cada consulta muere con
---  `permission denied` — ruidoso para la instancia, silencioso para el alta que
---  lo causó. Con un nombre fuera de la lista, lo mismo desde el minuto cero.
+--  (Hasta el 20/08 esta cabecera decía «trece conceden» y «otras once» con el
+--   foreach. Las dos cifras estaban infladas, y una viajaba en el mensaje que lee
+--   el operador. Las corrigió una auditoría contándolas.)
+--
+--  El modo de fallo de las que conceden por lista no da error: si el rol NO
+--  existía cuando la migración corrió, el bloque entero es un no-op, el runner
+--  registra la migración como aplicada y NO vuelve a intentarlo nunca. El rol se
+--  crea después y queda sin un solo permiso. La aplicación conecta y cada
+--  consulta muere con `permission denied` — ruidoso para la instancia,
+--  silencioso para el alta que lo causó.
 --
 --  Esta migración es la ÚNICA que repara una instancia ya nacida, porque viaja
 --  con el código y se aplica al actualizarse. Es la vía B de la decisión del
@@ -22,45 +32,27 @@
 --  aplicar nada si no hay rol. Las dos porque protegen momentos distintos: el
 --  candado, el alta; ésta, todas las actualizaciones posteriores.
 --
---  ─── El nombre lo elige cada instancia, y se DECLARA ───────────────────────
+--  ─── Los dos nombres, y por qué siguen siendo dos ─────────────────────────
 --
---  Decisión del 2026-08-20: **las instancias deben poder abrirse con otros
---  nombres**, y producción se queda como está (`spaces_user`). Así que el nombre
---  no se cablea: se **declara** en `space_os.rol_app`. Lo fija el runner desde
---  `ROL_APP` antes de aplicar nada (`scripts/migrar.mjs`), y un `psql -f` puede
---  fijarlo con `PGOPTIONS="-c space_os.rol_app=<nombre>"`.
---
---  Declararlo es **EXCLUYENTE**: si dices cómo se llama, es ése y no otro. Dejar
---  los históricos debajo como red sería volver al no-op silencioso por otra
---  puerta — una instancia mal declarada acabaría funcionando por casualidad y
---  nadie se enteraría de que el nombre estaba mal.
---
---  **Sin declaración**, los candidatos son los DOS nombres que ya nombran las
---  trece migraciones históricas. Eso es lo que permite que el droplet actual
---  —que corre como `spaces_user`— se actualice **sin cambiarle el rol y sin
---  preparar nada**.
+--  `spaces_app` (el de una instancia nueva) y `spaces_user` (el del droplet
+--  actual, que **no se renombra**, decisión del 2026-08-20). Son los que ya
+--  nombran las migraciones históricas, así que producción se actualiza **sin
+--  tocarle nada** — y de hecho **gana** los GRANT que no tenía: `arr_m6:40-41`
+--  solo le daba DML sobre seis tablas.
 --
 --  Lo que cierra el agujero **no es el nombre**: es que esta migración **ABORTE**
---  cuando no encuentra rol, en vez de no conceder nada en silencio. Ese guard
---  vale para cualquier nombre.
+--  cuando no encuentra ninguno, en vez de no conceder nada en silencio.
 --
---  ⚠️ LÍMITE MEDIDO EL 2026-08-20, y es el motivo de que `spaces_app` siga siendo
---  el nombre por omisión de una instancia nueva: **una base VIRGEN cuyo rol tenga
---  un nombre nuevo NO llega hasta aquí.** La cadena aborta antes, en
---  `20260729_licencias_permisos.sql:88-97`, que deriva el rol de «quién tiene
---  grants sobre `contratos_arrendamiento`» — y con un nombre fuera de la lista
---  blanca de `arr_m6` nadie se los concedió, así que encuentra cero y hace
---  `raise`. Reproducido de punta a punta contra un Postgres desechable con el rol
---  `pixeled_app`: **aborta en el archivo 52 de 70 y deja 33 tablas**.
---
---  O sea que `ROL_APP` sirve hoy para **renombrar una instancia ya migrada**, no
---  para **parir una con nombre propio**. Hacer lo segundo exige tocar
---  `licencias_permisos` (zona R3) o reordenar la cadena, y ninguna de las dos se
---  hace de refilón. El fallo, al menos, es **ruidoso**: aborta y nombra el
---  archivo, no se aplica a medias en silencio.
---
---  Las trece originales siguen sin tocarse —son zona R3, ya aplicadas— y no hace
---  falta: ésta concede lo mismo, sin lista blanca.
+--  ⚠️ HUBO UN AJUSTE `space_os.rol_app` PARA DECLARAR OTRO NOMBRE, Y SE RETIRÓ
+--  EL MISMO DÍA. La intención —que una instancia pueda llamar a su rol como
+--  quiera— sigue en pie, pero **la capacidad no existía por ninguna vía**, y una
+--  auditoría lo midió: sobre una base **virgen** con nombre nuevo la cadena
+--  aborta antes de llegar aquí, en `20260729_licencias_permisos.sql:88-97`
+--  —**archivo 52 de 70, 33 tablas**— porque esa migración deriva el rol de quien
+--  YA tiene grants; y sobre una base ya migrada el ajuste **no hacía nada y salía
+--  con 0**, dejando el rol con cero permisos. Una perilla que no funciona por
+--  ningún camino es peor que no tenerla. Para que vuelva hay que arreglar antes
+--  `licencias_permisos` (zona R3) o reordenar la cadena.
 --
 --  ─── Lo que esto NO hace, a propósito ─────────────────────────────────────
 --
@@ -69,9 +61,7 @@
 --    el mismo motivo, que `20260715_arr_m6_rol_restringido.sql:7-11`.
 --  · NO le da `BYPASSRLS` ni `SUPERUSER`. El rol de la app RESPETA la RLS: es
 --    el invariante R2 y una migración de GRANT es exactamente donde se colaría.
---  · NO renombra nada. El droplet actual corre como `spaces_user` y se queda
---    así: sin declaración es uno de los dos candidatos y recibe los GRANT igual.
---    De hecho GANA los que no tenía — `arr_m6` solo le dio DML sobre seis tablas.
+--  · NO renombra nada.
 --
 --  Idempotente: solo `grant`, ni un `revoke`. Aplicarla dos veces no cambia una
 --  sola fila de `information_schema.role_table_grants`.
@@ -81,10 +71,7 @@ begin;
 
 do $$
 declare
-  declarado  text   := nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), '');
-  candidatos text[] := case when declarado is not null
-                            then array[declarado]
-                            else array['spaces_app', 'spaces_user'] end;
+  candidatos text[] := array['spaces_app', 'spaces_user'];
   r           text;
   encontrados int := 0;
 begin
@@ -105,17 +92,17 @@ begin
   -- ─── 2. Fail-closed: si no hay NINGUNO, se aborta ───────────────────────
   -- Esto es lo que cierra ROJO-3, y no el nombre: conceder a un rol ausente no
   -- es un error de Postgres, es una migración que no hizo nada y lo dio por
-  -- bueno. Trece migraciones lo hacen así hoy, guardadas por existencia.
+  -- bueno. Once migraciones lo hacen así hoy, guardadas por existencia.
   if encontrados = 0 then
     raise exception using message =
-      'No existe ninguno de los roles de aplicacion candidatos (' ||
+      'No existe ninguno de los roles de aplicacion (' ||
       array_to_string(candidatos, ', ') ||
       '). Esta migracion concede sus permisos, y sin rol no concederia nada en silencio. ' ||
       'Crea el rol antes de repetir (la plantilla de la instruccion es db/dev-rol-app.sql; ' ||
       'en una instancia real la contrasena es propia de ella): ' ||
-      'create role <nombre> login password ''<clave propia>'' nosuperuser nobypassrls; ' ||
-      'Si tu instancia usa otro nombre, declaralo con ROL_APP en el runner o con ' ||
-      'PGOPTIONS="-c space_os.rol_app=<nombre>".';
+      'create role spaces_app login password ''<clave propia>'' nosuperuser nobypassrls; ' ||
+      'El nombre tiene que ser uno de los dos: son los que nombran las migraciones. ' ||
+      'Lo que cambia de una instancia a otra es la CONTRASENA.';
   end if;
 
   -- ─── 3. ASSERT: el rol trabaja, y sigue sin poder saltarse la RLS ───────
@@ -143,15 +130,13 @@ commit;
 -- ─── Verificación ──────────────────────────────────────────────────────────
 select rolname, rolsuper, rolbypassrls, rolcanlogin
   from pg_roles
- where rolname in ('spaces_app', 'spaces_user',
-                   nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), ''))
+ where rolname in ('spaces_app', 'spaces_user')
  order by rolname;
 
 select grantee, count(*) as tablas_con_select
   from information_schema.role_table_grants
  where privilege_type = 'SELECT'
-   and grantee in ('spaces_app', 'spaces_user',
-                   nullif(btrim(coalesce(current_setting('space_os.rol_app', true), '')), ''))
+   and grantee in ('spaces_app', 'spaces_user')
  group by grantee
  order by grantee;
 

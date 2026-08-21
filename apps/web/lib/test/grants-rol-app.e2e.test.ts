@@ -105,50 +105,62 @@ describe('la migración que concede los GRANT sin lista blanca', () => {
     expect(filas[0].n).toBeGreaterThanOrEqual(0)
   })
 
-  it('una instancia puede llamar a su rol como quiera, declarándolo', async () => {
-    // Decisión del 2026-08-20: **las instancias deben poder abrirse con otros
-    // nombres**. El nombre se DECLARA en `space_os.rol_app`; el runner lo fija
-    // desde `ROL_APP` antes de aplicar nada, y `deploy.yml` puede fijarlo con
-    // `PGOPTIONS`. Declararlo es EXCLUYENTE: si dices cómo se llama, es ése y no
-    // otro — dejar una lista abierta debajo sería volver al no-op silencioso por
-    // otra puerta.
-    await admin.query("create role rol_propio_e2e login password 'x' nosuperuser nobypassrls")
+  it('si NO existe ninguno de los dos, ABORTA en vez de no conceder nada', async () => {
+    // El corazón de ROJO-3: lo que cerraba el agujero no era el nombre, era que
+    // la migración se niegue cuando no encuentra rol. Se produce de verdad —en
+    // un Postgres desechable SIN ninguno de los dos— y no con un doble, porque
+    // `pg_roles` es del CLÚSTER y aquí los dos existen.
+    const { spawnSync } = await import('node:child_process')
+    const puerto = '55471'
+    const nombre = 'pg_sin_rol_grants_e2e'
+    spawnSync('docker', ['rm', '-f', nombre], { encoding: 'utf8' })
+    spawnSync('docker', ['run', '-d', '--rm', '--name', nombre, '-e', 'POSTGRES_PASSWORD=x',
+      '-e', 'POSTGRES_USER=x', '-e', 'POSTGRES_DB=sinrol', '-p', `${puerto}:5432`,
+      'postgres:16-alpine'], { encoding: 'utf8' })
     try {
-      await admin.query("select set_config('space_os.rol_app', 'rol_propio_e2e', false)")
-      await admin.query(sql(join('migrations', MIGRACION)))
-      const { rows } = await admin.query(
-        "select has_table_privilege('rol_propio_e2e','tenants','select') as puede",
-      )
-      expect(rows[0].puede).toBe(true)
+      // `pg_isready` en bucle: el contenedor tarda en aceptar conexiones.
+      for (let i = 0; i < 40; i++) {
+        const r = spawnSync('docker', ['exec', nombre, 'pg_isready', '-U', 'x'], { encoding: 'utf8' })
+        if (r.status === 0) break
+        await new Promise((res) => setTimeout(res, 500))
+      }
+      await new Promise((res) => setTimeout(res, 1500))
+      const suelto = new Pool({
+        connectionString: `postgresql://x:x@localhost:${puerto}/sinrol`,
+        max: 1,
+      })
+      try {
+        await suelto.query('create table tenants (id int)')
+        await expect(suelto.query(sql(join('migrations', MIGRACION)))).rejects.toThrow(
+          /No existe ninguno de los roles de aplicacion/,
+        )
+      } finally {
+        await suelto.end()
+      }
     } finally {
-      await admin.query("select set_config('space_os.rol_app', '', false)")
-      await admin.query('reassign owned by rol_propio_e2e to spaces').catch(() => {})
-      await admin.query('drop owned by rol_propio_e2e').catch(() => {})
-      await admin.query('drop role if exists rol_propio_e2e').catch(() => {})
+      spawnSync('docker', ['stop', nombre], { encoding: 'utf8' })
     }
-  }, 60_000)
+  }, 180_000)
 
-  it('y si el nombre declarado NO existe, ABORTA en vez de no conceder nada', async () => {
-    // El corazón de ROJO-3: lo que cerraba el agujero no era el nombre único,
-    // era que la migración se niegue cuando no encuentra rol. Aquí se produce de
-    // verdad — declarando un nombre que no existe— y no con un doble.
-    await admin.query("select set_config('space_os.rol_app', 'rol_que_no_existe_e2e', false)")
-    try {
-      await expect(admin.query(sql(join('migrations', MIGRACION)))).rejects.toThrow(
-        /rol_que_no_existe_e2e/,
-      )
-    } finally {
-      await admin.query("select set_config('space_os.rol_app', '', false)")
-    }
-  }, 60_000)
-
-  it('sin declarar nada, sigue sirviendo a los dos nombres históricos', async () => {
-    // Producción corre como `spaces_user` y NO se le cambia el nombre (decisión
-    // del 20/08). Sin declaración, los candidatos son los dos que ya nombran las
-    // trece migraciones, así que el droplet se actualiza sin preparar nada.
-    const fuente = readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION), 'utf8')
-    expect(fuente).toMatch(/spaces_app/)
-    expect(fuente).toMatch(/spaces_user/)
+  it('sirve a los DOS nombres históricos, y eso se mide en la base', async () => {
+    // Antes esto comprobaba que el TEXTO del `.sql` mencionara los dos nombres.
+    // Como la cabecera los nombra en prosa, esa prueba no podía ponerse roja
+    // nunca — hallazgo H7 de la auditoría del 20/08. Ahora se mide el efecto.
+    const { rows } = await admin.query(
+      `select grantee, count(*)::int n from information_schema.role_table_grants
+        where grantee in ('spaces_app','spaces_user') and privilege_type = 'SELECT'
+        group by grantee order by grantee`,
+    )
+    // `spaces_user` no existe en el clúster de pruebas; `spaces_app` sí, y tiene
+    // que haber recibido SELECT sobre todo el esquema.
+    const app = rows.find((r: any) => r.grantee === 'spaces_app')
+    expect(app, 'spaces_app deberia tener grants').toBeTruthy()
+    // Contra el total real de la base, no contra un umbral inventado: tiene que
+    // tener SELECT sobre TODAS las tablas, no sobre unas cuantas.
+    const { rows: tot } = await admin.query(
+      "select count(*)::int n from information_schema.tables where table_schema='public' and table_type='BASE TABLE'",
+    )
+    expect(app.n).toBe(tot[0].n)
   })
 
   it('es idempotente: la segunda pasada no cambia nada', async () => {

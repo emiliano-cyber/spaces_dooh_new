@@ -1273,12 +1273,11 @@ al padre (§3).
      `NOSUPERUSER NOBYPASSRLS` — **no es opcional**: con un superusuario la RLS no se
      aplica y el aislamiento interno desaparece.
 
-     > **ENMIENDA 2026-08-20 (ROJO-3), corregida el mismo día.** El rol de la app de
-     > una instancia nueva se llama **`spaces_app`** y se crea **con una contraseña
-     > propia de esa instancia**. El nombre **no está cableado** —se declara con
-     > `ROL_APP` / `space_os.rol_app`— pero **hoy `spaces_app` es el único que
-     > funciona al parir una instancia**: ver el límite medido, más abajo. El droplet
-     > actual se queda con `spaces_user` y **no se le cambia**.
+     > **ENMIENDA 2026-08-20 (ROJO-3).** El rol de la app de una instancia nueva se
+     > llama **`spaces_app`** y se crea **con una contraseña propia de esa
+     > instancia**. El droplet actual se queda con **`spaces_user`** y **no se le
+     > cambia**. Son los dos únicos nombres, y **no es una preferencia: es lo que las
+     > migraciones saben conceder** — ver el límite medido, más abajo.
      >
      > ```sql
      > create role spaces_app login password '<clave propia de esta instancia>'
@@ -1300,14 +1299,19 @@ al padre (§3).
      > niega a aplicar nada sin rol de aplicación. **Lo que cierra el agujero no es el
      > nombre: es el aborte.**
      >
-     > ⚠️ **Límite medido el 2026-08-20.** Una base **virgen** cuyo rol lleve un nombre
-     > nuevo **no llega** a esa migración: la cadena aborta antes, en
-     > `20260729_licencias_permisos.sql:88-97`, que deriva el rol de quién tiene grants
-     > sobre `contratos_arrendamiento` — y con un nombre fuera de la lista blanca nadie
-     > se los concedió. Reproducido con `pixeled_app`: **aborta en el archivo 52 de 70
-     > y deja 33 tablas**. Así que `ROL_APP` sirve para **renombrar una instancia ya
-     > migrada**, no para **parir una con nombre propio**; eso exige tocar
-     > `licencias_permisos` (R3) o reordenar la cadena.
+     > ⚠️ **Límite medido el 2026-08-20, y por eso los nombres son dos y no libres.**
+     > Una base **virgen** cuyo rol lleve un nombre nuevo **no llega** a esa migración:
+     > la cadena aborta antes, en `20260729_licencias_permisos.sql:88-97`, que deriva
+     > el rol de quién tiene grants sobre `contratos_arrendamiento` — y con un nombre
+     > fuera de la lista blanca nadie se los concedió. Reproducido con `pixeled_app`:
+     > **aborta en el archivo 52 de 70 y deja 33 tablas**.
+     >
+     > Hubo un ajuste (`ROL_APP` / `space_os.rol_app`) para declarar otro nombre, y
+     > **se retiró el mismo día**: no funcionaba por ninguna vía. `update.sh` ni
+     > siquiera lo reenviaba —corre el runner con `--env DATABASE_URL` y nada más— y
+     > sobre una base ya migrada **no hacía nada y salía con 0**, dejando el rol con
+     > cero permisos. Para que un nombre libre sea posible hay que arreglar antes
+     > `licencias_permisos` (zona R3) o reordenar la cadena.
   3. Base vacía + `db/schema.sql` + `node scripts/migrar.mjs` (F3.2).
   4. Correr la imagen (F2.2) con canal **`beta`**.
 - **Criterio de aceptación:** **la base de DEMO no contiene ni una fila de ningún
