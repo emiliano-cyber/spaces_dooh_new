@@ -4,6 +4,10 @@
 una persona**. Ningún comando de este documento se ha ejecutado contra un
 servidor.
 
+> **Actualizado el 2026-08-21, con la migración ya empezada:** se clona **la
+> rama**, no `main` — ver el paso 2, y hazlo antes de seguir. La rama está
+> empujada a `emiliano` desde las 09:44 del 21/08 (`c470031`).
+
 ---
 
 ## 0 · Decidido: el PADRE es un droplet NUEVO
@@ -82,14 +86,49 @@ doctl compute droplet create padre --size s-1vcpu-2gb --image ubuntu-22-04-x64 \
 
 ## 2 · Sistema base
 
+> [!danger] Se clona la RAMA, no `main`. Si clonas `main`, el paso 4 no existe
+> **Medido el 21/08:** `main` tiene **66 migraciones** y **no tiene
+> `scripts/migrar.mjs`**. Todo lo de la última semana —el runner, las 5
+> migraciones nuevas, el alta que genera la contraseña— vive en
+> `feat/servidor-padre-instancias`, que **no está fusionada**.
+>
+> Clonar `main` te deja con: el paso 4 fallando con «no such file», y un
+> `bootstrap-auth.mjs` viejo que **siembra `spaces123` y no obliga a cambiarla**
+> — o sea, justo el defecto que se cerró ayer.
+
 ```bash
 ssh root@<IP>
-git clone <repo> /var/www/Spaces && cd /var/www/Spaces
+git clone -b feat/servidor-padre-instancias <repo> /var/www/Spaces
+cd /var/www/Spaces
 bash infra/scripts/setup-droplet.sh
+```
+
+**Comprobar antes de seguir**, que cuesta dos segundos y evita el error entero:
+
+```bash
+git rev-parse --abbrev-ref HEAD          # feat/servidor-padre-instancias
+ls scripts/migrar.mjs                    # tiene que existir
+ls db/migrations/*.sql | wc -l           # 71
 ```
 
 **Deja:** Node 20 por nvm, pm2, nginx, certbot, `ufw` con 22/80/443 y
 `/var/www/Spaces`. **No deja Postgres.**
+
+> [!warning] Este droplet va a correr una RAMA, y eso hay que recordarlo
+> Es deliberado: el merge a `main` sigue bloqueado por **cuatro cambios sin
+> revisar**, y no tiene sentido dejar un servidor a medias esperando a eso.
+>
+> Pero un servidor de producción corriendo una rama de trabajo **no puede ser el
+> estado final**. En cuanto esos cuatro tengan visto bueno y la rama entre a
+> `main`, hay que pasarlo:
+>
+> ```bash
+> cd /var/www/Spaces && git fetch origin && git checkout main && git pull
+> npm ci && npm --prefix apps/web run build && pm2 reload spaces-web
+> ```
+>
+> Hasta entonces, **el despliegue por `deploy.yml` hay que dispararlo con
+> `ref: feat/servidor-padre-instancias`**, no con `main`.
 
 ## 3 · Postgres
 
