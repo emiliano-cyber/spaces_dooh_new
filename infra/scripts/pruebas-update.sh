@@ -2230,9 +2230,9 @@ no_hubo 'CLAVE-SSLPCT'
 limpiar
 
 # E98 · el contrafactual, y es el que impide que el arreglo se pase de listo:
-#       con separador de verdad, el mensaje SIGUE nombrando el parametro entero
-#       —incluido uno cuyo nombre lleve percent-encoding— y el valor sigue sin
-#       salir. Si alguien "arreglara" esto cortando por lo bruto, aqui se ve.
+#       con separador de verdad, el mensaje SIGUE nombrando el parametro y el
+#       valor sigue sin salir. Si alguien "arreglara" esto cortando por lo bruto,
+#       aqui se ve.
 preparar 'E98 con separador de verdad el mensaje sigue nombrando el parametro'
 usar_url "postgresql://spaces@localhost:5433/spaces?raro=CLAVE-RARA-$MARCA_CLAVE"
 correr
@@ -2240,6 +2240,72 @@ codigo_es 1
 log_dice '`raro`'
 log_calla 'CLAVE-RARA'
 publicable_calla 'CLAVE-RARA'
+limpiar
+
+# E99 · el nombre percent-codificado CON separador de verdad. Lo que E98 decia
+#       cubrir y no cubria: `raro` es ASCII plano. Aqui el nombre viaja
+#       codificado y el separador es un `=` crudo, asi que el mensaje tiene que
+#       nombrar `raro` igual. Hallazgo H3 de la auditoria de `8f81c3e`.
+preparar 'E99 un nombre percent-codificado se nombra decodificado, sin su valor'
+usar_url "postgresql://spaces@localhost:5433/spaces?%72aro=CLAVE-CODIF-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`raro`'
+log_calla 'CLAVE-CODIF'
+publicable_calla 'CLAVE-CODIF'
+limpiar
+
+# ─── EL `=` EN DOBLE ENCODING, Y EL `?` ESCONDIDO (E100-E102) ──────────────
+#  Hallazgos H1 y H2 de la auditoria de `8f81c3e` (20/08). El arreglo de ese
+#  commit podaba por un `=` LITERAL, y `decodificar_porciento` corre ANTES: basta
+#  con que el `=` llegue como `%253D` para que el nombre decodificado sea
+#  `password%3DSECRETO`, sin ningun `=` que podar. La clase seguia abierta.
+#
+#  Es EXACTAMENTE lo que este mismo archivo ya advertia en `update.sh:855-866`:
+#  «una lista negra sobre un espacio de nombres que se decodifica no se puede
+#  demostrar completa. Siempre queda otra codificacion». La leccion de M3,
+#  repetida por tercera vez.
+#
+#  Por eso ahora se hace al reves: se publica SOLO la tirada inicial de
+#  `[A-Za-z_0-9]` —la forma que tiene un parametro de libpq— y todo lo demas se
+#  corta. Lista BLANCA. Da igual cuantas veces este codificado el separador.
+
+preparar 'E100 el = en DOBLE encoding tampoco publica la clave (M2)'
+usar_url "postgresql://spaces@localhost:5433/spaces?password%253DCLAVE-DOBLE-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`password`'
+log_calla 'CLAVE-DOBLE'
+publicable_calla 'CLAVE-DOBLE'
+subido_calla 'CLAVE-DOBLE'
+no_hubo 'CLAVE-DOBLE'
+limpiar
+
+preparar 'E101 ni en TRIPLE encoding, que es donde muere la lista negra (M2)'
+usar_url "postgresql://spaces@localhost:5433/spaces?password%25253DCLAVE-TRIPLE-$MARCA_CLAVE"
+correr
+codigo_es 1
+log_dice '`password`'
+log_calla 'CLAVE-TRIPLE'
+publicable_calla 'CLAVE-TRIPLE'
+subido_calla 'CLAVE-TRIPLE'
+limpiar
+
+# E102 · la SEGUNDA puerta, y es peor que la primera porque no hace falta que
+#        nada falle: `partir_url` recortaba la consulta por el primer `?` CRUDO,
+#        asi que con `%3F` la consulta entera se quedaba dentro del destino, y
+#        `destino_de_url` la escribe como `base=…` en la PRIMERA LINEA de todo
+#        log que viaja al bucket. En la corrida normal. Hallazgo H2.
+#
+#        El arreglo no recorta mejor: RECONSTRUYE el destino de las piezas ya
+#        desarmadas y publica solo las que tienen forma de nombre.
+preparar 'E102 un ? escondido como %3F no mete la consulta en el base= del log (M2)'
+usar_url "postgresql://spaces@localhost:5433/spaces%3Fpassword%3DCLAVE-DESTINO-$MARCA_CLAVE"
+correr
+log_calla 'CLAVE-DESTINO'
+publicable_calla 'CLAVE-DESTINO'
+subido_calla 'CLAVE-DESTINO'
+no_hubo 'CLAVE-DESTINO'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -2496,12 +2562,19 @@ if [ "${1:-}" = '--mutantes' ]; then
   # mutandolo a mano el 20/08: «el esquema public conserva su dueno de antes»
   # se pone en rojo.
 
-  # M2-MUT · quitar la poda del `=`: es literalmente el codigo que tenia el
-  # guion antes del arreglo del 20/08, o sea el hallazgo ROJO de la auditoria de
-  # F3.9/M3 devuelto a su sitio. Si este mutante escapa, la contrasena vuelve a
-  # poder salir al bucket de la flota y nadie se entera.
-  probar_mutante 'guardar el parametro entero, con el = percent-encoded dentro' \
-    's@URL_CONSULTA_NO_SOPORTADO="\${nombre%%=\*}"@URL_CONSULTA_NO_SOPORTADO="$nombre"      @'
+  # M2-MUT-1 · devolver la LISTA NEGRA que duro una auditoria: podar por un `=`
+  # literal en vez de por la forma del nombre. Es el codigo exacto del primer
+  # intento del 20/08, y lo que lo tumbo fue `%253D`. Si escapa, la contrasena
+  # vuelve a poder salir al bucket de la flota.
+  probar_mutante 'podar por un = literal en vez de por la forma del nombre' \
+    's@nombre_publicable="\${nombre%%\[!A-Za-z_0-9\]\*}"@nombre_publicable="${nombre%%=*}"                @'
+  # M2-MUT-2 · abrir el guard del destino a `%`, `?` y `=`: es como estaba antes
+  # del arreglo de la segunda puerta. Con el abierto, una URL con `%3F` mete la
+  # consulta entera en el nombre de la base — y de ahi al `-d` del argv de
+  # `pg_dump` y al `base=` de la primera linea de todo log que sube al bucket.
+  # Este no necesita que nada falle: pasa en la corrida normal.
+  probar_mutante 'dejar pasar un ? escondido dentro del nombre de la base' \
+    's@    \*\[!A-Za-z0-9._-\]\*)@    *[!A-Za-z0-9._%?=-]*)@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

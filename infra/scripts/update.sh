@@ -688,7 +688,7 @@ env_de_parametro() {
 # instancias que hoy funcionan —peor que la fuga que se cierra—. Lo fija E77,
 # con la clave EN MEDIO de los otros ocho.
 clasificar_consulta() {
-  local completo="$1" consulta par nombre valor resto variable
+  local completo="$1" consulta par nombre valor resto variable nombre_publicable
   URL_CONSULTA_CLAVE=''; URL_HAY_CONSULTA_CLAVE=0
   URL_CONSULTA_SSLCLAVE=''; URL_HAY_CONSULTA_SSLCLAVE=0
   URL_CONSULTA_ENV=(); URL_CONSULTA_NO_SOPORTADO=''
@@ -724,29 +724,37 @@ clasificar_consulta() {
     if variable="$(env_de_parametro "$nombre")"; then
       URL_CONSULTA_ENV+=("$variable=$valor")
     else
-      # Se guarda SOLO hasta el primer `=`, y esa poda no es cosmetica: es lo
-      # unico que impide que una contrasena salga del droplet.
+      # Se publica SOLO la tirada inicial de `[A-Za-z_0-9]`, que es la forma que
+      # tiene un parametro de libpq. Todo lo demas se corta. Y esa poda no es
+      # cosmetica: es lo unico que impide que una contrasena salga del droplet.
       #
       # Cuando el `=` que separa nombre y valor va PERCENT-ENCODED
       # (`?password%3DSECRETO`) no hay separador que partir arriba: `nombre` se
       # queda con el par entero y `decodificar_porciento` lo convierte en
-      # `password=SECRETO`. Ese token acababa entero en el mensaje de `:891`,
+      # `password=SECRETO`. Ese token acababa entero en el mensaje de `:944`,
       # que va al log PUBLICABLE — el que sube al bucket de la flota, donde dura
-      # 90 dias y lo lee quien tenga la llave de logs, no la de la base. Podado
-      # aqui, en el ORIGEN, el secreto no entra en la variable y no puede
-      # filtrarse por ninguna otra puerta que se abra manana.
+      # 90 dias y lo lee quien tenga la llave de logs, no la de la base.
       #
-      # Con separador de verdad no cambia nada: `raro=X` ya llegaba como `raro`.
-      # Hallazgo de la auditoria de F3.9/M3 del 20/08; cae por M2 (cualquier
-      # fragmento de credencial que salga de la instancia es invalidante). Lo
-      # fijan E96-E98, y el tercero es el que impide podar de mas.
-      [ -n "$URL_CONSULTA_NO_SOPORTADO" ] || URL_CONSULTA_NO_SOPORTADO="${nombre%%=*}"
+      # ⚠️ El primer arreglo (20/08) podaba por un `=` LITERAL, y duro una
+      # auditoria: `decodificar_porciento` corre ANTES, asi que `%253D` llegaba
+      # como `password%3DSECRETO` y no habia `=` que podar. Era una LISTA NEGRA
+      # de una codificacion del separador — exactamente lo que este archivo ya
+      # advertia en `:901-903`: «una lista negra sobre un espacio de nombres que
+      # se decodifica no se puede demostrar completa. Siempre queda otra
+      # codificacion». La leccion de M3, repetida por tercera vez.
+      #
+      # Por eso ahora es lista BLANCA sobre la FORMA del nombre: da igual
+      # cuantas veces este codificado el separador, porque no se busca el
+      # separador. Lo fijan E96-E101; E98 y E99 son los que impiden podar de mas.
+      nombre_publicable="${nombre%%[!A-Za-z_0-9]*}"
+      [ -n "$nombre_publicable" ] || nombre_publicable='(nombre no imprimible)'
+      [ -n "$URL_CONSULTA_NO_SOPORTADO" ] || URL_CONSULTA_NO_SOPORTADO="$nombre_publicable"
     fi
   done
   return 0
 }
 partir_url() {
-  local url="$1" resto credencial usuario destino hostpuerto
+  local url="$1" resto credencial usuario destino hostpuerto host_claro base_clara
   URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0
   URL_DESTINO=''; URL_DESTINO_COMPLETO=''
   URL_HOST=''; URL_PUERTO=''; URL_BASE_NOMBRE=''
@@ -794,6 +802,35 @@ partir_url() {
     *:*)      URL_HOST="${hostpuerto%%:*}"; URL_PUERTO="${hostpuerto#*:}" ;;
     *)        URL_HOST="$hostpuerto"; URL_PUERTO='' ;;
   esac
+  # ─── Segunda vuelta, sobre lo YA desarmado y DECODIFICADO ────────────────
+  #
+  # El recorte de arriba parte por un `?` CRUDO. Un `?` puede llegar como `%3F`,
+  # y entonces la consulta entera se queda dentro del destino: `URL_BASE_NOMBRE`
+  # acaba siendo `spaces?password=SECRETO`, que va a `-d` en el argv de
+  # `pg_dump` —la fuga que M3 existe para cerrar— y a `base=` en la PRIMERA
+  # LINEA de todo log que viaja al bucket, en la corrida NORMAL. Medido; es el
+  # hallazgo H2 de la auditoria de `8f81c3e`.
+  #
+  # No se recorta mejor —eso seria otra lista negra, y `%253F` la volveria a
+  # burlar—: se comprueba que las piezas decodificadas tengan FORMA de host y de
+  # nombre de base, y si no la tienen se rechaza la URL entera. Fail-closed.
+  # Un `?`, un `=` o un `%` ahi dentro no es un nombre de base: es otra cosa
+  # escondida, y no se adivina lo que quiso decir quien la escribio.
+  host_claro="$(decodificar_porciento "$URL_HOST")"
+  base_clara="$(decodificar_porciento "$URL_BASE_NOMBRE")"
+  case "$host_claro" in
+    ''|*[!A-Za-z0-9._:-]*)
+      URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0
+      URL_DESTINO=''; URL_DESTINO_COMPLETO=''; URL_HOST=''; URL_BASE_NOMBRE=''
+      return 1 ;;
+  esac
+  case "$base_clara" in
+    *[!A-Za-z0-9._-]*)
+      URL_ESQUEMA=''; URL_USUARIO=''; URL_CLAVE_CRUDA=''; URL_HAY_CLAVE=0
+      URL_DESTINO=''; URL_DESTINO_COMPLETO=''; URL_HOST=''; URL_BASE_NOMBRE=''
+      return 1 ;;
+  esac
+
   # La credencial tambien puede venir en la consulta, y se separa AQUI: en el
   # unico parseo, para que no vuelvan a existir dos recortes que se
   # desincronizan al siguiente cambio.

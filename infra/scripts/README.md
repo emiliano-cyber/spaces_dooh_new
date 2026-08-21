@@ -997,7 +997,7 @@ y eso no se puede comprobar mirando la línea de comandos, hay que **leer el
 archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 
 ```
-95 escenarios · 619 comprobaciones · 0 rojas
+102 escenarios · 664 comprobaciones · 0 rojas
 ```
 
 > [!note] Y una pieza nueva del doble de `pg_restore`: `--list` va aparte
@@ -1044,7 +1044,7 @@ archivo que viaja**. El resultado del 2026-08-20, y el que imprime el comando:
 > atrás levante su marca** · el peor caso saliendo como un `5` cualquiera · dar
 > «VUELTA ATRAS COMPLETA» sin mirar si la base volvió · y decir «comprobado
 > releyéndola» en el camino que **no** restaura. **Los ocho CAZADOS, y contra el
-> arnés ENTERO —95 escenarios— no contra una copia reducida**: 6 min por corrida,
+> arnés ENTERO —102 escenarios— no contra una copia reducida**: 6 min por corrida,
 > ~50 min los ocho. Dos de ellos no salieron a la primera y eso vale la pena
 > dejarlo escrito: uno era **INVÁLIDO** —`\?` en GNU `sed` es un cuantificador, así
 > que el patrón no casaba con ninguna línea— y otro **ESCAPABA** por un motivo

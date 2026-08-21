@@ -551,7 +551,7 @@ la huella dice que la base cambió, y **nunca** con la versión anterior sirvien
 **El arnés está en el repositorio** (`infra/scripts/pruebas-update.sh`), y esa es la
 diferencia con la primera versión, que afirmaba «18 escenarios y 58 comprobaciones»
 sin que existieran en ningún sitio. Hoy se corre y lo imprime:
-`95 escenarios · 621 comprobaciones · 0 rojas` (medido el 20/08 al cerrar los cuatro
+`102 escenarios · 664 comprobaciones · 0 rojas` (medido el 20/08 al cerrar los cuatro
 hallazgos de las auditorías; venía de `95 · 619` con D1, y de
 `88 · 557` al cerrar el ciclo de
 los cinco mensajes que decían algo que no era verdad; venía de `85 · 532` el 19/08 al
@@ -1084,7 +1084,7 @@ lección de H1: lo que no se sabe no se afirma.
 >    corre las migraciones.
 
 **Lo que se comprueba de que las comprobaciones muerden:** **ocho mutantes** de una
-línea, todos **CAZADOS** y contra el arnés **entero** (95 escenarios, ~6 min por
+línea, todos **CAZADOS** y contra el arnés **entero** (102 escenarios, ~6 min por
 corrida), no contra una copia reducida. Dos no salieron a la primera y por eso vale
 la pena dejarlo escrito: uno era **inválido** —`\?` en GNU `sed` es cuantificador y
 el patrón no casaba— y otro **escapaba** porque, enganchado al paso 3,
@@ -1162,7 +1162,7 @@ afirma*—:
 > como lo encontró. Otro ciclo.
 
 **Verificado:** `bash infra/scripts/pruebas-update.sh` →
-`95 escenarios · 621 comprobaciones · 0 rojas`. Los **dos** mutantes reparados,
+`102 escenarios · 664 comprobaciones · 0 rojas`. Los **dos** mutantes reparados,
 corridos contra el arnés **entero**, **CAZADOS**.
 
 ## Producción
