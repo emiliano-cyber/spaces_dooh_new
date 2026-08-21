@@ -96,8 +96,10 @@ cobranza.
 - [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
   cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-20]] — **última entrada**: los tres ROJO del re-ensayo de la Fase 4,
-  cerrados; el catálogo de permisos completo y la contraseña del Dueño
+- [[2026-08-21]] — **última entrada**: el droplet PADRE en pie, y los siete
+  defectos que solo aparecen corriendo el procedimiento en un servidor real
+- [[2026-08-20]] — los tres ROJO del re-ensayo de la Fase 4, cerrados; el
+  catálogo de permisos completo y la contraseña del Dueño
 - [[2026-08-19]] — la fuga de credenciales cerrada al cuarto intento, la Fase 4
   ensayada, y «las bases son de pruebas»
 - [[2026-08-18]] — turno nocturno de guardia: F3.4 ensayada, F3.8, F3.7 y la poda;
