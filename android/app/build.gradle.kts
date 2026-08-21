@@ -12,8 +12,8 @@ android {
         applicationId = "com.spaceeye.agent"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.12.0"
+        versionCode = 14
+        versionName = "0.13.0"
 
         // URL del backend. Default = IP LAN de la PC (Wi-Fi) para celular real.
         // Override sin tocar codigo:  ./gradlew assembleDebug -PserverUrl=http://192.168.1.80:4000

@@ -1,7 +1,7 @@
 {
-    "publicado":  "2026-08-05T12:33:55.8170191-06:00",
-    "sha256":  "1110d45ee00aaaff194f7a8a4ea5ec8bbe56f0df801a28b93bfd87968ce58a22",
-    "version_code":  13,
-    "version":  "0.12.0",
-    "bytes":  52606323
+  "version": "0.13.0",
+  "version_code": 14,
+  "sha256": "1025a62efff702fa8a075f44ee7385bf849c93550068b9f19836d18da46b5619",
+  "bytes": 52625179,
+  "publicado": "2026-08-21T18:10:00.000Z"
 }

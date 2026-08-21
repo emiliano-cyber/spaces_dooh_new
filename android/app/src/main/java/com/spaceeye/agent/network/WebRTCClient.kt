@@ -81,6 +81,95 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
     private var socketEmitter: ((String, JSONObject) -> Unit)? = null
     private var currentSessionId: String? = null
 
+    // --- Diagnostico de la señalizacion -------------------------------------
+    //
+    // Todo lo de aqui abajo SOLO OBSERVA Y REPORTA: no cambia el orden ni las
+    // condiciones de la negociacion. Existe porque MAGNOCENTRO (21-ago-2026) se
+    // quedo sin vista en vivo y desde el servidor era imposible saber por que: la
+    // app abria la camara y despues callaba. Los fallos de esta parte se
+    // escribian solo en el logcat del telefono, que en un sitio en la calle no
+    // lee nadie. Y dos caminos -el `?.invoke` del emisor- ni siquiera eso.
+    //
+    // RemoteLog viaja por HTTP con el token del equipo, o sea que llega al
+    // dashboard AUNQUE el canal de señalizacion este roto, que es justo el caso
+    // que hay que diagnosticar.
+    // @Volatile no es adorno: los candidatos llegan por el hilo de señalizacion de
+    // WebRTC y el parte se lee desde el hilo principal. Sin esto el parte podria
+    // no ver el contador ya incrementado y acusar de fallo a un equipo que esta
+    // transmitiendo perfectamente -justo el ruido que no queremos introducir.
+    @Volatile private var ofertaEnviada = false
+    @Volatile private var candidatosEnviados = 0
+    private val vigilante = Handler(Looper.getMainLooper())
+    private var reporteProgramado: Runnable? = null
+
+    // Cuanto se espera antes de dar el parte. Los candidatos host salen en
+    // milisegundos; los relay por TURN pueden tardar unos segundos.
+    private val ESPERA_DIAGNOSTICO_MS = 12000L
+
+    /**
+     * Manda un evento por el canal de señalizacion, o deja constancia de que no
+     * se pudo. Antes era `socketEmitter?.invoke(...)`: si el emisor era nulo, la
+     * oferta o el candidato se perdian en silencio absoluto.
+     */
+    private fun emitirSeñal(evento: String, datos: JSONObject) {
+        val emisor = socketEmitter
+        if (emisor == null) {
+            RemoteLog.error(ctx, "stream",
+                "No se pudo enviar '$evento': el canal de señalizacion no está enlazado.")
+            return
+        }
+        try {
+            emisor.invoke(evento, datos)
+        } catch (e: Exception) {
+            RemoteLog.error(ctx, "stream", "Falló el envío de '$evento': ${e.message}")
+        }
+    }
+
+    /** Programa el parte de diagnostico del intento en curso. */
+    private fun vigilarNegociacion() {
+        cancelarVigilancia()
+        val r = Runnable { reportarNegociacion() }
+        reporteProgramado = r
+        vigilante.postDelayed(r, ESPERA_DIAGNOSTICO_MS)
+    }
+
+    private fun cancelarVigilancia() {
+        reporteProgramado?.let { vigilante.removeCallbacks(it) }
+        reporteProgramado = null
+    }
+
+    /**
+     * Dice al dashboard si la negociacion arranco de verdad. Si salio bien no
+     * dice nada: el visor ya muestra imagen y no hace falta ensuciar el
+     * historial del equipo.
+     */
+    private fun reportarNegociacion() {
+        if (ofertaEnviada && candidatosEnviados > 0) return
+
+        // Leer el estado toca objetos nativos que otro hilo pudo haber liberado.
+        // Un diagnostico JAMAS debe tumbar al agente: si no se puede leer, se
+        // reporta sin el detalle.
+        val estado = try {
+            val pc = peerConnection
+            if (pc == null) "sin conexión creada"
+            else "señalización=${pc.signalingState()}, recolección=${pc.iceGatheringState()}, " +
+                 "conexión=${pc.iceConnectionState()}"
+        } catch (e: Exception) {
+            "estado no legible (${e.javaClass.simpleName})"
+        }
+
+        val que = if (!ofertaEnviada) "no llegó a enviar su oferta de video"
+                  else "envió la oferta pero no produjo ninguna dirección de red"
+
+        try {
+            RemoteLog.error(ctx, "stream",
+                "La vista en vivo no arrancó: el equipo $que " +
+                "($estado; candidatos=$candidatosEnviados; ${captureWidth}x$captureHeight, lente=$lente).")
+        } catch (e: Exception) {
+            Log.w(TAG, "no se pudo reportar el diagnostico: ${e.message}")
+        }
+    }
+
     // 16:9 por defecto para que la vista en vivo (recuadro 16:9) se llene sin
     // barras negras cuando el celular esta en horizontal.
     private var captureWidth = 1280
@@ -126,6 +215,11 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
         currentSessionId = sessionId
         socketEmitter = emitter
 
+        // Arranca el parte de este intento. Solo observa; no condiciona nada.
+        ofertaEnviada = false
+        candidatosEnviados = 0
+        vigilarNegociacion()
+
         // Fuente de video WebRTC alimentada por el SurfaceTextureHelper.
         surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBase!!.eglBaseContext)
         videoSource = factory!!.createVideoSource(false)
@@ -157,7 +251,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                         put("candidate", candidate.sdp)
                     })
                 }
-                socketEmitter?.invoke("webrtc_ice_candidate", json)
+                candidatosEnviados++
+                emitirSeñal("webrtc_ice_candidate", json)
             }
 
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
@@ -174,6 +269,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
             override fun onAddTrack(receiver: RtpReceiver?, streams: Array<out MediaStream>?) {}
         }) ?: run {
             Log.e(TAG, "Failed to create PeerConnection")
+            RemoteLog.error(ctx, "stream",
+                "No se pudo crear la conexión de video en el equipo (WebRTC rechazó la configuración).")
             return
         }
 
@@ -544,10 +641,15 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
                                 put("sdp", sdp.description)
                             })
                         }
-                        socketEmitter?.invoke("webrtc_offer", json)
+                        ofertaEnviada = true
+                        emitirSeñal("webrtc_offer", json)
                     }
                     override fun onSetFailure(error: String?) {
                         Log.e(TAG, "setLocalDescription failed: $error")
+                        // Sin esto la recoleccion de direcciones nunca arranca y
+                        // el visor se queda esperando sin motivo visible.
+                        RemoteLog.error(ctx, "stream",
+                            "El equipo no pudo preparar su oferta de video (setLocalDescription): $error")
                     }
                     override fun onCreateSuccess(sdp: SessionDescription?) {}
                     override fun onCreateFailure(error: String?) {}
@@ -555,6 +657,8 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
             }
             override fun onCreateFailure(error: String?) {
                 Log.e(TAG, "createOffer failed: $error")
+                RemoteLog.error(ctx, "stream",
+                    "El equipo no pudo crear su oferta de video (createOffer): $error")
             }
             override fun onSetSuccess() {}
             override fun onSetFailure(error: String?) {}
@@ -588,6 +692,9 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
     fun stopStreaming() {
         Log.d(TAG, "Stopping stream")
+        // Lo PRIMERO, antes de destruir nada: si el parte llegara a ejecutarse
+        // mientras se libera la conexion, leeria un objeto nativo ya liberado.
+        cancelarVigilancia()
         mainExecutor.execute {
             try {
                 cameraProvider?.unbindAll()
@@ -618,6 +725,11 @@ class WebRTCClient(private val ctx: Context) : LifecycleOwner {
 
         currentSessionId = null
         socketEmitter = null
+
+        // Un STOP normal (el usuario cierra, o el corte a los 3 min) no es un
+        // fallo: se cancela el parte para no llenar el historial del equipo de
+        // errores que no lo son.
+        cancelarVigilancia()
     }
 
     fun setQuality(quality: String) {
