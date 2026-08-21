@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-20
+actualizado: 2026-08-21
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -131,7 +131,7 @@ cambian tareas concretas.
 >
 > | | Respuesta | Fecha |
 > |---|---|---|
-> | **P1** | El **droplet actual pasa a ser el PADRE** y sus datos —`rgb` incluido— **se recrean desde cero**: son de prueba | 20/08 |
+> | **P1** | ⚠️ **ENMENDADA dos veces — ver abajo.** Nació diciendo: el droplet actual pasa a ser el PADRE y sus datos —`rgb` incluido— **se recrean desde cero**: son de prueba | 20/08 |
 > | **P2** | **No hay migración de PIXELED.** Nace como instancia nueva y la información se recarga | 20/08 |
 > | **P3** | Las instancias nacen en la **cuenta de DigitalOcean de la casa**, la misma del registry | 20/08 |
 > | **P4** | **DigitalOcean Container Registry**, en la cuenta de PIXELED | 17/08 |
@@ -152,6 +152,39 @@ cambian tareas concretas.
 > se dé de alta la primera instancia de un owner con datos suyos**.
 >
 > Detalle y trazabilidad en [[ejecucion-plan-v3]] · [[preguntas-abiertas]].
+
+> [!important] P1, enmendada dos veces — lo vigente es esto
+> **Lo único de P1 que no se ha movido**: los datos del droplet viejo, `rgb`
+> incluido, **son de prueba y se recrean desde cero**. No hay que archivar ni
+> migrar nada.
+>
+> **Lo que sí cambió, y hay que leer en orden:**
+>
+> | | Qué dijo | Fecha |
+> |---|---|---|
+> | P1 original | El droplet actual **se convierte en el PADRE** | 20/08 mañana |
+> | 1ª enmienda | **El PADRE es un droplet NUEVO**, contratado aparte. Deja **sin decidir** qué pasa con el viejo: apagarlo, dejarlo como DEMO o guardarlo de reserva | 20/08 tarde |
+> | **2ª enmienda — vigente** | **El droplet viejo se queda como DEMO** | **21/08** |
+>
+> La 1ª enmienda no fue una opinión: el PADRE **ya nació en una máquina nueva** el
+> 21/08 y está corriendo. Cualquier nota que siga diciendo que el droplet actual
+> es el PADRE describe algo que **no ocurrió**.
+>
+> **Lo que la 2ª enmienda ahorra:** F4.2 y F4.3 pedían **una tercera máquina** para
+> la demostración (≈$12/mes). Con el viejo haciendo de DEMO se resuelven **moviendo
+> un registro de DNS y recreando su base** — sin contratar nada.
+>
+> > [!warning] Condición, y no es opcional: **F4.1 antes**
+> > «Recrear su base» es un borrado. **F4.1 es el censo que dice qué se borra**, es
+> > de solo lectura y lleva sin correrse desde el 13/08. La decisión se registra
+> > aquí **a petición expresa de Jochelo, sin esperar al censo** (21/08); si el
+> > censo devuelve inventario real en `rgb` o un commit desplegado que no esté en
+> > `main`, **esta enmienda vuelve a la mesa**.
+>
+> **Lo que NO cambia ninguna de las dos:** la **Fase 7** («desenredar `spaces_prod`»,
+> 3 de las 46 tareas) **sigue vaciándose de contenido**, porque se escribió para
+> mover datos reales y no hay datos reales que mover. Y `rgb` **se conserva como el
+> tenant del super admin del PADRE**, aunque sus datos de negocio se recreen.
 
 *Estado en que nacieron, al 2026-08-13:*
 

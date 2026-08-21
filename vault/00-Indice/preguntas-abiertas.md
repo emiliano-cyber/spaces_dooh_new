@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-20
+actualizado: 2026-08-21
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -88,6 +88,13 @@ nadie. Las credenciales ya están configuradas y verificadas en producción
 > cae**: PIXELED nace como instancia nueva y su información se recarga, así que
 > F5.7 vuelve a ser un aprovisionamiento limpio. Ver [[ejecucion-plan-v3]] y
 > [[modelo-instancias-soberanas]].
+>
+> ⚠️ **Ese párrafo describe P1 tal como nació, y ya NO es lo vigente.** El
+> PADRE **no** es el droplet actual: nació en una máquina nueva el 21/08 y está
+> corriendo. Y el **21/08 se decidió que el droplet viejo se queda como DEMO**, lo
+> que ahorra la tercera máquina que pedían F4.2 y F4.3 — **condicionado a correr
+> F4.1 (el censo) antes de recrear su base**. La cadena completa de las dos
+> enmiendas está en [[modelo-instancias-soberanas]].
 
 *Decisión anterior, del 10/08, ya no vigente:* el autorregistro era **abierto y
 permanente**, y la bandera encendida se quedaba.
