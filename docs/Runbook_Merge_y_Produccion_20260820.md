@@ -113,7 +113,7 @@ recrean desde cero— pero **tiene que ser una decisión, no una sorpresa**.
 
 ## 3 · Los pasos, en orden
 
-### Paso 0 · El visto bueno de los diecisiete ROJO
+### Paso 0 · El visto bueno de los ROJO que faltan
 
 No es un comando. Sin él, no se sigue.
 
@@ -226,7 +226,9 @@ Se dispara **a mano** desde GitHub (`deploy.yml` es `workflow_dispatch`):
 
 1. Grupo «3 · Migraciones de esquema» — deben salir los **siete** archivos de la
    tabla del §2, y **`20260820_grants_rol_app.sql` debe terminar sin error**. Si
-   dice `No existe el rol de aplicacion "spaces_app"`, el Paso 1 no se hizo.
+   dijera `No existe ninguno de los roles de aplicacion`, es que el droplet
+   no tiene ni `spaces_app` ni `spaces_user`, cosa que no deberia pasar:
+   corre la comprobacion del Paso 1 antes de seguir.
 2. Grupo «4 · Migraciones de datos» — debe decir `Omitidas` y listar
    `20260731_calendario_meses_cortos.sql` como pendiente.
 3. `pm2 describe spaces-web` — `status: online` y `restarts` sin dispararse.
@@ -255,9 +257,18 @@ sudo -u postgres psql -d spaces_prod -Atc \
 
 ```bash
 sudo -u postgres psql -d spaces_prod -Atc \
-  "select has_table_privilege('spaces_app','tenants','select')"
+  "select rolname || ' -> ' || has_table_privilege(rolname,'tenants','select')
+     from pg_roles where rolname in ('spaces_app','spaces_user') order by 1"
 ```
-**Esperado:** `t`.
+**Esperado:** al menos una linea, y todas terminadas en `-> t`. En el
+droplet de hoy sera **`spaces_user -> t`**.
+
+> [!warning] No preguntes por `spaces_app` a secas
+> Ese rol **no existe en produccion** —el droplet corre con `spaces_user` y
+> no se le cambia— y `has_table_privilege('spaces_app',…)` sobre un rol
+> inexistente **no devuelve `f`: revienta** con
+> `ERROR: role "spaces_app" does not exist` y salida 1. La consulta de
+> arriba pregunta por los que HAY.
 
 Y desde fuera:
 
