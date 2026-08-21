@@ -422,6 +422,46 @@ pm2 describe spaces-web | grep -iE 'status|restarts|uptime'
 Vuelve a mirar los `restarts` **después** de los `curl`: si subieron, se está
 reiniciando en bucle. `pm2 logs spaces-web --lines 40 --nostream`.
 
+## 8-bis · 🔧 Provisional: servir por IP mientras no hay dominio
+
+**No se pega la configuración en la consola: se trae del repositorio.** Pegar un
+bloque largo en la consola web del droplet **corrompe el archivo** —duplica
+líneas— y `nginx -t` **pasa igual**, porque el resultado sigue siendo válido.
+
+```bash
+cd /var/www/Spaces && git pull
+ln -sf /var/www/Spaces/infra/nginx/padre-ip.conf /etc/nginx/sites-enabled/padre-ip
+rm -f /etc/nginx/sites-enabled/default          # trae su propio default_server
+ls -l /etc/nginx/sites-enabled/                 # SOLO debe salir padre-ip
+nginx -t && systemctl reload nginx
+```
+
+Y se comprueba por **códigos de respuesta**, no por «arrancó»:
+
+```bash
+curl -s -o /dev/null -w 'directo:  %{http_code}\n' http://localhost:3000/spaces-dooh/login/
+curl -s -o /dev/null -w 'raiz:     %{http_code}\n' http://localhost/
+curl -s -o /dev/null -w 'login:    %{http_code}\n' http://localhost/spaces-dooh/login/
+curl -s -o /dev/null -w 'signup:   %{http_code}\n' -X POST http://localhost/spaces-dooh/api/signup/
+```
+
+**Medido el 21/08:** `directo 200` · `raiz 302` · `login 200` · `signup 503`.
+
+> [!danger] Por IP NO se puede iniciar sesión, y no es un defecto
+> La cookie de sesión sale con `Secure` (`apps/web/lib/server/auth.ts:184-188`) y
+> el navegador **no la manda por HTTP**. La pantalla carga, el login contesta 200
+> y la sesión no persiste.
+>
+> **Para usar la aplicación completa hoy**, sin dominio y sin bajar defensas:
+> ```bash
+> ssh -L 3000:localhost:3000 root@<IP>      # desde TU maquina
+> ```
+> y abrir `http://localhost:3000/spaces-dooh/login/`. El navegador ve `localhost`,
+> así que la cookie no estorba y todo va cifrado dentro del túnel.
+>
+> **NO pongas `COOKIE_SECURE=0`**: eso mandaría la sesión del super admin de toda
+> la flota en claro, y el día que se olvide devolverlo nadie se entera.
+
 ## 8 · Dominio y certificado
 
 ```bash
