@@ -6,31 +6,44 @@ servidor.
 
 ---
 
-## 0 · Antes de nada: una contradicción que hay que resolver en voz alta
+## 0 · Decidido: el PADRE es un droplet NUEVO
 
-> [!danger] El plan dice una cosa y lo de mañana dice otra
-> **P1, cerrada hoy**, dice: *«el droplet **actual** pasa a ser el PADRE»* —
-> repurposar el que ya existe, y recrear sus datos.
+> [!important] Confirmado por Jochelo el 2026-08-20 · enmienda a P1
+> **P1 se cerró esta misma tarde diciendo que «el droplet ACTUAL pasa a ser el
+> PADRE».** Queda enmendado: **el PADRE se contrata aparte**, y a él se migra
+> todo. Este runbook es el bueno.
 >
-> **Lo de mañana** es: *«migramos todo al droplet padre de producción **apenas lo
-> contratemos**»* — un droplet **nuevo**.
+> **Lo que eso cambia respecto a lo presupuestado:**
 >
-> **No son lo mismo, y cambian tres cosas:**
->
-> | | Si el PADRE es el droplet actual | Si el PADRE es uno nuevo |
+> | | Lo que decía P1 | Lo decidido |
 > |---|---|---|
-> | Coste nuevo | **$0** por el padre | **+$12/mes** (2 GB) |
-> | Qué se hace | Recrear sus datos en sitio | **Instalar todo desde cero** |
-> | El droplet viejo | Es el padre | **Hay que decidir qué pasa con él** |
+> | Coste del padre | $0 — se reusaba el actual | **+$12/mes** (2 GB) |
+> | Trabajo | recrear datos en sitio | **instalar todo desde cero** |
+> | Total nuevo al mes | ≈ $22 | **≈ $34** |
 >
-> Este runbook cubre **el droplet nuevo**, porque es lo que se pidió. Si al final
-> se repurposa el actual, sirve el otro runbook
-> (`Runbook_Merge_y_Produccion_20260820.md`) y **P1 se queda como está**.
+> El ≈ $34 sale de: padre nuevo $12 + DEMO $12 + backups de los dos $3,60 +
+> registry $5 + snapshot ≈ $1,50. Son **precios de lista de DigitalOcean sin
+> impuestos**, del plan del 12/08; **la cuenta real nunca se ha consultado**.
+
+> [!warning] Y una pregunta que esto reabre, y que no está decidida
+> Si el PADRE es nuevo, **¿qué pasa con el droplet de hoy?** P1 lo resolvía
+> convirtiéndolo en padre; ya no. Las salidas son tres y no cuestan lo mismo:
 >
-> **Lo que hay que decidir antes de empezar:** qué pasa con el droplet viejo, y
-> si su base se copia o se recrea. P1 dijo **recrear** —los datos son de prueba—
-> y este runbook lo da por bueno. Si hay que copiar algo, para y dilo: cambia el
-> orden entero.
+> 1. **Se apaga** cuando el nuevo lleve tráfico. Ahorra su factura.
+> 2. **Se queda como DEMO**, que es un droplet que el plan presupuesta aparte
+>    ($12): si sirve éste, **te ahorras esos $12**.
+> 3. Se queda de reserva un tiempo y luego se decide.
+>
+> **La 2 es la que más ahorra y la que menos trabajo pide**, pero hay que
+> mirarla: hoy ese droplet **sirve `demo.space-os.io` y los tenants a la vez**, y
+> separarlos era justo el objetivo de la Fase 4.
+>
+> **No lo decido yo.** Lo que sí digo: **no apagues el viejo el mismo día** —ver
+> el paso 10.
+
+**Los datos del droplet viejo NO se copian.** P1 lo decidió y eso no cambia: son
+de prueba y se recrean. Si mañana hay que copiar algo, **para**: este runbook no
+sirve tal cual y el orden entero cambia.
 
 ## 0-bis · Qué NO existe todavía, y por eso mañana es a mano
 
