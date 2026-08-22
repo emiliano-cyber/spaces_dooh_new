@@ -11,6 +11,10 @@ function deviceDetail() {
     logs: [],
     streaming: false,
     streamClient: null,
+    // Encuadre con el que salio la transmision que se esta viendo. Es la
+    // referencia contra la que se calcula el zoom instantaneo del visor.
+    zoomEnStream: 0,
+    centroEnStream: null,
     streamLeft: 0, // segundos restantes antes del corte automatico
     // Hay un intento de conexion en curso. Conectar tarda: el visor espera hasta
     // 40 s a que el equipo empiece a publicar, y en ese silencio la gente volvia
@@ -654,6 +658,15 @@ function deviceDetail() {
       }
 
       this.vistaOcupada = null;
+      // Con que encuadre viene ESTA transmision. El backend le pega a
+      // START_STREAM el encuadre GUARDADO del equipo, asi que es contra esto -y
+      // no contra el deslizador- que se calcula el recorte de la vista previa.
+      // Sin esta referencia, el video se veria ampliado dos veces.
+      this.zoomEnStream = Number(this.savedZoom) || 0;
+      this.centroEnStream = {
+        x: Number(this.ajustes?.centro_x ?? 0.5),
+        y: Number(this.ajustes?.centro_y ?? 0.5),
+      };
       this.streaming = true;
       // Se esta compartiendo la vista que otra persona abrio: conviene saberlo,
       // porque el corte a los 3 minutos lo manda quien la abrio primero.
@@ -735,8 +748,65 @@ function deviceDetail() {
     // paz al resto.
     videoStyle() {
       const r = ((Number(this.rotation) % 360) + 360) % 360;
-      const scale = (r === 90 || r === 270) ? (4 / 3) : 1;
-      return { transform: `rotate(${r}deg) scale(${scale})` };
+      const giro = (r === 90 || r === 270) ? (4 / 3) : 1;
+      const p = this.previewDeZoom();
+      return {
+        transform: `rotate(${r}deg) scale(${(giro * p.escala).toFixed(4)}) `
+          + `translate(${p.tx.toFixed(2)}%, ${p.ty.toFixed(2)}%)`,
+      };
+    },
+
+    // --- Zoom instantaneo ----------------------------------------------------
+    //
+    // Al mover el zoom, el encuadre nuevo se ve AL MOMENTO recortando el video
+    // que ya esta llegando, sin esperar al equipo.
+    //
+    // Antes habia que esperar a que soltara el deslizador (800 ms), que el
+    // equipo guardara el valor, cortara la transmision y la volviera a abrir:
+    // unos cuatro segundos sin imagen cada vez que se tocaba el zoom. Y el
+    // resultado no se veia hasta el final, asi que encuadrar era a ciegas.
+    //
+    // Un telefono aplica el zoom a la camara en vivo por el canal de datos.
+    // La Raspberry no puede: `rpicam-vid` fija el recorte al arrancar. Pero el
+    // encuadre se puede ANTICIPAR aqui, porque el recorte es exactamente la
+    // region --roi que el equipo va a usar: se muestra esa region ampliada, y
+    // cuando llega la transmision nueva la imagen ya esta en su sitio y solo
+    // gana nitidez. Sin saltos y sin pantalla en negro.
+    //
+    // Solo se puede ACERCAR sobre lo que ya se recibe: al alejar, la parte que
+    // falta nunca viajo por la red, asi que ahi se mantiene la imagen actual
+    // hasta que llegue la nueva -pero tampoco se queda en negro.
+    previewDeZoom() {
+      const quieto = { escala: 1, tx: 0, ty: 0 };
+      if (!this.streaming || !this.esRelay) return quieto;
+
+      const ladoStream = 1 - Math.min(0.9, Math.max(0, Number(this.zoomEnStream) || 0));
+      const ladoDeseado = 1 - Math.min(0.9, Math.max(0, Number(this.zoom) || 0));
+      if (!(ladoStream > 0) || !(ladoDeseado > 0)) return quieto;
+
+      // Alejar no se puede anticipar: esos pixeles no estan en el video.
+      const escala = ladoStream / ladoDeseado;
+      if (escala <= 1.001) return quieto;
+
+      // La misma geometria que usa el equipo (argumentosDeAjuste en camara.js):
+      // el recorte es un cuadro de lado (1-zoom) centrado en centro_x/centro_y y
+      // empujado hacia adentro para no salirse del cuadro.
+      const esquina = (centro, lado) => Math.min(1 - lado, Math.max(0, centro - lado / 2));
+      const cS = this.centroEnStream || { x: 0.5, y: 0.5 };
+      const cD = {
+        x: Math.min(1, Math.max(0, Number(this.ajustes?.centro_x ?? 0.5))),
+        y: Math.min(1, Math.max(0, Number(this.ajustes?.centro_y ?? 0.5))),
+      };
+      const xS = esquina(cS.x, ladoStream), yS = esquina(cS.y, ladoStream);
+      const xD = esquina(cD.x, ladoDeseado), yD = esquina(cD.y, ladoDeseado);
+
+      // Centro del recorte deseado, en coordenadas del video que se esta viendo.
+      const cx = (xD + ladoDeseado / 2 - xS) / ladoStream;
+      const cy = (yD + ladoDeseado / 2 - yS) / ladoStream;
+
+      // Se corre ese punto al centro del recuadro ANTES de ampliar (las
+      // transformaciones de CSS se aplican de derecha a izquierda).
+      return { escala, tx: (0.5 - cx) * 100, ty: (0.5 - cy) * 100 };
     },
     // Rotacion del video en el visor (CSS simple; el frame ya llega 4:3 correcto).
     // Es temporal por navegador; al recargar vuelve a la orientacion fija (savedRotation).
