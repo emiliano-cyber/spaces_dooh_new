@@ -324,9 +324,15 @@ function deviceDetail() {
       try {
         await this.streamClient?.stop();
         this.streamClient = null;
-        // La camara del equipo tarda un instante en soltarse; sin esta pausa la
-        // nueva transmision arranca contra una camara todavia ocupada.
-        await new Promise((r) => setTimeout(r, 1200));
+        // La camara del equipo necesita un respiro para soltarse antes de que la
+        // reclame la transmision nueva.
+        //
+        // Eran 1200 ms puestos a ojo. Medido contra la Raspberry en produccion,
+        // el sensor se reabre bien incluso SIN pausa (se probo con 0, 0.3 y 1.2
+        // s), asi que se deja un margen corto: sigue habiendo separacion para los
+        // equipos que la necesiten, y se le devuelve casi un segundo a cada
+        // cambio de encuadre. Es tiempo que el usuario pasaba sin imagen.
+        await new Promise((r) => setTimeout(r, 300));
         await this.startStream();
       } catch (err) {
         this.showToast('No se pudo reabrir la vista con el encuadre nuevo', 'error');

@@ -70,7 +70,7 @@ class Api {
 
   // La foto va como multipart, campo "photo", igual que en la APK.
   // watermark_baked=false -> el dashboard dibuja la marca configurable encima.
-  async subirFoto(jpeg, { taken_at, command_id, schedule_id, campaign_id, source }) {
+  async subirFoto(jpeg, { taken_at, command_id, schedule_id, campaign_id, source, phash }) {
     const fd = new FormData();
     fd.append('photo', new Blob([jpeg], { type: 'image/jpeg' }), 'foto.jpg');
     fd.append('taken_at', taken_at);
@@ -79,7 +79,15 @@ class Api {
     if (command_id) fd.append('command_id', String(command_id));
     if (schedule_id) fd.append('schedule_id', String(schedule_id));
     if (campaign_id) fd.append('campaign_id', String(campaign_id));
+    // Solo con source=creative_change: liga la foto al creativo que la disparo,
+    // para que en el dashboard la ficha del creativo muestre su imagen.
+    if (phash) fd.append('phash', phash);
     return this._req('POST', '/api/device/upload-photo', fd);
+  }
+
+  // Configuracion de vigilancia del loop y catalogo de huellas ya conocidas.
+  creativos() {
+    return this._req('GET', '/api/device/creativos');
   }
 }
 

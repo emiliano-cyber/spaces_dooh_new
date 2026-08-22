@@ -78,6 +78,44 @@ equipos rechazan la actualizacion sin romperse.
 > empaquetador se niega si no coinciden. Si dos paquetes distintos dicen la misma
 > version, no hay forma de saber que corre cada sitio — ya paso en la flota.
 
+## Vigilancia del loop (creativos nuevos)
+
+Un espectacular rota entre varios anuncios, y las fotos programadas caen a horas
+fijas: si un creativo nuevo entra al loop a media tarde, con suerte se descubre
+al dia siguiente — y puede que nunca, si su turno no coincide nunca con el
+horario de la programacion. Desde la **v0.3.0** el equipo lo detecta solo.
+
+Se enciende en la ficha del equipo, en el dashboard. Cada recorrido, la Pi mira
+la pantalla varias veces y calcula una **huella de 256 bits** de cada vistazo.
+Esos vistazos son imagenes pequeñas en gris que **no salen del equipo**:
+reconocer un creativo cuesta cero megas. Solo cuando aparece una huella que no
+reconoce se gasta una foto de verdad.
+
+Lo que viaja son las huellas —64 caracteres cada una— **pegadas al reporte de
+estado** que el equipo ya manda. Una docena de creativos no llega a un kilobyte.
+
+Tres protecciones que conviene conocer:
+
+1. **Las primeras 24 h solo aprende.** Registra el loop completo, de dia y de
+   noche, sin fotografiar nada. Sin eso, el primer recorrido subiria doce fotos
+   de creativos que llevaban semanas puestos.
+2. **Tope diario** (`max_dia`, 12 por omision). Una pantalla averiada que
+   parpadea no puede vaciar el plan de datos del sitio.
+3. **Un solo sensor.** Si hay una foto o una transmision en curso, el vistazo se
+   salta: la evidencia y la vista en vivo mandan sobre la vigilancia.
+
+La huella aguanta el cambio de luz por construccion: se compara cada zona contra
+la mediana de la propia imagen, asi que el MISMO creativo de dia y de noche da
+distancia 0 (comprobado), mientras que dos creativos distintos dan 128.
+
+| Opcion (en la ficha del equipo) | Por omision |
+|---|---|
+| Cada cuanto recorre | 360 min |
+| Cuanto dura el recorrido | 270 s |
+| Cada cuanto mira | 15 s |
+| Fotos maximas por dia | 12 |
+| Tolerancia (bits de diferencia) | 24 |
+
 ## ⚠️ Antes de nada: la alimentacion
 
 La Pi 5 se alimenta por **USB-C** y pide **5 V / 5 A (27 W)** para trabajar con

@@ -15,12 +15,13 @@ const { Api } = require('./api');
 const tele = require('./telemetria');
 const rutas = require('./rutas');
 const actualizar = require('./actualizar');
+const { Vigilante } = require('./vigilante');
 
 // SUBIR SIEMPRE al publicar una version nueva. Si dos paquetes distintos dicen
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.2.1';
+const VERSION = '0.3.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -226,6 +227,11 @@ async function main() {
   const enCurso = new Set();
   const transmision = new Transmision(log, cfg.stream || {});
 
+  // Vigilancia del loop de la pantalla. Con un solo sensor no se puede mirar
+  // mientras se atiende una foto o una transmision, asi que se le da la forma de
+  // saberlo: la evidencia y la vista en vivo mandan sobre la vigilancia.
+  const vigilante = new Vigilante(camara, api, log, () => enCurso.size > 0 || transmision.activa());
+
   async function tomarYSubir(cmd) {
     if (enCurso.has(cmd.id)) return;
     enCurso.add(cmd.id);
@@ -403,7 +409,11 @@ async function main() {
     let avisoVoltaje = false;
     for (;;) {
       try {
-        await api.reportarEstado(tele.recolectar());
+        // El resultado del recorrido viaja PEGADO al reporte de estado, no en
+        // una peticion propia: son huellas de 64 caracteres y asi detectar un
+        // creativo nuevo no le cuesta datos moviles al sitio.
+        const creativos = vigilante.tomarPendiente();
+        await api.reportarEstado({ ...tele.recolectar(), ...(creativos ? { creativos } : {}) });
         const e = tele.alimentacion();
         if (e?.subvoltaje_ahora && !avisoVoltaje) {
           avisoVoltaje = true;
@@ -438,6 +448,11 @@ async function main() {
       process.exit(1); // systemd lo vuelve a levantar
     }
   }, 60000).unref();
+
+  // --- vigilancia del loop de la pantalla ---
+  // En su propio bucle, no atado al de comandos: un recorrido dura minutos y no
+  // debe retrasar una orden del dashboard.
+  vigilante.correr().catch((e) => log(`vigilancia detenida: ${e?.message || e}`));
 
   log('agente listo; esperando comandos del dashboard');
 }

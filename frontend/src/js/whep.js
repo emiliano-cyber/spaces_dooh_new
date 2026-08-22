@@ -11,6 +11,15 @@ const WHEP_STREAM_MAX_MS = 3 * 60 * 1000;
 // El equipo tarda en arrancar la camara y conectar; hasta que publica, el
 // servidor responde 404. Se reintenta en vez de darlo por fallido.
 const WHEP_ESPERA_MAX_MS = 40000;
+// Cada cuanto se le pregunta al backend si el equipo ya publica.
+//
+// Antes era 1500 ms fijos. El equipo tarda ~3.5 s en publicar (medido contra la
+// Raspberry en produccion), asi que con ese intervalo se perdian hasta 1.5 s
+// mirando una pantalla vacia DESPUES de que el video ya estaba listo. Ahora se
+// pregunta seguido al principio -que es cuando la respuesta va a cambiar- y se
+// espacia al rato, para no castigar al servidor si el equipo no va a publicar.
+const WHEP_REINTENTO_RAPIDO_MS = 400;
+const WHEP_RAPIDO_HASTA_MS = 12000;
 const WHEP_REINTENTO_MS = 1500;
 // Margen para confirmar que de verdad esta llegando imagen.
 const WHEP_CHECK_MS = 12000;
@@ -95,7 +104,8 @@ class WhepStreamClient {
   // de tocarle la puerta al servidor de video: asi no se llena la consola de
   // errores 404 mientras la camara del equipo arranca (tarda unos segundos).
   async _esperarAlEquipo() {
-    const limite = Date.now() + WHEP_ESPERA_MAX_MS;
+    const arranque = Date.now();
+    const limite = arranque + WHEP_ESPERA_MAX_MS;
     while (Date.now() < limite && !this._stopped) {
       try {
         const r = await API.get(`/api/devices/${this.deviceId}/stream-status?key=${this.clave}`);
@@ -104,7 +114,10 @@ class WhepStreamClient {
         // El backend viejo no conoce este endpoint: se conecta a ciegas.
         if (e && e.status === 404) return true;
       }
-      await new Promise((r) => setTimeout(r, WHEP_REINTENTO_MS));
+      const espera = (Date.now() - arranque) < WHEP_RAPIDO_HASTA_MS
+        ? WHEP_REINTENTO_RAPIDO_MS
+        : WHEP_REINTENTO_MS;
+      await new Promise((r) => setTimeout(r, espera));
     }
     return false;
   }

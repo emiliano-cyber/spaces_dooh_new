@@ -292,6 +292,44 @@ class Camara {
     return video ? [] : ['--autofocus-mode', 'auto', '--autofocus-on-capture'];
   }
 
+  /**
+   * Una mirada barata a la pantalla, en gris, para calcular su huella.
+   *
+   * NO es una foto: no se sube a ningun lado ni se guarda. Sirve para reconocer
+   * si el creativo que esta puesto ya se habia visto antes, y eso tiene que
+   * costar CERO datos moviles -por eso se resuelve dentro del equipo.
+   *
+   * Se pide `--encoding rgb`, que sale sin comprimir y SIN relleno de filas:
+   * exactamente ancho*alto*3 bytes (comprobado en la Pi: 320x180 -> 172800).
+   * Con JPEG habria que decodificar, y con yuv420 hay que adivinar el `stride`
+   * que use cada version de rpicam. En crudo no hay nada que interpretar.
+   *
+   * `-t 1` en vez de la espera larga de las fotos: aqui no importa que la
+   * exposicion converja del todo, solo el reparto de luces y sombras, y la
+   * huella se compara contra la mediana de la propia imagen -o sea que aguanta
+   * que la escena entera este mas clara o mas oscura.
+   */
+  async mirarEnGris({ ancho = 320, alto = 180 } = {}) {
+    const modo = await this.detectar();
+    if (modo !== 'libcamera') return null;   // el modo prueba no mira nada real
+
+    const crudo = await ejecutar(this._bin, [
+      '-n', '-t', '1',
+      '--width', String(ancho), '--height', String(alto),
+      '--encoding', 'rgb', '-o', '-',
+    ]);
+
+    const esperado = ancho * alto * 3;
+    if (!crudo || crudo.length < esperado) return null;
+
+    // Luminancia estandar (Rec. 601). El resto del sistema razona en gris.
+    const gris = new Uint8Array(ancho * alto);
+    for (let i = 0, p = 0; i < gris.length; i++, p += 3) {
+      gris[i] = (crudo[p] * 299 + crudo[p + 1] * 587 + crudo[p + 2] * 114) / 1000;
+    }
+    return { gris, ancho, alto };
+  }
+
   async tomarFoto(opciones = {}) {
     const modo = await this.detectar();
 
