@@ -5,9 +5,9 @@ la APK de Android y que el agente de PC, asi que aparece en el dashboard como un
 equipo mas: galeria, marca de informacion, verificacion con IA, telemetria,
 fotos programadas y campanas, **sin tocar el servidor**.
 
-Estado: **fase de demo**. Funciona el circuito completo (registro, telemetria,
-comandos, foto, galeria) y la **vista en vivo**. Falta la actualizacion remota;
-ver `docs/PLAN_RASPBERRY_PI5.md`.
+Estado: **listo para campo desde la v0.2.0**. Funciona el circuito completo
+(registro, telemetria, comandos, foto, galeria), la **vista en vivo** y la
+**actualizacion por red**: ya no hace falta viajar al sitio para cambiar nada.
 
 La vista en vivo no va punto a punto como en los telefonos: la Pi 5 no trae
 codificador de video por hardware ni GStreamer, asi que codifica H.264 por
@@ -29,6 +29,54 @@ Medido el 17-ago: sin `--bitrate`, `rpicam-vid` mandaba ~7 Mbps, o sea **50 MB
 por minuto**. Ese era el gasto real de cada vistazo hasta esa fecha.
 
 ---
+
+Desde la v0.2.0 ese consumo **se ve en el dashboard**, en la pantalla de consumo
+del equipo: el agente lo lee de `vnstat`. Antes llegaba vacio, justo en el equipo
+donde mas importa vigilarlo.
+
+## Actualizacion por red
+
+**Desde la v0.2.0 la Raspberry se actualiza sola desde el dashboard**, igual que
+los telefonos y las PCs con camara IP. Era el ultimo equipo de la flota que
+obligaba a ir al sitio por cualquier cambio — y en un sitio con modem LTE no hay
+SSH que valga.
+
+En la ficha del equipo, boton de actualizar. El agente:
+
+1. Baja el paquete y **comprueba su huella SHA-256**. Viaja por HTTP en claro:
+   la huella es la unica defensa contra que le metan otra cosa.
+2. Lo descomprime aparte y lo arranca con `--version`, solo para ver si vive. Un
+   paquete truncado o con una dependencia faltante se cae aqui, **antes** de
+   tocar lo que funciona.
+3. Recien entonces reemplaza `src/`, `package.json` y `node_modules/`, y sale;
+   systemd levanta la version nueva en segundos.
+4. Si la nueva arranca y logra registrarse, la da por buena.
+5. **Si no arranca, al tercer intento vuelve sola a la anterior.** Sin eso, un
+   paquete malo dejaria la Pi en un ciclo de reinicios imposible de romper a
+   distancia.
+
+**Nunca se tocan** `config.json`, `state.json`, `agente.log` ni `cola/`. Perder
+`state.json` daria de alta un equipo nuevo y partiria el historial del sitio en
+dos, asi que jamas entra en la maniobra.
+
+El paquete pesa **~0.7 MB**: actualizar cuesta menos que un minuto de vista en
+vivo.
+
+### Publicar una version nueva
+
+```bash
+cd pi-agent
+npm install          # una vez: el paquete lleva node_modules dentro
+npm run empaquetar   # deja dist/space-eye-pi-agent.tar.gz y .json
+```
+
+Copiar **los dos** a `frontend/public/` del servidor, **el `.json` al final**:
+mientras el manifiesto apunte a un paquete que no esta, la huella no casa y los
+equipos rechazan la actualizacion sin romperse.
+
+> **Subir siempre `VERSION` en `src/index.js` y `version` en `package.json`.** El
+> empaquetador se niega si no coinciden. Si dos paquetes distintos dicen la misma
+> version, no hay forma de saber que corre cada sitio — ya paso en la flota.
 
 ## ⚠️ Antes de nada: la alimentacion
 
@@ -85,6 +133,11 @@ ssh pi@spaceeye-pi01.local
 sudo apt update
 sudo apt install -y nodejs npm
 node -v                       # necesita 18 o mas
+
+# Para que el consumo de datos se vea en el dashboard (el sitio tiene tope
+# mensual: sin esto la pantalla de consumo sale vacia para este equipo).
+sudo apt install -y vnstat
+sudo systemctl enable --now vnstat
 
 # Solo si NO hay camara conectada y quieres demostrar el circuito completo:
 sudo apt install -y imagemagick
@@ -167,6 +220,14 @@ Para forzar uno, en `config.json`: `"camara": { "modo": "usb" }`.
 - Sus errores tambien llegan al dashboard, en **Registros del dispositivo**.
 - Probar solo la camara, sin tocar el servidor: `npm run probar-camara`.
 - **No borres `state.json`**: guarda la identidad del equipo. Si se pierde, el
-  backend da de alta un equipo nuevo y se corta el historial del sitio.
+  backend da de alta un equipo nuevo y se corta el historial del sitio. La
+  actualizacion por red nunca lo toca.
+- Si el agente se **cuelga sin morir** (una peticion que nunca contesta), un
+  vigilante interno lo detecta a los ~12 minutos sin reportar estado y se
+  reinicia solo. `systemd` cubre que el proceso muera; esto cubre que se quede
+  tieso, que es lo que antes dejaba al equipo mudo hasta que alguien viajara.
+- Si una actualizacion salio mal, el equipo vuelve solo a la version anterior y
+  lo dice en **Registros del dispositivo** del dashboard. Ahi tambien queda
+  anotado cuando una actualizacion se instala bien.
 - Fotos que no se pudieron subir por falta de red quedan en `cola/` y se
   reintentan solas.

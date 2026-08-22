@@ -779,45 +779,68 @@ function deviceDetail() {
     async loadAppVersion() {
       try { this.apkLatest = await API.get('/api/app/version'); } catch (_) { this.apkLatest = null; }
     },
+    // Lo publicado PARA ESTE equipo. Cada tipo baja lo suyo, y compararlos todos
+    // contra el APK dejaba a las PCs y a la Raspberry marcadas como atrasadas
+    // para siempre: "pc-agent 1.1.0" nunca va a coincidir con "0.13.0".
+    publicadoParaEsteEquipo() {
+      if (this.esAgenteDePc()) return this.apkLatest?.agente_pc;
+      if (this.esAgenteDePi()) return this.apkLatest?.agente_pi;
+      return this.apkLatest;
+    },
     // Un equipo esta atrasado si su version instalada es menor a la publicada.
     // Las APK anteriores a la v0.10.0 no reportan su numero: en ese caso se
     // compara por nombre, que basta para saber que no estan al dia.
     appAtrasada() {
-      if (!this.apkLatest?.disponible || !this.device) return false;
+      const pub = this.publicadoParaEsteEquipo();
+      if (!pub?.disponible || !this.device) return false;
+
+      // Los agentes se anuncian como "pc-agent 1.2.0" / "pi-agent 0.2.0"; lo que
+      // se compara es el numero, no la etiqueta.
+      const instaladaTexto = String(this.device.app_version || '').replace(/^(pc|pi)-agent\s*v?/i, '');
       const instalado = Number(this.device.app_version_code) || 0;
-      if (this.apkLatest.version_code && instalado) return instalado < this.apkLatest.version_code;
-      return Boolean(this.apkLatest.version && this.device.app_version &&
-        this.device.app_version !== this.apkLatest.version);
+      if (pub.version_code && instalado) return instalado < pub.version_code;
+      return Boolean(pub.version && instaladaTexto && instaladaTexto !== pub.version);
     },
     // Sin device owner, Android exige que alguien confirme en la pantalla del
     // equipo. Conviene decirlo ANTES de mandar la orden, no despues.
     puedeActualizarSolo() {
       return this.device?.device_owner === 1 || this.device?.device_owner === true;
     },
-    // Las PCs con camara IP se actualizan solas SIEMPRE: no hay pantalla donde
-    // confirmar nada. El aviso de "device owner" es cosa de Android y en un
-    // equipo de estos solo confunde.
+    // Las PCs con camara IP y la Raspberry se actualizan solas SIEMPRE: no hay
+    // pantalla donde confirmar nada. El aviso de "device owner" es cosa de
+    // Android y en un equipo de estos solo confunde.
     esAgenteDePc() {
       return /^pc-agent/i.test(String(this.device?.app_version || ''));
+    },
+    esAgenteDePi() {
+      return /^pi-agent/i.test(String(this.device?.app_version || ''));
+    },
+    // Los unicos que necesitan a alguien delante son los telefonos sin device
+    // owner. Antes esta condicion no distinguia el tipo de equipo y a una PC o a
+    // la Raspberry se les pedia "confirmar en la pantalla", que no existe.
+    seActualizaSolo() {
+      return this.esAgenteDePc() || this.esAgenteDePi() || this.puedeActualizarSolo();
     },
     async updateApp() {
       const aviso = this.esAgenteDePc()
         ? `Se instalará el agente publicado en esta PC. Verifica la huella del archivo antes de sustituirlo y, si el programa nuevo no arranca, vuelve solo al anterior.`
-        : this.puedeActualizarSolo()
-          ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
-          : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
+        : this.esAgenteDePi()
+          ? `Se instalará el agente publicado en esta Raspberry. Verifica la huella y lo prueba antes de reemplazar nada; si la versión nueva no arranca, vuelve sola a la anterior. La identidad del equipo y sus fotos pendientes se conservan.`
+          : this.puedeActualizarSolo()
+            ? `Se instalará la versión ${this.apkLatest?.version || 'publicada'} en este equipo. Tardará un par de minutos y la app se reiniciará sola.`
+            : `Este equipo NO puede instalar solo: alguien tendrá que confirmar la instalación EN LA PANTALLA del teléfono. ¿Enviar de todos modos?`;
       if (!confirm(aviso)) return;
       this.updating = true;
       try {
         await API.post(`/api/devices/${this.deviceId}/command`, { command_type: 'UPDATE_APP' });
-        this.showToast(this.puedeActualizarSolo()
+        this.showToast(this.seActualizaSolo()
           ? 'Actualización enviada; el equipo se reiniciará al terminar'
           : 'Orden enviada: falta confirmar la instalación en el equipo', 'success');
       } catch (e) {
         const motivos = {
           apk_no_publicado: 'No hay APK publicada en el servidor',
           agente_no_publicado: 'No hay agente de PC publicado en el servidor',
-          sin_actualizacion_remota: 'La Raspberry todavía no se puede actualizar por red',
+          agente_pi_no_publicado: 'No hay agente de Raspberry publicado en el servidor',
         };
         this.showToast(motivos[e?.body?.error] || 'No se pudo enviar la actualización', 'error');
       } finally {

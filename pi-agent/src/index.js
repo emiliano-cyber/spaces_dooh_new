@@ -14,8 +14,13 @@ const { Transmision } = require('./transmision');
 const { Api } = require('./api');
 const tele = require('./telemetria');
 const rutas = require('./rutas');
+const actualizar = require('./actualizar');
 
-const VERSION = '0.1.0';
+// SUBIR SIEMPRE al publicar una version nueva. Si dos paquetes distintos dicen
+// la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
+// caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
+// dashboard lo delatara, porque el numero nunca cambiaba.
+const VERSION = '0.2.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -117,6 +122,20 @@ async function vaciarCola(api) {
 }
 
 async function main() {
+  // --version: lo usa la actualizacion por red para comprobar que el paquete
+  // recien bajado es codigo vivo ANTES de reemplazar al que funciona. Tiene que
+  // contestar sin tocar la camara, la red ni el archivo de estado.
+  if (process.argv.includes('--version')) {
+    console.log(VERSION);
+    return;
+  }
+
+  // Lo PRIMERO, antes de la camara y antes de la red: si venimos de una
+  // actualizacion que no logra arrancar, esto la revierte sola. Si se dejara
+  // para despues, un fallo al abrir la camara impediria llegar hasta aqui y el
+  // equipo quedaria en un ciclo de reinicios que nadie puede romper a distancia.
+  const trasActualizar = actualizar.revisarArranque(log);
+
   const cfg = cargarConfig();
   const estado = cargarEstado();
   const identidad = tele.identidad();
@@ -187,6 +206,19 @@ async function main() {
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
   api.log('info', 'startup', `Agente de Raspberry Pi v${VERSION} iniciado — ${modoCamara}`);
+
+  // Ya nos registramos: la version nueva no solo arranca, tambien habla. Recien
+  // ahora se da por buena la actualizacion y se deja de contar intentos.
+  if (trasActualizar.pendiente) {
+    if (actualizar.confirmar(log)) {
+      api.log('info', 'update', `Actualizado a la version ${VERSION} y operando con normalidad`);
+    }
+  } else if (trasActualizar.revertido) {
+    // Que esto llegue al dashboard importa: si no, un equipo que volvio solo a
+    // la version anterior se veria "al dia" y nadie sabria que la nueva fallo.
+    api.log('error', 'update',
+      `La version ${trasActualizar.version} no logró arrancar; el equipo volvió solo a la ${trasActualizar.anterior || 'anterior'}`);
+  }
   if (camara.esPrueba()) {
     api.log('warning', 'camera', 'Sin camara conectada: se estan subiendo imagenes de prueba');
   }
@@ -300,8 +332,26 @@ async function main() {
       case 'STOP_STREAM':
         transmision.detener('solicitado desde el dashboard');
         return api.resultadoComando(cmd.id, true);
-      case 'UPDATE_APP':
-        return api.resultadoComando(cmd.id, false, null, 'actualizacion remota todavia no disponible en el agente de Raspberry');
+      case 'UPDATE_APP': {
+        // Transmitir y actualizarse a la vez no tiene sentido y deja el visor
+        // colgado: se corta la vista en vivo antes de tocar los archivos.
+        if (transmision.activa()) transmision.detener('el equipo se va a actualizar');
+        try {
+          const payload = typeof cmd.payload === 'string' ? JSON.parse(cmd.payload || '{}') : (cmd.payload || {});
+          const r = await actualizar.instalar(payload, log, VERSION);
+          if (r.yaEstaba) return api.resultadoComando(cmd.id, true, { ya_estaba: true, version: r.version });
+
+          // Se avisa ANTES de irse: al reiniciar ya no hay quien conteste, y el
+          // dashboard se quedaria esperando un resultado que nunca llega.
+          await api.resultadoComando(cmd.id, true, { version: r.version, bytes: r.bytes });
+          await api.log('info', 'update', `Instalada la version ${r.version}; reiniciando`);
+          return r.arrancar();
+        } catch (e) {
+          log(`ERROR al actualizar: ${e.message}`);
+          api.log('error', 'update', `No se pudo actualizar: ${e.message}`);
+          return api.resultadoComando(cmd.id, false, null, e.message.slice(0, 500));
+        }
+      }
       case 'REBOOT_APP':
         log('reinicio solicitado desde el dashboard');
         await api.resultadoComando(cmd.id, true);
@@ -348,6 +398,7 @@ async function main() {
   })();
 
   // --- telemetria periodica: mantiene el equipo "en linea" en el dashboard ---
+  let ultimoLatido = Date.now();
   (async function reportar() {
     let avisoVoltaje = false;
     for (;;) {
@@ -361,9 +412,32 @@ async function main() {
       } catch (e) {
         log(`no pude reportar estado: ${e.message}`);
       }
+      // Se marca pase lo que pase: un error de red NO es un cuelgue, y el
+      // vigilante de abajo solo debe disparar cuando el ciclo deja de girar.
+      ultimoLatido = Date.now();
       await dormir(intervaloEstado);
     }
   })();
+
+  // --- vigilante interno ---
+  //
+  // systemd tiene Restart=always, pero eso solo cubre que el proceso MUERA. Si
+  // Node se queda colgado -una peticion sin respuesta, un promise que nunca
+  // resuelve- el proceso sigue vivo, systemd no ve nada raro y el equipo se
+  // queda mudo hasta que alguien viaje al sitio. Que es justo lo que este
+  // agente ya no deberia necesitar nunca.
+  //
+  // Si el ciclo de telemetria deja de girar, se sale con error y systemd
+  // levanta un proceso limpio. El umbral va holgado (4 vueltas, minimo 10 min)
+  // para no reiniciar por una red lenta.
+  const TOPE_SIN_LATIDO = Math.max(10 * 60 * 1000, intervaloEstado * 4);
+  setInterval(() => {
+    const quieto = Date.now() - ultimoLatido;
+    if (quieto > TOPE_SIN_LATIDO) {
+      log(`VIGILANTE: ${Math.round(quieto / 60000)} min sin reportar estado; reinicio el agente`);
+      process.exit(1); // systemd lo vuelve a levantar
+    }
+  }, 60000).unref();
 
   log('agente listo; esperando comandos del dashboard');
 }

@@ -7,7 +7,7 @@
 //   battery_pct real -> necesita el UPS con medidor I2C (hoy se manda 100).
 //   signal_dbm LTE   -> hoy es la senal WiFi; con el modem sale de ModemManager.
 //   gps_lat/lng      -> GNSS del modem LTE.
-//   data_*           -> vnstat por interfaz.
+//   (data_* ya se reporta desde la v0.2.0, leyendo vnstat.)
 const fs = require('fs');
 const os = require('os');
 const { execFileSync } = require('child_process');
@@ -92,6 +92,64 @@ function senalWifi(iface) {
   return undefined;
 }
 
+// --- Consumo de datos ---------------------------------------------------
+//
+// La pantalla de consumo del dashboard mostraba VACIO para este equipo, que es
+// justo donde mas importa: el sitio tiene un tope de 4 GB al mes y la vista en
+// vivo se come 11 MB por minuto. Sin esto no habia forma de vigilarlo salvo
+// entrando por SSH.
+//
+// Se lee de `vnstat`, que lleva la cuenta por interfaz y sobrevive a los
+// reinicios (los contadores de /proc/net/dev se ponen en cero al arrancar, asi
+// que no sirven para "lo que va del mes"). Si vnstat no esta instalado, se
+// devuelve undefined y el backend simplemente no guarda nada: nunca es motivo
+// para que falle la telemetria.
+//
+// Las cifras van en BYTES, igual que las que manda la APK de Android
+// (NetworkStatsManager), para que el dashboard no tenga que distinguir.
+function consumoDeDatos(iface, tipo) {
+  if (!iface) return {};
+  const salida = cmd('vnstat', ['--json', '-i', iface], 6000);
+  if (!salida) return {};
+
+  let datos;
+  try { datos = JSON.parse(salida); } catch { return {}; }
+
+  const trafico = datos?.interfaces?.[0]?.traffic;
+  if (!trafico) return {};
+
+  // vnstat da rx/tx por separado; al sitio le cobran los dos.
+  const suma = (e) => (e ? (Number(e.rx) || 0) + (Number(e.tx) || 0) : undefined);
+  // Los arreglos vienen del mas viejo al mas reciente: el ultimo es el actual.
+  const ultimo = (lista) => (Array.isArray(lista) && lista.length ? lista[lista.length - 1] : null);
+
+  const hoy = suma(ultimo(trafico.day));
+  const mes = suma(ultimo(trafico.month));
+  const total = suma(trafico.total);
+
+  // La semana no siempre viene (depende de la version de vnstat); si falta, se
+  // omite en vez de inventarla.
+  const semana = suma(ultimo(trafico.week));
+
+  // El sitio paga por el modem, no por el WiFi de la oficina, asi que se reporta
+  // en la familia que corresponde a como esta conectado ahora mismo.
+  const movil = tipo === 'MOBILE';
+  const con = (v) => (Number.isFinite(v) ? v : undefined);
+  return movil
+    ? {
+        data_mobile_today: con(hoy),
+        data_mobile_week: con(semana),
+        data_mobile_month: con(mes),
+        data_mobile_total: con(total),
+      }
+    : {
+        data_wifi_today: con(hoy),
+        data_wifi_week: con(semana),
+        data_wifi_month: con(mes),
+        data_wifi_total: con(total),
+      };
+}
+
 // vcgencmd get_throttled: el bit 0 dice que AHORA falta voltaje y el bit 16 que
 // falto en algun momento desde que arranco. Es la forma de cazar una fuente
 // insuficiente (alimentar la Pi 5 desde el USB de una laptop, por ejemplo).
@@ -138,6 +196,7 @@ function recolectar() {
     ram_free_mb: Math.round(os.freemem() / 1048576),
     cpu_temp: temperaturaCpu(),
     uptime_seconds: Math.round(os.uptime()),
+    ...consumoDeDatos(iface, tipo),
   };
 }
 

@@ -7,7 +7,7 @@ import { deleteStored, storeBuffer } from '../services/photoStorage.service';
 import sharp from 'sharp';
 import { getIceServers } from '../utils/turn';
 import { armStreamWatchdog, disarmStreamWatchdog, registrarSesion, sesionDeVista, stopStream } from '../utils/streamWatchdog';
-import { agentePcInfo, apkInfo } from '../utils/apkInfo';
+import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
 import crypto from 'crypto';
@@ -310,8 +310,17 @@ export async function deleteDevice(req: Request, res: Response) {
 }
 
 // Version del APK publicado, para que el dashboard sepa quien esta atrasado.
+// Que version hay publicada para CADA tipo de equipo.
+//
+// Antes solo devolvia la del APK, y el dashboard comparaba con ella a todo el
+// mundo: una PC con "pc-agent 1.1.0" nunca coincide con "0.13.0", asi que salia
+// "atrasado" para siempre, incluso recien actualizada. Con la Raspberry el
+// problema seria peor, porque ahi el boton de actualizar es lo unico que evita
+// un viaje al sitio y hay que poder confiar en lo que dice.
+//
+// Los campos del APK siguen en la raiz para no romper a quien ya los leia.
 export function appVersion(_req: Request, res: Response) {
-  res.json(apkInfo());
+  res.json({ ...apkInfo(), agente_pc: agentePcInfo(), agente_pi: agentePiInfo() });
 }
 
 // Lente y zoom guardados del equipo, para adjuntarlos a las ordenes de foto.
@@ -372,18 +381,26 @@ export async function sendCommand(req: Request, res: Response) {
     const [filas] = await pool.query<any[]>(`SELECT app_version FROM devices WHERE id = ?`, [deviceId]);
     const version = String((filas as any[])[0]?.app_version || '');
 
-    if (/^pi-agent/i.test(version)) {
-      return res.status(409).json({ error: 'sin_actualizacion_remota', equipo: 'raspberry' });
+    const esPc = /^pc-agent/i.test(version);
+    const esPi = /^pi-agent/i.test(version);
+
+    // Cada tipo de equipo baja lo suyo: los telefonos el APK, las PCs con camara
+    // IP su ejecutable, y la Raspberry un paquete con su codigo. Hasta la v0.2.0
+    // del pi-agent esta rama contestaba "sin_actualizacion_remota" y la Pi era el
+    // unico equipo de la flota que seguia exigiendo viajar al sitio.
+    const publicado = esPc ? agentePcInfo() : esPi ? agentePiInfo() : apkInfo();
+    if (!publicado.disponible) {
+      return res.status(409).json({
+        error: esPc ? 'agente_no_publicado' : esPi ? 'agente_pi_no_publicado' : 'apk_no_publicado',
+      });
     }
 
-    const esPc = /^pc-agent/i.test(version);
-    const publicado = esPc ? agentePcInfo() : apkInfo();
-    if (!publicado.disponible) {
-      return res.status(409).json({ error: esPc ? 'agente_no_publicado' : 'apk_no_publicado' });
-    }
+    const archivo = esPc ? 'SpaceEyeAgente.exe'
+      : esPi ? 'space-eye-pi-agent.tar.gz'
+      : 'space-eye.apk';
 
     payload = {
-      url: `${env.PUBLIC_BASE_URL || ''}/${esPc ? 'SpaceEyeAgente.exe' : 'space-eye.apk'}`,
+      url: `${env.PUBLIC_BASE_URL || ''}/${archivo}`,
       sha256: publicado.sha256,
       version_code: publicado.version_code,
       version: publicado.version,

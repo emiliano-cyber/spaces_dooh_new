@@ -35,6 +35,12 @@ export interface ApkInfo {
 const AGENTE_PC = path.join(PUBLIC, 'SpaceEyeAgente.exe');
 const AGENTE_PC_META = path.join(PUBLIC, 'space-eye-agente.json');
 
+// La Raspberry corre codigo Node, no un binario: su paquete es un .tar.gz con
+// src/, package.json y node_modules. Era el ultimo tipo de equipo que obligaba a
+// viajar al sitio por cualquier cambio. Ver `pi-agent/src/actualizar.js`.
+const AGENTE_PI = path.join(PUBLIC, 'space-eye-pi-agent.tar.gz');
+const AGENTE_PI_META = path.join(PUBLIC, 'space-eye-pi-agent.json');
+
 // La huella cuesta leer 50-80 MB: se cachea contra la fecha de modificacion para
 // no recalcularla en cada consulta del dashboard.
 const cache = new Map<string, { mtimeMs: number; info: ApkInfo }>();
@@ -77,4 +83,8 @@ export function apkInfo(): ApkInfo {
 
 export function agentePcInfo(): ApkInfo {
   return publicado(AGENTE_PC, AGENTE_PC_META);
+}
+
+export function agentePiInfo(): ApkInfo {
+  return publicado(AGENTE_PI, AGENTE_PI_META);
 }

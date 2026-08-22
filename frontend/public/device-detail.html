@@ -321,7 +321,7 @@
                   <span class="font-medium" x-text="device?.app_version || '—'"></span>
                   <span x-show="appAtrasada()" style="display:none"
                         class="text-xs bg-amber-100 text-amber-700 rounded px-1.5 py-0.5"
-                        x-text="'hay ' + (apkLatest?.version || 'nueva')"></span>
+                        x-text="'hay ' + (publicadoParaEsteEquipo()?.version || 'nueva')"></span>
                 </span>
               </div>
               <div x-show="isAdmin && appAtrasada()" style="display:none" class="pt-1">
