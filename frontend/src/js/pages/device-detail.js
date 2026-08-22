@@ -302,8 +302,14 @@ function deviceDetail() {
 
       // Se espera a que suelte el deslizador: si no, se guardaria en cada pixel
       // que arrastra y se reabriria la transmision decenas de veces.
+      //
+      // Se puede esperar MAS que antes -y conviene- porque el encuadre ya se ve
+      // al instante: lo que ocurre al soltar es solo ir a buscar la version
+      // nitida. Antes 800 ms era la espera hasta VER algo; ahora es solo la
+      // espera hasta afinar, y darle mas margen evita reabrir la transmision a
+      // media maniobra si el usuario duda o corrige.
       if (this._encuadreT) clearTimeout(this._encuadreT);
-      this._encuadreT = setTimeout(() => this._aplicarEncuadre(), 800);
+      this._encuadreT = setTimeout(() => this._aplicarEncuadre(), 1500);
     },
 
     async _aplicarEncuadre() {
@@ -331,12 +337,15 @@ function deviceDetail() {
         // La camara del equipo necesita un respiro para soltarse antes de que la
         // reclame la transmision nueva.
         //
-        // Eran 1200 ms puestos a ojo. Medido contra la Raspberry en produccion,
-        // el sensor se reabre bien incluso SIN pausa (se probo con 0, 0.3 y 1.2
-        // s), asi que se deja un margen corto: sigue habiendo separacion para los
-        // equipos que la necesiten, y se le devuelve casi un segundo a cada
-        // cambio de encuadre. Es tiempo que el usuario pasaba sin imagen.
-        await new Promise((r) => setTimeout(r, 300));
+        // Se probo bajarlo a 300 ms -el sensor de la Pi se reabre bien incluso
+        // sin pausa- y fue un error: el problema no era el sensor, era que el
+        // STOP y el START se pisaban en el camino y la vista se caia con un "se
+        // perdio la señal". Vuelve a 1200 ms, que es lo que estaba probado.
+        //
+        // Y ya no se nota: el encuadre nuevo se ve al instante en el visor
+        // (previewDeZoom), asi que esta espera ocurre por detras, con la imagen
+        // ya puesta donde el usuario la quiere.
+        await new Promise((r) => setTimeout(r, 1200));
         await this.startStream();
       } catch (err) {
         this.showToast('No se pudo reabrir la vista con el encuadre nuevo', 'error');
@@ -585,15 +594,28 @@ function deviceDetail() {
       // del agente, que la ponemos nosotros ("pi-agent", "pc-agent").
       const porServidor = /^(pi|pc)-agent/i.test(this.device?.app_version || '');
       const Cliente = porServidor ? WhepStreamClient : LiveStreamClient;
-      this.streamClient = new Cliente(Number(this.deviceId), video, {
-        onTick: (s) => { this.streamLeft = s; },
+      // Se guarda en una variable propia para poder reconocerlo despues: las
+      // devoluciones de abajo tienen que saber si siguen siendo del visor vivo.
+      const cliente = new Cliente(Number(this.deviceId), video, {
+        onTick: (s) => { if (this.streamClient === cliente) this.streamLeft = s; },
         // Corte a los 3 min: evita que un stream olvidado siga consumiendo
         // datos del equipo y deje sesiones colgadas en el TURN.
         onAutoStop: async () => {
+          if (this.streamClient !== cliente) return;
           await this.stopStream();
           this.showToast('Transmisión detenida automáticamente a los 3 minutos', 'info');
         },
         onError: async (msg) => {
+          // Solo se atiende al visor VIGENTE.
+          //
+          // Al reencuadrar se cierra un visor y se abre otro enseguida. El aviso
+          // de muerte del viejo llega DESPUES, cuando el nuevo ya esta
+          // arrancando, y sin esta comprobacion mataba al recien nacido: la
+          // vista se caia sola con un "se perdio la señal" que no correspondia a
+          // nada. Es el mismo cuidado que ya tenia el agente de la Raspberry con
+          // sus procesos ("esVigente" en transmision.js); al visor le faltaba.
+          if (this.streamClient !== cliente) return;
+
           // El fallo puede llegar ANTES de que la vista se de por activa: el
           // visor de los equipos relay avisa por aqui y su start() termina
           // normal, sin lanzar. Con el "if (!this.streaming)" de antes ese
@@ -607,6 +629,7 @@ function deviceDetail() {
           this.showToast(msg, 'error');
         },
       });
+      this.streamClient = cliente;
       try {
         await this.streamClient.start();
       } catch (err) {
@@ -804,14 +827,46 @@ function deviceDetail() {
       const cx = (xD + ladoDeseado / 2 - xS) / ladoStream;
       const cy = (yD + ladoDeseado / 2 - yS) / ladoStream;
 
+      // CORRECCION POR LAS BARRAS NEGRAS.
+      //
+      // Un translate en porcentaje se mide contra el ELEMENTO, no contra la
+      // imagen. Y con `object-contain` no son lo mismo: el video llega en 16:9 y
+      // el recuadro es 4:3, asi que la imagen ocupa solo el 75% del alto y
+      // arriba y abajo hay negro.
+      //
+      // Sin esto, el desplazamiento vertical salia un tercio pasado y el zoom
+      // se iba de sitio en cuanto el recorte no estaba centrado -que es
+      // exactamente lo que tiene la Raspberry (centro 0.2, 0.05).
+      const f = this._factorDeContenido();
+
       // Se corre ese punto al centro del recuadro ANTES de ampliar (las
       // transformaciones de CSS se aplican de derecha a izquierda).
-      return { escala, tx: (0.5 - cx) * 100, ty: (0.5 - cy) * 100 };
+      return { escala, tx: (0.5 - cx) * 100 * f.x, ty: (0.5 - cy) * 100 * f.y };
+    },
+
+    /**
+     * Que fraccion del elemento ocupa de verdad la imagen, a lo ancho y a lo
+     * alto. Con `object-contain` una de las dos es 1 y la otra es menor.
+     *
+     * Se mide del propio elemento, que es la unica fuente que no miente: da
+     * igual que el equipo cambie de resolucion o que el recuadro cambie de
+     * proporcion en otra pantalla.
+     */
+    _factorDeContenido() {
+      const v = document.getElementById('liveVideo');
+      const vw = v?.videoWidth || 0, vh = v?.videoHeight || 0;
+      const cw = v?.clientWidth || 0, ch = v?.clientHeight || 0;
+      if (!vw || !vh || !cw || !ch) return { x: 1, y: 1 };
+      const k = Math.min(cw / vw, ch / vh);   // asi encaja object-contain
+      return { x: (vw * k) / cw, y: (vh * k) / ch };
     },
     // Rotacion del video en el visor (CSS simple; el frame ya llega 4:3 correcto).
     // Es temporal por navegador; al recargar vuelve a la orientacion fija (savedRotation).
-    rotate() {
-      this.rotation = (this.rotation + 90) % 360;
+    // Girar en los DOS sentidos. Antes solo se podia a la derecha, asi que para
+    // corregir 90 grados de mas habia que dar tres vueltas.
+    rotate(sentido = 1) {
+      const paso = sentido < 0 ? -90 : 90;
+      this.rotation = (((this.rotation + paso) % 360) + 360) % 360;
     },
     // Vuelve a la orientacion fija guardada (la que ven todos).
     resetRotation() {
