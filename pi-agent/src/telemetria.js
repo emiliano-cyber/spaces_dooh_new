@@ -127,9 +127,19 @@ function consumoDeDatos(iface, tipo) {
   const mes = suma(ultimo(trafico.month));
   const total = suma(trafico.total);
 
-  // La semana no siempre viene (depende de la version de vnstat); si falta, se
-  // omite en vez de inventarla.
-  const semana = suma(ultimo(trafico.week));
+  // vnStat 2.x NO trae "week" en su JSON (comprobado contra 2.13 en la Pi: las
+  // claves son total, fiveminute, hour, day, month, year y top). Se suma de los
+  // ultimos 7 dias, que es lo mismo que reporta la APK de Android; si se dejara
+  // vacio, la columna de la semana quedaria en blanco solo para este equipo.
+  const dias = Array.isArray(trafico.day) ? trafico.day.slice(-7) : [];
+  const semana = dias.length
+    ? dias.reduce((acc, d) => acc + (suma(d) || 0), 0)
+    : undefined;
+
+  // Recien instalado, vnstat contesta con todo en cero y los arreglos vacios.
+  // Mandar eso pinta "0 MB consumidos" en el dashboard, que no es cierto: es
+  // "todavia no se sabe". Mejor no reportar nada hasta que haya algo que contar.
+  if (!total && !hoy && !mes) return {};
 
   // El sitio paga por el modem, no por el WiFi de la oficina, asi que se reporta
   // en la familia que corresponde a como esta conectado ahora mismo.
