@@ -5,6 +5,40 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-21
+
+- **El servidor de siempre pasa a ser el de demostraciones, y eso ahorra
+  contratar uno.** Hasta hoy la página de demostración y el trabajo de verdad
+  vivían **en la misma máquina y compartiendo la misma base de datos**. El plan
+  para separarlos suponía **contratar un servidor más**, con su gasto mensual.
+  Hoy se decidió otra cosa: **el servidor viejo se queda como el de
+  demostraciones**, porque el que lleva el control ya se puso en marcha ayer en
+  una máquina nueva.
+  - **Qué cambia en la práctica:** separar las dos cosas deja de ser una compra y
+    pasa a ser **cambiar a dónde apunta la dirección de internet** y **dejar la
+    base del servidor viejo como nueva**.
+  - **Qué se ahorra:** los **≈12 dólares al mes** que estaban presupuestados para
+    esa máquina adicional.
+  - **Lo que no cambia:** desde la aplicación **no se nota nada hoy**. Es una
+    decisión sobre dónde vive cada cosa, no sobre cómo funciona el programa.
+
+- **Antes de dejar esa base como nueva hay que mirar qué tiene dentro.** «Dejarla
+  como nueva» quiere decir **borrar lo que hay**, y hoy nadie ha revisado qué hay.
+  Se preparó una revisión que **solo mira y no toca nada**: qué organizaciones
+  existen en ese servidor, cuánta información tiene cada una y qué versión del
+  programa está funcionando ahí.
+  - **La decisión se anotó igualmente, antes de esa revisión y a petición
+    expresa.** Queda escrito que, **si la revisión encuentra información de
+    verdad**, la decisión se vuelve a mirar. Se dice ahora para que después nadie
+    tenga que reconstruir con qué información se decidió.
+
+- **Tres documentos internos decían cosas distintas sobre el mismo asunto, y se
+  corrigieron.** Dos de ellos seguían afirmando que el servidor de siempre iba a
+  convertirse en **el que lleva el control de todo** — algo que se cambió de idea
+  ayer por la tarde y **que ya no ocurrió**, porque ese papel lo tiene desde ayer
+  una máquina nueva. Quien leyera uno u otro sacaba conclusiones opuestas. Los
+  tres cuentan ahora la historia completa y en orden.
+
 ## 2026-08-20
 
 - **Imprenta y Finanzas por fin sirven para algo, y el Dueño puede abrir Imprenta.**
