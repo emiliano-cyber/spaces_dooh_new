@@ -242,14 +242,32 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 | **C18** | `spaces_app\|f\|f` y `0` organizaciones — **criterio de F4.2** | ⧗ |
 | **C19** | `/etc/space-os/demo.env` a `600` y de `demo` | ⧗ |
 | **C20** | `spaces-demo` en el 3001, con usuario `demo` y no root | ⧗ |
+| **C20a** | El login del 3001 contesta `200` **sin dominio ni nginx de por medio** | ⧗ |
 | **C21** | El alta del Dueño por `bootstrap-auth.mjs`, slug `demo` | ⧗ |
 | **C22** | La semilla: `2 arrendadores · 6 pantallas · 5 disponibles` | ⧗ |
-| **C23** | `signup` → **503** — **F4.4**, desviación declarada frente al plan | ⧗ |
+| **C23a** | `signup` del 3001 → **503**, comprobado por dentro — **F4.4** | ⧗ |
+| **C23** | `signup` → **503** por el nombre público — la misma prueba, por fuera | ⧗ |
 | **C24** | El botón «Crear cuenta» ausente **en un navegador real** | ⧗ |
 | **C25** | Los dos nombres resolviendo al PADRE — **criterio 1 de F4.5** | ⧗ |
 | **C26** | `spaces_demo` ∩ `spaces_prod` = ∅ — **criterio 2 de F4.5** | ⧗ |
 | **C27** | Con qué usuario corre cada proceso — la trampa del root, medida | ⧗ |
 | **C28** | `schema_migrations` con 72 filas en un servidor real — **Fase 3** | ⧗ |
+
+> [!important] La hoja se reordenó en dos etapas — y no es cosmético
+> **Etapa 1** levanta DEMO entera y la verifica **por dentro** (`127.0.0.1:3001`),
+> con el DNS sin tocar. **Etapa 2** hace el dominio y vuelve a verificar por fuera.
+>
+> El orden anterior —heredado del runbook— reapuntaba `demo.space-os.io` al PADRE
+> **antes** de arrancar el proceso del 3001, así que entre esos dos pasos nginx
+> proxeaba a un puerto donde no escucha nadie: **502 en un nombre público con
+> visitantes**. Arrancando DEMO primero, esa ventana no existe.
+>
+> Efecto secundario, y es una mejora de la evidencia: cada criterio de F4.4 queda
+> comprobado **dos veces**, por dentro y por fuera. Si difieren, el culpable es
+> nginx o el DNS y no la aplicación — y eso antes no se podía distinguir.
+>
+> **Los identificadores `C<n>` no se renumeraron**: son estables porque este
+> expediente los cita. En la hoja van salteados a propósito.
 
 ### 5.1 · La primera evidencia de servidor que tendrá la Fase 3
 
@@ -352,4 +370,4 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 
 | Emisión | Fecha | HEAD | Qué cambió |
 |---|---|---|---|
-| 1.ª — apertura | 2026-08-24 | `a858c15` | Expediente abierto con toda la evidencia local medida y los 29 huecos de captura señalados |
+| 1.ª — apertura | 2026-08-24 | `a858c15` | Expediente abierto con toda la evidencia local medida y los 31 huecos de captura señalados |
