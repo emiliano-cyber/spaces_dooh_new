@@ -272,6 +272,30 @@ panel se cierra con una respuesta escrita, no con una captura.
 > **Criterio de F4.2, literal del plan:** la base de DEMO **no contiene ni una
 > fila de ningún owner**, y el rol de la app **no** puede saltarse la RLS.
 
+### C15a · EL PREVIO — ¿existe el rol de aplicación en este clúster?
+
+**Demuestra:** que la cadena de migraciones puede llegar hasta el final. **Va
+antes que el C15**, y es barato comparado con lo que evita.
+
+```
+sudo -u postgres psql -Atc "select rolname from pg_roles where rolname in ('spaces_app','spaces_user')"
+```
+
+**Esperado:** `spaces_app`.
+
+> [!danger] Si sale vacío, para: la 52 aborta y la base queda sin recobro
+> Sin el rol, la cadena **aborta en la migración 52 de 72** — medido en el ensayo
+> del 19/08 y reproducido en el PADRE el 21/08. Y una migración fallida **deja la
+> base sin recobro**: `schema_migrations` no existe todavía pero 51 ya corrieron,
+> el runner se niega por sus dos caminos, y el único arreglo es
+> `drop database`. Es el pendiente **D4** del proyecto, y aquí sale gratis
+> esquivarlo porque la base es nueva.
+
+**Pega aquí:**
+```
+
+```
+
 ### C15 · La base nace vacía
 
 ```

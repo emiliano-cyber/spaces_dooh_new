@@ -1,0 +1,124 @@
+============================================================
+ BLOQUE 1 - la base de DEMO (F4.2)
+ y la primera prueba real del runner de la Fase 3
+============================================================
+ Autoridad: docs/evidencias/captura-f3-f4.md
+ Todo esto va EN EL DROPLET. No toca el dominio ni el DNS.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ Las lineas que empiezan con # son notas. NO se pegan.
+============================================================
+
+
+# ------------------------------------------------------------
+# C15a - EL PREVIO. Corre esto ANTES de crear nada.
+# ------------------------------------------------------------
+# Existe el rol de aplicacion en este cluster?
+
+sudo -u postgres psql -Atc "select rolname from pg_roles where rolname in ('spaces_app','spaces_user')"
+
+# Esperado:  spaces_app
+#
+# >>> SI SALE VACIO: PARA. No sigas.
+#     Sin el rol, la cadena de migraciones ABORTA en la 52 de 72
+#     -- medido en el ensayo del 19/08 y reproducido en el PADRE
+#     el 21/08 -- y deja la base a medio migrar.
+#
+#     Y eso importa mas de lo normal: una migracion fallida deja
+#     la base SIN RECOBRO (es el pendiente D4 del proyecto). El
+#     unico arreglo es tirarla y empezar de cero. Mejor no llegar.
+
+
+# ------------------------------------------------------------
+# C15 - La base nace VACIA
+# ------------------------------------------------------------
+
+sudo -u postgres psql -c "create database spaces_demo owner postgres" && sudo -u postgres psql -d spaces_demo -f /var/www/Spaces/db/schema.sql > /dev/null && sudo -u postgres psql -d spaces_demo -Atc "select count(*) from tenants"
+
+# Esperado:  0
+#
+# Tiene que dar CERO antes de migrar. Es la mitad del criterio de
+# F4.2: "la base de DEMO no contiene ni una fila de ningun owner".
+#
+# >>> Si diera 1 o mas: PARA. Querria decir que el esquema sigue
+#     sembrando un tenant, y eso se cerro en 9d609f0.
+
+
+# ------------------------------------------------------------
+# C16 - Las 72 migraciones, corriendo como `postgres`
+# ------------------------------------------------------------
+# Los tres primeros comandos son el defecto (2) del 21/08: el
+# runner necesita ver `node` y poder leer el arbol.
+
+cp "$(command -v node)" /usr/local/bin/node 2>/dev/null; chmod a+rx /usr/local/bin/node; chmod -R a+rX /var/www/Spaces; sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs --instalacion-nueva
+
+# Esperado:  72 aplicadas, y salida 0.
+#
+# >>> SI ABORTA A MEDIAS: PARA y pasame la salida entera.
+#     NO vuelvas a lanzarlo y NO intentes continuar desde donde
+#     se quedo. La base queda a medio migrar y el runner se niega
+#     por sus dos caminos: el unico recobro es
+#
+#         sudo -u postgres psql -c "drop database spaces_demo"
+#
+#     y volver al C15. Es feo, y es justo el pendiente D4.
+#     Como la base es nueva y no tiene nada dentro, tirarla no
+#     cuesta nada -- pero conviene saber POR QUE fallo antes de
+#     repetir, o fallara igual.
+
+
+# ------------------------------------------------------------
+# C17 - La idempotencia, en un servidor de verdad
+# ------------------------------------------------------------
+# Esto es evidencia de la FASE 3, no de la 4: el runner lleva
+# registro de lo que ya aplico y no repite. Hasta hoy solo se
+# habia probado en local.
+
+sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs
+
+# Esperado:  0 aplicadas, salida 0.
+#
+# >>> Si volviera a aplicar alguna: PARA. Seria un fallo de F3.1
+#     o F3.2, y de los que no dan error: reaplicar migraciones en
+#     una instancia viva es lo que este mecanismo existe para
+#     impedir.
+
+
+# ------------------------------------------------------------
+# C18 - Verificacion de F4.2 - las dos mitades del criterio
+# ------------------------------------------------------------
+
+sudo -u postgres psql -d spaces_demo -Atc "select rolname, rolsuper, rolbypassrls from pg_roles where rolcanlogin"; sudo -u postgres psql -d spaces_demo -Atc "select count(*) from tenants"
+
+# Esperado:
+#   spaces_app|f|f      <- ni superusuario, ni puede saltarse la RLS
+#   0                   <- cero organizaciones
+#
+# Si aparecen otros roles con login, pegalos igual: lo que NO
+# puede pasar es que `spaces_app` salga con `t` en alguna de las
+# dos columnas.
+
+
+# ------------------------------------------------------------
+# C28 - El registro de migraciones, en un servidor real
+# ------------------------------------------------------------
+
+sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"; sudo -u postgres psql -d spaces_demo -Atc "select archivo, aplicada_en from schema_migrations order by aplicada_en desc limit 1"
+
+# Esperado:
+#   72
+#   20260824_grants_tablas_futuras.sql|<fecha de hoy>
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Pegame las seis salidas. Con eso queda cerrado el criterio de
+ F4.2 y la Fase 3 gana la primera evidencia de servidor que va a
+ tener, porque F3.5 sigue bloqueada por el registry.
+
+ Si algo aborta, pega la salida ENTERA antes de reintentar.
+============================================================

@@ -327,6 +327,44 @@ llama **`origin`** y apunta a `emiliano-cyber/spaces_dooh_new` — **el vivo**. 
 worktree local, `origin` es el muerto (`CarlosMend87/spaces-dooh`) y el vivo es
 `emiliano`. El mismo nombre significa cosas distintas según dónde estés.
 
+### 5.0-bis · El proxy del ápice está en NARANJA — medido el 24/08 por la tarde
+
+El 24/08 por la mañana se midió que **el proxy de Cloudflare estaba en gris**, y
+así lo dan por sentado `infra/nginx/space-os.io.conf` y el runbook. **Para
+`space-os.io` ya no es cierto**: la captura del panel de Cloudflare enseña el
+ápice en **Proxied (naranja)**, con su registro A a `137.184.107.53` ya creado.
+`demo.space-os.io` sigue en **DNS only**.
+
+**Consecuencia inmediata, ya visible:** `https://space-os.io` devuelve **error 521
+de Cloudflare** («Web server is down»), porque `infra/nginx/padre-ip.conf` **no
+sirve TLS** —cero `listen 443`, verificado— y el modo SSL de la zona no es
+*Flexible*. **No es urgente**: el ápice no lo usa nadie y la etapa 2 lo resuelve
+al instalar el certificado y el vhost nuevo.
+
+**Lo que sí hay que decidir antes del C12, y no después:**
+
+| Si se deja en **naranja** | Si se pone en **gris** |
+|---|---|
+| Hace falta `infra/nginx/cloudflare-realip.sh` **antes** de que nadie use el login | No hace falta |
+| El modo SSL de la zona tiene que ser *Full (strict)* | Indiferente |
+| El gate **C12 deja de medir lo que dice**: contesta Cloudflare, no el nginx propio | El C12 mide el stack propio |
+
+> [!danger] Por qué el naranja rompe el limitador de login, y en silencio
+> `apps/web/lib/server/rate-limit.ts:32-36` — `ipDe()` toma **el primer valor** de
+> `x-forwarded-for`, y `infra/nginx/snippets/proxy-app.conf` lo fija a
+> `$remote_addr` **a propósito**, para que nadie pueda falsificar su IP y saltarse
+> el límite de 10 intentos.
+>
+> Con el proxy naranja, `$remote_addr` es **una IP de Cloudflare para todos los
+> visitantes**. Los diez intentos se agotan **entre todo el mundo junto** y el
+> login se bloquea para todos a la vez. Es el fallo que `space-os.io.conf` avisa
+> en su cabecera, y `cloudflare-realip.sh` pasa de opcional a **obligatorio**.
+
+**Recomendación registrada:** gris hasta cerrar la Fase 4. El naranja tiene
+ventajas reales —oculta la IP de origen, absorbe tráfico— pero encenderlo ahora
+mete tres tareas nuevas en medio de la fase, y una de ellas es un fallo que no da
+error.
+
 ### 5.1 · La primera evidencia de servidor que tendrá la Fase 3
 
 Merece decirse aparte, porque no está en el plan y sale gratis: **aprovisionar
