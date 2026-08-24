@@ -221,6 +221,7 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 
 | | Qué demuestra | Estado |
 |---|---|---|
+| **C0** | La zona `space-os.io` la sirve Cloudflare — **de esto depende que el DNS-01 sea posible** | ⧗ |
 | **C1** | Se está operando el PADRE y no otra máquina | ⧗ |
 | **C2** | 🚦 El PADRE trae la migración 72, no las 66 de `main` | ⧗ |
 | **C3** | A dónde apuntaba el DNS **antes** — evidencia del criterio 3 de F4.5 | ⧗ |
@@ -351,4 +352,4 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 
 | Emisión | Fecha | HEAD | Qué cambió |
 |---|---|---|---|
-| 1.ª — apertura | 2026-08-24 | `a858c15` | Expediente abierto con toda la evidencia local medida y los 28 huecos de captura señalados |
+| 1.ª — apertura | 2026-08-24 | `a858c15` | Expediente abierto con toda la evidencia local medida y los 29 huecos de captura señalados |

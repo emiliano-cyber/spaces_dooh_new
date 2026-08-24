@@ -39,7 +39,50 @@ Eso son los bloques 5 y 8.
 
 # BLOQUE 0 · Antes de tocar nada
 
-Los cuatro son de solo lectura. Ninguno cambia nada.
+Los cinco son de solo lectura. Ninguno cambia nada.
+
+### C0 · ¿La zona está de verdad en Cloudflare?
+
+**Demuestra:** que el DNS-01 es posible. **Todo el plan del certificado depende de
+esto**, y no se había comprobado por escrito en ningún sitio.
+
+Se corre **desde tu máquina**, no desde el servidor. Es una consulta a DNS
+público: no toca producción ni sondea nada.
+
+```
+dig +short NS space-os.io; dig +short A space-os.io
+```
+
+**Esperado:** dos servidores de nombres terminados en **`.ns.cloudflare.com`**, y
+la segunda línea **vacía**.
+
+> [!important] Que el dominio NO apunte todavía al droplet es lo NORMAL aquí
+> Si tienes el dominio y tienes el droplet pero «la IP aún no conecta con el
+> dominio», **no estás bloqueado: estás exactamente en el punto de partida que
+> este runbook supone.** El ápice `space-os.io` no tiene registro A, medido el
+> 24/08, y **se añade a propósito en el C11 — después del certificado, no antes.**
+>
+> **El certificado no necesita que el dominio apunte a ningún sitio.** Esa es
+> toda la razón de validar por **DNS-01** en vez de HTTP-01: Let's Encrypt no
+> pide un desafío al servidor, pide un registro TXT en la zona. Puedes crear el
+> token y emitir el certificado hoy, con el DNS tal como está ahora mismo.
+>
+> El orden es deliberado y al revés de lo intuitivo: **certificado primero, DNS
+> después.** Si se hiciera al revés habría una ventana en la que el nombre
+> resuelve al droplet sin certificado — y en `demo.space-os.io`, con su HSTS de
+> dos años, esa ventana **no es saltable** desde el navegador.
+
+> [!danger] Si los NS NO son de Cloudflare, para y avísame
+> Entonces la zona la sirve otro proveedor —el registrador, DigitalOcean, quien
+> sea— y **el plugin `dns-cloudflare` no puede escribir el TXT del desafío**. No
+> es que falle el token: es que todo el bloque 1 cambia de plugin. Dímelo con la
+> salida de este comando y lo reescribo.
+
+**Pega aquí:**
+```
+
+```
+
 
 ### C1 · ¿A qué máquina estoy entrando?
 
@@ -124,33 +167,75 @@ actividad **posterior al 21/08**.
 > navegador. Por eso se valida por **DNS-01**, que no necesita que el nombre
 > apunte aquí.
 
-### C5 · El token de Cloudflare
+### C5 · El token de Cloudflare, paso a paso
 
-**No tiene salida que pegar.** Se crea en **Cloudflare → My Profile → API Tokens
-→ Create Token**, plantilla «Edit zone DNS»:
+**No tiene salida que pegar** — su prueba es el C6. Pero tiene una trampa que
+hace perder media hora, y va marcada abajo.
 
-| Campo | Valor |
-|---|---|
-| Permissions | `Zone` · `DNS` · **Edit** |
-| Permissions | `Zone` · `Zone` · **Read** ← el plugin resuelve el ID de la zona por su nombre |
-| Zone Resources | Include → **Specific zone** → `space-os.io` — **nunca «All zones»** |
-| Client IP Filtering | `137.184.107.53` |
+**1 · Dónde.** `dash.cloudflare.com` → tu perfil, arriba a la derecha → **My
+Profile** → pestaña **API Tokens** → **Create Token**. Elige la plantilla **«Edit
+zone DNS»** → *Use template*. No empieces por «Create Custom Token»: la plantilla
+deja medio formulario bien.
 
-> [!warning] Este token se vuelve dependencia de renovación PERMANENTE
-> certbot lo guarda en el archivo de renovación y lo usa cada ~60 días. Si
-> caduca o lo revocan, la renovación **falla en silencio** y el sitio muere 90
-> días después. `certbot renew --dry-run` cada dos meses es lo único que lo
-> delata.
+**2 · Permissions — tienen que quedar DOS filas:**
 
-**Y el archivo se crea CERRADO antes de escribir dentro** — el defecto ⑦ del
-21/08 fue `.env.production` naciendo `644` con la clave de la base dentro:
+| | | |
+|---|---|---|
+| `Zone` | `DNS` | **Edit** |
+| `Zone` | `Zone` | **Read** |
+
+La plantilla suele traer las dos. **Comprueba que la segunda esté.** Sin
+`Zone:Read` el plugin no puede resolver el ID de la zona a partir de su nombre, y
+falla con un error que no dice eso. Si falta: *+ Add more*.
+
+**3 · Zone Resources** — `Include` → **Specific zone** → `space-os.io`.
+
+> **Nunca «All zones».** Este token reescribe DNS. Con «All zones», quien lo
+> tenga puede reapuntar cualquier dominio de la cuenta.
+
+**4 · Client IP Address Filtering** — `Is in` → `137.184.107.53`.
+
+**5 · TTL — esto es una decisión, no un campo.**
+
+- **Con caducidad:** más seguro, pero hace falta un recordatorio **antes** de esa
+  fecha o el certificado muere 90 días después sin avisar.
+- **Sin caducidad:** lo que compensa es el filtro por IP. Es lo razonable aquí,
+  porque el modo de fallo del olvido es peor que el del token largo.
+
+**6 · Crear y copiar.** *Continue to summary* → revisa que diga las dos
+permissions y **la zona concreta** → *Create Token*.
+
+**El valor se enseña UNA sola vez.** Cópialo a tu gestor de contraseñas antes de
+cerrar la pestaña: hará falta otra vez el día que se reconstruya el servidor.
+
+> [!danger] ⚠️ La trampa: el botón «Test» de Cloudflare VA A FALLAR, y es correcto
+> Cloudflare ofrece un botón **Test** y un `curl` de ejemplo en esa misma
+> pantalla. Devolverán **403**.
+>
+> Le pusiste filtro por IP `137.184.107.53`. Cualquier prueba desde tu portátil
+> viene de otra IP y el token la rechaza — que es **exactamente para lo que sirve
+> el filtro**. No lo leas como «token mal creado», y sobre todo **no le quites el
+> filtro para ver si así funciona**.
+>
+> La única prueba válida es desde el PADRE, y es el **C6**.
+
+**7 · Escribirlo en el PADRE.** El archivo se crea **cerrado antes** de escribir
+dentro — el defecto ⑦ del 21/08 fue `.env.production` naciendo `644` con la clave
+de la base dentro:
 
 ```
 apt-get install -y python3-certbot-dns-cloudflare && install -m 600 /dev/null /root/.cloudflare.ini
 ```
 
-Después, `nano /root/.cloudflare.ini` y dentro **una sola línea**:
-`dns_cloudflare_api_token = <el token>`
+Después `nano /root/.cloudflare.ini`, y dentro **una sola línea**:
+
+```
+dns_cloudflare_api_token = <el token>
+```
+
+> Nada más. Si encuentras ejemplos con `dns_cloudflare_email` y
+> `dns_cloudflare_api_key`, eso es la **llave global de la cuenta** — puede todo,
+> en todas las zonas, y no caduca. **No es esto.**
 
 **Anota aquí** si le pusiste caducidad al token, y cuál:
 ```
