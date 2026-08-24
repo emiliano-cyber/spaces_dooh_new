@@ -5,6 +5,81 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-24
+
+- **Se perdió el acceso al servidor de siempre, y ya no hay forma de entrar.**
+  Es la máquina que lleva funcionando desde julio y la que atiende la página de
+  demostración. **No está apagada**: sigue encendida y sigue contestando a quien
+  entre por su dirección. Lo que se perdió es la llave — no se puede actualizar,
+  ni corregir, ni apagar.
+  - **Lo único que sí se controla es su dirección de internet**, porque el
+    dominio está a nuestro nombre. Eso permite **quitarle el nombre público**, no
+    apagarla: quien se sepa su número seguirá llegando.
+  - **Hay que comprobar una cosa cuanto antes, y no se mira en el servidor sino
+    en DOOHmain:** esa máquina llevaba activada la publicación a pantallas
+    reales. Si sigue así, hay un sistema mandando contenido a pantallas de verdad
+    **que nadie puede detener desde aquí**. Se retira desde DOOHmain, que es el
+    lado que sí se controla. **Pendiente.**
+  - **Su certificado de seguridad vence el 26 de octubre** y no se va a renovar
+    solo. Esa es la fecha límite natural de todo este asunto.
+
+- **Corrección de lo que se anotó el 21 de agosto.** Aquella entrada decía que
+  «el servidor viejo se queda como el de demostraciones» y que eso ahorraba
+  contratar uno. **Eso ya no puede ocurrir**, por lo de arriba: no hay nada que
+  reutilizar. Se decidió otra cosa, y va en el punto siguiente.
+
+- **La demostración pasa a vivir dentro del servidor nuevo, el que lleva el
+  control.** Es la única máquina que hay, y contratar otra costaba unos 12
+  dólares al mes. Van a convivir dos sitios separados en un mismo servidor:
+  **cada uno con su dirección, su base de datos, su programa y su usuario**.
+  - **Qué se gana:** no hay que contratar nada, y la información de la
+    demostración **no se mezcla con la de verdad** — son bases de datos
+    distintas, y eso se comprueba contando: la de la demostración no tiene ni una
+    fila de ningún cliente.
+  - **Qué se acepta a cambio, y conviene que esté escrito:** la demostración es,
+    por definición, la parte más expuesta —es pública y la toca gente de fuera— y
+    ahora comparte máquina con la que guarda las llaves de todo. Separarlas por
+    dirección, por base y por usuario **ayuda, pero no es una pared**. Se decidió
+    a sabiendas, y queda anotado **cuándo hay que volver a mirarlo**: en cuanto
+    entre el primer cliente de pago, o en cuanto la demostración se abra a
+    tráfico que no sea una demostración acompañada.
+
+- **El sistema va a tener por fin una dirección de internet propia.** Hasta hoy
+  al servidor nuevo solo se llega **escribiendo su número**, y por eso todavía no
+  se puede iniciar sesión desde un navegador como es debido. Queda así:
+  - **`space-os.io`** — el sistema.
+  - **`demo.space-os.io`** — la demostración. **Es la dirección de siempre**, la
+    que ya usaba la página de demostración, así que **no hay que avisar a nadie
+    de ninguna dirección nueva**. Cambiar a dónde apunta es, además, lo que le
+    quita el nombre público a la máquina perdida: las dos cosas de un solo gesto.
+
+- **La demostración no va a mandar contenido a pantallas reales. Nunca.** Es una
+  decisión y va escrita en su configuración. Si saliera con eso encendido, lo que
+  alguien enseñe a un cliente **llegaría a pantallas de verdad** — que es un error
+  que ya costó una incidencia antes.
+
+- **En la demostración nadie puede crearse una cuenta por su cuenta.** Las cuentas
+  las crea quien administra, igual que en el resto del sistema. Se comprobó
+  además que el servidor viejo **también lo tenía cerrado** — era la última
+  ocasión de preguntárselo antes de perderlo de vista, y la respuesta quedó
+  anotada con fecha.
+
+- **Dos arreglos que se notan al dar de alta una organización.** Al poner en
+  marcha el servidor nuevo, el alta del Dueño **se creó con un texto de relleno
+  en vez de un correo**, y nadie se enteró hasta después. Desde hoy el alta
+  **comprueba que el correo parezca un correo y se niega si no**. Y por separado
+  se corrigió un permiso de la base de datos que dejaba **tablas nuevas sin
+  permisos y sin dar ningún error**, que es la peor forma de fallar.
+
+- **Lo que falta, y no lo hace el programa: lo hace una persona.** Poner la
+  dirección en marcha, emitir el certificado de seguridad y preparar la
+  demostración son pasos manuales sobre el servidor, ya escritos uno por uno.
+  **No queda trabajo de programación pendiente para esta parte.**
+  - **Y sigue habiendo una decisión parada desde el 17 de agosto** — dónde se
+    guardan las versiones del programa —, y sin ella **no hay canal de
+    actualizaciones**, que es lo que permitiría que cada servidor se actualice
+    solo en vez de a mano.
+
 ## 2026-08-21
 
 - **El servidor de siempre pasa a ser el de demostraciones, y eso ahorra
