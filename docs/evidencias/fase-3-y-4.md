@@ -12,6 +12,14 @@ Plan de autoridad: `docs/Plan_Instancias_Soberanas_v3.md` §FASE 3 (`:917-1228`)
 > explicar su propio bloqueo. Este expediente sustituye a los `fase-3.md` y
 > `fase-4.md` que nunca se emitieron.
 
+> [!note] Qué relación tiene con `docs/Expediente_Fases_0_a_4.md`
+> Ese documento, del **21/08**, cubre las 28 tareas de las Fases 0 a 4 y **sigue
+> siendo válido para las Fases 0, 1 y 2**. Sus secciones de Fase 3 y Fase 4
+> **quedaron superadas** el 24/08 al perderse el droplet: dan `F4.1` por
+> pendiente cuando es imposible, ponen DEMO en una máquina aparte y cuentan 70
+> migraciones. **Para esas dos fases manda este documento**, y aquel lleva un
+> aviso arriba que lo dice.
+
 > [!danger] **NINGUNA de las dos fases está completa.** Esto es un cierre parcial.
 > **Fase 3:** de sus **9** tareas, **7 están hechas en local** y **dos siguen
 > bloqueadas**: `F3.5` (ensayo completo en DEMO) exige publicar en el canal

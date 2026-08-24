@@ -3,6 +3,25 @@
 **Fecha:** 2026-08-21 · **Rama:** `feat/servidor-padre-instancias` (no fusionada)
 **Cubre:** las **28 tareas** de las fases 0 a 4, de las 46 del plan.
 
+> [!danger] ⚠️ AVISO DEL 2026-08-24 — sus Fases 3 y 4 quedaron SUPERADAS
+> Este expediente se escribió el **21/08** y **no sabe** lo que pasó tres días
+> después: **se perdió el acceso al droplet `209.97.146.136`**.
+>
+> Con eso, sus secciones de **Fase 3** y **Fase 4** describen un mundo que ya no
+> existe. En concreto, y sin tocar el cuerpo del documento:
+>
+> - **F4.1 no es «PENDIENTE_SERVIDOR»: es IMPOSIBLE.** Es un censo de una máquina
+>   a la que no se puede entrar.
+> - **DEMO ya no va en un droplet aparte**, sino **dentro del PADRE** — ADR 0015.
+> - `demo.space-os.io` **no se crea: se recupera** de la máquina perdida.
+> - Donde dice **70 migraciones**, hoy son **72**.
+>
+> **Para las Fases 3 y 4, el documento vigente es
+> `docs/evidencias/fase-3-y-4.md`.** Para las Fases 0, 1 y 2, este sigue valiendo.
+>
+> **No se reescribe el cuerpo**: era correcto en su fecha, y reescribir historia
+> para que cuadre con hoy es lo que hace que un expediente deje de ser fiable.
+
 > [!important] Qué significa «completo» en este documento
 > **21 de las 28 tareas están cerradas en local o ensayadas.** Las **7 que
 > faltan son todas de servidor o de persona** — nadie puede cerrarlas escribiendo

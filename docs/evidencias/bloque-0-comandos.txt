@@ -41,10 +41,10 @@ dig +short demo.space-os.io
 #     El plugin dns-cloudflare no podria escribir el TXT del
 #     desafio y todo el bloque del certificado cambia.
 #
-# Si estas en Windows y no tienes `dig`, desde PowerShell:
-#   Resolve-DnsName space-os.io -Type NS
-#   Resolve-DnsName space-os.io -Type A
-#   Resolve-DnsName demo.space-os.io -Type A
+# >>> EN WINDOWS `dig` NO EXISTE. Comprobado el 24/08.
+#     Usa el archivo hermano:  bloque-0-dns-windows.txt
+#     Trae las mismas tres consultas en PowerShell y en nslookup,
+#     y explica por que la segunda parece un error cuando sale bien.
 
 
 # ------------------------------------------------------------

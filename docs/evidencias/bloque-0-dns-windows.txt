@@ -1,0 +1,86 @@
+============================================================
+ C0 y C3 - las consultas de DNS, en WINDOWS
+============================================================
+ `dig` no existe en Windows. Aqui van las dos alternativas.
+ Se corren en TU MAQUINA, no en el droplet.
+
+ Elige UNA de las dos listas. Las dos dan lo mismo.
+============================================================
+
+
+# ------------------------------------------------------------
+# OPCION A - PowerShell  (la mejor: dice el tipo de registro)
+# ------------------------------------------------------------
+
+Resolve-DnsName space-os.io -Type NS
+
+Resolve-DnsName space-os.io -Type A
+
+Resolve-DnsName demo.space-os.io -Type A
+
+
+# ------------------------------------------------------------
+# OPCION B - nslookup  (funciona en cmd y en PowerShell)
+# ------------------------------------------------------------
+
+nslookup -type=NS space-os.io
+
+nslookup -type=A space-os.io
+
+nslookup -type=A demo.space-os.io
+
+
+============================================================
+ COMO SE LEE LO QUE SALE
+============================================================
+
+ 1) NS de space-os.io
+    ESPERADO: dos servidores terminados en  .ns.cloudflare.com
+              (algo como  lana.ns.cloudflare.com  /  rob.ns.cloudflare.com)
+
+    >>> Si NO son de Cloudflare: PARA y pasame la salida.
+        La zona la estaria sirviendo otro proveedor y el plugin
+        dns-cloudflare no podria escribir el TXT del desafio:
+        cambia el bloque del certificado entero.
+
+
+ 2) A de space-os.io   <-- OJO CON ESTE
+    ESPERADO: QUE NO HAYA NINGUNO. El apice esta libre, y eso es
+    lo correcto hoy: el registro A se agrega a proposito mas
+    adelante, DESPUES del certificado.
+
+    >>> LOS DOS PROGRAMAS DAN ESO COMO SI FUERA UN ERROR. No lo es.
+
+    En PowerShell veras algo en rojo parecido a:
+        Resolve-DnsName : ... DNS name does not exist
+      o bien devuelve solo el registro SOA de la zona.
+
+    En nslookup:
+        *** No se encuentra ... : Non-existent domain
+      o "No records" / "No answer".
+
+    CUALQUIERA DE ESOS ES EL RESULTADO BUENO. Pegamelo tal cual.
+
+    Lo que SI seria una sorpresa es que devolviera una IP: querria
+    decir que el apice ya apunta a algun sitio, y habria que mirar
+    a donde antes de tocar nada.
+
+
+ 3) A de demo.space-os.io
+    ESPERADO: 209.97.146.136  (la maquina perdida)
+
+    Esta salida hay que guardarla: es la evidencia de a donde
+    apuntaba el nombre ANTES, y es lo que hace comprobable el
+    criterio 3 de F4.5. Despues de reapuntarlo ya no se puede
+    capturar.
+
+
+============================================================
+ SI QUIERES SALTARTE LA CACHE DE TU PROVEEDOR
+============================================================
+ Opcional. Pregunta directo a un resolutor publico:
+
+ Resolve-DnsName space-os.io -Type NS -Server 1.1.1.1
+
+ nslookup -type=NS space-os.io 1.1.1.1
+============================================================
