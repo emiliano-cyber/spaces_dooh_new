@@ -73,35 +73,62 @@ echo "  ✓ ufw habilitado (22, 80, 443)"
 
 # ─── Directorio del proyecto ──────────────────────────────────────────────────
 echo "→ Creando directorio del proyecto..."
-mkdir -p /var/www/spaces-dooh/logs
-echo "  ✓ /var/www/spaces-dooh listo"
+mkdir -p /var/www/Spaces/logs
+echo "  ✓ /var/www/Spaces listo"
 
 # ─── Resumen ──────────────────────────────────────────────────────────────────
+#
+#  ⚠️ ESTE EPILOGO SE CORRIGIO EL 2026-08-24 (defecto ④ del arranque del PADRE).
+#  Lo que decia antes describia un producto que ya no existe: `apps/api` —el
+#  backend Fastify, archivado en `_archive/api`—, la ruta `/var/www/spaces-dooh`
+#  y un certificado COMODIN `*.{slug}.spaces.com`, del modelo de subdominios por
+#  tenant que murio el 2026-08-12 y que el plan v3 descarta (T9).
+#
+#  No es cosmetico: este guion se convierte en `provision-instancia.sh` en la
+#  Fase 5, asi que esto es lo ultimo que lee quien aprovisiona una instancia.
+#  `apps/web/lib/aprovisionamiento-epilogo.test.ts` se pone rojo si vuelve.
+#
 echo ""
 echo "┌─────────────────────────────────────────────────────────────┐"
-echo "│  ✓ Droplet listo. Pasos siguientes:                        │"
-echo "│                                                             │"
-echo "│  1. Clonar el repo:                                        │"
-echo "│     git clone <repo-url> /var/www/spaces-dooh              │"
-echo "│                                                             │"
-echo "│  2. Crear .env con las variables de producción:            │"
-echo "│     cp .env.example apps/api/.env                          │"
-echo "│     nano apps/api/.env                                     │"
-echo "│                                                             │"
-echo "│  3. Instalar dependencias y compilar:                      │"
-echo "│     npm install && npm run build                           │"
-echo "│                                                             │"
-echo "│  4. Iniciar con PM2:                                       │"
-echo "│     pm2 start ecosystem.config.js                         │"
-echo "│     pm2 save                                               │"
-echo "│                                                             │"
-echo "│  5. Configurar Nginx:                                      │"
-echo "│     cp infra/nginx/spaces.conf /etc/nginx/sites-available/│"
-echo "│     ln -s /etc/nginx/sites-available/spaces.conf          │"
-echo "│            /etc/nginx/sites-enabled/                      │"
-echo "│     nginx -t && systemctl reload nginx                    │"
-echo "│                                                             │"
-echo "│  6. Obtener certificado SSL:                               │"
-echo "│     certbot --nginx -d '*.{slug}.spaces.com'              │"
+echo "│  ✓ Droplet listo. Pasos siguientes:                          │"
+echo "│                                                              │"
+echo "│  1. Clonar el repo:                                          │"
+echo "│     git clone <repo-url> /var/www/Spaces                     │"
+echo "│                                                              │"
+echo "│  2. Instalar dependencias:                                   │"
+echo "│     cd /var/www/Spaces && npm ci                             │"
+echo "│                                                              │"
+echo "│  3. Crear el .env de la instancia, y CERRARLO:               │"
+echo "│     cp .env.production.example apps/web/.env.production      │"
+echo "│     nano apps/web/.env.production                            │"
+echo "│     chmod 600 apps/web/.env.production                       │"
+echo "│     (nace 644, con la clave de la base dentro: defecto ⑦)    │"
+echo "│                                                              │"
+echo "│  4. Rol de la app, esquema y migraciones — EN ESE ORDEN:     │"
+echo "│     sin el rol, la cadena aborta en la migracion 52 de 70    │"
+echo "│     DATABASE_URL=... node scripts/migrar.mjs \\                │"
+echo "│                        --instalacion-nueva                   │"
+echo "│                                                              │"
+echo "│  5. Compilar y arrancar con PM2:                             │"
+echo "│     npm run build                                            │"
+echo "│     pm2 start ecosystem.config.js && pm2 save                │"
+echo "│                                                              │"
+echo "│  6. Configurar Nginx (archivo VERSIONADO, no pegado a mano;  │"
+echo "│     'nginx -t' dice ok sobre una config corrupta: defecto ⑧) │"
+echo "│     cp infra/nginx/<instancia>.conf \\                        │"
+echo "│        /etc/nginx/sites-available/spaces                     │"
+echo "│     ln -s /etc/nginx/sites-available/spaces \\                │"
+echo "│           /etc/nginx/sites-enabled/                          │"
+echo "│     nginx -t && systemctl reload nginx                       │"
+echo "│                                                              │"
+echo "│  7. Certificado — UNO por instancia, por HTTP-01.            │"
+echo "│     CERTIFICADO PRIMERO, server_name despues:                │"
+echo "│     certbot certonly --webroot -w /var/www/html \\            │"
+echo "│                      -d <dominio-de-la-instancia>            │"
+echo "│                                                              │"
+echo "│  8. El alta de la instancia (crea la organizacion y su       │"
+echo "│     Dueno). Revisa que no queden marcadores puestos:         │"
+echo "│     ORG_SLUG=... ADMIN_EMAIL=... \\                           │"
+echo "│       node apps/web/scripts/bootstrap-auth.mjs               │"
 echo "└─────────────────────────────────────────────────────────────┘"
 echo ""
