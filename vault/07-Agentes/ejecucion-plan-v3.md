@@ -74,7 +74,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 
 | Tarea | Tipo | Estado | Notas |
 |---|---|---|---|
-| F0.1 | [verificación] | **NO EJECUTADA** → PENDIENTE_SERVIDOR | `curl` + `ssh` al droplet. Según el plan (`:260`) **bloquea toda la Fase 4**. Tarjeta **TH-F0.1** |
+| F0.1 | [verificación] | ✅ **CERRADA el 2026-08-24 — el registro está APAGADO** | `POST /api/signup/` → **HTTP 503**, resuelto a `209.97.146.136`. 🔍 **Y se descartó la ambigüedad, que era el riesgo real de esta tarea**: un 503 puede ser el guard *o* el servicio caído, y hubiera dado la misma respuesta con la conclusión contraria. `GET /login/` devuelve **200**, o sea que el servicio está **vivo** y el 503 es la bandera. **F0.2 NO se ejecuta**: estaba condicionada a un 400. Con esto **se levanta el bloqueo de `plan:260` sobre toda la Fase 4**, y encima el `ssh` del paso 2 ya era imposible. ⚠️ Última ventana aprovechada: en cuanto `demo.space-os.io` deje de apuntar ahí, esta pregunta no tenía respuesta posible |
 | F0.2 | [infra] | **PENDIENTE_SERVIDOR** (condicionada a TH-F0.1) | No se ejecuta hasta que F0.1 dé 400. Su `sed` sobre el nombre viejo **caduca** en cuanto el droplet tome un release con F2.6 |
 | F0.3 | [código] | **COMPLETADA_LOCAL** | `6044732`, AMARILLO. La prueba que faltaba ya existe **y muerde**: comprobado por el auditor poniendo la plantilla en `=1` y viéndola roja. `COOKIE_DOMAIN=localhost` fuera. 803 pruebas en 73 archivos |
 | **T-03** | [código] · **fuera del plan** | **COMPLETADA_LOCAL** | `ef70aa9`, AMARILLO. Depende de F0.3. Fuera la **cookie comodín** de `.env.production.example`, y el candado extendido a la segunda plantilla. ROJO por tema: **pendiente de visto bueno humano**. ⚠️ Limpia la plantilla, **no los `.env` ya desplegados** — TH-T03 |

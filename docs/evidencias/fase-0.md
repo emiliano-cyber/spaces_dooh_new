@@ -642,3 +642,69 @@ Con el registro cerrado en **todas** las instancias:
 *Levantado el 2026-08-14 contra `38ace2f`, sustituyendo al expediente de `29c6b9e`.
 La Fase 0 la declara —o la da por parcial— el orquestador en
 `vault/07-Agentes/ejecucion-plan-v3.md`, no este documento.*
+
+
+---
+
+## F0.1 · CERRADA el 2026-08-24 — el registro estaba APAGADO
+
+Medida contra `demo.space-os.io` (la máquina vieja, `209.97.146.136`) el
+2026-08-24 a las **16:47 GMT**, desde fuera. Es el comando de verificación
+literal del plan (`:267-271`).
+
+| Qué | Resultado |
+|---|---|
+| `POST /spaces-dooh/api/signup/` con `{}` | **HTTP 503** |
+| Resuelto a | `209.97.146.136` |
+| `GET /spaces-dooh/login/` | **HTTP 200** |
+| `GET /spaces-dooh/api/auth/metodos/` | `{"google":true}` — HTTP 200 |
+| `Server:` | `nginx/1.24.0 (Ubuntu)`, **sin `cf-ray`** |
+| Certificado | Let's Encrypt, `28 jul 2026` → **`26 oct 2026`** |
+
+**Veredicto: apagado.** Criterio del plan: *«HTTP 503 = apagado (sigue a F0.3)»*.
+**F0.2 no se ejecuta**, porque estaba condicionada a un 400.
+
+### Por qué no bastaba el 503, y qué se hizo
+
+Un 503 tiene **dos causas posibles** y la conclusión es opuesta según cuál sea:
+la bandera apagada, o **el servicio caído**. Las dos devuelven exactamente el
+mismo código en esa ruta.
+
+Se discriminó pidiendo `/login/`, que contestó **200**: el servicio está **vivo**,
+así que el 503 es el guard haciendo su trabajo y no una máquina muerta. Sin esa
+segunda medición la tarea habría quedado «cerrada» sobre una ambigüedad.
+
+### Tres cosas que salieron de paso, y valen
+
+**① Ese droplet corre un build anterior al 14/08.** `metodos` devuelve
+`{"google":true}` **a secas**, sin la clave `autoregistro`. El código actual
+devuelve `{ google, autoregistro }` (`app/api/auth/metodos/route.ts:43`, F2.6).
+Es la confirmación más limpia de que la máquina se quedó atrás.
+
+**② El proxy de Cloudflare está en GRIS.** No hay `cf-ray` en las cabeceras —
+igual que el 2026-07-28. Es el paso 1 de F4.3, contestado sin tener que
+preguntarlo.
+
+**③ Y el hallazgo que cambia una decisión de despliegue:**
+
+> [!danger] HSTS de dos años sobre `demo.space-os.io`
+> La respuesta trae `Strict-Transport-Security: max-age=63072000;
+> includeSubDomains`. Todo navegador que haya visitado ese nombre lo tiene
+> **fijado a HTTPS durante dos años**.
+>
+> Consecuencia directa: cuando el nombre se reapunte al PADRE, **un error de
+> certificado no será «saltable»** — con HSTS activo el navegador no ofrece el
+> «continuar de todas formas». La ventana sin certificado no habría sido fea:
+> habría sido un **sitio inaccesible** para todo el que hubiera entrado antes.
+>
+> Esto convierte la emisión previa por **DNS-01** de preferencia en **requisito**.
+> Estaba elegida por elegancia; ahora está justificada por medición.
+
+### Una fecha que conviene tener apuntada
+
+El certificado de la máquina perdida vence el **2026-10-26**. Se emitió el 28/07
+y **no se ha renovado** (Let's Encrypt renueva sobre los 60 días). Mientras el
+DNS le siga apuntando, `certbot` allí seguiría renovando solo; en cuanto deje de
+apuntarle, no. O sea: **esa instancia deja de servir HTTPS por sí sola el 26 de
+octubre**, y nadie puede evitarlo. No es un problema si el nombre ya se movió
+antes — pero sí es la fecha límite natural de todo este asunto.
