@@ -371,8 +371,15 @@ Contado sobre lo que la aplicación lee de verdad (`process.env` en `apps/web`):
 | `*_TEST`, `GOOGLE_DOBLE_*`, `PUERTO_*` | **Nunca** en producción |
 
 > ⚠️ **No copies `DOOHMAIN_PUBLISH_ENABLED=1`.** En el droplet viejo eso significa
-> que lo que sale llega a **pantallas de verdad**. Copiarlo dejaría dos servidores
-> capaces de publicar en las mismas pantallas.
+> que la publicación **sale de verdad** hacia DOOHmain. Copiarlo dejaría **dos
+> servidores publicando contra la misma cuenta**, sin forma de saber cuál mandó qué.
+>
+> **Corregido el 24/08 por Emiliano:** esta línea decía «llega a pantallas de
+> verdad». **Las pantallas han sido siempre de PRUEBA, nunca de cliente**, y el
+> código no puede saberlo — `lib/server/doohmain.ts:37` solo decide si sale o no.
+> El motivo para no copiarla no era ese: es que **dos emisores contra una misma
+> cuenta es un lío que nadie puede desenredar después**, y que lo publicado **no
+> se retira borrando filas** (`docs/datos/20260810_reset_tenant_eyro.sql:14-21`).
 
 Para pegar las claves sin que queden en el historial:
 
