@@ -233,7 +233,7 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 | **C1** | Se está operando el PADRE y no otra máquina | ✅ `137.184.107.53` · `ubuntu-s-2vcpu-4gb-amd-nyc1` |
 | **C2** | 🚦 El PADRE trae la migración 72 | 🔴✅ estaba en `40858fe` con **71**. El gate mordió |
 | **C3** | A dónde apuntaba el DNS **antes** | ✅ `demo` → **209.97.146.136**. Ya no se puede recapturar |
-| **C4** | DOOHmain: si la máquina perdida sigue publicando a pantallas reales | ⧗ |
+| **C4** | DOOHmain: si la máquina perdida sigue publicando | ✅ **no publica nada**. Revisado el 24/08 |
 | **C5** | El token de Cloudflare, y si lleva caducidad | ⧗ |
 | **C6** | 🚦 El certificado en `--dry-run`, sin quemar cuota | ⧗ |
 | **C7** | El certificado emitido | ⧗ |
@@ -279,8 +279,19 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 
 ### 5.0 · Bloque 0, corrido el 2026-08-24 — y el gate mordió
 
-**Los cuatro primeros están hechos**, salvo el C4 (DOOHmain), que no es un
-comando.
+**El bloque 0 está cerrado entero**, incluido el C4, que no es un comando.
+
+**🟢 Y el C4 despeja el peor escenario abierto del 24/08.** La pregunta era si la
+instancia perdida seguía publicando a pantallas reales: según el tablero del
+10/08 llevaba `DOOHMAIN_PUBLISH_ENABLED=1`. **Revisado en DOOHmain el 24/08: no
+hay nada publicando.** No existe el sistema mandando contenido a pantallas de
+clientes que nadie podía detener.
+
+> **Con una precisión que hay que conservar:** se miró desde DOOHmain, el único
+> lado alcanzable. Lo que queda probado es que **no ha publicado**, no que no
+> pueda: la bandera de esa máquina solo se vería por dentro, y no hay forma de
+> entrar. La instancia sigue encendida y alcanzable **por su IP**, y reapuntar el
+> DNS le quita el nombre, no la dirección.
 
 **🔴 El C2 atrapó algo, y no lo que el propio gate temía.** Se escribió pensando
 en que el droplet estuviera en `main`. Estaba en la rama **correcta** — y en

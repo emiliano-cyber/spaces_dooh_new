@@ -233,10 +233,27 @@ puede detener desde aquí**. La única palanca es retirarlo **desde DOOHmain**.
 **Qué mirar:** si hay campañas o reservas publicadas por esa integración con
 actividad **posterior al 21/08**.
 
-**Escribe aquí lo que veas** (aunque sea «no hay nada»):
+**Respuesta — 2026-08-24, de Emiliano:**
+```
+No habia nada publicando. Revisado en DOOHmain: esta limpio.
 ```
 
-```
+✅ **Contestada, con fecha.** Es lo que pedía el criterio: una comprobación de
+panel se cierra con una respuesta escrita, no con una captura.
+
+> [!warning] «No está publicando» no es lo mismo que «no puede publicar»
+> Esto se miró **desde el lado de DOOHmain**, que es el único al que se llega. Lo
+> que afirma es que **no ha publicado nada**: no dice que
+> `DOOHMAIN_PUBLISH_ENABLED` esté en `0` en esa máquina, porque eso solo se vería
+> por dentro y no hay forma de entrar.
+>
+> La instancia sigue **encendida y alcanzable por su IP**. Si alguien la usara,
+> podría volver a publicar. Reapuntar el DNS (bloque 7) le quita **el nombre**,
+> no la IP.
+>
+> Sirve igual, y mucho: era el escenario grave —contenido llegando a pantallas de
+> clientes sin nadie que pudiera pararlo— y **no está ocurriendo**.
+
 
 ---
 

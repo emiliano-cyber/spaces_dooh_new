@@ -15,11 +15,16 @@ La entrada más reciente va arriba.
   - **Lo único que sí se controla es su dirección de internet**, porque el
     dominio está a nuestro nombre. Eso permite **quitarle el nombre público**, no
     apagarla: quien se sepa su número seguirá llegando.
-  - **Hay que comprobar una cosa cuanto antes, y no se mira en el servidor sino
-    en DOOHmain:** esa máquina llevaba activada la publicación a pantallas
-    reales. Si sigue así, hay un sistema mandando contenido a pantallas de verdad
-    **que nadie puede detener desde aquí**. Se retira desde DOOHmain, que es el
-    lado que sí se controla. **Pendiente.**
+  - **La preocupación más seria del día quedó descartada el mismo día.** Esa
+    máquina llevaba activada la publicación a pantallas reales, así que había que
+    comprobar si estaba mandando contenido a pantallas de verdad **sin que nadie
+    pudiera detenerlo**. **Se revisó en DOOHmain y no hay nada publicando: está
+    limpio.**
+    - **Lo que eso quiere decir, con precisión:** se comprobó desde DOOHmain,
+      que es el único lado al que se llega. Queda demostrado que **no ha
+      publicado nada**, no que no pueda hacerlo: eso solo se vería entrando a la
+      máquina, y no se puede entrar. Sigue encendida y accesible por su número,
+      y quitarle el nombre no le quita el número.
   - **Su certificado de seguridad vence el 26 de octubre** y no se va a renovar
     solo. Esa es la fecha límite natural de todo este asunto.
 
