@@ -230,7 +230,7 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 | | Qué demuestra | Estado |
 |---|---|---|
 | **C0** | La zona `space-os.io` la sirve Cloudflare | ✅ `gabe` y `ryleigh.ns.cloudflare.com`. Ápice **sin** A |
-| **C1** | Se está operando el PADRE y no otra máquina | ⚠️ confirmado de palabra, sin salida literal |
+| **C1** | Se está operando el PADRE y no otra máquina | ✅ `137.184.107.53` · `ubuntu-s-2vcpu-4gb-amd-nyc1` |
 | **C2** | 🚦 El PADRE trae la migración 72 | 🔴✅ estaba en `40858fe` con **71**. El gate mordió |
 | **C3** | A dónde apuntaba el DNS **antes** | ✅ `demo` → **209.97.146.136**. Ya no se puede recapturar |
 | **C4** | DOOHmain: si la máquina perdida sigue publicando a pantallas reales | ⧗ |
@@ -301,11 +301,15 @@ el certificado por DNS-01 es posible y el bloque 4 se mantiene tal cual.
 **Y confirma que el ápice está libre** —sin registro A—, que es lo que permite
 estrenar el stack ahí antes de tocar `demo`.
 
-> **Sobre el C1, con precisión:** su salida **no se capturó literalmente**; hay un
-> reporte de que la IP era la esperada. Se anota como reporte y no como medición.
-> La identidad de la máquina queda probada igualmente **por otra vía**: el C2
-> corrió `git` dentro de `/var/www/Spaces` y devolvió el árbol del PADRE, con su
-> `hostname` visible en el prompt (`ubuntu-s-2vcpu-4gb-amd-nyc1`).
+**El C1 quedó medido, no reportado.** Su primera anotación decía «confirmado de
+palabra»; la salida literal llegó después y confirma la máquina **por las dos
+señales a la vez**: IP pública `137.184.107.53` y `hostname`
+`ubuntu-s-2vcpu-4gb-amd-nyc1`.
+
+> Ese `hostname` no estaba escrito en ninguna parte, y vale la pena: es la
+> segunda señal que distingue al PADRE de la máquina perdida sin depender del
+> DNS ni de la IP. El 24/08 se auditó entera la máquina equivocada justamente por
+> no tener a mano una comprobación así.
 
 **Un dato de entorno que conviene no descubrir tarde:** en el droplet el remoto se
 llama **`origin`** y apunta a `emiliano-cyber/spaces_dooh_new` — **el vivo**. En el

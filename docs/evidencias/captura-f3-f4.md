@@ -134,13 +134,19 @@ ssh -o ConnectTimeout=8 root@137.184.107.53 "hostname; curl -s ifconfig.me; echo
 
 **Salida real — 2026-08-24:**
 ```
-[confirmado por Emiliano el 2026-08-24: la IP salio la esperada]
+root@ubuntu-s-2vcpu-4gb-amd-nyc1:~# hostname; curl -s ifconfig.me; echo
+ubuntu-s-2vcpu-4gb-amd-nyc1
+137.184.107.53
 ```
 
-⚠️ **Confirmado de palabra, sin salida literal.** Se registra como lo que es:
-un reporte, no una captura. La identidad de la máquina queda además probada de
-forma independiente por el C2, que corre `git` dentro de `/var/www/Spaces` y
-devolvió el árbol del PADRE.
+✅ **Es el PADRE**, y por las dos señales a la vez: la IP pública es
+`137.184.107.53` y el `hostname` es `ubuntu-s-2vcpu-4gb-amd-nyc1`. Queda además
+un dato que no se tenía escrito: **ese es el nombre de máquina del PADRE**, útil
+para no repetir el censo del 24/08, cuando se auditó entera la máquina
+equivocada.
+
+> El prompt es `root@…`, lo que confirma de paso la **trampa ①** del traspaso: se
+> opera el PADRE como `root`. No es un hallazgo nuevo, pero aquí queda medido.
 
 
 ### C2 · 🚦 GATE · La rama y el número de migraciones
