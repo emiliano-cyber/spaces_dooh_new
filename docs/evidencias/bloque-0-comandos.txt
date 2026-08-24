@@ -1,0 +1,116 @@
+============================================================
+ BLOQUE 0 - la tira de comandos, para copiar y pegar
+============================================================
+ Autoridad: docs/evidencias/captura-f3-f4.md
+ Esto es SOLO la tira de comandos. El porque de cada uno, lo
+ esperado y donde se pega la salida estan alli.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ La consola web de DigitalOcean CORROMPE las pegadas de varias
+ lineas. Paso dos veces en este proyecto (21/08 y 24/08): se
+ comio caracteres, junto comandos y dejo la terminal esperando
+ en ">". Una linea, enter, leer la salida, siguiente linea.
+
+ Las lineas que empiezan con # son notas. NO se pegan.
+============================================================
+
+
+# ------------------------------------------------------------
+# C0 y C3 - ESTAS TRES VAN DESDE TU MAQUINA, NO DEL DROPLET
+# Son consultas a DNS publico. No hacen falta en el servidor,
+# y en un droplet recien montado puede que ni exista `dig`.
+# ------------------------------------------------------------
+
+dig +short NS space-os.io
+
+dig +short A space-os.io
+
+dig +short demo.space-os.io
+
+# Esperado C0 (las dos primeras):
+#   - servidores de nombres terminados en  .ns.cloudflare.com
+#   - el A del apice VACIO  (no tiene registro, y es lo normal)
+#
+# Esperado C3 (la tercera):
+#   - demo.space-os.io -> 209.97.146.136
+#
+# >>> Si los NS NO son de Cloudflare: PARA y pasame la salida.
+#     El plugin dns-cloudflare no podria escribir el TXT del
+#     desafio y todo el bloque del certificado cambia.
+#
+# Si estas en Windows y no tienes `dig`, desde PowerShell:
+#   Resolve-DnsName space-os.io -Type NS
+#   Resolve-DnsName space-os.io -Type A
+#   Resolve-DnsName demo.space-os.io -Type A
+
+
+# ------------------------------------------------------------
+# C1 - EN EL DROPLET - a que maquina estoy entrando
+# Si entras por la consola web de DigitalOcean ya estas dentro:
+# pega solo la linea de abajo.
+# ------------------------------------------------------------
+
+hostname; curl -s ifconfig.me; echo
+
+# Esperado: la IP tiene que ser  137.184.107.53
+#
+# >>> Si sale otra IP: PARA. El 24/08 se censo entera la maquina
+#     equivocada y se detecto tarde.
+#
+# Si prefieres entrar por ssh desde tu maquina, la linea es:
+#   ssh -o ConnectTimeout=8 root@137.184.107.53 "hostname; curl -s ifconfig.me; echo"
+
+
+# ------------------------------------------------------------
+# C2 - EN EL DROPLET - GATE - la rama y el numero de migraciones
+# ------------------------------------------------------------
+
+cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && ls db/migrations/*.sql | wc -l
+
+# Esperado:  feat/servidor-padre-instancias   y   72
+#
+# >>> Si sale `main`, o si el contador da 66: PARA.
+#     En main faltan 6 migraciones, entre ellas la 72, que es el
+#     arreglo de H1. DEMO naceria con tablas que otro rol crea
+#     sin permisos Y SIN ERROR, con el pull saliendo en verde.
+#
+#     La salida, tambien en UNA sola linea:
+#
+#   cd /var/www/Spaces && git fetch --all && git checkout feat/servidor-padre-instancias && git pull && ls db/migrations/*.sql | wc -l
+#
+# >>> Si el `git pull` pide usuario y contrasena: PARA y pasame
+#     lo que sale. Significa que el remoto del droplet es HTTPS
+#     sin credenciales guardadas, y eso se resuelve aparte.
+
+
+# ------------------------------------------------------------
+# C4 - NO ES UN COMANDO, y no se mira en el servidor
+# ------------------------------------------------------------
+# Se mira en el panel de DOOHmain.
+#
+# Que buscar: campanas o reservas publicadas por la integracion
+# de la maquina perdida (209.97.146.136) con actividad POSTERIOR
+# al 21/08.
+#
+# Segun el tablero del 10/08 ese droplet llevaba
+# DOOHMAIN_PUBLISH_ENABLED=1, o sea que publicaba de verdad. Si
+# sigue activo, hay un sistema mandando contenido a pantallas
+# reales que nadie puede detener desde aqui: la unica palanca es
+# retirarlo DESDE DOOHmain.
+#
+# Anota lo que veas, aunque sea "no hay nada".
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Pegame las cuatro salidas. Con C0 te confirmo si el camino del
+ certificado es el escrito o hay que cambiarlo, y con C2 si el
+ droplet esta listo para la base de DEMO.
+
+ Si algo sale distinto de lo esperado, pegalo igual: una salida
+ inesperada vale mas que una en verde.
+============================================================
