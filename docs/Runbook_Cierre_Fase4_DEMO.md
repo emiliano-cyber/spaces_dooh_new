@@ -205,15 +205,57 @@ Esperado: `spaces_app|f|f` y **`0`** organizaciones.
 
 #### Paso 1 · Emitir por DNS-01, con el DNS todavía como está
 
+#### El token de Cloudflare — qué marcar
+
+**Cloudflare → My Profile → API Tokens → Create Token**, plantilla
+**«Edit zone DNS»**, y luego:
+
+| Campo | Valor | Por qué |
+|---|---|---|
+| Permissions | `Zone` · `DNS` · **Edit** | Crear y borrar el TXT `_acme-challenge` |
+| | `Zone` · `Zone` · **Read** | El plugin resuelve el ID de la zona por su nombre |
+| Zone Resources | Include → **Specific zone** → `space-os.io` | **Nunca «All zones»**: este token reescribe DNS |
+| Client IP Filtering | `137.184.107.53` | Recomendado. Copiarlo no basta para usarlo fuera del PADRE |
+
+No puede leer tráfico, ni tocar el proxy, ni entrar a otra zona.
+
+> [!danger] Este token se vuelve dependencia de renovación PARA SIEMPRE
+> Al emitir con DNS-01, certbot guarda esta configuración en el archivo de
+> renovación y la usará cada ~60 días. Si alguien lo **revoca o lo deja
+> caducar**, la renovación **falla en silencio** y el certificado muere 90 días
+> después. Nadie se entera hasta que el sitio deja de cargar — y con el HSTS de
+> dos años que sirven estos vhosts, «no carga» significa **no se puede saltar**.
+>
+> Por eso el TTL es una decisión y no un campo del formulario: con caducidad,
+> hace falta un recordatorio ANTES de esa fecha; sin ella, lo que compensa es el
+> filtro por IP.
+
+#### Emitir
+
 ```bash
 apt-get install -y python3-certbot-dns-cloudflare
 
-# Token de Cloudflare con permiso Zone:DNS:Edit sobre space-os.io, y NADA MAS
+# El archivo se crea YA CERRADO, y despues se escribe dentro. Es el defecto (7)
+# del 21/08: `.env.production` nacio 644 con la clave de la base dentro.
 install -m 600 /dev/null /root/.cloudflare.ini
 nano /root/.cloudflare.ini          # dns_cloudflare_api_token = <token>
 
+# 1. EN PRUEBAS PRIMERO. Let's Encrypt limita a 5 certificados duplicados por
+#    semana: equivocarse en el token quema intentos de verdad. Esto valida
+#    contra el servidor de pruebas y NO gasta cuota.
+certbot certonly --dns-cloudflare   --dns-cloudflare-credentials /root/.cloudflare.ini   --dry-run -d space-os.io -d demo.space-os.io
+
+# 2. Solo cuando el de arriba salga verde, se emite de verdad
 certbot certonly --dns-cloudflare   --dns-cloudflare-credentials /root/.cloudflare.ini   -d space-os.io -d demo.space-os.io
 ```
+
+**Y la comprobación que hay que dejar en el calendario, cada dos meses:**
+
+```bash
+certbot renew --dry-run
+```
+
+Es lo único que distingue «renueva bien» de «lleva meses fallando callado».
 
 > **El `install -m 600` va antes de escribir el token, no después.** Es el
 > defecto ⑦ del 21/08: `.env.production` nació `644` con la clave de la base
