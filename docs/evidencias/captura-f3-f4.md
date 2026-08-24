@@ -106,10 +106,20 @@ la segunda línea **vacía**.
 > es que falle el token: es que todo el bloque 1 cambia de plugin. Dímelo con la
 > salida de este comando y lo reescribo.
 
-**Pega aquí:**
+**Salida real — 2026-08-24:**
+```
+> nslookup -type=NS space-os.io
+space-os.io     nameserver = gabe.ns.cloudflare.com
+space-os.io     nameserver = ryleigh.ns.cloudflare.com
+
+> nslookup -type=A space-os.io
+Nombre:  space-os.io
+(sin linea Address -- el apice NO tiene registro A)
 ```
 
-```
+✅ **La zona la sirve Cloudflare**: el camino DNS-01 es válido y el bloque 4
+no cambia. ✅ **El ápice está libre**, como se midió el 24/08.
+
 
 ### C1 · ¿A qué máquina estoy entrando?
 
@@ -122,10 +132,16 @@ ssh -o ConnectTimeout=8 root@137.184.107.53 "hostname; curl -s ifconfig.me; echo
 
 **Esperado:** la IP tiene que ser `137.184.107.53`.
 
-**Pega aquí:**
+**Salida real — 2026-08-24:**
+```
+[confirmado por Emiliano el 2026-08-24: la IP salio la esperada]
 ```
 
-```
+⚠️ **Confirmado de palabra, sin salida literal.** Se registra como lo que es:
+un reporte, no una captura. La identidad de la máquina queda además probada de
+forma independiente por el C2, que corre `git` dentro de `/var/www/Spaces` y
+devolvió el árbol del PADRE.
+
 
 ### C2 · 🚦 GATE · La rama y el número de migraciones
 
@@ -145,10 +161,36 @@ cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && ls db/migra
 cd /var/www/Spaces && git fetch --all && git checkout feat/servidor-padre-instancias && git pull && ls db/migrations/*.sql | wc -l
 ```
 
-**Pega aquí:**
+**Salida real — 2026-08-24:**
+```
+feat/servidor-padre-instancias
+From https://github.com/emiliano-cyber/spaces_dooh_new
+   40858fe..cf8a0a9  feat/servidor-padre-instancias -> origin/feat/...
+Updating 40858fe..cf8a0a9
+Fast-forward
+ 36 files changed, 4591 insertions(+), 68 deletions(-)
+ create mode 100644 db/migrations/20260824_grants_tablas_futuras.sql
+ [... 17 create mode mas ...]
+72
+
+root@ubuntu-s-2vcpu-4gb-amd-nyc1:/var/www/Spaces#
 ```
 
-```
+🔴 **EL GATE ATRAPO ALGO, y no lo que yo temia.** El droplet estaba en la rama
+**correcta**, pero en `40858fe` — del **21/08**, con **71** migraciones. Rama
+buena, código viejo. El `pull` trajo **36 archivos**, y entre ellos
+`20260824_grants_tablas_futuras.sql` como `create mode`: **la 72 no estaba.**
+
+Sin este paso, DEMO habría nacido sin el arreglo de **H1** —tablas creadas por
+otro rol sin permisos **y sin error**— con el `git pull` saliendo en verde.
+
+**Lo que hay que mirar no es la rama: es el contador DESPUÉS del pull.**
+
+▸ Y un dato útil: en el droplet el remoto se llama **`origin`** y apunta a
+`emiliano-cyber/spaces_dooh_new`, o sea **al vivo**. En el worktree local
+`origin` es el muerto y el vivo es `emiliano`. No hay conflicto, pero conviene
+saberlo antes de escribir un `git push` allí.
+
 
 ### C3 · El DNS ANTES de tocarlo
 
@@ -162,10 +204,16 @@ dig +short space-os.io; dig +short demo.space-os.io
 
 **Esperado:** el ápice **vacío** (no tiene registro A) y `demo` → `209.97.146.136`.
 
-**Pega aquí:**
+**Salida real — 2026-08-24:**
+```
+> nslookup -type=A demo.space-os.io
+Nombre:  demo.space-os.io
+Address: 209.97.146.136
 ```
 
-```
+✅ **Capturado. A partir del bloque 7 esta respuesta deja de existir**, y es la
+mitad «antes» del criterio 3 de F4.5.
+
 
 ### C4 · DOOHmain — ¿la máquina perdida sigue publicando a pantallas reales?
 

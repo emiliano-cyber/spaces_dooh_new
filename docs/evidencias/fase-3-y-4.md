@@ -229,10 +229,10 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 
 | | Qué demuestra | Estado |
 |---|---|---|
-| **C0** | La zona `space-os.io` la sirve Cloudflare — **de esto depende que el DNS-01 sea posible** | ⧗ |
-| **C1** | Se está operando el PADRE y no otra máquina | ⧗ |
-| **C2** | 🚦 El PADRE trae la migración 72, no las 66 de `main` | ⧗ |
-| **C3** | A dónde apuntaba el DNS **antes** — evidencia del criterio 3 de F4.5 | ⧗ |
+| **C0** | La zona `space-os.io` la sirve Cloudflare | ✅ `gabe` y `ryleigh.ns.cloudflare.com`. Ápice **sin** A |
+| **C1** | Se está operando el PADRE y no otra máquina | ⚠️ confirmado de palabra, sin salida literal |
+| **C2** | 🚦 El PADRE trae la migración 72 | 🔴✅ estaba en `40858fe` con **71**. El gate mordió |
+| **C3** | A dónde apuntaba el DNS **antes** | ✅ `demo` → **209.97.146.136**. Ya no se puede recapturar |
 | **C4** | DOOHmain: si la máquina perdida sigue publicando a pantallas reales | ⧗ |
 | **C5** | El token de Cloudflare, y si lleva caducidad | ⧗ |
 | **C6** | 🚦 El certificado en `--dry-run`, sin quemar cuota | ⧗ |
@@ -276,6 +276,41 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 >
 > **Los identificadores `C<n>` no se renumeraron**: son estables porque este
 > expediente los cita. En la hoja van salteados a propósito.
+
+### 5.0 · Bloque 0, corrido el 2026-08-24 — y el gate mordió
+
+**Los cuatro primeros están hechos**, salvo el C4 (DOOHmain), que no es un
+comando.
+
+**🔴 El C2 atrapó algo, y no lo que el propio gate temía.** Se escribió pensando
+en que el droplet estuviera en `main`. Estaba en la rama **correcta** — y en
+**`40858fe`, del 21/08, con 71 migraciones**. Rama buena, código viejo. El `pull`
+trajo **36 archivos**, y `20260824_grants_tablas_futuras.sql` entró como
+`create mode`: **la migración 72 no estaba en el servidor.**
+
+Sin ese paso, DEMO se habría aprovisionado sin el arreglo de **H1** —una tabla
+creada por otro rol nace sin permisos **y sin error**— y el `git pull` habría
+salido en verde igual. **La lección va al archivo: lo que se mira no es la rama,
+es el contador después del `pull`.**
+
+**El C0 despeja el supuesto sobre el que descansa toda la etapa 2**, y que no
+estaba comprobado por escrito en ninguna parte: la zona `space-os.io` la sirven
+`gabe.ns.cloudflare.com` y `ryleigh.ns.cloudflare.com`. **Es Cloudflare**, así que
+el certificado por DNS-01 es posible y el bloque 4 se mantiene tal cual.
+
+**Y confirma que el ápice está libre** —sin registro A—, que es lo que permite
+estrenar el stack ahí antes de tocar `demo`.
+
+> **Sobre el C1, con precisión:** su salida **no se capturó literalmente**; hay un
+> reporte de que la IP era la esperada. Se anota como reporte y no como medición.
+> La identidad de la máquina queda probada igualmente **por otra vía**: el C2
+> corrió `git` dentro de `/var/www/Spaces` y devolvió el árbol del PADRE, con su
+> `hostname` visible en el prompt (`ubuntu-s-2vcpu-4gb-amd-nyc1`).
+
+**Un dato de entorno que conviene no descubrir tarde:** en el droplet el remoto se
+llama **`origin`** y apunta a `emiliano-cyber/spaces_dooh_new` — **el vivo**. En el
+worktree local, `origin` es el muerto (`CarlosMend87/spaces-dooh`) y el vivo es
+`emiliano`. El mismo nombre significa cosas distintas según dónde estés.
 
 ### 5.1 · La primera evidencia de servidor que tendrá la Fase 3
 
