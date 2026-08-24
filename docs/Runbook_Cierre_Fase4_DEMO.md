@@ -234,12 +234,21 @@ Dos bloques `server`, cada uno a su puerto:
 | `space-os.io` | `127.0.0.1:3000` | El PADRE |
 | `demo.space-os.io` | `127.0.0.1:3001` | DEMO |
 
-> **Archivo versionado, no pegado a mano.** Defecto ⑧ del 21/08: `nginx -t` dijo
-> «ok» sobre una configuración corrupta, y la única señal fue el
-> **comportamiento**. Se parte de `infra/nginx/demo.space-os.io.conf`, que ya
-> trae HSTS, gzip, `client_max_body_size 12M`, la redirección de `/` al login y
-> el `X-Forwarded-For $remote_addr` **que sostiene el limitador de intentos —
-> esa línea no se toca**.
+**Ya está escrita: `infra/nginx/space-os.io.conf`** (24/08). Un solo archivo con
+los dos vhosts, los dos upstreams y el hueco de ACME. Los encabezados del proxy
+viven en `infra/nginx/snippets/proxy-app.conf`, **en una sola copia**, para que
+los dos sitios no puedan divergir.
+
+```bash
+ln -sf /var/www/Spaces/infra/nginx/space-os.io.conf /etc/nginx/sites-enabled/spaces
+rm -f /etc/nginx/sites-enabled/padre-ip /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+```
+
+> **Se enlaza, no se pega.** Defecto ⑧ del 21/08: `nginx -t` dijo «ok» sobre una
+> configuración corrupta y la única señal fue el **comportamiento**. Por eso la
+> comprobación de abajo mide **códigos de respuesta**, no que el servicio
+> arranque.
 
 ```bash
 nginx -t && systemctl reload nginx
@@ -273,6 +282,24 @@ echo | openssl s_client -connect demo.space-os.io:443 -servername demo.space-os.
 Esperado: `137.184.107.53` en los dos · `200` · certificado sin vencer.
 
 ### 3.4 · F4.4 · El proceso de DEMO, sus datos y la bandera
+
+**El proceso ya está definido: `ecosystem.demo.config.js`** (24/08), en el 3001.
+Va con **su propio pm2**, el del usuario `demo`, porque pm2 no sabe cambiar de
+usuario por aplicación — lo fija el proceso que la arranca:
+
+```bash
+sudo -u demo bash -lc '
+  set -a; . /etc/space-os/demo.env; set +a
+  cd /var/www/Spaces
+  pm2 start ecosystem.demo.config.js
+  pm2 save
+'
+```
+
+> **Next carga `.env.production` sin pisar lo que ya esté en el entorno**, así
+> que lo de `/etc/space-os/demo.env` gana. Si eso fallara, DEMO hablaría con la
+> base del PADRE **sin dar error**, solo enseñando los datos equivocados. Se
+> comprueba mirando qué contesta, no suponiéndolo.
 
 `.env` propio, en `/etc/space-os/demo.env`, **a 600 y del usuario `demo`** — el
 defecto ⑦ del 21/08 fue exactamente esto:
