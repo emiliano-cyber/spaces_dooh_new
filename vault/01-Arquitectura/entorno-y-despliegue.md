@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-20
+actualizado: 2026-08-24
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -29,6 +29,26 @@ archivos:
   - db/docker-compose.yml
 ---
 
+> [!danger] 2026-08-24 · El droplet `209.97.146.136` SE PERDIO — esta nota lo daba por vivo
+> **Se perdió el acceso a esa máquina.** Sigue encendida y sirviendo
+> `demo.space-os.io`, pero **nadie la controla**: no se actualiza, no se parchea
+> y no se apaga. Su certificado vence el **2026-10-26** y no se renovará.
+>
+> **La máquina viva es el PADRE, `137.184.107.53`** — Ubuntu 24.04, Postgres
+> 16.15, `pm2 spaces-web` en el 3000 **como `root`**, rol de app **`spaces_app`**.
+> Ahí van a convivir **el PADRE en `space-os.io`** y **DEMO en
+> `demo.space-os.io`** (segundo proceso, puerto 3001, base `spaces_demo`) —
+> decisión del día, con su precio escrito en
+> [ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md).
+>
+> **Medido ese día:** el ápice `space-os.io` **no tiene registro A** (está libre),
+> `demo.space-os.io` sigue apuntando a la máquina perdida, y el PADRE responde
+> por IP `login 200 · raíz 302`.
+>
+> Todo lo que sigue en esta nota **describe el arreglo anterior**. Vale como
+> historia; no como instrucción. Ver [[2026-08-24]] y `docs/Traspaso_20260824.md`.
+
+---
 # Entorno y despliegue
 
 ## Local

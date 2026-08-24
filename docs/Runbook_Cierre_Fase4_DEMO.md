@@ -296,21 +296,61 @@ nginx -t && systemctl reload nginx
 nginx -t && systemctl reload nginx
 ```
 
-#### Paso 3 · Ahora sí, mover el DNS
+#### Paso 3 · El ÁPICE primero — y esto es deliberado
 
-Con el certificado emitido y nginx escuchando, el cambio es instantáneo y sin
-ventana de error:
+> [!tip] Medido el 2026-08-24: `space-os.io` **no tiene registro A**
+> El ápice está **libre**, y la máquina perdida sirve **un solo nombre**
+> (`demo.space-os.io`), no dos. Eso permite una secuencia mucho más segura que
+> mover los dos a la vez.
+>
+> **El ápice no lo usa nadie y no tiene HSTS.** Ahí se puede montar y probar el
+> stack completo —certificado, nginx, la app— sin público delante, y un error se
+> deshace borrando un registro. `demo.space-os.io` es lo contrario: tiene HSTS de
+> dos años y gente que entra, así que un fallo ahí **no es saltable** desde el
+> navegador.
+>
+> Por eso el orden es: **estrenar en el ápice, y solo cuando funcione de verdad,
+> tocar el nombre que importa.**
 
-1. Bajar el TTL de los dos registros y esperar a que caduque el anterior.
-2. `space-os.io` → `137.184.107.53`.
-3. **`demo.space-os.io` → `137.184.107.53`** ← aquí es donde la máquina perdida
-   pierde su nombre público.
-4. Restaurar el TTL.
+**3a · Añadir el A del ápice** (aditivo: no se le quita nada a nadie)
 
-> Si el proxy de Cloudflare queda en **naranja**, hay que instalar
+```
+space-os.io      A      137.184.107.53
+```
+
+**3b · Comprobar el stack ENTERO ahí, antes de seguir:**
+
+```bash
+dig +short space-os.io                                                       # 137.184.107.53
+curl -s -o /dev/null -w '%{http_code}
+' https://space-os.io/                # 302
+curl -s -o /dev/null -w '%{http_code}
+' https://space-os.io/spaces-dooh/login/   # 200
+echo | openssl s_client -connect space-os.io:443 -servername space-os.io 2>/dev/null | openssl x509 -noout -dates
+```
+
+**Si algo de esto no sale, se para aquí.** No se toca `demo` hasta que el ápice
+esté sirviendo bien: es literalmente para lo que existe este paso.
+
+> ⚠️ Y **no** entres a `https://demo.space-os.io` desde el navegador mientras
+> tanto para «ir viendo»: sigue apuntando a la máquina perdida y lo único que
+> conseguirás es renovarte el HSTS otros dos años.
+
+#### Paso 4 · Ahora sí, recuperar `demo.space-os.io`
+
+Con el ápice demostrando que el certificado, nginx y la app funcionan, mover el
+segundo nombre es cambiar un número:
+
+1. Bajar el TTL del registro de `demo.space-os.io` y esperar a que caduque el
+   anterior.
+2. `demo.space-os.io` → `137.184.107.53`. ← **aquí la máquina perdida pierde su
+   nombre público.**
+3. Restaurar el TTL.
+
+> Si el proxy de Cloudflare se pusiera en **naranja**, hace falta
 > `infra/nginx/cloudflare-realip.sh`. Sin él «TODO el tráfico parece venir de una
 > sola IP y el limitador de intentos de login bloquearía a todos a la vez»
-> (`demo.space-os.io.conf:9-12`).
+> (`demo.space-os.io.conf:9-12`). Medido el 24/08: está en **gris**.
 
 **Verificación de F4.3:**
 

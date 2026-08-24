@@ -1,11 +1,37 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-20
+actualizado: 2026-08-24
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-08-24 · Lo que cambió hoy, en el tablero
+> **Z9 · Datos** — nace `20260824_grants_tablas_futuras.sql`, la **72.ª**
+> migración. Cierra el hallazgo **H1**: `alter default privileges` sin `for role`
+> solo cubre lo que cree **el rol que aplicó la migración**, así que una tabla
+> creada por otro rol nacía sin permisos **y sin error**. Repara en cada pasada,
+> asegura por propietario derivado de `pg_tables`, y **aborta nombrando las
+> tablas** si algo se escapa. ⚠️ **H2 queda abierto**: el `grant on all tables`
+> incluye `schema_migrations`; estrecharlo toca **las dos** migraciones de GRANT
+> a la vez.
+>
+> **Aprovisionamiento** — `bootstrap-auth.mjs` **valida el correo** desde hoy
+> (`lib/validacion-email.mjs`): el 21/08 creó al Dueño del PADRE con el marcador
+> `<el correo de Google del Dueño>` dentro. Y el epílogo de `setup-droplet.sh`
+> dejó de mandar al modelo muerto (`apps/api`, comodín por tenant).
+>
+> **Infra** — nacen `infra/nginx/space-os.io.conf` (los dos vhosts) y
+> `ecosystem.demo.config.js` (DEMO en el 3001). Los encabezados del proxy salen a
+> `snippets/proxy-app.conf`, **en una sola copia**.
+>
+> ✅ **Los cuatro commits ROJO del 20/08 quedan AUDITADOS** — AMARILLO,
+> [[auditoria-cuatro-rojo-20260820]]. **Ya no bloquean el merge.**
+>
+> 🛑 **Y el contexto que manda sobre todo lo demás:** se perdió el acceso al
+> droplet `209.97.146.136`. Ver [[2026-08-24]].
+
+---
 # Tablero de zonas
 
 > [!warning] Reclama antes de escribir

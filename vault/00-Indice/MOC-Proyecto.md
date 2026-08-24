@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-20
+actualizado: 2026-08-24
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -26,10 +26,10 @@ cobranza.
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
+| ⚠️ Producción | **En traslado (24/08).** `demo.space-os.io` todavía resuelve al droplet **perdido**; el destino es el PADRE `137.184.107.53`, con el PADRE en `space-os.io` y DEMO en `demo.space-os.io` | `infra/nginx/space-os.io.conf` · [ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md) |
 | Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
-| Migraciones | 71 | [[migraciones]] |
+| Migraciones | **72** | [[migraciones]] |
 
 ## Antes de tocar nada
 

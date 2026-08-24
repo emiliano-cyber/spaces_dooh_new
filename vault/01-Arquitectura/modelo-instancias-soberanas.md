@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-21
+actualizado: 2026-08-24
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -164,7 +164,8 @@ cambian tareas concretas.
 > |---|---|---|
 > | P1 original | El droplet actual **se convierte en el PADRE** | 20/08 mañana |
 > | 1ª enmienda | **El PADRE es un droplet NUEVO**, contratado aparte. Deja **sin decidir** qué pasa con el viejo: apagarlo, dejarlo como DEMO o guardarlo de reserva | 20/08 tarde |
-> | **2ª enmienda — vigente** | **El droplet viejo se queda como DEMO** | **21/08** |
+> | 2ª enmienda | El droplet viejo se queda como DEMO | 21/08 |
+> | **3ª enmienda — VIGENTE** | 🛑 **SE PIERDE EL ACCESO al droplet viejo.** No se convierte en DEMO, no se apaga y no se guarda de reserva: **no se puede hacer ninguna de las tres.** Queda **ABANDONADO** — público, no actualizable, no apagable. **DEMO pasa a vivir DENTRO del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md)): `space-os.io` para el PADRE, `demo.space-os.io` para DEMO, segundo proceso en el 3001 con base `spaces_demo`. ⚠️ Eso **no cierra el riesgo de la Fase 4: lo transforma** — de «demo pública = producción» a **«demo pública = plano de control»**. Con ella **F4.1 y F7.1 pasan a IMPOSIBLES** | **24/08** |
 >
 > La 1ª enmienda no fue una opinión: el PADRE **ya nació en una máquina nueva** el
 > 21/08 y está corriendo. Cualquier nota que siga diciendo que el droplet actual

@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-21
+actualizado: 2026-08-24
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -9,6 +9,24 @@ archivos:
   - .env.production.example
 ---
 
+> [!danger] 2026-08-24 · P1 dejó de ser una pregunta: la cerraron los hechos
+> **Se perdió el acceso al droplet viejo** (`209.97.146.136`), así que las tres
+> salidas que P1 barajaba —convertirlo en DEMO, apagarlo o guardarlo de reserva—
+> **son todas imposibles**. Queda abandonado: público, no actualizable y no
+> apagable, con el certificado venciendo el **2026-10-26**.
+>
+> **DEMO pasa a vivir dentro del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md)),
+> y con eso **F4.1 y F7.1 pasan a IMPOSIBLES** — no a pendientes.
+>
+> ✅ **Y F0.1 quedó CONTESTADA ese mismo día, en la última ventana que hubo:**
+> `signup` devolvió **503** (apagado) y `login` **200**, o sea que el servicio
+> estaba vivo y el 503 era la bandera, no una caída. En cuanto ese nombre deje de
+> apuntar a esa máquina, la pregunta ya no tenía respuesta posible.
+>
+> **Lo que sigue abierto:** **TH-P4** (el registry), que mantiene bloqueadas F3.5
+> y F3.6, y los códigos de recuperación del Dueño, que no existen.
+
+---
 # Preguntas abiertas
 
 > Lo que **no** se pudo determinar leyendo el código. Cada una lleva la
