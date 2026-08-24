@@ -16,7 +16,7 @@
 |---|---|
 | **F4.1** · censo del viejo | 🛑 **IMPOSIBLE.** Sin acceso no hay censo. Deja de bloquear a F4.2 **declarándolo**, no ignorándolo |
 | **F4.2** · base de DEMO | `spaces_demo` **en el PADRE** |
-| **F4.3** · dominio | `demo.<DOMINIO>` en el PADRE, vhost y certificado propios. **Ya no es mover el DNS del viejo** |
+| **F4.3** · dominio | `space-os.io` → el PADRE y `demo.space-os.io` → DEMO, **en la misma máquina**, con vhost propio cada uno. El nombre de DEMO **no se crea: se recupera** de la máquina perdida |
 | **F4.4** · datos y bandera | Igual, y con `AUTOREGISTRO=0`: **al revés de lo que dice el plan** (`:1345`), a favor de P8 |
 | **F4.5** · cierre del riesgo | Criterio 3 reinterpretado: se cumple **retirando `demo.space-os.io`** de la máquina perdida |
 
@@ -36,8 +36,30 @@
 
 ## 1 · GATE — dos cosas antes de tocar nada
 
-**① El dominio.** Todo el §3 necesita el nombre. Sin él, F4.3 no es trabajo: es
-espera. Donde ponga `<DOMINIO>`, va el que se elija.
+**① El dominio, resuelto el 24/08: `space-os.io`.** Y **no es un dominio nuevo**:
+es la **misma zona que ya se controla**, la que tiene dentro `demo.space-os.io`
+apuntando a la máquina perdida. Eso simplifica la fase entera:
+
+| | |
+|---|---|
+| `space-os.io` | El **PADRE** |
+| `demo.space-os.io` | **DEMO** — no se borra, **se recupera** |
+
+> **Reapuntar `demo.space-os.io` al PADRE hace las dos cosas de una vez:** le
+> retira el nombre público a la máquina perdida (criterio 3 de F4.5) y le da a
+> DEMO su dominio de siempre. **No hay nombre nuevo que comunicar a nadie.**
+
+**Lo primero, y antes de planear el corte — ¿a dónde apunta hoy el ápice?**
+
+```bash
+dig +short space-os.io
+dig +short demo.space-os.io
+curl -sI https://demo.space-os.io | grep -iE '^server:|^cf-ray:'
+```
+
+Si el ápice también devuelve **209.97.146.136**, la máquina perdida está
+sirviendo **dos** nombres y no uno. Con `cf-ray` en la respuesta, el proxy naranja
+de Cloudflare está encendido — el 28/07 estaba **gris**.
 
 **② Y una que hay que hacer AHORA o se pierde para siempre:**
 
@@ -82,17 +104,20 @@ DOOHmain**, que es el lado que sí se controla.
 
 ### 2.2 · Retirarle el nombre público
 
-Solo cuando el `curl` de F0.1 esté hecho y anotado:
+**No se borra el registro: se reapunta al PADRE.** Es el mismo gesto que le da a
+DEMO su dominio, y va en el §3.3 junto con el certificado, porque el orden entre
+los dos **importa** y hacerlos por separado abre una ventana de error de
+certificado.
 
-```bash
-dig +short demo.space-os.io          # antes: 209.97.146.136
-```
+Lo único que hay que dejar hecho aquí, y **antes** de mover nada:
 
-En Cloudflare, el registro `A` de `demo.space-os.io` **se borra**, o se reapunta.
-No se apaga la máquina —seguirá encendida y accesible por su IP— pero sale de
-circulación bajo el nombre público.
+- [ ] El `curl` de F0.1, corrido y **anotado con fecha** (§1).
+- [ ] La comprobación de DOOHmain del §2.1.
+- [ ] `dig +short demo.space-os.io` guardado — la evidencia de a dónde apuntaba
+      antes, que es lo que hace comprobable el criterio 3 de F4.5.
 
-> Esto es además lo que hace **verificable** el criterio 3 de F4.5.
+> La máquina **no se apaga**: no se puede. Seguirá encendida y accesible por su
+> IP. Lo que se le quita es el nombre.
 
 ---
 
@@ -164,29 +189,88 @@ Esperado: `spaces_app|f|f` y **`0`** organizaciones.
 
 ### 3.3 · F4.3 · Dominio y certificado
 
-1. **DNS**: registro `A` de `demo.<DOMINIO>` → `137.184.107.53`. (Y el de
-   `<DOMINIO>` a secas, para el PADRE.)
-2. **Certificado primero, `server_name` después.** Al revés el navegador enseña
-   un error de certificado, no un 301 — el error que el plan del 11 ya señalaba
-   (T9):
+> [!danger] 🔴 El nudo: el certificado y el DNS se necesitan mutuamente
+> `certbot --webroot` valida por **HTTP-01**, o sea que Let's Encrypt pide el
+> desafío **al servidor al que apunta el nombre**. Y aquí el nombre apunta
+> todavía a la máquina perdida.
+>
+> - Si se **emite primero**, no se puede: el desafío va a la máquina vieja.
+> - Si se **mueve el DNS primero**, `demo.space-os.io` resuelve al PADRE sin
+>   certificado, y todo el que entre ve un **error de certificado** — no un 301.
+>   Es exactamente el error que el plan del 11 señalaba en T9.
+>
+> **La salida es no usar HTTP-01: se valida por DNS-01**, que es posible porque
+> la zona está en Cloudflare y se controla. Se emite el certificado **antes** de
+> mover ningún registro, y el corte queda sin ventana.
+
+#### Paso 1 · Emitir por DNS-01, con el DNS todavía como está
 
 ```bash
-certbot certonly --webroot -w /var/www/html -d <DOMINIO> -d demo.<DOMINIO>
+apt-get install -y python3-certbot-dns-cloudflare
+
+# Token de Cloudflare con permiso Zone:DNS:Edit sobre space-os.io, y NADA MAS
+install -m 600 /dev/null /root/.cloudflare.ini
+nano /root/.cloudflare.ini          # dns_cloudflare_api_token = <token>
+
+certbot certonly --dns-cloudflare   --dns-cloudflare-credentials /root/.cloudflare.ini   -d space-os.io -d demo.space-os.io
 ```
 
-3. **nginx con dos bloques `server`**, cada uno a su puerto:
+> **El `install -m 600` va antes de escribir el token, no después.** Es el
+> defecto ⑦ del 21/08: `.env.production` nació `644` con la clave de la base
+> dentro. Un archivo con un token de DNS se crea ya cerrado.
+
+Comprobación antes de seguir — el certificado tiene que existir **ya**:
+
+```bash
+certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+```
+
+#### Paso 2 · nginx, desde archivo versionado
+
+Dos bloques `server`, cada uno a su puerto:
 
 | Nombre | Proxy a | Qué es |
 |---|---|---|
-| `<DOMINIO>` | `127.0.0.1:3000` | El PADRE |
-| `demo.<DOMINIO>` | `127.0.0.1:3001` | DEMO |
+| `space-os.io` | `127.0.0.1:3000` | El PADRE |
+| `demo.space-os.io` | `127.0.0.1:3001` | DEMO |
 
-> **Como archivo versionado, no pegado a mano.** Es el defecto ⑧ del 21/08:
-> `nginx -t` dijo «ok» sobre una configuración corrupta. Se parte de
-> `infra/nginx/demo.space-os.io.conf`, que ya trae HSTS, gzip,
-> `client_max_body_size 12M`, la redirección de `/` al login y el
-> `X-Forwarded-For $remote_addr` **que sostiene el limitador de intentos — esa
-> línea no se toca**.
+> **Archivo versionado, no pegado a mano.** Defecto ⑧ del 21/08: `nginx -t` dijo
+> «ok» sobre una configuración corrupta, y la única señal fue el
+> **comportamiento**. Se parte de `infra/nginx/demo.space-os.io.conf`, que ya
+> trae HSTS, gzip, `client_max_body_size 12M`, la redirección de `/` al login y
+> el `X-Forwarded-For $remote_addr` **que sostiene el limitador de intentos —
+> esa línea no se toca**.
+
+```bash
+nginx -t && systemctl reload nginx
+```
+
+#### Paso 3 · Ahora sí, mover el DNS
+
+Con el certificado emitido y nginx escuchando, el cambio es instantáneo y sin
+ventana de error:
+
+1. Bajar el TTL de los dos registros y esperar a que caduque el anterior.
+2. `space-os.io` → `137.184.107.53`.
+3. **`demo.space-os.io` → `137.184.107.53`** ← aquí es donde la máquina perdida
+   pierde su nombre público.
+4. Restaurar el TTL.
+
+> Si el proxy de Cloudflare queda en **naranja**, hay que instalar
+> `infra/nginx/cloudflare-realip.sh`. Sin él «TODO el tráfico parece venir de una
+> sola IP y el limitador de intentos de login bloquearía a todos a la vez»
+> (`demo.space-os.io.conf:9-12`).
+
+**Verificación de F4.3:**
+
+```bash
+dig +short space-os.io demo.space-os.io       # los dos: 137.184.107.53
+curl -s -o /dev/null -w '%{http_code}
+' https://demo.space-os.io/spaces-dooh/login/
+echo | openssl s_client -connect demo.space-os.io:443 -servername demo.space-os.io 2>/dev/null | openssl x509 -noout -dates
+```
+
+Esperado: `137.184.107.53` en los dos · `200` · certificado sin vencer.
 
 ### 3.4 · F4.4 · El proceso de DEMO, sus datos y la bandera
 
@@ -196,7 +280,7 @@ defecto ⑦ del 21/08 fue exactamente esto:
 | Variable | Valor |
 |---|---|
 | `DATABASE_URL` | apunta a **`spaces_demo`** |
-| `APP_URL` | `https://demo.<DOMINIO>` |
+| `APP_URL` | `https://demo.space-os.io` |
 | `PORT` | `3001` |
 | `COOKIE_SECURE` | `1` |
 | `AUTOREGISTRO` | **`0`** ⚠️ contra el plan, a favor de P8 |
@@ -226,13 +310,13 @@ slug `demo`.
 **Verificación de F4.4:**
 
 ```bash
-curl -s -w '\nHTTP %{http_code}\n' -X POST https://demo.<DOMINIO>/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
+curl -s -w '\nHTTP %{http_code}\n' -X POST https://demo.space-os.io/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
 ```
 
 **Esperado: `503`** — no el `400` del plan (`:1351`).
 
 > Y la comprobación que **ninguna prueba automática puede hacer**: abre
-> `https://demo.<DOMINIO>/spaces-dooh/login/` en el navegador y confirma que el
+> `https://demo.space-os.io/spaces-dooh/login/` en el navegador y confirma que el
 > botón **«Crear cuenta» NO aparece**. Es el único eslabón que el ensayo de F2.5
 > no pudo cerrar —hidratación en un navegador real— y si no se mira aquí, nadie
 > lo mira.
@@ -243,17 +327,22 @@ curl -s -w '\nHTTP %{http_code}\n' -X POST https://demo.<DOMINIO>/spaces-dooh/ap
 
 | # | Afirmación (plan) | En su forma nueva | Estado |
 |---|---|---|---|
-| 1 | DEMO resuelve a su droplet | `demo.<DOMINIO>` resuelve al PADRE | ✅ |
+| 1 | DEMO resuelve a su droplet | `demo.space-os.io` resuelve al PADRE | ✅ |
 | 2 | La base de DEMO no tiene tenants de producción | `spaces_demo` ∩ `spaces_prod` = ∅ | ✅ |
 | 3 | El viejo ya no sirve ese nombre | `demo.space-os.io` **deja de resolver** a `209.97.146.136` | ✅ vía DNS |
 | 4 | DEMO suscrita al canal `beta` | — | 🔶 **desviación declarada** |
 
 ```bash
-dig +short demo.<DOMINIO>            # el PADRE
-dig +short demo.space-os.io          # vacio, o cualquier cosa menos 209.97.146.136
+dig +short space-os.io                 # 137.184.107.53  (el PADRE)
+dig +short demo.space-os.io            # 137.184.107.53  -- y ya NO 209.97.146.136
 sudo -u postgres psql -d spaces_demo -Atc "select string_agg(slug,',') from tenants"
 sudo -u postgres psql -d spaces_prod -Atc "select string_agg(slug,',') from tenants"
 ```
+
+> **El criterio 3 se cumple por sustitucion, no por borrado**, y eso lo vuelve
+> mas facil de comprobar: el nombre sigue existiendo y sirviendo, pero desde otra
+> maquina. La evidencia es el `dig` de antes (guardado en el §2.2) contra el de
+> ahora.
 
 Las dos listas **no** pueden compartir ningún slug.
 
@@ -290,5 +379,11 @@ rm /etc/nginx/sites-enabled/demo && nginx -t && systemctl reload nginx
 sudo -u postgres psql -c "drop database spaces_demo"    # opcional
 ```
 
-Lo único que **no** tiene vuelta atrás es el registro `A` borrado de
-`demo.space-os.io` — y volver a ponerlo es una línea en Cloudflare.
+El DNS tampoco se pierde: `demo.space-os.io` **se reapunta**, no se borra, así
+que deshacerlo es devolver el registro `A` a `209.97.146.136` — una línea en
+Cloudflare. Con una salvedad: **el certificado de esa máquina no se renovará
+solo** si el nombre deja de apuntarle mucho tiempo, así que la vuelta atrás deja
+de ser gratis pasados un par de meses.
+
+Y el certificado del PADRE no estorba: cubre los dos nombres y se renueva por
+DNS-01, que no depende de a dónde apunten.
