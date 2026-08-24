@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-21
+actualizado: 2026-08-24
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -419,6 +419,21 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > **H-C** (`:245-248`, README y bóveda) — «por esa puerta pasan seis de los siete códigos» excepciona
 > solo el 75; hay dos más (`--help` y argumento inválido, `:315-316`). Atenuante: son anteriores al
 > candado y el punto 1 ya acota «una vez tomado el candado». Precisión, no defecto de fondo.
+
+> [!note] `PG_URL_SEGURA` **ya no existe en el código** — medido el 2026-08-24
+> El bloque de arriba lo sigue enseñando como defecto vivo en `update.sh:558-579`, y esa cita
+> **ya no resuelve**: `grep -n PG_URL_SEGURA infra/scripts/update.sh` no devuelve nada. Lo
+> sustituyó **`32042e5`** (19/08, *«la conexion a Postgres deja de viajar como URL a
+> pg_dump»*), que reconstruye la conexión en **cuatro banderas sueltas** —`-h`, `-p`, `-U`,
+> `-d`— y manda todo lo demás por variables `PG*`. El invariante está escrito en el propio
+> archivo (`update.sh:905-911`): «en `argv` no aparece nada que venga del `userinfo` ni de la
+> consulta, bajo ninguna codificacion», y el comentario documenta exactamente el caso que el
+> hallazgo medía (`p@ssw0rd` → `ssw0rd` en `--dbname=`).
+>
+> ⚠️ **Esto no cierra el hallazgo, y no puede cerrarlo esta nota.** `32042e5` es uno de los
+> **dos commits de código sin auditar** que la propia fila de F3.9 declara. Lo que queda
+> registrado aquí es el estado medido —**corregido en el código, pendiente de auditoría**—,
+> no un veredicto: el color lo pone una sesión de auditoría aparte, no quien lo lee.
 
 > [!important] La barrida de mutación ya no cabe en un ciclo — dato medido el 18/08
 > La auditoría **no pudo terminarla: la mató el entorno tras ~5 h**, con 12 de 25 cazados y 0
@@ -1103,7 +1118,7 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 |---|---|---|---|---|---|
 | F4.1 | [verificación] | — | — | 🛑 **IMPOSIBLE (24/08)** | Censo del droplet viejo. **Se perdió el acceso a esa máquina**, así que no es una tarea que espere turno: no se puede hacer. Deja de bloquear a F4.2 —un bloqueo que nadie puede levantar no es un bloqueo, es un punto muerto— y **se retira declarándolo**. Lo que ese censo iba a decidir (qué se borraba al recrear la base) ya no se decide: no se recrea nada |
 | F4.2 | [infra] | ensayista-local | F2.5 | ✅ **ENSAYADA_LOCAL — los cuatro criterios PASAN** (re-ensayo del 19/08). ⚠️ Esta fila decía «criterio de datos INCUMPLIDO por D1» y llevaba desfasada desde ese mismo día: **D1 se cerró en `9d609f0`** —el esquema dejó de sembrar `rgb`— y el re-ensayo midió `tenants=0` y `config_negocio=0` tras el esquema Y tras las migraciones, con la intersección de slugs DEMO ∩ prod **vacía** y contrafactual. Corregido el 20/08 al auditar. **Su parte real sigue siendo de servidor** | **La receta exacta**, medida: (1) `db/dev-rol-app.sql` **antes que nada**, (2) `db/schema.sql`, (3) `migrar.mjs --instalacion-nueva` → 67 aplicadas, **39 tablas**, exit 0; 2.ª corrida = 0 aplicadas. **Sin el paso 1 aborta en la 52 de 68.** Rol `spaces_app` NOSUPERUSER/NOBYPASSRLS ✅ |
-| F4.3 | [infra] | tarjeta humana | F4.2 | ⏳ **PENDIENTE — espera el nombre del dominio** | Ya **no** es «mover el DNS de `demo.space-os.io`»: esa máquina se perdió. DEMO nace en el PADRE con **subdominio propio del dominio nuevo** y su **propio certificado y vhost**. Se controla la zona DNS, así que en cuanto haya nombre esto es trabajo, no espera |
+| F4.3 | [infra] | tarjeta humana | F4.2 | ⏳ **PENDIENTE_SERVIDOR — el dominio ya NO es el bloqueo** (24/08) | ⚠️ **Esta fila decía «espera el nombre del dominio» y llevaba desfasada desde el 24/08.** El dominio está resuelto: **`space-os.io`**, y **no es un dominio nuevo** — es la misma zona que ya se controla, la que tiene dentro `demo.space-os.io` apuntando a la máquina perdida. Así que **no hay subdominio que crear**: `demo.space-os.io` **se recupera** reapuntándolo al PADRE, y ese mismo gesto cumple el criterio 3 de F4.5. `space-os.io` → PADRE (3000) y `demo.space-os.io` → DEMO (3001), en la misma máquina y con vhost propio cada uno: `infra/nginx/space-os.io.conf`, ya escrito. 🔴 **El certificado va por DNS-01 y ANTES de mover el DNS** — no es preferencia, es requisito: `demo.space-os.io` sirve **HSTS de dos años** (medido el 24/08), y ahí un error de certificado **no es saltable** desde el navegador. Por eso el orden es **ápice primero**: `space-os.io` no tiene registro A (medido), no lo usa nadie y no tiene HSTS, así que se estrena el stack entero ahí y solo después se toca el nombre que importa. ▸ Lo que falta es todo **de persona**: token de Cloudflare (`Zone:DNS:Edit` + `Zone:Zone:Read`, zona específica, filtro por IP), `certbot --dry-run` antes del real, enlazar el vhost, y los dos registros A. Paso a paso en `docs/Runbook_Cierre_Fase4_DEMO.md` §3.3 · decisión de fondo en `docs/adr/0015-demo-dentro-del-padre.md` |
 | F4.4 | [infra] | ensayista-local | F4.2-local | ✅ **ENSAYADA_LOCAL — desbloqueada** (re-ensayo del 19/08). ⚠️ Decía «bloqueada por D2» y también llevaba desfasada: **D2 era el catálogo de permisos**, cerrado por `9c41606` y completado a 41 filas por `1edbcce` (20/08). El Dueño abre **nueve módulos**, medido por `permisosDeRol` y por el camino del producto. Corregido el 20/08 al auditar | Los datos entran y se leen bajo RLS, pero `/api/estado/` los devolvía **vacíos**, y **no es RLS ni tenant: es el catálogo de permisos** (D2). ⚠️ **El plan está desactualizado**: `:1345` pide `NEXT_PUBLIC_AUTOREGISTRO=1` y la bandera ya es `AUTOREGISTRO` de runtime; `:1351` espera 400 y lo correcto es **503** |
 | F4.5 | [verificación] | ensayista-local + tarjeta humana | F4.4 | ⚠️ **SMOKE LOCAL EN VERDE**; el real, tarjeta | El cierre del riesgo es contra la DEMO real. 🔴 **Su tarjeta, cuando se escriba, tiene DOS instrucciones opuestas en la bitácora y solo una vale.** La del 14/08 —arrancar con `AUTOREGISTRO=1` y esperar `signup` **400**— quedó **invertida** el mismo día al cerrar el registro en toda la flota, DEMO incluida: lo correcto es **503 y el botón «Crear cuenta» AUSENTE**. Y esa comprobación del botón es el único eslabón que el ensayo de F2.5 no pudo probar (hidratación en navegador real), así que **tiene que ir en la tarjeta o se pierde** |
 

@@ -163,8 +163,35 @@ El código y las migraciones ya están en el PADRE, en `/var/www/Spaces`. Solo h
 que traer el commit de hoy, que añade la migración **72**:
 
 ```bash
-cd /var/www/Spaces && git pull && ls db/migrations/*.sql | wc -l   # esperado: 72
+cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && ls db/migrations/*.sql | wc -l
 ```
+
+**Esperado: `feat/servidor-padre-instancias` y `72`.**
+
+> [!danger] 🔴 `git pull` a secas puede dejar la base de DEMO con 66 migraciones
+> Este runbook, `ecosystem.demo.config.js`, `infra/nginx/space-os.io.conf` y la
+> migración **72** —`20260824_grants_tablas_futuras.sql`, la que cierra H1
+> (`1dbe854`)— **solo existen en `feat/servidor-padre-instancias`**, que va
+> **182 commits por delante de `main`** y no está fusionada.
+>
+> Medido el 2026-08-24 en el worktree:
+>
+> ```
+> git ls-tree -r --name-only main db/migrations/ | grep -c '\.sql$'   ->  66
+> git ls-tree -r --name-only HEAD db/migrations/ | grep -c '\.sql$'   ->  72
+> ```
+>
+> Si `/var/www/Spaces` está en `main`, el `git pull` **sale verde**, el contador
+> da **66** y el runner aplica 66 migraciones sin una sola queja. DEMO nacería
+> sin el arreglo de H1, que es justo el que hace que una tabla creada por otro
+> rol no quede sin permisos **y sin error**. Por eso la comprobación es de la
+> **rama**, no del contador: cuando el número está mal, ya se hizo el `pull`.
+>
+> Si sale `main`, para y cambia de rama antes de seguir:
+>
+> ```bash
+> cd /var/www/Spaces && git fetch --all && git checkout feat/servidor-padre-instancias && git pull && ls db/migrations/*.sql | wc -l
+> ```
 
 Y las migraciones, **corriendo como `postgres`** — el defecto ② del 21/08:
 
