@@ -208,7 +208,7 @@ estaban hechas, así que **ninguna prueba automática podía verlos**.
 |---|---|---|
 | 1 | `npm ci` estaba en el paso 7 y el runner lo necesita en el 4 | ✅ corregido en el runbook |
 | 2 | La URL de socket no sirve: el runner corre como **root** y falla `peer` | ✅ corregido |
-| 3 | El runner dijo `(url no parseable)` y **escondió el error real** | ⏳ pide código |
+| 3 | El runner dijo `(url no parseable)` y **escondió el error real** | ✅ corregido el 24/08 (`migrar.mjs:226-244`) |
 | 4 | El epílogo de `setup-droplet.sh` manda al **modelo muerto** | ✅ corregido el 24/08 (`setup-droplet.sh:74-131`) |
 | 5 | `setup-droplet.sh` **no es desatendido**: se cuelga en un diálogo de `dpkg` | ✅ documentado |
 | 6 | **El alta no valida el correo** — aceptó un marcador como si lo fuera | ✅ corregido el 24/08 (`lib/validacion-email.mjs`) |

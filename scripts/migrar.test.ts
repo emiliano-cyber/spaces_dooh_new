@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ordenar, tipoDeMigracion, ANTES_DE, tablasQueCrea, testigosDeHistoria } from './migrar.mjs'
+import {
+  ordenar,
+  tipoDeMigracion,
+  ANTES_DE,
+  tablasQueCrea,
+  testigosDeHistoria,
+  destinoSeguro,
+} from './migrar.mjs'
 
 // ============================================================================
 //  La parte PURA del runner de migraciones: el orden y el tipo.
@@ -217,5 +224,48 @@ describe('testigosDeHistoria()', () => {
     const primero = testigos.map((t) => t.archivo).sort()[0]
     expect(primero < '20260723').toBe(true)
     expect(testigos.some((t) => t.archivo >= '20260723' && t.archivo < '20260807')).toBe(true)
+  })
+})
+
+// ============================================================================
+//  `destinoSeguro()` — el mensaje que el runner imprime antes de conectar.
+// ----------------------------------------------------------------------------
+//  Defecto ③ del arranque del PADRE (2026-08-21). La URL del paso 4 del runbook
+//  no servía —el runner corre como root y `peer` rechaza al usuario `postgres`—
+//  y en vez de decirlo, el runner contestó `destino: (url no parseable)`. El
+//  problema real no se vio hasta media línea después.
+//
+//  «No parseable» es verdad y no sirve de nada: no dice qué esperaba ni qué
+//  recibió. Y es la ÚLTIMA línea que se lee antes de un error de conexión, o
+//  sea justo donde alguien va a buscar la causa.
+//
+//  Lo que NO puede hacer el arreglo: imprimir la cadena. Esta función existe
+//  para que la URL —con su contraseña dentro— no salga nunca por el log, y en
+//  este proyecto un fragmento de credencial en un log es criterio invalidante
+//  (M2). Por eso la prueba comprueba las dos cosas a la vez.
+// ============================================================================
+describe('destinoSeguro()', () => {
+  it('de una URL normal saca host, puerto y base — y NUNCA la contraseña', () => {
+    const d = destinoSeguro('postgresql://spaces_app:secreto@10.0.0.5:5432/spaces_demo')
+    expect(d).toBe('10.0.0.5:5432/spaces_demo')
+    expect(d).not.toMatch(/secreto/)
+  })
+
+  it('supone el 5432 cuando la URL no trae puerto', () => {
+    expect(destinoSeguro('postgresql://u:c@localhost/base')).toBe('localhost:5432/base')
+  })
+
+  it('ante algo que no es una URL, DICE qué esperaba', () => {
+    // El caso real del 21/08: una cadena `clave=valor` de libpq.
+    const d = destinoSeguro('host=/var/run/postgresql dbname=spaces_prod user=postgres')
+    expect(d).toMatch(/no tiene forma de URL/i)
+    expect(d).toMatch(/postgresql:\/\//)
+  })
+
+  it('y sigue sin filtrar nada de lo que recibió', () => {
+    const d = destinoSeguro('host=/var/run/postgresql dbname=spaces_prod password=secreto')
+    expect(d).not.toMatch(/secreto/)
+    expect(d).not.toMatch(/spaces_prod/)
+    expect(d).not.toMatch(/var\/run/)
   })
 })

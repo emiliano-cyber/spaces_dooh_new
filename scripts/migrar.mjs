@@ -222,13 +222,28 @@ export function divergencias(registradas, enDisco) {
   return fuera
 }
 
-/** Destino SIN credenciales: host/puerto/base. Esto se imprime; la URL no. */
+/**
+ * Destino SIN credenciales: host/puerto/base. Esto se imprime; la URL no.
+ *
+ * El mensaje del `catch` cambió el 2026-08-24 (defecto ③ del arranque del
+ * PADRE). Decía `(url no parseable)`, que es verdad y no sirve de nada: no dice
+ * qué esperaba ni qué recibió. Ese día la URL era una cadena `clave=valor` de
+ * libpq, el runner imprimió `destino: (url no parseable)`, siguió adelante y el
+ * error real —`Peer authentication failed`— apareció media línea después. La
+ * última línea antes de un fallo de conexión es justo donde alguien busca la
+ * causa, así que ahí tiene que estar.
+ *
+ * Lo que el mensaje NO puede hacer es enseñar la cadena. Esta función existe
+ * para que la URL —con su contraseña dentro— no salga nunca por el log, y en
+ * este proyecto un fragmento de credencial en un log es criterio invalidante
+ * (M2). Por eso se nombra la FORMA esperada y nada de lo recibido.
+ */
 export function destinoSeguro(u) {
   try {
     const x = new URL(u)
     return `${x.hostname}:${x.port || '5432'}${x.pathname}`
   } catch {
-    return '(url no parseable)'
+    return '(DATABASE_URL no tiene forma de URL; se espera postgresql://usuario:clave@host:puerto/base)'
   }
 }
 
