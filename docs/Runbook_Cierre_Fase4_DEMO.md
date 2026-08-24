@@ -300,12 +300,42 @@ chmod 600 /etc/space-os/demo.env && chown demo:demo /etc/space-os/demo.env
 compara los slugs de las dos bases y no puede haber ninguno en común. Va con
 slug `demo`.
 
-> [!warning] No uses `bootstrap-auth.mjs` a ciegas
-> Lleva **su propia `MATRIZ` de 36 permisos** que no coincide con las **41** que
-> siembra la migración, así que corriendo **después** la base acaba con la
-> **unión**. Y resuelve por slug `rgb`, abortando si falta. Para DEMO se usa el
-> SQL documentado en `docs/datos/`, que es la alternativa que el plan admite en
-> F4.4 paso 1. **Pídemelo y lo escribo con el slug `demo`.**
+> [!note] Corregido el 24/08 — `bootstrap-auth.mjs` **sí** es la vía, y la única
+> Una versión anterior de este runbook decía que lo evitaras porque llevaba su
+> propia `MATRIZ` de 36 permisos y dejaría la base con la unión. **Eso dejó de
+> ser cierto el 2026-08-20**: `de6860a` le quitó la matriz y lo dejó
+> **fail-closed**, comprobando que el catálogo esté y negándose si no. Lo que
+> queda en el archivo es el comentario que cuenta la historia, y de ahí salió el
+> aviso equivocado.
+>
+> Hoy el alta es lo único que hace tres cosas que un `.sql` no puede: **valida el
+> correo** (`lib/validacion-email.mjs`, de hoy mismo), **genera** la contraseña y
+> la enseña **una sola vez**, y obliga al Dueño a cambiarla. Escribir el alta a
+> mano abriría un segundo camino para crear identidades — exactamente lo que
+> costó ROJO-2.
+
+```bash
+cd /var/www/Spaces/apps/web
+ORG_SLUG=demo ORG_NOMBRE="SPACE OS - Demostracion" ADMIN_EMAIL=<el correo real del Dueno de la demo> ADMIN_NOMBRE="<su nombre>" DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql"   node scripts/bootstrap-auth.mjs
+```
+
+> **Apunta la contraseña que imprime: no se vuelve a enseñar.** Y no dejes los
+> marcadores puestos — desde hoy el script se niega si `ADMIN_EMAIL` no parece un
+> correo, que es el defecto ⑥ del 21/08.
+
+**Y después, el inventario de juguete:**
+
+```bash
+sudo -u postgres psql -d spaces_demo -v ON_ERROR_STOP=1   -f /var/www/Spaces/docs/datos/20260824_semilla_demo.sql
+```
+
+Siembra **2 arrendadores y 6 pantallas** inventadas. Es idempotente y trae tres
+guardas: se niega si la base no se llama `spaces_demo`, si no existe la
+organización `demo`, o si en esa base hay un tenant `rgb` — porque entonces el
+criterio de F4.5 no se podría cumplir. **Probado de punta a punta contra Postgres
+16 el 24/08**, incluidas las tres guardas y la vuelta atrás.
+
+Esperado al final: `demo · 2 arrendadores · 6 pantallas · 5 disponibles`.
 
 **Verificación de F4.4:**
 
