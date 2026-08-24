@@ -16,6 +16,14 @@ function deviceDetail() {
     zoomEnStream: 0,
     centroEnStream: null,
     streamLeft: 0, // segundos restantes antes del corte automatico
+    // Numero del visor vigente. Es un NUMERO a proposito, no el objeto del
+    // visor: Alpine guarda los datos del componente en un proxy reactivo, asi
+    // que al leer `this.streamClient` NO vuelve el mismo objeto que se guardo
+    // sino su envoltorio, y comparar identidad (`this.streamClient === cliente`)
+    // era SIEMPRE falso. Con eso, las tres devoluciones del visor -la cuenta
+    // regresiva, el corte a los 3 minutos y los errores- se salian por la
+    // guarda y no hacian nada. Un entero atraviesa el proxy tal cual.
+    streamTurno: 0,
     // Hay un intento de conexion en curso. Conectar tarda: el visor espera hasta
     // 40 s a que el equipo empiece a publicar, y en ese silencio la gente volvia
     // a picarle al boton, encimando un START_STREAM sobre otro.
@@ -332,6 +340,10 @@ function deviceDetail() {
       // controles sigan en pantalla y no parezca que se cayo la transmision.
       this.reencuadrando = true;
       try {
+        // El visor viejo pierde la vigencia aqui, al cerrarlo, y no 1200 ms
+        // despues cuando arranca el nuevo: en ese hueco su aviso de muerte
+        // llegaba a tiempo de tumbar una vista que seguia en pantalla.
+        this.streamTurno++;
         await this.streamClient?.stop();
         this.streamClient = null;
         // La camara del equipo necesita un respiro para soltarse antes de que la
@@ -589,6 +601,8 @@ function deviceDetail() {
 
       const video = document.getElementById('liveVideo');
       this.streamLeft = 180;
+      // Este visor es el vigente hasta que alguien abra otro o lo detenga.
+      const miTurno = ++this.streamTurno;
       // Los telefonos transmiten punto a punto; la Raspberry y las PCs con
       // camara IP pasan por el servidor de medios. Se distingue por la version
       // del agente, que la ponemos nosotros ("pi-agent", "pc-agent").
@@ -597,11 +611,11 @@ function deviceDetail() {
       // Se guarda en una variable propia para poder reconocerlo despues: las
       // devoluciones de abajo tienen que saber si siguen siendo del visor vivo.
       const cliente = new Cliente(Number(this.deviceId), video, {
-        onTick: (s) => { if (this.streamClient === cliente) this.streamLeft = s; },
+        onTick: (s) => { if (this.streamTurno === miTurno) this.streamLeft = s; },
         // Corte a los 3 min: evita que un stream olvidado siga consumiendo
         // datos del equipo y deje sesiones colgadas en el TURN.
         onAutoStop: async () => {
-          if (this.streamClient !== cliente) return;
+          if (this.streamTurno !== miTurno) return;
           await this.stopStream();
           this.showToast('Transmisión detenida automáticamente a los 3 minutos', 'info');
         },
@@ -614,7 +628,7 @@ function deviceDetail() {
           // vista se caia sola con un "se perdio la señal" que no correspondia a
           // nada. Es el mismo cuidado que ya tenia el agente de la Raspberry con
           // sus procesos ("esVigente" en transmision.js); al visor le faltaba.
-          if (this.streamClient !== cliente) return;
+          if (this.streamTurno !== miTurno) return;
 
           // El fallo puede llegar ANTES de que la vista se de por activa: el
           // visor de los equipos relay avisa por aqui y su start() termina
@@ -701,6 +715,9 @@ function deviceDetail() {
     },
 
     async stopStream() {
+      // Se retira la vigencia ANTES de cerrar: si el visor moribundo avisa de
+      // un fallo de camino, ya no le corresponde a nadie.
+      this.streamTurno++;
       await this.streamClient?.stop();
       this.streamClient = null;
       this.streaming = false;
