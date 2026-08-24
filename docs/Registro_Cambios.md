@@ -15,16 +15,21 @@ La entrada más reciente va arriba.
   - **Lo único que sí se controla es su dirección de internet**, porque el
     dominio está a nuestro nombre. Eso permite **quitarle el nombre público**, no
     apagarla: quien se sepa su número seguirá llegando.
-  - **La preocupación más seria del día quedó descartada el mismo día.** Esa
-    máquina llevaba activada la publicación a pantallas reales, así que había que
-    comprobar si estaba mandando contenido a pantallas de verdad **sin que nadie
-    pudiera detenerlo**. **Se revisó en DOOHmain y no hay nada publicando: está
-    limpio.**
-    - **Lo que eso quiere decir, con precisión:** se comprobó desde DOOHmain,
-      que es el único lado al que se llega. Queda demostrado que **no ha
-      publicado nada**, no que no pueda hacerlo: eso solo se vería entrando a la
-      máquina, y no se puede entrar. Sigue encendida y accesible por su número,
-      y quitarle el nombre no le quita el número.
+  - **Una preocupación del día quedó descartada el mismo día, y era más
+    pequeña de lo que se escribió.** Esa máquina llevaba activada la publicación
+    de contenido, así que había que comprobar si estaba mandando algo sin que
+    nadie pudiera detenerlo. **Se revisó y no hay nada publicando: está limpio.**
+    - **Corrección importante, y la hizo Emiliano:** varios documentos internos
+      de ese día —y una versión anterior de esta misma entrada— decían que esa
+      publicación llegaba a **pantallas reales de clientes**. **No es así: la
+      publicación de este sistema ha ido siempre a pantallas de PRUEBA, nunca a
+      pantallas de un cliente.** El programa no puede saber qué hay al otro lado
+      —solo decide si manda o no manda—, así que eso se afirmó sin el dato.
+    - **Lo que sí sigue siendo cierto, y no dependía de eso:** se comprobó desde
+      el lado de DOOHmain, que es el único al que se llega. Queda demostrado que
+      **no ha publicado nada**, no que no pueda hacerlo. Y lo que se llegue a
+      publicar **no se retira borrando información** de esta base: eso se retira
+      desde DOOHmain.
   - **Su certificado de seguridad vence el 26 de octubre** y no se va a renovar
     solo. Esa es la fecha límite natural de todo este asunto.
 
@@ -58,10 +63,13 @@ La entrada más reciente va arriba.
     de ninguna dirección nueva**. Cambiar a dónde apunta es, además, lo que le
     quita el nombre público a la máquina perdida: las dos cosas de un solo gesto.
 
-- **La demostración no va a mandar contenido a pantallas reales. Nunca.** Es una
-  decisión y va escrita en su configuración. Si saliera con eso encendido, lo que
-  alguien enseñe a un cliente **llegaría a pantallas de verdad** — que es un error
-  que ya costó una incidencia antes.
+- **La demostración no va a mandar contenido a ningún sitio. Nunca.** Es una
+  decisión y va escrita en su configuración. El motivo, corregido el mismo día:
+  no es que llegaría a pantallas de clientes —eso nunca ha ocurrido, la
+  publicación siempre ha ido a pantallas de prueba— sino que **a dónde se manda
+  es un ajuste que cualquiera puede cambiar**, que una demostración no tiene por
+  qué mandar nada a ninguna parte, y que lo que se publica **no se retira
+  borrando información**.
 
 - **En la demostración nadie puede crearse una cuenta por su cuenta.** Las cuentas
   las crea quien administra, igual que en el resto del sistema. Se comprobó

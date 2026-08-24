@@ -50,10 +50,26 @@
 //      AUTOREGISTRO=0                  <- P8: cerrado en TODA la flota, DEMO incluida
 //      DOOHMAIN_PUBLISH_ENABLED=0      <- ver abajo, no es opcional
 //
-//  ⚠️ `DOOHMAIN_PUBLISH_ENABLED=0` NO ES NEGOCIABLE. Con la publicación
-//  encendida, lo que alguien enseñe en una demostración LLEGA A PANTALLAS
-//  REALES. Ya costó una incidencia con el tenant `eyro`, y aquí es peor: a la
-//  demo la toca gente de fuera.
+//  ⚠️ `DOOHMAIN_PUBLISH_ENABLED=0` NO ES NEGOCIABLE, y el motivo es más
+//  duradero que el que decía aquí antes.
+//
+//  CORREGIDO EL 2026-08-24 POR EMILIANO: la publicación de SPACE OS ha ido
+//  siempre a PANTALLAS DE PRUEBA de DOOHmain, nunca a pantallas de cliente.
+//  Este comentario decía «LLEGA A PANTALLAS REALES», y eso el código no lo
+//  sabe: solo sabe que con el flag en 1 el contenido SALE de verdad por el SDK
+//  Python hacia DOOHmain. Qué hay al otro lado es un dato de negocio.
+//
+//  Sigue en 0, por lo que sí se sostiene:
+//    · El destino es CONFIGURACIÓN -- `DOOHMAIN_SCREEN_MAP` y
+//      `DOOHMAIN_DEFAULT_SCREEN`. Hoy apunta a pruebas; mañana lo cambia
+//      cualquiera, y entonces la demo publicaría donde apunte.
+//    · Una demostración no tiene por qué publicar a NINGÚN sitio: ensucia la
+//      cuenta compartida de DOOHmain y ocupa pantallas que otros usan.
+//    · Y lo que enseñó `eyro`: lo publicado NO se retira borrando filas de esta
+//      base. Eso lo decide el SDK, no un `delete`
+//      (`docs/datos/20260810_reset_tenant_eyro.sql:14-21`).
+//
+//  El argumento ya no depende de una afirmación que resultó falsa.
 // ============================================================================
 module.exports = {
   apps: [

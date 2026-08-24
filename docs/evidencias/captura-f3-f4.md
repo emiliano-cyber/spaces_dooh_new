@@ -226,9 +226,14 @@ mitad «antes» del criterio 3 de F4.5.
 **Esto no es un comando y no se mira en el servidor: no hay servidor.** Se mira
 en el panel de DOOHmain.
 
-Según el tablero del 10/08 ese droplet llevaba `DOOHMAIN_PUBLISH_ENABLED=1`. Si
-sigue activo, hay un sistema mandando contenido a pantallas de verdad que **nadie
-puede detener desde aquí**. La única palanca es retirarlo **desde DOOHmain**.
+Según el tablero del 10/08 ese droplet llevaba `DOOHMAIN_PUBLISH_ENABLED=1`, o
+sea que la publicación **salía de verdad** hacia DOOHmain y nadie puede detenerla
+desde aquí. La única palanca es retirarlo **desde DOOHmain**.
+
+> **Corregido el 24/08 por Emiliano:** las pantallas al otro lado han sido
+> **siempre de prueba**, nunca de cliente. Eso **baja mucho** la gravedad de este
+> punto — pero no lo anula: sigue habiendo una instancia fuera de control que
+> puede escribir en la cuenta de DOOHmain.
 
 **Qué mirar:** si hay campañas o reservas publicadas por esa integración con
 actividad **posterior al 21/08**.
@@ -447,9 +452,11 @@ Dentro de `/etc/space-os/demo.env`:
 | `AUTOREGISTRO` | **`0`** |
 | `DOOHMAIN_PUBLISH_ENABLED` | **`0`** |
 
-> [!danger] DEMO no publica a pantallas reales. Nunca.
-> Si sale con la publicación encendida, lo que alguien enseñe a un cliente
-> **llega a pantallas de verdad**. Ya costó una incidencia con `eyro`.
+> [!danger] DEMO no publica a ningún sitio. Nunca.
+> **Corregido el 24/08:** la publicación de SPACE OS ha ido siempre a pantallas
+> de **prueba** de DOOHmain, nunca a pantallas de cliente. Sigue en `0` porque el
+> destino es **configuración** y puede cambiar, porque una demo no debe publicar
+> a ningún sitio, y porque lo publicado **no se retira borrando filas**.
 
 > **Next carga `.env.production` sin pisar lo que ya esté en el entorno**, así que
 > lo de `/etc/space-os/demo.env` gana. Si eso fallara, DEMO hablaría con la base

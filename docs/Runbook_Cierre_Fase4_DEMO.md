@@ -429,11 +429,19 @@ defecto ⑦ del 21/08 fue exactamente esto:
 | `AUTOREGISTRO` | **`0`** ⚠️ contra el plan, a favor de P8 |
 | `DOOHMAIN_PUBLISH_ENABLED` | **`0`** ⚠️ ver abajo |
 
-> [!danger] DEMO no publica a pantallas reales. Nunca.
-> Es una demostración: si sale con la publicación encendida, lo que alguien
-> enseñe a un cliente **llega a pantallas de verdad**. Es el mismo error que ya
-> costó una incidencia con `eyro`, y aquí sería peor porque la demo la toca gente
-> de fuera.
+> [!danger] DEMO no publica a ningún sitio. Nunca.
+> **Corregido el 24/08 por Emiliano:** este bloque decía «llega a pantallas de
+> verdad». **La publicación de SPACE OS ha ido siempre a pantallas de PRUEBA de
+> DOOHmain, nunca a pantallas de cliente.** El código no sabe qué hay al otro
+> lado: solo que con el flag en `1` el contenido **sale de verdad** por el SDK
+> Python.
+>
+> `DOOHMAIN_PUBLISH_ENABLED=0` sigue siendo obligatorio, por lo que sí se
+> sostiene: **el destino es configuración** —`DOOHMAIN_SCREEN_MAP`,
+> `DOOHMAIN_DEFAULT_SCREEN`—, hoy apunta a pruebas y mañana lo cambia
+> cualquiera; una demostración no debe publicar a ningún sitio; y lo publicado
+> **no se retira borrando filas** de esta base, que es lo que enseñó `eyro`
+> (`docs/datos/20260810_reset_tenant_eyro.sql:14-21`).
 
 ```bash
 chmod 600 /etc/space-os/demo.env && chown demo:demo /etc/space-os/demo.env

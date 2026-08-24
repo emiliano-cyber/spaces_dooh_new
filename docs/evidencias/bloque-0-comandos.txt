@@ -96,10 +96,14 @@ cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && ls db/migra
 # al 21/08.
 #
 # Segun el tablero del 10/08 ese droplet llevaba
-# DOOHMAIN_PUBLISH_ENABLED=1, o sea que publicaba de verdad. Si
-# sigue activo, hay un sistema mandando contenido a pantallas
-# reales que nadie puede detener desde aqui: la unica palanca es
-# retirarlo DESDE DOOHmain.
+# DOOHMAIN_PUBLISH_ENABLED=1, o sea que la publicacion SALIA DE
+# VERDAD hacia DOOHmain, y nadie puede detenerla desde aqui: la
+# unica palanca es retirarlo DESDE DOOHmain.
+#
+# CORREGIDO EL 24/08: las pantallas al otro lado han sido SIEMPRE
+# DE PRUEBA, nunca de cliente. Baja mucho la gravedad, pero no la
+# anula: sigue habiendo una instancia fuera de control que puede
+# escribir en la cuenta de DOOHmain.
 #
 # Anota lo que veas, aunque sea "no hay nada".
 

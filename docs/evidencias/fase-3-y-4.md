@@ -282,11 +282,27 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 
 **El bloque 0 está cerrado entero**, incluido el C4, que no es un comando.
 
-**🟢 Y el C4 despeja el peor escenario abierto del 24/08.** La pregunta era si la
-instancia perdida seguía publicando a pantallas reales: según el tablero del
-10/08 llevaba `DOOHMAIN_PUBLISH_ENABLED=1`. **Revisado en DOOHmain el 24/08: no
-hay nada publicando.** No existe el sistema mandando contenido a pantallas de
-clientes que nadie podía detener.
+**🟢 Y el C4 despeja el escenario que quedó abierto el 24/08.** La pregunta era si
+la instancia perdida seguía publicando: según el tablero del 10/08 llevaba
+`DOOHMAIN_PUBLISH_ENABLED=1`. **Revisado en DOOHmain el 24/08: no hay nada
+publicando.**
+
+> [!important] Y el escenario era menos grave de lo que este proyecto escribía
+> **Corregido el 24/08 por Emiliano:** la publicación de SPACE OS ha ido
+> **siempre a pantallas de prueba** de DOOHmain, **nunca a pantallas de cliente**.
+>
+> Varios documentos —este incluido, el runbook, `ecosystem.demo.config.js` y la
+> bitácora— decían «llega a pantallas reales» o «a pantallas de clientes». **El
+> código no puede saber eso**: `lib/server/doohmain.ts:37` solo decide si el
+> contenido sale o no por el SDK Python. Qué hay al otro lado es un dato de
+> negocio, y se afirmó sin tenerlo.
+>
+> **Lo que sí sigue en pie**, y no dependía de esa afirmación: con el flag en `1`
+> la publicación **sale de verdad**, y lo publicado **no se retira borrando filas
+> de la base** — lo decide el SDK, no un `delete`
+> (`docs/datos/20260810_reset_tenant_eyro.sql:14-21`). Por eso DEMO va con
+> `DOOHMAIN_PUBLISH_ENABLED=0`: el destino es **configuración** y puede cambiar,
+> y una demostración no debe publicar a ningún sitio.
 
 > **Con una precisión que hay que conservar:** se miró desde DOOHmain, el único
 > lado alcanzable. Lo que queda probado es que **no ha publicado**, no que no
