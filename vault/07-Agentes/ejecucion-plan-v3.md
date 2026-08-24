@@ -1126,9 +1126,11 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > ✅ **AUDITADOS el 2026-08-24**, en sesión aparte y sobre `HEAD` —no sobre los
 > commits sueltos, porque `551f6c1` lo revirtió en parte `f180a75` y a `8f81c3e`
 > lo superó `3872d61`—. **Veredicto AMARILLO**: los cuatro hacen lo que dicen.
-> Un hallazgo a cerrar antes del merge (**H1**, `alter default privileges` sin
-> `for role`: la promesa del comentario es más ancha que la garantía del código)
-> y dos menores. Informe completo en [[auditoria-cuatro-rojo-20260820]].
+> **H1 —el hallazgo que bloqueaba— quedó CERRADO el mismo día** con
+> `20260824_grants_tablas_futuras.sql`. Quedan dos menores, de higiene, para
+> después del merge. Informe completo en [[auditoria-cuatro-rojo-20260820]].
+>
+> ✅ **Con esto no queda nada pendiente para fusionar por el lado de los ROJO.**
 
 ## Commits que esperan visto bueno humano
 

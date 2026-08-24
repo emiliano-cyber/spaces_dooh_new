@@ -6,14 +6,18 @@ tags: [agentes, auditoria, rojo, instancias, rol-app, credenciales, merge]
 archivos:
   - scripts/migrar.mjs
   - db/migrations/20260820_grants_rol_app.sql
+  - db/migrations/20260824_grants_tablas_futuras.sql
+  - apps/web/lib/test/grants-tablas-futuras.e2e.test.ts
   - infra/scripts/update.sh
 ---
 
 # Auditoría — los cuatro ROJO del 2026-08-20
 
-> **Veredicto: 🟡 AMARILLO.** Los cuatro están bien hechos y hacen lo que dicen.
-> Hay **un hallazgo que conviene cerrar antes del merge** (H1) y **dos menores**
-> que pueden ir después. Ninguno invalida el trabajo.
+> **Veredicto: 🟡 AMARILLO → ✅ el bloqueo está levantado.** Los cuatro están bien
+> hechos y hacen lo que dicen. **H1 se cerró el 2026-08-24** con
+> `20260824_grants_tablas_futuras.sql` —migración nueva, no un arreglo de la
+> aplicada: eso era R3 y habría disparado F3.3—. Quedan **H2 y H3**, los dos
+> menores, que pueden ir después del merge.
 
 **Quién audita:** sesión del 2026-08-24, distinta de la que escribió los cuatro
 commits (`session_01Ff33PCRwFNbtSmyf1JUBMD`). El modelo exige que el remediador
@@ -39,7 +43,7 @@ tal cual habría sido auditar una perilla que ya no existe.
 
 ## 2 · Hallazgos
 
-### 🟡 H1 · `alter default privileges` está atado al rol que aplicó la migración
+### ✅ H1 · `alter default privileges` está atado al rol que aplicó la migración — **CERRADO el 24/08**
 
 **`db/migrations/20260820_grants_rol_app.sql:87-88`** · severidad **media** ·
 categoría: permisos que fallan en silencio.
@@ -63,19 +67,43 @@ para cerrar.
 es más ancha que lo que el código garantiza, y en este repositorio los
 comentarios se leen como contrato.
 
-**Corrección sugerida**, cualquiera de las dos:
+### Cómo se cerró — `20260824_grants_tablas_futuras.sql`
 
-```sql
--- (a) fijar el propietario explicitamente
-execute format('alter default privileges for role %I in schema public grant … to %I', propietario, r);
-```
+**Primero se midió.** El hallazgo dejó de ser un razonamiento sobre la
+documentación de PostgreSQL: `grants-tablas-futuras.e2e.test.ts` crea una tabla
+siendo un segundo rol después de aplicar la migración del 20/08 y comprueba que
+`spaces_app` **no** la alcanza. Ese caso pasó **en rojo antes** de escribir nada,
+y sigue en la suite como el que mide el defecto.
 
-o **(b)** dejar el `for role` fuera y escribir en el comentario la condición que
-lo sostiene: *«vale mientras las migraciones las aplique siempre el mismo rol»*,
-y añadirlo al runbook de aprovisionamiento.
+**Migración nueva, no arreglo de la vieja.** `20260820_grants_rol_app.sql` **ya
+está aplicada** —el PADRE corrió la cadena entera el 21/08—, así que abrirla es
+zona **R3** y además cambiaría su checksum: F3.3 detendría la actualización con
+**salida 3** en toda instancia que ya la tenga. Editar un comentario habría
+bastado para romperlo, porque el checksum es del archivo.
 
-> Se prefiere (b) si nadie quiere abrir una migración: es barato, es cierto, y
-> deja el límite escrito donde se lee.
+**Y lo que no se pudo prometer, no se prometió.** `alter default privileges` no
+puede cubrir «cualquier rol futuro»: habría que enumerar roles que aún no
+existen. Así que la garantía se movió a donde sí es verificable, y son tres cosas:
+
+1. **Repara** — `grant on all tables` en cada pasada: una tabla huérfana no
+   sobrevive a la siguiente actualización, la creara quien la creara.
+2. **Asegura hacia adelante** para los roles que hoy crean tablas, **derivados de
+   `pg_tables`** y no cableados — el mismo criterio que usa `migrar.mjs` con sus
+   tablas testigo. Si el rol que aplica no es miembro del propietario, **anota y
+   sigue** en vez de negarse: negarse dejaría sin correr la reparación, que es lo
+   que de verdad arregla instancias.
+3. **Aborta nombrando las tablas** si algo se queda fuera. Esto es lo que
+   convierte el fallo mudo en ruidoso.
+
+> **El límite que queda, dicho en voz alta:** una tabla creada por un rol nuevo
+> **entre dos pasadas** está sin permisos hasta la siguiente. Ya no es silencioso
+> —la aplicación da `permission denied` y la pasada siguiente lo repara— pero no
+> es cero. Cerrarlo del todo pediría un `event trigger` sobre `ddl_command_end`,
+> maquinaria que corre en **cada** DDL: no se mete a cambio de este riesgo sin
+> una decisión aparte.
+
+**Verificado:** 5 casos e2e nuevos, y la suite completa en **20 archivos · 213
+pruebas · 1 saltada**, con `aislamiento.e2e.test.ts` pasando **sin tocarse**.
 
 ### 🔵 H2 · El rol de la app recibe DML sobre `schema_migrations`
 
@@ -152,8 +180,8 @@ blanca sobre las piezas ya decodificadas**, y aguanta lo que tiene que aguantar:
 
 | | |
 |---|---|
-| **Para fusionar** | Cerrar **H1**, aunque sea por la vía barata (b): escribir la condición en el comentario y en el runbook. Es una promesa de más en un comentario, y aquí eso se lee como contrato |
-| **Después del merge** | **H2** y **H3**, que son de higiene |
+| **Para fusionar** | ✅ **Nada pendiente.** H1 quedó cerrado el 24/08 con `20260824_grants_tablas_futuras.sql`, medido en rojo primero y con la suite e2e completa en verde |
+| **Después del merge** | **H2** y **H3**, que son de higiene. H2 toca las **dos** migraciones de GRANT a la vez, porque las dos conceden igual |
 | **Lo que NO hace falta** | Volver a auditar `551f6c1` ni `8f81c3e` como commits: sus sucesores ya están revisados aquí |
 
 ## Relacionadas

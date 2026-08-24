@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-20
+actualizado: 2026-08-24
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -51,7 +51,13 @@ archivos:
 
 ## Cómo funciona
 
-- **71 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+- **72 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
+  El último es `20260824_grants_tablas_futuras.sql` (24/08), que cierra el
+  hallazgo **H1** de [[auditoria-cuatro-rojo-20260820]]: los GRANT de la app
+  alcanzan ahora a las tablas que crea **cualquier** rol, no solo el que aplicó
+  la migración. **Repara** en cada pasada, **asegura** hacia adelante por
+  propietario derivado de `pg_tables`, y **aborta nombrando** las tablas si
+  alguna se queda fuera.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
