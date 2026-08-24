@@ -20,6 +20,7 @@
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import { generarPasswordTemporal } from '../lib/password-temporal.mjs'
+import { esEmailValido } from '../lib/validacion-email.mjs'
 
 // El destino NO tiene valor por omisión, y eso es deliberado.
 //
@@ -86,6 +87,33 @@ if (FALTAN.length) {
       '  PowerShell:  $env:ORG_SLUG="mi-org"; $env:ORG_NOMBRE="Mi Organizacion SA"; ...\n' +
       'En desarrollo local, la organización de siempre es\n' +
       '  ORG_SLUG=rgb ORG_NOMBRE="RGB Catorce" (db/semilla-desarrollo.sql).',
+  )
+  process.exit(1)
+}
+
+// ─── Y que el correo lo PAREZCA, no solo que esté ──────────────────────────
+//
+// Defecto ⑥ del arranque del PADRE (2026-08-21): se pegó el bloque del runbook
+// con los marcadores todavía puestos y el Dueño nació con el correo literal
+// `<el correo de Google del Dueño>`. La comprobación de arriba lo dejó pasar
+// porque no está vacío.
+//
+// La asimetría era el problema: `lib/validacion.ts` ya tenía `esEmailValido` y
+// la aplicación SÍ la usa al dar de alta desde Administración. Por la pantalla
+// no se podía crear un usuario con correo inválido; por el alta de una
+// instancia, sí — y es la cuenta de máximo privilegio, la única que entra el
+// primer día. Se reutiliza la misma función, no una copia.
+//
+// Va ANTES de conectar, a propósito: un correo inválido no debe llegar a abrir
+// una conexión ni a escribir media fila.
+if (!esEmailValido(ADMIN_EMAIL)) {
+  console.error(
+    `ERROR bootstrap: ADMIN_EMAIL no parece un correo: "${ADMIN_EMAIL}".\n` +
+      'Se espera el formato ejemplo@correo.com.\n' +
+      'Si estás copiando un runbook, revisa que no hayan quedado los marcadores\n' +
+      'puestos: el 2026-08-21 este script creó al Dueño del PADRE con el correo\n' +
+      'literal "<el correo de Google del Dueño>", y es la cuenta de máximo\n' +
+      'privilegio de la instancia.',
   )
   process.exit(1)
 }

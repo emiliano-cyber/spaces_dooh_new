@@ -1,13 +1,9 @@
-// Validación de correo compartida (cliente + servidor). Estructura básica
-// usuario@dominio.tld (p. ej. ejemplo@correo.com): un @, sin espacios, y un
-// dominio con punto. Así no se permiten "cosas raras" (sin @, sin dominio, etc.).
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-export function esEmailValido(email: unknown): boolean {
-  return typeof email === 'string' && EMAIL_RE.test(email.trim())
-}
-
-export const EMAIL_INVALIDO = 'Correo inválido. Usa el formato ejemplo@correo.com'
+// Validación de correo compartida (cliente + servidor). La regla NO se define
+// aquí: vive en `validacion-email.mjs` porque `scripts/bootstrap-auth.mjs` la
+// necesita y corre con `node` a pelo en el droplet, sin compilar TypeScript.
+// Mientras estuvo solo aquí, el alta de una instancia no podía usarla y acabó
+// creando al Dueño con un marcador por correo (defecto ⑥ del 2026-08-21).
+export { esEmailValido, EMAIL_INVALIDO } from './validacion-email.mjs'
 
 // ─── Teléfono ───────────────────────────────────────────────────────────────
 // M1 de la auditoría del 04/08/2026: el alta de cliente aceptaba «abc123xyz»

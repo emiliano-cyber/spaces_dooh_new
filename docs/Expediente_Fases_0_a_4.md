@@ -211,7 +211,7 @@ estaban hechas, así que **ninguna prueba automática podía verlos**.
 | 3 | El runner dijo `(url no parseable)` y **escondió el error real** | ⏳ pide código |
 | 4 | El epílogo de `setup-droplet.sh` manda al **modelo muerto** | ⏳ pide código |
 | 5 | `setup-droplet.sh` **no es desatendido**: se cuelga en un diálogo de `dpkg` | ✅ documentado |
-| 6 | **El alta no valida el correo** — aceptó un marcador como si lo fuera | ⏳ pide código |
+| 6 | **El alta no valida el correo** — aceptó un marcador como si lo fuera | ✅ corregido el 24/08 (`lib/validacion-email.mjs`) |
 | 7 | `.env.production` nace **644**, con la contraseña de la base dentro | ✅ `chmod 600` en el runbook |
 | 8 | **`nginx -t` dijo «ok» sobre una configuración corrupta** | ✅ la config pasa a archivo versionado |
 
