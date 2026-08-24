@@ -1122,6 +1122,13 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 >
 > **En los cuatro, el remediador fui yo.** El modelo dice que no se autoconfirma:
 > piden un verificador en sesión aparte.
+>
+> ✅ **AUDITADOS el 2026-08-24**, en sesión aparte y sobre `HEAD` —no sobre los
+> commits sueltos, porque `551f6c1` lo revirtió en parte `f180a75` y a `8f81c3e`
+> lo superó `3872d61`—. **Veredicto AMARILLO**: los cuatro hacen lo que dicen.
+> Un hallazgo a cerrar antes del merge (**H1**, `alter default privileges` sin
+> `for role`: la promesa del comentario es más ancha que la garantía del código)
+> y dos menores. Informe completo en [[auditoria-cuatro-rojo-20260820]].
 
 ## Commits que esperan visto bueno humano
 
