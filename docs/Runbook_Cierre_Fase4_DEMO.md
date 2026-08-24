@@ -203,7 +203,14 @@ sudo -u postgres env \
   /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs --instalacion-nueva
 ```
 
-**Esperado:** 72 aplicadas, salida 0. Segunda corrida: 0 aplicadas.
+**Esperado:** **71 aplicadas y 1 de datos pendiente**, salida 0. Segunda corrida:
+0 aplicadas.
+
+> **71, no 72 — corregido el 24/08 al correrlo de verdad.**
+> `20260731_calendario_meses_cortos.sql` lleva `-- @tipo: datos` y el runner la
+> omite salvo `--con-datos` (`scripts/migrar.mjs:717-721`). Repara filas
+> preexistentes, así que en una base nueva no aplica. **En el disco hay 72
+> archivos; se aplican 71**, y esa diferencia no estaba escrita en ningún sitio.
 
 **Verificación de F4.2:**
 

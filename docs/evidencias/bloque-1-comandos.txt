@@ -55,7 +55,16 @@ sudo -u postgres psql -c "create database spaces_demo owner postgres" && sudo -u
 
 cp "$(command -v node)" /usr/local/bin/node 2>/dev/null; chmod a+rx /usr/local/bin/node; chmod -R a+rX /var/www/Spaces; sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs --instalacion-nueva
 
-# Esperado:  72 aplicadas, y salida 0.
+# Esperado:  71 aplicadas, 1 de datos pendientes, y salida 0.
+#
+# 71 NO ES UN FALLO. `20260731_calendario_meses_cortos.sql` esta
+# marcada "-- @tipo: datos" y el runner la omite a proposito: las
+# de datos reescriben filas y se piden a mano con --con-datos.
+# Esa realinea cuotas de renta que ya existian, asi que en una
+# base recien nacida no hay nada que reparar. DEMO no la necesita.
+#
+# Son DOS numeros distintos: 72 ARCHIVOS en el disco (lo que mide
+# el C2) y 71 APLICADAS.
 #
 # >>> SI ABORTA A MEDIAS: PARA y pasame la salida entera.
 #     NO vuelvas a lanzarlo y NO intentes continuar desde donde
@@ -109,7 +118,7 @@ sudo -u postgres psql -d spaces_demo -Atc "select rolname, rolsuper, rolbypassrl
 sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"; sudo -u postgres psql -d spaces_demo -Atc "select archivo, aplicada_en from schema_migrations order by aplicada_en desc limit 1"
 
 # Esperado:
-#   72
+#   71     <- 71, no 72: la de datos no se aplico y no se registra
 #   20260824_grants_tablas_futuras.sql|<fecha de hoy>
 
 

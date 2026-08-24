@@ -291,10 +291,11 @@ sudo -u postgres psql -Atc "select rolname from pg_roles where rolname in ('spac
 > `drop database`. Es el pendiente **D4** del proyecto, y aquí sale gratis
 > esquivarlo porque la base es nueva.
 
-**Pega aquí:**
-```
+**Salida — 2026-08-24:** `spaces_app` ✅
 
-```
+El rol existe, así que la cadena puede llegar al final. *(Reportado, sin salida
+literal.)*
+
 
 ### C15 · La base nace vacía
 
@@ -304,10 +305,10 @@ sudo -u postgres psql -c "create database spaces_demo owner postgres" && sudo -u
 
 **Esperado:** `0`. Tiene que dar cero **antes** de migrar.
 
-**Pega aquí:**
-```
+**Salida — 2026-08-24:** `0` ✅
 
-```
+Cero organizaciones antes de migrar. *(Reportado, sin salida literal.)*
+
 
 ### C16 · Las migraciones, corriendo como `postgres`
 
@@ -317,12 +318,43 @@ Es el defecto ② del 21/08: el runner necesita ver `node` y el árbol.
 cp "$(command -v node)" /usr/local/bin/node 2>/dev/null; chmod a+rx /usr/local/bin/node; chmod -R a+rX /var/www/Spaces; sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs --instalacion-nueva
 ```
 
-**Esperado:** **72 aplicadas**, salida 0.
+**Esperado:** **71 aplicadas y 1 de datos pendiente**, salida 0.
 
-**Pega aquí:**
+> [!important] 71 no es un fallo — y el «72» que decía antes esta línea era el error
+> `20260731_calendario_meses_cortos.sql` está marcada **`-- @tipo: datos`** en su
+> primera línea, y el runner **la omite a propósito** salvo que se pida con
+> `--con-datos` (`scripts/migrar.mjs:717-721`) — el mismo criterio que
+> `deploy.yml`. Las de datos **reescriben filas y no se deshacen solas**.
+>
+> Esa en concreto realinea cuotas de renta que desbordaron en meses cortos, es
+> decir **repara filas que ya existían**. En una base recién nacida no hay nada
+> que reparar: aplicarla sería un no-op. **DEMO no la necesita.**
+>
+> **Y son dos números distintos, que este documento confundía:** en el disco hay
+> **72 archivos** (lo que mide el C2 con `ls | wc -l`), y de esos se **aplican
+> 71**. El runner además la **nombra** al omitirla, a propósito: «una migración
+> que no se aplica y que nadie menciona es una que se olvida»
+> (`migrar.mjs:713-715`).
+>
+> Efecto permanente y benigno: cada `update.sh` futuro sobre DEMO seguirá diciendo
+> «1 de datos pendientes». No es deuda, es la marca funcionando.
+
+**Salida real — 2026-08-24:**
+```
+destino: :5432/spaces_demo
+--instalacion-nueva verificada: ninguna de las 11 tablas que solo crean las
+  migraciones existe en esta base.
+  omitida (migracion de DATOS, pidela con --con-datos): 20260731_calendario_meses_cortos.sql
+== 20260625_agencia_en_propuesta.sql
+[... 70 lineas mas ...]
+== 20260824_grants_tablas_futuras.sql
+71 aplicadas, 1 de datos pendientes.
 ```
 
-```
+✅ **71 aplicadas, y es el resultado correcto.** La guarda de `--instalacion-nueva`
+además **se verificó a sí misma** antes de tocar nada: comprobó que ninguna de las
+11 tablas testigo existía.
+
 
 ### C17 · La idempotencia, en un servidor de verdad
 
@@ -335,10 +367,16 @@ sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postg
 
 **Esperado:** **0 aplicadas**, salida 0.
 
-**Pega aquí:**
+**Salida real — 2026-08-24:**
+```
+destino: :5432/spaces_demo
+  omitida (migracion de DATOS, pidela con --con-datos): 20260731_calendario_meses_cortos.sql
+0 aplicadas, 1 de datos pendientes.
 ```
 
-```
+✅ **Idempotencia demostrada en un servidor real.** Es evidencia de **F3.1 y
+F3.2**, y la primera que tienen fuera de local.
+
 
 ### C18 · Verificación de F4.2
 
@@ -348,10 +386,16 @@ sudo -u postgres psql -d spaces_demo -Atc "select rolname, rolsuper, rolbypassrl
 
 **Esperado:** `spaces_app|f|f` y **`0`** organizaciones.
 
-**Pega aquí:**
-```
+**Salida — 2026-08-24:** `spaces_app|f|f` y `0` ✅
 
-```
+**El criterio de F4.2 se cumple**: el rol de la app no es superusuario y **no
+puede saltarse la RLS**, y no hay ni una organización.
+
+> ⚠️ **Reportadas solo esas dos líneas**, no la lista completa de roles con login.
+> No cambia el veredicto —el criterio es sobre `spaces_app`— pero la lista entera
+> habría probado además que **ningún otro rol con login** puede saltarse la RLS.
+> Se anota como lo que es: parcial.
+
 
 ---
 
@@ -363,12 +407,18 @@ sudo -u postgres psql -d spaces_demo -Atc "select rolname, rolsuper, rolbypassrl
 sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"; sudo -u postgres psql -d spaces_demo -Atc "select archivo, aplicada_en from schema_migrations order by aplicada_en desc limit 1"
 ```
 
-**Esperado:** `72`, y la última siendo `20260824_grants_tablas_futuras.sql`.
+**Esperado:** **`71`**, y la última siendo `20260824_grants_tablas_futuras.sql`.
 
-**Pega aquí:**
-```
+> **71 y no 72**, por lo mismo que el C16: la migración de datos se omite y
+> **no se registra** — solo se aplican y se insertan las que corren
+> (`migrar.mjs:735`). Que no esté en `schema_migrations` es correcto: no se
+> aplicó.
 
-```
+**Salida — 2026-08-24:** `71` ✅
+
+Coincide con las 71 aplicadas del C16. *(La segunda consulta —el nombre de la
+última migración— no se reportó.)*
+
 
 ---
 

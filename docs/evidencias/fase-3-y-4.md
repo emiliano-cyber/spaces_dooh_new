@@ -64,7 +64,7 @@ descripción de cómo funciona el sistema hoy vive en `vault/` y caduca; esto no
 | Tarea | Tipo | Estado | Qué falta |
 |---|---|---|---|
 | **F4.1** · censo del droplet actual | verificación | 🛑 **IMPOSIBLE** (24/08) | Nada. Se perdió el acceso |
-| **F4.2** · droplet y base de DEMO | infra | ENSAYADA_LOCAL (19/08) | ⧗ **C15–C18** |
+| **F4.2** · droplet y base de DEMO | infra | ✅ **CUMPLIDA EN EL SERVIDOR** (24/08) | — |
 | **F4.3** · dominio y certificado | infra | PENDIENTE_SERVIDOR | ⧗ **C5–C14** |
 | **F4.4** · datos y bandera | infra | ENSAYADA_LOCAL (19/08) | ⧗ **C19–C24** |
 | **F4.5** · smoke y cierre del riesgo | verificación | smoke local en verde | ⧗ **C25–C27**, 3 de 4 criterios |
@@ -244,10 +244,11 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 | **C12** | 🚦 El stack entero sirviendo: `302` en raíz, `200` en login | ⧗ |
 | **C13** | Fechas del certificado servido de verdad | ⧗ |
 | **C14** | `demo.space-os.io` reapuntado — **la máquina perdida pierde su nombre** | ⧗ |
-| **C15** | `spaces_demo` nace vacía: `0` tenants antes de migrar — **F4.2** | ⧗ |
-| **C16** | Las 72 migraciones aplicadas en un servidor real | ⧗ |
-| **C17** | Idempotencia: segunda corrida, `0` aplicadas — **F3.1 y F3.2** | ⧗ |
-| **C18** | `spaces_app\|f\|f` y `0` organizaciones — **criterio de F4.2** | ⧗ |
+| **C15a** | El rol `spaces_app` existe en el clúster — sin él la cadena aborta en la 52 | ✅ |
+| **C15** | `spaces_demo` nace vacía: `0` tenants antes de migrar — **F4.2** | ✅ `0` |
+| **C16** | Las migraciones aplicadas en un servidor real | ✅ **71** + 1 de datos omitida |
+| **C17** | Idempotencia: segunda corrida, `0` aplicadas — **F3.1 y F3.2** | ✅ `0 aplicadas` |
+| **C18** | `spaces_app\|f\|f` y `0` organizaciones — **criterio de F4.2** | ✅ **cumplido** |
 | **C19** | `/etc/space-os/demo.env` a `600` y de `demo` | ⧗ |
 | **C20** | `spaces-demo` en el 3001, con usuario `demo` y no root | ⧗ |
 | **C20a** | El login del 3001 contesta `200` **sin dominio ni nginx de por medio** | ⧗ |
@@ -259,7 +260,7 @@ rellena de memoria ni se parafrasea: va la salida literal, incluidos los errores
 | **C25** | Los dos nombres resolviendo al PADRE — **criterio 1 de F4.5** | ⧗ |
 | **C26** | `spaces_demo` ∩ `spaces_prod` = ∅ — **criterio 2 de F4.5** | ⧗ |
 | **C27** | Con qué usuario corre cada proceso — la trampa del root, medida | ⧗ |
-| **C28** | `schema_migrations` con 72 filas en un servidor real — **Fase 3** | ⧗ |
+| **C28** | `schema_migrations` en un servidor real — **Fase 3** | ✅ **71** filas |
 
 > [!important] La hoja se reordenó en dos etapas — y no es cosmético
 > **Etapa 1** levanta DEMO entera y la verifica **por dentro** (`127.0.0.1:3001`),
@@ -326,6 +327,58 @@ señales a la vez**: IP pública `137.184.107.53` y `hostname`
 llama **`origin`** y apunta a `emiliano-cyber/spaces_dooh_new` — **el vivo**. En el
 worktree local, `origin` es el muerto (`CarlosMend87/spaces-dooh`) y el vivo es
 `emiliano`. El mismo nombre significa cosas distintas según dónde estés.
+
+### 5.0-ter · Bloque 1 — F4.2 cumplida en el servidor, y la Fase 3 sale de local
+
+**`F4.2` deja de ser `ENSAYADA_LOCAL`.** Su criterio —«la base de DEMO no contiene
+ni una fila de ningún owner, y el rol de la app no puede saltarse la RLS»— quedó
+**medido contra `spaces_demo` en el PADRE**, no simulado: `spaces_app|f|f` y `0`
+organizaciones (**C18**), con la base dando `0` ya antes de migrar (**C15**).
+
+**Y la Fase 3 gana su primera evidencia de servidor.** El **C17** volvió a correr
+el runner sobre una base ya migrada y devolvió **`0 aplicadas`**: eso es **F3.1 y
+F3.2** demostradas fuera de local por primera vez. Hasta hoy solo se habían
+probado contra el 5433 y `spaces_e2e`.
+
+> **La guarda de `--instalacion-nueva` se verificó a sí misma antes de tocar
+> nada**, y salió en la traza: *«ninguna de las 11 tablas que solo crean las
+> migraciones existe en esta base»*. Es `F3.2` funcionando —la bandera **se
+> comprueba, no se cree**— en la única situación en la que importa: una base a
+> punto de recibir 71 migraciones.
+
+#### 🔴 Y una corrección: eran 72 archivos, pero se aplican 71
+
+**El «esperado: 72 aplicadas» de este expediente, del runbook y de la hoja estaba
+mal**, y solo se vio al correrlo de verdad.
+
+`db/migrations/20260731_calendario_meses_cortos.sql` lleva **`-- @tipo: datos`** en
+su primera línea, y el runner **la omite a propósito** salvo `--con-datos`
+(`scripts/migrar.mjs:717-721`), con el mismo criterio que `deploy.yml`: las de
+datos **reescriben filas y no se deshacen solas**.
+
+Esa realinea cuotas de renta que desbordaron en meses cortos — **repara filas
+preexistentes**. En una base recién nacida no hay nada que reparar: **DEMO no la
+necesita**, y aplicarla sería un no-op.
+
+**Eran dos números distintos y este documento los confundía:**
+
+| | |
+|---|---|
+| **72** | archivos en `db/migrations/` — lo que mide el **C2** con `ls \| wc -l` |
+| **71** | migraciones **aplicadas** y registradas en `schema_migrations` (**C28**) |
+
+El runner **nombra** la que omite, a propósito: *«una migración que no se aplica y
+que nadie menciona es una que se olvida»* (`migrar.mjs:713-715`). Efecto
+permanente y benigno: cada `update.sh` futuro sobre DEMO dirá «1 de datos
+pendientes». **No es deuda: es la marca funcionando.**
+
+#### Lo que quedó reportado y no capturado
+
+Con el mismo tamaño de letra que el resto. **C15a, C15, C18 y C28 llegaron como
+reporte**, no como salida literal; **C16 y C17 sí** están completos. Y del C18 se
+reportaron dos líneas, no la lista entera de roles con login: el veredicto no
+cambia —el criterio es sobre `spaces_app`— pero la lista completa habría probado
+además que **ningún otro rol con login** puede saltarse la RLS.
 
 ### 5.0-bis · El proxy del ápice está en NARANJA — medido el 24/08 por la tarde
 
