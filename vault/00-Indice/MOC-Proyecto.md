@@ -100,9 +100,12 @@ Los dos salen del [[inventario-2026-08-11]] y llevan fecha en el nombre: cada co
 escribe uno nuevo en vez de pisar el anterior.
 - [[manual-tecnico-2026-08-11]] — entrada para un dev nuevo: arquitectura, datos, API,
   entornos, despliegue y operación. 31 pendientes al cierre
-- [[manual-usuario-2026-08-11]] — para quien usa la aplicación sin saber programar,
-  ordenado por tarea. Borrador: 20 pendientes, y ninguna pantalla se puede nombrar por
-  su rótulo todavía
+- [[manual-usuario-2026-08-25]] — **el vigente**. Para quien usa la aplicación sin saber
+  programar, ordenado por tarea y con los controles nombrados por su rótulo real. Cubre
+  las 18 áreas, las pantallas públicas y el diccionario de estados. 8 pendientes: siete
+  de negocio y **un ajuste que no gobierna nada** («Plazos de cobranza»)
+- [[manual-usuario-2026-08-11]] — el borrador anterior, escrito desde el inventario.
+  **Superado**: se conserva como historia
 
 > [!tip] Esta bóveda caduca
 > Última validación completa contra el código: **10/08/2026**. El procedimiento

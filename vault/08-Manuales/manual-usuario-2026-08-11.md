@@ -1,13 +1,20 @@
 ---
 tipo: manual
-estado: borrador
+estado: superado
 actualizado: 2026-08-11
-tags: [manual, usuario-final, negocio]
+tags: [manual, usuario-final, negocio, historico]
 archivos:
   - vault/00-Inventario/inventario-2026-08-11.md
 ---
 
 # Manual de usuario — Space OS
+
+> [!warning] Superado por [[manual-usuario-2026-08-25]]
+> Este borrador se escribió desde el inventario, sin leer la interfaz: describe
+> la acción pero no nombra los controles, y deja 20 preguntas abiertas. El
+> vigente es [[manual-usuario-2026-08-25]], que además cubre Dashboard,
+> Administración, Configuración, Integraciones, Actividad, Network, Almacén y
+> las pantallas públicas. Se conserva como historia.
 
 Space OS lleva el negocio de publicidad exterior de punta a punta: las pantallas que
 rentas, los arrendadores que te las alquilan, los clientes que te compran, las campañas
