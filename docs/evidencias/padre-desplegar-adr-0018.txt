@@ -1,0 +1,162 @@
+============================================================
+ DESPLEGAR EL ADR 0018 EN EL PADRE
+ Todo en [PADRE] 137.184.107.53.
+============================================================
+ Que se despliega: `sesiones.metodo` (migracion 73) y la regla
+ que deja fijar la PRIMERA contrasena sin teclear la anterior
+ cuando se entro con Google.
+
+ Verificado en local antes de esto: typecheck limpio, 851
+ unitarias en 78 archivos, e2e 20 archivos / 213 pruebas + 1
+ saltada, `aislamiento.e2e.test.ts` sin tocarse.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+
+ EL ORDEN IMPORTA Y NO ES EL INTUITIVO:
+   git pull  ->  MIGRACION  ->  build  ->  restart
+
+ La migracion va ANTES del restart, no despues. Es compatible
+ hacia atras: anade una columna al `returns table` de
+ `auth_usuario_por_sesion`, y el codigo viejo selecciona columnas
+ POR NOMBRE (`auth.ts:127-130`), asi que no se entera. Al reves
+ --restart primero-- el codigo nuevo pediria `metodo` a una
+ funcion que todavia no lo devuelve, y EL LOGIN SE CAERIA ENTERO.
+============================================================
+
+
+# ------------------------------------------------------------
+# D1 - Traer el codigo
+# ------------------------------------------------------------
+
+cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && ls db/migrations/*.sql | wc -l
+
+# Esperado:  feat/servidor-padre-instancias   y   73
+#
+# >>> Si el contador no llega a 73, PARA: la migracion no bajo y
+#     el resto de este archivo no aplica.
+#
+# NO hace falta `npm install`: comprobado que ni `package.json` ni
+# `package-lock.json` cambiaron desde el ultimo pull del PADRE.
+
+
+# ------------------------------------------------------------
+# D2 - La migracion, en LAS DOS bases
+# ------------------------------------------------------------
+# `spaces_prod` primero, que es la que sirve ahora.
+
+sudo -u postgres env DATABASE_URL="postgresql:///spaces_prod?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs
+
+# Esperado:  1 aplicadas, 1 de datos pendientes.
+
+sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node /var/www/Spaces/scripts/migrar.mjs
+
+# Esperado:  1 aplicadas, 1 de datos pendientes.
+#
+# Las dos, aunque `spaces_demo` todavia no sirva a nadie: dejarlas
+# desalineadas es exactamente lo que hoy hizo que a `spaces_prod`
+# le faltara la 72.
+
+
+# ------------------------------------------------------------
+# D3 - Comprobar que la columna y la funcion estan
+# ------------------------------------------------------------
+
+sudo -u postgres psql -d spaces_prod -Atc "select count(*) from schema_migrations" && sudo -u postgres psql -d spaces_prod -Atc "select column_name from information_schema.columns where table_name='sesiones' and column_name='metodo'"
+
+# Esperado:  72   y   metodo
+#
+# (72 aplicadas de 73 archivos: la de datos sigue omitida a
+#  proposito, como debe.)
+
+
+# ------------------------------------------------------------
+# D4 - EL BUILD. Aqui esta el riesgo del despliegue.
+# ------------------------------------------------------------
+# `next start` NO compila: sirve lo que haya en `.next`. Sin este
+# paso, el codigo nuevo no entra por mucho que reinicies.
+
+cd /var/www/Spaces/apps/web && npm run build
+
+# Esperado: termina con la tabla de rutas y sin errores.
+#
+# >>> SI EL BUILD FALLA: **NO REINICIES**. El proceso vivo sigue
+#     sirviendo lo que tiene cargado, asi que el sitio aguanta.
+#     Un `.next` a medio escribir mas un restart = sitio caido.
+#     Pasame el error tal cual.
+#
+# >>> Si muere sin mensaje claro, sospecha de memoria. Mira:
+#         free -h
+#     La maquina tiene 4 GB y el build es lo mas pesado que corre.
+
+
+# ------------------------------------------------------------
+# D5 - Reiniciar
+# ------------------------------------------------------------
+
+pm2 restart spaces-web --update-env && sleep 5 && pm2 list
+
+# Esperado: `spaces-web` en `online` y el contador de reinicios +1.
+
+
+# ------------------------------------------------------------
+# D6 - LA PRUEBA. Que la sesion sigue funcionando.
+# ------------------------------------------------------------
+# Es la unica que no se puede fingir, y aqui importa el doble: si
+# la funcion y el codigo no encajaran, el login se cae ENTERO.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401
+#
+# >>> 500 = el codigo y la base no encajan. Pasame:
+#         pm2 logs spaces-web --lines 40 --nostream
+
+
+# ------------------------------------------------------------
+# D7 - Y que el metodo se esta registrando de verdad
+# ------------------------------------------------------------
+# Entra por el navegador CON GOOGLE en
+# https://space-os.io/spaces-dooh/login/  y despues corre esto:
+
+sudo -u postgres psql -d spaces_prod -Atc "select metodo, count(*) from sesiones group by metodo"
+
+# Esperado: una fila `google|1` (mas las `password` que hubiera).
+#
+# >>> Si tu sesion nueva sale como `password`, la regla no se
+#     activara y hay que mirarlo. Es la comprobacion que demuestra
+#     que el dato se escribe, no solo que la columna existe.
+
+
+# ------------------------------------------------------------
+# D8 - Ya puedes ponerte contrasena
+# ------------------------------------------------------------
+# Con la sesion de Google abierta, ve a tu perfil y pon una
+# contrasena nueva. NO te pedira la anterior.
+#
+# En cuanto la pongas, `debe_cambiar_password` se apaga solo y la
+# excepcion DEJA DE APLICARTE para siempre. A partir de ahi:
+#   - entras con Google o con tu contrasena, como prefieras
+#   - y tienes contrasena para la reautenticacion de los cambios
+#     sensibles (ADR 0009), que era la mitad que faltaba.
+#
+# Comprobar que se apago:
+
+sudo -u postgres psql -d spaces_prod -Atc "select email, debe_cambiar_password from usuarios"
+
+# Esperado:  emiliano@asnetwork.io|f
+
+
+============================================================
+ VUELTA ATRAS
+============================================================
+ La migracion es ADITIVA: anade una columna con default y amplia
+ el retorno de una funcion. No borra nada y el codigo viejo
+ convive con ella.
+
+ Si hubiera que volver atras, se vuelve el CODIGO, no la base:
+
+   cd /var/www/Spaces && git checkout cf8a0a9 -- apps/web && cd apps/web && npm run build && pm2 restart spaces-web
+
+ Dejar la columna puesta no molesta a nadie.
+============================================================
