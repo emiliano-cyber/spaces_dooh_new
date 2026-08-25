@@ -1,0 +1,155 @@
+============================================================
+ F4.1 - CENSO DEL DROPLET VIEJO (209.97.146.136)
+============================================================
+ TODO ES SOLO LECTURA. Ningun comando de este archivo cambia
+ nada. El plan lo dice explicito: "Riesgo y vuelta atras:
+ ninguno".
+
+ Estaba declarada IMPOSIBLE desde el 24/08 por perdida de
+ acceso. Si hay acceso, vuelve a ser trabajo.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ El plan escribe este censo como UN SOLO ssh con siete comandos
+ dentro. Aqui va partido en lineas sueltas A PROPOSITO: esa
+ forma se pega mal en la consola web de DigitalOcean, que ya
+ corrompio dos pegadas multilinea en este proyecto.
+============================================================
+
+
+# ############################################################
+#  V0 - LA TRAMPA (6). Esto va PRIMERO, siempre.
+# ############################################################
+# El 24/08 se corrio un censo entero en la maquina equivocada y
+# se detecto tarde, por tres senales indirectas.
+
+hostname; curl -s ifconfig.me; echo
+
+# Esperado:  209.97.146.136
+#            y un hostname DISTINTO de ubuntu-s-2vcpu-4gb-amd-nyc1
+#
+# >>> Si sale 137.184.107.53 estas en el PADRE. PARA.
+#
+# Otras dos senales que distinguen esta maquina del PADRE, por si
+# la IP saliera vacia:
+#   - el rol de la app aqui es `spaces_user` (en el PADRE, `spaces_app`)
+#   - aqui nginx sirve demo.space-os.io con certificado desde julio
+#     (el PADRE no tiene certificado y usa `server_name _;`)
+
+
+# ############################################################
+#  EL CENSO. Siete lineas, en el orden del plan (:1242-1253).
+# ############################################################
+
+# ------------------------------------------------------------
+# V1 - Commit desplegado
+# ------------------------------------------------------------
+
+cd /var/www/Spaces && git log --oneline -1 && git rev-parse --abbrev-ref HEAD
+
+# >>> CRITERIO DEL PLAN: si ese commit NO esta en `main`, se PARA
+#     y se avisa. Ya hay precedente (`2f28be0`).
+#     Pasame el hash y yo compruebo si esta en main.
+#
+# Ojo: la ruta puede no ser /var/www/Spaces en esta maquina. Si
+# no existe, prueba:  ls -d /var/www/*
+
+
+# ------------------------------------------------------------
+# V2 - El proceso
+# ------------------------------------------------------------
+# Aqui la app corre como `emiliano`, no como root -- al reves que
+# el PADRE. Por eso el `su -`.
+
+su - emiliano -c "pm2 describe spaces-web | grep -iE 'status|uptime|restarts|script'"
+
+# Si eso falla, prueba tambien:  pm2 list
+
+
+# ------------------------------------------------------------
+# V3 - Que nombres sirve nginx
+# ------------------------------------------------------------
+
+nginx -T 2>/dev/null | grep -E 'server_name|ssl_certificate ' | sort -u
+
+
+# ------------------------------------------------------------
+# V4 - Certificados y vencimiento
+# ------------------------------------------------------------
+
+certbot certificates 2>/dev/null | grep -E 'Certificate Name|Domains|Expiry'
+
+# El del 28/07 vence el 2026-10-26 y no se renovara solo. Esta es
+# la fecha limite natural de todo este asunto -- conviene
+# confirmarla ahora que se puede.
+
+
+# ------------------------------------------------------------
+# V5 - Configuracion, SIN secretos
+# ------------------------------------------------------------
+# Solo estas cinco claves. NO se vuelca el archivo entero: el
+# 25/08 un filtro incompleto dejo a la vista un secreto de Google.
+
+grep -hE '^(APP_URL|COOKIE_SECURE|NEXT_PUBLIC_|NODE_ENV|PORT)' /var/www/Spaces/apps/web/.env /var/www/Spaces/apps/web/.env.production 2>/dev/null
+
+# Si necesitas ver que MAS hay sin arriesgarte, solo los nombres:
+#   sed -E 's/=.*/=.../' /var/www/Spaces/apps/web/.env.production
+
+
+# ------------------------------------------------------------
+# V6 - Las organizaciones que viven aqui, con su fecha
+# ------------------------------------------------------------
+# Es el dato que mas importa del censo: que se estaria separando.
+
+sudo -u postgres psql -d spaces_prod -Atc "select slug, creado_en from tenants order by creado_en"
+
+# La fecha de `rgb` distingue las dos maquinas: aqui tiene MESES;
+# en el PADRE se creo el 21/08 a las 19:16.
+
+
+# ------------------------------------------------------------
+# V7 - Migraciones en disco
+# ------------------------------------------------------------
+
+ls /var/www/Spaces/db/migrations/*.sql | wc -l
+
+# Ojo con este numero: son ARCHIVOS EN DISCO, no aplicadas. En el
+# PADRE hay 72 archivos y 71 aplicadas, porque una es de datos y
+# el runner la omite. Aqui seguramente sean menos: esta maquina
+# no ha jalado codigo desde julio.
+
+
+# ------------------------------------------------------------
+# V8 - Y una que el plan NO pide, pero hoy sabemos que hace falta
+# ------------------------------------------------------------
+# El PADRE parecia vivo con la base caida durante cuatro dias. Un
+# `login 200` es una pagina pintandose. Esta peticion SI toca la
+# base y no se puede fingir.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST http://127.0.0.1:3000/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401  <- la aplicacion consulta su base de verdad
+#   500 = esta maquina TAMBIEN esta rota por dentro
+#   429 = limite de intentos por IP; espera y repite
+#
+# El puerto puede no ser el 3000 aqui. Si da error de conexion,
+# mira que dice V2 en su `script`.
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Pegame las nueve salidas. Con eso:
+
+   - F4.1 deja de estar IMPOSIBLE y se cierra con su documento.
+   - F7.1 recupera su objeto.
+   - Y hay que RE-ABRIR EL ADR 0015: descarta reutilizar esta
+     maquina como DEMO con la frase "ya no es una alternativa: no
+     hay acceso". Si hay acceso, esa alternativa vuelve -- y era
+     la unica que CERRABA el riesgo de la Fase 4 en vez de
+     convertirlo en "demo publica = plano de control".
+
+ No cambies nada en esta maquina todavia. Primero el censo.
+============================================================
