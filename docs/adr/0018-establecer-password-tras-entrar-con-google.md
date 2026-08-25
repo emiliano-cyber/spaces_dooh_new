@@ -157,11 +157,28 @@ prueba en rojo primero y en commits separados:
 | Tipo | `UsuarioSesion.metodoSesion` |
 | Repo | `tieneIdentidadVinculada(usuarioId, proveedor)` |
 | Puerta | `perfil-controller.ts` · `puedeFijarSinAnterior()` |
-| Pruebas | `perfil-controller.password-google.test.ts` — **9**, seis negativas |
+| Pantalla | `lib/perfil-acceso.ts` · `puedeFijarPasswordSinAnterior()`, consumida por `configuracion/page.tsx` |
+| Tipo del cliente | `UsuarioAuth.metodoSesion` |
+| Pruebas | `perfil-controller.password-google.test.ts` — **9**, seis negativas · `perfil-acceso.test.ts` — **7** |
 
-**Verificado:** `typecheck` limpio · **851** unitarias en 78 archivos · e2e **20
-archivos, 213 pruebas y 1 saltada**, con `aislamiento.e2e.test.ts` **sin tocarse**.
-Migraciones **72 → 73**.
+> [!warning] La primera versión dejó la regla INALCANZABLE, y conviene no repetirlo
+> Se implementó solo en el servidor. `configuracion/page.tsx:119` cortaba el
+> envío **en el navegador** —`if (!passwordActual) { toast.error(...); return }`—
+> así que la petición nunca salía. La regla era correcta y **no había forma de
+> ejercerla desde la interfaz**.
+>
+> Es el mismo defecto que ya documenta `lib/auth-real.ts:21-26` sobre
+> `debeCambiarPassword`: *«el servidor lo MANDA desde el ADR 0009, pero este tipo
+> no lo declaraba y por tanto nadie lo miraba»*. **Un dato que el servidor envía
+> y el cliente no declara es un dato que no existe.**
+>
+> La decisión se extrajo a `lib/perfil-acceso.ts` en vez de escribirla dentro del
+> componente porque este proyecto **no tiene arnés de pruebas de UI**: una
+> condición de seguridad metida en un `.tsx` no se puede probar.
+
+**Verificado:** `typecheck` limpio · **858** unitarias en 79 archivos · `build`
+limpio · e2e **20 archivos, 213 pruebas y 1 saltada**, con `aislamiento.e2e.test.ts`
+**sin tocarse**. Migraciones **72 → 73**.
 
 > **El método de sesión no tiene valor por omisión, y es deliberado.** Un default
 > silencioso haría que una tercera vía de entrada heredara una decisión de

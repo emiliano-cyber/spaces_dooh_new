@@ -24,6 +24,13 @@ export interface UsuarioAuth {
   // quedaba en «No se pudieron cargar los datos» con un botón de reintentar que
   // no podía funcionar nunca, y sin decir por qué ni adónde ir.
   debeCambiarPassword?: boolean
+  // ADR 0018. Mismo cuento que la línea de arriba, y por eso se declara a la
+  // vez que se usa: el servidor lo manda desde `auth_usuario_por_sesion`, y si
+  // este tipo no lo nombrara, la pantalla no podría saber que se entró con
+  // Google — que es justo lo que decide si hay que pedir la contraseña
+  // anterior. Opcional porque las sesiones abiertas antes de la migración no lo
+  // traen, y ese caso tiene que fallar CERRADO.
+  metodoSesion?: 'password' | 'google'
 }
 export type Permisos = Record<string, string[]>
 
