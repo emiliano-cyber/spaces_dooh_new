@@ -14,7 +14,7 @@
 > que había el 24/08, y esa es exactamente la información que un ADR conserva.
 
 - **Fecha:** 2026-08-24
-- **Estado:** ~~Aceptada~~ → **SUPERADA** (2026-08-25, por el ADR 0016)
+- **Estado:** ~~Aceptada~~ → superada por el 0016 → **su decisión queda RESTABLECIDA** por el [ADR 0017](0017-todo-se-concentra-en-el-padre.md) (2026-08-25)
 - **Decide:** Jochelo
 - **Sustituye a:** la 2ª enmienda de P1 (2026-08-21), que ponía DEMO en el
   droplet viejo

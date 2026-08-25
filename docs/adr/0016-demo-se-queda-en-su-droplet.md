@@ -1,7 +1,17 @@
 # ADR 0016 — DEMO se queda en su propio droplet
 
+> [!danger] ⚠️ SUPERADO EL MISMO DÍA por el [ADR 0017](0017-todo-se-concentra-en-el-padre.md)
+> Su análisis técnico **sigue siendo correcto**: reutilizar la máquina cerraba el
+> riesgo de la Fase 4 y pedía menos trabajo. Pero razonaba **solo sobre la Fase
+> 4**, y la decisión de producto es de alcance mayor: **el droplet viejo no forma
+> parte del modelo objetivo**.
+>
+> Lo que este ADR aporta y **sigue en pie**: el censo de `F4.1` demostró que el
+> acceso nunca se perdió, y de ahí sale el camino que evita el token de
+> Cloudflare — **llevarse el certificado vigente al PADRE**. El 0017 lo recoge.
+
 - **Fecha:** 2026-08-25
-- **Estado:** Aceptada
+- **Estado:** ~~Aceptada~~ → **SUPERADA** (2026-08-25, por el ADR 0017)
 - **Decide:** Emiliano
 - **Sustituye a:** [ADR 0015](0015-demo-dentro-del-padre.md), que ponía DEMO
   dentro del PADRE. **Revive la 2ª enmienda de P1** (2026-08-21)

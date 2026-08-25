@@ -14,6 +14,13 @@
  comandos estan hechos para que la clave NUNCA aparezca en
  pantalla: se copia de un archivo a otro sin pasar por la
  terminal. No la escribas a mano y no la pegues en el chat.
+
+ VIGENTE bajo el ADR 0017 (todo se concentra en el PADRE).
+ El bloque 1 -- la base `spaces_demo` -- YA ESTA HECHO: se creo y
+ migro el 24/08, 71 aplicadas. No lo repitas.
+
+ Lo que falta despues de este bloque es SOLO el dominio:
+ certificado, nginx y mover el DNS de demo.space-os.io.
 ============================================================
 
 
@@ -29,12 +36,18 @@
 
 grep '^DATABASE_URL=' /var/www/Spaces/apps/web/.env.production | sed -E 's/:[^:@]*@/:***@/'
 
-# Esperado, algo con esta forma:
+# Esperado, EXACTAMENTE esto (medido el 25/08):
 #   DATABASE_URL=postgresql://spaces_app:***@127.0.0.1:5432/spaces_prod
 #
-# >>> FIJATE EN EL NOMBRE DE LA BASE AL FINAL. Si NO es
-#     `spaces_prod`, PARA y dime cual es: el comando C19c de mas
-#     abajo lo sustituye por texto y hay que ajustarlo.
+# CONFIRMADO. El 25/08 esa linea NO EXISTIA -- el PADRE llevaba
+# cuatro dias sin conexion con su base-- y se escribio al
+# arreglarlo (`padre-arreglo-conexion.txt`). Arreglar el PADRE
+# desbloqueo de paso este bloque: sin esa linea, el C19c no
+# tendria de donde copiar.
+#
+# >>> Aun asi, MIRALA. Si el nombre de la base al final no dice
+#     `spaces_prod`, PARA: el C19c lo sustituye por texto y el
+#     reemplazo fallaria EN SILENCIO.
 
 
 # ------------------------------------------------------------

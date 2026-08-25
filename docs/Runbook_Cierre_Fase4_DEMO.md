@@ -1,26 +1,26 @@
 # Runbook — cerrar la Fase 4: DEMO nace dentro del PADRE
 
-> [!danger] ⚠️ SUPERADO EL 2026-08-25 — **no lo ejecutes**
-> Este runbook existe para meter DEMO **dentro del PADRE**, y esa decisión
-> —[ADR 0015](adr/0015-demo-dentro-del-padre.md)— **quedó superada** por el
-> [ADR 0016](adr/0016-demo-se-queda-en-su-droplet.md): **DEMO se queda en su
-> propio droplet**, `209.97.146.136`.
+> [!important] VIGENTE otra vez — con tres correcciones del 2026-08-25
+> Este runbook **vuelve a ser el documento a seguir**: el
+> [ADR 0017](adr/0017-todo-se-concentra-en-el-padre.md) restablece la decisión del
+> 0015, **todo se concentra en el PADRE**. (Estuvo unas horas superado por el
+> 0016, que ponía DEMO en el droplet viejo.)
 >
-> **Su premisa era falsa.** Todo el documento se apoya en que se había perdido el
-> acceso a esa máquina. No se perdió: el censo de `F4.1` se completó el 25/08
-> (`docs/evidencias/f4-1-censo-resultado.md`) y la máquina **está entera y
-> funcionando**. Donde este runbook dice **«F4.1 declarada IMPOSIBLE»**, léase
-> **CERRADA**.
+> **Tres cosas suyas cambiaron, y hay que leerlas antes de ejecutarlo:**
 >
-> **Lo que sigue valiendo, y no es poco:** el §3.2 —crear base, esquema y
-> migraciones, con el defecto ② del 21/08 resuelto— sirve tal cual para recrear
-> la base de DEMO en su droplet. Y las trampas medidas del §3.3 sobre HSTS,
-> DNS-01 y el orden del corte **siguen siendo ciertas** aunque ahora no haga
-> falta usarlas.
+> **① Donde dice «F4.1 declarada IMPOSIBLE», léase CERRADA.** El acceso nunca se
+> perdió; el censo se completó el 25/08 y está en
+> `docs/evidencias/f4-1-censo-resultado.md`.
 >
-> **Lo que ya no aplica:** el token de Cloudflare, el certificado por DNS-01, el
-> movimiento del DNS, el usuario `demo` en el PADRE y el proceso en el 3001.
-> Nada de eso hace falta: DEMO ya tiene dominio, certificado y proceso propios.
+> **② El §3.2 ya está HECHO.** `spaces_demo` se creó y migró en el PADRE el
+> 24/08 — **71 aplicadas**, no 72: una es de datos y el runner la omite. No
+> vuelvas a correrlo.
+>
+> **③ El §3.3 tiene un camino mejor que el que describe.** Con acceso al droplet
+> viejo, **el certificado de `demo.space-os.io` se puede copiar al PADRE** en vez
+> de emitirlo por DNS-01. Eso ahorra el token de Cloudflare y su dependencia de
+> renovación permanente, y elimina la ventana de error de certificado. Ver el
+> ADR 0017 §«Lo que el censo sigue valiendo».
 >
 > El estado vigente de la Fase 4 está en `docs/evidencias/fase-3-y-4.md`.
 
