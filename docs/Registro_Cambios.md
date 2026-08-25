@@ -23,6 +23,21 @@ La entrada más reciente va arriba.
     encuentra estos fallos es **intentar entrar de verdad**. Se anota para que las
     comprobaciones de los próximos servidores incluyan eso.
 
+- **Quien entra con Google ya puede ponerse contraseña sin conocer la anterior.**
+  Al crear la cuenta de un responsable, el sistema genera una contraseña temporal
+  y **la enseña una sola vez**. Si esa persona entra con Google y esa temporal se
+  perdió, quedaba **encerrada**: la pantalla le pedía algo que nadie tenía, y no
+  hay recuperación por correo porque este servidor no envía correos.
+  - **Qué cambia:** si entraste con Google y **nunca** has puesto contraseña,
+    puedes ponerla directamente. La pantalla te lo explica en vez de pedirte un
+    dato imposible.
+  - **Qué NO cambia, y es lo importante:** sigue haciendo falta la contraseña
+    anterior para todo lo demás — cambiar el correo, o cambiar la contraseña una
+    segunda vez. **La facilidad es de un solo uso por persona** y desaparece en
+    cuanto la usas.
+  - **Y sigues teniendo contraseña**, que es lo que el sistema pide para
+    confirmar los cambios delicados. La idea no era quitarla: era poder ponerla.
+
 - **Se puso al día la base de datos del servidor nuevo.** Le faltaba una
   actualización de ayer — la que arregla los permisos de las tablas que se creen
   en el futuro. Estaba aplicada en una de sus dos bases y no en la otra.

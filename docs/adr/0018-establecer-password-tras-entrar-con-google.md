@@ -1,7 +1,7 @@
 # ADR 0018 — Establecer la contraseña tras entrar con Google, sin teclear la anterior
 
 - **Fecha:** 2026-08-25
-- **Estado:** Aceptada — **construida el 2026-08-25**
+- **Estado:** Aceptada — **construida y verificada en producción el 2026-08-25**
 - **Decide:** Emiliano
 - **Relacionadas:** [ADR 0009](0009-reautenticacion-individual-en-vez-de-contrasena-compartida.md) (reautenticación
   individual) · [ADR 0012](0012-acceso-con-cuenta-de-google.md) · el modelo de
@@ -147,6 +147,16 @@ prueba en rojo primero y en commits separados:
 4. **Pruebas**, y las negativas son las que importan: sesión de contraseña →
    **se rechaza**; `debe_cambiar_password = false` → **se rechaza**; sin identidad
    vinculada → **se rechaza**.
+
+### ✅ Verificado en el PADRE, 2026-08-25
+
+El Dueño entró con Google y **guardó su contraseña sin teclear ninguna anterior**.
+`debe_cambiar_password` pasó a `false` solo, así que la excepción **ya no le
+aplica**: a partir de ahora entra por donde quiera, y tiene credencial para la
+reautenticación del ADR 0009.
+
+Cerrado el punto muerto que abrió este ADR, y en la única forma que lo demuestra:
+usándolo.
 
 ### Lo construido, 2026-08-25
 
