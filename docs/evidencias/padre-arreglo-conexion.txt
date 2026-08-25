@@ -65,8 +65,19 @@ chmod 600 /var/www/Spaces/apps/web/.env.production && ls -l /var/www/Spaces/apps
 # P3 - Comprobar el archivo, con la clave tachada
 # ------------------------------------------------------------
 
-sed -E 's/:[^:@]*@/:***@/' /var/www/Spaces/apps/web/.env.production
+sed -E 's/(SECRET|KEY|TOKEN|PASSWORD)=.*/=***/; s/:[^:@]*@/:***@/' /var/www/Spaces/apps/web/.env.production
 
+# >>> CORREGIDO EL 25/08, DESPUES DE FALLAR. La primera version de
+#     esta linea llevaba SOLO la segunda mitad del `sed`, la que
+#     tacha la clave dentro de una URL. No tachaba los secretos
+#     sueltos del tipo CLAVE=valor, y al correrla salio en claro el
+#     GOOGLE_CLIENT_SECRET del PADRE. La receta completa ya existia
+#     en `Runbook_Padre_Droplet_Nuevo.md:354` y se copio a medias.
+#
+#     Regla que sale de ahi: para mirar un .env NUNCA se improvisa
+#     el filtro. O se usa esta linea entera, o se miran solo los
+#     NOMBRES:  sed -E 's/=.*/=.../' <archivo>
+#
 # Esperado: las lineas que ya habia, mas una nueva:
 #   DATABASE_URL=postgresql://spaces_app:***@127.0.0.1:5432/spaces_prod
 #
