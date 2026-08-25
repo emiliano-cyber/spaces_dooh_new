@@ -299,9 +299,9 @@ El criterio 4 queda como **desviación declarada** hasta que exista el registry.
 
 | | |
 |---|---|
-| Certificado para `space-os.io` | **Ya no necesita token de Cloudflare**: el ápice resuelve al PADRE, así que **HTTP-01 vale** |
-| Decidir el proxy de Cloudflare | Hoy en **naranja**, y eso rompe el limitador de login: `$remote_addr` sería una IP de Cloudflare para todos (`rate-limit.ts:32-36`) |
-| nginx | `space-os.io.conf` sobra su mitad de `demo` |
+| ~~Certificado para `space-os.io`~~ | ✅ **HECHO el 25/08.** Por `--standalone`, vence el **23/11**, con **renovación automática** configurada por certbot |
+| ~~Decidir el proxy de Cloudflare~~ | ✅ **En GRIS desde el 25/08.** Con naranja, `$remote_addr` habría sido una IP de Cloudflare para todos y el limitador de login (`rate-limit.ts:32-36`) habría bloqueado a todo el mundo a la vez |
+| ~~nginx~~ | ✅ **Enlazado el 25/08**, `padre-ip` retirado. Medido **por el nombre**: `raiz 302 · login 200 · login-post 401` — el stack completo, por primera vez |
 | `GOOGLE_REDIRECT_URI` | Apunta a `http://localhost:3000` |
 | El proceso corre como **root** | Tarea abierta desde el 24/08 |
 | `spaces_demo` en el PADRE | Sin uso bajo el ADR 0016. Se puede tirar |
