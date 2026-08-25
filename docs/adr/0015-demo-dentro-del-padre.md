@@ -1,7 +1,20 @@
 # ADR 0015 — DEMO vive dentro del PADRE
 
+> [!danger] ⚠️ SUPERADA EL 2026-08-25 POR EL [ADR 0016](0016-demo-se-queda-en-su-droplet.md)
+> **Su premisa era falsa.** Este ADR se apoya en que se había perdido el acceso
+> al droplet `209.97.146.136`. El 25/08 se entró sin dificultad y se completó el
+> censo de `F4.1` (`docs/evidencias/f4-1-censo-resultado.md`).
+>
+> Con acceso, la alternativa que este documento descarta —reutilizar esa máquina
+> como DEMO— vuelve a existir. Y es la que su propio texto señala como *«la única
+> opción que mantiene el riesgo cerrado de verdad»*, descartada aquí **por un
+> coste que ya estaba pagado**: el droplet existe, está encendido y funciona.
+>
+> **El cuerpo no se reescribe.** Su razonamiento era correcto con la información
+> que había el 24/08, y esa es exactamente la información que un ADR conserva.
+
 - **Fecha:** 2026-08-24
-- **Estado:** Aceptada
+- **Estado:** ~~Aceptada~~ → **SUPERADA** (2026-08-25, por el ADR 0016)
 - **Decide:** Jochelo
 - **Sustituye a:** la 2ª enmienda de P1 (2026-08-21), que ponía DEMO en el
   droplet viejo
