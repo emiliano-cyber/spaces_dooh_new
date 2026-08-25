@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-08-25
 
+- **Ya se puede entrar al sistema por su dirección de internet, y con Google.**
+  Hasta hoy el servidor nuevo no servía para trabajar: se veía la pantalla de
+  entrada, pero **nadie podía iniciar sesión**. Ahora funciona de punta a punta —
+  dirección propia, candado de seguridad en el navegador, y acceso con la cuenta
+  de Google.
+  - **Qué hizo falta:** cuatro correcciones distintas, y **ninguna daba error por
+    su cuenta**. La clave de la base de datos faltaba; el identificador de Google
+    **había perdido un carácter** al copiarse en agosto; la dirección de retorno
+    apuntaba al ordenador de un programador; y a la dirección registrada en
+    Google le faltaba una barra al final.
+  - **Lo que esto enseña, y vale más que la lista:** todas las comprobaciones que
+    se hacían —que la página carga, que el servidor responde, que la
+    configuración es válida— **pasaban con el sistema roto**. Lo único que
+    encuentra estos fallos es **intentar entrar de verdad**. Se anota para que las
+    comprobaciones de los próximos servidores incluyan eso.
+
+- **Se puso al día la base de datos del servidor nuevo.** Le faltaba una
+  actualización de ayer — la que arregla los permisos de las tablas que se creen
+  en el futuro. Estaba aplicada en una de sus dos bases y no en la otra.
+
+## 2026-08-24
+
 - **El servidor nuevo llevaba cuatro días sin poder abrir sesión de nadie, y
   nadie lo sabía.** Desde que se puso en marcha el 21 de agosto, la pantalla de
   entrada se veía perfectamente y el servidor contestaba, así que se dio por
