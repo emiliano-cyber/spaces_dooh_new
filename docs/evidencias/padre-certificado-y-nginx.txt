@@ -1,0 +1,136 @@
+============================================================
+ EL PADRE: SU CERTIFICADO Y SU NGINX
+ Todo en [PADRE] 137.184.107.53. No toca la maquina vieja.
+============================================================
+ Requisito ya cumplido: el apice space-os.io resuelve al PADRE
+ y su proxy de Cloudflare esta en GRIS (25/08). Con naranja
+ esto no funcionaria igual.
+
+ Por que --standalone y no --webroot: `padre-ip.conf`, que es lo
+ que corre hoy, NO TIENE hueco para /.well-known/acme-challenge/
+ -- su `location /` manda todo a la aplicacion. Verificado en el
+ repositorio. `--standalone` levanta su propio servidor un
+ momento y no depende de la configuracion actual.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+============================================================
+
+
+# ------------------------------------------------------------
+# N1 - El certificado del apice
+# ------------------------------------------------------------
+# nginx se para unos segundos para dejarle el puerto 80 a
+# certbot, y se vuelve a levantar SIEMPRE -- van con `;` y no con
+# `&&` a proposito: si certbot falla, nginx arranca igual.
+#
+# No te va a pedir correo: la cuenta se registro esta manana.
+
+systemctl stop nginx; certbot certonly --standalone --agree-tos --no-eff-email -d space-os.io; systemctl start nginx; systemctl is-active nginx
+
+# Esperado:  "Successfully received certificate" y luego `active`
+#
+# >>> Si certbot falla, PARA y pasame el error. nginx habra
+#     vuelto solo, asi que el sitio sigue como estaba.
+#
+# >>> Si dice que el puerto 80 esta ocupado, algo mas lo tiene.
+#     Averigualo antes de insistir:   ss -lntp | grep ':80'
+
+
+# ------------------------------------------------------------
+# N2 - Comprobar que existe
+# ------------------------------------------------------------
+
+certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+
+# Esperado: `space-os.io`, con 89 o 90 dias.
+
+
+# ------------------------------------------------------------
+# N3 - Enlazar la configuracion buena y retirar la provisional
+# ------------------------------------------------------------
+# Se ENLAZA el archivo del repositorio, no se pega. El 21/08
+# `nginx -t` dijo "ok" sobre una configuracion CORRUPTA porque la
+# consola web habia duplicado lineas al pegarla, y la unica senal
+# fue el comportamiento. Por eso el N4 mide CODIGOS DE RESPUESTA
+# y no que el servicio arranque.
+
+ln -sf /var/www/Spaces/infra/nginx/space-os.io.conf /etc/nginx/sites-enabled/spaces && rm -f /etc/nginx/sites-enabled/padre-ip /etc/nginx/sites-enabled/default && nginx -t
+
+# Esperado:  "syntax is ok" y "test is successful"
+#
+# >>> Si nginx -t falla, NO recargues. Pasame el error: la
+#     configuracion vieja sigue cargada y el sitio no se cae.
+
+
+# ------------------------------------------------------------
+# N4 - Recargar
+# ------------------------------------------------------------
+
+systemctl reload nginx && systemctl is-active nginx
+
+# Esperado:  active
+
+
+# ------------------------------------------------------------
+# N5 - LA PRUEBA. Por el nombre, desde fuera.
+# ------------------------------------------------------------
+
+curl -s -o /dev/null -w 'raiz %{http_code}\n' https://space-os.io/ ; curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/
+
+# Esperado:  raiz 302   y   login 200
+#
+# Ojo con la diferencia, que ya nos mordio una vez: contra el
+# puerto 3000 la raiz da 404 -- la aplicacion vive bajo
+# /spaces-dooh y para ella la raiz no existe. El 302 lo hace
+# NGINX. Aqui medimos POR EL NOMBRE, o sea pasando por nginx, y
+# por eso toca 302.
+
+
+# ------------------------------------------------------------
+# N6 - Y la que no se puede fingir
+# ------------------------------------------------------------
+# Un login 200 es una pagina pintandose: el PADRE estuvo cuatro
+# dias dando 200 con la base caida. Esta SI toca la base.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401
+#
+# Gasta un intento de los 10 por IP del limitador.
+
+
+# ------------------------------------------------------------
+# N7 - Las fechas del certificado que se sirve de verdad
+# ------------------------------------------------------------
+
+echo | openssl s_client -connect space-os.io:443 -servername space-os.io 2>/dev/null | openssl x509 -noout -dates -subject
+
+
+============================================================
+ QUE QUEDA DESPUES
+============================================================
+ Con esto el PADRE sirve https://space-os.io con su certificado
+ y su configuracion versionada.
+
+ Lo siguiente, en este orden:
+
+   1. GOOGLE_REDIRECT_URI en .env.production apunta todavia a
+      http://localhost:3000. Hay que cambiarlo a
+      https://space-os.io/spaces-dooh/api/auth/google/callback/
+      y darlo de alta en la consola de Google.
+
+   2. Arrancar DEMO en el 3001 -- `bloque-2-comandos.txt`.
+
+   3. El certificado de demo.space-os.io. AHORA SI es facil:
+      `space-os.io.conf` trae el hueco ACME, asi que la maquina
+      vieja solo tiene que REENVIAR el desafio al PADRE. Sin que
+      nadie pulse Enter a tiempo.
+
+   4. Mover el DNS de demo.space-os.io al PADRE.
+
+ OJO: el vhost de demo dentro de `space-os.io.conf` apunta al
+ puerto 3001, donde todavia no escucha nadie. No importa: ese
+ nombre sigue resolviendo a la maquina vieja, asi que nadie va a
+ llegar ahi hasta el paso 4.
+============================================================
