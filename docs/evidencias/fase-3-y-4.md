@@ -56,10 +56,21 @@ pintándose.
 | Tarea | Estado | Qué falta |
 |---|---|---|
 | **F4.1** · censo del droplet | ✅ **CERRADA el 25/08** | Nada. `f4-1-censo-resultado.md` |
-| **F4.2** · droplet y base de DEMO | ⏳ **PENDIENTE** | Recrear la base **en el droplet de DEMO** |
-| **F4.3** · dominio y certificado | ✅ **YA CUMPLIDA** | Nada — medido en el censo |
-| **F4.4** · datos y bandera | 🟡 **media** | La bandera ✅; falta la semilla |
-| **F4.5** · smoke y cierre del riesgo | 🟡 **1 de 4** | Los criterios 2 y 3, tras recrear la base. El 4 sigue bloqueado |
+| **F4.2** · droplet y base de DEMO | ✅ **CUMPLIDA** | `spaces_demo` en el PADRE, creada y migrada el 24/08 |
+| **F4.3** · dominio y certificado | ⏳ **PENDIENTE** | Certificado de `demo.space-os.io` en el PADRE, y mover su DNS |
+| **F4.4** · datos y bandera | ⏳ **PENDIENTE** | Usuario `demo`, `.env`, proceso en el 3001, alta y semilla |
+| **F4.5** · smoke y cierre del riesgo | ⏳ **PENDIENTE** | 3 criterios alcanzables; el 4.º sigue bloqueado por TH-P4 |
+
+> [!warning] Esta tabla estuvo AL REVÉS unas horas, y conviene saber por qué
+> Se escribió bajo el **ADR 0016** —DEMO en el droplet viejo— y el **ADR 0017**
+> lo invirtió el mismo día: **todo se concentra en el PADRE**. Con el 0016,
+> `F4.2` estaba pendiente y `F4.3` cumplida; con el 0017 es **exactamente al
+> revés**, porque la base de DEMO ya existe en el PADRE y el dominio de DEMO
+> todavía apunta a la otra máquina.
+>
+> El ADR se actualizó y **este documento no**. Es el mismo defecto que ya se
+> corrigió hoy con `F4.1`, que siguió diciendo «IMPOSIBLE» en cinco sitios
+> después de cerrarse. **Cerrar algo no es cambiar su fila.**
 
 > [!warning] `F4.2` VUELVE a pendiente, y conviene entender por qué
 > El 24/08 se creó y migró `spaces_demo` **en el PADRE**, y su criterio se
@@ -286,12 +297,31 @@ arranca, pinta el login y devuelve 200.
 
 ## 7 · Lo que falta, y quién
 
-### Para cerrar la Fase 4 — un solo bloque, en el droplet de DEMO
+### Para cerrar la Fase 4 — dos bloques, los dos en el PADRE
 
-1. **Recrear la base** de `209.97.146.136` para que no contenga ninguna
-   organización de producción → cierra **F4.2**.
-2. **Sembrar el inventario de juguete** → cierra **F4.4**.
-3. **Comprobar los criterios 2 y 3** de `F4.5`.
+**Bloque A · levantar DEMO** (`docs/evidencias/bloque-2-comandos.txt`) → cierra **F4.4**
+
+1. Usuario `demo` del sistema y `/etc/space-os/demo.env` a `600`.
+2. `pm2 start ecosystem.demo.config.js` — el proceso en el **3001**, con su usuario.
+3. Alta del Dueño de la demo con `bootstrap-auth.mjs`, **slug `demo`**.
+4. La semilla `20260824_semilla_demo.sql`.
+5. Verificación **por dentro**: `login 200` y `signup 503` contra `127.0.0.1:3001`.
+
+**Bloque B · el dominio de DEMO** → cierra **F4.3** y dos criterios de **F4.5**
+
+6. Certificado de `demo.space-os.io` en el PADRE. **Ya es fácil**: `space-os.io.conf`
+   está enlazado y trae el hueco ACME, así que la máquina vieja solo tiene que
+   **reenviar** el desafío — sin que nadie pulse Enter a tiempo.
+7. Mover el registro A de `demo.space-os.io` al PADRE.
+8. Verificación **por fuera**, y el botón «Crear cuenta» ausente en un navegador real.
+
+**Antes del bloque A, una comprobación de una línea:** `spaces_demo` tiene que
+tener las **72** migraciones aplicadas, igual que `spaces_prod`. La 73 se aplicó
+a `spaces_prod` con seguridad; en `spaces_demo` **no está confirmado**.
+
+```
+sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"
+```
 
 El criterio 4 queda como **desviación declarada** hasta que exista el registry.
 
