@@ -5,6 +5,39 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-25
+
+- **El servidor nuevo llevaba cuatro días sin poder abrir sesión de nadie, y
+  nadie lo sabía.** Desde que se puso en marcha el 21 de agosto, la pantalla de
+  entrada se veía perfectamente y el servidor contestaba, así que se dio por
+  hecho que funcionaba. **No funcionaba: el programa no tenía forma de hablar
+  con su base de datos.** Cualquiera que hubiera intentado entrar habría recibido
+  un error.
+  - **Por qué no se notó:** el programa no avisa cuando le falta ese dato. En vez
+    de negarse a arrancar, se conecta a una dirección de reserva pensada para el
+    ordenador de un programador. Como ahí no hay nada, la aplicación arranca, se
+    ve bien por fuera, y solo falla cuando alguien intenta hacer algo de verdad.
+  - **Qué se hizo:** se generó una contraseña nueva para la base, se guardó donde
+    el programa la lee, y se comprobó **con una prueba que sí distingue**: pedir
+    entrar con un correo inventado. Antes daba «error del servidor»; ahora
+    responde «correo o contraseña incorrectos», que es lo correcto — significa
+    que **buscó en la base de datos de verdad**.
+  - **La lección, y va escrita para que no se repita:** que una página se vea no
+    demuestra que el sistema funcione. Las comprobaciones que se hacían al
+    terminar de montar un servidor no incluían ninguna que necesitara la base de
+    datos, así que este fallo las pasaba todas.
+
+- **Se cerró un archivo de configuración que estaba abierto a todo el mundo.** El
+  archivo con las claves del servidor se podía leer desde cualquier cuenta de esa
+  máquina. Ahora solo lo lee quien debe. Ya estaba escrito en el procedimiento
+  que había que hacerlo; **se había hecho en el papel y no en el servidor**.
+
+- **Hay que cambiar una clave de Google, por un error nuestro.** Al revisar ese
+  archivo de configuración se usó un filtro incompleto y **una de las claves
+  salió a la vista**. No hubo acceso indebido, pero una clave que se ve deja de
+  ser secreta: se sustituye por otra. El filtro correcto ya estaba escrito en la
+  documentación del proyecto y se copió a medias.
+
 ## 2026-08-24
 
 - **Se perdió el acceso al servidor de siempre, y ya no hay forma de entrar.**

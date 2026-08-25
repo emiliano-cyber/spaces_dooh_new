@@ -45,6 +45,13 @@ archivos:
 > `demo.space-os.io` sigue apuntando a la máquina perdida, y el PADRE responde
 > por IP `login 200 · raíz 302`.
 >
+> ⚠️ **CORREGIDO EL 2026-08-25: ese `login 200` NO era una prueba de vida.** El
+> PADRE **no tenía conexión con su base** —le faltaba `DATABASE_URL`— y
+> `db.ts:23-24` se cae a un valor por omisión de desarrollo, así que la app
+> arrancaba, pintaba el login y devolvía 200 **sin poder autenticar a nadie**. El
+> `POST` de login daba **500**. Arreglado el 25/08: ahora da **401**.
+> Ver [[2026-08-25]].
+>
 > Todo lo que sigue en esta nota **describe el arreglo anterior**. Vale como
 > historia; no como instrucción. Ver [[2026-08-24]] y `docs/Traspaso_20260824.md`.
 

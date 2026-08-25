@@ -209,7 +209,7 @@ frente a 28 · 101 cuando nació.
 | **F4.2** · droplet y base de DEMO | ENSAYADA_LOCAL | 🖥️ **Sus dos criterios están medidos hoy en el PADRE**: base sin una fila de ningún owner, y rol de app que **no** puede saltarse la RLS |
 | **F4.3** · dominio y certificado | **PENDIENTE_SERVIDOR** | No se simula con hosts falsos |
 | **F4.4** · datos y bandera | ENSAYADA_LOCAL | 🖥️ La bandera, medida en real: `signup 503` |
-| **F4.5** · smoke y cierre del riesgo | Smoke **local en verde** | 🖥️ Hoy además: `login 200 · signup 503` servidos por **nginx** en un servidor real |
+| **F4.5** · smoke y cierre del riesgo | Smoke **local en verde** | 🖥️ Hoy además: `login 200 · signup 503` servidos por **nginx** en un servidor real. ⚠️ **Ese smoke no probaba lo que parecía** — ver el aviso de la cabecera |
 
 > **La receta de aprovisionamiento, medida y repetida:** rol de aplicación →
 > `db/schema.sql` → `migrar.mjs --instalacion-nueva` → alta. **Sin el primer paso
