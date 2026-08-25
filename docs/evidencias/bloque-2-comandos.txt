@@ -110,10 +110,26 @@ printf 'AUTOREGISTRO=0\n' >> /etc/space-os/demo.env
 
 printf 'DOOHMAIN_PUBLISH_ENABLED=0\n' >> /etc/space-os/demo.env
 
+printf 'GOOGLE_OAUTH=0\n' >> /etc/space-os/demo.env
+
 # AUTOREGISTRO=0            <- P8: cerrado en TODA la flota, DEMO incluida
 # DOOHMAIN_PUBLISH_ENABLED=0 <- una demostracion no publica a ningun sitio.
 #    El destino es configuracion y puede cambiar; y lo publicado no se
 #    retira borrando filas de la base.
+#
+# GOOGLE_OAUTH=0  <- ANADIDO EL 25/08, y no es opcional.
+#
+#    DEMO corre desde el MISMO directorio que el PADRE, asi que Next le carga
+#    tambien `apps/web/.env.production` -- y ahi estan GOOGLE_CLIENT_ID,
+#    GOOGLE_CLIENT_SECRET y GOOGLE_REDIRECT_URI del PADRE.
+#
+#    Sin esta linea, `googleHabilitado()` (`google-oauth.ts:44-47`) daria TRUE
+#    porque le basta con que existan las dos primeras. El boton de Google
+#    apareceria en la demo, y el `redirect_uri` heredado mandaria al visitante a
+#    `space-os.io`: entraria AL PADRE creyendo que entra a la demostracion.
+#
+#    Se apaga con la bandera y NO quitando las claves: esas las lee el PADRE del
+#    mismo archivo, y borrarlas lo romperia a el.
 
 
 # ------------------------------------------------------------
@@ -155,6 +171,18 @@ sudo -u demo bash -lc 'set -a; . /etc/space-os/demo.env; set +a; cd /var/www/Spa
 curl -s -o /dev/null -w 'login %{http_code}\n' http://127.0.0.1:3001/spaces-dooh/login/
 
 # Esperado:  login 200
+
+
+# ------------------------------------------------------------
+# C20b - Que DEMO ofrece SOLO lo que debe
+# ------------------------------------------------------------
+
+curl -s http://127.0.0.1:3001/spaces-dooh/api/auth/metodos/; echo
+
+# Esperado:  {"google":false,"autoregistro":false}
+#
+# >>> Si `google` sale TRUE, falta el GOOGLE_OAUTH=0 del C19c. PARA: con eso
+#     puesto, el boton de Google de la demo lleva AL PADRE.
 
 
 # ------------------------------------------------------------
