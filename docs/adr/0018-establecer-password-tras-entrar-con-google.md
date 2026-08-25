@@ -3,7 +3,7 @@
 - **Fecha:** 2026-08-25
 - **Estado:** Aceptada — **pendiente de construir**
 - **Decide:** Emiliano
-- **Relacionadas:** [ADR 0009](0009-reautenticacion-individual.md) (reautenticación
+- **Relacionadas:** [ADR 0009](0009-reautenticacion-individual-en-vez-de-contrasena-compartida.md) (reautenticación
   individual) · [ADR 0012](0012-acceso-con-cuenta-de-google.md) · el modelo de
   acceso decidido el 2026-08-20 · `vault/07-Agentes/diario/2026-08-25.md`
 
