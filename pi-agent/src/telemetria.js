@@ -5,7 +5,9 @@
 //
 // Lo que todavia NO se reporta y llegara con el material que falta:
 //   battery_pct real -> necesita el UPS con medidor I2C (hoy se manda 100).
-//   signal_dbm LTE   -> hoy es la senal WiFi; con el modem sale de ModemManager.
+//   signal_dbm LTE   -> hoy es la senal WiFi; por cable NO hay senal que leer:
+//                       la conoce el modem, no la Pi (habria que preguntarsela
+//                       a el por su pagina local, que depende de la marca).
 //   gps_lat/lng      -> GNSS del modem LTE.
 //   (data_* ya se reporta desde la v0.2.0, leyendo vnstat.)
 const fs = require('fs');
@@ -71,12 +73,28 @@ function interfazSalida() {
   return null;
 }
 
-function tipoRed(iface) {
+// El enlace del sitio, no el cable que sale de la Pi.
+//
+// Un sitio puede salir a internet por un modem LTE conectado POR CABLE: para la
+// Pi eso es `eth0` y no hay forma de distinguirlo del internet de la oficina
+// -son la misma interfaz, el mismo tipo, la misma pinta-. La diferencia es que
+// uno lo paga una SIM con tope de datos y el otro no, asi que el consumo tiene
+// que caer en la familia movil o desaparece de la cuenta justo donde importa.
+//
+// Como el sistema no puede adivinarlo, lo dice el sitio: `"enlace": "lte"` en
+// config.json. Solo pisa el caso del CABLE: si algun dia ese equipo se conecta
+// por WiFi -una visita de mantenimiento, por ejemplo- se reporta el WiFi de
+// verdad, porque entonces el gasto no lo esta pagando la SIM.
+function tipoRed(iface, cfg = {}) {
   if (!iface) return 'DESCONECTADO';
   if (/^(wwan|ppp|usb)/.test(iface)) return 'MOBILE';
   if (/^(wl|wlan)/.test(iface)) return 'WIFI';
-  if (/^(eth|en)/.test(iface)) return 'ETHERNET';
+  if (/^(eth|en)/.test(iface)) return esEnlaceMovil(cfg) ? 'MOBILE' : 'ETHERNET';
   return iface.toUpperCase();
+}
+
+function esEnlaceMovil(cfg = {}) {
+  return /^(lte|movil|4g|5g|celular)$/i.test(String(cfg.enlace || ''));
 }
 
 // Nivel de senal WiFi en dBm, tal cual lo publica el kernel.
@@ -189,9 +207,9 @@ function identidad() {
   };
 }
 
-function recolectar() {
+function recolectar(cfg = {}) {
   const iface = interfazSalida();
-  const tipo = tipoRed(iface);
+  const tipo = tipoRed(iface, cfg);
   const ssid = tipo === 'WIFI' ? cmd('iwgetid', ['-r']) : null;
 
   return {
@@ -200,7 +218,10 @@ function recolectar() {
     battery_pct: 100,
     battery_charging: true,
     network_type: tipo,
-    network_operator: ssid || iface || 'sin red',
+    // Con modem por cable, `iface` seria "eth0" y en el dashboard se leeria eso,
+    // que no le dice nada a nadie. `"operador": "Telcel"` en config.json pone el
+    // nombre que el sitio reconoce.
+    network_operator: ssid || cfg.operador || iface || 'sin red',
     signal_dbm: tipo === 'WIFI' ? senalWifi(iface) : undefined,
     storage_free_mb: discoLibreMb(),
     ram_free_mb: Math.round(os.freemem() / 1048576),

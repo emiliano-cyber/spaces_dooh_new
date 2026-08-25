@@ -21,7 +21,7 @@ const { Vigilante } = require('./vigilante');
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.3.0';
+const VERSION = '0.4.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -162,6 +162,10 @@ async function main() {
   log(`equipo:    ${identidad.model}`);
   log(`sistema:   ${identidad.os_version}`);
   log(`servidor:  ${cfg.server_url}`);
+  // Que quede por escrito en el registro del equipo: quien mira el log de un
+  // sitio tiene que poder ver de un vistazo que su consumo se esta cobrando
+  // como movil, sin ir a abrir el config.json.
+  if (cfg.enlace) log(`enlace:    ${cfg.enlace}${cfg.operador ? ` (${cfg.operador})` : ''} — el consumo se reporta como datos moviles`);
 
   // Avisar de una fuente insuficiente ANTES de nada: es la causa mas comun de
   // que una Pi 5 se comporte raro (se reinicia sola, la camara falla).
@@ -413,7 +417,7 @@ async function main() {
         // una peticion propia: son huellas de 64 caracteres y asi detectar un
         // creativo nuevo no le cuesta datos moviles al sitio.
         const creativos = vigilante.tomarPendiente();
-        await api.reportarEstado({ ...tele.recolectar(), ...(creativos ? { creativos } : {}) });
+        await api.reportarEstado({ ...tele.recolectar(cfg), ...(creativos ? { creativos } : {}) });
         const e = tele.alimentacion();
         if (e?.subvoltaje_ahora && !avisoVoltaje) {
           avisoVoltaje = true;

@@ -1,6 +1,10 @@
 {
   "server_url": "http://159.203.188.58:4000",
 
+  "_comentario_enlace": "Como sale a internet el sitio. Ponlo en 'lte' cuando detras del cable hay un modem con SIM: para la Pi eso es eth0 y sin esto su gasto se contaria como WiFi, o sea fuera de la cuenta de datos moviles y del tope del plan. Con WiFi o modem USB no hace falta: se detecta solo. 'operador' es solo el nombre que se lee en el dashboard.",
+  "enlace": "",
+  "operador": "",
+
   "_comentario_intervalos": "Cada cuanto habla el equipo sin que pase nada. Es casi todo lo que gasta al mes: 180/300 son ~40 MB/mes; bajarlos a 60/30 lo sube a ~230 MB/mes. El servidor da por caido a un equipo a los 10 minutos.",
   "intervalo_estado_seg": 180,
   "intervalo_sondeo_seg": 300,
