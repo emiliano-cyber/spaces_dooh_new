@@ -1,0 +1,149 @@
+============================================================
+ EL PADRE NO HABLA CON SU BASE - arreglo
+============================================================
+ Medido el 2026-08-25:
+   - `login-post` contra 127.0.0.1:3000 devuelve 500
+   - el proceso vivo (PID 36332) NO tiene DATABASE_URL
+   - `.env.production` existe, esta en 644, y no la contiene
+   - `spaces_app` SI tiene contrasena, pero esta cifrada en
+     pg_authid y NO se puede recuperar: solo fijar una nueva
+
+ Por que la app no se quejaba: `apps/web/lib/server/db.ts:23-24`
+ se cae a un valor por omision que apunta al Postgres de
+ DESARROLLO (localhost:5433). En el PADRE ahi no escucha nadie,
+ asi que la app arranca, pinta el login y devuelve 200 - pero no
+ puede autenticar a nadie. Eso es un defecto aparte, del codigo,
+ y NO lo arregla este archivo.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ La contrasena nueva NO aparece en pantalla en ningun momento:
+ se genera, se usa y se guarda dentro de la misma linea.
+ No la escribas a mano y no la pegues en el chat.
+
+ Confirmado antes de escribir esto:
+   base = spaces_prod - listen = localhost - puerto = 5432
+   pg_hba: host all all 127.0.0.1/32 scram-sha-256
+============================================================
+
+
+# ------------------------------------------------------------
+# P1 - Generar la contrasena, fijarla y escribir el DATABASE_URL
+# ------------------------------------------------------------
+# `openssl rand -hex 32` a proposito: SOLO caracteres hexadecimales.
+# Este proyecto ya se peleo dos veces con contrasenas que llevaban
+# `@` o `/` y rompian el parseo de la URL (ver el historial de
+# `PG_URL_SEGURA` en update.sh). Con hex no hay nada que escapar.
+#
+# Es seguro cambiarla: hoy NADA la esta usando con exito.
+
+CLAVE=$(openssl rand -hex 32); sudo -u postgres psql -q -c "alter role spaces_app with password '$CLAVE'" && printf '\nDATABASE_URL=postgresql://spaces_app:%s@127.0.0.1:5432/spaces_prod\n' "$CLAVE" >> /var/www/Spaces/apps/web/.env.production; unset CLAVE; echo hecho
+
+# Esperado:  hecho
+#
+# El `\n` del principio es deliberado: no sabemos si el archivo
+# terminaba en salto de linea, y sin el la variable se pegaria al
+# final de la ultima linea. Una linea en blanco de mas es inocua.
+
+
+# ------------------------------------------------------------
+# P2 - El candado que le falta desde el 21/08
+# ------------------------------------------------------------
+# Estaba en 644: legible por CUALQUIER usuario del sistema, y en
+# esa maquina va a nacer pronto el usuario `demo`. Es el defecto
+# (7) del 21/08, que se cerro en el runbook pero no en el archivo
+# que ya existia.
+
+chmod 600 /var/www/Spaces/apps/web/.env.production && ls -l /var/www/Spaces/apps/web/.env.production
+
+# Esperado:  -rw------- 1 root root ... .env.production
+
+
+# ------------------------------------------------------------
+# P3 - Comprobar el archivo, con la clave tachada
+# ------------------------------------------------------------
+
+sed -E 's/:[^:@]*@/:***@/' /var/www/Spaces/apps/web/.env.production
+
+# Esperado: las lineas que ya habia, mas una nueva:
+#   DATABASE_URL=postgresql://spaces_app:***@127.0.0.1:5432/spaces_prod
+#
+# >>> Comprueba que la base dice `spaces_prod` y NO `spaces_demo`.
+
+
+# ------------------------------------------------------------
+# P4 - Reiniciar para que Next lea el archivo
+# ------------------------------------------------------------
+# Next carga `.env.production` AL ARRANCAR. Sin reinicio, el
+# proceso sigue con el entorno viejo.
+
+pm2 restart spaces-web && sleep 4 && pm2 list
+
+# Esperado: `spaces-web` en `online`, con el contador de reinicios
+# subido en uno.
+
+
+# ------------------------------------------------------------
+# P5 - LA PRUEBA. Esto es lo que decide si funciono.
+# ------------------------------------------------------------
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST http://127.0.0.1:3000/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401   <- la base RESPONDE: busco el correo y no existe
+#
+#   500  sigue sin conectar. Para y pasame:
+#            pm2 logs spaces-web --lines 30 --nostream
+#   429  quedan pocos intentos desde esa IP. Espera y repite.
+#        (el limite es 10 por IP; ayer se gasto 1)
+#
+# >>> El 401 es el resultado BUENO. Significa que la aplicacion
+#     consulto la base de verdad. Es la primera vez que se puede
+#     afirmar eso del PADRE.
+
+
+# ------------------------------------------------------------
+# P6 - Y el humo que el runbook NO hacia
+# ------------------------------------------------------------
+# El smoke del §7 media que el servidor responde, no que funcione.
+# Un login 200 es una pagina pintandose: pasa igual sin base. Este
+# de aqui es el que no se puede fingir.
+
+curl -s -o /dev/null -w 'raiz %{http_code}\n' http://127.0.0.1:3000/ ; curl -s -o /dev/null -w 'login-get %{http_code}\n' http://127.0.0.1:3000/spaces-dooh/login/
+
+# Esperado:  raiz 302  y  login-get 200
+# Estos dos ya salian bien ANTES del arreglo. Van aqui solo para
+# dejar constancia de que no se rompio nada al reiniciar.
+
+
+============================================================
+ VUELTA ATRAS
+============================================================
+ No hace falta, y conviene saber por que: la contrasena anterior
+ NO se puede recuperar, pero tampoco la estaba usando nada. Si
+ algo saliera mal, la salida es volver a correr el P1 -- genera
+ otra y la vuelve a escribir.
+
+ Lo unico que este archivo NO deshace es el `chmod 600`, y no
+ querrias deshacerlo.
+============================================================
+
+
+============================================================
+ LO QUE ESTO NO ARREGLA, Y HAY QUE DECIDIR APARTE
+============================================================
+ `apps/web/lib/server/db.ts:23-24` tiene un valor por omision de
+ DESARROLLO que tapa la ausencia de DATABASE_URL en produccion.
+ Una instancia sin esa variable deberia NEGARSE A ARRANCAR, no
+ apuntar en silencio al 5433.
+
+ Y hay una version peor de este fallo: si alguien levanta el
+ `docker-compose` en esa maquina, el 5433 SI responde, y la app se
+ conectaria a una base de desarrollo creyendo que es la suya. Sin
+ un solo error.
+
+ `lib/server/db.ts` es archivo de ALTO CONTACTO y afecta a toda la
+ flota. Se reclama aparte, va con prueba en rojo primero, y
+ necesita visto bueno humano.
+============================================================
