@@ -1,5 +1,29 @@
 # Runbook — cerrar la Fase 4: DEMO nace dentro del PADRE
 
+> [!danger] ⚠️ SUPERADO EL 2026-08-25 — **no lo ejecutes**
+> Este runbook existe para meter DEMO **dentro del PADRE**, y esa decisión
+> —[ADR 0015](adr/0015-demo-dentro-del-padre.md)— **quedó superada** por el
+> [ADR 0016](adr/0016-demo-se-queda-en-su-droplet.md): **DEMO se queda en su
+> propio droplet**, `209.97.146.136`.
+>
+> **Su premisa era falsa.** Todo el documento se apoya en que se había perdido el
+> acceso a esa máquina. No se perdió: el censo de `F4.1` se completó el 25/08
+> (`docs/evidencias/f4-1-censo-resultado.md`) y la máquina **está entera y
+> funcionando**. Donde este runbook dice **«F4.1 declarada IMPOSIBLE»**, léase
+> **CERRADA**.
+>
+> **Lo que sigue valiendo, y no es poco:** el §3.2 —crear base, esquema y
+> migraciones, con el defecto ② del 21/08 resuelto— sirve tal cual para recrear
+> la base de DEMO en su droplet. Y las trampas medidas del §3.3 sobre HSTS,
+> DNS-01 y el orden del corte **siguen siendo ciertas** aunque ahora no haga
+> falta usarlas.
+>
+> **Lo que ya no aplica:** el token de Cloudflare, el certificado por DNS-01, el
+> movimiento del DNS, el usuario `demo` en el PADRE y el proceso en el 3001.
+> Nada de eso hace falta: DEMO ya tiene dominio, certificado y proceso propios.
+>
+> El estado vigente de la Fase 4 está en `docs/evidencias/fase-3-y-4.md`.
+
 > **Reescrito el 2026-08-24.** Sustituye por completo a la versión de la mañana,
 > cuya premisa —el droplet viejo se convierte en DEMO— **dejó de ser posible**:
 > se perdió el acceso a esa máquina.

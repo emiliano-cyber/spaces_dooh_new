@@ -10,8 +10,9 @@
 > Con eso, sus secciones de **Fase 3** y **Fase 4** describen un mundo que ya no
 > existe. En concreto, y sin tocar el cuerpo del documento:
 >
-> - **F4.1 no es «PENDIENTE_SERVIDOR»: es IMPOSIBLE.** Es un censo de una máquina
->   a la que no se puede entrar.
+> - ~~**F4.1 no es «PENDIENTE_SERVIDOR»: es IMPOSIBLE.**~~ ⚠️ **Corregido el
+>   25/08: eso también era falso.** El acceso nunca se perdió y **F4.1 está
+>   CERRADA** — `docs/evidencias/f4-1-censo-resultado.md`.
 > - **DEMO ya no va en un droplet aparte**, sino **dentro del PADRE** — ADR 0015.
 > - `demo.space-os.io` **no se crea: se recupera** de la máquina perdida.
 > - Donde dice **70 migraciones**, hoy son **72**.

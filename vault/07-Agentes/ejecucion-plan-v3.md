@@ -1094,7 +1094,10 @@ ENSAYADA_LOCAL · PENDIENTE_SERVIDOR · DETENIDA · BLOQUEADA
 > [!danger] 🔴 La Fase 4 cambia de forma el 2026-08-24 — leer esto antes que la tabla
 > **Se perdió el acceso al droplet viejo** (3ª enmienda a P1). Con eso:
 >
-> - **F4.1 pasa a IMPOSIBLE**, y con ella **F7.1**.
+> - ~~**F4.1 pasa a IMPOSIBLE**, y con ella **F7.1**.~~ ⚠️ **FALSO, corregido el
+>   25/08:** el acceso nunca se perdió. **F4.1 CERRADA** y **F7.1 recupera su
+>   objeto**. Todo este bloque se escribió sobre una premisa que no se sostuvo —
+>   ver el [[2026-08-25]] y el ADR 0016.
 > - **DEMO ya no puede ser el droplet viejo** ni, por decisión del 24/08, un
 >   droplet nuevo: **el PADRE hace también de DEMO**.
 >

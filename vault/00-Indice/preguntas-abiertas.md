@@ -18,6 +18,14 @@ archivos:
 > **DEMO pasa a vivir dentro del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md)),
 > y con eso **F4.1 y F7.1 pasan a IMPOSIBLES** — no a pendientes.
 >
+> ⚠️ **NADA DE ESTE BLOQUE SIGUE EN PIE, 2026-08-25.** El acceso **nunca se
+> perdió**: se entró sin dificultad y se completó el censo de **F4.1**, que queda
+> **CERRADA**. Con ella, **F7.1 vuelve a ser trabajo**. El droplet **no está
+> abandonado** —funciona, y su certificado **sí se renueva** con acceso, así que
+> la fecha del 26/10 se disuelve—. Y el ADR 0015 queda **superado** por el
+> [ADR 0016](../../docs/adr/0016-demo-se-queda-en-su-droplet.md): **DEMO se queda
+> en su propio droplet**.
+>
 > ✅ **Y F0.1 quedó CONTESTADA ese mismo día, en la última ventana que hubo:**
 > `signup` devolvió **503** (apagado) y `login` **200**, o sea que el servicio
 > estaba vivo y el 503 era la bandera, no una caída. En cuanto ese nombre deje de
