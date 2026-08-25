@@ -30,6 +30,9 @@ hostname; curl -s ifconfig.me; echo
 # Esperado:  209.97.146.136
 #            y un hostname DISTINTO de ubuntu-s-2vcpu-4gb-amd-nyc1
 #
+# MEDIDO EL 25/08:  209.97.146.136  ·  PIXELED-ubuntu-s-2vcpu-4gb-nyc3
+# EL ACCESO EXISTE. La maquina no se perdio.
+#
 # >>> Si sale 137.184.107.53 estas en el PADRE. PARA.
 #
 # Otras dos senales que distinguen esta maquina del PADRE, por si
@@ -47,8 +50,17 @@ hostname; curl -s ifconfig.me; echo
 # V1 - Commit desplegado
 # ------------------------------------------------------------
 
-cd /var/www/Spaces && git log --oneline -1 && git rev-parse --abbrev-ref HEAD
+git -c safe.directory=/var/www/Spaces -C /var/www/Spaces log --oneline -1; git -c safe.directory=/var/www/Spaces -C /var/www/Spaces rev-parse --abbrev-ref HEAD
 
+# >>> CORREGIDO EL 25/08 AL CORRERLO. La primera version era
+#     `cd /var/www/Spaces && git log ...` y murio con:
+#         fatal: detected dubious ownership in repository
+#     Es una proteccion de git: la carpeta es de `emiliano` y se
+#     entra como root. Git sugiere `git config --global --add
+#     safe.directory ...`, y ESO NO SE HACE AQUI: escribe en
+#     /root/.gitconfig, y F4.1 es SOLO LECTURA. La bandera `-c`
+#     hace lo mismo para una sola invocacion y no deja rastro.
+#
 # >>> CRITERIO DEL PLAN: si ese commit NO esta en `main`, se PARA
 #     y se avisa. Ya hay precedente (`2f28be0`).
 #     Pasame el hash y yo compruebo si esta en main.
