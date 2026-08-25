@@ -23,6 +23,15 @@ La entrada más reciente va arriba.
     encuentra estos fallos es **intentar entrar de verdad**. Se anota para que las
     comprobaciones de los próximos servidores incluyan eso.
 
+- **La organización del sistema ya se llama «RGB» y no «RGB Catorce».** Es el
+  nombre que encabeza las pantallas.
+  - **Solo cambió el rótulo.** Se comprobó antes de tocar nada que la **razón
+    social** y el **nombre comercial** estaban vacíos: si hubieran tenido valor,
+    esto habría sido un cambio en un dato **fiscal** —el que sale en las
+    facturas— y no un simple retoque de nombre.
+  - Se aplicó con una pasada de prueba previa, comprobando que tocaba **una sola
+    fila**, y queda guardado cómo deshacerlo.
+
 - **Quien entra con Google ya puede ponerse contraseña sin conocer la anterior.**
   Al crear la cuenta de un responsable, el sistema genera una contraseña temporal
   y **la enseña una sola vez**. Si esa persona entra con Google y esa temporal se
