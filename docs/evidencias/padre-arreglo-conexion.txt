@@ -106,7 +106,7 @@ curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST http://127.0.0.1:300
 # ------------------------------------------------------------
 # P6 - Y el humo que el runbook NO hacia
 # ------------------------------------------------------------
-# El smoke del §7 media que el servidor responde, no que funcione.
+# El smoke del 7 media que el servidor responde, no que funcione.
 # Un login 200 es una pagina pintandose: pasa igual sin base. Este
 # de aqui es el que no se puede fingir.
 
