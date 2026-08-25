@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Correo o contraseña inválidos' }, { status: 401 })
   }
 
-  const token = await crearSesion(u.id)
+  const token = await crearSesion(u.id, 'password')
   const permisos = await permisosDeRol(u.rol)
   const res = NextResponse.json({
     usuario: { id: u.id, nombre: u.nombre, email: u.email, cargo: u.cargo, rol: u.rol, activo: u.activo },

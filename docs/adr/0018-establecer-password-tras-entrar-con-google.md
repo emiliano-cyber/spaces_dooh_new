@@ -1,7 +1,7 @@
 # ADR 0018 — Establecer la contraseña tras entrar con Google, sin teclear la anterior
 
 - **Fecha:** 2026-08-25
-- **Estado:** Aceptada — **pendiente de construir**
+- **Estado:** Aceptada — **construida el 2026-08-25**
 - **Decide:** Emiliano
 - **Relacionadas:** [ADR 0009](0009-reautenticacion-individual-en-vez-de-contrasena-compartida.md) (reautenticación
   individual) · [ADR 0012](0012-acceso-con-cuenta-de-google.md) · el modelo de
@@ -52,9 +52,17 @@ se cumplen las tres condiciones a la vez:**
 1. **`debe_cambiar_password = true`** — nunca ha puesto la suya.
 2. **La sesión actual se abrió con Google.**
 3. **Tiene una identidad de Google vinculada** en `identidades_externas`.
+4. **La petición NO cambia también el correo.**
 
 La condición 1 hace la excepción **autoextinguible**: aplica una vez y, en cuanto
 el usuario pone su contraseña, deja de aplicar para siempre.
+
+> **La 4.ª apareció al construirlo**, leyendo el controlador: la puerta de
+> reautenticación cubre **correo y contraseña a la vez**
+> (`perfil-controller.ts:12-16`). Dejarla abierta para el correo convertiría
+> «poner tu primera contraseña» en **«apropiarse de la cuenta»** — justo el
+> ataque que esa puerta existe para cerrar. Es la condición que el ADR no vio
+> desde el diseño y sí desde el código.
 
 ### Lo que obliga a construir antes
 
@@ -139,3 +147,23 @@ prueba en rojo primero y en commits separados:
 4. **Pruebas**, y las negativas son las que importan: sesión de contraseña →
    **se rechaza**; `debe_cambiar_password = false` → **se rechaza**; sin identidad
    vinculada → **se rechaza**.
+
+### Lo construido, 2026-08-25
+
+| | |
+|---|---|
+| Migración | `db/migrations/20260825_sesion_metodo.sql` — columna, `check`, y la función reescrita |
+| Sesión | `crearSesion(usuarioId, metodo)` — **el método es obligatorio**, sin valor por omisión |
+| Tipo | `UsuarioSesion.metodoSesion` |
+| Repo | `tieneIdentidadVinculada(usuarioId, proveedor)` |
+| Puerta | `perfil-controller.ts` · `puedeFijarSinAnterior()` |
+| Pruebas | `perfil-controller.password-google.test.ts` — **9**, seis negativas |
+
+**Verificado:** `typecheck` limpio · **851** unitarias en 78 archivos · e2e **20
+archivos, 213 pruebas y 1 saltada**, con `aislamiento.e2e.test.ts` **sin tocarse**.
+Migraciones **72 → 73**.
+
+> **El método de sesión no tiene valor por omisión, y es deliberado.** Un default
+> silencioso haría que una tercera vía de entrada heredara una decisión de
+> seguridad sin que nadie la tomara. Que el compilador lo exija es lo único que
+> obliga a pensarlo.

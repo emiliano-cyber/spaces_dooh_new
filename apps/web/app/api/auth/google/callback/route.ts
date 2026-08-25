@@ -77,7 +77,7 @@ function limpiar(res: NextResponse): NextResponse {
 // alta—, y son justo los sitios donde es fácil que uno se quede sin la cookie
 // anti-CSRF o sin limpiar las de un solo uso.
 async function abrirSesion(req: Request, usuarioId: string): Promise<NextResponse> {
-  const token = await crearSesion(usuarioId)
+  const token = await crearSesion(usuarioId, 'google')
   const base = process.env.APP_URL || new URL(req.url).origin
   const res = NextResponse.redirect(`${base}/spaces-dooh/inicio/`, 302)
   res.cookies.set(cookieSesion(token))

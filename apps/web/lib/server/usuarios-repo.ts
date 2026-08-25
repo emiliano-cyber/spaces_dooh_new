@@ -152,6 +152,21 @@ export async function actualizarPerfil(id: string, cambios: { email?: string; pa
 // Hash de la contraseña del propio usuario en sesión, para re-autenticar antes
 // de un cambio sensible (Hardening 1 · Bloque E). Va acotado al tenant de la
 // sesión, así que nunca devuelve el hash de otra organización.
+// ADR 0018. Se consulta por `usuario_id`, no por `sub`: la pregunta aquí no es
+// «¿quién es este sub?» sino «¿esta cuenta tiene una vía de Google vinculada?».
+// Va por `qRaw` porque `identidades_externas` se resuelve antes de que haya
+// tenant fijado, igual que el resto del bootstrap de sesión.
+export async function tieneIdentidadVinculada(
+  usuarioId: string,
+  proveedor: string,
+): Promise<boolean> {
+  const r = await qRaw1<{ uno: number }>(
+    'select 1 as uno from identidades_externas where usuario_id = $1 and proveedor = $2 limit 1',
+    [usuarioId, proveedor],
+  )
+  return !!r
+}
+
 export async function passwordHashDe(id: string): Promise<string | null> {
   const r = await q1<{ password_hash: string | null }>(
     'select password_hash from usuarios where id = $1 and tenant_id = $2',

@@ -26,6 +26,10 @@ export interface UsuarioSesion {
   // ADR 0009: true tras un restablecimiento por un administrador. Mientras lo
   // esté, `exigir()` cierra todo salvo el cambio de la propia contraseña.
   debeCambiarPassword: boolean
+  // ADR 0018: cómo se abrió ESTA sesión. Lo necesita el cambio de perfil para
+  // dejar fijar la primera contraseña sin teclear la anterior — solo si se
+  // entró con Google.
+  metodoSesion: MetodoSesion
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
@@ -89,13 +93,21 @@ export function verifyPassword(plano: string, hash: string | null): Promise<bool
 }
 
 // ─── Sesiones ───────────────────────────────────────────────────────────────
-export async function crearSesion(usuarioId: string): Promise<string> {
+export type MetodoSesion = 'password' | 'google'
+
+// El método es OBLIGATORIO y no tiene valor por omisión, a propósito (ADR 0018).
+// De él depende que se pueda fijar la primera contraseña sin teclear la
+// anterior: un default silencioso haría que un llamador nuevo heredara una
+// decisión de seguridad sin enterarse. Que el compilador lo pida es la única
+// forma de que quien añada una tercera vía de entrada tenga que pensarlo.
+export async function crearSesion(usuarioId: string, metodo: MetodoSesion): Promise<string> {
   const token = randomBytes(32).toString('hex')
   const expira = new Date(Date.now() + SESSION_DAYS * 86_400_000)
-  await q('insert into sesiones (token, usuario_id, expira_en) values ($1,$2,$3)', [
+  await q('insert into sesiones (token, usuario_id, expira_en, metodo) values ($1,$2,$3,$4)', [
     token,
     usuarioId,
     expira.toISOString(),
+    metodo,
   ])
   return token
 }
@@ -113,7 +125,8 @@ export async function usuarioActual(): Promise<UsuarioSesion | null> {
   // la función SECURITY DEFINER acotada, que devuelve una sola fila por token.
   const u = await q1<UsuarioSesion>(
     `select id, nombre, email, cargo, rol, activo, tenant_id as "tenantId",
-            debe_cambiar_password as "debeCambiarPassword"
+            debe_cambiar_password as "debeCambiarPassword",
+            metodo as "metodoSesion"
        from auth_usuario_por_sesion($1)`,
     [token],
   )
