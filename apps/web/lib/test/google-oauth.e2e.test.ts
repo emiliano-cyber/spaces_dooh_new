@@ -407,3 +407,87 @@ describe('6 · cuando Google falla', () => {
     expect(motivoDe(r.ubicacion)).toBe('cancelado')
   })
 })
+
+// ============================================================================
+//  ADR 0018 · fijar la PRIMERA contraseña sin teclear la anterior.
+//
+//  Esta prueba existe porque el fallo que cierra NO LO PODIA VER una unitaria, y
+//  eso es exactamente lo que `CLAUDE.md` avisa de la zona R2: «las pruebas
+//  unitarias no ven los fallos de RLS: simulan la base».
+//
+//  Lo ocurrido: la comprobación de identidad vinculada se escribió con `qRaw`,
+//  que NO fija `app.tenant_id`. `identidades_externas` tiene RLS + FORCE
+//  (`20260806_identidades_externas.sql:77-82`), así que la política comparaba
+//  contra NULL y la consulta devolvía CERO FILAS EN SILENCIO. Las nueve
+//  unitarias del controlador seguían en verde porque el repo estaba mockeado.
+//
+//  Va por HTTP y contra Postgres de verdad: es la única forma de que la RLS
+//  participe.
+// ============================================================================
+describe('9 · ADR 0018 · la primera contraseña, sin la anterior', () => {
+  const NUEVA = 'UnaContrasenaLarga123'
+
+  // Entra SIEMPRE por `sub-1`, el que un bloque anterior ya vinculó. Con un sub
+  // nuevo el callback responde `ya_vinculada` —y hace bien: una cuenta no acepta
+  // dos identidades de Google—. Además es el caso realista: quien va a fijar su
+  // primera contraseña ya entró con Google alguna vez.
+  async function entrarConGoogle() {
+    // Un bloque anterior deja al usuario DESACTIVADO a propósito («un usuario
+    // desactivado no entra por Google»). Sin reactivarlo, el login de aquí no
+    // abre sesión y estas pruebas fallarían por una causa ajena a lo que miden.
+    await poolTest().query('update usuarios set activo = true where email = $1', [org.usuarioEmail])
+    const c = new Cliente()
+    const { state, nonce } = await iniciar(c)
+    prepararIdToken(idTokenFalso(claimsBuenos({ sub: 'sub-1', email: org.usuarioEmail, nonce })))
+    const r = await callback(c, { code: 'codigo-bueno', state })
+    // Se comprueba el MOTIVO y no solo la cookie: si el callback rechaza, el
+    // motivo dice por qué y el fallo señala la causa en vez de un `false`.
+    expect(motivoDe(r.ubicacion)).toBeNull()
+    expect(c.tieneCookie('spaces_sesion')).toBe(true)
+    return c
+  }
+
+  async function fijarBandera(valor: boolean) {
+    await poolTest().query('update usuarios set debe_cambiar_password = $1 where email = $2', [
+      valor,
+      org.usuarioEmail,
+    ])
+  }
+
+  it('con la bandera puesta y sesión de Google, PATCH /api/perfil la acepta SIN la anterior', async () => {
+    await fijarBandera(true)
+    const c = await entrarConGoogle()
+
+    const r = await c.pedir('/api/perfil/', { metodo: 'PATCH', cuerpo: { password: NUEVA } })
+
+    expect(r.status).toBe(200)
+    // Y la bandera se apaga sola: la excepción es de un solo uso.
+    const f = await poolTest().query(
+      'select debe_cambiar_password from usuarios where email = $1',
+      [org.usuarioEmail],
+    )
+    expect(f.rows[0].debe_cambiar_password).toBe(false)
+  })
+
+  it('sin la bandera, la misma petición se RECHAZA con 401', async () => {
+    await fijarBandera(false)
+    const c = await entrarConGoogle()
+
+    const r = await c.pedir('/api/perfil/', { metodo: 'PATCH', cuerpo: { password: NUEVA } })
+
+    expect(r.status).toBe(401)
+  })
+
+  it('con la bandera puesta pero cambiando TAMBIEN el correo, se RECHAZA', async () => {
+    // Poner tu primera contraseña, no apropiarte de la cuenta.
+    await fijarBandera(true)
+    const c = await entrarConGoogle()
+
+    const r = await c.pedir('/api/perfil/', {
+      metodo: 'PATCH',
+      cuerpo: { password: NUEVA, email: 'otro-0018@ejemplo.com' },
+    })
+
+    expect(r.status).toBe(401)
+  })
+})

@@ -154,15 +154,28 @@ export async function actualizarPerfil(id: string, cambios: { email?: string; pa
 // sesión, así que nunca devuelve el hash de otra organización.
 // ADR 0018. Se consulta por `usuario_id`, no por `sub`: la pregunta aquí no es
 // «¿quién es este sub?» sino «¿esta cuenta tiene una vía de Google vinculada?».
-// Va por `qRaw` porque `identidades_externas` se resuelve antes de que haya
-// tenant fijado, igual que el resto del bootstrap de sesión.
+//
+// ⚠️ VA POR `q` Y NO POR `qRaw`, y la primera versión se equivocó justo aquí.
+// `identidades_externas` tiene RLS + FORCE con política por `app.tenant_id`
+// (`20260806_identidades_externas.sql:77-82`). `qRaw` NO fija ese GUC, así que
+// la política comparaba contra NULL y la consulta devolvía CERO FILAS EN
+// SILENCIO: la condición salía `false` y la excepción del ADR 0018 no se abría
+// nunca. Es la zona R2 del proyecto, y esta fue su tercera aparición.
+//
+// El razonamiento equivocado era «se resuelve antes de que haya tenant», cierto
+// para el callback de Google —que por eso usa una función SECURITY DEFINER— y
+// FALSO aquí: esto corre con la sesión y el tenant ya resueltos.
+//
+// Se acota además por `tenant_id` explícito, como el resto del repo: segunda
+// capa sobre la RLS, por convención de la casa.
 export async function tieneIdentidadVinculada(
   usuarioId: string,
   proveedor: string,
 ): Promise<boolean> {
-  const r = await qRaw1<{ uno: number }>(
-    'select 1 as uno from identidades_externas where usuario_id = $1 and proveedor = $2 limit 1',
-    [usuarioId, proveedor],
+  const r = await q1<{ uno: number }>(
+    `select 1 as uno from identidades_externas
+      where usuario_id = $1 and proveedor = $2 and tenant_id = $3 limit 1`,
+    [usuarioId, proveedor, await tenantOblig()],
   )
   return !!r
 }

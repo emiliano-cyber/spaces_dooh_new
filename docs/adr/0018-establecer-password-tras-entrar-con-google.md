@@ -159,7 +159,26 @@ prueba en rojo primero y en commits separados:
 | Puerta | `perfil-controller.ts` · `puedeFijarSinAnterior()` |
 | Pantalla | `lib/perfil-acceso.ts` · `puedeFijarPasswordSinAnterior()`, consumida por `configuracion/page.tsx` |
 | Tipo del cliente | `UsuarioAuth.metodoSesion` |
-| Pruebas | `perfil-controller.password-google.test.ts` — **9**, seis negativas · `perfil-acceso.test.ts` — **7** |
+| Pruebas | `perfil-controller.password-google.test.ts` — **9** · `perfil-acceso.test.ts` — **7** · `google-oauth.e2e.test.ts` — **3 de punta a punta** |
+
+> [!danger] El tercer intento fue el que funcionó, y el fallo era R2
+> `tieneIdentidadVinculada` se escribió con **`qRaw`**, que **no fija**
+> `app.tenant_id`. `identidades_externas` tiene **RLS + FORCE** con política
+> por ese GUC (`20260806_identidades_externas.sql:77-82`), así que la consulta
+> devolvía **cero filas en silencio** y la excepción no se abría nunca.
+>
+> **Las 16 pruebas unitarias seguían en verde**, porque el repo está mockeado.
+> Es exactamente lo que avisa `CLAUDE.md`: *«las pruebas unitarias no ven los
+> fallos de RLS: simulan la base»*. Y es la **tercera** aparición de R2 en la
+> historia del proyecto.
+>
+> El razonamiento equivocado —escrito en el propio comentario— era «se resuelve
+> antes de que haya tenant»: **cierto para el callback de Google**, que por eso
+> usa una función `SECURITY DEFINER`, y **falso aquí**, donde la sesión y el
+> tenant ya están resueltos.
+>
+> Lo cerró una prueba **por HTTP contra Postgres de verdad**, la única capa
+> donde la RLS participa.
 
 > [!warning] La primera versión dejó la regla INALCANZABLE, y conviene no repetirlo
 > Se implementó solo en el servidor. `configuracion/page.tsx:119` cortaba el
