@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-24
+actualizado: 2026-08-26
 tags: [arquitectura, componentes]
 archivos:
   - ecosystem.config.js
@@ -10,6 +10,30 @@ archivos:
   - apps/web/lib/server/db.ts
   - infra/nginx/demo.space-os.io.conf
 ---
+
+> [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
+> **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo
+> se escribió el 24/08 sobre esa premisa, y la premisa era falsa: el 25/08 se
+> entró sin dificultad y se completó el censo entero
+> (`docs/evidencias/f4-1-censo-resultado.md`). Sobre aquella conclusión se
+> levantaron el ADR 0015, la 3.ª enmienda a P1 y **dos tareas declaradas
+> imposibles**. Las cuatro se revisaron.
+>
+> **② DEMO ya NO va a servir `demo.space-os.io`.** El
+> [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) (26/08) retira ese
+> nombre: no se le mueve el DNS, no se le emite certificado y **su registro A se
+> borra** — tarjeta **TH-F4.5**. El proceso del `3001` se queda como **banco de
+> pruebas interno, sin nombre público**.
+>
+> **Lo vigente:** el PADRE (`137.184.107.53`) es la **única máquina del modelo**
+> y sirve `space-os.io` con certificado propio hasta el **2026-11-23**, con
+> renovación automática —
+> [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md). Y la
+> demostración de cara a cliente pasa a ser **el producto real con una o más
+> instancias hijas**, que es lo que produce la Fase 5.
+>
+> **No se reescribe el cuerpo de abajo**: era correcto en su fecha. Reescribir
+> historia para que cuadre con hoy es lo que hace que una nota deje de ser fiable.
 
 > [!danger] 2026-08-24 · El droplet `209.97.146.136` SE PERDIO — esta nota lo daba por vivo
 > **Se perdió el acceso a esa máquina.** Sigue encendida y sirviendo

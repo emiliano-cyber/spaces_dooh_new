@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-24
+actualizado: 2026-08-26
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -57,10 +57,18 @@ que aprobó Jochelo el 2026-08-12, y en qué estado quedó al **2026-08-13**.
 | Regla nueva y absoluta | — | **Nadie edita código en el servidor de una instancia. Jamás** |
 
 Vocabulario oficial: **PADRE** es el plano de control (repo, CI, releases, panel de
-flota; sin datos de ningún owner). **DEMO** es una instancia normal en
-`demo.space-os.io`, canal beta, la única con autoregistro. **Instancia** es la copia
-de un owner. **Flota** es el conjunto. **Dominio de acceso** es el dominio que el
-owner elige en SU DNS. A un owner **no se le dice «tenant»** a nivel de negocio.
+flota; sin datos de ningún owner). **DEMO** es una instancia normal que vive
+**dentro del PADRE** (proceso en el `3001`, base `spaces_demo`) y **sin nombre
+público**. **Instancia** es la copia de un owner. **Flota** es el conjunto.
+**Dominio de acceso** es el dominio que el owner elige en SU DNS. A un owner **no
+se le dice «tenant»** a nivel de negocio.
+
+> [!warning] 2026-08-26 · Esta definición afirmaba dos cosas que hoy son falsas
+> Decía que DEMO vive en `demo.space-os.io` y que es **la única con autoregistro**.
+> Ni lo uno ni lo otro. El [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md)
+> **retira ese nombre** —DEMO queda como banco de pruebas interno, sin dominio
+> público— y el autoregistro está **cerrado en toda la flota** desde **P8**
+> (14/08, reafirmado el 20/08), **DEMO incluida**.
 
 ## 3 · Qué se produjo
 

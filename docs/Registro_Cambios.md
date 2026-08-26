@@ -5,6 +5,47 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-26
+
+- **No va a haber una página de demostración aparte. La demostración va a ser el
+  producto de verdad.** Hasta hoy el plan contaba con `demo.space-os.io`, una
+  dirección separada donde enseñar el sistema a quien viniera a verlo. **Se
+  retira.**
+  - **Por qué:** esa página existía para enseñar *cómo van a ser* las copias del
+    sistema que tendrá cada cliente, cuando todavía no existía ninguna. Hoy
+    `space-os.io` es la dirección oficial y también donde se prueba, y lo que se
+    va a enseñar es **el producto funcionando con una o más copias reales**. Una
+    demostración con clientes de verdad vale más que un sitio aparte que los
+    imita.
+  - **Lo que esto cuesta, y conviene tenerlo presente:** **hasta que exista la
+    primera copia de un cliente no hay dónde enseñar el producto a alguien de
+    fuera.** Eso depende de la siguiente etapa del plan. Si hiciera falta antes,
+    habría que volver a darle dirección propia a algo.
+  - **Lo que se ahorra:** un certificado de seguridad que se intentó emitir cinco
+    veces sin éxito, y una dependencia que había que renovar a mano y que, al
+    caducar, habría tumbado el sitio en silencio tres meses después.
+
+- **Queda una cosa por hacer, y la hace una persona en el navegador: quitarle el
+  nombre público a la máquina vieja.** Mientras esa dirección siga apuntando a la
+  máquina de julio, esa máquina **sigue siendo un sitio público** con cinco
+  organizaciones dentro, hasta que su certificado venza el 26 de octubre.
+  - **Abandonar un nombre no es lo mismo que retirarlo**, y esa diferencia es
+    justo lo que esta etapa del plan existía para arreglar. La máquina no se
+    apaga con esto: pierde su nombre público, que es lo que hacía falta.
+
+- **Se cerraron las dos etapas del plan que estaban en curso, y se dejó por
+  escrito qué quedó fuera de cada una.** Se cierran diciendo su alcance, no en
+  verde limpio: lo que falta tiene nombre, dueño y ficha de trabajo. **Nada queda
+  en «pendiente» sin decir de quién es.**
+  - Sigue parada desde el 17 de agosto **una sola decisión** —dónde se guardan las
+    versiones del programa— y sin ella no hay forma de que cada servidor se
+    actualice solo. Es lo que más cosas destraba de todo el plan.
+
+- **Se corrigieron tres desfases entre lo que decían los documentos y lo que era
+  cierto**, encontrados al preparar el reporte: un apartado seguía pidiendo dos
+  pasos que se habían anulado el mismo día, y el tablero de trabajo daba por «solo
+  ensayado en local» algo que llevaba cinco días hecho en el servidor.
+
 ## 2026-08-25
 
 - **Ya se puede entrar al sistema por su dirección de internet, y con Google.**

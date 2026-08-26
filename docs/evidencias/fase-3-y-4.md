@@ -1,7 +1,7 @@
 # Instancias Soberanas · Fases 3 y 4 — Expediente conjunto
 
-Rama: `feat/servidor-padre-instancias` · **3.ª emisión: 2026-08-25 (noche)**
-Emisiones previas: 1.ª el 24/08, 2.ª el 25/08 (mañana)
+Rama: `feat/servidor-padre-instancias` · **4.ª emisión: 2026-08-26 — CIERRE DE FASES**
+Emisiones previas: 1.ª el 24/08, 2.ª el 25/08 (mañana), 3.ª el 25/08 (noche)
 Plan de autoridad: `docs/Plan_Instancias_Soberanas_v3.md` §FASE 3 (`:917-1228`) y
 §FASE 4 (`:1230-1434`)
 
@@ -16,13 +16,28 @@ Plan de autoridad: `docs/Plan_Instancias_Soberanas_v3.md` §FASE 3 (`:917-1228`)
 
 | | Estado | Falta |
 |---|---|---|
-| **Fase 3** | **7 de 9** | `F3.5` y `F3.6`, bloqueadas por **TH-P4** |
-| **Fase 4** | **4 de 5**, y la 5.ª a medias | El **dominio de DEMO** |
+| **Fase 3** | **7 de 9** · **CERRADA con alcance declarado** | `F3.5` y `F3.6`, bloqueadas por **TH-P4** |
+| **Fase 4** | **3 de 4 con objeto** · **CERRADA con una acción pendiente** | Borrar el registro A de `demo.space-os.io` (**TH-F4.5**) |
 | **El PADRE** | ✅ funcionando en `space-os.io` | Sacar su proceso de `root` |
-| **DEMO** | ✅ corriendo en el `3001` como usuario `demo` | Su dominio |
+| **DEMO** | ✅ corriendo en el `3001` como usuario `demo` | Nada — ya no tiene dominio que darle (ADR 0020) |
 
-**Un solo bloqueo externo detiene las dos fases: TH-P4, el registry.** El resto
-es trabajo, y queda poco.
+**Un solo bloqueo externo detiene lo que queda de las dos fases: TH-P4, el
+registry.** No es trabajo de programación: son dos variables de configuración.
+
+> [!important] Qué significa «cerrada» aquí, y qué no
+> **No significa que las nueve y las cinco tareas estén hechas.** Significa que
+> **todo lo que se podía cerrar sin una decisión externa está cerrado**, medido y
+> con su ancla, y que **lo que falta está nombrado, con dueño y con tarjeta
+> emitida**. Ninguna tarea queda en el limbo de «pendiente» sin decir de quién es.
+>
+> Las dos fases se cierran **con alcance declarado**, no en verde limpio:
+>
+> - **Fase 3** deja fuera `F3.5` y `F3.6`, las dos por **TH-P4**. `F3.6` además
+>   **no debe** ejecutarse todavía: retirar el despliegue por SSH antes de que el
+>   canal funcione deja al proyecto sin ningún mecanismo de despliegue (§1).
+> - **Fase 4** deja fuera **un criterio de `F4.5`**, que se cierra con una acción
+>   de navegador — **TH-F4.5**. Hasta que ocurra, el riesgo que da nombre a la
+>   fase **sigue vivo**, y así queda escrito en §3.
 
 ---
 
@@ -358,13 +373,23 @@ significa nada.
 
 ## 6 · Lo que falta, y quién
 
-### Trabajo — dos pasos, los dos sobre el PADRE
+### Trabajo — UNA acción, y no toca ningún servidor
 
-1. **Certificado de `demo.space-os.io`**, con la máquina vieja reenviando el
-   desafío ACME.
-2. **Mover el registro A** de `demo.space-os.io` al PADRE.
+> [!warning] Corregido el 26/08. Este apartado pedía dos pasos que ya no existen
+> Hasta esta emisión decía: *«certificado de `demo.space-os.io`, con la máquina
+> vieja reenviando el desafío ACME»* y *«mover el registro A al PADRE»*. **El
+> ADR 0020 anuló los dos el mismo día** en que se escribieron, y este apartado se
+> quedó atrás mientras el resto del documento sí se actualizaba.
+>
+> Se deja escrito el desfase en vez de borrarlo: **es el tercer sitio de esta
+> rama donde una sección sobrevive a la decisión que la invalida**, y el patrón
+> importa más que el caso.
 
-Con eso cierran **F4.3** y los criterios **1 y 3** de F4.5.
+**Borrar el registro A de `demo.space-os.io` en Cloudflare** — tarjeta
+**TH-F4.5**, emitida el 26/08 en `vault/07-Agentes/ejecucion-plan-v3.md`.
+
+Con eso cierra el **criterio 3 de F4.5**, que es el único que queda con objeto y
+sin cumplir. `F4.3` y el criterio 1 **ya no cierran: dejaron de existir**.
 
 ### Bloqueos que no son trabajo
 
@@ -426,4 +451,5 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 |---|---|---|
 | 1.ª | 24/08 | Apertura, con la evidencia local y 31 huecos de captura |
 | 2.ª | 25/08 mañana | `F4.1` cerrada, el acceso recuperado, el PADRE sin base |
-| **3.ª** | **25/08 noche** | **DEMO corriendo**: `F4.2` y `F4.4` cumplidas, systemd (ADR 0019), el PADRE en `space-os.io`. Queda **solo el dominio de DEMO** |
+| 3.ª | 25/08 noche | **DEMO corriendo**: `F4.2` y `F4.4` cumplidas, systemd (ADR 0019), el PADRE en `space-os.io`. Quedaba «solo el dominio de DEMO» |
+| **4.ª** | **26/08** | **CIERRE.** El ADR 0020 retira el dominio de DEMO, así que lo que quedaba **no era trabajo sino una acción de navegador** → **TH-F4.5**. Se corrige el §6, que seguía pidiendo los dos pasos anulados. Se emite `docs/Reporte_Fases_3_y_4_20260826.md` y su PDF |

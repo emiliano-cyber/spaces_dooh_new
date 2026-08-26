@@ -1,10 +1,33 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-24
+actualizado: 2026-08-26
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-08-26 · Las Fases 3 y 4 quedan CERRADAS, con alcance declarado
+> **Fase 3: 7 de 9.** Fuera `F3.5` y `F3.6`, las dos por **TH-P4** — y `F3.6`
+> además **no debe** hacerse todavía: retirar el despliegue por SSH antes de que
+> el canal funcione deja al proyecto **sin ningún mecanismo de despliegue**.
+>
+> **Fase 4: 3 de 4 con objeto.** El
+> [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) dejó `F4.3` y el
+> criterio 1 de `F4.5` **sin objeto**: no hay demostración pública, así que no hay
+> dominio que dar. Lo único que queda **no es trabajo**: borrar el registro A de
+> `demo.space-os.io` → tarjeta **TH-F4.5**.
+>
+> 🔴 **Hasta que eso ocurra, el riesgo que da nombre a la Fase 4 sigue vivo.** Esa
+> máquina sirve un sitio público con cinco organizaciones dentro hasta que su
+> certificado venza el **2026-10-26**. **Abandonar el nombre no es retirarlo.**
+>
+> ⚠️ **Tres desfases corregidos hoy, todos del mismo tipo** — un documento que
+> sobrevive a la decisión que lo invalida: el §6 del expediente pedía dos pasos
+> anulados por el ADR 0020 **el mismo día**; las filas **F4.2 y F4.4** de
+> [[ejecucion-plan-v3]] decían «ensayada en local» con su parte real hecha desde
+> el 25/08; y no había entrada de bitácora del 26/08. **Quinta vez en esta rama.**
+>
+> 📄 Reporte para dirección: `docs/Reporte_Fases_3_y_4_20260826.md` y su PDF.
 
 > [!important] 2026-08-24 · Lo que cambió hoy, en el tablero
 > **Z9 · Datos** — nace `20260824_grants_tablas_futuras.sql`, la **72.ª**

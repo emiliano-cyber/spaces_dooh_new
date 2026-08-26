@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-24
+actualizado: 2026-08-26
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -26,7 +26,7 @@ cobranza.
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| ⚠️ Producción | **En traslado (24/08).** `demo.space-os.io` todavía resuelve al droplet **perdido**; el destino es el PADRE `137.184.107.53`, con el PADRE en `space-os.io` y DEMO en `demo.space-os.io` | `infra/nginx/space-os.io.conf` · [ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md) |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) como **banco de pruebas interno, sin nombre público**. ⚠️ `demo.space-os.io` **queda retirado**: su registro A se borra → **TH-F4.5** | `infra/nginx/space-os.io.conf` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) |
 | Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
 | Migraciones | **72** | [[migraciones]] |
