@@ -1,8 +1,8 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-19
-tags: [backend, multi-tenant, rls, seguridad, rojo]
+actualizado: 2026-08-26
+tags: [backend, multi-tenant, rls, seguridad, rojo, instancias]
 archivos:
   - apps/web/lib/server/db.ts
   - apps/web/lib/server/tenant.ts
@@ -19,6 +19,31 @@ archivos:
 > [!danger] ZONA ROJA — el aislamiento entre organizaciones
 > Un error aquí no da error: **devuelve datos de otra empresa, o cero filas en
 > silencio**. Los dos modos de fallo son igual de graves.
+
+> [!important] 2026-08-26 · El marco cambió: la RLS ya NO es el aislamiento entre owners
+> **Cada owner corre su propia instancia**: su droplet, su base y su dominio
+> ([ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md),
+> [[modelo-instancias-soberanas]]).
+> El aislamiento entre owners **es físico** — procesos, bases y máquinas
+> distintas—, no una política de fila.
+>
+> **Lo que la RLS es hoy, y sigue siendo obligatorio:**
+> 1. **Defensa en profundidad dentro de una instancia.** Es la segunda capa
+>    detrás del `and tenant_id = $n` de cada consulta, y la que convierte un
+>    olvido en cero filas en vez de en una fuga.
+> 2. **La puerta a que un owner tenga varias unidades de negocio** dentro de su
+>    propia instancia. Ese es el caso de uso que queda vivo para el multi-tenant.
+>
+> **Lo que NO cambia, y por eso el resto de esta nota sigue valiendo entero:**
+> el tenant se sigue resolviendo desde la sesión, `qRaw` sigue siendo el error
+> más caro del repo, las políticas siguen `fail-closed` con `FORCE`, y todo lo
+> que toque tenant o sesión sigue necesitando
+> `cd apps/web && npm run test:e2e` — las unitarias simulan la base y no ven
+> estos fallos.
+>
+> **Lo que sí queda obsoleto:** cualquier lectura de esta nota como «así se
+> separa a un cliente de otro **entre empresas**». Entre owners no hay nada que
+> separar por software.
 
 ## Cómo se resuelve el tenant
 

@@ -26,6 +26,12 @@ archivos:
   - infra/scripts/README.md
   - scripts/migrar.mjs
   - infra/nginx/demo.space-os.io.conf
+  - infra/nginx/space-os.io.conf
+  - infra/nginx/instancia.conf.tpl
+  - infra/nginx/snippets/proxy-app.conf
+  - infra/systemd/spaces-demo.service
+  - infra/scripts/provision-instancia.sh
+  - infra/env/instancia.env.example
   - db/docker-compose.yml
 ---
 
@@ -361,11 +367,15 @@ instancia no necesita volumen.**
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` (Node 22) |
 | `deploy.yml` | **`workflow_dispatch` manual** | backup → build → migraciones → `pm2 reload` |
 
-> [!warning] No hay despliegue continuo
-> `deploy.yml` solo corre a mano y **está desactualizado**. El despliegue real es
-> manual por SSH. `ci.yml:1-30` documenta que el disparador es `pull_request` y
-> **no** `pull_request_target` a propósito: el segundo daría secretos a código de
-> un fork. No cambiarlo.
+> [!warning] No hay despliegue continuo — y `deploy.yml` está en retirada
+> `deploy.yml` solo corre a mano y **está desactualizado**. En el modelo de
+> instancias **no debería existir**: entra por `ssh` como `root` y compila en el
+> servidor. Lo retira **F3.6**, que a 2026-08-26 **no está hecha**. Ver
+> «Producción ya no es un droplet: es una FLOTA», más abajo.
+>
+> `ci.yml:1-30` documenta que el disparador es `pull_request` y **no**
+> `pull_request_target` a propósito: el segundo daría secretos a código de un
+> fork. No cambiarlo.
 
 ### `release.yml` — un tag publica en `beta` (17/08, F2.3)
 
@@ -1219,28 +1229,64 @@ afirma*—:
 `102 escenarios · 664 comprobaciones · 0 rojas`. Los **dos** mutantes reparados,
 corridos contra el arnés **entero**, **CAZADOS**.
 
-## Producción
+## Producción ya no es un droplet: es una FLOTA
 
-| Pieza | Valor |
-|---|---|
-| Host | droplet DigitalOcean, IP vieja `209.97.146.136` (301 al dominio) |
-| Dominio | `https://demo.space-os.io` |
-| Ruta pública | `https://demo.space-os.io/spaces-dooh/` (`basePath`) |
-| Directorio | `/var/www/Spaces` |
-| Proceso | pm2 `spaces-web`, fork, 1 instancia, puerto 3000 |
-| Usuario | `emiliano` (pm2 es por usuario: el daemon vive en `/home/emiliano/.pm2`) |
-| Base | `spaces_prod`; las migraciones se aplican como `postgres` |
-| Env | `apps/web/.env.production` (en el servidor, **no** en git) |
-| Reverse proxy | nginx, `infra/nginx/demo.space-os.io.conf` |
+> [!important] 2026-08-26 · Esta sección se reescribió entera (F8.3)
+> Hasta hoy describía producción como **un** droplet con **un** proceso pm2
+> sirviendo `demo.space-os.io`, y daba `deploy.yml` por el mecanismo de
+> despliegue. Ese texto describía el mundo anterior al
+> [modelo de instancias soberanas](../../docs/adr/0022-instancia-dedicada-por-owner.md).
+> Lo que sigue describe el de hoy.
 
-> [!danger] `X-Forwarded-For $remote_addr` es deliberado
-> `infra/nginx/demo.space-os.io.conf:123` **reemplaza** la cabecera en vez de
-> añadir a la que mande el cliente. Eso es lo que impide que alguien elija su
-> propio cubo de rate limit. Si se cambiara a `$proxy_add_x_forwarded_for`, el
-> limitador del login se vuelve burlable mandando una IP inventada.
+**Un solo código, muchas máquinas.** Se trabaja en el PADRE, se prueba en DEMO,
+y cada instancia **jala** su versión del canal al que está suscrita. El padre no
+empuja: ver [[modelo-instancias-soberanas]] y
+[ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md).
+
+| Entorno | Qué es | Cómo corre | Base | Dominio |
+|---|---|---|---|---|
+| **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | pm2 `spaces-web`, puerto **3000** | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:124` |
+| **DEMO** | Banco de pruebas. Segundo proceso **dentro del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **systemd**, unidad `infra/systemd/spaces-demo.service`, usuario `demo`, puerto **3001** — pm2 no le alcanza ([ADR 0019](../../docs/adr/0019-demo-arranca-con-systemd.md)) | `spaces_demo` | `demo.space-os.io` — `infra/nginx/space-os.io.conf:188`. El nombre **se conserva** ([ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md)); **qué máquina lo sirve no está decidido** |
+| **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
+| **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. Su destino es **decisión abierta** |
+
+> [!warning] Dos bases distintas se llaman igual: `spaces_prod`
+> La del PADRE (`docs/Runbook_Padre_Droplet_Nuevo.md:201`, creada el 24/08) y la
+> del droplet de julio, con las cinco organizaciones dentro. **Están en máquinas
+> distintas y no tienen nada que ver.** Un comando copiado de un runbook al otro
+> apunta a la base equivocada sin dar error. Mira siempre en qué máquina estás
+> antes de correr nada contra `spaces_prod`.
+
+**Cómo llega el código a cada sitio:**
+
+| Camino | Quién lo usa | Mecanismo |
+|---|---|---|
+| Tag `v*.*.*` → imagen en el canal `beta` | La flota | `.github/workflows/release.yml` (ver arriba) |
+| `beta` → `estable`, reetiquetando y **sin reconstruir** | La flota | `.github/workflows/promover.yml` (ver arriba) |
+| La instancia jala su canal, respalda, migra y conmuta | Cada instancia, sola | `infra/scripts/update.sh`, por cron a las **04:17** (`infra/scripts/provision-instancia.sh:359`) |
+| Alta de una instancia nueva | Una persona, **una sola vez** por owner | `infra/scripts/provision-instancia.sh` + `docs/runbook-alta-de-owner.md` |
+
+> [!warning] `deploy.yml` SIGUE en el repo — F3.6 no está hecha
+> El plan retira `.github/workflows/deploy.yml` en **F3.6**, porque entra por
+> `ssh` como `root` y compila en el servidor: las dos cosas que el modelo
+> prohíbe. **A 2026-08-26 el archivo sigue ahí** (`.github/workflows/deploy.yml`,
+> comprobado con `ls`). Mientras exista, sigue siendo un camino que contradice
+> el modelo, y **la nota no puede decir lo contrario**. El PADRE y DEMO hoy **no**
+> se despliegan con él.
+
+> [!danger] `X-Forwarded-For $remote_addr` es deliberado, y ahora está en tres sitios
+> `infra/nginx/snippets/proxy-app.conf:30`, `infra/nginx/demo.space-os.io.conf:123`
+> y la plantilla de instancia `infra/nginx/instancia.conf.tpl:155`
+> **reemplazan** la cabecera en vez de añadir a la que mande el cliente. Eso es
+> lo que impide que alguien elija su propio cubo de rate limit. Si se cambiara a
+> `$proxy_add_x_forwarded_for`, el limitador del login se vuelve burlable
+> mandando una IP inventada. **Al copiar una configuración de nginx a una
+> instancia nueva, esta línea se copia tal cual.**
 
 `infra/nginx/spaces.conf` y `infra/apache/spaces.conf` están **obsoletos**
-(asumen el API Fastify archivado).
+(asumen el API Fastify archivado). `spaces.conf:39` conserva además el
+`$proxy_add_x_forwarded_for` que el resto ya no usa: una razón más para no
+tomarlo de modelo.
 
 ### `basePath` + `trailingSlash`: la trampa recurrente
 

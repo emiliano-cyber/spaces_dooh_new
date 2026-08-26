@@ -7,6 +7,52 @@ La entrada más reciente va arriba.
 
 ## 2026-08-26
 
+- **Quedó escrito, de una vez y en el sitio donde se guardan las decisiones, en
+  qué consiste el producto.** Hasta hoy el modelo —«cada cliente tiene su propia
+  copia del sistema, en su propia máquina, con su propia dirección»— vivía
+  repartido entre un plan de trabajo y media docena de documentos sueltos. Ahora
+  hay **una sola hoja** que lo dice, y que además fija tres cosas que se venían
+  diciendo de formas distintas:
+  - **Cómo se llama cada cosa.** La máquina de la casa se llama **PADRE**; la
+    copia de pruebas, **DEMO**; la de cada cliente, **instancia**; el conjunto,
+    **flota**. Y, hacia el cliente, **no se dice «tenant»**: se dice «su
+    instancia» o «su organización». Esa palabra es de la base de datos, no del
+    trato con la gente.
+  - **Nadie toca el código dentro de la máquina de un cliente.** Ni para
+    arreglar algo urgente. Todo se hace en la máquina de la casa, se publica una
+    versión, y la copia del cliente **se la baja sola**. Una máquina retocada a
+    mano ya no se puede volver a levantar igual, y con muchas copias eso se
+    vuelve ingobernable.
+  - **Nombres de internet reservados.** `demo`, `beta`, `panel`, `releases`,
+    `status` y `www` no se le dan a ningún cliente. Es una nota para quien
+    administre el dominio, no un candado en el programa: la dirección de un
+    cliente ya no depende de cómo se llame su empresa dentro del sistema.
+
+- **Se escribió, y se corrigió a la baja, qué se promete cuando algo se rompe.**
+  El plan prometía que si una actualización sale mal el sistema se arregla solo
+  en cinco o diez minutos y sin perder nada. **Al ir a comprobarlo contra lo que
+  de verdad está programado, no era así**, y se corrigió en vez de dejarlo
+  bonito:
+  - Si falla la **puesta al día de la base de datos**, el sistema **no deshace
+    nada por su cuenta** y avisa. Es a propósito: deshacer sin que nadie mire
+    borraría lo que se haya trabajado desde la copia de seguridad. El cliente se
+    queda en la versión anterior, funcionando, hasta que una persona lo revise.
+  - Si la versión nueva **arranca y no responde**, ahí sí vuelve sola a la
+    anterior. El corte dura entre unos segundos y unos tres minutos.
+  - **Las copias de seguridad no son diarias.** Se hacen cuando hay versión
+    nueva. Si pasan tres semanas sin actualizaciones, la copia más reciente
+    tiene tres semanas. Conviene saberlo antes de necesitarlo.
+  - Y lo más importante: **si la máquina de la casa se cae, ningún cliente se
+    entera.** Ninguna copia le pide permiso para funcionar. Solo se queda sin
+    servicio el panel interno.
+
+- **La documentación interna dejó de describir el mundo viejo.** Dos apartados
+  contaban todavía que todas las empresas compartían un mismo programa y una
+  misma base de datos en una sola máquina. Ya no es así, y se reescribieron.
+  De paso quedó anotado —sin disimularlo— que **todavía existe en el repositorio
+  el viejo mecanismo de despliegue** que el modelo nuevo prohíbe: está previsto
+  retirarlo y **aún no se ha hecho**.
+
 - **Rectificación: la página de demostración `demo.space-os.io` SE QUEDA.** Más
   abajo en esta misma fecha se anotó lo contrario —que se retiraba y que había
   que quitarle el nombre—. **Eso era una lectura equivocada de la decisión, y se
