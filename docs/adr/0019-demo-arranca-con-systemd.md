@@ -68,6 +68,33 @@ La unidad invoca el binario de Next directamente y pasa `-p 3001` explícito.
 **② `node_modules` está en la raíz del repositorio**, no bajo `apps/web`: es un
 workspace de npm. La ruta del binario lo refleja.
 
+## Lo que salió del primer arranque real
+
+**Un error mío en la unidad:** `StartLimitBurst` y `StartLimitIntervalSec` iban
+en `[Service]`, y van en `[Unit]`. systemd lo dice —*«Unknown key name … 
+ignoring»*— pero **es un aviso, no un error**: el servicio arranca igual y el
+límite de reinicios simplemente **no se aplica**. Otro defecto que no da señal
+salvo que alguien lea el journal.
+
+**Y dos avisos que NO son defectos**, anotados en la propia unidad para que nadie
+los «arregle»:
+
+**① `⨯ Failed to load env from .env.production … EACCES`.** El usuario `demo` no
+puede leer el `.env.production` del PADRE, que está en `600 root:root` desde el
+mismo día. **Eso es lo que queremos**: DEMO no hereda su `DATABASE_URL` ni sus
+tres variables de Google, y Next continúa (`✓ Ready`).
+
+> Hay una simetría que conviene ver: **el `chmod 600` que cerró el defecto ⑦ esta
+> mañana es lo que está aislando a DEMO esta noche.** Darle permiso «para quitar
+> el error» reexpondría los secretos del plano de control al proceso más expuesto
+> de la máquina.
+
+**② `⚠ "next start" does not work with "output: standalone"`.** `next.config.mjs`
+usa `output: 'standalone'`. **El PADRE arranca igual desde el 21/08**, así que es
+condición preexistente y no de esta unidad. Lo coherente sería que ambos pasaran
+a `node .next/standalone/server.js` — y eso se decide **para los dos a la vez**,
+no solo para DEMO.
+
 ## Consecuencias
 
 ### Lo que cuesta, y es real

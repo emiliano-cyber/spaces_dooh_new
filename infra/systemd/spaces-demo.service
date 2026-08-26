@@ -46,6 +46,17 @@ Documentation=file:///var/www/Spaces/docs/adr/0019-demo-arranca-con-systemd.md
 After=network-online.target postgresql.service
 Wants=network-online.target
 
+# ⚠️ Estas DOS van en [Unit] y no en [Service]. Puestas en [Service], systemd
+# avisa «Unknown key name … ignoring» y el limite NO SE APLICA: el servicio se
+# reiniciaría sin tope. Es un aviso, no un error, así que la unidad arranca
+# igual y el defecto pasa desapercibido. Medido el 2026-08-25 en el journal.
+#
+# Cinco intentos en 60 s y se rinde. Un servicio que se reinicia en bucle rápido
+# entierra su propio error en el journal, y entonces el arranque parece «va y
+# viene» en vez de «falla siempre por esto».
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
 [Service]
 Type=simple
 User=demo
@@ -67,9 +78,6 @@ ExecStart=/usr/local/bin/node /var/www/Spaces/node_modules/next/dist/bin/next st
 
 Restart=on-failure
 RestartSec=5
-# Un servicio que se reinicia en bucle rápido esconde el error en el journal.
-StartLimitBurst=5
-StartLimitIntervalSec=60
 
 # Endurecimiento barato. No sustituye a que corra como `demo`, lo acompaña.
 NoNewPrivileges=true
@@ -77,6 +85,26 @@ PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
 # `demo.env` vive fuera de /home, así que ProtectHome no lo esconde.
+
+# ─── Dos cosas del primer arranque que NO son fallos ────────────────────────
+#
+# 1. `⨯ Failed to load env from .env.production … EACCES`
+#
+#    Es CORRECTO y conviene que siga así. Ese archivo es del PADRE y está en
+#    `600 root:root` desde el 25/08 (defecto ⑦), así que el usuario `demo` no
+#    puede leerlo — y por eso DEMO **no hereda nada suyo**: ni su `DATABASE_URL`
+#    ni sus tres variables de Google. Todo su entorno llega por el
+#    `EnvironmentFile` de arriba, y Next continúa: `✓ Ready`.
+#
+#    **NO se arregla dándole permiso.** Eso reexpondría los secretos del PADRE al
+#    proceso más expuesto de la máquina, que es justo lo que se cerró ese día.
+#
+# 2. `⚠ "next start" does not work with "output: standalone"`
+#
+#    `next.config.mjs` usa `output: 'standalone'`. El PADRE arranca igual desde
+#    el 21/08, así que es una condición PREEXISTENTE y no de esta unidad. Queda
+#    anotado: lo coherente sería que ambos pasaran a
+#    `node .next/standalone/server.js`, y eso se decide para los dos a la vez.
 
 StandardOutput=journal
 StandardError=journal
