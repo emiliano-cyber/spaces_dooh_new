@@ -245,8 +245,14 @@ fi
 #  MODO A/B · aprovisionar
 # ============================================================================
 [[ -n "$INSTANCIA" ]] || { echo "provision: falta --instancia <nombre>" >&2; exit "$EX_USO"; }
-for t in "$TPL_APP" "$TPL_INST" "$TPL_NGINX"; do
-  [[ -f "$t" ]] || { echo "provision: falta la plantilla $t" >&2; exit "$EX_ENTORNO"; }
+# Se comprueba TODO lo que se va a enviar antes de tocar el servidor. Un
+# archivo que falte a mitad deja la instancia con la base creada, el entorno
+# escrito y el actualizador incompleto — el peor sitio para pararse, porque
+# parece hecha.
+for t in "$TPL_APP" "$TPL_INST" "$TPL_NGINX" \
+         "$RAIZ/infra/scripts/update.sh" "$RAIZ/infra/scripts/respaldo.sh" \
+         "$RAIZ/scripts/migrar.mjs"; do
+  [[ -f "$t" ]] || { echo "provision: falta $t" >&2; exit "$EX_ENTORNO"; }
 done
 local_requiere sed
 [[ "$CONFIRMAR" -eq 1 ]] && local_requiere ssh
@@ -351,6 +357,13 @@ remoto "nginx -t && systemctl reload nginx"
 paso "Actualizador"
 remoto "mkdir -p /opt/space-os /var/log/space-os"
 remoto_escribir /opt/space-os/update.sh 750 < "$RAIZ/infra/scripts/update.sh"
+# `respaldo.sh` NO es opcional, y olvidarlo no da un aviso: da una instancia
+# rota en silencio. `update.sh:579-582` lo busca AL LADO SUYO y **aborta con
+# EX_CONFIG si no esta** —«sin el, la instancia se actualizaria sin respaldo
+# fuera del droplet y llenando el disco»—, asi que una instancia recien
+# aprovisionada fallaria en CADA corrida del cron, de madrugada y sin que nadie
+# mire. Se detecto al escribir el ADR 0022, no al probar el script.
+remoto_escribir /opt/space-os/respaldo.sh 750 < "$RAIZ/infra/scripts/respaldo.sh"
 remoto_escribir /opt/space-os/migrar.mjs 640 < "$RAIZ/scripts/migrar.mjs"
 remoto_escribir /etc/cron.d/space-os-update 644 <<'CRON'
 # La instancia se actualiza SOLA. El padre no entra por ssh a desplegar.
