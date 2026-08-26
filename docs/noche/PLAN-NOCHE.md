@@ -1,0 +1,329 @@
+# Plan de trabajo nocturno — Fases 5, 6 y 8 (solo repo, sin servidor)
+
+**Autoridad:** `docs/Plan_Instancias_Soberanas_v3.md` (plan v3, modelo de despliegue por instancias
+soberanas). La corrección del 12/08 (`2026-08-12-correccion-modelo-instancias-space-os.pdf`) **no
+está en el repo**; sus cuatro decisiones de §8 se leen en la **§4.4 del v3**, que las resume con lo
+que cambia según cada respuesta. Ningún agente la busca.
+Este documento no reinventa nada: reparte las tareas que el v3 ya definió entre agentes
+que pueden correr sin supervisión, y marca con una línea roja todo lo que necesita una persona.
+
+**Rama de trabajo:** `feat/servidor-padre-instancias` (o un worktree hijo por ola, ver §5).
+**Fecha de la corrida:** _la anota el orquestador al arrancar._
+
+---
+
+## 1. Línea roja — lo que ningún agente hace jamás
+
+Estas prohibiciones no son consejos. Un agente que las cruce se detiene y escribe en la bitácora.
+
+| Prohibido | Por qué |
+|---|---|
+| `ssh`, `scp`, `rsync` a cualquier host | El v3 no ejecutó nada contra servidores y esta corrida tampoco |
+| `curl` / `wget` contra producción, DEMO o cualquier dominio real | Igual |
+| `doctl`, `aws`, `s3cmd`, `certbot`, `nginx -s`, `pm2` | Infraestructura viva |
+| `git push`, `git tag`, `gh workflow run`, `gh run` | La persona supervisa y sube |
+| `docker push`, tocar el registry | §8.4 sin decidir |
+| Abrir `apps/web/lib/test/aislamiento.e2e.test.ts` | Invariante 7. Ni para leer y editar: si una tarea obliga a editarlo, **esa tarea rompió el comportamiento de hoy** → detenerse |
+| Tocar `db/schema.sql` | Invariante 8: los cambios de esquema van por migración |
+| Tocar `apps/web/lib/test/servidor-e2e.ts` | El v3 lo dice explícito: no se toca en todo el plan |
+| Escribir un valor real de registry, dominio, IP o token en una plantilla | Van como parámetro (`REGISTRY`, `__DOMINIO__`) |
+| Decidir P1, P2, P3, P4 o P4-bis | Las decide Jochelo. El agente las señala |
+
+`git commit` **sí** está permitido y es obligatorio: una tarea = un commit con sentido.
+`git push` no. La persona revisa el log y empuja por la mañana.
+
+- **Alternativas a lo denegado:** en vez de `find … | xargs rg`, usa `rg` directo, `find -exec` o
+  `git ls-files`. En vez de `env VAR=x cmd`, exporta la variable en una línea aparte. `xargs` y
+  `env` están denegados a propósito y no se piden de vuelta.
+- **Un permiso denegado NO se rodea.** Ni con otra forma del comando, ni metiéndolo en un script,
+  ni con `bash -c`. Un deny es la línea roja hablando: se aparca esa parte de la tarea, se escribe
+  la entrada de decisión si hace falta, y se sigue con el resto.
+
+---
+
+## 2. Fuera de alcance esta noche (las hace la persona)
+
+- **F3.5** ensayo de update en DEMO — necesita servidor.
+- **F3.6** retirar `deploy.yml` — es el único mecanismo de despliegue mientras el droplet actual
+  siga siendo la producción de los tenants reales.
+- **F4.5** smoke de DEMO y cierre del riesgo.
+- **F5.6** ensayo de aprovisionamiento en droplet desechable.
+- **F5.7** alta de la primera instancia de owner — bloqueada por §8.2 y §8.3.
+- **F6.3** smoke del panel — necesita DEMO viva.
+- **F7.x** Fase 7 completa.
+- **F2.6** condicionada a P4-bis. **No se fusiona**, pero sí se puede preparar: ver ola 5.
+
+Todo lo demás de las fases 5, 6 y 8 es código, plantillas o documentos: se hace esta noche.
+
+---
+
+## 3. Invariantes que todo agente respeta (v3, «Restricciones globales»)
+
+1. Nadie edita código en el servidor de una instancia. Todo nace en el PADRE.
+2. El update es pull. El padre no empuja ni entra por SSH (excepción: aprovisionamiento inicial).
+3. El artefacto es idéntico para todas las instancias. Lo que cambia vive en su base y su `.env`.
+4. `tenantActual()` no aprende a leer el `Host`; las cookies siguen sin `domain`.
+5. `qRaw` solo sobre tablas exentas de RLS; lo que lee `config_negocio` usa `qConTenant`.
+6. La RLS no se retira.
+7. `aislamiento.e2e.test.ts` pasa sin modificarlo.
+8. Migraciones transaccionales, idempotentes, expand → contract.
+9. Autoregistro encendido solo en DEMO.
+10. Commits en español, `tipo(ámbito): descripción en minúscula`.
+11. Al terminar cada tanda: entrada en `docs/Registro_Cambios.md` y revisión de `vault/`.
+12. Dos suites: `npm test` y `npm run test:e2e`.
+13. Ninguna tarea corre en la instancia de un owner sin pasar antes por DEMO.
+14. Una instancia no le pregunta nada al padre para arrancar.
+
+**Disciplina de prueba, sin excepción:** primero se escribe la prueba, se corre y **se ve en rojo**;
+solo entonces se implementa. Un agente que no puede mostrar el rojo en la bitácora no ha hecho la
+tarea. Los casos negativos son el corazón: el insert que debe truncar, el tenant huérfano que no
+debe existir, el bootstrap que no debe crear una segunda organización, el token que no debe revelar
+la versión.
+
+**Regla de honestidad:** si al abrir un archivo el repo no dice lo que el v3 afirma que dice
+(línea distinta, función renombrada, columna con otro nombre), el agente **no adivina**: anota el
+hallazgo en la bitácora con la referencia real, marca `[SIN VERIFICAR]` lo que no pudo comprobar y
+sigue solo si el cambio no altera el diseño. Si lo altera, se detiene.
+
+---
+
+## 4. La cola, por olas
+
+Las olas existen por dependencia real y por propiedad de archivos. Dentro de una ola los conjuntos
+de archivos son **disjuntos**, así que los agentes pueden correr en paralelo. Entre olas hay una
+puerta.
+
+### Ola 1 — cimientos (3 agentes en paralelo)
+
+| Agente | Tareas | Archivos que posee |
+|---|---|---|
+| `altas-transaccionales` | F5.1, F5.2 | `apps/web/lib/server/db.ts` (añadir al final), `usuarios-repo.ts`, `cuentas-controller.ts`, `app/api/bootstrap/route.ts` (nuevo), `middleware.ts` (solo la lista de exentas de CSRF, `:55-65`), `lib/test/alta-organizacion.e2e.test.ts` (nuevo), `lib/test/bootstrap.e2e.test.ts` (nuevo) |
+| `plantillas-instancia` | F5.3 | `infra/env/instancia.env.example` (nuevo), `infra/nginx/instancia.conf.tpl` (nuevo), `apps/web/lib/entorno.test.ts` (crece) |
+| `endpoint-flota` | F6.1, F5.8 (lado código) | `app/api/version/route.ts` (nuevo), `lib/test/version.e2e.test.ts` (nuevo), `infra/scripts/update.sh` (**solo** la línea `SALUD_URL`) |
+
+> `infra/scripts/update.sh` lo toca `endpoint-flota` en esta ola y `panel-flota` en la ola 3.
+> Nunca los dos a la vez. Si `panel-flota` lo encuentra bloqueado, espera.
+
+**Puerta 1:** `npm test` y `npm run test:e2e` en verde, `aislamiento.e2e.test.ts` intacto
+(`git diff --stat` no lo menciona), tres commits en el log.
+
+### Ola 2 — aprovisionamiento (1 agente)
+
+| Agente | Tareas | Archivos |
+|---|---|---|
+| `aprovisionamiento` | F5.4, F5.5 (**preparada, no aplicada**) | `infra/scripts/provision-instancia.sh` (nuevo), `docs/runbook-alta-de-owner.md` (nuevo), `infra/scripts/README.md` (nuevo), `infra/scripts/setup-droplet.sh` (solo el bloque final `:82-106`) |
+
+F5.4 depende de F5.2 y F5.3 (ola 1). Depende también de F3.4 y F2.4, que ya existen.
+F5.5 depende de **F3.6, que la hace la persona**: el borrado de los cuatro scripts se deja en una
+rama aparte `chore/retirar-scripts-pista-archivada`, sin fusionar, con el `rg` de comprobación ya
+corrido y su salida pegada en la bitácora. No se borra nada de `main` esta noche.
+
+**Puerta 2:** el script pasa `bash -n` y `shellcheck` si está disponible; `--dry-run` no ejecuta
+nada; `rg -n "space-os\.io" infra/env infra/nginx/instancia.conf.tpl` devuelve solo comentarios.
+
+### Ola 3 — panel de flota (1 agente)
+
+| Agente | Tareas | Archivos |
+|---|---|---|
+| `panel-flota` | F6.2, F6.4 | `apps/flota/` completo (`package.json`, `flota.json`, `estado.mjs`, `estado.test.ts`, `reporte.mjs`, `estado/`, `README.md`), `infra/scripts/update.sh` (el emisor del reporte) |
+
+**Puerta 3:** `cd apps/flota && npx vitest run estado.test.ts` en verde;
+`node estado.mjs` con una instancia inventada e inalcanzable devuelve **salida 0**;
+`rg -n "token" apps/flota/flota.json` sin resultados.
+
+### Ola 4 — cierre documental (1 agente)
+
+| Agente | Tareas | Archivos |
+|---|---|---|
+| `cierre-documental` | F8.1, F8.3 | `docs/adr/0014-instancia-dedicada-por-owner.md` (nuevo), `vault/02-Backend/multi-tenancy-y-rls.md`, `vault/01-Arquitectura/entorno-y-despliegue.md`, `docs/Registro_Cambios.md` |
+
+F8.2 (poner el aviso de ARCHIVADO en los dos documentos del 11) **no se hace**: viven fuera del
+repo, en `C:\Users\Server\Downloads\server padre\`. El agente deja el texto exacto a pegar en la
+bitácora, para que la persona lo copie.
+
+**Puerta 4:** `rg -n "una sola base|UN proceso|todas las empresas a la vez|21 tablas" vault/` sin
+resultados fuera de secciones marcadas como historia.
+
+### Ola 5 — condicionada, y solo si sobra noche (1 agente)
+
+| Agente | Tarea | Archivos |
+|---|---|---|
+| `plantillas-instancia` | F2.6, **en la rama `feat/autoregistro-en-arranque`, sin fusionar** | `apps/web/lib/entorno.ts`, `entorno.test.ts`, `app/api/signup/route.ts` (`:18`), `app/(app)/login/page.tsx` (`:30`), `lib/server/google-oauth.ts` (`:90`), `.env.example`, `.env.production.example` |
+
+Esta ola existe por el modo automático: P4-bis no se puede responder de noche, pero la salida (b)
+sí se puede **tener escrita y probada** por si Jochelo la elige. Condiciones estrictas:
+
+- solo se abre si las olas 1 a 4 cerraron y queda tiempo;
+- va en su propia rama y **no se fusiona**, pase lo que pase;
+- si Jochelo elige la salida (a) —dos imágenes por versión— la rama se borra sin más, y eso queda
+  dicho en la entrada de decisión;
+- el paso 3 de F5.4 en el v3 lleva un `[SIN VERIFICAR]`: no está claro si el valor llega a
+  `login/page.tsx` por props del layout o por `api/auth/metodos`. El agente **abre el archivo antes
+  de elegir**, y si sigue sin estar claro, aparca esa parte.
+
+### Ola 6 — auditoría (1 agente, solo lectura)
+
+| Agente | Tarea |
+|---|---|
+| `verificador-noche` | Corre las dos suites completas, audita los 14 invariantes contra el diff de la noche, cuenta las pruebas nuevas y sus negativos, revisa que el archivo de decisiones esté bien escrito, y escribe el informe de la mañana |
+
+El `verificador-noche` **no escribe código**. Solo lee, corre pruebas y escribe
+`docs/noche/informe-<fecha>.md`. También se invoca en cada puerta.
+
+---
+
+## 5. Aislamiento entre agentes
+
+Dos opciones, en orden de preferencia:
+
+1. **Worktree por ola** (el repo ya trabaja así: `.claude\worktrees\servidor-padre`).
+   `git worktree add ../noche-ola1 -b noche/ola1` y así. La fusión la hace el orquestador al pasar
+   cada puerta, con `--no-ff` para que la ola quede legible en el log.
+2. **Árbol único, olas estrictamente secuenciales.** Más lento, cero conflictos. Es el modo por
+   defecto si `git worktree` falla por cualquier razón.
+
+Dentro de una ola, el orquestador nunca lanza dos agentes que compartan un archivo. Si la cola se
+altera y aparece un solapamiento, el orquestador serializa: es más barato esperar que resolver un
+conflicto a las tres de la mañana sin nadie mirando.
+
+---
+
+## 6. Bitácora
+
+Cada agente escribe en `docs/noche/bitacora-<fecha>.md`, **añadiendo al final, nunca reescribiendo**,
+un bloque por tarea:
+
+```
+## F5.1 — withTxBootstrap  [agente: altas-transaccionales]  [hh:mm]
+Rojo: <comando> → <N casos fallando, cuál y por qué>
+Verde: <comando> → <N pasando>
+Archivos: <lista>
+Commit: <hash corto> <mensaje>
+Hallazgos: <lo que el repo dice y el v3 no, o [SIN VERIFICAR]>
+Para la persona: <nada | lo que hay que revisar antes de empujar>
+```
+
+Un bloque sin la línea `Rojo:` es una tarea no hecha, aunque el código esté escrito.
+
+---
+
+## 7. Modo automático: aparcar, no parar
+
+La corrida es **desatendida**. Nadie está despierto para contestar. De eso salen tres reglas que
+gobiernan todo lo demás:
+
+1. **Ningún agente pregunta nada.** Ni una pregunta interactiva, ni una espera de confirmación, ni
+   un «¿procedo?». Si un agente se encuentra formulando una pregunta, la escribe en el archivo de
+   decisiones y sigue.
+2. **Nunca se elige por Jochelo.** La tentación de «decidir lo razonable para no perder la noche»
+   es exactamente lo que este plan prohíbe. Una decisión tomada a las tres de la mañana por un
+   agente es una decisión que nadie revisó.
+3. **Se aparca la tarea, no la noche.** Lo que no se puede hacer sin una respuesta se aparca; lo que
+   sí, se hace. Al amanecer hay trabajo hecho y una lista corta de preguntas, no un árbol congelado.
+
+### Aparcar una tarea
+
+Cuando una tarea necesita una respuesta humana, el agente:
+
+1. **Deja el árbol limpio.** Lo que ya esté completo y verde se commitea. Lo que esté a medias se va
+   a una rama `aparcada/<FX.Y>-<motivo-corto>` o a un `git stash push -m "aparcada/<FX.Y>"`. Nunca
+   se deja un archivo a medias en la rama de trabajo.
+2. **Escribe la entrada en `docs/noche/DECISIONES-<fecha>.md`** con el formato de §8. Esa entrada es
+   el producto de la tarea aparcada: si está mal escrita, la mañana se pierde igual.
+3. **Anota el bloque en la bitácora** con `Estado: APARCADA` y el motivo en una línea.
+4. **Devuelve el control al orquestador y sigue con la siguiente tarea suya**, si tiene otra.
+
+### Qué se aparca y qué no
+
+| Situación | Qué hace el agente |
+|---|---|
+| Hace falta una de las decisiones de §8 (P1–P4, P4-bis) o P5/P6 | **Aparca** y escribe la entrada. No elige camino |
+| El repo contradice el v3 en algo que **cambia el diseño** | **Aparca** y escribe la entrada con la referencia real de hoy |
+| El repo contradice el v3 en una **línea o un nombre** | **Sigue**, usa la referencia real y lo anota como hallazgo |
+| Una suite se pone roja y dos intentos no la arreglan | **Revierte su propio commit**, aparca la tarea, y deja el diagnóstico en la entrada. El árbol vuelve al verde de partida |
+| La tarea obligaría a editar `aislamiento.e2e.test.ts` o `db/schema.sql` | **Aparca de inmediato.** No es una decisión que se pueda tomar por la mañana con un sí: es señal de que la tarea rompió el comportamiento de hoy, y eso va en la entrada como hallazgo grave |
+| Aparece la tentación de tocar un servidor | **Aparca** la parte que lo necesite y sigue con la parte que no. Nunca se cruza la línea roja, ni «solo para comprobar» |
+
+### La cascada de dependencias
+
+Aparcar una tarea aparca **automáticamente** las que dependían de ella. El orquestador no lanza un
+agente cuya entrada no existe. La cascada se escribe explícita en el informe: «F5.4 aparcada ⇒ F5.5
+no se preparó ⇒ el README de `infra/scripts/` queda sin escribir». Sin esa línea, por la mañana
+parece que faltó tiempo cuando faltó una respuesta.
+
+Si una ola entera queda aparcada, el orquestador **salta a la siguiente** y lo dice. No se queda
+esperando.
+
+### La noche solo se detiene por una razón
+
+Que el árbol no se pueda dejar limpio: un conflicto de fusión que el orquestador no sepa resolver,
+o un `git` en estado raro. En ese caso commitea lo que esté completo, deja lo demás en un stash
+nombrado, y escribe el motivo **en la primera línea del informe**. Todo lo demás se aparca y la
+corrida continúa.
+
+---
+
+## 8. El archivo de decisiones
+
+`docs/noche/DECISIONES-<fecha>.md`. Es el único documento que se escribe pensando en que alguien lo
+contesta. Se lee de pie, con el teléfono en la mano, antes del café. Por eso: **una entrada por
+decisión, ordenadas por cuánto desbloquean, y respondibles con una palabra.**
+
+Formato obligatorio de cada entrada:
+
+```
+### D<n> · <la pregunta, en una línea>
+Bloquea:      <FX.Y, FX.Z…> y en cascada <…>
+Dónde muerde: <archivo:línea o paso exacto del script>
+Referencia:   <§8.3 del documento del 12 | P4-bis del v3 | nueva>
+
+Opción A — <nombre>
+  Qué implica:  <consecuencia técnica concreta>
+  Qué cuesta:   <trabajo, dinero o riesgo>
+  Qué se hace mañana: <la tarea concreta que se desbloquea>
+
+Opción B — <nombre>
+  (igual)
+
+Lo que el repo ya dice al respecto: <precedente real, con referencia; o «nada»>
+Lo que NO cambia según la respuesta: <para que la decisión se vea pequeña cuando es pequeña>
+
+TU RESPUESTA: ____
+```
+
+Tres reglas sobre este archivo:
+
+- **Nunca se escribe una recomendación disfrazada de opción.** Si un camino tiene precedente en el
+  repo, eso va en «lo que el repo ya dice», con su referencia, y Jochelo saca su propia conclusión.
+  El v3 hizo exactamente eso con P4-bis: dijo que la salida (b) tiene precedente en `GOOGLE_OAUTH`
+  (`.env.example:38-46`, ADR 0012 decisión 5) y aun así no la eligió.
+- **Ninguna entrada duplica otra.** Si dos tareas se aparcan por la misma pregunta, es **una**
+  entrada con dos tareas en «Bloquea».
+- **Si no hay decisiones, el archivo se crea igual**, con una sola línea: «Ninguna. Las N tareas
+  previstas se completaron.» Su ausencia es ambigua; su presencia vacía no lo es.
+
+### Reanudar por la mañana
+
+Rellenas los `TU RESPUESTA:` y lanzas `/noche continuar`. El orquestador lee el archivo, recupera
+las ramas y stashes `aparcada/*`, y ejecuta lo que la respuesta desbloquea. Una entrada sin
+responder se queda aparcada; no se adivina.
+
+---
+
+## 9. Lo que la persona encuentra por la mañana
+
+Por orden de lectura, y pensado para que los tres primeros se lean en cinco minutos:
+
+1. **`docs/noche/DECISIONES-<fecha>.md`** — lo primero. Preguntas respondibles con una palabra, en
+   orden de cuánto desbloquean. Se contesta, se lanza `/noche continuar`.
+2. **`docs/noche/informe-<fecha>.md`** — el veredicto en la primera línea: qué olas cerraron, qué se
+   aparcó y por qué, y la cascada de cada aparcada.
+3. **`docs/noche/bitacora-<fecha>.md`** — el detalle, tarea por tarea, con el rojo y el verde de
+   cada prueba.
+4. Un log de commits en español, uno por tarea, **sin empujar**.
+5. Las ramas y stashes que esperan: `chore/retirar-scripts-pista-archivada` (espera a F3.6),
+   `feat/autoregistro-en-arranque` si se preparó (espera a P4-bis), y cualquier `aparcada/*`.
+6. Las dos suites en el mismo verde en que las dejaste, o el motivo escrito de por qué no.
+
+El árbol está limpio y `main` no cambió. Nada de lo que la noche hizo está a medias en la rama de
+trabajo: o está commiteado y verde, o está en una rama aparcada con su entrada de decisión.

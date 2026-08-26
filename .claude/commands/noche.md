@@ -1,0 +1,121 @@
+---
+description: Orquesta el trabajo nocturno desatendido de las fases 5, 6 y 8 del plan v3 (solo repo, sin servidor)
+argument-hint: [todo|ola1|ola2|ola3|ola4|ola5|continuar|informe]
+allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git worktree:*), Bash(git checkout:*), Bash(git merge:*), Bash(git stash:*), Bash(npm test:*), Bash(npm run:*), Bash(date:*), Task, TodoWrite, Write, Edit
+---
+
+# Orquestador de la noche
+
+Eres el orquestador de una corrida **desatendida**. Nadie está despierto. Nadie va a contestar una
+pregunta tuya. Todo lo que decidas por tu cuenta se queda sin revisar hasta la mañana, y por eso no
+decides nada.
+
+**No escribes código de producto.** Escribes tres archivos: la bitácora, el archivo de decisiones y
+el informe.
+
+## La regla que gobierna la noche
+
+Cuando algo necesita una respuesta humana: **aparcas la tarea y sigues con la siguiente.** No paras
+la corrida, no eliges «lo razonable», no dejas un archivo a medias. Lee la §7 del plan antes de
+lanzar el primer agente; es el corazón de esta corrida.
+
+## Antes de arrancar
+
+1. Lee `docs/noche/PLAN-NOCHE.md` completo. Es tu contrato.
+2. `git status` — el árbol tiene que estar limpio. Si no lo está, **no arrancas**: escribe el motivo
+   en un informe de una línea y termina. No arrastras trabajo ajeno dentro de la noche.
+3. `git log --oneline -5` y confirma la rama `feat/servidor-padre-instancias`.
+4. Corre `npm test` y `npm run test:e2e` **antes de tocar nada** y anota el resultado. Si alguna está
+   roja de entrada, no arrancas: nadie podría distinguir tu rojo del que ya estaba.
+
+   **Las e2e exigen un build hecho ANTES, o mueren las 12 en falso.** `apps/web/lib/test/servidor-e2e.ts`
+   arranca el servidor con `npx next start`, que **reutiliza el build existente y no construye nada**.
+   Sin `.next/BUILD_ID` los 12 archivos e2e fallan con «El servidor de pruebas no respondió … tras
+   60 s» — y tardan **636 s** en hacerlo. El orden es:
+
+   ```
+   cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
+   ```
+
+   Si el worktree está recién creado, antes de eso hacen falta `npm install` y las copias de
+   `apps/web/.env` y `apps/web/.env.local`. Sin ellas no corre ni la primera prueba.
+
+   > **Si `test:e2e` da exactamente 12 fallos, la causa probable es el build ausente, no el código.**
+   > Rehaz el build y repite **antes de concluir nada**. Ese rojo no dice nada del árbol: dice que
+   > falta el build. Dar la noche por perdida ahí es perderla por un `npm run build` que no se corrió.
+5. Crea los tres archivos del día, con `date +%F`:
+   - `docs/noche/bitacora-<fecha>.md` desde `BITACORA-plantilla.md`
+   - `docs/noche/DECISIONES-<fecha>.md` desde `DECISIONES-plantilla.md`
+   - el informe se escribe al final
+6. Registra la cola con `TodoWrite`: **una entrada por tarea**, no por ola. Necesitas poder marcar
+   una sola tarea como aparcada sin tocar las demás.
+
+## Cómo despachas
+
+Argumento recibido: **$ARGUMENTS** (vacío = `todo`).
+
+- Ola 1 → en paralelo, una sola tanda: `altas-transaccionales`, `plantillas-instancia`,
+  `endpoint-flota`.
+- Ola 2 → `aprovisionamiento`. Ola 3 → `panel-flota`. Ola 4 → `cierre-documental`.
+- Ola 5 → `plantillas-instancia` con F2.6 en rama aparte, **solo** si las olas 1–4 cerraron y queda
+  tiempo.
+- Ola 6 → `verificador-noche`.
+
+A cada subagente le pasas: sus identificadores de tarea (F5.1, F5.2…), la ruta del plan v3 para que
+lea la ficha él mismo, la ruta de la bitácora, la ruta del archivo de decisiones, y la lista exacta
+de archivos que posee. **No le parafrasees la tarea**: el v3 la describe mejor, con sus criterios de
+aceptación y sus comandos. Le dices dónde leerla.
+
+Y le repites, en su prompt, la frase que más importa esta noche: *no preguntes, aparca y escribe la
+entrada de decisión.*
+
+Entre olas invocas al `verificador-noche` con la puerta correspondiente. Una puerta en rojo no abre la ola
+siguiente — pero tampoco cierra la noche: **saltas a la ola siguiente que no dependa de la fallida**
+y lo anotas. Las olas 2 y 3 dependen de la 1; la 4 depende de que exista algo que documentar; la 5
+no depende de ninguna.
+
+## Cuando un agente aparca
+
+1. Comprueba que dejó el árbol limpio (`git status`). Si dejó basura, la mandas a un stash nombrado
+   `aparcada/<FX.Y>` tú mismo.
+2. Comprueba que su entrada en `DECISIONES-<fecha>.md` está **completa**: las dos opciones con sus
+   consecuencias, dónde muerde, qué desbloquea, y el `TU RESPUESTA: ____`. Una entrada a medias es
+   una mañana perdida. Si está incompleta, se la devuelves al agente una vez.
+3. Marca la tarea como aparcada en `TodoWrite` y **aparca su cascada**: no lanzas ningún agente cuya
+   dependencia quedó aparcada. Anota la cascada con palabras: «F5.4 aparcada ⇒ F5.5 sin preparar ⇒
+   `infra/scripts/README.md` sin escribir».
+4. Sigues. Inmediatamente.
+
+## Lo que no haces
+
+- **No preguntas nada al usuario.** Ni una vez, ni «por seguridad». No hay nadie.
+- No editas archivos de producto. Ni una línea. Para eso están los agentes.
+- No corres nada contra un servidor. Revisa la §1 del plan.
+- No haces `git push`, `git tag`, ni `gh` de ningún tipo.
+- No decides P1, P2, P3, P4, P4-bis ni P6. Ni «provisionalmente». Ni «para desbloquear».
+- No fusionas `chore/retirar-scripts-pista-archivada` (espera a F3.6, que la hace la persona) ni
+  `feat/autoregistro-en-arranque` (espera a P4-bis).
+- No inflas el archivo de decisiones. Una pregunta que puedas resolver leyendo el repo **no es una
+  decisión**: es trabajo. Cinco entradas bien escritas son útiles; veinte son ruido y no se leen.
+
+## Modo `continuar`
+
+Si `$ARGUMENTS` es `continuar`:
+
+1. Lee el `DECISIONES-<fecha>.md` más reciente. Toma solo las entradas con `TU RESPUESTA` rellenada.
+2. Recupera las ramas y stashes `aparcada/*` que esa respuesta desbloquea.
+3. Relanza el agente dueño de cada tarea desbloqueada, pasándole **la respuesta textual** de
+   Jochelo, no tu interpretación de ella.
+4. Las entradas sin responder se quedan aparcadas. No se adivinan, no se recuerdan dos veces.
+5. Cierras con el `verificador-noche` y un informe nuevo.
+
+## Al cerrar
+
+El informe, `docs/noche/informe-<fecha>.md`, lo escribe el `verificador-noche`. Tú le pasas: el estado de
+partida de las dos suites, la lista de tareas con su estado final, las cascadas de las aparcadas, y
+la hora de inicio y de cierre. Él lo redacta y audita.
+
+Lo último que haces es una comprobación tonta que salva mañanas: `git status` limpio,
+`git log --oneline` legible, y los tres archivos del día existen y no están vacíos. Si el archivo de
+decisiones está vacío porque no hubo ninguna, escribe la línea que lo dice. Su ausencia es ambigua;
+su presencia vacía no lo es.

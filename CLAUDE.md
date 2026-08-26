@@ -400,3 +400,30 @@ La lista está en `AGENTES.md`:
 - [ ] Nota de la bóveda actualizada **en el mismo commit**
 - [ ] Entrada en la bitácora, si se nota desde la aplicación
 - [ ] Ningún secreto en el diff
+
+---
+
+## Corridas nocturnas — modelo de instancias soberanas
+
+El plan vigente es el v3 (`docs/Plan_Instancias_Soberanas_v3.md`). El reparto de trabajo nocturno
+vive en `docs/noche/PLAN-NOCHE.md`; se lanza con `/noche` y se reanuda con `/noche continuar`.
+
+Reglas que aplican a cualquier sesión en este repo, no solo de noche:
+
+- **Nadie edita código en el servidor de una instancia.** Todo nace en el PADRE. El update es pull.
+- **No se toca** `apps/web/lib/test/aislamiento.e2e.test.ts` (invariante 7), ni
+  `apps/web/lib/test/servidor-e2e.ts`, ni `db/schema.sql` directo (los cambios van por migración).
+  Si una tarea obliga a abrirlos, esa tarea rompió el comportamiento de hoy: se para y se dice.
+- **Los 14 invariantes** están en la §3 de `docs/noche/PLAN-NOCHE.md`. Se leen antes de tocar
+  código de multi-tenancy, altas, migraciones o infraestructura.
+- **Prueba primero, en rojo.** Una tarea sin su rojo demostrado no está hecha. Los casos negativos
+  son el corazón: el aislamiento se demuestra por lo que impide.
+- **Commits en español**, `tipo(ámbito): descripción en minúscula`. Uno por tarea con sentido.
+- **Nunca** `ssh`, `curl` a producción, `doctl`, `psql` contra un servidor, `certbot`, `pm2`,
+  `git push`, `git tag`, `gh`. Los comandos contra servidores se escriben para que los corra una
+  persona. Las tareas de servidor (F3.5, F3.6, F4.5, F5.6, F5.7, F6.3, Fase 7) son de Carlos.
+- **Las cuatro decisiones de §8 (P1–P4) y P4-bis no las decide Claude.** En modo desatendido se
+  aparca la tarea y se escribe la entrada en `docs/noche/DECISIONES-<fecha>.md`. Aparcar la tarea,
+  nunca la noche. Y nunca elegir "lo razonable" para no perder tiempo.
+- **Ningún valor real quemado** en archivos versionados: ni dominios, ni IPs, ni tokens, ni el
+  nombre del registry. Van como parámetro (`REGISTRY`, `__DOMINIO__`).
