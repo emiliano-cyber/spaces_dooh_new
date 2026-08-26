@@ -97,7 +97,15 @@
 #    ENV_APP=/etc/space-os/app.env      variables de la app (docker --env-file)
 #    DOCKER_OPCIONES_APP="--publish 127.0.0.1:3000:3000"
 #    RED_MIGRACION=host                 red del contenedor efimero que migra
-#    SALUD_URL=http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/
+#    SALUD_URL=http://127.0.0.1:3000/spaces-dooh/api/version/
+#                                       F6.1: apunta a /api/version/, que
+#                                       CONSULTA LA BASE. La anterior era
+#                                       /api/auth/metodos/, que solo lee
+#                                       variables de entorno y contesta 200
+#                                       aunque Postgres este muerto -- el
+#                                       PADRE estuvo cuatro dias asi. Una
+#                                       salud que no toca la base aprueba
+#                                       despliegues rotos.
 #    SALUD_INTENTOS=10  SALUD_ESPERA=3
 #    PULL_ESPERAS="1 5 30"              esperas del pull, en s. Vacio = ninguna
 #    RUNNER_MIGRACIONES=/opt/space-os/migrar.mjs   (ver el aviso de abajo)
@@ -531,7 +539,7 @@ RED_MIGRACION="${RED_MIGRACION:-host}"
 # Hoy apunta a `metodos` y no a `/api/version` porque `/api/version` todavia no
 # existe. `metodos` es publica, sin sesion y sin datos de negocio
 # (`apps/web/app/api/auth/metodos/route.ts`).
-SALUD_URL="${SALUD_URL:-http://127.0.0.1:3000/spaces-dooh/api/auth/metodos/}"
+SALUD_URL="${SALUD_URL:-http://127.0.0.1:3000/spaces-dooh/api/version/}"
 SALUD_INTENTOS="${SALUD_INTENTOS:-10}"
 SALUD_ESPERA="${SALUD_ESPERA:-3}"
 # Una espera por reintento del pull, y el numero de reintentos sale de cuantas
