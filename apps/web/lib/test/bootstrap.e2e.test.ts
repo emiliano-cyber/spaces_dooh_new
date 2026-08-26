@@ -156,3 +156,82 @@ describe('F5.2 · con token configurado', () => {
     expect(await cuantosTenants()).toBe(1)
   })
 })
+
+// ─── 3 · La exención de CSRF, acotada ───────────────────────────────────────
+//
+// F5.2 añade `/api/bootstrap` a la cadena de exentos de CSRF en
+// `middleware.ts`. Esa cadena protege TODAS las mutaciones autenticadas de la
+// aplicación, y hasta hoy NINGUNA prueba comprobaba que rechace lo que debe
+// rechazar: el `Cliente` de `servidor-e2e` siempre manda el token, así que un
+// `||` de más habría dejado la puerta abierta con las 225 e2e en verde.
+//
+// Las dos pruebas se necesitan MUTUAMENTE: la primera demuestra que la
+// exención funciona, la segunda que no se derramó al resto.
+describe('F5.2 · la exencion de CSRF no se derrama', () => {
+  let galleta = ''
+
+  beforeAll(async () => {
+    // Sesión real del Dueño creado por el arranque (describe anterior).
+    const r = await fetch(`${BASE}/api/auth/login/`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.9.1.1' },
+      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+      redirect: 'manual',
+    })
+    expect(r.status).toBe(200)
+    for (const [n, v] of r.headers) {
+      if (n.toLowerCase() !== 'set-cookie') continue
+      for (const trozo of v.split(/,(?=\s*[^;=]+=)/)) {
+        const par = trozo.trim().split(';')[0]
+        if (par.includes('=')) galleta += (galleta ? '; ' : '') + par.trim()
+      }
+    }
+    expect(galleta).toContain('spaces_sesion=')
+  }, 60_000)
+
+  it('una mutacion autenticada SIN el token CSRF sigue recibiendo 403', async () => {
+    const r = await fetch(`${BASE}/api/perfil/`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', cookie: galleta, 'x-forwarded-for': '10.9.1.2' },
+      body: JSON.stringify({ nombre: 'Intento sin CSRF' }),
+      redirect: 'manual',
+    })
+    expect(r.status).toBe(403)
+
+    // Y que ese 403 viene del CSRF y no de otra cosa: la MISMA peticion, con el
+    // token correcto, deja de darlo. Sin esta segunda mitad, un 403 por permisos
+    // o por sesion invalida se leeria como «el CSRF funciona».
+    const tok = decodeURIComponent(/spaces_csrf=([^;]+)/.exec(galleta)?.[1] ?? '')
+    expect(tok).not.toBe('')
+    const ok = await fetch(`${BASE}/api/perfil/`, {
+      method: 'PATCH',
+      headers: {
+        'content-type': 'application/json',
+        cookie: galleta,
+        'x-csrf-token': tok,
+        'x-forwarded-for': '10.9.1.2',
+      },
+      body: JSON.stringify({ nombre: 'Intento con CSRF' }),
+      redirect: 'manual',
+    })
+    expect(ok.status).not.toBe(403)
+  })
+
+  it('y `/api/bootstrap` SI esta exenta: con sesion y sin CSRF no da 403', async () => {
+    // Devuelve 404 —la base ya no está vacía—, y ese 404 es justo la prueba:
+    // sin la exención, el middleware habría cortado con 403 antes de llegar.
+    const r = await fetch(`${BASE}/api/bootstrap/`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        cookie: galleta,
+        'x-bootstrap-token': TOKEN,
+        'x-forwarded-for': '10.9.1.3',
+      },
+      body: JSON.stringify(cuerpo()),
+      redirect: 'manual',
+    })
+    expect(r.status).not.toBe(403)
+    expect(r.status).toBe(404)
+  })
+})
