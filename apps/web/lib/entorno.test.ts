@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { autoregistroActivo } from './entorno'
+import { autoregistroActivo, nombreDeMarca, MARCA_POR_OMISION } from './entorno'
 
 // ============================================================================
 //  Banderas del entorno que se deciden AL ARRANCAR, no al compilar.
@@ -37,6 +37,88 @@ describe('autoregistroActivo', () => {
     // `.env` se quedó corto no abre el registro público por descuido.
     delete process.env.AUTOREGISTRO
     expect(autoregistroActivo()).toBe(false)
+  })
+})
+
+// ============================================================================
+//  UI-01 — el nombre de marca de la instancia.
+// ----------------------------------------------------------------------------
+//  Hallazgo de la auditoría del 2026-08-26: el `<title>` decía «Spaces — Demo»
+//  en producción, y se ve tanto en la pestaña del navegador como en la liga
+//  pública que el owner manda a su cliente.
+//
+//  Se resuelve como `AUTOREGISTRO` y por la misma razón: el artefacto es
+//  idéntico para toda la flota (invariante 3), así que la marca se lee AL
+//  ARRANCAR y no se hornea. Sin prefijo `NEXT_PUBLIC_`, que es precisamente lo
+//  que la hornearía.
+// ============================================================================
+
+const marcaOriginal = process.env.ORG_NOMBRE
+
+afterEach(() => {
+  if (marcaOriginal === undefined) delete process.env.ORG_NOMBRE
+  else process.env.ORG_NOMBRE = marcaOriginal
+})
+
+describe('nombreDeMarca', () => {
+  it('cambia de valor entre llamadas, sin recompilar', () => {
+    // Las dos afirmaciones en el MISMO caso, igual que en `autoregistroActivo`:
+    // lo que se prueba no es cada valor, es que el segundo cambio surta efecto.
+    process.env.ORG_NOMBRE = 'Publicidad del Norte'
+    expect(nombreDeMarca()).toBe('Publicidad del Norte')
+
+    process.env.ORG_NOMBRE = 'Medios del Bajio'
+    expect(nombreDeMarca()).toBe('Medios del Bajio')
+  })
+
+  it('sin la variable, cae al nombre del producto y NUNCA a «Demo»', () => {
+    // Fail-safe, no fail-closed: una instancia sin `ORG_NOMBRE` tiene que
+    // seguir teniendo un título correcto. Lo que no puede volver es la palabra
+    // que la auditoría encontró en producción.
+    delete process.env.ORG_NOMBRE
+    expect(nombreDeMarca()).toBe(MARCA_POR_OMISION)
+    expect(MARCA_POR_OMISION).not.toMatch(/demo/i)
+  })
+
+  it('una variable vacía o en blanco cuenta como ausente', () => {
+    // Un `.env` escrito a mano con `ORG_NOMBRE=` es lo normal en una flota que
+    // se aprovisiona copiando plantillas. Sin este recorte, el título de esa
+    // instancia sería la cadena vacía: una pestaña sin nombre.
+    process.env.ORG_NOMBRE = ''
+    expect(nombreDeMarca()).toBe(MARCA_POR_OMISION)
+    process.env.ORG_NOMBRE = '   '
+    expect(nombreDeMarca()).toBe(MARCA_POR_OMISION)
+  })
+})
+
+// ============================================================================
+//  SEC-04 — HSTS la emite nginx, no la aplicación.
+// ----------------------------------------------------------------------------
+//  `next.config.mjs` tiene una rama `HSTS=1`, pero `headers()` de Next se
+//  evalúa en el BUILD y se congela en `.next/routes-manifest.json` (medido el
+//  2026-08-26: el manifiesto del build vigente traía tres cabeceras y ninguna
+//  de HSTS). O sea que esa bandera es de build, no de arranque, y en la flota
+//  no la enciende nadie.
+//
+//  Quien sí la emite en cada instancia es nginx. Esta prueba existe porque al
+//  añadir las cabeceras nuevas de SEC-04 era fácil dar por hecho que HSTS ya
+//  venía de la aplicación y quitarla de la plantilla.
+// ============================================================================
+
+describe('SEC-04 · infra/nginx/instancia.conf.tpl', () => {
+  it('sigue emitiendo HSTS con `always`', () => {
+    const tpl = readFileSync(
+      join(__dirname, '..', '..', '..', 'infra', 'nginx', 'instancia.conf.tpl'),
+      'utf8',
+    )
+    const activas = tpl
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('#'))
+      .join('\n')
+    // `always` no es decorativo: sin él nginx omite la cabecera en las
+    // respuestas de error (4xx/5xx), que son justo las que se sirven cuando
+    // algo va mal y alguien está mirando.
+    expect(activas).toMatch(/add_header\s+Strict-Transport-Security\s+"max-age=\d+[^"]*"\s+always;/)
   })
 })
 

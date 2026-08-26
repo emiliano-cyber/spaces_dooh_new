@@ -26,3 +26,39 @@
 export function autoregistroActivo(): boolean {
   return process.env.AUTOREGISTRO === '1'
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  El nombre con el que la instancia se presenta (UI-01, auditoría 26/08/2026).
+//
+//  El `<title>` decía «Spaces — Demo» EN PRODUCCIÓN, y se veía en dos sitios
+//  que no son internos: la pestaña del navegador del owner y la liga pública de
+//  propuesta que el owner manda a SU cliente. Con una instancia por owner,
+//  «Demo» no es solo feo, es falso.
+//
+//  Mismo tratamiento que `AUTOREGISTRO` y por la misma razón: sin prefijo
+//  `NEXT_PUBLIC_`, para que la marca no viaje horneada en el artefacto — el
+//  artefacto es idéntico para toda la flota (invariante 3 del plan v3).
+//
+//  FAIL-SAFE, y aquí sí es lo contrario de la bandera de arriba: una instancia
+//  con el `.env` corto tiene que seguir teniendo un título correcto, no una
+//  pestaña en blanco. Por eso una variable ausente, vacía o en blanco cae al
+//  nombre del producto, que es cierto para cualquier instancia.
+//
+//  > [!warning] Hoy esto NO llega al `<title>` de las páginas prerenderizadas
+//  > Medido el 2026-08-26: `next build` deja 22 páginas en
+//  > `.next/server/app/*.html` con su `<title>` ya escrito dentro, porque
+//  > `generateMetadata()` corre en el BUILD para todo lo que Next genera
+//  > estáticamente. Es exactamente la trampa que documenta
+//  > `app/api/auth/metodos/route.ts:29-38` con el botón «Crear cuenta».
+//  >
+//  > O sea: `ORG_NOMBRE` se lee de verdad en cada arranque, pero solo cambia el
+//  > título de las rutas que se renderizan por petición. Para que mande en
+//  > TODAS haría falta sacar el subárbol `(app)` del render estático, y eso es
+//  > una decisión de una persona, no un efecto colateral de arreglar un título.
+//  > Mientras no se tome, el valor que ve casi todo el mundo es el de abajo.
+export const MARCA_POR_OMISION = 'SPACE OS'
+
+export function nombreDeMarca(): string {
+  const declarado = (process.env.ORG_NOMBRE ?? '').trim()
+  return declarado === '' ? MARCA_POR_OMISION : declarado
+}

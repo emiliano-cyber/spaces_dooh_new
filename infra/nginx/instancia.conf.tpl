@@ -125,9 +125,16 @@ server {
   # obligado a HTTPS durante ese tiempo. No activar hasta confirmar que el
   # certificado renueva bien.
   add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-  # X-Frame-Options, X-Content-Type-Options y Referrer-Policy YA los emite la
-  # app (next.config.mjs → headers()). No se repiten aquí: cabeceras duplicadas
-  # son ambiguas y algunos navegadores toman la más permisiva.
+  # X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy
+  # y Content-Security-Policy-Report-Only YA los emite la app (next.config.mjs
+  # → headers()). No se repiten aquí: cabeceras duplicadas son ambiguas y
+  # algunos navegadores toman la más permisiva.
+  #
+  # HSTS es la UNICA que sale de aqui, y no es una excepcion caprichosa:
+  # `headers()` de Next se evalua en el BUILD y se congela en
+  # `.next/routes-manifest.json`, asi que su rama `HSTS=1` es una bandera de
+  # build y no del `.env` de la instancia (medido el 2026-08-26). Si alguna vez
+  # se quita este `add_header`, la flota se queda sin HSTS y nada da error.
 
   # ── Compresión ────────────────────────────────────────────────────────────
   gzip              on;
