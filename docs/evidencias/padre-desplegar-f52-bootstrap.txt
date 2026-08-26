@@ -1,0 +1,195 @@
+============================================================
+ DESPLEGAR F5.2 EN EL PADRE
+ Todo en [PADRE] 137.184.107.53.
+============================================================
+ Que se despliega: `POST /api/bootstrap`, el alta de la PRIMERA
+ organizacion de una instancia recien aprovisionada, y la
+ exencion de CSRF que necesita.
+
+ Verificado en local antes de esto: typecheck limpio, 858
+ unitarias en 79 archivos, e2e 22 archivos / 227 pruebas + 1
+ omitida. `aislamiento.e2e.test.ts`, `servidor-e2e.ts` y
+ `db/schema.sql` sin tocarse.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+
+============================================================
+ LO QUE ESTE DESPLIEGUE **NO** LLEVA
+============================================================
+ - NO hay migracion. Siguen siendo 73 archivos y 72 aplicadas.
+ - NO hay `npm install`: ni `package.json` ni el lock cambiaron.
+
+ Los dos comprobados antes de escribir esto.
+
+============================================================
+ POR QUE LA RUTA NUEVA LLEGA APAGADA, Y NO HAY QUE HACER NADA
+============================================================
+ `/api/bootstrap` exige TRES cosas a la vez para abrirse:
+
+   1. `BOOTSTRAP_TOKEN` en el entorno  -> el PADRE no lo tiene
+   2. que el token coincida
+   3. que la tabla `tenants` este VACIA -> `spaces_prod` tiene
+      `rgb` y `spaces_demo` tiene `demo`
+
+ Fallan la 1 y la 3. La ruta viaja en el codigo pero esta
+ cerrada por partida doble, y **no hay que configurar nada** para
+ que lo este. El paso V3 lo comprueba en vez de suponerlo.
+
+============================================================
+ EL 3000 Y EL 3001 COMPARTEN EL MISMO BUILD
+============================================================
+ Los dos procesos sirven desde /var/www/Spaces y desde el MISMO
+ `.next`. Un solo `npm run build` vale para ambos, pero **hay que
+ reiniciar LOS DOS**: el que no reinicies se queda sirviendo el
+ codigo viejo desde memoria, y eso no da ningun error -- solo se
+ comporta distinto que su vecino.
+============================================================
+
+
+# ------------------------------------------------------------
+# V1 - Traer el codigo
+# ------------------------------------------------------------
+
+cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && git log --oneline -1
+
+# Esperado:  feat/servidor-padre-instancias
+#            y el ultimo commit `0b7e10a test(seguridad): ...`
+#
+# >>> Si el commit no es ese, PARA: el resto de este archivo
+#     describe otro codigo.
+
+
+# ------------------------------------------------------------
+# V2 - Que el archivo de la ruta bajo de verdad
+# ------------------------------------------------------------
+
+ls -l /var/www/Spaces/apps/web/app/api/bootstrap/route.ts
+
+# Esperado: la ruta existe, con fecha de hoy.
+#
+# Se mira ANTES del build porque si el `git pull` trajo menos de
+# lo que creemos, el build saldria verde igual y el fallo
+# aparecia mucho mas tarde.
+
+
+# ------------------------------------------------------------
+# V3 - EL BUILD. Aqui esta el riesgo del despliegue.
+# ------------------------------------------------------------
+# `next start` NO compila: sirve lo que haya en `.next`. Sin este
+# paso, el codigo nuevo no entra por mucho que reinicies.
+
+cd /var/www/Spaces/apps/web && npm run build
+
+# Esperado: termina con la tabla de rutas y sin errores. En esa
+# tabla tiene que aparecer una linea `/api/bootstrap`.
+#
+# >>> SI EL BUILD FALLA: **NO REINICIES**. Los dos procesos vivos
+#     siguen sirviendo lo que tienen cargado, asi que el sitio
+#     aguanta. Un `.next` a medio escribir mas un restart = sitio
+#     caido. Pasame el error tal cual.
+#
+# >>> Si muere sin mensaje claro, sospecha de memoria:
+#         free -h
+#     La maquina tiene 4 GB y el build es lo mas pesado que corre.
+
+
+# ------------------------------------------------------------
+# V4 - Reiniciar el 3000 (el sitio publico)
+# ------------------------------------------------------------
+# Primero averigua quien lo supervisa, en vez de suponerlo:
+
+systemctl is-active spaces-web 2>/dev/null; pm2 list 2>/dev/null | head -20
+
+# Segun lo que salga, UNA de estas dos:
+
+pm2 restart spaces-web --update-env && sleep 5 && pm2 list
+
+systemctl restart spaces-web && sleep 5 && systemctl is-active spaces-web
+
+# Esperado: el proceso vuelve a estar arriba.
+
+
+# ------------------------------------------------------------
+# V5 - Reiniciar el 3001 (el banco de pruebas)
+# ------------------------------------------------------------
+# Este SI es systemd, con `User=demo` (ADR 0019).
+
+systemctl restart spaces-demo && sleep 5 && systemctl is-active spaces-demo
+
+# Esperado:  active
+
+
+# ------------------------------------------------------------
+# V6 - LA PRUEBA QUE TOCA LA BASE
+# ------------------------------------------------------------
+# Es la unica que no se puede fingir. El PADRE estuvo CUATRO DIAS
+# sirviendo un login perfecto sin poder autenticar a nadie, y
+# ninguna comprobacion de las que haciamos lo veia: un 200 en el
+# login es solo una pagina pintandose.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401
+#
+# >>> 500 = el codigo y la base no encajan. Pasame:
+#         journalctl -u spaces-web -n 40 --no-pager
+#     (o `pm2 logs spaces-web --lines 40 --nostream`)
+
+
+# ------------------------------------------------------------
+# V7 - Que la ruta nueva ESTA, y que esta CERRADA
+# ------------------------------------------------------------
+# Estas dos lineas van juntas y ninguna sirve sola.
+#
+# El 404 por si solo NO demuestra nada: es tambien lo que
+# responde una ruta que no existe, o sea lo que veriamos si el
+# despliegue no hubiera entrado. Por eso primero se comprueba que
+# el build LA COMPILO, y despues que aun asi responde 404.
+
+ls -d /var/www/Spaces/apps/web/.next/server/app/api/bootstrap
+
+# Esperado: la carpeta existe -> la ruta esta en el artefacto.
+
+curl -s -o /dev/null -w 'bootstrap %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/bootstrap/ -H 'Content-Type: application/json' -H 'x-bootstrap-token: loquesea' -d '{}'
+
+# Esperado:  404
+#
+# Compilada + 404 = los cerrojos estan haciendo su trabajo.
+# Compilada + 201 = PARA Y AVISAME AHORA MISMO.
+
+
+# ------------------------------------------------------------
+# V8 - Y que el sitio sigue en pie
+# ------------------------------------------------------------
+
+curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/; curl -s -w '\nHTTP %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
+
+# Esperado:  login 200   y   HTTP 503  (el registro sigue cerrado)
+
+
+# ------------------------------------------------------------
+# V9 - Lo que ninguna prueba automatica hace
+# ------------------------------------------------------------
+# Entra por el navegador a https://space-os.io/spaces-dooh/login/
+# y GUARDA CUALQUIER COSA -- edita tu perfil, por ejemplo.
+#
+# Este despliegue toca `middleware.ts`, que protege TODAS las
+# operaciones de guardado de la aplicacion. Si algo se rompio
+# ahi, el sintoma es que un guardado devuelve un error de token.
+#
+# Lo cubren dos pruebas nuevas, pero contra un servidor de
+# pruebas; un guardado real en el sitio real cuesta diez segundos
+# y cierra el hueco.
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Pegame las salidas del V6, el V7 y el V9. Con esas tres queda
+ registrado el despliegue en el expediente.
+
+ Recuerda: **no hay que poner `BOOTSTRAP_TOKEN` en el PADRE.**
+ Esa variable se pone en el `.env` de una instancia HIJA nueva,
+ el dia que se aprovisione, y nunca aqui.
+============================================================
