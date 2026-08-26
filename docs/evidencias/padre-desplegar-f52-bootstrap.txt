@@ -1,103 +1,167 @@
 ============================================================
- DESPLEGAR F5.2 EN EL PADRE
+ DESPLEGAR F5.1 + F5.2 EN EL PADRE
  Todo en [PADRE] 137.184.107.53.
+ Version 2 -- la version 1 tenia tres errores, corregidos abajo.
 ============================================================
- Que se despliega: `POST /api/bootstrap`, el alta de la PRIMERA
- organizacion de una instancia recien aprovisionada, y la
- exencion de CSRF que necesita.
-
- Verificado en local antes de esto: typecheck limpio, 858
- unitarias en 79 archivos, e2e 22 archivos / 227 pruebas + 1
- omitida. `aislamiento.e2e.test.ts`, `servidor-e2e.ts` y
- `db/schema.sql` sin tocarse.
-------------------------------------------------------------
 
  >>>  PEGA UNA LINEA CADA VEZ.                          <<<
 
 ============================================================
- LO QUE ESTE DESPLIEGUE **NO** LLEVA
+ LO QUE SE DESPLIEGA DE VERDAD -- SON DOS TAREAS, NO UNA
+============================================================
+ La version 1 de esta tarjeta decia «desplegar F5.2». Era
+ incompleto: el `git pull` trae TAMBIEN F5.1, y F5.1 toca el alta
+ de organizaciones EN PRODUCCION.
+
+ F5.1 -- `crearOrgConDueno` pasa a ser UNA TRANSACCION.
+   Antes eran dos escrituras sueltas: si fallaba la del usuario,
+   la organizacion sobrevivia sin nadie dentro y ocupaba su slug
+   para siempre. Ahora nacen juntas o no nace ninguna.
+   Toca: `db.ts`, `cuentas-controller.ts`, `tenant.ts`,
+   `usuarios-repo.ts`. Es el camino que usas tu para dar de alta
+   organizaciones desde el panel.
+
+ F5.2 -- `POST /api/bootstrap`, el alta de la primera
+   organizacion de una instancia nueva. Llega APAGADA (ver abajo).
+   Toca: `app/api/bootstrap/route.ts`, `middleware.ts`.
+
+ Los dos son ROJO. Verificado en local: typecheck limpio, 858
+ unitarias en 79 archivos, e2e 22 archivos / 227 + 1 omitida.
+ `aislamiento.e2e.test.ts`, `servidor-e2e.ts` y `db/schema.sql`
+ sin tocarse.
+
+============================================================
+ LO QUE **NO** LLEVA
 ============================================================
  - NO hay migracion. Siguen siendo 73 archivos y 72 aplicadas.
  - NO hay `npm install`: ni `package.json` ni el lock cambiaron.
 
- Los dos comprobados antes de escribir esto.
+ Los dos medidos contra el repo, no supuestos.
 
 ============================================================
- POR QUE LA RUTA NUEVA LLEGA APAGADA, Y NO HAY QUE HACER NADA
+ POR QUE LA RUTA NUEVA LLEGA APAGADA
 ============================================================
- `/api/bootstrap` exige TRES cosas a la vez para abrirse:
-
+ `/api/bootstrap` exige TRES cosas a la vez:
    1. `BOOTSTRAP_TOKEN` en el entorno  -> el PADRE no lo tiene
    2. que el token coincida
    3. que la tabla `tenants` este VACIA -> `spaces_prod` tiene
       `rgb` y `spaces_demo` tiene `demo`
 
- Fallan la 1 y la 3. La ruta viaja en el codigo pero esta
- cerrada por partida doble, y **no hay que configurar nada** para
- que lo este. El paso V3 lo comprueba en vez de suponerlo.
+ Fallan la 1 y la 3. **No hay que configurar nada.** El paso V8
+ lo comprueba en vez de suponerlo.
 
 ============================================================
- EL 3000 Y EL 3001 COMPARTEN EL MISMO BUILD
+ TRES TRAMPAS DE ESTA MAQUINA
 ============================================================
- Los dos procesos sirven desde /var/www/Spaces y desde el MISMO
- `.next`. Un solo `npm run build` vale para ambos, pero **hay que
- reiniciar LOS DOS**: el que no reinicies se queda sirviendo el
- codigo viejo desde memoria, y eso no da ningun error -- solo se
- comporta distinto que su vecino.
+ 1. EL 3000 Y EL 3001 COMPARTEN BUILD. Los dos sirven desde
+    /var/www/Spaces y desde el MISMO `.next`. Un solo build vale
+    para ambos, pero **hay que reiniciar LOS DOS**: el que no
+    reinicies sigue sirviendo el codigo viejo desde memoria, y eso
+    no da ningun error -- solo se comporta distinto que su vecino.
+
+ 2. LA UNIDAD DE SYSTEMD ES UN ENLACE AL REPO.
+    /etc/systemd/system/spaces-demo.service -> apunta dentro de
+    /var/www/Spaces/infra/systemd/ (asi se instalo, bloque 2).
+    Es decir: **el `git pull` le puede cambiar la unidad por
+    debajo**, y systemd seguira usando la vieja hasta que se le
+    diga. Por eso el V6 hace `daemon-reload` SIEMPRE.
+
+ 3. `next start` NO COMPILA. Sirve lo que haya en `.next`. Sin el
+    build, el codigo nuevo no entra por mucho que reinicies.
 ============================================================
 
 
 # ------------------------------------------------------------
-# V1 - Traer el codigo
+# V0 - ANCLA DE VUELTA ATRAS. No te saltes este.
 # ------------------------------------------------------------
+# Apunta lo que salga. Es a donde se vuelve si algo sale mal, y
+# sin esto la vuelta atras es a ciegas.
 
-cd /var/www/Spaces && git rev-parse --abbrev-ref HEAD && git pull && git log --oneline -1
+cd /var/www/Spaces && git rev-parse --short HEAD && git status --porcelain
 
-# Esperado:  feat/servidor-padre-instancias
-#            y el ultimo commit `0b7e10a test(seguridad): ...`
+# Esperado: un hash (APUNTALO) y la segunda parte VACIA.
 #
-# >>> Si el commit no es ese, PARA: el resto de este archivo
-#     describe otro codigo.
+# >>> Si `git status` imprime algo, PARA y pasamelo. Significa que
+#     hay archivos modificados en el servidor -- que no deberia
+#     haberlos-- y el `git pull` fallara o se los llevara por
+#     delante.
 
 
 # ------------------------------------------------------------
-# V2 - Que el archivo de la ruta bajo de verdad
+# V1 - Sitio para el build
 # ------------------------------------------------------------
 
-ls -l /var/www/Spaces/apps/web/app/api/bootstrap/route.ts
+df -h / | tail -1; free -h | head -2
 
-# Esperado: la ruta existe, con fecha de hoy.
+# Esperado: al menos ~2 GB libres en disco.
+# La maquina tiene 4 GB de RAM y el build es lo mas pesado que
+# corre. Si va justa, es la causa mas probable de que muera sin
+# mensaje claro.
+
+
+# ------------------------------------------------------------
+# V2 - Traer el codigo
+# ------------------------------------------------------------
+
+git pull && git log --oneline -1
+
+# Esperado, el ultimo commit:
+#   de173a3 docs(evidencias): tarjeta para desplegar F5.2 en el PADRE
 #
-# Se mira ANTES del build porque si el `git pull` trajo menos de
-# lo que creemos, el build saldria verde igual y el fallo
-# aparecia mucho mas tarde.
+# >>> Si sale OTRO hash mas nuevo, no pasa nada malo: quiere decir
+#     que hubo mas commits despues de escribir esto. Pasamelo y te
+#     digo si cambia algo. Si sale uno MAS VIEJO, PARA.
 
 
 # ------------------------------------------------------------
-# V3 - EL BUILD. Aqui esta el riesgo del despliegue.
+# V3 - Que bajo lo que creemos
 # ------------------------------------------------------------
-# `next start` NO compila: sirve lo que haya en `.next`. Sin este
-# paso, el codigo nuevo no entra por mucho que reinicies.
+
+ls -l apps/web/app/api/bootstrap/route.ts && ls db/migrations/*.sql | wc -l
+
+# Esperado: la ruta existe, y  73  migraciones.
+#
+# Se mira ANTES del build: si el pull trajo menos de lo que
+# creemos, el build saldria verde igual y el fallo apareceria
+# mucho mas tarde.
+
+
+# ------------------------------------------------------------
+# V4 - Que la unidad de systemd no cambio a tus espaldas
+# ------------------------------------------------------------
+# Sustituye HASH_DEL_V0 por el hash que apuntaste en el V0.
+
+git diff --name-only HASH_DEL_V0..HEAD -- infra/systemd/ db/migrations/ package.json package-lock.json apps/web/package.json
+
+# Esperado: VACIO.
+#
+# >>> Si aparece `infra/systemd/...`, la unidad de DEMO cambio y el
+#     `daemon-reload` del V6 es obligatorio (ya esta en el V6).
+# >>> Si aparece algo de `db/migrations`, PARA: habria migracion y
+#     esta tarjeta dice que no hay.
+# >>> Si aparece un `package*.json`, PARA: haria falta
+#     `npm install` y esta tarjeta dice que no.
+
+
+# ------------------------------------------------------------
+# V5 - EL BUILD. Aqui esta el riesgo del despliegue.
+# ------------------------------------------------------------
 
 cd /var/www/Spaces/apps/web && npm run build
 
-# Esperado: termina con la tabla de rutas y sin errores. En esa
-# tabla tiene que aparecer una linea `/api/bootstrap`.
+# Esperado: termina con la tabla de rutas y sin errores, y en esa
+# tabla aparece una linea `/api/bootstrap`.
 #
-# >>> SI EL BUILD FALLA: **NO REINICIES**. Los dos procesos vivos
-#     siguen sirviendo lo que tienen cargado, asi que el sitio
-#     aguanta. Un `.next` a medio escribir mas un restart = sitio
-#     caido. Pasame el error tal cual.
-#
-# >>> Si muere sin mensaje claro, sospecha de memoria:
-#         free -h
-#     La maquina tiene 4 GB y el build es lo mas pesado que corre.
+# >>> SI EL BUILD FALLA: **NO REINICIES NADA**. Los dos procesos
+#     vivos siguen sirviendo lo que tienen cargado, o sea que el
+#     sitio aguanta. Un `.next` a medio escribir mas un restart =
+#     sitio caido. Pasame el error tal cual.
 
 
 # ------------------------------------------------------------
-# V4 - Reiniciar el 3000 (el sitio publico)
+# V6 - Reiniciar LOS DOS procesos
 # ------------------------------------------------------------
-# Primero averigua quien lo supervisa, en vez de suponerlo:
+# Primero averigua quien supervisa el 3000, en vez de suponerlo:
 
 systemctl is-active spaces-web 2>/dev/null; pm2 list 2>/dev/null | head -20
 
@@ -107,21 +171,15 @@ pm2 restart spaces-web --update-env && sleep 5 && pm2 list
 
 systemctl restart spaces-web && sleep 5 && systemctl is-active spaces-web
 
-# Esperado: el proceso vuelve a estar arriba.
+# Y AHORA el 3001. El `daemon-reload` va SIEMPRE, por la trampa 2:
 
-
-# ------------------------------------------------------------
-# V5 - Reiniciar el 3001 (el banco de pruebas)
-# ------------------------------------------------------------
-# Este SI es systemd, con `User=demo` (ADR 0019).
-
-systemctl restart spaces-demo && sleep 5 && systemctl is-active spaces-demo
+systemctl daemon-reload && systemctl restart spaces-demo && sleep 5 && systemctl is-active spaces-demo
 
 # Esperado:  active
 
 
 # ------------------------------------------------------------
-# V6 - LA PRUEBA QUE TOCA LA BASE
+# V7 - LA PRUEBA QUE TOCA LA BASE
 # ------------------------------------------------------------
 # Es la unica que no se puede fingir. El PADRE estuvo CUATRO DIAS
 # sirviendo un login perfecto sin poder autenticar a nadie, y
@@ -132,20 +190,20 @@ curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST https://space-os.io/
 
 # Esperado:  401
 #
-# >>> 500 = el codigo y la base no encajan. Pasame:
+# >>> 500 = el codigo y la base no encajan -> VUELTA ATRAS (abajo).
+#     Antes de nada, pasame:
 #         journalctl -u spaces-web -n 40 --no-pager
 #     (o `pm2 logs spaces-web --lines 40 --nostream`)
 
 
 # ------------------------------------------------------------
-# V7 - Que la ruta nueva ESTA, y que esta CERRADA
+# V8 - Que la ruta nueva ESTA, y que esta CERRADA
 # ------------------------------------------------------------
 # Estas dos lineas van juntas y ninguna sirve sola.
 #
-# El 404 por si solo NO demuestra nada: es tambien lo que
-# responde una ruta que no existe, o sea lo que veriamos si el
-# despliegue no hubiera entrado. Por eso primero se comprueba que
-# el build LA COMPILO, y despues que aun asi responde 404.
+# El 404 por si solo NO demuestra nada: es tambien lo que responde
+# una ruta que no existe, o sea lo que veriamos si el despliegue
+# no hubiera entrado.
 
 ls -d /var/www/Spaces/apps/web/.next/server/app/api/bootstrap
 
@@ -155,12 +213,12 @@ curl -s -o /dev/null -w 'bootstrap %{http_code}\n' -X POST https://space-os.io/s
 
 # Esperado:  404
 #
-# Compilada + 404 = los cerrojos estan haciendo su trabajo.
+# Compilada + 404 = los cerrojos hacen su trabajo.
 # Compilada + 201 = PARA Y AVISAME AHORA MISMO.
 
 
 # ------------------------------------------------------------
-# V8 - Y que el sitio sigue en pie
+# V9 - Que el sitio sigue en pie
 # ------------------------------------------------------------
 
 curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/; curl -s -w '\nHTTP %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
@@ -169,25 +227,61 @@ curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/l
 
 
 # ------------------------------------------------------------
-# V9 - Lo que ninguna prueba automatica hace
+# V10 - Las dos bases siguen alineadas
 # ------------------------------------------------------------
-# Entra por el navegador a https://space-os.io/spaces-dooh/login/
-# y GUARDA CUALQUIER COSA -- edita tu perfil, por ejemplo.
+# No hay migracion nueva, pero que se desalineen ya paso: a
+# `spaces_prod` le faltaba la 72 y nadie lo vio en dias.
+
+sudo -u postgres psql -d spaces_prod -Atc "select count(*) from schema_migrations"; sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"
+
+# Esperado:  72   y   72
+# (72 aplicadas de 73 archivos: la de datos se omite a proposito.)
+
+
+# ------------------------------------------------------------
+# V11 - LO QUE NINGUNA PRUEBA AUTOMATICA HACE. Dos cosas.
+# ------------------------------------------------------------
+# (a) GUARDAR ALGO. Entra por el navegador a
+#     https://space-os.io/spaces-dooh/login/ y edita tu perfil.
 #
-# Este despliegue toca `middleware.ts`, que protege TODAS las
-# operaciones de guardado de la aplicacion. Si algo se rompio
-# ahi, el sintoma es que un guardado devuelve un error de token.
+#     Este despliegue toca `middleware.ts`, que protege TODAS las
+#     operaciones de guardado. Si algo se rompio ahi, el sintoma
+#     es un error de token al guardar.
 #
-# Lo cubren dos pruebas nuevas, pero contra un servidor de
-# pruebas; un guardado real en el sitio real cuesta diez segundos
-# y cierra el hueco.
+# (b) DAR DE ALTA UNA ORGANIZACION DE PRUEBA desde el panel, y
+#     luego BORRARLA.
+#
+#     Esto es lo que cambia F5.1 y es lo unico que lo prueba en
+#     produccion. Si el alta devuelve error, la transaccion nueva
+#     no encaja con la base real y hay que volver atras.
+
+
+# ############################################################
+#  VUELTA ATRAS -- cuando usarla
+# ############################################################
+# Dispara si ocurre CUALQUIERA de estas:
+#   - el V7 devuelve 500 en vez de 401
+#   - el V9 no devuelve login 200
+#   - el V11(b) no deja crear una organizacion
+#
+# Sustituye HASH_DEL_V0 por el hash que apuntaste. Vuelve al
+# codigo anterior, reconstruye y reinicia:
+
+cd /var/www/Spaces && git checkout HASH_DEL_V0 && cd apps/web && npm run build
+
+# Y despues los dos reinicios del V6.
+#
+# NO hace falta tocar la base: este despliegue no lleva migracion,
+# asi que no hay nada que revertir en Postgres.
+#
+# Cuando termines la vuelta atras, avisame con el error del V7.
 
 
 ============================================================
  CUANDO TERMINES
 ============================================================
- Pegame las salidas del V6, el V7 y el V9. Con esas tres queda
- registrado el despliegue en el expediente.
+ Pegame las salidas del V7, el V8, el V10 y el V11. Con esas
+ cuatro queda registrado el despliegue en el expediente.
 
  Recuerda: **no hay que poner `BOOTSTRAP_TOKEN` en el PADRE.**
  Esa variable se pone en el `.env` de una instancia HIJA nueva,
