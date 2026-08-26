@@ -10,7 +10,7 @@ archivos:
   - apps/web/lib/server/cambios.ts
 ---
 
-# API — los 88 endpoints
+# API — los 89 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 `https://demo.space-os.io/spaces-dooh/api/...`.
@@ -44,6 +44,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | GET | `/api/auth/google/inicio` | PÚBLICO | 302 a Google; 503 si apagado |
 | GET | `/api/auth/google/callback` | PÚBLICO | Canjea código, abre sesión |
 | POST | `/api/signup` | PÚBLICO | 503 salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08; se lee al arrancar, no en el build) |
+| POST | `/api/bootstrap` | PÚBLICO | **De un solo uso.** 404 —nunca 401— si falta `BOOTSTRAP_TOKEN`, si no coincide, si `tenants` ya tiene algo o si se pasa de 10/h por IP. 201 solo con los tres cerrojos abiertos |
 | PATCH | `/api/perfil` | usuarioActual | Exige `passwordActual` |
 | GET | `/api/permisos` | exigir | |
 | GET | `/api/admin/permisos-matriz` | exigir | |

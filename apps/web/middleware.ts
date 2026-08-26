@@ -54,7 +54,11 @@ export function middleware(request: NextRequest) {
       // Firma pública del contrato: el arrendador no tiene sesión, así que no
       // hay cookie que proteger con CSRF. El token del enlace es la credencial.
       normalizedPath.startsWith('/api/firma/') ||
-      normalizedPath.startsWith('/api/propuestas/publica/')
+      normalizedPath.startsWith('/api/propuestas/publica/') ||
+      // Arranque de una instancia recién aprovisionada (F5.2): no hay sesión
+      // —la base está vacía—, así que no hay cookie que proteger. Su credencial
+      // es `BOOTSTRAP_TOKEN`, y su cerrojo real es que `tenants` esté vacía.
+      normalizedPath.startsWith('/api/bootstrap')
     const sesion = request.cookies.get('spaces_sesion')?.value
     if (!exento && sesion) {
       const cookieTok = request.cookies.get('spaces_csrf')?.value

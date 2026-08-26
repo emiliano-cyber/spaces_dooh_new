@@ -27,7 +27,7 @@ cobranza.
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) como **banco de pruebas interno, sin nombre público**. ⚠️ `demo.space-os.io` **queda retirado**: su registro A se borra → **TH-F4.5** | `infra/nginx/space-os.io.conf` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) |
-| Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
+| Endpoints | 89 route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
 | Migraciones | **72** | [[migraciones]] |
 
@@ -53,7 +53,7 @@ cobranza.
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
-- [[api-endpoints]] — los 88 endpoints con método, guard y módulo
+- [[api-endpoints]] — los 89 endpoints con método, guard y módulo
 - [[autenticacion-y-sesion]] — cookie, sesión, CSRF, permisos, reautenticación
 - [[multi-tenancy-y-rls]] — cómo se aísla cada organización
 - [[inventario-y-sitios]] — pantallas, modalidades, importación

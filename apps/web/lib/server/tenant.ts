@@ -41,6 +41,20 @@ export const tenantActual = cache(async (): Promise<string | null> => {
   return u.tenantId
 })
 
+// ¿Esta instancia ya tiene alguna organización dentro? (F5.2)
+//
+// Es la condición que hace que el arranque sea DE UN SOLO USO: una instancia
+// recién aprovisionada tiene la base vacía y puede crear su primera
+// organización; en cuanto existe una, la puerta se cierra para siempre.
+//
+// Va aquí y no en el route porque el SQL vive en la capa de datos, y usa `q1`
+// —que es `qRaw1`, ver la cabecera del archivo— porque en el arranque NO HAY
+// sesión ni GUC de tenant que fijar: `tenants` está exenta de RLS fail-closed.
+// Este es uno de los pocos sitios donde eso es lo correcto y no el fallo R2.
+export async function hayAlgunTenant(): Promise<boolean> {
+  return (await q1('select 1 from tenants limit 1')) !== null
+}
+
 // ¿El usuario en sesión puede cambiar de CRM? (super-admin de plataforma)
 export async function puedeCambiarCrm(): Promise<boolean> {
   const u = await usuarioActual()

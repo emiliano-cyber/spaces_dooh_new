@@ -7,6 +7,24 @@ La entrada más reciente va arriba.
 
 ## 2026-08-26
 
+- **Una copia nueva del sistema ya puede darse de alta sola.** Cuando se le
+  entrega el sistema a un cliente, su copia nace **completamente vacía**: sin
+  empresa dentro y sin ninguna persona que pueda entrar. Hasta hoy, para meter a
+  la primera persona había que abrir la base de datos de esa máquina a mano.
+  Ahora la copia se arranca sola: se le da una clave de un solo uso y ella crea
+  su empresa y a su primer responsable.
+  - **Solo funciona una vez, y no depende de que nadie se acuerde de cerrarla.**
+    La puerta exige tres cosas a la vez: que se haya configurado la clave, que
+    la clave sea la correcta, **y que la copia siga vacía**. Esa tercera es la
+    importante: en cuanto existe la primera empresa, la puerta queda cerrada
+    para siempre, aunque alguien conserve la clave. No hay un paso posterior que
+    se pueda olvidar.
+  - **Y a quien no tiene la clave, la puerta le parece inexistente.** No
+    responde «clave incorrecta» —eso confirmaría que la puerta está ahí—, sino
+    lo mismo que respondería una dirección que no existe. El precio, dicho
+    claro: si quien da de alta una copia escribe mal la clave, recibe esa misma
+    respuesta y no puede distinguir un caso del otro.
+
 - **No va a haber una página de demostración aparte. La demostración va a ser el
   producto de verdad.** Hasta hoy el plan contaba con `demo.space-os.io`, una
   dirección separada donde enseñar el sistema a quien viniera a verlo. **Se
