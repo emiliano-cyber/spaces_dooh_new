@@ -9,7 +9,7 @@ import {
   CP_INVALIDO,
 } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
-import { crearCliente, actualizarCliente, type ClienteInput } from './clientes-repo'
+import { crearCliente, actualizarCliente, borrarCliente, type ClienteInput } from './clientes-repo'
 
 // ============================================================================
 //  lib/server/clientes-controller.ts — Capa controller de clientes.
@@ -115,4 +115,74 @@ export async function actualizarClienteCtrl(id: string, body: unknown) {
   const c = await actualizarCliente(id, plegarCorreo(d) as Partial<ClienteInput>)
   if (!c) throw new AppError('Cliente no encontrado', 404)
   return c
+}
+
+// ─── Borrado (CRUD-01) ───────────────────────────────────────────────────────
+
+// Se responde 409 con `motivo` y la cifra, no un 409 a secas, porque este caso
+// TIENE salida y el usuario necesita saber cuál: reenviar con
+// `confirmaPropuestasHuerfanas`. Mismo contrato que el 409 de duplicado del
+// alta (`motivo` + el dato que hace falta para seguir), para que la pantalla
+// trate los dos igual.
+export class PropuestasHuerfanas extends AppError {
+  motivo = 'propuestas-huerfanas' as const
+  propuestas: number
+  constructor(propuestas: number) {
+    super(
+      `Este cliente tiene ${propuestas} propuesta(s). Si lo borras, esas propuestas se quedan ` +
+        `sin cliente y su IVA vuelve al general. Confírmalo para borrarlo igualmente.`,
+      409,
+    )
+    this.name = 'PropuestasHuerfanas'
+    this.propuestas = propuestas
+  }
+}
+
+const borrarSchema = z.object({
+  // Por defecto `false`: omitirlo NUNCA salta el aviso, igual que
+  // `confirmaNombreRepetido` en el alta.
+  confirmaPropuestasHuerfanas: z.boolean().optional(),
+})
+
+// Arma el «qué lo impide y cuánto» enumerando SOLO lo que no está en cero: un
+// mensaje que dice «0 facturas» manda a revisar una lista vacía.
+function motivosDeBloqueo(r: {
+  campanas: number
+  facturas: number
+  clientesConEstaAgencia: number
+  propuestasConEstaAgencia: number
+}): string[] {
+  const partes: string[] = []
+  const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`
+  if (r.campanas) partes.push(plural(r.campanas, 'campaña', 'campañas'))
+  if (r.facturas) partes.push(plural(r.facturas, 'factura', 'facturas'))
+  // Las dos de agencia se nombran por lo que son para quien lee, no por la
+  // columna: «lo tienen como agencia».
+  if (r.clientesConEstaAgencia) {
+    partes.push(`${plural(r.clientesConEstaAgencia, 'cliente', 'clientes')} que lo tienen como agencia`)
+  }
+  if (r.propuestasConEstaAgencia) {
+    partes.push(
+      `${plural(r.propuestasConEstaAgencia, 'propuesta', 'propuestas')} que lo tienen como agencia`,
+    )
+  }
+  return partes
+}
+
+export async function borrarClienteCtrl(id: string, body: unknown) {
+  const d = validar(borrarSchema, body ?? {})
+  const r = await borrarCliente(id, {
+    confirmaPropuestasHuerfanas: d.confirmaPropuestasHuerfanas ?? false,
+  })
+
+  if (r.estado === 'no-encontrado') throw new AppError('Cliente no encontrado', 404)
+  if (r.estado === 'bloqueado') {
+    throw new AppError(
+      `No se puede borrar: el cliente tiene ${motivosDeBloqueo(r).join(' y ')}. ` +
+        `Quítalos o reasígnalos antes de borrarlo.`,
+      409,
+    )
+  }
+  if (r.estado === 'huerfanas') throw new PropuestasHuerfanas(r.propuestas)
+  return r.cliente
 }

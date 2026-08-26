@@ -6,10 +6,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const repo = {
   crearCliente: vi.fn(async (i: unknown) => ({ id: 'C1', ...(i as object) })),
   actualizarCliente: vi.fn(async (id: string, i: unknown) => ({ id, ...(i as object) })),
+  // Por defecto: un cliente limpio que se borra. Cada prueba de bloqueo
+  // sobrescribe el valor con el estado que quiere ejercitar. Los parámetros se
+  // declaran aunque no se usen: sin ellos `mock.calls[0][1]` no existe para
+  // TypeScript y las pruebas que comprueban QUÉ se le pasó no compilan.
+  borrarCliente: vi.fn(async (_id: string, _opts: { confirmaPropuestasHuerfanas?: boolean }) => ({
+    estado: 'borrado',
+    cliente: { id: 'C1', nombre: 'Telcel' },
+  })),
 }
 vi.mock('./clientes-repo', () => repo)
 
-const { crearClienteCtrl, actualizarClienteCtrl } = await import('./clientes-controller')
+const { crearClienteCtrl, actualizarClienteCtrl, borrarClienteCtrl } = await import(
+  './clientes-controller',
+)
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -115,5 +125,91 @@ describe('VAL-01b · el correo suelto en la raíz del cuerpo', () => {
     await crearClienteCtrl({ nombre: 'Sin correo' })
     const enviado = repo.crearCliente.mock.calls[0][0] as { contacto?: Record<string, unknown> }
     expect(enviado.contacto?.email).toBeUndefined()
+  })
+})
+
+// ─── CRUD-01 · el borrado de cliente ────────────────────────────────────────
+//  La auditoría del 2026-08-26 dejó diez clientes de prueba que NADIE podía
+//  quitar: `/api/clientes` solo exportaba POST y `/api/clientes/[id]` solo
+//  PATCH. Estas pruebas cubren la traducción del estado que devuelve el repo a
+//  la respuesta HTTP; que la BASE bloquee de verdad se prueba en
+//  `lib/test/borrado-cliente.e2e.test.ts`, porque un mock nunca produce un
+//  23503 y aquí lo que se ejercita es solo el mapeo.
+describe('CRUD-01 · borrado de cliente', () => {
+  it('un cliente limpio se borra y devuelve la ficha que se llevó', async () => {
+    const c = await borrarClienteCtrl('C1', {})
+    expect(repo.borrarCliente).toHaveBeenCalledTimes(1)
+    expect(c.nombre).toBe('Telcel')
+  })
+
+  it('un id inexistente es 404 y no un 200 silencioso', async () => {
+    repo.borrarCliente.mockResolvedValueOnce({ estado: 'no-encontrado' } as never)
+    await expect(borrarClienteCtrl('NOPE', {})).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('con campañas y facturas es 409 y dice CUÁNTAS de cada cosa', async () => {
+    // El 409 sin cifras («no se puede borrar») deja al usuario sin saber qué
+    // quitar primero: el motivo del hallazgo es justamente que nadie sabía
+    // por qué el borrado no ocurría.
+    repo.borrarCliente.mockResolvedValueOnce({
+      estado: 'bloqueado', campanas: 2, facturas: 3,
+      clientesConEstaAgencia: 0, propuestasConEstaAgencia: 0,
+    } as never)
+    const e = await borrarClienteCtrl('C1', {}).catch((x) => x)
+    expect(e.status).toBe(409)
+    expect(e.message).toContain('2 campaña')
+    expect(e.message).toContain('3 factura')
+  })
+
+  it('el 409 NO menciona lo que está en cero', async () => {
+    // Un mensaje que enumera «0 facturas» manda a revisar una lista vacía.
+    repo.borrarCliente.mockResolvedValueOnce({
+      estado: 'bloqueado', campanas: 1, facturas: 0,
+      clientesConEstaAgencia: 0, propuestasConEstaAgencia: 0,
+    } as never)
+    const e = await borrarClienteCtrl('C1', {}).catch((x) => x)
+    expect(e.message).toContain('1 campaña')
+    expect(e.message).not.toContain('factura')
+  })
+
+  it('una AGENCIA en uso también bloquea, y lo dice', async () => {
+    // Las dos FK que el esquema no declara con `on delete`: `clientes
+    // .agencia_id` y `propuestas.agencia_id` quedan en NO ACTION, que bloquea
+    // igual que un RESTRICT. Sin contarlas, borrar una agencia daba un 409
+    // genérico del driver que no decía qué la retenía.
+    repo.borrarCliente.mockResolvedValueOnce({
+      estado: 'bloqueado', campanas: 0, facturas: 0,
+      clientesConEstaAgencia: 4, propuestasConEstaAgencia: 1,
+    } as never)
+    const e = await borrarClienteCtrl('C1', {}).catch((x) => x)
+    expect(e.status).toBe(409)
+    expect(e.message).toContain('4 cliente')
+    expect(e.message).toContain('1 propuesta')
+  })
+
+  it('si dejaría propuestas huérfanas pide confirmación explícita', async () => {
+    // `propuestas.cliente_id` es `on delete set null`: borrar al cliente NO
+    // falla, deja las propuestas sin dueño y sin avisar. Se responde 409 con
+    // la cifra y una salida, en vez de destruir el vínculo en silencio.
+    repo.borrarCliente.mockResolvedValueOnce({ estado: 'huerfanas', propuestas: 3 } as never)
+    const e = await borrarClienteCtrl('C1', {}).catch((x) => x)
+    expect(e.status).toBe(409)
+    expect(e.motivo).toBe('propuestas-huerfanas')
+    expect(e.propuestas).toBe(3)
+    expect(e.message).toContain('3 propuesta')
+  })
+
+  it('la confirmación viaja al repo; NO se asume', async () => {
+    await borrarClienteCtrl('C1', { confirmaPropuestasHuerfanas: true })
+    expect(repo.borrarCliente.mock.calls[0][1]).toMatchObject({
+      confirmaPropuestasHuerfanas: true,
+    })
+  })
+
+  it('sin pedirla, la confirmación va en false', async () => {
+    await borrarClienteCtrl('C1', {})
+    expect(repo.borrarCliente.mock.calls[0][1]).toMatchObject({
+      confirmaPropuestasHuerfanas: false,
+    })
   })
 })

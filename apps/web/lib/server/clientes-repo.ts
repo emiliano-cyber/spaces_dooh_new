@@ -1,5 +1,5 @@
 import 'server-only'
-import { q, q1 } from './db'
+import { q, q1, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { AppError } from './errores'
 
@@ -209,4 +209,113 @@ export async function actualizarCliente(id: string, input: Partial<ClienteInput>
     ],
   )
   return rows[0] ? rowToCliente(rows[0]) : null
+}
+
+// ─── Borrado (CRUD-01) ───────────────────────────────────────────────────────
+//  La auditoría del 2026-08-26 dejó diez clientes de prueba que NADIE podía
+//  quitar: la ruta solo exportaba PATCH. El borrado es REAL —la fila se va—,
+//  aprobado con el riesgo a la vista frente a la alternativa de archivar.
+//
+//  Lo que decide de verdad qué se puede borrar es el ESQUEMA, no este archivo.
+//  El censo de claves foráneas que apuntan a `clientes(id)` da CINCO, y CUATRO
+//  bloquean:
+//
+//    · campanas.cliente_id    not null · on delete restrict  → bloquea
+//    · facturas.cliente_id    not null · on delete restrict  → bloquea
+//    · clientes.agencia_id    SIN cláusula `on delete`       → NO ACTION, bloquea
+//    · propuestas.agencia_id  SIN cláusula `on delete`       → NO ACTION, bloquea
+//    · propuestas.cliente_id  on delete SET NULL             → NO bloquea
+//
+//  Las dos de `agencia_id` las añadió `20260625_agencia_en_propuesta.sql` sin
+//  `on delete`, y Postgres las dejó en NO ACTION —que bloquea igual que un
+//  RESTRICT—. No se contaban al escribir esto y son la mitad de los bloqueos
+//  reales: `propuestas-repo.ts:449-451` escribe `clientes.agencia_id` cada vez
+//  que se crea una propuesta con cliente Y agencia, así que una agencia
+//  referenciada es el caso corriente. Sin contarlas, borrar una agencia salía
+//  como el 409 genérico del driver («El registro está referenciado por otro»),
+//  que no dice qué la retiene ni cuánto.
+//
+//  Por qué se CUENTA antes en vez de intentar el DELETE y traducir el 23503:
+//  el error del driver dice qué constraint saltó, pero no cuántas filas hay
+//  detrás, y el usuario necesita el «cuántas» para saber qué desmontar. El
+//  23503 sigue siendo la red por si algo entra entre la cuenta y el borrado;
+//  cae en el mapeo genérico de `errores.ts` y responde 409, no 500.
+export type ResultadoBorrado =
+  | { estado: 'no-encontrado' }
+  | {
+      estado: 'bloqueado'
+      campanas: number
+      facturas: number
+      clientesConEstaAgencia: number
+      propuestasConEstaAgencia: number
+    }
+  | { estado: 'huerfanas'; propuestas: number }
+  | { estado: 'borrado'; cliente: ReturnType<typeof rowToCliente> }
+
+export async function borrarCliente(
+  id: string,
+  opts: { confirmaPropuestasHuerfanas?: boolean } = {},
+): Promise<ResultadoBorrado> {
+  const tenant = await tenantActual()
+
+  // Contar y borrar en UNA transacción. En dos, entre la cuenta y el borrado
+  // cabe una factura nueva: se respondería «se puede» y el DELETE fallaría
+  // después con el error crudo del driver.
+  return withTenantTx(async (client) => {
+    // El `and tenant_id = $2` es la segunda capa sobre la RLS que exigen las
+    // convenciones. NO se copia de `actualizarCliente` (arriba en este mismo
+    // archivo), que hace `update ... where id = $1` a secas: eso es un defecto
+    // de aislamiento conocido y pendiente, no el patrón a seguir.
+    const existente = await client.query('select * from clientes where id = $1 and tenant_id = $2', [
+      id,
+      tenant,
+    ])
+    // 404 y no 403: para quien pregunta por un cliente de otra organización, ese
+    // cliente sencillamente no existe. Un 403 confirmaría que el id es real.
+    if (!existente.rows[0]) return { estado: 'no-encontrado' as const }
+
+    const b = await client.query(
+      `select
+         (select count(*) from campanas   where cliente_id = $1 and tenant_id = $2) as campanas,
+         (select count(*) from facturas   where cliente_id = $1 and tenant_id = $2) as facturas,
+         (select count(*) from clientes   where agencia_id = $1 and tenant_id = $2) as clientes_agencia,
+         (select count(*) from propuestas where agencia_id = $1 and tenant_id = $2) as propuestas_agencia,
+         (select count(*) from propuestas where cliente_id = $1 and tenant_id = $2) as propuestas_cliente`,
+      [id, tenant],
+    )
+    const n = (col: string) => Number(b.rows[0]?.[col] ?? 0)
+    const campanas = n('campanas')
+    const facturas = n('facturas')
+    const clientesConEstaAgencia = n('clientes_agencia')
+    const propuestasConEstaAgencia = n('propuestas_agencia')
+
+    if (campanas || facturas || clientesConEstaAgencia || propuestasConEstaAgencia) {
+      return {
+        estado: 'bloqueado' as const,
+        campanas,
+        facturas,
+        clientesConEstaAgencia,
+        propuestasConEstaAgencia,
+      }
+    }
+
+    // `propuestas.cliente_id` es SET NULL: esto NO falla, deja las propuestas
+    // sin dueño y sin avisar. Una propuesta huérfana es un documento comercial
+    // del que ya no se sabe a quién iba, su liga pública sigue abierta, y su
+    // IVA pasa a tomar el 16 por omisión (`propuestas-repo.ts:65`) en vez del
+    // del cliente — o sea que el documento cambia de precio al borrar. Se pide
+    // confirmación explícita, con el mismo mecanismo que el nombre repetido del
+    // alta: se avisa con la cifra y quien borra decide.
+    const propuestas = n('propuestas_cliente')
+    if (propuestas > 0 && !opts.confirmaPropuestasHuerfanas) {
+      return { estado: 'huerfanas' as const, propuestas }
+    }
+
+    const borrado = await client.query(
+      'delete from clientes where id = $1 and tenant_id = $2 returning *',
+      [id, tenant],
+    )
+    if (!borrado.rows[0]) return { estado: 'no-encontrado' as const }
+    return { estado: 'borrado' as const, cliente: rowToCliente(borrado.rows[0]) }
+  })
 }
