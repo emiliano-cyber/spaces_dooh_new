@@ -238,7 +238,9 @@ de las dos bases y no puede haber ninguno repetido.
 
 ### 🔴 Y queda UNA acción, que es la que cierra el riesgo de la fase
 
-**Borrar el registro A de `demo.space-os.io` en Cloudflare.**
+~~**Borrar el registro A de `demo.space-os.io` en Cloudflare.**~~ **CANCELADO
+el 2026-08-26 por el ADR 0021**: el nombre se conserva a proposito, como
+demostracion de las instancias hijas.
 
 Abandonar el nombre **no es lo mismo que retirarlo**. Mientras siga apuntando a
 `209.97.146.136`, esa máquina **sigue sirviendo un sitio público** con sus cinco
@@ -385,7 +387,7 @@ significa nada.
 > rama donde una sección sobrevive a la decisión que la invalida**, y el patrón
 > importa más que el caso.
 
-**Borrar el registro A de `demo.space-os.io` en Cloudflare** — tarjeta
+~~**Borrar el registro A de `demo.space-os.io` en Cloudflare**~~ **CANCELADO (ADR 0021)** — tarjeta
 **TH-F4.5**, emitida el 26/08 en `vault/07-Agentes/ejecucion-plan-v3.md`.
 
 Con eso cierra el **criterio 3 de F4.5**, que es el único que queda con objeto y

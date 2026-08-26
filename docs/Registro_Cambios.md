@@ -7,6 +7,22 @@ La entrada más reciente va arriba.
 
 ## 2026-08-26
 
+- **Rectificación: la página de demostración `demo.space-os.io` SE QUEDA.** Más
+  abajo en esta misma fecha se anotó lo contrario —que se retiraba y que había
+  que quitarle el nombre—. **Eso era una lectura equivocada de la decisión, y se
+  corrige aquí.**
+  - **Lo que se decide de verdad:** esa dirección es **donde se va a enseñar el
+    producto funcionando como lo verá un cliente**, es decir, sobre una copia
+    suya y no sobre el sistema central. Por eso el nombre no sobra: es
+    justamente para lo que sirve.
+  - **No hay nada que hacer en el navegador.** La tarea de quitar el nombre
+    **queda cancelada**.
+  - **Lo que todavía no está decidido, y se deja dicho para no darlo por
+    supuesto:** qué máquina va a servir esa dirección. Hoy la sirve la máquina
+    de julio; podría quedarse ahí o mudarse a la primera copia de cliente cuando
+    exista. También queda abierto su certificado de seguridad, que vence el
+    **26 de octubre**.
+
 - **Una copia nueva del sistema ya puede darse de alta sola.** Cuando se le
   entrega el sistema a un cliente, su copia nace **completamente vacía**: sin
   empresa dentro y sin ninguna persona que pueda entrar. Hasta hoy, para meter a

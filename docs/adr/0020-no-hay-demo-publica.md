@@ -1,7 +1,7 @@
 # ADR 0020 — No hay demostración pública: la demo es el producto con instancias hijas
 
 - **Fecha:** 2026-08-26
-- **Estado:** Aceptada
+- **Estado:** ~~Aceptada~~ **SUPERADA por el [ADR 0021](0021-demo-space-os-io-se-queda.md) (2026-08-26)**
 - **Decide:** Emiliano
 - **Sustituye en la práctica a:** el objeto de `F4.3` y del criterio 1 de `F4.5`
 - **Relacionadas:** [ADR 0017](0017-todo-se-concentra-en-el-padre.md) ·
@@ -9,6 +9,12 @@
   `docs/evidencias/fase-3-y-4.md`
 
 ---
+
+> [!danger] REVERTIDO por el [ADR 0021](0021-demo-space-os-io-se-queda.md) el 2026-08-26
+> **`demo.space-os.io` NO se retira.** Se conserva como nombre publico de la
+> demostracion de las instancias hijas, y **la tarjeta humana que pedia borrar
+> su registro A queda cancelada**. Todo lo que sigue se conserva como historia
+> de la decision, no como estado del proyecto.
 
 ## Contexto
 

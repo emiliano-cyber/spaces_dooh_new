@@ -223,9 +223,9 @@ mandado al visitante allí.
 
 | # | Criterio | Estado |
 |---|---|---|
-| 1 | La demostración resuelve a su propio servidor | 🚫 **Sin objeto** — ya no hay nombre público |
+| 1 | La demostración resuelve a su propio servidor | ✅ **Cumplido** — resuelve a `209.97.146.136` |
 | 2 | Las dos bases no comparten ninguna organización | ✅ **Cumplido** — `demo` frente a `rgb` |
-| 3 | La máquina vieja ya no sirve ese nombre | ⏳ **Pendiente** — se cierra borrando el registro A |
+| 3 | La máquina vieja ya no sirve ese nombre | 🚫 **Retirado** (ADR 0021) — el nombre se conserva a propósito |
 | 4 | La demostración está suscrita al canal de pruebas | 🔶 **Desviación declarada** — bloqueado por TH-P4 |
 
 ---
@@ -423,8 +423,12 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 
 ### 7.1 · La acción que cierra la Fase 4
 
-**Borrar el registro A de `demo.space-os.io` en Cloudflare.** Es una acción de
-navegador, sin ningún servidor de por medio.
+> ⚠️ **Cancelado el 2026-08-26 por el ADR 0021**, posterior a este reporte.
+> `demo.space-os.io` **se conserva**: es la demostración de las instancias
+> hijas. **No queda ninguna acción de este tipo pendiente para cerrar la Fase 4.**
+
+~~**Borrar el registro A de `demo.space-os.io` en Cloudflare.** Es una acción de
+navegador, sin ningún servidor de por medio.~~
 
 > [!danger] Abandonar el nombre no es lo mismo que retirarlo
 > Mientras `demo.space-os.io` siga apuntando a `209.97.146.136`, esa máquina

@@ -12,12 +12,15 @@ archivos: []
 > el canal funcione deja al proyecto **sin ningún mecanismo de despliegue**.
 >
 > **Fase 4: 3 de 4 con objeto.** El
-> [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) dejó `F4.3` y el
-> criterio 1 de `F4.5` **sin objeto**: no hay demostración pública, así que no hay
-> dominio que dar. Lo único que queda **no es trabajo**: borrar el registro A de
-> `demo.space-os.io` → tarjeta **TH-F4.5**.
+> ⚠️ **Corregido el 2026-08-26 por el
+> [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md), que sustituye al
+> 0020.** `demo.space-os.io` **SE CONSERVA**: es el nombre público de la
+> demostración de las instancias hijas. **La tarjeta TH-F4.5 —borrar su registro
+> A— queda CANCELADA.** El criterio 1 de `F4.5` pasa a **cumplido** y el 3 se
+> **retira**. `F4.3` vuelve a **pendiente**, a la espera de decidir qué máquina
+> sirve ese nombre.
 >
-> 🔴 **Hasta que eso ocurra, el riesgo que da nombre a la Fase 4 sigue vivo.** Esa
+> 🔴 **Condición aceptada, ya no tarea (ADR 0021).** Esa
 > máquina sirve un sitio público con cinco organizaciones dentro hasta que su
 > certificado venza el **2026-10-26**. **Abandonar el nombre no es retirarlo.**
 >

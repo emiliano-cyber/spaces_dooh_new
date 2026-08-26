@@ -21,8 +21,11 @@ archivos:
 >
 > **② DEMO ya NO va a servir `demo.space-os.io`.** El
 > [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) (26/08) retira ese
-> nombre: no se le mueve el DNS, no se le emite certificado y **su registro A se
-> borra** — tarjeta **TH-F4.5**. El proceso del `3001` se queda como **banco de
+> nombre: no se le mueve el DNS, no se le emite certificado y ~~su registro A se
+> borra~~ — tarjeta **TH-F4.5**. ⚠️ **REVERTIDO el 2026-08-26 por el
+> [[../../docs/adr/0021-demo-space-os-io-se-queda|ADR 0021]]: `demo.space-os.io`
+> SE CONSERVA como demostración de las instancias hijas, y la tarjeta TH-F4.5
+> queda cancelada.** El proceso del `3001` se queda como **banco de
 > pruebas interno, sin nombre público**.
 >
 > **Lo vigente:** el PADRE (`137.184.107.53`) es la **única máquina del modelo**
