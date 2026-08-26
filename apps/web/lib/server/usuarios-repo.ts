@@ -1,5 +1,6 @@
 import 'server-only'
 import { q, q1, qConTenant, qRaw, qRaw1 } from './db'
+import type { PoolClient } from 'pg'
 import { tenantActual } from './tenant'
 import { hashPassword } from './auth'
 
@@ -34,9 +35,17 @@ export async function listarUsuarios() {
   return rows.map(rowToUsuario)
 }
 
+// F5.1: con `client`, el INSERT va por la transaccion del alta y se deshace con
+// ella. Sin el, todo sigue como hoy con `qConTenant`. NO se duplica la funcion:
+// el propio repo advierte que duplicar es «la forma segura de que las tres
+// divergieran» (`cuentas-controller.ts:36-40`).
+//
+// Con `client` NO se vuelve a fijar el GUC: quien abre la transaccion ya lo hizo
+// con `fijarTenant`, y volver a hacerlo aqui escondería el caso en que no se
+// hizo — un INSERT que deberia fallar por RLS pasaria inadvertido.
 export async function crearUsuario(input: {
   nombre: string; email: string; cargo?: string; rol?: string; password?: string; tenantId?: string | null
-}) {
+}, client?: PoolClient) {
   // Nunca un default débil: la contraseña debe venir validada por la ruta.
   if (!input.password) throw new Error('Se requiere una contraseña para crear el usuario')
   const hash = await hashPassword(input.password)
@@ -45,12 +54,12 @@ export async function crearUsuario(input: {
   // tenantActual() es null y q() fijaría app.tenant_id='' → el WITH CHECK de la
   // RLS fail-closed rechazaría el INSERT. Ahí fijamos el GUC explícitamente al
   // tenant recién creado (id de servidor, nunca del cliente).
-  const rows = await qConTenant(
-    tenantId,
-    `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
-     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`,
-    [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId],
-  )
+  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
+     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
+  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId]
+  const rows = client
+    ? (await client.query(texto, params as any[])).rows
+    : await qConTenant(tenantId, texto, params)
   return rowToUsuario(rows[0])
 }
 

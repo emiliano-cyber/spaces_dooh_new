@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import type { PoolClient } from 'pg'
 import { cookies } from 'next/headers'
 // Bootstrap del tenant: usa consultas RAW (sin GUC) sobre tablas EXENTAS de RLS
 // fail-closed (tenants/usuarios). Fijar el GUC aquí recursaría (q -> tenantActual).
@@ -62,14 +63,29 @@ export async function listarTenants(): Promise<TenantRow[]> {
 // Crea una organización (CRM) nueva. Si el slug choca, se le añade un sufijo.
 // Nota: `config_negocio` es global (una sola fila), así que por ahora todos los
 // CRMs comparten la configuración del negocio (moneda, IVA, loop/slot).
-export async function crearTenant(nombre: string, slug: string): Promise<TenantRow> {
+//
+// F5.1: acepta un `client` opcional para participar en la transacción del alta.
+// Sin él, todo sigue como antes. La tarea no listaba este archivo, pero sin esto
+// el INSERT de `tenants` quedaría FUERA de la transacción y no habría atomicidad
+// ninguna: es la mitad que hay que poder deshacer.
+//
+// No se duplica la función. Duplicarla habría separado en dos sitios la lógica
+// que resuelve el choque de slug, y ese es el error que `cuentas-controller.ts:36-40`
+// documenta como «la forma segura de que las tres divergieran».
+export async function crearTenant(
+  nombre: string,
+  slug: string,
+  client?: PoolClient,
+): Promise<TenantRow> {
   const base = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'crm'
+  const uno = async (texto: string, params: unknown[]) =>
+    client ? (await client.query(texto, params as any[])).rows[0] ?? null : await q1<any>(texto, params)
   let s = base
   for (let i = 2; i < 50; i++) {
-    if (!(await q1('select 1 from tenants where slug = $1', [s]))) break
+    if (!(await uno('select 1 from tenants where slug = $1', [s]))) break
     s = `${base}-${i}`
   }
-  const row = await q1<any>(
+  const row = await uno(
     'insert into tenants (nombre, slug) values ($1,$2) returning id, nombre, slug, creado_en',
     [nombre.trim(), s],
   )

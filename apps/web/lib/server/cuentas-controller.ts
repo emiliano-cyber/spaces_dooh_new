@@ -5,6 +5,7 @@ import { validarPassword, passwordDeAlta } from './auth'
 import { googleHabilitado } from './google-oauth'
 import { esEmailValido } from '@/lib/validacion'
 import { crearTenant } from './tenant'
+import { withTxBootstrap } from './db'
 import { crearUsuario, emailExiste } from './usuarios-repo'
 
 // ============================================================================
@@ -49,16 +50,34 @@ export async function crearOrgConDueno(args: {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)
   if (await emailExiste(args.email)) throw new AppError('Ese correo ya está registrado', 409)
-  const tenant = await crearTenant(args.org, args.slug ?? args.org)
-  const usuario = await crearUsuario({
-    nombre: args.nombre,
-    email: args.email,
-    cargo: args.cargo ?? 'Dueño',
-    rol: 'DUENO',
-    password: args.password,
-    tenantId: tenant.id,
+  // F5.1 — LOS DOS INSERT EN UNA SOLA TRANSACCIÓN.
+  //
+  // Antes eran dos llamadas sueltas, y si la segunda fallaba el tenant
+  // sobrevivía: quedaba una organización sin nadie dentro, que nadie podía
+  // administrar y que ocupaba su slug para siempre.
+  //
+  // `fijarTenant` va EN MEDIO, y ese es el punto: la transacción empieza sin
+  // tenant —todavía no existe— y el GUC se fija en cuanto el id aparece, justo
+  // antes del INSERT de `usuarios`, que es fail-closed y lo necesita.
+  //
+  // La forma de retorno NO cambia (`{ tenant, usuario }`): devolver la URL está
+  // descartado (§4, T5 del plan).
+  return withTxBootstrap(async ({ client, fijarTenant }) => {
+    const tenant = await crearTenant(args.org, args.slug ?? args.org, client)
+    await fijarTenant(tenant.id)
+    const usuario = await crearUsuario(
+      {
+        nombre: args.nombre,
+        email: args.email,
+        cargo: args.cargo ?? 'Dueño',
+        rol: 'DUENO',
+        password: args.password,
+        tenantId: tenant.id,
+      },
+      client,
+    )
+    return { tenant, usuario }
   })
-  return { tenant, usuario }
 }
 
 // Auto-registro público (body plano).
