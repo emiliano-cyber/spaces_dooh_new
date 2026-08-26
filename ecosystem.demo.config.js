@@ -70,6 +70,23 @@
 //      (`docs/datos/20260810_reset_tenant_eyro.sql:14-21`).
 //
 //  El argumento ya no depende de una afirmación que resultó falsa.
+//  ─────────────────────────────────────────────────────────────────────────
+//  ⚠️ SIN USO DESDE EL 2026-08-25 — ver el ADR 0019
+//
+//  DEMO arranca con **systemd**, no con pm2: `infra/systemd/spaces-demo.service`.
+//  El motivo, medido con `namei -l`: el PADRE instala Node por nvm bajo
+//  `/root/.nvm`, y `/root` es `drwx------`. El usuario `demo` no puede
+//  atravesarlo, así que `pm2` y `npm` le son inalcanzables y ningún enlace lo
+//  arregla.
+//
+//  🔴 Y este archivo llevaba dentro un defecto que nadie había ejecutado:
+//  declara `PORT: 3001` y lanza `npm start`, que ejecuta
+//  `apps/web/package.json:8` → **`next start -p 3000`**. El puerto está FIJO en
+//  el script y `-p` gana sobre `PORT`, así que DEMO habría intentado tomar el
+//  **3000** — el del PADRE.
+//
+//  No se borra: su cabecera documenta decisiones que no dependen del gestor de
+//  procesos, y sirve de plantilla para la Fase 5. Pero **no lo uses tal cual**.
 // ============================================================================
 module.exports = {
   apps: [

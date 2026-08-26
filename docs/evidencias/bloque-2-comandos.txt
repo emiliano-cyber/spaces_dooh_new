@@ -151,13 +151,43 @@ sed -E 's/:[^:@]*@/:***@/' /etc/space-os/demo.env; ls -l /etc/space-os/demo.env
 # C20 - Arrancar DEMO en el 3001, con su propio pm2
 # ------------------------------------------------------------
 
-sudo -u demo bash -lc 'set -a; . /etc/space-os/demo.env; set +a; cd /var/www/Spaces; pm2 start ecosystem.demo.config.js; pm2 save; pm2 list'
-
-# Esperado: `spaces-demo` en `online`, con usuario `demo`.
+# CAMBIADO EL 25/08 (ADR 0019): DEMO arranca con SYSTEMD, no con pm2.
 #
-# >>> Si dice "pm2: command not found", es lo del C19b. Para.
-# >>> Si arranca y se reinicia en bucle, para y pasame:
-#         sudo -u demo bash -lc 'pm2 logs spaces-demo --lines 40 --nostream'
+# Por que: el PADRE instala Node por nvm bajo /root/.nvm, y /root es
+# drwx------ -- medido con `namei -l`. El usuario `demo` NO PUEDE atravesarlo,
+# asi que pm2 y npm le son inalcanzables, y ningun enlace lo arregla porque
+# apuntaria a traves de /root.
+#
+# Lo que si alcanza es /usr/local/bin/node, copiado el 24/08 para el runner de
+# migraciones. Con eso basta: Next se arranca directo.
+#
+# Se ENLAZA el archivo del repositorio, no se pega.
+
+ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service && systemctl daemon-reload && systemctl enable --now spaces-demo && sleep 5 && systemctl status spaces-demo --no-pager | head -12
+
+# Esperado:  `active (running)`, y en la linea de arranque el usuario `demo`.
+#
+# >>> Si queda en `failed` o se reinicia en bucle, PARA y pasame:
+#         journalctl -u spaces-demo -n 40 --no-pager
+#
+# >>> Si dice que no puede leer algo de /var/www/Spaces, es de permisos:
+#         chmod -R a+rX /var/www/Spaces
+#     (ya se corrio el 24/08, pero los `npm run build` posteriores crean
+#      archivos nuevos y conviene comprobarlo antes de suponerlo)
+
+
+# ------------------------------------------------------------
+# C20-bis - Con QUE usuario corre de verdad
+# ------------------------------------------------------------
+# No basta con que el archivo diga `User=demo`: se mide.
+
+ps -o user=,cmd= -C node | grep 3001
+
+# Esperado: la linea empieza por `demo`, NO por `root`.
+#
+# Es la separacion que el ADR 0017 da por hecha para aceptar que la demo
+# comparta maquina con el plano de control. Si sale `root`, esa decision se
+# queda sin su unica mitigacion.
 
 
 # ------------------------------------------------------------
