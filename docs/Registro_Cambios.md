@@ -7,6 +7,21 @@ La entrada más reciente va arriba.
 
 ## 2026-08-26
 
+- **Los plazos de cobranza que configuras ahora sí se usan.** En Administración
+  se podían añadir y quitar plazos —45 días, 30 días, los que hicieran falta—,
+  se guardaban bien, y al momento de facturar **el sistema los ignoraba y solo
+  aceptaba 60, 90 o 120**. Quien configuraba 45 recibía un «Plazo inválido». Era
+  una pantalla que prometía algo que no ocurría.
+  - **Dos cuidados que se tomaron, y conviene conocerlos:**
+  - Si una organización se queda **sin ningún plazo** configurado —se pueden
+    borrar todos, uno a uno—, el sistema vuelve a 60/90/120 en vez de quedarse
+    sin poder facturar. Quedarse sin facturación sería peor que el fallo que se
+    corrigió.
+  - **Las facturas ya emitidas no cambian.** Si mañana quitas el plazo de 45
+    días, las facturas que ya salieron a 45 días siguen ahí, se siguen viendo y
+    se siguen cobrando. Retirar un plazo no congela el dinero que ya está en la
+    calle.
+
 - **Quedó escrito, de una vez y en el sitio donde se guardan las decisiones, en
   qué consiste el producto.** Hasta hoy el modelo —«cada cliente tiene su propia
   copia del sistema, en su propia máquina, con su propia dirección»— vivía
