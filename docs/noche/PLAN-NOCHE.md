@@ -31,14 +31,17 @@ Medido contra el repo el 2026-08-26 a mediodía, no recordado.
 |---|---|---|
 | `altas-transaccionales` · **F5.1** | ✅ **HECHA** | `0b1ce71` (rojo) + `eef43d1` — `withTxBootstrap` en `db.ts`; la organización y su Dueño nacen juntos o no nacen |
 | `altas-transaccionales` · **F5.2** | ✅ **HECHA** | `3ad2cec` (rojo) + `653f992` + `0b7e10a` — `POST /api/bootstrap`, tres cerrojos, y la exención de CSRF acotada con pruebas |
-| `plantillas-instancia` · F5.3 | ⬜ pendiente | `infra/env/instancia.env.example` y `infra/nginx/instancia.conf.tpl` **no existen** |
-| `endpoint-flota` · F6.1, F5.8 | ⬜ pendiente | `app/api/version/route.ts` **no existe**; `infra/scripts/update.sh` sí |
-| `aprovisionamiento` · F5.4, F5.5 | ⬜ pendiente | `provision-instancia.sh` y `docs/runbook-alta-de-owner.md` **no existen**; `setup-droplet.sh` e `infra/scripts/README.md` **ya existen** |
-| `panel-flota` · F6.2, F6.4 | ⬜ pendiente | `apps/flota/` **no existe** |
-| `cierre-documental` · F8.1, F8.3 | ⬜ pendiente | ver el aviso de numeración abajo |
+| `plantillas-instancia` · F5.3 | ✅ **HECHA** | `2dace9a` (rojo) + `7aae6ae` + `09ac35d`. **DOS** plantillas de entorno, no una: `update.sh` ya separaba la suya de la de la app |
+| `endpoint-flota` · F6.1, F5.8 | ✅ **HECHA** | `6c57ac1` (rojo) + `65b8ed1`. `SALUD_URL` pasa a tocar la base: la anterior contestaba 200 con Postgres muerto |
+| `aprovisionamiento` · F5.4, F5.5 | ✅ **HECHA** | F5.4 en `92ebb41`. F5.5 **preparada y sin fusionar** en `chore/retirar-scripts-pista-archivada` (`ec25eb4`), porque depende de F3.6 |
+| `panel-flota` · F6.2, F6.4 | 🚧 **en curso** | agente lanzado en modo automatico |
+| `cierre-documental` · F8.1, F8.3 | 🚧 **en curso** | agente lanzado en modo automatico |
 | `verificador-noche` | ⬜ al final | — |
 
-**Quedan 9 tareas**: F5.3, F5.4, F5.5 (preparada), F5.8 (lado código), F6.1, F6.2, F6.4, F8.1, F8.3.
+**Quedaban 9 tareas. Hechas 5** (F5.3, F5.4, F5.5-preparada, F5.8-código, F6.1);
+**4 en curso** con agentes (F6.2, F6.4, F8.1, F8.3).
+
+> **Puertas 1 y 2 pasadas**, con su evidencia en `docs/noche/bitacora-2026-08-26.md`.
 
 > [!warning] El ADR que la Ola 4 iba a crear tiene el número ocupado
 > El plan dice `docs/adr/0014-instancia-dedicada-por-owner.md`. **El 0014 ya existe**
