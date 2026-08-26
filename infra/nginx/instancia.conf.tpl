@@ -1,0 +1,185 @@
+# ============================================================================
+#  instancia.conf.tpl — nginx de UNA instancia de owner.  (F5.3)
+# ----------------------------------------------------------------------------
+#  PLANTILLA. `__DOMINIO__` se sustituye por el dominio que el owner eligio y
+#  apunta en SU propio DNS. El aprovisionamiento lo hace con un `sed`:
+#
+#      sed 's/__DOMINIO__/inventario.ejemplo.com/g' #          infra/nginx/instancia.conf.tpl > /etc/nginx/sites-available/<dominio>
+#
+#  Sale de `infra/nginx/demo.space-os.io.conf`, con el dominio como parametro y
+#  nada mas. Cuatro detalles se conservan LITERALMENTE, y cada uno porque su
+#  ausencia ya costo algo:
+#
+#   1. `X-Forwarded-For $remote_addr` REEMPLAZA la cabecera que mande el
+#      cliente, en vez de anadir a ella. Sin eso, cualquiera elige su cubo del
+#      limitador de intentos de login mandando su propia cabecera.
+#   2. `client_max_body_size 12M` — la subida de material. Por defecto nginx
+#      corta en 1M y el error que da no menciona el tamano.
+#   3. `location = /` redirige al login. El `basePath` es `/spaces-dooh`, asi
+#      que la raiz desnuda no existe: sin esto devuelve 404.
+#   4. El bloque `default_server` que atrapa las peticiones por IP o por un
+#      nombre que no es el de esta instancia.
+#
+#  El hueco de ACME (`/.well-known/acme-challenge/`) va ANTES del redirect a
+#  https en los dos bloques del 80. Sin eso, la renovacion del certificado
+#  recibe un 301 y falla — en silencio, tres meses despues de montarlo.
+#
+#  NOTA sobre el certificado: las rutas apuntan a
+#  `/etc/letsencrypt/live/__DOMINIO__/`. nginx no arranca si el archivo no
+#  existe, asi que el aprovisionamiento instala este sitio DESPUES de emitir el
+#  certificado, no antes.
+# ============================================================================
+
+# ============================================================================
+#  __DOMINIO__ — Virtual host de producción (SPACE OS)
+#  Destino: /etc/nginx/sites-available/spaces  (symlink en sites-enabled/)
+#
+#  Arquitectura real: UNA app Next.js en 127.0.0.1:3000 con basePath
+#  /spaces-dooh. El API Fastify que suponía la config anterior ya no existe
+#  (se archivó en _archive/api), por eso esta reemplaza a infra/nginx/spaces.conf.
+#
+#  Requiere el snippet de Cloudflare: /etc/nginx/conf.d/cloudflare-realip.conf
+#  (ver infra/nginx/cloudflare-realip.sh). Sin él, con el proxy naranja activo
+#  TODO el tráfico parece venir de una sola IP y el limitador de intentos de
+#  login bloquearía a todos los usuarios a la vez.
+# ============================================================================
+
+# WebSockets: `Connection` debe ser "upgrade" SOLO cuando el cliente lo pide.
+# La config anterior lo ponía fijo en todas las peticiones, lo que rompe el
+# keepalive con el upstream y ensucia cada request con una cabecera de upgrade
+# que nadie solicitó.
+map $http_upgrade $connection_upgrade {
+  default upgrade;
+  ''      close;
+}
+
+upstream spaces_web {
+  server 127.0.0.1:3000;
+  keepalive 32;
+}
+
+# ── 1. Catch-all: cualquier acceso que NO sea por el dominio ────────────────
+# Cubre la IP pública, hosts vacíos y subdominios equivocados. 301 permanente
+# para no perder a quien tenga guardada la URL vieja
+# (http://209.97.146.136/spaces-dooh/...). Se conserva la ruta completa.
+server {
+  listen 80 default_server;
+  listen [::]:80 default_server;
+  server_name _;
+
+  # ACME primero: certbot valida por HTTP incluso en el vhost por defecto.
+  location ^~ /.well-known/acme-challenge/ {
+    root /var/www/html;
+  }
+
+  location / {
+    return 301 https://__DOMINIO__$request_uri;
+  }
+}
+
+# ── 2. El dominio por HTTP → HTTPS ──────────────────────────────────────────
+server {
+  listen 80;
+  listen [::]:80;
+  server_name __DOMINIO__;
+
+  location ^~ /.well-known/acme-challenge/ {
+    root /var/www/html;
+  }
+
+  location / {
+    return 301 https://__DOMINIO__$request_uri;
+  }
+}
+
+# ── 3. HTTPS ────────────────────────────────────────────────────────────────
+server {
+  # Sintaxis de nginx < 1.25.1 (el servidor corre 1.24.0). En 1.25.1+ esto se
+  # escribe como `listen 443 ssl;` + `http2 on;` — si algún día se actualiza
+  # nginx, cambiar aquí o saldrá un warning de directiva obsoleta.
+  listen 443 ssl http2;
+  listen [::]:443 ssl http2;
+  server_name __DOMINIO__;
+
+  ssl_certificate     /etc/letsencrypt/live/__DOMINIO__/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/__DOMINIO__/privkey.pem;
+
+  ssl_protocols             TLSv1.2 TLSv1.3;
+  ssl_prefer_server_ciphers off;   # con TLS1.3 manda el cliente; es lo recomendado
+  ssl_ciphers               ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305;
+  ssl_session_cache         shared:SSL:10m;
+  ssl_session_timeout       1d;
+  ssl_session_tickets       off;
+  # Sin `ssl_stapling`: desde 2025 Let's Encrypt ya no incluye URL de respondedor
+  # OCSP en sus certificados, así que la directiva no hace nada y nginx avisa en
+  # cada arranque. Si algún día se cambia de CA, reconsiderarlo.
+
+  # Subidas: la app limita a 5 MB por imagen y 10 MB por PDF; 12 MB deja margen
+  # para el sobre multipart sin abrir la puerta a subidas enormes.
+  client_max_body_size 12M;
+
+  # ── Cabeceras de seguridad ────────────────────────────────────────────────
+  # HSTS vive AQUÍ y no en next.config.mjs (que lo emite con HSTS=1): en un solo
+  # sitio, y así aplica también a las respuestas que no pasan por la app.
+  # 2 años + preload. OJO: una vez que un navegador lo cachea, el dominio queda
+  # obligado a HTTPS durante ese tiempo. No activar hasta confirmar que el
+  # certificado renueva bien.
+  add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+  # X-Frame-Options, X-Content-Type-Options y Referrer-Policy YA los emite la
+  # app (next.config.mjs → headers()). No se repiten aquí: cabeceras duplicadas
+  # son ambiguas y algunos navegadores toman la más permisiva.
+
+  # ── Compresión ────────────────────────────────────────────────────────────
+  gzip              on;
+  gzip_vary         on;
+  gzip_proxied      any;
+  gzip_comp_level   5;
+  gzip_min_length   1024;
+  gzip_types        text/plain text/css text/javascript application/javascript
+                    application/json application/x-javascript image/svg+xml
+                    application/manifest+json;
+
+  # ── Proxy a la app ────────────────────────────────────────────────────────
+  location / {
+    proxy_pass         http://spaces_web;
+    proxy_http_version 1.1;
+
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    # DELIBERADO: $remote_addr y NO $proxy_add_x_forwarded_for.
+    # `ipDe()` (lib/server/rate-limit.ts) toma el PRIMER valor de la cabecera, así
+    # que encadenar lo que mande el cliente permitiría falsificar la IP y saltarse
+    # el límite de 10 intentos de login por IP. Reescribiéndola con el valor que
+    # nginx conoce, el dato es siempre confiable. Con el snippet de Cloudflare,
+    # $remote_addr ya es la IP real del visitante y no la del proxy.
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host  $host;
+
+    proxy_set_header Upgrade    $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_cache_bypass $http_upgrade;
+
+    proxy_connect_timeout 10s;
+    proxy_read_timeout    75s;
+    proxy_send_timeout    75s;
+  }
+
+  # Estáticos de Next: el nombre lleva hash, así que son inmutables.
+  location /spaces-dooh/_next/static/ {
+    proxy_pass http://spaces_web;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header Connection "";
+    # NO se añade Cache-Control aquí: Next ya emite
+    # `public, max-age=31536000, immutable` para /_next/static (los nombres
+    # llevan hash). Duplicarla deja dos cabeceras iguales en la respuesta.
+    access_log off;
+  }
+
+  # La raíz manda al login. Cuando se retire el basePath (ver
+  # docs/runbook-dominio-https.md) esta línea es lo único que cambia aquí.
+  location = / {
+    return 302 /spaces-dooh/login/;
+  }
+}
