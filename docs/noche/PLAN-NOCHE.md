@@ -51,7 +51,9 @@ Estas prohibiciones no son consejos. Un agente que las cruce se detiene y escrib
 - **F5.7** alta de la primera instancia de owner — bloqueada por §8.2 y §8.3.
 - **F6.3** smoke del panel — necesita DEMO viva.
 - **F7.x** Fase 7 completa.
-- **F2.6** condicionada a P4-bis. **No se fusiona**, pero sí se puede preparar: ver ola 5.
+
+F2.6 **ya no está aquí ni en ninguna ola**: está aplicada en el código desde el 2026-08-14. Ver
+la ola 5 (retirada) y la nota de P4-bis en §8.
 
 Todo lo demás de las fases 5, 6 y 8 es código, plantillas o documentos: se hace esta noche.
 
@@ -144,22 +146,13 @@ bitácora, para que la persona lo copie.
 **Puerta 4:** `rg -n "una sola base|UN proceso|todas las empresas a la vez|21 tablas" vault/` sin
 resultados fuera de secciones marcadas como historia.
 
-### Ola 5 — condicionada, y solo si sobra noche (1 agente)
+### Ola 5 — retirada
 
-| Agente | Tarea | Archivos |
-|---|---|---|
-| `plantillas-instancia` | F2.6, **en la rama `feat/autoregistro-en-arranque`, sin fusionar** | `apps/web/lib/entorno.ts`, `entorno.test.ts`, `app/api/signup/route.ts` (`:18`), `app/(app)/login/page.tsx` (`:30`), `lib/server/google-oauth.ts` (`:90`), `.env.example`, `.env.production.example` |
-
-Esta ola existe por el modo automático: P4-bis no se puede responder de noche, pero la salida (b)
-sí se puede **tener escrita y probada** por si Jochelo la elige. Condiciones estrictas:
-
-- solo se abre si las olas 1 a 4 cerraron y queda tiempo;
-- va en su propia rama y **no se fusiona**, pase lo que pase;
-- si Jochelo elige la salida (a) —dos imágenes por versión— la rama se borra sin más, y eso queda
-  dicho en la entrada de decisión;
-- el paso 3 de F5.4 en el v3 lleva un `[SIN VERIFICAR]`: no está claro si el valor llega a
-  `login/page.tsx` por props del layout o por `api/auth/metodos`. El agente **abre el archivo antes
-  de elegir**, y si sigue sin estar claro, aparca esa parte.
+**No existe.** Su única tarea era F2.6, y F2.6 **ya está aplicada en el código**: la bandera
+se llama `AUTOREGISTRO` (sin prefijo `NEXT_PUBLIC_`), la lee `autoregistroActivo()` en
+`apps/web/lib/entorno.ts:26-28`, es fail-closed (`=== '1'`) y `login/page.tsx` la recibe por
+`api/auth/metodos` (`:78,83`) — no por props. Registrado en `docs/Registro_Cambios.md` el
+2026-08-14. Ver §8 sobre lo que eso implica para P4-bis.
 
 ### Ola 6 — auditoría (1 agente, solo lectura)
 
@@ -264,6 +257,16 @@ corrida continúa.
 ---
 
 ## 8. El archivo de decisiones
+
+> [!warning] P4-bis quedó resuelta **de hecho**, hacia la salida (b)
+> Nadie la contestó: el código la contestó. La bandera del autoregistro salió del build el
+> 2026-08-14 (`AUTOREGISTRO`, fail-closed, en `apps/web/lib/entorno.ts:26-28`; el login la recibe
+> por `api/auth/metodos`). Eso **es** la salida (b), y ningún agente debe volver a plantearla.
+>
+> **Lo que arrastra, y conviene que Jochelo lo confirme aunque el código ya lo haya decidido:** la
+> salida (b) implica **UNA sola imagen por versión** en F2.3 — no dos. Si en algún momento se
+> quisiera volver a la salida (a), habría que deshacer trabajo ya hecho y publicado, no solo elegir
+> otra opción. Una decisión tomada por el código sigue siendo una decisión, y esta no pasó por él.
 
 `docs/noche/DECISIONES-<fecha>.md`. Es el único documento que se escribe pensando en que alguien lo
 contesta. Se lee de pie, con el teléfono en la mano, antes del café. Por eso: **una entrada por

@@ -11,13 +11,19 @@ lo nombras con precisión suficiente para que otro lo arregle en un minuto.
 
 ## Qué compruebas, siempre
 
-1. **Las dos suites.** `npm test` y `npm run test:e2e`. Compara con el estado de partida que el
-   orquestador anotó al arrancar. Un rojo nuevo es un rojo; un rojo heredado es un rojo heredado y
-   se dice así.
+1. **Las dos suites.** `npm test` y `npm run test:e2e`.
+
+   **El estado de partida contra el que comparas sale de `docs/noche/preflight-<fecha>.md`**, el
+   archivo que dejó la persona antes de irse: ahí están las dos cifras, el hash de HEAD sobre el que
+   se midieron y la constancia de que el árbol estaba limpio. Si ese archivo no existe, o su hash no
+   es el de la base de la noche, el estado de partida es el que anotó el orquestador al arrancar —y
+   lo dices, porque una comparación contra una base distinta no vale lo mismo.
+
+   Un rojo nuevo es un rojo; un rojo heredado es un rojo heredado y se dice así.
 
    **Siempre `npm run build` antes de `test:e2e`.** `apps/web/lib/test/servidor-e2e.ts` levanta el
    servidor con `npx next start`, que **reutiliza el build existente y no construye nada**. Sin
-   `.next/BUILD_ID` mueren los 12 archivos e2e con «El servidor de pruebas no respondió … tras
+   `.next/BUILD_ID` mueren **todos** los archivos e2e con «El servidor de pruebas no respondió … tras
    60 s», y tardan **636 s** en hacerlo. Corres las suites en cada puerta: sin esta regla caerías en
    la misma trampa en todas ellas.
 
@@ -25,7 +31,8 @@ lo nombras con precisión suficiente para que otro lo arregle en un minuto.
    cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
    ```
 
-   > **12 fallos exactos = build ausente, no código.** Antes de escribir «rojo» en la bitácora o
+   > **Todos los archivos e2e fallando a la vez = build ausente, no código.** Un recuento caduca
+   > —eran 12, hoy son 20—; el patrón no. Antes de escribir «rojo» en la bitácora o
    > cerrar una puerta, rehaz el build y repite. Declarar rojo un árbol sano detiene la ola
    > siguiente por un motivo que no existe — y en un rojo heredado te haría acusar al estado de
    > partida de algo que tampoco tenía.
@@ -113,8 +120,10 @@ falte**:
 Y compruebas dos cosas más, que son las que se rompen de verdad:
 
 - **Ningún agente eligió por Jochelo.** Busca en el diff cualquier valor por defecto que resuelva
-  una decisión abierta: un modo predeterminado en `provision-instancia.sh`, un nombre de registry
-  literal, una imagen única donde P4-bis pide dos. Si lo encuentras, va en el informe **arriba**.
+  una decisión abierta: un modo predeterminado en `provision-instancia.sh`, o un nombre de registry
+  literal. Si lo encuentras, va en el informe **arriba**. (P4-bis ya no cuenta aquí: quedó resuelta
+  de hecho hacia la salida (b) —una sola imagen por versión— cuando la bandera salió del build el
+  2026-08-14. Ver §8 del plan.)
 - **El árbol está limpio y las aparcadas están donde dicen estar.** `git status` limpio,
   `git stash list` y `git branch --list 'aparcada/*'` coinciden con lo que la bitácora afirma.
 

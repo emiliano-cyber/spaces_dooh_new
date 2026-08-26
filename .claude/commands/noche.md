@@ -1,6 +1,6 @@
 ---
 description: Orquesta el trabajo nocturno desatendido de las fases 5, 6 y 8 del plan v3 (solo repo, sin servidor)
-argument-hint: [todo|ola1|ola2|ola3|ola4|ola5|continuar|informe]
+argument-hint: [todo|ola1|ola2|ola3|ola4|continuar|informe]
 allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git worktree:*), Bash(git checkout:*), Bash(git merge:*), Bash(git stash:*), Bash(npm test:*), Bash(npm run:*), Bash(date:*), Task, TodoWrite, Write, Edit
 ---
 
@@ -25,12 +25,29 @@ lanzar el primer agente; es el corazón de esta corrida.
 2. `git status` — el árbol tiene que estar limpio. Si no lo está, **no arrancas**: escribe el motivo
    en un informe de una línea y termina. No arrastras trabajo ajeno dentro de la noche.
 3. `git log --oneline -5` y confirma la rama `feat/servidor-padre-instancias`.
-4. Corre `npm test` y `npm run test:e2e` **antes de tocar nada** y anota el resultado. Si alguna está
-   roja de entrada, no arrancas: nadie podría distinguir tu rojo del que ya estaba.
+4. **Estado de partida.** Primero busca `docs/noche/preflight-<fecha>.md` con la fecha de HOY
+   (`date +%F`). Lo aceptas como estado de partida **si y solo si** se cumplen las dos cosas:
 
-   **Las e2e exigen un build hecho ANTES, o mueren las 12 en falso.** `apps/web/lib/test/servidor-e2e.ts`
+   - el archivo es **de hoy**, y
+   - el **hash de HEAD que registra coincide** con `git rev-parse HEAD`.
+
+   Si las dos se cumplen, tomas de ahí las dos cifras y **no corres las suites**: la persona ya las
+   corrió, con el build hecho, y te ahorra unos quince minutos y el riesgo del rojo falso.
+
+   Si **no existe**, o es **de otro día**, o el **hash no coincide** —alguien commiteó después de
+   correrlo, así que ese estado ya no describe este árbol—, entonces sí las corres tú, con el build
+   antes:
+
+   ```
+   cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
+   ```
+
+   Corras lo que corras, anota el resultado. Si alguna está roja de entrada, no arrancas: nadie
+   podría distinguir tu rojo del que ya estaba.
+
+   **Las e2e exigen un build hecho ANTES, o mueren TODAS en falso.** `apps/web/lib/test/servidor-e2e.ts`
    arranca el servidor con `npx next start`, que **reutiliza el build existente y no construye nada**.
-   Sin `.next/BUILD_ID` los 12 archivos e2e fallan con «El servidor de pruebas no respondió … tras
+   Sin `.next/BUILD_ID` **todos** los archivos e2e fallan con «El servidor de pruebas no respondió … tras
    60 s» — y tardan **636 s** en hacerlo. El orden es:
 
    ```
@@ -40,7 +57,8 @@ lanzar el primer agente; es el corazón de esta corrida.
    Si el worktree está recién creado, antes de eso hacen falta `npm install` y las copias de
    `apps/web/.env` y `apps/web/.env.local`. Sin ellas no corre ni la primera prueba.
 
-   > **Si `test:e2e` da exactamente 12 fallos, la causa probable es el build ausente, no el código.**
+   > **Si todos los archivos e2e fallan a la vez, la causa probable es el build ausente, no el código.**
+   > (Un recuento caduca —eran 12, hoy son 20—; el patrón no: o caen todos, o el build está.)
    > Rehaz el build y repite **antes de concluir nada**. Ese rojo no dice nada del árbol: dice que
    > falta el build. Dar la noche por perdida ahí es perderla por un `npm run build` que no se corrió.
 5. Crea los tres archivos del día, con `date +%F`:
@@ -57,8 +75,7 @@ Argumento recibido: **$ARGUMENTS** (vacío = `todo`).
 - Ola 1 → en paralelo, una sola tanda: `altas-transaccionales`, `plantillas-instancia`,
   `endpoint-flota`.
 - Ola 2 → `aprovisionamiento`. Ola 3 → `panel-flota`. Ola 4 → `cierre-documental`.
-- Ola 5 → `plantillas-instancia` con F2.6 en rama aparte, **solo** si las olas 1–4 cerraron y queda
-  tiempo.
+- Ola 5 → **retirada.** F2.6 ya está aplicada en el código (ver §4 y §8 del plan). No la despachas.
 - Ola 6 → `verificador-noche`.
 
 A cada subagente le pasas: sus identificadores de tarea (F5.1, F5.2…), la ruta del plan v3 para que
@@ -71,8 +88,7 @@ entrada de decisión.*
 
 Entre olas invocas al `verificador-noche` con la puerta correspondiente. Una puerta en rojo no abre la ola
 siguiente — pero tampoco cierra la noche: **saltas a la ola siguiente que no dependa de la fallida**
-y lo anotas. Las olas 2 y 3 dependen de la 1; la 4 depende de que exista algo que documentar; la 5
-no depende de ninguna.
+y lo anotas. Las olas 2 y 3 dependen de la 1; la 4 depende de que exista algo que documentar.
 
 ## Cuando un agente aparca
 
@@ -93,8 +109,7 @@ no depende de ninguna.
 - No corres nada contra un servidor. Revisa la §1 del plan.
 - No haces `git push`, `git tag`, ni `gh` de ningún tipo.
 - No decides P1, P2, P3, P4, P4-bis ni P6. Ni «provisionalmente». Ni «para desbloquear».
-- No fusionas `chore/retirar-scripts-pista-archivada` (espera a F3.6, que la hace la persona) ni
-  `feat/autoregistro-en-arranque` (espera a P4-bis).
+- No fusionas `chore/retirar-scripts-pista-archivada` (espera a F3.6, que la hace la persona).
 - No inflas el archivo de decisiones. Una pregunta que puedas resolver leyendo el repo **no es una
   decisión**: es trabajo. Cinco entradas bien escritas son útiles; veinte son ruido y no se leen.
 

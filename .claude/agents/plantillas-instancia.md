@@ -12,22 +12,10 @@ Tu tarea es que lo único distinto entre dos instancias esté en dos archivos, y
 **F5.3** (ola 1). Lee su ficha en el plan v3 (Fase 5). Creas dos plantillas y haces crecer una
 prueba.
 
-**F2.6** (ola 5, condicionada, **solo si el orquestador te la asigna**). Es la salida (b) de P4-bis:
-el autoregistro se decide al arrancar y no al compilar, así que una sola imagen sirve a DEMO y a los
-owners. Va **en la rama `feat/autoregistro-en-arranque`, sin fusionar**, pase lo que pase: la elige
-Jochelo, no tú. Tres cosas que no puedes olvidar en ella:
-
-- **Fail-closed.** Sin la variable definida → apagado. Una instancia cuyo `.env` se quedó corto no
-  abre el registro por descuido. Eso es un caso de prueba, no un comentario.
-- El precedente es `GOOGLE_OAUTH`, que ya se decide en el servidor por la decisión 5 de la ADR 0012
-  (`.env.example:38-46`). Copia ese patrón.
-- El paso 3 de la ficha lleva un `[SIN VERIFICAR]`: no está claro si el valor llega a
-  `login/page.tsx:30` por props desde el layout o por la ruta `api/auth/metodos` que ya existe y ya
-  se consulta ahí. **Abre el archivo antes de elegir.** Si sigue sin estar claro, aparca esa parte
-  concreta y deja el resto en la rama.
-- Y `aislamiento.e2e.test.ts` pasa sin tocarlo. Su bloque `:200-213` documenta la imposibilidad de
-  probar la bandera; cuando esta tarea la elimine, ese bloque queda obsoleto y se retira en un
-  release posterior (expand → contract), **no aquí**. Si esta tarea lo pone rojo, aparcas.
+**F2.6 ya está aplicada en el código: no la ejecutas, y la ola 5 no existe.** La bandera vive en
+`autoregistroActivo()` (`apps/web/lib/entorno.ts:26-28`), se llama `AUTOREGISTRO` sin prefijo, es
+fail-closed (`=== '1'`), y `login/page.tsx` la recibe por `api/auth/metodos` (`:78,83`). Registrado
+en `docs/Registro_Cambios.md` el 2026-08-14.
 
 ## Archivos que posees
 
@@ -37,11 +25,8 @@ Jochelo, no tú. Tres cosas que no puedes olvidar en ella:
 - `infra/nginx/instancia.conf.tpl` (nuevo)
 - `apps/web/lib/entorno.test.ts` (crece — ya existe desde F0.3)
 
-**En F2.6, y solo dentro de la rama `feat/autoregistro-en-arranque`:**
-
-- `apps/web/lib/entorno.ts`, `entorno.test.ts`, `app/api/signup/route.ts` (`:18`),
-  `app/(app)/login/page.tsx` (`:30`), `lib/server/google-oauth.ts` (`:90`), `.env.example`,
-  `.env.production.example`
+Y nada más: **F2.6 no se ejecuta** (ver arriba), así que no posees ningún archivo de `lib/entorno.ts`
+ni de `app/api/signup/`.
 
 ## La regla que gobierna el `.env`
 
@@ -51,7 +36,7 @@ y comprueba que alguna línea la consume. Si no la lee nadie, no entra. La lista
 `APP_URL` (el dominio de acceso; lo consumen `app/api/auth/forgot/route.ts:50`,
 `app/api/auth/google/callback/route.ts:61,81`, `app/api/recordatorios/route.ts:65`,
 `lib/server/google-oauth.ts:65`), `DATABASE_URL` (rol de app, **no** superusuario),
-`COOKIE_SECURE=1`, `NEXT_PUBLIC_AUTOREGISTRO=0`, `NEXT_PUBLIC_RECUPERAR_PASSWORD`, `EMAIL_FROM`,
+`COOKIE_SECURE=1`, `AUTOREGISTRO=0`, `NEXT_PUBLIC_RECUPERAR_PASSWORD`, `EMAIL_FROM`,
 `RESEND_API_KEY`, `GOOGLE_*`, `RECORDATORIOS_TOKEN`, `TZ`, `CANAL=estable`, `REGISTRY`,
 `BOOTSTRAP_TOKEN`. Cada una con **una línea** de por qué existe.
 
@@ -84,15 +69,15 @@ bitácora. Cada una está ahí porque algo se rompió una vez.
 ## Cómo trabajas
 
 1. **Prueba primero, en rojo.** Dos casos nuevos en `entorno.test.ts`: la plantilla de instancia
-   existe y trae `NEXT_PUBLIC_AUTOREGISTRO=0`; la plantilla no trae ningún `COOKIE_DOMAIN` con
-   valor. Falla hoy porque el archivo no existe.
+   existe y trae `AUTOREGISTRO=0` —la bandera real, sin prefijo `NEXT_PUBLIC_`, que es la que lee
+   `autoregistroActivo()` en `apps/web/lib/entorno.ts:26-28`—; la plantilla no trae ningún
+   `COOKIE_DOMAIN` con valor. Falla hoy porque el archivo no existe.
 2. Escribes las plantillas. Ni un dominio, IP, token o nombre de registry real dentro: todo
    parámetro o comentario de ejemplo.
 3. Verde: `cd apps/web && npx vitest run lib/entorno.test.ts && npm test`.
 4. Comprueba y pega en la bitácora la salida de
    `rg -n "space-os\.io" infra/env infra/nginx/instancia.conf.tpl` — solo comentarios de ejemplo.
 5. Commit de F5.3: `feat(instancias): plantillas de entorno y de nginx, con el dominio como parametro`
-6. Commit de F2.6, en su rama: `feat(entorno): el autoregistro se decide al arrancar, no al compilar`
 
 ## Lo que te detiene (y qué haces en su lugar)
 
