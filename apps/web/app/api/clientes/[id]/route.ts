@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
+import { exigirReautenticacionSiempre, respuestaDesbloqueo } from '@/lib/server/cambios'
 import {
   actualizarClienteCtrl,
   borrarClienteCtrl,
@@ -33,15 +34,37 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 // CUÁNTO hay, nunca un 500 del driver. El detalle de qué bloquea y por qué está
 // en `clientes-repo.ts`, sobre `borrarCliente`.
 //
-// Mismo permiso que el alta y la edición (`comercial:crear`), que es el camino
-// que ya protege las demás mutaciones de clientes. Ojo: el borrado de
-// arrendadores —el catálogo espejo— es más estricto (`arrendadores:aprobar` y
-// además reautenticación con `exigirCambioSensible`) y es un soft-delete. Que
-// aquí el borrado sea REAL y pida menos que su espejo es una diferencia
-// deliberada de este cambio, no un descuido: está anotada para revisarse.
+// ─── Por qué pide MÁS que crear o editar un cliente ────────────────────────
+// Nació con `comercial:crear`, el mismo permiso que el alta y la edición, y se
+// dejó anotado que su catálogo espejo era más estricto. Jochelo lo resolvió el
+// 2026-08-26: sube a `aprobar` **y con reautenticación**.
+//
+// La asimetría que lo justifica: borrar un arrendador es un SOFT-delete —la
+// fila sigue ahí y se puede revertir— y aun así exige `arrendadores:aprobar`
+// más la contraseña. Aquí el borrado es REAL e irreversible. Pedir menos que su
+// espejo para hacer algo más grave era exactamente al revés de como debe ser.
+//
+// ─── Por qué NO se usa `exigirCambioSensible`, que es lo que hace el espejo ──
+// Porque no habría pedido la contraseña. `exigirCambioSensible` llama a
+// `exigirDesbloqueo()`, y esa función mira el interruptor
+// `tenants.exigir_reautenticacion` (`cambios.ts:202`) y **deja pasar sin pedir
+// nada si está apagado** — que es como está por defecto y como está en los
+// cinco tenants de producción, según el propio comentario de `cambios.ts:214`.
+//
+// O sea que copiar el espejo habría dado una reautenticación decorativa: el
+// código la nombra y el usuario no la ve nunca. Se usa
+// `exigirReautenticacionSiempre()`, el mismo camino que restablecer la
+// contraseña de un tercero (`usuarios/[id]/restablecer/route.ts:38`), donde ya
+// se decidió que hay cosas que no deben depender de un interruptor.
+//
+// Borrar un cliente de forma irreversible es una de ellas.
 export async function DELETE(req: Request, { params }: { params: { id: string } }) {
-  const g = await exigir('comercial', 'crear')
+  // El permiso primero: no tiene sentido pedirle la contraseña a quien de todas
+  // formas no puede borrar.
+  const g = await exigir('comercial', 'aprobar')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
+  const d = await exigirReautenticacionSiempre()
+  if (!d.ok) return respuestaDesbloqueo(d)
   try {
     // Un DELETE normalmente viaja sin cuerpo; el `catch` lo convierte en `{}`.
     // El cuerpo solo transporta la confirmación de las propuestas huérfanas.

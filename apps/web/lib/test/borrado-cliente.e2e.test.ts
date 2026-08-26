@@ -56,14 +56,32 @@ beforeAll(async () => {
   await ajeno.entrar(ajena.usuarioEmail, PASSWORD_DEMO)
   mirón = new Cliente()
   await mirón.entrar('duenio@borraclimiron.test', PASSWORD_DEMO)
+  await desbloquear(c)
+  await desbloquear(ajeno)
 }, 120_000)
+
+/**
+ * Reautentica la sesión. Hace falta desde el 2026-08-26: borrar un cliente pasa
+ * por `exigirReautenticacionSiempre()`, o sea que pide la contraseña SIEMPRE y
+ * no según el interruptor del tenant.
+ */
+async function desbloquear(cl: Cliente): Promise<void> {
+  const r = await cl.pedir('/api/cambios/desbloquear/', { cuerpo: { password: PASSWORD_DEMO } })
+  expect(r.status, JSON.stringify(r.datos)).toBe(200)
+}
 
 afterAll(async () => {
   await pararServidor()
   await cerrarPool()
 })
 
+// OJO: aquí NO se renueva el desbloqueo. Se intentó, y el endpoint tiene su
+// propio limitador —5 por usuario e IP cada 5 minutos (`desbloquear/route.ts:20`)—
+// así que pedirlo antes de cada caso agota el cubo y la suite entera cae con
+// 429. Con una sola vez en el `beforeAll` basta: el desbloqueo dura minutos y
+// este archivo corre en segundos.
 beforeEach(async () => {
+
   // Se limpia todo lo que las pruebas cuelgan de un cliente, en orden de
   // dependencia. Los clientes que siembra `sembrarTenant` se conservan.
   const p = poolTest()
@@ -317,5 +335,49 @@ describe('7 · sin permiso no se borra', () => {
     const r = await anónimo.pedir(`/api/clientes/${id}/`, { metodo: 'DELETE' })
     expect([401, 403]).toContain(r.status)
     expect(await existe(id)).toBe(true)
+  })
+})
+
+describe('CRUD-01 · la reautenticacion es real, no decorativa', () => {
+  it('una sesion RECIEN ABIERTA no puede borrar: 403 y la fila sigue ahi', async () => {
+    // Este caso es el candado de una decisión del 2026-08-26, y explica por qué
+    // NO se usó `exigirCambioSensible` como hace el borrado de arrendadores.
+    //
+    // Esa función llama a `exigirDesbloqueo()`, que mira el interruptor
+    // `tenants.exigir_reautenticacion` (`cambios.ts:202`) y DEJA PASAR SIN PEDIR
+    // NADA cuando está apagado — como está por defecto y como está en los cinco
+    // tenants de producción. Copiar el espejo habría dado una reautenticación
+    // que el código nombra y el usuario no ve nunca.
+    //
+    // Sin esta prueba, volver a `exigirCambioSensible` dejaría las otras 16 en
+    // verde: todas desbloquean primero. Sería un retroceso invisible.
+    const id = await altaCliente('Cliente que no se borra sin contraseña')
+
+    const recién = new Cliente()
+    await recién.entrar(org.usuarioEmail, PASSWORD_DEMO)
+
+    const r = await recién.pedir(`/api/clientes/${id}/`, { metodo: 'DELETE' })
+
+    expect(r.status).toBe(403)
+    expect(r.datos?.requiereDesbloqueo).toBe(true)
+
+    const quedan = await poolTest().query('select count(*)::int as n from clientes where id = $1', [id])
+    expect(quedan.rows[0].n).toBe(1)
+  })
+
+  it('y con la contrasena SI puede: el 403 viene de ahi y no de otra cosa', async () => {
+    // La otra mitad. Sin ella, un 403 por permisos o por sesión inválida se
+    // leería como «la reautenticación funciona».
+    const id = await altaCliente('Cliente que si se borra tras desbloquear')
+
+    const otra = new Cliente()
+    await otra.entrar(org.usuarioEmail, PASSWORD_DEMO)
+    await desbloquear(otra)
+
+    const r = await otra.pedir(`/api/clientes/${id}/`, { metodo: 'DELETE' })
+
+    expect(r.status, JSON.stringify(r.datos)).toBe(200)
+    const quedan = await poolTest().query('select count(*)::int as n from clientes where id = $1', [id])
+    expect(quedan.rows[0].n).toBe(0)
   })
 })

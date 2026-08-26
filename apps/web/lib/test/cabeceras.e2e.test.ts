@@ -171,14 +171,16 @@ describe('UI-01 · el título de la pestaña', () => {
     expect(await tituloDe('/recuperar/token-de-prueba/')).toBe(MARCA)
   })
 
-  it('en una ruta prerenderizada gana el valor de omisión — y ESO es la trampa', async () => {
-    // Este caso afirma una LIMITACIÓN, no una virtud, y por eso está escrito.
-    // Si alguien saca el subárbol `(app)` del render estático
-    // (`export const dynamic` en `app/(app)/layout.tsx`), esta prueba se cae y
-    // habrá que borrarla — que es justo el aviso que se quiere dar.
+  it('y en `/login`, que ANTES se prerenderizaba, tambien', async () => {
+    // Este caso afirmaba lo contrario hasta el 2026-08-26: que en las 22 rutas
+    // prerenderizadas ganaba el valor de omisión, porque el `<title>` se
+    // escribía en el build. Se dejó escrito como limitación, con el aviso de
+    // que caería el día que alguien sacara `(app)` del render estático.
     //
-    // Es la misma puerta por la que se coló el botón «Crear cuenta» en el
-    // `/login` prerenderizado (`app/api/auth/metodos/route.ts:29-38`).
-    expect(await tituloDe('/login/')).toBe('SPACE OS')
+    // Ese día fue el mismo: `export const dynamic = 'force-dynamic'` en
+    // `app/(app)/layout.tsx`. Ahora la marca de la instancia gana también aquí,
+    // y el caso se invierte en vez de borrarse — así queda constancia de que el
+    // cambio fue deliberado y de qué se ganó con él.
+    expect(await tituloDe('/login/')).toBe(MARCA)
   })
 })

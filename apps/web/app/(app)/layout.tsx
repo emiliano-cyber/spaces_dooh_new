@@ -33,11 +33,27 @@ const jetbrains = JetBrains_Mono({
 // > `app/api/auth/metodos/route.ts:29-38` documenta para el botón «Crear
 // > cuenta», por la misma puerta.
 // >
-// > Que mande en TODAS las rutas exige sacar este subárbol del render estático
-// > (`export const dynamic = 'force-dynamic'` aquí). Es barato —las páginas de
-// > `(app)` son todas `'use client'`, así que el render de servidor es la
-// > cáscara y nada más— pero cambia el modo de renderizado de la aplicación
-// > entera, y eso lo decide una persona, no el arreglo de un título.
+// > **RESUELTO el 2026-08-26.** Jochelo decidió sacar el subárbol del render
+// > estático — ver `dynamic` justo abajo. Este aviso se conserva porque explica
+// > POR QUÉ está esa línea: sin ella, `ORG_NOMBRE` se leía de verdad en cada
+// > arranque y aun así no servía de nada en 22 rutas.
+
+// El subárbol `(app)` se renderiza POR PETICIÓN, y esa es la única forma de que
+// la marca de la instancia gane en todas sus rutas y no solo en las dinámicas.
+//
+// Lo que cuesta, medido y no supuesto: las páginas de `(app)` son todas
+// `'use client'`, así que lo que Next renderiza en el servidor es la cáscara y
+// nada más — el trabajo por petición es escribir un `<html>` con su `<title>`.
+// Lo que se pierde es el HTML prerenderizado de 22 rutas, que se vuelve a
+// generar en cada visita en vez de servirse desde disco.
+//
+// Y se gana algo que no es solo el título: mientras esas rutas se horneaban,
+// CUALQUIER decisión tomada al arrancar quedaba congelada en ellas. Es la misma
+// puerta por la que el botón «Crear cuenta» apareció en un `/login` construido
+// con el autoregistro apagado (`app/api/auth/metodos/route.ts:29-38`). Esa
+// puerta se cierra aquí para todo el subárbol, no solo para la marca.
+export const dynamic = 'force-dynamic'
+
 export function generateMetadata(): Metadata {
   const marca = nombreDeMarca()
   return {
