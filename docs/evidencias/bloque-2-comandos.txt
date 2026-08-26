@@ -181,9 +181,16 @@ ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spa
 # ------------------------------------------------------------
 # No basta con que el archivo diga `User=demo`: se mide.
 
-ps -o user=,cmd= -C node | grep 3001
+systemctl show spaces-demo -p MainPID --value | xargs -r ps -o user=,pid=,cmd= -p
 
 # Esperado: la linea empieza por `demo`, NO por `root`.
+#
+# >>> CORREGIDO EL 25/08. La primera version era
+#     `ps -o user=,cmd= -C node | grep 3001` y SIEMPRE devolvia vacio: la linea
+#     de comando del proceso es `next-server (v14.2.29)` y NO contiene el puerto.
+#     Un vacio se lee como «no esta corriendo» cuando en realidad la pregunta
+#     estaba mal hecha -- y eso es peor que un error, porque parece un hallazgo.
+#     Se pide el PID a systemd, que es quien lo sabe.
 #
 # Es la separacion que el ADR 0017 da por hecha para aceptar que la demo
 # comparta maquina con el plano de control. Si sale `root`, esa decision se
