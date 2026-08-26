@@ -466,21 +466,35 @@ su versión. Es el punto de mayor apalancamiento del plan entero.
 
 ## 8 · Nota de integridad: desfases corregidos al cerrar las fases
 
-Al levantar este reporte aparecieron cinco desfases entre lo que decían los
-documentos y lo que era cierto. Los cuatro primeros quedaron corregidos en el
-mismo commit que cierra las fases; el quinto es deliberado y se declara.
+Al levantar este reporte aparecieron desfases entre lo que decían los documentos
+y lo que era cierto. Los cuatro primeros quedaron **corregidos** en el mismo
+commit que cierra las fases; los dos últimos **se declaran**, porque no son un
+error que arreglar.
 
-1. **El expediente pedía dos pasos que el ADR 0020 anuló** — el certificado de
-   `demo.space-os.io` y mover su registro A. Corregido.
-2. **El tablero de ejecución iba por detrás**: marcaba F4.2 y F4.4 como «ensayada
-   en local» del 19/08, cuando están cumplidas contra el servidor desde el 25/08.
-   Corregido.
-3. **No había entrada de bitácora del 26/08** para el ADR 0020, y esa decisión
-   cambia lo que ve un cliente. Escrita.
-4. **La rama iba por delante del remoto** con trabajo del 26/08 sin empujar.
-5. **Nada está fusionado a `main`**, y es deliberado: la rama principal tiene 66
-   migraciones y esta 73. El modelo de instancias se aísla a propósito hasta que
-   el canal esté probado.
+1. ✅ **El expediente pedía dos pasos que el ADR 0020 anuló** — el certificado de
+   `demo.space-os.io` y mover su registro A. Lo llamativo es que el ADR los
+   eliminó **el mismo día** en que esa sección se escribió, mientras el resto del
+   documento sí se actualizaba.
+2. ✅ **El tablero de ejecución iba cinco días por detrás**: marcaba F4.2 y F4.4
+   como «ensayada en local» del 19/08 con su parte real medida contra el servidor
+   desde el 25/08.
+3. ✅ **No había entrada de bitácora del 26/08** para el ADR 0020, y esa decisión
+   cambia lo que ve un cliente. Escrita en lenguaje llano.
+4. ✅ **Cinco notas internas daban por vivo el nombre de la demostración**, o por
+   perdido un acceso que nunca se perdió. Corregidas con aviso fechado y **sin
+   reescribir su cuerpo**: eran correctas en su fecha.
+5. ⏳ **La rama no está empujada al remoto.** Es estado, no defecto: se empuja
+   cuando corresponda.
+6. ⏳ **Nada está fusionado a `main`**, y es deliberado: la rama principal tiene
+   66 migraciones y esta 73. El modelo de instancias se aísla a propósito hasta
+   que el canal esté probado.
+
+> [!important] El patrón importa más que los casos, y ya va por la quinta vez
+> Los cuatro desfases corregidos son **el mismo defecto**: un documento que
+> sobrevive a la decisión que lo invalida. No es descuido — es que **quien toma la
+> decisión no suele ser quien mantiene la fila que la describe**. A la quinta
+> repetición en esta rama deja de ser un accidente y pasa a ser algo que el
+> proceso tiene que resolver.
 
 ---
 
