@@ -195,9 +195,15 @@ describe('F5.3 · infra/env/instancia.env.example', () => {
     }
   })
 
-  it('no lleva secretos de la aplicacion: para eso esta la otra', () => {
+  it('no lleva los secretos que solo la aplicacion necesita', () => {
+    // OJO con lo que NO se afirma aqui: `instancia.env` SI lleva un
+    // `DATABASE_URL`, y es correcto -- es el PRIVILEGIADO, el de migraciones y
+    // respaldo, distinto del rol `spaces_app` que usa la aplicacion
+    // (`infra/scripts/update.sh:79-85`). Son dos conexiones con dos roles.
+    //
+    // Lo que no tiene que estar aqui es lo que solo sirve dentro de la app.
     const v = soloValores(plantilla('instancia.env.example'))
-    for (const secreto of ['DATABASE_URL', 'RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'BOOTSTRAP_TOKEN']) {
+    for (const secreto of ['RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'BOOTSTRAP_TOKEN', 'AUTOREGISTRO']) {
       expect(v).not.toMatch(new RegExp(secreto))
     }
   })
@@ -211,7 +217,12 @@ describe('F5.3 · ninguna plantilla lleva un valor real quemado', () => {
     for (const a of archivos) {
       const v = soloValores(plantilla(a))
       expect(v, `${a} tiene un dominio real`).not.toMatch(/space-os\.io/)
-      expect(v, `${a} tiene una IP`).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/)
+      // El loopback se permite, y hace falta: `SALUD_URL` apunta a
+      // `127.0.0.1:3000` porque la comprobación de salud la hace la propia
+      // máquina contra su propio proceso (`update.sh:100`). Lo que no puede
+      // aparecer es una IP ENCAMINABLE — eso sería un servidor concreto quemado.
+      const sinLoopback = v.replace(/127\.0\.0\.1/g, '')
+      expect(sinLoopback, `${a} tiene una IP`).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/)
     }
   })
 
