@@ -9,7 +9,7 @@
 ============================================================
  LO QUE SE DESPLIEGA DE VERDAD -- SON DOS TAREAS, NO UNA
 ============================================================
- La version 1 de esta tarjeta decia «desplegar F5.2». Era
+ La version 1 de esta tarjeta decia "desplegar F5.2". Era
  incompleto: el `git pull` trae TAMBIEN F5.1, y F5.1 toca el alta
  de organizaciones EN PRODUCCION.
 
@@ -103,14 +103,20 @@ df -h / | tail -1; free -h | head -2
 # V2 - Traer el codigo
 # ------------------------------------------------------------
 
-git pull && git log --oneline -1
+git pull && git log --oneline -1 && git merge-base --is-ancestor 0b7e10a HEAD && echo LLEGO-F52 || echo FALTA-F52
 
-# Esperado, el ultimo commit:
-#   de173a3 docs(evidencias): tarjeta para desplegar F5.2 en el PADRE
+# Esperado:  LLEGO-F52
 #
-# >>> Si sale OTRO hash mas nuevo, no pasa nada malo: quiere decir
-#     que hubo mas commits despues de escribir esto. Pasamelo y te
-#     digo si cambia algo. Si sale uno MAS VIEJO, PARA.
+# No se compara contra un hash concreto A PROPOSITO. La version 1 de
+# esta tarjeta lo hacia y quedo desfasada en cuanto se commiteo la
+# propia tarjeta encima: el hash que anunciaba ya no era el ultimo, y
+# quien la corriera no sabria si parar.
+#
+# `merge-base --is-ancestor` pregunta lo que de verdad importa --si el
+# codigo de F5.1 y F5.2 esta dentro de lo que acabas de traer-- y eso
+# no caduca por muchos commits que se hagan despues.
+#
+# >>> FALTA-F52 = el pull no trajo el codigo. PARA.
 
 
 # ------------------------------------------------------------
