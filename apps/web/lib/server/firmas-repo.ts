@@ -302,6 +302,8 @@ export async function firmaPorToken(token: string): Promise<{
   }
 }
 
+const MAX_NOMBRE_FIRMANTE = 240
+
 export async function firmarPorToken(args: {
   token: string
   nombre: string
@@ -314,6 +316,21 @@ export async function firmarPorToken(args: {
   if (f.yaFirmada) throw new AppError('Este contrato ya fue firmado con este enlace.', 409)
   const nombre = args.nombre.trim()
   if (nombre.length < 3) throw new AppError('Escribe tu nombre completo para firmar.', 400)
+  // Y un tope por arriba, que no habia. Esta ruta es PUBLICA —la abre alguien de
+  // fuera con una liga, sin sesion— y lo que escribe es `nombre_firmante` en el
+  // registro de una firma electronica: NINGUNA ruta de la aplicacion lo corrige
+  // despues, y sale impreso en el expediente del contrato. Un nombre de 5 000
+  // caracteres se quedaba ahi para siempre.
+  //
+  // 240 es holgado a proposito: el doble de lo que mide un nombre legal largo de
+  // verdad. Un tope que estorbe acaba quitandose entero, que es como se llego a
+  // no tener ninguno.
+  if (nombre.length > MAX_NOMBRE_FIRMANTE) {
+    throw new AppError(
+      `El nombre no puede pasar de ${MAX_NOMBRE_FIRMANTE} caracteres.`,
+      400,
+    )
+  }
 
   const t = await qRaw1<{ tenant: string | null }>(
     'select firma_tenant_por_token($1) as tenant',

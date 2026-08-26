@@ -135,3 +135,34 @@ describe('editarContrato — lo que SÍ tiene que seguir pasando', () => {
     expect(huboUpdate()).toBe(true)
   })
 })
+
+// ─── VAL-10 · la mitad que UX-01 dejó sin cerrar ────────────────────────────
+//  El guard del controlador ya comparaba por CALENDARIO desde UX-01, pero el del
+//  model —el que actúa cuando el PATCH trae una sola fecha, que es el caso para
+//  el que se escribió— se quedó comparando CADENAS: `diaFin < diaInicio`.
+//
+//  Eso solo funciona si las dos llevan ceros a la izquierda. La fila de la base
+//  siempre los lleva; el patch no tiene por qué. Con `fechaFin: '2026-9-1'`
+//  sobre un contrato que empieza el '2026-10-01', '2026-9-1' < '2026-10-01' es
+//  FALSO como texto (el '9' va después del '1') y verdadero en el calendario:
+//  el guard nuevo dejaba pasar justo la inversión que existe para impedir.
+describe('VAL-10 · el guard del model compara por calendario, no como texto', () => {
+  it('atrapa la inversión aunque el patch venga sin ceros a la izquierda', async () => {
+    filaContrato.fecha_inicio = '2026-10-01'
+    filaContrato.fecha_fin = '2026-12-31'
+    const r = await editarContrato(CONTRATO, { fechaFin: '2026-9-1' })
+    expect(r).toHaveProperty('fechasInvertidas')
+    expect(huboUpdate()).toBe(false)
+  })
+
+  it('y no rechaza el caso correcto con la misma forma', async () => {
+    // Control positivo: '2026-9-1' → '2026-10-01' es un periodo válido, y
+    // comparado como texto saldría invertido. Si este cayera, la regla nueva
+    // estaría rota por el otro lado.
+    filaContrato.fecha_inicio = '2026-01-01'
+    filaContrato.fecha_fin = '2026-12-31'
+    const r = await editarContrato(CONTRATO, { fechaInicio: '2026-9-1', fechaFin: '2026-10-01' })
+    expect(r).not.toHaveProperty('fechasInvertidas')
+    expect(huboUpdate()).toBe(true)
+  })
+})

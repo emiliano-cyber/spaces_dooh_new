@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { plazosCobranzaDelTenant, plazoPorDefecto } from './config-repo'
+import { fechaZod } from './fechas'
 import { generarFactura, registrarPagoCobranza, FacturaError } from './finanzas-repo'
 
 // ============================================================================
@@ -48,7 +49,11 @@ function facturaSchemaDe(plazos: number[]) {
     plan: z
       .object({
         periodicidad: z.enum(['QUINCENAL', 'MENSUAL', 'BIMESTRAL', 'TRIMESTRAL', 'SEMESTRAL', 'ANUAL']),
-        primerVencimiento: z.string().min(1, 'Falta la fecha del primer vencimiento'),
+        // De esta fecha salen los vencimientos de TODAS las cuotas
+        // (`finanzas-repo.ts:238`, `$3::date + i * intervalo`). Con el
+        // `z.string().min(1)` de antes, «manana» no daba un 400 sino un error
+        // del driver: un 500 sin nada que le diga al usuario que escribio mal.
+        primerVencimiento: fechaZod('Falta la fecha del primer vencimiento'),
       })
       .strict()
       .nullish(),

@@ -37,6 +37,35 @@ describe('rfcTenant', () => {
     expect(() => rfcTenant.parse('RC1210315J38')).toThrow()   // dígito en la raíz
   })
 
+  // VAL-04 · el RFC DEL EMISOR no pasaba por el calendario.
+  //
+  // `config-fiscal.ts` tenía su propia copia de la expresión, con el `\d{6}`
+  // que el 26/08 se corrigió en `@/lib/rfc`. La copia se quedó atrás, así que el
+  // mes 13 seguía entrando — y aquí no es el RFC de un cliente: es el de la
+  // propia organización, el que va como EMISOR en cada CFDI y el que el
+  // generador de contratos recita en las declaraciones de la arrendataria. Un
+  // cliente con el RFC mal no se puede facturar; el emisor con el RFC mal no
+  // deja facturar a NADIE.
+  it('rechaza una fecha que no existe en el calendario', () => {
+    expect(() => rfcTenant.parse('XAXX021301000')).toThrow()  // mes 13
+    expect(() => rfcTenant.parse('RCA219915J38')).toThrow()   // mes 99
+    expect(() => rfcTenant.parse('RCA210015J38')).toThrow()   // mes 00
+    expect(() => rfcTenant.parse('RCA210332J38')).toThrow()   // día 32
+    expect(() => rfcTenant.parse('RCA210400J38')).toThrow()   // día 00
+    expect(() => rfcTenant.parse('RCA210431J38')).toThrow()   // 31 de abril
+    expect(() => rfcTenant.parse('RCA210230J38')).toThrow()   // 30 de febrero
+  })
+
+  it('sigue aceptando los genéricos del SAT y los bordes de mes', () => {
+    // Si estos cayeran, la regla estaría mal: son los RFC que una organización
+    // usa de verdad para facturar a público en general.
+    expect(rfcTenant.parse('XAXX010101000')).toBe('XAXX010101000')
+    expect(rfcTenant.parse('XEXX010101000')).toBe('XEXX010101000')
+    expect(rfcTenant.parse('RCA210229J38')).toBe('RCA210229J38')  // 29 de febrero
+    expect(rfcTenant.parse('RCA210131J38')).toBe('RCA210131J38')  // 31 de enero
+    expect(rfcTenant.parse('RCA211231J38')).toBe('RCA211231J38')  // 31 de diciembre
+  })
+
   it('normaliza antes de medir el largo, no después', () => {
     // Con separadores son 14 caracteres. Si el `.max()` se aplicara al valor
     // crudo con un tope de 13, este RFC válido se rechazaría por largo.

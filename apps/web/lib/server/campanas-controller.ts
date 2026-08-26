@@ -2,6 +2,7 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { LIMITES, uploadOUrlZod } from './uploads'
+import { fechaZod } from './fechas'
 import {
   confirmarReserva,
   validarPublicacion,
@@ -49,7 +50,14 @@ export async function enviarADominioCtrl(id: string) {
   }
 }
 
-const extenderSchema = z.object({ fechaFin: z.string().min(1, 'Falta la fecha fin') })
+// `fechaZod` y no `z.string().min(1)`: con el segundo, un «mañana» llegaba tal
+// cual a la columna `date` de `campanas.fecha_fin` y volvia como un error del
+// driver, o sea un 500 que no dice que se escribio mal. Mismo defecto que UX-01.
+//
+// Que la fecha nueva no ACORTE la campana no se puede decidir aqui: hace falta
+// la fecha de fin que la campana tiene hoy, y solo el model la conoce. Ese
+// guard vive en `extenderCampana`.
+const extenderSchema = z.object({ fechaFin: fechaZod('Falta la fecha fin') })
 
 export async function extenderCampanaCtrl(id: string, body: unknown) {
   const d = validar(extenderSchema, body ?? {})

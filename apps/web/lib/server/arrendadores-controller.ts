@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
+import { fechaZod, ordenInvertido } from './fechas'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
@@ -27,45 +28,14 @@ import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 // expresión sola se quedó en la mitad de la regla.
 const CURP_RE = /^[A-Z][AEIOUX][A-Z]{2}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/i
 
-// Fecha que Postgres pueda castear de verdad. Sin esto, un valor como "mañana"
-// llegaba crudo a `$1::date` y salía como error del driver (500) en vez de 400.
-const fecha = z
-  .string()
-  .trim()
-  .min(1, 'La fecha es obligatoria')
-  .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
-
-// Mismo `refine`, con los mensajes propios del alta de contrato. Se aplicaba en
-// la renovación y no en el alta, así que «mañana» como fecha de fin llegaba
-// cruda a `$1::date` y salía como error del driver (500) en vez de 400.
-const fechaInicioContrato = z
-  .string().trim().min(1, 'Falta la fecha de inicio')
-  .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
-const fechaFinContrato = z
-  .string().trim().min(1, 'Falta la fecha de fin')
-  .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
-
-// Día comparable (AAAAMMDD como número) a partir de una fecha ISO, con o sin
-// hora. Comparar las fechas COMO TEXTO —que es lo que se hacía— solo funciona
-// si las dos llevan ceros a la izquierda: '2026-9-1' y '2026-10-01' están en
-// ese orden en el calendario y en el contrario en un `<` de cadenas, así que un
-// contrato correcto se rechazaba y uno invertido podía pasar. Lo destapó la
-// auditoría del 2026-08-26 (UX-01).
-function diaComparable(v: string): number | null {
-  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(v.trim())
-  // Una fecha con otra forma («March 3, 2026») ya pasó el `refine`, pero no se
-  // puede reducir a un día sin arrastrar la zona horaria. Devolver null la deja
-  // fuera de la comparación en vez de compararla mal: `contrato_completo_ck` y
-  // el calendario siguen detrás.
-  return m ? Number(m[1]) * 10000 + Number(m[2]) * 100 + Number(m[3]) : null
-}
-
-// `true` solo cuando se puede afirmar que el fin va ANTES del inicio.
-function ordenInvertido(inicio: string, fin: string): boolean {
-  const a = diaComparable(inicio)
-  const b = diaComparable(fin)
-  return a != null && b != null && b < a
-}
+// La regla «esto tiene que ser una fecha» vive en `./fechas` y no aqui. Nacio en
+// este archivo con UX-01, y el barrido del 26/08 encontro el mismo
+// `z.string().min(1)` sin corregir en otras tres rutas que tambien escriben a
+// columnas `date`. Copiarla es lo que le paso al RFC: se arregla una copia y las
+// demas se quedan atras sin que nada avise.
+const fecha = fechaZod('La fecha es obligatoria')
+const fechaInicioContrato = fechaZod('Falta la fecha de inicio')
+const fechaFinContrato = fechaZod('Falta la fecha de fin')
 
 const crearSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
@@ -468,7 +438,13 @@ const licenciaSchema = z.object({
 }).strict()
 
 function validarVigencia(d: { fechaExpedicion?: string | null; fechaVencimiento?: string }) {
-  if (d.fechaExpedicion && d.fechaVencimiento && d.fechaVencimiento < d.fechaExpedicion) {
+  // Por CALENDARIO, no como texto. Era la TERCERA copia de la misma comparacion
+  // de cadenas —UX-01 la corrigio en el alta de contrato, VAL-10 en el model de
+  // la edicion— y aqui seguia igual: '2026-9-1' sale MAYOR que '2026-10-01' como
+  // texto, asi que una vigencia invertida pasaba y una correcta se rechazaba.
+  // Una licencia que vence antes de expedirse nace VENCIDA: el aviso la marca en
+  // rojo el dia uno y deja el predio con un pendiente legal que no existe.
+  if (d.fechaExpedicion && d.fechaVencimiento && ordenInvertido(d.fechaExpedicion, d.fechaVencimiento)) {
     throw new AppError('La licencia no puede vencer antes de expedirse.', 400)
   }
 }

@@ -7,6 +7,33 @@ La entrada más reciente va arriba.
 
 ## 2026-08-26
 
+- **La aplicación ya no acepta datos imposibles por la puerta de atrás.** La
+  pantalla siempre validó bien lo que se escribe; el problema estaba en que si
+  algo entraba **sin pasar por la pantalla** —un programa, una integración, una
+  petición hecha a mano— el sistema lo aceptaba sin mirar. Se cerraron siete de
+  esos huecos:
+  - **Una orden de compra podía guardarse con un importe negativo.** Y no había
+    forma de corregirla ni de borrarla desde la aplicación: quedaba ahí, y
+    encima podía empujar la campaña a «lista para facturar».
+  - **«Extender» una campaña podía ACORTARLA.** Bastaba mandar una fecha
+    anterior a la que ya tenía, y se llevaba por delante también todas sus
+    reservas.
+  - **El RFC de tu propia empresa** —el que sale en las facturas— se aceptaba
+    con fechas que no existen, como el mes 13. Ya se comprueba.
+  - **Firmar un contrato o aceptar una propuesta** admitía un nombre de miles
+    de caracteres, sin haber iniciado sesión, en un registro que después no se
+    puede modificar.
+  - **Un descuento que no fuera un número** se guardaba igual y contaminaba
+    todos los importes de esa propuesta, en silencio y con la petición dando
+    «correcto».
+  - **Dos comparaciones de fechas estaban mal** y fallaban en las dos
+    direcciones: dejaban pasar un periodo invertido y a la vez rechazaban uno
+    correcto.
+
+- **Se revisaron los 72 puntos por donde la aplicación recibe datos**, no solo
+  los que fallaron. Queda una lista priorizada de lo que falta, en el
+  repositorio, para irla cerrando por orden de gravedad.
+
 - **Los plazos de cobranza que configuras ahora sí se usan.** En Administración
   se podían añadir y quitar plazos —45 días, 30 días, los que hicieran falta—,
   se guardaban bien, y al momento de facturar **el sistema los ignoraba y solo

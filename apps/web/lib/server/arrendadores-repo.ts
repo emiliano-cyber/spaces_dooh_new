@@ -4,6 +4,7 @@ import { q, q1, pool, fijarTenant, withTenantTx } from './db'
 import { tenantActual } from './tenant'
 import { insertarSitio, rowToSitio } from './sitios-repo'
 import { AppError } from './errores'
+import { ordenInvertido } from './fechas'
 import { periodoDeIndice, montoMensualEquivalente } from '../renta-periodicidad'
 // Sin ciclo: contratos-sitio solo importa `errores`, `predio-cercania` (puro) y
 // los tipos de pg.
@@ -1217,10 +1218,18 @@ export async function editarContrato(id: string, patch: {
     // deja en '2026-01-01T06:00:00.000Z') y el patch como '2026-01-01'. Sin
     // recortar, un contrato de un solo día parecería invertido y se rechazaría
     // una edición legítima.
+    //
+    // Y se compara por CALENDARIO (`ordenInvertido`), no como texto. La
+    // comparacion de cadenas solo funciona si las dos fechas llevan ceros a la
+    // izquierda: la fila de la base siempre los lleva, el patch no tiene por
+    // que. Con '2026-9-1' sobre un contrato que empieza el '2026-10-01',
+    // '2026-9-1' < '2026-10-01' es FALSO como texto y verdadero en el
+    // calendario, asi que el guard dejaba pasar justo la inversion que existe
+    // para impedir. Es la mitad que UX-01 corrigio en el controlador y no aqui.
     const dia = (v: unknown) => (v == null ? null : String(v).slice(0, 10))
     const diaInicio = dia(fi)
     const diaFin = dia(ff)
-    if (diaInicio && diaFin && diaFin < diaInicio) {
+    if (diaInicio && diaFin && ordenInvertido(diaInicio, diaFin)) {
       return { fechasInvertidas: { inicio: diaInicio, fin: diaFin } }
     }
 

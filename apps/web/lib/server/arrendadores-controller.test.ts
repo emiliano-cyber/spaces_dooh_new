@@ -20,6 +20,8 @@ const repo = {
   crearPredio: vi.fn(), editarPredio: vi.fn(), crearArrendador: vi.fn(),
   editarArrendador: vi.fn(), borrarArrendador: vi.fn(), editarContrato: vi.fn(),
   cancelarContrato: vi.fn(), crearRazonSocial: vi.fn(),
+  crearLicencia: vi.fn(async (d: unknown) => ({ id: 'L1', ...(d as object) })),
+  editarLicencia: vi.fn(), borrarLicencia: vi.fn(), listarLicencias: vi.fn(),
 }
 vi.mock('./arrendadores-repo', () => repo)
 
@@ -42,7 +44,7 @@ vi.mock('./operaciones-eventos', () => eventos)
 const {
   crearContratoCtrl, agregarPantallaAPredioCtrl, iniciarRenovacionCtrl,
   registrarPagoRentaCtrl, adjuntarAPagoCtrl, obtenerAdjuntoPagoCtrl,
-  editarContratoCtrl,
+  editarContratoCtrl, crearLicenciaCtrl,
 } = await import('./arrendadores-controller')
 
 // Las aserciones de "no se llamó al model" dependen de partir de cero.
@@ -304,5 +306,42 @@ describe('crearContratoCtrl — fechas que Postgres pueda castear', () => {
       contrato: { ...CONTRATO, fechaInicio: '2026-12-31', fechaFin: '2026-01-01' },
     })).rejects.toThrow(/anterior a la de inicio/)
     expect(repo.crearContratoConSitio).not.toHaveBeenCalled()
+  })
+})
+
+// ─── VAL-11 · la tercera copia de la comparacion de fechas como TEXTO ───────
+//  `validarVigencia` (arrendadores-controller) comparaba
+//  `d.fechaVencimiento < d.fechaExpedicion` sobre CADENAS. Es el mismo defecto
+//  que UX-01 corrigio en los contratos y que VAL-10 corrigio en el model: solo
+//  funciona si las dos fechas llevan ceros a la izquierda, y el cuerpo lo manda
+//  quien llama, no la base.
+//
+//  Una licencia que «vence» antes de expedirse nace vencida: el aviso de
+//  vencimiento la marca en rojo el dia uno y el predio queda con un pendiente
+//  legal que no lo es.
+describe('VAL-11 · la vigencia de la licencia se compara por calendario', () => {
+  const base = {
+    predioId: '11111111-1111-1111-1111-111111111111',
+    tipo: 'MUNICIPAL' as const,
+  }
+
+  it('atrapa la inversion aunque las fechas vengan sin ceros a la izquierda', async () => {
+    await expect(
+      crearLicenciaCtrl({ ...base, fechaExpedicion: '2026-10-01', fechaVencimiento: '2026-9-1' }),
+    ).rejects.toThrow('no puede vencer antes de expedirse')
+    expect(repo.crearLicencia).not.toHaveBeenCalled()
+  })
+
+  it('y no rechaza la licencia correcta con la misma forma', async () => {
+    // Control positivo: '2026-9-1' → '2026-10-01' es una vigencia valida y como
+    // texto saldria invertida. Si cayera, la regla estaria rota por el otro lado.
+    await crearLicenciaCtrl({ ...base, fechaExpedicion: '2026-9-1', fechaVencimiento: '2026-10-01' })
+    expect(repo.crearLicencia).toHaveBeenCalledTimes(1)
+  })
+
+  it('control: la inversion evidente sigue cayendo', async () => {
+    await expect(
+      crearLicenciaCtrl({ ...base, fechaExpedicion: '2026-10-01', fechaVencimiento: '2026-01-01' }),
+    ).rejects.toThrow('no puede vencer antes de expedirse')
   })
 })

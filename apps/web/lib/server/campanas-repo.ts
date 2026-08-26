@@ -8,6 +8,8 @@ import { folioCampana } from './folios'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
+import { AppError } from './errores'
+import { ordenInvertido } from './fechas'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -905,11 +907,42 @@ export async function confirmarReserva(campanaId: string) {
 }
 
 // ─── Extender campaña (fechas) ──────────────────────────────────────────────
+// Extender NO puede acortar. Hasta el barrido del 26/08 esta funcion escribia la
+// fecha que le dieran sin mirar la que la campana ya tenia, y con eso una fecha
+// ANTERIOR recortaba la campana Y reescribia la fecha de fin de TODAS sus
+// reservas de paso. La accion se llama «extender», nadie esta pidiendo recortar,
+// y el inventario que esas reservas ocupaban se liberaba sin que nadie lo
+// decidiera; si ademas quedaba por debajo de `fecha_inicio`, la campana salia de
+// todos los conteos que filtran por rango.
+//
+// La comprobacion vive aqui y no en el controlador porque el controlador no
+// conoce la fecha EFECTIVA: solo ve la que le mandan. Mismo reparto que UX-01 en
+// los contratos.
 export async function extenderCampana(campanaId: string, nuevaFechaFin: string) {
-  await q(`update campanas set fecha_fin=$2 where id=$1`, [campanaId, nuevaFechaFin])
-  await q(`update reservas set fecha_fin=$2 where campana_id=$1`, [campanaId, nuevaFechaFin])
+  const tenantId = await tenantActual()
+  // `and tenant_id` como segunda capa sobre la RLS, aqui y en los dos updates.
+  const actual = await q<{ fecha_fin: unknown }>(
+    'select fecha_fin from campanas where id=$1 and tenant_id=$2',
+    [campanaId, tenantId],
+  )
+  if (!actual[0]) return null
+  const finActual = String(iso(actual[0].fecha_fin) ?? '').slice(0, 10)
+
+  // `ordenInvertido` compara por CALENDARIO. Como texto, '2026-9-1' sale MAYOR
+  // que '2026-10-01' y un acortamiento real pasaria: ese fallo ya se pago una
+  // vez en el alta de contrato.
+  if (finActual && ordenInvertido(finActual, nuevaFechaFin)) {
+    throw new AppError(
+      `Esta campana llega hasta el ${finActual}. Extender solo puede alargarla: ` +
+        `elige esa fecha o una posterior.`,
+      400,
+    )
+  }
+
+  await q(`update campanas set fecha_fin=$2 where id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
+  await q(`update reservas set fecha_fin=$2 where campana_id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
   await recalcularPresupuesto(null, campanaId)
-  const rows = await q('select * from campanas where id=$1', [campanaId])
+  const rows = await q('select * from campanas where id=$1 and tenant_id=$2', [campanaId, tenantId])
   return rows[0] ? rowToCampana(rows[0]) : null
 }
 
