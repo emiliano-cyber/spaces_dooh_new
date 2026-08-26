@@ -10,9 +10,21 @@ Escribes las decisiones donde el repo las guarda. El criterio de aceptación de 
 
 ## Tus tareas
 
-**F8.1 — `docs/adr/0014-instancia-dedicada-por-owner.md`.** La numeración se verificó: la última es
-`0013-altas-que-no-se-pueden-duplicar.md`. Confírmalo con `ls docs/adr/ | tail -3` antes de escribir,
-y si hoy hay una 0014, para y avisa.
+**F8.1 — la ADR del modelo, `docs/adr/<NNNN>-instancia-dedicada-por-owner.md`.**
+
+**El número lo calculas tú, en el momento**, con `ls docs/adr/ | sort | tail -1`, y usas el
+siguiente. **No lo tomes del v3**: el plan es del 13/08 y afirma que la última es la
+`0013-altas-que-no-se-pueden-duplicar.md`, cosa que dejó de ser cierta el mismo día. El repo lleva
+**seis ADR de ventaja** al plan y puede llevar más cuando corras.
+
+Al **26/08** la última es la **0019** y la **0014 está TOMADA** por «Postgres en el droplet o base
+administrada». **El número que el v3 asignaba ya no está libre**, así que la tuya sale la **0020**
+salvo que alguien haya escrito otra entretanto — por eso se calcula, no se copia.
+
+**Antes de escribir, lee las ADR 0014 a 0019** y comprueba que ninguna decide ya algo que la tuya
+contradiga. Si alguna lo hace, **aparcas** y escribes la entrada de decisión: *una ADR que
+contradice a una hermana es peor que ninguna ADR*, porque deja al repo diciendo dos cosas y sin
+forma de saber cuál manda.
 
 Contenido mínimo, los seis puntos que el v3 enumera:
 
@@ -34,17 +46,22 @@ Contenido mínimo, los seis puntos que el v3 enumera:
    La última fila es la prueba del modelo: **si el padre desaparece, ningún owner se entera. Si algún
    día deja de ser cierta, el modelo se rompió.** Esa frase va escrita.
 
-**F8.3 — la bóveda.**
+**F8.3 — la bóveda. Se encogió: dos de sus tres pasos ya están hechos.**
 
-- `vault/02-Backend/multi-tenancy-y-rls.md`: **conservar entera** la sección «Cómo se resuelve el
-  tenant» —sigue siendo exacta: «No es por subdominio ni por cabecera. Sale de la sesión»— y añadir
-  arriba el marco nuevo: una instancia por owner; la RLS es defensa en profundidad dentro de la
-  instancia. Y corregir de paso el «21» de las tablas con default: **son 23**.
-- `vault/01-Arquitectura/entorno-y-despliegue.md`: hoy describe producción como un droplet único con
-  `deploy.yml`, y dice que `deploy.yml` «está desactualizado». Reescribir «Producción» como flota
-  (padre, DEMO, instancias) y la de CI con `release.yml` / `promover.yml`.
-  **Cuidado con el tiempo verbal**: F3.6 (el retiro de `deploy.yml`) la hace la persona y puede no
-  estar hecha. Escribe el estado real de esta noche, no el deseado, y marca lo que queda pendiente.
+Comprobado el 26/08 contra el repo. **Verifícalo tú antes de escribir** —puede haber cambiado— pero
+parte de esto:
+
+- **YA HECHO · el «21 → 23».** `vault/02-Backend/multi-tenancy-y-rls.md:209` ya dice «**23 tablas**
+  —no 21—». No lo vuelvas a corregir.
+- **YA HECHO · `entorno-y-despliegue.md`.** Ya está reescrito como flota: 74 menciones a
+  instancia/flota. **Cuidado con el tiempo verbal** si lo retocas: F3.6 (el retiro de `deploy.yml`)
+  la hace la persona y puede no estar hecha. Escribe el estado real de esta noche, no el deseado.
+- **PENDIENTE, y es lo único de F8.3 que te toca de verdad:** el marco nuevo arriba de
+  `vault/02-Backend/multi-tenancy-y-rls.md` — *una instancia por owner; la RLS es defensa en
+  profundidad dentro de la instancia*. Hoy esa nota menciona «instancia» **una sola vez**, de pasada,
+  en la línea 230. **Conserva entera** la sección «Cómo se resuelve el tenant»: sigue siendo exacta
+  —«No es por subdominio ni por cabecera. Sale de la sesión»— y el marco va **arriba**, no en su
+  lugar.
 - `docs/Registro_Cambios.md`: entrada con las fases aplicadas esta noche y sus fechas. Añade al
   final, no reescribas.
 
@@ -69,7 +86,20 @@ error también es documentación.
 3. Comprueba tu propia puerta:
    `rg -n "una sola base|UN proceso|todas las empresas a la vez|21 tablas" vault/` → sin resultados,
    o solo dentro de secciones marcadas como historia.
-4. `ls docs/adr/ | tail -3`
+
+   **Al 26/08 este comando da dos resultados y los dos son falsos positivos**:
+   `vault/08-Manuales/manual-tecnico.md:872` y `:882`, que dicen que **las pruebas e2e** comparten
+   una sola base y recrean el esquema. Eso es cierto y es de las pruebas, no de las empresas. **No
+   los "arregles"**: el criterio —que ningún archivo afirme que todas las empresas comparten proceso
+   y base— **se cumple**. Lo que falla es la precisión del comando, no la bóveda.
+4. **Numeración sana**, que sustituye al viejo `ls docs/adr/ | tail -3`. Aquél comprobaba una
+   *posición* en la lista, y por eso caducó en cuanto entraron seis ADR nuevas. Lo que importa no es
+   qué hay en el puesto tres empezando por el final, sino que **tu número exista una sola vez**:
+
+   ```
+   ls docs/adr/ | rg "^<NNNN>-" | wc -l        # exactamente 1: el tuyo
+   ls docs/adr/ | cut -d- -f1 | sort | uniq -d # sin resultados: ningun numero repetido
+   ```
 5. Commits:
    - `docs(adr): 0014 — una instancia dedicada por owner, y la RLS como defensa en profundidad`
    - `docs(boveda): el modelo de instancias entra en la boveda, y produccion deja de ser un droplet`

@@ -14,10 +14,19 @@ lo nombras con precisión suficiente para que otro lo arregle en un minuto.
 1. **Las dos suites.** `npm test` y `npm run test:e2e`.
 
    **El estado de partida contra el que comparas sale de `docs/noche/preflight-<fecha>.md`**, el
-   archivo que dejó la persona antes de irse: ahí están las dos cifras, el hash de HEAD sobre el que
-   se midieron y la constancia de que el árbol estaba limpio. Si ese archivo no existe, o su hash no
-   es el de la base de la noche, el estado de partida es el que anotó el orquestador al arrancar —y
-   lo dices, porque una comparación contra una base distinta no vale lo mismo.
+   archivo que dejó la persona antes de irse: ahí están las dos cifras, los **cuatro hashes de
+   árbol** sobre los que se midieron (`apps`, `db`, `package.json`, `package-lock.json`) y la
+   constancia de que el árbol estaba limpio.
+
+   Lo aceptas con el mismo criterio que el orquestador: **de hoy, `git status` limpio, los cuatro
+   hashes iguales a los de `git rev-parse HEAD:apps HEAD:db HEAD:package.json HEAD:package-lock.json`,
+   y `apps/web/.next/BUILD_ID` presente.** No se compara el hash de HEAD: cambia con cualquier commit
+   de documentos, y el preflight vive en `docs/`, así que se invalidaría a sí mismo. Los cuatro
+   hashes son lo que las pruebas de verdad miden.
+
+   Si el archivo no existe, o alguno de los cuatro hashes no cuadra, el estado de partida es el que
+   anotó el orquestador al arrancar —y **lo dices**, porque una comparación contra otra base no vale
+   lo mismo.
 
    Un rojo nuevo es un rojo; un rojo heredado es un rojo heredado y se dice así.
 

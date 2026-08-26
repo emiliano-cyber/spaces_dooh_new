@@ -15,7 +15,7 @@
 ### D<n> · <la pregunta, en una línea, respondible con una palabra>
 Bloquea:      <FX.Y, FX.Z> y en cascada <lo que a su vez dependía de ellas>
 Dónde muerde: <archivo:línea, o el paso exacto del script>
-Referencia:   <§8.3 del documento del 12 | P4-bis del v3 | nueva, salió esta noche>
+Referencia:   <§8.1 del documento del 12 | P1 del v3 | nueva, salió esta noche>
 
 Opción A — <nombre corto>
   Qué implica:           <consecuencia técnica concreta, no abstracta>
@@ -73,33 +73,41 @@ Lo que NO cambia:       el script ya soporta los tres escenarios. Esto elige el 
 TU RESPUESTA: ____
 ```
 
-### D0-bis-ejemplo · ¿DEMO lleva imagen propia, o el autoregistro sale del build?
+### D1-ejemplo · ¿El tenant `rgb` se queda con instancia propia, o se retira?
 
 ```
-Bloquea:      F2.6 (escrita en la rama feat/autoregistro-en-arranque, sin fusionar) y la forma
-              final de F2.3 (una imagen por versión o dos)
-Dónde muerde: apps/web/app/api/signup/route.ts:18, login/page.tsx:30, google-oauth.ts:90
-Referencia:   P4-bis del v3 · es la contradicción entre el invariante 3 y el 9
+Bloquea:      F7.2, F7.3 y el cierre completo de la Fase 4. Si `rgb` se retira, el droplet
+              viejo se apaga; si se queda, necesita instancia y dominio propios
+Dónde muerde: apps/web/lib/server/tenant.ts:26-30 (`tenantPlataforma`), y el aprovisionamiento
+              de la Fase 5 si hay que añadir una instancia más
+Referencia:   §8.1 del documento del 12 · P1 del v3 (§4.4)
 
-Opción A — dos imágenes por versión
-  Qué implica:        una con la bandera encendida para el canal beta, otra para los owners
-  Qué cuesta:         el doble de almacenamiento en el registry y dos artefactos que validar
-  Qué se hace mañana: se borra la rama feat/autoregistro-en-arranque y F2.3 publica dos
+Opción A — RGB Catorce tiene su instancia
+  Qué implica:        se añade a la Fase 5 un aprovisionamiento más
+  Qué cuesta:         ~$15/mes de droplet, y un dominio que Comercial tiene que pedir
+  Qué se hace mañana: entra en la cola de aprovisionamiento como un owner más
 
-Opción B — el autoregistro se decide al arrancar
-  Qué implica:        una sola imagen sirve a DEMO y a los owners; la bandera sale de
-                      NEXT_PUBLIC_ y se lee del .env, con fail-closed (sin variable → apagado)
-  Qué cuesta:         cambia el comportamiento de una bandera de seguridad, y el bloque
-                      aislamiento.e2e.test.ts:200-213 queda obsoleto (se retira en un release
-                      posterior, expand → contract, no ahora)
-  Qué se hace mañana: se fusiona la rama, ya escrita y en verde
+Opción B — se retira
+  Qué implica:        la Fase 7 se simplifica a exportar `g500` y apagar el droplet viejo
+  Qué cuesta:         hay que decidir QUÉ PASA CON EL SUPER-ADMIN, y esto es lo difícil:
+                      el tenant de plataforma es el MÁS ANTIGUO (`select id from tenants
+                      order by creado_en asc limit 1`, tenant.ts:26-30), y de él cuelga hoy
+                      la capacidad de administrar a los demás. Si `rgb` es ese tenant y se
+                      retira, el super-admin pasa al siguiente más antiguo POR ACCIDENTE —
+                      no por decisión de nadie
+  Qué se hace mañana: exportar `g500`, y antes fijar a quién pertenece el super-admin
 
-Lo que el repo ya dice: GOOGLE_OAUTH ya hace exactamente esto — se decide en el servidor, no en
-                        el build — por la decisión 5 de la ADR 0012 (.env.example:38-46)
-Lo que NO cambia:       en ninguna de las dos, el autoregistro sigue encendido solo en DEMO
+Lo que el repo ya dice: `tenantPlataforma` NO tiene ninguna marca explícita — la plataforma es
+                        una consecuencia de la antigüedad, no una propiedad declarada
+Lo que NO cambia:       en ninguna de las dos, la RLS sigue siendo el aislamiento dentro de
+                        cada instancia
 
 TU RESPUESTA: ____
 ```
+
+> **P4-bis ya no se plantea: quedó resuelta hacia la salida (b)** —el autoregistro se decide al
+> arrancar, una sola imagen por versión— cuando la bandera salió del build el 2026-08-14. Si un
+> agente la escribe como decisión abierta, es un hallazgo de puerta.
 
 ---
 

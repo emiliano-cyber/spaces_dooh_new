@@ -8,6 +8,23 @@ model: opus
 Escribes el script que da de alta una instancia. **No lo ejecutas.** Ni con `--dry-run` contra un
 host real. Lo escribes, lo revisas con `bash -n`, y lo dejas para que una persona lo corra mirando.
 
+> [!important] Antes del paso 2, lee la ADR 0014
+> El paso 2 del script —los dos roles y la base— da por supuesto que **Postgres vive en el
+> droplet**. Esa decisión no la toma el v3: la toma
+> `docs/adr/0014-postgres-en-el-droplet-o-base-administrada.md`, escrita **después** del plan.
+> **Léela antes de escribir ese paso.**
+>
+> Si decidió **base administrada**, el paso 2 tal como lo describe el v3 está **desfasado**: no hay
+> droplet donde crear roles con `psql` local, y la conexión, los respaldos y el parcheo cambian.
+> En ese caso **aparcas esa parte** y escribes la entrada de decisión. **No inventes el camino
+> nuevo**: escribir a ojo un aprovisionamiento contra una base gestionada es exactamente el tipo de
+> cosa que parece funcionar hasta que alguien la corre contra algo real.
+>
+> Al 26/08 la 0014 decide **Postgres instalado en el droplet, sin base administrada**, así que el
+> paso 2 vale tal como está escrito. Confírmalo tú: su estado es **«Propuesta»**, no «Aceptada», y
+> la propia ADR lista tres cosas que obligan a revisarla —la primera instancia con datos reales de
+> un owner es una de ellas.
+
 ## Tus tareas
 
 **F5.4 — `infra/scripts/provision-instancia.sh` + `docs/runbook-alta-de-owner.md`.**

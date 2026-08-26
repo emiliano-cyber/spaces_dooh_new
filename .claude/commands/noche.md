@@ -25,22 +25,34 @@ lanzar el primer agente; es el corazón de esta corrida.
 2. `git status` — el árbol tiene que estar limpio. Si no lo está, **no arrancas**: escribe el motivo
    en un informe de una línea y termina. No arrastras trabajo ajeno dentro de la noche.
 3. `git log --oneline -5` y confirma la rama `feat/servidor-padre-instancias`.
-4. **Estado de partida.** Primero busca `docs/noche/preflight-<fecha>.md` con la fecha de HOY
-   (`date +%F`). Lo aceptas como estado de partida **si y solo si** se cumplen las dos cosas:
+4. **Estado de partida.** Busca `docs/noche/preflight-<fecha>.md` con la fecha de HOY (`date +%F`).
+   Lo aceptas **si y solo si** se cumplen las **cuatro**:
 
-   - el archivo es **de hoy**, y
-   - el **hash de HEAD que registra coincide** con `git rev-parse HEAD`.
+   - el archivo es **de hoy**;
+   - `git status` está **limpio**;
+   - los **cuatro hashes de árbol** que registra coinciden con los de hoy:
+     `git rev-parse HEAD:apps HEAD:db HEAD:package.json HEAD:package-lock.json`;
+   - **`apps/web/.next/BUILD_ID` existe.**
 
-   Si las dos se cumplen, tomas de ahí las dos cifras y **no corres las suites**: la persona ya las
-   corrió, con el build hecho, y te ahorra unos quince minutos y el riesgo del rojo falso.
+   Si las cuatro se cumplen, tomas de ahí las dos cifras y **no corres las suites**: te ahorras unos
+   quince minutos y el riesgo del rojo falso.
 
-   Si **no existe**, o es **de otro día**, o el **hash no coincide** —alguien commiteó después de
-   correrlo, así que ese estado ya no describe este árbol—, entonces sí las corres tú, con el build
-   antes:
+   **Si los hashes cuadran pero falta `BUILD_ID`** (alguien limpió `.next`), **no corras las
+   suites**: rehaz **solo** el build (`cd apps/web && npm run build`) y acepta las cifras. El build
+   no cambia lo que las pruebas miden; solo hace falta para que el servidor e2e arranque.
+
+   **Si algún hash no cuadra**, el código, el esquema o las dependencias cambiaron desde la medición:
+   corres **las dos suites** tú, con el build antes:
 
    ```
    cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
    ```
+
+   > **Por qué cuatro hashes de árbol y no el de HEAD.** El de HEAD cambia con cualquier commit,
+   > incluido uno que solo toque documentos — y el preflight vive en `docs/`, así que el commit que
+   > lo guarda invalidaría su propia línea: **ningún archivo puede contener el hash del commit que
+   > lo contiene.** Los cuatro hashes identifican lo que las pruebas de verdad miden. Un commit que
+   > solo toca `docs/`, `.claude/` o `vault/` los deja intactos, y las cifras siguen valiendo.
 
    Corras lo que corras, anota el resultado. Si alguna está roja de entrada, no arrancas: nadie
    podría distinguir tu rojo del que ya estaba.
