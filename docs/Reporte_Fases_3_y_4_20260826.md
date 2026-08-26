@@ -23,14 +23,17 @@ que hoy impide dar la Fase 4 por cerrada.
 |---|---|---|
 | **Fase 3** | **7 de 9** | Las dos restantes esperan una decisión externa, no trabajo de programación |
 | **Fase 4** | **3 de 4** | De las tareas que conservan objeto; la quinta quedó anulada por decisión de producto |
-| **Para cerrar la Fase 4** | **1 acción** | Borrar un registro DNS en Cloudflare. Ningún servidor de por medio |
+| **Para cerrar la Fase 4** | **0 acciones** | Ninguna tarea humana pendiente. Queda una **decisión de producto** abierta (§4) |
 | **Bloqueo externo** | **1** | El registry de imágenes (TH-P4), abierto desde el 17/08. Detiene seis tareas de tres fases |
 
 **El estado en una frase:** el motor de actualización de las instancias está
 escrito, probado y ya corrió contra servidores de verdad; la demostración está
 montada y funcionando; el sistema tiene por fin dominio propio, certificado válido
-y acceso con Google; y lo único que separa a la Fase 4 de su cierre formal es
-borrar un registro DNS que todavía apunta a una máquina vieja.
+y acceso con Google; y la Fase 4 **no tiene ya ninguna acción humana pendiente**.
+
+Lo que sí queda abierto en la Fase 4 es una **decisión de producto**: qué máquina
+va a servir el nombre público de la demostración. Está deliberadamente sin
+decidir, y §4 explica por qué.
 
 Lo que sí está detenido —el ensayo del ciclo completo de actualización— no depende
 de programar nada: depende de que exista el almacén donde se publican las
@@ -151,7 +154,7 @@ camino distinto al que el plan imaginaba — y eso es lo que explica el apartado
 |---|---|---|---|
 | **F4.1** | Censar el servidor viejo antes de separar nada | ✅ Cerrada · 25/08 | `docs/evidencias/f4-1-censo-resultado.md`. Todo de solo lectura |
 | **F4.2** | Base propia para la demostración, sin una fila de ningún cliente | ✅ Cumplida | Los tres criterios, medidos con `psql` contra la base real |
-| **F4.3** | Dominio y certificado propios para la demostración | 🚫 Sin objeto · ADR 0020 | Ya no hay dominio de demostración que dar |
+| **F4.3** | Dominio y certificado propios para la demostración | ⏳ Pendiente · ADR 0021 | Condicionada a decidir qué máquina sirve el nombre |
 | **F4.4** | Proceso propio, datos de juguete y banderas correctas | ✅ Cumplida | Proceso medido con `systemctl`; banderas medidas por HTTP |
 | **F4.5** | Dejar por escrito que el riesgo dejó de ser cierto | 🟡 2 de 4 criterios | Uno quedó sin objeto; otro se cierra borrando un registro DNS |
 
@@ -286,16 +289,43 @@ El proceso interno se queda como banco de pruebas, sin nombre público.
 hijas» cuando todavía no existía ninguna. Una demostración que enseña el producto
 con instancias de verdad vale más que un sitio aparte que las imita.
 
-> [!danger] Lo que el ADR 0020 cuesta, y conviene que dirección lo tenga presente
-> **No hay dónde enseñar el producto hasta que exista la primera instancia hija.**
-> La demostración depende ahora de la Fase 5, que a su vez necesita código que
-> todavía no existe. El banco de pruebas interno no es sustituto: no tiene nombre
-> público y no se le puede enseñar a nadie de fuera.
+### 26 de agosto · ADR 0021 — el nombre de la demostración se queda · VIGENTE
+
+**Revierte al ADR 0020, escrito el día anterior.** `demo.space-os.io` **no se
+retira**: es el nombre público donde se enseñarán las instancias hijas cuando
+existan. Su registro DNS **no se borra**, y la tarjeta que pedía borrarlo queda
+**cancelada**.
+
+**Causa:** el 0020 razonaba que ese nombre había nacido para *imitar* instancias
+hijas que todavía no existían, y concluía que al llegar las de verdad el nombre
+sobraba. **La conclusión correcta es la contraria:** cuando existan las hijas,
+ese nombre es exactamente donde se enseñan.
+
+> [!important] Lo que el ADR 0021 deja escrito COMO NO DECIDIDO
+> Se escribe aparte a propósito, porque tres de las cuatro decisiones anteriores
+> sobre la demostración se revirtieron en cuatro días, y buena parte del coste
+> vino de **rellenar los huecos por deducción** en vez de dejarlos marcados.
 >
-> Si hiciera falta enseñar el producto a alguien externo antes de que la Fase 5
-> entregue, habría que darle un nombre y un certificado a algo — es decir,
-> deshacer parte de esta decisión. El propio ADR deja escrito ese disparador de
-> revisión.
+> **Qué máquina sirve `demo.space-os.io` a partir de ahora no está decidido.**
+> Hoy apunta a la máquina de julio. Las opciones abiertas son dejarlo ahí hasta
+> que exista la primera instancia hija, o moverlo a esa instancia cuando nazca.
+> De eso cuelgan, también sin resolver, si se le emite certificado y con qué
+> método, y qué pasa con el certificado actual de esa máquina, que **vence el
+> 26 de octubre**.
+
+> [!warning] Y una condición aceptada, que ya no es una tarea
+> Mientras el nombre apunte a la máquina de julio, esa máquina **sigue sirviendo
+> un sitio público** con cinco organizaciones dentro. Con el ADR 0021 eso deja de
+> ser una tarea pendiente y pasa a ser una **condición aceptada**. Queda escrito
+> una vez para que el estado del proyecto no mienta — no como recordatorio ni
+> como objeción.
+
+> [!note] Lo que esto le ahorra a dirección respecto de lo que decía ayer
+> La emisión anterior de este reporte advertía de que **no habría dónde enseñar
+> el producto hasta que existiera la primera instancia hija**. Con el 0021 esa
+> advertencia **decae**: el nombre de la demostración se conserva, así que no se
+> pierde el sitio donde enseñar. Lo que cambia es *qué* se enseña allí — el
+> producto real corriendo como una instancia hija, no una imitación.
 
 ### 4.1 · Lo que sí se ganó: `space-os.io` está en pie y sirve el stack completo
 
@@ -419,9 +449,9 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 
 ---
 
-## 7 · Lo que falta: una acción, un bloqueo y seis tareas abiertas
+## 7 · Lo que falta: una decisión, un bloqueo y seis tareas abiertas
 
-### 7.1 · La acción que cierra la Fase 4
+### 7.1 · La decisión abierta de la Fase 4
 
 > ⚠️ **Cancelado el 2026-08-26 por el ADR 0021**, posterior a este reporte.
 > `demo.space-os.io` **se conserva**: es la demostración de las instancias
@@ -430,12 +460,15 @@ cd apps/web && npm run typecheck && npm test && npm run build && npm run test:e2
 ~~**Borrar el registro A de `demo.space-os.io` en Cloudflare.** Es una acción de
 navegador, sin ningún servidor de por medio.~~
 
-> [!danger] Abandonar el nombre no es lo mismo que retirarlo
-> Mientras `demo.space-os.io` siga apuntando a `209.97.146.136`, esa máquina
-> **sigue sirviendo un sitio público** con sus cinco organizaciones dentro, hasta
-> que su certificado venza el **26 de octubre**. Y eso es exactamente *«demo
-> pública = producción»*, el riesgo que da nombre a la Fase 4. Es lo que hace que
-> el criterio 3 se cumpla de verdad y no de palabra.
+> [!warning] Lo que decía este apartado, y por qué ya no aplica
+> Advertía de que mientras `demo.space-os.io` apuntase a la máquina de julio,
+> esa máquina seguiría sirviendo un sitio público con cinco organizaciones
+> dentro — y lo planteaba como **el riesgo que había que cerrar**.
+>
+> **El hecho sigue siendo cierto; su tratamiento cambió.** Con el ADR 0021 el
+> nombre se conserva a propósito, así que eso pasa a ser una **condición
+> aceptada y registrada**, no una tarea pendiente. El criterio 3 de `F4.5` queda
+> **retirado**, no incumplido.
 
 ### 7.2 · El bloqueo, y a quién le toca
 

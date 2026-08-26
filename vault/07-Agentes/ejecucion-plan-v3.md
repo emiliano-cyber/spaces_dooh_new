@@ -1702,7 +1702,27 @@ sudo /opt/space-os/update.sh & sleep 3; sudo /opt/space-os/update.sh; echo "codi
 
 ---
 
-### TH-F4.5 · retirar el nombre público de la máquina vieja
+### TH-F4.5 · CANCELADA — retirar el nombre público de la máquina vieja
+
+> [!danger] 🚫 CANCELADA el 2026-08-26 por el ADR 0021, el mismo día en que se emitió
+> **El ADR 0021 revierte al 0020: `demo.space-os.io` NO se retira.** Es el
+> nombre donde se enseñarán las instancias hijas cuando existan, así que **su
+> registro A no se borra** y esta tarjeta no debe ejecutarse.
+>
+> **Duró quince minutos.** Se emitió al cerrar la Fase 4 dando por buena la
+> lectura del ADR 0020 —que el nombre sobraba al llegar las instancias de
+> verdad— y la conclusión correcta era la contraria. El propio 0021 avisa de que
+> la tarjeta **se repitió en nueve documentos** antes de cancelarse.
+>
+> **Se deja escrita y tachada, no se borra.** Una tarjeta que desaparece sin
+> rastro es una que alguien vuelve a emitir dentro de un mes.
+>
+> ⚠️ **Qué máquina sirve `demo.space-os.io` a partir de ahora NO está decidido**
+> —hoy es la de julio; podría ser la primera instancia hija cuando nazca— y de
+> ahí cuelgan, abiertos, su certificado y el método de emisión. **No deducir:
+> preguntar.**
+
+▸ *Lo que decía la tarjeta, y no se ejecuta:*
 
 **Emitida** el 2026-08-26 al cerrar la Fase 4. Del **ADR 0020**. La corre una
 persona **en el navegador**: no hay servidor de por medio, no hay `ssh`, no hay
