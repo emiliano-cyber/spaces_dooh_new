@@ -120,3 +120,121 @@ describe('.env.production.example', () => {
     expect(plantillaProduccion()).toMatch(/^AUTOREGISTRO=0$/m)
   })
 })
+
+// ============================================================================
+//  F5.3 — las plantillas de una instancia de owner.
+// ----------------------------------------------------------------------------
+//  El objetivo de la tarea es que lo ÚNICO distinto entre dos instancias esté
+//  en estos archivos y nunca en el código. Estas pruebas son el candado.
+//
+//  ─── Por qué DOS plantillas y no una ──────────────────────────────────────
+//  `infra/scripts/update.sh`, que ya existe (F3.4), lee su propia configuración
+//  de `/etc/space-os/instancia.env` (`:306`) y la de la aplicación de un archivo
+//  APARTE, `/etc/space-os/app.env` (`:527`). Una sola plantilla obligaría a que
+//  el actualizador cargase en su shell las credenciales de la base y los
+//  secretos de correo, que no necesita para nada.
+// ============================================================================
+
+function plantilla(nombre: string): string {
+  return readFileSync(join(__dirname, '..', '..', '..', 'infra', 'env', nombre), 'utf8')
+}
+
+/** Quita los comentarios: lo que se afirma es sobre los VALORES, no sobre el texto. */
+function soloValores(texto: string): string {
+  return texto
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('#'))
+    .join('\n')
+}
+
+describe('F5.3 · infra/env/app.env.example', () => {
+  it('nace con el autoregistro apagado, y con la bandera VIVA', () => {
+    // `AUTOREGISTRO`, sin el prefijo `NEXT_PUBLIC_`. Se exige el valor
+    // explícito `=0` y no la ausencia, igual que en las otras dos plantillas.
+    expect(plantilla('app.env.example')).toMatch(/^AUTOREGISTRO=0$/m)
+  })
+
+  it('NO resucita `NEXT_PUBLIC_AUTOREGISTRO`, que F2.6 mató', () => {
+    // La especificación de F5.3 pedía esta variable, y es un desfase suyo: el
+    // 2026-08-14 la bandera salió del build precisamente porque con el prefijo
+    // `NEXT_PUBLIC_` Next la inlinea al compilar y una instancia no puede
+    // cambiarla en su `.env` (ver la cabecera de este archivo). Escribirla en
+    // la plantilla de CADA instancia la traería de vuelta.
+    expect(plantilla('app.env.example')).not.toMatch(/NEXT_PUBLIC_AUTOREGISTRO/)
+  })
+
+  it('no propone un dominio de cookie', () => {
+    // Invariante 4 del plan v3: las cookies siguen sin `domain`.
+    expect(soloValores(plantilla('app.env.example'))).not.toMatch(/COOKIE_DOMAIN/)
+  })
+
+  it('no trae variables que el producto vivo no lee', () => {
+    // `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` solo sobreviven en
+    // `app/_legacy/` y en `lib/api-client.ts`, que es de la pista archivada.
+    // `JWT_SECRET` y `REDIS_URL` no las lee nadie.
+    const v = soloValores(plantilla('app.env.example'))
+    for (const muerta of ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_TENANT_SLUG', 'JWT_SECRET', 'REDIS_URL']) {
+      expect(v).not.toMatch(new RegExp(muerta))
+    }
+  })
+
+  it('trae lo que la aplicacion SI lee para arrancar', () => {
+    const v = soloValores(plantilla('app.env.example'))
+    for (const viva of ['APP_URL', 'DATABASE_URL', 'COOKIE_SECURE', 'BOOTSTRAP_TOKEN']) {
+      expect(v).toMatch(new RegExp(`^${viva}=`, 'm'))
+    }
+  })
+})
+
+describe('F5.3 · infra/env/instancia.env.example', () => {
+  it('trae lo que `update.sh` lee, y el canal estable por defecto', () => {
+    const v = soloValores(plantilla('instancia.env.example'))
+    expect(v).toMatch(/^CANAL=estable$/m)
+    for (const clave of ['REGISTRY', 'ENV_APP', 'SALUD_URL']) {
+      expect(v).toMatch(new RegExp(`^${clave}=`, 'm'))
+    }
+  })
+
+  it('no lleva secretos de la aplicacion: para eso esta la otra', () => {
+    const v = soloValores(plantilla('instancia.env.example'))
+    for (const secreto of ['DATABASE_URL', 'RESEND_API_KEY', 'GOOGLE_CLIENT_SECRET', 'BOOTSTRAP_TOKEN']) {
+      expect(v).not.toMatch(new RegExp(secreto))
+    }
+  })
+})
+
+describe('F5.3 · ninguna plantilla lleva un valor real quemado', () => {
+  // Criterio de aceptación de la tarea, y ademas la regla de `CLAUDE.md`: ni
+  // dominios, ni IPs, ni tokens, ni el nombre del registry. Van como parámetro.
+  it('ni dominios ni IPs fuera de los comentarios', () => {
+    const archivos = ['app.env.example', 'instancia.env.example']
+    for (const a of archivos) {
+      const v = soloValores(plantilla(a))
+      expect(v, `${a} tiene un dominio real`).not.toMatch(/space-os\.io/)
+      expect(v, `${a} tiene una IP`).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/)
+    }
+  })
+
+  it('la plantilla de nginx usa `__DOMINIO__` y no un dominio real', () => {
+    const tpl = readFileSync(
+      join(__dirname, '..', '..', '..', 'infra', 'nginx', 'instancia.conf.tpl'),
+      'utf8',
+    )
+    const v = tpl
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('#'))
+      .join('\n')
+    expect(v).toMatch(/__DOMINIO__/)
+    expect(v).not.toMatch(/space-os\.io/)
+
+    // Los cuatro detalles que el plan manda conservar LITERALMENTE, cada uno
+    // porque su ausencia ya costo algo:
+    //  - `X-Forwarded-For $remote_addr` REEMPLAZA la cabecera del cliente; sin
+    //    eso, cualquiera elige su cubo del limitador de login.
+    //  - `client_max_body_size 12M`: la subida de material.
+    //  - `location = /` al login y el catch-all.
+    expect(v).toMatch(/X-Forwarded-For\s+\$remote_addr/)
+    expect(v).toMatch(/client_max_body_size\s+12M/)
+    expect(v).toMatch(/location\s*=\s*\/\s*\{/)
+  })
+})
