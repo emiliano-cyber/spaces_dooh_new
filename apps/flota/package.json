@@ -1,0 +1,12 @@
+{
+  "name": "flota",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Panel de flota del PADRE. NO viaja en la imagen que corren los owners.",
+  "scripts": {
+    "estado": "node estado.mjs",
+    "receptor": "node reporte.mjs",
+    "test": "vitest run"
+  }
+}

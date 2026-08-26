@@ -121,6 +121,13 @@
 #                                       si se quiere, otro permiso en la llave
 #    SPACES_REGION=nyc3                 decide el endpoint de Spaces
 #    RESPALDOS_LOCALES=3                cuantos dumps se guardan en el disco
+#    FLOTA_REPORTE_URL=https://…/flota/reporte    (F6.4) a donde esta instancia
+#                                       cuenta al padre en que version se quedo.
+#                                       VACIA O AUSENTE = no se reporta, y no es
+#                                       un fallo: el panel funciona igual
+#                                       preguntando. El token es el FLOTA_TOKEN
+#                                       de $ENV_APP —el mismo con el que el
+#                                       panel pregunta— y no se repite aqui.
 #
 #  El archivo lleva credenciales: 0600 y de root. El script avisa si no.
 #
@@ -191,8 +198,14 @@
 #             corre en todas las instancias es una forma elegante de perderlo
 #             todo. Esa regla se configura una vez, a mano, en la cuenta.
 #  Si la subida falla, el update SIGUE —el respaldo local ya existe y basta para
-#  la vuelta atras— pero el log dice `RESPALDO REMOTO FALLIDO`. Que salga tambien
-#  en el reporte de flota es F6.4, que todavia no existe.
+#  la vuelta atras— pero el log dice `RESPALDO REMOTO FALLIDO`.
+#  Esta linea decia que sacarlo TAMBIEN en el reporte de flota era F6.4. F6.4 ya
+#  existe (AVISO 6) y NO lo saca, a proposito: su cuerpo es el contrato exacto de
+#  F6.1 mas `instancia`, y el receptor rechaza entero cualquier reporte con una
+#  clave de mas. Meter aqui un `respaldoRemoto: false` abriria justo la puerta
+#  por la que despues entra un conteo del negocio del owner. El fallo del
+#  respaldo viaja en el LOG, que ya sale del droplet solo (AVISO 5) y que es
+#  donde se diagnostica una corrida.
 #  La logica vive en `respaldo.sh`, al lado de este archivo, y se SOURCEA. Si no
 #  esta, el update se para antes de tocar nada: actualizar sin respaldo fuera del
 #  droplet y sin podar el disco no es lo que aqui se prometio.
@@ -307,6 +320,38 @@
 #      proceso de fuera se quedaba con ella puesta y su linea de "ya hay otro
 #      update en marcha" acababa dentro del archivo que la OTRA corrida sube
 #      al bucket. Ahora se le pasa al hijo en la misma linea del `flock`.
+#
+# ── AVISO 6 · la instancia le CUENTA al padre, y nunca al reves (F6.4) ─────
+#  El panel del padre (`apps/flota/estado.mjs`, F6.2) resuelve la visibilidad
+#  PREGUNTANDO `GET /api/version` a cada instancia. Funciona mientras el owner
+#  exponga esa ruta. El dia que la cierre —y esta en su derecho: es su servidor,
+#  y en el modelo de instancias soberanas esa es la respuesta correcta— el padre
+#  se queda ciego. Por eso al terminar cada corrida esta instancia manda un
+#  `POST` a `$FLOTA_REPORTE_URL` diciendo en que version se quedo.
+#
+#  Lo que hace que esto no sea una puerta trasera:
+#    · va de la INSTANCIA al PADRE. El padre no abre ni una conexion hacia aca
+#      por causa de esto, y sin `FLOTA_REPORTE_URL` no se manda nada.
+#    · el cuerpo es EXACTAMENTE el que ya devuelve `/api/version` con token
+#      —{ ok, version, ultimaMigracion, base, canal, uptime }— mas `instancia`.
+#      Ni una clave mas: el receptor rechaza el reporte ENTERO si sobra alguna,
+#      asi que aqui no se puede "aprovechar el viaje" para mandar nada. Y no se
+#      construye a mano: se REENVIA lo que contesto la ruta, o sea que el dia
+#      que el contrato cambie, cambia en un solo sitio.
+#    · el cuerpo sale de la propia instancia por `$SALUD_URL` —127.0.0.1—, que
+#      es la misma URL con la que este script ya comprueba la salud.
+#
+#  Y lo que NO puede hacer, que es lo importante: **abortar el update**. Si el
+#  padre esta caido, o el DNS no resuelve, o el token esta mal, la instancia
+#  sigue actualizada y sirviendo. El reporte se guarda en
+#  $DIR_ESTADO/flota-pendientes/ y se manda en la siguiente corrida, con la
+#  misma disciplina que el resto: los pendientes se podan (los mas viejos se
+#  tiran) para que un padre caido tres meses no llene el disco del owner, que
+#  es el defecto D4 otra vez.
+#
+#  El `--dry-run` NO reporta. La cabecera promete que no toca nada, y un POST al
+#  padre —que deja una fila en su panel— es tocar algo. El log si sale (AVISO 5)
+#  porque es solo el relato de que no se hizo nada.
 # ============================================================================
 set -Eeuo pipefail
 
@@ -351,8 +396,8 @@ for arg in "$@"; do
   case "$arg" in
     --dry-run) DRY_RUN=1 ;;
     --simular-fallo-pull) SIMULAR_FALLO_PULL=1 ;;
-    # Hasta la linea 131: uso, codigos de salida, la ventana de corte, las
-    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-4 no
+    # Hasta la linea 146: uso, codigos de salida, la ventana de corte, las
+    # claves de instancia.env y la politica de reintentos. Los AVISOS 1-5 no
     # salen en el --help a proposito: son para quien va a TOCAR el script, no
     # para quien lo corre. El corte se movio de 96 a 103 al entrar las claves
     # de Spaces (F3.7), a 109 con LOGS_BUCKET (F3.9), a 113 el 19/08 al
@@ -360,7 +405,15 @@ for arg in "$@"; do
     # listar por fin los codigos 6 y 7: un rango fijo caduca en cuanto la
     # cabecera crece, y cada vez se ha descubierto tarde. Se remide leyendo,
     # no restando — y desde el 19/08 lo comprueba E73 por los dos extremos.
-    -h|--help) sed -n '2,131p' "$0"; exit 0 ;;
+    #
+    # Y volvio a caducar sin que nadie lo viera: el 26/08 el corte seguia en
+    # 131 y la politica de reintentos ya empezaba en 128, asi que el --help se
+    # comia las tres ultimas lineas —justo el "se puede contar desde fuera con
+    # grep -c reintento", que es lo que E73 exige que salga—. O sea que E73
+    # estaba EN ROJO antes de tocar nada aqui. Al entrar FLOTA_REPORTE_URL
+    # (F6.4, +7 lineas) se remidio leyendo: 145 es la ultima de la politica,
+    # 147 abre "── Cron", y 146 —la linea en blanco de enmedio— es el corte.
+    -h|--help) sed -n '2,146p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -443,10 +496,159 @@ subir_log_remoto() {
   return "$resultado"
 }
 
+# ─── El reporte al padre (F6.4) ────────────────────────────────────────────
+# Ver AVISO 6. Lo que gobierna todo lo de abajo, en una linea: esto NUNCA puede
+# cambiar como termina el update. Si el padre no esta, la instancia sigue
+# actualizada y sirviendo, y el reporte espera en el disco a la corrida de
+# manana.
+FLOTA_REPORTADO=0
+# Cuantos reportes sin entregar se guardan como mucho. Un padre caido tres meses
+# son noventa archivos de 200 bytes —nada— pero la poda esta igual: el disco del
+# owner ya se lleno una vez con los dumps que nadie podaba (defecto D4), y la
+# leccion fue que todo lo que este script escribe periodicamente se poda desde el
+# primer dia, no cuando duele.
+FLOTA_PENDIENTES_MAX="${FLOTA_PENDIENTES_MAX:-20}"
+
+# El token sale de $ENV_APP, que es donde vive (`infra/env/app.env.example`): es
+# el MISMO con el que el panel pregunta, y repetirlo en $CONF serian dos sitios
+# donde rotarlo y uno donde olvidarse. Se le quitan comillas y el retorno de
+# carro: un `.env` editado en Windows trae `\r` pegado al valor y una cabecera
+# con `\r` dentro la rechaza cualquier servidor decente.
+flota_token() {
+  if [ -n "${FLOTA_TOKEN:-}" ]; then printf '%s' "$FLOTA_TOKEN"; return 0; fi
+  [ -f "${ENV_APP:-}" ] || return 0
+  grep -m1 '^FLOTA_TOKEN=' "$ENV_APP" 2>/dev/null | cut -d= -f2- | tr -d '\r"'"'" || true
+}
+
+# El nombre de esta instancia, y solo si es un nombre que el receptor va a
+# aceptar. `respaldo_instancia` puede caer al `hostname`, que trae puntos o
+# mayusculas; con eso el padre rechazaria el reporte y nadie sabria por que. Se
+# comprueba aqui, donde se puede DECIR.
+flota_instancia() {
+  local nombre=""
+  if declare -F respaldo_instancia >/dev/null 2>&1; then
+    nombre="$(respaldo_instancia 2>/dev/null || true)"
+  fi
+  [ -n "$nombre" ] || nombre="${INSTANCIA:-}"
+  case "$nombre" in
+    ''|*[!a-z0-9-]*) return 1 ;;
+  esac
+  printf '%s' "$nombre"
+}
+
+# El cuerpo del reporte: el de `/api/version` con token, mas `instancia`.
+# Imprime vacio si no se puede componer, y eso NO es un error de nada.
+flota_cuerpo() {
+  local token instancia respuesta
+  token="$(flota_token)"
+  [ -n "$token" ] || return 0
+  [ -n "${SALUD_URL:-}" ] || return 0
+  instancia="$(flota_instancia)" || return 0
+
+  # El token NO viaja en `argv`: `-K -` le da a curl su configuracion por la
+  # entrada estandar, que no sale en un `ps` como si saldria un `-H`. Misma
+  # disciplina que `respaldo.sh` con las llaves de Spaces (y sin el archivo
+  # temporal que aquella tiene que limpiar con cuatro `trap`).
+  respuesta="$(printf 'header = "x-flota-token: %s"\n' "$token" \
+    | curl -s -K - --max-time 5 "$SALUD_URL" 2>/dev/null)" || true
+
+  # Sin `version` dentro no es el cuerpo con token: o el token no cuadra, o la
+  # base esta caida y la ruta contesto 503 con `{ ok:false }`. No se compone un
+  # reporte a medias — el contrato es exacto y el receptor lo rechaza entero.
+  case "$respuesta" in
+    '{'*'"version"'*) ;;
+    *) return 0 ;;
+  esac
+
+  # `instancia` se inyecta detras de la llave de apertura. No se usa `jq`: no
+  # esta garantizado en el droplet —el aprovisionamiento no lo instala— y meter
+  # una dependencia nueva en la ruta critica del update por UNA clave es mal
+  # cambio. Lo que se pega no es texto libre: `flota_instancia` ya lo limito a
+  # minusculas, digitos y guiones, y el receptor lo vuelve a validar antes de
+  # usarlo como nombre de archivo.
+  printf '{"instancia":"%s",%s' "$instancia" "${respuesta#\{}"
+}
+
+# Manda UN archivo. 0 si el padre lo acepto.
+flota_postear() {
+  local archivo="$1" token codigo_http
+  token="$(flota_token)"
+  [ -n "$token" ] || return 1
+  codigo_http="$(printf 'header = "x-flota-token: %s"\nheader = "content-type: application/json"\n' "$token" \
+    | curl -s -K - -o /dev/null -w '%{http_code}' --max-time 10 \
+        -X POST --data-binary "@$archivo" "$FLOTA_REPORTE_URL" 2>/dev/null)" || true
+  # Mismo cuidado que en `salud()`: `-w` ya imprime un codigo pase lo que pase,
+  # y lo que no sea un numero limpio se trata como "no hubo respuesta".
+  case "$codigo_http" in ''|*[!0-9]*) codigo_http=000 ;; esac
+  [ "$codigo_http" = "200" ]
+}
+
+reportar_a_flota() {
+  local pendientes archivo cuerpo lista=() entregados=0 fallo=0 sobran
+
+  [ -n "${FLOTA_REPORTE_URL:-}" ] || return 0
+  # El `--dry-run` promete no tocar nada, y un POST deja una fila en el panel
+  # del padre. El log si sale, porque es solo el relato de que no se hizo nada.
+  [ "${DRY_RUN:-0}" = 0 ] || return 0
+  # Una sola vez por corrida, aunque `salir` se llamara dos veces.
+  [ "$FLOTA_REPORTADO" = 0 ] || return 0
+  FLOTA_REPORTADO=1
+
+  pendientes="${DIR_ESTADO:-/var/lib/space-os}/flota-pendientes"
+  mkdir -p "$pendientes" 2>/dev/null || true
+
+  # 1 · El de esta corrida se escribe ANTES de intentar mandarlo. Si el POST
+  #     falla —o si este proceso muere en mitad del POST— ya esta en disco y
+  #     sale manana. Componerlo y mandarlo sin pasar por el disco perderia
+  #     justo el reporte de la noche en que el padre estuvo caido.
+  cuerpo="$(flota_cuerpo)"
+  if [ -n "$cuerpo" ]; then
+    printf '%s\n' "$cuerpo" >"$pendientes/$(date '+%Y%m%d-%H%M%S')-$$.json" 2>/dev/null || true
+  else
+    registrar "   reporte de flota: no se pudo componer (sin FLOTA_TOKEN en $ENV_APP, sin INSTANCIA, o $SALUD_URL no contesto el cuerpo con token). No se manda nada y no pasa nada mas."
+  fi
+
+  # 2 · La poda, antes de mandar: si hay atasco, se tiran los MAS VIEJOS. El
+  #     nombre empieza por la fecha, asi que el orden del glob ya es el
+  #     cronologico.
+  lista=("$pendientes"/*.json)
+  [ -e "${lista[0]:-}" ] || return 0
+  sobran=$(( ${#lista[@]} - FLOTA_PENDIENTES_MAX ))
+  if [ "$sobran" -gt 0 ]; then
+    registrar "   reporte de flota: hay ${#lista[@]} sin entregar; se tiran los $sobran mas viejos (limite $FLOTA_PENDIENTES_MAX)."
+    for archivo in "${lista[@]:0:$sobran}"; do rm -f "$archivo" 2>/dev/null || true; done
+    lista=("${lista[@]:$sobran}")
+  fi
+
+  # 3 · Se manda del mas viejo al mas nuevo. Al primer fallo se PARA: si el
+  #     padre no esta, insistir veinte veces con --max-time 10 son doscientos
+  #     segundos colgando de una corrida del cron para nada.
+  for archivo in "${lista[@]}"; do
+    if flota_postear "$archivo"; then
+      rm -f "$archivo" 2>/dev/null || true
+      entregados=$(( entregados + 1 ))
+    else
+      fallo=1
+      break
+    fi
+  done
+
+  if [ "$fallo" = 1 ]; then
+    registrar "   reporte de flota NO ENTREGADO: el padre no acepto el reporte en $FLOTA_REPORTE_URL (entregados $entregados; quedan pendientes en $pendientes y salen en la siguiente corrida). El update NO se ve afectado: esta instancia esta como diga la linea final."
+  elif [ "$entregados" -gt 0 ]; then
+    registrar "   reporte de flota OK: $entregados entregado(s) a $FLOTA_REPORTE_URL"
+  fi
+  return 0
+}
+
 salir() {
   local codigo="$1"
   shift || true
   if [ "$#" -gt 0 ]; then registrar "$@"; fi
+  # El reporte va ANTES de subir el log, para que sus lineas viajen dentro del
+  # log de esta corrida. Y con `|| true` por lo mismo que la subida: el padre
+  # no decide con que codigo se despide el update de una instancia.
+  reportar_a_flota || true
   # El log sale del droplet SALGA BIEN O MAL, y `salir` es la unica puerta una
   # vez tomado el candado. El `|| true` no es descuido: una subida que falla no
   # puede cambiar el codigo con el que este script se despide, que es lo que el
