@@ -7,8 +7,9 @@ que cambia según cada respuesta. Ningún agente la busca.
 Este documento no reinventa nada: reparte las tareas que el v3 ya definió entre agentes
 que pueden correr sin supervisión, y marca con una línea roja todo lo que necesita una persona.
 
-**Rama de trabajo:** `feat/servidor-padre-instancias` (o un worktree hijo por ola, ver §5).
+**Rama de trabajo:** `feat/servidor-padre-instancias`, en **árbol único y olas secuenciales** (§5).
 **Fecha de la corrida:** _la anota el orquestador al arrancar._
+**Hora de cierre:** _la anota el orquestador al arrancar: `hasta=HH:MM`, o seis horas después._
 
 ---
 
@@ -92,10 +93,10 @@ sigue solo si el cambio no altera el diseño. Si lo altera, se detiene.
 ## 4. La cola, por olas
 
 Las olas existen por dependencia real y por propiedad de archivos. Dentro de una ola los conjuntos
-de archivos son **disjuntos**, así que los agentes pueden correr en paralelo. Entre olas hay una
-puerta.
+de archivos son **disjuntos**, así que los agentes *podrían* correr en paralelo — pero **el modo por
+defecto es secuencial** (§5): van uno detrás de otro en un solo árbol. Entre olas hay una puerta.
 
-### Ola 1 — cimientos (3 agentes en paralelo)
+### Ola 1 — cimientos (3 agentes, secuenciales por defecto)
 
 | Agente | Tareas | Archivos que posee |
 |---|---|---|
@@ -167,13 +168,25 @@ El `verificador-noche` **no escribe código**. Solo lee, corre pruebas y escribe
 
 ## 5. Aislamiento entre agentes
 
-Dos opciones, en orden de preferencia:
+**El modo por defecto es árbol único con olas estrictamente secuenciales.** Un solo árbol, un agente
+detrás de otro, sin worktrees y sin paralelismo. Más lento y **cero conflictos**.
 
-1. **Worktree por ola** (el repo ya trabaja así: `.claude\worktrees\servidor-padre`).
-   `git worktree add ../noche-ola1 -b noche/ola1` y así. La fusión la hace el orquestador al pasar
-   cada puerta, con `--no-ff` para que la ola quede legible en el log.
-2. **Árbol único, olas estrictamente secuenciales.** Más lento, cero conflictos. Es el modo por
-   defecto si `git worktree` falla por cualquier razón.
+Es lo que corre esta noche salvo que una persona diga lo contrario. El motivo es que la corrida
+todavía no ha funcionado nunca de principio a fin: un conflicto de fusión a las tres de la mañana,
+sin nadie mirando, no lo resuelve nadie hasta el desayuno, y deja el árbol sucio — que es lo único
+que detiene la corrida de verdad. La velocidad es lo primero que se sacrifica mientras no haya
+noches en verde detrás.
+
+**El paralelismo se habilita a mano, y solo cuando la corrida haya funcionado una noche entera.**
+La forma, para cuando llegue ese día:
+
+- **Worktree por ola** (el repo ya trabaja así: `.claude\worktrees\servidor-padre`).
+  `git worktree add ../noche-ola1 -b noche/ola1` y así. La fusión la hace el orquestador al pasar
+  cada puerta, con `--no-ff` para que la ola quede legible en el log.
+- Solo la **ola 1** tiene tres agentes con archivos disjuntos; las demás llevan uno solo, así que el
+  paralelismo no les cambia nada. Lo que se gana es el tiempo de una ola, no el de la noche.
+- Y aun entonces, `middleware.ts` y `update.sh` los rozan varias tareas: el plan les asigna dueño
+  único por ola justamente para esto.
 
 Dentro de una ola, el orquestador nunca lanza dos agentes que compartan un archivo. Si la cola se
 altera y aparece un solapamiento, el orquestador serializa: es más barato esperar que resolver un

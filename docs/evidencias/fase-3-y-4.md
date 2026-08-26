@@ -119,9 +119,9 @@ avisa de que retirarlo antes de tiempo es **riesgo alto** (`plan:1126-1129`).
 |---|---|---|
 | **F4.1** · censo del droplet | ✅ **CERRADA** (25/08) | Nada |
 | **F4.2** · base de DEMO | ✅ **CUMPLIDA** | Nada |
-| **F4.3** · dominio y certificado | ⏳ **PENDIENTE** | Certificado de `demo` + mover el DNS |
+| **F4.3** · dominio y certificado | 🚫 **SIN OBJETO** (ADR 0020) | No hay dominio que dar |
 | **F4.4** · datos y bandera | ✅ **CUMPLIDA** | Nada |
-| **F4.5** · smoke y cierre del riesgo | 🟡 **2 de 4** | Los criterios 1 y 3 dependen de F4.3 |
+| **F4.5** · smoke y cierre del riesgo | 🟡 **2 de 4** | El criterio 3 se cierra **borrando el registro A de `demo.space-os.io`** |
 
 ### `F4.1` — cerrada, y desmontó la premisa del 24/08
 
@@ -200,7 +200,50 @@ de las dos bases y no puede haber ninguno repetido.
 
 ---
 
-## 3 · El dominio — lo único que falta, y por qué no está
+## 3 · El dominio — la decisión que cambió lo que faltaba
+
+> [!important] ADR 0020 (26/08): **no hay demostración pública**
+> `demo.space-os.io` era la muestra de «cómo van a ser las instancias hijas»
+> cuando no existía ninguna. **Deja de usarse.** `space-os.io` es lo oficial y
+> también donde se prueba, y **la demostración pasa a ser el producto real con
+> una o más instancias hijas** — lo que produce la Fase 5.
+>
+> Con eso, `F4.3` queda **sin objeto** y el criterio 1 de `F4.5` también: no hay
+> dominio de DEMO que dar.
+
+### El dominio del PADRE sí está
+
+| | |
+|---|---|
+| Certificado | `space-os.io`, hasta el **2026-11-23**, con **renovación automática** |
+| Emisión | `certbot --standalone` — `padre-ip.conf` no tenía hueco ACME |
+| nginx | `space-os.io.conf` **enlazado** desde el repositorio |
+| Cloudflare | proxy en **gris** |
+| Verificado | `raiz 302 · login 200 · login-post 401 · CN=space-os.io` |
+
+### 🔴 Y queda UNA acción, que es la que cierra el riesgo de la fase
+
+**Borrar el registro A de `demo.space-os.io` en Cloudflare.**
+
+Abandonar el nombre **no es lo mismo que retirarlo**. Mientras siga apuntando a
+`209.97.146.136`, esa máquina **sigue sirviendo un sitio público** con sus cinco
+organizaciones dentro, hasta que su certificado venza el **2026-10-26**. Y eso es
+exactamente *«demo pública = producción»*, el riesgo que da nombre a la Fase 4.
+
+Una acción de navegador. Ningún servidor de por medio. **Es lo que hace que el
+criterio 3 se cumpla de verdad y no de palabra.**
+
+### Lo que ya no hace falta, y por qué se intentó
+
+El certificado de `demo.space-os.io` se intentó **cinco veces** el 25/08 por
+`certbot --manual`, y las cinco murieron por lo mismo: ese modo exige una pausa
+humana, y en la consola web siempre había un salto de línea de más esperando en
+el buffer que la satisfacía antes de tiempo.
+
+**Con el ADR 0020 ese trabajo desaparece entero.** No es que se resolviera: dejó
+de hacer falta.
+
+## 3-bis · Lo que decía este apartado antes del ADR 0020
 
 **Medido el 25/08 por la noche:**
 
