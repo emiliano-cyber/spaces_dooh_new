@@ -8,8 +8,47 @@ Este documento no reinventa nada: reparte las tareas que el v3 ya definió entre
 que pueden correr sin supervisión, y marca con una línea roja todo lo que necesita una persona.
 
 **Rama de trabajo:** `feat/servidor-padre-instancias`, en **árbol único y olas secuenciales** (§5).
-**Fecha de la corrida:** _la anota el orquestador al arrancar._
-**Hora de cierre:** _la anota el orquestador al arrancar: `hasta=HH:MM`, o seis horas después._
+
+> [!important] Corrida **de día y SUPERVISADA** — 2026-08-26, reescrito a mediodía
+> La corrida nocturna **nunca llegó a ejecutarse**. Este documento se reescribe para
+> correrlo **ahora, con Jochelo delante**, y eso cambia tres reglas de fondo:
+>
+> 1. **Se pregunta.** El §7 original prohibía preguntar porque nadie estaba
+>    despierto. Ahora sí lo está: una decisión bloqueante **se pregunta en el
+>    momento**, no se aparca a un archivo que se lee por la mañana. Aparcar sigue
+>    siendo válido para lo que no depende de una respuesta.
+> 2. **`git push` está permitido** en esta corrida, porque hay quien la mira. Sigue
+>    prohibido `git tag` y todo lo que toque infraestructura viva.
+> 3. **La Ola 1 ya no está entera:** `altas-transaccionales` está **HECHA**. Ver §0.
+
+---
+
+## 0. Estado al arrancar esta corrida
+
+Medido contra el repo el 2026-08-26 a mediodía, no recordado.
+
+| Agente / tarea | Estado | Evidencia |
+|---|---|---|
+| `altas-transaccionales` · **F5.1** | ✅ **HECHA** | `0b1ce71` (rojo) + `eef43d1` — `withTxBootstrap` en `db.ts`; la organización y su Dueño nacen juntos o no nacen |
+| `altas-transaccionales` · **F5.2** | ✅ **HECHA** | `3ad2cec` (rojo) + `653f992` + `0b7e10a` — `POST /api/bootstrap`, tres cerrojos, y la exención de CSRF acotada con pruebas |
+| `plantillas-instancia` · F5.3 | ⬜ pendiente | `infra/env/instancia.env.example` y `infra/nginx/instancia.conf.tpl` **no existen** |
+| `endpoint-flota` · F6.1, F5.8 | ⬜ pendiente | `app/api/version/route.ts` **no existe**; `infra/scripts/update.sh` sí |
+| `aprovisionamiento` · F5.4, F5.5 | ⬜ pendiente | `provision-instancia.sh` y `docs/runbook-alta-de-owner.md` **no existen**; `setup-droplet.sh` e `infra/scripts/README.md` **ya existen** |
+| `panel-flota` · F6.2, F6.4 | ⬜ pendiente | `apps/flota/` **no existe** |
+| `cierre-documental` · F8.1, F8.3 | ⬜ pendiente | ver el aviso de numeración abajo |
+| `verificador-noche` | ⬜ al final | — |
+
+**Quedan 9 tareas**: F5.3, F5.4, F5.5 (preparada), F5.8 (lado código), F6.1, F6.2, F6.4, F8.1, F8.3.
+
+> [!warning] El ADR que la Ola 4 iba a crear tiene el número ocupado
+> El plan dice `docs/adr/0014-instancia-dedicada-por-owner.md`. **El 0014 ya existe**
+> y es `0014-postgres-en-el-droplet-o-base-administrada.md`. Entre anoche y hoy se
+> escribieron además el 0018, 0019, 0020 y 0021. **F8.1 usa el `0022`.**
+
+> [!note] Dos notas de la bóveda que la Ola 4 toca cambiaron esta mañana
+> `vault/01-Arquitectura/entorno-y-despliegue.md` se editó hoy (ADR 0021, la
+> reversión de `demo.space-os.io`). El agente de la Ola 4 **lee su estado actual
+> antes de escribir**, no el que este plan suponía anoche.
 
 ---
 
@@ -22,7 +61,7 @@ Estas prohibiciones no son consejos. Un agente que las cruce se detiene y escrib
 | `ssh`, `scp`, `rsync` a cualquier host | El v3 no ejecutó nada contra servidores y esta corrida tampoco |
 | `curl` / `wget` contra producción, DEMO o cualquier dominio real | Igual |
 | `doctl`, `aws`, `s3cmd`, `certbot`, `nginx -s`, `pm2` | Infraestructura viva |
-| `git push`, `git tag`, `gh workflow run`, `gh run` | La persona supervisa y sube |
+| ~~`git push`~~, `git tag`, `gh workflow run`, `gh run` | **`git push` PERMITIDO en esta corrida** (es supervisada). El resto sigue prohibido |
 | `docker push`, tocar el registry | §8.4 sin decidir |
 | Abrir `apps/web/lib/test/aislamiento.e2e.test.ts` | Invariante 7. Ni para leer y editar: si una tarea obliga a editarlo, **esa tarea rompió el comportamiento de hoy** → detenerse |
 | Tocar `db/schema.sql` | Invariante 8: los cambios de esquema van por migración |
@@ -31,7 +70,8 @@ Estas prohibiciones no son consejos. Un agente que las cruce se detiene y escrib
 | Decidir P1, P2, P3, P4 o P4-bis | Las decide Jochelo. El agente las señala |
 
 `git commit` **sí** está permitido y es obligatorio: una tarea = un commit con sentido.
-`git push` no. La persona revisa el log y empuja por la mañana.
+**`git push` también, en esta corrida**, porque Jochelo la está mirando — no es la
+regla general del repo.
 
 - **Alternativas a lo denegado:** en vez de `find … | xargs rg`, usa `rg` directo, `find -exec` o
   `git ls-files`. En vez de `env VAR=x cmd`, exporta la variable en una línea aparte. `xargs` y
@@ -96,11 +136,11 @@ Las olas existen por dependencia real y por propiedad de archivos. Dentro de una
 de archivos son **disjuntos**, así que los agentes *podrían* correr en paralelo — pero **el modo por
 defecto es secuencial** (§5): van uno detrás de otro en un solo árbol. Entre olas hay una puerta.
 
-### Ola 1 — cimientos (3 agentes, secuenciales por defecto)
+### Ola 1 — cimientos (~~3~~ **2 agentes**: el primero ya está hecho)
 
 | Agente | Tareas | Archivos que posee |
 |---|---|---|
-| `altas-transaccionales` | F5.1, F5.2 | `apps/web/lib/server/db.ts` (añadir al final), `usuarios-repo.ts`, `cuentas-controller.ts`, `app/api/bootstrap/route.ts` (nuevo), `middleware.ts` (solo la lista de exentas de CSRF, `:55-65`), `lib/test/alta-organizacion.e2e.test.ts` (nuevo), `lib/test/bootstrap.e2e.test.ts` (nuevo) |
+| ~~`altas-transaccionales`~~ ✅ **HECHA** | ~~F5.1, F5.2~~ | `apps/web/lib/server/db.ts` (añadir al final), `usuarios-repo.ts`, `cuentas-controller.ts`, `app/api/bootstrap/route.ts` (nuevo), `middleware.ts` (solo la lista de exentas de CSRF, `:55-65`), `lib/test/alta-organizacion.e2e.test.ts` (nuevo), `lib/test/bootstrap.e2e.test.ts` (nuevo) |
 | `plantillas-instancia` | F5.3 | `infra/env/instancia.env.example` (nuevo), `infra/nginx/instancia.conf.tpl` (nuevo), `apps/web/lib/entorno.test.ts` (crece) |
 | `endpoint-flota` | F6.1, F5.8 (lado código) | `app/api/version/route.ts` (nuevo), `lib/test/version.e2e.test.ts` (nuevo), `infra/scripts/update.sh` (**solo** la línea `SALUD_URL`) |
 
@@ -108,7 +148,11 @@ defecto es secuencial** (§5): van uno detrás de otro en un solo árbol. Entre 
 > Nunca los dos a la vez. Si `panel-flota` lo encuentra bloqueado, espera.
 
 **Puerta 1:** `npm test` y `npm run test:e2e` en verde, `aislamiento.e2e.test.ts` intacto
-(`git diff --stat` no lo menciona), tres commits en el log.
+(`git diff --stat` no lo menciona), ~~tres~~ **dos** commits nuevos en el log.
+
+> El verde de partida, medido hoy antes de arrancar: **858 unitarias en 79 archivos**
+> y **e2e 22 archivos, 227 pruebas + 1 omitida**. Cualquier cifra por debajo de esa
+> al cerrar la puerta significa que algo se rompió, no que «faltan pruebas».
 
 ### Ola 2 — aprovisionamiento (1 agente)
 
@@ -138,7 +182,7 @@ nada; `rg -n "space-os\.io" infra/env infra/nginx/instancia.conf.tpl` devuelve s
 
 | Agente | Tareas | Archivos |
 |---|---|---|
-| `cierre-documental` | F8.1, F8.3 | `docs/adr/0014-instancia-dedicada-por-owner.md` (nuevo), `vault/02-Backend/multi-tenancy-y-rls.md`, `vault/01-Arquitectura/entorno-y-despliegue.md`, `docs/Registro_Cambios.md` |
+| `cierre-documental` | F8.1, F8.3 | `docs/adr/0022-instancia-dedicada-por-owner.md` (nuevo — **el 0014 está ocupado**, ver §0), `vault/02-Backend/multi-tenancy-y-rls.md`, `vault/01-Arquitectura/entorno-y-despliegue.md`, `docs/Registro_Cambios.md` |
 
 F8.2 (poner el aviso de ARCHIVADO en los dos documentos del 11) **no se hace**: viven fuera del
 repo, en `C:\Users\Server\Downloads\server padre\`. El agente deja el texto exacto a pegar en la
@@ -213,19 +257,26 @@ Un bloque sin la línea `Rojo:` es una tarea no hecha, aunque el código esté e
 
 ---
 
-## 7. Modo automático: aparcar, no parar
+## 7. Modo supervisado: preguntar en el momento, aparcar solo lo que sobra
 
-La corrida es **desatendida**. Nadie está despierto para contestar. De eso salen tres reglas que
-gobiernan todo lo demás:
+> [!important] Esta sección se reescribió el 2026-08-26. La corrida es **de día y
+> con Jochelo delante**, no desatendida.
 
-1. **Ningún agente pregunta nada.** Ni una pregunta interactiva, ni una espera de confirmación, ni
-   un «¿procedo?». Si un agente se encuentra formulando una pregunta, la escribe en el archivo de
-   decisiones y sigue.
-2. **Nunca se elige por Jochelo.** La tentación de «decidir lo razonable para no perder la noche»
-   es exactamente lo que este plan prohíbe. Una decisión tomada a las tres de la mañana por un
-   agente es una decisión que nadie revisó.
-3. **Se aparca la tarea, no la noche.** Lo que no se puede hacer sin una respuesta se aparca; lo que
-   sí, se hace. Al amanecer hay trabajo hecho y una lista corta de preguntas, no un árbol congelado.
+La versión original prohibía preguntar porque nadie estaba despierto. Hoy sí lo está, y eso
+invierte la primera regla. Las tres que gobiernan esta corrida:
+
+1. **Lo que bloquea, se pregunta AHORA.** Una pregunta contestada en dos minutos vale más que
+   una entrada perfecta en un archivo que se lee mañana. La pregunta va con sus opciones y con
+   lo que el repo ya dice al respecto, igual de bien escrita que si fuera al archivo — solo que
+   se hace en voz alta.
+2. **Sigue prohibido elegir por Jochelo.** Esto NO cambia. Que haya alguien delante no autoriza a
+   decidir P1–P4 ni P4-bis sin preguntar; autoriza a preguntarlas antes, no a saltárselas.
+3. **Se aparca lo que no depende de una respuesta humana** —una dependencia técnica que aún no
+   existe, una tarea de servidor— y se sigue. Aparcar por falta de respuesta ya no aplica: la
+   respuesta se pide.
+
+**El archivo de decisiones (§8) se sigue escribiendo**, con las que se hayan preguntado y su
+respuesta anotada. Es el registro de qué se decidió y cuándo, no un buzón.
 
 ### Aparcar una tarea
 
