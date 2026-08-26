@@ -127,7 +127,7 @@ Claim aparte, aunque estés en otra zona. Lista completa en [[AGENTES]].
 | `apps/web/lib/server/errores.ts` | LIBRE | — | — |
 | `apps/web/lib/server/uploads.ts` | LIBRE | — | — |
 | `apps/web/lib/modulos.ts` | LIBRE | — | — |
-| `apps/web/components/demo/shell/nav.ts` | LIBRE | — | — |
+| `apps/web/components/demo/shell/nav.ts` | LIBRE | — | 2026-08-26: el grupo «Vender» pasa a «Ventas» (solo el rotulo; la clave `vender` sigue igual, como manda el propio archivo) |
 | `apps/web/components/demo/ui/*` | LIBRE | — | — |
 | `apps/web/app/providers.tsx` | LIBRE | — | — |
 | `packages/types/src/*` | LIBRE | — | — |
