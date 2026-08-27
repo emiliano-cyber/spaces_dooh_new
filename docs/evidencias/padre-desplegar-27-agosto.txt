@@ -86,13 +86,19 @@
 #
 # Es de SOLO LECTURA. Pasame el resultado antes de seguir.
 #
+# OJO con la tabla de dias: va SIN el 0 delante. En JavaScript el codigo lleva
+# `[0, 31, 29, ...]` porque sus arreglos empiezan en cero, pero LOS DE POSTGRES
+# EMPIEZAN EN 1: con ese 0 de relleno, el mes 01 consulta el indice 1 --que
+# vale 0-- y cualquier dia sale "imposible". Se copio asi la primera vez y
+# marco cuatro RFC validos, incluido el generico XAXX010101000. Medido el 27/08.
+#
 # NOTA: la consulta usa `not (... ~ ...)` y no el operador `!~`, que es lo
 # natural en SQL. El motivo no es de SQL sino de bash: el `!` dispara la
 # EXPANSION DE HISTORIAL aunque este dentro de comillas dobles, y la linea
 # muere con "-bash: !~: event not found" sin llegar a Postgres. Medido el
 # 27/08 en esta misma consola.
 
-sudo -u postgres psql -d spaces_prod -c "with rfcs as (select 'tenants' t, id::text i, rfc from tenants where coalesce(btrim(rfc),'') <> '' union all select 'clientes', id::text, rfc from clientes where coalesce(btrim(rfc),'') <> '' union all select 'arrendadores', id::text, rfc from arrendadores where coalesce(btrim(rfc),'') <> ''), ok as (select t,i,rfc,upper(btrim(rfc)) r from rfcs where upper(btrim(rfc)) ~ ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{6}[A-Z0-9]{3}$')) select t,i,rfc,'forma' motivo from rfcs where not (upper(btrim(rfc)) ~ ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{6}[A-Z0-9]{3}$')) union all select t,i,rfc,'fecha imposible' from ok where substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{2}([0-9]{2})'))::int not between 1 and 12 or substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{4}([0-9]{2})'))::int > (array[0,31,29,31,30,31,30,31,31,30,31,30,31])[substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{2}([0-9]{2})'))::int];"
+sudo -u postgres psql -d spaces_prod -c "with rfcs as (select 'tenants' t, id::text i, rfc from tenants where coalesce(btrim(rfc),'') <> '' union all select 'clientes', id::text, rfc from clientes where coalesce(btrim(rfc),'') <> '' union all select 'arrendadores', id::text, rfc from arrendadores where coalesce(btrim(rfc),'') <> ''), ok as (select t,i,rfc,upper(btrim(rfc)) r from rfcs where upper(btrim(rfc)) ~ ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{6}[A-Z0-9]{3}$')) select t,i,rfc,'forma' motivo from rfcs where not (upper(btrim(rfc)) ~ ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{6}[A-Z0-9]{3}$')) union all select t,i,rfc,'fecha imposible' from ok where substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{2}([0-9]{2})'))::int not between 1 and 12 or substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{4}([0-9]{2})'))::int > (array[31,29,31,30,31,30,31,31,30,31,30,31])[substring(r from ('^[A-Z' || chr(209) || '&]{3,4}[0-9]{2}([0-9]{2})'))::int];"
 
 # Esperado: (0 rows). Si devuelve filas, PARA y pasamelas: no
 # impide desplegar, pero conviene saber a quien le va a estorbar.
