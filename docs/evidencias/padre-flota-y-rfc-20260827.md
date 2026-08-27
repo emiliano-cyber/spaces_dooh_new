@@ -241,16 +241,81 @@ criterio pedía.
 
 ---
 
+## 4-bis · El V13 se corrió, y la CSP destapó código muerto en produccion
+
+**V13c pasa:** editar el nombre de un cliente y guardar funciona — pasa por el
+middleware que tocó el despliegue de la mañana.
+
+**V13f dio el primer resultado real de la CSP en modo reporte**, y no lo habría
+encontrado ninguna prueba: las suites no cargan un navegador.
+
+### El hallazgo
+
+`app/layout.tsx` → `Providers` (`app/providers.tsx:5`) → **`AuthProvider`**, que
+vive en `lib/auth-context.tsx` y **es de la pista archivada**: importa
+`@spaces-dooh/types`, guarda la sesión en `sessionStorage` y manda
+`x-tenant-slug` — todo del backend Fastify que está en `_archive/api`.
+
+Al montar, **en cada carga de página en producción**:
+
+```
+POST http://localhost:3001/auth/refresh   credentials: 'include'
+      -> ERR_CONNECTION_REFUSED
+```
+
+El origen es el mismo en los dos archivos vivos de esa pista
+(`lib/api-client.ts:1` y `lib/auth-context.tsx:16`):
+
+```ts
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+```
+
+**Por qué importa, sin exagerarlo.** Hoy el efecto visible es ruido: dos
+peticiones fallidas por carga. Pero la rama de éxito de
+`auth-context.tsx:85-100` toma el `accessToken` de esa respuesta, lo instala con
+`setAccessToken()`, pide `/auth/me` con ese Bearer y hace `setUser()`. Es **una
+página de producción pidiéndole una identidad a la máquina del visitante**.
+Explotarlo exige un servidor local que coopere con CORS
+(`Allow-Origin: https://space-os.io` + `Allow-Credentials`), así que no es
+trivial — pero el patrón no debería existir.
+
+> **Lo que nadie había visto.** `apps/web/lib/entorno.test.ts:255` ya reconoce
+> que `app/_legacy/` y `lib/api-client.ts` son de la pista archivada. Lo que se
+> escapó es que **`providers.tsx` sigue montando su `AuthProvider` en el layout
+> raíz**. **Estar archivado en la documentación no es lo mismo que estar
+> desconectado del árbol.**
+
+**No se tocó nada.** Toca sesión, así que es **ROJO** (R1) y pide aprobación
+humana. Queda diagnosticado, con su punto exacto: `apps/web/app/providers.tsx:5`.
+
+### Los otros dos avisos, que sí son de ajuste
+
+| Aviso | Qué es |
+|---|---|
+| `style-src` · `api.fontshare.com` | La hoja de **Cabinet Grotesk** y **General Sans**, de un CDN externo |
+| `font-src` · 15 violaciones | Las fuentes de esa misma hoja |
+
+Chocan con el encargo del agente **`tipografo`**: sustituir por completo Cabinet
+Grotesk, General Sans y JetBrains Mono por Source Serif 4 + Inter servidas con
+`next/font/google`. **Si esa migración se completa, las dos violaciones
+desaparecen solas** — se servirían desde el propio origen. Ampliar
+`style-src`/`font-src` para admitir fontshare sería arreglar el síntoma en la
+dirección contraria.
+
+---
+
 ## 5 · Lo que queda pendiente de esta tarjeta
 
-**El BLOQUE 1: el V13 en el navegador**, sobre `https://space-os.io/spaces-dooh/`.
-No corre en consola:
+**Nada de la tarjeta.** El BLOQUE 1 se corrió (§4-bis). Lo que queda abierto es
+lo que ese bloque destapó:
 
-- el título sin «Demo» · el menú diciendo «Ventas»
-- **un guardado de verdad** — el despliegue de la mañana tocó el middleware que
-  protege todos los guardados. Es la comprobación que más importa
-- borrar un cliente y dar de baja un propietario **piden la contraseña**
-- los avisos de **CSP** en la consola del navegador, que van en modo reporte
+- **El `AuthProvider` archivado montado en el layout raíz** — diagnosticado, sin
+  tocar. Es ROJO por zona (R1, sesión): pide aprobación humana.
+- **Las fuentes desde fontshare** — se resuelven solas cuando termine la
+  migración tipográfica; no se amplía la CSP.
+- **DATA-02 no quedó ejercido en producción**: no se creó ninguna reserva en la
+  sesión (`0 rows` en la consulta de las últimas 2 h). No hace falta forzarlo:
+  tiene su e2e contra base real en `flujo-critico.e2e.test.ts`.
 
 ---
 
