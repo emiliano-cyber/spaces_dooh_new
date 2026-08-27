@@ -269,7 +269,17 @@ cd /var/www/Spaces/apps/flota && sed -i 's/"beta": "v0.2.0-padre"/"beta": "v0.1.
 # ############################################################
 
 # ############################################################
-#  LO UNICO QUE ESTA TARJETA DEJA ABIERTO
+#  NADA QUEDA ABIERTO DE ESTA TARJETA
+# ############################################################
+#  `demo.space-os.io` quedo CERRADO el 27/08 por el ADR 0024:
+#  es solo la demostracion ORIGINAL y SE ELIMINARA. No se
+#  mueve al PADRE, no se le emite certificado y no se le busca
+#  maquina. `docs/evidencias/cert-demo-en-el-padre.txt` queda
+#  SIN OBJETO y no se corre.
+#
+#  Con eso F4.3 queda sin objeto y el plan baja a 39 tareas
+#  con objeto. Su certificado vence el 2026-10-26 y eso pasa a
+#  ser su caducidad natural, no un plazo que obligue a nada.
 # ############################################################
 #  `demo.space-os.io` resuelve HOY a la maquina vieja, y el
 #  ADR 0021 dice que el nombre se conserva. QUE PASA CON EL

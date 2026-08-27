@@ -33,11 +33,13 @@ archivos:
 > `spaces_prod` o migrar PIXELED **describe un problema que ya no existe**. Se
 > conserva como historia; no es trabajo pendiente.
 >
-> **Lo que NO se decidió, y no se deduce:** qué máquina sirve
-> `demo.space-os.io`. Aplazado a propósito. Lo sirve la máquina vieja y **su
-> certificado vence el 2026-10-26**. El [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md)
-> sigue diciendo que el nombre se conserva. Este punto ha cambiado cinco veces:
-> **preguntar, no inferir.**
+> **Y `demo.space-os.io` queda CERRADO** por el
+> [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md),
+> que sustituye al 0021: ese nombre **es solo la demostración original y se
+> eliminará**. No se mueve al PADRE, no se le emite certificado y no se le busca
+> máquina. **`F4.3` queda SIN OBJETO** y el plan baja a **39 tareas con objeto**.
+> Su certificado (26/10) pasa a ser **caducidad natural, no plazo**. Este punto
+> giró seis veces y aquí se cierra: **ya no se pregunta.**
 
 > [!tip] 2026-08-27 · `F6.3` cerrada, y `F6.1` probada en producción
 > El panel de flota corrió por primera vez **contra una instancia real** y no

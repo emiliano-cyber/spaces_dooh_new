@@ -88,9 +88,12 @@ objeto**.
 > Se escribe aparte, siguiendo el patrón del ADR 0021, porque los huecos
 > rellenados por deducción son lo que ha costado caro en este expediente.
 
-**Qué máquina servirá `demo.space-os.io` sigue sin decidirse.** Aplazado a
-propósito el 27/08. El ADR 0021 conserva el nombre; quién lo sirve queda abierto,
-y con ello `F4.3` **sigue pendiente y es correcto que lo esté**.
+~~**Qué máquina servirá `demo.space-os.io` sigue sin decidirse.**~~
+**CERRADO el mismo día por el
+[ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md):** ese
+nombre es solo la demostración original y **se eliminará**. No se mueve, no se le
+emite certificado, y **`F4.3` queda sin objeto** — con eso el plan baja a **39
+tareas con objeto**, una menos de las 40 que dice la tabla de arriba.
 
 **Tampoco se decide cuándo se destruye el droplet.** Retirarlo del trabajo no es
 apagarlo. Mientras sirva ese nombre, sigue encendido.
@@ -223,9 +226,12 @@ la máquina **no se decide en este ADR**.
 
 ## Cuándo revisar
 
-**El 2026-10-26 como muy tarde**, cuando venza su certificado: ese día
-`demo.space-os.io` deja de servir por HTTPS y `F4.3` se resuelve sola en la peor
-dirección si nadie la ha resuelto antes.
+**Cuando nazca la primera instancia de owner** (`F5.7`). Ese es el momento en
+que la demostración original deja de tener uso y el nombre se elimina
+([ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)) — y con
+el nombre fuera, **ya se puede apagar esta máquina**. Esa sí es la decisión que
+baja la superficie de ataque.
 
-Y antes de eso, en cuanto se decida quién sirve `demo.space-os.io`: ahí se puede
-apagar esta máquina, y esa sí es la decisión que baja la superficie de ataque.
+El **2026-10-26** su certificado vence y el nombre deja de servir por HTTPS. Eso
+**ya no es un plazo que obligue a nada**: es un apagado parcial que llega solo, y
+vale como límite superior de la exposición si nadie la elimina antes.

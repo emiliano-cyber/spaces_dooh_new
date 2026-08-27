@@ -53,11 +53,12 @@ archivos:
 > `spaces_prod`, migrar PIXELED o desenredar la Fase 7** describe un problema que
 > **ya no existe**. Se conserva como historia; no es trabajo pendiente.
 >
-> **Lo que NO se decidió, y no se deduce:** qué máquina servirá
-> `demo.space-os.io`. **Aplazado a propósito.** Hoy lo sirve la máquina vieja y
-> su certificado **vence el 2026-10-26**. El ADR 0021 sigue diciendo que el
-> nombre se conserva, así que **`F4.3` sigue pendiente y es correcto que lo
-> esté**. Este punto ha cambiado cinco veces: **preguntar, no inferir.**
+> **Y `demo.space-os.io` queda CERRADO por el [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md),
+> que sustituye al 0021:** ese nombre **es solo la demostración original y se
+> eliminará**. No se mueve al PADRE, no se le emite certificado y no se le busca
+> máquina. **`F4.3` queda SIN OBJETO** y el plan baja a **39 tareas con objeto**.
+> Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
+> **Ya no se pregunta.**
 > Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
 
 

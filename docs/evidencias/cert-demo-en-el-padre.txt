@@ -1,4 +1,20 @@
 ============================================================
+ >>>  SIN OBJETO desde el 2026-08-27 -- NO SE CORRE.     <<<
+============================================================
+ El ADR 0024 decidio que `demo.space-os.io` es solo la
+ demostracion ORIGINAL y que SE ELIMINARA. El nombre NO se
+ mueve al PADRE y NO se le emite certificado, asi que todo lo
+ que sigue dejo de hacer falta.
+
+ Se conserva como historia: el hallazgo que trae -- usar la
+ maquina vieja como BUZON ACME para que la llave privada nazca
+ en el PADRE y no viaje nunca -- sigue siendo el camino
+ correcto el dia que haya que emitir un certificado para un
+ nombre que otra maquina sirve.
+============================================================
+
+
+============================================================
  EL CERTIFICADO DE demo.space-os.io, EMITIDO EN EL PADRE
  usando la maquina vieja SOLO COMO BUZON
 ============================================================

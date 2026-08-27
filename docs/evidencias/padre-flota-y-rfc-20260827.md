@@ -39,11 +39,11 @@ plan v3 (13/08) no podía conocer.
 `F1.5` además ya estaba cumplida donde importa: `20260812_sin_default_tenant.sql`
 está aplicada en las dos bases del PADRE.
 
-**Lo que NO se decidió, y se deja escrito para no inferirlo:** qué máquina sirve
-`demo.space-os.io`. Queda aplazado a propósito. Mientras tanto lo sirve la
-máquina vieja, y **su certificado vence el 2026-10-26**: ese día el nombre deja
-de servir por HTTPS, se decida o no. El ADR 0021 sigue diciendo que el nombre se
-conserva.
+**Y `demo.space-os.io` quedó cerrado el mismo día, por el ADR 0024** (que
+sustituye al 0021): ese nombre es solo la **demostración original** y **se
+eliminará**. No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin
+objeto**, así que el plan baja a **39 tareas con objeto**. Su certificado vence
+el 2026-10-26 y eso pasa a ser **caducidad natural, no plazo**.
 
 ---
 

@@ -1,7 +1,7 @@
 # ADR 0021 — `demo.space-os.io` se queda: es la demostración de las instancias hijas
 
 - **Fecha:** 2026-08-26
-- **Estado:** Aceptada
+- **Estado:** **Sustituida por [ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)** (2026-08-27)
 - **Decide:** Emiliano
 - **Sustituye a:** [ADR 0020](0020-no-hay-demo-publica.md)
 - **Relacionadas:** [ADR 0015](0015-demo-dentro-del-padre.md) ·
@@ -75,5 +75,13 @@ mienta — no como recordatorio ni como objeción.
 
 ## Cuándo revisar
 
-Cuando nazca la primera instancia hija: ahí se decide si `demo.space-os.io`
-se mueve a ella, y con eso se cierra lo que aquí queda abierto.
+~~Cuando nazca la primera instancia hija: ahí se decide si `demo.space-os.io`~~
+~~se mueve a ella, y con eso se cierra lo que aquí queda abierto.~~
+
+> **Revisado el 2026-08-27, un día después:
+> [ADR 0024](0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md).**
+> Los dos huecos que este ADR dejaba abiertos —qué máquina sirve el nombre y qué
+> pasa con su certificado— quedan cerrados allí: **el nombre es solo la
+> demostración original y se eliminará**. No se mueve, no se le emite
+> certificado, y su vencimiento del 2026-10-26 pasa a ser caducidad natural en
+> vez de plazo.

@@ -39,9 +39,10 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0018 | **Fijar la primera contraseña tras entrar con Google, sin teclear la anterior** | Aceptada — **verificada en producción el 25/08** | `sesiones.metodo` (`20260825_sesion_metodo.sql`), `crearSesion(usuarioId, metodo)` **sin default a propósito** (`lib/server/auth.ts:98-103`) y [[flujo-acceso-con-google]] |
 | 0019 | DEMO arranca con **systemd**, no con pm2 | Aceptada (25/08) | `infra/systemd/spaces-demo.service`; pm2 es inalcanzable para el usuario `demo` |
 | 0020 | No hay demostración pública | **SUPERADA** el mismo día (26/08) por el 0021 | — |
-| 0021 | **`demo.space-os.io` se queda**: es la demo de las instancias hijas | Aceptada (26/08) | `infra/nginx/space-os.io.conf:188`. **Canceló TH-F4.5** (borrar su registro A) |
+| 0021 | ~~`demo.space-os.io` se queda~~ **SUPERADA por el 0024 (27/08)** | Aceptada (26/08) | `infra/nginx/space-os.io.conf:188`. **Canceló TH-F4.5** (borrar su registro A) |
 | 0022 | **Una instancia dedicada por owner**; la RLS pasa a defensa en profundidad | Aceptada (26/08) | Toda la Fase 5: `infra/scripts/provision-instancia.sh`, `/api/bootstrap`, `/api/version`. Ver [[modelo-instancias-soberanas]] |
 | 0023 | **El droplet viejo sale del modelo**, y sus datos no se rescatan | Aceptada (27/08) | Retira `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`: **la Fase 7 entera**. El plan queda en **40 tareas con objeto**. Extiende el 0017 |
+| 0024 | **`demo.space-os.io` es la demo ORIGINAL y se eliminará** | Aceptada (27/08) — **sustituye al 0021** | No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin objeto**: el plan baja a **39 tareas con objeto**. Su certificado (26/10) pasa a ser caducidad natural, no plazo |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día
