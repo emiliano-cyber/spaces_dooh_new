@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-26
+actualizado: 2026-08-27
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -26,10 +26,28 @@ cobranza.
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) como **banco de pruebas interno, sin nombre público**. ⚠️ `demo.space-os.io` **queda retirado**: su registro A se borra → **TH-F4.5** | `infra/nginx/space-os.io.conf` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) |
-| Endpoints | 89 route handlers | `apps/web/app/api/**/route.ts` |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y **conserva su nombre público `demo.space-os.io`**: es la demostración de las instancias hijas | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
+| Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
-| Migraciones | **72** | [[migraciones]] |
+| Migraciones | **74** | [[migraciones]] |
+| ADR | **22** (`0001`–`0022`) | `docs/adr/` · [[decisiones]] |
+
+> [!danger] `demo.space-os.io` SE QUEDA — esta fila decía lo contrario hasta el 27/08
+> Con la fecha del **26/08** encima, esta tabla afirmaba que el nombre «queda
+> retirado» y que su registro A se borra (**TH-F4.5**), citando el **ADR 0020**.
+> El ADR 0020 fue **superado ese mismo día** por el **0021**, y con él se
+> **canceló TH-F4.5** (`d506725`). El nginx del PADRE lo sirve
+> (`infra/nginx/space-os.io.conf:188`).
+>
+> **No propongas borrar ese registro.** Es la cuarta vez en cuatro días que este
+> punto cambia de dirección: pregunta antes de inferirlo de un documento, por
+> reciente que parezca su fecha. Ver [[decisiones]] para qué ADR manda hoy.
+
+> [!warning] No confundas «90 endpoints» con «los 72 endpoints censados»
+> El censo de validación de entrada del 26/08 (`721557d`, `e125dee`) revisó **72**
+> route handlers: los que reciben cuerpo. Es un subconjunto, no el total. Un
+> commit que diga «72 endpoints» habla de ese censo; el total de
+> `app/api/**/route.ts` medido el **27/08** es **90**.
 
 ## Antes de tocar nada
 
@@ -48,12 +66,12 @@ cobranza.
 - [[vision-general]] — diagrama de componentes y por qué hay una sola pista viva
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
 - [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
-- [[decisiones]] — los 13 ADR y las decisiones deducidas del código
+- [[decisiones]] — los 22 ADR y las decisiones deducidas del código
 - [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
-- [[api-endpoints]] — los 89 endpoints con método, guard y módulo
+- [[api-endpoints]] — los 90 endpoints con método, guard y módulo
 - [[autenticacion-y-sesion]] — cookie, sesión, CSRF, permisos, reautenticación
 - [[multi-tenancy-y-rls]] — cómo se aísla cada organización
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
@@ -74,7 +92,7 @@ cobranza.
 
 ### 04 · Datos
 - [[esquema]] — diagrama ER y las 39 tablas
-- [[migraciones]] — las 68 en orden, y las trampas de orden
+- [[migraciones]] — las 74 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
@@ -96,7 +114,11 @@ cobranza.
 - [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
   cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-21]] — **última entrada**: el droplet PADRE en pie, y los siete
+- [[2026-08-25]] — **última entrada**: el PADRE nunca había hablado con su base,
+  y cuatro documentos lo daban por vivo
+- [[2026-08-24]] — la Fase 4 se queda sin su objeto… y la misma tarde se
+  desmiente: el acceso al droplet viejo **nunca se perdió**
+- [[2026-08-21]] — el droplet PADRE en pie, y los siete
   defectos que solo aparecen corriendo el procedimiento en un servidor real
 - [[2026-08-20]] — los tres ROJO del re-ensayo de la Fase 4, cerrados; el
   catálogo de permisos completo y la contraseña del Dueño
@@ -118,8 +140,11 @@ cobranza.
   entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
 
 > [!tip] Esta bóveda caduca
-> Última validación completa contra el código: **10/08/2026**. El procedimiento
-> para repetirla (cuatro chequeos y sus dos trampas) está en [[convenciones]].
+> Última validación completa contra el código: **27/08/2026**. El procedimiento
+> para repetirla (cuatro chequeos y sus cuatro trampas) está en [[convenciones]].
+> Lo medido ese día: **90** route handlers, **74** migraciones, **39** tablas,
+> **22** ADR, **22** pantallas del shell; **726 enlaces internos, 0 rotos, 0
+> huérfanas** sobre **56** notas.
 
 ## Advertencia sobre la documentación existente
 

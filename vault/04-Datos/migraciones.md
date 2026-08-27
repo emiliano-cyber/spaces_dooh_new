@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-24
+actualizado: 2026-08-27
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -17,6 +17,8 @@ archivos:
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260820_grants_rol_app.sql
   - db/migrations/20260820_catalogo_permisos_completo.sql
+  - db/migrations/20260825_sesion_metodo.sql
+  - db/migrations/20260826_clientes_rfc_unico.sql
 ---
 
 # Migraciones
@@ -51,13 +53,30 @@ archivos:
 
 ## Cómo funciona
 
-- **72 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`.
-  El último es `20260824_grants_tablas_futuras.sql` (24/08), que cierra el
-  hallazgo **H1** de [[auditoria-cuatro-rojo-20260820]]: los GRANT de la app
-  alcanzan ahora a las tablas que crea **cualquier** rol, no solo el que aplicó
-  la migración. **Repara** en cada pasada, **asegura** hacia adelante por
-  propietario derivado de `pg_tables`, y **aborta nombrando** las tablas si
+- **74 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
+  (medido el 27/08). El último es **`20260826_clientes_rfc_unico.sql`** (26/08),
+  que le da a `clientes` el mismo RFC único por tenant que el ADR 0013 le dio a
+  `arrendadores`. Antes van `20260825_sesion_metodo.sql` (columna `metodo` en
+  `sesiones`, la que sostiene el ADR 0018) y `20260824_grants_tablas_futuras.sql`,
+  que cierra el hallazgo **H1** de [[auditoria-cuatro-rojo-20260820]]: los GRANT
+  de la app alcanzan ahora a las tablas que crea **cualquier** rol, no solo el
+  que aplicó la migración. **Repara** en cada pasada, **asegura** hacia adelante
+  por propietario derivado de `pg_tables`, y **aborta nombrando** las tablas si
   alguna se queda fuera.
+
+  > [!tip] Ninguna de las dos nuevas crea tabla
+  > Siguen siendo **39** ([[esquema]]). `sesion_metodo` añade columna y
+  > `clientes_rfc_unico` un índice único: el recuento de tablas y el de
+  > migraciones se mueven por separado, y confundirlos es lo que hizo que el
+  > MOC llevara dos cifras distintas de migraciones a la vez.
+
+  > [!warning] `20260826_clientes_rfc_unico.sql` está ESCRITA y NO APLICADA
+  > Lo declara ella misma en su cabecera (`:4-7`). El arnés de integración la
+  > aplica en cada corrida porque construye el esquema desde cero, así que
+  > **verde en pruebas no significa aplicada en ninguna base real**. Aplicarla
+  > es decisión de una persona: hay que censar los RFC duplicados antes, o el
+  > `create unique index` aborta. Mismo patrón que
+  > `20260812_sin_default_tenant.sql`.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
 - **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en

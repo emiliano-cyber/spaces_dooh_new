@@ -23,10 +23,15 @@ archivos:
 > [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) (26/08) retira ese
 > nombre: no se le mueve el DNS, no se le emite certificado y ~~su registro A se
 > borra~~ — tarjeta **TH-F4.5**. ⚠️ **REVERTIDO el 2026-08-26 por el
-> [[../../docs/adr/0021-demo-space-os-io-se-queda|ADR 0021]]: `demo.space-os.io`
+> [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md): `demo.space-os.io`
 > SE CONSERVA como demostración de las instancias hijas, y la tarjeta TH-F4.5
-> queda cancelada.** El proceso del `3001` se queda como **banco de
-> pruebas interno, sin nombre público**.
+> queda cancelada.** El proceso del `3001` **conserva su nombre**: el nginx del
+> PADRE lo sirve en `infra/nginx/space-os.io.conf:188`.
+>
+> Esa frase tachada estuvo escrita **con la fecha del 26/08 encima** y en tres
+> notas a la vez. Si un agente la lee sin llegar al «REVERTIDO», propone borrar
+> un registro DNS que hay que conservar. **Este punto cambió cuatro veces en
+> cuatro días: pregúntalo, no lo infieras.**
 >
 > **Lo vigente:** el PADRE (`137.184.107.53`) es la **única máquina del modelo**
 > y sirve `space-os.io` con certificado propio hasta el **2026-11-23**, con

@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-27
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/lib/server/errores.ts
@@ -54,8 +54,19 @@ documentan **la decisión y el fallo que la motivó**, con evidencia:
 
 | Tipo | Comando | Config | Cuándo |
 |---|---|---|---|
-| Unitarias (~729) | `npm test` | `vitest.config.ts` | Siempre; no necesitan Docker |
-| Integración (~55) | `npm run test:e2e` | `vitest.e2e.config.ts` | Auth, tenant, dinero, migraciones |
+| Unitarias | `npm test` | `vitest.config.ts` | Siempre; no necesitan Docker |
+| Integración | `npm run test:e2e` | `vitest.e2e.config.ts` | Auth, tenant, dinero, migraciones |
+
+> [!warning] No copies un recuento de aquí — mídelo, y estas cifras caducan igual
+> Esta tabla decía **«~729 unitarias / ~55 de integración»** desde el 07/08.
+> Medido el **27/08** en `feat/servidor-padre-instancias`: **997 unitarias en 92
+> archivos** (`cd apps/web && npm test`, 8 s) y **29 archivos e2e**. Casi el
+> doble, y nadie tocó la cifra en veinte días.
+>
+> **Cuenta también en qué rama estás**: la raíz del repo y este worktree son
+> ramas distintas con recuentos distintos. Y para el número de **casos** e2e hay
+> que correrlas, que exige `npm run build` antes (ver [[entorno-y-despliegue]]);
+> aquí van los **archivos**, que sí se cuentan sin arrancar nada.
 
 Las e2e:
 - corren **en serie** (`fileParallelism: false`) porque comparten base;
@@ -145,7 +156,8 @@ Extraer los enlaces internos (dobles corchetes) de cada nota y comprobar que
 existe un `.md` con ese `BaseName` — o con esa ruta relativa, para los que van
 con carpeta, tipo `02-Backend/_indice`. Al 10/08: **395 enlaces, 0 rotos, 0
 huérfanas**. Al 17/08, con el diario recuperado: **606 enlaces, 0 rotos, 0
-huérfanas** sobre 48 notas.
+huérfanas** sobre 48 notas. Al **27/08**: **726 enlaces, 0 rotos, 0 huérfanas**
+sobre **56** notas — tras arreglar los tres de la tercera trampa, abajo.
 
 > [!warning] Dos `_indice.md` distintos rompen los verificadores ingenuos
 > `02-Backend/_indice.md` y `03-Frontend/_indice.md` comparten `BaseName`. Un
@@ -157,6 +169,23 @@ huérfanas** sobre 48 notas.
 > Un extractor ingenuo también captura los dobles corchetes escritos como
 > ejemplo dentro de una nota, aunque estén entre backticks, y los reporta como
 > rotos. Por eso esta sección los describe en palabras en vez de escribirlos.
+
+> [!warning] Tercera trampa: un wikilink NO puede salir de la bóveda
+> Encontrada el **27/08**, y eran tres a la vez. `entorno-y-despliegue`,
+> `vision-general` y `verificacion-de-produccion` enlazaban al ADR 0021 con
+> dobles corchetes y ruta `../../docs/adr/...`. El archivo **existe**, pero
+> Obsidian solo resuelve wikilinks dentro de la bóveda: los tres quedaban muertos
+> al hacer clic. **Fuera de `vault/` se cita con enlace Markdown normal**, que es
+> lo que ya hacían el MOC y el resto de la tabla de `entorno-y-despliegue`.
+> Un verificador que solo busque el archivo en disco **no los ve**: hay que
+> comprobar que el destino esté dentro de `vault/`.
+
+> [!warning] Cuarta trampa: no todo recuento de endpoints cuenta lo mismo
+> Al 27/08 convivían tres cifras —88, 89 y 90— y ninguna era mentira: **90** son
+> los `route.ts` de hoy, **89** era la cifra buena antes de que naciera
+> `/api/version` (26/08), y los **«72 endpoints censados»** de los commits del
+> 26/08 son el subconjunto que **recibe cuerpo**, del censo de validación de
+> entrada. Antes de corregir una cifra, averigua **qué** contaba.
 
 ### 3 · Toda ruta citada existe
 

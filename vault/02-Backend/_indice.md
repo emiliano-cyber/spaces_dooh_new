@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-27
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -10,14 +10,15 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: 88 Route Handlers sobre
-~75 archivos en `apps/web/lib/server/`. No hay servicio aparte.
+El backend es un **BFF dentro de la propia app Next**: **90** Route Handlers
+(medidos el 27/08) sobre **89** archivos en `apps/web/lib/server/`. No hay
+servicio aparte.
 
 ## Notas de este apartado
 
 | Nota | Cubre |
 |---|---|
-| [[api-endpoints]] | Los 89 endpoints con método, guard y módulo |
+| [[api-endpoints]] | Los 90 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |

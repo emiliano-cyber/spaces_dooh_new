@@ -115,6 +115,13 @@ Léelas antes que nada; son cuatro trampas de nomenclatura ya confirmadas.
 **13 ADR** · **22 pantallas internas** + 8 públicas/sin-chrome · 30 commits entre el
 09/08 y el 11/08. El proyecto está **muy activo**: asume que estos números crecen.
 
+> [!warning] Dieciséis días después esos números ya no son ninguno de los de arriba
+> Medidos el **27/08**: **90** `route.ts` · **39** tablas · **74** migraciones ·
+> **22 ADR** · **22 pantallas internas** (lo único que no se movió). La cifra que
+> más engaña es la de ADR: pasó de 13 a 22 en dieciséis días, y **cuatro de esos
+> nueve se superan entre sí** — ver [[decisiones]]. Este apartado se conserva
+> como la foto del 11/08 que es; el recuento vivo está en [[MOC-Proyecto]].
+
 ### 1.5 Decisiones de fondo
 
 Las decisiones formales están en `docs/adr/` (13 ADR, `0001`–`0013`) y resumidas en
@@ -559,9 +566,19 @@ Si añades una ruta pública por token, sigue ese patrón.
 
 ### 5.5 Desfase con la bóveda
 
-[[api-endpoints]] lista `POST /api/notificaciones/leer-todas`
-(`api-endpoints.md:165`), que **ya no existe**, y **omite** `archivar-todas`. Es el
-**único** desfase de esa tabla; todo lo demás cuadra (inventario D-1).
+> [!tip] CERRADO el 27/08 — pero tardó trece días, y esa es la lección
+> [[api-endpoints]] listaba `POST /api/notificaciones/leer-todas` y **omitía**
+> `archivar-todas`. Corregido el 27/08 en la revalidación de la bóveda.
+>
+> Lo que conviene no repetir: este manual señaló el desfase el **14/08** con
+> nombre y línea, y la nota siguió mal **hasta el 27/08** — incluso el 27/08 por
+> la mañana, cuando un commit le subió el `actualizado:` a hoy sin tocar esa
+> fila. **Anotar un desfase en otra nota no lo corrige**, y una fecha nueva sobre
+> un error viejo le da más autoridad, no menos.
+
+De aquella lista sigue en pie el resto: no existe `PATCH /api/campanas/[id]` ni
+`PATCH /api/ot/[id]`. Y hay **una ruta nueva que este manual no cubre**:
+`GET /api/version` (26/08, F6.1) — ver [[api-endpoints]].
 
 ### 5.6 Los flujos de negocio, de punta a punta
 
@@ -1247,7 +1264,7 @@ candado…). Antes de trabajar en paralelo con otros agentes: [[AGENTES]] y [[ta
 
 | Nota | Desfase | Corrección |
 |---|---|---|
-| [[api-endpoints]] | Lista `leer-todas`, omite `archivar-todas` | §5.5 |
+| [[api-endpoints]] | ~~Lista `leer-todas`, omite `archivar-todas`~~ — **corregido el 27/08**, trece días después de señalarse | §5.5 |
 | [[autenticacion-y-sesion]] | Citas de `auth.ts` corridas ~4 líneas; sitúa la política de contraseñas en `auth.ts` | §6 |
 | [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos; y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]` — no lo son | §3, inventario D-2/D-6 |
 | [[entorno-y-despliegue]] | «`deploy.yml` está desactualizado» y la lectura de `NEXT_PUBLIC_API_URL` | §9.0, §7.3 |

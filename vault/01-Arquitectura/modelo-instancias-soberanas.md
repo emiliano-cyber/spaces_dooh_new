@@ -63,12 +63,21 @@ público**. **Instancia** es la copia de un owner. **Flota** es el conjunto.
 **Dominio de acceso** es el dominio que el owner elige en SU DNS. A un owner **no
 se le dice «tenant»** a nivel de negocio.
 
-> [!warning] 2026-08-26 · Esta definición afirmaba dos cosas que hoy son falsas
+> [!warning] 2026-08-26 · Esta definición afirmaba dos cosas — y solo UNA sigue siendo falsa
 > Decía que DEMO vive en `demo.space-os.io` y que es **la única con autoregistro**.
-> Ni lo uno ni lo otro. El [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md)
-> **retira ese nombre** —DEMO queda como banco de pruebas interno, sin dominio
-> público— y el autoregistro está **cerrado en toda la flota** desde **P8**
-> (14/08, reafirmado el 20/08), **DEMO incluida**.
+>
+> - **El nombre: la afirmación original era la buena.** El
+>   [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) lo retiró por unas
+>   horas y el [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md) lo
+>   **devolvió el mismo día**: `demo.space-os.io` **se conserva** porque es la
+>   demostración de las instancias hijas, y la tarjeta **TH-F4.5 queda
+>   cancelada**. Lo sirve `infra/nginx/space-os.io.conf:188`.
+> - **El autoregistro: sigue siendo falso.** Está **cerrado en toda la flota**
+>   desde **P8** (14/08, reafirmado el 20/08), **DEMO incluida**.
+>
+> Este aviso llevaba desde el 26/08 corrigiendo hacia el lado equivocado en el
+> primer punto — corregido el 27/08. Lo que manda hoy sobre el modelo es el
+> [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md).
 
 ## 3 · Qué se produjo
 

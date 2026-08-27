@@ -10,18 +10,25 @@ archivos:
   - apps/web/lib/server/cambios.ts
 ---
 
-# API — los 89 endpoints
+# API — los 90 endpoints
 
-Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
-`https://demo.space-os.io/spaces-dooh/api/...`.
+Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
+`basePath` `/spaces-dooh` (`apps/web/next.config.mjs:93`).
+
+> [!warning] El host **no** es parte de la API — no lo cablees
+> Esta nota decía `https://demo.space-os.io/spaces-dooh/api/...` como si hubiera
+> un dominio canónico. Desde el ADR 0022 **cada owner corre su instancia en su
+> propio dominio**, y el PADRE sirve `space-os.io` y `demo.space-os.io` desde el
+> mismo nginx (`infra/nginx/space-os.io.conf:124` y `:188`). Lo único estable de
+> una instalación a otra es el `basePath`.
 
 ## Cómo leer la columna Guard
 
 | Guard | Qué exige | Definido en |
 |---|---|---|
 | `PÚBLICO` | Nada. Se auto-protege por token o es bootstrap de sesión. | — |
-| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:146-178` |
-| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:108-122` |
+| `exigir` | Sesión válida + (opcional) permiso `modulo/accion` | `lib/server/auth.ts:159-191` |
+| `usuarioActual` | Sesión, **sin** el corte de `debe_cambiar_password` | `lib/server/auth.ts:120-135` |
 | `DESBLOQ` | Además, desbloqueo vigente si el tenant lo exige | `lib/server/cambios.ts:199-210` |
 | `REAUTH` | Además, desbloqueo **siempre**, ignore el interruptor del tenant | `lib/server/cambios.ts:221-226` |
 | `SENSIBLE` | `exigir(modulo,accion)` + `exigirDesbloqueo()` juntos | `lib/server/cambios.ts:236-245` |
@@ -31,12 +38,12 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 > contraseña **siempre**, ignorando el interruptor `tenants.exigir_reautenticacion`.
 > No es celo: `SENSIBLE` llama a `exigirDesbloqueo()`, que **deja pasar sin pedir
 > nada** cuando el interruptor está apagado — como está por defecto y como está
-> en los cinco tenants de producción (`cambios.ts:214`). El de arrendadores era
+> en los cinco tenants de producción (`cambios.ts:214-216`). El de arrendadores era
 > `SENSIBLE` hasta `ba6fb09` (26/08): decía que pedía la contraseña y no la pedía.
 > Mismo criterio que `/api/usuarios/[id]/restablecer`.
 
 > [!info] El middleware NO valida la sesión
-> `apps/web/middleware.ts:100` solo comprueba que **exista** la cookie
+> `apps/web/middleware.ts:104` solo comprueba que **exista** la cookie
 > `spaces_sesion` (corre en Edge, sin `pg`). Todas las `/api/` quedan fuera de
 > ese gate: **se auto-protegen**. Un endpoint nuevo sin guard queda abierto.
 
@@ -174,13 +181,37 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | Método | Path | Guard |
 |---|---|---|
 | GET | `/api/notificaciones/nuevas` | exigir |
-| POST | `/api/notificaciones/[id]/leer` · `/api/notificaciones/leer-todas` | exigir |
+| POST | `/api/notificaciones/[id]/leer` | exigir |
+| POST | `/api/notificaciones/archivar-todas` | exigir |
 | GET | `/api/integraciones` | exigir |
+
+> [!warning] `leer-todas` no existe: se llama `archivar-todas`
+> Esta tabla listó `POST /api/notificaciones/leer-todas` desde el 07/08 hasta el
+> **27/08**, y esa ruta da **404** desde el 10/08 — verificado en producción ese
+> mismo día ([[2026-08-10]]). La sustituyó `archivar-todas`, que además de marcar
+> leída **archiva** (`app/api/notificaciones/archivar-todas/route.ts:8-11`); el
+> cliente la llama en `apps/web/lib/data/estado-api.ts:99`. [[manual-tecnico]]
+> llevaba **trece días** señalando el error de esta nota sin que nadie lo
+> arreglara: una discrepancia anotada en otra nota no se corrige sola.
+
+## Flota
+
+| Método | Path | Guard | Notas |
+|---|---|---|---|
+| GET | `/api/version` | PÚBLICO / token | Sin `x-flota-token` devuelve solo `{ok}`; con él, `version`, `ultimaMigracion`, `base`, `canal` y `uptime`. **503 si la base no contesta** — es el `SALUD_URL` de `infra/scripts/update.sh`, y la anterior (`/api/auth/metodos`) daba 200 con Postgres muerto |
+
+> [!important] `/api/version` no dice **nada** del negocio del owner, a propósito
+> Ni organizaciones, ni usuarios, ni una cifra. El panel de flota es de AS OOH y
+> la instancia es del owner (ADR 0022): una ruta de telemetría es justo por donde
+> esa promesa se erosiona sin que nadie lo note. La prueba afirma **las claves
+> exactas** del cuerpo, así que una clave nueva la rompe en vez de colarse
+> (`apps/web/app/api/version/route.ts:26-34`).
 
 ## Públicos por token (sin sesión)
 
 Estos **no** dependen de la cookie: la credencial es el token del enlace. Por eso
-están exentos de CSRF (`middleware.ts:47-57`).
+están exentos de CSRF (`middleware.ts:47-61`; `/api/bootstrap` entró en esa lista
+el 26/08 y su cerrojo real es que `tenants` esté vacía, no el token).
 
 | Método | Path | Credencial |
 |---|---|---|
