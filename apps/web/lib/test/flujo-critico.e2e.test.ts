@@ -84,10 +84,33 @@ describe('1 · el recorrido completo llega de propuesta a cobranza', () => {
 
     // La campaña nace con su reserva sobre la pantalla de la propuesta.
     const reservas = await poolTest().query(
-      'select id, sitio_id from reservas where campana_id = $1',
+      'select id, sitio_id, spots_reservados, spots_por_dia from reservas where campana_id = $1',
       [campanaId],
     )
     expect(reservas.rows.length).toBe(1)
+
+    // ─── DATA-02 ─────────────────────────────────────────────────────────
+    // La reserva que nace de una propuesta tiene que RETENER slots, no quedar
+    // en `null`. Hasta el 2026-08-27 este camino escribía `spots_por_dia` en
+    // las dos columnas, y ese campo es opcional: en una propuesta mensual
+    // normal venía vacío.
+    //
+    // `null` no era «sin datos», era un dato FALSO:
+    // `reparto-creativos.ts:51-68` lo lee como «pantalla FIJA, una lona», así
+    // que una pantalla DIGITAL vendida por propuesta se repartía sin rotación
+    // —un creativo se llevaba todo— y `campanas-repo.ts:254-262` no le
+    // devolvía nunca sus slots al vencer.
+    const digital = await poolTest().query(
+      "select tipo_medio = 'PANTALLA_DIGITAL' as digital from sitios where id = $1",
+      [reservas.rows[0].sitio_id],
+    )
+    if (digital.rows[0]?.digital) {
+      expect(reservas.rows[0].spots_reservados, 'una digital vendida no puede retener null').not.toBe(null)
+      expect(Number(reservas.rows[0].spots_reservados)).toBeGreaterThanOrEqual(1)
+    } else {
+      // Una lona no ocupa slots de ningún loop: `null` es lo correcto.
+      expect(reservas.rows[0].spots_reservados).toBe(null)
+    }
     expect(reservas.rows[0].sitio_id).toBe(org.sitioId)
   })
 })
