@@ -1,0 +1,285 @@
+============================================================
+ PROBAR EN EL PADRE -- 27 de agosto
+ UNA sola maquina: 137.184.107.53 (space-os.io)
+============================================================
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO.                      <<<
+
+ Esta tarjeta SUSTITUYE a `probar-en-droplets-27-agosto.txt`.
+ Aquella tenia dos bloques contra la maquina vieja
+ (209.97.146.136). Se retiran: el droplet viejo ya no se usa.
+
+ Algun comando dice [TU PC]: se corre desde Windows, sin
+ entrar a la maquina.
+
+============================================================
+ QUE CIERRA ESTA TARJETA
+============================================================
+ BLOQUE 1  ojo humano ...... el V13 que quedo del 27
+ BLOQUE 2  migracion ....... RFC unico de clientes
+ BLOQUE 3  la flota ........ F6.3, y F6.2 contra algo real
+
+ Cierra F6.3. El plan pasa de 24 tareas con prueba real a 25
+ de 46, y el despliegue del 27 queda comprobado del todo.
+
+============================================================
+ LAS SIETE TAREAS QUE SE RETIRAN, Y POR QUE
+============================================================
+ El droplet viejo ya no se usa, y sus datos eran de PRUEBA:
+ no hay organizaciones reales que rescatar de ahi. Con eso
+ SIETE tareas del plan v3 se quedan SIN OBJETO:
+
+   F0.1  autoregistro: esta abierto?      -- no se pregunta
+   F0.2  apagarlo y recompilar               por una maquina
+   F1.1  censo de filas mal etiquetadas      que se abandona,
+   F1.5  aplicar sin_default_tenant alli     ni se limpian
+   F7.1  censo autoritativo de spaces_prod   datos de prueba
+   F7.2  exportar un owner a su instancia -- no hay owner real
+   F7.3  destino del tenant rgb y del droplet -- ya decidido
+
+ LA FASE 7 DESAPARECE ENTERA.
+
+ El plan pasa de 46 tareas a 39 CON OBJETO. No las trabajes ni
+ las cuentes como pendientes.
+
+ F1.5 ademas ya estaba cumplida donde importa: la migracion
+ 20260812_sin_default_tenant.sql esta aplicada en las dos
+ bases del PADRE -- por eso marcan 72 de 74 archivos.
+
+============================================================
+ EL GATE - antes de nada
+============================================================
+
+hostname; curl -s ifconfig.me; echo
+
+# Esperado:  ubuntu-s-2vcpu-4gb-amd-nyc1
+#            137.184.107.53
+#
+# >>> Si sale PIXELED-ubuntu-... o 209.97.146.136 ESTAS EN LA
+#     MAQUINA VIEJA. Cierra la consola: nada de esta tarjeta
+#     va ahi.
+
+
+# ############################################################
+#  BLOQUE 1 - [PADRE] EL V13 QUE QUEDO PENDIENTE DEL 27/08
+#  Cinco minutos de ojo humano. Ninguna prueba automatica
+#  hace esto.
+# ############################################################
+
+# Esto NO se pega en una consola: se hace en el navegador,
+# entrando a https://space-os.io/spaces-dooh/
+
+# V13a  El titulo de la pestana NO dice "Spaces -- Demo"
+# V13b  El menu lateral dice "Ventas", no "Vender"
+# V13c  UN GUARDADO DE VERDAD -- edita un cliente y guarda.
+#       Este despliegue toco el middleware que protege TODOS
+#       los guardados. Es la comprobacion que mas importa.
+# V13d  Borrar un cliente PIDE LA CONTRASENA (CRUD-01)
+# V13e  Dar de baja un propietario PIDE LA CONTRASENA
+# V13f  Abre la consola del navegador (F12) y mira los avisos
+#       de CSP. Van en modo REPORTE: no rompen nada, y son
+#       justo lo que hace falta leer para poder encenderla
+#       algun dia. Copiame los que salgan.
+
+# >>> Si V13c no deja guardar, DISPARA LA VUELTA ATRAS del
+#     despliegue del 27 -- esta en padre-desplegar-27-agosto.txt
+
+
+# ############################################################
+#  BLOQUE 2 - [PADRE] LA MIGRACION DE RFC UNICO
+#  Es tu decision, no un paso mas. Por eso va aparte.
+# ############################################################
+
+# LO QUE YA SABEMOS, medido el 27/08 en esta misma maquina:
+# el censo previo devolvio UNA sola fila con RFC problematico,
+# y es el cliente 699a449c-... que creo LA PROPIA AUDITORIA al
+# demostrar que la API aceptaba el mes 13. NO hay ningun
+# cliente real afectado.
+#
+# Esta migracion es otra cosa: hace unico el RFC dentro de cada
+# organizacion. Es segura de intentar -- si hay choques ABORTA
+# con la lista y no toca nada. Lo que no puede hacer es decidir
+# que fila se queda cuando los hay.
+
+# OJO CON `sudo` Y LAS VARIABLES DE ENTORNO
+# `DATABASE_URL=... sudo ... node` NO FUNCIONA: pone la
+# variable en el entorno de sudo, y sudo lo limpia antes de
+# lanzar node, que la recibe vacia y aborta pidiendola. La
+# variable va AL OTRO LADO de sudo, con `env`. Se usa `env` y
+# no `sudo -u postgres VAR=... node` porque eso depende de que
+# `setenv` este permitido en el sudoers; `env` es un binario y
+# funciona siempre.
+# (La tarjeta del despliegue del 27 traia la version rota. No
+#  se noto porque su bloque de migracion nunca se corrio.)
+
+# M1 [PADRE] - Aplicarla en spaces_prod.
+
+cd /var/www/Spaces && sudo -u postgres env DATABASE_URL="postgresql:///spaces_prod?host=/var/run/postgresql" node scripts/migrar.mjs
+
+# Esperado: 1 aplicada.
+#
+# >>> Si ABORTA con una lista de RFC duplicados: eso es la
+#     respuesta correcta. Pasamela y decidimos que fila se
+#     queda. NO fuerces nada.
+
+# M2 [PADRE] - Y en spaces_demo, o quedan desalineadas.
+
+cd /var/www/Spaces && sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" node scripts/migrar.mjs
+
+# M3 [PADRE] - Las dos bases alineadas otra vez.
+
+sudo -u postgres psql -d spaces_prod -Atc "select count(*) from schema_migrations"; sudo -u postgres psql -d spaces_demo -Atc "select count(*) from schema_migrations"
+
+# Esperado: 73 y 73  (venian de 72 y 72)
+
+
+# ############################################################
+#  BLOQUE 3 - [PADRE] LA FLOTA
+#  Cierra F6.3, y prueba F6.2 contra una instancia DE VERDAD
+#  por primera vez. Hasta hoy el panel solo ha corrido contra
+#  dominios .invalid en una laptop.
+# ############################################################
+
+# NOTA DE ALCANCE, dicha antes de empezar: la instancia que
+# vamos a mirar es la app del PROPIO PADRE en space-os.io. No
+# es un owner remoto -- eso necesita el registry. Pero SI es
+# una peticion HTTPS real, por nginx, a un Next real con su
+# base: la logica del panel se ejerce entera. Lo unico que no
+# demuestra es la distancia.
+#
+# DEMO (el 3001) no sirve para esto todavia: no tiene dominio
+# desde el ADR 0021 y su certificado nunca se emitio.
+
+# ------------------------------------------------------------
+# F1 [PADRE] - Medir antes de tocar: donde esta el entorno.
+# ------------------------------------------------------------
+
+cut -d= -f1 /var/www/Spaces/apps/web/.env.production | sort; echo "[fin]"
+
+# Si entre el comando y [fin] no sale nada, las tres variables
+# faltan -- que es lo esperado. `esElPanel()` devuelve false sin
+# FLOTA_TOKEN configurado: ausente = cerrado, a proposito.
+
+# F2 [PADRE] - Respaldo del .env antes de anadirle nada.
+
+cp /var/www/Spaces/apps/web/.env.production /root/env.padre.bak.$(date +%F_%H%M%S) && ls -l /root/env.padre.bak.*
+
+# F3 [PADRE] - Generar un token de flota y anadir las tres
+#              variables. El token se imprime: GUARDALO.
+
+cd /var/www/Spaces && T=$(openssl rand -hex 32) && printf '\nFLOTA_TOKEN=%s\nSPACE_OS_VERSION=v0.1.0-padre\nCANAL=beta\n' "$T" >> apps/web/.env.production && echo "TOKEN: $T"
+
+# F4 [PADRE] - Reiniciar. SPACE_OS_VERSION se lee en tiempo de
+#              PETICION (force-dynamic), pero el proceso tiene
+#              que releer el .env: hay que reiniciarlo.
+
+pm2 restart spaces-web && sleep 3 && pm2 list
+
+# F5 [PADRE] - La ruta contesta lo de siempre SIN token.
+
+curl -s https://space-os.io/spaces-dooh/api/version/; echo
+
+# Esperado exacto:  {"ok":true}
+# Nada mas. Sin token no se dice la version -- publicarla le
+# ahorra el trabajo a quien busca una vulnerabilidad conocida.
+
+# F6 [PADRE] - Y CON token dice lo que el panel necesita.
+#              El token se lee del archivo: no hace falta
+#              pegarlo, ni que salga de la maquina.
+
+T=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2); curl -s -H "x-flota-token: $T" https://space-os.io/spaces-dooh/api/version/; echo
+
+# Esperado: {"ok":true,"version":"v0.1.0-padre","ultimaMigracion":"...","base":"ok","canal":"beta","uptime":N}
+#
+# SEIS CLAVES Y NI UNA MAS. Ni cuantas organizaciones hay, ni
+# como se llaman, ni una cifra del negocio. Si ves cualquier
+# otra clave, PARA y pasamelo: es un fallo de la promesa
+# comercial, no un detalle.
+
+# F7 [PADRE] - Montar el inventario del panel.
+#              flota.json NO esta en git a proposito: seria la
+#              lista de clientes con sus dominios dentro del
+#              repositorio.
+#
+# Pega este bloque ENTERO de una vez.
+
+cd /var/www/Spaces/apps/flota && cat > flota.json <<'JSON'
+{
+  "canales": { "estable": "v0.1.0-padre", "beta": "v0.1.0-padre" },
+  "instancias": [
+    { "nombre": "padre",      "dominio": "space-os.io",               "canal": "beta" },
+    { "nombre": "inventario", "dominio": "inventario.ejemplo.invalid", "canal": "estable" },
+    { "nombre": "vallas",     "dominio": "vallas.ejemplo.invalid",     "canal": "estable" }
+  ]
+}
+JSON
+
+# F8 [PADRE] - ESTADO 1 de 3: `al-dia`.
+#              El token va por entorno y NUNCA en el inventario.
+#              El nombre en mayusculas: padre -> FLOTA_TOKEN_PADRE
+
+cd /var/www/Spaces/apps/flota && export FLOTA_TOKEN_PADRE=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2) && node estado.mjs; echo "codigo: [$?]"
+
+# ESPERADO:
+#   padre       al-dia          (corre justo la version del canal)
+#   inventario  sin-respuesta   (dominio .invalid, no existe)
+#   vallas      sin-respuesta
+#   salida: 0
+#
+# LOS DOS `sin-respuesta` SON PARTE DE LA PRUEBA, no un fallo:
+# un panel que revienta cuando una instancia se cae no sirve
+# para vigilar, porque el dia que hace falta es el dia que no
+# arranca. Por eso se comprueba `salida: 0`.
+
+# F9 [PADRE] - ESTADO 2 de 3: `rezagada`.
+#              Se mueve el canal, no la instancia.
+
+cd /var/www/Spaces/apps/flota && sed -i 's/"beta": "v0.1.0-padre"/"beta": "v0.2.0-padre"/' flota.json && node estado.mjs; echo "codigo: [$?]"
+
+# ESPERADO: padre pasa a `rezagada`. salida: 0
+
+# F10 [PADRE] - ESTADO 3 de 3: `sin-respuesta` de una instancia
+#               que SI existe. Se quita el token del entorno.
+
+cd /var/www/Spaces/apps/flota && unset FLOTA_TOKEN_PADRE && node estado.mjs; echo "codigo: [$?]"
+
+# ESPERADO: padre pasa a `sin-respuesta` -- contesto, pero sin
+# version, porque sin token la ruta solo dice {"ok":true}.
+# salida: 0
+#
+# CON ESTO F6.3 QUEDA CERRADA: los tres estados observados, y
+# el comando devolviendo 0 en los tres.
+
+# F11 [PADRE] - Dejar el inventario como estaba.
+
+cd /var/www/Spaces/apps/flota && sed -i 's/"beta": "v0.2.0-padre"/"beta": "v0.1.0-padre"/' flota.json && cat flota.json
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#  BLOQUE 1: lo que viste en V13c y V13f
+#  BLOQUE 2: M1, M3
+#  BLOQUE 3: F5, F6, F8, F9, F10
+#
+#  Con esas salidas levanto el expediente, cierro F6.3 con su
+#  anclaje y actualizo la boveda y docs/Registro_Cambios.md.
+# ############################################################
+
+# ############################################################
+#  LO UNICO QUE ESTA TARJETA DEJA ABIERTO
+# ############################################################
+#  `demo.space-os.io` resuelve HOY a la maquina vieja, y el
+#  ADR 0021 dice que el nombre se conserva. QUE PASA CON EL
+#  NOMBRE ESTA APLAZADO A PROPOSITO (decision del 27/08).
+#
+#  Mientras tanto la maquina vieja sigue encendida sirviendolo.
+#  LA FECHA QUE MANDA: su certificado vence el 2026-10-26. Ese
+#  dia el nombre deja de servir por HTTPS, se decida o no.
+#
+#  Si se decide moverlo al PADRE, la tarjeta ya esta escrita:
+#  docs/evidencias/cert-demo-en-el-padre.txt
+#
+#  NO se trabaja en esa maquina hasta entonces. Ni un comando.
+# ############################################################

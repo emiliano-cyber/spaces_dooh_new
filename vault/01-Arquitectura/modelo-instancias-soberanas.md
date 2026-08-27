@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-26
+actualizado: 2026-08-27
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -13,6 +13,41 @@ archivos:
 ---
 
 # Modelo de instancias soberanas — avance de la corrección
+
+> [!danger] 2026-08-27 · LA FASE 7 DESAPARECE, Y CON ELLA SEIS TAREAS MÁS
+> **El droplet viejo (`209.97.146.136`) ya no se usa** —decisión de Jochelo del
+> 27/08— y **sus datos eran de prueba**: no hay organizaciones reales que
+> rescatar de ahí. Es coherente con la corrección del 19/08 sobre `spaces_prod`,
+> que el plan v3 (13/08) no podía conocer y por eso arrastraba tres censos y una
+> migración contra datos que nunca fueron reales.
+>
+> **Siete tareas quedan SIN OBJETO y no se cuentan como pendientes:** `F0.1`,
+> `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`. **La Fase 7 entera.**
+> El plan pasa de **46 tareas a 39 con objeto**.
+>
+> Todo lo que esta nota diga más abajo sobre el destino de `rgb`, el censo de
+> `spaces_prod` o migrar PIXELED **describe un problema que ya no existe**. Se
+> conserva como historia; no es trabajo pendiente.
+>
+> **Lo que NO se decidió, y no se deduce:** qué máquina sirve
+> `demo.space-os.io`. Aplazado a propósito. Lo sirve la máquina vieja y **su
+> certificado vence el 2026-10-26**. El [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md)
+> sigue diciendo que el nombre se conserva. Este punto ha cambiado cinco veces:
+> **preguntar, no inferir.**
+
+> [!tip] 2026-08-27 · `F6.3` cerrada, y `F6.1` probada en producción
+> El panel de flota corrió por primera vez **contra una instancia real** y no
+> contra dominios `.invalid` en una laptop: los **tres estados** observados
+> (`al-dia`, `rezagada`, `sin-respuesta`) y **código de salida 0 en los tres**.
+> `GET /api/version` comprobada en el PADRE por sus **dos** caminos —`{"ok":true}`
+> sin token, y seis claves exactas con él—.
+>
+> **Alcance declarado:** la instancia observada es la app del propio PADRE, no un
+> owner remoto. Lo único que no demuestra es la distancia.
+>
+> Evidencia: `docs/evidencias/padre-flota-y-rfc-20260827.md`.
+>
+> De las 12 tareas que quedan, **10 esperan el nombre del registry** (`TH-P4`).
 
 Qué se hizo con el documento **«Modelo de despliegue por instancias soberanas»**
 que aprobó Jochelo el 2026-08-12, y en qué estado quedó al **2026-08-13**.

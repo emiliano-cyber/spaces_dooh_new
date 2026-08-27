@@ -7,6 +7,13 @@ La entrada más reciente va arriba.
 
 ## 2026-08-27
 
+- **El RFC de un cliente ya no se puede repetir dentro de la misma
+  organización.** Hasta hoy nada impedía dar de alta dos veces al mismo cliente
+  con el mismo RFC, y acababan compitiendo en las listas y en la facturación.
+  Ahora el sistema lo rechaza al guardar. Al aplicar la regla se comprobó que
+  **no había ningún RFC repetido**, así que ningún cliente existente se vio
+  afectado ni hubo que elegir cuál se quedaba.
+
 - **La lista de arrendadores ya dice si un propietario se puede dar de baja.** La
   columna «Contratos» enseñaba el total, y el total no es lo que decide: solo
   los contratos **vigentes** lo impiden, y también los **predios** a su nombre.

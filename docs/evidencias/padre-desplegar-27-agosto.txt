@@ -320,12 +320,12 @@ sudo -u postgres psql -d spaces_prod -c "select upper(btrim(rfc)) rfc, count(*),
 #
 # Si sale (0 rows) y decides aplicarla:
 
-cd /var/www/Spaces && DATABASE_URL="postgresql:///spaces_prod?host=/var/run/postgresql" sudo -u postgres node scripts/migrar.mjs
+cd /var/www/Spaces && sudo -u postgres env DATABASE_URL="postgresql:///spaces_prod?host=/var/run/postgresql" node scripts/migrar.mjs
 
 # Esperado: 1 aplicada. Despues, el V12 dara 73 y 72 -- desalineadas
 # hasta que la apliques tambien en `spaces_demo`:
 
-cd /var/www/Spaces && DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" sudo -u postgres node scripts/migrar.mjs
+cd /var/www/Spaces && sudo -u postgres env DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" node scripts/migrar.mjs
 
 
 # ############################################################
