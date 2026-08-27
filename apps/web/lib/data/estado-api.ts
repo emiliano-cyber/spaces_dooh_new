@@ -227,6 +227,56 @@ export async function actualizarClienteApi(id: string, input: Partial<ClienteInp
   await refrescarEstado()
 }
 
+/**
+ * Error del borrado de cliente que **tiene salida**: el servidor avisa de algo y
+ * la misma llamada, repetida con `confirmar`, sigue adelante.
+ *
+ * Se distingue del error sin salida —tiene campañas o facturas— porque la
+ * pantalla tiene que ofrecer cosas distintas: aquí un «entiendo, bórralo», allá
+ * un «no se puede, y esto es lo que lo impide».
+ */
+export class BorradoNecesitaConfirmar extends Error {
+  constructor(mensaje: string, readonly propuestas: number) {
+    super(mensaje)
+  }
+}
+
+/**
+ * Borra un cliente. Es IRREVERSIBLE.
+ *
+ * Tres respuestas posibles, y las tres importan en la pantalla:
+ *  · 200 → borrado.
+ *  · 403 con `requiereDesbloqueo` → hay que reautenticarse. `esErrorDeDesbloqueo`
+ *    lo reconoce; no es un error, es un paso.
+ *  · 409 → o bien tiene campañas/facturas y NO se puede (el mensaje dice qué y
+ *    cuántas), o bien tiene propuestas que quedarían huérfanas y hace falta
+ *    confirmar. Lo segundo se distingue con `BorradoNecesitaConfirmar`.
+ */
+export async function borrarClienteApi(
+  id: string,
+  opts: { confirmarPropuestasHuerfanas?: boolean } = {},
+): Promise<void> {
+  const r = await fetch(`${API}/clientes/${id}/`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(
+      opts.confirmarPropuestasHuerfanas ? { confirmaPropuestasHuerfanas: true } : {},
+    ),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) {
+    // El 403 de desbloqueo se propaga TAL CUAL para que `esErrorDeDesbloqueo` lo
+    // reconozca: envolverlo en otro Error rompería esa detección y la pantalla
+    // pintaría un rojo sin salida en vez de pedir la contraseña.
+    if (r.status === 403 && d?.requiereDesbloqueo) throw Object.assign(new Error(d.error ?? ''), d)
+    if (r.status === 409 && d?.motivo === 'propuestas-huerfanas') {
+      throw new BorradoNecesitaConfirmar(d.error ?? 'Hay propuestas que quedarán sin cliente', d.propuestas ?? 0)
+    }
+    throw new Error(d.error ?? 'No se pudo borrar el cliente')
+  }
+  await refrescarEstado()
+}
+
 // ─── Arrendadores / incidencias (antes mock; ahora persisten en la BD) ───────
 // Devuelve el arrendador creado. La ruta siempre lo respondió (201 + objeto);
 // el tipo decía `void` y se tiraba, así que quien necesitara encadenar algo a su
@@ -296,6 +346,39 @@ export async function editarArrendadorApi(
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar el propietario')
+  await refrescarEstado()
+}
+
+/**
+ * Da de baja a un propietario.
+ *
+ * En la base es un SOFT-delete —la fila sobrevive con `activo=false` y su
+ * historial intacto (`arrendadores-repo.ts:1097-1101`)—, pero **desde la
+ * aplicación no hay vuelta atrás**: el listado esconde a los inactivos
+ * (`arrendadores-repo.ts:225`) y el PATCH es `.strict()` y no acepta `activo`
+ * (`arrendadores-controller.ts:193-204`), así que ninguna pantalla puede
+ * reactivarlo. Al usuario se le habla de lo segundo, que es lo que va a vivir,
+ * y no de lo primero.
+ *
+ * Dos respuestas, y la pantalla las trata distinto:
+ *  · 403 con `requiereDesbloqueo` → hay que reautenticarse. No es un error, es
+ *    un paso. Se propaga TAL CUAL —igual que en `borrarClienteApi`— porque
+ *    envolverlo en otro Error rompería `esErrorDeDesbloqueo` y saldría un rojo
+ *    sin salida en vez del campo de contraseña.
+ *  · 409 → tiene predios o contratos activos y NO se puede. El mensaje del
+ *    servidor ya trae las dos cifras, así que se enseña tal cual.
+ *
+ * No hay tercer camino: a diferencia del cliente, aquí ningún 409 tiene salida,
+ * y por eso esta función no lleva ningún `confirma…`.
+ */
+export async function borrarArrendadorApi(id: string): Promise<void> {
+  // Sin cuerpo: la ruta lo ignora (`arrendadores/[id]/route.ts:66`, `_req`).
+  const r = await fetch(`${API}/arrendadores/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) {
+    if (r.status === 403 && d?.requiereDesbloqueo) throw Object.assign(new Error(d.error ?? ''), d)
+    throw new Error(d.error ?? 'No se pudo dar de baja al propietario')
+  }
   await refrescarEstado()
 }
 

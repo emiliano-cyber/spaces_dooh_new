@@ -1,13 +1,20 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, Pencil, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
+import { Plus, Pencil, Trash2, Building2, Handshake, ShieldCheck, ShieldAlert } from 'lucide-react'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
 import { usePuede } from '@/components/demo/shell/SesionContext'
 import { useClientes, useConfigNegocio, type Cliente } from '@/lib/data/client'
-import { crearClienteApi, actualizarClienteApi, type ClienteInput } from '@/lib/data/estado-api'
+import {
+  crearClienteApi,
+  actualizarClienteApi,
+  borrarClienteApi,
+  BorradoNecesitaConfirmar,
+  type ClienteInput,
+} from '@/lib/data/estado-api'
+import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esEmailValido, esTelefonoValido, esCpValido, EMAIL_INVALIDO, TELEFONO_INVALIDO, CP_INVALIDO } from '@/lib/validacion'
 import { esRfcValido } from '@/lib/rfc'
 
@@ -27,7 +34,12 @@ const USOS_CFDI = ['G03 · Gastos en general', 'G01 · Adquisición de mercancí
 export default function ClientesPage() {
   const clientes = useClientes()
   const puedeEditar = usePuede('comercial', 'crear')
+  // Borrar pide MÁS que editar, y a propósito: es irreversible. El servidor
+  // exige `comercial:aprobar` y además la contraseña; aquí solo se oculta el
+  // botón a quien de todas formas recibiría un 403.
+  const puedeBorrar = usePuede('comercial', 'aprobar')
   const [editar, setEditar] = useState<Cliente | null>(null)
+  const [borrar, setBorrar] = useState<Cliente | null>(null)
   const [nuevoOpen, setNuevoOpen] = useState(false)
 
   return (
@@ -59,7 +71,7 @@ export default function ClientesPage() {
                   <th className="px-4 py-2.5">Razón social</th>
                   <th className="px-4 py-2.5">Tipo</th>
                   <th className="px-4 py-2.5">Contacto</th>
-                  {puedeEditar && <th className="px-4 py-2.5" />}
+                  {(puedeEditar || puedeBorrar) && <th className="px-4 py-2.5" />}
                 </tr>
               </thead>
               <tbody>
@@ -70,15 +82,30 @@ export default function ClientesPage() {
                     <td className="px-4 py-2.5 text-muted">{c.razonSocial || '—'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.tipo === 'AGENCIA' ? 'Agencia' : 'Directo'}</td>
                     <td className="px-4 py-2.5 text-muted">{c.contacto?.email || '—'}</td>
-                    {puedeEditar && (
+                    {(puedeEditar || puedeBorrar) && (
                       <td className="px-4 py-2.5 text-right">
-                        <button
-                          type="button"
-                          onClick={() => setEditar(c)}
-                          className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Editar
-                        </button>
+                        <div className="inline-flex items-center gap-1.5">
+                          {puedeEditar && (
+                            <button
+                              type="button"
+                              onClick={() => setEditar(c)}
+                              className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-ink hover:bg-surface-2"
+                            >
+                              <Pencil className="h-3.5 w-3.5" /> Editar
+                            </button>
+                          )}
+                          {puedeBorrar && (
+                            <button
+                              type="button"
+                              onClick={() => setBorrar(c)}
+                              aria-label={`Borrar ${c.nombre}`}
+                              title="Borrar cliente"
+                              className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -91,7 +118,122 @@ export default function ClientesPage() {
 
       {nuevoOpen && <ClienteDialog onClose={() => setNuevoOpen(false)} />}
       {editar && <ClienteDialog cliente={editar} onClose={() => setEditar(null)} />}
+      {borrar && <BorrarClienteDialog cliente={borrar} onClose={() => setBorrar(null)} />}
     </div>
+  )
+}
+
+// ─── Borrar un cliente ───────────────────────────────────────────────────────
+//  Hasta el 2026-08-27 no habia forma de borrar un cliente desde la aplicacion:
+//  la auditoria dejo diez registros de prueba que nadie podia quitar. El
+//  endpoint se construyo ese dia; esta pantalla es la otra mitad.
+//
+//  ─── Los tres caminos, y por que cada uno se ve distinto ───────────────────
+//  El servidor puede contestar tres cosas, y tratarlas igual seria inutil:
+//
+//   · 403 pidiendo la contrasena → NO es un error, es un paso. Se pide aqui
+//     mismo. Borrar es irreversible y por eso pide mas que editar.
+//   · 409 SIN salida → tiene campañas o facturas. El mensaje dice QUE lo impide
+//     y CUANTAS hay, para que se sepa que hacer; no se ofrece ningun boton que
+//     insista, porque no hay forma de insistir.
+//   · 409 CON salida → tiene propuestas que quedarian sin cliente. Ahi si se
+//     puede seguir, y hace falta decirlo con todas las letras: esas propuestas
+//     pasan a tomar el IVA general en vez del del cliente, o sea que **borrar
+//     un cliente le cambia el precio a sus propuestas**.
+function BorrarClienteDialog({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [reautenticando, setReautenticando] = useState(false)
+  const [pass, setPass] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  // `confirmar` viaja como argumento y no como estado: si se leyera del estado,
+  // el reintento tras la contraseña podria correr con el valor viejo.
+  async function borrar(confirmar: boolean) {
+    setError(null)
+    setEnviando(true)
+    try {
+      if (reautenticando) {
+        if (!pass) { setError('Escribe tu contraseña para confirmar.'); setEnviando(false); return }
+        await desbloquearApi(pass)
+        setPass('')
+        setReautenticando(false)
+      }
+      await borrarClienteApi(cliente.id, { confirmarPropuestasHuerfanas: confirmar })
+      onClose()
+      return
+    } catch (e) {
+      if (esErrorDeDesbloqueo(e)) {
+        setReautenticando(true)
+        setAviso(null)
+      } else if (e instanceof BorradoNecesitaConfirmar) {
+        // Tiene salida: se enseña el aviso y el boton pasa a confirmar.
+        setAviso(e.message)
+      } else {
+        setError(e instanceof Error ? e.message : 'No se pudo borrar el cliente')
+      }
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title={`Borrar ${cliente.nombre}`}
+      subtitle="Esta acción no se puede deshacer"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button
+            size="sm"
+            disabled={enviando || (reautenticando && !pass)}
+            onClick={() => borrar(!!aviso)}
+          >
+            {enviando
+              ? 'Borrando…'
+              : reautenticando
+                ? 'Confirmar y borrar'
+                : aviso
+                  ? 'Borrar de todos modos'
+                  : 'Borrar'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3 text-[13px]">
+        {reautenticando ? (
+          <>
+            <p className="text-muted">
+              Borrar un cliente es irreversible, así que hace falta tu contraseña.
+            </p>
+            <Campo label="Tu contraseña">
+              <input
+                type="password"
+                autoComplete="current-password"
+                autoFocus
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !enviando && pass && borrar(!!aviso)}
+                className="w-full rounded border border-border-strong bg-surface px-2 py-1.5 text-[13px] text-ink"
+              />
+            </Campo>
+          </>
+        ) : (
+          <p className="text-muted">
+            Se borrará <span className="text-ink">{cliente.nombre}</span>
+            {cliente.rfc ? <> (<span className="demo-num">{cliente.rfc}</span>)</> : null}.
+          </p>
+        )}
+
+        {aviso && (
+          <p className="rounded border border-warning/40 bg-warning/10 px-3 py-2 text-ink">{aviso}</p>
+        )}
+        {error && (
+          <p className="rounded border border-error/40 bg-error/10 px-3 py-2 text-error">{error}</p>
+        )}
+      </div>
+    </Modal>
   )
 }
 

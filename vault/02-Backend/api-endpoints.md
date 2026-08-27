@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-27
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -25,6 +25,15 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | `DESBLOQ` | Además, desbloqueo vigente si el tenant lo exige | `lib/server/cambios.ts:199-210` |
 | `REAUTH` | Además, desbloqueo **siempre**, ignore el interruptor del tenant | `lib/server/cambios.ts:221-226` |
 | `SENSIBLE` | `exigir(modulo,accion)` + `exigirDesbloqueo()` juntos | `lib/server/cambios.ts:236-245` |
+
+> [!important] Los dos borrados de catálogo son **REAUTH**, no SENSIBLE
+> `DELETE /api/clientes/[id]` y `DELETE /api/arrendadores/[id]` piden la
+> contraseña **siempre**, ignorando el interruptor `tenants.exigir_reautenticacion`.
+> No es celo: `SENSIBLE` llama a `exigirDesbloqueo()`, que **deja pasar sin pedir
+> nada** cuando el interruptor está apagado — como está por defecto y como está
+> en los cinco tenants de producción (`cambios.ts:214`). El de arrendadores era
+> `SENSIBLE` hasta `ba6fb09` (26/08): decía que pedía la contraseña y no la pedía.
+> Mismo criterio que `/api/usuarios/[id]/restablecer`.
 
 > [!info] El middleware NO valida la sesión
 > `apps/web/middleware.ts:100` solo comprueba que **exista** la cookie
@@ -106,7 +115,8 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | Método | Path | Guard |
 |---|---|---|
 | POST | `/api/arrendadores` | exigir |
-| PATCH·DELETE | `/api/arrendadores/[id]` | **SENSIBLE** |
+| PATCH | `/api/arrendadores/[id]` | **SENSIBLE** |
+| DELETE | `/api/arrendadores/[id]` | **REAUTH** + `arrendadores:aprobar` |
 | POST | `/api/contratos` | **SENSIBLE** |
 | PATCH | `/api/contratos/[id]` | **SENSIBLE** |
 | POST | `/api/contratos/[id]/cancelar` | **SENSIBLE** |
@@ -123,6 +133,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo
 | Método | Path | Guard |
 |---|---|---|
 | POST | `/api/clientes` · PATCH `/api/clientes/[id]` | exigir |
+| DELETE | `/api/clientes/[id]` | **REAUTH** + `comercial:aprobar` |
 | POST | `/api/propuestas` · PATCH `/api/propuestas/[id]` | exigir |
 | PATCH | `/api/propuestas/items/[id]` | exigir |
 | POST | `/api/propuestas/[id]/generar-campana` | exigir |

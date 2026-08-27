@@ -7,6 +7,28 @@ La entrada más reciente va arriba.
 
 ## 2026-08-27
 
+- **Ya se puede quitar un cliente y dar de baja a un propietario desde la
+  aplicación.** Hasta hoy no había botón para ninguna de las dos cosas: lo que
+  se daba de alta por error se quedaba en la lista para siempre —la revisión de
+  agosto dejó diez clientes de prueba que nadie podía retirar—. Ahora cada fila
+  tiene su botón, con estas reglas:
+  - **Te pide la contraseña, siempre.** Aunque tu organización tenga apagado el
+    candado de cambios. Son acciones que no se deshacen.
+  - **Solo lo ve quien puede aprobar.** A quien únicamente edita no se le
+    enseña el botón.
+  - **Cuando no se puede, dice qué lo impide y cuánto hay.** «tiene 2 campañas y
+    3 facturas», en vez del antiguo «el registro está referenciado por otro»,
+    que era correcto y no servía para nada.
+  - **Avisa antes de pulsar de lo que se lleva por delante.** Quitar un cliente
+    deja sus propuestas sin dueño, y esas propuestas pasan a calcular el IVA
+    general en vez del suyo: **puede cambiarles el precio**. Se dice con la
+    cifra delante y hay que confirmarlo aparte.
+  - **Dar de baja a un propietario no borra su historia.** Sus contratos y pagos
+    anteriores se conservan; deja de aparecer en Arrendadores y de poder
+    elegirse en contratos nuevos. Eso sí: **no se puede reactivar desde la
+    aplicación**, y no se deja dar de baja a quien todavía tenga predios o
+    contratos activos.
+
 - **Una pantalla digital vendida por propuesta ya rota sus anuncios.** Cuando se
   vendía una pantalla desde una propuesta, el sistema la registraba como si
   fuera una lona impresa. Consecuencia: **un solo anuncio se quedaba con toda la
