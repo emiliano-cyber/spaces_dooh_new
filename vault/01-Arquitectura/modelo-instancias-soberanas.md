@@ -14,7 +14,7 @@ archivos:
 
 # Modelo de instancias soberanas — avance de la corrección
 
-> [!danger] 2026-08-27 · LA FASE 7 DESAPARECE, Y CON ELLA SEIS TAREAS MÁS
+> [!danger] 2026-08-27 · LA FASE 7 DESAPARECE — decidido en el [ADR 0023](../../docs/adr/0023-el-droplet-viejo-sale-del-modelo.md)
 > **El droplet viejo (`209.97.146.136`) ya no se usa** —decisión de Jochelo del
 > 27/08— y **sus datos eran de prueba**: no hay organizaciones reales que
 > rescatar de ahí. Es coherente con la corrección del 19/08 sobre `spaces_prod`,
