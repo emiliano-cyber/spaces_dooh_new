@@ -49,7 +49,7 @@ import {
 import { registrarPagoRentaApi, crearArrendadorApi, editarArrendadorApi, borrarArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
 import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esRfcValido } from '@/lib/rfc'
-import { descargarContratos } from '@/lib/contratos-export'
+import { descargarContratos, ESTATUS_VIGENTES } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
 
 export default function ArrendadoresPage() {
@@ -281,7 +281,12 @@ export default function ArrendadoresPage() {
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
-      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratosFiltrados ?? []} filtrado={hayFiltro(filtro)} onToast={notify} />
+      {/* Contratos SIN filtrar, al contrario que el resto de la pantalla: esta
+          tarjeta ya no solo informa, tiene al lado el boton de dar de baja, y
+          su cifra responde «¿se puede dar de baja?». Con los filtrados, un
+          propietario con contratos vivos podia enseñar 0 y prometer una baja
+          que el servidor rechaza. */}
+      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratos ?? []} predios={predios} filtrado={hayFiltro(filtro)} onToast={notify} />
 
       {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
           de propietarios porque es información SUYA; la tarjeta consolidada de
@@ -844,11 +849,13 @@ const inputMini =
 function PropietariosCard({
   arrendadores,
   contratos,
+  predios,
   filtrado,
   onToast,
 }: {
   arrendadores: ReturnType<typeof useArrendadores>
   contratos: ContratoArrendamiento[]
+  predios: ReturnType<typeof usePredios>
   // Hay un filtro activo: cambia lo que significa una lista vacía.
   filtrado: boolean
   onToast: (m: string) => void
@@ -926,13 +933,25 @@ function PropietariosCard({
                         con el hueco en blanco. */}
                     <th className="px-4 py-2 font-medium">Domicilio</th>
                     <th className="px-4 py-2 font-medium">Contacto</th>
-                    <th className="px-4 py-2 text-right font-medium">Contratos</th>
+                    <th className="px-4 py-2 text-center font-medium">Contratos</th>
+                    <th className="px-4 py-2 text-center font-medium">Predios</th>
                     <th className="px-4 py-2" />
                   </tr>
                 </thead>
                 <tbody>
                   {arrendadores.map((a) => {
-                    const nContratos = contratos.filter((c) => c.arrendadorId === a.id).length
+                    // Las dos cifras que el servidor mira antes de dejar dar de
+                    // baja: predios y contratos ACTIVOS
+                    // (`arrendadores-repo.ts:1084-1095`). Enseñar el total a secas
+                    // mentia en las DOS direcciones: un «3» de contratos vencidos
+                    // se lee como bloqueado y se da de baja sin problema, y un «0»
+                    // con un predio detras promete una baja que acaba en 409.
+                    // `ESTATUS_VIGENTES` se importa y no se copia: ese conjunto ya
+                    // vive en cinco sitios del repo, y asi es como una copia se
+                    // queda atras el dia que cambie.
+                    const suyos = contratos.filter((c) => c.arrendadorId === a.id)
+                    const activos = suyos.filter((c) => (ESTATUS_VIGENTES as readonly string[]).includes(c.estatus)).length
+                    const nPredios = (predios ?? []).filter((p) => p.arrendadorId === a.id).length
                     return (
                       <tr key={a.id} className="border-b border-border last:border-0">
                         <td className="px-4 py-2.5 font-medium text-ink">{a.nombre}</td>
@@ -968,7 +987,18 @@ function PropietariosCard({
                             '—'
                           )}
                         </td>
-                        <td className="demo-num px-4 py-2.5 text-right text-ink">{nContratos}</td>
+                        <td
+                          className="demo-num px-4 py-2.5 text-center text-muted"
+                          title={`${activos} activo(s) de ${suyos.length}. Solo los activos impiden dar de baja.`}
+                        >
+                          <span className="text-ink">{activos}</span> / {suyos.length}
+                        </td>
+                        <td
+                          className="demo-num px-4 py-2.5 text-center text-muted"
+                          title="Un propietario con predios a su nombre no se puede dar de baja."
+                        >
+                          {nPredios}
+                        </td>
                         <td className="px-4 py-2.5 text-right">
                           <span className="inline-flex items-center justify-end gap-1.5">
                             {puedeCrear &&

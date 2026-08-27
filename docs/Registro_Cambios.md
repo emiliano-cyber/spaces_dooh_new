@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-08-27
 
+- **La lista de arrendadores ya dice si un propietario se puede dar de baja.** La
+  columna «Contratos» enseñaba el total, y el total no es lo que decide: solo
+  los contratos **vigentes** lo impiden, y también los **predios** a su nombre.
+  Así que mentía en las dos direcciones —tres contratos vencidos parecían un
+  bloqueo y no lo eran; cero contratos parecía vía libre y podía acabar en un
+  aviso—. Ahora la columna dice **vigentes de total** y hay una columna
+  **Predios** al lado. Y esas cifras dejan de moverse con los filtros de la
+  pantalla: describen al propietario, no lo que hay filtrado.
+
 - **Ya se puede quitar un cliente y dar de baja a un propietario desde la
   aplicación.** Hasta hoy no había botón para ninguna de las dos cosas: lo que
   se daba de alta por error se quedaba en la lista para siempre —la revisión de
