@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-26
+actualizado: 2026-08-27
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
@@ -59,6 +59,30 @@ archivos: []
 
 ---
 # Tablero de zonas
+
+> [!danger] 2026-08-27 · EL DROPLET VIEJO SE RETIRA — lo de abajo sobre él caduca
+> **`209.97.146.136` ya no se usa** (decisión de Jochelo, 27/08) y **sus datos
+> eran de prueba**: no hay organizaciones reales que rescatar. El plan v3 se
+> escribió el 13/08, seis días antes de la corrección del 19/08 sobre
+> `spaces_prod`, y por eso arrastraba tres censos y una migración contra datos
+> que nunca fueron reales.
+>
+> **SEIS tareas quedan SIN OBJETO:** `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2`,
+> `F7.3`. **La Fase 7 entera.** El plan pasa de **46 tareas a 40 con objeto**.
+> (**`F0.1` no entra**: ya estaba CERRADA el 24/08 con medición — `signup 503`
+> más `login 200`, que descarta que el 503 fuera una caída.)
+>
+> Todo lo que esta nota diga más abajo sobre **el destino de `rgb`, el censo de
+> `spaces_prod`, migrar PIXELED o desenredar la Fase 7** describe un problema que
+> **ya no existe**. Se conserva como historia; no es trabajo pendiente.
+>
+> **Lo que NO se decidió, y no se deduce:** qué máquina servirá
+> `demo.space-os.io`. **Aplazado a propósito.** Hoy lo sirve la máquina vieja y
+> su certificado **vence el 2026-10-26**. El ADR 0021 sigue diciendo que el
+> nombre se conserva, así que **`F4.3` sigue pendiente y es correcto que lo
+> esté**. Este punto ha cambiado cinco veces: **preguntar, no inferir.**
+> Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+
 
 > [!warning] Reclama antes de escribir
 > Protocolo completo en [[AGENTES]]. Si tu zona está `TOMADA`, **elige otra

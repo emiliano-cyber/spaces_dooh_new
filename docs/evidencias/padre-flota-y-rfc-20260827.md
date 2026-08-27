@@ -22,11 +22,11 @@ despliegue dejó pendiente de una persona.
 de ahí. Eso es coherente con la corrección del 19/08 sobre `spaces_prod`, que el
 plan v3 (13/08) no podía conocer.
 
-**Siete tareas del plan quedan SIN OBJETO** y no deben contarse como pendientes:
+**SEIS tareas del plan quedan SIN OBJETO** y no deben contarse como pendientes:
 
 | Tarea | Por qué |
 |---|---|
-| **F0.1** · ¿está abierto el autoregistro? | No se le pregunta a una máquina que se abandona |
+| ~~**F0.1**~~ | **NO era sin objeto: ya estaba CERRADA el 24/08** con medición (`signup 503` + `login 200`). Corregido |
 | **F0.2** · apagarlo y recompilar | idem |
 | **F1.1** · censo de filas mal etiquetadas | No hay datos reales que censar |
 | **F1.5** · aplicar `sin_default_tenant` allí | No se limpia una base de prueba que se tira |
@@ -34,7 +34,7 @@ plan v3 (13/08) no podía conocer.
 | **F7.2** · exportar un owner a su instancia | No hay ningún owner real que exportar |
 | **F7.3** · destino del tenant `rgb` y del droplet | Decidido: se abandona |
 
-**La Fase 7 desaparece entera.** El plan pasa de **46 tareas a 39 con objeto**.
+**La Fase 7 desaparece entera.** El plan pasa de **46 tareas a 40 con objeto**.
 
 `F1.5` además ya estaba cumplida donde importa: `20260812_sin_default_tenant.sql`
 está aplicada en las dos bases del PADRE.

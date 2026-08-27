@@ -21,9 +21,13 @@ archivos:
 > que el plan v3 (13/08) no podía conocer y por eso arrastraba tres censos y una
 > migración contra datos que nunca fueron reales.
 >
-> **Siete tareas quedan SIN OBJETO y no se cuentan como pendientes:** `F0.1`,
-> `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`. **La Fase 7 entera.**
-> El plan pasa de **46 tareas a 39 con objeto**.
+> **SEIS tareas quedan SIN OBJETO y no se cuentan como pendientes:** `F0.2`,
+> `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`. **La Fase 7 entera.** El plan pasa de
+> **46 tareas a 40 con objeto**.
+>
+> **`F0.1` NO entra en esa lista: ya estaba CERRADA el 24/08** con medición —
+> `POST /api/signup/` → 503 y `GET /login/` → 200, que descarta que el 503 fuera
+> una caída. Está en `vault/07-Agentes/ejecucion-plan-v3.md:77`.
 >
 > Todo lo que esta nota diga más abajo sobre el destino de `rgb`, el censo de
 > `spaces_prod` o migrar PIXELED **describe un problema que ya no existe**. Se

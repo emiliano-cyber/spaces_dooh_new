@@ -28,10 +28,11 @@
 ============================================================
  El droplet viejo ya no se usa, y sus datos eran de PRUEBA:
  no hay organizaciones reales que rescatar de ahi. Con eso
- SIETE tareas del plan v3 se quedan SIN OBJETO:
+ SEIS tareas del plan v3 se quedan SIN OBJETO (F0.1 no
+ entra: ya estaba CERRADA el 24/08 con medicion):
 
-   F0.1  autoregistro: esta abierto?      -- no se pregunta
-   F0.2  apagarlo y recompilar               por una maquina
+   F0.2  apagarlo y recompilar            -- estaba condicionada a un 400
+                                             que nunca llego (F0.1 dio 503)
    F1.1  censo de filas mal etiquetadas      que se abandona,
    F1.5  aplicar sin_default_tenant alli     ni se limpian
    F7.1  censo autoritativo de spaces_prod   datos de prueba
@@ -40,7 +41,7 @@
 
  LA FASE 7 DESAPARECE ENTERA.
 
- El plan pasa de 46 tareas a 39 CON OBJETO. No las trabajes ni
+ El plan pasa de 46 tareas a 40 CON OBJETO. No las trabajes ni
  las cuentes como pendientes.
 
  F1.5 ademas ya estaba cumplida donde importa: la migracion
