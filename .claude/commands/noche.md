@@ -1,6 +1,6 @@
 ---
 description: Orquesta el trabajo nocturno desatendido de las fases 5, 6 y 8 del plan v3 (solo repo, sin servidor)
-argument-hint: [todo|ola1|ola2|ola3|ola4|continuar|informe]
+argument-hint: [todo|ola1|ola2|ola3|ola4|continuar|informe] [hasta=HH:MM]
 allowed-tools: Read, Grep, Glob, Bash(git status:*), Bash(git log:*), Bash(git diff:*), Bash(git branch:*), Bash(git worktree:*), Bash(git checkout:*), Bash(git merge:*), Bash(git stash:*), Bash(npm test:*), Bash(npm run:*), Bash(date:*), Task, TodoWrite, Write, Edit
 ---
 
@@ -79,13 +79,41 @@ lanzar el primer agente; es el corazón de esta corrida.
    - el informe se escribe al final
 6. Registra la cola con `TodoWrite`: **una entrada por tarea**, no por ola. Necesitas poder marcar
    una sola tarea como aparcada sin tocar las demás.
+7. **Fija tu hora de cierre.** `date +%H:%M` para saber qué hora es, y calcula el cierre: la que
+   venga en `hasta=HH:MM` dentro de `$ARGUMENTS`, o **seis horas después** si no viene ninguna.
+   Anótala en la bitácora, en la primera línea: *«Arranque HH:MM · cierre previsto HH:MM»*. A partir
+   de ahí gobierna el reloj, no la cola.
+
+## El presupuesto de reloj
+
+La corrida tiene una hora de cierre y **se respeta**. Tres reglas, y ninguna es negociable:
+
+- **Antes de lanzar cada agente, mira el reloj.** Si queda **menos de una hora** hasta el cierre,
+  **no lo lanzas**: marcas su tarea como **«no alcanzada por tiempo»** en `TodoWrite` y en la
+  bitácora, y **pasas directo al cierre**. Una tarea sin empezar es un renglón en el informe; una
+  tarea reventada a medias es una mañana de arqueología.
+- **Si llega la hora de cierre con un agente en marcha, lo dejas terminar la tarea EN CURSO** y no
+  le das otra. **Nunca interrumpes una tarea a medias.** Un agente cortado deja archivos a medio
+  escribir, y el árbol sucio es lo único que detiene la corrida de verdad — el paso 2 de «Antes de
+  arrancar» no arranca con él así, ni esta noche ni la siguiente.
+- **Lo último que haces, siempre, es el `verificador-noche` y el informe.** Si el reloj te obliga a
+  sacrificar algo, **sacrificas una ola, nunca el informe**. Una corrida sin informe es una corrida
+  que nadie puede revisar: todo lo que hiciste queda sin poder juzgarse, y vale lo mismo que si no
+  lo hubieras hecho. Resérvale su tiempo desde el principio y trátalo como parte del presupuesto,
+  no como lo que queda al final.
+
+Y anota en el informe **qué no se alcanzó por reloj**, separado de lo que se aparcó por una
+decisión: son dos motivos distintos y se arreglan de forma distinta —uno con más noche, el otro con
+una respuesta tuya—. Confundirlos hace que parezca que faltó tiempo cuando faltó una respuesta.
 
 ## Cómo despachas
 
-Argumento recibido: **$ARGUMENTS** (vacío = `todo`).
+Argumento recibido: **$ARGUMENTS** (vacío = `todo`). Puede traer un `hasta=HH:MM`: eso es la hora de
+cierre, no una ola. Lo que quede tras quitarlo es el modo (`todo`, `ola1`, `continuar`…).
 
-- Ola 1 → en paralelo, una sola tanda: `altas-transaccionales`, `plantillas-instancia`,
-  `endpoint-flota`.
+- Ola 1 → `altas-transaccionales`, `plantillas-instancia`, `endpoint-flota`. **Uno detrás de otro**,
+  en árbol único: es el modo por defecto (§5 del plan). El paralelismo se habilita a mano, y solo
+  cuando la corrida haya funcionado una noche entera.
 - Ola 2 → `aprovisionamiento`. Ola 3 → `panel-flota`. Ola 4 → `cierre-documental`.
 - Ola 5 → **retirada.** F2.6 ya está aplicada en el código (ver §4 y §8 del plan). No la despachas.
 - Ola 6 → `verificador-noche`.
@@ -139,8 +167,12 @@ Si `$ARGUMENTS` es `continuar`:
 ## Al cerrar
 
 El informe, `docs/noche/informe-<fecha>.md`, lo escribe el `verificador-noche`. Tú le pasas: el estado de
-partida de las dos suites, la lista de tareas con su estado final, las cascadas de las aparcadas, y
-la hora de inicio y de cierre. Él lo redacta y audita.
+partida de las dos suites, la lista de tareas con su estado final, las cascadas de las aparcadas, la
+hora de inicio, la de cierre **previsto** y la **real**, y la lista de tareas **no alcanzadas por
+tiempo**. Él lo redacta y audita.
+
+**El cierre no es opcional ni se recorta.** Si vas justo de reloj, entras aquí antes y con una ola
+menos: mejor cuatro olas con informe que cinco sin él.
 
 Lo último que haces es una comprobación tonta que salva mañanas: `git status` limpio,
 `git log --oneline` legible, y los tres archivos del día existen y no están vacíos. Si el archivo de
