@@ -4,6 +4,7 @@ import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
+import { spotsDeLaReserva } from '@/lib/spots-reserva'
 import { folioCampana } from './folios'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { rutaArteCreativo } from '@/lib/medios-url'
@@ -545,10 +546,10 @@ export async function reservar(input: {
       // a lo disponible). En estáticas queda null.
       const pedidos = input.spotsPorSitio?.[sitioId]
       const disp = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
-      const spotsReservados =
-        digital && pedidos != null
-          ? Math.max(0, disp != null ? Math.min(Math.round(pedidos), disp) : Math.round(pedidos))
-          : null
+      // Misma funcion que el camino de propuesta, y ese es el punto: eran dos
+      // expresiones para la misma idea y por eso acabaron significando cosas
+      // distintas. Con una sola no pueden volver a divergir.
+      const spotsReservados = spotsDeLaReserva({ digital, pedidos, disponibles: disp })
 
       // En comercial NO hay reserva tentativa: al reservar se consume el spot de
       // inmediato (CONFIRMADA, sin TTL). La disponibilidad se ve por spots
@@ -664,14 +665,20 @@ export async function generarCampanaDesdePropuesta(
       return { campana: rowToCampana(ya), yaExistia: true }
     }
     // tipo de campaña derivado del medio de los sitios aprobados
-    const flags = (
+    // Se pide `id` y `spots_disponibles` ademas de la bandera: hasta el
+    // 2026-08-27 esta consulta solo traia un arreglo de banderas para
+    // `derivarTipoCampana`, asi que al insertar la reserva no se sabia si ESE
+    // sitio era digital ni cuantos slots le quedaban — y de ahi salia el
+    // `spots_reservados` equivocado (DATA-02).
+    const filasSitio = (
       await client.query(
-        `select (tipo_medio='PANTALLA_DIGITAL') as digital
+        `select id, (tipo_medio='PANTALLA_DIGITAL') as digital, spots_disponibles
            from sitios where id = any($1::uuid[])`,
         [items.map((i) => i.sitio_id)],
       )
-    ).rows.map((r: any) => !!r.digital)
-    const tipoCampana = derivarTipoCampana(flags)
+    ).rows as { id: string; digital: boolean; spots_disponibles: number | null }[]
+    const porSitio = new Map(filasSitio.map((r) => [r.id, r]))
+    const tipoCampana = derivarTipoCampana(filasSitio.map((r) => !!r.digital))
 
     // La campaña hereda el nombre de la agencia de la propuesta (si la lleva).
     const ag = prop.agencia_id
@@ -702,7 +709,18 @@ export async function generarCampanaDesdePropuesta(
          values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
-          it.spots_por_dia ?? null, it.unidad ?? 'mensual', it.cantidad ?? 1,
+          // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
+          // programacion y va en su propia columna dos lineas mas abajo.
+          // Escribir el mismo valor en las dos era DATA-02: `spots_por_dia` es
+          // opcional, asi que una propuesta mensual normal dejaba
+          // `spots_reservados` en null, y `reparto-creativos.ts:51-68` lee ese
+          // null como «es una lona».
+          spotsDeLaReserva({
+            digital: !!porSitio.get(it.sitio_id)?.digital,
+            pedidos: it.spots_por_dia,
+            disponibles: porSitio.get(it.sitio_id)?.spots_disponibles ?? null,
+          }),
+          it.unidad ?? 'mensual', it.cantidad ?? 1,
           it.tarifa_unitaria ?? null, it.spots_por_dia ?? null, await tenantActual(),
         ],
       )

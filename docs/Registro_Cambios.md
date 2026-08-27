@@ -5,6 +5,18 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-27
+
+- **Una pantalla digital vendida por propuesta ya rota sus anuncios.** Cuando se
+  vendía una pantalla desde una propuesta, el sistema la registraba como si
+  fuera una lona impresa. Consecuencia: **un solo anuncio se quedaba con toda la
+  pantalla**, en vez de repartirse entre los que se contrataron. Solo ocurría
+  por ese camino; vendiendo desde Comercial funcionaba bien.
+- **Y esas pantallas ya se liberan al terminar la campaña.** Por el mismo
+  motivo, cuando una de esas reservas vencía **no devolvía su espacio**: la
+  pantalla seguía contando como ocupada aunque la campaña hubiera acabado hace
+  meses.
+
 ## 2026-08-26
 
 - **La aplicación ya no acepta datos imposibles por la puerta de atrás.** La
