@@ -1,4 +1,16 @@
 ============================================================
+ OBSOLETA -- NO LA CORRAS. Usa en su lugar:
+   docs/evidencias/padre-desplegar-27-agosto.txt
+============================================================
+ Esta tarjeta describia solo F5.1 y F5.2. Desde entonces
+ entraron los arreglos de la auditoria y DATA-02, y dos de
+ sus afirmaciones dejaron de ser ciertas:
+   - decia que NO hacia falta `npm install`. Ahora SI.
+   - decia que no habia migracion. Ahora hay una.
+ Correrla tal cual dejaria el despliegue a medias.
+============================================================
+
+============================================================
  DESPLEGAR F5.1 + F5.2 EN EL PADRE
  Todo en [PADRE] 137.184.107.53.
  Version 2 -- la version 1 tenia tres errores, corregidos abajo.
