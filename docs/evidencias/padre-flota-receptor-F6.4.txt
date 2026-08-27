@@ -98,6 +98,27 @@ T=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2)
 #  BLOQUE 2 - EL SERVICIO
 # ############################################################
 
+# S0 - COMPROBAR QUE EL USUARIO `flota` PUEDE EJECUTAR NODE.
+#      Va antes de arrancar nada: en el PADRE hay DOS nodes
+#      -- el de root bajo nvm y uno de sistema en
+#      /usr/local/bin -- y `/usr/bin/node` NO EXISTE. La unidad
+#      apunta al de /usr/local/bin porque el de nvm vive bajo
+#      /root, que ProtectHome=yes le tapa a este servicio.
+
+sudo -u flota -s /bin/sh -c 'cd /var/www/Spaces/apps/flota && FLOTA_PUERTO=8788 timeout 3 /usr/local/bin/node reporte.mjs'; echo "codigo: [$?]"
+
+# Esperado:
+#   receptor de flota en http://127.0.0.1:8788/flota/reporte
+#   estado en /var/www/Spaces/apps/flota/estado
+#   codigo: [124]
+#
+# [124] ES EXITO: es `timeout` matandolo porque seguia vivo.
+# Un [1] con una traza seria el fallo de verdad.
+#
+# >>> Si dice "command not found", pasame la salida de
+#     `sudo -u flota -s /bin/sh -c 'command -v node'` -- la
+#     ruta de la unidad no vale para esta maquina.
+
 # S1 - Enlazar la unidad DESDE el repositorio.
 
 ln -sfn /var/www/Spaces/infra/systemd/flota-reporte.service /etc/systemd/system/flota-reporte.service && ls -l /etc/systemd/system/flota-reporte.service

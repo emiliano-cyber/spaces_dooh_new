@@ -38,7 +38,21 @@ User=flota
 Group=flota
 
 WorkingDirectory=/var/www/Spaces/apps/flota
-ExecStart=/usr/bin/node reporte.mjs
+
+# ⚠️ `/usr/local/bin/node` Y NO `/usr/bin/node`, que NO EXISTE en el PADRE.
+# La primera version de esta unidad lo daba por supuesto y systemd contestaba
+# `status=203/EXEC` once veces seguidas -- un codigo que dice «no pude ejecutar
+# el binario» y NO distingue entre «no lo encuentro» y «no puedo como este
+# usuario». Medido el 27/08:
+#
+#   root  -> /root/.nvm/versions/node/v20.20.2/bin/node   (la que corre pm2)
+#   flota -> /usr/local/bin/node                          (v20.20.2, la misma)
+#
+# HAY DOS INSTALACIONES DE NODE EN ESTA MAQUINA. La de nvm NO sirve aqui: vive
+# bajo /root, que `ProtectHome=yes` le tapa a este servicio A PROPOSITO. Si
+# algun dia se actualiza node, hay que actualizar LAS DOS o la app y este
+# servicio empiezan a correr versiones distintas sin que nada avise.
+ExecStart=/usr/local/bin/node reporte.mjs
 
 # Los tokens (`FLOTA_TOKEN_<NOMBRE>`, uno por instancia) viven aquí y NUNCA en
 # el inventario ni en el repositorio. 0640 root:flota — lo escribe una persona,
