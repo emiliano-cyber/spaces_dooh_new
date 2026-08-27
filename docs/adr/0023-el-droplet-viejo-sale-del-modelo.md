@@ -177,8 +177,24 @@ se apague, y esta decisión **no la apaga**.
   usa el PADRE. Si lo es, **rotarlo**, porque un secreto compartido con una
   máquina sin mantenimiento es un secreto del que ya no se responde. No se
   verificó al escribir este ADR: exige leer esa máquina, y esta decisión dice
-  que no se toca — **así que es una tarjeta humana, y va con la primera que se
-  emita.**
+  que no se toca.
+
+  > **APLAZADO POR DECISIÓN (27/08, Emiliano): la rotación espera a que exista
+  > la credencial oficial de Google.** No es un olvido ni una tarjeta pendiente:
+  > rotar ahora obligaría a rehacerlo al emitir la oficial, y el acceso con
+  > Google del PADRE se caería **dos veces en vez de una**.
+  >
+  > **Lo que se acepta mientras tanto**, dicho una vez y sin volver a
+  > plantearlo: si ese secreto es compartido, una máquina sin mantenimiento
+  > conserva credenciales de la aplicación viva. El alcance real está acotado
+  > por `GOOGLE_REDIRECT_URI`, que se declara **por instancia** en la consola de
+  > Google: quien tenga el secreto no puede redirigir a un destino que no esté
+  > dado de alta ahí.
+  >
+  > **Se cierra al emitir la credencial oficial**, y entonces la rotación no es
+  > trabajo extra: es el mismo trabajo que la emisión — un valor nuevo en el
+  > `.env.production` del PADRE y un reinicio. **La máquina vieja no recibe el
+  > nuevo, que es justamente el punto.**
 - **Su tenant `demo-owner` puede tener el autoregistro cerrado pero el registro
   abierto por otra vía.** `F0.1` midió `signup 503` el 24/08 y ese sigue siendo
   el último dato conocido; no se volverá a medir.
