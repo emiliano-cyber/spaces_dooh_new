@@ -85,14 +85,34 @@ ProtectControlGroups=yes
 RestrictSUIDSGID=yes
 RemoveIPC=yes
 LockPersonality=yes
-MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
+
+# ⚠️ AQUI NO VA `MemoryDenyWriteExecute=yes`, y no es un olvido.
+#
+# La primera version lo traia y el servicio moria con `status=5/TRAP` y volcado
+# de nucleo, con la traza en
+# `v8::internal::Factory::CodeBuilder::AllocateInstructionStream`. Esa directiva
+# prohibe mapear memoria escribible-y-ejecutable, que es LO QUE HACE CUALQUIER
+# JIT: V8 compila a codigo maquina en tiempo de ejecucion. **Es incompatible con
+# Node por diseño**, no con este programa.
+#
+# Lo que lo hizo confuso: arrancar `reporte.mjs` a mano como el usuario `flota`
+# funcionaba. Claro -- a mano no hay sandbox. Un servicio que arranca a mano y
+# muere bajo systemd senala a las directivas, no al codigo.
+#
+# La unica forma de conservarla seria `node --jitless`, que apaga el JIT entero
+# y cuesta un orden de magnitud de rendimiento. Para un receptor que atiende un
+# POST por instancia y por dia, el intercambio no se sostiene en ninguna
+# direccion: ni la proteccion vale eso, ni el rendimiento hace falta.
 
 # Solo habla por loopback. No necesita AF_INET6 ni sockets de otro tipo, y
 # `IPAddressAllow` deja fuera cualquier salida a internet: este proceso RECIBE,
 # nunca llama a nadie. Si algún día llamara, esta línea lo delata antes que
 # cualquier revisión de código.
-RestrictAddressFamilies=AF_INET AF_UNIX
+# AF_NETLINK va incluido a proposito: `getaddrinfo()` de glibc lo usa para
+# enumerar interfaces al resolver, incluso cuando solo se escucha en loopback.
+# Sin el, el fallo aparece como un error de resolucion y no como uno de permisos.
+RestrictAddressFamilies=AF_INET AF_UNIX AF_NETLINK
 IPAddressDeny=any
 IPAddressAllow=localhost
 

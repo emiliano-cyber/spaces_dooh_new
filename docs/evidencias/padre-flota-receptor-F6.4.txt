@@ -119,6 +119,13 @@ sudo -u flota -s /bin/sh -c 'cd /var/www/Spaces/apps/flota && FLOTA_PUERTO=8788 
 #     `sudo -u flota -s /bin/sh -c 'command -v node'` -- la
 #     ruta de la unidad no vale para esta maquina.
 
+# >>> Y OJO CON LO QUE ESTE PASO **NO** PRUEBA: a mano NO hay
+#     sandbox de systemd. Un servicio que arranca aqui y muere
+#     al hacer `systemctl start` senala a las directivas de
+#     contencion, NO al codigo. Paso el 27/08 con
+#     `MemoryDenyWriteExecute=yes`, que es incompatible con
+#     cualquier JIT y mataba a V8 con `status=5/TRAP`.
+
 # S1 - Enlazar la unidad DESDE el repositorio.
 
 ln -sfn /var/www/Spaces/infra/systemd/flota-reporte.service /etc/systemd/system/flota-reporte.service && ls -l /etc/systemd/system/flota-reporte.service
