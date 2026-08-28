@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-28
+
+- **Las letras de la aplicación ya no vienen de un servidor ajeno.** Hasta hoy,
+  cada vez que alguien abría una pantalla, su navegador iba a pedirle las
+  tipografías a una empresa de fuentes en internet. Eso significaba tres cosas:
+  que si ese servicio se caía la aplicación se veía mal para todos a la vez, que
+  un tercero recibía la dirección de cada persona que entraba, y que la página
+  tardaba un poco más en pintar el texto. **Ahora las letras viajan dentro de la
+  propia aplicación.** Se ven igual de bien —cambia la familia de los títulos, a
+  una con más carácter— y ya no dependen de nadie.
+
 ## 2026-08-27
 
 - **El RFC de un cliente ya no se puede repetir dentro de la misma

@@ -1,19 +1,14 @@
 import type { Metadata } from 'next'
-import { JetBrains_Mono } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { IndicadorCarga } from '@/components/demo/ui/IndicadorCarga'
 import { nombreDeMarca } from '@/lib/entorno'
 import './demo.css'
 
 // Layout raíz de la demo. Aquí viven: los tokens SET (vía .demo-root), la fuente
-// mono (JetBrains) y el aislamiento respecto a la app de producción. El chrome
+// y el aislamiento respecto a la app de producción. La tipografía la sirve el
+// layout RAÍZ con next/font, para que las páginas públicas también la tengan.
+// El chrome
 // (sidebar/topbar) lo añade (shell)/layout.tsx; m/ y portal/ van sin chrome.
-
-const jetbrains = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-  display: 'swap',
-})
 
 // UI-01 (auditoría del 2026-08-26): esto era un `metadata` fijo con el título
 // «Spaces — Demo». Se veía en la pestaña del navegador Y en la liga pública de
@@ -68,7 +63,7 @@ export function generateMetadata(): Metadata {
 
 export default function DemoRootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`demo-root ${jetbrains.variable} min-h-screen`}>
+    <div className="demo-root min-h-screen">
       <IndicadorCarga />
       {children}
       <Toaster position="bottom-right" richColors closeButton expand />

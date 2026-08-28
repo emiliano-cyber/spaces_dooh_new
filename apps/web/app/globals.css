@@ -45,7 +45,7 @@ html,
 body {
   background: var(--bg);
   color: var(--fg);
-  font-family: 'General Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   letter-spacing: -0.003em;
