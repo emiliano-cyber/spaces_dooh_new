@@ -41,6 +41,21 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**. Este punto
 > giró seis veces y aquí se cierra: **ya no se pregunta.**
 
+> [!success] 2026-08-28 · **F3.7 CERRADA** — el respaldo sale del droplet
+> Probado en el PADRE: sube a `s3://space-os-respaldos/padre/…dump` y sobrevive
+> a la máquina. Y la otra mitad del criterio, que casi siempre se salta: una
+> subida fallida **no detiene nada pero tampoco pasa desapercibida** — el script
+> distingue «configurado y falló» (código 77) de «no configurado» (código 0, con
+> el aviso escrito). **La Fase 3 queda en 8 de 9.**
+>
+> **Con una limitación de DigitalOcean, no del código:** la retención de 30 días
+> **no se pudo poner**. El panel no ofrece reglas de ciclo de vida, y por la API
+> de S3 da `403` con cualquier llave de Spaces —tres probadas, incluida una con
+> Full Access sobre el bucket—: configurar el ciclo de vida es una operación
+> sobre el BUCKET, no sobre sus objetos. Queda pendiente por la API de
+> DigitalOcean con un token de cuenta. **No corre prisa**: los dumps son de
+> 380 KB. Evidencia: `docs/evidencias/f3-7-respaldo-fuera-del-droplet.md`.
+
 > [!success] 2026-08-27 · **LA FASE 6 QUEDA CERRADA, COMPLETA**
 > Las **cuatro** tareas hechas y probadas **en el PADRE**, sin alcance declarado
 > y sin nada esperando al registry. Es el **primer cierre completo desde la
