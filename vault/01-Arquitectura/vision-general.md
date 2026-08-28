@@ -99,7 +99,7 @@ corre un único proceso.**
 |---|---|---|
 | `apps/web` — Next.js con BFF integrado | **VIVA**, es el producto | `ecosystem.config.js:4-27` |
 | `_archive/api` — Fastify + Prisma + BullMQ | Archivada, nunca se desplegó | `ecosystem.config.js:1-3` |
-| `apps/web/lib/auth-context.tsx` — cliente JWT | **Código muerto montado** | ver abajo |
+| ~~`apps/web/lib/auth-context.tsx`~~ | **RETIRADO el 27/08** con la pista archivada | [[zonas-de-riesgo]] §A6 |
 
 > [!danger] El `AuthProvider` legado sigue en el árbol de render
 > `apps/web/app/providers.tsx:34` envuelve toda la app con un `AuthProvider` que

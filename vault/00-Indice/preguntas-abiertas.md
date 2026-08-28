@@ -219,11 +219,24 @@ todas las columnas. **¿Se deja como está, o se planifica la limpieza?**
 
 ### P8 · El `AuthProvider` muerto: ¿cuándo se retira?
 
-`lib/auth-context.tsx` sigue montado en `providers.tsx:34` y lo importan
-`PermissionGuard.tsx:4,14` y `OTMovil.tsx:6,190`. Sus fetch fallan en silencio.
+> [!success] RESPONDIDA Y CERRADA el 2026-08-27
+> `lib/auth-context.tsx` se retiró entero, con la pista archivada. **La respuesta
+> a la pregunta de abajo resultó ser «ninguno de los dos estaba vivo»**:
+> `PermissionGuard` y `OTMovil` no los importaba nadie, y la página real
+> `/m/ot/[id]` renderiza `OTVista`.
+>
+> Lo que **sí** estaba vivo, y ninguna de las dos notas decía, es que el provider
+> **se ejecutaba en cada carga de página en producción**. «Sus fetch fallan en
+> silencio» era la parte correcta y la más engañosa: fallaban, sí, pero contra
+> `localhost` **del visitante**, y la rama de éxito habría instalado una sesión.
 
-**Pregunta:** ¿`OTMovil` funciona hoy en campo, o depende de un `user` que
-siempre es `null`? Es la única de esta lista con posible impacto operativo real.
+~~**Pregunta:** ¿`OTMovil` funciona hoy en campo, o depende de un `user` que~~
+~~siempre es `null`? Es la única de esta lista con posible impacto operativo real.~~
+
+**Respondida el 2026-08-27: la pregunta no tenía objeto.** `OTMovil` no
+funcionaba ni dejaba de funcionar en campo porque **no estaba en ninguna ruta**:
+la vista móvil de OT la sirve `OTVista`. El impacto operativo que se temía era
+cero; el que había, y nadie miraba, estaba en el layout raíz.
 
 ### P9 · Cookie `spaces_tenant_activo` sin `Secure` — **NO es bug hoy** (07/08)
 

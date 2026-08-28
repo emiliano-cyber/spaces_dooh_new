@@ -43,10 +43,14 @@ componentes siguen diciendo **«demo»** (`components/demo/…`, `.demo-root`,
 `demo.css`). Es histórico. El segmento `/demo` **ya no existe en las URLs**:
 `middleware.ts:29-37` redirige `/demo/*` → `/*` con 308 permanente.
 
-## `_legacy`
+## `_legacy` — retirado
 
-`app/_legacy/` contiene 7 páginas archivadas (portal de cliente viejo, login
-antiguo). **Fuera del routing.** No tocar, no revivir.
+`app/_legacy/` contenía 7 páginas archivadas (portal de cliente viejo, login
+viejo). **Se retiró el 2026-08-27** con el resto de la pista archivada: su
+página de login importaba `useAuth` del `AuthProvider` muerto, y `tsconfig.json`
+no excluye nada salvo `node_modules` — dejarla habría roto el typecheck.
+
+Su historia sigue en git y el backend al que servía, en `_archive/api`.
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[02-Backend/_indice|Índice de Backend]] ·

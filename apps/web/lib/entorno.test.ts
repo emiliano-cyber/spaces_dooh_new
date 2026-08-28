@@ -201,6 +201,21 @@ describe('.env.production.example', () => {
     // flota) y una variable ausente no la documenta.
     expect(plantillaProduccion()).toMatch(/^AUTOREGISTRO=0$/m)
   })
+
+  it('la plantilla de produccion no propone variables del backend archivado', () => {
+    // `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` eran del Fastify de
+    // `_archive/api`. Desde el 2026-08-27 **no las lee ni un archivo** de
+    // `apps/web` (ver `pista-archivada.test.ts`), así que proponerlas aquí es
+    // peor que inútil: esta plantilla se COPIA para montar una instancia real,
+    // y quien la lea creerá que hay que rellenarlas.
+    //
+    // El valor que tenía era además del modelo de subdominios por tenant, que
+    // murió el 2026-08-12: `NEXT_PUBLIC_API_URL=https://{TENANT_SLUG}.spaces.com/api`.
+    // La bóveda lo venía marcando «sin corregir» desde el 14/08.
+    for (const muerta of ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_TENANT_SLUG']) {
+      expect(plantillaProduccion()).not.toMatch(new RegExp(`^${muerta}=`, 'm'))
+    }
+  })
 })
 
 // ============================================================================

@@ -84,10 +84,11 @@ mejor esfuerzo.
 `/m/ot/[id]` es una vista sin chrome para la cuadrilla en campo. Ver
 [[paginas-publicas]].
 
-> [!bug] `OTMovil.tsx` depende del `AuthProvider` muerto
-> `components/operaciones/OTMovil.tsx:6,190` importa de `lib/auth-context.tsx`,
-> el cliente JWT contra el backend archivado. Ver [[vision-general]] y
-> [[preguntas-abiertas]].
+> [!success] `OTMovil.tsx` se retiró el 2026-08-27 — no lo importaba nadie
+> Importaba de `lib/auth-context.tsx`, el cliente JWT contra el backend
+> archivado, y **eso lo hacía parecer una dependencia viva**. No lo era: la
+> página real `/m/ot/[id]` renderiza `OTVista`, que está limpia. Los dos
+> archivos salieron con la pista archivada. Ver [[zonas-de-riesgo]] §A6.
 
 ## Relacionadas
 [[flujo-orden-de-trabajo]] · [[finanzas-y-cobranza]] ·

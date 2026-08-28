@@ -12,6 +12,26 @@ archivos:
 
 # Inventario — Space OS (spaces_doohmain_nueva) — 2026-08-11
 
+> [!warning] Esto es una FOTOGRAFÍA del 2026-08-11, y no se reescribe
+> Un inventario fechado vale por lo que era cierto ese día; corregirlo lo
+> convertiría en otra cosa. Lo que ha cambiado se anota aquí arriba y el cuerpo
+> se deja intacto.
+>
+> **Retirado el 2026-08-27 — nueve rutas que este documento describe y ya no
+> existen:** `lib/auth-context.tsx`, `lib/api-client.ts`,
+> `lib/data/adapters/http.ts`, `lib/portal-cliente-api.ts`,
+> `components/operaciones/OTMovil.tsx`, `components/campanas/ReporteVisual.tsx`,
+> `components/campanas/ReadinessPanel.tsx`,
+> `components/shared/PermissionGuard.tsx` y `app/_legacy/` (7 páginas).
+>
+> Con ellas se van `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG`, que este
+> inventario contaba en 6 y 4 archivos: hoy son **cero**.
+>
+> **Sus hallazgos D-6 y D-8 quedan resueltos por ese retiro** — y conviene
+> decirlo: **D-6 tenía razón desde el 11/08** y nadie actuó, porque
+> [[zonas-de-riesgo]] §A6 afirmaba lo contrario y esa es la nota que se lee
+> antes de tocar código. Ver el §A6 de hoy.
+
 > **Qué es este documento.** Inventario factual de reconocimiento, hecho leyendo
 > primero la bóveda (`vault/`, 39 notas) y verificando después contra el código.
 > Cada afirmación lleva evidencia `ruta:línea`. Lo no verificable está en §10.

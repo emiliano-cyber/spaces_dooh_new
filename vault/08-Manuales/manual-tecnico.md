@@ -99,7 +99,8 @@ Léelas antes que nada; son cuatro trampas de nomenclatura ya confirmadas.
    `apps/*` y `packages/*`) y **nunca se desplegó** (`ecosystem.config.js:1-3`).
    Su `prisma/` **no se usa**: el esquema real es `db/schema.sql`.
 3. **No existen los grupos de rutas `(comercial)` ni `(operaciones)`.** Los únicos
-   grupos del repo son `(app)`, `(app)/(shell)` y `_legacy/(auth)` (inventario §1.6,
+   grupos del repo son `(app)` y `(app)/(shell)` — `_legacy/(auth)` se retiró el
+   27/08 (inventario §1.6,
    D-0).
 4. **El segmento `/demo` ya no existe en las URLs**: `middleware.ts:36` redirige
    `/demo/*` → `/*` con 308. El nombre «demo» solo sobrevive en `components/demo/`,
@@ -173,7 +174,7 @@ flowchart TD
     end
 
     subgraph latente["LATENTE · existe en el repo, NO corre"]
-        ARCH["_archive/api (Fastify+Prisma+BullMQ)<br/>_archive/web-frontend-2<br/>app/_legacy (7 páginas)<br/>infra/nginx/spaces.conf · infra/apache"]
+        ARCH["_archive/api (Fastify+Prisma+BullMQ)<br/>_archive/web-frontend-2<br/>infra/nginx/spaces.conf · infra/apache"]
     end
 
     UI --> NGINX
@@ -223,7 +224,6 @@ métodos** (inventario D-10).
 | `apps/web/lib/data/` | Store zustand `DemoState`, adapters, `estado-api.ts` | **VIVA** (costura con la demo) |
 | `apps/web/lib/test/` | Arnés e2e: `db-e2e.ts`, `servidor-e2e.ts`, `doble-google.ts` | **VIVA** |
 | `apps/web/components/demo/` | 68 componentes: `shell/`, `ui/`, por módulo | **VIVA** |
-| `apps/web/app/_legacy/` | 7 páginas archivadas (portal cliente viejo, login viejo) | **LATENTE** |
 | `_archive/api/` | Fastify + Prisma + BullMQ + `prisma/` | **LATENTE**, nunca desplegado |
 | `_archive/web-frontend-2/` | Front anterior | **LATENTE** |
 | `packages/types`, `packages/utils` | Tipos y utilidades compartidas | **VIVA** |
@@ -984,11 +984,11 @@ cookies son host-only a propósito y `apps/web/lib/entorno.test.ts` ya impide qu
 vuelva **a cualquiera de las dos**: tiene un caso por plantilla. Ver el aviso de
 [[entorno-y-despliegue]].
 
-**Leídas solo por código muerto o `_legacy`:** `NEXT_PUBLIC_API_URL` (6 archivos) y
-`NEXT_PUBLIC_TENANT_SLUG` (4 archivos). La bóveda dice que solo las lee un archivo
-muerto — **es inexacto**: las leen 6 y 4 respectivamente (inventario D-7). Ninguno
-está hoy en una ruta alcanzable, pero si reactivas alguno de esos módulos te van a
-hacer falta.
+> [!success] `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` YA NO SE LEEN
+> Este apartado corregía a la bóveda —decía que las leía un archivo y en realidad
+> eran 6 y 4— y **el 2026-08-27 la cuenta pasó a CERO**: los archivos que las
+> leían se retiraron con la pista archivada. `lib/pista-archivada.test.ts` se
+> pone roja si vuelven.
 
 > [!warning] Variables que el código lee y **no aparecen en ninguna plantilla**
 > `APP_URL`, `HSTS`, `COOKIE_SECURE`, `RECORDATORIOS_TOKEN`,
@@ -1221,7 +1221,7 @@ Todo lo demás → [[#PENDIENTE]] P-09, P-10.
 ## 10 · Zonas de riesgo
 
 La lista canónica y con semáforo está en [[zonas-de-riesgo]] (ojo: hereda las citas
-corridas de `auth.ts`, §6, y su punto A6 sobre `OTMovil` está superado, ver abajo).
+corridas de `auth.ts`, §6, y su punto A6 se cerró el 27/08 al retirarse la pista archivada, ver abajo).
 Esto es lo que **no** debes tocar sin avisar:
 
 | # | Zona | Por qué |
@@ -1244,13 +1244,20 @@ Esto es lo que **no** debes tocar sin avisar:
 | R-16 | **`_archive/` e `infra/*/spaces.conf`** | Configuración que asume el Fastify inexistente. Aplicar uno de esos ficheros por error rompe el proxy |
 | R-17 | **Archivos grandes = zona de conflicto** | Crecieron entre 6 % y 29 % en cuatro días: `arrendadores-repo.ts` **1435**, `campanas-repo.ts` **1204**, `doohmain.ts` **403**, `creativos-repo.ts` **366**, `sitios-repo.ts` **640**, `arrendadores-controller.ts` **471** líneas. La bóveda tiene cifras viejas (inventario D-5) |
 
-**Riesgo degradado (buena noticia):** [[zonas-de-riesgo]] A6 dice que `OTMovil.tsx`
-depende del `AuthProvider` muerto. **La página real `/m/ot/[id]` renderiza `OTVista`,
-no `OTMovil`** (`app/(app)/m/ot/[id]/page.tsx:3,7`), y **ningún** archivo importa
-`OTMovil.tsx`, `PermissionGuard.tsx`, `ReadinessPanel.tsx` ni `ReporteVisual.tsx`.
-El `AuthProvider` sigue montado (`providers.tsx:34`) pero **ningún componente vivo
-depende de su `user`**: retirarlo es menos arriesgado de lo que dice la nota
-(inventario D-6).
+> [!success] Riesgo A6 — RETIRADO el 2026-08-27, y esta nota fue quien lo vio
+> Este apartado había medido lo que hacía falta: la página real `/m/ot/[id]`
+> renderiza `OTVista` y no `OTMovil`, y **ningún archivo importaba** `OTMovil`,
+> `PermissionGuard`, `ReadinessPanel` ni `ReporteVisual`. Concluía que retirar el
+> `AuthProvider` era menos arriesgado de lo que decía [[zonas-de-riesgo]] A6.
+>
+> **Tenía razón, y aun así el defecto vivió tres semanas más.** A6 seguía
+> diciendo «tres componentes lo importan», y esa es la nota que un agente lee
+> antes de tocar código. **Dos notas se contradecían y ganó la equivocada.**
+>
+> Lo desatascó la CSP en modo reporte, que enseñó lo que ninguna de las dos
+> notas decía: que el provider **se ejecutaba en cada carga de página en
+> producción**, pidiendo una identidad a la máquina del visitante. Retirado
+> entero el 27/08 — nueve rutas, ~2 700 líneas.
 
 ---
 
@@ -1266,11 +1273,11 @@ candado…). Antes de trabajar en paralelo con otros agentes: [[AGENTES]] y [[ta
 |---|---|---|
 | [[api-endpoints]] | ~~Lista `leer-todas`, omite `archivar-todas`~~ — **corregido el 27/08**, trece días después de señalarse | §5.5 |
 | [[autenticacion-y-sesion]] | Citas de `auth.ts` corridas ~4 líneas; sitúa la política de contraseñas en `auth.ts` | §6 |
-| [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos; y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]` — no lo son | §3, inventario D-2/D-6 |
+| [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos. ~~Y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]`~~ — **resuelto el 27/08**: esos dos archivos ya no existen | §3, inventario D-2/D-6 |
 | [[entorno-y-despliegue]] | «`deploy.yml` está desactualizado» y la lectura de `NEXT_PUBLIC_API_URL` | §9.0, §7.3 |
-| [[estado-y-data-fetching]] | Presenta `lib/portal-cliente-api.ts` como cliente del portal público; el portal vivo usa `hidratarPortalPublico` de `lib/data/estado-api.ts` | inventario D-8 |
+| [[estado-y-data-fetching]] | ~~Presenta `lib/portal-cliente-api.ts` como cliente del portal público~~ — **resuelto el 27/08**: ese archivo se retiró (cero importadores) y la nota ya lo marca. El portal vivo usa `hidratarPortalPublico` de `lib/data/estado-api.ts` | inventario D-8 |
 | [[decisiones]] | ~~Habla de «los 12 ADR»; hay **13** y el `0013` no está en su tabla~~ — **corregido el 18/08**: el recuento y la fila del `0013` ya están | §1.5 |
-| [[zonas-de-riesgo]] | A6 sobre `OTMovil` está superado | §10 |
+| [[zonas-de-riesgo]] | ~~A6 sobre `OTMovil` está superado~~ — **cerrado el 27/08**: A6 dice ahora que la pista archivada se retiró, con la lección de por qué sobrevivió | §10 |
 | [[preguntas-abiertas]] | P3c y P8 **ya tienen respuesta** en el código y siguen abiertas en la lista | inventario D-11 |
 | [[vision-general]] | «86 route handlers» | 88 archivos / 110 métodos |
 

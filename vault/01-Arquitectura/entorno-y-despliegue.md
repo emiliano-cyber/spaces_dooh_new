@@ -1364,7 +1364,8 @@ para el redirect URI de Google.
 ### Declaradas pero **no leídas** por `apps/web`
 
 `JWT_SECRET`, `REDIS_URL`, `LOG_LEVEL`, `NEXT_PUBLIC_TENANT_SLUG` y
-`NEXT_PUBLIC_API_URL` (esta última solo la lee el `auth-context.tsx` muerto).
+`NEXT_PUBLIC_API_URL` (esta última **ya no la lee nadie**: el `auth-context.tsx`
+que la usaba se retiró el 27/08 con la pista archivada).
 Son restos del backend archivado.
 
 **`COOKIE_DOMAIN` ya no la declara ninguna plantilla del repo.** Salió de
