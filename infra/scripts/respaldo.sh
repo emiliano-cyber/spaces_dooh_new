@@ -37,10 +37,22 @@
 #  que no case con el patron.
 #
 # ── CONFIGURACION (en /etc/space-os/instancia.env, 0600 y de root) ─────────
-#    SPACES_KEY      llave de acceso de Spaces. UNA POR INSTANCIA, con permiso
-#    SPACES_SECRET   solo sobre SU prefijo. NUNCA la llave maestra de la cuenta:
-#                    si se filtra la de una instancia, se pierde esa instancia,
-#                    no la flota entera.
+#    SPACES_KEY      llave de acceso de Spaces. NUNCA la llave maestra de la
+#    SPACES_SECRET   cuenta.
+#
+#  ── OJO CON EL ALCANCE DE LA LLAVE: el plan pide algo que DO no da ────────
+#  F3.7 dice «una llave por instancia con permiso solo sobre SU prefijo». Las
+#  llaves de DigitalOcean Spaces se limitan POR BUCKET, no por prefijo. Con un
+#  bucket compartido, la llave de cualquier instancia puede leer y borrar los
+#  respaldos de TODAS -- que es justo lo que la frase queria evitar.
+#
+#  DECISION DEL 2026-08-27: se arranca con UN BUCKET COMPARTIDO y prefijos.
+#  Hoy hay una sola instancia, asi que esa propiedad no protege de nada
+#  todavia. NO ES UN DESCUIDO Y TIENE DISPARADOR: se decide ANTES de dar de
+#  alta el primer owner (F5.7), y la salida conocida es un bucket por
+#  instancia -- ahi una llave con alcance de bucket SI es una llave por
+#  instancia. Mientras haya una sola, probar el mecanismo vale mas que la
+#  propiedad.
 #    SPACES_BUCKET   por omision `space-os-respaldos`
 #    SPACES_REGION   por omision `nyc3` (decide el endpoint)
 #    SPACES_ENDPOINT por omision https://<region>.digitaloceanspaces.com
@@ -87,8 +99,10 @@ INSTANCIA="${INSTANCIA:-}"
 RESPALDOS_LOCALES="${RESPALDOS_LOCALES:-3}"
 
 # ─── El prefijo dentro del bucket ──────────────────────────────────────────
-# Con una llave por instancia y permiso solo sobre su prefijo, equivocarse aqui
-# no mezcla respaldos: da un 403. Aun asi se prefiere no equivocarse.
+# Es lo UNICO que separa los respaldos de dos owners mientras el bucket sea
+# compartido: con llaves de alcance de bucket, equivocarse aqui NO da 403 --
+# escribe encima del sitio de otra instancia y nadie se entera. El dia que sea
+# un bucket por instancia, el 403 vuelve a ser la red de seguridad.
 respaldo_instancia() {
   local nombre="$INSTANCIA"
   if [ -z "$nombre" ]; then
