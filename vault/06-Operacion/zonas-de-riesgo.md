@@ -174,11 +174,28 @@ Quitar un valor exige recrear el tipo y todas las columnas que lo usan. Por eso
 `CLIENTE` sigue en `rol_demo` pese al ADR 0010. **Añadir** valores es seguro;
 quitarlos no.
 
-## A6 · El `AuthProvider` muerto
+## A6 · El `AuthProvider` muerto — ✅ RETIRADO el 2026-08-27
 
-`lib/auth-context.tsx` + `providers.tsx:34` + `PermissionGuard.tsx` +
-`OTMovil.tsx`. Retirarlo es correcto pero **en su propio commit**: hoy tres
-componentes lo importan.
+**Ya no existe.** Se retiró la pista archivada entera de `apps/web`: nueve rutas
+y ~2 700 líneas. Lo afirma `apps/web/lib/pista-archivada.test.ts`, que se pone
+roja si algo de eso vuelve.
+
+> **Lo que esta ficha decía, y por qué se quedó tres semanas sin hacerse:**
+> «retirarlo es correcto pero en su propio commit: hoy tres componentes lo
+> importan». Era cierto — y engañoso. **Esos tres componentes no los importaba
+> nadie**: eran huérfanos que solo se sostenían entre sí. Medido el 27/08:
+> `PermissionGuard`, `OTMovil`, `ReporteVisual` y `ReadinessPanel` tenían
+> **cero importadores**. El único enganche real al árbol vivo era una línea:
+> `providers.tsx` montando `<AuthProvider>`.
+>
+> **Contar quién importa un archivo no basta: hay que preguntar si a ESE lo
+> importa alguien.** Un anillo de huérfanos parece una dependencia viva.
+
+**Y no era inocuo mientras estuvo.** Lo destapó la CSP en modo reporte: en cada
+carga de página en producción, `POST http://localhost:3001/auth/refresh` con
+`credentials: 'include'` — una página pidiéndole una identidad a la máquina del
+visitante. Las 997 unitarias y las 294 e2e estaban en verde con eso dentro,
+porque **ninguna carga un navegador**.
 
 ## A7 · Integraciones con subproceso
 

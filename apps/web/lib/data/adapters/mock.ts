@@ -5,9 +5,12 @@
 //  cambian el estado y zustand notifica a todas las vistas suscritas: ESA
 //  propagación (mapa, dashboard, pipeline, listas) es la demo en vivo.
 //
-//  `adapters/http.ts` expone EXACTAMENTE las mismas firmas pero contra el
-//  backend Fastify. `client.ts` decide cuál usar con un flag de entorno, así
-//  que las pantallas no cambian una línea cuando llegue el backend.
+//  Hubo un `adapters/http.ts` que espejaba estas firmas contra el backend
+//  Fastify, y un `client.ts` que elegía entre los dos con una bandera. Los dos
+//  cableados se retiraron: **ese backend no va a llegar** — se archivó en
+//  `_archive/api` y el vivo es el BFF de Next, con el que las pantallas hablan
+//  por los helpers `*-api.ts` de `lib/data/`. El stub se borró el 2026-08-27
+//  con el resto de la pista archivada (ver `lib/pista-archivada.test.ts`).
 // ============================================================================
 
 import { getDemoState, getUsuarioActivo, mutateDemo } from '../store'

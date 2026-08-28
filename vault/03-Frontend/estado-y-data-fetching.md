@@ -9,7 +9,6 @@ archivos:
   - apps/web/lib/loading-fetch.ts
   - apps/web/lib/data/store.ts
   - apps/web/lib/auth-real.ts
-  - apps/web/lib/api-client.ts
 ---
 
 # Estado y data fetching
@@ -104,16 +103,20 @@ igual, y la ficha pediría la galería de todas.
 | Archivo | Para qué |
 |---|---|
 | `lib/auth-real.ts` | `/api/auth/*` — `useSesion()`, login, logout. **El cliente real** |
-| `lib/api-client.ts` | Helper genérico |
-| `lib/portal-cliente-api.ts` | Portal público |
 | `lib/data/estado-api.ts` | `refrescarEstado()` desde `/api/estado` |
+| ~~`lib/api-client.ts`~~ | **Retirado el 27/08** con la pista archivada |
+| ~~`lib/portal-cliente-api.ts`~~ | **Retirado el 27/08** — cero importadores |
 
 Todas las rutas llevan **barra final** por `trailingSlash: true`
 (`auth-real.ts:8-12`).
 
-> [!danger] `lib/auth-context.tsx` NO es esto
-> Es el cliente JWT muerto contra el backend archivado, y sigue montado en
-> `providers.tsx:34`. Ver [[vision-general]].
+> [!success] `lib/auth-context.tsx` ya no existe
+> Era el cliente JWT contra el backend archivado y **seguía montado** en
+> `providers.tsx`. Retirado el **2026-08-27** con toda la pista archivada
+> —nueve rutas—, después de que la CSP en modo reporte destapara que hacía
+> `POST http://localhost:3001/auth/refresh` en cada carga de página en
+> producción. `lib/pista-archivada.test.ts` se pone roja si vuelve.
+> Ver [[zonas-de-riesgo]] §A6.
 
 ## Formularios y validación
 

@@ -3,10 +3,15 @@
 // ----------------------------------------------------------------------------
 //  CONTRATO DE DESACOPLE (léelo antes de tocar nada):
 //
-//  Estos tipos ESPEJAN el schema de Prisma en `_archive/api/prisma/schema.prisma`
-//  (modelos del schema `tenant_template`). Los nombres de campos y enums se
-//  mantienen idénticos a Prisma a propósito: cuando el backend Fastify se
-//  conecte (vía `adapters/http.ts`), el cableado es 1:1 y no hay que renombrar.
+//  Estos tipos NACIERON espejando el schema de Prisma de
+//  `_archive/api/prisma/schema.prisma`, para que conectar aquel backend fuera
+//  1:1 y sin renombrar nada.
+//
+//  ⚠️ Ese motivo YA NO APLICA: el backend Fastify no va a conectarse —está
+//  archivado— y `adapters/http.ts` se borró el 2026-08-27. Los nombres se
+//  conservan porque cambiarlos ahora sería un renombrado masivo sin beneficio,
+//  no porque quede un cableado pendiente. La forma que manda hoy es
+//  `db/schema.sql`.
 //
 //  Entidades marcadas con  // [DEMO — no existe en Prisma todavía]  son nuevas
 //  para esta demo (OrdenImpresion, Factura, Cobranza, Reserva). Están nombradas

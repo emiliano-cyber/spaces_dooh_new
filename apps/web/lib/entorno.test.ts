@@ -251,8 +251,11 @@ describe('F5.3 · infra/env/app.env.example', () => {
   })
 
   it('no trae variables que el producto vivo no lee', () => {
-    // `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` solo sobreviven en
-    // `app/_legacy/` y en `lib/api-client.ts`, que es de la pista archivada.
+    // `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` YA NO EXISTEN en
+    // `apps/web`: sobrevivían en `app/_legacy/` y en `lib/api-client.ts`, y los
+    // dos se retiraron el 2026-08-27 con el resto de la pista archivada. Que no
+    // estén en la plantilla lo sigue afirmando esta prueba; que no vuelvan al
+    // código lo afirma `lib/pista-archivada.test.ts`.
     // `JWT_SECRET` y `REDIS_URL` no las lee nadie.
     const v = soloValores(plantilla('app.env.example'))
     for (const muerta of ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_TENANT_SLUG', 'JWT_SECRET', 'REDIS_URL']) {
