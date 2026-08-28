@@ -208,13 +208,27 @@ set -a; . /etc/space-os/instancia.env; set +a; s3cmd --access_key="$SPACES_KEY" 
 #              `spaces_prod` del PADRE es base de PRUEBAS: esto
 #              no arriesga datos de nadie.
 
-BK=/var/lib/space-os/respaldos; mkdir -p $BK; sudo -u postgres pg_dump -d spaces_prod -Fc -f $BK/spaces_$(date +%Y%m%d_%H%M%S).dump; ls -lh $BK/
+BK=/var/lib/space-os/respaldos; mkdir -p $BK; sudo -u postgres pg_dump -d spaces_prod -Fc > $BK/spaces_$(date +%Y%m%d_%H%M%S).dump; ls -lh $BK/
 
 # Esperado: un .dump con tamano > 0.
 #
-# >>> Si sale de 0 bytes, PARA. Un dump fallido se ve casi igual
-#     que uno bueno, y subir un respaldo vacio es peor que no
-#     subir ninguno: parece que hay respaldo.
+# >>> Si sale de 0 bytes, PARA, Y BORRALO. Un dump fallido se ve
+#     casi igual que uno bueno --mismo nombre, misma extension,
+#     misma hora-- y el dia que alguien restaure a mano bajo
+#     presion, elegir el mas reciente seria elegir el vacio.
+#     `update.sh:1450-1457` hace justo eso automaticamente.
+#
+# ⚠️ EL `>` Y NO `-f`, Y ES POR ALGO. La primera version de esta
+#    tarjeta usaba `pg_dump -f $BK/...` con `sudo -u postgres`, y
+#    fallaba con «Permission denied»: `mkdir` crea el directorio
+#    como ROOT y `pg_dump` corre como POSTGRES, que no puede
+#    escribir dentro. Con `>` el archivo lo crea tu shell --que
+#    es root-- y postgres solo entrega bytes por la salida.
+#    Medido el 28/08.
+#
+#    `update.sh` no tiene este problema porque corre `pg_dump`
+#    COMO ROOT conectando por URL (`:1449`), no por `sudo -u`.
+#    Esta diferencia es de la prueba a mano, no del producto.
 
 # E2 [PADRE] - Subirlo.
 
@@ -222,6 +236,25 @@ set -a; . /etc/space-os/instancia.env; set +a; bash /var/www/Spaces/infra/script
 
 # Esperado: lineas de `s3cmd put` con el progreso, y ninguna de
 # error.
+#
+# ⚠️ SI SALE `ERROR: S3 error: 403 (AccessDenied)` --paso el
+#    28/08-- hay DOS causas posibles y se separan asi:
+#
+#    a) Longitudes de la llave, sin imprimir ningun secreto:
+#
+# awk -F= '/^SPACES_KEY=/{print "clave  : "length($2)} /^SPACES_SECRET=/{print "secreto: "length($2)}' /etc/space-os/instancia.env
+#
+#       DigitalOcean da 20 y 43. Mas corto = se corto al pegar;
+#       mas largo = se colo un espacio o un salto de linea.
+#
+#    b) Si la llave puede LEER el bucket (mismo comando que E3
+#       pero sobre la raiz). Si LEE y no ESCRIBE, el problema es
+#       el permiso de la llave granular: tiene que ser
+#       Read/Write y no Read. Si tampoco lee, la llave, el
+#       secreto o su alcance estan mal y hay que rehacerla.
+#
+#    Un 403 NO es un problema de region: una region equivocada
+#    da `NoSuchBucket` o un fallo de DNS, no AccessDenied.
 
 # E3 [PADRE] - EL CRITERIO DE ACEPTACION: esta fuera del droplet.
 
