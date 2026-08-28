@@ -1,0 +1,182 @@
+============================================================
+ TH-P4 · EL REGISTRO DE IMAGENES
+ Casi todo en el NAVEGADOR. Poco en consola.
+============================================================
+
+ Es la decision que mas desbloquea del proyecto entero, y no
+ es trabajo de programacion: son dos variables y un secreto.
+
+============================================================
+ QUE DESBLOQUEA, Y QUE NO
+============================================================
+ SE DESBLOQUEA DEL TODO con solo fijar las variables:
+   F2.3  el workflow de release publica en el canal `beta`
+   F3.5  ensayo completo de `update.sh` contra DEMO
+   F5.4  `provision-instancia.sh` tiene por fin imagen que instalar
+   F5.6  ensayo de aprovisionamiento en un droplet desechable
+
+ SE DESBLOQUEA DESPUES, en cadena:
+   F3.6  retirar el despliegue por SSH  (depende de F3.5)
+   F5.5  retirar los cuatro scripts viejos  (depende de F3.6)
+   F5.7  primera instancia de owner  (+ decidir la cuenta de DO)
+
+ >>> F2.4 NO SE DESBLOQUEA CON ESTO, y conviene saberlo antes
+     de intentarlo. Ver el aviso de abajo.
+
+============================================================
+ ⚠️ F2.4 (promover a `estable`) NECESITA ALGO MAS
+============================================================
+ `promover.yml:120-134` exige `vars.DEMO_URL` y hace un smoke
+ contra esa direccion ANTES de promover. Su propio comentario
+ lo dice: «DEMO no es opcional: promover afirma que esto se
+ valido en DEMO».
+
+ El problema, medido: `demo.space-os.io` resuelve a la maquina
+ VIEJA (209.97.146.136), que corre codigo del 11/08 y que el
+ ADR 0023 saco del modelo. Apuntar `DEMO_URL` ahi haria que el
+ smoke VALIDARA LA MAQUINA EQUIVOCADA y diera por bueno un
+ release contra una version que no es.
+
+ Y la instancia DEMO de verdad --el 3001 dentro del PADRE-- no
+ tiene dominio desde el ADR 0024.
+
+ ASI QUE NO PONGAS `DEMO_URL` TODAVIA. Es una decision aparte:
+ que direccion representa a DEMO para el smoke de promocion.
+ Sin ella, `release.yml` funciona igual y publica en `beta`;
+ lo unico que no se puede es promover a `estable`.
+
+============================================================
+ LO QUE HAY QUE DECIDIR, Y ES TODO
+============================================================
+ UN NOMBRE. El del registro de contenedores de DigitalOcean,
+ que se crea una vez por cuenta:
+
+     registry.digitalocean.com/<nombre>
+
+ El `<nombre>` es global en DigitalOcean --como un dominio--,
+ asi que conviene algo propio: `space-os`, `asooh`, lo que sea
+ que no este tomado. NO lleva mayusculas ni espacios.
+
+
+# ############################################################
+#  BLOQUE 0 - EN EL NAVEGADOR, DigitalOcean
+# ############################################################
+
+ 1. Container Registry -> Create Registry
+      Nombre : <el que elijas>
+      Region : NYC3   (la misma que los droplets: la imagen
+               viaja menos y no cruza region al desplegar)
+      Plan   : el mas pequeno que acepte el tamano de la imagen
+
+ 2. Settings -> API -> Generate New Token  (o Tokens/Keys)
+      Nombre  : github-release
+      Alcance : lectura y ESCRITURA
+
+    >>> Este token es de la CUENTA, no del registro. Con el se
+        puede empujar imagenes. Guardalo: se ensena una sola
+        vez.
+    >>> NO me lo pegues. Va directo a GitHub en el bloque 1.
+
+
+# ############################################################
+#  BLOQUE 1 - EN EL NAVEGADOR, GitHub
+#  github.com/emiliano-cyber/spaces_dooh_new
+# ############################################################
+# `gh` no esta instalado en tu maquina --lo comprobamos el
+# 27/08 por bash y por PowerShell--, asi que va por la web. Si
+# algun dia lo instalas, los tres comandos equivalentes estan
+# al final.
+
+ Settings -> Secrets and variables -> Actions
+
+ PESTANA "Variables" -> New repository variable, dos veces:
+
+      Nombre : REGISTRY
+      Valor  : registry.digitalocean.com/<el nombre del bloque 0>
+
+      Nombre : REGISTRY_TIPO
+      Valor  : docr
+
+ PESTANA "Secrets" -> New repository secret:
+
+      Nombre : DO_REGISTRY_TOKEN
+      Valor  : el token del paso 2
+
+ >>> `REGISTRY_TIPO=docr` le dice al workflow con que credencial
+     entrar. El host del login lo DERIVA del primer segmento de
+     `REGISTRY`, asi que no hay que declararlo aparte.
+
+ >>> NO anadas `DEMO_URL`. Ver el aviso de arriba.
+
+ Cuando termines, pasame el nombre del registro. El token no.
+
+
+# ############################################################
+#  BLOQUE 2 - LA PRIMERA VERSION
+#  Esto SI es consola, en tu PC. No toca ningun servidor.
+# ############################################################
+
+# T1 [TU PC] - Estar en la rama y al dia.
+
+cd C:\Users\Server\spaces_doohmain_nueva\.claude\worktrees\servidor-padre
+git status --short --branch
+
+# Esperado: la rama limpia y sin nada por empujar.
+
+# T2 [TU PC] - Crear la etiqueta. ESTO DISPARA EL WORKFLOW.
+#              `release.yml` escucha `push` de tags `v*.*.*`.
+
+git tag v0.1.0
+git push emiliano v0.1.0
+
+# >>> Es la primera etiqueta del proyecto: `git tag -l` solo
+#     tenia `pre-hardening-1-archive`.
+
+# T3 [NAVEGADOR] - Mirar la corrida.
+#     github.com/emiliano-cyber/spaces_dooh_new/actions
+#
+#     El workflow comprueba PRIMERO que las variables existen y
+#     falla en dos segundos si faltan, a proposito -- para que
+#     un rojo por variable ausente no cueste una corrida entera.
+#     Despues: suite completa, build de la imagen, y publicacion
+#     en el canal `beta`.
+
+# T4 [NAVEGADOR] - Que la imagen llego.
+#     DigitalOcean -> Container Registry -> tu registro.
+#     Tiene que aparecer la imagen con la etiqueta `beta` y con
+#     `v0.1.0`.
+
+
+# ############################################################
+#  SI ALGUN DIA INSTALAS `gh`, el bloque 1 son tres lineas
+# ############################################################
+#   gh variable set REGISTRY      --body "registry.digitalocean.com/<nombre>"
+#   gh variable set REGISTRY_TIPO --body "docr"
+#   gh secret   set DO_REGISTRY_TOKEN
+#
+#  Son las mismas que el propio workflow imprime cuando faltan
+#  (`release.yml:187-189`), asi que no hay dos verdades.
+
+
+# ############################################################
+#  VUELTA ATRAS
+# ############################################################
+#  Nada de esto toca un servidor ni la aplicacion viva. Si la
+#  corrida sale mal:
+#
+#    git push emiliano :refs/tags/v0.1.0     # borra la etiqueta remota
+#    git tag -d v0.1.0                       # y la local
+#
+#  Y en GitHub, borrar las variables. La imagen publicada, si
+#  llego a subirse, se borra desde el registro.
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#  El nombre del registro (NO el token), y si la corrida de T3
+#  salio verde o donde se paro.
+#
+#  Con eso el proyecto pasa de 10 tareas bloqueadas a 4, y las
+#  cuatro son ensayos que ya se pueden ejecutar.
+# ############################################################

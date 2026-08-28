@@ -1,0 +1,266 @@
+============================================================
+ SACAR EL PROCESO DEL PADRE DE root
+ Todo en [PADRE] 137.184.107.53. Es ROJO (R6).
+============================================================
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+
+ >>>  ESTA TARJETA TIRA EL SITIO UNOS SEGUNDOS.  <<<
+      Entre parar pm2 (P2) y arrancar systemd (S3) hay una
+      ventana de caida. Es corta y prevista. Hazlo cuando no
+      haya nadie usando la aplicacion.
+
+============================================================
+ QUE CIERRA, Y POR QUE SIGUE ABIERTO
+============================================================
+ La aplicacion del PADRE corre como ROOT. DEMO ya no lo hace
+ desde el ADR 0019; el 3000 se quedo atras porque nadie lo
+ movio, no porque hubiera un motivo.
+
+ El expediente de la Fase 4 lo dejo anotado como pendiente y
+ el 27/08 quedo medido sin buscarlo: `pgrep -u emiliano` falla
+ con `invalid user name` --ese usuario es de la maquina VIEJA--
+ y `pm2 list` como root muestra el proceso.
+
+ Reparto actual, medido:
+   3000 (space-os.io)  -> pm2 `spaces-web`, como ROOT
+   3001 (DEMO)         -> systemd `spaces-demo`, usuario `demo`
+
+ Al terminar, los dos por systemd y ninguno como root.
+
+============================================================
+ LAS TRES COSAS QUE HACEN ESTO DISTINTO DE UN REINICIO
+============================================================
+ 1. EL ENTORNO CAMBIA DE SITIO. `apps/web/.env.production` es
+    600 root:root y asi se queda -- lleva DATABASE_URL y las
+    credenciales de Google. El proceso ya no podra leerlo, y
+    Next avisara con `EACCES`. ESO ES CORRECTO: es lo mismo que
+    hace DEMO. El entorno llega por /etc/space-os/padre.env.
+
+    >>> Consecuencia permanente: al cambiar un secreto hay que
+        tocar LOS DOS archivos.
+
+ 2. `.next` LO CONSTRUYE root Y LO USA `padre`. Next escribe en
+    `.next/cache` en ejecucion. Despues de CADA `npm run build`
+    hay que devolverle el directorio, o el proceso arranca bien
+    y falla al primer cacheo -- un fallo tardio y confuso.
+
+ 3. pm2 TIENE QUE DEJAR DE INTENTARLO. Si se queda con el
+    proceso guardado, al reiniciar la maquina pelea por el 3000
+    contra systemd y gana quien arranque primero.
+
+
+# ############################################################
+#  BLOQUE 0 - EL GATE Y EL PUNTO DE RETORNO
+# ############################################################
+
+# G1 - Estoy donde creo.
+
+hostname; curl -s ifconfig.me; echo
+
+# Esperado:  ubuntu-s-2vcpu-4gb-amd-nyc1 / 137.184.107.53
+
+# G2 - Como esta ahora, para poder comparar al final.
+
+pm2 list; systemctl is-active spaces-demo; curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/
+
+# Esperado: spaces-web online en pm2, spaces-demo active, login 200.
+
+# G3 - Traer la unidad nueva.
+
+cd /var/www/Spaces && git pull && ls -l infra/systemd/spaces-web.service
+
+
+# ############################################################
+#  BLOQUE A - EL USUARIO Y SU ENTORNO
+#  Nada de esto para el sitio. Se puede hacer con calma.
+# ############################################################
+
+# A1 - El usuario de servicio. Sin shell y sin home, igual que
+#      `demo` y que `flota`.
+
+useradd --system --no-create-home --shell /usr/sbin/nologin padre; id padre
+
+# >>> Si dice "already exists", perfecto: sigue.
+
+# A2 - Su copia del entorno. MISMO CONTENIDO, distinto dueno.
+
+install -o root -g padre -m 640 /var/www/Spaces/apps/web/.env.production /etc/space-os/padre.env && ls -l /etc/space-os/padre.env
+
+# Esperado: -rw-r----- root padre
+
+# A3 - Que las dos copias digan lo mismo. Si divergen ahora, el
+#      proceso arrancaria con un entorno distinto al que probaste.
+
+diff <(sort /etc/space-os/padre.env) <(sort /var/www/Spaces/apps/web/.env.production) && echo "IDENTICAS"
+
+# Esperado: IDENTICAS, sin ninguna linea de diferencia.
+
+# A4 - Que `padre` puede LEER su entorno y NO el del build.
+
+sudo -u padre test -r /etc/space-os/padre.env && echo "lee padre.env: SI"; sudo -u padre test -r /var/www/Spaces/apps/web/.env.production && echo "lee .env.production: SI -- MAL" || echo "lee .env.production: NO -- correcto"
+
+# Esperado:  lee padre.env: SI
+#            lee .env.production: NO -- correcto
+
+# A5 - Que `padre` puede ejecutar node. La misma trampa que
+#      mordio con el receptor de flota: hay DOS instalaciones y
+#      la de root vive bajo /root, que ProtectHome tapa.
+
+sudo -u padre -s /bin/sh -c 'command -v node'
+
+# Esperado: /usr/local/bin/node
+#
+# >>> Si no imprime nada, PARA. La unidad no arrancara.
+
+# A6 - Darle `.next` y el directorio de logs.
+
+chown -R padre:padre /var/www/Spaces/apps/web/.next && mkdir -p /var/www/Spaces/apps/web/logs && chown -R padre:padre /var/www/Spaces/apps/web/logs && ls -ld /var/www/Spaces/apps/web/.next /var/www/Spaces/apps/web/logs
+
+
+# ############################################################
+#  BLOQUE B - ENSAYO EN OTRO PUERTO, ANTES DE TOCAR EL 3000
+# ############################################################
+# Esto no interrumpe nada: levanta una segunda copia en el 3010
+# como `padre`, comprueba que funciona, y la mata.
+
+# B1 - Arrancar a mano en el 3010.
+
+set -a; . /etc/space-os/padre.env; set +a; sudo -u padre env $(grep -v '^#' /etc/space-os/padre.env | grep '=' | xargs) NODE_ENV=production timeout 25 /usr/local/bin/node /var/www/Spaces/node_modules/next/dist/bin/next start -p 3010 &
+sleep 10; curl -s -o /dev/null -w 'login-3010 %{http_code}\n' http://127.0.0.1:3010/spaces-dooh/login/
+
+# Esperado: login-3010 200
+#
+# >>> Un 200 aqui prueba que el usuario `padre` puede leer
+#     `.next`, resolver node y servir. Si sale 000 o nada,
+#     PARA y pasame lo que imprimio el arranque: es mejor
+#     descubrirlo ahora que con el 3000 apagado.
+
+# B2 - La comprobacion que no se puede fingir: que toca la base.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST http://127.0.0.1:3010/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"correo":"no@existe.tld","clave":"x"}'
+
+# Esperado: 401. Un 500 significa que llego pero NO puede
+# consultar la base -- probablemente el entorno de A2.
+# Un 200 seria mucho peor y no va a pasar.
+
+# B3 - Esperar a que el `timeout` lo mate y comprobar que murio.
+
+sleep 20; ss -lptn 'sport = :3010'; echo "[fin]"
+
+# Esperado: nada entre el comando y [fin].
+
+
+# ############################################################
+#  BLOQUE C - EL CAMBIO. AQUI EMPIEZA LA VENTANA DE CAIDA.
+# ############################################################
+
+# P1 - Enlazar y cargar la unidad, TODAVIA sin arrancarla.
+
+ln -sfn /var/www/Spaces/infra/systemd/spaces-web.service /etc/systemd/system/spaces-web.service && systemctl daemon-reload && systemctl cat spaces-web | head -3
+
+# P2 - Parar pm2 y quitarle el proceso guardado, para que no
+#      pelee por el 3000 en el proximo reinicio de la maquina.
+
+pm2 delete spaces-web; pm2 save; pm2 list
+
+# Esperado: la lista vacia. >>> A PARTIR DE AQUI EL SITIO ESTA
+# CAIDO hasta el paso S3.
+
+# S3 - Arrancar el servicio.
+
+systemctl enable --now spaces-web && sleep 5 && systemctl is-active spaces-web
+
+# Esperado: active
+
+# S4 - Y que corre como `padre`, que es todo el punto.
+
+systemctl show spaces-web -p MainPID --value | xargs -I{} ps -o pid,user,cmd -p {}
+
+# Esperado: la columna USER dice `padre`, NUNCA `root`.
+
+
+# ############################################################
+#  BLOQUE D - QUE SIGUE FUNCIONANDO
+# ############################################################
+
+# V1 - El sitio esta en pie.
+
+curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/
+
+# V2 - Y toca la base. Esta es la que no se puede fingir: el
+#      PADRE estuvo CUATRO DIAS sirviendo un login perfecto sin
+#      poder autenticar a nadie, con cinco comprobaciones en
+#      verde. Un 200 en la pagina solo prueba que se pinta.
+
+curl -s -o /dev/null -w 'login-post %{http_code}\n' -X POST https://space-os.io/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"correo":"no@existe.tld","clave":"x"}'
+
+# Esperado: 401
+
+# V3 - La version, que ademas confirma que el entorno llego.
+
+T=$(grep '^FLOTA_TOKEN=' /etc/space-os/padre.env | cut -d= -f2); curl -s -H "x-flota-token: $T" https://space-os.io/spaces-dooh/api/version/; echo
+
+# Esperado: las seis claves, con `version` y `canal` CON VALOR.
+# Si dicen "desconocida" y "desconocido", el EnvironmentFile no
+# llego y hay que revisar A2.
+
+# V4 - DEMO sigue en su sitio, sin haberla tocado.
+
+systemctl is-active spaces-demo; ss -lptn 'sport = :3000 or sport = :3001'
+
+# Esperado: active, y los dos puertos escuchando -- el 3000
+# ahora con un proceso de `padre`.
+
+# V5 - Y sobrevive a un reinicio del servicio.
+
+systemctl restart spaces-web && sleep 5 && systemctl is-active spaces-web && curl -s -o /dev/null -w 'login %{http_code}\n' https://space-os.io/spaces-dooh/login/
+
+# V6 - EN EL NAVEGADOR: entra y guarda algo de verdad. Editar
+#      el nombre de un cliente basta. Ninguna comprobacion de
+#      arriba prueba que un guardado real funcione con el
+#      usuario nuevo.
+
+
+# ############################################################
+#  LO QUE CAMBIA A PARTIR DE HOY EN CADA DESPLIEGUE
+# ############################################################
+#  El `pm2 restart spaces-web` de las tarjetas viejas YA NO
+#  VALE. La secuencia pasa a ser:
+#
+#    cd /var/www/Spaces && git pull
+#    npm install                       # si cambio el lockfile
+#    npm run build                     # lo hace root
+#    chown -R padre:padre apps/web/.next   # <-- NUEVO, no lo olvides
+#    systemctl daemon-reload           # la unidad es un symlink al repo
+#    systemctl restart spaces-web
+#    systemctl restart spaces-demo     # los dos comparten .next
+#
+#  Y si tocaste un secreto, LOS DOS archivos:
+#    apps/web/.env.production  y  /etc/space-os/padre.env
+
+
+# ############################################################
+#  VUELTA ATRAS - si algo del bloque D sale mal
+# ############################################################
+#  Volver a pm2 son tres lineas, y el sitio vuelve en segundos:
+#
+#    systemctl disable --now spaces-web
+#    cd /var/www/Spaces && pm2 start apps/web/node_modules/.bin/next --name spaces-web -- start -p 3000
+#    pm2 save
+#
+#  Comprueba con el V1 y el V2. El usuario `padre`, su entorno
+#  y el `chown` de `.next` pueden quedarse: no estorban a pm2
+#  corriendo como root.
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#  G2, A3, A4, A5, B1, B2, S4, V1, V2, V3, V4, V5 y que viste
+#  en V6.
+#
+#  Con eso cierro la deuda que la Fase 4 dejo abierta y
+#  actualizo las tarjetas de despliegue, que todas dicen
+#  `pm2 restart`.
+# ############################################################

@@ -1,0 +1,99 @@
+# ============================================================================
+#  spaces-web — la aplicación del PADRE, en el 3000, SIN root.
+# ----------------------------------------------------------------------------
+#  Destino: /etc/systemd/system/spaces-web.service  (ENLACE, no copia)
+#
+#      ln -sf /var/www/Spaces/infra/systemd/spaces-web.service \
+#             /etc/systemd/system/spaces-web.service
+#      systemctl daemon-reload
+#
+#  Es la unidad hermana de `spaces-demo.service`, y se escribió copiando lo que
+#  aquella ya tenía medido. Lee esa primero: sus comentarios explican por qué
+#  systemd y no pm2, por qué no `npm start`, y por qué el binario de Next se
+#  invoca directo.
+#
+#  ─── QUÉ CIERRA ESTA UNIDAD ───────────────────────────────────────────────
+#  La deuda que la Fase 4 dejó abierta: **el proceso del PADRE corre como root**.
+#  DEMO ya no lo hace desde el ADR 0019 — el 3000 se quedó atrás porque nadie lo
+#  movió, no porque hubiera un motivo.
+#
+#  Medido el 2026-08-27: `pgrep -u emiliano` falla con `invalid user name`
+#  —ese usuario es de la máquina VIEJA, aquí no existe— y `pm2 list` como root
+#  muestra el proceso. El 3000 lo sirve pm2 de root; el 3001, systemd.
+#
+#  ─── EL ENTORNO NO SE LEE DE `.env.production` ────────────────────────────
+#  `apps/web/.env.production` está en 600 root:root desde el 25/08, y así se
+#  queda: contiene `DATABASE_URL` y las credenciales de Google. El usuario
+#  `padre` NO puede leerlo, y Next avisará con
+#
+#      ⨯ Failed to load env from .env.production … EACCES
+#
+#  **Eso es correcto y no es un fallo** — es lo mismo que ya hace DEMO. Todo el
+#  entorno llega por el `EnvironmentFile` de abajo, que es una copia de ese
+#  archivo en 640 root:padre. Dos archivos con el mismo contenido y distinto
+#  dueño, a propósito: el de `apps/web` sirve al build (que corre como root) y
+#  el de `/etc/space-os` al proceso (que no).
+#
+#  > Si algún día divergen, el que manda para la aplicación es el de
+#  > `/etc/space-os/padre.env`. Al cambiar un secreto hay que tocar LOS DOS.
+#
+#  ─── LO QUE ESTE PROCESO NECESITA ESCRIBIR ────────────────────────────────
+#  Next escribe en `.next/cache` en tiempo de ejecución. El build lo hace root,
+#  así que `.next` nace de root: **después de cada `npm run build` hay que
+#  devolvérselo a `padre`**, o el proceso arranca y falla al primer cacheo, que
+#  es un fallo tardío y confuso. Está en la tarjeta como paso propio.
+#
+#  ─── POR QUÉ NO HAY `MemoryDenyWriteExecute` ──────────────────────────────
+#  Prohíbe mapear memoria escribible-y-ejecutable, que es lo que hace el JIT de
+#  V8. Con esa directiva, Node muere con `status=5/TRAP` y volcado de núcleo.
+#  Medido el 27/08 al montar `flota-reporte.service`. No se vuelve a poner.
+# ============================================================================
+
+[Unit]
+Description=SPACE OS - la aplicacion del PADRE (3000)
+Documentation=file:///var/www/Spaces/infra/systemd/spaces-demo.service
+# Sin esto, un reinicio de la máquina puede arrancar Next antes que Postgres y
+# dejarlo sirviendo con la conexión rota. Ese fallo costó CUATRO DÍAS en esta
+# misma máquina: login perfecto, nadie podía autenticarse, y cinco
+# comprobaciones en verde.
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+# ⚠️ Van en [Unit] y NO en [Service]. En [Service] systemd avisa «Unknown key
+# name … ignoring» y el límite NO SE APLICA: el servicio se reiniciaría sin
+# tope. Es un aviso, no un error, así que la unidad arranca igual y el defecto
+# pasa desapercibido. Medido el 25/08 en el journal.
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=padre
+Group=padre
+
+# `apps/web` y no la raíz: Next busca ahí su `.next`.
+WorkingDirectory=/var/www/Spaces/apps/web
+
+EnvironmentFile=/etc/space-os/padre.env
+Environment=NODE_ENV=production
+
+# `node_modules` está en la RAÍZ del repo: es un workspace de npm, no vive bajo
+# `apps/web`. Y se invoca el binario de Next directamente, sin `npm start`, que
+# lleva el puerto fijo en `package.json:8`.
+ExecStart=/usr/local/bin/node /var/www/Spaces/node_modules/next/dist/bin/next start -p 3000
+
+Restart=on-failure
+RestartSec=5
+
+# Endurecimiento barato. No sustituye a que corra como `padre`, lo acompaña.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=spaces-web
+
+[Install]
+WantedBy=multi-user.target
