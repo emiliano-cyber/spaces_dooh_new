@@ -5,6 +5,14 @@
 
  >>>  PEGA UNA LINEA CADA VEZ.                          <<<
 
+ ESTADO AL 28/08 15:40 -- ESTA TARJETA VA POR LA MITAD.
+ Hecho: bucket, s3cmd, instancia.env, dump de 382 KB.
+ Parada en: el paso E2 devuelve 403 AccessDenied. Su
+ propio comentario trae el diagnostico, que separa
+ «llave mal copiada» de «llave sin permiso de escritura».
+ Falta ademas el bloque D-bis (retencion de 30 dias).
+ Contexto completo: docs/Traspaso_20260828.md
+
 ============================================================
  QUE CIERRA, Y POR QUE IMPORTA
 ============================================================
