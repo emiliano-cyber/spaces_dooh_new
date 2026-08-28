@@ -39,42 +39,41 @@
 
 
 # ############################################################
-#  BLOQUE 0 - EN EL NAVEGADOR, en la consola de DigitalOcean
-#  Nada de esto se pega en una terminal.
+#  BLOQUE 0 - EN EL NAVEGADOR. Solo queda la llave.
 # ############################################################
 
- 1. Spaces Object Storage -> Create a Spaces Bucket
-      Nombre  : space-os-respaldos
-      Region  : NYC3
-      CDN     : NO. Es almacenamiento privado, no contenido
-                publico. Un CDN delante de tus respaldos es lo
-                contrario de lo que quieres.
-      File Listing: **Restrict File Listing** (privado)
+ EL BUCKET YA ESTA HECHO (2026-08-28):
 
- 2. En el bucket -> Settings -> Lifecycle Rules -> Add Rule
-      Prefix               : (vacio, aplica a todo)
-      Delete objects after : 30 days
+      Nombre       space-os-respaldos
+      Region       sfo3          <-- NO nyc3. Ver la nota de abajo
+      Tipo         Standard Storage
+      CDN          Disabled                    correcto
+      File Listing Restricted                  correcto
 
-    >>> ESTO NO ES OPCIONAL, Y ES DELIBERADO QUE VIVA AQUI.
-        `respaldo.sh` NO borra NADA en el bucket, a proposito:
-        un `rm` mal escrito en un script que corre en TODAS las
-        instancias es una forma elegante de perderlo todo a la
-        vez. La retencion remota la hace el bucket, la revisa
-        una persona, y no viaja en cada release.
-        Sin esta regla el bucket crece para siempre.
+ >>> LA REGION ES sfo3 Y EL DROPLET ESTA EN nyc1. Se decidio
+     dejarlo asi: el nombre de un bucket es UNICO en todo
+     DigitalOcean y su borrado no es inmediato, asi que mover
+     la region costaba borrar, esperar un plazo que no
+     controlamos y recrear -- a cambio de unos segundos por
+     respaldo. No compensaba.
+     Consecuencia practica: `SPACES_REGION=sfo3` hay que
+     ponerlo EXPLICITO. El valor por omision del script es
+     nyc3, y con el la subida fallaria por endpoint erroneo.
 
- 3. Spaces Object Storage -> Access Keys -> Create Access Key
-      Alcance : limitado a `space-os-respaldos`
+ >>> LA REGLA DE 30 DIAS NO ESTA EN EL PANEL. DigitalOcean no
+     la expone en Settings -- comprobado el 28/08. Se pone con
+     `s3cmd` en el BLOQUE D-bis, una vez instalado el cliente.
+
+ LO QUE FALTA AQUI, y es lo unico:
+
+   Bucket -> Settings -> Access Keys -> Create Access Key
+      Alcance : ESTE bucket, no la cuenta entera
       Permiso : Read/Write
       Nombre  : padre-respaldos
 
-    >>> Copia la clave y el secreto AHORA: el secreto se
-        muestra UNA sola vez.
-    >>> NO me los pegues. No los necesito y no deben pasar por
-        esta conversacion. Van directos al archivo del paso C2.
-
- Cuando termines, pasame SOLO: el nombre del bucket, la region,
- y que la regla de 30 dias quedo creada.
+   >>> El secreto se muestra UNA sola vez. Copialo antes de
+       cerrar.
+   >>> NO me lo pegues. Va directo al archivo del paso C2.
 
 
 # ############################################################
@@ -139,7 +138,7 @@ install -o root -g root -m 600 /dev/null /etc/space-os/instancia.env && ls -l /e
 cat > /etc/space-os/instancia.env <<'FIN'
 INSTANCIA=padre
 SPACES_BUCKET=space-os-respaldos
-SPACES_REGION=nyc3
+SPACES_REGION=sfo3
 SPACES_KEY=PEGA_AQUI_LA_CLAVE
 SPACES_SECRET=PEGA_AQUI_EL_SECRETO
 RESPALDOS_LOCALES=3
@@ -174,6 +173,32 @@ set -a; . /etc/space-os/instancia.env; set +a; bash /var/www/Spaces/infra/script
 #     El script se niega si falta el prefijo, asi que eso seria
 #     un fallo de verdad.
 
+
+# ############################################################
+#  BLOQUE D-bis - LA RETENCION DE 30 DIAS
+#  Va aqui y no en el navegador porque el panel no la ofrece.
+# ############################################################
+# ESTO NO ES OPCIONAL. `respaldo.sh` NO borra NADA en el bucket
+# a proposito: un `rm` mal escrito en un script que corre en
+# TODAS las instancias es una forma elegante de perderlo todo a
+# la vez. Quien poda lo viejo es el bucket. Sin esta regla,
+# crece para siempre y la factura con el.
+
+# R1 [PADRE] - Poner la regla.
+
+set -a; . /etc/space-os/instancia.env; set +a; s3cmd --access_key="$SPACES_KEY" --secret_key="$SPACES_SECRET" --host="$SPACES_REGION.digitaloceanspaces.com" --host-bucket="%(bucket)s.$SPACES_REGION.digitaloceanspaces.com" expire s3://space-os-respaldos --expiry-days=30
+
+# R2 [PADRE] - Y comprobar que quedo puesta. Este paso importa:
+#              una regla que se cree mal no avisa, y lo notarias
+#              dentro de un ano en la factura.
+
+set -a; . /etc/space-os/instancia.env; set +a; s3cmd --access_key="$SPACES_KEY" --secret_key="$SPACES_SECRET" --host="$SPACES_REGION.digitaloceanspaces.com" --host-bucket="%(bucket)s.$SPACES_REGION.digitaloceanspaces.com" getlifecycle s3://space-os-respaldos
+
+# Esperado: un XML con <Days>30</Days> y <Status>Enabled</Status>.
+#
+# >>> Si `expire` no esta soportado por tu version de s3cmd,
+#     pasame el error: se puede poner el XML a mano con
+#     `s3cmd setlifecycle <archivo.xml>` y te lo escribo.
 
 # ############################################################
 #  BLOQUE E - UNA SUBIDA DE VERDAD
