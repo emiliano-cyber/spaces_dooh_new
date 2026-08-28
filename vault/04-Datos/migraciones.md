@@ -486,6 +486,19 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 
 ## Hitos
 
+> [!success] 2026-08-28 · Estas CINCO ya están aplicadas en el PADRE
+> Esta tabla decía de ellas «escrita, NO aplicada en producción», y era cierto
+> cuando se escribió. **Hoy no.** No hace falta comprobarlas una a una: el
+> recuento lo zanja.
+>
+> `db/migrations/` tiene **74 archivos** y el PADRE marca **73 aplicadas** en
+> sus dos bases —`spaces_prod` y `spaces_demo`—, medido el 27/08 y el 28/08
+> (`docs/evidencias/despliegue-padre-20260827.md`, paso V12). La única que falta
+> es **`20260731_calendario_meses_cortos.sql`**, que el runner omite a propósito
+> por ir marcada `-- @tipo: datos` y solo entra con `--con-datos`.
+>
+> **74 − 1 = 73.** Si el conteo cuadra, no queda ninguna de esquema sin aplicar.
+
 | Migración | Qué cambió |
 |---|---|
 | `20260629_bitacora_append_only.sql` | `acciones` deja de poder editarse |
@@ -507,11 +520,11 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 | `20260807_password_resets_rls.sql` | `password_resets` pasa a fail-closed — aplicada en prod el 10/08 09:14 |
 | `20260810_notificaciones_archivada_en.sql` | `notificaciones.archivada_en` |
 | `20260810_arrendadores_rfc_unico.sql` | `arrendadores_tenant_rfc_uq` — un RFC, un propietario (ADR 0013) |
-| `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **escrita, NO aplicada en producción** (eso es F1.2 → F1.5) |
-| `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **escrita, NO aplicada en producción**, donde es no-op |
-| `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **escrita, NO aplicada en producción**. Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
-| `20260820_catalogo_permisos_completo.sql` | El catálogo COMPLETO: **41 filas · 9 módulos · 5 perfiles** (ver abajo) — **escrita, NO aplicada en producción**. Cierra ROJO-2: hasta el 20/08 había **dos** catálogos y ganaba el que corriera último |
-| `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a los candidatos que existan y **aborta si no hay ninguno** (ROJO-3) — **escrita, NO aplicada en producción**. El nombre se **declara** con `ROL_APP` / `space_os.rol_app`, y sin declaración valen `spaces_app` y `spaces_user`, así que **el droplet actual se actualiza sin tocarle el rol**. ⚠️ Límite medido: una base virgen con nombre nuevo aborta antes, en `20260729_licencias_permisos.sql:88-97` (archivo 52 de 70) |
+| `20260812_sin_default_tenant.sql` | Retira el `DEFAULT` de `tenant_id` de las 23 tablas — **aplicada en el PADRE** (ver el aviso del 28/08) (eso es F1.2 → F1.5) |
+| `20260819_semilla_rol_permisos.sql` | El catálogo de permisos viaja con el código: **25 filas · 8 módulos · 3 roles** (ver abajo) — **aplicada en el PADRE** (ver el aviso del 28/08), donde es no-op |
+| `20260812_schema_migrations.sql` | Nace la tabla de control y su backfill (F3.1) — **aplicada en el PADRE** (ver el aviso del 28/08). Va **antes** que `sin_default_tenant` por orden lexicográfico (`c` < `i`), que es justo el orden que se quiere: así el runner registra las 65 históricas y aplica de verdad la de F1.2 |
+| `20260820_catalogo_permisos_completo.sql` | El catálogo COMPLETO: **41 filas · 9 módulos · 5 perfiles** (ver abajo) — **aplicada en el PADRE** (ver el aviso del 28/08). Cierra ROJO-2: hasta el 20/08 había **dos** catálogos y ganaba el que corriera último |
+| `20260820_grants_rol_app.sql` | Los GRANT del rol de aplicación **sin lista blanca**: concede a los candidatos que existan y **aborta si no hay ninguno** (ROJO-3) — **aplicada en el PADRE** (ver el aviso del 28/08). El nombre se **declara** con `ROL_APP` / `space_os.rol_app`, y sin declaración valen `spaces_app` y `spaces_user`, así que **el droplet actual se actualiza sin tocarle el rol**. ⚠️ Límite medido: una base virgen con nombre nuevo aborta antes, en `20260729_licencias_permisos.sql:88-97` (archivo 52 de 70) |
 
 ## La migración que revela el mayor riesgo del proyecto
 

@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-28
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -30,18 +30,23 @@ cobranza.
 | Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
 | Migraciones | **74** | [[migraciones]] |
-| ADR | **22** (`0001`–`0022`) | `docs/adr/` · [[decisiones]] |
+| ADR | **24** (`0001`–`0024`) | `docs/adr/` · [[decisiones]] |
 
-> [!danger] `demo.space-os.io` SE QUEDA — esta fila decía lo contrario hasta el 27/08
-> Con la fecha del **26/08** encima, esta tabla afirmaba que el nombre «queda
-> retirado» y que su registro A se borra (**TH-F4.5**), citando el **ADR 0020**.
-> El ADR 0020 fue **superado ese mismo día** por el **0021**, y con él se
-> **canceló TH-F4.5** (`d506725`). El nginx del PADRE lo sirve
-> (`infra/nginx/space-os.io.conf:188`).
+> [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
+> Ese nombre **no sirve más que para la demostración original** —la anterior al
+> modelo de instancias— y **desaparece**. No se mueve al PADRE, no se le emite
+> certificado y no se le busca máquina. La demostración de las instancias hijas
+> será **una instancia hija de verdad**, la primera que nazca de `F5.7`.
 >
-> **No propongas borrar ese registro.** Es la cuarta vez en cuatro días que este
-> punto cambia de dirección: pregunta antes de inferirlo de un documento, por
-> reciente que parezca su fecha. Ver [[decisiones]] para qué ADR manda hoy.
+> Con eso **`F4.3` queda sin objeto** y el plan v3 baja a **39 tareas con
+> objeto**. Su certificado vence el **2026-10-26**, y eso pasa a ser su
+> caducidad natural, no un plazo que obligue a nada.
+>
+> **Este punto giró SEIS veces en seis días** (ADR 0015 → 0016 → 0017 → 0020 →
+> 0021 → 0024). Lo que costó caro no fue cambiar de idea: fue que las partes que
+> **no** se decidían se rellenaran por deducción. El 0024 cierra los dos huecos
+> que el 0021 dejaba abiertos —qué máquina lo sirve y qué pasa con su
+> certificado—, así que **ya no se pregunta y no se infiere lo contrario**.
 
 > [!warning] No confundas «90 endpoints» con «los 72 endpoints censados»
 > El censo de validación de entrada del 26/08 (`721557d`, `e125dee`) revisó **72**
@@ -66,7 +71,7 @@ cobranza.
 - [[vision-general]] — diagrama de componentes y por qué hay una sola pista viva
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
 - [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
-- [[decisiones]] — los 22 ADR y las decisiones deducidas del código
+- [[decisiones]] — los 24 ADR y las decisiones deducidas del código
 - [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
@@ -114,7 +119,9 @@ cobranza.
 - [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
   cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-25]] — **última entrada**: el PADRE nunca había hablado con su base,
+- [[2026-08-27]] — **última entrada**: la CSP en modo reporte destapa que la pista
+  archivada seguía ejecutándose en producción; se retiran nueve rutas
+- [[2026-08-25]] — el PADRE nunca había hablado con su base,
   y cuatro documentos lo daban por vivo
 - [[2026-08-24]] — la Fase 4 se queda sin su objeto… y la misma tarde se
   desmiente: el acceso al droplet viejo **nunca se perdió**
@@ -140,11 +147,16 @@ cobranza.
   entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
 
 > [!tip] Esta bóveda caduca
-> Última validación completa contra el código: **27/08/2026**. El procedimiento
+> Última validación completa contra el código: **28/08/2026**. El procedimiento
 > para repetirla (cuatro chequeos y sus cuatro trampas) está en [[convenciones]].
 > Lo medido ese día: **90** route handlers, **74** migraciones, **39** tablas,
-> **22** ADR, **22** pantallas del shell; **726 enlaces internos, 0 rotos, 0
-> huérfanas** sobre **56** notas.
+> **24** ADR, **22** pantallas del shell; **753 enlaces internos, 0 rotos, 0
+> huérfanas** sobre **57** notas. Pruebas: **1005 unitarias en 94 archivos** y
+> **29 archivos e2e**.
+>
+> Lo único que se movió respecto del **27/08** fueron los ADR (22 → **24**, con
+> el `0023` y el `0024`) y la bóveda misma (56 → 57 notas, 726 → 753 enlaces, por
+> el diario del 27/08). Endpoints, migraciones y tablas **no se movieron**.
 
 ## Advertencia sobre la documentación existente
 

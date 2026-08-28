@@ -48,9 +48,14 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día
 > en que se escribieron**, y el `0015` llegó a resucitar. Un ADR más alto no es
 > automáticamente el vigente sobre el mismo asunto: **lo vigente hoy es
-> `0017` (todo en el PADRE), `0021` (`demo.space-os.io` se queda) y `0022`
-> (una instancia por owner)**. Citar el `0016` o el `0020` como si mandaran es
-> el error que ya dejó falso un reporte entero (`d506725`, 26/08).
+> `0017` (todo en el PADRE), `0022` (una instancia por owner), `0023` (el
+> droplet viejo sale del modelo) y `0024` (`demo.space-os.io` se eliminará)**.
+> Citar el `0016`, el `0020` o el `0021` como si mandaran es el error que ya
+> dejó falso un reporte entero (`d506725`, 26/08).
+>
+> **Ojo con el `0021` en particular**: duró un día y medio y llegó a propagarse
+> a media bóveda diciendo que el nombre «se conserva». Lo superó el `0024` el
+> 27/08. Si encuentras una nota que diga que se queda, está vieja.
 
 > [!warning] ADR 0011 dice "Propuesta" pero ya está en producción
 > El código y la migración `20260805_config_negocio_por_tenant.sql` están

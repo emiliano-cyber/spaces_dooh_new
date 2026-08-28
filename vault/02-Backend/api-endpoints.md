@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-28
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -98,7 +98,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 > [!danger] `/api/estado` devuelve TODO el tenant
 > Campañas, clientes, propuestas y cifras financieras en una sola respuesta.
 > Por eso el corte de `debe_cambiar_password` en `exigir()` es incondicional
-> (`lib/server/auth.ts:152-167`) y **no** puede condicionarse a que la ruta
+> (`lib/server/auth.ts:165-186`) y **no** puede condicionarse a que la ruta
 > declare módulo.
 
 ## Inventario

@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-28
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/lib/server/errores.ts
@@ -59,9 +59,11 @@ documentan **la decisión y el fallo que la motivó**, con evidencia:
 
 > [!warning] No copies un recuento de aquí — mídelo, y estas cifras caducan igual
 > Esta tabla decía **«~729 unitarias / ~55 de integración»** desde el 07/08.
-> Medido el **27/08** en `feat/servidor-padre-instancias`: **997 unitarias en 92
-> archivos** (`cd apps/web && npm test`, 8 s) y **29 archivos e2e**. Casi el
-> doble, y nadie tocó la cifra en veinte días.
+> Medido el **28/08** en `feat/servidor-padre-instancias`: **1005 unitarias en 94
+> archivos** (`cd apps/web && npm test`, 9,4 s) y **29 archivos e2e**. El día
+> anterior eran **997 en 92**: los dos archivos nuevos son
+> `lib/pista-archivada.test.ts` y `lib/tipografia.test.ts`. Casi el doble que en
+> agosto, y nadie tocó la cifra en veinte días.
 >
 > **Cuenta también en qué rama estás**: la raíz del repo y este worktree son
 > ramas distintas con recuentos distintos. Y para el número de **casos** e2e hay
@@ -156,8 +158,18 @@ Extraer los enlaces internos (dobles corchetes) de cada nota y comprobar que
 existe un `.md` con ese `BaseName` — o con esa ruta relativa, para los que van
 con carpeta, tipo `02-Backend/_indice`. Al 10/08: **395 enlaces, 0 rotos, 0
 huérfanas**. Al 17/08, con el diario recuperado: **606 enlaces, 0 rotos, 0
-huérfanas** sobre 48 notas. Al **27/08**: **726 enlaces, 0 rotos, 0 huérfanas**
-sobre **56** notas — tras arreglar los tres de la tercera trampa, abajo.
+huérfanas** sobre 48 notas. Al 27/08: **726 enlaces, 0 rotos, 0 huérfanas**
+sobre 56 notas — tras arreglar los tres de la tercera trampa, abajo. Al
+**28/08**: **753 enlaces, 0 rotos, 0 huérfanas** sobre **57** notas.
+
+> [!tip] Quinta trampa: los enlaces a un ancla de la propia nota no son enlaces a notas
+> `manual-tecnico` usa 19 enlaces del tipo dobles-corchetes-almohadilla-título
+> para su índice interno. Un extractor que corte por la almohadilla se queda con
+> la cadena vacía y los declara **rotos**: son 19 falsos positivos y aparecen
+> todos en la misma nota. Descuéntalos antes de comparar con la cifra de arriba
+> —753 son enlaces a notas; 772, con las anclas dentro—. Y la huérfana que
+> aparece cada vez es **la entrada del diario del día**: se cierra enlazándola
+> desde [[MOC-Proyecto]], no dejándola suelta.
 
 > [!warning] Dos `_indice.md` distintos rompen los verificadores ingenuos
 > `02-Backend/_indice.md` y `03-Frontend/_indice.md` comparten `BaseName`. Un

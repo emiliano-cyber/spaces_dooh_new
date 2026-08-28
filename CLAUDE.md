@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la 0013), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0024**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -33,15 +33,15 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la 0013), los **planes**
 
 ### Qué es, técnicamente
 
-**48 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**57 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-08-17 tenía **606 enlaces internos, 0 rotos y 0 notas huérfanas**.
-La medición del 10/08 daba 395 enlaces sobre 43 notas: crecio con el diario y
-con las notas de la ejecucion del plan v3.
+Al 2026-08-28 tenía **753 enlaces internos, 0 rotos y 0 notas huérfanas** sobre
+57 notas. Las mediciones previas daban 606 sobre 48 (17/08) y 395 sobre 43
+(10/08): crece con el diario y con las notas de la ejecución del plan v3.
 
 ### La estructura
 
@@ -88,13 +88,19 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | 38 | `vault/04-Datos/esquema.md` |
-| Migraciones | 66 | `vault/04-Datos/migraciones.md` |
+| Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **39** | `vault/04-Datos/esquema.md` |
+| Migraciones | **74** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-08-10**. Trátalos como una
+> Esos recuentos llevan fecha de validación **2026-08-28**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
+>
+> **Este archivo ya los tuvo mal, y por eso conviene decirlo aquí:** entre el
+> 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
+> migraciones, notas, enlaces y el número de ADR— **mientras la bóveda estaba
+> al día**. Es el sitio que más caro cuesta tener mal: es lo primero que lee un
+> agente, y arranca con seis números falsos antes de abrir una sola nota.
 
 ### Cómo está escrita cada nota
 

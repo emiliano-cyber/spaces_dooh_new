@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-28
 tags: [arquitectura, componentes]
 archivos:
   - ecosystem.config.js
@@ -101,12 +101,21 @@ corre un único proceso.**
 | `_archive/api` — Fastify + Prisma + BullMQ | Archivada, nunca se desplegó | `ecosystem.config.js:1-3` |
 | ~~`apps/web/lib/auth-context.tsx`~~ | **RETIRADO el 27/08** con la pista archivada | [[zonas-de-riesgo]] §A6 |
 
-> [!danger] El `AuthProvider` legado sigue en el árbol de render
-> `apps/web/app/providers.tsx:34` envuelve toda la app con un `AuthProvider` que
-> hace fetch contra `NEXT_PUBLIC_API_URL` (el Fastify archivado, que no existe).
-> Sus peticiones fallan en silencio y `user` queda siempre `null`.
-> **No es el sistema de sesión.** El real es [[autenticacion-y-sesion]].
-> Confundirlos es el error más caro posible en este repo.
+> [!success] El `AuthProvider` legado ya NO está en el árbol de render — corregido el 28/08
+> Hasta esta revalidación, aquí había un callout `[!danger]` que decía que
+> `apps/web/app/providers.tsx:34` envolvía toda la app con un `AuthProvider` que
+> hacía fetch contra `NEXT_PUBLIC_API_URL`. **Dejó de ser cierto el 27/08** y la
+> fila de arriba ya lo decía: `lib/auth-context.tsx` se retiró con la pista
+> archivada, y `providers.tsx` hoy solo monta `QueryClientProvider`, los parches
+> de `fetch` y el indicador de carga (37 líneas; la 34 es `<IndicadorCarga />`).
+> Lo vigila `apps/web/lib/pista-archivada.test.ts:65-70`, que se pone roja si
+> `AuthProvider` reaparece en `providers.tsx`.
+>
+> **Lo que sigue vigente es la lección**, no el hecho: el sistema de sesión real
+> es [[autenticacion-y-sesion]]. Confundir un cliente del backend archivado con
+> él es el error más caro posible en este repo — y este callout es la prueba de
+> que también se puede cometer al revés, dejando escrito como vivo algo que ya
+> se retiró.
 
 ## Componentes
 
@@ -120,7 +129,7 @@ flowchart TB
         NGX["nginx<br/>demo.space-os.io · TLS · HSTS"]
         subgraph pm2["pm2 · spaces-web · :3000"]
             MW["middleware.ts<br/>CSRF · gate de sesión · 308 legado"]
-            RH["86 Route Handlers<br/>app/api/**/route.ts"]
+            RH["90 Route Handlers<br/>app/api/**/route.ts"]
             SRV["lib/server/*<br/>controllers + repos"]
             POOL["db.ts · Pool pg max 10"]
         end

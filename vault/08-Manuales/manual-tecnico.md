@@ -1279,7 +1279,7 @@ candado…). Antes de trabajar en paralelo con otros agentes: [[AGENTES]] y [[ta
 | [[decisiones]] | ~~Habla de «los 12 ADR»; hay **13** y el `0013` no está en su tabla~~ — **corregido el 18/08**: el recuento y la fila del `0013` ya están | §1.5 |
 | [[zonas-de-riesgo]] | ~~A6 sobre `OTMovil` está superado~~ — **cerrado el 27/08**: A6 dice ahora que la pista archivada se retiró, con la lección de por qué sobrevivió | §10 |
 | [[preguntas-abiertas]] | P3c y P8 **ya tienen respuesta** en el código y siguen abiertas en la lista | inventario D-11 |
-| [[vision-general]] | «86 route handlers» | 88 archivos / 110 métodos |
+| [[vision-general]] | ~~«86 route handlers» en su diagrama de componentes~~ — **corregido el 28/08**: dice **90**, medido. (El recuento de referencia del 11/08 era 88 archivos / 110 métodos) | §2 |
 
 **Regla de convivencia:** si el código y la bóveda se contradicen, **gana el código**,
 y el desfase se anota. Este manual sigue esa regla.
