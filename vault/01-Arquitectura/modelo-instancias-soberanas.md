@@ -41,6 +41,28 @@ archivos:
 > Su certificado (26/10) pasa a ser **caducidad natural, no plazo**. Este punto
 > giró seis veces y aquí se cierra: **ya no se pregunta.**
 
+> [!success] 2026-08-27 · **LA FASE 6 QUEDA CERRADA, COMPLETA**
+> Las **cuatro** tareas hechas y probadas **en el PADRE**, sin alcance declarado
+> y sin nada esperando al registry. Es el **primer cierre completo desde la
+> Fase 1**. Expediente: `docs/evidencias/fase-6.md`.
+>
+> **`F6.4` es la que faltaba**, y lo que faltaba no era código de aplicación:
+> no había unidad systemd para `reporte.mjs` y nginx no exponía
+> `/flota/reporte`. Ahora sí — usuario `flota` dedicado sin shell, receptor solo
+> en `127.0.0.1:8787`, y **una línea** de `include` en `space-os.io.conf:165`,
+> **solo en el ápice**: una instancia no recibe los reportes de las demás.
+>
+> **La prueba que cierra la fase:** el panel mostró `padre → al-dia` **con
+> origen `reporte`** mientras su propia consulta fallaba por falta de token. El
+> padre no pudo preguntar y aun así sabía el estado, que es exactamente la razón
+> de existir de F6.4.
+>
+> Tres tropiezos, los tres de configuración escrita en local y **documentados en
+> el archivo que los causó**: `/usr/bin/node` no existe en el PADRE (hay **dos**
+> instalaciones de node); `MemoryDenyWriteExecute=yes` **mata a V8** y es
+> incompatible con cualquier JIT; y `proxy_read_timeout` duplicado, que nginx
+> rechaza — sin caída, porque `nginx -t` va antes del `reload`.
+
 > [!tip] 2026-08-27 · `F6.3` cerrada, y `F6.1` probada en producción
 > El panel de flota corrió por primera vez **contra una instancia real** y no
 > contra dominios `.invalid` en una laptop: los **tres estados** observados
