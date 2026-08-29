@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-28
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -111,7 +111,30 @@ reservas, creativos, OC y órdenes de impresión.
 
 ## R6 · Configuración de nginx y del proceso
 
-**Archivos:** `infra/nginx/demo.space-os.io.conf`, `ecosystem.config.js`
+**Archivos:** `infra/nginx/space-os.io.conf` y sus `snippets/`,
+`infra/systemd/spaces-web.service`, `infra/systemd/spaces-demo.service`,
+`infra/systemd/flota-reporte.service`
+
+> [!success] 2026-08-28 · El PADRE ya NO corre como root
+> `ecosystem.config.js` deja de mandar en el 3000: la aplicación la arranca
+> **systemd** (`spaces-web.service`) como el usuario **`padre`**. Con eso los
+> tres procesos de la máquina tienen su propio usuario —`padre` en el 3000,
+> `demo` en el 3001, `flota` en el receptor— y **ninguno es root**. Era la deuda
+> que la Fase 4 dejó abierta.
+>
+> **`pm2 restart spaces-web` ya no vale**, y hay dos pasos nuevos en cada
+> despliegue: `chown -R padre:padre apps/web/.next` después del build —Next
+> escribe ahí en caliente y el build lo hace root— y `systemctl daemon-reload`,
+> porque la unidad es un symlink al repositorio.
+>
+> **Y un secreto se cambia en DOS archivos:** `apps/web/.env.production`, que lee
+> el build, y `/etc/space-os/padre.env`, que lee el proceso. Si divergen, manda
+> el segundo. Evidencia: `docs/evidencias/padre-fuera-de-root-20260828.md`.
+>
+> ⚠️ **`pm2 save` se niega a guardar una lista vacía sin `--force`**, y el aviso
+> es un `WARN` en medio de una salida larga. Sin él, el `dump.pm2` conserva
+> `spaces-web` y **al reiniciar la máquina pm2 lo resucita a pelear por el 3000
+> contra systemd**. Comprobar `pm2 list` vacía, no fiarse del mensaje.
 
 **Por qué:** `X-Forwarded-For $remote_addr` es lo que impide falsear la IP y
 saltarse el rate limit del login. Y `instances: 1` es lo que hace que el

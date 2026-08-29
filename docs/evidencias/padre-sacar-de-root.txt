@@ -3,7 +3,17 @@
  Todo en [PADRE] 137.184.107.53. Es ROJO (R6).
 ============================================================
 
+ >>>  EJECUTADA EL 2026-08-28. NO SE REPITE.           <<<
+ Evidencia: docs/evidencias/padre-fuera-de-root-20260828.md
+ El 3000 lo sirve systemd como el usuario `padre`, y de
+ paso entro el trabajo del 27 y 28. Se conserva como
+ registro y como plantilla para la primera instancia de
+ owner, que necesitara lo mismo.
+
  >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  Y MIRA QUE LA LINEA EMPIECE BIEN: esta consola se <<<
+ >>>  come el primer caracter de cada pegado. Antepon   <<<
+ >>>  `echo ok;` y lo que se pierda sera eso.           <<<
 
  >>>  ESTA TARJETA TIRA EL SITIO UNOS SEGUNDOS.  <<<
       Entre parar pm2 (P2) y arrancar systemd (S3) hay una

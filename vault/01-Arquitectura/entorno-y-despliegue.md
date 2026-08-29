@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-28
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -95,6 +95,30 @@ archivos:
 
 ---
 # Entorno y despliegue
+
+> [!important] 2026-08-28 · Cómo se despliega el PADRE, y ya no es con pm2
+> La aplicación del 3000 la arranca **systemd** (`spaces-web.service`) como el
+> usuario **`padre`**, no pm2 como root. La secuencia de despliegue pasa a ser:
+>
+> ```bash
+> cd /var/www/Spaces && git pull
+> npm install                            # si cambió el lockfile
+> npm run build                          # lo hace root
+> chown -R padre:padre apps/web/.next    # NUEVO — o falla al primer cacheo
+> systemctl daemon-reload                # la unidad es symlink al repo
+> systemctl restart spaces-web
+> systemctl restart spaces-demo          # los dos comparten .next
+> ```
+>
+> **El entorno del proceso es `/etc/space-os/padre.env`**, no
+> `apps/web/.env.production` —que sigue en 600 root y lo lee el build—. Next
+> avisará con `EACCES` al arrancar y **eso es correcto**: es lo mismo que ya
+> hace DEMO. Cambiar un secreto son **los dos archivos**.
+>
+> Todo lo que este documento diga más abajo sobre `pm2 reload` describe cómo
+> era, no cómo es. Evidencia:
+> `docs/evidencias/padre-fuera-de-root-20260828.md`.
+
 
 > [!danger] 2026-08-27 · EL DROPLET VIEJO SE RETIRA — lo de abajo sobre él caduca
 > **`209.97.146.136` ya no se usa** (decisión de Jochelo, 27/08) y **sus datos

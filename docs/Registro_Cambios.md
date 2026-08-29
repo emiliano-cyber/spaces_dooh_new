@@ -7,6 +7,13 @@ La entrada más reciente va arriba.
 
 ## 2026-08-28
 
+- **El programa que atiende la aplicación dejó de correr con permisos de
+  administrador.** Hasta hoy funcionaba con la cuenta que puede hacer cualquier
+  cosa en el servidor; ahora tiene una cuenta propia que solo puede tocar lo
+  suyo. No cambia nada de lo que ves ni de cómo se usa: si alguien encontrara
+  una forma de abusar de la aplicación, ahora llegaría mucho menos lejos.
+
+
 - **Las letras de la aplicación ya no vienen de un servidor ajeno.** Hasta hoy,
   cada vez que alguien abría una pantalla, su navegador iba a pedirle las
   tipografías a una empresa de fuentes en internet. Eso significaba tres cosas:
