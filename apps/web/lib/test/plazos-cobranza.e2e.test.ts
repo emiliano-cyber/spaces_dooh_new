@@ -38,6 +38,24 @@ beforeAll(async () => {
   cb = new Cliente()
   await ca.entrar(alfa.usuarioEmail, PASSWORD_DEMO)
   await cb.entrar(beta.usuarioEmail, PASSWORD_DEMO)
+
+  // ─── Desde el 2026-08-28 hay que desbloquear para facturar ───────────────
+  // `20260828_reautenticacion_por_defecto.sql` puso el DEFAULT de
+  // `tenants.exigir_reautenticacion` en `true`, así que una organización recién
+  // sembrada nace con el candado CERRADO y `POST /api/campanas/[id]/facturar`
+  // responde `403 {"requiereDesbloqueo":true}`.
+  //
+  // **LAS DOS**, y no solo `ca`: el desbloqueo vive en la SESIÓN
+  // (`sesiones.desbloqueo_expira_en`, `cambios.ts:65-68`), no en la
+  // organización. `cb` factura en el caso de aislamiento y necesita el suyo.
+  //
+  // ⚠️ Una sola vez por cliente, no antes de cada caso: el endpoint limita a 5
+  // por usuario e IP cada 5 minutos (`cambios/desbloquear/route.ts:20`) y el
+  // desbloqueo dura 15 (`cambios.ts:49`). Ver `borrado-cliente.e2e.test.ts:78-82`.
+  for (const cl of [ca, cb]) {
+    const d = await cl.pedir('/api/cambios/desbloquear/', { cuerpo: { password: PASSWORD_DEMO } })
+    expect(d.status, JSON.stringify(d.datos)).toBe(200)
+  }
 }, 180_000)
 
 afterAll(async () => {
