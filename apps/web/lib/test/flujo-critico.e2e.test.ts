@@ -53,6 +53,27 @@ beforeAll(async () => {
   await arrancarServidor()
   c = new Cliente()
   await c.entrar(org.usuarioEmail, PASSWORD_DEMO)
+
+  // ─── Desde el 2026-08-28 hay que desbloquear para facturar y cobrar ───────
+  // `20260828_reautenticacion_por_defecto.sql` puso el DEFAULT de
+  // `tenants.exigir_reautenticacion` en `true`, así que una organización recién
+  // sembrada nace con el candado CERRADO. Sin esto, las quince pruebas de
+  // facturación y cobranza de este archivo reciben
+  // `403 {"requiereDesbloqueo":true}` en vez de su código esperado.
+  //
+  // **Eso no es un defecto de la migración: es la migración funcionando.** Y
+  // este `beforeAll` es la prueba de que el camino real sigue abierto — un
+  // usuario teclea su contraseña una vez y factura lo que tenga que facturar.
+  //
+  // ⚠️ UNA SOLA VEZ, y no antes de cada caso. `cambios/desbloquear/route.ts:20`
+  // limita a 5 por usuario e IP cada 5 minutos: pedirlo por caso agota el cubo
+  // y tumba la suite entera con 429. El desbloqueo dura 15 minutos
+  // (`cambios.ts:49`) y este archivo corre en segundos. Es la misma trampa que
+  // ya documenta `borrado-cliente.e2e.test.ts:78-82`.
+  const desbloqueo = await c.pedir('/api/cambios/desbloquear/', {
+    cuerpo: { password: PASSWORD_DEMO },
+  })
+  expect(desbloqueo.status, JSON.stringify(desbloqueo.datos)).toBe(200)
 }, 120_000)
 
 afterAll(async () => {

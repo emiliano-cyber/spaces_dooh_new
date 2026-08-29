@@ -148,6 +148,42 @@ describe('el esquema base no trae la organización de nadie', () => {
     expect(trasMigrar.tenants).toBe(0)
   })
 
+  it('una instancia nueva nace PIDIENDO la contrasena en los cambios sensibles', async () => {
+    // `tenants.exigir_reautenticacion` decide si `exigirDesbloqueo()`
+    // (`lib/server/cambios.ts:199-210`) pide la contraseña o deja pasar. Nació
+    // con `default false` en `20260804_reautenticacion_individual.sql:34`, y
+    // **nada en las semillas ni en el aprovisionamiento lo toca**: cada
+    // instancia nueva arrancaba con el candado abierto.
+    //
+    // Eso deja OCHO rutas sensibles sin pedir nada, y tres de ellas mueven
+    // dinero: `campanas/[id]/facturar`, `cobranzas/[id]/pagar` y
+    // `pagos-renta/[id]/pagar`. El permiso del rol sigue aplicando —no es que
+    // pueda facturar cualquiera— pero nadie comprueba que quien está al teclado
+    // sea de verdad esa persona y no alguien que encontró la sesión abierta.
+    //
+    // ─── Por qué el DEFAULT y no un `update` ─────────────────────────────────
+    // Encenderlo en las bases de hoy no sirve para la flota: una instancia nace
+    // de `schema.sql` + migraciones, así que hereda el DEFAULT y no los datos de
+    // nadie. Cambiarlo aquí es lo único que hace que la decisión dure.
+    //
+    // Sigue siendo un interruptor: el Dueño que no quiera la fricción lo apaga.
+    // Lo que cambia es la polaridad — se apaga a propósito en vez de encenderse
+    // a propósito, que es lo que el ADR 0009 pretendía.
+    //
+    // Y la fricción es menor de lo que suena: el desbloqueo dura
+    // `DESBLOQUEO_MINUTOS = 15` (`cambios.ts:49`), así que facturar diez
+    // campañas seguidas pide la contraseña UNA vez.
+    const r = await pool.query<{ def: string | null }>(
+      `select pg_get_expr(d.adbin, d.adrelid) as def
+         from pg_attrdef d
+         join pg_class c on c.oid = d.adrelid
+         join pg_attribute a on a.attrelid = d.adrelid and a.attnum = d.adnum
+        where c.relname = 'tenants' and a.attname = 'exigir_reautenticacion'`,
+    )
+    expect(r.rows[0]?.def, 'la columna no tiene DEFAULT').toBeTruthy()
+    expect(r.rows[0]?.def).toMatch(/true/)
+  })
+
   it('la segunda corrida del runner no aplica nada', () => {
     expect(segunda.status).toBe(0)
     expect(segunda.stdout).toMatch(/0 aplicadas/)
