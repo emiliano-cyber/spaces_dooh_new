@@ -49,8 +49,18 @@ archivos:
 > borra~~ — tarjeta **TH-F4.5**. ⚠️ **REVERTIDO el 2026-08-26 por el
 > [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md): `demo.space-os.io`
 > SE CONSERVA como demostración de las instancias hijas, y la tarjeta TH-F4.5
-> queda cancelada.** El proceso del `3001` **conserva su nombre**: el nginx del
-> PADRE lo sirve en `infra/nginx/space-os.io.conf:188`.
+> queda cancelada.** El proceso del `3001` conserva su bloque de nginx en
+> `infra/nginx/space-os.io.conf:188`.
+>
+> ⚠️ **Y HAY UNA TERCERA CAPA, del 2026-08-27:** el
+> [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)
+> **sustituyó al 0021**. `demo.space-os.io` **no «se conserva»: es solo la
+> demostración ORIGINAL y se eliminará.** No se mueve al PADRE y no se le emite
+> certificado. TH-F4.5 sigue cancelada —el registro A no se borra a mano— y
+> `F4.3` queda sin objeto.
+>
+> Tres reversiones sobre la misma frase. **Lo que manda es el ADR con el número
+> más alto, y hoy es el 0024.**
 >
 > Esa frase tachada estuvo escrita **con la fecha del 26/08 encima** y en tres
 > notas a la vez. Si un agente la lee sin llegar al «REVERTIDO», propone borrar
