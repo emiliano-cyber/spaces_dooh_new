@@ -111,11 +111,21 @@ contraseña requeridos»** sin llegar a la base.
 Se notó porque a través de nginx dio **400** y en el ensayo del 3010 había dado
 **401** con el mismo cuerpo. Rehecha con el cuerpo correcto: **401**.
 
-> **Queda una duda abierta, y se escribe en vez de taparse:** si en el 3010 un
-> cuerpo mal formado devolvió 401, ese 401 **no venía de consultar la base** —
-> venía de otro sitio. Entonces el ensayo del bloque B **no probó lo que dije
-> que probaba**, aunque su conclusión resultara cierta por el 401 posterior
-> contra producción. Pendiente de mirar en frío.
+> **La duda, RESUELTA el mismo día.** Se miró el código y no admite otra
+> lectura: `middleware.ts` solo devuelve **308**, **403** (CSRF) y una
+> redirección — **ningún 401** —, y el 401 del login está en `route.ts:43`,
+> **después** de la consulta, a la que no se llega sin `email` y `password`.
+> Con `{"correo","clave"}` la respuesta es **400 siempre**.
+>
+> Así que aquel `401` del 3010 fue una lectura equivocada al transcribirlo. Pero
+> **lo que importa no es eso: la comprobación B2, tal como estaba escrita, nunca
+> pudo probar que el proceso tocara la base.** Habría dado 400 y yo habría
+> seguido igual, porque lo que miraba era «no es 500». Corregida en la tarjeta,
+> en sus DOS apariciones — el ensayo del 3010 y el V2 contra producción.
+>
+> **El acierto fue mirar el desajuste en vez de aceptarlo.** 400 en producción y
+> 401 en el ensayo no podían ser los dos ciertos, y tirar de ese hilo destapó
+> que la prueba estaba mal desde el principio.
 >
 > Es la cuarta vez en tres días que un chequeo no mide exactamente lo que dice
 > medir. Las otras: `grep -c clientes` dando 1 con el sistema correcto, la
