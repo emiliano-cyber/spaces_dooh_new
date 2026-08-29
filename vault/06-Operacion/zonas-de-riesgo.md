@@ -115,6 +115,21 @@ reservas, creativos, OC y órdenes de impresión.
 `infra/systemd/spaces-web.service`, `infra/systemd/spaces-demo.service`,
 `infra/systemd/flota-reporte.service`
 
+> [!success] 2026-08-28 · La CSP pasa a BLOQUEANTE
+> Nació en modo reporte el 26/08 —una CSP mal puesta no da error de servidor,
+> devuelve 200 con la interfaz rota— y ese modo hizo su trabajo: destapó las
+> fuentes de `api.fontshare.com` y, de paso, el `AuthProvider` archivado que se
+> ejecutaba en cada visita. Las dos cosas se retiraron.
+>
+> **Lo que sostiene el cambio no es una prueba, y conviene saberlo:** una
+> persona recorrió con la consola abierta las cinco pantallas que cargan algo
+> distinto —mapa, arte de creativo, documento de contrato, propuesta pública y
+> panel— sin una sola violación. **Las suites no cargan un navegador**, así que
+> `cabeceras.e2e.test.ts` solo puede afirmar que la cabecera es la bloqueante.
+>
+> **Si se añade una pantalla que cargue de un origen nuevo, la CSP la bloqueará
+> EN SILENCIO.** Volver a reporte es una palabra en `next.config.mjs`.
+
 > [!success] 2026-08-28 · El PADRE ya NO corre como root
 > `ecosystem.config.js` deja de mandar en el 3000: la aplicación la arranca
 > **systemd** (`spaces-web.service`) como el usuario **`padre`**. Con eso los

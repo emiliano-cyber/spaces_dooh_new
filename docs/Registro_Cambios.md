@@ -7,6 +7,14 @@ La entrada más reciente va arriba.
 
 ## 2026-08-28
 
+- **La protección del navegador pasa de avisar a bloquear.** Desde hace dos días
+  la aplicación venía anotando en silencio qué contenido externo cargaba, sin
+  impedir nada, para poder decidir con datos. Ya no queda ninguno: las letras se
+  sirven desde la propia aplicación y se retiró un resto de código viejo que
+  hablaba con fuera. **Ahora sí bloquea.** Si un día apareciera contenido
+  inyectado por alguien que no debe, el navegador se niega a ejecutarlo.
+
+
 - **El programa que atiende la aplicación dejó de correr con permisos de
   administrador.** Hasta hoy funcionaba con la cuenta que puede hacer cualquier
   cosa en el servidor; ahora tiene una cuenta propia que solo puede tocar lo

@@ -88,22 +88,45 @@ describe('SEC-04 · cabeceras de seguridad en la respuesta real', () => {
   })
 })
 
-describe('SEC-04 · la CSP se entrega en modo REPORTE, no bloqueante', () => {
-  it('la página trae `Content-Security-Policy-Report-Only` y NO la bloqueante', async () => {
-    // Las dos afirmaciones van juntas a propósito. La negativa sola pasaría hoy
-    // por la razón equivocada —no hay ninguna CSP—, y un caso que pasa en rojo
-    // no vale. La positiva es la que se cae hasta que la política existe.
+describe('SEC-04 · la CSP se entrega BLOQUEANTE', () => {
+  it('la página trae `Content-Security-Policy` y ya NO la de reporte', async () => {
+    // Las dos afirmaciones van juntas, igual que cuando este caso exigía lo
+    // contrario: la negativa sola pasaría por la razón equivocada —que no
+    // hubiera ninguna CSP— y un caso que pasa en rojo no vale.
+    //
+    // ─── Cuándo dejó de ser report-only, y qué hizo falta ──────────────────
+    // Desde el 2026-08-26 la política se entregaba en modo REPORTE, a
+    // propósito: una CSP mal puesta no da error de servidor, devuelve 200 con
+    // la interfaz rota, y eso solo se ve con un navegador abierto. Quien la
+    // escribió no tenía uno.
+    //
+    // El 28/08 se dieron las dos condiciones que faltaban:
+    //  1. Se retiró la última violación real. Las fuentes venían de
+    //     `api.fontshare.com` —dos avisos, `style-src` y quince de `font-src`,
+    //     en CADA carga— y pasaron a servirse desde el propio origen con
+    //     `next/font`. Ver `lib/tipografia.test.ts`.
+    //  2. Una persona recorrió con la consola abierta las cinco pantallas que
+    //     cargan algo distinto del resto: el mapa (MapTiler y Carto), el arte
+    //     de un creativo en iframe, el documento de un contrato, una propuesta
+    //     pública y el panel de inicio. Ni un `[Report Only] Refused to`.
+    //
+    // **Esa segunda condición no la puede comprobar esta prueba, y por eso se
+    // escribe aquí:** las suites no cargan un navegador, así que lo único que
+    // este caso afirma es que la cabecera es la bloqueante. Que la política no
+    // rompa la interfaz lo sostiene aquel recorrido, no este `expect`.
     const r = await pedirPagina()
-    const reporte = r.headers.get('content-security-policy-report-only')
-    expect(reporte, 'falta la CSP en modo reporte').toBeTruthy()
     expect(
       r.headers.get('content-security-policy'),
-      'la CSP está en modo BLOQUEANTE: eso lo decide una persona con el navegador abierto',
+      'falta la CSP bloqueante',
+    ).toBeTruthy()
+    expect(
+      r.headers.get('content-security-policy-report-only'),
+      'sigue en modo reporte: la política no bloquea nada',
     ).toBeNull()
   })
 
   it('la política cierra lo que no cuesta nada cerrar', async () => {
-    const csp = (await pedirPagina()).headers.get('content-security-policy-report-only') ?? ''
+    const csp = (await pedirPagina()).headers.get('content-security-policy') ?? ''
     // `frame-ancestors 'none'` dice lo mismo que `X-Frame-Options: DENY`, pero
     // en el estándar que los navegadores modernos sí respetan en todos los
     // casos (XFO no admite listas y varios motores ya lo ignoran).
@@ -116,15 +139,20 @@ describe('SEC-04 · la CSP se entrega en modo REPORTE, no bloqueante', () => {
   it('la política NO se aplica a `/api/`, que ya trae la suya', async () => {
     // `app/api/creativos/[id]/arte/route.ts:71`, `.../logo/[token]/route.ts:78`
     // y `.../contratos/[id]/documento/route.ts:62` emiten su PROPIA CSP
-    // (`default-src 'none'; ...; sandbox`), que es mucho más estricta. Añadirles
-    // encima una de reporte con `default-src 'self'` llenaría la consola de
-    // violaciones falsas justo cuando una persona la esté leyendo para decidir
-    // si la política se puede activar. Se excluye la rama `/api/`.
+    // (`default-src 'none'; ...; sandbox`), que es mucho más estricta.
+    //
+    // La exclusión importaba en modo reporte —superponerle una política con
+    // `default-src 'self'` llenaba la consola de violaciones falsas— y en modo
+    // BLOQUEANTE importa MÁS: dos CSP sobre la misma respuesta se aplican como
+    // la INTERSECCIÓN de ambas, así que la de esta rama recortaría lo que esas
+    // tres rutas necesitan para pintar el arte, el logo y el documento. Sin
+    // esta exclusión, un iframe de creativo se queda en blanco.
     const pagina = await pedirPagina()
-    expect(pagina.headers.get('content-security-policy-report-only')).toBeTruthy()
+    expect(pagina.headers.get('content-security-policy')).toBeTruthy()
 
     const api = await fetch(`${BASE}/api/auth/metodos/`)
     expect(api.status).toBe(200)
+    expect(api.headers.get('content-security-policy')).toBeNull()
     expect(api.headers.get('content-security-policy-report-only')).toBeNull()
   })
 })

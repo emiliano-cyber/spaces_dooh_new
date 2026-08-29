@@ -4,22 +4,42 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // ============================================================================
-//  Content-Security-Policy — SE ENTREGA EN MODO REPORTE. No bloquea nada.
+//  Content-Security-Policy — BLOQUEANTE desde el 2026-08-28.
 // ----------------------------------------------------------------------------
 //  Hallazgo SEC-04 de la auditoría del 2026-08-26: no había ni CSP ni
-//  Permissions-Policy. La segunda va directa (abajo); ésta no puede.
+//  Permissions-Policy.
 //
-//  ─── Por qué report-only y no bloqueante ─────────────────────────────────
+//  ─── Nació en modo REPORTE, y pasó a bloquear dos días después ───────────
 //  Una CSP mal puesta no da un error de servidor: devuelve 200 con la interfaz
-//  rota, y eso solo se ve con un navegador abierto. Quien escribió esto no
-//  tenía uno. `Content-Security-Policy-Report-Only` hace que el navegador
-//  compruebe la política y ANOTE las violaciones en la consola sin impedir
-//  nada, que es exactamente el paso que falta antes de poder activarla.
+//  ROTA, y eso solo se ve con un navegador abierto. Quien la escribió no tenía
+//  uno, así que se entregó como `Content-Security-Policy-Report-Only`: el
+//  navegador comprueba la política y ANOTA las violaciones sin impedir nada.
+//
+//  Ese modo hizo su trabajo. Lo que anotó, y que ninguna prueba podía ver
+//  porque las suites no cargan un navegador:
+//
+//   · Las fuentes venían de `api.fontshare.com` — dos violaciones, `style-src`
+//     y quince de `font-src`, en CADA carga de página. Se migraron a
+//     `next/font`, servidas desde el propio origen (`lib/tipografia.test.ts`).
+//   · Y de paso destapó algo que no era suyo: `app/providers.tsx` montaba el
+//     `AuthProvider` del backend archivado, que hacía
+//     `POST http://localhost:3001/auth/refresh` en cada visita — una página de
+//     producción pidiéndole una identidad a la máquina del visitante. Retirado
+//     el 27/08 (`lib/pista-archivada.test.ts`).
+//
+//  El 28/08, con la consola limpia, UNA PERSONA recorrió las cinco pantallas
+//  que cargan algo distinto del resto —el mapa (MapTiler y Carto), el arte de
+//  un creativo en iframe, el documento de un contrato, una propuesta pública y
+//  el panel de inicio— sin un solo `[Report Only] Refused to`. Entonces, y solo
+//  entonces, se quitó el `-Report-Only`.
+//
+//  > **Ese recorrido es lo que sostiene este cambio, y no una prueba.** Si algún
+//  > día se añade una pantalla que cargue de un origen nuevo, la CSP la
+//  > bloqueará EN SILENCIO: 200 y la interfaz a medias. Volver a reporte es
+//  > quitar y poner una palabra en la clave de abajo.
 //
 //  NO se declara `report-uri` ni `report-to`: no hay endpoint que recoja los
-//  informes y no se va a inventar uno. Las violaciones se leen en la consola
-//  del navegador. Ver `docs/` / el informe de la auditoría para el paso a modo
-//  bloqueante.
+//  informes y no se va a inventar uno. Las violaciones se leen en la consola.
 //
 //  ─── Cada directiva, y contra qué se comprobó ────────────────────────────
 //  · script-src 'unsafe-inline' — Next 14 con App Router mete scripts EN LÍNEA
@@ -61,7 +81,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 //  de verdad aísla un creativo malicioso, y no depende de esta política. No se
 //  toca.
 // ============================================================================
-const CSP_REPORTE = [
+const POLITICA_CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -174,18 +194,23 @@ const nextConfig = {
           },
         ],
       },
-      // ── Content-Security-Policy, en modo REPORTE (SEC-04) ──────────────────
+      // ── Content-Security-Policy, BLOQUEANTE (SEC-04) ───────────────────────
       // Bloque aparte del de arriba porque su `source` EXCLUYE `/api/`: tres
       // rutas de ahí ya emiten su propia CSP, mucho más estricta, para el
       // contenido que sirven dentro de un iframe
       // (`api/creativos/[id]/arte/route.ts:71`, `api/logo/[token]/route.ts:78`,
       // `api/contratos/[id]/documento/route.ts:62`). Superponerles una de
-      // reporte con `default-src 'self'` no las debilita, pero llena la consola
-      // de violaciones falsas justo cuando una persona la esté leyendo para
-      // decidir si la política se puede activar.
+      // reporte con `default-src 'self'` llenaba la consola de violaciones
+      // falsas justo cuando una persona la estaba leyendo para decidir si la
+      // política se podía activar.
+      //
+      // ⚠️ EN MODO BLOQUEANTE ESA EXCLUSIÓN IMPORTA MÁS, no menos. Dos CSP
+      // sobre la misma respuesta se aplican como la INTERSECCIÓN de ambas: la
+      // de aquí recortaría lo que esas tres rutas necesitan para pintar, y un
+      // iframe de creativo se quedaría en blanco sin decir por qué.
       {
         source: '/:ruta((?!api/).*)',
-        headers: [{ key: 'Content-Security-Policy-Report-Only', value: CSP_REPORTE }],
+        headers: [{ key: 'Content-Security-Policy', value: POLITICA_CSP }],
       },
     ]
   },
