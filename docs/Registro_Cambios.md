@@ -7,6 +7,15 @@ La entrada más reciente va arriba.
 
 ## 2026-08-28
 
+- **Facturar, cobrar y pagar una renta ahora piden tu contraseña.** Hasta hoy no
+  la pedían: bastaba con que tu usuario tuviera el permiso. Eso deja fuera a
+  quien no debe entrar, pero no comprueba que quien está frente a la pantalla
+  seas tú y no alguien que encontró tu sesión abierta. **Te la pide una vez y
+  vale por quince minutos**, así que facturar diez campañas seguidas la pide una
+  sola vez. Editar clientes, propuestas o pantallas **no** la pide. Si a tu
+  organización le estorba, se puede apagar.
+
+
 - **La protección del navegador pasa de avisar a bloquear.** Desde hace dos días
   la aplicación venía anotando en silencio qué contenido externo cargaba, sin
   impedir nada, para poder decidir con datos. Ya no queda ninguno: las letras se

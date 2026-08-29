@@ -144,12 +144,15 @@ se le dice «tenant»** a nivel de negocio.
 > [!warning] 2026-08-26 · Esta definición afirmaba dos cosas — y solo UNA sigue siendo falsa
 > Decía que DEMO vive en `demo.space-os.io` y que es **la única con autoregistro**.
 >
-> - **El nombre: la afirmación original era la buena.** El
->   [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) lo retiró por unas
->   horas y el [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md) lo
->   **devolvió el mismo día**: `demo.space-os.io` **se conserva** porque es la
->   demostración de las instancias hijas, y la tarjeta **TH-F4.5 queda
->   cancelada**. Lo sirve `infra/nginx/space-os.io.conf:188`.
+> - **El nombre: SE ELIMINARÁ, y esta viñeta decía lo contrario.** El
+>   [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) lo retiró, el
+>   [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md) lo devolvió el
+>   mismo día, y el
+>   [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md)
+>   (27/08) **cerró el asunto**: `demo.space-os.io` es solo la demostración
+>   ORIGINAL y desaparece. **No se mueve al PADRE, no se le emite certificado.**
+>   La tarjeta **TH-F4.5 sigue cancelada** —el registro A no se borra a mano— y
+>   `F4.3` queda **sin objeto**.
 > - **El autoregistro: sigue siendo falso.** Está **cerrado en toda la flota**
 >   desde **P8** (14/08, reafirmado el 20/08), **DEMO incluida**.
 >

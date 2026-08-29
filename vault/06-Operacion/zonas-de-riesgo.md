@@ -98,6 +98,25 @@ pago altera saldos.
 - [ ] El endpoint sigue siendo `exigirCambioSensible`, no `exigir` a secas.
 - [ ] Doble factura sobre lo mismo sigue dando 409.
 
+> [!success] 2026-08-28 · Las rutas de dinero ya piden la contraseña
+> `exigirCambioSensible()` comprueba el permiso del rol **y** llama a
+> `exigirDesbloqueo()`, que mira `tenants.exigir_reautenticacion`. Esa columna
+> nacía en `default false` y **nada la encendía nunca** —ni las semillas ni el
+> aprovisionamiento—, así que las **ocho** rutas que usan ese guard no pedían
+> nada. Tres mueven dinero: `campanas/[id]/facturar`, `cobranzas/[id]/pagar` y
+> `pagos-renta/[id]/pagar`.
+>
+> `20260828_reautenticacion_por_defecto.sql` pone el **DEFAULT en `true`**: toda
+> instancia nace con el candado cerrado. **Sigue siendo un interruptor** (ADR
+> 0009) — lo que cambió es la polaridad, porque un candado que hay que acordarse
+> de cerrar está abierto la mayor parte del tiempo.
+>
+> **Si tocas una prueba que factura o cobra, tendrás que desbloquear**: una vez
+> en el `beforeAll`, nunca por caso — el endpoint limita a 5 cada 5 minutos y
+> tumba la suite con 429. Y en un archivo con dos organizaciones hay que
+> desbloquear **las dos sesiones**: el desbloqueo vive en `sesiones`, no en el
+> tenant. Evidencia: `docs/evidencias/reautenticacion-dinero-20260828.md`.
+
 ## R5 · Borrados en cascada
 
 **Por qué:** ocho relaciones `ON DELETE CASCADE` (ver [[esquema]]). Borrar un
