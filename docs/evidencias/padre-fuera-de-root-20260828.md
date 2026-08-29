@@ -141,12 +141,27 @@ Se notó porque a través de nginx dio **400** y en el ensayo del 3010 había da
 ```bash
 cd /var/www/Spaces && git pull
 npm install                            # si cambió el lockfile
+git checkout -- package-lock.json     # NUEVO — ver abajo
 npm run build                          # lo hace root
 chown -R padre:padre apps/web/.next    # <-- NUEVO. Sin esto falla al primer cacheo
 systemctl daemon-reload                # la unidad es un symlink al repo
 systemctl restart spaces-web
 systemctl restart spaces-demo          # los dos comparten .next
 ```
+
+> **Ese `git checkout -- package-lock.json` no es paranoia.** El PADRE corre
+> **node v20** y el CI usa **node 22**: cada `npm install` poda del lockfile las
+> entradas de paquetes opcionales de otras plataformas —72 líneas la primera
+> vez, medido el 28/08— y lo deja modificado. Es inofensivo en el momento, pero
+> **el próximo `git pull` que toque ese archivo da conflicto**, y eso sí para un
+> despliegue en el peor momento.
+>
+> No se cambia a `npm ci`: se eligió `npm install` a propósito, porque `ci`
+> borra `node_modules` y un fallo de red a media descarga deja la máquina sin
+> dependencias **y** sin sitio. El remedio es descartar el cambio después, no
+> cambiar el comando. El lockfile del repositorio es el que manda: lo valida
+> `lockfile-check.yml` con `npm ci --dry-run` en cada push.
+
 
 **Y si se toca un secreto, van DOS archivos:** `apps/web/.env.production` (que
 lee el build, como root) y `/etc/space-os/padre.env` (que lee el proceso). Si

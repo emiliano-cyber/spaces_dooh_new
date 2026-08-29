@@ -103,6 +103,7 @@ archivos:
 > ```bash
 > cd /var/www/Spaces && git pull
 > npm install                            # si cambió el lockfile
+> git checkout -- package-lock.json      # node 20 aquí, 22 en el CI: lo poda
 > npm run build                          # lo hace root
 > chown -R padre:padre apps/web/.next    # NUEVO — o falla al primer cacheo
 > systemctl daemon-reload                # la unidad es symlink al repo
