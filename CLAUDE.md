@@ -203,14 +203,15 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
   Postgres real en el 5433, en serie, contra un Next real en el puerto 3311).
 
 > [!warning] No copies de aquí un recuento de pruebas — mídelo
-> **Crecen con cada tarea.** En `feat/servidor-padre-instancias` pasaron de 789 a
-> **803** unitarias en dos días, y las e2e de 12 a 13 archivos. Cualquier cifra
-> escrita aquí caduca al siguiente commit, y **este archivo ya la tuvo mal dos
-> veces** — la segunda con la fecha de hoy encima, que es peor que no ponerla.
-> Si necesitas el número, córrelo: `cd apps/web && npm test`.
+> **Crecen con cada tarea.** De 789 el 12/08 a **1005 en 94 archivos** el 28/08,
+> y las e2e de 12 a **29 archivos**. Cualquier cifra escrita aquí caduca al
+> siguiente commit, y **este archivo ya la tuvo mal tres veces** — la última
+> arrastró seis recuentos desfasados durante dieciocho días **mientras la bóveda
+> estaba al día**. Si necesitas el número, córrelo:
+> `cd apps/web && npm test`.
 >
-> Y ojo con dónde lo corres: la raíz del repo y `.claude/worktrees/servidor-padre`
-> son **ramas distintas con recuentos distintos** (796 y 803 el 14/08).
+> **Y ojo con dónde lo corres:** cada worktree está en una rama distinta y da un
+> recuento distinto. Mídelo en el mismo árbol donde vas a trabajar, no en otro.
 - **Migraciones** `YYYYMMDD_descripcion.sql`, transaccionales e idempotentes. **No
   se edita una ya aplicada** y **no se toca `db/schema.sql` directo**.
 - **La bitácora es parte del trabajo**: si el cambio se nota desde la aplicación,
@@ -233,7 +234,8 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > cd apps/web && npm run build && npm run test:e2e   # 61 s con el build hecho
 > ```
 >
-> Comprobado el 2026-08-13 al montar el worktree `servidor-padre`.
+> Comprobado el 2026-08-13, y otra vez el 28/08 al abrir un worktree nuevo
+> desde `main`: el síntoma es idéntico y sigue sin decir nada del código.
 
 ### La trampa del orden de migraciones
 
@@ -305,34 +307,57 @@ Hay **una sola pista viva**: `apps/web`, Next con BFF integrado sobre `db/schema
 
 ## 6 · Ramas: dónde se trabaja qué
 
-El trabajo del modelo de instancias **no va en la rama principal**. Va en su propia
-rama, dentro de su propio worktree, para poder probar servidores sin arrastrar al
-resto del proyecto.
+**Todo el trabajo de instancias soberanas está en `main` desde el 2026-08-28**
+(PR #10, 310 commits). La rama `feat/servidor-padre-instancias` y su worktree
+`.claude/worktrees/servidor-padre` **ya no existen**: se retiraron al aterrizar.
+
+> Si un documento te manda entrar a ese worktree, está viejo. Y si te dice que el
+> trabajo de instancias «no va en la rama principal», eso era cierto hasta el
+> 28/08: se aisló mientras estaba a medio hacer, y se fusionó cuando dejó de
+> estarlo.
 
 | Rama | Worktree | Para qué |
 |---|---|---|
-| `main` | — | Base estable. Protegida por `ci.yml` (typecheck + test + build) |
-| **`feat/servidor-padre-instancias`** | **`.claude/worktrees/servidor-padre`** | **Modelo de instancias soberanas: pruebas de servidores, releases, aprovisionamiento** |
+| **`main`** | — | **La base, y donde vive el trabajo de instancias.** Protegida por `ci.yml` (typecheck + test + build) y `lockfile-check.yml` |
 | `feat/ui-base-404-atajos` | raíz del repo | UI base y atajos del 404 |
-| `docs/manual-usuario-y-reglas-agentes` | — | Ya absorbida por la anterior; redundante |
+| **`chore/retirar-scripts-pista-archivada`** | — | **F5.5, preparada y SIN FUSIONAR.** Depende de F3.6, que espera el registry. **No la borres** |
+| `docs/manual-usuario-y-reglas-agentes` | — | Ya absorbida; redundante |
 
-### La rama de servidores
+### Cómo se trabaja ahora
 
-Es donde se ejecuta el plan de instancias soberanas, y está aislada a propósito:
-toca `Dockerfile`, workflows de release, scripts de aprovisionamiento, el runner de
-migraciones y `update.sh`. Nada de eso debe filtrarse a `main` a medio hacer.
-
-Trabajar ahí es entrar al worktree, no cambiar de rama en la raíz:
+Una rama por tarea, salida de `main`, y **PR en vez de fusión local**. El motivo
+no es ceremonia: `ci.yml` corre typecheck, pruebas y build **en una máquina
+limpia**, que es una verificación independiente de la que hagas tú aquí. Los dos
+merges del 28/08 se hicieron así.
 
 ```powershell
-cd C:\Users\Server\spaces_doohmain_nueva\.claude\worktrees\servidor-padre
+cd C:/Users/Server/spaces_doohmain_nueva
+git fetch emiliano main:main
+git worktree add -b <tipo>/<asunto> .claude/worktrees/<asunto> main
+cd .claude/worktrees/<asunto>
 npm install
-copy ..\..\..\apps\web\.env       apps\web\.env
-copy ..\..\..\apps\web\.env.local apps\web\.env.local
+copy ../../../apps/web/.env       apps/web/.env
+copy ../../../apps/web/.env.local apps/web/.env.local
 cd db; docker compose up -d      # Postgres de desarrollo en el 5433
 ```
 
 Sin `node_modules` ni `.env` no corre ni la primera prueba.
+
+> [!warning] El worktree raíz está en `feat/ui-base-404-atajos`, no en `main`
+> No cambies de rama ahí para trabajar: abre un worktree. Y como `main` no está
+> desplegado en ninguno, para actualizarlo se usa `git fetch emiliano main:main`,
+> que no necesita checkout.
+
+### El PADRE despliega desde `main`
+
+Desde el 28/08, `/var/www/Spaces` en `137.184.107.53` está en `main`. Antes
+seguía a `feat/servidor-padre-instancias`, y dejarlo así habría hecho que sus
+`git pull` no trajeran nada **sin dar ningún error**.
+
+Y la secuencia de despliegue **ya no es `pm2 restart`**: la aplicación la arranca
+systemd como el usuario `padre`. Está en
+`vault/01-Arquitectura/entorno-y-despliegue.md` y en
+`docs/evidencias/padre-fuera-de-root-20260828.md` §5.
 
 ### Remotos — cuidado con este
 
@@ -379,19 +404,38 @@ El contexto completo —qué cambió, qué costó, qué está bloqueado y por qu
 - **No se replanea.** Si el repositorio contradice una tarea, se para y se muestra la
   evidencia con `archivo:línea`.
 
-### Lo que está detenido
+### Lo que está detenido — al 2026-08-28
 
-**F5.7, F7.2 y F7.3 están BLOQUEADAS** por decisiones de negocio abiertas, y **F2.6
-está condicionada**. De la Fase 7 solo se puede hacer el censo (**F7.1**), que es de
-solo lectura. Las cuatro decisiones pendientes son: destino del tenant `rgb` y del
-droplet actual, fecha de migración de PIXELED, en qué cuenta de DigitalOcean nacen
-las instancias, y el nombre del registry de imágenes.
+**El proyecto ya no está limitado por trabajo, sino por decisiones.** De las 10
+tareas que quedan con objeto, **9 esperan el nombre del registry de imágenes**,
+que son dos variables de repositorio y un secreto. Los workflows que las usan ya
+están escritos y **paran en seco cuando faltan, a propósito**.
 
-Y una contradicción que hay que resolver antes de la Fase 2 (**P4-bis**): DEMO
-necesita el autoregistro encendido, esa bandera **se hornea en el build**, y la regla
-dice que el artefacto es idéntico para todas las instancias. Las dos cosas no pueden
-ser ciertas a la vez. Las salidas son publicar dos imágenes por versión, o sacar la
-bandera del build y decidirla en el servidor — como ya se hizo con `GOOGLE_OAUTH`.
+Fases cerradas: **0, 1, 4 y 6**. La 3 en 8 de 9.
+
+> [!danger] La Fase 7 ya no existe, y seis tareas más quedaron sin objeto
+> El **ADR 0023** (27/08) sacó el droplet viejo del modelo al confirmarse que
+> **sus datos eran de prueba**. Con eso `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y
+> `F7.3` dejaron de tener sentido — no se cancelaron, perdieron su objeto. Y el
+> **ADR 0024** dejó sin objeto `F4.3`. **El plan pasa de 46 tareas a 39.**
+>
+> Si un documento te habla del censo de `spaces_prod`, del destino del tenant
+> `rgb` o de migrar PIXELED, describe un problema que **ya no existe**.
+
+**Las dos decisiones que siguen abiertas:**
+
+1. **El nombre del registry.** Tarjeta escrita en
+   `docs/evidencias/registry-TH-P4.txt`.
+2. **Qué dirección representa a DEMO** para el smoke de promoción. Y ojo, porque
+   es fácil darla por resuelta con la anterior: `promover.yml:120-134` exige
+   `DEMO_URL` y valida contra ella **antes** de promover. Apuntarla a
+   `demo.space-os.io` haría que el smoke **validara la máquina equivocada**, que
+   corre código del 11/08. **`F2.4` no se desbloquea con el registry.**
+
+> **P4-bis quedó resuelta** el 14/08: la bandera del autoregistro salió del build
+> (`F2.6`) y cambió de polaridad — ahora **solo `AUTOREGISTRO=1` enciende**, y
+> ausente significa apagado. El artefacto vuelve a ser idéntico para toda la
+> flota, que era la contradicción.
 
 ---
 
@@ -427,9 +471,11 @@ Reglas que aplican a cualquier sesión en este repo, no solo de noche:
 - **Commits en español**, `tipo(ámbito): descripción en minúscula`. Uno por tarea con sentido.
 - **Nunca** `ssh`, `curl` a producción, `doctl`, `psql` contra un servidor, `certbot`, `pm2`,
   `git push`, `git tag`, `gh`. Los comandos contra servidores se escriben para que los corra una
-  persona. Las tareas de servidor (F3.5, F3.6, F4.5, F5.6, F5.7, F6.3, Fase 7) son de Carlos.
-- **Las cuatro decisiones de §8 (P1–P4) y P4-bis no las decide Claude.** En modo desatendido se
-  aparca la tarea y se escribe la entrada en `docs/noche/DECISIONES-<fecha>.md`. Aparcar la tarea,
-  nunca la noche. Y nunca elegir "lo razonable" para no perder tiempo.
+  persona. Las tareas de servidor que quedan (**F3.5, F3.6, F5.6, F5.7**) las corre una persona.
+  `F4.5` y `F6.3` ya se cerraron, y la **Fase 7 dejó de existir** (ADR 0023).
+- **Las decisiones de negocio no las decide Claude.** Quedan dos abiertas: el **nombre del
+  registry** y **qué dirección representa a DEMO** para el smoke de promoción (§7). En modo
+  desatendido se aparca la tarea y se escribe la entrada en `docs/noche/DECISIONES-<fecha>.md`.
+  Aparcar la tarea, nunca la noche. Y nunca elegir "lo razonable" para no perder tiempo.
 - **Ningún valor real quemado** en archivos versionados: ni dominios, ni IPs, ni tokens, ni el
   nombre del registry. Van como parámetro (`REGISTRY`, `__DOMINIO__`).
