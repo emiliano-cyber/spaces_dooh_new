@@ -6,6 +6,7 @@ import { Plus, Pencil, Trash2, Check, X, AlertTriangle } from 'lucide-react'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
 import { cn } from '@/lib/cn'
+import { esRfcValido } from '@/lib/rfc'
 import {
   crearRazonSocialApi,
   editarRazonSocialApi,
@@ -39,8 +40,12 @@ const inputCls =
   'h-8 w-full rounded border border-border-strong bg-surface px-2 text-[12.5px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent'
 
 // El RFC se valida en el servidor; aquí solo se avisa antes de mandarlo, para no
-// gastar un viaje en un error de dedo evidente.
-const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i
+// gastar un viaje en un error de dedo evidente. Se usa la MISMA función que el
+// servidor: esto era una copia de la expresión, y cuando el 26/08 se le exigió
+// al RFC que su fecha existiera en un calendario, la copia se quedó atrás. El
+// resultado de divergir es el peor de los dos mundos: el formulario da por bueno
+// `XAXX021301000`, deja enviar, y el servidor devuelve 400 sobre un campo que la
+// pantalla ya había marcado en verde.
 
 interface Borrador {
   razonSocial: string
@@ -83,7 +88,7 @@ export function GestionRazonesSociales({
     setBorrador(VACIO)
   }
 
-  const rfcInvalido = !!borrador.rfc.trim() && !RFC_RE.test(borrador.rfc.trim())
+  const rfcInvalido = !esRfcValido(borrador.rfc)
   const puedeGuardar = !!borrador.razonSocial.trim() && !rfcInvalido && !ocupado
 
   async function guardar() {

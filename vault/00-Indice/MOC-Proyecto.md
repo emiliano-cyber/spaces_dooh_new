@@ -1,7 +1,7 @@
 ---
 tipo: moc
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-28
 tags: [indice, entrada]
 archivos:
   - package.json
@@ -26,10 +26,33 @@ cobranza.
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Producción | `https://demo.space-os.io/spaces-dooh/` | `infra/nginx/demo.space-os.io.conf` |
-| Endpoints | 88 route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | 38 | [[esquema]] |
-| Migraciones | 66 | [[migraciones]] |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y **conserva su nombre público `demo.space-os.io`**: es la demostración de las instancias hijas | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
+| Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | 39 | [[esquema]] |
+| Migraciones | **74** | [[migraciones]] |
+| ADR | **24** (`0001`–`0024`) | `docs/adr/` · [[decisiones]] |
+
+> [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
+> Ese nombre **no sirve más que para la demostración original** —la anterior al
+> modelo de instancias— y **desaparece**. No se mueve al PADRE, no se le emite
+> certificado y no se le busca máquina. La demostración de las instancias hijas
+> será **una instancia hija de verdad**, la primera que nazca de `F5.7`.
+>
+> Con eso **`F4.3` queda sin objeto** y el plan v3 baja a **39 tareas con
+> objeto**. Su certificado vence el **2026-10-26**, y eso pasa a ser su
+> caducidad natural, no un plazo que obligue a nada.
+>
+> **Este punto giró SEIS veces en seis días** (ADR 0015 → 0016 → 0017 → 0020 →
+> 0021 → 0024). Lo que costó caro no fue cambiar de idea: fue que las partes que
+> **no** se decidían se rellenaran por deducción. El 0024 cierra los dos huecos
+> que el 0021 dejaba abiertos —qué máquina lo sirve y qué pasa con su
+> certificado—, así que **ya no se pregunta y no se infiere lo contrario**.
+
+> [!warning] No confundas «90 endpoints» con «los 72 endpoints censados»
+> El censo de validación de entrada del 26/08 (`721557d`, `e125dee`) revisó **72**
+> route handlers: los que reciben cuerpo. Es un subconjunto, no el total. Un
+> commit que diga «72 endpoints» habla de ese censo; el total de
+> `app/api/**/route.ts` medido el **27/08** es **90**.
 
 ## Antes de tocar nada
 
@@ -48,11 +71,12 @@ cobranza.
 - [[vision-general]] — diagrama de componentes y por qué hay una sola pista viva
 - [[stack-y-dependencias]] — versiones reales y por qué están fijadas
 - [[entorno-y-despliegue]] — local, CI y el despliegue manual por SSH
-- [[decisiones]] — los 12 ADR y las decisiones deducidas del código
+- [[decisiones]] — los 24 ADR y las decisiones deducidas del código
+- [[modelo-instancias-soberanas]] — una instancia por owner: avance de la corrección del 12/08, costos y calendario
 
 ### 02 · Backend
 - [[02-Backend/_indice|Índice de Backend]] — mapa de la capa servidor
-- [[api-endpoints]] — los 88 endpoints con método, guard y módulo
+- [[api-endpoints]] — los 90 endpoints con método, guard y módulo
 - [[autenticacion-y-sesion]] — cookie, sesión, CSRF, permisos, reautenticación
 - [[multi-tenancy-y-rls]] — cómo se aísla cada organización
 - [[inventario-y-sitios]] — pantallas, modalidades, importación
@@ -72,8 +96,8 @@ cobranza.
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 
 ### 04 · Datos
-- [[esquema]] — diagrama ER y las 38 tablas
-- [[migraciones]] — las 66 en orden, y las trampas de orden
+- [[esquema]] — diagrama ER y las 39 tablas
+- [[migraciones]] — las 74 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
@@ -91,8 +115,31 @@ cobranza.
 ### 07 · Agentes
 - [[AGENTES]] — particionado, claims, ramas, conflictos
 - [[tablero]] — estado vivo de las zonas
+- [[ejecucion-plan-v3]] — estado vivo de la ejecución del plan v3, tarea por tarea
+- [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
+  cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-10]] — **última entrada**: despliegues del día + V2-01
+- [[2026-08-27]] — **última entrada**: la CSP en modo reporte destapa que la pista
+  archivada seguía ejecutándose en producción; se retiran nueve rutas
+- [[2026-08-25]] — el PADRE nunca había hablado con su base,
+  y cuatro documentos lo daban por vivo
+- [[2026-08-24]] — la Fase 4 se queda sin su objeto… y la misma tarde se
+  desmiente: el acceso al droplet viejo **nunca se perdió**
+- [[2026-08-21]] — el droplet PADRE en pie, y los siete
+  defectos que solo aparecen corriendo el procedimiento en un servidor real
+- [[2026-08-20]] — los tres ROJO del re-ensayo de la Fase 4, cerrados; el
+  catálogo de permisos completo y la contraseña del Dueño
+- [[2026-08-19]] — la fuga de credenciales cerrada al cuarto intento, la Fase 4
+  ensayada, y «las bases son de pruebas»
+- [[2026-08-18]] — turno nocturno de guardia: F3.4 ensayada, F3.8, F3.7 y la poda;
+  F3.9 en dos ciclos
+- [[2026-08-17]] — el runner de migraciones en tres ciclos, T-04, F3.3, el
+  workflow de release y `update.sh`
+- [[2026-08-14]] — expedientes de evidencia, Fase 2 y el registro cerrado en toda la flota
+- [[2026-08-13]] — entra el plan v3 con sus tres agentes; Fase 1 cerrada en local
+- [[2026-08-12]] — nace el plan del servidor padre
+- [[2026-08-11]] — el menú lateral cuenta el proceso
+- [[2026-08-10]] — despliegues del día + V2-01
 - [[2026-08-07]] — creación de la bóveda y la tarde de Google
 
 ### 08 · Manuales
@@ -100,8 +147,16 @@ cobranza.
   entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
 
 > [!tip] Esta bóveda caduca
-> Última validación completa contra el código: **10/08/2026**. El procedimiento
-> para repetirla (cuatro chequeos y sus dos trampas) está en [[convenciones]].
+> Última validación completa contra el código: **28/08/2026**. El procedimiento
+> para repetirla (cuatro chequeos y sus cuatro trampas) está en [[convenciones]].
+> Lo medido ese día: **90** route handlers, **74** migraciones, **39** tablas,
+> **24** ADR, **22** pantallas del shell; **753 enlaces internos, 0 rotos, 0
+> huérfanas** sobre **57** notas. Pruebas: **1005 unitarias en 94 archivos** y
+> **29 archivos e2e**.
+>
+> Lo único que se movió respecto del **27/08** fueron los ADR (22 → **24**, con
+> el `0023` y el `0024`) y la bóveda misma (56 → 57 notas, 726 → 753 enlaces, por
+> el diario del 27/08). Endpoints, migraciones y tablas **no se movieron**.
 
 ## Advertencia sobre la documentación existente
 

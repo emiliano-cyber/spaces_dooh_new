@@ -12,10 +12,36 @@ archivos:
 
 # Inventario — Space OS (spaces_doohmain_nueva) — 2026-08-11
 
+> [!warning] Esto es una FOTOGRAFÍA del 2026-08-11, y no se reescribe
+> Un inventario fechado vale por lo que era cierto ese día; corregirlo lo
+> convertiría en otra cosa. Lo que ha cambiado se anota aquí arriba y el cuerpo
+> se deja intacto.
+>
+> **Retirado el 2026-08-27 — nueve rutas que este documento describe y ya no
+> existen:** `lib/auth-context.tsx`, `lib/api-client.ts`,
+> `lib/data/adapters/http.ts`, `lib/portal-cliente-api.ts`,
+> `components/operaciones/OTMovil.tsx`, `components/campanas/ReporteVisual.tsx`,
+> `components/campanas/ReadinessPanel.tsx`,
+> `components/shared/PermissionGuard.tsx` y `app/_legacy/` (7 páginas).
+>
+> Con ellas se van `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG`, que este
+> inventario contaba en 6 y 4 archivos: hoy son **cero**.
+>
+> **Sus hallazgos D-6 y D-8 quedan resueltos por ese retiro** — y conviene
+> decirlo: **D-6 tenía razón desde el 11/08** y nadie actuó, porque
+> [[zonas-de-riesgo]] §A6 afirmaba lo contrario y esa es la nota que se lee
+> antes de tocar código. Ver el §A6 de hoy.
+
 > **Qué es este documento.** Inventario factual de reconocimiento, hecho leyendo
 > primero la bóveda (`vault/`, 39 notas) y verificando después contra el código.
 > Cada afirmación lleva evidencia `ruta:línea`. Lo no verificable está en §10.
 > **Solo lectura**: no se modificó ni ejecutó nada del repo, la base ni el servidor.
+
+> [!warning] Los recuentos de esta nota son válidos **al 2026-08-11** y ya no lo son hoy
+> Es un *snapshot* fechado en su propio nombre: envejecer es su naturaleza, y **no se
+> re-mide**. Los recuentos vigentes están en [[esquema]], [[migraciones]] y
+> [[MOC-Proyecto]]. Al 2026-08-17 son **39 tablas en el repo** (38 en producción) y
+> **68 migraciones**, no las «38 tablas / 66 migraciones» que se leen abajo.
 
 ---
 
@@ -154,7 +180,7 @@ desincronizan.
 - **Quién:** cualquiera con la URL.
 - **Empieza:** `/login`, modo `signup` (`login/page.tsx:126`).
 - **Endpoint:** `POST /api/signup` (`app/api/signup/route.ts:18`).
-- **Guardas:** 503 si `NEXT_PUBLIC_AUTOREGISTRO=0` (`signup/route.ts:19-24`);
+- **Guardas:** 503 salvo `AUTOREGISTRO=1` (`signup/route.ts:21-26`, `lib/entorno.ts:27`);
   rate limit **5/hora por IP** (`signup/route.ts:26`).
 - **Cadena servidor:** `registrarCuentaCtrl` → `crearOrgConDueno` → `crearTenant()`
   + `crearUsuario()` (`lib/server/cuentas-controller.ts:41-63`).
@@ -445,8 +471,9 @@ El tenant de estas rutas lo deriva **Postgres** del token (`portal_tenant_por_to
 **Aislamiento.** Todas las tablas con `tenant_id` tienen RLS fail-closed + FORCE
 salvo las exentas de bootstrap (`tenants`, `sesiones`, `rol_permisos`,
 `folios_consecutivos`). Además hay **doble capa**: la app añade `and tenant_id = $n`
-explícito en toda operación por id. **21 tablas tienen `DEFAULT` de `tenant_id`
-apuntando a `rgb`** (`schema.sql:615`) — es la causa de la deriva de datos conocida;
+explícito en toda operación por id. **23 tablas tienen `DEFAULT` de `tenant_id`
+apuntando a `rgb`** (listadas en `schema.sql:604-609`, el default se aplica en
+`:615`) — es la causa de la deriva de datos conocida;
 `config_negocio` se dejó sin default a propósito (`schema.sql:630-633`).
 
 **Las cinco puertas a la base** (`lib/server/db.ts`): `q`/`q1` (fijan tenant, por
@@ -477,7 +504,7 @@ pero **publica de verdad** en DOOHmain.
 | `HSTS` | Strict-Transport-Security | `next.config.mjs:40` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente (hacen falta **las dos**) | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin ella la ruta da 503 | `app/api/recordatorios/route.ts:39,49` |
-| `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública (**UI + servidor**) | `app/api/signup/route.ts:19` |
+| `AUTOREGISTRO` | **Solo `=1` enciende** el alta pública (UI + servidor); ausente = apagado. Se llamaba `NEXT_PUBLIC_AUTOREGISTRO` y la polaridad era la contraria hasta F2.6 | `apps/web/lib/entorno.ts:27`, `app/api/signup/route.ts:21` |
 | `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga recuperar contraseña | `app/(app)/login/page.tsx:24` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas | `components/maps/SitiosMap.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts` |
@@ -772,7 +799,7 @@ Fastify + Prisma + Redis + `apps/api` y **está obsoleto** (`README.md:5-31`).
 11. **`rol_permisos` es global a la instalación** (sin `tenant_id`, `schema.sql:75-80`).
     Cambiar los permisos de un rol se los cambia a las cinco organizaciones. ¿Es
     deliberado o es la misma deuda que el ADR 0011 arregló para `config_negocio`? (P4)
-12. **21 tablas con `DEFAULT` de `tenant_id` a `rgb`** (`schema.sql:615`). ¿Se quitan
+12. **23 tablas con `DEFAULT` de `tenant_id` a `rgb`** (`schema.sql:604-609`). ¿Se quitan
     para que un insert sin tenant falle en vez de mentir? (P15)
 13. **`clave_interna` y `codigo_proveedor` son UNIQUE globales** (`schema.sql:124-125`):
     dos organizaciones no pueden usar el mismo código de proveedor. ¿Deseado? (P12)

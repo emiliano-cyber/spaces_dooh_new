@@ -1,0 +1,58 @@
+# Contexto de build de la imagen de SPACE OS (Dockerfile en esta misma raiz).
+# Todo lo que NO este listado aqui viaja dentro del `docker build`, y lo que
+# viaja puede acabar horneado en la imagen que corren todas las instancias.
+
+# --- Lo que nunca puede entrar ---------------------------------------------
+# El artefacto standalone SE LLEVA el .env dentro: al construir F2.1 se
+# comprobo que .next/standalone/apps/web/.env sale byte a byte identico a
+# apps/web/.env (mismo md5), con GOOGLE_CLIENT_SECRET y compania dentro. Si un
+# .env entra al contexto, Next lo hornea sin avisar y la imagen sale con las
+# credenciales de UN owner metidas en la copia de todos. Esta linea no es
+# opcional, y por eso el comando de verificacion de F2.2 no se fia de ella:
+# busca el .env DENTRO de la imagen ya construida.
+**/.env*
+
+# --- Dependencias y salidas de build: se generan dentro de la imagen -------
+**/node_modules
+**/.next
+**/.turbo
+**/dist
+**/build
+**/coverage
+**/*.tsbuildinfo
+
+# --- Historia del repo y herramientas de quien desarrolla ------------------
+.git
+.github
+.claude
+_archive
+
+# --- Documentacion: no la ejecuta nadie ------------------------------------
+docs
+vault
+manuales
+*.md
+*.txt
+
+# --- Material pesado que vive suelto en la raiz ----------------------------
+# Ojo: estos patrones son de extension y SIN `**` a proposito. En Docker un
+# patron sin barra solo casa en la raiz del contexto, y asi tiene que quedarse:
+# `**/*.xlsx` se llevaria por delante apps/web/public/plantilla-sitios-set.xlsx,
+# que la app sirve como plantilla de importacion de inventario
+# (components/demo/inventario/ImportarInventarioDialog.tsx).
+*.pdf
+*.xlsx
+*.csv
+*.png
+*.zip
+auditoria-generada
+manual-shots
+manual-usuario-generado
+manual-validacion
+
+# --- Datos locales ---------------------------------------------------------
+# Los datos del Postgres de desarrollo (el del 5433, que tiene datos REALES) y
+# los respaldos de base. Ni al contexto de build ni, por supuesto, a la imagen.
+db/spaces_pgdata
+migration-backup
+backup

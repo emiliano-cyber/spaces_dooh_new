@@ -63,6 +63,64 @@ export async function obtenerConfigRow() {
   return r
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+//  Plazos de cobranza (CFG-01)
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Respaldo cuando la organización no tiene ninguno. Es el MISMO valor que el
+// DEFAULT de la columna (`db/schema.sql:111`), a propósito: si los dos
+// divergen, una organización nueva y una que se quedó sin plazos empezarían a
+// comportarse distinto sin que nada lo dijera.
+export const PLAZOS_COBRANZA_RESPALDO = [60, 90, 120]
+
+// Los plazos que ESTA organización tiene configurados, listos para validar lo
+// que se factura.
+//
+// Existe por CFG-01: la pantalla de Administración deja capturar los plazos, se
+// guardaban bien... y `finanzas-controller` los ignoraba con un
+// `[60, 90, 120].includes(v)` a fuego. Una organización que configurara 45 días
+// recibía «Plazo inválido» al facturar con lo que ella misma había capturado.
+//
+// Va por `obtenerConfigRow()` —y no por una consulta propia— justamente para
+// heredar su filtro por `tenant_id`: el invariante 5 dice que quien lee
+// `config_negocio` usa la consulta CON tenant. Un `qRaw` aquí devolvería la
+// fila de otra empresa, o cero filas EN SILENCIO, y el plazo válido de una
+// organización lo acabaría decidiendo la configuración de otra.
+//
+// LISTA VACÍA → RESPALDO, nunca «ningún plazo es válido». `PATCH /api/config`
+// acepta un arreglo vacío (`app/api/config/route.ts:28`) y la pantalla deja
+// borrar los plazos uno a uno sin mínimo, así que vaciarla es alcanzable desde
+// la aplicación. Tomarla al pie de la letra apagaría la facturación entera de
+// esa organización: un fallo mucho peor —y menos reversible, porque cae sobre
+// dinero— que el que se está corrigiendo.
+export async function plazosCobranzaDelTenant(): Promise<number[]> {
+  const r = await obtenerConfigRow()
+  const plazos = (r.plazos_cobranza ?? [])
+    .map((p: unknown) => Number(p))
+    // Se descarta solo la basura que la columna no debería tener (`null`, texto,
+    // negativos). El 0 SÍ pasa: el schema del PATCH lo admite (`min(0)`), o sea
+    // que es un plazo capturable, y filtrarlo sería volver a decidir por el
+    // usuario — que es el hallazgo.
+    .filter((p: number) => Number.isFinite(p) && p >= 0)
+  return plazos.length ? plazos : [...PLAZOS_COBRANZA_RESPALDO]
+}
+
+// El plazo que se usa cuando la petición no manda ninguno.
+//
+// Era 90 fijo. Se conserva mientras la organización lo tenga configurado —que
+// es el caso de casi todas—, y si no, se toma el MÁS CORTO de los suyos: entre
+// cobrar antes y cobrar después, el lado prudente es antes. La alternativa
+// —rechazar la petición sin `plazoDias`— rompería a cualquier cliente de la API
+// que hoy se apoya en el default.
+export function plazoPorDefecto(plazos: number[]): number {
+  // La lista vacía no debería llegar aquí (`plazosCobranzaDelTenant` ya aplica
+  // el respaldo), pero se contempla: `Math.min()` sin argumentos devuelve
+  // Infinity, y un plazo Infinity acabaría en una fecha de vencimiento inválida
+  // sobre una factura. En dinero, un caso «imposible» se cierra, no se supone.
+  const lista = plazos.length ? plazos : PLAZOS_COBRANZA_RESPALDO
+  return lista.includes(90) ? 90 : Math.min(...lista)
+}
+
 export async function obtenerConfig() {
   const cfg = rowToConfig(await obtenerConfigRow())
   // Identidad de la organización: siempre de `tenants`. Es la ÚNICA fuente

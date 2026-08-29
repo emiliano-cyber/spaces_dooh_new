@@ -1,0 +1,307 @@
+name: Release
+
+# ============================================================================
+#  Un tag `vX.Y.Z` construye la imagen, la prueba ENTERA y la publica en el
+#  canal `beta`. Un tag con la suite en rojo no publica nada.
+#
+#  Hermano de `ci.yml`, no su sustituto: `ci.yml` sigue cubriendo los PR y no se
+#  toca. Lo que este añade es lo que allí falta y solo hace falta al publicar —
+#  las pruebas de integración y la publicación de la imagen.
+#
+#  EL GATE ES EL ORDEN, y por eso importa leerlo entero antes de reordenar nada:
+#  el push es el ÚLTIMO paso del ÚLTIMO job, y ese job entero cuelga de
+#  `needs: pruebas`. No hay ninguna forma de que `beta` se mueva sin que antes
+#  hayan pasado typecheck, unitarias y e2e. Si algún día alguien necesita
+#  publicar «rápido», lo que tiene que cambiar es el plan, no el orden.
+#
+#  QUÉ NO HACE, a propósito: no publica `estable`. Promover es una decisión
+#  humana y vive en `promover.yml` (F2.4), que reetiqueta sin reconstruir.
+#  `beta` solo lo consume DEMO; ninguna instancia de owner mira este canal.
+#
+#  EL DESTINO ES UN PARÁMETRO, NUNCA UN LITERAL. `vars.REGISTRY` dice a dónde y
+#  `vars.REGISTRY_TIPO` con qué credencial se entra. Las pone una persona en la
+#  configuración del repositorio (tarjeta TH-P4); este archivo no las sabe y no
+#  debe saberlas. Así el día que cambie el registry no se reescribe el workflow.
+#
+#  SEGURIDAD — las mismas dos reglas que documenta `ci.yml:17-30`, más una:
+#
+#   · El disparador es `push` de tags, o sea código ya en el repositorio. Nunca
+#     `pull_request_target`: eso daría estos secretos a código de un fork.
+#   · El job `pruebas` corre con `contents: read` y NADA MÁS. Es el que ejecuta
+#     código de pruebas y arranca un servidor; no tiene por qué sostener un
+#     token capaz de publicar. El permiso de escritura vive solo en `imagen`.
+#   · Los valores de entrada (`github.ref_name`, `vars.*`) viajan como VARIABLES
+#     DE ENTORNO y se validan contra una expresión antes de usarse. El motivo
+#     está escrito en `deploy.yml:70-102`: un `${{ ... }}` dentro del texto de un
+#     script se sustituye ANTES de que exista el shell, así que un valor con
+#     `; rm -rf /` se ejecutaría. Como variable, es un dato.
+# ============================================================================
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+  packages: write
+
+# SIN cancelación, al revés que `ci.yml`. Allí lo que importa es el último
+# commit y una corrida vieja solo gasta minutos. Aquí cada corrida publica un
+# artefacto: cancelarla a medias podría dejar el tag de versión subido y `beta`
+# apuntando a otra cosa. Se dejan terminar.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ==========================================================================
+  #  pruebas — la suite COMPLETA, que es lo que `ci.yml` no llega a correr
+  # ==========================================================================
+  pruebas:
+    name: Suite completa · typecheck, unitarias y e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+
+    services:
+      # Postgres de verdad, que es el punto: las unitarias simulan la base y por
+      # eso NO ven un fallo de RLS. Los dos peores fallos de aislamiento del
+      # proyecto pasaron las unitarias sin despeinarse.
+      #
+      # La base se llama `spaces_e2e` y no es cosmético: el arnés se NIEGA a
+      # trabajar contra una base cuyo nombre no acabe en `_e2e` o `_test`
+      # (`apps/web/lib/test/db-e2e.ts:43-60`), porque recrea el esquema con
+      # `drop schema public cascade`. Crearla aquí con POSTGRES_DB es todo lo
+      # que hay que hacer: el esquema y las 67 migraciones las aplica
+      # `recrearEsquema()` en cada archivo de prueba.
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: spaces_e2e
+        ports:
+          - 5432:5432
+        # Sin healthcheck, el primer `npm ci` gana la carrera y las pruebas se
+        # estrellan contra un Postgres que todavía no escucha.
+        options: >-
+          --health-cmd "pg_isready -U postgres -d spaces_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # DOS conexiones, y la distinción es lo que hace válidas las pruebas
+      # (`db-e2e.ts:62-78`):
+      #
+      #  · ADMIN — superusuario. Recrea el esquema y siembra varios tenants, que
+      #    exige saltarse la RLS. En local es `spaces`; aquí, `postgres`.
+      #  · APP  — `spaces_app`, NOSUPERUSER NOBYPASSRLS, el equivalente de
+      #    `spaces_user` en producción. Todo lo que deba RESPETAR la RLS.
+      #
+      # El rol `spaces_app` NO se crea aquí a mano: lo crea `recrearEsquema()`
+      # aplicando `db/dev-rol-app.sql` antes que nada, y los GRANT se los da la
+      # migración `20260715_arr_m6_rol_restringido.sql`. Montar la base por otro
+      # camino sería la segunda copia de un procedimiento que ya existe, y dos
+      # copias divergen: el runner probaría un montaje que no usa nadie más.
+      # (De paso, es lo que resuelve el `raise exception` de
+      # `20260729_licencias_permisos.sql:96-97` — 13 migraciones exigen que el
+      # rol de aplicación exista ANTES de correr.)
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/spaces_e2e
+      DATABASE_URL_TEST_APP: postgresql://spaces_app:spaces_app_dev@localhost:5432/spaces_e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # `npm ci` y no `npm install`, por el motivo que documenta `ci.yml:63-68`:
+      # instala exactamente el árbol del lockfile en vez de arreglarlo por su
+      # cuenta y publicar una imagen construida sobre dependencias que no probó
+      # nadie.
+      - name: Instalar dependencias
+        run: npm ci
+
+      # De más rápido a más lento, para que el fallo llegue cuanto antes.
+      - name: Typecheck
+        run: npx turbo run typecheck --filter=web
+
+      - name: Pruebas unitarias
+        run: npx turbo run test --filter=web
+
+      # ESTE PASO NO ES OPCIONAL Y NO ES «el build de la imagen».
+      # `apps/web/lib/test/servidor-e2e.ts:31` arranca el servidor con
+      # `npx next start`, que REUTILIZA el build existente y no construye nada.
+      # Un runner siempre parte de un clon limpio, o sea sin `.next/BUILD_ID`:
+      # sin este paso, TODOS los archivos e2e mueren con «El servidor de pruebas
+      # no respondió … tras 60 s» y tardan 636 s en hacerlo. El rojo no diría
+      # nada del código — diría que falta el build.
+      #
+      # El build de la imagen es otro y ocurre dentro del `docker build`, en el
+      # job siguiente y desde cero.
+      - name: Build de producción (lo exigen las e2e)
+        run: npx turbo run build --filter=web
+
+      # Las e2e corren en SERIE contra el Postgres del servicio y contra un Next
+      # real. `--prefix apps/web` no es un adorno: `recrearEsquema()` resuelve
+      # `db/` como `<cwd>/../../db` y el arnés arranca el servidor en su `cwd`.
+      - name: Pruebas de integración (e2e)
+        run: npm --prefix apps/web run test:e2e
+
+  # ==========================================================================
+  #  imagen — construir y publicar. Solo se llega aquí con las dos suites en
+  #  verde: `needs: pruebas`.
+  # ==========================================================================
+  imagen:
+    name: Construir y publicar en el canal beta
+    needs: pruebas
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+
+    env:
+      VERSION: ${{ github.ref_name }}
+      REGISTRY: ${{ vars.REGISTRY }}
+      REGISTRY_TIPO: ${{ vars.REGISTRY_TIPO }}
+
+    steps:
+      # Primero lo que puede faltar, antes de gastar diez minutos construyendo.
+      # Fail-closed: si el destino no está configurado, esto se para con un rojo
+      # que dice qué falta. La alternativa —seguir y no publicar— daría un run
+      # verde sin imagen, que es exactamente el estado que nadie mira.
+      - name: Comprobar que el destino está configurado
+        run: |
+          set -euo pipefail
+          if [ -z "${REGISTRY:-}" ] || [ -z "${REGISTRY_TIPO:-}" ]; then
+            echo "::error::Faltan las variables del repositorio REGISTRY y/o REGISTRY_TIPO."
+            echo "El destino de la imagen es un PARÁMETRO, nunca un literal en este archivo."
+            echo "Las fija una persona (tarjeta TH-P4), por ejemplo:"
+            echo '  gh variable set REGISTRY      --body "registry.digitalocean.com/<nombre>"'
+            echo '  gh variable set REGISTRY_TIPO --body "docr"'
+            echo '  gh secret   set DO_REGISTRY_TOKEN'
+            exit 1
+          fi
+          # Acotado al juego de caracteres que puede tener una referencia de
+          # imagen: esto acaba dentro de un `docker build -t`.
+          case "$REGISTRY" in
+            *[!A-Za-z0-9._:/-]*)
+              echo "::error::REGISTRY no válido: '$REGISTRY' (solo letras, dígitos y . _ : / -)"
+              exit 1 ;;
+          esac
+
+      # La versión sale del NOMBRE DEL TAG y se valida antes de tocar nada.
+      # El patrón admite sufijo de precandidata (`v0.0.1-rc1`) porque el propio
+      # filtro `v*.*.*` del disparador lo deja pasar: si aquí se rechazara, el
+      # primer tag de ensayo moriría en un sitio que no explica por qué.
+      - name: Validar la versión
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::Versión no válida: '$VERSION'. Se esperaba vX.Y.Z o vX.Y.Z-sufijo."
+            exit 1
+          fi
+          echo "Versión a publicar: $VERSION"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # El login se elige por REGISTRY_TIPO, no por el nombre del registry: así
+      # cambiar de destino no obliga a reescribir este paso.
+      #
+      # El host es el primer segmento de REGISTRY, que trae también el espacio
+      # de nombres (`registry.digitalocean.com/space-os`). Derivarlo evita una
+      # tercera variable que podría quedarse desincronizada de la primera.
+      #
+      # La contraseña entra siempre por STDIN (`--password-stdin`): con `-p` se
+      # queda en el historial del proceso y docker lo avisa en cada corrida.
+      - name: Entrar al registry
+        env:
+          DO_REGISTRY_TOKEN: ${{ secrets.DO_REGISTRY_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          HOST="${REGISTRY%%/*}"
+          case "$REGISTRY_TIPO" in
+            docr)
+              if [ -z "${DO_REGISTRY_TOKEN:-}" ]; then
+                echo "::error::REGISTRY_TIPO=docr pero falta el secreto DO_REGISTRY_TOKEN."
+                exit 1
+              fi
+              # DigitalOcean Container Registry autentica con el token de API
+              # como usuario Y como contraseña; no hay par usuario/clave aparte.
+              printf '%s' "$DO_REGISTRY_TOKEN" \
+                | docker login "$HOST" --username "$DO_REGISTRY_TOKEN" --password-stdin
+              ;;
+            ghcr)
+              printf '%s' "$GITHUB_TOKEN" \
+                | docker login "$HOST" --username "$ACTOR" --password-stdin
+              ;;
+            *)
+              echo "::error::REGISTRY_TIPO='$REGISTRY_TIPO' desconocido. Valores admitidos: docr, ghcr."
+              exit 1 ;;
+          esac
+          echo "Sesión abierta en $HOST"
+
+      # El contexto es la RAÍZ del monorepo, como manda el `Dockerfile`. La
+      # versión se SELLA en el artefacto (`ARG VERSION` → `SPACE_OS_VERSION`):
+      # es lo que permite preguntarle a una instancia qué está corriendo sin
+      # entrar por ssh.
+      #
+      # Las DOS etiquetas se ponen aquí, sobre la MISMA imagen: `beta` y la
+      # versión son dos nombres de un solo digest, no dos construcciones. Dos
+      # `docker build` producirían binarios distintos y `beta` dejaría de
+      # corresponder a la versión que se probó.
+      - name: Construir la imagen
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg VERSION="$VERSION" \
+            --tag "$REGISTRY/space-os:$VERSION" \
+            --tag "$REGISTRY/space-os:beta" \
+            .
+
+      # El ÚLTIMO paso del último job. Todo lo anterior es el gate.
+      #
+      # Primero la etiqueta de versión y después `beta`, en ese orden y no al
+      # revés: la de versión es inmutable y `beta` es un puntero que se mueve.
+      # Si el primer push falla, `beta` se queda donde estaba, apuntando al
+      # release anterior que sí está entero.
+      - name: Publicar en el canal beta
+        run: |
+          set -euo pipefail
+          docker push "$REGISTRY/space-os:$VERSION"
+          docker push "$REGISTRY/space-os:beta"
+
+          # El digest queda escrito en el resumen del run: es lo que F2.4
+          # compara al promover a `estable`, donde promover NO debe cambiarlo.
+          #
+          # Con `|| echo` a propósito: el push ya ocurrió, y que falle LEER el
+          # digest no puede teñir de rojo una publicación que salió bien. Un rojo
+          # aquí diría «no se publicó» y sería mentira.
+          DIGEST=$(docker inspect --format '{{index .RepoDigests 0}}' "$REGISTRY/space-os:$VERSION" 2>/dev/null || echo 'no disponible')
+          {
+            echo "### Publicado en el canal \`beta\`"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Versión | \`$VERSION\` |"
+            echo "| Etiquetas | \`$VERSION\` y \`beta\` |"
+            echo "| Digest | \`$DIGEST\` |"
+            echo ""
+            echo "Pasó typecheck, unitarias y e2e. \`estable\` no se toca aquí: eso es \`promover.yml\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Que no quede el token en `~/.docker/config.json` del runner. El runner
+      # es efímero, así que es defensa en profundidad, no la única barrera.
+      - name: Cerrar la sesión del registry
+        if: always()
+        run: docker logout "${REGISTRY%%/*}" || true

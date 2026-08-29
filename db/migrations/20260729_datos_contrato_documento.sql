@@ -48,10 +48,30 @@ alter table contratos_arrendamiento
   -- estructura publicitaria tipo espectacular").
   add column if not exists uso_permitido text;
 
-alter table contratos_arrendamiento
-  add constraint contrato_dia_pago_ck
-  check (dia_pago is null or (dia_pago between 1 and 31)) not valid;
+-- Los dos CHECK van guardados porque `add constraint` NO admite IF NOT EXISTS
+-- (mismo patrón que `20260715_arr_m2_tablas.sql:45-59`). Sin la guarda, reaplicar
+-- esta migración sobre una base que ya la tiene aborta con «constraint
+-- "contrato_dia_pago_ck" for relation "contratos_arrendamiento" already exists»,
+-- y `deploy.yml:141-148` reaplica TODAS en cada despliegue. En una base limpia
+-- la guarda no cambia nada: no hay constraint que encontrar y se crea igual.
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'contrato_dia_pago_ck'
+       and conrelid = 'contratos_arrendamiento'::regclass
+  ) then
+    alter table contratos_arrendamiento
+      add constraint contrato_dia_pago_ck
+      check (dia_pago is null or (dia_pago between 1 and 31)) not valid;
+  end if;
 
-alter table contratos_arrendamiento
-  add constraint contrato_incremento_ck
-  check (incremento_anual_pct is null or (incremento_anual_pct >= 0 and incremento_anual_pct <= 100)) not valid;
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'contrato_incremento_ck'
+       and conrelid = 'contratos_arrendamiento'::regclass
+  ) then
+    alter table contratos_arrendamiento
+      add constraint contrato_incremento_ck
+      check (incremento_anual_pct is null or (incremento_anual_pct >= 0 and incremento_anual_pct <= 100)) not valid;
+  end if;
+end $$;

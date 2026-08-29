@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: sin-ejecutar
-actualizado: 2026-08-11
+actualizado: 2026-08-27
 tags: [operacion, produccion, verificacion, runbook]
 archivos:
   - db/schema.sql
@@ -11,7 +11,84 @@ archivos:
   - DESPLIEGUE_20260810_MIGRACIONES.txt
 ---
 
+> [!danger] 2026-08-26 · CORRECCIÓN DOBLE — esta nota tenía DOS cosas falsas
+> **① El acceso al droplet `209.97.146.136` NUNCA se perdió.** El aviso de abajo
+> se escribió el 24/08 sobre esa premisa, y la premisa era falsa: el 25/08 se
+> entró sin dificultad y se completó el censo entero
+> (`docs/evidencias/f4-1-censo-resultado.md`). Sobre aquella conclusión se
+> levantaron el ADR 0015, la 3.ª enmienda a P1 y **dos tareas declaradas
+> imposibles**. Las cuatro se revisaron.
+>
+> **② DEMO ya NO va a servir `demo.space-os.io`.** El
+> [ADR 0020](../../docs/adr/0020-no-hay-demo-publica.md) (26/08) retira ese
+> nombre: no se le mueve el DNS, no se le emite certificado y ~~su registro A se
+> borra~~ — tarjeta **TH-F4.5**. ⚠️ **REVERTIDO el 2026-08-26 por el
+> [ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md): `demo.space-os.io`
+> SE CONSERVA como demostración de las instancias hijas, y la tarjeta TH-F4.5
+> queda cancelada.** El proceso del `3001` **conserva su nombre**: el nginx del
+> PADRE lo sirve en `infra/nginx/space-os.io.conf:188`.
+>
+> Esa frase tachada estuvo escrita **con la fecha del 26/08 encima** y en tres
+> notas a la vez. Si un agente la lee sin llegar al «REVERTIDO», propone borrar
+> un registro DNS que hay que conservar. **Este punto cambió cuatro veces en
+> cuatro días: pregúntalo, no lo infieras.**
+>
+> **Lo vigente:** el PADRE (`137.184.107.53`) es la **única máquina del modelo**
+> y sirve `space-os.io` con certificado propio hasta el **2026-11-23**, con
+> renovación automática —
+> [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md). Y la
+> demostración de cara a cliente pasa a ser **el producto real con una o más
+> instancias hijas**, que es lo que produce la Fase 5.
+>
+> **No se reescribe el cuerpo de abajo**: era correcto en su fecha. Reescribir
+> historia para que cuadre con hoy es lo que hace que una nota deje de ser fiable.
+
+> [!danger] 2026-08-24 · El droplet `209.97.146.136` SE PERDIO — esta nota lo daba por vivo
+> **Se perdió el acceso a esa máquina.** Sigue encendida y sirviendo
+> `demo.space-os.io`, pero **nadie la controla**: no se actualiza, no se parchea
+> y no se apaga. Su certificado vence el **2026-10-26** y no se renovará.
+>
+> **La máquina viva es el PADRE, `137.184.107.53`** — Ubuntu 24.04, Postgres
+> 16.15, `pm2 spaces-web` en el 3000 **como `root`**, rol de app **`spaces_app`**.
+> Ahí van a convivir **el PADRE en `space-os.io`** y **DEMO en
+> `demo.space-os.io`** (segundo proceso, puerto 3001, base `spaces_demo`) —
+> decisión del día, con su precio escrito en
+> [ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md).
+>
+> **Medido ese día:** el ápice `space-os.io` **no tiene registro A** (está libre),
+> `demo.space-os.io` sigue apuntando a la máquina perdida, y el PADRE responde
+> por IP `login 200 · raíz 302`.
+>
+> Todo lo que sigue en esta nota **describe el arreglo anterior**. Vale como
+> historia; no como instrucción. Ver [[2026-08-24]] y `docs/Traspaso_20260824.md`.
+
+---
 # Runbook — comprobar el estado real de producción
+
+> [!danger] 2026-08-27 · EL DROPLET VIEJO SE RETIRA — lo de abajo sobre él caduca
+> **`209.97.146.136` ya no se usa** (decisión de Jochelo, 27/08) y **sus datos
+> eran de prueba**: no hay organizaciones reales que rescatar. El plan v3 se
+> escribió el 13/08, seis días antes de la corrección del 19/08 sobre
+> `spaces_prod`, y por eso arrastraba tres censos y una migración contra datos
+> que nunca fueron reales.
+>
+> **SEIS tareas quedan SIN OBJETO:** `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2`,
+> `F7.3`. **La Fase 7 entera.** El plan pasa de **46 tareas a 40 con objeto**.
+> (**`F0.1` no entra**: ya estaba CERRADA el 24/08 con medición — `signup 503`
+> más `login 200`, que descarta que el 503 fuera una caída.)
+>
+> Todo lo que esta nota diga más abajo sobre **el destino de `rgb`, el censo de
+> `spaces_prod`, migrar PIXELED o desenredar la Fase 7** describe un problema que
+> **ya no existe**. Se conserva como historia; no es trabajo pendiente.
+>
+> **Y `demo.space-os.io` queda CERRADO por el [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md),
+> que sustituye al 0021:** ese nombre **es solo la demostración original y se
+> eliminará**. No se mueve al PADRE, no se le emite certificado y no se le busca
+> máquina. **`F4.3` queda SIN OBJETO** y el plan baja a **39 tareas con objeto**.
+> Su certificado (26/10) pasa a ser **caducidad natural, no plazo**.
+> **Ya no se pregunta.**
+> Contexto: [[modelo-instancias-soberanas]] · `vault/07-Agentes/diario/2026-08-27`
+
 
 > [!info] Para qué existe
 > El [[inventario-2026-08-11]] cierra con cuatro cosas que **no se pudieron
@@ -62,15 +139,19 @@ sudo -u postgres psql -d spaces_prod -c "
   select slug, nombre, moneda, creado_en, id from tenants order by creado_en"
 ```
 
-**Esperado:** cinco organizaciones. `rgb` es el tenant por defecto del esquema
-(`schema.sql:598`) y `eyro` está reclasificado como tenant de pruebas.
+**Esperado:** cinco organizaciones. `rgb` es la más antigua: la sembraba
+`db/schema.sql` cuando el esquema todavía la traía, **hasta el 2026-08-19**. Desde
+`9d609f0` el esquema **nace sin ninguna organización** (`db/schema.sql:598-611`),
+pero eso solo cambia cómo nacen las bases nuevas: **producción conserva su `rgb`**
+y esta comprobación no cambia. `eyro` está reclasificado como tenant de pruebas.
 
 ## 17b · Cuántas filas hay, y de quién
 
 > [!danger] Como `postgres`, NUNCA con `spaces_user`
 > `spaces_user` es `NOBYPASSRLS`. Con la RLS fail-closed y sin `app.tenant_id`
 > fijado, los conteos salen en **cero con buena pinta** — la misma trampa que
-> documenta el PASO 1 de [[DESPLIEGUE_20260810_MIGRACIONES]] para los dumps.
+> documenta el PASO 1 de
+> [`DESPLIEGUE_20260810_MIGRACIONES.txt`](../../DESPLIEGUE_20260810_MIGRACIONES.txt) para los dumps.
 
 ```bash
 # Total por tabla
@@ -112,9 +193,11 @@ siguen ahí las **15 modalidades de `g500`/`eyro` etiquetadas como `rgb`** por e
 
 ## 17c · Qué migraciones están aplicadas
 
-No hay tabla de control de migraciones: los 66 ficheros de `db/migrations/` se
-aplican a mano. La única respuesta honesta es **estructural** — se comprueba que
-estén los objetos, no que esté anotado.
+En producción todavía no hay tabla de control: los **68** ficheros de
+`db/migrations/` se aplican a mano. (`schema_migrations` está escrita —F3.1— pero
+**sin aplicar en el droplet**; ver [[migraciones]].) La única respuesta honesta
+sigue siendo **estructural** — se comprueba que estén los objetos, no que esté
+anotado.
 
 ```bash
 # Rápido — los objetos de las 2 últimas migraciones (las del 10/08)
@@ -141,8 +224,31 @@ sudo -u postgres psql -d spaces_prod -c "
    order by 1"
 ```
 
-**Esperado:** 21 tablas, todas con el mismo UUID (el de `rgb`). El inventario lo
-afirma leyendo `schema.sql:615`; esto lo confirma o lo desmiente en la máquina.
+**Esperado:** **23 o más** tablas, todas con el mismo UUID (el de `rgb` **de esa
+base** — el uuid se genera distinto en cada instalación, así que no lo compares
+contra el local). Verificado el 2026-08-13 contra la copia local de entonces:
+**23**, ni una más ni una menos.
+
+> [!warning] Desde el 19/08 la copia local ya NO sirve de contraste
+> `db/schema.sql` **dejó de crear el `DEFAULT`** (`9d609f0`), así que una base
+> levantada hoy desde el repo devuelve **cero filas** en esta consulta. Las 23
+> tablas siguen enumeradas en `db/schema.sql:617-621` y el bucle que las recorre
+> en `:631-640`, pero ese bucle ya no pone ningún default.
+>
+> **Eso NO invalida la comprobación contra producción**, que es lo que este
+> runbook mide: el droplet nació antes y sí los tiene. Lo que cambia es de dónde
+> sacas el contraste — de una base levantada antes de esa fecha, o poniendo el
+> default a mano como hace `apps/web/lib/test/tenant-sin-default.e2e.test.ts:89`.
+
+> [!warning] Más de 23 no es un desfase: es el hallazgo
+> Producción tiene tablas y columnas que `schema.sql` no trae —lo documenta
+> `apps/web/lib/test/db-e2e.ts:107-112`—, así que el catálogo real puede devolver
+> más. **Si salen más de 23, anótalas: eso es justo lo que F1.1 busca.** La
+> migración `20260812_sin_default_tenant.sql` está diseñada para ese caso, porque
+> recorre el catálogo y no una lista copiada a mano.
+>
+> Y ojo con la cifra vieja: hasta el 13/08 varias notas decían **21**. Era de un
+> conteo del 03/08 y quedó desfasada; el dato bueno es 23.
 
 ```bash
 # Definitivo — huella completa del esquema, para diferenciar contra el repo
@@ -151,8 +257,10 @@ sudo -u postgres pg_dump --schema-only --no-owner --no-privileges spaces_prod \
 wc -l ~/esquema_prod_*.sql
 ```
 
-Y desde la máquina local, para poder compararlo contra `db/schema.sql` + las 66
-migraciones:
+Y desde la máquina local, para poder compararlo contra `db/schema.sql` + las
+migraciones de `db/migrations/` (**67** en el repo al 13/08; producción tiene
+aplicadas **66** hasta que F1.5 aplique `20260812_sin_default_tenant.sql`, así que
+esa diferencia es esperada, no un desfase):
 
 ```powershell
 scp <usuario>@<host-del-droplet>:~/esquema_prod_*.sql .
@@ -194,7 +302,7 @@ configurado, `COOKIE_SECURE`, `APP_URL`, `MEDIR_ESTADO` y los `NEXT_PUBLIC_*`.
 
 Tres evidencias distintas, porque el `git log` por sí solo no prueba nada: el
 commit puede estar bien y el artefacto servido ser viejo (lo dice el PASO 6 de
-[[DESPLIEGUE_20260810_MIGRACIONES]]).
+[`DESPLIEGUE_20260810_MIGRACIONES.txt`](../../DESPLIEGUE_20260810_MIGRACIONES.txt)).
 
 ```bash
 cd /var/www/Spaces

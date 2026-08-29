@@ -23,16 +23,17 @@ type Modo = 'login' | 'signup' | 'forgot'
 // Ausente o cualquier valor distinto de '0' = habilitado (no cambia dev).
 const RECUPERAR_HABILITADO = process.env.NEXT_PUBLIC_RECUPERAR_PASSWORD !== '0'
 
-// Auto-registro público ("Crear cuenta"). Mismo patrón que la bandera de arriba:
-// vive en el cliente Y en el servidor (app/api/signup), porque esconder el botón
-// dejaría el endpoint abierto y cualquiera podría seguir creando organizaciones.
-// Ausente o distinto de '0' = habilitado (no cambia dev).
-const AUTOREGISTRO_HABILITADO = process.env.NEXT_PUBLIC_AUTOREGISTRO !== '0'
+// El auto-registro público («Crear cuenta») YA NO se lee aquí con `process.env`.
+// Se leía como `NEXT_PUBLIC_AUTOREGISTRO !== '0'` y esta página SE PRERRENDERIZA
+// en el build: el HTML salía de fábrica con el botón dentro, y ningún `.env`
+// podía quitarlo. Resultado medido en la imagen de F2.5: el botón se pintaba y
+// al pulsarlo el servidor contestaba 503. Ahora se pregunta al servidor, igual
+// que la de Google — ver `autoregistroDisponible` más abajo.
 
-// Acceso con Google (ADR 0012). A diferencia de las DOS banderas de arriba, ésta
-// NO se lee con `process.env` aquí: `GOOGLE_OAUTH` no lleva prefijo
-// NEXT_PUBLIC_, justamente para que apagarla no exija recompilar. Así que el
-// botón se pinta según lo que responda el servidor en /api/auth/metodos/.
+// Acceso con Google (ADR 0012). Igual que la de arriba, no se lee con
+// `process.env` aquí: `GOOGLE_OAUTH` no lleva prefijo NEXT_PUBLIC_, justamente
+// para que apagarla no exija recompilar. Así que el botón se pinta según lo que
+// responda el servidor en /api/auth/metodos/.
 const RUTA_GOOGLE = '/spaces-dooh/api/auth/google/inicio/'
 
 // El callback devuelve un CÓDIGO en `?google=…`, nunca el texto del error: lo
@@ -62,17 +63,24 @@ export default function LoginPage() {
   const [enlaceDev, setEnlaceDev] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [googleDisponible, setGoogleDisponible] = useState(false)
+  const [autoregistroDisponible, setAutoregistroDisponible] = useState(false)
 
-  // Se pregunta al servidor porque la bandera no viaja al cliente (ver
-  // RUTA_GOOGLE arriba). Empieza en `false`: si la consulta falla, NO se pinta
-  // el botón. Al revés —optimista— se ofrecería una entrada que responde 503, y
-  // el usuario se quedaría culpando a su cuenta de Google.
+  // Se pregunta al servidor porque ninguna de las dos banderas viaja al cliente
+  // (ver RUTA_GOOGLE arriba). Empiezan en `false`: si la consulta falla, NO se
+  // pinta el botón. Al revés —optimista— se ofrecería una entrada que responde
+  // 503, y el usuario se quedaría culpando a su cuenta.
+  //
+  // Las dos salen de la MISMA llamada a propósito: son la misma pregunta —«qué
+  // ofrece este despliegue»— y partirla en dos peticiones solo añadiría un
+  // estado intermedio en el que la pantalla se contradice a sí misma.
   useEffect(() => {
     let vivo = true
     fetch('/spaces-dooh/api/auth/metodos/')
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (vivo && d?.google === true) setGoogleDisponible(true)
+        if (!vivo) return
+        if (d?.google === true) setGoogleDisponible(true)
+        if (d?.autoregistro === true) setAutoregistroDisponible(true)
       })
       .catch(() => {
         /* sin botón, que es el estado seguro */
@@ -354,7 +362,7 @@ export default function LoginPage() {
               <button type="button" onClick={() => cambiarModo('login')} className="hover:underline">
                 ← Volver a <span className="font-medium text-info">iniciar sesión</span>
               </button>
-            ) : AUTOREGISTRO_HABILITADO || esSignup ? (
+            ) : autoregistroDisponible || esSignup ? (
               <button type="button" onClick={() => cambiarModo(esSignup ? 'login' : 'signup')} className="hover:underline">
                 {esSignup ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? '}
                 <span className="font-medium text-info">{esSignup ? 'Iniciar sesión' : 'Crear cuenta'}</span>

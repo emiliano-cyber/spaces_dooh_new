@@ -45,15 +45,45 @@ son estados puntuales, no decoración. Fondos siempre blanco/crema.
 
 ## 2. Tipografía
 
-- **Cabinet Grotesk** 700–800 → display y títulos (`h1`–`h3`), wordmark. Sentence
+> **Migrado el 2026-08-28.** Antes eran Cabinet Grotesk, General Sans y
+> JetBrains Mono, cargadas desde Fontshare. Ver el porqué al final del apartado.
+
+- **Source Serif 4** 600–700 → display y títulos (`h1`–`h3`), wordmark. Sentence
   case; tracking ajustado por escala (`h1` −0.02em … `h3` −0.01em). Wordmark en
-  caps con tracking +0.03em (`.demo-wordmark`).
-- **General Sans** 400–600 → UI y cuerpo.
-- **JetBrains Mono** → números técnicos: folios, IDs, montos, IPs, tags
-  (`.demo-num`, con `tabular-nums`).
+  caps con tracking +0.03em (`.demo-wordmark`), en **700**: Source Serif 4 no
+  llega a 800 y pedirlo lo sintetiza el navegador, que se ve peor que el grosor
+  real inmediatamente inferior.
+- **Inter** 400–600 → UI, cuerpo y números.
+- **Mono del sistema** (`ui-monospace, SFMono-Regular, Menlo…`) → números
+  técnicos: folios, IDs, montos, IPs, tags (`.demo-num`, con `tabular-nums`), y
+  el JSON de creativos, donde la anchura fija es funcional y no estética. **No
+  se descarga ninguna fuente para esto.**
 - **Nunca Title Case.** Siempre sentence case.
 
-Se cargan por Fontshare (`<head>` del root layout) y next/font (mono).
+Las dos se sirven con **`next/font/google` desde el layout raíz**, que las
+descarga EN EL BUILD: no hay ni una petición a un tercero en tiempo de
+ejecución. Van en el raíz y no en `(app)/` porque las páginas públicas
+—propuesta, portal— no cuelgan de ese grupo.
+
+### Por qué se migró, y por qué no se amplió la CSP
+
+La CSP en modo reporte lo cazó el 27/08: dos violaciones en **cada carga de
+página** en producción, `style-src` y quince de `font-src`. Añadir
+`api.fontshare.com` a la política habría callado el aviso sin arreglar nada:
+
+- **Disponibilidad** — si Fontshare cae o cambia la URL, la tipografía se
+  degrada en toda la flota a la vez y ninguna instancia puede hacer nada.
+- **Privacidad** — cada visita le contaba la IP del visitante a un tercero. En
+  la instancia de un owner, ese es **su** tráfico.
+- **Latencia** — una conexión más, a otro host, antes de pintar texto.
+
+Con esto `style-src 'self'` y `font-src 'self'` bastan, y la CSP **puede pasar de
+aviso a encendida**. Ese paso es aparte y tiene su propio candado:
+`apps/web/lib/test/cabeceras.e2e.test.ts:92` afirma hoy que la cabecera es
+`Report-Only` y **no** la bloqueante, así que encenderla se hace a propósito.
+
+Lo afirma `apps/web/lib/tipografia.test.ts`: cuatro casos que se ponen rojos si
+vuelve un CDN de fuentes o una de las tres familias retiradas.
 
 ## 3. Escala de espaciado y radios
 
@@ -83,7 +113,8 @@ Se cargan por Fontshare (`<head>` del root layout) y next/font (mono).
 - [ ] Bordes de 1px, cálidos (`--border`).
 - [ ] Ningún gris frío (todo pasa por los tokens cálidos).
 - [ ] Azul como único primario; ámbar solo «live».
-- [ ] Títulos en Cabinet Grotesk; números en JetBrains Mono; sentence case.
+- [ ] Títulos en Source Serif 4; números en Inter o la mono del sistema, con
+      `tabular-nums`; sentence case.
 
 ## Estado de implementación
 

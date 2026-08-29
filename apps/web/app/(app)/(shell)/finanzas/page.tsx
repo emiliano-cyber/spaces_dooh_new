@@ -27,6 +27,7 @@ import {
   useFacturas,
   useCobranzas,
   useClientes,
+  useConfigNegocio,
   estadoCobranza,
   saldoCobranza,
   formatMonto,
@@ -323,7 +324,35 @@ function GenerarFacturaDialog({
   onClose: () => void
   onDone: (folio: string) => void
 }) {
-  const [plazo, setPlazo] = useState<60 | 90 | 120>(90)
+  // CFG-01 · los plazos los pone la ORGANIZACIÓN, no el código. Estaban a fuego
+  // (`([60, 90, 120] as const).map(...)`) mientras Administración dejaba
+  // capturarlos: quien configuraba 45 días no veía el botón, y si llegaba a
+  // mandarlo el servidor se lo rechazaba. Se arreglan los dos lados a la vez —
+  // dejar solo el servidor daría una pantalla que sigue sin ofrecer lo suyo.
+  //
+  // El respaldo cuando la lista viene vacía y la regla del plazo por omisión son
+  // LOS MISMOS del servidor (`lib/server/config-repo.ts` →
+  // `PLAZOS_COBRANZA_RESPALDO` / `plazoPorDefecto`). Están duplicados aquí a
+  // propósito: aquel módulo es `server-only` y no se puede importar desde un
+  // componente de cliente. Si uno cambia, cambia el otro — o la pantalla vuelve
+  // a ofrecer un plazo que el servidor rechaza.
+  const config = useConfigNegocio()
+  const plazos = useMemo(() => {
+    const suyos = (config?.plazosCobranza ?? [])
+      .map(Number)
+      .filter((p) => Number.isFinite(p) && p >= 0)
+    return suyos.length ? suyos : [60, 90, 120]
+  }, [config])
+  const [plazoElegido, setPlazoElegido] = useState<number | null>(null)
+  // No se guarda el default en el useState: `useConfigNegocio()` devuelve
+  // `undefined` hasta que hidrata, así que un estado inicial se quedaría con el
+  // valor de la semilla aunque después llegara la config de verdad.
+  const plazo =
+    plazoElegido != null && plazos.includes(plazoElegido)
+      ? plazoElegido
+      : plazos.includes(90)
+        ? 90
+        : Math.min(...plazos)
   const [enviando, setEnviando] = useState(false)
   // Cobro en parcialidades. Apagado por defecto: el comportamiento de siempre es
   // una sola exhibición, y activarlo tiene que ser una decisión explícita.
@@ -355,7 +384,13 @@ function GenerarFacturaDialog({
               try {
                 await generarFacturaApi(
                   campana.id,
-                  plazo,
+                  // El cast es de tipos, no de valor: `generarFacturaApi` aún
+                  // declara la unión `60 | 90 | 120` heredada de cuando la
+                  // lista estaba a fuego, y ensancharla toca `estado-api.ts` y
+                  // `lib/data/types.ts`, que no son de este cambio. El plazo
+                  // que viaja ya salió de la configuración del tenant y el
+                  // servidor lo vuelve a validar contra ella.
+                  plazo as 60 | 90 | 120,
                   enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
                 )
                 onDone('generada')
@@ -463,14 +498,17 @@ function GenerarFacturaDialog({
           <span className="mb-1.5 block text-[12px] font-medium text-ink">
             Plazo de cobranza{enCuotas ? ' (informativo con parcialidades)' : ''}
           </span>
-          <div className="flex gap-2">
-            {([60, 90, 120] as const).map((p) => (
+          {/* `flex-wrap` porque la lista ya no son tres botones fijos: una
+              organización puede tener seis plazos capturados y sin esto se
+              salen del diálogo. `min-w` mantiene legible el que quede solo. */}
+          <div className="flex flex-wrap gap-2">
+            {plazos.map((p) => (
               <button
                 key={p}
                 type="button"
-                onClick={() => setPlazo(p)}
+                onClick={() => setPlazoElegido(p)}
                 className={cn(
-                  'flex-1 rounded border px-3 py-2 text-[13px] font-medium transition-colors duration-150',
+                  'min-w-[5rem] flex-1 rounded border px-3 py-2 text-[13px] font-medium transition-colors duration-150',
                   plazo === p
                     ? 'border-accent bg-[#f59e0b1a] text-ink'
                     : 'border-border-strong text-muted hover:bg-surface-2',

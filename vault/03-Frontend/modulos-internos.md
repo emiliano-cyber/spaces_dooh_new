@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-27
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -22,10 +22,10 @@ archivos:
 | `/disponibilidad` | Calendario | `/api/sitios` | `CalendarioDisponibilidad` |
 | `/inventario` | Alta y carga masiva | `/api/sitios`, `/api/sitios/import` | `InventarioTabla`, `ImportarInventarioDialog`, `NuevaPantallaForm`, `ContratoWizard`, `AgregarInventario`, `InfoAnadidaModal` |
 | `/network` | Pantallas en red | `sitios.en_network` | — |
-| `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento` |
-| `/clientes` | Clientes | `/api/clientes` | `ClientesBadge` |
+| `/arrendadores` | Arrendadores, predios, contratos | `/api/arrendadores`, `/api/contratos` | `ContratoSheet`, `PagosRentaCard`, `CompromisoRentaCard`, `ConciliacionCard`, `PanelFirmas`, `ConstanciaFirmas`, `LicenciasCard`, `GestionRazonesSociales`, `BarraDocumento`, `BajaPropietarioDialog` |
+| `/clientes` | Clientes | `/api/clientes` | `ClientesBadge`, `BorrarClienteDialog` |
 | `/propuestas`, `/propuestas/[id]` | Propuestas | `/api/propuestas` | `Stepper` |
-| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo`, `ReadinessPanel`, `ReporteVisual` |
+| `/campanas`, `/campanas/[id]` | Campañas | `/api/campanas/*` | `PipelineView`, `CandadoPanel`, `ValidacionPanel`, `PlaylogsPanel`, `DatosFacturacion`, `EvidenciaGaleria`, `AgregarCreativo` |
 | `/creativos` | Creativos | `/api/creatividades` | — |
 | `/operaciones`, `/operaciones/ot/[id]` | Órdenes de trabajo | `/api/ot` | `OTVista` |
 | `/imprenta` | Imprenta | `/api/impresion` | — |
@@ -67,9 +67,22 @@ admin/permisos.ts` y `packages/utils/src/permissions.ts` acompañan.
 
 ## `DesbloqueoCambios`
 
-`components/demo/shell/DesbloqueoCambios.tsx` es el modal que aparece cuando el
-servidor responde `403 {requiereDesbloqueo:true}`. **No es decorativo**: es la
-única salida de un cambio sensible. Ver [[autenticacion-y-sesion]].
+`components/demo/shell/DesbloqueoCambios.tsx` es el candado de la Topbar de los
+cambios sensibles. **No es decorativo**: es la salida de un `403
+{requiereDesbloqueo:true}` en las rutas `SENSIBLE`. Ver [[autenticacion-y-sesion]].
+
+> [!warning] Ese candado NO sirve para las rutas `REAUTH`
+> `DesbloqueoCambios.tsx:57` hace `if (!requiere) return null`: con el
+> interruptor `exigir_reautenticacion` apagado —el valor por defecto, y el de
+> los cinco tenants de producción— **no se pinta**. Pero las rutas `REAUTH`
+> piden la contraseña igual, ignorando ese interruptor, así que su 403 se
+> quedaría sin ninguna salida a la vista.
+>
+> Por eso los dos borrados de catálogo (`BorrarClienteDialog` en
+> `clientes/page.tsx`, `BajaPropietarioDialog` en `arrendadores/page.tsx`) piden
+> la contraseña **dentro de su propio diálogo** y reintentan ahí mismo. No es
+> duplicación por descuido: es el único camino que funciona con el interruptor
+> apagado. Ver [[02-Backend/api-endpoints]].
 
 ## Dónde hay lógica de negocio en el cliente
 

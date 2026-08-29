@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { AuthProvider } from '@/lib/auth-context'
 import { instalarCsrf } from '@/lib/csrf-client'
 import { instalarIndicadorCarga } from '@/lib/loading-fetch'
 import { IndicadorCarga } from '@/components/IndicadorCarga'
@@ -31,7 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      {children}
       <IndicadorCarga />
     </QueryClientProvider>
   )

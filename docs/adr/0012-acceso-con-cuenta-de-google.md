@@ -203,7 +203,7 @@ Se añade `identidades_externas (proveedor, sub, usuario_id, tenant_id, ...)` co
 `primary key (proveedor, sub)`, y una función
 `auth_usuario_por_identidad(proveedor, sub)` `SECURITY DEFINER` —el mismo patrón
 exacto que `auth_usuario_por_email()` y `auth_usuario_por_sesion()`
-(`db/migrations/20260720_hard1_usuarios_rls.sql:40-87`), por la misma razón: la
+(`db/migrations/20260720_hard1_usuarios_rls.sql:40-114`), por la misma razón: la
 resolución ocurre **antes** de saber el tenant, y `usuarios` es fail-closed.
 
 Tabla y no columna en `usuarios` porque el `sub` de Google no es el último

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Plus, FileSignature, Search, X, Download, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, Plus, FileSignature, Search, X, Download, Trash2, AlertTriangle } from 'lucide-react'
 import { Card } from '@/components/demo/ui/Card'
 import { CardColapsable } from '@/components/demo/ui/CardColapsable'
 import { Button } from '@/components/demo/ui/Button'
@@ -46,9 +46,10 @@ import {
   type ContratoArrendamiento,
   type MargenSitio,
 } from '@/lib/data/client'
-import { registrarPagoRentaApi, crearArrendadorApi, editarArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
+import { registrarPagoRentaApi, crearArrendadorApi, editarArrendadorApi, borrarArrendadorApi, crearRazonSocialApi, DuplicadoError } from '@/lib/data/estado-api'
+import { desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { esRfcValido } from '@/lib/rfc'
-import { descargarContratos } from '@/lib/contratos-export'
+import { descargarContratos, ESTATUS_VIGENTES } from '@/lib/contratos-export'
 import { ConciliacionCard } from '@/components/demo/arrendadores/ConciliacionCard'
 
 export default function ArrendadoresPage() {
@@ -280,7 +281,12 @@ export default function ArrendadoresPage() {
 
       {/* Propietarios: lista de arrendadores dados de alta (aparecen aquí aunque
           todavía no tengan contrato) */}
-      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratosFiltrados ?? []} filtrado={hayFiltro(filtro)} onToast={notify} />
+      {/* Contratos SIN filtrar, al contrario que el resto de la pantalla: esta
+          tarjeta ya no solo informa, tiene al lado el boton de dar de baja, y
+          su cifra responde «¿se puede dar de baja?». Con los filtrados, un
+          propietario con contratos vivos podia enseñar 0 y prometer una baja
+          que el servidor rechaza. */}
+      <PropietariosCard arrendadores={arrendadoresFiltrados} contratos={contratos ?? []} predios={predios} filtrado={hayFiltro(filtro)} onToast={notify} />
 
       {/* Alta/edición de razones sociales por propietario. Va pegada a la lista
           de propietarios porque es información SUYA; la tarjeta consolidada de
@@ -843,11 +849,13 @@ const inputMini =
 function PropietariosCard({
   arrendadores,
   contratos,
+  predios,
   filtrado,
   onToast,
 }: {
   arrendadores: ReturnType<typeof useArrendadores>
   contratos: ContratoArrendamiento[]
+  predios: ReturnType<typeof usePredios>
   // Hay un filtro activo: cambia lo que significa una lista vacía.
   filtrado: boolean
   onToast: (m: string) => void
@@ -860,6 +868,12 @@ function PropietariosCard({
   const [borrador, setBorrador] = useState({ rfc: '', direccion: '' })
   const [guardando, setGuardando] = useState(false)
   const puedeCrear = usePuede('arrendadores', 'crear')
+  // Dar de baja pide MÁS que editar, y a propósito: desde la aplicación no hay
+  // vuelta atrás. El servidor exige `arrendadores:aprobar` y además la
+  // contraseña (`arrendadores/[id]/route.ts:66-72`); aquí solo se le esconde el
+  // botón a quien de todas formas recibiría un 403.
+  const puedeBorrar = usePuede('arrendadores', 'aprobar')
+  const [baja, setBaja] = useState<{ id: string; nombre: string } | null>(null)
 
   function abrir(a: { id: string; rfc: string | null; direccion: string | null }) {
     setEditando(a.id)
@@ -886,109 +900,286 @@ function PropietariosCard({
   }
 
   return (
-    <CardColapsable
-      titulo="Arrendadores"
-      subtitulo="Dueños de predio dados de alta."
-      contentClassName="px-0 pb-0"
-    >
-        {!arrendadores ? (
-          <div className="space-y-2 px-4 pb-4">
-            {Array.from({ length: 2 }).map((_, i) => (
-              <div key={i} className="h-9 animate-pulse rounded bg-surface-2" />
-            ))}
-          </div>
-        ) : arrendadores.length === 0 ? (
-          <p className="px-4 pb-4 text-[13px] text-muted">
-            {/* Distinguir «no hay ninguno» de «ninguno coincide» importa: el
-                primer mensaje, mostrado con un filtro puesto, afirma algo falso
-                y manda a dar de alta un arrendador que ya existe. */}
-            {filtrado
-              ? 'Ningún arrendador coincide con el filtro.'
-              : (<>Aún no hay arrendadores. Usa <b>“Nuevo arrendador”</b> para dar de alta uno.</>)}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
-              <thead>
-                <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
-                  <th className="px-4 py-2 font-medium">Arrendador</th>
-                  <th className="px-4 py-2 font-medium">RFC</th>
-                  {/* El domicilio se enseña porque el CONTRATO lo exige: si no
-                      se ve, nadie sabe que falta hasta que el documento sale
-                      con el hueco en blanco. */}
-                  <th className="px-4 py-2 font-medium">Domicilio</th>
-                  <th className="px-4 py-2 font-medium">Contacto</th>
-                  <th className="px-4 py-2 text-right font-medium">Contratos</th>
-                  <th className="px-4 py-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {arrendadores.map((a) => {
-                  const nContratos = contratos.filter((c) => c.arrendadorId === a.id).length
-                  return (
-                    <tr key={a.id} className="border-b border-border last:border-0">
-                      <td className="px-4 py-2.5 font-medium text-ink">{a.nombre}</td>
-                      <td className="demo-num px-4 py-2.5 text-muted">
-                        {editando === a.id ? (
-                          <input
-                            className={inputMini + ' w-36'}
-                            value={borrador.rfc}
-                            onChange={(e) => setBorrador((b) => ({ ...b, rfc: e.target.value.toUpperCase() }))}
-                            placeholder="XAXX010101000"
-                          />
-                        ) : (
-                          a.rfc || <span className="text-accent">Falta</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted">
-                        {editando === a.id ? (
-                          <input
-                            className={inputMini + ' w-full min-w-[220px]'}
-                            value={borrador.direccion}
-                            onChange={(e) => setBorrador((b) => ({ ...b, direccion: e.target.value }))}
-                            placeholder="Calle, número, colonia, CP, ciudad"
-                            autoFocus
-                          />
-                        ) : (
-                          a.direccion || <span className="text-accent">Falta</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted">
-                        {a.email || a.telefono ? (
-                          <span>{a.email ?? ''}{a.email && a.telefono ? ' · ' : ''}{a.telefono ?? ''}</span>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td className="demo-num px-4 py-2.5 text-right text-ink">{nContratos}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        {puedeCrear &&
-                          (editando === a.id ? (
-                            <span className="flex justify-end gap-1.5">
-                              <Button size="sm" onClick={() => guardar(a.id)}>
-                                {guardando ? 'Guardando…' : 'Guardar'}
-                              </Button>
-                              <Button size="sm" variant="secondary" onClick={() => setEditando(null)}>
-                                Cancelar
-                              </Button>
-                            </span>
+    <>
+      <CardColapsable
+        titulo="Arrendadores"
+        subtitulo="Dueños de predio dados de alta."
+        contentClassName="px-0 pb-0"
+      >
+          {!arrendadores ? (
+            <div className="space-y-2 px-4 pb-4">
+              {Array.from({ length: 2 }).map((_, i) => (
+                <div key={i} className="h-9 animate-pulse rounded bg-surface-2" />
+              ))}
+            </div>
+          ) : arrendadores.length === 0 ? (
+            <p className="px-4 pb-4 text-[13px] text-muted">
+              {/* Distinguir «no hay ninguno» de «ninguno coincide» importa: el
+                  primer mensaje, mostrado con un filtro puesto, afirma algo falso
+                  y manda a dar de alta un arrendador que ya existe. */}
+              {filtrado
+                ? 'Ningún arrendador coincide con el filtro.'
+                : (<>Aún no hay arrendadores. Usa <b>“Nuevo arrendador”</b> para dar de alta uno.</>)}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-[13px]">
+                <thead>
+                  <tr className="border-b border-border text-[11px] uppercase tracking-wide text-muted">
+                    <th className="px-4 py-2 font-medium">Arrendador</th>
+                    <th className="px-4 py-2 font-medium">RFC</th>
+                    {/* El domicilio se enseña porque el CONTRATO lo exige: si no
+                        se ve, nadie sabe que falta hasta que el documento sale
+                        con el hueco en blanco. */}
+                    <th className="px-4 py-2 font-medium">Domicilio</th>
+                    <th className="px-4 py-2 font-medium">Contacto</th>
+                    <th className="px-4 py-2 text-center font-medium">Contratos</th>
+                    <th className="px-4 py-2 text-center font-medium">Predios</th>
+                    <th className="px-4 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {arrendadores.map((a) => {
+                    // Las dos cifras que el servidor mira antes de dejar dar de
+                    // baja: predios y contratos ACTIVOS
+                    // (`arrendadores-repo.ts:1084-1095`). Enseñar el total a secas
+                    // mentia en las DOS direcciones: un «3» de contratos vencidos
+                    // se lee como bloqueado y se da de baja sin problema, y un «0»
+                    // con un predio detras promete una baja que acaba en 409.
+                    // `ESTATUS_VIGENTES` se importa y no se copia: ese conjunto ya
+                    // vive en cinco sitios del repo, y asi es como una copia se
+                    // queda atras el dia que cambie.
+                    const suyos = contratos.filter((c) => c.arrendadorId === a.id)
+                    const activos = suyos.filter((c) => (ESTATUS_VIGENTES as readonly string[]).includes(c.estatus)).length
+                    const nPredios = (predios ?? []).filter((p) => p.arrendadorId === a.id).length
+                    return (
+                      <tr key={a.id} className="border-b border-border last:border-0">
+                        <td className="px-4 py-2.5 font-medium text-ink">{a.nombre}</td>
+                        <td className="demo-num px-4 py-2.5 text-muted">
+                          {editando === a.id ? (
+                            <input
+                              className={inputMini + ' w-36'}
+                              value={borrador.rfc}
+                              onChange={(e) => setBorrador((b) => ({ ...b, rfc: e.target.value.toUpperCase() }))}
+                              placeholder="XAXX010101000"
+                            />
                           ) : (
-                            <Button
-                              size="sm"
-                              variant={!a.rfc || !a.direccion ? 'primary' : 'secondary'}
-                              onClick={() => abrir(a)}
-                            >
-                              {!a.rfc || !a.direccion ? 'Completar' : 'Editar'}
-                            </Button>
-                          ))}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                            a.rfc || <span className="text-accent">Falta</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted">
+                          {editando === a.id ? (
+                            <input
+                              className={inputMini + ' w-full min-w-[220px]'}
+                              value={borrador.direccion}
+                              onChange={(e) => setBorrador((b) => ({ ...b, direccion: e.target.value }))}
+                              placeholder="Calle, número, colonia, CP, ciudad"
+                              autoFocus
+                            />
+                          ) : (
+                            a.direccion || <span className="text-accent">Falta</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-muted">
+                          {a.email || a.telefono ? (
+                            <span>{a.email ?? ''}{a.email && a.telefono ? ' · ' : ''}{a.telefono ?? ''}</span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td
+                          className="demo-num px-4 py-2.5 text-center text-muted"
+                          title={`${activos} activo(s) de ${suyos.length}. Solo los activos impiden dar de baja.`}
+                        >
+                          <span className="text-ink">{activos}</span> / {suyos.length}
+                        </td>
+                        <td
+                          className="demo-num px-4 py-2.5 text-center text-muted"
+                          title="Un propietario con predios a su nombre no se puede dar de baja."
+                        >
+                          {nPredios}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <span className="inline-flex items-center justify-end gap-1.5">
+                            {puedeCrear &&
+                              (editando === a.id ? (
+                                <>
+                                  <Button size="sm" onClick={() => guardar(a.id)}>
+                                    {guardando ? 'Guardando…' : 'Guardar'}
+                                  </Button>
+                                  <Button size="sm" variant="secondary" onClick={() => setEditando(null)}>
+                                    Cancelar
+                                  </Button>
+                                </>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant={!a.rfc || !a.direccion ? 'primary' : 'secondary'}
+                                  onClick={() => abrir(a)}
+                                >
+                                  {!a.rfc || !a.direccion ? 'Completar' : 'Editar'}
+                                </Button>
+                              ))}
+                            {/* Fuera del `puedeCrear` a propósito: son dos permisos
+                                distintos, y colgar la baja del de editar se la
+                                escondería a quien sí puede aprobarla. Y se retira
+                                mientras esa fila se edita: pulsarlo ahí tiraría lo
+                                tecleado sin avisar. */}
+                            {puedeBorrar && editando !== a.id && (
+                              <button
+                                type="button"
+                                onClick={() => setBaja({ id: a.id, nombre: a.nombre })}
+                                aria-label={`Dar de baja a ${a.nombre}`}
+                                title="Dar de baja"
+                                className="inline-flex items-center gap-1 rounded border border-border-strong px-2 py-1 text-[12px] text-muted hover:border-error hover:text-error"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+      </CardColapsable>
+      {baja && (
+        <BajaPropietarioDialog
+          arrendador={baja}
+          onClose={() => setBaja(null)}
+          onToast={onToast}
+        />
+      )}
+    </>
+  )
+}
+
+// ─── Dar de baja a un propietario ────────────────────────────────────────────
+//  Hasta el 2026-08-27 esta pantalla no tenía forma de dar de baja a nadie: el
+//  endpoint existía desde antes y se endureció el 26/08 (`ba6fb09`), pero NINGUNA
+//  pantalla lo llamaba — no había un solo `DELETE` contra `/arrendadores/` en
+//  todo `apps/web`. Esto es la mitad que faltaba.
+//
+//  ─── Por qué NO dice «no se puede deshacer» y sí dice lo que dice ──────────
+//  En la base es un soft-delete: la fila sobrevive con `activo=false` y se lleva
+//  su historial entero. Decir «se borrará para siempre» sería falso. Pero el
+//  listado esconde a los inactivos y el PATCH no acepta `activo`, así que desde
+//  la aplicación NO HAY manera de traerlo de vuelta. Lo honesto es exactamente
+//  eso: en la base queda, en la pantalla no vuelve, y para revivirlo hace falta
+//  alguien con acceso a la base.
+//
+//  ─── Los dos caminos del servidor ─────────────────────────────────────────
+//   · 403 pidiendo la contraseña → NO es un error, es un paso, y se pide aquí
+//     mismo. Igual que al borrar un cliente.
+//   · 409 → tiene predios o contratos activos. El mensaje del servidor ya trae
+//     las dos cifras, así que se enseña tal cual y no se ofrece ningún botón
+//     que insista: no hay forma de insistir. Se sale cancelando.
+function BajaPropietarioDialog({
+  arrendador,
+  onClose,
+  onToast,
+}: {
+  arrendador: { id: string; nombre: string }
+  onClose: () => void
+  onToast: (m: string) => void
+}) {
+  const [error, setError] = useState<string | null>(null)
+  const [reautenticando, setReautenticando] = useState(false)
+  const [pass, setPass] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  async function darDeBaja() {
+    setError(null)
+    setEnviando(true)
+    try {
+      if (reautenticando) {
+        if (!pass) {
+          setError('Escribe tu contraseña para confirmar.')
+          setEnviando(false)
+          return
+        }
+        // El orden importa: si la contraseña es la equivocada, `desbloquearApi`
+        // lanza ANTES de bajar el estado, así que se sigue en el paso de la
+        // contraseña con el error puesto, y no de vuelta a la primera pantalla.
+        await desbloquearApi(pass)
+        setPass('')
+        setReautenticando(false)
+      }
+      await borrarArrendadorApi(arrendador.id)
+      onToast('Propietario dado de baja')
+      onClose()
+      return
+    } catch (e) {
+      if (esErrorDeDesbloqueo(e)) setReautenticando(true)
+      else setError(e instanceof Error ? e.message : 'No se pudo dar de baja al propietario')
+    }
+    setEnviando(false)
+  }
+
+  return (
+    <Modal
+      open
+      onOpenChange={(v) => !v && onClose()}
+      title={`Dar de baja a ${arrendador.nombre}`}
+      subtitle="Deja de aparecer en la aplicación y no se puede reactivar desde aquí"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={enviando || (reautenticando && !pass)}
+            onClick={darDeBaja}
+          >
+            {enviando ? 'Dando de baja…' : reautenticando ? 'Confirmar y dar de baja' : 'Dar de baja'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3 text-[13px]">
+        {reautenticando ? (
+          <>
+            <p className="text-muted">
+              Dar de baja a un propietario no se puede deshacer desde la aplicación, así que hace
+              falta tu contraseña.
+            </p>
+            <label className="block">
+              <span className="mb-1 block text-[12px] text-muted">Tu contraseña</span>
+              <input
+                type="password"
+                autoComplete="current-password"
+                autoFocus
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !enviando && pass && darDeBaja()}
+                className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+            </label>
+          </>
+        ) : (
+          <>
+            <p className="text-muted">
+              <span className="text-ink">{arrendador.nombre}</span> dejará de aparecer en
+              Arrendadores y no podrá elegirse en contratos nuevos.
+            </p>
+            {/* Se dice ANTES de pulsar, no después: sus contratos y pagos
+                anteriores no se van a ningún lado, y creer lo contrario es lo
+                que hace que nadie se atreva a usar el botón. */}
+            <p className="text-muted">
+              Sus contratos y pagos anteriores se conservan. Para volver a verlo hace falta
+              alguien con acceso a la base de datos.
+            </p>
+          </>
         )}
-    </CardColapsable>
+
+        {error && (
+          <p className="rounded border border-error/40 bg-error/10 px-3 py-2 text-error">{error}</p>
+        )}
+      </div>
+    </Modal>
   )
 }

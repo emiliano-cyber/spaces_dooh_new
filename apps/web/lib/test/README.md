@@ -34,7 +34,8 @@ columnas. Tres causas:
 - `schema.sql` iba muy por detrás (le faltaban hasta `campanas.enviada_dominio`
   y `validacion_estatus`);
 - la cadena de migraciones no se reaplicaba desde cero, por dos inversiones de
-  orden alfabético (ver `ANTES_DE` en `db-e2e.ts`);
+  orden alfabético (ver `ANTES_DE` en `scripts/migrar.mjs`, que es de donde
+  `db-e2e.ts` importa `ordenar()` desde el 17/08);
 - tres objetos existían **solo en producción**, creados a mano y nunca
   versionados. Uno de ellos, `creatividades.retirado_en`, lo escribe
   `creativos-repo.ts:103`: retirar un creativo fallaba en cualquier entorno

@@ -1,9 +1,10 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-13
 tags: [frontend, shell, navegacion, rbac]
 archivos:
+  - apps/web/lib/host.ts
   - apps/web/app/(app)/(shell)/layout.tsx
   - apps/web/components/demo/shell/AuthGate.tsx
   - apps/web/components/demo/shell/SesionContext.tsx
@@ -37,7 +38,7 @@ recorte el pie del menú.
 
 | Capa | Qué comprueba | Dónde | Se puede saltar |
 |---|---|---|---|
-| Middleware | Que **exista** la cookie `spaces_sesion` | `middleware.ts:106` | Sí (cookie falsa) |
+| Middleware | Que **exista** la cookie `spaces_sesion` | `middleware.ts:100` | Sí (cookie falsa) |
 | `AuthGate` | Sesión real + rol vs módulo de la ruta | `AuthGate.tsx` | Sí (es cliente) |
 | `exigir()` en cada route handler | Sesión válida + permiso | `lib/server/auth.ts` | **No** |
 
@@ -71,16 +72,31 @@ login.
 
 `apps/web/middleware.ts`, matcher casi total. Hace cuatro cosas en orden:
 
-1. **308 legado**: `/demo` → `/inicio`, `/demo/*` → `/*`
-2. **CSRF double-submit** en mutaciones `/api/` con sesión
-3. **Ruteo por subdominio**: solo `portal` → `/portal`, y solo fuera de dev
-4. **Gate de sesión**: sin cookie → `/login`
+1. **308 legado** (`:29-37`): `/demo` → `/inicio`, `/demo/*` → `/*`
+2. **CSRF double-submit** (`:45-69`) en mutaciones `/api/` con sesión
+3. **Ruteo por subdominio** (`:71-83`): solo `portal` → `/portal`, y solo fuera de dev
+4. **Gate de sesión** (`:99-104`): sin cookie → `/login`
 
 Rutas públicas del gate: `/api/*`, `/_next/*`, `/favicon*`, `/login`,
 `/recuperar/*`, `/p/*`, `/firmar/*`, `/portal/*`.
 
+### Quién mira el `Host`
+
+`apps/web/lib/host.ts` — `etiquetaDeHost(host)`, función **pura** y con pruebas
+(`host.test.ts`). Es la **única** del sistema que lee el encabezado `Host`, y lo
+único que decide es si el rewrite del punto 3 se dispara. **No** resuelve marcas
+ni organizaciones, y el host **no entra en la cadena de datos**: el modelo de
+subdominios por tenant está descartado ([[modelo-instancias-soberanas]]).
+
+> [!warning] Una IP no es un subdominio (corregido el 13/08)
+> La versión anterior contaba puntos (`parts.length >= 3`), así que entrar por la
+> IP desnuda del droplet —`209.97.146.136`— daba la etiqueta `'209'` y reescribía
+> la ruta. No rompía nada solo porque `209` no está en el `moduleMap`. Ahora se
+> descartan IPv4/IPv6 literales, los primeros segmentos numéricos y los hosts sin
+> tres etiquetas; `demo.space-os.io` sigue devolviendo `'demo'`, igual que antes.
+
 > [!note] `BASE_PATH` está duplicado
-> `middleware.ts:5` define `'/spaces-dooh'` con un comentario que dice *"Must
+> `middleware.ts:6` define `'/spaces-dooh'` con un comentario que dice *"Must
 > match basePath in next.config.mjs"*. Son dos sitios que hay que cambiar a la
 > vez.
 

@@ -1,0 +1,183 @@
+============================================================
+ >>>  SIN OBJETO desde el 2026-08-27 -- NO SE CORRE.     <<<
+============================================================
+ El ADR 0024 decidio que `demo.space-os.io` es solo la
+ demostracion ORIGINAL y que SE ELIMINARA. El nombre NO se
+ mueve al PADRE y NO se le emite certificado, asi que todo lo
+ que sigue dejo de hacer falta.
+
+ Se conserva como historia: el hallazgo que trae -- usar la
+ maquina vieja como BUZON ACME para que la llave privada nazca
+ en el PADRE y no viaje nunca -- sigue siendo el camino
+ correcto el dia que haya que emitir un certificado para un
+ nombre que otra maquina sirve.
+============================================================
+
+
+============================================================
+ EL CERTIFICADO DE demo.space-os.io, EMITIDO EN EL PADRE
+ usando la maquina vieja SOLO COMO BUZON
+============================================================
+ Sustituye al camino "copiar el certificado" y al camino
+ "DNS-01 con token de Cloudflare". Es mejor que los dos:
+
+   - La llave privada NUNCA viaja. Nace en el PADRE y se queda.
+   - El PADRE obtiene SU PROPIO certificado, con su renovacion
+     configurada. No un prestado que habria que rehacer.
+   - No hacen falta llaves SSH entre maquinas.
+   - No hace falta el token de Cloudflare, que era una
+     dependencia de renovacion PERMANENTE: si caducaba, el sitio
+     moria en silencio 90 dias despues.
+
+ A la maquina vieja SOLO se le crea un archivo de texto
+ temporal, que se borra al final. Ni configuracion, ni
+ servicios, ni llaves. (ADR 0017: lo que toque al viejo se
+ justifica; esto es lo minimo posible.)
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ Vas a tener DOS consolas abiertas a la vez:
+   [PADRE]  137.184.107.53
+   [VIEJO]  209.97.146.136
+ Cada comando dice en cual va. NO los confundas.
+============================================================
+
+
+# ############################################################
+#  PASO 0 - EL GATE. Sin esto, lo demas no funciona.
+# ############################################################
+
+# ------------------------------------------------------------
+# G1 [VIEJO] - Sirve la maquina vieja el camino del desafio?
+# ------------------------------------------------------------
+# Let's Encrypt va a pedir un archivo por HTTP. Comprobamos que
+# ese camino llega a disco antes de empezar.
+
+mkdir -p /var/www/html/.well-known/acme-challenge && echo prueba-buzon > /var/www/html/.well-known/acme-challenge/prueba && curl -s http://demo.space-os.io/.well-known/acme-challenge/prueba
+
+# Esperado:  prueba-buzon
+#
+# >>> Si sale un 404, una redireccion a https, o nada: PARA y
+#     pasame la salida. Significa que su nginx no sirve esa ruta
+#     desde /var/www/html, y hay que averiguar desde donde.
+#
+# >>> Si sale el HTML de una pagina de error: tambien PARA.
+
+# Limpieza del gate, en cuanto veas el resultado:
+
+rm -f /var/www/html/.well-known/acme-challenge/prueba
+
+
+# ############################################################
+#  PASO 1 - Pedir el certificado desde el PADRE
+# ############################################################
+
+# ------------------------------------------------------------
+# C1 [PADRE] - Lanzar certbot en modo manual
+# ------------------------------------------------------------
+# ESTE COMANDO SE QUEDA ESPERANDO. Es lo normal: imprime un
+# token y no sigue hasta que le des Enter. NO lo canceles.
+#
+# Deja esta consola quieta y ve a la del VIEJO con lo que
+# imprima.
+
+certbot certonly --manual --preferred-challenges http --agree-tos --no-eff-email -d demo.space-os.io
+
+# Te va a ensenar algo asi:
+#
+#   Create a file containing just this data:
+#   <TOKEN>.<HUELLA>
+#   And make it available on your web server at this URL:
+#   http://demo.space-os.io/.well-known/acme-challenge/<TOKEN>
+#
+# Copia LAS DOS COSAS: el nombre del archivo (<TOKEN>) y el
+# contenido (<TOKEN>.<HUELLA>). Son distintos: el contenido lleva
+# un punto y una segunda parte.
+
+
+# ------------------------------------------------------------
+# C2 [VIEJO] - Crear el archivo del desafio
+# ------------------------------------------------------------
+# SUSTITUYE las dos partes por lo que imprimio el C1.
+# Ojo: el contenido va entre comillas simples.
+
+printf '%s' 'PEGA_AQUI_EL_CONTENIDO_COMPLETO' > /var/www/html/.well-known/acme-challenge/PEGA_AQUI_EL_NOMBRE
+
+# Y comprueba que se lee desde fuera ANTES de darle Enter a
+# certbot. Sustituye tambien el nombre:
+
+curl -s http://demo.space-os.io/.well-known/acme-challenge/PEGA_AQUI_EL_NOMBRE
+
+# Esperado: exactamente el contenido, sin espacios ni saltos de
+# mas. Si no coincide, arreglalo AHORA: certbot solo lo intenta
+# una vez por corrida.
+
+
+# ------------------------------------------------------------
+# C3 [PADRE] - Darle Enter a certbot
+# ------------------------------------------------------------
+# Vuelve a la consola del PADRE y pulsa Enter.
+#
+# Esperado:
+#   Successfully received certificate.
+#   Certificate is saved at: /etc/letsencrypt/live/demo.space-os.io/fullchain.pem
+#
+# >>> Si falla la validacion, PARA y pasame el error entero.
+#     Let's Encrypt limita los intentos fallidos; no lo repitas
+#     a ciegas.
+
+
+# ------------------------------------------------------------
+# C4 [PADRE] - Comprobar que existe
+# ------------------------------------------------------------
+
+certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+
+# Esperado: un certificado `demo.space-os.io` con 90 dias.
+
+
+# ------------------------------------------------------------
+# C5 [VIEJO] - Borrar el buzon
+# ------------------------------------------------------------
+# Ya no hace falta. Se limpia en cuanto el C4 sale bien.
+
+rm -rf /var/www/html/.well-known/acme-challenge && ls -la /var/www/html/.well-known/ 2>/dev/null
+
+# Con esto, lo unico que se le hizo a la maquina vieja queda
+# deshecho. No se toco su nginx, ni su certificado, ni su base,
+# ni sus servicios.
+
+
+============================================================
+ QUE VIENE DESPUES, Y POR QUE NO VA EN ESTE ARCHIVO
+============================================================
+ El PADRE tiene ahora el certificado de demo.space-os.io, pero
+ le falta el suyo propio para space-os.io. Ese SI es directo:
+ el apice YA resuelve al PADRE, asi que sale por HTTP-01 normal,
+ sin buzon ni nada.
+
+ Antes de eso hay una decision pendiente: EL APICE ESTA EN
+ NARANJA en Cloudflare. Con el proxy naranja, `$remote_addr` es
+ una IP de Cloudflare para TODOS los visitantes, y el limitador
+ de login (10 intentos por IP, `rate-limit.ts:32-36`) bloquearia
+ a todo el mundo a la vez. Hay que ponerlo en GRIS, o instalar
+ `infra/nginx/cloudflare-realip.sh` antes de que nadie use el
+ login.
+
+ Esa decision va primero. Luego: certificado del apice, nginx,
+ y mover el DNS de demo.
+
+============================================================
+ UNA NOTA SOBRE LA RENOVACION
+============================================================
+ El modo `--manual` NO renueva solo, y certbot te lo va a
+ advertir. Es correcto y no es un problema: en cuanto
+ demo.space-os.io apunte al PADRE, se vuelve a emitir alli con
+ `--webroot`, que si deja la renovacion automatica configurada.
+
+ O sea: este certificado tambien es un puente. La diferencia con
+ copiarlo es que este puente lo construye el PADRE con su propia
+ llave, y nada secreto cruza una consola.
+============================================================

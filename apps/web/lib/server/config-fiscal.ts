@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { esRfcValido } from '@/lib/rfc'
 
 // ============================================================================
 //  lib/server/config-fiscal.ts — Validación de los datos fiscales del tenant
@@ -15,9 +16,15 @@ import { z } from 'zod'
 export const textoTenant = (max: number) =>
   z.string().trim().max(max).nullable().transform((s) => (s ? s : null))
 
-// Persona moral: 3 letras + 6 dígitos de fecha + 3 de homoclave (12).
-// Persona física: 4 letras + 6 + 3 (13). La Ñ y el & son válidos en la raíz.
-export const RFC_RE = /^[A-ZÑ&]{3,4}\d{6}[A-Z\d]{3}$/
+// La regla del RFC NO se define aquí. Este archivo tenía su propia copia de la
+// expresión —persona moral 3 letras + 6 dígitos + 3 de homoclave; física, 4—, y
+// el 26/08 se corrigió la de `@/lib/rfc` para exigir que la fecha exista en un
+// calendario (el `\d{6}` aceptaba el mes 13) sin que esta copia se enterara.
+//
+// Aquí duele más que en clientes: éste es el RFC del EMISOR, el de la propia
+// organización. Va en cada CFDI y lo recita el generador de contratos en las
+// declaraciones de la parte arrendataria. Un cliente con el RFC mal frena una
+// factura; el emisor con el RFC mal las frena todas.
 
 // El RFC se guarda normalizado (mayúsculas, sin espacios ni guiones): es lo que
 // se imprime en la declaración fiscal y lo que se compara contra el CSF. Sin
@@ -33,6 +40,8 @@ export const rfcTenant = z
   .nullable()
   .transform((s) => (s ? s.toUpperCase().replace(/[\s-]+/g, '') : null))
   .refine(
-    (s) => s == null || RFC_RE.test(s),
-    'RFC inválido: debe tener 12 caracteres (persona moral) o 13 (persona física)',
+    // `esRfcValido` da por bueno el vacío (el RFC es opcional), pero aquí no
+    // llega vacío nunca: el transform de arriba ya lo convirtió en null.
+    (s) => s == null || esRfcValido(s),
+    'RFC inválido: 12 caracteres (persona moral) o 13 (persona física), y la fecha tiene que existir',
   )

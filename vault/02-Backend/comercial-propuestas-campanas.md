@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-13
 tags: [backend, comercial, propuestas, campanas, amarillo]
 archivos:
   - apps/web/lib/server/propuestas-repo.ts
@@ -26,7 +26,7 @@ Cliente → Propuesta (folio, ítems, comisión) → aprobada
 
 | Archivo | Líneas | Responsabilidad |
 |---|---|---|
-| `campanas-repo.ts` | 1044 | Clientes, campañas, reservas, confirmar/extender |
+| `campanas-repo.ts` | 1214 | Clientes, campañas, reservas, confirmar/extender |
 | `propuestas-repo.ts` | 593 | Propuestas, ítems, liga pública, aceptación |
 | `creativos-repo.ts` | 287 | Alta, validación y asignación de creativos |
 | `propuestas-controller.ts` | 121 | Validación zod |
@@ -52,6 +52,23 @@ lo que se le cobra al cliente.
 | **Generar campaña es idempotente** (hallazgo A5) | `flujo-critico.e2e.test.ts` |
 | **No enviar a dominio sin creativo** (hallazgo M14) | `campanas-repo.ts` |
 | Reserva `TENTATIVA` caduca sola por TTL | `reservas.expira_en` (`20260706_reserva_ttl.sql`) |
+
+### El cupo global se lee con filtro de organización
+
+`cupoGlobalClientes()` (`campanas-repo.ts:295-313`) lee
+`config_negocio.max_clientes_pantalla` **filtrando por `tenant_id`** contra
+`current_setting('app.tenant_id', true)`, no solo apoyándose en la RLS.
+
+Hasta el 13/08 la consulta era un `select ... limit 1` **sin `where`**: hoy la
+salvaba el único llamador (`reservar()`, `:427`), que corre dentro de una
+transacción con el tenant ya fijado. Es la segunda capa que el resto del repo sí
+aplica, y aquí faltaba — un `limit 1` sin `where` devuelve la fila de
+**cualquier** organización en cuanto alguien llame a la función desde otra
+transacción, y ese fallo no da error: contesta en silencio ([[multi-tenancy-y-rls]], R2).
+
+Sin GUC la consulta devuelve `null` = «sin límite», que es como nace la
+instalación según el ADR 0008. La firma no cambió: las tres unitarias que la
+llaman con un cliente falso siguen intactas.
 
 ## La liga pública de la propuesta
 

@@ -23,7 +23,14 @@ let ajena: Awaited<ReturnType<typeof sembrarTenant>>
 let c: Cliente
 
 // Segundo usuario de la MISMA organización, con un rol que no ve comercial.
-const EMAIL_SIN_COMERCIAL = 'operaciones@estados.test'
+//
+// Era OPERACIONES hasta el 2026-08-20. Dejó de servir: al cerrar ROJO-2 el
+// catálogo pasó a darle `comercial: ver` A PROPÓSITO —Operaciones necesita ver
+// lo que va a instalar— y con eso esta prueba dejaba de medir lo que dice.
+// IMPRENTA sí carece de `comercial` en el catálogo vigente
+// (`20260820_catalogo_permisos_completo.sql`): ve y crea sus trabajos y mira
+// operaciones, nada más.
+const EMAIL_SIN_COMERCIAL = 'imprenta@estados.test'
 
 beforeAll(async () => {
   await recrearEsquema()
@@ -32,7 +39,7 @@ beforeAll(async () => {
   ajena = await sembrarTenant('estadosajena')
   await poolTest().query(
     `insert into usuarios (nombre, email, rol, password_hash, activo, tenant_id)
-     values ('Operaciones estados',$1,'OPERACIONES',$2,true,$3)`,
+     values ('Imprenta estados',$1,'IMPRENTA',$2,true,$3)`,
     [EMAIL_SIN_COMERCIAL, await bcrypt.hash(PASSWORD_DEMO, 4), org.id],
   )
   await arrancarServidor()

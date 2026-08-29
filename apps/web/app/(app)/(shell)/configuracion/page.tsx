@@ -9,6 +9,7 @@ import { useConfigNegocio } from '@/lib/data/client'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx, usePuede } from '@/components/demo/shell/SesionContext'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { puedeFijarPasswordSinAnterior } from '@/lib/perfil-acceso'
 
 const API = '/spaces-dooh/api'
 const inputCls =
@@ -106,23 +107,41 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
   // una contraseña temporal se quedaba encerrado IGUAL: el servidor ya le abría
   // todo, pero la sesión del cliente seguía diciendo «temporal» —se leyó al
   // montar— y la compuerta lo devolvía aquí una y otra vez.
-  const { refrescar } = useSesionCtx()
+  const { sesion, refrescar } = useSesionCtx()
   useEffect(() => { setEmail(emailActual) }, [emailActual])
 
   const cambiaEmail = !!email.trim() && email.trim().toLowerCase() !== emailActual.toLowerCase()
   const hayCambio = cambiaEmail || password.length > 0
+  // ADR 0018: quien entró con Google y nunca puso contraseña puede fijar la
+  // primera sin teclear la anterior — que además no conoce, porque el alta la
+  // imprime una sola vez. La decisión vive en `lib/perfil-acceso.ts` y la
+  // comparte con el servidor; aquí solo se consulta.
+  const sinAnterior = puedeFijarPasswordSinAnterior({
+    debeCambiarPassword: sesion?.usuario.debeCambiarPassword,
+    metodoSesion: sesion?.usuario.metodoSesion,
+    cambiaEmail,
+    cambiaPassword: password.length > 0,
+  })
 
   async function guardar() {
     if (cambiaEmail && !esEmailValido(email)) { toast.error(EMAIL_INVALIDO); return }
     if (password && password.length < 8) { toast.error('La contraseña debe tener al menos 8 caracteres'); return }
-    // Cambiar correo o contraseña exige la contraseña actual (re-autenticación).
-    if (!passwordActual) { toast.error('Ingresa tu contraseña actual para confirmar'); return }
+    // Cambiar correo o contraseña exige la contraseña actual (re-autenticación),
+    // salvo la excepción del ADR 0018.
+    if (!sinAnterior && !passwordActual) { toast.error('Ingresa tu contraseña actual para confirmar'); return }
     setBusy(true)
     try {
       const r = await fetch(`${API}/perfil/`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password: password || undefined, passwordActual }),
+        // Sin la excepción se manda como siempre. Con ella NO se manda vacío:
+        // que el campo no viaje es lo que hace legible en el servidor que este
+        // es el camino del ADR 0018 y no un olvido del usuario.
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password || undefined,
+          passwordActual: sinAnterior ? undefined : passwordActual,
+        }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) throw new Error((d as { error?: string }).error ?? 'No se pudo guardar')
@@ -154,7 +173,14 @@ function CuentaCard({ emailActual }: { emailActual: string }) {
           <span className="mb-1 block text-[12px] font-medium text-ink">Nueva contraseña</span>
           <input type="password" className={inputCls} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Déjala en blanco para no cambiarla (mín. 8)" autoComplete="new-password" />
         </label>
-        {hayCambio && (
+        {hayCambio && sinAnterior && (
+          <p className="text-[12px] text-muted">
+            Entraste con Google y aún no tienes contraseña propia, así que no hace
+            falta la anterior. Al guardarla podrás usarla también para confirmar
+            cambios sensibles.
+          </p>
+        )}
+        {hayCambio && !sinAnterior && (
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña actual <span className="text-muted">(para confirmar)</span></span>
             <input type="password" className={inputCls} value={passwordActual} onChange={(e) => setPasswordActual(e.target.value)} placeholder="Tu contraseña actual" autoComplete="current-password" />

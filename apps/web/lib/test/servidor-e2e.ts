@@ -43,10 +43,18 @@ export async function arrancarServidor(): Promise<void> {
       // el login daría 200 y la sesión se perderia, que es el fallo que ya
       // ocurrió en el droplet cuando prod iba sin TLS.
       COOKIE_SECURE: '0',
-      // Mismas banderas que produccion: el autoregistro CERRADO (A6). Se
-      // comprueba en el servidor, no solo ocultando el boton, asi que la
-      // prueba necesita el mismo valor para verificar el guard de verdad.
-      NEXT_PUBLIC_AUTOREGISTRO: '0',
+      // Mismas banderas que una instancia de owner: el autoregistro CERRADO
+      // (A6). Se comprueba en el servidor, no solo ocultando el boton, asi que
+      // la prueba necesita el mismo valor para verificar el guard de verdad.
+      //
+      // Se pone EXPLICITO aunque ausente ya signifique apagado (F2.6 la hizo
+      // fail-closed): un valor por omision hace que la prueba pase por lo que
+      // NO se dijo, y el dia que la omision cambie de significado nadie sabria
+      // que este arnes dependia de ella. Antes se llamaba
+      // NEXT_PUBLIC_AUTOREGISTRO y Next la horneaba en el build, asi que
+      // ponerla aqui no servia de nada: ahora se lee de verdad en cada
+      // peticion.
+      AUTOREGISTRO: '0',
 
       // ─── ADR 0012 · acceso con Google ───────────────────────────────────
       // Encendido en las pruebas aunque en producción hoy esté apagado: sin

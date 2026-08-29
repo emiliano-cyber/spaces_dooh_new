@@ -74,7 +74,8 @@ describe('3 · nadie vuelve a escribir la regla por su cuenta', () => {
     // Esta es la prueba que habría cazado el fallo. Las otras pasaban con la
     // regla duplicada: la función estaba bien, el problema era que había copias.
     //
-    // `_legacy/` queda fuera a propósito: no se sirve.
+    // `_legacy/` quedaba fuera a propósito porque no se servía. Desde el
+    // 2026-08-27 ya no existe: se retiró entero con la pista archivada.
     const culpables: string[] = []
     for (const rel of archivos) {
       const src = readFileSync(join(raiz, rel), 'utf8')

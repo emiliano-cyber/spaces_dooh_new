@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { etiquetaDeHost } from './lib/host'
 
 // Must match basePath in next.config.mjs
 const BASE_PATH = '/spaces-dooh'
@@ -9,15 +10,6 @@ const BASE_PATH = '/spaces-dooh'
 // portal externo, que sí es parte del producto vivo.
 const moduleMap: Record<string, string> = {
   portal: '/portal',
-}
-
-function extractSubdomain(host: string): string | null {
-  // Strip port
-  const hostname = host.split(':')[0]
-  const parts = hostname.split('.')
-  // e.g. admin.westmedia.spaces.com → parts[0] = 'admin'
-  if (parts.length >= 3) return parts[0]
-  return null
 }
 
 export function middleware(request: NextRequest) {
@@ -62,7 +54,11 @@ export function middleware(request: NextRequest) {
       // Firma pública del contrato: el arrendador no tiene sesión, así que no
       // hay cookie que proteger con CSRF. El token del enlace es la credencial.
       normalizedPath.startsWith('/api/firma/') ||
-      normalizedPath.startsWith('/api/propuestas/publica/')
+      normalizedPath.startsWith('/api/propuestas/publica/') ||
+      // Arranque de una instancia recién aprovisionada (F5.2): no hay sesión
+      // —la base está vacía—, así que no hay cookie que proteger. Su credencial
+      // es `BOOTSTRAP_TOKEN`, y su cerrojo real es que `tenants` esté vacía.
+      normalizedPath.startsWith('/api/bootstrap')
     const sesion = request.cookies.get('spaces_sesion')?.value
     if (!exento && sesion) {
       const cookieTok = request.cookies.get('spaces_csrf')?.value
@@ -76,13 +72,15 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Ruteo por subdominio (producción multi-subdominio): admin.x.com → /admin
+  // Ruteo por subdominio: portal.x.com → /portal. `etiquetaDeHost` (lib/host.ts)
+  // descarta las IP literales, que la versión anterior confundía con subdominios
+  // —entrar por 209.97.146.136 daba la etiqueta «209»—.
   if (!isDev) {
-    const subdomain = extractSubdomain(host)
-    if (subdomain && moduleMap[subdomain]) {
+    const etiqueta = etiquetaDeHost(host)
+    if (etiqueta && moduleMap[etiqueta]) {
       const url = request.nextUrl.clone()
-      if (!normalizedPath.startsWith(moduleMap[subdomain])) {
-        url.pathname = BASE_PATH + moduleMap[subdomain] + normalizedPath
+      if (!normalizedPath.startsWith(moduleMap[etiqueta])) {
+        url.pathname = BASE_PATH + moduleMap[etiqueta] + normalizedPath
         return NextResponse.rewrite(url)
       }
     }

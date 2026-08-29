@@ -1,6 +1,10 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Pool } from 'pg'
+// El orden de las migraciones se declara UNA vez, en el runner que las aplica
+// en el droplet. Importarlo desde aquí es lo que garantiza que el arnés pruebe
+// el mismo orden que corre en una instancia.
+import { ordenar } from '../../../../scripts/migrar.mjs'
 
 // ============================================================================
 //  lib/test/db-e2e.ts — La base de las pruebas de integración.
@@ -97,8 +101,8 @@ export function poolApp(): Pool {
   return poolAppRef
 }
 
-// Deja la base como recién creada: `schema.sql` MÁS todas las migraciones, en
-// orden de nombre.
+// Deja la base como el droplet: `schema.sql`, la organización de desarrollo y
+// todas las migraciones, en orden de nombre.
 //
 // Lo de las migraciones no es un extra: `schema.sql` es un SUBCONJUNTO de lo
 // que corre en producción. Se comparó columna a columna y le faltan 143 —
@@ -132,32 +136,33 @@ export async function recrearEsquema(): Promise<void> {
   await p.query('create schema public')
   await p.query(readFileSync(join(raizDb, 'schema.sql'), 'utf8'))
 
-  const dirMigraciones = join(raizDb, 'migrations')
-  // Orden por nombre = orden cronológico: todas llevan prefijo AAAAMMDD.
+  // La organización de trabajo va ENTRE el esquema y las migraciones, y esa
+  // posición es la que hace válido lo que prueban las demás.
   //
-  // Con UNA excepción conocida: `hard1_rls_todas_tablas` comprueba que
-  // `usuarios` ya tenga RLS+FORCE, y eso lo hace `hard1_usuarios_rls` — que por
-  // nombre va DESPUÉS (r < u). En producción se aplicaron a mano en el orden
-  // bueno, así que el desorden nunca se noto. Se corrige aquí en vez de
-  // renombrar los archivos: renombrar migraciones ya aplicadas confunde a quien
-  // compare el repo con lo desplegado.
-  const ANTES_DE: Record<string, string> = {
-    // `..._rls_todas_tablas` comprueba que `usuarios` ya tenga RLS+FORCE, y eso
-    // lo hace `..._usuarios_rls`, que por nombre va después (r < u).
-    '20260720_hard1_usuarios_rls.sql': '20260720_hard1_rls_todas_tablas.sql',
-    // `..._contrato_incompleto` USA el valor 'INCOMPLETO' del enum, y quien lo
-    // añade es `..._contrato_incompleto_enum` — que va después porque '.' < '_'.
-    '20260727_contrato_incompleto_enum.sql': '20260727_contrato_incompleto.sql',
-  }
-  const archivos = readdirSync(dirMigraciones).filter((f) => f.endsWith('.sql')).sort()
-  for (const [primero, segundo] of Object.entries(ANTES_DE)) {
-    const i = archivos.indexOf(primero)
-    const j = archivos.indexOf(segundo)
-    if (i > -1 && j > -1 && i > j) {
-      archivos.splice(i, 1)
-      archivos.splice(archivos.indexOf(segundo), 0, primero)
-    }
-  }
+  // Desde el 19/08 `schema.sql` ya no siembra ningún tenant: una instancia
+  // nueva no debe nacer con la identidad de otro owner (ver la cabecera de
+  // `db/semilla-desarrollo.sql`). Pero el estado que el arnés tiene que
+  // reproducir NO es el de una instancia recién nacida, sino el del DROPLET:
+  // una base que ya tenía organización cuando le llegaron las migraciones. De
+  // eso dependen dos cosas medibles:
+  //   · el backfill de `20260812_schema_migrations.sql` solo dispara si
+  //     `tenants` tiene filas — sembrar DESPUÉS lo dejaría sin disparar y
+  //     `migraciones.e2e.test.ts` mediría otra cosa;
+  //   · las migraciones que rellenan por organización (`config_negocio`,
+  //     moneda, razón social) no tendrían a quién rellenar.
+  //
+  // Quien prueba el caso contrario —una base sin owner, que es como nace una
+  // instancia— es `esquema-sin-owner.e2e.test.ts`, con su propia base y sin
+  // pasar por aquí.
+  await p.query(readFileSync(join(raizDb, 'semilla-desarrollo.sql'), 'utf8'))
+
+  const dirMigraciones = join(raizDb, 'migrations')
+  // El orden lo decide `ordenar()`, del runner (`scripts/migrar.mjs`). Aquí
+  // había una copia del mapa `ANTES_DE` y desde el 17/08 (F3.2) ya no: es el
+  // mismo orden que aplica una instancia de verdad, y dos copias divergen. Si
+  // divergieran éstas, las pruebas aplicarían en un orden y el droplet en otro
+  // — el escenario que ninguna prueba vería.
+  const archivos = ordenar(readdirSync(dirMigraciones).filter((f) => f.endsWith('.sql')))
   for (const archivo of archivos) {
     try {
       await p.query(readFileSync(join(dirMigraciones, archivo), 'utf8'))

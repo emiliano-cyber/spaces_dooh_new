@@ -1,5 +1,6 @@
 import 'server-only'
 import { q, q1, qConTenant, qRaw, qRaw1 } from './db'
+import type { PoolClient } from 'pg'
 import { tenantActual } from './tenant'
 import { hashPassword } from './auth'
 
@@ -34,9 +35,17 @@ export async function listarUsuarios() {
   return rows.map(rowToUsuario)
 }
 
+// F5.1: con `client`, el INSERT va por la transaccion del alta y se deshace con
+// ella. Sin el, todo sigue como hoy con `qConTenant`. NO se duplica la funcion:
+// el propio repo advierte que duplicar es «la forma segura de que las tres
+// divergieran» (`cuentas-controller.ts:36-40`).
+//
+// Con `client` NO se vuelve a fijar el GUC: quien abre la transaccion ya lo hizo
+// con `fijarTenant`, y volver a hacerlo aqui escondería el caso en que no se
+// hizo — un INSERT que deberia fallar por RLS pasaria inadvertido.
 export async function crearUsuario(input: {
   nombre: string; email: string; cargo?: string; rol?: string; password?: string; tenantId?: string | null
-}) {
+}, client?: PoolClient) {
   // Nunca un default débil: la contraseña debe venir validada por la ruta.
   if (!input.password) throw new Error('Se requiere una contraseña para crear el usuario')
   const hash = await hashPassword(input.password)
@@ -45,12 +54,12 @@ export async function crearUsuario(input: {
   // tenantActual() es null y q() fijaría app.tenant_id='' → el WITH CHECK de la
   // RLS fail-closed rechazaría el INSERT. Ahí fijamos el GUC explícitamente al
   // tenant recién creado (id de servidor, nunca del cliente).
-  const rows = await qConTenant(
-    tenantId,
-    `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
-     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`,
-    [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId],
-  )
+  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
+     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
+  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId]
+  const rows = client
+    ? (await client.query(texto, params as any[])).rows
+    : await qConTenant(tenantId, texto, params)
   return rowToUsuario(rows[0])
 }
 
@@ -152,6 +161,34 @@ export async function actualizarPerfil(id: string, cambios: { email?: string; pa
 // Hash de la contraseña del propio usuario en sesión, para re-autenticar antes
 // de un cambio sensible (Hardening 1 · Bloque E). Va acotado al tenant de la
 // sesión, así que nunca devuelve el hash de otra organización.
+// ADR 0018. Se consulta por `usuario_id`, no por `sub`: la pregunta aquí no es
+// «¿quién es este sub?» sino «¿esta cuenta tiene una vía de Google vinculada?».
+//
+// ⚠️ VA POR `q` Y NO POR `qRaw`, y la primera versión se equivocó justo aquí.
+// `identidades_externas` tiene RLS + FORCE con política por `app.tenant_id`
+// (`20260806_identidades_externas.sql:77-82`). `qRaw` NO fija ese GUC, así que
+// la política comparaba contra NULL y la consulta devolvía CERO FILAS EN
+// SILENCIO: la condición salía `false` y la excepción del ADR 0018 no se abría
+// nunca. Es la zona R2 del proyecto, y esta fue su tercera aparición.
+//
+// El razonamiento equivocado era «se resuelve antes de que haya tenant», cierto
+// para el callback de Google —que por eso usa una función SECURITY DEFINER— y
+// FALSO aquí: esto corre con la sesión y el tenant ya resueltos.
+//
+// Se acota además por `tenant_id` explícito, como el resto del repo: segunda
+// capa sobre la RLS, por convención de la casa.
+export async function tieneIdentidadVinculada(
+  usuarioId: string,
+  proveedor: string,
+): Promise<boolean> {
+  const r = await q1<{ uno: number }>(
+    `select 1 as uno from identidades_externas
+      where usuario_id = $1 and proveedor = $2 and tenant_id = $3 limit 1`,
+    [usuarioId, proveedor, await tenantOblig()],
+  )
+  return !!r
+}
+
 export async function passwordHashDe(id: string): Promise<string | null> {
   const r = await q1<{ password_hash: string | null }>(
     'select password_hash from usuarios where id = $1 and tenant_id = $2',

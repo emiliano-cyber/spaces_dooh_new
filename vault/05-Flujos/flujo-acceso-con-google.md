@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [flujo, auth, google, oidc, rojo]
 archivos:
   - docs/adr/0012-acceso-con-cuenta-de-google.md
@@ -140,8 +140,18 @@ enmienda escrita.
 
 El motivo del rechazo sigue siendo correcto (el mismo despliegue sirve la demo y
 producción sobre la misma base), pero ese riesgo **ya lo gobierna
-`NEXT_PUBLIC_AUTOREGISTRO`** para `/api/signup`. Se cuelga del **mismo
-interruptor**, comprobado en el servidor.
+`AUTOREGISTRO`** para `/api/signup`. Se cuelga del **mismo interruptor**,
+comprobado en el servidor.
+
+> [!important] La bandera se renombró y cambió de polaridad el 14/08 (F2.6)
+> Era `NEXT_PUBLIC_AUTOREGISTRO` y se horneaba en el build. Ahora es
+> `AUTOREGISTRO`, sin prefijo, y `autoregistroHabilitado()`
+> (`google-oauth.ts`) delega en `autoregistroActivo()` de `lib/entorno.ts` para
+> que las dos puertas —`/api/signup` y el alta con Google— **no puedan
+> divergir**: mientras cada una leía `process.env` por su cuenta, bastaba
+> corregir una para dejar la otra abierta sin que nada avisara.
+>
+> **Solo `AUTOREGISTRO=1` enciende.** Ausente = apagado, al revés que antes.
 
 El nombre de la organización se pide **antes** de ir a Google y viaja en **cookie
 httpOnly**:

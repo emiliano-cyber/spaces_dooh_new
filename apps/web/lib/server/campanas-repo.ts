@@ -4,10 +4,13 @@ import { pool, q, q1, fijarTenant } from './db'
 import { tenantActual } from './tenant'
 import { generarCalendarioDeContratoEnTx } from './arrendadores-repo'
 import { exigirContratoCompleto } from './contratos-sitio'
+import { spotsDeLaReserva } from '@/lib/spots-reserva'
 import { folioCampana } from './folios'
 import { esPantallaDigitalSql } from './pantalla-digital-sql'
 import { rutaArteCreativo } from '@/lib/medios-url'
 import { divisorDeComision } from '@/lib/data/derive'
+import { AppError } from './errores'
+import { ordenInvertido } from './fechas'
 
 // ============================================================================
 //  lib/server/campanas-repo.ts — Clientes, campañas, reservas + flujos
@@ -296,9 +299,19 @@ export async function barrerReservasVencidas(): Promise<number> {
 // Cupo efectivo = el de la pantalla; si no tiene, el default global. `null` en
 // los dos = SIN LÍMITE, que es como nace la instalación: la regla se enciende
 // capturando un número, nunca por desplegar código.
+// El filtro por `tenant_id` es la SEGUNDA capa, la misma que el resto del repo
+// aplica en toda operación por id; la primera (RLS sobre `config_negocio`) sigue
+// ahí. Hace falta porque un `limit 1` sin `where` devolvería la fila de otra
+// organización el día que alguien llame a esto fuera de una transacción con el
+// tenant fijado — y ese fallo no da error, contesta en silencio (R2).
 export async function cupoGlobalClientes(client: PoolClient): Promise<number | null> {
-  const v = (await client.query('select max_clientes_pantalla from config_negocio limit 1')).rows[0]
-    ?.max_clientes_pantalla
+  const v = (
+    await client.query(
+      `select max_clientes_pantalla from config_negocio
+        where tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
+        limit 1`,
+    )
+  ).rows[0]?.max_clientes_pantalla
   return v != null ? Number(v) : null
 }
 
@@ -533,10 +546,10 @@ export async function reservar(input: {
       // a lo disponible). En estáticas queda null.
       const pedidos = input.spotsPorSitio?.[sitioId]
       const disp = s?.spots_disponibles != null ? Number(s.spots_disponibles) : null
-      const spotsReservados =
-        digital && pedidos != null
-          ? Math.max(0, disp != null ? Math.min(Math.round(pedidos), disp) : Math.round(pedidos))
-          : null
+      // Misma funcion que el camino de propuesta, y ese es el punto: eran dos
+      // expresiones para la misma idea y por eso acabaron significando cosas
+      // distintas. Con una sola no pueden volver a divergir.
+      const spotsReservados = spotsDeLaReserva({ digital, pedidos, disponibles: disp })
 
       // En comercial NO hay reserva tentativa: al reservar se consume el spot de
       // inmediato (CONFIRMADA, sin TTL). La disponibilidad se ve por spots
@@ -652,14 +665,20 @@ export async function generarCampanaDesdePropuesta(
       return { campana: rowToCampana(ya), yaExistia: true }
     }
     // tipo de campaña derivado del medio de los sitios aprobados
-    const flags = (
+    // Se pide `id` y `spots_disponibles` ademas de la bandera: hasta el
+    // 2026-08-27 esta consulta solo traia un arreglo de banderas para
+    // `derivarTipoCampana`, asi que al insertar la reserva no se sabia si ESE
+    // sitio era digital ni cuantos slots le quedaban — y de ahi salia el
+    // `spots_reservados` equivocado (DATA-02).
+    const filasSitio = (
       await client.query(
-        `select (tipo_medio='PANTALLA_DIGITAL') as digital
+        `select id, (tipo_medio='PANTALLA_DIGITAL') as digital, spots_disponibles
            from sitios where id = any($1::uuid[])`,
         [items.map((i) => i.sitio_id)],
       )
-    ).rows.map((r: any) => !!r.digital)
-    const tipoCampana = derivarTipoCampana(flags)
+    ).rows as { id: string; digital: boolean; spots_disponibles: number | null }[]
+    const porSitio = new Map(filasSitio.map((r) => [r.id, r]))
+    const tipoCampana = derivarTipoCampana(filasSitio.map((r) => !!r.digital))
 
     // La campaña hereda el nombre de la agencia de la propuesta (si la lleva).
     const ag = prop.agencia_id
@@ -690,7 +709,18 @@ export async function generarCampanaDesdePropuesta(
          values ($1,$2,$3,$4,$5,'FIXED_PKG','CONFIRMADA',$6,$7,$8,$9,$10,$11)`,
         [
           campanaId, it.sitio_id, iso(it.fecha_inicio), iso(it.fecha_fin), netoSitio,
-          it.spots_por_dia ?? null, it.unidad ?? 'mensual', it.cantidad ?? 1,
+          // SLOTS que la reserva retiene — NO `spots_por_dia`, que es la
+          // programacion y va en su propia columna dos lineas mas abajo.
+          // Escribir el mismo valor en las dos era DATA-02: `spots_por_dia` es
+          // opcional, asi que una propuesta mensual normal dejaba
+          // `spots_reservados` en null, y `reparto-creativos.ts:51-68` lee ese
+          // null como «es una lona».
+          spotsDeLaReserva({
+            digital: !!porSitio.get(it.sitio_id)?.digital,
+            pedidos: it.spots_por_dia,
+            disponibles: porSitio.get(it.sitio_id)?.spots_disponibles ?? null,
+          }),
+          it.unidad ?? 'mensual', it.cantidad ?? 1,
           it.tarifa_unitaria ?? null, it.spots_por_dia ?? null, await tenantActual(),
         ],
       )
@@ -895,11 +925,42 @@ export async function confirmarReserva(campanaId: string) {
 }
 
 // ─── Extender campaña (fechas) ──────────────────────────────────────────────
+// Extender NO puede acortar. Hasta el barrido del 26/08 esta funcion escribia la
+// fecha que le dieran sin mirar la que la campana ya tenia, y con eso una fecha
+// ANTERIOR recortaba la campana Y reescribia la fecha de fin de TODAS sus
+// reservas de paso. La accion se llama «extender», nadie esta pidiendo recortar,
+// y el inventario que esas reservas ocupaban se liberaba sin que nadie lo
+// decidiera; si ademas quedaba por debajo de `fecha_inicio`, la campana salia de
+// todos los conteos que filtran por rango.
+//
+// La comprobacion vive aqui y no en el controlador porque el controlador no
+// conoce la fecha EFECTIVA: solo ve la que le mandan. Mismo reparto que UX-01 en
+// los contratos.
 export async function extenderCampana(campanaId: string, nuevaFechaFin: string) {
-  await q(`update campanas set fecha_fin=$2 where id=$1`, [campanaId, nuevaFechaFin])
-  await q(`update reservas set fecha_fin=$2 where campana_id=$1`, [campanaId, nuevaFechaFin])
+  const tenantId = await tenantActual()
+  // `and tenant_id` como segunda capa sobre la RLS, aqui y en los dos updates.
+  const actual = await q<{ fecha_fin: unknown }>(
+    'select fecha_fin from campanas where id=$1 and tenant_id=$2',
+    [campanaId, tenantId],
+  )
+  if (!actual[0]) return null
+  const finActual = String(iso(actual[0].fecha_fin) ?? '').slice(0, 10)
+
+  // `ordenInvertido` compara por CALENDARIO. Como texto, '2026-9-1' sale MAYOR
+  // que '2026-10-01' y un acortamiento real pasaria: ese fallo ya se pago una
+  // vez en el alta de contrato.
+  if (finActual && ordenInvertido(finActual, nuevaFechaFin)) {
+    throw new AppError(
+      `Esta campana llega hasta el ${finActual}. Extender solo puede alargarla: ` +
+        `elige esa fecha o una posterior.`,
+      400,
+    )
+  }
+
+  await q(`update campanas set fecha_fin=$2 where id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
+  await q(`update reservas set fecha_fin=$2 where campana_id=$1 and tenant_id=$3`, [campanaId, nuevaFechaFin, tenantId])
   await recalcularPresupuesto(null, campanaId)
-  const rows = await q('select * from campanas where id=$1', [campanaId])
+  const rows = await q('select * from campanas where id=$1 and tenant_id=$2', [campanaId, tenantId])
   return rows[0] ? rowToCampana(rows[0]) : null
 }
 

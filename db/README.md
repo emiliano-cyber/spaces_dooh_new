@@ -25,6 +25,12 @@ El `schema.sql` se carga automáticamente la primera vez; las tablas quedan
 **vacías** para que crees usuarios y todo desde 0. Lo que insertes persiste
 entre reinicios (`docker compose stop` / `up`).
 
+Detrás de él se carga **`semilla-desarrollo.sql`**, que crea la organización de
+pruebas `rgb`. Va aparte del esquema a propósito: desde el 19/08 `schema.sql` no
+siembra ninguna organización —lo que viaja a cada instancia no puede traer la
+identidad de otro owner— y la semilla **solo se aplica en local** (la imagen no
+la copia).
+
 ### Rol de la app en local (necesario para probar la RLS de verdad)
 
 El módulo de Arrendadores tiene **RLS fail-closed**: sin `app.tenant_id` fijado,
@@ -53,14 +59,25 @@ con contraseña conocida en producción.
 ```bash
 createdb spaces
 psql -d spaces -f db/schema.sql
+psql -d spaces -f db/semilla-desarrollo.sql   # la organización de pruebas 'rgb'
 ```
 
 ## 1b. Probar inserts desde cero
 En Adminer (8081) o psql, por ejemplo:
 ```sql
-insert into usuarios (nombre, email, rol) values ('Tu Nombre', 'tu@correo.com', 'DUENO');
-insert into clientes (nombre) values ('Cliente Real');
+-- `usuarios` y `clientes` llevan `tenant_id` NOT NULL: van en el bucle de
+-- schema.sql que añade la columna y enciende la RLS. La organización se resuelve
+-- por SLUG, nunca escribiendo el uuid: ese id se genera distinto en cada base.
+-- OJO: 'rgb' solo existe si aplicaste `db/semilla-desarrollo.sql`. El esquema ya
+-- no siembra ninguna organización; si no la aplicaste, estos inserts afectan
+-- 0 filas y NO dan error (lo dice el aviso de abajo).
+insert into usuarios (tenant_id, nombre, email, rol)
+select id, 'Tu Nombre', 'tu@correo.com', 'DUENO' from tenants where slug = 'rgb';
+insert into clientes (tenant_id, nombre)
+select id, 'Cliente Real' from tenants where slug = 'rgb';
 -- el id se genera solo (uuid); usa los ids al enlazar llaves foráneas.
+-- Si el `select` no encuentra la organización, el insert afecta 0 filas y NO da
+-- error: comprueba siempre que psql conteste `INSERT 0 1` y no `INSERT 0 0`.
 ```
 
 ## 2. Qué incluye

@@ -1,0 +1,263 @@
+============================================================
+ F6.4 · EL RECEPTOR DE FLOTA EN EL PADRE
+ Todo en [PADRE] 137.184.107.53. Cierra la FASE 6.
+============================================================
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+
+ Requiere el codigo nuevo en la maquina: esta tarjeta empieza
+ con un `git pull`. Si no lo has hecho desde el 27/08 por la
+ tarde, el paso R1 no encontrara los archivos.
+
+============================================================
+ QUE HACE, Y QUE NO
+============================================================
+ F6.2 (ya cerrada) es EL PADRE PREGUNTANDO: consulta
+ `/api/version` de cada instancia. Funciona mientras el owner
+ exponga esa ruta.
+
+ F6.4 es LA INSTANCIA CONTANDO. El dia que un owner cierre esa
+ ruta -- y esta en su derecho, es su servidor -- el padre se
+ queda ciego. El reporte saliente lo arregla sin que el padre
+ entre a nada.
+
+ LO QUE ESTA TARJETA PRUEBA: el receptor entero -- nginx, TLS,
+ el token contra el inventario, que el token y el cuerpo digan
+ la MISMA instancia, y el rechazo COMPLETO de un cuerpo con
+ claves de mas.
+
+ LO QUE NO PRUEBA: el emisor. Vive en `update.sh`, que no corre
+ sin el registry (TH-P4). Aqui el emisor lo hace un `curl`.
+
+============================================================
+ POR QUE UN USUARIO PROPIO
+============================================================
+ Este proceso ESCRIBE ARCHIVOS EN DISCO A PARTIR DE PETICIONES
+ DE RED. Es la clase de servicio que no debe correr como root,
+ y el PADRE ya arrastra desde la Fase 4 la tarea de sacar el
+ 3000 de root: anadir un segundo la agrandaria.
+
+ El usuario `flota` no tiene shell, no tiene home, y solo
+ escribe en UN directorio.
+
+
+# ############################################################
+#  BLOQUE 0 - EL GATE
+# ############################################################
+
+hostname; curl -s ifconfig.me; echo
+
+# Esperado:  ubuntu-s-2vcpu-4gb-amd-nyc1
+#            137.184.107.53
+
+
+# ############################################################
+#  BLOQUE 1 - TRAER EL CODIGO Y DAR DE ALTA AL USUARIO
+# ############################################################
+
+# R1 - El codigo nuevo.
+
+cd /var/www/Spaces && git pull && ls -l infra/systemd/flota-reporte.service infra/nginx/snippets/flota-reporte.conf
+
+# Esperado: los dos archivos existen.
+
+# R2 - El usuario de servicio. Sin shell y sin home.
+
+useradd --system --no-create-home --shell /usr/sbin/nologin flota; id flota
+
+# Esperado: uid=... (flota) gid=... (flota)
+#
+# >>> Si dice "user 'flota' already exists", perfecto: sigue.
+
+# R3 - Su directorio de estado, que es lo UNICO que escribe.
+
+install -d -o flota -g flota -m 750 /var/www/Spaces/apps/flota/estado && ls -ld /var/www/Spaces/apps/flota/estado
+
+# R4 - Que pueda leer su inventario (flota.json lo creaste ayer
+#      y es de root).
+
+chgrp flota /var/www/Spaces/apps/flota/flota.json && chmod 640 /var/www/Spaces/apps/flota/flota.json && ls -l /var/www/Spaces/apps/flota/flota.json
+
+# Esperado: -rw-r----- root flota
+
+# R5 - El archivo de tokens. Vacio de momento, 0640 root:flota.
+
+install -d -m 755 /etc/space-os && install -o root -g flota -m 640 /dev/null /etc/space-os/flota.env && ls -l /etc/space-os/flota.env
+
+# R6 - El token del PADRE, que ya existe: se COPIA, no se
+#      genera otro. Tiene que ser el MISMO que usa la instancia,
+#      o el receptor la rechaza con 401 y parecera un fallo de
+#      red.
+
+T=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2); printf 'FLOTA_TOKEN_PADRE=%s\n' "$T" > /etc/space-os/flota.env; chown root:flota /etc/space-os/flota.env; chmod 640 /etc/space-os/flota.env; cut -d= -f1 /etc/space-os/flota.env
+
+# Esperado: FLOTA_TOKEN_PADRE   (solo el nombre, sin el valor)
+
+
+# ############################################################
+#  BLOQUE 2 - EL SERVICIO
+# ############################################################
+
+# S0 - COMPROBAR QUE EL USUARIO `flota` PUEDE EJECUTAR NODE.
+#      Va antes de arrancar nada: en el PADRE hay DOS nodes
+#      -- el de root bajo nvm y uno de sistema en
+#      /usr/local/bin -- y `/usr/bin/node` NO EXISTE. La unidad
+#      apunta al de /usr/local/bin porque el de nvm vive bajo
+#      /root, que ProtectHome=yes le tapa a este servicio.
+
+sudo -u flota -s /bin/sh -c 'cd /var/www/Spaces/apps/flota && FLOTA_PUERTO=8788 timeout 3 /usr/local/bin/node reporte.mjs'; echo "codigo: [$?]"
+
+# Esperado:
+#   receptor de flota en http://127.0.0.1:8788/flota/reporte
+#   estado en /var/www/Spaces/apps/flota/estado
+#   codigo: [124]
+#
+# [124] ES EXITO: es `timeout` matandolo porque seguia vivo.
+# Un [1] con una traza seria el fallo de verdad.
+#
+# >>> Si dice "command not found", pasame la salida de
+#     `sudo -u flota -s /bin/sh -c 'command -v node'` -- la
+#     ruta de la unidad no vale para esta maquina.
+
+# >>> Y OJO CON LO QUE ESTE PASO **NO** PRUEBA: a mano NO hay
+#     sandbox de systemd. Un servicio que arranca aqui y muere
+#     al hacer `systemctl start` senala a las directivas de
+#     contencion, NO al codigo. Paso el 27/08 con
+#     `MemoryDenyWriteExecute=yes`, que es incompatible con
+#     cualquier JIT y mataba a V8 con `status=5/TRAP`.
+
+# S1 - Enlazar la unidad DESDE el repositorio.
+
+ln -sfn /var/www/Spaces/infra/systemd/flota-reporte.service /etc/systemd/system/flota-reporte.service && ls -l /etc/systemd/system/flota-reporte.service
+
+# ⚠️ Es un SYMLINK al repo, igual que spaces-demo.service. Un
+#    `git pull` le cambia la unidad por debajo, asi que TODO
+#    despliegue futuro tiene que hacer `daemon-reload` aunque
+#    parezca que no toco nada de systemd.
+
+# S2 - Arrancar.
+
+systemctl daemon-reload && systemctl enable --now flota-reporte && sleep 2 && systemctl is-active flota-reporte
+
+# Esperado: active
+
+# S3 - Que dice al arrancar.
+
+journalctl -u flota-reporte -n 20 --no-pager
+
+# Esperado, dos lineas:
+#   receptor de flota en http://127.0.0.1:8787/flota/reporte
+#   estado en /var/www/Spaces/apps/flota/estado
+#
+# >>> Si dice "AVISO: no hay flota.json", el R4 no funciono:
+#     el usuario `flota` no puede leer el inventario y esta
+#     usando el de EJEMPLO. Para y repite R4.
+
+# S4 - Escucha SOLO en loopback. Esto es la comprobacion, no un
+#      detalle: si saliera 0.0.0.0, el receptor seria alcanzable
+#      desde internet sin pasar por nginx ni por TLS.
+
+ss -lptn 'sport = :8787'
+
+# Esperado: la direccion es 127.0.0.1:8787, NUNCA 0.0.0.0:8787
+
+
+# ############################################################
+#  BLOQUE 3 - NGINX
+# ############################################################
+
+# N1 - El limitador va en el contexto `http`, que es nginx.conf,
+#      no el conf del sitio. Sin esto, `limit_req zone=flota`
+#      hace que nginx NO ARRANQUE.
+
+grep -q 'zone=flota' /etc/nginx/nginx.conf || sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=flota:1m rate=12r/m;' /etc/nginx/nginx.conf; grep -n 'zone=flota' /etc/nginx/nginx.conf
+
+# Esperado: una linea, dentro del bloque http.
+
+# N2 - Comprobar la configuracion ANTES de recargar. Este paso
+#      no se salta nunca: un `reload` con la config rota deja el
+#      sitio caido.
+
+nginx -t
+
+# Esperado: syntax is ok / test is successful
+#
+# >>> Si falla, NO recargues. Pasame la salida.
+
+# N3 - Recargar.
+
+systemctl reload nginx && systemctl is-active nginx
+
+# N4 - La ruta responde, y responde 401 SIN token. Un 404 aqui
+#      significaria que el include no entro.
+
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://space-os.io/flota/reporte -H 'content-type: application/json' -d '{}'
+
+# Esperado: 401
+#
+# >>> 404 = el include no llego, o nginx no recargo.
+# >>> 502 = nginx llego pero el servicio no esta arriba (S2).
+
+
+# ############################################################
+#  BLOQUE 4 - LAS CUATRO PRUEBAS QUE CIERRAN F6.4
+# ############################################################
+
+# P1 - UN REPORTE VALIDO se guarda.
+
+T=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2); curl -s -X POST https://space-os.io/flota/reporte -H "x-flota-token: $T" -H 'content-type: application/json' -d '{"instancia":"padre","ok":true,"version":"v0.1.0-padre","ultimaMigracion":"20260826_clientes_rfc_unico.sql","base":"ok","canal":"beta","uptime":1}'; echo
+
+# Esperado: {"ok":true}
+
+# P2 - Y quedo en disco, escrito por el usuario `flota`.
+
+ls -l /var/www/Spaces/apps/flota/estado/ && cat /var/www/Spaces/apps/flota/estado/padre.json
+
+# Esperado: padre.json, propiedad de flota, con lo que mandaste.
+
+# P3 - UN CUERPO CON UNA CLAVE DE MAS SE RECHAZA ENTERO.
+#      Esta es la prueba que importa: no se guarda "lo que se
+#      entienda". Una clave que nadie pidio es la puerta por la
+#      que un conteo del negocio de un owner acaba en el disco
+#      del padre, y ahi ya no hay quien lo quite.
+
+T=$(grep '^FLOTA_TOKEN=' /var/www/Spaces/apps/web/.env.production | cut -d= -f2); curl -s -X POST https://space-os.io/flota/reporte -H "x-flota-token: $T" -H 'content-type: application/json' -d '{"instancia":"padre","ok":true,"version":"v0.1.0-padre","ultimaMigracion":"x","base":"ok","canal":"beta","uptime":1,"clientes":420}'; echo
+
+# Esperado: 422 con un motivo que nombre la clave sobrante.
+#           `clientes` NO debe aparecer en padre.json.
+
+# P4 - UN TOKEN QUE NO ES se rechaza sin decir por que.
+
+curl -s -X POST https://space-os.io/flota/reporte -H "x-flota-token: no-soy-un-token" -H 'content-type: application/json' -d '{"instancia":"padre","ok":true}'; echo
+
+# Esperado: {"ok":false}  con codigo 401, y NADA mas: un token
+#           equivocado y un nombre que no existe se contestan
+#           igual, o el mensaje enseña quien esta en el
+#           inventario.
+
+# P5 - Y el panel PREFIERE el reporte si es mas reciente que su
+#      propia consulta. Es lo que une F6.2 y F6.4.
+
+cd /var/www/Spaces/apps/flota && node estado.mjs; echo "codigo: [$?]"
+
+# Esperado: la fila `padre` con origen `reporte` (no `consulta`)
+#           si el reporte de P1 es mas reciente. codigo: [0]
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#  S3, S4, N2, N4, P1, P2, P3, P4 y P5.
+#
+#  Con esas salidas F6.4 queda cerrada con anclaje y la FASE 6
+#  entera se cierra: seria la primera fase completa del plan
+#  desde la 1.
+#
+#  VUELTA ATRAS, si algo sale mal:
+#    systemctl disable --now flota-reporte
+#    rm /etc/systemd/system/flota-reporte.service
+#    systemctl daemon-reload
+#    # y quitar la linea del include de space-os.io.conf:
+#    git -C /var/www/Spaces checkout infra/nginx/space-os.io.conf
+#    nginx -t && systemctl reload nginx
+# ############################################################

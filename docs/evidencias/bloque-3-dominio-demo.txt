@@ -1,0 +1,261 @@
+============================================================
+ BLOQUE 3 - EL DOMINIO DE DEMO
+ Lo ultimo que falta de la Fase 4.
+============================================================
+ Cierra F4.3 y los criterios 1 y 3 de F4.5.
+
+ Estado de partida, medido el 25/08 por la noche:
+   space-os.io       -> 137.184.107.53   el PADRE
+   demo.space-os.io  -> 209.97.146.136   la maquina vieja
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+
+ NECESITAS DOS CONSOLAS ABIERTAS A LA VEZ, y abiertas ANTES de
+ empezar:
+   [PADRE]  137.184.107.53
+   [VIEJO]  209.97.146.136
+ Cada comando dice en cual va.
+
+============================================================
+ POR QUE SE AMPLIA EL CERTIFICADO Y NO SE CREA OTRO
+============================================================
+ `infra/nginx/space-os.io.conf` apunta SUS DOS bloques -- el del
+ apice y el de demo -- al MISMO certificado:
+ /etc/letsencrypt/live/space-os.io/. Comprobado: linea 126 para el
+ apice (`server_name space-os.io;` en la 124) y linea 190 para demo
+ (`server_name demo.space-os.io;` en la 188). Las dos apuntan al
+ MISMO `live/space-os.io/`.
+
+ Si se emitiera un certificado aparte para demo.space-os.io,
+ nginx seguiria sirviendo el del apice para ese nombre y el
+ navegador daria error de certificado. Habria que editar el
+ archivo versionado.
+
+ Ampliando el que ya existe --`--cert-name space-os.io` con los
+ DOS dominios-- el archivo NO SE TOCA y la renovacion sigue
+ siendo una sola.
+
+============================================================
+ POR QUE `--manual` OTRA VEZ, Y POR QUE AHORA SI
+============================================================
+ Let's Encrypt pide el desafio AL SERVIDOR AL QUE APUNTA CADA
+ NOMBRE. `space-os.io` apunta al PADRE; `demo.space-os.io`
+ todavia a la maquina vieja. No hay un solo servidor que pueda
+ responder por los dos, asi que se colocan a mano.
+
+ El 25/08 esto fallo TRES veces, y no por el metodo: la consola
+ enviaba sola el Enter --el salto de linea de la pegada-- y
+ certbot continuaba antes de que existiera el archivo.
+
+ Aqui se resuelve de dos formas a la vez:
+   - la linea del P2 empieza con un `read` que se COME ese salto
+   - y las dos consolas se abren ANTES, no durante
+
+ Quedan 2 intentos fallidos por hora de los 5 que permite Let's
+ Encrypt. Si algo no cuadra, PARA en vez de reintentar.
+============================================================
+
+
+# ############################################################
+#  P1 - Preparar los dos buzones. No cambian nada del servicio.
+# ############################################################
+
+# ------------------------------------------------------------
+# P1a [PADRE] - que sirva su propio camino ACME
+# ------------------------------------------------------------
+
+mkdir -p /var/www/html/.well-known/acme-challenge && echo buzon-padre > /var/www/html/.well-known/acme-challenge/prueba && curl -s http://space-os.io/.well-known/acme-challenge/prueba; echo
+
+# Esperado:  buzon-padre
+#
+# >>> Si sale un 301 a https o un 404: PARA. `space-os.io.conf`
+#     tiene el hueco ACME en sus lineas 94-96 y 109-111; si no
+#     responde, algo no esta enlazado como creemos.
+
+rm -f /var/www/html/.well-known/acme-challenge/prueba
+
+
+# ------------------------------------------------------------
+# P1b [VIEJO] - lo mismo en la maquina vieja
+# ------------------------------------------------------------
+# Ya se comprobo el 25/08 y funcionaba. Se repite porque es
+# gratis y porque si falla aqui, el P2 quema un intento.
+
+mkdir -p /var/www/html/.well-known/acme-challenge && echo buzon-viejo > /var/www/html/.well-known/acme-challenge/prueba && curl -s http://demo.space-os.io/.well-known/acme-challenge/prueba; echo
+
+# Esperado:  buzon-viejo
+
+rm -f /var/www/html/.well-known/acme-challenge/prueba
+
+
+# ############################################################
+#  P2 - Pedir el certificado AMPLIADO
+# ############################################################
+
+# ------------------------------------------------------------
+# P2 [PADRE] - lanzar certbot y PARARSE
+# ------------------------------------------------------------
+# El `read` del principio se come el salto de linea sobrante de
+# la pegada. Si al pegarlo se queda esperando, pulsa Enter UNA
+# vez y certbot arranca.
+#
+# Va a pedir DOS desafios, uno por dominio, uno detras de otro.
+
+read -r -p 'Enter para lanzar certbot: ' _ ; certbot certonly --manual --preferred-challenges http --cert-name space-os.io --agree-tos --no-eff-email --expand -d space-os.io -d demo.space-os.io
+
+# >>> NO PULSES ENTER cuando imprima el primer desafio.
+#     Copiame lo que salga y te devuelvo las dos lineas ya
+#     armadas, una para cada consola.
+#
+# Lo que imprime, por cada dominio:
+#
+#   Create a file containing just this data:
+#   <CADENA-LARGA-CON-UN-PUNTO>
+#   And make it available on your web server at this URL:
+#   http://<dominio>/.well-known/acme-challenge/<NOMBRE>
+#
+# El NOMBRE es la parte ANTERIOR al punto. El CONTENIDO es la
+# cadena entera. Son distintos, y confundirlos es el error tipico.
+
+
+# ------------------------------------------------------------
+# P3 - Colocar los dos archivos, cada uno en su maquina
+# ------------------------------------------------------------
+# El primer desafio es de `space-os.io`  -> va en [PADRE]
+# El segundo es de `demo.space-os.io`    -> va en [VIEJO]
+#
+# Esta linea deriva el NOMBRE del CONTENIDO, asi que solo pegas
+# UNA cosa. Sustituye EL_CONTENIDO y nada mas:
+
+C=EL_CONTENIDO; printf '%s' "$C" > /var/www/html/.well-known/acme-challenge/${C%%.*}; curl -s http://ESTE_DOMINIO/.well-known/acme-challenge/${C%%.*}; echo
+
+# Sustituye tambien ESTE_DOMINIO por `space-os.io` en el PADRE y
+# por `demo.space-os.io` en el viejo.
+#
+# El `curl` del final tiene que devolver EXACTAMENTE lo que
+# pegaste. Si no, arreglalo ANTES de seguir: certbot solo lo
+# intenta una vez.
+
+
+# ------------------------------------------------------------
+# P4 [PADRE] - ahora si, Enter
+# ------------------------------------------------------------
+# Con los DOS archivos colocados y comprobados.
+#
+# Esperado:
+#   Successfully received certificate.
+#   Certificate is saved at: /etc/letsencrypt/live/space-os.io/fullchain.pem
+#
+# >>> Si falla, PARA y pasame el error entero. Quedan pocos
+#     intentos y repetir a ciegas los gasta.
+
+
+# ------------------------------------------------------------
+# P5 [PADRE] - comprobar que cubre LOS DOS nombres
+# ------------------------------------------------------------
+
+certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+
+# Esperado: UN certificado `space-os.io` cuyo `Domains` lleve
+# AMBOS: space-os.io y demo.space-os.io.
+#
+# >>> Si aparecen DOS certificados separados, para: significa que
+#     el `--cert-name` no hizo lo que esperabamos y nginx serviria
+#     el equivocado para demo.
+
+
+# ------------------------------------------------------------
+# P6 [PADRE] - recargar nginx
+# ------------------------------------------------------------
+# La ruta del certificado no cambia, asi que la configuracion no
+# se toca: solo hay que releerlo.
+
+nginx -t && systemctl reload nginx && systemctl is-active nginx
+
+
+# ------------------------------------------------------------
+# P7 [PADRE] - limpiar el buzon
+# ------------------------------------------------------------
+
+rm -rf /var/www/html/.well-known/acme-challenge
+
+
+# ############################################################
+#  P8 - MOVER EL DNS. Aqui cambia lo que ve el publico.
+# ############################################################
+# En Cloudflare, el registro A de `demo.space-os.io`:
+#
+#     209.97.146.136   ->   137.184.107.53
+#
+# Dejalo en GRIS (DNS only), igual que el apice. Con el proxy en
+# naranja, `$remote_addr` seria una IP de Cloudflare para TODOS
+# los visitantes y el limitador de login (10 intentos por IP,
+# `rate-limit.ts:32-36`) bloquearia a todo el mundo a la vez.
+#
+# !! Este es el paso que NO tiene vuelta atras comoda: a partir
+# de aqui la maquina vieja pierde su nombre publico. Es
+# deliberado -- es el criterio 3 de F4.5 -- pero hazlo cuando el
+# P5 haya salido bien, no antes.
+
+
+# ------------------------------------------------------------
+# P9 - Verificacion final de la Fase 4
+# ------------------------------------------------------------
+
+dig +short space-os.io; dig +short demo.space-os.io
+
+# Esperado: 137.184.107.53 en LOS DOS.
+# Contra el C3 del bloque 0 --que decia 209.97.146.136-- esa
+# pareja ES la prueba del criterio 3 de F4.5.
+
+curl -s -o /dev/null -w 'demo-login %{http_code}\n' https://demo.space-os.io/spaces-dooh/login/
+
+# Esperado:  200
+
+curl -s -w '\nHTTP %{http_code}\n' -X POST https://demo.space-os.io/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
+
+# Esperado:  503   <- el registro cerrado, por el nombre publico
+
+curl -s -o /dev/null -w 'demo-login-post %{http_code}\n' -X POST https://demo.space-os.io/spaces-dooh/api/auth/login/ -H 'Content-Type: application/json' -d '{"email":"no@existe.invalid","password":"x"}'
+
+# Esperado:  401
+#
+# >>> ESTA es la que no se puede fingir. Un 200 en el login es una
+#     pagina pintandose; el PADRE estuvo cuatro dias asi con la
+#     base caida. El 401 significa que DEMO consulto SU base.
+
+
+# ------------------------------------------------------------
+# P10 - Criterio 2 de F4.5: las dos bases sin slugs en comun
+# ------------------------------------------------------------
+
+sudo -u postgres psql -d spaces_demo -Atc "select string_agg(slug,',') from tenants"; sudo -u postgres psql -d spaces_prod -Atc "select string_agg(slug,',') from tenants"
+
+# Esperado:  demo    y    rgb
+# Sin ningun nombre repetido entre las dos listas.
+
+
+# ------------------------------------------------------------
+# P11 - Lo que ninguna prueba automatica puede hacer
+# ------------------------------------------------------------
+# Abre https://demo.space-os.io/spaces-dooh/login/ EN UN
+# NAVEGADOR y confirma que el boton "Crear cuenta" NO aparece.
+#
+# Es el unico eslabon que el ensayo de F2.5 no pudo cerrar
+# --hidratacion en un navegador real-- y si no se mira aqui, no
+# lo mira nadie.
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Con el P9, el P10 y el P11 la Fase 4 queda cerrada en todo lo
+ que depende de nosotros.
+
+ El criterio 4 de F4.5 --DEMO suscrita al canal `beta`-- sigue
+ siendo desviacion declarada hasta que exista el registry
+ (TH-P4). No es trabajo pendiente: es una decision.
+
+ Pegame las salidas y actualizo el expediente con ellas.
+============================================================

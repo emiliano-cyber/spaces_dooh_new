@@ -88,7 +88,31 @@ tenant. El IVA por cliente vive en `clientes.iva_pct` (default 16).
 
 `cobranzas` lleva `plazo_dias` (default 90), `fecha_vencimiento`,
 `recordatorio_en` y `recordatorios_enviados` — cadencia + idempotencia. Los
-plazos por defecto salen de `config_negocio.plazos_cobranza` (`{60,90,120}`).
+plazos válidos salen de `config_negocio.plazos_cobranza` (`{60,90,120}` por
+omisión de la columna).
+
+> [!warning] Hasta el 2026-08-26 esa frase describía una intención, no el código
+> La columna existía, la pantalla la editaba y se guardaba bien — y después
+> `finanzas-controller.ts` la tiraba con un `[60, 90, 120].includes(v)` a fuego.
+> Una organización que configurara 45 días veía «Plazo inválido (60, 90 o 120
+> días)». Lo encontró la auditoría externa del 26/08 (CFG-01).
+>
+> Ahora la lista se lee **del tenant** con `plazosCobranzaDelTenant()`
+> (`config-repo.ts:96`), y con dos cautelas que conviene no deshacer:
+>
+> - **Lista vacía → respaldo `{60,90,120}`.** Es alcanzable: Administración
+>   borra plazos uno a uno sin mínimo (`administracion/page.tsx:887`) y
+>   `PATCH /api/config` acepta el arreglo vacío. Tomarla al pie de la letra
+>   dejaría a esa organización **sin poder emitir ninguna factura** — peor que
+>   el fallo que se corrigió, y sobre dinero.
+> - **Solo valida lo que se ESCRIBE.** Una factura ya emitida a 45 días sigue
+>   viva, se sigue leyendo y se sigue cobrando aunque se retire el 45 de la
+>   configuración. Un plazo retirado no congela dinero en vuelo.
+>
+> Queda suelto: `plazoDias` sigue tipado `60 | 90 | 120` en `finanzas-repo.ts`,
+> `lib/data/types.ts` y `estado-api.ts`. Es solo el tipo —la columna es
+> `integer` y el valor llega validado—, con un cast comentado en los dos puntos
+> de paso.
 
 ## Relacionadas
 [[flujo-facturacion-y-cobranza]] · [[comercial-propuestas-campanas]] ·

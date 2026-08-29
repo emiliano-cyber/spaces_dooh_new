@@ -71,8 +71,15 @@ jobs:
       - name: Typecheck
         run: npx turbo run typecheck --filter=web
 
+      # `--filter=flota` ademas de `web`: el panel de flota es un workspace
+      # aparte (F6.2) y con el filtro solo en `web` sus pruebas NO LAS CORRIA
+      # NADIE. Ocho casos que nadie ejecuta se pudren en silencio, y el panel
+      # es justo lo que avisa de que una instancia se quedo atras.
+      #
+      # No se quita el filtro del todo: `typecheck` y `build` siguen siendo de
+      # `web`, que es lo unico que se empaqueta en la imagen.
       - name: Pruebas
-        run: npx turbo run test --filter=web
+        run: npx turbo run test --filter=web --filter=flota
 
       - name: Build de producción
         run: npx turbo run build --filter=web

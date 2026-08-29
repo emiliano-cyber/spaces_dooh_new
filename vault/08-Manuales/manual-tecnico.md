@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: verificado
-actualizado: 2026-08-11
+actualizado: 2026-08-14
 tags: [manual, tecnico, onboarding, arquitectura, despliegue, runbook]
 archivos:
   - apps/web/
@@ -99,9 +99,10 @@ Léelas antes que nada; son cuatro trampas de nomenclatura ya confirmadas.
    `apps/*` y `packages/*`) y **nunca se desplegó** (`ecosystem.config.js:1-3`).
    Su `prisma/` **no se usa**: el esquema real es `db/schema.sql`.
 3. **No existen los grupos de rutas `(comercial)` ni `(operaciones)`.** Los únicos
-   grupos del repo son `(app)`, `(app)/(shell)` y `_legacy/(auth)` (inventario §1.6,
+   grupos del repo son `(app)` y `(app)/(shell)` — `_legacy/(auth)` se retiró el
+   27/08 (inventario §1.6,
    D-0).
-4. **El segmento `/demo` ya no existe en las URLs**: `middleware.ts:44` redirige
+4. **El segmento `/demo` ya no existe en las URLs**: `middleware.ts:36` redirige
    `/demo/*` → `/*` con 308. El nombre «demo» solo sobrevive en `components/demo/`,
    la clase `.demo-root` y `demo.css` — **no significa que sea código de mentira**.
 
@@ -115,10 +116,18 @@ Léelas antes que nada; son cuatro trampas de nomenclatura ya confirmadas.
 **13 ADR** · **22 pantallas internas** + 8 públicas/sin-chrome · 30 commits entre el
 09/08 y el 11/08. El proyecto está **muy activo**: asume que estos números crecen.
 
+> [!warning] Dieciséis días después esos números ya no son ninguno de los de arriba
+> Medidos el **27/08**: **90** `route.ts` · **39** tablas · **74** migraciones ·
+> **22 ADR** · **22 pantallas internas** (lo único que no se movió). La cifra que
+> más engaña es la de ADR: pasó de 13 a 22 en dieciséis días, y **cuatro de esos
+> nueve se superan entre sí** — ver [[decisiones]]. Este apartado se conserva
+> como la foto del 11/08 que es; el recuento vivo está en [[MOC-Proyecto]].
+
 ### 1.5 Decisiones de fondo
 
 Las decisiones formales están en `docs/adr/` (13 ADR, `0001`–`0013`) y resumidas en
-[[decisiones]] — ojo, esa nota dice «los 12 ADR» y el `0013` **no está en su tabla**
+[[decisiones]] — su tabla llega ya al `0013` (corregido el 18/08; hasta esa fecha
+decía «los 12 ADR» y omitía el último)
 (inventario D-10). Las que más te van a pegar el primer día:
 
 - **ADR 0001 / 0002 / 0003** — un alta de pantalla exige arrendador, abre un contrato
@@ -165,7 +174,7 @@ flowchart TD
     end
 
     subgraph latente["LATENTE · existe en el repo, NO corre"]
-        ARCH["_archive/api (Fastify+Prisma+BullMQ)<br/>_archive/web-frontend-2<br/>app/_legacy (7 páginas)<br/>infra/nginx/spaces.conf · infra/apache"]
+        ARCH["_archive/api (Fastify+Prisma+BullMQ)<br/>_archive/web-frontend-2<br/>infra/nginx/spaces.conf · infra/apache"]
     end
 
     UI --> NGINX
@@ -183,7 +192,7 @@ flowchart TD
 
 - **Todo entra por nginx** con TLS y HSTS y sale a `http://spaces_web`
   (`infra/nginx/demo.space-os.io.conf:68-70,112`). La ruta pública es
-  `https://demo.space-os.io/spaces-dooh/` (`basePath`, `next.config.mjs:8-9`).
+  `https://demo.space-os.io/spaces-dooh/` (`basePath`, `next.config.mjs:19-20`).
 - **No hay red interna de servicios**: el «backend» son los Route Handlers de la
   misma app Next. Una llamada del navegador a `/api/...` no sale de la máquina.
 - **La capa de servidor** (`lib/server/`, 76 archivos) separa *controllers* de
@@ -215,7 +224,6 @@ métodos** (inventario D-10).
 | `apps/web/lib/data/` | Store zustand `DemoState`, adapters, `estado-api.ts` | **VIVA** (costura con la demo) |
 | `apps/web/lib/test/` | Arnés e2e: `db-e2e.ts`, `servidor-e2e.ts`, `doble-google.ts` | **VIVA** |
 | `apps/web/components/demo/` | 68 componentes: `shell/`, `ui/`, por módulo | **VIVA** |
-| `apps/web/app/_legacy/` | 7 páginas archivadas (portal cliente viejo, login viejo) | **LATENTE** |
 | `_archive/api/` | Fastify + Prisma + BullMQ + `prisma/` | **LATENTE**, nunca desplegado |
 | `_archive/web-frontend-2/` | Front anterior | **LATENTE** |
 | `packages/types`, `packages/utils` | Tipos y utilidades compartidas | **VIVA** |
@@ -375,7 +383,10 @@ sepas exactamente por qué no:
 | `qConTenant` | Tenant explícito, sin sesión | Rutas por token, cron |
 | `fijarTenant` / `fijarTenantExplicito` | Dentro de una transacción | Casos compuestos |
 
-**Las 21 tablas con `DEFAULT` de `tenant_id` a `rgb`** (`schema.sql:615`) son la
+**Las 23 tablas que HASTA EL 19/08 nacían con un `DEFAULT` de `tenant_id` a `rgb`**
+(hoy ya no: `9d609f0` sacó el `rgb` del esquema base y `20260812_sin_default_tenant.sql`
+retira los `DEFAULT` de las bases que los tengan; el bucle que los descubre está en esa
+migración) eran la
 causa conocida de la deriva de datos: un `INSERT` que olvide el tenant **no falla,
 miente**. `config_negocio` se dejó **sin default a propósito**
 (`schema.sql:630-633`).
@@ -403,7 +414,7 @@ conocido, ver §5.5).
 ### 5.1 Regla número uno para quien añada un endpoint
 
 > [!danger] El middleware **no valida la sesión** y las rutas `/api/` quedan fuera del gate
-> `middleware.ts:92-109` solo comprueba que la cookie **exista**. **Un endpoint nuevo
+> `middleware.ts:85-104` solo comprueba que la cookie **exista**. **Un endpoint nuevo
 > sin guard queda abierto a internet.** El guard se pone en el handler, siempre.
 
 ### 5.2 Leyenda de guards
@@ -555,9 +566,19 @@ Si añades una ruta pública por token, sigue ese patrón.
 
 ### 5.5 Desfase con la bóveda
 
-[[api-endpoints]] lista `POST /api/notificaciones/leer-todas`
-(`api-endpoints.md:165`), que **ya no existe**, y **omite** `archivar-todas`. Es el
-**único** desfase de esa tabla; todo lo demás cuadra (inventario D-1).
+> [!tip] CERRADO el 27/08 — pero tardó trece días, y esa es la lección
+> [[api-endpoints]] listaba `POST /api/notificaciones/leer-todas` y **omitía**
+> `archivar-todas`. Corregido el 27/08 en la revalidación de la bóveda.
+>
+> Lo que conviene no repetir: este manual señaló el desfase el **14/08** con
+> nombre y línea, y la nota siguió mal **hasta el 27/08** — incluso el 27/08 por
+> la mañana, cuando un commit le subió el `actualizado:` a hoy sin tocar esa
+> fila. **Anotar un desfase en otra nota no lo corrige**, y una fecha nueva sobre
+> un error viejo le da más autoridad, no menos.
+
+De aquella lista sigue en pie el resto: no existe `PATCH /api/campanas/[id]` ni
+`PATCH /api/ot/[id]`. Y hay **una ruta nueva que este manual no cubre**:
+`GET /api/version` (26/08, F6.1) — ver [[api-endpoints]].
 
 ### 5.6 Los flujos de negocio, de punta a punta
 
@@ -639,7 +660,7 @@ Es el origen de verdad para tres formularios y una prueba que los vigila
 
 ### 6.1 Login con contraseña
 
-`POST /api/auth/login` (**exento de CSRF**, `middleware.ts:49-50`) → rate limit
+`POST /api/auth/login` (**exento de CSRF**, `middleware.ts:48`) → rate limit
 10/5 min → función `auth_usuario_por_email()` **SECURITY DEFINER** → `verifyPassword`
 (bcrypt) → `crearSesion()` (`auth.ts:92`) → dos cookies:
 
@@ -673,7 +694,7 @@ todo salvo `GET /api/auth/me` y `PATCH /api/perfil`.
 
 | Capa | Qué comprueba | Evidencia | ¿Es seguridad? |
 |---|---|---|---|
-| `middleware.ts` | Que **exista** la cookie `spaces_sesion` | `middleware.ts:92-109` | **No** (UX) |
+| `middleware.ts` | Que **exista** la cookie `spaces_sesion` | `middleware.ts:85-104` | **No** (UX) |
 | `AuthGate` (cliente) | Sesión real + rol contra el módulo del `NAV` | `AuthGate.tsx:18-23` | **No** (UX) |
 | `exigir()` en cada handler | Sesión válida + permiso `modulo/accion` | `auth.ts:146` | **SÍ** |
 
@@ -707,8 +728,8 @@ saliente). La tabla es **fail-closed desde el 07/08**: leer va por
 ### 6.6 Autorregistro — **abierto en producción**
 
 Cualquiera con la URL puede crear una organización desde `/login` modo `signup`
-(`login/page.tsx:126`) → `POST /api/signup` (`signup/route.ts:18`). Guardas: **503**
-si `NEXT_PUBLIC_AUTOREGISTRO=0` (`:19-24`) y rate limit **5/hora por IP** (`:26`).
+(`login/page.tsx:134`) → `POST /api/signup` (`signup/route.ts:21`). Guardas: **503**
+salvo `AUTOREGISTRO=1` (fail-closed desde el 14/08: ausente = apagado) y rate limit **5/hora por IP** (`:28`).
 Cadena: `registrarCuentaCtrl` → `crearOrgConDueno` → `crearTenant()` + `crearUsuario()`
 (`cuentas-controller.ts:41-63`); inserta en `tenants` y `usuarios` (rol `DUENO`) y
 `config_negocio` obtiene su fila.
@@ -907,7 +928,7 @@ servidor de pruebas y el doble de Google; ver §7.3.
 | Pieza | Valor | Evidencia |
 |---|---|---|
 | Host | Droplet de DigitalOcean | [[entorno-y-despliegue]] |
-| Dominio | `https://demo.space-os.io`, ruta pública `/spaces-dooh/` | `next.config.mjs:8-9` |
+| Dominio | `https://demo.space-os.io`, ruta pública `/spaces-dooh/` | `next.config.mjs:19-20` |
 | Directorio | `/var/www/Spaces` | `deploy.yml:88` |
 | Proceso | pm2 `spaces-web`, **fork, 1 instancia**, puerto 3000, usuario `emiliano` | `ecosystem.config.js:10-12` |
 | Base | `spaces_prod`; las migraciones se aplican como rol `postgres` | `deploy.yml:14-19` |
@@ -936,10 +957,10 @@ Los valores están en `apps/web/.env.production` **del droplet**, cubierto por
 | `NODE_ENV` | Modo y default de `Secure` | `auth.ts:187` |
 | `COOKIE_SECURE` | Fuerza o apaga `Secure` en las cookies | `auth.ts:184-188` |
 | `APP_URL` | Base de los enlaces de los correos (5 usos) | `api/auth/forgot/route.ts` |
-| `HSTS` | Cabecera Strict-Transport-Security | `next.config.mjs:40` |
+| `HSTS` | Cabecera Strict-Transport-Security | `next.config.mjs:51` |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Correo saliente — hacen falta **las dos** | `lib/server/email.ts` |
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin ella la ruta da **503** | `api/recordatorios/route.ts:39,49` |
-| `NEXT_PUBLIC_AUTOREGISTRO` | `'0'` apaga el alta pública (UI **y** servidor) | `api/signup/route.ts:19` |
+| `AUTOREGISTRO` | Solo `'1'` enciende el alta pública (UI **y** servidor). **Sin prefijo NEXT_PUBLIC_ desde el 14/08: se lee al arrancar, no se hornea** | `lib/entorno.ts` |
 | `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga «recuperar contraseña» | `login/page.tsx:24` |
 | `NEXT_PUBLIC_MAPTILER_KEY` | Mapas | `components/maps/SitiosMap.tsx` |
 | `DO_SPACES_KEY` · `DO_SPACES_SECRET` · `DO_SPACES_ENDPOINT` · `DO_SPACES_BUCKET` · `DO_SPACES_CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts` |
@@ -956,13 +977,18 @@ Los valores están en `apps/web/.env.production` **del droplet**, cubierto por
 
 **Declaradas en las plantillas pero NO leídas por código vivo** (restos del backend
 archivado; no las «arregles» ni las borres sin leer §10): `JWT_SECRET`, `REDIS_URL`,
-`COOKIE_DOMAIN`, `LOG_LEVEL`, `PORT`.
+`LOG_LEVEL`, `PORT`. **`COOKIE_DOMAIN` salió de las dos plantillas el 14/08**: de
+`.env.example` en F0.3 y de `.env.production.example` en T-03, esta última con el
+valor comodín `.{TENANT_SLUG}.spaces.com` del modelo de subdominios muerto. Las
+cookies son host-only a propósito y `apps/web/lib/entorno.test.ts` ya impide que
+vuelva **a cualquiera de las dos**: tiene un caso por plantilla. Ver el aviso de
+[[entorno-y-despliegue]].
 
-**Leídas solo por código muerto o `_legacy`:** `NEXT_PUBLIC_API_URL` (6 archivos) y
-`NEXT_PUBLIC_TENANT_SLUG` (4 archivos). La bóveda dice que solo las lee un archivo
-muerto — **es inexacto**: las leen 6 y 4 respectivamente (inventario D-7). Ninguno
-está hoy en una ruta alcanzable, pero si reactivas alguno de esos módulos te van a
-hacer falta.
+> [!success] `NEXT_PUBLIC_API_URL` y `NEXT_PUBLIC_TENANT_SLUG` YA NO SE LEEN
+> Este apartado corregía a la bóveda —decía que las leía un archivo y en realidad
+> eran 6 y 4— y **el 2026-08-27 la cuenta pasó a CERO**: los archivos que las
+> leían se retiraron con la pista archivada. `lib/pista-archivada.test.ts` se
+> pone roja si vuelven.
 
 > [!warning] Variables que el código lee y **no aparecen en ninguna plantilla**
 > `APP_URL`, `HSTS`, `COOKIE_SECURE`, `RECORDATORIOS_TOKEN`,
@@ -1195,7 +1221,7 @@ Todo lo demás → [[#PENDIENTE]] P-09, P-10.
 ## 10 · Zonas de riesgo
 
 La lista canónica y con semáforo está en [[zonas-de-riesgo]] (ojo: hereda las citas
-corridas de `auth.ts`, §6, y su punto A6 sobre `OTMovil` está superado, ver abajo).
+corridas de `auth.ts`, §6, y su punto A6 se cerró el 27/08 al retirarse la pista archivada, ver abajo).
 Esto es lo que **no** debes tocar sin avisar:
 
 | # | Zona | Por qué |
@@ -1204,7 +1230,7 @@ Esto es lo que **no** debes tocar sin avisar:
 | R-2 | **`X-Forwarded-For $remote_addr` en nginx** (`:123`) | Reemplaza en vez de añadir, **a propósito**. «Arreglarlo» a `$proxy_add_x_forwarded_for` deja que el cliente elija su cubo de rate limit |
 | R-3 | **Orden migración → código** | Migración primero, código después. Siempre (§8) |
 | R-4 | **Respaldo con el rol equivocado** | Un `pg_dump` con el rol de la app sale **vacío y con buena cara** por la RLS fail-closed (§9.2) |
-| R-5 | **21 tablas con `DEFAULT tenant_id → rgb`** (`schema.sql:615`) | Un insert sin tenant **no falla, miente**. Es la causa de la deriva de datos conocida. `config_negocio` se dejó sin default a propósito (`:630-633`) |
+| R-5 | **23 tablas con `DEFAULT tenant_id → rgb`** — riesgo **vivo en producción**, ya **no** en bases nuevas (`9d609f0`, 19/08) | Un insert sin tenant **no falla, miente**. Es la causa de la deriva de datos conocida. `config_negocio` se dejó sin default a propósito (`:630-633`) |
 | R-6 | **Endpoint nuevo sin `exigir()`** | El middleware no cubre `/api/`. Queda abierto (§5.1) |
 | R-7 | **`rol_permisos` sin `tenant_id`** | Tocar los permisos de un rol los toca **en las cinco organizaciones** |
 | R-8 | **`clave_interna` y `codigo_proveedor` UNIQUE globales** (`schema.sql:124-125`) | Dos organizaciones **no pueden** usar el mismo código de proveedor |
@@ -1218,13 +1244,20 @@ Esto es lo que **no** debes tocar sin avisar:
 | R-16 | **`_archive/` e `infra/*/spaces.conf`** | Configuración que asume el Fastify inexistente. Aplicar uno de esos ficheros por error rompe el proxy |
 | R-17 | **Archivos grandes = zona de conflicto** | Crecieron entre 6 % y 29 % en cuatro días: `arrendadores-repo.ts` **1435**, `campanas-repo.ts` **1204**, `doohmain.ts` **403**, `creativos-repo.ts` **366**, `sitios-repo.ts` **640**, `arrendadores-controller.ts` **471** líneas. La bóveda tiene cifras viejas (inventario D-5) |
 
-**Riesgo degradado (buena noticia):** [[zonas-de-riesgo]] A6 dice que `OTMovil.tsx`
-depende del `AuthProvider` muerto. **La página real `/m/ot/[id]` renderiza `OTVista`,
-no `OTMovil`** (`app/(app)/m/ot/[id]/page.tsx:3,7`), y **ningún** archivo importa
-`OTMovil.tsx`, `PermissionGuard.tsx`, `ReadinessPanel.tsx` ni `ReporteVisual.tsx`.
-El `AuthProvider` sigue montado (`providers.tsx:34`) pero **ningún componente vivo
-depende de su `user`**: retirarlo es menos arriesgado de lo que dice la nota
-(inventario D-6).
+> [!success] Riesgo A6 — RETIRADO el 2026-08-27, y esta nota fue quien lo vio
+> Este apartado había medido lo que hacía falta: la página real `/m/ot/[id]`
+> renderiza `OTVista` y no `OTMovil`, y **ningún archivo importaba** `OTMovil`,
+> `PermissionGuard`, `ReadinessPanel` ni `ReporteVisual`. Concluía que retirar el
+> `AuthProvider` era menos arriesgado de lo que decía [[zonas-de-riesgo]] A6.
+>
+> **Tenía razón, y aun así el defecto vivió tres semanas más.** A6 seguía
+> diciendo «tres componentes lo importan», y esa es la nota que un agente lee
+> antes de tocar código. **Dos notas se contradecían y ganó la equivocada.**
+>
+> Lo desatascó la CSP en modo reporte, que enseñó lo que ninguna de las dos
+> notas decía: que el provider **se ejecutaba en cada carga de página en
+> producción**, pidiendo una identidad a la máquina del visitante. Retirado
+> entero el 27/08 — nueve rutas, ~2 700 líneas.
 
 ---
 
@@ -1238,15 +1271,15 @@ candado…). Antes de trabajar en paralelo con otros agentes: [[AGENTES]] y [[ta
 
 | Nota | Desfase | Corrección |
 |---|---|---|
-| [[api-endpoints]] | Lista `leer-todas`, omite `archivar-todas` | §5.5 |
+| [[api-endpoints]] | ~~Lista `leer-todas`, omite `archivar-todas`~~ — **corregido el 27/08**, trece días después de señalarse | §5.5 |
 | [[autenticacion-y-sesion]] | Citas de `auth.ts` corridas ~4 líneas; sitúa la política de contraseñas en `auth.ts` | §6 |
-| [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos; y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]` — no lo son | §3, inventario D-2/D-6 |
+| [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos. ~~Y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]`~~ — **resuelto el 27/08**: esos dos archivos ya no existen | §3, inventario D-2/D-6 |
 | [[entorno-y-despliegue]] | «`deploy.yml` está desactualizado» y la lectura de `NEXT_PUBLIC_API_URL` | §9.0, §7.3 |
-| [[estado-y-data-fetching]] | Presenta `lib/portal-cliente-api.ts` como cliente del portal público; el portal vivo usa `hidratarPortalPublico` de `lib/data/estado-api.ts` | inventario D-8 |
-| [[decisiones]] | Habla de «los 12 ADR»; hay **13** y el `0013` no está en su tabla | §1.5 |
-| [[zonas-de-riesgo]] | A6 sobre `OTMovil` está superado | §10 |
+| [[estado-y-data-fetching]] | ~~Presenta `lib/portal-cliente-api.ts` como cliente del portal público~~ — **resuelto el 27/08**: ese archivo se retiró (cero importadores) y la nota ya lo marca. El portal vivo usa `hidratarPortalPublico` de `lib/data/estado-api.ts` | inventario D-8 |
+| [[decisiones]] | ~~Habla de «los 12 ADR»; hay **13** y el `0013` no está en su tabla~~ — **corregido el 18/08**: el recuento y la fila del `0013` ya están | §1.5 |
+| [[zonas-de-riesgo]] | ~~A6 sobre `OTMovil` está superado~~ — **cerrado el 27/08**: A6 dice ahora que la pista archivada se retiró, con la lección de por qué sobrevivió | §10 |
 | [[preguntas-abiertas]] | P3c y P8 **ya tienen respuesta** en el código y siguen abiertas en la lista | inventario D-11 |
-| [[vision-general]] | «86 route handlers» | 88 archivos / 110 métodos |
+| [[vision-general]] | ~~«86 route handlers» en su diagrama de componentes~~ — **corregido el 28/08**: dice **90**, medido. (El recuento de referencia del 11/08 era 88 archivos / 110 métodos) | §2 |
 
 **Regla de convivencia:** si el código y la bóveda se contradicen, **gana el código**,
 y el desfase se anota. Este manual sigue esa regla.
@@ -1347,7 +1380,9 @@ suposiciones.
   en la bóveda)?
 - **P-28** — **¿`rol_permisos` global es deliberado** o es la misma deuda que el ADR
   0011 resolvió para `config_negocio`? (P4)
-- **P-29** — **¿Se quitan los `DEFAULT tenant_id → rgb` de las 21 tablas** para que un
+- **P-29** — ~~¿Se quitan los `DEFAULT tenant_id → rgb` de las 23 tablas?~~ **RESUELTA: sí.**
+  La migración `20260812_sin_default_tenant.sql` los retira y `9d609f0` impide que vuelvan a
+  nacer. **Queda aplicarla a producción.** La pregunta original era: para que un
   insert sin tenant falle en vez de mentir? (P15)
 - **P-30** — **¿Es deseado que `clave_interna` y `codigo_proveedor` sean UNIQUE
   globales**, impidiendo que dos organizaciones compartan código de proveedor? (P12)

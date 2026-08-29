@@ -1,10 +1,11 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-14
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
+  - apps/web/lib/entorno.ts
   - apps/web/app/(app)/recuperar/[token]/page.tsx
   - apps/web/lib/auth-real.ts
   - apps/web/app/api/auth/metodos/route.ts
@@ -20,38 +21,68 @@ archivos:
 `app/(app)/login/page.tsx` contiene login, autoregistro y «olvidé mi
 contraseña». Los dos últimos se apagan por variable:
 
-| Variable | Efecto en la UI | Y **también** en el servidor |
-|---|---|---|
-| `NEXT_PUBLIC_AUTOREGISTRO=0` | Oculta el alta | `POST /api/signup` → 503 |
-| `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` | Oculta el enlace | `POST /api/auth/forgot` → apagado |
+| Variable | Cuándo se decide | Efecto en la UI | Y **también** en el servidor |
+|---|---|---|---|
+| `AUTOREGISTRO` (solo `1` enciende) | **Al arrancar** | Oculta el alta | `POST /api/signup` → 503 |
+| `NEXT_PUBLIC_RECUPERAR_PASSWORD=0` | En el **build** | Oculta el enlace | `POST /api/auth/forgot` → apagado |
 
-> [!danger] El registro público está ABIERTO en producción desde el 07/08
-> `NEXT_PUBLIC_AUTOREGISTRO` pasó de `0` a `1` **por decisión explícita del
-> usuario**, con el riesgo registrado en la bitácora (`6dadc9d`). Significa que
-> **cualquiera que llegue a `demo.space-os.io` puede crear una organización y un
-> usuario Dueño en la base real**. Verificado en las dos capas: `/api/signup`
-> pasó de 503 a 400, y el alta de empresa con Google de 503 a 302.
+> [!important] La bandera del autoregistro salió del build el 14/08 (F2.6)
+> Se llamaba `NEXT_PUBLIC_AUTOREGISTRO` y el prefijo la hacía **hornearse en el
+> build**: cambiarla exigía recompilar. Ahora se llama **`AUTOREGISTRO`**, se lee
+> en cada petición (`lib/entorno.ts`) y **una sola imagen** sirve a DEMO y a cada
+> instancia de owner.
 >
-> Esa bandera **se hornea en el build**: cambiarla exige recompilar, no basta
-> reiniciar.
+> **Cambió la polaridad, y esto muerde:** antes *ausente = encendido*
+> (`!== '0'`); ahora **solo `AUTOREGISTRO=1` enciende** y cualquier otra cosa
+> —incluida la ausencia— deja el registro cerrado. Es fail-closed a propósito: un
+> `.env` que se quedó corto no abre el registro por descuido. Consecuencia
+> directa: **un `.env` que siga diciendo `NEXT_PUBLIC_AUTOREGISTRO=1` ya no tiene
+> efecto y esa instancia se queda con el registro CERRADO.**
+>
+> Verificado con la MISMA imagen sin recompilar (`space-os:f26`, 14/08): sin la
+> variable → 503, `=0` → 503, `=1` → 400.
+
+> [!danger] El botón «Crear cuenta» venía horneado, y horneado ENCENDIDO
+> Hasta el 14/08 la página leía la bandera con `process.env` en el componente, y
+> `/login` **se prerrenderiza en el build**: el HTML de fábrica traía el botón
+> dentro pasara lo que pasara. Medido en la imagen de F2.5:
+> `.next/server/app/login.html`, 15 234 bytes, con el botón. Resultado: cada
+> instancia habría enseñado un «Crear cuenta» que al pulsarse contestaba **503**.
+>
+> Se arregló preguntando al servidor, no pasando props desde el layout: los props
+> se resolverían **en el mismo render de build** y caerían en el defecto por otra
+> puerta. Tras el cambio ese HTML tiene **0 apariciones** de «Crear cuenta»: el
+> botón lo decide la respuesta de `/api/auth/metodos/`.
 
 > [!danger] Ocultar el botón no es apagar la función
-> `app/api/signup/route.ts:12-16` lo dice explícitamente: el mismo despliegue
-> sirve la demo pública y producción, así que ocultar el botón dejaría el
-> endpoint abierto y cualquiera con la URL crearía organizaciones y usuarios
-> `DUENO` en la base real. **Toda bandera de UI necesita su gemela en servidor.**
+> `app/api/signup/route.ts:15-18` lo dice explícitamente: la misma imagen sirve a
+> toda la flota, así que ocultar el botón dejaría el endpoint abierto y cualquiera
+> con la URL crearía organizaciones y usuarios `DUENO` en la base de esa instancia.
+> **Toda bandera de UI necesita su gemela en servidor.**
+>
+> Ojo al leer ese comentario: llama a DEMO «la única con el registro abierto», y
+> desde el **14/08 eso ya no es cierto** — va cerrado en toda la flota, DEMO
+> incluida. El punto que defiende sigue en pie; el ejemplo caducó.
 
-## Botón de Google
+## Qué ofrece este despliegue: `GET /api/auth/metodos`
 
-Lo pinta el **servidor** consultando `GET /api/auth/metodos`, que es
-`force-dynamic` y devuelve `{"google": bool}`. Si las credenciales no están, el
-botón no existe. Ver [[flujo-acceso-con-google]].
+Ruta **pública**, `force-dynamic`, `cache-control: no-store`. Desde el 14/08
+responde **dos** banderas, no una:
 
-> [!note] `NEXT_PUBLIC_*` exige recompilar; las de Google no
-> Next hornea las `NEXT_PUBLIC_*` en el build. `GOOGLE_CLIENT_ID` y compañía
-> **no** llevan ese prefijo y se leen en tiempo de petición, por eso encender
-> Google solo necesita `pm2 reload --update-env`
-> (`DESPLIEGUE_GOOGLE.txt:91-95`).
+```json
+{ "google": false, "autoregistro": false }
+```
+
+El login la consulta **una sola vez** al montar y pinta según lo que conteste: el
+botón de Google y el enlace «Crear cuenta». Las dos empiezan en `false` en el
+cliente, así que **si la consulta falla no se pinta nada** — ofrecer una entrada
+que responde 503 es peor que no ofrecerla. Ver [[flujo-acceso-con-google]].
+
+> [!note] `NEXT_PUBLIC_*` exige recompilar; `GOOGLE_OAUTH` y `AUTOREGISTRO` no
+> Next hornea las `NEXT_PUBLIC_*` en el build. `GOOGLE_CLIENT_ID`, `GOOGLE_OAUTH`
+> y —desde F2.6— `AUTOREGISTRO` **no** llevan ese prefijo y se leen en tiempo de
+> petición, por eso encenderlas solo necesita `pm2 reload --update-env`
+> (`DESPLIEGUE_GOOGLE.txt:91-95`) o reiniciar el contenedor.
 
 ## Con sesión abierta, `/login` no se queda a la vista
 
@@ -71,7 +102,7 @@ redirige, en vez de decidirlo desde el cliente
 /api/auth/reset` lo valida antes de mostrar el formulario; `POST` lo aplica y
 **borra todas las sesiones del usuario**.
 
-Ruta pública en el middleware (`middleware.ts:100`).
+Ruta pública en el middleware (`middleware.ts:94`).
 
 ## Contraseña temporal
 

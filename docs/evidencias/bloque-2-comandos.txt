@@ -1,0 +1,283 @@
+============================================================
+ BLOQUE 2 - el proceso de DEMO, sus datos y la bandera (F4.4)
+============================================================
+ Autoridad: docs/evidencias/captura-f3-f4.md
+ Todo EN EL DROPLET. No toca el dominio ni el DNS.
+------------------------------------------------------------
+
+ >>>  PEGA UNA LINEA CADA VEZ.                          <<<
+ >>>  NO PEGUES EL ARCHIVO ENTERO NI VARIAS LINEAS.     <<<
+
+ Las lineas que empiezan con # son notas. NO se pegan.
+
+ Este bloque escribe un archivo con una CLAVE dentro. Los
+ comandos estan hechos para que la clave NUNCA aparezca en
+ pantalla: se copia de un archivo a otro sin pasar por la
+ terminal. No la escribas a mano y no la pegues en el chat.
+
+ VIGENTE bajo el ADR 0017 (todo se concentra en el PADRE).
+ El bloque 1 -- la base `spaces_demo` -- YA ESTA HECHO: se creo y
+ migro el 24/08, 71 aplicadas. No lo repitas.
+
+ Lo que falta despues de este bloque es SOLO el dominio:
+ certificado, nginx y mover el DNS de demo.space-os.io.
+============================================================
+
+
+# ############################################################
+#  PRIMERO: DOS MEDICIONES. No cambian nada.
+# ############################################################
+
+# ------------------------------------------------------------
+# C19a - Que forma tiene el DATABASE_URL del PADRE
+# ------------------------------------------------------------
+# La clave sale TACHADA. Solo queremos ver el host, el puerto y
+# el nombre de la base.
+
+grep '^DATABASE_URL=' /var/www/Spaces/apps/web/.env.production | sed -E 's/:[^:@]*@/:***@/'
+
+# Esperado, EXACTAMENTE esto (medido el 25/08):
+#   DATABASE_URL=postgresql://spaces_app:***@127.0.0.1:5432/spaces_prod
+#
+# CONFIRMADO. El 25/08 esa linea NO EXISTIA -- el PADRE llevaba
+# cuatro dias sin conexion con su base-- y se escribio al
+# arreglarlo (`padre-arreglo-conexion.txt`). Arreglar el PADRE
+# desbloqueo de paso este bloque: sin esa linea, el C19c no
+# tendria de donde copiar.
+#
+# >>> Aun asi, MIRALA. Si el nombre de la base al final no dice
+#     `spaces_prod`, PARA: el C19c lo sustituye por texto y el
+#     reemplazo fallaria EN SILENCIO.
+
+
+# ------------------------------------------------------------
+# C19b - Ve el usuario `demo` a node y a pm2?
+# ------------------------------------------------------------
+# El PADRE instala Node por NVM, que es POR USUARIO. Si pm2 vive
+# solo en el nvm de root, el usuario `demo` no lo encuentra y el
+# C20 falla con "pm2: command not found". Mejor medirlo ahora.
+#
+# El usuario `demo` puede no existir todavia: si sale un error de
+# usuario desconocido, es normal. Corre esto DESPUES del C19 y
+# vuelve aqui.
+
+sudo -u demo bash -lc 'command -v node; command -v pm2; node -v 2>/dev/null'
+
+# Esperado: una ruta para node, una ruta para pm2, y una version.
+#
+# >>> SI pm2 SALE VACIO: PARA y dimelo. No improvises un
+#     `npm i -g pm2`: hay mas de una forma de arreglarlo y la
+#     mala deja dos instalaciones de pm2 conviviendo, que es
+#     exactamente el tipo de lio que no se ve hasta un reinicio.
+
+
+# ############################################################
+#  AHORA SI: crear el usuario y su .env
+# ############################################################
+
+# ------------------------------------------------------------
+# C19 - Usuario propio, carpeta y archivo CERRADO
+# ------------------------------------------------------------
+# El archivo se crea a 600 ANTES de escribir nada dentro. Es el
+# defecto (7) del 21/08: `.env.production` nacio 644 con la clave
+# de la base dentro.
+
+adduser --system --group --home /home/demo demo; mkdir -p /etc/space-os; install -m 600 -o demo -g demo /dev/null /etc/space-os/demo.env; ls -l /etc/space-os/demo.env
+
+# Esperado:  -rw------- 1 demo demo 0 ... /etc/space-os/demo.env
+#
+# Si el usuario ya existia, `adduser` avisa y sigue. No pasa nada.
+#
+# >>> Ahora vuelve arriba y corre el C19b.
+
+
+# ------------------------------------------------------------
+# C19c - Rellenar el .env. SEIS LINEAS, una por una.
+# ------------------------------------------------------------
+# La primera copia el DATABASE_URL del PADRE cambiandole SOLO el
+# nombre de la base. La clave viaja de archivo a archivo y NO se
+# imprime.
+
+grep -h '^DATABASE_URL=' /var/www/Spaces/apps/web/.env.production | sed 's#spaces_prod#spaces_demo#' >> /etc/space-os/demo.env
+
+printf 'APP_URL=https://demo.space-os.io\n' >> /etc/space-os/demo.env
+
+printf 'PORT=3001\n' >> /etc/space-os/demo.env
+
+printf 'COOKIE_SECURE=1\n' >> /etc/space-os/demo.env
+
+printf 'AUTOREGISTRO=0\n' >> /etc/space-os/demo.env
+
+printf 'DOOHMAIN_PUBLISH_ENABLED=0\n' >> /etc/space-os/demo.env
+
+printf 'GOOGLE_OAUTH=0\n' >> /etc/space-os/demo.env
+
+# AUTOREGISTRO=0            <- P8: cerrado en TODA la flota, DEMO incluida
+# DOOHMAIN_PUBLISH_ENABLED=0 <- una demostracion no publica a ningun sitio.
+#    El destino es configuracion y puede cambiar; y lo publicado no se
+#    retira borrando filas de la base.
+#
+# GOOGLE_OAUTH=0  <- ANADIDO EL 25/08, y no es opcional.
+#
+#    DEMO corre desde el MISMO directorio que el PADRE, asi que Next le carga
+#    tambien `apps/web/.env.production` -- y ahi estan GOOGLE_CLIENT_ID,
+#    GOOGLE_CLIENT_SECRET y GOOGLE_REDIRECT_URI del PADRE.
+#
+#    Sin esta linea, `googleHabilitado()` (`google-oauth.ts:44-47`) daria TRUE
+#    porque le basta con que existan las dos primeras. El boton de Google
+#    apareceria en la demo, y el `redirect_uri` heredado mandaria al visitante a
+#    `space-os.io`: entraria AL PADRE creyendo que entra a la demostracion.
+#
+#    Se apaga con la bandera y NO quitando las claves: esas las lee el PADRE del
+#    mismo archivo, y borrarlas lo romperia a el.
+
+
+# ------------------------------------------------------------
+# C19d - Comprobar el .env, con la clave tachada
+# ------------------------------------------------------------
+
+sed -E 's/:[^:@]*@/:***@/' /etc/space-os/demo.env; ls -l /etc/space-os/demo.env
+
+# Esperado: SEIS lineas, la base diciendo `spaces_demo` (NO
+# `spaces_prod`), y el archivo en -rw------- de demo:demo.
+#
+# >>> Si el DATABASE_URL sigue diciendo `spaces_prod`: PARA.
+#     DEMO hablaria con la base del PADRE Y NO DARIA ERROR --
+#     solo ensenaria los datos equivocados, que es la peor
+#     forma de fallar que tiene este montaje.
+
+
+# ------------------------------------------------------------
+# C20 - Arrancar DEMO en el 3001, con su propio pm2
+# ------------------------------------------------------------
+
+# CAMBIADO EL 25/08 (ADR 0019): DEMO arranca con SYSTEMD, no con pm2.
+#
+# Por que: el PADRE instala Node por nvm bajo /root/.nvm, y /root es
+# drwx------ -- medido con `namei -l`. El usuario `demo` NO PUEDE atravesarlo,
+# asi que pm2 y npm le son inalcanzables, y ningun enlace lo arregla porque
+# apuntaria a traves de /root.
+#
+# Lo que si alcanza es /usr/local/bin/node, copiado el 24/08 para el runner de
+# migraciones. Con eso basta: Next se arranca directo.
+#
+# Se ENLAZA el archivo del repositorio, no se pega.
+
+ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service && systemctl daemon-reload && systemctl enable --now spaces-demo && sleep 5 && systemctl status spaces-demo --no-pager | head -12
+
+# Esperado:  `active (running)`, y en la linea de arranque el usuario `demo`.
+#
+# >>> Si queda en `failed` o se reinicia en bucle, PARA y pasame:
+#         journalctl -u spaces-demo -n 40 --no-pager
+#
+# >>> Si dice que no puede leer algo de /var/www/Spaces, es de permisos:
+#         chmod -R a+rX /var/www/Spaces
+#     (ya se corrio el 24/08, pero los `npm run build` posteriores crean
+#      archivos nuevos y conviene comprobarlo antes de suponerlo)
+
+
+# ------------------------------------------------------------
+# C20-bis - Con QUE usuario corre de verdad
+# ------------------------------------------------------------
+# No basta con que el archivo diga `User=demo`: se mide.
+
+systemctl show spaces-demo -p MainPID --value | xargs -r ps -o user=,pid=,cmd= -p
+
+# Esperado: la linea empieza por `demo`, NO por `root`.
+#
+# >>> CORREGIDO EL 25/08. La primera version era
+#     `ps -o user=,cmd= -C node | grep 3001` y SIEMPRE devolvia vacio: la linea
+#     de comando del proceso es `next-server (v14.2.29)` y NO contiene el puerto.
+#     Un vacio se lee como «no esta corriendo» cuando en realidad la pregunta
+#     estaba mal hecha -- y eso es peor que un error, porque parece un hallazgo.
+#     Se pide el PID a systemd, que es quien lo sabe.
+#
+# Es la separacion que el ADR 0017 da por hecha para aceptar que la demo
+# comparta maquina con el plano de control. Si sale `root`, esa decision se
+# queda sin su unica mitigacion.
+
+
+# ------------------------------------------------------------
+# C20a - DEMO contesta, sin nginx, sin DNS y sin TLS
+# ------------------------------------------------------------
+# Va directo al proceso. Sustituye a la verificacion publica
+# mientras no haya dominio, y de hecho es mejor evidencia: si
+# luego algo cambia por el nombre publico, el culpable es nginx
+# o el DNS y no la aplicacion.
+
+curl -s -o /dev/null -w 'login %{http_code}\n' http://127.0.0.1:3001/spaces-dooh/login/
+
+# Esperado:  login 200
+
+
+# ------------------------------------------------------------
+# C20b - Que DEMO ofrece SOLO lo que debe
+# ------------------------------------------------------------
+
+curl -s http://127.0.0.1:3001/spaces-dooh/api/auth/metodos/; echo
+
+# Esperado:  {"google":false,"autoregistro":false}
+#
+# >>> Si `google` sale TRUE, falta el GOOGLE_OAUTH=0 del C19c. PARA: con eso
+#     puesto, el boton de Google de la demo lleva AL PADRE.
+
+
+# ------------------------------------------------------------
+# C21 - El alta del Dueno de la demostracion
+# ------------------------------------------------------------
+# CAMBIA DOS COSAS ANTES DE PEGARLO: el correo y el nombre.
+# El script SE NIEGA si el correo no parece un correo -- es el
+# defecto (6) del 21/08, cuando el Dueno del PADRE se creo con un
+# texto de relleno.
+#
+# El slug es `demo` y NO PUEDE ser `rgb`: el criterio de F4.5
+# compara los slugs de las dos bases y no puede haber ninguno
+# repetido.
+#
+# NOTA: el runbook lo escribe corriendo como root. Va como
+# `postgres` a proposito -- como root, la conexion por socket
+# intentaria autenticarse con el rol `root`, que no existe, y
+# fallaria con "role root does not exist". Y `postgres` ya puede
+# leer el arbol y ver /usr/local/bin/node desde el C16.
+
+cd /var/www/Spaces/apps/web && sudo -u postgres env ORG_SLUG=demo ORG_NOMBRE="SPACE OS - Demostracion" ADMIN_EMAIL=CAMBIA@ESTO.com ADMIN_NOMBRE="CAMBIA ESTO" DATABASE_URL="postgresql:///spaces_demo?host=/var/run/postgresql" /usr/local/bin/node scripts/bootstrap-auth.mjs
+
+# >>> APUNTA LA CONTRASENA QUE IMPRIME. No se vuelve a ensenar.
+#     Cuando me pases la salida, TACHALA.
+
+
+# ------------------------------------------------------------
+# C22 - El inventario de juguete
+# ------------------------------------------------------------
+# 2 arrendadores y 6 pantallas inventadas. Es idempotente y trae
+# tres guardas: se niega si la base no se llama `spaces_demo`, si
+# no existe la organizacion `demo`, o si hay un tenant `rgb`.
+
+sudo -u postgres psql -d spaces_demo -v ON_ERROR_STOP=1 -f /var/www/Spaces/docs/datos/20260824_semilla_demo.sql
+
+# Esperado al final:
+#   demo - 2 arrendadores - 6 pantallas - 5 disponibles
+
+
+# ------------------------------------------------------------
+# C23a - El registro esta CERRADO, comprobado por dentro
+# ------------------------------------------------------------
+
+curl -s -w '\nHTTP %{http_code}\n' -X POST http://127.0.0.1:3001/spaces-dooh/api/signup/ -H 'Content-Type: application/json' -d '{}'
+
+# Esperado:  503
+#
+# >>> SI DIERA 400: PARA. Significa que AUTOREGISTRO no llego al
+#     proceso, y DEMO estaria a punto de salir a internet con el
+#     registro abierto.
+
+
+============================================================
+ CUANDO TERMINES
+============================================================
+ Pegame las salidas -- la del C21 con la contrasena tachada.
+
+ Con esto queda cerrada F4.4 por dentro, y la etapa 1 completa.
+ Lo que falta despues es solo el dominio: certificado, nginx y
+ los dos registros A.
+============================================================

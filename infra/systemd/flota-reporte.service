@@ -1,0 +1,124 @@
+# ============================================================================
+#  El receptor de reportes de flota (F6.4) — SOLO en el PADRE.
+# ----------------------------------------------------------------------------
+#  Instalación:
+#      ln -sfn /var/www/Spaces/infra/systemd/flota-reporte.service \
+#              /etc/systemd/system/flota-reporte.service
+#      systemctl daemon-reload && systemctl enable --now flota-reporte
+#
+#  ⚠️ La unidad es un SYMLINK al repositorio, igual que `spaces-demo.service`.
+#  Consecuencia que ya mordió una vez: un `git pull` le cambia la unidad por
+#  debajo, así que **cualquier despliegue tiene que hacer `daemon-reload`**,
+#  aunque no parezca que tocó nada de systemd.
+#
+#  ─── POR QUÉ UN USUARIO PROPIO Y NO root ───────────────────────────────────
+#  Este proceso **escribe archivos en disco a partir de peticiones de red**. Es
+#  exactamente la clase de servicio que no debe correr como root, y el PADRE ya
+#  arrastra una tarea abierta desde la Fase 4 por tener el 3000 como root:
+#  añadir un segundo agrandaría esa deuda en vez de contenerla.
+#
+#  Alta del usuario, una sola vez (va en la tarjeta, la corre una persona):
+#      useradd --system --no-create-home --shell /usr/sbin/nologin flota
+#      install -d -o flota -g flota -m 750 /var/www/Spaces/apps/flota/estado
+#      install -o root -g flota -m 640 /dev/null /etc/space-os/flota.env
+#
+#  `flota` NO necesita poder leer el resto del repositorio ni la base: solo su
+#  inventario, su directorio de estado y su archivo de tokens.
+# ============================================================================
+
+[Unit]
+Description=SPACE OS — receptor de reportes de flota (F6.4)
+Documentation=file:///var/www/Spaces/apps/flota/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=flota
+Group=flota
+
+WorkingDirectory=/var/www/Spaces/apps/flota
+
+# ⚠️ `/usr/local/bin/node` Y NO `/usr/bin/node`, que NO EXISTE en el PADRE.
+# La primera version de esta unidad lo daba por supuesto y systemd contestaba
+# `status=203/EXEC` once veces seguidas -- un codigo que dice «no pude ejecutar
+# el binario» y NO distingue entre «no lo encuentro» y «no puedo como este
+# usuario». Medido el 27/08:
+#
+#   root  -> /root/.nvm/versions/node/v20.20.2/bin/node   (la que corre pm2)
+#   flota -> /usr/local/bin/node                          (v20.20.2, la misma)
+#
+# HAY DOS INSTALACIONES DE NODE EN ESTA MAQUINA. La de nvm NO sirve aqui: vive
+# bajo /root, que `ProtectHome=yes` le tapa a este servicio A PROPOSITO. Si
+# algun dia se actualiza node, hay que actualizar LAS DOS o la app y este
+# servicio empiezan a correr versiones distintas sin que nada avise.
+ExecStart=/usr/local/bin/node reporte.mjs
+
+# Los tokens (`FLOTA_TOKEN_<NOMBRE>`, uno por instancia) viven aquí y NUNCA en
+# el inventario ni en el repositorio. 0640 root:flota — lo escribe una persona,
+# lo lee el servicio, no lo lee nadie más.
+EnvironmentFile=/etc/space-os/flota.env
+
+# Loopback y 8787 son los valores por omisión de `reporte.mjs` (`:216`, `:219`).
+# Se declaran explícitos porque este archivo es el contrato con nginx: si aquí
+# cambia el puerto, `snippets/flota-reporte.conf` cambia con él o el proxy queda
+# apuntando al vacío, y eso no da error hasta que alguien intenta reportar.
+Environment=FLOTA_INTERFAZ=127.0.0.1
+Environment=FLOTA_PUERTO=8787
+Environment=NODE_ENV=production
+
+Restart=on-failure
+RestartSec=5s
+
+# ─── Contención ────────────────────────────────────────────────────────────
+# Todo el sistema de archivos en solo lectura MENOS su directorio de estado,
+# que es lo único que este proceso tiene por qué escribir.
+ProtectSystem=strict
+ReadWritePaths=/var/www/Spaces/apps/flota/estado
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+LockPersonality=yes
+RestrictRealtime=yes
+
+# ⚠️ AQUI NO VA `MemoryDenyWriteExecute=yes`, y no es un olvido.
+#
+# La primera version lo traia y el servicio moria con `status=5/TRAP` y volcado
+# de nucleo, con la traza en
+# `v8::internal::Factory::CodeBuilder::AllocateInstructionStream`. Esa directiva
+# prohibe mapear memoria escribible-y-ejecutable, que es LO QUE HACE CUALQUIER
+# JIT: V8 compila a codigo maquina en tiempo de ejecucion. **Es incompatible con
+# Node por diseño**, no con este programa.
+#
+# Lo que lo hizo confuso: arrancar `reporte.mjs` a mano como el usuario `flota`
+# funcionaba. Claro -- a mano no hay sandbox. Un servicio que arranca a mano y
+# muere bajo systemd senala a las directivas, no al codigo.
+#
+# La unica forma de conservarla seria `node --jitless`, que apaga el JIT entero
+# y cuesta un orden de magnitud de rendimiento. Para un receptor que atiende un
+# POST por instancia y por dia, el intercambio no se sostiene en ninguna
+# direccion: ni la proteccion vale eso, ni el rendimiento hace falta.
+
+# Solo habla por loopback. No necesita AF_INET6 ni sockets de otro tipo, y
+# `IPAddressAllow` deja fuera cualquier salida a internet: este proceso RECIBE,
+# nunca llama a nadie. Si algún día llamara, esta línea lo delata antes que
+# cualquier revisión de código.
+# AF_NETLINK va incluido a proposito: `getaddrinfo()` de glibc lo usa para
+# enumerar interfaces al resolver, incluso cuando solo se escucha en loopback.
+# Sin el, el fallo aparece como un error de resolucion y no como uno de permisos.
+RestrictAddressFamilies=AF_INET AF_UNIX AF_NETLINK
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+# El padre no debe caerse porque una instancia mande basura en bucle.
+MemoryMax=128M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

@@ -1,12 +1,14 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
-tags: [backend, multi-tenant, rls, seguridad, rojo]
+actualizado: 2026-08-26
+tags: [backend, multi-tenant, rls, seguridad, rojo, instancias]
 archivos:
   - apps/web/lib/server/db.ts
   - apps/web/lib/server/tenant.ts
   - db/schema.sql
+  - db/migrations/20260812_sin_default_tenant.sql
+  - apps/web/lib/test/tenant-sin-default.e2e.test.ts
   - db/migrations/20260715_arr_m5_rls_failclosed.sql
   - db/migrations/20260720_hard1_rls_todas_tablas.sql
   - db/migrations/20260720_hard1_usuarios_rls.sql
@@ -17,6 +19,31 @@ archivos:
 > [!danger] ZONA ROJA — el aislamiento entre organizaciones
 > Un error aquí no da error: **devuelve datos de otra empresa, o cero filas en
 > silencio**. Los dos modos de fallo son igual de graves.
+
+> [!important] 2026-08-26 · El marco cambió: la RLS ya NO es el aislamiento entre owners
+> **Cada owner corre su propia instancia**: su droplet, su base y su dominio
+> ([ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md),
+> [[modelo-instancias-soberanas]]).
+> El aislamiento entre owners **es físico** — procesos, bases y máquinas
+> distintas—, no una política de fila.
+>
+> **Lo que la RLS es hoy, y sigue siendo obligatorio:**
+> 1. **Defensa en profundidad dentro de una instancia.** Es la segunda capa
+>    detrás del `and tenant_id = $n` de cada consulta, y la que convierte un
+>    olvido en cero filas en vez de en una fuga.
+> 2. **La puerta a que un owner tenga varias unidades de negocio** dentro de su
+>    propia instancia. Ese es el caso de uso que queda vivo para el multi-tenant.
+>
+> **Lo que NO cambia, y por eso el resto de esta nota sigue valiendo entero:**
+> el tenant se sigue resolviendo desde la sesión, `qRaw` sigue siendo el error
+> más caro del repo, las políticas siguen `fail-closed` con `FORCE`, y todo lo
+> que toque tenant o sesión sigue necesitando
+> `cd apps/web && npm run test:e2e` — las unitarias simulan la base y no ven
+> estos fallos.
+>
+> **Lo que sí queda obsoleto:** cualquier lectura de esta nota como «así se
+> separa a un cliente de otro **entre empresas**». Entre owners no hay nada que
+> separar por software.
 
 ## Cómo se resuelve el tenant
 
@@ -61,7 +88,8 @@ reutiliza conexiones entre tenants y un GUC de sesión filtraría datos
 
 ## Las dos generaciones de política RLS
 
-`db/schema.sql:600-624` crea las políticas **permisivas** (la versión vieja):
+`db/schema.sql:636-639` —dentro del bucle `do $$` de `:613-641`— crea las políticas
+**permisivas** (la versión vieja):
 
 ```sql
 using (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid
@@ -90,7 +118,7 @@ with check (tenant_id = nullif(current_setting('app.tenant_id', true),'')::uuid)
 `propuesta_items`, `propuestas`, `reservas`, `sitio_modalidades`.
 
 Más `usuarios` (`20260720_hard1_usuarios_rls.sql`), `config_negocio`
-(`db/schema.sql:646-651`), `identidades_externas`
+(`db/schema.sql:669-674`), `identidades_externas`
 (`20260806_identidades_externas.sql`) y `password_resets`
 (`20260807_password_resets_rls.sql`, del 07/08).
 
@@ -203,11 +231,43 @@ por tabla funciona aunque una agencia sea cliente de otra.
 
 ## Deriva conocida de datos
 
-21 tablas tienen `DEFAULT` de `tenant_id` apuntando al tenant `rgb`
-(`db/schema.sql:615`). Ese default es lo que ha etiquetado como RGB filas de
-otras organizaciones cuando alguien olvidó fijar el tenant. `config_negocio` se
-dejó **sin default a propósito** para que un insert sin tenant falle
-(`db/schema.sql:630-633`).
+**23 tablas** —no 21: son las del array de `db/schema.sql:617-621`— **nacieron
+hasta el 2026-08-19** con un `DEFAULT` de `tenant_id` apuntando al tenant `rgb`.
+Ese default es lo que ha etiquetado como RGB filas de otras organizaciones cuando
+alguien olvidó fijar el tenant, y es la causa de la deriva conocida.
+`config_negocio` se dejó **sin default a propósito** desde el principio, para que
+un insert sin tenant falle (`db/schema.sql:647-650`).
+
+> [!important] Ya NO nacen con él — `db/schema.sql` dejó de ponerlo el 2026-08-19
+> **Esta nota afirmaba lo contrario hasta esa fecha**, y con estas palabras:
+> «`db/schema.sql` **no se toca**: sigue creando el default y la migración lo
+> retira después». Se tocó, en `9d609f0`, con la excepción a la convención
+> declarada en el propio commit: el esquema dejó de sembrar el tenant `rgb`
+> (`db/schema.sql:598-611`) y con el seed se fue el `select id into def … where
+> slug='rgb'` que era lo único que alimentaba esos `DEFAULT`.
+>
+> El bucle de `db/schema.sql:631-640` sigue poniendo `not null`, RLS y política a
+> las 23 tablas, pero **ningún `DEFAULT`**. Medido: sobre una base levantada desde
+> el repo el catálogo devuelve **cero** columnas `tenant_id` con default — lo fija
+> `apps/web/lib/test/tenant-sin-default.e2e.test.ts:66-78`, que lo pregunta a
+> `pg_attrdef` y no a una lista escrita a mano.
+>
+> Consecuencia práctica: **en una instancia recién nacida, un insert sin
+> `tenant_id` truena con 23502 desde el primer día**, sin esperar a ninguna
+> migración.
+
+> [!important] La migración que lo retira sigue haciendo falta — y NO está aplicada en producción
+> `db/migrations/20260812_sin_default_tenant.sql` (F1.2) quita el default de las
+> 23, recorriendo el **catálogo** y no una lista escrita a mano. Sirve para las
+> bases que **ya** lo tienen: producción y cualquier base levantada desde el repo
+> **antes** del 19/08. Aplicarla al droplet es **F1.5, y la corre una persona**;
+> hasta entonces producción sigue etiquetando en silencio, que es el modo de fallo
+> de R2: no da error.
+>
+> Sobre una base nueva no tiene ya nada que quitar, así que sus pruebas habrían
+> pasado **sin ejercitarla**. Por eso `tenant-sin-default.e2e.test.ts:89` le
+> devuelve el `DEFAULT` a una tabla a mano —el estado del droplet— y comprueba que
+> la migración se lo quita de verdad.
 
 ## Relacionadas
 [[autenticacion-y-sesion]] · [[esquema]] · [[migraciones]] ·

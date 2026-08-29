@@ -1,0 +1,12 @@
+{
+  "_aviso": "INVENTARIO DE EJEMPLO. El de verdad es flota.json, que NO esta en git: seria la lista de clientes con sus dominios. Copialo a flota.json y rellenalo en el PADRE. Aqui dentro NO va ninguna credencial; el README de al lado dice como se pasan y como se nombran. Los dominios son .invalid (RFC 2606): no existen ni pueden existir, asi que `node estado.mjs` en un clon recien hecho corre entero y saca las tres filas como sin-respuesta, sin mandar ni una peticion al servidor de nadie.",
+  "canales": {
+    "estable": "v0.0.0-ejemplo",
+    "beta": "v0.0.0-ejemplo"
+  },
+  "instancias": [
+    { "nombre": "demo", "dominio": "demo.ejemplo.invalid", "canal": "beta" },
+    { "nombre": "inventario", "dominio": "inventario.ejemplo.invalid", "canal": "estable" },
+    { "nombre": "vallas", "dominio": "vallas.ejemplo.invalid", "canal": "estable" }
+  ]
+}

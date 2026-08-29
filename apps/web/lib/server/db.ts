@@ -105,6 +105,41 @@ export async function fijarTenantExplicito(client: PoolClient, tenantId: string)
   await client.query("select set_config('app.tenant_id', $1, true)", [tenantId])
 }
 
+// Transacción de ALTA: empieza SIN tenant y deja fijarlo a mitad (F5.1).
+//
+// `withTenantTx` no sirve aquí, y no es un matiz: fija el tenant DE LA SESIÓN, y
+// en un alta todavía no hay sesión — el tenant se está creando en la primera
+// sentencia de la propia transacción.
+//
+// Por qué las dos sentencias caben juntas: `tenants` está exenta de RLS, así que
+// su INSERT no necesita GUC; `usuarios` es fail-closed y sí lo necesita, pero
+// para cuando le toca el id ya existe. Y `set_config(..., true)` es
+// TRANSACTION-LOCAL, así que el GUC muere con la transacción y no se filtra a la
+// siguiente petición que reutilice la conexión del pool.
+//
+// Lo que esto compra: si el INSERT del Dueño falla, el `rollback` se lleva
+// también el de la organización. Antes eran dos llamadas sueltas y el tenant
+// sobrevivía — quedaba una organización sin nadie dentro, ocupando su slug.
+export async function withTxBootstrap<T>(
+  fn: (ctx: { client: PoolClient; fijarTenant: (id: string) => Promise<void> }) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect()
+  try {
+    await client.query('begin')
+    const result = await fn({
+      client,
+      fijarTenant: (id: string) => fijarTenantExplicito(client, id),
+    })
+    await client.query('commit')
+    return result
+  } catch (e) {
+    try { await client.query('rollback') } catch { /* noop */ }
+    throw e
+  } finally {
+    client.release()
+  }
+}
+
 // Transacción multi-statement con app.tenant_id ya fijado. Para operaciones que
 // necesitan varias sentencias atómicas dentro del mismo tenant.
 export async function withTenantTx<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {

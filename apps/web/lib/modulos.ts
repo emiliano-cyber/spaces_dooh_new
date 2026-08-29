@@ -2,7 +2,7 @@
 //  lib/modulos.ts — Qué área de la interfaz gobierna cada módulo de permiso.
 // ----------------------------------------------------------------------------
 //  ADR 0010. La matriz de Administración mostraba 8 módulos y parecía completa,
-//  pero el producto tiene 17 áreas: marcar `comercial` abría además Clientes,
+//  pero el producto tiene 18 áreas: marcar `comercial` abría además Clientes,
 //  Propuestas y Campañas sin que nada lo dijera. Quien administra permisos no
 //  tenía forma de saber qué estaba concediendo.
 //

@@ -50,7 +50,12 @@ export function rowToSitio(r: any, modalidades: any[] = [], conMedia = true): an
     plazaCiudad: r.plaza_ciudad ?? '',
     ciudad: r.ciudad ?? '',
     estado: r.estado ?? '',
-    pais: r.pais ?? 'PE',
+    // NO se rellena con 'PE' cuando falta (auditoría del 26/08). Ese valor por
+    // omisión venía de cuando el producto se vendía como «Billboards Perú SA» y
+    // hoy el inventario es mexicano: una pantalla sin país se pintaba como
+    // peruana en la liga pública que ve el cliente. Un dato ausente se queda
+    // ausente; un hueco se ve y se rellena, un dato falso se cree.
+    pais: r.pais ?? null,
     alto: n(r.alto),
     ancho: n(r.ancho),
     caras: r.caras ?? 1,
@@ -137,7 +142,18 @@ function valoresDe(s: any): unknown[] {
   return [
     s.codigoProveedor ?? null, s.claveInterna ?? null, s.nombre, s.tipoMedio ?? 'OTRO',
     digital ? 'rotativo' : (s.exhibicion ?? 'fijo'), s.unidad ?? (digital ? 'mensual' : 'catorcenal'),
-    s.esRotativo ?? digital, s.plazaCiudad ?? s.distrito ?? null, s.ciudad ?? 'Lima', s.estado ?? 'Lima',
+    // ciudad y estado van NULL cuando no se capturan (auditoría del 26/08).
+    // Caían a 'Lima' por herencia del origen peruano del producto, y el alta
+    // ni siquiera pide esos campos: una pantalla de la Cuauhtémoc acababa
+    // publicada como «Cuauhtemoc · Lima» en la liga que ve el cliente. Inventar
+    // una ubicación es peor que no tenerla.
+    s.esRotativo ?? digital, s.plazaCiudad ?? s.distrito ?? null, s.ciudad ?? null, s.estado ?? null,
+    // `pais` NO puede ir null todavía: `db/schema.sql:136` lo declara
+    // `not null default 'PE'`, así que un null revienta el insert con un 23502.
+    // Quitar ese default es una MIGRACIÓN —cambio rojo, con decisión humana
+    // detrás: hay filas en producción con 'PE' que habría que repasar—, y hasta
+    // que se tome, esto sigue escribiendo el mismo valor que pondría la base.
+    // Es lo único que queda de DATA-01 sin arreglar, y está a propósito.
     s.pais ?? 'PE', s.alcaldia ?? s.distrito ?? null, s.direccionComercial ?? s.direccion ?? null,
     s.direccionPredio ?? s.direccion ?? null, s.direccionComercial ?? s.direccion ?? null,
     s.lat ?? null, s.lng ?? null, s.pendienteVerificacion ?? false, s.ancho ?? null, s.alto ?? null,

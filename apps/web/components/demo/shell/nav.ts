@@ -36,13 +36,17 @@ import type { RolDemo } from '@/lib/data/types'
 //   Dashboard ......... dónde estás. Va solo y sin título: es la portada.
 //   Inventario ........ el patrimonio que se vende: pantallas, sus dueños, y
 //                       lo que se comparte con terceros.
-//   Vender ............ el ciclo comercial, en su orden: a quién, dónde, si
+//   Ventas ............ el ciclo comercial, en su orden: a quién, dónde, si
 //                       está libre, y la propuesta.
 //   Entregar .......... lo vendido se ejecuta. Campañas ABRE el tramo porque
 //                       es lo que sale de la propuesta aprobada.
 //   Finanzas .......... el dinero, después de entregar.
 //   Sistema ........... lo que no es el proceso: conexiones, historial y
 //                       ajustes.
+//
+// El rótulo de este grupo fue «Vender» hasta el 2026-08-26. Se cambió a
+// «Ventas» a petición de Jochelo, por sonar más amable: un menú no le da
+// órdenes a quien lo usa, le dice dónde están las cosas.
 //
 // Los títulos de los grupos son ROTULOS y las claves (`patrimonio`, `cobrar`)
 // son internas: se dejan como están a propósito. Renombrar las claves obligaría
@@ -75,7 +79,7 @@ export interface NavItem {
 export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'inicio', titulo: null },
   { key: 'patrimonio', titulo: 'Inventario' },
-  { key: 'vender', titulo: 'Vender' },
+  { key: 'vender', titulo: 'Ventas' },
   { key: 'entregar', titulo: 'Entregar' },
   { key: 'cobrar', titulo: 'Finanzas' },
   { key: 'sistema', titulo: 'Sistema' },

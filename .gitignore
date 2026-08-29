@@ -74,3 +74,22 @@ venv/
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
 visual-identity-project-space-os/
+
+# El PDF del expediente de evidencias NO se versiona (decisión del 14/08/2026).
+# Se genera con el agente `editor-expediente` a partir de docs/evidencias/fase-*,
+# que sí están en git: el PDF es una salida derivada, pesa ~2 MB y cambiaría en
+# binario con cada regeneración. Su destino es fuera del repo.
+docs/evidencias/*.pdf
+
+# ─── Panel de flota (apps/flota) ────────────────────────────────────────────
+# El inventario de VERDAD no se versiona: es la lista de clientes con sus
+# dominios, y la regla del proyecto es que ningún valor real vive en un archivo
+# versionado. Lo que sí está en git es `flota.example.json`, con dominios
+# `.invalid` que no existen ni pueden existir (RFC 2606), para que
+# `node estado.mjs` corra entero en un clon recién hecho.
+apps/flota/flota.json
+# Lo que reportan las instancias y lo que el panel genera. Son datos de la
+# flota real —dominios, versiones, fechas— y además se regeneran solos en cada
+# corrida: versionarlos sería meter en git un archivo que cambia cada noche.
+apps/flota/estado/
+apps/flota/publico/

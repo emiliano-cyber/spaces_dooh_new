@@ -5,6 +5,679 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-28
+
+- **La protección del navegador pasa de avisar a bloquear.** Desde hace dos días
+  la aplicación venía anotando en silencio qué contenido externo cargaba, sin
+  impedir nada, para poder decidir con datos. Ya no queda ninguno: las letras se
+  sirven desde la propia aplicación y se retiró un resto de código viejo que
+  hablaba con fuera. **Ahora sí bloquea.** Si un día apareciera contenido
+  inyectado por alguien que no debe, el navegador se niega a ejecutarlo.
+
+
+- **El programa que atiende la aplicación dejó de correr con permisos de
+  administrador.** Hasta hoy funcionaba con la cuenta que puede hacer cualquier
+  cosa en el servidor; ahora tiene una cuenta propia que solo puede tocar lo
+  suyo. No cambia nada de lo que ves ni de cómo se usa: si alguien encontrara
+  una forma de abusar de la aplicación, ahora llegaría mucho menos lejos.
+
+
+- **Las letras de la aplicación ya no vienen de un servidor ajeno.** Hasta hoy,
+  cada vez que alguien abría una pantalla, su navegador iba a pedirle las
+  tipografías a una empresa de fuentes en internet. Eso significaba tres cosas:
+  que si ese servicio se caía la aplicación se veía mal para todos a la vez, que
+  un tercero recibía la dirección de cada persona que entraba, y que la página
+  tardaba un poco más en pintar el texto. **Ahora las letras viajan dentro de la
+  propia aplicación.** Se ven igual de bien —cambia la familia de los títulos, a
+  una con más carácter— y ya no dependen de nadie.
+
+## 2026-08-27
+
+- **El RFC de un cliente ya no se puede repetir dentro de la misma
+  organización.** Hasta hoy nada impedía dar de alta dos veces al mismo cliente
+  con el mismo RFC, y acababan compitiendo en las listas y en la facturación.
+  Ahora el sistema lo rechaza al guardar. Al aplicar la regla se comprobó que
+  **no había ningún RFC repetido**, así que ningún cliente existente se vio
+  afectado ni hubo que elegir cuál se quedaba.
+
+- **La lista de arrendadores ya dice si un propietario se puede dar de baja.** La
+  columna «Contratos» enseñaba el total, y el total no es lo que decide: solo
+  los contratos **vigentes** lo impiden, y también los **predios** a su nombre.
+  Así que mentía en las dos direcciones —tres contratos vencidos parecían un
+  bloqueo y no lo eran; cero contratos parecía vía libre y podía acabar en un
+  aviso—. Ahora la columna dice **vigentes de total** y hay una columna
+  **Predios** al lado. Y esas cifras dejan de moverse con los filtros de la
+  pantalla: describen al propietario, no lo que hay filtrado.
+
+- **Ya se puede quitar un cliente y dar de baja a un propietario desde la
+  aplicación.** Hasta hoy no había botón para ninguna de las dos cosas: lo que
+  se daba de alta por error se quedaba en la lista para siempre —la revisión de
+  agosto dejó diez clientes de prueba que nadie podía retirar—. Ahora cada fila
+  tiene su botón, con estas reglas:
+  - **Te pide la contraseña, siempre.** Aunque tu organización tenga apagado el
+    candado de cambios. Son acciones que no se deshacen.
+  - **Solo lo ve quien puede aprobar.** A quien únicamente edita no se le
+    enseña el botón.
+  - **Cuando no se puede, dice qué lo impide y cuánto hay.** «tiene 2 campañas y
+    3 facturas», en vez del antiguo «el registro está referenciado por otro»,
+    que era correcto y no servía para nada.
+  - **Avisa antes de pulsar de lo que se lleva por delante.** Quitar un cliente
+    deja sus propuestas sin dueño, y esas propuestas pasan a calcular el IVA
+    general en vez del suyo: **puede cambiarles el precio**. Se dice con la
+    cifra delante y hay que confirmarlo aparte.
+  - **Dar de baja a un propietario no borra su historia.** Sus contratos y pagos
+    anteriores se conservan; deja de aparecer en Arrendadores y de poder
+    elegirse en contratos nuevos. Eso sí: **no se puede reactivar desde la
+    aplicación**, y no se deja dar de baja a quien todavía tenga predios o
+    contratos activos.
+
+- **Una pantalla digital vendida por propuesta ya rota sus anuncios.** Cuando se
+  vendía una pantalla desde una propuesta, el sistema la registraba como si
+  fuera una lona impresa. Consecuencia: **un solo anuncio se quedaba con toda la
+  pantalla**, en vez de repartirse entre los que se contrataron. Solo ocurría
+  por ese camino; vendiendo desde Comercial funcionaba bien.
+- **Y esas pantallas ya se liberan al terminar la campaña.** Por el mismo
+  motivo, cuando una de esas reservas vencía **no devolvía su espacio**: la
+  pantalla seguía contando como ocupada aunque la campaña hubiera acabado hace
+  meses.
+
+## 2026-08-26
+
+- **La aplicación ya no acepta datos imposibles por la puerta de atrás.** La
+  pantalla siempre validó bien lo que se escribe; el problema estaba en que si
+  algo entraba **sin pasar por la pantalla** —un programa, una integración, una
+  petición hecha a mano— el sistema lo aceptaba sin mirar. Se cerraron siete de
+  esos huecos:
+  - **Una orden de compra podía guardarse con un importe negativo.** Y no había
+    forma de corregirla ni de borrarla desde la aplicación: quedaba ahí, y
+    encima podía empujar la campaña a «lista para facturar».
+  - **«Extender» una campaña podía ACORTARLA.** Bastaba mandar una fecha
+    anterior a la que ya tenía, y se llevaba por delante también todas sus
+    reservas.
+  - **El RFC de tu propia empresa** —el que sale en las facturas— se aceptaba
+    con fechas que no existen, como el mes 13. Ya se comprueba.
+  - **Firmar un contrato o aceptar una propuesta** admitía un nombre de miles
+    de caracteres, sin haber iniciado sesión, en un registro que después no se
+    puede modificar.
+  - **Un descuento que no fuera un número** se guardaba igual y contaminaba
+    todos los importes de esa propuesta, en silencio y con la petición dando
+    «correcto».
+  - **Dos comparaciones de fechas estaban mal** y fallaban en las dos
+    direcciones: dejaban pasar un periodo invertido y a la vez rechazaban uno
+    correcto.
+
+- **Se revisaron los 72 puntos por donde la aplicación recibe datos**, no solo
+  los que fallaron. Queda una lista priorizada de lo que falta, en el
+  repositorio, para irla cerrando por orden de gravedad.
+
+- **Los plazos de cobranza que configuras ahora sí se usan.** En Administración
+  se podían añadir y quitar plazos —45 días, 30 días, los que hicieran falta—,
+  se guardaban bien, y al momento de facturar **el sistema los ignoraba y solo
+  aceptaba 60, 90 o 120**. Quien configuraba 45 recibía un «Plazo inválido». Era
+  una pantalla que prometía algo que no ocurría.
+  - **Dos cuidados que se tomaron, y conviene conocerlos:**
+  - Si una organización se queda **sin ningún plazo** configurado —se pueden
+    borrar todos, uno a uno—, el sistema vuelve a 60/90/120 en vez de quedarse
+    sin poder facturar. Quedarse sin facturación sería peor que el fallo que se
+    corrigió.
+  - **Las facturas ya emitidas no cambian.** Si mañana quitas el plazo de 45
+    días, las facturas que ya salieron a 45 días siguen ahí, se siguen viendo y
+    se siguen cobrando. Retirar un plazo no congela el dinero que ya está en la
+    calle.
+
+- **Quedó escrito, de una vez y en el sitio donde se guardan las decisiones, en
+  qué consiste el producto.** Hasta hoy el modelo —«cada cliente tiene su propia
+  copia del sistema, en su propia máquina, con su propia dirección»— vivía
+  repartido entre un plan de trabajo y media docena de documentos sueltos. Ahora
+  hay **una sola hoja** que lo dice, y que además fija tres cosas que se venían
+  diciendo de formas distintas:
+  - **Cómo se llama cada cosa.** La máquina de la casa se llama **PADRE**; la
+    copia de pruebas, **DEMO**; la de cada cliente, **instancia**; el conjunto,
+    **flota**. Y, hacia el cliente, **no se dice «tenant»**: se dice «su
+    instancia» o «su organización». Esa palabra es de la base de datos, no del
+    trato con la gente.
+  - **Nadie toca el código dentro de la máquina de un cliente.** Ni para
+    arreglar algo urgente. Todo se hace en la máquina de la casa, se publica una
+    versión, y la copia del cliente **se la baja sola**. Una máquina retocada a
+    mano ya no se puede volver a levantar igual, y con muchas copias eso se
+    vuelve ingobernable.
+  - **Nombres de internet reservados.** `demo`, `beta`, `panel`, `releases`,
+    `status` y `www` no se le dan a ningún cliente. Es una nota para quien
+    administre el dominio, no un candado en el programa: la dirección de un
+    cliente ya no depende de cómo se llame su empresa dentro del sistema.
+
+- **Se escribió, y se corrigió a la baja, qué se promete cuando algo se rompe.**
+  El plan prometía que si una actualización sale mal el sistema se arregla solo
+  en cinco o diez minutos y sin perder nada. **Al ir a comprobarlo contra lo que
+  de verdad está programado, no era así**, y se corrigió en vez de dejarlo
+  bonito:
+  - Si falla la **puesta al día de la base de datos**, el sistema **no deshace
+    nada por su cuenta** y avisa. Es a propósito: deshacer sin que nadie mire
+    borraría lo que se haya trabajado desde la copia de seguridad. El cliente se
+    queda en la versión anterior, funcionando, hasta que una persona lo revise.
+  - Si la versión nueva **arranca y no responde**, ahí sí vuelve sola a la
+    anterior. El corte dura entre unos segundos y unos tres minutos.
+  - **Las copias de seguridad no son diarias.** Se hacen cuando hay versión
+    nueva. Si pasan tres semanas sin actualizaciones, la copia más reciente
+    tiene tres semanas. Conviene saberlo antes de necesitarlo.
+  - Y lo más importante: **si la máquina de la casa se cae, ningún cliente se
+    entera.** Ninguna copia le pide permiso para funcionar. Solo se queda sin
+    servicio el panel interno.
+
+- **La documentación interna dejó de describir el mundo viejo.** Dos apartados
+  contaban todavía que todas las empresas compartían un mismo programa y una
+  misma base de datos en una sola máquina. Ya no es así, y se reescribieron.
+  De paso quedó anotado —sin disimularlo— que **todavía existe en el repositorio
+  el viejo mecanismo de despliegue** que el modelo nuevo prohíbe: está previsto
+  retirarlo y **aún no se ha hecho**.
+
+- **Rectificación: la página de demostración `demo.space-os.io` SE QUEDA.** Más
+  abajo en esta misma fecha se anotó lo contrario —que se retiraba y que había
+  que quitarle el nombre—. **Eso era una lectura equivocada de la decisión, y se
+  corrige aquí.**
+  - **Lo que se decide de verdad:** esa dirección es **donde se va a enseñar el
+    producto funcionando como lo verá un cliente**, es decir, sobre una copia
+    suya y no sobre el sistema central. Por eso el nombre no sobra: es
+    justamente para lo que sirve.
+  - **No hay nada que hacer en el navegador.** La tarea de quitar el nombre
+    **queda cancelada**.
+  - **Lo que todavía no está decidido, y se deja dicho para no darlo por
+    supuesto:** qué máquina va a servir esa dirección. Hoy la sirve la máquina
+    de julio; podría quedarse ahí o mudarse a la primera copia de cliente cuando
+    exista. También queda abierto su certificado de seguridad, que vence el
+    **26 de octubre**.
+
+- **Una copia nueva del sistema ya puede darse de alta sola.** Cuando se le
+  entrega el sistema a un cliente, su copia nace **completamente vacía**: sin
+  empresa dentro y sin ninguna persona que pueda entrar. Hasta hoy, para meter a
+  la primera persona había que abrir la base de datos de esa máquina a mano.
+  Ahora la copia se arranca sola: se le da una clave de un solo uso y ella crea
+  su empresa y a su primer responsable.
+  - **Solo funciona una vez, y no depende de que nadie se acuerde de cerrarla.**
+    La puerta exige tres cosas a la vez: que se haya configurado la clave, que
+    la clave sea la correcta, **y que la copia siga vacía**. Esa tercera es la
+    importante: en cuanto existe la primera empresa, la puerta queda cerrada
+    para siempre, aunque alguien conserve la clave. No hay un paso posterior que
+    se pueda olvidar.
+  - **Y a quien no tiene la clave, la puerta le parece inexistente.** No
+    responde «clave incorrecta» —eso confirmaría que la puerta está ahí—, sino
+    lo mismo que respondería una dirección que no existe. El precio, dicho
+    claro: si quien da de alta una copia escribe mal la clave, recibe esa misma
+    respuesta y no puede distinguir un caso del otro.
+
+- **No va a haber una página de demostración aparte. La demostración va a ser el
+  producto de verdad.** Hasta hoy el plan contaba con `demo.space-os.io`, una
+  dirección separada donde enseñar el sistema a quien viniera a verlo. **Se
+  retira.**
+  - **Por qué:** esa página existía para enseñar *cómo van a ser* las copias del
+    sistema que tendrá cada cliente, cuando todavía no existía ninguna. Hoy
+    `space-os.io` es la dirección oficial y también donde se prueba, y lo que se
+    va a enseñar es **el producto funcionando con una o más copias reales**. Una
+    demostración con clientes de verdad vale más que un sitio aparte que los
+    imita.
+  - **Lo que esto cuesta, y conviene tenerlo presente:** **hasta que exista la
+    primera copia de un cliente no hay dónde enseñar el producto a alguien de
+    fuera.** Eso depende de la siguiente etapa del plan. Si hiciera falta antes,
+    habría que volver a darle dirección propia a algo.
+  - **Lo que se ahorra:** un certificado de seguridad que se intentó emitir cinco
+    veces sin éxito, y una dependencia que había que renovar a mano y que, al
+    caducar, habría tumbado el sitio en silencio tres meses después.
+
+- **Queda una cosa por hacer, y la hace una persona en el navegador: quitarle el
+  nombre público a la máquina vieja.** Mientras esa dirección siga apuntando a la
+  máquina de julio, esa máquina **sigue siendo un sitio público** con cinco
+  organizaciones dentro, hasta que su certificado venza el 26 de octubre.
+  - **Abandonar un nombre no es lo mismo que retirarlo**, y esa diferencia es
+    justo lo que esta etapa del plan existía para arreglar. La máquina no se
+    apaga con esto: pierde su nombre público, que es lo que hacía falta.
+
+- **Se cerraron las dos etapas del plan que estaban en curso, y se dejó por
+  escrito qué quedó fuera de cada una.** Se cierran diciendo su alcance, no en
+  verde limpio: lo que falta tiene nombre, dueño y ficha de trabajo. **Nada queda
+  en «pendiente» sin decir de quién es.**
+  - Sigue parada desde el 17 de agosto **una sola decisión** —dónde se guardan las
+    versiones del programa— y sin ella no hay forma de que cada servidor se
+    actualice solo. Es lo que más cosas destraba de todo el plan.
+
+- **Se corrigieron tres desfases entre lo que decían los documentos y lo que era
+  cierto**, encontrados al preparar el reporte: un apartado seguía pidiendo dos
+  pasos que se habían anulado el mismo día, y el tablero de trabajo daba por «solo
+  ensayado en local» algo que llevaba cinco días hecho en el servidor.
+
+## 2026-08-25
+
+- **Ya se puede entrar al sistema por su dirección de internet, y con Google.**
+  Hasta hoy el servidor nuevo no servía para trabajar: se veía la pantalla de
+  entrada, pero **nadie podía iniciar sesión**. Ahora funciona de punta a punta —
+  dirección propia, candado de seguridad en el navegador, y acceso con la cuenta
+  de Google.
+  - **Qué hizo falta:** cuatro correcciones distintas, y **ninguna daba error por
+    su cuenta**. La clave de la base de datos faltaba; el identificador de Google
+    **había perdido un carácter** al copiarse en agosto; la dirección de retorno
+    apuntaba al ordenador de un programador; y a la dirección registrada en
+    Google le faltaba una barra al final.
+  - **Lo que esto enseña, y vale más que la lista:** todas las comprobaciones que
+    se hacían —que la página carga, que el servidor responde, que la
+    configuración es válida— **pasaban con el sistema roto**. Lo único que
+    encuentra estos fallos es **intentar entrar de verdad**. Se anota para que las
+    comprobaciones de los próximos servidores incluyan eso.
+
+- **La organización del sistema ya se llama «RGB» y no «RGB Catorce».** Es el
+  nombre que encabeza las pantallas.
+  - **Solo cambió el rótulo.** Se comprobó antes de tocar nada que la **razón
+    social** y el **nombre comercial** estaban vacíos: si hubieran tenido valor,
+    esto habría sido un cambio en un dato **fiscal** —el que sale en las
+    facturas— y no un simple retoque de nombre.
+  - Se aplicó con una pasada de prueba previa, comprobando que tocaba **una sola
+    fila**, y queda guardado cómo deshacerlo.
+
+- **Quien entra con Google ya puede ponerse contraseña sin conocer la anterior.**
+  Al crear la cuenta de un responsable, el sistema genera una contraseña temporal
+  y **la enseña una sola vez**. Si esa persona entra con Google y esa temporal se
+  perdió, quedaba **encerrada**: la pantalla le pedía algo que nadie tenía, y no
+  hay recuperación por correo porque este servidor no envía correos.
+  - **Qué cambia:** si entraste con Google y **nunca** has puesto contraseña,
+    puedes ponerla directamente. La pantalla te lo explica en vez de pedirte un
+    dato imposible.
+  - **Qué NO cambia, y es lo importante:** sigue haciendo falta la contraseña
+    anterior para todo lo demás — cambiar el correo, o cambiar la contraseña una
+    segunda vez. **La facilidad es de un solo uso por persona** y desaparece en
+    cuanto la usas.
+  - **Y sigues teniendo contraseña**, que es lo que el sistema pide para
+    confirmar los cambios delicados. La idea no era quitarla: era poder ponerla.
+
+- **Se puso al día la base de datos del servidor nuevo.** Le faltaba una
+  actualización de ayer — la que arregla los permisos de las tablas que se creen
+  en el futuro. Estaba aplicada en una de sus dos bases y no en la otra.
+
+## 2026-08-24
+
+- **El servidor nuevo llevaba cuatro días sin poder abrir sesión de nadie, y
+  nadie lo sabía.** Desde que se puso en marcha el 21 de agosto, la pantalla de
+  entrada se veía perfectamente y el servidor contestaba, así que se dio por
+  hecho que funcionaba. **No funcionaba: el programa no tenía forma de hablar
+  con su base de datos.** Cualquiera que hubiera intentado entrar habría recibido
+  un error.
+  - **Por qué no se notó:** el programa no avisa cuando le falta ese dato. En vez
+    de negarse a arrancar, se conecta a una dirección de reserva pensada para el
+    ordenador de un programador. Como ahí no hay nada, la aplicación arranca, se
+    ve bien por fuera, y solo falla cuando alguien intenta hacer algo de verdad.
+  - **Qué se hizo:** se generó una contraseña nueva para la base, se guardó donde
+    el programa la lee, y se comprobó **con una prueba que sí distingue**: pedir
+    entrar con un correo inventado. Antes daba «error del servidor»; ahora
+    responde «correo o contraseña incorrectos», que es lo correcto — significa
+    que **buscó en la base de datos de verdad**.
+  - **La lección, y va escrita para que no se repita:** que una página se vea no
+    demuestra que el sistema funcione. Las comprobaciones que se hacían al
+    terminar de montar un servidor no incluían ninguna que necesitara la base de
+    datos, así que este fallo las pasaba todas.
+
+- **Se cerró un archivo de configuración que estaba abierto a todo el mundo.** El
+  archivo con las claves del servidor se podía leer desde cualquier cuenta de esa
+  máquina. Ahora solo lo lee quien debe. Ya estaba escrito en el procedimiento
+  que había que hacerlo; **se había hecho en el papel y no en el servidor**.
+
+- **Hay que cambiar una clave de Google, por un error nuestro.** Al revisar ese
+  archivo de configuración se usó un filtro incompleto y **una de las claves
+  salió a la vista**. No hubo acceso indebido, pero una clave que se ve deja de
+  ser secreta: se sustituye por otra. El filtro correcto ya estaba escrito en la
+  documentación del proyecto y se copió a medias.
+
+## 2026-08-24
+
+- **Se perdió el acceso al servidor de siempre, y ya no hay forma de entrar.**
+  Es la máquina que lleva funcionando desde julio y la que atiende la página de
+  demostración. **No está apagada**: sigue encendida y sigue contestando a quien
+  entre por su dirección. Lo que se perdió es la llave — no se puede actualizar,
+  ni corregir, ni apagar.
+  - **Lo único que sí se controla es su dirección de internet**, porque el
+    dominio está a nuestro nombre. Eso permite **quitarle el nombre público**, no
+    apagarla: quien se sepa su número seguirá llegando.
+  - **Una preocupación del día quedó descartada el mismo día, y era más
+    pequeña de lo que se escribió.** Esa máquina llevaba activada la publicación
+    de contenido, así que había que comprobar si estaba mandando algo sin que
+    nadie pudiera detenerlo. **Se revisó y no hay nada publicando: está limpio.**
+    - **Corrección importante, y la hizo Emiliano:** varios documentos internos
+      de ese día —y una versión anterior de esta misma entrada— decían que esa
+      publicación llegaba a **pantallas reales de clientes**. **No es así: la
+      publicación de este sistema ha ido siempre a pantallas de PRUEBA, nunca a
+      pantallas de un cliente.** El programa no puede saber qué hay al otro lado
+      —solo decide si manda o no manda—, así que eso se afirmó sin el dato.
+    - **Lo que sí sigue siendo cierto, y no dependía de eso:** se comprobó desde
+      el lado de DOOHmain, que es el único al que se llega. Queda demostrado que
+      **no ha publicado nada**, no que no pueda hacerlo. Y lo que se llegue a
+      publicar **no se retira borrando información** de esta base: eso se retira
+      desde DOOHmain.
+  - **Su certificado de seguridad vence el 26 de octubre** y no se va a renovar
+    solo. Esa es la fecha límite natural de todo este asunto.
+
+- **Corrección de lo que se anotó el 21 de agosto.** Aquella entrada decía que
+  «el servidor viejo se queda como el de demostraciones» y que eso ahorraba
+  contratar uno. **Eso ya no puede ocurrir**, por lo de arriba: no hay nada que
+  reutilizar. Se decidió otra cosa, y va en el punto siguiente.
+
+- **La demostración pasa a vivir dentro del servidor nuevo, el que lleva el
+  control.** Es la única máquina que hay, y contratar otra costaba unos 12
+  dólares al mes. Van a convivir dos sitios separados en un mismo servidor:
+  **cada uno con su dirección, su base de datos, su programa y su usuario**.
+  - **Qué se gana:** no hay que contratar nada, y la información de la
+    demostración **no se mezcla con la de verdad** — son bases de datos
+    distintas, y eso se comprueba contando: la de la demostración no tiene ni una
+    fila de ningún cliente.
+  - **Qué se acepta a cambio, y conviene que esté escrito:** la demostración es,
+    por definición, la parte más expuesta —es pública y la toca gente de fuera— y
+    ahora comparte máquina con la que guarda las llaves de todo. Separarlas por
+    dirección, por base y por usuario **ayuda, pero no es una pared**. Se decidió
+    a sabiendas, y queda anotado **cuándo hay que volver a mirarlo**: en cuanto
+    entre el primer cliente de pago, o en cuanto la demostración se abra a
+    tráfico que no sea una demostración acompañada.
+
+- **El sistema va a tener por fin una dirección de internet propia.** Hasta hoy
+  al servidor nuevo solo se llega **escribiendo su número**, y por eso todavía no
+  se puede iniciar sesión desde un navegador como es debido. Queda así:
+  - **`space-os.io`** — el sistema.
+  - **`demo.space-os.io`** — la demostración. **Es la dirección de siempre**, la
+    que ya usaba la página de demostración, así que **no hay que avisar a nadie
+    de ninguna dirección nueva**. Cambiar a dónde apunta es, además, lo que le
+    quita el nombre público a la máquina perdida: las dos cosas de un solo gesto.
+
+- **La demostración no va a mandar contenido a ningún sitio. Nunca.** Es una
+  decisión y va escrita en su configuración. El motivo, corregido el mismo día:
+  no es que llegaría a pantallas de clientes —eso nunca ha ocurrido, la
+  publicación siempre ha ido a pantallas de prueba— sino que **a dónde se manda
+  es un ajuste que cualquiera puede cambiar**, que una demostración no tiene por
+  qué mandar nada a ninguna parte, y que lo que se publica **no se retira
+  borrando información**.
+
+- **En la demostración nadie puede crearse una cuenta por su cuenta.** Las cuentas
+  las crea quien administra, igual que en el resto del sistema. Se comprobó
+  además que el servidor viejo **también lo tenía cerrado** — era la última
+  ocasión de preguntárselo antes de perderlo de vista, y la respuesta quedó
+  anotada con fecha.
+
+- **Dos arreglos que se notan al dar de alta una organización.** Al poner en
+  marcha el servidor nuevo, el alta del Dueño **se creó con un texto de relleno
+  en vez de un correo**, y nadie se enteró hasta después. Desde hoy el alta
+  **comprueba que el correo parezca un correo y se niega si no**. Y por separado
+  se corrigió un permiso de la base de datos que dejaba **tablas nuevas sin
+  permisos y sin dar ningún error**, que es la peor forma de fallar.
+
+- **Lo que falta, y no lo hace el programa: lo hace una persona.** Poner la
+  dirección en marcha, emitir el certificado de seguridad y preparar la
+  demostración son pasos manuales sobre el servidor, ya escritos uno por uno.
+  **No queda trabajo de programación pendiente para esta parte.**
+  - **Y sigue habiendo una decisión parada desde el 17 de agosto** — dónde se
+    guardan las versiones del programa —, y sin ella **no hay canal de
+    actualizaciones**, que es lo que permitiría que cada servidor se actualice
+    solo en vez de a mano.
+
+## 2026-08-21
+
+- **El servidor de siempre pasa a ser el de demostraciones, y eso ahorra
+  contratar uno.** Hasta hoy la página de demostración y el trabajo de verdad
+  vivían **en la misma máquina y compartiendo la misma base de datos**. El plan
+  para separarlos suponía **contratar un servidor más**, con su gasto mensual.
+  Hoy se decidió otra cosa: **el servidor viejo se queda como el de
+  demostraciones**, porque el que lleva el control ya se puso en marcha ayer en
+  una máquina nueva.
+  - **Qué cambia en la práctica:** separar las dos cosas deja de ser una compra y
+    pasa a ser **cambiar a dónde apunta la dirección de internet** y **dejar la
+    base del servidor viejo como nueva**.
+  - **Qué se ahorra:** los **≈12 dólares al mes** que estaban presupuestados para
+    esa máquina adicional.
+  - **Lo que no cambia:** desde la aplicación **no se nota nada hoy**. Es una
+    decisión sobre dónde vive cada cosa, no sobre cómo funciona el programa.
+
+- **Antes de dejar esa base como nueva hay que mirar qué tiene dentro.** «Dejarla
+  como nueva» quiere decir **borrar lo que hay**, y hoy nadie ha revisado qué hay.
+  Se preparó una revisión que **solo mira y no toca nada**: qué organizaciones
+  existen en ese servidor, cuánta información tiene cada una y qué versión del
+  programa está funcionando ahí.
+  - **La decisión se anotó igualmente, antes de esa revisión y a petición
+    expresa.** Queda escrito que, **si la revisión encuentra información de
+    verdad**, la decisión se vuelve a mirar. Se dice ahora para que después nadie
+    tenga que reconstruir con qué información se decidió.
+
+- **Tres documentos internos decían cosas distintas sobre el mismo asunto, y se
+  corrigieron.** Dos de ellos seguían afirmando que el servidor de siempre iba a
+  convertirse en **el que lleva el control de todo** — algo que se cambió de idea
+  ayer por la tarde y **que ya no ocurrió**, porque ese papel lo tiene desde ayer
+  una máquina nueva. Quien leyera uno u otro sacaba conclusiones opuestas. Los
+  tres cuentan ahora la historia completa y en orden.
+
+## 2026-08-20
+
+- **Imprenta y Finanzas por fin sirven para algo, y el Dueño puede abrir Imprenta.**
+  Ayer quedó anotado que el módulo de **Imprenta** no tenía permisos para nadie
+  —tampoco para el Dueño— y que los roles **Imprenta** y **Finanzas** se podían
+  elegir al dar de alta a una persona pero no abrían nada: entraban y recibían un
+  «no tienes permiso» en todo. Era una decisión del negocio y hoy se tomó.
+  - **Qué puede hacer cada uno a partir de ahora:**
+    - **Imprenta** ve y crea sus trabajos, y **mira** Operaciones para saber qué se
+      va a instalar. **No aprueba nada**: no cierra trabajos por su cuenta.
+    - **Finanzas** ve, crea y **factura**, y ve el tablero. Facturar es una acción
+      que no se puede deshacer, y aun así va incluida a propósito: un Finanzas que
+      no puede facturar obliga al Dueño a hacer el trabajo diario, y eso acaba con
+      todo el mundo entrando como Dueño, que es peor. Queda registrado quién
+      facturó, igual que antes.
+    - **Operaciones** pasa de solo mirar el catálogo de pantallas a **ver y crear
+      lo suyo**, y a mirar Comercial e Imprenta.
+    - **El Dueño** gana Imprenta completo, más aprobar en Operaciones y crear en
+      Network. Ya no le queda **ni una pantalla cerrada**.
+  - **Ojo, esto amplía permisos en las instalaciones que ya existen.** Al
+    actualizarse, la instalación de trabajo gana esas líneas. **No es un efecto
+    colateral: es la decisión**, y se dice antes para que nadie se lo encuentre
+    después mirando un tablero.
+
+- **Se acabó que la lista de permisos estuviera escrita en dos sitios.** El programa
+  que da de alta una instalación llevaba su propia lista, y la actualización llevaba
+  otra distinta. No coincidían, y **mandaba la que se ejecutara en último lugar** —
+  sin dar ningún error ni ningún aviso. Según el orden, el Dueño acababa con 19
+  permisos o con 24. Ahora la lista está **en un solo sitio**, la actualización, y el
+  programa de alta se limita a **comprobar que esté**; si no la encuentra, **se
+  niega a terminar** en vez de entregar una instalación en la que el Dueño no puede
+  abrir nada.
+
+- **El dueño de cada instalación deja de nacer con la misma contraseña que todos.**
+  Hasta hoy, toda copia recién instalada creaba a su dueño con una contraseña fija e
+  idéntica en todas partes, la escribía en pantalla, y **no le obligaba a
+  cambiarla**. Cualquiera que la conociera —y estaba escrita en el programa— entraba
+  como dueño en cualquier instalación, con acceso a todo, incluidas Administración y
+  Finanzas. No hacía falta romper nada: bastaba con teclearla.
+  - **Qué cambia:** el alta **genera una contraseña distinta cada vez**, en cuatro
+    grupos de cuatro caracteres pensados para poder dictarse por teléfono —sin
+    letras y números que se confundan—, la **enseña una sola vez** para que se le
+    entregue al dueño por otro canal, y la cuenta nace **obligada a cambiarla**: la
+    aplicación no le deja hacer nada hasta que lo haga.
+  - **Y repetir el alta ya no le cambia la contraseña a quien ya existe.** Antes se
+    la reescribía con la misma de siempre, así que daba igual; ahora, hacerlo lo
+    dejaría fuera de su propia instalación. Si la pierde, se restablece desde
+    Administración, como con cualquier otra persona.
+
+- **Una instalación no puede nacer con la base a medio permiso sin que nadie se
+  entere.** El programa que aplica las actualizaciones de la base ahora **comprueba
+  antes de empezar** que exista el usuario técnico con el que la aplicación se
+  conecta a su base de datos. Si no está, **se para y lo dice**, en vez de aplicar
+  todo con éxito aparente y dejar una instalación donde la aplicación no puede leer
+  ni una sola tabla. Y se añadió una actualización que **repara** las instalaciones
+  que ya hubieran nacido así.
+
+---
+
+## 2026-08-19
+
+- **Una instancia nueva ya nace con los permisos puestos, y su Dueño puede entrar
+  a trabajar.** Quién puede ver, crear, aprobar o facturar en cada módulo se guarda
+  en una tabla de la base. Esa tabla estaba **configurada a mano** en la base de
+  desarrollo desde hace meses y **no viajaba con el programa**: de las 25 líneas que
+  la hacen funcionar, solo cinco estaban escritas en el repositorio.
+  - **Qué pasaba en la práctica:** una copia recién instalada nacía con permisos
+    para un solo módulo, Inventario. Y como el programa **no le da ningún atajo al
+    Dueño** —comprueba sus permisos en la tabla igual que a cualquiera—, el dueño de
+    esa instancia entraba y se encontraba la aplicación cerrada de arriba abajo:
+    tampoco podía abrir Administración, que es justo desde donde tendría que dar de
+    alta a su equipo. La instancia no servía para nada desde el primer minuto.
+  - **Qué cambia:** las 25 líneas se escribieron en el repositorio, de modo que
+    cualquier instalación nueva las trae de fábrica: Dueño, Comercial y Operaciones
+    con lo que cada uno necesita, tal y como funciona hoy la instalación de trabajo.
+    No se inventó ni un permiso: es exactamente la configuración que ya se usa.
+  - **A las instalaciones que ya existen no les cambia nada.** Se comprobó: sobre
+    una base que ya tiene esos permisos, la actualización no toca ni una línea, y
+    tampoco los duplica si se aplica dos veces.
+  - **Queda una cosa medida y sin decidir, y se anota aquí para que no se pierda:**
+    el módulo de **Imprenta** no tiene permisos para nadie —tampoco para el Dueño—,
+    y los roles **Imprenta** y **Finanzas** se pueden elegir al dar de alta a una
+    persona pero no abren nada. No se han tocado a propósito: decidir quién imprime
+    o quién ve las finanzas es una decisión del negocio, no un arreglo técnico.
+
+- **Una instalación nueva ya no nace con la empresa de otro dentro.** Hasta hoy,
+  cualquier base creada desde cero salía con una organización ya dada de alta —«RGB
+  Catorce»— y con su ficha de configuración detrás. Nadie la había creado: venía
+  escrita en el archivo que levanta la base. Para una sola instalación era cómodo;
+  con el modelo de una instancia por cliente era un error de identidad: la copia de
+  cada cliente empezaba con la empresa de otro cliente adentro.
+  - **Qué cambia en la práctica:** una base recién creada sale **vacía de
+    organizaciones**, y la organización del cliente se crea **al darlo de alta**, no
+    se hereda. Quien monta una instancia tiene que decir de quién es: el programa de
+    arranque pide ahora el nombre y la clave de la organización y el nombre y correo
+    de su Dueño, y **se niega a arrancar si no se los dan**, en vez de inventarse
+    unos. Es la misma decisión que ya se tomó con la base de datos: no adivinar.
+  - **Y sigue avisando cuando algo falla de verdad.** Si la organización no llega a
+    crearse, el arranque **se detiene con error** en lugar de terminar «bien» sin
+    haber creado a nadie. Ese final silencioso ya costó un despliegue entero, y es lo
+    único que no se podía perder al hacer este cambio.
+  - **Nada de esto toca las bases que ya existen.** Producción y la de desarrollo
+    conservan su organización y siguen funcionando igual. El cambio es para las que
+    nacen a partir de hoy.
+  - **Para trabajar en local no se pierde nada:** la organización de pruebas de
+    siempre se mudó a un archivo aparte que se aplica a mano y que **no viaja** en lo
+    que se instala en los servidores.
+
+---
+
+## 2026-08-14
+
+- **Los expedientes de evidencia de las fases 0, 1 y 2 caben ya en un solo PDF.**
+  49 páginas con portada, índice, un resumen de las nueve fases del plan y un
+  capítulo por fase, con el texto de su expediente reproducido entero, sin resumir
+  ni reordenar.
+  - **Dónde está:** **no en el repositorio**. El PDF es una salida derivada —pesa
+    ~1,7 MB y cambia en binario con cada regeneración—, así que se entrega como
+    archivo y `docs/evidencias/*.pdf` queda ignorado en git. Lo que sí se versiona
+    son los expedientes de texto (`docs/evidencias/fase-0.md`, `fase-1.md`,
+    `fase-2.md`), que es de donde se vuelve a generar cuando haga falta.
+  - **Para qué sirve:** poder leer de una sentada en qué estado quedó el trabajo
+    sin abrir el repositorio ni ir archivo por archivo. Se entrega a quien tiene
+    que dar el visto bueno.
+  - **Qué se ve primero, a propósito:** lo que **no** está probado. Cada capítulo
+    abre con la lista de lo que su expediente declara sin probar, y esas secciones
+    van marcadas en rojo dentro del texto, no escondidas al final.
+  - **Las fases 3 a 8 también salen**, aunque no tengan expediente: aparecen en el
+    resumen con su estado —sin empezar, bloqueada o fuera de alcance— para que el
+    hueco se vea en vez de desaparecer.
+  - **Añade una página del editor** con las cuatro tareas que solo puede hacer una
+    persona (las «tarjetas humanas»), qué desbloquea cada una, y los **seis**
+    commits que esperan visto bueno humano. Los capítulos de las fases 1 y 2
+    cuentan ocho: se escribieron antes de que ese criterio estuviera por escrito y
+    se dejan tal cual, porque son documentos históricos; esa página explica cuál es
+    el número bueno y por qué.
+  - **No añade evidencia nueva.** No se corrió ninguna prueba ni se tocó ningún
+    servidor para hacerlo: lo que falta se declara como faltante. El PDF se puede
+    volver a generar desde los mismos archivos y sale igual.
+
+- **El botón «Crear cuenta» ya no aparece donde el registro está cerrado.** Hasta
+  hoy la pantalla de acceso enseñaba ese botón siempre, sin importar la
+  configuración del servidor: al pulsarlo el sistema contestaba «El registro de
+  cuentas nuevas está deshabilitado». Una puerta pintada en la pared. Ahora la
+  pantalla le pregunta al servidor qué ofrece y solo pinta lo que de verdad
+  funciona — igual que ya hacía con el botón de Google.
+  - **Por qué pasaba:** la pantalla de acceso se genera al compilar el programa, y
+    la decisión de mostrar el botón iba escrita dentro de esa página ya generada.
+    Cambiarla obligaba a recompilar el sistema entero, no bastaba con reiniciarlo.
+  - **Qué cambia para quien opera un servidor:** la opción se llamaba
+    `NEXT_PUBLIC_AUTOREGISTRO` y ahora se llama **`AUTOREGISTRO`**. Se lee al
+    encender el sistema, así que abrir o cerrar el registro es cambiar una línea y
+    reiniciar, sin recompilar nada.
+  - **Cuidado, y es lo importante:** ahora **solo `AUTOREGISTRO=1` abre el
+    registro**. Si la línea falta, o conserva el nombre viejo, o dice cualquier
+    otra cosa, el registro queda **cerrado**. Es a propósito: entre dejar un
+    servidor sin registro por error y dejarlo con el registro abierto a internet
+    por error, se prefiere lo primero, porque se nota enseguida y no deja entrar a
+    nadie mientras tanto.
+  - **Un servidor cuyo archivo de configuración siga diciendo
+    `NEXT_PUBLIC_AUTOREGISTRO=1` amanecerá con el registro cerrado.** Los que deban
+    seguir abiertos necesitan la línea nueva.
+
+---
+
+## 2026-08-13
+
+- **El avance de la corrección del modelo de despliegue queda por escrito, en la
+  bóveda.** Nueva nota `vault/01-Arquitectura/modelo-instancias-soberanas.md`, con
+  lo que se hizo con el documento que aprobó Jochelo el 12/08 —una instancia
+  dedicada por owner, en vez de un renglón en una base compartida— y en qué estado
+  quedó: las nueve fases desarrolladas en 40 tareas, los diez veredictos sobre el
+  plan del 11, y **cero tareas ejecutadas**. Lo hecho hasta hoy es análisis y
+  planeación; no se ha construido nada.
+  - **Dice también lo que va a costar:** ≈ $28 USD al mes de infraestructura nueva
+    (droplet padre, droplet de DEMO, backups, registry y snapshot) y ≈ $15 por cada
+    instancia de owner. Son precios de lista de DigitalOcean, **no la factura**: la
+    cuenta no se consultó, y la nota deja escritos los comandos `doctl` para
+    sustituirlos por los números reales.
+  - **Y deja por escrito un desacuerdo con el calendario**, antes de arrancar para
+    poder contrastarlo al terminar: las «~2 semanas» del documento salen de sumar
+    13 días hábiles en secuencia y suponen paralelismo perfecto. La estimación de
+    la nota es de **3 a 4 semanas** para las fases 0–6, con la Fase 7 —mover los
+    datos reales de `spaces_prod`— fuera de esa cuenta.
+  - Las cuatro decisiones de negocio siguen abiertas y bloquean 7 de las 40 tareas.
+    El siguiente paso no depende de ninguna: es el `curl` a `/api/signup` que dice
+    si el autoregistro está abierto en el droplet.
+  - Misma información en `Downloads\server padre\avance-correccion-jochelo.html` y
+    `.pdf` (14 páginas), para mandar fuera del equipo.
+
+---
+
+## 2026-08-12
+
+- **Plan de trabajo para que cada cliente tenga su propio sistema, en su propio
+  servidor.** Queda en `docs/Plan_Instancias_Soberanas_v2.md`. Traduce a tareas
+  concretas la corrección de rumbo que aprobó Jochelo el 12 de agosto: hasta
+  ahora todos los clientes vivían dentro de una misma base de datos, separados
+  por una etiqueta interna; el modelo correcto es que cada uno corra una copia
+  completa del sistema en su propio servidor, con su propia base y entrando por
+  el dominio que él elija. El motivo es comercial antes que técnico: la promesa
+  de SPACE OS es que el cliente es dueño de su sistema, y un cliente que es un
+  renglón en la base de otro no lo es. Son **40 tareas**; 33 se pueden hacer hoy
+  y 7 esperan decisiones de negocio. Cada tarea trae la prueba que tiene que
+  fallar primero, el criterio de aceptación y cómo se revierte si sale mal.
+
+  Al contrastar el plan contra el código aparecieron seis cosas que los
+  documentos daban por buenas y no lo eran:
+  - **La pieza que el documento decía "rescatar tal cual" nunca se escribió.**
+    Se daba por hecho que ya existía código para dar de alta una organización y
+    su dueño en una sola operación. No existe: hay que escribirlo.
+  - **Las tablas por limpiar son 23, no 21.** Dos se agregaron después de que se
+    escribiera el número.
+  - **El despliegue automático de hoy hace justo lo que el modelo nuevo
+    prohíbe:** entra al servidor del cliente, compila ahí y reinicia. Eso deja a
+    ese servidor distinto a todos los demás. Se retira, pero no antes de que
+    exista el mecanismo que lo sustituye, o nos quedamos sin forma de desplegar.
+  - **Los scripts muertos del sistema anterior son cuatro, no uno**, y uno llama
+    a otro: borrar solo el que se había señalado dejaba roto al que lo invoca.
+  - **Las migraciones no se aplican en orden alfabético.** Hay dos excepciones
+    reales que las pruebas conocen y el despliegue no. Un cliente nuevo no
+    arrancaría si el instalador las aplica por nombre.
+  - **La limpieza pendiente es menos arriesgada de lo que parecía:** el sistema
+    ya manda siempre a qué organización pertenece cada registro, así que quitar
+    el valor por defecto no rompe nada en uso; solo deja de tapar los registros
+    hechos a mano.
+
+  Queda una contradicción que tiene que resolver Jochelo: el interruptor del
+  registro público se graba dentro del programa al compilarlo, así que "todos los
+  clientes reciben exactamente el mismo programa" y "el registro público solo
+  está abierto en la demo" no pueden cumplirse las dos a la vez. Hay dos salidas
+  y ambas están escritas en el plan.
+
 ## 2026-08-11
 
 - **Cerrados cuatro pendientes del manual técnico: ya se puede levantar el

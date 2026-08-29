@@ -1,0 +1,114 @@
+# ============================================================================
+#  spaces-demo — la instancia DEMO, en el 3001, con su propio usuario.
+# ----------------------------------------------------------------------------
+#  Destino: /etc/systemd/system/spaces-demo.service  (ENLACE, no copia)
+#
+#      ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service \
+#             /etc/systemd/system/spaces-demo.service
+#      systemctl daemon-reload
+#      systemctl enable --now spaces-demo
+#
+#  ─── Por qué systemd y no pm2 (ADR 0019) ──────────────────────────────────
+#
+#  El PADRE instala Node por **nvm**, bajo `/root/.nvm`. Y `/root` es
+#  `drwx------`: medido con `namei -l` el 2026-08-25. El usuario `demo` NO PUEDE
+#  ATRAVESARLO, así que `pm2` y `npm` le son inalcanzables — y ningún enlace lo
+#  arregla, porque el enlace apuntaría a través de `/root`.
+#
+#  Lo que sí alcanza es `/usr/local/bin/node`, copiado el 24/08 para que el
+#  runner de migraciones pudiera correr como `postgres`. Con eso basta: Next se
+#  arranca directo, sin `npm` y sin `pm2`.
+#
+#  ─── Por qué NO se usa `npm start`, aunque exista ─────────────────────────
+#
+#  `apps/web/package.json:8` dice **`"start": "next start -p 3000"`**. El puerto
+#  está FIJO en el script, y `-p` gana sobre la variable `PORT`. Arrancar DEMO
+#  con `npm start` la mandaría al **3000**, que ya tiene el PADRE: el servicio no
+#  levantaría, o peor, dependería de quién arranque primero.
+#
+#  Es el defecto que `ecosystem.demo.config.js` llevaba dentro sin que nadie lo
+#  hubiera ejecutado: declaraba `PORT: 3001` en su entorno y lanzaba `npm start`,
+#  que lo ignora.
+#
+#  ─── El puerto va aquí Y en el .env, y no es redundancia inútil ───────────
+#
+#  `-p 3001` es lo que manda. `PORT=3001` en `/etc/space-os/demo.env` se queda
+#  porque la aplicación lo lee para construir URLs propias. Si algún día
+#  divergen, el que sirve es el de la línea de abajo.
+# ============================================================================
+
+[Unit]
+Description=SPACE OS - instancia DEMO (3001)
+Documentation=file:///var/www/Spaces/docs/adr/0019-demo-arranca-con-systemd.md
+# La base es local. Sin esto, un reinicio de la máquina puede arrancar Next
+# antes que Postgres y dejarlo sirviendo con la conexión rota — que es
+# exactamente el fallo que costó cuatro días en el PADRE.
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+# ⚠️ Estas DOS van en [Unit] y no en [Service]. Puestas en [Service], systemd
+# avisa «Unknown key name … ignoring» y el limite NO SE APLICA: el servicio se
+# reiniciaría sin tope. Es un aviso, no un error, así que la unidad arranca
+# igual y el defecto pasa desapercibido. Medido el 2026-08-25 en el journal.
+#
+# Cinco intentos en 60 s y se rinde. Un servicio que se reinicia en bucle rápido
+# entierra su propio error en el journal, y entonces el arranque parece «va y
+# viene» en vez de «falla siempre por esto».
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=demo
+Group=demo
+
+# `apps/web` y no la raíz: Next busca ahí su `.next` y su `.env.production`.
+WorkingDirectory=/var/www/Spaces/apps/web
+
+# ⚠️ El orden importa. Next carga `.env.production` SIN pisar lo que ya esté en
+# el entorno, así que lo de `demo.env` gana — y por eso DEMO habla con
+# `spaces_demo` y no con la base del PADRE, aunque compartan directorio.
+EnvironmentFile=/etc/space-os/demo.env
+Environment=NODE_ENV=production
+
+# `node_modules` está en la RAÍZ del repo: es un workspace de npm, no vive bajo
+# `apps/web`. Y se invoca el binario de Next directamente para no pasar por el
+# `npm start` del comentario de arriba.
+ExecStart=/usr/local/bin/node /var/www/Spaces/node_modules/next/dist/bin/next start -p 3001
+
+Restart=on-failure
+RestartSec=5
+
+# Endurecimiento barato. No sustituye a que corra como `demo`, lo acompaña.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+# `demo.env` vive fuera de /home, así que ProtectHome no lo esconde.
+
+# ─── Dos cosas del primer arranque que NO son fallos ────────────────────────
+#
+# 1. `⨯ Failed to load env from .env.production … EACCES`
+#
+#    Es CORRECTO y conviene que siga así. Ese archivo es del PADRE y está en
+#    `600 root:root` desde el 25/08 (defecto ⑦), así que el usuario `demo` no
+#    puede leerlo — y por eso DEMO **no hereda nada suyo**: ni su `DATABASE_URL`
+#    ni sus tres variables de Google. Todo su entorno llega por el
+#    `EnvironmentFile` de arriba, y Next continúa: `✓ Ready`.
+#
+#    **NO se arregla dándole permiso.** Eso reexpondría los secretos del PADRE al
+#    proceso más expuesto de la máquina, que es justo lo que se cerró ese día.
+#
+# 2. `⚠ "next start" does not work with "output: standalone"`
+#
+#    `next.config.mjs` usa `output: 'standalone'`. El PADRE arranca igual desde
+#    el 21/08, así que es una condición PREEXISTENTE y no de esta unidad. Queda
+#    anotado: lo coherente sería que ambos pasaran a
+#    `node .next/standalone/server.js`, y eso se decide para los dos a la vez.
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=spaces-demo
+
+[Install]
+WantedBy=multi-user.target

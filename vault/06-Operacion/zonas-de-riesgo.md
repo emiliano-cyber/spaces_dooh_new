@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-28
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -111,7 +111,45 @@ reservas, creativos, OC y órdenes de impresión.
 
 ## R6 · Configuración de nginx y del proceso
 
-**Archivos:** `infra/nginx/demo.space-os.io.conf`, `ecosystem.config.js`
+**Archivos:** `infra/nginx/space-os.io.conf` y sus `snippets/`,
+`infra/systemd/spaces-web.service`, `infra/systemd/spaces-demo.service`,
+`infra/systemd/flota-reporte.service`
+
+> [!success] 2026-08-28 · La CSP pasa a BLOQUEANTE
+> Nació en modo reporte el 26/08 —una CSP mal puesta no da error de servidor,
+> devuelve 200 con la interfaz rota— y ese modo hizo su trabajo: destapó las
+> fuentes de `api.fontshare.com` y, de paso, el `AuthProvider` archivado que se
+> ejecutaba en cada visita. Las dos cosas se retiraron.
+>
+> **Lo que sostiene el cambio no es una prueba, y conviene saberlo:** una
+> persona recorrió con la consola abierta las cinco pantallas que cargan algo
+> distinto —mapa, arte de creativo, documento de contrato, propuesta pública y
+> panel— sin una sola violación. **Las suites no cargan un navegador**, así que
+> `cabeceras.e2e.test.ts` solo puede afirmar que la cabecera es la bloqueante.
+>
+> **Si se añade una pantalla que cargue de un origen nuevo, la CSP la bloqueará
+> EN SILENCIO.** Volver a reporte es una palabra en `next.config.mjs`.
+
+> [!success] 2026-08-28 · El PADRE ya NO corre como root
+> `ecosystem.config.js` deja de mandar en el 3000: la aplicación la arranca
+> **systemd** (`spaces-web.service`) como el usuario **`padre`**. Con eso los
+> tres procesos de la máquina tienen su propio usuario —`padre` en el 3000,
+> `demo` en el 3001, `flota` en el receptor— y **ninguno es root**. Era la deuda
+> que la Fase 4 dejó abierta.
+>
+> **`pm2 restart spaces-web` ya no vale**, y hay dos pasos nuevos en cada
+> despliegue: `chown -R padre:padre apps/web/.next` después del build —Next
+> escribe ahí en caliente y el build lo hace root— y `systemctl daemon-reload`,
+> porque la unidad es un symlink al repositorio.
+>
+> **Y un secreto se cambia en DOS archivos:** `apps/web/.env.production`, que lee
+> el build, y `/etc/space-os/padre.env`, que lee el proceso. Si divergen, manda
+> el segundo. Evidencia: `docs/evidencias/padre-fuera-de-root-20260828.md`.
+>
+> ⚠️ **`pm2 save` se niega a guardar una lista vacía sin `--force`**, y el aviso
+> es un `WARN` en medio de una salida larga. Sin él, el `dump.pm2` conserva
+> `spaces-web` y **al reiniciar la máquina pm2 lo resucita a pelear por el 3000
+> contra systemd**. Comprobar `pm2 list` vacía, no fiarse del mensaje.
 
 **Por qué:** `X-Forwarded-For $remote_addr` es lo que impide falsear la IP y
 saltarse el rate limit del login. Y `instances: 1` es lo que hace que el
@@ -146,7 +184,7 @@ cubren y **tardan** (necesitan Docker).
 | Archivo | Líneas | Riesgo |
 |---|---|---|
 | `arrendadores-repo.ts` | 1317 | Conflictos entre agentes garantizados |
-| `campanas-repo.ts` | 1044 | Idem |
+| `campanas-repo.ts` | 1214 | Idem |
 | `sitios-repo.ts` | 624 | Whitelist `CAMPO_COL` — expone columnas a escritura |
 | `propuestas-repo.ts` | 593 | Sin unitarias |
 
@@ -174,11 +212,28 @@ Quitar un valor exige recrear el tipo y todas las columnas que lo usan. Por eso
 `CLIENTE` sigue en `rol_demo` pese al ADR 0010. **Añadir** valores es seguro;
 quitarlos no.
 
-## A6 · El `AuthProvider` muerto
+## A6 · El `AuthProvider` muerto — ✅ RETIRADO el 2026-08-27
 
-`lib/auth-context.tsx` + `providers.tsx:34` + `PermissionGuard.tsx` +
-`OTMovil.tsx`. Retirarlo es correcto pero **en su propio commit**: hoy tres
-componentes lo importan.
+**Ya no existe.** Se retiró la pista archivada entera de `apps/web`: nueve rutas
+y ~2 700 líneas. Lo afirma `apps/web/lib/pista-archivada.test.ts`, que se pone
+roja si algo de eso vuelve.
+
+> **Lo que esta ficha decía, y por qué se quedó tres semanas sin hacerse:**
+> «retirarlo es correcto pero en su propio commit: hoy tres componentes lo
+> importan». Era cierto — y engañoso. **Esos tres componentes no los importaba
+> nadie**: eran huérfanos que solo se sostenían entre sí. Medido el 27/08:
+> `PermissionGuard`, `OTMovil`, `ReporteVisual` y `ReadinessPanel` tenían
+> **cero importadores**. El único enganche real al árbol vivo era una línea:
+> `providers.tsx` montando `<AuthProvider>`.
+>
+> **Contar quién importa un archivo no basta: hay que preguntar si a ESE lo
+> importa alguien.** Un anillo de huérfanos parece una dependencia viva.
+
+**Y no era inocuo mientras estuvo.** Lo destapó la CSP en modo reporte: en cada
+carga de página en producción, `POST http://localhost:3001/auth/refresh` con
+`credentials: 'include'` — una página pidiéndole una identidad a la máquina del
+visitante. Las 997 unitarias y las 294 e2e estaban en verde con eso dentro,
+porque **ninguna carga un navegador**.
 
 ## A7 · Integraciones con subproceso
 

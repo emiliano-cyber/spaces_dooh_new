@@ -6,7 +6,7 @@
      · Neutros CÁLIDOS (blanco/crema), nunca grises fríos → esto es lo que
        distingue la marca de un SaaS genérico.
      · Flat absoluto: cero gradientes, cero sombras, bordes 1px.
-     · Tipografía: Cabinet Grotesk (display), General Sans (UI), JetBrains Mono
+     · Tipografía: Source Serif 4 (display), Inter (UI, cuerpo y números)
        (números). Sentence case siempre.
    Todo vive bajo `.demo-root` para no tocar la app de producción. El accent y
    los neutros viven en variables → cambiar la marca es cambiar valores aquí.
@@ -46,11 +46,18 @@
   --error-soft: #fdecec;
   --info: #0a66ff;
 
-  /* — Tipografías. Cabinet Grotesk y General Sans se cargan vía Fontshare en
-       el <head> del root layout; JetBrains Mono por next/font. ———————————— */
-  --font-display: 'Cabinet Grotesk', 'Space Grotesk', system-ui, sans-serif;
-  --font-body: 'General Sans', 'Inter', system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains, 'JetBrains Mono'), ui-monospace, 'Courier New', monospace;
+  /* — Tipografías. Las DOS por next/font desde el layout RAÍZ, servidas desde
+       el propio origen: ni una petición a un CDN ajeno en tiempo de ejecución.
+       Cambiar estos tokens propaga a toda la interfaz — `tailwind.config.ts:58-62`
+       mapea aquí `font-display`, `font-sans` y `font-mono`. ————————————————— */
+  --font-display: var(--font-source-serif), Georgia, 'Times New Roman', serif;
+  --font-body: var(--font-inter), system-ui, -apple-system, sans-serif;
+  /* Monoespaciada DEL SISTEMA, sin descargar nada. Fuera JetBrains Mono: era una
+     fuente entera por carga para lo que aquí resuelve la pila del sistema. Y
+     sigue haciendo falta una mono de verdad — `creativos/page.tsx:874` y
+     `AgregarCreativo.tsx:106` pintan JSON en un <pre>, donde la anchura fija no
+     es estética sino funcional. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
 
   background: var(--bg);
   color: var(--ink);
@@ -93,7 +100,7 @@
   height: auto;
 }
 
-/* Títulos en Cabinet Grotesk, sentence case, tracking ajustado por escala. */
+/* Títulos en Source Serif 4, sentence case, tracking ajustado por escala. */
 .demo-root h1,
 .demo-root h2,
 .demo-root h3 {
@@ -104,7 +111,9 @@
 .demo-root h2 { font-weight: 700; letter-spacing: -0.015em; }
 .demo-root h3 { font-weight: 700; letter-spacing: -0.01em; }
 
-/* Wordmark de SPACE OS: Cabinet Grotesk 800, caps, tracking abierto (.03em). */
+/* Wordmark de SPACE OS: Source Serif 4 700, caps, tracking abierto (.03em).
+   700 y no 800: Source Serif 4 no llega a 800, y pedirlo lo sintetiza el
+   navegador — que es peor que el grosor real inmediatamente inferior. */
 .demo-wordmark {
   font-family: var(--font-display);
   font-weight: 800;
@@ -153,9 +162,12 @@
   border-color: var(--border);
 }
 
-/* Datos numéricos técnicos (folios, IDs, montos, IPs) en JetBrains Mono. */
+/* Datos numéricos técnicos (folios, IDs, montos, IPs) en la mono del sistema.
+   `tabular-nums` es lo que de verdad importa en una columna de importes: sin
+   ella los dígitos bailan de ancho y las cifras dejan de alinearse. */
 .demo-num {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-variant-numeric: tabular-nums;
 }
 

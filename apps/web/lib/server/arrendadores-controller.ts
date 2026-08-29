@@ -2,7 +2,8 @@ import 'server-only'
 import { z } from 'zod'
 import { AppError, validar } from './errores'
 import { esEmailValido } from '@/lib/validacion'
-import { RFC_RE } from '@/lib/rfc'
+import { esRfcValido } from '@/lib/rfc'
+import { fechaZod, ordenInvertido } from './fechas'
 import { PERIODICIDAD_VALUES } from '@/lib/renta-periodicidad'
 import { LIMITES, uploadOUrlZod, uploadZod } from './uploads'
 import {
@@ -20,17 +21,21 @@ import { otRetiroPorCancelacion, otMontajePorAlta } from './operaciones-eventos'
 //  Valida nombre (obligatorio), RFC y correo de contacto antes del model.
 // ============================================================================
 
-// RFC_RE vive en @/lib/rfc: lo comparte el formulario del cliente, que avisa
-// antes de enviar. Ver el encabezado de ese archivo.
+// `esRfcValido` vive en @/lib/rfc: lo comparte el formulario del cliente, que
+// avisa antes de enviar. Ver el encabezado de ese archivo. Desde el 26/08
+// comprueba ADEMÁS que la fecha del RFC exista en un calendario (el `\d{6}`
+// aceptaba el mes 13); se llama al helper y no a la expresión suelta porque la
+// expresión sola se quedó en la mitad de la regla.
 const CURP_RE = /^[A-Z][AEIOUX][A-Z]{2}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/i
 
-// Fecha que Postgres pueda castear de verdad. Sin esto, un valor como "mañana"
-// llegaba crudo a `$1::date` y salía como error del driver (500) en vez de 400.
-const fecha = z
-  .string()
-  .trim()
-  .min(1, 'La fecha es obligatoria')
-  .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
+// La regla «esto tiene que ser una fecha» vive en `./fechas` y no aqui. Nacio en
+// este archivo con UX-01, y el barrido del 26/08 encontro el mismo
+// `z.string().min(1)` sin corregir en otras tres rutas que tambien escriben a
+// columnas `date`. Copiarla es lo que le paso al RFC: se arregla una copia y las
+// demas se quedan atras sin que nada avise.
+const fecha = fechaZod('La fecha es obligatoria')
+const fechaInicioContrato = fechaZod('Falta la fecha de inicio')
+const fechaFinContrato = fechaZod('Falta la fecha de fin')
 
 const crearSchema = z.object({
   nombre: z.string().trim().min(1, 'El nombre es obligatorio'),
@@ -53,7 +58,7 @@ const crearSchema = z.object({
 
 export async function crearArrendadorCtrl(body: unknown) {
   const d = validar(crearSchema, body)
-  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  if (d.rfc && !esRfcValido(d.rfc)) throw new AppError('RFC inválido', 400)
   if (d.email && !esEmailValido(d.email)) throw new AppError('Correo inválido', 400)
   return crearArrendador(d)
 }
@@ -77,8 +82,8 @@ const arrendadorRef = z.union([
 ])
 
 const contratoSchema = z.object({
-  fechaInicio: z.string().min(1, 'Falta la fecha de inicio'),
-  fechaFin: z.string().min(1, 'Falta la fecha de fin'),
+  fechaInicio: fechaInicioContrato,
+  fechaFin: fechaFinContrato,
   // `positive`, no `nonnegative`: el cero pasaba y era el error más caro del
   // módulo. Un contrato de $0 satisface `contrato_completo_ck`, sale de la lista
   // de pendientes y deja el espacio con margen = ingreso íntegro: la pantalla
@@ -171,7 +176,7 @@ const crearContratoSchema = z.object({
 export async function crearContratoCtrl(body: unknown) {
   const d = validar(crearContratoSchema, body)
   // Regla de negocio: fin no puede ser anterior al inicio (fechas pasadas SÍ se permiten).
-  if (d.contrato.fechaFin < d.contrato.fechaInicio) {
+  if (ordenInvertido(d.contrato.fechaInicio, d.contrato.fechaFin)) {
     throw new AppError('La fecha de fin no puede ser anterior a la de inicio', 400)
   }
   if ('email' in d.arrendador && d.arrendador.email && !esEmailValido(d.arrendador.email)) {
@@ -200,7 +205,7 @@ const editarArrendadorSchema = z.object({
 
 export async function editarArrendadorCtrl(id: string, body: unknown) {
   const d = editarArrendadorSchema.parse(body ?? {})
-  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  if (d.rfc && !esRfcValido(d.rfc)) throw new AppError('RFC inválido', 400)
   if (d.curp && !CURP_RE.test(d.curp)) throw new AppError('CURP inválida', 400)
   if (d.email && !esEmailValido(d.email)) throw new AppError('Correo inválido', 400)
   const arr = await editarArrendador(id, d)
@@ -241,10 +246,25 @@ const editarContratoSchema = z.object({
 
 export async function editarContratoCtrl(id: string, body: unknown) {
   const d = editarContratoSchema.parse(body ?? {})
+  // Atajo barato: con las dos fechas en el patch se sabe sin consultar la fila.
+  // La comprobación de verdad —contra la fecha ya guardada cuando el patch trae
+  // solo una— la hace el model; ver `fechasInvertidas` más abajo (UX-01).
   const fi = d.fechaInicio, ff = d.fechaFin
-  if (fi && ff && ff < fi) throw new AppError('La fecha de fin no puede ser anterior a la de inicio', 400)
+  if (fi && ff && ordenInvertido(fi, ff)) {
+    throw new AppError('La fecha de fin no puede ser anterior a la de inicio', 400)
+  }
   const r = await editarContrato(id, d)
   if ('noEncontrado' in r) throw new AppError('Contrato no encontrado', 404)
+  if ('fechasInvertidas' in r) {
+    // Se nombran las dos fechas: quien edita ve el formulario del contrato con
+    // un solo campo tocado, y «la de fin no puede ser anterior a la de inicio»
+    // sobre una fecha de inicio que no está a la vista no dice qué corregir.
+    throw new AppError(
+      `La fecha de fin (${r.fechasInvertidas.fin}) no puede ser anterior a la de inicio ` +
+        `(${r.fechasInvertidas.inicio}).`,
+      400,
+    )
+  }
   if ('cancelado' in r) throw new AppError('El contrato está CANCELADO; crea uno nuevo en su lugar', 409)
   if ('firmado' in r) {
     throw new AppError(
@@ -360,7 +380,7 @@ const crearRazonSocialSchema = z.object({
 })
 export async function crearRazonSocialCtrl(body: unknown) {
   const d = validar(crearRazonSocialSchema, body)
-  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  if (d.rfc && !esRfcValido(d.rfc)) throw new AppError('RFC inválido', 400)
   return crearRazonSocial(d)
 }
 
@@ -374,7 +394,7 @@ const editarRazonSocialSchema = z.object({
 })
 export async function editarRazonSocialCtrl(id: string, body: unknown) {
   const d = validar(editarRazonSocialSchema, body)
-  if (d.rfc && !RFC_RE.test(d.rfc)) throw new AppError('RFC inválido', 400)
+  if (d.rfc && !esRfcValido(d.rfc)) throw new AppError('RFC inválido', 400)
   const rs = await editarRazonSocial(id, {
     razonSocial: d.razonSocial,
     // `null` explícito limpia el campo; `undefined` lo deja como estaba.
@@ -418,7 +438,13 @@ const licenciaSchema = z.object({
 }).strict()
 
 function validarVigencia(d: { fechaExpedicion?: string | null; fechaVencimiento?: string }) {
-  if (d.fechaExpedicion && d.fechaVencimiento && d.fechaVencimiento < d.fechaExpedicion) {
+  // Por CALENDARIO, no como texto. Era la TERCERA copia de la misma comparacion
+  // de cadenas —UX-01 la corrigio en el alta de contrato, VAL-10 en el model de
+  // la edicion— y aqui seguia igual: '2026-9-1' sale MAYOR que '2026-10-01' como
+  // texto, asi que una vigencia invertida pasaba y una correcta se rechazaba.
+  // Una licencia que vence antes de expedirse nace VENCIDA: el aviso la marca en
+  // rojo el dia uno y deja el predio con un pendiente legal que no existe.
+  if (d.fechaExpedicion && d.fechaVencimiento && ordenInvertido(d.fechaExpedicion, d.fechaVencimiento)) {
     throw new AppError('La licencia no puede vencer antes de expedirse.', 400)
   }
 }

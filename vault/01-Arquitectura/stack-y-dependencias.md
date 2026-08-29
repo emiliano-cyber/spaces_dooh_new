@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-13
 tags: [stack, dependencias, versiones]
 archivos:
   - package.json
@@ -45,7 +45,15 @@ npm workspaces + turbo. `package.json:25-28` declara `apps/*` y `packages/*`.
 > `styled-jsx` (dependencia de Next) queda en la raíz y encuentra la copia
 > equivocada, produciendo `Cannot read properties of null (reading 'useContext')`
 > al renderizar en servidor. Hay además un alias de webpack para lo mismo en
-> `apps/web/next.config.mjs:47-56`. **No tocar ninguno de los dos por separado.**
+> `apps/web/next.config.mjs:58-67`. **No tocar ninguno de los dos por separado.**
+
+> [!important] El hoisting del monorepo condiciona el artefacto de build (13/08)
+> Desde F2.1 el build sale también en `output: 'standalone'`
+> (`next.config.mjs:12`), y por el mismo hoisting que obliga al alias de arriba
+> hace falta `experimental.outputFileTracingRoot` apuntando a la **raíz**
+> (`next.config.mjs:13-18`): las dependencias de `apps/web` no viven en
+> `apps/web/node_modules`, así que trazar desde ahí deja el artefacto incompleto.
+> Detalle de las dos formas de arrancar en [[entorno-y-despliegue]].
 
 ## Lo que NO está instalado, y es deliberado
 

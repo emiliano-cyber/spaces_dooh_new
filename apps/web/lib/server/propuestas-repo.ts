@@ -1,4 +1,5 @@
 import 'server-only'
+import { descuentoValido } from '@/lib/descuento'
 import { randomBytes } from 'crypto'
 import { q, q1, pool, fijarTenant, fijarTenantExplicito, qConTenant, qRaw1 } from './db'
 import { tenantActual } from './tenant'
@@ -58,7 +59,13 @@ function armarPropuesta(p: any, items: any[]) {
   const its = items.map(rowToItem)
   const bruto = its.reduce((s, i) => s + i.precio, 0)
   const comisionPct = Number(p.comision_pct)
-  const descuentoPct = p.descuento_pct != null ? Number(p.descuento_pct) : 0
+  // La lectura también se protege, y no es redundante: si alguna fila se
+  // guardó con `NaN` antes de que existiera la guarda de escritura, seguiría
+  // contaminando bruto, neto y aprobado cada vez que se lee la propuesta. Un
+  // valor imposible se lee como «sin descuento», que es el lado prudente:
+  // cobrar de más se ve y se corrige; regalar el 100 % en silencio, no.
+  const leido = p.descuento_pct != null ? Number(p.descuento_pct) : 0
+  const descuentoPct = Number.isFinite(leido) ? leido : 0
   const version = p.version != null ? Number(p.version) : 1
   const divisor = divisorDeComision(comisionPct)
   // IVA configurado en el cliente (clientes.iva_pct); si no viene, 16.
@@ -271,6 +278,8 @@ export async function obtenerPropuestaPublica(codigo: string) {
 // está aceptada, devuelve la aceptación existente sin volver a escribir.
 // Nota: NO re-valida el gate de negociación de agencia — enviar la liga al
 // cliente (ENVIADA) ya fue un acto deliberado del área comercial.
+const MAX_NOMBRE_ACEPTANTE = 240
+
 export async function aceptarPropuestaPublica(
   codigo: string,
   input: { nombre: string; ip?: string | null },
@@ -278,6 +287,14 @@ export async function aceptarPropuestaPublica(
   const cod = (codigo ?? '').trim()
   const nombre = (input.nombre ?? '').trim()
   if (!nombre) throw new PropuestaError('Escribe tu nombre para aceptar la propuesta')
+  // Tope por arriba, que no habia. Misma razon que en la firma del contrato
+  // (`firmas-repo.ts`): esta ruta es PUBLICA y sin sesion, escribe `aceptado_por`
+  // en el registro de la aceptacion, y aceptar es IDEMPOTENTE —la segunda
+  // llamada devuelve la aceptacion ya registrada en vez de rehacerla—, asi que
+  // tampoco hay forma de enmendarlo desde la aplicacion.
+  if (nombre.length > MAX_NOMBRE_ACEPTANTE) {
+    throw new PropuestaError(`El nombre no puede pasar de ${MAX_NOMBRE_ACEPTANTE} caracteres`)
+  }
 
   // Ruta PÚBLICA (sin sesión): el token resuelve el tenant, y bajo ese tenant se
   // lee y se escribe. Las tablas son fail-closed (Bloque B), así que sin esto el
@@ -524,7 +541,10 @@ export async function actualizarPropuesta(
   let i = 2
   let subeVersion = false
   if (input.descuentoPct != null) {
-    const d = Math.max(0, Math.min(100, Number(input.descuentoPct)))
+    // `descuentoValido` reemplaza a un recorte que NO recortaba: con un valor
+    // que no era número, `Math.max(0, Math.min(100, NaN))` daba `NaN`, y
+    // `numeric` de Postgres lo ADMITE y lo propaga. Ver `lib/descuento.ts`.
+    const d = descuentoValido(input.descuentoPct)
     sets.push(`descuento_pct=$${i++}`)
     vals.push(d)
     if (cur.estatus === 'ENVIADA' && d !== Number(cur.descuento_pct)) subeVersion = true

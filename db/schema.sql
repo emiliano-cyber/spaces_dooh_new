@@ -582,8 +582,7 @@ create table acciones (
 create index idx_acciones_timestamp on acciones (timestamp desc);
 
 -- ============================================================================
---  Multi-tenant + RLS (aditivo). tenant_id en todas las tablas de datos con
---  DEFAULT al tenant por defecto (los inserts existentes no cambian). RLS
+--  Multi-tenant + RLS (aditivo). tenant_id en todas las tablas de datos. RLS
 --  ENABLE (no FORCE): el rol dueño/superusuario la salta -> no rompe la app.
 --  Para ENFORZAR en producción: conectar como rol NO-superusuario y
 --  `set app.tenant_id = '<uuid>'` por request (transacción).
@@ -595,12 +594,25 @@ create table if not exists tenants (
   moneda    text not null default 'MXN',   -- moneda estándar por organización
   creado_en timestamptz not null default now()
 );
-insert into tenants (nombre, slug) values ('RGB Catorce','rgb') on conflict (slug) do nothing;
+
+-- ─── El esquema NACE SIN NINGUNA ORGANIZACIÓN, y es a propósito ─────────────
+-- Aquí había un `insert into tenants … ('RGB Catorce','rgb')`. En el modelo de
+-- instancias soberanas eso significaba que CADA instancia nueva nacía con la
+-- identidad de otro owner dentro: la de PIXELED, la de Telcel y la de quien
+-- viniera empezaban con una organización 'rgb' que nadie dio de alta, más su
+-- fila de `config_negocio`. Rompía dos criterios del plan v3 —F4.2, «ni una
+-- fila de ningún owner», y F4.5, que exige que los slugs de DEMO y de
+-- `spaces_prod` no compartan ninguno— y sobre todo era justo lo que el modelo
+-- existe para evitar.
+--
+-- La organización de una instancia se crea AL APROVISIONAR
+-- (`apps/web/scripts/bootstrap-auth.mjs`, que la pide por variables de entorno).
+-- Para trabajar en local, el tenant 'rgb' vive ahora en
+-- `db/semilla-desarrollo.sql`, que no viaja en la imagen.
 
 do $$
 declare
   t text;
-  def uuid;
   tbls text[] := array[
     'usuarios','sitios','clientes','propuestas','propuesta_items','ordenes_compra',
     'campanas','creatividades','reservas','ordenes_trabajo','evidencias_ot','ordenes_impresion',
@@ -608,11 +620,16 @@ declare
     'incidencias','notificaciones','acciones','sitio_modalidades',
     'predios','arrendador_razon_social'];
 begin
-  select id into def from tenants where slug='rgb';
+  -- Aquí se resolvía `def` (el id del tenant 'rgb') y con él se hacían dos
+  -- cosas que ya no tienen sentido ni a quién apuntar: rellenar el `tenant_id`
+  -- de las filas existentes y poner ese uuid como DEFAULT de la columna. Ese
+  -- DEFAULT es la deriva que etiquetó como RGB filas de otras organizaciones
+  -- —15 modalidades de g500/eyro— y lo retira `20260812_sin_default_tenant.sql`;
+  -- el relleno era un `update` sobre tablas recién creadas, o sea vacías.
+  -- Sin él, un `set not null` sobre una tabla con filas sin organización FALLA
+  -- en vez de inventarle dueño, que es el fail-loud que se busca.
   foreach t in array tbls loop
     execute format('alter table %I add column if not exists tenant_id uuid', t);
-    execute format('update %I set tenant_id=%L where tenant_id is null', t, def);
-    execute format('alter table %I alter column tenant_id set default %L', t, def);
     execute format('alter table %I alter column tenant_id set not null', t);
     execute format('alter table %I enable row level security', t);
     execute format('drop policy if exists tenant_isolation on %I', t);
@@ -627,7 +644,7 @@ end $$;
 -- Va aparte del bucle de arriba por dos motivos:
 --   · necesita un índice ÚNICO sobre tenant_id (una sola fila por organización),
 --     que el bucle genérico no pone;
---   · NO lleva DEFAULT de tenant_id. Ese default —que el bucle sí aplica a las
+--   · NO lleva DEFAULT de tenant_id. Ese default —que el bucle aplicaba a las
 --     otras tablas apuntando a 'rgb'— es el que ha ido etiquetando como RGB
 --     filas de otras organizaciones cuando alguien olvidaba fijar el tenant.
 --     Aquí se prefiere que un insert sin tenant FALLE.
@@ -635,8 +652,14 @@ end $$;
 -- Antes era una fila global compartida por todas las organizaciones, y la
 -- pantalla de Configuración escribía sobre ella: cambiar tu IVA se lo cambiaba
 -- a todo el mundo.
+--
+-- El `update … set tenant_id = (select id from tenants where slug='rgb')` que
+-- iba aquí se retiró con la semilla: sin organización sembrada no hay a quién
+-- apuntar, y la tabla acaba de crearse vacía. El `insert` de abajo es genérico
+-- —una fila por organización EXISTENTE— así que en una instancia recién nacida
+-- no inserta nada, y la fila de cada organización la crea quien la dé de alta
+-- (o la app al primer acceso, `lib/server/config-repo.ts:59-61`).
 alter table config_negocio add column if not exists tenant_id uuid references tenants(id) on delete cascade;
-update config_negocio set tenant_id = (select id from tenants where slug='rgb') where tenant_id is null;
 insert into config_negocio (tenant_id, moneda)
 select t.id, 'MXN' from tenants t
  where not exists (select 1 from config_negocio c where c.tenant_id = t.id);

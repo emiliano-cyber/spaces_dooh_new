@@ -47,7 +47,7 @@ campaña — nada de otros clientes ni datos financieros.
 
 ## Exención de CSRF
 
-Estas rutas están exentas del double-submit (`middleware.ts:55-65`) porque **no
+Estas rutas están exentas del double-submit (`middleware.ts:47-57`) porque **no
 dependen de la cookie de sesión**: la credencial es el token del enlace. Si
 alguna empezara a leer la cookie, la exención se vuelve un agujero.
 
@@ -73,8 +73,15 @@ El logo se sirve por `GET /api/logo/[token]` (público, token en
 `/m/ot/[id]` va sin chrome para la cuadrilla. **Sí exige sesión** — no es
 público, solo es una vista distinta.
 
-> [!bug] `OTMovil.tsx` depende del `AuthProvider` muerto
-> `components/operaciones/OTMovil.tsx:6,190`. Ver [[preguntas-abiertas]].
+> [!success] Retirado el 2026-08-27
+> La pista archivada salió entera de `apps/web` — nueve rutas, ~2 700 líneas.
+> Lo destapó la CSP en modo reporte: el `AuthProvider` **se ejecutaba en cada
+> carga de página en producción**, pidiéndole una identidad a la máquina del
+> visitante. `apps/web/lib/pista-archivada.test.ts` se pone roja si vuelve.
+> Ver [[zonas-de-riesgo]] §A6.
+>
+> `OTMovil.tsx` era uno de ellos, y **no lo importaba nadie**: la página real
+> `/m/ot/[id]` renderiza `OTVista`.
 
 ## Relacionadas
 [[comercial-propuestas-campanas]] · [[arrendadores-y-contratos]] ·
