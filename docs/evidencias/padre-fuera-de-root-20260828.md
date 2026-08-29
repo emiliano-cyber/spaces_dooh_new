@@ -148,8 +148,45 @@ divergen, manda el segundo.
   ya pasó; el reinicio sigue sin hacerse. Cuando se haga, comprueba de golpe que
   **`spaces-web` y `spaces-demo` arrancan solos** y que pm2 ya no pelea por el
   3000 — es la verificación real del punto ①.
-- **La CSP puede encenderse.** Con la consola limpia en producción, ya no hay
-  violación que la bloqueante fuera a romper. Tiene su propio candado:
-  `apps/web/lib/test/cabeceras.e2e.test.ts:92` afirma hoy que la cabecera es
-  `Report-Only` y **no** la bloqueante, así que encenderla es un cambio
-  deliberado con su prueba.
+- ~~La CSP puede encenderse.~~ **HECHO el mismo día.** Ver §7.
+
+
+---
+
+## 7 · La CSP, encendida el mismo día
+
+Desplegada y comprobada en producción:
+
+```
+$ curl -sI https://space-os.io/spaces-dooh/login/ | grep -i content-security-policy
+content-security-policy: default-src 'self'; base-uri 'self'; object-src 'none';
+  frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline'; font-src 'self' data:; …
+```
+
+**Sin `-report-only`.** Y las cinco pantallas recorridas después: bien.
+
+### El orden importaba, y por eso salió barato
+
+La secuencia no fue casual:
+
+1. **26/08** — la CSP entra en modo aviso. No bloquea nada, solo anota.
+2. **27/08** — lo que anotó destapa el `AuthProvider` archivado ejecutándose en
+   cada visita. Se retira la pista archivada entera.
+3. **28/08** — se migran las fuentes a `next/font`, que era la otra violación.
+4. **28/08** — con la consola limpia, una persona recorre las cinco pantallas
+   que cargan algo distinto. Cero violaciones. **Entonces** se enciende.
+
+**Encenderla el 26 habría roto la interfaz en silencio** —200 con el sitio a
+medias— y nadie habría sabido por qué. El modo aviso no fue un rodeo: fue el
+único camino que permitía descubrir las dos cosas sin romper nada.
+
+### Lo que ningún test sostiene, y queda escrito
+
+`cabeceras.e2e.test.ts` solo puede afirmar que la cabecera es la bloqueante.
+**Que la política no rompa la interfaz lo sostiene aquel recorrido de cinco
+pantallas, no un `expect`** — las suites no cargan un navegador.
+
+> **Si se añade una pantalla que cargue de un origen nuevo, la CSP la bloqueará
+> EN SILENCIO.** Volver a modo aviso es quitar y poner una palabra en
+> `next.config.mjs`.
