@@ -46,6 +46,29 @@ no lo replantea, solo registra su ejecución local.
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor
 se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 
+> [!danger] 2026-08-31 · revisión de lo que queda — tres fichas desalineadas
+> Auditadas contra el repositorio las seis tareas restantes:
+> `docs/evidencias/revision-fases-31-agosto.md`.
+>
+> - **F3.5 NO es ejecutable como está escrita.** `update.sh` actualiza contenedores
+>   (`:1266`, `:62`) y DEMO corre `next start` desde el repo
+>   (`spaces-demo.service:77`). Su verificación además apunta a `demo.space-os.io`,
+>   que es el droplet que se elimina.
+> - **F3.6 dejó de ser riesgo alto y pasó a ser urgente**: `deploy.yml:171` hace
+>   `pm2 reload` sobre un 3000 que desde el 28/08 sirve **systemd**. Ojo con su
+>   coste oculto: **seis comentarios de tres archivos de prueba** citan
+>   `deploy.yml:141-148` como la razón de que las migraciones sean idempotentes, y
+>   hay que reapuntarlos.
+> - **F5.7 NO está bloqueada por negocio**: P2 y P3 se cerraron el 20/08. Solo
+>   depende de F5.6.
+> - **F5.5 depende de F3.6, pero por su COMANDO DE VERIFICACIÓN**, que barre
+>   `.github/` y choca con el comentario de `deploy.yml:8`. Ningún workflow llama a
+>   los cuatro scripts.
+>
+> **Y el hallazgo de fondo: el cuello de botella es un solo trabajo, no una
+> decisión.** Convertir DEMO en una instancia de verdad destraba F3.5 y F2.4 a la
+> vez.
+
 ## Decisiones registradas
 
 | Decisión | Estado | Respuesta | Fecha |

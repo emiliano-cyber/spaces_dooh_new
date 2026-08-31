@@ -7,15 +7,26 @@ raíz, para poner o mantener una instancia en pie.
 |---|---|---|
 | **`update.sh`** | **instancias soberanas** | **Una instancia se actualiza sola: jala su canal del registry, respalda, migra, conmuta y se devuelve si la salud falla.** |
 | **`respaldo.sh`** | **instancias soberanas** | **El respaldo sale del droplet: lo sube a Spaces y poda el disco. Lo *sourcea* `update.sh`; también se llama a mano.** |
-| `setup-droplet.sh` | anterior | Prepara un Ubuntu 22.04 desde cero (nginx, node, pm2) |
-| `deploy.sh` | anterior | Despliegue manual **por SSH**, compilando en el servidor |
-| `new-tenant.sh`, `setup-first-tenant.sh`, `migrate-all-tenants.sh` | anterior | Alta y migración de tenants dentro de un único droplet compartido |
+| **`provision-instancia.sh`** | **instancias soberanas** | **El ALTA de un owner: su base, su entorno, su nginx y su actualizador. Se detiene para que el owner apunte su DNS.** |
+| `setup-droplet.sh` | base | Prepara un Ubuntu 22.04 desde cero (node, nginx, certbot, ufw) |
+| `pruebas-update.sh`, `pruebas-vuelta-atras-real.sh` | pruebas | Ensayan `update.sh` sin tocar una instancia viva |
 
-> [!warning] Los cuatro de abajo son del modelo que se sustituyó el 2026-08-12
-> Se conservan porque el droplet de hoy todavía vive de ellos. El camino que
-> **entra por SSH a compilar** se retira en F3.6 (`deploy.yml`), y el
-> aprovisionamiento del modelo nuevo llega en la Fase 5. Ver
-> `vault/01-Arquitectura/modelo-instancias-soberanas.md`.
+> [!important] El alta de un owner es aprovisionar una instancia, no insertar una fila
+> Es la frase que evita la recaída, y por eso está aquí arriba. Dar de alta a un
+> owner significa **su droplet, su base y su dominio**. Si buscas en esta carpeta
+> un script que meta un `INSERT INTO tenants`, estás en el modelo que murió el
+> 2026-08-12. El runbook es [`docs/runbook-alta-de-owner.md`](../../docs/runbook-alta-de-owner.md).
+
+> [!note] Se retiraron cuatro scripts el 2026-08-26 (F5.5)
+> `new-tenant.sh`, `setup-first-tenant.sh`, `migrate-all-tenants.sh` y
+> `deploy.sh` eran del modelo de subdominios por tenant sobre un único droplet
+> compartido, sustituido el 2026-08-12. **Ninguno se podía correr sin riesgo:**
+> `migrate-all-tenants.sh` recorría la tabla de tenants de la pista Prisma
+> archivada, que ya no existe, y `new-tenant.sh` llevaba datos reales quemados. `deploy.sh`
+> entraba **por SSH a compilar en el servidor**, que es exactamente el camino
+> que el modelo nuevo retira: la instancia se actualiza sola.
+>
+> Están en el historial de git si alguna vez hacen falta.
 
 ---
 

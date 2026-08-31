@@ -12,9 +12,19 @@ import { ordenar } from '../../../../scripts/migrar.mjs'
 // ============================================================================
 //  La cadena de migraciones tiene que poder REAPLICARSE entera.
 // ----------------------------------------------------------------------------
-//  `deploy.yml:141-148` reaplica TODAS las migraciones de esquema en cada
-//  despliegue y confía en que sean idempotentes. Esa confianza no la comprobaba
-//  nadie: el arnés (`recrearEsquema()`) las aplica siempre sobre una base recién
+//  ⚠️ 2026-08-31 · LA PREMISA DE ESTE ARCHIVO CAMBIÓ, y no se ha decidido qué
+//  hacer con él. Lo escrito abajo describía a `deploy.yml:141-148`, que
+//  reaplicaba TODAS las migraciones en cada despliegue. **Ese workflow se retiró
+//  hoy (F3.6)** y `scripts/migrar.mjs` lleva registro y aplica cada archivo UNA
+//  vez, así que en el camino normal ya nadie reaplica. Quedan dos usos que sí lo
+//  rozan —la vuelta atrás de `update.sh`, que restaura sobre un esquema limpio, y
+//  `--forzar-checksum`—, pero **no son los que este archivo ejercita**.
+//  Mantenerlo o retirarlo es una decisión, no una limpieza: se deja escrito en
+//  vez de resolverlo de tapadillo.
+//
+//  Lo que decía, y sigue explicando por qué nació: `deploy.yml:141-148`
+//  reaplicaba todas las migraciones de esquema en cada despliegue y confiaba en
+//  que fueran idempotentes. Esa confianza no la comprobaba nadie: el arnés (`recrearEsquema()`) las aplica siempre sobre una base recién
 //  vaciada, así que ejercita la PRIMERA pasada y nunca la segunda. Por eso el
 //  repo llegó al 2026-08-17 con dos migraciones que abortaban al reaplicarse, y
 //  se descubrieron auditando F3.2 y no en CI:
@@ -51,9 +61,9 @@ function urlDe(base: string): string {
   return u.toString()
 }
 
-// Solo las de ESQUEMA, que son las que se reaplican de verdad: `deploy.yml`
-// omite las `@tipo: datos` salvo que se le pidan a mano, y `migrar.mjs` hace lo
-// mismo. Exigirle idempotencia a una migración de datos sería inventarse un
+// Solo las de ESQUEMA, que son las que se reaplican de verdad: `migrar.mjs`
+// omite las `@tipo: datos` salvo que se le pidan a mano con `--con-datos`
+// (`deploy.yml` hacía lo mismo, y se retiró el 31/08). Exigirle idempotencia a una migración de datos sería inventarse un
 // requisito que nadie tiene. El marcador se busca en la PRIMERA línea, que es
 // donde está (`20260731_calendario_meses_cortos.sql:1`).
 function migracionesDeEsquema(): string[] {
