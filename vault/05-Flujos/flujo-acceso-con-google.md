@@ -1,10 +1,12 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-31
 tags: [flujo, auth, google, oidc, rojo]
 archivos:
   - docs/adr/0012-acceso-con-cuenta-de-google.md
+  - docs/adr/0018-establecer-password-tras-entrar-con-google.md
+  - db/migrations/20260825_sesion_metodo.sql
   - DESPLIEGUE_GOOGLE.txt
   - apps/web/lib/server/google-oauth.ts
   - apps/web/lib/server/identidades-repo.ts
@@ -22,7 +24,7 @@ archivos:
 > de abajo ya está actualizado, pero es el área que más se mueve del repo:
 > confirma contra `docs/adr/0012-acceso-con-cuenta-de-google.md` antes de tocarla.
 
-## Estado hoy (07/08, tarde)
+## Estado, tal como quedó el 07/08 por la tarde
 
 | Pieza | Estado |
 |---|---|
@@ -35,7 +37,13 @@ archivos:
 ## Principio de diseño
 
 Termina exactamente donde termina el login normal: `crearSesion()` + las dos
-cookies. Cero cambios en `exigir()`, en el middleware o en los 86 handlers.
+cookies. Cero cambios en `exigir()`, en el middleware o en los **90** handlers.
+
+> [!important] Desde el 25/08 `crearSesion` sabe CÓMO se abrió la sesión
+> Lleva un segundo argumento (`auth.ts:103`), y el callback de Google pasa
+> `'google'` donde el login normal pasa `'password'`. La columna la añadió
+> `20260825_sesion_metodo.sql`. No es telemetría: es lo que hace posible el
+> ADR 0018, abajo.
 
 **Google nunca decide a qué organización perteneces ni qué rol tienes.** Eso no
 cambió con la enmienda.
@@ -168,22 +176,67 @@ ahí (`inicio/route.ts:72-113`, `callback/route.ts:165-169`). El callback ademá
 vuelve a comprobar `autoregistroHabilitado()` — no se fía de que `/inicio` ya lo
 hiciera.
 
+## El punto muerto del 25/08, y el ADR 0018
+
+> [!danger] Entrar con Google y no tener contraseña dejó al Dueño ENCERRADO
+> Medido en el PADRE el 2026-08-25, y **es el camino por defecto**, no un caso
+> raro: toda instancia nueva nace así.
+>
+> 1. `bootstrap-auth.mjs:229` crea al Dueño con `debe_cambiar_password = true` y
+>    una temporal que **imprime una sola vez**. La del 21/08 se perdió al cerrar
+>    la consola.
+> 2. Google lo autentica sin problema.
+> 3. Pero la bandera obliga a cambiar la contraseña, y el formulario **pide la
+>    anterior** — que nadie tiene.
+> 4. Y no había salida por correo: el `.env.production` del PADRE no tiene
+>    configuración de envío.
+>
+> **Quitar la bandera no valía**: existe para que la temporal que vio quien corrió
+> el alta no siga siendo válida para siempre
+> (`20260804_reautenticacion_individual.sql:18-22`).
+>
+> **Y el Dueño sí necesita contraseña**, porque `exigir_reautenticacion` (ADR
+> 0009) pide **la contraseña de login del propio usuario** para los cambios
+> sensibles. *«Entrar con Google» y «no tener contraseña» no son lo mismo.*
+>
+> La salida es el **ADR 0018**: establecer la contraseña tras entrar con Google
+> **sin teclear la anterior**, y lo que autoriza esa excepción es precisamente
+> `sesiones.metodo = 'google'` — la sesión prueba que Google acaba de
+> autenticar a esa persona. Aceptada y **verificada en producción el 25/08**.
+
 ## Lo que sigue fuera
 
-1. **Reautenticación por Google** para dinero. Sigue siendo la contraseña propia
-   (ADR 0009). Ya no es un bloqueo, porque todos los usuarios tienen hash.
-2. **`GOOGLE_HD`** (restringir a un dominio): es global y solo admite uno, y aquí
-   conviven cinco organizaciones.
+1. **Reautenticación por Google** para dinero: sigue siendo la contraseña propia
+   (ADR 0009). Ya no es un bloqueo, porque todos los usuarios tienen hash — y
+   desde el ADR 0018 también quien entró con Google puede establecerla.
+2. **`GOOGLE_HD`** (restringir a un dominio): es global y solo admite uno.
+
+   > La razón que decía esta nota —«aquí conviven cinco organizaciones»— es del
+   > modelo anterior al 12/08. Con **una instancia por owner** ya no conviven, así
+   > que el argumento tendría que replantearse por instancia. Queda anotado, no
+   > resuelto. Ver [[modelo-instancias-soberanas]].
 
 ## Para encenderlo
 
 1. Crear el cliente OAuth en Google Cloud desde una **cuenta de empresa**.
-2. Redirect URI **con barra final**:
-   `https://demo.space-os.io/spaces-dooh/api/auth/google/callback/`
-3. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` en
-   `.env.production` + `pm2 reload spaces-web --update-env`. **No hace falta
-   recompilar.**
-4. Apagar es inmediato: `GOOGLE_OAUTH=0` + reload.
+2. Redirect URI **con barra final**, y **con el dominio de la instancia**:
+   `https://<dominio>/spaces-dooh/api/auth/google/callback/`.
+
+   > [!warning] Aquí decía `demo.space-os.io`, y ese nombre se elimina
+   > El ADR 0024 lo dejó como la demostración **original**, servida por la máquina
+   > vieja. DEMO es `pruebas.space-os.io` desde el 31/08, y cada instancia de
+   > owner lleva el suyo. La plantilla no debe traer ningún dominio quemado:
+   > `infra/env/app.env.example:104` es donde vive `GOOGLE_REDIRECT_URI`.
+3. `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` en el
+   entorno del proceso. **No hace falta recompilar.**
+
+   > [!danger] `pm2 reload spaces-web --update-env` YA NO VALE
+   > Decía eso hasta hoy. El PADRE sirve el 3000 con **systemd** desde el 28/08:
+   > `systemctl restart spaces-web`. Y si se toca un secreto van **dos** archivos
+   > —`apps/web/.env.production`, que lee el build, y `/etc/space-os/padre.env`,
+   > que lee el proceso—; si divergen, manda el segundo.
+   > Ver [[entorno-y-despliegue]].
+4. Apagar es inmediato: `GOOGLE_OAUTH=0` + reinicio del servicio.
 
 ## Relacionadas
 [[autenticacion-y-sesion]] · [[flujo-login]] · [[acceso-y-sesion-ui]] ·

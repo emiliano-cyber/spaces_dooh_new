@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-31
 tags: [flujo, auth, login]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -42,8 +42,8 @@ sequenceDiagram
         RT-->>U: 401 «Correo o contraseña inválidos»
         Note over RT: mensaje único: no revela si el correo existe
     else válido
-        RT->>AU: crearSesion(usuario.id)
-        AU->>PG: insert into sesiones (token 256 bits, expira +30d)
+        RT->>AU: crearSesion(usuario.id, 'password')
+        AU->>PG: insert into sesiones (token 256 bits, expira +30d, metodo)
         RT->>AU: permisosDeRol(rol)
         AU->>PG: select … from rol_permisos where rol = $1
         RT-->>U: 200 {usuario, permisos}<br/>Set-Cookie spaces_sesion (httpOnly)<br/>Set-Cookie spaces_csrf (legible por JS)
@@ -77,6 +77,14 @@ sequenceDiagram
     DB->>PG: begin; set_config('app.tenant_id', …, true); SELECT; commit
     PG-->>RT: filas ya filtradas por RLS
 ```
+
+> [!note] `crearSesion` lleva un segundo argumento desde el 25/08
+> `auth.ts:103` pide `metodo: MetodoSesion`, y el login por contraseña pasa
+> `'password'` (`login/route.ts:46`). La columna la añadió
+> `20260825_sesion_metodo.sql` y existe porque **quien entró con Google no tiene
+> contraseña que reautenticar**: sin saber cómo se abrió la sesión, el desbloqueo
+> de un cambio sensible le pediría algo que no tiene. Ver
+> [[flujo-acceso-con-google]] y el ADR 0018.
 
 ## Puntos donde esto se rompe
 
