@@ -107,6 +107,26 @@ Las e2e:
 > **La lección, y es la de siempre en este repo**: el verde local no medía lo
 > que decía medir. Medía Windows.
 >
+> ✅ **RESUELTA el 2026-08-31, por la tarde — y volvió antes de que diera tiempo
+> a olvidarla.** Reapareció en la corrida de `v0.1.0` y **bloqueó el release**: cada
+> versión se había vuelto una moneda al aire, que es peor que el defecto original.
+>
+> Las **dos** causas, corregidas en `lib/test/proceso-e2e.ts` y probadas sin Linux:
+>
+> 1. **`spawn` no tenía manejador de `error`.** En Node, un evento `error` sin
+>    manejador **no se ignora: es una excepción no capturada**, y vitest la cuenta
+>    como fallo de la corrida aunque ninguna prueba falle. Ese es literalmente el
+>    aspecto de un `exit code 1` con todo en verde.
+> 2. **`pararServidor()` mandaba la señal y seguía.** Mandar `SIGTERM` no es estar
+>    muerto, y con `detached` el hijo **sobrevive al padre por diseño**: si tardaba,
+>    el runner cerraba con él todavía vivo.
+>
+> La espera lleva **techo de 5 s**, y no es un detalle: un `await` sin límite
+> cambiaría un fallo intermitente por un **cuelgue**, que es peor — al menos un rojo
+> se ve.
+>
+> *Lo que decía mientras estuvo abierta:*
+>
 > ⚠️ **DEUDA CONOCIDA, y va a volver.** Con la corrección puesta, el paso de e2e
 > salió una vez con **`exit code 1` y las 295 en verde**, y a la corrida siguiente
 > —**sin tocar nada**— salió limpio. Eso no es un fallo arreglado: es
