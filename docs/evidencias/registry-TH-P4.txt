@@ -1,3 +1,16 @@
+############################################################
+#  SUSTITUIDA EL 2026-08-31 por `registry-TH-P4b.txt`
+#
+#  El registro ya existe: registry.digitalocean.com/registryspaces
+#  (NYC3, plan gratuito). Esta tarjeta se conserva como historia,
+#  pero NO se ejecuta: su BLOQUE 2 manda entrar al worktree
+#  `.claude/worktrees/servidor-padre`, que se retiro el 28/08 al
+#  fusionar todo en `main`.
+#
+#  Y su etiqueta era `v0.1.0`; el comando de verificacion EXACTO
+#  de F2.3 en el plan v3 dice `v0.0.1-rc1`. Manda el plan.
+############################################################
+
 ============================================================
  TH-P4 · EL REGISTRO DE IMAGENES
  Casi todo en el NAVEGADOR. Poco en consola.

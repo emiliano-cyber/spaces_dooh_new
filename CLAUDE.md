@@ -404,12 +404,24 @@ El contexto completo —qué cambió, qué costó, qué está bloqueado y por qu
 - **No se replanea.** Si el repositorio contradice una tarea, se para y se muestra la
   evidencia con `archivo:línea`.
 
-### Lo que está detenido — al 2026-08-28
+### Lo que está detenido — al 2026-08-31
 
 **El proyecto ya no está limitado por trabajo, sino por decisiones.** De las 10
-tareas que quedan con objeto, **9 esperan el nombre del registry de imágenes**,
-que son dos variables de repositorio y un secreto. Los workflows que las usan ya
-están escritos y **paran en seco cuando faltan, a propósito**.
+tareas que quedan con objeto, **9 esperaban el nombre del registry de imágenes**.
+
+> [!success] 2026-08-31 · el registry existe
+> **`registry.digitalocean.com/registryspaces`**, NYC3, **plan gratuito** (500 MiB,
+> un repositorio). Lo que queda de esas 9 no es decidir: es que **una persona ponga
+> las tres claves y empuje la primera etiqueta** —
+> `docs/evidencias/registry-TH-P4b.txt`, que **sustituye a `registry-TH-P4.txt`**.
+>
+> El nombre **no se quema en ningún workflow ni script**: entra por `vars.REGISTRY`.
+> Los workflows ya están escritos y **paran en seco cuando faltan las variables, a
+> propósito** (`release.yml:183-189`).
+>
+> **Falta un dato, y no se puede estimar**: cuánto pesa la imagen. No se ha
+> construido nunca. Se mide en el panel tras el primer `release.yml` y decide si los
+> 500 MiB alcanzan o hay que subir a Basic (≈5 USD/mes, 5 GiB).
 
 Fases cerradas: **0, 1, 4 y 6**. La 3 en 8 de 9.
 
@@ -422,10 +434,11 @@ Fases cerradas: **0, 1, 4 y 6**. La 3 en 8 de 9.
 > Si un documento te habla del censo de `spaces_prod`, del destino del tenant
 > `rgb` o de migrar PIXELED, describe un problema que **ya no existe**.
 
-**Las dos decisiones que siguen abiertas:**
+**Queda UNA decisión abierta** — la primera se cerró el 31/08:
 
-1. **El nombre del registry.** Tarjeta escrita en
-   `docs/evidencias/registry-TH-P4.txt`.
+1. ~~**El nombre del registry.**~~ **CERRADA el 2026-08-31**: `registryspaces`,
+   NYC3, plan gratuito. Tarjeta vigente:
+   `docs/evidencias/registry-TH-P4b.txt`.
 2. **Qué dirección representa a DEMO** para el smoke de promoción. Y ojo, porque
    es fácil darla por resuelta con la anterior: `promover.yml:120-134` exige
    `DEMO_URL` y valida contra ella **antes** de promover. Apuntarla a

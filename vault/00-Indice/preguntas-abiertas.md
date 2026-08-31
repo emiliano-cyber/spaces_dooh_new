@@ -1,7 +1,7 @@
 ---
 tipo: preguntas
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-31
 tags: [preguntas, pendientes, riesgo]
 archivos:
   - apps/web/lib/server/
@@ -33,6 +33,23 @@ archivos:
 >
 > **Lo que sigue abierto:** **TH-P4** (el registry), que mantiene bloqueadas F3.5
 > y F3.6, y los códigos de recuperación del Dueño, que no existen.
+>
+> ✅ **2026-08-31 · TH-P4 dejó de estar abierta.** El registro existe:
+> `registry.digitalocean.com/registryspaces`, NYC3, plan gratuito. Lo que queda es
+> que una persona ponga las variables y empuje la primera etiqueta
+> (`docs/evidencias/registry-TH-P4b.txt`). **La que sigue abierta de verdad es la
+> otra**, y no la resuelve el registry: **qué dirección representa a DEMO** para el
+> smoke de `promover.yml`, hoy sin candidata válida — `demo.space-os.io` apunta a la
+> máquina que el ADR 0023 sacó del modelo, y la DEMO real (el `3001` dentro del
+> PADRE) no tiene dominio desde el ADR 0024.
+>
+> ⚠️ **Y el margen es más estrecho de lo que parecía** (medido el 31/08):
+> `promover.yml:127-129` **exige que `DEMO_URL` empiece por `https://`**, y su
+> propio mensaje pide «la base pública de DEMO, CON el basePath, sin barra final».
+> No admite un `127.0.0.1:3001`. Así que **apuntar el smoke al puerto por dentro no
+> es una salida disponible** sin abrir el workflow — y abrirlo sería replanear.
+> Lo que queda sobre la mesa es **darle un nombre público propio al proceso del
+> `3001` del PADRE**.
 
 ---
 # Preguntas abiertas

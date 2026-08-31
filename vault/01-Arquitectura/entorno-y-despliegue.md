@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-08-31
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -481,11 +481,26 @@ Dos jobs, y el orden **es** el mecanismo de seguridad:
 
 ### `promover.yml` — `estable` se mueve a mano y sin reconstruir (17/08, F2.4)
 
-**Escrito, NUNCA corrido.** Necesita tres variables del repositorio que aún no
-existen (`REGISTRY`, `REGISTRY_TIPO` y `DEMO_URL`, tarjeta **TH-P4**) y una imagen
-en el canal `beta`, que sale de `release.yml`. Además, **`workflow_dispatch` solo se
-puede disparar cuando el archivo está en la rama por omisión**: mientras viva solo en
-`feat/servidor-padre-instancias`, ni aparece en la pestaña Actions.
+**Escrito, NUNCA corrido.** Necesita tres variables del repositorio y una imagen en
+el canal `beta`, que sale de `release.yml`. Al **2026-08-31** las dos primeras ya
+tienen valor —el registry se creó ese día, ver abajo— y **`DEMO_URL` sigue sin
+decidirse**, que es lo único que hoy separa a `promover.yml` de poder correr.
+Lo de `workflow_dispatch` dejó de aplicar: **el archivo vive en `main` desde el
+28/08**, así que ya aparece en la pestaña Actions.
+
+> [!success] 2026-08-31 · el registry existe
+> **`registry.digitalocean.com/registryspaces`**, región **NYC3** —la misma que los
+> droplets, para que la imagen no cruce región al desplegar— y **plan gratuito: 500
+> MiB, un repositorio**. Ese límite de un repositorio **no estorba**: `release.yml`
+> publica uno solo, `$REGISTRY/space-os`, y los canales `beta` y `estable` son
+> **etiquetas sobre la misma imagen**, no repositorios aparte.
+>
+> Lo que **no** se sabe todavía es cuánto pesa la imagen: nunca se ha construido.
+> Se mide en el primer `release.yml` mirando `STORAGE USAGE` en el panel, y de ahí
+> sale cuántas versiones caben antes de necesitar *Garbage Collection*.
+>
+> El **nombre no se quema en ningún workflow ni script**: sigue entrando por
+> `vars.REGISTRY`. Tarjeta: `docs/evidencias/registry-TH-P4b.txt`.
 
 Un solo job, y **sin `checkout`**: este workflow no lee ni una línea del repositorio.
 No es un ahorro — no tener el código delante es lo que impide reconstruir por

@@ -5,6 +5,49 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-08-31
+
+- **Ya hay un almacén para las actualizaciones, y se llama `registryspaces`.**
+  Hasta hoy, cada vez que se quería actualizar el sistema, el servidor tenía que
+  **armar la aplicación él mismo**: descargaba el código y lo construía, con dos
+  minutos de la máquina al 100 % mientras seguía atendiendo a la gente. Con un
+  servidor se aguanta; con diez clientes, cada uno armando su copia por su
+  cuenta, hay un problema peor que la lentitud: **no todos armaban lo mismo**.
+  Se comprobó el 28 de agosto — dos máquinas que se suponía tenían «la misma
+  versión» podían acabar con piezas distintas, y eso **no avisa de nada**.
+
+  A partir de ahora la aplicación **se arma una sola vez**, en una máquina
+  limpia y controlada, y de ahí sale un paquete cerrado que se guarda en este
+  almacén. Cada servidor **se lo baja ya hecho** en lugar de construirlo. Lo que
+  corre en la máquina de un cliente es, pieza por pieza, exactamente lo que se
+  probó.
+
+  El almacén se creó en **DigitalOcean**, en la región **NYC3** (la misma que
+  los servidores, así el paquete no cruza medio mundo al instalarse) y con el
+  **plan gratuito por ahora**: medio gigabyte. Alcanza para empezar; cuando
+  apriete se sube de plan por unos 5 dólares al mes. Todavía **no sabemos cuánto
+  pesa el paquete** porque nunca se ha armado: se mide en la primera versión que
+  se publique.
+
+  Nada de esto cambia lo que ves ni cómo se usa la aplicación. Es la tubería por
+  donde llegarán las actualizaciones de aquí en adelante.
+
+- **Las versiones pasan a tener dos etapas antes de llegar a un cliente.** El
+  paquete nuevo se publica primero en un canal de pruebas (`beta`), que **solo
+  mira la demostración**. Únicamente cuando ahí funciona se marca como estable, y
+  **estable es lo único que instalan los clientes**. Si una versión trae las
+  pruebas en rojo, **no se publica nada**: no hay forma de que llegue a un
+  servidor sin haber pasado antes.
+
+- **Queda una decisión pendiente y conviene que se sepa**: qué dirección de
+  internet representa a la demostración a la hora de dar el visto bueno a una
+  versión. Hoy `demo.space-os.io` apunta a la máquina vieja, que quedó fuera del
+  modelo y corre código del 11 de agosto, así que usarla haría que se revisara
+  **la máquina equivocada** y se diera por buena una versión que no es. Mientras
+  eso no se decida, se pueden publicar versiones de prueba pero **no marcarlas
+  como estables**.
+
+
 ## 2026-08-28
 
 - **Facturar, cobrar y pagar una renta ahora piden tu contraseña.** Hasta hoy no
