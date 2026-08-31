@@ -232,7 +232,7 @@ cambian tareas concretas.
 |---|---|
 | `withTxBootstrap` **no existe** | El documento lo da por «rescatado tal cual». Era una propuesta del plan del 11 que nunca se escribió: es **código nuevo** (F5.1) |
 | Los `DEFAULT` de `tenant_id` son **23, no 21** | Contados uno a uno en `db/schema.sql` **antes del 19/08**; desde `9d609f0` el esquema ya no los crea y esas líneas son otra cosa. La migración los descubre por catálogo, no por lista |
-| `deploy.yml` entra por SSH, compila en el servidor y recarga pm2 | Es exactamente lo que el modelo prohíbe. No se puede borrar hasta que exista el canal: se retira en F3.6 — ver [[entorno-y-despliegue]] |
+| ~~`deploy.yml` entra por SSH, compila en el servidor y recarga pm2~~ | **Resuelto el 2026-08-31: F3.6 lo retiró** (commit `658c467`). Era exactamente lo que el modelo prohíbe. Ver [[entorno-y-despliegue]] |
 | Los scripts muertos de la pista Prisma son **cuatro**, y uno llama a otro | Borrar solo `new-tenant.sh` dejaría `setup-first-tenant.sh:28` roto |
 | El orden de migraciones **no es alfabético** (`db-e2e.ts:145-155`) | El runner de la Fase 3 tiene que reproducir dos excepciones reales o una instancia nueva no levanta — ver [[migraciones]] |
 | `server-only` bloquea el atajo de la Fase 5 | Un script de aprovisionamiento no puede importar el alta ni el hash de contraseña; el Dueño se crea por una ruta HTTP de un solo uso |
@@ -449,7 +449,7 @@ abrir el código:
 | `withTxBootstrap` se rescata tal cual | No existe; hay que escribirlo con sus pruebas | La Fase 5 crece |
 | El aprovisionamiento importa el alta desde un script | `server-only` lo impide; hace falta una ruta HTTP de un solo uso | Código nuevo, y del delicado |
 | Las migraciones se aplican en orden alfabético | No: hay dos excepciones ya codificadas | Si el runner falla ahí, una instancia nueva no levanta |
-| Nada sobre el despliegue actual | `deploy.yml` viola el invariante y hay que retirarlo | Una tarea entera fuera de toda fase |
+| Nada sobre el despliegue actual | `deploy.yml` violaba el invariante y hubo que retirarlo | Una tarea entera fuera de toda fase — **hecha el 31/08 como F3.6** |
 
 > [!important] Estimación honesta: 3 a 4 semanas para las fases 0–6
 > Con dos personas dedicadas y las cuatro decisiones respondidas desde el día uno. La

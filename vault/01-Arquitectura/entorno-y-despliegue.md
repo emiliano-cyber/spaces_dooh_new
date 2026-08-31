@@ -20,7 +20,7 @@ archivos:
   - .github/workflows/ci.yml
   - .github/workflows/release.yml
   - .github/workflows/promover.yml
-  - .github/workflows/deploy.yml
+  - .github/workflows/lockfile-check.yml
   - infra/scripts/update.sh
   - infra/scripts/respaldo.sh
   - infra/scripts/README.md
@@ -181,8 +181,17 @@ cd apps/web && DATABASE_URL=postgresql://spaces:spaces@localhost:5433/spaces \
 cd apps/web && npm run dev     # http://localhost:3000/spaces-dooh/
 ```
 
-> [!danger] 🔴 Tras el merge, el PRIMER despliegue ABORTA a mitad — medido el 2026-08-20
-> `deploy.yml:141-148` recorre **todas** las migraciones de esquema en orden
+> [!success] Este riesgo se DISOLVIÓ el 2026-08-31, y conviene saber por qué
+> Lo que sigue describía cómo abortaba el primer despliegue tras el merge. **Ya
+> no puede pasar: F3.6 retiró `deploy.yml`**, que era quien aplicaba ese bucle de
+> migraciones. Se conserva escrito porque explica un modo de fallo que
+> `update.sh` puede repetir —código viejo sirviendo sobre esquema nuevo— y porque
+> la receta de `spaces_app` sigue siendo válida.
+>
+> **Léelo como historia, no como una advertencia vigente.**
+
+> [!danger] 🔴 Tras el merge, el PRIMER despliegue ABORTA a mitad — medido el 2026-08-20, disuelto el 31/08
+> `deploy.yml:141-148` recorría **todas** las migraciones de esquema en orden
 > lexicográfico y las aplica como `postgres` con `ON_ERROR_STOP=1`. No lleva
 > registro: reaplica el juego entero en cada despliegue.
 >
@@ -430,14 +439,35 @@ instancia no necesita volumen.**
 | `release.yml` | **push de un tag `v*.*.*`** | typecheck → unitarias → build → **e2e** → imagen a `beta` |
 | `promover.yml` | **`workflow_dispatch` manual** | comprobar que la versión **es** `beta` → smoke en DEMO → **reetiquetar** `estable` |
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` (Node 22) |
-| `deploy.yml` | **`workflow_dispatch` manual** | backup → build → migraciones → `pm2 reload` |
 
-> [!warning] No hay despliegue continuo — y `deploy.yml` está en retirada
-> `deploy.yml` solo corre a mano y **está desactualizado**. En el modelo de
-> instancias **no debería existir**: entra por `ssh` como `root` y compila en el
-> servidor. Lo retira **F3.6**, que a 2026-08-26 **no está hecha**. Ver
-> «Producción ya no es un droplet: es una FLOTA», más abajo.
+**Son cuatro. `deploy.yml` ya no está** — lo retiró F3.6 el 2026-08-31.
+
+> [!success] `deploy.yml` retirado — F3.6, 2026-08-31 (commit `658c467`)
+> Entraba por `ssh` como `root` y compilaba en el servidor: las dos cosas que el
+> modelo de instancias prohíbe. En su lugar nace
+> `docs/runbook-actualizar-instancia.md`, y la regla queda en una frase: **la
+> instancia jala, el padre no empuja.**
 >
+> Su criterio se corrió sin parafrasear, y salió limpio:
+> `rg -n "appleboy/ssh-action|pm2 reload" .github/` → sin resultados. El único
+> `ssh root@` que queda en el repositorio es `provision-instancia.sh:126`, que es
+> el **alta** de una instancia — exactamente lo que la tarea permite.
+>
+> **Su riesgo se había invertido, y por eso salió ahora.** La ficha justificaba
+> esperar con «mientras el droplet actual sea la producción de los tenants
+> reales, `deploy.yml` es el único mecanismo que hay». Ese supuesto murió con el
+> ADR 0023. Lo que quedaba era peor que inútil: apuntaba a `pm2 reload
+> spaces-web` y **el PADRE sirve el 3000 con systemd desde el 28/08**, así que
+> dispararlo habría puesto a pm2 a pelear por el puerto contra systemd.
+
+> [!note] Lo que `deploy.yml` sí explicaba, y no se ha perdido
+> Seis comentarios en tres archivos de prueba lo citaban como **la razón** de que
+> las migraciones tengan que ser idempotentes —`migraciones.e2e.test.ts`,
+> `permisos-semilla.e2e.test.ts` y `reaplicacion.e2e.test.ts`—. Son de la media
+> docena que [[convenciones]] prohíbe borrar al refactorizar. F3.6 los
+> **reapuntó** en vez de borrarlos: hoy dicen quién hace ese papel ahora y en qué
+> fecha se retiró el que lo hacía antes.
+
 > `ci.yml:1-30` documenta que el disparador es `pull_request` y **no**
 > `pull_request_target` a propósito: el segundo daría secretos a código de un
 > fork. No cambiarlo.
@@ -1382,13 +1412,17 @@ empuja: ver [[modelo-instancias-soberanas]] y
 | La instancia jala su canal, respalda, migra y conmuta | Cada instancia, sola | `infra/scripts/update.sh`, por cron a las **04:17** (`infra/scripts/provision-instancia.sh:359`) |
 | Alta de una instancia nueva | Una persona, **una sola vez** por owner | `infra/scripts/provision-instancia.sh` + `docs/runbook-alta-de-owner.md` |
 
-> [!warning] `deploy.yml` SIGUE en el repo — F3.6 no está hecha
-> El plan retira `.github/workflows/deploy.yml` en **F3.6**, porque entra por
-> `ssh` como `root` y compila en el servidor: las dos cosas que el modelo
-> prohíbe. **A 2026-08-26 el archivo sigue ahí** (`.github/workflows/deploy.yml`,
-> comprobado con `ls`). Mientras exista, sigue siendo un camino que contradice
-> el modelo, y **la nota no puede decir lo contrario**. El PADRE y DEMO hoy **no**
-> se despliegan con él.
+> [!success] `deploy.yml` ya NO está en el repo — F3.6 cerrada el 2026-08-31
+> Era el último camino que contradecía el modelo: `ssh` como `root` y build en el
+> servidor. Se retiró en el commit `658c467`, junto con F5.5, y el detalle está
+> arriba en «CI».
+>
+> **Las dos fueron en el mismo PR a propósito**, y no por comodidad: el criterio
+> de verificación de F5.5 barría `.github/` buscando rastros de la pista Prisma,
+> y lo único que encontraba era el **comentario** de `deploy.yml:8` que
+> documentaba la ruta muerta `/var/www/Marketplace/…`. Con el archivo fuera, las
+> dos tareas quedan verificadas a la vez. Separarlas habría dejado a F5.5 en rojo
+> por un comentario.
 
 > [!danger] `X-Forwarded-For $remote_addr` es deliberado, y ahora está en tres sitios
 > `infra/nginx/snippets/proxy-app.conf:30`, `infra/nginx/demo.space-os.io.conf:123`

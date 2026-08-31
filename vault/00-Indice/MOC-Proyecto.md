@@ -22,14 +22,14 @@ cobranza.
 
 | Dato | Valor | Evidencia |
 |---|---|---|
-| Producto vivo | Una sola app Next.js con BFF integrado | `ecosystem.config.js:1-3` |
+| Producto vivo | Una sola app Next.js con BFF integrado | `apps/web/package.json` · lo arranca **systemd**, no pm2 (`infra/systemd/spaces-web.service:83`) |
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y **no tiene dominio**: `demo.space-os.io` es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
+| Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
 | Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | 39 | [[esquema]] |
-| Migraciones | **74** | [[migraciones]] |
+| Migraciones | **75** | [[migraciones]] |
 | ADR | **24** (`0001`–`0024`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
@@ -97,7 +97,7 @@ cobranza.
 
 ### 04 · Datos
 - [[esquema]] — diagrama ER y las 39 tablas
-- [[migraciones]] — las 74 en orden, y las trampas de orden
+- [[migraciones]] — las 75 en orden, y las trampas de orden
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie
