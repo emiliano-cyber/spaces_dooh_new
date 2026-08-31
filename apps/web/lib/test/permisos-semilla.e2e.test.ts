@@ -241,8 +241,11 @@ describe('el catálogo de permisos de una instancia nueva', () => {
   })
 
   it('reaplicar la migración no duplica ni cambia nada (idempotente)', async () => {
-    // `deploy.yml:141-148` reaplica TODAS las migraciones de esquema en cada
-    // despliegue, así que la segunda pasada no es hipotética.
+    // La segunda pasada la exigía `deploy.yml:141-148`, que reaplicaba TODAS
+    // las migraciones en cada despliegue. Ese workflow se retiró el 2026-08-31
+    // (F3.6) y `scripts/migrar.mjs` aplica una vez, así que **dejó de ser el
+    // caso normal**. El caso se conserva porque la propiedad sigue siendo
+    // barata y su pérdida no daría error: ver el aviso de `reaplicacion`.
     const antes = await catalogoDe(pool)
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION), 'utf8'))
     await pool.query(readFileSync(join(RAIZ, 'db', 'migrations', MIGRACION_COMPLETA), 'utf8'))

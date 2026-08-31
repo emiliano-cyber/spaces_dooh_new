@@ -12,11 +12,12 @@
 //                                       # ese archivo se reescribio a conciencia:
 //                                       # acepta el contenido nuevo (repetible)
 //
-//  Lo invoca `update.sh` en cada instancia. Sustituye al bucle de
-//  `.github/workflows/deploy.yml:141-148`, que reaplica TODAS las migraciones en
-//  cada despliegue y confía en que sean idempotentes: con un solo servidor y una
-//  persona mirando funciona, pero no deja registro y hace imposible saber en qué
-//  versión de esquema está un droplet sin ir a mirarlo.
+//  Lo invoca `update.sh` en cada instancia. Sustituyó al bucle de
+//  `.github/workflows/deploy.yml:141-148`, que reaplicaba TODAS las migraciones
+//  en cada despliegue y confiaba en que fueran idempotentes: con un solo
+//  servidor y una persona mirando funciona, pero no deja registro y hace
+//  imposible saber en qué versión de esquema está un droplet sin ir a mirarlo.
+//  **Ese workflow se retiró el 2026-08-31 (F3.6)**: ya no hay dos caminos.
 //
 //  Códigos de salida (los mira el `set -e` de update.sh, y solo eso):
 //    0  nada que aplicar, o todo aplicado y registrado

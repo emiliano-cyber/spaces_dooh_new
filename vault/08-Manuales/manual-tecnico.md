@@ -235,7 +235,7 @@ métodos** (inventario D-10).
 | `infra/nginx/demo.space-os.io.conf` | El reverse proxy **real** | **VIVA** |
 | `infra/nginx/spaces.conf`, `infra/apache/spaces.conf`, `infra/docker-compose.yml`, `infra/scripts/*` | Asumen el API Fastify | **LATENTE / obsoleto** |
 | `doohmain_sdk/` | SDK Python invocado por subproceso | **VIVA** (detrás de flag) |
-| `.github/workflows/` | `ci.yml`, `deploy.yml`, `lockfile-check.yml` | **VIVA** |
+| `.github/workflows/` | `ci.yml`, `lockfile-check.yml`, `release.yml`, `promover.yml` — **`deploy.yml` retirado el 31/08 (F3.6)** | **VIVA** |
 | `scripts/` | `apply-migration.mjs`, generadores de plantillas, `md-to-pdf.mjs` | Utilería |
 | Raíz: `DESPLIEGUE_*.txt` (11), `Manual_*.pdf`, `Auditoria_*.pdf` | Runbooks ya ejecutados e historia | Documental |
 | `vault/` | La bóveda de conocimiento (39 notas) | Documental |
@@ -929,9 +929,9 @@ servidor de pruebas y el doble de Google; ver §7.3.
 |---|---|---|
 | Host | Droplet de DigitalOcean | [[entorno-y-despliegue]] |
 | Dominio | `https://demo.space-os.io`, ruta pública `/spaces-dooh/` | `next.config.mjs:19-20` |
-| Directorio | `/var/www/Spaces` | `deploy.yml:88` |
+| Directorio | `/var/www/Spaces` | [[entorno-y-despliegue]] |
 | Proceso | pm2 `spaces-web`, **fork, 1 instancia**, puerto 3000, usuario `emiliano` | `ecosystem.config.js:10-12` |
-| Base | `spaces_prod`; las migraciones se aplican como rol `postgres` | `deploy.yml:14-19` |
+| Base | `spaces_prod`; las migraciones se aplican como rol `postgres` | [[entorno-y-despliegue]] |
 | Reverse proxy | nginx TLS + HSTS, `proxy_pass http://spaces_web` | `demo.space-os.io.conf:68-70,112` |
 
 La bóveda registra una IP del droplet marcada como **vieja** en
@@ -1081,14 +1081,31 @@ no consta un procedimiento → [[#PENDIENTE]] P-06.
 
 ### 9.0 Cómo se despliega hoy, en una frase
 
-**A mano, por SSH.** No hay despliegue continuo. `deploy.yml` existe y está
-`workflow_dispatch` (manual), pero **no consta que se haya ejecutado nunca**.
+> [!danger] 2026-08-31 · esta sección describía el mundo anterior — **`deploy.yml`
+> ya no existe**
+> Se retiró en **F3.6**. **La instancia jala; el padre no empuja.** El camino vivo
+> es: un tag dispara `release.yml` (suite completa → imagen → canal `beta`),
+> `promover.yml` reetiqueta esa misma imagen como `estable`, y cada instancia corre
+> su propio `update.sh` por `cron`. Lo único que sigue entrando por SSH es el
+> **alta**, una vez, con `provision-instancia.sh`.
+>
+> Runbook: `docs/runbook-actualizar-instancia.md`. Detalle:
+> [[entorno-y-despliegue]].
+>
+> ⚠️ Y ojo con el resto de §7.2 y §9: describen **pm2**, el usuario `emiliano` y
+> `demo.space-os.io` como producción. Eso cambió el 27 y el 28 de agosto —el PADRE
+> lo sirve **systemd**— y **esta revisión no lo reescribió entero**: solo quitó las
+> citas al archivo que desapareció.
+
+**A mano, por SSH.** *(Histórico: así era hasta el 31/08.)* No había despliegue
+continuo. `deploy.yml` estaba en `workflow_dispatch` (manual) y **no consta que se
+ejecutara nunca**.
 
 | Workflow | Disparo | Qué corre |
 |---|---|---|
 | `ci.yml` | `pull_request` + push a `main` | typecheck → test → build. Usa **`pull_request` y NO `pull_request_target` a propósito** (`ci.yml:18-24`) |
 | `lockfile-check.yml` | push + PR | `npm ci --dry-run` |
-| `deploy.yml` | **manual** (`workflow_dispatch`) | SSH → backup `pg_dump -Fc` → migraciones como `postgres` → build + reload como `emiliano` |
+| ~~`deploy.yml`~~ | **RETIRADO el 31/08 (F3.6)** | Hacía: SSH → backup `pg_dump -Fc` → migraciones como `postgres` → build + reload como `emiliano`. Lo sustituyen `release.yml` + `promover.yml` + el `update.sh` de cada instancia |
 
 `deploy.yml` fue **reescrito el 31/07/2026** tras un despliegue manual que reveló
 cuatro defectos (ruta muerta, rol equivocado en migraciones, `npm ci` como root, `pm2`
@@ -1274,7 +1291,7 @@ candado…). Antes de trabajar en paralelo con otros agentes: [[AGENTES]] y [[ta
 | [[api-endpoints]] | ~~Lista `leer-todas`, omite `archivar-todas`~~ — **corregido el 27/08**, trece días después de señalarse | §5.5 |
 | [[autenticacion-y-sesion]] | Citas de `auth.ts` corridas ~4 líneas; sitúa la política de contraseñas en `auth.ts` | §6 |
 | [[shell-y-navegacion]], [[modulos-internos]] | Describen el menú **plano**, sin los 6 grupos. ~~Y `modulos-internos` lista `ReadinessPanel`/`ReporteVisual` como componentes de `/campanas/[id]`~~ — **resuelto el 27/08**: esos dos archivos ya no existen | §3, inventario D-2/D-6 |
-| [[entorno-y-despliegue]] | «`deploy.yml` está desactualizado» y la lectura de `NEXT_PUBLIC_API_URL` | §9.0, §7.3 |
+| [[entorno-y-despliegue]] | ~~«`deploy.yml` está desactualizado»~~ — **resuelto el 31/08: el archivo se retiró (F3.6)**. Queda la lectura de `NEXT_PUBLIC_API_URL` | §9.0, §7.3 |
 | [[estado-y-data-fetching]] | ~~Presenta `lib/portal-cliente-api.ts` como cliente del portal público~~ — **resuelto el 27/08**: ese archivo se retiró (cero importadores) y la nota ya lo marca. El portal vivo usa `hidratarPortalPublico` de `lib/data/estado-api.ts` | inventario D-8 |
 | [[decisiones]] | ~~Habla de «los 12 ADR»; hay **13** y el `0013` no está en su tabla~~ — **corregido el 18/08**: el recuento y la fila del `0013` ya están | §1.5 |
 | [[zonas-de-riesgo]] | ~~A6 sobre `OTMovil` está superado~~ — **cerrado el 27/08**: A6 dice ahora que la pista archivada se retiró, con la lección de por qué sobrevivió | §10 |

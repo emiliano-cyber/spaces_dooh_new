@@ -16,10 +16,15 @@ import {
 // ============================================================================
 //  `schema_migrations` — cada instancia sabe qué migraciones ya corrió.
 // ----------------------------------------------------------------------------
-//  Hoy no hay tabla de control: el despliegue reaplica TODAS las migraciones en
-//  cada corrida y confía en que sean idempotentes (`deploy.yml:141-148`).
-//  Funciona mientras haya una sola instancia y una persona mirando; con una
-//  flota, no saber en qué versión de esquema está cada droplet es el problema.
+//  El mundo que motivó este runner: NO había tabla de control. El despliegue
+//  reaplicaba TODAS las migraciones en cada corrida y confiaba en que fueran
+//  idempotentes. Funcionaba con una sola instancia y una persona mirando; con
+//  una flota, no saber en qué versión de esquema está cada droplet es el
+//  problema.
+//
+//  Eso lo hacía `.github/workflows/deploy.yml:141-148`, **retirado el 2026-08-31
+//  (F3.6)**. Hoy manda `scripts/migrar.mjs`, que lleva registro en
+//  `schema_migrations` y aplica cada archivo UNA vez.
 //
 //  Lo que estas pruebas defienden no es que la tabla exista —eso es lo fácil—
 //  sino que su CONTENIDO no mienta:
@@ -152,8 +157,9 @@ describe('registro de migraciones aplicadas', () => {
   })
 
   it('tampoco da por aplicada una migración de DATOS', async () => {
-    // `deploy.yml:141-148` NUNCA las aplica en un despliegue normal: hay que
-    // pedirlas a mano. Así que de una migración `@tipo: datos` no se puede
+    // `scripts/migrar.mjs` NUNCA las aplica en un despliegue normal: hay que
+    // pedirlas a mano con `--con-datos`. Antes lo hacía igual `deploy.yml`,
+    // retirado el 31/08. Así que de una migración `@tipo: datos` no se puede
     // afirmar que corrió, y el registro solo debe contener hechos.
     const { rows } = await poolTest().query(
       "select archivo from schema_migrations where archivo = '20260731_calendario_meses_cortos.sql'",
@@ -362,7 +368,7 @@ describe('runner de migraciones', () => {
   }, 60_000)
 
   it('la de DATOS queda fuera y se anuncia como pendiente', async () => {
-    // Igual que `deploy.yml:141-148`: las de datos reescriben filas y no se
+    // Igual que `scripts/migrar.mjs`: las de datos reescriben filas y no se
     // deshacen solas, así que se piden a mano. Pero no se ocultan.
     const { rows } = await pool.query(
       "select archivo from schema_migrations where archivo = '20260731_calendario_meses_cortos.sql'",

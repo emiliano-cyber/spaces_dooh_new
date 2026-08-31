@@ -61,6 +61,19 @@ La entrada más reciente va arriba.
   aunque alguien quiera**. No es una comprobación que se pueda olvidar; es el
   orden en que están puestas las cosas.
 
+- **Se retira el último camino que actualizaba el sistema entrando al servidor.**
+  Había un procedimiento que se conectaba a la máquina, compilaba el programa
+  **allí mismo** y lo reiniciaba. Ese era el modo antiguo, y tenía dos problemas:
+  compilar en cada servidor no garantiza que salga lo mismo, y desde el 28 de
+  agosto además **habría chocado** con la nueva forma de arrancar la aplicación
+  —dos programas peleando por el mismo puerto—.
+
+  A partir de ahora **cada instalación se actualiza sola**: revisa si hay una
+  versión nueva aprobada, se la descarga ya preparada, hace copia de seguridad,
+  aplica los cambios de la base y comprueba que todo responde. Si algo falla,
+  **vuelve sola a la versión anterior**. Nadie entra a tocar nada. La única vez que
+  se entra a un servidor es al **darlo de alta**, una sola vez.
+
 - **Se retiran cuatro programas viejos que ya no se podían usar sin hacer daño.**
   Eran los que daban de alta una empresa cuando todas compartían una misma base de
   datos: creaban su espacio dentro de la base común y propagaban cambios a todas a
