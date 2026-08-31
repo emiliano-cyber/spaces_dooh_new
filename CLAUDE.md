@@ -440,7 +440,14 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
-Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 en 8 de 9 y la 5 en 5 de 8.
+Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 **completa** y la 5 en 6 de 8
+tras cerrarse **F3.6** y **F5.5** el 31/08. **Quedan 4**: F2.4, F3.5, F5.6 y F5.7 —
+y las cuatro dependen, directa o indirectamente, de convertir DEMO en una instancia.
+
+> [!tip] El siguiente paso concreto es un censo de solo lectura
+> `docs/evidencias/censo-demo-en-el-padre.txt`. Comprueba en el servidor lo que la
+> revisión del 31/08 dedujo del repositorio. **Sin esa confirmación no se diseña la
+> conversión de DEMO**: sería construir sobre una premisa sin medir.
 
 > [!important] Antes de tomar la siguiente tarea, lee la revisión del 31/08
 > `docs/evidencias/revision-fases-31-agosto.md`. **El plan v3 es del 13 de agosto y

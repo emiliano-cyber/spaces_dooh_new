@@ -1,0 +1,114 @@
+============================================================
+ CENSO · COMO CORRE DEMO EN EL PADRE  (2026-08-31)
+ TODO ES DE SOLO LECTURA. No cambia nada, no reinicia nada.
+============================================================
+
+ POR QUE, antes de correrlo:
+
+ La revision del 31/08 concluyo que el cuello de botella del
+ proyecto es UNO SOLO: DEMO no es una instancia -- corre
+ `next start` desde el repo clonado, no desde la imagen del
+ registry. De ahi que F3.5 no se pueda ejecutar (update.sh
+ actualiza contenedores) y que F2.4 tampoco (promover.yml
+ exige una DEMO_URL con https, y DEMO no tiene nombre).
+
+ PERO ESA CONCLUSION SALE DEL REPOSITORIO, NO DEL SERVIDOR.
+ Se apoya en infra/systemd/spaces-demo.service:77 y en el
+ traspaso del 28/08. Si la maquina no esta como dice el repo,
+ el plan de los proximos pasos cambia entero.
+
+ Este censo lo comprueba. Son ocho lecturas y ninguna escribe.
+
+ >>> Pegalo por bloques, no todo de una vez: la consola web se
+     come el primer caracter de cada pegada (trampa 7 del
+     traspaso del 28). Si un bloque empieza con `echo ok;`, ese
+     `;` salva el resto.
+
+# ############################################################
+#  Entrar
+# ############################################################
+
+ssh root@137.184.107.53
+
+# ############################################################
+#  1 · Como arranca DEMO, y como arranca el PADRE
+# ############################################################
+
+echo ok; systemctl cat spaces-demo | grep -E 'ExecStart|EnvironmentFile|User='
+
+echo ok; systemctl cat spaces-web | grep -E 'ExecStart|EnvironmentFile|User='
+
+# >>> Lo que decide todo: si ExecStart dice `next start`, DEMO
+#     corre desde el repo y hay que convertirla. Si dice
+#     `docker`, la revision se equivoco y hay que rehacerla.
+
+# ############################################################
+#  2 · Hay Docker en la maquina?
+# ############################################################
+
+echo ok; docker --version; docker ps -a --format '{{.Names}} | {{.Image}} | {{.Status}}'
+
+# >>> Si `docker` no existe, convertir DEMO empieza por
+#     instalarlo, y eso cambia el tamano de la tarea.
+
+# ############################################################
+#  3 · Que archivos de entorno hay ya
+# ############################################################
+
+echo ok; ls -la /etc/space-os/
+
+# >>> Se espera padre.env y demo.env. Lo que interesa saber es
+#     si YA existen app.env / instancia.env, que son los dos
+#     que consume una instancia de verdad.
+
+# ############################################################
+#  4 · Esta instalado el actualizador?
+# ############################################################
+
+echo ok; ls -la /opt/space-os/ 2>/dev/null || echo "no existe /opt/space-os"
+
+echo ok; ls -la /etc/cron.d/ | grep -i space || echo "sin cron de space-os"
+
+# ############################################################
+#  5 · Que nombres sirve nginx hoy
+# ############################################################
+
+echo ok; nginx -T 2>/dev/null | grep -E '^\s*server_name' | sort -u
+
+# >>> Para saber que nombres estan libres y cual podria tomar
+#     DEMO. NO se toca nada aqui.
+
+# ############################################################
+#  6 · DEMO responde por dentro?
+# ############################################################
+
+echo ok; curl -s -o /dev/null -w 'demo 3001 -> %{http_code}\n' http://127.0.0.1:3001/spaces-dooh/login/
+
+echo ok; curl -s -o /dev/null -w 'padre 3000 -> %{http_code}\n' http://127.0.0.1:3000/spaces-dooh/login/
+
+# ############################################################
+#  7 · Que version corre cada uno
+# ############################################################
+
+echo ok; curl -s http://127.0.0.1:3001/spaces-dooh/api/version/ ; echo
+
+echo ok; curl -s http://127.0.0.1:3000/spaces-dooh/api/version/ ; echo
+
+# ############################################################
+#  8 · Comparten el build?  (la afirmacion del traspaso)
+# ############################################################
+
+echo ok; ls -la /var/www/Spaces/apps/web/.next/BUILD_ID && cat /var/www/Spaces/apps/web/.next/BUILD_ID
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#  La salida de los ocho bloques. Con eso escribo la tarjeta
+#  de convertir DEMO en instancia, que es la que destraba F3.5
+#  y F2.4 a la vez -- o rehago la revision, si el servidor
+#  desmiente al repositorio.
+#
+#  NADA DE ESTO ESCRIBE. Si algo pide confirmacion o parece
+#  que va a cambiar el sistema, parate y avisame: seria que
+#  copiaste un comando de otro sitio.
+# ############################################################
