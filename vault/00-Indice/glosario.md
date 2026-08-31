@@ -1,12 +1,13 @@
 ---
 tipo: glosario
 estado: verificado
-actualizado: 2026-08-10
-tags: [dominio, negocio, vocabulario]
+actualizado: 2026-08-31
+tags: [dominio, negocio, vocabulario, flota]
 archivos:
   - db/schema.sql
   - docs/adr/
   - apps/web/lib/modulos.ts
+  - infra/env/instancia.env.example
 ---
 
 # Glosario del dominio
@@ -81,7 +82,7 @@ archivos:
 | Término | Significado | Dónde vive |
 |---|---|---|
 | **Tenant / organización / CRM** | Cada empresa cliente. Tres nombres para lo mismo. | `tenants` |
-| **Tenant de plataforma** | El tenant más antiguo (`rgb`). Solo su Dueño puede cambiar de CRM. Está **vacío**. | `lib/server/tenant.ts:26-29` |
+| **Tenant de plataforma** | El tenant más antiguo (`rgb`). Solo su Dueño puede cambiar de CRM. Está **vacío**. | `lib/server/tenant.ts:27-30` |
 | **`g500`** | La organización con datos de negocio. Nombre comercial `PIXELED`. | — |
 | **`eyro`** | **Perfil de PRUEBAS del usuario.** Lo que aparezca ahí no es deuda operativa — pero sí publica de verdad en DOOHmain. Ver [[multi-tenancy-y-rls]]. | — |
 | **Desbloqueo** | Reautenticación con la contraseña propia que abre 15 min para cambios sensibles (ADR 0009). | `sesiones.desbloqueo_expira_en` |
@@ -89,6 +90,28 @@ archivos:
 | **Contraseña temporal** | La que entrega un administrador al restablecer. Fuerza cambio al entrar. | `usuarios.debe_cambiar_password` |
 | **Rol** | `DUENO`, `COMERCIAL`, `OPERACIONES`, `IMPRENTA`, `FINANZAS` (+`CLIENTE`, retirado por ADR 0010). | `rol_demo` |
 | **Módulo / acción** | Unidad de permiso: `ver`, `crear`, `aprobar`, `facturar`. | `rol_permisos` |
+| **Método de sesión** | Cómo se abrió la sesión: `password` o `google`. Existe porque quien entró con Google **no tiene contraseña que reautenticar**. | `sesiones.metodo` (`20260825_sesion_metodo.sql:39-40`) |
+
+## Flota e instancias
+
+Vocabulario del modelo aprobado el 2026-08-12. Antes de esta fecha «tenant» y
+«cliente» bastaban; hoy no. Ver [[modelo-instancias-soberanas]].
+
+| Término | Significado | Dónde vive |
+|---|---|---|
+| **Instancia** | Una copia completa de SPACE OS con su droplet, su base y su dominio. La unidad que se le entrega a un owner. | `infra/scripts/provision-instancia.sh` |
+| **Owner** | La empresa dueña de una instancia. **No es lo mismo que un tenant**: hoy un owner es un tenant dentro de su propia instancia. | — |
+| **PADRE** | El plano de control: donde se trabaja el código y desde donde se publica. `space-os.io`, droplet `137.184.107.53`. | `infra/systemd/spaces-web.service` |
+| **DEMO** | El banco de pruebas donde se ensaya una versión antes de soltarla a la flota. Corre en el 3001 **dentro del PADRE**, y desde el 31/08 se llama `pruebas.space-os.io`. | `infra/systemd/spaces-demo.service` |
+| **Canal** | `beta` o `estable`. DEMO sigue `beta`; **una instancia de owner sigue siempre `estable`**. Un owner en `beta` es un owner haciendo de conejillo. | `infra/env/instancia.env.example:30-35` |
+| **Registry** | El almacén de la aplicación ya empaquetada, para que cada servidor la **instale** en vez de construirla. | Pendiente de nombre (decisión P4) |
+| **Actualizador** | `update.sh` en cada instancia: jala la imagen del canal, aplica migraciones y reinicia. | `infra/scripts/update.sh` |
+
+> [!warning] «Tenant» ya no significa «cliente»
+> En el modelo viejo un cliente **era** un tenant dentro de una base compartida,
+> y la RLS era el modelo de negocio. Hoy cada owner tiene su instancia, y la RLS
+> **se queda como defensa en profundidad dentro de cada una**. Leer una nota
+> anterior al 12/08 con el significado nuevo lleva a conclusiones falsas.
 
 ## Relacionadas
 [[esquema]] · [[decisiones]] · [[comercial-propuestas-campanas]] ·
