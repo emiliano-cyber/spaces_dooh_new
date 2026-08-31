@@ -408,8 +408,11 @@ El contexto completo —qué cambió, qué costó, qué está bloqueado y por qu
 
 **El proyecto ya no está limitado por trabajo, sino por decisiones.** De las 10
 tareas que quedaban con objeto, **9 esperaban el nombre del registry de imágenes**.
-Ese nombre llegó el 31/08 y **F2.3 se cerró el mismo día, con imagen publicada**:
-quedan **9**.
+Ese nombre llegó el 31/08 y **F2.3 se cerró el mismo día, con imagen publicada**.
+Y la auditoría de esa tarde encontró que **F5.3 y F5.4 ya estaban hechas** —el
+trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogió—:
+**quedan 7**, y la Fase 5 va por **5 de 8**, no 3. Evidencia medida en
+`docs/evidencias/auditoria-f5-31-agosto.md`.
 
 > [!success] 2026-08-31 · el registry existe
 > **`registry.digitalocean.com/registryspaces`**, NYC3, **plan gratuito** (500 MiB,
