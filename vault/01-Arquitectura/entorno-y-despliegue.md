@@ -113,7 +113,7 @@ archivos:
 > ```bash
 > cd /var/www/Spaces && git pull
 > npm install                            # si cambió el lockfile
-> git checkout -- package-lock.json      # node 20 aquí, 22 en el CI: lo poda
+> git checkout -- package-lock.json      # el `npm install` del PADRE lo poda
 > npm run build                          # lo hace root
 > chown -R padre:padre apps/web/.next    # NUEVO — o falla al primer cacheo
 > systemctl daemon-reload                # la unidad es symlink al repo
@@ -487,6 +487,22 @@ tienen valor —el registry se creó ese día, ver abajo— y **`DEMO_URL` sigue
 decidirse**, que es lo único que hoy separa a `promover.yml` de poder correr.
 Lo de `workflow_dispatch` dejó de aplicar: **el archivo vive en `main` desde el
 28/08**, así que ya aparece en la pestaña Actions.
+
+> [!warning] 2026-08-31 · «node 20 aquí, 22 en el CI» NO es cierto — la causa sigue sin identificar
+> El **efecto es real y está medido**: `npm install` en el PADRE poda entradas del
+> lockfile, y por eso la secuencia lleva el `git checkout --`. Lo que no se sostiene
+> es la **explicación** que se le puso el 28/08.
+>
+> Medido hoy: **`ci.yml:60` pinea `node-version: '20'`**, igual que `release.yml`, y
+> el `Dockerfile` también construye sobre `node:20-alpine`. `package.json:22` solo
+> declara `"node": ">=18"` y **no hay `.nvmrc`**. O sea: **el CI no corre node 22**, y
+> una diferencia que no existe no puede ser la causa.
+>
+> **No se sustituye por otra hipótesis**: queda como pendiente de diagnosticar, con el
+> efecto documentado y la causa en blanco. Poner una causa plausible sin medirla es
+> justo lo que hizo falsa a la primera. No bloquea nada — `npm ci`, que es lo que
+> corren CI y la imagen, **nunca reescribe el lockfile**; solo el `npm install` a mano
+> en el servidor.
 
 > [!success] 2026-08-31 · el registry existe
 > **`registry.digitalocean.com/registryspaces`**, región **NYC3** —la misma que los
