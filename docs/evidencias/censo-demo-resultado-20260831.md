@@ -82,7 +82,7 @@ necesita Docker es F3.5.
 
 ## La decisión que se tomó con esto
 
-**DEMO pasa a llamarse `pruebas.space-os.io`** (Jochelo, 2026-08-31). Nombre nuevo,
+**DEMO pasa a llamarse `prueba.space-os.io`** (Jochelo, 2026-08-31). Nombre nuevo,
 no `demo.space-os.io`: ese quedó cerrado como la demostración original, que se
 elimina.
 
