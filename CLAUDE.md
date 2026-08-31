@@ -412,7 +412,8 @@ Ese nombre llegó el 31/08 y **F2.3 se cerró el mismo día, con imagen publicad
 Y la auditoría de esa tarde encontró que **F5.3 y F5.4 ya estaban hechas** —el
 trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogió—:
 **quedan 7**, y la Fase 5 va por **5 de 8**, no 3. Evidencia medida en
-`docs/evidencias/auditoria-f5-31-agosto.md`.
+`docs/evidencias/auditoria-f5-31-agosto.md`. Y con **F8.2** hecha esa misma tarde,
+**la Fase 8 queda completa** y bajan a **6**.
 
 > [!success] 2026-08-31 · el registry existe
 > **`registry.digitalocean.com/registryspaces`**, NYC3, **plan gratuito** (500 MiB,
@@ -439,7 +440,12 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
-Fases cerradas: **0, 1, 4 y 6**. La 2 en 5 de 6 y la 3 en 8 de 9.
+Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 en 8 de 9 y la 5 en 5 de 8.
+
+> **De las 6 que quedan, ninguna es trabajo de codigo en la maquina de desarrollo.**
+> Cuatro son de servidor (F3.5, F3.6, F5.6, F5.7), una espera la decision de DEMO
+> (F2.4) y **F5.5** es una rama ya preparada (`chore/retirar-scripts-pista-archivada`)
+> que solo espera a F3.6.
 
 > [!danger] La Fase 7 ya no existe, y seis tareas más quedaron sin objeto
 > El **ADR 0023** (27/08) sacó el droplet viejo del modelo al confirmarse que
