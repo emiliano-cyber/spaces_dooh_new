@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-27
+actualizado: 2026-08-31
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -91,6 +91,23 @@ archivos:
 > Evidencia: `docs/evidencias/padre-flota-y-rfc-20260827.md`.
 >
 > De las 12 tareas que quedan, **10 esperan el nombre del registry** (`TH-P4`).
+
+> [!success] 2026-08-31 · el registry ya tiene nombre, y con él caen 9 de las 10
+> **`registry.digitalocean.com/registryspaces`**, región **NYC3**, **plan gratuito**
+> (500 MiB, un repositorio). Creado por Jochelo el 31/08.
+>
+> El límite de **un repositorio no estorba**: `release.yml:268-269` publica uno solo,
+> `$REGISTRY/space-os`, y los canales `beta` y `estable` son **etiquetas sobre la
+> misma imagen**. El de **500 MiB sí hay que vigilarlo**, y no se puede estimar
+> honestamente: la imagen **no se ha construido nunca**. Se mide en el panel tras el
+> primer `release.yml`.
+>
+> **El nombre no entra en ningún workflow ni script**: sigue llegando por
+> `vars.REGISTRY`. Tarjeta: `docs/evidencias/registry-TH-P4b.txt`.
+>
+> ⚠️ **Sigue abierta la segunda decisión, y no la resuelve esta**: qué dirección
+> representa a DEMO para el smoke de `promover.yml:120-134`. **`F2.4` es la única
+> tarea que el registry NO desbloquea.**
 
 Qué se hizo con el documento **«Modelo de despliegue por instancias soberanas»**
 que aprobó Jochelo el 2026-08-12, y en qué estado quedó al **2026-08-13**.

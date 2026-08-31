@@ -1,0 +1,175 @@
+============================================================
+ TH-P4b · REGISTRY: VARIABLES Y PRIMERA IMAGEN
+ Sustituye a `registry-TH-P4.txt` (28/08), cuyo Bloque 2
+ apuntaba a un worktree que ya no existe.
+ Fecha: 2026-08-31
+============================================================
+
+ YA HECHO POR TI (captura del 31/08):
+   Registro creado .... registryspaces
+   Region ............. NYC3  (la de los droplets: correcto)
+   Plan ............... gratuito, 500 MiB, 0 % usado
+
+ Los valores que salen de ahi:
+   REGISTRY      = registry.digitalocean.com/registryspaces
+   REGISTRY_TIPO = docr
+
+ El limite de "1 repositorio" del plan gratuito NO estorba:
+ release.yml:268-269 publica UN solo repositorio,
+ $REGISTRY/space-os, y los canales son ETIQUETAS sobre la
+ misma imagen (beta / estable), no repositorios aparte.
+
+
+# ############################################################
+#  BLOQUE 0 - NAVEGADOR, DigitalOcean: el token
+#  Esto es lo unico que falta del lado de DO.
+# ############################################################
+
+ https://cloud.digitalocean.com/account/api/tokens
+
+   Generate New Token
+     Nombre  : github-release
+     Alcance : lectura Y ESCRITURA
+
+ >>> Es un token de la CUENTA, no del registro.
+ >>> Se ensena UNA SOLA VEZ. Copialo y pegalo directo en el
+     Bloque 1. No lo guardes en un archivo, no me lo pases.
+
+
+# ############################################################
+#  BLOQUE 1 - NAVEGADOR, GitHub: las tres claves
+#  github.com/emiliano-cyber/spaces_dooh_new
+# ############################################################
+
+ Settings -> Secrets and variables -> Actions
+
+ PESTANA "Variables" -> New repository variable, DOS veces:
+
+      Nombre : REGISTRY
+      Valor  : registry.digitalocean.com/registryspaces
+
+      Nombre : REGISTRY_TIPO
+      Valor  : docr
+
+ PESTANA "Secrets" -> New repository secret:
+
+      Nombre : DO_REGISTRY_TOKEN
+      Valor  : el token del Bloque 0
+
+ >>> REGISTRY_TIPO=docr le dice al workflow con que credencial
+     entrar. El host del login lo DERIVA del primer segmento
+     de REGISTRY (release.yml:232), asi que no se declara.
+
+ >>> El usuario del `docker login` es el token mismo
+     (release.yml:241-242). No hace falta usuario aparte.
+
+ >>> NO anadas DEMO_URL. Es la OTRA decision, todavia abierta.
+     Sin ella release.yml funciona igual y publica en `beta`;
+     lo unico que no se puede es promover a `estable`.
+
+
+# ############################################################
+#  BLOQUE 2 - TU PC, consola: la primera etiqueta
+#  No toca ningun servidor ni la aplicacion viva.
+# ############################################################
+
+# T1 - Traer `main` al dia. NO hace falta cambiar de rama:
+#      el arbol raiz sigue en feat/ui-base-404-atajos y ahi
+#      se queda.
+
+cd C:\Users\Server\spaces_doohmain_nueva
+git fetch emiliano main:main
+git log --oneline -1 main
+
+# Esperado: 0d978fa Merge pull request #16 ... (o mas nuevo).
+
+
+# T2 - Crear la etiqueta SOBRE main y empujarla.
+#      ESTO DISPARA EL WORKFLOW: release.yml escucha `push`
+#      de tags v*.*.*
+
+git tag v0.0.1-rc1 main
+git push emiliano v0.0.1-rc1
+
+# >>> Es la primera etiqueta de version del proyecto:
+#     `git tag -l` solo tenia `pre-hardening-1-archive`.
+#
+# >>> Por que -rc1 y no v0.1.0: es el comando de verificacion
+#     EXACTO de F2.3 en el plan v3. Y como promover.yml valida
+#     ^v[0-9]+\.[0-9]+\.[0-9]+$, una etiqueta -rc1 NO se puede
+#     promover a `estable` ni por accidente. La v0.1.0 queda
+#     libre para la primera version de verdad.
+
+
+# ############################################################
+#  BLOQUE 3 - NAVEGADOR: mirar si salio
+#  (`gh` no esta instalado en tu maquina; por eso va por web)
+# ############################################################
+
+# T3 - La corrida.
+#      github.com/emiliano-cyber/spaces_dooh_new/actions
+#
+#      Orden de lo que hace, y donde puede pararse:
+#
+#      a) Comprueba que REGISTRY y REGISTRY_TIPO existen y
+#         FALLA EN DOS SEGUNDOS si faltan, a proposito
+#         (release.yml:183-189). Si ves eso, es el Bloque 1.
+#      b) Job `pruebas`: typecheck + unitarias + e2e contra un
+#         Postgres del runner. Tarda.
+#      c) Job `imagen` (needs: pruebas): build y publicacion
+#         con DOS etiquetas, v0.0.1-rc1 y beta.
+#
+#      Una suite en rojo NO publica nada. Es el gate de F2.3.
+
+# T4 - Que la imagen llego.
+#      cloud.digitalocean.com/registry -> registryspaces
+#
+#      Tiene que aparecer el repositorio `space-os` con las
+#      etiquetas `v0.0.1-rc1` y `beta`.
+
+# T5 - EL DATO QUE FALTA MEDIR: cuanto ocupa.
+#      En la misma pagina, la tarjeta STORAGE USAGE.
+#      Hoy dice 0 Bytes / 500 MiB.
+#      Pasame el porcentaje o los MiB que marque despues.
+#
+#      Con eso sabremos cuantas versiones caben en el plan
+#      gratuito antes de tener que hacer Garbage Collection,
+#      y si vale la pena subir a Basic (5 USD/mes, 5 GiB).
+#      Nadie ha construido esta imagen nunca: no hay estimacion
+#      honesta, solo la medicion.
+
+
+# ############################################################
+#  COMO INTERPRETAR EL RESULTADO (del plan v3, F2.3)
+# ############################################################
+#   verde + imagen publicada .. listo
+#   verde SIN imagen .......... falta permiso de ESCRITURA en
+#                               el token del Bloque 0
+#   rojo en e2e ............... el Postgres del runner no quedo
+#                               bien configurado (DATABASE_URL_TEST)
+
+
+# ############################################################
+#  VUELTA ATRAS
+# ############################################################
+#  Nada de esto toca un servidor ni la aplicacion viva.
+#
+#    git push emiliano :refs/tags/v0.0.1-rc1   # borra la remota
+#    git tag -d v0.0.1-rc1                     # y la local
+#
+#  Las variables se borran en GitHub. La imagen, si llego a
+#  subirse, se borra desde el registro (y luego Garbage
+#  Collection para recuperar el espacio).
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   1. Si la corrida salio verde, o EN QUE PASO se paro.
+#   2. El STORAGE USAGE del T5.
+#   NO me pases el token.
+#
+#  Con la corrida verde, F2.3 queda cerrada y se pueden
+#  ejecutar F3.5, F5.4 y F5.6. Quedaria pendiente solo la
+#  segunda decision: que direccion representa a DEMO.
+# ############################################################
