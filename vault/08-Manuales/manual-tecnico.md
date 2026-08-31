@@ -1,14 +1,15 @@
 ---
 tipo: manual
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-08-31
 tags: [manual, tecnico, onboarding, arquitectura, despliegue, runbook]
 archivos:
   - apps/web/
   - db/schema.sql
   - db/migrations/
   - db/docker-compose.yml
-  - infra/nginx/demo.space-os.io.conf
+  - infra/nginx/space-os.io.conf
+  - infra/systemd/spaces-web.service
   - ecosystem.config.js
   - .github/workflows/
   - package.json
@@ -25,6 +26,27 @@ archivos:
 > nada. Al terminar de leerlo deberías poder: situarte en el repo, entender cómo se
 > aísla cada organización, saber por dónde entra una petición, y saber **qué no tocar
 > sin avisar**.
+
+> [!danger] LEE ESTO ANTES QUE EL MANUAL — revisado el 2026-08-31
+> El cuerpo se escribió el **14/08** sobre el inventario del **11/08**, y hay
+> cinco cosas que **han dejado de ser ciertas**. Se listan aquí en vez de
+> reescribir mil líneas, porque el resto del manual sigue siendo bueno y el
+> peligro no está en lo que falta: está en lo que se lee como vigente.
+>
+> | Lo que dice el cuerpo | Lo que es verdad hoy |
+> |---|---|
+> | «pm2 `spaces-web`, fork, 1 instancia» (§ varias, `ecosystem.config.js`) | **systemd**, desde el 28/08: `spaces-web.service:83` (usuario `padre`, 3000) y `spaces-demo.service:77` (usuario `demo`, 3001). `ecosystem.config.js` sigue en el repo y por eso engaña. **`pm2 restart` ya no despliega**, y dispararlo pelea por el puerto contra systemd |
+> | «`https://demo.space-os.io/spaces-dooh/` es producción» | Producción es **`space-os.io`** en el PADRE (`137.184.107.53`). `demo.space-os.io` es la demostración **original**, la sirve la máquina vieja y **se eliminará** (ADR 0023 y 0024). DEMO se llama **`pruebas.space-os.io`** desde el 31/08 |
+> | «88 archivos `route.ts` · 38 tablas · 66 migraciones» | **90 · 39 · 75** (medidos el 31/08) |
+> | «`.github/workflows/deploy.yml`» como camino de despliegue | **Retirado el 31/08** (F3.6). La instancia jala, el padre no empuja: `infra/scripts/update.sh` y `docs/runbook-actualizar-instancia.md` |
+> | Los scripts de la pista Prisma (`new-tenant.sh` y compañía) | **Retirados el 31/08** (F5.5). El alta de un cliente ya no es crear un schema: es **aprovisionar una instancia** (`infra/scripts/provision-instancia.sh`) |
+>
+> **Y lo que más cambia sin romper ninguna cita: el MODELO.** Este manual
+> describe varias organizaciones sobre una sola instalación, con la RLS como
+> modelo de negocio. Desde el **12/08** es **una instancia por owner** —droplet,
+> base y dominio propios— y la RLS queda como defensa en profundidad **dentro** de
+> cada una. Lee [[modelo-instancias-soberanas]] antes de tomar cualquier decisión
+> de arquitectura con este manual en la mano.
 
 > [!info] De dónde sale cada afirmación
 > El cuerpo de este manual está construido a partir de [[inventario-2026-08-11]],

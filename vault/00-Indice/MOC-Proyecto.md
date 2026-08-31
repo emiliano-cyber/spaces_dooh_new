@@ -147,16 +147,49 @@ cobranza.
   entornos, despliegue y operación. Derivado del [[inventario-2026-08-11]]
 
 > [!tip] Esta bóveda caduca
-> Última validación completa contra el código: **28/08/2026**. El procedimiento
-> para repetirla (cuatro chequeos y sus cuatro trampas) está en [[convenciones]].
-> Lo medido ese día: **90** route handlers, **74** migraciones, **39** tablas,
-> **24** ADR, **22** pantallas del shell; **753 enlaces internos, 0 rotos, 0
-> huérfanas** sobre **57** notas. Pruebas: **1005 unitarias en 94 archivos** y
-> **29 archivos e2e**.
+> Última validación contra el código: **31/08/2026**. El procedimiento para
+> repetirla (cuatro chequeos y sus cuatro trampas) está en [[convenciones]].
+> Lo medido ese día: **90** route handlers, **75** migraciones, **39** tablas,
+> **24** ADR, **22** pantallas del shell, **127 archivos en `app/`** y **67
+> componentes**; **804 enlaces internos, 0 rotos, 0 huérfanas** sobre **57**
+> notas, y **0 líneas citadas fuera de rango**.
 >
-> Lo único que se movió respecto del **27/08** fueron los ADR (22 → **24**, con
-> el `0023` y el `0024`) y la bóveda misma (56 → 57 notas, 726 → 753 enlaces, por
-> el diario del 27/08). Endpoints, migraciones y tablas **no se movieron**.
+> (Eran 753 el 28/08. La subida es de esta misma revisión: la lista de abajo
+> enlaza una por una las notas revalidadas, y eso son ~30 enlaces nuevos.)
+>
+> Respecto del **28/08** se movieron las migraciones (74 → **75**, por
+> `20260828_reautenticacion_por_defecto.sql`) y desapareció
+> `.github/workflows/deploy.yml` (F3.6). Endpoints, tablas y ADR siguen igual.
+
+> [!warning] Qué se revalidó el 31/08 y qué NO — la lista, para que nadie la suponga
+> No todas las notas se comprobaron igual, y la diferencia importa más que el
+> número de arriba.
+>
+> **Revalidadas contra el código, nota a nota (17):** [[MOC-Proyecto]] ·
+> [[glosario]] · [[preguntas-abiertas]] · [[inventario-2026-08-11]] (solo su
+> aviso de caducidad) · [[stack-y-dependencias]] · [[entorno-y-despliegue]] ·
+> [[modelo-instancias-soberanas]] · [[infraestructura-servidor]] ·
+> [[integraciones-externas]] · [[finanzas-y-cobranza]] · [[operaciones-y-ot]] ·
+> [[03-Frontend/_indice|Índice de Frontend]] · [[paginas-publicas]] ·
+> [[estado-y-data-fetching]] · [[migraciones]] · [[flujo-login]] ·
+> [[flujo-acceso-con-google]] · [[AGENTES]] · [[manual-tecnico]] (con aviso).
+>
+> **Solo con los cuatro chequeos mecánicos, sin releer su contenido contra el
+> código (8):** [[inventario-y-sitios]] · [[arrendadores-y-contratos]] ·
+> [[comercial-propuestas-campanas]] · [[shell-y-navegacion]] ·
+> [[acceso-y-sesion-ui]] · [[flujo-orden-de-trabajo]] ·
+> [[flujo-facturacion-y-cobranza]] · [[flujo-propuesta-a-campana]].
+>
+> **Sus citas resuelven y ninguna línea se salió de rango**, así que no hay nada
+> roto que se pueda medir. Lo que no se comprobó es lo que ningún script detecta:
+> que describan correctamente algo **que ya se decidió de otra forma**. Por eso
+> **conservan su fecha vieja (07 al 14 de agosto) a propósito** — ponerles la de
+> hoy sería justo el fallo que [[AGENTES]] describe: una nota caducada con fecha
+> nueva se cree.
+>
+> Son notas de dominio (inventario, arrendadores, comercial, shell), que es la
+> parte que menos movieron los cambios de infraestructura del 27 al 31. Es una
+> apuesta razonable, no una comprobación.
 
 ## Advertencia sobre la documentación existente
 

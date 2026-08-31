@@ -7,6 +7,48 @@ La entrada más reciente va arriba.
 
 ## 2026-08-31
 
+- **Se repasó la documentación interna entera y se corrigió lo que había dejado
+  de ser verdad.** El proyecto guarda, junto al código, una documentación que
+  describe **cómo funciona el sistema hoy**. Su utilidad depende de una cosa: que
+  se pueda confiar en ella sin ir a comprobar. En los últimos cuatro días
+  cambiaron bastantes cosas por dentro y varias de esas descripciones se
+  quedaron contando lo de antes.
+
+  Lo que se corrigió, en lenguaje llano:
+
+  - **El programa que enciende el sistema en el servidor cambió el 28 de agosto**,
+    y la documentación seguía nombrando al anterior. Es de las peores
+    equivocaciones posibles: el archivo del programa viejo sigue ahí, así que
+    quien leyera la frase la daría por buena, y **usarlo hoy haría que los dos
+    programas se peleen por atender a la gente**.
+  - **Las instrucciones para revisar el trabajo antes de darlo por bueno estaban
+    mal escritas**, y el error se heredaba a todo el que entra al proyecto:
+    faltaba indicar en qué carpeta se ejecutan, así que los comandos respondían
+    «no existe» y eso se lee como «algo está roto» en vez de «me falta un paso».
+  - **Faltaba escrito un candado de seguridad que se puso el 28 de agosto:**
+    facturar, cobrar y pagar una renta ahora piden la contraseña. Antes el
+    permiso del puesto sí aplicaba —no podía facturar cualquiera—, pero **nadie
+    comprobaba que quien está al teclado sea de verdad esa persona** y no alguien
+    que encontró una sesión abierta. Toda organización nueva nace ya con el
+    candado puesto.
+  - **Faltaba también la solución a un problema real:** el 25 de agosto, quien
+    entró con su cuenta de Google se quedó **encerrado fuera del sistema**,
+    porque para poner una contraseña nueva se le pedía la anterior, que nunca
+    había tenido. Ya está resuelto y ahora está explicado.
+  - **Se corrigieron los conteos** (cuántas pantallas, cuántos cambios de base de
+    datos) y una decena de referencias que apuntaban a un sitio equivocado
+    después de que los archivos crecieran.
+  - **Se avisa, arriba del todo, de lo que caducó sin romperse:** los documentos
+    escritos antes del 12 de agosto describen el modelo anterior —varios clientes
+    compartiendo una instalación— y hoy **cada cliente tiene la suya**. Todo lo
+    que dicen sigue existiendo; ya no significa lo mismo.
+
+  Y se deja escrito **qué se comprobó y qué no**: 17 documentos se revisaron uno
+  a uno contra el código; otros 8 solo pasaron las comprobaciones automáticas y
+  **conservan su fecha antigua a propósito**, para que nadie los dé por
+  verificados. Ponerles la fecha de hoy habría sido peor que dejarlos como
+  estaban.
+
 - **Ya hay un almacén para las actualizaciones, y se llama `registryspaces`.**
   Hasta hoy, cada vez que se quería actualizar el sistema, el servidor tenía que
   **armar la aplicación él mismo**: descargaba el código y lo construía, con dos
