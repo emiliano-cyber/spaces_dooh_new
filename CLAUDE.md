@@ -421,10 +421,12 @@ quedan **9**.
 > Los workflows ya están escritos y **paran en seco cuando faltan las variables, a
 > propósito** (`release.yml:183-189`).
 >
-> **Falta un dato, y sigue sin medirse**: cuánto pesa la imagen. Ya existe
-> (`v0.0.1-rc2`), así que **ahora sí se puede leer** en el panel del registro —
-> tarjeta `STORAGE USAGE`, o el tamaño de la etiqueta. Decide si los 500 MiB
-> alcanzan o hay que subir a Basic (≈5 USD/mes, 5 GiB).
+> **Y ya está medido**: con `v0.0.1-rc2` dentro, el registro marca **11 %** de
+> 500 MiB, o sea **~55 MiB** la primera versión completa. **El plan gratuito
+> sobra y no hay que subir a Basic.** Lo que falta por saber es el **coste
+> incremental**, que es el número que manda: las versiones comparten capas, así
+> que la segunda dirá si cada release cuesta ~6 % (caben ~15) o ~11 % (caben ~9).
+> Se lee en el mismo sitio tras el próximo `release.yml`.
 
 > [!success] 2026-08-31 · F2.3 CERRADA — la primera imagen existe
 > `v0.0.1-rc2` publicada en el canal `beta`, digest `sha256:12089fb4…`, con
