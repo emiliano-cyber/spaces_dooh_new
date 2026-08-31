@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { opcionesDeProceso } from './proceso-e2e'
+import { EventEmitter } from 'node:events'
+import { opcionesDeProceso, vigilarErrores, esperarMuerte } from './proceso-e2e'
 
 // ============================================================================
 //  El fallo que motiva estas pruebas (2026-08-31, PRIMERA corrida de
@@ -50,5 +51,67 @@ describe('el proceso del servidor de pruebas se puede matar en su plataforma', (
   it('el shell solo en Windows, que es donde `npx` es un .cmd', () => {
     expect(opcionesDeProceso('win32').shell).toBe(true)
     expect(opcionesDeProceso('linux').shell).toBe(false)
+  })
+})
+
+// ============================================================================
+//  El cierre limpio.  (2026-08-31)
+// ----------------------------------------------------------------------------
+//  Dos corridas de `release.yml` terminaron con `exit code 1` y las 295 e2e EN
+//  VERDE. Un rojo asi no habla del codigo: habla de que el proceso de pruebas no
+//  cierra limpio. Y es peor que el defecto original, porque convierte cada
+//  release en una moneda al aire.
+//
+//  Las dos causas que se corrigen aqui, y las dos se prueban sin Linux:
+//
+//   (a) `spawn` no tenia manejador de `error`. En Node, un evento `error` sin
+//       manejador NO se ignora: se convierte en excepcion no capturada. Vitest
+//       la cuenta como fallo de la corrida aunque ninguna prueba falle.
+//   (b) `pararServidor()` mandaba la senal y seguia. Con `detached` el hijo
+//       SOBREVIVE al padre por diseño, asi que si tarda en morir el runner
+//       cierra con el todavia vivo.
+// ============================================================================
+
+describe('el servidor de pruebas cierra limpio', () => {
+  it('un `error` del proceso NO tumba la corrida entera', () => {
+    const falso = new EventEmitter() as any
+    const vistos: string[] = []
+    vigilarErrores(falso, (m) => vistos.push(m))
+
+    // Sin manejador, esto LANZA: es la regla de `EventEmitter` para 'error'.
+    expect(() => falso.emit('error', new Error('spawn ENOENT'))).not.toThrow()
+    expect(vistos).toHaveLength(1)
+    expect(vistos[0]).toMatch(/ENOENT/)
+  })
+
+  it('parar ESPERA a que el proceso muera, no solo manda la senal', async () => {
+    const falso = new EventEmitter() as any
+    falso.exitCode = null
+    falso.signalCode = null
+
+    let resuelto = false
+    const espera = esperarMuerte(falso, 1_000).then((r) => { resuelto = true; return r })
+    await new Promise((r) => setImmediate(r))
+
+    expect(resuelto, 'no puede darse por muerto antes de que salga').toBe(false)
+
+    falso.emit('exit', 0, null)
+    await expect(espera).resolves.toBe('salio')
+  })
+
+  it('y no se cuelga para siempre si el proceso no muere', async () => {
+    // Un `await` sin limite seria cambiar un fallo intermitente por un cuelgue,
+    // que es peor: al menos el rojo se ve.
+    const falso = new EventEmitter() as any
+    falso.exitCode = null
+    falso.signalCode = null
+    await expect(esperarMuerte(falso, 20)).resolves.toBe('timeout')
+  })
+
+  it('si ya estaba muerto, no espera nada', async () => {
+    const falso = new EventEmitter() as any
+    falso.exitCode = 0
+    falso.signalCode = null
+    await expect(esperarMuerte(falso, 1_000)).resolves.toBe('ya-estaba')
   })
 })

@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { URL_APP } from './db-e2e'
 import { CLIENT_ID_PRUEBA, CLIENT_SECRET_PRUEBA, ENDPOINT_DOBLE } from './doble-google'
-import { opcionesDeProceso } from './proceso-e2e'
+import { opcionesDeProceso, vigilarErrores, esperarMuerte } from './proceso-e2e'
 
 // ============================================================================
 //  lib/test/servidor-e2e.ts — El servidor de Next, de verdad, contra la BD de
@@ -96,6 +96,11 @@ export async function arrancarServidor(): Promise<void> {
     stdio: 'ignore',
   })
 
+  // Sin esto, un `spawn` que falla emite `error` SIN manejador, y eso en Node
+  // es una excepcion no capturada: la corrida entera sale con codigo 1 aunque
+  // las 295 pruebas esten en verde. Se probo en `proceso-e2e.test.ts`.
+  vigilarErrores(proceso)
+
   // Espera por CONDICIÓN, no por reloj: un `sleep` fijo produce fallos
   // intermitentes en cuanto la máquina va cargada.
   const limite = Date.now() + 60_000
@@ -113,6 +118,7 @@ export async function arrancarServidor(): Promise<void> {
 
 export async function pararServidor(): Promise<void> {
   if (!proceso) return
+  const muriendo = proceso
   const pid = proceso.pid
   proceso = null
   if (!pid) return
@@ -126,6 +132,12 @@ export async function pararServidor(): Promise<void> {
   } else {
     try { process.kill(-pid, 'SIGTERM') } catch { try { process.kill(pid, 'SIGTERM') } catch { /* ya murió */ } }
   }
+
+  // Mandar la señal no es estar muerto. Con `detached` el hijo sobrevive al
+  // padre por diseño, así que si tarda, el runner cierra con él todavía vivo y
+  // la corrida sale con código 1 teniendo todo en verde. Con techo: un `await`
+  // sin límite cambiaría un fallo intermitente por un cuelgue.
+  await esperarMuerte(muriendo)
 }
 
 // ─── Cliente HTTP con tarro de cookies ──────────────────────────────────────
