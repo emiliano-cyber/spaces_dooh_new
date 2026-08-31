@@ -114,11 +114,15 @@ describe('registro de migraciones aplicadas', () => {
     // (`postgres:16` de Debian, glibc `en_US.utf8`), donde la puntuacion es
     // ignorable en el nivel primario y el `_` deja de contar.
     //
-    // Medido sobre los 75 archivos reales el 2026-08-31: cambian de sitio
+    // Medido el 2026-08-31 contra un postgres:16 de Debian (datcollate
+    // en_US.utf8) con las 74 migraciones de esquema dentro: cambian de sitio
     // CUATRO, y son el grupo `20260727_contrato_incompleto*` --
-    // `contrato_incompleto.sql` se va de la posicion 40 a la 43, porque
-    // ignorando el `_` "cancelable" pasa por delante de "sql". Mismos
-    // elementos, distinto orden: `toEqual` rojo con dos arrays de 74.
+    // `contrato_incompleto.sql` cae de la posicion 41 a la 44, porque ignorando
+    // el `_` "cancelable" pasa por delante de "sql". Mismos 74 elementos en
+    // distinto orden: `toEqual` rojo con dos arrays de 74.
+    //
+    // Y `collate "C"` devuelve EXACTAMENTE el orden del `.sort()` de
+    // JavaScript, 74 de 74. Eso es lo que hace valida esta consulta.
     const { rows } = await poolTest().query(
       'select archivo, checksum, tipo from schema_migrations order by archivo collate "C"',
     )
