@@ -107,8 +107,20 @@ describe('registro de migraciones aplicadas', () => {
     // organización de desarrollo (`db/semilla-desarrollo.sql`, aplicada ANTES de
     // migrar a propósito) y todas las migraciones. Ahí el backfill debe haber
     // disparado.
+    // `collate "C"` NO es adorno: sin el, `order by` usa la collation de la
+    // BASE, y la expectativa de abajo sale de un `.sort()` de JavaScript, que
+    // ordena por codigo de caracter. Los dos coinciden en el Postgres local
+    // (`postgres:16-alpine`, musl -> collation C) y NO coinciden en el del CI
+    // (`postgres:16` de Debian, glibc `en_US.utf8`), donde la puntuacion es
+    // ignorable en el nivel primario y el `_` deja de contar.
+    //
+    // Medido sobre los 75 archivos reales el 2026-08-31: cambian de sitio
+    // CUATRO, y son el grupo `20260727_contrato_incompleto*` --
+    // `contrato_incompleto.sql` se va de la posicion 40 a la 43, porque
+    // ignorando el `_` "cancelable" pasa por delante de "sql". Mismos
+    // elementos, distinto orden: `toEqual` rojo con dos arrays de 74.
     const { rows } = await poolTest().query(
-      'select archivo, checksum, tipo from schema_migrations order by archivo',
+      'select archivo, checksum, tipo from schema_migrations order by archivo collate "C"',
     )
     expect(rows.length).toBeGreaterThan(0)
     for (const fila of rows) expect(fila.checksum).toBe('backfill')
@@ -311,7 +323,9 @@ describe('runner de migraciones', () => {
     expect(primera.stderr).toBe('')
     expect(primera.status).toBe(0)
 
-    const registradas = await pool.query('select archivo from schema_migrations order by archivo')
+    // `collate "C"` por lo mismo que arriba: la expectativa es un `.sort()` de
+    // JavaScript y el `order by` seguiria la collation de la base.
+    const registradas = await pool.query('select archivo from schema_migrations order by archivo collate "C"')
     expect(registradas.rows.map((r: any) => r.archivo)).toEqual(migracionesDeEsquema())
     expect(registradas.rows.length).toBeGreaterThanOrEqual(66)
 
@@ -573,7 +587,9 @@ describe('runner contra una instancia rezagada', () => {
     )
     expect(despues.rows[0].n).toBe(historicas.length)
 
-    const registradas = await pool.query('select archivo from schema_migrations order by archivo')
+    // `collate "C"` por lo mismo que arriba: la expectativa es un `.sort()` de
+    // JavaScript y el `order by` seguiria la collation de la base.
+    const registradas = await pool.query('select archivo from schema_migrations order by archivo collate "C"')
     expect(registradas.rows.map((x: any) => x.archivo)).toEqual(migracionesDeEsquema())
 
     // Y queda en el mismo esquema que el arnés: ponerse al día por este camino

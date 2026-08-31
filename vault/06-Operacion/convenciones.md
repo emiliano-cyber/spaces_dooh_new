@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-08-31
 tags: [convenciones, estilo, pruebas]
 archivos:
   - apps/web/lib/server/errores.ts
@@ -77,6 +77,62 @@ Las e2e:
 - usan dos roles: `spaces` (superusuario, siembra) y `spaces_app`
   (`nosuperuser nobypassrls`, para todo lo que deba respetar RLS);
 - se niegan a apuntar a una base cuyo nombre no acabe en `_e2e` o `_test`.
+
+> [!danger] 2026-08-31 · el arnés e2e era dependiente de plataforma, y nadie lo sabía
+> **Las e2e nunca habían corrido en Linux** hasta la primera corrida de
+> `release.yml`. Ese día **11 de 295 salieron rojas**, y ni uno solo de los
+> mensajes hablaba de la causa.
+>
+> `servidor-e2e.ts` lanzaba `next start` **sin `detached`**, así que en POSIX el
+> hijo heredaba el grupo de procesos del runner. `pararServidor()` mata el grupo
+> con `process.kill(-pid)`, que **exige que el hijo sea líder de su grupo**: sin
+> `detached` se va en ESRCH, el `catch` mata solo a `npx` y el servidor
+> **sobrevive con el puerto 3311 tomado**. El archivo siguiente lanza su
+> `next start`, muere por puerto ocupado, y su bucle de espera **recibe un 200
+> del servidor viejo y sigue como si nada**.
+>
+> Consecuencia: los 29 archivos hablaban con el servidor del primero. Las
+> variables que cada archivo pone antes del spawn —`ORG_NOMBRE`,
+> `BOOTSTRAP_TOKEN`, `FLOTA_TOKEN`— no llegaban nunca, y el limitador de
+> intentos (`lib/server/rate-limit.ts:13`, un `Map` en memoria) acumulaba los
+> cubos de todos, así que los archivos tardíos recibían **429 donde esperaban
+> 401**.
+>
+> **En Windows no pasa** —allí se mata con `taskkill /F /T`— y por eso pasó
+> siete semanas sin verse. La decisión de plataforma salió a
+> `lib/test/proceso-e2e.ts`, que **se prueba con `npm test`, sin Docker**: es lo
+> único que hace que un defecto de Linux se pueda cazar desde una máquina
+> Windows.
+>
+> **La lección, y es la de siempre en este repo**: el verde local no medía lo
+> que decía medir. Medía Windows.
+
+> [!warning] 2026-08-31 · SQL de prueba que ordena por texto lleva collation EXPLÍCITA
+> El segundo defecto de la misma corrida, e **independiente del anterior**:
+> `migraciones.e2e.test.ts` comparaba
+> `select archivo … order by archivo` contra un `.sort()` de JavaScript.
+>
+> El `order by` usa **la collation de la base**; el `.sort()` ordena por código
+> de carácter. Coinciden en el Postgres local —`postgres:16-alpine`
+> (`db/docker-compose.yml:21`), musl, collation **C**— y **no coinciden** en el
+> del CI, que es `postgres:16` de **Debian** con glibc `en_US.utf8`: allí la
+> puntuación es ignorable en el nivel primario y el `_` deja de contar.
+>
+> Medido sobre los 75 archivos reales: **cambian de sitio cuatro**, el grupo
+> `20260727_contrato_incompleto*`. `contrato_incompleto.sql` pasa de la posición
+> 40 a la 43, porque ignorando el `_` «cancelable» va por delante de «sql».
+> Mismos 74 elementos, distinto orden → `toEqual` en rojo imprimiendo
+> `[…(74)]` contra `[…(74)]`, que no dice nada de la causa.
+>
+> **La convención, entonces:** toda consulta de prueba que ordene por una
+> columna de texto y se compare contra una lista ordenada en JavaScript lleva
+> `collate "C"`. Hoy son tres, todas en `migraciones.e2e.test.ts`.
+>
+> ▸ **Lo que NO es un problema, comprobado**: `infra/scripts/update.sh:1371`
+> usa `string_agg(… order by archivo)` sin collation, pero sus tres huellas
+> (`:1504`, `:1518`, `:1857`) se comparan **contra la misma base de la misma
+> instancia**, donde la collation es constante. Se revisó por sospecha y quedó
+> descartado.
 
 > [!danger] Las unitarias no ven los fallos de RLS
 > Simulan la base. Los dos peores fallos de aislamiento del proyecto pasaron las

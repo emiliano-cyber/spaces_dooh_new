@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { URL_APP } from './db-e2e'
 import { CLIENT_ID_PRUEBA, CLIENT_SECRET_PRUEBA, ENDPOINT_DOBLE } from './doble-google'
+import { opcionesDeProceso } from './proceso-e2e'
 
 // ============================================================================
 //  lib/test/servidor-e2e.ts — El servidor de Next, de verdad, contra la BD de
@@ -88,7 +89,10 @@ export async function arrancarServidor(): Promise<void> {
       DOOHMAIN_DEFAULT_SCREEN: 'pantalla_de_prueba',
       DOOHMAIN_SCREEN_MAP: '{}',
     },
-    shell: process.platform === 'win32',
+    // La plataforma decide en `proceso-e2e.ts`, que se prueba con `npm test`.
+    // Estaba aqui en linea y le faltaba `detached`, que es lo que hacia que en
+    // Linux `pararServidor()` no pudiera matar el servidor.
+    ...opcionesDeProceso(),
     stdio: 'ignore',
   })
 
