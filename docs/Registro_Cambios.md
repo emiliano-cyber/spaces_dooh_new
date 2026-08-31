@@ -61,6 +61,19 @@ La entrada más reciente va arriba.
   aunque alguien quiera**. No es una comprobación que se pueda olvidar; es el
   orden en que están puestas las cosas.
 
+- **La copia de pruebas del sistema tiene por fin su propia dirección:
+  `pruebas.space-os.io`.** Existe una segunda copia de la aplicación, separada de
+  la de trabajo, que sirve para **probar cada versión nueva antes de que llegue a
+  nadie**. Funcionaba, pero no tenía dirección propia: solo se podía ver desde
+  dentro del servidor.
+
+  Eso importaba más de lo que parece, porque **el sistema se niega a aprobar una
+  versión sin haber mirado antes esa copia de pruebas**. Sin dirección, no había
+  forma de mirarla, y por lo tanto no se podía aprobar ninguna versión.
+
+  Es una dirección **nueva**, no la de la demostración antigua —esa se elimina—, y
+  la usa el equipo, no los clientes.
+
 - **Se retira el último camino que actualizaba el sistema entrando al servidor.**
   Había un procedimiento que se conectaba a la máquina, compilaba el programa
   **allí mismo** y lo reiniciaba. Ese era el modo antiguo, y tenía dos problemas:
