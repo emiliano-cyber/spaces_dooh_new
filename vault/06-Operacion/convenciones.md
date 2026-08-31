@@ -118,11 +118,35 @@ Las e2e:
 > del CI, que es `postgres:16` de **Debian** con glibc `en_US.utf8`: allí la
 > puntuación es ignorable en el nivel primario y el `_` deja de contar.
 >
-> Medido sobre los 75 archivos reales: **cambian de sitio cuatro**, el grupo
-> `20260727_contrato_incompleto*`. `contrato_incompleto.sql` pasa de la posición
-> 40 a la 43, porque ignorando el `_` «cancelable» va por delante de «sql».
-> Mismos 74 elementos, distinto orden → `toEqual` en rojo imprimiendo
-> `[…(74)]` contra `[…(74)]`, que no dice nada de la causa.
+> **Medido** el 2026-08-31 contra un `postgres:16` de Debian desechable, con las
+> **74** migraciones de esquema reales dentro:
+>
+> ```
+> datcollate              | en_US.utf8      ← el del CI
+> filas                   | 74
+> posiciones_que_difieren | 4
+>
+>      por omisión                                collate "C"
+>  41  ...contrato_incompleto_cancelable.sql      ...contrato_incompleto.sql
+>  44  ...contrato_incompleto.sql                 ...contrato_incompleto_enum.sql
+> ```
+>
+> **Cambian de sitio cuatro**, y son el grupo `20260727_contrato_incompleto*`:
+> ignorando el `_`, «cancelable» va por delante de «sql», así que
+> `contrato_incompleto.sql` cae de la posición 41 a la 44. Mismos 74 elementos en
+> distinto orden → `toEqual` en rojo imprimiendo `[…(74)]` contra `[…(74)]`, que
+> no dice nada de la causa.
+>
+> Y se comprobó lo que hace válida la corrección: `order by archivo collate "C"`
+> devuelve **exactamente** el orden del `.sort()` de JavaScript, 74 de 74.
+>
+> ▸ **Cómo se llegó, que importa más que el número**: primero se *simuló* la
+> regla de glibc (puntuación ignorable) y la primera simulación —que solo
+> ignoraba el `_`— dijo que **los dos órdenes coincidían**, o sea que la
+> hipótesis era falsa. Solo al incluir el `.` apareció el grupo de los cuatro.
+> **Una simulación descartó su propia primera versión**; la medición llegó
+> después y confirmó el resultado al elemento. Escrito «medido» cuando aún era
+> simulado en el commit `e9bf528`: corregido aquí.
 >
 > **La convención, entonces:** toda consulta de prueba que ordene por una
 > columna de texto y se compare contra una lista ordenada en JavaScript lleva
