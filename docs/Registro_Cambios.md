@@ -62,7 +62,7 @@ La entrada más reciente va arriba.
   orden en que están puestas las cosas.
 
 - **La copia de pruebas del sistema tiene por fin su propia dirección:
-  `pruebas.space-os.io`.** Existe una segunda copia de la aplicación, separada de
+  `prueba.space-os.io`.** Existe una segunda copia de la aplicación, separada de
   la de trabajo, que sirve para **probar cada versión nueva antes de que llegue a
   nadie**. Funcionaba, pero no tenía dirección propia: solo se podía ver desde
   dentro del servidor.

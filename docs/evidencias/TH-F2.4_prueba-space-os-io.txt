@@ -1,5 +1,5 @@
 ============================================================
- TH-F2.4 · DEMO ESTRENA NOMBRE: pruebas.space-os.io
+ TH-F2.4 · DEMO ESTRENA NOMBRE: prueba.space-os.io
  Y con eso se cierra F2.4 y la Fase 2 entera.
  Fecha: 2026-08-31
 ============================================================
@@ -44,7 +44,7 @@
 #  BLOQUE 1 · TU PC — que el nombre resuelve  🚦 PUERTA 1
 # ############################################################
 
-nslookup pruebas.space-os.io
+nslookup prueba.space-os.io
 
 # ESPERADO: 137.184.107.53
 #
@@ -69,7 +69,7 @@ echo ok; certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
 # Ahora se AMPLIA el certificado que ya existe. No se crea otro:
 # el vhost nuevo usa la misma ruta /etc/letsencrypt/live/space-os.io/
 
-echo ok; certbot certonly --webroot -w /var/www/html --expand --non-interactive --agree-tos --no-eff-email -d space-os.io -d pruebas.space-os.io
+echo ok; certbot certonly --webroot -w /var/www/html --expand --non-interactive --agree-tos --no-eff-email -d space-os.io -d prueba.space-os.io
 
 # >>> `--webroot` NO para nginx: el bloque 2 del .conf ya sirve
 #     /.well-known/acme-challenge/ desde /var/www/html. El sitio
@@ -83,7 +83,7 @@ echo ok; certbot certonly --webroot -w /var/www/html --expand --non-interactive 
 echo ok; certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
 
 # ESPERADO: en Domains tienen que aparecer LOS DOS:
-#           space-os.io  y  pruebas.space-os.io
+#           space-os.io  y  prueba.space-os.io
 #
 # >>> Si solo aparece space-os.io, PARA. El vhost del bloque
 #     siguiente no arrancaria y ademas el HSTS dejaria el
@@ -130,9 +130,9 @@ echo ok; systemctl reload nginx; systemctl is-active nginx
 #  Correlas desde tu PC, no desde el servidor.
 # ############################################################
 
-curl -s -o NUL -w "login   -> %{http_code}\n" https://pruebas.space-os.io/spaces-dooh/login/
+curl -s -o NUL -w "login   -> %{http_code}\n" https://prueba.space-os.io/spaces-dooh/login/
 
-curl -s -o NUL -w "metodos -> %{http_code}\n" https://pruebas.space-os.io/spaces-dooh/api/auth/metodos/
+curl -s -o NUL -w "metodos -> %{http_code}\n" https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
 
 # ESPERADO: 200 y 200.
 #
@@ -142,7 +142,7 @@ curl -s -o NUL -w "metodos -> %{http_code}\n" https://pruebas.space-os.io/spaces
 #     el nombre no entro en el certificado.
 #
 # Y de paso, que efectivamente es DEMO y no el PADRE:
-curl -s https://pruebas.space-os.io/spaces-dooh/api/version/ ; echo
+curl -s https://prueba.space-os.io/spaces-dooh/api/version/ ; echo
 
 
 # ############################################################
@@ -154,7 +154,7 @@ curl -s https://pruebas.space-os.io/spaces-dooh/api/version/ ; echo
  PESTANA "Variables" -> New repository variable:
 
       Nombre : DEMO_URL
-      Valor  : https://pruebas.space-os.io/spaces-dooh
+      Valor  : https://prueba.space-os.io/spaces-dooh
 
  >>> SIN barra final. El workflow la quita igual, pero asi es
      literalmente lo que su mensaje de error pide.
@@ -196,7 +196,7 @@ git push emiliano v0.1.0
 #   version: v0.1.0
 #
 # Lo que hara, en orden: comprobar que v0.1.0 es la que lleva
-# `beta` -> smoke contra pruebas.space-os.io -> reetiquetar la
+# `beta` -> smoke contra prueba.space-os.io -> reetiquetar la
 # MISMA imagen como `estable`, sin reconstruir -> releer el
 # digest y fallar si no coincide.
 
