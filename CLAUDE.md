@@ -407,7 +407,13 @@ El contexto completo —qué cambió, qué costó, qué está bloqueado y por qu
 ### Lo que está detenido — al 2026-08-31
 
 **El proyecto ya no está limitado por trabajo, sino por decisiones.** De las 10
-tareas que quedan con objeto, **9 esperaban el nombre del registry de imágenes**.
+tareas que quedaban con objeto, **9 esperaban el nombre del registry de imágenes**.
+Ese nombre llegó el 31/08 y **F2.3 se cerró el mismo día, con imagen publicada**.
+Y la auditoría de esa tarde encontró que **F5.3 y F5.4 ya estaban hechas** —el
+trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogió—:
+**quedan 7**, y la Fase 5 va por **5 de 8**, no 3. Evidencia medida en
+`docs/evidencias/auditoria-f5-31-agosto.md`. Y con **F8.2** hecha esa misma tarde,
+**la Fase 8 queda completa** y bajan a **6**.
 
 > [!success] 2026-08-31 · el registry existe
 > **`registry.digitalocean.com/registryspaces`**, NYC3, **plan gratuito** (500 MiB,
@@ -419,11 +425,27 @@ tareas que quedan con objeto, **9 esperaban el nombre del registry de imágenes*
 > Los workflows ya están escritos y **paran en seco cuando faltan las variables, a
 > propósito** (`release.yml:183-189`).
 >
-> **Falta un dato, y no se puede estimar**: cuánto pesa la imagen. No se ha
-> construido nunca. Se mide en el panel tras el primer `release.yml` y decide si los
-> 500 MiB alcanzan o hay que subir a Basic (≈5 USD/mes, 5 GiB).
+> **Y ya está medido**: con `v0.0.1-rc2` dentro, el registro marca **11 %** de
+> 500 MiB, o sea **~55 MiB** la primera versión completa. **El plan gratuito
+> sobra y no hay que subir a Basic.** Lo que falta por saber es el **coste
+> incremental**, que es el número que manda: las versiones comparten capas, así
+> que la segunda dirá si cada release cuesta ~6 % (caben ~15) o ~11 % (caben ~9).
+> Se lee en el mismo sitio tras el próximo `release.yml`.
 
-Fases cerradas: **0, 1, 4 y 6**. La 3 en 8 de 9.
+> [!success] 2026-08-31 · F2.3 CERRADA — la primera imagen existe
+> `v0.0.1-rc2` publicada en el canal `beta`, digest `sha256:12089fb4…`, con
+> **1009 unitarias y 295 e2e en verde**. Detalle del recorrido en
+> [[01-Arquitectura/entorno-y-despliegue]].
+>
+> **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
+> desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
+
+Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 en 8 de 9 y la 5 en 5 de 8.
+
+> **De las 6 que quedan, ninguna es trabajo de codigo en la maquina de desarrollo.**
+> Cuatro son de servidor (F3.5, F3.6, F5.6, F5.7), una espera la decision de DEMO
+> (F2.4) y **F5.5** es una rama ya preparada (`chore/retirar-scripts-pista-archivada`)
+> que solo espera a F3.6.
 
 > [!danger] La Fase 7 ya no existe, y seis tareas más quedaron sin objeto
 > El **ADR 0023** (27/08) sacó el droplet viejo del modelo al confirmarse que

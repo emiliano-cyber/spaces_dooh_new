@@ -106,6 +106,20 @@ Las e2e:
 >
 > **La lección, y es la de siempre en este repo**: el verde local no medía lo
 > que decía medir. Medía Windows.
+>
+> ⚠️ **DEUDA CONOCIDA, y va a volver.** Con la corrección puesta, el paso de e2e
+> salió una vez con **`exit code 1` y las 295 en verde**, y a la corrida siguiente
+> —**sin tocar nada**— salió limpio. Eso no es un fallo arreglado: es
+> **intermitente**. La causa probable es la otra cara de `detached`: el hijo
+> **sobrevive al padre** por diseño, así que si el último `next start` tarda en
+> morir, vitest cierra con error unas veces sí y otras no. El `spawn` tampoco
+> tiene manejador de `error`, y un `error` sin manejar cuenta como fallo aunque
+> ninguna prueba falle.
+>
+> **Corrección probable cuando reaparezca** (no se hizo: no bloquea nada y se
+> prefirió no tocar dos veces el mismo archivo intocable): manejador de `error` en
+> el `spawn`, y que `pararServidor()` **espere a que el proceso muera** en vez de
+> solo mandar la señal.
 
 > [!warning] 2026-08-31 · SQL de prueba que ordena por texto lleva collation EXPLÍCITA
 > El segundo defecto de la misma corrida, e **independiente del anterior**:

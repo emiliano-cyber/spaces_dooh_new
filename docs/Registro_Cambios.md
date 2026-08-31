@@ -39,6 +39,37 @@ La entrada más reciente va arriba.
   pruebas en rojo, **no se publica nada**: no hay forma de que llegue a un
   servidor sin haber pasado antes.
 
+- **Y ya hay una primera versión empaquetada y guardada.** La aplicación se armó
+  una sola vez, en una máquina limpia, y el paquete resultante quedó guardado en
+  el almacén con el nombre `v0.0.1-rc2`. Es la primera vez que existe una versión
+  de SPACE OS como tal: hasta hoy solo había código, y cada servidor se hacía su
+  propia copia.
+
+  De momento está en el **canal de pruebas**, que es el que mira la demostración.
+  Ninguna instalación de cliente lo ve, y no lo verá hasta que alguien la marque
+  como estable a mano — eso es un paso aparte y deliberado.
+
+- **El control de calidad se estrenó impidiendo una publicación, que es para lo
+  que está.** El primer intento **no publicó nada**: al armar el paquete se
+  corrieron las pruebas y once salieron mal, así que el proceso se detuvo antes
+  de guardar nada. No era un problema del sistema — eran dos fallos de las
+  propias pruebas, que llevaban semanas escondidos porque nunca se habían
+  ejecutado fuera de la computadora del desarrollador. Se corrigieron y el
+  segundo intento pasó las **1 304 pruebas** sin una sola falla.
+
+  Lo que importa de esto: **una versión con pruebas en rojo no se puede publicar
+  aunque alguien quiera**. No es una comprobación que se pueda olvidar; es el
+  orden en que están puestas las cosas.
+
+- **Los dos documentos del diseño viejo quedan marcados como descartados.** En
+  agosto se diseñó otra forma de dar servicio a varias empresas —todas
+  compartiendo una misma base de datos, separadas por la dirección web— y el
+  2026-08-12 se decidió no hacerlo así: cada cliente tiene su propia instalación
+  y su propia base. Esos dos documentos **no se borran**, porque el contexto de
+  una decisión también es documentación, pero ahora **avisan en la primera línea**
+  de que están archivados y a qué documento hay que ir. La confusión que evita es
+  concreta: alguien podría abrirlos y ponerse a construir el modelo equivocado.
+
 - **Queda una decisión pendiente y conviene que se sepa**: qué dirección de
   internet representa a la demostración a la hora de dar el visto bueno a una
   versión. Hoy `demo.space-os.io` apunta a la máquina vieja, que quedó fuera del
