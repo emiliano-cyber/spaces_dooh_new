@@ -61,6 +61,16 @@ La entrada más reciente va arriba.
   aunque alguien quiera**. No es una comprobación que se pueda olvidar; es el
   orden en que están puestas las cosas.
 
+- **Se retiran cuatro programas viejos que ya no se podían usar sin hacer daño.**
+  Eran los que daban de alta una empresa cuando todas compartían una misma base de
+  datos: creaban su espacio dentro de la base común y propagaban cambios a todas a
+  la vez. Ese modelo se descartó en agosto —ahora cada cliente tiene su propia
+  instalación—, así que esos programas ya no describían el sistema: describían uno
+  que dejó de existir. **El riesgo de dejarlos era que alguien los corriera**
+  creyendo que seguían sirviendo. En su lugar queda una nota que dice cuáles son los
+  programas vigentes y una frase para evitar la recaída: dar de alta a un cliente es
+  **preparar su instalación**, no añadir una fila a una tabla.
+
 - **Los dos documentos del diseño viejo quedan marcados como descartados.** En
   agosto se diseñó otra forma de dar servicio a varias empresas —todas
   compartiendo una misma base de datos, separadas por la dirección web— y el

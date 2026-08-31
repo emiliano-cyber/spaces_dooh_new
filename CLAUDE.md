@@ -442,6 +442,18 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 
 Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 en 8 de 9 y la 5 en 5 de 8.
 
+> [!important] Antes de tomar la siguiente tarea, lee la revisión del 31/08
+> `docs/evidencias/revision-fases-31-agosto.md`. **El plan v3 es del 13 de agosto y
+> describe una arquitectura que cambió el 27 y el 28**: tres de las seis tareas que
+> quedan tienen la ficha desalineada con el repositorio.
+>
+> Lo más importante que encontró: **el cuello de botella es uno solo, y no es una
+> decisión.** DEMO **no es una instancia** —corre `next start` desde el repo
+> clonado (`infra/systemd/spaces-demo.service:77`), no desde la imagen—, y por eso
+> **F3.5 no se puede ejecutar** (`update.sh` actualiza contenedores) y **F2.4
+> tampoco** (`promover.yml:127-129` exige una `DEMO_URL` con `https`, y DEMO no
+> tiene nombre desde el ADR 0024). **Las dos se destraban con el mismo trabajo.**
+
 > **De las 6 que quedan, ninguna es trabajo de codigo en la maquina de desarrollo.**
 > Cuatro son de servidor (F3.5, F3.6, F5.6, F5.7), una espera la decision de DEMO
 > (F2.4) y **F5.5** es una rama ya preparada (`chore/retirar-scripts-pista-archivada`)
