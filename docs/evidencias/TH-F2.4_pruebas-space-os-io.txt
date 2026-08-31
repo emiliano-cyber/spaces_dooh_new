@@ -1,0 +1,216 @@
+============================================================
+ TH-F2.4 · DEMO ESTRENA NOMBRE: pruebas.space-os.io
+ Y con eso se cierra F2.4 y la Fase 2 entera.
+ Fecha: 2026-08-31
+============================================================
+
+ EL ORDEN NO ES NEGOCIABLE:
+      DNS  ->  CERTIFICADO  ->  VHOST  ->  RECARGA
+
+ Y no es manía. Dos razones, las dos hacen dano:
+
+  · nginx NO ARRANCA si `ssl_certificate` apunta a un archivo
+    que no existe. `nginx -t` falla y el reload no ocurre.
+  · El HSTS del apice lleva `includeSubDomains`, que obliga a
+    HTTPS a TODO subdominio de space-os.io durante DOS ANOS.
+    Un subdominio nuevo sin certificado no queda "roto":
+    queda INACCESIBLE, y el navegador NO deja saltarselo.
+
+ >>> Pega por bloques. La consola web se come el primer
+     caracter de cada pegada; por eso van con `echo ok;`.
+
+ >>> Hay CINCO puertas 🚦. Si una no da lo esperado, PARA y
+     pasame la salida. No sigas al bloque siguiente.
+
+
+# ############################################################
+#  BLOQUE 0 · NAVEGADOR — el registro DNS
+# ############################################################
+
+ En el proveedor donde vive la zona `space-os.io`:
+
+     Tipo    : A
+     Nombre  : pruebas
+     Valor   : 137.184.107.53
+     TTL     : el mas corto que ofrezca (300 s o "auto")
+
+ >>> SI LA ZONA ESTA EN CLOUDFLARE: dejalo en **DNS only**
+     (nube GRIS, no naranja). Con el proxy encendido, quien
+     termina el TLS es Cloudflare y no esta maquina, y el
+     certificado que vas a emitir no se llegaria a usar.
+
+
+# ############################################################
+#  BLOQUE 1 · TU PC — que el nombre resuelve  🚦 PUERTA 1
+# ############################################################
+
+nslookup pruebas.space-os.io
+
+# ESPERADO: 137.184.107.53
+#
+# >>> Si todavia devuelve otra cosa o nada, ESPERA y repite.
+#     No sigas: certbot fallaria y quemarias intentos contra
+#     Let's Encrypt, que tiene limite por semana.
+
+
+# ############################################################
+#  BLOQUE 2 · EN EL PADRE — ampliar el certificado
+# ############################################################
+
+ssh root@137.184.107.53
+
+# 🚦 PUERTA 2 — antes de nada, que es lo que hay hoy:
+
+echo ok; certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+
+# Apunta lo que salga. Es la vuelta atras: si algo se tuerce,
+# esto es lo que habia.
+
+# Ahora se AMPLIA el certificado que ya existe. No se crea otro:
+# el vhost nuevo usa la misma ruta /etc/letsencrypt/live/space-os.io/
+
+echo ok; certbot certonly --webroot -w /var/www/html --expand --non-interactive --agree-tos --no-eff-email -d space-os.io -d pruebas.space-os.io
+
+# >>> `--webroot` NO para nginx: el bloque 2 del .conf ya sirve
+#     /.well-known/acme-challenge/ desde /var/www/html. El sitio
+#     sigue en linea durante todo esto.
+#
+# >>> Efecto secundario bueno: la renovacion pasa de
+#     `--standalone` (que paraba nginx) a `--webroot`, que no.
+
+# 🚦 PUERTA 3 — que el nombre nuevo esta DENTRO del certificado:
+
+echo ok; certbot certificates | grep -E 'Certificate Name|Domains|Expiry'
+
+# ESPERADO: en Domains tienen que aparecer LOS DOS:
+#           space-os.io  y  pruebas.space-os.io
+#
+# >>> Si solo aparece space-os.io, PARA. El vhost del bloque
+#     siguiente no arrancaria y ademas el HSTS dejaria el
+#     nombre inaccesible.
+
+
+# ############################################################
+#  BLOQUE 3 · EN EL PADRE — traer el vhost y recargar
+# ############################################################
+#  El .conf de nginx esta VERSIONADO y ENLAZADO:
+#    /etc/nginx/sites-enabled/spaces -> /var/www/Spaces/infra/nginx/space-os.io.conf
+#  Asi que el cambio de configuracion viaja por `git pull`.
+#
+#  ANTES: fusiona el PR (Downloads\PR-demo-subdominio.txt).
+# ############################################################
+
+echo ok; cd /var/www/Spaces && git pull
+
+# Si se queja del lockfile (node 20 aqui), lo poda y sigue:
+echo ok; cd /var/www/Spaces && git checkout -- package-lock.json 2>/dev/null; git log --oneline -1
+
+# >>> NO hace falta `npm install` ni `npm run build`: este
+#     cambio no toca ni una linea de la aplicacion. Solo nginx.
+
+# 🚦 PUERTA 4 — la configuracion es valida:
+
+echo ok; nginx -t
+
+# ESPERADO: "syntax is ok" y "test is successful".
+#
+# >>> Si falla, NO RECARGUES y pasame el error. nginx sigue
+#     sirviendo la configuracion vieja, o sea que no se ha
+#     caido nada. Es exactamente lo que paso el 28/08 con un
+#     `proxy_read_timeout` duplicado: no se cayo nada PORQUE
+#     `nginx -t` dijo que no antes.
+
+echo ok; systemctl reload nginx; systemctl is-active nginx
+
+
+# ############################################################
+#  BLOQUE 4 · DESDE FUERA — 🚦 PUERTA 5, las dos que mira el smoke
+# ############################################################
+#  Estas dos son EXACTAMENTE las que comprueba `promover.yml`.
+#  Correlas desde tu PC, no desde el servidor.
+# ############################################################
+
+curl -s -o NUL -w "login   -> %{http_code}\n" https://pruebas.space-os.io/spaces-dooh/login/
+
+curl -s -o NUL -w "metodos -> %{http_code}\n" https://pruebas.space-os.io/spaces-dooh/api/auth/metodos/
+
+# ESPERADO: 200 y 200.
+#
+# >>> Si sale 502, el 3001 no responde: `systemctl status
+#     spaces-demo` en el servidor.
+# >>> Si el navegador se queja del certificado, es la puerta 3:
+#     el nombre no entro en el certificado.
+#
+# Y de paso, que efectivamente es DEMO y no el PADRE:
+curl -s https://pruebas.space-os.io/spaces-dooh/api/version/ ; echo
+
+
+# ############################################################
+#  BLOQUE 5 · GITHUB — la variable, y una que NO debe existir
+# ############################################################
+
+ Settings -> Secrets and variables -> Actions
+
+ PESTANA "Variables" -> New repository variable:
+
+      Nombre : DEMO_URL
+      Valor  : https://pruebas.space-os.io/spaces-dooh
+
+ >>> SIN barra final. El workflow la quita igual, pero asi es
+     literalmente lo que su mensaje de error pide.
+
+ ⚠️ PESTANA "Secrets" -> COMPRUEBA que NO existe `FLOTA_TOKEN`.
+    Si existe, BORRALO por ahora y avisame.
+
+    Por que: el smoke, si tiene ese token, le pregunta a DEMO
+    que version corre y exige que coincida con la que se
+    promueve. DEMO corre desde el repositorio, no desde la
+    imagen, asi que responde `desconocida`
+    (api/version/route.ts:102) -- y `desconocida` no es vacio,
+    de modo que el smoke lo compararia y FALLARIA SIEMPRE.
+    Vuelve a ponerse el dia que DEMO corra desde la imagen
+    (F3.5), y entonces la comprobacion se vuelve estricta sola.
+
+
+# ############################################################
+#  BLOQUE 6 · LA PRIMERA VERSION DE VERDAD
+# ############################################################
+#  `promover.yml` exige vX.Y.Z EXACTO, sin sufijo
+#  (promover.yml:10-14). La que hay hoy en `beta` es
+#  v0.0.1-rc2, que NO se puede promover -- y es a proposito:
+#  un release candidate no es material de `estable`.
+#
+#  Asi que primero se publica una version limpia.
+# ############################################################
+
+cd C:\Users\Server\spaces_doohmain_nueva
+git fetch emiliano main:main
+git tag v0.1.0 main
+git push emiliano v0.1.0
+
+# Espera a que `release.yml` acabe en verde (~6 min) y a que
+# v0.1.0 aparezca en el registro con la etiqueta `beta`.
+
+# Despues, EN EL NAVEGADOR:
+#   Actions -> promover.yml -> Run workflow
+#   version: v0.1.0
+#
+# Lo que hara, en orden: comprobar que v0.1.0 es la que lleva
+# `beta` -> smoke contra pruebas.space-os.io -> reetiquetar la
+# MISMA imagen como `estable`, sin reconstruir -> releer el
+# digest y fallar si no coincide.
+
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   1. Las cinco puertas: si dieron lo esperado o donde paro.
+#   2. El resumen de la corrida de `promover.yml`. Va a decir
+#      "qué versión corre DEMO: NO COMPROBADO", y ESO ESTA
+#      BIEN: es honesto, y se arregla solo cuando DEMO corra
+#      desde la imagen.
+#   3. El STORAGE USAGE del registro, otra vez. Con la segunda
+#      version sabremos cuanto cuesta cada release.
+#
+#  Con eso F2.4 queda cerrada y la FASE 2 COMPLETA.
+# ############################################################
