@@ -200,6 +200,12 @@ describen el modelo de base compartida con subdominio por tenant que este ADR
 sustituye. No se ejecutan y no se borran. La corrección que los reemplaza es del
 2026-08-12, y su desarrollo es `docs/Plan_Instancias_Soberanas_v3.md`.
 
+Desde el **2026-08-31** no hace falta llegar hasta aquí para saberlo: los dos
+archivos **lo avisan en su primera línea** (F8.2). Están en la carpeta
+`server padre` del operador, junto al resto de los documentos del modelo, y su
+cabecera manda al **documento vigente** — al v3, no al v2, que también quedó
+sustituido.
+
 ## Cuándo revisar
 
 Cuando exista la **primera instancia de un owner de pago**. Ahí se comprueban de
