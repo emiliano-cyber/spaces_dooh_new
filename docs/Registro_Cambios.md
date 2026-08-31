@@ -61,6 +61,15 @@ La entrada más reciente va arriba.
   aunque alguien quiera**. No es una comprobación que se pueda olvidar; es el
   orden en que están puestas las cosas.
 
+- **Los dos documentos del diseño viejo quedan marcados como descartados.** En
+  agosto se diseñó otra forma de dar servicio a varias empresas —todas
+  compartiendo una misma base de datos, separadas por la dirección web— y el
+  2026-08-12 se decidió no hacerlo así: cada cliente tiene su propia instalación
+  y su propia base. Esos dos documentos **no se borran**, porque el contexto de
+  una decisión también es documentación, pero ahora **avisan en la primera línea**
+  de que están archivados y a qué documento hay que ir. La confusión que evita es
+  concreta: alguien podría abrirlos y ponerse a construir el modelo equivocado.
+
 - **Queda una decisión pendiente y conviene que se sepa**: qué dirección de
   internet representa a la demostración a la hora de dar el visto bueno a una
   versión. Hoy `demo.space-os.io` apunta a la máquina vieja, que quedó fuera del
