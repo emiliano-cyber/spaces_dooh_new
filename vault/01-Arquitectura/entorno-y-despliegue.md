@@ -444,9 +444,29 @@ instancia no necesita volumen.**
 
 ### `release.yml` — un tag publica en `beta` (17/08, F2.3)
 
-**Escrito, NUNCA corrido.** No puede correrse todavía: el destino sale de dos
-variables del repositorio que aún no existen (**TH-P4**), y hacerlo exige empujar
-un tag, que es cosa de una persona.
+**CORRIDO Y PUBLICANDO desde el 2026-08-31.** Dejó de ser una promesa: la primera
+imagen de SPACE OS existe.
+
+```
+Versión    v0.0.1-rc2          (sobre `main` en dd0cec7)
+Etiquetas  v0.0.1-rc2  y  beta
+Digest     registry.digitalocean.com/registryspaces/space-os@sha256:12089fb4…
+Duración   3 m 19 s de pruebas + 2 m 28 s de imagen
+```
+
+> [!important] Lo que costó, y es la parte que vale
+> La **primera** etiqueta (`v0.0.1-rc1`) salió **roja: 11 e2e de 295**. No era el
+> workflow ni el registry — eran **dos defectos del arnés de pruebas que llevaban
+> siete semanas escondidos porque las e2e nunca habían corrido en Linux**. Están
+> contados en [[convenciones]]: el servidor que no moría, y el orden que dependía
+> de la collation.
+>
+> **El gate funcionó exactamente como se diseñó**: con las pruebas en rojo,
+> `needs: pruebas` dejó el job `imagen` sin ejecutar y **no se publicó nada**.
+> `beta` no llegó a moverse hacia una imagen sin probar.
+>
+> `v0.0.1-rc1` **se conserva** apuntando al código sin corregir: es la evidencia
+> del rojo.
 
 Dos jobs, y el orden **es** el mecanismo de seguridad:
 

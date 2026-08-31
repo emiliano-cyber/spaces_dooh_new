@@ -407,7 +407,9 @@ El contexto completo —qué cambió, qué costó, qué está bloqueado y por qu
 ### Lo que está detenido — al 2026-08-31
 
 **El proyecto ya no está limitado por trabajo, sino por decisiones.** De las 10
-tareas que quedan con objeto, **9 esperaban el nombre del registry de imágenes**.
+tareas que quedaban con objeto, **9 esperaban el nombre del registry de imágenes**.
+Ese nombre llegó el 31/08 y **F2.3 se cerró el mismo día, con imagen publicada**:
+quedan **9**.
 
 > [!success] 2026-08-31 · el registry existe
 > **`registry.digitalocean.com/registryspaces`**, NYC3, **plan gratuito** (500 MiB,
@@ -419,11 +421,20 @@ tareas que quedan con objeto, **9 esperaban el nombre del registry de imágenes*
 > Los workflows ya están escritos y **paran en seco cuando faltan las variables, a
 > propósito** (`release.yml:183-189`).
 >
-> **Falta un dato, y no se puede estimar**: cuánto pesa la imagen. No se ha
-> construido nunca. Se mide en el panel tras el primer `release.yml` y decide si los
-> 500 MiB alcanzan o hay que subir a Basic (≈5 USD/mes, 5 GiB).
+> **Falta un dato, y sigue sin medirse**: cuánto pesa la imagen. Ya existe
+> (`v0.0.1-rc2`), así que **ahora sí se puede leer** en el panel del registro —
+> tarjeta `STORAGE USAGE`, o el tamaño de la etiqueta. Decide si los 500 MiB
+> alcanzan o hay que subir a Basic (≈5 USD/mes, 5 GiB).
 
-Fases cerradas: **0, 1, 4 y 6**. La 3 en 8 de 9.
+> [!success] 2026-08-31 · F2.3 CERRADA — la primera imagen existe
+> `v0.0.1-rc2` publicada en el canal `beta`, digest `sha256:12089fb4…`, con
+> **1009 unitarias y 295 e2e en verde**. Detalle del recorrido en
+> [[01-Arquitectura/entorno-y-despliegue]].
+>
+> **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
+> desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
+
+Fases cerradas: **0, 1, 4 y 6**. La 2 en 5 de 6 y la 3 en 8 de 9.
 
 > [!danger] La Fase 7 ya no existe, y seis tareas más quedaron sin objeto
 > El **ADR 0023** (27/08) sacó el droplet viejo del modelo al confirmarse que
