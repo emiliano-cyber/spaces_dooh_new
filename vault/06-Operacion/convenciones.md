@@ -107,6 +107,33 @@ Las e2e:
 > **La lección, y es la de siempre en este repo**: el verde local no medía lo
 > que decía medir. Medía Windows.
 
+> [!warning] 2026-08-31 · SQL de prueba que ordena por texto lleva collation EXPLÍCITA
+> El segundo defecto de la misma corrida, e **independiente del anterior**:
+> `migraciones.e2e.test.ts` comparaba
+> `select archivo … order by archivo` contra un `.sort()` de JavaScript.
+>
+> El `order by` usa **la collation de la base**; el `.sort()` ordena por código
+> de carácter. Coinciden en el Postgres local —`postgres:16-alpine`
+> (`db/docker-compose.yml:21`), musl, collation **C**— y **no coinciden** en el
+> del CI, que es `postgres:16` de **Debian** con glibc `en_US.utf8`: allí la
+> puntuación es ignorable en el nivel primario y el `_` deja de contar.
+>
+> Medido sobre los 75 archivos reales: **cambian de sitio cuatro**, el grupo
+> `20260727_contrato_incompleto*`. `contrato_incompleto.sql` pasa de la posición
+> 40 a la 43, porque ignorando el `_` «cancelable» va por delante de «sql».
+> Mismos 74 elementos, distinto orden → `toEqual` en rojo imprimiendo
+> `[…(74)]` contra `[…(74)]`, que no dice nada de la causa.
+>
+> **La convención, entonces:** toda consulta de prueba que ordene por una
+> columna de texto y se compare contra una lista ordenada en JavaScript lleva
+> `collate "C"`. Hoy son tres, todas en `migraciones.e2e.test.ts`.
+>
+> ▸ **Lo que NO es un problema, comprobado**: `infra/scripts/update.sh:1371`
+> usa `string_agg(… order by archivo)` sin collation, pero sus tres huellas
+> (`:1504`, `:1518`, `:1857`) se comparan **contra la misma base de la misma
+> instancia**, donde la collation es constante. Se revisó por sospecha y quedó
+> descartado.
+
 > [!danger] Las unitarias no ven los fallos de RLS
 > Simulan la base. Los dos peores fallos de aislamiento del proyecto pasaron las
 > unitarias sin despeinarse. **Todo lo que toque tenant o sesión necesita e2e.**
