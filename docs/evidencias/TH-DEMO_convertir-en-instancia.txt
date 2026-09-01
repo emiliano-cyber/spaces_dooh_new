@@ -1,0 +1,231 @@
+============================================================
+ TH-DEMO · CONVERTIR DEMO EN UNA INSTANCIA DE VERDAD
+ En el PADRE. Sin crear otro droplet. En prueba.space-os.io
+ Fecha: 2026-09-01   ·   CERRADA con el censo del bloque 0
+============================================================
+
+ QUE HACE: que el proceso del 3001 deje de ser `next start`
+ desde el repo y pase a ser UN CONTENEDOR desde la imagen del
+ registro, con su `update.sh` y su cron -- como sera cualquier
+ cliente.
+
+ LO QUE EL CENSO DIJO, y por que importa:
+   · spaces-demo activa, 3001 -> 200
+   · las 39 tablas de `spaces_demo` son de **postgres**
+   · lleva **74** migraciones, y el repo tiene **75** de esquema
+     -> le falta exactamente la de hoy (doohmain_tracking).
+     Eso convierte esto en un ensayo REAL del paso de migracion,
+     no en un simulacro con cero cambios.
+
+ QUE VERIFICA: docker login con token de verdad · docker pull ·
+ MIGRAR DENTRO DE UN CONTENEDOR · arrancar, comprobar salud y
+ volver atras si falla.
+
+ QUE **NO** VERIFICA: crear un droplet, instalar PostgreSQL en
+ una maquina virgen, aplicar el esquema en una base vacia y
+ entregar el DNS. Eso solo lo prueba el alta de PIXELED.
+
+ >>> YA ESTAS DENTRO DEL PADRE. No hay linea de `ssh`.
+ >>> Pega por bloques; cada uno empieza con `echo ok;`.
+ >>> Si una puerta no da lo esperado, PARA y pasamelo.
+
+# ############################################################
+#  ANTES: PR fusionado y v0.3.0 en `beta`
+# ############################################################
+#  Sin eso, aqui se jala una imagen SIN el runner dentro y la
+#  puerta 3 te lo dira. Y hace falta un REGISTRY_TOKEN de SOLO
+#  LECTURA (cloud.digitalocean.com/account/api/tokens).
+
+# ############################################################
+#  BLOQUE 1 · Docker en el PADRE
+# ############################################################
+
+echo ok; apt-get update -qq && apt-get install -y -qq ca-certificates curl gnupg
+
+echo ok; install -m 0755 -d /etc/apt/keyrings; curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; chmod a+r /etc/apt/keyrings/docker.asc
+
+echo ok; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+
+echo ok; apt-get update -qq && apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+
+echo ok; systemctl enable docker; systemctl start docker; docker --version
+
+# ############################################################
+#  BLOQUE 2 · Registro: entrar y jalar        🚦 PUERTAS 1 y 2
+# ############################################################
+#  El token va por STDIN. `read -rs` no lo muestra al teclear.
+
+echo ok; read -rs TOKEN_REG && printf '%s' "$TOKEN_REG" | docker login registry.digitalocean.com --username "$TOKEN_REG" --password-stdin
+
+# 🚦 PUERTA 1 — "Login Succeeded".
+
+echo ok; docker pull registry.digitalocean.com/registryspaces/space-os:beta
+
+# 🚦 PUERTA 2 — la imagen trae el runner dentro:
+echo ok; docker run --rm registry.digitalocean.com/registryspaces/space-os:beta ls /app/scripts /app/db
+
+# ESPERADO: migrar.mjs · migrations · schema.sql
+# Si /app/scripts no existe, la imagen es ANTERIOR a v0.3.0.
+# PARA y etiqueta primero.
+
+# ############################################################
+#  BLOQUE 3 · El rol que migra, y el dueno de las tablas
+# ############################################################
+#  Las 39 tablas son de `postgres`. Una migracion que haga
+#  ALTER sobre una tabla de otro dueno FALLA, asi que hay que
+#  pasarlas al rol que va a migrar. `spaces_demo` son datos de
+#  prueba (CLAUDE.md 4), asi que esto es seguro.
+#
+#  Se hace ANTES de tocar el servicio: si algo sale mal aqui,
+#  DEMO sigue corriendo como hasta ahora.
+
+echo ok; CLAVE_MIG=$(openssl rand -hex 24); echo "$CLAVE_MIG" > /root/.clave-migrador-demo; chmod 600 /root/.clave-migrador-demo; echo "clave generada y guardada en /root/.clave-migrador-demo"
+
+echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -c "create role spaces_migrador login password '$CLAVE_MIG' nosuperuser nocreaterole noinherit"
+
+echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -d spaces_demo -c "alter database spaces_demo owner to spaces_migrador"
+
+echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -d spaces_demo <<'SQL'
+do $$
+declare r record;
+begin
+  for r in select tablename from pg_tables where schemaname='public' loop
+    execute format('alter table public.%I owner to spaces_migrador', r.tablename);
+  end loop;
+  for r in select sequencename from pg_sequences where schemaname='public' loop
+    execute format('alter sequence public.%I owner to spaces_migrador', r.sequencename);
+  end loop;
+  for r in select viewname from pg_views where schemaname='public' loop
+    execute format('alter view public.%I owner to spaces_migrador', r.viewname);
+  end loop;
+end $$;
+SQL
+
+# 🚦 PUERTA 3 — ahora TODO es de spaces_migrador:
+echo ok; sudo -u postgres psql -d spaces_demo -c "select tableowner, count(*) from pg_tables where schemaname='public' group by 1"
+
+# ESPERADO: una sola fila, spaces_migrador | 39
+
+# ############################################################
+#  BLOQUE 4 · Los dos archivos de DEMO
+# ############################################################
+#  Nombres DISTINTOS de los del PADRE: en esta maquina ya
+#  existen instancia.env y padre.env, y pisarlos romperia lo
+#  que ya funciona.
+#
+#  Las plantillas salen del repo, que en el PADRE SI existe.
+
+echo ok; cd /var/www/Spaces && git pull && git log --oneline -1
+
+# --- demo-app.env: se PARTE del que ya funciona y se corrige
+#     solo la base. `host.docker.internal` porque el contenedor
+#     va en red bridge y ahi `127.0.0.1` es el contenedor.
+
+echo ok; cp /etc/space-os/demo.env /etc/space-os/demo-app.env; chmod 600 /etc/space-os/demo-app.env; grep -c . /etc/space-os/demo-app.env
+
+echo ok; sed -i "s#@127.0.0.1:5432/spaces_demo#@host.docker.internal:5432/spaces_demo#" /etc/space-os/demo-app.env; grep '^DATABASE_URL=' /etc/space-os/demo-app.env | sed 's/:[^:@]*@/:***@/'
+
+# --- demo-instancia.env: la configuracion del actualizador.
+
+echo ok; CLAVE_MIG=$(cat /root/.clave-migrador-demo); cat > /etc/space-os/demo-instancia.env <<EOF
+INSTANCIA=demo
+REGISTRY=registry.digitalocean.com/registryspaces
+REGISTRY_TOKEN=$TOKEN_REG
+IMAGEN_NOMBRE=space-os
+CANAL=beta
+CONTENEDOR=space-os-demo
+ENV_APP=/etc/space-os/demo-app.env
+DOCKER_OPCIONES_APP=--publish 127.0.0.1:3001:3000 --add-host=host.docker.internal:host-gateway
+DATABASE_URL=postgresql://spaces_migrador:$CLAVE_MIG@127.0.0.1:5432/spaces_demo
+RED_MIGRACION=host
+SALUD_URL=http://127.0.0.1:3001/spaces-dooh/api/version/
+SALUD_INTENTOS=10
+SALUD_ESPERA=3
+PULL_ESPERAS=1 5 30
+EOF
+chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/space-os/demo-instancia.env) lineas"
+
+# >>> Si `read -rs` de antes se perdio (otra sesion), TOKEN_REG
+#     estara vacio y REGISTRY_TOKEN saldria en blanco. Revisalo:
+echo ok; grep -c '^REGISTRY_TOKEN=.\+' /etc/space-os/demo-instancia.env
+
+# ESPERADO: 1. Si sale 0, vuelve a hacer el `read -rs` del
+# bloque 2 y repite el `cat > ...` de arriba.
+
+# --- El actualizador y su companero. `update.sh` busca a
+#     `respaldo.sh` AL LADO SUYO y aborta si no esta.
+
+echo ok; mkdir -p /opt/space-os /var/log/space-os; install -m 750 /var/www/Spaces/infra/scripts/update.sh /opt/space-os/update.sh; install -m 750 /var/www/Spaces/infra/scripts/respaldo.sh /opt/space-os/respaldo.sh; ls -la /opt/space-os/
+
+# ############################################################
+#  BLOQUE 5 · EL CAMBIO DE GUARDIA            🚦 PUERTA 4
+# ############################################################
+#  DEMO queda caida unos segundos. Es aceptable: existe para
+#  poder romperse.
+#
+#  El servicio viejo se DESHABILITA, no se borra: es la vuelta
+#  atras.
+
+echo ok; systemctl disable --now spaces-demo; systemctl is-active spaces-demo
+
+# ESPERADO: inactive
+
+# Primero en seco: dice que haria y NO toca nada.
+echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh --dry-run 2>&1 | tail -25
+
+# >>> LEELO antes de seguir. Tiene que decir que hay version
+#     nueva y UNA migracion pendiente. Si dice otra cosa,
+#     pasamelo y paramos.
+
+# Y ahora de verdad:
+echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | tail -30
+
+# 🚦 PUERTA 4 — el contenedor esta arriba y la base migro:
+echo ok; docker ps --format '{{.Names}} | {{.Image}} | {{.Status}}'
+
+echo ok; sudo -u postgres psql -d spaces_demo -tc "select count(*) from schema_migrations"
+
+# ESPERADO: el contenedor `space-os-demo` corriendo, y 75
+# migraciones (era 74: entro la de doohmain_tracking).
+
+# ############################################################
+#  BLOQUE 6 · Desde fuera                     🚦 PUERTA 5
+# ############################################################
+#  Desde TU PC, no desde el servidor:
+#
+#   curl.exe -s -o NUL -w 'login   -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+#   curl.exe -s -o NUL -w 'metodos -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+#
+#  ESPERADO: 200 y 200. No hace falta tocar nginx: su vhost ya
+#  apunta al 3001, que es donde publica el contenedor.
+
+# --- Y el cron, solo cuando lo de arriba este en verde:
+
+echo ok; printf '31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1\n' > /etc/cron.d/space-os-demo; chmod 644 /etc/cron.d/space-os-demo; cat /etc/cron.d/space-os-demo
+
+# ############################################################
+#  VUELTA ATRAS — una linea, y es de verdad
+# ############################################################
+#  Nada se borra. Si el contenedor no sirve:
+#
+#    rm -f /etc/cron.d/space-os-demo
+#    docker rm -f space-os-demo
+#    systemctl enable --now spaces-demo
+#
+#  Y vuelves a estar donde estabas. La unica huella que queda
+#  es el cambio de dueno de las tablas, que es inocuo: el rol
+#  de la aplicacion sigue teniendo sus permisos por la
+#  migracion 20260820_grants_rol_app.sql.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · Las cinco puertas.
+#   · La salida del `--dry-run` del bloque 5 ANTES de correrlo
+#     de verdad. Es la unica que me deja parar a tiempo.
+#   · Y el STORAGE USAGE del registro, que sigue pendiente.
+#
+#  DESPUES DE ESTO: DEMO respondera su VERSION de verdad, asi
+#  que podras poner FLOTA_TOKEN en GitHub y el smoke de
+#  promocion se volvera estricto solo.
+# ############################################################

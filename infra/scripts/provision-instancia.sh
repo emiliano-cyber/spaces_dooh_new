@@ -69,6 +69,18 @@ DO_REGION="${DO_REGION:-}"
 DO_TAMANO="${DO_TAMANO:-}"
 DO_IMAGEN="${DO_IMAGEN:-ubuntu-22-04-x64}"
 
+# El registro de imagenes, por ENTORNO y no por argumento, por dos motivos
+# distintos: el token no debe aparecer en `ps` ni en el historial, y el nombre
+# del registro no se quema en un archivo versionado (regla de CLAUDE.md).
+# Desde el 2026-09-01 el alta MIGRA con la imagen, asi que hacen falta ya aqui.
+REGISTRY="${REGISTRY:-}"
+REGISTRY_TOKEN="${REGISTRY_TOKEN:-}"
+IMAGEN_NOMBRE="${IMAGEN_NOMBRE:-space-os}"
+# `estable` por omision: una instancia de owner NUNCA sigue `beta` (invariante
+# 13). CANAL=beta se usa para un ENSAYO en un droplet desechable, y eso es una
+# desviacion consciente del runbook.
+CANAL="${CANAL:-estable}"
+
 uso() { sed -n '2,44p' "$0"; }
 
 while [[ $# -gt 0 ]]; do
@@ -101,6 +113,21 @@ if [[ "$CREAR_DROPLET" -eq 0 && -z "$HOST" ]]; then
   exit "$EX_USO"
 fi
 
+# Sin registro no hay imagen, y sin imagen no hay migraciones ni aplicacion. Se
+# comprueba AQUI y no al usarlo: fallar despues de crear el droplet y la base
+# deja media instancia hecha.
+if [[ -z "$REGISTRY" ]]; then
+  echo "provision: falta REGISTRY (p. ej. registry.digitalocean.com/<nombre>)." >&2
+  echo "           Va por entorno, no por argumento: no se quema en el repo." >&2
+  exit "$EX_USO"
+fi
+# El token solo hace falta para EJECUTAR. En simulacion se muestra el login sin
+# credencial, que es justo lo que hay que poder revisar sin tener secretos.
+if [[ "$CONFIRMAR" -eq 1 && -z "$REGISTRY_TOKEN" ]]; then
+  echo "provision: falta REGISTRY_TOKEN (de SOLO LECTURA) para bajar la imagen." >&2
+  exit "$EX_USO"
+fi
+
 # El dominio se valida de verdad: un dominio con un espacio o una barra acaba
 # dentro de un `sed` y de un `server_name`, y el sintoma aparece mucho despues,
 # cuando nginx no arranca.
@@ -112,6 +139,21 @@ fi
 # ─── El unico camino que toca el servidor ───────────────────────────────────
 DRY_ETIQUETA="[SIMULACION]"
 [[ "$CONFIRMAR" -eq 1 ]] && DRY_ETIQUETA=""
+
+IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
+
+# Entra al registro DESDE EL SERVIDOR. El token viaja por la entrada estandar de
+# ssh y nunca como argumento: en `ps` de la instancia solo se ve `docker login`.
+# Misma disciplina que `release.yml:241-242`.
+registro_login() {
+  local host="${REGISTRY%%/*}"
+  if [[ "$CONFIRMAR" -ne 1 ]]; then
+    printf '%s ssh root@%s docker login %s (token por stdin)
+'       "$DRY_ETIQUETA" "${HOST:-<pendiente>}" "$host"
+    return 0
+  fi
+  printf '%s' "$REGISTRY_TOKEN"     | ssh -o StrictHostKeyChecking=accept-new "root@$HOST"         "TOK=\$(cat); printf '%s' \"\$TOK\" | docker login '$host' --username \"\$TOK\" --password-stdin" >/dev/null
+}
 
 paso() { printf '\n── %s\n' "$*"; }
 
@@ -284,26 +326,69 @@ if [[ "$CREAR_DROPLET" -eq 1 ]]; then
     HOST="<ip-del-droplet-nuevo>"
   fi
 
-  paso "Base del servidor (Node, nginx, certbot, ufw)"
+  paso "Base del servidor (Docker, nginx, certbot, ufw)"
   remoto "bash -s" < "$RAIZ/infra/scripts/setup-droplet.sh"
 fi
 
 # ─── 2 · Base de datos: DOS roles ───────────────────────────────────────────
 paso "Base de datos"
 CLAVE_APP="$(secreto)"
+CLAVE_MIGRADOR="$(secreto)"
+# Por TCP y con contrasena: el contenedor que migra no ve el socket unix.
+URL_MIGRADOR="postgresql://spaces_migrador:$CLAVE_MIGRADOR@127.0.0.1:5432/spaces"
 
 # El rol de la aplicacion es NOSUPERUSER **y NOBYPASSRLS**, y las dos palabras
 # hacen falta. Un rol que atraviesa la RLS funciona perfectamente y sin
 # aislamiento, que es la peor combinacion posible: no da ningun error.
 remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_app login password '$CLAVE_APP' nosuperuser nocreatedb nocreaterole noinherit nobypassrls\""
-remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create database spaces owner postgres\""
+# El rol de MIGRACION, con contrasena y por TCP. Por que existe y no se usa
+# `postgres` por socket, que era lo de antes: las migraciones corren DENTRO de
+# un contenedor efimero, y ahi dentro `/var/run/postgresql` NO EXISTE. Montarlo
+# tampoco bastaria -- sin usuario en la URL, libpq usa el del SISTEMA, que en el
+# contenedor es `node` y no `postgres`, asi que la autenticacion *peer* falla
+# igual. Un rol con contrasena por 127.0.0.1 es la unica de las tres salidas que
+# no obliga a ponerle contrasena al superusuario ni a dejar Node en la maquina.
+#
+# Es DUENO de la base a proposito: las migraciones crean objetos, y que todas
+# corran siempre con el mismo dueno hace que el `alter default privileges` de
+# 20260820_grants_rol_app.sql -- escrito SIN `for role` -- se comporte igual
+# siempre. Es el hallazgo H1 del 24/08.
+remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit\""
+remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create database spaces owner spaces_migrador\""
 
 # ─── 3 · Esquema y migraciones ──────────────────────────────────────────────
 # Con el rol de MIGRACION, no con el de la app: el de la app no tiene DDL.
 # `--instalacion-nueva` se verifica a si mismo, y el orden de las migraciones
 # no es lexicografico puro (hay un mapa de excepciones en el runner).
 paso "Esquema y migraciones"
-remoto "cd /var/www/Spaces && DATABASE_URL='postgresql:///spaces?host=/var/run/postgresql' node scripts/migrar.mjs --instalacion-nueva"
+# Antes esto hacia `cd /var/www/Spaces && node scripts/migrar.mjs`: un repo
+# clonado y un Node que una instancia NO TIENE -- es el sentido de que exista la
+# imagen. Ahora migra con la MISMA imagen que va a correr, que es tambien la que
+# lleva las migraciones dentro. Mismo idioma que `update.sh:1324-1330`.
+#
+# `--instalacion-nueva` lo pasa el ALTA y nunca `update.sh` (`:1511` llama al
+# runner sin banderas): el runner aborta si no puede distinguir una base nueva de
+# una rezagada, y esa distincion solo la sabe quien acaba de crear la base.
+registro_login
+remoto "docker pull '$IMAGEN'"
+# El ESQUEMA BASE va primero, y sale de la imagen. Este paso NO EXISTIA: el
+# bloque se llamaba "Esquema y migraciones" y solo migraba, asi que la primera
+# migracion se estrellaba contra una base vacia con
+# `relation "public.clientes" does not exist`. Medido el 2026-09-01 corriendo el
+# runner de la imagen contra una base recien creada.
+#
+# `schema.sql` NO es idempotente -- 28 `create table` y uno solo con `if not
+# exists` -- asi que no puede aplicarlo el runner a ciegas en cada corrida. Es
+# del alta, y solo del alta.
+#
+# Se aplica como `spaces_migrador` y no como `postgres` a proposito: las
+# migraciones que vienen despues ALTERAN estas tablas, y un `alter` sobre una
+# tabla de otro dueno falla. Mismo dueno para todo el esquema, siempre.
+remoto "docker run --rm '$IMAGEN' cat /app/db/schema.sql > /tmp/space-os-schema.sql"
+remoto "PGPASSWORD='$CLAVE_MIGRADOR' psql -h 127.0.0.1 -U spaces_migrador -d spaces -v ON_ERROR_STOP=1 -f /tmp/space-os-schema.sql"
+remoto "rm -f /tmp/space-os-schema.sql"
+
+remoto "docker run --rm --network host --env DATABASE_URL='$URL_MIGRADOR' '$IMAGEN' node scripts/migrar.mjs --instalacion-nueva"
 
 # ─── 4 · Los dos archivos de entorno ────────────────────────────────────────
 paso "Entorno"
@@ -317,18 +402,18 @@ remoto "mkdir -p /etc/space-os"
 # leer por que `COOKIE_DOMAIN` no esta, no solo que no esta.
 sed \
   -e "s#^APP_URL=.*#APP_URL=https://$DOMINIO#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces#" \
+  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@host.docker.internal:5432/spaces#" \
   -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/#" \
   -e "s#^BOOTSTRAP_TOKEN=.*#BOOTSTRAP_TOKEN=$TOKEN_ARRANQUE#" \
   -e "s#^FLOTA_TOKEN=.*#FLOTA_TOKEN=$TOKEN_FLOTA#" \
   "$TPL_APP" | remoto_escribir /etc/space-os/app.env 600
 
-# `instancia.env`. `REGISTRY` se queda como este en la plantilla —vacio— hasta
-# que se decida el nombre del registry (TH-P4). Con el vacio, `update.sh` para
-# con un error de configuracion, que es lo que hay que ver.
+# `instancia.env`. Desde el 2026-09-01 `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`
+# se escriben de verdad: la decision del registro se tomo el 31/08 y sin
+# credencial una instancia no puede bajar la imagen de un registro privado.
 sed \
   -e "s#^INSTANCIA=.*#INSTANCIA=$INSTANCIA#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql:///spaces?host=/var/run/postgresql#" \
+  -e "s#^DATABASE_URL=.*#DATABASE_URL=$URL_MIGRADOR#"   -e "s#^REGISTRY=.*#REGISTRY=$REGISTRY#"   -e "s#^REGISTRY_TOKEN=.*#REGISTRY_TOKEN=$REGISTRY_TOKEN#"   -e "s#^CANAL=.*#CANAL=$CANAL#" \
   "$TPL_INST" | remoto_escribir /etc/space-os/instancia.env 600
 
 # ─── 5 · nginx, TODAVIA SIN certificado ─────────────────────────────────────

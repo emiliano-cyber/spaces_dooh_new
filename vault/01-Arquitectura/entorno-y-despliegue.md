@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-01
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -1531,3 +1531,62 @@ lo que impide que alguien la «reponga» creyendo que faltaba.
 ## Relacionadas
 [[vision-general]] · [[stack-y-dependencias]] · [[migraciones]] ·
 [[zonas-de-riesgo]] · [[integraciones-externas]] · [[MOC-Proyecto]]
+
+## 2026-09-01 · el aprovisionamiento pasa de escrito a ejecutable
+
+Al preparar **F5.6** —el ensayo del alta en un droplet desechable— se leyó qué
+esperaba encontrar `provision-instancia.sh` en esa máquina. **Cinco defectos, y
+ninguno visible desde su `--dry-run`.**
+
+> [!danger] El `--dry-run` imprime los comandos ssh; no comprueba que funcionarían
+> F5.4 figuraba como hecha y su simulación salía en `exit 0`. **Validaba la lógica
+> del script, no sus supuestos.** Es la misma familia de fallo que este repositorio
+> lleva encontrando toda la semana: un verde que mide otra cosa.
+
+| | Qué estaba mal | Cómo queda |
+|---|---|---|
+| ① | `setup-droplet.sh` instalaba **nvm y pm2** y **no Docker** — el modelo que murió el 12/08 | Instala **Docker** y lo habilita. Fuera Node y pm2 |
+| ② | La primera migración corría `cd /var/www/Spaces && node ...`: **un repo y un intérprete que una instancia no tiene** | Migra con `docker run --rm` de **la misma imagen que va a correr** |
+| ③ | La imagen no llevaba `scripts/migrar.mjs`, y `update.sh` montaba la copia del anfitrión (su AVISO 1) | La imagen **lo lleva**. `update.sh` toma su primera rama solo, sin tocarle una línea |
+| ④ | **Ninguna autenticación contra el registro**: ni `docker login` ni credencial en la plantilla | `REGISTRY_TOKEN` de solo lectura, y login **por stdin** en los dos scripts |
+| ⑤ | La `DATABASE_URL` era un **socket unix**, que un contenedor no ve | Rol **`spaces_migrador`** con contraseña, por TCP a `127.0.0.1` |
+| ⑥ | **El esquema base no lo aplicaba nadie.** El paso se llamaba «Esquema y migraciones» y solo migraba | El alta aplica `db/schema.sql` **desde la imagen** y como `spaces_migrador`, antes de migrar |
+| ⑦ | `setup-droplet.sh` **no instalaba PostgreSQL**, y `provision` hace `sudo -u postgres psql` en su primer comando | Lo instala y lo habilita |
+
+> [!success] 2026-09-01 · el artefacto se VALIDO de punta a punta, por primera vez
+> No leyendo: **construyendo la imagen y corriendola**. Sobre el Postgres local:
+>
+> ```
+> imagen construida            333 MB sin comprimir
+> lleva dentro                 /app/scripts/migrar.mjs · /app/db · doohmain_sdk
+>                              Python 3.12.14, y `import doohmain_sdk` funciona
+> esquema desde la imagen      679 lineas, aplicado como spaces_migrador
+> migraciones                  75 aplicadas, 1 de datos pendiente (correcto)
+> la aplicacion arranca        /login/ 200 · /api/auth/metodos/ 200
+>                              /api/version/ -> {"ok":true}
+> ```
+>
+> Los defectos ⑥ y ⑦ **salieron de esa corrida**, no de leer. El ⑥ aparecio como
+> `relation "public.clientes" does not exist` en la primera migracion, que es
+> exactamente lo que habria visto una persona con el cliente esperando.
+
+**Por qué un rol nuevo y no `postgres` por socket.** Montar el socket no bastaba:
+sin usuario en la URL, libpq usa el **del sistema**, que dentro del contenedor es
+`node` y no `postgres`, así que la autenticación *peer* falla igual. Las otras dos
+salidas eran ponerle contraseña al superusuario —no— o dejar Node en cada instancia
+—que es justo lo que ① acaba de quitar—.
+
+`spaces_migrador` es además **dueño de la base** a propósito: que todas las
+migraciones corran siempre con el mismo dueño es lo que hace que el `alter default
+privileges` de `20260820_grants_rol_app.sql` —escrito **sin `for role`**, hallazgo
+H1 del 24/08— se comporte igual siempre.
+
+> [!warning] Lo que sigue sin estar probado
+> Nada de esto se ha ejecutado contra una máquina real. **F5.6 sigue pendiente** y
+> es lo único que puede decir si el alta funciona de verdad. Lo que cambió es que
+> ahora **puede llegar a funcionar**: antes no.
+>
+> Y una contrapartida aceptada el 2026-09-01: los tokens de DigitalOcean son **de
+> la cuenta, no del repositorio**, así que el que se filtre de una instancia sirve
+> para todas. El runbook de operación tiene que decir dónde se guardan y cómo se
+> rotan — lo mismo que ya está pendiente con las llaves ssh.

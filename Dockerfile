@@ -94,6 +94,17 @@ COPY --chown=node:node apps/web/public ./apps/web/public
 COPY --chown=node:node db/schema.sql ./db/schema.sql
 COPY --chown=node:node db/migrations ./db/migrations
 
+# El runner de migraciones, DENTRO de la imagen. El plan lo pedia desde F3.4
+# paso 5 y no estaba: `update.sh` lo montaba desde el anfitrion como apano (su
+# AVISO 1), con el costo escrito de que el runner quedaba versionado con el
+# APROVISIONAMIENTO y no con la imagen que migra. Con el aqui, `update.sh` toma
+# su primera rama solo y una instancia no necesita Node para nada.
+#
+# Resuelve sus rutas desde su propio archivo (`scripts/migrar.mjs:45-50`), asi
+# que desde /app/scripts encuentra /app/db/migrations y /app/db/schema.sql, que
+# son las dos lineas de arriba.
+COPY --chown=node:node scripts/migrar.mjs ./scripts/migrar.mjs
+
 # next/image escribe las imagenes remotas optimizadas bajo .next/cache. Sin este
 # directorio ya creado y con dueño, el usuario `node` no puede servirlas. Es el
 # unico sitio donde el proceso escribe: la instancia no necesita volumen.

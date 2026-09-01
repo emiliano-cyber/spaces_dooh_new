@@ -732,6 +732,12 @@ RESPALDO_SH="${SPACE_OS_RESPALDO_SH:-$(dirname "$0")/respaldo.sh}"
 
 CANAL="${CANAL:-}"
 REGISTRY="${REGISTRY:-}"
+# La credencial de SOLO LECTURA con la que esta instancia baja su imagen. Sin
+# ella, un `docker pull` contra un registro privado falla con "authentication
+# required" -- y hasta el 2026-09-01 no existia en ninguna parte: ni aqui, ni en
+# la plantilla, ni un `docker login` en este archivo. Ninguna instancia de
+# cliente habria podido actualizarse nunca.
+REGISTRY_TOKEN="${REGISTRY_TOKEN:-}"
 IMAGEN_NOMBRE="${IMAGEN_NOMBRE:-space-os}"
 CONTENEDOR="${CONTENEDOR:-space-os}"
 ENV_APP="${ENV_APP:-/etc/space-os/app.env}"
@@ -1258,6 +1264,24 @@ ID_ACTUAL="$(id_del_contenedor "$CONTENEDOR")"
 # sitio donde rendirse sale GRATIS: aqui todavia no hay respaldo, ni contenedor
 # parado, ni una sola sentencia contra la base. Por eso los reintentos viven en
 # este paso y no mas abajo — abajo, en las migraciones, el limite es CERO.
+# Entra al registro antes de jalar. El token va por la ENTRADA ESTANDAR y nunca
+# como argumento: `--password` lo dejaria en `ps` y en el historial. Misma
+# disciplina que `release.yml:241-242`.
+#
+# Si no hay token se sigue sin login, a proposito: un registro publico no lo
+# necesita, y obligarlo romperia ese caso sin ganar nada. Lo que NO se hace es
+# fallar aqui -- si el registro exige credencial, el `docker pull` de abajo dira
+# exactamente eso.
+registro_login() {
+  local host="${REGISTRY%%/*}"
+  [ -n "$REGISTRY_TOKEN" ] || { registrar "   registro: sin token, se jala sin autenticar"; return 0; }
+  if printf '%s' "$REGISTRY_TOKEN"        | docker login "$host" --username "$REGISTRY_TOKEN" --password-stdin >/dev/null 2>&1; then
+    registrar "   registro: autenticado en $host"
+  else
+    registrar "   AVISO: docker login en $host fallo; el pull dira si hacia falta"
+  fi
+}
+
 pull_una_vez() {
   if [ "$SIMULAR_FALLO_PULL" = 1 ]; then
     registrar "   simulacion: el pull falla a proposito (--simular-fallo-pull); ni se llama a docker."
@@ -1285,6 +1309,7 @@ pull_con_reintentos() {
 }
 
 registrar "1 · pull $IMAGEN"
+registro_login
 if ! pull_con_reintentos; then
   # "Se queda como estaba" es literal, y se comprueba contando llamadas en
   # `pruebas-update.sh` (E33/E34): ni pg_dump, ni runner, ni `docker run`.
