@@ -28,6 +28,26 @@ export const pool: Pool =
   g._pgPool ?? new Pool({ connectionString: DATABASE_URL, max: 10 })
 if (process.env.NODE_ENV !== 'production') g._pgPool = pool
 
+// Un error de un cliente OCIOSO se emite en el POOL, no en la consulta: no hay
+// `await` que lo recoja. Y un `error` sin oyente en un EventEmitter no se
+// ignora -- se lanza --, asi que en Node se convierte en excepcion no capturada
+// y TUMBA EL PROCESO.
+//
+// Cuando pasa de verdad: Postgres corta las conexiones vivas al reiniciarse, al
+// hacer `pg_terminate_backend` o al borrar la base con `with (force)`. Manda un
+// `57P01` a cada cliente. Con el pool en silencio, la aplicacion entera se cae
+// por un reinicio de la base -- que es justo lo que NO debe pasar: `pg`
+// reconecta solo en la siguiente consulta.
+//
+// Encontrado el 2026-09-01: este pool aparecio como "unhandled error" en una
+// corrida de e2e, importado por `permisos-semilla.e2e.test.ts:280`. El sintoma
+// era de pruebas; el defecto es de produccion.
+//
+// NO se traga el error: lo registra. Lo unico que evita es que mate el proceso.
+pool.on('error', (e) => {
+  console.error(`[db] error en un cliente ocioso del pool: ${e?.message ?? e}`)
+})
+
 // Tenant activo de la request (import perezoso para evitar el ciclo db<->tenant).
 async function tenantDeRequest(): Promise<string> {
   const { tenantActual } = await import('./tenant')

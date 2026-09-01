@@ -178,6 +178,35 @@ Las e2e:
 > el `spawn`, y que `pararServidor()` **espere a que el proceso muera** en vez de
 > solo mandar la señal.
 
+> [!danger] 2026-09-01 · y el tercero era EL POOL DE LA APLICACIÓN, no uno de prueba
+> La corrida de `v0.3.0` volvió a morir con un `unhandled error` — `57P01`, base
+> `spaces_permisos_nueva_e2e`. Los catorce pools del arnés ya estaban vigilados; el
+> que faltaba era **el de `lib/server/db.ts`**, que
+> `permisos-semilla.e2e.test.ts:280` importa a propósito para probar con él.
+>
+> **El síntoma era de pruebas; el defecto es de PRODUCCIÓN.** `pg` emite los errores
+> de clientes **ociosos** en el pool, no en la consulta, así que ningún `await` los
+> recoge — y un `error` sin oyente se lanza. Traducido: **un reinicio de Postgres
+> mataba el proceso de la aplicación**, cuando `pg` reconecta solo en la siguiente
+> consulta. Caerse era la peor de las respuestas posibles.
+>
+> Corregido con un oyente que **registra y no traga**: lo único que evita es que el
+> error mate el proceso.
+
+> [!warning] 2026-09-01 · hay una prueba INTERMITENTE, y conviene saber su nombre
+> `lib/tipografia.test.ts > ningun archivo pide fuentes a un CDN ajeno` falla a
+> veces en la suite completa y **siempre pasa corriéndola sola**. Medido: dos
+> corridas rojas seguidas y la tercera verde, sin tocar nada.
+>
+> **La causa NO está identificada.** Recorre `app/`, `lib/` y `components/` leyendo
+> archivos, y la suite unitaria corre en paralelo — pero ningún test unitario
+> escribe en esos directorios. Se deja escrito con la causa **en blanco** en vez de
+> con una hipótesis cómoda: es exactamente el atajo que el 31/08 costó dos corridas
+> y media jornada.
+>
+> Es **anterior** a los cambios del 01/09, y es casi seguro la «1 failed» que el
+> 31/08 se vio una vez y no se llegó a capturar.
+
 > [!warning] 2026-08-31 · SQL de prueba que ordena por texto lleva collation EXPLÍCITA
 > El segundo defecto de la misma corrida, e **independiente del anterior**:
 > `migraciones.e2e.test.ts` comparaba
