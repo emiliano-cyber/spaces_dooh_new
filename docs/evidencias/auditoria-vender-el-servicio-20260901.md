@@ -59,11 +59,58 @@ trae ninguna**. Medido: `grep -c DOOHMAIN infra/env/app.env.example` → **0**.
 > `provision-instancia.sh` nace **sin poder publicar a una sola pantalla**. Para
 > un operador de DOOH, eso no es una carencia lateral: es el producto.
 
-**Lo que hay que decidir antes de estimarlo:** ¿PIXELED publica **desde SPACE OS**,
-o publica desde su propio CMS y SPACE OS solo administra el inventario, lo
-comercial y la cobranza? **Si es lo segundo, esto deja de ser bloqueante** y pasa
-a ser una casilla que no se vende. Nadie lo ha escrito, y cambia el tamaño de todo
-lo demás.
+### RESPONDIDO el 2026-09-01: PIXELED publica DESDE SPACE OS
+
+Con eso el bloqueante queda confirmado, y al medirlo aparece que **no es «meter
+Python en la imagen»**: son cuatro piezas, y solo una es el intérprete.
+
+**① El intérprete y sus dependencias.** El SDK ocupa **61 KB**, pero
+`doohmain_sdk/requirements.txt` pide `httpx`, `psycopg[binary]` y `python-dotenv`.
+Python 3 más esas tres, sobre Alpine, engordan la imagen del orden de **70–90 MB
+sin comprimir**.
+
+> ⚠️ **Y hay una trampa concreta que hay que verificar en el build, no después:**
+> la imagen es **Alpine (musl)** y las ruedas binarias de `psycopg[binary]` son
+> `manylinux` (glibc). Si no hay rueda `musllinux` para esa versión, `pip`
+> intentará **compilar desde fuente** y hará falta cadena de compilación y
+> `postgresql-dev`. Es exactamente el tipo de cosa que funciona en una máquina y
+> revienta en el CI.
+
+**② Ocho variables que ninguna instancia tiene.** `doohmain_sdk/config.py:26-60`:
+
+| Variable | |
+|---|---|
+| `DOOHMAIN_BASE_URL` | tiene valor por omisión |
+| `DOOHMAIN_API_KEY` | **obligatoria, y es por cliente** |
+| `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` `DB_SSL` | **obligatorias las seis**, sin omisión: `os.environ[...]` revienta si falta |
+
+Más las cinco `DOOHMAIN_*` que lee el lado Node (`PUBLISH_ENABLED`, `PY`,
+`SDK_DIR`, `DEFAULT_SCREEN`, `SCREEN_MAP`). **Ninguna está en
+`app.env.example`.**
+
+> Y ojo con las `DB_*`: apuntan a **la misma base de la instancia**, pero en otro
+> formato que el `DATABASE_URL` que ya existe. **Son dos copias de la misma
+> conexión**, y este repositorio tiene escrito lo que pasa con dos copias.
+
+**③ Tablas que nadie crea.** `doohmain_sdk/db.py` dice de sí mismo: *«tablas de
+tracking de la integración… su DDL está en `schema.sql` (aplícalo una vez)»*, y
+son las que sostienen la **idempotencia** de las publicaciones. Ese
+`doohmain_sdk/schema.sql` **no está en `db/migrations/`**, así que el runner de la
+instancia no lo aplica y `provision-instancia.sh` no lo conoce. **Una instancia
+nueva no tendría esas tablas.**
+
+**④ Una llave por cliente.** `DOOHMAIN_API_KEY` es de PIXELED, no de AS OOH. Eso
+convierte «dar de alta una instancia» en algo que **depende de que el cliente
+aporte una credencial de un tercero**, y hay que decir dónde se guarda y quién la
+pide. Es proceso de alta, no código.
+
+### Consecuencia que toca otra decisión ya tomada
+
+El registro va con **plan gratuito, 500 MiB**, y hoy una versión ocupa **11 %**
+(~55 MiB). Sumar Python y sus dependencias puede acercar cada versión a los 90–95
+MiB, y entonces **caben cuatro o cinco versiones en vez de nueve**. No es grave
+—Basic cuesta 5 USD/mes— pero **la decisión del plan se tomó sin este dato** y
+conviene rehacerla con él.
 
 ---
 
