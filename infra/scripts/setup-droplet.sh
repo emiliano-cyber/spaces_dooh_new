@@ -22,34 +22,40 @@ echo "→ Actualizando sistema..."
 apt-get update -qq && apt-get upgrade -y -qq
 echo "  ✓ Sistema actualizado"
 
-# ─── Node.js 20 via nvm ───────────────────────────────────────────────────────
-echo "→ Instalando Node.js 20 via nvm..."
-export NVM_DIR="/root/.nvm"
-
-if [[ ! -d "$NVM_DIR" ]]; then
-  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+# ─── Docker ──────────────────────────────────────────────────────────
+#
+#  Lo UNICO que esta maquina necesita para correr el producto. Hasta el
+#  2026-09-01 este guion instalaba Node por nvm y pm2, que es el modelo que murio
+#  el 12/08: entonces el servidor construia y ejecutaba el codigo. Hoy no. Hoy
+#  jala una imagen y la corre, y `update.sh` es enteramente `docker pull` y
+#  `docker run`.
+#
+#  Se quito pm2 ademas por una razon medida: en el PADRE se PELEO POR EL PUERTO
+#  contra systemd al reiniciar la maquina (trampa 6 del traspaso del 28/08).
+#  Dejarlo instalado en cada instancia era repartir esa trampa por la flota.
+#
+#  Y se quito Node: desde hoy la imagen lleva `scripts/migrar.mjs` dentro, asi
+#  que las migraciones corren en un contenedor efimero y el anfitrion no
+#  necesita interprete para nada.
+echo "→ Instalando Docker..."
+apt-get install -y -qq ca-certificates curl gnupg
+install -m 0755 -d /etc/apt/keyrings
+if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
 fi
-
-# shellcheck source=/dev/null
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-nvm install 20
-nvm use 20
-nvm alias default 20
-
-# Persist nvm in /etc/profile.d for all users
-cat > /etc/profile.d/nvm.sh << 'EOF'
-export NVM_DIR="/root/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+cat > /etc/apt/sources.list.d/docker.list <<EOF
+deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable
 EOF
+apt-get update -qq
+apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
-echo "  ✓ Node.js $(node --version) instalado"
-
-# ─── PM2 ──────────────────────────────────────────────────────────────────────
-echo "→ Instalando PM2..."
-npm install -g pm2 --quiet
-pm2 startup systemd -u root --hp /root | tail -1 | bash || true
-echo "  ✓ PM2 $(pm2 --version) instalado"
+# Que sobreviva a un reinicio. Es la mitad del trato: `update.sh` deja el
+# contenedor corriendo, y si la maquina se reinicia sin esto la instancia queda
+# caida hasta que alguien mire.
+systemctl enable docker
+systemctl start docker
+echo "  ✓ Docker $(docker --version | awk '{print $3}' | tr -d ,) instalado"
 
 # ─── Nginx ────────────────────────────────────────────────────────────────────
 echo "→ Instalando Nginx..."
