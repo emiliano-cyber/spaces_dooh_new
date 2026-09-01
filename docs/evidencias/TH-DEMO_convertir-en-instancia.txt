@@ -1,0 +1,167 @@
+============================================================
+ TH-DEMO · CONVERTIR DEMO EN UNA INSTANCIA DE VERDAD
+ En el PADRE, sin crear otro droplet, en prueba.space-os.io
+ Fecha: 2026-09-01
+============================================================
+
+ QUE HACE, en una frase: que el proceso del 3001 deje de ser
+ `next start` desde el repo y pase a ser UN CONTENEDOR desde la
+ imagen del registro, con su `update.sh` y su cron -- como sera
+ cualquier cliente.
+
+ QUE VERIFICA (casi todo lo que queria F5.6):
+   · docker login contra el registro, con token de verdad
+   · docker pull del canal `beta`
+   · MIGRAR DENTRO DE UN CONTENEDOR (lo que se arreglo hoy)
+   · arrancar, comprobar salud y VOLVER ATRAS si falla
+   · y despues, el ciclo de F3.5: publicar una version rota a
+     proposito y ver que DEMO se queda en la anterior
+
+ QUE **NO** VERIFICA, y conviene tenerlo claro:
+   · crear un droplet desde cero
+   · instalar PostgreSQL en una maquina virgen
+   · aplicar el esquema base en una base vacia
+   · entregar el DNS al owner y emitir su certificado
+   Eso solo lo prueba un alta de verdad, que sera la de PIXELED.
+
+ REGALO al terminar: DEMO correra desde la imagen, asi que
+ respondera su VERSION de verdad. Entonces puedes poner
+ FLOTA_TOKEN en GitHub y el smoke de promocion se vuelve
+ estricto solo -- dejara de decir "NO COMPROBADO".
+
+ >>> Pega por bloques. La consola se come el primer caracter;
+     por eso cada bloque empieza con `echo ok;`.
+ >>> Hay CINCO puertas. Si una no da lo esperado, PARA y
+     pasame la salida.
+
+# ############################################################
+#  ANTES DE EMPEZAR
+# ############################################################
+#  1. PR `fix/aprovisionamiento-real` FUSIONADO.
+#  2. Etiqueta v0.3.0 empujada y su release EN VERDE, con la
+#     imagen publicada en `beta`. Sin eso, aqui se jala una
+#     imagen que no lleva el runner dentro y el paso de
+#     migraciones vuelve al apano viejo.
+#  3. Un REGISTRY_TOKEN de SOLO LECTURA:
+#     cloud.digitalocean.com/account/api/tokens
+#     Nombre: instancia-lectura   ·   Alcance: solo LECTURA
+#     >>> NO me lo pases. Va directo al archivo del servidor.
+
+# ############################################################
+#  BLOQUE 0 · CENSO, todo de solo lectura   🚦 PUERTAS 1 y 2
+# ############################################################
+
+ssh root@137.184.107.53
+
+# 🚦 PUERTA 1 — DEMO esta viva AHORA, para saber a que volver:
+
+echo ok; systemctl is-active spaces-demo; curl -s -o /dev/null -w 'demo 3001 -> %{http_code}\n' http://127.0.0.1:3001/spaces-dooh/login/
+
+# ESPERADO: active y 200.
+
+# 🚦 PUERTA 2 — DE QUIEN son las tablas de la base de DEMO.
+#     Esto decide con que rol se migra, y es lo unico que no
+#     puedo saber desde aqui.
+
+echo ok; sudo -u postgres psql -d spaces_demo -c "select tableowner, count(*) from pg_tables where schemaname='public' group by 1"
+
+echo ok; sudo -u postgres psql -d spaces_demo -tc "select count(*) from schema_migrations" 2>&1
+
+# >>> PASAME LAS DOS SALIDAS ANTES DE SEGUIR.
+#     Si las tablas tienen un dueno distinto del que vayamos a
+#     usar para migrar, las migraciones que hagan ALTER fallan.
+#     Con ese dato te cierro el bloque 3 y sigues.
+
+# ############################################################
+#  BLOQUE 1 · Docker en el PADRE
+# ############################################################
+#  El censo del 31/08 confirmo que NO esta instalado.
+#  Ojo: esto mete Docker en el plano de control. Es la decision
+#  que tomaste al pedir que todo se pruebe en esta maquina.
+
+echo ok; apt-get update -qq && apt-get install -y -qq ca-certificates curl gnupg
+
+echo ok; install -m 0755 -d /etc/apt/keyrings; curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc; chmod a+r /etc/apt/keyrings/docker.asc
+
+echo ok; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+
+echo ok; apt-get update -qq && apt-get install -y -qq docker-ce docker-ce-cli containerd.io
+
+echo ok; systemctl enable docker; systemctl start docker; docker --version
+
+# 🚦 PUERTA 3 — Docker responde:
+echo ok; docker run --rm hello-world 2>&1 | tail -3
+
+# ############################################################
+#  BLOQUE 2 · Entrar al registro y bajar la imagen
+# ############################################################
+#  El token va por STDIN. No lo escribas en la linea de
+#  comandos: quedaria en `ps` y en el historial de bash.
+
+echo ok; read -rs TOKEN_REG && printf '%s' "$TOKEN_REG" | docker login registry.digitalocean.com --username "$TOKEN_REG" --password-stdin
+
+# >>> `read -rs` no muestra lo que escribes. Pega el token y
+#     dale a Enter. Si sale "Login Succeeded", listo.
+
+echo ok; docker pull registry.digitalocean.com/registryspaces/space-os:beta
+
+# 🚦 PUERTA 4 — la imagen esta y trae el runner dentro:
+echo ok; docker run --rm registry.digitalocean.com/registryspaces/space-os:beta ls /app/scripts /app/db
+
+# ESPERADO: `migrar.mjs` en /app/scripts, y `migrations` +
+# `schema.sql` en /app/db. Si /app/scripts no existe, la imagen
+# es ANTERIOR a v0.3.0: para y etiqueta primero.
+
+# ############################################################
+#  BLOQUE 3 · Los dos archivos de DEMO
+#  >>> TE LO CIERRO YO cuando me pases la puerta 2.
+# ############################################################
+#  Nombres DISTINTOS de los del PADRE a proposito: en esta
+#  maquina ya existen /etc/space-os/instancia.env y padre.env,
+#  y pisarlos romperia lo que ya funciona.
+#
+#     /etc/space-os/demo-app.env        (lo lee el contenedor)
+#     /etc/space-os/demo-instancia.env  (lo lee update.sh)
+#
+#  `update.sh` acepta otra ruta con SPACE_OS_CONF, y el
+#  contenedor y el puerto son parametros:
+#     CONTENEDOR=space-os-demo
+#     DOCKER_OPCIONES_APP=--publish 127.0.0.1:3001:3000
+#     SALUD_URL=http://127.0.0.1:3001/spaces-dooh/api/version/
+#     CANAL=beta
+#
+#  Y no hace falta tocar nginx: el vhost de prueba.space-os.io
+#  ya apunta al 3001, que es donde escuchara el contenedor.
+
+# ############################################################
+#  BLOQUE 4 · El cambio de guardia          🚦 PUERTA 5
+# ############################################################
+#  Se para el DEMO viejo y se levanta el contenedor. Entre una
+#  cosa y otra, DEMO esta caida unos segundos. Es aceptable:
+#  DEMO existe para poder romperse.
+
+# (los comandos exactos van aqui cuando cierre el bloque 3)
+
+# 🚦 PUERTA 5 — desde TU PC, no desde el servidor:
+#   curl.exe -s -o NUL -w 'login   -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+#   curl.exe -s -o NUL -w 'metodos -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+
+# ############################################################
+#  VUELTA ATRAS — una linea, y es de verdad
+# ############################################################
+#  El DEMO viejo NO se borra: se deja parado y deshabilitado.
+#  Si el contenedor no sirve:
+#
+#    docker rm -f space-os-demo
+#    systemctl enable --now spaces-demo
+#
+#  Y vuelves a estar donde estabas. Por eso el orden es parar
+#  el viejo ANTES de borrar nada: no se borra nada.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · Las salidas de la PUERTA 2 (dueno de las tablas y numero
+#     de migraciones). Con eso cierro los bloques 3 y 4.
+#   · Y si alguna otra puerta no da lo esperado, donde paro.
+# ############################################################
