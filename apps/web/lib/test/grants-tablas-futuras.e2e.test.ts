@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Pool } from 'pg'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 
 // ============================================================================
 //  Una tabla creada por OTRO rol no puede quedarse sin GRANT en silencio.
@@ -81,6 +82,7 @@ describe('H1 · los GRANT alcanzan a las tablas que crea otro rol', () => {
     await raiz.query(`drop database if exists ${BASE} with (force)`)
     await raiz.query(`create database ${BASE}`)
     admin = new Pool({ connectionString: urlDe(BASE), max: 2 })
+    vigilarPool(admin, BASE)
 
     await admin.query(sql('dev-rol-app.sql'))
     await admin.query(sql('schema.sql'))

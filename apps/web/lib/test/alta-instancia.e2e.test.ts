@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import bcrypt from 'bcryptjs'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 
 // ============================================================================
 //  El alta de una instancia: `apps/web/scripts/bootstrap-auth.mjs`.
@@ -42,6 +43,7 @@ async function crearBase(nombre: string): Promise<Pool> {
   await admin.query(`drop database if exists ${nombre} with (force)`)
   await admin.query(`create database ${nombre}`)
   const pool = new Pool({ connectionString: urlDe(nombre), max: 2 })
+  vigilarPool(pool, nombre)
   // El prólogo real de una instancia: rol de app → `schema.sql`. El rol va
   // PRIMERO porque `20260729_licencias_permisos.sql:96-97` aborta si no
   // encuentra ninguno, y desde el 20/08 el runner ni siquiera empieza sin él.

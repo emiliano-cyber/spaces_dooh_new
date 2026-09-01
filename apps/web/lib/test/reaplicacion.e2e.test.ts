@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Pool } from 'pg'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 // El MISMO orden que aplica una instancia de verdad. Aquí no se recalcula a
 // mano: lo que se prueba no es el orden (de eso se ocupa `migraciones.e2e`),
 // sino que la cadena aguante una segunda pasada tal y como se aplica en el
@@ -133,6 +134,7 @@ describe('la cadena de migraciones se puede reaplicar entera', () => {
     await admin.query(`drop database if exists ${BASE} with (force)`)
     await admin.query(`create database ${BASE}`)
     pool = new Pool({ connectionString: urlDe(BASE), max: 1 })
+    vigilarPool(pool, BASE)
 
     // El prólogo real de una instancia: rol de app → `schema.sql` →
     // migraciones. El rol va PRIMERO porque `20260729_licencias_permisos

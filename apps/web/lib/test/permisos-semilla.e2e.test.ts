@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 import { AREAS, MODULOS } from '../modulos'
 
 // ============================================================================
@@ -156,7 +157,9 @@ async function crearBase(nombre: string): Promise<Pool> {
   const admin = poolTest()
   await admin.query(`drop database if exists ${nombre} with (force)`)
   await admin.query(`create database ${nombre}`)
-  return new Pool({ connectionString: urlDe(nombre), max: 2 })
+  const pool = new Pool({ connectionString: urlDe(nombre), max: 2 })
+  vigilarPool(pool, nombre)
+  return pool
 }
 
 // El prólogo real de una instancia: rol de app → `schema.sql`. El rol va PRIMERO

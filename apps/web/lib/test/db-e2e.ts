@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { Pool } from 'pg'
+import { vigilarPool } from './pool-e2e'
 // El orden de las migraciones se declara UNA vez, en el runner que las aplica
 // en el droplet. Importarlo desde aquí es lo que garantiza que el arnés pruebe
 // el mismo orden que corre en una instancia.
@@ -87,6 +88,7 @@ export function poolTest(): Pool {
   if (!poolAdminRef) {
     exigirBaseDePrueba(URL_TEST)
     poolAdminRef = new Pool({ connectionString: URL_TEST, max: 4 })
+    vigilarPool(poolAdminRef, 'admin (URL_TEST)')
   }
   return poolAdminRef
 }
@@ -97,6 +99,7 @@ export function poolApp(): Pool {
   if (!poolAppRef) {
     exigirBaseDePrueba(URL_APP)
     poolAppRef = new Pool({ connectionString: URL_APP, max: 4 })
+    vigilarPool(poolAppRef, 'app (URL_APP)')
   }
   return poolAppRef
 }
