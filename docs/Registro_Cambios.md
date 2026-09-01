@@ -5,6 +5,31 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-01
+
+- **Ya existe una version aprobada del sistema, y se llama `v0.1.0`.** Hasta ayer
+  habia versiones **de prueba**: empaquetadas y guardadas, pero marcadas como «aun
+  no revisadas». Hoy una de ellas paso la revision y quedo marcada como
+  **estable**, que es la etiqueta que miran las instalaciones de los clientes.
+
+  El paso no es automatico **a proposito**: alguien tiene que pedirlo, y antes de
+  concederlo el sistema **va a mirar la copia de pruebas** y comprueba que
+  responde. Si no responde, no aprueba nada. Ademas **no vuelve a empaquetar**: se
+  aprueba exactamente el mismo paquete que se probo, no uno nuevo construido otra
+  vez.
+
+  Todavia no hay ninguna instalacion de cliente que lo descargue —no existe
+  ninguna—, pero **la tuberia entera esta probada de punta a punta**: se empaqueta,
+  se prueba, se aprueba y queda listo para instalar.
+
+- **Y conviene decir lo que la revision NO comprueba todavia**, porque el propio
+  sistema lo escribe en su informe: **no verifica que la copia de pruebas este
+  corriendo esa version exacta**. Comprueba que responde. Esa segunda comprobacion
+  se enciende sola cuando la copia de pruebas pase a instalarse igual que una
+  instalacion de cliente, que es el siguiente trabajo pendiente.
+
+---
+
 ## 2026-08-31
 
 - **Ya hay un almacén para las actualizaciones, y se llama `registryspaces`.**

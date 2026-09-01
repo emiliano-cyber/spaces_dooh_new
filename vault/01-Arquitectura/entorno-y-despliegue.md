@@ -501,12 +501,29 @@ Dos jobs, y el orden **es** el mecanismo de seguridad:
 
 ### `promover.yml` — `estable` se mueve a mano y sin reconstruir (17/08, F2.4)
 
-**Escrito, NUNCA corrido.** Necesita tres variables del repositorio y una imagen en
-el canal `beta`, que sale de `release.yml`. Al **2026-08-31** las dos primeras ya
-tienen valor —el registry se creó ese día, ver abajo— y **`DEMO_URL` sigue sin
-decidirse**, que es lo único que hoy separa a `promover.yml` de poder correr.
-Lo de `workflow_dispatch` dejó de aplicar: **el archivo vive en `main` desde el
-28/08**, así que ya aparece en la pestaña Actions.
+**CORRIDO Y PROMOVIENDO desde el 2026-09-01.** `v0.1.0` es la primera versión que
+llega al canal `estable`, y con eso **la Fase 2 queda completa**.
+
+Las tres variables tienen valor: `REGISTRY` y `REGISTRY_TIPO` desde el 31/08, y
+**`DEMO_URL` = la dirección de DEMO** desde que el subdominio existe.
+
+> [!important] Lo que este workflow SÍ comprueba, y lo que no
+> Su compuerta dura son **dos códigos 200 sobre `https`** —`/login/` y
+> `/api/auth/metodos/`— contra DEMO, más que la versión sea **la que lleva `beta`
+> ahora mismo**. Después **reetiqueta la misma imagen** con `imagetools` y **relee
+> el digest** para fallar si no coincide: no reconstruye, así que lo que llega a
+> `estable` es byte por byte lo que se probó.
+>
+> **Lo que NO comprueba, y lo escribe en su propio resumen:** qué versión corre
+> DEMO. Hoy DEMO arranca desde el repo clonado, así que responde `desconocida`
+> (`api/version/route.ts:102`). El resumen dice literalmente **«qué versión corre
+> DEMO: NO COMPROBADO»**, y eso es correcto — un smoke verde que se leyera como
+> «DEMO corre esta versión» sería peor que no tenerlo.
+>
+> ⚠️ **Consecuencia operativa**: mientras DEMO no corra desde la imagen,
+> **`FLOTA_TOKEN` no debe existir como secreto de GitHub**. Con él, el smoke
+> compararía `desconocida` contra la versión promovida y fallaría siempre. El día
+> que DEMO se contenerice, la comprobación se vuelve estricta sola.
 
 > [!warning] 2026-08-31 · «node 20 aquí, 22 en el CI» NO es cierto — la causa sigue sin identificar
 > El **efecto es real y está medido**: `npm install` en el PADRE poda entradas del
