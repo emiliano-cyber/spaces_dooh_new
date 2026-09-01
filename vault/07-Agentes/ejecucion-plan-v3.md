@@ -46,6 +46,18 @@ no lo replantea, solo registra su ejecución local.
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor
 se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 
+> [!success] 2026-08-31 · cierre del día — las dos decisiones caen
+> Registry **`registryspaces`** y DEMO en **`prueba.space-os.io`**, las dos cerradas
+> y desplegadas. **No queda ninguna tarea esperando una decisión.** Se cerraron
+> F2.3, F3.6, F5.5 y F8.2, y con ellas **las Fases 3 y 8**.
+>
+> Quedan **F2.4** (a un paso), **F3.5**, **F5.6** y **F5.7**.
+>
+> ⚠️ **`v0.1.0` salió rojo y era previsible**: su etiqueta apunta a `9929d77`, que
+> **no lleva** la corrección del cierre del arnés (`d6a1577`, ya en `main`).
+> Rehacerla sobre `main` y volver a correr. Detalle en
+> [[07-Agentes/diario/2026-08-31]] y `docs/Traspaso_20260831.md`.
+
 > [!danger] 2026-08-31 · revisión de lo que queda — tres fichas desalineadas
 > Auditadas contra el repositorio las seis tareas restantes:
 > `docs/evidencias/revision-fases-31-agosto.md`.
