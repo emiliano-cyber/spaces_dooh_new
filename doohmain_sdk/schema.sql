@@ -1,3 +1,20 @@
+-- ############################################################################
+--  ⚠️  LA COPIA QUE MANDA EN UNA INSTANCIA ES LA MIGRACION.
+--
+--  Desde el 2026-09-01 este DDL vive tambien en
+--      db/migrations/20260901_doohmain_tracking.sql
+--  y es esa la que aplican `provision-instancia.sh` y el runner de cada
+--  instancia. Este archivo se conserva porque el SDK tambien se usa suelto
+--  desde la raiz del repo.
+--
+--  SI DIVERGEN, GANA LA MIGRACION: es la unica que deja registro de haberse
+--  aplicado. Si tocas una, toca la otra.
+--
+--  La migracion ademas CONCEDE PERMISOS al rol de la aplicacion, que este
+--  archivo no hace: aplicarlo suelto deja las tablas sin GRANT si quien lo
+--  corre no es el dueno de la base.
+-- ############################################################################
+
 -- Tablas de tracking de la integración con DOOHmain (PostgreSQL).
 -- Sostienen la idempotencia: registran qué se creó/subió/publicó en DOOHmain
 -- para no duplicar. Aplicar una vez sobre la BD local:

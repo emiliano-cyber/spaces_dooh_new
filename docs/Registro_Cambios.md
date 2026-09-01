@@ -7,6 +7,23 @@ La entrada más reciente va arriba.
 
 ## 2026-09-01
 
+- **El sistema ya puede publicar a pantallas desde una instalacion nueva.** Publicar
+  una campana a las pantallas no lo hace la aplicacion sola: llama por dentro a un
+  programa auxiliar. Y ese programa **no viajaba dentro del paquete**, asi que una
+  instalacion recien creada habria fallado en la primera campana que intentara
+  publicar. Para un negocio de publicidad exterior eso no es un detalle: es el
+  producto.
+
+  Ahora el paquete lo lleva dentro, junto con la configuracion que necesita. **Nace
+  apagado a proposito**: se enciende el dia que el cliente entrega su credencial de
+  DOOHmain, que es suya. Encenderlo antes solo conseguiria que fallara cada campana.
+
+- **Y se crean las tablas que impiden publicar dos veces lo mismo.** El programa
+  auxiliar apunta que campana, que arte y que lista ya envio, para que reintentar no
+  duplique lo que sale en pantalla. Esas tablas habia que crearlas **a mano**, y en
+  una instalacion nueva no las creaba nadie. A partir de ahora se crean solas al dar
+  de alta la instalacion.
+
 - **Ya existe una version aprobada del sistema, y se llama `v0.1.0`.** Hasta ayer
   habia versiones **de prueba**: empaquetadas y guardadas, pero marcadas como «aun
   no revisadas». Hoy una de ellas paso la revision y quedo marcada como

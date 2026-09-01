@@ -89,8 +89,8 @@ código, no de memoria:
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
 | Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **39** | `vault/04-Datos/esquema.md` |
-| Migraciones | **74** | `vault/04-Datos/migraciones.md` |
+| Tablas | **42** | `vault/04-Datos/esquema.md` |
+| Migraciones | **76** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-08-28**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
