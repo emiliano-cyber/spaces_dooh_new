@@ -99,6 +99,37 @@ COPY --chown=node:node db/migrations ./db/migrations
 # unico sitio donde el proceso escribe: la instancia no necesita volumen.
 RUN mkdir -p ./apps/web/.next/cache && chown -R node:node ./apps/web/.next
 
+# ---------------------------------------------------------------------------
+#  Publicar a pantallas: el interprete de Python y el SDK
+# ---------------------------------------------------------------------------
+#  `apps/web/lib/server/doohmain.ts:165` publica invocando
+#  `python -m doohmain_sdk publish` por subproceso, con `cwd = DOOHMAIN_SDK_DIR`.
+#  Hasta el 2026-09-01 esta imagen no llevaba ni el interprete ni el paquete, asi
+#  que una instancia aprovisionada fallaba en `execFile` con ENOENT en la primera
+#  campana que intentara publicar. Para un operador de DOOH eso no es una
+#  carencia lateral: es el producto.
+RUN apk add --no-cache python3
+
+#  El SDK va en su propio venv y NO en el Python del sistema: Alpine marca su
+#  instalacion como "externally managed" (PEP 668) y `pip` fuera de un venv se
+#  niega. Ademas asi las dependencias del SDK no se mezclan con nada.
+COPY doohmain_sdk/requirements.txt /tmp/requirements-doohmain.txt
+
+#  `--only-binary=:all:` es un CONTRATO, no una optimizacion. Medido el
+#  2026-09-01 sobre este mismo `node:20-alpine`: psycopg[binary] 3.2.3 tiene
+#  rueda musllinux y no hace falta compilar nada. El dia que una version deje de
+#  publicar rueda, este build FALLA -- que es lo que se quiere -- en vez de
+#  arrastrar gcc y postgresql-dev a la imagen en silencio.
+RUN python3 -m venv /opt/doohmain-venv  && /opt/doohmain-venv/bin/pip install --no-cache-dir --only-binary=:all:       -r /tmp/requirements-doohmain.txt  && rm /tmp/requirements-doohmain.txt
+
+COPY --chown=node:node doohmain_sdk ./doohmain_sdk
+
+#  Las dos rutas, explicitas. `doohmain.ts:24-25` cae en `python` y
+#  `process.cwd()` si faltan, y las dos omisiones son falsas aqui dentro.
+#  `SDK_DIR` es la carpeta que CONTIENE `doohmain_sdk/`, no el paquete.
+ENV DOOHMAIN_PY=/opt/doohmain-venv/bin/python
+ENV DOOHMAIN_SDK_DIR=/app
+
 # Sin privilegios: la app no instala nada ni escribe fuera de su cache.
 USER node
 

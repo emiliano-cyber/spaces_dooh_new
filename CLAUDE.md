@@ -89,8 +89,8 @@ código, no de memoria:
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
 | Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **39** | `vault/04-Datos/esquema.md` |
-| Migraciones | **74** | `vault/04-Datos/migraciones.md` |
+| Tablas | **42** | `vault/04-Datos/esquema.md` |
+| Migraciones | **76** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-08-28**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
@@ -440,9 +440,12 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
-Fases cerradas: **0, 1, 4, 6 y 8**. La 2 en 5 de 6, la 3 **completa** y la 5 en 6 de 8
-tras cerrarse **F3.6** y **F5.5** el 31/08. **Quedan 4**: F2.4, F3.5, F5.6 y F5.7 —
-y las cuatro dependen, directa o indirectamente, de convertir DEMO en una instancia.
+Fases cerradas: **0, 1, 2, 3, 4, 6 y 8** — la **2 se cerró el 2026-09-01** al
+promover `v0.1.0` a `estable`. La 5 en 6 de 8
+tras cerrarse **F3.6** y **F5.5** el 31/08. **Quedan 3**: F3.5, F5.6 y F5.7 — y las
+tres cuelgan de **convertir DEMO en una instancia**, que **merece un ADR antes que
+una tarjeta**: mete Docker en el plano de control, y la alternativa que el propio
+modelo sugiere es que DEMO sea su propio droplet.
 
 > [!tip] El siguiente paso concreto es un censo de solo lectura
 > `docs/evidencias/censo-demo-en-el-padre.txt`. Comprueba en el servidor lo que la

@@ -643,3 +643,32 @@ Del `Runbook_Deploy_Fase1_Arrendadores.md` y `DESPLIEGUE_GOOGLE.txt`:
 ## Relacionadas
 [[esquema]] · [[multi-tenancy-y-rls]] · [[entorno-y-despliegue]] ·
 [[zonas-de-riesgo]] · [[convenciones]] · [[MOC-Proyecto]]
+
+## 2026-09-01 · `20260901_doohmain_tracking.sql`
+
+Las **tres tablas de seguimiento de DOOHmain** —`doohmain_remote_campaigns`,
+`doohmain_remote_lists` y `media_uploads`— entran al registro de migraciones.
+
+**Por qué importa que estén aquí y no sueltas.** Son las que sostienen la
+**idempotencia de las publicaciones**: registran qué campaña, qué arte y qué
+sublista ya existen en DOOHmain para que un reintento no publique dos veces. Su
+DDL vivía en `doohmain_sdk/schema.sql` con la instrucción «aplicar una vez a
+mano», y la auditoría del 2026-09-01 encontró que **nadie las aplicaba en una
+instancia nueva**: `provision-instancia.sh` corre `db/schema.sql` y
+`db/migrations/`, y ese archivo no está en ninguno de los dos.
+
+> [!warning] No llevan `tenant_id` ni RLS, y es una decisión
+> Aceptada a sabiendas el 2026-09-01: en el modelo de instancias soberanas cada
+> instancia es de un solo owner. **El riesgo, si alguna vez alojara dos
+> organizaciones**: el `unique (version)` las haría chocar, y la segunda vería la
+> campaña de la primera como «ya publicada». Hoy no ocurre — el PADRE es el único
+> con dos organizaciones y no publica. Cerrarlo de verdad exige tocar el SDK de
+> Python.
+
+> [!tip] Concede los permisos ella misma, y no por omisión
+> No se apoya en el `alter default privileges` de `20260820_grants_rol_app.sql`,
+> que se escribió **sin `for role`** — hallazgo H1 del 24/08. Si esta migración la
+> aplicara otro rol, las tres tablas nacerían **sin permisos y sin error**, y el
+> SDK publicaría bien sin poder registrar que publicó: el reintento duplicaría.
+
+**Van 76 migraciones**, y hay **42 tablas**.

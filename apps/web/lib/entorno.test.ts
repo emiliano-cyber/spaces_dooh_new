@@ -251,6 +251,39 @@ describe('F5.3 · infra/env/app.env.example', () => {
     expect(plantilla('app.env.example')).toMatch(/^AUTOREGISTRO=0$/m)
   })
 
+  // ── Publicar a pantallas ────────────────────────────────────────────────
+  //
+  //  Auditoria del 2026-09-01: el producto publica a pantallas invocando un CLI
+  //  de Python (`lib/server/doohmain.ts:165`), y NI la imagen llevaba el
+  //  interprete NI la plantilla traia una sola de las variables que ese CLI
+  //  exige. Una instancia nueva nacia sin poder publicar a una sola pantalla, y
+  //  para un operador de DOOH eso no es una carencia lateral: es el producto.
+  //
+  //  Seis de esas variables NO tienen valor por omision -- `config.py:52-60`
+  //  hace `os.environ[...]`, que revienta si falta. Estar en la plantilla es lo
+  //  unico que hace que quien rellena el `.env` sepa que existen.
+
+  it('la plantilla declara lo que el lado Node necesita para publicar', () => {
+    const tpl = plantilla('app.env.example')
+    for (const clave of ['DOOHMAIN_PUBLISH_ENABLED', 'DOOHMAIN_DEFAULT_SCREEN', 'DOOHMAIN_SCREEN_MAP']) {
+      expect(tpl, `falta ${clave}`).toMatch(new RegExp(`^#?\s*${clave}=`, 'm'))
+    }
+  })
+
+  it('y las que exige el SDK de Python, incluidas las seis que revientan si faltan', () => {
+    const tpl = plantilla('app.env.example')
+    for (const clave of ['DOOHMAIN_API_KEY', 'DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME', 'DB_SSL']) {
+      expect(tpl, `falta ${clave}`).toMatch(new RegExp(`^#?\s*${clave}=`, 'm'))
+    }
+  })
+
+  it('publicar nace APAGADO en la plantilla, como el autoregistro', () => {
+    // Una instancia que aun no tiene llave de DOOHmain no debe intentar
+    // publicar: fallaria en cada campana. Se enciende cuando el cliente entrega
+    // su `DOOHMAIN_API_KEY`.
+    expect(plantilla('app.env.example')).toMatch(/^DOOHMAIN_PUBLISH_ENABLED=0$/m)
+  })
+
   it('NO resucita `NEXT_PUBLIC_AUTOREGISTRO`, que F2.6 mató', () => {
     // La especificación de F5.3 pedía esta variable, y es un desfase suyo: el
     // 2026-08-14 la bandera salió del build precisamente porque con el prefijo

@@ -46,6 +46,20 @@ no lo replantea, solo registra su ejecución local.
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor
 se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 
+> [!success] 2026-09-01 · **F2.4 CERRADA — la FASE 2 queda completa**
+> `v0.1.0` promovida a **`estable`**: primera version que llega al canal que
+> consumen las instancias. El smoke contra DEMO en verde, la imagen reetiquetada
+> sin reconstruir y el digest releido.
+>
+> **Quedan TRES**: F3.5, F5.6 y F5.7, y las tres cuelgan de convertir DEMO en una
+> instancia — que **merece un ADR antes que una tarjeta**, porque mete Docker en
+> el plano de control.
+>
+> ⚠️ Costó tres corridas de `release.yml`, y ninguna por el codigo: dos defectos
+> del arnés que solo se ven fuera de Windows y uno —los pools sin manejador— que
+> se diagnosticó mal el 31/08 **por no exigir el log antes de tocar codigo**. Está
+> contado en [[06-Operacion/convenciones]].
+
 > [!success] 2026-08-31 · cierre del día — las dos decisiones caen
 > Registry **`registryspaces`** y DEMO en **`prueba.space-os.io`**, las dos cerradas
 > y desplegadas. **No queda ninguna tarea esperando una decisión.** Se cerraron
