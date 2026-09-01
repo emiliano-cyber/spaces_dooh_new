@@ -371,6 +371,23 @@ paso "Esquema y migraciones"
 # una rezagada, y esa distincion solo la sabe quien acaba de crear la base.
 registro_login
 remoto "docker pull '$IMAGEN'"
+# El ESQUEMA BASE va primero, y sale de la imagen. Este paso NO EXISTIA: el
+# bloque se llamaba "Esquema y migraciones" y solo migraba, asi que la primera
+# migracion se estrellaba contra una base vacia con
+# `relation "public.clientes" does not exist`. Medido el 2026-09-01 corriendo el
+# runner de la imagen contra una base recien creada.
+#
+# `schema.sql` NO es idempotente -- 28 `create table` y uno solo con `if not
+# exists` -- asi que no puede aplicarlo el runner a ciegas en cada corrida. Es
+# del alta, y solo del alta.
+#
+# Se aplica como `spaces_migrador` y no como `postgres` a proposito: las
+# migraciones que vienen despues ALTERAN estas tablas, y un `alter` sobre una
+# tabla de otro dueno falla. Mismo dueno para todo el esquema, siempre.
+remoto "docker run --rm '$IMAGEN' cat /app/db/schema.sql > /tmp/space-os-schema.sql"
+remoto "PGPASSWORD='$CLAVE_MIGRADOR' psql -h 127.0.0.1 -U spaces_migrador -d spaces -v ON_ERROR_STOP=1 -f /tmp/space-os-schema.sql"
+remoto "rm -f /tmp/space-os-schema.sql"
+
 remoto "docker run --rm --network host --env DATABASE_URL='$URL_MIGRADOR' '$IMAGEN' node scripts/migrar.mjs --instalacion-nueva"
 
 # ─── 4 · Los dos archivos de entorno ────────────────────────────────────────

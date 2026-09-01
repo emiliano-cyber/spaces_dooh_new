@@ -1550,6 +1550,25 @@ ninguno visible desde su `--dry-run`.**
 | ③ | La imagen no llevaba `scripts/migrar.mjs`, y `update.sh` montaba la copia del anfitrión (su AVISO 1) | La imagen **lo lleva**. `update.sh` toma su primera rama solo, sin tocarle una línea |
 | ④ | **Ninguna autenticación contra el registro**: ni `docker login` ni credencial en la plantilla | `REGISTRY_TOKEN` de solo lectura, y login **por stdin** en los dos scripts |
 | ⑤ | La `DATABASE_URL` era un **socket unix**, que un contenedor no ve | Rol **`spaces_migrador`** con contraseña, por TCP a `127.0.0.1` |
+| ⑥ | **El esquema base no lo aplicaba nadie.** El paso se llamaba «Esquema y migraciones» y solo migraba | El alta aplica `db/schema.sql` **desde la imagen** y como `spaces_migrador`, antes de migrar |
+| ⑦ | `setup-droplet.sh` **no instalaba PostgreSQL**, y `provision` hace `sudo -u postgres psql` en su primer comando | Lo instala y lo habilita |
+
+> [!success] 2026-09-01 · el artefacto se VALIDO de punta a punta, por primera vez
+> No leyendo: **construyendo la imagen y corriendola**. Sobre el Postgres local:
+>
+> ```
+> imagen construida            333 MB sin comprimir
+> lleva dentro                 /app/scripts/migrar.mjs · /app/db · doohmain_sdk
+>                              Python 3.12.14, y `import doohmain_sdk` funciona
+> esquema desde la imagen      679 lineas, aplicado como spaces_migrador
+> migraciones                  75 aplicadas, 1 de datos pendiente (correcto)
+> la aplicacion arranca        /login/ 200 · /api/auth/metodos/ 200
+>                              /api/version/ -> {"ok":true}
+> ```
+>
+> Los defectos ⑥ y ⑦ **salieron de esa corrida**, no de leer. El ⑥ aparecio como
+> `relation "public.clientes" does not exist` en la primera migracion, que es
+> exactamente lo que habria visto una persona con el cliente esperando.
 
 **Por qué un rol nuevo y no `postgres` por socket.** Montar el socket no bastaba:
 sin usuario en la URL, libpq usa el **del sistema**, que dentro del contenedor es

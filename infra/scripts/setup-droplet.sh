@@ -58,6 +58,16 @@ systemctl start docker
 echo "  ✓ Docker $(docker --version | awk '{print $3}' | tr -d ,) instalado"
 
 # ─── Nginx ────────────────────────────────────────────────────────────────────
+echo "→ Instalando PostgreSQL..."
+# Sin esto, `provision-instancia.sh` moria en su PRIMER comando: hace
+# `sudo -u postgres psql` para crear los roles, y en un droplet recien nacido no
+# habia ni servidor ni usuario `postgres`. Nadie lo vio porque nunca se
+# aprovisiono una instancia: el --dry-run imprime ese comando, no lo ejecuta.
+apt-get install -y -qq postgresql postgresql-contrib
+systemctl enable postgresql
+systemctl start postgresql
+echo "  ✓ PostgreSQL $(psql --version | awk '{print $3}') instalado"
+
 echo "→ Instalando Nginx..."
 apt-get install -y -qq nginx
 systemctl enable nginx
