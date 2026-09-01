@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 // Solo para MONTAR el escenario de la instancia rezagada: aplicar su historia
 // en el orden real. Las expectativas de estas pruebas nunca salen de aquí.
 import {
@@ -187,6 +188,7 @@ describe('registro de migraciones aplicadas', () => {
     await admin.query(`drop database if exists ${BASE_VIRGEN} with (force)`)
     await admin.query(`create database ${BASE_VIRGEN}`)
     const pool = new Pool({ connectionString: urlDe(BASE_VIRGEN), max: 1 })
+    vigilarPool(pool, BASE_VIRGEN)
     try {
       await pool.query(SQL())
       const { rows } = await pool.query('select count(*)::int as n from schema_migrations')
@@ -274,6 +276,7 @@ describe('runner de migraciones', () => {
     await admin.query(`drop database if exists ${BASE_RUNNER} with (force)`)
     await admin.query(`create database ${BASE_RUNNER}`)
     pool = new Pool({ connectionString: urlDe(BASE_RUNNER), max: 2 })
+    vigilarPool(pool, BASE_RUNNER)
     await prepararBaseVacia(pool)
     // `--instalacion-nueva` se pasa a conciencia aunque desde el 19/08 esta
     // base ya no la necesite: `schema.sql` dejó de sembrar organización, así
@@ -510,6 +513,7 @@ describe('runner contra una instancia rezagada', () => {
     await admin.query(`drop database if exists ${BASE_REZAGADA} with (force)`)
     await admin.query(`create database ${BASE_REZAGADA}`)
     pool = new Pool({ connectionString: urlDe(BASE_REZAGADA), max: 2 })
+    vigilarPool(pool, BASE_REZAGADA)
     historicas = await prepararInstanciaRezagada(pool)
     listado = correrRunner(BASE_REZAGADA, ['--pendientes'])
     aplicar = correrRunner(BASE_REZAGADA)
@@ -671,6 +675,7 @@ describe('integridad de lo ya aplicado', () => {
     await admin.query(`drop database if exists ${BASE_INTEGRIDAD} with (force)`)
     await admin.query(`create database ${BASE_INTEGRIDAD}`)
     pool = new Pool({ connectionString: urlDe(BASE_INTEGRIDAD), max: 2 })
+    vigilarPool(pool, BASE_INTEGRIDAD)
     await prepararInstanciaRezagada(pool)
     // El remedio que indica el propio runner: registro primero (backfill de las
     // 65 históricas), y después el runner aplica y registra lo que falta.

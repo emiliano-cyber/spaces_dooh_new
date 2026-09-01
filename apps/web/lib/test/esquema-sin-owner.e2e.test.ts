@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 
 // ============================================================================
 //  El esquema base NO trae la organización de nadie.
@@ -95,6 +96,7 @@ describe('el esquema base no trae la organización de nadie', () => {
     await admin.query(`drop database if exists ${BASE} with (force)`)
     await admin.query(`create database ${BASE}`)
     pool = new Pool({ connectionString: urlDe(BASE), max: 2 })
+    vigilarPool(pool, BASE)
 
     // El prólogo real de una instancia: rol de app → `schema.sql`. El rol va
     // PRIMERO porque `20260729_licencias_permisos.sql:96-97` aborta si no

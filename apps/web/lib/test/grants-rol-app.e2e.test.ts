@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Pool } from 'pg'
 import { poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { vigilarPool } from './pool-e2e'
 
 // ============================================================================
 //  Un rol de aplicación que nació sin permisos se repara al actualizar.
@@ -52,6 +53,7 @@ describe('la migración que concede los GRANT sin lista blanca', () => {
     await raiz.query(`drop database if exists ${BASE} with (force)`)
     await raiz.query(`create database ${BASE}`)
     admin = new Pool({ connectionString: urlDe(BASE), max: 2 })
+    vigilarPool(admin, `${BASE} (admin)`)
     // El rol es del clúster y ya existe; `dev-rol-app.sql` es idempotente.
     await admin.query(sql('dev-rol-app.sql'))
     await admin.query(sql('schema.sql'))
@@ -62,6 +64,7 @@ describe('la migración que concede los GRANT sin lista blanca', () => {
     await admin.query('revoke all on all sequences in schema public from spaces_app')
     await admin.query('revoke all on schema public from spaces_app')
     app = new Pool({ connectionString: urlDe(BASE, 'spaces_app', CLAVE_APP), max: 2 })
+    vigilarPool(app, `${BASE} (spaces_app)`)
   }, 120_000)
 
   afterAll(async () => {
@@ -129,6 +132,7 @@ describe('la migración que concede los GRANT sin lista blanca', () => {
         connectionString: `postgresql://x:x@localhost:${puerto}/sinrol`,
         max: 1,
       })
+      vigilarPool(suelto, 'sinrol')
       try {
         await suelto.query('create table tenants (id int)')
         await expect(suelto.query(sql(join('migrations', MIGRACION)))).rejects.toThrow(

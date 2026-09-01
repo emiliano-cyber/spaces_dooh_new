@@ -107,6 +107,43 @@ Las e2e:
 > **La lección, y es la de siempre en este repo**: el verde local no medía lo
 > que decía medir. Medía Windows.
 >
+> ⚠️ **2026-09-01 · LA CAUSA ERA OTRA. Lo de abajo se escribió sin el log
+> delante, y el log lo desmiente.**
+>
+> Al pedir por cuarta vez el final del paso de e2e, apareció el bloque que faltaba:
+>
+> ```
+> Vitest caught 2 unhandled errors during the test run.
+> Uncaught Exception: error: terminating connection due to administrator command
+> code: '57P01'   ·   bases: spaces_rezagada_e2e y spaces_grants_e2e
+> ```
+>
+> **No era el `next start` que no moría: eran los pools de Postgres.** Varios
+> archivos montan su escenario en una base desechable y la tiran con
+> `drop database ... with (force)`, y ese `with (force)` **termina las conexiones
+> abiertas**. Postgres manda `57P01` a cada cliente vivo, `pg` lo emite **en el
+> pool** —es un cliente ocioso, no una consulta en curso, así que no hay `await`
+> que lo recoja— y un `error` sin oyente **se lanza**.
+>
+> **Ninguno de los 14 pools del arnés tenía manejador.** Los dos que reventaron son
+> justo los que más pools tienen: `migraciones` (4) y `grants-rol-app` (3) —
+> consistente con que sea una carrera. Corregido en
+> `apps/web/lib/test/pool-e2e.ts`, aplicado a los catorce, y probado sobre un
+> `EventEmitter` con el `57P01` real: **caza desde Windows un fallo que solo
+> aparece en el CI**.
+>
+> **La lección, y es la más caras de las de estos días:** el diagnóstico de ayer era
+> del *tipo* correcto —un `error` sin manejador— pero en el *sitio* equivocado, y se
+> dio por resuelto sin haber visto nunca el mensaje. **Dos corridas y media jornada
+> costaron ese atajo.** Lo que había que hacer era insistir en el log antes de
+> tocar código.
+>
+> El arreglo de ayer **se queda**: un `spawn` sin manejador de `error` sigue siendo
+> un riesgo real, y la espera con techo en `pararServidor()` también. Simplemente
+> **no era esto**.
+>
+> *Lo que decía ayer, y quedó desmentido:*
+>
 > ✅ **RESUELTA el 2026-08-31, por la tarde — y volvió antes de que diera tiempo
 > a olvidarla.** Reapareció en la corrida de `v0.1.0` y **bloqueó el release**: cada
 > versión se había vuelto una moneda al aire, que es peor que el defecto original.
