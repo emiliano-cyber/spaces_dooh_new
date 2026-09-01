@@ -100,6 +100,21 @@ describe('el alta migra dentro de un contenedor, no contra un repo', () => {
   })
 })
 
+describe('la aplicacion en contenedor puede ver su base', () => {
+  it('la plantilla NO apunta la base a 127.0.0.1', () => {
+    // La app corre con red bridge, asi que dentro del contenedor `127.0.0.1` es
+    // EL PROPIO CONTENEDOR. Con esa URL la instancia arranca y falla en cada
+    // consulta -- falla seguro (el health check la tira), pero no funciona nunca.
+    const APP_ENV = leer('infra', 'env', 'app.env.example')
+    expect(APP_ENV).not.toMatch(/^DATABASE_URL=.*@127\.0\.0\.1:/m)
+    expect(APP_ENV).toMatch(/^DATABASE_URL=.*@host\.docker\.internal:/m)
+  })
+
+  it('y el contenedor sabe resolver ese nombre', () => {
+    expect(INSTANCIA_ENV).toMatch(/--add-host=host\.docker\.internal:host-gateway/)
+  })
+})
+
 describe('una instancia puede bajar la imagen de un registro privado', () => {
   it('`update.sh` se autentica antes de jalar', () => {
     expect(ejecutable(UPDATE)).toMatch(/docker login/)
