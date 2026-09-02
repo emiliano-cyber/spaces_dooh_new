@@ -101,17 +101,40 @@ describe('el alta migra dentro de un contenedor, no contra un repo', () => {
 })
 
 describe('la aplicacion en contenedor puede ver su base', () => {
-  it('la plantilla NO apunta la base a 127.0.0.1', () => {
-    // La app corre con red bridge, asi que dentro del contenedor `127.0.0.1` es
-    // EL PROPIO CONTENEDOR. Con esa URL la instancia arranca y falla en cada
-    // consulta -- falla seguro (el health check la tira), pero no funciona nunca.
-    const APP_ENV = leer('infra', 'env', 'app.env.example')
-    expect(APP_ENV).not.toMatch(/^DATABASE_URL=.*@127\.0\.0\.1:/m)
-    expect(APP_ENV).toMatch(/^DATABASE_URL=.*@host\.docker\.internal:/m)
+  // Medido el 2026-09-01 al convertir DEMO, y es una leccion cara:
+  //
+  //  El primer intento puso la app en red BRIDGE con `host.docker.internal`,
+  //  porque ahi dentro `127.0.0.1` es el propio contenedor. Funcionaba... hasta
+  //  que `update.sh` se planto: compara la DATABASE_URL de `app.env` con la de
+  //  `instancia.env` y SE PARA si difieren, «migrar una y servir la otra no da
+  //  error, deja dos bases a medias». Y difieren EN TEXTO aunque sean la misma:
+  //  las migraciones corren con `--network host` y usan `127.0.0.1`.
+  //
+  //  El guard tiene razon y no se ablanda. Lo que se cambia es la red: con
+  //  `--network host` hay UNA sola forma de nombrar la base en todo el sistema.
+
+  const APP_ENV = leer('infra', 'env', 'app.env.example')
+
+  it('el alta escribe las DOS urls con el MISMO destino, o `update.sh` se para', () => {
+    // Se mira el SCRIPT y no las plantillas: `instancia.env.example` trae
+    // `DATABASE_URL=` vacio a proposito -- lo rellena el alta --, asi que
+    // comparar plantillas no mediria nada. Las dos urls nacen aqui.
+    const destinos = [...ejecutable(PROVISION).matchAll(/postgresql:\/\/[^@\s'"]+@([^/\s'"]+)\//g)]
+      .map((m) => m[1])
+    expect(destinos.length, 'el alta deberia escribir dos urls').toBeGreaterThanOrEqual(2)
+    expect(new Set(destinos).size, `destinos distintos: ${destinos.join(' vs ')}`).toBe(1)
   })
 
-  it('y el contenedor sabe resolver ese nombre', () => {
-    expect(INSTANCIA_ENV).toMatch(/--add-host=host\.docker\.internal:host-gateway/)
+  it('comparte la red de la maquina, que es lo que hace posible lo anterior', () => {
+    expect(INSTANCIA_ENV).toMatch(/DOCKER_OPCIONES_APP=.*--network host/)
+  })
+
+  it('y se ata al bucle local, o el puerto quedaria expuesto', () => {
+    // Con `--network host` ya no hay `--publish` que limite la interfaz: lo unico
+    // que mantiene el puerto fuera del exterior es que la app escuche en
+    // 127.0.0.1. Sin esta linea, la imagen usa 0.0.0.0 y la unica defensa seria
+    // el cortafuegos.
+    expect(APP_ENV).toMatch(/^HOSTNAME=127\.0\.0\.1$/m)
   })
 })
 
