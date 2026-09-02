@@ -44,6 +44,19 @@ function correrAlta(extra: Record<string, string>) {
   })
 }
 
+// El presupuesto de vitest tiene que ser MAYOR que el del `spawnSync` de arriba,
+// y no es cosmético: cada caso arranca un proceso Node entero. Con la suite en
+// paralelo ese arranque se queda sin CPU y se pasa de los 5000 ms que vitest da
+// por omisión — medido el 2026-09-02: este archivo solo tarda 879 ms, y dentro
+// de la suite completa el primer caso murió a los 5456 ms.
+//
+// Es la MISMA intermitente que `tipografia.test.ts` el 01/09, y el mensaje
+// tampoco decía nada del código: «Test timed out in 5000ms». Por eso el arreglo
+// va al presupuesto y no a la prueba — si el spawn puede tardar 20 s, el caso
+// que lo espera no puede cortar a los 5. Dejarlos así hace que el resultado
+// dependa de lo ocupada que esté la máquina, no del código.
+const ESPERA = 25_000
+
 describe('el alta de una instancia valida el correo del Dueño', () => {
   it('rechaza el marcador que se coló el 21/08, sin tocar la base', () => {
     const r = correrAlta({ ADMIN_EMAIL: '<el correo de Google del Dueño>' })
@@ -54,7 +67,7 @@ describe('el alta de una instancia valida el correo del Dueño', () => {
     expect(r.stderr).toMatch(/correo/i)
     // Y no puede haber intentado conectar: eso sería el guard en el sitio malo.
     expect(r.stderr).not.toMatch(/ECONNREFUSED|ENOTFOUND/)
-  })
+  }, ESPERA)
 
   it.each([
     ['sin arroba', 'duenia.alta.test'],
@@ -65,14 +78,14 @@ describe('el alta de una instancia valida el correo del Dueño', () => {
     const r = correrAlta({ ADMIN_EMAIL: email })
     expect(r.status).toBe(1)
     expect(r.stderr).toMatch(/ADMIN_EMAIL/)
-  })
+  }, ESPERA)
 
   // ─── El contrafactual: sin él la prueba pasaría con un guard que rechaza
   // TODO, que es el otro modo de fallar y no daría error nunca.
   it('un correo válido pasa el guard y falla más adelante, al conectar', () => {
     const r = correrAlta({ ADMIN_EMAIL: 'duenia@alta.test' })
     expect(r.stderr).not.toMatch(/ADMIN_EMAIL/)
-  })
+  }, ESPERA)
 })
 
 describe('la regla del correo existe UNA sola vez', () => {
