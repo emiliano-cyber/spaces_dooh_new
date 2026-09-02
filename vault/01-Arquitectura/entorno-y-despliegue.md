@@ -867,6 +867,45 @@ Lo fija `argv_sin_marca`, una comprobación **global** que corre en los 88 escen
 arnés: toda credencial lleva dentro una cadena marcadora y ninguna puede acabar en la
 línea de comandos de ninguna llamada doblada.
 
+> [!danger] 2026-09-02 · el epílogo del alta mandaba al modelo de pm2, y una prueba lo EXIGÍA
+> `setup-droplet.sh` terminaba imprimiendo «pasos siguientes» con `git clone`,
+> `npm ci`, `npm run build` y `pm2 start ecosystem.config.js`. Eso es el modelo de
+> **repositorio clonado**, muerto por el [ADR 0019](../../docs/adr/0019-demo-arranca-con-systemd.md)
+> y después por el modelo de contenedores que **F3.5 demostró funcionando** ese
+> mismo día. **Una instancia no clona el repositorio y no usa pm2.**
+>
+> Lo que lo hacía difícil de ver: `aprovisionamiento-epilogo.test.ts` tenía un
+> contrafactual que **exigía que apareciera `pm2`**. La prueba no lo permitía —lo
+> obligaba—: se escribió cuando pm2 era el modelo y **sobrevivió a la decisión que
+> la invalidó**. Es el segundo epílogo muerto que se corrige aquí; el primero fue
+> el de Fastify y los subdominios, el 24/08.
+>
+> **Y por qué costaba caro y no era un texto viejo:** `provision-instancia.sh:330`
+> mete el guion por `bash -s` **dentro** de su propio recorrido, así que ese cartel
+> se imprime **entre el paso 1 y el 2**, con los pasos 2 a 7 a punto de correr
+> solos. Mandaba a hacer a mano —y por el camino equivocado— lo que el script hacía
+> él segundos después.
+>
+> Ahora **no hay lista de pasos**: dice qué quedó instalado, que la máquina **no
+> lleva el código**, y que sigue `provision-instancia.sh`. Se retiró también el
+> `mkdir /var/www/Spaces/logs`, que existía sólo para el modelo del repo clonado y
+> dejaba en la máquina de un cliente un directorio de proyecto que hace pensar que
+> el código está ahí.
+
+> [!warning] `setup-droplet.sh` sólo corre con `--crear-droplet`
+> Medido el 02/09: la llamada está **dentro** de la rama de `--crear-droplet`
+> (`provision-instancia.sh:311,330`). Con `--host <ip>` la base del servidor **no
+> se instala** —ni Docker, ni PostgreSQL, ni nginx, ni certbot, ni s3cmd— y el paso
+> 2 se estrella por no haber base de datos.
+>
+> No es un defecto: `--host` existe para el caso «el servidor ya existe y está
+> preparado». Pero **no está escrito en ningún sitio**, y es una trampa para quien
+> traiga su propio droplet:
+>
+> ```bash
+> ssh root@<IP> 'bash -s' < infra/scripts/setup-droplet.sh   # ANTES del provision
+> ```
+
 > [!danger] 2026-09-02 · el alta NO instalaba el cliente de S3, así que nada salía
 > `respaldo.sh` sube el dump y `update.sh` sube el log, y los dos resuelven el
 > cliente con `respaldo_cliente()`, que exige **`s3cmd` o `aws` en el PATH**.

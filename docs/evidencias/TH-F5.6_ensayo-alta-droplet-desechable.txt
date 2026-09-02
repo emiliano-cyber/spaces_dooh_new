@@ -213,6 +213,16 @@ echo ok; cd /var/www/Spaces && git pull --quiet && git log --oneline -1; for h i
 #  · `dig` hace falta en el bloque 3. Si falta:
 #      apt-get install -y dnsutils
 #
+#  ⚠️ Y SI TE VAS AL CAMINO B, LEE ESTO PRIMERO. Medido el
+#  02/09: `setup-droplet.sh` solo corre DENTRO de la rama de
+#  `--crear-droplet` (`provision-instancia.sh:311,330`). Con
+#  `--host` NO se instala nada -- ni Docker, ni PostgreSQL, ni
+#  nginx, ni certbot, ni s3cmd --, asi que el paso 2 se estrella
+#  por no haber base de datos.
+#
+#  Con `--host`, la base del servidor va A MANO Y ANTES:
+#    ssh root@<IP> 'bash -s' < infra/scripts/setup-droplet.sh
+#
 #  SALIDA B, por si el A se atasca y no quieres perder la tarde:
 #  creas el droplet a mano en cloud.digitalocean.com (Ubuntu
 #  22.04, el mas pequeno, NYC1) con la clave del PADRE puesta, y
