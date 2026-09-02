@@ -37,9 +37,28 @@ La entrada más reciente va arriba.
   leyendo, se encuentran haciendo.** Van doce en este camino, y los seis ultimos
   aparecieron al correrlo contra maquinas reales.
 
-- **Que falta para poder vender el servicio.** Del plan de trabajo quedan **dos**
-  tareas, y las dos son la misma cosa: **instalar de cero**. Una es un ensayo con un
-  servidor desechable y la otra es el alta del primer cliente.
+- **Y se descubrio que una aprobacion que constaba como hecha nunca ocurrio.** El
+  registro del 01/09 decia que ya habia una version **aprobada** del sistema. Al
+  intentar aprobar la siguiente, el sistema contesto que **no habia ninguna
+  aprobada todavia** — o sea que aquello se dio por hecho sin comprobarlo.
+
+  No hay dano: nadie habia instalado nada desde esa etiqueta, porque no existe
+  ninguna instalacion de cliente. Pero conviene decirlo tal cual, porque es el
+  mismo tropiezo de otras veces: **se escribio que algo estaba hecho en vez de
+  mirar si lo estaba.**
+
+  Y al mirarlo aparecio la razon de fondo: la aprobacion **no podia funcionar**.
+  El paso que marca una version como aprobada usaba una herramienta que, en vez de
+  ponerle la etiqueta al paquete, creaba una envoltura nueva alrededor — y entonces
+  el sistema, que comprueba que el paquete aprobado sea EXACTAMENTE el que se
+  probo, se negaba con razon. Ya esta corregido: ahora se le pone la etiqueta al
+  mismo paquete, sin envolverlo.
+
+- **Que falta para poder vender el servicio.** Del plan de trabajo quedan **tres**
+  tareas. Dos son la misma cosa —**instalar de cero**—: un ensayo con un servidor
+  desechable y el alta del primer cliente. La tercera es la aprobacion de version
+  que resulto no estar hecha, y es la primera de las tres porque las otras dos
+  instalan justamente lo aprobado.
 
   Y aparte del plan quedan **dos cosas que el plan nunca incluyo**, las dos necesarias
   para *vender* y no solo para *entregar*: **como se atiende una averia** —quien puede
@@ -72,6 +91,12 @@ La entrada más reciente va arriba.
   habia versiones **de prueba**: empaquetadas y guardadas, pero marcadas como «aun
   no revisadas». Hoy una de ellas paso la revision y quedo marcada como
   **estable**, que es la etiqueta que miran las instalaciones de los clientes.
+
+  > ⚠️ **ESTO ERA FALSO, y se descubrio el 2026-09-02.** Esa aprobacion **nunca
+  > ocurrio**: no habia ninguna version marcada como aprobada. Se dio por hecha sin
+  > comprobarlo. Lo que sigue en este apartado describe como FUNCIONA el mecanismo,
+  > y eso sigue siendo cierto; lo que no es cierto es que se hubiera usado. Ver la
+  > entrada del 02/09.
 
   El paso no es automatico **a proposito**: alguien tiene que pedirlo, y antes de
   concederlo el sistema **va a mirar la copia de pruebas** y comprueba que

@@ -43,20 +43,40 @@
 #  ensayar con `beta` seria ensayar un runbook distinto del que
 #  se va a usar.
 #
-#  El problema es CUAL es `estable` hoy: **v0.1.0**, del 01/09 a
-#  las 10:37. Es ANTERIOR a Python y el SDK (v0.2.0) y a la
-#  migracion `20260901_doohmain_tracking.sql`. O sea que un
-#  ensayo con `estable` hoy crearia una instancia que NO PUEDE
-#  PUBLICAR A PANTALLAS -- justo el agujero que se tapo ayer.
+#  Y el problema, CORREGIDO el 2026-09-02 y peor de lo que esta
+#  tarjeta decia antes: `estable` NO ERA v0.1.0. **No existia.**
 #
-#  Y promover YA SE PUEDE, por primera vez, gracias a F3.5:
-#  `promover.yml:122-134` exige una `DEMO_URL` con `https`, y
-#  `:246-260` que `login` y `metodos` contesten 200. DEMO ya
-#  tiene nombre publico y los dos dieron 200 el 02/09.
+#  Esta tarjeta afirmaba que `estable` era v0.1.0 --anterior a
+#  Python, al SDK y a la migracion doohmain_tracking-- y que el
+#  ensayo instalaria silenciosamente una imagen vieja. Al correr
+#  la promocion de verdad, el registro dijo otra cosa:
+#
+#      No habia 'estable' antes de este run:
+#      no hay digest al que volver.
+#
+#  O sea que F5.6 no habria instalado una imagen vieja: habria
+#  MUERTO en el `docker pull` con "manifest unknown". Y el cierre
+#  de F2.4 del 01/09 estaba registrado como hecho SIN HABER
+#  OCURRIDO. F2.4 vuelve a estar abierta.
+#
+#  Ademas su criterio de aceptacion era IMPOSIBLE de cumplir:
+#  `imagetools create` no reetiqueta, envuelve el manifiesto en
+#  un indice nuevo, y eso cambia el digest siempre que el origen
+#  sea de una sola plataforma -- que es lo que produce
+#  `release.yml` con `docker build` a secas. Arreglado el 02/09:
+#  ahora reetiqueta con `crane copy`.
+#
+#  >>> CONSECUENCIA PARA ESTA TARJETA: la PUERTA 0 no es un
+#  >>> tramite. Es F2.4, y hay que verla en verde de verdad
+#  >>> antes de tocar el bloque 1.
 #
 #  EN GITHUB (Settings > Secrets and variables > Actions):
 #
 #    Variable   DEMO_URL = https://prueba.space-os.io/spaces-dooh
+#               ↑ SIN espacios delante ni salto de linea detras.
+#                 Paso el 02/09: se pego con un espacio inicial y
+#                 el run murio en la primera puerta. Selecciona
+#                 todo el campo y borralo antes de pegar.
 #
 #    Secret     FLOTA_TOKEN = <el mismo valor que pongas en
 #                             /etc/space-os/demo-app.env>
@@ -72,9 +92,25 @@
 #    version = v0.3.0
 #    motivo  = ensayo F5.6 con la imagen al dia
 #
-#  🚦 PUERTA 0 — el run tiene que acabar en verde y su resumen
-#  decir `login 200 · metodos 200`. Si dice que falta DEMO_URL,
-#  la variable no se guardo.
+#  🚦 PUERTA 0 — ESTA PUERTA ES F2.4. El run tiene que acabar en
+#  VERDE y su resumen decir:
+#
+#    login 200 · metodos 200
+#    Digest: sha256:6494bbca…  (el mismo que tenia en beta)
+#    estable apuntaba antes a: ninguno (primera promocion)
+#
+#  Y el paso "Comprobar que promover no cambio el digest" tiene
+#  que pasar. Ese paso ES el criterio de aceptacion de F2.4: si
+#  dice "Promover CAMBIO el digest", el arreglo de `crane` no
+#  funciono y hay que pararse -- no seguir al bloque 1.
+#
+#  ⚠️ Y hay un detalle del estado actual: el run fallido del
+#  02/09 dejo `estable` apuntando a un INDICE
+#  (sha256:f09c09d9…) que envuelve la imagen correcta. La
+#  imagen de dentro es buena, pero el digest no coincide. El
+#  run nuevo lo sobreescribe con el manifiesto correcto, asi
+#  que "estable apuntaba antes a" ya NO dira "ninguno" --
+#  dira ese f09c09d9. Es lo esperado, no un problema.
 #
 #  ─── 2 · EN EL PADRE: doctl, o el droplet a mano ───────────
 #

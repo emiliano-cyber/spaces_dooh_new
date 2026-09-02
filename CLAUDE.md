@@ -440,9 +440,33 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
-Fases cerradas: **0, 1, 2, 3, 4, 6 y 8** — la **2 se cerró el 2026-09-01** al
-promover `v0.1.0` a `estable`, y la **3 quedó completa de verdad el 2026-09-02** al
-cerrarse **F3.5**. La 5 en 6 de 8. **Quedan DOS**: `F5.6` y `F5.7`.
+Fases cerradas: **0, 1, 3, 4, 6 y 8** — la **3 quedó completa el 2026-09-02** al
+cerrarse **F3.5**. La 5 en 6 de 8. **Quedan TRES**: `F2.4`, `F5.6` y `F5.7`.
+
+> [!danger] 2026-09-02 · **F2.4 NO estaba cerrada, y la Fase 2 vuelve a 5 de 6**
+> Este archivo, la bitácora y la bóveda decían que `v0.1.0` se promovió a
+> `estable` el 01/09. **No ocurrió.** Al correr «Promover a estable» de verdad
+> por primera vez, el propio workflow leyó el registro y dijo:
+>
+> > `No había 'estable' antes de este run: no hay digest al que volver.`
+>
+> Comprobado que el camino de fallo **no borra la etiqueta** —
+> `promover.yml` imprime y sale—, así que no hay explicación alternativa: si
+> aquel run hubiera llegado a reetiquetar, `estable` existiría hoy. Lo más
+> probable es que fallara en la primera puerta, porque **`DEMO_URL` no existía
+> como variable del repositorio hasta el 02/09**.
+>
+> **Y había una segunda razón por la que no podía cerrarse:** su criterio de
+> aceptación —que promover no cambie el digest— **era imposible de cumplir**.
+> `imagetools create` no reetiqueta: envuelve el manifiesto en un índice nuevo,
+> y eso cambia el digest siempre que el origen sea de una sola plataforma, que
+> es lo que produce `release.yml` con `docker build` a secas. Arreglado el 02/09
+> reetiquetando con `crane copy`, que reescribe los mismos bytes.
+>
+> **La lección es la de siempre aquí, y van muchas:** el commit `2d707ec` afirmó
+> como hecho —«v0.1.0 promovida al canal `estable`»— algo que nadie midió, y de
+> ahí lo copiaron tres documentos. **Un cierre se declara con la salida del run
+> delante, no con la tarea escrita.**
 
 > [!success] 2026-09-02 · F3.5 CERRADA — DEMO ya es una instancia
 > El proceso del **3001** en el PADRE dejó de ser `next start` sobre el repositorio
