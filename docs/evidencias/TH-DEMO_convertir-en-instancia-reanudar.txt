@@ -232,6 +232,34 @@ echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 
 # ############################################################
 #  DEMO queda caida unos segundos. Es aceptable: existe para
 #  poder romperse.
+#
+#  ⚠️ LEE ESTO ANTES DE PEGAR, porque en la PRIMERA corrida la
+#  vuelta atras automatica NO es completa, y el dry-run ya lo
+#  avisa: "no hay contenedor 'space-os-demo' corriendo: no habra
+#  a donde volver si la salud falla".
+#
+#  update.sh:1818 comprueba `ID_ACTUAL` --el contenedor
+#  anterior-- y sale ANTES del bloque que restaura la base:
+#
+#    VUELTA ATRAS IMPOSIBLE: no habia version anterior corriendo.
+#    La instancia queda SIN servicio. Respaldo en $BK
+#
+#  O sea que si la salud falla, la base SE QUEDA MIGRADA y el
+#  respaldo se queda en disco sin aplicarse. Es deliberado --sin
+#  contenedor viejo no hay a que volver-- pero hay que saberlo.
+#
+#  QUE HACER SI PASA, y en este orden:
+#   1. NO levantes la unidad de systemd todavia: eso pondria el
+#      codigo del 11/08 sobre un esquema nuevo, que es el fallo
+#      silencioso que nadie denuncia despues.
+#   2. Restaura la base con el comando EXACTO que el propio
+#      script imprime en su mensaje (sale de PG_BANDERAS y $BK):
+#        pg_restore ... --clean --if-exists --single-transaction <respaldo>
+#   3. Y solo entonces la vuelta atras de systemd, las dos lineas.
+#
+#  LO QUE BAJA EL RIESGO: `spaces_demo` son datos de PRUEBA
+#  (CLAUDE.md 4), asi que un respaldo que no se aplique cuesta
+#  tiempo, no informacion de nadie.
 
 echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | tail -40
 
@@ -240,10 +268,23 @@ echo ok; docker ps --format '{{.Names}} | {{.Image}} | {{.Status}}'
 
 echo ok; sudo -u postgres psql -d spaces_demo -tc "select count(*) from schema_migrations"
 
-# ESPERADO: space-os-demo corriendo, y 75 migraciones (eran 74:
-# entra la de doohmain_tracking). Ese salto de 74 a 75 es lo que
-# convierte esto en un ensayo REAL del paso de migracion y no en
-# un simulacro con cero cambios.
+# ESPERADO: space-os-demo corriendo, y 76 migraciones.
+#
+# OJO, SON DOS Y NO UNA. Medido en el dry-run del 2026-09-02:
+#   pendiente [datos]    20260731_calendario_meses_cortos.sql
+#   pendiente [esquema]  20260901_doohmain_tracking.sql
+#   "2 pendientes (1 de esquema, 1 de datos). Aplicadas: 74."
+#
+# La de julio nunca se aplico a `spaces_demo`. Que sea `@tipo:
+# datos` es lo que la hace interesante: es el archivo del defecto
+# D1 de F3.4, cuando la vuelta atras se decidia leyendo la prosa
+# del runner y con una `datos` pendiente la cuenta caia a 0.
+# COMPROBADO que D1 ya no aplica: update.sh:1529/1543 toma una
+# HUELLA de la base antes y despues, y la decision de restaurar
+# sale de comparar las dos (update.sh:1829), no del texto.
+#
+# El salto de 74 a 76 es lo que convierte esto en un ensayo REAL
+# del paso de migracion y no en un simulacro con cero cambios.
 
 # ############################################################
 #  BLOQUE 6 · Desde fuera                       PUERTA 5
