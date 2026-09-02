@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-01
+actualizado: 2026-09-02
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -121,6 +121,33 @@ archivos:
 > systemctl restart spaces-demo          # los dos comparten .next
 > ```
 >
+> [!danger] 2026-09-02 · `systemctl disable spaces-demo` BORRA la unidad, no la apaga
+> **Medido en el PADRE** al reanudar la conversión de DEMO: tras el `disable`,
+> `systemctl is-enabled spaces-demo` no responde `disabled` — responde
+> **`not-found`**.
+>
+> **La causa es la línea 119 de aquí arriba**: la unidad es un **symlink al repo**
+> (`ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service …`,
+> `docs/evidencias/bloque-2-comandos.txt:166`), no una copia en
+> `/etc/systemd/system`. systemd trata esa unidad como *linked*, y `disable`
+> retira **el symlink entero**, no solo el enlace de `multi-user.target.wants/`.
+>
+> **Consecuencia práctica, y es la que costaba caro:** la vuelta atrás que estaba
+> escrita en las dos tarjetas de DEMO —`systemctl enable --now spaces-demo`—
+> **falla** con «Unit spaces-demo.service not found». Nada se pierde: el archivo
+> sigue en el repo. Pero hay que reenlazar antes.
+>
+> ```bash
+> ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+> systemctl daemon-reload && systemctl enable --now spaces-demo
+> ```
+>
+> **Aplica igual a `spaces-web`**, el PADRE, que se instaló del mismo modo — con
+> la diferencia de que ahí un `disable` accidental deja sin vuelta atrás el plano
+> de control. Y **no aplica a una instancia de cliente**: esas no llevan systemd
+> para la aplicación, la arranca `update.sh` como contenedor con
+> `--restart unless-stopped`.
+
 > **El entorno del proceso es `/etc/space-os/padre.env`**, no
 > `apps/web/.env.production` —que sigue en 600 root y lo lee el build—. Next
 > avisará con `EACCES` al arrancar y **eso es correcto**: es lo mismo que ya
@@ -646,6 +673,32 @@ murió a la mitad deja la base en un estado que su segunda corrida no espera, y
 repetirla a ciegas es como se corrompe una base. El health check conserva sus 10 × 3 s
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
+> [!danger] `instancia.env` NO es un `.env`: `update.sh` lo SOURCEA
+> `update.sh:700` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
+> no una lista de pares clave-valor. Consecuencia: **todo valor con espacios va
+> entrecomillado**, o bash toma la primera palabra como la asignación y **ejecuta
+> el resto como un comando**.
+>
+> **Medido el 2026-09-02** al convertir DEMO, escribiendo
+> `DOCKER_OPCIONES_APP=--network host` sin comillas. El `--dry-run` respondió con
+> **la ayuda del comando `host`** —el de DNS— y abortó, porque `host` sin
+> argumentos sale con 1 y el script corre con `set -e`. El mensaje **no menciona
+> el archivo, ni la variable, ni las comillas**: hay que saberlo.
+>
+> Hoy son **dos** los valores con espacios, y `infra/env/instancia.env.example`
+> los trae bien: `DOCKER_OPCIONES_APP="--network host"` (línea 69) y
+> `PULL_ESPERAS="1 5 30"`. **Escribir ese archivo a mano en vez de copiarlo de la
+> plantilla es lo que reintroduce el fallo** — fue exactamente lo que pasó.
+>
+> La comprobación cuesta una línea y no ensucia nada, porque va en un subshell:
+>
+> ```bash
+> bash -c 'set -e; . /etc/space-os/instancia.env; echo "[$DOCKER_OPCIONES_APP] [$PULL_ESPERAS]"'
+> ```
+>
+> Y hay un caso vecino que ya estaba escrito aquí abajo y conviene leer junto a
+> este: `PULL_ESPERAS=""` **no** apaga los reintentos; sólo un espacio lo hace.
+
 se cambian con `PULL_ESPERAS` en `instancia.env`, y **dejarla vacía apaga los
 reintentos** — cierto desde el **20/08** y no antes: la asignación usaba
 `${PULL_ESPERAS:-…}` y los dos puntos sustituyen también el valor **vacío**, así que
@@ -1379,7 +1432,7 @@ empuja: ver [[modelo-instancias-soberanas]] y
 | Entorno | Qué es | Cómo corre | Base | Dominio |
 |---|---|---|---|---|
 | **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | pm2 `spaces-web`, puerto **3000** | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:124` |
-| **DEMO** | Banco de pruebas. Segundo proceso **dentro del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **systemd**, unidad `infra/systemd/spaces-demo.service`, usuario `demo`, puerto **3001** — pm2 no le alcanza ([ADR 0019](../../docs/adr/0019-demo-arranca-con-systemd.md)) | `spaces_demo` | `demo.space-os.io` — `infra/nginx/space-os.io.conf:188`. El nombre **se conserva** ([ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md)); **qué máquina lo sirve no está decidido** |
+| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). `demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) |
 | **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
 | **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. Su destino es **decisión abierta** |
 

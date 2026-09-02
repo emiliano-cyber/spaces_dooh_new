@@ -5,6 +5,50 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-02
+
+- **La copia de pruebas ya se instala igual que se instalara la de un cliente.** Hasta
+  hoy funcionaba de otra manera: leia el codigo directamente de la carpeta del
+  proyecto. Eso servia para probar la aplicacion, pero **no probaba la instalacion**,
+  que es justo la parte que nunca se habia ensayado de verdad.
+
+  Ahora la copia de pruebas se instala desde el **paquete** —el mismo que descargara
+  cualquier cliente—, se actualiza con el mismo procedimiento y lo revisa sola cada
+  madrugada. Dicho de otro modo: **el camino que va a recorrer un cliente ya lo
+  recorrio alguien antes**, y se recorrio en un servidor de verdad, no en una
+  simulacion.
+
+- **Y se comprobo lo que mas importaba: que la copia de seguridad se hace ANTES de
+  cambiar nada.** El sistema guarda una copia de la informacion, aplica el cambio y
+  solo entonces enciende la version nueva. Si el respaldo saliera vacio, se para y no
+  toca nada — y esa proteccion se probo funcionando, porque hace dos dias fallaba
+  precisamente ahi.
+
+  Tambien se comprobo que **repetir la operacion no hace nada**: al correrla dos
+  veces, la segunda contesto «sin cambios». Eso es lo que hace seguro que se revise
+  automaticamente cada noche.
+
+- **Aparecieron cuatro problemas mas, y los cuatro solo se veian ejecutando.** El mas
+  importante: **el procedimiento para deshacer no funcionaba**. Estaba escrito, parecia
+  correcto y habria fallado justo el dia que hiciera falta usarlo — que es la peor
+  forma de descubrir que una red de seguridad no existe. Ya esta corregido y probado.
+
+  Es el mismo patron de toda esta semana: **los problemas que quedan no se encuentran
+  leyendo, se encuentran haciendo.** Van doce en este camino, y los seis ultimos
+  aparecieron al correrlo contra maquinas reales.
+
+- **Que falta para poder vender el servicio.** Del plan de trabajo quedan **dos**
+  tareas, y las dos son la misma cosa: **instalar de cero**. Una es un ensayo con un
+  servidor desechable y la otra es el alta del primer cliente.
+
+  Y aparte del plan quedan **dos cosas que el plan nunca incluyo**, las dos necesarias
+  para *vender* y no solo para *entregar*: **como se atiende una averia** —quien puede
+  entrar al servidor de un cliente, con que permiso y dejando que rastro— y **la copia
+  de seguridad fuera del servidor**, porque hoy el respaldo vive en la misma maquina
+  que protege: si esa maquina desaparece, desaparece con ella.
+
+---
+
 ## 2026-09-01
 
 - **El sistema ya puede publicar a pantallas desde una instalacion nueva.** Publicar

@@ -67,9 +67,18 @@ echo ok; systemctl is-active spaces-demo; systemctl is-enabled spaces-demo 2>&1 
 #    paramos: no conviene conmutar a ciegas.
 
 # --- Y si prefieres dejar DEMO ARRIBA mientras revisamos, la
-#     vuelta atras es una linea y puedes correrla ya:
+#     vuelta atras son DOS lineas, no una. MEDIDO el 2026-09-02:
+#     `is-enabled` no dijo `disabled`, dijo `not-found`.
 #
-#       systemctl enable --now spaces-demo
+#     La unidad es un SYMLINK al repo
+#     (`docs/evidencias/bloque-2-comandos.txt:166`), asi que
+#     systemd la trata como *linked* y el `systemctl disable`
+#     del bloque 4 BORRA EL SYMLINK. Con eso `enable` solo
+#     responde "Unit spaces-demo.service not found". El archivo
+#     no se ha perdido: sigue en el repo. Hay que reenlazarlo.
+#
+#       ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+#       systemctl daemon-reload && systemctl enable --now spaces-demo
 #
 #     Volver a bajarla es el primer paso del bloque 4, asi que
 #     no pierdes nada por hacerlo.
@@ -157,13 +166,13 @@ IMAGEN_NOMBRE=space-os
 CANAL=beta
 CONTENEDOR=space-os-demo
 ENV_APP=/etc/space-os/demo-app.env
-DOCKER_OPCIONES_APP=--network host
+DOCKER_OPCIONES_APP="--network host"
 DATABASE_URL=postgresql://spaces_migrador:$CLAVE_MIG@127.0.0.1:5432/spaces_demo
 RED_MIGRACION=host
 SALUD_URL=http://127.0.0.1:3001/spaces-dooh/api/version/
 SALUD_INTENTOS=10
 SALUD_ESPERA=3
-PULL_ESPERAS=1 5 30
+PULL_ESPERAS="1 5 30"
 EOF
 chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/space-os/demo-instancia.env) lineas"
 
@@ -172,6 +181,28 @@ chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/spac
 echo ok; grep -c '^REGISTRY_TOKEN=.\+' /etc/space-os/demo-instancia.env
 
 # ESPERADO: 1
+
+# --- ESTE ARCHIVO NO ES UN .env CUALQUIERA: update.sh:700 lo
+#     SOURCEA (`. "$CONF"`), asi que es un script de shell. Todo
+#     valor con espacios va ENTRECOMILLADO o bash se come la
+#     primera palabra como asignacion y EJECUTA el resto.
+#
+#     Medido el 2026-09-02, y por eso esta puerta existe: con
+#     `DOCKER_OPCIONES_APP=--network host` sin comillas, el
+#     --dry-run imprimio la AYUDA DEL COMANDO `host` y aborto.
+#     El mensaje no dice nada del archivo: hay que saberlo.
+#
+#     Sourcearlo en un subshell lo demuestra sin ensuciar nada, y
+#     ademas ensena los dos valores TAL COMO los vera el script:
+
+echo ok; bash -c 'set -e; . /etc/space-os/demo-instancia.env; echo "sourcea limpio -- opciones=[$DOCKER_OPCIONES_APP] esperas=[$PULL_ESPERAS] canal=[$CANAL]"'
+
+# ESPERADO, y sin ninguna linea de ayuda ni "command not found":
+#   sourcea limpio -- opciones=[--network host] esperas=[1 5 30] canal=[beta]
+#
+# Si sale la ayuda de `host`, o un "command not found", es que
+# falta una comilla. Los dos valores con espacios son
+# DOCKER_OPCIONES_APP y PULL_ESPERAS.
 
 # ############################################################
 #  BLOQUE 4 · EN SECO, y aqui se decide         PUERTA 3
@@ -201,6 +232,34 @@ echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 
 # ############################################################
 #  DEMO queda caida unos segundos. Es aceptable: existe para
 #  poder romperse.
+#
+#  ⚠️ LEE ESTO ANTES DE PEGAR, porque en la PRIMERA corrida la
+#  vuelta atras automatica NO es completa, y el dry-run ya lo
+#  avisa: "no hay contenedor 'space-os-demo' corriendo: no habra
+#  a donde volver si la salud falla".
+#
+#  update.sh:1818 comprueba `ID_ACTUAL` --el contenedor
+#  anterior-- y sale ANTES del bloque que restaura la base:
+#
+#    VUELTA ATRAS IMPOSIBLE: no habia version anterior corriendo.
+#    La instancia queda SIN servicio. Respaldo en $BK
+#
+#  O sea que si la salud falla, la base SE QUEDA MIGRADA y el
+#  respaldo se queda en disco sin aplicarse. Es deliberado --sin
+#  contenedor viejo no hay a que volver-- pero hay que saberlo.
+#
+#  QUE HACER SI PASA, y en este orden:
+#   1. NO levantes la unidad de systemd todavia: eso pondria el
+#      codigo del 11/08 sobre un esquema nuevo, que es el fallo
+#      silencioso que nadie denuncia despues.
+#   2. Restaura la base con el comando EXACTO que el propio
+#      script imprime en su mensaje (sale de PG_BANDERAS y $BK):
+#        pg_restore ... --clean --if-exists --single-transaction <respaldo>
+#   3. Y solo entonces la vuelta atras de systemd, las dos lineas.
+#
+#  LO QUE BAJA EL RIESGO: `spaces_demo` son datos de PRUEBA
+#  (CLAUDE.md 4), asi que un respaldo que no se aplique cuesta
+#  tiempo, no informacion de nadie.
 
 echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | tail -40
 
@@ -209,10 +268,23 @@ echo ok; docker ps --format '{{.Names}} | {{.Image}} | {{.Status}}'
 
 echo ok; sudo -u postgres psql -d spaces_demo -tc "select count(*) from schema_migrations"
 
-# ESPERADO: space-os-demo corriendo, y 75 migraciones (eran 74:
-# entra la de doohmain_tracking). Ese salto de 74 a 75 es lo que
-# convierte esto en un ensayo REAL del paso de migracion y no en
-# un simulacro con cero cambios.
+# ESPERADO: space-os-demo corriendo, y 76 migraciones.
+#
+# OJO, SON DOS Y NO UNA. Medido en el dry-run del 2026-09-02:
+#   pendiente [datos]    20260731_calendario_meses_cortos.sql
+#   pendiente [esquema]  20260901_doohmain_tracking.sql
+#   "2 pendientes (1 de esquema, 1 de datos). Aplicadas: 74."
+#
+# La de julio nunca se aplico a `spaces_demo`. Que sea `@tipo:
+# datos` es lo que la hace interesante: es el archivo del defecto
+# D1 de F3.4, cuando la vuelta atras se decidia leyendo la prosa
+# del runner y con una `datos` pendiente la cuenta caia a 0.
+# COMPROBADO que D1 ya no aplica: update.sh:1529/1543 toma una
+# HUELLA de la base antes y despues, y la decision de restaurar
+# sale de comparar las dos (update.sh:1829), no del texto.
+#
+# El salto de 74 a 76 es lo que convierte esto en un ensayo REAL
+# del paso de migracion y no en un simulacro con cero cambios.
 
 # ############################################################
 #  BLOQUE 6 · Desde fuera                       PUERTA 5
@@ -232,11 +304,22 @@ echo ok; printf '31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env 
 # ############################################################
 #  VUELTA ATRAS -- una linea, y es de verdad
 # ############################################################
-#  Nada se borra:
+#  Nada se borra, pero OJO con la ultima linea: son DOS, y la
+#  primera es la que nadie espera. Medido el 2026-09-02.
 #
 #    rm -f /etc/cron.d/space-os-demo
 #    docker rm -f space-os-demo
-#    systemctl enable --now spaces-demo
+#    ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+#    systemctl daemon-reload && systemctl enable --now spaces-demo
+#
+#  EL PORQUE, porque sin el la vuelta atras no funciona y el
+#  mensaje no ayuda: `/etc/systemd/system/spaces-demo.service`
+#  es un SYMLINK al repo, no una copia
+#  (`docs/evidencias/bloque-2-comandos.txt:166`). systemd trata
+#  esa unidad como *linked*, y `systemctl disable` borra el
+#  symlink ENTERO -- no solo el enlace de `.wants`. Por eso
+#  `is-enabled` responde `not-found` y no `disabled`, y por eso
+#  un `enable` a secas se queja de que la unidad no existe.
 #
 #  Y vuelves a estar donde estabas. Quedan dos huellas, las dos
 #  inocuas: el cambio de dueno de las tablas (el rol de la
