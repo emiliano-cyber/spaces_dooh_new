@@ -218,8 +218,12 @@ jobs:
             echo "  $VERSION -> $DIGEST_VERSION"
             echo "  beta     -> $DIGEST_BETA"
             echo "'estable' no puede recibir una imagen que no esté ahora mismo en beta, que es lo que prueba DEMO."
-            echo "Si lo que quieres es DEVOLVER la flota a una versión anterior, eso es un rollback y va a mano:"
-            echo "  docker buildx imagetools create --tag \"\$REGISTRY/space-os:estable\" \"\$REGISTRY/space-os@<digest anterior>\""
+            echo "Si lo que quieres es DEVOLVER la flota a una versión anterior, eso es un rollback y va a mano."
+            echo "Con crane, que es lo que usa este workflow — conserva el digest:"
+            echo "  crane copy \"\$REGISTRY/space-os@<digest anterior>\" \"\$REGISTRY/space-os:estable\""
+            echo "Si no lo tienes: https://github.com/google/go-containerregistry/releases"
+            echo "NO uses \`docker buildx imagetools create\` para esto: envuelve el manifiesto en un índice"
+            echo "nuevo y 'estable' deja de tener el digest del artefacto que se probó (medido el 2026-09-02)."
             exit 1
           fi
 
@@ -383,8 +387,8 @@ jobs:
             # pegar — justo en el momento en que alguien la pegaría a ciegas.
             case "$DIGEST_ESTABLE_PREVIO" in
               sha256:*)
-                echo "Vuelta atrás — devolver 'estable' a donde estaba:"
-                echo "  docker buildx imagetools create --tag '$REGISTRY/space-os:estable' '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO'"
+                echo "Vuelta atrás — devolver 'estable' a donde estaba (con crane: conserva el digest):"
+                echo "  crane copy '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO' '$REGISTRY/space-os:estable'"
                 echo "Ojo: las instancias que ya jalaron NO vuelven solas (necesitan su rollback local, F3.4)." ;;
               *)
                 echo "No había 'estable' antes de este run: no hay digest al que volver." ;;
@@ -417,8 +421,10 @@ jobs:
                 echo "Vuelta atrás — devuelve la etiqueta, **no** las instancias que ya jalaron (eso es el rollback local, F3.4):"
                 echo ""
                 echo '```bash'
-                echo "docker buildx imagetools create --tag '$REGISTRY/space-os:estable' '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO'"
-                echo '```' ;;
+                echo "crane copy '$REGISTRY/space-os@$DIGEST_ESTABLE_PREVIO' '$REGISTRY/space-os:estable'"
+                echo '```'
+                echo ""
+                echo "Con \`crane\`, no con \`docker buildx imagetools create\`: ese envuelve el manifiesto en un índice nuevo y \`estable\` dejaría de tener el digest del artefacto probado." ;;
               *)
                 echo "Vuelta atrás: **no hay a dónde volver por etiqueta** — \`estable\` no existía antes de este run." ;;
             esac
