@@ -1,0 +1,305 @@
+============================================================
+ TH-F5.6 · ENSAYO DEL ALTA EN UN DROPLET DESECHABLE
+ Se corre DESDE EL PADRE. Crea un droplet NUEVO y lo DESTRUYE.
+ Fecha: 2026-09-02
+============================================================
+
+ QUE ES ESTO
+   El alta de una instancia, de principio a fin, contra un
+   servidor de verdad -- pero desechable. Es el ultimo ensayo
+   antes de F5.7, que es el alta de PIXELED.
+
+ POR QUE HACE FALTA, aunque F3.5 ya paso
+   F3.5 probo la ACTUALIZACION de una instancia que ya existia.
+   Esto prueba lo que aquello NO pudo tocar:
+
+     · crear un droplet desde cero
+     · instalar PostgreSQL en una maquina virgen
+     · aplicar `db/schema.sql` a una base VACIA
+     · los DOS roles (`spaces_app` y `spaces_migrador`) recien
+       creados, con el `bypassrls` que costo el defecto 10
+     · el certificado de Let's Encrypt
+     · el bootstrap: la primera organizacion y su Dueño
+     · y el ALTO del DNS, que es la parte "soberana"
+
+ >>> ES LA TAREA QUE MAS RIESGO RETIRA Y LA MAS BARATA.
+ >>> Este camino lleva DOCE defectos y SEIS solo aparecieron
+ >>> al ejecutarlo contra maquinas reales. La primera vez que
+ >>> `provision-instancia.sh` cree un droplet de verdad no
+ >>> deberia ser con el cliente esperando.
+
+ CUANTO CUESTA: un droplet de los pequenos, encendido una hora.
+ Se destruye en el bloque 7 y se paga por horas.
+
+# ############################################################
+#  ANTES · TRES COSAS, Y LA PRIMERA NO ES OBVIA
+# ############################################################
+#
+#  ─── 1 · PROMOVER v0.3.0 A `estable` ───────────────────────
+#
+#  `provision-instancia.sh` instala el canal `estable` por
+#  omision, y NO se le debe cambiar: el invariante 13 dice que
+#  nada llega a un owner sin pasar por el banco de pruebas, y
+#  ensayar con `beta` seria ensayar un runbook distinto del que
+#  se va a usar.
+#
+#  Y el problema, CORREGIDO el 2026-09-02 y peor de lo que esta
+#  tarjeta decia antes: `estable` NO ERA v0.1.0. **No existia.**
+#
+#  Esta tarjeta afirmaba que `estable` era v0.1.0 --anterior a
+#  Python, al SDK y a la migracion doohmain_tracking-- y que el
+#  ensayo instalaria silenciosamente una imagen vieja. Al correr
+#  la promocion de verdad, el registro dijo otra cosa:
+#
+#      No habia 'estable' antes de este run:
+#      no hay digest al que volver.
+#
+#  O sea que F5.6 no habria instalado una imagen vieja: habria
+#  MUERTO en el `docker pull` con "manifest unknown". Y el cierre
+#  de F2.4 del 01/09 estaba registrado como hecho SIN HABER
+#  OCURRIDO. F2.4 vuelve a estar abierta.
+#
+#  Ademas su criterio de aceptacion era IMPOSIBLE de cumplir:
+#  `imagetools create` no reetiqueta, envuelve el manifiesto en
+#  un indice nuevo, y eso cambia el digest siempre que el origen
+#  sea de una sola plataforma -- que es lo que produce
+#  `release.yml` con `docker build` a secas. Arreglado el 02/09:
+#  ahora reetiqueta con `crane copy`.
+#
+#  >>> CONSECUENCIA PARA ESTA TARJETA: la PUERTA 0 no es un
+#  >>> tramite. Es F2.4, y hay que verla en verde de verdad
+#  >>> antes de tocar el bloque 1.
+#
+#  EN GITHUB (Settings > Secrets and variables > Actions):
+#
+#    Variable   DEMO_URL = https://prueba.space-os.io/spaces-dooh
+#               ↑ SIN espacios delante ni salto de linea detras.
+#                 Paso el 02/09: se pego con un espacio inicial y
+#                 el run murio en la primera puerta. Selecciona
+#                 todo el campo y borralo antes de pegar.
+#
+#    Secret     FLOTA_TOKEN = <el mismo valor que pongas en
+#                             /etc/space-os/demo-app.env>
+#               ↑ OPCIONAL, y ahora ya es seguro ponerlo. Sin
+#                 el, el smoke promueve igual pero escribe
+#                 "que version corre DEMO: NO COMPROBADO".
+#                 Con el, comprueba que DEMO corre exactamente
+#                 la version que se promueve. Antes de F3.5
+#                 ponerlo ROMPIA el smoke; ya no.
+#
+#  Y luego, en la pestana Actions > "promover" > Run workflow:
+#
+#    version = v0.3.0
+#    motivo  = ensayo F5.6 con la imagen al dia
+#
+#  🚦 PUERTA 0 — ESTA PUERTA ES F2.4. El run tiene que acabar en
+#  VERDE y su resumen decir:
+#
+#    login 200 · metodos 200
+#    Digest: sha256:6494bbca…  (el mismo que tenia en beta)
+#    estable apuntaba antes a: ninguno (primera promocion)
+#
+#  Y el paso "Comprobar que promover no cambio el digest" tiene
+#  que pasar. Ese paso ES el criterio de aceptacion de F2.4: si
+#  dice "Promover CAMBIO el digest", el arreglo de `crane` no
+#  funciono y hay que pararse -- no seguir al bloque 1.
+#
+#  ⚠️ Y hay un detalle del estado actual: el run fallido del
+#  02/09 dejo `estable` apuntando a un INDICE
+#  (sha256:f09c09d9…) que envuelve la imagen correcta. La
+#  imagen de dentro es buena, pero el digest no coincide. El
+#  run nuevo lo sobreescribe con el manifiesto correcto, asi
+#  que "estable apuntaba antes a" ya NO dira "ninguno" --
+#  dira ese f09c09d9. Es lo esperado, no un problema.
+#
+#  ─── 2 · EN EL PADRE: doctl, o el droplet a mano ───────────
+#
+#  El script tiene dos caminos y NO hay uno por omision, a
+#  proposito. El bloque 0 te dice cual te toca.
+#
+#  ─── 3 · UN SUBDOMINIO DESECHABLE ──────────────────────────
+#
+#  Hace falta un nombre de verdad porque el certificado es parte
+#  de lo que se ensaya. Propuesta: `ensayo.space-os.io`, que se
+#  borra al final. NO reutilices `prueba.space-os.io`: es DEMO,
+#  y apuntarlo a otra maquina la tumba.
+
+# ############################################################
+#  BLOQUE 0 · QUE HAY EN EL PADRE          (solo lectura)
+# ############################################################
+
+echo ok; cd /var/www/Spaces && git pull --quiet && git log --oneline -1; for h in doctl ssh dig curl; do printf '%-6s -> %s\n' "$h" "$(command -v $h || echo FALTA)"; done
+
+# LEE ESTO:
+#  · Si `doctl` esta -> camino A (--crear-droplet). Comprueba
+#    que este autenticado con el bloque 0b.
+#  · Si `doctl` FALTA -> camino B: creas el droplet a mano en
+#    cloud.digitalocean.com (Ubuntu 22.04, el mas pequeno, NYC)
+#    con TU clave SSH puesta, y usas `--host <ip>`.
+#    El camino B ensaya todo menos la creacion del droplet.
+#
+#  Y `dig` hace falta en el bloque 3. Si falta:
+#    apt-get install -y dnsutils
+
+# --- 0b · solo camino A:
+echo ok; doctl account get 2>&1 | head -5; doctl compute region list 2>&1 | head -3
+
+# ############################################################
+#  BLOQUE 1 · EN SECO                       🚦 PUERTA 1
+# ############################################################
+#  NADA se ejecuta sin `--confirmar`. Sin esa bandera el script
+#  se comporta como --dry-run aunque no se pida, y eso es
+#  deliberado: aprovisionar crea una base y un usuario Dueño.
+#
+#  El token del registro va por ENTORNO y no por argumento, para
+#  que no aparezca en `ps` ni en el historial. Es el de SOLO
+#  LECTURA, el mismo de la tarjeta de DEMO.
+
+echo ok; read -rs REGISTRY_TOKEN && export REGISTRY_TOKEN && export REGISTRY=registry.digitalocean.com/registryspaces && echo "token de ${#REGISTRY_TOKEN} caracteres en el entorno"
+
+# --- CAMINO A (doctl crea el droplet). Region y tamano van por
+#     entorno y sin valor quemado: son decisiones de cuenta.
+echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --dry-run 2>&1 | tail -40
+
+# --- CAMINO B (droplet ya creado a mano). Cambia la IP:
+# echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --dominio ensayo.space-os.io --instancia ensayo --dry-run 2>&1 | tail -40
+
+# 🚦 PUERTA 1 — la salida tiene que:
+#   · llevar `[SIMULACION]` en TODA linea que toque el servidor,
+#   · listar los siete pasos (servidor · base · esquema y
+#     migraciones · entorno · nginx · actualizador · el ALTO),
+#   · y nombrar la imagen `.../space-os:estable`.
+#
+# Si la imagen dice `:beta`, `CANAL` se colo por el entorno:
+# `unset CANAL` y repite. Un owner NUNCA sigue beta.
+#
+# PASAMELA ENTERA. Es el ultimo punto sin coste.
+
+# ############################################################
+#  BLOQUE 2 · DE VERDAD                     🚦 PUERTA 2
+# ############################################################
+#  A partir de aqui existe un droplet y se paga por horas.
+#  Cambia `--dry-run` por `--confirmar` en el comando que hayas
+#  usado arriba, y NADA MAS.
+
+echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --confirmar 2>&1 | tail -60
+
+# 🚦 PUERTA 2 — tiene que acabar en el cartel del paso 7:
+#   "APROVISIONAMIENTO HECHO — Y AQUI SE PARA A PROPOSITO"
+#   y decirte la IP a la que apuntar el DNS.
+#
+# APUNTA ESA IP. La necesitas en los bloques 3 a 7.
+#
+# ⚠️ Y GUARDA LA SALIDA COMPLETA: el token de arranque y la
+# clave del Dueño se imprimen UNA SOLA VEZ, a proposito -- no
+# quedan en disco del operador ni en el historial.
+
+# ############################################################
+#  BLOQUE 3 · EL DNS, que es la parte soberana  🚦 PUERTA 3
+# ############################################################
+#  El script se PARA aqui a proposito: la zona del owner es
+#  suya y AS OOH no entra en ella. En el ensayo el "owner" eres
+#  tu, asi que pon el registro A en el DNS de space-os.io:
+#
+#      ensayo.space-os.io   A   <IP-DEL-DROPLET>
+#
+#  Y espera a que resuelva ANTES de pedir el certificado:
+#  Let's Encrypt solo permite CINCO intentos por hora.
+
+echo ok; dig +short ensayo.space-os.io
+
+# 🚦 PUERTA 3 — tiene que devolver la IP del droplet. Si
+# devuelve vacio o otra cosa, ESPERA. No sigas.
+
+# ############################################################
+#  BLOQUE 4 · Certificado                    🚦 PUERTA 4
+# ############################################################
+
+echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --dominio ensayo.space-os.io --emitir-certificado --confirmar 2>&1 | tail -30
+
+# 🚦 PUERTA 4 — certificado emitido y el vhost con TLS puesto.
+
+# ############################################################
+#  BLOQUE 5 · La primera organizacion        🚦 PUERTA 5
+# ############################################################
+#  Esto crea la organizacion y su Dueño en la MISMA transaccion
+#  (F5.1). Usa un correo tuyo de verdad: el alta VALIDA el
+#  correo desde el 24/08, y un marcador tipo `<correo>` lo
+#  rechaza -- fue el defecto 6 del arranque del PADRE.
+
+echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --dominio ensayo.space-os.io --instancia ensayo --email <TU-CORREO-REAL> --bootstrap --confirmar 2>&1 | tail -30
+
+# 🚦 PUERTA 5 — organizacion creada, y la clave temporal del
+# Dueño impresa UNA vez. Guardala para el bloque 6.
+
+# ############################################################
+#  BLOQUE 6 · COMPROBAR, y aprovechar el viaje  🚦 PUERTA 6
+# ############################################################
+#  Desde TU PC:
+#
+#   curl.exe -s -o NUL -w 'login   -> %{http_code}\n' https://ensayo.space-os.io/spaces-dooh/login/
+#   curl.exe -s -o NUL -w 'metodos -> %{http_code}\n' https://ensayo.space-os.io/spaces-dooh/api/auth/metodos/
+#
+#  ESPERADO: 200 y 200, y con certificado valido (sin aviso).
+#
+#  Y ENTRA CON EL NAVEGADOR. Es la primera vez que alguien va a
+#  ver esta aplicacion recien instalada: entra con el correo y
+#  la clave temporal del bloque 5 y comprueba que el cambio
+#  forzado de contrasena funciona.
+
+# --- P13 · LA MONEDA. Quince minutos que llevan pendientes
+#     desde el 07/08, y este es el unico momento en que se puede
+#     comprobar: una base recien nacida.
+#
+#     `db/schema.sql` sigue con `default 'PEN'` en cuatro sitios
+#     (110, 245, 390, 545) y columnas `igv`, y hay una migracion
+#     que corrige a MXN. La pregunta es si una instancia NUEVA
+#     nace correcta -- se supone que si, porque aplica esquema y
+#     LUEGO todas las migraciones, pero NUNCA se ha comprobado.
+
+echo ok; ssh root@<IP-DEL-DROPLET> "sudo -u postgres psql -d spaces -tc \"select table_name, column_name, column_default from information_schema.columns where column_default like '%PEN%' order by 1,2\""
+
+# 🚦 PUERTA 6 — lo ESPERADO es CERO filas. Si sale alguna, P13
+# tiene respuesta y es la mala: pasamela, porque significa que
+# una instancia nueva nace con moneda de Peru operando en
+# Mexico, y eso toca dinero.
+
+echo ok; ssh root@<IP-DEL-DROPLET> "sudo -u postgres psql -d spaces -tc 'select count(*) from schema_migrations'"
+
+# ESPERADO: el total de migraciones de ESQUEMA del repo. Hoy 75.
+# (Las `@tipo: datos` no entran solas: migrar.mjs:7.)
+
+# ############################################################
+#  BLOQUE 7 · DESTRUIR. No se te olvide.
+# ############################################################
+#  Es un droplet desechable: su unico proposito era este ensayo.
+#  Dejarlo encendido cuesta dinero y ademas deja un servidor con
+#  una base y un Dueño de verdad sin nadie mirandolo.
+
+echo ok; doctl compute droplet list --format ID,Name,PublicIPv4,Status | grep -i ensayo
+
+echo ok; doctl compute droplet delete <ID-DEL-DROPLET>
+
+# Y el registro A de `ensayo.space-os.io`, que ya no apunta a
+# nada. Borralo en el DNS.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · La PUERTA 0: que v0.3.0 llego a `estable`.
+#   · El --dry-run de la PUERTA 1, ENTERO, antes del bloque 2.
+#   · Las puertas 2 a 6.
+#   · **La PUERTA 6 de la moneda**, salga como salga. Es la que
+#     cierra P13 despues de casi un mes.
+#   · Y si algo se rompio: la salida tal cual. Cada defecto que
+#     salga aqui es uno que no le pasa a PIXELED.
+#
+#  ⚠️ NO me pases el token de arranque ni la clave del Dueño.
+#  No los necesito y no deben quedar escritos en ningun sitio.
+#
+#  DESPUES DE ESTO queda **F5.7**, el alta de PIXELED -- que es
+#  este mismo recorrido con tres diferencias: el dominio es
+#  suyo, el DNS lo pone el cliente de verdad, y el droplet NO se
+#  destruye. Mas su `DOOHMAIN_API_KEY`, que es la credencial que
+#  tiene que aportar el cliente para poder publicar.
+# ############################################################

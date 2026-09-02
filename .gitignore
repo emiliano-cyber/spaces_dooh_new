@@ -93,3 +93,27 @@ apps/flota/flota.json
 # corrida: versionarlos sería meter en git un archivo que cambia cada noche.
 apps/flota/estado/
 apps/flota/publico/
+
+# ─── Material de trabajo de los manuales (manuales/) ────────────────────────
+# TODO lo que hay en esa carpeta es GENERADO, y una parte es material de sesión.
+# Estaba sin ignorar y sin versionar, o sea que un `git add -A` la subía entera.
+#
+# Lo que contenía al escribir esta regla (2026-09-02), y por qué ninguna de las
+# tres partes debe ir a git:
+#
+#  · `.auth/estado.json` — el `storageState` de Playwright, y NO es un archivo
+#    de configuración: lleva las cookies `spaces_sesion` y `spaces_csrf` de una
+#    sesión de verdad. Es lo que hace urgente esta regla. Se comprobó que nunca
+#    llegó a la historia, así que no hay nada que rotar por esto.
+#  · `.playwright-artifacts/` — restos de las corridas que fallan
+#    (`error-context.md`, `.last-run.json`). Se regeneran y solo valen mientras
+#    duras depurando.
+#  · `capturas/*.png` — salida del agente que ilustra el manual. Mismo criterio
+#    que el PDF del expediente de arriba: es derivado y binario, cambiaría en
+#    cada regeneración, y además son pantallazos de la aplicación CON DATOS
+#    dentro.
+#
+# Si algún día las capturas pasan a ser un entregable que tiene que viajar con
+# el repositorio, la excepción se escribe aquí explícitamente (`!manuales/capturas/`)
+# y se revisa antes qué se ve en cada imagen. Hoy no lo son.
+manuales/

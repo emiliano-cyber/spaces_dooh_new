@@ -291,17 +291,37 @@ jobs:
           fi
           echo "SMOKE=$SMOKE" >> "$GITHUB_ENV"
 
-      # El paso que promueve. `imagetools create` trabaja sobre el MANIFIESTO en
-      # el registry: no baja capas, no reconstruye y no pasa por el demonio
-      # local, así que el manifiesto que queda bajo `estable` es byte a byte el
-      # mismo y el digest se conserva.
+      # El paso que promueve. Promover es PONER UNA ETIQUETA: escribir el MISMO
+      # manifiesto que ya está en el registry bajo el nombre `estable`. Nada de
+      # bajar capas, nada de reconstruir, nada de pasar por el demonio local.
       #
-      # POR QUÉ NO `docker pull` + `docker tag` + `docker push`, que es lo que
-      # parece equivalente y no lo es:
-      #   · El demonio local guarda UNA plataforma. Si la imagen fuese un índice
-      #     multi-arquitectura, al empujar saldría un manifiesto de una sola
-      #     plataforma: otro digest, y `estable` dejaría de ser el mismo
-      #     artefacto que se probó.
+      # ⚠️ AQUÍ HABÍA `docker buildx imagetools create`, Y ESTABA MAL — medido el
+      # 2026-09-02, en la primera promoción que se corrió de verdad:
+      #
+      #     Promover CAMBIÓ el digest. 'estable' no es la imagen validada.
+      #       esperado (la validada): sha256:6494bbca…
+      #       quedó:                  sha256:f09c09d9…
+      #
+      # `imagetools create` no reetiqueta: CREA UN ÍNDICE NUEVO que referencia al
+      # origen. Si el origen ya es un índice multi-arquitectura, lo copia y el
+      # digest se conserva —de ahí venía la confusión—, pero `release.yml:266`
+      # construye con `docker build` a secas: UNA plataforma, UN manifiesto de
+      # imagen. Envolverlo en un índice da otro digest por definición.
+      #
+      # La imagen de dentro era la correcta, así que no se corrompió nada. Pero la
+      # puerta 3 de abajo NO PODÍA PASAR NUNCA con las imágenes de este pipeline,
+      # y eso significa que el criterio de aceptación de F2.4 no estaba sin
+      # cumplir: estaba sin poder cumplirse.
+      #
+      # `crane tag` sí hace lo que dice el nombre: lee el manifiesto y lo vuelve a
+      # escribir, byte a byte, bajo la etiqueta nueva. El digest se conserva
+      # porque el digest ES el hash de esos bytes. Y funciona igual con un
+      # manifiesto de una plataforma que con un índice, así que si algún día
+      # `release.yml` pasa a multi-arquitectura este paso no hay que tocarlo.
+      #
+      # POR QUÉ TAMPOCO `docker pull` + `docker tag` + `docker push`:
+      #   · El demonio local guarda UNA plataforma. De un índice
+      #     multi-arquitectura saldría un manifiesto de una sola: otro digest.
       #   · Aun con una sola plataforma, el manifiesto se vuelve a serializar al
       #     empujar (tipos de medio, orden, esquema) y eso también cambia el
       #     digest.
@@ -310,12 +330,39 @@ jobs:
       # El origen es el DIGEST, no la etiqueta `beta`: entre la comprobación y
       # este paso puede haber entrado un release nuevo y movido `beta`. Fijando
       # el digest se promueve exactamente la imagen que pasó las tres puertas.
+      - name: Instalar crane
+        env:
+          CRANE_VERSION: '0.20.2'
+        run: |
+          set -euo pipefail
+          # Versión FIJA y no `latest`: lo que promueve a toda la flota no debe
+          # cambiar de herramienta sin que nadie lo decida.
+          #
+          # PENDIENTE, y se dice en vez de inventarse: falta comprobar la suma
+          # del binario. El valor lo publica el proyecto en `checksums.txt` de la
+          # release; cuando alguien lo pegue aquí, este paso pasa a verificarlo.
+          # Mientras tanto la descarga va por HTTPS a un release fijado.
+          URL="https://github.com/google/go-containerregistry/releases/download/v${CRANE_VERSION}/go-containerregistry_Linux_x86_64.tar.gz"
+          curl -fsSL --retry 3 --retry-delay 5 "$URL" -o /tmp/crane.tgz
+          tar -xzf /tmp/crane.tgz -C /tmp crane
+          install -m 755 /tmp/crane /usr/local/bin/crane
+          rm -f /tmp/crane.tgz /tmp/crane
+          crane version
+
       - name: Reetiquetar como estable, sin reconstruir
         run: |
           set -euo pipefail
-          docker buildx imagetools create \
-            --tag "$REGISTRY/space-os:estable" \
-            "$REGISTRY/space-os@$DIGEST_VERSION"
+          # crane lee las credenciales de `~/.docker/config.json`, que dejó puesto
+          # el paso «Entrar al registry». No se le pasa ningún token por argumento.
+          #
+          # `copy` y no `tag`, y el motivo es el origen: aquí la fuente es un
+          # DIGEST —a propósito, para no depender de dónde apunte `beta` en este
+          # segundo—, y `crane tag` está pensado para etiquetar una referencia por
+          # nombre. `copy` toma las dos referencias explícitas, y dentro del MISMO
+          # repositorio no vuelve a subir capas: es una escritura de manifiesto.
+          crane copy \
+            "$REGISTRY/space-os@$DIGEST_VERSION" \
+            "$REGISTRY/space-os:estable"
 
       # Puerta 3. El criterio de aceptación de F2.4 se mide, no se supone.
       - name: Comprobar que promover no cambio el digest
