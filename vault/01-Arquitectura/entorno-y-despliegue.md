@@ -121,6 +121,33 @@ archivos:
 > systemctl restart spaces-demo          # los dos comparten .next
 > ```
 >
+> [!danger] 2026-09-02 · `systemctl disable spaces-demo` BORRA la unidad, no la apaga
+> **Medido en el PADRE** al reanudar la conversión de DEMO: tras el `disable`,
+> `systemctl is-enabled spaces-demo` no responde `disabled` — responde
+> **`not-found`**.
+>
+> **La causa es la línea 119 de aquí arriba**: la unidad es un **symlink al repo**
+> (`ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service …`,
+> `docs/evidencias/bloque-2-comandos.txt:166`), no una copia en
+> `/etc/systemd/system`. systemd trata esa unidad como *linked*, y `disable`
+> retira **el symlink entero**, no solo el enlace de `multi-user.target.wants/`.
+>
+> **Consecuencia práctica, y es la que costaba caro:** la vuelta atrás que estaba
+> escrita en las dos tarjetas de DEMO —`systemctl enable --now spaces-demo`—
+> **falla** con «Unit spaces-demo.service not found». Nada se pierde: el archivo
+> sigue en el repo. Pero hay que reenlazar antes.
+>
+> ```bash
+> ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+> systemctl daemon-reload && systemctl enable --now spaces-demo
+> ```
+>
+> **Aplica igual a `spaces-web`**, el PADRE, que se instaló del mismo modo — con
+> la diferencia de que ahí un `disable` accidental deja sin vuelta atrás el plano
+> de control. Y **no aplica a una instancia de cliente**: esas no llevan systemd
+> para la aplicación, la arranca `update.sh` como contenedor con
+> `--restart unless-stopped`.
+
 > **El entorno del proceso es `/etc/space-os/padre.env`**, no
 > `apps/web/.env.production` —que sigue en 600 root y lo lee el build—. Next
 > avisará con `EACCES` al arrancar y **eso es correcto**: es lo mismo que ya

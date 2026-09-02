@@ -67,9 +67,18 @@ echo ok; systemctl is-active spaces-demo; systemctl is-enabled spaces-demo 2>&1 
 #    paramos: no conviene conmutar a ciegas.
 
 # --- Y si prefieres dejar DEMO ARRIBA mientras revisamos, la
-#     vuelta atras es una linea y puedes correrla ya:
+#     vuelta atras son DOS lineas, no una. MEDIDO el 2026-09-02:
+#     `is-enabled` no dijo `disabled`, dijo `not-found`.
 #
-#       systemctl enable --now spaces-demo
+#     La unidad es un SYMLINK al repo
+#     (`docs/evidencias/bloque-2-comandos.txt:166`), asi que
+#     systemd la trata como *linked* y el `systemctl disable`
+#     del bloque 4 BORRA EL SYMLINK. Con eso `enable` solo
+#     responde "Unit spaces-demo.service not found". El archivo
+#     no se ha perdido: sigue en el repo. Hay que reenlazarlo.
+#
+#       ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+#       systemctl daemon-reload && systemctl enable --now spaces-demo
 #
 #     Volver a bajarla es el primer paso del bloque 4, asi que
 #     no pierdes nada por hacerlo.
@@ -232,11 +241,22 @@ echo ok; printf '31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env 
 # ############################################################
 #  VUELTA ATRAS -- una linea, y es de verdad
 # ############################################################
-#  Nada se borra:
+#  Nada se borra, pero OJO con la ultima linea: son DOS, y la
+#  primera es la que nadie espera. Medido el 2026-09-02.
 #
 #    rm -f /etc/cron.d/space-os-demo
 #    docker rm -f space-os-demo
-#    systemctl enable --now spaces-demo
+#    ln -sf /var/www/Spaces/infra/systemd/spaces-demo.service /etc/systemd/system/spaces-demo.service
+#    systemctl daemon-reload && systemctl enable --now spaces-demo
+#
+#  EL PORQUE, porque sin el la vuelta atras no funciona y el
+#  mensaje no ayuda: `/etc/systemd/system/spaces-demo.service`
+#  es un SYMLINK al repo, no una copia
+#  (`docs/evidencias/bloque-2-comandos.txt:166`). systemd trata
+#  esa unidad como *linked*, y `systemctl disable` borra el
+#  symlink ENTERO -- no solo el enlace de `.wants`. Por eso
+#  `is-enabled` responde `not-found` y no `disabled`, y por eso
+#  un `enable` a secas se queja de que la unidad no existe.
 #
 #  Y vuelves a estar donde estabas. Quedan dos huellas, las dos
 #  inocuas: el cambio de dueno de las tablas (el rol de la
