@@ -1,7 +1,7 @@
 # ADR 0025 — El acceso de soporte a la instancia de un owner
 
 - **Fecha:** 2026-09-02
-- **Estado:** **Propuesta** — hay dos puntos que decide una persona, marcados 🔸
+- **Estado:** **Aceptada** — las dos decisiones abiertas se cerraron el 2026-09-02
 - **Decide:** Emiliano
 - **Relacionadas:** [ADR 0022](0022-instancia-dedicada-por-owner.md) — el modelo
   que crea el problema · [ADR 0017](0017-todo-se-concentra-en-el-padre.md) ·
@@ -107,6 +107,17 @@ logs (`SPACES_KEY`, `LOGS_BUCKET`, hoy vacíos): cada sesión de `soporte` escri
 **quién, cuándo, desde dónde y cuánto duró**, y se envía fuera. **Sin esto, los
 puntos 1 a 3 son higiene, no una respuesta contractual.**
 
+Y con las dos decisiones del 02/09, el punto 4 queda cerrado así:
+
+- **Retención: un año.** Cubre un ciclo contractual completo. Son kilobytes, así
+  que el costo no es el almacenamiento: es que **hay que poder producirlo un año
+  después**, y eso obliga a que el bucket no se vacíe «por limpiar».
+- **El cliente puede consultarlo.** No es un registro interno: es suyo si lo pide.
+  Se le entrega el tramo que le corresponde — **solo sus accesos**, nunca el
+  registro de la flota.
+- **No hay aviso automático.** Se evaluó y se descartó por ahora: el mecanismo es
+  *consulta a petición*, no notificación.
+
 **5 · La cuenta de DigitalOcean se trata como el secreto de mayor valor del
 negocio.** 2FA obligatorio para toda persona con acceso; ninguna cuenta
 compartida; el token de API con el permiso mínimo y rotación anotada. Y se
@@ -119,15 +130,32 @@ proyecto — primero lo que se mide sin entrar (el reporte de flota, `/api/versi
 el log remoto), y **entrar sólo cuando eso no alcanza**, dejando dicho qué se
 tocó.
 
-### 🔸 Los dos puntos que decide una persona
+### Las dos decisiones que faltaban — cerradas el 2026-09-02
 
-1. **¿El cliente consiente cada acceso, o el contrato lo autoriza de antemano?**
-   Es la diferencia entre un servicio administrado y una custodia. La alternativa
-   **C** de abajo es el modelo de consentimiento explícito, y tiene un costo
-   operativo real: nadie puede diagnosticar de madrugada sin despertar al cliente.
-2. **¿Cuánto se retiene el rastro de acceso, y quién puede leerlo?** Si el cliente
-   puede pedirlo, es una garantía; si no, es un registro interno. La primera opción
-   es la que vale como argumento de venta.
+**① El contrato autoriza el acceso de antemano.** No hay consentimiento por
+sesión: AS OOH puede entrar cuando hace falta, y el cliente lo acepta al firmar.
+Es un **servicio administrado**, no una custodia. Con eso la alternativa **C**
+(break-glass) queda descartada, no aplazada.
+
+**② El rastro se guarda un año y el cliente puede consultarlo.** Detalle en el
+punto 4 de arriba.
+
+> [!danger] Y de ahí sale una corrección al texto del contrato, que no es un matiz
+> El mecanismo elegido es **consulta a petición**, no aviso. Así que el contrato
+> **no puede decir que el cliente está «consciente de cada acceso»**: con este
+> mecanismo el cliente se entera **si pregunta**.
+>
+> La redacción correcta es *«el cliente puede consultar en cualquier momento el
+> registro de accesos de soporte a su instancia, que se conserva un año»*.
+>
+> **Por qué se escribe aquí en vez de dejarlo al abogado:** es exactamente el modo
+> de fallo que este repositorio lleva media docena de veces documentado —un
+> documento que afirma algo que nadie construyó—, y el 02/09 costó una mañana con
+> el cierre falso de F2.4. La diferencia es que aquí el documento sería el
+> contrato, y quien lo descubre es el cliente en una disputa.
+>
+> Si se quiere de verdad la frase «consciente de cada acceso», hace falta el aviso
+> automático, y eso es **otra decisión y otro trabajo** — no está en este ADR.
 
 ---
 
@@ -171,13 +199,17 @@ abierto.
 datos?»* — la respuesta es *nadie, hasta que tú lo autorices*, y eso es un argumento
 de venta de verdad para un producto que se llama «instancias soberanas».
 
-**Por qué no se adopta como decisión hoy, pero tampoco se descarta:** el costo
-operativo cae sobre el cliente en el peor momento —su sistema está caído y hace
-falta *su* acción para poder mirarlo—, y con la consola web de DO disponible la
-garantía sería **parcialmente falsa** de todos modos. Se convierte en el punto
-🔸 1: si el negocio quiere vender soberanía de verdad, esto es lo que hay que
-construir, **y entonces la cuenta de DO también tiene que dejar de ser de la casa**.
-Eso es otro ADR, y es una decisión de negocio, no de infraestructura.
+**Por qué se descarta — decidido el 2026-09-02:** el negocio elige que **el
+contrato autorice el acceso de antemano**, o sea servicio administrado. Y las dos
+razones técnicas apuntaban al mismo lado: el costo operativo cae sobre el cliente
+en el peor momento —su sistema está caído y hace falta *su* acción para poder
+mirarlo—, y con la consola web de DO disponible la garantía sería **parcialmente
+falsa** de todos modos.
+
+**Queda descartada, no aplazada.** Si algún día se quiere vender soberanía en
+sentido estricto, hay que volver aquí — y entonces **la cuenta de DO también tiene
+que dejar de ser de la casa**, porque sin eso el break-glass es teatro. Eso sería
+otro ADR y una decisión de negocio, no de infraestructura.
 
 ---
 
@@ -208,6 +240,15 @@ Eso es otro ADR, y es una decisión de negocio, no de infraestructura.
   toca antes de F5.6 o después, pero no a la vez.
 - **Depende de Spaces**, que hoy está sin configurar (`SPACES_KEY` vacío). Mientras
   no lo esté, el punto 4 no existe y esta decisión está a medias.
+- **Un año de retención es una obligación, no una intención.** Hay que poder
+  producir el registro doce meses después, lo que significa que ese bucket **no se
+  puede vaciar «por limpiar»** y que su borrado por ciclo de vida hay que
+  configurarlo a propósito, no dejarlo por omisión.
+- **Entregar el rastro al cliente exige separarlo por instancia.** Si el registro
+  de toda la flota está en un solo sitio, atender una petición obliga a filtrar a
+  mano, y filtrar a mano es como se filtra de más. El envío tiene que escribir
+  **una ruta por instancia** desde el primer día — corregirlo después es reprocesar
+  un año de líneas.
 
 ### Implicaciones de seguridad
 
