@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-01
+actualizado: 2026-09-02
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -1432,7 +1432,7 @@ empuja: ver [[modelo-instancias-soberanas]] y
 | Entorno | Qué es | Cómo corre | Base | Dominio |
 |---|---|---|---|---|
 | **PADRE** | Plano de control de AS OOH y sitio institucional. **No sirve a ningún owner** | pm2 `spaces-web`, puerto **3000** | `spaces_prod` | `space-os.io` — `infra/nginx/space-os.io.conf:124` |
-| **DEMO** | Banco de pruebas. Segundo proceso **dentro del PADRE** ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **systemd**, unidad `infra/systemd/spaces-demo.service`, usuario `demo`, puerto **3001** — pm2 no le alcanza ([ADR 0019](../../docs/adr/0019-demo-arranca-con-systemd.md)) | `spaces_demo` | `demo.space-os.io` — `infra/nginx/space-os.io.conf:188`. El nombre **se conserva** ([ADR 0021](../../docs/adr/0021-demo-space-os-io-se-queda.md)); **qué máquina lo sirve no está decidido** |
+| **DEMO** | Banco de pruebas. **Contenedor** dentro del PADRE desde el 2026-09-02 ([ADR 0015](../../docs/adr/0015-demo-dentro-del-padre.md), [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | **`update.sh` + Docker**, contenedor `space-os-demo` desde `…/space-os:beta`, `--network host` con `PORT=3001` y `HOSTNAME=127.0.0.1`, cron a las 4:31. Config en `/etc/space-os/demo-instancia.env` y `demo-app.env`. La unidad systemd `spaces-demo` queda **deshabilitada como vuelta atrás**, no borrada — ver el aviso de abajo, porque `disable` **retira el symlink** | `spaces_demo`, 75 migraciones | **`prueba.space-os.io`** — nombre nuevo (31/08). `demo.space-os.io` es la demo original y **se elimina** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) |
 | **Instancia de un owner** | Su copia completa: droplet, base y dominio propios | Contenedor Docker, lo levanta `infra/scripts/update.sh` | La suya | El **suyo**, en **su** zona DNS — plantilla `infra/nginx/instancia.conf.tpl` |
 | **Droplet de julio** | La máquina montada a mano en julio. **Fuera del modelo** ([ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md)) | pm2 `spaces-web`, usuario `emiliano`, `/var/www/Spaces` | `spaces_prod` propia, con cinco organizaciones dentro | Hoy sigue sirviendo `demo.space-os.io`. Su destino es **decisión abierta** |
 

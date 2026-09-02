@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-08-31
+actualizado: 2026-09-02
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -45,6 +45,36 @@ no lo replantea, solo registra su ejecución local.
 
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor
 se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
+
+> [!success] 2026-09-02 · **F3.5 CERRADA — la FASE 3 queda completa, y quedan DOS**
+> DEMO dejó de ser `next start` sobre el repo y es **un contenedor desde la imagen
+> del registro**, con `update.sh` y cron. **Ejecutado en el PADRE, no simulado**: el
+> ensayo del 18/08 fue en WSL con el `docker pull` doblado; este usó registro real,
+> autenticación real, digest real y una migración real sobre una base con historia.
+>
+> **Expediente línea por línea: `docs/evidencias/f3-5-demo-instancia-20260902.md`.**
+>
+> **Quedan DOS**: `F5.6` y `F5.7`. Las dos son «instalar de cero», que es
+> justamente lo único que este ensayo **no** pudo tocar — no se creó ningún droplet,
+> ni se instaló Postgres en una máquina virgen, ni se aplicó el esquema a una base
+> vacía. `F5.6` es la que más riesgo retira y la más barata.
+>
+> Lo que quedó demostrado y no lo estaba: **el respaldo previo funciona** (177 135
+> bytes, y hace dos días salía vacío), la decisión de restaurar sale de la **huella
+> de la base** y no de la prosa del runner —con lo que **D1 de F3.4 se entierra**, y
+> con el archivo que lo mataba pendiente en la misma corrida—, y **repetir no hace
+> nada** (`sin cambios` a la segunda).
+>
+> ⚠️ **Cuatro defectos nuevos, ninguno visible leyendo.** El grave:
+> `systemctl disable spaces-demo` **borra** la unidad en vez de apagarla —es un
+> symlink al repo—, así que la vuelta atrás escrita en las tarjetas **no funcionaba**
+> y se habría descubierto al necesitarla. **Aplica igual a `spaces-web`.** Y
+> `instancia.env` **se sourcea** (`update.sh:700`): un valor con espacios sin comillas
+> hace que bash ejecute la segunda palabra, y el mensaje no dice nada del archivo.
+>
+> ▸ La conversión **no necesitó el ADR** que esta nota pedía abajo: no cambió el
+> modelo, aplicó el que ya estaba decidido. Docker entró en el plano de control
+> porque DEMO vive dentro del PADRE, y eso ya lo decidió el ADR 0015/0017.
 
 > [!success] 2026-09-01 · **F2.4 CERRADA — la FASE 2 queda completa**
 > `v0.1.0` promovida a **`estable`**: primera version que llega al canal que

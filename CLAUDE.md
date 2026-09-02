@@ -441,16 +441,35 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
 Fases cerradas: **0, 1, 2, 3, 4, 6 y 8** — la **2 se cerró el 2026-09-01** al
-promover `v0.1.0` a `estable`. La 5 en 6 de 8
-tras cerrarse **F3.6** y **F5.5** el 31/08. **Quedan 3**: F3.5, F5.6 y F5.7 — y las
-tres cuelgan de **convertir DEMO en una instancia**, que **merece un ADR antes que
-una tarjeta**: mete Docker en el plano de control, y la alternativa que el propio
-modelo sugiere es que DEMO sea su propio droplet.
+promover `v0.1.0` a `estable`, y la **3 quedó completa de verdad el 2026-09-02** al
+cerrarse **F3.5**. La 5 en 6 de 8. **Quedan DOS**: `F5.6` y `F5.7`.
 
-> [!tip] El siguiente paso concreto es un censo de solo lectura
-> `docs/evidencias/censo-demo-en-el-padre.txt`. Comprueba en el servidor lo que la
-> revisión del 31/08 dedujo del repositorio. **Sin esa confirmación no se diseña la
-> conversión de DEMO**: sería construir sobre una premisa sin medir.
+> [!success] 2026-09-02 · F3.5 CERRADA — DEMO ya es una instancia
+> El proceso del **3001** en el PADRE dejó de ser `next start` sobre el repositorio
+> y es **un contenedor desde la imagen del registro**, con `update.sh` y cron — el
+> mismo camino que recorrerá un cliente. Ejecutado en el servidor, no simulado:
+> registro real, digest real, y una migración real sobre una base con historia.
+>
+> **Expediente con cada línea del log: `docs/evidencias/f3-5-demo-instancia-20260902.md`.**
+> Lo esencial: respaldo previo de **177 135 bytes** (ya no vacío), `74 → 75`
+> migraciones decidido por **huella de la base** y no por la prosa del runner —con
+> lo que **D1 de F3.4 queda enterrado**, y precisamente con el archivo que lo
+> mataba—, salud en verde al 2.º intento, `login` y `metodos` a **200** desde fuera,
+> y la 2.ª corrida diciendo `sin cambios`: idempotencia demostrada.
+>
+> **Aparecieron cuatro defectos más, y ninguno se veía leyendo:** `systemctl disable`
+> **borra** la unidad de DEMO en vez de apagarla —es un symlink al repo, así que la
+> vuelta atrás escrita en las tarjetas no funcionaba, y **aplica igual a
+> `spaces-web`**—, y `instancia.env` **se sourcea** (`update.sh:700`), así que un
+> valor con espacios sin comillas hace que bash **ejecute** la segunda palabra.
+>
+> **Y la cuenta es 75, no 76**: las `@tipo: datos` entran solo con `--con-datos`
+> (`scripts/migrar.mjs:7`), que `update.sh` no pasa a propósito.
+
+> [!warning] Lo de abajo sobre «convertir DEMO» y el censo YA ESTÁ HECHO
+> El censo se hizo el 31/08 y la conversión el **02/09**. Si un documento te manda
+> decidir si DEMO se contenariza, o te propone un ADR para ello, describe una
+> decisión **ya tomada y ejecutada**. Se conserva como historia del recorrido.
 
 > [!important] Antes de tomar la siguiente tarea, lee la revisión del 31/08
 > `docs/evidencias/revision-fases-31-agosto.md`. **El plan v3 es del 13 de agosto y
