@@ -867,6 +867,40 @@ Lo fija `argv_sin_marca`, una comprobación **global** que corre en los 88 escen
 arnés: toda credencial lleva dentro una cadena marcadora y ninguna puede acabar en la
 línea de comandos de ninguna llamada doblada.
 
+> [!danger] 2026-09-02 · el alta NO instalaba el cliente de S3, así que nada salía
+> `respaldo.sh` sube el dump y `update.sh` sube el log, y los dos resuelven el
+> cliente con `respaldo_cliente()`, que exige **`s3cmd` o `aws` en el PATH**.
+> **`setup-droplet.sh` no instalaba ninguno de los dos.**
+>
+> Consecuencia: **toda instancia nacía sin poder subir nada** — ni respaldo ni log
+> — aunque tuviera las cinco variables de Spaces bien puestas. Y **el camino falla
+> ABIERTO**: `respaldo.sh:241-244` registra y devuelve 1, así que el update
+> terminaba **en verde** y el hueco no se notaba. Se habría descubierto el único
+> día en que el respaldo remoto importa: cuando la máquina se pierde.
+>
+> Es la **misma forma** que el defecto de DOOHmain del 01/09 —el código estaba, la
+> dependencia no estaba en la máquina— y por eso ahora lo fija una prueba:
+> `aprovisionamiento.test.ts`, «instala un cliente de S3, o el respaldo y el log no
+> salen del droplet», más una tercera que comprueba que **el cliente que instala el
+> alta es uno de los que el respaldo sabe usar**, para que no se desacoplen.
+>
+> Se instala **`s3cmd`** y no `awscli`: unos megas contra ~100, y es el que
+> `respaldo_cliente()` prefiere con `SPACES_CLIENTE=auto`.
+>
+> ⚠️ **Y el arreglo no se ha ejecutado nunca contra una máquina.** El PADRE no pasó
+> por `setup-droplet.sh`, así que su `s3cmd` va a mano. La primera comprobación real
+> es **F5.6**, y su tarjeta ya la trae.
+
+> [!warning] La retención la pone el BUCKET, y el ADR 0025 pide un año para otra cosa
+> Aquí no hay ni un borrado remoto, a propósito: lo que caduca lo caduca la **regla
+> de ciclo de vida** del bucket — 90 días para logs (`update.sh:253`) y el mismo
+> criterio para respaldos.
+>
+> **Ojo con el cruce:** el ADR 0025 decidió que el **registro de accesos** se
+> conserva **un año**. Si ese registro acaba en `space-os-logs`, la regla de 90 días
+> se lo come y **la promesa contractual al cliente se rompe en silencio a los tres
+> meses**. Cuando se construya va en su propio bucket o con una regla por prefijo.
+
 ### El respaldo sale del droplet (18/08, F3.7)
 
 Hasta hoy el `pg_dump` se quedaba en `/var/lib/space-os/respaldos/` y **nadie lo

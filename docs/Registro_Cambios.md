@@ -65,6 +65,25 @@ La entrada más reciente va arriba.
   enseño el valor entre comillas cada vez**, que es lo unico que hace visible un
   espacio o un punto, y en ninguno de los tres intentos llego a tocar nada.
 
+- **La copia de seguridad va a poder salir del servidor, y hasta hoy no podia.** El
+  sistema ya sabia enviar la copia de seguridad y el registro de cada actualizacion a
+  un almacen externo — pero **al preparar un servidor nuevo no se instalaba el
+  programa que hace el envio**, asi que ninguna instalacion podia enviar nada.
+
+  Lo peor no era el hueco: era que **no daba ningun error**. La actualizacion
+  terminaba correctamente, todo salia en verde, y la copia se quedaba en la misma
+  maquina que pretende proteger. Se habria descubierto el unico dia en que una copia
+  externa importa: cuando la maquina se pierde.
+
+  Ya esta corregido, y ahora hay una prueba que se pone roja si alguien lo quita.
+  **Falta la parte que no es programacion**: crear los dos almacenes y sus claves,
+  que es una tarea de una persona y esta escrita paso a paso.
+
+  Y de paso esto resuelve la mitad de otro problema: hoy, para averiguar por que
+  fallo una actualizacion en el servidor de un cliente, **hay que entrar a su
+  servidor** — o sea, a los datos de su negocio. Con el registro fuera, la mayoria de
+  los casos se diagnostican sin entrar.
+
 - **Que falta para poder vender el servicio.** Del plan de trabajo quedan **dos**
   tareas, y las dos son la misma cosa: **instalar de cero**. Una es un ensayo con un
   servidor desechable y la otra es el alta del primer cliente.

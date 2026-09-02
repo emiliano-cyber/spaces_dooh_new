@@ -126,10 +126,72 @@
 #  que "estable apuntaba antes a" ya NO dira "ninguno" --
 #  dira ese f09c09d9. Es lo esperado, no un problema.
 #
-#  ─── 2 · EN EL PADRE: doctl, o el droplet a mano ───────────
+#  ─── 2 · doctl EN EL PADRE  (CAMINO A, decidido 02/09) ─────
 #
-#  El script tiene dos caminos y NO hay uno por omision, a
-#  proposito. El bloque 0 te dice cual te toca.
+#  El script tiene dos caminos y no hay uno por omision, a
+#  proposito. **Se elige el A**: `--crear-droplet` con doctl, que
+#  es el que usara F5.7 de verdad -- P3 decidio que todas las
+#  instancias nacen en la cuenta de DO de la casa.
+#
+#  >>> Y ESTO TIENE UNA CONSECUENCIA DE SEGURIDAD QUE HAY QUE
+#  >>> LEER ANTES, no despues: pone en el PADRE un token capaz de
+#  >>> CREAR Y DESTRUIR DROPLETS. Es distinto del que ya tiene,
+#  >>> que solo lee imagenes del registro. Quien comprometa el
+#  >>> PADRE pasa de "leer imagenes" a "manejar la flota".
+#  >>>
+#  >>> Es exactamente el riesgo que anoto P3 el 20/08 y el que el
+#  >>> ADR 0025 nombra como la joya del negocio. Elegir el camino
+#  >>> A no lo crea: lo ADELANTA, porque F5.7 lo iba a necesitar
+#  >>> igual. Lo que cambia es que ahora hay que tratarlo bien
+#  >>> desde hoy.
+#
+#  DOS COSAS QUE NO SON OPCIONALES, y salen del ADR 0025 §5:
+#
+#   a) EL TOKEN VA CON PERMISOS MINIMOS. DigitalOcean permite
+#      tokens con alcance granular: dale solo lo de droplets
+#      (crear, leer, borrar) y NADA de facturacion, DNS, bases
+#      gestionadas ni Spaces. Un token de "todo" en una maquina
+#      con IP publica es lo que convierte un incidente en un
+#      incidente de todos los clientes.
+#
+#   b) 2FA EN LA CUENTA DE DO. Si no esta puesto, ponlo antes de
+#      crear el token. La consola web de esa cuenta da root sobre
+#      cualquier droplet SIN pasar por SSH, asi que es la unica
+#      frontera que de verdad acota el acceso.
+#
+#  INSTALACION (en el PADRE):
+
+echo ok; snap install doctl && doctl version
+
+# El token se pega cuando lo pida. No se muestra al teclear, y
+# `doctl auth init` lo guarda en /root/snap/doctl/current/.config
+# --- ojo con eso: es un archivo con una credencial de la flota.
+echo ok; doctl auth init
+
+echo ok; doctl account get | head -5; doctl compute region list | head -3
+
+# >>> Y CUANDO TERMINE EL ENSAYO, en el bloque 7: decide si el
+# >>> token se queda o se revoca. Si se queda, apuntalo en el
+# >>> inventario del ADR 0025 con su fecha; si se revoca,
+# >>> `doctl auth remove --context default` y borralo en la web.
+# >>> Lo que no debe pasar es que quede ahi sin que nadie sepa.
+#
+#  ─── 2b · Y LA CLAVE SSH, que doctl NO resuelve sola ───────
+#
+#  `--crear-droplet` crea la maquina, pero el script entra luego
+#  por `ssh root@HOST`. Para que eso funcione, la clave publica
+#  del PADRE tiene que estar EN LA CUENTA DE DO antes de crear el
+#  droplet. Compruebalo:
+
+echo ok; ls -la /root/.ssh/id_*.pub 2>/dev/null || echo "el PADRE NO tiene clave: generala con ssh-keygen -t ed25519"
+
+echo ok; doctl compute ssh-key list
+
+# Si la del PADRE no aparece en esa lista, subela:
+#   doctl compute ssh-key import padre --public-key-file /root/.ssh/id_ed25519.pub
+#
+# Sin esto el droplet nace sin tu clave y el paso 2 del script
+# muere en el primer `ssh`, con la maquina ya creada y pagandose.
 #
 #  ─── 3 · UN SUBDOMINIO DESECHABLE ──────────────────────────
 #
@@ -145,18 +207,26 @@
 echo ok; cd /var/www/Spaces && git pull --quiet && git log --oneline -1; for h in doctl ssh dig curl; do printf '%-6s -> %s\n' "$h" "$(command -v $h || echo FALTA)"; done
 
 # LEE ESTO:
-#  · Si `doctl` esta -> camino A (--crear-droplet). Comprueba
-#    que este autenticado con el bloque 0b.
-#  · Si `doctl` FALTA -> camino B: creas el droplet a mano en
-#    cloud.digitalocean.com (Ubuntu 22.04, el mas pequeno, NYC)
-#    con TU clave SSH puesta, y usas `--host <ip>`.
-#    El camino B ensaya todo menos la creacion del droplet.
+#  · `doctl` tiene que aparecer, porque el camino elegido es el A.
+#    Si dice FALTA, vuelve al apartado 2 del ANTES: se instala,
+#    con su token de permisos minimos y 2FA en la cuenta.
+#  · `dig` hace falta en el bloque 3. Si falta:
+#      apt-get install -y dnsutils
 #
-#  Y `dig` hace falta en el bloque 3. Si falta:
-#    apt-get install -y dnsutils
+#  SALIDA B, por si el A se atasca y no quieres perder la tarde:
+#  creas el droplet a mano en cloud.digitalocean.com (Ubuntu
+#  22.04, el mas pequeno, NYC1) con la clave del PADRE puesta, y
+#  usas `--host <ip>` en vez de `--crear-droplet`. Ensaya los
+#  siete pasos igual; lo unico que no prueba es la creacion de la
+#  maquina, que es la parte mas predecible del recorrido.
 
-# --- 0b · solo camino A:
+# --- 0b · que doctl este autenticado y vea la cuenta:
 echo ok; doctl account get 2>&1 | head -5; doctl compute region list 2>&1 | head -3
+
+# --- 0c · y que la clave del PADRE este en la cuenta, o el
+#     droplet nace sin ella y el script muere en el primer ssh
+#     con la maquina ya creada y pagandose:
+echo ok; doctl compute ssh-key list
 
 # ############################################################
 #  BLOQUE 1 · EN SECO                       🚦 PUERTA 1
@@ -260,6 +330,18 @@ echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --domini
 #  ver esta aplicacion recien instalada: entra con el correo y
 #  la clave temporal del bloque 5 y comprueba que el cambio
 #  forzado de contrasena funciona.
+
+# --- s3cmd EN EL DROPLET NUEVO. El alta lo instala desde el
+#     arreglo del 2026-09-02, y ESE ARREGLO NO SE HA EJECUTADO
+#     NUNCA. Sin s3cmd, el respaldo y el log no salen de la
+#     maquina -- y falla ABIERTO, o sea que el alta sale en verde
+#     igual y no se nota hasta el dia que se pierda el droplet.
+
+echo ok; ssh root@<IP-DEL-DROPLET> "s3cmd --version || echo 'FALTA s3cmd -- el arreglo del 02/09 no llego'"
+
+# ESPERADO: una version. Si dice FALTA, pasamelo: significa que
+# el droplet se creo con un setup-droplet.sh anterior al arreglo,
+# o que el `apt-get` fallo en silencio.
 
 # --- P13 · LA MONEDA. Quince minutos que llevan pendientes
 #     desde el 07/08, y este es el unico momento en que se puede
