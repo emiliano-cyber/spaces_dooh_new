@@ -4,6 +4,26 @@
  Fecha: 2026-09-01   ·   CERRADA con el censo del bloque 0
 ============================================================
 
+ >>> ############################################################
+ >>> ESTA TARJETA YA SE CORRIO Y NO SE VUELVE A CORRER.
+ >>>
+ >>> Llego a la PUERTA 4 la noche del 01/09 y update.sh aborto
+ >>> correctamente: el pg_dump previo salia VACIO por la RLS con
+ >>> FORCE sobre tablas de un rol normal. No toco ni la base ni
+ >>> el contenedor.
+ >>>
+ >>> LA VIGENTE ES:
+ >>>   docs/evidencias/TH-DEMO_convertir-en-instancia-reanudar.txt
+ >>>
+ >>> Ademas de arreglar eso, la nueva cambia la red del
+ >>> contenedor a --network host y REESCRIBE los dos archivos de
+ >>> configuracion: los de aqui se tocaron a mano esa noche para
+ >>> pasar un guard, y su estado ya no se puede dar por supuesto.
+ >>>
+ >>> Se conserva como historia del recorrido, no como
+ >>> instrucciones.
+ >>> ############################################################
+
  QUE HACE: que el proceso del 3001 deje de ser `next start`
  desde el repo y pase a ser UN CONTENEDOR desde la imagen del
  registro, con su `update.sh` y su cron -- como sera cualquier

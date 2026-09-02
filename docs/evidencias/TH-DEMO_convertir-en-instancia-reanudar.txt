@@ -1,0 +1,267 @@
+============================================================
+ TH-DEMO (2.a pasada) · REANUDAR LA CONVERSION DE DEMO
+ En el PADRE. Sin crear otro droplet. En prueba.space-os.io
+ Fecha: 2026-09-02   ·   SUSTITUYE a TH-DEMO_convertir-en-instancia.txt
+============================================================
+
+ POR QUE HAY UNA SEGUNDA TARJETA
+   La de anoche llego hasta la PUERTA 4 y `update.sh` aborto,
+   con razon:
+
+     3 · respaldo -> .../spaces_20260902_003335.dump
+     pg_dump: ERROR: query would be affected by row-level
+              security policy for table "acciones"
+     BACKUP VACIO -- abortado. No se toco ni la base ni el
+     contenedor.
+
+   Hizo el respaldo ANTES de migrar, vio que salia vacio, borro
+   el archivo de 0 bytes y paro. Se porto bien.
+
+   LA CAUSA: db/schema.sql pone RLS con FORCE, que aplica
+   INCLUSO AL DUENO de la tabla. Mientras fueron de `postgres`
+   no se noto -- un superusuario se salta la RLS --, pero ahora
+   son de `spaces_migrador`, que es un rol normal: ve CERO
+   filas. Le habria pasado igual a PIXELED en su PRIMERA
+   actualizacion.
+
+ LO QUE CAMBIA RESPECTO A LA TARJETA DE ANOCHE
+   1. `spaces_migrador` necesita `bypassrls`. El rol YA EXISTE,
+      asi que va por ALTER, no por CREATE.
+   2. La aplicacion pasa a `--network host` en vez de publicar
+      un puerto. Anoche se puso red bridge con
+      `host.docker.internal`, y eso hacia que la aplicacion y
+      las migraciones nombraran la base DISTINTA EN TEXTO;
+      update.sh tiene un guard que compara las dos urls y se
+      para. El guard tiene razon y no se ablanda.
+   3. Los dos archivos de configuracion se REESCRIBEN COMPLETOS,
+      no se parchean: anoche se toco a mano para pasar el guard
+      y su estado exacto ya no se puede dar por supuesto.
+
+ >>> LA IMAGEN NO CAMBIA. Los arreglos son de scripts y de
+ >>> plantillas, no de la aplicacion: `v0.3.0` en `beta` SIRVE
+ >>> tal cual y no hay que etiquetar nada nuevo.
+
+ >>> YA ESTAS DENTRO DEL PADRE. No hay linea de ssh.
+ >>> Pega por bloques; cada uno empieza con "echo ok;".
+ >>> Si una puerta no da lo esperado, PARA y pasamelo.
+
+# ############################################################
+#  ANTES: el PR de `fix/red-del-contenedor` fusionado a `main`
+# ############################################################
+#  Son los tres arreglos de anoche mas el de la intermitente.
+#  Sin fusionar, el `git pull` del bloque 1 no trae nada.
+
+# ############################################################
+#  BLOQUE 0 · DONDE QUEDO TODO            (solo lectura)
+# ############################################################
+#  Anoche el bloque 5 empezo DESHABILITANDO el servicio viejo,
+#  y el contenedor nuevo nunca nacio. Lo mas probable es que
+#  DEMO este CAIDA ahora mismo. Esto lo dice sin tocar nada.
+
+echo ok; systemctl is-active spaces-demo; systemctl is-enabled spaces-demo 2>&1 | tail -1; docker ps -a --format '{{.Names}} | {{.Image}} | {{.Status}}'; curl -s -o /dev/null -w 'local 3001 -> %{http_code}\n' http://127.0.0.1:3001/spaces-dooh/api/version/
+
+# LEE ESTO ANTES DE SEGUIR:
+#  · Si is-active dice `inactive`, no hay contenedor y el 3001
+#    da 000 -> DEMO esta caida. Es lo esperado. Sigue.
+#  · Si el 3001 da 200 -> algo esta sirviendo. Dime QUE, y
+#    paramos: no conviene conmutar a ciegas.
+
+# --- Y si prefieres dejar DEMO ARRIBA mientras revisamos, la
+#     vuelta atras es una linea y puedes correrla ya:
+#
+#       systemctl enable --now spaces-demo
+#
+#     Volver a bajarla es el primer paso del bloque 4, asi que
+#     no pierdes nada por hacerlo.
+
+# ############################################################
+#  BLOQUE 1 · Traer los arreglos al PADRE
+# ############################################################
+
+echo ok; cd /var/www/Spaces && git pull && git log --oneline -3
+
+echo ok; install -m 750 /var/www/Spaces/infra/scripts/update.sh /opt/space-os/update.sh; install -m 750 /var/www/Spaces/infra/scripts/respaldo.sh /opt/space-os/respaldo.sh; ls -la /opt/space-os/
+
+# ############################################################
+#  BLOQUE 2 · El rol que respalda ve TODAS las filas  PUERTA 1
+# ############################################################
+#  `bypassrls` da miedo escrito, asi que aqui esta el porque en
+#  una linea: un respaldo PARCIAL es peor que ninguno, porque
+#  no da error y parece bueno.
+#
+#  EL AISLAMIENTO NO SE TOCA. Son dos roles distintos a
+#  proposito: `spaces_app` -- el de la APLICACION -- se queda
+#  con nobypassrls explicito, y la aplicacion no usa jamas al
+#  migrador. Lo comprueba la puerta.
+
+echo ok; sudo -u postgres psql -v ON_ERROR_STOP=1 -c "alter role spaces_migrador bypassrls"
+
+# PUERTA 1 -- el migrador SI, la aplicacion NO:
+echo ok; sudo -u postgres psql -tc "select rolname, rolbypassrls from pg_roles where rolname in ('spaces_migrador','spaces_app') order by rolname"
+
+# ESPERADO, exactamente estas dos filas:
+#    spaces_app      | f
+#    spaces_migrador | t
+#
+# Si spaces_app sale `t`, PARA Y AVISAME. Eso seria un agujero
+# de aislamiento, no un detalle de esta tarjeta.
+
+# ############################################################
+#  BLOQUE 3 · Los dos archivos, reescritos      PUERTA 2
+# ############################################################
+#  El token de registro hace falta otra vez: el `read -rs` de
+#  anoche murio con esa sesion. No se muestra al teclear.
+#  Es el de SOLO LECTURA (cloud.digitalocean.com/account/api/tokens).
+
+echo ok; read -rs TOKEN_REG && printf '%s' "$TOKEN_REG" | docker login registry.digitalocean.com --username "$TOKEN_REG" --password-stdin
+
+# --- demo-app.env: se REHACE partiendo del que usaba systemd,
+#     que es el que se sabe bueno. Con --network host,
+#     127.0.0.1 dentro del contenedor ES la maquina, asi que la
+#     url de la base vuelve a su forma normal -- la MISMA que
+#     usan las migraciones, que es justo lo que el guard exige.
+#     El `sed` deshace el cambio de anoche si sigue puesto, y no
+#     hace nada si no.
+
+echo ok; cp /etc/space-os/demo.env /etc/space-os/demo-app.env; chmod 600 /etc/space-os/demo-app.env; sed -i "s#@host.docker.internal:5432/spaces_demo#@127.0.0.1:5432/spaces_demo#" /etc/space-os/demo-app.env; grep -c . /etc/space-os/demo-app.env
+
+# --- HOSTNAME es lo UNICO que mantiene el puerto fuera del
+#     exterior con --network host: la imagen trae 0.0.0.0
+#     (Dockerfile:73) y sin esta linea el 3001 quedaria expuesto
+#     dependiendo solo de que el cortafuegos este bien puesto.
+#     Se borran antes para no dejarlas duplicadas.
+
+echo ok; sed -i '/^HOSTNAME=/d;/^PORT=/d' /etc/space-os/demo-app.env; printf 'HOSTNAME=127.0.0.1\nPORT=3001\n' >> /etc/space-os/demo-app.env
+
+# PUERTA 2 -- las tres lineas que deciden si esto arranca:
+echo ok; grep -E '^(DATABASE_URL|HOSTNAME|PORT)=' /etc/space-os/demo-app.env | sed 's/:[^:@]*@/:***@/'
+
+# ESPERADO, las tres y en esta forma:
+#   DATABASE_URL=postgresql://spaces_app:***@127.0.0.1:5432/spaces_demo
+#   HOSTNAME=127.0.0.1
+#   PORT=3001
+#
+# Si DATABASE_URL trae host.docker.internal, el guard del
+# bloque 4 te va a parar. Dimelo antes de seguir.
+
+# --- demo-instancia.env: la configuracion del actualizador.
+#     Nombres DISTINTOS de los del PADRE a proposito: en esta
+#     maquina ya existen instancia.env y padre.env, y pisarlos
+#     romperia lo que YA funciona.
+
+echo ok; CLAVE_MIG=$(cat /root/.clave-migrador-demo); cat > /etc/space-os/demo-instancia.env <<EOF
+INSTANCIA=demo
+REGISTRY=registry.digitalocean.com/registryspaces
+REGISTRY_TOKEN=$TOKEN_REG
+IMAGEN_NOMBRE=space-os
+CANAL=beta
+CONTENEDOR=space-os-demo
+ENV_APP=/etc/space-os/demo-app.env
+DOCKER_OPCIONES_APP=--network host
+DATABASE_URL=postgresql://spaces_migrador:$CLAVE_MIG@127.0.0.1:5432/spaces_demo
+RED_MIGRACION=host
+SALUD_URL=http://127.0.0.1:3001/spaces-dooh/api/version/
+SALUD_INTENTOS=10
+SALUD_ESPERA=3
+PULL_ESPERAS=1 5 30
+EOF
+chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/space-os/demo-instancia.env) lineas"
+
+# --- Y que el token entrara de verdad. Si el `read -rs` se
+#     perdio, esto sale 0: repite el bloque desde el `read`.
+echo ok; grep -c '^REGISTRY_TOKEN=.\+' /etc/space-os/demo-instancia.env
+
+# ESPERADO: 1
+
+# ############################################################
+#  BLOQUE 4 · EN SECO, y aqui se decide         PUERTA 3
+# ############################################################
+#  No toca nada. Es la unica puerta que deja pararlo a tiempo,
+#  y anoche es la que lo paro.
+
+echo ok; systemctl disable --now spaces-demo; systemctl is-active spaces-demo
+
+# ESPERADO: inactive
+#  (El servicio se DESHABILITA, no se borra: es la vuelta atras.)
+
+echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh --dry-run 2>&1 | tail -30
+
+# PUERTA 3 -- LEELO ENTERO antes de seguir. Tiene que decir:
+#   · que hay version nueva (no "ya estas al dia"),
+#   · y UNA migracion pendiente -- la de doohmain_tracking.
+#
+# Lo que NO tiene que aparecer:
+#   · "apuntan a bases DISTINTAS"  -> vuelve al bloque 3
+#   · nada sobre respaldo vacio    -> vuelve al bloque 2
+#
+# PASAMELO TAL CUAL. Con esa salida en la mano seguimos.
+
+# ############################################################
+#  BLOQUE 5 · EL CAMBIO DE GUARDIA              PUERTA 4
+# ############################################################
+#  DEMO queda caida unos segundos. Es aceptable: existe para
+#  poder romperse.
+
+echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | tail -40
+
+# PUERTA 4 -- el contenedor arriba y la base migrada:
+echo ok; docker ps --format '{{.Names}} | {{.Image}} | {{.Status}}'
+
+echo ok; sudo -u postgres psql -d spaces_demo -tc "select count(*) from schema_migrations"
+
+# ESPERADO: space-os-demo corriendo, y 75 migraciones (eran 74:
+# entra la de doohmain_tracking). Ese salto de 74 a 75 es lo que
+# convierte esto en un ensayo REAL del paso de migracion y no en
+# un simulacro con cero cambios.
+
+# ############################################################
+#  BLOQUE 6 · Desde fuera                       PUERTA 5
+# ############################################################
+#  Desde TU PC, no desde el servidor:
+#
+#   curl.exe -s -o NUL -w 'login   -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+#   curl.exe -s -o NUL -w 'metodos -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+#
+#  ESPERADO: 200 y 200. No hace falta tocar nginx: su vhost ya
+#  apunta al 3001, que es donde escucha el contenedor.
+
+# --- El cron, SOLO cuando lo de arriba este en verde:
+
+echo ok; printf '31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1\n' > /etc/cron.d/space-os-demo; chmod 644 /etc/cron.d/space-os-demo; cat /etc/cron.d/space-os-demo
+
+# ############################################################
+#  VUELTA ATRAS -- una linea, y es de verdad
+# ############################################################
+#  Nada se borra:
+#
+#    rm -f /etc/cron.d/space-os-demo
+#    docker rm -f space-os-demo
+#    systemctl enable --now spaces-demo
+#
+#  Y vuelves a estar donde estabas. Quedan dos huellas, las dos
+#  inocuas: el cambio de dueno de las tablas (el rol de la
+#  aplicacion conserva sus permisos por
+#  20260820_grants_rol_app.sql) y el bypassrls del migrador, que
+#  la aplicacion no usa nunca.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · El bloque 0 -- si DEMO esta caida o si algo sirve el 3001.
+#   · Las cinco puertas.
+#   · La salida del --dry-run (PUERTA 3) ANTES de correr el
+#     bloque 5. Es la unica que deja parar a tiempo.
+#   · Y el STORAGE USAGE del registro, que sigue pendiente desde
+#     el 31/08: es el que dice cuantas versiones caben en el plan
+#     gratuito, y ahora importa mas porque la imagen engordo con
+#     Python y el SDK.
+#
+#  DESPUES DE ESTO:
+#   · F3.5 queda cerrada -- este ES su ensayo real.
+#   · DEMO reportara su VERSION de verdad, asi que se puede
+#     poner FLOTA_TOKEN en GitHub y el smoke de promocion se
+#     vuelve estricto solo.
+#   · Y queda el camino libre para F5.6, el ensayo del alta en un
+#     droplet desechable, que es la que de verdad prueba el
+#     aprovisionamiento de punta a punta.
+# ############################################################

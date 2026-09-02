@@ -193,6 +193,32 @@ Las e2e:
 > Corregido con un oyente que **registra y no traga**: lo único que evita es que el
 > error mate el proceso.
 
+> [!danger] 2026-09-02 · SEGUNDA intermitente igual en dos días — ya es una regla
+> `lib/alta-correo.test.ts > rechaza el marcador que se coló el 21/08` salió roja
+> en la suite completa con **el mismo mensaje** de la de abajo —
+> `Test timed out in 5000ms`, medido en **5456 ms** — y **sola pasa en 879 ms**.
+>
+> **La causa es estructural, no del archivo:** cada uno de sus casos hace
+> `spawnSync` de un proceso Node entero, y ese `spawnSync` se da **20 s** de
+> presupuesto (`alta-correo.test.ts:43`) mientras vitest corta a los **5000 ms**
+> por omisión — no hay `testTimeout` en la configuración. Los dos presupuestos se
+> contradecían, así que el resultado dependía de lo ocupada que estuviera la
+> máquina.
+>
+> Corregido subiendo el presupuesto del caso a **25 s**, por encima del del spawn,
+> para que si algo se cuelga lo denuncie el `spawnSync` —que sí dice qué pasó— y no
+> el corte ciego de vitest. Verificado con **dos corridas completas seguidas en
+> verde: 1043 en 99 archivos.**
+>
+> > **La regla, que es lo que hay que llevarse:** *toda prueba que arranque un
+> > proceso necesita un presupuesto de vitest MAYOR que el del proceso que
+> > arranca.* Los 5000 ms por omisión son para pruebas que no salen del proceso.
+> > Hoy quedan **seis** casos así en este archivo; el que escriba el séptimo en
+> > otro sitio va a tropezar con esto mismo.
+>
+> Y la lección de abajo se confirma por segunda vez en dos días: **el mensaje decía
+> «timed out» desde el primer momento.**
+
 > [!success] 2026-09-01, noche · RESUELTA, y la causa era aburrida
 > **`Error: Test timed out in 5000ms`.** No fallaba una aserción: la prueba **no
 > terminaba a tiempo**. Recorría `app/`, `lib/` y `components/` leyendo cada
