@@ -166,13 +166,13 @@ IMAGEN_NOMBRE=space-os
 CANAL=beta
 CONTENEDOR=space-os-demo
 ENV_APP=/etc/space-os/demo-app.env
-DOCKER_OPCIONES_APP=--network host
+DOCKER_OPCIONES_APP="--network host"
 DATABASE_URL=postgresql://spaces_migrador:$CLAVE_MIG@127.0.0.1:5432/spaces_demo
 RED_MIGRACION=host
 SALUD_URL=http://127.0.0.1:3001/spaces-dooh/api/version/
 SALUD_INTENTOS=10
 SALUD_ESPERA=3
-PULL_ESPERAS=1 5 30
+PULL_ESPERAS="1 5 30"
 EOF
 chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/space-os/demo-instancia.env) lineas"
 
@@ -181,6 +181,28 @@ chmod 600 /etc/space-os/demo-instancia.env; echo "escrito, $(grep -c . /etc/spac
 echo ok; grep -c '^REGISTRY_TOKEN=.\+' /etc/space-os/demo-instancia.env
 
 # ESPERADO: 1
+
+# --- ESTE ARCHIVO NO ES UN .env CUALQUIERA: update.sh:700 lo
+#     SOURCEA (`. "$CONF"`), asi que es un script de shell. Todo
+#     valor con espacios va ENTRECOMILLADO o bash se come la
+#     primera palabra como asignacion y EJECUTA el resto.
+#
+#     Medido el 2026-09-02, y por eso esta puerta existe: con
+#     `DOCKER_OPCIONES_APP=--network host` sin comillas, el
+#     --dry-run imprimio la AYUDA DEL COMANDO `host` y aborto.
+#     El mensaje no dice nada del archivo: hay que saberlo.
+#
+#     Sourcearlo en un subshell lo demuestra sin ensuciar nada, y
+#     ademas ensena los dos valores TAL COMO los vera el script:
+
+echo ok; bash -c 'set -e; . /etc/space-os/demo-instancia.env; echo "sourcea limpio -- opciones=[$DOCKER_OPCIONES_APP] esperas=[$PULL_ESPERAS] canal=[$CANAL]"'
+
+# ESPERADO, y sin ninguna linea de ayuda ni "command not found":
+#   sourcea limpio -- opciones=[--network host] esperas=[1 5 30] canal=[beta]
+#
+# Si sale la ayuda de `host`, o un "command not found", es que
+# falta una comilla. Los dos valores con espacios son
+# DOCKER_OPCIONES_APP y PULL_ESPERAS.
 
 # ############################################################
 #  BLOQUE 4 · EN SECO, y aqui se decide         PUERTA 3

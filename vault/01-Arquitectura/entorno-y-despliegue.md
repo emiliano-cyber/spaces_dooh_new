@@ -673,6 +673,32 @@ murió a la mitad deja la base en un estado que su segunda corrida no espera, y
 repetirla a ciegas es como se corrompe una base. El health check conserva sus 10 × 3 s
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
+> [!danger] `instancia.env` NO es un `.env`: `update.sh` lo SOURCEA
+> `update.sh:700` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
+> no una lista de pares clave-valor. Consecuencia: **todo valor con espacios va
+> entrecomillado**, o bash toma la primera palabra como la asignación y **ejecuta
+> el resto como un comando**.
+>
+> **Medido el 2026-09-02** al convertir DEMO, escribiendo
+> `DOCKER_OPCIONES_APP=--network host` sin comillas. El `--dry-run` respondió con
+> **la ayuda del comando `host`** —el de DNS— y abortó, porque `host` sin
+> argumentos sale con 1 y el script corre con `set -e`. El mensaje **no menciona
+> el archivo, ni la variable, ni las comillas**: hay que saberlo.
+>
+> Hoy son **dos** los valores con espacios, y `infra/env/instancia.env.example`
+> los trae bien: `DOCKER_OPCIONES_APP="--network host"` (línea 69) y
+> `PULL_ESPERAS="1 5 30"`. **Escribir ese archivo a mano en vez de copiarlo de la
+> plantilla es lo que reintroduce el fallo** — fue exactamente lo que pasó.
+>
+> La comprobación cuesta una línea y no ensucia nada, porque va en un subshell:
+>
+> ```bash
+> bash -c 'set -e; . /etc/space-os/instancia.env; echo "[$DOCKER_OPCIONES_APP] [$PULL_ESPERAS]"'
+> ```
+>
+> Y hay un caso vecino que ya estaba escrito aquí abajo y conviene leer junto a
+> este: `PULL_ESPERAS=""` **no** apaga los reintentos; sólo un espacio lo hace.
+
 se cambian con `PULL_ESPERAS` en `instancia.env`, y **dejarla vacía apaga los
 reintentos** — cierto desde el **20/08** y no antes: la asignación usaba
 `${PULL_ESPERAS:-…}` y los dos puntos sustituyen también el valor **vacío**, así que
