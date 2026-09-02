@@ -138,6 +138,40 @@ describe('la aplicacion en contenedor puede ver su base', () => {
   })
 })
 
+describe('los dos roles de la base, y cual puede saltarse la RLS', () => {
+  // Medido el 2026-09-01 al convertir DEMO:
+  //
+  //   pg_dump: ERROR: query would be affected by row-level security policy
+  //            for table "acciones"
+  //
+  //  `db/schema.sql` pone RLS con FORCE, que aplica INCLUSO AL DUEÑO. El rol que
+  //  respalda tiene que ver todas las filas o el `pg_dump` de `update.sh` sale
+  //  vacío y la primera actualización de cada instancia aborta. Un respaldo
+  //  PARCIAL sería peor que ninguno.
+  //
+  //  Y lo contrario para el de la aplicación: ese NO puede saltársela nunca. Es
+  //  la línea que sostiene el aislamiento entre organizaciones (R2), y su modo de
+  //  fallo no da error — devuelve filas de otra empresa, o ninguna, en silencio.
+
+  const creaRol = (nombre: string) =>
+    ejecutable(PROVISION).match(new RegExp(`create role ${nombre}[^"\\\\]*`))?.[0] ?? ''
+
+  it('el de la APLICACION no puede saltarse la RLS, y se dice explicito', () => {
+    expect(creaRol('spaces_app')).toMatch(/\bnobypassrls\b/)
+  })
+
+  it('el que MIGRA y RESPALDA si, o el respaldo saldria vacio', () => {
+    const migrador = creaRol('spaces_migrador')
+    expect(migrador).toMatch(/\bbypassrls\b/)
+    expect(migrador, 'el migrador no debe ser superusuario').toMatch(/\bnosuperuser\b/)
+  })
+
+  it('y son DOS roles distintos: la aplicacion nunca usa el del respaldo', () => {
+    expect(creaRol('spaces_app')).not.toBe('')
+    expect(creaRol('spaces_migrador')).not.toBe('')
+  })
+})
+
 describe('una instancia puede bajar la imagen de un registro privado', () => {
   it('`update.sh` se autentica antes de jalar', () => {
     expect(ejecutable(UPDATE)).toMatch(/docker login/)
