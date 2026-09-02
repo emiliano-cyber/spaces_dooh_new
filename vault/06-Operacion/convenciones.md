@@ -193,6 +193,24 @@ Las e2e:
 > Corregido con un oyente que **registra y no traga**: lo único que evita es que el
 > error mate el proceso.
 
+> [!success] 2026-09-01, noche · RESUELTA, y la causa era aburrida
+> **`Error: Test timed out in 5000ms`.** No fallaba una aserción: la prueba **no
+> terminaba a tiempo**. Recorría `app/`, `lib/` y `components/` leyendo cada
+> archivo, y lo hacía **cuatro veces** — una por caso. Con la suite en paralelo y
+> el árbol creciendo, se pasaba del `testTimeout`.
+>
+> Por eso «empezó» ahora y por eso era intermitente: **dependía de lo ocupada que
+> estuviera la máquina, no del código.**
+>
+> Se lee una sola vez, al cargar el módulo. Tres corridas completas seguidas en
+> verde después del cambio.
+>
+> **La leccion, y cuesta poco recordarla:** el mensaje decia «timed out» desde el
+> primer dia. Dos releases se cayeron mientras se buscaba una causa de
+> correccion — quién escribe en ese directorio, si hay una carrera— porque nadie
+> abrio el texto del error. **Leer el mensaje antes de teorizar** es la misma
+> regla que el 31/08 costo dos corridas con los pools.
+
 > [!warning] 2026-09-01 · hay una prueba INTERMITENTE, y conviene saber su nombre
 > `lib/tipografia.test.ts > ningun archivo pide fuentes a un CDN ajeno` falla a
 > veces en la suite completa y **siempre pasa corriéndola sola**. Medido: dos

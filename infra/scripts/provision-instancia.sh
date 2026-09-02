@@ -353,7 +353,25 @@ remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_app log
 # corran siempre con el mismo dueno hace que el `alter default privileges` de
 # 20260820_grants_rol_app.sql -- escrito SIN `for role` -- se comporte igual
 # siempre. Es el hallazgo H1 del 24/08.
-remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit\""
+# `bypassrls` — la palabra da miedo, asi que aqui esta el porque, MEDIDO el
+# 2026-09-01 al convertir DEMO:
+#
+#   pg_dump: ERROR: query would be affected by row-level security policy
+#            for table "acciones"
+#
+# `db/schema.sql` pone RLS con FORCE, que aplica INCLUSO AL DUENO de la tabla. Un
+# rol normal que sea dueno ve CERO filas, asi que el `pg_dump` que `update.sh`
+# hace ANTES de migrar sale vacio y el update ABORTA. Sin esto, la primera
+# actualizacion de cada instancia se para en seco.
+#
+# Un respaldo PARCIAL seria peor que ninguno: el rol que respalda tiene que ver
+# todas las filas. Antes no se notaba porque las tablas eran de `postgres`, que
+# es superusuario y se salta la RLS por definicion.
+#
+# EL AISLAMIENTO NO SE TOCA. El que no puede saltarse la RLS es `spaces_app`, el
+# rol de la APLICACION, y se sigue creando arriba con `nobypassrls` EXPLICITO.
+# Este rol no lo usa la aplicacion jamas: solo migra y respalda.
+remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit bypassrls\""
 remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create database spaces owner spaces_migrador\""
 
 # ─── 3 · Esquema y migraciones ──────────────────────────────────────────────
@@ -402,7 +420,7 @@ remoto "mkdir -p /etc/space-os"
 # leer por que `COOKIE_DOMAIN` no esta, no solo que no esta.
 sed \
   -e "s#^APP_URL=.*#APP_URL=https://$DOMINIO#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@host.docker.internal:5432/spaces#" \
+  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces#" \
   -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/#" \
   -e "s#^BOOTSTRAP_TOKEN=.*#BOOTSTRAP_TOKEN=$TOKEN_ARRANQUE#" \
   -e "s#^FLOTA_TOKEN=.*#FLOTA_TOKEN=$TOKEN_FLOTA#" \
