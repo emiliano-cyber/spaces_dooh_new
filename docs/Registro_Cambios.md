@@ -54,11 +54,20 @@ La entrada más reciente va arriba.
   probo, se negaba con razon. Ya esta corregido: ahora se le pone la etiqueta al
   mismo paquete, sin envolverlo.
 
-- **Que falta para poder vender el servicio.** Del plan de trabajo quedan **tres**
-  tareas. Dos son la misma cosa —**instalar de cero**—: un ensayo con un servidor
-  desechable y el alta del primer cliente. La tercera es la aprobacion de version
-  que resulto no estar hecha, y es la primera de las tres porque las otras dos
-  instalan justamente lo aprobado.
+- **Y por la tarde ya SI hay una version aprobada de verdad: la `v0.3.0`.** Es la
+  primera que llega al canal que miran las instalaciones de los clientes, y esta vez
+  no se da por hecha: el propio sistema volvio a leer el paquete despues de
+  aprobarlo y comprobo que es exactamente el que se habia probado.
+
+  Costo **cuatro intentos**, y ninguno fue culpa del programa. Tres veces se paro
+  por como estaba escrito el dato que se le pasaba: una direccion con un espacio de
+  mas delante, y un numero de version con un punto de mas detras. **El sistema
+  enseño el valor entre comillas cada vez**, que es lo unico que hace visible un
+  espacio o un punto, y en ninguno de los tres intentos llego a tocar nada.
+
+- **Que falta para poder vender el servicio.** Del plan de trabajo quedan **dos**
+  tareas, y las dos son la misma cosa: **instalar de cero**. Una es un ensayo con un
+  servidor desechable y la otra es el alta del primer cliente.
 
   Y aparte del plan quedan **dos cosas que el plan nunca incluyo**, las dos necesarias
   para *vender* y no solo para *entregar*: **como se atiende una averia** —quien puede

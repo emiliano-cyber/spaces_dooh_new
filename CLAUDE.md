@@ -440,10 +440,30 @@ trabajo se hizo en las siete semanas de la rama larga y el tablero no lo recogi�
 > **La Fase 2 pasa a 5 de 6.** Lo único que le falta es **F2.4**, y esa no la
 > desbloquea el registry: espera la decisión de qué dirección representa a DEMO.
 
-Fases cerradas: **0, 1, 3, 4, 6 y 8** — la **3 quedó completa el 2026-09-02** al
-cerrarse **F3.5**. La 5 en 6 de 8. **Quedan TRES**: `F2.4`, `F5.6` y `F5.7`.
+Fases cerradas: **0, 1, 2, 3, 4, 6 y 8** — la **3** al cerrarse **F3.5** y la **2**
+al cerrarse **F2.4**, las dos el **2026-09-02**. La 5 en 6 de 8. **Quedan DOS**:
+`F5.6` y `F5.7`, y las dos son «instalar de cero».
 
-> [!danger] 2026-09-02 · **F2.4 NO estaba cerrada, y la Fase 2 vuelve a 5 de 6**
+> [!success] 2026-09-02, tarde · **F2.4 CERRADA, y esta vez medida**
+> `v0.3.0` promovida a **`estable`**. Es la primera versión que llega de verdad al
+> canal que consumen las instancias — la del 01/09 nunca llegó, ver el aviso de
+> abajo.
+>
+> **Lo que lo hace un cierre y no una afirmación:** el propio workflow releyó el
+> digest del registro después de reetiquetar y comprobó que coincide con el
+> validado. Ese paso **es** el criterio de aceptación de F2.4, y hoy pasó en verde
+> por primera vez.
+>
+> Costó **cuatro intentos**, y ninguno por el código de la aplicación:
+> `DEMO_URL` pegada con un espacio delante · el workflow viejo, porque
+> `workflow_dispatch` toma el archivo de la rama que se elige y se lanzó antes de
+> fusionar · la versión pegada con un punto detrás (`'v0.3.0.'`) · y por fin.
+>
+> **Los tres primeros los cazaron los guards con el valor entre comillas**, que es
+> lo único que hace visible un espacio o un punto. Ninguno llegó a tocar el
+> registro.
+
+> [!danger] 2026-09-02, mañana · **F2.4 llevaba un día CERRADA EN FALSO**
 > Este archivo, la bitácora y la bóveda decían que `v0.1.0` se promovió a
 > `estable` el 01/09. **No ocurrió.** Al correr «Promover a estable» de verdad
 > por primera vez, el propio workflow leyó el registro y dijo:
@@ -462,6 +482,12 @@ cerrarse **F3.5**. La 5 en 6 de 8. **Quedan TRES**: `F2.4`, `F5.6` y `F5.7`.
 > y eso cambia el digest siempre que el origen sea de una sola plataforma, que
 > es lo que produce `release.yml` con `docker build` a secas. Arreglado el 02/09
 > reetiquetando con `crane copy`, que reescribe los mismos bytes.
+>
+> **Y quedó MEDIDO en el registro**, que es lo que convirtió la deducción en
+> hecho: `beta` era `manifest.v2+json` con digest `sha256:6494bbca…` —una imagen
+> de una plataforma— y `estable` era `manifest.list.v2+json` con digest
+> `sha256:f09c09d9…` envolviendo exactamente esa imagen. La huella de
+> `imagetools create`, y la prueba de que `release.yml` no produce índices.
 >
 > **La lección es la de siempre aquí, y van muchas:** el commit `2d707ec` afirmó
 > como hecho —«v0.1.0 promovida al canal `estable`»— algo que nadie midió, y de
