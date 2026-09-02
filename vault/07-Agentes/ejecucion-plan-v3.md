@@ -54,13 +54,15 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 >
 > **Expediente línea por línea: `docs/evidencias/f3-5-demo-instancia-20260902.md`.**
 >
-> **Quedan TRES** *(corregido el 02/09 por la tarde: eran DOS hasta descubrirse
-> que F2.4 no estaba cerrada — ver el callout de abajo)*: `F2.4`, `F5.6` y `F5.7`.
-> Las dos últimas son «instalar de cero», que es justamente lo único que este
-> ensayo **no** pudo tocar — no se creó ningún droplet, ni se instaló Postgres en
-> una máquina virgen, ni se aplicó el esquema a una base vacía. Y **`F2.4` va
-> primera**, porque las otras dos instalan el canal `estable`, que es lo que F2.4
-> produce.
+> **Quedan DOS**: `F5.6` y `F5.7`, y las dos son «instalar de cero» — justamente
+> lo único que este ensayo **no** pudo tocar: no se creó ningún droplet, ni se
+> instaló Postgres en una máquina virgen, ni se aplicó el esquema a una base
+> vacía. `F5.6` es la que más riesgo retira y la más barata.
+>
+> *(Esta cuenta subió a TRES a mitad del 02/09, al descubrirse que F2.4 estaba
+> cerrada en falso, y volvió a DOS esa misma tarde al cerrarla de verdad. Las dos
+> vueltas quedan escritas en los callouts de abajo: la cuenta no bajó por
+> reinterpretar nada, bajó porque se corrió el workflow.)*
 >
 > Lo que quedó demostrado y no lo estaba: **el respaldo previo funciona** (177 135
 > bytes, y hace dos días salía vacío), la decisión de restaurar sale de la **huella
@@ -79,7 +81,30 @@ se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
 > modelo, aplicó el que ya estaba decidido. Docker entró en el plano de control
 > porque DEMO vive dentro del PADRE, y eso ya lo decidió el ADR 0015/0017.
 
-> [!danger] 2026-09-02 · **F2.4 NO estaba cerrada. Lo de abajo es FALSO**
+> [!success] 2026-09-02, tarde · **F2.4 CERRADA de verdad — la FASE 2 queda completa**
+> `v0.3.0` en **`estable`**. Primera versión que llega al canal que consumen las
+> instancias: la del 01/09 nunca llegó.
+>
+> **Lo que lo hace un cierre:** el paso «Comprobar que promover no cambio el
+> digest» releyó el registro después de reetiquetar y coincidió con el validado.
+> Ese paso **es** el criterio de aceptación de la tarea, y pasó en verde por
+> primera vez desde que la tarea existe.
+>
+> **Cuatro intentos, y ninguno por el código de la aplicación:**
+>
+> | Intento | Murió en | Por qué |
+> |---|---|---|
+> | 1.º | 1.ª puerta | `DEMO_URL` pegada con un espacio delante |
+> | 2.º | puerta 3 | corrió el workflow **viejo**: `workflow_dispatch` toma el archivo de la rama elegida, y se lanzó antes de fusionar el arreglo |
+> | 3.º | 2.ª puerta | la versión pegada con un punto detrás: `'v0.3.0.'` |
+> | 4.º | — | verde |
+>
+> Los tres primeros los cazó un guard **imprimiendo el valor entre comillas**, que
+> es lo único que hace visible un espacio o un punto, y ninguno llegó a tocar el
+> registro. Vale como argumento a favor de esa costumbre: un mensaje que dice
+> «valor no válido» sin enseñarlo habría costado la tarde.
+
+> [!danger] 2026-09-02, mañana · **F2.4 estaba cerrada EN FALSO. Lo de abajo es FALSO**
 > El callout siguiente dice que `v0.1.0` se promovió a `estable` el 01/09.
 > **No ocurrió.** Al correr «Promover a estable» de verdad por primera vez, el
 > workflow leyó el registro y respondió:

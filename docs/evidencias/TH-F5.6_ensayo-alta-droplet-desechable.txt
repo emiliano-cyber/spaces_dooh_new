@@ -37,6 +37,20 @@
 #
 #  ─── 1 · PROMOVER v0.3.0 A `estable` ───────────────────────
 #
+#  ✅ HECHO el 2026-09-02 por la tarde. F2.4 cerrada, `estable`
+#     apunta a v0.3.0 con el digest verificado. ESTE APARTADO YA
+#     NO HAY QUE HACERLO -- se conserva porque explica por que
+#     `estable` tiene que ser v0.3.0 y no otra, y porque las tres
+#     trampas de abajo valen para cualquier variable que se pegue
+#     en un formulario de GitHub.
+#
+#     Comprueba de todas formas que sigue asi antes del bloque 1:
+#
+#       docker buildx imagetools inspect registry.digitalocean.com/registryspaces/space-os:estable
+#
+#     ESPERADO: MediaType `manifest.v2+json` (NO `manifest.list`)
+#     y Digest sha256:6494bbca... -- el mismo que `beta`.
+#
 #  `provision-instancia.sh` instala el canal `estable` por
 #  omision, y NO se le debe cambiar: el invariante 13 dice que
 #  nada llega a un owner sin pasar por el banco de pruebas, y
