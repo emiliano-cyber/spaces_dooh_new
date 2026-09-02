@@ -331,6 +331,18 @@ echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --domini
 #  la clave temporal del bloque 5 y comprueba que el cambio
 #  forzado de contrasena funciona.
 
+# --- s3cmd EN EL DROPLET NUEVO. El alta lo instala desde el
+#     arreglo del 2026-09-02, y ESE ARREGLO NO SE HA EJECUTADO
+#     NUNCA. Sin s3cmd, el respaldo y el log no salen de la
+#     maquina -- y falla ABIERTO, o sea que el alta sale en verde
+#     igual y no se nota hasta el dia que se pierda el droplet.
+
+echo ok; ssh root@<IP-DEL-DROPLET> "s3cmd --version || echo 'FALTA s3cmd -- el arreglo del 02/09 no llego'"
+
+# ESPERADO: una version. Si dice FALTA, pasamelo: significa que
+# el droplet se creo con un setup-droplet.sh anterior al arreglo,
+# o que el `apt-get` fallo en silencio.
+
 # --- P13 · LA MONEDA. Quince minutos que llevan pendientes
 #     desde el 07/08, y este es el unico momento en que se puede
 #     comprobar: una base recien nacida.

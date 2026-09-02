@@ -79,6 +79,24 @@ echo "→ Instalando Certbot..."
 apt-get install -y -qq certbot python3-certbot-nginx
 echo "  ✓ Certbot instalado"
 
+# ─── Cliente de S3, para que el respaldo y el log SALGAN del droplet ─────────
+#  No es una comodidad. `respaldo.sh` sube el dump y `update.sh` sube el log a
+#  Spaces, y los dos resuelven el cliente con `respaldo_cliente()`, que exige
+#  `s3cmd` o `aws` en el PATH. Sin ninguno de los dos, esa ruta falla ABIERTO
+#  —registra y devuelve 1 (`respaldo.sh:241-244`)—, o sea que el update sigue en
+#  verde y la instancia se queda SIN respaldo fuera de la máquina sin que nadie
+#  se entere. Se descubriría el día que la máquina se pierda, que es el único día
+#  en que el respaldo remoto importa.
+#
+#  `s3cmd` y no `awscli`: pesa unos megas en vez de ~100, y es el que
+#  `respaldo_cliente()` prefiere con `SPACES_CLIENTE=auto`.
+#
+#  Instalarlo NO configura nada: sin `SPACES_KEY`/`SPACES_SECRET` en
+#  `instancia.env` sigue sin subirse nada, y el log lo dice con esas palabras.
+echo "→ Instalando cliente de S3 (s3cmd)..."
+apt-get install -y -qq s3cmd
+echo "  ✓ s3cmd $(s3cmd --version 2>/dev/null | awk '{print $3}') instalado"
+
 # ─── Firewall (ufw) ───────────────────────────────────────────────────────────
 echo "→ Configurando firewall..."
 ufw allow 22/tcp  comment 'SSH'

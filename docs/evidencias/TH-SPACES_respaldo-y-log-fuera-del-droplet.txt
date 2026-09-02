@@ -1,0 +1,202 @@
+============================================================
+ TH-SPACES · QUE EL RESPALDO Y EL LOG SALGAN DEL DROPLET
+ En la web de DigitalOcean + en el PADRE. Se ensaya en DEMO.
+ Fecha: 2026-09-02
+============================================================
+
+ QUE RESUELVE, y son dos cosas de golpe:
+
+   · LA PERDIDA DE DATOS. Hoy el respaldo vive en la MISMA
+     maquina que protege. Medido el 02/09 en el log de F3.5:
+     "si la maquina desaparece, el dump desaparece con ella".
+     Ante un droplet perdido, HOY NO HAY DE DONDE RESTAURAR.
+
+   · LA MITAD DEL SOPORTE (ADR 0025 §4). Hoy el log tampoco
+     sale, y el propio update.sh lo dice: "diagnosticarla exige
+     entrar al servidor del owner". O sea que diagnosticar
+     obliga a entrar a los datos del negocio del cliente. Con el
+     log fuera, la mayoria de los incidentes se diagnostican SIN
+     abrir una sesion.
+
+ >>> EL CODIGO YA ESTA HECHO. Esto es CONFIGURACION, no
+ >>> construccion. `respaldo.sh` sube el dump y `update.sh` sube
+ >>> el log, los dos con la instancia en la ruta, y los dos
+ >>> avisan en el log cuando no estan configurados. Lo unico que
+ >>> faltaba en codigo era el cliente de S3, que el alta no
+ >>> instalaba -- arreglado el 02/09 en setup-droplet.sh.
+
+ LO QUE VA A COSTAR: unos centavos al mes. Un bucket de Spaces
+ son 5 USD/mes por 250 GB, y aqui hablamos de dumps de ~180 KB
+ y logs de unos KB.
+
+# ############################################################
+#  BLOQUE 1 · Los DOS buckets, en la web        🚦 PUERTA 1
+# ############################################################
+#  cloud.digitalocean.com > Spaces Object Storage > Create
+#
+#  SON DOS Y NO UNO, y no es capricho: llevan contenido de
+#  sensibilidad distinta y RETENCION distinta.
+#
+#    space-os-respaldos   los dumps de la base. Es informacion
+#                         del negocio del cliente.
+#    space-os-logs        el log PUBLICABLE de cada corrida de
+#                         update.sh -- filtrado a proposito para
+#                         que no lleve datos de la aplicacion.
+#
+#  Region: NYC3, la misma del registro de imagenes.
+#  Y los dos PRIVADOS. Si alguno queda publico, los dumps de un
+#  cliente quedan en internet: es el unico paso de esta tarjeta
+#  que no admite un error.
+#
+#  🚦 PUERTA 1 — pasame:
+#    · los dos nombres tal como quedaron,
+#    · la region,
+#    · y una captura o el texto que confirme que File Listing
+#      esta en "Restricted" en los dos.
+
+# ############################################################
+#  BLOQUE 2 · Las reglas de ciclo de vida       🚦 PUERTA 2
+# ############################################################
+#  IMPORTANTE, porque aqui NO hay ni un borrado remoto en el
+#  codigo -- a proposito: un `rm` mal escrito contra un bucket
+#  de respaldos se lleva la copia de todos los clientes. Lo que
+#  caduca lo caduca EL BUCKET, no el script.
+#
+#  En cada bucket: Settings > Lifecycle Rules.
+#
+#    space-os-logs        90 dias   (update.sh:253 lo asume)
+#    space-os-respaldos   90 dias   (mismo criterio que F3.7)
+#
+#  >>> Y OJO CON UNA COSA QUE NO ES OBVIA: el ADR 0025 decidio
+#  >>> que el REGISTRO DE ACCESOS se conserva UN ANO. Si ese
+#  >>> registro acaba en `space-os-logs`, la regla de 90 dias se
+#  >>> lo come y la promesa contractual al cliente se rompe en
+#  >>> silencio a los tres meses.
+#  >>>
+#  >>> Cuando se construya (ADR 0025 §4, todavia no existe) va
+#  >>> en SU PROPIO bucket o con una regla por prefijo. No lo
+#  >>> metas en el de logs "de momento".
+#
+#  🚦 PUERTA 2 — las dos reglas puestas, con su periodo.
+
+# ############################################################
+#  BLOQUE 3 · Las llaves, UNA POR INSTANCIA     🚦 PUERTA 3
+# ############################################################
+#  Spaces Object Storage > Access Keys > Create.
+#
+#  UNA POR INSTANCIA, no una para todas (update.sh:114 lo dice).
+#  El motivo es el del ADR 0025: si una llave se filtra, se
+#  revoca sin tocar al resto de la flota. Con una llave comun,
+#  revocarla deja a todos los clientes sin respaldo a la vez.
+#
+#  Y NUNCA la llave maestra de la cuenta (respaldo.sh:40-41).
+#
+#  Si DigitalOcean permite limitar la llave a un bucket y a un
+#  prefijo, hazlo: solo a `<instancia>/` de los dos buckets. Una
+#  llave que puede LEER los dumps de los demas clientes convierte
+#  cualquier instancia comprometida en una fuga de toda la flota.
+#
+#  Para esta tarjeta hace falta UNA: la de `demo`.
+#
+#  🚦 PUERTA 3 — dime que existe y a que alcance quedo limitada.
+#  NO me pases el secreto: no lo necesito y no debe quedar
+#  escrito en ningun sitio.
+
+# ############################################################
+#  BLOQUE 4 · Configurar DEMO, que es el ensayo
+# ############################################################
+#  Se prueba en DEMO primero, que para eso existe y ya es una
+#  instancia de verdad desde F3.5.
+
+echo ok; s3cmd --version 2>/dev/null || apt-get install -y -qq s3cmd && s3cmd --version
+
+# >>> Ojo: el PADRE no paso por setup-droplet.sh, asi que su
+#     s3cmd hay que instalarlo a mano. Una instancia NUEVA ya lo
+#     trae desde el arreglo del 02/09.
+
+# --- Las cinco variables, al env de DEMO. Se leen sin mostrarse.
+echo ok; read -rs SP_KEY && read -rs SP_SEC && printf 'ok, %s y %s caracteres\n' "${#SP_KEY}" "${#SP_SEC}"
+
+echo ok; sed -i '/^SPACES_KEY=/d;/^SPACES_SECRET=/d;/^SPACES_BUCKET=/d;/^LOGS_BUCKET=/d;/^SPACES_REGION=/d' /etc/space-os/demo-instancia.env
+
+echo ok; cat >> /etc/space-os/demo-instancia.env <<EOF
+SPACES_KEY=$SP_KEY
+SPACES_SECRET=$SP_SEC
+SPACES_BUCKET=space-os-respaldos
+LOGS_BUCKET=space-os-logs
+SPACES_REGION=nyc3
+EOF
+chmod 600 /etc/space-os/demo-instancia.env; echo "escrito"
+
+# --- Y que el archivo siga sourceando limpio, que es la trampa
+#     que costo una vuelta el 02/09: este archivo lo SOURCEA
+#     update.sh:700, asi que un valor con espacios sin comillas
+#     hace que bash ejecute la segunda palabra.
+echo ok; bash -c 'set -e; . /etc/space-os/demo-instancia.env; echo "sourcea limpio -- bucket=[$SPACES_BUCKET] logs=[$LOGS_BUCKET] region=[$SPACES_REGION] key=${#SPACES_KEY} chars"'
+
+# ESPERADO: los tres nombres enteros y un numero de caracteres
+# distinto de 0. Sin lineas de ayuda ni "command not found".
+
+# ############################################################
+#  BLOQUE 5 · Probar la subida SIN actualizar    🚦 PUERTA 4
+# ############################################################
+#  `respaldo.sh` se puede correr solo, sin tocar el contenedor
+#  ni la base. Primero dice a donde subiria:
+
+echo ok; set -a; . /etc/space-os/demo-instancia.env; set +a; INSTANCIA=demo /opt/space-os/respaldo.sh destino
+
+# ESPERADO: s3://space-os-respaldos/demo/<fecha>.dump
+# Si dice que falta el prefijo, INSTANCIA no llego al entorno.
+
+# --- Y ahora una subida de verdad, de un dump que ya existe.
+echo ok; ls -la /var/lib/space-os/respaldos/ | tail -3
+
+echo ok; set -a; . /etc/space-os/demo-instancia.env; set +a; INSTANCIA=demo /opt/space-os/respaldo.sh subir /var/lib/space-os/respaldos/spaces_20260902_163024.dump
+
+# >>> Cambia el nombre del archivo por el que te haya salido en
+#     el `ls` de arriba.
+
+# 🚦 PUERTA 4 — que el objeto esta arriba. Se comprueba desde
+# fuera, no fiandose de que el script diga que subio:
+echo ok; s3cmd -c <(set -a; . /etc/space-os/demo-instancia.env; set +a; printf '[default]\naccess_key = %s\nsecret_key = %s\nhost_base = nyc3.digitaloceanspaces.com\nhost_bucket = %%(bucket)s.nyc3.digitaloceanspaces.com\nuse_https = True\n' "$SPACES_KEY" "$SPACES_SECRET") ls s3://space-os-respaldos/demo/
+
+# ESPERADO: una linea con el dump y su tamano (~180 KB).
+# Si sale vacio, subio a otro sitio o no subio.
+
+# ############################################################
+#  BLOQUE 6 · Y el log, que va solo             🚦 PUERTA 5
+# ############################################################
+#  El log lo sube `update.sh` al terminar, salga bien o mal. No
+#  hay que pedirselo: basta con que corra una vez.
+
+echo ok; SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | tail -8
+
+# 🚦 PUERTA 5 — en esa salida, la ULTIMA linea tiene que haber
+# cambiado. Antes decia:
+#
+#   log remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET...
+#
+# Y ahora tiene que nombrar el destino s3:// y decir por que
+# cliente lo subio. Esa linea ES la prueba de que la mitad de
+# soporte del ADR 0025 §4 empieza a existir.
+#
+# (La corrida dira "sin cambios": no hay version nueva. Da igual
+#  -- el log se sube igual, y eso es justo lo que se prueba.)
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · Las cinco puertas.
+#   · La ultima linea del bloque 6, que es la que cambia de
+#     "NO CONFIGURADO" a un destino real.
+#   · Y si algo fallo, la salida tal cual: cada defecto que salga
+#     aqui en DEMO es uno que no le pasa a PIXELED.
+#
+#  ⚠️ NO me pases la llave ni el secreto de Spaces.
+#
+#  DESPUES DE ESTO:
+#   · Una instancia nueva nace con s3cmd y solo le faltan sus
+#     cinco variables, que las escribe el alta.
+#   · Y en F5.6 hay que comprobar que el droplet de ensayo trae
+#     s3cmd: es el arreglo del 02/09 y no se ha ejecutado nunca.
+# ############################################################

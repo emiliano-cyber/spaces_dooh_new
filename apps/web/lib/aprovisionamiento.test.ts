@@ -74,6 +74,42 @@ describe('el servidor de una instancia se prepara para el modelo de HOY', () => 
   it('NO instala Node: una instancia no corre código, corre una imagen', () => {
     expect(ejecutable(SETUP)).not.toMatch(/nvm install|npm install -g/)
   })
+
+  // ── El cliente de S3, y por qué su ausencia no daba ningún error ──────────
+  //  `respaldo.sh` sube el dump y `update.sh` sube el log a Spaces, y los dos
+  //  resuelven el cliente con `respaldo_cliente()`, que exige `s3cmd` o `aws`
+  //  en el PATH. `setup-droplet.sh` no instalaba ninguno de los dos, así que
+  //  toda instancia nacía SIN PODER SUBIR NADA — y el camino falla ABIERTO
+  //  (`respaldo.sh:241-244` registra y devuelve 1), o sea que el update seguía
+  //  en verde y nadie se enteraba hasta necesitar el respaldo.
+  //
+  //  Es la misma forma que el defecto de DOOHmain del 01/09: el código estaba,
+  //  la dependencia no estaba en la máquina.
+  it('instala un cliente de S3, o el respaldo y el log no salen del droplet', () => {
+    expect(ejecutable(SETUP)).toMatch(/install[^\n]*\bs3cmd\b|install[^\n]*awscli/)
+  })
+})
+
+describe('el respaldo y el log SALEN del droplet, o no hay de donde restaurar', () => {
+  const RESPALDO = leer('infra', 'scripts', 'respaldo.sh')
+
+  it('el destino del dump lleva la instancia en la ruta, no un cajón común', () => {
+    // Lo exige el ADR 0025: el cliente puede pedir su registro, y separarlo
+    // después obligaría a filtrar a mano — que es como se filtra de más.
+    expect(RESPALDO).toMatch(/s3:\/\/%s\/%s\//)
+  })
+
+  it('el log también, y por el mismo motivo', () => {
+    expect(UPDATE).toMatch(/s3:\/\/%s\/%s\/%s\.log/)
+  })
+
+  it('el cliente que instala el alta es uno de los que el respaldo sabe usar', () => {
+    // Guarda contra el desacople: si alguien cambia el instalador a `minio-cli`
+    // o el resolvedor a otro nombre, esto se pone rojo en vez de descubrirse
+    // el día del primer incidente.
+    const instalado = /\bs3cmd\b/.test(ejecutable(SETUP)) ? 's3cmd' : 'awscli'
+    expect(RESPALDO).toMatch(instalado === 's3cmd' ? /command -v s3cmd/ : /command -v aws/)
+  })
 })
 
 describe('el alta migra dentro de un contenedor, no contra un repo', () => {
