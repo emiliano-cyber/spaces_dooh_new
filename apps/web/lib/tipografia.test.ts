@@ -63,6 +63,24 @@ function archivosDeCodigo(): string[] {
   return encontrados
 }
 
+/**
+ * El árbol, leído y despojado de comentarios UNA sola vez.
+ *
+ * Antes cada caso recorría los tres directorios y volvía a leer cada archivo:
+ * cuatro pasadas completas sobre el mismo material. Con la suite unitaria
+ * corriendo en paralelo eso empezó a pasarse del `testTimeout` de 5 s, y el
+ * síntoma era el peor posible — **una prueba intermitente**: verde al correrla
+ * sola, roja en la suite, sin que nada del código cambiara. Tumbó dos releases
+ * antes de que se mirara el mensaje, que decía «Test timed out» y no una
+ * aserción fallida.
+ *
+ * No es una optimización: es lo que hace que el resultado dependa del código y
+ * no de lo ocupada que esté la máquina.
+ */
+const CODIGO: ReadonlyArray<readonly [string, string]> = archivosDeCodigo().map(
+  (ruta) => [ruta, sinComentarios(readFileSync(ruta, 'utf8'))] as const,
+)
+
 const rel = (ruta: string) => relative(RAIZ_WEB, ruta).split(sep).join('/')
 
 /**
@@ -95,16 +113,16 @@ describe('tipografía institucional', () => {
     // `next/font/google` descarga los archivos EN EL BUILD: que el nombre
     // «google» aparezca en un import NO es una petición en tiempo de ejecución.
     // Por eso se buscan los HOSTS, no los nombres de proveedor.
-    const culpables = archivosDeCodigo()
-      .filter((r) => CDN_PROHIBIDOS.some((cdn) => sinComentarios(readFileSync(r, 'utf8')).includes(cdn)))
-      .map(rel)
+    const culpables = CODIGO.filter(([, texto]) =>
+      CDN_PROHIBIDOS.some((cdn) => texto.includes(cdn)),
+    ).map(([ruta]) => rel(ruta))
     expect(culpables).toEqual([])
   })
 
   it('no queda rastro de las tres familias que se sustituyen', () => {
-    const culpables = archivosDeCodigo()
-      .filter((r) => FAMILIAS_RETIRADAS.some((f) => sinComentarios(readFileSync(r, 'utf8')).includes(f)))
-      .map(rel)
+    const culpables = CODIGO.filter(([, texto]) =>
+      FAMILIAS_RETIRADAS.some((f) => texto.includes(f)),
+    ).map(([ruta]) => rel(ruta))
     expect(culpables).toEqual([])
   })
 
