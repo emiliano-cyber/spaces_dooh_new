@@ -56,10 +56,47 @@ describe('setup-droplet.sh no describe el modelo muerto', () => {
     expect(IMPRIME).not.toMatch(/spaces-dooh/)
   })
 
+  // ─── 2026-09-02 · el epílogo describía OTRO modelo muerto, y esta prueba lo
+  //     exigía. Es el mismo defecto ④ una vuelta más tarde.
+  //
+  //  Los tres casos de arriba cazaron el modelo Fastify/subdominios. Lo que se
+  //  colaba por debajo era el modelo **pm2 + repo clonado**: el epílogo mandaba
+  //  a `git clone`, `npm ci`, `npm run build` y `pm2 start ecosystem.config.js`.
+  //  Y el contrafactual de esta prueba **exigía que apareciera `pm2`**, así que
+  //  la prueba no solo lo permitía: lo obligaba. Sobrevivió al
+  //  [ADR 0019](../../../docs/adr/0019-demo-arranca-con-systemd.md), que sacó a
+  //  pm2 del PADRE, y al modelo de contenedores que F3.5 demostró el 02/09.
+  //
+  //  UNA INSTANCIA NO CLONA EL REPO Y NO USA pm2: corre un contenedor que
+  //  `update.sh` levanta desde la imagen del registro. `/var/www/Spaces` no
+  //  existe en la máquina de un cliente — existe en el PADRE.
+  //
+  //  Y hay una razón por la que esto era peor que un texto viejo:
+  //  `provision-instancia.sh:330` mete este guion por `bash -s` en medio de su
+  //  propio recorrido, así que el epílogo se imprime **entre el paso 1 y el 2**,
+  //  con los pasos 2 a 7 a punto de correr solos. Mandaba a hacer a mano, y por
+  //  el camino equivocado, lo que el script hacía él segundos después.
+  it('no manda al modelo de pm2 con el repositorio clonado', () => {
+    expect(IMPRIME).not.toMatch(/pm2/)
+    expect(IMPRIME).not.toMatch(/git clone/)
+    expect(IMPRIME).not.toMatch(/npm ci|npm run build/)
+    expect(IMPRIME).not.toMatch(/ecosystem\.config/)
+  })
+
+  it('no manda a crear un .env.production, que es del modelo viejo', () => {
+    // El entorno de una instancia son `/etc/space-os/{app,instancia}.env`, y los
+    // escribe el paso 4 de `provision-instancia.sh`, no una persona con `nano`.
+    expect(IMPRIME).not.toMatch(/\.env\.production/)
+  })
+
   // ─── Contrafactual: sin esto, borrar el epílogo entero pasaría la prueba.
-  it('sigue diciendo a dónde va el código y cómo se arranca', () => {
-    expect(IMPRIME).toMatch(/\/var\/www\/Spaces/)
-    expect(IMPRIME).toMatch(/pm2/)
-    expect(IMPRIME).toMatch(/certbot/)
+  it('sigue diciendo qué dejó instalado y quién sigue', () => {
+    // Lo que instala, que es su único trabajo y lo que el resto da por hecho.
+    expect(IMPRIME).toMatch(/[Dd]ocker/)
+    expect(IMPRIME).toMatch(/certbot/i)
+    // s3cmd entró el 02/09: sin él el respaldo y el log no salen del droplet.
+    expect(IMPRIME).toMatch(/s3cmd/)
+    // Y a dónde sigue el recorrido de verdad.
+    expect(IMPRIME).toMatch(/provision-instancia\.sh/)
   })
 })

@@ -105,64 +105,58 @@ ufw allow 443/tcp comment 'HTTPS'
 ufw --force enable
 echo "  ✓ ufw habilitado (22, 80, 443)"
 
-# ─── Directorio del proyecto ──────────────────────────────────────────────────
-echo "→ Creando directorio del proyecto..."
-mkdir -p /var/www/Spaces/logs
-echo "  ✓ /var/www/Spaces listo"
 
 # ─── Resumen ──────────────────────────────────────────────────────────────────
 #
-#  ⚠️ ESTE EPILOGO SE CORRIGIO EL 2026-08-24 (defecto ④ del arranque del PADRE).
-#  Lo que decia antes describia un producto que ya no existe: `apps/api` —el
-#  backend Fastify, archivado en `_archive/api`—, la ruta `/var/www/spaces-dooh`
-#  y un certificado COMODIN `*.{slug}.spaces.com`, del modelo de subdominios por
-#  tenant que murio el 2026-08-12 y que el plan v3 descarta (T9).
+#  ⚠️ ESTE EPILOGO SE HA CORREGIDO DOS VECES, y las dos por lo mismo: describia
+#  un modelo que ya no existe. Conviene saberlo antes de escribir aqui.
 #
-#  No es cosmetico: este guion se convierte en `provision-instancia.sh` en la
-#  Fase 5, asi que esto es lo ultimo que lee quien aprovisiona una instancia.
-#  `apps/web/lib/aprovisionamiento-epilogo.test.ts` se pone rojo si vuelve.
+#  1.ª (2026-08-24, defecto ④ del arranque del PADRE) — mandaba a `apps/api`, el
+#     backend Fastify archivado en `_archive/api`, a la ruta
+#     `/var/www/spaces-dooh` y a un certificado COMODIN `*.{slug}.spaces.com`,
+#     del modelo de subdominios por tenant que murio el 2026-08-12.
+#
+#  2.ª (2026-09-02) — mandaba a `git clone`, `npm ci`, `npm run build` y
+#     `pm2 start ecosystem.config.js`. Eso es el modelo de REPO CLONADO, muerto
+#     por el ADR 0019 (systemd sustituye a pm2 en el PADRE) y despues por el
+#     modelo de contenedores, que F3.5 demostro funcionando el 02/09.
+#     **Una instancia no clona el repositorio y no usa pm2**: corre un
+#     contenedor que `update.sh` levanta desde la imagen del registro, y su
+#     entorno son `/etc/space-os/{app,instancia}.env`, que los escribe el paso 4
+#     de `provision-instancia.sh`.
+#     Lo que lo volvia peor: `aprovisionamiento-epilogo.test.ts` EXIGIA que
+#     apareciera `pm2`, asi que la prueba no lo permitia — lo obligaba.
+#
+#  Y esto es lo que hace que un epilogo equivocado cueste caro:
+#  `provision-instancia.sh:330` mete este guion por `bash -s` DENTRO de su
+#  propio recorrido, asi que lo de abajo se imprime **entre el paso 1 y el 2**,
+#  con los pasos 2 a 7 a punto de correr solos. Un «pasos siguientes» aqui manda
+#  a hacer a mano lo que el script hace el segundos despues.
+#
+#  Por eso ahora NO hay lista de pasos: solo lo que quedo instalado y quien
+#  sigue. `apps/web/lib/aprovisionamiento-epilogo.test.ts` se pone rojo si
+#  vuelve cualquiera de los dos modelos muertos.
 #
 echo ""
 echo "┌─────────────────────────────────────────────────────────────┐"
-echo "│  ✓ Droplet listo. Pasos siguientes:                          │"
-echo "│                                                              │"
-echo "│  1. Clonar el repo:                                          │"
-echo "│     git clone <repo-url> /var/www/Spaces                     │"
-echo "│                                                              │"
-echo "│  2. Instalar dependencias:                                   │"
-echo "│     cd /var/www/Spaces && npm ci                             │"
-echo "│                                                              │"
-echo "│  3. Crear el .env de la instancia, y CERRARLO:               │"
-echo "│     cp .env.production.example apps/web/.env.production      │"
-echo "│     nano apps/web/.env.production                            │"
-echo "│     chmod 600 apps/web/.env.production                       │"
-echo "│     (nace 644, con la clave de la base dentro: defecto ⑦)    │"
-echo "│                                                              │"
-echo "│  4. Rol de la app, esquema y migraciones — EN ESE ORDEN:     │"
-echo "│     sin el rol, la cadena aborta en la migracion 52 de 70    │"
-echo "│     DATABASE_URL=... node scripts/migrar.mjs \\                │"
-echo "│                        --instalacion-nueva                   │"
-echo "│                                                              │"
-echo "│  5. Compilar y arrancar con PM2:                             │"
-echo "│     npm run build                                            │"
-echo "│     pm2 start ecosystem.config.js && pm2 save                │"
-echo "│                                                              │"
-echo "│  6. Configurar Nginx (archivo VERSIONADO, no pegado a mano;  │"
-echo "│     'nginx -t' dice ok sobre una config corrupta: defecto ⑧) │"
-echo "│     cp infra/nginx/<instancia>.conf \\                        │"
-echo "│        /etc/nginx/sites-available/spaces                     │"
-echo "│     ln -s /etc/nginx/sites-available/spaces \\                │"
-echo "│           /etc/nginx/sites-enabled/                          │"
-echo "│     nginx -t && systemctl reload nginx                       │"
-echo "│                                                              │"
-echo "│  7. Certificado — UNO por instancia, por HTTP-01.            │"
-echo "│     CERTIFICADO PRIMERO, server_name despues:                │"
-echo "│     certbot certonly --webroot -w /var/www/html \\            │"
-echo "│                      -d <dominio-de-la-instancia>            │"
-echo "│                                                              │"
-echo "│  8. El alta de la instancia (crea la organizacion y su       │"
-echo "│     Dueno). Revisa que no queden marcadores puestos:         │"
-echo "│     ORG_SLUG=... ADMIN_EMAIL=... \\                           │"
-echo "│       node apps/web/scripts/bootstrap-auth.mjs               │"
+echo "│  ✓ BASE DEL SERVIDOR LISTA                                  │"
+echo "│                                                             │"
+echo "│  Quedo instalado:                                           │"
+echo "│    Docker · PostgreSQL · nginx · certbot · s3cmd · ufw      │"
+echo "│                                                             │"
+echo "│  Esta maquina NO lleva el codigo del proyecto: una          │"
+echo "│  instancia corre un CONTENEDOR desde la imagen del          │"
+echo "│  registro, y lo levanta 'update.sh'. Aqui no se clona el    │"
+echo "│  repositorio ni se compila nada.                            │"
+echo "│                                                             │"
+echo "│  QUIEN SIGUE: 'provision-instancia.sh', que llamo a este    │"
+echo "│  guion y continua solo con la base de datos, el esquema,    │"
+echo "│  el entorno, nginx y el actualizador. No hay que hacer      │"
+echo "│  nada a mano entre este mensaje y el siguiente.             │"
+echo "│                                                             │"
+echo "│  Y si has corrido ESTE guion suelto, el recorrido           │"
+echo "│  completo es:                                               │"
+echo "│    ./infra/scripts/provision-instancia.sh --host <ip> \     │"
+echo "│         --dominio <dominio> --instancia <nombre> --dry-run  │"
 echo "└─────────────────────────────────────────────────────────────┘"
 echo ""
