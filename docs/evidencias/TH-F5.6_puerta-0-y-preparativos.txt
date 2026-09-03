@@ -87,15 +87,31 @@ ls -la /root/.ssh/id_*.pub
 
 doctl compute ssh-key list
 
-#  ESPERADO: una fila cuyo FingerPrint coincida con el de tu clave.
-#  Comprueba que es LA MISMA, no que "hay claves":
+#  Si no hay ninguna, generala y subela. DOS TRAMPAS MEDIDAS EL
+#  2026-09-03, las dos en este paso:
+#
+#  TRAMPA 1 · `--public-key-file` FALLA con doctl instalado como
+#  snap, incluso siendo root:
+#      Error: open /root/.ssh/id_ed25519.pub: permission denied
+#  Un snap esta confinado y su interfaz `home` NO cubre /root. No es
+#  un problema de permisos del archivo. La salida es que lea el
+#  SHELL, no doctl:
 
-ssh-keygen -lf /root/.ssh/id_ed25519.pub
+ssh-keygen -t ed25519 -C "padre" -f /root/.ssh/id_ed25519 -N ""
+doctl compute ssh-key create padre --public-key "$(cat /root/.ssh/id_ed25519.pub)"
 
-#  Compara el fingerprint de esta salida con la columna FingerPrint
-#  de la lista de arriba. Si no esta, subela:
-#    doctl compute ssh-key import padre --public-key-file /root/.ssh/id_ed25519.pub
-#  ESPERADO tras importar: la fila nueva con ese mismo fingerprint.
+#  (Alternativa, si se prefiere el import: `snap connect doctl:ssh-keys`
+#   abre esa interfaz. La de arriba no necesita tocar el confinamiento.)
+#
+#  TRAMPA 2 · DigitalOcean muestra el fingerprint en MD5 y
+#  `ssh-keygen -lf` lo da en SHA256, asi que NO se parecen y es facil
+#  concluir que subiste otra clave. Para comparar de verdad:
+
+doctl compute ssh-key list
+ssh-keygen -E md5 -lf /root/.ssh/id_ed25519.pub
+
+#  ESPERADO: el hexadecimal de la segunda salida (sin el prefijo
+#  `MD5:`) es EXACTAMENTE la columna FingerPrint de la primera.
 
 # ############################################################
 #  3 · Las herramientas que usan los bloques 0, 3 y 6
