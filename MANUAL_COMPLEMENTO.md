@@ -31,4 +31,7 @@ Se configuró el **linter (ESLint)** del proyecto con la configuración recomend
 
 ---
 
-*Para el manual completo de todas las funciones (configuración, agencias/comisiones, clientes, inventario, propuestas, campañas, creativos, imprenta, operaciones, validación de publicación, facturación, arrendadores, dashboard y bitácora), consulta `MANUAL_COMPLETO.md` / `Manual_Completo_SPACES_OS.pdf`.*
+*Para el manual completo de todas las funciones (configuración, agencias/comisiones, clientes, inventario, propuestas, campañas, creativos, imprenta, operaciones, validación de publicación, facturación, arrendadores, dashboard y bitácora), consulta `MANUAL_COMPLETO.md`.*
+
+> El PDF equivalente ya no se versiona (2026-09-03): ningún PDF lo hace, salvo el
+> del proveedor de DOOHmain. El markdown es la fuente.
