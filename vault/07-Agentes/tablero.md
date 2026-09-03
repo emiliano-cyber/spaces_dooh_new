@@ -1,10 +1,21 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-02
+actualizado: 2026-09-03
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!warning] 2026-09-03 · **zonas todas LIBRES**, y la tarjeta de F5.6 corregida
+> Nada reclamado. Trabajo del día: **Z12 · Docs** sobre `main`, sin código.
+>
+> `TH-F5.6` **no cerraba F5.6**: le faltaban las cuatro comprobaciones contra la
+> aplicación que exige su ficha del plan —`signup` 503, `login-post` 401, el segundo
+> `--bootstrap` en 404 y `update.sh --dry-run` en «sin cambios»—. Nace el
+> **BLOQUE 6b**. Cotejo completo y la forma del fallo en [[2026-09-03]].
+>
+> Sigue en pie lo del 02/09 de abajo: las trampas de servidor y que los puntos 1‑3
+> del acceso de soporte van **después** de F5.6.
 
 > [!success] 2026-09-02 · el plan queda en DOS tareas, y las dos son instalar de cero
 > **Zonas: todas LIBRES.** No hay ninguna reclamada, y no queda ninguna rama varada:

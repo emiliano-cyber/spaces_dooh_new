@@ -1,7 +1,7 @@
 ---
 tipo: tablero
 estado: en-curso
-actualizado: 2026-09-02
+actualizado: 2026-09-03
 tags: [instancias, orquestacion, agentes, fases-1-4]
 archivos:
   - docs/Plan_Instancias_Soberanas_v3.md
@@ -45,6 +45,27 @@ no lo replantea, solo registra su ejecución local.
 
 **Modo:** todo se prueba en local antes de tocar producción. Las tareas de servidor
 se ensayan (ensayista-local) y su ejecución real queda como **tarjeta humana**.
+
+> [!warning] 2026-09-03 · la tarjeta de **F5.6 no cerraba F5.6** — corregida antes de correrla
+> Cotejada `TH-F5.6` contra su ficha del plan
+> (`Plan_Instancias_Soberanas_v3.md:1660-1663`) **antes** de gastar el droplet, le
+> faltaban **cuatro** comprobaciones del criterio de aceptación — y las cuatro son
+> contra la **aplicación**: `signup` **503** (autoregistro cerrado), `login-post`
+> **401**, el **segundo `--bootstrap` en 404** y `update.sh --dry-run` diciendo
+> **«sin cambios»**. La tarjeta solo traía `login`/`metodos` 200, el navegador,
+> `s3cmd`, P13 y el conteo de migraciones.
+>
+> **Medido, no supuesto:** `grep` de `404|autoregistro|sin cambios|update.sh` sobre
+> la tarjeta anterior daba **cero**. Nace el **BLOQUE 6b**
+> (`TH-F5.6…txt:404-437`), con copia al día en `Downloads\`.
+>
+> El resto de la tarjeta **sí cuadra con el repo**: seis puntos mecánicos
+> comprobados, cero desfases, incluido que el paso 3 pasa `--instalacion-nueva`
+> (`provision-instancia.sh:409`). Detalle en [[2026-09-03]].
+>
+> **La forma del fallo:** la tarjeta se escribió desde el recorrido y no desde el
+> criterio de aceptación. Una tarjeta humana se coteja contra su ficha **antes** de
+> ejecutarla.
 
 > [!success] 2026-09-02 · **F3.5 CERRADA — la FASE 3 queda completa, y quedan DOS**
 > DEMO dejó de ser `next start` sobre el repo y es **un contenedor desde la imagen

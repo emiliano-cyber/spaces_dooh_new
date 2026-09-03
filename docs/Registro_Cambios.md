@@ -5,6 +5,29 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-03
+
+- **La lista de comprobaciones del ensayo de instalacion estaba incompleta, y se
+  arreglo antes de usarla.** Antes de montar el servidor de prueba se compararon las
+  instrucciones con lo que el plan exige comprobar, y **faltaban cuatro
+  comprobaciones de cuatro**. Las cuatro son de las que no se ven a simple vista:
+
+  que **nadie de fuera pueda registrarse solo** en la copia nueva; que la aplicacion
+  **de verdad este hablando con su informacion** —y no solo pintando una pantalla de
+  entrada bonita, que es lo que paso en el servidor principal durante cuatro dias—;
+  que la puerta que crea la **primera empresa se cierre sola** y no se pueda volver a
+  usar; y que **repetir la actualizacion no haga nada**.
+
+  Tal como estaban escritas, el ensayo habria salido «en verde» sin haber comprobado
+  ninguna de esas cuatro cosas. Ahora estan dentro, y se corren en el mismo viaje.
+
+- **Se reviso ademas que las instrucciones siguieran coincidiendo con el sistema de
+  hoy** —seis puntos, ninguno desfasado—, incluida la cuenta de cambios de base de
+  datos que una instalacion nueva debe aplicar. No cambio nada del programa: solo la
+  hoja de ruta con la que se va a instalar.
+
+---
+
 ## 2026-09-02
 
 - **La copia de pruebas ya se instala igual que se instalara la de un cliente.** Hasta

@@ -67,6 +67,12 @@ BOOTSTRAP=0
 # script.
 DO_REGION="${DO_REGION:-}"
 DO_TAMANO="${DO_TAMANO:-}"
+# Las claves SSH que se meten EN EL DROPLET al crearlo (ids o fingerprints,
+# separados por coma). DigitalOcean NO anade solas las claves de la cuenta: un
+# droplet nace unicamente con las que se le pasan aqui. Sin esto la maquina nace
+# con contrasena de root por correo y el paso 2 --que es un `ssh`-- muere con el
+# droplet ya creado y cobrandose. Se listan con `doctl compute ssh-key list`.
+DO_SSH_KEYS="${DO_SSH_KEYS:-}"
 DO_IMAGEN="${DO_IMAGEN:-ubuntu-22-04-x64}"
 
 # El registro de imagenes, por ENTORNO y no por argumento, por dos motivos
@@ -316,13 +322,23 @@ if [[ "$CREAR_DROPLET" -eq 1 ]]; then
     echo "           No tienen valor por defecto a proposito: son decisiones de cuenta." >&2
     exit "$EX_USO"
   }
+  # Y la clave, que se comprueba AQUI y no despues: descubrirlo tras el `create`
+  # deja una maquina existiendo y cobrandose a la que no se puede entrar.
+  [[ -n "$DO_SSH_KEYS" ]] || {
+    echo "provision: con --crear-droplet hace falta DO_SSH_KEYS en el entorno." >&2
+    echo "           Son las claves que van DENTRO del droplet al crearlo:" >&2
+    echo "           DigitalOcean no anade las de la cuenta por su cuenta, y el" >&2
+    echo "           paso 2 entra por ssh. Listalas con: doctl compute ssh-key list" >&2
+    exit "$EX_USO"
+  }
   if [[ "$CONFIRMAR" -eq 1 ]]; then
     doctl compute droplet create "$INSTANCIA" \
-      --region "$DO_REGION" --size "$DO_TAMANO" --image "$DO_IMAGEN" --wait
+      --region "$DO_REGION" --size "$DO_TAMANO" --image "$DO_IMAGEN" \
+      --ssh-keys "$DO_SSH_KEYS" --wait
     HOST="$(doctl compute droplet get "$INSTANCIA" --format PublicIPv4 --no-header)"
     echo "  droplet creado: $HOST"
   else
-    echo "$DRY_ETIQUETA doctl compute droplet create $INSTANCIA --region $DO_REGION --size $DO_TAMANO --wait"
+    echo "$DRY_ETIQUETA doctl compute droplet create $INSTANCIA --region $DO_REGION --size $DO_TAMANO --image $DO_IMAGEN --ssh-keys $DO_SSH_KEYS --wait"
     HOST="<ip-del-droplet-nuevo>"
   fi
 

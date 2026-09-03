@@ -224,7 +224,17 @@ resolver marca por subdominio o pedir un certificado comodín, ese paso está ma
    abre.
 8. Migraciones transaccionales, idempotentes, `expand → contract`. No se toca
    `db/schema.sql` directo.
-9. Autoregistro encendido **solo** en DEMO.
+9. **El autoregistro está CERRADO en toda la flota, DEMO incluida** (P8,
+   2026-08-20). Solo `AUTOREGISTRO=1` enciende; ausente o cualquier otro valor deja
+   cerrado (`lib/entorno.ts:23-26`, F2.6), y las plantillas nacen en `0`
+   (`infra/env/app.env.example:80`) — anclado por prueba, no por memoria
+   (`entorno.test.ts:143,197`). Una empresa nace por `/api/bootstrap`, **una sola vez
+   por instancia**, y su Dueño da de alta a su equipo desde dentro
+   (`/api/usuarios`, permiso `administracion:crear`). *(Hasta el 2026-09-03 decía
+   «Autoregistro encendido solo en DEMO». Quedó desfasado el 20/08 —P8— y estuvo
+   veinte días afirmando lo contrario de lo decidido, en un invariante que se lee
+   ANTES de tocar altas. La fila T0 de §3 conserva la redacción del 13/08 como
+   historia de aquella verificación.)*
 10. Commits en español, `tipo(ámbito): descripción` en minúscula (estilo real del
     repo: `fix(contrato): el domicilio del arrendador no tenia donde teclearse`).
 11. Al terminar cada tanda: entrada en `docs/Registro_Cambios.md` y revisión de

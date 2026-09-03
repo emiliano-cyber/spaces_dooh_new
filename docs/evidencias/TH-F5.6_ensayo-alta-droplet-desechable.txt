@@ -23,7 +23,7 @@
      · y el ALTO del DNS, que es la parte "soberana"
 
  >>> ES LA TAREA QUE MAS RIESGO RETIRA Y LA MAS BARATA.
- >>> Este camino lleva DOCE defectos y SEIS solo aparecieron
+ >>> Este camino lleva CATORCE defectos y OCHO solo aparecieron
  >>> al ejecutarlo contra maquinas reales. La primera vez que
  >>> `provision-instancia.sh` cree un droplet de verdad no
  >>> deberia ser con el cliente esperando.
@@ -182,6 +182,19 @@ echo ok; doctl account get | head -5; doctl compute region list | head -3
 #  por `ssh root@HOST`. Para que eso funcione, la clave publica
 #  del PADRE tiene que estar EN LA CUENTA DE DO antes de crear el
 #  droplet. Compruebalo:
+#
+#  >>> CORREGIDO EL 2026-09-03, Y ES EL DEFECTO 15. Tener la clave
+#  >>> en la cuenta es NECESARIO PERO NO SUFICIENTE: DigitalOcean NO
+#  >>> mete las claves de la cuenta en un droplet nuevo, solo las que
+#  >>> se le pasan al crearlo. `provision-instancia.sh` no pasaba
+#  >>> `--ssh-keys`, asi que la maquina nacia con contrasena de root
+#  >>> por correo y el paso 2 --que es un `ssh`-- moria con el droplet
+#  >>> YA CREADO Y COBRANDOSE.
+#  >>>
+#  >>> Arreglado el mismo dia con cuatro pruebas
+#  >>> (`apps/web/lib/aprovisionamiento.test.ts`): el script exige
+#  >>> ahora `DO_SSH_KEYS` en el entorno y PARA ANTES de crear nada
+#  >>> si falta. Por eso los bloques 1 y 2 la llevan delante.
 
 echo ok; ls -la /root/.ssh/id_*.pub 2>/dev/null || echo "el PADRE NO tiene clave: generala con ssh-keygen -t ed25519"
 
@@ -253,12 +266,23 @@ echo ok; read -rs REGISTRY_TOKEN && export REGISTRY_TOKEN && export REGISTRY=reg
 
 # --- CAMINO A (doctl crea el droplet). Region y tamano van por
 #     entorno y sin valor quemado: son decisiones de cuenta.
-echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --dry-run 2>&1 | tail -40
+# Las claves que iran DENTRO del droplet. Se leen de la cuenta, no
+# se escriben a mano: un fingerprint copiado mal se descubre tarde.
+echo ok; DO_SSH_KEYS="$(doctl compute ssh-key list --format FingerPrint --no-header | paste -sd, -)" && echo "claves: [$DO_SSH_KEYS]"
+
+# ESPERADO: entre corchetes, al menos un fingerprint. Si sale vacio,
+# no hay ninguna clave en la cuenta y el bloque 1 se para solo.
+
+echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb DO_SSH_KEYS="$DO_SSH_KEYS" ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --dry-run 2>&1 | tail -40
 
 # --- CAMINO B (droplet ya creado a mano). Cambia la IP:
 # echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --dominio ensayo.space-os.io --instancia ensayo --dry-run 2>&1 | tail -40
 
 # 🚦 PUERTA 1 — la salida tiene que:
+#   · mostrar el `droplet create` CON `--image` y `--ssh-keys` (desde
+#     el 03/09 el eco del dry-run imprime el comando completo: antes
+#     le faltaban los dos, y una puerta que no enseña lo que va a
+#     correr no es una puerta),
 #   · llevar `[SIMULACION]` en TODA linea que toque el servidor,
 #   · listar los siete pasos (servidor · base · esquema y
 #     migraciones · entorno · nginx · actualizador · el ALTO),
@@ -276,7 +300,7 @@ echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb ./infra/scripts/provision-instanci
 #  Cambia `--dry-run` por `--confirmar` en el comando que hayas
 #  usado arriba, y NADA MAS.
 
-echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --confirmar 2>&1 | tail -60
+echo ok; DO_REGION=nyc1 DO_TAMANO=s-1vcpu-1gb DO_SSH_KEYS="$DO_SSH_KEYS" ./infra/scripts/provision-instancia.sh --crear-droplet --dominio ensayo.space-os.io --instancia ensayo --confirmar 2>&1 | tail -60
 
 # 🚦 PUERTA 2 — tiene que acabar en el cartel del paso 7:
 #   "APROVISIONAMIENTO HECHO — Y AQUI SE PARA A PROPOSITO"
@@ -340,6 +364,31 @@ echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --domini
 #  ver esta aplicacion recien instalada: entra con el correo y
 #  la clave temporal del bloque 5 y comprueba que el cambio
 #  forzado de contrasena funciona.
+#
+#  ⚠️ Y ESAS DOS NO BASTAN. Anadidas el 2026-09-03: el criterio de
+#  aceptacion de F5.6 en el plan v3 (`Plan_Instancias_Soberanas_v3.md:1660-1663`)
+#  pide TRES cosas mas que esta tarjeta no traia, y las tres se
+#  comprueban contra la APP. Correr la tarjeta sin ellas NO cierra
+#  la tarea.
+#
+#   curl.exe -s -w '\nsignup    -> %{http_code}\n' -X POST https://ensayo.space-os.io/spaces-dooh/api/signup/ -H "Content-Type: application/json" -d "{}"
+#   curl.exe -s -o NUL -w 'login-post -> %{http_code}\n' -X POST https://ensayo.space-os.io/spaces-dooh/api/auth/login/ -H "Content-Type: application/json" -d "{\"email\":\"no@existe.invalid\",\"password\":\"x\"}"
+#
+#  ESPERADO: signup 503 y login-post 401.
+#
+#  · El 503 es el AUTOREGISTRO CERRADO, que lo esta en toda la
+#    flota desde F2.6 -- ahora solo `AUTOREGISTRO=1` enciende, y
+#    ausente significa apagado. Un 200 aqui es un alta abierta al
+#    mundo en la instancia de un cliente.
+#
+#  · El 401 es la UNICA de las tres que no se puede fingir, y por
+#    eso el runbook la marca obligatoria
+#    (`docs/runbook-alta-de-owner.md:165-180`): un 200 en el login
+#    solo demuestra que una pagina se pinta. El PADRE estuvo
+#    CUATRO DIAS sirviendo un login perfecto sin poder autenticar
+#    a nadie --le faltaba `DATABASE_URL`-- y las cinco
+#    comprobaciones de entonces salian verdes. El 401 demuestra
+#    que la instancia HABLA CON SU BASE.
 
 # --- s3cmd EN EL DROPLET NUEVO. El alta lo instala desde el
 #     arreglo del 2026-09-02, y ESE ARREGLO NO SE HA EJECUTADO
@@ -376,6 +425,42 @@ echo ok; ssh root@<IP-DEL-DROPLET> "sudo -u postgres psql -d spaces -tc 'select 
 # (Las `@tipo: datos` no entran solas: migrar.mjs:7.)
 
 # ############################################################
+#  BLOQUE 6b · LAS DOS QUE CIERRAN F5.6      🚦 PUERTA 6b
+# ############################################################
+# --- LAS DOS QUE CIERRAN F5.6, y que esta tarjeta no traia.
+#     Anadidas el 2026-09-03 desde el criterio de aceptacion del
+#     plan v3 (:1660-1663). Se corren DESPUES del bloque 5.
+
+# 1 · Que la puerta del alta se haya cerrado SOLA. El tercer
+#     cerrojo de /api/bootstrap es `tenants` vacia, asi que en
+#     cuanto nace la organizacion ningun token vuelve a abrirla
+#     (`apps/web/app/api/bootstrap/route.ts:27-33`). Repite el
+#     bloque 5 TAL CUAL:
+
+echo ok; ./infra/scripts/provision-instancia.sh --host <IP-DEL-DROPLET> --dominio ensayo.space-os.io --instancia ensayo --email <TU-CORREO-REAL> --bootstrap --confirmar 2>&1 | tail -20
+
+# ESPERADO: `bootstrap 404`. NO 201, NO 401, NO 500. El 404 es el
+# diseno: la ruta responde lo mismo a un token malo que a una
+# instancia ya dada de alta, para no confirmar que existe.
+# Un 201 aqui seria GRAVE -- significaria que se puede crear una
+# segunda organizacion en la instancia de un owner.
+
+# 2 · Que el actualizador vea la instancia al corriente. Es la
+#     idempotencia, la misma que demostro F3.5 en DEMO:
+
+echo ok; ssh root@<IP-DEL-DROPLET> "/opt/space-os/update.sh --dry-run"
+
+# ESPERADO: dice `sin cambios`. Si pide actualizar recien
+# instalada, el canal `estable` y lo que instalo el alta no
+# coinciden -- pasamelo, porque eso afecta a toda la flota.
+
+# 🚦 PUERTA 6b — las dos, o F5.6 no esta cerrada. Y ojo con
+# `instancia.env`: `update.sh:700` lo SOURCEA, asi que si el
+# --dry-run responde con la ayuda de otro comando, hay un valor
+# con espacios sin comillas. Se comprueba en un subshell:
+#   bash -c 'set -e; . /etc/space-os/instancia.env; echo "[$DOCKER_OPCIONES_APP]"'
+
+# ############################################################
 #  BLOQUE 7 · DESTRUIR. No se te olvide.
 # ############################################################
 #  Es un droplet desechable: su unico proposito era este ensayo.
@@ -394,7 +479,10 @@ echo ok; doctl compute droplet delete <ID-DEL-DROPLET>
 # ############################################################
 #   · La PUERTA 0: que v0.3.0 llego a `estable`.
 #   · El --dry-run de la PUERTA 1, ENTERO, antes del bloque 2.
-#   · Las puertas 2 a 6.
+#   · Las puertas 2 a 6, y la 6b -- `signup` 503, `login-post`
+#     401, el segundo `--bootstrap` en 404 y el `--dry-run`
+#     diciendo `sin cambios`. Sin esas cuatro, F5.6 NO cierra:
+#     son el criterio de aceptacion del plan (:1660-1663).
 #   · **La PUERTA 6 de la moneda**, salga como salga. Es la que
 #     cierra P13 despues de casi un mes.
 #   · Y si algo se rompio: la salida tal cual. Cada defecto que

@@ -233,3 +233,45 @@ describe('una instancia puede bajar la imagen de un registro privado', () => {
     }
   })
 })
+
+describe('el droplet nace con la clave del PADRE dentro', () => {
+  // Encontrado el 2026-09-03, LEYENDO, justo antes de correr F5.6 con
+  // `--crear-droplet` por primera vez. Es el defecto 15 de este camino y el
+  // primero que se caza sin gastar una maquina.
+  //
+  //  DigitalOcean NO añade las claves de la cuenta a un droplet nuevo: solo
+  //  pone las que se le pasan EN LA CREACION. Sin `--ssh-keys`, la maquina nace
+  //  con contraseña de root enviada por correo y sin ninguna clave — y la linea
+  //  siguiente del alta es un `ssh` (`provision-instancia.sh:330`).
+  //
+  //  El modo de fallo es el caro: el droplet YA existe y ya se cobra cuando el
+  //  alta se planta. La tarjeta TH-F5.6 mandaba comprobar que la clave del PADRE
+  //  estuviera EN LA CUENTA, y eso es necesario pero NO suficiente.
+
+  it('`droplet create` pasa `--ssh-keys`, o la maquina nace sin llave', () => {
+    expect(ejecutable(PROVISION)).toMatch(/droplet create[\s\S]*?--ssh-keys/)
+  })
+
+  it('la clave entra por el entorno, sin ningun valor quemado', () => {
+    // Un fingerprint es un valor de cuenta, como la region y el tamaño.
+    expect(ejecutable(PROVISION)).toMatch(/DO_SSH_KEYS/)
+    expect(PROVISION).not.toMatch(/SHA256:[A-Za-z0-9+/]{20,}/)
+  })
+
+  it('y falta la clave PARA antes de crear nada, no despues', () => {
+    // Si se descubre despues del `create`, ya hay una maquina cobrandose.
+    const antesDelCreate = ejecutable(PROVISION).split(/droplet create/)[0]
+    expect(antesDelCreate).toMatch(/DO_SSH_KEYS/)
+  })
+
+  it('la SIMULACION imprime el mismo comando que se ejecutara', () => {
+    // La puerta 1 de TH-F5.6 existe para leer lo que va a pasar. Un eco al que
+    // le faltan banderas del comando real convierte esa puerta en un adorno:
+    // hasta hoy el `--dry-run` no mostraba ni `--image`.
+    const eco = ejecutable(PROVISION).match(/\$DRY_ETIQUETA doctl compute droplet create[^"]*/)
+    expect(eco?.[0], 'no se encontro el eco del dry-run').toBeTruthy()
+    for (const bandera of ['--region', '--size', '--image', '--ssh-keys']) {
+      expect(eco![0], `al eco del --dry-run le falta ${bandera}`).toContain(bandera)
+    }
+  })
+})
