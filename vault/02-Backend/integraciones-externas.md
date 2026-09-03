@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-31
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -23,14 +23,14 @@ sin romperse.
 |---|---|---|
 | DigitalOcean Spaces (S3) | `storageHabilitado()` — las 4 `DO_SPACES_*` | Configurable |
 | Resend (correo) | `emailHabilitado()` — `RESEND_API_KEY` + `EMAIL_FROM` | **Apagado en producción** |
-| Google OIDC | `googleHabilitado()` — `GOOGLE_CLIENT_ID`/`SECRET` | **Apagado**, migración ya aplicada |
+| Google OIDC | `googleHabilitado()` — `GOOGLE_OAUTH` + `GOOGLE_CLIENT_ID`/`SECRET` | **Apagado**, migración ya aplicada |
 | DOOHmain | `DOOHMAIN_PUBLISH_ENABLED=1` | Detrás de flag |
 | Space Eye | `spaceEyeHabilitado()` — URL + credenciales | Configurable |
 | AdMobilize, CMS, PAC CFDI | `lib/server/integraciones.ts` | **Modo demo simulado** |
 
 ## DOOHmain — publicación en pantallas
 
-`lib/server/doohmain.ts` (313 líneas). Al aprobar la publicación de una campaña,
+`lib/server/doohmain.ts` (**403 líneas** el 31/08; eran 313 el 07/08). Al aprobar la publicación de una campaña,
 publica cada creativo validado en cada pantalla **invocando un SDK de Python por
 subproceso** (`execFile`), con el mismo contrato JSON del CLI.
 
@@ -60,7 +60,7 @@ Credenciales **solo por env, nunca al cliente**.
 
 ## Correo (Resend) — dos canales
 
-`lib/server/email.ts:9-18`. `fetch` directo, sin dependencia npm.
+`lib/server/email.ts:4-18`. `fetch` directo, sin dependencia npm.
 
 | Canal | `from` | `replyTo` |
 |---|---|---|
@@ -76,8 +76,15 @@ Credenciales **solo por env, nunca al cliente**.
 ## Almacenamiento S3
 
 `lib/server/storage.ts` — `PutObject` + URL firmada. Si no está configurado, el
-llamador cae a data URL en base de datos sin romperse. `next.config.mjs:22-33`
-autoriza `*.digitaloceanspaces.com` en `next/image`.
+llamador cae a data URL en base de datos sin romperse. `next.config.mjs:116-126`
+autoriza `*.digitaloceanspaces.com` y `*.cdn.digitaloceanspaces.com` en
+`next/image`.
+
+> [!warning] Esa cita estaba 94 líneas más arriba, y es el modo de fallo típico
+> Decía `next.config.mjs:22-33`. El archivo creció con la **CSP** del 26–28/08 y
+> ese rango pasó a contener la narración de la CSP, no los dominios de imagen.
+> No daba error: mandaba al sitio equivocado. Es el caso que [[convenciones]] §4
+> describe — un archivo que crece invalida todas sus citas de golpe.
 
 ## Conectores en modo demo
 
@@ -107,6 +114,19 @@ autoriza `*.digitaloceanspaces.com` en `next/image`.
 > tenant fijado. Leerlos fuera con `qRaw` devolvería cero filas en silencio y el
 > correo no se mandaría nunca sin que nada lo dijera — el mismo fallo que dejó
 > el desbloqueo inservible (`43f9284`).
+
+## `GOOGLE_OAUTH=0` — el precedente que el plan de instancias quiere copiar
+
+`google-oauth.ts:44-45` no se conforma con esconder el botón: **apaga la función
+en el servidor**. La bandera se lee del entorno del proceso, así que **se decide
+en el servidor y no se hornea en el build** (`.env.example:67`).
+
+> [!important] Es la salida propuesta para la contradicción P4-bis
+> El autoregistro sí se incrusta en el build, y de ahí sale que «el artefacto es
+> idéntico para todas las instancias» y «DEMO necesita el autoregistro
+> encendido» no puedan ser ciertas a la vez. `GOOGLE_OAUTH` demuestra que la
+> segunda salida —sacar la bandera del build y decidirla en el servidor— ya se
+> hizo una vez en este repositorio. Ver [[modelo-instancias-soberanas]].
 
 ## Relacionadas
 [[operaciones-y-ot]] · [[multi-tenancy-y-rls]] · [[entorno-y-despliegue]] ·

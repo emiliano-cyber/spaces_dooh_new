@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-31
 tags: [frontend, estado, fetch, react-query, zustand]
 archivos:
   - apps/web/app/providers.tsx
@@ -17,12 +17,12 @@ archivos:
 
 | Mecanismo | Para qué | Dónde |
 |---|---|---|
-| **React Query** | Cache de servidor, `staleTime` 60 s, `retry` 1 | `app/providers.tsx:20-30` |
+| **React Query** | Cache de servidor, `staleTime` 60 s, `retry` 1 | `app/providers.tsx:19-29` |
 | **zustand** | Estado en memoria del shell (`DemoState`) | `lib/data/store.ts` |
 | **Context** | Sesión (`SesionContext`) | `components/demo/shell/SesionContext.tsx` |
 
 > [!note] El QueryClient se crea **por instancia de componente**
-> `providers.tsx:18-20` lo explica: un singleton compartiría la caché entre
+> `providers.tsx:17-19` lo explica: un singleton compartiría la caché entre
 > renders de servidor de usuarios distintos y filtraría datos ajenos.
 
 ## El store de zustand es herencia de la demo
@@ -39,7 +39,7 @@ memoria, y las pantallas **no lo tocan directo**: pasan por `client.ts` →
 
 ## Los dos parches de `window.fetch`
 
-Se instalan una sola vez, en orden, en `providers.tsx:13-16`:
+Se instalan una sola vez, en orden, en `providers.tsx:12-15`:
 
 ```mermaid
 flowchart LR

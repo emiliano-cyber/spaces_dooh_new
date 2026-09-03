@@ -37,19 +37,68 @@ archivos:
 > ✅ **2026-08-31 · TH-P4 dejó de estar abierta.** El registro existe:
 > `registry.digitalocean.com/registryspaces`, NYC3, plan gratuito. Lo que queda es
 > que una persona ponga las variables y empuje la primera etiqueta
-> (`docs/evidencias/registry-TH-P4b.txt`). **La que sigue abierta de verdad es la
-> otra**, y no la resuelve el registry: **qué dirección representa a DEMO** para el
-> smoke de `promover.yml`, hoy sin candidata válida — `demo.space-os.io` apunta a la
-> máquina que el ADR 0023 sacó del modelo, y la DEMO real (el `3001` dentro del
-> PADRE) no tiene dominio desde el ADR 0024.
+> (`docs/evidencias/registry-TH-P4b.txt`).
 >
-> ⚠️ **Y el margen es más estrecho de lo que parecía** (medido el 31/08):
+> ✅ **2026-08-31, más tarde · la segunda también tiene respuesta: `pruebas.space-os.io`.**
+> La pregunta era **qué dirección representa a DEMO** para el smoke de
+> `promover.yml`, y no tenía candidata válida: `demo.space-os.io` apunta a la
+> máquina que el ADR 0023 sacó del modelo, y la DEMO real (el `3001` dentro del
+> PADRE) no tenía dominio desde el ADR 0024.
+>
+> **Decisión de Jochelo (31/08): un nombre NUEVO**, no `demo.space-os.io`. El
+> vhost ya está **en el repositorio y versionado**
+> (`infra/nginx/space-os.io.conf:276`), y `/etc/nginx/sites-enabled/spaces` es un
+> symlink al repo, así que del lado del código no queda nada.
+>
+> **Lo que falta es de servidor, y lo hace una persona**: DNS → certificado →
+> vhost → recarga, en ese orden y sin saltárselo. La tarjeta con las cinco
+> puertas es `docs/evidencias/TH-F2.4_prueba-space-os-io.txt` *(en singular:
+> esta nota lo escribía en plural y esa ruta no existe — corregido el 02/09)*.
+>
+> > [!danger] Por qué el orden no es negociable
+> > El HSTS del ápice lleva `includeSubDomains`, que **obliga a HTTPS a todo
+> > subdominio de `space-os.io` durante dos años**. Un subdominio nuevo sin
+> > certificado no queda roto: queda **inaccesible**, y el navegador no deja
+> > saltárselo. Y antes de eso nginx ni arrancaría: un `ssl_certificate` que
+> > apunta a un archivo inexistente hace fallar `nginx -t`, y entonces el
+> > `reload` no ocurre.
+>
+> ⚠️ **Y el margen era más estrecho de lo que parecía** (medido el 31/08):
 > `promover.yml:127-129` **exige que `DEMO_URL` empiece por `https://`**, y su
 > propio mensaje pide «la base pública de DEMO, CON el basePath, sin barra final».
-> No admite un `127.0.0.1:3001`. Así que **apuntar el smoke al puerto por dentro no
-> es una salida disponible** sin abrir el workflow — y abrirlo sería replanear.
-> Lo que queda sobre la mesa es **darle un nombre público propio al proceso del
-> `3001` del PADRE**.
+> No admite un `127.0.0.1:3001`. Así que apuntar el smoke al puerto por dentro
+> nunca fue una salida disponible sin abrir el workflow — y abrirlo sería
+> replanear. **Por eso la respuesta tenía que ser un dominio de verdad**, y no un
+> atajo.
+>
+> > [!danger] Y una trampa medida: `FLOTA_TOKEN` no debe existir todavía
+> > `promover.yml` solo comprueba **qué versión** corre DEMO si `FLOTA_TOKEN` está
+> > puesto como secreto del repositorio. Y `api/version/route.ts:102` devuelve
+> > `process.env.SPACE_OS_VERSION ?? 'desconocida'`: como DEMO corre desde el repo
+> > y no desde la imagen, **reportaría `'desconocida'`** — que no es vacío, así que
+> > el smoke lo compararía contra la versión que se promueve y **fallaría
+> > siempre**.
+> >
+> > **Mientras DEMO no esté contenerizada, no pongas `FLOTA_TOKEN`.** No es un
+> > rodeo: es lo que el propio workflow documenta —«hoy esto es informativo y
+> > mañana se vuelve estricto solo»— y cada promoción deja escrito, con todas sus
+> > letras, que la versión no se comprobó.
+> >
+> > > [!success] CADUCADO el 2026-09-02 — ya se puede poner
+> > > **DEMO se contenerizó ese día (F3.5)**: corre desde la imagen, así que
+> > > `SPACE_OS_VERSION` viene sellada en el artefacto y `/api/version/` ya
+> > > responde la versión de verdad al panel autenticado. La condición que hacía
+> > > peligroso el secreto **dejó de cumplirse**.
+> > >
+> > > Poner `FLOTA_TOKEN` —el mismo valor en el secreto de GitHub y en
+> > > `/etc/space-os/demo-app.env`— convierte el smoke de promoción en estricto
+> > > solo. Ponerlo **únicamente en GitHub** vuelve a romperlo, por el otro lado:
+> > > sin el token en DEMO, `/api/version/` responde `{"ok":true}` sin campo de
+> > > versión.
+>
+> Lo que quedaba sobre la mesa era **darle un nombre público propio al proceso del
+> `3001` del PADRE**, y se resolvió: `prueba.space-os.io`, con **F2.4 cerrada de
+> verdad el 02/09** tras cuatro intentos. Ver [[07-Agentes/ejecucion-plan-v3]].
 
 ---
 # Preguntas abiertas

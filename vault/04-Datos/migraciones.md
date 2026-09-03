@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-08-31
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -19,6 +19,7 @@ archivos:
   - db/migrations/20260820_catalogo_permisos_completo.sql
   - db/migrations/20260825_sesion_metodo.sql
   - db/migrations/20260826_clientes_rfc_unico.sql
+  - db/migrations/20260828_reautenticacion_por_defecto.sql
 ---
 
 # Migraciones
@@ -53,10 +54,14 @@ archivos:
 
 ## Cómo funciona
 
-- **74 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
-  (medido el 27/08). El último es **`20260826_clientes_rfc_unico.sql`** (26/08),
+- **75 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
+  (medidos el 31/08; eran 74 el 27/08). El último es
+  **`20260828_reautenticacion_por_defecto.sql`** (28/08), que cambia el DEFAULT
+  de `tenants.exigir_reautenticacion` a `true` para que **toda organización nueva
+  nazca pidiendo la contraseña** en los cambios sensibles — ver
+  [[finanzas-y-cobranza]]. Antes va **`20260826_clientes_rfc_unico.sql`** (26/08),
   que le da a `clientes` el mismo RFC único por tenant que el ADR 0013 le dio a
-  `arrendadores`. Antes van `20260825_sesion_metodo.sql` (columna `metodo` en
+  `arrendadores`; y antes `20260825_sesion_metodo.sql` (columna `metodo` en
   `sesiones`, la que sostiene el ADR 0018) y `20260824_grants_tablas_futuras.sql`,
   que cierra el hallazgo **H1** de [[auditoria-cuatro-rojo-20260820]]: los GRANT
   de la app alcanzan ahora a las tablas que crea **cualquier** rol, no solo el
@@ -64,9 +69,10 @@ archivos:
   por propietario derivado de `pg_tables`, y **aborta nombrando** las tablas si
   alguna se queda fuera.
 
-  > [!tip] Ninguna de las dos nuevas crea tabla
-  > Siguen siendo **39** ([[esquema]]). `sesion_metodo` añade columna y
-  > `clientes_rfc_unico` un índice único: el recuento de tablas y el de
+  > [!tip] Ninguna de las tres nuevas crea tabla
+  > Siguen siendo **39** ([[esquema]]). `sesion_metodo` añade columna,
+  > `clientes_rfc_unico` un índice único y `reautenticacion_por_defecto` **solo
+  > cambia un DEFAULT, sin tocar una fila**: el recuento de tablas y el de
   > migraciones se mueven por separado, y confundirlos es lo que hizo que el
   > MOC llevara dos cifras distintas de migraciones a la vez.
 
@@ -108,7 +114,7 @@ versión de esquema está un droplet.
 | `archivo` (PK) | El nombre del `.sql`, tal cual. La PK es lo que hace imposible registrar dos veces lo mismo |
 | `checksum` | `sha256` del archivo aplicado, o `'backfill'` |
 | `aplicada_en` | Cuándo. En las filas de backfill, cuándo se **rellenó** el registro |
-| `tipo` | `esquema` o `datos`, para que el runner omita las de datos como hace `deploy.yml:141-148` |
+| `tipo` | `esquema` o `datos`, para que el runner omita las de datos — el mismo criterio que aplicaba `deploy.yml:141-148` antes de retirarse el 31/08 |
 
 **Sin RLS a propósito**, igual que `folios_consecutivos`: es infraestructura de
 la instancia, no dato de negocio. Con RLS activa y sin `app.tenant_id` fijado
@@ -332,11 +338,13 @@ contrario.
 > distinguir una fila del backfill de una que ponga legítimamente el runner. En
 > cuanto el runner registre `20260812_schema_migrations.sql` o
 > `20260812_sin_default_tenant.sql`, **reaplicar esa migración aborta** — y
-> `deploy.yml:141-148` reaplica todas en cada despliegue. Hoy no se dispara
-> (nadie corre el runner en el droplet todavía), y se retira con `deploy.yml` en
-> F3.6. Si alguien corre el runner contra el droplet antes de eso, el siguiente
-> despliegue por el workflow viejo abortará con un mensaje que además miente
-> sobre la causa.
+> `deploy.yml:141-148` reaplicaba todas en cada despliegue.
+>
+> **Esa mitad del riesgo desapareció el 2026-08-31: F3.6 retiró `deploy.yml`**,
+> así que ya no existe el workflow que abortaría. Lo que **no** desaparece es el
+> ASSERT: sigue en la migración, y sigue abortando si alguien reaplica esos dos
+> archivos después de que el runner los registre. El disparador ahora sería
+> `update.sh`, no el workflow viejo.
 
 ### La historia tiene que cuadrar: el checksum de lo ya aplicado (F3.3, 17/08)
 
@@ -491,13 +499,31 @@ quien compare el repo con lo desplegado»* (`scripts/migrar.mjs`).
 > cuando se escribió. **Hoy no.** No hace falta comprobarlas una a una: el
 > recuento lo zanja.
 >
-> `db/migrations/` tiene **74 archivos** y el PADRE marca **73 aplicadas** en
-> sus dos bases —`spaces_prod` y `spaces_demo`—, medido el 27/08 y el 28/08
-> (`docs/evidencias/despliegue-padre-20260827.md`, paso V12). La única que falta
-> es **`20260731_calendario_meses_cortos.sql`**, que el runner omite a propósito
-> por ir marcada `-- @tipo: datos` y solo entra con `--con-datos`.
+> El PADRE marcaba **73 aplicadas** en sus dos bases —`spaces_prod` y
+> `spaces_demo`— cuando `db/migrations/` tenía **74 archivos**, medido el 27/08 y
+> el 28/08 (`docs/evidencias/despliegue-padre-20260827.md`, paso V12). La única
+> que faltaba era **`20260731_calendario_meses_cortos.sql`**, que el runner omite
+> a propósito por ir marcada `-- @tipo: datos` y solo entra con `--con-datos`.
 >
-> **74 − 1 = 73.** Si el conteo cuadra, no queda ninguna de esquema sin aplicar.
+> **74 − 1 = 73.** El conteo cuadraba.
+
+> [!warning] Esa cuenta ya no es la de hoy — hay una migración más (31/08)
+> El repositorio tiene **75** archivos desde el 28/08:
+> `20260828_reautenticacion_por_defecto.sql`, que **no lleva `@tipo`** y por
+> tanto cuenta como de esquema. La cuenta esperada pasa a ser **75 − 1 = 74**.
+>
+> **Que el PADRE la tenga aplicada NO está comprobado aquí**: esta revisión se
+> hizo contra el repositorio y no se entró al servidor. Es una lectura, y la
+> corre una persona:
+>
+> ```bash
+> # En el PADRE, contra cada base:
+> psql -d spaces_prod -c "select count(*) from schema_migrations;"
+> ```
+>
+> Si da 73, falta aplicarla, y su efecto importa: es la que hace que **toda
+> organización nueva nazca pidiendo la contraseña** en las ocho rutas sensibles,
+> tres de ellas de dinero. Ver [[finanzas-y-cobranza]].
 
 | Migración | Qué cambió |
 |---|---|

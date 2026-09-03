@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-31
 tags: [frontend, indice]
 archivos:
   - apps/web/app/
@@ -10,9 +10,15 @@ archivos:
 
 # Índice — Frontend
 
-Next.js 14 **App Router**, React 18, Tailwind. 130 archivos en `app/`, 69
-componentes. Hay un `pages/` pero solo con `_error.tsx` (shim); **no es Pages
+Next.js 14 **App Router**, React 18, Tailwind. **127 archivos en `app/` y 67
+componentes**, medidos el 31/08 — el retiro de la pista archivada los bajó de 134 y
+71 el 27/08. Hay un `pages/` pero solo con `_error.tsx` (shim); **no es Pages
 Router en uso**.
+
+> [!note] El «130» que decía aquí no era el de ninguna fecha
+> Se escribió el 07/08 y nunca se remidió. Al llegar el retiro del 27/08 el
+> número real era **134**, así que la nota ya iba desfasada antes del cambio que
+> parecía explicarla.
 
 ## Notas de este apartado
 

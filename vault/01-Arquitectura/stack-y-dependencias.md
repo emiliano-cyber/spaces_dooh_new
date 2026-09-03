@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-13
+actualizado: 2026-08-31
 tags: [stack, dependencias, versiones]
 archivos:
   - package.json
@@ -38,20 +38,20 @@ npm workspaces + turbo. `package.json:25-28` declara `apps/*` y `packages/*`.
 | `@tanstack/react-query` | `^5.80.5` | Data fetching cliente |
 | `zustand` | `^5.0.5` | Un solo store (`lib/data/store.ts`) |
 | `vitest` | `^4.1.3` | Unitarias + e2e |
-| `node` | `>=18` (CI usa 20) | `package.json:21-23`, `ci.yml` |
+| `node` | `>=18` declarado; **el CI usa dos versiones** | `package.json:21-23` — ver el aviso de abajo |
 
 > [!note] El `overrides` de React no es cosmético
 > `package.json:16` documenta por qué: con dos majors de React en el monorepo,
 > `styled-jsx` (dependencia de Next) queda en la raíz y encuentra la copia
 > equivocada, produciendo `Cannot read properties of null (reading 'useContext')`
 > al renderizar en servidor. Hay además un alias de webpack para lo mismo en
-> `apps/web/next.config.mjs:58-67`. **No tocar ninguno de los dos por separado.**
+> `apps/web/next.config.mjs:218-224`. **No tocar ninguno de los dos por separado.**
 
 > [!important] El hoisting del monorepo condiciona el artefacto de build (13/08)
 > Desde F2.1 el build sale también en `output: 'standalone'`
-> (`next.config.mjs:12`), y por el mismo hoisting que obliga al alias de arriba
+> (`next.config.mjs:106`), y por el mismo hoisting que obliga al alias de arriba
 > hace falta `experimental.outputFileTracingRoot` apuntando a la **raíz**
-> (`next.config.mjs:13-18`): las dependencias de `apps/web` no viven en
+> (`next.config.mjs:111`): las dependencias de `apps/web` no viven en
 > `apps/web/node_modules`, así que trazar desde ahí deja el artefacto incompleto.
 > Detalle de las dos formas de arrancar en [[entorno-y-despliegue]].
 
@@ -70,6 +70,28 @@ npm workspaces + turbo. `package.json:25-28` declara `apps/*` y `packages/*`.
 `docs/DEPENDENCIAS.md` fija la norma: **nunca tocar `package.json` sin regenerar
 `package-lock.json`**, y nada de rangos flotantes en lo crítico. El workflow
 `lockfile-check.yml` lo hace cumplir con `npm ci --dry-run` en cada push y PR.
+
+> [!danger] Tres workflows, DOS versiones de node — y el guardián no usa la del build
+> Medido el 31/08:
+>
+> | Workflow | node | Qué hace |
+> |---|---|---|
+> | `ci.yml:60` | **20** | typecheck → test → build |
+> | `release.yml:121` | **20** | construye y publica la versión |
+> | `lockfile-check.yml:18` | **22** | vigila que el lockfile no derive |
+>
+> **El que vigila el lockfile corre en una versión distinta de la que lo
+> produce.** Y el PADRE también corre node 20: por eso el 28/08 un `npm install`
+> allí **reescribió `package-lock.json`**, y el procedimiento de despliegue tuvo
+> que añadir un `git checkout -- package-lock.json` para deshacerlo
+> ([[entorno-y-despliegue]]).
+>
+> Esto no da error en rojo: da un lockfile distinto cada vez, en silencio. Y es
+> justo lo que el modelo de instancias no puede permitirse — dos servidores
+> construyendo «la misma versión» con dependencias distintas. Es uno de los
+> argumentos del registry (decisión P4, [[modelo-instancias-soberanas]]): si la
+> aplicación se **instala** ya empaquetada, deja de construirse en cada máquina y
+> la pregunta desaparece.
 
 > [!warning] Añadir una dependencia es una decisión, no un detalle
 > Este proyecto evita dependencias de forma sistemática y lo justifica por

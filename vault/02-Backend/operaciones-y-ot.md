@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-31
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -59,7 +59,7 @@ depende de `tomada_en`, no de cuándo alguien subió el archivo.
 
 El almacenamiento es condicional: si `storageHabilitado()` (todas las
 `DO_SPACES_*` presentes) va a S3 con URL firmada; si no, cae al data URL en base
-de datos (`lib/server/storage.ts:5-9`). Ver [[integraciones-externas]].
+de datos (`lib/server/storage.ts:18`). Ver [[integraciones-externas]].
 
 ## Imprenta
 
