@@ -1,0 +1,131 @@
+============================================================
+ F5.6 · PUERTA 0 Y LOS TRES PREPARATIVOS
+ Se corre DESDE EL PADRE (137.184.107.53), como root.
+ Fecha: 2026-09-03
+ Nada de esto crea ni cobra nada. El primer gasto es el
+ BLOQUE 2 de TH-F5.6, no aqui.
+============================================================
+
+# ############################################################
+#  PUERTA 0 · que `estable` sigue siendo lo que dejaste ayer
+# ############################################################
+
+docker buildx imagetools inspect registry.digitalocean.com/registryspaces/space-os:estable
+
+#  ESPERADO, las tres a la vez:
+#    Name:      registry.digitalocean.com/registryspaces/space-os:estable
+#    MediaType: application/vnd.docker.distribution.manifest.v2+json
+#    Digest:    sha256:6494bbca...
+#  y NADA debajo. Si aparece una seccion `Manifests:`, PARA.
+#
+#  QUE SIGNIFICA CADA DESVIACION:
+#   · `manifest.list.v2+json` + `Manifests:`  -> alguien reetiqueto con
+#     `imagetools create`, que no reetiqueta: envuelve. Es el fallo que
+#     tuvo F2.4 cerrada en falso un dia. El alta se comportaria distinto
+#     al ensayo. NO SIGAS.
+#   · digest distinto de 6494bbca -> `estable` es otra imagen. Averigua
+#     cual antes de ensayar, o ensayaras un artefacto que nadie valido.
+#   · `manifest unknown` -> `estable` no existe. Es lo que pasaba antes
+#     del 02/09, y el alta muere en el `docker pull`.
+
+# --- La misma comprobacion del lado de `beta`, para poder comparar:
+docker buildx imagetools inspect registry.digitalocean.com/registryspaces/space-os:beta
+
+#  ESPERADO: EL MISMO digest que `estable` (sha256:6494bbca...). Que
+#  coincidan es la prueba de que promover NO cambio la imagen, que es
+#  literalmente el criterio de aceptacion de F2.4.
+
+# ############################################################
+#  1 · doctl  (CAMINO A -- el que usara F5.7 de verdad)
+# ############################################################
+#  ANTES DE CREAR EL TOKEN, en la web de DigitalOcean:
+#    a) 2FA ENCENDIDO en la cuenta. La consola web da root sobre
+#       cualquier droplet SIN pasar por SSH: es la unica frontera
+#       que de verdad acota el acceso (ADR 0025 §5).
+#    b) El token con PERMISOS MINIMOS: solo droplets (crear, leer,
+#       borrar). NADA de facturacion, DNS, bases gestionadas ni
+#       Spaces. Un token de "todo" en una maquina con IP publica es
+#       lo que convierte un incidente en un incidente de TODOS los
+#       clientes.
+
+snap install doctl && doctl version
+
+#  ESPERADO: `doctl version 1.xx.x-release`.
+#  Si dice "snap not found": apt-get install -y snapd, y reintenta.
+
+doctl auth init
+
+#  Pega el token cuando lo pida. NO se ve al teclear.
+#  ESPERADO: `Validating token... OK`
+#  Si dice `401 Unable to authenticate you`: el token esta mal pegado
+#  o le falta permiso de lectura. Vuelve a emitirlo, no lo adivines.
+#
+#  OJO: queda guardado en /root/snap/doctl/current/.config -- un
+#  archivo con una credencial de la flota. En el BLOQUE 7 decides si
+#  se queda (y lo apuntas en el inventario del ADR 0025 con su fecha)
+#  o se revoca (`doctl auth remove --context default` + borrarlo en
+#  la web). Lo que no debe pasar es que quede ahi sin que nadie sepa.
+
+doctl account get
+
+#  ESPERADO: una tabla con Email, Droplet Limit y Status `active`.
+#  Mira el Droplet Limit: si ya estas en el limite, el bloque 2 falla
+#  DESPUES de haber empezado.
+
+# ############################################################
+#  2 · La clave SSH del PADRE, EN la cuenta de DO
+# ############################################################
+#  `--crear-droplet` crea la maquina, pero el script entra luego por
+#  `ssh root@HOST`. Si la clave no esta en la cuenta ANTES, el droplet
+#  nace sin ella, el script muere en el primer ssh -- y la maquina se
+#  queda creada y pagandose.
+
+ls -la /root/.ssh/id_*.pub
+
+#  ESPERADO: al menos un .pub (normalmente id_ed25519.pub).
+#  Si no hay ninguno: ssh-keygen -t ed25519 -C "padre"
+
+doctl compute ssh-key list
+
+#  ESPERADO: una fila cuyo FingerPrint coincida con el de tu clave.
+#  Comprueba que es LA MISMA, no que "hay claves":
+
+ssh-keygen -lf /root/.ssh/id_ed25519.pub
+
+#  Compara el fingerprint de esta salida con la columna FingerPrint
+#  de la lista de arriba. Si no esta, subela:
+#    doctl compute ssh-key import padre --public-key-file /root/.ssh/id_ed25519.pub
+#  ESPERADO tras importar: la fila nueva con ese mismo fingerprint.
+
+# ############################################################
+#  3 · Las herramientas que usan los bloques 0, 3 y 6
+# ############################################################
+
+cd /var/www/Spaces && git pull --quiet && git log --oneline -1
+for h in doctl ssh dig curl docker; do printf '%-7s -> %s\n' "$h" "$(command -v $h || echo FALTA)"; done
+
+#  ESPERADO: el commit del dia y CINCO rutas, ninguna FALTA.
+#  Si falta `dig`: apt-get install -y dnsutils  (lo usa el BLOQUE 3)
+
+# ############################################################
+#  4 · El subdominio desechable
+# ############################################################
+#  Hace falta un nombre de verdad porque el certificado es parte de
+#  lo que se ensaya. Propuesta: `ensayo.space-os.io`, que se borra en
+#  el bloque 7.
+#
+#  NO reutilices `prueba.space-os.io`: ES DEMO, y apuntarlo a otra
+#  maquina la tumba.
+#
+#  Comprueba que hoy NO resuelve a nada -- si resuelve, alguien lo
+#  esta usando y hay que elegir otro:
+
+dig +short ensayo.space-os.io
+
+#  ESPERADO AHORA: vacio. (En el BLOQUE 3, despues de crear el
+#  registro A, esto tendra que devolver la IP del droplet.)
+
+# ############################################################
+#  CUANDO ESTO ESTE, sigue TH-F5.6 desde el BLOQUE 1 (en seco).
+#  El bloque 1 no cuesta nada; el 2 ya crea el droplet.
+# ############################################################
