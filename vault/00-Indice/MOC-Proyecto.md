@@ -119,7 +119,9 @@ cobranza.
 - [[auditoria-f3-9-y-m3]] — **ROJO (20/08)**: la contraseña sale al bucket de logs
   cuando el `=` de la consulta va percent-encoded
 - [[_plantilla-diaria]] — plantilla del diario
-- [[2026-08-27]] — **última entrada**: la CSP en modo reporte destapa que la pista
+- [[2026-09-02]] — **última entrada**: DEMO pasa a ser una instancia (F3.5), y
+  F2.4 resulta que llevaba un día cerrada EN FALSO
+- [[2026-08-27]] —: la CSP en modo reporte destapa que la pista
   archivada seguía ejecutándose en producción; se retiran nueve rutas
 - [[2026-08-25]] — el PADRE nunca había hablado con su base,
   y cuatro documentos lo daban por vivo
@@ -180,7 +182,7 @@ escribe uno nuevo en vez de pisar el anterior.
 > [[integraciones-externas]] · [[finanzas-y-cobranza]] · [[operaciones-y-ot]] ·
 > [[03-Frontend/_indice|Índice de Frontend]] · [[paginas-publicas]] ·
 > [[estado-y-data-fetching]] · [[migraciones]] · [[flujo-login]] ·
-> [[flujo-acceso-con-google]] · [[AGENTES]] · [[manual-tecnico]] (con aviso).
+> [[flujo-acceso-con-google]] · [[AGENTES]] · [[manual-tecnico-2026-08-11]] (con aviso).
 >
 > **Solo con los cuatro chequeos mecánicos, sin releer su contenido contra el
 > código (8):** [[inventario-y-sitios]] · [[arrendadores-y-contratos]] ·

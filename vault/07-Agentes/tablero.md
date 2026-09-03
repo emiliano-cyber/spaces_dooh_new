@@ -1,10 +1,33 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-02
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-02 · el plan queda en DOS tareas, y las dos son instalar de cero
+> **Zonas: todas LIBRES.** No hay ninguna reclamada, y no queda ninguna rama varada:
+> se aterrizaron los 4 commits de bóveda del 31/08 y los 11 de
+> `feat/ui-base-404-atajos`, y se borraron las siete ya fusionadas.
+>
+> **Cerradas hoy:** `F3.5` —DEMO deja de ser `next start` sobre el repo y pasa a ser
+> un contenedor desde la imagen— y `F2.4`, que **constaba cerrada desde el 01/09 sin
+> haberlo estado**. Quedan **`F5.6`** y **`F5.7`**, las dos de servidor.
+>
+> **Lo que hay que leer antes de tocar servidor** está en [[2026-09-02]] y en
+> `docs/Traspaso_20260902.md`: cuatro trampas medidas, entre ellas que
+> `systemctl disable spaces-demo` **borra** la unidad en vez de apagarla —y **aplica
+> igual a `spaces-web`**— y que `instancia.env` **se sourcea**, así que un valor con
+> espacios sin comillas hace que bash ejecute la segunda palabra.
+>
+> **Escrito y sin construir:** el modelo de acceso de soporte
+> ([ADR 0025](../../docs/adr/0025-acceso-de-soporte-a-una-instancia.md), aceptado) y
+> `docs/runbook-incidente-instancia.md`. Sus puntos 1-3 tocan `setup-droplet.sh`, así
+> que **van después de F5.6**, no antes.
+>
+> ⚠️ **Todo lo que este tablero diga más abajo es del 27/08 o anterior.** Se conserva
+> como historia; para el estado de hoy, [[ejecucion-plan-v3]].
 
 > [!important] 2026-08-26 · Las Fases 3 y 4 quedan CERRADAS, con alcance declarado
 > **Fase 3: 7 de 9.** Fuera `F3.5` y `F3.6`, las dos por **TH-P4** — y `F3.6`
