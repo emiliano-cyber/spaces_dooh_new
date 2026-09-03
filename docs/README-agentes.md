@@ -34,29 +34,44 @@ Con el inventario ya escrito: usa manual-usuario para el manual de usuario final
 y manual-tecnico para el técnico. Corre ambos.
 ```
 
-**Paso 3 — revisión:** lee `docs/manual-usuario/00-pendientes.md` y
-`docs/manual-tecnico/99-dudas.md`. Ahí está lo que los agentes no pudieron verificar; es la
-lista más corta y más útil que te van a dar.
+**Paso 3 — revisión:** cada manual cierra con una sección `## PENDIENTES`. Ahí está lo que
+los agentes no pudieron verificar; es la lista más corta y más útil que te van a dar. Si no
+hay nada, dice «Ninguno».
 
 ## Para mantenerlos al día
 
-Cuando cambie algo grande, vuelve a correr el explorador y luego pide solo el capítulo
-afectado:
+Los pendientes **no se rellenan a mano sobre el manual**: se corrigen en el inventario, que
+es de donde se vuelve a generar. Cuando cambie algo grande, vuelve a correr el explorador y
+luego el redactor que toque:
 ```
-@manual-tecnico actualiza 05-api.md y 04-modelo-de-datos.md con el inventario nuevo.
+@manual-tecnico regenera el manual con el inventario nuevo.
 ```
+
+Cada corrida escribe un archivo nuevo fechado, así que las versiones anteriores quedan como
+histórico en lugar de perderse.
 
 ## Qué toca cada agente
 
 | Agente | Escribe en | Herramientas |
 |---|---|---|
 | `explorador-app` | `vault/00-Inventario/` | lectura + Write |
-| `manual-usuario` | `docs/manual-usuario/` | lectura + Write/Edit |
-| `manual-tecnico` | `docs/manual-tecnico/` | lectura + Write/Edit |
+| `manual-usuario` | `vault/08-Manuales/manual-usuario-YYYY-MM-DD.md` | lectura + Write/Edit |
+| `manual-tecnico` | `vault/08-Manuales/manual-tecnico-YYYY-MM-DD.md` | lectura + Write/Edit |
 
-Ninguno tiene permiso para modificar código, migraciones ni configuración, y los tres tienen
-prohibido en su prompt correr comandos contra la base o el servidor. Aun así vale la pena
-correrlos en una rama aparte la primera vez.
+Los dos redactores tienen **una sola fuente: el inventario en `vault/00-Inventario/`**. No
+exploran el repositorio ni abren archivos de código, y por eso ninguno de los dos lleva
+`Bash` entre sus herramientas: la restricción no depende de que se acuerden. Lo que el
+inventario no cubra va a `## PENDIENTES` como pregunta, nunca relleno.
+
+Ninguno tiene permiso para modificar código, migraciones ni configuración. Aun así vale la
+pena correrlos en una rama aparte la primera vez.
+
+## Las reglas de redacción
+
+Viven dentro de `.claude/agents/manual-tecnico.md` y `.claude/agents/manual-usuario.md`,
+numeradas, no en el prompt de cada corrida: así no hay que repetirlas ni se olvidan. Cubren
+fuente, escritura, formato de salida, audiencia y las propias de cada manual. Si necesitas
+cambiar cómo escriben, se edita la definición, no el encargo.
 
 ## Ajustes que quizá quieras
 
@@ -66,4 +81,5 @@ correrlos en una rama aparte la primera vez.
   `.claude/agent-memory/explorador-app/` lo que aprende del código base, y cada corrida
   siguiente arranca sabiendo dónde vive cada cosa.
 - Si quieres blindar el "solo lectura" más allá del prompt, agrega un hook `PreToolUse`
-  sobre `Bash` que bloquee `psql`, `ssh`, `rm` y `docker`.
+  sobre `Bash` que bloquee `psql`, `ssh`, `rm` y `docker`. Aplica al explorador, que es el
+  único de los tres que conserva `Bash`.

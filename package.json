@@ -9,6 +9,7 @@
     "check-types": "turbo run typecheck"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "prettier": "^3.7.4",
     "turbo": "^2.9.5",
     "typescript": "5.9.2"

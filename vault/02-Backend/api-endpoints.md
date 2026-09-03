@@ -190,7 +190,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 > **27/08**, y esa ruta da **404** desde el 10/08 — verificado en producción ese
 > mismo día ([[2026-08-10]]). La sustituyó `archivar-todas`, que además de marcar
 > leída **archiva** (`app/api/notificaciones/archivar-todas/route.ts:8-11`); el
-> cliente la llama en `apps/web/lib/data/estado-api.ts:99`. [[manual-tecnico]]
+> cliente la llama en `apps/web/lib/data/estado-api.ts:99`. [[manual-tecnico-2026-08-11]]
 > llevaba **trece días** señalando el error de esta nota sin que nadie lo
 > arreglara: una discrepancia anotada en otra nota no se corrige sola.
 

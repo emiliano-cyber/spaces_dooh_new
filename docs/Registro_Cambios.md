@@ -546,6 +546,36 @@ La entrada más reciente va arriba.
 
 ## 2026-08-25
 
+- **Ya hay un manual de usuario completo.** Está en
+  `vault/08-Manuales/manual-usuario-2026-08-25.md` y cubre **todo** lo que se
+  puede hacer desde la aplicación: entrar, el Dashboard, Inventario,
+  Arrendadores, Network, Clientes, Comercial, Disponibilidad, Propuestas,
+  Campañas, Creativos, Imprenta, Operaciones, Almacén, Finanzas, Comisiones,
+  Integraciones, Actividad, Administración y Configuración, más las tres
+  pantallas que ven de fuera el cliente y el arrendador (la propuesta, el portal
+  de seguimiento y la firma del contrato).
+  - **Nombra los botones y los campos por su rótulo real.** El borrador anterior
+    describía la acción —«crea una pantalla nueva»— pero no decía dónde pulsar.
+    Este se escribió leyendo la interfaz, así que dice «Contrato + pantalla»,
+    «Repartir a todas» o «Cambios bloqueados», tal cual aparecen en pantalla.
+  - **Trae un capítulo de fallas con los mensajes literales.** Los veinte avisos
+    que más frenan el trabajo —contrato incompleto, cupo de clientes, agencia sin
+    validar, candado de facturación, factura duplicada— están citados palabra por
+    palabra, con el sitio exacto donde se arreglan.
+  - **Y un diccionario de estados**: qué significa cada etiqueta de color de
+    pantallas, reservas, contratos, pagos, campañas, cobranza, impresión,
+    órdenes de trabajo, creatividades y publicación.
+  - **De las veinte preguntas abiertas del borrador quedan ocho.** Siete son
+    decisiones de negocio que no se pueden deducir del sistema: si se va a
+    encender el correo saliente, quién ocupa cada rol en la práctica, qué se hace
+    con una orden asignada a la cuadrilla equivocada, y si el módulo Almacén está
+    en uso real. Van listadas al final del propio manual.
+  - **Al escribirlo apareció un ajuste que no hace nada.** En Administración se
+    pueden capturar los «Plazos de cobranza (días)», pero la ventana de facturar
+    no lee esa lista: ofrece siempre 60, 90 y 120. Quien añada un plazo ahí no lo
+    verá al emitir la factura. Queda anotado; el manual lo advierte en su sitio
+    en vez de callarlo.
+  - El borrador del 11 de agosto se conserva marcado como superado.
 - **Ya se puede entrar al sistema por su dirección de internet, y con Google.**
   Hasta hoy el servidor nuevo no servía para trabajar: se veía la pantalla de
   entrada, pero **nadie podía iniciar sesión**. Ahora funciona de punta a punta —
