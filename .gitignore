@@ -81,17 +81,27 @@ visual-identity-project-space-os/
 # binario con cada regeneración. Su destino es fuera del repo.
 docs/evidencias/*.pdf
 
-# Y por el MISMO criterio, los PDF de los manuales que salen de la bóveda.
-# Entraron con el merge del 02/09 (332 KB + 580 KB) y se retiran el 03/09: son
-# salida de `scripts/md-to-pdf.mjs` sobre `vault/08-Manuales/manual-*.md`, que sí
-# están versionados. Regenerarlos es una orden; tenerlos en git es un binario que
-# cambia entero cada vez y que nadie puede revisar en un diff.
+# ─── Ningún PDF se versiona ─────────────────────────────────────────────────
+# Decisión del 2026-09-03. El repositorio arrastraba **34 PDF, unos 30 MB**, y de
+# ellos solo 6 tenían su markdown al lado: el resto eran binarios sin fuente aquí.
+# Un PDF en git es un archivo que **nadie puede revisar en un diff** y que cambia
+# entero en cada regeneración.
 #
-# ⚠️ Esto NO retira los otros 32 PDF que el repositorio ya arrastra (~30 MB entre
-# todos, en la raíz y en `docs/`). Muchos son entregables de verdad —auditorías,
-# manuales enviados, reportes de avance— y no salidas derivadas, así que sacarlos
-# es otra decisión y no se toma aquí.
-manual-usuario-*.pdf
+# Los 31 se sacaron del índice con `git rm --cached`, así que **siguen en el disco
+# de quien los tenía**: dejaron de versionarse, no se borraron. Lo que ya no
+# ocurre es que se acumulen nuevos.
+#
+# ⚠️ Y hay que decirlo, porque es la parte que esta regla NO arregla: sacarlos del
+# árbol **no los saca de la historia**, así que el peso de un clon no baja. Para
+# eso haría falta reescribir la historia, que es otra decisión y bastante más cara.
+#
+# LA EXCEPCIÓN, y es deliberada: `docs/doohmain-api-2.8.4.pdf` SÍ se versiona.
+# No es una salida nuestra: es el documento del PROVEEDOR, y
+# `docs/doohmain-api-2.8.4.md:3-5` lo declara **fuente de verdad** sobre su propia
+# transcripción —«ante cualquier discrepancia, el PDF del proveedor manda»—. No se
+# regenera con ningún script: si se pierde, se pide a DOOHmain.
+*.pdf
+!docs/doohmain-api-2.8.4.pdf
 
 # ─── Panel de flota (apps/flota) ────────────────────────────────────────────
 # El inventario de VERDAD no se versiona: es la lista de clientes con sus
