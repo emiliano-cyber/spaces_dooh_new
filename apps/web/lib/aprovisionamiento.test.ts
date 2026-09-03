@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { join } from 'node:path'
 
 // ============================================================================
@@ -273,5 +274,53 @@ describe('el droplet nace con la clave del PADRE dentro', () => {
     for (const bandera of ['--region', '--size', '--image', '--ssh-keys']) {
       expect(eco![0], `al eco del --dry-run le falta ${bandera}`).toContain(bandera)
     }
+  })
+})
+
+describe('los guiones que la documentacion invoca con `./` se pueden ejecutar', () => {
+  // Encontrado el 2026-09-03 EN EL PADRE, con el droplet a punto de crearse:
+  //
+  //   $ ./infra/scripts/provision-instancia.sh --crear-droplet ... --dry-run
+  //   -bash: ./infra/scripts/provision-instancia.sh: Permission denied
+  //
+  //  `provision-instancia.sh` estaba en el indice como 100644 mientras que
+  //  `update.sh` y `respaldo.sh` estaban en 100755. En un clon limpio --que es
+  //  lo que hay en el PADRE y lo que habra el dia del alta de un owner-- el
+  //  guion del alta simplemente no arranca.
+  //
+  //  No se ve trabajando en Windows: ahi `core.filemode` es `false`, el bit no
+  //  existe y `git status` no enseña nada. Solo aparece en el servidor, que es
+  //  el peor sitio para descubrirlo.
+  //
+  //  La prueba mira el INDICE DE GIT y no el sistema de archivos, porque en
+  //  Windows el modo del archivo no significa nada.
+
+  const enGit = (ruta: string) =>
+    execFileSync('git', ['ls-files', '-s', '--', ruta], { cwd: RAIZ, encoding: 'utf8' })
+      .split(/\s+/)[0]
+
+  /** Los guiones que la documentacion manda correr como `./ruta`, no con `bash ruta`. */
+  const invocadosConPunto = [
+    ...new Set(
+      [
+        leer('docs', 'runbook-alta-de-owner.md'),
+        leer('docs', 'evidencias', 'TH-F5.6_ensayo-alta-droplet-desechable.txt'),
+      ]
+        .join('\n')
+        .matchAll(/\.\/(infra\/scripts\/[a-z0-9._-]+\.sh)/g),
+    ),
+  ]
+    .map((m) => m[1])
+    // El `map` va ANTES de quitar duplicados: `matchAll` devuelve un objeto
+    // distinto por aparicion, asi que agruparlos NO deduplica -- generaba
+    // siete casos identicos para el mismo guion.
+    .filter((v, i, a) => a.indexOf(v) === i)
+
+  it('la documentacion invoca al menos un guion asi (si no, esta prueba no mide nada)', () => {
+    expect(invocadosConPunto.length).toBeGreaterThan(0)
+  })
+
+  it.each(invocadosConPunto)('`%s` esta marcado 100755 en el indice de git', (ruta) => {
+    expect(enGit(ruta), `${ruta} no arrancaria en un clon limpio`).toBe('100755')
   })
 })
