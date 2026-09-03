@@ -70,6 +70,19 @@ __pycache__/
 .venv/
 venv/
 
+# Capturas del manual ilustrado.
+#
+# El SCRIPT sí se versiona (manuales/capturas.spec.ts): es lo que permite
+# regenerar las imágenes cuando el manual cambie. Lo que NO entra:
+#
+#   .auth/estado.json  guarda una COOKIE DE SESIÓN viva. Nunca a git.
+#   capturas/          pesan, se regeneran, y hoy llevan datos reales
+#                      del entorno local sin difuminar (decisión del humano):
+#                      razón de más para que no salgan del equipo.
+manuales/.auth/
+manuales/capturas/
+manuales/.playwright-artifacts/
+
 # Material de referencia de identidad visual (handoff de marca; no se versiona)
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
@@ -95,25 +108,32 @@ apps/flota/estado/
 apps/flota/publico/
 
 # ─── Material de trabajo de los manuales (manuales/) ────────────────────────
-# TODO lo que hay en esa carpeta es GENERADO, y una parte es material de sesión.
-# Estaba sin ignorar y sin versionar, o sea que un `git add -A` la subía entera.
+# En esa carpeta conviven dos cosas, y solo una se versiona.
 #
-# Lo que contenía al escribir esta regla (2026-09-02), y por qué ninguna de las
-# tres partes debe ir a git:
+# ⚠️ ESTA REGLA DECÍA `manuales/` A SECAS, y estaba MAL (corregido el 2026-09-02,
+# el mismo día). Se escribió mirando el worktree raíz, donde la carpeta solo
+# tenía salida generada, así que parecía que TODO sobraba. No: el arnés que saca
+# las capturas —`capturas.spec.ts`, `playwright.config.ts`, `sesion.setup.ts`,
+# `armar-pdf.mjs`— es FUENTE, vive ahí y tiene que ir a git. Ignorarlo entero
+# habría hecho que un archivo nuevo del arnés se perdiera **sin decir nada**.
+# Es el mismo error que este archivo documenta más arriba, del otro lado: allí
+# faltaba una red, aquí sobraba.
+#
+# LO QUE NO SE VERSIONA, y por qué:
 #
 #  · `.auth/estado.json` — el `storageState` de Playwright, y NO es un archivo
 #    de configuración: lleva las cookies `spaces_sesion` y `spaces_csrf` de una
-#    sesión de verdad. Es lo que hace urgente esta regla. Se comprobó que nunca
+#    sesión de verdad. Es lo que hizo urgente esta regla. Se comprobó que nunca
 #    llegó a la historia, así que no hay nada que rotar por esto.
 #  · `.playwright-artifacts/` — restos de las corridas que fallan
-#    (`error-context.md`, `.last-run.json`). Se regeneran y solo valen mientras
-#    duras depurando.
-#  · `capturas/*.png` — salida del agente que ilustra el manual. Mismo criterio
-#    que el PDF del expediente de arriba: es derivado y binario, cambiaría en
-#    cada regeneración, y además son pantallazos de la aplicación CON DATOS
-#    dentro.
+#    (`error-context.md`, `.last-run.json`). Se regeneran, y solo valen mientras
+#    dura la depuración.
+#  · `capturas/` — pantallazos que produce el agente. Mismo criterio que el PDF
+#    del expediente de arriba: derivado y binario, cambiaría en cada
+#    regeneración, y además son capturas de la aplicación CON DATOS dentro.
 #
-# Si algún día las capturas pasan a ser un entregable que tiene que viajar con
-# el repositorio, la excepción se escribe aquí explícitamente (`!manuales/capturas/`)
-# y se revisa antes qué se ve en cada imagen. Hoy no lo son.
-manuales/
+# Si algún día las capturas pasan a ser un entregable que viaja con el
+# repositorio, se quita esa línea y se revisa antes qué se ve en cada imagen.
+manuales/.auth/
+manuales/.playwright-artifacts/
+manuales/capturas/

@@ -72,28 +72,48 @@ se resuelve.
   el plan.
 - **Presupuesto de intentos:** máximo 2 ciclos ejecutor→verificador por tarea. Al
   segundo ROJO, escala a Jochelo con ambos veredictos.
-- **Cierre de fase:** cuando la última tarea de una fase quede COMPLETADA_LOCAL o
-  ENSAYADA_LOCAL, invoca al agente `documentalista` con: número de fase, tabla de
-  tareas con sus commits y veredictos, y credenciales de juguete de la DEMO local
-  si hay capturas tras login. La fase NO se declara cerrada en
-  `ejecucion-plan-v3.md` hasta que el expediente de evidencia esté commiteado.
-  Incluye la ruta del expediente en el parte de cierre a Jochelo.
-  > El expediente vive en **`docs/evidencias/fase-<N>.md`** y lo commitea el propio
-  > documentalista. Esa ruta es contrato con el agente `editor-expediente`, que solo
-  > lee `docs/evidencias/` y compila el PDF — si se escribe fuera, no entra.
-  > Las credenciales de juguete son las de `bootstrap-auth.mjs` (`SEED_PASSWORD`,
-  > por omisión `spaces123`) sobre una base desechable — **nunca las de un entorno
-  > real**, y solo si la fase tiene pantallas que capturar: las de migración, build
-  > o release no llevan imágenes.
+- **Cierre de fase (secuencia obligatoria):** cuando la última tarea de una fase
+  quede COMPLETADA_LOCAL o ENSAYADA_LOCAL:
+  1. Invoca a `documentalista` (expediente de evidencia) **solo si la fase no lo
+     tiene todavía**. Si ya existe, no lo regeneras: pasa a validarlo.
+  2. Invoca a `editor-expediente` (PDF consolidado).
+  3. Invoca a `validador-plan` con la tabla de tareas, commits y veredictos.
+  4. Solo con su VERDE (o AMARILLO aceptado por Jochelo) marca la fase CERRADA
+     en `ejecucion-plan-v3.md`. Un ROJO reabre lo señalado con sesiones nuevas
+     — máximo un ciclo de reapertura antes de escalar a Jochelo.
+  El parte de cierre incluye: veredicto del validador, ruta del expediente y del
+  PDF, y las tarjetas humanas acumuladas.
+  > **Paso 1 — qué le pasas al documentalista:** número de fase, tabla de tareas con
+  > sus commits y veredictos, y credenciales de juguete de la DEMO local si hay
+  > capturas tras login. Esas credenciales son las de `bootstrap-auth.mjs`
+  > (`SEED_PASSWORD`, por omisión `spaces123`) sobre una base desechable — **nunca
+  > las de un entorno real**, y solo si la fase tiene pantallas que capturar: las de
+  > migración, build o release no llevan imágenes.
   >
-  > **Las fases 0, 1 y 2 ya tienen expediente** (`docs/evidencias/fase-0.md`,
-  > `fase-1.md`, `fase-2.md`, regenerados el 2026-08-14).
-- **La compuerta de cierre:** con el expediente commiteado, invoca al agente
-  **`validador-plan`**. Valida contra el plan que **todo** lo que la fase prometía se
-  cumplió —tareas, invariantes globales, bóveda, bitácora, decisiones y tarjetas— y
-  emite **VERDE o ROJO**. **Sin su VERDE la fase no se cierra**, ni en el tablero ni
-  en el parte a Jochelo. Un ROJO suyo no se discute: se arregla lo que señale y se
-  vuelve a pasar.
+  > El expediente vive en **`docs/evidencias/fase-<N>.md`** y lo commitea el propio
+  > documentalista. Esa ruta es contrato con `editor-expediente`, que solo lee
+  > `docs/evidencias/` — si se escribe fuera, no entra en el PDF.
+  >
+  > **Las fases 0, 1 y 2 YA tienen expediente** (`docs/evidencias/fase-0.md`,
+  > `fase-1.md`, `fase-2.md`, del 2026-08-14). **No se vuelven a generar.** Lo que
+  > queda pendiente con ellas es otra cosa: **validarlas y registrarlo en la bóveda.**
+  > O sea, saltas el paso 1 —el documentalista no se invoca— y entras directo por el
+  > paso 3: `validador-plan` comprueba que el expediente existente dice la verdad
+  > (que sus tareas, commits y veredictos cuadran con el plan y con el tablero, que
+  > las citas resuelven y que las suites pasan sobre HEAD). Su veredicto **se escribe
+  > en `vault/07-Agentes/ejecucion-plan-v3.md`** —fase, fecha, veredicto y hallazgos—
+  > y ahí es donde la fase queda CERRADA. Regenerar un expediente que ya existe no
+  > valida nada: solo lo reescribe con la misma información sin haberla comprobado.
+  >
+  > **Paso 2 — el PDF no vive en el repositorio.** Por decisión del 2026-08-14 se
+  > escribe en `Descargas/`, y `docs/evidencias/*.pdf` está en `.gitignore`. La ruta
+  > que pones en el parte es esa, no una dentro del árbol.
+  >
+  > **Paso 3 — la compuerta.** `validador-plan` comprueba que **todo** lo que la fase
+  > prometía se cumplió: tareas, invariantes globales, bóveda, bitácora, decisiones y
+  > tarjetas. **Sin su VERDE la fase no se cierra**, ni en el tablero ni en el parte.
+  > Su ROJO no se discute: se arregla lo que señale y se vuelve a pasar. Si el segundo
+  > paso por la compuerta sigue en ROJO, **para y escala** — no hay tercer intento.
 
 ## Estado (mantenlo tú, en cada transición)
 

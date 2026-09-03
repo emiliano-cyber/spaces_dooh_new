@@ -76,7 +76,7 @@ describe('contador de peticiones en vuelo', () => {
     const m = await cargarModulo()
     m.instalarContadorDeCarga()
 
-    for (const url of ['/_next/static/chunks/x.js', 'https://api.fontshare.com/v2/css', '/otra/cosa']) {
+    for (const url of ['/_next/static/chunks/x.js', 'https://cdn.ejemplo.com/mapa/tiles.json', '/otra/cosa']) {
       const p = w.fetch(url)
       expect(m.peticionesEnVuelo(), url).toBe(0)
       await p
