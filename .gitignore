@@ -70,19 +70,6 @@ __pycache__/
 .venv/
 venv/
 
-# Capturas del manual ilustrado.
-#
-# El SCRIPT sí se versiona (manuales/capturas.spec.ts): es lo que permite
-# regenerar las imágenes cuando el manual cambie. Lo que NO entra:
-#
-#   .auth/estado.json  guarda una COOKIE DE SESIÓN viva. Nunca a git.
-#   capturas/          pesan, se regeneran, y hoy llevan datos reales
-#                      del entorno local sin difuminar (decisión del humano):
-#                      razón de más para que no salgan del equipo.
-manuales/.auth/
-manuales/capturas/
-manuales/.playwright-artifacts/
-
 # Material de referencia de identidad visual (handoff de marca; no se versiona)
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
@@ -142,7 +129,9 @@ apps/flota/publico/
 #    dura la depuración.
 #  · `capturas/` — pantallazos que produce el agente. Mismo criterio que el PDF
 #    del expediente de arriba: derivado y binario, cambiaría en cada
-#    regeneración, y además son capturas de la aplicación CON DATOS dentro.
+#    regeneración. Y la razón de peso, que venía escrita en la regla que esta
+#    absorbe: **hoy llevan datos reales del entorno local sin difuminar**
+#    (decisión del humano), así que razón de más para que no salgan del equipo.
 #
 # Si algún día las capturas pasan a ser un entregable que viaja con el
 # repositorio, se quita esa línea y se revisa antes qué se ve en cada imagen.
