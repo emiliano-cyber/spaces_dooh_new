@@ -40,8 +40,26 @@ archivos:
 > [!warning] Los recuentos de esta nota son válidos **al 2026-08-11** y ya no lo son hoy
 > Es un *snapshot* fechado en su propio nombre: envejecer es su naturaleza, y **no se
 > re-mide**. Los recuentos vigentes están en [[esquema]], [[migraciones]] y
-> [[MOC-Proyecto]]. Al 2026-08-17 son **39 tablas en el repo** (38 en producción) y
-> **68 migraciones**, no las «38 tablas / 66 migraciones» que se leen abajo.
+> [[MOC-Proyecto]]. Abajo se leen «38 tablas / 66 migraciones»; al 2026-08-17 eran
+> 39 y 68, y **al 2026-08-31 son 39 tablas, 75 migraciones y 90 endpoints**.
+
+> [!danger] Y lo que caducó no son solo los números: caducó el MODELO
+> Este inventario describe **cinco organizaciones sobre una sola instalación**
+> (§1.2), que era cierto el 11/08 y dejó de serlo el **12/08**: el modelo
+> aprobado es **una instancia por owner**, cada una con su droplet, su base y su
+> dominio, y la RLS pasa a ser defensa en profundidad dentro de cada una en vez
+> de el modelo de negocio. Ver [[modelo-instancias-soberanas]] y el
+> [[glosario]] §Flota e instancias.
+>
+> **Es la caducidad más peligrosa de esta nota**, porque no rompe ninguna cita:
+> todo lo que dice sigue existiendo, solo que ya no significa lo mismo. Quien
+> use este documento como base de un manual y no lea este aviso escribirá un
+> manual correcto de un producto que ya no se vende así.
+>
+> **También retirado el 2026-08-31**, y aquí se describe como vivo:
+> `.github/workflows/deploy.yml` (F3.6) y los cuatro scripts de la pista Prisma
+> —`new-tenant.sh`, `setup-first-tenant.sh`, `migrate-all-tenants.sh` y
+> `deploy.sh`— (F5.5).
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 tipo: contrato
 estado: verificado
-actualizado: 2026-08-17
+actualizado: 2026-08-31
 tags: [agentes, coordinacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -61,7 +61,7 @@ zona, y suéltalos en cuanto acabes.
 | `apps/web/next.config.mjs` | `basePath`, headers, alias de webpack |
 | `apps/web/lib/server/db.ts` | Las cuatro puertas a la base |
 | `apps/web/lib/server/errores.ts` | Contrato de errores de todos los handlers |
-| `apps/web/lib/server/auth.ts` | Lo usan 65 de 86 handlers |
+| `apps/web/lib/server/auth.ts` | Lo usan **72 de 90** handlers (medido el 31/08) |
 | `apps/web/lib/server/uploads.ts` | Punto único de validación de subidas |
 | `apps/web/lib/server/folios.ts` | Todos los folios consecutivos |
 | `apps/web/lib/modulos.ts` | Catálogo del ADR 0010 |
@@ -149,17 +149,41 @@ El commit que cambia código **incluye** la actualización de su nota en `vault/
 
 Y en `frontmatter`, sube `actualizado:` a la fecha del commit.
 
+> [!warning] Esta es la regla que más se incumple, y se midió
+> El 31/08, **nueve notas** tenían el cuerpo al día y el `actualizado:` en una
+> fecha de hasta veintiún días antes: se editaron y nadie tocó el frontmatter.
+> Suena menor y no lo es — `actualizado:` es lo **único** que le dice al
+> siguiente lector hasta cuándo se comprobó la nota contra el código. Una nota
+> correcta con fecha vieja se descarta por caducada, y una nota caducada con
+> fecha nueva se cree. Los dos fallos salen del mismo descuido.
+
 ---
 
 ## Antes de pedir merge
 
 - [ ] Zona liberada en [[tablero]]
-- [ ] `npm run typecheck` limpio
-- [ ] `npm test` en verde
-- [ ] `npm run test:e2e` si tocaste auth, tenant, dinero o migraciones
+- [ ] `cd apps/web && npm run typecheck` limpio
+- [ ] `cd apps/web && npm test` en verde
+- [ ] `cd apps/web && npm run test:e2e` si tocaste auth, tenant, dinero o migraciones
 - [ ] Nota de la bóveda actualizada en el mismo commit
 - [ ] Bitácora, si se nota desde la aplicación
 - [ ] Ningún secreto en el diff (`git diff | grep -i -E 'secret|key|password|token'`)
+
+> [!danger] El `cd apps/web` no es un detalle de estilo — corregido el 2026-08-31
+> Hasta hoy esta lista decía `npm run typecheck` y `npm test` a secas. **Esos
+> scripts no existen en la raíz del repositorio**: `package.json:4-10` solo trae
+> `build`, `dev`, `lint`, `format` y `check-types`. Corridos desde la raíz
+> devuelven `npm error Missing script`, que es muy fácil de leer como «el entorno
+> está roto» en vez de «me falta un `cd`».
+>
+> Que estuviera mal **aquí** es lo caro: esta nota es lectura obligatoria, así
+> que el error lo hereda todo el que empieza. Ver [[convenciones]].
+
+> [!danger] Y antes de las e2e, HAZ EL BUILD
+> `cd apps/web && npm run build && npm run test:e2e`. Sin `.next/BUILD_ID` los
+> 29 archivos e2e mueren en falso a los 60 s **cada uno** y tardan más de veinte
+> minutos en decirlo. El rojo no dice nada del código: dice que falta el build.
+> Levanta también el Postgres: `cd db && docker compose up -d`.
 
 ## Relacionadas
 [[tablero]] · [[zonas-de-riesgo]] · [[convenciones]] · [[_plantilla-diaria]] ·

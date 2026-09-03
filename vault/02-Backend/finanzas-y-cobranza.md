@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-07
+actualizado: 2026-08-31
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -17,6 +17,28 @@ archivos:
 > `POST /api/campanas/[id]/facturar` y `POST /api/cobranzas/[id]/pagar` son
 > `SENSIBLE` (permiso + desbloqueo). Emitir una factura consume folio fiscal.
 > Ver [[zonas-de-riesgo]].
+
+> [!warning] Hasta el 2026-08-28 el «+ desbloqueo» no pedía nada en una instancia nueva
+> `exigirCambioSensible()` tiene dos mitades, y la segunda —comprobar que quien
+> está al teclado es esa persona— cuelga de `tenants.exigir_reautenticacion`
+> (`cambios.ts:199-210`). Esa columna nació con `default false`
+> (`20260804_reautenticacion_individual.sql:34`) y **nada en las semillas ni en
+> el aprovisionamiento la tocaba**: cada instancia nueva arrancaba con el candado
+> abierto, incluidas las **tres rutas de dinero** —`facturar`, `cobranzas/pagar`
+> y `pagos-renta/pagar`— y otras cinco de contratos y arrendadores.
+>
+> **El permiso del rol sí aplicaba**: no es que pudiera facturar cualquiera. Lo
+> que faltaba era la reautenticación.
+>
+> `20260828_reautenticacion_por_defecto.sql` cambió **el DEFAULT, no las filas**:
+> toda organización que nazca de aquí en adelante pide la contraseña; las que ya
+> existen se quedan como estén, porque encenderlo en una base que ya opera es una
+> corrección de datos con su rollback, no una migración de esquema.
+>
+> Sigue siendo un interruptor (ADR 0009): lo que cambió es la **polaridad** — se
+> apaga a propósito en vez de encenderse a propósito. La fricción es menor de lo
+> que suena: el desbloqueo dura 15 minutos (`cambios.ts:49`), así que facturar
+> diez campañas seguidas pide la contraseña una vez.
 
 ## El candado de facturación
 

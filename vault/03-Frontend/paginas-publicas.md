@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-31
 tags: [frontend, publico, tokens, amarillo]
 archivos:
   - apps/web/app/(app)/portal/[token]/
@@ -47,9 +47,18 @@ campaña — nada de otros clientes ni datos financieros.
 
 ## Exención de CSRF
 
-Estas rutas están exentas del double-submit (`middleware.ts:47-57`) porque **no
+Estas rutas están exentas del double-submit (`middleware.ts:47-61`) porque **no
 dependen de la cookie de sesión**: la credencial es el token del enlace. Si
 alguna empezara a leer la cookie, la exención se vuelve un agujero.
+
+> [!warning] Desde F5.2 hay una exención más, y no es una página
+> `/api/bootstrap` (`middleware.ts:61`) también está exenta: arranca una
+> instancia recién aprovisionada, cuando la base está vacía y **todavía no
+> existe ninguna sesión que proteger**. Su credencial es `BOOTSTRAP_TOKEN` y su
+> cerrojo real es que la tabla `tenants` esté vacía. Cuenta como puerta sin
+> sesión aunque no tenga página: si algún día `tenants` deja de estar vacía y el
+> guard no lo comprueba, la exención se vuelve una puerta abierta.
+> Ver [[modelo-instancias-soberanas]].
 
 ## Marca en las páginas de cara al cliente
 

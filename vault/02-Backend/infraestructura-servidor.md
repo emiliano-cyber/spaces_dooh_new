@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-10
+actualizado: 2026-08-31
 tags: [backend, infraestructura, transversal, rojo]
 archivos:
   - apps/web/lib/server/db.ts
@@ -62,9 +62,29 @@ constraint` a media venta.
 Ventana fija, `Map` en proceso, limpieza oportunista.
 
 > [!warning] No sobrevive al escalado
-> Es **por instancia**. Hoy pm2 corre 1 instancia en modo fork
-> (`ecosystem.config.js:11-12`), así que funciona. Subir `instances` **rompe el
-> limitador en silencio**. Migrar a un store compartido antes de escalar.
+> Es **por proceso**. Hoy hay un solo proceso por servicio, así que funciona.
+> Poner un segundo proceso delante del mismo dominio **rompe el limitador en
+> silencio**: cada uno cuenta su propia mitad y el atacante dispone del doble.
+> Migrar a un store compartido antes de escalar horizontalmente.
+
+> [!danger] Quien lo arranca ya NO es pm2 — corregido el 2026-08-31
+> Esta nota decía «pm2 corre 1 instancia en modo fork
+> (`ecosystem.config.js:11-12`)». **Desde el 28/08 el PADRE lo sirve systemd**:
+> `spaces-web.service:83` arranca `next start -p 3000` como el usuario `padre`,
+> y `spaces-demo.service:77` el 3001 como `demo`.
+>
+> `ecosystem.config.js` **sigue en el repositorio** y por eso la frase seguía
+> pareciendo cierta al leerla. No lo es, y la confusión tiene coste medido: si
+> alguien dispara pm2 hoy, **pelea por el puerto 3000 contra systemd** — es la
+> trampa nº 6 del traspaso del 28/08.
+>
+> `pm2 restart` ya no despliega nada. El procedimiento vigente está en
+> [[entorno-y-despliegue]].
+
+**Bajo el modelo de instancias esto deja de ser una deuda.** Cada owner corre su
+propia copia, con su propio proceso, así que un limitador en memoria por proceso
+**coincide** con el límite natural del despliegue. Ver
+[[modelo-instancias-soberanas]].
 
 Los cubos van por IP, y nginx la reemplaza (ver [[entorno-y-despliegue]]).
 
