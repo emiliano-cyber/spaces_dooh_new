@@ -113,7 +113,14 @@ Todo lo demás de las fases 5, 6 y 8 es código, plantillas o documentos: se hac
 6. La RLS no se retira.
 7. `aislamiento.e2e.test.ts` pasa sin modificarlo.
 8. Migraciones transaccionales, idempotentes, expand → contract.
-9. Autoregistro encendido solo en DEMO.
+9. **El autoregistro esta CERRADO en toda la flota, DEMO incluida** (P8, 2026-08-20).
+   Solo `AUTOREGISTRO=1` enciende; ausente o cualquier otro valor deja cerrado
+   (`lib/entorno.ts:23-26`, F2.6), y las plantillas nacen en `0`
+   (`infra/env/app.env.example:80`), anclado por prueba y no por memoria
+   (`entorno.test.ts:143,197`). Una empresa nace por `/api/bootstrap`, **una sola vez
+   por instancia**, y su Dueno da de alta a su equipo desde dentro. *(Hasta el
+   2026-09-03 este invariante decia «Autoregistro encendido solo en DEMO»: quedo
+   desfasado el 20/08 y estuvo veinte dias diciendo lo contrario de lo decidido.)*
 10. Commits en español, `tipo(ámbito): descripción en minúscula`.
 11. Al terminar cada tanda: entrada en `docs/Registro_Cambios.md` y revisión de `vault/`.
 12. Dos suites: `npm test` y `npm run test:e2e`.

@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-08-31
+actualizado: 2026-09-03
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -191,7 +191,7 @@ se le dice «tenant»** a nivel de negocio.
 
 | Tarea del plan del 11 | Veredicto | Dónde aterriza |
 |---|---|---|
-| T0 · Cerrar el autoregistro público | **Se ejecuta** | F0.1–F0.3. Encendido solo en DEMO, y anclado por prueba, no por memoria |
+| T0 · Cerrar el autoregistro público | **Se ejecuta** | F0.1–F0.3. **Cerrado en TODA la flota, DEMO incluida** (P8, 2026-08-20), y anclado por prueba, no por memoria (`entorno.test.ts:143,197`). *(Decía «Encendido solo en DEMO» hasta el 2026-09-03; era el veredicto del 13/08, anterior a P8.)* |
 | T1 · `subdominioDe()`, parser de Host | Se descarta | No hay subdominios que parsear: una instancia, un dominio fijo |
 | T2 · Arnés e2e con cabecera Host | Se descarta | Solo existía para probar T1 y T6 |
 | T3 · Slugs reservados con CHECK | **Se adapta** | Deja de ser código; queda como nota de infra en la ADR 0014 (F8.1) |
