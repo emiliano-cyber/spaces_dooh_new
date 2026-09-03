@@ -94,6 +94,18 @@ visual-identity-project-space-os/
 # binario con cada regeneración. Su destino es fuera del repo.
 docs/evidencias/*.pdf
 
+# Y por el MISMO criterio, los PDF de los manuales que salen de la bóveda.
+# Entraron con el merge del 02/09 (332 KB + 580 KB) y se retiran el 03/09: son
+# salida de `scripts/md-to-pdf.mjs` sobre `vault/08-Manuales/manual-*.md`, que sí
+# están versionados. Regenerarlos es una orden; tenerlos en git es un binario que
+# cambia entero cada vez y que nadie puede revisar en un diff.
+#
+# ⚠️ Esto NO retira los otros 32 PDF que el repositorio ya arrastra (~30 MB entre
+# todos, en la raíz y en `docs/`). Muchos son entregables de verdad —auditorías,
+# manuales enviados, reportes de avance— y no salidas derivadas, así que sacarlos
+# es otra decisión y no se toma aquí.
+manual-usuario-*.pdf
+
 # ─── Panel de flota (apps/flota) ────────────────────────────────────────────
 # El inventario de VERDAD no se versiona: es la lista de clientes con sus
 # dominios, y la regla del proyecto es que ningún valor real vive en un archivo
