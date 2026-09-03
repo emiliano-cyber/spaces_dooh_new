@@ -70,19 +70,6 @@ __pycache__/
 .venv/
 venv/
 
-# Capturas del manual ilustrado.
-#
-# El SCRIPT sí se versiona (manuales/capturas.spec.ts): es lo que permite
-# regenerar las imágenes cuando el manual cambie. Lo que NO entra:
-#
-#   .auth/estado.json  guarda una COOKIE DE SESIÓN viva. Nunca a git.
-#   capturas/          pesan, se regeneran, y hoy llevan datos reales
-#                      del entorno local sin difuminar (decisión del humano):
-#                      razón de más para que no salgan del equipo.
-manuales/.auth/
-manuales/capturas/
-manuales/.playwright-artifacts/
-
 # Material de referencia de identidad visual (handoff de marca; no se versiona)
 Visual identity project Space OS-handoff*.zip
 Visual identity project Space OS-handoff*/
@@ -93,6 +80,18 @@ visual-identity-project-space-os/
 # que sí están en git: el PDF es una salida derivada, pesa ~2 MB y cambiaría en
 # binario con cada regeneración. Su destino es fuera del repo.
 docs/evidencias/*.pdf
+
+# Y por el MISMO criterio, los PDF de los manuales que salen de la bóveda.
+# Entraron con el merge del 02/09 (332 KB + 580 KB) y se retiran el 03/09: son
+# salida de `scripts/md-to-pdf.mjs` sobre `vault/08-Manuales/manual-*.md`, que sí
+# están versionados. Regenerarlos es una orden; tenerlos en git es un binario que
+# cambia entero cada vez y que nadie puede revisar en un diff.
+#
+# ⚠️ Esto NO retira los otros 32 PDF que el repositorio ya arrastra (~30 MB entre
+# todos, en la raíz y en `docs/`). Muchos son entregables de verdad —auditorías,
+# manuales enviados, reportes de avance— y no salidas derivadas, así que sacarlos
+# es otra decisión y no se toma aquí.
+manual-usuario-*.pdf
 
 # ─── Panel de flota (apps/flota) ────────────────────────────────────────────
 # El inventario de VERDAD no se versiona: es la lista de clientes con sus
@@ -130,7 +129,9 @@ apps/flota/publico/
 #    dura la depuración.
 #  · `capturas/` — pantallazos que produce el agente. Mismo criterio que el PDF
 #    del expediente de arriba: derivado y binario, cambiaría en cada
-#    regeneración, y además son capturas de la aplicación CON DATOS dentro.
+#    regeneración. Y la razón de peso, que venía escrita en la regla que esta
+#    absorbe: **hoy llevan datos reales del entorno local sin difuminar**
+#    (decisión del humano), así que razón de más para que no salgan del equipo.
 #
 # Si algún día las capturas pasan a ser un entregable que viaja con el
 # repositorio, se quita esa línea y se revisa antes qué se ve en cada imagen.
