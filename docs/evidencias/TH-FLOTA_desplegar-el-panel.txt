@@ -1,0 +1,257 @@
+============================================================
+ TH-FLOTA · DESPLEGAR EL PANEL DE FLOTA Y SU VIGILANTE
+ Se corre DESDE EL PADRE (137.184.107.53), como root.
+ ADR 0026 · Fecha: 2026-09-04
+============================================================
+
+ QUE ES ESTO
+   El estatus de la flota deja de exigir SSH y `node` a mano:
+   pasa a verse en https://space-os.io/flota/ , y una instancia
+   que deja de responder manda un correo sola.
+
+ LO QUE **NO** HACE, para que nadie lo espere
+   · No muestra ninguna cifra de negocio. Siete columnas y ni
+     una mas: nombre, dominio, canal, version, estado, fecha,
+     origen. Esta sostenido por dos pruebas que fijan las
+     claves EXACTAS.
+   · No tiene usuarios propios ni contraseñas: pregunta al
+     PADRE quien eres. Un `logout` alli apaga esto tambien.
+   · No entra nadie sin permiso `administracion:ver`.
+
+ CUANTO CUESTA: nada. Un proceso de 128 MB y una entrada de
+ cron. No toca ninguna base de datos.
+
+# ############################################################
+#  ANTES · TRES COSAS
+# ############################################################
+#
+#  1 · EL USUARIO `flota` YA EXISTE si el receptor de reportes
+#      (F6.4) esta puesto. Comprueba, y si no existe, creal0:
+
+echo ok; id flota || useradd --system --home /var/www/Spaces/apps/flota --shell /usr/sbin/nologin flota
+
+#  ESPERADO: una linea `uid=... (flota)`.
+
+#  2 · LA DIRECCION QUE RECIBE LOS AVISOS. Es un parametro
+#      obligatorio y a proposito: el vigilante NO arranca sin
+#      ella, en vez de arrancar y no avisar. Decide a quien le
+#      llegan las caidas ANTES de seguir.
+#
+#  3 · LAS CLAVES DE CORREO. `RESEND_API_KEY` y `EMAIL_FROM`
+#      son las mismas que ya usa la aplicacion para mandar
+#      correos. Si no las tienes a mano, salen del `.env` del
+#      PADRE:
+
+echo ok; grep -c '^RESEND_API_KEY=' /etc/space-os/padre.env
+
+#  ESPERADO: 1. Si da 0, esa cuenta no esta configurada y hay
+#  que resolverlo antes: sin correo no hay aviso.
+
+# ############################################################
+#  PASO 0 · TRAER EL CODIGO           (solo lectura)
+# ############################################################
+
+echo ok; cd /var/www/Spaces && git pull --quiet && git log --oneline -1
+echo ok; ls -1 apps/flota/panel.mjs apps/flota/vigilar.mjs infra/systemd/flota-panel.service infra/nginx/snippets/flota-panel.conf
+
+#  ESPERADO: los cuatro archivos. Si falta alguno, el `pull` no
+#  trajo el trabajo del 04/09 y no sigas.
+
+# ############################################################
+#  PASO 1 · EL INVENTARIO DE VERDAD    🚦 PUERTA 1
+# ############################################################
+#  Hoy NO existe `flota.json`, asi que `estado.mjs` cae al de
+#  ejemplo, con dominios `.invalid` que no existen ni pueden
+#  existir. Si arrancas el vigilante asi, avisara de instancias
+#  imaginarias.
+#
+#  `flota.json` NO se versiona a proposito: es la lista de
+#  clientes con sus dominios. Se escribe aqui y se queda aqui.
+
+echo ok; cat /var/www/Spaces/apps/flota/flota.example.json
+
+#  Copia esa FORMA y pon las instancias reales. Hoy la flota de
+#  verdad es UNA: la copia de pruebas. El droplet del ensayo
+#  (F5.6) NO va aqui: se destruye.
+
+echo ok; nano /var/www/Spaces/apps/flota/flota.json
+echo ok; chown flota:flota /var/www/Spaces/apps/flota/flota.json && chmod 640 /var/www/Spaces/apps/flota/flota.json
+
+# 🚦 PUERTA 1 — que lo lea sin caer al ejemplo:
+
+echo ok; sudo -u flota node /var/www/Spaces/apps/flota/estado.mjs
+
+#  ESPERADO: la tabla, y **SIN** el aviso «no hay flota.json».
+#  Las instancias reales tienen que salir con su estado. Si
+#  todas salen `sin-respuesta`, revisa `FLOTA_TOKEN` antes de
+#  seguir: sin token, `/api/version` contesta `{ok:true}` y
+#  nada mas.
+
+# ############################################################
+#  PASO 2 · EL SERVICIO DEL PANEL      🚦 PUERTA 2
+# ############################################################
+#  Las variables van en el mismo archivo que ya usa el receptor.
+#
+#  OJO CON EL FORMATO, y NO es como `instancia.env`: systemd lee
+#  este archivo EL MISMO, sin pasar por un shell. Un valor con
+#  espacios no ejecuta nada -- pero tampoco se entrecomilla
+#  igual. Una variable por linea, `CLAVE=valor`, sin `export`.
+
+echo ok; cat >> /etc/space-os/flota.env <<'ENV'
+URL_PADRE=http://127.0.0.1:3000
+DIR_ESTADO=/var/www/Spaces/apps/flota/estado
+AVISOS_PARA=CAMBIAME@tu-dominio
+RESEND_API_KEY=CAMBIAME
+EMAIL_FROM=Space OS <avisos@CAMBIAME>
+ENV
+echo ok; nano /etc/space-os/flota.env
+echo ok; chown root:flota /etc/space-os/flota.env && chmod 640 /etc/space-os/flota.env
+
+#  --- La unidad se COPIA, no se enlaza. Medido el 02/09 con
+#      `spaces-demo`: systemd trata una unidad enlazada como
+#      *linked*, y `systemctl disable` RETIRA EL ENLACE -- borra
+#      la unidad en vez de apagarla, y la vuelta atras escrita
+#      en cualquier tarjeta deja de funcionar.
+
+echo ok; cp /var/www/Spaces/infra/systemd/flota-panel.service /etc/systemd/system/
+echo ok; systemctl daemon-reload && systemctl enable --now flota-panel
+echo ok; systemctl status flota-panel --no-pager | head -12
+
+# 🚦 PUERTA 2 — `active (running)`. Y que conteste por loopback:
+
+echo ok; curl -s -o /dev/null -w 'sin cookie -> %{http_code}\n' http://127.0.0.1:3002/
+
+#  ESPERADO: **401**. Sin cookie no entra nadie, ni siquiera
+#  desde la propia maquina. Un 200 aqui seria grave: querria
+#  decir que el panel esta abierto.
+
+# ############################################################
+#  PASO 3 · PUBLICARLO EN NGINX        🚦 PUERTA 3
+# ############################################################
+#  El snippet convive con el del receptor sin pelearse: aquel es
+#  `location = /flota/reporte` (coincidencia EXACTA) y este es
+#  un prefijo. En nginx la exacta gana.
+
+echo ok; grep -n 'flota' /etc/nginx/sites-available/space-os.io
+
+#  Dentro del bloque `server` de space-os.io (el del 443), añade
+#  la linea del include AL LADO de la del receptor:
+#
+#      include /var/www/Spaces/infra/nginx/snippets/flota-panel.conf;
+
+echo ok; nano /etc/nginx/sites-available/space-os.io
+echo ok; nginx -t && systemctl reload nginx
+
+# 🚦 PUERTA 3 — desde TU PC, no desde el servidor:
+#
+#   curl.exe -s -o NUL -w 'sin sesion -> %{http_code}\n' https://space-os.io/flota/
+#
+#  ESPERADO: **401**.
+#
+#  Y AHORA ENTRA CON EL NAVEGADOR, con tu sesion del PADRE ya
+#  iniciada en https://space-os.io/spaces-dooh/ :
+#
+#   · Con un usuario CON `administracion` -> la tabla.
+#   · Con uno SIN ese permiso -> 401. Compruebalo de verdad con
+#     un segundo usuario, porque es la mitad del ADR y es lo
+#     unico que no se puede comprobar desde aqui.
+
+# ############################################################
+#  PASO 4 · EL VIGILANTE, POR CRON     🚦 PUERTA 4
+# ############################################################
+#  Primero A MANO, para verlo funcionar antes de dejarlo solo.
+#  Esta primera pasada avisa de lo que YA este caido: no hay
+#  estado anterior con el que comparar, y se eligio avisar en
+#  vez de callar.
+
+echo ok; cd /var/www/Spaces/apps/flota && sudo -u flota env $(grep -v '^#' /etc/space-os/flota.env | xargs -d '\n') node vigilar.mjs; echo "codigo de salida: $?"
+
+#  ESPERADO: una linea JSON con `"ok":true`, y **codigo 0**.
+#  · Si dice que falta AVISOS_PARA / RESEND_API_KEY / EMAIL_FROM,
+#    es el paso 2: no arranca a medias a proposito.
+#  · Si sale `"ok":false` con «no se pudo avisar», el correo NO
+#    salio -- y el estado NO se guardo, asi que el aviso sigue
+#    pendiente. Arregla el correo y repite.
+
+echo ok; cat /var/www/Spaces/apps/flota/estado/vigilancia.json
+
+#  ESPERADO: un objeto `nombre -> estado` por cada instancia.
+#  Ese archivo es la memoria del vigilante: es lo que hace que
+#  no repita el aviso en cada pasada.
+
+#  --- Y ahora el cron. Cada 10 minutos:
+
+echo ok; cat > /etc/cron.d/flota-vigilante <<'CRON'
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+*/10 * * * * flota cd /var/www/Spaces/apps/flota && set -a && . /etc/space-os/flota.env && set +a && node vigilar.mjs >> /var/log/space-os/flota-vigilante.log 2>&1
+CRON
+echo ok; chmod 644 /etc/cron.d/flota-vigilante && mkdir -p /var/log/space-os && chown flota /var/log/space-os/flota-vigilante.log 2>/dev/null; touch /var/log/space-os/flota-vigilante.log; chown flota /var/log/space-os/flota-vigilante.log
+
+#  ⚠️ ESA LINEA **SI** PASA POR UN SHELL (`. /etc/space-os/
+#  flota.env`), a diferencia de systemd. Si `EMAIL_FROM` lleva
+#  espacios --y los lleva, «Space OS <...>»-- TIENE que ir
+#  entrecomillado en el archivo, o bash ejecuta la segunda
+#  palabra. Es el defecto del 02/09 con `instancia.env`.
+#
+#  Comprueba que se lee bien ANTES de esperar 10 minutos:
+
+echo ok; bash -c 'set -a; . /etc/space-os/flota.env; set +a; echo "[$AVISOS_PARA] [$EMAIL_FROM]"'
+
+#  ESPERADO: los dos valores enteros entre corchetes. Si el
+#  segundo sale cortado o aparece un error de «comando no
+#  encontrado», faltan las comillas.
+
+# 🚦 PUERTA 4 — dentro de 10 minutos:
+
+echo ok; tail -5 /var/log/space-os/flota-vigilante.log
+
+#  ESPERADO: una linea JSON con `"ok":true` y `"avisos":[]`.
+
+# ############################################################
+#  LA PRUEBA QUE DE VERDAD LO DEMUESTRA
+# ############################################################
+#  Todo lo de arriba prueba que el vigilante CORRE. Lo que hay
+#  que probar es que AVISA, y eso se hace rompiendo algo a
+#  proposito. La forma barata y sin tocar ninguna instancia:
+#
+#  Añade a `flota.json` una instancia de mentira con un dominio
+#  que no exista, espera una pasada, y comprueba que llega el
+#  correo. Luego quitala.
+#
+#  ESPERADO: un correo «Flota: <nombre> no responde», UNO SOLO,
+#  y que la pasada siguiente NO mande otro -- eso es lo que
+#  significa «avisa por cambio y no por pasada».
+
+# ############################################################
+#  VUELTA ATRAS, si algo sale mal
+# ############################################################
+#  Quitar el `include` del vhost y recargar nginx deja el panel
+#  fuera de internet EN UN MINUTO, y `estado.mjs` sigue
+#  funcionando por SSH igual que hoy:
+#
+#      nano /etc/nginx/sites-available/space-os.io   # fuera el include
+#      nginx -t && systemctl reload nginx
+#
+#  Y para el proceso:
+#      systemctl stop flota-panel        # apagar
+#      rm /etc/cron.d/flota-vigilante    # callar el vigilante
+#
+#  NO hay nada que deshacer en ninguna base: el panel no
+#  escribe en ninguna. Lo unico que deja es `estado/
+#  vigilancia.json`, que se puede borrar sin consecuencias --
+#  la pasada siguiente lo trata como una primera vez.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · La PUERTA 1: la tabla con las instancias reales.
+#   · Las PUERTAS 2 y 3: los dos 401, y que la tabla se ve con
+#     un usuario con permiso.
+#   · **El 401 con un usuario SIN `administracion`.** Es la
+#     mitad del ADR y es lo unico que no se puede comprobar
+#     desde el codigo.
+#   · La PUERTA 4 y, si la haces, el correo de la instancia de
+#     mentira.
+#   · Y si algo se rompio: la salida tal cual.
+# ############################################################
