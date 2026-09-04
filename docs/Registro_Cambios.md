@@ -21,6 +21,23 @@ La entrada más reciente va arriba.
   Tal como estaban escritas, el ensayo habria salido «en verde» sin haber comprobado
   ninguna de esas cuatro cosas. Ahora estan dentro, y se corren en el mismo viaje.
 
+- **Y se instalo por primera vez una copia completa del sistema en una maquina
+  nueva, de principio a fin.** Es el ensayo previo a instalarsela a un cliente. La
+  maquina se creo, se preparo y quedo con la base de datos al dia: **75 cambios de
+  base de datos aplicados** sobre una base vacia, y el paquete que se descargo es
+  **exactamente el aprobado** — se comprobo comparando su huella.
+
+  **Aparecieron cinco problemas, y ninguno le va a pasar ya al primer cliente.** Tres
+  de ellos solo podian verse haciendolo de verdad: la maquina nacia **sin la llave de
+  acceso**; el sistema intentaba entrar **antes de que la maquina terminara de
+  arrancar**; y la instalacion se quedaba **una hora parada** esperando una pregunta
+  en pantalla que nadie podia contestar. Los tres estan corregidos y con pruebas que
+  impiden que vuelvan.
+
+  Falta terminar el ensayo —el nombre en internet, el certificado, arrancar la
+  aplicacion y crear la primera empresa— y despues **borrar la maquina**, que es
+  desechable.
+
 - **Se reviso ademas que las instrucciones siguieran coincidiendo con el sistema de
   hoy** —seis puntos, ninguno desfasado—, incluida la cuenta de cambios de base de
   datos que una instalacion nueva debe aplicar. No cambio nada del programa: solo la

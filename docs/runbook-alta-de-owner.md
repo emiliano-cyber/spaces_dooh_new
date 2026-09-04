@@ -102,6 +102,27 @@ Deja hecho:
 
 ## 3 · ALTO — el DNS lo pone el owner
 
+> [!danger] Si el owner usa Cloudflare, el registro va en **DNS only** (nube gris)
+> Encontrado el 2026-09-03 en el ensayo de F5.6, con nuestra propia zona: es lo que
+> hay al otro lado la mayoría de las veces, y **Cloudflare enciende el proxy por
+> omisión**.
+>
+> Con el proxy encendido (nube naranja) el nombre resuelve a **direcciones de
+> Cloudflare**, no a la máquina del owner. Consecuencias, y ninguna dice lo que
+> pasa: la comprobación del paso 4 no coincide nunca; el certificado se pide para
+> una máquina que no es la suya; y si llegara a emitirse, quien termina la conexión
+> es Cloudflare y no el servidor. **Pídelo explícitamente al owner**: registro `A`,
+> proxy **desactivado**.
+>
+> Cómo se comprueba, preguntando al autoritativo y saltándose cachés:
+>
+> ```bash
+> dig +short <dominio> @$(dig +short NS <dominio-raiz> | head -1)
+> ```
+>
+> Tiene que devolver **la IP del droplet**. Si devuelve otra cosa —o varias—, es el
+> proxy.
+
 El script se detiene e imprime la instrucción exacta. **AS OOH no entra en la
 zona DNS del owner.** No es una formalidad administrativa: es la parte de
 «soberana» que el owner puede comprobar por sí mismo.

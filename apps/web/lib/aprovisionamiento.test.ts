@@ -324,3 +324,138 @@ describe('los guiones que la documentacion invoca con `./` se pueden ejecutar', 
     expect(enGit(ruta), `${ruta} no arrancaria en un clon limpio`).toBe('100755')
   })
 })
+
+describe('el guion del servidor no puede quedarse esperando a nadie', () => {
+  // Medido el 2026-09-03 en el ensayo de F5.6: colgado UNA HORA en la linea del
+  // `apt-get upgrade`. En Ubuntu 22.04 --y las imagenes de DigitalOcean lo
+  // traen-- ese upgrade abre el menu de `needrestart` («Which services should be
+  // restarted?») y espera una respuesta que aqui NO puede llegar: el guion viaja
+  // por `ssh root@host 'bash -s'`, asi que no hay terminal ni stdin libre.
+  //
+  //  Demostrado sin lugar a duda porque se repitio: el MISMO guion sobre la
+  //  MISMA maquina, con las dos variables puestas, termino en minutos.
+  //
+  //  Van dentro del guion y no en quien lo lanza. Un aprovisionamiento que
+  //  depende de que el operador se acuerde de dos variables de entorno se cuelga
+  //  el dia que no se acuerde -- y colgado no da error: parece que va lento.
+
+  const guion = ejecutable(SETUP)
+
+  it('fija DEBIAN_FRONTEND=noninteractive', () => {
+    expect(guion).toMatch(/export DEBIAN_FRONTEND=noninteractive/)
+  })
+
+  it('y NEEDRESTART_MODE=a, que es el que colgo el ensayo', () => {
+    expect(guion).toMatch(/export NEEDRESTART_MODE=a/)
+  })
+
+  it('las dos ANTES del primer apt-get, o no sirven de nada', () => {
+    const primerApt = guion.indexOf('apt-get')
+    expect(primerApt, 'el guion ya no llama a apt-get?').toBeGreaterThan(0)
+    expect(guion.indexOf('DEBIAN_FRONTEND')).toBeLessThan(primerApt)
+    expect(guion.indexOf('NEEDRESTART_MODE')).toBeLessThan(primerApt)
+  })
+})
+
+describe('crear la maquina y entrar en ella son dos cosas distintas', () => {
+  // Medido el 2026-09-03 en el ensayo de F5.6, con la maquina ya creada:
+  //
+  //   -- Base del servidor (Docker, nginx, certbot, ufw)
+  //   ssh: connect to host 157.245.143.158 port 22: Connection refused
+  //
+  //  `doctl compute droplet create --wait` espera a que el droplet este ACTIVE,
+  //  y `active` no quiere decir que `sshd` escuche: la maquina sigue arrancando.
+  //  El alta encadenaba el `ssh` inmediatamente.
+  //
+  //  `Connection refused` no es un problema de llave --eso seria
+  //  `Permission denied (publickey)`-- sino de que todavia no hay nadie
+  //  escuchando. Y el precio es el de siempre en este trecho: el droplet YA
+  //  existe y YA se cobra cuando el alta se planta.
+
+  const guion = ejecutable(PROVISION)
+
+  it('hay una espera explicita por el puerto 22', () => {
+    expect(guion).toMatch(/esperar_ssh\(\)/)
+  })
+
+  it('y ocurre DESPUES de crear y ANTES de entrar', () => {
+    const crear = guion.indexOf('droplet create')
+    const esperar = guion.indexOf('esperar_ssh "$HOST"')
+    const entrar = guion.indexOf('setup-droplet.sh')
+    expect(crear, 'no se encontro el create').toBeGreaterThan(0)
+    expect(esperar, 'no se llama a esperar_ssh con el host').toBeGreaterThan(crear)
+    expect(esperar, 'la espera va antes de entrar por ssh').toBeLessThan(entrar)
+  })
+
+  it('se rinde con un limite, en vez de esperar para siempre', () => {
+    // Un bucle sin techo deja el alta colgada sin decir nada, que es
+    // exactamente el defecto 18 con otra cara.
+    expect(guion).toMatch(/ESPERAS_SSH/)
+  })
+})
+
+describe('el certificado no se puede pedir sin una cuenta', () => {
+  // Medido el 2026-09-04 en el ensayo, con el DNS ya resolviendo:
+  //
+  //   You should register before running non-interactively, or provide
+  //   --agree-tos and --email <email_address> flags.
+  //
+  //  La llamada llevaba `--agree-tos --no-eff-email` pero NINGUN correo, y con
+  //  `-n` certbot no puede preguntarlo. En una maquina recien creada no hay
+  //  cuenta de Let's Encrypt, asi que esto falla en la PRIMERA instancia de cada
+  //  droplet -- o sea, en todas.
+  //
+  //  De quien es ese correo es una DECISION que no toma este guion: si es del
+  //  owner, los avisos de caducidad le llegan a el y AS OOH no se entera; si es
+  //  de AS OOH, se entera quien renueva. Por eso entra por entorno y el guion
+  //  para si falta, en vez de inventarse uno.
+
+  const guion = ejecutable(PROVISION)
+
+  it('pasa un correo a certbot, y sale del entorno', () => {
+    // Comillas simples dentro, como `-d '$DOMINIO'`: el argumento de `remoto` va
+    // entre dobles, asi que la variable la expande el guion y las simples son
+    // para el shell del otro lado.
+    expect(guion).toContain('certbot certonly')
+    expect(guion).toContain("-m '$CERTBOT_EMAIL'")
+  })
+
+  it('para ANTES de llamar a certbot si no lo tiene', () => {
+    const guard = guion.indexOf('falta CERTBOT_EMAIL')
+    const llamada = guion.indexOf('certbot certonly')
+    expect(guard, 'no hay guard de CERTBOT_EMAIL').toBeGreaterThan(0)
+    expect(guard).toBeLessThan(llamada)
+  })
+
+  it('y no quema ninguna direccion real', () => {
+    expect(PROVISION).not.toMatch(/-m ['"]?[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}/i)
+  })
+})
+
+describe('nginx no puede tener dos sitios por omision', () => {
+  // Medido el 2026-09-04, en el ultimo paso del alta:
+  //
+  //   nginx: [emerg] a duplicate default server for 0.0.0.0:80
+  //          in /etc/nginx/sites-enabled/ensayo.space-os.io:66
+  //
+  //  `instancia.conf.tpl:66` trae su propio `default_server` A PROPOSITO --el
+  //  bloque que atrapa las peticiones por IP-- y Ubuntu deja el suyo activo en
+  //  `sites-enabled/default`. Dos, y nginx se niega.
+  //
+  //  Lo caro: el vhost roto YA esta en disco cuando `nginx -t` falla, asi que
+  //  nginx sigue sirviendo la configuracion vieja que tenia cargada y **no
+  //  arranca si la maquina se reinicia**. Un alta «casi terminada» deja una
+  //  instancia que muere en el primer reinicio.
+  //
+  //  Y esto el proyecto YA lo sabia: `infra/nginx/padre-ip.conf:25` lo dice
+  //  desde que se monto el PADRE. La leccion existia y estaba en otro archivo.
+
+  it('el alta retira el sitio de ejemplo de Ubuntu', () => {
+    expect(ejecutable(SETUP)).toMatch(/rm -f \/etc\/nginx\/sites-enabled\/default/)
+  })
+
+  it('y lo hace al instalar nginx, no despues de configurarlo', () => {
+    const g = ejecutable(SETUP)
+    expect(g.indexOf('sites-enabled/default')).toBeLessThan(g.indexOf('Configurando firewall'))
+  })
+})

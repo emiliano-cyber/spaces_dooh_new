@@ -46,6 +46,8 @@ export async function crearOrgConDueno(args: {
   email: string
   password: string
   cargo?: string
+  // Lo enciende quien genero la contrasena en nombre de otro. Ver `crearUsuario`.
+  debeCambiarPassword?: boolean
 }) {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)
@@ -73,6 +75,7 @@ export async function crearOrgConDueno(args: {
         rol: 'DUENO',
         password: args.password,
         tenantId: tenant.id,
+        debeCambiarPassword: args.debeCambiarPassword,
       },
       client,
     )
@@ -81,9 +84,16 @@ export async function crearOrgConDueno(args: {
 }
 
 // Auto-registro público (body plano).
-export async function registrarCuentaCtrl(body: unknown) {
+// `opciones` existe porque esta funcion la comparten DOS rutas con contratos
+// opuestos: `/api/signup`, donde la persona elige su propia contrasena --y
+// obligarla a cambiarla seria absurdo--, y `/api/bootstrap`, donde la genera el
+// operador del alta. Por eso el forzado es un parametro y no una regla fija.
+export async function registrarCuentaCtrl(body: unknown, opciones?: { debeCambiarPassword?: boolean }) {
   const d = validar(signupSchema, body)
-  return crearOrgConDueno({ org: d.organizacion, nombre: d.nombre, email: d.email, password: d.password })
+  return crearOrgConDueno({
+    org: d.organizacion, nombre: d.nombre, email: d.email, password: d.password,
+    debeCambiarPassword: opciones?.debeCambiarPassword,
+  })
 }
 
 // Alta de CRM por super-admin (nombre/slug + objeto admin).

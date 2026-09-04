@@ -145,6 +145,37 @@ describe('F5.2 · con token configurado', () => {
     expect(login.status).toBe(200)
   })
 
+  it('y el Dueno nace OBLIGADO a cambiar la contrasena que le genero el operador', async () => {
+    // ROJO medido el 2026-09-04 EN EL ENSAYO DE F5.6, contra una instancia real:
+    //
+    //   $ psql -tAc 'select email, debe_cambiar_password from usuarios'
+    //   emistreg@gmail.com|f
+    //
+    //  El Dueno de una instancia nace con una contrasena que GENERA EL OPERADOR
+    //  y que se imprime en su consola. Sin esta marca esa contrasena vale para
+    //  siempre: queda en el historial de quien hizo el alta y nadie obliga a
+    //  cambiarla nunca.
+    //
+    //  Lo que hacia falso creer que estaba cubierto: `alta-instancia.e2e.test.ts`
+    //  afirma «nace OBLIGADO a cambiarla» y pasa en verde -- pero prueba
+    //  `bootstrap-auth.mjs`, el arranque del PADRE, que es OTRO camino. El alta
+    //  de una instancia va por esta ruta, y `usuarios-repo.ts` no tocaba la
+    //  columna, asi que se quedaba en su `default false`
+    //  (`20260804_reautenticacion_individual.sql:35`).
+    //
+    //  Se distinguen a simple vista por la contrasena: el camino del PADRE
+    //  genera `XXXX-XXXX-XXXX-XXXX`; esta ruta, 64 hexadecimales.
+    //
+    //  El mecanismo que lo hace efectivo ya existia y no se toca: `exigir()`
+    //  corta con 403 mientras la marca este puesta.
+    //
+    // Estado heredado de la prueba anterior: la organizacion se acaba de crear.
+    const { rows } = await poolTest().query('select email, debe_cambiar_password from usuarios')
+    expect(rows).toHaveLength(1)
+    expect(rows[0].email).toBe(EMAIL.toLowerCase())
+    expect(rows[0].debe_cambiar_password, 'el Dueno nacio SIN obligacion de cambiar la clave').toBe(true)
+  })
+
   it('y una SEGUNDA llamada ya no crea nada: es de un solo uso', async () => {
     // Estado heredado de la prueba anterior: ya hay una organización.
     const antes = await cuantosTenants()
