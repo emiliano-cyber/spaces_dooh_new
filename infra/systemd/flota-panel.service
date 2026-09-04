@@ -1,0 +1,55 @@
+# ============================================================================
+#  SPACE OS — panel de flota con pantalla (ADR 0026)
+#
+#  NO se instala como enlace al repositorio. Medido el 2026-09-02 con
+#  `spaces-demo`: systemd trata una unidad enlazada como *linked*, y entonces
+#  `systemctl disable` RETIRA EL ENLACE, o sea que borra la unidad en vez de
+#  apagarla. Se COPIA a /etc/systemd/system/ y se vuelve a copiar al actualizar.
+# ============================================================================
+[Unit]
+Description=SPACE OS — panel de flota (ADR 0026)
+Documentation=file:///var/www/Spaces/docs/adr/0026-panel-de-flota-con-pantalla-propia.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=flota
+Group=flota
+WorkingDirectory=/var/www/Spaces/apps/flota
+ExecStart=/usr/local/bin/node panel.mjs
+EnvironmentFile=/etc/space-os/flota.env
+Environment=PANEL_INTERFAZ=127.0.0.1
+Environment=PANEL_PUERTO=3002
+Environment=NODE_ENV=production
+Restart=on-failure
+RestartSec=5s
+
+# --- Endurecimiento, el mismo de `flota-reporte.service` MENOS la red -------
+#
+#  OJO, y es la diferencia que importa: el receptor lleva `IPAddressDeny=any`
+#  con `IPAddressAllow=localhost` porque solo ESCUCHA. El panel SALE: consulta
+#  `GET /api/version` a cada instancia, que estan en internet.
+#
+#  Copiar aqui aquellas dos lineas dejaria el panel arrancado, contestando 200
+#  y con TODA la flota en `sin-respuesta` para siempre -- que parece una flota
+#  caida y es un cortafuegos.
+ProtectSystem=strict
+ReadWritePaths=/var/www/Spaces/apps/flota/estado
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RemoveIPC=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=128M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target
