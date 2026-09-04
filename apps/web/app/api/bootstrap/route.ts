@@ -80,7 +80,13 @@ export async function POST(req: Request) {
     // controlador a propósito, para que las tres entradas al alta (signup,
     // /api/tenants y esta) no diverjan. La transacción de F5.1 aplica igual:
     // si el Dueño falla, no queda organización huérfana.
-    const res = await registrarCuentaCtrl(await req.json().catch(() => ({})))
+    // `debeCambiarPassword: true` — la contrasena del Dueno de una instancia la
+    // GENERA el operador del alta y se imprime UNA vez en su consola. Sin esto
+    // vale para siempre y se queda en su historial. Medido asi (con `f`) el
+    // 2026-09-04 en el ensayo de F5.6, contra una instancia de verdad.
+    const res = await registrarCuentaCtrl(await req.json().catch(() => ({})), {
+      debeCambiarPassword: true,
+    })
     return NextResponse.json(res, { status: 201, headers: { 'cache-control': 'no-store' } })
   } catch (e) {
     // Aquí SÍ se devuelve el error real (400 de validación, 409 de correo

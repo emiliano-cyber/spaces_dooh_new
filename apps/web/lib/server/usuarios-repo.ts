@@ -45,6 +45,11 @@ export async function listarUsuarios() {
 // hizo — un INSERT que deberia fallar por RLS pasaria inadvertido.
 export async function crearUsuario(input: {
   nombre: string; email: string; cargo?: string; rol?: string; password?: string; tenantId?: string | null
+  // Solo lo pide quien NO eligio la contrasena: el alta de una instancia la
+  // genera el operador y se imprime en su consola, asi que tiene que morir en el
+  // primer acceso. Por omision `false`, que es lo correcto cuando la persona
+  // eligio la suya (autoregistro).
+  debeCambiarPassword?: boolean
 }, client?: PoolClient) {
   // Nunca un default débil: la contraseña debe venir validada por la ruta.
   if (!input.password) throw new Error('Se requiere una contraseña para crear el usuario')
@@ -54,9 +59,13 @@ export async function crearUsuario(input: {
   // tenantActual() es null y q() fijaría app.tenant_id='' → el WITH CHECK de la
   // RLS fail-closed rechazaría el INSERT. Ahí fijamos el GUC explícitamente al
   // tenant recién creado (id de servidor, nunca del cliente).
-  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id)
-     values ($1,$2,$3,$4,$5,true,$6) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
-  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId]
+  // `debe_cambiar_password` va EXPLICITO y no se deja al default de la columna.
+  // Medido el 2026-09-04 en el ensayo de F5.6 contra una instancia real: el Dueno
+  // nacia con `f` porque este INSERT no nombraba la columna, y su contrasena
+  // --generada por el operador e impresa en su consola-- valia para siempre.
+  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id, debe_cambiar_password)
+     values ($1,$2,$3,$4,$5,true,$6,$7) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
+  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId, input.debeCambiarPassword ?? false]
   const rows = client
     ? (await client.query(texto, params as any[])).rows
     : await qConTenant(tenantId, texto, params)

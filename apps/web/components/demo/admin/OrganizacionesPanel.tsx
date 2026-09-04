@@ -93,11 +93,13 @@ export function OrganizacionesPanel() {
             forma de crear una organización. El endpoint sí existía
             (POST /api/tenants, protegido por super-admin); lo que faltaba era
             esta pantalla. */}
-        <p className="mb-3 text-[12px] text-muted">
-          Cada organización es un <b className="text-ink">CRM propio</b> con sus datos y sus
-          usuarios (operativos) aislados. Aquí puedes <b className="text-ink">cambiar entre ellas</b> y
-          dar de alta una nueva.
-        </p>
+        {/* La leyenda que habia aqui --«cada organizacion es un CRM propio…
+            aqui puedes cambiar entre ellas y dar de alta una nueva»-- salio el
+            2026-09-04. Describia el modelo ANTERIOR al de instancias soberanas:
+            hoy cada owner corre su propia copia en su propio servidor, y en la
+            instancia de un cliente no hay «entre ellas» a las que cambiar. La
+            pantalla se conserva porque el PADRE si administra varias; lo que se
+            retira es la frase que la vendia como el modelo del producto. */}
 
         <NuevaOrganizacion onCreada={cargar} />
 
