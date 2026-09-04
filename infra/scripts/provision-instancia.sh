@@ -167,6 +167,36 @@ paso() { printf '\n── %s\n' "$*"; }
 #
 # Todo pasa por aqui a proposito. La alternativa —un `if $DRY_RUN` en cada
 # sitio— es donde se cuela el paso que si se ejecuta: basta olvidar uno.
+# Espera a que la maquina nueva acepte ssh. `doctl ... --wait` espera a que el
+# droplet este ACTIVE, y active NO quiere decir que sshd escuche: sigue
+# arrancando. Medido el 2026-09-03 en el ensayo de F5.6:
+#
+#   -- Base del servidor (Docker, nginx, certbot, ufw)
+#   ssh: connect to host 157.245.143.158 port 22: Connection refused
+#
+# `Connection refused` no es la llave --eso seria `Permission denied
+# (publickey)`--: es que todavia no hay nadie escuchando. Y el alta se planta con
+# el droplet YA creado y cobrandose.
+#
+# Con techo a proposito: un bucle sin limite deja el alta colgada sin decir nada,
+# que es el defecto 18 con otra cara.
+esperar_ssh() {
+  local host="$1" intentos="${ESPERAS_SSH:-40}" i=1
+  while [[ "$i" -le "$intentos" ]]; do
+    if ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 -o BatchMode=yes            "root@$host" true 2>/dev/null; then
+      echo "  ssh responde (intento $i)"
+      return 0
+    fi
+    sleep 5
+    i=$((i + 1))
+  done
+  echo "provision: $host no acepto ssh tras $((intentos * 5))s." >&2
+  echo "           El droplet EXISTE y se esta cobrando. No repitas el alta con" >&2
+  echo "           --crear-droplet: crearias un segundo. Sigue con --host $host" >&2
+  echo "           o borralo a proposito con: doctl compute droplet delete <id>" >&2
+  exit "$EX_REMOTO"
+}
+
 remoto() {
   if [[ "$CONFIRMAR" -eq 1 ]]; then
     ssh -o StrictHostKeyChecking=accept-new "root@$HOST" "$@"
@@ -337,6 +367,7 @@ if [[ "$CREAR_DROPLET" -eq 1 ]]; then
       --ssh-keys "$DO_SSH_KEYS" --wait
     HOST="$(doctl compute droplet get "$INSTANCIA" --format PublicIPv4 --no-header)"
     echo "  droplet creado: $HOST"
+    esperar_ssh "$HOST"
   else
     echo "$DRY_ETIQUETA doctl compute droplet create $INSTANCIA --region $DO_REGION --size $DO_TAMANO --image $DO_IMAGEN --ssh-keys $DO_SSH_KEYS --wait"
     HOST="<ip-del-droplet-nuevo>"

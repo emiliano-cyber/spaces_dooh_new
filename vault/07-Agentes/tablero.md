@@ -6,6 +6,21 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-03, noche · **F5.6 EN CURSO** — hay un droplet vivo
+> `ensayo` · `597612031` · `157.245.143.158`. Aprovisionado y con la base al dia;
+> **falta DNS, certificado, arranque, bootstrap, comprobaciones y destruirlo**.
+> Puertas 0, 1 y 2 en verde — no se repiten. Se retoma con
+> `docs/evidencias/TH-F5.6_reanudar-20260904.txt`.
+>
+> **Cinco defectos nuevos (15-19), tres arreglados**: sin `--ssh-keys`, sin bit de
+> ejecucion, sin esperar al 22, colgado por `needrestart`, y **nadie arranca la
+> aplicacion** (19, sin codificar a proposito: se escribe cuando el arranque a mano
+> lo demuestre). Rama `fix/alta-sin-bit-de-ejecucion`, **3 commits sin empujar**.
+>
+> ⚠️ La zona de `space-os.io` esta en **Cloudflare**, y el proxy por omision rompe
+> el certificado de una instancia. Escrito en `docs/runbook-alta-de-owner.md:105`.
+> Detalle del dia en [[2026-09-03]].
+
 > [!warning] 2026-09-03 · **zonas todas LIBRES**, y la tarjeta de F5.6 corregida
 > Nada reclamado. Trabajo del día: **Z12 · Docs** sobre `main`, sin código.
 >

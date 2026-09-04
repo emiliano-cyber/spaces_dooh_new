@@ -356,3 +356,40 @@ describe('el guion del servidor no puede quedarse esperando a nadie', () => {
     expect(guion.indexOf('NEEDRESTART_MODE')).toBeLessThan(primerApt)
   })
 })
+
+describe('crear la maquina y entrar en ella son dos cosas distintas', () => {
+  // Medido el 2026-09-03 en el ensayo de F5.6, con la maquina ya creada:
+  //
+  //   -- Base del servidor (Docker, nginx, certbot, ufw)
+  //   ssh: connect to host 157.245.143.158 port 22: Connection refused
+  //
+  //  `doctl compute droplet create --wait` espera a que el droplet este ACTIVE,
+  //  y `active` no quiere decir que `sshd` escuche: la maquina sigue arrancando.
+  //  El alta encadenaba el `ssh` inmediatamente.
+  //
+  //  `Connection refused` no es un problema de llave --eso seria
+  //  `Permission denied (publickey)`-- sino de que todavia no hay nadie
+  //  escuchando. Y el precio es el de siempre en este trecho: el droplet YA
+  //  existe y YA se cobra cuando el alta se planta.
+
+  const guion = ejecutable(PROVISION)
+
+  it('hay una espera explicita por el puerto 22', () => {
+    expect(guion).toMatch(/esperar_ssh\(\)/)
+  })
+
+  it('y ocurre DESPUES de crear y ANTES de entrar', () => {
+    const crear = guion.indexOf('droplet create')
+    const esperar = guion.indexOf('esperar_ssh "$HOST"')
+    const entrar = guion.indexOf('setup-droplet.sh')
+    expect(crear, 'no se encontro el create').toBeGreaterThan(0)
+    expect(esperar, 'no se llama a esperar_ssh con el host').toBeGreaterThan(crear)
+    expect(esperar, 'la espera va antes de entrar por ssh').toBeLessThan(entrar)
+  })
+
+  it('se rinde con un limite, en vez de esperar para siempre', () => {
+    // Un bucle sin techo deja el alta colgada sin decir nada, que es
+    // exactamente el defecto 18 con otra cara.
+    expect(guion).toMatch(/ESPERAS_SSH/)
+  })
+})

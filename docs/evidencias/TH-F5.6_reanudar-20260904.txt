@@ -1,0 +1,178 @@
+============================================================
+ F5.6 · REANUDAR EL ENSAYO — mañana del 4 de septiembre
+ Escrito la noche del 3/09 con el ensayo a media altura.
+ Todo se corre DESDE EL PADRE (137.184.107.53), como root.
+============================================================
+
+ DONDE QUEDAMOS, en cuatro lineas
+
+   · Droplet CREADO y VIVO:  ensayo · 597612031 · 157.245.143.158 · nyc1
+   · Instalado y configurado: Docker, PostgreSQL 14.24, nginx, certbot,
+     s3cmd, ufw. Base `spaces` creada, esquema aplicado y 75 migraciones.
+   · La aplicacion NO esta arrancada todavia (ver PASO 2, defecto 19).
+   · Falta: DNS -> certificado -> arrancar -> primera empresa ->
+     comprobar -> DESTRUIR.
+
+ PUERTAS YA SUPERADAS, no hay que repetirlas
+   PUERTA 0  el paquete aprobado es sha256:6494bbca... y `beta` y
+             `estable` comparten huella.
+   PUERTA 1  la simulacion enseño los siete pasos, con --image y
+             --ssh-keys, y ni una linea sin marcar.
+   PUERTA 2  aprovisionamiento hecho; el pull bajo EXACTAMENTE el
+             digest de la puerta 0; «75 aplicadas, 1 de datos
+             pendientes».
+
+ EVIDENCIA A CONSERVAR (esta en el PADRE, copiala antes de nada)
+   /tmp/dry-ensayo.txt      la puerta 1 entera
+   /tmp/alta-ensayo.txt     el intento que murio en el ssh (defecto 17)
+   /tmp/alta-ensayo-2.txt   el alta completa
+
+# ############################################################
+#  PASO 0 · REPONER EL ENTORNO   (la consola de ayer se borro)
+# ############################################################
+
+cd /var/www/Spaces && git pull --quiet && git log --oneline -1
+export REGISTRY=registry.digitalocean.com/registryspaces
+read -rs REGISTRY_TOKEN && export REGISTRY_TOKEN && echo "token de ${#REGISTRY_TOKEN} caracteres"
+
+#  ESPERADO: 71 caracteres. `DO_SSH_KEYS` ya NO hace falta: solo la
+#  usa --crear-droplet, y el droplet ya existe.
+
+# ############################################################
+#  PASO 1 · EL DNS, EN CLOUDFLARE      🚦 PUERTA 3
+# ############################################################
+#  La zona de space-os.io vive en CLOUDFLARE (gabe/ryleigh.ns.
+#  cloudflare.com), NO en DigitalOcean. Ayer se perdieron dos horas
+#  esperando un registro que nunca se creo: `dig` daba NXDOMAIN.
+#
+#  En el panel: zona space-os.io > DNS > Add record
+#
+#      Type          A
+#      Name          ensayo          <- SOLO eso. Si escribes el
+#                                       nombre completo queda
+#                                       ensayo.space-os.io.space-os.io
+#      IPv4          157.245.143.158
+#      Proxy status  DNS only  (nube GRIS, no la naranja)
+#      TTL           Auto
+#
+#  LA NUBE GRIS NO ES UN DETALLE: con el proxy encendido el nombre
+#  resuelve a direcciones de Cloudflare y no a tu droplet, y el
+#  certificado se pediria sobre la maquina equivocada. Que
+#  prueba.space-os.io devuelva la IP real confirma que los registros
+#  existentes estan en gris; crea este igual.
+
+dig +short ensayo.space-os.io @gabe.ns.cloudflare.com
+
+# 🚦 PUERTA 3 — tiene que devolver 157.245.143.158. Preguntando al
+# autoritativo contesta al instante: si no sale, NO es propagacion,
+# es que el registro no esta. No sigas: el certificado son 5 intentos
+# por hora.
+
+# ############################################################
+#  PASO 2 · CERTIFICADO Y ARRANQUE     🚦 PUERTA 4
+# ############################################################
+
+bash ./infra/scripts/provision-instancia.sh --host 157.245.143.158 \
+  --dominio ensayo.space-os.io --emitir-certificado --confirmar 2>&1 | tee /tmp/cert-ensayo.txt
+
+#  ESPERADO: certificado emitido y el vhost con TLS puesto.
+
+# --- ARRANCAR LA APLICACION. Este paso NO estaba en la tarjeta: es
+#     el DEFECTO 19, encontrado leyendo el 03/09. El alta escribe
+#     /opt/space-os/update.sh y su cron (17 4 * * *) pero NO lo
+#     ejecuta, asi que ahora mismo no hay ningun contenedor. Sin esto
+#     el PASO 3 hace curl al 3000 y recibe 000, que no explica nada.
+
+ssh root@157.245.143.158 '/opt/space-os/update.sh'
+ssh root@157.245.143.158 'docker ps --format "{{.Names}}  {{.Image}}  {{.Status}}"'
+ssh root@157.245.143.158 'curl -s -o /dev/null -w "local %{http_code}\n" http://127.0.0.1:3000/spaces-dooh/login/'
+
+# 🚦 PUERTA 4 — el contenedor corriendo con la imagen :estable y
+# `local 200`. Si esto no sale, el bootstrap NO puede funcionar:
+# para aqui y pasame la salida.
+
+# ############################################################
+#  PASO 3 · LA PRIMERA EMPRESA Y SU DUEÑO   🚦 PUERTA 5
+# ############################################################
+#  Usa un correo TUYO de verdad: el alta VALIDA el correo desde el
+#  24/08 y un marcador tipo <correo> lo rechaza. Es la identidad para
+#  entrar y la unica via de recuperar la clave, que se imprime UNA vez.
+
+bash ./infra/scripts/provision-instancia.sh --host 157.245.143.158 \
+  --dominio ensayo.space-os.io --instancia ensayo --email <TU-CORREO-REAL> --bootstrap --confirmar
+
+# 🚦 PUERTA 5 — `bootstrap 201`, y la clave temporal impresa.
+# GUARDALA para el paso 4. NO me la pases: no la necesito y no debe
+# quedar escrita en ningun sitio.
+#
+# NO uses `tee` en este comando: es el unico que imprime un secreto.
+
+# ############################################################
+#  PASO 4 · COMPROBAR — las 4 que cierran F5.6 + P13
+# ############################################################
+#  Estas cuatro son el criterio de aceptacion del plan
+#  (Plan_Instancias_Soberanas_v3.md:1660-1663). Sin ellas F5.6 NO
+#  cierra, y la tarjeta original no las traia.
+
+# 4a · desde TU PC
+#   curl.exe -s -o NUL -w 'login      -> %{http_code}\n' https://ensayo.space-os.io/spaces-dooh/login/
+#   curl.exe -s -o NUL -w 'metodos    -> %{http_code}\n' https://ensayo.space-os.io/spaces-dooh/api/auth/metodos/
+#   curl.exe -s -w  '\nsignup     -> %{http_code}\n' -X POST https://ensayo.space-os.io/spaces-dooh/api/signup/ -H "Content-Type: application/json" -d "{}"
+#   curl.exe -s -o NUL -w 'login-post -> %{http_code}\n' -X POST https://ensayo.space-os.io/spaces-dooh/api/auth/login/ -H "Content-Type: application/json" -d "{\"email\":\"no@existe.invalid\",\"password\":\"x\"}"
+#
+#   ESPERADO: 200 · 200 · 503 · 401, y sin aviso de certificado.
+#   · El 503 es el autoregistro CERRADO, que lo esta en toda la flota.
+#   · El 401 es la unica que NO se puede fingir: demuestra que la
+#     instancia habla con su base. El PADRE sirvio cuatro dias un
+#     login perfecto sin poder autenticar a nadie, y las cinco
+#     comprobaciones de entonces salian verdes.
+
+# 4b · ENTRA CON EL NAVEGADOR a https://ensayo.space-os.io/spaces-dooh/login/
+#     con el correo y la clave temporal del paso 3, y comprueba que el
+#     cambio forzado de contraseña funciona. Es la primera vez que
+#     alguien ve esta aplicacion recien instalada.
+
+# 4c · que la puerta del alta se cerro SOLA: repite el paso 3 TAL CUAL
+#      ESPERADO: `bootstrap 404`. NO 201. Un 201 aqui seria GRAVE:
+#      significaria poder crear una segunda organizacion en la
+#      instancia de un owner.
+
+# 4d · idempotencia del actualizador
+ssh root@157.245.143.158 '/opt/space-os/update.sh --dry-run'
+#      ESPERADO: dice `sin cambios`.
+
+# --- P13 · LA MONEDA. Pendiente desde el 07/08 y este es el unico
+#     momento en que se puede contestar: una base recien nacida.
+ssh root@157.245.143.158 "sudo -u postgres psql -d spaces -tc \"select table_name, column_name, column_default from information_schema.columns where column_default like '%PEN%' order by 1,2\""
+#      ESPERADO: CERO filas. Si sale alguna, una instancia nueva nace
+#      con moneda de Peru operando en Mexico, y eso toca dinero.
+
+ssh root@157.245.143.158 "sudo -u postgres psql -d spaces -tAc 'select count(*) from schema_migrations'"
+#      ESPERADO: 75.
+
+# ############################################################
+#  PASO 5 · DESTRUIR. No se te olvide.
+# ############################################################
+
+doctl compute droplet list --format ID,Name,PublicIPv4,Status | grep -i ensayo
+doctl compute droplet delete 597612031
+
+#  Y borra el registro A de ensayo.space-os.io en Cloudflare.
+#
+#  Y decide que pasa con el token de doctl: si se queda, apuntalo en
+#  el inventario del ADR 0025 con su fecha; si se revoca:
+#      doctl auth remove --context default   + borrarlo en la web.
+#  Lo que no debe pasar es que quede ahi sin que nadie sepa.
+
+# ############################################################
+#  LO QUE SIGUE PENDIENTE, aparte del ensayo
+# ############################################################
+#   · EMPUJAR la rama `fix/alta-sin-bit-de-ejecucion` (3 commits:
+#     defectos 16, 17 y 18) y abrir el PR.
+#   · DEFECTO 19 sin codificar: se escribe cuando el PASO 2 demuestre
+#     a mano que arrancar asi funciona. Medir primero, codificar
+#     despues.
+#   · El TOKEN de DigitalOcean sigue con permisos de mas: `doctl
+#     balance get` devolvio el saldo y deberia dar 403. Reemitirlo con
+#     `droplet` y `ssh_key` unicamente, y confirmar el 2FA de la cuenta.
+# ############################################################
