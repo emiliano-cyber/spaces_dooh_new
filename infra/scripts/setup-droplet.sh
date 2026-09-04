@@ -91,6 +91,19 @@ echo "→ Instalando Nginx..."
 apt-get install -y -qq nginx
 systemctl enable nginx
 systemctl start nginx
+# El sitio de ejemplo de Ubuntu declara `default_server` en el puerto 80, y la
+# plantilla de una instancia trae el SUYO a proposito (`instancia.conf.tpl:66`, el
+# bloque que atrapa las peticiones por IP). Dos default_server y nginx se NIEGA a
+# arrancar: «a duplicate default server for 0.0.0.0:80».
+#
+# Medido el 2026-09-04 en el ensayo de F5.6, y lo caro es cuando pasa: el vhost con
+# TLS ya esta escrito en disco cuando `nginx -t` falla, asi que nginx sigue con la
+# configuracion vieja cargada y NO ARRANCA en el siguiente reinicio. Un alta «casi
+# terminada» deja una instancia que muere sola.
+#
+# Y el proyecto ya lo sabia: `infra/nginx/padre-ip.conf:25` lo dice desde que se
+# monto el PADRE. La leccion existia, pero en un archivo que el alta no lee.
+rm -f /etc/nginx/sites-enabled/default
 echo "  ✓ Nginx instalado y habilitado"
 
 # ─── Certbot ──────────────────────────────────────────────────────────────────

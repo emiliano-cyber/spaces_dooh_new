@@ -393,3 +393,69 @@ describe('crear la maquina y entrar en ella son dos cosas distintas', () => {
     expect(guion).toMatch(/ESPERAS_SSH/)
   })
 })
+
+describe('el certificado no se puede pedir sin una cuenta', () => {
+  // Medido el 2026-09-04 en el ensayo, con el DNS ya resolviendo:
+  //
+  //   You should register before running non-interactively, or provide
+  //   --agree-tos and --email <email_address> flags.
+  //
+  //  La llamada llevaba `--agree-tos --no-eff-email` pero NINGUN correo, y con
+  //  `-n` certbot no puede preguntarlo. En una maquina recien creada no hay
+  //  cuenta de Let's Encrypt, asi que esto falla en la PRIMERA instancia de cada
+  //  droplet -- o sea, en todas.
+  //
+  //  De quien es ese correo es una DECISION que no toma este guion: si es del
+  //  owner, los avisos de caducidad le llegan a el y AS OOH no se entera; si es
+  //  de AS OOH, se entera quien renueva. Por eso entra por entorno y el guion
+  //  para si falta, en vez de inventarse uno.
+
+  const guion = ejecutable(PROVISION)
+
+  it('pasa un correo a certbot, y sale del entorno', () => {
+    // Comillas simples dentro, como `-d '$DOMINIO'`: el argumento de `remoto` va
+    // entre dobles, asi que la variable la expande el guion y las simples son
+    // para el shell del otro lado.
+    expect(guion).toContain('certbot certonly')
+    expect(guion).toContain("-m '$CERTBOT_EMAIL'")
+  })
+
+  it('para ANTES de llamar a certbot si no lo tiene', () => {
+    const guard = guion.indexOf('falta CERTBOT_EMAIL')
+    const llamada = guion.indexOf('certbot certonly')
+    expect(guard, 'no hay guard de CERTBOT_EMAIL').toBeGreaterThan(0)
+    expect(guard).toBeLessThan(llamada)
+  })
+
+  it('y no quema ninguna direccion real', () => {
+    expect(PROVISION).not.toMatch(/-m ['"]?[a-z0-9._-]+@[a-z0-9.-]+\.[a-z]{2,}/i)
+  })
+})
+
+describe('nginx no puede tener dos sitios por omision', () => {
+  // Medido el 2026-09-04, en el ultimo paso del alta:
+  //
+  //   nginx: [emerg] a duplicate default server for 0.0.0.0:80
+  //          in /etc/nginx/sites-enabled/ensayo.space-os.io:66
+  //
+  //  `instancia.conf.tpl:66` trae su propio `default_server` A PROPOSITO --el
+  //  bloque que atrapa las peticiones por IP-- y Ubuntu deja el suyo activo en
+  //  `sites-enabled/default`. Dos, y nginx se niega.
+  //
+  //  Lo caro: el vhost roto YA esta en disco cuando `nginx -t` falla, asi que
+  //  nginx sigue sirviendo la configuracion vieja que tenia cargada y **no
+  //  arranca si la maquina se reinicia**. Un alta «casi terminada» deja una
+  //  instancia que muere en el primer reinicio.
+  //
+  //  Y esto el proyecto YA lo sabia: `infra/nginx/padre-ip.conf:25` lo dice
+  //  desde que se monto el PADRE. La leccion existia y estaba en otro archivo.
+
+  it('el alta retira el sitio de ejemplo de Ubuntu', () => {
+    expect(ejecutable(SETUP)).toMatch(/rm -f \/etc\/nginx\/sites-enabled\/default/)
+  })
+
+  it('y lo hace al instalar nginx, no despues de configurarlo', () => {
+    const g = ejecutable(SETUP)
+    expect(g.indexOf('sites-enabled/default')).toBeLessThan(g.indexOf('Configurando firewall'))
+  })
+})

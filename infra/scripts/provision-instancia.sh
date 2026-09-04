@@ -73,6 +73,13 @@ DO_TAMANO="${DO_TAMANO:-}"
 # con contrasena de root por correo y el paso 2 --que es un `ssh`-- muere con el
 # droplet ya creado y cobrandose. Se listan con `doctl compute ssh-key list`.
 DO_SSH_KEYS="${DO_SSH_KEYS:-}"
+# El correo de la cuenta de Let's Encrypt. En una maquina recien creada NO hay
+# cuenta, y `certbot -n` no puede preguntarla: sin esto el certificado falla en la
+# PRIMERA instancia de cada droplet, o sea en todas. De quien es ese correo es una
+# DECISION --si es del owner, los avisos de caducidad le llegan a el y AS OOH no se
+# entera; si es de AS OOH, se entera quien renueva-- asi que entra por entorno y el
+# guion para si falta, en vez de inventarse uno.
+CERTBOT_EMAIL="${CERTBOT_EMAIL:-}"
 DO_IMAGEN="${DO_IMAGEN:-ubuntu-22-04-x64}"
 
 # El registro de imagenes, por ENTORNO y no por argumento, por dos motivos
@@ -241,6 +248,13 @@ secreto() {
 #  MODO C · --emitir-certificado   (se corre CUANDO el owner ya apunto su DNS)
 # ============================================================================
 if [[ "$EMITIR_CERT" -eq 1 ]]; then
+  [[ -n "$CERTBOT_EMAIL" ]] || {
+    echo "provision: falta CERTBOT_EMAIL en el entorno." >&2
+    echo "           Es la cuenta de Let's Encrypt que recibe los avisos de" >&2
+    echo "           caducidad. Una maquina nueva no tiene cuenta y certbot -n" >&2
+    echo "           no puede preguntarla." >&2
+    exit "$EX_USO"
+  }
   paso "Emitiendo certificado para $DOMINIO"
 
   # HTTP-01 por webroot y NO `--nginx`: el reto lo sirve el vhost de solo-HTTP
@@ -250,7 +264,8 @@ if [[ "$EMITIR_CERT" -eq 1 ]]; then
   #
   # `--webroot` tampoco necesita parar nginx, que es lo que obliga
   # `--standalone` y lo que convierte una renovacion en una caida.
-  remoto "certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email -d '$DOMINIO'"
+  remoto "certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
+    -m '$CERTBOT_EMAIL' -d '$DOMINIO'"
 
   paso "Instalando el vhost con TLS"
   # Hasta aqui el sitio era solo HTTP. Ahora si existe el certificado, asi que
