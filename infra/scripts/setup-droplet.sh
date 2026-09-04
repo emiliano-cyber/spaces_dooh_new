@@ -18,6 +18,25 @@ echo "└───────────────────────�
 echo ""
 
 # ─── Sistema ──────────────────────────────────────────────────────────────────
+# ─── Que nada se pare a preguntar ─────────────────────────────────────────────
+#
+#  Este guion viaja por `ssh root@host 'bash -s'`: no hay terminal, y stdin lo
+#  esta consumiendo bash para leer el propio guion. Cualquier dialogo que se abra
+#  aqui espera una respuesta que NO puede llegar nunca.
+#
+#  Medido el 2026-09-03 en el ensayo de F5.6, y costo una hora: el `apt-get
+#  upgrade` de abajo abre el menu de `needrestart` --«Which services should be
+#  restarted?»-- que las imagenes de Ubuntu 22.04 de DigitalOcean traen puesto, y
+#  se queda ahi. Colgado no da error: parece que va lento.
+#
+#  Demostrado repitiendolo: el MISMO guion sobre la MISMA maquina, con estas dos
+#  lineas, termino en minutos.
+#
+#  Van AQUI y no en quien lanza el guion. Un alta que depende de que el operador
+#  recuerde dos variables se cuelga el dia que no las recuerde.
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+
 echo "→ Actualizando sistema..."
 apt-get update -qq && apt-get upgrade -y -qq
 echo "  ✓ Sistema actualizado"

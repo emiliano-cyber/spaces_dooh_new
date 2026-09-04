@@ -324,3 +324,35 @@ describe('los guiones que la documentacion invoca con `./` se pueden ejecutar', 
     expect(enGit(ruta), `${ruta} no arrancaria en un clon limpio`).toBe('100755')
   })
 })
+
+describe('el guion del servidor no puede quedarse esperando a nadie', () => {
+  // Medido el 2026-09-03 en el ensayo de F5.6: colgado UNA HORA en la linea del
+  // `apt-get upgrade`. En Ubuntu 22.04 --y las imagenes de DigitalOcean lo
+  // traen-- ese upgrade abre el menu de `needrestart` («Which services should be
+  // restarted?») y espera una respuesta que aqui NO puede llegar: el guion viaja
+  // por `ssh root@host 'bash -s'`, asi que no hay terminal ni stdin libre.
+  //
+  //  Demostrado sin lugar a duda porque se repitio: el MISMO guion sobre la
+  //  MISMA maquina, con las dos variables puestas, termino en minutos.
+  //
+  //  Van dentro del guion y no en quien lo lanza. Un aprovisionamiento que
+  //  depende de que el operador se acuerde de dos variables de entorno se cuelga
+  //  el dia que no se acuerde -- y colgado no da error: parece que va lento.
+
+  const guion = ejecutable(SETUP)
+
+  it('fija DEBIAN_FRONTEND=noninteractive', () => {
+    expect(guion).toMatch(/export DEBIAN_FRONTEND=noninteractive/)
+  })
+
+  it('y NEEDRESTART_MODE=a, que es el que colgo el ensayo', () => {
+    expect(guion).toMatch(/export NEEDRESTART_MODE=a/)
+  })
+
+  it('las dos ANTES del primer apt-get, o no sirven de nada', () => {
+    const primerApt = guion.indexOf('apt-get')
+    expect(primerApt, 'el guion ya no llama a apt-get?').toBeGreaterThan(0)
+    expect(guion.indexOf('DEBIAN_FRONTEND')).toBeLessThan(primerApt)
+    expect(guion.indexOf('NEEDRESTART_MODE')).toBeLessThan(primerApt)
+  })
+})
