@@ -160,3 +160,81 @@ describe('todo lo demas', () => {
     expect(r.status).toBe(405)
   })
 })
+
+// @ts-expect-error — módulo .mjs sin tipos
+import { filasDeLaFlota, consultarConToken } from './servidor.mjs'
+
+describe('la costura entre el panel y estado.mjs', () => {
+  // Los dos fallos que esto atrapa se midieron EN PRODUCCION el 2026-09-04, con
+  // el panel ya publicado, porque las pruebas de arriba inyectan `obtenerFilas`
+  // y nunca tocaban el cableado de verdad. La leccion es la de siempre aqui:
+  // probar la decision y dejar sin probar la union es como no probar.
+  //
+  //  1. `leerReportes()` devuelve `{reportes, avisos}`, NO una lista. Pasarle el
+  //     objeto a `fusionar()` daba «reportes is not iterable» -- ruidoso, se ve.
+  //  2. `cargarInventario()` devuelve `canales`, no `versiones`. Leer la clave
+  //     que no es daba `undefined`, y con eso `clasificar()` marca REZAGADA a
+  //     TODA la flota aunque este al dia. Ese no se ve: miente en silencio.
+  //
+  //  Los dobles de aqui devuelven las MISMAS formas que los de verdad. Si esas
+  //  formas cambian, esta prueba se cae, que es justo para lo que esta.
+
+  const inventarioFalso = async () => ({
+    archivo: 'flota.json',
+    esEjemplo: false,
+    canales: { estable: 'v0.3.0', beta: 'v0.3.0' },
+    instancias: [{ nombre: 'demo', dominio: 'demo.invalid', canal: 'beta' }],
+  })
+
+  it('no se rompe con lo que leerReportes() devuelve de verdad', async () => {
+    const filas = await filasDeLaFlota({
+      dirEstado: '/lo/que/sea',
+      cargar: inventarioFalso,
+      consultarUna: async (i: any) => ({ ...i, version: 'v0.3.0', fecha: '2026-09-04T00:00:00Z' }),
+      leer: async () => ({ reportes: [], avisos: [] }),
+    })
+    expect(filas).toHaveLength(1)
+  })
+
+  it('una instancia que corre la version de su canal sale AL DIA, no rezagada', async () => {
+    const filas = await filasDeLaFlota({
+      dirEstado: undefined,
+      cargar: inventarioFalso,
+      consultarUna: async (i: any) => ({ ...i, version: 'v0.3.0', fecha: '2026-09-04T00:00:00Z' }),
+      leer: async () => ({ reportes: [], avisos: [] }),
+    })
+    expect(filas[0].estado, 'si sale rezagada, se esta leyendo mal el inventario').toBe('al-dia')
+  })
+
+  it('y una que corre otra version, rezagada', async () => {
+    const filas = await filasDeLaFlota({
+      cargar: inventarioFalso,
+      consultarUna: async (i: any) => ({ ...i, version: 'v0.2.0', fecha: '2026-09-04T00:00:00Z' }),
+      leer: async () => ({ reportes: [], avisos: [] }),
+    })
+    expect(filas[0].estado).toBe('rezagada')
+  })
+})
+
+describe('la consulta lleva su token, o la flota entera miente', () => {
+  it('manda `x-flota-token` con el token de ESA instancia', async () => {
+    // El tercer fallo del 2026-09-04, y el unico que no daba error: se llamaba
+    // a `consultar()` pelado. Sin token, `/api/version` contesta `{ok:true}` y
+    // nada mas, asi que la instancia sale `sin-respuesta` -- exactamente igual
+    // que si estuviera caida. Una flota entera en rojo por una cabecera que
+    // falta es de lo peor que puede hacer un panel de estado.
+    process.env.FLOTA_TOKEN_DEMO = 'tok-de-demo'
+    let vistas: any = null
+    await consultarConToken(
+      { nombre: 'demo', dominio: 'demo.invalid', canal: 'beta' },
+      {
+        pedir: async (_u: string, o: any) => {
+          vistas = o.headers
+          return { ok: true, status: 200, json: async () => ({ ok: true, version: 'v0.3.0' }) }
+        },
+      },
+    )
+    expect(vistas?.['x-flota-token']).toBe('tok-de-demo')
+    delete process.env.FLOTA_TOKEN_DEMO
+  })
+})

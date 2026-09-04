@@ -14,7 +14,7 @@
 
 import { createServer } from 'node:http'
 import { verificarAcceso } from './acceso.mjs'
-import { cargarInventario, consultar, leerReportes, fusionar, resumen, COLUMNAS } from './estado.mjs'
+import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, COLUMNAS } from './estado.mjs'
 
 /** nginx puede pasar el prefijo o recortarlo según lleve barra el `proxy_pass`. */
 export const RUTAS = ['/flota/', '/flota', '/']
@@ -135,13 +135,35 @@ export async function manejar(peticion, deps) {
   return { status: 200, cabeceras: SIN_CACHE, cuerpo: pagina(filas, acceso.usuario) }
 }
 
-/** El recorrido de verdad: inventario → consulta → reportes → fusión → resumen. */
+/**
+ * Una consulta CON su token. Sin el, `/api/version` contesta `{ok:true}` y nada
+ * mas, asi que la instancia sale `sin-respuesta` -- indistinguible de una caida.
+ * `estado.mjs:316` ya lo hacia asi; aqui se llamaba a `consultar()` pelado.
+ */
+export function consultarConToken(instancia, opciones = {}) {
+  return consultar(instancia, { token: tokenDe(instancia.nombre), ...opciones })
+}
+
+/**
+ * El recorrido de verdad: inventario -> consulta -> reportes -> fusion -> resumen.
+ *
+ * Las tres piezas entran por parametro para poder probar LA COSTURA, que es
+ * donde estuvieron los tres fallos del 2026-09-04: `leerReportes()` devuelve
+ * `{reportes, avisos}` y no una lista, `cargarInventario()` devuelve `canales` y
+ * no `versiones`, y la consulta necesita token. Los dos primeros se pasaban mal
+ * y el tercero faltaba.
+ */
 export async function filasDeLaFlota(opciones = {}) {
-  const { dirEstado } = opciones
-  const inventario = await cargarInventario()
-  const consultas = await Promise.all(inventario.instancias.map((i) => consultar(i)))
-  const reportes = dirEstado ? await leerReportes(dirEstado, inventario.instancias) : []
-  return resumen(fusionar(consultas, reportes), inventario.versiones)
+  const {
+    dirEstado,
+    cargar = cargarInventario,
+    consultarUna = consultarConToken,
+    leer = leerReportes,
+  } = opciones
+  const inventario = await cargar()
+  const consultas = await Promise.all(inventario.instancias.map((i) => consultarUna(i)))
+  const { reportes } = dirEstado ? await leer(dirEstado, inventario.instancias) : { reportes: [] }
+  return resumen(fusionar(consultas, reportes), inventario.canales)
 }
 
 /** El servidor de verdad. Solo traduce `manejar()` a HTTP. */
