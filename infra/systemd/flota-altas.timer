@@ -1,0 +1,24 @@
+# ============================================================================
+#  Despierta al ejecutor de altas cada minuto.  (ADR 0027)
+#
+#  Cada minuto y no cada segundo porque un alta tarda minutos, y la cola es de
+#  UNA A LA VEZ: mientras haya una en curso, `siguientePendiente()` no devuelve
+#  nada y la pasada termina en el acto sin hacer nada.
+#
+#  `Persistent=false` a proposito: si el PADRE estuvo apagado, NO se recuperan
+#  las pasadas perdidas de golpe. Aqui una pasada perdida no es un dato que
+#  falte, es una maquina que no se creo -- y crearla tarde, en rafaga y sin
+#  nadie mirando es peor que crearla cuando alguien vuelva a pedirla.
+# ============================================================================
+[Unit]
+Description=SPACE OS — despierta al ejecutor de altas (ADR 0027)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=15s
+Persistent=false
+Unit=flota-altas.service
+
+[Install]
+WantedBy=timers.target

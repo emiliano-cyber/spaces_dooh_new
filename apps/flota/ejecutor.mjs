@@ -27,6 +27,9 @@ export const EN_CURSO = 'en-curso'
 export const TERMINADA = 'terminada'
 export const FALLIDA = 'fallida'
 
+/** Aprovisionada, pero el certificado espera a que el DNS resuelva (ADR 0027). */
+export const ESPERANDO_DNS = 'esperando-dns'
+
 /** El guion de siempre. Esto es una capa ENCIMA, no un sustituto. */
 export const GUION = '/var/www/Spaces/infra/scripts/provision-instancia.sh'
 
