@@ -91,6 +91,7 @@ DIR_SOLICITUDES=/var/lib/space-os/solicitudes
 DO_REGION=nyc1
 DO_TAMANO=s-1vcpu-1gb
 DO_SSH_KEYS=CAMBIAME-fingerprint-de-altas
+DIGITALOCEAN_ACCESS_TOKEN=CAMBIAME
 REGISTRY=registry.digitalocean.com/registryspaces
 REGISTRY_TOKEN=CAMBIAME
 CLOUDFLARE_TOKEN=CAMBIAME
@@ -99,6 +100,15 @@ ENV
 echo ok; nano /etc/space-os/ejecutor.env
 echo ok; chown altas:altas /etc/space-os/ejecutor.env && chmod 600 /etc/space-os/ejecutor.env
 
+#  >>> `DIGITALOCEAN_ACCESS_TOKEN` NO ESTABA Y HACE FALTA. La
+#  >>> autenticacion de `doctl` es POR USUARIO: la que se hizo el
+#  >>> 03/09 quedo en el .config de root, y `altas` no la puede
+#  >>> leer. Sin esta variable --que doctl entiende sola-- el
+#  >>> primer `droplet create` falla por falta de autenticacion, y
+#  >>> falla DENTRO del alta. Anadida el 2026-09-04.
+#  >>> Aprovecha y reemitelo con permisos minimos: `droplet` y
+#  >>> `ssh_key` (lectura). El de hoy devuelve el saldo.
+#
 #  `DO_SSH_KEYS` es el fingerprint de la clave de `altas` del
 #  paso 1 -- NO la de `padre`. Es la que se mete DENTRO del
 #  droplet nuevo, y es la unica con la que el ejecutor podra
