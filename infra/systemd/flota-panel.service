@@ -36,6 +36,11 @@ RestartSec=5s
 #  caida y es un cortafuegos.
 ProtectSystem=strict
 ReadWritePaths=/var/www/Spaces/apps/flota/estado
+# La cola de solicitudes de alta (ADR 0027). Va DECLARADA o no se puede escribir:
+# `ProtectSystem=strict` deja todo el disco en solo lectura salvo lo que aparezca
+# aqui. Medido el 2026-09-05 -- «EROFS: read-only file system» al pedir un alta,
+# con los permisos del directorio y los grupos del proceso perfectamente bien.
+ReadWritePaths=/var/lib/space-os/solicitudes
 ProtectHome=yes
 PrivateTmp=yes
 PrivateDevices=yes
