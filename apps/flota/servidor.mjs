@@ -201,8 +201,12 @@ async function pedirAlta(entrada, ctx) {
   // varios navegadores NO mandan `Origin`. Rechazar por su ausencia rompia el
   // caso legitimo: medido el 2026-09-05 con el panel ya desplegado, y el propio
   // registro lo dijo -- `origen ajeno: null`.
-  if (origenEsperado && origen && origen !== origenEsperado) {
-    registrar({ cuando: new Date().toISOString(), permitido: false, motivo: `origen ajeno: ${origen}`, ruta: '/flota/altas/' })
+  // `Origin: null` es un valor REAL que manda el navegador cuando el origen es
+  // «opaco», y es una cadena: existe. Vale como ausente, porque no dice de donde
+  // viene nada. Medido el 2026-09-05, al tercer intento con este mismo cerrojo.
+  const origenDice = origen && origen !== 'null' ? origen : null
+  if (origenEsperado && origenDice && origenDice !== origenEsperado) {
+    registrar({ cuando: new Date().toISOString(), permitido: false, motivo: `origen ajeno: ${origenDice}`, ruta: '/flota/altas/' })
     return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
   }
 

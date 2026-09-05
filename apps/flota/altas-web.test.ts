@@ -92,6 +92,17 @@ describe('CSRF: que no lo pidas tú sin querer', () => {
     expect(dd.creadas).toHaveLength(1)
   })
 
+  it('un Origin literal `null` tampoco rechaza', async () => {
+    // Medido el 2026-09-05, y es el tercer intento con este mismo cerrojo: el
+    // navegador SI manda la cabecera, con el valor literal `null` -- el origen
+    // «opaco». Comprobar solo que exista no basta, porque "null" es una cadena
+    // y por tanto existe. Vale como ausente: no dice de donde viene.
+    const dd = deps()
+    const r = await manejar(post(BUENA, { origen: 'null' }), dd.d)
+    expect(r.status, 'Origin: null no identifica a nadie, no puede rechazar').toBe(303)
+    expect(dd.creadas).toHaveLength(1)
+  })
+
   it('y si el Origin es de otro sitio, tampoco', async () => {
     const dd = deps()
     const r = await manejar(post(BUENA, { origen: 'https://malo.example' }), dd.d)
