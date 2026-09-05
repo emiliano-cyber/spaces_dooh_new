@@ -177,7 +177,12 @@ async function pedirAlta(entrada, ctx) {
   const { origen, csrf, cookie, cuerpo } = entrada
   const { crearSolicitud, origenEsperado, acceso, registrar } = ctx
 
-  if (origenEsperado && origen !== origenEsperado) {
+  // «Si VIENE y no coincide, rechaza» -- no «si no coincide». Una cabecera
+  // ausente no es prueba de nada, y en un envio de formulario del MISMO sitio
+  // varios navegadores NO mandan `Origin`. Rechazar por su ausencia rompia el
+  // caso legitimo: medido el 2026-09-05 con el panel ya desplegado, y el propio
+  // registro lo dijo -- `origen ajeno: null`.
+  if (origenEsperado && origen && origen !== origenEsperado) {
     registrar({ cuando: new Date().toISOString(), permitido: false, motivo: `origen ajeno: ${origen}`, ruta: '/flota/altas/' })
     return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
   }

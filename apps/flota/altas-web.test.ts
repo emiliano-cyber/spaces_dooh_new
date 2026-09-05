@@ -80,6 +80,18 @@ describe('CSRF: que no lo pidas tú sin querer', () => {
     expect(dd.creadas).toHaveLength(0)
   })
 
+  it('un POST SIN Origin no se rechaza por eso', async () => {
+    // Medido el 2026-09-05 con el panel ya desplegado: `origen ajeno: null`. En un
+    // envio de formulario del MISMO sitio varios navegadores NO mandan `Origin`.
+    // La regla correcta es «si VIENE y no coincide, rechaza» -- una cabecera
+    // ausente no es prueba de nada, y rechazar por su ausencia rompe el caso
+    // legitimo. Quedan el CSRF y el `sameSite: lax` de la cookie de sesion.
+    const dd = deps()
+    const r = await manejar(post(BUENA, { origen: undefined }), dd.d)
+    expect(r.status, 'un formulario del propio sitio tiene que pasar').toBe(303)
+    expect(dd.creadas).toHaveLength(1)
+  })
+
   it('y si el Origin es de otro sitio, tampoco', async () => {
     const dd = deps()
     const r = await manejar(post(BUENA, { origen: 'https://malo.example' }), dd.d)
