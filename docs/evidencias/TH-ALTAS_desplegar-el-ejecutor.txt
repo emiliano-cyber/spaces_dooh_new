@@ -1,0 +1,223 @@
+============================================================
+ TH-ALTAS · DESPLEGAR EL ALTA DESDE EL PANEL
+ Se corre DESDE EL PADRE (137.184.107.53), como root.
+ ADR 0027 · Fecha: 2026-09-04
+============================================================
+
+ QUE ES ESTO
+   El formulario de `space-os.io/flota/altas/` deja de ser una
+   pagina bonita y pasa a crear maquinas de verdad.
+
+ >>> LEE ESTO ANTES QUE NADA <<<
+   A partir del PASO 5, un formulario en una pagina web CREA UN
+   DROPLET Y EMPIEZA A COBRARSE. La primera prueba NO puede ser
+   con un cliente: se hace con un `ensayo2` desechable y se
+   destruye. Igual que el 04/09.
+
+ COMO ESTA PARTIDO, y por que importa para los permisos
+   · `flota`  corre el PANEL. Ve internet, NO tiene ninguna llave.
+     Lo unico que hace es ESCRIBIR una solicitud.
+   · `altas`  corre el EJECUTOR. NO escucha en ningun puerto, y
+     es el unico que tiene los tokens.
+   Si los dos acaban siendo el mismo usuario, la particion es
+   decorativa y el ADR 0027 no vale nada.
+
+# ############################################################
+#  PASO 1 · EL USUARIO `altas` Y SU LLAVE   🚦 PUERTA 1
+# ############################################################
+#
+#  >>> LA TRAMPA QUE MAS CARO SALE, y no se ve hasta que falla:
+#  >>> el ejecutor entra por `ssh` a la maquina RECIEN CREADA. La
+#  >>> llave que uso el 04/09 es la de `root`
+#  >>> (/root/.ssh/id_ed25519), y `altas` NO la puede leer. Sin
+#  >>> llave propia, el alta muere en el primer `ssh` con el
+#  >>> droplet YA CREADO Y COBRANDOSE.
+
+echo ok; id altas || useradd --system --home /var/lib/altas --create-home --shell /usr/sbin/nologin altas
+
+echo ok; sudo -u altas ssh-keygen -t ed25519 -C "altas@padre" -f /var/lib/altas/.ssh/id_ed25519 -N ""
+
+#  Sin passphrase: el alta corre sin nadie delante y una
+#  passphrase la dejaria colgada esperando para siempre.
+
+echo ok; sudo -u altas ssh-keygen -E md5 -lf /var/lib/altas/.ssh/id_ed25519.pub
+echo ok; doctl compute ssh-key create altas --public-key "$(cat /var/lib/altas/.ssh/id_ed25519.pub)"
+
+#  (Con doctl instalado como snap, `--public-key-file` sobre una
+#   ruta asi FALLA por confinamiento. Se pasa el contenido, que
+#   lo lee el shell. Medido el 03/09.)
+
+echo ok; doctl compute ssh-key list
+
+# 🚦 PUERTA 1 — la lista tiene que traer DOS claves, `padre` y
+# `altas`, y el fingerprint MD5 de `altas` coincidir con el de
+# arriba. DigitalOcean muestra MD5 y `ssh-keygen -lf` da SHA256:
+# se comparan con `-E md5` o no coinciden nunca.
+
+# ############################################################
+#  PASO 2 · EL DIRECTORIO COMPARTIDO         🚦 PUERTA 2
+# ############################################################
+#  El panel escribe y el ejecutor lee. Es lo unico que comparten.
+
+echo ok; groupadd -f altacola && usermod -aG altacola flota && usermod -aG altacola altas
+echo ok; install -d -o altas -g altacola -m 2770 /var/lib/space-os/solicitudes
+echo ok; ls -ld /var/lib/space-os/solicitudes
+
+#  ESPERADO: `drwxrws---` con grupo `altacola`. El bit `s` del
+#  grupo (2770) hace que lo que escriba `flota` nazca con grupo
+#  `altacola` y `altas` pueda leerlo. Sin el, el panel escribe
+#  solicitudes que el ejecutor NO puede abrir -- y eso se ve como
+#  «pedi el alta y no pasa nada».
+
+# 🚦 PUERTA 2 — compruebalo de verdad, no de palabra:
+
+echo ok; sudo -u flota touch /var/lib/space-os/solicitudes/prueba.json && sudo -u altas cat /var/lib/space-os/solicitudes/prueba.json && rm -f /var/lib/space-os/solicitudes/prueba.json && echo "flota escribe y altas lee: OK"
+
+# ############################################################
+#  PASO 3 · LAS LLAVES DEL EJECUTOR          🚦 PUERTA 3
+# ############################################################
+#  ESTE ARCHIVO ES EL QUE NO PUEDE LEER EL PANEL. Es toda la
+#  seguridad del diseño en un `chmod`.
+#
+#  ANTES, en las consolas web:
+#   · DigitalOcean: token con permisos SOLO de droplets (crear,
+#     leer, borrar) y 2FA puesto en la cuenta.
+#   · Cloudflare: token con `DNS:Edit` SOLO sobre la zona
+#     space-os.io. Nunca uno de cuenta.
+#   · El ID de la zona sale del panel de Cloudflare, en Overview.
+
+echo ok; cat > /etc/space-os/ejecutor.env <<'ENV'
+DIR_SOLICITUDES=/var/lib/space-os/solicitudes
+DO_REGION=nyc1
+DO_TAMANO=s-1vcpu-1gb
+DO_SSH_KEYS=CAMBIAME-fingerprint-de-altas
+DIGITALOCEAN_ACCESS_TOKEN=CAMBIAME
+REGISTRY=registry.digitalocean.com/registryspaces
+REGISTRY_TOKEN=CAMBIAME
+CLOUDFLARE_TOKEN=CAMBIAME
+CLOUDFLARE_ZONAS={"space-os.io":"CAMBIAME-id-de-zona"}
+ENV
+echo ok; nano /etc/space-os/ejecutor.env
+echo ok; chown altas:altas /etc/space-os/ejecutor.env && chmod 600 /etc/space-os/ejecutor.env
+
+#  >>> `DIGITALOCEAN_ACCESS_TOKEN` NO ESTABA Y HACE FALTA. La
+#  >>> autenticacion de `doctl` es POR USUARIO: la que se hizo el
+#  >>> 03/09 quedo en el .config de root, y `altas` no la puede
+#  >>> leer. Sin esta variable --que doctl entiende sola-- el
+#  >>> primer `droplet create` falla por falta de autenticacion, y
+#  >>> falla DENTRO del alta. Anadida el 2026-09-04.
+#  >>> Aprovecha y reemitelo con permisos minimos: `droplet` y
+#  >>> `ssh_key` (lectura). El de hoy devuelve el saldo.
+#
+#  `DO_SSH_KEYS` es el fingerprint de la clave de `altas` del
+#  paso 1 -- NO la de `padre`. Es la que se mete DENTRO del
+#  droplet nuevo, y es la unica con la que el ejecutor podra
+#  entrar.
+
+# 🚦 PUERTA 3 — que el panel NO pueda leerlo:
+
+echo ok; sudo -u flota cat /etc/space-os/ejecutor.env 2>&1 | head -1
+
+#  ESPERADO: `Permission denied`. Si `flota` lo lee, la
+#  particion es decorativa y NO SIGAS: quien comprometa el panel
+#  se lleva los dos tokens.
+
+# ############################################################
+#  PASO 4 · EL PANEL APUNTA A LA COLA        🚦 PUERTA 4
+# ############################################################
+
+echo ok; cat >> /etc/space-os/flota.env <<'ENV'
+DIR_SOLICITUDES=/var/lib/space-os/solicitudes
+ORIGEN_PANEL=https://space-os.io
+ENV
+echo ok; systemctl restart flota-panel && systemctl status flota-panel --no-pager | head -4
+
+#  `ORIGEN_PANEL` no es decoracion: es uno de los tres cerrojos
+#  del POST. Sin el, el formulario acepta peticiones que vengan
+#  de otra pagina con tu sesion puesta.
+
+# 🚦 PUERTA 4 — entra a https://space-os.io/flota/altas/ con el
+# navegador. Tiene que salir el formulario y una tabla vacia.
+# Todavia NO rellenes nada.
+
+# ############################################################
+#  PASO 5 · EL EJECUTOR             🚦 PUERTA 5 — AQUI SE COBRA
+# ############################################################
+
+echo ok; cp /var/www/Spaces/infra/systemd/flota-altas.service /etc/systemd/system/
+echo ok; cp /var/www/Spaces/infra/systemd/flota-altas.timer   /etc/systemd/system/
+echo ok; systemctl daemon-reload
+
+#  --- PRIMERO A MANO Y CON LA COLA VACIA. Una pasada sin nada
+#      pendiente tiene que terminar en el acto y sin hacer nada:
+
+echo ok; systemctl start flota-altas && journalctl -u flota-altas --no-pager | tail -5
+
+#  ESPERADO: arranca y termina, sin errores. Si dice que falta
+#  DIR_SOLICITUDES, es el paso 3.
+
+#  --- AHORA SI: pide un alta de MENTIRA desde el navegador.
+#      instancia: ensayo2
+#      dominio:   ensayo2.space-os.io
+#      correo:    uno tuyo de verdad
+#
+#      >>> ESTO CREA UN DROPLET Y EMPIEZA A COBRARSE. <<<
+
+echo ok; systemctl start flota-altas
+echo ok; journalctl -u flota-altas --no-pager | tail -30
+echo ok; cat /var/lib/space-os/solicitudes/*.json
+
+# 🚦 PUERTA 5 — cuatro cosas:
+#   · la solicitud pasa a `en-curso` ANTES de que aparezca nada
+#     del guion (marcar antes de lanzar),
+#   · el droplet se crea y el registro lo va contando,
+#   · acaba en `esperando-dns` con la IP dentro,
+#   · y en Cloudflare aparece `ensayo2.space-os.io` con la nube
+#     GRIS. Si sale naranja, el codigo no puso `proxied:false` y
+#     hay que pararlo.
+
+echo ok; dig +short ensayo2.space-os.io @gabe.ns.cloudflare.com
+
+#  ESPERADO: la IP del droplet nuevo.
+
+# ############################################################
+#  PASO 6 · EL TEMPORIZADOR
+# ############################################################
+#  Solo cuando el paso 5 haya salido bien A MANO. Encenderlo
+#  antes es dejar que cree maquinas sin haber visto una.
+
+echo ok; systemctl enable --now flota-altas.timer
+echo ok; systemctl list-timers flota-altas.timer --no-pager
+
+# ############################################################
+#  Y NO SE TE OLVIDE: DESTRUIR EL ENSAYO
+# ############################################################
+
+echo ok; doctl compute droplet list --format ID,Name,PublicIPv4 | grep -i ensayo2
+echo ok; doctl compute droplet delete <ID>
+
+#  Y borra `ensayo2.space-os.io` en Cloudflare.
+
+# ############################################################
+#  VUELTA ATRAS
+# ############################################################
+#      systemctl disable --now flota-altas.timer
+#
+#  Con eso el alta automatica deja de existir y
+#  `provision-instancia.sh` a mano sigue funcionando igual: esto
+#  es una capa ENCIMA, no un sustituto. El formulario seguiria
+#  anotando solicitudes que nadie ejecuta -- si molesta, quita
+#  tambien `DIR_SOLICITUDES` de `flota.env` y reinicia el panel.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · La PUERTA 3, que es la que sostiene el diseño: `flota`
+#     recibiendo `Permission denied` sobre `ejecutor.env`.
+#   · La PUERTA 2: `flota` escribe y `altas` lee.
+#   · La PUERTA 5 entera, y sobre todo el color de la nube en
+#     Cloudflare.
+#   · Y si algo se rompio a mitad de un alta: el estado en que
+#     quedo la solicitud. NO se reintenta sola a proposito --
+#     reintentar un alta a medias crea un SEGUNDO droplet.
+# ############################################################

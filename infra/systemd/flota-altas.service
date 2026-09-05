@@ -1,0 +1,48 @@
+# ============================================================================
+#  SPACE OS — ejecutor de altas (ADR 0027)
+#
+#  Corre como `altas`, NO escucha en ningun puerto, y es el UNICO proceso del
+#  PADRE con el token de DigitalOcean y el de Cloudflare. Lo despierta el
+#  temporizador de al lado.
+#
+#  Se COPIA a /etc/systemd/system/, no se enlaza: `systemctl disable` retira el
+#  enlace de una unidad enlazada, o sea que la borra (medido el 2026-09-02).
+# ============================================================================
+[Unit]
+Description=SPACE OS — ejecutor de altas de instancia (ADR 0027)
+Documentation=file:///var/www/Spaces/docs/adr/0027-el-alta-de-una-instancia-desde-el-panel.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=altas
+Group=altas
+WorkingDirectory=/var/www/Spaces/apps/flota
+ExecStart=/usr/local/bin/node altas.mjs
+EnvironmentFile=/etc/space-os/ejecutor.env
+Environment=NODE_ENV=production
+
+# Un alta puede tardar: crea la maquina, instala y migra. Si se pasa de aqui,
+# algo se colgo -- y colgado no da error, que es como se perdio una hora el
+# 2026-09-03 con `needrestart`.
+TimeoutStartSec=1800
+
+# --- Endurecimiento MODERADO, y a proposito -------------------------------
+#
+#  Este proceso lanza `provision-instancia.sh`, que a su vez usa `doctl`, `ssh`
+#  y `docker` contra maquinas nuevas. Un sandbox como el del receptor de
+#  reportes lo romperia, y lo romperia EN MITAD DE UN ALTA -- con el droplet ya
+#  creado y cobrandose. Se endurece lo que no estorba y no mas.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

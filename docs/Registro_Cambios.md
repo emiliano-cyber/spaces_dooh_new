@@ -5,6 +5,42 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-04
+
+- **Se termino la primera instalacion completa de una copia nueva, y se comprobo que
+  funciona.** Se creo una maquina desde cero, se instalo el sistema entero, se dio de
+  alta la primera empresa con su Dueño y se entro desde el navegador. Al terminar, la
+  maquina se borro: era de prueba.
+
+  Se contesto ademas una duda que llevaba **casi un mes** abierta: una instalacion
+  nueva nace con la **moneda correcta (pesos mexicanos)**. No hacia falta arreglar
+  nada, pero hasta hoy nadie lo habia comprobado.
+
+- **Y se corrigio algo importante de seguridad.** Cuando se da de alta a un cliente, su
+  contraseña la genera quien hace la instalacion y aparece **una sola vez** en su
+  pantalla. Hasta hoy, esa contraseña **valia para siempre**: el sistema no obligaba a
+  cambiarla al entrar. Ahora si.
+
+  Lo llamativo es que habia una comprobacion automatica que decia que esto ya estaba
+  bien — pero estaba mirando **otro camino distinto** del que usan las instalaciones de
+  clientes. Se corrigio, y ahora la comprobacion mira el camino de verdad.
+
+- **Nace el tablero de la flota.** En `space-os.io/flota/` se ve, desde el navegador,
+  que version corre cada copia instalada y si responde. Antes eso solo se podia mirar
+  entrando al servidor por consola.
+
+  Entran solo las personas con permiso de administracion, y **el tablero no guarda
+  ninguna contraseña ni llave**: le pregunta al sistema principal quien eres. Si
+  alguien cierra sesion alli, el tablero se cierra tambien.
+
+- **Y queda listo —pero todavia sin encender— el alta desde esa misma pagina.** Un
+  formulario para dar de alta una empresa nueva sin escribir comandos. Se enciende el
+  **lunes**, cuando se pongan las llaves de acceso. Esta partido en dos a proposito: la
+  pagina que se ve desde internet **no tiene ninguna llave**; quien crea las maquinas es
+  otro programa que no se asoma a la red.
+
+---
+
 ## 2026-09-03
 
 - **La lista de comprobaciones del ensayo de instalacion estaba incompleta, y se
