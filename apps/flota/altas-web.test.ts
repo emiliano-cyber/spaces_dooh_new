@@ -38,7 +38,7 @@ function deps(opciones: any = {}) {
 const post = (cuerpo: any, extra: any = {}) => ({
   metodo: 'POST',
   ruta: '/flota/altas/',
-  cookie: `spaces_sesion=s; spaces_csrf=${CSRF}`,
+  cookie: `spaces_sesion=s; flota_csrf=${CSRF}`,
   origen: ORIGEN,
   csrf: CSRF,
   cuerpo,
@@ -116,6 +116,25 @@ describe('cuando el alta se pide bien', () => {
     expect(r.status).toBe(400)
     expect(dd.creadas).toHaveLength(0)
     expect(r.cuerpo).toContain('dominio')
+  })
+})
+
+describe('el panel pone su propia cookie CSRF', () => {
+  it('la manda al pintar el formulario, sin depender de la aplicacion', async () => {
+    // Antes leia `spaces_csrf`, que crea el front del PADRE al montar. Entrar
+    // directo a /flota/altas/ dejaba el campo vacio y TODO POST daba 403.
+    const dd = deps()
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/altas/', cookie: 'spaces_sesion=s' }, dd.d)
+    expect(r.cabeceras['set-cookie']).toMatch(/flota_csrf=/)
+    expect(r.cabeceras['set-cookie'], 'la cookie no puede leerse desde JS').toMatch(/HttpOnly/)
+    expect(r.cabeceras['set-cookie']).toMatch(/SameSite=Lax/)
+  })
+
+  it('y respeta la que ya tuvieras, para no invalidar un formulario abierto', async () => {
+    const dd = deps()
+    const r = await manejar({ metodo: 'GET', ruta: '/flota/altas/', cookie: 'spaces_sesion=s; flota_csrf=ya-tenia' }, dd.d)
+    expect(r.cabeceras['set-cookie']).toContain('ya-tenia')
+    expect(r.cuerpo).toContain('ya-tenia')
   })
 })
 

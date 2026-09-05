@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { createServer } from 'node:http'
+import { randomUUID } from 'node:crypto'
 import { verificarAcceso } from './acceso.mjs'
 import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
@@ -23,6 +24,18 @@ export const RUTAS = ['/flota/', '/flota', '/']
 
 /** La pantalla de altas (ADR 0027), con las mismas variantes de prefijo. */
 export const RUTAS_ALTAS = ['/flota/altas/', '/flota/altas', '/altas/', '/altas']
+
+/**
+ * El panel pone SU PROPIA cookie CSRF.
+ *
+ * Antes leia `spaces_csrf`, la de la aplicacion. Eso era una dependencia que no
+ * debia existir: esa cookie la crea el front del PADRE al montar, asi que entrar
+ * directo a `/flota/altas/` sin haber abierto antes la aplicacion dejaba el campo
+ * del formulario vacio y TODO POST daba 403. Medido el 2026-09-05.
+ *
+ * Es su formulario; trae su propio token.
+ */
+export const COOKIE_CSRF = 'flota_csrf'
 
 /**
  * Escapa para HTML. Cinco caracteres, y `&` PRIMERO o se escaparían dos veces
@@ -144,7 +157,13 @@ export async function manejar(peticion, deps) {
 
   if (esAltas) {
     const solicitudes = (await listarSolicitudes?.()) ?? []
-    return { status: 200, cabeceras: SIN_CACHE, cuerpo: paginaAltas(solicitudes, acceso.usuario, tokenDeCookie(cookie, 'spaces_csrf')) }
+    // Se reutiliza el que ya tenga; si no, se crea y se manda con la respuesta.
+    const token = tokenDeCookie(cookie, COOKIE_CSRF) || randomUUID()
+    const cabeceras = {
+      ...SIN_CACHE,
+      'set-cookie': `${COOKIE_CSRF}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+    }
+    return { status: 200, cabeceras, cuerpo: paginaAltas(solicitudes, acceso.usuario, token) }
   }
 
   const filas = await obtenerFilas()
@@ -187,7 +206,7 @@ async function pedirAlta(entrada, ctx) {
     return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
   }
 
-  const esperado = tokenDeCookie(cookie, 'spaces_csrf')
+  const esperado = tokenDeCookie(cookie, COOKIE_CSRF)
   if (!csrf || !esperado || csrf !== esperado) {
     registrar({ cuando: new Date().toISOString(), permitido: false, motivo: 'csrf', ruta: '/flota/altas/' })
     return { status: 403, cabeceras: SIN_CACHE, cuerpo: '<!doctype html><meta charset="utf-8"><title>403</title><p>Peticion rechazada.' }
