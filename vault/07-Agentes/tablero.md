@@ -6,6 +6,14 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-04, cierre · **el traspaso del lunes esta escrito**
+> `docs/Traspaso_20260904.md` — **empezar por ahi**. Trae los cuatro valores que faltan,
+> de donde sale cada uno, y que los pasos 1, 2 y 4 de `TH-ALTAS` ya estan hechos: se
+> arranca en el **paso 3**, no desde cero.
+>
+> Ya hay una solicitud `ensayo2` en la cola, en `pendiente`. **Sera la primera que
+> ejecute el ejecutor, y eso crea un droplet de verdad** — desechable, y se destruye.
+
 > [!important] 2026-09-04 · **F5.6 CERRADA**, y nace el panel de flota
 > El droplet del ensayo está **destruido**. Las cuatro comprobaciones en verde, 75
 > migraciones y **P13 contestada**: una instancia nueva nace en `MXN`.
