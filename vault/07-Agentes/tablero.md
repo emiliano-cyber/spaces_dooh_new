@@ -1,10 +1,30 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-03
+actualizado: 2026-09-04
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!important] 2026-09-04 · **F5.6 CERRADA**, y nace el panel de flota
+> El droplet del ensayo está **destruido**. Las cuatro comprobaciones en verde, 75
+> migraciones y **P13 contestada**: una instancia nueva nace en `MXN`.
+>
+> **Defecto 22, de seguridad:** el Dueño de una instancia nacía **sin obligación de
+> cambiar** la contraseña que le genera el operador. Parecía cubierto por una prueba
+> que lleva semanas en verde — pero prueba **otro camino**. Arreglado con su e2e vista
+> en rojo primero.
+>
+> **Panel de flota desplegado** (ADR 0026): `space-os.io/flota/`, `padre` en `al-dia`.
+> No tiene ninguna credencial: le pregunta al PADRE quién eres.
+>
+> **Alta desde el panel (ADR 0027): código completo, SIN desplegar.** El panel pide y
+> el usuario `altas` ejecuta. Parado a propósito en el paso 3 de su tarjeta.
+>
+> 🗓️ **Los `.env` del ejecutor se ponen el LUNES 2026-09-07** — decidido el 04/09.
+> Pasos 1 y 2 ya hechos. Detalle del día y lo que falta después, en [[2026-09-04]].
+>
+> ⚠️ **20 commits sin empujar** al cerrar el día.
 
 > [!important] 2026-09-03, noche · **F5.6 EN CURSO** — hay un droplet vivo
 > `ensayo` · `597612031` · `157.245.143.158`. Aprovisionado y con la base al dia;
