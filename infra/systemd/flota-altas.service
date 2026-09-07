@@ -23,6 +23,16 @@ ExecStart=/usr/local/bin/node altas.mjs
 EnvironmentFile=/etc/space-os/ejecutor.env
 Environment=NODE_ENV=production
 
+# `/snap/bin` NO esta en el PATH por omision de systemd, y `doctl` esta
+# instalado como snap: `command -v doctl` -> /snap/bin/doctl con el PATH de una
+# sesion, y NADA con el de una unidad. Medido en el PADRE el 2026-09-07.
+#
+# Sin esto, `provision-instancia.sh:364` (`local_requiere doctl`) sale con
+# EX_ENTORNO=1 justo despues de imprimir "Creando el droplet" -- que es
+# exactamente donde murio el primer alta pedida desde el panel. El fallo no
+# dice nada de doctl: dice "codigo 1".
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+
 # Un alta puede tardar: crea la maquina, instala y migra. Si se pasa de aqui,
 # algo se colgo -- y colgado no da error, que es como se perdio una hora el
 # 2026-09-03 con `needrestart`.
