@@ -30,6 +30,10 @@ export interface UsuarioSesion {
   // dejar fijar la primera contraseña sin teclear la anterior — solo si se
   // entró con Google.
   metodoSesion: MetodoSesion
+  // ADR 0028 · B2: cuándo vio y CONFIRMÓ sus códigos de recuperación. `null` =
+  // todavía no. Mientras lo sea y la sesión se haya abierto con Google,
+  // `exigir()` cierra todo salvo la propia pantalla de los códigos.
+  codigosVistosEn: string | null
 }
 
 // ─── Contraseñas ────────────────────────────────────────────────────────────
@@ -126,7 +130,8 @@ export async function usuarioActual(): Promise<UsuarioSesion | null> {
   const u = await q1<UsuarioSesion>(
     `select id, nombre, email, cargo, rol, activo, tenant_id as "tenantId",
             debe_cambiar_password as "debeCambiarPassword",
-            metodo as "metodoSesion"
+            metodo as "metodoSesion",
+            codigos_vistos_en as "codigosVistosEn"
        from auth_usuario_por_sesion($1)`,
     [token],
   )
@@ -182,6 +187,32 @@ export async function exigir(
       ok: false,
       status: 403,
       error: 'Tienes una contraseña temporal. Cámbiala en Configuración antes de seguir.',
+    }
+  }
+  // ADR 0028 · B2 — quien entró con Google todavía no tiene otra puerta.
+  //
+  // Con el ADR 0028, el Dueño de una instancia entra SOLO con Google: si pierde
+  // esa cuenta, sus códigos de recuperación son lo único que le queda. Y solo le
+  // sirven si los tiene: dejarle usar la aplicación antes de habérselos enseñado
+  // es tener la puerta y perder la llave.
+  //
+  // Se corta igual que con la contraseña temporal, y la salida es la misma:
+  // `/api/auth/me` y `/api/perfil/**` resuelven con `usuarioActual()` y no pasan
+  // por aquí, así que la pantalla de los códigos es alcanzable.
+  //
+  // ─── Por qué SOLO si se entró con Google ─────────────────────────────────
+  // Porque es el único caso en el que la contraseña ha dejado de ser una puerta.
+  // Quien entra con contraseña ya tiene con qué volver, así que cortarle sería
+  // molestarle sin darle nada. Y tiene una consecuencia práctica que hace este
+  // cambio seguro de desplegar hoy: en producción **todavía nadie entra con
+  // Google**, así que esto no encierra a ningún usuario existente.
+  if (usuario.metodoSesion === 'google' && !usuario.codigosVistosEn) {
+    return {
+      ok: false,
+      status: 403,
+      error:
+        'Guarda tus códigos de recuperación antes de seguir: son la única forma de entrar ' +
+        'si pierdes el acceso a tu cuenta de Google.',
     }
   }
   if (modulo && accion && !(await tienePermiso(usuario.rol, modulo, accion))) {
