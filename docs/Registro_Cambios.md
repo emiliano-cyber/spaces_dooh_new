@@ -117,6 +117,22 @@ La entrada más reciente va arriba.
   propio, con la explicacion de cada dato al lado, y la hoja lo copia en vez de
   repetirlo.
 
+- **Y una sexta, que aparecio justo al comprobar las anteriores.** El paso que crea la
+  primera empresa de un cliente **daba el trabajo por bueno sin comprobarlo**: podia
+  fallar y aun asi imprimir en pantalla «ya existe la empresa», dejando al operador
+  con una contrasena que no servia para nada. Que el intento de hoy fallara a la vista
+  fue **suerte**, no diseno. Ahora comprueba de verdad, y si algo sale mal dice que la
+  contrasena no sirve y por que.
+
+- **La conclusion honesta del dia, y es una deuda:** el programa que instala las
+  maquinas de los clientes **es el unico grande que no tiene pruebas automaticas**. Su
+  hermano, el que las actualiza, tiene un juego de pruebas mas grande que el propio
+  programa -- y por eso sus fallos se descubren antes de llegar a un cliente. Los seis
+  de hoy se descubrieron **con una maquina encendida y cobrando**.
+
+  No se arregla en una tarde, pero es lo que hay que construir antes de tener varios
+  clientes en marcha.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que
