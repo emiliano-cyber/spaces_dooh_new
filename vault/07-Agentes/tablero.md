@@ -26,6 +26,25 @@ archivos: []
 > nueva antes de PIXELED, o el primer cliente nace con el agujero que se cerro hace tres
 > dias. No es una tarea del plan: es una condicion para el primer cliente.
 
+> [!success] 2026-09-07, cierre · **defectos 31-35 ARREGLADOS** (`1d49a9d`)
+> **35** era el gordo: la instancia quedaba muerta hasta las 4:17 porque el cron era lo
+> unico que levantaba el contenedor. Ahora el aprovisionamiento la arranca --`update.sh`
+> mide la salud contra `127.0.0.1` (`update.sh:750`), asi que nunca necesito DNS ni
+> certificado--. **Si falla no aborta**: la maquina ya existe.
+>
+> **32 se arreglo por la causa, no por el sintoma:** nace
+> `infra/env/ejecutor.env.example` como **fuente unica** del `.env` del ejecutor, que
+> hasta hoy vivia solo dentro de un heredoc de la tarjeta --y se desfaso DOS VECES en
+> cuatro dias--. La tarjeta ahora lo **copia**, con respaldo previo, y deja de ser un
+> `cat >` que borraba lo ya escrito al repegarla.
+>
+> **34** compara en vez de imprimir lo esperado · **33** distingue un `ssh` caido de un
+> token ausente y explica lo de la clave de `altas` · **31** deja de exigir el registro a
+> los modos que no tocan la imagen.
+>
+> ⚠️ **Sin verificar en servidor**: `bash -n` limpio y no toca `apps/` ni `db/`, pero el
+> `--dry-run` de los tres modos **lo tiene que correr una persona**.
+
 > [!warning] 2026-09-07 · Defectos 31-34, y una instancia del panel solo la alcanza `altas`
 > **31** `REGISTRY` se exige incondicionalmente, tambien en los modos que no usan la imagen ·
 > **32** `CERTBOT_EMAIL` no esta en `ejecutor.env` ni en la tarjeta · **33** un `ssh` caido se
