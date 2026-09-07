@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_REPORTE, clasificar, fusionar, resumen } from './estado.mjs'
+import { CLAVES_REPORTE, clasificar, fusionar, resumen, tokenDe, tokensDeArchivo } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -196,5 +196,73 @@ describe('el receptor de reportes (F6.4)', () => {
     // Ni «lo que se entienda»: el archivo no llega a existir.
     expect(existsSync(join(dirEstado, 'inventario.json'))).toBe(false)
     expect((await readdir(dirEstado)).sort()).toEqual(['vallas.json'])
+  })
+})
+
+// ============================================================================
+//  De donde salen los tokens de instancia.  (A0.2 del Plan_Alta_Desatendida)
+//
+//  El ejecutor de altas corre como `altas` y el panel como `flota`: usuarios
+//  distintos a proposito (ADR 0027). Para que el panel vea una instancia nueva
+//  SIN reiniciarse y SIN que nadie escale privilegios, `altas` escribe un
+//  archivo (`altas:flota`, 640) y el panel lo lee en cada pasada.
+//
+//  Los tres casos que importan son negativos: que el entorno pueda anular el
+//  archivo, y que un archivo ausente o ilegible NO tumbe el panel.
+// ============================================================================
+describe('los tokens de instancia, y de donde se leen', () => {
+  it('sin archivo se comporta EXACTAMENTE como hoy', async () => {
+    expect(tokenDe('vallas', { FLOTA_TOKEN_VALLAS: 'del-entorno' }, {})).toBe('del-entorno')
+    expect(tokenDe('vallas', { FLOTA_TOKEN: 'compartido' }, {})).toBe('compartido')
+    expect(tokenDe('vallas', {}, {})).toBe('')
+  })
+
+  it('el archivo aporta el token que el entorno no tiene', async () => {
+    const delArchivo = { FLOTA_TOKEN_ENSAYO4: 'del-archivo' }
+    expect(tokenDe('ensayo4', {}, delArchivo)).toBe('del-archivo')
+  })
+
+  it('el ENTORNO gana sobre el archivo: hace falta poder anular uno malo sin editarlo', () => {
+    const delArchivo = { FLOTA_TOKEN_ENSAYO4: 'viejo' }
+    expect(tokenDe('ensayo4', { FLOTA_TOKEN_ENSAYO4: 'nuevo' }, delArchivo)).toBe('nuevo')
+  })
+
+  it('un token del archivo gana sobre el FLOTA_TOKEN compartido', () => {
+    // Un token compartido convierte cualquier instancia comprometida en el
+    // panel de todas las demas: si hay uno propio, manda el propio.
+    const delArchivo = { FLOTA_TOKEN_ENSAYO4: 'propio' }
+    expect(tokenDe('ensayo4', { FLOTA_TOKEN: 'compartido' }, delArchivo)).toBe('propio')
+  })
+
+  it('un archivo que NO existe es ausencia de tokens, no un error', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tok-'))
+    await expect(tokensDeArchivo(join(dir, 'no-existe.env'))).resolves.toEqual({})
+  })
+
+  it('un archivo ilegible tampoco tumba el panel', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tok-'))
+    const ruta = join(dir, 'flota-tokens.env')
+    await writeFile(ruta, ['esto no es', 'un archivo de entorno', '= ', ''].join('\n'), 'utf8')
+    await expect(tokensDeArchivo(ruta)).resolves.toEqual({})
+  })
+
+  it('lee el formato de systemd: CLAVE=valor, sin comillas y sin expansion', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tok-'))
+    const ruta = join(dir, 'flota-tokens.env')
+    const lineas = ['# escrito por el ejecutor', 'FLOTA_TOKEN_ENSAYO4=abc123', '', 'FLOTA_TOKEN_PIXELED=def456', '']
+    await writeFile(ruta, lineas.join('\n'), 'utf8')
+    await expect(tokensDeArchivo(ruta)).resolves.toEqual({
+      FLOTA_TOKEN_ENSAYO4: 'abc123',
+      FLOTA_TOKEN_PIXELED: 'def456',
+    })
+  })
+
+  it('ignora lo que no sea un token de flota: el archivo no es un .env de proposito general', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tok-'))
+    const ruta = join(dir, 'flota-tokens.env')
+    await writeFile(ruta, ['FLOTA_TOKEN_ENSAYO4=si', 'DIGITALOCEAN_ACCESS_TOKEN=NO_DEBE_ENTRAR', ''].join('\n'), 'utf8')
+    const leidos = await tokensDeArchivo(ruta)
+    expect(leidos).toEqual({ FLOTA_TOKEN_ENSAYO4: 'si' })
+    expect(leidos).not.toHaveProperty('DIGITALOCEAN_ACCESS_TOKEN')
   })
 })

@@ -152,10 +152,64 @@ export function fusionar(consultas, reportes) {
   return [...porNombre.values()]
 }
 
-/** `FLOTA_TOKEN_<NOMBRE>`, y si no, el compartido. Ver la cabecera. */
-export function tokenDe(nombre, entorno = process.env) {
+/**
+ * Donde el ejecutor de altas deja los tokens de las instancias que crea.
+ * (ADR 0029, punto 6.)
+ */
+export const RUTA_TOKENS = '/etc/space-os/flota-tokens.env'
+
+/**
+ * Los tokens de instancia que dejó el ejecutor, o `{}` si no hay archivo.
+ *
+ * Existe porque el ejecutor corre como `altas` y el panel como `flota`, y son
+ * usuarios distintos a propósito (ADR 0027). El archivo va `altas:flota` y modo
+ * `640`: escribe uno, lee el otro. Así una instancia nueva aparece en el panel
+ * **sin reiniciarlo** y sin que el ejecutor necesite `sudo` — que es lo que
+ * haría falta para reiniciar un servicio, y le daría al proceso que tiene los
+ * tres tokens la capacidad de tocar unidades del sistema.
+ *
+ * **Un archivo ausente o ilegible no es un error, es ausencia de tokens.** Misma
+ * disciplina que `listar()` con un JSON roto: el panel no se cae porque alguien
+ * dejó un archivo a medias.
+ */
+export async function tokensDeArchivo(ruta = RUTA_TOKENS) {
+  let texto
+  try {
+    texto = await readFile(ruta, 'utf8')
+  } catch {
+    return {}
+  }
+  const tokens = {}
+  for (const linea of texto.split('\n')) {
+    const l = linea.trim()
+    if (!l || l.startsWith('#')) continue
+    const corte = l.indexOf('=')
+    if (corte <= 0) continue
+    const clave = l.slice(0, corte).trim()
+    const valor = l.slice(corte + 1).trim()
+    // SOLO tokens de flota. Este archivo no es un `.env` de propósito general, y
+    // la lista blanca es lo que impide que el día que alguien le pegue ahí un
+    // `DIGITALOCEAN_ACCESS_TOKEN` «para tenerlo a mano», el panel —que da la cara
+    // a internet— acabe leyéndolo.
+    if (!/^FLOTA_TOKEN_[A-Z0-9_]+$/.test(clave) || !valor) continue
+    tokens[clave] = valor
+  }
+  return tokens
+}
+
+/**
+ * `FLOTA_TOKEN_<NOMBRE>`, y si no, el compartido. Ver la cabecera.
+ *
+ * El orden es: el entorno, luego el archivo, y el compartido al final.
+ *
+ * **El entorno gana sobre el archivo a propósito**: es lo que permite anular un
+ * token equivocado sin editar un archivo que escribe otro proceso. Y un token
+ * propio —de donde venga— gana sobre el compartido, porque un token compartido
+ * convierte cualquier instancia comprometida en el panel de todas las demás.
+ */
+export function tokenDe(nombre, entorno = process.env, delArchivo = {}) {
   const clave = 'FLOTA_TOKEN_' + String(nombre).toUpperCase().replace(/-/g, '_')
-  return entorno[clave] || entorno.FLOTA_TOKEN || ''
+  return entorno[clave] || delArchivo[clave] || entorno.FLOTA_TOKEN || ''
 }
 
 /**
@@ -312,8 +366,11 @@ async function principal() {
   }
 
   const versiones = inventario.canales ?? process.env.FLOTA_VERSION_ESTABLE ?? null
+  // Se lee UNA vez y se reparte: leer el archivo por instancia serían N
+  // lecturas por pasada para un archivo que no cambia entre ellas.
+  const tokensExtra = await tokensDeArchivo()
   const consultas = await Promise.all(
-    inventario.instancias.map((i) => consultar(i, { token: tokenDe(i.nombre) })),
+    inventario.instancias.map((i) => consultar(i, { token: tokenDe(i.nombre, process.env, tokensExtra) })),
   )
   const { reportes, avisos } = await leerReportes(dirEstado, inventario.instancias)
   const filas = resumen(fusionar(consultas, reportes), versiones)
