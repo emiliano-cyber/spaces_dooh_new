@@ -102,3 +102,83 @@ jobs:
 
       - name: Build de producción
         run: npx turbo run build --filter=web
+
+  # ==========================================================================
+  #  Integración (e2e) — contra un Postgres de verdad
+  # --------------------------------------------------------------------------
+  #  Trabajo APARTE del de arriba, y a propósito: necesita un servicio de base
+  #  de datos y tarda varios minutos. Separado, el typecheck y las unitarias
+  #  siguen dando su rojo en el primer minuto.
+  #
+  #  ─── Por qué hacía falta, y está medido ──────────────────────────────────
+  #  Hasta hoy las e2e solo corrían en la máquina de quien las escribía. El
+  #  2026-09-07 eso dejó **B4 sin verificar**: sus cuatro casos estaban escritos
+  #  y vistos en rojo, y Docker Desktop empezó a matar los contenedores cada
+  #  ~20 s. Sin el 5433 no hay e2e — y la parte que estas pruebas cubren es
+  #  justo la que las unitarias NO pueden ver: **simulan la base, así que un
+  #  fallo de RLS les pasa por delante sin enterarse**.
+  #
+  #  Dicho de otra forma: un PR que toque `auth`, `tenant` o una migración podía
+  #  ponerse verde aquí sin que nadie hubiera comprobado lo único que importa de
+  #  ese cambio. Eso se acaba.
+  #
+  #  La base se llama `spaces_e2e` porque `db-e2e.ts` EXIGE que el nombre acabe
+  #  en `_e2e` o `_test` antes de hacer `drop schema public cascade`. Ese guard
+  #  no se toca: es lo que impide que el arnés apunte por error a una base con
+  #  datos de alguien.
+  #
+  #  El rol `spaces_app` no se crea aquí: lo crea `db/dev-rol-app.sql`, que
+  #  `recrearEsquema()` aplica antes que nada. Y ese rol importa — es
+  #  `NOSUPERUSER NOBYPASSRLS`, o sea que con él la RLS se aplica de verdad. Con
+  #  el superusuario, media suite pasaría por el motivo equivocado.
+  # ==========================================================================
+  e2e:
+    name: Integración · Postgres real
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: spaces
+          POSTGRES_PASSWORD: spaces
+          POSTGRES_DB: spaces_e2e
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U spaces -d spaces_e2e"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      # Las dos URLs que `db-e2e.ts` deja sobreescribir. En local apuntan al
+      # 5433 del docker-compose; aquí, al servicio de arriba.
+      DATABASE_URL_TEST: postgresql://spaces:spaces@localhost:5432/spaces_e2e
+      DATABASE_URL_TEST_APP: postgresql://spaces_app:spaces_app_dev@localhost:5432/spaces_e2e
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # El build va ANTES y no es opcional: `servidor-e2e.ts` arranca con
+      # `npx next start`, que REUTILIZA el build existente y no construye nada.
+      # Sin `.next/BUILD_ID` mueren TODOS los archivos con «El servidor de
+      # pruebas no respondió … tras 60 s» — y tardan diez minutos en hacerlo,
+      # con un rojo que no dice nada del código.
+      - name: Build de producción (lo exige el arnés e2e)
+        run: npx turbo run build --filter=web
+
+      - name: Pruebas de integración
+        working-directory: apps/web
+        run: npm run test:e2e

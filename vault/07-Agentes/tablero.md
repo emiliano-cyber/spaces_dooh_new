@@ -77,6 +77,26 @@ archivos: []
 > owner es root en su maquina: **todo owner puede leerlo**. Por eso read-only no es
 > recomendacion. Y **rotarlo es una operacion de FLOTA**, no del PADRE.
 
+> [!important] 2026-09-07, cierre · **las e2e entran en CI, y por una razon concreta**
+> Hasta hoy las e2e **solo corrian en la maquina de quien las escribia**. Eso dejo B4 sin
+> verificar cuando Docker Desktop empezo a matar los contenedores: sin el 5433, no hay e2e.
+>
+> **Y lo que cubren es justo lo que las unitarias NO pueden ver**: simulan la base, asi que
+> un fallo de RLS les pasa por delante. Dicho de otra forma, hasta hoy **un PR que tocara
+> auth, tenant o una migracion podia ponerse verde en CI sin que nadie hubiera comprobado
+> lo unico que importa de ese cambio.**
+>
+> Trabajo `e2e` aparte en `ci.yml`, con un servicio `postgres:16-alpine` y las dos URLs por
+> entorno (`DATABASE_URL_TEST` / `..._APP`). La base se llama `spaces_e2e` porque el guard
+> de `db-e2e.ts` **exige** que el nombre acabe en `_e2e`/`_test` antes de hacer
+> `drop schema public cascade` — ese guard no se toca.
+>
+> ⚠️ **Sin probar todavia**: un workflow no se puede correr en local. **La primera corrida
+> del PR es la que lo dice**, y puede necesitar un par de vueltas.
+>
+> ✅ **Y si funciona, cierra B4 sola**: la verificacion pasa a ocurrir en una maquina limpia,
+> que es mas fuerte que correrla aqui.
+
 > [!danger] 2026-09-07 · **B4 escrita y SIN VERIFICAR — no fusionar todavia**
 > El 4.º cerrojo del bootstrap (Google obligatorio, ADR 0028) esta en
 > `app/api/bootstrap/route.ts` y sus **4 e2e escritas y vistas en ROJO por la razon
