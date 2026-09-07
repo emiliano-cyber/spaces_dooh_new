@@ -77,7 +77,8 @@ el alta queda exactamente como hoy.
 - **Criterio:** con el archivo puesto, `estado.mjs` reconoce la instancia sin reinicio; sin
   archivo, se comporta exactamente como hoy.
 - **Y la parte de servidor, que corre una persona:** crear el archivo `altas:flota` **640**
-  y comprobar que `otros` **no** puede leerlo. Va como tarjeta.
+  y comprobar que `otros` **no** puede leerlo. Tarjeta escrita:
+  `docs/evidencias/TH-FLOTA_tokens-por-archivo.txt`, con copia en `Downloads`.
 - **Commit:** `feat(flota): los tokens de instancia entran tambien por archivo`
 
 ---
@@ -176,7 +177,17 @@ el alta queda exactamente como hoy.
 
 ---
 
-## Fase 3 · El último tramo, y no depende de este plan
+## Fase 3 · El último tramo — 🔴 **BLOQUEADA, y no por este plan**
+
+> **Se intentó abrir el 2026-09-07 y no se pudo**, que es exactamente lo que esta fase
+> decía que iba a pasar. No es una tarea aplazada por falta de tiempo: **la contraseña del
+> Dueño tiene que llegarle a él, y hoy solo llega mirando la pantalla de quien corre el
+> comando.**
+>
+> Lo que la desbloquea está escrito y no construido: el **ADR 0028**. Y ese tiene su propio
+> punto abierto —qué pasa cuando el Dueño pierde su cuenta de Google— que **hay que decidir
+> antes de aplicárselo a un cliente**, o se queda fuera de su propia instancia sin ninguna
+> puerta.
 
 ### A3.1 · El bootstrap sin persona `[bloqueada]`
 
