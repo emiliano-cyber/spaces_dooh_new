@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { recrearEsquema, cerrarPool, poolTest } from './db-e2e'
+import { recrearEsquema, cerrarPool, poolTest, URL_APP } from './db-e2e'
 import { asegurarPermisos } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
 
@@ -59,6 +59,12 @@ async function vaciarTenants(): Promise<void> {
   await poolTest().query('delete from tenants')
 }
 
+async function cuantosUsuarios(): Promise<number> {
+  const r = await poolTest().query('select count(*)::int as n from usuarios')
+  return r.rows[0].n
+}
+
+
 function cuerpo() {
   return {
     organizacion: 'Instancia de un Owner',
@@ -100,6 +106,9 @@ describe('F5.2 · con token configurado', () => {
   beforeAll(async () => {
     await pararServidor()
     process.env.BOOTSTRAP_TOKEN = TOKEN
+    // Desde B4 (ADR 0028) el bootstrap exige Google configurado. Estos casos
+    // pasan igual porque `servidor-e2e.ts` ya lo enciende para toda la suite
+    // (`GOOGLE_OAUTH: '1'` y las dos credenciales) -- y ese archivo NO SE TOCA.
     await arrancarServidor()
   }, 120_000)
 
@@ -264,5 +273,121 @@ describe('F5.2 · la exencion de CSRF no se derrama', () => {
     })
     expect(r.status).not.toBe(403)
     expect(r.status).toBe(404)
+  })
+})
+
+// ─── 4 · Google es obligatorio: B4 del Plan_Acceso_Duenos (ADR 0028) ────────
+//
+//  El ADR 0028 decide que el Dueno de una instancia entra SOLO con Google. Si
+//  una instancia naciera sin Google configurado, su Dueno **no podria entrar
+//  nunca**: no tendria contrasena que valiera y no habria proveedor. Y la puerta
+//  es de un solo uso, asi que el error seria definitivo.
+//
+//  ─── Por que estos casos llaman al handler EN ESTE PROCESO ─────────────────
+//  Porque `servidor-e2e.ts` fija `GOOGLE_OAUTH: '1'` y las dos credenciales
+//  DESPUES del `...process.env`, asi que apagarlas desde aqui no llega al
+//  servidor. Y ese archivo NO SE TOCA: es un invariante del proyecto.
+//
+//  Llamar al handler directamente es igual de fiel para lo que hay que probar:
+//  mismo codigo, misma base, y sobre todo **el mismo ORDEN** —que es lo unico
+//  que demuestra que no se crea la mitad de una instancia—. Lo que se pierde es
+//  la capa HTTP, y esa ya la cubren los casos de arriba.
+describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
+  let POST: (req: Request) => Promise<Response>
+  const antes: Record<string, string | undefined> = {}
+
+  let contadorIpB4 = 200
+  async function llamarEnProceso() {
+    const req = new Request('http://localhost/api/bootstrap/', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-bootstrap-token': TOKEN,
+        // IP distinta por llamada: el limitador vive en memoria de ESTE proceso.
+        'x-forwarded-for': `10.9.1.${contadorIpB4++}`,
+      },
+      body: JSON.stringify(cuerpo()),
+    })
+    const r = await POST(req)
+    return { status: r.status, datos: await r.json().catch(() => ({})) }
+  }
+
+  beforeAll(async () => {
+    // El pool de `lib/server/db.ts` se construye AL CARGAR el modulo, asi que
+    // la URL se fija ANTES de importar el handler. Y va al rol de la APP, no al
+    // administrador: con el administrador la RLS no se aplica.
+    process.env.DATABASE_URL = URL_APP
+    process.env.BOOTSTRAP_TOKEN = TOKEN
+
+    for (const k of ['GOOGLE_OAUTH', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']) {
+      antes[k] = process.env[k]
+    }
+    ;({ POST } = await import('../../app/api/bootstrap/route'))
+  }, 60_000)
+
+  afterAll(() => {
+    for (const [k, v] of Object.entries(antes)) {
+      if (v === undefined) delete process.env[k]
+      else process.env[k] = v
+    }
+  })
+
+  function apagarGoogle() {
+    delete process.env.GOOGLE_CLIENT_ID
+    delete process.env.GOOGLE_CLIENT_SECRET
+    process.env.GOOGLE_OAUTH = '0'
+  }
+
+  function encenderGoogle() {
+    process.env.GOOGLE_OAUTH = '1'
+    process.env.GOOGLE_CLIENT_ID = 'id-de-pruebas.apps.googleusercontent.com'
+    process.env.GOOGLE_CLIENT_SECRET = 'secreto-de-pruebas'
+  }
+
+  it('devuelve 503 y NO 404: el operador tiene que saber que le falta', async () => {
+    // Los otros tres cerrojos callan con 404 para no confirmar que la ruta
+    // existe. Este no: a este punto ya se presento el token correcto sobre una
+    // base vacia. Un 404 mudo mandaria a buscar «una organizacion que ya
+    // existe» cuando lo que falta es una variable -- el defecto 33 otra vez.
+    await vaciarTenants()
+    apagarGoogle()
+    const r = await llamarEnProceso()
+    expect(r.status).toBe(503)
+    expect(r.status).not.toBe(404)
+  })
+
+  it('y no crea NI la organizacion NI el usuario -- ni la mitad', async () => {
+    // Lo unico que de verdad importa. Una instancia con organizacion y sin
+    // Dueno es PEOR que una sin nada: el cerrojo de un solo uso ya estaria
+    // gastado y nadie podria arrancarla nunca.
+    await vaciarTenants()
+    const antesU = await cuantosUsuarios()
+    apagarGoogle()
+    await llamarEnProceso()
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(antesU)
+  })
+
+  it('el mensaje dice QUE falta, no solo que fallo', async () => {
+    await vaciarTenants()
+    apagarGoogle()
+    const r = await llamarEnProceso()
+    const texto = JSON.stringify(r.datos).toLowerCase()
+    expect(texto).toContain('google')
+    expect(texto).toContain('google_client_id')
+  })
+
+  it('y la puerta NO se gasta: con Google puesto, el alta sigue siendo posible', async () => {
+    // Si el intento sin Google hubiera dejado rastro en `tenants`, el cerrojo de
+    // un solo uso quedaria consumido y la instancia seria irrecuperable.
+    await vaciarTenants()
+    await poolTest().query('delete from usuarios')
+    apagarGoogle()
+    expect((await llamarEnProceso()).status).toBe(503)
+
+    encenderGoogle()
+    const r = await llamarEnProceso()
+    expect(r.status).toBe(201)
+    expect(await cuantosTenants()).toBe(1)
   })
 })

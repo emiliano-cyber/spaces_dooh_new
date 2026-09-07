@@ -112,7 +112,7 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
 - **Depende de:** B1 y B2 — **el candado va DESPUÉS**, o alguien se queda fuera antes de
   tener con qué volver a entrar.
 
-## B4 · `/api/bootstrap` falla sin Google configurado `[código]`
+## B4 · `/api/bootstrap` falla sin Google configurado `[código]` — 🟡 **escrita, SIN VERIFICAR**
 
 - **Objetivo:** que no nazca una instancia cuyo Dueño no pueda entrar nunca.
 - **Hoy:** sus tres cerrojos son token presente, token correcto y `tenants` vacía. No mira
@@ -123,6 +123,26 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
 - **Y hay un paso de operación que esto obliga:** `GOOGLE_REDIRECT_URI` lleva el dominio
   dentro, así que **cada instancia nueva exige registrar su URI en un cliente OAuth**. Va a
   la tarjeta del alta.
+
+### Dónde quedó (2026-09-07) — 🔴 **no fusionar todavía**
+
+El cerrojo está escrito y sus **4 e2e también, vistas en rojo por la razón correcta**. Lo
+que **no** se pudo: verlas en verde. Docker Desktop empezó a matar los contenedores cada
+~20 s, y sin el 5433 no hay e2e.
+
+**Y el cambio no es inocuo.** A partir de él, una instancia **sin Google configurado no
+puede arrancar su primera organización** — y hoy **ninguna lo tiene**
+(`app.env.example:100` reparte `GOOGLE_OAUTH=0`). Fusionar y desplegar esto antes de B2/B3
+y del paso en la consola de Google **rompe el alta**.
+
+> [!important] Hallazgo del camino, y afecta a toda prueba futura sobre Google
+> `servidor-e2e.ts` fija `GOOGLE_OAUTH: '1'` y las dos credenciales **después** del
+> `...process.env`, así que apagarlas desde una prueba **no llega al servidor**. Y ese
+> archivo **no se toca** (invariante del proyecto).
+>
+> Por eso los casos de B4 llaman al handler **en el mismo proceso**. Se pierde la capa HTTP
+> —ya cubierta por los otros casos— y se conserva lo único que aquí importa: **el orden**,
+> que es lo que demuestra que no se crea media instancia.
 
 ## B5 · `exigir_reautenticacion` nace en `true` `[migración]`
 
