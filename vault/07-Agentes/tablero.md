@@ -6,6 +6,35 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-07, tarde · **el ejecutor de altas ya corre, y fallo en el sitio previsto**
+> **Puerta 3 en verde**: `sudo -u flota cat /etc/space-os/ejecutor.env` →
+> `Permission denied`. Los cinco valores puestos. **Y ninguna maquina se creo.**
+>
+> El primer alta murio por **dos defectos encadenados**, el **27** y el **28**, y
+> el 27 **borro la prueba del 28**. Detalle en [[2026-09-07]]. Los dos arreglados:
+>
+> - **27** — `cola.mjs` derivaba el temporal solo del id y `anotar()` no se
+>   espera: varias escrituras compartian `<id>.json.tmp`, una renombraba y la otra
+>   moria con `ENOENT`. Con ella se perdio la linea que decia por que fallo.
+>   Temporal unico + cadena por archivo **con la lectura dentro**, y drenaje antes
+>   de `process.exit()`. **4 casos nuevos, los cuatro negativos: 116 pruebas.**
+> - **28** — `doctl` esta en `/snap/bin`, que **no entra en el PATH de una unidad
+>   de systemd**. `provision-instancia.sh:364` salia con `EX_ENTORNO=1` justo tras
+>   imprimir «Creando el droplet». `PATH` declarado en la unidad.
+>
+> 🗓️ **Pendiente de servidor**: volver a copiar `flota-altas.service` (se COPIAN,
+> no se enlazan → `cp` + `daemon-reload`), traer `apps/flota`, y **una solicitud
+> NUEVA** desde el panel: `ensayo2` quedo `fallida` y no se reintenta a proposito.
+> **El temporizador sigue apagado**, y asi se queda hasta ver un alta completa.
+>
+> ⚠️ **Credencial del registro expuesta y ROTADA** (se pego el `docker-config` en
+> un chat; base64 no es cifrado). Lo que la hacia grave: si era **read-write**,
+> `update.sh` con su cron **jala del registro sin que nadie mire** — cadena de
+> suministro sobre la flota entera.
+>
+> ⚠️ **Dos huecos estructurales**: `apps/flota` **no esta en las 12 zonas** y **no
+> tiene nota propia en la boveda**. Doce archivos, 116 pruebas y dos ADR.
+
 > [!danger] 2026-09-07 · **B2 NO puede ir antes del alta, y el orden se invierte**
 > El punto 1 del [ADR 0025](../../docs/adr/0025-acceso-de-soporte-a-una-instancia.md)
 > manda `PermitRootLogin no` y un usuario `soporte`. Pero el aprovisionamiento **entra
