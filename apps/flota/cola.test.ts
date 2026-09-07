@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, it, expect } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { crearSolicitud, listar, siguientePendiente, marcar, anotarEn } from './cola.mjs'
+import { crearSolicitud, listar, siguientePendiente, siguienteQueAvanza, marcar, anotarEn } from './cola.mjs'
 // @ts-expect-error — módulo .mjs sin tipos
-import { PENDIENTE, EN_CURSO, TERMINADA, FALLIDA } from './ejecutor.mjs'
+import { PENDIENTE, EN_CURSO, TERMINADA, FALLIDA, ESPERANDO_DNS, EMITIENDO_CERT, CERT_AGOTADO, LISTA } from './ejecutor.mjs'
 
 // ============================================================================
 //  La cola de solicitudes de alta, en disco.  (ADR 0027)
@@ -157,5 +157,77 @@ describe('dos escrituras a la vez sobre la misma solicitud', () => {
     const id = await crearSolicitud(dir, buena, 'x@y.co')
     await Promise.all([anotarEn(dir, id, 'a'), anotarEn(dir, id, 'b'), marcar(dir, id, EN_CURSO)])
     expect((await readdir(dir)).filter((n) => n.endsWith('.tmp'))).toEqual([])
+  })
+})
+
+// ============================================================================
+//  Que solicitudes puede AVANZAR el ejecutor solo.  (A2.1, ADR 0029)
+//
+//  Hasta hoy `esperando-dns` era un estado TERMINAL: `siguientePendiente()`
+//  devolvia solo las `pendiente`, asi que una solicitud que llegaba ahi no la
+//  volvia a mirar nadie jamas. El temporizador ya despertaba cada minuto y el
+//  estado ya existia: lo que faltaba era un caso.
+//
+//  La regla de UNA A LA VEZ no cambia, y es la mas importante: sigue siendo
+//  `en-curso` lo que bloquea la cola, porque dos altas en paralelo compiten por
+//  el mismo `doctl` y la misma clave.
+// ============================================================================
+describe('las solicitudes que el ejecutor puede avanzar solo', () => {
+  it('retoma una que espera DNS, que hasta hoy no retomaba nadie', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await marcar(dir, id, ESPERANDO_DNS, { ip: '203.0.113.7' })
+    expect((await siguienteQueAvanza(dir))?.id).toBe(id)
+  })
+
+  it('tambien una que esta emitiendo el certificado', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await marcar(dir, id, EMITIENDO_CERT, { intentos: 1 })
+    expect((await siguienteQueAvanza(dir))?.id).toBe(id)
+  })
+
+  it('NO retoma una fallida: no se reintenta un alta a medias', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await marcar(dir, id, FALLIDA, { codigo: 1 })
+    expect(await siguienteQueAvanza(dir)).toBeNull()
+  })
+
+  it('NO retoma una lista: ya termino', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await marcar(dir, id, LISTA, {})
+    expect(await siguienteQueAvanza(dir)).toBeNull()
+  })
+
+  it('NO retoma una con el certificado agotado: esa espera a una PERSONA', async () => {
+    // Reintentar contra una cuota agotada la mantiene agotada. Es el unico
+    // estado que existe para que alguien mire.
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await marcar(dir, id, CERT_AGOTADO, { intentos: 3 })
+    expect(await siguienteQueAvanza(dir)).toBeNull()
+  })
+
+  it('NO retoma NINGUNA si hay una en curso: la regla de UNA A LA VEZ', async () => {
+    const a = await crearSolicitud(dir, { ...buena, instancia: 'uno' }, 'x@y.co')
+    await new Promise((r) => setTimeout(r, 5))
+    const b = await crearSolicitud(dir, { ...buena, instancia: 'dos' }, 'x@y.co')
+    await marcar(dir, a, EN_CURSO)
+    await marcar(dir, b, ESPERANDO_DNS, { ip: '203.0.113.7' })
+    expect(await siguienteQueAvanza(dir)).toBeNull()
+  })
+
+  it('la mas antigua primero, igual que las pendientes', async () => {
+    const a = await crearSolicitud(dir, { ...buena, instancia: 'uno' }, 'x@y.co')
+    await new Promise((r) => setTimeout(r, 5))
+    const b = await crearSolicitud(dir, { ...buena, instancia: 'dos' }, 'x@y.co')
+    await marcar(dir, a, ESPERANDO_DNS, { ip: '203.0.113.7' })
+    await marcar(dir, b, ESPERANDO_DNS, { ip: '203.0.113.8' })
+    expect((await siguienteQueAvanza(dir))?.id).toBe(a)
+  })
+
+  it('y una PENDIENTE no entra por aqui: esa es del otro camino', async () => {
+    // Si las dos funciones devolvieran lo mismo, el ejecutor podria empezar un
+    // alta creyendo que continua otra.
+    await crearSolicitud(dir, buena, 'x@y.co')
+    expect(await siguienteQueAvanza(dir)).toBeNull()
+    expect(await siguientePendiente(dir)).not.toBeNull()
   })
 })

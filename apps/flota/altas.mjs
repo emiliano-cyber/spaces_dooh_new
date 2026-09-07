@@ -5,20 +5,35 @@
 //  proceso del PADRE con el token de DigitalOcean y el de Cloudflare. No escucha
 //  en ningún puerto.
 //
-//  Alcance de esta pasada: **aprovisionar y, si el dominio es nuestro, poner el
-//  registro A**. Ahí se para, igual que el guion manual: el certificado y la
-//  primera organización siguen siendo pasos aparte, porque dependen de que el
-//  DNS haya propagado y eso no se sabe en el mismo minuto.
+//  Una pasada hace **como mucho una cosa**, y en este orden:
 //
-//  Toda la decisión vive en `cola.mjs`, `ejecutor.mjs` y `dns.mjs`, que se
-//  prueban sin crear una máquina. Aquí solo se conectan las piezas de verdad.
+//   1. Si hay una solicitud PENDIENTE, la aprovisiona entera y —si el dominio es
+//      de una zona nuestra— pone su registro A.
+//   2. Si no, mira si hay alguna A MEDIAS y le da un paso: comprobar el DNS, o
+//      pedir el certificado. (ADR 0029.)
+//
+//  El paso 2 nació el 2026-09-07. Hasta ese día `esperando-dns` era un estado
+//  TERMINAL: el temporizador ya despertaba cada minuto y el estado ya existía,
+//  pero `siguientePendiente()` devolvía solo las `pendiente`, así que una
+//  solicitud que llegaba ahí no la volvía a mirar nadie jamás.
+//
+//  **Lo que NO hace, y no es un olvido:** crear la primera organización. Eso
+//  produce la contraseña del Dueño, y esa contraseña tiene que llegarle a él —
+//  ver §5 del ADR 0029. Con el ADR 0028 construido el paso desaparece, porque el
+//  Dueño entra con Google y no hay contraseña que entregar.
+//
+//  Toda la decisión vive en `cola.mjs`, `ejecutor.mjs`, `dns.mjs` y
+//  `avanzar.mjs`, que se prueban sin crear una máquina, sin DNS y sin certbot.
+//  Aquí solo se conectan las piezas de verdad.
 // ============================================================================
 
 import { spawn } from 'node:child_process'
-import { siguientePendiente, marcar, anotarEn, esperarEscrituras } from './cola.mjs'
-import { ejecutarAlta, ESPERANDO_DNS } from './ejecutor.mjs'
+import { siguientePendiente, siguienteQueAvanza, marcar, anotarEn, esperarEscrituras } from './cola.mjs'
+import { ejecutarAlta, ESPERANDO_DNS, GUION } from './ejecutor.mjs'
 import { crearRegistroA, esDeNuestraZona } from './dns.mjs'
 import { comprobar, veredicto } from './comprobaciones.mjs'
+import { avanzar } from './avanzar.mjs'
+import { resolve4 } from 'node:dns/promises'
 
 const DIR = process.env.DIR_SOLICITUDES
 if (!DIR) {
@@ -79,7 +94,49 @@ function ipDelRegistro(lineas) {
 
 const solicitud = await siguientePendiente(DIR)
 if (!solicitud) {
-  // Ni una pendiente, o hay una en curso. Las dos son «no hay nada que hacer».
+  // No hay ninguna que EMPEZAR. Pero puede haber alguna a medio camino —
+  // esperando el DNS del owner, o con el certificado a medias— y hasta el
+  // 2026-09-07 esas no las retomaba nadie jamas: `esperando-dns` era terminal.
+  // (ADR 0029, A2.1.)
+  const aMedias = await siguienteQueAvanza(DIR)
+  if (!aMedias) {
+    // Ahora si: ni una pendiente, ni una que avanzar, o hay una en curso.
+    process.exit(0)
+  }
+
+  const anotarEnEsa = async (linea) => {
+    try {
+      await anotarEn(DIR, aMedias.id, linea)
+    } catch {
+      /* que el registro falle no puede tumbar un alta a medias */
+    }
+  }
+
+  const paso = await avanzar(aMedias, {
+    // El resolutor de verdad. Se le pregunta al DNS publico, que es lo que va a
+    // usar Let's Encrypt: comprobarlo contra otra cosa no comprobaria nada.
+    resolver: (dominio) => resolve4(dominio),
+    // Y el certificado lo emite el guion de siempre, en su modo suelto. Esto es
+    // una capa ENCIMA de `provision-instancia.sh`, no un sustituto: el mismo
+    // comando que correria una persona.
+    emitirCert: async (dominio) => {
+      await anotarEnEsa(`pidiendo el certificado de ${dominio}`)
+      const { codigo } = await lanzarGuion({
+        guion: GUION,
+        argumentos: ['--host', String(aMedias.ip), '--dominio', String(dominio), '--emitir-certificado', '--confirmar'],
+        entorno: process.env,
+        onLinea: (l) => anotarEnEsa(l),
+      })
+      return codigo === 0
+    },
+    marcar: (estado, extra) => marcar(DIR, aMedias.id, estado, extra),
+    anotar: anotarEnEsa,
+  })
+
+  await esperarEscrituras()
+  console.log(
+    JSON.stringify({ evento: 'altas', id: aMedias.id, avance: paso.hecho, estado: paso.estado ?? aMedias.estado, motivo: paso.motivo }),
+  )
   process.exit(0)
 }
 

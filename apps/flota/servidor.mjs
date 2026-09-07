@@ -234,6 +234,75 @@ async function pedirAlta(entrada, ctx) {
   return { status: 303, cabeceras: { ...SIN_CACHE, location: '/flota/altas/' }, cuerpo: '' }
 }
 
+/**
+ * Que le pasa a esta alta, en una linea y en cristiano.  (A2.4, ADR 0029)
+ *
+ * Con la maquina de estados hay CINCO sitios donde pararse en vez de dos, y esa
+ * es la consecuencia negativa que el ADR declara y que se paga aqui: **el nombre
+ * del estado no le dice a nadie que hacer**. «esperando-dns» no distingue entre
+ * «el owner todavia no lo ha apuntado» —normal, hay que esperar— y «lo apunto a
+ * otra maquina» —no se arregla solo y va a esperar para siempre—.
+ *
+ * Nunca lanza y siempre devuelve texto: esto se pinta en una pantalla, y una
+ * solicitud rara no puede dejarla en blanco.
+ */
+export function resumenDeAlta(s = {}) {
+  const partes = []
+  const intentos = Number(s.intentos) || 0
+
+  switch (s.estado) {
+    case 'pendiente':
+      partes.push('en la cola; el ejecutor la toma en la siguiente pasada')
+      break
+    case 'en-curso':
+      partes.push('creando la maquina e instalando; tarda unos seis minutos')
+      break
+    case 'esperando-dns':
+      if (s.dnsOtraIp) {
+        partes.push(
+          `el DNS resuelve a ${s.dnsOtraIp}, que es OTRA maquina, y no a ${s.ip ?? 'la suya'}. ` +
+            'Esto no se arregla solo: hay que corregir el registro',
+        )
+      } else {
+        partes.push(
+          `esperando el DNS: el owner tiene que apuntar ${s.dominio ?? 'su dominio'} a ${s.ip ?? 'la IP'}`,
+        )
+      }
+      break
+    case 'emitiendo-cert':
+      partes.push(`pidiendo el certificado (intento ${Math.max(intentos, 1)} de 3 en esta hora)`)
+      break
+    case 'cert-agotado':
+      partes.push(
+        `se agotaron los ${intentos || 3} intentos de certificado de esta hora. ` +
+          'NO se reintenta solo: lo tiene que mirar una persona',
+      )
+      break
+    case 'lista':
+      partes.push('sirviendo con certificado — TODAVIA le falta la primera empresa, que es un paso a mano')
+      break
+    case 'fallida': {
+      const ultimo = (s.historial ?? []).filter((h) => h.estado === 'fallida').pop()
+      const motivo = ultimo?.error ?? (ultimo?.codigo !== undefined ? `codigo ${ultimo.codigo}` : null)
+      partes.push(motivo ? `fallo: ${motivo}` : 'fallo; el motivo esta en el registro de abajo')
+      break
+    }
+    default:
+      partes.push('')
+  }
+
+  // Y si alguna comprobacion salio rara, va detras del estado sea cual sea: una
+  // instancia puede estar «lista» y tener el autoregistro abierto.
+  const c = s.comprobaciones
+  if (c && typeof c === 'object') {
+    const esperado = { login: 200, signup: 503, 'login-post': 401 }
+    const raras = Object.keys(esperado).filter((k) => c[k] !== undefined && c[k] !== esperado[k])
+    if (raras.length) partes.push(`comprobaciones a revisar: ${raras.join(', ')}`)
+  }
+
+  return partes.filter(Boolean).join(' · ')
+}
+
 /** La pantalla de altas: el formulario y lo que ya se pidio. */
 export function paginaAltas(solicitudes, usuario, csrf) {
   const SALTO = String.fromCharCode(10)
@@ -244,6 +313,7 @@ export function paginaAltas(solicitudes, usuario, csrf) {
     <td class="${escapar(s.estado)}">${escapar(s.estado)}</td>
     <td>${escapar(s.pedidaPor)}</td><td>${escapar(s.cuando)}</td>
   </tr>
+  <tr><td colspan="5" class="resumen">${escapar(resumenDeAlta(s))}</td></tr>
   <tr><td colspan="5"><pre>${(s.registro ?? []).map((l) => escapar(l)).join(SALTO)}</pre></td></tr>`,
     )
     .join(SALTO)

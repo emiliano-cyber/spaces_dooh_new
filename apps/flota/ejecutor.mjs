@@ -30,6 +30,30 @@ export const FALLIDA = 'fallida'
 /** Aprovisionada, pero el certificado espera a que el DNS resuelva (ADR 0027). */
 export const ESPERANDO_DNS = 'esperando-dns'
 
+// ─── Los estados de la maquina.  (ADR 0029) ─────────────────────────────────
+//
+//  Hasta el 2026-09-07 `esperando-dns` era TERMINAL: nadie lo retomaba jamas.
+//  Ahora el temporizador avanza una solicitud por pasada:
+//
+//    pendiente ──> en-curso ──> esperando-dns ──> emitiendo-cert ──> lista
+//                      │             │                  │
+//                      └─> fallida   └─> fallida        └─> cert-agotado
+
+/** El DNS ya resuelve: toca pedir el certificado. */
+export const EMITIENDO_CERT = 'emitiendo-cert'
+
+/** Sirviendo con certificado. A falta de la primera empresa (ver ADR 0029 §5). */
+export const LISTA = 'lista'
+
+/**
+ * Se acabaron los intentos de certificado de esta hora.
+ *
+ * **Este estado NO se reintenta solo, y es a proposito:** Let's Encrypt permite
+ * cinco por hora y por dominio, y reintentar contra una cuota agotada la
+ * mantiene agotada. Espera a que lo mire una persona.
+ */
+export const CERT_AGOTADO = 'cert-agotado'
+
 /** El guion de siempre. Esto es una capa ENCIMA, no un sustituto. */
 export const GUION = '/var/www/Spaces/infra/scripts/provision-instancia.sh'
 

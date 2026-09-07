@@ -1,7 +1,7 @@
 # ADR 0029: El ejecutor de altas pasa de «una pasada, un alta» a una máquina de estados
 
 - **Fecha:** 2026-09-07
-- **Estado:** Propuesta
+- **Estado:** Aceptada (2026-09-07, por Emiliano)
 - **Amplía:** [ADR 0027](0027-el-alta-de-una-instancia-desde-el-panel.md) · [ADR 0026](0026-panel-de-flota-con-pantalla-propia.md)
 - **Depende de:** [ADR 0028](0028-google-obligatorio-y-la-contrasena-para-los-cambios.md) para su último tramo (ver §Decisión, punto 5)
 

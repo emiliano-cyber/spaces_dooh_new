@@ -1,7 +1,7 @@
 # Plan — el alta desatendida
 
 > **Qué implementa:** el [ADR 0029](adr/0029-el-alta-desatendida-y-la-maquina-de-estados.md).
-> **Estado:** propuesto el 2026-09-07, **sin aprobar para ejecución**.
+> **Estado:** aprobado y **Fases 0, 1 y 2 ejecutadas** el 2026-09-07.
 > **De dónde sale:** del primer alta real desde el panel (2026-09-07), que llegó a
 > `esperando-dns` en 6 min 02 s y dejó cuatro pasos a mano.
 
@@ -132,9 +132,9 @@ el alta queda exactamente como hoy.
 
 ---
 
-## Fase 2 · La máquina de estados
+## Fase 2 · La máquina de estados — ✅ **HECHA**
 
-### A2.1 · `esperando-dns` deja de ser terminal `[código]`
+### A2.1 · `esperando-dns` deja de ser terminal `[código]` — ✅ hecha
 
 - **Archivos:** `apps/flota/cola.mjs`, `apps/flota/ejecutor.mjs`, `apps/flota/altas.mjs` y sus pruebas.
 - **Qué hace:** nace `siguienteQueAvanza()`, hermana de `siguientePendiente()`. La regla de
@@ -146,7 +146,7 @@ el alta queda exactamente como hoy.
 - **Depende de:** A1.1.
 - **Commit:** `feat(altas): el ejecutor retoma las solicitudes que esperan DNS`
 
-### A2.2 · El DNS se comprueba y no se espera `[código]`
+### A2.2 · El DNS se comprueba y no se espera `[código]` — ✅ hecha
 
 - **Qué hace:** cada pasada resuelve el dominio y compara con la IP anotada. Si no coincide,
   **no cambia nada**: coste cero, y una solicitud puede esperar días.
@@ -156,7 +156,7 @@ el alta queda exactamente como hoy.
   la máquina de otro.
 - **Depende de:** A2.1.
 
-### A2.3 · El certificado, con la cuota en el estado `[código]`
+### A2.3 · El certificado, con la cuota en el estado `[código]` — ✅ hecha
 
 - **Qué hace:** `emitiendo-cert` lleva intentos y hora del último. **Máximo 3 por hora**, y
   al agotarse pasa a `cert-agotado`, que **no reintenta** y espera a una persona.
@@ -167,7 +167,7 @@ el alta queda exactamente como hoy.
   margen es lo que permite que una persona lo intente a mano cuando el automático se rinde.
 - **Depende de:** A2.2, **A1.1 y A1.2 cerradas**.
 
-### A2.4 · Que el panel cuente el recorrido `[código]`
+### A2.4 · Que el panel cuente el recorrido `[código]` — ✅ hecha
 
 - **Qué hace:** la pantalla de altas enseña el estado, la hora, el motivo si falló y los
   intentos de certificado. Es lo que hace soportable tener cinco estados en vez de dos —
