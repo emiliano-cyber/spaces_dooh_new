@@ -6,6 +6,42 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-07 · 🎯 **ALTA COMPLETA DESDE EL PANEL, y se entra** — ADR 0027 cumplido
+> **6 min 02 s** (18:06:08 → 18:12:10), `{"ok":true,"ip":"206.189.182.255"}`, salida 0. Un
+> formulario web creo una maquina de cliente sin que nadie tocara una consola.
+>
+> Cola completa hasta entrar: certificado (caduca 2026-12-06) · `update.sh` levantando el
+> contenedor (`salud: 200 en el intento 2/10`, `OK: v0.3.0 sirviendo`) · **`login 200`**
+> desde fuera · **`bootstrap 201`** · la puerta cerrandose sola. Y **75 migraciones**, el
+> numero exacto, con la heuristica de F3.2 midiendo una base real.
+>
+> Detalle completo en [[2026-09-07]]. **`estable` = v0.3.0, `sha256:6494bbca…`** — sin
+> discrepancia con lo del 02/09.
+
+> [!danger] 2026-09-07 · 🔴 **BLOQUEANTE DE RELEASE: `estable` no trae el arreglo del defecto 22**
+> **Medido al entrar en `ensayo4`: NO pide cambiar la contrasena.** La cuenta que nadie
+> habia hecho: **`v0.3.0` se promovio el 02/09 y el defecto 22 se arreglo el 04/09.**
+>
+> **El arreglo esta en `main` y en NINGUNA imagen publicada.** Hay que promover una version
+> nueva antes de PIXELED, o el primer cliente nace con el agujero que se cerro hace tres
+> dias. No es una tarea del plan: es una condicion para el primer cliente.
+
+> [!warning] 2026-09-07 · Defectos 31-34, y una instancia del panel solo la alcanza `altas`
+> **31** `REGISTRY` se exige incondicionalmente, tambien en los modos que no usan la imagen ·
+> **32** `CERTBOT_EMAIL` no esta en `ejecutor.env` ni en la tarjeta · **33** un `ssh` caido se
+> reporta como «no tiene BOOTSTRAP_TOKEN» (`:303`, un `|| true` se come el fallo) ·
+> **34** la comprobacion del certificado es decorativa: imprime `Esperado: login 200` en vez
+> de comparar y hace `exit 0` — dijo `login 502` y `success` en la misma pantalla.
+>
+> 🔑 **Y lo estructural:** el ejecutor crea el droplet con la clave de **`altas`**, y DO
+> inyecta solo esas. **Root del PADRE recibe `Permission denied`.** La cola manual se corre
+> con `systemd-run --uid=altas`. **Choca con el camino de soporte del ADR 0025**: decidir si
+> `DO_SSH_KEYS` lleva tambien la de `padre`.
+>
+> ⚠️ **El token del registro vive en `/etc/space-os/instancia.env` de CADA instancia**, y el
+> owner es root en su maquina: **todo owner puede leerlo**. Por eso read-only no es
+> recomendacion. Y **rotarlo es una operacion de FLOTA**, no del PADRE.
+
 > [!danger] 2026-09-07 · **doctl NO puede ser un snap en el PADRE** (defectos 29 y 30)
 > El snap dio guerra **tres veces**: no leia rutas de otros usuarios (03/09), no
 > arranca con el home fuera de `/home` (**29**), y `snap-confine` es **setuid root
