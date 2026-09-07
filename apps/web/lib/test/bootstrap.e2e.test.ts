@@ -283,66 +283,100 @@ describe('F5.2 · la exencion de CSRF no se derrama', () => {
 //  nunca**: no tendria contrasena que valiera y no habria proveedor. Y la puerta
 //  es de un solo uso, asi que el error seria definitivo.
 //
-//  ─── Por que estos casos llaman al handler EN ESTE PROCESO ─────────────────
-//  Porque `servidor-e2e.ts` fija `GOOGLE_OAUTH: '1'` y las dos credenciales
-//  DESPUES del `...process.env`, asi que apagarlas desde aqui no llega al
-//  servidor. Y ese archivo NO SE TOCA: es un invariante del proyecto.
+//  ─── Por que estos casos levantan SU PROPIO servidor ───────────────────────
+//  Hicieron falta dos intentos antes de dar con esto, y los dos fallos valen:
 //
-//  Llamar al handler directamente es igual de fiel para lo que hay que probar:
-//  mismo codigo, misma base, y sobre todo **el mismo ORDEN** —que es lo unico
-//  que demuestra que no se crea la mitad de una instancia—. Lo que se pierde es
-//  la capa HTTP, y esa ya la cubren los casos de arriba.
+//   1. Apagar Google desde el entorno NO llega al servidor del arnes:
+//      `servidor-e2e.ts` fija `GOOGLE_OAUTH: '1'` y las dos credenciales
+//      DESPUES del `...process.env`. Y ese archivo no se toca.
+//   2. Importar el handler en este proceso REVIENTA: `tenant.ts` usa `cache()`
+//      de React y `cookies()` de `next/headers`, que solo existen dentro del
+//      runtime de Next. Sale `TypeError: cache is not a function`.
+//
+//  Asi que se levanta un `next start` propio, en otro puerto y con Google
+//  apagado. El invariante del proyecto es NO MODIFICAR `servidor-e2e.ts`, no
+//  «no levantar nunca un servidor»: este arranca aqui, se para aqui, y no toca
+//  nada de nadie.
 describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
-  let POST: (req: Request) => Promise<Response>
-  const antes: Record<string, string | undefined> = {}
+  const PUERTO_SIN_GOOGLE = 3312
+  // Con el `basePath: '/spaces-dooh'` de `next.config.mjs`. Sin el, TODO da 404
+  // --incluida `/api/version/`-- y el fallo parece del cerrojo del token. Costo
+  // un rato: el aviso de `next start` sobre `output: standalone` que sale por
+  // stderr es RUIDO, no la causa; el arnes usa el mismo `next start` y funciona.
+  const BASE_SIN_GOOGLE = `http://127.0.0.1:${PUERTO_SIN_GOOGLE}/spaces-dooh`
+  let proc: import('node:child_process').ChildProcess | null = null
 
-  let contadorIpB4 = 200
-  async function llamarEnProceso() {
-    const req = new Request('http://localhost/api/bootstrap/', {
+  let ipB4 = 200
+  async function llamar() {
+    const r = await fetch(`${BASE_SIN_GOOGLE}/api/bootstrap/`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-bootstrap-token': TOKEN,
-        // IP distinta por llamada: el limitador vive en memoria de ESTE proceso.
-        'x-forwarded-for': `10.9.1.${contadorIpB4++}`,
+        'x-forwarded-for': `10.9.1.${ipB4++}`,
       },
       body: JSON.stringify(cuerpo()),
+      redirect: 'manual',
     })
-    const r = await POST(req)
     return { status: r.status, datos: await r.json().catch(() => ({})) }
   }
 
   beforeAll(async () => {
-    // El pool de `lib/server/db.ts` se construye AL CARGAR el modulo, asi que
-    // la URL se fija ANTES de importar el handler. Y va al rol de la APP, no al
-    // administrador: con el administrador la RLS no se aplica.
-    process.env.DATABASE_URL = URL_APP
+    // El del arnes tambien: el ultimo caso lo necesita, y `arrancarServidor()`
+    // es idempotente. No se da por hecho que un bloque anterior lo dejara vivo.
     process.env.BOOTSTRAP_TOKEN = TOKEN
+    await arrancarServidor()
 
-    for (const k of ['GOOGLE_OAUTH', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']) {
-      antes[k] = process.env[k]
-    }
-    ;({ POST } = await import('../../app/api/bootstrap/route'))
-  }, 60_000)
+    const { spawn } = await import('node:child_process')
+    proc = spawn('npx', ['next', 'start', '-p', String(PUERTO_SIN_GOOGLE)], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        // El rol de la APP, no el administrador: con el administrador la RLS no
+        // se aplica y el aislamiento no se estaria probando.
+        DATABASE_URL: URL_APP,
+        NODE_ENV: 'production',
+        COOKIE_SECURE: '0',
+        BOOTSTRAP_TOKEN: TOKEN,
+        // Google APAGADO por los dos lados. `next start` lee los `.env` del
+        // repo, pero NO pisa lo que ya viene en el entorno -- y `''` viene.
+        GOOGLE_OAUTH: '0',
+        GOOGLE_CLIENT_ID: '',
+        GOOGLE_CLIENT_SECRET: '',
+      },
+      stdio: 'ignore',
+      // `shell` SOLO en Windows, y hace falta: ahi `npx` es un `.cmd` y
+      // `spawn` no lo encuentra sin shell -- quitarlo deja el servidor sin
+      // arrancar y los casos mueren por timeout a los 60 s, con un rojo que no
+      // dice nada. Node avisa (DEP0190) porque con shell los argumentos se
+      // concatenan sin escapar; aqui son constantes de este archivo, no entrada
+      // de nadie. En CI (Linux) no se usa.
+      shell: process.platform === 'win32',
+    })
 
-  afterAll(() => {
-    for (const [k, v] of Object.entries(antes)) {
-      if (v === undefined) delete process.env[k]
-      else process.env[k] = v
+    // Se espera a que conteste; sin esto el primer caso mide un puerto muerto.
+    const limite = Date.now() + 60_000
+    for (;;) {
+      try {
+        await fetch(`${BASE_SIN_GOOGLE}/api/version/`, { redirect: 'manual' })
+        break
+      } catch {
+        if (Date.now() > limite) throw new Error('el servidor sin Google no respondio en 60 s')
+        await new Promise((r) => setTimeout(r, 500))
+      }
     }
+  }, 120_000)
+
+  afterAll(async () => {
+    if (!proc?.pid) return
+    if (process.platform === 'win32') {
+      const { spawnSync } = await import('node:child_process')
+      spawnSync('taskkill', ['/F', '/T', '/PID', String(proc.pid)], { stdio: 'ignore' })
+    } else {
+      proc.kill('SIGTERM')
+    }
+    proc = null
   })
-
-  function apagarGoogle() {
-    delete process.env.GOOGLE_CLIENT_ID
-    delete process.env.GOOGLE_CLIENT_SECRET
-    process.env.GOOGLE_OAUTH = '0'
-  }
-
-  function encenderGoogle() {
-    process.env.GOOGLE_OAUTH = '1'
-    process.env.GOOGLE_CLIENT_ID = 'id-de-pruebas.apps.googleusercontent.com'
-    process.env.GOOGLE_CLIENT_SECRET = 'secreto-de-pruebas'
-  }
 
   it('devuelve 503 y NO 404: el operador tiene que saber que le falta', async () => {
     // Los otros tres cerrojos callan con 404 para no confirmar que la ruta
@@ -350,8 +384,9 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
     // base vacia. Un 404 mudo mandaria a buscar «una organizacion que ya
     // existe» cuando lo que falta es una variable -- el defecto 33 otra vez.
     await vaciarTenants()
-    apagarGoogle()
-    const r = await llamarEnProceso()
+    await poolTest().query('delete from usuarios')
+    const r = await llamar()
+    // DIAGNOSTICO TEMPORAL
     expect(r.status).toBe(503)
     expect(r.status).not.toBe(404)
   })
@@ -361,32 +396,30 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
     // Dueno es PEOR que una sin nada: el cerrojo de un solo uso ya estaria
     // gastado y nadie podria arrancarla nunca.
     await vaciarTenants()
-    const antesU = await cuantosUsuarios()
-    apagarGoogle()
-    await llamarEnProceso()
+    await poolTest().query('delete from usuarios')
+    await llamar()
     expect(await cuantosTenants()).toBe(0)
-    expect(await cuantosUsuarios()).toBe(antesU)
+    expect(await cuantosUsuarios()).toBe(0)
   })
 
   it('el mensaje dice QUE falta, no solo que fallo', async () => {
     await vaciarTenants()
-    apagarGoogle()
-    const r = await llamarEnProceso()
+    await poolTest().query('delete from usuarios')
+    const r = await llamar()
     const texto = JSON.stringify(r.datos).toLowerCase()
     expect(texto).toContain('google')
     expect(texto).toContain('google_client_id')
   })
 
-  it('y la puerta NO se gasta: con Google puesto, el alta sigue siendo posible', async () => {
+  it('y la puerta NO se gasta: el servidor CON Google sigue pudiendo arrancarla', async () => {
     // Si el intento sin Google hubiera dejado rastro en `tenants`, el cerrojo de
-    // un solo uso quedaria consumido y la instancia seria irrecuperable.
+    // un solo uso quedaria consumido y la instancia seria irrecuperable. Se
+    // comprueba contra el servidor del arnes, que SI tiene Google.
     await vaciarTenants()
     await poolTest().query('delete from usuarios')
-    apagarGoogle()
-    expect((await llamarEnProceso()).status).toBe(503)
+    expect((await llamar()).status).toBe(503)
 
-    encenderGoogle()
-    const r = await llamarEnProceso()
+    const r = await llamarBootstrap({ token: TOKEN })
     expect(r.status).toBe(201)
     expect(await cuantosTenants()).toBe(1)
   })
