@@ -143,12 +143,38 @@ owner traiga su directorio.
   cubría justamente esto con códigos de recuperación, y esta no los menciona. El correo
   saliente del PADRE tampoco existe, así que no hay red de seguridad por correo.
 
-> [!danger] Punto abierto, y bloquea a PIXELED
-> **Qué pasa cuando el Dueño pierde su cuenta de Google.** Las salidas son tres —códigos de
-> recuperación en el alta (lo que decía el 20/08), que el operador pueda revincular la
-> identidad desde el PADRE con rastro, o aceptar por escrito que la recuperación es un
-> trámite manual de soporte—. **No se elige aquí**, y hasta que se elija el punto 2 no debe
-> aplicarse a un cliente de verdad: dejaría a PIXELED con una sola llave y ninguna copia.
+> [!success] CERRADO el 2026-09-07, tarde · **códigos que se ve el propio Dueño**
+> **Qué pasa cuando el Dueño pierde su cuenta de Google.** Decidido por Emiliano:
+>
+> **Al entrar por primera vez con Google, la aplicación le enseña UNA vez sus códigos de
+> recuperación y le obliga a confirmar que los guardó.** Con uno de ellos entra sin Google.
+>
+> **Y resuelve dos problemas con la misma pieza, que es lo que la hace la buena.** El
+> evidente es el bloqueo. El otro es la **entrega**: si los códigos los genera y los ve el
+> propio Dueño en su navegador, **nadie de AS OOH ve nunca un secreto suyo**. Con eso el
+> alta deja de tener que entregar nada — y el último tramo del [ADR 0029](0029-el-alta-desatendida-y-la-maquina-de-estados.md)
+> (§5, el bootstrap sin persona) **deja de estar bloqueado**, porque desaparece la razón
+> por la que lo estaba.
+>
+> Las otras dos salidas se descartan y conviene decir por qué:
+>
+> - **Revincular desde el PADRE con rastro** le daría a AS OOH el poder de entrar como el
+>   Dueño de cualquier cliente. Es defendible en un servicio administrado, pero **el rastro
+>   que lo haría aceptable no existe**: es el punto 4 del ADR 0025, sin construir.
+> - **El trámite manual de soporte** depende del camino de soporte del ADR 0025, que
+>   tampoco existe — y hoy **ninguna persona puede siquiera entrar a una instancia creada
+>   por el panel**, porque solo la alcanza `altas`.
+>
+> Lo construye el `docs/Plan_Acceso_Duenos.md`.
+
+> [!warning] Y una consecuencia que hay que construir con cuidado
+> Los códigos se enseñan **una vez y en el navegador del Dueño**. Si se pierde esa pantalla
+> —cierra la pestaña, se le va la luz— **no hay segunda oportunidad sin volver a
+> generarlos**. Así que la pantalla tiene que exigir una confirmación explícita antes de
+> continuar, y tiene que existir un «generar otros» desde el perfil, con la sesión abierta.
+>
+> Es el mismo error que se paga en todos los sitios que hacen esto mal: enseñar el secreto
+> y dejar que el usuario navegue.
 
 **Implicaciones de seguridad**
 

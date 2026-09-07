@@ -1,0 +1,105 @@
+============================================================
+ TH-FLOTA · QUE EL PANEL VEA LAS INSTANCIAS NUEVAS
+ Se corre DESDE EL PADRE (137.184.107.53), como root.
+ ADR 0029 punto 6 · A0.2 · Escrita 2026-09-07
+============================================================
+
+ QUE ARREGLA ESTO
+   El ejecutor de altas corre como `altas` y el panel como
+   `flota`: usuarios distintos a proposito (ADR 0027). Cuando el
+   ejecutor crea una instancia le escribe su `FLOTA_TOKEN`
+   (`provision-instancia.sh:597`), pero el PANEL no se entera --
+   no puede leer el entorno del otro ni reiniciarse solo.
+
+   Hasta hoy eso significaba editar a mano `flota.env` y
+   reiniciar el panel por cada instancia nueva. Ahora hay un
+   archivo compartido que el panel relee EN CADA PASADA.
+
+ POR QUE NO SE HIZO AL REVES (que el ejecutor reinicie el panel)
+   Porque eso exige darle `sudo` al proceso que tiene los TRES
+   tokens, y con `sudo` gana ademas la capacidad de tocar
+   unidades del sistema. Un archivo con permisos de grupo
+   consigue lo mismo sin que nadie escale nada.
+
+# ############################################################
+#  PASO 1 · EL ARCHIVO                      🚦 PUERTA 1
+# ############################################################
+#  `altas` escribe, `flota` lee. Ni uno mas.
+
+echo ok; install -d -m 755 /etc/space-os
+echo ok; install -o altas -g flota -m 640 /dev/null /etc/space-os/flota-tokens.env
+echo ok; ls -l /etc/space-os/flota-tokens.env
+
+#  ESPERADO: `-rw-r----- 1 altas flota`.
+#
+#  >>> EL 640 NO ES COSMETICO. Si queda 644, CUALQUIER cuenta de
+#  >>> la maquina se lleva los tokens de toda la flota. Es lo
+#  >>> unico que hay que comprobar de este paso.
+
+# 🚦 PUERTA 1 — que `otros` NO pueda leerlo. Se prueba con un
+# usuario que no sea ni `altas` ni `flota`:
+
+echo ok; sudo -u nobody cat /etc/space-os/flota-tokens.env 2>&1 | head -1
+
+#  ESPERADO: `Permission denied`.
+
+echo ok; sudo -u flota cat /etc/space-os/flota-tokens.env >/dev/null 2>&1 && echo "flota SI puede leerlo: ok"
+
+# ############################################################
+#  PASO 2 · METER LAS QUE YA EXISTEN
+# ############################################################
+#  El formato es el de systemd: CLAVE=valor, sin comillas y sin
+#  espacios alrededor del `=`. El nombre va en MAYUSCULAS y con
+#  los `-` convertidos en `_`.
+#
+#  El token de cada instancia se lee de SU maquina, con la clave
+#  de `altas` -- que es la unica que entra:
+
+echo ok; sudo -u altas ssh -i /var/lib/altas/.ssh/id_ed25519 root@<IP-DE-LA-INSTANCIA> "sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/app.env"
+
+#  Y se anota. Ojo: `>>` y no `>`, o borras las anteriores.
+
+echo ok; nano /etc/space-os/flota-tokens.env
+
+#  Queda asi:
+#     FLOTA_TOKEN_ENSAYO4=...
+#     FLOTA_TOKEN_PIXELED=...
+#
+#  Solo se leen claves `FLOTA_TOKEN_*`. Esa lista blanca esta a
+#  proposito: impide que el dia que alguien pegue ahi un
+#  `DIGITALOCEAN_ACCESS_TOKEN` «para tenerlo a mano», acabe
+#  leyendolo el proceso que da la cara a internet.
+
+# ############################################################
+#  PASO 3 · COMPROBAR, SIN REINICIAR NADA   🚦 PUERTA 2
+# ############################################################
+#  Esto es lo que cambia: NO hace falta reiniciar el panel.
+
+echo ok; sudo -u flota env -C /var/www/Spaces/apps/flota node estado.mjs 2>&1 | tail -20
+
+# 🚦 PUERTA 2 — la instancia nueva sale con su version en vez de
+# `sin-respuesta` o «no hay token para esta instancia».
+#
+#  Y en el navegador: https://space-os.io/flota/ , su fila en
+#  `al-dia`.
+
+# ############################################################
+#  SI ALGO NO CUADRA
+# ############################################################
+#   · «no hay token para esta instancia» -> el nombre de la clave
+#     no casa. Recuerda: MAYUSCULAS y `-` como `_`.
+#   · La fila sale igual que antes -> comprueba que `flota` puede
+#     leer el archivo (puerta 1). Un archivo que no se puede leer
+#     es, para el panel, un archivo que no existe: NO da error, a
+#     proposito, para que un archivo a medias no tumbe el panel.
+#   · Y si quieres anular un token del archivo sin editarlo, pon
+#     el mismo nombre en `flota.env`: EL ENTORNO GANA.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · La PUERTA 1: `nobody` con `Permission denied` y `flota`
+#     leyendo.
+#   · La PUERTA 2: la fila de la instancia nueva en `al-dia`.
+#   · NUNCA el contenido del archivo.
+# ############################################################

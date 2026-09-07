@@ -142,10 +142,16 @@ describe('el esquema base no trae la organización de nadie', () => {
     expect(primera.stdout).toContain(`${migracionesDeEsquema().length} aplicadas`)
   })
 
-  it('y deja las 39 tablas, sin que ninguna organización se haya colado', () => {
-    // 39 es la cuenta medida el 2026-08-19 sobre la receta completa. Si cambia,
+  it('y deja las 40 tablas, sin que ninguna organización se haya colado', () => {
+    // 40 es la cuenta medida el 2026-09-07 sobre la receta completa. Si cambia,
     // es porque una migración nueva añadió tabla: se actualiza a conciencia.
-    expect(trasMigrar.tablas).toBe(39)
+    //
+    // Historia de la cifra, que es lo que la hace útil:
+    //   · 39 el 2026-08-19, la primera medición.
+    //   · 40 el 2026-09-07: `20260907_codigos_recuperacion.sql` añade
+    //     `codigos_recuperacion` (ADR 0028). Esta prueba fue lo que lo delató, y
+    //     era justo su trabajo.
+    expect(trasMigrar.tablas).toBe(40)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

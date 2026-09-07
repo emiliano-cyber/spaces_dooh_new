@@ -4,6 +4,10 @@
  ADR 0027 · Escrita 2026-09-07, tras el primer alta real
 ============================================================
 
+ >>> ACTUALIZADA EL 2026-09-07, TARDE (ADR 0029): EL EJECUTOR
+ >>> HACE AHORA LOS PASOS 2 Y 3 SOLO. Los dejo abajo como
+ >>> RESPALDO, para el dia que haya que hacerlos a mano.
+
  QUE HACE EL FORMULARIO SOLO, y donde empiezas tu
    El panel + el ejecutor hacen, sin que nadie mire:
      · crean el droplet (nyc1, s-1vcpu-1gb, canal estable)
@@ -12,12 +16,36 @@
      · escriben el entorno, nginx en HTTP y el actualizador
      · LEVANTAN LA APLICACION (desde el 07/09; antes esperaba
        al cron de las 4:17 y la instancia nacia muerta)
-     · y si el dominio cuelga de una zona nuestra, crean el
+     · si el dominio cuelga de una zona nuestra, crean el
        registro A en Cloudflare con el proxy APAGADO
-   Tarda unos SEIS MINUTOS. Acaba en `esperando-dns`.
+     · corren las tres comprobaciones y las dejan DENTRO de la
+       solicitud, con su hora
+     · ESPERAN A QUE EL DNS RESUELVA -- dias si hace falta, sin
+       nada corriendo -- y comprueban que apunta a SU maquina
+     · y entonces EMITEN EL CERTIFICADO ellos, con un limite de
+       3 intentos por hora
+   El alta tarda unos SEIS MINUTOS. Lo demas va solo, a razon de
+   un paso por minuto.
 
-   TU empiezas en el PASO 2. Los pasos 3 y 4 son los dos
-   comandos que el propio guion imprime al terminar.
+   TU EMPIEZAS EN EL PASO 4: la primera empresa. Y despues el
+   paso 6, que el panel la vea.
+
+ QUE VAS A VER EN LA PANTALLA DE ALTAS, y que significa
+   esperando-dns   normal: falta que el owner apunte su dominio.
+                   Si el resumen dice «resuelve a OTRA maquina»,
+                   eso NO se arregla solo: hay que corregir el
+                   registro.
+   emitiendo-cert  pidiendo el certificado; dice por que intento
+                   va, de 3.
+   cert-agotado    se acabaron los intentos de esta hora. NO se
+                   reintenta solo: TE TOCA A TI. Let's Encrypt da
+                   cinco por hora, asi que quedan dos de margen
+                   para hacerlo a mano.
+   lista           sirviendo con certificado. NO esta terminada:
+                   le falta la primera empresa, el paso 4.
+   fallida         el motivo esta en el resumen y en el registro.
+                   NO se reintenta sola, a proposito: reintentar
+                   un alta a medias crea un SEGUNDO droplet.
 
 # >>> LA TRAMPA QUE TE VA A MORDER SI LA OLVIDAS <<<
 #
@@ -57,8 +85,13 @@ echo ok; MAIL=<pon aqui el correo del Dueno>
 echo ok; echo "IP=$IP DOM=$DOM INST=$INST MAIL=$MAIL"
 
 # ############################################################
-#  PASO 2 · EL DNS                          🚦 PUERTA 1
+#  PASO 2 · EL DNS          --- YA LO HACE EL EJECUTOR ---
 # ############################################################
+#  >>> DESDE EL ADR 0029 ESTO ES AUTOMATICO. Se queda escrito
+#  >>> como respaldo y para saber que comprueba la maquina.
+#  >>> El ejecutor mira el DNS cada minuto y NO avanza si
+#  >>> resuelve a otra IP -- eso evita pedir un certificado
+#  >>> sobre la maquina de otro.
 #  Si el dominio es de una zona NUESTRA, el ejecutor ya creo el
 #  registro. Si es del owner, esto espera a que el lo apunte --y
 #  esa espera es la parte de «soberana» que se puede comprobar.
@@ -77,8 +110,12 @@ echo ok; dig +short "$DOM" @1.1.1.1
 #  la maquina del owner.
 
 # ############################################################
-#  PASO 3 · EL CERTIFICADO                  🚦 PUERTA 2
+#  PASO 3 · EL CERTIFICADO   --- YA LO HACE EL EJECUTOR ---
 # ############################################################
+#  >>> DESDE EL ADR 0029 ESTO ES AUTOMATICO, con un limite de
+#  >>> TRES intentos por hora. Se queda escrito para el caso
+#  >>> `cert-agotado`, que es cuando te toca a ti -- y entonces
+#  >>> quedan dos intentos de los cinco de Let's Encrypt.
 #  Como `altas`, y en UNA sola linea. `systemd-run` da la
 #  identidad Y el entorno de una vez, que es justo lo que hace
 #  falta: la clave la tiene `altas` y las variables estan en su
@@ -99,6 +136,11 @@ echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/spa
 # ############################################################
 #  PASO 4 · LA PRIMERA EMPRESA Y SU DUENO   🚦 PUERTA 3
 # ############################################################
+#  >>> AQUI EMPIEZAS TU. Y este paso NO se automatiza mientras
+#  >>> siga imprimiendo una contrasena: tiene que llegarle al
+#  >>> Dueno, y hoy solo llega mirando esta pantalla. Con el
+#  >>> ADR 0028 construido el paso DESAPARECE -- el Dueno entra
+#  >>> con Google y no hay contrasena que entregar.
 #
 #  >>> ESTE COMANDO IMPRIME LA CONTRASENA DEL DUENO, UNA VEZ.
 #  >>> No la pegues en un chat, ni en un ticket, ni en un

@@ -4,6 +4,7 @@ import { registrarCuentaCtrl } from '@/lib/server/cuentas-controller'
 import { hayAlgunTenant } from '@/lib/server/tenant'
 import { respuestaError } from '@/lib/server/errores'
 import { limitar, ipDe } from '@/lib/server/rate-limit'
+import { googleHabilitado } from '@/lib/server/google-oauth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -74,6 +75,38 @@ export async function POST(req: Request) {
 
   // (3) Y la base tiene que estar vacía. Este es el cerrojo de un solo uso.
   if (await hayAlgunTenant()) return noExiste()
+
+  // (4) Google tiene que estar configurado.  (B4 · ADR 0028)
+  //
+  // El ADR 0028 decide que el Dueño de una instancia entra SOLO con Google. Una
+  // instancia que naciera sin Google configurado nacería con un Dueño que **no
+  // puede entrar nunca**: no tendría contraseña que valiera y no habría
+  // proveedor. Y la puerta es de un solo uso, así que el error sería definitivo.
+  //
+  // ─── Por qué este cerrojo NO calla como los tres de arriba ────────────────
+  // Los otros devuelven 404 para no confirmar que la ruta existe. A este punto
+  // ya se presentó el token correcto sobre una base vacía, así que no hay nada
+  // que ocultarle a quien pregunta — es el mismo razonamiento del `catch` de
+  // abajo. Y un 404 mudo aquí mandaría al operador a buscar «una organización
+  // que ya existe» cuando lo que le falta es una variable de entorno: el mismo
+  // error que el defecto 33 del 2026-09-07, donde un `ssh` caído se reportaba
+  // como un token ausente.
+  //
+  // `googleHabilitado()` es la única fuente de verdad de esto (`GOOGLE_OAUTH`
+  // distinto de `0` y las dos credenciales presentes). No se repite aquí la
+  // condición: dos copias divergen.
+  if (!googleHabilitado()) {
+    return NextResponse.json(
+      {
+        error:
+          'Esta instancia no tiene Google configurado, y el Dueño entra solo con Google ' +
+          '(ADR 0028). Sin esto nacería una organización a la que nadie puede entrar. ' +
+          'Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el .env de la instancia, ' +
+          'con GOOGLE_OAUTH distinto de 0, y la URI de retorno registrada para este dominio.',
+      },
+      { status: 503, headers: { 'cache-control': 'no-store' } },
+    )
+  }
 
   try {
     // Misma alta que `/api/signup`, distinta puerta: se reutiliza el

@@ -77,7 +77,8 @@ el alta queda exactamente como hoy.
 - **Criterio:** con el archivo puesto, `estado.mjs` reconoce la instancia sin reinicio; sin
   archivo, se comporta exactamente como hoy.
 - **Y la parte de servidor, que corre una persona:** crear el archivo `altas:flota` **640**
-  y comprobar que `otros` **no** puede leerlo. Va como tarjeta.
+  y comprobar que `otros` **no** puede leerlo. Tarjeta escrita:
+  `docs/evidencias/TH-FLOTA_tokens-por-archivo.txt`, con copia en `Downloads`.
 - **Commit:** `feat(flota): los tokens de instancia entran tambien por archivo`
 
 ---
@@ -176,7 +177,20 @@ el alta queda exactamente como hoy.
 
 ---
 
-## Fase 3 · El último tramo, y no depende de este plan
+## Fase 3 · El último tramo — 🟡 **con camino, y ya no bloqueada de raíz**
+
+> **Se intentó abrir el 2026-09-07 y no se pudo**, que es exactamente lo que esta fase
+> decía que iba a pasar. No era falta de tiempo: **la contraseña del Dueño tiene que
+> llegarle a él, y hoy solo llega mirando la pantalla de quien corre el comando.**
+>
+> **Ese mismo día se cerró el punto abierto que lo bloqueaba.** Emiliano decidió que los
+> códigos de recuperación **los ve el propio Dueño** en su primera entrada con Google, y
+> eso resuelve el bloqueo *y* la entrega con la misma pieza: si el Dueño entra con Google y
+> sus códigos los genera él, **el alta no tiene ya nada que entregar**.
+>
+> Así que esta fase deja de depender de una decisión y pasa a depender de **construir el
+> [`Plan_Acceso_Duenos.md`](Plan_Acceso_Duenos.md)** (tareas B1–B4). Cuando eso esté, A3.1
+> es una tarea normal.
 
 ### A3.1 · El bootstrap sin persona `[bloqueada]`
 
