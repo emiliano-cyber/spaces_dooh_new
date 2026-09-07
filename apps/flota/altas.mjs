@@ -15,7 +15,7 @@
 // ============================================================================
 
 import { spawn } from 'node:child_process'
-import { siguientePendiente, marcar, anotarEn } from './cola.mjs'
+import { siguientePendiente, marcar, anotarEn, esperarEscrituras } from './cola.mjs'
 import { ejecutarAlta, ESPERANDO_DNS } from './ejecutor.mjs'
 import { crearRegistroA, esDeNuestraZona } from './dns.mjs'
 
@@ -100,6 +100,12 @@ const r = await ejecutarAlta(solicitud, {
 })
 
 if (!r.ok) {
+  // `process.exit()` corta lo que esté a medio escribir, y `anotar()` no se
+  // espera a propósito. Sin este drenaje se pierde la última línea del
+  // registro — que en un alta fallida es la que dice POR QUÉ falló. Pasó el
+  // 2026-09-07: el guion avisó de que le faltaba `doctl` y ese aviso no llegó
+  // a la solicitud, así que el panel solo enseñaba «Creando el droplet».
+  await esperarEscrituras()
   console.log(JSON.stringify({ evento: 'altas', id: solicitud.id, ok: false, motivo: r.motivo }))
   process.exit(1)
 }

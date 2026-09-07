@@ -33,6 +33,29 @@ La entrada más reciente va arriba.
   **se queda fuera y no hay otra puerta**. Hay tres formas de arreglarlo y hay que
   elegir una. Queda apuntado como pendiente, no dado por resuelto.
 
+- **Se encendio el alta automatica de empresas, y fallo el primer intento.** El
+  formulario de la pagina ya puede crear la maquina de un cliente. Se probo con una
+  empresa de mentira y **no funciono a la primera** — pero fallo bien: **no se creo
+  ninguna maquina y no se cobro nada**, porque el sistema comprueba que tiene todas
+  las herramientas ANTES de crear nada.
+
+  Aparecieron dos problemas, y el primero es el interesante: **el sistema perdio el
+  mensaje que explicaba el fallo.** En la pantalla solo se veia «Creando el
+  droplet», sin causa. Dos partes del programa escribian en el mismo archivo a la
+  vez y se pisaban, y la que se perdio era justo la que traia el motivo. Arreglado,
+  con cuatro comprobaciones automaticas nuevas.
+
+  El segundo era el fallo de verdad: **faltaba encontrar una herramienta** que el
+  sistema necesita para crear maquinas. Estaba instalada, pero en un sitio donde el
+  proceso automatico no la buscaba. Tambien arreglado.
+
+  **La leccion, que vale para todo:** un fallo en el registro de lo que pasa no es
+  un fallo menor — es el que te deja sin saber cual fue el fallo de verdad.
+
+- **Y se rotaron unas llaves de acceso** que se compartieron por descuido en una
+  conversacion. Nadie las uso, pero se cambian igual: la regla es que una llave que
+  salio de su sitio se da por perdida.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que
