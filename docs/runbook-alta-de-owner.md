@@ -11,6 +11,20 @@ Este documento explica **cuándo** se corre cada modo y **qué hay que tener ant
 
 ---
 
+> [!important] Si el alta se pidio DESDE EL PANEL, este runbook empieza en el paso 4
+> Desde el ADR 0027 hay dos caminos, y este describe el **manual**. Si la solicitud entro
+> por el formulario de `space-os.io/flota/altas/`, el ejecutor ya hizo los pasos 1, 2 y 3
+> —y desde el 2026-09-07 tambien **levanta la aplicacion**, que antes esperaba al cron de
+> las 4:17—. Lo que queda es el certificado, la primera empresa y las comprobaciones.
+>
+> **Y va todo como `altas`**, no como root: el ejecutor crea el droplet con la clave de
+> `altas` y DigitalOcean inyecta solo esa, asi que root del PADRE recibe
+> `Permission denied (publickey)`.
+>
+> La tarjeta con esos comandos es **`docs/evidencias/TH-ALTA_despues-del-formulario.txt`**,
+> con copia en `Downloads`.
+
+
 ## Lo que hace falta antes de empezar
 
 | | Qué | Quién lo da |
