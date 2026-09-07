@@ -81,5 +81,24 @@ jobs:
       - name: Pruebas
         run: npx turbo run test --filter=web --filter=flota
 
+      # Los guiones de infraestructura NO son un workspace de npm, asi que no
+      # entran por turbo: se corren aparte. Y hacen falta aqui porque el
+      # 2026-09-07 aparecieron SEIS defectos en `provision-instancia.sh` en un
+      # solo dia —el unico guion grande que no tenia arnes, y el que crea las
+      # maquinas de los clientes—. Los de `update.sh` los caza su arnes antes de
+      # produccion; aquellos los cazo un droplet cobrandose.
+      #
+      # Ninguno de los dos sale a la red ni toca una maquina: montan dobles de
+      # `ssh`, `doctl`, `docker` y `curl` en un PATH propio.
+      - name: Pruebas del aprovisionamiento
+        run: bash infra/scripts/pruebas-provision.sh
+
+      # Y los mutantes, que son lo que convierte el arnes en una verificacion:
+      # deshacen cada uno de los seis arreglos y comprueban que el escenario
+      # correspondiente se pone rojo. Un arnes en verde solo dice que hoy no
+      # falla; los mutantes dicen que si alguien deshace el arreglo, se entera.
+      - name: Mutantes del aprovisionamiento
+        run: bash infra/scripts/pruebas-provision.sh --mutantes
+
       - name: Build de producción
         run: npx turbo run build --filter=web
