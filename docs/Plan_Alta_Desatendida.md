@@ -60,6 +60,28 @@ el alta queda exactamente como hoy.
   casa también con `/api/auth/login/`. Un doble demasiado laxo da rojos que no existen, y
   del mismo modo puede dar verdes que tampoco.
 
+### A0.3 · El ejecutor INSCRIBE la instancia `[código]` — ✅ hecha (2026-09-07)
+
+- **El hueco:** `flota.json` es un inventario **a mano** y no está en git. El ejecutor creaba
+  la máquina y **no la apuntaba en ningún sitio**, así que cada alta quedaba **invisible en
+  el panel** hasta que una persona añadiera su fila y su token. El día que se olvidara, la
+  instancia quedaba funcionando y sin que nadie supiera si está al día — justo lo que el
+  panel existe para evitar. Lo destapó Emiliano al no ver `ensayo4`.
+- **Y no se arregla dejando que el ejecutor escriba `flota.json`:** ese archivo vive en
+  `/var/www/Spaces`, y dar permiso de escritura ahí al proceso que tiene los tres tokens le
+  daría además la capacidad de **alterar el código de la aplicación**. Va a
+  `/etc/space-os/flota-instancias.json`, mismo camino que los tokens.
+- **`cargarInventario()` los mezcla**, y **el de mano gana**: hace falta poder corregir a
+  mano una fila que el alta escribió mal.
+- **Probado primero y en rojo.** 17 casos nuevos entre `estado.test.ts` e `inscribir.test.ts`,
+  la mayoría negativos: que **no pierda** las instancias ni los tokens que ya había; que sea
+  **idempotente** —el ejecutor puede pasar dos veces—; que un token nuevo **reemplace** al
+  viejo en vez de acumularse; que un archivo ilegible **no borre nada**; que una entrada sin
+  nombre o sin dominio **se descarte**; que **con el inventario de ejemplo no se mezcle
+  nada**, porque sería fingir una flota; y que **nunca lance**: la máquina ya existe, y
+  tumbar un alta buena por un archivo del panel sería cambiar un problema pequeño por uno
+  grande.
+
 ### A0.2 · El token de flota se entrega por archivo `[código + infra]` — ✅ hecha (código)
 
 - **Objetivo:** que una instancia nueva aparezca en el panel **sin reiniciarlo** y sin que
