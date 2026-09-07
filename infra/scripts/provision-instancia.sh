@@ -380,18 +380,63 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
   echo "    clave:    $CLAVE_DUENO"
   echo ""
 
+  if [[ "$CONFIRMAR" -ne 1 ]]; then
+    printf '%s ssh root@%s curl -X POST http://127.0.0.1:3000/spaces-dooh/api/bootstrap/ (esperando 201)\n' \
+      "$DRY_ETIQUETA" "${HOST:-<pendiente>}"
+    echo ""
+    echo "  $DRY_ETIQUETA no se creo ninguna organizacion y la clave de arriba es de mentira."
+    exit 0
+  fi
+
   # La llamada va DESDE EL PROPIO SERVIDOR, por loopback: el token de arranque
   # no tiene por que cruzar internet, y asi funciona aunque el DNS todavia no
   # haya propagado.
-  remoto "curl -s -o /dev/null -w 'bootstrap %{http_code}\n' \
+  #
+  # Se CAPTURA el codigo y se compara. Hasta el 2026-09-07 esto imprimia
+  # "Esperado: bootstrap 201" y salia 0 SIEMPRE, y era peor que la comprobacion
+  # del certificado: con un 404 o un 500 --curl sale 0 igual-- el guion afirmaba
+  # «La puerta ya se cerro sola: existe una organizacion» sin que existiera
+  # ninguna. Que el intento del 07/09 muriera con salida 7 fue casualidad:
+  # `set -euo pipefail` y curl saliendo 7 por no poder conectar.
+  set +e
+  CODIGO_BOOT="$(remoto "curl -s -o /dev/null -w '%{http_code}' \
     -X POST http://127.0.0.1:3000/spaces-dooh/api/bootstrap/ \
     -H 'Content-Type: application/json' \
     -H \"x-bootstrap-token: \$(sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env)\" \
     --data-binary @-" <<JSON
 {"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO","password":"$CLAVE_DUENO"}
 JSON
+)"
+  set -e
 
-  echo "Esperado: bootstrap 201"
+  echo "bootstrap $CODIGO_BOOT"
+  if [[ "$CODIGO_BOOT" != "201" ]]; then
+    echo "" >&2
+    echo "provision: la organizacion NO se creo (esperado 201, recibido '$CODIGO_BOOT')." >&2
+    echo "           LA CLAVE DE ARRIBA NO SIRVE: no hay ninguna cuenta con ella." >&2
+    echo "" >&2
+    case "$CODIGO_BOOT" in
+      000)
+        echo "           Un '000' es que nadie contesto: la aplicacion no esta" >&2
+        echo "           levantada. Arrancala y repite este mismo comando --la" >&2
+        echo "           puerta sigue abierta porque no se creo nada:" >&2
+        echo "" >&2
+        echo "             ssh root@$HOST /opt/space-os/update.sh" >&2
+        ;;
+      404)
+        echo "           Un 404 significa UNA de dos cosas, y la ruta devuelve lo" >&2
+        echo "           mismo para las dos a proposito: o ya existe una" >&2
+        echo "           organizacion --y entonces esto ya se hizo y no hay que" >&2
+        echo "           repetirlo-- o el token de arranque no coincide." >&2
+        ;;
+      *)
+        echo "           Mira el log de la aplicacion:" >&2
+        echo "             ssh root@$HOST 'docker logs --tail 50 space-os'" >&2
+        ;;
+    esac
+    exit "$EX_REMOTO"
+  fi
+
   echo ""
   echo "  La puerta ya se cerro sola: existe una organizacion, asi que"
   echo "  /api/bootstrap responde 404 desde ahora, con token o sin el."

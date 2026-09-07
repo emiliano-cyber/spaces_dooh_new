@@ -26,6 +26,22 @@ archivos: []
 > nueva antes de PIXELED, o el primer cliente nace con el agujero que se cerro hace tres
 > dias. No es una tarea del plan: es una condicion para el primer cliente.
 
+> [!danger] 2026-09-07 · **`provision-instancia.sh` NO TIENE ARNES DE PRUEBAS** — la deuda del dia
+> Medido: `update.sh` (119 KB) tiene **`pruebas-update.sh` de 126 KB** —mas grande que el
+> propio guion— y `pruebas-vuelta-atras-real.sh`. **`provision-instancia.sh` (36 KB) no
+> tiene ninguno**, y `pruebas-update.sh` no lo menciona ni una vez (0 coincidencias).
+>
+> **Es el unico guion grande sin arnes, y es el que crea las maquinas de los clientes.**
+> Los SEIS defectos de hoy vivian ahi. Los de `update.sh` los cazo su arnes antes de
+> produccion; **estos los cazo un droplet cobrando.** No se paga en una tarde, pero es lo
+> que hay que construir antes de que la flota crezca.
+
+> [!success] 2026-09-07, cierre · **defectos 31-36 ARREGLADOS** (`1d49a9d` + este)
+> El **36** salio al verificar el arreglo del 31: el bootstrap tenia el mismo patron
+> decorativo del 34, y **peor** -- con un 404 o un 500 afirmaba «existe una organizacion»
+> sin que existiera, y dejaba una contrasena impresa que no servia. El `status=7` del
+> intento de hoy fue casualidad: `set -euo pipefail` y curl saliendo 7 al no conectar.
+
 > [!success] 2026-09-07, cierre · **defectos 31-35 ARREGLADOS** (`1d49a9d`)
 > **35** era el gordo: la instancia quedaba muerta hasta las 4:17 porque el cron era lo
 > unico que levantaba el contenedor. Ahora el aprovisionamiento la arranca --`update.sh`
