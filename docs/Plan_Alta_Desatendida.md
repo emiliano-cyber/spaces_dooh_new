@@ -82,11 +82,11 @@ el alta queda exactamente como hoy.
 
 ---
 
-## Fase 1 · El arnés de `provision-instancia.sh` — el prerrequisito
+## Fase 1 · El arnés de `provision-instancia.sh` — ✅ **HECHA**
 
 > **Nada de la Fase 2 se empieza antes de cerrar esta.** Es la regla del ADR 0029, punto 7.
 
-### A1.1 · Arnés base, con los seis defectos de hoy como casos `[pruebas]`
+### A1.1 · Arnés base, con los seis defectos de hoy como casos `[pruebas]` — ✅ hecha
 
 - **Objetivo:** que los defectos 31–36 no puedan volver, y que exista dónde poner el
   siguiente.
@@ -105,9 +105,25 @@ el alta queda exactamente como hoy.
   remota ni gasta un céntimo**, y eso es un criterio de aceptación, no un detalle.
 - **Criterio:** los seis casos en verde, y **cada uno demostrado en rojo** revirtiendo su
   arreglo antes de darlo por bueno.
+- **Resultado:** `infra/scripts/pruebas-provision.sh` — **14 escenarios · 40
+  comprobaciones**, y un modo `--mutantes` con **6 mutantes que muerden los 6**. Cada
+  mutante deshace uno de los arreglos del 07/09 con un `sed` y comprueba que su escenario
+  se pone rojo.
+
+> [!important] Los mutantes se ganaron el sitio antes de existir
+> Al escribirlos apareció que **la aserción del escenario 35 era demasiado laxa**: un
+> `grep -F` de la ruta de `update.sh` casaba con **escribirlo**, no solo con ejecutarlo,
+> así que ese escenario **daba verde sin haber probado nada**. Un mutante que escapa es un
+> agujero en las pruebas, no en el código.
+>
+> Y van **tres** veces en un día que un doble mío casa de más — el `includes` del `fetch`
+> en A0.1, y dos `case` de este arnés. Es un modo de fallo propio de los dobles y merece
+> tenerse presente: **dan rojos que no existen y, por el mismo mecanismo, verdes que
+> tampoco.**
+
 - **Commit:** `test(altas): el arnes de provision-instancia, con los seis de hoy dentro`
 
-### A1.2 · El arnés entra en CI `[infra]`
+### A1.2 · El arnés entra en CI `[infra]` — ✅ hecha
 
 - **Objetivo:** que corra en máquina limpia y no solo en la de quien lo escribió.
 - **Archivos:** `.github/workflows/ci.yml`.
