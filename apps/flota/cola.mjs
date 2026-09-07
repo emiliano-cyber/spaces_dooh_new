@@ -18,7 +18,7 @@ import { readdir, readFile, writeFile, mkdir, rename, rm } from 'node:fs/promise
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
-import { PENDIENTE, EN_CURSO } from './ejecutor.mjs'
+import { PENDIENTE, EN_CURSO, ESPERANDO_DNS, EMITIENDO_CERT } from './ejecutor.mjs'
 
 // ─── Escribir sin pisarse ───────────────────────────────────────────────────
 //
@@ -175,6 +175,36 @@ export async function siguientePendiente(dir) {
   const todas = await listar(dir)
   if (todas.some((s) => s.estado === EN_CURSO)) return null
   return todas.find((s) => s.estado === PENDIENTE) ?? null
+}
+
+/**
+ * Los estados desde los que una solicitud puede **avanzar sola**.
+ *
+ * Es una lista blanca, no una lista negra, y eso importa: con una lista negra,
+ * un estado nuevo entraria aqui por omision y el ejecutor empezaria a tocar
+ * solicitudes que nadie penso que fuera a tocar.
+ *
+ * `fallida`, `lista` y `cert-agotado` NO estan y no deben estar: las dos
+ * primeras terminaron, y la tercera espera a una persona a proposito.
+ */
+export const REANUDABLES = [ESPERANDO_DNS, EMITIENDO_CERT]
+
+/**
+ * La siguiente que el ejecutor puede avanzar, o `null`.  (A2.1, ADR 0029)
+ *
+ * Hermana de `siguientePendiente()` y **con la misma regla de UNA A LA VEZ**:
+ * si hay alguna `en-curso` no se devuelve ninguna. Dos altas en paralelo
+ * competirian por el mismo `doctl` y la misma clave, y eso no cambia porque
+ * ahora haya mas estados.
+ *
+ * Son dos funciones y no una con un parametro a proposito: si las dos
+ * devolvieran lo mismo, el ejecutor podria empezar un alta creyendo que
+ * continua otra.
+ */
+export async function siguienteQueAvanza(dir) {
+  const todas = await listar(dir)
+  if (todas.some((s) => s.estado === EN_CURSO)) return null
+  return todas.find((s) => REANUDABLES.includes(s.estado)) ?? null
 }
 
 /** Cambia el estado y añade lo que se sepa. No borra nada de lo anterior. */

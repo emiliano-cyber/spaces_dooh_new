@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { manejar, escapar, RUTAS } from './servidor.mjs'
+import { manejar, escapar, RUTAS, resumenDeAlta } from './servidor.mjs'
 
 // ============================================================================
 //  El servidor del panel de flota (ADR 0026).
@@ -236,5 +236,62 @@ describe('la consulta lleva su token, o la flota entera miente', () => {
     )
     expect(vistas?.['x-flota-token']).toBe('tok-de-demo')
     delete process.env.FLOTA_TOKEN_DEMO
+  })
+})
+
+// ============================================================================
+//  Que cuenta el panel de cada alta.  (A2.4, ADR 0029)
+// ----------------------------------------------------------------------------
+//  Con la maquina de estados hay CINCO sitios donde pararse en vez de dos, y esa
+//  es la consecuencia negativa que el ADR declara. Se paga aqui: el nombre del
+//  estado no le dice a nadie que hacer, y el resumen si.
+// ============================================================================
+describe('el resumen de un alta, en la pantalla', () => {
+  it('esperando DNS dice a QUIEN se espera, que es lo unico accionable', () => {
+    const t = resumenDeAlta({ estado: 'esperando-dns', ip: '203.0.113.1' })
+    expect(t).toMatch(/DNS/i)
+    expect(t).toMatch(/owner|apunt/i)
+  })
+
+  it('si el DNS apunta a OTRA IP lo dice, porque eso no se arregla solo', () => {
+    // Es el caso que nadie miraria: la fila parece que «espera», y en realidad
+    // esta mal apuntada y va a esperar para siempre.
+    const t = resumenDeAlta({ estado: 'esperando-dns', ip: '203.0.113.1', dnsOtraIp: '198.51.100.9' })
+    expect(t).toContain('198.51.100.9')
+    expect(t).toMatch(/otra/i)
+  })
+
+  it('emitiendo el certificado dice por que intento va', () => {
+    const t = resumenDeAlta({ estado: 'emitiendo-cert', intentos: 2 })
+    expect(t).toContain('2')
+    expect(t).toMatch(/3/)
+  })
+
+  it('cert-agotado dice CLARAMENTE que espera a una persona', () => {
+    // Si esto no lo dijera, la fila se quedaria ahi para siempre sin que nadie
+    // supiera que le toca a un humano.
+    const t = resumenDeAlta({ estado: 'cert-agotado', intentos: 3 })
+    expect(t).toMatch(/persona/i)
+  })
+
+  it('lista avisa de que TODAVIA falta la primera empresa', () => {
+    // «lista» a secas se lee como «terminada», y no lo esta.
+    const t = resumenDeAlta({ estado: 'lista' })
+    expect(t).toMatch(/empresa|organizacion|organizaci/i)
+  })
+
+  it('una fallida enseña su motivo, no solo la palabra fallida', () => {
+    const t = resumenDeAlta({ estado: 'fallida', historial: [{ estado: 'fallida', codigo: 1 }] })
+    expect(t).toMatch(/1/)
+  })
+
+  it('y si alguna comprobacion salio rara, lo dice', () => {
+    const t = resumenDeAlta({ estado: 'lista', comprobaciones: { login: 200, signup: 200, 'login-post': 401 } })
+    expect(t).toMatch(/signup/)
+  })
+
+  it('un estado desconocido no revienta la pantalla', () => {
+    expect(typeof resumenDeAlta({ estado: 'lo-que-sea' })).toBe('string')
+    expect(typeof resumenDeAlta({})).toBe('string')
   })
 })
