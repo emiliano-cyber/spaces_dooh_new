@@ -24,6 +24,11 @@ export interface UsuarioAuth {
   // quedaba en «No se pudieron cargar los datos» con un botón de reintentar que
   // no podía funcionar nunca, y sin decir por qué ni adónde ir.
   debeCambiarPassword?: boolean
+  // ADR 0028 · B2. Lo DERIVA el servidor en `/api/auth/me` a partir de la misma
+  // regla que usa `exigir()` para cortar: aqui no se recalcula, porque dos
+  // copias divergen y entonces el servidor cortaria por una razon y la interfaz
+  // llevaria a otra parte.
+  debeGuardarCodigos?: boolean
   // ADR 0018. Mismo cuento que la línea de arriba, y por eso se declara a la
   // vez que se usa: el servidor lo manda desde `auth_usuario_por_sesion`, y si
   // este tipo no lo nombrara, la pantalla no podría saber que se entró con

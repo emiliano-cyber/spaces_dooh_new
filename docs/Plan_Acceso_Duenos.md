@@ -89,7 +89,7 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
 - **El `update` lleva `and usado_en is null`**, no solo la comprobación previa: entre leer y
   escribir cabe otra petición, y dos simultáneas con el mismo código lo gastarían las dos.
 
-## B2 · La pantalla que los enseña UNA vez `[código]` — 🟢 **el candado y la API, hechos**
+## B2 · La pantalla que los enseña UNA vez `[código]` — ✅ **HECHA**
 
 - **Objetivo:** que los códigos lleguen al Dueño **sin pasar por nadie**.
 - **Cuándo:** en su primera entrada con Google, antes de dejarle usar la aplicación.
@@ -101,7 +101,7 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
   visita no los vuelva a enseñar**.
 - **Depende de:** B1.
 
-### Hecho el 2026-09-07: el candado y la API. Falta la pantalla.
+### Cerrada el 2026-09-07 — candado, API y pantalla
 
 **El mecanismo no se inventó: se copió.** El repo ya tenía «este usuario no puede usar la
 aplicación hasta que haga X» —`debe_cambiar_password`, ADR 0009— con su guard en `exigir()`
@@ -131,8 +131,22 @@ afectado.
 no es cierto, y ahora comprueba las dos mitades — cortado por la razón correcta, y
 utilizable en cuanto confirma.
 
-**Lo que falta de B2:** la pantalla en sí. La API y el candado están; la interfaz que los
-enseña, no.
+**La pantalla**, en `(app)/(shell)/codigos-recuperacion/`, y el desvío en `AuthGate` — el
+mismo sitio y la misma forma que el de la contraseña temporal.
+
+Dos cosas que la pantalla hace a propósito y conviene no «simplificar»:
+
+- **No genera los códigos al montarse.** Los pide cuando el usuario lo pide. Generarlos al
+  abrir la pantalla haría que alguien que llega aquí por error **invalidara los que ya tenía
+  guardados** sin haber hecho nada.
+- **Al confirmar recarga entera** en vez de navegar con el router: la sesión que el cliente
+  tiene en memoria dice todavía que faltan los códigos, y con ella el propio guard de la
+  interfaz lo devolvería a la pantalla en cuanto navegara.
+
+Y el booleano `debeGuardarCodigos` lo **deriva el servidor** en `/api/auth/me`, con la misma
+función que usa `exigir()` para cortar (`debeGuardarCodigos()` en `auth.ts`). No se
+recalcula en el cliente: con dos copias, el servidor cortaría por una razón y la interfaz
+llevaría a otra parte.
 
 ## B3 · El candado «solo Google» por usuario `[código]`
 

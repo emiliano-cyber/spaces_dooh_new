@@ -167,3 +167,40 @@ describe('sin sesión', () => {
     expect(r.status).toBe(401)
   })
 })
+
+describe('lo que la interfaz necesita para llevarle a la pantalla', () => {
+  it('`/api/auth/me` dice que le faltan, o la pantalla no se enseña nunca', async () => {
+    // El servidor ya CORTA con 403, pero un 403 sin explicación deja al usuario
+    // dando reintentos. Este booleano es lo que hace que `AuthGate` lo lleve a
+    // la pantalla — y va DERIVADO del servidor, con la misma regla que corta.
+    await limpiarEstado()
+    const c = await dentro()
+    await sesionComoGoogle()
+
+    const yo = await c.pedir('/api/auth/me/')
+    expect(yo.status).toBe(200)
+    expect(yo.datos.usuario.debeGuardarCodigos).toBe(true)
+  })
+
+  it('y deja de decirlo en cuanto confirma', async () => {
+    await limpiarEstado()
+    const c = await dentro()
+    await sesionComoGoogle()
+
+    await c.pedir('/api/perfil/codigos-recuperacion/', { cuerpo: {} })
+    await c.pedir('/api/perfil/codigos-recuperacion/?ya=1', { cuerpo: {} })
+
+    const yo = await c.pedir('/api/auth/me/')
+    expect(yo.datos.usuario.debeGuardarCodigos).toBe(false)
+  })
+
+  it('quien entro con contrasena NO recibe ese aviso', async () => {
+    // Si lo recibiera, la interfaz lo mandaria a una pantalla que no le hace
+    // falta y de la que el servidor no le esta cortando.
+    await limpiarEstado()
+    const c = await dentro()
+
+    const yo = await c.pedir('/api/auth/me/')
+    expect(yo.datos.usuario.debeGuardarCodigos).toBe(false)
+  })
+})

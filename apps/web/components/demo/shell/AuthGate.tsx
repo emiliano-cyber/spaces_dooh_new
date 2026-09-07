@@ -81,6 +81,15 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const rutaLimpia = (pathname ?? '').replace(/\/spaces-dooh/, '').replace(/\/$/, '')
   const debeCambiar = !!sesion?.usuario.debeCambiarPassword
   const enConfiguracion = rutaLimpia === '/configuracion'
+  // ADR 0028 · B2. El servidor ya CORTA con 403 mientras falten los códigos
+  // (`exigir()`); esto es lo que evita que el usuario se coma ese 403 sin saber
+  // por qué. Mismo problema que tenía la contraseña temporal antes de 3865c4e:
+  // el servidor pedía algo y la interfaz no tenía puerta.
+  //
+  // El booleano viene DERIVADO del servidor (`/api/auth/me`) y no se calcula
+  // aquí: la regla la decide `exigir()`, y una copia en el cliente divergiría.
+  const debeGuardarCodigos = !!sesion?.usuario.debeGuardarCodigos
+  const enCodigos = rutaLimpia === '/codigos-recuperacion'
 
   useEffect(() => {
     if (sesion === undefined) return
@@ -88,6 +97,11 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     } else if (sesion.usuario.rol === 'CLIENTE') {
       router.replace(landingDeRol('CLIENTE'))
+    } else if (debeGuardarCodigos && !enCodigos) {
+      // ANTES que la contraseña temporal: quien entra con Google no tiene
+      // contraseña que cambiar, así que mandarlo a Configuración lo dejaría
+      // dando vueltas en una pantalla que no le sirve.
+      router.replace('/codigos-recuperacion')
     } else if (debeCambiar && !enConfiguracion) {
       // Antes que cualquier otra comprobación de ruta: con la temporal puesta no
       // hay módulo al que pueda entrar, así que mandarlo a su landing solo lo
@@ -96,7 +110,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     } else if (!debeCambiar && noAutorizado) {
       router.replace(landingDeRol(sesion.usuario.rol))
     }
-  }, [sesion, noAutorizado, debeCambiar, enConfiguracion, router])
+  }, [sesion, noAutorizado, debeCambiar, enConfiguracion, debeGuardarCodigos, enCodigos, router])
 
   if (sesion === undefined || sesion === null || sesion.usuario.rol === 'CLIENTE') {
     return <Cargando />
