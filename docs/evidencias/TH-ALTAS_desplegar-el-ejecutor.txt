@@ -23,6 +23,63 @@
    decorativa y el ADR 0027 no vale nada.
 
 # ############################################################
+#  PASO 0 · `doctl` COMO BINARIO, NUNCA COMO SNAP  🚦 PUERTA 0
+# ############################################################
+#
+#  >>> ESTE PASO NO EXISTIA, y costo dos intentos del alta el
+#  >>> 2026-09-07. El ejecutor NO PUEDE usar el doctl de snap, y
+#  >>> no es cuestion de ajustarlo: es estructural.
+#
+#  `snap-confine` es setuid root y necesita `cap_dac_override`.
+#  La unidad lleva `NoNewPrivileges=yes` y `RestrictSUIDSGID=yes`
+#  --endurecimiento deliberado del unico proceso del PADRE con
+#  los tres tokens-- y eso anula el setuid. El alta muere con:
+#
+#    snap-confine is packaged without necessary permissions
+#    required permitted capability cap_dac_override not found
+#
+#  Bajarle el endurecimiento a la unidad para que quepa un snap
+#  seria cambiar el candado por la comodidad. Va el binario.
+#
+#  (El snap dio guerra TRES veces: no leia rutas de otros
+#   usuarios (03/09), no arranca con el home fuera de /home, y
+#   ahora las capacidades. El binario no tiene ninguna de las
+#   tres: no hay confinamiento, no exige $HOME y no es setuid.)
+
+echo ok; V=$(doctl version 2>/dev/null | head -1 | sed -E 's/.*version ([0-9.]+).*/\1/'); echo "version detectada: ${V:-NINGUNA}"
+
+#  Si no hay doctl todavia, pon a mano la ultima version de
+#  https://github.com/digitalocean/doctl/releases
+
+echo ok; cd /tmp && curl -fsSL "https://github.com/digitalocean/doctl/releases/download/v${V}/doctl-${V}-linux-amd64.tar.gz" -o doctl.tgz && tar xzf doctl.tgz doctl
+echo ok; install -o root -g root -m 755 /tmp/doctl /usr/local/bin/doctl
+echo ok; snap remove doctl 2>/dev/null; true
+echo ok; command -v doctl && doctl version | head -1
+
+# 🚦 PUERTA 0 — `command -v doctl` tiene que decir
+# `/usr/local/bin/doctl`. Si dice `/snap/bin/doctl`, el binario
+# no quedo puesto o el snap sigue ganando en el PATH.
+#
+#  >>> Y COMPRUEBALO CON EL SANDBOX DE LA UNIDAD, NO CON `sudo`.
+#  >>> `sudo -u altas` NO aplica `NoNewPrivileges`, asi que una
+#  >>> prueba con sudo SALE EN VERDE mientras el alta sigue
+#  >>> rota. Paso el 07/09 y mando repetir el alta.
+#
+#  (Este comando va en UNA sola linea.)
+
+echo ok; systemd-run --uid=altas --gid=altas --property=NoNewPrivileges=yes --property=RestrictSUIDSGID=yes --property=EnvironmentFile=/etc/space-os/ejecutor.env --property=Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --wait --pipe doctl compute ssh-key list --format Name,FingerPrint
+
+#  ESPERADO: las claves `padre` y `altas`, y
+#  `Finished with result: success`. Este comando comprueba de
+#  golpe que `altas` lee su .env, que encuentra doctl, que el
+#  token autentica CON el scope ssh_key, y que el fingerprint de
+#  DO_SSH_KEYS existe de verdad en la cuenta.
+#
+#  NOTA: este paso necesita el .env del PASO 3. Si lo corres
+#  antes, la parte del `command -v` vale igual; el `systemd-run`
+#  hazlo despues.
+
+# ############################################################
 #  PASO 1 · EL USUARIO `altas` Y SU LLAVE   🚦 PUERTA 1
 # ############################################################
 #

@@ -6,6 +6,29 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!danger] 2026-09-07 · **doctl NO puede ser un snap en el PADRE** (defectos 29 y 30)
+> El snap dio guerra **tres veces**: no leia rutas de otros usuarios (03/09), no
+> arranca con el home fuera de `/home` (**29**), y `snap-confine` es **setuid root
+> y pide `cap_dac_override`**, que `NoNewPrivileges=yes` de la unidad anula (**30**).
+>
+> **No se rebaja el endurecimiento de la unidad**: es el unico proceso del PADRE con
+> los tres tokens. `doctl` pasa a **binario en `/usr/local/bin`**, y con eso mueren
+> las tres. Es el **PASO 0** nuevo de `TH-ALTAS_desplegar-el-ejecutor.txt`.
+>
+> 🔴 **Y la leccion, que es sobre las comprobaciones previas:** el pre-vuelo estaba
+> hecho con `sudo -u altas`, y **`sudo` NO aplica `NoNewPrivileges`** — paso en
+> verde mientras el camino real seguia roto. **Una comprobacion que no reproduce el
+> sandbox del proceso real es peor que no tenerla: da permiso para seguir.** La
+> buena usa `systemd-run` con las mismas propiedades (puerta 0 de la tarjeta).
+>
+> ⚠️ **Hueco que lo hizo posible:** `doctl` **no se instalaba en ningun sitio del
+> repositorio** — `Runbook_Padre_Droplet_Nuevo.md:90` solo lo usa desde la maquina
+> de trabajo. Era estado no documentado, puesto a mano como snap.
+>
+> ✅ **El arreglo del 27 se pago en su primer uso:** el segundo intento fallo igual,
+> pero el registro trajo las seis lineas y el mensaje de `snap-confine`. Sin el, se
+> habria vuelto a ver solo «Creando el droplet».
+
 > [!important] 2026-09-07, tarde · **el ejecutor de altas ya corre, y fallo en el sitio previsto**
 > **Puerta 3 en verde**: `sudo -u flota cat /etc/space-os/ejecutor.env` →
 > `Permission denied`. Los cinco valores puestos. **Y ninguna maquina se creo.**

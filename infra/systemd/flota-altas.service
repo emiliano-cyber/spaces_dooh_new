@@ -23,14 +23,23 @@ ExecStart=/usr/local/bin/node altas.mjs
 EnvironmentFile=/etc/space-os/ejecutor.env
 Environment=NODE_ENV=production
 
-# `/snap/bin` NO esta en el PATH por omision de systemd, y `doctl` esta
-# instalado como snap: `command -v doctl` -> /snap/bin/doctl con el PATH de una
-# sesion, y NADA con el de una unidad. Medido en el PADRE el 2026-09-07.
+# El PATH va EXPLICITO para que la unidad no dependa del que traiga systemd por
+# omision. Historia de por que, porque costo dos intentos del alta el 07/09:
 #
-# Sin esto, `provision-instancia.sh:364` (`local_requiere doctl`) sale con
-# EX_ENTORNO=1 justo despues de imprimir "Creando el droplet" -- que es
-# exactamente donde murio el primer alta pedida desde el panel. El fallo no
-# dice nada de doctl: dice "codigo 1".
+#  1. `doctl` estaba instalado como snap, y `/snap/bin` NO entra en el PATH por
+#     omision de una unidad. `provision-instancia.sh:364` (`local_requiere
+#     doctl`) salia con EX_ENTORNO=1 justo tras imprimir "Creando el droplet",
+#     y el fallo no dice nada de doctl: dice "codigo 1".
+#  2. Con `/snap/bin` en el PATH ya se ENCONTRABA, pero seguia sin CORRER:
+#     `snap-confine` es setuid root y pide `cap_dac_override`, y
+#     `NoNewPrivileges=yes` de abajo lo anula. Un snap no puede funcionar aqui,
+#     y el arreglo NO es rebajar el endurecimiento del unico proceso del PADRE
+#     que tiene los tres tokens.
+#
+# Asi que `doctl` va como binario en `/usr/local/bin` (PASO 0 de TH-ALTAS), que
+# ya es el primer directorio de esta lista. `/snap/bin` se queda al final por si
+# alguna otra herramienta lo necesita, pero NADA del alta debe depender de un
+# snap: ver la puerta 0 de la tarjeta.
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
 
 # Un alta puede tardar: crea la maquina, instala y migra. Si se pasa de aqui,

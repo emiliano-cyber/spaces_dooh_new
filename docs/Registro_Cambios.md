@@ -56,6 +56,28 @@ La entrada más reciente va arriba.
   conversacion. Nadie las uso, pero se cambian igual: la regla es que una llave que
   salio de su sitio se da por perdida.
 
+- **Segundo intento del alta: fallo otra vez, y esta vez el sistema SI dijo por que.**
+  Eso era justamente lo que se acababa de arreglar, y funciono en su primer uso.
+
+  El motivo: una de las herramientas que el sistema necesita para crear maquinas
+  estaba instalada en un formato (**snap**) que **no puede funcionar** dentro del
+  proceso automatico, porque ese proceso corre con los permisos deliberadamente
+  recortados — es el unico del servidor que guarda las tres llaves importantes.
+
+  Se podia aflojar esos permisos para que la herramienta cupiera. **Se decidio que
+  no**: se cambio la herramienta por una version normal, que no necesita permisos
+  especiales. Con eso desaparecen **tres** problemas distintos que ese formato ya
+  habia causado.
+
+  **Y quedo escrito como paso obligatorio de la instalacion**, que antes no existia
+  en ningun documento: como llegaba esa herramienta al servidor era algo que solo
+  sabia quien la habia puesto a mano.
+
+  **La leccion, y es incomoda:** la comprobacion previa que existia para no gastar
+  dinero **daba luz verde con el sistema roto**, porque no reproducia las
+  condiciones reales del proceso automatico. Una comprobacion asi es peor que no
+  tener ninguna. Ya esta corregida.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que
