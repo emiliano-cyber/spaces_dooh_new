@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { usuarioActual, permisosDeRol, CSRF_COOKIE, cookieCsrf, nuevoCsrfToken } from '@/lib/server/auth'
+import { usuarioActual, permisosDeRol, CSRF_COOKIE, cookieCsrf, nuevoCsrfToken, debeGuardarCodigos } from '@/lib/server/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +16,13 @@ export async function GET() {
   const u = await usuarioActual()
   if (!u) return NextResponse.json({ error: 'Sin sesión' }, { status: 401 })
   const permisos = await permisosDeRol(u.rol)
-  const res = NextResponse.json({ usuario: u, permisos })
+  // `debeGuardarCodigos` va DERIVADO y no se deja calcular a la interfaz: la
+  // regla es la misma que usa `exigir()` para cortar, y con dos copias el
+  // servidor cortaria por una razon y la interfaz llevaria a otra parte.
+  const res = NextResponse.json({
+    usuario: { ...u, debeGuardarCodigos: debeGuardarCodigos(u) },
+    permisos,
+  })
   // Se llama al montar la app: aprovecha para garantizar que exista la cookie
   // CSRF. Así las sesiones abiertas ANTES de este cambio obtienen su token sin
   // tener que volver a iniciar sesión.

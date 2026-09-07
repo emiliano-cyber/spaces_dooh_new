@@ -139,6 +139,25 @@ export async function usuarioActual(): Promise<UsuarioSesion | null> {
   return u
 }
 
+/**
+ * ¿A este usuario le falta guardar sus códigos de recuperación?  (ADR 0028 · B2)
+ *
+ * **Solo mira a quien entró con Google**, porque es el único caso en el que la
+ * contraseña ha dejado de ser una puerta: si pierde esa cuenta, los códigos son
+ * lo único que le queda. Quien entra con contraseña ya tiene con qué volver.
+ *
+ * Vive aquí y en un solo sitio a propósito: la usan el guard de `exigir()` —que
+ * cierra la aplicación— y `/api/auth/me` —que es lo que hace que la interfaz
+ * lleve al usuario a la pantalla—. Si divergieran, el servidor cortaría por una
+ * razón y la interfaz llevaría a otra parte.
+ */
+export function debeGuardarCodigos(u: {
+  metodoSesion: MetodoSesion
+  codigosVistosEn: string | null
+}): boolean {
+  return u.metodoSesion === 'google' && !u.codigosVistosEn
+}
+
 // ─── Permisos ───────────────────────────────────────────────────────────────
 // Devuelve { modulo: [acciones] } para un rol.
 export async function permisosDeRol(rol: string): Promise<Record<string, string[]>> {
@@ -190,6 +209,8 @@ export async function exigir(
     }
   }
   // ADR 0028 · B2 — quien entró con Google todavía no tiene otra puerta.
+  // La condición vive en `debeGuardarCodigos()`, arriba: la usan este guard Y
+  // `/api/auth/me`, y dos copias de la misma regla divergen.
   //
   // Con el ADR 0028, el Dueño de una instancia entra SOLO con Google: si pierde
   // esa cuenta, sus códigos de recuperación son lo único que le queda. Y solo le
@@ -206,7 +227,7 @@ export async function exigir(
   // molestarle sin darle nada. Y tiene una consecuencia práctica que hace este
   // cambio seguro de desplegar hoy: en producción **todavía nadie entra con
   // Google**, así que esto no encierra a ningún usuario existente.
-  if (usuario.metodoSesion === 'google' && !usuario.codigosVistosEn) {
+  if (debeGuardarCodigos(usuario)) {
     return {
       ok: false,
       status: 403,
