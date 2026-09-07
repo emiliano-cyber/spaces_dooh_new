@@ -1,0 +1,191 @@
+============================================================
+ TH-ALTA · LO QUE FALTA DESPUES DEL FORMULARIO
+ Se corre DESDE EL PADRE (137.184.107.53), como root.
+ ADR 0027 · Escrita 2026-09-07, tras el primer alta real
+============================================================
+
+ QUE HACE EL FORMULARIO SOLO, y donde empiezas tu
+   El panel + el ejecutor hacen, sin que nadie mire:
+     · crean el droplet (nyc1, s-1vcpu-1gb, canal estable)
+     · instalan Docker, PostgreSQL, nginx, certbot, s3cmd, ufw
+     · crean la base, aplican esquema y migraciones
+     · escriben el entorno, nginx en HTTP y el actualizador
+     · LEVANTAN LA APLICACION (desde el 07/09; antes esperaba
+       al cron de las 4:17 y la instancia nacia muerta)
+     · y si el dominio cuelga de una zona nuestra, crean el
+       registro A en Cloudflare con el proxy APAGADO
+   Tarda unos SEIS MINUTOS. Acaba en `esperando-dns`.
+
+   TU empiezas en el PASO 2. Los pasos 3 y 4 son los dos
+   comandos que el propio guion imprime al terminar.
+
+# >>> LA TRAMPA QUE TE VA A MORDER SI LA OLVIDAS <<<
+#
+#  El ejecutor crea el droplet con la clave de `altas`, y
+#  DigitalOcean inyecta SOLO esa. Root del PADRE, que usa la de
+#  `padre`, recibe `Permission denied (publickey)`.
+#
+#  >>> TODO lo de esta tarjeta va como `altas`. <<<
+#
+#  Y si lo olvidas, el sintoma NO dice eso: el guion contestaba
+#  «la instancia no tiene BOOTSTRAP_TOKEN». Arreglado el 07/09,
+#  pero conviene saber por que.
+
+# ############################################################
+#  PASO 1 · MIRAR COMO QUEDO LA SOLICITUD
+# ############################################################
+
+echo ok; cat /var/lib/space-os/solicitudes/*.json
+echo ok; journalctl -u flota-altas --no-pager | tail -20
+
+#  Lo que tiene que decir la ultima solicitud:
+#    "estado": "esperando-dns"     <- el final correcto, NO un cuelgue
+#    "ip": "<la del droplet>"
+#    "dns": "creado"               <- solo si el dominio es de zona nuestra
+#
+#  Y en el journal: {"evento":"altas", ..., "ok":true, "ip":"..."}
+#
+#  Si dice "fallida", el motivo esta DENTRO de la solicitud, en
+#  `registro`. Desde el 07/09 esa lista trae la causa de verdad;
+#  antes se perdia. No reintentes sin leerla: reintentar un alta
+#  a medias crea un SEGUNDO droplet cobrandose.
+
+echo ok; IP=<pon aqui la ip de la solicitud>
+echo ok; DOM=<pon aqui el dominio>
+echo ok; INST=<pon aqui el nombre de la instancia>
+echo ok; MAIL=<pon aqui el correo del Dueno>
+echo ok; echo "IP=$IP DOM=$DOM INST=$INST MAIL=$MAIL"
+
+# ############################################################
+#  PASO 2 · EL DNS                          🚦 PUERTA 1
+# ############################################################
+#  Si el dominio es de una zona NUESTRA, el ejecutor ya creo el
+#  registro. Si es del owner, esto espera a que el lo apunte --y
+#  esa espera es la parte de «soberana» que se puede comprobar.
+
+echo ok; dig +short "$DOM" @1.1.1.1
+
+# 🚦 PUERTA 1 — tiene que devolver EXACTAMENTE $IP.
+#
+#  >>> NO PASES DE AQUI SIN ESTO. Let's Encrypt da CINCO
+#  >>> intentos por hora: pedir el certificado antes de que el
+#  >>> DNS resuelva los quema y te deja una hora parado.
+#
+#  Y si el registro lo creamos nosotros, comprueba en Cloudflare
+#  que la nube esta GRIS. Naranja = proxy encendido = el
+#  certificado se pediria sobre una IP de Cloudflare y no sobre
+#  la maquina del owner.
+
+# ############################################################
+#  PASO 3 · EL CERTIFICADO                  🚦 PUERTA 2
+# ############################################################
+#  Como `altas`, y en UNA sola linea. `systemd-run` da la
+#  identidad Y el entorno de una vez, que es justo lo que hace
+#  falta: la clave la tiene `altas` y las variables estan en su
+#  `.env`.
+
+echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/space-os/ejecutor.env --property=Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --wait --pipe /var/www/Spaces/infra/scripts/provision-instancia.sh --host "$IP" --dominio "$DOM" --emitir-certificado --confirmar
+
+# 🚦 PUERTA 2 — tiene que acabar en `login 200`.
+#
+#  Desde el 07/09 esto COMPARA de verdad: si no es 200 sale con
+#  error y te dice la causa probable. Antes imprimia «Esperado:
+#  login 200» y salia bien pase lo que pase.
+#
+#  Si sale 502: el contenedor no esta levantado. No deberia
+#  pasar --el aprovisionamiento lo arranca-- pero si pasa:
+#     sudo -u altas ssh -i /var/lib/altas/.ssh/id_ed25519 root@$IP '/opt/space-os/update.sh'
+
+# ############################################################
+#  PASO 4 · LA PRIMERA EMPRESA Y SU DUENO   🚦 PUERTA 3
+# ############################################################
+#
+#  >>> ESTE COMANDO IMPRIME LA CONTRASENA DEL DUENO, UNA VEZ.
+#  >>> No la pegues en un chat, ni en un ticket, ni en un
+#  >>> correo sin cifrar. Se le entrega a el y se le pide que la
+#  >>> cambie al entrar.
+#
+#  ⚠️ Y mientras `estable` sea una imagen anterior al 2026-09-04,
+#  el sistema NO le obliga a cambiarla: esa clave vale para
+#  siempre si nadie la cambia. Comprueba que canal corre:
+#     docker image inspect $REGISTRY/space-os:estable --format '{{range .Config.Env}}{{println .}}{{end}}' | grep SPACE_OS_VERSION
+
+echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/space-os/ejecutor.env --property=Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --wait --pipe /var/www/Spaces/infra/scripts/provision-instancia.sh --host "$IP" --dominio "$DOM" --instancia "$INST" --email "$MAIL" --bootstrap --confirmar
+
+# 🚦 PUERTA 3 — tiene que decir `bootstrap 201` y luego «La
+# puerta ya se cerro sola».
+#
+#  Desde el 07/09 tambien COMPARA. Si no es 201 te dice que la
+#  clave impresa NO SIRVE y por que:
+#    000 -> la aplicacion no contesta; arrancala y REPITE (no se
+#           creo nada, la puerta sigue abierta)
+#    404 -> o ya existe una organizacion --ya se hizo-- o el
+#           token de arranque no coincide. La ruta devuelve lo
+#           mismo para los dos a proposito.
+
+# ############################################################
+#  PASO 5 · COMPROBAR, DESDE FUERA
+# ############################################################
+
+echo ok; curl -s -o /dev/null -w 'login       %{http_code}\n' "https://$DOM/spaces-dooh/login/"
+echo ok; curl -s -o /dev/null -w 'signup      %{http_code}\n' "https://$DOM/spaces-dooh/api/signup/"
+echo ok; curl -s -o /dev/null -w 'login-post  %{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"email":"no@existe.mx","password":"x"}' "https://$DOM/spaces-dooh/api/auth/login/"
+
+#  ESPERADO:  login 200 · signup 503 · login-post 401
+#
+#  El 503 dice que el autoregistro esta cerrado --nadie se da de
+#  alta solo en la instancia de un cliente-- y el 401 dice que la
+#  aplicacion habla de verdad con SU base. Son los criterios de
+#  F5.6, y valen igual aqui.
+
+# ############################################################
+#  PASO 6 · QUE EL PANEL LA VEA
+# ############################################################
+#  El aprovisionamiento le escribio su propio FLOTA_TOKEN
+#  (`provision-instancia.sh:597`). Para que el panel del PADRE
+#  la reconozca hay que darle ESE MISMO valor, con el nombre de
+#  la instancia en mayusculas y los `-` como `_`.
+
+echo ok; sudo -u altas ssh -i /var/lib/altas/.ssh/id_ed25519 root@"$IP" "sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/app.env"
+
+#  (Ese valor va a `/etc/space-os/flota.env` del PADRE como
+#   FLOTA_TOKEN_<INSTANCIA-EN-MAYUSCULAS>. Ver apps/flota/README.md.)
+
+echo ok; nano /etc/space-os/flota.env
+echo ok; systemctl restart flota-panel
+
+#  Y se mira en https://space-os.io/flota/ : la fila de la
+#  instancia nueva tiene que salir `al-dia`.
+
+# ############################################################
+#  LO QUE SIGUE SIENDO MANUAL, Y HAY QUE DECIRLO AL OWNER
+# ############################################################
+#   · Su contrasena, y que la cambie al entrar.
+#   · Que la instancia se actualiza SOLA a las 4:17.
+#   · Que NO tiene respaldo fuera del droplet mientras falten
+#     SPACES_KEY/SPACES_SECRET: si la maquina desaparece, el
+#     dump desaparece con ella. Lo avisa el propio update.sh.
+#   · Que para publicar a pantallas hace falta SU
+#     DOOHMAIN_API_KEY, que es de el y no nuestra.
+
+# ############################################################
+#  SI HAY QUE DESHACER
+# ############################################################
+#   doctl compute droplet delete <ID>
+#   ...y borrar su registro A en Cloudflare.
+#
+#  Antes de borrar, si la instancia llego a tener datos:
+#     sudo -u altas ssh -i /var/lib/altas/.ssh/id_ed25519 root@$IP \
+#       'ls -l /var/lib/space-os/respaldos/'
+#  y bajate el dump, porque no esta en ningun otro sitio.
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · Las tres puertas: el `dig`, el `login 200` y el
+#     `bootstrap 201`.
+#   · Las tres comprobaciones del paso 5.
+#   · Y si algo se rompio a mitad: el `registro` de la solicitud,
+#     que desde el 07/09 SI trae la causa.
+#   · NUNCA la contrasena del Dueno.
+# ############################################################

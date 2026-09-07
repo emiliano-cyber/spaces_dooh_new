@@ -65,7 +65,7 @@ Para montarlo en el padre:
 cp flota.example.json flota.json    # y se rellena con las instancias de verdad
 ```
 
-## Los tokens van por entorno, nunca en el inventario
+## Los tokens van por entorno o por archivo, nunca en el inventario
 
 Uno por instancia: **`FLOTA_TOKEN_<NOMBRE>`** — el nombre en mayúsculas y con `-`
 convertido en `_` (`inventario` → `FLOTA_TOKEN_INVENTARIO`). Es el mismo valor que
@@ -74,6 +74,38 @@ convertido en `_` (`inventario` → `FLOTA_TOKEN_INVENTARIO`). Es el mismo valor
 `FLOTA_TOKEN` a secas sirve de respaldo para toda la flota, pero **un token
 compartido convierte a cualquier instancia comprometida en el panel de todas las
 demás**: se usa para probar, no para operar.
+
+### Y hay una segunda fuente, para las instancias que nacen solas
+
+Cuando el alta la pide el panel (ADR 0027), la instancia nueva la crea el **ejecutor**,
+que corre como `altas` — y el panel corre como `flota`. Son usuarios distintos a
+propósito, así que el ejecutor no puede escribir en el entorno del panel ni
+reiniciarlo.
+
+La entrega va por archivo: **`/etc/space-os/flota-tokens.env`**, `altas:flota` y modo
+**640** — escribe uno, lee el otro. `estado.mjs` lo lee **en cada pasada**, así que una
+instancia nueva aparece **sin reiniciar el panel**.
+
+```
+# escrito por el ejecutor de altas
+FLOTA_TOKEN_ENSAYO4=...
+```
+
+El orden es **entorno → archivo → compartido**, y no es arbitrario:
+
+- **el entorno gana sobre el archivo** para poder anular un token equivocado sin editar
+  un archivo que escribe otro proceso;
+- **un token propio gana sobre el compartido**, venga de donde venga.
+
+Dos cosas más, las dos con prueba: **un archivo ausente o ilegible es ausencia de
+tokens, no un error** —el panel no se cae porque alguien dejó un archivo a medias—, y
+**solo se leen claves `FLOTA_TOKEN_*`**. Esa lista blanca es lo que impide que el día
+que alguien pegue ahí un `DIGITALOCEAN_ACCESS_TOKEN` «para tenerlo a mano», acabe
+leyéndolo el proceso que da la cara a internet.
+
+> [!warning] Lo único que hay que comprobar al desplegarlo
+> Que **`otros` no pueda leerlo**. Si el archivo queda `644`, cualquier cuenta de la
+> máquina se lleva los tokens de toda la flota.
 
 ---
 

@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process'
 import { siguientePendiente, marcar, anotarEn, esperarEscrituras } from './cola.mjs'
 import { ejecutarAlta, ESPERANDO_DNS } from './ejecutor.mjs'
 import { crearRegistroA, esDeNuestraZona } from './dns.mjs'
+import { comprobar, veredicto } from './comprobaciones.mjs'
 
 const DIR = process.env.DIR_SOLICITUDES
 if (!DIR) {
@@ -136,4 +137,27 @@ if (!esDeNuestraZona(solicitud.dominio, zonas)) {
   }
 }
 
-console.log(JSON.stringify({ evento: 'altas', id: solicitud.id, ok: true, ip }))
+// ─── Las tres comprobaciones, y quedan DENTRO de la solicitud ───────────────
+//
+// Sobre `http://` y no `https://`: aquí todavía no hay certificado, así que
+// pedirlas por https daría un fallo de red y no diría nada de la aplicación.
+// Ver la cabecera de `comprobaciones.mjs`.
+//
+// Y si el dominio es del owner y aún no lo ha apuntado, los tres saldrán `0`.
+// **Eso no es un fallo del alta**: es la foto de este momento, y por eso se
+// guarda con su hora. Cuando el DNS resuelva, se vuelven a tomar.
+//
+// Se marca otra vez el MISMO estado a propósito: el historial acumula, y así
+// queda con hora cuándo se comprobó, que es lo que hace auditable un alta de
+// hace tres semanas.
+const codigos = await comprobar(`http://${solicitud.dominio}`)
+const v = veredicto(codigos)
+await anotar(
+  v.ok
+    ? 'comprobaciones: login 200 · signup 503 · login-post 401, las tres como debe'
+    : `comprobaciones: REVISAR ${v.raras.join(', ')} -> ${JSON.stringify(codigos)}`,
+)
+await marcar(DIR, solicitud.id, ESPERANDO_DNS, { ip, comprobaciones: codigos, comprobacionesOk: v.ok })
+await esperarEscrituras()
+
+console.log(JSON.stringify({ evento: 'altas', id: solicitud.id, ok: true, ip, comprobaciones: codigos }))
