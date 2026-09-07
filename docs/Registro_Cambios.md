@@ -100,6 +100,23 @@ La entrada más reciente va arriba.
   Es exactamente el tipo de cosa que solo se descubre haciendolo de verdad: estaba
   arreglado, probado y en verde, y aun asi no habia llegado a donde importa.
 
+- **Y se arreglaron cinco cosas mas de la instalacion, la misma tarde.** La mas
+  importante: **una empresa recien dada de alta quedaba apagada hasta las 4:17 de la
+  manana.** El sistema dejaba programado el arranque para la madrugada y no encendia
+  nada, asi que el cliente no podia entrar hasta el dia siguiente sin que nadie le
+  explicara por que. Ahora se enciende al terminar la instalacion.
+
+  Las otras cuatro son mensajes que mandaban a mirar al sitio equivocado: uno decia
+  «falta un dato de arranque» cuando en realidad no habia podido ni conectarse; otro
+  daba la instalacion por buena habiendo detectado que la pagina no respondia; y dos
+  pedian datos que ese paso no usa.
+
+  Y una de fondo: **la lista de datos de configuracion del sistema de altas no estaba
+  guardada en ningun sitio del proyecto** -- vivia dentro de una hoja de instrucciones.
+  Por eso se quedo desactualizada dos veces en cuatro dias. Ahora tiene su archivo
+  propio, con la explicacion de cada dato al lado, y la hoja lo copia en vez de
+  repetirlo.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que

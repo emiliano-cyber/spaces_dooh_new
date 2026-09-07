@@ -129,16 +129,26 @@ fi
 # Sin registro no hay imagen, y sin imagen no hay migraciones ni aplicacion. Se
 # comprueba AQUI y no al usarlo: fallar despues de crear el droplet y la base
 # deja media instancia hecha.
-if [[ -z "$REGISTRY" ]]; then
-  echo "provision: falta REGISTRY (p. ej. registry.digitalocean.com/<nombre>)." >&2
-  echo "           Va por entorno, no por argumento: no se quema en el repo." >&2
-  exit "$EX_USO"
-fi
-# El token solo hace falta para EJECUTAR. En simulacion se muestra el login sin
-# credencial, que es justo lo que hay que poder revisar sin tener secretos.
-if [[ "$CONFIRMAR" -eq 1 && -z "$REGISTRY_TOKEN" ]]; then
-  echo "provision: falta REGISTRY_TOKEN (de SOLO LECTURA) para bajar la imagen." >&2
-  exit "$EX_USO"
+#
+# Pero SOLO en los modos que usan la imagen. `--emitir-certificado` y
+# `--bootstrap` no la tocan, y exigirsela tenia un coste que no se veia: obligaba
+# al operador a volcar los TRES tokens al entorno de su shell para emitir un
+# certificado que no necesita ninguno. Medido el 2026-09-07: los dos ultimos
+# pasos del runbook fallaban con un mensaje sobre el registro, que manda a mirar
+# al sitio equivocado.
+if [[ "$EMITIR_CERT" -eq 0 && "$BOOTSTRAP" -eq 0 ]]; then
+  if [[ -z "$REGISTRY" ]]; then
+    echo "provision: falta REGISTRY (p. ej. registry.digitalocean.com/<nombre>)." >&2
+    echo "           Va por entorno, no por argumento: no se quema en el repo." >&2
+    echo "           Plantilla: infra/env/ejecutor.env.example" >&2
+    exit "$EX_USO"
+  fi
+  # El token solo hace falta para EJECUTAR. En simulacion se muestra el login sin
+  # credencial, que es justo lo que hay que poder revisar sin tener secretos.
+  if [[ "$CONFIRMAR" -eq 1 && -z "$REGISTRY_TOKEN" ]]; then
+    echo "provision: falta REGISTRY_TOKEN (de SOLO LECTURA) para bajar la imagen." >&2
+    exit "$EX_USO"
+  fi
 fi
 
 # El dominio se valida de verdad: un dominio con un espacio o una barra acaba
@@ -278,8 +288,39 @@ if [[ "$EMITIR_CERT" -eq 1 ]]; then
   remoto "nginx -t && systemctl reload nginx"
 
   paso "Comprobacion"
-  remoto "curl -s -o /dev/null -w 'login %{http_code}\n' 'https://$DOMINIO/spaces-dooh/login/'"
-  echo "Esperado: login 200"
+  # Se COMPARA, no se imprime lo esperado y se sale 0. Hasta el 2026-09-07 esto
+  # hacia `echo "Esperado: login 200"; exit 0`, y en el primer uso real dijo
+  # `login 502` y `Finished with result: success` en la misma pantalla. Una
+  # comprobacion que no compara no es una comprobacion: es una linea de log que
+  # da permiso para seguir.
+  if [[ "$CONFIRMAR" -ne 1 ]]; then
+    printf '%s ssh root@%s curl https://%s/spaces-dooh/login/ (esperando 200)\n' \
+      "$DRY_ETIQUETA" "${HOST:-<pendiente>}" "$DOMINIO"
+    exit 0
+  fi
+  CODIGO_LOGIN="$(remoto "curl -s -o /dev/null -w '%{http_code}' 'https://$DOMINIO/spaces-dooh/login/'" || true)"
+  echo "login $CODIGO_LOGIN"
+  if [[ "$CODIGO_LOGIN" != "200" ]]; then
+    echo "" >&2
+    echo "provision: el certificado esta puesto y nginx sirve, pero la aplicacion" >&2
+    echo "           NO responde (esperado 200, recibido '$CODIGO_LOGIN')." >&2
+    echo "" >&2
+    if [[ "$CODIGO_LOGIN" == "502" ]]; then
+      echo "           Un 502 con el certificado bien casi siempre es lo mismo: el" >&2
+      echo "           contenedor no esta levantado. El aprovisionamiento instala" >&2
+      echo "           'update.sh' y su cron, y es el cron quien lo arranca --a las" >&2
+      echo "           4:17. Para no esperar a la madrugada:" >&2
+      echo "" >&2
+      echo "             ssh root@$HOST /opt/space-os/update.sh" >&2
+      echo "" >&2
+      echo "           Y ojo con QUE clave usas: si la instancia la creo el panel," >&2
+      echo "           solo entra la de 'altas'." >&2
+    else
+      echo "           Mira el log de la instancia antes de seguir con --bootstrap:" >&2
+      echo "             ssh root@$HOST 'docker logs --tail 50 space-os'" >&2
+    fi
+    exit "$EX_REMOTO"
+  fi
   exit 0
 fi
 
@@ -300,12 +341,35 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
 
   # El token se lee del `app.env` del propio servidor y no se pide por
   # argumento: asi no acaba en el historial de la consola del operador.
-  TOKEN_ARRANQUE="$(remoto "sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env" || true)"
-  if [[ "$CONFIRMAR" -eq 1 && -z "$TOKEN_ARRANQUE" ]]; then
-    echo "provision: la instancia no tiene BOOTSTRAP_TOKEN." >&2
-    echo "           O ya se arranco --y entonces la puerta esta cerrada sola--" >&2
-    echo "           o el aprovisionamiento no llego a escribirlo." >&2
-    exit "$EX_REMOTO"
+  #
+  # Un `ssh` caido NO es un token ausente, y hasta el 2026-09-07 se reportaba
+  # como tal: el `|| true` se comia el fallo y el mensaje mandaba a buscar un
+  # token que estaba perfectamente escrito. Se distinguen los dos casos.
+  if [[ "$CONFIRMAR" -eq 1 ]]; then
+    if ! TOKEN_ARRANQUE="$(remoto "sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env")"; then
+      echo "provision: no se pudo leer /etc/space-os/app.env en $HOST por ssh." >&2
+      echo "           Esto NO dice nada del BOOTSTRAP_TOKEN: no se llego a mirar." >&2
+      echo "" >&2
+      echo "           Si el mensaje de arriba es 'Permission denied (publickey)':" >&2
+      echo "           la instancia solo acepta las claves que se le inyectaron al" >&2
+      echo "           crearla (DO_SSH_KEYS). Si la creo el panel, esa es la de" >&2
+      echo "           'altas' y NO la de 'padre', asi que este guion hay que" >&2
+      echo "           correrlo como 'altas':" >&2
+      echo "" >&2
+      echo "             systemd-run --uid=altas --gid=altas \\" >&2
+      echo "               --property=EnvironmentFile=/etc/space-os/ejecutor.env \\" >&2
+      echo "               --wait --pipe $0 <los mismos argumentos>" >&2
+      exit "$EX_REMOTO"
+    fi
+    if [[ -z "$TOKEN_ARRANQUE" ]]; then
+      echo "provision: la instancia no tiene BOOTSTRAP_TOKEN." >&2
+      echo "           Se leyo el archivo y la clave no esta: o ya se arranco --y" >&2
+      echo "           entonces la puerta esta cerrada sola-- o el" >&2
+      echo "           aprovisionamiento no llego a escribirlo." >&2
+      exit "$EX_REMOTO"
+    fi
+  else
+    TOKEN_ARRANQUE="$(remoto "sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env" || true)"
   fi
 
   CLAVE_DUENO="$(secreto)"
@@ -536,6 +600,31 @@ SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 17 4 * * * root /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1
 CRON
+
+# ─── 6b · Levantar la aplicacion, sin esperar al cron ───────────────────────
+# El cron de arriba arranca el contenedor a las 4:17. Hasta el 2026-09-07 eso era
+# lo UNICO que lo arrancaba, asi que una instancia recien aprovisionada quedaba
+# muerta hasta la madrugada siguiente. En el primer alta real eso costo una
+# confusion entera: `login` daba 502 y el `--bootstrap` daba `000`, y ninguno de
+# los dos decia que simplemente no habia nada levantado.
+#
+# Y no habia razon tecnica para esperar: `update.sh` comprueba la salud contra
+# `http://127.0.0.1:3000` (`update.sh:750`), asi que NO necesita ni el DNS ni el
+# certificado. Se arranca aqui, que es lo que se hizo a mano y funciono.
+#
+# Si falla NO se aborta: la maquina ya existe y esta aprovisionada, y el estado
+# resultante es exactamente el de antes de este cambio. Se dice en voz alta y se
+# sigue -- abortar aqui convertiria una instancia buena en un alta fallida.
+paso "Levantando la aplicacion"
+if remoto "/opt/space-os/update.sh"; then
+  echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
+else
+  echo "" >&2
+  echo "  AVISO: el aprovisionamiento SI termino y la maquina esta lista, pero la" >&2
+  echo "         aplicacion no quedo levantada. El cron lo reintentara a las 4:17." >&2
+  echo "         Para no esperar, mira que paso:" >&2
+  echo "           ssh root@$HOST 'tail -40 /var/log/space-os/update-publicable.log'" >&2
+fi
 
 # ─── 7 · Alto. El DNS lo pone el owner ──────────────────────────────────────
 cat <<FIN
