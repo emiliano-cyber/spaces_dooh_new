@@ -5,6 +5,34 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-07
+
+- **Se decidio como entra cada persona al sistema, y queda escrito.** Hasta hoy habia
+  una decision apuntada de agosto que decia una cosa y un sistema que hacia otra: es el
+  tipo de contradiccion que se descubre el peor dia posible.
+
+  La regla nueva, en corto: **quien manda entra con Google, y quien cambia algo teclea
+  su contraseña.** Son dos cosas distintas a proposito.
+
+  - Las cuentas del servidor principal —el nuestro, desde el que se ve y se administra
+    toda la flota— entran **solo con Google**.
+  - El **Dueño** de cada empresa nueva, tambien **solo con Google**. Con esto deja de
+    existir la contraseña que hoy genera quien hace la instalacion: si no se genera
+    ninguna, no hay ninguna que se pueda filtrar.
+  - Los **demas usuarios** de una empresa eligen: contraseña o Google. No se les
+    obliga, porque quien instala una pantalla o captura una orden no siempre tiene
+    cuenta de Google de trabajo.
+  - Y **para cualquier cambio importante hace falta la contraseña**, aunque hayas
+    entrado con Google.
+
+  Esto es la decision escrita, **todavia no el programa**: se construye despues, y no
+  antes de que la instalacion automatica quede probada.
+
+- **Y se anoto un riesgo que hay que resolver antes del primer cliente:** si el Dueño
+  de una empresa pierde el acceso a su cuenta de Google y todavia no eligio contraseña,
+  **se queda fuera y no hay otra puerta**. Hay tres formas de arreglarlo y hay que
+  elegir una. Queda apuntado como pendiente, no dado por resuelto.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que
