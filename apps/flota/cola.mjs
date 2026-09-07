@@ -14,11 +14,81 @@
 //  Sin dependencias, como todo `apps/flota`.
 // ============================================================================
 
-import { readdir, readFile, writeFile, mkdir, rename } from 'node:fs/promises'
+import { readdir, readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
 import { PENDIENTE, EN_CURSO } from './ejecutor.mjs'
+
+// ─── Escribir sin pisarse ───────────────────────────────────────────────────
+//
+//  El 2026-09-07, el primer alta pedida desde el panel murió con
+//  `ENOENT: rename '<id>.json.tmp' -> '<id>.json'` — y con ella se perdió la
+//  línea que decía POR QUÉ había fallado el alta, que era la única prueba de la
+//  causa real. Eran DOS cosas a la vez:
+//
+//   · el ejecutor llama a `anotar()` SIN esperarlo (`ejecutor.mjs:64`, `:88` y
+//     el `onLinea` de `:78`), y eso es deliberado —que el registro falle no
+//     puede tumbar un alta a medias—, así que varias lecturas-modificación-
+//     escritura quedan en vuelo al mismo tiempo;
+//   · y el temporal se derivaba solo del id, así que TODAS compartían el mismo
+//     `<id>.json.tmp`: la primera lo renombraba y la siguiente ya no lo
+//     encontraba.
+//
+//  Se arreglan las dos, porque cada una tapa un fallo distinto. El nombre único
+//  evita el choque —también entre procesos, que es el caso real del panel y el
+//  ejecutor, que son usuarios distintos—. La cadena por archivo evita lo que el
+//  nombre único NO ve: dos lecturas del mismo estado que al escribir se pisan, y
+//  la segunda borra la línea de la primera sin dar ningún error.
+
+/** Una cadena de promesas por archivo. Solo sirve dentro de este proceso. */
+const cadenas = new Map()
+
+/** Encola `fn` para que dos escrituras del mismo archivo no se solapen. */
+function enSerie(ruta, fn) {
+  const anterior = cadenas.get(ruta) ?? Promise.resolve()
+  // Se sigue tanto si la anterior fue bien como si falló: un error no puede
+  // dejar la cadena de ese archivo envenenada para el resto del alta.
+  const actual = anterior.then(fn, fn)
+  cadenas.set(
+    ruta,
+    actual.then(
+      () => {},
+      () => {},
+    ),
+  )
+  return actual
+}
+
+/**
+ * El JSON entero, de una pieza: temporal **propio** y luego `rename`.
+ *
+ * Un corte a mitad deja un `.tmp` huérfano, nunca una solicitud a medias que el
+ * ejecutor pueda leer.
+ */
+async function escribirAtomico(ruta, objeto) {
+  const tmp = `${ruta}.${process.pid}.${randomUUID().slice(0, 8)}.tmp`
+  try {
+    await writeFile(tmp, JSON.stringify(objeto, null, 2) + '\n', 'utf8')
+    await rename(tmp, ruta)
+  } catch (e) {
+    // Si no se pudo renombrar, el temporal se retira: uno olvidado confunde a
+    // quien mire el directorio después, y `listar()` solo filtra `.json`.
+    await rm(tmp, { force: true }).catch(() => {})
+    throw e
+  }
+}
+
+/**
+ * Espera a que no quede ninguna escritura en vuelo.
+ *
+ * Hace falta porque `altas.mjs` termina con `process.exit()`, y eso **corta las
+ * escrituras pendientes sin avisar**: sin esto, las últimas líneas del registro
+ * —justamente las que dicen cómo acabó el alta— se perderían.
+ */
+export async function esperarEscrituras() {
+  await Promise.allSettled([...cadenas.values()])
+}
 
 /** Un id nuestro, con la fecha delante para que el orden sea el de llegada. */
 function nuevoId() {
@@ -65,11 +135,8 @@ export async function crearSolicitud(dir, datos, pedidaPor) {
   }
 
   await mkdir(dir, { recursive: true })
-  // Se escribe aparte y se renombra: un corte a mitad deja un `.tmp`, no una
-  // solicitud a medias que el ejecutor pueda leer.
-  const tmp = rutaDe(dir, id) + '.tmp'
-  await writeFile(tmp, JSON.stringify(solicitud, null, 2) + '\n', 'utf8')
-  await rename(tmp, rutaDe(dir, id))
+  const ruta = rutaDe(dir, id)
+  await enSerie(ruta, () => escribirAtomico(ruta, solicitud))
   return id
 }
 
@@ -113,26 +180,28 @@ export async function siguientePendiente(dir) {
 /** Cambia el estado y añade lo que se sepa. No borra nada de lo anterior. */
 export async function marcar(dir, id, estado, extra = {}) {
   const ruta = rutaDe(dir, id)
-  const solicitud = JSON.parse(await readFile(ruta, 'utf8'))
-  const actualizada = {
-    ...solicitud,
-    estado,
-    // El historial se acumula: qué pasó y cuándo. Es lo que el panel enseña y
-    // lo que queda para saber por qué falló un alta de hace tres semanas.
-    historial: [...(solicitud.historial ?? []), { estado, cuando: new Date().toISOString(), ...extra }],
-  }
-  const tmp = ruta + '.tmp'
-  await writeFile(tmp, JSON.stringify(actualizada, null, 2) + '\n', 'utf8')
-  await rename(tmp, ruta)
-  return actualizada
+  // La lectura va DENTRO de la cadena: leer fuera es lo que hacía que dos
+  // escrituras partieran del mismo estado y una perdiera lo de la otra.
+  return enSerie(ruta, async () => {
+    const solicitud = JSON.parse(await readFile(ruta, 'utf8'))
+    const actualizada = {
+      ...solicitud,
+      estado,
+      // El historial se acumula: qué pasó y cuándo. Es lo que el panel enseña y
+      // lo que queda para saber por qué falló un alta de hace tres semanas.
+      historial: [...(solicitud.historial ?? []), { estado, cuando: new Date().toISOString(), ...extra }],
+    }
+    await escribirAtomico(ruta, actualizada)
+    return actualizada
+  })
 }
 
 /** Añade una línea al registro de una solicitud, para que el panel la enseñe. */
 export async function anotarEn(dir, id, linea) {
   const ruta = rutaDe(dir, id)
-  const solicitud = JSON.parse(await readFile(ruta, 'utf8'))
-  solicitud.registro = [...(solicitud.registro ?? []), linea]
-  const tmp = ruta + '.tmp'
-  await writeFile(tmp, JSON.stringify(solicitud, null, 2) + '\n', 'utf8')
-  await rename(tmp, ruta)
+  return enSerie(ruta, async () => {
+    const solicitud = JSON.parse(await readFile(ruta, 'utf8'))
+    solicitud.registro = [...(solicitud.registro ?? []), linea]
+    await escribirAtomico(ruta, solicitud)
+  })
 }

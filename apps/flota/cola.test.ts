@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, it, expect } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { crearSolicitud, listar, siguientePendiente, marcar } from './cola.mjs'
+import { crearSolicitud, listar, siguientePendiente, marcar, anotarEn } from './cola.mjs'
 // @ts-expect-error — módulo .mjs sin tipos
 import { PENDIENTE, EN_CURSO, TERMINADA, FALLIDA } from './ejecutor.mjs'
 
@@ -113,5 +113,49 @@ describe('la cola aguanta lo que le echen', () => {
   it('marcar con un id raro no escribe fuera del directorio', async () => {
     await expect(marcar(dir, '../fuera', EN_CURSO)).rejects.toThrow()
     await expect(marcar(dir, 'a/b', EN_CURSO)).rejects.toThrow()
+  })
+})
+
+// ============================================================================
+//  Escrituras concurrentes sobre la MISMA solicitud.
+//
+//  Es lo que pasó en el PADRE el 2026-09-07: el ejecutor llama a `anotar()` sin
+//  esperarlo (`ejecutor.mjs:64`, `:88` y el `onLinea` de `:78`), así que varias
+//  lecturas-modificación-escritura quedan en vuelo a la vez. Con el temporal
+//  derivado solo del id, una renombra primero y la otra muere con ENOENT — y
+//  con ella se perdió la línea que decía por qué había fallado el alta.
+//
+//  Estos casos son negativos: comprueban que NO se pierde nada y que NO revienta.
+// ============================================================================
+describe('dos escrituras a la vez sobre la misma solicitud', () => {
+  it('dos lineas de registro simultaneas no revientan y se conservan las DOS', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await Promise.all([anotarEn(dir, id, 'primera'), anotarEn(dir, id, 'segunda')])
+    const [s] = await listar(dir)
+    expect(s.registro).toContain('primera')
+    expect(s.registro).toContain('segunda')
+  })
+
+  it('marcar el estado a la vez que se anota conserva el estado Y la linea', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await Promise.all([marcar(dir, id, FALLIDA, { codigo: 1 }), anotarEn(dir, id, 'el alta termino con codigo 1')])
+    const [s] = await listar(dir)
+    expect(s.estado).toBe(FALLIDA)
+    expect(s.registro).toContain('el alta termino con codigo 1')
+  })
+
+  it('muchas lineas de golpe llegan todas, que es lo que hace un alta de verdad', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    const lineas = Array.from({ length: 25 }, (_, i) => `paso ${i}`)
+    await Promise.all(lineas.map((l) => anotarEn(dir, id, l)))
+    const [s] = await listar(dir)
+    expect(s.registro).toHaveLength(25)
+    for (const l of lineas) expect(s.registro).toContain(l)
+  })
+
+  it('no deja ningun .tmp tirado', async () => {
+    const id = await crearSolicitud(dir, buena, 'x@y.co')
+    await Promise.all([anotarEn(dir, id, 'a'), anotarEn(dir, id, 'b'), marcar(dir, id, EN_CURSO)])
+    expect((await readdir(dir)).filter((n) => n.endsWith('.tmp'))).toEqual([])
   })
 })
