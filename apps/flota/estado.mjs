@@ -264,11 +264,51 @@ export async function consultar(instancia, opciones = {}) {
 }
 
 /**
+ * Donde el ejecutor de altas apunta las instancias que crea.
+ *
+ * **Y no es `flota.json` a propósito.** Ese archivo vive en `/var/www/Spaces`, y
+ * dar permiso de escritura ahí al proceso que tiene los tres tokens le daría
+ * además la capacidad de **alterar el código de la aplicación**. Mismo
+ * razonamiento que el archivo de tokens (ADR 0029 punto 6): `altas` escribe en
+ * `/etc/space-os/`, `flota` lee.
+ */
+export const RUTA_INSTANCIAS = '/etc/space-os/flota-instancias.json'
+
+/**
+ * Las instancias que dejó el ejecutor, o `[]` si no hay archivo.
+ *
+ * Un archivo ausente o ilegible es **ausencia de instancias, no un error** —
+ * misma disciplina que `listar()` con un JSON roto: el panel no se cae porque
+ * alguien dejó un archivo a medias. Y se descarta toda entrada sin `nombre` o
+ * sin `dominio`: una fila a medias haría que el panel consultara `undefined`.
+ */
+export async function instanciasDadasDeAlta(ruta = RUTA_INSTANCIAS) {
+  let crudo
+  try {
+    crudo = await readFile(ruta, 'utf8')
+  } catch {
+    return []
+  }
+  try {
+    const datos = JSON.parse(crudo)
+    const lista = Array.isArray(datos) ? datos : datos?.instancias
+    if (!Array.isArray(lista)) return []
+    return lista.filter((i) => i && typeof i.nombre === 'string' && typeof i.dominio === 'string')
+  } catch {
+    return []
+  }
+}
+
+/**
  * El inventario. `flota.json` si existe; si no, el de ejemplo, avisando.
  * Devuelve también de dónde salió: quien lea la tabla tiene que poder saber si
  * está mirando la flota o tres dominios inventados.
+ *
+ * Y le suma las instancias que el ejecutor dio de alta (`rutaExtra`), que hasta
+ * el 2026-09-07 **no las inscribía nadie**: cada alta quedaba invisible en el
+ * panel hasta que una persona se acordara de añadir la fila a mano.
  */
-export async function cargarInventario(dir = AQUI) {
+export async function cargarInventario(dir = AQUI, rutaExtra = RUTA_INSTANCIAS) {
   const real = join(dir, 'flota.json')
   const ejemplo = join(dir, 'flota.example.json')
   for (const [archivo, esEjemplo] of [
@@ -282,11 +322,24 @@ export async function cargarInventario(dir = AQUI) {
       continue
     }
     const datos = JSON.parse(crudo)
+    const aMano = Array.isArray(datos.instancias) ? datos.instancias : []
+
+    // Con el inventario de EJEMPLO no se mezcla nada. El panel avisa de que está
+    // usando dominios `.invalid` que no existen; sumarle instancias de verdad
+    // convertiría ese aviso en una mentira.
+    const deAltas = esEjemplo ? [] : await instanciasDadasDeAlta(rutaExtra)
+
+    // El de mano GANA: es lo que permite corregir a mano una fila que el alta
+    // escribió mal, sin pelearse con un archivo que escribe otro proceso.
+    const porNombre = new Map()
+    for (const i of deAltas) porNombre.set(i.nombre, i)
+    for (const i of aMano) if (i && i.nombre) porNombre.set(i.nombre, i)
+
     return {
       archivo,
       esEjemplo,
       canales: datos.canales ?? null,
-      instancias: Array.isArray(datos.instancias) ? datos.instancias : [],
+      instancias: [...porNombre.values()],
     }
   }
   throw new Error('no hay inventario: falta ' + real + ' y tambien ' + ejemplo)

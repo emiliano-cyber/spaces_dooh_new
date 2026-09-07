@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_REPORTE, clasificar, fusionar, resumen, tokenDe, tokensDeArchivo } from './estado.mjs'
+import { CLAVES_REPORTE, clasificar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -264,5 +264,94 @@ describe('los tokens de instancia, y de donde se leen', () => {
     const leidos = await tokensDeArchivo(ruta)
     expect(leidos).toEqual({ FLOTA_TOKEN_ENSAYO4: 'si' })
     expect(leidos).not.toHaveProperty('DIGITALOCEAN_ACCESS_TOKEN')
+  })
+})
+
+// ============================================================================
+//  Las instancias que el ejecutor da de alta.  (ADR 0029 punto 6, ampliado)
+// ----------------------------------------------------------------------------
+//  `flota.json` es un inventario A MANO y no esta en git: seria la lista de
+//  clientes con sus dominios. Hasta ahora el ejecutor creaba la instancia y no
+//  la inscribia en ningun sitio, asi que cada alta quedaba INVISIBLE en el panel
+//  hasta que alguien se acordara de anadir la fila.
+//
+//  >>> Y NO se arregla dejando que el ejecutor escriba en `flota.json`: ese
+//  >>> archivo vive en `/var/www/Spaces`, y dar permiso de escritura ahi al
+//  >>> proceso que tiene los tres tokens le daria ademas la capacidad de
+//  >>> ALTERAR EL CODIGO de la aplicacion.
+//
+//  Va por el mismo camino que los tokens: un archivo en `/etc/space-os/` que
+//  escribe `altas` y lee `flota`. El panel los mezcla.
+// ============================================================================
+describe('el inventario, y las instancias que se dan de alta solas', () => {
+  async function conArchivos(flota: unknown, extra: unknown) {
+    const dir = await mkdtemp(join(tmpdir(), 'inv-'))
+    if (flota !== null) await writeFile(join(dir, 'flota.json'), JSON.stringify(flota), 'utf8')
+    const rutaExtra = join(dir, 'instancias.json')
+    if (extra !== null) await writeFile(rutaExtra, JSON.stringify(extra), 'utf8')
+    return { dir, rutaExtra }
+  }
+
+  const base = { canales: { estable: 'v1' }, instancias: [{ nombre: 'padre', dominio: 'p.mx', canal: 'estable' }] }
+
+  it('sin archivo extra se comporta EXACTAMENTE como hoy', async () => {
+    const { dir, rutaExtra } = await conArchivos(base, null)
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias).toHaveLength(1)
+    expect(inv.instancias[0].nombre).toBe('padre')
+    expect(inv.esEjemplo).toBe(false)
+  })
+
+  it('las del archivo extra se suman, que es el punto', async () => {
+    const { dir, rutaExtra } = await conArchivos(base, {
+      instancias: [{ nombre: 'ensayo4', dominio: 'ensayo4.space-os.io', canal: 'estable' }],
+    })
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias.map((i: any) => i.nombre).sort()).toEqual(['ensayo4', 'padre'])
+  })
+
+  it('NO pierde las de flota.json: es lo unico que no puede pasar', async () => {
+    // Si una instancia nueva borrara el inventario a mano, el panel dejaria de
+    // ver la flota entera por dar de alta a un cliente.
+    const { dir, rutaExtra } = await conArchivos(base, { instancias: [{ nombre: 'x', dominio: 'x.mx' }] })
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias.some((i: any) => i.nombre === 'padre')).toBe(true)
+  })
+
+  it('flota.json GANA sobre el extra: hace falta poder corregir a mano', async () => {
+    const { dir, rutaExtra } = await conArchivos(
+      { instancias: [{ nombre: 'ensayo4', dominio: 'el-bueno.mx', canal: 'estable' }] },
+      { instancias: [{ nombre: 'ensayo4', dominio: 'el-viejo.mx', canal: 'beta' }] },
+    )
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias).toHaveLength(1)
+    expect(inv.instancias[0].dominio).toBe('el-bueno.mx')
+  })
+
+  it('un extra ausente o ilegible NO tumba el panel', async () => {
+    // Misma disciplina que `listar()` con un JSON roto y que `tokensDeArchivo()`.
+    const { dir, rutaExtra } = await conArchivos(base, null)
+    await writeFile(rutaExtra, '{ esto no es json', 'utf8')
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias).toHaveLength(1)
+  })
+
+  it('una entrada sin nombre o sin dominio se descarta, no se cuela a medias', async () => {
+    // Una fila sin dominio haria que el panel consultara `undefined`.
+    const { dir, rutaExtra } = await conArchivos(base, {
+      instancias: [{ nombre: 'sin-dominio' }, { dominio: 'sin-nombre.mx' }, { nombre: 'ok', dominio: 'ok.mx' }],
+    })
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.instancias.map((i: any) => i.nombre).sort()).toEqual(['ok', 'padre'])
+  })
+
+  it('y con el inventario de EJEMPLO no se mezcla nada: seria fingir una flota', async () => {
+    // Si `flota.json` no existe, el panel avisa de que esta usando el ejemplo.
+    // Sumarle instancias de verdad convertiria ese aviso en mentira.
+    const { dir, rutaExtra } = await conArchivos(null, { instancias: [{ nombre: 'x', dominio: 'x.mx' }] })
+    await writeFile(join(dir, 'flota.example.json'), JSON.stringify({ instancias: [] }), 'utf8')
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.esEjemplo).toBe(true)
+    expect(inv.instancias).toHaveLength(0)
   })
 })

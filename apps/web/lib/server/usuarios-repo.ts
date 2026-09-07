@@ -268,3 +268,25 @@ export async function matrizPermisosUI(): Promise<{
     .map((rol) => ({ rol, label: ROL_LABEL[rol] ?? capitaliza(rol) }))
   return { modulos, roles, filas }
 }
+
+/**
+ * Marca que el usuario vio y CONFIRMÓ sus códigos de recuperación.
+ * (ADR 0028 · B2)
+ *
+ * Va por `qConTenant` y no por `qRaw`: `usuarios` es fail-closed + FORCE, y sin
+ * `app.tenant_id` esto no fallaría — actualizaría CERO filas en silencio, y el
+ * usuario se quedaría encerrado sin que nada diera un error. Es el modo de
+ * fallo de R2, el mismo que dejó el desbloqueo inservible un despliegue entero.
+ *
+ * `and codigos_vistos_en is null` para que confirmar dos veces no mueva la
+ * fecha: la primera es la que vale, y es la que sirve el día que haya que
+ * responder desde cuándo tiene sus códigos.
+ */
+export async function marcarCodigosVistos(usuarioId: string, tenantId: string): Promise<void> {
+  await qConTenant(
+    tenantId,
+    `update usuarios set codigos_vistos_en = now()
+      where id = $1 and tenant_id = $2 and codigos_vistos_en is null`,
+    [usuarioId, tenantId],
+  )
+}

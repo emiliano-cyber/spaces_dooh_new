@@ -33,6 +33,7 @@ import { ejecutarAlta, ESPERANDO_DNS, GUION } from './ejecutor.mjs'
 import { crearRegistroA, esDeNuestraZona } from './dns.mjs'
 import { comprobar, veredicto } from './comprobaciones.mjs'
 import { avanzar } from './avanzar.mjs'
+import { inscribir } from './inscribir.mjs'
 import { resolve4 } from 'node:dns/promises'
 
 const DIR = process.env.DIR_SOLICITUDES
@@ -192,6 +193,38 @@ if (!esDeNuestraZona(solicitud.dominio, zonas)) {
     await anotar(`el registro A no se pudo crear: ${e.message}`)
     await marcar(DIR, solicitud.id, ESPERANDO_DNS, { ip, dns: 'fallido' })
   }
+}
+
+// ─── Inscribir la instancia, para que el panel la vea ──────────────────────
+//
+// Hasta el 2026-09-07 esto no lo hacia nadie: el ejecutor creaba la maquina y
+// la instancia quedaba INVISIBLE en el panel hasta que una persona anadiera su
+// fila y su token a mano. El dia que se olvidara, quedaba funcionando y sin que
+// nadie supiera si esta al dia -- justo lo que el panel existe para evitar.
+//
+// El token lo escribio el aprovisionamiento dentro de la maquina
+// (`provision-instancia.sh:597`), asi que se lee de ahi.
+//
+// Y si esto falla NO se aborta: la maquina ya existe y esta servida. Quedar
+// fuera del panel se arregla en un minuto; tumbar un alta buena por un archivo
+// del panel seria cambiar un problema pequeno por uno grande.
+if (ip) {
+  const tokenFlota = (
+    await new Promise((res) => {
+      const trozos = []
+      const hijo = spawn('ssh', ['-o', 'StrictHostKeyChecking=accept-new', `root@${ip}`,
+        "sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/app.env"], { shell: false, stdio: ['ignore', 'pipe', 'ignore'] })
+      hijo.stdout.on('data', (d) => trozos.push(d))
+      hijo.on('error', () => res(''))
+      hijo.on('close', () => res(Buffer.concat(trozos).toString('utf8').trim()))
+    })
+  )
+  const inscrita = await inscribir({ nombre: solicitud.instancia, dominio: solicitud.dominio, token: tokenFlota })
+  await anotar(
+    inscrita.ok
+      ? 'inscrita en el panel de flota'
+      : `no se pudo inscribir en el panel: ${inscrita.motivo}. La instancia esta bien; hay que anadirla a mano`,
+  )
 }
 
 // ─── Las tres comprobaciones, y quedan DENTRO de la solicitud ───────────────

@@ -137,6 +137,23 @@ describe('2 · primera entrada: se vincula por correo y se abre sesión', () => 
     expect(c.tieneCookie('spaces_csrf')).toBe(true)
 
     // La sesión SIRVE: no basta con que la cookie exista.
+    //
+    // ⚠️ Desde el ADR 0028 · B2 hay un paso ANTES, y esta prueba fue lo que lo
+    // delató: quien entra con Google queda cortado con 403 hasta que guarda sus
+    // códigos de recuperación. Es deliberado — con Google como única puerta, los
+    // códigos son lo único que le queda si pierde esa cuenta, y dejarle usar la
+    // aplicación antes de dárselos sería tener la puerta y perder la llave.
+    //
+    // Así que «sesión utilizable» pasa a significar: cortado por LA razón
+    // correcta, y utilizable en cuanto confirma. Se comprueban las dos, porque
+    // un 403 a secas también saldría si la sesión no valiera nada.
+    const cortado = await c.pedir('/api/estado/')
+    expect(cortado.status).toBe(403)
+    expect(JSON.stringify(cortado.datos).toLowerCase()).toContain('recuperación')
+
+    await c.pedir('/api/perfil/codigos-recuperacion/', { cuerpo: {} })
+    await c.pedir('/api/perfil/codigos-recuperacion/?ya=1', { cuerpo: {} })
+
     const estado = await c.pedir('/api/estado/')
     expect(estado.status).toBe(200)
 

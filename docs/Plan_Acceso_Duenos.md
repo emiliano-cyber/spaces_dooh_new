@@ -89,7 +89,7 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
 - **El `update` lleva `and usado_en is null`**, no solo la comprobación previa: entre leer y
   escribir cabe otra petición, y dos simultáneas con el mismo código lo gastarían las dos.
 
-## B2 · La pantalla que los enseña UNA vez `[código]`
+## B2 · La pantalla que los enseña UNA vez `[código]` — 🟢 **el candado y la API, hechos**
 
 - **Objetivo:** que los códigos lleguen al Dueño **sin pasar por nadie**.
 - **Cuándo:** en su primera entrada con Google, antes de dejarle usar la aplicación.
@@ -100,6 +100,39 @@ hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
   sesión recién creada y los códigos sin confirmar redirige de vuelta—, y que **una segunda
   visita no los vuelva a enseñar**.
 - **Depende de:** B1.
+
+### Hecho el 2026-09-07: el candado y la API. Falta la pantalla.
+
+**El mecanismo no se inventó: se copió.** El repo ya tenía «este usuario no puede usar la
+aplicación hasta que haga X» —`debe_cambiar_password`, ADR 0009— con su guard en `exigir()`
+y su salida por rutas que no pasan por el guard. B2 es un espejo de eso.
+
+- `usuarios.codigos_vistos_en` (fecha, no booleano: contesta además **cuándo**, y eso es lo
+  que sirve el día que haya una disputa sobre quién pudo entrar).
+- El guard en `exigir()`, y **`POST /api/perfil/codigos-recuperacion/`** como salida:
+  genera el lote y lo devuelve una vez; con `?ya=1` confirma y abre la aplicación.
+- **Generar y confirmar son dos pasos a propósito.** Si confirmar fuera automático,
+  bastaría con que se cerrara la pestaña para que el usuario quedara dentro y sin códigos,
+  **creyendo que los tiene**.
+
+> [!important] Por qué esto es seguro de desplegar HOY, antes que B3
+> El guard **solo mira a quien entró con Google** (`metodoSesion === 'google'`). Y en
+> producción **todavía nadie entra con Google**, así que no encierra a ningún usuario
+> existente. Quien entra con contraseña ya tiene con qué volver: cortarle sería molestarle
+> sin darle nada.
+
+**7 e2e**, casi todas negativas: que no se pueda saltar; que **sí** se pueda llegar a la
+pantalla —o el candado encerraría en vez de proteger—; que generar **no baste**; que
+confirmar dos veces **no mueva la fecha**; y que quien entró con contraseña no se vea
+afectado.
+
+**Y una prueba existente lo confirmó desde fuera:** `google-oauth.e2e.test.ts` afirmaba
+«entra y deja sesión utilizable», y se puso roja sola. Tenía razón en ponerse roja: eso ya
+no es cierto, y ahora comprueba las dos mitades — cortado por la razón correcta, y
+utilizable en cuanto confirma.
+
+**Lo que falta de B2:** la pantalla en sí. La API y el candado están; la interfaz que los
+enseña, no.
 
 ## B3 · El candado «solo Google» por usuario `[código]`
 
