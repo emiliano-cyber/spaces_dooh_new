@@ -7,6 +7,29 @@ La entrada más reciente va arriba.
 
 ## 2026-09-07
 
+- **Ya se puede cerrar la entrada por contraseña, porque por fin hay otra puerta.**
+  Lo que se decidio esta manaña era una intencion; hoy es un interruptor de verdad, y
+  viene acompañado de las dos cosas sin las que habria sido peligroso encenderlo.
+
+  - **Codigos de recuperacion.** Cuando un Dueño entra por primera vez, el sistema le
+    enseña **diez codigos** y le obliga a decir que ya los guardo antes de dejarlo
+    seguir. Se muestran **una sola vez** y no se pueden volver a ver: ni nosotros
+    podemos, que es justo lo que los hace servir de algo. Cada uno vale **una vez**.
+  - **Una puerta para usarlos.** Si algun dia pierde su cuenta de Google, teclea uno de
+    esos codigos y entra. El sistema le dice cuantos le quedan, para que no gaste el
+    ultimo sin darse cuenta.
+  - **Y el interruptor.** Una cuenta se puede marcar como «solo Google»: a partir de
+    ahi su contraseña **ya no abre**. Con eso deja de importar que quien hizo la
+    instalacion haya visto una contraseña en su pantalla.
+
+  **Nace apagado para todos**, a proposito: encenderlo de golpe habria dejado fuera a
+  cualquiera que no tenga Google vinculado, incluidos nosotros. Se enciende cuenta por
+  cuenta, y solo despues de comprobar que esa persona puede entrar de otra forma.
+
+  Un detalle que parece menor y no lo es: **una cuenta desactivada no entra ni con
+  codigo**. Si a alguien se le retiro el acceso, se le retiro por todas las puertas —
+  un codigo guardado de antes no se lo devuelve.
+
 - **Se decidio como entra cada persona al sistema, y queda escrito.** Hasta hoy habia
   una decision apuntada de agosto que decia una cosa y un sistema que hacia otra: es el
   tipo de contradiccion que se descubre el peor dia posible.
