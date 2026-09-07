@@ -56,6 +56,50 @@ La entrada más reciente va arriba.
   conversacion. Nadie las uso, pero se cambian igual: la regla es que una llave que
   salio de su sitio se da por perdida.
 
+- **Segundo intento del alta: fallo otra vez, y esta vez el sistema SI dijo por que.**
+  Eso era justamente lo que se acababa de arreglar, y funciono en su primer uso.
+
+  El motivo: una de las herramientas que el sistema necesita para crear maquinas
+  estaba instalada en un formato (**snap**) que **no puede funcionar** dentro del
+  proceso automatico, porque ese proceso corre con los permisos deliberadamente
+  recortados — es el unico del servidor que guarda las tres llaves importantes.
+
+  Se podia aflojar esos permisos para que la herramienta cupiera. **Se decidio que
+  no**: se cambio la herramienta por una version normal, que no necesita permisos
+  especiales. Con eso desaparecen **tres** problemas distintos que ese formato ya
+  habia causado.
+
+  **Y quedo escrito como paso obligatorio de la instalacion**, que antes no existia
+  en ningun documento: como llegaba esa herramienta al servidor era algo que solo
+  sabia quien la habia puesto a mano.
+
+  **La leccion, y es incomoda:** la comprobacion previa que existia para no gastar
+  dinero **daba luz verde con el sistema roto**, porque no reproducia las
+  condiciones reales del proceso automatico. Una comprobacion asi es peor que no
+  tener ninguna. Ya esta corregida.
+
+- **🎯 Y al tercer intento funciono: se dio de alta una empresa desde la pagina, de
+  principio a fin, y se entro a su sistema.** Seis minutos y dos segundos desde
+  apretar el boton hasta tener la maquina lista. Nadie escribio un comando para
+  crearla.
+
+  Se comprobo todo el recorrido: la maquina se crea, se instala sola, se le pone su
+  nombre de internet, su certificado de seguridad, se levanta la aplicacion y se
+  entra desde el navegador con la cuenta del Dueño. **Es lo que hara falta hacer
+  cada vez que entre un cliente nuevo, y ya funciona.**
+
+- **Pero al entrar aparecio algo que hay que arreglar ANTES del primer cliente
+  real.** La version que se instala hoy es del **2 de septiembre**, y el arreglo de
+  seguridad del dia 4 —el que obliga al Dueño a cambiar su contraseña— **no va
+  dentro**.
+
+  O sea: el arreglo existe, pero la version publicada no lo lleva. **Hay que
+  publicar una version nueva antes de dar de alta a un cliente de verdad**, o
+  nacera con el mismo problema que se corrigio hace tres dias.
+
+  Es exactamente el tipo de cosa que solo se descubre haciendolo de verdad: estaba
+  arreglado, probado y en verde, y aun asi no habia llegado a donde importa.
+
 ## 2026-09-04
 
 - **Se termino la primera instalacion completa de una copia nueva, y se comprobo que

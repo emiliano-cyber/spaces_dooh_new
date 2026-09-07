@@ -66,12 +66,16 @@ su elección.** No se les impone Google. Un instalador de pantallas o quien capt
 orden de trabajo no tiene por qué tener cuenta corporativa de Google, y convertir una
 medida de seguridad en una barrera de alta es cambiar un riesgo por otro.
 
-> [!warning] Esto es una lectura, y hay que confirmarla antes de codificarla
-> «*los nuevos usuarios de cada dominio si es con codigo de su contraseña o de google*» se
-> ha entendido como **dos vías de alta a elección del usuario**: un código con el que fija
-> su contraseña, o Google. Si lo que se quiso decir es otra cosa —por ejemplo que el código
-> es de un solo uso y obligatorio— cambia el diseño del alta de usuario, no el resto de
-> este ADR.
+> [!success] Confirmado por Emiliano el 2026-09-07
+> **Google está disponible para el perfil de CUALQUIER usuario.** Lo que este ADR añade no
+> es la disponibilidad, es la **obligatoriedad** — y solo para las cuentas del PADRE y para
+> el Dueño. Un usuario normal elige: código de contraseña o Google, y puede vincular Google
+> a su perfil cuando quiera.
+>
+> **Y esa parte ya está construida**, no hay que hacerla: `identidades-repo.ts:62`
+> (`vincularIdentidad`) **no tiene ninguna restricción por rol**, y las rutas
+> `/api/auth/google/inicio` y `/callback` existen desde el [ADR 0012](0012-acceso-con-cuenta-de-google.md).
+> Lo único que la apaga por instancia es `GOOGLE_OAUTH`.
 
 **4 · Para los cambios, siempre contraseña.** Haber entrado con Google no autoriza a
 mutar. Toda operación sensible exige la contraseña del propio usuario, y
