@@ -1,10 +1,77 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-04
+actualizado: 2026-09-07
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!danger] 2026-09-07 · **B2 NO puede ir antes del alta, y el orden se invierte**
+> El punto 1 del [ADR 0025](../../docs/adr/0025-acceso-de-soporte-a-una-instancia.md)
+> manda `PermitRootLogin no` y un usuario `soporte`. Pero el aprovisionamiento **entra
+> solo como `root@`**: `provision-instancia.sh:168`, `:193`, `:209`, `:221`, y
+> `setup-droplet.sh:9` aborta si no es root porque **viaja por `ssh root@host 'bash -s'`**
+> (`:23`).
+>
+> Construir B2 antes de `TH-ALTAS` significa que el **primer alta real desde el panel
+> corra sobre codigo cambiado esa misma manana y nunca ejercitado**. Primero `ensayo2`
+> con el codigo tal como esta; B2 despues, en su rama, sin aterrizar hasta que el alta
+> este demostrada.
+>
+> Medido tambien: `setup-droplet.sh:134` sigue con `ufw allow 22/tcp` (abierto al mundo,
+> no solo al PADRE), **no existe `infra/acceso/personas.yml`**, y no hay `LOGS_BUCKET`
+> ni `SPACES_KEY` en la plantilla — o sea que **el punto 4, el rastro fuera de la
+> maquina, no existe**, y el propio ADR dice que sin el los puntos 1 a 3 son higiene.
+
+> [!important] 2026-09-07 · **ADR 0028: como entra cada quien** — Z12 reclamada y LIBERADA
+> Decidido por Emiliano y escrito:
+> [ADR 0028](../../docs/adr/0028-google-obligatorio-y-la-contrasena-para-los-cambios.md).
+> **Google obligatorio** para toda cuenta del PADRE y para el **Dueño** de cada dominio
+> nuevo; los usuarios normales eligen; y **para cambios, siempre contraseña**.
+> Revisa y sustituye la decision del 20/08, que llevaba tres semanas registrada como
+> vigente mientras el producto hacia lo contrario (🟡 IMPORTANTE 3 de la auditoria).
+>
+> **Es la decision, NO el codigo.** Lo que falta construir esta listado en el propio ADR,
+> y es **Z1 · Auth 🔴**: el candado «solo Google» por usuario **no existe hoy** (cero
+> coincidencias), `GOOGLE_OAUTH=0` es el valor que reparte la plantilla
+> (`app.env.example:100`) y `exigir_reautenticacion` nace en `false`
+> (`20260804_reautenticacion_individual.sql:34`).
+>
+> 🔴 **Punto abierto que BLOQUEA a PIXELED:** si el Dueño pierde su cuenta de Google y
+> no fijo contraseña, **no hay puerta** — y el correo saliente del PADRE tampoco existe.
+> Tres salidas escritas en el ADR; **hay que elegir una antes de aplicar el punto 2 a un
+> cliente**.
+>
+> ⚠️ **Y un aviso de reparto de secretos**: si toda la flota comparte un solo cliente
+> OAuth, el mismo `GOOGLE_CLIENT_SECRET` acaba en todos los droplets — **la misma
+> objecion con la que F5.8 rechazo el JWT firmado**. Lo coherente es un cliente OAuth
+> por instancia.
+
+> [!warning] 2026-09-07 · La ficha de **F5.7 esta desalineada** — evidencia, sin replanear
+> `docs/Plan_Instancias_Soberanas_v3.md:1681` sigue marcando F5.7 como **BLOQUEADA** por
+> P2 y P3. **Las dos se cerraron el 20/08** y lo dice esta bóveda:
+> [[ejecucion-plan-v3]]`:228` («no hay migracion; PIXELED nace como instancia nueva») y
+> `:229` («todas nacen en la cuenta DO de la casa»). **No se toco el plan**: la regla es
+> parar y mostrar la evidencia, no replanear. Espera decision.
+
+> [!note] 2026-09-07 · Medido al arrancar el lunes
+> `main` sigue **2 commits detras** de `fix/alta-sin-bit-de-ejecucion` (los dos de docs,
+> ya empujados pero **sin fusionar** — el diario del 04/09 dice «todo fusionado» y no es
+> exacto). Suites: **1073 unitarias en 100 archivos** y **112 en `apps/flota`**, verde,
+> typecheck limpio; **e2e no medidas** (exigen build + el 5433).
+>
+> ⚠️ **La primera corrida del dia, en frio, da un rojo falso**: 11 timeouts de worker,
+> 10 de 99 archivos sin correr y `npm error code 1` en 121 s. La segunda, 9,3 s y las
+> 1073 en verde. No es del codigo. Y sigue varado el worktree `red2` (`384708b`,
+> detached).
+
+> [!success] 2026-09-04, cierre · **el traspaso del lunes esta escrito**
+> `docs/Traspaso_20260904.md` — **empezar por ahi**. Trae los cuatro valores que faltan,
+> de donde sale cada uno, y que los pasos 1, 2 y 4 de `TH-ALTAS` ya estan hechos: se
+> arranca en el **paso 3**, no desde cero.
+>
+> Ya hay una solicitud `ensayo2` en la cola, en `pendiente`. **Sera la primera que
+> ejecute el ejecutor, y eso crea un droplet de verdad** — desechable, y se destruye.
 
 > [!important] 2026-09-04 · **F5.6 CERRADA**, y nace el panel de flota
 > El droplet del ensayo está **destruido**. Las cuatro comprobaciones en verde, 75
