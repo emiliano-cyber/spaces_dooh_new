@@ -27,15 +27,28 @@ este plan:
 
 ---
 
-## B1 · Los códigos de recuperación `[código + migración]`
+## B1 · Los códigos de recuperación `[código + migración]` — 🟡 **a medias**
 
 - **Objetivo:** que exista un secreto de un solo uso con el que un Dueño entra sin Google.
 - **El patrón ya está en el repo y no hay que inventarlo:** `password-reset-repo.ts`. Es
   otro secreto **pre-sesión** —se usa justo cuando no puedes entrar— y por eso su lectura
   va por una función `SECURITY DEFINER`: al resolver el código **todavía no se sabe de qué
   organización es quien pregunta**, así que la RLS no puede ayudar aún.
-- **Forma:** N códigos por usuario, **guardados con `bcrypt`** como las contraseñas —nunca
-  en claro—, cada uno de un solo uso y con su `usado_en`.
+- **Forma:** 10 códigos por usuario, **guardados con `sha256`** —nunca en claro—, cada uno
+  de un solo uso y con su `usado_en`.
+
+> [!warning] Corrección al implementar: **sha256, no bcrypt**
+> Esta tarea decía «con `bcrypt` como las contraseñas», y estaba mal. Una contraseña la
+> elige una persona y tiene poca entropía: bcrypt existe para que probarlas salga caro. Un
+> código de aquí es aleatorio y de **~74 bits**, así que la fuerza bruta ya es inviable y el
+> hash lento **no compra nada**.
+>
+> Y sí costaría: bcrypt lleva sal, así que el mismo código da hashes distintos y **no se
+> puede buscar**. Habría que traer los diez códigos del usuario y compararlos uno a uno —
+> casi **un segundo de CPU por cada intento fallido**, en la ruta que se usa justo cuando
+> alguien no puede entrar. Un vector de denegación de servicio regalado.
+>
+> Es el mismo razonamiento con el que F5.8 eligió un token opaco en vez de un JWT firmado.
 - **Prueba que falla primero, y los negativos son el grueso:**
   - un código usado **no vale una segunda vez**;
   - un código de **otro usuario** no entra en esta cuenta;
@@ -45,6 +58,25 @@ este plan:
   - y **no se guardan en claro**: la prueba lee la fila y comprueba que no está el valor.
 - **Criterio:** con un código válido se abre sesión; con uno usado, no; y la tabla no
   contiene ningún código legible.
+
+### Dónde quedó (2026-09-07)
+
+**Hecho y verde:** `codigos-recuperacion.ts` (puro, **16 casos**), `codigos-recuperacion-repo.ts`
+y `db/migrations/20260907_codigos_recuperacion.sql`. Typecheck limpio y **1089 unitarias**.
+
+**Falta, y es lo que impide cerrarla:** las **e2e**. Docker no estaba corriendo, así que no
+hubo Postgres en el 5433. **La migración no se ha aplicado a ninguna base**, ni siquiera la
+local.
+
+**Y no cambia el comportamiento de hoy:** no hay ruta, ni pantalla, ni nadie que llame al
+repo. Es cimiento.
+
+**Dos cosas que el código decide y conviene no deshacer sin leer por qué:**
+
+- **Consumir un código no invalida los demás** —a diferencia de un reset de contraseña—, o
+  el primer uso dejaría al Dueño con una sola vida.
+- **El `update` lleva `and usado_en is null`**, no solo la comprobación previa: entre leer y
+  escribir cabe otra petición, y dos simultáneas con el mismo código lo gastarían las dos.
 
 ## B2 · La pantalla que los enseña UNA vez `[código]`
 
