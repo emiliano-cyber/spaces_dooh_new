@@ -27,7 +27,7 @@ este plan:
 
 ---
 
-## B1 · Los códigos de recuperación `[código + migración]` — 🟡 **a medias**
+## B1 · Los códigos de recuperación `[código + migración]` — ✅ **HECHA**
 
 - **Objetivo:** que exista un secreto de un solo uso con el que un Dueño entra sin Google.
 - **El patrón ya está en el repo y no hay que inventarlo:** `password-reset-repo.ts`. Es
@@ -59,17 +59,28 @@ este plan:
 - **Criterio:** con un código válido se abre sesión; con uno usado, no; y la tabla no
   contiene ningún código legible.
 
-### Dónde quedó (2026-09-07)
+### Cerrada el 2026-09-07, con e2e
 
-**Hecho y verde:** `codigos-recuperacion.ts` (puro, **16 casos**), `codigos-recuperacion-repo.ts`
-y `db/migrations/20260907_codigos_recuperacion.sql`. Typecheck limpio y **1089 unitarias**.
+`codigos-recuperacion.ts` (puro, **16 casos**), `codigos-recuperacion-repo.ts`,
+`db/migrations/20260907_codigos_recuperacion.sql` y **12 e2e contra Postgres real**.
+**1089 unitarias · 308 e2e en 30 archivos**, typecheck limpio.
 
-**Falta, y es lo que impide cerrarla:** las **e2e**. Docker no estaba corriendo, así que no
-hubo Postgres en el 5433. **La migración no se ha aplicado a ninguna base**, ni siquiera la
-local.
+> [!important] Las e2e corren con el rol de la APLICACIÓN, no con el administrador
+> Y es la decisión que las hace valer algo. `lib/server/db.ts` construye su pool **al
+> cargarse**, leyendo `DATABASE_URL` una vez — así que importar el repo arriba lo conectaba
+> a la base de desarrollo (`spaces`) en vez de a la de integración, y el primer intento dio
+> `relation "codigos_recuperacion" does not exist`.
+>
+> Se carga tarde y apuntando a **`URL_APP`**. Con el administrador la RLS **no se aplica**,
+> así que un `qRaw` mal puesto pasaría inadvertido — que es exactamente el fallo que estas
+> pruebas existen para cazar.
 
 **Y no cambia el comportamiento de hoy:** no hay ruta, ni pantalla, ni nadie que llame al
 repo. Es cimiento.
+
+**De paso, otra prueba hizo su trabajo:** `esquema-sin-owner` fija el número de tablas de la
+receta completa y se puso roja sola al pasar de **39 a 40**. Su comentario ya decía qué
+hacer —«se actualiza a conciencia»— y ahí queda la historia de la cifra.
 
 **Dos cosas que el código decide y conviene no deshacer sin leer por qué:**
 
