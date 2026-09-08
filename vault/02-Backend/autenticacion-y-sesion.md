@@ -221,6 +221,22 @@ desde el 28/08, eso significaría que **el Dueño de cada instancia nueva no pue
 facturar**. La cadena está entera; lo que no estaba era la prueba de que lo
 estaba.
 
+> [!warning] El arnés tiene DOS puertos auxiliares, y compartirlos rompe en diferido
+> `servidor-e2e.ts` usa el **3311**, el doble de Google el **3312**
+> (`doble-google.ts:21`) y el servidor sin Google de las pruebas del bootstrap el
+> **3313**. Los tres distintos a propósito: el 07/09 el último estrenó el 3312 y
+> no se notó, porque el único archivo con doble corría ANTES. Al aparecer el
+> segundo, CI murió en un archivo que no tenía nada que ver, once ficheros
+> después, con un mensaje que mandaba a buscar un doble suelto inexistente.
+>
+> Y el que dejó el puerto tomado fue el otro defecto del mismo sitio: las
+> opciones del `spawn` escritas EN LÍNEA, sin `detached`. Sin él el hijo no
+> lidera su grupo, `process.kill(-pid)` se va en ESRCH y el `next start`
+> sobrevive con el puerto. Es exactamente el fallo que `proceso-e2e.ts` existe
+> para no repetir — **y se repitió en cuanto alguien volvió a escribirlas a
+> mano**. Si lanzas un proceso en una prueba: `opcionesDeProceso()`,
+> `vigilarErrores()` y `esperarMuerte()`, los tres.
+
 Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
 `lib/test/codigos-vistos.e2e.test.ts`, `lib/test/solo-google.e2e.test.ts`,
 `lib/test/regenerar-codigos.e2e.test.ts` y `lib/test/primer-dia-dueno.e2e.test.ts`.

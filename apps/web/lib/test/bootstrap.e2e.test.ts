@@ -2,6 +2,8 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { recrearEsquema, cerrarPool, poolTest, URL_APP } from './db-e2e'
 import { asegurarPermisos } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
+import { opcionesDeProceso, vigilarErrores, esperarMuerte } from './proceso-e2e'
+import { PUERTO_DOBLE } from './doble-google'
 
 // `Cliente` no permite cabeceras propias y `servidor-e2e.ts` NO SE TOCA
 // (invariante del proyecto), así que las llamadas al bootstrap van con `fetch`
@@ -298,13 +300,31 @@ describe('F5.2 · la exencion de CSRF no se derrama', () => {
 //  «no levantar nunca un servidor»: este arranca aqui, se para aqui, y no toca
 //  nada de nadie.
 describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
-  const PUERTO_SIN_GOOGLE = 3312
+  // ─── El puerto: 3313, y NO 3312 ─────────────────────────────────────────
+  // Este archivo estrenó el 3312 el 07/09 sin ver que ya era el del doble de
+  // Google (`doble-google.ts:21`). Con un solo archivo usando el doble no se
+  // notó: `google-oauth` corre ANTES que éste y encontraba el puerto libre.
+  // En cuanto apareció un segundo archivo con doble (`primer-dia-dueno`), CI
+  // murió con «El puerto 3312 ya está ocupado» — y el mensaje mandaba a buscar
+  // un doble suelto que nadie había arrancado.
+  //
+  // La comprobación de abajo es lo que impide que esto vuelva: si alguien mueve
+  // el puerto del doble encima de éste, falla AQUÍ, con el motivo escrito, en
+  // vez de en un archivo ajeno once ficheros después.
+  const PUERTO_SIN_GOOGLE = 3313
   // Con el `basePath: '/spaces-dooh'` de `next.config.mjs`. Sin el, TODO da 404
   // --incluida `/api/version/`-- y el fallo parece del cerrojo del token. Costo
   // un rato: el aviso de `next start` sobre `output: standalone` que sale por
   // stderr es RUIDO, no la causa; el arnes usa el mismo `next start` y funciona.
   const BASE_SIN_GOOGLE = `http://127.0.0.1:${PUERTO_SIN_GOOGLE}/spaces-dooh`
   let proc: import('node:child_process').ChildProcess | null = null
+
+  if (PUERTO_SIN_GOOGLE === PUERTO_DOBLE) {
+    throw new Error(
+      `El servidor sin Google y el doble de Google piden el mismo puerto (${PUERTO_DOBLE}). ` +
+        'Mueve uno de los dos: compartirlo hace fallar al archivo que corra segundo.',
+    )
+  }
 
   let ipB4 = 200
   async function llamar() {
@@ -345,14 +365,19 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
         GOOGLE_CLIENT_SECRET: '',
       },
       stdio: 'ignore',
-      // `shell` SOLO en Windows, y hace falta: ahi `npx` es un `.cmd` y
-      // `spawn` no lo encuentra sin shell -- quitarlo deja el servidor sin
-      // arrancar y los casos mueren por timeout a los 60 s, con un rojo que no
-      // dice nada. Node avisa (DEP0190) porque con shell los argumentos se
-      // concatenan sin escapar; aqui son constantes de este archivo, no entrada
-      // de nadie. En CI (Linux) no se usa.
-      shell: process.platform === 'win32',
+      // La plataforma decide en `proceso-e2e.ts`, y NO se escribe aqui en linea.
+      // Escrita en linea es como estaba, y le faltaba `detached` -- el mismo
+      // fallo que `servidor-e2e.ts:93-95` ya habia encontrado y extraido aqui
+      // para que no se repitiera. Sin `detached` el hijo no lidera su grupo, asi
+      // que en Linux `process.kill(-pid)` se va en ESRCH y el `next start`
+      // SOBREVIVE con el puerto tomado: eso es lo que dejo el 3312 ocupado
+      // durante los once archivos siguientes en CI. En Windows no se veia porque
+      // alli el arbol lo baja `taskkill /F /T`.
+      ...opcionesDeProceso(),
     })
+    // Un evento `error` sin manejador es excepcion no capturada, y vitest la
+    // cuenta como fallo de la corrida aunque todo este en verde.
+    vigilarErrores(proc)
 
     // Se espera a que conteste; sin esto el primer caso mide un puerto muerto.
     const limite = Date.now() + 60_000
@@ -369,13 +394,26 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
 
   afterAll(async () => {
     if (!proc?.pid) return
+    const muriendo = proc
+    const pid = proc.pid
+    proc = null
     if (process.platform === 'win32') {
       const { spawnSync } = await import('node:child_process')
-      spawnSync('taskkill', ['/F', '/T', '/PID', String(proc.pid)], { stdio: 'ignore' })
+      spawnSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' })
     } else {
-      proc.kill('SIGTERM')
+      // Al GRUPO, no al proceso. `spawn` lanza `npx`, y `npx` lanza al `next`
+      // de verdad: la senal al pid solo mata al envoltorio y deja vivo al que
+      // tiene el puerto. Con `detached` el hijo lidera su grupo, y por eso
+      // `-pid` alcanza a los dos.
+      try {
+        process.kill(-pid, 'SIGTERM')
+      } catch {
+        try { process.kill(pid, 'SIGTERM') } catch { /* ya murio */ }
+      }
     }
-    proc = null
+    // Mandar la senal no es estar muerto. Sin esperar, el archivo siguiente
+    // puede pedir el puerto antes de que este lo suelte.
+    await esperarMuerte(muriendo)
   })
 
   it('devuelve 503 y NO 404: el operador tiene que saber que le falta', async () => {
@@ -386,7 +424,6 @@ describe('B4 · sin Google configurado, el bootstrap NO crea nada', () => {
     await vaciarTenants()
     await poolTest().query('delete from usuarios')
     const r = await llamar()
-    // DIAGNOSTICO TEMPORAL
     expect(r.status).toBe(503)
     expect(r.status).not.toBe(404)
   })
