@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-07
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -13,6 +13,15 @@ archivos:
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260825_sesion_metodo.sql
   - apps/web/lib/server/perfil-controller.ts
+  - apps/web/lib/server/codigos-recuperacion.ts
+  - apps/web/lib/server/codigos-recuperacion-repo.ts
+  - apps/web/app/api/auth/codigo/route.ts
+  - apps/web/app/api/perfil/codigos-recuperacion/route.ts
+  - db/migrations/20260907_codigos_recuperacion.sql
+  - db/migrations/20260907_codigos_vistos.sql
+  - db/migrations/20260907_solo_google.sql
+  - db/migrations/20260828_reautenticacion_por_defecto.sql
+  - apps/web/components/demo/shell/Topbar.tsx
 ---
 
 # Autenticación y sesión
@@ -85,19 +94,30 @@ sequenceDiagram
     A-->>R: {ok:true, usuario} | {ok:false, 401|403}
 ```
 
-## Las cuatro funciones `SECURITY DEFINER`
+## Las seis funciones `SECURITY DEFINER`
 
 `usuarios` es RLS **fail-closed + FORCE** (`20260720_hard1_usuarios_rls.sql:136-141`),
 y el login ocurre **antes** de conocer el tenant. Una lectura directa devolvería
-cero filas. Por eso hay exactamente cuatro funciones acotadas (tres del
-Hardening 1, más la del ADR 0012):
+cero filas. Por eso hay funciones acotadas, una por cada pregunta que hay que
+poder responder **sin sesión**:
 
-| Función | Para qué |
-|---|---|
-| `auth_usuario_por_email(text)` | Login con contraseña |
-| `auth_usuario_por_sesion(text)` | Resolver la sesión en cada petición |
-| `auth_email_existe(text)` | Unicidad global de correo |
-| `auth_usuario_por_identidad(text,text)` | Login con Google (ADR 0012) |
+| Función | Para qué | Llegó con |
+|---|---|---|
+| `auth_usuario_por_email(text)` | Login con contraseña | Hardening 1 |
+| `auth_usuario_por_sesion(text)` | Resolver la sesión en cada petición | Hardening 1 |
+| `auth_email_existe(text)` | Unicidad global de correo | Hardening 1 |
+| `auth_usuario_por_identidad(text,text)` | Login con Google | ADR 0012 |
+| `auth_reset_por_token(text)` | Recuperación por correo | Restablecer contraseña |
+| `auth_codigo_recuperacion(text)` | Entrar con un código (B1) | ADR 0028 |
+
+> [!warning] Esta nota dijo «exactamente cuatro» hasta el 07/09, y eran seis
+> El recuento se escribió el 27/08 y **no se movió cuando llegaron dos funciones
+> más**. Medido el 07/09 contra la base, no contra la prosa:
+> `select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+> where n.nspname='public' and p.prosecdef` devuelve **diez**, de las cuales seis
+> son `auth_*` y las otras cuatro resuelven tenant por token público
+> (`portal_`, `firma_`, `propuesta_`, `config_`). Es el mismo modo de fallo que
+> §5 del CLAUDE.md: una cifra que envejece sin dar error.
 
 Con `revoke execute … from public` y `grant` solo al rol de la app, más un
 `ASSERT` que hace fallar la migración si ese rol tiene `SUPERUSER`/`BYPASSRLS`
@@ -110,6 +130,116 @@ Con `revoke execute … from public` y `grant` solo al rol de la app, más un
 > `debe_cambiar_password`— y reaplicar la cadena la degradaría a la versión de
 > julio. Con eso, **quien manda sobre la firma de esta función es la migración de
 > agosto**, no la de julio. Ver [[migraciones]].
+
+## Las tres llaves del Dueño — ADR 0028 (B1, B2, B3)
+
+Desde el 07/09 una cuenta puede tener **cerrada la puerta de la contraseña**, y
+por eso hicieron falta las tres piezas a la vez. Cerrar una sin abrir la otra
+habría dejado al Dueño con Google como llave única.
+
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| `usuarios.solo_google` | `20260907_solo_google.sql` | Nace en `false` para todos. En `true`, esa cuenta **no entra** con contraseña |
+| Códigos de recuperación | `codigos_recuperacion` + `auth_codigo_recuperacion()` | Diez por lote, de un solo uso, `sha256`. Se muestran **una vez** |
+| `usuarios.codigos_vistos_en` | `20260907_codigos_vistos.sql` | Hasta que se confirma, `exigir()` corta: no se puede usar la aplicación sin haber guardado los códigos |
+
+> [!important] La contraseña deja de ABRIR, pero sigue haciendo falta para CAMBIAR
+> Son dos preguntas distintas y se responden por separado. El punto 4 del ADR
+> 0028 exige teclear la contraseña para los cambios **aunque se haya entrado con
+> Google**, así que `solo_google` no borra el hash ni lo invalida: solo dice que
+> con él no se entra. `cambios.ts` y `perfil-controller.ts` no cambian.
+
+Tres decisiones de este bloque que **no son de estilo**:
+
+1. **El candado se comprueba DESPUÉS de verificar la contraseña**
+   (`app/api/auth/login/route.ts`). Antes sería enumeración gratis: bastaría
+   probar correos para saber cuáles existen. Puesto después, el mensaje solo lo
+   oye quien ya demostró tener la credencial.
+2. **`solo_google` NO viaja en `auth_usuario_por_email()`.** El primer intento
+   fue añadirle la columna, como hizo `20260825_sesion_metodo.sql` con la de
+   sesión — y rompió `reaplicacion.e2e.test.ts`, porque
+   `20260720_hard1_usuarios_rls.sql:40` la crea con `create or replace` **sin la
+   guarda de `to_regprocedure`** que sí lleva su vecina. Ponérsela habría sido
+   editar una migración ya aplicada en producción (R3) y romper el guard de
+   checksums de toda la flota. Se lee aparte, por `qConTenant`: cuando hace falta
+   el tenant ya se conoce.
+3. **Los códigos van con `sha256`, no bcrypt.** Un código es de 74 bits
+   aleatorios: no hay diccionario que atacar, y bcrypt ahí solo compra latencia
+   en la puerta donde menos conviene tenerla.
+
+Y una que manda sobre las demás, con su e2e: **una cuenta desactivada no entra ni
+con código**. Un código es una llave, no un permiso — si a alguien se le retiró
+el acceso, se le retiró por todas las puertas.
+
+### Regenerar: la misma ruta, dos operaciones (B6)
+
+`POST /api/perfil/codigos-recuperacion` hace dos cosas distintas y la frontera es
+`codigos_vistos_en`:
+
+| Caso | Pide contraseña | Por qué |
+|---|---|---|
+| Primer lote (`codigos_vistos_en is null`) | **No** | Es la SALIDA del cerrojo. Pedirla encerraría a quien entró con Google y todavía no tiene ninguna |
+| Regenerar (ya confirmó uno) | **Sí**, `exigirReautenticacionSiempre()` | Es un cambio: invalida en silencio los códigos que su dueño tiene en papel |
+
+El guard es el **incondicional**, no `exigirDesbloqueo()`: el interruptor del
+tenant no puede decidir esto. Y queda en la bitácora **sin los códigos dentro** —
+regenerar es lo primero que haría quien se llevara una sesión abierta, así que el
+dueño legítimo tiene que poder reconocer el «yo no hice eso».
+
+> [!important] El orden importa, y hay una e2e que solo vigila eso
+> Un 403 que ya hubiera borrado el lote sería **peor** que no tener candado: el
+> atacante no entra y el dueño se queda fuera igualmente. El guard corre antes
+> del `delete`, y `regenerar-codigos.e2e.test.ts` lo comprueba entrando con un
+> código de los viejos después del rechazo.
+
+### Los DOS cerrojos de `exigir()` van en un orden, y la interfaz en el otro
+
+Encontrado el 07/09 al recorrer la cadena completa:
+
+- El servidor corta **primero** por la contraseña temporal (`auth.ts:204`) y
+  **después** por los códigos (`auth.ts:230`).
+- El `AuthGate` lleva al usuario **primero** a los códigos.
+
+**No es un fallo:** las dos pantallas están exentas del guard a propósito, así que
+ninguna se bloquea a sí misma. Pero tiene una consecuencia práctica que conviene
+saber: **confirmar los códigos NO abre la aplicación**. Sigue cerrada, ahora por
+la otra razón, y las dos contestan 403. Quien depure esto por el código de estado
+y no por el mensaje va a mirar el cerrojo equivocado.
+
+### La cadena completa, medida una vez (B5)
+
+`lib/test/primer-dia-dueno.e2e.test.ts` recorre el primer día del Dueño de una
+instancia nueva: entra con Google → guarda sus códigos → fija su primera
+contraseña sin teclear la temporal (ADR 0018) → desbloquea los cambios con ella →
+y toca el dinero.
+
+Existe porque **cada eslabón tenía prueba y la cadena no**. Y el eslabón que la
+sostiene es el tercero: la contraseña que generó el operador del alta **el Dueño
+no la conoce**, así que sin la excepción del ADR 0018 el desbloqueo le pediría
+algo que para él no existe — y con `exigir_reautenticacion` en `true` por omisión
+desde el 28/08, eso significaría que **el Dueño de cada instancia nueva no puede
+facturar**. La cadena está entera; lo que no estaba era la prueba de que lo
+estaba.
+
+> [!warning] El arnés tiene DOS puertos auxiliares, y compartirlos rompe en diferido
+> `servidor-e2e.ts` usa el **3311**, el doble de Google el **3312**
+> (`doble-google.ts:21`) y el servidor sin Google de las pruebas del bootstrap el
+> **3313**. Los tres distintos a propósito: el 07/09 el último estrenó el 3312 y
+> no se notó, porque el único archivo con doble corría ANTES. Al aparecer el
+> segundo, CI murió en un archivo que no tenía nada que ver, once ficheros
+> después, con un mensaje que mandaba a buscar un doble suelto inexistente.
+>
+> Y el que dejó el puerto tomado fue el otro defecto del mismo sitio: las
+> opciones del `spawn` escritas EN LÍNEA, sin `detached`. Sin él el hijo no
+> lidera su grupo, `process.kill(-pid)` se va en ESRCH y el `next start`
+> sobrevive con el puerto. Es exactamente el fallo que `proceso-e2e.ts` existe
+> para no repetir — **y se repitió en cuanto alguien volvió a escribirlas a
+> mano**. Si lanzas un proceso en una prueba: `opcionesDeProceso()`,
+> `vigilarErrores()` y `esperarMuerte()`, los tres.
+
+Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
+`lib/test/codigos-vistos.e2e.test.ts`, `lib/test/solo-google.e2e.test.ts`,
+`lib/test/regenerar-codigos.e2e.test.ts` y `lib/test/primer-dia-dueno.e2e.test.ts`.
 
 ## CSRF — double-submit
 

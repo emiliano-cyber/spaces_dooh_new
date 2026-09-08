@@ -203,7 +203,22 @@ y del paso en la consola de Google **rompe el alta**.
 > —ya cubierta por los otros casos— y se conserva lo único que aquí importa: **el orden**,
 > que es lo que demuestra que no se crea media instancia.
 
-## B5 · `exigir_reautenticacion` nace en `true` `[migración]`
+## B5 · `exigir_reautenticacion` nace en `true` `[migración]` — **YA ESTABA HECHA**
+
+> [!danger] 2026-09-07 · esta tarea no existía, y el defecto es de este plan
+> `db/migrations/20260828_reautenticacion_por_defecto.sql:55` ya pone
+> `alter column exigir_reautenticacion set default true`, con su ASSERT y con su
+> e2e (`esquema-sin-owner.e2e.test.ts:189`). Comprobado contra la base, no contra
+> la prosa: `information_schema.columns` devuelve `true` en `spaces_e2e`.
+>
+> **Se escribió como pendiente sin mirar si ya estaba.** Es el mismo error que el
+> CLAUDE.md documenta dos veces —una cifra o un estado que se afirma de memoria—
+> y esta vez costó una tarea entera de plan.
+>
+> **Lo que sí faltaba es lo que la propia ficha pedía:** «hay que comprobar que
+> ese camino funciona antes de encender esto». El default llevaba diez días
+> encendido y ese camino no se había recorrido nunca de punta a punta. Hecho el
+> 07/09 en `lib/test/primer-dia-dueno.e2e.test.ts`.
 
 - **Objetivo:** el punto 4 del ADR — para cambios, siempre contraseña.
 - **Es cambiar un valor por omisión sobre un mecanismo ya probado**, no código nuevo:
@@ -214,11 +229,30 @@ y del paso en la consola de Google **rompe el alta**.
   contraseña con la sesión abierta por Google. **Hay que comprobar que ese camino funciona
   antes de encender esto.**
 
-## B6 · Regenerar los códigos desde el perfil `[código]`
+## B6 · Regenerar los códigos desde el perfil `[código]` — **CERRADA el 2026-09-07**
 
 - **Objetivo:** que perder la pantalla de B2 no sea perder la cuenta.
 - Con la sesión abierta, «generar otros» invalida los anteriores y enseña los nuevos una
   vez. **Prueba negativa:** los viejos dejan de valer.
+
+**Cómo quedó, y lo que se decidió por el camino:**
+
+- El mecanismo ya existía (`generarLote()` borra el lote anterior). Lo que faltaba era el
+  **camino** —no había forma de llegar a la pantalla por voluntad propia, solo empujado por
+  el guard— y la **contraseña**.
+- **La misma ruta hace dos cosas y el servidor las distingue por `codigos_vistos_en`:** el
+  primer lote es la SALIDA del cerrojo de B2 y no pide nada (pedirlo encerraría a quien
+  entró con Google y todavía no tiene contraseña); pedir OTRO es un CAMBIO y va por
+  `exigirReautenticacionSiempre()`, el mismo guard que A7 puso para tocar el acceso de un
+  tercero.
+- **Regenerar es lo primero que haría quien se llevara una sesión abierta**: se fabrica una
+  llave permanente y deja al dueño con una lista muerta sin que nada avise. Por eso queda en
+  la bitácora, y **sin los códigos dentro**.
+- **La prueba que manda:** un intento rechazado NO destruye el lote que ya tenía. Un 403 que
+  ya borró los códigos sería peor que no tener candado — el atacante no entra y el dueño se
+  queda fuera igual.
+- Cobertura: `lib/test/regenerar-codigos.e2e.test.ts`, 6 pruebas. Cuatro estuvieron en rojo
+  antes del arreglo.
 
 ---
 

@@ -7,6 +7,54 @@ La entrada más reciente va arriba.
 
 ## 2026-09-07
 
+- **Y si pierdes los codigos, ya puedes pedir otros.** Antes la pantalla de los codigos
+  solo aparecia cuando el sistema te empujaba a ella: quien ya los habia guardado y luego
+  perdio el papel no tenia forma de volver. Ahora esta en el menu de tu cuenta, arriba a la
+  derecha.
+
+  **Generar otros pide tu contraseña**, y no es burocracia: al generarlos, los anteriores
+  **dejan de funcionar**. Es lo primero que haria alguien que se sentara en tu computadora
+  con la sesion abierta —se fabrica una llave y te deja con una lista muerta sin avisarte—,
+  asi que ademas **queda anotado** en el registro de la organizacion. Los codigos mismos no
+  se anotan en ningun sitio.
+
+  Un detalle que se cuido a proposito: si teclas mal la contraseña, **no se borra nada**.
+  Tus codigos de siempre siguen valiendo.
+
+- **Se comprobo, de punta a punta, que el Dueño de una empresa nueva puede trabajar.** Cada
+  pieza de lo de arriba estaba probada por separado, pero **el recorrido completo no lo
+  habia hecho nadie**: entrar con Google, guardar los codigos, poner tu propia contraseña y
+  llegar a facturar. Eran cinco pasos y bastaba con que uno no encajara para que el Dueño se
+  quedara mirando una pantalla que le pide una contraseña que nunca tuvo.
+
+  Funciona. Y de paso aparecio algo util de saber para el dia que haya que dar soporte:
+  **guardar los codigos no abre todavia la aplicacion** — falta cambiar la contraseña
+  temporal, que es un segundo paso. Las dos cosas se piden de la misma forma, asi que sin
+  saberlo es facil creer que algo se rompio cuando no.
+
+- **Ya se puede cerrar la entrada por contraseña, porque por fin hay otra puerta.**
+  Lo que se decidio esta manaña era una intencion; hoy es un interruptor de verdad, y
+  viene acompañado de las dos cosas sin las que habria sido peligroso encenderlo.
+
+  - **Codigos de recuperacion.** Cuando un Dueño entra por primera vez, el sistema le
+    enseña **diez codigos** y le obliga a decir que ya los guardo antes de dejarlo
+    seguir. Se muestran **una sola vez** y no se pueden volver a ver: ni nosotros
+    podemos, que es justo lo que los hace servir de algo. Cada uno vale **una vez**.
+  - **Una puerta para usarlos.** Si algun dia pierde su cuenta de Google, teclea uno de
+    esos codigos y entra. El sistema le dice cuantos le quedan, para que no gaste el
+    ultimo sin darse cuenta.
+  - **Y el interruptor.** Una cuenta se puede marcar como «solo Google»: a partir de
+    ahi su contraseña **ya no abre**. Con eso deja de importar que quien hizo la
+    instalacion haya visto una contraseña en su pantalla.
+
+  **Nace apagado para todos**, a proposito: encenderlo de golpe habria dejado fuera a
+  cualquiera que no tenga Google vinculado, incluidos nosotros. Se enciende cuenta por
+  cuenta, y solo despues de comprobar que esa persona puede entrar de otra forma.
+
+  Un detalle que parece menor y no lo es: **una cuenta desactivada no entra ni con
+  codigo**. Si a alguien se le retiro el acceso, se le retiro por todas las puertas —
+  un codigo guardado de antes no se lo devuelve.
+
 - **Se decidio como entra cada persona al sistema, y queda escrito.** Hasta hoy habia
   una decision apuntada de agosto que decia una cosa y un sistema que hacia otra: es el
   tipo de contradiccion que se descubre el peor dia posible.
