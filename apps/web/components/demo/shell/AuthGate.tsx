@@ -7,6 +7,7 @@ import { useDemoStore } from '@/lib/data/store'
 import { refrescarEstado } from '@/lib/data/estado-api'
 import { useSesionCtx } from './SesionContext'
 import { NAV } from './nav'
+import { decidirPantalla, salidaObligatoria } from './compuerta'
 
 // Compuerta del shell basada en la sesión REAL (/api/auth/me).
 //  - Sin sesión → /demo/login
@@ -80,7 +81,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   // antes de 3865c4e: el servidor pedía algo y la interfaz no tenía puerta.
   const rutaLimpia = (pathname ?? '').replace(/\/spaces-dooh/, '').replace(/\/$/, '')
   const debeCambiar = !!sesion?.usuario.debeCambiarPassword
-  const enConfiguracion = rutaLimpia === '/configuracion'
   // ADR 0028 · B2. El servidor ya CORTA con 403 mientras falten los códigos
   // (`exigir()`); esto es lo que evita que el usuario se coma ese 403 sin saber
   // por qué. Mismo problema que tenía la contraseña temporal antes de 3865c4e:
@@ -89,7 +89,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   // El booleano viene DERIVADO del servidor (`/api/auth/me`) y no se calcula
   // aquí: la regla la decide `exigir()`, y una copia en el cliente divergiría.
   const debeGuardarCodigos = !!sesion?.usuario.debeGuardarCodigos
-  const enCodigos = rutaLimpia === '/codigos-recuperacion'
+
+  // Las DOS mitades de la compuerta —adónde se manda al usuario y qué se le
+  // pinta— salen de aquí y no de dos escaleras de `if` escritas por separado.
+  // Escribirlas por separado es lo que produjo el encierro del 08/09 en el
+  // PADRE: el ADR 0028 añadió la redirección a los códigos y no la exención de
+  // render, así que la única pantalla que resolvía el 403 quedaba tapada por
+  // «No se pudieron cargar los datos». Ver `compuerta.ts`.
+  const salida = salidaObligatoria({ debeGuardarCodigos, debeCambiarPassword: debeCambiar })
 
   useEffect(() => {
     if (sesion === undefined) return
@@ -97,38 +104,43 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     } else if (sesion.usuario.rol === 'CLIENTE') {
       router.replace(landingDeRol('CLIENTE'))
-    } else if (debeGuardarCodigos && !enCodigos) {
-      // ANTES que la contraseña temporal: quien entra con Google no tiene
-      // contraseña que cambiar, así que mandarlo a Configuración lo dejaría
-      // dando vueltas en una pantalla que no le sirve.
-      router.replace('/codigos-recuperacion')
-    } else if (debeCambiar && !enConfiguracion) {
-      // Antes que cualquier otra comprobación de ruta: con la temporal puesta no
-      // hay módulo al que pueda entrar, así que mandarlo a su landing solo lo
-      // pasearía entre pantallas vacías.
-      router.replace('/configuracion')
-    } else if (!debeCambiar && noAutorizado) {
+    } else if (salida && rutaLimpia !== salida) {
+      // Con un estado bloqueante puesto no hay módulo al que pueda entrar, así
+      // que esto va antes que cualquier comprobación de ruta: mandarlo a su
+      // landing solo lo pasearía entre pantallas vacías.
+      router.replace(salida)
+    } else if (!salida && noAutorizado) {
       router.replace(landingDeRol(sesion.usuario.rol))
     }
-  }, [sesion, noAutorizado, debeCambiar, enConfiguracion, debeGuardarCodigos, enCodigos, router])
+  }, [sesion, noAutorizado, salida, rutaLimpia, router])
 
   if (sesion === undefined || sesion === null || sesion.usuario.rol === 'CLIENTE') {
     return <Cargando />
   }
-  if (debeCambiar) {
-    // En Configuración se RENDERIZA aunque el estado no haya cargado: /api/estado
-    // responde 403 mientras la temporal siga puesta, así que esperar a que
-    // cargue sería esperar para siempre. La pantalla de cuenta no necesita el
-    // store — solo la sesión, que sí llega.
-    return enConfiguracion ? <>{children}</> : <Cargando />
+
+  // La escalera de `if` que había aquí vive en `decidirPantalla()`, que se
+  // prueba sin React (`compuerta.test.ts`). No es una preferencia de estilo: el
+  // encierro del 08/09 era una decisión de RENDER, y `vitest.config.ts` no monta
+  // jsdom, así que dentro del `.tsx` no la probaba nadie.
+  //
+  // Lo que sigue vigente y decide esa función:
+  //  · la pantalla de salida de un estado bloqueante se renderiza aunque el
+  //    store esté en error — mientras el estado siga puesto, /api/estado
+  //    responde 403 y esperar sería esperar para siempre;
+  //  · sin estado bloqueante, el store vacío NO se pinta como datos: mostraría
+  //    "0 de 0" y "No hay campañas" como si fueran ciertos (hallazgo C1).
+  switch (decidirPantalla({
+    debeGuardarCodigos,
+    debeCambiarPassword: debeCambiar,
+    ruta: rutaLimpia,
+    noAutorizado,
+    estadoCarga,
+  })) {
+    case 'contenido':
+      return <>{children}</>
+    case 'error-de-carga':
+      return <ErrorDeCarga />
+    default:
+      return <Cargando />
   }
-  if (noAutorizado) return <Cargando />
-
-  // El store arranca VACÍO (buildSeed) y se llena con /api/estado. Hasta que eso
-  // ocurra no se renderizan los módulos: si no, muestran "0 de 0" y "No hay
-  // campañas" como si fueran datos ciertos. Es el hallazgo C1 de la auditoría.
-  if (estadoCarga === 'pendiente') return <Cargando />
-  if (estadoCarga === 'error') return <ErrorDeCarga />
-
-  return <>{children}</>
 }
