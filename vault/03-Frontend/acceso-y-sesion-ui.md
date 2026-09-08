@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-14
+actualizado: 2026-09-08
 tags: [frontend, login, sesion, rojo]
 archivos:
   - apps/web/app/(app)/login/page.tsx
@@ -9,6 +9,8 @@ archivos:
   - apps/web/app/(app)/recuperar/[token]/page.tsx
   - apps/web/lib/auth-real.ts
   - apps/web/app/api/auth/metodos/route.ts
+  - apps/web/components/demo/shell/AuthGate.tsx
+  - apps/web/components/demo/shell/compuerta.ts
 ---
 
 # Acceso y sesión (UI)
@@ -111,11 +113,50 @@ Cuando un administrador restablece una contraseña, el usuario entra con
 `/api/auth/me` y `PATCH /api/perfil`.
 
 > [!warning] El servidor exige algo y la pantalla tiene que ofrecer dónde hacerlo
-> Este patrón ya falló tres veces (restablecimiento, desbloqueo y contraseña
-> temporal): el usuario veía «No se pudieron cargar los datos» con un botón de
-> reintentar **que no podía funcionar nunca**. Hoy se le lleva directo a su
-> cuenta con un aviso (`docs/Registro_Cambios.md`, 06/08). **Si añades un corte
-> en el servidor, añade la salida en la UI en el mismo commit.**
+> Este patrón ya falló **cuatro** veces (restablecimiento, desbloqueo,
+> contraseña temporal y los códigos de recuperación): el usuario veía «No se
+> pudieron cargar los datos» con un botón de reintentar **que no podía funcionar
+> nunca**. Hoy se le lleva directo a su cuenta con un aviso
+> (`docs/Registro_Cambios.md`, 06/08). **Si añades un corte en el servidor,
+> añade la salida en la UI en el mismo commit.**
+
+## La compuerta del shell, y por qué la decisión salió del `.tsx`
+
+`AuthGate.tsx` envuelve TODO lo que está dentro de `(app)/(shell)`, y decide dos
+cosas con dos mecanismos distintos: **adónde manda** al usuario
+(`router.replace()` en un efecto) y **qué pinta** mientras tanto. Escritas por
+separado, esas dos decisiones divergen.
+
+Desde el 2026-09-08 las dos salen de una sola declaración,
+`salidaObligatoria()` en `components/demo/shell/compuerta.ts`: la lista de
+estados en los que `exigir()` responde 403 a todo, con la pantalla que saca de
+cada uno. **Añadir un estado bloqueante ahí cubre los dos lados a la vez** — la
+redirección y la exención de render.
+
+> [!danger] La cuarta vez fue por no tener eso, y dejó el PADRE inaccesible
+> El ADR 0028 · B2 añadió el corte de los códigos en `auth.ts:230` y la
+> redirección en el efecto, **pero no la exención de render**. Con el Dueño del
+> PADRE entrando por Google y `codigos_vistos_en` en null, `/api/estado` daba
+> 403, el store quedaba en `error` y `AuthGate` pintaba «No se pudieron cargar
+> los datos» **también dentro de `/codigos-recuperacion`** — que vive en
+> `(shell)` y por tanto pasa por la misma compuerta. La aplicación entera
+> inaccesible, sin decir por qué.
+>
+> Medido en el PADRE el 08/09: 403 simultáneo en `/api/estado`, `/api/cambios` y
+> `/api/notificaciones/nuevas`. El supuesto que lo dejó pasar está escrito en
+> `20260907_solo_google.sql` — «en producción todavía nadie entra con Google» —
+> y era falso para el PADRE.
+>
+> **Desbloqueo sin desplegar**: entrar con contraseña. `login/route.ts:89` abre
+> la sesión con `metodo = 'password'` y `debeGuardarCodigos()` solo mira a quien
+> entró con Google. Solo falla si la cuenta tiene `solo_google` encendido.
+
+La decisión vive en un `.ts` y no dentro del componente por una razón concreta:
+`vitest.config.ts` **no monta jsdom a propósito**, así que una decisión de
+render escrita en el `.tsx` no la prueba nadie — y ésta era una decisión de
+render. `compuerta.test.ts` la cubre con 15 casos, incluidos los negativos: que
+sin estado bloqueante el error **sí** se pinte (hallazgo C1), y que la exención
+compare la ruta ya normalizada, sin `basePath`.
 
 ## Cliente de sesión
 

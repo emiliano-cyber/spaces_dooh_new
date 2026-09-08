@@ -5,6 +5,30 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-08
+
+- **La aplicacion del servidor padre estaba inaccesible, y decia que no habia datos.**
+  Quien entraba con Google se encontraba la pantalla vacia con el mensaje «No se pudieron
+  cargar los datos» y un boton de reintentar. El boton no podia funcionar nunca, y el
+  mensaje era engañoso: los datos estaban ahi y se leian perfectamente.
+
+  Lo que pasaba de verdad: el sistema estaba pidiendo que guardaras tus codigos de
+  recuperacion antes de dejarte seguir —eso es correcto y es nuevo de la semana pasada—,
+  pero **la pantalla de los codigos tambien quedaba tapada por el mismo mensaje**. O sea
+  que te pedia una cosa y te escondia el unico sitio donde hacerla. Sin salida.
+
+  Ya no. Cuando el sistema exige algo antes de dejarte entrar, la pantalla que lo resuelve
+  se ve siempre, aunque el resto de la aplicacion este cerrada.
+
+  **Si te pasa antes de que esto se despliegue**, hay una vuelta: entra con tu correo y
+  contraseña en vez de con Google. Por esa puerta el sistema no pide los codigos.
+
+  Y una nota para quien mantenga esto: es la **cuarta** vez que el mismo descuido deja a
+  alguien encerrado —restablecimiento, desbloqueo, contraseña temporal y ahora los
+  codigos—. Las tres anteriores se arreglaron una por una. Esta vez lo que se arreglo fue
+  la forma de escribirlo: ahora la exigencia y su salida se declaran juntas en un solo
+  sitio, asi que no se puede añadir una y olvidar la otra.
+
 ## 2026-09-07
 
 - **Y si pierdes los codigos, ya puedes pedir otros.** Antes la pantalla de los codigos
