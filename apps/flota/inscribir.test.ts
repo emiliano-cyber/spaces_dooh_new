@@ -3,7 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { inscribir, claveDeToken } from './inscribir.mjs'
+import { inscribir, claveDeToken, RUTA_TOKENS as RUTA_TOKENS_INSCRIBIR } from './inscribir.mjs'
+// @ts-expect-error — módulo .mjs sin tipos
+import {
+  RUTA_TOKENS as RUTA_TOKENS_ESTADO,
+  RUTA_INSTANCIAS as RUTA_INSTANCIAS_ESTADO,
+} from './estado.mjs'
 
 // ============================================================================
 //  Inscribir una instancia recién creada.  (ADR 0029 punto 6, ampliado)
@@ -140,5 +145,55 @@ describe('inscribir una instancia', () => {
     )
     expect(r.ok).toBe(false)
     expect(typeof r.motivo).toBe('string')
+  })
+})
+
+// ============================================================================
+//  Las RUTAS: una sola declaracion, y fuera del directorio de los secretos.
+// ----------------------------------------------------------------------------
+//  Defecto 38, medido el 2026-09-08 al dar de alta `g500`:
+//
+//    no se pudo inscribir en el panel: EACCES: permission denied,
+//    open '/etc/space-os/flota-instancias.json.837647.cc5a1a33.tmp'
+//
+//  La escritura es atomica --temporal al lado y `rename`--, asi que necesita
+//  permiso sobre el DIRECTORIO. `/etc/space-os/` guarda `padre.env`, `demo.env`
+//  y `ejecutor.env`: dar escritura ahi al usuario `altas` le permitiria
+//  REEMPLAZAR los secretos del PADRE. No leerlos --siguen en 600-- pero si
+//  sustituirlos, que para el caso es peor.
+//
+//  Asi que la instancia nacia bien y **invisible para el panel**, y sin su token
+//  --el fallo ocurre en el primer archivo y el segundo ya no se escribe--. Sin
+//  token el panel la ve `sin-respuesta`, indistinguible de una caida.
+//
+//  Ninguna prueba miraba estas rutas, asi que moverlas no habria puesto roja
+//  ninguna. Ahora si.
+describe('donde escribe el ejecutor y donde lee el panel', () => {
+  it('la ruta de los tokens la declara UN solo modulo', () => {
+    // Vivio duplicada como literal en los dos --el que escribe y el que lee--
+    // hasta el 2026-09-08. Dos cadenas que tienen que coincidir y que nadie
+    // comparaba: cambiar una dejaba al ejecutor escribiendo donde el panel no
+    // mira, SIN dar error. Misma forma que el defecto de `marcar()`/`avanzar()`.
+    expect(RUTA_TOKENS_INSCRIBIR).toBe(RUTA_TOKENS_ESTADO)
+  })
+
+  it('ninguna de las dos vive en el directorio de los secretos', () => {
+    // Y no es una preferencia de sitio: es que ahi no se puede escribir sin
+    // poder reemplazar `padre.env`.
+    for (const r of [RUTA_TOKENS_ESTADO, RUTA_INSTANCIAS_ESTADO]) {
+      expect(r).not.toMatch(/^\/etc\//)
+    }
+  })
+
+  // El SUBdirectorio importa, y no es un detalle de gusto: `/var/lib/space-os`
+  // es `root:root 755`, asi que un archivo suelto ahi da el MISMO EACCES que en
+  // `/etc/space-os`. El temporal se crea en el directorio, no en el archivo.
+  // El primer arreglo de este defecto los puso sueltos, y lo cazo el `ls -ld`.
+  it('las dos viven en un SUBdirectorio propio, que puede ser de `altas`', () => {
+    for (const r of [RUTA_TOKENS_ESTADO, RUTA_INSTANCIAS_ESTADO]) {
+      expect(r).toMatch(/^\/var\/lib\/space-os\/flota\/[^/]+$/)
+    }
+    // Distintas entre si, o una pisaria a la otra.
+    expect(RUTA_TOKENS_ESTADO).not.toBe(RUTA_INSTANCIAS_ESTADO)
   })
 })

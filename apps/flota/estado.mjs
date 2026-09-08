@@ -153,10 +153,52 @@ export function fusionar(consultas, reportes) {
 }
 
 /**
- * Donde el ejecutor de altas deja los tokens de las instancias que crea.
+ * Donde el ejecutor de altas deja lo que produce para el panel.
  * (ADR 0029, punto 6.)
+ *
+ * ─── Por qué NO es `/etc/space-os/`, que es donde estaba ────────────────────
+ *
+ * Medido el 2026-09-08, al dar de alta `g500`:
+ *
+ *   no se pudo inscribir en el panel: EACCES: permission denied,
+ *   open '/etc/space-os/flota-instancias.json.837647.cc5a1a33.tmp'
+ *
+ * La escritura es atómica —temporal al lado y `rename`—, así que necesita
+ * permiso sobre el DIRECTORIO, no sobre el archivo. Y `/etc/space-os/` guarda
+ * `padre.env`, `demo.env` y `ejecutor.env`: darle escritura ahí al usuario
+ * `altas` le permitiría **reemplazar los secretos del PADRE**. No leerlos
+ * —siguen en 600— pero sí sustituirlos, que para el caso es peor. Es justo lo
+ * que se cerró el 25/08 al sacar al PADRE de root.
+ *
+ * Así que la instancia nacía bien y **invisible para el panel**, y encima sin su
+ * token: el fallo ocurre en el primer archivo y el segundo ya no se escribe.
+ * Sin token el panel la ve `sin-respuesta`, indistinguible de una caída — la
+ * misma ceguera que se arregló esa mañana por otra puerta (`6ed9b81`).
+ *
+ * `/var/lib/space-os/` es donde el ejecutor YA escribe, no es código y no son
+ * secretos: esto es **estado que escribe `altas` y lee `flota`**. Estaba en
+ * `/etc` por inercia.
+ *
+ * ─── Y es un SUBDIRECTORIO, no el padre ────────────────────────────────────
+ *
+ * `/var/lib/space-os` es `root:root 755`, medido el 2026-09-08. Poner los
+ * archivos ahí sueltos daba **exactamente el mismo EACCES**, porque el temporal
+ * se crea en el directorio y `altas` no puede crear ahí. El primer intento de
+ * arreglar esto lo hizo, y lo cazó mirar el `ls -ld` antes de darlo por bueno.
+ *
+ * El patrón correcto ya estaba en la misma máquina: `solicitudes/` es un
+ * subdirectorio propiedad de `altas`, y el padre sigue siendo de root. Se copia:
+ *
+ *     mkdir -p /var/lib/space-os/flota
+ *     chown altas:flota /var/lib/space-os/flota
+ *     chmod 750 /var/lib/space-os/flota      # altas escribe, flota atraviesa
+ *
+ * El directorio **tiene que existir antes**: `altas` no puede crearlo, así que
+ * no se resuelve en tiempo de ejecución. Va en la tarjeta de despliegue.
  */
-export const RUTA_TOKENS = '/etc/space-os/flota-tokens.env'
+const DIR_ESTADO_FLOTA = '/var/lib/space-os/flota'
+
+export const RUTA_TOKENS = `${DIR_ESTADO_FLOTA}/flota-tokens.env`
 
 /**
  * Los tokens de instancia que dejó el ejecutor, o `{}` si no hay archivo.
@@ -269,10 +311,11 @@ export async function consultar(instancia, opciones = {}) {
  * **Y no es `flota.json` a propósito.** Ese archivo vive en `/var/www/Spaces`, y
  * dar permiso de escritura ahí al proceso que tiene los tres tokens le daría
  * además la capacidad de **alterar el código de la aplicación**. Mismo
- * razonamiento que el archivo de tokens (ADR 0029 punto 6): `altas` escribe en
- * `/etc/space-os/`, `flota` lee.
+ * razonamiento que el archivo de tokens (ADR 0029 punto 6): `altas` escribe,
+ * `flota` lee, y el directorio no es ni código ni secretos — ver
+ * `DIR_ESTADO_FLOTA` arriba, y por qué dejó de ser `/etc/space-os/`.
  */
-export const RUTA_INSTANCIAS = '/etc/space-os/flota-instancias.json'
+export const RUTA_INSTANCIAS = `${DIR_ESTADO_FLOTA}/flota-instancias.json`
 
 /**
  * Las instancias que dejó el ejecutor, o `[]` si no hay archivo.

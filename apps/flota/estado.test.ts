@@ -280,8 +280,14 @@ describe('los tokens de instancia, y de donde se leen', () => {
 //  >>> proceso que tiene los tres tokens le daria ademas la capacidad de
 //  >>> ALTERAR EL CODIGO de la aplicacion.
 //
-//  Va por el mismo camino que los tokens: un archivo en `/etc/space-os/` que
-//  escribe `altas` y lee `flota`. El panel los mezcla.
+//  Va por el mismo camino que los tokens: un archivo que escribe `altas` y lee
+//  `flota`, y el panel los mezcla.
+//
+//  Estuvo en `/etc/space-os/` hasta el 2026-09-08 y ahi NUNCA pudo funcionar: la
+//  escritura es atomica --temporal al lado y `rename`--, asi que necesita
+//  permiso sobre el DIRECTORIO, y ese directorio guarda los secretos del PADRE.
+//  Vive en `/var/lib/space-os/`, donde el ejecutor ya escribe las solicitudes.
+//  Las rutas se afirman en `inscribir.test.ts`.
 // ============================================================================
 describe('el inventario, y las instancias que se dan de alta solas', () => {
   async function conArchivos(flota: unknown, extra: unknown) {
