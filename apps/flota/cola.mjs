@@ -214,11 +214,28 @@ export async function marcar(dir, id, estado, extra = {}) {
   // escrituras partieran del mismo estado y una perdiera lo de la otra.
   return enSerie(ruta, async () => {
     const solicitud = JSON.parse(await readFile(ruta, 'utf8'))
+    // `extra` va a los DOS sitios, y cada uno responde a una pregunta distinta:
+    //
+    //  · en la RAÍZ es el estado ACTUAL, y es de donde lo lee quien decide el
+    //    paso siguiente (`avanzar.mjs` mira `solicitud.ip`, `.intentos`,
+    //    `.intentosDesde`, `.dnsOtraIp`);
+    //  · en el HISTORIAL es lo que pasó y cuándo, que es lo que enseña el panel
+    //    y lo que queda para saber por qué falló un alta de hace tres semanas.
+    //
+    // Hasta el 2026-09-08 iba SOLO al historial, y con eso la máquina de estados
+    // del ADR 0029 estaba muerta sin que ninguna prueba lo dijera: `ensayo4`
+    // llevaba 22 horas contestando «sin ip anotada» CON la ip anotada, y el
+    // contador de intentos de certificado no contaba de una pasada a la
+    // siguiente —o sea que el tope de tres por hora no existía, que es el que
+    // evita quemar la cuota de Let's Encrypt (cinco por hora y por dominio)—.
+    //
+    // El orden importa: `estado` e `historial` van DESPUÉS de `extra` para que
+    // un `extra` descuidado no pueda reescribir ni el estado que se está
+    // marcando ni el historial acumulado. Hay una prueba que lo afirma.
     const actualizada = {
       ...solicitud,
+      ...extra,
       estado,
-      // El historial se acumula: qué pasó y cuándo. Es lo que el panel enseña y
-      // lo que queda para saber por qué falló un alta de hace tres semanas.
       historial: [...(solicitud.historial ?? []), { estado, cuando: new Date().toISOString(), ...extra }],
     }
     await escribirAtomico(ruta, actualizada)

@@ -418,6 +418,55 @@ no_hubo 'digitalocean.com'
 no_hubo 'space-os.io'
 limpiar
 
+# ============================================================================
+#  El candado de apt en `setup-droplet.sh`  (defecto 37, 2026-09-08)
+# ============================================================================
+#  Estas son ESTATICAS y no de ejecucion, a proposito: `setup-droplet.sh` corre
+#  DENTRO del droplet, por `ssh root@host 'bash -s'`, asi que este arnes nunca
+#  lo ejecuta -- solo ve que se manda. Lo unico que se puede afirmar aqui es la
+#  forma del guion que se manda, y resulta que es exactamente donde estaba el
+#  defecto.
+#
+#  Que paso: el alta de `g500` murio con codigo 100 a los 2 min 26 s, con el
+#  droplet ya creado y cobrandose:
+#
+#    E: Could not get lock /var/lib/apt/lists/lock. It is held by process 9094
+#
+#  Dos causas encadenadas. `NEEDRESTART_MODE=a` reiniciaba `cloud-final.service`
+#  --la fase final de cloud-init, que instala paquetes por su cuenta-- y el
+#  `apt-get install` siguiente se encontraba el candado puesto. Y ninguna
+#  llamada a apt esperaba: se rendian.
+#
+#  Es una CARRERA, que es lo que la hace peligrosa: `ensayo4` la gano el 07/09 y
+#  `g500` la perdio el 08/09 con el mismo guion. Un fallo que aparece un dia de
+#  cada diez no lo caza nadie mirando.
+escenario '37 · ninguna llamada a apt se rinde ante el candado'
+SETUP="$(dirname "${BASH_SOURCE[0]}")/setup-droplet.sh"
+
+# Ni una sola invocacion cruda. La que se olvide es la que falla.
+if grep -nE '^[[:space:]]*apt-get ' "$SETUP" >/dev/null; then
+  mal "hay apt-get sin envoltorio: $(grep -cE '^[[:space:]]*apt-get ' "$SETUP") linea(s)"
+else bien; fi
+
+# El envoltorio existe y de verdad pide esperar. Anclado a la DEFINICION y no a
+# «que la cadena aparezca en el archivo»: escrito asi, esta comprobacion pasaba
+# con el envoltorio ya roto, porque la cadena sale tambien en el comentario que
+# la explica. Lo cazo su mutante el 2026-09-08, y es la misma leccion de siempre
+# aqui: una comprobacion por presencia de texto se queda verde sola.
+if grep -qE '^[[:space:]]*apt_get\(\).*DPkg::Lock::Timeout' "$SETUP"; then bien; else
+  mal "el envoltorio apt_get() no pasa DPkg::Lock::Timeout: apt se rendira igual"; fi
+
+# Y no se vuelve a `a`, que es lo que reiniciaba cloud-final.
+if grep -qE '^export NEEDRESTART_MODE=a[[:space:]]*$' "$SETUP"; then
+  mal "NEEDRESTART_MODE=a reinicia cloud-final.service y le da el candado a cloud-init"
+else bien; fi
+
+# El menu interactivo sigue muerto: eso costo una hora el 03/09 y no se pierde.
+if grep -qF 'NEEDRESTART_MODE' "$SETUP"; then bien; else
+  mal "sin NEEDRESTART_MODE el upgrade abre el menu y se cuelga sin dar error"; fi
+if grep -qF 'DEBIAN_FRONTEND=noninteractive' "$SETUP"; then bien; else
+  mal "sin DEBIAN_FRONTEND=noninteractive un dialogo de apt cuelga el alta"; fi
+
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1
 

@@ -345,8 +345,29 @@ describe('el guion del servidor no puede quedarse esperando a nadie', () => {
     expect(guion).toMatch(/export DEBIAN_FRONTEND=noninteractive/)
   })
 
-  it('y NEEDRESTART_MODE=a, que es el que colgo el ensayo', () => {
-    expect(guion).toMatch(/export NEEDRESTART_MODE=a/)
+  // Esta prueba pedia el valor EXACTO `a` hasta el 2026-09-08, y con eso se
+  // convirtio en el guardian de una decision que resulto estar mal.
+  //
+  // `a` significa «reinicia los servicios afectados», y entre ellos esta
+  // `cloud-final.service` --la fase final de cloud-init, que en las imagenes de
+  // DigitalOcean instala paquetes por su cuenta--. Reiniciarla lanza un segundo
+  // `apt-get`, y el alta de `g500` murio con codigo 100 al encontrarse el
+  // candado puesto: «Could not get lock /var/lib/apt/lists/lock». Defecto 37.
+  //
+  // Lo que esta prueba SIEMPRE quiso proteger es que needrestart NO PREGUNTE,
+  // porque preguntar aqui cuelga el guion sin dar error. `a` era una forma de
+  // conseguirlo; `l` (listar) es otra, y ademas no reinicia nada. Asi que se
+  // afirma la intencion y no el valor.
+  //
+  // La prohibicion de volver a `a` vive en `pruebas-provision.sh`, escenario 37,
+  // que es donde estan las demas afirmaciones sobre el candado de apt. Aqui no
+  // se duplica: dos sitios con la misma regla divergen.
+  // Sin anclas `^…$`: `ejecutable()` aplana el guion a UNA linea --quita los
+  // comentarios y junta el resto con espacios--, asi que un `/m` no tiene
+  // lineas donde anclar y no casa nunca. Se cierra con `(?:\s|$)` para que
+  // `=al` o `=algo` no cuelen.
+  it('y NEEDRESTART_MODE en un modo que NO pregunta', () => {
+    expect(guion).toMatch(/export NEEDRESTART_MODE=[al](?:\s|$)/)
   })
 
   it('las dos ANTES del primer apt-get, o no sirven de nada', () => {
