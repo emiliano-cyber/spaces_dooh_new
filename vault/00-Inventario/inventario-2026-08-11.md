@@ -524,7 +524,7 @@ pero **publica de verdad** en DOOHmain.
 | `RECORDATORIOS_TOKEN` | Autentica el cron; sin ella la ruta da 503 | `app/api/recordatorios/route.ts:39,49` |
 | `AUTOREGISTRO` | **Solo `=1` enciende** el alta pública (UI + servidor); ausente = apagado. Se llamaba `NEXT_PUBLIC_AUTOREGISTRO` y la polaridad era la contraria hasta F2.6 | `apps/web/lib/entorno.ts:27`, `app/api/signup/route.ts:21` |
 | `NEXT_PUBLIC_RECUPERAR_PASSWORD` | Apaga recuperar contraseña | `app/(app)/login/page.tsx:24` |
-| `NEXT_PUBLIC_MAPTILER_KEY` | Mapas | `components/maps/SitiosMap.tsx` |
+| `NEXT_PUBLIC_MAPTILER_KEY` | Mapas. **Nadie la define, y en la flota NO PUEDE definirse**: `NEXT_PUBLIC_*` se hornea al compilar, así que sería una clave para toda la flota (ADR 0030). El basemap real es OpenFreeMap, sin clave | `components/demo/MapView.tsx` |
 | `DO_SPACES_KEY/SECRET/ENDPOINT/BUCKET/CDN_URL` | Almacenamiento S3 | `lib/server/storage.ts` |
 | `GOOGLE_OAUTH`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_TOKEN_ENDPOINT` | Acceso con Google | `lib/server/google-oauth.ts` |
 | `SPACE_EYE_BASE_URL/USER/PASS` | Verificación por cámaras | `lib/server/space-eye.ts` |

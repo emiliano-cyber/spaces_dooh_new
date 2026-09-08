@@ -382,3 +382,69 @@ describe('F5.3 · ninguna plantilla lleva un valor real quemado', () => {
     expect(v).toMatch(/location\s*=\s*\/\s*\{/)
   })
 })
+
+// ============================================================================
+//  MAPA-01 — todo host que pida el mapa está autorizado en la CSP.
+// ----------------------------------------------------------------------------
+//  Este caso existe por un fallo que NADIE vio durante semanas, y conviene
+//  entender por qué se escapó antes de tocarlo.
+//
+//  El plan B sin clave del basemap era el raster «light_all» de CARTO. CARTO
+//  pasó a exigir clave, y su forma de exigirla no es un 401: responde **200 con
+//  el tile de siempre** y «API KEY REQUIRED» estampado en diagonal encima. La
+//  petición iba bien, la CSP no bloqueaba nada, la consola quedaba limpia y las
+//  suites no abren un navegador — así que el único síntoma era un texto sobre
+//  el mapa que se leía como el nombre de una avenida. Se veía también en la
+//  propuesta pública que recibe el cliente.
+//
+//  **Esta prueba no puede detectar eso, y no finge lo contrario**: que un
+//  tercero cambie su política no lo ve ningún `expect` de aquí. Lo que sí fija
+//  son las dos cosas comprobables en el repositorio:
+//
+//   1. Que no volvamos a apuntar al basemap de CARTO sin clave.
+//   2. Que todo host que `MapView` pida esté en `connect-src`. Ese es el otro
+//      modo de fallo silencioso, y el que avisa `next.config.mjs`: un host que
+//      falte en la CSP no da error visible — el mapa sale EN BLANCO con los
+//      pines encima, y con 200 en todas las respuestas.
+// ============================================================================
+
+describe('MAPA-01 · el basemap y la CSP van juntos', () => {
+  const raiz = join(__dirname, '..')
+
+  // Solo el CÓDIGO, sin las líneas de comentario. No es un detalle: los
+  // comentarios de `MapView.tsx` nombran a propósito el host de CARTO para
+  // contar por qué se fue, y sin este filtro la prueba leería esa explicación
+  // como si el componente siguiera pidiéndoselo. Mismo criterio que los casos
+  // de nginx de más arriba, que descartan las líneas `#`.
+  const soloCodigo = (ruta: string[]) =>
+    readFileSync(join(raiz, ...ruta), 'utf8')
+      .split('\n')
+      .filter((l) => {
+        const t = l.trimStart()
+        return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*')
+      })
+      .join('\n')
+
+  const mapView = soloCodigo(['components', 'demo', 'MapView.tsx'])
+  const configNext = soloCodigo(['next.config.mjs'])
+
+  const connectSrc = configNext.match(/"connect-src ([^"]+)"/)?.[1] ?? ''
+
+  it('no vuelve a pedir el basemap de CARTO, que hoy llega con marca de agua', () => {
+    expect(connectSrc, 'la CSP no declara connect-src').not.toBe('')
+    expect(mapView).not.toMatch(/basemaps\.cartocdn\.com/)
+    expect(connectSrc).not.toMatch(/cartocdn/)
+  })
+
+  it('todo host que pide MapView está autorizado en connect-src', () => {
+    // Se leen del propio componente en vez de repetirlos aquí: una lista
+    // copiada a mano se queda vieja en el commit siguiente y la prueba pasa
+    // afirmando lo que ya no es.
+    const hosts = [...mapView.matchAll(/https:\/\/([a-z0-9.-]+)/g)].map((m) => m[1])
+    expect(hosts.length, 'MapView no pide ningún host: ¿cambió buildStyle?').toBeGreaterThan(0)
+
+    for (const host of new Set(hosts)) {
+      expect(connectSrc, `\`${host}\` lo pide MapView y la CSP no lo autoriza`).toContain(host)
+    }
+  })
+})
