@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import maplibregl, { type StyleSpecification } from 'maplibre-gl'
+import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { Tono } from './StatusBadge'
 
 // ============================================================================
 //  MapView — mapa MapLibre reutilizable. Pines coloreados por tono.
-//  Tiles: Maptiler si hay NEXT_PUBLIC_MAPTILER_KEY; si no, raster Carto "light"
-//  (sin API key) para que la demo NUNCA dependa de una key que falte ese día.
+//  Tiles: MapTiler si hay NEXT_PUBLIC_MAPTILER_KEY; si no, OpenFreeMap
+//  `positron` (sin clave) para que el mapa NUNCA dependa de una que falte ese
+//  día. El plan B es el camino REAL de la flota, no un respaldo teórico: hoy no
+//  hay ninguna instancia con clave. Ver `buildStyle()`.
 // ============================================================================
 
 // Centro por defecto mientras no hay sitios que encuadrar (con sitios manda
@@ -38,28 +40,44 @@ export interface MapPoint {
   label?: string
 }
 
-function buildStyle(): string | StyleSpecification {
-  const key = process.env.NEXT_PUBLIC_MAPTILER_KEY
-  if (key) {
-    return `https://api.maptiler.com/maps/dataviz-light/style.json?key=${key}`
+// El basemap sin clave era el raster «light_all» de CARTO, y dejó de servir.
+// CARTO empezó a exigir clave para `basemaps.cartocdn.com`, y su forma de
+// exigirla NO es un error: responde 200 con el tile de siempre y «API KEY
+// REQUIRED / carto.com/basemaps/apikey» estampado en diagonal ENCIMA del mapa.
+//
+// Por eso no lo cazó nada: la petición iba bien, la CSP no bloqueaba, la
+// consola quedaba limpia y las suites no abren un navegador. El aviso se leía
+// como si fuera el nombre de una avenida — y se veía también en `app/(app)/p/
+// [id]`, la propuesta pública que se le manda al cliente.
+//
+// Medido el 2026-09-08 pidiendo un tile a pelo (`z12`): 200, `image/png`,
+// 9846 bytes, con la marca encima. Evidencia en
+// `docs/evidencias/mapa-carto-apikey-20260908.md`.
+//
+// El plan B pasa a OpenFreeMap con su estilo `positron`: el mismo gris plano
+// que se eligió por encajar con SET, servido sin clave y con todo (tiles,
+// glifos y sprite) desde UN host, que es el que se declara en la CSP.
+const ESTILO_SIN_CLAVE = 'https://tiles.openfreemap.org/styles/positron'
+
+// Un basemap de terceros se puede caer, y este no tiene contrato: si
+// OpenFreeMap no responde, el mapa sale en blanco con los pines encima. Se
+// asume a ojos abiertos —lo alterno también era de terceros— y está anotado en
+// el ADR 0030 junto con la salida si hace falta.
+
+// > [!warning] Una clave aquí NO puede ser por instancia
+// > `NEXT_PUBLIC_*` lo inlinea Next AL COMPILAR, así que una
+// > `NEXT_PUBLIC_MAPTILER_KEY` entraría en el artefacto y **toda la flota
+// > compartiría la misma clave**: no se puede dar una por instancia desde su
+// > `.env`. Es la trampa que ya se corrigió con `AUTOREGISTRO`
+// > (`infra/env/app.env.example:76-80`). La rama de MapTiler se conserva para
+// > un build propio, pero el camino de la flota es el de arriba, y por eso el
+// > plan B tiene que ser bueno y sin clave — no un respaldo de emergencia.
+function buildStyle(): string {
+  const clave = process.env.NEXT_PUBLIC_MAPTILER_KEY
+  if (clave) {
+    return `https://api.maptiler.com/maps/dataviz-light/style.json?key=${clave}`
   }
-  // Fallback sin key: raster Carto light (estética plana, encaja con SET).
-  return {
-    version: 8,
-    sources: {
-      carto: {
-        type: 'raster',
-        tiles: [
-          'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-          'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-        ],
-        tileSize: 256,
-        attribution: '© OpenStreetMap, © CARTO',
-      },
-    },
-    layers: [{ id: 'carto', type: 'raster', source: 'carto' }],
-  }
+  return ESTILO_SIN_CLAVE
 }
 
 // Encuentra el foco con MÁS sitios: el punto con más vecinos cercanos (densidad)

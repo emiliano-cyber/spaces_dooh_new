@@ -52,8 +52,22 @@ nadie ve. Ver [[flujo-acceso-con-google]].
 `ConfirmDialog`, `InlinePanel`, `Paginacion`, `Breadcrumbs`, `IndicadorCarga`,
 `SpaceOsMark`.
 
-Más `StatusBadge`, `SlotsBadge`, `EmptyState`, `MapView` /
-`components/maps/SitiosMap.tsx` (MapLibre + MapTiler).
+Más `StatusBadge`, `SlotsBadge`, `EmptyState` y `MapView` (MapLibre).
+
+El mapa que se ve es **siempre `components/demo/MapView.tsx`**: lo montan las
+cinco pantallas con mapa, incluida la propuesta pública `app/(app)/p/[id]`. Su
+basemap es **OpenFreeMap `positron`, sin clave** — la rama de MapTiler existe
+pero nadie la enciende, y en la flota no puede encenderse por instancia
+([ADR 0030](../../docs/adr/0030-el-basemap-de-la-flota-no-lleva-clave.md)).
+
+> [!warning] `components/maps/SitiosMap.tsx` no lo monta ninguna pantalla
+> Sigue en el árbol y pide mosaicos a `tile.openstreetmap.org` por su cuenta, sin
+> pasar por `MapView`. No es el mapa que ve nadie hoy. Si se retira, sale también
+> su host del `connect-src` de `next.config.mjs`.
+>
+> Comprobado el **2026-09-08** (`grep -rl SitiosMap --include=*.tsx`: solo se
+> encuentra a sí mismo). El resto de esta nota sigue con la fecha de su
+> frontmatter: lo que se revalidó ese día fue el mapa, no la nota entera.
 
 > [!warning] `components/demo/ui/` es de alto contacto
 > Lo importa casi todo. Un cambio de API en `Button` o `Modal` toca decenas de
