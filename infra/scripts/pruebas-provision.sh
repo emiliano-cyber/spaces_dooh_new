@@ -27,6 +27,14 @@
 # ============================================================================
 set -uo pipefail
 
+# La entrada estandar se CIERRA para todo el arnes, y no es cosmetico. El doble
+# de `ssh` drena stdin (`cat`) para no dejar colgado al que le manda un cuerpo
+# por heredoc; si hereda una entrada que nadie va a cerrar --una tuberia, la
+# consola de un runner-- ese `cat` se queda esperando para siempre y el arnes
+# se cuelga SIN imprimir una sola linea. Medido el 2026-09-07: 600 s sin salida
+# y ninguna pista de donde.
+exec </dev/null
+
 RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 GUION="${GUION_PROVISION:-$RAIZ/infra/scripts/provision-instancia.sh}"
 
@@ -99,7 +107,11 @@ fi
 case "$todo" in
 # 3 · El POST del bootstrap. ANTES del patron del token, ver el aviso.
   *"api/bootstrap/"*)
-    cat >/dev/null 2>&1
+    # El cuerpo se REGISTRA en vez de tirarse. Hasta A3.1 iba a /dev/null, y con
+    # eso el arnes no podia comprobar QUE manda el alta -- solo que llamaba. Lo
+    # que se retiro el 07/09 es precisamente un campo del cuerpo.
+    printf 'cuerpo-bootstrap %s
+' "$(cat)" >>"$REG_LLAMADAS"
     printf '%s' "${D_CODIGO_BOOT:-201}"
     ;;
 # 4 · La comprobacion del certificado.
@@ -331,8 +343,8 @@ correr D_CODIGO_BOOT=404 -- \
 codigo_no_es 0
 calla 'La puerta ya se cerro sola'
 dice 'NO se creo'
-# Y lo mas importante para quien esta delante con una clave en pantalla:
-dice 'NO SIRVE'
+# Y lo mas importante para quien esta delante: que no crea que ya tiene cuenta.
+dice 'NO HAY NINGUNA CUENTA'
 limpiar
 
 escenario '36b · un 500 tampoco, y manda al log de la aplicacion'
@@ -350,6 +362,35 @@ correr D_CODIGO_BOOT=000 -- \
   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
 codigo_no_es 0
 dice 'repite este mismo comando'
+limpiar
+
+# ============================================================================
+#  A3.1 · el alta ya no produce NINGUNA contrasena
+# ============================================================================
+#  Es la razon entera por la que el alta no podia ser desatendida: habia que
+#  estar delante para leer la clave de la pantalla y hacersela llegar al Dueño.
+#
+#  >>> Esta comprobacion es por AUSENCIA, y esas envejecen mal: pasan solas el
+#  >>> dia que alguien renombra la cadena. Por eso son DOS -- que no salga
+#  >>> ninguna clave, y que el cuerpo del POST no lleve `password` -- y por eso
+#  >>> llevan mutante propio abajo.
+escenario 'A3.1 · el bootstrap no imprime ninguna clave'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+calla 'clave:'
+dice 'entra con Google'
+limpiar
+
+escenario 'A3.1b · y el cuerpo del POST no lleva password'
+preparar
+correr D_CODIGO_BOOT=201 --   --host "$IP" --dominio "$DOM" --instancia p --email a@ejemplo.com --bootstrap --confirmar
+codigo_es 0
+# Contra el cuerpo REAL que viajo, no contra lo que se imprime en pantalla: son
+# dos cosas distintas y confundirlas es como se dan por buenas las dos.
+hubo 'cuerpo-bootstrap'
+no_hubo '"password"'
+hubo '"email":"a@ejemplo.com"'
 limpiar
 
 escenario '36d · con 201 SI lo afirma, y sale bien'
@@ -452,6 +493,16 @@ if [ "${1:-}" = '--mutantes' ]; then
   # 36 · devolver la afirmacion falsa: «existe una organizacion» sin que exista.
   probar_mutante 'el bootstrap vuelve a afirmar que la organizacion existe' \
     's@if \[\[ "\$CODIGO_BOOT" != "201" \]\]; then@if false; then@'
+
+  # A3.1 - las dos comprobaciones por AUSENCIA. Son las que mas facil se quedan
+  # verdes solas --pasan el dia que alguien renombra la cadena que buscaban--,
+  # asi que son las que mas falta les hace un mutante: si alguien devuelve la
+  # contrasena al alta, tienen que ponerse rojas.
+  probar_mutante 'el alta vuelve a imprimir una clave del Dueno' \
+    's@La organizacion no lleva contrasena@    clave:    xxxx@'
+
+  probar_mutante 'el cuerpo del bootstrap vuelve a llevar password' \
+    's@"email":"$EMAIL_DUENO"}@"email":"$EMAIL_DUENO","password":"x"}@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

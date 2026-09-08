@@ -136,20 +136,25 @@ echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/spa
 # ############################################################
 #  PASO 4 · LA PRIMERA EMPRESA Y SU DUENO   🚦 PUERTA 3
 # ############################################################
-#  >>> AQUI EMPIEZAS TU. Y este paso NO se automatiza mientras
-#  >>> siga imprimiendo una contrasena: tiene que llegarle al
-#  >>> Dueno, y hoy solo llega mirando esta pantalla. Con el
-#  >>> ADR 0028 construido el paso DESAPARECE -- el Dueno entra
-#  >>> con Google y no hay contrasena que entregar.
+#  >>> 2026-09-07 · ESTE PASO YA NO IMPRIME NINGUNA CONTRASENA.
+#  >>> Era lo unico que impedia automatizarlo: habia que estar
+#  >>> delante para leerla de la pantalla y hacersela llegar al
+#  >>> Dueno. Con el ADR 0028 construido no hay nada que
+#  >>> entregar, y el paso deja de necesitar a una persona.
 #
-#  >>> ESTE COMANDO IMPRIME LA CONTRASENA DEL DUENO, UNA VEZ.
-#  >>> No la pegues en un chat, ni en un ticket, ni en un
-#  >>> correo sin cifrar. Se le entrega a el y se le pide que la
-#  >>> cambie al entrar.
+#  Lo que ahora tiene que ser correcto es el CORREO: el Dueno
+#  entra con Google, asi que `$MAIL` tiene que ser su cuenta de
+#  Google. Si te equivocas, la organizacion nace sin nadie que
+#  pueda entrar y la puerta del bootstrap se cierra detras.
 #
-#  ⚠️ Y mientras `estable` sea una imagen anterior al 2026-09-04,
-#  el sistema NO le obliga a cambiarla: esa clave vale para
-#  siempre si nadie la cambia. Comprueba que canal corre:
+#  La primera vez que entre, la aplicacion le ensena sus codigos
+#  de recuperacion y le pide que ponga su propia contrasena.
+#  Esa contrasena NO abre la puerta: autoriza cambios.
+#
+#  ⚠️ Todo esto exige que la instancia corra una imagen del
+#  2026-09-07 o posterior. Con una anterior el bootstrap
+#  contesta 400 pidiendo una contrasena, y el guion te lo dice.
+#  Comprueba que canal corre:
 #     docker image inspect $REGISTRY/space-os:estable --format '{{range .Config.Env}}{{println .}}{{end}}' | grep SPACE_OS_VERSION
 
 echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/space-os/ejecutor.env --property=Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin --wait --pipe /var/www/Spaces/infra/scripts/provision-instancia.sh --host "$IP" --dominio "$DOM" --instancia "$INST" --email "$MAIL" --bootstrap --confirmar
@@ -157,13 +162,17 @@ echo ok; systemd-run --uid=altas --gid=altas --property=EnvironmentFile=/etc/spa
 # 🚦 PUERTA 3 — tiene que decir `bootstrap 201` y luego «La
 # puerta ya se cerro sola».
 #
-#  Desde el 07/09 tambien COMPARA. Si no es 201 te dice que la
-#  clave impresa NO SIRVE y por que:
+#  Desde el 07/09 tambien COMPARA. Si no es 201 te dice que NO
+#  hay ninguna cuenta todavia, y por que:
 #    000 -> la aplicacion no contesta; arrancala y REPITE (no se
 #           creo nada, la puerta sigue abierta)
+#    400 -> la instancia corre una version anterior al 07/09 y
+#           todavia espera una contrasena. Actualizala.
 #    404 -> o ya existe una organizacion --ya se hizo-- o el
 #           token de arranque no coincide. La ruta devuelve lo
 #           mismo para los dos a proposito.
+#    503 -> la instancia no tiene Google configurado, y sin eso
+#           la organizacion naceria sin ninguna puerta.
 
 # ############################################################
 #  PASO 5 · COMPROBAR, DESDE FUERA
@@ -202,7 +211,14 @@ echo ok; systemctl restart flota-panel
 # ############################################################
 #  LO QUE SIGUE SIENDO MANUAL, Y HAY QUE DECIRLO AL OWNER
 # ############################################################
-#   · Su contrasena, y que la cambie al entrar.
+#   · Que entra con Google, con el correo que pusiste en $MAIL,
+#     y que la primera vez la aplicacion le va a ensenar DIEZ
+#     codigos de recuperacion: que los guarde. Son lo unico que
+#     le queda si pierde esa cuenta de Google, y se muestran
+#     una sola vez.
+#   · Que despues le va a pedir poner una contrasena. Esa NO
+#     sirve para entrar: sirve para autorizar los cambios de
+#     dinero. Es a proposito (ADR 0028).
 #   · Que la instancia se actualiza SOLA a las 4:17.
 #   · Que NO tiene respaldo fuera del droplet mientras falten
 #     SPACES_KEY/SPACES_SECRET: si la maquina desaparece, el

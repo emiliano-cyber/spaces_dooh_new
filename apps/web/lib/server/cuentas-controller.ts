@@ -18,7 +18,11 @@ const signupSchema = z.object({
   organizacion: z.string().trim().min(1, 'La organización es requerida'),
   nombre: z.string().trim().min(1, 'El nombre es requerido'),
   email: z.string().trim().refine(esEmailValido, 'Correo inválido'),
-  password: z.string(),
+  // Opcional desde A3.1: el bootstrap de una instancia ya no manda ninguna. En
+  // `/api/signup` sigue siendo obligatoria de hecho -- `passwordDeAlta` la exige
+  // cuando no se entra con Google -- pero la exige el resolutor compartido, que
+  // es donde vive esa regla para las TRES altas.
+  password: z.string().optional(),
 })
 
 const orgSchema = z.object({
@@ -48,6 +52,9 @@ export async function crearOrgConDueno(args: {
   cargo?: string
   // Lo enciende quien genero la contrasena en nombre de otro. Ver `crearUsuario`.
   debeCambiarPassword?: boolean
+  // ADR 0028: la contrasena de esta cuenta NO abre la puerta. Lo enciende el
+  // bootstrap de una instancia, donde el Dueno entra solo con Google.
+  soloGoogle?: boolean
 }) {
   const errPass = validarPassword(args.password)
   if (errPass) throw new AppError(errPass, 400)
@@ -76,6 +83,7 @@ export async function crearOrgConDueno(args: {
         password: args.password,
         tenantId: tenant.id,
         debeCambiarPassword: args.debeCambiarPassword,
+        soloGoogle: args.soloGoogle,
       },
       client,
     )
@@ -88,11 +96,39 @@ export async function crearOrgConDueno(args: {
 // opuestos: `/api/signup`, donde la persona elige su propia contrasena --y
 // obligarla a cambiarla seria absurdo--, y `/api/bootstrap`, donde la genera el
 // operador del alta. Por eso el forzado es un parametro y no una regla fija.
-export async function registrarCuentaCtrl(body: unknown, opciones?: { debeCambiarPassword?: boolean }) {
+export async function registrarCuentaCtrl(
+  body: unknown,
+  opciones?: { debeCambiarPassword?: boolean; entraConGoogle?: boolean },
+) {
   const d = validar(signupSchema, body)
+
+  // A3.1 — quien nace entrando con Google NO trae contraseña, y mandar una se
+  // RECHAZA en vez de ignorarse. Ignorarla sería lo peor de los dos mundos: una
+  // tarjeta vieja imprimiría una clave en la pantalla del operador, él creería
+  // habérsela entregado al Dueño, y la cuenta habría nacido con otra distinta.
+  if (opciones?.entraConGoogle && d.password) {
+    throw new AppError(
+      'Esta alta no lleva contraseña: el Dueño entra con Google (ADR 0028). Quita ' +
+        '`password` del cuerpo. Si estás siguiendo una tarjeta que la genera, esa tarjeta ' +
+        'es anterior al 2026-09-07.',
+      400,
+    )
+  }
+
+  // El MISMO resolutor que el alta de CRM del super-admin. Con `entraConGoogle`
+  // devuelve una aleatoria que no verá nadie, y comprueba que Google esté
+  // disponible: sin esa comprobación se crearían cuentas incapaces de entrar.
+  const r = passwordDeAlta({
+    entraConGoogle: opciones?.entraConGoogle,
+    password: d.password,
+    googleDisponible: googleHabilitado(),
+  })
+  if ('error' in r) throw new AppError(r.error, 400)
+
   return crearOrgConDueno({
-    org: d.organizacion, nombre: d.nombre, email: d.email, password: d.password,
+    org: d.organizacion, nombre: d.nombre, email: d.email, password: r.password,
     debeCambiarPassword: opciones?.debeCambiarPassword,
+    soloGoogle: opciones?.entraConGoogle,
   })
 }
 

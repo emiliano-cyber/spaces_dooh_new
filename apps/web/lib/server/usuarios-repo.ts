@@ -50,6 +50,11 @@ export async function crearUsuario(input: {
   // primer acceso. Por omision `false`, que es lo correcto cuando la persona
   // eligio la suya (autoregistro).
   debeCambiarPassword?: boolean
+  // ADR 0028 · B3: con esto en `true` la contrasena de esta cuenta NO abre la
+  // puerta, solo Google o un codigo de recuperacion. Lo enciende el bootstrap de
+  // una instancia (A3.1). Por omision `false`: encenderlo por descuido dejaria
+  // fuera a quien no tenga Google vinculado.
+  soloGoogle?: boolean
 }, client?: PoolClient) {
   // Nunca un default débil: la contraseña debe venir validada por la ruta.
   if (!input.password) throw new Error('Se requiere una contraseña para crear el usuario')
@@ -63,9 +68,13 @@ export async function crearUsuario(input: {
   // Medido el 2026-09-04 en el ensayo de F5.6 contra una instancia real: el Dueno
   // nacia con `f` porque este INSERT no nombraba la columna, y su contrasena
   // --generada por el operador e impresa en su consola-- valia para siempre.
-  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id, debe_cambiar_password)
-     values ($1,$2,$3,$4,$5,true,$6,$7) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
-  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId, input.debeCambiarPassword ?? false]
+  // `solo_google` va EXPLICITO por la misma razon que `debe_cambiar_password`:
+  // dejarlo al default de la columna fue lo que hizo que el Dueno de una
+  // instancia real naciera con `f` el 2026-09-04, y su contrasena valiera para
+  // siempre. Una columna que decide un acceso se nombra en el INSERT.
+  const texto = `insert into usuarios (nombre, email, cargo, rol, password_hash, activo, tenant_id, debe_cambiar_password, solo_google)
+     values ($1,$2,$3,$4,$5,true,$6,$7,$8) returning id, nombre, email, cargo, rol::text as rol, activo, creado_en`
+  const params = [input.nombre, input.email.toLowerCase(), input.cargo ?? null, input.rol ?? 'COMERCIAL', hash, tenantId, input.debeCambiarPassword ?? false, input.soloGoogle ?? false]
   const rows = client
     ? (await client.query(texto, params as any[])).rows
     : await qConTenant(tenantId, texto, params)

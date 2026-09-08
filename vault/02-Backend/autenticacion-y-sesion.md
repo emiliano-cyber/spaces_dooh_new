@@ -206,6 +206,27 @@ saber: **confirmar los códigos NO abre la aplicación**. Sigue cerrada, ahora p
 la otra razón, y las dos contestan 403. Quien depure esto por el código de estado
 y no por el mensaje va a mirar el cerrojo equivocado.
 
+### Cómo nace el Dueño de una instancia (A3.1)
+
+Desde el 07/09 `/api/bootstrap` **no recibe ninguna contraseña**, y si se la mandan
+responde **400**. El Dueño nace así:
+
+| Columna | Valor | Por qué |
+|---|---|---|
+| `password_hash` | aleatorio, `passwordAleatoria()` | **NO nulo, y es deliberado.** Un usuario sin hash queda encerrado: no puede desbloquear dinero ni tocar su perfil (`auth.ts:48-62`) |
+| `solo_google` | `true` | La contraseña no abre la puerta (ADR 0028) |
+| `debe_cambiar_password` | `true` | Es lo que le abre la excepción del ADR 0018 para fijar **la suya** sin teclear la anterior — que no sabe |
+
+> [!important] Es el único sitio que enciende `solo_google`
+> B3 construyó el candado y nada lo ponía. Lo pone el bootstrap, y solo ahí: las
+> altas normales (`/api/signup`, `/api/tenants`) lo dejan en `false`, porque el
+> punto 3 del ADR 0028 dice que los demás usuarios eligen.
+
+> [!warning] El correo del alta pasa a ser crítico
+> Ya no hay clave que entregar, así que **ese correo ES la forma de entrar**: tiene
+> que ser la cuenta de Google del Dueño. Con uno equivocado nace una organización
+> a la que no puede entrar nadie, y la puerta del bootstrap se cierra detrás.
+
 ### La cadena completa, medida una vez (B5)
 
 `lib/test/primer-dia-dueno.e2e.test.ts` recorre el primer día del Dueño de una
