@@ -22,6 +22,14 @@ const API = '/spaces-dooh/api'
 //  Y por eso los códigos NO se piden al montar: se piden cuando él lo pide. Si
 //  se generaran solos al abrir la pantalla, un usuario que llega aquí por error
 //  invalidaría los que ya tenía guardados sin haber hecho nada.
+//
+//  ─── B6 · regenerar es otra cosa, y el servidor lo distingue ──────────────
+//  Pedir el PRIMER lote no lleva contraseña; pedir OTRO sí, porque invalida en
+//  silencio los que su dueño tiene en papel. Esta pantalla no decide cuál es
+//  cuál —eso lo decide el servidor—: se limita a reaccionar al 403 con
+//  `requiereDesbloqueo` pidiendo la contraseña y reintentando. Duplicar aquí la
+//  regla sería tener dos fuentes de verdad, y la del navegador es la que no
+//  manda.
 // ============================================================================
 
 export default function CodigosRecuperacion() {
@@ -30,6 +38,8 @@ export default function CodigosRecuperacion() {
   const [guardados, setGuardados] = useState(false)
   const [ocupado, setOcupado] = useState(false)
   const [yaTenia, setYaTenia] = useState(false)
+  const [pidePassword, setPidePassword] = useState(false)
+  const [password, setPassword] = useState('')
 
   // Si llega alguien que ya los confirmó, no tiene nada que hacer aquí.
   useEffect(() => {
@@ -57,13 +67,42 @@ export default function CodigosRecuperacion() {
         body: '{}',
       })
       const d = await r.json().catch(() => ({}))
+      // El servidor pide la contraseña para regenerar. No es un error que
+      // enseñar en rojo: es un paso más, y se pide en el sitio.
+      if (r.status === 403 && d?.requiereDesbloqueo) {
+        setPidePassword(true)
+        return
+      }
       if (!r.ok) throw new Error(d?.error ?? 'No se pudieron generar')
       setCodigos(d.codigos)
+      setPidePassword(false)
+      setPassword('')
     } catch (e) {
       toast.error((e as Error).message)
     } finally {
       setOcupado(false)
     }
+  }
+
+  /** Teclea la contraseña, desbloquea esta sesión y reintenta. */
+  async function desbloquearYGenerar(ev: React.FormEvent) {
+    ev.preventDefault()
+    setOcupado(true)
+    try {
+      const r = await fetch(`${API}/cambios/desbloquear/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!r.ok) throw new Error(d?.error ?? 'No se pudo verificar la contraseña')
+    } catch (e) {
+      toast.error((e as Error).message)
+      setOcupado(false)
+      return
+    }
+    setOcupado(false)
+    await generar()
   }
 
   async function confirmar() {
@@ -93,12 +132,46 @@ export default function CodigosRecuperacion() {
           Ya tienes tus códigos guardados. Si los perdiste, puedes generar otros: los
           anteriores dejarán de funcionar.
         </p>
-        <button onClick={generar} disabled={ocupado}>
-          Generar códigos nuevos
-        </button>{' '}
-        <button onClick={() => router.push('/inicio')} disabled={ocupado}>
-          Volver
-        </button>
+        {!pidePassword && (
+          <>
+            <button onClick={generar} disabled={ocupado}>
+              Generar códigos nuevos
+            </button>{' '}
+            <button onClick={() => router.push('/inicio')} disabled={ocupado}>
+              Volver
+            </button>
+          </>
+        )}
+
+        {pidePassword && (
+          <form onSubmit={desbloquearYGenerar}>
+            <p>
+              Teclea tu contraseña para confirmar. Los códigos que tengas guardados
+              <strong> dejarán de funcionar</strong> en cuanto se generen los nuevos.
+            </p>
+            <input
+              type="password"
+              value={password}
+              autoFocus
+              autoComplete="current-password"
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Tu contraseña"
+            />{' '}
+            <button type="submit" disabled={!password || ocupado}>
+              {ocupado ? 'Verificando…' : 'Confirmar y generar'}
+            </button>{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setPidePassword(false)
+                setPassword('')
+              }}
+              disabled={ocupado}
+            >
+              Cancelar
+            </button>
+          </form>
+        )}
       </main>
     )
   }

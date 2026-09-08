@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { ChevronDown, UserCircle2, LogOut, Bell, Trash2, Menu, Settings } from 'lucide-react'
+import { ChevronDown, UserCircle2, LogOut, Bell, Trash2, Menu, Settings, KeyRound } from 'lucide-react'
 import { apiLogout } from '@/lib/auth-real'
 import { rolLabel } from './nav'
 import { useSesionCtx } from './SesionContext'
@@ -164,6 +164,19 @@ export function Topbar() {
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
                 >
                   <Settings className="h-4 w-4 text-muted" /> Configuración
+                </Link>
+              </DropdownMenu.Item>
+              {/* B6 · el único camino para llegar aquí por voluntad propia.
+                  Sin este enlace la pantalla solo existía cuando el guard te
+                  empujaba a ella, así que perder los códigos guardados era
+                  perderlos: quien ya los confirmó no tenía forma de pedir otros.
+                  Regenerar pide la contraseña — lo decide el servidor. */}
+              <DropdownMenu.Item asChild>
+                <Link
+                  href="/codigos-recuperacion"
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] text-ink outline-none data-[highlighted]:bg-surface-2"
+                >
+                  <KeyRound className="h-4 w-4 text-muted" /> Códigos de recuperación
                 </Link>
               </DropdownMenu.Item>
               <DropdownMenu.Item

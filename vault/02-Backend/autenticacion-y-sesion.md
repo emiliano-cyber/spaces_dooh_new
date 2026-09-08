@@ -20,6 +20,8 @@ archivos:
   - db/migrations/20260907_codigos_recuperacion.sql
   - db/migrations/20260907_codigos_vistos.sql
   - db/migrations/20260907_solo_google.sql
+  - db/migrations/20260828_reautenticacion_por_defecto.sql
+  - apps/web/components/demo/shell/Topbar.tsx
 ---
 
 # Autenticación y sesión
@@ -169,8 +171,59 @@ Y una que manda sobre las demás, con su e2e: **una cuenta desactivada no entra 
 con código**. Un código es una llave, no un permiso — si a alguien se le retiró
 el acceso, se le retiró por todas las puertas.
 
-Cobertura: `lib/test/codigos-recuperacion.e2e.test.ts`,
-`lib/test/codigos-vistos.e2e.test.ts` y `lib/test/solo-google.e2e.test.ts`.
+### Regenerar: la misma ruta, dos operaciones (B6)
+
+`POST /api/perfil/codigos-recuperacion` hace dos cosas distintas y la frontera es
+`codigos_vistos_en`:
+
+| Caso | Pide contraseña | Por qué |
+|---|---|---|
+| Primer lote (`codigos_vistos_en is null`) | **No** | Es la SALIDA del cerrojo. Pedirla encerraría a quien entró con Google y todavía no tiene ninguna |
+| Regenerar (ya confirmó uno) | **Sí**, `exigirReautenticacionSiempre()` | Es un cambio: invalida en silencio los códigos que su dueño tiene en papel |
+
+El guard es el **incondicional**, no `exigirDesbloqueo()`: el interruptor del
+tenant no puede decidir esto. Y queda en la bitácora **sin los códigos dentro** —
+regenerar es lo primero que haría quien se llevara una sesión abierta, así que el
+dueño legítimo tiene que poder reconocer el «yo no hice eso».
+
+> [!important] El orden importa, y hay una e2e que solo vigila eso
+> Un 403 que ya hubiera borrado el lote sería **peor** que no tener candado: el
+> atacante no entra y el dueño se queda fuera igualmente. El guard corre antes
+> del `delete`, y `regenerar-codigos.e2e.test.ts` lo comprueba entrando con un
+> código de los viejos después del rechazo.
+
+### Los DOS cerrojos de `exigir()` van en un orden, y la interfaz en el otro
+
+Encontrado el 07/09 al recorrer la cadena completa:
+
+- El servidor corta **primero** por la contraseña temporal (`auth.ts:204`) y
+  **después** por los códigos (`auth.ts:230`).
+- El `AuthGate` lleva al usuario **primero** a los códigos.
+
+**No es un fallo:** las dos pantallas están exentas del guard a propósito, así que
+ninguna se bloquea a sí misma. Pero tiene una consecuencia práctica que conviene
+saber: **confirmar los códigos NO abre la aplicación**. Sigue cerrada, ahora por
+la otra razón, y las dos contestan 403. Quien depure esto por el código de estado
+y no por el mensaje va a mirar el cerrojo equivocado.
+
+### La cadena completa, medida una vez (B5)
+
+`lib/test/primer-dia-dueno.e2e.test.ts` recorre el primer día del Dueño de una
+instancia nueva: entra con Google → guarda sus códigos → fija su primera
+contraseña sin teclear la temporal (ADR 0018) → desbloquea los cambios con ella →
+y toca el dinero.
+
+Existe porque **cada eslabón tenía prueba y la cadena no**. Y el eslabón que la
+sostiene es el tercero: la contraseña que generó el operador del alta **el Dueño
+no la conoce**, así que sin la excepción del ADR 0018 el desbloqueo le pediría
+algo que para él no existe — y con `exigir_reautenticacion` en `true` por omisión
+desde el 28/08, eso significaría que **el Dueño de cada instancia nueva no puede
+facturar**. La cadena está entera; lo que no estaba era la prueba de que lo
+estaba.
+
+Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
+`lib/test/codigos-vistos.e2e.test.ts`, `lib/test/solo-google.e2e.test.ts`,
+`lib/test/regenerar-codigos.e2e.test.ts` y `lib/test/primer-dia-dueno.e2e.test.ts`.
 
 ## CSRF — double-submit
 

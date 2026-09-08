@@ -7,6 +7,31 @@ La entrada más reciente va arriba.
 
 ## 2026-09-07
 
+- **Y si pierdes los codigos, ya puedes pedir otros.** Antes la pantalla de los codigos
+  solo aparecia cuando el sistema te empujaba a ella: quien ya los habia guardado y luego
+  perdio el papel no tenia forma de volver. Ahora esta en el menu de tu cuenta, arriba a la
+  derecha.
+
+  **Generar otros pide tu contraseña**, y no es burocracia: al generarlos, los anteriores
+  **dejan de funcionar**. Es lo primero que haria alguien que se sentara en tu computadora
+  con la sesion abierta —se fabrica una llave y te deja con una lista muerta sin avisarte—,
+  asi que ademas **queda anotado** en el registro de la organizacion. Los codigos mismos no
+  se anotan en ningun sitio.
+
+  Un detalle que se cuido a proposito: si teclas mal la contraseña, **no se borra nada**.
+  Tus codigos de siempre siguen valiendo.
+
+- **Se comprobo, de punta a punta, que el Dueño de una empresa nueva puede trabajar.** Cada
+  pieza de lo de arriba estaba probada por separado, pero **el recorrido completo no lo
+  habia hecho nadie**: entrar con Google, guardar los codigos, poner tu propia contraseña y
+  llegar a facturar. Eran cinco pasos y bastaba con que uno no encajara para que el Dueño se
+  quedara mirando una pantalla que le pide una contraseña que nunca tuvo.
+
+  Funciona. Y de paso aparecio algo util de saber para el dia que haya que dar soporte:
+  **guardar los codigos no abre todavia la aplicacion** — falta cambiar la contraseña
+  temporal, que es un segundo paso. Las dos cosas se piden de la misma forma, asi que sin
+  saberlo es facil creer que algo se rompio cuando no.
+
 - **Ya se puede cerrar la entrada por contraseña, porque por fin hay otra puerta.**
   Lo que se decidio esta manaña era una intencion; hoy es un interruptor de verdad, y
   viene acompañado de las dos cosas sin las que habria sido peligroso encenderlo.
