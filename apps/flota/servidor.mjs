@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { verificarAcceso } from './acceso.mjs'
 import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
-import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, COLUMNAS } from './estado.mjs'
+import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
 
 /** nginx puede pasar el prefijo o recortarlo según lleve barra el `proxy_pass`. */
 export const RUTAS = ['/flota/', '/flota', '/']
@@ -358,7 +358,14 @@ ${filas}
  * `estado.mjs:316` ya lo hacia asi; aqui se llamaba a `consultar()` pelado.
  */
 export function consultarConToken(instancia, opciones = {}) {
-  return consultar(instancia, { token: tokenDe(instancia.nombre), ...opciones })
+  const { tokensExtra = {}, ...resto } = opciones
+  // El tercer argumento NO es opcional en la practica, y su ausencia costo el
+  // 2026-09-08: sin el, `tokenDe` mira SOLO el entorno del proceso y nunca
+  // `/etc/space-os/flota-tokens.env`. Con eso, el panel web era el unico
+  // componente que no leia el archivo hecho para el (TH-FLOTA), y toda
+  // instancia dada de alta salia `sin-respuesta` -- indistinguible de una
+  // caida-- mientras el CLI, que si lo lee, la enseñaba al dia.
+  return consultar(instancia, { token: tokenDe(instancia.nombre, process.env, tokensExtra), ...resto })
 }
 
 /**
@@ -376,9 +383,13 @@ export async function filasDeLaFlota(opciones = {}) {
     cargar = cargarInventario,
     consultarUna = consultarConToken,
     leer = leerReportes,
+    leerTokens = tokensDeArchivo,
   } = opciones
   const inventario = await cargar()
-  const consultas = await Promise.all(inventario.instancias.map((i) => consultarUna(i)))
+  // UNA lectura por pasada y se reparte, igual que hace el CLI: por instancia
+  // serian N lecturas de un archivo que no cambia entre ellas.
+  const tokensExtra = await leerTokens()
+  const consultas = await Promise.all(inventario.instancias.map((i) => consultarUna(i, { tokensExtra })))
   const { reportes } = dirEstado ? await leer(dirEstado, inventario.instancias) : { reportes: [] }
   return resumen(fusionar(consultas, reportes), inventario.canales)
 }
