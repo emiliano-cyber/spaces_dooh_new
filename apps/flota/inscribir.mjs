@@ -26,10 +26,20 @@
 import { readFile, writeFile, rename, rm } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 
-import { RUTA_INSTANCIAS } from './estado.mjs'
+// Las DOS rutas se importan de `estado.mjs`, que es quien las declara.
+//
+// `RUTA_TOKENS` vivía aquí como una segunda copia del mismo literal —una en el
+// que ESCRIBE y otra en el que LEE—, mientras `RUTA_INSTANCIAS` ya se importaba.
+// Dos literales que tienen que coincidir y que nadie compara: cambiar uno dejaba
+// al ejecutor escribiendo donde el panel no mira, **sin que nada diera error**.
+// Es la misma forma del defecto de `marcar()`/`avanzar()` del 2026-09-08, y se
+// vio al mover las rutas fuera de `/etc/space-os/`: había que cambiarla dos
+// veces.
+//
+// Se re-exporta para no romper a quien la importe de aquí.
+import { RUTA_INSTANCIAS, RUTA_TOKENS } from './estado.mjs'
 
-/** Donde el panel busca los tokens (ADR 0029 punto 6). */
-export const RUTA_TOKENS = '/etc/space-os/flota-tokens.env'
+export { RUTA_TOKENS }
 
 /**
  * `ensayo4` → `FLOTA_TOKEN_ENSAYO4`.
