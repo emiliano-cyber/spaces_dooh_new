@@ -286,7 +286,19 @@ export async function instanciasDadasDeAlta(ruta = RUTA_INSTANCIAS) {
   let crudo
   try {
     crudo = await readFile(ruta, 'utf8')
-  } catch {
+  } catch (error) {
+    // `ENOENT` es normal: todavía no se ha dado de alta ninguna instancia.
+    //
+    // Cualquier otra cosa NO lo es, y sobre todo `EACCES`: el archivo lo escribe
+    // `altas` y lo lee `flota`, así que un permiso mal puesto es el fallo más
+    // probable de los dos. Sin este aviso los dos casos se ven EXACTAMENTE
+    // igual —una tabla vacía— y no hay forma de saber cuál de los dos es.
+    if (error?.code && error.code !== 'ENOENT') {
+      console.error(
+        'AVISO flota: no se pudo leer ' + ruta + ' (' + error.code + '). ' +
+          'Las instancias dadas de alta NO van a aparecer en el panel.',
+      )
+    }
     return []
   }
   try {
@@ -321,12 +333,18 @@ export async function cargarInventario(dir = AQUI, rutaExtra = RUTA_INSTANCIAS) 
     } catch {
       continue
     }
+    // El ejemplo solo vale si no hay nada real que enseñar. Se comprueba ANTES
+    // de usarlo: con instancias dadas de alta, se sale del bucle y el bloque de
+    // abajo devuelve las de verdad.
+    if (esEjemplo && (await instanciasDadasDeAlta(rutaExtra)).length) break
+
     const datos = JSON.parse(crudo)
     const aMano = Array.isArray(datos.instancias) ? datos.instancias : []
 
-    // Con el inventario de EJEMPLO no se mezcla nada. El panel avisa de que está
-    // usando dominios `.invalid` que no existen; sumarle instancias de verdad
-    // convertiría ese aviso en una mentira.
+    // Con el inventario de EJEMPLO no se mezcla nada, y si hay instancias de
+    // verdad NO se usa el ejemplo siquiera (ver el bloque de abajo). El ejemplo
+    // es para «aquí todavía no hay nada»; mezclarle una instancia real
+    // convertiría en mentira el aviso de que sus dominios son `.invalid`.
     const deAltas = esEjemplo ? [] : await instanciasDadasDeAlta(rutaExtra)
 
     // El de mano GANA: es lo que permite corregir a mano una fila que el alta
@@ -342,6 +360,20 @@ export async function cargarInventario(dir = AQUI, rutaExtra = RUTA_INSTANCIAS) 
       instancias: [...porNombre.values()],
     }
   }
+  // Sin `flota.json`, pero CON instancias dadas de alta. Es el estado normal de
+  // un PADRE que solo ha creado clientes desde el panel: `flota.json` no está
+  // versionado y nadie lo escribe a mano.
+  //
+  // Hasta el 07/09 este caso caía al inventario de EJEMPLO y el panel enseñaba
+  // tres dominios `.invalid` mientras las instancias de verdad quedaban
+  // invisibles. El aviso que aquello protegía —«esto no es la flota»— acababa
+  // diciendo justo lo contrario de la verdad: la flota estaba, y lo que se veía
+  // era el invento.
+  const soloDeAltas = await instanciasDadasDeAlta(rutaExtra)
+  if (soloDeAltas.length) {
+    return { archivo: rutaExtra, esEjemplo: false, canales: null, instancias: soloDeAltas }
+  }
+
   throw new Error('no hay inventario: falta ' + real + ' y tambien ' + ejemplo)
 }
 

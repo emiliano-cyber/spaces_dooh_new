@@ -345,13 +345,56 @@ describe('el inventario, y las instancias que se dan de alta solas', () => {
     expect(inv.instancias.map((i: any) => i.nombre).sort()).toEqual(['ok', 'padre'])
   })
 
-  it('y con el inventario de EJEMPLO no se mezcla nada: seria fingir una flota', async () => {
-    // Si `flota.json` no existe, el panel avisa de que esta usando el ejemplo.
-    // Sumarle instancias de verdad convertiria ese aviso en mentira.
-    const { dir, rutaExtra } = await conArchivos(null, { instancias: [{ nombre: 'x', dominio: 'x.mx' }] })
-    await writeFile(join(dir, 'flota.example.json'), JSON.stringify({ instancias: [] }), 'utf8')
+  it('sin flota.json pero CON altas, se ven las de verdad y no el ejemplo', async () => {
+    // El caso que tenia el panel de space-os.io vacio el 07/09, y es el estado
+    // NORMAL de un PADRE que solo ha creado clientes desde el panel: `flota.json`
+    // no esta versionado y nadie lo escribe a mano.
+    //
+    // Antes esto caia al ejemplo y enseñaba tres dominios `.invalid` mientras la
+    // instancia real quedaba invisible. El aviso que aquello protegia --«esto no
+    // es la flota»-- acababa diciendo lo contrario de la verdad.
+    const { dir, rutaExtra } = await conArchivos(null, {
+      instancias: [{ nombre: 'ensayo4', dominio: 'ensayo4.space-os.io', canal: 'estable' }],
+    })
+    await writeFile(
+      join(dir, 'flota.example.json'),
+      JSON.stringify({ instancias: [{ nombre: 'inventada', dominio: 'nada.invalid' }] }),
+      'utf8',
+    )
+    const inv = await cargarInventario(dir, rutaExtra)
+    expect(inv.esEjemplo).toBe(false)
+    expect(inv.instancias.map((i: any) => i.nombre)).toEqual(['ensayo4'])
+  })
+
+  it('y sin flota.json y SIN altas, si se usa el ejemplo y se dice que lo es', async () => {
+    // El ejemplo sigue existiendo para «aqui todavia no hay nada». Lo que se
+    // retiro es que ganara cuando SI hay algo.
+    const { dir, rutaExtra } = await conArchivos(null, null)
+    await writeFile(
+      join(dir, 'flota.example.json'),
+      JSON.stringify({ instancias: [{ nombre: 'inventada', dominio: 'nada.invalid' }] }),
+      'utf8',
+    )
     const inv = await cargarInventario(dir, rutaExtra)
     expect(inv.esEjemplo).toBe(true)
-    expect(inv.instancias).toHaveLength(0)
+    expect(inv.instancias).toHaveLength(1)
+  })
+
+  it('un archivo de altas ILEGIBLE por permisos no se calla', async () => {
+    // Es el fallo mas probable en el PADRE: lo escribe `altas` y lo lee `flota`.
+    // Sin aviso, «no puedo leerlo» y «no hay ninguna» se ven IGUAL: una tabla
+    // vacia. El panel no se cae, pero el motivo queda en el journal.
+    const { dir } = await conArchivos(base, null)
+    const avisos: string[] = []
+    const antes = console.error
+    console.error = (m: unknown) => avisos.push(String(m))
+    try {
+      // Un DIRECTORIO en vez de un archivo: `readFile` da EISDIR, que como
+      // EACCES es «esta ahi y no lo puedo leer». No hace falta ser root.
+      await cargarInventario(dir, dir)
+    } finally {
+      console.error = antes
+    }
+    expect(avisos.join(' ')).toContain('no se pudo leer')
   })
 })
