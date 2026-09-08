@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-09-08
 
+- **El menu de la izquierda: «Ventas» ahora dice «Comercial», y «Entregar» dice
+  «Operaciones».** Los dos grupos toman el nombre del area que hace ese trabajo en
+  vez del verbo. No se movio ninguna pantalla ni cambio ningun permiso: son dos
+  palabras del encabezado, y las entradas de cada grupo son exactamente las
+  mismas.
+
+  Con esto, cuatro encabezados se llaman igual que una de sus entradas
+  —Inventario, Comercial, Operaciones y Finanzas—. Es a proposito: el encabezado
+  nombra la fase del proceso y la entrada es la pantalla principal de esa fase.
+
 - **La aplicacion del servidor padre estaba inaccesible, y decia que no habia datos.**
   Quien entraba con Google se encontraba la pantalla vacia con el mensaje «No se pudieron
   cargar los datos» y un boton de reintentar. El boton no podia funcionar nunca, y el
