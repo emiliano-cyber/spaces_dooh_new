@@ -35,10 +35,53 @@ echo ""
 #  Van AQUI y no en quien lanza el guion. Un alta que depende de que el operador
 #  recuerde dos variables se cuelga el dia que no las recuerde.
 export DEBIAN_FRONTEND=noninteractive
-export NEEDRESTART_MODE=a
+# `l` (listar) y NO `a` (reiniciar automaticamente). El 2026-09-03 esto se puso
+# en `a` para matar el menu interactivo, y funciono; pero `a` trae su propio
+# fallo, y se midio el 2026-09-08 en el alta de `g500`:
+#
+#   Restarting services...
+#    systemctl restart cloud-final.service cron.service ...
+#   → Instalando Docker...
+#   E: Could not get lock /var/lib/apt/lists/lock. It is held by process 9094
+#
+# `cloud-final.service` es la fase final de cloud-init, y en las imagenes de
+# DigitalOcean **corre su propia instalacion de paquetes**. Reiniciarla lanza un
+# segundo `apt-get` por detras, y el `apt-get install` de Docker se lo encuentra
+# con el candado puesto y muere con codigo 100. El alta se cayo con el droplet ya
+# creado y cobrandose.
+#
+# `l` mata el menu igual --no pregunta nada-- y no reinicia nada. Lo que se
+# pierde es el reinicio de servicios con librerias viejas, y en esta maquina no
+# importa: docker, postgres y nginx se instalan DESPUES de esta actualizacion,
+# asi que nacen con lo nuevo.
+export NEEDRESTART_MODE=l
+
+# ─── El candado de apt: se ESPERA, no se falla ──────────────────────────────
+#
+#  Aunque ya no reiniciemos cloud-final, un droplet recien arrancado corre
+#  `apt-daily` y `unattended-upgrades` por su cuenta, y el candado sigue siendo
+#  de quien llegue primero. Un alta no puede depender de esa carrera: `ensayo4`
+#  la gano el 07/09 y `g500` la perdio el 08/09, con el MISMO guion.
+#
+#  `DPkg::Lock::Timeout` hace que apt ESPERE en vez de rendirse. Va en todas las
+#  llamadas por un envoltorio y no una por una: la que se olvide es la que
+#  falla, y falla un dia de cada diez.
+APT_ESPERA_SEG="${APT_ESPERA_SEG:-600}"
+apt_get() { apt-get -o DPkg::Lock::Timeout="$APT_ESPERA_SEG" "$@"; }
 
 echo "→ Actualizando sistema..."
-apt-get update -qq && apt-get upgrade -y -qq
+# La primera espera es explicita porque es la mas probable: en el primer minuto
+# de vida de la maquina cloud-init casi seguro tiene apt ocupado. `flock -w`
+# vuelve cuando lo suelta; si agota el plazo, se dice y se sale con 100 --el
+# mismo codigo de apt-- para que el registro de la solicitud lo nombre igual.
+if command -v flock >/dev/null 2>&1; then
+  echo "  … esperando a que ningun otro apt tenga el candado"
+  if ! flock -w "$APT_ESPERA_SEG" /var/lib/dpkg/lock-frontend true; then
+    echo "  ✗ otro apt lleva mas de ${APT_ESPERA_SEG}s con el candado; no se sigue" >&2
+    exit 100
+  fi
+fi
+apt_get update -qq && apt_get upgrade -y -qq
 echo "  ✓ Sistema actualizado"
 
 # ─── Docker ──────────────────────────────────────────────────────────
@@ -57,7 +100,7 @@ echo "  ✓ Sistema actualizado"
 #  que las migraciones corren en un contenedor efimero y el anfitrion no
 #  necesita interprete para nada.
 echo "→ Instalando Docker..."
-apt-get install -y -qq ca-certificates curl gnupg
+apt_get install -y -qq ca-certificates curl gnupg
 install -m 0755 -d /etc/apt/keyrings
 if [[ ! -f /etc/apt/keyrings/docker.asc ]]; then
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -66,8 +109,8 @@ fi
 cat > /etc/apt/sources.list.d/docker.list <<EOF
 deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable
 EOF
-apt-get update -qq
-apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
+apt_get update -qq
+apt_get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin
 
 # Que sobreviva a un reinicio. Es la mitad del trato: `update.sh` deja el
 # contenedor corriendo, y si la maquina se reinicia sin esto la instancia queda
@@ -82,13 +125,13 @@ echo "→ Instalando PostgreSQL..."
 # `sudo -u postgres psql` para crear los roles, y en un droplet recien nacido no
 # habia ni servidor ni usuario `postgres`. Nadie lo vio porque nunca se
 # aprovisiono una instancia: el --dry-run imprime ese comando, no lo ejecuta.
-apt-get install -y -qq postgresql postgresql-contrib
+apt_get install -y -qq postgresql postgresql-contrib
 systemctl enable postgresql
 systemctl start postgresql
 echo "  ✓ PostgreSQL $(psql --version | awk '{print $3}') instalado"
 
 echo "→ Instalando Nginx..."
-apt-get install -y -qq nginx
+apt_get install -y -qq nginx
 systemctl enable nginx
 systemctl start nginx
 # El sitio de ejemplo de Ubuntu declara `default_server` en el puerto 80, y la
@@ -108,7 +151,7 @@ echo "  ✓ Nginx instalado y habilitado"
 
 # ─── Certbot ──────────────────────────────────────────────────────────────────
 echo "→ Instalando Certbot..."
-apt-get install -y -qq certbot python3-certbot-nginx
+apt_get install -y -qq certbot python3-certbot-nginx
 echo "  ✓ Certbot instalado"
 
 # ─── Cliente de S3, para que el respaldo y el log SALGAN del droplet ─────────
@@ -126,7 +169,7 @@ echo "  ✓ Certbot instalado"
 #  Instalarlo NO configura nada: sin `SPACES_KEY`/`SPACES_SECRET` en
 #  `instancia.env` sigue sin subirse nada, y el log lo dice con esas palabras.
 echo "→ Instalando cliente de S3 (s3cmd)..."
-apt-get install -y -qq s3cmd
+apt_get install -y -qq s3cmd
 echo "  ✓ s3cmd $(s3cmd --version 2>/dev/null | awk '{print $3}') instalado"
 
 # ─── Firewall (ufw) ───────────────────────────────────────────────────────────
