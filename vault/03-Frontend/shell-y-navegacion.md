@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-13
+actualizado: 2026-09-08
 tags: [frontend, shell, navegacion, rbac]
 archivos:
   - apps/web/lib/host.ts
@@ -60,6 +60,42 @@ Comportamiento:
 > [!warning] `nav.ts` es archivo de alto contacto
 > Añadir un módulo toca el menú **y** el control de acceso a la vez. Requiere
 > claim exclusivo — ver [[AGENTES]].
+
+### Los grupos del menú, y la trampa de buscarlos por su rótulo
+
+El menú va por **fases del proceso**, declaradas en `GRUPOS` (`nav.ts:79`), y el
+orden de ese arreglo **es** el orden en pantalla. Al 2026-09-08:
+
+| Clave (código) | Rótulo (pantalla) | Entradas |
+|---|---|---|
+| `inicio` | *sin título* | Dashboard |
+| `patrimonio` | **Inventario** | Inventario · Arrendadores · Network |
+| `vender` | **Comercial** | Clientes · Comercial · Disponibilidad · Propuestas |
+| `entregar` | **Operaciones** | Campañas · Creativos · Imprenta · Operaciones · Almacén |
+| `cobrar` | **Finanzas** | Finanzas · Comisiones |
+| `sistema` | **Sistema** | Integraciones · Actividad · Administración |
+
+> [!warning] La clave NO es el rótulo, y buscar por el rótulo no encuentra nada
+> `vender` se pinta **Comercial** y `entregar` se pinta **Operaciones**. Las
+> claves se dejan como están a propósito: renombrarlas obligaría a tocar las
+> dieciocho entradas para no cambiar nada de lo que se ve. Si buscas el grupo
+> «Comercial» en el código, `grep 'Comercial'` te da la ENTRADA, no el grupo.
+>
+> Los rótulos han cambiado tres veces —`Vender` → `Ventas` (26/08) →
+> `Comercial` (08/09), y `Entregar` → `Operaciones` (08/09)—, y las claves
+> ninguna. Eso es la señal de que la separación funciona.
+
+**Cuatro grupos se llaman igual que una de sus entradas** (Inventario, Comercial,
+Operaciones y Finanzas). Es deliberado: el encabezado nombra la fase, la entrada
+es la pantalla principal de esa fase. Un grupo sin ítems visibles no pinta su
+título, así que un rol de Operaciones ve dos entradas y no seis encabezados
+vacíos.
+
+`nav.test.ts` protege la **estructura**, no los rótulos: que las entradas de un
+grupo vayan seguidas, que ningún grupo declarado quede vacío, que el orden en
+pantalla sea el de `GRUPOS`, y que Propuestas vaya antes que Campañas y Campañas
+antes que Finanzas. Cambiar un rótulo no pone roja ninguna prueba — es un dato
+que solo se ve mirando.
 
 ## Sesión compartida
 

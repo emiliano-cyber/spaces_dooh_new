@@ -36,26 +36,30 @@ import type { RolDemo } from '@/lib/data/types'
 //   Dashboard ......... dónde estás. Va solo y sin título: es la portada.
 //   Inventario ........ el patrimonio que se vende: pantallas, sus dueños, y
 //                       lo que se comparte con terceros.
-//   Ventas ............ el ciclo comercial, en su orden: a quién, dónde, si
+//   Comercial ......... el ciclo comercial, en su orden: a quién, dónde, si
 //                       está libre, y la propuesta.
-//   Entregar .......... lo vendido se ejecuta. Campañas ABRE el tramo porque
+//   Operaciones ....... lo vendido se ejecuta. Campañas ABRE el tramo porque
 //                       es lo que sale de la propuesta aprobada.
 //   Finanzas .......... el dinero, después de entregar.
 //   Sistema ........... lo que no es el proceso: conexiones, historial y
 //                       ajustes.
 //
-// El rótulo de este grupo fue «Vender» hasta el 2026-08-26. Se cambió a
-// «Ventas» a petición de Jochelo, por sonar más amable: un menú no le da
-// órdenes a quien lo usa, le dice dónde están las cosas.
+// Ese grupo se ha rotulado de tres formas. Fue «Vender» hasta el 2026-08-26 y
+// pasó a «Ventas» a petición de Jochelo, por sonar más amable: un menú no le da
+// órdenes a quien lo usa, le dice dónde están las cosas. Desde el 2026-09-08 es
+// «Comercial», y «Entregar» es «Operaciones», también a petición suya: los dos
+// grupos toman el nombre del área que hace ese trabajo, no del verbo.
 //
-// Los títulos de los grupos son ROTULOS y las claves (`patrimonio`, `cobrar`)
-// son internas: se dejan como están a propósito. Renombrar las claves obligaría
-// a tocar las dieciocho entradas para no cambiar nada de lo que se ve, y sería
-// un diff largo donde el cambio real son dos palabras.
+// Los títulos de los grupos son ROTULOS y las claves (`vender`, `entregar`,
+// `patrimonio`, `cobrar`) son internas: se dejan como están a propósito.
+// Renombrar las claves obligaría a tocar las dieciocho entradas para no cambiar
+// nada de lo que se ve, y sería un diff largo donde el cambio real son dos
+// palabras. **Las claves no son los rótulos y no tienen que coincidir**: si
+// buscas el grupo «Comercial» en el código, su clave es `vender`.
 //
-// Dos grupos se llaman igual que una de sus entradas —Inventario e Inventario,
-// Finanzas y Finanzas—. Es a propósito: el encabezado nombra la fase y la
-// entrada es la pantalla principal de esa fase.
+// CUATRO grupos se llaman igual que una de sus entradas —Inventario, Finanzas y
+// desde el 08/09 también Comercial y Operaciones—. Es a propósito: el encabezado
+// nombra la fase y la entrada es la pantalla principal de esa fase.
 //
 // Los títulos NO son decoración: sin ellos el reordenamiento es invisible y
 // pasa por un cambio arbitrario. Con ellos, el menú enseña el proceso.
@@ -79,8 +83,8 @@ export interface NavItem {
 export const GRUPOS: { key: GrupoNav; titulo: string | null }[] = [
   { key: 'inicio', titulo: null },
   { key: 'patrimonio', titulo: 'Inventario' },
-  { key: 'vender', titulo: 'Ventas' },
-  { key: 'entregar', titulo: 'Entregar' },
+  { key: 'vender', titulo: 'Comercial' },
+  { key: 'entregar', titulo: 'Operaciones' },
   { key: 'cobrar', titulo: 'Finanzas' },
   { key: 'sistema', titulo: 'Sistema' },
 ]
