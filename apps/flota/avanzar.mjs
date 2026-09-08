@@ -35,6 +35,27 @@ export const MAX_INTENTOS_CERT = 3
 /** La ventana de esa cuota. */
 export const VENTANA_CERT_MS = 60 * 60 * 1000
 
+/**
+ * `EX_USO` de `provision-instancia.sh` (`:48`). Significa «no puedo ni empezar:
+ * me falta un argumento o una variable», y el guion sale con el ANTES de tocar
+ * nada — en particular, antes de llamar a certbot.
+ *
+ * Se declara aqui con su nombre porque un 64 pelado en un `if` no dice nada, y
+ * porque la distincion que sostiene —configuracion contra fallo real— es lo
+ * unico que separa «no cuenta como intento» de «gasta cuota».
+ */
+export const EX_USO_GUION = 64
+
+/**
+ * `emitirCert` puede devolver un booleano (como hacia hasta el 2026-09-08) o un
+ * `{ ok, codigo }`. Se aceptan los dos: el booleano se sigue usando en las
+ * pruebas de la maquina, donde el codigo no aporta nada, y obligar a todas a
+ * cambiar de forma para un caso que no les afecta seria ruido.
+ */
+function normalizar(r) {
+  return typeof r === 'object' && r !== null ? { ok: !!r.ok, codigo: r.codigo } : { ok: !!r }
+}
+
 /** Nada que hacer en esta pasada. */
 const QUIETO = (motivo) => ({ hecho: false, motivo })
 
@@ -109,14 +130,41 @@ async function avanzarCert(solicitud, { emitirCert, marcar, anotar, ahora }) {
   // se repite para siempre.
   await marcar(EMITIENDO_CERT, { intentos: intentos + 1, intentosDesde: desde })
 
-  let ok = false
+  let r = { ok: false }
   try {
-    ok = await emitirCert(solicitud.dominio)
+    r = normalizar(await emitirCert(solicitud.dominio))
   } catch {
-    ok = false
+    r = { ok: false }
   }
 
-  if (!ok) return QUIETO('el certificado no se pudo emitir en este intento')
+  // ─── Un error de CONFIGURACION no es un intento ───────────────────────────
+  //
+  //  Medido el 2026-09-08 en `ensayo4`: faltaba `CERTBOT_EMAIL` en el entorno
+  //  del ejecutor, y `provision-instancia.sh:266` sale con EX_USO (64) SIN
+  //  llamar a certbot. Aun asi se gastaron los tres intentos y la solicitud
+  //  quedo en `cert-agotado`, que exige que la mire una persona.
+  //
+  //  El contador existe para proteger la cuota de Let's Encrypt --cinco por hora
+  //  y por dominio--, y ahi se gasto contra algo que no la toca. Peor: al
+  //  arreglar la configuracion la solicitud seguia parada, porque
+  //  `cert-agotado` no es reanudable.
+  //
+  //  Asi que un 64 se DESCUENTA: se deja el contador como estaba y se anota UNA
+  //  vez por causa distinta --el patron de `dnsOtraIp` de arriba, y por la misma
+  //  razon: sin eso serian sesenta lineas por hora--. En cuanto alguien ponga la
+  //  variable, la pasada siguiente avanza sola.
+  if (!r.ok && r.codigo === EX_USO_GUION) {
+    await marcar(EMITIENDO_CERT, { intentos, intentosDesde: desde, certConfig: r.codigo })
+    if (solicitud.certConfig !== r.codigo) {
+      await anotar(
+        `el guion no llego a pedir el certificado: le falta configuracion (codigo ${r.codigo}). ` +
+          `No cuenta como intento. Mira las lineas de arriba, lo dice el propio guion.`,
+      )
+    }
+    return QUIETO('falta configuracion para pedir el certificado; no cuenta como intento')
+  }
+
+  if (!r.ok) return QUIETO('el certificado no se pudo emitir en este intento')
 
   await marcar(LISTA, { hasta: new Date(t).toISOString() })
   return { hecho: true, estado: LISTA }

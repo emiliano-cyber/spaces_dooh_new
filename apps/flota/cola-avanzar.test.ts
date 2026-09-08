@@ -119,6 +119,69 @@ describe('marcar() deja los datos donde avanzar() los busca', () => {
     expect((await delDisco(id)).estado).toBe(CERT_AGOTADO)
   })
 
+  // ─── Un error de configuracion no gasta el presupuesto de intentos ────────
+  //  Medido el 2026-09-08 en `ensayo4`: faltaba `CERTBOT_EMAIL`, el guion salio
+  //  con EX_USO (64) SIN llamar a certbot, y aun asi se gastaron los tres
+  //  intentos y la solicitud quedo en `cert-agotado` — que exige a una persona.
+  //  El contador esta para proteger la cuota de Let's Encrypt, y se gasto contra
+  //  algo que no la toca.
+  it('un 64 (falta configuracion) NO cuenta como intento, ni aunque se repita', async () => {
+    const id = await crearSolicitud(dir, buena, 'jefa@asnetwork.io')
+    await marcar(dir, id, EMITIENDO_CERT, { ip: IP, intentos: 0 })
+
+    const emitirCert = async () => ({ ok: false, codigo: 64 })
+    for (let i = 0; i < 5; i++) {
+      await avanzar(await delDisco(id), { ...reales(id), emitirCert })
+    }
+
+    const s = await delDisco(id)
+    expect(s.intentos).toBe(0)
+    // Y sigue reanudable: en cuanto se ponga la variable, avanza sola.
+    expect(s.estado).toBe(EMITIENDO_CERT)
+  })
+
+  it('y ese 64 se anota UNA vez, no una por pasada', async () => {
+    const id = await crearSolicitud(dir, buena, 'jefa@asnetwork.io')
+    await marcar(dir, id, EMITIENDO_CERT, { ip: IP, intentos: 0 })
+
+    const emitirCert = async () => ({ ok: false, codigo: 64 })
+    for (let i = 0; i < 4; i++) {
+      await avanzar(await delDisco(id), { ...reales(id), emitirCert })
+    }
+
+    const s = await delDisco(id)
+    expect(s.registro.filter((l: string) => l.includes('le falta configuracion'))).toHaveLength(1)
+  })
+
+  it('en cuanto la configuracion se arregla, la MISMA solicitud llega a lista', async () => {
+    const id = await crearSolicitud(dir, buena, 'jefa@asnetwork.io')
+    await marcar(dir, id, EMITIENDO_CERT, { ip: IP, intentos: 0 })
+
+    // Dos pasadas sin configuracion...
+    for (let i = 0; i < 2; i++) {
+      await avanzar(await delDisco(id), { ...reales(id), emitirCert: async () => ({ ok: false, codigo: 64 }) })
+    }
+    // ...y la tercera con ella puesta.
+    await avanzar(await delDisco(id), { ...reales(id), emitirCert: async () => ({ ok: true, codigo: 0 }) })
+
+    expect((await delDisco(id)).estado).toBe(LISTA)
+  })
+
+  it('un fallo REAL de certbot si cuenta, y llega a agotarse', async () => {
+    const id = await crearSolicitud(dir, buena, 'jefa@asnetwork.io')
+    await marcar(dir, id, EMITIENDO_CERT, { ip: IP, intentos: 0 })
+
+    // Codigo 1: certbot corrio y no salio. Eso si gasta cuota.
+    const emitirCert = async () => ({ ok: false, codigo: 1 })
+    for (let i = 0; i < 4; i++) {
+      await avanzar(await delDisco(id), { ...reales(id), emitirCert })
+    }
+
+    const s = await delDisco(id)
+    expect(s.intentos).toBe(3)
+    expect(s.estado).toBe(CERT_AGOTADO)
+  })
+
   it('un DNS que apunta a otra maquina se anota UNA vez, no una por minuto', async () => {
     const id = await crearSolicitud(dir, buena, 'jefa@asnetwork.io')
     await marcar(dir, id, ESPERANDO_DNS, { ip: IP })
