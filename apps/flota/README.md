@@ -176,3 +176,26 @@ mire por qué.
   `Host` es nginx en el padre. Este proceso no debe ser alcanzable desde fuera ni por
   accidente, y el token viaja en una cabecera: **siempre detrás de TLS**.
 - **`publico/estado.json`** es lo que sirve nginx como página estática del padre.
+
+## Los tokens, y quien los lee
+
+Un token por instancia. `tokenDe(nombre, entorno, delArchivo)` los busca en este
+orden: `FLOTA_TOKEN_<NOMBRE>` del entorno → la misma clave del archivo
+`/etc/space-os/flota-tokens.env` → `FLOTA_TOKEN` como comodin.
+
+> **El tercer argumento no es opcional en la practica.** Sin el, `tokenDe` mira
+> solo el entorno del proceso. El 2026-09-08 eso hizo que el panel web fuera el
+> UNICO componente que no leia el archivo hecho para el: el CLI enseñaba
+> `ensayo4 v0.3.0 al-dia` y el panel, la misma fila, `sin-respuesta` --
+> indistinguible de una instancia caida. Mismo usuario, misma maquina.
+>
+> Quien añada otra vía de consulta: el archivo se lee UNA vez por pasada
+> (`filasDeLaFlota`) y se reparte, no una vez por instancia.
+
+## El directorio `publico/`
+
+Salida local, no versionada (`.gitignore:117`). Lo escribe `estado.mjs` al
+terminar, y el usuario que lo corre tiene que poder escribir ahi: como el panel
+corre como `flota` y el repo es de `root`, hace falta
+`chown -R flota:flota apps/flota/publico`. Si no, la tabla sale entera por
+pantalla y despues revienta con `EACCES` al publicarla.

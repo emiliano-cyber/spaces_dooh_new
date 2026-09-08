@@ -237,6 +237,41 @@ describe('la consulta lleva su token, o la flota entera miente', () => {
     expect(vistas?.['x-flota-token']).toBe('tok-de-demo')
     delete process.env.FLOTA_TOKEN_DEMO
   })
+
+  it('y lo lee del ARCHIVO, no solo del entorno', async () => {
+    // El cuarto fallo del mismo sitio, medido en el PADRE el 2026-09-08: el CLI
+    // (`estado.mjs`) enseñaba `ensayo4 v0.3.0 rezagada` y el panel web, la misma
+    // fila, `sin-respuesta`. Mismo usuario, misma maquina, distinto resultado.
+    //
+    // La causa: `servidor.mjs` llamaba `tokenDe(nombre)` sin el tercer
+    // argumento, asi que leia el entorno y NUNCA
+    // `/etc/space-os/flota-tokens.env`. O sea que el unico componente que no
+    // leia ese archivo era EL PANEL -- que es para quien se creo (TH-FLOTA).
+    //
+    // La prueba de al lado no lo vio porque pone la variable en el entorno, que
+    // es el camino que SI funcionaba. Esta usa solo el archivo, a proposito.
+    let cabeceras: any = null
+    const soloDemo = async () => ({
+      archivo: 'flota.json',
+      esEjemplo: false,
+      canales: { beta: 'v0.3.0' },
+      instancias: [{ nombre: 'demo', dominio: 'demo.invalid', canal: 'beta' }],
+    })
+    await filasDeLaFlota({
+      cargar: soloDemo,
+      leerTokens: async () => ({ FLOTA_TOKEN_DEMO: 'del-archivo' }),
+      consultarUna: (i: any, o: any) =>
+        consultarConToken(i, {
+          ...o,
+          pedir: async (_u: string, op: any) => {
+            cabeceras = op.headers
+            return { ok: true, status: 200, json: async () => ({ ok: true, version: 'v0.3.0' }) }
+          },
+        }),
+      leer: async () => ({ reportes: [], avisos: [] }),
+    })
+    expect(cabeceras?.['x-flota-token'], 'el panel no leyo el archivo de tokens').toBe('del-archivo')
+  })
 })
 
 // ============================================================================
