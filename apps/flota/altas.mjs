@@ -128,7 +128,10 @@ if (!solicitud) {
         entorno: process.env,
         onLinea: (l) => anotarEnEsa(l),
       })
-      return codigo === 0
+      // El CODIGO viaja, no solo el si/no: `avanzar.mjs` distingue «me falta
+      // configuracion» (EX_USO, y no llego a certbot) de «Let's Encrypt dijo
+      // no», y solo el segundo gasta cuota y cuenta como intento.
+      return { ok: codigo === 0, codigo }
     },
     marcar: (estado, extra) => marcar(DIR, aMedias.id, estado, extra),
     anotar: anotarEnEsa,
