@@ -185,9 +185,13 @@ describe('donde escribe el ejecutor y donde lee el panel', () => {
     }
   })
 
-  it('las dos estan donde el ejecutor ya escribe, y son rutas absolutas', () => {
+  // El SUBdirectorio importa, y no es un detalle de gusto: `/var/lib/space-os`
+  // es `root:root 755`, asi que un archivo suelto ahi da el MISMO EACCES que en
+  // `/etc/space-os`. El temporal se crea en el directorio, no en el archivo.
+  // El primer arreglo de este defecto los puso sueltos, y lo cazo el `ls -ld`.
+  it('las dos viven en un SUBdirectorio propio, que puede ser de `altas`', () => {
     for (const r of [RUTA_TOKENS_ESTADO, RUTA_INSTANCIAS_ESTADO]) {
-      expect(r).toMatch(/^\/var\/lib\/space-os\//)
+      expect(r).toMatch(/^\/var\/lib\/space-os\/flota\/[^/]+$/)
     }
     // Distintas entre si, o una pisaria a la otra.
     expect(RUTA_TOKENS_ESTADO).not.toBe(RUTA_INSTANCIAS_ESTADO)

@@ -175,11 +175,28 @@ export function fusionar(consultas, reportes) {
  * Sin token el panel la ve `sin-respuesta`, indistinguible de una caída — la
  * misma ceguera que se arregló esa mañana por otra puerta (`6ed9b81`).
  *
- * `/var/lib/space-os/` es donde el ejecutor YA escribe (las solicitudes), no es
- * código y no son secretos: esto es **estado que escribe `altas` y lee
- * `flota`**. Estaba en `/etc` por inercia.
+ * `/var/lib/space-os/` es donde el ejecutor YA escribe, no es código y no son
+ * secretos: esto es **estado que escribe `altas` y lee `flota`**. Estaba en
+ * `/etc` por inercia.
+ *
+ * ─── Y es un SUBDIRECTORIO, no el padre ────────────────────────────────────
+ *
+ * `/var/lib/space-os` es `root:root 755`, medido el 2026-09-08. Poner los
+ * archivos ahí sueltos daba **exactamente el mismo EACCES**, porque el temporal
+ * se crea en el directorio y `altas` no puede crear ahí. El primer intento de
+ * arreglar esto lo hizo, y lo cazó mirar el `ls -ld` antes de darlo por bueno.
+ *
+ * El patrón correcto ya estaba en la misma máquina: `solicitudes/` es un
+ * subdirectorio propiedad de `altas`, y el padre sigue siendo de root. Se copia:
+ *
+ *     mkdir -p /var/lib/space-os/flota
+ *     chown altas:flota /var/lib/space-os/flota
+ *     chmod 750 /var/lib/space-os/flota      # altas escribe, flota atraviesa
+ *
+ * El directorio **tiene que existir antes**: `altas` no puede crearlo, así que
+ * no se resuelve en tiempo de ejecución. Va en la tarjeta de despliegue.
  */
-const DIR_ESTADO_FLOTA = '/var/lib/space-os'
+const DIR_ESTADO_FLOTA = '/var/lib/space-os/flota'
 
 export const RUTA_TOKENS = `${DIR_ESTADO_FLOTA}/flota-tokens.env`
 
