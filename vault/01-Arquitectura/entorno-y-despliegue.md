@@ -118,8 +118,17 @@ archivos:
 > chown -R padre:padre apps/web/.next    # NUEVO — o falla al primer cacheo
 > systemctl daemon-reload                # la unidad es symlink al repo
 > systemctl restart spaces-web
-> systemctl restart spaces-demo          # los dos comparten .next
 > ```
+>
+> **Corregido el 2026-09-08.** Esta secuencia llevaba además un
+> `systemctl restart spaces-demo  # los dos comparten .next`, y **desde F3.5
+> (02/09) eso ya no aplica**: DEMO es un contenedor desde la imagen del
+> registro, no `next start` sobre este repositorio, así que no comparte `.next`
+> con el PADRE ni se reinicia desde aquí. Se retira la línea en vez de
+> comentarla: una orden de más en un runbook se ejecuta.
+>
+> Y recuerda que sobre esa unidad **`systemctl disable` la BORRA** en vez de
+> apagarla — ver el aviso de abajo.
 >
 > [!danger] 2026-09-02 · `systemctl disable spaces-demo` BORRA la unidad, no la apaga
 > **Medido en el PADRE** al reanudar la conversión de DEMO: tras el `disable`,
