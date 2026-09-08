@@ -29,12 +29,12 @@
 
 import { spawn } from 'node:child_process'
 import { siguientePendiente, siguienteQueAvanza, marcar, anotarEn, esperarEscrituras } from './cola.mjs'
-import { ejecutarAlta, ESPERANDO_DNS, GUION } from './ejecutor.mjs'
-import { crearRegistroA, esDeNuestraZona } from './dns.mjs'
+import { ejecutarAlta, ESPERANDO_DNS, PENDIENTE, GUION } from './ejecutor.mjs'
+import { crearRegistroA, esDeNuestraZona, zonaQueLoContiene } from './dns.mjs'
 import { comprobar, veredicto } from './comprobaciones.mjs'
 import { avanzar } from './avanzar.mjs'
 import { inscribir } from './inscribir.mjs'
-import { resolve4 } from 'node:dns/promises'
+import { resolve4, resolveSoa } from 'node:dns/promises'
 
 const DIR = process.env.DIR_SOLICITUDES
 if (!DIR) {
@@ -152,6 +152,46 @@ const anotar = async (linea) => {
   } catch {
     /* que el registro falle no puede tumbar un alta a medias */
   }
+}
+
+// ─── Antes de gastar una maquina: ¿puede existir ese nombre?  (defecto 39) ──
+//
+//  El 2026-09-08 se dio de alta `g500-space-os.com`, que NO esta registrado. El
+//  alta creo el droplet, lo configuro entero, y se quedo en `esperando-dns` —
+//  correctamente, porque nadie puede inventarse una delegacion. Pero para
+//  siempre, y con la maquina cobrandose.
+//
+//  `validarSolicitud()` comprueba la FORMA del dominio, y la forma era
+//  impecable. Esto comprueba que exista una zona por encima, que es lo unico que
+//  distingue «el owner todavia no lo ha apuntado» —normal, y se espera— de «no
+//  puede apuntarlo nunca».
+//
+//  Se queda en `pendiente`, NO en `fallida`: `fallida` es terminal y obligaria a
+//  pedir el alta otra vez, cuando lo que falta puede aparecer en diez minutos —
+//  el dominio se registra y ya esta. Asi se reintenta sola.
+//
+//  Y se anota UNA vez por dominio, no una por minuto: mismo patron que
+//  `dnsOtraIp` en `avanzar.mjs`, y por la misma razon.
+const zonaArriba = await zonaQueLoContiene(solicitud.dominio, (n) => resolveSoa(n))
+if (!zonaArriba) {
+  if (solicitud.sinZona !== solicitud.dominio) {
+    await anotar(
+      `NO se crea la maquina todavia: ningun servidor DNS reconoce una zona para ` +
+        `${solicitud.dominio}. O el dominio no esta registrado, o sus nameservers no ` +
+        `estan puestos en el registrador. Registralo y apuntalo; esto se reintenta solo.`,
+    )
+    await marcar(DIR, solicitud.id, PENDIENTE, { sinZona: solicitud.dominio })
+  }
+  await esperarEscrituras()
+  console.log(
+    JSON.stringify({
+      evento: 'altas',
+      id: solicitud.id,
+      ok: false,
+      motivo: 'sin zona dns: no se crea la maquina',
+    }),
+  )
+  process.exit(0)
 }
 
 const r = await ejecutarAlta(solicitud, {
