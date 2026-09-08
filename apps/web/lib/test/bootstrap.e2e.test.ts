@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { recrearEsquema, cerrarPool, poolTest, URL_APP } from './db-e2e'
-import { asegurarPermisos } from './semillas-e2e'
+import { asegurarPermisos, sembrarTenant, PASSWORD_DEMO } from './semillas-e2e'
 import { arrancarServidor, pararServidor, Cliente, BASE } from './servidor-e2e'
 import { opcionesDeProceso, vigilarErrores, esperarMuerte } from './proceso-e2e'
+import { arrancarDoble, pararDoble, prepararIdToken, idTokenFalso, claimsBuenos } from './doble-google'
 import { PUERTO_DOBLE } from './doble-google'
 
 // `Cliente` no permite cabeceras propias y `servidor-e2e.ts` NO SE TOCA
@@ -13,7 +14,7 @@ import { PUERTO_DOBLE } from './doble-google'
 // igual que hace `Cliente` — sin eso, seis llamadas seguidas empiezan a recibir
 // 429 y el fallo no diría nada del código que se prueba.
 let contadorIp = 40
-async function llamarBootstrap(opts: { token?: string } = {}) {
+async function llamarBootstrap(opts: { token?: string; cuerpoPropio?: unknown } = {}) {
   const cabeceras: Record<string, string> = {
     'content-type': 'application/json',
     'x-forwarded-for': `10.9.0.${contadorIp++}`,
@@ -22,7 +23,7 @@ async function llamarBootstrap(opts: { token?: string } = {}) {
   const r = await fetch(`${BASE}/api/bootstrap/`, {
     method: 'POST',
     headers: cabeceras,
-    body: JSON.stringify(cuerpo()),
+    body: JSON.stringify(opts.cuerpoPropio ?? cuerpo()),
     redirect: 'manual',
   })
   const datos = await r.json().catch(() => ({}))
@@ -57,7 +58,24 @@ async function cuantosTenants(): Promise<number> {
   return r.rows[0].n
 }
 
+// Deja la base como si la instancia acabara de nacer. El orden NO es cosmetico
+// y cada paso lo puso un rojo distinto:
+//
+//  1. `acciones` con TRUNCATE y no con DELETE. La bitacora es append-only
+//     (`20260629_bitacora_append_only.sql`) y su disparador prohibe UPDATE y
+//     DELETE por fila; TRUNCATE es de sentencia, asi que no lo dispara. Sin
+//     esto, borrar un usuario intenta poner su `usuario_id` a null --un
+//     UPDATE-- y la bitacora lo rechaza. Aparecio en cuanto el positivo empezo
+//     a entrar con Google, porque vincular la cuenta se anota.
+//  2. `identidades_externas` antes que `tenants`: apunta al tenant y la clave
+//     foranea no deja borrarlo con la fila puesta.
+//
+// Se borra tabla por tabla y no con `cascade`: un `cascade` aqui se llevaria
+// por delante lo que todavia no sabemos que cuelga de `tenants`.
 async function vaciarTenants(): Promise<void> {
+  await poolTest().query('truncate acciones')
+  await poolTest().query('delete from identidades_externas')
+  await poolTest().query('delete from usuarios')
   await poolTest().query('delete from tenants')
 }
 
@@ -67,12 +85,16 @@ async function cuantosUsuarios(): Promise<number> {
 }
 
 
+// A3.1 — SIN contraseña. El alta de una instancia ya no produce ninguna: el
+// Dueño entra con Google y sus códigos de recuperación se los enseña la propia
+// aplicación en su primera entrada (ADR 0028). Antes esto llevaba `password`, y
+// esa contraseña la generaba el operador, la veía en su pantalla y se le quedaba
+// en el historial.
 function cuerpo() {
   return {
     organizacion: 'Instancia de un Owner',
     nombre: 'Duena del Owner',
     email: EMAIL,
-    password: PASSWORD,
   }
 }
 
@@ -108,11 +130,19 @@ describe('F5.2 · con token configurado', () => {
   beforeAll(async () => {
     await pararServidor()
     process.env.BOOTSTRAP_TOKEN = TOKEN
+    // El doble de Google, porque desde A3.1 la prueba de que el Dueño sirve es
+    // que ENTRA, y entra por ahí. Va ANTES de `arrancarServidor()`: el arnés le
+    // pasa `GOOGLE_TOKEN_ENDPOINT` al servidor cuando lo lanza.
+    await arrancarDoble()
     // Desde B4 (ADR 0028) el bootstrap exige Google configurado. Estos casos
     // pasan igual porque `servidor-e2e.ts` ya lo enciende para toda la suite
     // (`GOOGLE_OAUTH: '1'` y las dos credenciales) -- y ese archivo NO SE TOCA.
     await arrancarServidor()
   }, 120_000)
+
+  afterAll(async () => {
+    await pararDoble()
+  })
 
   it('con una organización YA existente devuelve 404 y no crea nada', async () => {
     // `recrearEsquema()` siembra `rgb` (`db-e2e.ts:157`), así que basta con
@@ -142,55 +172,94 @@ describe('F5.2 · con token configurado', () => {
     expect(await cuantosTenants()).toBe(0)
   })
 
-  it('con la base vacía y el token correcto crea la organización, y su Dueño PUEDE ENTRAR', async () => {
+  it('con la base vacía y el token correcto crea la organización SIN contraseña', async () => {
     await vaciarTenants()
     const r = await llamarBootstrap({ token: TOKEN })
 
     expect(r.datos?.error).toBeUndefined()
     expect(r.status).toBe(201)
     expect(await cuantosTenants()).toBe(1)
-
-    // Lo que de verdad demuestra que sirve: entrar por la API real.
-    const c2 = new Cliente()
-    const login = await c2.pedir('/api/auth/login/', { cuerpo: { email: EMAIL, password: PASSWORD } })
-    expect(login.status).toBe(200)
   })
 
-  it('y el Dueno nace OBLIGADO a cambiar la contrasena que le genero el operador', async () => {
-    // ROJO medido el 2026-09-04 EN EL ENSAYO DE F5.6, contra una instancia real:
+  it('y su Dueño entra CON GOOGLE, que es lo que demuestra que sirve', async () => {
+    // Un 201 no demuestra nada: el hash lo produce una función y lo verifica
+    // otra, y si divergieran el 201 seguiría saliendo verde con nadie capaz de
+    // entrar. Hasta A3.1 esto se comprobaba entrando con la contraseña del
+    // operador; ahora esa contraseña no existe, así que se comprueba por donde
+    // el Dueño va a entrar de verdad.
+    const c = new Cliente()
+    const r0 = await c.pedir('/api/auth/google/inicio/')
+    const destino = new URL(r0.ubicacion!)
+    prepararIdToken(
+      idTokenFalso(
+        claimsBuenos({
+          sub: 'sub-bootstrap',
+          email: EMAIL,
+          nonce: destino.searchParams.get('nonce')!,
+        }),
+      ),
+    )
+    const cb = await c.pedir(
+      `/api/auth/google/callback/?code=codigo-bueno&state=${encodeURIComponent(destino.searchParams.get('state')!)}`,
+    )
+    expect(new URL(cb.ubicacion!).searchParams.get('google')).toBeNull()
+    expect(c.tieneCookie('spaces_sesion')).toBe(true)
+  })
+
+  it('y NADIE puede entrar con contraseña, que es el riesgo que A3.1 retira', async () => {
+    // El Dueño nace con un hash aleatorio que no conoce nadie (`passwordAleatoria`)
+    // Y con el candado `solo_google`. Los dos hacen falta: el hash para que pueda
+    // desbloquear los cambios de dinero el día que fije la suya, y el candado
+    // para que fijarla no le abra la puerta de entrada.
+    const c = new Cliente()
+    const login = await c.pedir('/api/auth/login/', { cuerpo: { email: EMAIL, password: PASSWORD } })
+    expect(login.status).not.toBe(200)
+  })
+
+  it('el Dueño nace con hash, con solo_google y obligado a poner el suyo', async () => {
+    // Las tres columnas juntas, y ninguna sobra:
     //
-    //   $ psql -tAc 'select email, debe_cambiar_password from usuarios'
-    //   emistreg@gmail.com|f
-    //
-    //  El Dueno de una instancia nace con una contrasena que GENERA EL OPERADOR
-    //  y que se imprime en su consola. Sin esta marca esa contrasena vale para
-    //  siempre: queda en el historial de quien hizo el alta y nadie obliga a
-    //  cambiarla nunca.
-    //
-    //  Lo que hacia falso creer que estaba cubierto: `alta-instancia.e2e.test.ts`
-    //  afirma «nace OBLIGADO a cambiarla» y pasa en verde -- pero prueba
-    //  `bootstrap-auth.mjs`, el arranque del PADRE, que es OTRO camino. El alta
-    //  de una instancia va por esta ruta, y `usuarios-repo.ts` no tocaba la
-    //  columna, asi que se quedaba en su `default false`
-    //  (`20260804_reautenticacion_individual.sql:35`).
-    //
-    //  Se distinguen a simple vista por la contrasena: el camino del PADRE
-    //  genera `XXXX-XXXX-XXXX-XXXX`; esta ruta, 64 hexadecimales.
-    //
-    //  El mecanismo que lo hace efectivo ya existia y no se toca: `exigir()`
-    //  corta con 403 mientras la marca este puesta.
-    //
-    // Estado heredado de la prueba anterior: la organizacion se acaba de crear.
-    const { rows } = await poolTest().query('select email, debe_cambiar_password from usuarios')
+    //  · `password_hash` NO NULO. Un usuario sin hash queda ENCERRADO: no puede
+    //    desbloquear dinero ni cambiar su perfil, y la única salida le pide algo
+    //    que nunca tuvo. Es el estado terminal que describe `auth.ts:48-62`.
+    //  · `solo_google` en true: la contraseña no abre la puerta.
+    //  · `debe_cambiar_password` en true: es lo que le deja fijar la SUYA sin
+    //    teclear la anterior (ADR 0018) -- y sin eso no podría desbloquear
+    //    nunca los cambios de dinero, porque la aleatoria no la sabe.
+    const { rows } = await poolTest().query(
+      'select email, password_hash, solo_google, debe_cambiar_password from usuarios',
+    )
     expect(rows).toHaveLength(1)
     expect(rows[0].email).toBe(EMAIL.toLowerCase())
-    expect(rows[0].debe_cambiar_password, 'el Dueno nacio SIN obligacion de cambiar la clave').toBe(true)
+    expect(rows[0].password_hash, 'sin hash el Dueno queda encerrado').toBeTruthy()
+    expect(rows[0].solo_google, 'el Dueno de una instancia entra solo con Google').toBe(true)
+    expect(rows[0].debe_cambiar_password, 'sin esto no puede llegar a tener contrasena propia').toBe(true)
+  })
+
+  it('y si alguien manda una contraseña, se RECHAZA en vez de ignorarla', async () => {
+    // Una tarjeta vieja sigue mandando `password`. Ignorarla en silencio sería
+    // lo peor de los dos mundos: el operador vería una clave impresa en su
+    // pantalla y creería haberla entregado, cuando la cuenta nace con otra.
+    // Falla, y el mensaje dice qué hacer.
+    await vaciarTenants()
+    await poolTest().query('delete from usuarios')
+    const r = await llamarBootstrap({
+      token: TOKEN,
+      cuerpoPropio: { ...cuerpo(), password: PASSWORD },
+    })
+    expect(r.status).toBe(400)
+    expect(JSON.stringify(r.datos).toLowerCase()).toContain('google')
+    expect(await cuantosTenants()).toBe(0)
+    expect(await cuantosUsuarios()).toBe(0)
   })
 
   it('y una SEGUNDA llamada ya no crea nada: es de un solo uso', async () => {
-    // Estado heredado de la prueba anterior: ya hay una organización.
-    const antes = await cuantosTenants()
-    expect(antes).toBe(1)
+    // El caso anterior dejó la base vacía a propósito (rechaza y no crea), así
+    // que aquí se vuelve a crear una para tener de verdad la segunda llamada.
+    await vaciarTenants()
+    await poolTest().query('delete from usuarios')
+    expect((await llamarBootstrap({ token: TOKEN })).status).toBe(201)
+    expect(await cuantosTenants()).toBe(1)
 
     const r = await llamarBootstrap({ token: TOKEN })
 
@@ -213,11 +282,17 @@ describe('F5.2 · la exencion de CSRF no se derrama', () => {
   let galleta = ''
 
   beforeAll(async () => {
-    // Sesión real del Dueño creado por el arranque (describe anterior).
+    // Una sesión real, y ya no la del Dueño del arranque: desde A3.1 ese Dueño
+    // nace `solo_google` y su contraseña NO abre la puerta -- que es el punto de
+    // A3.1, no un efecto colateral. Lo que este bloque necesita es una sesión
+    // cualquiera para comprobar el CSRF, así que se siembra una organización
+    // normal. Usar la del arranque ataba esta prueba a CÓMO nace un Dueño, que
+    // es justo lo que cambió debajo de ella.
+    const org = await sembrarTenant('csrf-boot')
     const r = await fetch(`${BASE}/api/auth/login/`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': '10.9.1.1' },
-      body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
+      body: JSON.stringify({ email: org.usuarioEmail, password: PASSWORD_DEMO }),
       redirect: 'manual',
     })
     expect(r.status).toBe(200)

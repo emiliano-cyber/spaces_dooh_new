@@ -199,7 +199,33 @@ el alta queda exactamente como hoy.
 
 ---
 
-## Fase 3 · El último tramo — 🟡 **con camino, y ya no bloqueada de raíz**
+## Fase 3 · El último tramo — ✅ **CERRADA el 2026-09-07**
+
+> **A3.1 no se automatizó: dejó de existir**, que es lo que esta ficha decía que
+> pasaría. El alta ya no produce ninguna contraseña, así que no hay nada que entregarle
+> al Dueño y no hace falta que nadie esté delante leyendo una pantalla.
+>
+> Lo que cambió, en tres piezas:
+>
+> - `/api/bootstrap` crea al Dueño con `entraConGoogle: true`. Nace con una contraseña
+>   **aleatoria que no ve nadie** (`passwordAleatoria`) y con `solo_google` puesto.
+> - Si alguien manda `password`, se **rechaza con 400**. Ignorarla sería lo peor de los
+>   dos mundos: una tarjeta vieja imprimiría una clave, el operador creería habérsela
+>   entregado, y la cuenta habría nacido con otra.
+> - `provision-instancia.sh` deja de generarla, de imprimirla y de mandarla.
+>
+> **Por qué el Dueño NO nace sin `password_hash`**, que era lo primero que uno pensaría:
+> un usuario sin hash queda **encerrado** —no puede desbloquear los cambios de dinero ni
+> tocar su propio perfil, y la única salida le pide algo que nunca tuvo—. Está escrito en
+> `apps/web/lib/server/auth.ts:48-62` desde el ADR 0012, y `passwordAleatoria()` existe
+> exactamente para eso. La contraseña que el Dueño acabe teniendo es la que él fije por
+> la excepción del ADR 0018, y sirve para autorizar cambios, no para entrar.
+>
+> Cobertura: 16 pruebas en `bootstrap.e2e.test.ts` y, en el guion, 2 escenarios y 2
+> mutantes propios — los dos por **ausencia** (que no se imprima una clave, que el cuerpo
+> no lleve `password`), que son las comprobaciones que más fácil se quedan verdes solas.
+
+## Fase 3 · el estado ANTERIOR, como historia
 
 > **Se intentó abrir el 2026-09-07 y no se pudo**, que es exactamente lo que esta fase
 > decía que iba a pasar. No era falta de tiempo: **la contraseña del Dueño tiene que
@@ -214,7 +240,7 @@ el alta queda exactamente como hoy.
 > [`Plan_Acceso_Duenos.md`](Plan_Acceso_Duenos.md)** (tareas B1–B4). Cuando eso esté, A3.1
 > es una tarea normal.
 
-### A3.1 · El bootstrap sin persona `[bloqueada]`
+### A3.1 · El bootstrap sin persona `[CERRADA · 2026-09-07]`
 
 - **Bloqueada por:** el **ADR 0028**. Crear la primera empresa produce la contraseña del
   Dueño, y esa tiene que llegarle a él.

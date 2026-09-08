@@ -331,10 +331,11 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
   paso "Creando la primera organizacion de $DOMINIO"
 
   [[ -n "$INSTANCIA" ]] || { echo "provision: --bootstrap necesita --instancia <nombre de la organizacion>" >&2; exit "$EX_USO"; }
-  # El correo del Dueño es un PARAMETRO y no un marcador de posicion. Es su
-  # identidad para entrar y la unica via de recuperar su contraseña: un
-  # `CAMBIAME@...` deja al owner sin poder entrar el dia que pierda la clave
-  # que se imprime abajo, y esa clave se imprime UNA sola vez.
+  # El correo del Dueño es un PARAMETRO y no un marcador de posicion, y desde
+  # A3.1 importa MAS que antes: ya no hay clave que entregarle, asi que ese
+  # correo ES su forma de entrar. Tiene que ser la cuenta de Google con la que
+  # va a iniciar sesion. Un `CAMBIAME@...` crea una organizacion a la que no
+  # puede entrar nadie, y la puerta del bootstrap se cierra sola detras.
   [[ -n "$EMAIL_DUENO" ]] || { echo "provision: --bootstrap necesita --email <correo del Dueño>" >&2; exit "$EX_USO"; }
   [[ "$EMAIL_DUENO" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]] || {
     echo "provision: --email '$EMAIL_DUENO' no parece un correo." >&2; exit "$EX_USO"; }
@@ -372,19 +373,30 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
     TOKEN_ARRANQUE="$(remoto "sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env" || true)"
   fi
 
-  CLAVE_DUENO="$(secreto)"
+  # ─── A3.1 · aqui ya no se genera ninguna contrasena ──────────────────────
+  # Hasta el 2026-09-07 esto hacia `CLAVE_DUENO="$(secreto)"` y la imprimia. Esa
+  # clave era el motivo por el que el alta NO PODIA ser desatendida: habia que
+  # estar delante para leerla y hacersela llegar al Dueño. Y mientras tanto se
+  # quedaba en el historial de quien corriera el comando.
+  #
+  # Ahora el Dueño entra con Google (ADR 0028) y la propia aplicacion le enseña
+  # sus codigos de recuperacion la primera vez. No hay nada que entregar, asi
+  # que no hay que estar delante.
   echo ""
-  echo "  Estos datos se imprimen UNA VEZ y no se guardan en ningun sitio:"
+  echo "  La organizacion no lleva contrasena: el Dueño entra con Google."
   echo "    dominio:  https://$DOMINIO/spaces-dooh/login/"
-  echo "    correo:   $EMAIL_DUENO"
-  echo "    clave:    $CLAVE_DUENO"
+  echo "    correo:   $EMAIL_DUENO   <-- tiene que ser su cuenta de Google"
+  echo ""
+  echo "  La primera vez que entre, la aplicacion le enseñara sus codigos de"
+  echo "  recuperacion y le pedira que ponga su propia contrasena. Esa"
+  echo "  contrasena NO sirve para entrar: sirve para autorizar cambios."
   echo ""
 
   if [[ "$CONFIRMAR" -ne 1 ]]; then
     printf '%s ssh root@%s curl -X POST http://127.0.0.1:3000/spaces-dooh/api/bootstrap/ (esperando 201)\n' \
       "$DRY_ETIQUETA" "${HOST:-<pendiente>}"
     echo ""
-    echo "  $DRY_ETIQUETA no se creo ninguna organizacion y la clave de arriba es de mentira."
+    echo "  $DRY_ETIQUETA no se creo ninguna organizacion."
     exit 0
   fi
 
@@ -404,7 +416,7 @@ if [[ "$BOOTSTRAP" -eq 1 ]]; then
     -H 'Content-Type: application/json' \
     -H \"x-bootstrap-token: \$(sed -n 's/^BOOTSTRAP_TOKEN=//p' /etc/space-os/app.env)\" \
     --data-binary @-" <<JSON
-{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO","password":"$CLAVE_DUENO"}
+{"organizacion":"$INSTANCIA","nombre":"Dueno","email":"$EMAIL_DUENO"}
 JSON
 )"
   set -e
@@ -413,7 +425,7 @@ JSON
   if [[ "$CODIGO_BOOT" != "201" ]]; then
     echo "" >&2
     echo "provision: la organizacion NO se creo (esperado 201, recibido '$CODIGO_BOOT')." >&2
-    echo "           LA CLAVE DE ARRIBA NO SIRVE: no hay ninguna cuenta con ella." >&2
+    echo "           NO HAY NINGUNA CUENTA: ese correo todavia no puede entrar." >&2
     echo "" >&2
     case "$CODIGO_BOOT" in
       000)
@@ -428,6 +440,20 @@ JSON
         echo "           mismo para las dos a proposito: o ya existe una" >&2
         echo "           organizacion --y entonces esto ya se hizo y no hay que" >&2
         echo "           repetirlo-- o el token de arranque no coincide." >&2
+        ;;
+      400)
+        echo "           Un 400 con este guion al dia casi siempre es lo mismo:" >&2
+        echo "           la instancia corre una version ANTERIOR al 2026-09-07 y" >&2
+        echo "           todavia espera una contrasena en el cuerpo. Actualizala:" >&2
+        echo "             ssh root@$HOST /opt/space-os/update.sh" >&2
+        ;;
+      503)
+        echo "           Un 503 es que la instancia no tiene Google configurado, y" >&2
+        echo "           el Dueño entra SOLO con Google: sin eso naceria una" >&2
+        echo "           organizacion a la que no puede entrar nadie. Faltan" >&2
+        echo "           GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en su .env, con" >&2
+        echo "           GOOGLE_OAUTH distinto de 0, y la URI de retorno de este" >&2
+        echo "           dominio registrada en la consola de Google." >&2
         ;;
       *)
         echo "           Mira el log de la aplicacion:" >&2

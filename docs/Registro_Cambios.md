@@ -32,6 +32,23 @@ La entrada más reciente va arriba.
   temporal, que es un segundo paso. Las dos cosas se piden de la misma forma, asi que sin
   saberlo es facil creer que algo se rompio cuando no.
 
+- **Dar de alta a un cliente ya no genera ninguna contraseña.** Era lo ultimo que
+  obligaba a que hubiera una persona delante: el comando imprimia una clave en la
+  pantalla, habia que leerla y hacersela llegar al Dueño de la empresa nueva. Y mientras
+  tanto se quedaba en el historial de quien corriera el comando.
+
+  Ahora no existe. El Dueño entra con Google, y la primera vez que entra la aplicacion le
+  enseña sus codigos de recuperacion y le pide que ponga su propia contraseña —esa
+  contraseña **no** sirve para entrar: sirve para autorizar los cambios de dinero.
+
+  **Lo que ahora hay que hacer bien es el correo.** Como no hay clave que entregar, ese
+  correo ES su forma de entrar: tiene que ser su cuenta de Google. Si se pone mal, nace
+  una empresa a la que no puede entrar nadie.
+
+  Y si alguien sigue una instruccion vieja y manda una contraseña, **el sistema la
+  rechaza** en vez de ignorarla. Ignorarla seria lo peor: el operador veria una clave en
+  su pantalla y creeria haberla entregado, cuando la cuenta habria nacido con otra.
+
 - **Ya se puede cerrar la entrada por contraseña, porque por fin hay otra puerta.**
   Lo que se decidio esta manaña era una intencion; hoy es un interruptor de verdad, y
   viene acompañado de las dos cosas sin las que habria sido peligroso encenderlo.

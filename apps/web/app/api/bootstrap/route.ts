@@ -113,12 +113,25 @@ export async function POST(req: Request) {
     // controlador a propósito, para que las tres entradas al alta (signup,
     // /api/tenants y esta) no diverjan. La transacción de F5.1 aplica igual:
     // si el Dueño falla, no queda organización huérfana.
-    // `debeCambiarPassword: true` — la contrasena del Dueno de una instancia la
-    // GENERA el operador del alta y se imprime UNA vez en su consola. Sin esto
-    // vale para siempre y se queda en su historial. Medido asi (con `f`) el
-    // 2026-09-04 en el ensayo de F5.6, contra una instancia de verdad.
+    // ─── A3.1 · el alta ya no produce ninguna contrasena ───────────────────
+    // `entraConGoogle: true` es lo que cierra la Fase 3 del alta desatendida. La
+    // contrasena del Dueno la generaba el operador y se imprimia en su consola:
+    // habia que estar delante para leerla y entregarsela. Ahora no existe --
+    // nace una aleatoria que no ve nadie, el Dueno entra con Google y sus
+    // codigos de recuperacion se los ensena la aplicacion (B1/B2).
+    //
+    // Y por eso el cerrojo de Google de arriba deja de ser una precaucion y pasa
+    // a ser la condicion: sin Google, esta organizacion no tendria NINGUNA
+    // puerta. Va antes a proposito.
+    //
+    // `debeCambiarPassword: true` se queda, y ahora significa otra cosa: no es
+    // «cambia la que te dieron», es «todavia no tienes ninguna tuya». Es lo que
+    // le abre la excepcion del ADR 0018 para fijar la primera sin teclear la
+    // anterior -- y sin eso no podria desbloquear nunca los cambios de dinero,
+    // porque la aleatoria no la sabe.
     const res = await registrarCuentaCtrl(await req.json().catch(() => ({})), {
       debeCambiarPassword: true,
+      entraConGoogle: true,
     })
     return NextResponse.json(res, { status: 201, headers: { 'cache-control': 'no-store' } })
   } catch (e) {
