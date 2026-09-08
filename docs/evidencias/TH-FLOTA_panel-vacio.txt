@@ -1,0 +1,145 @@
+============================================================
+ TH-FLOTA · POR QUE EL PANEL NO ENSEÑA LOS DROPLETS
+ Pasos 2 en adelante se corren DESDE EL PADRE
+ (137.184.107.53), como root.
+ Escrita 2026-09-07 · reportado: space-os.io/flota/ vacio
+============================================================
+
+ QUE ESTABA PASANDO -- son DOS cosas, no una
+
+   1. EL CODIGO NO ESTA EN EL PADRE. Lo que hace que el
+      ejecutor inscriba la instancia y que el panel la lea
+      (commit `f1746c3`) esta en una rama SIN FUSIONAR. El
+      PADRE despliega desde `main`, asi que el panel de hoy
+      ni siquiera sabe que `/etc/space-os/flota-instancias.json`
+      existe.
+
+   2. Y AUN FUSIONADO SEGUIRIA VACIO. `flota.json` no esta
+      versionado. Si no existe en el PADRE, el panel caia al
+      inventario de EJEMPLO -- y ahi se negaba a mezclar las
+      instancias del alta, para no mentir sobre unos dominios
+      `.invalid` que no existen.
+
+      El resultado era lo contrario de lo que esa regla
+      protegia: el panel enseñaba tres dominios inventados y
+      escondia la flota de verdad. Arreglado en `5879847`: el
+      ejemplo solo se usa cuando NO HAY NADA que enseñar.
+
+ Y HAY UNA TERCERA, QUE ES LA QUE TIENES QUE MIRAR TU
+   `ensayo4` se dio de alta ANTES de que existiera la
+   inscripcion automatica. Nadie la apunto, asi que lo mas
+   probable es que no este en el archivo. El PASO 4 lo
+   comprueba y el PASO 5 la añade a mano si falta.
+
+# ############################################################
+#  PASO 1 · FUSIONAR             🖥️ EN TU WINDOWS  🚦 PUERTA 1
+# ############################################################
+#  Sin esto, todo lo demas no cambia nada.
+#
+#    git push emiliano fix/alta-sin-bit-de-ejecucion
+#
+#  Y fusionar el PR. NO SIGAS hasta que este en `main`.
+
+# ############################################################
+#  PASO 2 · TRAER EL CODIGO         🌐 EN EL PADRE  🚦 PUERTA 2
+# ############################################################
+#  El panel es JavaScript suelto: no lleva build.
+
+echo ok; cd /var/www/Spaces && git pull
+echo ok; git log --oneline -1
+echo ok; grep -c "soloDeAltas" apps/flota/estado.mjs
+#
+#  ESPERADO: el `grep` dice 2 o mas. Si dice 0, el `git pull`
+#  no trajo el arreglo -- el PADRE puede estar en otra rama:
+#      git branch --show-current      (tiene que decir `main`)
+
+echo ok; systemctl restart flota-panel
+echo ok; systemctl is-active flota-panel
+
+# ############################################################
+#  PASO 3 · QUE EL PANEL PUEDA LEER EL ARCHIVO       🚦 PUERTA 3
+# ############################################################
+#  Lo escribe `altas` y lo lee `flota`. Si no puede leerlo, la
+#  tabla sale vacia IGUAL que si no hubiera ninguna instancia:
+#  por eso se comprueba a proposito, y no se da por hecho.
+
+echo ok; ls -l /etc/space-os/flota-instancias.json 2>&1
+#
+#  Si dice "No such file or directory", es NORMAL: todavia no
+#  se ha inscrito ninguna. Crealo vacio con los permisos
+#  buenos y sigue:
+#
+#    install -o altas -g flota -m 640 /dev/null /etc/space-os/flota-instancias.json
+
+echo ok; sudo -u flota cat /etc/space-os/flota-instancias.json >/dev/null 2>&1 && echo "flota SI puede leerlo: ok" || echo "flota NO puede leerlo: REVISA los permisos"
+#
+#  ESPERADO: `flota SI puede leerlo: ok`.
+
+# ############################################################
+#  PASO 4 · QUE HAY DENTRO                           🚦 PUERTA 4
+# ############################################################
+
+echo ok; cat /etc/space-os/flota-instancias.json 2>&1
+#
+#  ESPERADO: un JSON con una fila por instancia, cada una con
+#  `nombre`, `dominio` y `canal`. Si `ensayo4` NO aparece, es
+#  lo esperado -- se creo antes de que esto existiera. Pasa al
+#  PASO 5. Si SI aparece, salta al PASO 6.
+
+# ############################################################
+#  PASO 5 · AÑADIR `ensayo4` A MANO   (solo si falta)
+# ############################################################
+#  Una sola vez, y solo para las instancias creadas antes de
+#  hoy. Las nuevas se apuntan solas.
+#
+#  >>> CAMBIA el dominio si no es ese. Y el token tiene que ser
+#  >>> el `FLOTA_TOKEN` de ESA instancia, el mismo que ya
+#  >>> pusiste en flota-tokens.env.
+
+echo ok; cat > /etc/space-os/flota-instancias.json <<'JSON'
+{
+  "instancias": [
+    { "nombre": "ensayo4", "dominio": "ensayo4.space-os.io", "canal": "estable" }
+  ]
+}
+JSON
+echo ok; chown altas:flota /etc/space-os/flota-instancias.json
+echo ok; chmod 640 /etc/space-os/flota-instancias.json
+echo ok; ls -l /etc/space-os/flota-instancias.json
+
+#  Y su token, si no lo tiene ya:
+echo ok; grep -c FLOTA_TOKEN_ENSAYO4 /etc/space-os/flota-tokens.env
+#
+#  Si dice 0, falta. Se añade con `nano` -- una linea:
+#      FLOTA_TOKEN_ENSAYO4=<el token de esa instancia>
+#
+#  >>> Sin el token la fila SALE, pero la consulta contesta
+#  >>> "sin token" en vez del estado. La fila visible ya es
+#  >>> mejor que nada: al menos sabes que existe.
+
+# ############################################################
+#  PASO 6 · VERLO                                    🚦 PUERTA 5
+# ############################################################
+#  Primero por linea de comandos, como el usuario del panel.
+#  Si aqui sale, el navegador es lo de menos.
+
+echo ok; sudo -u flota env -C /var/www/Spaces/apps/flota /usr/local/bin/node estado.mjs 2>&1 | tail -20
+#
+#  ESPERADO: una fila por instancia, y NINGUN aviso de que se
+#  esta usando `flota.example.json`.
+#
+#  SI SALE EL AVISO DEL EJEMPLO Y ADEMAS FILAS `.invalid`:
+#    el PASO 2 no trajo el arreglo. Vuelve a el.
+#
+#  SI SALE "AVISO flota: no se pudo leer ...":
+#    es el PASO 3. Los permisos.
+
+echo ok; systemctl restart flota-panel
+#
+#  Y AHORA SI, en el navegador: https://space-os.io/flota/
+
+# ############################################################
+#  SI SIGUE VACIO, MANDAME ESTO
+# ############################################################
+
+echo ok; journalctl -u flota-panel -n 40 --no-pager
