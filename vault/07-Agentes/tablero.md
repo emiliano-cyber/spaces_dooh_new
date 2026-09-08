@@ -506,6 +506,7 @@ Claim aparte, aunque estés en otra zona. Lista completa en [[AGENTES]].
 | `apps/web/components/demo/shell/nav.ts` | LIBRE | — | **2026-09-08: «Ventas» pasa a «Comercial» y «Entregar» a «Operaciones»** (rama `feat/menu-comercial-operaciones`). Solo los rotulos: las claves `vender` y `entregar` siguen igual, como manda el propio archivo — **si buscas el grupo «Comercial» en el codigo, su clave es `vender`**. Con esto CUATRO grupos se llaman igual que una de sus entradas. `nav.test.ts` 15/15: protege la estructura, no los rotulos, asi que un rotulo cambiado no pone roja ninguna prueba. ▸ 2026-08-26: el grupo «Vender» pasa a «Ventas» (solo el rotulo; la clave `vender` sigue igual) |
 | `apps/web/components/demo/ui/*` | LIBRE | — | — |
 | `apps/web/app/providers.tsx` | LIBRE | — | — |
+| `apps/flota/cola.mjs` | LIBRE | — | **2026-09-08: `marcar()` metia los campos extra SOLO en el historial** y `avanzar.mjs` los lee de la RAIZ (`.ip`, `.intentos`, `.intentosDesde`, `.dnsOtraIp`). Con eso la maquina de estados del ADR 0029 estaba MUERTA: `ensayo4` llevo 22 h diciendo «sin ip anotada» **con la ip anotada**, y el tope de 3 certificados por hora no contaba. Ahora `extra` va a los dos sitios, con `estado` e `historial` DESPUES para que no los pise. ⚠️ Es el archivo que comparten el panel (escribe) y el ejecutor (lee), **usuarios distintos**: un cambio de forma aqui rompe al otro lado sin dar error |
 | `packages/types/src/*` | LIBRE | — | — |
 | `db/schema.sql` | LIBRE | — | — |
 | `package.json` / `package-lock.json` | LIBRE | — | — |

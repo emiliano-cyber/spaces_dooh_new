@@ -5,6 +5,35 @@
 - **Amplía:** [ADR 0027](0027-el-alta-de-una-instancia-desde-el-panel.md) · [ADR 0026](0026-panel-de-flota-con-pantalla-propia.md)
 - **Depende de:** [ADR 0028](0028-google-obligatorio-y-la-contrasena-para-los-cambios.md) para su último tramo (ver §Decisión, punto 5)
 
+## Enmienda del 2026-09-08 — la decisión sigue en pie; su ejecución estuvo muerta 22 horas
+
+Esta decisión se construyó el 07/09 y **no funcionó ni una sola vez** hasta el 08/09.
+Dos fallos, y cada uno tapaba al otro:
+
+1. **`flota-altas.timer` estaba `disabled`.** El §Contexto de abajo afirma que «la
+   maquinaria para continuar ya existe y **está encendida**». Eso era falso:
+   `systemctl is-enabled flota-altas.timer` contestaba `disabled`, así que las corridas
+   del 07/09 fueron arranques a mano. La pista estaba en el journal —intervalos de veinte
+   a cincuenta minutos con `OnUnitActiveSec=1min`— y nadie la leyó. `esperando-dns` siguió
+   siendo terminal *de hecho*, que es justo lo que este ADR venía a cambiar.
+
+2. **`marcar()` guardaba los campos de estado donde nadie los lee.** Metía `extra` solo en
+   la entrada del historial (`cola.mjs:222`), y `avanzar.mjs` los lee de la **raíz** de la
+   solicitud. Con eso `ip` era siempre `undefined` y el avance se rendía en su primera
+   línea; y el contador de intentos de certificado no contaba, así que **el tope de tres
+   por hora que este ADR fija no existía** — con el temporizador cada minuto, la cuota de
+   Let's Encrypt (cinco por hora y por dominio) se agota en cinco minutos.
+
+**Nada de esto cambia la decisión**: la máquina de estados y el tope siguen siendo lo
+correcto. Lo que cambia es la lección sobre cómo se comprueba: `cola.test.ts` probaba la
+escritura, `avanzar.test.ts` la máquina, las dos en verde, y **la costura entre ellas sin
+probar** porque el segundo sustituye `marcar` por un grabador que nunca vuelve a leerse.
+Nace `apps/flota/cola-avanzar.test.ts`, que escribe y lee de verdad: 7 de sus 8 casos
+estaban en rojo.
+
+> Y queda dicho para la próxima: **un ADR no puede declarar «está encendido» sin la salida
+> del comando delante.** Es la misma lección que costó el cierre en falso de F2.4 el 02/09.
+
 ## Contexto
 
 El **2026-09-07** se recorrió el primer alta real desde el panel, de punta a punta. Lo que

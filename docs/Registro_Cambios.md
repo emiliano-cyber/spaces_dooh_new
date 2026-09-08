@@ -7,6 +7,24 @@ La entrada más reciente va arriba.
 
 ## 2026-09-08
 
+- **Las altas de instancias nuevas se habian quedado paradas sin que nada avisara.**
+  Una alta pedida desde el panel avanza sola por etapas: se crea la maquina, se espera
+  a que el dominio apunte, se pide el certificado. La segunda etapa **no avanzaba
+  nunca**: el proceso que la empuja consultaba el dato de la maquina en un sitio y
+  quien lo guardaba lo dejaba en otro. Asi que se rendia cada minuto diciendo que le
+  faltaba un dato que si tenia.
+
+  Se noto porque una alta del dia anterior llevaba 22 horas quieta, y porque una nueva
+  no la recogia nadie. La segunda razon era distinta y tambien esta arreglada: el
+  temporizador que despierta a ese proceso **nunca se habia activado** en el servidor.
+
+  Habia un tercer efecto, y era el mas caro de los tres aunque no se hubiera visto
+  todavia: la cuenta de intentos de certificado tampoco se guardaba donde se leia, asi
+  que **el limite de tres intentos por hora no existia**. La autoridad que emite los
+  certificados solo permite cinco por hora y por dominio, y a un intento por minuto eso
+  se agota en cinco minutos y deja el dominio sin poder pedir certificado durante una
+  hora.
+
 - **El menu de la izquierda: «Ventas» ahora dice «Comercial», y «Entregar» dice
   «Operaciones».** Los dos grupos toman el nombre del area que hace ese trabajo en
   vez del verbo. No se movio ninguna pantalla ni cambio ningun permiso: son dos
