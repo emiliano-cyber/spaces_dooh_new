@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { esDeNuestraZona, zonaDe, crearRegistroA } from './dns.mjs'
+import { esDeNuestraZona, zonaDe, crearRegistroA, zonaQueLoContiene } from './dns.mjs'
 
 // ============================================================================
 //  El registro A en Cloudflare.  (ADR 0027)
@@ -121,5 +121,82 @@ describe('cuando Cloudflare dice que no', () => {
     } catch (e: any) {
       expect(e.message).not.toContain('TOKEN-SECRETO-DE-CLOUDFLARE')
     }
+  })
+})
+
+// ============================================================================
+//  Que exista una zona por encima ANTES de gastar una maquina.  (defecto 39)
+// ----------------------------------------------------------------------------
+//  El 2026-09-08 se dio de alta `g500-space-os.com`, que no esta registrado. El
+//  alta creo el droplet, lo configuro entero y se quedo en `esperando-dns`
+//  correctamente -- nadie puede inventarse una delegacion -- pero PARA SIEMPRE,
+//  con la maquina cobrandose. `validarSolicitud()` comprueba la forma del
+//  dominio, y la forma era impecable.
+//
+//  Y no se puede comprobar mirando el nombre completo: `ensayo4.space-os.io`
+//  TAMBIEN daba NXDOMAIN antes de que le crearan su registro A, igual que un
+//  dominio inexistente. Lo que los separa es la zona de ENCIMA.
+describe('zonaQueLoContiene — hay alguien que pueda apuntar este nombre?', () => {
+  /** Un DNS de mentira: solo estos nombres tienen SOA. */
+  const dnsCon = (zonas: string[]) => async (n: string) => {
+    if (zonas.includes(n)) return { nsname: `ns.${n}` }
+    const e: NodeJS.ErrnoException = new Error(`ENOTFOUND ${n}`)
+    e.code = 'ENOTFOUND'
+    throw e
+  }
+
+  it('un subdominio de una zona que existe: la encuentra subiendo', async () => {
+    expect(await zonaQueLoContiene('ensayo4.space-os.io', dnsCon(['space-os.io']))).toBe(
+      'space-os.io',
+    )
+  })
+
+  it('el apex mismo, cuando el dominio es el registrable', async () => {
+    expect(await zonaQueLoContiene('space-os.io', dnsCon(['space-os.io']))).toBe('space-os.io')
+  })
+
+  // El caso que costo un droplet.
+  it('un dominio que NO esta registrado devuelve null', async () => {
+    expect(await zonaQueLoContiene('g500-space-os.com', dnsCon(['space-os.io']))).toBeNull()
+  })
+
+  // Lo mas importante del archivo: NO se para en el TLD. Si `com` contara como
+  // zona, cualquier nombre inventado pasaria el guard y el defecto volveria
+  // entero.
+  it('el TLD NO cuenta como zona, aunque tenga SOA', async () => {
+    expect(await zonaQueLoContiene('cualquier-cosa-inventada.com', dnsCon(['com']))).toBeNull()
+  })
+
+  it('tampoco un TLD de dos partes: `mx` no es la zona de nadie', async () => {
+    expect(await zonaQueLoContiene('inventado.com.mx', dnsCon(['mx']))).toBeNull()
+    // Y con la zona real puesta, si.
+    expect(await zonaQueLoContiene('g500.midominio.com.mx', dnsCon(['midominio.com.mx']))).toBe(
+      'midominio.com.mx',
+    )
+  })
+
+  // Un dominio registrado al que el owner todavia NO ha puesto el registro A
+  // tiene que PASAR: su zona existe. Esa espera es normal y el ejecutor ya la
+  // gestiona; confundirla con «no existe» seria rechazar altas legitimas.
+  it('registrado pero sin apuntar todavia: PASA, porque su zona existe', async () => {
+    expect(await zonaQueLoContiene('nuevo.midominio.com', dnsCon(['midominio.com']))).toBe(
+      'midominio.com',
+    )
+  })
+
+  it('un nombre de una sola etiqueta no puede tener zona propia', async () => {
+    expect(await zonaQueLoContiene('localhost', dnsCon(['localhost']))).toBeNull()
+  })
+
+  it('vacio o basura no revienta: devuelve null', async () => {
+    expect(await zonaQueLoContiene('', dnsCon(['space-os.io']))).toBeNull()
+    expect(await zonaQueLoContiene(undefined, dnsCon(['space-os.io']))).toBeNull()
+  })
+
+  it('un resolutor que lanza en TODOS los niveles devuelve null, no explota', async () => {
+    const rotoSiempre = async () => {
+      throw new Error('SERVFAIL')
+    }
+    await expect(zonaQueLoContiene('a.b.c.io', rotoSiempre)).resolves.toBeNull()
   })
 })

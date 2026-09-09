@@ -47,6 +47,61 @@ export function esDeNuestraZona(dominio, zonas = {}) {
 }
 
 /**
+ * ¿Existe alguna zona DNS que pueda contener este nombre?  (defecto 39)
+ *
+ * ─── Qué evita, y cuánto cuesta no tenerlo ─────────────────────────────────
+ *
+ * El 2026-09-08 se dio de alta `g500-space-os.com`, un dominio **que no está
+ * registrado**. El alta creó el droplet, lo configuró entero, y se quedó en
+ * `esperando-dns` — correctamente, porque el ejecutor no puede inventarse una
+ * delegación. Pero **para siempre**, y con una máquina cobrándose.
+ *
+ * `validarSolicitud()` comprueba la FORMA del dominio. La forma era impecable.
+ *
+ * ─── Por qué se pregunta por el SOA, y subiendo etiqueta a etiqueta ────────
+ *
+ * Preguntar por el nombre completo no sirve: `ensayo4.space-os.io` **también**
+ * daba NXDOMAIN antes de que se le creara su registro A, igual que un dominio
+ * inexistente. Los dos casos son indistinguibles mirando el FQDN, y uno es
+ * legítimo.
+ *
+ * Lo que los separa es si existe una zona **por encima**. Así que se sube
+ * etiqueta a etiqueta buscando un SOA:
+ *
+ *   `ensayo4.space-os.io`  → `ensayo4.space-os.io` (nada) → `space-os.io` ✓
+ *   `g500-space-os.com`    → `g500-space-os.com` (nada) → se acabó ✗
+ *
+ * Se para **antes del TLD**: `com` tiene SOA y aceptarlo daría por bueno
+ * cualquier nombre inventado bajo un TLD que existe, que es todo el problema.
+ * Por eso el último candidato tiene dos etiquetas.
+ *
+ * Y esto **no** exige que el nombre ya resuelva. Un dominio registrado al que
+ * el owner aún no ha puesto el registro A pasa: su zona existe. Es la diferencia
+ * entre «todavía no lo ha apuntado» —que es normal y se espera— y «no puede
+ * apuntarlo nunca».
+ *
+ * El resolutor entra por parámetro para poder probarlo sin salir a la red.
+ */
+export async function zonaQueLoContiene(dominio, resolverSoa) {
+  const partes = String(dominio ?? '')
+    .toLowerCase()
+    .split('.')
+    .filter(Boolean)
+  if (partes.length < 2) return null
+
+  for (let i = 0; i <= partes.length - 2; i++) {
+    const candidato = partes.slice(i).join('.')
+    try {
+      if (await resolverSoa(candidato)) return candidato
+    } catch {
+      // Un NXDOMAIN o un NODATA en un nivel no dice nada del siguiente: se
+      // sigue subiendo. Solo agotar los niveles significa «no hay zona».
+    }
+  }
+  return null
+}
+
+/**
  * Crea el registro `A`. Lanza si no puede — y el alta lo trata como un fallo,
  * que es lo correcto: sin DNS no hay certificado.
  */

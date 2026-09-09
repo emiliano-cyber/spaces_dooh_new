@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 // @ts-expect-error — módulo .mjs sin tipos, como el resto de `apps/flota`
-import { validarSolicitud, argumentosDeAlta, CAMPOS } from './solicitudes.mjs'
+import { validarSolicitud, argumentosDeAlta, CAMPOS, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
 
 // ============================================================================
 //  La validación de una solicitud de alta.  (ADR 0027)
@@ -112,5 +112,75 @@ describe('lo que la solicitud NO puede decidir', () => {
 
   it('y no se construye nada si la solicitud no es valida', () => {
     expect(() => argumentosDeAlta({ ...buena, dominio: 'a.mx; id' }, {})).toThrow()
+  })
+})
+
+// ============================================================================
+//  El dominio por omision: que el camino facil sea el correcto.
+// ----------------------------------------------------------------------------
+//  El 2026-09-08 se pidieron DOS altas con dominios que no existian
+//  --`g500-space-os.com.mx` y `g500-space-os.com`, ninguno registrado ni en
+//  Cloudflare-- y la segunda creo un droplet que se quedo esperando un nombre
+//  que nadie podia apuntar. `validarSolicitud()` comprueba la FORMA, y la forma
+//  era impecable las dos veces.
+//
+//  Crear un hijo «como ensayo4» exigia SABER que habia que teclear
+//  `algo.<nuestra-zona>`. Ahora se deja en blanco y sale eso mismo: cuelga de
+//  una zona que gestionamos, asi que el registro A lo pone el ejecutor solo.
+describe('dominioDeAlta y zonaPorOmision', () => {
+  const UNA = { 'space-os.io': 'id-1' }
+  const DOS = { 'space-os.io': 'id-1', 'otra.mx': 'id-2' }
+
+  it('con UNA zona gestionada, esa es la de por omision', () => {
+    expect(zonaPorOmision(UNA)).toBe('space-os.io')
+  })
+
+  // Con dos, elegir seria adivinar de quien es la instancia nueva.
+  it('con DOS zonas no hay omision: null', () => {
+    expect(zonaPorOmision(DOS)).toBeNull()
+  })
+
+  it('sin zonas tampoco', () => {
+    expect(zonaPorOmision({})).toBeNull()
+    expect(zonaPorOmision()).toBeNull()
+  })
+
+  it('dominio en blanco + una zona → <instancia>.<zona>', () => {
+    expect(dominioDeAlta({ instancia: 'g500', dominio: '' }, UNA)).toBe('g500.space-os.io')
+  })
+
+  it('dominio ausente del todo, igual', () => {
+    expect(dominioDeAlta({ instancia: 'g500' }, UNA)).toBe('g500.space-os.io')
+  })
+
+  // Lo mas importante: NO se corrige un dominio escrito. Puede ser el propio del
+  // owner, que es el caso normal del modelo de instancias soberanas.
+  it('un dominio ESCRITO se respeta tal cual, aunque no sea de nuestra zona', () => {
+    expect(dominioDeAlta({ instancia: 'g500', dominio: 'space-os.g500.com.mx' }, UNA)).toBe(
+      'space-os.g500.com.mx',
+    )
+  })
+
+  it('y tampoco se toca uno escrito con espacios: que falle y se vea', () => {
+    // `validarSolicitud()` lo rechaza por la forma; corregirlo aqui en silencio
+    // es como se cuelan las cosas.
+    expect(dominioDeAlta({ instancia: 'g500', dominio: ' g500.space-os.io' }, UNA)).toBe(
+      ' g500.space-os.io',
+    )
+  })
+
+  it('sin zona unica no se inventa nada: se deja el hueco y falla la validacion', () => {
+    expect(dominioDeAlta({ instancia: 'g500', dominio: '' }, DOS)).toBe('')
+    expect(validarSolicitud({ instancia: 'g500', dominio: '', email: 'a@b.co' }).ok).toBe(false)
+  })
+
+  it('sin instancia tampoco: no se produce `.space-os.io`', () => {
+    expect(dominioDeAlta({ instancia: '', dominio: '' }, UNA)).toBe('')
+  })
+
+  it('lo que produce PASA la validacion, que es el punto', () => {
+    const d = { instancia: 'g500', dominio: '', email: 'duenio@ejemplo.com' }
+    d.dominio = dominioDeAlta(d, UNA)
+    expect(validarSolicitud(d)).toEqual({ ok: true, errores: [] })
   })
 })
