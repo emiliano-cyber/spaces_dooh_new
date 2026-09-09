@@ -6,6 +6,33 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!important] 2026-09-09, tarde · **Plan de migracion de los datos de g500** — Z12 reclamada y LIBERADA
+> Decidido por Emiliano y escrito: `docs/Plan_Migracion_Datos_g500.md`, con la tarjeta
+> **E1** en `docs/evidencias/migracion-g500-E1-dump.txt`. **Nada ejecutado todavia**: es
+> el plan y la primera tarjeta, sin codigo y sin tocar ningun servidor.
+>
+> **Cuatro etapas y tres cambios de mano**: E1 saca el dump del droplet viejo (persona,
+> solo lectura) · E2 lo restaura en una base **puente** local y le corre las **13
+> migraciones** que le faltan · E3 empaqueta un `.sql` transaccional ya transformado ·
+> E4 lo carga en la instancia (persona, con respaldo previo).
+>
+> **Por que el puente y no un export directo:** el droplet viejo esta en **66**
+> migraciones y la instancia en **78 + 1 de datos**. La adaptacion de esquema la hace
+> `migrar.mjs`, que ya esta probado, en vez del criterio de nadie — y el runner **ya
+> contempla** una base con historia y sin `schema_migrations` (`migrar.mjs:513-528`).
+>
+> ⚠️ **Sustituye el punto 2 del ADR 0023** («no se exporta ni se respalda su base»): su
+> premisa era que no hay ninguna organizacion real que migrar, y caduco hoy, cuando g500
+> tuvo instancia propia. Se reemplaza con un **ADR 0031** al cerrar, no se ignora.
+>
+> ⚠️ **Es ROJO por tres vias**: tenant (R2), dinero (R4) y migraciones (R3). Alcance
+> **solo `g500`**: las otras cuatro organizaciones no viajan.
+>
+> Los dos fallos silenciosos que el censo de E2 tiene que cazar: la **deriva del
+> `DEFAULT`** —filas de g500 etiquetadas como `rgb`, que un `where tenant_id` deja atras
+> sin avisar— y los **folios**, que sin adelantar `folios_consecutivos.ultimo` hacen que
+> la instancia reemita numeros ya usados. Detalle en [[2026-09-09]].
+
 > [!success] 2026-09-09 · 🎯 **ALTA COMPLETA DE PUNTA A PUNTA, y el Dueno ENTRA**
 > Un formulario web creo `g500` (`g500.space-os.io`) y la instancia llego a `lista`
 > sola: droplet en **5 min 18 s**, registro A en Cloudflare, certificado,
