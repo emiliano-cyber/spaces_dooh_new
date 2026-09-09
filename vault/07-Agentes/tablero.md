@@ -1,10 +1,30 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-08
+actualizado: 2026-09-09
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-09 · 🎯 **ALTA COMPLETA DE PUNTA A PUNTA, y el Dueno ENTRA**
+> Un formulario web creo `g500` (`g500.space-os.io`) y la instancia llego a `lista`
+> sola: droplet en **5 min 18 s**, registro A en Cloudflare, certificado,
+> **`inscrita en el panel de flota`** --donde ayer decia `EACCES`--, `bootstrap 201`,
+> y el Dueno entro con Google y **vio sus codigos de recuperacion**. El arreglo del
+> 08/09 verificado en una instancia de CLIENTE, no en el PADRE.
+>
+> `✓ Docker 29.8.0` sin el candado de `apt`, y **78 migraciones**: la imagen es
+> `v0.4.1`. Cero `doctl`, cero `ssh` para crear la maquina.
+>
+> ⚠️ **Pero cada instancia nace SIN Google, y sin Google el bootstrap da 503**: tres
+> pasos manuales por alta (autorizar la URI, escribir las credenciales en su
+> `app.env`, y **recrear el contenedor** -- `restart` no vale, el entorno se congela
+> al crearlo). Detalle en [[2026-09-09]].
+>
+> ⚠️ Y el `bootstrap` se corrio con el **correo de relleno de la tarjeta**, que era
+> sintacticamente valido y paso el guard. La ruta es de un solo uso: se arreglo por
+> SQL porque nadie habia entrado aun. **Un relleno para un campo validado tiene que
+> ser invalido a proposito.**
 
 > [!success] 2026-09-07 · 🎯 **ALTA COMPLETA DESDE EL PANEL, y se entra** — ADR 0027 cumplido
 > **6 min 02 s** (18:06:08 → 18:12:10), `{"ok":true,"ip":"206.189.182.255"}`, salida 0. Un
