@@ -1,0 +1,177 @@
+================================================================================
+ TARJETA E4 · Cargar los datos de g500 en su instancia        2026-09-09
+ Plan: docs/Plan_Migracion_Datos_g500.md  (etapa E4 de 4, la ultima)
+ Detalle de lo que se carga: docs/datos/20260909_carga_g500.md
+================================================================================
+
+QUE HACE
+  Mete 541 filas de negocio de g500 en la instancia g500.space-os.io y
+  actualiza su configuracion. Todo en UNA transaccion: entra completo o no
+  entra nada.
+
+QUE NO HACE
+  No trae personas ni bitacora. No despliega, no actualiza la imagen, no toca
+  nginx, no reinicia el contenedor.
+
+QUIEN LA CORRE
+  Una persona. Los bloques marcados [LOCAL] van en PowerShell en tu equipo; los
+  marcados [SERVIDOR] van en la maquina de la instancia. NO SE MEZCLAN: el
+  2026-09-09, en la tarjeta E1, un bloque de PowerShell se pego en el servidor y
+  el dump se borro antes de bajarlo.
+
+ANTES DE EMPEZAR, UNA PREGUNTA QUE NO ES TECNICA
+  La instancia nueva nace con IVA 16 % y la configuracion de g500 trae 15 %.
+  Esta carga la deja en 15 %. Si ese 15 era un valor de prueba de julio, PARA
+  AQUI y dilo: se cambia el archivo antes de aplicarlo, no despues.
+
+LOS RELLENOS SON INVALIDOS A PROPOSITO
+  Donde dice <PON-AQUI-...> hay que sustituir. Y ojo: un relleno dentro de un
+  heredoc o de un `echo` NO truena solo -- eso ya paso el 09/09. Leelo antes de
+  pulsar Enter.
+
+--------------------------------------------------------------------------------
+ B1 · [LOCAL] Subir los dos archivos                               🚦 GATE 1
+--------------------------------------------------------------------------------
+cd C:\Users\Server\Downloads\migracion-g500
+Get-FileHash .\carga-g500.sql -Algorithm SHA256
+
+  ESPERADO, exactamente:
+    f977b968a83118783f9499304246bbb85deca3c9ebc9bf6cf213c9f4a98dfd0d
+
+  🚦 Si no coincide, el archivo no es el que se ensayo. PARAR.
+
+scp -i $env:USERPROFILE\.ssh\spaces_deploy .\carga-g500.sql root@<PON-AQUI-LA-IP-DE-LA-INSTANCIA>:/tmp/
+scp -i $env:USERPROFILE\.ssh\spaces_deploy .\20260909_carga_g500_rollback.sql root@<PON-AQUI-LA-IP-DE-LA-INSTANCIA>:/tmp/
+
+  La IP de la instancia de g500 esta en el panel de flota. El rollback sube
+  ahora, no despues: si hace falta, hara falta con prisa.
+
+--------------------------------------------------------------------------------
+ B2 · [SERVIDOR] Entrar y comprobar que es la maquina correcta      🚦 GATE 2
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+curl -s https://g500.space-os.io/spaces-dooh/api/version/ ; echo
+
+  🚦 La IP tiene que ser la de la instancia de g500 y NO la del PADRE
+     (137.184.107.53) ni la del droplet viejo (209.97.146.136). Cargar datos de
+     un cliente en el plano de control seria el peor error posible de todo este
+     plan.
+
+--------------------------------------------------------------------------------
+ B3 · [SERVIDOR] Que la organizacion existe y esta vacia            🚦 GATE 3
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces -Atc "select slug from tenants order by slug"
+sudo -u postgres psql -d spaces -Atc "select count(*) from sitios"
+
+  ESPERADO: una linea que diga g500, y 0 pantallas.
+
+  🚦 Si el slug no es exactamente 'g500', PARAR y decirlo: el archivo resuelve
+     la organizacion por ese nombre y no por un UUID.
+  🚦 Si ya hay pantallas, PARAR: la carga se negaria sola, pero conviene
+     entender por que antes de insistir.
+
+--------------------------------------------------------------------------------
+ B4 · [SERVIDOR] La captura de ANTES — esto es la vuelta atras
+--------------------------------------------------------------------------------
+sudo -u postgres pg_dump -Fc -d spaces -f /tmp/antes-carga-g500.dump
+ls -lh /tmp/antes-carga-g500.dump; sha256sum /tmp/antes-carga-g500.dump
+
+  Y las dos cosas que el rollback por SQL no puede reconstruir:
+
+sudo -u postgres psql -d spaces -c "select * from config_negocio"
+sudo -u postgres psql -d spaces -c "select * from folios_consecutivos order by ambito, periodo"
+
+  GUARDA ESAS DOS SALIDAS. Si hay que deshacer, de ahi salen los valores.
+
+--------------------------------------------------------------------------------
+ B5 · [LOCAL] Bajar el respaldo antes de tocar nada                 🚦 GATE 4
+--------------------------------------------------------------------------------
+cd C:\Users\Server\Downloads\migracion-g500
+scp -i $env:USERPROFILE\.ssh\spaces_deploy root@<PON-AQUI-LA-IP-DE-LA-INSTANCIA>:/tmp/antes-carga-g500.dump .
+Get-FileHash .\antes-carga-g500.dump -Algorithm SHA256
+
+  🚦 Tiene que coincidir con el sha256sum de B4.
+
+  POR QUE ESTE PASO NO SE SALTA: esta instancia no tiene SPACES_KEY ni
+  SPACES_SECRET, asi que su respaldo NO sale del droplet solo. Si la maquina
+  desaparece, el respaldo desaparece con ella. Hasta que este archivo este en tu
+  equipo, no hay marcha atras de verdad.
+
+--------------------------------------------------------------------------------
+ B6 · [SERVIDOR] La carga
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/carga-g500.sql
+
+  Se corre como `postgres` a proposito: es superusuario y salta la RLS. Con el
+  rol de la aplicacion (`spaces_app`, que es NOBYPASSRLS) los insert no verian
+  nada y el fallo seria SILENCIOSO -- el modo de fallo de R2, otra vez.
+
+  ESPERADO, las dos ultimas lineas:
+    NOTICE:  VERIFICACION OK · 541 filas de negocio, 12 modalidades rescatadas,
+             0 personas, 0 bitacora.
+    COMMIT
+
+  SI SALE CUALQUIER OTRA COSA: no hay nada que deshacer. El archivo es una sola
+  transaccion y un error la aborta entera. Copia el mensaje y paralo ahi.
+
+--------------------------------------------------------------------------------
+ B7 · [SERVIDOR] Comprobar desde la base
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces -c "select (select count(*) from sitios) pantallas, (select count(*) from sitio_modalidades) modalidades, (select count(*) from contratos_arrendamiento) contratos, (select count(*) from facturas) facturas, (select count(*) from usuarios) usuarios"
+
+  ESPERADO: 12 pantallas, 12 modalidades, 13 contratos, 3 facturas, y los
+  usuarios que ya tenias (no mas: esta carga no trae ninguno).
+
+sudo -u postgres psql -d spaces -c "select s.nombre, sm.tarifa_publicada from sitios s join sitio_modalidades sm on sm.sitio_id = s.id order by s.nombre limit 3"
+
+  ESPERADO: las pantallas '... - G500' con su tarifa. Este es el rescate: si
+  salieran sin precio, la deriva se habria colado igual.
+
+--------------------------------------------------------------------------------
+ B8 · [LOCAL o navegador] Comprobar desde fuera                     🚦 GATE 5
+--------------------------------------------------------------------------------
+curl -s https://g500.space-os.io/spaces-dooh/api/auth/metodos/
+
+  ESPERADO: {"google":true,...}
+
+  Y entrar con Google como el Dueno, y ver las 12 pantallas con su tarifa.
+  La base puede estar perfecta y la aplicacion no servirlas: esto es lo unico
+  que demuestra que el cliente lo ve.
+
+--------------------------------------------------------------------------------
+ SI HAY QUE DESHACER
+--------------------------------------------------------------------------------
+  Disparadores -- cualquiera basta:
+    · un recuento de B7 que no cuadre
+    · /api/auth/metodos/ o el login que no respondan 200
+    · las pantallas sin tarifa
+
+  Vuelta atras por SQL (deja config_negocio y folios como quedaron):
+
+sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260909_carga_g500_rollback.sql
+
+  Y despues, con las salidas de B4 delante, devolver a mano config_negocio y
+  folios_consecutivos.
+
+  Vuelta atras COMPLETA, si algo se torcio de verdad:
+
+sudo -u postgres pg_restore -d spaces --clean --if-exists /tmp/antes-carga-g500.dump
+
+--------------------------------------------------------------------------------
+ AL TERMINAR
+--------------------------------------------------------------------------------
+rm /tmp/carga-g500.sql /tmp/antes-carga-g500.dump
+
+  El primero lleva los datos comerciales de g500; el segundo, toda su base.
+  Ninguno se queda en /tmp.
+
+  Y queda una cosa pendiente en la OTRA maquina: la llave que se anadio a
+  /root/.ssh/authorized_keys del droplet viejo en E1 se retira cuando esto
+  cierre.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  Las salidas de B3, B6, B7 y B8, y los dos sha256 (B1 y B5).
+  Con eso se cierra el plan y se escribe la entrada de la bitacora.
+================================================================================

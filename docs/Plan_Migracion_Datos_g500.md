@@ -146,7 +146,22 @@ transformación son las siete del §4.
 **Criterio de aceptación:** el `.sql` aplicado sobre `spaces_destino` —la copia
 del esquema de la instancia reconstruida en E2 desde `db/schema.sql` +
 `migrar.mjs --instalacion-nueva`— da los mismos recuentos por tabla que el censo
-del puente: **717 filas**.
+del puente.
+
+> [!success] **E3 CERRADA el 2026-09-09** — `docs/datos/20260909_carga_g500.md`
+> **541 filas** (no 717: la bitácora se quedó fuera, ver abajo), más la
+> actualización de `config_negocio` y los 8 contadores de folio. Cinco ensayos
+> en verde: carga sobre organización recién nacida · carga sobre instancia **con
+> Dueño, configuración y bitácora propia** (los tres intactos) · segunda pasada
+> **rechazada** · vuelta atrás · y recarga después de la vuelta atrás.
+>
+> **`acciones` no viaja, y lo decidió la base.** Tiene un trigger
+> `BEFORE DELETE OR UPDATE` que la hace append-only, así que cargarla dejaba
+> esta operación sin marcha atrás en el sitio. Decidido por Emiliano con el
+> contenido delante: 175 filas de `Sistema` y del usuario `DEMO`.
+>
+> El archivo de carga **no se versiona** —8.5 MB de datos comerciales de un
+> cliente— pero sí los cuatro que lo generan y el rollback.
 
 > [!danger] Probarlo contra el puente NO vale, y esto lo midió E2
 > El puente y el destino tienen **las mismas 524 columnas** pero **no los mismos
@@ -258,10 +273,11 @@ así que la historia se sigue leyendo con el `id` en nulo.
 | | `clientes`, `propuestas`, `propuesta_items`, `campanas`, `reservas`, `creatividades`, `ordenes_compra` | el lado comercial |
 | | `ordenes_trabajo`, `evidencias_ot`, `incidencias`, `ordenes_impresion` | operaciones |
 | | `facturas`, `cobranzas` | dinero — R4, revisión fila por fila |
-| | `almacen_activos`, `almacen_movimientos`, `media_uploads`, `notificaciones`, `acciones` | inventario, archivos y bitácora |
+| | `almacen_activos`, `almacen_movimientos`, `media_uploads`, `notificaciones` | inventario, archivos y avisos |
 | | `config_negocio` | la configuración de la organización: se **actualiza** la fila del destino, con el antes/después en el censo |
 | | `doohmain_*` | solo si tienen filas de g500; lo dice el censo |
 | **No viaja** | `usuarios`, `identidades_externas`, `codigos_recuperacion`, `password_resets`, `sesiones` | decisión del §4.3 |
+| | **`acciones`** | **append-only por trigger**: cargarla dejaba la operación sin marcha atrás en el sitio. Decidido el 09/09 en E3 |
 | | `rol_permisos` | el destino tiene el catálogo del 20/08, más nuevo que el de julio |
 | | `tenants`, `schema_migrations` | infraestructura de la instancia, no dato de negocio |
 | | `folios_consecutivos` | no se copia la fila: se **adelanta** el contador del destino (§4, chequeo 3) |

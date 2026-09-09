@@ -253,3 +253,22 @@ tabla **sin** `tenant_id`, solo hay dos, y las dos apuntan a `tenants`
 se prueba contra la base `spaces_destino` reconstruida aquí, que es la que tiene
 las tres restricciones estrictas. Probarlo solo contra el puente no habría
 detectado nada de la §4.
+
+---
+
+> [!important] Corrección posterior, el mismo día: **son 541 filas, no 717**
+> Al construir E3, la base rechazó el borrado de `acciones`:
+> `trg_acciones_append_only`, un trigger `BEFORE DELETE OR UPDATE` que la hace
+> **append-only**. Cargar la bitácora dejaba la operación **sin marcha atrás en
+> el sitio** —ni borrar para repetir, ni deshacer sin restaurar el respaldo
+> entero—, así que **`acciones` se deja fuera**, decidido por Emiliano el
+> 2026-09-09 con su contenido delante: de sus 175 filas, la mayoría son de
+> `Sistema` y del usuario `DEMO`.
+>
+> **717 − 175 = 541 filas de negocio**, más la actualización de
+> `config_negocio`. Los recuentos por tabla de la §3 siguen siendo válidos: lo
+> único que cambia es que la fila de `acciones` no viaja.
+>
+> Se comprobó además que **ninguna otra tabla bloquea el borrado**: los otros
+> cinco triggers de la base son de `UPDATE`. Detalle en
+> `docs/datos/20260909_carga_g500.md`.
