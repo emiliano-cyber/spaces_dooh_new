@@ -77,7 +77,7 @@ se vuelvan a deducir:
 | Decisión | Valor | Consecuencia |
 |---|---|---|
 | **Alcance** | **Solo `g500`** | `rgb`, `telcel`, `eyro` y `demo-owner` no viajan. La máquina de un cliente no contiene datos de otras organizaciones |
-| **Personas** | **Todo: usuarios, roles y hashes** | Compatible con el ADR 0028 salvo para el Dueño (§4.3) |
+| **Personas** | **NO viajan** — ni usuarios, ni credenciales, ni sesiones | El equipo lo invita el Dueño desde la instancia. Cuatro columnas de «quién» llegan en nulo (§4.3) |
 | **Camino** | **Base puente en la máquina local** | La adaptación de esquema la hace `migrar.mjs`, que ya está probado, y no el criterio de nadie |
 | **Cuentas DigitalOcean** | **Distintas en cada droplet** | No hay snapshot ni red privada entre las dos. El dump pasa por el equipo local **de todos modos**: eso es lo que abarata el puente |
 
@@ -166,7 +166,7 @@ puente, no una opinión, y cada uno tiene una acción asociada en E3.
 | 1 | **La deriva del `DEFAULT`**: filas de g500 etiquetadas como `rgb` | Es el fallo silencioso de R2: un `where tenant_id = g500` las deja atrás sin avisar | Se rescatan por criterio explícito, y queda escrito cuáles |
 | 2 | **RFC repetidos** en `arrendadores` y `clientes` | Dos migraciones posteriores a julio los prohíben | Se resuelven en el puente, donde el fallo es gratis |
 | 3 | **Folios**: `max()` usado por g500 frente a `folios_consecutivos.ultimo` | `PK (ambito, periodo)` con `ultimo integer` (`db/schema.sql:95-100`): sin adelantarlo, **la instancia reemite folios ya usados** | Se adelanta el contador del tenant destino |
-| 4 | **Personas**: correos, roles, y si el Dueño viejo es el de hoy | El correo es de unicidad **global** (`20260720_hard1_usuarios_rls.sql`, `auth_email_existe`) | §4.3 |
+| 4 | **Huérfanos de persona**: cuántas filas de g500 apuntan a un usuario | Las personas no viajan (§4.3): hay que saber cuántas OT e incidencias llegan sin dueño antes de cargarlas, no después | Se ponen en nulo, y el número queda escrito |
 | 5 | **Archivos**: cuántos `foto_key` no son nulos | `ot-repo.ts:44` usa Spaces si `DO_SPACES_*` está configurado, y ese bucket **está en la otra cuenta** | §4.4 |
 | 6 | **Integridad referencial** dentro del recorte | Nada de g500 debe apuntar a filas de otro tenant | Se corta o se rescata, con la lista escrita |
 | 7 | **Recuento por tabla** | Es el contrato de E4 | Se copia al `.sql` como comentario y se comprueba tras cargar |
@@ -185,28 +185,65 @@ Son `uuid`, no secuencias: no hay contadores que colisionen (`grep -n
 cinco referencias a `usuarios` (`db/schema.sql:85,320,483,484,510,578`) y toda la
 integridad interna del recorte.
 
-### 4.3 · El Dueño
+### 4.3 · Las personas no viajan — y qué se pierde con eso
 
-**El Dueño es el que nació hoy con Google, y es el único.**
+**Decidido por Emiliano el 2026-09-09**, corrigiendo lo que este mismo documento
+dijo primero: **viaja todo menos las personas.** No viajan `usuarios`,
+`identidades_externas`, `codigos_recuperacion`, `password_resets` ni `sesiones`.
+Los tres usuarios de g500 en el droplet viejo se quedan ahí, y el equipo lo
+invita el Dueño desde la instancia.
 
-- Si el Dueño viejo de g500 **es la misma persona** (mismo correo), no se inserta
-  una fila nueva: se **remapea su `id`** en los datos importados al `id` del
-  usuario de hoy. El correo es de unicidad global, así que duplicar no es una
-  opción.
-- Si **es otra persona**, entra con su rol funcional y el Dueño de hoy lo
-  promueve desde la aplicación si quiere.
+Efecto secundario que conviene: **desaparece toda la fricción con el ADR 0028.**
+No hay un segundo `DUENO` que llegue con hash, así que no hay ninguna cuenta de
+máximo privilegio que abra con contraseña. El Dueño es el que nació hoy con
+Google, y es el único.
 
-**El motivo es el ADR 0028:** una cuenta de máximo privilegio que abre con
-contraseña es exactamente lo que ese ADR retiró, y `solo_google` nace en `false`
-(`20260907_solo_google.sql:32`). Importar un segundo `DUENO` con hash sería
-reabrir esa puerta por la espalda.
+**Lo que se pierde, exactamente cuatro columnas** — las cinco referencias a
+`usuarios` son `on delete set null`, así que los datos entran y la columna queda
+en nulo:
 
-### 4.4 · Los archivos, si están en un bucket
+| Columna | Qué se deja de saber |
+|---|---|
+| `incidencias.reportado_por_usuario` | quién reportó la incidencia |
+| `ordenes_trabajo.asignado_a` | a quién estaba asignada la OT |
+| `ordenes_trabajo.supervisor` | quién la supervisaba |
+| `evidencias_ot.uploaded_by` | quién subió cada evidencia |
 
-Si el censo encuentra `foto_key` poblados, **falta una etapa que este plan no
-cubre todavía**: copiar los objetos del bucket de la cuenta vieja al de la nueva.
-Se decide con el número delante. Si están como base64 en la propia base, viajan
-en el dump y no hay nada que hacer.
+Las OT llegan completas —sitio, tipo, estado, fechas y fotos—, solo sin la
+persona. **Y la bitácora sí sobrevive:** `acciones` guarda `usuario_nombre` como
+texto además del `usuario_id` (`db/schema.sql:574-580`, con `default 'Sistema'`),
+así que la historia se sigue leyendo con el `id` en nulo.
+
+### 4.5 · Qué tabla viaja y qué tabla no
+
+| | Tablas | Motivo |
+|---|---|---|
+| **Viaja** | `sitios`, `sitio_modalidades`, `predios`, `licencias` | las pantallas y sus modalidades de venta |
+| | `arrendadores`, `arrendador_razon_social`, `contratos_arrendamiento`, `contrato_firmas`, `pagos_renta` | el lado del arrendamiento |
+| | `clientes`, `propuestas`, `propuesta_items`, `campanas`, `reservas`, `creatividades`, `ordenes_compra` | el lado comercial |
+| | `ordenes_trabajo`, `evidencias_ot`, `incidencias`, `ordenes_impresion` | operaciones |
+| | `facturas`, `cobranzas` | dinero — R4, revisión fila por fila |
+| | `almacen_activos`, `almacen_movimientos`, `media_uploads`, `notificaciones`, `acciones` | inventario, archivos y bitácora |
+| | `config_negocio` | la configuración de la organización: se **actualiza** la fila del destino, con el antes/después en el censo |
+| | `doohmain_*` | solo si tienen filas de g500; lo dice el censo |
+| **No viaja** | `usuarios`, `identidades_externas`, `codigos_recuperacion`, `password_resets`, `sesiones` | decisión del §4.3 |
+| | `rol_permisos` | el destino tiene el catálogo del 20/08, más nuevo que el de julio |
+| | `tenants`, `schema_migrations` | infraestructura de la instancia, no dato de negocio |
+| | `folios_consecutivos` | no se copia la fila: se **adelanta** el contador del destino (§4, chequeo 3) |
+
+La lista se **confirma contra el puente** en E2, tabla por tabla y con recuentos.
+Esta tabla es la intención; el censo es la medición.
+
+### 4.4 · Los archivos — **CERRADO en E1: no hay bucket**
+
+Medido el 2026-09-09 en el droplet viejo, con dos fuentes que coinciden: el
+proceso que sirve la aplicación **no tiene ninguna variable `DO_SPACES_*`**, y
+`/var/www/Spaces/apps/web/.env.production` devuelve **0** al contarlas. Sin esas
+variables, `storageHabilitado()` es falso (`lib/server/storage.ts:18`) y las
+fotos se guardan **como base64 en la propia base** (`ot-repo.ts:39-44`).
+
+**Consecuencia: viajan en el dump y no hay etapa extra.** La copia de objetos
+entre cuentas de DigitalOcean —que era el riesgo de este apartado— no existe.
 
 ## 5 · Los invariantes que no se tocan
 
@@ -233,6 +270,48 @@ en el dump y no hay nada que hacer.
   instancia vacía a su inventario completo—, así que lleva entrada en lenguaje
   llano.
 - **La nota de la bóveda en el mismo commit**, y el diario del día.
+
+## 6-bis · Lo que E1 midió en el droplet viejo (2026-09-09)
+
+Ejecutado por Emiliano desde la consola web, con la tarjeta delante. Todo esto
+son hechos medidos, no supuestos del plan:
+
+| Dato | Valor | Corrige |
+|---|---|---|
+| Identidad | `PIXELED-ubuntu-s-2vcpu-4gb-nyc3` / `209.97.146.136` | GATE 1 en verde |
+| Ruta de la aplicación | **`/var/www/Spaces`** | la tarjeta suponía otra; el `README` de la raíz dice `/var/www/spaces-dooh` y **está mal** |
+| Archivo de entorno | **`apps/web/.env.production`** (y 12 respaldos `.bak.*`) | no existe `.env` ni `.env.local` |
+| `DO_SPACES_*` | **ninguna** | §4.4 queda cerrado |
+| Bases | solo `spaces_prod` | — |
+| Organizaciones | 5, todas de julio | como decía el censo del 25/08 |
+| `schema_migrations` | **`NO EXISTE`**, y **66** migraciones en disco | confirma el camino del puente (`migrar.mjs:513-528`) |
+| Tamaño del dump | **7.3 MB** | — |
+
+**Filas por organización**, la foto de referencia contra la que se compara el
+puente:
+
+| | sitios | arrendadores | campañas | facturas | usuarios |
+|---|---|---|---|---|---|
+| **g500** | **12** | **5** | **7** | **3** | 3 (no viajan) |
+| eyro | 8 | 3 | 6 | 4 | 3 |
+| rgb | 0 | 0 | 0 | 0 | 3 |
+| telcel | 0 | 0 | 0 | 0 | 1 |
+| demo-owner | 0 | 0 | 0 | 0 | 0 |
+
+> **`rgb` tiene 0 sitios y 3 usuarios.** O sea que las filas de la deriva del
+> `DEFAULT` **no están en `sitios`**: hay que buscarlas más abajo, en
+> `sitio_modalidades` y en las tablas hijas. Es el chequeo 1 del §4, y esta tabla
+> ya dice dónde mirar.
+
+### Lo que E1 dejó tocado en el servidor, y hay que deshacer
+
+Al recuperar el acceso —la contraseña de `root` se había perdido y la llave de la
+consola web de DigitalOcean (`dotty_ssh`) **caducó a las 11:38**— se añadió una
+llave a `/root/.ssh/authorized_keys`. **Eso es un cambio en el servidor**, el
+único de toda la etapa E1, y es reversible borrando esa línea.
+
+Queda anotado aquí porque el plan prometía que E1 no escribía nada, y escribió
+esto. Cuando el traslado termine, la llave se retira.
 
 ## 7 · Por qué esto no contradice el ADR 0023, sino que lo sustituye
 
