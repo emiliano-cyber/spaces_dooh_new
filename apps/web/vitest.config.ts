@@ -30,7 +30,16 @@ export default defineConfig({
     // hay `apps/web` montado— pero su parte pura (el orden y el tipo) se prueba
     // igual que cualquier otra. Sin esta línea el fichero existe y no lo corre
     // nadie, que es peor que no tenerlo.
-    include: ['lib/**/*.test.ts', 'components/**/*.test.ts', '../../scripts/**/*.test.ts'],
+    // `middleware.test.ts` entra desde el 09/09: el middleware TIENE que vivir
+    // en la raíz de apps/web (lo exige Next), así que su prueba también, y sin
+    // esta entrada el archivo existe y no lo corre nadie — el mismo motivo por
+    // el que se añadió `components/`.
+    include: [
+      'lib/**/*.test.ts',
+      'components/**/*.test.ts',
+      'middleware.test.ts',
+      '../../scripts/**/*.test.ts',
+    ],
     // Las de integración (*.e2e.test.ts) van en vitest.e2e.config.ts: necesitan
     // Postgres y el servidor levantados. Si entraran aquí, `npm test` fallaría
     // en cualquier máquina sin Docker y el rojo se acabaría ignorando.
