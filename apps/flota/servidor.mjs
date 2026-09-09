@@ -15,9 +15,31 @@
 import { createServer } from 'node:http'
 import { randomUUID } from 'node:crypto'
 import { verificarAcceso } from './acceso.mjs'
-import { validarSolicitud, CAMPOS } from './solicitudes.mjs'
+import { validarSolicitud, CAMPOS, dominioDeAlta, zonaPorOmision } from './solicitudes.mjs'
 import { crearSolicitud as crearEnCola, listar as listarCola } from './cola.mjs'
 import { cargarInventario, consultar, leerReportes, fusionar, resumen, tokenDe, tokensDeArchivo, COLUMNAS } from './estado.mjs'
+
+/**
+ * Las zonas que gestionamos, para SUGERIR un dominio cuando se deja en blanco.
+ *
+ * El panel corre como `flota` y no tiene el entorno del ejecutor, así que puede
+ * no conocerlas: **sin la variable, todo se comporta como antes** y el dominio
+ * pasa a ser obligatorio de hecho, porque `validarSolicitud()` lo exige.
+ *
+ * Y si el valor divergiera del que tiene el ejecutor, la única consecuencia es
+ * una sugerencia equivocada en el formulario — **nunca una acción equivocada**:
+ * quien decide si el registro A se crea es el ejecutor con SU copia
+ * (`esDeNuestraZona`), y quien decide si la máquina se crea es el guard de la
+ * zona DNS (`altas.mjs`). Por eso esta lectura puede permitirse ser la segunda
+ * copia, y es la única del proyecto que puede.
+ */
+function zonasDelEntorno() {
+  try {
+    return JSON.parse(process.env.CLOUDFLARE_ZONAS ?? '{}')
+  } catch {
+    return {}
+  }
+}
 
 /** nginx puede pasar el prefijo o recortarlo según lleve barra el `proxy_pass`. */
 export const RUTAS = ['/flota/', '/flota', '/']
@@ -163,7 +185,7 @@ export async function manejar(peticion, deps) {
       ...SIN_CACHE,
       'set-cookie': `${COOKIE_CSRF}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax`,
     }
-    return { status: 200, cabeceras, cuerpo: paginaAltas(solicitudes, acceso.usuario, token) }
+    return { status: 200, cabeceras, cuerpo: paginaAltas(solicitudes, acceso.usuario, token, zonasDelEntorno()) }
   }
 
   const filas = await obtenerFilas()
@@ -217,6 +239,11 @@ async function pedirAlta(entrada, ctx) {
   }
 
   const datos = Object.fromEntries(CAMPOS.map((c) => [c, cuerpo?.[c]]))
+  // El dominio en blanco se rellena con `<instancia>.<zona por omision>`, para
+  // que crear un hijo «como ensayo4» sea un solo campo y el registro A lo ponga
+  // el ejecutor solo. Un dominio escrito se respeta TAL CUAL: puede ser el del
+  // owner, que es el caso normal del modelo. Ver `dominioDeAlta()`.
+  datos.dominio = dominioDeAlta(datos, zonasDelEntorno())
   const v = validarSolicitud(datos)
   if (!v.ok) {
     return {
@@ -304,7 +331,12 @@ export function resumenDeAlta(s = {}) {
 }
 
 /** La pantalla de altas: el formulario y lo que ya se pidio. */
-export function paginaAltas(solicitudes, usuario, csrf) {
+export function paginaAltas(solicitudes, usuario, csrf, zonas = {}) {
+  // El sufijo que se sugiere. Sin zona unica no se sugiere nada y el campo
+  // vuelve a ser obligatorio: `zonaPorOmision()` decide, y no adivina con dos.
+  const zona = zonaPorOmision(zonas)
+  const sufijo = zona ? `.${zona}` : ""
+  const ejemploDominio = sufijo ? `pixeled${sufijo}` : "space-os.pixeled.com.mx"
   const SALTO = String.fromCharCode(10)
   const filas = solicitudes
     .map(
@@ -336,14 +368,25 @@ export function paginaAltas(solicitudes, usuario, csrf) {
 <form method="POST" action="/flota/altas/">
   <input type="hidden" name="csrf" value="${escapar(csrf)}">
   <label>Nombre de la instancia<input name="instancia" required placeholder="pixeled"></label>
-  <label>Dominio<input name="dominio" required placeholder="space-os.pixeled.com.mx"></label>
-  <label>Correo del Dueño<input name="email" type="email" required></label>
+  <label>Dominio${sufijo ? ' <span class="sub">(en blanco = ' + escapar(sufijo) + ')</span>' : ''}<input name="dominio"${sufijo ? '' : ' required'} placeholder="${escapar(ejemploDominio)}"></label>
+  <label>Correo del Dueño (su cuenta de Google)<input name="email" type="email" required></label>
   <button type="submit">Dar de alta</button>
 </form>
 
-<p class="sub">La region es Nueva York y el canal es <b>estable</b>: no se eligen.
-Si el dominio no cuelga de una zona nuestra, el alta se para esperando a que el
-owner apunte su DNS.</p>
+<p class="sub">La region es Nueva York y el canal es <b>estable</b>: no se eligen.</p>
+
+${
+  sufijo
+    ? `<p class="sub"><b>Deja el dominio en blanco</b> y se usa
+<code>&lt;nombre&gt;${escapar(sufijo)}</code>: cuelga de una zona nuestra, asi que el
+registro DNS lo pone el ejecutor solo y la instancia queda lista sin esperar a
+nadie. Es como nacio <code>ensayo4</code>.</p>`
+    : ''
+}
+<p class="sub">Si escribes un dominio PROPIO del owner, hace falta que exista de
+verdad: registrado y con sus nameservers puestos. El alta <b>no crea la maquina</b>
+mientras ningun DNS reconozca una zona para ese nombre, y despues espera a que el
+owner apunte su registro A. Un dominio sin registrar no avanza nunca.</p>
 
 <table><thead><tr><th>instancia</th><th>dominio</th><th>estado</th><th>pedida por</th><th>cuando</th></tr></thead>
 <tbody>

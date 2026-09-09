@@ -180,3 +180,66 @@ describe('la vista de las altas', () => {
     expect(r.cuerpo).not.toContain('space-os.pixeled.mx')
   })
 })
+
+// ============================================================================
+//  El dominio en blanco lo rellena el panel.  (2026-09-08)
+// ----------------------------------------------------------------------------
+//  Crear un hijo «como ensayo4» exigia saber que habia que teclear
+//  `algo.<nuestra-zona>`. Dos altas del 08/09 se pidieron con dominios que no
+//  existian y una gasto un droplet. Aqui se comprueba el camino completo del
+//  formulario, no solo la funcion pura.
+describe('el dominio en blanco, desde el formulario', () => {
+  // `async` y con `await` DENTRO del try, no alrededor de la promesa: la primera
+  // version devolvia `f()` sin esperarla, asi que el `finally` borraba la
+  // variable ANTES de que `manejar()` --que es async-- llegara a leerla. La
+  // prueba daba 400 y parecia que el codigo estaba mal.
+  const conZona = async <T>(zonas: string, f: () => Promise<T>): Promise<T> => {
+    const antes = process.env.CLOUDFLARE_ZONAS
+    process.env.CLOUDFLARE_ZONAS = zonas
+    try {
+      return await f()
+    } finally {
+      if (antes === undefined) delete process.env.CLOUDFLARE_ZONAS
+      else process.env.CLOUDFLARE_ZONAS = antes
+    }
+  }
+
+  it('se guarda como <instancia>.<zona>, y el alta se crea', async () => {
+    const dd = deps()
+    const r = await conZona('{"space-os.io":"id-1"}', () =>
+      manejar(post({ instancia: 'g500', dominio: '', email: 'duenio@ejemplo.com' }), dd.d),
+    )
+    expect(r.status).toBe(303)
+    expect(dd.creadas).toHaveLength(1)
+    expect(dd.creadas[0].datos.dominio).toBe('g500.space-os.io')
+  })
+
+  it('un dominio escrito NO se toca, aunque sea de otro', async () => {
+    const dd = deps()
+    const r = await conZona('{"space-os.io":"id-1"}', () =>
+      manejar(post({ ...BUENA, dominio: 'space-os.g500.com.mx' }), dd.d),
+    )
+    expect(r.status).toBe(303)
+    expect(dd.creadas[0].datos.dominio).toBe('space-os.g500.com.mx')
+  })
+
+  // Sin la variable el panel se comporta EXACTAMENTE como antes: el dominio es
+  // obligatorio de hecho, porque `validarSolicitud()` lo exige.
+  it('sin CLOUDFLARE_ZONAS, el dominio en blanco sigue siendo un 400', async () => {
+    const dd = deps()
+    const r = await conZona('', () =>
+      manejar(post({ instancia: 'g500', dominio: '', email: 'duenio@ejemplo.com' }), dd.d),
+    )
+    expect(r.status).toBe(400)
+    expect(dd.creadas).toHaveLength(0)
+  })
+
+  it('con DOS zonas tampoco se adivina: 400', async () => {
+    const dd = deps()
+    const r = await conZona('{"space-os.io":"id-1","otra.mx":"id-2"}', () =>
+      manejar(post({ instancia: 'g500', dominio: '', email: 'duenio@ejemplo.com' }), dd.d),
+    )
+    expect(r.status).toBe(400)
+    expect(dd.creadas).toHaveLength(0)
+  })
+})

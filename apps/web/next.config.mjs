@@ -51,10 +51,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 //    detiene está más abajo.
 //  · style-src 'unsafe-inline' — Next inyecta `<style>` y atributos `style=`;
 //    no hay forma de evitarlo sin nonce.
-//  · connect-src — la lista de hosts sale de `components/demo/MapView.tsx:44`
-//    y `:53-55`: MapTiler cuando hay `NEXT_PUBLIC_MAPTILER_KEY`, y los tres
-//    subdominios de Carto como plan B sin clave. Todo lo demás de la aplicación
-//    habla con su propio origen.
+//  · connect-src — la lista de hosts sale de `components/demo/MapView.tsx`
+//    (`buildStyle()`): MapTiler cuando hay `NEXT_PUBLIC_MAPTILER_KEY`, y
+//    OpenFreeMap como plan B sin clave — de ahí salen los tiles, los glifos y
+//    el sprite, los tres del MISMO host. `tile.openstreetmap.org` es de
+//    `components/maps/SitiosMap.tsx`, que hoy no lo monta ninguna pantalla.
+//    Todo lo demás de la aplicación habla con su propio origen.
+//
+//    Los tres subdominios de Carto salieron de aquí el 2026-09-08 al dejar de
+//    usarse: `basemaps.cartocdn.com` pasó a exigir clave y su forma de pedirla
+//    es estampar «API KEY REQUIRED» sobre el tile, con 200 y sin violar la CSP.
+//    Quitar el host de aquí no arregla nada por sí solo — el arreglo está en
+//    `MapView.tsx` —, pero deja de autorizar un origen que ya no se pide.
+//
+//    > **Si se añade o cambia un proveedor de mapas, esta línea va en el MISMO
+//    > commit.** Un host que falte aquí no da error visible: la CSP lo bloquea
+//    > y el mapa sale EN BLANCO con los pines encima. Lo comprueba
+//    > `lib/entorno.test.ts` (MAPA-01).
 //  · img-src / media-src / frame-src `https:` — a propósito, y es la parte
 //    floja. `lib/server/creativos-controller.ts:20` admite que el arte de un
 //    creativo sea «una URL http(s) normal (arte ya hospedado)», o sea que el
@@ -94,7 +107,7 @@ const POLITICA_CSP = [
   "media-src 'self' data: blob: https:",
   "frame-src 'self' data: https:",
   "worker-src 'self' blob:",
-  "connect-src 'self' https://api.maptiler.com https://a.basemaps.cartocdn.com https://b.basemaps.cartocdn.com https://c.basemaps.cartocdn.com https://tile.openstreetmap.org",
+  "connect-src 'self' https://api.maptiler.com https://tiles.openfreemap.org https://tile.openstreetmap.org",
 ].join('; ')
 
 /** @type {import('next').NextConfig} */

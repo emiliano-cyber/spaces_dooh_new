@@ -7,6 +7,24 @@ La entrada más reciente va arriba.
 
 ## 2026-09-08
 
+- **El mapa ya no dice «API KEY REQUIRED» encima.** Sobre los mapas aparecia un texto en
+  diagonal que parecia el nombre de una calle o de una zona, pero no era nuestro ni era un
+  error: la empresa que nos daba las imagenes del mapa empezo a pedir una cuenta, y su forma
+  de pedirla fue **estampar el aviso dentro de la propia imagen**. Todo lo demas seguia
+  funcionando, asi que el sistema no tenia forma de avisar de nada.
+
+  **Donde se veia:** el panel de inicio, comercial, propuestas, el detalle de una propuesta
+  y —lo mas importante— **la propuesta publica que se le manda al cliente**. Ahi es donde
+  urgia: el cliente abria su propuesta y veia el aviso encima del mapa de sus pantallas.
+
+  Ya se cambio el proveedor de las imagenes por otro que **no pide cuenta ni clave**, con el
+  mismo aspecto gris claro de antes. No hay nada que configurar ni que pagar, y el mapa se
+  comporta igual: se acerca, se aleja y muestra los pines como siempre.
+
+  Queda una cosa que **no pudimos comprobar desde aqui y conviene mirar**: nadie ha visto
+  todavia el mapa nuevo pintado en pantalla. Con abrir cualquier pantalla con mapa se ve al
+  instante.
+
 - **Las altas de instancias nuevas se habian quedado paradas sin que nada avisara.**
   Una alta pedida desde el panel avanza sola por etapas: se crea la maquina, se espera
   a que el dominio apunte, se pide el certificado. La segunda etapa **no avanzaba
@@ -56,6 +74,8 @@ La entrada más reciente va arriba.
   codigos—. Las tres anteriores se arreglaron una por una. Esta vez lo que se arreglo fue
   la forma de escribirlo: ahora la exigencia y su salida se declaran juntas en un solo
   sitio, asi que no se puede añadir una y olvidar la otra.
+
+---
 
 ## 2026-09-07
 
