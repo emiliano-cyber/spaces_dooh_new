@@ -19,10 +19,12 @@ QUIEN LA CORRE
   2026-09-09, en la tarjeta E1, un bloque de PowerShell se pego en el servidor y
   el dump se borro antes de bajarlo.
 
-ANTES DE EMPEZAR, UNA PREGUNTA QUE NO ES TECNICA
-  La instancia nueva nace con IVA 16 % y la configuracion de g500 trae 15 %.
-  Esta carga la deja en 15 %. Si ese 15 era un valor de prueba de julio, PARA
-  AQUI y dilo: se cambia el archivo antes de aplicarlo, no despues.
+UNA DECISION QUE YA ESTA TOMADA, Y CONVIENE QUE LA SEPAS
+  El droplet viejo traia el IVA de g500 al 15 %. Emiliano decidio el 2026-09-09
+  que ese 15 era un valor de pruebas de julio, asi que el archivo lo fija en
+  16 % -- el IVA general vigente, y el mismo con el que nacio la instancia.
+  Va decidido ANTES de generar el archivo y no despues de cargarlo, porque toca
+  el calculo de cualquier factura nueva.
 
 LOS RELLENOS SON INVALIDOS A PROPOSITO
   Donde dice <PON-AQUI-...> hay que sustituir. Y ojo: un relleno dentro de un
@@ -36,7 +38,7 @@ cd C:\Users\Server\Downloads\migracion-g500
 Get-FileHash .\carga-g500.sql -Algorithm SHA256
 
   ESPERADO, exactamente:
-    f977b968a83118783f9499304246bbb85deca3c9ebc9bf6cf213c9f4a98dfd0d
+    96349d6562ec98d6d3d0d2a9ac17719d11e7d3230f7fd0e3cea54555093a3509
 
   🚦 Si no coincide, el archivo no es el que se ensayo. PARAR.
 

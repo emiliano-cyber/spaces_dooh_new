@@ -58,6 +58,15 @@ update expo.ordenes_trabajo set asignado_a = null, supervisor = null;
 create table expo.folios_consecutivos as select * from folios_consecutivos;
 create table expo.config_negocio      as select * from config_negocio where tenant_id = (select id from expo._origen);
 
+-- ─── El IVA vuelve al 16 % · decidido por Emiliano el 2026-09-09 ───────────
+-- La configuracion de g500 en el droplet viejo trae `iva_tasas = {15}`, y la
+-- instancia nueva nace con {16}. El 15 era un valor de la etapa de pruebas de
+-- julio: 16 es el IVA general vigente. Se fija aqui, y no se deja "que gane el
+-- destino", para que el resultado sea el mismo tenga la instancia su fila de
+-- configuracion creada o no. Toca el calculo de cualquier factura nueva, asi
+-- que se decidio antes de generar el archivo y no despues de cargarlo.
+update expo.config_negocio set iva_tasas = '{16}';
+
 -- ─── Guards: si algo de esto falla, el recorte esta mal y no debe salir ────
 do $$
 declare n int; total int := 0; t text;
