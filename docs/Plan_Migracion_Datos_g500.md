@@ -125,18 +125,35 @@ La base del 5433 es de pruebas y se recrea sin preguntar (corrección del 19/08,
 `CLAUDE.md` §4). El guard del arnés no aplica aquí: la base no se llama `_e2e` ni
 `_test`, y **no se usa `recrearEsquema()`** — nadie hace `drop schema`.
 
-**Criterio de aceptación:** `migrar.mjs` termina informando **79 aplicadas** (o
-78 + 1 de datos pendiente, igual que la instancia), y el censo del §4 queda
-escrito en `docs/datos/`.
+**Criterio de aceptación:** `migrar.mjs` termina informando **78 aplicadas + 1 de
+datos pendiente**, igual que la instancia, y el censo del §4 queda escrito.
+
+> [!success] **E2 CERRADA el 2026-09-09** — `docs/evidencias/migracion-g500-E2-censo.md`
+> Restauración con **0 errores**, recuentos **idénticos** a la foto del servidor,
+> backfill de **65** y **13 aplicadas** → **78**, el mismo estado que la
+> instancia. Consultas en `migracion-g500-E2-censo.sql`.
+>
+> El censo va a **`docs/evidencias/`** y no a `docs/datos/` como decía este plan:
+> `docs/datos/` es para scripts de corrección con su rollback
+> (`docs/datos/README.md`), y un censo no corrige nada. Lo que sí irá ahí es el
+> `.sql` de carga de E4.
 
 ### E3 · Empaquetar
 
 Un solo `.sql`, **transaccional**: entra completo o no entra nada. Las reglas de
 transformación son las siete del §4.
 
-**Criterio de aceptación:** el `.sql` aplicado sobre una **copia** del estado de
-la instancia (reconstruible en local desde `db/schema.sql` + migraciones +
-bootstrap) da los mismos recuentos por tabla que el censo del puente.
+**Criterio de aceptación:** el `.sql` aplicado sobre `spaces_destino` —la copia
+del esquema de la instancia reconstruida en E2 desde `db/schema.sql` +
+`migrar.mjs --instalacion-nueva`— da los mismos recuentos por tabla que el censo
+del puente: **717 filas**.
+
+> [!danger] Probarlo contra el puente NO vale, y esto lo midió E2
+> El puente y el destino tienen **las mismas 524 columnas** pero **no los mismos
+> índices**: el destino trae **tres restricciones que el droplet viejo nunca
+> tuvo** porque solo viven en `schema.sql` (§4 del censo). Los datos de g500 las
+> cumplen las tres, pero un `.sql` probado únicamente contra el puente no habría
+> comprobado ninguna.
 
 ### E4 · Cargar (tarjeta)
 
@@ -170,6 +187,24 @@ puente, no una opinión, y cada uno tiene una acción asociada en E3.
 | 5 | **Archivos**: cuántos `foto_key` no son nulos | `ot-repo.ts:44` usa Spaces si `DO_SPACES_*` está configurado, y ese bucket **está en la otra cuenta** | §4.4 |
 | 6 | **Integridad referencial** dentro del recorte | Nada de g500 debe apuntar a filas de otro tenant | Se corta o se rescata, con la lista escrita |
 | 7 | **Recuento por tabla** | Es el contrato de E4 | Se copia al `.sql` como comentario y se comprueba tras cargar |
+| 8 | **¿Puente y destino tienen el mismo esquema?** — añadido tras medirlo | El registro de migraciones puede decir «78» en las dos bases y los esquemas diferir: `schema.sql` y la cadena de migraciones evolucionaron por separado | Se reconstruye el destino en local y se comparan columnas, índices y restricciones |
+
+> [!success] Los ocho, contestados el 2026-09-09 · `docs/evidencias/migracion-g500-E2-censo.md`
+> **1 · La deriva existe y es grave:** las **12** modalidades de venta de las 12
+> pantallas de g500 están etiquetadas `rgb`. Un export por `where tenant_id`
+> habría entregado las pantallas **sin un solo precio**, sin error. Se rescatan
+> por `sitio_id`.
+> **2 · RFC:** 0 duplicados, y las dos migraciones con guard pasaron limpias.
+> **3 · Folios:** 8 contadores, y `folios_consecutivos` **no tiene `tenant_id`**
+> —el comentario de `db/schema.sql:102-103` dice lo contrario y está mal—; se
+> copian tal cual porque son cotas superiores.
+> **4 · Huérfanos:** la única OT de g500 ya no tenía responsable ni supervisor;
+> se pierde un `uploaded_by`.
+> **5 · Archivos:** 1 evidencia, **62 kB** de base64, **0** en bucket.
+> **6 · Integridad:** sin dependencias ocultas.
+> **7 · Recuento:** **717 filas**.
+> **8 · Esquema:** 524 = 524 columnas, pero **3 restricciones solo en el
+> destino**. Los datos de g500 las cumplen las tres.
 
 ### 4.1 · Cómo viaja el `tenant_id`
 
