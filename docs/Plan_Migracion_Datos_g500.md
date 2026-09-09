@@ -1,7 +1,12 @@
 # Plan · Migración de los datos de g500 del droplet viejo a su instancia
 
 - **Fecha:** 2026-09-09
-- **Estado:** **aprobado para ejecución** por Emiliano (2026-09-09)
+- **Estado:** ✅ **EJECUTADO Y CERRADO el 2026-09-09.** Las cuatro etapas, el
+  mismo día. Resultado en
+  `docs/evidencias/migracion-g500-E4-resultado.md`; la decisión que lo autoriza,
+  en el [ADR 0031](adr/0031-los-datos-de-g500-se-rescatan-del-droplet-viejo.md).
+  **Queda una tarjeta de limpieza sin correr:**
+  `docs/evidencias/migracion-g500-retirar-llaves.txt`
 - **Alcance:** los datos de **una sola** organización — `g500` — desde
   `209.97.146.136` (`spaces_prod`) hasta la instancia `g500.space-os.io`
   (`142.93.113.106`)
@@ -171,6 +176,19 @@ del puente.
 > comprobado ninguna.
 
 ### E4 · Cargar (tarjeta)
+
+> [!success] **E4 CERRADA el 2026-09-09** — `docs/evidencias/migracion-g500-E4-resultado.md`
+> **541 filas dentro, y las 12 pantallas con su tarifa.** Los cinco GATE
+> pasaron, y el **GATE 2 atrapó lo que existía para atrapar**: hubo una sesión
+> abierta en el droplet viejo y se comprobó `hostname` antes de escribir nada.
+>
+> El **guard de doble carga** también trabajó de verdad: al correr el archivo por
+> segunda vez contestó *«Esta instancia YA tiene 12 pantallas de g500»* y no
+> tocó nada.
+>
+> Y apareció un defecto **ajeno a los datos**: las redirecciones del middleware
+> mandaban el navegador a `localhost:3000`. Es de flota, no de g500. Corregido
+> en la rama `fix/middleware-redireccion-localhost`.
 
 Se emite **cuando el censo esté revisado**, no antes. Orden fijo:
 

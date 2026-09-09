@@ -6,6 +6,32 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-09, noche · **g500 TIENE SUS DATOS**, y de paso salio un defecto de flota
+> Las cuatro etapas ejecutadas el mismo dia: **541 filas** dentro, las **12
+> pantallas con su tarifa**, cero personas y cero bitacora. Lo autoriza el **ADR
+> 0031**, que sustituye el punto 2 del ADR 0023. Expediente:
+> `docs/evidencias/migracion-g500-E4-resultado.md`.
+>
+> **Lo que casi se pierde en silencio:** las 12 modalidades de venta estaban
+> etiquetadas `rgb` por la deriva del `DEFAULT`. Un `where tenant_id` habria
+> entregado las pantallas SIN PRECIO y sin dar error.
+>
+> **El GATE 2 atrapo una maquina equivocada** — habia una sesion abierta en el
+> droplet viejo. Mismo error del 24/08, con la diferencia de que esta vez el
+> gate estaba escrito antes del primer comando.
+>
+> 🔴 **DEFECTO DE FLOTA, no de g500:** las redirecciones del middleware mandaban
+> el navegador a `localhost:3000` — `request.nextUrl` toma su origen de donde
+> escucha el servidor, no de la cabecera `Host`. **Lo tienen TODAS las
+> instancias**, DEMO incluida, hasta que jalen version nueva. Corregido en
+> `fix/middleware-redireccion-localhost` con `Location` relativa: 7 pruebas
+> nuevas, **1113 unitarias y 344 e2e** en verde. **Z1 · Auth tomada y liberada
+> en el mismo commit.**
+>
+> ⏳ **Pendiente de persona:** retirar las dos llaves SSH puestas a mano y borrar
+> los temporales — `migracion-g500-retirar-llaves.txt`. Y publicar la version con
+> el arreglo del middleware, que no llega a las instancias de otra forma.
+
 > [!important] 2026-09-09, tarde · **Plan de migracion de los datos de g500** — Z12 reclamada y LIBERADA
 > Decidido por Emiliano y escrito: `docs/Plan_Migracion_Datos_g500.md`, con la tarjeta
 > **E1** en `docs/evidencias/migracion-g500-E1-dump.txt`. **Nada ejecutado todavia**: es

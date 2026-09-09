@@ -1,0 +1,82 @@
+================================================================================
+ TARJETA · Limpieza despues del traslado de g500            2026-09-09
+ Plan: docs/Plan_Migracion_Datos_g500.md  (posterior a E4, que ya cerro)
+================================================================================
+
+QUE HACE
+  Retira las dos llaves SSH que se anadieron a mano durante el traslado y borra
+  los archivos temporales que llevan datos del cliente. Nada mas.
+
+POR QUE NO SE HIZO SOBRE LA MARCHA
+  Porque hasta que E4 cerro seguian haciendo falta. Ahora ya no.
+
+QUIEN LA CORRE
+  Una persona. Los dos bloques son en servidores distintos y NO se mezclan.
+
+OJO CON EL ORDEN
+  Retira PRIMERO los archivos y DESPUES la llave. Al revoces te quedas fuera de
+  la maquina con los archivos dentro.
+
+--------------------------------------------------------------------------------
+ A · La instancia de g500 · 142.93.113.106                        🚦 GATE
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  🚦 Tiene que decir `g500` y `142.93.113.106`. Si no, PARAR.
+
+  A1 · borrar los temporales (datos comerciales del cliente):
+
+ls -l /tmp/carga-g500.sql /tmp/antes-carga-g500.dump /tmp/20260909_carga_g500_rollback.sql 2>/dev/null
+rm -f /tmp/carga-g500.sql /tmp/antes-carga-g500.dump /tmp/20260909_carga_g500_rollback.sql
+
+  `carga-g500.sql` lleva las tarifas, los contratos y las facturas de g500;
+  `antes-carga-g500.dump` lleva su base entera. Ninguno se queda en /tmp de una
+  maquina que va a vivir sola. El respaldo YA esta en el equipo local
+  (184 719 bytes, sha256 f6d3f6e7…), asi que borrarlo aqui no pierde nada.
+
+  A2 · retirar la llave:
+
+ssh-keygen -lf /root/.ssh/authorized_keys
+grep -v 'spaces-deploy' /root/.ssh/authorized_keys > /tmp/ak && mv /tmp/ak /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys
+ssh-keygen -lf /root/.ssh/authorized_keys
+
+  El primer comando es para ver que habia; el ultimo, que ya no esta la
+  ED25519 `spaces-deploy` (SHA256:fvdAabuU…).
+
+  ⚠️ NO te quedas sin acceso: esta maquina la creo el sistema de altas con las
+  llaves de la cuenta de DigitalOcean, y esas siguen ahi. Ademas queda la consola
+  web del panel, que da root sin pasar por sshd.
+
+--------------------------------------------------------------------------------
+ B · El droplet viejo · 209.97.146.136                            🚦 GATE
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  🚦 Tiene que decir `PIXELED-ubuntu-s-2vcpu-4gb-nyc3` y `209.97.146.136`.
+     Si no, PARAR: esta tarjeta borra llaves.
+
+  B1 · comprobar que no quedo ningun dump del traslado:
+
+ls -l /tmp/spaces_prod-*.dump 2>/dev/null || echo "limpio"
+
+  B2 · retirar la llave:
+
+ssh-keygen -lf /root/.ssh/authorized_keys
+grep -v 'spaces-deploy' /root/.ssh/authorized_keys > /tmp/ak && mv /tmp/ak /root/.ssh/authorized_keys && chmod 600 /root/.ssh/authorized_keys
+ssh-keygen -lf /root/.ssh/authorized_keys
+
+  ⚠️ AQUI SI TE QUEDAS SIN SSH, y hay que decirlo claro: la contrasena de root de
+  esta maquina se habia perdido, y la unica llave que quedaba era la efimera de
+  la consola web (`dotty_ssh`), que caduca en horas. Al quitar `spaces-deploy` la
+  unica entrada vuelve a ser **la consola web** del panel de DigitalOcean.
+  Es aceptable porque esta maquina esta FUERA del modelo desde el ADR 0023 y no
+  se le va a volver a hablar. Si prefieres conservar acceso, no corras B2 y
+  anotalo — pero entonces queda una llave personal en una maquina que nadie
+  vigila.
+
+--------------------------------------------------------------------------------
+ QUE DEVOLVER
+--------------------------------------------------------------------------------
+  Las dos salidas finales de `ssh-keygen -lf`, para dejar constancia de que las
+  llaves ya no estan. Con eso se cierra el expediente del traslado.
+================================================================================
