@@ -1,0 +1,170 @@
+============================================================
+ TH-PROMOVER · SACAR v0.5.0 Y PONERLA EN `estable`
+ Escrita 2026-09-10 · main @ a8bdc44
+ Sustituye a TH-PROMOVER_v0.4.0.txt (esa version ya salio)
+============================================================
+
+ POR QUE AHORA
+   Un cliente con datos reales --g500-- corre una imagen a la
+   que le falta el arreglo del middleware: quien abre su
+   dominio SIN SESION acaba en `localhost:3000` y no puede
+   entrar salvo teclear a mano la URL del login. Eso lo tienen
+   TODAS las instancias hasta que jalen imagen nueva, y no se
+   arregla tocando ningun servidor.
+
+ POR QUE v0.5.0 Y NO v0.4.2
+   Son 39 commits desde v0.4.1, y doce de codigo. Entre ellos
+   TRES `feat` (altas por zona DNS, dominio en blanco, y el
+   menu Comercial/Operaciones): funcionalidad nueva, no solo
+   correcciones. Si prefieres v0.4.2, cambia los seis
+   caracteres en los tres sitios donde aparecen aqui.
+
+ QUE ENTRA, y lo que se nota
+   · 🔴 El middleware ya no manda a `localhost`. Es el motivo
+     de esta version.
+   · El mapa vuelve a tener mosaicos: el basemap sin clave
+     (5763c4d, ADR 0030) retira CARTO, que empezo a estampar
+     "API KEY REQUIRED" encima. Cierra el REG-01 de la
+     auditoria del 10/09 -- y OJO: la recomendacion de esa
+     auditoria (allowlistar cartocdn) NO se aplico a
+     proposito, porque devolveria la marca de agua.
+   · Una pantalla sin pais deja de guardarse en Peru
+     (DATA-01 de la misma auditoria).
+   · Cuatro arreglos de altas: la carrera contra `apt`, el
+     estado que se guardaba donde nadie lo leia (ADR 0029),
+     el error de configuracion que gastaba los tres intentos
+     de certificado, y el guard de zona DNS.
+   · Dos del panel de flota: el EACCES del ejecutor.
+
+ LA UNICA MIGRACION QUE VIAJA
+   `20260910_pais_sin_default.sql`. Le quita a `sitios.pais`
+   el `not null` y el `default 'PE'`. Transaccional,
+   idempotente, y NO TOCA NINGUNA FILA a proposito. Ademas
+   `update.sh` hace `pg_dump` antes de migrar, asi que cada
+   instancia se respalda sola antes de aplicarla.
+
+ EL ORDEN IMPORTA Y NO ES NEGOCIABLE
+   El tag publica en `beta`. DEMO consume `beta`. Y promover
+   COMPARA la version que corre DEMO con la que promueves
+   (`promover.yml:281-284`, verificado hoy): si no coinciden,
+   ABORTA. DEMO se actualiza ANTES de promover.
+
+# ############################################################
+#  PASO 1 · EL TAG          🖥️ EN TU WINDOWS      🚦 PUERTA 1
+# ############################################################
+#  El tag sale de `main`, no de una rama: `release.yml` se
+#  dispara con `tags: ['v*.*.*']` (`:40-42`) y construye lo
+#  que apunte el tag.
+
+git checkout main
+git pull emiliano main
+git tag v0.5.0
+git push emiliano v0.5.0
+
+#  🚦 PUERTA 1 — en GitHub > Actions > "Release" tiene que
+#  aparecer una corrida para `v0.5.0`. Tarda: corre typecheck,
+#  las 1115 unitarias y las 344 e2e, y despues construye y
+#  publica. (1115 y 344 son las de hoy, medidas en main
+#  fusionado -- si el CI dice otra cifra, no es alarma: mide
+#  tu, no copies este numero.)
+#
+#  >>> SI SALE ROJO, NO SIGAS. Un tag con la suite en rojo no
+#  >>> publica nada -- ese es el diseno-- asi que no hay nada
+#  >>> que deshacer en el registro. Se arregla y el tag se
+#  >>> mueve. Los dos comandos van comentados: quitar la
+#  >>> almohadilla es la decision de borrar un tag publicado.
+#
+# git tag -d v0.5.0
+# git push emiliano :v0.5.0
+
+# ############################################################
+#  PASO 2 · DEMO SE PONE AL DIA   🌐 EN EL PADRE   🚦 PUERTA 2
+# ############################################################
+#  Antes de nada, la maquina correcta:
+
+hostname; curl -s ifconfig.me; echo
+#  ESPERADO: ubuntu-s-2vcpu-4gb-amd-nyc1 y 137.184.107.53
+#  🚦 Si dice `g500`, estas en la instancia del cliente. PARAR.
+
+#  DEMO se actualiza sola a las 4:17; aqui se fuerza. Primero
+#  DONDE esta su update -- no se da por sabido:
+
+ls -l /opt/space-os/ 2>&1 | head
+grep -rn "update.sh" /etc/cron.d/ /etc/crontab 2>/dev/null | head
+
+#  Con la ruta que salga (lo normal es /opt/space-os/update.sh):
+
+/opt/space-os/update.sh
+
+#  🚦 PUERTA 2 — que DEMO corra v0.5.0. El token sale de su
+#  propio entorno; sin el, /api/version contesta {ok:true} y
+#  nada mas, que NO es lo mismo que estar al dia.
+
+curl -s -H "X-Flota-Token: $(sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/instancia.env)" https://demo.space-os.io/spaces-dooh/api/version/
+
+#  ESPERADO: un JSON con "version":"v0.5.0".
+#
+#  >>> SI DICE OTRA: el update no cambio nada. Mira su log
+#  >>> antes de seguir -- promover con DEMO desfasada va a
+#  >>> abortar, y hace bien.
+
+# ############################################################
+#  PASO 3 · PROMOVER            🌐 EN GITHUB       🚦 PUERTA 3
+# ############################################################
+#  Por la web (no hay `gh` autenticado):
+#
+#    GitHub > Actions > "Promover a estable" > Run workflow
+#      Use workflow from : main        <-- IMPORTANTE
+#      version           : v0.5.0
+#      motivo            : arreglo del middleware (toda la flota mandaba a localhost) + basemap y pais
+#
+#  >>> LAS DOS TRAMPAS QUE COSTARON TRES INTENTOS EL 02/09, y
+#  >>> las dos son de PEGAR, no de decidir:
+#  >>>
+#  >>>   · la version con un espacio delante o un punto detras
+#  >>>     ("v0.5.0."). El guard las caza, pero pierdes el
+#  >>>     viaje. TECLEA los seis caracteres, no los pegues.
+#  >>>   · "Use workflow from" en una rama que no sea `main`:
+#  >>>     workflow_dispatch toma el ARCHIVO de la rama que
+#  >>>     elijas, asi que correrias una version vieja del
+#  >>>     propio workflow.
+#
+#  🚦 PUERTA 3 — el resumen del run tiene que decir que releyo
+#  el digest DESPUES de reetiquetar y que coincide. Ese paso ES
+#  el criterio de aceptacion, no un extra.
+
+# ############################################################
+#  PASO 4 · QUE LA INSTANCIA DEL CLIENTE LO RECIBA
+# ############################################################
+#  g500 se actualiza sola de madrugada. Para verlo hoy, EN LA
+#  INSTANCIA (hostname `g500`, 142.93.113.106):
+
+hostname
+/opt/space-os/update.sh
+
+#  🚦 Y LA PRUEBA QUE JUSTIFICA TODA ESTA VERSION. Desde
+#  cualquier sitio con red:
+
+curl -sSI https://g500.space-os.io/spaces-dooh/inicio/ | grep -iE "^HTTP/|^location"
+
+#  ESPERADO: `location: /spaces-dooh/login/` -- RELATIVA.
+#  ANTES decia `https://localhost:3000/spaces-dooh/login/`.
+#
+#  Si sigue diciendo localhost, la instancia no jalo la imagen:
+#  mira su log de update, no el codigo.
+
+#  Y de paso, las dos de la auditoria que esta version cierra:
+#    · abre una pantalla y mira que el mapa tenga mosaicos
+#      (sin marca de agua encima);
+#    · da de alta una pantalla sin capturar pais y comprueba
+#      que queda VACIO, no "PE".
+
+# ############################################################
+#  QUE ME TIENES QUE PASAR
+# ############################################################
+#   · Si "Release" salio verde, y con que digest.
+#   · El JSON de /api/version de DEMO (puerta 2).
+#   · El resumen del run de "Promover a estable" (puerta 3).
+#   · La salida del `curl -sSI` del paso 4. Esa es la que
+#     cierra el defecto de flota.
+============================================================
