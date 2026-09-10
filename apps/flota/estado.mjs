@@ -66,8 +66,29 @@ export const CLAVES_VERSION = ['ok', 'version', 'ultimaMigracion', 'base', 'cana
  */
 export const CLAVES_REPORTE = [...CLAVES_VERSION, 'instancia']
 
-/** Las únicas columnas que el panel guarda de un owner. La lista es la promesa. */
+/** Las únicas columnas que la TABLA imprime. */
 export const COLUMNAS = ['nombre', 'dominio', 'canal', 'version', 'estado', 'fecha', 'origen']
+
+/**
+ * Las únicas claves que una fila GUARDA. **Aquí vive la promesa**, y desde el
+ * 2026-09-10 ya no coincide con `COLUMNAS`.
+ *
+ * ─── Por qué se separaron ─────────────────────────────────────────────────
+ * `COLUMNAS` hacía dos trabajos a la vez: lo que la fila guarda y lo que la
+ * tabla imprime. `motivo` no puede ir en la tabla —`principal()` ya lo imprime
+ * DEBAJO, y su comentario explica que en una celda la vuelve ilegible el día
+ * que hay tres instancias caídas y hay que leerla deprisa— pero sí tiene que
+ * viajar en el JSON, o el panel web no puede pintarlo.
+ *
+ * ─── Por qué estas dos claves no rompen la promesa ────────────────────────
+ * La lista blanca existe para que **datos de negocio de un owner** no entren al
+ * plano de control: ni conteos, ni razón social, ni cifras. Estas dos las
+ * escribe el PADRE — `motivo` sale de un código de error o de un estado HTTP,
+ * `ultimaVezBien` de un reloj— y **ninguna se copia del cuerpo de la
+ * respuesta**. Hay una prueba que lo afirma, y ese guard es lo único que impide
+ * que este campo se convierta en la puerta de atrás de lo que la lista cerró.
+ */
+export const CLAVES_FILA = [...COLUMNAS, 'motivo', 'ultimaVezBien']
 
 export const AL_DIA = 'al-dia'
 export const REZAGADA = 'rezagada'
@@ -120,6 +141,8 @@ export function resumen(respuestas, versiones) {
       estado: clasificar(version, versionDelCanal(versiones, canal)),
       fecha: r.fecha ?? SIN_DATO,
       origen: r.origen ?? 'consulta',
+      motivo: r.motivo ?? null,
+      ultimaVezBien: r.ultimaVezBien ?? null,
     }
   })
 }

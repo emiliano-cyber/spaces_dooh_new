@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
+import { CLAVES_FILA, CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -98,8 +98,22 @@ describe('resumen', () => {
       ESTABLE,
     )
 
+    // La lista va ESCRITA A MANO y no sale de `CLAVES_FILA` a propósito: así una
+    // clave nueva rompe esta prueba en vez de colarse. El 2026-09-10 se
+    // añadieron `motivo` y `ultimaVezBien`, y este rojo fue el que obligó a
+    // justificarlas — que es exactamente para lo que está la prueba.
     expect(Object.keys(fila).sort()).toEqual(
-      ['canal', 'dominio', 'estado', 'fecha', 'nombre', 'origen', 'version'].sort(),
+      [
+        'canal',
+        'dominio',
+        'estado',
+        'fecha',
+        'nombre',
+        'origen',
+        'version',
+        'motivo',
+        'ultimaVezBien',
+      ].sort(),
     )
     expect(JSON.stringify(fila)).not.toContain('Publicidad Real')
     expect(JSON.stringify(fila)).not.toContain('42')
@@ -435,5 +449,57 @@ describe('consultar · el motivo dice que arreglar', () => {
     const pedir = async () => new Response(JSON.stringify({ ok: true }))
     const fila = await consultar(instancia, { token: '', pedir })
     expect(fila.motivo).toBe('falta FLOTA_TOKEN_G500 en el panel')
+  })
+})
+
+describe('resumen · conserva el motivo sin abrir la puerta a datos del owner', () => {
+  it('la fila trae el motivo de la consulta', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el dominio no resuelve (ENOTFOUND)',
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('una instancia sana trae motivo nulo, no una cadena vacia', () => {
+    const filas = resumen([consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z')], {
+      estable: ESTABLE,
+    })
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // EL GUARD. Sin esto, `motivo` es la puerta de atras de la lista blanca: el
+  // dia que a alguien le resulte comodo meter ahi «lo que dijo la instancia»,
+  // esta prueba es lo unico que lo para.
+  it('NINGUN valor del cuerpo de la instancia acaba en la fila', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el token no lo reconoce como panel',
+          // Lo que una instancia comprometida podria intentar colar:
+          clientes: 412,
+          razonSocial: 'ACME SA DE CV',
+          facturado: 1234567,
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    const serializada = JSON.stringify(filas[0])
+    expect(serializada).not.toContain('412')
+    expect(serializada).not.toContain('ACME')
+    expect(serializada).not.toContain('1234567')
+    expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
   })
 })
