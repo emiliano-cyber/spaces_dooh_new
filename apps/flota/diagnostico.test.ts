@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clasificarFallo, fraseDeActualizacion, PASOS } from './diagnostico.mjs'
+import { clasificarFallo, fraseDeActualizacion, CODIGOS_UPDATE } from './diagnostico.mjs'
 
 // ============================================================================
 //  Pruebas del clasificador de fallos (fase 1 de
@@ -111,38 +111,67 @@ describe('clasificarFallo · token', () => {
 //
 //  Las palabras las escribe el PADRE, que es el mismo principio que sostiene
 //  `motivo` en la fase 1.
+
+// ============================================================================
+//  Fase 2: la instancia cuenta con QUE CODIGO salio su ultima actualizacion.
+// ----------------------------------------------------------------------------
+//  Aqui la frontera va AL REVES que arriba: el dato viene DE la instancia hacia
+//  el plano de control. Por eso lo que cruza es UN NUMERO de una lista cerrada
+//  y nunca texto libre -- un mensaje de error puede arrastrar un fragmento de
+//  log con datos de un cliente. Las palabras las escribe el PADRE.
+//
+//  Y es el codigo de salida de `update.sh`, no un «paso» inventado: esos
+//  codigos ya existen, ya estan documentados, y distinguen cosas que un nombre
+//  de paso aplana -- un 2 es «la base pudo cambiar», un 3 es «no se aplico
+//  nada», y su cabecera advierte de que aplanarlos seria el error que ese
+//  script no puede cometer.
 // ============================================================================
 describe('fraseDeActualizacion', () => {
-  it('un update que fue bien no dice nada: el silencio es la señal', () => {
-    expect(fraseDeActualizacion({ resultado: 'ok', paso: null })).toBeNull()
+  it('el 0 no dice nada: el silencio es la señal', () => {
+    expect(fraseDeActualizacion({ codigo: 0 })).toBeNull()
   })
 
-  it('un fallo al migrar se lee sin jerga', () => {
-    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'migraciones' })).toBe(
-      'la actualizacion fallo al aplicar las migraciones',
-    )
+  it('el 75 tampoco: habia otro update en marcha, y eso no es un fallo', () => {
+    expect(fraseDeActualizacion({ codigo: 75 })).toBeNull()
   })
 
-  it('un fallo en el sondeo de salud dice que la version nueva no levanto', () => {
-    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'salud' })).toBe(
-      'la actualizacion fallo: la version nueva no respondio al sondeo de salud',
-    )
-  })
-
-  // Dos casos que NO hay que confundir, y los dos callan: el update fue bien, y
-  // la instancia no lo dice porque su `update.sh` es anterior a este cambio.
-  it('una instancia con el update.sh viejo no dice nada, y NO es un fallo', () => {
+  // Una instancia con el `update.sh` viejo no manda la clave. NO es un fallo.
+  it('sin codigo no dice nada, y NO es un fallo', () => {
     expect(fraseDeActualizacion({})).toBeNull()
     expect(fraseDeActualizacion()).toBeNull()
+    expect(fraseDeActualizacion({ codigo: null })).toBeNull()
   })
 
-  it('un paso que este panel no conoce se nombra en vez de callarse', () => {
-    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'lo-que-sea' })).toContain(
-      'lo-que-sea',
-    )
+  // Los dos que un «paso» habria aplanado, y son la razon de usar el codigo.
+  it('el 2 avisa de que LA BASE PUDO CAMBIAR', () => {
+    expect(fraseDeActualizacion({ codigo: 2 })).toContain('LA BASE PUDO CAMBIAR')
   })
 
-  it('los pasos son una lista cerrada', () => {
-    expect(PASOS).toEqual(['pull', 'respaldo', 'migraciones', 'arranque', 'salud'])
+  it('el 3 dice lo contrario: no se aplico nada', () => {
+    expect(fraseDeActualizacion({ codigo: 3 })).toContain('no se aplico nada')
+  })
+
+  it('el 4 se lee como lo que es: el mecanismo funcionando', () => {
+    expect(fraseDeActualizacion({ codigo: 4 })).toContain('la vuelta atras salio bien')
+  })
+
+  it('el 5 dice que la instancia puede estar caida', () => {
+    expect(fraseDeActualizacion({ codigo: 5 })).toContain('puede estar caida')
+  })
+
+  it('el 7 grita, porque es el peor estado que ese guion puede producir', () => {
+    expect(fraseDeActualizacion({ codigo: 7 })).toContain('LA BASE QUEDO VACIA')
+  })
+
+  it('un codigo que este panel no conoce se NOMBRA en vez de callarse', () => {
+    expect(fraseDeActualizacion({ codigo: 42 })).toContain('42')
+  })
+
+  it('un codigo que llega como texto se entiende igual', () => {
+    expect(fraseDeActualizacion({ codigo: '2' })).toContain('LA BASE PUDO CAMBIAR')
+  })
+
+  it('los codigos son una lista cerrada', () => {
+    expect(CODIGOS_UPDATE).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 75])
   })
 })

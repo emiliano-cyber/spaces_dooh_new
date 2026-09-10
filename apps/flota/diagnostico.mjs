@@ -104,32 +104,59 @@ export function clasificarFallo({ error, status, cuerpoSinVersion, token, nombre
 //  es la deuda de SPACES_KEY/LOGS_BUCKET. El panel dice DONDE murio, no QUE
 //  dijo -- y con el paso ya se sabe si entrar o esperar.
 
-/** Los pasos de `update.sh` donde puede morir una actualizacion. Cerrada. */
-export const PASOS = ['pull', 'respaldo', 'migraciones', 'arranque', 'salud']
-
-const FRASE_PASO = {
-  pull: 'la actualizacion fallo al bajar la imagen',
-  respaldo: 'la actualizacion fallo al respaldar la base, y NO siguio',
-  migraciones: 'la actualizacion fallo al aplicar las migraciones',
-  arranque: 'la actualizacion fallo al levantar el contenedor',
-  salud: 'la actualizacion fallo: la version nueva no respondio al sondeo de salud',
+/**
+ * Lo que dice cada codigo de salida de `update.sh`, en una frase.
+ *
+ * ─── Por que el CODIGO y no un «paso» ────────────────────────────────────
+ * La primera version de esto mandaba un nombre de paso --`migraciones`,
+ * `salud`-- y aplanaba justo lo que `update.sh` se esfuerza en distinguir. Su
+ * propia cabecera lo advierte: «un `set -e` que los aplanara todos en fallo
+ * seria justamente el error que este script no puede cometer».
+ *
+ * `paso: migraciones` no dice si la base cambio. El codigo si: un **2** es
+ * «fallaron a medias y LA BASE PUDO CAMBIAR», un **3** es «no se aplico nada».
+ * Son dos situaciones con dos urgencias distintas, y la diferencia se pierde al
+ * traducirlas al mismo nombre.
+ *
+ * Y estos codigos ya existen, ya estan documentados y son los que el script
+ * conoce de verdad: no hay que inventar un vocabulario nuevo ni mantenerlo en
+ * dos sitios.
+ */
+const CODIGO_UPDATE = {
+  1: 'la actualizacion no pudo ni empezar: no se toco nada',
+  2: 'las migraciones fallaron a medias y LA BASE PUDO CAMBIAR: sigue sirviendo la version anterior, y hay que mirarlo',
+  3: 'la imagen y el registro de la base no cuentan la misma historia: no se aplico nada',
+  4: 'el arranque fallo y la vuelta atras salio bien: sirve la version anterior',
+  5: 'el arranque fallo y la vuelta atras NO se pudo completar: la instancia puede estar caida',
+  6: 'la vuelta atras devolvio el servicio, pero la base no volvio a la huella que tenia antes de migrar',
+  7: 'LA BASE QUEDO VACIA: hay que restaurarla ANTES de levantar el contenedor',
 }
 
+/** Los codigos que NO son un fallo. El 75 es «ya habia otro update en marcha». */
+const CODIGOS_SANOS = [0, 75]
+
+/** Los codigos que una instancia puede reportar. Lista cerrada. */
+export const CODIGOS_UPDATE = [...CODIGOS_SANOS, ...Object.keys(CODIGO_UPDATE).map(Number)].sort(
+  (a, b) => a - b,
+)
+
 /**
- * La frase de una actualizacion, o `null` si no hay nada que decir.
+ * La frase de la ultima actualizacion, o `null` si no hay nada que decir.
  *
- * >>> Devuelve `null` en DOS casos que no hay que confundir: la actualizacion
- * >>> fue bien, y la instancia no lo dice porque su `update.sh` es anterior a
- * >>> este cambio. Ninguno de los dos es un fallo, y por eso los dos callan.
+ * >>> Devuelve `null` en TRES casos que no hay que confundir, y los tres callan
+ * >>> con razon: la actualizacion fue bien (0), habia otra en marcha (75), y la
+ * >>> instancia no lo dice porque su `update.sh` es anterior a este cambio.
+ * >>> Ninguno es un fallo.
  *
- * >>> Y un paso que este panel no conoce se NOMBRA en vez de callarse, por lo
+ * >>> Un codigo que este panel no conoce se NOMBRA en vez de callarse, por lo
  * >>> mismo que un codigo de red desconocido sale tal cual: una averia nueva
- * >>> tiene que verse.
+ * >>> tiene que verse, aunque sea con un numero.
  */
-export function fraseDeActualizacion({ resultado, paso } = {}) {
-  if (resultado !== 'fallo') return null
+export function fraseDeActualizacion({ codigo } = {}) {
+  if (codigo === undefined || codigo === null) return null
+  const n = Number(codigo)
+  if (CODIGOS_SANOS.includes(n)) return null
   return (
-    FRASE_PASO[paso] ??
-    'la actualizacion fallo en un paso que este panel no conoce: ' + String(paso)
+    CODIGO_UPDATE[n] ?? 'la actualizacion salio con el codigo ' + String(codigo) + ', que este panel no conoce'
   )
 }

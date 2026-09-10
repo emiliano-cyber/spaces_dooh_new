@@ -553,7 +553,8 @@ describe('arrastrarMemoria', () => {
   })
 })
 
-describe('validarReporte · las claves de la fase 2 son OPCIONALES', () => {
+
+describe('validarReporte · el codigo de la fase 2 es OPCIONAL', () => {
   const base = {
     ok: true,
     version: 'v0.5.0',
@@ -564,27 +565,26 @@ describe('validarReporte · las claves de la fase 2 son OPCIONALES', () => {
     instancia: 'g500',
   }
 
-  // Si fueran obligatorias, toda instancia que no se haya actualizado todavia
+  // Si fuera obligatorio, toda instancia que no se haya actualizado todavia
   // dejaria de reportar -- y eso es la flota entera el dia del despliegue.
-  it('un reporte SIN resultado ni paso sigue siendo valido (update.sh viejo)', () => {
+  it('un reporte SIN codigo sigue siendo valido (update.sh viejo)', () => {
     expect(validarReporte(base).ok).toBe(true)
   })
 
-  it('un reporte CON las dos es valido, y las CONSERVA', () => {
-    const r = validarReporte({ ...base, resultado: 'fallo', paso: 'migraciones' })
+  it('un reporte CON codigo es valido, y lo CONSERVA', () => {
+    const r = validarReporte({ ...base, codigo: 2 })
     expect(r.ok).toBe(true)
-    expect(r.reporte.resultado).toBe('fallo')
-    expect(r.reporte.paso).toBe('migraciones')
+    expect(r.reporte.codigo).toBe(2)
   })
 
-  it('un paso que no esta en la lista cerrada se rechaza', () => {
-    const r = validarReporte({ ...base, resultado: 'fallo', paso: 'lo-que-sea' })
+  it('un codigo que no esta en la lista cerrada se rechaza', () => {
+    const r = validarReporte({ ...base, codigo: 999 })
     expect(r.ok).toBe(false)
-    expect(r.motivo).toContain('paso')
+    expect(r.motivo).toContain('codigo')
   })
 
-  it('un resultado inventado se rechaza', () => {
-    expect(validarReporte({ ...base, resultado: 'regular', paso: 'pull' }).ok).toBe(false)
+  it('un codigo que no es un numero se rechaza', () => {
+    expect(validarReporte({ ...base, codigo: 'fallo' }).ok).toBe(false)
   })
 
   // El guard de la fase 1, otra vez y por el otro lado: aqui el dato SI viene
@@ -597,7 +597,7 @@ describe('validarReporte · las claves de la fase 2 son OPCIONALES', () => {
 })
 
 describe('resumen · el fallo de una actualizacion se ve', () => {
-  it('una instancia que reporto un fallo de update lo dice, aunque conteste bien', () => {
+  it('una instancia que salio con 2 lo dice, aunque conteste bien', () => {
     const filas = resumen(
       [
         {
@@ -607,27 +607,25 @@ describe('resumen · el fallo de una actualizacion se ve', () => {
           version: 'v0.4.1',
           fecha: '2026-09-10T00:00:00Z',
           origen: 'reporte',
-          resultado: 'fallo',
-          paso: 'migraciones',
+          codigo: 2,
         },
       ],
       { estable: 'v0.5.0' },
     )
     expect(filas[0].estado).toBe('rezagada')
-    expect(filas[0].motivo).toBe('la actualizacion fallo al aplicar las migraciones')
+    expect(filas[0].motivo).toContain('LA BASE PUDO CAMBIAR')
   })
 
-  it('si la instancia contesta bien Y su update fue bien, no hay motivo', () => {
+  it('si contesta bien Y su update salio con 0, no hay motivo', () => {
     const filas = resumen(
-      [{ ...consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z'), resultado: 'ok', paso: null }],
+      [{ ...consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z'), codigo: 0 }],
       { estable: ESTABLE },
     )
     expect(filas[0].motivo).toBeNull()
   })
 
-  // El motivo de TRANSPORTE gana: si la instancia no contesta AHORA, eso es mas
-  // urgente que un update que fallo ayer -- y ademas es lo que hay que arreglar
-  // antes de poder mirar lo otro.
+  // El motivo de TRANSPORTE gana: si no contesta AHORA, eso es mas urgente que
+  // un update que fallo ayer, y ademas hay que arreglarlo antes de mirar lo otro.
   it('si no contesta ahora, gana el motivo de transporte y no el del update', () => {
     const filas = resumen(
       [
@@ -637,8 +635,7 @@ describe('resumen · el fallo de una actualizacion se ve', () => {
           canal: 'estable',
           version: null,
           motivo: 'el dominio no resuelve (ENOTFOUND)',
-          resultado: 'fallo',
-          paso: 'migraciones',
+          codigo: 7,
         },
       ],
       { estable: ESTABLE },
@@ -646,8 +643,6 @@ describe('resumen · el fallo de una actualizacion se ve', () => {
     expect(filas[0].motivo).toBe('el dominio no resuelve (ENOTFOUND)')
   })
 
-  // Una instancia con el update.sh viejo no manda las dos claves. Eso NO es un
-  // fallo, y la fila tiene que salir igual que antes de la fase 2.
   it('una instancia con el update.sh viejo no inventa un fallo', () => {
     const filas = resumen([consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z')], {
       estable: ESTABLE,
@@ -655,9 +650,8 @@ describe('resumen · el fallo de una actualizacion se ve', () => {
     expect(filas[0].motivo).toBeNull()
   })
 
-  // Y el guard, una vez mas: `resultado` y `paso` entran en la fila SOLO a
-  // traves de la frase. Ninguno de los dos se copia.
-  it('resultado y paso no acaban como claves de la fila', () => {
+  // Y el guard: `codigo` entra en la fila SOLO a traves de la frase.
+  it('el codigo no acaba como clave de la fila', () => {
     const filas = resumen(
       [
         {
@@ -665,14 +659,12 @@ describe('resumen · el fallo de una actualizacion se ve', () => {
           dominio: 'g500.ejemplo.invalid',
           canal: 'estable',
           version: 'v0.4.1',
-          resultado: 'fallo',
-          paso: 'salud',
+          codigo: 5,
         },
       ],
       { estable: 'v0.5.0' },
     )
-    expect(Object.keys(filas[0])).not.toContain('resultado')
-    expect(Object.keys(filas[0])).not.toContain('paso')
+    expect(Object.keys(filas[0])).not.toContain('codigo')
     expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
   })
 })

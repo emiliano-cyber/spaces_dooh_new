@@ -43,7 +43,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { CLAVES_REPORTE, CLAVES_REPORTE_OPCIONALES, cargarInventario, tokenDe } from './estado.mjs'
-import { PASOS } from './diagnostico.mjs'
+import { CODIGOS_UPDATE } from './diagnostico.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -101,24 +101,22 @@ export function validarReporte(cuerpo) {
     }
   }
 
-  // Las dos de la fase 2, solo si vienen. Listas cerradas las dos: es lo único
-  // que sujeta un dato que aquí viaja DE la instancia hacia el plano de
-  // control, al revés que todo lo demás de este panel.
-  if (cuerpo.resultado !== undefined && cuerpo.resultado !== 'ok' && cuerpo.resultado !== 'fallo') {
-    return { ok: false, motivo: '`resultado` no es "ok" ni "fallo"' }
-  }
-  if (cuerpo.paso !== undefined && cuerpo.paso !== null && !PASOS.includes(cuerpo.paso)) {
-    return { ok: false, motivo: '`paso` no es uno de: ' + PASOS.join(', ') }
+  // El código de la fase 2, solo si viene. La LISTA CERRADA es lo único que
+  // sujeta un dato que aquí viaja DE la instancia hacia el plano de control, al
+  // revés que todo lo demás de este panel.
+  if (cuerpo.codigo !== undefined && cuerpo.codigo !== null) {
+    if (typeof cuerpo.codigo !== 'number' || !CODIGOS_UPDATE.includes(cuerpo.codigo)) {
+      return { ok: false, motivo: '`codigo` no es uno de: ' + CODIGOS_UPDATE.join(', ') }
+    }
   }
 
   // Se reconstruye clave a clave y en el orden del contrato. Copiar `cuerpo`
   // con un `spread` guardaría lo que hubiera llegado de más si algún día esta
   // validación se relajara; así, lo que se guarda es lo que se validó.
   const reporte = { ok, version, ultimaMigracion, base, canal, uptime, instancia }
-  // Se añaden solo si vinieron, para que un reporte de un `update.sh` viejo no
-  // acabe con dos claves vacías que nadie escribió.
-  if (cuerpo.resultado !== undefined) reporte.resultado = cuerpo.resultado
-  if (cuerpo.paso !== undefined) reporte.paso = cuerpo.paso
+  // Se añade solo si vino, para que un reporte de un `update.sh` viejo no
+  // acabe con una clave vacía que nadie escribió.
+  if (cuerpo.codigo !== undefined) reporte.codigo = cuerpo.codigo
 
   return { ok: true, reporte }
 }

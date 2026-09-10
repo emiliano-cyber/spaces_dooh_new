@@ -67,19 +67,25 @@ export const CLAVES_VERSION = ['ok', 'version', 'ultimaMigracion', 'base', 'cana
 export const CLAVES_REPORTE = [...CLAVES_VERSION, 'instancia']
 
 /**
- * Las que un `update.sh` NUEVO añade, y que uno viejo no manda (fase 2).
+ * Lo que un `update.sh` NUEVO añade, y que uno viejo no manda (fase 2): **el
+ * código de salida de su última corrida**, y nada más.
  *
- * **Opcionales a propósito.** `validarReporte` exige que estén todas las de
- * `CLAVES_REPORTE`, así que declararlas ahí dejaría sin reportar a toda
+ * **Opcional a propósito.** `validarReporte` exige que estén todas las de
+ * `CLAVES_REPORTE`, así que declararlo ahí dejaría sin reportar a toda
  * instancia que no se haya actualizado todavía — y eso es la flota entera el
  * día del despliegue.
+ *
+ * **Una sola clave, y es un número.** La primera versión mandaba `resultado` y
+ * `paso`; las dos sobraban. El código ya dice si fue un fallo (0 y 75 no lo
+ * son) y dice bastante más que un nombre de paso: un **2** es «la base pudo
+ * cambiar» y un **3** es «no se aplicó nada». Ver `diagnostico.mjs`.
  *
  * Y por eso el orden del despliegue no es negociable: **el PADRE primero**. Ese
  * mismo validador rechaza el reporte ENTERO ante una clave que no conoce, así
  * que soltar `update.sh` antes que el panel deja la flota ciega justo por el
  * cambio que venía a darle vista.
  */
-export const CLAVES_REPORTE_OPCIONALES = ['resultado', 'paso']
+export const CLAVES_REPORTE_OPCIONALES = ['codigo']
 
 /** Las únicas columnas que la TABLA imprime. */
 export const COLUMNAS = ['nombre', 'dominio', 'canal', 'version', 'estado', 'fecha', 'origen']
