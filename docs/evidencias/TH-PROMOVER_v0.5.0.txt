@@ -86,21 +86,34 @@ hostname; curl -s ifconfig.me; echo
 #  ESPERADO: ubuntu-s-2vcpu-4gb-amd-nyc1 y 137.184.107.53
 #  🚦 Si dice `g500`, estas en la instancia del cliente. PARAR.
 
-#  DEMO se actualiza sola a las 4:17; aqui se fuerza. Primero
-#  DONDE esta su update -- no se da por sabido:
+#  DEMO se actualiza sola por cron; aqui se fuerza. Primero
+#  DONDE esta su update y CON QUE CONFIGURACION -- no se da por
+#  sabido, y el segundo comando es el que importa:
 
 ls -l /opt/space-os/ 2>&1 | head
+ls -l /etc/space-os/
 grep -rn "update.sh" /etc/cron.d/ /etc/crontab 2>/dev/null | head
 
-#  Con la ruta que salga (lo normal es /opt/space-os/update.sh):
+#  >>> MEDIDO EL 2026-09-10, y esta version de la tarjeta lo
+#  >>> tenia MAL: el cron de DEMO no llama a update.sh a secas.
+#  >>> Le pasa su configuracion:
+#  >>>
+#  >>>   /etc/cron.d/space-os-demo:
+#  >>>     31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env \
+#  >>>       /opt/space-os/update.sh
+#  >>>
+#  >>> Sin esa variable, `update.sh` lee `/etc/space-os/instancia.env`
+#  >>> (`update.sh:359`), que en el PADRE es OTRA COSA: actualizarias
+#  >>> lo que no toca. La variable no es opcional.
 
-/opt/space-os/update.sh
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
 
-#  🚦 PUERTA 2 — que DEMO corra v0.5.0. El token sale de su
-#  propio entorno; sin el, /api/version contesta {ok:true} y
-#  nada mas, que NO es lo mismo que estar al dia.
+#  🚦 PUERTA 2 — que DEMO corra v0.5.0. El token sale de SU
+#  propio entorno --el de DEMO, no el otro-- y sin el
+#  /api/version contesta {ok:true} y nada mas, que NO es lo
+#  mismo que estar al dia.
 
-curl -s -H "X-Flota-Token: $(sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/instancia.env)" https://demo.space-os.io/spaces-dooh/api/version/
+curl -s -H "X-Flota-Token: $(sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/demo-instancia.env)" https://demo.space-os.io/spaces-dooh/api/version/
 
 #  ESPERADO: un JSON con "version":"v0.5.0".
 #
