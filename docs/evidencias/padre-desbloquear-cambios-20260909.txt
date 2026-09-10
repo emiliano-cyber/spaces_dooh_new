@@ -1,0 +1,115 @@
+================================================================================
+ TARJETA · Recuperar el control de cambios en el PADRE       2026-09-09
+ Script: docs/datos/20260909_desbloquear_cambios_padre.sql
+================================================================================
+
+QUE RESUELVE
+  El control de cambios pide la contrasena propia y esa contrasena se perdio.
+  Esto NO la recupera ni la sustituye: reabre la puerta del ADR 0018 para que
+  puedas fijar una nueva sin teclear la anterior, entrando con Google.
+
+QUE **NO** HACE
+  No apaga ningun control: `exigir_reautenticacion` sigue en `t`.
+  No fija ninguna contrasena: la pones tu, y no la ve nadie.
+  No toca a los otros dos usuarios.
+  No reinicia ningun servicio.
+
+RIESGO
+  🔴 ROJO: es el PADRE --el plano de control-- y toca sesion. Una fila.
+
+--------------------------------------------------------------------------------
+ B1 · 🚦 GATE · la maquina correcta
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  ESPERADO: `ubuntu-s-2vcpu-4gb-amd-nyc1` y `137.184.107.53`.
+
+  🚦 Si dice `g500` estas en la instancia del cliente. PARAR.
+     Hoy tres comandos acabaron en la maquina equivocada.
+
+--------------------------------------------------------------------------------
+ B2 · Subir los dos archivos  ·  [LOCAL, en PowerShell]
+--------------------------------------------------------------------------------
+cd C:\Users\Server\spaces_doohmain_nueva\docs\datos
+scp -i $env:USERPROFILE\.ssh\spaces_deploy 20260909_desbloquear_cambios_padre.sql root@137.184.107.53:/tmp/
+scp -i $env:USERPROFILE\.ssh\spaces_deploy 20260909_desbloquear_cambios_padre_rollback.sql root@137.184.107.53:/tmp/
+
+  Si el PADRE no acepta esa llave, pega los dos archivos por la consola web:
+  son cortos y de solo texto.
+
+--------------------------------------------------------------------------------
+ B3 · Captura previa  ·  [SERVIDOR]
+--------------------------------------------------------------------------------
+sudo -u postgres psql -P pager=off -d spaces_prod -c "select email, rol, debe_cambiar_password, (password_hash is not null) as tiene_hash from usuarios order by email"
+
+  Guardala. Lo esperado, ya medido hoy: los tres en `f`, los tres con hash.
+
+--------------------------------------------------------------------------------
+ B4 · Pasada en SECO  ·  [SERVIDOR]                              🚦 GATE
+--------------------------------------------------------------------------------
+sed 's/^commit;$/rollback;/' /tmp/20260909_desbloquear_cambios_padre.sql > /tmp/seco.sql
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/seco.sql
+
+  ESPERADO: `UPDATE 1`, el NOTICE de OK, y `ROLLBACK` al final.
+
+  🚦 Si dice `UPDATE 0` o `UPDATE 2`, PARAR y avisar: el alcance no es el que
+     este script cree.
+
+--------------------------------------------------------------------------------
+ B5 · Aplicar  ·  [SERVIDOR]
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/20260909_desbloquear_cambios_padre.sql
+
+  ESPERADO: `UPDATE 1`, el NOTICE, y `COMMIT`.
+
+--------------------------------------------------------------------------------
+ B6 · Fijar la contrasena  ·  [NAVEGADOR, no en el servidor]
+--------------------------------------------------------------------------------
+  1. Cierra sesion en https://space-os.io  (importante: la sesion nueva tiene
+     que abrirse CON GOOGLE -- la excepcion mira como se abrio ESTA sesion,
+     no si puedes usar Google).
+  2. Entra con Google.
+  3. La aplicacion te va a cortar con: «Tienes una contrasena temporal.
+     Cambiala en Configuracion antes de seguir.» Es lo esperado, no un error.
+  4. Ve a tu perfil y fija una contrasena nueva. NO te va a pedir la anterior.
+  5. Al guardarla, la bandera se apaga sola y la aplicacion vuelve a la
+     normalidad.
+
+  ⚠️ Elige una que guardes en tu gestor. Si esta se pierde tambien, la proxima
+     vez habra que repetir todo esto.
+
+--------------------------------------------------------------------------------
+ B7 · Comprobar que el candado ya te obedece
+--------------------------------------------------------------------------------
+  Entra a cualquier accion de cambios sensibles (facturar, cobrar o pagar
+  renta) y desbloquea con la contrasena NUEVA. Tiene que aceptarla.
+
+  Y en la base, que todo volvio a su sitio:
+
+sudo -u postgres psql -P pager=off -d spaces_prod -c "select email, debe_cambiar_password from usuarios order by email"
+sudo -u postgres psql -P pager=off -d spaces_prod -c "select slug, exigir_reautenticacion from tenants"
+
+  ESPERADO: los tres en `f` otra vez, y `rgb | t` -- el control SIGUE encendido.
+
+--------------------------------------------------------------------------------
+ SI ALGO SALE MAL
+--------------------------------------------------------------------------------
+  Si tras B5 no consigues fijar la contrasena (por ejemplo, si no logras abrir
+  una sesion con Google), la bandera te deja a medias: `exigir()` corta las
+  rutas con modulo. Vuelve atras:
+
+sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/20260909_desbloquear_cambios_padre_rollback.sql
+
+  Eso te devuelve al estado de antes -- con el candado igual de cerrado que
+  ahora, pero sin quedarte a medias.
+
+--------------------------------------------------------------------------------
+ AL TERMINAR
+--------------------------------------------------------------------------------
+rm -f /tmp/20260909_desbloquear_cambios_padre.sql /tmp/20260909_desbloquear_cambios_padre_rollback.sql /tmp/seco.sql
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  Las salidas de B3, B4, B5 y B7. Con eso se cierra la entrada de docs/datos.
+================================================================================
