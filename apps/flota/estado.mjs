@@ -147,6 +147,30 @@ export function resumen(respuestas, versiones) {
   })
 }
 
+/**
+ * Arrastra `ultimaVezBien` de la pasada anterior.
+ *
+ * El panel era una foto sin memoria, y con eso «no contesta» no distinguía un
+ * parpadeo de una avería de tres horas — que es la diferencia entre esperar y
+ * levantarse. Un solo campo, ninguna base de datos: si la instancia contesta
+ * ahora se pone ahora, y si no, se conserva lo que dijera la pasada anterior.
+ *
+ * **Sin fecha inventada.** Una instancia caída que nunca se vio bien se queda
+ * en `null`. Rellenarla con la hora actual diría exactamente lo contrario de la
+ * verdad, y es el tipo de dato falso que no da error nunca.
+ *
+ * `previas` es el arreglo `instancias` del `estado.json` anterior. Nulo,
+ * ausente o vacío significa «sin memoria», no un fallo.
+ */
+export function arrastrarMemoria(filas, previas = [], ahora = () => new Date().toISOString()) {
+  const memoria = new Map((previas ?? []).map((p) => [p.nombre, p.ultimaVezBien ?? null]))
+  return filas.map((f) => ({
+    ...f,
+    ultimaVezBien:
+      f.version && f.version !== SIN_DATO ? ahora() : (memoria.get(f.nombre) ?? null),
+  }))
+}
+
 /** `a` es posterior a `b`. Sin fecha se pierde: un dato sin cuándo no gana nada. */
 function masReciente(a, b) {
   if (!a) return false
@@ -527,7 +551,20 @@ async function principal() {
     inventario.instancias.map((i) => consultar(i, { token: tokenDe(i.nombre, process.env, tokensExtra) })),
   )
   const { reportes, avisos } = await leerReportes(dirEstado, inventario.instancias)
-  const filas = resumen(fusionar(consultas, reportes), versiones)
+
+  // La memoria de la pasada anterior. Un archivo que no existe, o roto, o sin
+  // permisos, es «sin memoria» y NO un error: el criterio de la cabecera es que
+  // el panel sale siempre con 0, porque el día que hace falta vigilar es el día
+  // que algo está mal.
+  let previas = []
+  try {
+    const json = JSON.parse(await readFile(join(dirPublico, 'estado.json'), 'utf8'))
+    if (Array.isArray(json?.instancias)) previas = json.instancias
+  } catch {
+    previas = []
+  }
+
+  const filas = arrastrarMemoria(resumen(fusionar(consultas, reportes), versiones), previas)
 
   console.log(tabla(filas))
 

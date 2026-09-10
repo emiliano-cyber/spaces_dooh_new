@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_FILA, CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
+import { arrastrarMemoria, CLAVES_FILA, CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -501,5 +501,54 @@ describe('resumen · conserva el motivo sin abrir la puerta a datos del owner', 
     expect(serializada).not.toContain('ACME')
     expect(serializada).not.toContain('1234567')
     expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
+  })
+})
+
+describe('arrastrarMemoria', () => {
+  const AHORA = '2026-09-10T12:00:00Z'
+  const ANTES = '2026-09-10T09:00:00Z'
+
+  it('una instancia que contesta ahora fija ultimaVezBien en ahora', () => {
+    const filas = [{ nombre: 'g500', version: 'v0.5.0', motivo: null, ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, [], () => AHORA)[0].ultimaVezBien).toBe(AHORA)
+  })
+
+  it('una instancia caida conserva la ultima vez que estuvo bien', () => {
+    const filas = [
+      { nombre: 'g500', version: '—', motivo: 'el dominio no resuelve (ENOTFOUND)', ultimaVezBien: null },
+    ]
+    const previas = [{ nombre: 'g500', ultimaVezBien: ANTES }]
+    expect(arrastrarMemoria(filas, previas, () => AHORA)[0].ultimaVezBien).toBe(ANTES)
+  })
+
+  it('una instancia caida sin memoria previa se queda en nulo, no inventa una fecha', () => {
+    const filas = [{ nombre: 'g500', version: '—', motivo: 'x', ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, [], () => AHORA)[0].ultimaVezBien).toBeNull()
+  })
+
+  it('no se cruzan las memorias de dos instancias', () => {
+    const filas = [
+      { nombre: 'a', version: '—', motivo: 'x', ultimaVezBien: null },
+      { nombre: 'b', version: '—', motivo: 'x', ultimaVezBien: null },
+    ]
+    const previas = [{ nombre: 'b', ultimaVezBien: ANTES }]
+    const salida = arrastrarMemoria(filas, previas, () => AHORA)
+    expect(salida[0].ultimaVezBien).toBeNull()
+    expect(salida[1].ultimaVezBien).toBe(ANTES)
+  })
+
+  it('previas nulo o ausente no revienta: es «sin memoria»', () => {
+    const filas = [{ nombre: 'g500', version: '—', motivo: 'x', ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, null as never, () => AHORA)[0].ultimaVezBien).toBeNull()
+    expect(arrastrarMemoria(filas, undefined, () => AHORA)[0].ultimaVezBien).toBeNull()
+  })
+
+  it('no toca ninguna otra clave de la fila', () => {
+    const filas = [
+      { nombre: 'g500', version: 'v0.5.0', motivo: null, ultimaVezBien: null, estado: 'al-dia' },
+    ]
+    const salida = arrastrarMemoria(filas, [], () => AHORA)
+    expect(salida[0].estado).toBe('al-dia')
+    expect(salida[0].version).toBe('v0.5.0')
   })
 })
