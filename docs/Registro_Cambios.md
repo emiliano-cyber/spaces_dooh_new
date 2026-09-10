@@ -27,6 +27,39 @@ La entrada más reciente va arriba.
   **Ojo, porque es de flota:** el fallo estaba en el programa, no en la maquina de
   g500, asi que **todas las instancias lo tienen** hasta que se les actualice la
   version. Se corrige con una version nueva, no tocando ningun servidor.
+- **G500 ya tiene sus datos en su propio servidor.** Hasta hoy, la informacion de
+  G500 vivia en el servidor de julio, mezclada en la misma base con la de otras cuatro
+  organizaciones de prueba. Su servidor propio existia desde esta manana, pero estaba
+  vacio. Ahora tiene **sus 12 pantallas con sus tarifas, sus 5 arrendadores con 13
+  contratos y 29 pagos de renta, sus 7 campanas, sus 7 propuestas, 3 facturas y 15
+  registros de cobranza**. Nada de las otras organizaciones viajo con ellos.
+
+  **Lo que NO se llevo, y es a proposito:** las personas. Las tres cuentas que existian
+  en el servidor viejo eran las tres de maximo privilegio y no se copiaron; el Dueno
+  invita a su equipo desde la aplicacion, y cada quien entra con su cuenta. Tampoco se
+  llevo el historial de «quien hizo que» de julio y agosto: eran anotaciones del sistema
+  y de una cuenta de demostracion.
+
+  **Lo que casi se pierde sin que nadie se enterara:** las **tarifas de las 12
+  pantallas** estaban guardadas bajo el nombre de otra organizacion, por un defecto
+  antiguo del sistema que ya se corrigio en agosto pero que dejo esas filas mal
+  etiquetadas. Una copia normal se habria llevado las 12 pantallas **sin un solo
+  precio, y sin dar ningun error**. Se detectaron antes de mover nada, contandolas
+  contra la pantalla a la que pertenecen, y viajaron con su tarifa correcta.
+
+  **Como se hizo, en corto:** se bajo una copia completa del servidor viejo, se puso al
+  dia en una base de trabajo local —el servidor viejo iba 13 actualizaciones por
+  detras— y ahi se comprobo todo antes de subir nada. La carga se hizo en un solo
+  movimiento: o entraba completa o no entraba nada. Antes de tocar el servidor de G500
+  se guardo una copia de seguridad, y se comprobo cada cifra despues.
+
+  **Un detalle de facturacion que conviene saber:** en el servidor viejo el IVA de G500
+  estaba en 15 %. Se cargo en **16 %**, que es el vigente; el 15 era un valor que quedo
+  de las pruebas de julio.
+
+---
+
+## 2026-09-08
 
 - **El mapa ya no dice «API KEY REQUIRED» encima.** Sobre los mapas aparecia un texto en
   diagonal que parecia el nombre de una calle o de una zona, pero no era nuestro ni era un

@@ -1,0 +1,150 @@
+================================================================================
+ TARJETA E1 · Sacar los datos del droplet viejo          2026-09-09
+ Plan: docs/Plan_Migracion_Datos_g500.md  (etapa E1 de 4)
+================================================================================
+
+QUE HACE ESTA TARJETA
+  Un pg_dump de la base `spaces_prod` del droplet viejo (209.97.146.136) y su
+  descarga al equipo local. Ademas recoge seis datos del censo que NO se pueden
+  averiguar despues, cuando la maquina ya no se toque.
+
+QUE NO HACE
+  No escribe NADA en la base de datos: todo son SELECT y un pg_dump.
+  Si escribe UN archivo temporal en /tmp del servidor, y el bloque B10 lo borra.
+  No despliega, no hace git pull, no reinicia el proceso, no toca nginx.
+
+QUIEN LA CORRE
+  Una persona, desde su terminal. Ningun agente ejecuta nada de aqui.
+
+LOS RELLENOS SON INVALIDOS A PROPOSITO
+  Donde dice <PON-AQUI-...> hay que sustituir. Estan escritos para que TRUENEN
+  si se dejan sin cambiar. El 2026-09-09 un relleno que parecia un correo real
+  paso un guard de validacion y consumio una ruta de un solo uso: por eso estos
+  no se parecen a nada valido.
+
+--------------------------------------------------------------------------------
+ B0 · Entrar
+--------------------------------------------------------------------------------
+ssh <PON-AQUI-EL-USUARIO>@209.97.146.136
+
+  El censo del 25/08 midio que el proceso corre como el usuario `emiliano`
+  (docs/evidencias/f4-1-censo-resultado.md, seccion 4). Si ese es el usuario de
+  acceso, ahi va.
+
+--------------------------------------------------------------------------------
+ B1 · Identidad de la maquina                                      🚦 GATE 1
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  ESPERADO, las dos lineas exactas:
+      PIXELED-ubuntu-s-2vcpu-4gb-nyc3
+      209.97.146.136
+
+  🚦 SI NO COINCIDE: PARAR AQUI y no correr nada mas.
+     El 2026-08-24 se censo entera la maquina equivocada (era el PADRE,
+     ubuntu-s-2vcpu-4gb-amd-nyc1 / 137.184.107.53) y sobre esa medicion se
+     levantaron cuatro conclusiones falsas. Este bloque existe por eso.
+
+--------------------------------------------------------------------------------
+ B2 · Donde vive la aplicacion
+--------------------------------------------------------------------------------
+ls -d ~/spaces* /var/www/* 2>/dev/null
+
+  Apuntar la ruta que aparezca. En los bloques siguientes va donde dice <RUTA>.
+  (El README de la raiz dice /var/www/spaces-dooh y esta desactualizado: no dar
+  esa ruta por buena sin verla en esta salida.)
+
+--------------------------------------------------------------------------------
+ B3 · Que variables de almacenamiento estan definidas       ← decide el punto 5
+--------------------------------------------------------------------------------
+grep -oE '^DO_SPACES_[A-Z_]+' <RUTA>/apps/web/.env | sort
+
+  Devuelve NOMBRES, nunca valores. No pegar ningun valor de vuelta.
+
+  POR QUE IMPORTA: si estas variables estan definidas, las fotos de las ordenes
+  de trabajo estan en un bucket de Spaces (ot-repo.ts:44) y ese bucket vive en
+  la CUENTA VIEJA de DigitalOcean: las filas viajarian apuntando a nada. Si NO
+  estan definidas, las fotos son base64 dentro de la propia base y viajan en el
+  dump. Es lo unico del censo que no se puede averiguar desde el equipo local.
+
+--------------------------------------------------------------------------------
+ B4 · Que bases hay
+--------------------------------------------------------------------------------
+sudo -u postgres psql -Atc "select datname from pg_database where datname like 'spaces%'"
+
+  ESPERADO: spaces_prod (puede haber mas; anotarlas todas).
+
+--------------------------------------------------------------------------------
+ B5 · Las organizaciones que viven ahi
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces_prod -Atc "select slug, creado_en from tenants order by slug"
+
+  ESPERADO, cinco filas de julio: rgb, telcel, g500, eyro, demo-owner.
+  Solo slug y fecha: los UUID no hacen falta aqui, salen de la base puente.
+
+--------------------------------------------------------------------------------
+ B6 · Cuantas filas tiene g500 ahora mismo (foto de referencia)
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces_prod -Atc "select t.slug, (select count(*) from sitios s where s.tenant_id=t.id) as sitios, (select count(*) from arrendadores a where a.tenant_id=t.id) as arrendadores, (select count(*) from campanas c where c.tenant_id=t.id) as campanas, (select count(*) from facturas f where f.tenant_id=t.id) as facturas, (select count(*) from usuarios u where u.tenant_id=t.id) as usuarios from tenants t order by t.slug"
+
+  Esta foto se compara despues contra la base puente. Si el dump se restaura y
+  los numeros no cuadran, el dump llego incompleto y se sabe ANTES de tocar la
+  instancia del cliente.
+
+--------------------------------------------------------------------------------
+ B7 · Confirmar que esta base no tiene registro de migraciones
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces_prod -Atc "select coalesce(to_regclass('public.schema_migrations')::text,'NO EXISTE')"
+ls <RUTA>/db/migrations/*.sql | wc -l
+
+  ESPERADO: "NO EXISTE" y 66.
+
+  Las dos cosas juntas son la firma de una base con historia y sin registro, que
+  es el caso que el runner de migraciones contempla y sabe resolver
+  (scripts/migrar.mjs:513-528). Si en cambio schema_migrations SI existe, avisar:
+  el procedimiento de la etapa E2 cambia.
+
+--------------------------------------------------------------------------------
+ B8 · El dump
+--------------------------------------------------------------------------------
+sudo -u postgres pg_dump -Fc -d spaces_prod -f /tmp/spaces_prod-20260909.dump
+sudo chown $USER /tmp/spaces_prod-20260909.dump
+ls -lh /tmp/spaces_prod-20260909.dump
+sha256sum /tmp/spaces_prod-20260909.dump
+
+  Anotar el tamano y el sha256 completo.
+  -Fc es el formato comprimido de Postgres: es el que permite restaurar tabla
+  por tabla en la base puente.
+
+--------------------------------------------------------------------------------
+ B9 · Bajarlo al equipo local                                      🚦 GATE 2
+--------------------------------------------------------------------------------
+  Desde PowerShell en el equipo local, NO desde el servidor:
+
+mkdir C:\Users\Server\Downloads\migracion-g500
+scp <PON-AQUI-EL-USUARIO>@209.97.146.136:/tmp/spaces_prod-20260909.dump C:\Users\Server\Downloads\migracion-g500\
+Get-FileHash C:\Users\Server\Downloads\migracion-g500\spaces_prod-20260909.dump -Algorithm SHA256
+
+  🚦 El SHA256 tiene que coincidir con el de B8, en minusculas o mayusculas da
+     igual. Si no coincide, el archivo llego corrupto: repetir el scp.
+     Sin esa coincidencia la etapa E2 no arranca.
+
+--------------------------------------------------------------------------------
+ B10 · Limpiar el servidor
+--------------------------------------------------------------------------------
+  De vuelta en la sesion ssh:
+
+rm /tmp/spaces_prod-20260909.dump
+
+  Ese archivo contiene los datos de las CINCO organizaciones. No se deja en
+  /tmp de una maquina que va a quedar sin vigilancia.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  Las salidas de B1, B3, B4, B5, B6 y B7, y el sha256 de B8.
+  NINGUN valor de variable de entorno, ninguna contrasena, ningun token.
+
+  Con eso arranca la etapa E2 en el equipo local: restaurar, migrar a la version
+  del cliente y censar. Nada de E2 vuelve a tocar este servidor.
+================================================================================
