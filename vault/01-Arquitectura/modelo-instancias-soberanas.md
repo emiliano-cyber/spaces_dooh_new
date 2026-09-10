@@ -12,6 +12,7 @@ archivos:
   - apps/web/middleware.ts
   - apps/flota/diagnostico.mjs
   - infra/scripts/update.sh
+  - infra/scripts/provision-instancia.sh
   - apps/flota/estado.mjs
   - apps/flota/servidor.mjs
 ---
@@ -348,6 +349,118 @@ cometer»*.
 > correcto: una corrida que no se ejecutó no puede sobrescribir el estado de la
 > que sí. El panel trata el 75 como sano de todos modos, pero esa rama es
 > defensiva, no un caso vivo.
+
+## 6-bis · Los dos caminos de alta, y la licencia — 2026-09-10
+
+> [!note] Escrito, no construido
+> Decisión tomada el 10/09 y recogida en el **ADR 0032**. Diseño completo en
+> `docs/superpowers/specs/2026-09-10-alta-en-droplet-propio-design.md`. Vive en
+> la rama `feat/alta-droplet-propio`; **no hay una línea de código todavía**.
+
+### Vocabulario: PADRE y **hijos**
+
+Emiliano fijó la palabra el 10/09. **Un hijo es cualquier instancia**: `g500`,
+`DEMO` y las que vengan. Todas corren **la misma imagen**. Lo que las distingue
+no es lo que son, sino **por qué camino nacieron**.
+
+### Los dos caminos
+
+| | **Alta administrada** (existe) | **Alta en droplet propio** (nueva) |
+|---|---|---|
+| Crea la máquina | nosotros, con `doctl` | el cliente, en su cuenta |
+| Paga a DigitalOcean | nosotros | el cliente |
+| Instala | nosotros, por SSH (`remoto()`) | el cliente, con nuestro paquete |
+| Consola web con root | nuestra | **suya** |
+| Nuestro acceso | SSH `soporte` + cuenta de DO | **SSH `soporte` y nada más** |
+| Respaldos y logs | bucket de la casa | **bucket del cliente, con sus claves** |
+| Licencia | **no** (`LICENCIA_REQUERIDA=0`) | **sí** (`=1`) |
+| Cómo sabemos que salió bien | **lo vimos hacerlo** | **nos lo cuenta el hijo** |
+
+Esa última fila es el hallazgo del diseño y no un parche: es el **mismo canal de
+flota** en dos usos. En la administrada verificamos *haciendo*; en la de droplet
+propio verificamos *escuchando*. Y «entregué el paquete y todavía no ha
+reportado» es información por sí sola: separa «no lo ha instalado» de «lo
+instaló y algo falló».
+
+> [!success] La mitad ya estaba preparada, sin saberlo
+> `provision-instancia.sh` lleva los dos modos desde que se escribió
+> —`--crear-droplet` y `--host <ip|dns>`, este último anotado como *«el caso
+> cuenta del owner»*— y su cabecera dice que **no hay uno por omisión a
+> propósito**, porque la decisión estaba abierta (§8.3 del plan v3). Esa
+> abstención se cobra hoy: el camino existe y está probado
+> (`pruebas-provision.sh`). Lo que falta es el instalador que corre **dentro**
+> del droplet del hijo.
+
+### La licencia, en cuatro frases
+
+1. **Archivo firmado en la máquina, comprobado sin salir a internet.** El PADRE
+   firma con su llave privada; la pública va en la imagen, idéntica para toda la
+   flota. El PADRE sólo hace falta para **renovar**, nunca para funcionar — si se
+   cae, ningún cliente se queda fuera de su propio sistema.
+2. **`update.sh` apaga; la aplicación sólo avisa.** La comprobación (Ed25519 con
+   `openssl`) vive fuera del contenedor, así que parchear el JavaScript no cambia
+   nada. La aplicación no comprueba ninguna firma: pinta la banda y nada más.
+3. **Aviso, gracia y apagado, en ese orden.** Un error de facturación no cierra
+   una empresa un lunes por la mañana.
+4. **Y apagar es defendible aquí** porque los datos están en **su** Postgres, en
+   **su** droplet: apagar retira lo nuestro, no retiene nada suyo.
+
+> [!warning] Ninguna licencia sobrevive a root, y en este modelo el cliente tiene root
+> Está aceptado a sabiendas y escrito en el ADR 0032. El objetivo **no** es que
+> sea imposible:
+>
+> > **No podemos impedirlo. Podemos hacer que no se pueda esconder.**
+>
+> Lo que sí sujeta el diseño: la licencia lleva dentro el nombre y el dominio
+> (copiarla a otra máquina no funciona) · quien apaga es `update.sh`, fuera del
+> contenedor (parchear la aplicación no sirve) · `update.sh` ya compara el digest
+> de la imagen que corre con el registro (una imagen hecha a mano se ve) · y para
+> manipular sin que se note habría que apagar también el reporte de flota, donde
+> **el silencio ya es un estado**. Apagar lo que delata es la delación.
+>
+> Lo que esto compra es **contractual, no técnico**: convierte «usarlo sin pagar»
+> de inercia en un acto deliberado. Vendido como candado técnico sería falso.
+
+### Por qué `middleware.ts` queda descartado, y no es preferencia
+
+La imagen es **idéntica para toda la flota**, así que la licencia es un dato *por
+máquina*. Y el middleware corre en el runtime edge, donde `process.env` **puede
+quedar horneado en el build** — un aviso que este repositorio ya se ganó y que
+está escrito en `middleware.ts:33-34`. Un dato por instancia no se puede leer
+desde ahí. El aviso se pinta en el shell autenticado, en servidor.
+
+### La llave privada es el secreto de más valor del sistema
+
+Por encima del token del registro: quien la tenga fabrica licencias eternas para
+cualquiera. Se guarda **cifrada**, con la frase de paso fuera de todo archivo, y
+**firmar es un acto de una persona** — no entra en la máquina de estados
+desatendida del ADR 0029, por la misma razón que su punto 5 dejó fuera el
+bootstrap: firmar dice *«este cliente pagó, hasta esta fecha»*, y eso es
+comercial.
+
+Y la honestidad de siempre: cifrarla protege contra **instantáneas, respaldos de
+la cuenta de DO y copias del disco**; **no** contra alguien con root en el PADRE
+mientras se firma. Se acota, no se cierra.
+
+### Lo que queda abierto, con disparador escrito
+
+**La credencial del registro de imágenes.** Cada instancia guarda
+`REGISTRY_TOKEN` en disco, el cliente tiene root, y ese token es **el mismo para
+toda la flota**. Se decide **no** resolverlo ahora: sirve para *bajar* imágenes,
+no para correrlas —la licencia decide si arrancan—, y la alternativa es un
+servicio de reparto nuevo en un droplet de seis dólares **para cero clientes de
+este modelo**. Se hacen las dos mitigaciones baratas (el origen de la imagen como
+un único valor de configuración, y la tarjeta de rotación probada una vez), y el
+disparador para construirlo de verdad queda escrito: **el segundo cliente en este
+modelo, o el primer final de contrato en malos términos**.
+
+### La puerta antes de vender esto
+
+**El ensayo en DEMO**, con `LICENCIA_REQUERIDA=1` y una licencia caducada a
+propósito: que apaga, que nginx sirve la página, que el código **8** llega al
+panel, y que una licencia nueva lo reanima solo. Después se vuelve a poner en 0.
+Los hijos administrados **no llevan licencia** (decisión de Emiliano del 10/09), y
+probar el mecanismo no exige que DEMO viva con una.
 
 ## 7 · Lo que está bloqueado, y por quién
 
