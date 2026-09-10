@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { clasificarFallo } from './diagnostico.mjs'
+import { clasificarFallo, fraseDeActualizacion, PASOS } from './diagnostico.mjs'
 
 // ============================================================================
 //  Pruebas del clasificador de fallos (fase 1 de
@@ -98,5 +98,51 @@ describe('clasificarFallo · token', () => {
     expect(clasificarFallo({ cuerpoSinVersion: true, token: '', nombre: 'mi-cliente' })).toBe(
       'falta FLOTA_TOKEN_MI_CLIENTE en el panel',
     )
+  })
+})
+
+// ============================================================================
+//  Fase 2: la instancia cuenta si su actualizacion fallo, y en que paso.
+// ----------------------------------------------------------------------------
+//  Aqui la frontera va AL REVES que en el resto de este archivo: el dato viene
+//  DE la instancia hacia el plano de control. Por eso lo que cruza son dos
+//  valores de listas cerradas y NUNCA texto libre -- un mensaje de error puede
+//  arrastrar un fragmento de log con datos de un cliente.
+//
+//  Las palabras las escribe el PADRE, que es el mismo principio que sostiene
+//  `motivo` en la fase 1.
+// ============================================================================
+describe('fraseDeActualizacion', () => {
+  it('un update que fue bien no dice nada: el silencio es la señal', () => {
+    expect(fraseDeActualizacion({ resultado: 'ok', paso: null })).toBeNull()
+  })
+
+  it('un fallo al migrar se lee sin jerga', () => {
+    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'migraciones' })).toBe(
+      'la actualizacion fallo al aplicar las migraciones',
+    )
+  })
+
+  it('un fallo en el sondeo de salud dice que la version nueva no levanto', () => {
+    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'salud' })).toBe(
+      'la actualizacion fallo: la version nueva no respondio al sondeo de salud',
+    )
+  })
+
+  // Dos casos que NO hay que confundir, y los dos callan: el update fue bien, y
+  // la instancia no lo dice porque su `update.sh` es anterior a este cambio.
+  it('una instancia con el update.sh viejo no dice nada, y NO es un fallo', () => {
+    expect(fraseDeActualizacion({})).toBeNull()
+    expect(fraseDeActualizacion()).toBeNull()
+  })
+
+  it('un paso que este panel no conoce se nombra en vez de callarse', () => {
+    expect(fraseDeActualizacion({ resultado: 'fallo', paso: 'lo-que-sea' })).toContain(
+      'lo-que-sea',
+    )
+  })
+
+  it('los pasos son una lista cerrada', () => {
+    expect(PASOS).toEqual(['pull', 'respaldo', 'migraciones', 'arranque', 'salud'])
   })
 })

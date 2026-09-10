@@ -83,3 +83,53 @@ export function clasificarFallo({ error, status, cuerpoSinVersion, token, nombre
 
   return ''
 }
+
+// ─── Fase 2 · si una actualizacion fallo, y en que paso ─────────────────────
+//
+//  Hoy `update.sh` reporta al terminar. Si la actualizacion FALLA, lo que llega
+//  es la version ANTERIOR --la que sigue corriendo-- asi que el panel pinta esa
+//  instancia como `rezagada`: identica a una que nadie ha actualizado todavia.
+//  Y son cosas distintas: una se resuelve esperando al cron, la otra no se
+//  resuelve sola.
+//
+//  ─── La frontera aqui va AL REVES, y por eso no viaja texto ───────────────
+//  Lo que sostiene `motivo` arriba es que lo escribe el PADRE. Un campo `error`
+//  que mande la instancia rompe ese argumento: es texto libre cruzando hacia el
+//  plano de control, y ahi puede venir cualquier cosa -- incluido un fragmento
+//  de log con datos de un cliente.
+//
+//  Asi que la instancia manda DOS VALORES DE LISTAS CERRADAS y el padre pone
+//  las palabras. Lo que se pierde, dicho claro: el mensaje de error concreto no
+//  llega al panel. Para eso esta el log de la instancia, y sacarlo de la maquina
+//  es la deuda de SPACES_KEY/LOGS_BUCKET. El panel dice DONDE murio, no QUE
+//  dijo -- y con el paso ya se sabe si entrar o esperar.
+
+/** Los pasos de `update.sh` donde puede morir una actualizacion. Cerrada. */
+export const PASOS = ['pull', 'respaldo', 'migraciones', 'arranque', 'salud']
+
+const FRASE_PASO = {
+  pull: 'la actualizacion fallo al bajar la imagen',
+  respaldo: 'la actualizacion fallo al respaldar la base, y NO siguio',
+  migraciones: 'la actualizacion fallo al aplicar las migraciones',
+  arranque: 'la actualizacion fallo al levantar el contenedor',
+  salud: 'la actualizacion fallo: la version nueva no respondio al sondeo de salud',
+}
+
+/**
+ * La frase de una actualizacion, o `null` si no hay nada que decir.
+ *
+ * >>> Devuelve `null` en DOS casos que no hay que confundir: la actualizacion
+ * >>> fue bien, y la instancia no lo dice porque su `update.sh` es anterior a
+ * >>> este cambio. Ninguno de los dos es un fallo, y por eso los dos callan.
+ *
+ * >>> Y un paso que este panel no conoce se NOMBRA en vez de callarse, por lo
+ * >>> mismo que un codigo de red desconocido sale tal cual: una averia nueva
+ * >>> tiene que verse.
+ */
+export function fraseDeActualizacion({ resultado, paso } = {}) {
+  if (resultado !== 'fallo') return null
+  return (
+    FRASE_PASO[paso] ??
+    'la actualizacion fallo en un paso que este panel no conoce: ' + String(paso)
+  )
+}

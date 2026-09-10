@@ -66,6 +66,21 @@ export const CLAVES_VERSION = ['ok', 'version', 'ultimaMigracion', 'base', 'cana
  */
 export const CLAVES_REPORTE = [...CLAVES_VERSION, 'instancia']
 
+/**
+ * Las que un `update.sh` NUEVO añade, y que uno viejo no manda (fase 2).
+ *
+ * **Opcionales a propósito.** `validarReporte` exige que estén todas las de
+ * `CLAVES_REPORTE`, así que declararlas ahí dejaría sin reportar a toda
+ * instancia que no se haya actualizado todavía — y eso es la flota entera el
+ * día del despliegue.
+ *
+ * Y por eso el orden del despliegue no es negociable: **el PADRE primero**. Ese
+ * mismo validador rechaza el reporte ENTERO ante una clave que no conoce, así
+ * que soltar `update.sh` antes que el panel deja la flota ciega justo por el
+ * cambio que venía a darle vista.
+ */
+export const CLAVES_REPORTE_OPCIONALES = ['resultado', 'paso']
+
 /** Las únicas columnas que la TABLA imprime. */
 export const COLUMNAS = ['nombre', 'dominio', 'canal', 'version', 'estado', 'fecha', 'origen']
 

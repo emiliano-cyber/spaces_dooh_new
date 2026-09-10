@@ -42,7 +42,8 @@ import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { CLAVES_REPORTE, cargarInventario, tokenDe } from './estado.mjs'
+import { CLAVES_REPORTE, CLAVES_REPORTE_OPCIONALES, cargarInventario, tokenDe } from './estado.mjs'
+import { PASOS } from './diagnostico.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -64,7 +65,11 @@ export function validarReporte(cuerpo) {
   if (!esObjetoLlano(cuerpo)) return { ok: false, motivo: 'el cuerpo no es un objeto JSON' }
 
   const claves = Object.keys(cuerpo)
-  const deMas = claves.filter((c) => !CLAVES_REPORTE.includes(c))
+  // Las opcionales de la fase 2 se admiten pero NO se exigen: un `update.sh`
+  // viejo no las manda, y si faltaran por «claves que faltan» esa instancia
+  // dejaria de reportar.
+  const conocidas = [...CLAVES_REPORTE, ...CLAVES_REPORTE_OPCIONALES]
+  const deMas = claves.filter((c) => !conocidas.includes(c))
   const faltan = CLAVES_REPORTE.filter((c) => !claves.includes(c))
   if (deMas.length) {
     return {
@@ -96,13 +101,26 @@ export function validarReporte(cuerpo) {
     }
   }
 
+  // Las dos de la fase 2, solo si vienen. Listas cerradas las dos: es lo único
+  // que sujeta un dato que aquí viaja DE la instancia hacia el plano de
+  // control, al revés que todo lo demás de este panel.
+  if (cuerpo.resultado !== undefined && cuerpo.resultado !== 'ok' && cuerpo.resultado !== 'fallo') {
+    return { ok: false, motivo: '`resultado` no es "ok" ni "fallo"' }
+  }
+  if (cuerpo.paso !== undefined && cuerpo.paso !== null && !PASOS.includes(cuerpo.paso)) {
+    return { ok: false, motivo: '`paso` no es uno de: ' + PASOS.join(', ') }
+  }
+
   // Se reconstruye clave a clave y en el orden del contrato. Copiar `cuerpo`
   // con un `spread` guardaría lo que hubiera llegado de más si algún día esta
   // validación se relajara; así, lo que se guarda es lo que se validó.
-  return {
-    ok: true,
-    reporte: { ok, version, ultimaMigracion, base, canal, uptime, instancia },
-  }
+  const reporte = { ok, version, ultimaMigracion, base, canal, uptime, instancia }
+  // Se añaden solo si vinieron, para que un reporte de un `update.sh` viejo no
+  // acabe con dos claves vacías que nadie escribió.
+  if (cuerpo.resultado !== undefined) reporte.resultado = cuerpo.resultado
+  if (cuerpo.paso !== undefined) reporte.paso = cuerpo.paso
+
+  return { ok: true, reporte }
 }
 
 /**

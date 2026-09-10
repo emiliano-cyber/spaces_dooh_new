@@ -552,3 +552,46 @@ describe('arrastrarMemoria', () => {
     expect(salida[0].version).toBe('v0.5.0')
   })
 })
+
+describe('validarReporte · las claves de la fase 2 son OPCIONALES', () => {
+  const base = {
+    ok: true,
+    version: 'v0.5.0',
+    ultimaMigracion: '20260910_pais_sin_default.sql',
+    base: 'ok',
+    canal: 'estable',
+    uptime: 120,
+    instancia: 'g500',
+  }
+
+  // Si fueran obligatorias, toda instancia que no se haya actualizado todavia
+  // dejaria de reportar -- y eso es la flota entera el dia del despliegue.
+  it('un reporte SIN resultado ni paso sigue siendo valido (update.sh viejo)', () => {
+    expect(validarReporte(base).ok).toBe(true)
+  })
+
+  it('un reporte CON las dos es valido, y las CONSERVA', () => {
+    const r = validarReporte({ ...base, resultado: 'fallo', paso: 'migraciones' })
+    expect(r.ok).toBe(true)
+    expect(r.reporte.resultado).toBe('fallo')
+    expect(r.reporte.paso).toBe('migraciones')
+  })
+
+  it('un paso que no esta en la lista cerrada se rechaza', () => {
+    const r = validarReporte({ ...base, resultado: 'fallo', paso: 'lo-que-sea' })
+    expect(r.ok).toBe(false)
+    expect(r.motivo).toContain('paso')
+  })
+
+  it('un resultado inventado se rechaza', () => {
+    expect(validarReporte({ ...base, resultado: 'regular', paso: 'pull' }).ok).toBe(false)
+  })
+
+  // El guard de la fase 1, otra vez y por el otro lado: aqui el dato SI viene
+  // de la instancia, asi que la lista cerrada es lo unico que lo sujeta.
+  it('una clave que nadie declaro sigue tumbando el reporte ENTERO', () => {
+    const r = validarReporte({ ...base, error: 'traceback con datos del cliente' })
+    expect(r.ok).toBe(false)
+    expect(r.motivo).toContain('error')
+  })
+})
