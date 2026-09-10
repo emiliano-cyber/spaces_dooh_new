@@ -43,7 +43,7 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { CLAVES_REPORTE, CLAVES_REPORTE_OPCIONALES, cargarInventario, tokenDe } from './estado.mjs'
-import { CODIGOS_UPDATE } from './diagnostico.mjs'
+
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -101,12 +101,22 @@ export function validarReporte(cuerpo) {
     }
   }
 
-  // El código de la fase 2, solo si viene. La LISTA CERRADA es lo único que
-  // sujeta un dato que aquí viaja DE la instancia hacia el plano de control, al
-  // revés que todo lo demás de este panel.
+  // El código de la fase 2, solo si viene.
+  //
+  // ─── Se valida por FORMA y no por enumeración, a propósito ───────────────
+  // Un código de salida es un byte: entero de 0 a 255. Eso es lo que se
+  // comprueba, no que esté entre los nueve que el panel sabe traducir.
+  //
+  // El motivo: si se rechazara un código desconocido, el día que `update.sh`
+  // gane un modo de fallo nuevo esa instancia dejaría de reportar **entera** y
+  // se quedaría a oscuras justo cuando algo va mal. Un número de un byte no
+  // tiene sitio donde esconder un dato de negocio, así que la forma basta como
+  // frontera — y `fraseDeActualizacion` NOMBRA el código que no conoce en vez
+  // de callarlo.
   if (cuerpo.codigo !== undefined && cuerpo.codigo !== null) {
-    if (typeof cuerpo.codigo !== 'number' || !CODIGOS_UPDATE.includes(cuerpo.codigo)) {
-      return { ok: false, motivo: '`codigo` no es uno de: ' + CODIGOS_UPDATE.join(', ') }
+    const c = cuerpo.codigo
+    if (typeof c !== 'number' || !Number.isInteger(c) || c < 0 || c > 255) {
+      return { ok: false, motivo: '`codigo` no es un codigo de salida (entero de 0 a 255)' }
     }
   }
 

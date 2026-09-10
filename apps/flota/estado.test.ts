@@ -577,10 +577,23 @@ describe('validarReporte · el codigo de la fase 2 es OPCIONAL', () => {
     expect(r.reporte.codigo).toBe(2)
   })
 
-  it('un codigo que no esta en la lista cerrada se rechaza', () => {
+  it('un codigo fuera del rango de un codigo de salida se rechaza', () => {
     const r = validarReporte({ ...base, codigo: 999 })
     expect(r.ok).toBe(false)
     expect(r.motivo).toContain('codigo')
+  })
+
+  // Se valida la FORMA y no la enumeracion: si se rechazara un codigo que el
+  // panel no traduce, el dia que update.sh gane un modo de fallo nuevo esa
+  // instancia dejaria de reportar ENTERA, y se quedaria a oscuras justo cuando
+  // algo va mal. Lo nombra el panel; no lo rechaza el receptor.
+  it('un codigo que el panel no traduce SE ACEPTA: no deja muda a la instancia', () => {
+    expect(validarReporte({ ...base, codigo: 42 }).ok).toBe(true)
+  })
+
+  it('un codigo con decimales o negativo se rechaza', () => {
+    expect(validarReporte({ ...base, codigo: 2.5 }).ok).toBe(false)
+    expect(validarReporte({ ...base, codigo: -1 }).ok).toBe(false)
   })
 
   it('un codigo que no es un numero se rechaza', () => {

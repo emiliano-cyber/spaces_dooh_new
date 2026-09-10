@@ -1,0 +1,282 @@
+================================================================================
+ TARJETA · Que el panel diga COMO acabo la ultima actualizacion   2026-09-10
+ Fase 2 de docs/Plan_Panel_Flota_Diagnostico.md
+================================================================================
+
+QUE HACE
+  Hasta hoy el panel sabe si una instancia contesta y en que version se quedo.
+  No sabe si su ultima ACTUALIZACION fue bien. Con esto, cada instancia manda
+  el codigo de salida de su `update.sh`, y el panel lo traduce a una frase.
+
+  La diferencia que compra: una instancia que fallo la migracion a medias
+  (codigo 2, «LA BASE PUDO CAMBIAR») y otra que no aplico nada (codigo 3) hoy se
+  ven IGUAL en el panel -- las dos como «rezagada». La primera necesita que
+  alguien entre esta noche; la segunda puede esperar.
+
+QUE NO HACE
+  No aplica ninguna migracion. No cambia la imagen de ninguna instancia. No
+  toca ninguna base. No cambia nada que vea un cliente.
+
+--------------------------------------------------------------------------------
+ ⚠️ EL ORDEN NO ES NEGOCIABLE: PRIMERO EL PADRE, DESPUES LAS INSTANCIAS
+--------------------------------------------------------------------------------
+  El receptor del PADRE rechaza un reporte ENTERO si trae una clave que no
+  conoce -- a proposito, y por eso el panel no acumula datos del negocio de
+  nadie. `codigo` es una clave nueva.
+
+  Consecuencia: si una instancia empieza a mandar `codigo` ANTES de que el
+  PADRE aprenda a aceptarlo, el PADRE le rechaza el reporte completo y esa
+  instancia se queda MUDA en el panel -- sin version, sin fecha, sin nada --
+  precisamente en la corrida en que algo pudo fallar.
+
+  Al reves no pasa nada: el PADRE trata `codigo` como OPCIONAL, asi que una
+  instancia con el `update.sh` viejo sigue reportando exactamente como hoy.
+
+  PRIMERO A (el padre), DESPUES B (DEMO), DESPUES C (g500). Sin saltarse A.
+
+================================================================================
+ A · EL PADRE  ·  [SERVIDOR: 137.184.107.53]
+================================================================================
+
+--------------------------------------------------------------------------------
+ A1 · 🚦 GATE · la maquina correcta
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  ESPERADO: `ubuntu-s-2vcpu-4gb-amd-nyc1` y `137.184.107.53`.
+  🚦 Si dice `g500`, estas en la instancia de un cliente. PARAR.
+
+--------------------------------------------------------------------------------
+ A2 · Traer el codigo
+--------------------------------------------------------------------------------
+cd /var/www/Spaces
+git log --oneline -1 HEAD
+git pull
+git log --oneline -1 HEAD
+
+  Apunta el hash del PRIMER `git log`: es la vuelta atras.
+  Si los dos son iguales el pull no trajo nada: comprueba la rama con
+  `git branch --show-current` antes de seguir.
+
+--------------------------------------------------------------------------------
+ A3 · 🚦 GATE · que el receptor ACEPTE un reporte con `codigo`
+--------------------------------------------------------------------------------
+  Esto no toca el servicio ni el disco: solo le pregunta al validador que dice
+  de tres cuerpos. Es la comprobacion que autoriza el paso B.
+
+cd /var/www/Spaces/apps/flota
+node -e '
+import("./reporte.mjs").then(({ validarReporte }) => {
+  const base = { ok: true, version: "v0.5.0", ultimaMigracion: null,
+                 base: "ok", canal: "estable", uptime: 120, instancia: "demo" };
+  console.log("sin codigo (update.sh viejo):", validarReporte(base).ok);
+  console.log("con codigo 2:               ", validarReporte({ ...base, codigo: 2 }).ok);
+  console.log("con una clave inventada:    ", validarReporte({ ...base, traza: "x" }).ok);
+});
+'
+
+  ESPERADO, las tres lineas y en este orden:
+
+    sin codigo (update.sh viejo): true
+    con codigo 2:                 true
+    con una clave inventada:      false
+
+  🚦 Si la segunda dice `false`, el codigo nuevo no esta cargado: vuelve a A2.
+  🚦 Si la tercera dice `true`, PARAR y avisar: el receptor dejo de rechazar
+     claves que nadie declaro, y ese guard es lo que impide que datos del
+     negocio de un cliente acaben en el disco del padre.
+
+--------------------------------------------------------------------------------
+ A4 · Reiniciar el panel · el comando se AVERIGUA, no se recuerda
+--------------------------------------------------------------------------------
+systemctl list-units --type=service --all 2>/dev/null | grep -i -E "flota|panel"
+
+  Con el nombre que salga:
+
+systemctl restart <el-servicio-que-salio>
+systemctl status  <el-servicio-que-salio> --no-pager | head -12
+
+  ESPERADO: `active (running)`.
+
+  Si en A esta tambien el receptor de reportes como servicio aparte, sale en la
+  misma lista. Reinicia los dos.
+
+================================================================================
+ B · DEMO  ·  [SERVIDOR: 137.184.107.53, la misma maquina]
+================================================================================
+  DEMO es una instancia contenerizada que vive en el PADRE. Su `update.sh` esta
+  en `/opt/space-os/update.sh` y su configuracion en
+  `/etc/space-os/demo-instancia.env` -- que es la que usa el cron, y sin ella
+  el guion lee OTRA configuracion.
+
+--------------------------------------------------------------------------------
+ B1 · Guardar el que hay, y poner el nuevo
+--------------------------------------------------------------------------------
+cp -a /opt/space-os/update.sh /opt/space-os/update.sh.antes-fase2
+install -m 750 -o root -g root /var/www/Spaces/infra/scripts/update.sh /opt/space-os/update.sh
+sha256sum /opt/space-os/update.sh /var/www/Spaces/infra/scripts/update.sh
+
+  ESPERADO: las dos sumas IGUALES. El `.antes-fase2` es la vuelta atras y se
+  queda ahi; no lo borres hoy.
+
+--------------------------------------------------------------------------------
+ B2 · 🚦 GATE · correrlo CON SU CONFIGURACION
+--------------------------------------------------------------------------------
+  El `SPACE_OS_CONF` NO es opcional. Sin el, este guion actualiza otra cosa.
+
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh; echo "codigo de salida: $?"
+
+  ESPERADO: lo de siempre -- normalmente `sin cambios` -- y `codigo de salida: 0`.
+  Si sale otro codigo, ANOTALO y sigue: el resto de la tarjeta sirve igual, y de
+  hecho ese codigo es lo que estamos aqui para ver en el panel.
+
+  🚦 Si dice que no encuentra `respaldo.sh`, el `install` de B1 se llevo el
+     guion pero no su vecino. PARAR y avisar.
+
+--------------------------------------------------------------------------------
+ B3 · 🚦 GATE · que el reporte haya llegado con `codigo` dentro
+--------------------------------------------------------------------------------
+  El archivo que el receptor acaba de escribir. La ruta puede ser otra en esta
+  maquina, asi que se BUSCA en vez de recordarla:
+
+find /var/www/Spaces/apps/flota /var/lib/space-os -name 'demo.json' 2>/dev/null
+
+  Con la que salga:
+
+cat <la-ruta-que-salio>
+
+  ESPERADO: un JSON con `"codigo":` dentro y el numero que imprimio B2.
+
+  🚦 Si el archivo NO tiene `codigo`, mira el log de la corrida:
+
+grep -i flota /var/log/space-os/update.log | tail -5
+
+     · «reporte de flota OK» y aun asi sin `codigo`  -> el `update.sh` nuevo no
+       se cargo: repite B1 y compara las sumas.
+     · «reporte de flota NO ENTREGADO»               -> el PADRE lo rechazo.
+       PARAR y NO seguir al paso C: eso es exactamente el fallo que el orden de
+       esta tarjeta evita, y en C se repetiria contra una instancia de cliente.
+
+--------------------------------------------------------------------------------
+ B4 · Verlo en la pantalla                                        🚦 GATE
+--------------------------------------------------------------------------------
+  Abre https://space-os.io/flota/
+
+  ESPERADO si el update de B2 salio con 0: la fila de DEMO SIN ninguna linea
+  debajo. El silencio es la senal de que esta bien.
+
+  ESPERADO si salio con otro codigo: debajo de su renglon, una frase en
+  castellano diciendo que paso -- no el numero a secas.
+
+================================================================================
+ C · g500  ·  LA INSTANCIA DE UN CLIENTE CON DATOS REALES
+================================================================================
+  🚦 NO ENTRES AQUI si B3 dijo «NO ENTREGADO».
+
+  Y lo que hay que tener claro antes de escribir el primer comando: esta
+  maquina tiene los datos de un cliente. Lo de abajo NO toca la base ni la
+  aplicacion -- cambia un guion de mantenimiento y lo corre en seco -- pero el
+  cuidado es el que corresponde al sitio, no al cambio.
+
+--------------------------------------------------------------------------------
+ C1 · [LOCAL o desde donde ya entras a g500] · mandar el guion
+--------------------------------------------------------------------------------
+  El repositorio no esta en g500: el guion se copia. Desde la maquina que ya
+  tiene la llave de g500 (la misma desde la que se hizo la migracion del 09/09):
+
+scp /var/www/Spaces/infra/scripts/update.sh root@142.93.113.106:/tmp/update.sh.nuevo
+
+  Si esa maquina no es el PADRE, la ruta de origen es la de tu copia del
+  repositorio: `infra/scripts/update.sh`.
+
+--------------------------------------------------------------------------------
+ C2 · [SERVIDOR: g500] · comprobar ANTES de sustituir
+--------------------------------------------------------------------------------
+hostname
+sha256sum /tmp/update.sh.nuevo /opt/space-os/update.sh
+bash -n /tmp/update.sh.nuevo && echo "el guion nuevo es sintacticamente valido"
+
+  🚦 GATE: `hostname` tiene que decir g500. Y las dos sumas tienen que ser
+     DISTINTAS -- si son iguales, ya esta puesto y no hay nada que hacer.
+  🚦 Si `bash -n` se queja, PARAR: la copia llego mal.
+
+--------------------------------------------------------------------------------
+ C3 · [SERVIDOR: g500] · guardar el que hay, y poner el nuevo
+--------------------------------------------------------------------------------
+cp -a /opt/space-os/update.sh /opt/space-os/update.sh.antes-fase2
+install -m 750 -o root -g root /tmp/update.sh.nuevo /opt/space-os/update.sh
+sha256sum /opt/space-os/update.sh /tmp/update.sh.nuevo
+
+  ESPERADO: las dos sumas iguales.
+
+--------------------------------------------------------------------------------
+ C4 · [SERVIDOR: g500] · 🚦 GATE · en SECO primero
+--------------------------------------------------------------------------------
+  `--dry-run` promete no tocar nada, y ademas NO postea ningun reporte -- asi
+  que esto comprueba que el guion nuevo corre en esta maquina sin dejar rastro
+  en el panel:
+
+/opt/space-os/update.sh --dry-run; echo "codigo de salida: $?"
+
+  ESPERADO: el relato de lo que haria, y `codigo de salida: 0`.
+  🚦 Cualquier otra cosa: PARAR, poner de vuelta el `.antes-fase2` (abajo) y
+     avisar. No se corre en real un guion que no pasa en seco.
+
+--------------------------------------------------------------------------------
+ C5 · [SERVIDOR: g500] · la corrida de verdad
+--------------------------------------------------------------------------------
+  Y aqui la unica advertencia de contenido: esta corrida SI puede actualizar la
+  instancia si hay una version nueva en el canal `estable`. Hoy la promocion de
+  v0.5.0 esta parada por el registro DNS de `prueba`, asi que lo esperado es
+  `sin cambios`. Si dijera que actualiza, ESO es informacion: paralo y avisa.
+
+/opt/space-os/update.sh; echo "codigo de salida: $?"
+
+  ESPERADO: `sin cambios` y `codigo de salida: 0`.
+
+--------------------------------------------------------------------------------
+ C6 · Verlo en el panel del PADRE                                 🚦 GATE
+--------------------------------------------------------------------------------
+  Abre https://space-os.io/flota/ otra vez.
+
+  ESPERADO: la fila de g500 al dia y SIN linea debajo.
+
+  🚦 Si g500 desaparece de la tabla o se queda sin version ni fecha, su reporte
+     esta siendo rechazado. En el PADRE:
+
+grep -i 'flota' /var/log/nginx/access.log 2>/dev/null | tail -5
+
+     Y la vuelta atras de C esta abajo.
+
+================================================================================
+ ⛔ LO DE ABAJO NO ES EL PASO SIGUIENTE
+================================================================================
+  Es la VUELTA ATRAS, y va comentada a proposito. No la corras si los pasos de
+  arriba salieron bien: esto deshace el trabajo. Ya paso en este proyecto que
+  una tarjeta puso un comando destructivo en la fila y se ejecuto por inercia.
+
+  Cada parte se deshace por separado, y en el orden CONTRARIO al de arriba:
+  primero las instancias, el PADRE al final. Si se quitara el PADRE primero,
+  las instancias que aun mandan `codigo` se quedarian mudas.
+
+  · g500 y DEMO -- volver a su `update.sh` de antes:
+
+# cp -a /opt/space-os/update.sh.antes-fase2 /opt/space-os/update.sh
+
+  · El PADRE -- volver al commit anterior. `<commit-anterior>` es el hash que
+    imprimio el PRIMER `git log` de A2:
+
+# cd /var/www/Spaces && git checkout <commit-anterior> && systemctl restart <el-servicio>
+
+  Y lo que NO hace falta deshacer: los `estado/*.json` que ya se escribieron con
+  `codigo` dentro. El panel viejo ignora la clave; no molesta.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  1. Las tres lineas de A3.
+  2. El codigo de salida de B2 y el JSON de B3.
+  3. El codigo de salida de C4 y C5.
+  4. Si en el panel aparecio alguna averia que no sabiamos -- eso es lo que esta
+     tarjeta existe para descubrir.
+================================================================================

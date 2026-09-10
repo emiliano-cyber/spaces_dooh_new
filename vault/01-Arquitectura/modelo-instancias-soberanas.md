@@ -11,6 +11,7 @@ archivos:
   - apps/web/lib/test/db-e2e.ts
   - apps/web/middleware.ts
   - apps/flota/diagnostico.mjs
+  - infra/scripts/update.sh
   - apps/flota/estado.mjs
   - apps/flota/servidor.mjs
 ---
@@ -292,12 +293,61 @@ no se inventa una fecha.
 release ni promoción — que es lo que lo hacía posible hoy, con la promoción
 parada.
 
-> **Queda la fase 2**, diseñada y planeada sin implementar: que el panel diga si
-> una **actualización** falló y en qué paso. La instancia mandaría `resultado` y
-> `paso` de listas cerradas y **el PADRE escribiría la frase** — nunca texto
-> libre, que sería el mismo dato cruzando la frontera al revés. Y su despliegue
-> tiene un orden obligatorio: **el PADRE antes que las instancias**, porque
-> `validarReporte` rechaza el reporte entero ante una clave que no conoce.
+### La fase 2 · con qué CÓDIGO acabó la última actualización
+
+Escrita el 2026-09-10, **sin desplegar todavía**: espera la tarjeta
+`docs/evidencias/flota-fase2-desplegar.txt`, que se corre a mano.
+
+Hasta ahora el panel sabía si una instancia contesta y en qué versión se quedó,
+pero no si su última **actualización** fue bien: una que falló la migración a
+medias y otra que no aplicó nada se veían las dos como `rezagada`. Ahora la
+instancia manda **una clave más**, `codigo`, y el panel la traduce a una frase.
+
+**Lo que viaja es el código de salida de `update.sh`, y esa decisión se cambió
+en mitad de la ejecución.** El plan pedía dos claves inventadas —`resultado`
+(`ok`/`fallo`) y `paso` (`pull`, `migraciones`, `salud`…)—, y al abrir el guión
+apareció que aplanaban lo que no se puede aplanar: `paso: migraciones` mete en
+el mismo cajón el **2** —«las migraciones fallaron y **LA BASE PUDO CAMBIAR**»—
+y el **3** —«no se aplicó nada»—. La primera es alguien entrando al droplet esta
+noche; la segunda espera al cron. Y la cabecera de `update.sh` ya advertía de
+que aplanar sus códigos *«sería justamente el error que este script no puede
+cometer»*.
+
+| | |
+|---|---|
+| Lo que manda la instancia | `codigo`, un entero de 0 a 255. **Nunca texto** |
+| Quién escribe las palabras | el PADRE (`diagnostico.mjs`, `fraseDeActualizacion`) |
+| Dónde se fija | `salir()` — la única puerta de salida bajo el candado, así que un modo de fallo nuevo arrastra su código solo |
+| Validación en el receptor | por **forma**, no por enumeración |
+
+> [!important] Se valida por forma, y esa fue la segunda corrección
+> La primera versión rechazaba cualquier código que no estuviera entre los nueve
+> que el panel traduce. Eso contradecía al propio panel —que promete **nombrar**
+> el código que no conoce en vez de callarlo— y era peor que un detalle: el día
+> que `update.sh` gane un modo de fallo nuevo, esa instancia dejaría de reportar
+> **entera** y se quedaría a oscuras justo cuando algo va mal. Un número de un
+> byte no tiene sitio donde esconder un dato de negocio, así que la forma basta
+> como frontera.
+
+> [!warning] El orden de despliegue no es negociable: PADRE, luego instancias
+> `validarReporte` rechaza el reporte **entero** ante una clave que no conoce, a
+> propósito. Una instancia que mande `codigo` antes de que el PADRE lo acepte se
+> queda **muda** en el panel — sin versión, sin fecha — precisamente en la
+> corrida en que algo pudo fallar. Al revés no pasa nada: `codigo` es opcional,
+> así que una instancia con el `update.sh` viejo reporta igual que hoy.
+
+> [!note] Dos cosas que se descubrieron midiendo, no leyendo
+> **1 · «reportar también en el camino de fallo» ya estaba hecho.** `salir()` ya
+> llamaba a `reportar_a_flota` en todos los caminos; solo faltaba que el cuerpo
+> llevara el código.
+>
+> **2 · El código 75 nunca llega al panel, y ahora está medido** (`E105` de
+> `pruebas-update.sh`). Cuando el candado está ocupado, el 75 lo devuelve el
+> proceso de **fuera** del candado, que no pasa por `salir` — y `salir` es la
+> única puerta que reporta. Así que esa corrida no manda nada, que es lo
+> correcto: una corrida que no se ejecutó no puede sobrescribir el estado de la
+> que sí. El panel trata el 75 como sano de todos modos, pero esa rama es
+> defensiva, no un caso vivo.
 
 ## 7 · Lo que está bloqueado, y por quién
 

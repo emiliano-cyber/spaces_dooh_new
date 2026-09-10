@@ -16,6 +16,16 @@ sub-fila. Se arrastra `ultimaVezBien` entre pasadas leyendo el `estado.json`
 anterior. Y en la fase 2, la instancia reporta **dos valores de listas
 cerradas** —`resultado` y `paso`— y **el PADRE escribe la frase**.
 
+> **Corregido durante la ejecución, el 10/09.** Ese par de claves inventadas se
+> sustituyó por **una sola**: `codigo`, el código de salida de `update.sh`. El
+> porqué está en el aviso que abre la FASE 2, más abajo, y en la §9.2 del
+> diseño. Las tareas 7, 8 y 9 se ejecutaron con `codigo`; los bloques de código
+> que aparecen dentro de ellas son la versión **superada** y se conservan como
+> historia del recorrido, igual que el resto de este repositorio hace con las
+> decisiones que cambiaron. **No los uses como referencia de lo que hay hoy** —
+> para eso están los archivos.
+
+
 **Dos fases, 9 tareas.** Las tareas 1 a 6 son la fase 1 y se pueden desplegar
 solas. Las 7 a 9 son la fase 2, y **su orden de despliegue no es negociable**:
 el PADRE antes que las instancias.
@@ -766,32 +776,62 @@ Tareas 7, 8 y 9. §9.4 (el coste y el orden) → Tarea 9 paso 4.
 
 ---
 
-# FASE 2 · saber que una actualización falló, y en qué paso
+# FASE 2 · saber que una actualización falló, y con qué código
 
 Se conserva por la retro del 10/09. Diseño en la §9 del documento de diseño.
 **Va en commits aparte de la fase 1**, para que la 1 se pueda desplegar sin
 esperar a ésta.
 
+> [!danger] ESTA FASE SE EJECUTÓ CON OTRO VOCABULARIO, y fue lo correcto
+> Las tareas 7 a 9 de abajo piden dos claves inventadas —`resultado`
+> (`ok`/`fallo`) y `paso` (`pull`, `respaldo`, `migraciones`, `arranque`,
+> `salud`)—. **Se implementaron con una sola clave: `codigo`**, el código de
+> salida de `update.sh`.
+>
+> **El motivo, que es el que importa:** `paso: migraciones` mete en el mismo
+> cajón el código **2** —«las migraciones fallaron y **LA BASE PUDO CAMBIAR**»—
+> y el **3** —«no se aplicó nada»—. La primera es alguien entrando al droplet
+> esta noche; la segunda espera al cron. Y la cabecera de `update.sh` advierte
+> literalmente de que aplanar sus códigos *«sería justamente el error que este
+> script no puede cometer»* (`update.sh:374-388`). Inventar un vocabulario para
+> aplanarlos a mano era cometerlo por otra puerta.
+>
+> **Y dos cosas más se corrigieron al implementar:**
+> 1. `codigo` se valida por **forma** (entero 0–255), no por enumeración. Un
+>    validador que rechazara un código desconocido dejaría a esa instancia
+>    **muda entera** el día que `update.sh` gane un modo de fallo nuevo — justo
+>    cuando algo va mal. El panel **nombra** el código que no traduce.
+> 2. «reportar también en el camino de fallo» **ya estaba hecho**: `salir()` es
+>    la única puerta de salida bajo el candado y ya llamaba a
+>    `reportar_a_flota` en todos los caminos. Solo faltaba que el cuerpo
+>    llevara el código.
+>
+> Lo que **no** cambió: el orden de despliegue, la opcionalidad de la clave
+> nueva, y que las palabras las escriba siempre el PADRE. Esas tres son las
+> restricciones de abajo y siguen vigentes al pie de la letra.
+
 ## Restricciones de esta fase, y no son negociables
 
-- **La instancia NO manda texto libre.** Manda `resultado` (`ok` \| `fallo`) y
-  `paso` (lista cerrada). **Las palabras las escribe el PADRE**, igual que en la
-  fase 1. Un campo `error` de texto libre cruzando hacia el plano de control
-  rompe el argumento entero de §3 del diseño.
+- **La instancia NO manda texto libre.** Manda **un número** (`codigo`; el plan
+  original decía `resultado` + `paso`). **Las palabras las escribe el PADRE**,
+  igual que en la fase 1. Un campo `error` de texto libre cruzando hacia el
+  plano de control rompe el argumento entero de §3 del diseño.
 - **El PADRE va PRIMERO.** `validarReporte` rechaza el reporte **entero** si
   llega una clave que no conoce (`reporte.mjs:69-78`). Si se despliega
   `update.sh` antes que el panel, **todos los reportes se rechazan** — la flota
   se queda ciega justo por el cambio que venía a darle vista.
-- **Las claves nuevas son OPCIONALES.** Ese mismo validador exige que estén
-  todas las de `CLAVES_REPORTE`. Si `resultado` y `paso` fueran obligatorias,
-  una instancia con el `update.sh` viejo dejaría de reportar.
+- **La clave nueva es OPCIONAL.** Ese mismo validador exige que estén todas las
+  de `CLAVES_REPORTE`. Si `codigo` fuera obligatoria, una instancia con el
+  `update.sh` viejo dejaría de reportar.
 - **`version` sigue siendo obligatoria y no vacía.** Un update que falla antes
   de arrancar la imagen nueva reporta **la versión que sigue sirviendo**, que
   `update.sh` ya anota en `/var/lib/space-os/version-anterior`.
 
 ---
 
-### Tarea 7: el PADRE acepta y traduce las dos claves nuevas
+### Tarea 7: el PADRE acepta y traduce la clave nueva
+
+> Ejecutada con `codigo` en vez de `resultado`+`paso`. Ver el aviso de la fase.
 
 **Archivos:**
 - Modificar: `apps/flota/estado.mjs:65` (`CLAVES_REPORTE` y una lista nueva)
@@ -1026,6 +1066,14 @@ git commit -m "feat(flota): el panel enseña que el update de una instancia fall
 ---
 
 ### Tarea 9: `update.sh` lo cuenta, y el despliegue en orden
+
+> **Ejecutada con `codigo`.** Lo que se hizo de verdad, para el que venga:
+> `salir()` fija `FLOTA_CODIGO="$codigo"` —una sola línea, en la única puerta de
+> salida del guión bajo el candado— y `flota_cuerpo()` lo inyecta con `%d` solo
+> si está fijado. El paso 2 de abajo **no hizo falta**: `salir()` ya reportaba
+> en todos los caminos. Y el paso 3 salió con más de lo que pedía: cuatro
+> escenarios (E103–E106), uno de ellos en negativo —que el **texto** del error
+> no viaja— y dos mutantes que muerden, incluido «aplanar el código a 0».
 
 **Archivos:**
 - Modificar: `infra/scripts/update.sh:540-570` (la función que arma el JSON) y

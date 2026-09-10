@@ -34,6 +34,30 @@ La entrada más reciente va arriba.
   que se vigilan los servidores. Y no hace falta actualizar ninguna maquina de
   cliente para tenerlo.
 
+- **Y el tablero tambien dira si la ultima actualizacion de un servidor salio
+  mal.** Escrito hoy; se enciende cuando se corra la tarjeta de despliegue, que la
+  hace una persona.
+
+  El problema que resuelve: cada servidor de cliente se actualiza solo, de noche.
+  Si esa actualizacion falla, el servidor **sigue funcionando con la version
+  anterior** — asi esta diseñado — y por eso en el tablero aparecia como
+  «atrasado», exactamente igual que uno que simplemente todavia no le habia
+  tocado. **Y son dos cosas muy distintas:** uno se arregla esperando a la noche
+  siguiente, y el otro no se arregla solo nunca.
+
+  Ahora cada servidor cuenta con que resultado acabo su ultima actualizacion, y el
+  tablero lo traduce a una frase. La que mas importa distingue dos casos que antes
+  se veian iguales: **«las migraciones fallaron a medias y la base pudo cambiar»**
+  —que es alguien mirandolo esta noche— y **«no se aplico nada»** —que puede
+  esperar—. Si la actualizacion fue bien, el tablero sigue sin decir nada.
+
+  **Lo que el servidor de un cliente manda es un numero, nunca el texto del
+  error.** No es un detalle tecnico: un mensaje de error puede arrastrar dentro un
+  trozo del registro del programa, y ahi caben nombres, importes y correos de los
+  clientes de ese cliente. Las palabras las escribe siempre nuestro lado. El
+  registro completo se queda en la maquina del owner, que es de donde no tiene que
+  salir.
+
 - **Las pantallas dejan de nacer en Perú.** Al dar de alta una pantalla, el sistema
   no pregunta el pais — y hasta hoy rellenaba ese hueco solo, con **Perú**. Es
   herencia de cuando el producto se vendia en Lima, y quedo escrito en la base como

@@ -47,7 +47,7 @@ comunes salen hoy con el mismo texto inútil.
 
 | | Decisión | Consecuencia |
 |---|---|---|
-| **Alcance** | **Dos fases.** La 1 dice por qué una instancia no contesta; la 2, si una actualización falló y en qué paso | La 2 **se conserva**, no se descarta (retro del 10/09). Ver §9 |
+| **Alcance** | **Dos fases.** La 1 dice por qué una instancia no contesta; la 2, si una actualización falló y con qué código | La 2 **se conserva**, no se descarta (retro del 10/09). Ver §9 |
 | **Profundidad** | **Nombrar la capa que falló**, con **una sola** consulta | Nada de sondeo profundo automático: el PADRE no hace más peticiones hacia la máquina de un cliente de las que ya hace |
 | **Memoria** | Recordar **solo `ultimaVezBien`** | Distingue un parpadeo de una caída. Un campo, ninguna base de datos |
 | **La frase lleva el código** | «el dominio no resuelve **(ENOTFOUND)**», «el token no vale **(HTTP 403)**» | Retro del 10/09: la frase para leer deprisa **y** el código para buscarlo o pegarlo en un buscador. No se elige entre los dos |
@@ -225,7 +225,7 @@ escribe de memoria.
 
 ---
 
-## 9 · Fase 2 · saber que una actualización falló, y en qué paso
+## 9 · Fase 2 · saber que una actualización falló, y con qué código
 
 Se conserva por la retro del 10/09. Va en commits aparte: la fase 1 se despliega
 sin esperar a ésta.
@@ -249,30 +249,73 @@ respuesta. Un campo `error` que mande la instancia **rompe ese argumento**: es
 texto libre cruzando la frontera hacia el plano de control, y ahí puede venir
 cualquier cosa — incluido un fragmento de log con datos de un cliente.
 
-**Así que la instancia no manda texto.** Manda dos datos cerrados:
+**Así que la instancia no manda texto.** Manda **un número**:
 
 | Clave | Qué es | Validación en el PADRE |
 |---|---|---|
-| `resultado` | `ok` \| `fallo` | uno de los dos, o el reporte se rechaza |
-| `paso` | en qué paso murió: `pull`, `respaldo`, `migraciones`, `arranque`, `salud` | **lista cerrada**; cualquier otro valor se rechaza |
+| `codigo` | el **código de salida** de `update.sh` en su última corrida | **opcional**, y por forma: entero de 0 a 255 |
 
-Y **el PADRE compone la frase**: «la actualización falló al migrar», «la
-actualización falló en el sondeo de salud». Mismo principio que la fase 1, y por
-eso encaja sin excepciones: las palabras las escribe siempre el padre.
+> **Corregido el 10/09, durante la ejecución.** Este apartado pedía dos claves
+> inventadas —`resultado` (`ok`/`fallo`) y `paso` (`pull`, `respaldo`,
+> `migraciones`, `arranque`, `salud`)—. Al abrir `update.sh` para implementarlo
+> apareció que ese vocabulario **ya existe y es mejor**: los códigos de salida
+> están documentados en la cabecera del propio guión (`update.sh:374-388`), y
+> distinguen cosas que un nombre de paso **aplana**.
+>
+> El caso que lo decide: `paso: migraciones` mete en el mismo cajón el **2**
+> —«las migraciones fallaron y **LA BASE PUDO CAMBIAR**»— y el **3** —«no se
+> aplicó nada»—. La primera es alguien entrando al droplet esta noche; la
+> segunda espera al cron. Y la cabecera de `update.sh` advierte, literalmente,
+> que *«un `set -e` que los aplanara todos en fallo sería justamente el error
+> que este script no puede cometer»*. Inventar un vocabulario nuevo para
+> aplanarlos a mano era cometerlo por otra vía.
+
+Y **el PADRE compone la frase**: el 2 se lee «las migraciones fallaron a medias
+y LA BASE PUDO CAMBIAR», el 3 «no se aplicó nada». Mismo principio que la fase
+1, y por eso encaja sin excepciones: las palabras las escribe siempre el padre.
+Un número de un byte no tiene sitio donde esconder un dato de negocio.
+
+**Se valida por forma, no por enumeración**, y esto también cambió durante la
+ejecución. La primera versión rechazaba cualquier código que no estuviera entre
+los nueve que el panel traduce — y eso contradecía al propio panel, que promete
+*nombrar* el código que no conoce en vez de callarlo. Peor: el día que
+`update.sh` gane un modo de fallo nuevo, esa instancia dejaría de reportar
+**entera** y se quedaría a oscuras justo cuando algo va mal. Así que se
+comprueba lo que cabe en un código de salida (entero 0–255) y el panel nombra
+lo que no sabe traducir.
 
 > **Lo que se pierde con esto, dicho claro:** el mensaje de error concreto no
 > llega al panel. Para eso está el log de la instancia, y sacarlo de la máquina
 > es la deuda de `SPACES_KEY`/`LOGS_BUCKET` que ya está anotada. El panel dice
-> **dónde** murió, no **qué** dijo — y con el paso ya sabes si entrar o esperar.
+> **con qué código** murió, no **qué** dijo — y con el código ya sabes si entrar
+> o esperar.
 
 ### 9.3 · Las piezas
 
 | Dónde | Qué cambia |
 |---|---|
-| `infra/scripts/update.sh` | añade `resultado` y `paso` al JSON del reporte; y **reporta también en el camino de fallo**, no solo al terminar bien |
-| `apps/flota/reporte.mjs` | valida las dos claves nuevas contra su lista cerrada |
-| `apps/flota/estado.mjs` | `CLAVES_REPORTE` crece con las dos; la fila compone la frase |
-| `apps/flota/servidor.mjs` | la sub-fila de la fase 1 ya la enseña: no cambia |
+| `infra/scripts/update.sh` | `salir()` fija `FLOTA_CODIGO="$codigo"` y `flota_cuerpo()` lo inyecta en el JSON |
+| `apps/flota/reporte.mjs` | acepta `codigo` como clave **opcional** y lo valida por forma |
+| `apps/flota/diagnostico.mjs` | `fraseDeActualizacion(codigo)`: la tabla de códigos → frase |
+| `apps/flota/estado.mjs` | `CLAVES_REPORTE_OPCIONALES = ['codigo']`; la fila compone la frase |
+| `apps/flota/servidor.mjs` | la sub-fila de la fase 1 ya la enseña: **no cambia** |
+
+> **Y una cosa que este apartado daba por pendiente y ya estaba hecha:**
+> «reportar también en el camino de fallo». `salir()` (`update.sh:668-684`) es la
+> única puerta de salida una vez tomado el candado, y **ya llamaba** a
+> `reportar_a_flota || true` en todos los caminos. Lo único que faltaba era que
+> el cuerpo llevara el código. Fijarlo en `salir` y no en cada punto de fallo es
+> deliberado: un modo de fallo nuevo arrastra su código solo.
+
+### 9.3-bis · El 75 nunca llega, y está medido
+
+`E105` de `pruebas-update.sh` lo afirma: cuando el candado está ocupado el
+código **75** lo devuelve el proceso de **fuera** del candado
+(`update.sh:707-711`), que no pasa por `salir` — y `salir` es la única puerta
+que reporta. Así que esa corrida **no manda nada en absoluto**, que es lo
+correcto: una corrida que no se ejecutó no puede sobrescribir el estado de la
+que sí. El panel trata el 75 como sano de todos modos, pero esa rama es
+**defensiva**, no un caso vivo.
 
 ### 9.4 · El coste real, corregido
 
@@ -282,5 +325,12 @@ instancia** — hoy dos, g500 y DEMO — con su tarjeta. Las instancias futuras 
 reciben del aprovisionamiento sin hacer nada.
 
 Lo que sí conviene tener presente: **una instancia con el `update.sh` viejo
-seguirá reportando sin esas dos claves**, y el panel tiene que tratar eso como
-«no lo dice» y no como un fallo. Es el mismo criterio de `ultimaVezBien`.
+seguirá reportando sin esa clave**, y el panel tiene que tratar eso como «no lo
+dice» y no como un fallo. Es el mismo criterio de `ultimaVezBien`.
+
+Y de ahí sale **el orden de despliegue, que no es negociable**: primero el
+PADRE, después las instancias. El receptor rechaza un reporte entero si trae una
+clave que no conoce —a propósito—, así que una instancia que mande `codigo`
+antes de que el PADRE lo acepte se queda **muda** en el panel, precisamente en
+la corrida en que algo pudo fallar. Al revés no pasa nada. La tarjeta que lo
+impone es `docs/evidencias/flota-fase2-desplegar.txt`.
