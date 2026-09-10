@@ -50,6 +50,57 @@
    ABORTA. DEMO se actualiza ANTES de promover.
 
 # ############################################################
+#  PASO 0 · BLOQUEANTE · EL REGISTRO DNS DE DEMO NO EXISTE
+#  Medido el 2026-09-10. Sin esto, el PASO 3 aborta.
+# ############################################################
+#  `DEMO_URL` es https://prueba.space-os.io/spaces-dooh y ese
+#  nombre NO RESUELVE hoy (NXDOMAIN contra 1.1.1.1 y 8.8.8.8).
+#
+#  Y NO es una decision pendiente: el nombre se decidio el
+#  31/08 (Jochelo), el vhost esta desplegado
+#  (`infra/nginx/space-os.io.conf:284-286`, proxy a spaces_demo
+#  = el 3001) y el certificado YA lo cubre. El 02/09 funcionaba:
+#  `f3-5-demo-instancia-20260902.md:38` lo midio a 200 desde
+#  fuera. Lo unico que falta es el registro A, y nada del
+#  sistema pudo borrarlo: `apps/flota/dns.mjs` solo CREA
+#  registros, no tiene ruta de borrado.
+#
+#  >>> Y OJO, esto es mas grave que la promocion: el
+#  >>> certificado de space-os.io lleva `prueba.space-os.io`
+#  >>> como SAN y vence el 2026-11-29. certbot renueva a los
+#  >>> 30 dias --sobre el 2026-10-30-- y el reto http-01 de ese
+#  >>> nombre FALLARA, tirando la renovacion ENTERA: la del
+#  >>> certificado que sirve el PLANO DE CONTROL. El timer
+#  >>> corre dos veces al dia y el error solo se ve en su log.
+#
+#  EN EL PANEL DE CLOUDFLARE, zona space-os.io:
+#
+#    Nombre : prueba
+#    Tipo   : A
+#    Valor  : 137.184.107.53
+#    Proxy  : DESACTIVADO   <-- nube GRIS, no naranja
+#    TTL    : Auto
+#
+#  La nube gris esta escrita en el codigo por algo
+#  (`apps/flota/dns.mjs:10-14`): con el proxy encendido el
+#  nombre resuelve a Cloudflare y el certificado se pediria
+#  sobre otra cosa. El 03/09 costo dos horas.
+#
+#  🚦 PUERTA 0 — desde cualquier sitio con red:
+
+dig +short prueba.space-os.io
+curl -sS -o /dev/null -w "%{http_code}\n" https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+
+#  ESPERADO: `137.184.107.53` y `200`. Son las dos cosas
+#  EXACTAS que mira `promover.yml` antes de promover.
+#
+#  ── LA OTRA SALIDA, si se decide que DEMO no sea publica ───
+#  Entonces hay que SACAR `prueba` del certificado y reemitirlo
+#  solo con `space-os.io`, o la mecha de la renovacion sigue
+#  encendida. Y habria que rehacer la puerta de promocion, que
+#  exige una DEMO_URL alcanzable desde los runners de GitHub.
+
+# ############################################################
 #  PASO 1 · EL TAG          🖥️ EN TU WINDOWS      🚦 PUERTA 1
 # ############################################################
 #  El tag sale de `main`, no de una rama: `release.yml` se
@@ -86,21 +137,34 @@ hostname; curl -s ifconfig.me; echo
 #  ESPERADO: ubuntu-s-2vcpu-4gb-amd-nyc1 y 137.184.107.53
 #  🚦 Si dice `g500`, estas en la instancia del cliente. PARAR.
 
-#  DEMO se actualiza sola a las 4:17; aqui se fuerza. Primero
-#  DONDE esta su update -- no se da por sabido:
+#  DEMO se actualiza sola por cron; aqui se fuerza. Primero
+#  DONDE esta su update y CON QUE CONFIGURACION -- no se da por
+#  sabido, y el segundo comando es el que importa:
 
 ls -l /opt/space-os/ 2>&1 | head
+ls -l /etc/space-os/
 grep -rn "update.sh" /etc/cron.d/ /etc/crontab 2>/dev/null | head
 
-#  Con la ruta que salga (lo normal es /opt/space-os/update.sh):
+#  >>> MEDIDO EL 2026-09-10, y esta version de la tarjeta lo
+#  >>> tenia MAL: el cron de DEMO no llama a update.sh a secas.
+#  >>> Le pasa su configuracion:
+#  >>>
+#  >>>   /etc/cron.d/space-os-demo:
+#  >>>     31 4 * * * root SPACE_OS_CONF=/etc/space-os/demo-instancia.env \
+#  >>>       /opt/space-os/update.sh
+#  >>>
+#  >>> Sin esa variable, `update.sh` lee `/etc/space-os/instancia.env`
+#  >>> (`update.sh:359`), que en el PADRE es OTRA COSA: actualizarias
+#  >>> lo que no toca. La variable no es opcional.
 
-/opt/space-os/update.sh
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
 
-#  🚦 PUERTA 2 — que DEMO corra v0.5.0. El token sale de su
-#  propio entorno; sin el, /api/version contesta {ok:true} y
-#  nada mas, que NO es lo mismo que estar al dia.
+#  🚦 PUERTA 2 — que DEMO corra v0.5.0. El token sale de SU
+#  propio entorno --el de DEMO, no el otro-- y sin el
+#  /api/version contesta {ok:true} y nada mas, que NO es lo
+#  mismo que estar al dia.
 
-curl -s -H "X-Flota-Token: $(sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/instancia.env)" https://demo.space-os.io/spaces-dooh/api/version/
+curl -s -H "X-Flota-Token: $(sed -n 's/^FLOTA_TOKEN=//p' /etc/space-os/demo-instancia.env)" https://demo.space-os.io/spaces-dooh/api/version/
 
 #  ESPERADO: un JSON con "version":"v0.5.0".
 #
