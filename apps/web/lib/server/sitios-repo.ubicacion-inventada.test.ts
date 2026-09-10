@@ -61,6 +61,25 @@ describe('insertarSitio — no inventa la ubicación que nadie capturó', () => 
     expect(valor('estado')).toBeNull()
   })
 
+  it('sin país, la columna pais va NULL y no «PE»', async () => {
+    // La última pieza de DATA-01, y la que quedó fuera el 26/08: `ciudad` y
+    // `estado` se pudieron dejar en NULL entonces, pero `pais` no, porque
+    // `db/schema.sql:136` lo declaraba `not null default 'PE'` y un null
+    // reventaba el insert con un 23502. La migración
+    // `20260910_pais_sin_default.sql` retira las dos cosas.
+    //
+    // Que no es teórico: las 12 pantallas de g500 --TLALPAN 985, PATRIOTISMO Y
+    // PENSILVANIA, CALZADA MEXICO TACUBA...-- estaban guardadas como Perú, y
+    // viajaron así a la instancia del cliente el 09/09.
+    const valor = await capturarInsert({})
+    expect(valor('pais')).toBeNull()
+  })
+
+  it('una pantalla con país guarda el suyo', async () => {
+    const valor = await capturarInsert({ pais: 'MX' })
+    expect(valor('pais')).toBe('MX')
+  })
+
   it('una pantalla de CDMX guarda CDMX, no Lima', async () => {
     // La otra mitad del caso: si el arreglo fuera «no escribir nunca la
     // columna», este caso lo delataría.

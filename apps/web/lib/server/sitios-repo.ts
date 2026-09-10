@@ -148,13 +148,17 @@ function valoresDe(s: any): unknown[] {
     // publicada como «Cuauhtemoc · Lima» en la liga que ve el cliente. Inventar
     // una ubicación es peor que no tenerla.
     s.esRotativo ?? digital, s.plazaCiudad ?? s.distrito ?? null, s.ciudad ?? null, s.estado ?? null,
-    // `pais` NO puede ir null todavía: `db/schema.sql:136` lo declara
-    // `not null default 'PE'`, así que un null revienta el insert con un 23502.
-    // Quitar ese default es una MIGRACIÓN —cambio rojo, con decisión humana
-    // detrás: hay filas en producción con 'PE' que habría que repasar—, y hasta
-    // que se tome, esto sigue escribiendo el mismo valor que pondría la base.
-    // Es lo único que queda de DATA-01 sin arreglar, y está a propósito.
-    s.pais ?? 'PE', s.alcaldia ?? s.distrito ?? null, s.direccionComercial ?? s.direccion ?? null,
+    // `pais` ya puede ir null, y con eso DATA-01 queda cerrado entero. La
+    // decisión que este comentario esperaba se tomó el 2026-09-10 y vive en
+    // `db/migrations/20260910_pais_sin_default.sql`: la columna pierde el
+    // `not null` y el `default 'PE'` que arrastraba del origen peruano del
+    // producto. Misma regla que ciudad y estado: lo que nadie capturó se queda
+    // vacío.
+    //
+    // No se cambió el default a 'MX' a propósito: el artefacto es idéntico para
+    // toda la flota y no puede saber en qué país opera cada owner. Quemar un
+    // país en la base es exactamente lo que produjo este defecto.
+    s.pais ?? null, s.alcaldia ?? s.distrito ?? null, s.direccionComercial ?? s.direccion ?? null,
     s.direccionPredio ?? s.direccion ?? null, s.direccionComercial ?? s.direccion ?? null,
     s.lat ?? null, s.lng ?? null, s.pendienteVerificacion ?? false, s.ancho ?? null, s.alto ?? null,
     s.caras ?? 1, s.iluminado ?? false, s.orientacion ?? null, s.tipoEstructura ?? null,

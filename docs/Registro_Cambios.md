@@ -5,6 +5,33 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-10
+
+- **Las pantallas dejan de nacer en Perú.** Al dar de alta una pantalla, el sistema
+  no pregunta el pais — y hasta hoy rellenaba ese hueco solo, con **Perú**. Es
+  herencia de cuando el producto se vendia en Lima, y quedo escrito en la base como
+  valor por omision. No era un dato interno: **la ficha publica de la pantalla, la
+  que se le manda al cliente, imprime la ubicacion**.
+
+  En agosto ya se habia corregido la mitad del problema — la ciudad y el estado
+  dejaron de inventarse y quedan en blanco cuando nadie los captura — pero el pais
+  no se pudo tocar entonces: exigia cambiar la estructura de la base, y eso se
+  decide aparte. Hoy se hizo.
+
+  **Ahora un dato que nadie capturo se queda vacio**, igual que los otros dos. Y no
+  se sustituyo Perú por Mexico a proposito: el mismo programa corre en la maquina de
+  cada cliente y no puede saber en que pais opera cada uno. Poner un pais fijo en la
+  base es exactamente lo que causo esto.
+
+  **Aparte, y con su propia decision:** las **12 pantallas de G500** ya estaban
+  guardadas como Perú, y son de la Ciudad de Mexico y el Estado de Mexico — Tlalpan,
+  Patriotismo, Calzada Mexico Tacuba, Gustavo Baz. Se corrigen a Mexico con un
+  cambio aparte, revisado y reversible. **El cambio de estructura no toca ni una
+  fila por su cuenta**: los datos de un cliente no se modifican como efecto
+  secundario de una actualizacion.
+
+---
+
 ## 2026-09-09
 
 - **Al entrar sin sesion, la aplicacion mandaba al navegador a una direccion que no
