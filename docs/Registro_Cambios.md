@@ -7,6 +7,57 @@ La entrada más reciente va arriba.
 
 ## 2026-09-10
 
+- **El tablero de servidores ya dice POR QUÉ uno no responde.** Cuando un servidor
+  de cliente no contestaba, el tablero ponia «sin respuesta» y nada mas. Detras de
+  esas dos palabras caben cosas muy distintas: que la direccion de internet dejo de
+  apuntar a la maquina, que la maquina no acepta conexiones, que se le vencio el
+  certificado de seguridad, que el programa esta caido, o que al tablero le falta la
+  llave para preguntar. **Cinco averias con cinco arreglos, y todas se veian igual.**
+
+  Ahora cada una dice lo que es, en una frase y con su codigo tecnico al lado — la
+  frase para entenderlo de un vistazo, el codigo para buscarlo o pasarselo a quien
+  lo vaya a arreglar. Por ejemplo: «el dominio no resuelve (ENOTFOUND)» o «el
+  certificado caduco (CERT_HAS_EXPIRED)».
+
+  **Y ahora recuerda desde cuando.** Antes era una foto del momento, asi que no se
+  distinguia un parpadeo de dos segundos de una caida de tres horas. Ahora acompaña
+  el aviso con la ultima vez que ese servidor si contesto. **Si un servidor esta
+  bien, el tablero no dice nada de el**: el silencio es la señal de que todo va
+  bien, en vez de llenar la pantalla de marcas verdes.
+
+  **Lo curioso es que el sistema ya sabia la causa y la tiraba.** La calculaba al
+  preguntar y la descartaba una linea despues, antes de mostrarla. Y para las
+  averias de red guardaba un mensaje que no decia nada — el mismo texto para las
+  cinco.
+
+  **Esto no cambia nada de lo que ve un cliente**: es la pantalla interna con la
+  que se vigilan los servidores. Y no hace falta actualizar ninguna maquina de
+  cliente para tenerlo.
+
+- **Y el tablero tambien dira si la ultima actualizacion de un servidor salio
+  mal.** Escrito hoy; se enciende cuando se corra la tarjeta de despliegue, que la
+  hace una persona.
+
+  El problema que resuelve: cada servidor de cliente se actualiza solo, de noche.
+  Si esa actualizacion falla, el servidor **sigue funcionando con la version
+  anterior** — asi esta diseñado — y por eso en el tablero aparecia como
+  «atrasado», exactamente igual que uno que simplemente todavia no le habia
+  tocado. **Y son dos cosas muy distintas:** uno se arregla esperando a la noche
+  siguiente, y el otro no se arregla solo nunca.
+
+  Ahora cada servidor cuenta con que resultado acabo su ultima actualizacion, y el
+  tablero lo traduce a una frase. La que mas importa distingue dos casos que antes
+  se veian iguales: **«las migraciones fallaron a medias y la base pudo cambiar»**
+  —que es alguien mirandolo esta noche— y **«no se aplico nada»** —que puede
+  esperar—. Si la actualizacion fue bien, el tablero sigue sin decir nada.
+
+  **Lo que el servidor de un cliente manda es un numero, nunca el texto del
+  error.** No es un detalle tecnico: un mensaje de error puede arrastrar dentro un
+  trozo del registro del programa, y ahi caben nombres, importes y correos de los
+  clientes de ese cliente. Las palabras las escribe siempre nuestro lado. El
+  registro completo se queda en la maquina del owner, que es de donde no tiene que
+  salir.
+
 - **Las pantallas dejan de nacer en Perú.** Al dar de alta una pantalla, el sistema
   no pregunta el pais — y hasta hoy rellenaba ese hueco solo, con **Perú**. Es
   herencia de cuando el producto se vendia en Lima, y quedo escrito en la base como

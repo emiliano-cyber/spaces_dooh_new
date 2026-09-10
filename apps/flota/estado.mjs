@@ -53,6 +53,8 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { clasificarFallo, fraseDeActualizacion } from './diagnostico.mjs'
+
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
 /** Las claves EXACTAS que `GET /api/version` devuelve con token (F6.1). */
@@ -64,8 +66,50 @@ export const CLAVES_VERSION = ['ok', 'version', 'ultimaMigracion', 'base', 'cana
  */
 export const CLAVES_REPORTE = [...CLAVES_VERSION, 'instancia']
 
-/** Las únicas columnas que el panel guarda de un owner. La lista es la promesa. */
+/**
+ * Lo que un `update.sh` NUEVO añade, y que uno viejo no manda (fase 2): **el
+ * código de salida de su última corrida**, y nada más.
+ *
+ * **Opcional a propósito.** `validarReporte` exige que estén todas las de
+ * `CLAVES_REPORTE`, así que declararlo ahí dejaría sin reportar a toda
+ * instancia que no se haya actualizado todavía — y eso es la flota entera el
+ * día del despliegue.
+ *
+ * **Una sola clave, y es un número.** La primera versión mandaba `resultado` y
+ * `paso`; las dos sobraban. El código ya dice si fue un fallo (0 y 75 no lo
+ * son) y dice bastante más que un nombre de paso: un **2** es «la base pudo
+ * cambiar» y un **3** es «no se aplicó nada». Ver `diagnostico.mjs`.
+ *
+ * Y por eso el orden del despliegue no es negociable: **el PADRE primero**. Ese
+ * mismo validador rechaza el reporte ENTERO ante una clave que no conoce, así
+ * que soltar `update.sh` antes que el panel deja la flota ciega justo por el
+ * cambio que venía a darle vista.
+ */
+export const CLAVES_REPORTE_OPCIONALES = ['codigo']
+
+/** Las únicas columnas que la TABLA imprime. */
 export const COLUMNAS = ['nombre', 'dominio', 'canal', 'version', 'estado', 'fecha', 'origen']
+
+/**
+ * Las únicas claves que una fila GUARDA. **Aquí vive la promesa**, y desde el
+ * 2026-09-10 ya no coincide con `COLUMNAS`.
+ *
+ * ─── Por qué se separaron ─────────────────────────────────────────────────
+ * `COLUMNAS` hacía dos trabajos a la vez: lo que la fila guarda y lo que la
+ * tabla imprime. `motivo` no puede ir en la tabla —`principal()` ya lo imprime
+ * DEBAJO, y su comentario explica que en una celda la vuelve ilegible el día
+ * que hay tres instancias caídas y hay que leerla deprisa— pero sí tiene que
+ * viajar en el JSON, o el panel web no puede pintarlo.
+ *
+ * ─── Por qué estas dos claves no rompen la promesa ────────────────────────
+ * La lista blanca existe para que **datos de negocio de un owner** no entren al
+ * plano de control: ni conteos, ni razón social, ni cifras. Estas dos las
+ * escribe el PADRE — `motivo` sale de un código de error o de un estado HTTP,
+ * `ultimaVezBien` de un reloj— y **ninguna se copia del cuerpo de la
+ * respuesta**. Hay una prueba que lo afirma, y ese guard es lo único que impide
+ * que este campo se convierta en la puerta de atrás de lo que la lista cerró.
+ */
+export const CLAVES_FILA = [...COLUMNAS, 'motivo', 'ultimaVezBien']
 
 export const AL_DIA = 'al-dia'
 export const REZAGADA = 'rezagada'
@@ -118,8 +162,41 @@ export function resumen(respuestas, versiones) {
       estado: clasificar(version, versionDelCanal(versiones, canal)),
       fecha: r.fecha ?? SIN_DATO,
       origen: r.origen ?? 'consulta',
+      // El motivo de TRANSPORTE gana: si la instancia no contesta AHORA, eso es
+      // más urgente que un update que falló ayer — y además hay que arreglarlo
+      // antes de poder mirar lo otro. Si contesta, se enseña el del update, que
+      // si no no se vería en ninguna parte.
+      //
+      // `resultado` y `paso` entran SOLO a través de la frase: ninguno de los
+      // dos se copia a la fila, y hay una prueba que lo afirma.
+      motivo: r.motivo ?? fraseDeActualizacion(r) ?? null,
+      ultimaVezBien: r.ultimaVezBien ?? null,
     }
   })
+}
+
+/**
+ * Arrastra `ultimaVezBien` de la pasada anterior.
+ *
+ * El panel era una foto sin memoria, y con eso «no contesta» no distinguía un
+ * parpadeo de una avería de tres horas — que es la diferencia entre esperar y
+ * levantarse. Un solo campo, ninguna base de datos: si la instancia contesta
+ * ahora se pone ahora, y si no, se conserva lo que dijera la pasada anterior.
+ *
+ * **Sin fecha inventada.** Una instancia caída que nunca se vio bien se queda
+ * en `null`. Rellenarla con la hora actual diría exactamente lo contrario de la
+ * verdad, y es el tipo de dato falso que no da error nunca.
+ *
+ * `previas` es el arreglo `instancias` del `estado.json` anterior. Nulo,
+ * ausente o vacío significa «sin memoria», no un fallo.
+ */
+export function arrastrarMemoria(filas, previas = [], ahora = () => new Date().toISOString()) {
+  const memoria = new Map((previas ?? []).map((p) => [p.nombre, p.ultimaVezBien ?? null]))
+  return filas.map((f) => ({
+    ...f,
+    ultimaVezBien:
+      f.version && f.version !== SIN_DATO ? ahora() : (memoria.get(f.nombre) ?? null),
+  }))
 }
 
 /** `a` es posterior a `b`. Sin fecha se pierde: un dato sin cuándo no gana nada. */
@@ -287,21 +364,22 @@ export async function consultar(instancia, opciones = {}) {
       signal: AbortSignal.timeout(esperaMs),
       redirect: 'manual',
     })
-    if (!respuesta.ok) return { ...fila, motivo: 'HTTP ' + respuesta.status }
+    if (!respuesta.ok) return { ...fila, motivo: clasificarFallo({ status: respuesta.status }) }
     const cuerpo = await respuesta.json()
     if (typeof cuerpo?.version !== 'string') {
+      // OJO: al clasificador se le pasa el NOMBRE de la instancia, nunca el
+      // cuerpo. Es lo que mantiene la promesa de la lista blanca — hay una
+      // prueba que afirma que ningun valor del cuerpo acaba en `motivo`.
       return {
         ...fila,
-        motivo: token
-          ? 'contesto sin version: el token no lo reconoce como panel'
-          : 'no hay token para esta instancia (FLOTA_TOKEN_' +
-            String(instancia.nombre).toUpperCase().replace(/-/g, '_') +
-            ')',
+        motivo: clasificarFallo({ cuerpoSinVersion: true, token, nombre: instancia.nombre }),
       }
     }
     return { ...fila, version: cuerpo.version, fecha: ahora() }
   } catch (error) {
-    return { ...fila, motivo: String(error?.message ?? error) }
+    // `error.message` aqui era **`fetch failed`** para toda averia de red: la
+    // causa vive en `error.cause.code`, y el clasificador es quien la lee.
+    return { ...fila, motivo: clasificarFallo({ error }) }
   }
 }
 
@@ -501,7 +579,20 @@ async function principal() {
     inventario.instancias.map((i) => consultar(i, { token: tokenDe(i.nombre, process.env, tokensExtra) })),
   )
   const { reportes, avisos } = await leerReportes(dirEstado, inventario.instancias)
-  const filas = resumen(fusionar(consultas, reportes), versiones)
+
+  // La memoria de la pasada anterior. Un archivo que no existe, o roto, o sin
+  // permisos, es «sin memoria» y NO un error: el criterio de la cabecera es que
+  // el panel sale siempre con 0, porque el día que hace falta vigilar es el día
+  // que algo está mal.
+  let previas = []
+  try {
+    const json = JSON.parse(await readFile(join(dirPublico, 'estado.json'), 'utf8'))
+    if (Array.isArray(json?.instancias)) previas = json.instancias
+  } catch {
+    previas = []
+  }
+
+  const filas = arrastrarMemoria(resumen(fusionar(consultas, reportes), versiones), previas)
 
   console.log(tabla(filas))
 

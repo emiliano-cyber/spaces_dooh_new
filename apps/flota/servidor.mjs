@@ -84,6 +84,7 @@ const ESTILO = `
   td.sin-respuesta { color: #b00; font-weight: 600 }
   td.rezagada { color: #b60 }
   td.al-dia { color: #070 }
+  tr.motivo td { border-top: 0; padding-top: 0; color: #b60; font-size: 12px }
   footer { margin-top: 2rem; color: #666; font-size: 12px }
 `
 
@@ -98,7 +99,20 @@ export function pagina(filas, usuario) {
         const clase = c === 'estado' ? ` class="${escapar(f.estado)}"` : ''
         return `<td${clase}>${escapar(f[c])}</td>`
       }).join('')
-      return `<tr>${celdas}</tr>`
+      const fila = `<tr>${celdas}</tr>`
+
+      // El motivo va en una sub-fila a ancho completo y NO en una celda: es una
+      // frase, y en una celda estrecha se lee mal. Mismo criterio que el
+      // terminal, que ya los imprime debajo de la tabla por la misma razón.
+      //
+      // Una instancia al día no trae motivo, así que no pinta nada: el silencio
+      // es la señal de que está bien.
+      if (!f.motivo) return fila
+      const visto = f.ultimaVezBien ? ' · ultima vez bien ' + escapar(f.ultimaVezBien) : ''
+      return (
+        fila +
+        `\n<tr class="motivo"><td colspan="${COLUMNAS.length}">${escapar(f.motivo)}${visto}</td></tr>`
+      )
     })
     .join('\n')
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_REPORTE, clasificar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
+import { arrastrarMemoria, CLAVES_FILA, CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -98,8 +98,22 @@ describe('resumen', () => {
       ESTABLE,
     )
 
+    // La lista va ESCRITA A MANO y no sale de `CLAVES_FILA` a propósito: así una
+    // clave nueva rompe esta prueba en vez de colarse. El 2026-09-10 se
+    // añadieron `motivo` y `ultimaVezBien`, y este rojo fue el que obligó a
+    // justificarlas — que es exactamente para lo que está la prueba.
     expect(Object.keys(fila).sort()).toEqual(
-      ['canal', 'dominio', 'estado', 'fecha', 'nombre', 'origen', 'version'].sort(),
+      [
+        'canal',
+        'dominio',
+        'estado',
+        'fecha',
+        'nombre',
+        'origen',
+        'version',
+        'motivo',
+        'ultimaVezBien',
+      ].sort(),
     )
     expect(JSON.stringify(fila)).not.toContain('Publicidad Real')
     expect(JSON.stringify(fila)).not.toContain('42')
@@ -402,5 +416,268 @@ describe('el inventario, y las instancias que se dan de alta solas', () => {
       console.error = antes
     }
     expect(avisos.join(' ')).toContain('no se pudo leer')
+  })
+})
+
+describe('consultar · el motivo dice que arreglar', () => {
+  const instancia = { nombre: 'g500', dominio: 'g500.ejemplo.invalid', canal: 'estable' }
+
+  it('un fallo de DNS se lee como DNS y no como «fetch failed»', async () => {
+    const pedir = async () => {
+      const e = new Error('fetch failed') as Error & { cause?: { code: string } }
+      e.cause = { code: 'ENOTFOUND' }
+      throw e
+    }
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('un 404 explica que esa instancia es vieja', async () => {
+    const pedir = async () => new Response('', { status: 404 })
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBe('no existe /api/version: corre una version anterior a F6.1 (HTTP 404)')
+  })
+
+  it('una instancia sana no trae motivo', async () => {
+    const pedir = async () => new Response(JSON.stringify({ ok: true, version: 'v0.5.0' }))
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBeNull()
+    expect(fila.version).toBe('v0.5.0')
+  })
+
+  it('sin token, el motivo nombra la variable que falta', async () => {
+    const pedir = async () => new Response(JSON.stringify({ ok: true }))
+    const fila = await consultar(instancia, { token: '', pedir })
+    expect(fila.motivo).toBe('falta FLOTA_TOKEN_G500 en el panel')
+  })
+})
+
+describe('resumen · conserva el motivo sin abrir la puerta a datos del owner', () => {
+  it('la fila trae el motivo de la consulta', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el dominio no resuelve (ENOTFOUND)',
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('una instancia sana trae motivo nulo, no una cadena vacia', () => {
+    const filas = resumen([consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z')], {
+      estable: ESTABLE,
+    })
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // EL GUARD. Sin esto, `motivo` es la puerta de atras de la lista blanca: el
+  // dia que a alguien le resulte comodo meter ahi «lo que dijo la instancia»,
+  // esta prueba es lo unico que lo para.
+  it('NINGUN valor del cuerpo de la instancia acaba en la fila', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el token no lo reconoce como panel',
+          // Lo que una instancia comprometida podria intentar colar:
+          clientes: 412,
+          razonSocial: 'ACME SA DE CV',
+          facturado: 1234567,
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    const serializada = JSON.stringify(filas[0])
+    expect(serializada).not.toContain('412')
+    expect(serializada).not.toContain('ACME')
+    expect(serializada).not.toContain('1234567')
+    expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
+  })
+})
+
+describe('arrastrarMemoria', () => {
+  const AHORA = '2026-09-10T12:00:00Z'
+  const ANTES = '2026-09-10T09:00:00Z'
+
+  it('una instancia que contesta ahora fija ultimaVezBien en ahora', () => {
+    const filas = [{ nombre: 'g500', version: 'v0.5.0', motivo: null, ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, [], () => AHORA)[0].ultimaVezBien).toBe(AHORA)
+  })
+
+  it('una instancia caida conserva la ultima vez que estuvo bien', () => {
+    const filas = [
+      { nombre: 'g500', version: '—', motivo: 'el dominio no resuelve (ENOTFOUND)', ultimaVezBien: null },
+    ]
+    const previas = [{ nombre: 'g500', ultimaVezBien: ANTES }]
+    expect(arrastrarMemoria(filas, previas, () => AHORA)[0].ultimaVezBien).toBe(ANTES)
+  })
+
+  it('una instancia caida sin memoria previa se queda en nulo, no inventa una fecha', () => {
+    const filas = [{ nombre: 'g500', version: '—', motivo: 'x', ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, [], () => AHORA)[0].ultimaVezBien).toBeNull()
+  })
+
+  it('no se cruzan las memorias de dos instancias', () => {
+    const filas = [
+      { nombre: 'a', version: '—', motivo: 'x', ultimaVezBien: null },
+      { nombre: 'b', version: '—', motivo: 'x', ultimaVezBien: null },
+    ]
+    const previas = [{ nombre: 'b', ultimaVezBien: ANTES }]
+    const salida = arrastrarMemoria(filas, previas, () => AHORA)
+    expect(salida[0].ultimaVezBien).toBeNull()
+    expect(salida[1].ultimaVezBien).toBe(ANTES)
+  })
+
+  it('previas nulo o ausente no revienta: es «sin memoria»', () => {
+    const filas = [{ nombre: 'g500', version: '—', motivo: 'x', ultimaVezBien: null }]
+    expect(arrastrarMemoria(filas, null as never, () => AHORA)[0].ultimaVezBien).toBeNull()
+    expect(arrastrarMemoria(filas, undefined, () => AHORA)[0].ultimaVezBien).toBeNull()
+  })
+
+  it('no toca ninguna otra clave de la fila', () => {
+    const filas = [
+      { nombre: 'g500', version: 'v0.5.0', motivo: null, ultimaVezBien: null, estado: 'al-dia' },
+    ]
+    const salida = arrastrarMemoria(filas, [], () => AHORA)
+    expect(salida[0].estado).toBe('al-dia')
+    expect(salida[0].version).toBe('v0.5.0')
+  })
+})
+
+
+describe('validarReporte · el codigo de la fase 2 es OPCIONAL', () => {
+  const base = {
+    ok: true,
+    version: 'v0.5.0',
+    ultimaMigracion: '20260910_pais_sin_default.sql',
+    base: 'ok',
+    canal: 'estable',
+    uptime: 120,
+    instancia: 'g500',
+  }
+
+  // Si fuera obligatorio, toda instancia que no se haya actualizado todavia
+  // dejaria de reportar -- y eso es la flota entera el dia del despliegue.
+  it('un reporte SIN codigo sigue siendo valido (update.sh viejo)', () => {
+    expect(validarReporte(base).ok).toBe(true)
+  })
+
+  it('un reporte CON codigo es valido, y lo CONSERVA', () => {
+    const r = validarReporte({ ...base, codigo: 2 })
+    expect(r.ok).toBe(true)
+    expect(r.reporte.codigo).toBe(2)
+  })
+
+  it('un codigo fuera del rango de un codigo de salida se rechaza', () => {
+    const r = validarReporte({ ...base, codigo: 999 })
+    expect(r.ok).toBe(false)
+    expect(r.motivo).toContain('codigo')
+  })
+
+  // Se valida la FORMA y no la enumeracion: si se rechazara un codigo que el
+  // panel no traduce, el dia que update.sh gane un modo de fallo nuevo esa
+  // instancia dejaria de reportar ENTERA, y se quedaria a oscuras justo cuando
+  // algo va mal. Lo nombra el panel; no lo rechaza el receptor.
+  it('un codigo que el panel no traduce SE ACEPTA: no deja muda a la instancia', () => {
+    expect(validarReporte({ ...base, codigo: 42 }).ok).toBe(true)
+  })
+
+  it('un codigo con decimales o negativo se rechaza', () => {
+    expect(validarReporte({ ...base, codigo: 2.5 }).ok).toBe(false)
+    expect(validarReporte({ ...base, codigo: -1 }).ok).toBe(false)
+  })
+
+  it('un codigo que no es un numero se rechaza', () => {
+    expect(validarReporte({ ...base, codigo: 'fallo' }).ok).toBe(false)
+  })
+
+  // El guard de la fase 1, otra vez y por el otro lado: aqui el dato SI viene
+  // de la instancia, asi que la lista cerrada es lo unico que lo sujeta.
+  it('una clave que nadie declaro sigue tumbando el reporte ENTERO', () => {
+    const r = validarReporte({ ...base, error: 'traceback con datos del cliente' })
+    expect(r.ok).toBe(false)
+    expect(r.motivo).toContain('error')
+  })
+})
+
+describe('resumen · el fallo de una actualizacion se ve', () => {
+  it('una instancia que salio con 2 lo dice, aunque conteste bien', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: 'v0.4.1',
+          fecha: '2026-09-10T00:00:00Z',
+          origen: 'reporte',
+          codigo: 2,
+        },
+      ],
+      { estable: 'v0.5.0' },
+    )
+    expect(filas[0].estado).toBe('rezagada')
+    expect(filas[0].motivo).toContain('LA BASE PUDO CAMBIAR')
+  })
+
+  it('si contesta bien Y su update salio con 0, no hay motivo', () => {
+    const filas = resumen(
+      [{ ...consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z'), codigo: 0 }],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // El motivo de TRANSPORTE gana: si no contesta AHORA, eso es mas urgente que
+  // un update que fallo ayer, y ademas hay que arreglarlo antes de mirar lo otro.
+  it('si no contesta ahora, gana el motivo de transporte y no el del update', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el dominio no resuelve (ENOTFOUND)',
+          codigo: 7,
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('una instancia con el update.sh viejo no inventa un fallo', () => {
+    const filas = resumen([consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z')], {
+      estable: ESTABLE,
+    })
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // Y el guard: `codigo` entra en la fila SOLO a traves de la frase.
+  it('el codigo no acaba como clave de la fila', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: 'v0.4.1',
+          codigo: 5,
+        },
+      ],
+      { estable: 'v0.5.0' },
+    )
+    expect(Object.keys(filas[0])).not.toContain('codigo')
+    expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
   })
 })

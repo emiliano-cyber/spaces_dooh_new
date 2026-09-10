@@ -161,6 +161,18 @@ FIN
   cat >"$BIN/curl" <<'FIN'
 #!/usr/bin/env bash
 printf 'curl %s\n' "$*" >>"$REG_LLAMADAS"
+# EL CUERPO que se POSTEA, no solo que se posteo. En argv solo se ve
+# `--data-binary @/ruta/al/archivo`, y lo que el reporte de flota promete
+# —`codigo` dentro del JSON— viaja precisamente ahi dentro. Sin leer el archivo
+# no se puede comprobar ni que va, ni que NO va nada mas.
+prev=''
+for a in "$@"; do
+  case "$prev" in
+    --data-binary)
+      case "$a" in @*) cat "${a#@}" >>"$REG_FLOTA_POST" 2>/dev/null; printf '\n' >>"$REG_FLOTA_POST" ;; esac ;;
+  esac
+  prev="$a"
+done
 n=$(cat "$REG_CURL_N" 2>/dev/null || echo 0); n=$((n + 1))
 printf '%s' "$n" >"$REG_CURL_N"
 cod="$(printf '%s\n' "${C_CODIGOS:-200}" | tr ' ' '\n' | sed -n "${n}p")"
@@ -172,6 +184,15 @@ cod="$(printf '%s\n' "${C_CODIGOS:-200}" | tr ' ' '\n' | sed -n "${n}p")"
 # Un codigo `NADA` significa que curl no llego ni a imprimir.
 sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | sed -n "${n}p")"
 [ -n "$sal" ] || sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | tail -n1)"
+# La consulta de `flota_cuerpo` es la UNICA llamada sin `-w`: no pide el codigo
+# http de `/api/version`, pide su CUERPO, que es lo que el reporte envuelve. Si
+# el doble contestara aqui el codigo —como hacia hasta hoy— el cuerpo nunca
+# tendria `"version"` dentro, `flota_cuerpo` se iria por su rama de "esto no es
+# un reporte", y NINGUN escenario podria ver lo que se manda al padre.
+case " $* " in
+  *" -w "*) ;;
+  *) printf '%s' "${C_SALUD_CUERPO:-}"; exit "$sal" ;;
+esac
 [ "$cod" = NADA ] || printf '%s' "$cod"
 exit "$sal"
 FIN
@@ -373,7 +394,10 @@ preparar() {
   export REG_PULL_N="$RAIZ_TMP/pull.n"
   export REG_S3ENV="$RAIZ_TMP/s3env.txt"
   export REG_S3_SUBIDO="$RAIZ_TMP/s3-subido.txt"
+  # Lo que se POSTEA al padre, cuerpo a cuerpo.
+  export REG_FLOTA_POST="$RAIZ_TMP/flota-posteado.txt"
   : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"; : >"$REG_S3_SUBIDO"
+  : >"$REG_FLOTA_POST"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
@@ -430,6 +454,10 @@ FIN
   export D_HUELLA_2='esq-nuevo reg-nuevo 67'
   export C_CODIGOS='200'
   export C_SALIDAS='0'
+  # Sin `FLOTA_REPORTE_URL` no se manda nada, asi que por omision los ~100
+  # escenarios de antes no gastan ni una llamada de curl mas que antes: el
+  # reporte de flota solo entra donde `usar_flota` lo enciende.
+  unset C_SALUD_CUERPO 2>/dev/null || true
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN 2>/dev/null || true
@@ -482,8 +510,25 @@ DATABASE_URL=$1
 FIN
 }
 
+# Enciende el reporte al padre en ESTE escenario: la URL a la que se postea, el
+# token —que vive en $ENV_APP y no en $CONF, igual que en una instancia de
+# verdad— y el cuerpo que `/api/version` contesta por dentro, que es lo que el
+# reporte envuelve.
+usar_flota() {
+  cat >>"$SPACE_OS_CONF" <<FIN
+FLOTA_REPORTE_URL=https://padre.example.invalid/flota/reporte
+FIN
+  cat >>"$RAIZ_TMP/app.env" <<FIN
+FLOTA_TOKEN=t0ken-de-flota
+FIN
+  export C_SALUD_CUERPO='{"ok":true,"version":"v0.4.2","ultimaMigracion":"20260910_x.sql","base":"ok","canal":"estable","uptime":120}'
+}
+
 # ─── Predicados ────────────────────────────────────────────────────────────
 codigo_es() { if [ "$CODIGO" = "$1" ]; then bien; else mal "codigo esperado $1, real $CODIGO"; fi; }
+# Lo que viaja DENTRO del cuerpo posteado al padre.
+posteo_dice() { if grep -qF -- "$1" "$REG_FLOTA_POST"; then bien; else mal "el reporte al padre no dice: $1 (posteado: $(tr -d '\n' <"$REG_FLOTA_POST" | head -c 300))"; fi; }
+posteo_calla() { if grep -qF -- "$1" "$REG_FLOTA_POST"; then mal "el reporte al padre NO deberia decir: $1"; else bien; fi; }
 log_dice() { if grep -qF -- "$1" "$SALIDA"; then bien; else mal "el log no dice: $1"; fi; }
 log_calla() { if grep -qF -- "$1" "$SALIDA"; then mal "el log NO deberia decir: $1"; else bien; fi; }
 hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then bien; else mal "no se llamo: $1"; fi; }
@@ -2308,6 +2353,73 @@ subido_calla 'CLAVE-DESTINO'
 no_hubo 'CLAVE-DESTINO'
 limpiar
 
+# ─── EL CODIGO DE SALIDA VIAJA EN EL REPORTE (E103-E106) ───────────────────
+#  Fase 2 del panel de flota. Hasta hoy el padre veia que una instancia contesta
+#  y en que version se quedo, pero no COMO acabo su ultima actualizacion: una
+#  instancia que fallo la migracion a medias y otra que no aplico nada se veian
+#  exactamente igual —«rezagada»—, y son dos urgencias distintas.
+#
+#  Lo que viaja es el codigo de salida de este script, que ya existe y ya esta
+#  documentado en su cabecera. No un «paso» con nombre: un nombre aplanaria el 2
+#  («las migraciones fallaron y LA BASE PUDO CAMBIAR») con el 3 («no se aplico
+#  nada»), que es justo la distincion que esa cabecera prohibe perder.
+#
+#  Y viaja un NUMERO, nunca el texto del error: un mensaje de fallo puede
+#  arrastrar un fragmento de log con datos de un cliente hasta el disco del
+#  padre. Eso es lo que afirma E106, y es la comprobacion que importa.
+
+preparar 'E103 la corrida que sale con 0 lo dice en el reporte al padre'
+usar_flota
+correr
+codigo_es 0
+posteo_dice '"codigo":0'
+posteo_dice '"instancia":"demo"'
+limpiar
+
+# El caso que existe para esto: el runner falla y la base PUDO cambiar, o sea el
+# 2. Ese 2 es el que tiene que llegar al padre, y no un "fallo" a secas.
+preparar 'E104 el 2 —LA BASE PUDO CAMBIAR— llega al padre como 2'
+usar_flota
+export D_MIGRAR_CODIGO=2
+export D_MIGRAR_SALIDA='ERROR migrar: 20260812_x.sql fallo a la mitad.'
+correr
+codigo_es 2
+posteo_dice '"codigo":2'
+limpiar
+
+# E105 · Y EL QUE NO LLEGA, medido en vez de supuesto. El 75 —«habia otro update
+#        en marcha»— sale del proceso de FUERA del candado (`update.sh:707-711`),
+#        que no pasa por `salir`, y `salir` es la unica puerta que reporta. Asi
+#        que ese codigo NUNCA aparece en el panel: la corrida ocupada no manda
+#        nada en absoluto, y quien lea el panel vera el reporte de la corrida
+#        anterior con su fecha.
+#
+#        Se afirma aqui porque el panel trata el 75 como sano y hay que saber
+#        que esa rama es defensiva y no un caso vivo. Y porque lo importante es
+#        lo otro: una corrida que no se ejecuto NO puede sobrescribir el estado
+#        de la que si.
+preparar 'E105 el candado ocupado no manda NINGUN reporte: no pasa por salir'
+usar_flota
+export FLOCK_OCUPADO=1
+correr
+codigo_es 75
+posteo_calla 'codigo'
+posteo_calla 'instancia'
+limpiar
+
+# LA comprobacion en negativo, y la razon de que el dato sea un numero: el texto
+# del fallo del runner se queda en el droplet. Al padre solo va el codigo.
+preparar 'E106 el TEXTO del error NO viaja al padre: solo el codigo'
+usar_flota
+export D_MIGRAR_CODIGO=2
+export D_MIGRAR_SALIDA='ERROR migrar: fallo al insertar el cliente CLIENTE-CONFIDENCIAL'
+correr
+codigo_es 2
+posteo_dice '"codigo":2'
+posteo_calla 'CLIENTE-CONFIDENCIAL'
+posteo_calla 'ERROR'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2575,6 +2687,18 @@ if [ "${1:-}" = '--mutantes' ]; then
   # Este no necesita que nada falle: pasa en la corrida normal.
   probar_mutante 'dejar pasar un ? escondido dentro del nombre de la base' \
     's@    \*\[!A-Za-z0-9._-\]\*)@    *[!A-Za-z0-9._%?=-]*)@'
+
+  # ── Y los dos de la fase 2 del panel: el codigo que viaja al padre ───────
+  # El primero es la ausencia del cambio: el reporte vuelve a no decir con que
+  # codigo acabo el update, y el padre vuelve a no distinguir «la base pudo
+  # cambiar» de «no se aplico nada».
+  probar_mutante 'no mandar el codigo de salida en el reporte al padre' \
+    's@^  FLOTA_CODIGO="\$codigo"$@  FLOTA_CODIGO=""            @'
+  # Y el segundo es EL error del que avisa la cabecera de `update.sh`: aplanar
+  # los codigos. Un reporte que siempre dice 0 es peor que no reportar, porque
+  # el panel se queda callado afirmando que todo fue bien.
+  probar_mutante 'aplanar el codigo a 0: el panel afirma que todo fue bien' \
+    's@^  FLOTA_CODIGO="\$codigo"$@  FLOTA_CODIGO=0             @'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

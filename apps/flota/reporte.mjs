@@ -42,7 +42,8 @@ import { mkdir, rename, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { CLAVES_REPORTE, cargarInventario, tokenDe } from './estado.mjs'
+import { CLAVES_REPORTE, CLAVES_REPORTE_OPCIONALES, cargarInventario, tokenDe } from './estado.mjs'
+
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -64,7 +65,11 @@ export function validarReporte(cuerpo) {
   if (!esObjetoLlano(cuerpo)) return { ok: false, motivo: 'el cuerpo no es un objeto JSON' }
 
   const claves = Object.keys(cuerpo)
-  const deMas = claves.filter((c) => !CLAVES_REPORTE.includes(c))
+  // Las opcionales de la fase 2 se admiten pero NO se exigen: un `update.sh`
+  // viejo no las manda, y si faltaran por «claves que faltan» esa instancia
+  // dejaria de reportar.
+  const conocidas = [...CLAVES_REPORTE, ...CLAVES_REPORTE_OPCIONALES]
+  const deMas = claves.filter((c) => !conocidas.includes(c))
   const faltan = CLAVES_REPORTE.filter((c) => !claves.includes(c))
   if (deMas.length) {
     return {
@@ -96,13 +101,34 @@ export function validarReporte(cuerpo) {
     }
   }
 
+  // El código de la fase 2, solo si viene.
+  //
+  // ─── Se valida por FORMA y no por enumeración, a propósito ───────────────
+  // Un código de salida es un byte: entero de 0 a 255. Eso es lo que se
+  // comprueba, no que esté entre los nueve que el panel sabe traducir.
+  //
+  // El motivo: si se rechazara un código desconocido, el día que `update.sh`
+  // gane un modo de fallo nuevo esa instancia dejaría de reportar **entera** y
+  // se quedaría a oscuras justo cuando algo va mal. Un número de un byte no
+  // tiene sitio donde esconder un dato de negocio, así que la forma basta como
+  // frontera — y `fraseDeActualizacion` NOMBRA el código que no conoce en vez
+  // de callarlo.
+  if (cuerpo.codigo !== undefined && cuerpo.codigo !== null) {
+    const c = cuerpo.codigo
+    if (typeof c !== 'number' || !Number.isInteger(c) || c < 0 || c > 255) {
+      return { ok: false, motivo: '`codigo` no es un codigo de salida (entero de 0 a 255)' }
+    }
+  }
+
   // Se reconstruye clave a clave y en el orden del contrato. Copiar `cuerpo`
   // con un `spread` guardaría lo que hubiera llegado de más si algún día esta
   // validación se relajara; así, lo que se guarda es lo que se validó.
-  return {
-    ok: true,
-    reporte: { ok, version, ultimaMigracion, base, canal, uptime, instancia },
-  }
+  const reporte = { ok, version, ultimaMigracion, base, canal, uptime, instancia }
+  // Se añade solo si vino, para que un reporte de un `update.sh` viejo no
+  // acabe con una clave vacía que nadie escribió.
+  if (cuerpo.codigo !== undefined) reporte.codigo = cuerpo.codigo
+
+  return { ok: true, reporte }
 }
 
 /**

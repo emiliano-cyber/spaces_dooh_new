@@ -502,6 +502,21 @@ subir_log_remoto() {
 # actualizada y sirviendo, y el reporte espera en el disco a la corrida de
 # manana.
 FLOTA_REPORTADO=0
+# Con QUE CODIGO DE SALIDA se despide esta corrida. Lo fija `salir` justo antes
+# de reportar, y `flota_cuerpo` lo mete en el cuerpo como `codigo`.
+#
+# ¿Por que el codigo de salida y no un «paso» con nombre? Porque estos codigos
+# ya existen, ya estan documentados arriba, y distinguen cosas que un nombre de
+# paso aplanaria: un 2 es «las migraciones fallaron y LA BASE PUDO CAMBIAR» y un
+# 3 es «no se aplico nada». Esa diferencia es la que decide si alguien tiene que
+# entrar al droplet esta noche — y es exactamente la que la cabecera de este
+# script prohibe aplanar.
+#
+# Y viaja como UN NUMERO, no como texto: un mensaje de error puede arrastrar un
+# fragmento de log con datos de un cliente hasta el disco del padre, y de ahi ya
+# no lo quita nadie. Un byte no tiene donde esconder eso. Las palabras las
+# escribe el panel.
+FLOTA_CODIGO=""
 # Cuantos reportes sin entregar se guardan como mucho. Un padre caido tres meses
 # son noventa archivos de 200 bytes —nada— pero la poda esta igual: el disco del
 # owner ya se lleno una vez con los dumps que nadie podaba (defecto D4), y la
@@ -566,7 +581,18 @@ flota_cuerpo() {
   # cambio. Lo que se pega no es texto libre: `flota_instancia` ya lo limito a
   # minusculas, digitos y guiones, y el receptor lo vuelve a validar antes de
   # usarlo como nombre de archivo.
-  printf '{"instancia":"%s",%s' "$instancia" "${respuesta#\{}"
+  #
+  # `codigo` entra por el mismo sitio y con el mismo cuidado, pero SOLO si
+  # `salir` ya lo fijo. Si esta vacio no se manda la clave: el receptor la trata
+  # como opcional a proposito —un `update.sh` viejo no la manda y tiene que
+  # seguir reportando— y un `"codigo":` sin valor tumbaria el cuerpo entero.
+  # `%d` es lo que garantiza que ahi va un numero y no lo que hubiera en la
+  # variable.
+  if [ -n "${FLOTA_CODIGO:-}" ]; then
+    printf '{"instancia":"%s","codigo":%d,%s' "$instancia" "$FLOTA_CODIGO" "${respuesta#\{}"
+  else
+    printf '{"instancia":"%s",%s' "$instancia" "${respuesta#\{}"
+  fi
 }
 
 # Manda UN archivo. 0 si el padre lo acepto.
@@ -645,6 +671,11 @@ salir() {
   local codigo="$1"
   shift || true
   if [ "$#" -gt 0 ]; then registrar "$@"; fi
+  # Con que codigo se despide esta corrida, para que viaje dentro del reporte.
+  # Se fija AQUI y no en cada punto de fallo a proposito: `salir` es la unica
+  # puerta de salida del script una vez tomado el candado, asi que un modo de
+  # fallo nuevo arrastra su codigo solo, sin que nadie tenga que acordarse.
+  FLOTA_CODIGO="$codigo"
   # El reporte va ANTES de subir el log, para que sus lineas viajen dentro del
   # log de esta corrida. Y con `|| true` por lo mismo que la subida: el padre
   # no decide con que codigo se despide el update de una instancia.
