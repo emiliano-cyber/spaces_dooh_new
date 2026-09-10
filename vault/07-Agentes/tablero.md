@@ -6,6 +6,59 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-09, noche · **g500 TIENE SUS DATOS**, y de paso salio un defecto de flota
+> Las cuatro etapas ejecutadas el mismo dia: **541 filas** dentro, las **12
+> pantallas con su tarifa**, cero personas y cero bitacora. Lo autoriza el **ADR
+> 0031**, que sustituye el punto 2 del ADR 0023. Expediente:
+> `docs/evidencias/migracion-g500-E4-resultado.md`.
+>
+> **Lo que casi se pierde en silencio:** las 12 modalidades de venta estaban
+> etiquetadas `rgb` por la deriva del `DEFAULT`. Un `where tenant_id` habria
+> entregado las pantallas SIN PRECIO y sin dar error.
+>
+> **El GATE 2 atrapo una maquina equivocada** — habia una sesion abierta en el
+> droplet viejo. Mismo error del 24/08, con la diferencia de que esta vez el
+> gate estaba escrito antes del primer comando.
+>
+> 🔴 **DEFECTO DE FLOTA, no de g500:** las redirecciones del middleware mandaban
+> el navegador a `localhost:3000` — `request.nextUrl` toma su origen de donde
+> escucha el servidor, no de la cabecera `Host`. **Lo tienen TODAS las
+> instancias**, DEMO incluida, hasta que jalen version nueva. Corregido en
+> `fix/middleware-redireccion-localhost` con `Location` relativa: 7 pruebas
+> nuevas, **1113 unitarias y 344 e2e** en verde. **Z1 · Auth tomada y liberada
+> en el mismo commit.**
+>
+> ⏳ **Pendiente de persona:** retirar las dos llaves SSH puestas a mano y borrar
+> los temporales — `migracion-g500-retirar-llaves.txt`. Y publicar la version con
+> el arreglo del middleware, que no llega a las instancias de otra forma.
+
+> [!important] 2026-09-09, tarde · **Plan de migracion de los datos de g500** — Z12 reclamada y LIBERADA
+> Decidido por Emiliano y escrito: `docs/Plan_Migracion_Datos_g500.md`, con la tarjeta
+> **E1** en `docs/evidencias/migracion-g500-E1-dump.txt`. **Nada ejecutado todavia**: es
+> el plan y la primera tarjeta, sin codigo y sin tocar ningun servidor.
+>
+> **Cuatro etapas y tres cambios de mano**: E1 saca el dump del droplet viejo (persona,
+> solo lectura) · E2 lo restaura en una base **puente** local y le corre las **13
+> migraciones** que le faltan · E3 empaqueta un `.sql` transaccional ya transformado ·
+> E4 lo carga en la instancia (persona, con respaldo previo).
+>
+> **Por que el puente y no un export directo:** el droplet viejo esta en **66**
+> migraciones y la instancia en **78 + 1 de datos**. La adaptacion de esquema la hace
+> `migrar.mjs`, que ya esta probado, en vez del criterio de nadie — y el runner **ya
+> contempla** una base con historia y sin `schema_migrations` (`migrar.mjs:513-528`).
+>
+> ⚠️ **Sustituye el punto 2 del ADR 0023** («no se exporta ni se respalda su base»): su
+> premisa era que no hay ninguna organizacion real que migrar, y caduco hoy, cuando g500
+> tuvo instancia propia. Se reemplaza con un **ADR 0031** al cerrar, no se ignora.
+>
+> ⚠️ **Es ROJO por tres vias**: tenant (R2), dinero (R4) y migraciones (R3). Alcance
+> **solo `g500`**: las otras cuatro organizaciones no viajan.
+>
+> Los dos fallos silenciosos que el censo de E2 tiene que cazar: la **deriva del
+> `DEFAULT`** —filas de g500 etiquetadas como `rgb`, que un `where tenant_id` deja atras
+> sin avisar— y los **folios**, que sin adelantar `folios_consecutivos.ultimo` hacen que
+> la instancia reemita numeros ya usados. Detalle en [[2026-09-09]].
+
 > [!success] 2026-09-09 · 🎯 **ALTA COMPLETA DE PUNTA A PUNTA, y el Dueno ENTRA**
 > Un formulario web creo `g500` (`g500.space-os.io`) y la instancia llego a `lista`
 > sola: droplet en **5 min 18 s**, registro A en Cloudflare, certificado,
