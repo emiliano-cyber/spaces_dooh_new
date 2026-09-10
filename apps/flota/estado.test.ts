@@ -595,3 +595,84 @@ describe('validarReporte · las claves de la fase 2 son OPCIONALES', () => {
     expect(r.motivo).toContain('error')
   })
 })
+
+describe('resumen · el fallo de una actualizacion se ve', () => {
+  it('una instancia que reporto un fallo de update lo dice, aunque conteste bien', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: 'v0.4.1',
+          fecha: '2026-09-10T00:00:00Z',
+          origen: 'reporte',
+          resultado: 'fallo',
+          paso: 'migraciones',
+        },
+      ],
+      { estable: 'v0.5.0' },
+    )
+    expect(filas[0].estado).toBe('rezagada')
+    expect(filas[0].motivo).toBe('la actualizacion fallo al aplicar las migraciones')
+  })
+
+  it('si la instancia contesta bien Y su update fue bien, no hay motivo', () => {
+    const filas = resumen(
+      [{ ...consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z'), resultado: 'ok', paso: null }],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // El motivo de TRANSPORTE gana: si la instancia no contesta AHORA, eso es mas
+  // urgente que un update que fallo ayer -- y ademas es lo que hay que arreglar
+  // antes de poder mirar lo otro.
+  it('si no contesta ahora, gana el motivo de transporte y no el del update', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: null,
+          motivo: 'el dominio no resuelve (ENOTFOUND)',
+          resultado: 'fallo',
+          paso: 'migraciones',
+        },
+      ],
+      { estable: ESTABLE },
+    )
+    expect(filas[0].motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  // Una instancia con el update.sh viejo no manda las dos claves. Eso NO es un
+  // fallo, y la fila tiene que salir igual que antes de la fase 2.
+  it('una instancia con el update.sh viejo no inventa un fallo', () => {
+    const filas = resumen([consultaViva('g500', ESTABLE, '2026-09-10T00:00:00Z')], {
+      estable: ESTABLE,
+    })
+    expect(filas[0].motivo).toBeNull()
+  })
+
+  // Y el guard, una vez mas: `resultado` y `paso` entran en la fila SOLO a
+  // traves de la frase. Ninguno de los dos se copia.
+  it('resultado y paso no acaban como claves de la fila', () => {
+    const filas = resumen(
+      [
+        {
+          nombre: 'g500',
+          dominio: 'g500.ejemplo.invalid',
+          canal: 'estable',
+          version: 'v0.4.1',
+          resultado: 'fallo',
+          paso: 'salud',
+        },
+      ],
+      { estable: 'v0.5.0' },
+    )
+    expect(Object.keys(filas[0])).not.toContain('resultado')
+    expect(Object.keys(filas[0])).not.toContain('paso')
+    expect(Object.keys(filas[0]).sort()).toEqual([...CLAVES_FILA].sort())
+  })
+})

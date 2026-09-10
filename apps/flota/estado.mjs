@@ -53,7 +53,7 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { clasificarFallo } from './diagnostico.mjs'
+import { clasificarFallo, fraseDeActualizacion } from './diagnostico.mjs'
 
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
@@ -156,7 +156,14 @@ export function resumen(respuestas, versiones) {
       estado: clasificar(version, versionDelCanal(versiones, canal)),
       fecha: r.fecha ?? SIN_DATO,
       origen: r.origen ?? 'consulta',
-      motivo: r.motivo ?? null,
+      // El motivo de TRANSPORTE gana: si la instancia no contesta AHORA, eso es
+      // más urgente que un update que falló ayer — y además hay que arreglarlo
+      // antes de poder mirar lo otro. Si contesta, se enseña el del update, que
+      // si no no se vería en ninguna parte.
+      //
+      // `resultado` y `paso` entran SOLO a través de la frase: ninguno de los
+      // dos se copia a la fila, y hay una prueba que lo afirma.
+      motivo: r.motivo ?? fraseDeActualizacion(r) ?? null,
       ultimaVezBien: r.ultimaVezBien ?? null,
     }
   })
