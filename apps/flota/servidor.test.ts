@@ -330,3 +330,56 @@ describe('el resumen de un alta, en la pantalla', () => {
     expect(typeof resumenDeAlta({})).toBe('string')
   })
 })
+
+import { pagina } from './servidor.mjs'
+
+// ============================================================================
+//  El panel WEB nunca vio el motivo: `resumen()` lo calculaba y lo tiraba, y
+//  solo el terminal lo imprimia (aparte, debajo de la tabla). Estas pruebas
+//  fijan las tres decisiones de la sub-fila.
+// ============================================================================
+describe('pagina · el motivo se ve', () => {
+  const sana = {
+    nombre: 'g500',
+    dominio: 'g500.ejemplo.invalid',
+    canal: 'estable',
+    version: 'v0.5.0',
+    estado: 'al-dia',
+    fecha: '2026-09-10T12:00:00Z',
+    origen: 'consulta',
+    motivo: null,
+    ultimaVezBien: '2026-09-10T12:00:00Z',
+  }
+  const caida = {
+    ...sana,
+    nombre: 'otra',
+    version: '—',
+    estado: 'sin-respuesta',
+    motivo: 'el dominio no resuelve (ENOTFOUND)',
+    ultimaVezBien: '2026-09-10T09:00:00Z',
+  }
+
+  it('una instancia caida enseña su motivo', () => {
+    expect(pagina([caida], null)).toContain('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('una instancia sana NO enseña motivo: el silencio es la señal', () => {
+    expect(pagina([sana], null)).not.toContain('class="motivo"')
+  })
+
+  it('el motivo va escapado, como todo lo que viene de fuera', () => {
+    const html = pagina([{ ...caida, motivo: '<script>alert(1)</script>' }], null)
+    expect(html).not.toContain('<script>alert(1)</script>')
+    expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('el motivo se acompaña de la ultima vez que estuvo bien', () => {
+    expect(pagina([caida], null)).toContain('2026-09-10T09:00:00Z')
+  })
+
+  it('una caida sin memoria previa no inventa un «ultima vez bien»', () => {
+    const html = pagina([{ ...caida, ultimaVezBien: null }], null)
+    expect(html).toContain('el dominio no resuelve (ENOTFOUND)')
+    expect(html).not.toContain('ultima vez bien')
+  })
+})
