@@ -12,6 +12,45 @@ const moduleMap: Record<string, string> = {
   portal: '/portal',
 }
 
+// ─── Las redirecciones van con `Location` RELATIVA ──────────────────────────
+//
+// Medido en la instancia `g500` el 2026-09-09: una ruta interna sin sesión
+// contestaba `location: https://localhost:3000/spaces-dooh/login/` y el
+// navegador se iba a `localhost`. No era nginx —la misma petición directa al
+// contenedor con la cabecera `Host` correcta daba lo mismo— ni `APP_URL`, que
+// estaba bien puesta.
+//
+// El mecanismo: `request.nextUrl` NO toma su origen de la cabecera `Host`, sino
+// de la dirección donde escucha el propio servidor (`HOSTNAME` y `PORT` de la
+// imagen, `Dockerfile:72-73`, que Next presenta como `localhost:3000`). Así que
+// `NextResponse.redirect(request.nextUrl.clone())` mandaba al cliente a la
+// dirección INTERNA del contenedor. En una instancia de cliente eso deja la
+// aplicación inalcanzable salvo yendo a mano a `/login/`.
+//
+// Se descartaron las dos alternativas evidentes, y por qué importa:
+//   · leer la cabecera `Host` — la controla quien hace la petición, y convertiría
+//     este gate de sesión en un open redirect;
+//   · `process.env.APP_URL` — el middleware corre en el runtime edge, donde
+//     `process.env` puede quedar horneado en el BUILD. Sería el mismo error que
+//     `HSTS` y `NEXT_PUBLIC_AUTOREGISTRO`: un valor POR INSTANCIA congelado en el
+//     artefacto de toda la flota.
+//
+// Una `Location` relativa la resuelve el navegador contra la URL que ya tiene:
+// sale correcta en cualquier dominio sin que la aplicación sepa cuál es. El RFC
+// 7231 §7.1.2 las permite, y es lo que ya emite `next.config.mjs`.
+//
+// El `basePath` se antepone AQUÍ a propósito: lo hacía Next al redirigir con
+// `nextUrl`, y al construir la cabecera a mano esa magia deja de aplicar.
+// `trailingSlash: true` obliga a la barra final; sin ella Next añadiría otro
+// salto para ponerla.
+function redirigir(ruta: string, estado: 307 | 308, query = '') {
+  const conBarra = ruta.endsWith('/') ? ruta : `${ruta}/`
+  return new NextResponse(null, {
+    status: estado,
+    headers: { location: `${BASE_PATH}${conBarra}${query}` },
+  })
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const host = request.headers.get('host') ?? ''
@@ -27,13 +66,11 @@ export function middleware(request: NextRequest) {
   // viejas /demo/* (bookmarks, correos de recuperar contraseña ya enviados,
   // deep-links) redirigen permanentemente a /* para no romperse.
   if (normalizedPath === '/demo' || normalizedPath.startsWith('/demo/')) {
-    const url = request.nextUrl.clone()
-    // Next.js antepone el basePath solo (igual que el gate de abajo). El viejo
-    // dashboard vivía en /demo/ (la raíz del shell); ahora es /inicio. El resto
-    // conserva su subruta ya sin el segmento '/demo'.
+    // El viejo dashboard vivía en /demo/ (la raíz del shell); ahora es /inicio.
+    // El resto conserva su subruta ya sin el segmento '/demo'.
     const resto = normalizedPath.slice('/demo'.length)
-    url.pathname = resto === '' || resto === '/' ? '/inicio' : resto
-    return NextResponse.redirect(url, 308)
+    const destino = resto === '' || resto === '/' ? '/inicio' : resto
+    return redirigir(destino, 308, request.nextUrl.search)
   }
 
   // ─── CSRF (Hardening 1 · Bloque E): double-submit en mutaciones con sesión ──
@@ -102,9 +139,7 @@ export function middleware(request: NextRequest) {
 
   // Gate: sin cookie de sesión → redirige al login (no expone ninguna otra ruta).
   if (!publico && !request.cookies.has('spaces_sesion')) {
-    const loginUrl = request.nextUrl.clone()
-    loginUrl.pathname = '/login'
-    return NextResponse.redirect(loginUrl)
+    return redirigir('/login', 307, request.nextUrl.search)
   }
 
   return NextResponse.next()

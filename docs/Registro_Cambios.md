@@ -7,6 +7,26 @@ La entrada más reciente va arriba.
 
 ## 2026-09-09
 
+- **Al entrar sin sesion, la aplicacion mandaba al navegador a una direccion que no
+  existe.** Si alguien abria una direccion de la aplicacion sin haber iniciado sesion
+  —o volvia a una direccion vieja guardada en favoritos— el navegador no acababa en la
+  pantalla de entrada, sino en `localhost:3000`, que es una direccion **interna del
+  propio servidor** y desde fuera no lleva a ninguna parte. El efecto practico: para
+  entrar habia que escribir a mano la direccion exacta de la pantalla de entrada.
+
+  **Donde se vio:** en la instancia de g500, el mismo dia en que se cargaron sus datos
+  y por primera vez alguien recorrio pantallas ahi dentro. No lo causo esa carga —solo
+  metio informacion— sino un detalle de como el sistema construia esos saltos.
+
+  **Que se hizo:** ahora el sistema, en lugar de decirle al navegador la direccion
+  completa a la que ir, le dice **solo el tramo final del camino**, y el navegador lo
+  completa con la direccion por la que entro. Asi funciona en cualquier dominio sin que
+  el sistema tenga que saber cual es el suyo — que es justo lo que hace falta cuando el
+  mismo programa corre en la maquina de cada cliente.
+
+  **Ojo, porque es de flota:** el fallo estaba en el programa, no en la maquina de
+  g500, asi que **todas las instancias lo tienen** hasta que se les actualice la
+  version. Se corrige con una version nueva, no tocando ningun servidor.
 - **G500 ya tiene sus datos en su propio servidor.** Hasta hoy, la informacion de
   G500 vivia en el servidor de julio, mezclada en la misma base con la de otras cuatro
   organizaciones de prueba. Su servidor propio existia desde esta manana, pero estaba

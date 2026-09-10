@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-07
+actualizado: 2026-09-09
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -262,16 +262,63 @@ Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
 `lib/test/codigos-vistos.e2e.test.ts`, `lib/test/solo-google.e2e.test.ts`,
 `lib/test/regenerar-codigos.e2e.test.ts` y `lib/test/primer-dia-dueno.e2e.test.ts`.
 
+## El gate de sesión, y por qué su redirección es RELATIVA
+
+`middleware.ts:140-143`. Sin cookie `spaces_sesion` en una ruta no pública, se
+responde **307 con `Location` relativa** — `/spaces-dooh/login/` — nunca una URL
+absoluta. Lo mismo hace la compatibilidad de las rutas viejas `/demo/*`
+(`middleware.ts:68-74`, 308).
+
+> [!danger] 2026-09-09 · esto dejó una instancia de cliente inalcanzable
+> Hasta hoy las dos redirecciones se construían con `request.nextUrl.clone()`. En
+> la instancia `g500` eso contestaba:
+>
+> ```
+> location: https://localhost:3000/spaces-dooh/login/
+> ```
+>
+> **Y no era nginx ni `APP_URL`.** Medido con tres pruebas: por el dominio, y
+> directo al contenedor **con la cabecera `Host` correcta**, salía igual; la
+> redirección de `next.config.mjs` —que no pasa por el middleware— salía
+> relativa y bien. `APP_URL` estaba correcta en el `.env` de la instancia.
+>
+> **El mecanismo:** `request.nextUrl` no toma su origen de la cabecera `Host`,
+> sino de la dirección donde escucha el propio servidor — `HOSTNAME` y `PORT` de
+> la imagen (`Dockerfile:72-73`), que Next presenta como `localhost:3000`. O sea
+> que el middleware mandaba al cliente a la dirección **interna del contenedor**.
+
+Las dos alternativas evidentes se descartaron **a propósito**, y conviene que
+quede escrito para que nadie las reintroduzca:
+
+| Alternativa | Por qué no |
+|---|---|
+| Leer la cabecera `Host` | La controla quien hace la petición: convierte este gate en un *open redirect* |
+| `process.env.APP_URL` | El middleware corre en el runtime **edge**, donde `process.env` puede quedar horneado en el BUILD. Sería el mismo error que `HSTS` y `NEXT_PUBLIC_AUTOREGISTRO`: un valor **por instancia** congelado en el artefacto de **toda la flota** |
+
+Una `Location` relativa la resuelve el navegador contra la URL que ya tiene, así
+que sale correcta en cualquier dominio **sin que la aplicación sepa cuál es** —
+que es justo lo que necesita un artefacto idéntico para toda la flota. El RFC
+7231 §7.1.2 las permite.
+
+> [!warning] Al construir la cabecera a mano, el `basePath` ya no se antepone solo
+> Lo hacía Next al redirigir con `nextUrl`. Ahora lo pone `redirigir()`
+> (`middleware.ts:46-52`), junto con la barra final que exige
+> `trailingSlash: true` — sin ella Next añadiría otro salto para ponerla.
+
+Cobertura: `apps/web/middleware.test.ts`, 7 casos. Incluye los negativos, que
+son los que sujetan esto: que la `Location` **no contenga** `localhost` ni
+`:3000`, que con sesión no se redirija, y que `/login` no rebote sobre sí mismo.
+
 ## CSRF — double-submit
 
-`middleware.ts:45-72`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
+`middleware.ts:76-103`. En `POST/PUT/PATCH/DELETE` sobre `/api/`, si hay cookie de
 sesión, exige `x-csrf-token == spaces_csrf`. El front parcha `window.fetch` para
 reenviarlo (`lib/csrf-client.ts:36-66`).
 
 **Exentos** (no dependen de la cookie): `/api/auth/login`, `/auth/forgot`,
 `/auth/reset`, `/auth/logout`, `/api/signup`, `/api/portal/`, `/api/firma/`,
 `/api/propuestas/publica/` y, desde el 26/08, **`/api/bootstrap`**
-(`middleware.ts:58-61`).
+(`middleware.ts:89-98`).
 
 > [!important] La exención de `/api/bootstrap` no es su protección
 > Se exime porque **no hay sesión que proteger**: la base está vacía, no existe
