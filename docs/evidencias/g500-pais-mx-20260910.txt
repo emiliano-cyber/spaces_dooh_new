@@ -3,6 +3,11 @@
  Script: docs/datos/20260910_pais_mx_g500.sql
 ================================================================================
 
+ ✅ APLICADA el 2026-09-10 · resultado medido: `MX | 12`, ninguna en PE.
+    Se conserva por su rastro y porque el procedimiento sirve para otra
+    instancia. Quedo demostrado en la maquina real el ciclo completo
+    aplicar -> deshacer -> reaplicar, con `UPDATE 12` las tres veces.
+
 QUE CORRIGE
   Las 12 pantallas de g500 estan guardadas con pais = 'PE'. Son direcciones de
   CDMX y Edomex, y la liga PUBLICA de la pantalla imprime la ubicacion: el
@@ -73,16 +78,31 @@ sudo -u postgres psql -P pager=off -d spaces -c "select pais, count(*) from siti
   Y desde la aplicacion: abre una pantalla y mira su ficha publica.
 
 --------------------------------------------------------------------------------
- SI HAY QUE DESHACER
---------------------------------------------------------------------------------
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260910_pais_mx_g500_rollback.sql
-
-  Devuelve las 12 a 'PE', que era su valor previo exacto: todas estaban ahi.
-
---------------------------------------------------------------------------------
- AL TERMINAR
+ AL TERMINAR  ·  la secuencia ACABA AQUI
 --------------------------------------------------------------------------------
 rm -f /tmp/20260910_pais_mx_g500.sql /tmp/20260910_pais_mx_g500_rollback.sql /tmp/seco.sql
+
+================================================================================
+ ⛔ LO DE ABAJO **NO** ES EL PASO SIGUIENTE
+================================================================================
+ Es la vuelta atras. Solo se toca si B6 salio MAL. Si B6 dijo `MX | 12`, ya
+ terminaste: cierra esta tarjeta.
+
+ El comando va COMENTADO a proposito -- con la almohadilla delante no hace
+ nada al pegarlo. Quitarla es la decision de deshacer, y hay que tomarla a
+ mano:
+
+# sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260910_pais_mx_g500_rollback.sql
+
+ Devuelve las 12 a 'PE', que era su valor previo exacto: todas estaban ahi.
+
+ ── Por que esta escrito asi ──────────────────────────────────────────────
+ El 2026-09-10, con la version anterior de esta tarjeta, la secuencia se corrio
+ de arriba abajo INCLUYENDO el rollback: la correccion se aplico (`MX | 12`) y
+ el comando siguiente la deshizo (`PE | 12`). Hubo que reaplicarla.
+ Nadie se equivoco leyendo: la tarjeta ponia un comando destructivo en el mismo
+ flujo que los demas, y asi se lee. La misma forma se corrigio en las otras
+ tarjetas de este directorio.
 
 ================================================================================
  QUE DEVOLVER

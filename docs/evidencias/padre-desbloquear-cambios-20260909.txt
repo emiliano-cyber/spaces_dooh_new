@@ -91,17 +91,28 @@ sudo -u postgres psql -P pager=off -d spaces_prod -c "select slug, exigir_reaute
 
   ESPERADO: los tres en `f` otra vez, y `rgb | t` -- el control SIGUE encendido.
 
---------------------------------------------------------------------------------
- SI ALGO SALE MAL
---------------------------------------------------------------------------------
-  Si tras B5 no consigues fijar la contrasena (por ejemplo, si no logras abrir
-  una sesion con Google), la bandera te deja a medias: `exigir()` corta las
-  rutas con modulo. Vuelve atras:
+================================================================================
+ ⛔ LO DE ABAJO **NO** ES EL PASO SIGUIENTE
+================================================================================
+  Es la vuelta atras. Solo se toca si tras B5 NO consigues fijar la contrasena
+  --por ejemplo, si no logras abrir una sesion con Google--, porque entonces la
+  bandera te deja a medias: `exigir()` corta las rutas con modulo.
 
-sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/20260909_desbloquear_cambios_padre_rollback.sql
+  Si B6 y B7 salieron bien, ya terminaste: cierra esta tarjeta.
 
-  Eso te devuelve al estado de antes -- con el candado igual de cerrado que
-  ahora, pero sin quedarte a medias.
+  El comando va COMENTADO a proposito: con la almohadilla delante no hace nada
+  al pegarlo. Quitarla es la decision de deshacer.
+
+# sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f /tmp/20260909_desbloquear_cambios_padre_rollback.sql
+
+  Te devuelve al estado de antes -- con el candado igual de cerrado, pero sin
+  quedarte a medias.
+
+  ── Por que esta escrito asi ──────────────────────────────────────────────
+  El 2026-09-10, con otra tarjeta de este directorio, la secuencia se corrio de
+  arriba abajo incluyendo el rollback: la correccion se aplico y el comando
+  siguiente la deshizo. Un comando destructivo en el mismo flujo que los demas
+  se lee como el paso siguiente, porque lo parece.
 
 --------------------------------------------------------------------------------
  AL TERMINAR
