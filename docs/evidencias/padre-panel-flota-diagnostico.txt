@@ -1,0 +1,108 @@
+================================================================================
+ TARJETA · Desplegar el panel de flota con diagnostico        2026-09-10
+ Fase 1 de docs/Plan_Panel_Flota_Diagnostico.md
+================================================================================
+
+QUE HACE
+  Pone en el PADRE la version del panel que dice POR QUE una instancia no
+  contesta, en vez de solo `sin-respuesta`.
+
+QUE NO HACE
+  No toca ninguna instancia de cliente. No actualiza ninguna imagen. No aplica
+  ninguna migracion. No cambia nada que vea un cliente.
+
+POR QUE ESTO NO NECESITA RELEASE NI PROMOCION
+  `apps/flota` NO viaja en la imagen: el `Dockerfile` construye con
+  `--filter=web`, y el README de esa carpeta dice que ese filtro es lo unico
+  que lo garantiza. Asi que esto llega con un `git pull`, y por eso se puede
+  desplegar HOY con la promocion parada por lo de `prueba`.
+
+--------------------------------------------------------------------------------
+ B1 · 🚦 GATE · la maquina correcta
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  ESPERADO: `ubuntu-s-2vcpu-4gb-amd-nyc1` y `137.184.107.53`.
+  🚦 Si dice `g500`, estas en la instancia de un cliente. PARAR.
+
+--------------------------------------------------------------------------------
+ B2 · Traer el codigo
+--------------------------------------------------------------------------------
+cd /var/www/Spaces
+git fetch --all
+git log --oneline -1 HEAD
+git pull
+git log --oneline -1 HEAD
+
+  Los dos `git log` son para VER que cambio. Si el segundo es igual al primero,
+  el pull no trajo nada y lo que sigue no tiene sentido: comprueba en que rama
+  esta esa copia (`git branch --show-current`).
+
+--------------------------------------------------------------------------------
+ B3 · Probarlo SIN reiniciar nada                                 🚦 GATE
+--------------------------------------------------------------------------------
+  El panel tiene un modo de linea de comandos que no toca el servicio. Esto es
+  lo que dice si el codigo nuevo funciona en ESTA maquina, con SU inventario y
+  SUS tokens -- que es lo que ninguna prueba local puede afirmar:
+
+cd /var/www/Spaces/apps/flota && node estado.mjs
+
+  ESPERADO: la tabla de siempre y, debajo, una linea por instancia con problema
+  que ahora diga la CAUSA. Por ejemplo:
+
+    demo: el dominio no resuelve (ENOTFOUND)
+
+  🚦 Si alguna linea sigue diciendo `fetch failed`, el codigo nuevo no esta
+     cargado: revisa B2 antes de seguir.
+
+  ⚠️ Y OJO con lo que puede aparecer aqui, que es informacion nueva: si alguna
+  instancia lleva tiempo mal y nadie lo sabia, esta es la corrida en que se ve.
+  Anota lo que salga antes de arreglar nada.
+
+--------------------------------------------------------------------------------
+ B4 · Reiniciar el panel · el comando se AVERIGUA, no se recuerda
+--------------------------------------------------------------------------------
+  No doy el comando de memoria: en este proyecto ya paso hoy que una tarjeta
+  mandaba correr `update.sh` sin su configuracion. Primero se mira:
+
+systemctl list-units --type=service --all 2>/dev/null | grep -i -E "flota|panel"
+systemctl cat $(systemctl list-units --type=service --all 2>/dev/null | grep -io -E "[a-z0-9@.-]*flota[a-z0-9@.-]*\.service" | head -1) 2>/dev/null | head -20
+
+  Con el nombre que salga:
+
+systemctl restart <el-servicio-que-salio>
+systemctl status  <el-servicio-que-salio> --no-pager | head -12
+
+  ESPERADO: `active (running)`.
+
+--------------------------------------------------------------------------------
+ B5 · Comprobar en la pantalla                                    🚦 GATE
+--------------------------------------------------------------------------------
+  Abre https://space-os.io/flota/ y mira la fila de una instancia que no
+  conteste.
+
+  ESPERADO: debajo de su renglon, una linea a ancho completo con la causa y,
+  si hay dato, «ultima vez bien <fecha>».
+
+  🚦 Y la comprobacion en NEGATIVO, que es la que dice que no se rompio nada:
+     una instancia al dia NO debe mostrar ninguna linea debajo. El silencio es
+     la senal de que esta bien.
+
+--------------------------------------------------------------------------------
+ SI ALGO SALE MAL
+--------------------------------------------------------------------------------
+  El panel es de solo lectura: no escribe en ninguna base y no toca ninguna
+  instancia. Lo peor que puede pasar es que la pantalla no cargue, y la vuelta
+  atras es volver al commit anterior y reiniciar.
+
+  El comando va COMENTADO a proposito, y `<commit-anterior>` es el hash que
+  imprimio el PRIMER `git log` de B2:
+
+# cd /var/www/Spaces && git checkout <commit-anterior> && systemctl restart <el-servicio>
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  La salida de B3 -- sobre todo si aparece alguna averia que no sabiamos -- y si
+  B5 se ve como dice.
+================================================================================

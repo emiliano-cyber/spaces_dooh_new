@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-09-03
+actualizado: 2026-09-10
 tags: [instancias, despliegue, padre, demo, flota, costos, plan]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -10,6 +10,9 @@ archivos:
   - infra/scripts/new-tenant.sh
   - apps/web/lib/test/db-e2e.ts
   - apps/web/middleware.ts
+  - apps/flota/diagnostico.mjs
+  - apps/flota/estado.mjs
+  - apps/flota/servidor.mjs
 ---
 
 # Modelo de instancias soberanas — avance de la corrección
@@ -237,6 +240,64 @@ cambian tareas concretas.
 | El orden de migraciones **no es alfabético** (`db-e2e.ts:145-155`) | El runner de la Fase 3 tiene que reproducir dos excepciones reales o una instancia nueva no levanta — ver [[migraciones]] |
 | `server-only` bloquea el atajo de la Fase 5 | Un script de aprovisionamiento no puede importar el alta ni el hash de contraseña; el Dueño se crea por una ruta HTTP de un solo uso |
 | El panel de flota no cabe en `apps/web` | El artefacto es idéntico para todos: meterlo ahí mandaría la lista de la flota al servidor de cada owner |
+
+### El panel dice POR QUÉ una instancia no contesta — 2026-09-10
+
+`sin-respuesta` era **un solo cajón**, y detrás caben seis averías con seis
+arreglos distintos. Ahora la fila viene acompañada de la causa, en frase y con
+el código: *«el dominio no resuelve (ENOTFOUND)»*, *«el certificado caducó
+(CERT_HAS_EXPIRED)»*, *«no existe `/api/version`: corre una versión anterior a
+F6.1 (HTTP 404)»*.
+
+Diseño y plan: `docs/Plan_Panel_Flota_Diagnostico.md` y su `_Tareas.md`.
+
+> [!important] El dato ya se calculaba y se tiraba
+> `consultar()` construía un `motivo` y `resumen()` lo descartaba una línea
+> después. Y en los fallos de red ese motivo era `error.message`, que en Node es
+> **`fetch failed`** para DNS, para conexión rechazada, para timeout y para
+> certificado caducado: cuatro arreglos distintos con el mismo texto inútil. La
+> causa vive en `error.cause.code`, y ahora la lee `diagnostico.mjs` — un módulo
+> **puro**, sin red ni disco, que por eso se prueba entero sin levantar nada.
+
+> [!warning] `COLUMNAS` hacía dos trabajos, y ahora son dos listas
+> Era **lo que la fila guarda** y **lo que la tabla imprime** a la vez. Con
+> `motivo` dejan de coincidir, porque el propio código argumenta contra meterlo
+> en una columna —«son texto de largo impredecible, y en la tabla la vuelven
+> ilegible justo el día que hay tres instancias caídas»— pero sí tiene que
+> viajar en el JSON o el panel web no puede pintarlo.
+>
+> | | Qué es |
+> |---|---|
+> | `COLUMNAS` | lo que la **tabla imprime**. Las 7 de siempre |
+> | **`CLAVES_FILA`** | lo que la **fila guarda**. **Aquí vive la promesa** |
+>
+> **Y la promesa se sujeta con un guard, no con prosa:** una prueba mete un
+> cuerpo con `clientes`, `razonSocial` y `facturado` y afirma que **ninguno**
+> aparece en la fila. `motivo` y `ultimaVezBien` los escribe el PADRE —uno de un
+> código de error, el otro de un reloj— y ninguno se copia del cuerpo de la
+> respuesta. Sin ese guard, `motivo` sería la puerta de atrás de lo que la lista
+> blanca cerró.
+>
+> La prueba de claves exactas sigue con la lista **escrita a mano** y no con la
+> constante, a propósito: así la próxima clave nueva vuelve a romper algo en vez
+> de colarse. Ese rojo es el que obligó a justificar estas dos.
+
+**La memoria:** se arrastra `ultimaVezBien` del `estado.json` anterior, para
+distinguir un parpadeo de una avería de tres horas. Un archivo que no existe,
+está roto o no se puede leer es **«sin memoria», no un error** — el panel sale
+siempre con 0. Y una instancia caída que nunca se vio bien se queda en `null`:
+no se inventa una fecha.
+
+**Y esto no viaja en la imagen**, así que llega al PADRE con un `git pull` y sin
+release ni promoción — que es lo que lo hacía posible hoy, con la promoción
+parada.
+
+> **Queda la fase 2**, diseñada y planeada sin implementar: que el panel diga si
+> una **actualización** falló y en qué paso. La instancia mandaría `resultado` y
+> `paso` de listas cerradas y **el PADRE escribiría la frase** — nunca texto
+> libre, que sería el mismo dato cruzando la frontera al revés. Y su despliegue
+> tiene un orden obligatorio: **el PADRE antes que las instancias**, porque
+> `validarReporte` rechaza el reporte entero ante una clave que no conoce.
 
 ## 7 · Lo que está bloqueado, y por quién
 
