@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-10
 tags: [datos, migraciones, despliegue, rojo]
 archivos:
   - db/migrations/
@@ -20,6 +20,7 @@ archivos:
   - db/migrations/20260825_sesion_metodo.sql
   - db/migrations/20260826_clientes_rfc_unico.sql
   - db/migrations/20260828_reautenticacion_por_defecto.sql
+  - db/migrations/20260910_pais_sin_default.sql
 ---
 
 # Migraciones
@@ -52,10 +53,32 @@ archivos:
 > historia tiene que cuadrar»). Un comentario no vale eso. **Queda anotado aquí,
 > que es donde se busca.**
 
+> [!warning] 2026-09-10 · dos avisos de esta nota YA NO SON CIERTOS, medidos
+> Esta nota es del 31/08 y dos de sus advertencias envejecieron. **Medido el
+> 09/09 sobre la instancia de g500 y sobre el droplet viejo**, no deducido:
+>
+> - **`schema_migrations` sí está en producción.** La instancia de g500 reporta
+>   **78 aplicadas + 1 de datos pendiente**. Lo que no la tiene es el **droplet
+>   viejo**, que va en 66 sin registro — y esa es la firma que el runner sabe
+>   resolver (`scripts/migrar.mjs:513-528`).
+> - **`20260826_clientes_rfc_unico.sql` sí está aplicada** en las instancias, y
+>   se aplicó limpia: su guard no encontró ni un RFC duplicado.
+>
+> Evidencia: `docs/evidencias/migracion-g500-E2-censo.md`. Lo que sigue siendo
+> cierto es el criterio: **verde en pruebas no significa aplicada en ninguna
+> base real**, y hay que mirar `schema_migrations` de cada base.
+
 ## Cómo funciona
 
-- **75 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
-  (medidos el 31/08; eran 74 el 27/08). El último es
+- **80 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
+  (medidos el 2026-09-10; eran 75 el 31/08). La última es
+  **`20260910_pais_sin_default.sql`**, que le quita a `sitios.pais` el
+  `not null default 'PE'` que arrastraba del origen peruano del producto —
+  cierra la última mitad de **DATA-01**, la que el 26/08 no se pudo tocar
+  porque exigía justo esto. **No toca ninguna fila** a propósito: los datos ya
+  escritos se corrigen aparte, por decisión explícita
+  (`docs/datos/20260910_pais_mx_g500.sql`), porque cambiar datos de un cliente
+  no puede ser el efecto colateral de un despliegue. El anterior es
   **`20260828_reautenticacion_por_defecto.sql`** (28/08), que cambia el DEFAULT
   de `tenants.exigir_reautenticacion` a `true` para que **toda organización nueva
   nazca pidiendo la contraseña** en los cambios sensibles — ver
@@ -76,21 +99,26 @@ archivos:
   > migraciones se mueven por separado, y confundirlos es lo que hizo que el
   > MOC llevara dos cifras distintas de migraciones a la vez.
 
-  > [!warning] `20260826_clientes_rfc_unico.sql` está ESCRITA y NO APLICADA
-  > Lo declara ella misma en su cabecera (`:4-7`). El arnés de integración la
-  > aplica en cada corrida porque construye el esquema desde cero, así que
-  > **verde en pruebas no significa aplicada en ninguna base real**. Aplicarla
-  > es decisión de una persona: hay que censar los RFC duplicados antes, o el
-  > `create unique index` aborta. Mismo patrón que
-  > `20260812_sin_default_tenant.sql`.
+  > [!success] `20260826_clientes_rfc_unico.sql` YA ESTÁ APLICADA — medido el 09/09
+  > Decía aquí que estaba escrita y sin aplicar, y su propia cabecera lo repite
+  > (`:4-7`): **las dos afirmaciones envejecieron**. Está aplicada en las
+  > instancias, y **se aplicó limpia**: su guard —que aborta nombrando los RFC
+  > repetidos— no encontró ninguno.
+  >
+  > Lo que sigue siendo cierto, y es lo que había que conservar de este aviso:
+  > **verde en pruebas no significa aplicada en ninguna base real**, porque el
+  > arnés construye el esquema desde cero en cada corrida. Se comprueba mirando
+  > `schema_migrations` de la base concreta.
 - Se aplican en **orden lexicográfico** del nombre, **con dos excepciones** (ver
   abajo) que declara `scripts/migrar.mjs`.
-- **Ya existe tabla de control**, `schema_migrations`, pero **todavía no en
-  producción**: la crea `20260812_schema_migrations.sql`, escrita el 14/08 y sin
-  aplicar (ver abajo). Hasta que se aplique, el registro de qué corrió sigue
-  siendo las notas `DESPLIEGUE_*.txt` de la raíz. Herramienta de migraciones de
-  terceros (`migrate`, Prisma Migrate) no hay ninguna: el runner es propio y
-  vive en **`scripts/migrar.mjs`** desde el 17/08 (F3.2).
+- **La tabla de control `schema_migrations` ya está en producción**, medido el
+  09/09: la instancia de g500 reporta **78 aplicadas + 1 de datos pendiente**.
+  La crea `20260812_schema_migrations.sql`. **La excepción es el droplet viejo**,
+  que sigue en **66 sin registro** — y esa pareja (historia sin registro) es la
+  firma que el runner detecta y sabe resolver, negándose a adivinar
+  (`scripts/migrar.mjs:513-528`). Herramienta de migraciones de terceros
+  (`migrate`, Prisma Migrate) no hay ninguna: el runner es propio y vive en
+  **`scripts/migrar.mjs`** desde el 17/08 (F3.2).
 - En producción se aplican **a mano como `postgres`**:
   ```
   sudo -u postgres psql -d spaces_prod -v ON_ERROR_STOP=1 -f <archivo>.sql
@@ -98,10 +126,20 @@ archivos:
 - El arnés de pruebas las reaplica todas desde cero
   (`apps/web/lib/test/db-e2e.ts`, `recrearEsquema()`).
 
-> [!warning] En producción, el estado real todavía solo se sabe mirando la base
-> `schema_migrations` existe en el repo desde el 14/08, pero el droplet no la
-> tiene hasta que alguien aplique la migración. Mientras tanto sigue sin haber
-> forma de preguntarle al repo qué está aplicado. Ver [[preguntas-abiertas]].
+> [!important] El estado real se sabe preguntándole a CADA base, y ya se puede
+> Desde que `schema_migrations` está aplicada, la pregunta «¿en qué versión de
+> esquema está esta máquina?» tiene respuesta sin ir a mirar a mano — que era el
+> problema que la tabla venía a resolver con una instancia por owner. Lo que **no**
+> cambia: el repositorio nunca sabe qué corrió en una máquina concreta. Se
+> pregunta a la base:
+>
+> ```
+> sudo -u postgres psql -d <base> -Atc "select count(*) from schema_migrations"
+> ```
+>
+> Y si esa consulta falla porque la tabla no existe **y la base tiene datos**, es
+> una instalación con historia sin registro: no se adivina, se le aplica primero
+> el backfill. Ver [[preguntas-abiertas]].
 
 ## La tabla de control (`schema_migrations`)
 

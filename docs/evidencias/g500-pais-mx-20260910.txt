@@ -1,0 +1,111 @@
+================================================================================
+ TARJETA · Las 12 pantallas de g500 dejan de estar en Peru    2026-09-10
+ Script: docs/datos/20260910_pais_mx_g500.sql
+================================================================================
+
+ ✅ APLICADA el 2026-09-10 · resultado medido: `MX | 12`, ninguna en PE.
+    Se conserva por su rastro y porque el procedimiento sirve para otra
+    instancia. Quedo demostrado en la maquina real el ciclo completo
+    aplicar -> deshacer -> reaplicar, con `UPDATE 12` las tres veces.
+
+QUE CORRIGE
+  Las 12 pantallas de g500 estan guardadas con pais = 'PE'. Son direcciones de
+  CDMX y Edomex, y la liga PUBLICA de la pantalla imprime la ubicacion: el
+  cliente lo lee en su propia ficha.
+
+  No lo causo el traslado del 09/09: venian asi del droplet viejo, porque la
+  columna era `not null default 'PE'` desde el origen peruano del producto.
+
+QUE NO HACE
+  No toca ninguna otra columna, ninguna otra organizacion y ninguna otra tabla.
+  12 filas, un valor.
+
+🚦 ORDEN, Y ESTE IMPORTA
+  Corre ANTES que la tarjeta `migracion-g500-retirar-llaves.txt`. Esa retira tu
+  acceso SSH a la maquina; si la corres primero, para esto tendrias que volver
+  a entrar por la consola web.
+
+  El arreglo de codigo que impide que vuelva a pasar
+  (`20260910_pais_sin_default.sql`) viaja en la imagen y baja con la proxima
+  version. Este script NO lo necesita: escribe un valor, no un null.
+
+--------------------------------------------------------------------------------
+ B1 · 🚦 GATE · la maquina correcta
+--------------------------------------------------------------------------------
+hostname; curl -s ifconfig.me; echo
+
+  ESPERADO: `g500` y `142.93.113.106`.
+  🚦 Si dice `ubuntu-s-2vcpu-4gb-amd-nyc1` estas en el PADRE. PARAR.
+
+--------------------------------------------------------------------------------
+ B2 · Subir el script  ·  [LOCAL, PowerShell]
+--------------------------------------------------------------------------------
+cd C:\Users\Server\spaces_doohmain_nueva\docs\datos
+scp -i $env:USERPROFILE\.ssh\spaces_deploy 20260910_pais_mx_g500.sql root@142.93.113.106:/tmp/
+scp -i $env:USERPROFILE\.ssh\spaces_deploy 20260910_pais_mx_g500_rollback.sql root@142.93.113.106:/tmp/
+
+--------------------------------------------------------------------------------
+ B3 · Captura previa  ·  [SERVIDOR]
+--------------------------------------------------------------------------------
+sudo -u postgres psql -P pager=off -d spaces -c "select pais, count(*) from sitios group by pais order by pais"
+
+  ESPERADO: `PE | 12`. Guarda la salida.
+
+--------------------------------------------------------------------------------
+ B4 · Pasada en SECO  ·  [SERVIDOR]                              🚦 GATE
+--------------------------------------------------------------------------------
+sed 's/^commit;$/rollback;/' /tmp/20260910_pais_mx_g500.sql > /tmp/seco.sql
+sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/seco.sql
+
+  ESPERADO: `UPDATE 12`, el NOTICE de OK, y `ROLLBACK`.
+  🚦 Si dice otra cifra, PARAR: alguien dio de alta pantallas nuevas y hay que
+     mirarlas antes de arrastrarlas.
+
+--------------------------------------------------------------------------------
+ B5 · Aplicar  ·  [SERVIDOR]
+--------------------------------------------------------------------------------
+sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260910_pais_mx_g500.sql
+
+  ESPERADO: `UPDATE 12`, el NOTICE, y `COMMIT`.
+
+--------------------------------------------------------------------------------
+ B6 · Comprobar
+--------------------------------------------------------------------------------
+sudo -u postgres psql -P pager=off -d spaces -c "select pais, count(*) from sitios group by pais order by pais"
+
+  ESPERADO: `MX | 12`, y ninguna en PE.
+
+  Y desde la aplicacion: abre una pantalla y mira su ficha publica.
+
+--------------------------------------------------------------------------------
+ AL TERMINAR  ·  la secuencia ACABA AQUI
+--------------------------------------------------------------------------------
+rm -f /tmp/20260910_pais_mx_g500.sql /tmp/20260910_pais_mx_g500_rollback.sql /tmp/seco.sql
+
+================================================================================
+ ⛔ LO DE ABAJO **NO** ES EL PASO SIGUIENTE
+================================================================================
+ Es la vuelta atras. Solo se toca si B6 salio MAL. Si B6 dijo `MX | 12`, ya
+ terminaste: cierra esta tarjeta.
+
+ El comando va COMENTADO a proposito -- con la almohadilla delante no hace
+ nada al pegarlo. Quitarla es la decision de deshacer, y hay que tomarla a
+ mano:
+
+# sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260910_pais_mx_g500_rollback.sql
+
+ Devuelve las 12 a 'PE', que era su valor previo exacto: todas estaban ahi.
+
+ ── Por que esta escrito asi ──────────────────────────────────────────────
+ El 2026-09-10, con la version anterior de esta tarjeta, la secuencia se corrio
+ de arriba abajo INCLUYENDO el rollback: la correccion se aplico (`MX | 12`) y
+ el comando siguiente la deshizo (`PE | 12`). Hubo que reaplicarla.
+ Nadie se equivoco leyendo: la tarjeta ponia un comando destructivo en el mismo
+ flujo que los demas, y asi se lee. La misma forma se corrigio en las otras
+ tarjetas de este directorio.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  Las salidas de B3, B4, B5 y B6.
+================================================================================

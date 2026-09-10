@@ -140,24 +140,38 @@ curl -s https://g500.space-os.io/spaces-dooh/api/auth/metodos/
   La base puede estar perfecta y la aplicacion no servirlas: esto es lo unico
   que demuestra que el cliente lo ve.
 
---------------------------------------------------------------------------------
- SI HAY QUE DESHACER
---------------------------------------------------------------------------------
-  Disparadores -- cualquiera basta:
+================================================================================
+ ⛔ LO DE ABAJO **NO** ES EL PASO SIGUIENTE
+================================================================================
+  Es la vuelta atras. Si B7 y B8 salieron bien, ya terminaste: salta al final.
+
+  Disparadores para deshacer -- cualquiera basta:
     · un recuento de B7 que no cuadre
     · /api/auth/metodos/ o el login que no respondan 200
     · las pantallas sin tarifa
 
-  Vuelta atras por SQL (deja config_negocio y folios como quedaron):
+  Los dos comandos van COMENTADOS a proposito: con la almohadilla delante no
+  hacen nada al pegarlos. Quitarla es la decision de deshacer.
 
-sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260909_carga_g500_rollback.sql
+  1) Vuelta atras por SQL (deja config_negocio y folios como quedaron):
 
-  Y despues, con las salidas de B4 delante, devolver a mano config_negocio y
-  folios_consecutivos.
+# sudo -u postgres psql -d spaces -v ON_ERROR_STOP=1 -f /tmp/20260909_carga_g500_rollback.sql
 
-  Vuelta atras COMPLETA, si algo se torcio de verdad:
+     Y despues, con las salidas de B4 delante, devolver a mano config_negocio y
+     folios_consecutivos.
 
-sudo -u postgres pg_restore -d spaces --clean --if-exists /tmp/antes-carga-g500.dump
+  2) Vuelta atras COMPLETA, y esta BORRA LA BASE antes de restaurarla
+     (`--clean`). Solo si algo se torcio de verdad, y con el respaldo ya
+     verificado en el equipo local (GATE 4):
+
+# sudo -u postgres pg_restore -d spaces --clean --if-exists /tmp/antes-carga-g500.dump
+
+  ── Por que estan comentados ──────────────────────────────────────────────
+  El 2026-09-10, con otra tarjeta de este directorio, la secuencia se corrio de
+  arriba abajo incluyendo el rollback: la correccion se aplico y el comando
+  siguiente la deshizo. Un comando destructivo en el mismo flujo que los demas
+  se lee como el paso siguiente, porque lo parece. Y aqui el (2) no se deshace:
+  borra la base de un cliente.
 
 --------------------------------------------------------------------------------
  AL TERMINAR
