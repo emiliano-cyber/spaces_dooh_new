@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { CLAVES_REPORTE, clasificar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
+import { CLAVES_REPORTE, clasificar, consultar, fusionar, resumen, tokenDe, tokensDeArchivo, cargarInventario } from './estado.mjs'
 import { guardarReporte, validarReporte } from './reporte.mjs'
 
 // ============================================================================
@@ -402,5 +402,38 @@ describe('el inventario, y las instancias que se dan de alta solas', () => {
       console.error = antes
     }
     expect(avisos.join(' ')).toContain('no se pudo leer')
+  })
+})
+
+describe('consultar · el motivo dice que arreglar', () => {
+  const instancia = { nombre: 'g500', dominio: 'g500.ejemplo.invalid', canal: 'estable' }
+
+  it('un fallo de DNS se lee como DNS y no como «fetch failed»', async () => {
+    const pedir = async () => {
+      const e = new Error('fetch failed') as Error & { cause?: { code: string } }
+      e.cause = { code: 'ENOTFOUND' }
+      throw e
+    }
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBe('el dominio no resuelve (ENOTFOUND)')
+  })
+
+  it('un 404 explica que esa instancia es vieja', async () => {
+    const pedir = async () => new Response('', { status: 404 })
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBe('no existe /api/version: corre una version anterior a F6.1 (HTTP 404)')
+  })
+
+  it('una instancia sana no trae motivo', async () => {
+    const pedir = async () => new Response(JSON.stringify({ ok: true, version: 'v0.5.0' }))
+    const fila = await consultar(instancia, { token: 'x', pedir })
+    expect(fila.motivo).toBeNull()
+    expect(fila.version).toBe('v0.5.0')
+  })
+
+  it('sin token, el motivo nombra la variable que falta', async () => {
+    const pedir = async () => new Response(JSON.stringify({ ok: true }))
+    const fila = await consultar(instancia, { token: '', pedir })
+    expect(fila.motivo).toBe('falta FLOTA_TOKEN_G500 en el panel')
   })
 })

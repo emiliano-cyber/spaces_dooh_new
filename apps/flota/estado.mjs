@@ -53,6 +53,8 @@ import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { clasificarFallo } from './diagnostico.mjs'
+
 const AQUI = dirname(fileURLToPath(import.meta.url))
 
 /** Las claves EXACTAS que `GET /api/version` devuelve con token (F6.1). */
@@ -287,21 +289,22 @@ export async function consultar(instancia, opciones = {}) {
       signal: AbortSignal.timeout(esperaMs),
       redirect: 'manual',
     })
-    if (!respuesta.ok) return { ...fila, motivo: 'HTTP ' + respuesta.status }
+    if (!respuesta.ok) return { ...fila, motivo: clasificarFallo({ status: respuesta.status }) }
     const cuerpo = await respuesta.json()
     if (typeof cuerpo?.version !== 'string') {
+      // OJO: al clasificador se le pasa el NOMBRE de la instancia, nunca el
+      // cuerpo. Es lo que mantiene la promesa de la lista blanca — hay una
+      // prueba que afirma que ningun valor del cuerpo acaba en `motivo`.
       return {
         ...fila,
-        motivo: token
-          ? 'contesto sin version: el token no lo reconoce como panel'
-          : 'no hay token para esta instancia (FLOTA_TOKEN_' +
-            String(instancia.nombre).toUpperCase().replace(/-/g, '_') +
-            ')',
+        motivo: clasificarFallo({ cuerpoSinVersion: true, token, nombre: instancia.nombre }),
       }
     }
     return { ...fila, version: cuerpo.version, fecha: ahora() }
   } catch (error) {
-    return { ...fila, motivo: String(error?.message ?? error) }
+    // `error.message` aqui era **`fetch failed`** para toda averia de red: la
+    // causa vive en `error.cause.code`, y el clasificador es quien la lee.
+    return { ...fila, motivo: clasificarFallo({ error }) }
   }
 }
 
