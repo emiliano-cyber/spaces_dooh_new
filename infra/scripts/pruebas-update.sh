@@ -524,6 +524,61 @@ FIN
   export C_SALUD_CUERPO='{"ok":true,"version":"v0.4.2","ultimaMigracion":"20260910_x.sql","base":"ok","canal":"estable","uptime":120}'
 }
 
+# Fabrica una licencia FIRMADA para este escenario, con su propio par de llaves.
+#   usar_licencia <vence> [aviso_dias] [gracia_dias] [instancia] [dominio]
+# Deja `LICENCIA_REQUERIDA=1` en la configuracion y las rutas apuntando al
+# directorio temporal.
+usar_licencia() {
+  local vence="$1" aviso="${2:-30}" gracia="${3:-15}"
+  local inst="${4:-demo}" dom="${5:-demo.ejemplo.invalid}"
+  mkdir -p "$RAIZ_TMP/licencia"
+  openssl genpkey -algorithm ed25519 -out "$RAIZ_TMP/k.pem" 2>/dev/null
+  openssl pkey -in "$RAIZ_TMP/k.pem" -pubout -out "$RAIZ_TMP/k.pub" 2>/dev/null
+  cat >"$RAIZ_TMP/licencia/licencia.json" <<FIN
+{
+  "instancia": "$inst",
+  "dominio": "$dom",
+  "emitida": "2026-01-01",
+  "vence": "$vence",
+  "aviso_dias": $aviso,
+  "gracia_dias": $gracia
+}
+FIN
+  openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+    -in "$RAIZ_TMP/licencia/licencia.json" \
+    -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+  cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/licencia
+LICENCIA_PUB=$RAIZ_TMP/k.pub
+DOMINIO=$dom
+FIN
+}
+
+# Recorre el banco de casos COMPARTIDO con `apps/web`. Que las dos
+# implementaciones de la misma regla no se separen es todo el motivo de que ese
+# archivo exista, y esto es la mitad que lo comprueba desde bash.
+escenarios_del_banco() {
+  local banco="$RAIZ/infra/licencias/estados.casos.tsv" n=0
+  while IFS=$'\t' read -r vence aviso gracia hoy estado; do
+    case "$vence" in ''|'#'*) continue ;; esac
+    n=$((n + 1))
+    preparar "E107.$n banco de casos: vence $vence, hoy $hoy -> $estado"
+    usar_licencia "$vence" "$aviso" "$gracia"
+    # `LICENCIA_HOY` existe SOLO para las pruebas: sin el no se puede comprobar
+    # una fecha futura sin cambiarle el reloj a la maquina que corre el arnes.
+    export LICENCIA_HOY="$hoy"
+    correr
+    log_dice "licencia: $estado"
+    unset LICENCIA_HOY
+    limpiar
+  done <"$banco"
+  if [ "$n" -lt 10 ]; then
+    ESCENARIO_ACTUAL='banco de casos'
+    mal "el banco de casos se leyo vacio o a medias ($n casos): la ruta esta mal"
+  fi
+}
+
 # ─── Predicados ────────────────────────────────────────────────────────────
 codigo_es() { if [ "$CODIGO" = "$1" ]; then bien; else mal "codigo esperado $1, real $CODIGO"; fi; }
 # Lo que viaja DENTRO del cuerpo posteado al padre.
@@ -2418,6 +2473,100 @@ codigo_es 2
 posteo_dice '"codigo":2'
 posteo_calla 'CLIENTE-CONFIDENCIAL'
 posteo_calla 'ERROR'
+limpiar
+
+# ─── LA LICENCIA (E107-E115) ───────────────────────────────────────────────
+#  El cliente es dueno de su droplet: la licencia es lo que dice hasta cuando
+#  puede correr nuestro sistema. Todo esto vive detras de `LICENCIA_REQUERIDA`,
+#  que vale 0 por omision -- E115 es el escenario que lo demuestra, y es el que
+#  garantiza que la flota administrada de hoy no cambia en absoluto.
+
+escenarios_del_banco
+
+preparar 'E108 sin LICENCIA_REQUERIDA no se mira nada, aunque haya licencia vencida'
+usar_licencia '2020-01-01'
+# Se pisa la que dejo usar_licencia: la ultima gana al hacer `source`.
+cat >>"$SPACE_OS_CONF" <<'FIN'
+LICENCIA_REQUERIDA=0
+FIN
+correr
+codigo_es 0
+log_calla 'licencia'
+limpiar
+
+preparar 'E109 una firma que no valida es INVALIDA, nunca "se asume buena"'
+usar_licencia '2027-01-01'
+printf 'x' >>"$RAIZ_TMP/licencia/licencia.json"
+export LICENCIA_HOY='2026-11-01'
+correr
+log_dice 'licencia: invalida'
+unset LICENCIA_HOY
+limpiar
+
+preparar 'E110 una licencia de OTRA instancia no vale'
+usar_licencia '2027-01-01' 30 15 'otracosa' 'demo.ejemplo.invalid'
+export LICENCIA_HOY='2026-11-01'
+correr
+log_dice 'licencia: invalida'
+log_dice 'no es de esta instancia'
+unset LICENCIA_HOY
+limpiar
+
+preparar 'E111 una licencia de OTRO dominio no vale'
+usar_licencia '2027-01-01' 30 15 'demo' 'demo.ejemplo.invalid'
+# La configuracion se PISA a proposito: `usar_licencia` escribe el dominio del
+# JSON y el `DOMINIO` de la instancia desde el mismo valor, asi que sin esta
+# linea los dos coincidirian siempre y este escenario no probaria nada. Es la
+# diferencia con E110, donde `INSTANCIA` viene anclada en la configuracion base
+# y `usar_licencia` no la toca.
+cat >>"$SPACE_OS_CONF" <<'FIN'
+DOMINIO=otra.ejemplo.invalid
+FIN
+export LICENCIA_HOY='2026-11-01'
+correr
+log_dice 'licencia: invalida'
+unset LICENCIA_HOY
+limpiar
+
+preparar 'E112 sin el archivo de firma es invalida'
+usar_licencia '2027-01-01'
+rm -f "$RAIZ_TMP/licencia/licencia.firma"
+export LICENCIA_HOY='2026-11-01'
+correr
+log_dice 'licencia: invalida'
+unset LICENCIA_HOY
+limpiar
+
+preparar 'E113 un campo que falta NO cae a un valor por omision'
+usar_licencia '2027-01-01'
+grep -v 'gracia_dias' "$RAIZ_TMP/licencia/licencia.json" >"$RAIZ_TMP/l.tmp"
+# Se quita la coma que colgaba de la linea anterior para que siga siendo JSON.
+sed -i 's/"aviso_dias": 30,/"aviso_dias": 30/' "$RAIZ_TMP/l.tmp"
+mv "$RAIZ_TMP/l.tmp" "$RAIZ_TMP/licencia/licencia.json"
+openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+  -in "$RAIZ_TMP/licencia/licencia.json" -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+export LICENCIA_HOY='2026-11-01'
+correr
+log_dice 'licencia: invalida'
+unset LICENCIA_HOY
+limpiar
+
+preparar 'E114 con LICENCIA_REQUERIDA=1 y sin licencia, es invalida'
+cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/no-existe
+LICENCIA_PUB=$RAIZ_TMP/tampoco.pub
+FIN
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+# EL escenario que protege a la flota de hoy: sin la variable, ni una linea del
+# bloque nuevo se ejecuta y el update es el de siempre.
+preparar 'E115 sin la variable en la configuracion, el update es identico al de hoy'
+correr
+codigo_es 0
+log_calla 'licencia'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"

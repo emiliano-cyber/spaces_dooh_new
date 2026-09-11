@@ -385,6 +385,7 @@ EX_BASE_DISTINTA=6
 # restauracion fallo. La base no esta "a medias": esta VACIA, y levantar la
 # version anterior no sirve de nada hasta restaurarla a mano.
 EX_BASE_VACIA=7
+EX_LICENCIA=8    # la licencia vencio: esta instancia esta APAGADA a proposito
 EX_OCUPADO=75
 
 DRY_RUN=0
@@ -799,6 +800,111 @@ PG_RESTORE="${PG_RESTORE:-pg_restore}"
 # instalado, y el unico momento en que hace falta es el que ya va mal.
 PSQL="${PSQL:-psql}"
 DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
+
+# ─── La licencia (ADR 0032) ────────────────────────────────────────────────
+#  Un hijo de «droplet propio» corre en la maquina del cliente, que es suya y
+#  donde el tiene root. La licencia es lo que dice hasta cuando puede correr
+#  nuestro sistema.
+#
+#  ─── Por que la comprobacion esta AQUI y no dentro de la aplicacion ───────
+#  Porque el cliente puede reescribir todo el JavaScript que quiera: si quien
+#  decide fuera la aplicacion, decidiria el. Aqui, fuera del contenedor, lo que
+#  tendria que reescribir es este guion -- y entonces deja de reportar bien al
+#  padre, y el silencio ya es un estado en el panel de flota. No podemos
+#  impedirlo; podemos hacer que no se pueda esconder.
+#
+#  ─── Y por que vale 0 por omision ─────────────────────────────────────────
+#  Los hijos que damos de alta nosotros NO llevan licencia: la maquina es
+#  nuestra y apagarla es trivial. Sin esta variable no se ejecuta ni una linea
+#  de lo de abajo, y este guion se comporta exactamente como el de siempre. Lo
+#  comprueba E115.
+LICENCIA_REQUERIDA="${LICENCIA_REQUERIDA:-0}"
+LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
+LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
+LICENCIA_ESTADO='no-aplica'
+
+# Lee un campo de texto del JSON. Se llama SOLO despues de que la firma valide:
+# decidir con un JSON sin firmar seria confiar en un archivo que cualquiera
+# puede escribir. Y es un analizador pobre a proposito -- no hay `jq` en el
+# droplet, el archivo lo escribimos nosotros y su forma es fija.
+licencia_texto() {
+  grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$LICENCIA_DIR/licencia.json" 2>/dev/null \
+    | head -n1 | sed 's/.*:[[:space:]]*"//; s/"$//'
+}
+
+licencia_numero() {
+  grep -o "\"$1\"[[:space:]]*:[[:space:]]*[0-9][0-9]*" "$LICENCIA_DIR/licencia.json" 2>/dev/null \
+    | head -n1 | sed 's/.*:[[:space:]]*//'
+}
+
+# 0 si la firma valida Y la licencia es de ESTA instancia y ESTE dominio.
+licencia_valida() {
+  [ -f "$LICENCIA_DIR/licencia.json" ] || { registrar "   licencia: no hay licencia.json en $LICENCIA_DIR"; return 1; }
+  [ -f "$LICENCIA_DIR/licencia.firma" ] || { registrar "   licencia: no hay licencia.firma en $LICENCIA_DIR"; return 1; }
+  [ -f "$LICENCIA_PUB" ] || { registrar "   licencia: no hay llave publica en $LICENCIA_PUB"; return 1; }
+
+  if ! openssl pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \
+       -in "$LICENCIA_DIR/licencia.json" -sigfile "$LICENCIA_DIR/licencia.firma" >/dev/null 2>&1; then
+    registrar "   licencia: la firma NO valida"
+    return 1
+  fi
+
+  # Ahora si: el contenido esta firmado, asi que se puede leer y creer.
+  local inst dom
+  inst="$(licencia_texto instancia)"
+  dom="$(licencia_texto dominio)"
+  if [ "$inst" != "$(respaldo_instancia 2>/dev/null || echo "${INSTANCIA:-}")" ]; then
+    registrar "   licencia: firmada pero no es de esta instancia (dice \"$inst\")"
+    return 1
+  fi
+  # `DOMINIO` no existe hoy en `instancia.env.example` (solo `INSTANCIA`,
+  # F5.3/tarea 8). Sin ella no hay con que comparar, y saltarse el guard en
+  # silencio es la clase de fallo que este repositorio persigue -- se
+  # registra, y NO se inventa un valor ni se falla por su ausencia.
+  if [ -z "${DOMINIO:-}" ]; then
+    registrar "   licencia: sin DOMINIO en la configuracion, no se comprueba el dominio de la licencia"
+  elif [ "$dom" != "$DOMINIO" ]; then
+    registrar "   licencia: firmada pero no es de este dominio (dice \"$dom\")"
+    return 1
+  fi
+  return 0
+}
+
+# Los cuatro estados. La MISMA regla que `apps/web/lib/licencia.ts`, y lo que
+# impide que las dos se separen es `infra/licencias/estados.casos.tsv`, que
+# leen las dos suites.
+licencia_estado() {
+  local vence aviso gracia t_vence t_aviso t_fin ahora
+  vence="$(licencia_texto vence)"
+  aviso="$(licencia_numero aviso_dias)"
+  gracia="$(licencia_numero gracia_dias)"
+  # Un campo ilegible NO cae a un valor por omision: una licencia a medias es
+  # una licencia rota, y elegir por ella seria inventarse lo que se concedio.
+  [ -n "$vence" ] && [ -n "$aviso" ] && [ -n "$gracia" ] || { echo invalida; return 0; }
+  t_vence="$(date -u -d "$vence" +%s 2>/dev/null || true)"
+  [ -n "$t_vence" ] || { echo invalida; return 0; }
+  # `LICENCIA_HOY` es SOLO para el arnes: sin el no se puede comprobar una fecha
+  # futura sin cambiarle el reloj a la maquina que corre las pruebas. En una
+  # instancia real nunca esta definida.
+  if [ -n "${LICENCIA_HOY:-}" ]; then
+    ahora="$(date -u -d "$LICENCIA_HOY" +%s 2>/dev/null || true)"
+    [ -n "$ahora" ] || { echo invalida; return 0; }
+  else
+    ahora="$(date -u +%s)"
+  fi
+  t_aviso=$(( t_vence - aviso * 86400 ))
+  t_fin=$((   t_vence + gracia * 86400 ))
+  if   [ "$ahora" -lt "$t_aviso" ]; then echo sana
+  elif [ "$ahora" -lt "$t_vence" ]; then echo aviso
+  elif [ "$ahora" -lt "$t_fin"   ]; then echo gracia
+  else                                   echo vencida
+  fi
+}
+
+if [ "$LICENCIA_REQUERIDA" = 1 ]; then
+  if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='invalida'; fi
+  registrar "licencia: $LICENCIA_ESTADO"
+fi
 
 [ -n "$CANAL" ] || salir "$EX_CONFIG" "ERROR update: falta CANAL en $CONF (estable o beta)."
 [ -n "$REGISTRY" ] || salir "$EX_CONFIG" "ERROR update: falta REGISTRY en $CONF."
