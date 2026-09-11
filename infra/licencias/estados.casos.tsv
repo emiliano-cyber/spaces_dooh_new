@@ -20,5 +20,10 @@
 2027-01-01	30	15	2027-01-15	gracia
 2027-01-01	30	15	2027-01-16	vencida
 2027-01-01	30	15	2027-06-01	vencida
-2027-01-01	0	0	2026-12-31	aviso
+# Y el caso degenerado, sin aviso y sin gracia. `aviso_dias: 0` significa «no
+# avises», asi que el dia de antes la licencia esta SANA -- no en aviso. Sigue
+# distinguiendo el antes del despues, que es lo unico que hace falta, y no
+# necesita ningun `Math.max` que lo rescate: un minimo forzado en un lado y no
+# en el otro es justo la divergencia que este archivo existe para cazar.
+2027-01-01	0	0	2026-12-31	sana
 2027-01-01	0	0	2027-01-01	vencida

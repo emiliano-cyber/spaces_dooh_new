@@ -41,7 +41,7 @@ export function estadoDeLicencia(licencia: unknown, ahora: Date): EstadoLicencia
   if (!esDiaEntero(l.aviso_dias) || !esDiaEntero(l.gracia_dias)) return 'invalida'
 
   const t = ahora.getTime()
-  const inicioAviso = vence - Math.max(1, l.aviso_dias) * DIA
+  const inicioAviso = vence - l.aviso_dias * DIA
   const finGracia = vence + l.gracia_dias * DIA
 
   if (t < inicioAviso) return 'sana'
