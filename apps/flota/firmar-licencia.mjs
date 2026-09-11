@@ -18,7 +18,7 @@
 
 import { createPrivateKey } from 'node:crypto'
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 
@@ -75,6 +75,21 @@ try {
 } catch (error) {
   console.error(`firmar-licencia: ${error.message}`)
   process.exit(64)
+}
+
+// Que la llave EXISTA se comprueba ANTES de pedir la frase de paso, y no es un
+// detalle de comodidad. El mensaje de mas abajo es ambiguo a proposito --«o la
+// frase no es la correcta, o el archivo no es una llave»-- para no ayudar a
+// quien esta probando frases. Contra el operador, esa misma ambiguedad
+// convierte un dedazo en `--llave` en un susto de credencial comprometida, a
+// las dos de la manana y la primera vez que se usa esto. Una ruta que no existe
+// no es un secreto para nadie: se dice claro y se para sin haber pedido nada.
+if (!existsSync(rutaLlave)) {
+  console.error(`firmar-licencia: no existe la llave privada en ${rutaLlave}`)
+  console.error('  No es un problema de la frase de paso: el archivo no esta ahi.')
+  console.error('  Revisa la ruta de `--llave` (por omision /etc/space-os/llaves/space-os.key.pem)')
+  console.error('  o corre antes `docs/evidencias/llaves-de-licencia.txt`, que es quien la crea.')
+  process.exit(66)
 }
 
 const frase = await pedirFrase()
