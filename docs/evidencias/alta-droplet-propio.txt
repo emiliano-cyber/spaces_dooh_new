@@ -338,6 +338,38 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   4:17 (tu hora del servidor), y se apaga sola -- con una pagina explicando
   por que, no un error generico -- si tu licencia vence.
 
+--------------------------------------------------------------------------------
+ B7 · 🚦 GATE · la aplicacion PUEDE LEER tu licencia (el aviso antes del corte)
+--------------------------------------------------------------------------------
+  Tu instancia te avisa DENTRO del sistema, con una banda en la parte de
+  arriba, los 30 dias antes de que tu licencia venza y los 15 de gracia que
+  siguen. Ese aviso es lo que evita que la primera senal sea la pagina de
+  vencimiento.
+
+  Para que aparezca, la aplicacion tiene que poder ABRIR el archivo de la
+  licencia. La aplicacion NO corre como root: corre dentro de un contenedor,
+  como el usuario `node`. Asi que la comprobacion util es la que se hace DESDE
+  DENTRO del contenedor y COMO ESE USUARIO -- desde fuera, con tu sesion de
+  root, el archivo se lee siempre y no probaria nada:
+
+docker exec -u node space-os cat /etc/space-os/licencia/licencia.json
+
+  🚦 ESPERADO: el contenido de tu licencia en pantalla (tu nombre de
+     instancia, tu dominio y la fecha de vencimiento). GUARDA esta salida.
+
+     Si en su lugar sale `Permission denied`, PARA y avisanos: la instalacion
+     dejo el archivo con permisos que la aplicacion no puede leer, y el
+     sintoma de eso NO es un error -- es que los avisos de vencimiento
+     simplemente no aparecen nunca, sin que nada lo diga. Se arregla en un
+     segundo (`chmod 644` sobre los dos archivos de esa carpeta), pero
+     preferimos enterarnos hoy.
+
+     Si sale `No such container`, el contenedor todavia no esta arriba:
+     vuelve a B6 y mira el ultimo mensaje.
+
+  Y de paso, la licencia no es ningun secreto: es un documento firmado que
+  dice que se te concedio y hasta cuando. Puedes leerlo cuando quieras.
+
 ================================================================================
  C · 🚦 EL GATE QUE CIERRA EL ALTA
 ================================================================================
@@ -392,6 +424,11 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   3. Confirmacion de que el cliente completo B3 (sha256 verificado, del
      paquete Y de la licencia) y B5 (la simulacion termino con el banner de
      "NO SE TOCO NADA" y sin errores).
-  4. La captura o el enlace de la fila del cliente en `<PADRE_URL>/flota/` --
+  4. La salida del `docker exec` de B7 -- es lo unico que demuestra que los
+     avisos de vencimiento van a aparecer. Su modo de fallo no da error: si
+     la aplicacion no puede leer la licencia, los 30 dias de aviso y los 15
+     de gracia pasan mudos y lo primero que ve el cliente es la pagina de
+     vencimiento.
+  5. La captura o el enlace de la fila del cliente en `<PADRE_URL>/flota/` --
      es el gate C, y es lo que cierra el alta.
 ================================================================================

@@ -155,6 +155,17 @@ escrito_casa() {
   else mal "en $1, ninguna linea casa con: $2"; fi
 }
 
+# Con QUE MODO se instalaria un archivo. En `--dry-run` no se instala nada,
+# pero la linea que `escribir()` imprime lleva el modo dentro -- y el modo es
+# justo lo que aqui se afirma. Existe por el defecto F2 de la revision final:
+# la licencia se instalaba 600 de root, el contenedor corre como `node`, y con
+# eso la banda de aviso de vencimiento NO SE PINTABA NUNCA en ninguna instancia
+# de droplet propio. No lo veia nada: ni un gate, ni un log, ni una prueba.
+modo_escrito() {
+  if grep -qF -- "escribir $1 (modo $2)" "$SALIDA"; then bien
+  else mal "$1 no se escribe en modo $2 (linea real: $(grep -F -- "escribir $1 (" "$SALIDA" | head -n1 || true))"; fi
+}
+
 # Por AUSENCIA, y por eso comprueba PRIMERO que el archivo exista: una
 # comprobacion de que algo NO aparece en un archivo que nadie escribio pasa
 # sola, y pasaria justo el dia en que el instalador dejara de escribirlo.
@@ -257,6 +268,40 @@ escrito_dice /etc/space-os/app.env 'DATABASE_URL=postgresql://spaces_app:'
 escrito_dice /etc/space-os/instancia.env 'DATABASE_URL="postgresql://spaces_migrador:'
 limpiar
 
+# ============================================================================
+#  PERMISOS · un secreto va en 600; un documento publico, en 644  (F2)
+# ----------------------------------------------------------------------------
+#  La licencia NO es un secreto: es una afirmacion firmada y publica, y su
+#  valor esta en la firma. El cliente puede abrirla y leer que se le concedio.
+#  Lo que SI es secreto son los dos `.env`, y siguen en 600.
+#
+#  Este escenario afirma LAS DOS COSAS a la vez a proposito. Comprobar solo el
+#  644 invitaria a "arreglar" un futuro fallo abriendo permisos en bloque; con
+#  el 600 al lado, la regla que se protege es la distincion, no un numero.
+# ============================================================================
+escenario 'PERMISOS · la licencia se instala legible por el contenedor (644); los .env no (600)'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid -- \
+  --instancia p --dominio "$DOM" --flota-token t0ken-de-flota --licencia "$LICDIR"
+codigo_es 0
+
+# El montaje `-v /etc/space-os/licencia:...:ro` conserva dueno y permisos del
+# anfitrion, y dentro el proceso es `node` (`Dockerfile:145`): con 600 de root
+# el `readFile` del layout da EACCES, y EACCES se veia igual que "no hay
+# licencia". Los 30 dias de aviso y los 15 de gracia pasaban mudos.
+modo_escrito /etc/space-os/licencia/licencia.json 644
+modo_escrito /etc/space-os/licencia/licencia.firma 644
+# Y el directorio, explicito y no heredado del umask: un 644 dentro de un 700
+# sigue siendo ilegible, y falla igual de callado.
+if grep -qE 'chmod 755 /etc/space-os /etc/space-os/licencia' "$SALIDA"; then bien
+else mal 'no se fija el modo del directorio de la licencia: un umask restrictivo lo dejaria ilegible igual'; fi
+
+# Lo que si es secreto sigue siendolo.
+modo_escrito /etc/space-os/app.env 600
+modo_escrito /etc/space-os/instancia.env 600
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1
 
@@ -347,6 +392,12 @@ if [ "${1:-}" = '--mutantes' ]; then
   # parser que entrecomilla, la comprobacion (1) de arriba tiene que morder.
   probar_mutante 'app.env vuelve a escribirse con el parser que entrecomilla (la reunificacion)' \
     's@reescribir_env_docker "\$TPL_APP" \\@reescribir_env_sourceado "$TPL_APP" \\@'
+
+  # F2: el modo de fallo mas caro de esta rama, porque no daba ninguna senal.
+  # «Asegurar» la licencia de vuelta a 600 mata la banda de aviso en toda la
+  # flota de droplet propio sin romper nada visible. Tiene que morder.
+  probar_mutante 'la licencia vuelve a instalarse 600 (el fallo mudo de F2)' \
+    's@licencia/licencia.json 644@licencia/licencia.json 600@'
 
   printf '\n%s mutantes (el primero es el centinela) · %s mal\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

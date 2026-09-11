@@ -710,10 +710,37 @@ ejecutar mkdir -p /opt/space-os
 escribir /opt/space-os/space-os.pub 644 < "$LICENCIA_PUB_ORIGEN"
 
 # ─── 4 · La licencia, ya verificada arriba ──────────────────────────────────
+# MODO 644, Y NO 600. NO ES UN DESCUIDO: NO SE "ASEGURE" DE VUELTA.
+#
+# Una licencia NO ES UN SECRETO. Es una afirmacion firmada y publica --«este
+# cliente tiene derecho a esto hasta esta fecha»--, y su valor esta en la FIRMA,
+# no en que nadie la vea: el cliente puede abrirla y leer que se le concedio, y
+# eso es parte del trato. La llave PUBLICA que la verifica se instala 644 por la
+# misma razon, tres lineas mas arriba. Lo unico que nunca sale de nuestro lado
+# es la llave PRIVADA, que no esta en esta maquina ni en este paquete.
+#
+# Y con 600 de root el mecanismo entero de aviso quedaba MUERTO, en silencio:
+# el contenedor corre como `USER node` (`Dockerfile:145`) y el montaje
+# `-v /etc/space-os/licencia:...:ro` conserva dueno y permisos del anfitrion.
+# El `readFile` del layout (`apps/web/app/(app)/(shell)/layout.tsx`) daba
+# EACCES, el `catch` lo convertia en `null`, y `null` es EL MISMO VALOR que
+# «este es un hijo administrado y no tiene licencia». Resultado: los 30 dias de
+# aviso y los 15 de gracia pasaban mudos y lo primero que veia el cliente era
+# la pagina de vencimiento. No lo cazaba ningun gate, ningun log y ninguna
+# prueba: un `600` en vez de un `644` deshacia el mecanismo sin que nada
+# protestara.
 paso "Licencia"
 ejecutar mkdir -p /etc/space-os/licencia
-escribir /etc/space-os/licencia/licencia.json 600 < "$LICENCIA_ORIGEN/licencia.json"
-escribir /etc/space-os/licencia/licencia.firma 600 < "$LICENCIA_ORIGEN/licencia.firma"
+# Los modos de los DIRECTORIOS, explicitos y no heredados del umask: un `644`
+# dentro de un directorio `700` sigue siendo ilegible para el usuario del
+# contenedor, y con el mismo fallo mudo de antes. `mkdir` aplica el umask de
+# quien lo corre, y el de una sesion de root no lo elegimos nosotros.
+# `/etc/space-os` guarda ademas `app.env` e `instancia.env`, que siguen en 600:
+# un directorio atravesable no expone lo que hay dentro, solo deja llegar a lo
+# que ya es legible.
+ejecutar chmod 755 /etc/space-os /etc/space-os/licencia
+escribir /etc/space-os/licencia/licencia.json 644 < "$LICENCIA_ORIGEN/licencia.json"
+escribir /etc/space-os/licencia/licencia.firma 644 < "$LICENCIA_ORIGEN/licencia.firma"
 
 # ─── 5 · Los dos archivos de entorno ────────────────────────────────────────
 paso "Entorno"
