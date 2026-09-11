@@ -95,8 +95,8 @@ no puede decidir si se apaga la instancia de un cliente.
 
 ### d) Lo que queda abierto de esta enmienda
 
-Tres cosas, con su estado — ninguna bloquea lo ya construido, y ninguna es una
-afirmación de que está resuelta.
+Cuatro cosas, con su estado — ninguna bloquea lo ya construido, y ninguna es
+una afirmación de que está resuelta.
 
 **1 · `provision-instancia.sh` escribe la configuración de un cliente sin
 saneamiento.** Hallazgo de forma, medido al escribir esta enmienda, no un
@@ -133,6 +133,29 @@ los entrega `avisoDeLicencia()` — una cadena ISO como `2027-01-01` — y eso l
 lee alguien de negocio dentro del shell, no un desarrollador. Pulido
 pendiente, no un fallo: el aviso ya dice la fecha correcta, sólo que sin
 formatear para lectura humana.
+
+> **Sube de prioridad desde el 2026-09-11.** Cuando esto se escribió, la banda
+> **no se pintaba nunca** — la licencia se instalaba en modo 600 y el
+> contenedor no podía leerla (F2 de la revisión final, ya corregido). Mientras
+> duró eso, el formato de la fecha no lo veía nadie. Ahora sí se ve.
+
+**4 · `pruebas-update.sh` no está en CI, y cuesta 7 minutos por PR.** Añadido
+el 2026-09-11, al meter en `ci.yml` los otros dos arneses nuevos
+(`pruebas-provision.sh` ya estaba; `pruebas-instalar-hijo.sh` entró ese día).
+El de `update.sh` **se dejó fuera a propósito, y no es una decisión técnica:
+es de Emiliano.** El dato que la sostiene es el coste: **141 escenarios,
+~7 minutos**, pagados por **cada** pull request del repositorio, incluidos los
+que sólo tocan documentación.
+
+Lo que pesa del otro lado: es el arnés del único guion que corre **cada noche
+en el servidor de un cliente real**, y el defecto más caro de la revisión final
+(el código 8 que nunca llegaba al panel de flota) vivía exactamente ahí y no lo
+vio nadie hasta que alguien leyó los 25 escenarios uno a uno.
+
+Salidas intermedias, si se decide que sí: un job aparte en paralelo, `on:
+schedule` una vez al día, o condicionarlo a que el diff toque
+`infra/scripts/`. **Ninguna se elige aquí.** Mientras tanto se corre a mano, y
+la pregunta queda escrita también en `ci.yml`, junto al sitio donde iría.
 
 **Lo que ya estaba abierto y sigue igual, sin repetirlo aquí:** la credencial
 del registro de imágenes (`REGISTRY_TOKEN` en disco, compartida por toda la
