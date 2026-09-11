@@ -559,18 +559,26 @@ FIN
 # implementaciones de la misma regla no se separen es todo el motivo de que ese
 # archivo exista, y esto es la mitad que lo comprueba desde bash.
 escenarios_del_banco() {
-  local banco="$RAIZ/infra/licencias/estados.casos.tsv" n=0
+  local banco="$RAIZ/infra/licencias/estados.casos.tsv" n=0 hoy_real delta vence_real
+  # El reloj NO se mueve: se mueven las FECHAS DE LA LICENCIA, que es lo que este
+  # arnes fabrica de todos modos. La alternativa era una variable de entorno que
+  # fijara el "ahora", y `update.sh` sourcea `$CONF`, asi que esa variable seria
+  # alcanzable por el cliente: podria congelar su licencia en "sana" escribiendola
+  # en su propio `instancia.env`, sin parchear nada y sin dejar de reportar. Una
+  # puerta de pruebas que vive en el codigo de produccion es una puerta.
+  hoy_real="$(date -u +%F)"
+  # Una corrida que cruce la medianoche UTC entre este calculo y la lectura de
+  # `ahora` DENTRO de `update.sh` podria parpadear. Es una ventana de
+  # milisegundos y no justifica complicar esto.
   while IFS=$'\t' read -r vence aviso gracia hoy estado; do
     case "$vence" in ''|'#'*) continue ;; esac
     n=$((n + 1))
-    preparar "E107.$n banco de casos: vence $vence, hoy $hoy -> $estado"
-    usar_licencia "$vence" "$aviso" "$gracia"
-    # `LICENCIA_HOY` existe SOLO para las pruebas: sin el no se puede comprobar
-    # una fecha futura sin cambiarle el reloj a la maquina que corre el arnes.
-    export LICENCIA_HOY="$hoy"
+    delta=$(( ( $(date -u -d "$vence" +%s) - $(date -u -d "$hoy" +%s) ) / 86400 ))
+    vence_real="$(date -u -d "$hoy_real + $delta days" +%F)"
+    preparar "E107.$n banco de casos: vence en $delta dias -> $estado"
+    usar_licencia "$vence_real" "$aviso" "$gracia"
     correr
     log_dice "licencia: $estado"
-    unset LICENCIA_HOY
     limpiar
   done <"$banco"
   if [ "$n" -lt 10 ]; then
@@ -2495,25 +2503,21 @@ log_calla 'licencia'
 limpiar
 
 preparar 'E109 una firma que no valida es INVALIDA, nunca "se asume buena"'
-usar_licencia '2027-01-01'
+usar_licencia "$(date -u -d '+60 days' +%F)"
 printf 'x' >>"$RAIZ_TMP/licencia/licencia.json"
-export LICENCIA_HOY='2026-11-01'
 correr
 log_dice 'licencia: invalida'
-unset LICENCIA_HOY
 limpiar
 
 preparar 'E110 una licencia de OTRA instancia no vale'
-usar_licencia '2027-01-01' 30 15 'otracosa' 'demo.ejemplo.invalid'
-export LICENCIA_HOY='2026-11-01'
+usar_licencia "$(date -u -d '+60 days' +%F)" 30 15 'otracosa' 'demo.ejemplo.invalid'
 correr
 log_dice 'licencia: invalida'
 log_dice 'no es de esta instancia'
-unset LICENCIA_HOY
 limpiar
 
 preparar 'E111 una licencia de OTRO dominio no vale'
-usar_licencia '2027-01-01' 30 15 'demo' 'demo.ejemplo.invalid'
+usar_licencia "$(date -u -d '+60 days' +%F)" 30 15 'demo' 'demo.ejemplo.invalid'
 # La configuracion se PISA a proposito: `usar_licencia` escribe el dominio del
 # JSON y el `DOMINIO` de la instancia desde el mismo valor, asi que sin esta
 # linea los dos coincidirian siempre y este escenario no probaria nada. Es la
@@ -2522,33 +2526,27 @@ usar_licencia '2027-01-01' 30 15 'demo' 'demo.ejemplo.invalid'
 cat >>"$SPACE_OS_CONF" <<'FIN'
 DOMINIO=otra.ejemplo.invalid
 FIN
-export LICENCIA_HOY='2026-11-01'
 correr
 log_dice 'licencia: invalida'
-unset LICENCIA_HOY
 limpiar
 
 preparar 'E112 sin el archivo de firma es invalida'
-usar_licencia '2027-01-01'
+usar_licencia "$(date -u -d '+60 days' +%F)"
 rm -f "$RAIZ_TMP/licencia/licencia.firma"
-export LICENCIA_HOY='2026-11-01'
 correr
 log_dice 'licencia: invalida'
-unset LICENCIA_HOY
 limpiar
 
 preparar 'E113 un campo que falta NO cae a un valor por omision'
-usar_licencia '2027-01-01'
+usar_licencia "$(date -u -d '+60 days' +%F)"
 grep -v 'gracia_dias' "$RAIZ_TMP/licencia/licencia.json" >"$RAIZ_TMP/l.tmp"
 # Se quita la coma que colgaba de la linea anterior para que siga siendo JSON.
 sed -i 's/"aviso_dias": 30,/"aviso_dias": 30/' "$RAIZ_TMP/l.tmp"
 mv "$RAIZ_TMP/l.tmp" "$RAIZ_TMP/licencia/licencia.json"
 openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
   -in "$RAIZ_TMP/licencia/licencia.json" -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
-export LICENCIA_HOY='2026-11-01'
 correr
 log_dice 'licencia: invalida'
-unset LICENCIA_HOY
 limpiar
 
 preparar 'E114 con LICENCIA_REQUERIDA=1 y sin licencia, es invalida'
@@ -2567,6 +2565,61 @@ preparar 'E115 sin la variable en la configuracion, el update es identico al de 
 correr
 codigo_es 0
 log_calla 'licencia'
+limpiar
+
+# Ronda de correccion 1 (revision de la tarea 4): `date -d` acepta mucho mas
+# que una fecha ISO -- "next year" da una licencia ETERNA -- y el lado de
+# TypeScript (`licencia.mjs`) llama invalida a eso. Bash es el que APAGA
+# instancias, asi que no puede ser el mas permisivo de los dos.
+preparar 'E116 un `vence` que `date` entiende pero no es una fecha ISO es invalido'
+usar_licencia 'next year'
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+# La rama que va a correr en el primer hijo de verdad: `instancia.env.example`
+# solo trae `INSTANCIA` (linea 120), `DOMINIO` es trabajo de la tarea 8. Afirma
+# las dos cosas a la vez: que el silencio NO es silencioso, y que saltarse esa
+# comprobacion no invalida por si sola una licencia buena.
+preparar 'E117 sin DOMINIO en la configuracion se REGISTRA que no se comprueba, y lo demas sigue valiendo'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+grep -v '^DOMINIO=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp" && mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+correr
+log_dice 'licencia: sana'
+log_dice 'no se comprueba el dominio'
+limpiar
+
+# El fallo abierto: un dedazo en la configuracion (`true`, `01`, …) no puede
+# apagar la comprobacion en silencio. Se trata como encendido y se dice.
+preparar 'E118 un LICENCIA_REQUERIDA que no es 0 ni 1 se trata como encendido, y lo dice'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+cat >>"$SPACE_OS_CONF" <<'FIN'
+LICENCIA_REQUERIDA=true
+FIN
+correr
+log_dice 'LICENCIA_REQUERIDA="true" no es 0 ni 1'
+log_dice 'licencia: sana'
+limpiar
+
+# El otro fallo abierto, medido: una licencia SIN instancia, en una maquina
+# SIN `INSTANCIA` ni hostname, pasaba el anclaje porque las dos cadenas vacias
+# coincidian. El doble de `hostname` se sobreescribe SOLO en este escenario:
+# el de por omision (`D_HOSTNAME:-demo-owner`) no sirve para medir el fallo,
+# que es sobre el NOMBRE, no sobre la maquina.
+preparar 'E119 una licencia sin instancia, en una maquina sin INSTANCIA ni hostname, no vale'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+sed -i 's/"instancia": "demo",/"instancia": "",/' "$RAIZ_TMP/licencia/licencia.json"
+openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+  -in "$RAIZ_TMP/licencia/licencia.json" -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+grep -v '^INSTANCIA=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp" && mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+cat >"$BIN/hostname" <<'FIN'
+#!/usr/bin/env bash
+printf ''
+FIN
+chmod +x "$BIN/hostname"
+correr
+log_dice 'licencia: invalida'
+log_dice 'no dice de que instancia es'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"

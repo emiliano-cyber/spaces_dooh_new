@@ -819,6 +819,17 @@ DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
 #  de lo de abajo, y este guion se comporta exactamente como el de siempre. Lo
 #  comprueba E115.
 LICENCIA_REQUERIDA="${LICENCIA_REQUERIDA:-0}"
+# Solo 0 y 1 significan algo; cualquier otra cosa (`true`, `01`, un dedazo) se
+# trata como ENCENDIDO y lo dice. El error seguro en un mecanismo de licencia
+# es "se comprueba de mas", nunca "se dejo de comprobar sin que nadie se
+# entere" -- eso es precisamente el fallo abierto que un valor raro no puede
+# producir en silencio.
+case "$LICENCIA_REQUERIDA" in
+  0|'') LICENCIA_REQUERIDA=0 ;;
+  1)    LICENCIA_REQUERIDA=1 ;;
+  *)    registrar "licencia: LICENCIA_REQUERIDA=\"$LICENCIA_REQUERIDA\" no es 0 ni 1; se trata como 1 (se comprueba)"
+        LICENCIA_REQUERIDA=1 ;;
+esac
 LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
 LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
 LICENCIA_ESTADO='no-aplica'
@@ -853,6 +864,11 @@ licencia_valida() {
   local inst dom
   inst="$(licencia_texto instancia)"
   dom="$(licencia_texto dominio)"
+  # Una licencia firmada pero sin decir de que instancia es NO puede pasar el
+  # anclaje por accidente: si esta maquina tampoco tiene `INSTANCIA` ni
+  # `hostname`, las dos cadenas vacias coinciden y una licencia sin dueno
+  # quedaria valida. Medido: sin este guard, ese caso da "sana".
+  [ -n "$inst" ] || { registrar "   licencia: no dice de que instancia es"; return 1; }
   if [ "$inst" != "$(respaldo_instancia 2>/dev/null || echo "${INSTANCIA:-}")" ]; then
     registrar "   licencia: firmada pero no es de esta instancia (dice \"$inst\")"
     return 1
@@ -881,17 +897,20 @@ licencia_estado() {
   # Un campo ilegible NO cae a un valor por omision: una licencia a medias es
   # una licencia rota, y elegir por ella seria inventarse lo que se concedio.
   [ -n "$vence" ] && [ -n "$aviso" ] && [ -n "$gracia" ] || { echo invalida; return 0; }
+  # La forma antes que `date`, y con las mismas reglas que el firmador
+  # (`licencia.mjs`): `date -d` acepta "next year" y "2027-1-1", que darian una
+  # licencia eterna o una fecha que el lado de TypeScript llama invalida. Bash es
+  # el que APAGA instancias, asi que no puede ser el mas permisivo de los dos.
+  case "$vence" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) echo invalida; return 0 ;;
+  esac
+  case "$aviso$gracia" in
+    ''|*[!0-9]*) echo invalida; return 0 ;;
+  esac
   t_vence="$(date -u -d "$vence" +%s 2>/dev/null || true)"
   [ -n "$t_vence" ] || { echo invalida; return 0; }
-  # `LICENCIA_HOY` es SOLO para el arnes: sin el no se puede comprobar una fecha
-  # futura sin cambiarle el reloj a la maquina que corre las pruebas. En una
-  # instancia real nunca esta definida.
-  if [ -n "${LICENCIA_HOY:-}" ]; then
-    ahora="$(date -u -d "$LICENCIA_HOY" +%s 2>/dev/null || true)"
-    [ -n "$ahora" ] || { echo invalida; return 0; }
-  else
-    ahora="$(date -u +%s)"
-  fi
+  ahora="$(date -u +%s)"
   t_aviso=$(( t_vence - aviso * 86400 ))
   t_fin=$((   t_vence + gracia * 86400 ))
   if   [ "$ahora" -lt "$t_aviso" ]; then echo sana
@@ -902,6 +921,22 @@ licencia_estado() {
 }
 
 if [ "$LICENCIA_REQUERIDA" = 1 ]; then
+  # `openssl` es una dependencia NUEVA de este bloque -- el resto de update.sh
+  # no la necesitaba hasta hoy -- y si falta, `licencia_valida` fallaria igual
+  # pero diciendo "la firma NO valida", que es mentira y manda a buscar el
+  # problema en el sitio equivocado. Y `-rawin` con Ed25519 exige OpenSSL 3.0
+  # o mas: con 1.1.1 una licencia BUENA se leeria como invalida y apagaria una
+  # instancia al corriente de pago (la tarea 5 es la que apaga, pero el estado
+  # que decide esta linea es el mismo). Se falla cerrado en los dos casos,
+  # igual que antes, pero el log dice la causa real.
+  if ! command -v openssl >/dev/null 2>&1; then
+    registrar "   licencia: falta \`openssl\` en esta maquina. NO se puede comprobar la firma, asi que la licencia se trata como invalida -- pero el problema NO es la licencia: es que falta la herramienta."
+  else
+    case "$(openssl version 2>/dev/null)" in
+      'OpenSSL 3'*) ;;
+      *) registrar "   licencia: $(openssl version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas). NO se puede comprobar la firma, asi que la licencia se trata como invalida -- pero el problema NO es la licencia: es la version de openssl." ;;
+    esac
+  fi
   if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='invalida'; fi
   registrar "licencia: $LICENCIA_ESTADO"
 fi
