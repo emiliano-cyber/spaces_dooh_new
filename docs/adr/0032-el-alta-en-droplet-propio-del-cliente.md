@@ -93,6 +93,52 @@ dedazo en la configuración de un hijo **administrado** (que nunca debería
 llevar licencia) podía terminar apagándolo. Un valor que este guion no entiende
 no puede decidir si se apaga la instancia de un cliente.
 
+### d) Lo que queda abierto de esta enmienda
+
+Tres cosas, con su estado — ninguna bloquea lo ya construido, y ninguna es una
+afirmación de que está resuelta.
+
+**1 · `provision-instancia.sh` escribe la configuración de un cliente sin
+saneamiento.** Hallazgo de forma, medido al escribir esta enmienda, no un
+defecto nuevo de esta tarea: el camino **administrado** (el que da de alta a
+un cliente hoy) no tiene el par de protecciones que sí tiene
+`instalar-hijo.sh` — ni entrecomilla los valores que escribe en
+`instancia.env`/`app.env`, ni corre ningún `validar_valor_seguro()` antes de
+hacerlo. Como `update.sh` **sourcea** ese archivo como root cada noche, un
+valor con un espacio o una comilla se interpreta como bash, no como texto.
+
+El riesgo real hoy es acotado — esos valores los teclea nuestro propio
+operador, no el cliente — pero el resultado de un dedazo no es un error
+visible: es ejecución de una palabra ajena como root en el servidor de un
+cliente. Escrito como aviso, con las líneas exactas y qué hacer distinto, en
+`vault/06-Operacion/zonas-de-riesgo.md` §R7 (nueva).
+
+**2 · `SPACE_OS_LICENCIA_PUB` no está acotada a la simulación.** Es una
+costura de pruebas (`instalar-hijo.sh:67-75`) que deja que el entorno elija
+qué llave pública se usa para verificar una licencia, y sigue siendo
+alcanzable con `--confirmar` en una máquina real — el mismo patrón, y la misma
+exposición, que `SPACE_OS_BASE_INSTANCIA_SH` (que además es más arriesgada
+porque hace `source` de un archivo entero, no solo lee una ruta). **No es un
+defecto de comportamiento**: en la práctica nadie tiene esa variable puesta al
+instalar el sistema de un cliente, y el propio comentario del código lo dice
+(«con `--confirmar` en una máquina real esto sigue resolviendo al archivo del
+paquete, nunca a otro»). **Es una laguna de documentación**: no hay ningún
+sitio que le diga a quien instala «no tengas estas dos variables puestas en tu
+entorno». Pendiente: una línea en la tarjeta de instalación
+(`docs/evidencias/alta-droplet-propio.txt`) que lo advierta.
+
+**3 · Las fechas de la banda de aviso se pintan sin formatear.**
+`BandaLicencia.tsx:33,37` imprime `aviso.vence` y `aviso.finGracia` tal como
+los entrega `avisoDeLicencia()` — una cadena ISO como `2027-01-01` — y eso lo
+lee alguien de negocio dentro del shell, no un desarrollador. Pulido
+pendiente, no un fallo: el aviso ya dice la fecha correcta, sólo que sin
+formatear para lectura humana.
+
+**Lo que ya estaba abierto y sigue igual, sin repetirlo aquí:** la credencial
+del registro de imágenes (`REGISTRY_TOKEN` en disco, compartida por toda la
+flota) — ver más abajo, «Lo que queda abierto, con su disparador escrito», que
+esta enmienda no toca.
+
 ### Lo que no cambia
 
 Los ocho puntos de la Decisión y el riesgo aceptado siguen como se escribieron

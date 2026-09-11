@@ -10,6 +10,8 @@ archivos:
   - infra/nginx/demo.space-os.io.conf
   - infra/scripts/base-instancia.sh
   - infra/scripts/pruebas-provision.sh
+  - infra/scripts/provision-instancia.sh
+  - infra/scripts/instalar-hijo.sh
 ---
 
 # Zonas de riesgo
@@ -241,6 +243,67 @@ limitador en memoria funcione.
 
 **Verificar:**
 - [ ] Si subes `instances`, migra `rate-limit.ts` a un store compartido **antes**.
+
+## R7 · Cómo se escriben `instancia.env` y `app.env` de una instancia
+
+**Archivos:** `infra/scripts/provision-instancia.sh`, `infra/scripts/instalar-hijo.sh`
+
+> [!danger] 2026-09-11 · `provision-instancia.sh` escribe la configuración de un cliente SIN saneamiento — hallazgo de forma, no explotado hoy
+> **Por qué:** `update.sh` **sourcea** `instancia.env` (`. "$CONF"`,
+> `update.sh:740`) como root, por cron, cada noche. Eso significa que ese
+> archivo no es texto: es bash. Un valor con un espacio dentro, sin comillas,
+> se lee como DOS palabras — la primera queda como una asignación de entorno
+> para la segunda, que bash **ejecuta como un comando**. En el servidor de un
+> cliente. Como root.
+>
+> **Qué se rompe.** `instalar-hijo.sh` (el camino nuevo, el que instala el
+> cliente en su propio droplet) sí se protege por partida doble:
+> `reescribir_env_sourceado()` **entrecomilla** todo lo que va a
+> `instancia.env`, y `validar_valor_seguro()`
+> (`instalar-hijo.sh:115-130`) rechaza comillas dobles, `$`, backtick, barra
+> invertida y salto de línea **antes** de que un valor llegue a escribirse —
+> llamada sobre `REGISTRY` (`:517`), `REGISTRY_TOKEN` (`:522`) y `PADRE_URL`
+> (`:534`).
+>
+> `provision-instancia.sh` (el camino administrado, el que da de alta a un
+> cliente HOY) **no tiene ninguna de las dos protecciones**: escribe
+> `app.env` e `instancia.env` con `sed` crudo, sin entrecomillar nada en
+> ninguno de los dos (`provision-instancia.sh:633-640` y `:645-648`), y no
+> existe ningún `validar_valor_seguro()` en el archivo — comprobado, cero
+> resultados. De los valores que llegan a ese `sed`: `INSTANCIA`
+> (`:515`) sólo se comprueba que no esté vacío, sin regla de forma;
+> `REGISTRY`, `REGISTRY_TOKEN` y `CANAL` (`:89-95`) **no se validan en
+> absoluto**. `DOMINIO` sí tiene un regex estricto (`:157`, sin espacios ni
+> comillas posibles) y `DATABASE_URL`/los secretos se construyen internamente
+> con `secreto()` (hex) — esos dos son seguros por construcción.
+>
+> **El riesgo real hoy, sin inflarlo:** estos valores los tecleamos
+> **nosotros**, al correr `provision-instancia.sh` desde nuestra máquina para
+> dar de alta un cliente por el camino administrado — el cliente no tiene
+> forma de inyectar nada por aquí. El alta automatizada (ADR 0029) valida
+> `instancia` y `dominio` con su propia lista blanca antes de llegar a este
+> punto, y nunca expone `REGISTRY`, `REGISTRY_TOKEN` ni `CANAL` a una entrada
+> no confiable. **Lo que queda es el dedazo de un operador en el camino
+> manual** — un espacio de más al copiar `INSTANCIA`, un carácter especial
+> pegado en `REGISTRY_TOKEN` desde otra fuente — y el resultado de ese
+> dedazo no es un error visible: es una palabra ajena ejecutada como root en
+> el servidor de un cliente, la próxima vez que su cron corra `update.sh`.
+>
+> **Qué hacer distinto, a partir de ahora:**
+> - [ ] Antes de correr `provision-instancia.sh`, revisa a mano cada valor de
+>       `INSTANCIA`, `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`: que no traiga un
+>       espacio, una comilla, `$`, un backtick ni una barra invertida.
+> - [ ] Si tocas este archivo por cualquier motivo, **no inventes una
+>       validación nueva**: porta `reescribir_env_sourceado()` /
+>       `reescribir_env_docker()` y `validar_valor_seguro()` desde
+>       `instalar-hijo.sh` — es el mismo patrón, ya escrito y ya probado
+>       contra el mismo defecto.
+> - [ ] No lo confundas con R2: aquí no hay RLS ni tenant de por medio, es
+>       ejecución de comandos por un archivo de configuración mal escrito.
+>
+> Medido el 2026-09-11 al documentar la tarea 9 del plan de alta en droplet
+> propio (`docs/adr/0032-el-alta-en-droplet-propio-del-cliente.md`, sección
+> «Lo que queda abierto»). No tiene tarea propia todavía.
 
 ---
 
