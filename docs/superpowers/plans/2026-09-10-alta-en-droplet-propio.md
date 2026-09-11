@@ -1856,6 +1856,113 @@ git commit -m "refactor(instancias): lo que crea una base de datos se escribe un
 
 ---
 
+## Tarea 11: `app.env` y `instancia.env` tienen parsers distintos
+
+> **Tarea añadida el 2026-09-11, durante la ejecución.** Es un **bloqueante del
+> camino nuevo**: tal como está, el instalador de la tarea 8 **rompe en su primer
+> uso**. Lo encontró el implementador de la tarea 10 fuera de su alcance y lo
+> anotó sin tocarlo, que era lo correcto.
+
+**El defecto.** `instalar-hijo.sh` escribe los dos archivos de configuración con
+la misma función, `reescribir_env()`, que **entrecomilla todos los valores** —y
+hace bien, porque `instancia.env` lo **sourcea** bash y un valor con espacios sin
+comillas ejecuta la segunda palabra como root, que es un defecto que este
+proyecto ya sufrió.
+
+Pero **`app.env` no lo sourcea nadie**: lo lee Docker como `--env-file`, y
+**Docker no quita las comillas**. Se las queda dentro del valor.
+
+**Lo que pasa la primera noche**, y está en el código, no es una hipótesis.
+`url_de_env_app()` (`update.sh:1416-1422`) lee ese archivo con `grep` y
+`cut -d= -f2-` precisamente para no sourcearlo, así que recoge el valor **con las
+comillas puestas**. Después, `update.sh:1430-1433` compara el destino de esa URL
+con el de la de `instancia.env` y, al no coincidir, **para**:
+
+```
+ERROR update: … apuntan a bases DISTINTAS (… vs …). Se para: migrar una y
+servir la otra no da error, deja dos bases a medias.
+```
+
+O sea: el alta termina «bien», y la primera corrida del cron aborta con
+`EX_CONFIG`. El owner ve una instancia que no se actualiza nunca.
+
+**Y el propio `update.sh` ya lo había avisado**, en el comentario de sus líneas
+1417-1420: *«Formato `--env-file` de docker: CLAVE=valor, sin comillas ni
+`export`. Por eso se lee con grep y no con `.`: sourcearlo interpretaría las
+comillas de otra manera que docker, y ahí es donde nacen las diferencias
+invisibles.»* El aviso estaba escrito; lo que faltaba era leerlo.
+
+**Archivos:**
+- Modificar: `infra/scripts/instalar-hijo.sh`
+- Modificar: `infra/scripts/pruebas-provision.sh` (el escenario de CONTENIDO)
+
+**Interfaces:**
+- Consume: `reescribir_env()` de la tarea 8, y el escenario de CONTENIDO y el
+  doble de `ssh` que captura cuerpos, los dos de la tarea 10.
+- Produce: nada que otra tarea consuma.
+
+**La regla, en una frase:** **un archivo, un parser.** `instancia.env` se sourcea
+y sus valores van entrecomillados. `app.env` lo lee Docker y sus valores van
+**tal cual**. Una sola función no puede servir a los dos, y la que hay hoy
+pretende hacerlo.
+
+- [ ] **Paso 1: la prueba primero, y ya se puede escribir**
+
+La tarea 10 dejó el arnés capturando **el contenido** de los archivos que se
+escriben, así que esto se puede afirmar sin salir del arnés. En el escenario de
+CONTENIDO de `pruebas-provision.sh`, añade que:
+
+- en `app.env`, `DATABASE_URL` **no empieza por comilla**;
+- en `instancia.env`, los valores **sí** van entrecomillados;
+- y el caso que ata las dos cosas: que el destino que `update.sh` leería de
+  `app.env` con su propio método —`grep -m1 '^DATABASE_URL=' | cut -d= -f2-`—
+  **coincide** con el de `instancia.env`. Esa es la comparación que aborta, así
+  que es la que hay que afirmar.
+
+- [ ] **Paso 2: correrla y ver el rojo**
+
+```
+bash infra/scripts/pruebas-provision.sh 2>&1 | tail -3
+```
+
+Esperado: **rojo**, diciendo que `DATABASE_URL` de `app.env` empieza por comilla.
+
+- [ ] **Paso 3: separar las dos formas**
+
+Dos funciones, o una con un modo explícito — lo que quede más legible—, y **el
+comentario tiene que decir por qué son dos**, citando el aviso de
+`update.sh:1417-1420`. Ese comentario es lo único que impide que alguien las
+vuelva a unificar «para simplificar».
+
+Y lo que hay que conservar de la versión de hoy, porque se ganó en una revisión:
+**la validación de los valores sigue corriendo para los dos**. Que un valor vaya
+sin comillas en `app.env` no lo hace seguro — lo hace seguro que se haya
+rechazado antes lo que no puede llevar. En un `--env-file` el peligro cambia de
+forma: no hay ejecución de palabras, pero **un salto de línea dentro de un valor
+inventa una variable nueva**. Recházalo.
+
+- [ ] **Paso 4: el verde, y el mutante**
+
+El arnés en verde, y **un mutante** que vuelva a entrecomillar `app.env` y muera.
+Es el guard contra la reunificación.
+
+- [ ] **Paso 5: comprobar que la puerta de `update.sh` ya no se dispara**
+
+Sin tocar `update.sh`: extrae su `url_de_env_app` y su `destino_de_url` en un
+guion de usar y tirar, y córrelos contra el `app.env` y el `instancia.env` que
+produce el instalador en `--dry-run`. Los dos destinos tienen que salir
+**iguales**. Es la comprobación que demuestra que el defecto está cerrado, y se
+hace sin levantar nada.
+
+- [ ] **Paso 6: commit**
+
+```bash
+git add infra/scripts/instalar-hijo.sh infra/scripts/pruebas-provision.sh
+git commit -m "fix(alta): app.env lo lee docker y no admite comillas; instancia.env lo sourcea bash y las exige"
+```
+
+---
+
 ## Autorrevisión de este plan
 
 **1 · Cobertura del spec.** Recorridas sus trece secciones:
