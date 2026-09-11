@@ -1037,6 +1037,14 @@ nginx_sitio() {
   anterior="$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)"
   [ "$anterior" = "$NGINX_SITIO_ACTIVO" ] && anterior=''
   [ -n "$anterior" ] && [ "$anterior" = "$(readlink -f "$origen")" ] && return 0
+  # El guard del `--dry-run` va AQUI, despues de decidir que si hay cambio y
+  # justo antes del `ln`: es el ultimo punto en el que todavia no se ha tocado
+  # nada y el primero en el que ya se sabe QUE se tocaria. Puesto arriba diria
+  # "cambiaria el sitio" en cada corrida aunque el enlace ya apuntara bien.
+  if [ "${DRY_RUN:-0}" = 1 ]; then
+    registrar "   nginx: en una corrida de verdad el sitio activo pasaria a -> $modo (--dry-run: no se toca)"
+    return 0
+  fi
   # Bajo `set -e`, un `ln` que falla (permisos, disco de solo lectura) mataria
   # el guion aqui mismo con el codigo 1 -- "NADA se toco", que seria falso a
   # medias: nginx queda como estaba, pero el guion nunca llega a `salir` ni
@@ -1076,6 +1084,13 @@ nginx_sitio() {
 licencia_arrancar_si_parado() {
   [ -n "$(docker inspect --format '{{.Id}}' "$CONTENEDOR" 2>/dev/null || true)" ] || return 0
   [ "$(docker inspect --format '{{.State.Running}}' "$CONTENEDOR" 2>/dev/null || echo false)" != true ] || return 0
+  # El guard va DESPUES de las dos comprobaciones de estado, no antes: asi el
+  # `--dry-run` habla solo cuando de verdad haria algo, en vez de decir "lo
+  # arrancaria" en las corridas --la mayoria-- en que ya estaba corriendo.
+  if [ "${DRY_RUN:-0}" = 1 ]; then
+    registrar "   licencia: el contenedor esta PARADO; en una corrida de verdad se arrancaria aqui (--dry-run: no se toca)"
+    return 0
+  fi
   registrar "   licencia: el contenedor estaba parado; se arranca antes de devolver nginx a la normalidad"
   docker start "$CONTENEDOR" >/dev/null 2>&1 || registrar "   licencia: \`docker start\` fallo; el camino normal de mas abajo lo intentara"
 }
@@ -1110,13 +1125,37 @@ if [ "$LICENCIA_REQUERIDA" = 1 ]; then
       # valor y llamara otra vez a `reportar_a_flota`, que no hara nada: el
       # guard `FLOTA_REPORTADO` --que ya existia, para que dos `salir` no
       # duplicaran el reporte-- cubre este caso tal cual.
-      FLOTA_CODIGO="$EX_LICENCIA"
-      reportar_a_flota || true
-      # `docker stop`, nunca `docker rm`: los datos estan en Postgres y ahi se
-      # quedan, y conservar el contenedor hace que reanudar sea arrancarlo.
-      docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
-      nginx_sitio sin-licencia
-      salir "$EX_LICENCIA" "APAGADO (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". El contenedor esta detenido y nginx sirve la pagina de vencimiento. NO se ha tocado la base, NO se ha borrado nada y el respaldo sigue donde estaba: para reanudar basta con instalar una licencia valida en $LICENCIA_DIR y esperar a la siguiente corrida."
+      # EL `--dry-run` NO APAGA. CUENTA QUE APAGARIA.
+      #
+      # Hasta el 2026-09-11 este bloque no miraba `DRY_RUN`, asi que
+      # `update.sh --dry-run` con una licencia vencida PARABA el contenedor,
+      # reescribia el enlace de nginx y recargaba nginx -- mientras la cabecera
+      # de este mismo guion promete «mira y cuenta; NO toca nada» y la tarjeta
+      # del alta manda al cliente correr en seco ANTES de instalar de verdad.
+      # Lo introdujo esta misma rama (tarea 5, `8f271bd`): antes de ella no
+      # habia bloque de licencia que pudiera apagar nada.
+      #
+      # La convencion ya estaba resuelta en este archivo --`reportar_a_flota`
+      # hace `[ "$DRY_RUN" = 0 ] || return 0` (`:635`) con su motivo al lado--
+      # y esto la sigue. Lo que NO se hace es callar: un ensayo en seco que no
+      # dijera que la licencia esta vencida seria tan inutil como uno que
+      # apagara. Se dice en voz alta, con el codigo que tendria, y la corrida
+      # SIGUE por su camino de dry-run normal en vez de salir por aqui.
+      #
+      # Los otros dos brazos del `case` no necesitan guard propio: lo que
+      # tocaba en ellos son `licencia_arrancar_si_parado` y `nginx_sitio`, y
+      # esos dos llevan el suyo dentro, donde se sabe si de verdad actuarian.
+      if [ "$DRY_RUN" = 1 ]; then
+        registrar "APAGARIA (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". En una corrida de verdad, aqui se pararia el contenedor y nginx pasaria a servir la pagina de vencimiento. NADA de eso se ha hecho: esto es --dry-run. Para que vuelva a estar al corriente, instala una licencia valida en $LICENCIA_DIR."
+      else
+        FLOTA_CODIGO="$EX_LICENCIA"
+        reportar_a_flota || true
+        # `docker stop`, nunca `docker rm`: los datos estan en Postgres y ahi se
+        # quedan, y conservar el contenedor hace que reanudar sea arrancarlo.
+        docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
+        nginx_sitio sin-licencia
+        salir "$EX_LICENCIA" "APAGADO (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". El contenedor esta detenido y nginx sirve la pagina de vencimiento. NO se ha tocado la base, NO se ha borrado nada y el respaldo sigue donde estaba: para reanudar basta con instalar una licencia valida en $LICENCIA_DIR y esperar a la siguiente corrida."
+      fi
       ;;
     no-comprobable)
       # No se apaga (ver el porque junto a EX_LICENCIA_NO_COMPROBABLE, arriba):

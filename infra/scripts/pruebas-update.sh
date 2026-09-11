@@ -3013,6 +3013,31 @@ posteo_dice '"codigo":9'
 unset OPENSSL_BIN
 limpiar
 
+# ─── EL --dry-run NO APAGA (E135, ultima ronda) ────────────────────────────
+#  Defecto introducido por ESTA rama (tarea 5, `8f271bd`): el bloque de
+#  licencia no miraba `DRY_RUN`, asi que `update.sh --dry-run` con una licencia
+#  vencida PARABA el contenedor de un cliente, reescribia el enlace de nginx y
+#  lo recargaba -- mientras la cabecera del guion promete «mira y cuenta; NO
+#  toca nada» y la tarjeta del alta manda correr en seco ANTES de instalar.
+#
+#  Y lo que se afirma no es solo la mitad negativa: un dry-run que apagara es
+#  malo, pero uno que se callara que la licencia esta vencida seria igual de
+#  inutil. Tiene que CONTAR lo que haria.
+preparar 'E135 con --dry-run la licencia vencida se DICE, no se apaga'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr --dry-run
+# La mitad negativa: nada de lo que apaga llego a ocurrir.
+no_hubo 'docker stop'
+no_hubo 'nginx -t'
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+no_hubo_regex 'ln -sfn.*sin-licencia'
+# Y la positiva, que es la que hace util el ensayo: se dice el veredicto, con
+# su codigo, sin sufrirlo. `APAGADO (8)` no es subcadena de `APAGARIA (8)`.
+log_dice 'APAGARIA (8)'
+log_dice 'licencia: vencida'
+log_calla 'APAGADO (8)'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -3323,6 +3348,14 @@ if [ "${1:-}" = '--mutantes' ]; then
   # respuesta». Tiene que morder, o E133 no vale de nada.
   probar_mutante 'no reportar antes de parar el contenedor: el 8 no llega al panel' \
     's@^      reportar_a_flota || true$@      true                    @'
+
+  # Y el quinto: quitarle el guard al `--dry-run` del apagado. La comparacion
+  # con un valor que `DRY_RUN` nunca toma hace que SIEMPRE se vaya por el brazo
+  # que apaga -- que es el defecto tal cual estaba. Un dry-run que para el
+  # contenedor de un cliente no rompe nada visible en la corrida: rompe la
+  # promesa de la cabecera y la del ensayo en seco de la tarjeta del alta.
+  probar_mutante 'el --dry-run del apagado pierde su guard y vuelve a apagar' \
+    's@^      if \[ "\$DRY_RUN" = 1 \]; then$@      if [ "$DRY_RUN" = 9 ]; then@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

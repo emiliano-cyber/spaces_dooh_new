@@ -492,7 +492,9 @@ encontró siete defectos, y **cada uno vivía entre dos tareas**. Es el hallazgo
 metodológico de esta rama y conviene que quede escrito: revisar tarea por tarea
 no ve lo que pasa en la unión.
 
-Los tres que cambian comportamiento, con lo que se aprendió de cada uno:
+Los que cambian comportamiento, con lo que se aprendió de cada uno. El cuarto
+no lo encontró la revisión: apareció al arreglar el segundo, y es el único que
+esta rama se había hecho a sí misma sin darse cuenta.
 
 **1 · La banda de aviso no se pintaba nunca, y no lo decía nadie.**
 `instalar-hijo.sh` instalaba la licencia en **600 de root**; el contenedor corre
@@ -538,15 +540,28 @@ que se fijó en el archivo: *una prueba que lee un archivo por su ruta afirma do
 cosas a la vez, y la segunda caduca sola*. Ahora busca en el camino de alta
 entero y dice en qué archivo encontró lo que mide.
 
-> [!warning] `update.sh --dry-run` APAGA si la licencia está vencida
-> Medido el 11/09 al arreglar lo anterior, y **sin corregir**: el bloque de
-> licencia (`update.sh:1075`) no tiene guard de `DRY_RUN`, y la rama de
-> `--dry-run` está mucho más abajo (`:1818`). Con licencia vencida, un
-> `update.sh --dry-run` hace `docker stop`, reescribe el enlace de nginx y
-> recarga nginx — mientras la cabecera del guion promete *«mira y cuenta; NO
-> toca nada»*. Lo único que honra la promesa es el reporte, que no se postea.
-> No se tocó porque la respuesta correcta **es una decisión**: «no debe apagar»
-> es una lectura, y «debería decir que apagaría, y hoy no lo dice» es la otra.
+**4 · El `--dry-run` apagaba la instancia, y el defecto era nuestro.** Con una
+licencia vencida, `update.sh --dry-run` hacía `docker stop`, reescribía el
+enlace de nginx y lo recargaba — mientras la cabecera del propio guion promete
+*«mira y cuenta; NO toca nada»* y la tarjeta del alta manda al cliente **correr
+en seco antes** de instalar de verdad.
+
+Conviene decir de quién es, porque la primera versión de esta nota lo dio por
+heredado y **no lo era**: `git show 97c0304:infra/scripts/update.sh | grep -c
+LICENCIA_REQUERIDA` devuelve **0**. Antes de esta rama no había bloque de
+licencia que pudiera apagar nada; lo introdujo `8f271bd` (tarea 5). Lo anterior
+es sólo la *estructura* — que la rama de `--dry-run` viva mucho más abajo.
+
+Corregido siguiendo la convención que el propio archivo ya tenía resuelta
+(`reportar_a_flota` hace `[ "$DRY_RUN" = 0 ] || return 0`), y **sin callarse**:
+en seco se registra `APAGARIA (8): …` y la corrida sigue por su camino de
+dry-run normal. Un ensayo que apaga es malo; uno que no dice que la licencia
+venció es igual de inútil.
+
+Los guards de los otros dos actuadores viven **dentro** de
+`licencia_arrancar_si_parado()` y `nginx_sitio()`, después de que cada uno
+decida que de verdad actuaría — así el dry-run habla sólo cuando hay algo que
+contar, en vez de anunciar un cambio que no haría.
 
 ### No hay puerta de pruebas para la fecha
 
