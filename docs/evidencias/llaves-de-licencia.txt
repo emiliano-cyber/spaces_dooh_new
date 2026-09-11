@@ -35,6 +35,60 @@ QUE NO HACE
   llave privada no tiene motivo para existir en ninguna otra maquina.
 
 --------------------------------------------------------------------------------
+ A0 · 🚦 GATE · ensayar con una llave que se va a tirar
+--------------------------------------------------------------------------------
+  Por que existe este paso: la supresion de eco de `firmar-licencia.mjs`
+  (`rl._writeToOutput = () => {}`) se comprobo por tuberia al construir el
+  guion, y eso NO prueba nada -- una tuberia no hace eco de todos modos,
+  tenga o no el guion su mecanismo de supresion. La unica forma de comprobar
+  de verdad que la frase no aparece en pantalla es una terminal de verdad, y
+  la primera vez que este guion se use con una terminal de verdad va a ser
+  contra la llave que firma produccion. Este paso adelanta esa primera vez a
+  una llave desechable, para que si el mecanismo estuviera roto, lo que se
+  vea o quede grabado no valga nada.
+
+  1. Generar, en un directorio temporal, una llave Ed25519 cifrada con una
+     frase DESECHABLE -- una que no sea la de verdad y que no importe si
+     queda a la vista:
+
+D=$(mktemp -d)
+openssl genpkey -algorithm ed25519 -out "$D/k.pem" -aes256
+  # frase de paso de prueba: frase-de-ensayo-que-no-importa
+
+  2. Correr `firmar-licencia.mjs` DE VERDAD contra esa llave, tecleando la
+     frase A MANO en la terminal, y mirar la pantalla mientras se escribe:
+
+node /var/www/Spaces/apps/flota/firmar-licencia.mjs --instancia ensayo \
+  --dominio ensayo.ejemplo.invalid --vence 2027-01-01 --llave "$D/k.pem" --salida "$D"
+
+     ESPERADO A SIMPLE VISTA: nada aparece en pantalla mientras se teclea la
+     frase.
+
+  3. Y la comprobacion que no depende de la vista de quien teclea -- que es
+     lo que convierte esto en un GATE y no en una impresion -- grabando la
+     sesion completa y buscando la frase dentro del archivo grabado:
+
+script -q -c 'node /var/www/Spaces/apps/flota/firmar-licencia.mjs --instancia ensayo --dominio ensayo.ejemplo.invalid --vence 2027-01-01 --llave "'"$D"'/k.pem" --salida "'"$D"'"' "$D/sesion.txt"
+grep -c 'frase-de-ensayo-que-no-importa' "$D/sesion.txt"
+
+     🚦 ESPERADO: el `grep -c` da **0**.
+     🚦 Si da cualquier otra cosa, la frase se esta escribiendo en la
+        terminal: PARAR. Con la llave real esto significa que la frase queda
+        en el scrollback y en cualquier registro de sesion de esa maquina
+        (incluido `script` mismo, si algo lo tuviera activo sin querer). No
+        se sigue a A1 hasta entender por que fallo.
+
+  4. Borrar el directorio temporal ENTERO al terminar -- lleva dentro la
+     llave desechable, la licencia de ensayo y la grabacion de la sesion, que
+     por construccion contiene una firma completa hecha con esa llave:
+
+rm -rf "$D"
+
+  Este ensayo se hace UNA SOLA VEZ, la primera vez que se usa el guion contra
+  una terminal de verdad en esta maquina. Hecho y en verde, la tarjeta sigue
+  en A1 con la llave real -- no se repite cada vez que se firma una licencia.
+
+--------------------------------------------------------------------------------
  A1 · El directorio
 --------------------------------------------------------------------------------
 mkdir -p /etc/space-os/llaves
@@ -56,6 +110,14 @@ openssl genpkey -algorithm ed25519 -out /etc/space-os/llaves/space-os.key.pem -a
      pantalla, algo copio mal este comando: PARAR. `-pass` en la linea de
      comandos deja la frase en `ps` y en el historial, que es exactamente lo
      que esta llave existe para evitar.
+
+  Nota sobre `firmar-licencia.mjs` (no sobre este comando de `openssl`): el
+  guion NO comprueba que el archivo de `--llave` exista antes de pedir la
+  frase de paso -- si la ruta esta mal escrita, igual pide la frase y falla
+  despues, al intentar leer un archivo que no esta. No es un defecto que haya
+  que corregir (el guion si valida los DATOS de la licencia antes de pedir la
+  frase, que es lo que importa), pero conviene saberlo para no perder tiempo
+  sospechando de la frase cuando el problema es la ruta.
 
 --------------------------------------------------------------------------------
  A3 · La llave publica, sin cifrar
