@@ -485,6 +485,69 @@ calla en `sana`, `vencida` e `invalida` — las dos últimas porque `update.sh`
 ya apagó el contenedor con `openssl`, fuera de la aplicación: pintar algo ahí
 describiría un estado que no puede darse con ese código corriendo.
 
+### Lo que la revisión del conjunto encontró en las costuras — 11/09
+
+Once tareas revisadas una a una salieron limpias; la revisión del **conjunto**
+encontró siete defectos, y **cada uno vivía entre dos tareas**. Es el hallazgo
+metodológico de esta rama y conviene que quede escrito: revisar tarea por tarea
+no ve lo que pasa en la unión.
+
+Los tres que cambian comportamiento, con lo que se aprendió de cada uno:
+
+**1 · La banda de aviso no se pintaba nunca, y no lo decía nadie.**
+`instalar-hijo.sh` instalaba la licencia en **600 de root**; el contenedor corre
+como `node`, y el montaje conserva los permisos del anfitrión. `readFile` daba
+`EACCES`, el `catch` devolvía `null`, y `null` era **el mismo valor** que «hijo
+administrado sin licencia». Los 30 días de aviso y los 15 de gracia pasaban
+mudos en toda instancia de droplet propio. **No lo cazaba ningún gate, ningún
+log y ninguna prueba.**
+Ahora **644**, con el porqué al lado — *una licencia no es un secreto: es una
+afirmación firmada y pública, y su valor está en la firma* — y el modo del
+**directorio** fijado explícito, porque un 644 dentro de un 700 falla igual de
+callado. `layout.tsx` distingue `ENOENT` (calla: es el caso normal de media
+flota, y este layout se renderiza en cada navegación) de cualquier otro código
+(registra: es un error de instalación). Y la tarjeta del alta gana un gate
+`docker exec -u node`, que es el único sitio donde la respuesta es la verdadera.
+
+**2 · El código 8 no podía llegar al panel.** `docker stop` iba **antes** de
+`salir`, y `salir` compone el reporte preguntándole a la propia aplicación por
+`$SALUD_URL`. Con el contenedor parado el cuerpo salía vacío y no se mandaba ni
+se encolaba: el padre veía **«sin respuesta»**, justo la lectura que el 8 existe
+para evitar. La prueba del diagnóstico era la **asimetría** — el 9 sí llegaba, y
+ahí el contenedor queda vivo. Arreglado componiendo y encolando **antes** de
+parar, no relajando el contrato del receptor ni recordando la versión en disco
+(sería un segundo origen de verdad para el dato que detecta rezagadas).
+Lo que no se veía desde fuera: **el arnés mentía en ese punto**. El doble de
+`curl` contestaba el cuerpo de `/api/version` incluso con el contenedor parado,
+así que un escenario nuevo habría nacido verde con el defecto puesto. El doble
+ahora modela el estado real.
+
+**3 · Los secretos del cliente viajaban por `argv`** — contra lo que el propio
+instalador declaraba en su cabecera. `--flota-token`, `--spaces-key`,
+`--spaces-secret` y `--spaces-bucket` **retiradas**: van por entorno, como
+`REGISTRY_TOKEN`. La regla queda en una línea: *por argumento, lo que identifica
+a la instancia (y ya es público: está en su DNS y en su certificado); por
+entorno, todo lo demás.*
+
+Y uno que no cambia comportamiento pero explica por qué los otros duraron: la
+prueba que **custodia R2** (`nobypassrls` del rol de la aplicación) llevaba días
+leyendo `provision-instancia.sh`, del que ese SQL ya se había mudado a
+`base-instancia.sh`. Se puso roja, que fue una suerte — una comprobación por
+ausencia en el mismo sitio habría quedado **verde sin medir nada**. La lección
+que se fijó en el archivo: *una prueba que lee un archivo por su ruta afirma dos
+cosas a la vez, y la segunda caduca sola*. Ahora busca en el camino de alta
+entero y dice en qué archivo encontró lo que mide.
+
+> [!warning] `update.sh --dry-run` APAGA si la licencia está vencida
+> Medido el 11/09 al arreglar lo anterior, y **sin corregir**: el bloque de
+> licencia (`update.sh:1075`) no tiene guard de `DRY_RUN`, y la rama de
+> `--dry-run` está mucho más abajo (`:1818`). Con licencia vencida, un
+> `update.sh --dry-run` hace `docker stop`, reescribe el enlace de nginx y
+> recarga nginx — mientras la cabecera del guion promete *«mira y cuenta; NO
+> toca nada»*. Lo único que honra la promesa es el reporte, que no se postea.
+> No se tocó porque la respuesta correcta **es una decisión**: «no debe apagar»
+> es una lectura, y «debería decir que apagaría, y hoy no lo dice» es la otra.
+
 ### No hay puerta de pruebas para la fecha
 
 Hasta una ronda de corrección del 11/09, `licencia_estado()` aceptaba
