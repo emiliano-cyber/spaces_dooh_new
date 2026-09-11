@@ -832,6 +832,12 @@ case "$LICENCIA_REQUERIDA" in
 esac
 LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
 LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
+# Las tres rutas del apagado (tarea 5). Un enlace simbolico entre `NORMAL` y
+# `SIN_LICENCIA` es lo que decide que sitio sirve nginx; `ACTIVO` es ese
+# enlace.
+NGINX_SITIO_ACTIVO="${NGINX_SITIO_ACTIVO:-/etc/nginx/sites-enabled/space-os.conf}"
+NGINX_SITIO_NORMAL="${NGINX_SITIO_NORMAL:-/etc/nginx/sites-available/space-os.conf}"
+NGINX_SITIO_SIN_LICENCIA="${NGINX_SITIO_SIN_LICENCIA:-/etc/nginx/sites-available/space-os-sin-licencia.conf}"
 LICENCIA_ESTADO='no-aplica'
 
 # Lee un campo de texto del JSON. Se llama SOLO despues de que la firma valide:
@@ -939,6 +945,52 @@ if [ "$LICENCIA_REQUERIDA" = 1 ]; then
   fi
   if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='invalida'; fi
   registrar "licencia: $LICENCIA_ESTADO"
+fi
+
+# Cambia el sitio activo de nginx. `modo` es `normal` o `sin-licencia`.
+#
+# Un enlace simbolico y no un `if` dentro de nginx: `if` dentro de un
+# `location` es celebre por comportarse distinto de como se lee, y esto tiene
+# que ser predecible. Y tampoco un `error_page 502`, que confundiria «la
+# licencia vencio» con «la aplicacion se cayo» -- las dos cosas que el panel
+# de flota existe para no mezclar.
+nginx_sitio() {
+  local modo="$1" origen
+  case "$modo" in
+    normal)       origen="$NGINX_SITIO_NORMAL" ;;
+    sin-licencia) origen="$NGINX_SITIO_SIN_LICENCIA" ;;
+    *) return 0 ;;
+  esac
+  [ -f "$origen" ] || { registrar "   nginx: no existe $origen, no se cambia el sitio"; return 0; }
+  # Si ya apunta ahi no se toca: recargar nginx cada noche por nada es ruido, y
+  # una recarga es una ventana -- pequena, pero real -- de peticiones perdidas.
+  [ "$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)" = "$(readlink -f "$origen")" ] && return 0
+  ln -sfn "$origen" "$NGINX_SITIO_ACTIVO"
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx >/dev/null 2>&1 || nginx -s reload >/dev/null 2>&1 || true
+    registrar "   nginx: sitio -> $modo"
+  else
+    registrar "   nginx: \`nginx -t\` fallo con el sitio $modo, no se recarga (queda el que estaba sirviendo)"
+  fi
+}
+
+if [ "$LICENCIA_REQUERIDA" = 1 ]; then
+  case "$LICENCIA_ESTADO" in
+    vencida|invalida)
+      # `docker stop`, nunca `docker rm`: los datos estan en Postgres y ahi se
+      # quedan, y conservar el contenedor hace que reanudar sea arrancarlo.
+      docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
+      nginx_sitio sin-licencia
+      salir "$EX_LICENCIA" "APAGADO (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". El contenedor esta detenido y nginx sirve la pagina de vencimiento. NO se ha tocado la base, NO se ha borrado nada y el respaldo sigue donde estaba: para reanudar basta con instalar una licencia valida en $LICENCIA_DIR y esperar a la siguiente corrida."
+      ;;
+    *)
+      # Sana, aviso o gracia: se sirve con normalidad. Y se devuelve el sitio
+      # al normal por si la corrida anterior lo dejo en el de vencimiento --
+      # que es todo el mecanismo de reanudacion, y por eso no hay ningun
+      # comando que alguien tenga que acordarse de correr.
+      nginx_sitio normal
+      ;;
+  esac
 fi
 
 [ -n "$CANAL" ] || salir "$EX_CONFIG" "ERROR update: falta CANAL en $CONF (estable o beta)."

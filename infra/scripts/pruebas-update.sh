@@ -375,6 +375,22 @@ done
 exit "${PSQL_CODIGO:-0}"
 FIN
 
+  # `nginx` doblado: anota lo que le piden y puede fallar el `-t` a peticion.
+  # Sin esto no se puede comprobar lo que mas importa del apagado: que un `-t`
+  # en rojo NO recargue, porque dejar a un cliente sin nginx por un error de
+  # plantilla seria peor que el problema que se esta resolviendo.
+  cat >"$BIN/nginx" <<'FIN'
+#!/usr/bin/env bash
+printf 'nginx %s\n' "$*" >>"$REG_LLAMADAS"
+case "$*" in *-t*) exit "${N_TEST_CODIGO:-0}" ;; esac
+exit 0
+FIN
+  cat >"$BIN/systemctl" <<'FIN'
+#!/usr/bin/env bash
+printf 'systemctl %s\n' "$*" >>"$REG_LLAMADAS"
+exit 0
+FIN
+
   chmod +x "$BIN"/*
 }
 
@@ -409,6 +425,14 @@ preparar() {
   # el mismo motivo y "cazado" no significaria nada.
   export SPACE_OS_RESPALDO_SH="${RESPALDO_MUT:-$RAIZ/infra/scripts/respaldo.sh}"
   export CONTENEDOR_NOMBRE=space-os
+  # Las tres rutas del apagado (tarea 5), al directorio temporal del
+  # escenario. `ACTIVO` es el enlace que `nginx_sitio` crea o reescribe; los
+  # otros dos son archivos vacios para que los encuentre (`[ -f "$origen" ]`).
+  export NGINX_SITIO_ACTIVO="$RAIZ_TMP/nginx-activo.conf"
+  export NGINX_SITIO_NORMAL="$RAIZ_TMP/nginx-normal.conf"
+  export NGINX_SITIO_SIN_LICENCIA="$RAIZ_TMP/nginx-sin-licencia.conf"
+  : >"$NGINX_SITIO_NORMAL"
+  : >"$NGINX_SITIO_SIN_LICENCIA"
   SALIDA="$RAIZ_TMP/salida.txt"
   # El log que VIAJA, en el disco de la instancia. Se mira aparte de `$SALIDA`
   # y de `update.log`: los escenarios del candado necesitan saber que hay
@@ -460,7 +484,8 @@ FIN
   unset C_SALUD_CUERPO 2>/dev/null || true
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
-        D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN 2>/dev/null || true
+        D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
+        N_TEST_CODIGO 2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
   export PSQL_CODIGO=0
@@ -474,6 +499,7 @@ FIN
   export D_RUN_FALLA=0
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
+  export N_TEST_CODIGO=0
 }
 
 correr() {
@@ -2622,6 +2648,64 @@ log_dice 'licencia: invalida'
 log_dice 'no dice de que instancia es'
 limpiar
 
+# ─── EL APAGADO (E120-E125, ADR 0032, tarea 5) ─────────────────────────────
+#  Hasta aqui el arnes solo comprobaba que se DECIDIERA el estado; de aqui en
+#  adelante comprueba que ese estado ACTUE: que se apague, que nginx cambie de
+#  sitio, y que reanudar no dependa de que nadie se acuerde de nada.
+preparar 'E120 una licencia vencida NO levanta el contenedor y sale con 8'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo 'docker run --detach'
+log_dice 'licencia: vencida'
+limpiar
+
+preparar 'E121 al apagar se cambia el sitio de nginx y se recarga'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+hubo 'nginx -t'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# LA comprobacion del apagado, y la que mas importa de esta tarea: apagar
+# retira LO NUESTRO. Los datos del cliente estan en SU Postgres, en SU
+# droplet.
+preparar 'E122 apagar no toca la base, ni borra el contenedor, ni retira el respaldo'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo_regex 'docker rm|pg_restore|drop schema'
+limpiar
+
+preparar 'E123 si `nginx -t` falla NO se recarga, y el codigo sigue siendo 8'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export N_TEST_CODIGO=1
+correr
+codigo_es 8
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+log_dice 'no se recarga'
+limpiar
+
+preparar 'E124 en gracia la instancia SIGUE funcionando'
+usar_licencia "$(date -u -d '-5 days' +%F)" 30 15
+correr
+codigo_es 0
+hubo 'docker run --detach'
+log_dice 'licencia: gracia'
+limpiar
+
+# Reanudar no tiene comando: la siguiente corrida con una licencia buena
+# devuelve el sitio de nginx y arranca. Un procedimiento que hay que recordar
+# es un procedimiento que se olvida el dia que hace falta.
+preparar 'E125 con una licencia valida se reanuda solo, sin ningun comando'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+correr
+codigo_es 0
+hubo 'docker run --detach'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2901,6 +2985,19 @@ if [ "${1:-}" = '--mutantes' ]; then
   # el panel se queda callado afirmando que todo fue bien.
   probar_mutante 'aplanar el codigo a 0: el panel afirma que todo fue bien' \
     's@^  FLOTA_CODIGO="\$codigo"$@  FLOTA_CODIGO=0             @'
+
+  # ── Y los dos de la licencia (ADR 0032, tarea 5) ─────────────────────────
+  # El primero es EL defecto que haria inutil todo el mecanismo: comprobar la
+  # firma DESPUES de leer los campos, o sea creerse un archivo sin firmar. Se
+  # anula el `if` de la verificacion (queda `false && ...`), asi que el
+  # cuerpo NUNCA se trata como sin firmar y `licencia_valida` sigue adelante
+  # sin haber comprobado nada.
+  probar_mutante 'leer los campos antes de comprobar la firma' \
+    's/^  if ! openssl pkeyutl -verify -pubin -inkey "\$LICENCIA_PUB" -rawin \\$/  if false \&\& openssl pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \\/'
+  # Y el segundo es el que nadie ve venir: tratar la licencia ilegible como
+  # sana. Falla ABIERTO, que en un mecanismo de licencia es no tener ninguno.
+  probar_mutante 'una licencia invalida se trata como sana' \
+    's@^  if licencia_valida; then LICENCIA_ESTADO="\$(licencia_estado)"; else LICENCIA_ESTADO='"'"'invalida'"'"'; fi$@  if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='"'"'sana'"'"'    ; fi@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
