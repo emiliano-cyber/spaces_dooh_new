@@ -54,29 +54,6 @@ EX_FALLA=3       # un paso que se ejecuto de verdad no salio bien
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
-# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
-# la base, del esquema y de las migraciones. La comparte con
-# `provision-instancia.sh`, que hace el mismo alta desde fuera por ssh. Este
-# guion NACIO copiando ese bloque, y la deriva empezo en ese mismo commit
-# (`CANAL`): escrita una vez, un arreglo de privilegios llega a los dos caminos
-# o a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`).
-#
-# Si no esta en el paquete, se PARA aqui y lo dice, antes de mirar nada mas: un
-# instalador que se inventa los privilegios de un rol no da error, da una
-# instancia que sirve datos de quien no toca (R2 en
-# `vault/06-Operacion/zonas-de-riesgo.md`).
-BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
-if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
-  echo "instalar-hijo: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
-  echo "               No se sigue sin el: los roles de Postgres se definen ahi" >&2
-  echo "               una sola vez, y un rol con el privilegio equivocado no da" >&2
-  echo "               error. Vuelve a armar el paquete de alta con ese archivo." >&2
-  exit "$EX_ENTORNO"
-fi
-# shellcheck source=base-instancia.sh
-. "$BASE_INSTANCIA_SH"
-
 # ─── Lo que este paquete trae consigo ───────────────────────────────────────
 SETUP_DROPLET="$RAIZ/infra/scripts/setup-droplet.sh"
 UPDATE_SH="$RAIZ/infra/scripts/update.sh"
@@ -417,6 +394,45 @@ for t in "$SETUP_DROPLET" "$UPDATE_SH" "$RESPALDO_SH" "$MIGRAR_MJS" \
          "$TPL_LICENCIA_HTML"; do
   [[ -f "$t" ]] || { echo "instalar-hijo: falta $t en este paquete" >&2; exit "$EX_ENTORNO"; }
 done
+
+# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
+# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
+# la base, del esquema y de las migraciones. La comparte con
+# `provision-instancia.sh`, que hace el mismo alta desde fuera por ssh. Este
+# guion NACIO copiando ese bloque, y la deriva empezo en ese mismo commit
+# (`CANAL`): escrita una vez, un arreglo de privilegios llega a los dos caminos
+# o a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`).
+#
+# No esta en la lista de arriba a proposito: a ese no le basta con existir, hay
+# que poder sourcearlo, y su ausencia merece su propio mensaje. Un instalador
+# que se inventara los privilegios de un rol no daria error: daria una
+# instancia que sirve datos de quien no toca (R2 en
+# `vault/06-Operacion/zonas-de-riesgo.md`).
+#
+# Va aqui --despues de validar los argumentos y de verificar la licencia, con
+# el resto de lo que el paquete tiene que traer-- y no arriba: `--ayuda` tiene
+# que contestar aunque el paquete este incompleto, y lo que escribe quien
+# instala se revisa antes que los archivos que traemos nosotros. Mismo sitio que
+# `update.sh:768`, que sourcea `respaldo.sh` despues de leer su configuracion.
+#
+# >>> Y la costura, dicha en voz alta: `SPACE_OS_BASE_INSTANCIA_SH` deja que el
+# >>> ENTORNO elija que archivo se sourcea, o sea que quien pueda ponerle una
+# >>> variable de entorno a este proceso puede ejecutar codigo suyo dentro de
+# >>> el, como root en la maquina del cliente. Se acepta por el mismo motivo que
+# >>> su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:768`) --sin ella los
+# >>> mutantes del arnes no pueden correr una copia del guion-- y no abre ninguna
+# >>> puerta nueva: esto lo lanza a mano quien ya es root. Si algun dia lo lanza
+# >>> un proceso menos privilegiado, esta linea es lo primero que hay que quitar.
+BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
+if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
+  echo "instalar-hijo: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
+  echo "               No se sigue sin el: los roles de Postgres se definen ahi" >&2
+  echo "               una sola vez, y un rol con el privilegio equivocado no da" >&2
+  echo "               error. Vuelve a armar el paquete de alta con ese archivo." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=base-instancia.sh
+. "$BASE_INSTANCIA_SH"
 
 [[ -n "$REGISTRY" ]] || {
   echo "instalar-hijo: falta REGISTRY en el entorno (p. ej. registry.digitalocean.com/<nombre>)." >&2

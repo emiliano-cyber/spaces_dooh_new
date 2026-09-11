@@ -54,29 +54,6 @@ TPL_APP="$RAIZ/infra/env/app.env.example"
 TPL_INST="$RAIZ/infra/env/instancia.env.example"
 TPL_NGINX="$RAIZ/infra/nginx/instancia.conf.tpl"
 
-# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
-# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
-# la base, del esquema y de las migraciones. La comparte con
-# `instalar-hijo.sh`, que hace el mismo alta desde dentro de la maquina del
-# cliente: escrita una vez, un arreglo de privilegios llega a los dos caminos o
-# a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`) y
-# por el mismo motivo, dicho ahi: lo que se copia, deriva.
-#
-# Si no esta al lado, se PARA aqui y lo dice, antes de tocar el servidor:
-# seguir a medias significaria crear los roles con lo que este guion se
-# acuerde, que es exactamente lo que ese archivo existe para que nadie vuelva a
-# hacer. La variable de entorno es para los mutantes del arnes, que corren una
-# copia de este guion en otro directorio (`pruebas-provision.sh`).
-BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
-if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
-  echo "provision: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
-  echo "           No se sigue sin el: los roles de Postgres se definen ahi una" >&2
-  echo "           sola vez, y un rol con el privilegio equivocado no da error." >&2
-  exit "$EX_ENTORNO"
-fi
-# shellcheck source=base-instancia.sh
-. "$BASE_INSTANCIA_SH"
-
 HOST=""
 DOMINIO=""
 INSTANCIA=""
@@ -181,6 +158,46 @@ if ! [[ "$DOMINIO" =~ ^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-
   echo "provision: --dominio '$DOMINIO' no parece un dominio." >&2
   exit "$EX_USO"
 fi
+
+# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
+# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
+# la base, del esquema y de las migraciones. La comparte con
+# `instalar-hijo.sh`, que hace el mismo alta desde dentro de la maquina del
+# cliente: escrita una vez, un arreglo de privilegios llega a los dos caminos o
+# a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`) y
+# por el mismo motivo, dicho ahi: lo que se copia, deriva.
+#
+# Si no esta al lado, se PARA aqui y lo dice, antes de tocar el servidor:
+# seguir a medias significaria crear los roles con lo que este guion se
+# acuerde, que es exactamente lo que ese archivo existe para que nadie vuelva a
+# hacer.
+#
+# Va DESPUES de leer los argumentos y de validarlos, y no antes, por dos
+# motivos: `--ayuda` tiene que contestar aunque el paquete este incompleto (con
+# el `source` arriba salia con EX_ENTORNO en vez de imprimir la ayuda), y lo que
+# escribe el operador se revisa antes que los archivos que traemos nosotros.
+# Mismo sitio que `update.sh:768`, que sourcea `respaldo.sh` despues de leer su
+# configuracion.
+#
+# >>> Y una costura que conviene tener presente: `SPACE_OS_BASE_INSTANCIA_SH`
+# >>> deja que el ENTORNO elija que archivo se sourcea, o sea que quien puede
+# >>> poner una variable de entorno a este proceso puede ejecutar codigo suyo
+# >>> dentro de el. Se acepta a proposito, con los ojos abiertos y por el mismo
+# >>> motivo que su hermana `SPACE_OS_RESPALDO_SH` (`update.sh:768`): sin ella,
+# >>> los mutantes del arnes no pueden correr una copia del guion y la barrida
+# >>> entera se vuelve un falso verde. Quien corre esto ya es root en el
+# >>> servidor del cliente por ssh, asi que no abre ninguna puerta que no
+# >>> estuviera abierta -- pero si alguna vez este guion lo lanza un proceso
+# >>> menos privilegiado, esta linea es lo primero que hay que quitar.
+BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
+if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
+  echo "provision: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
+  echo "           No se sigue sin el: los roles de Postgres se definen ahi una" >&2
+  echo "           sola vez, y un rol con el privilegio equivocado no da error." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=base-instancia.sh
+. "$BASE_INSTANCIA_SH"
 
 # ─── El unico camino que toca el servidor ───────────────────────────────────
 DRY_ETIQUETA="[SIMULACION]"
