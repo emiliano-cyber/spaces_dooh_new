@@ -22,6 +22,51 @@ QUE NO HACE
   de cambiarlo.
 
 --------------------------------------------------------------------------------
+ 🚦 GATE 0 · ESTA ES LA CUARTA TARJETA, NO LA PRIMERA. NO EMPIECES POR AQUI.
+--------------------------------------------------------------------------------
+  Son CUATRO tarjetas y el orden entre ellas no es una sugerencia: cada una
+  produce algo que la siguiente necesita, y la ultima --esta-- es la unica que
+  toca a un cliente que paga.
+
+    1. `docs/evidencias/llaves-de-licencia.txt`
+       Crea el par de llaves. Sin la privada no se puede FIRMAR nada; sin la
+       publica committeada en `infra/licencias/space-os.pub` el instalador
+       falla en toda instancia que lo use.
+
+    2. `docs/evidencias/alta-droplet-propio.txt`, seccion A2 (mas abajo)
+       Firma la licencia de ESTE cliente. Necesita la llave privada de (1).
+
+    3. `docs/evidencias/ensayo-licencia-demo.txt`   ⟵ EL QUE MAS IMPORTA
+       Ensaya el apagado y la reanudacion por licencia CONTRA DEMO. Es la
+       unica vez que el interruptor se prueba en una instancia de verdad
+       antes de que exista un cliente al que pueda apagar.
+
+    4. ESTA tarjeta, completa.
+
+  ✋ ANTES DE DAR DE ALTA AL PRIMER CLIENTE, comprueba las dos cosas que no se
+     ven desde aqui:
+
+    · La llave publica esta en el repositorio:
+
+      git -C /var/www/Spaces log --oneline -1 -- infra/licencias/space-os.pub
+        # ESPERADO: un commit. Vacio = la tarjeta (1) no se corrio.
+
+    · El ensayo contra DEMO salio en verde. No hay comando que lo diga: lo que
+      lo dice son las TRES CAPTURAS que `ensayo-licencia-demo.txt` manda
+      devolver (la pagina de vencimiento con el candado cerrado, la fila con
+      el codigo 8 en el panel, y la fila con el 9). Si no las tienes delante,
+      el ensayo no se hizo.
+
+  POR QUE ESTE GATE VIVE AQUI Y NO SOLO ALLA. Hasta el 2026-09-11, la unica
+  puerta estaba en la cabecera de la tarjeta del ensayo -- que es precisamente
+  el documento que NO esta leyendo quien va a dar de alta a alguien. Una
+  puerta escrita en la habitacion de al lado no es una puerta.
+
+  Y el riesgo no es teorico: estrenar un interruptor que apaga instancias
+  contra un cliente que paga seria la peor forma posible de estrenarlo. Para
+  eso existe DEMO.
+
+--------------------------------------------------------------------------------
  ⚠️ ESTA TARJETA TIENE DOS DESTINATARIOS, Y NO SE PARECEN EN NADA
 --------------------------------------------------------------------------------
   La SECCION A la corre alguien de AS OOH, en su maquina o en el PADRE, con
