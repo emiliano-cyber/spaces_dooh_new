@@ -414,9 +414,14 @@ FIN
   # que `docker`/`nginx`/`systemctl`: `ln` anota el enlace en $REG_ENLACES en
   # vez de tocar el sistema de archivos, y `readlink -f` lo resuelve de ahi.
   # Solo cubren la forma exacta que llama `nginx_sitio()`.
+  #
+  # `LN_FALLA` (ronda 3, barato 2): sin ella el doble salia 0 SIEMPRE, y las
+  # guardas de I-3 (`|| { registrar ...; return 0; }`) eran codigo muerto
+  # desde el punto de vista del arnes -- nunca se ejercitaban.
   cat >"$BIN/ln" <<'FIN'
 #!/usr/bin/env bash
 printf 'ln %s\n' "$*" >>"$REG_LLAMADAS"
+[ "${LN_FALLA:-0}" = 1 ] && exit 1
 origen="$2"; destino="$3"
 { grep -vF -- "$destino	" "$REG_ENLACES" 2>/dev/null; printf '%s\t%s\n' "$destino" "$origen"; } >"$REG_ENLACES.tmp"
 mv "$REG_ENLACES.tmp" "$REG_ENLACES"
@@ -551,7 +556,7 @@ FIN
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
-        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION 2>/dev/null || true
+        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA 2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
   export PSQL_CODIGO=0
@@ -566,6 +571,7 @@ FIN
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
   export N_TEST_CODIGO=0
+  export LN_FALLA=0
 }
 
 correr() {
@@ -719,6 +725,20 @@ enlace_apunta_a() {
   real_esperado="$(_resolver_enlace "$1")"
   if [ "$real_activo" = "$real_esperado" ]; then bien
   else mal "el enlace $NGINX_SITIO_ACTIVO apunta (resuelto) a '$real_activo', se esperaba '$real_esperado' ($1)"; fi
+}
+# Que el enlace ACTIVO no haya quedado apuntando a SI MISMO -- el bug exacto
+# de la ronda 3 (I-1): `readlink -f` de una ruta que no existe imprime esa
+# misma ruta y sale 0 (no falla), asi que sin comparar contra ella "anterior"
+# se cuela como si fuera un destino de verdad, y la reversion tras un
+# `nginx -t` en rojo termina en `ln -sfn "$X" "$X"`.
+no_es_autoenlace() {
+  local destino
+  destino="$(awk -F'\t' -v d="$NGINX_SITIO_ACTIVO" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+  if [ "$destino" = "$NGINX_SITIO_ACTIVO" ]; then
+    mal "el enlace $NGINX_SITIO_ACTIVO quedo apuntando a si mismo"
+  else
+    bien
+  fi
 }
 # El ORDEN entre dos llamadas. Que las dos hayan ocurrido no dice nada si
 # ocurrieron al reves: tirar el esquema DESPUES de restaurar deja la base vacia,
@@ -2751,7 +2771,7 @@ log_dice 'licencia: invalida'
 log_dice 'no dice de que instancia es'
 limpiar
 
-# ─── EL APAGADO (E120-E130, ADR 0032, tarea 5) ─────────────────────────────
+# ─── EL APAGADO (E120-E132, ADR 0032, tarea 5) ─────────────────────────────
 #  Hasta aqui el arnes solo comprobaba que se DECIDIERA el estado; de aqui en
 #  adelante comprueba que ese estado ACTUE: que se apague, que nginx cambie de
 #  sitio, y que reanudar no dependa de que nadie se acuerde de nada.
@@ -2788,6 +2808,10 @@ correr
 codigo_es 8
 no_hubo_regex 'systemctl reload nginx|nginx -s reload'
 log_dice 'no se recarga'
+# Ronda 3 (I-1): sin enlace pre-sembrado, `readlink -f` de una ruta que no
+# existe se cuela como "anterior" y la reversion termina en un enlace A SI
+# MISMO -- "Too many levels of symbolic links" para siempre en un droplet.
+no_es_autoenlace
 limpiar
 
 preparar 'E124 en gracia la instancia SIGUE funcionando'
@@ -2883,6 +2907,37 @@ correr
 codigo_es 8
 log_dice 'licencia: invalida'
 hubo 'docker stop'
+limpiar
+
+# ─── Ronda 3 de revision: el critico I-1 y los dos baratos ────────────────
+# Barato 1: hacer comprobable de verdad la rama "openssl ausente". `$BIN` se
+# antepone al PATH sin reemplazarlo, asi que `command -v openssl` a secas
+# siempre encontraba el openssl real de esta maquina -- E129 solo probaba la
+# OTRA rama del mismo `if` (version sin soporte). Con `OPENSSL_BIN` como
+# variable, apuntarlo a un nombre que no existe hace fallar `command -v` DE
+# VERDAD, ejercitando la rama exacta.
+preparar 'E131 con OPENSSL_BIN apuntando a un binario que no existe, no-comprobable de verdad'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export OPENSSL_BIN=openssl-que-no-existe
+correr
+codigo_es 9
+log_dice 'licencia: no-comprobable'
+log_dice 'falta `openssl-que-no-existe` en esta maquina'
+no_hubo 'docker stop'
+unset OPENSSL_BIN
+limpiar
+
+# Barato 2: el doble de `ln` salia 0 SIEMPRE, asi que las guardas de I-3
+# (`|| { registrar ...; return 0; }`) eran codigo muerto desde el punto de
+# vista del arnes. El fallo que I-3 describia: morir bajo `set -Eeuo
+# pipefail` sin pasar por `salir` deja al cliente sin reporte a la flota y
+# sin log subido.
+preparar 'E132 si `ln` falla, el guion no muere: sigue y sale con el codigo de licencia que le tocaba'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export LN_FALLA=1
+correr
+codigo_es 8
+log_dice 'no se pudo cambiar el enlace'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -3171,8 +3226,10 @@ if [ "${1:-}" = '--mutantes' ]; then
   # anula el `if` de la verificacion (queda `false && ...`), asi que el
   # cuerpo NUNCA se trata como sin firmar y `licencia_valida` sigue adelante
   # sin haber comprobado nada.
+  # (La ronda 3 metio `OPENSSL_BIN` como variable; el mutante ahora anula el
+  # `if` con el binario en variable, mismo defecto.)
   probar_mutante 'leer los campos antes de comprobar la firma' \
-    's/^  if ! openssl pkeyutl -verify -pubin -inkey "\$LICENCIA_PUB" -rawin \\$/  if false \&\& openssl pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \\/'
+    's@^  if ! "\$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "\$LICENCIA_PUB" -rawin \\$@  if false \&\& "$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \\@'
   # Y el segundo es el que nadie ve venir: tratar la licencia ilegible como
   # sana. Falla ABIERTO, que en un mecanismo de licencia es no tener ninguno.
   # (La ronda 2 de revision separo el `if` en un `if/elif/else` para meter el

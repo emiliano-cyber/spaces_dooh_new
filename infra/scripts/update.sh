@@ -841,6 +841,12 @@ case "$LICENCIA_REQUERIDA" in
 esac
 LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
 LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
+# El binario en una variable, no quemado, para que el arnes pueda apuntar a
+# uno que no existe y ejercitar de verdad la rama "openssl ausente": `$BIN`
+# se antepone al PATH sin reemplazarlo, asi que `command -v openssl` a secas
+# siempre encontraria el openssl real de la maquina, sin importar que doble
+# se monte (ronda 3, barato 1).
+OPENSSL_BIN="${OPENSSL_BIN:-openssl}"
 # Las tres rutas del apagado (tarea 5). Un enlace simbolico entre `NORMAL` y
 # `SIN_LICENCIA` es lo que decide que sitio sirve nginx; `ACTIVO` es ese
 # enlace.
@@ -879,7 +885,7 @@ licencia_valida() {
   [ -f "$LICENCIA_DIR/licencia.firma" ] || { registrar "   licencia: no hay licencia.firma en $LICENCIA_DIR"; return 1; }
   [ -f "$LICENCIA_PUB" ] || { registrar "   licencia: no hay llave publica en $LICENCIA_PUB"; return 1; }
 
-  if ! openssl pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \
+  if ! "$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \
        -in "$LICENCIA_DIR/licencia.json" -sigfile "$LICENCIA_DIR/licencia.firma" >/dev/null 2>&1; then
     registrar "   licencia: la firma NO valida"
     return 1
@@ -968,12 +974,12 @@ if [ "$LICENCIA_REQUERIDA" = 1 ]; then
   # cliente que contradice su derecho" -- y eso solo puede decidirlo
   # `licencia_valida`, nunca la ausencia de una herramienta nuestra.
   LICENCIA_MOTIVO_NO_COMPROBABLE=''
-  if ! command -v openssl >/dev/null 2>&1; then
-    LICENCIA_MOTIVO_NO_COMPROBABLE='falta `openssl` en esta maquina'
+  if ! command -v "$OPENSSL_BIN" >/dev/null 2>&1; then
+    LICENCIA_MOTIVO_NO_COMPROBABLE="falta \`$OPENSSL_BIN\` en esta maquina"
   else
-    case "$(openssl version 2>/dev/null)" in
+    case "$("$OPENSSL_BIN" version 2>/dev/null)" in
       'OpenSSL 3'*) ;;
-      *) LICENCIA_MOTIVO_NO_COMPROBABLE="$(openssl version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas)" ;;
+      *) LICENCIA_MOTIVO_NO_COMPROBABLE="$("$OPENSSL_BIN" version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas)" ;;
     esac
   fi
   if [ -n "$LICENCIA_MOTIVO_NO_COMPROBABLE" ]; then
@@ -995,7 +1001,7 @@ fi
 # licencia vencio» con «la aplicacion se cayo» -- las dos cosas que el panel
 # de flota existe para no mezclar.
 nginx_sitio() {
-  local modo="$1" origen anterior
+  local modo="$1" origen anterior=''
   case "$modo" in
     normal)       origen="$NGINX_SITIO_NORMAL" ;;
     sin-licencia) origen="$NGINX_SITIO_SIN_LICENCIA" ;;
@@ -1004,8 +1010,25 @@ nginx_sitio() {
   [ -f "$origen" ] || { registrar "   nginx: no existe $origen, no se cambia el sitio"; return 0; }
   # Si ya apunta ahi no se toca: recargar nginx cada noche por nada es ruido, y
   # una recarga es una ventana -- pequena, pero real -- de peticiones perdidas.
+  #
+  # `readlink -f` de una ruta que NO existe imprime esa MISMA ruta y sale 0 --
+  # no falla -- asi que sin esta comparacion `anterior` nunca quedaria vacio,
+  # y la reversion de mas abajo terminaba haciendo
+  # `ln -sfn "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_ACTIVO"`: un enlace que
+  # apunta A SI MISMO. En un droplet eso es "Too many levels of symbolic
+  # links" para siempre y nginx sin arrancar tras un reinicio -- exactamente
+  # lo que esta reversion existe para evitar. Reproducido con los dobles del
+  # arnes en E123 antes de este guard.
+  #
+  # Se compara la CADENA y no se usa `-L`: `-L` es una prueba real del
+  # sistema de archivos que ningun doble puede fingir (los escenarios anotan
+  # el enlace en su propio registro, nunca crean nada en esa ruta del
+  # disco), y habria dejado el arnes ciego justo en E127/E128 -- que vigilan
+  # esto mismo. La comparacion de cadena de paso cubre el enlace ya
+  # enroscado, donde el `readlink -f` de verdad tambien devuelve vacio.
   anterior="$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)"
-  [ "$anterior" = "$(readlink -f "$origen")" ] && return 0
+  [ "$anterior" = "$NGINX_SITIO_ACTIVO" ] && anterior=''
+  [ -n "$anterior" ] && [ "$anterior" = "$(readlink -f "$origen")" ] && return 0
   # Bajo `set -e`, un `ln` que falla (permisos, disco de solo lectura) mataria
   # el guion aqui mismo con el codigo 1 -- "NADA se toco", que seria falso a
   # medias: nginx queda como estaba, pero el guion nunca llega a `salir` ni
@@ -1022,6 +1045,12 @@ nginx_sitio() {
     # memoria -- en disco, el enlace ya apuntaba a la plantilla mala.
     if [ -n "$anterior" ]; then
       ln -sfn "$anterior" "$NGINX_SITIO_ACTIVO" 2>/dev/null || registrar "   nginx: no se pudo devolver el enlace $NGINX_SITIO_ACTIVO a $anterior"
+    else
+      # No habia enlace antes (o `NGINX_SITIO_ACTIVO` era un archivo regular,
+      # que el `ln -sfn` de arriba ya sobreescribio): inventar un destino
+      # seria peor que no tocar nada, asi que se quita el enlace y se deja
+      # sin sitio activo.
+      rm -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true
     fi
     registrar "   nginx: \`nginx -t\` rechazo el sitio $modo; no se recarga y el enlace se deja como estaba"
   fi
