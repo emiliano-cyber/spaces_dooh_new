@@ -54,6 +54,29 @@ EX_FALLA=3       # un paso que se ejecuto de verdad no salio bien
 
 RAIZ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
+# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
+# la base, del esquema y de las migraciones. La comparte con
+# `provision-instancia.sh`, que hace el mismo alta desde fuera por ssh. Este
+# guion NACIO copiando ese bloque, y la deriva empezo en ese mismo commit
+# (`CANAL`): escrita una vez, un arreglo de privilegios llega a los dos caminos
+# o a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`).
+#
+# Si no esta en el paquete, se PARA aqui y lo dice, antes de mirar nada mas: un
+# instalador que se inventa los privilegios de un rol no da error, da una
+# instancia que sirve datos de quien no toca (R2 en
+# `vault/06-Operacion/zonas-de-riesgo.md`).
+BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
+if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
+  echo "instalar-hijo: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
+  echo "               No se sigue sin el: los roles de Postgres se definen ahi" >&2
+  echo "               una sola vez, y un rol con el privilegio equivocado no da" >&2
+  echo "               error. Vuelve a armar el paquete de alta con ese archivo." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=base-instancia.sh
+. "$BASE_INSTANCIA_SH"
+
 # ─── Lo que este paquete trae consigo ───────────────────────────────────────
 SETUP_DROPLET="$RAIZ/infra/scripts/setup-droplet.sh"
 UPDATE_SH="$RAIZ/infra/scripts/update.sh"
@@ -525,9 +548,10 @@ paso "Base del servidor (Docker, PostgreSQL, nginx, certbot, ufw)"
 ejecutar bash "$SETUP_DROPLET"
 
 # ─── 2 · Base de datos: DOS roles ───────────────────────────────────────────
-# Mismo diseno que `provision-instancia.sh`, corrido en la propia maquina en
-# vez de por ssh. Ver ahi el porque de NOBYPASSRLS en el rol de la app y
-# BYPASSRLS en el de migracion -- la explicacion no cambia por correr local.
+# Las sentencias y su porque --NOBYPASSRLS en el rol de la aplicacion,
+# BYPASSRLS en el de migracion-- viven en `base-instancia.sh`, que es la unica
+# definicion y la comparten los dos caminos de alta. Aqui solo esta el COMO
+# llegan a Postgres: en la propia maquina, no por ssh.
 paso "Base de datos"
 
 # M11: este instalador es de UN SOLO USO por droplet -- no se hizo
@@ -556,31 +580,38 @@ fi
 
 CLAVE_APP="$(secreto)"
 CLAVE_MIGRADOR="$(secreto)"
-URL_MIGRADOR="postgresql://spaces_migrador:$CLAVE_MIGRADOR@127.0.0.1:5432/spaces"
+URL_MIGRADOR="$(url_migrador "$CLAVE_MIGRADOR")"
 
 # El SQL entra a `psql` por la ENTRADA ESTANDAR, nunca por `-c`: un `-c` con
 # la clave dentro queda en el argv de `psql`, visible para cualquier otro
 # usuario de esta maquina mientras el proceso corre (I6). `printf` aqui es un
 # builtin de bash -- no crea un proceso propio, asi que la clave nunca sale
 # de la memoria de ESTE guion hasta que entra por la tuberia a `psql`.
+#
+# El `;` lo pone ESTE guion y no la receta: por la entrada estandar psql exige
+# el terminador, y un `psql -c` --que es como las manda `provision-instancia.sh`--
+# no lo necesita. El terminador es cosa del canal, no de la sentencia.
 crear_rol_o_base() {
   local sql="$1" sql_oculto="$2"
   if [[ "$CONFIRMAR" -eq 1 ]]; then
-    printf '%s\n' "$sql" | sudo -u postgres psql -v ON_ERROR_STOP=1
+    printf '%s;\n' "$sql" | sudo -u postgres psql -v ON_ERROR_STOP=1
   else
-    printf '%s sudo -u postgres psql -v ON_ERROR_STOP=1   <<< "%s"\n' "$DRY_ETIQUETA" "$sql_oculto"
+    printf '%s sudo -u postgres psql -v ON_ERROR_STOP=1   <<< "%s;"\n' "$DRY_ETIQUETA" "$sql_oculto"
   fi
 }
 
+# El segundo argumento es lo MISMO con la clave sustituida por `(oculta)`: es
+# lo que se imprime en seco, y se compone con la misma funcion para que no
+# pueda decir una cosa distinta de lo que se ejecuta.
 crear_rol_o_base \
-  "create role spaces_app login password '$CLAVE_APP' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;" \
-  "create role spaces_app login password '(oculta)' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;"
+  "$(sql_crear_rol_app "$CLAVE_APP")" \
+  "$(sql_crear_rol_app '(oculta)')"
 crear_rol_o_base \
-  "create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit bypassrls;" \
-  "create role spaces_migrador login password '(oculta)' nosuperuser nocreaterole noinherit bypassrls;"
+  "$(sql_crear_rol_migrador "$CLAVE_MIGRADOR")" \
+  "$(sql_crear_rol_migrador '(oculta)')"
 crear_rol_o_base \
-  "create database spaces owner spaces_migrador;" \
-  "create database spaces owner spaces_migrador;"
+  "$(sql_crear_base)" \
+  "$(sql_crear_base)"
 
 # ─── 3 · La llave publica de licencia ───────────────────────────────────────
 paso "Llave publica de licencia"
@@ -654,7 +685,7 @@ rm -f "$TMP_INST"
 
 reescribir_env "$TPL_APP" \
   "APP_URL=https://$DOMINIO" \
-  "DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces" \
+  "DATABASE_URL=$(url_app "$CLAVE_APP")" \
   "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
   "BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN" \
   "FLOTA_TOKEN=$FLOTA_TOKEN" \
@@ -685,20 +716,28 @@ ejecutar mkdir -p /root/.docker
 # ─── 7 · Esquema y migraciones ──────────────────────────────────────────────
 # No esta en la lista de pasos del brief, pero sin esto "primera corrida de
 # update.sh" no tiene contra que base actualizar: `update.sh` migra una base
-# que YA EXISTE, no la crea. Mismo orden y mismos comandos que
-# `provision-instancia.sh` (el esquema base sale de la imagen, y se aplica
-# como `spaces_migrador` para que las migraciones que alteran esas tablas mas
-# tarde no choquen con el dueno). El `DATABASE_URL` de migraciones va por
-# variable de ENTORNO del contenedor (`--env`), nunca en el propio comando de
-# `docker run` como texto: eso es lo que ya evitaba I6 aqui.
+# que YA EXISTE, no la crea.
+#
+# La receta --el orden, el esquema base antes de las migraciones, y por que--
+# vive en `base-instancia.sh` y es la misma que usa `provision-instancia.sh`.
+# Aqui solo esta el COMO: se corre en ESTA maquina.
+#
+# Y se corre con `bash -c` porque esas recetas son lineas de shell: la primera
+# lleva una REDIRECCION dentro, y una redireccion no cabe en un argv -- la
+# interpreta un shell o no ocurre. Los valores que entran en la linea van
+# entrecomillados por `citar()` en el origen, asi que un nombre de registro con
+# un espacio o una comilla sigue siendo un dato y no parte del comando.
+#
+# `PGPASSWORD` va delante y NO dentro de la linea, igual que antes: la clave
+# viaja por el entorno del proceso y nunca por el argv de nadie (I6).
 paso "Esquema y migraciones"
-IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
+IMAGEN="$(imagen_instancia "$REGISTRY" "$IMAGEN_NOMBRE" "$CANAL")"
 ejecutar docker pull "$IMAGEN"
 if [[ "$CONFIRMAR" -eq 1 ]]; then
-  docker run --rm "$IMAGEN" cat /app/db/schema.sql > /tmp/space-os-schema.sql
-  PGPASSWORD="$CLAVE_MIGRADOR" psql -h 127.0.0.1 -U spaces_migrador -d spaces -v ON_ERROR_STOP=1 -f /tmp/space-os-schema.sql
-  rm -f /tmp/space-os-schema.sql
-  docker run --rm --network host --env DATABASE_URL="$URL_MIGRADOR" "$IMAGEN" node scripts/migrar.mjs --instalacion-nueva
+  bash -c "$(cmd_volcar_esquema "$IMAGEN")"
+  PGPASSWORD="$CLAVE_MIGRADOR" bash -c "$(cmd_aplicar_esquema)"
+  bash -c "$(cmd_limpiar_esquema)"
+  bash -c "$(cmd_migrar_instalacion_nueva "$IMAGEN" "$URL_MIGRADOR")"
 else
   printf '%s docker run --rm %s cat /app/db/schema.sql > (esquema local) ; psql -f (esquema local)\n' "$DRY_ETIQUETA" "$IMAGEN"
   printf '%s docker run --rm --network host --env DATABASE_URL=(oculta) %s node scripts/migrar.mjs --instalacion-nueva\n' "$DRY_ETIQUETA" "$IMAGEN"

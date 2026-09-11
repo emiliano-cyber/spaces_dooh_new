@@ -54,6 +54,29 @@ TPL_APP="$RAIZ/infra/env/app.env.example"
 TPL_INST="$RAIZ/infra/env/instancia.env.example"
 TPL_NGINX="$RAIZ/infra/nginx/instancia.conf.tpl"
 
+# ─── Lo que crea la base de datos se SOURCEA, no se copia ───────────────────
+# `base-instancia.sh` es la UNICA definicion de los dos roles de Postgres, de
+# la base, del esquema y de las migraciones. La comparte con
+# `instalar-hijo.sh`, que hace el mismo alta desde dentro de la maquina del
+# cliente: escrita una vez, un arreglo de privilegios llega a los dos caminos o
+# a ninguno. Mismo patron que `update.sh` con `respaldo.sh` (`update.sh:209`) y
+# por el mismo motivo, dicho ahi: lo que se copia, deriva.
+#
+# Si no esta al lado, se PARA aqui y lo dice, antes de tocar el servidor:
+# seguir a medias significaria crear los roles con lo que este guion se
+# acuerde, que es exactamente lo que ese archivo existe para que nadie vuelva a
+# hacer. La variable de entorno es para los mutantes del arnes, que corren una
+# copia de este guion en otro directorio (`pruebas-provision.sh`).
+BASE_INSTANCIA_SH="${SPACE_OS_BASE_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/base-instancia.sh}"
+if [[ ! -f "$BASE_INSTANCIA_SH" ]]; then
+  echo "provision: falta $BASE_INSTANCIA_SH, que trae lo que crea la base de datos." >&2
+  echo "           No se sigue sin el: los roles de Postgres se definen ahi una" >&2
+  echo "           sola vez, y un rol con el privilegio equivocado no da error." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=base-instancia.sh
+. "$BASE_INSTANCIA_SH"
+
 HOST=""
 DOMINIO=""
 INSTANCIA=""
@@ -163,7 +186,7 @@ fi
 DRY_ETIQUETA="[SIMULACION]"
 [[ "$CONFIRMAR" -eq 1 ]] && DRY_ETIQUETA=""
 
-IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
+IMAGEN="$(imagen_instancia "$REGISTRY" "$IMAGEN_NOMBRE" "$CANAL")"
 
 # Entra al registro DESDE EL SERVIDOR. El token viaja por la entrada estandar de
 # ssh y nunca como argumento: en `ps` de la instancia solo se ve `docker login`.
@@ -531,79 +554,42 @@ fi
 paso "Base de datos"
 CLAVE_APP="$(secreto)"
 CLAVE_MIGRADOR="$(secreto)"
-# Por TCP y con contrasena: el contenedor que migra no ve el socket unix.
-URL_MIGRADOR="postgresql://spaces_migrador:$CLAVE_MIGRADOR@127.0.0.1:5432/spaces"
+URL_MIGRADOR="$(url_migrador "$CLAVE_MIGRADOR")"
 
-# El rol de la aplicacion es NOSUPERUSER **y NOBYPASSRLS**, y las dos palabras
-# hacen falta. Un rol que atraviesa la RLS funciona perfectamente y sin
-# aislamiento, que es la peor combinacion posible: no da ningun error.
-remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_app login password '$CLAVE_APP' nosuperuser nocreatedb nocreaterole noinherit nobypassrls\""
-# El rol de MIGRACION, con contrasena y por TCP. Por que existe y no se usa
-# `postgres` por socket, que era lo de antes: las migraciones corren DENTRO de
-# un contenedor efimero, y ahi dentro `/var/run/postgresql` NO EXISTE. Montarlo
-# tampoco bastaria -- sin usuario en la URL, libpq usa el del SISTEMA, que en el
-# contenedor es `node` y no `postgres`, asi que la autenticacion *peer* falla
-# igual. Un rol con contrasena por 127.0.0.1 es la unica de las tres salidas que
-# no obliga a ponerle contrasena al superusuario ni a dejar Node en la maquina.
+# El QUE y el POR QUE de estas tres sentencias —que el rol de la aplicacion es
+# `nobypassrls` y el de migracion `bypassrls`, y por que cada uno— vive en
+# `base-instancia.sh`, que es donde estan definidas. Aqui solo esta el COMO
+# llegan a esta maquina: por `remoto()`, o sea por ssh.
 #
-# Es DUENO de la base a proposito: las migraciones crean objetos, y que todas
-# corran siempre con el mismo dueno hace que el `alter default privileges` de
-# 20260820_grants_rol_app.sql -- escrito SIN `for role` -- se comporte igual
-# siempre. Es el hallazgo H1 del 24/08.
-# `bypassrls` — la palabra da miedo, asi que aqui esta el porque, MEDIDO el
-# 2026-09-01 al convertir DEMO:
-#
-#   pg_dump: ERROR: query would be affected by row-level security policy
-#            for table "acciones"
-#
-# `db/schema.sql` pone RLS con FORCE, que aplica INCLUSO AL DUENO de la tabla. Un
-# rol normal que sea dueno ve CERO filas, asi que el `pg_dump` que `update.sh`
-# hace ANTES de migrar sale vacio y el update ABORTA. Sin esto, la primera
-# actualizacion de cada instancia se para en seco.
-#
-# Un respaldo PARCIAL seria peor que ninguno: el rol que respalda tiene que ver
-# todas las filas. Antes no se notaba porque las tablas eran de `postgres`, que
-# es superusuario y se salta la RLS por definicion.
-#
-# EL AISLAMIENTO NO SE TOCA. El que no puede saltarse la RLS es `spaces_app`, el
-# rol de la APLICACION, y se sigue creando arriba con `nobypassrls` EXPLICITO.
-# Este rol no lo usa la aplicacion jamas: solo migra y respalda.
-remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit bypassrls\""
-remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"create database spaces owner spaces_migrador\""
+# Las recetas salen SIN el `;` final a proposito, y aqui no se le pone: un
+# `psql -c` no lo necesita. Quien manda el mismo SQL por la entrada estandar
+# (`instalar-hijo.sh`) lo anade al enviarlo — el terminador es cosa del canal,
+# no de la sentencia.
+aplicar_sql_superusuario() {
+  remoto "sudo -u postgres psql -v ON_ERROR_STOP=1 -c \"$1\""
+}
+aplicar_sql_superusuario "$(sql_crear_rol_app "$CLAVE_APP")"
+aplicar_sql_superusuario "$(sql_crear_rol_migrador "$CLAVE_MIGRADOR")"
+aplicar_sql_superusuario "$(sql_crear_base)"
 
 # ─── 3 · Esquema y migraciones ──────────────────────────────────────────────
-# Con el rol de MIGRACION, no con el de la app: el de la app no tiene DDL.
-# `--instalacion-nueva` se verifica a si mismo, y el orden de las migraciones
-# no es lexicografico puro (hay un mapa de excepciones en el runner).
-paso "Esquema y migraciones"
+# La receta —el orden, el esquema base antes de las migraciones, y por que— vive
+# en `base-instancia.sh`. Aqui solo esta el COMO: cada linea se manda por ssh.
+#
 # Antes esto hacia `cd /var/www/Spaces && node scripts/migrar.mjs`: un repo
 # clonado y un Node que una instancia NO TIENE -- es el sentido de que exista la
 # imagen. Ahora migra con la MISMA imagen que va a correr, que es tambien la que
 # lleva las migraciones dentro. Mismo idioma que `update.sh:1324-1330`.
-#
-# `--instalacion-nueva` lo pasa el ALTA y nunca `update.sh` (`:1511` llama al
-# runner sin banderas): el runner aborta si no puede distinguir una base nueva de
-# una rezagada, y esa distincion solo la sabe quien acaba de crear la base.
+paso "Esquema y migraciones"
 registro_login
 remoto "docker pull '$IMAGEN'"
-# El ESQUEMA BASE va primero, y sale de la imagen. Este paso NO EXISTIA: el
-# bloque se llamaba "Esquema y migraciones" y solo migraba, asi que la primera
-# migracion se estrellaba contra una base vacia con
-# `relation "public.clientes" does not exist`. Medido el 2026-09-01 corriendo el
-# runner de la imagen contra una base recien creada.
-#
-# `schema.sql` NO es idempotente -- 28 `create table` y uno solo con `if not
-# exists` -- asi que no puede aplicarlo el runner a ciegas en cada corrida. Es
-# del alta, y solo del alta.
-#
-# Se aplica como `spaces_migrador` y no como `postgres` a proposito: las
-# migraciones que vienen despues ALTERAN estas tablas, y un `alter` sobre una
-# tabla de otro dueno falla. Mismo dueno para todo el esquema, siempre.
-remoto "docker run --rm '$IMAGEN' cat /app/db/schema.sql > /tmp/space-os-schema.sql"
-remoto "PGPASSWORD='$CLAVE_MIGRADOR' psql -h 127.0.0.1 -U spaces_migrador -d spaces -v ON_ERROR_STOP=1 -f /tmp/space-os-schema.sql"
-remoto "rm -f /tmp/space-os-schema.sql"
+remoto "$(cmd_volcar_esquema "$IMAGEN")"
+# `PGPASSWORD` va delante del comando y NO dentro de la receta: la clave viaja
+# por el entorno del proceso remoto, no en el argv de `psql`.
+remoto "PGPASSWORD='$CLAVE_MIGRADOR' $(cmd_aplicar_esquema)"
+remoto "$(cmd_limpiar_esquema)"
 
-remoto "docker run --rm --network host --env DATABASE_URL='$URL_MIGRADOR' '$IMAGEN' node scripts/migrar.mjs --instalacion-nueva"
+remoto "$(cmd_migrar_instalacion_nueva "$IMAGEN" "$URL_MIGRADOR")"
 
 # ─── 4 · Los dos archivos de entorno ────────────────────────────────────────
 paso "Entorno"
@@ -615,12 +601,25 @@ remoto "mkdir -p /etc/space-os"
 # `app.env`. Se parte de la plantilla versionada para que los COMENTARIOS
 # viajen al servidor: quien abra este archivo dentro de seis meses necesita
 # leer por que `COOKIE_DOMAIN` no esta, no solo que no esta.
+#
+# `CANAL` va tambien aqui, y esta linea es la deriva que este refactor cerro:
+# hasta el 2026-09-11 este guion escribia `CANAL` solo en `instancia.env` y
+# `instalar-hijo.sh` lo escribia en los dos. El que tenia razon es el
+# instalador, y no es opinion: la aplicacion lo lee de SU entorno
+# (`apps/web/app/api/version/route.ts:105-113`), que sale de `app.env` por
+# `docker --env-file` (`update.sh:97,2007`), y la plantilla lo dice donde lo
+# declara («repetido a proposito», `infra/env/app.env.example:149-156`). No se
+# notaba porque la plantilla ya trae `estable` y este guion tambien usa
+# `estable` por omision: la unica corrida en que divergian era un ensayo con
+# CANAL=beta, donde `/api/version` habria dicho `estable` mientras el
+# actualizador jalaba `beta`.
 sed \
   -e "s#^APP_URL=.*#APP_URL=https://$DOMINIO#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces#" \
+  -e "s#^DATABASE_URL=.*#DATABASE_URL=$(url_app "$CLAVE_APP")#" \
   -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/#" \
   -e "s#^BOOTSTRAP_TOKEN=.*#BOOTSTRAP_TOKEN=$TOKEN_ARRANQUE#" \
   -e "s#^FLOTA_TOKEN=.*#FLOTA_TOKEN=$TOKEN_FLOTA#" \
+  -e "s#^CANAL=.*#CANAL=$CANAL#" \
   "$TPL_APP" | remoto_escribir /etc/space-os/app.env 600
 
 # `instancia.env`. Desde el 2026-09-01 `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`

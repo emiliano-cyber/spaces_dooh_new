@@ -178,6 +178,16 @@ preparar() {
   RUTA_ANTES="$PATH"
   PATH="$BIN:$PATH"
   unset D_SSH_FALLA D_CODIGO_LOGIN D_CODIGO_BOOT D_UPDATE_FALLA D_TOKEN_ARRANQUE
+  # Desde el 2026-09-11 `provision-instancia.sh` SOURCEA `base-instancia.sh` —lo
+  # que crea la base de datos, escrito UNA vez para los dos caminos de alta— y
+  # aborta si no lo encuentra al lado. Los mutantes de abajo corren una COPIA
+  # del guion en /tmp, donde ese archivo NO esta: sin esta linea, todos los
+  # escenarios de todos los mutantes moririan por el mismo motivo --el guion
+  # parandose por falta del archivo-- y "muerde" dejaria de significar nada.
+  # Mismo mecanismo y mismo motivo que `SPACE_OS_RESPALDO_SH` en
+  # `pruebas-update.sh:494-497`; `BASE_MUT` permite, ademas, mutar el propio
+  # archivo sourceado.
+  export SPACE_OS_BASE_INSTANCIA_SH="${BASE_MUT:-$RAIZ/infra/scripts/base-instancia.sh}"
 }
 
 limpiar() {
