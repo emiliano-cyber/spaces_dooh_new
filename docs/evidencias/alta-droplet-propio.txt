@@ -237,16 +237,32 @@ sha256sum -c ../paquete-space-os.sha256
      AQUI DENTRO, esa si es una alarma real: PARA y avisanos, no sigas con
      un archivo que no coincide con el que te enviamos.
 
-  Haz lo mismo con tu licencia (la carpeta que te dimos aparte, con su propio
-  `licencia.sha256`):
+  Haz lo mismo con tu licencia. Vuelve al directorio donde dejaste lo que te
+  enviamos -- es donde estan `licencia.json`, `licencia.firma` y
+  `licencia.sha256`, los tres sueltos -- y comprueba las sumas AHI, que es
+  donde el `.sha256` espera encontrarlos:
 
 cd ..
-sha256sum -c licencia.sha256      # corrido DENTRO de la carpeta de la licencia
-mkdir -p licencia
-mv licencia.json licencia.firma paquete-space-os/licencia/
+sha256sum -c licencia.sha256
 
-  (El nombre de la carpeta de destino en el ultimo `mv` es un ejemplo --
-  usa la ruta que le vas a pasar a `--licencia` en B4/B6.)
+  🚦 ESPERADO: `licencia.json: OK` y `licencia.firma: OK`. Si sale `FAILED` o
+     "No such file or directory", PARA: o no estas en el directorio donde
+     dejaste los archivos, o alguno no llego entero.
+
+  Y ahora los dos archivos --solo esos dos, el `.sha256` no-- a una carpeta
+  propia. Se llama `licencia` y queda AL LADO de `paquete-space-os`, no dentro:
+  el paquete es identico para todos nuestros clientes y tu licencia es solo
+  tuya. Esta es exactamente la ruta que vas a escribir en `--licencia` en B4 y
+  B6:
+
+mkdir -p licencia
+mv licencia.json licencia.firma licencia/
+
+  🚦 COMPRUEBA que quedaron los dos, porque el resto de la tarjeta cuenta con
+     ello:
+
+ls licencia/
+  # ESPERADO: licencia.firma  licencia.json
 
 --------------------------------------------------------------------------------
  B4 · Corre el instalador EN SECO primero -- es el modo por omision
