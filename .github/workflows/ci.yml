@@ -117,9 +117,14 @@ jobs:
 
       # ─── PREGUNTA ABIERTA: `pruebas-update.sh` NO está aquí, y es una
       #     decisión de Emiliano, no del autor de este workflow ──────────────
-      #  Son 141 escenarios y ~7 MINUTOS por corrida, y este workflow se dispara
-      #  en CADA pull request del repositorio: añadirlo se lo cobra a todos los
-      #  PRs, incluidos los que solo tocan documentación.
+      #  El coste, MEDIDO el 2026-09-11 y no copiado: **144 escenarios y ~7
+      #  MINUTOS** por corrida. Trátalo como una afirmación con fecha: ese
+      #  número sube con cada tarea (141 el 10/09, 144 el 11/09 tras esta ola).
+      #  Si vas a decidir con él, vuelve a medirlo:
+      #      bash infra/scripts/pruebas-update.sh | tail -1
+      #  Y el workflow se dispara en CADA pull request del repositorio, así que
+      #  añadirlo se lo cobra a todos los PRs, incluidos los que solo tocan
+      #  documentación.
       #
       #  A favor de añadirlo: es el arnés que cubre el guion que corre CADA
       #  NOCHE en el servidor de un cliente real, y el defecto F3 de la revisión

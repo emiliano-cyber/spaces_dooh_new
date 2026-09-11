@@ -33,7 +33,7 @@ y está probado con arneses locales.
 correr el ensayo completo en DEMO
 (`docs/evidencias/ensayo-licencia-demo.txt`) antes de que exista un primer
 cliente en este camino. **Nada de esto está encendido en ninguna máquina**:
-`LICENCIA_REQUERIDA` vale `0` por omisión (`infra/scripts/update.sh:829`) y
+`LICENCIA_REQUERIDA` vale `0` por omisión (`infra/scripts/update.sh:837`) y
 ninguna instancia hoy lo tiene en `1`.
 
 ### b) `invalida` se parte en dos, y la línea no es «qué se rompió»
@@ -46,7 +46,7 @@ tiraba a un cliente al corriente de pago por un fallo de una herramienta
 **nuestra**, no suya.
 
 La regla que quedó, y que gobierna todo el bloque de licencia de
-`infra/scripts/update.sh:954-994` (calcula el estado) y `:1075-1107` (decide
+`infra/scripts/update.sh:962-1002` (calcula el estado) y `:1075-1107` (decide
 qué hacer con él): **¿tengo una afirmación del cliente que contradice su
 derecho?**
 
@@ -58,12 +58,12 @@ derecho?**
 | `openssl` ausente o sin `pkeyutl -verify -rawin` | falta **nuestra** herramienta | **sigue sirviendo, y avisa** | 9 |
 
 Las tres primeras filas caen en la rama `vencida|invalida` del `case` de
-`update.sh:1077` (el estado lo decide `licencia_valida()`,
-`update.sh:883-918`), y esa rama termina en `salir "$EX_LICENCIA" ...`
-(`update.sh:1082`). La cuarta es la rama `no-comprobable` del **mismo** `case`
-(`update.sh:986,1084-1095`): arranca el contenedor si estaba parado, devuelve
+`update.sh:1100` (el estado lo decide `licencia_valida()`,
+`update.sh:891-926`), y esa rama termina en `salir "$EX_LICENCIA" ...`
+(`update.sh:1157`). La cuarta es la rama `no-comprobable` del **mismo** `case`
+(`update.sh:994,1084-1095`): arranca el contenedor si estaba parado, devuelve
 nginx a la normalidad, y sale con `EX_LICENCIA_NO_COMPROBABLE`
-(`update.sh:396,1095`) sin seguir actualizando esa noche — se distingue de la
+(`update.sh:404,1095`) sin seguir actualizando esa noche — se distingue de la
 primera rama por lo que hace, no por vivir fuera del `case`.
 
 **El argumento que lo zanjó, para que quede escrito:** fallar cerrado sólo se
@@ -86,12 +86,41 @@ tercero con root sobre ese droplet que no sea el cliente.
 
 `LICENCIA_REQUERIDA` con cualquier valor que no sea `0` ni `1` **detiene el
 update con un error de configuración** (`EX_CONFIG`,
-`infra/scripts/update.sh:840`) y no toca el contenedor ni nginx. Hasta la
+`infra/scripts/update.sh:848`) y no toca el contenedor ni nginx. Hasta la
 ronda de corrección que cerró esto, un valor raro se trataba como «encendido» y
 se registraba sin más — con el apagado ya construido, eso significa que un
 dedazo en la configuración de un hijo **administrado** (que nunca debería
 llevar licencia) podía terminar apagándolo. Un valor que este guion no entiende
 no puede decidir si se apaga la instancia de un cliente.
+
+### c-bis) El `--dry-run` no apaga — y ese defecto lo trajo esta enmienda
+
+Con una licencia vencida, `update.sh --dry-run` hacía `docker stop`, reescribía
+el enlace de nginx y lo recargaba — mientras la cabecera del propio guion
+promete *«mira y cuenta; NO toca nada»* y la tarjeta del alta manda al cliente
+**correr en seco antes** de instalar de verdad.
+
+**Es nuestro, y conviene dejarlo medido** porque la primera versión de esta nota
+lo dio por heredado: `git show 97c0304:infra/scripts/update.sh | grep -c
+LICENCIA_REQUERIDA` devuelve **0**. Antes de esta rama no existía bloque de
+licencia que pudiera apagar nada; lo introdujo `8f271bd` (tarea 5). Lo anterior
+es sólo la estructura — que la rama de `--dry-run` viva mucho más abajo.
+
+**Cerrado el 2026-09-11**, siguiendo la convención que el archivo ya tenía
+resuelta (`reportar_a_flota` hace `[ "$DRY_RUN" = 0 ] || return 0`,
+`infra/scripts/update.sh:635`) y **sin callarse**: en seco se registra
+`APAGARIA (8): …` y la corrida sigue por su camino de dry-run normal. Un ensayo
+que apaga es malo; uno que no dice que la licencia venció es igual de inútil.
+
+Los guards de los otros dos actuadores viven **dentro** de
+`licencia_arrancar_si_parado()` y `nginx_sitio()`, **después** de que cada uno
+decida que de verdad actuaría — así el dry-run habla sólo cuando hay algo que
+contar. Lo afirma **E135** en `pruebas-update.sh`, con las dos mitades (no se
+apaga, y sí se dice), y su mutante.
+
+> El cuerpo del commit `d958e40` dice que esto quedó sin corregir. Era cierto
+> cuando se escribió y dejó de serlo en el commit siguiente (`2dde24e`). El
+> histórico no se reescribe; **el estado final es éste**.
 
 ### d) Lo que queda abierto de esta enmienda
 
@@ -143,9 +172,16 @@ formatear para lectura humana.
 el 2026-09-11, al meter en `ci.yml` los otros dos arneses nuevos
 (`pruebas-provision.sh` ya estaba; `pruebas-instalar-hijo.sh` entró ese día).
 El de `update.sh` **se dejó fuera a propósito, y no es una decisión técnica:
-es de Emiliano.** El dato que la sostiene es el coste: **141 escenarios,
-~7 minutos**, pagados por **cada** pull request del repositorio, incluidos los
-que sólo tocan documentación.
+es de Emiliano.** El dato que la sostiene es el coste, **medido el 2026-09-11**:
+**144 escenarios, ~7 minutos**, pagados por **cada** pull request del
+repositorio, incluidos los que sólo tocan documentación.
+
+> [!warning] Ese 144 es una medida con fecha, no una constante
+> Sube con cada tarea: eran **141 el 10/09** y **144 el 11/09** al cerrar esta
+> ola. Este documento ya lo tuvo mal un día por copiarlo en vez de medirlo. Si
+> vas a decidir con ese número, vuelve a sacarlo:
+> `bash infra/scripts/pruebas-update.sh | tail -1`. Lo que **no** se mueve es
+> el orden de magnitud del tiempo, que es lo que de verdad pesa en la decisión.
 
 Lo que pesa del otro lado: es el arnés del único guion que corre **cada noche
 en el servidor de un cliente real**, y el defecto más caro de la revisión final
@@ -387,8 +423,9 @@ contrato necesita para poder reclamar. Vendido como candado técnico sería fals
 ## Lo que queda abierto, con su disparador escrito
 
 **La credencial del registro de imágenes.** Para bajar la imagen, cada instancia
-guarda `REGISTRY_TOKEN` en disco (`provision-instancia.sh:631`,
-`update.sh:1308`). El cliente tiene root, así que puede leerlo — y es un token de
+guarda `REGISTRY_TOKEN` en disco: lo escribe en `instancia.env`
+`provision-instancia.sh:647` (o `instalar-hijo.sh`, en el otro camino de alta) y
+lo lee de ahí `update.sh:788`. El cliente tiene root, así que puede leerlo — y es un token de
 **la cuenta**, o sea el mismo para toda la flota: dar de baja a uno obligaría a
 rotárselo a todos.
 

@@ -77,6 +77,17 @@ La entrada más reciente va arriba.
     arregladas, y esta vez cada comando se ejecutó de verdad antes de
     escribirlo.
 
+  - **La prueba en seco apagaba el sistema de verdad.** El actualizador tiene
+    un modo «cuéntame qué harías sin hacer nada», y el instructivo le pide a
+    quien instala que lo use **antes** de la instalación real, justamente para
+    que nada pueda salir mal. Pero si en ese momento el permiso estaba
+    vencido, ese modo **apagaba la instancia igual** —y encima sin avisar de
+    que lo iba a hacer—. Alguien podía dejar un sistema abajo creyendo que
+    sólo estaba mirando. Ahora la prueba en seco no toca nada y **dice en voz
+    alta** lo que haría: «apagaría, porque el permiso está vencido». Las dos
+    cosas hacían falta: una prueba que apaga es mala, y una que se calla que
+    el permiso venció no sirve para ensayar nada.
+
 ## 2026-09-10
 
 - **El tablero de servidores ya dice POR QUÉ uno no responde.** Cuando un servidor

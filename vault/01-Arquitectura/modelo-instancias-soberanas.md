@@ -371,7 +371,7 @@ cometer»*.
 > correr el ensayo completo en DEMO
 > (`docs/evidencias/ensayo-licencia-demo.txt`). **Nada de esto está encendido
 > en ninguna máquina**: `LICENCIA_REQUERIDA` vale `0` por omisión
-> (`infra/scripts/update.sh:829`) y ningún hijo, DEMO incluido, lo tiene en `1`
+> (`infra/scripts/update.sh:837`) y ningún hijo, DEMO incluido, lo tiene en `1`
 > hoy.
 
 ### Vocabulario: PADRE y **hijos**
@@ -442,11 +442,11 @@ imagen y pide el certificado. Sus tres tarjetas, en el orden en que se usan:
 ### La regla de los dos archivos de configuración: un archivo, un parser
 
 `instancia.env` lo **sourcea** bash (`update.sh` hace `. "$CONF"`,
-`update.sh:359`) y sus valores van **entrecomillados**: un valor con un
+`update.sh:367`) y sus valores van **entrecomillados**: un valor con un
 espacio sin comillas hace que bash ejecute la segunda palabra como si fuera un
 comando, como root, cada noche (invariante I7, documentado también en
 `CLAUDE.md`). `app.env` lo lee **Docker** como `--env-file`
-(`update.sh:2007` arranca el contenedor con él) y sus valores van **sin
+(`update.sh:2083` arranca el contenedor con él) y sus valores van **sin
 comillas**: Docker no las interpreta, se las queda dentro del valor.
 
 El propio `update.sh` ya advertía la diferencia, antes de que hiciera falta:
@@ -454,24 +454,24 @@ El propio `update.sh` ya advertía la diferencia, antes de que hiciera falta:
 > Formato `--env-file` de docker: CLAVE=valor, sin comillas ni `export`. Por
 > eso se lee con grep y no con `.`: sourcearlo interpretaria las comillas de
 > otra manera que docker, y ahi es donde nacen las diferencias invisibles.
-> — `update.sh:1417-1420`
+> — `update.sh:1493-1496`
 
 `instalar-hijo.sh` tenía una sola función para los dos archivos y siempre
 entrecomillaba, así que `app.env` quedaba con la comilla dentro del valor.
-`url_de_env_app()` (`update.sh:1416-1422`) leía esa comilla, la comparaba
+`url_de_env_app()` (`update.sh:1492-1498`) leía esa comilla, la comparaba
 contra el destino de `instancia.env` (que sí sourcea, sin comillas), los dos
-nunca coincidían, y `update.sh:1433` abortaba con `EX_CONFIG` en la primera
+nunca coincidían, y `update.sh:1509` abortaba con `EX_CONFIG` en la primera
 corrida del cron: la instancia quedaba servida pero sin poder actualizarse
 jamás. Corregido separando `reescribir_env_sourceado()` (para `instancia.env`)
 de `reescribir_env_docker()` (para `app.env`) — el aviso estaba escrito
-(`update.sh:1417-1420`) y lo que faltó fue leerlo.
+(`update.sh:1493-1496`) y lo que faltó fue leerlo.
 
 ### Los dos códigos de salida, y son dos llamadas de teléfono distintas
 
 | Código | Qué significa | A quién se llama |
 |---|---|---|
-| **8** (`EX_LICENCIA`, `update.sh:388`) | la licencia venció, es inválida, o es de otra instancia/dominio: el contenedor está detenido a propósito y nginx sirve la página de vencimiento | al cliente, de facturación |
-| **9** (`EX_LICENCIA_NO_COMPROBABLE`, `update.sh:396`) | falta `openssl` o su versión no soporta `pkeyutl -verify -rawin` con Ed25519: la instancia **sigue sirviendo** | a nosotros, a arreglar una herramienta propia — el cliente no tiene nada que ver |
+| **8** (`EX_LICENCIA`, `update.sh:396`) | la licencia venció, es inválida, o es de otra instancia/dominio: el contenedor está detenido a propósito y nginx sirve la página de vencimiento | al cliente, de facturación |
+| **9** (`EX_LICENCIA_NO_COMPROBABLE`, `update.sh:404`) | falta `openssl` o su versión no soporta `pkeyutl -verify -rawin` con Ed25519: la instancia **sigue sirviendo** | a nosotros, a arreglar una herramienta propia — el cliente no tiene nada que ver |
 
 El panel de flota ya distingue los dos (`apps/flota/diagnostico.mjs:133-134`):
 el 8 se traduce como *«la licencia vencio y la instancia esta apagada a
@@ -572,7 +572,7 @@ sourcea `instancia.env`, así que el cliente podía escribir esa misma variable
 en su propio archivo y congelar su licencia en `sana` para siempre, sin
 parchear una sola línea de código y sin dejar de reportar al panel de flota.
 Se quitó por completo de `licencia_estado()`; ahora usa siempre `date -u +%s`
-(`update.sh:944`). El arnés ya no mueve el reloj: mueve las **fechas de la
+(`update.sh:952`). El arnés ya no mueve el reloj: mueve las **fechas de la
 licencia** contra un banco de casos compartido
 (`infra/licencias/estados.casos.tsv`), que es lo que ya fabricaba de todos
 modos. Vale la pena que quede escrito por qué se cerró: es la clase de agujero
@@ -581,9 +581,18 @@ que se reintroduce solo si nadie deja la razón al lado.
 ### La licencia, en cuatro frases
 
 1. **Archivo firmado en la máquina, comprobado sin salir a internet.** El PADRE
-   firma con su llave privada; la pública va en la imagen, idéntica para toda la
-   flota. El PADRE sólo hace falta para **renovar**, nunca para funcionar — si se
-   cae, ningún cliente se queda fuera de su propio sistema.
+   firma con su llave privada; la pública es idéntica para toda la flota y
+   **viaja en el paquete de alta, no en la imagen** — `instalar-hijo.sh:751` la
+   instala en `/opt/space-os/space-os.pub` (modo 644), que es de donde la lee
+   `update.sh:851`. En el `Dockerfile` no hay ningún `COPY` de `space-os.pub`, y
+   no puede haberlo: quien comprueba la firma es `update.sh`, **fuera** del
+   contenedor. El PADRE sólo hace falta para **renovar**, nunca para funcionar —
+   si se cae, ningún cliente se queda fuera de su propio sistema.
+
+   > Esta nota decía «va en la imagen» hasta el 2026-09-11. Era falso, y del
+   > tipo que más caro sale: mandaba a buscar la llave a un sitio donde no
+   > está, y sugería que el artefacto cambia entre clientes cuando el que
+   > cambia es el paquete.
 2. **`update.sh` apaga; la aplicación sólo avisa.** La comprobación (Ed25519 con
    `openssl`) vive fuera del contenedor, así que parchear el JavaScript no cambia
    nada. La aplicación no comprueba ninguna firma: pinta la banda y nada más.

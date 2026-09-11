@@ -91,7 +91,7 @@ grep '^DOMINIO=' /etc/space-os/demo-instancia.env
 
   ESPERADO: `DOMINIO=prueba.space-os.io`. Con esto, `NGINX_SITIO_NORMAL`,
   `NGINX_SITIO_ACTIVO` y `NGINX_SITIO_SIN_LICENCIA` (los tres calculados a
-  partir de `$DOMINIO` en `update.sh:863-865`) apuntan a los archivos REALES
+  partir de `$DOMINIO` en `update.sh:871-873`) apuntan a los archivos REALES
   de esta instancia y no a un `space-os.conf` que no existe. Se queda
   permanente: no es parte de lo que el bloque 8 retira.
 
@@ -151,8 +151,8 @@ mkdir -p /etc/space-os/licencia
   🚦 OJO CON LA FECHA: `firmar-licencia.mjs` pone `--aviso-dias 30` y
      `--gracia-dias 15` por omision (`firmar-licencia.mjs:57-58`), y
      `licencia_estado()` solo devuelve `vencida` cuando `ahora >= vence +
-     gracia_dias` (`update.sh:946-951`). Un `--vence` de AYER cae en
-     `gracia`, que **no apaga** -- el `case` de `update.sh:1077` solo apaga en
+     gracia_dias` (`update.sh:954-959`). Un `--vence` de AYER cae en
+     `gracia`, que **no apaga** -- el `case` de `update.sh:1100` solo apaga en
      `vencida|invalida`. Por eso la fecha va **20 dias atras**, con margen de
      sobra sobre los 15 de gracia por omision.
 
@@ -170,7 +170,22 @@ node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
 --------------------------------------------------------------------------------
 cp /tmp/licencia-ensayo-demo/licencia.json  /etc/space-os/licencia/licencia.json
 cp /tmp/licencia-ensayo-demo/licencia.firma /etc/space-os/licencia/licencia.firma
-chmod 600 /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+chmod 755 /etc/space-os/licencia
+chmod 644 /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+
+  🚦 644 Y NO 600, Y EL DIRECTORIO TAMBIEN. Aqui dentro da igual --en DEMO
+     lee root y este directorio no se monta en el contenedor-- pero ESTAS
+     SON LAS LINEAS QUE ALGUIEN VA A COPIAR el dia que haya que reponer una
+     licencia a mano en la maquina de un cliente. Y ahi el contenedor corre
+     como `node`: con 600 de root, o con el archivo bien dentro de un
+     directorio 700, la aplicacion no puede leer la licencia, y el sintoma
+     NO es un error -- es que la banda de aviso de vencimiento deja de
+     pintarse, callada, los 30 dias de aviso y los 15 de gracia. Es el
+     defecto F2 de la revision final, corregido en `instalar-hijo.sh` el
+     11/09; estas dos lineas eran el ultimo sitio donde seguia vivo.
+
+     Y no se pierde nada al abrirlo: una licencia NO es un secreto. Es una
+     afirmacion firmada y publica, y su valor esta en la firma.
 
 --------------------------------------------------------------------------------
  6 · Encender la comprobacion
@@ -186,7 +201,7 @@ grep '^LICENCIA_REQUERIDA=' /etc/space-os/demo-instancia.env
  7 · 🚦 GATE · correr `update.sh`, y que apague
 --------------------------------------------------------------------------------
   `SPACE_OS_CONF` NO ES OPCIONAL: sin el, `update.sh` lee
-  `/etc/space-os/instancia.env` por omision (`update.sh:359`), que no es la
+  `/etc/space-os/instancia.env` por omision (`update.sh:367`), que no es la
   configuracion de DEMO -- ese guion "actualizaria otra cosa", con el mismo
   aviso ya escrito en `docs/evidencias/flota-fase2-desplegar.txt:125`.
 
@@ -244,11 +259,17 @@ node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
 
 cp /tmp/licencia-ensayo-demo-buena/licencia.json  /etc/space-os/licencia/licencia.json
 cp /tmp/licencia-ensayo-demo-buena/licencia.firma /etc/space-os/licencia/licencia.firma
+chmod 644 /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+
+  El `chmod` se repite aqui y no se da por heredado del bloque 5: `cp` sobre
+  un archivo que YA existe conserva los permisos del destino, pero si alguien
+  copia solo este bloque --que es justo lo que va a hacer quien reponga una
+  licencia-- el archivo puede no existir y nacer con el umask de la sesion.
 
 --------------------------------------------------------------------------------
  10 · 🚦 GATE · correr `update.sh` con `openssl` INALCANZABLE
 --------------------------------------------------------------------------------
-  `OPENSSL_BIN` es la costura que existe justo para esto (`update.sh:849`):
+  `OPENSSL_BIN` es la costura que existe justo para esto (`update.sh:857`):
   antepone el binario al PATH sin reemplazarlo, asi que apuntarlo a una ruta
   que no existe ejercita de verdad la rama "falta la herramienta" sin tocar
   el `openssl` real de la maquina (que otros procesos SI necesitan).
@@ -261,7 +282,7 @@ echo "codigo de salida: $?"
   🚦 ESPERADO: `codigo de salida: 9`. El log dice
      `AVISO (9): la licencia de esta instancia NO SE PUDO COMPROBAR (...)`,
      con el motivo entre parentesis diciendo que falta
-     `openssl-que-no-existe` en esta maquina (`update.sh:978,1095`), y termina
+     `openssl-que-no-existe` en esta maquina (`update.sh:986,1095`), y termina
      ahi -- SIN seguir con pull ni migraciones. Comprueba que la instancia
      realmente sigue respondiendo, no solo que el codigo sea 9:
 
@@ -305,7 +326,7 @@ echo "codigo de salida: $?"
   🚦 ESPERADO: `codigo de salida: 0` (o el que corresponda a "sin cambios" si
      no hay imagen nueva que jalar -- lo que importa es que NO sea 8 ni 9).
      Sin ejecutar NINGUN comando de reanudacion aparte: `licencia_arrancar_si_parado()`
-     (`update.sh:1068-1073`) arranca el contenedor si habia quedado detenido,
+     (`update.sh:1084-1096`) arranca el contenedor si habia quedado detenido,
      ANTES de devolver nginx a la normalidad. Comprueba las dos cosas:
 
 docker inspect --format '{{.State.Running}}' space-os-demo
@@ -351,7 +372,7 @@ echo "codigo de salida: $?"
 
   🚦 ESPERADO: `codigo de salida: 0` (nada relacionado con licencia se
      ejecuta con `LICENCIA_REQUERIDA=0` -- ni siquiera se calcula el estado,
-     `update.sh:954`). Confirma una ultima vez:
+     `update.sh:962`). Confirma una ultima vez:
 
 curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
   # ESPERADO: 200
@@ -378,7 +399,7 @@ curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spa
 
   · Corre `update.sh` a mano y lee el log completo, no solo el codigo de
     salida -- `licencia_valida()` registra la razon exacta por la que una
-    firma no valida (`update.sh:884-892`):
+    firma no valida (`update.sh:892-900`):
 
 # SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | grep licencia
 
