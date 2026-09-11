@@ -163,6 +163,24 @@ describe('fraseDeActualizacion', () => {
     expect(fraseDeActualizacion({ codigo: 7 })).toContain('LA BASE QUEDO VACIA')
   })
 
+  // El 8 es de la licencia (ADR 0032), no de una averia. Un hijo apagado a
+  // proposito no puede leerse igual que uno caido: son dos llamadas de telefono
+  // distintas.
+  it('el 8 dice que esta apagado a proposito, no que se cayo', () => {
+    const frase = fraseDeActualizacion({ codigo: 8 })
+    expect(frase).toContain('licencia')
+    expect(frase).toContain('a proposito')
+  })
+
+  // El 9 es una falta de herramienta, no un problema del cliente. Sigue sirviendo,
+  // pero el panel tiene que verlo porque la verificacion de licencia no se puede
+  // hacer.
+  it('el 9 dice que sigue sirviendo, pero el problema es de herramienta', () => {
+    const frase = fraseDeActualizacion({ codigo: 9 })
+    expect(frase).toContain('sigue sirviendo')
+    expect(frase).toContain('herramienta')
+  })
+
   it('un codigo que este panel no conoce se NOMBRA en vez de callarse', () => {
     expect(fraseDeActualizacion({ codigo: 42 })).toContain('42')
   })
@@ -172,6 +190,6 @@ describe('fraseDeActualizacion', () => {
   })
 
   it('los codigos son una lista cerrada', () => {
-    expect(CODIGOS_UPDATE).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 75])
+    expect(CODIGOS_UPDATE).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 75])
   })
 })
