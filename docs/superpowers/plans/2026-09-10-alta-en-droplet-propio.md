@@ -1760,6 +1760,102 @@ git commit -m "docs(licencia): el ensayo en DEMO, la boveda al dia y la bitacora
 
 ---
 
+## Tarea 10: lo que crea una base de datos se escribe UNA vez
+
+> **Tarea añadida el 2026-09-11, durante la ejecución.** No estaba en el plan
+> original y nace de un hallazgo medido en la revisión de la tarea 8: mi brief de
+> esa tarea **se olvidaba de la base de datos entera** —roles, esquema,
+> migraciones—, el implementador lo detectó (sin eso «la primera corrida de
+> `update.sh`» no podía funcionar nunca) y lo resolvió **copiando** la lógica de
+> `provision-instancia.sh`.
+>
+> El revisor midió el resultado: **38 líneas idénticas carácter a carácter**, y
+> unas 120-150 contando ayudantes. Y encontró que **la deriva ya nació en ese
+> mismo commit** (`CANAL` acabó en `app.env` en uno y no en el otro).
+>
+> **Por qué esto no se puede dejar así, dicho con la regla del repositorio:**
+> `zonas-de-riesgo.md` clasifica el aislamiento entre organizaciones como **R2**,
+> y avisa de que *su modo de fallo no da error* — una consulta devuelve cero
+> filas en silencio, o filas de otra empresa. El día que alguien arregle un
+> privilegio de rol en un archivo y no en el otro, las instancias de cliente
+> nacerán con el privilegio viejo **y nada fallará**: darán datos de quien no
+> toca. Ya pasó dos veces en este repositorio por otra vía.
+
+**Archivos:**
+- Crear: `infra/scripts/base-instancia.sh`
+- Modificar: `infra/scripts/provision-instancia.sh` (sustituir lo extraído por un `source` y una llamada)
+- Modificar: `infra/scripts/instalar-hijo.sh` (lo mismo)
+
+**Interfaces:**
+- Consume: nada de las tareas anteriores.
+- Produce: un archivo que los dos guiones **sourcean**, con las funciones que
+  crean los roles, aplican el esquema y corren las migraciones. El patrón ya
+  existe en este repositorio: `update.sh` sourcea `respaldo.sh` por exactamente
+  esta razón, y su comentario de la línea 209 lo dice.
+
+**El riesgo, y la red:** `provision-instancia.sh` es lo que crea las instancias
+de clientes **reales** hoy. Su arnés es `infra/scripts/pruebas-provision.sh` y
+**es la puerta de esta tarea**: tiene que quedar en verde sin tocar ni un
+escenario. Si un escenario obliga a cambiarse, esta tarea ha cambiado el
+comportamiento y hay que parar.
+
+- [ ] **Paso 1: medir el punto de partida**
+
+```
+bash infra/scripts/pruebas-provision.sh 2>&1 | tail -3
+```
+
+Anotar el recuento **antes de tocar nada**. Sin este número no se puede afirmar
+después que nada se rompió.
+
+- [ ] **Paso 2: encontrar lo que de verdad está duplicado**
+
+No fiarse de la cifra de la revisión: medirla otra vez. Los dos guiones tienen
+propósitos distintos —uno empuja por SSH, el otro corre en la máquina— así que
+**lo común es lo que le habla a Postgres**, no todo lo que se parezca.
+
+Lo que **no** se extrae: todo lo que dependa de cómo se llega a la máquina
+(`remoto()`, `ejecutar`, `escribir`). Extraer eso acoplaría los dos caminos, que
+es lo contrario de lo que se busca.
+
+- [ ] **Paso 3: escribir `infra/scripts/base-instancia.sh`**
+
+Con la cabecera que este repositorio usa: qué es, por qué existe y **qué fallo
+motivó su existencia** — que es lo que impide que alguien lo vuelva a duplicar.
+Las funciones reciben por parámetro lo que cambia y **no leen variables
+globales de sus llamadores**: eso es lo que hace que sirva a los dos.
+
+- [ ] **Paso 4: que los dos guiones lo sourceen**
+
+Igual que `update.sh` hace con `respaldo.sh`, y con el mismo cuidado: si el
+archivo no está al lado, **abortar diciéndolo**, no seguir a medias.
+
+- [ ] **Paso 5: la puerta**
+
+```
+bash infra/scripts/pruebas-provision.sh 2>&1 | tail -3
+bash infra/scripts/instalar-hijo.sh --instancia prueba --dominio prueba.ejemplo.invalid --flota-token t --licencia /tmp/no-existe
+bash -n infra/scripts/provision-instancia.sh infra/scripts/instalar-hijo.sh infra/scripts/base-instancia.sh
+```
+
+El arnés de aprovisionamiento **con el mismo recuento del paso 1 y 0 rojas**, sin
+haber tocado ningún escenario. Y el instalador sigue fallando en seco igual.
+
+- [ ] **Paso 6: cerrar la deriva que ya existe**
+
+`CANAL` acabó en `app.env` en un guion y no en el otro. Averiguar cuál de los
+dos tiene razón —leyendo qué espera la aplicación— y dejar los dos iguales.
+Decirlo en el commit: es el ejemplo vivo de por qué existe esta tarea.
+
+- [ ] **Paso 7: commit**
+
+```bash
+git add infra/scripts/base-instancia.sh infra/scripts/provision-instancia.sh infra/scripts/instalar-hijo.sh
+git commit -m "refactor(instancias): lo que crea una base de datos se escribe una vez, no dos"
+```
+
+---
+
 ## Autorrevisión de este plan
 
 **1 · Cobertura del spec.** Recorridas sus trece secciones:
