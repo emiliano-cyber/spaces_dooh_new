@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { estadoDeLicencia } from './licencia'
+import { avisoDeLicencia, estadoDeLicencia } from './licencia'
 
 // El banco vive fuera de `apps/web` a proposito: lo comparte con el arnes de
 // `update.sh`, que es la otra implementacion de esta misma regla.
@@ -73,5 +73,63 @@ describe('estadoDeLicencia · lo que no es una licencia', () => {
   it('los dias que no son numeros no caen a un valor por omision', () => {
     expect(estadoDeLicencia({ ...base, aviso_dias: 'treinta' }, ahora)).toBe('invalida')
     expect(estadoDeLicencia({ ...base, gracia_dias: -1 }, ahora)).toBe('invalida')
+  })
+})
+
+// avisoDeLicencia es la unica capa que decide QUE SE PINTA. No comprueba nada
+// nuevo: reusa estadoDeLicencia y solo traduce dos de sus cinco salidas a un
+// mensaje. Las otras tres devuelven null porque, en cada una, decir algo seria
+// describir un estado imposible o innecesario (ver BandaLicencia.tsx).
+describe('avisoDeLicencia', () => {
+  const base = {
+    instancia: 'pixeled',
+    dominio: 'pixeled.ejemplo.invalid',
+    emitida: '2026-01-01',
+    vence: '2027-01-01',
+    aviso_dias: 30,
+    gracia_dias: 15,
+  }
+
+  // El silencio es la senal: si la licencia esta sana, no hay nada que avisar.
+  it('sana no dice nada', () => {
+    expect(avisoDeLicencia(base, new Date('2026-11-01T00:00:00Z'))).toBeNull()
+  })
+
+  // Un hijo ADMINISTRADO no tiene licencia montada: no es un error, es el caso
+  // normal de media flota. `estadoDeLicencia` lo lee como `invalida`, y aqui
+  // tampoco se pinta nada.
+  it('sin licencia (hijo administrado) no dice nada', () => {
+    expect(avisoDeLicencia(null, new Date('2026-11-01T00:00:00Z'))).toBeNull()
+  })
+
+  it('en aviso devuelve el tono y la fecha de vencimiento', () => {
+    expect(avisoDeLicencia(base, new Date('2026-12-15T00:00:00Z'))).toEqual({
+      tono: 'aviso',
+      vence: '2027-01-01',
+      finGracia: '2027-01-16',
+    })
+  })
+
+  // En gracia la fecha que importa es `finGracia`, no `vence`: no cuando
+  // vencio, sino cuando deja de funcionar. Es lo unico que la persona puede
+  // hacer algo por evitar.
+  it('en gracia devuelve el tono y cuando deja de funcionar', () => {
+    expect(avisoDeLicencia(base, new Date('2027-01-05T00:00:00Z'))).toEqual({
+      tono: 'gracia',
+      vence: '2027-01-01',
+      finGracia: '2027-01-16',
+    })
+  })
+
+  // vencida e invalida no dicen nada: en esos estados `update.sh` ya apago el
+  // contenedor (vencida) o no hay nada valido que leer (invalida). En ambos
+  // casos pintar algo describiria un estado que no puede darse con este codigo
+  // corriendo.
+  it('vencida no dice nada', () => {
+    expect(avisoDeLicencia(base, new Date('2027-02-01T00:00:00Z'))).toBeNull()
+  })
+
+  it('invalida no dice nada', () => {
+    expect(avisoDeLicencia({ ...base, vence: 'el mes que viene' }, new Date('2026-11-01T00:00:00Z'))).toBeNull()
   })
 })

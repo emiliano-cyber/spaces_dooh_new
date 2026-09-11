@@ -49,3 +49,32 @@ export function estadoDeLicencia(licencia: unknown, ahora: Date): EstadoLicencia
   if (t < finGracia) return 'gracia'
   return 'vencida'
 }
+
+// ============================================================================
+//  avisoDeLicencia — que se pinta, y nada mas. No es una segunda comprobacion:
+//  reusa `estadoDeLicencia` y solo traduce dos de sus cinco salidas a un
+//  mensaje. Las otras tres (sana, vencida, invalida) devuelven null:
+//  - `sana`: el silencio es la senal, no hay nada que avisar.
+//  - `invalida`: cubre tambien al hijo administrado, que no tiene licencia
+//    montada -- no es un error, es el caso normal de media flota.
+//  - `vencida`: en ese estado `update.sh` ya apago el contenedor con
+//    `openssl`, FUERA de aqui. Pintar algo describiria un estado que no puede
+//    darse con este codigo corriendo (ver BandaLicencia.tsx).
+// ============================================================================
+export function avisoDeLicencia(
+  licencia: unknown,
+  ahora: Date,
+): { tono: 'aviso' | 'gracia'; vence: string; finGracia: string } | null {
+  const estado = estadoDeLicencia(licencia, ahora)
+  if (estado !== 'aviso' && estado !== 'gracia') return null
+
+  // `estadoDeLicencia` ya valido forma y tipo de estos campos; se releen aqui
+  // porque esa funcion no expone su objeto intermedio.
+  const l = licencia as Record<string, unknown>
+  const vence = String(l.vence)
+  const finGracia = new Date(Date.parse(`${vence}T00:00:00Z`) + Number(l.gracia_dias) * DIA)
+    .toISOString()
+    .slice(0, 10)
+
+  return { tono: estado, vence, finGracia }
+}
