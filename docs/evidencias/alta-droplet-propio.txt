@@ -257,24 +257,50 @@ mv licencia.json licencia.firma paquete-space-os/licencia/
 
 sudo -i
 
-  Ya como root (tu prompt cambia a `#`), exporta los tres valores que te
-  dimos -- en el ENTORNO y no como argumento, para que no queden en tu
-  historial -- y corre el instalador SIN anteponer `sudo`: ya eres root, y
-  anteponerlo aqui reintroduce exactamente el problema que `sudo -i` evita
-  (el 🚦 de abajo dice por que). Sin `--confirmar`, el instalador NO TOCA
-  NADA: solo cuenta lo que haria.
+  Ya como root (tu prompt cambia a `#`), exporta los valores que te dimos --
+  TODOS en el ENTORNO y ninguno como argumento, para que no queden en tu
+  historial ni a la vista de un `ps` mientras la instalacion corre -- y corre
+  el instalador SIN anteponer `sudo`: ya eres root, y anteponerlo aqui
+  reintroduce exactamente el problema que `sudo -i` evita (el 🚦 de abajo dice
+  por que). Sin `--confirmar`, el instalador NO TOCA NADA: solo cuenta lo que
+  haria.
 
 export REGISTRY='<el registro que te dimos>'
 export REGISTRY_TOKEN='<el token de solo lectura que te dimos>'
 export PADRE_URL='<la URL que te dimos, sin barra al final>'
+export FLOTA_TOKEN='<el token de tu instancia, que te dimos aparte>'
+
+  Y si ya tienes tu Spaces (respaldo y registros fuera de este droplet), las
+  tres juntas. Si todavia no lo tienes, omite las tres y sigue -- el
+  instalador avisa fuerte y continua, pero tu instancia queda SIN respaldo
+  fuera de esta maquina hasta que las agregues:
+
+export SPACES_KEY='<tu llave de Spaces>'
+export SPACES_SECRET='<tu secreto>'
+export SPACES_BUCKET='<tu bucket>'
+
+  Ahora si, el instalador. Fijate en que NINGUN valor secreto aparece en esta
+  linea: por argumento va solo lo que identifica a tu instancia, y eso ya es
+  publico (esta en tu DNS y en tu certificado).
 
 bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
-  --flota-token '<el token que te dimos en A1>' \
   --licencia ./licencia \
-  --contacto <tu-correo-de-soporte> \
-  --spaces-key '<tu llave de Spaces>' --spaces-secret '<tu secreto>' --spaces-bucket '<tu bucket>'
+  --contacto <tu-correo-de-soporte>
+
+  🚦 Y NO TENGAS OTRAS VARIABLES NUESTRAS PUESTAS EN ESTA SESION.
+     `SPACE_OS_LICENCIA_PUB` y `SPACE_OS_BASE_INSTANCIA_SH` son costuras de
+     pruebas: si estan en tu entorno, el instalador usaria la llave publica o
+     las recetas de base de datos que ellas apunten en vez de las del paquete
+     que verificaste en B3. En una sesion recien abierta con `sudo -i` no
+     estan, que es el caso normal. Si tienes duda:
+     `env | grep SPACE_OS_` no tiene que devolver nada.
+
+  🚦 SI TE EQUIVOCAS Y PASAS UN SECRETO COMO ARGUMENTO (`--flota-token`,
+     `--spaces-key`, `--spaces-secret`, `--spaces-bucket`), el instalador PARA
+     y te dice como ponerlo por entorno. Esas banderas ya no existen: una sola
+     de ellas deja el valor en tu `~/.bash_history` para siempre.
 
   🚦 POR QUE `sudo -i` Y NO `sudo -E`. `sudo -E` solo preserva tu entorno si
      tienes el privilegio `SETENV` en `sudoers`, o si esas variables estan
@@ -295,11 +321,6 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
      el rechazo en una maquina real (ronda de correccion 2 de esta tarea);
      el razonamiento de arriba es lo que sostiene la decision.
 
-  Las tres ultimas (`--spaces-*`) son para que tus respaldos y tus registros
-  salgan de este droplet hacia tu propio Spaces -- si todavia no los tienes,
-  puedes omitir las tres y seguir: el instalador avisa fuerte y sigue, pero tu
-  instancia queda SIN respaldo fuera de esta maquina hasta que las agregues.
-
 --------------------------------------------------------------------------------
  B5 · 🚦 GATE · lee lo que el instalador dijo que haria
 --------------------------------------------------------------------------------
@@ -314,7 +335,7 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 --------------------------------------------------------------------------------
   El MISMO comando de B4, SIN `sudo` delante (sigues siendo root de la misma
   sesion que abriste con `sudo -i` en B4 -- si cerraste esa terminal, repite
-  `sudo -i` y los tres `export` antes de seguir), con `--confirmar` al
+  `sudo -i` y TODOS los `export` antes de seguir), con `--confirmar` al
   final. Tarda varios minutos: instala Docker, PostgreSQL, nginx y certbot;
   crea tu base de datos; baja la imagen de la aplicacion; y pide tu
   certificado.
@@ -322,10 +343,8 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
-  --flota-token '<el token que te dimos en A1>' \
   --licencia ./licencia \
   --contacto <tu-correo-de-soporte> \
-  --spaces-key '<tu llave de Spaces>' --spaces-secret '<tu secreto>' --spaces-bucket '<tu bucket>' \
   --confirmar
 
   ESPERADO al final: `login 200` y el banner "INSTALACION HECHA". Si se

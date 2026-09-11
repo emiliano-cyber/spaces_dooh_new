@@ -232,8 +232,8 @@ DOM=prueba.ejemplo.com   # dominio de prueba, no existe
 escenario 'CONTENIDO · app.env sin comillas, instancia.env con comillas, mismo destino en los dos'
 preparar
 fabricar_licencia p "$DOM"
-correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid -- \
-  --instancia p --dominio "$DOM" --flota-token t0ken-de-flota --licencia "$LICDIR"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
 codigo_es 0
 
 # 1 · app.env: Docker no quita comillas, asi que no puede haber ninguna.
@@ -282,8 +282,8 @@ limpiar
 escenario 'PERMISOS · la licencia se instala legible por el contenedor (644); los .env no (600)'
 preparar
 fabricar_licencia p "$DOM"
-correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid -- \
-  --instancia p --dominio "$DOM" --flota-token t0ken-de-flota --licencia "$LICDIR"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
 codigo_es 0
 
 # El montaje `-v /etc/space-os/licencia:...:ro` conserva dueno y permisos del
@@ -300,6 +300,56 @@ else mal 'no se fija el modo del directorio de la licencia: un umask restrictivo
 # Lo que si es secreto sigue siendolo.
 modo_escrito /etc/space-os/app.env 600
 modo_escrito /etc/space-os/instancia.env 600
+limpiar
+
+# ============================================================================
+#  SECRETOS · ninguno viaja en `argv`  (F4)
+# ----------------------------------------------------------------------------
+#  La cabecera de `instalar-hijo.sh` prometia «nunca argumentos, para que no
+#  acaben en `ps` ni en el historial de la shell» y tres lineas mas abajo
+#  aceptaba `--flota-token`, `--spaces-key` y `--spaces-secret`. En la maquina
+#  del cliente eso son varios minutos de `ps` y una linea permanente en su
+#  `~/.bash_history` -- una maquina que no es nuestra y cuya lista de usuarios
+#  no controlamos.
+#
+#  Se comprueba UNA BANDERA POR CORRIDA, y no las cuatro juntas: con las
+#  cuatro en la misma linea, reponer una sola de ellas seguiria dando el mismo
+#  codigo de salida y el arnes no se enteraria.
+# ============================================================================
+escenario 'SECRETOS · las cuatro banderas que ponian un valor del cliente en argv estan retiradas'
+preparar
+fabricar_licencia p "$DOM"
+for bandera in --flota-token --spaces-key --spaces-secret --spaces-bucket; do
+  correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+    --instancia p --dominio "$DOM" --licencia "$LICDIR" "$bandera" valor-cualquiera
+  if [ "$CODIGO" != 64 ]; then
+    mal "$bandera no se rechaza (codigo $CODIGO): un secreto en argv queda en el historial del cliente"
+  elif ! grep -qF "'$bandera' ya no existe" "$SALIDA"; then
+    mal "$bandera se rechaza pero sin decir como pasarla por entorno"
+  else bien; fi
+done
+limpiar
+
+escenario 'SECRETOS · FLOTA_TOKEN entra por el ENTORNO y llega entero a app.env'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 0
+# Que el camino nuevo FUNCIONE, no solo que el viejo este cerrado: sin esto,
+# retirar las banderas podria haber dejado el token vacio y nadie lo veria
+# hasta que el panel no reconociera a la instancia.
+escrito_dice /etc/space-os/app.env 'FLOTA_TOKEN=t0ken-de-flota'
+limpiar
+
+escenario 'SECRETOS · sin FLOTA_TOKEN en el entorno, para y dice donde ponerlo'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 64
+if grep -qF 'falta FLOTA_TOKEN en el entorno' "$SALIDA"; then bien
+else mal "no dice que falta FLOTA_TOKEN: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -398,6 +448,12 @@ if [ "${1:-}" = '--mutantes' ]; then
   # flota de droplet propio sin romper nada visible. Tiene que morder.
   probar_mutante 'la licencia vuelve a instalarse 600 (el fallo mudo de F2)' \
     's@licencia/licencia.json 644@licencia/licencia.json 600@'
+
+  # F4: reponer UNA sola de las cuatro banderas retiradas. Se elige
+  # `--spaces-secret` y no `--flota-token` a proposito: es la que menos se
+  # echaria de menos y la que mas facil se repone «por comodidad».
+  probar_mutante 'vuelve a aceptarse --spaces-secret como argumento (el secreto en argv)' \
+    's@--spaces-secret)  bandera_retirada --spaces-secret SPACES_SECRET ;;@--spaces-secret)  SPACES_SECRET="${2:-}"; shift 2 ;;@'
 
   printf '\n%s mutantes (el primero es el centinela) · %s mal\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

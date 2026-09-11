@@ -12,9 +12,13 @@
 #
 #  Uso:
 #    instalar-hijo.sh --instancia <nombre> --dominio <dominio> \
-#        --flota-token <token> --licencia <dir> --contacto <correo> \
-#        [--spaces-key <k> --spaces-secret <s> --spaces-bucket <b>] \
+#        --licencia <dir> --contacto <correo> \
 #        [--confirmar | --dry-run]
+#
+#  LA REGLA DE QUE VA POR ARGUMENTO Y QUE POR ENTORNO, en una linea: por
+#  argumento, lo que IDENTIFICA a esta instancia (y aparece igual en su
+#  certificado, en su DNS y en el panel); por entorno, TODO lo demas -- los
+#  secretos y la configuracion de quien instala.
 #
 #  NADA se ejecuta sin `--confirmar`. Sin esa bandera el guion se comporta como
 #  `--dry-run` aunque no se pida: esto crea roles de base de datos, escribe
@@ -23,9 +27,8 @@
 #  `provision-instancia.sh`.
 #
 #  Variables de entorno (nunca argumentos, para que no acaben en `ps` ni en el
-#  historial de la shell). Se pasan con `sudo -E` -- `sudo` sin `-E` limpia el
-#  entorno (`env_reset`) y el guion moriria en "falta REGISTRY" a pesar de
-#  haberlo exportado:
+#  historial de la shell). La forma de ponerlas es `sudo -i` y despues
+#  `export`, NO `sudo -E`: ver el porque en la tarjeta del alta, bloque B4.
 #    REGISTRY        (obligatoria)  registry.digitalocean.com/<nombre>
 #    REGISTRY_TOKEN  (obligatoria con --confirmar)  de SOLO LECTURA
 #    PADRE_URL       (obligatoria)  https://<dominio-del-padre>, sin barra
@@ -33,6 +36,22 @@
 #                     version cada noche (F6.4) y donde el cliente comprueba
 #                     que su alta quedo hecha -- ninguno de los dos se quema
 #                     aqui.
+#    FLOTA_TOKEN     (obligatoria)  el token opaco con el que ESTA instancia
+#                     se identifica ante el PADRE. Sale de `inscribir.mjs`
+#                     (bloque A1 de la tarjeta).
+#    SPACES_KEY      (las tres juntas o ninguna) las credenciales del Spaces
+#    SPACES_SECRET   del cliente, a donde salen su respaldo y sus registros.
+#    SPACES_BUCKET   El bucket no es un secreto, pero va por el mismo camino
+#                     que sus dos companeras: son un todo-o-nada, y dejar una
+#                     de las tres por otra via es como se olvida.
+#
+#  HASTA EL 2026-09-11, ESTA CABECERA MENTIA. Decia «nunca argumentos» y tres
+#  lineas mas abajo aceptaba `--flota-token`, `--spaces-key` y
+#  `--spaces-secret` como argumentos: acababan en el `~/.bash_history` del
+#  cliente y en el `ps` de su maquina durante los varios minutos que dura el
+#  alta -- una maquina que no es nuestra y cuya lista de usuarios no
+#  controlamos. Las tres banderas ya no existen, y quien las pase recibe un
+#  error que dice como pasarlas.
 #
 #  Lo que este guion NO hace, y es deliberado:
 #   · NO crea el droplet: el cliente ya lo creo, en SU cuenta.
@@ -79,24 +98,46 @@ uso() { sed -n '/^# ===USO-INICIO===$/,/^# ===USO-FIN===$/p' "$0" | sed '1d;$d';
 # ─── Argumentos ──────────────────────────────────────────────────────────────
 INSTANCIA=""
 DOMINIO=""
-FLOTA_TOKEN=""
 LICENCIA_ORIGEN=""
 CONTACTO=""
-SPACES_KEY=""
-SPACES_SECRET=""
-SPACES_BUCKET=""
 CONFIRMAR=0
+
+# Los secretos y la configuracion de quien instala, por ENTORNO. Ver la regla
+# en la cabecera: aqui solo se recogen, se comprueban mas abajo.
+FLOTA_TOKEN="${FLOTA_TOKEN:-}"
+SPACES_KEY="${SPACES_KEY:-}"
+SPACES_SECRET="${SPACES_SECRET:-}"
+SPACES_BUCKET="${SPACES_BUCKET:-}"
+
+# Las banderas RETIRADAS. No se ignoran en silencio y no se aceptan «por
+# compatibilidad»: quien las escriba ya dejo el secreto en su historial, asi
+# que lo unico util que se puede hacer es decirselo y ensenarle la forma
+# buena. Aceptarlas calladamente seria seguir prometiendo una cosa y hacer
+# otra, que es el defecto que esto corrige.
+bandera_retirada() {
+  local bandera="$1" variable="$2"
+  echo "" >&2
+  echo "instalar-hijo: '$bandera' ya no existe." >&2
+  echo "               Un secreto pasado como argumento queda en tu historial de" >&2
+  echo "               shell y en el \`ps\` de esta maquina mientras el instalador" >&2
+  echo "               corre. Se pasa por el ENTORNO, igual que REGISTRY_TOKEN:" >&2
+  echo "" >&2
+  echo "                 export $variable='<el valor que te dimos>'" >&2
+  echo "" >&2
+  echo "               y se vuelve a correr el instalador SIN esa bandera." >&2
+  exit "$EX_USO"
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instancia)      INSTANCIA="${2:-}"; shift 2 ;;
     --dominio)        DOMINIO="${2:-}"; shift 2 ;;
-    --flota-token)    FLOTA_TOKEN="${2:-}"; shift 2 ;;
     --licencia)       LICENCIA_ORIGEN="${2:-}"; shift 2 ;;
     --contacto)       CONTACTO="${2:-}"; shift 2 ;;
-    --spaces-key)     SPACES_KEY="${2:-}"; shift 2 ;;
-    --spaces-secret)  SPACES_SECRET="${2:-}"; shift 2 ;;
-    --spaces-bucket)  SPACES_BUCKET="${2:-}"; shift 2 ;;
+    --flota-token)    bandera_retirada --flota-token FLOTA_TOKEN ;;
+    --spaces-key)     bandera_retirada --spaces-key SPACES_KEY ;;
+    --spaces-secret)  bandera_retirada --spaces-secret SPACES_SECRET ;;
+    --spaces-bucket)  bandera_retirada --spaces-bucket SPACES_BUCKET ;;
     --confirmar)      CONFIRMAR=1; shift ;;
     --dry-run)        CONFIRMAR=0; shift ;;
     -h|--ayuda|--help) uso; exit 0 ;;
@@ -136,9 +177,9 @@ validar_valor_seguro() {
 # falte tres pasos despues.
 [[ -n "$INSTANCIA" ]]     || { echo "instalar-hijo: falta --instancia <nombre>" >&2; exit "$EX_USO"; }
 [[ -n "$DOMINIO" ]]       || { echo "instalar-hijo: falta --dominio <dominio>" >&2; exit "$EX_USO"; }
-[[ -n "$FLOTA_TOKEN" ]]   || { echo "instalar-hijo: falta --flota-token <token>" >&2; exit "$EX_USO"; }
+[[ -n "$FLOTA_TOKEN" ]]   || { echo "instalar-hijo: falta FLOTA_TOKEN en el entorno (\`export FLOTA_TOKEN=...\`)" >&2; exit "$EX_USO"; }
 [[ -n "$LICENCIA_ORIGEN" ]] || { echo "instalar-hijo: falta --licencia <directorio>" >&2; exit "$EX_USO"; }
-validar_valor_seguro "--flota-token" "$FLOTA_TOKEN"
+validar_valor_seguro "FLOTA_TOKEN" "$FLOTA_TOKEN"
 
 # `--contacto` no esta en la lista de argumentos del brief, y por eso es
 # OPCIONAL y no se exige: la prueba en seco de la tarea 2 del brief la invoca
@@ -176,12 +217,12 @@ N_SPACES=0
 [[ -n "$SPACES_SECRET" ]] && N_SPACES=$((N_SPACES + 1))
 [[ -n "$SPACES_BUCKET" ]] && N_SPACES=$((N_SPACES + 1))
 if [[ "$N_SPACES" -gt 0 && "$N_SPACES" -lt 3 ]]; then
-  echo "instalar-hijo: --spaces-key, --spaces-secret y --spaces-bucket van juntas o ninguna. No se adivina cual falta." >&2
+  echo "instalar-hijo: SPACES_KEY, SPACES_SECRET y SPACES_BUCKET van juntas o ninguna. No se adivina cual falta." >&2
   exit "$EX_USO"
 fi
-[[ -n "$SPACES_KEY" ]]    && validar_valor_seguro "--spaces-key" "$SPACES_KEY"
-[[ -n "$SPACES_SECRET" ]] && validar_valor_seguro "--spaces-secret" "$SPACES_SECRET"
-[[ -n "$SPACES_BUCKET" ]] && validar_valor_seguro "--spaces-bucket" "$SPACES_BUCKET"
+[[ -n "$SPACES_KEY" ]]    && validar_valor_seguro "SPACES_KEY" "$SPACES_KEY"
+[[ -n "$SPACES_SECRET" ]] && validar_valor_seguro "SPACES_SECRET" "$SPACES_SECRET"
+[[ -n "$SPACES_BUCKET" ]] && validar_valor_seguro "SPACES_BUCKET" "$SPACES_BUCKET"
 
 command -v sed >/dev/null 2>&1 || { echo "instalar-hijo: falta 'sed' en esta maquina" >&2; exit "$EX_ENTORNO"; }
 
@@ -616,7 +657,7 @@ if [[ "$N_SPACES" -eq 0 ]]; then
   #      RESPALDO NI LOG FUERA DEL DROPLET                        #
   ################################################################
 
-  No se pasaron --spaces-key / --spaces-secret / --spaces-bucket. La
+  No estan SPACES_KEY / SPACES_SECRET / SPACES_BUCKET en el entorno. La
   instancia se sirve igual -- una maquina a medias es peor que una
   servida sin respaldo remoto -- pero cada corrida del actualizador,
   cada noche, va a fallar ABIERTO al intentar subir el respaldo y el
