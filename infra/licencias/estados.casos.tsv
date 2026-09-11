@@ -1,0 +1,24 @@
+# El banco de casos de los cuatro estados de una licencia.
+#
+# Lo leen DOS implementaciones que no comparten una linea de codigo:
+# `apps/web/lib/licencia.test.ts` (la que pinta la banda) e
+# `infra/scripts/pruebas-update.sh` (la que APAGA la instancia). Escribir la
+# regla dos veces es inevitable -- bash fuera del contenedor, TypeScript dentro
+# -- pero que se separen sin que nadie se entere, no.
+#
+# Es TSV y no JSON porque el arnes de bash no puede usar `jq`, y `awk` lee esto
+# en una linea.
+#
+# Todas las fechas se interpretan como medianoche UTC, en los dos lados.
+#
+# vence	aviso_dias	gracia_dias	hoy	estado
+2027-01-01	30	15	2026-11-01	sana
+2027-01-01	30	15	2026-12-01	sana
+2027-01-01	30	15	2026-12-02	aviso
+2027-01-01	30	15	2026-12-31	aviso
+2027-01-01	30	15	2027-01-01	gracia
+2027-01-01	30	15	2027-01-15	gracia
+2027-01-01	30	15	2027-01-16	vencida
+2027-01-01	30	15	2027-06-01	vencida
+2027-01-01	0	0	2026-12-31	aviso
+2027-01-01	0	0	2027-01-01	vencida
