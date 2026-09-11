@@ -91,8 +91,21 @@ case "$sub" in
     esac
     exit 0 ;;
   inspect)
+    # `--format '{{.State.Running}}'` es del apagado (tarea 5, ronda 2): sin
+    # distinguirlo del resto, cualquier `docker inspect` (incluido el que ya
+    # usaba `id_del_contenedor` con `.Image`) devolveria siempre
+    # `D_ID_CONTENEDOR`, y nunca se podria montar "el contenedor existe pero
+    # esta parado".
+    fmt=''
+    while [ $# -gt 0 ]; do
+      case "$1" in --format) fmt="$2"; shift 2 ;; *) shift ;; esac
+    done
     [ -n "${D_ID_CONTENEDOR:-}" ] || exit 1
-    printf '%s\n' "$D_ID_CONTENEDOR"
+    case "$fmt" in
+      *State.Running*)
+        if [ "${D_CONTENEDOR_PARADO:-0}" = 1 ]; then printf 'false\n'; else printf 'true\n'; fi ;;
+      *) printf '%s\n' "$D_ID_CONTENEDOR" ;;
+    esac
     exit 0 ;;
   run)
     case "$todo" in
@@ -391,6 +404,55 @@ printf 'systemctl %s\n' "$*" >>"$REG_LLAMADAS"
 exit 0
 FIN
 
+  # `ln` y `readlink` TAMPOCO son de verdad, y por un motivo medido en esta
+  # maquina: en Windows/Git Bash `ln -s` no crea un enlace real -- cae a
+  # copiar el archivo -- asi que ni `ln` ni `readlink -f` reflejarian nunca
+  # "a donde apunta" nada, y el "ya apunta ahi" de `nginx_sitio` (y su
+  # reversion tras un `nginx -t` en rojo) serian imposibles de comprobar aqui
+  # SIN IMPORTAR como se escriba el escenario -- confirmado con `mklink`
+  # tambien: "Carece de privilegios suficientes". Se simulan del todo, igual
+  # que `docker`/`nginx`/`systemctl`: `ln` anota el enlace en $REG_ENLACES en
+  # vez de tocar el sistema de archivos, y `readlink -f` lo resuelve de ahi.
+  # Solo cubren la forma exacta que llama `nginx_sitio()`.
+  cat >"$BIN/ln" <<'FIN'
+#!/usr/bin/env bash
+printf 'ln %s\n' "$*" >>"$REG_LLAMADAS"
+origen="$2"; destino="$3"
+{ grep -vF -- "$destino	" "$REG_ENLACES" 2>/dev/null; printf '%s\t%s\n' "$destino" "$origen"; } >"$REG_ENLACES.tmp"
+mv "$REG_ENLACES.tmp" "$REG_ENLACES"
+exit 0
+FIN
+  cat >"$BIN/readlink" <<'FIN'
+#!/usr/bin/env bash
+ruta="$2"
+visto=''
+while true; do
+  siguiente="$(awk -F'\t' -v d="$ruta" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+  [ -n "$siguiente" ] || break
+  case " $visto " in *" $ruta "*) break ;; esac
+  visto="$visto $ruta"
+  ruta="$siguiente"
+done
+printf '%s\n' "$ruta"
+exit 0
+FIN
+
+  # `openssl` NO se dobla como los demas: la firma y la verificacion de
+  # `usar_licencia` y de `licencia_valida` tienen que ser criptografia REAL,
+  # o los ~25 escenarios de licencia no demostrarian nada. Este doble solo
+  # intercepta `openssl version` cuando `D_OPENSSL_VERSION` esta puesta (para
+  # fingir una version sin soporte para `-rawin`), y reenvia TODO lo demas al
+  # binario real -- que se resuelve AQUI, con el PATH de fuera, antes de que
+  # `correr` anteponga `$BIN`.
+  cat >"$BIN/openssl" <<FIN
+#!/usr/bin/env bash
+if [ "\$1" = version ] && [ -n "\${D_OPENSSL_VERSION:-}" ]; then
+  printf '%s\n' "\$D_OPENSSL_VERSION"
+  exit 0
+fi
+exec $(command -v openssl) "\$@"
+FIN
+
   chmod +x "$BIN"/*
 }
 
@@ -412,8 +474,12 @@ preparar() {
   export REG_S3_SUBIDO="$RAIZ_TMP/s3-subido.txt"
   # Lo que se POSTEA al padre, cuerpo a cuerpo.
   export REG_FLOTA_POST="$RAIZ_TMP/flota-posteado.txt"
+  # Los enlaces que "crea" el doble de `ln` (ver montar_dobles), para que el
+  # doble de `readlink -f` los resuelva. Un escenario puede pre-sembrar un
+  # enlace escribiendo aqui directamente, en la forma "DESTINO<TAB>ORIGEN".
+  export REG_ENLACES="$RAIZ_TMP/enlaces.tsv"
   : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"; : >"$REG_S3_SUBIDO"
-  : >"$REG_FLOTA_POST"
+  : >"$REG_FLOTA_POST"; : >"$REG_ENLACES"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
@@ -485,7 +551,7 @@ FIN
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
         D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
-        N_TEST_CODIGO 2>/dev/null || true
+        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION 2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
   export PSQL_CODIGO=0
@@ -624,6 +690,36 @@ hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then bien; else mal "no se llamo: 
 no_hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then mal "no deberia haberse llamado: $1"; else bien; fi; }
 hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then bien; else mal "ninguna llamada casa con: $1"; fi; }
 no_hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then mal "alguna llamada casa con lo prohibido: $1"; else bien; fi; }
+# A DONDE apunta el enlace ACTIVO de nginx, de verdad -- I-1 e I-4 (ronda 2).
+# "no se recargo" solo dice que nginx no se entero en memoria; esto compara
+# el DESTINO resuelto del enlace, que es lo unico que importa la proxima vez
+# que arranque nginx o renueve certbot.
+#
+# Resuelve desde $REG_ENLACES -- lo mismo que hace el doble de `readlink -f`
+# que ve `update.sh` dentro de `correr` -- en vez de llamar al `readlink` de
+# verdad: esta funcion corre en el proceso de FUERA, sin `$BIN` en el PATH, y
+# ademas el `readlink` real de esta maquina (Windows/Git Bash) no serviria de
+# nada: `ln -s` aqui no crea un enlace real, cae a copiar el archivo, asi que
+# nunca coincidiria con nada por mas correcto que estuviera el guion.
+# Confirmado tambien con `mklink`: "Carece de privilegios suficientes".
+_resolver_enlace() {
+  local ruta="$1" visto='' siguiente
+  while true; do
+    siguiente="$(awk -F'\t' -v d="$ruta" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+    [ -n "$siguiente" ] || break
+    case " $visto " in *" $ruta "*) break ;; esac
+    visto="$visto $ruta"
+    ruta="$siguiente"
+  done
+  printf '%s' "$ruta"
+}
+enlace_apunta_a() {
+  local real_activo real_esperado
+  real_activo="$(_resolver_enlace "$NGINX_SITIO_ACTIVO")"
+  real_esperado="$(_resolver_enlace "$1")"
+  if [ "$real_activo" = "$real_esperado" ]; then bien
+  else mal "el enlace $NGINX_SITIO_ACTIVO apunta (resuelto) a '$real_activo', se esperaba '$real_esperado' ($1)"; fi
+}
 # El ORDEN entre dos llamadas. Que las dos hayan ocurrido no dice nada si
 # ocurrieron al reves: tirar el esquema DESPUES de restaurar deja la base vacia,
 # y comprobar el respaldo DESPUES de tirarlo no comprueba nada. Se compara la
@@ -2617,14 +2713,21 @@ limpiar
 
 # El fallo abierto: un dedazo en la configuracion (`true`, `01`, …) no puede
 # apagar la comprobacion en silencio. Se trata como encendido y se dice.
-preparar 'E118 un LICENCIA_REQUERIDA que no es 0 ni 1 se trata como encendido, y lo dice'
+# Hasta la ronda 1 de la tarea 5 esto se trataba como ENCENDIDO y se seguia
+# de largo. Con el apagado ya construido, eso significaria que un dedazo en
+# la configuracion puede DETENER el contenedor de una instancia administrada
+# -- y eso no se puede adivinar. Ahora aborta por configuracion, sin tocar
+# nada, con el mismo codigo que usa el guion para lo que no entiende.
+preparar 'E118 un LICENCIA_REQUERIDA que no es 0 ni 1 aborta por configuracion, sin tocar nada'
 usar_licencia "$(date -u -d '+60 days' +%F)"
 cat >>"$SPACE_OS_CONF" <<'FIN'
 LICENCIA_REQUERIDA=true
 FIN
 correr
+codigo_es 1
 log_dice 'LICENCIA_REQUERIDA="true" no es 0 ni 1'
-log_dice 'licencia: sana'
+no_hubo 'docker stop'
+no_hubo 'docker run --detach'
 limpiar
 
 # El otro fallo abierto, medido: una licencia SIN instancia, en una maquina
@@ -2648,7 +2751,7 @@ log_dice 'licencia: invalida'
 log_dice 'no dice de que instancia es'
 limpiar
 
-# ─── EL APAGADO (E120-E125, ADR 0032, tarea 5) ─────────────────────────────
+# ─── EL APAGADO (E120-E130, ADR 0032, tarea 5) ─────────────────────────────
 #  Hasta aqui el arnes solo comprobaba que se DECIDIERA el estado; de aqui en
 #  adelante comprueba que ese estado ACTUE: que se apague, que nginx cambie de
 #  sitio, y que reanudar no dependa de que nadie se acuerde de nada.
@@ -2704,6 +2807,82 @@ correr
 codigo_es 0
 hubo 'docker run --detach'
 hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# ─── Ronda 2 de revision: C-1, C-2, I-1, I-4, I-5 ──────────────────────────
+# C-1, el peor hallazgo: `docker inspect` funciona sobre un contenedor
+# DETENIDO, asi que el camino normal de mas abajo veria "la imagen no
+# cambio" y saldria con "sin cambios" sin arrancar nada. E125 no lo veia
+# porque nunca montaba el rastro de un apagado anterior (contenedor parado,
+# MISMA imagen).
+preparar 'E126 tras un apagado por licencia, una licencia buena ARRANCA el contenedor y no deja un 502'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export D_ID_CONTENEDOR='sha256:nueva'
+export D_CONTENEDOR_PARADO=1
+correr
+codigo_es 0
+hubo_regex 'docker start|docker run --detach'
+antes_que 'docker start' 'nginx -t'
+limpiar
+
+# I-1: `ln -sfn` iba ANTES de `nginx -t` y no se deshacia. "no se recarga"
+# solo es cierto EN MEMORIA si el enlace en disco se queda apuntando a la
+# plantilla mala -- y eso es peor que el problema que se resuelve: el
+# siguiente reload de certbot fallaria, y un reinicio dejaria nginx sin
+# arrancar.
+preparar 'E127 un `nginx -t` en rojo revierte el enlace, no lo deja apuntando a la plantilla mala'
+# Pre-siembra el enlace directamente en $REG_ENLACES (ver el doble de `ln`):
+# un `ln -sfn` de verdad aqui usaria el `ln` REAL de la maquina, no el doble,
+# porque este cuerpo de escenario corre FUERA de `correr` y su PATH con $BIN.
+printf '%s\t%s\n' "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_NORMAL" >>"$REG_ENLACES"
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export N_TEST_CODIGO=1
+correr
+codigo_es 8
+enlace_apunta_a "$NGINX_SITIO_NORMAL"
+limpiar
+
+# I-4: nadie pre-creaba el enlace ACTIVO, asi que la comparacion "ya apunta
+# ahi" nunca se ejercitaba de verdad -- el arnes seguiria verde aunque nginx
+# se recargara todas las noches sin necesidad.
+preparar 'E128 si el enlace ya apunta al sitio correcto, no hay nginx -t ni reload'
+printf '%s\t%s\n' "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_SIN_LICENCIA" >>"$REG_ENLACES"
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo 'nginx -t'
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+enlace_apunta_a "$NGINX_SITIO_SIN_LICENCIA"
+limpiar
+
+# C-2: falta NUESTRA herramienta (o no sirve) no es lo mismo que el cliente
+# incumpliendo su licencia. Fallar cerrado aqui no anadiria disuasion -- el
+# cliente tiene root y puede apagar la comprobacion desde su propio
+# instancia.env con la misma facilidad -- y si anadiria caidas a quien no
+# esta atacando nada.
+preparar 'E129 una version de openssl que no soporta la licencia NO apaga, sigue sirviendo, sale con 9'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export D_OPENSSL_VERSION='OpenSSL 1.1.1  25 Mar 2021'
+correr
+codigo_es 9
+no_hubo 'docker stop'
+log_dice 'licencia: no-comprobable'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# Y el que impide que C-2 se convierta en un bypass: una licencia borrada de
+# verdad (el cliente quito su propio documento) sigue siendo `invalida`, NUNCA
+# `no-comprobable`, y sigue apagando.
+preparar 'E130 con la licencia borrada (sin archivos), sigue apagando con 8'
+cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/no-existe
+LICENCIA_PUB=$RAIZ_TMP/tampoco.pub
+FIN
+correr
+codigo_es 8
+log_dice 'licencia: invalida'
+hubo 'docker stop'
 limpiar
 
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
@@ -2996,8 +3175,16 @@ if [ "${1:-}" = '--mutantes' ]; then
     's/^  if ! openssl pkeyutl -verify -pubin -inkey "\$LICENCIA_PUB" -rawin \\$/  if false \&\& openssl pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \\/'
   # Y el segundo es el que nadie ve venir: tratar la licencia ilegible como
   # sana. Falla ABIERTO, que en un mecanismo de licencia es no tener ninguno.
+  # (La ronda 2 de revision separo el `if` en un `if/elif/else` para meter el
+  # estado `no-comprobable`; el mutante ahora toca solo la rama `else`.)
   probar_mutante 'una licencia invalida se trata como sana' \
-    's@^  if licencia_valida; then LICENCIA_ESTADO="\$(licencia_estado)"; else LICENCIA_ESTADO='"'"'invalida'"'"'; fi$@  if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='"'"'sana'"'"'    ; fi@'
+    's@^    LICENCIA_ESTADO='"'"'invalida'"'"'$@    LICENCIA_ESTADO='"'"'sana'"'"'    @'
+  # Y el tercero (I-7, ronda 2): el brazo `sin-licencia` de `nginx_sitio`
+  # sirve el sitio NORMAL en vez de la pagina de vencimiento. Nadie miraba a
+  # donde apuntaba el enlace de verdad, asi que este defecto pasaba las 134
+  # comprobaciones de antes sin que ningun escenario se enterara.
+  probar_mutante 'el apagado sirve el sitio normal en vez de la pagina de vencimiento' \
+    's@^    sin-licencia) origen="\$NGINX_SITIO_SIN_LICENCIA" ;;$@    sin-licencia) origen="$NGINX_SITIO_NORMAL"       ;;@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

@@ -21,15 +21,28 @@
 #      sirviera `/.well-known/acme-challenge/`, el certificado caducaria
 #      MIENTRAS la instancia esta apagada, y el dia que el cliente pague, la
 #      pagina de bienvenida de vuelta seria un error de TLS.
-#   3. `try_files` + `error_page 404 =200` en vez de `location /`: asi
-#      CUALQUIER ruta que pida el navegador (incluida una que Next.js dejo en
-#      el historial, o un bookmark a `/spaces-dooh/algo`) cae en la misma
-#      pagina, en vez de un 404 desnudo que no dice nada.
+#   3. TODA ruta responde **503**, nunca 200 (ronda 2, I-6). `promover.yml`
+#      exige 200 en `/login/` y `/api/auth/metodos/` para dar por buena una
+#      promocion -- si esta pagina contestara 200, el smoke de promocion
+#      contra una instancia APAGADA pasaria como si la app respondiera. 503
+#      es ademas lo semanticamente correcto: el servicio no esta disponible.
+#      Por eso `location /` ya NO es un `try_files` directo: entrega 503
+#      SIEMPRE, y el cuerpo lo pone `error_page` sin forzar el codigo
+#      (`error_page 503 ...`, sin `=200`), asi que la respuesta conserva el
+#      503 con el HTML dentro.
+#   4. Si el archivo real llegara a faltar en disco, la `location` interna
+#      cae en un ultimo recurso EN LINEA (ronda 2, m-4): sin eso, un
+#      `try_files` sin adonde caer termina en un 500 que no dice nada.
 # ============================================================================
 
 server {
-  listen 80;
-  listen [::]:80;
+  # `default_server` por consistencia con `instancia.conf.tpl` (ronda 2,
+  # m-2): cuando este archivo esta activo, reemplaza al sitio normal
+  # ENTERO, asi que su propio catch-all tambien esta fuera -- sin esto, una
+  # peticion por IP o por un host que no es __DOMINIO__ quedaria a merced de
+  # cual sea el primer server block que nginx cargue.
+  listen 80 default_server;
+  listen [::]:80 default_server;
   server_name __DOMINIO__;
 
   location ^~ /.well-known/acme-challenge/ {
@@ -60,9 +73,27 @@ server {
 
   root /var/www/space-os-licencia/;
 
+  # CUALQUIER ruta -- la pagina misma incluida -- entrega 503. `error_page`
+  # SIN `=200` conserva el codigo del error original (503), asi que la
+  # respuesta trae el cuerpo de la pagina Y el codigo correcto a la vez.
   location / {
-    try_files $uri /licencia-vencida.html;
+    return 503;
   }
 
-  error_page 404 =200 /licencia-vencida.html;
+  error_page 503 /licencia-vencida.html;
+  location = /licencia-vencida.html {
+    internal;
+    # Si el archivo faltara en disco, esto NO puede caer en otro
+    # `try_files` sin destino: eso es exactamente lo que entra en ciclo y
+    # termina en un 500 que no explica nada (m-4). El ultimo recurso es un
+    # 503 con un texto minimo escrito aqui mismo, sin depender de ningun
+    # archivo.
+    try_files /licencia-vencida.html @licencia_ultimo_recurso;
+  }
+
+  location @licencia_ultimo_recurso {
+    internal;
+    default_type text/html;
+    return 503 '<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Licencia vencida</title></head><body><h1>Esta instancia esta suspendida por falta de licencia</h1><p>Contacta a __CONTACTO__ para renovarla.</p></body></html>';
+  }
 }

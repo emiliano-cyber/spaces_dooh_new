@@ -96,7 +96,13 @@
       </p>
       <div class="contacto">
         <p>Para renovar la licencia o resolver dudas, escribe a:</p>
-        <p class="correo">soporte@space-os.io</p>
+        <!-- __CONTACTO__ es un parametro, igual que __DOMINIO__ en las
+             plantillas de nginx (ronda 2, m-5): este es el unico archivo del
+             paquete del cliente que no se puede cambiar sin editar el
+             repositorio, asi que un correo quemado aqui habria quedado fijo
+             para siempre en cada instancia vendida. Lo sustituye el
+             instalador (tarea 8), igual que el dominio. -->
+        <p class="correo">__CONTACTO__</p>
       </div>
       <p class="pie">SPACE OS &mdash; mensaje generado automáticamente por el sistema de licenciamiento.</p>
     </div>

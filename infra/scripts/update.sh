@@ -386,6 +386,14 @@ EX_BASE_DISTINTA=6
 # version anterior no sirve de nada hasta restaurarla a mano.
 EX_BASE_VACIA=7
 EX_LICENCIA=8    # la licencia vencio: esta instancia esta APAGADA a proposito
+# NO se apaga: falta o no sirve NUESTRA herramienta para comprobar la firma
+# (openssl ausente, o sin soporte para `-rawin` con Ed25519). Fallar cerrado
+# aqui no anadiria ninguna disuasion -- el cliente tiene root y puede
+# desactivar la comprobacion desde su propio instancia.env con la misma
+# facilidad con la que rompe openssl -- y si anadiria caidas a quien no esta
+# atacando nada. La instancia sigue sirviendo; este codigo es solo para que
+# el panel de flota (tarea 6) distinga "no se pudo comprobar" de "sin cambios".
+EX_LICENCIA_NO_COMPROBABLE=9
 EX_OCUPADO=75
 
 DRY_RUN=0
@@ -819,25 +827,36 @@ DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
 #  de lo de abajo, y este guion se comporta exactamente como el de siempre. Lo
 #  comprueba E115.
 LICENCIA_REQUERIDA="${LICENCIA_REQUERIDA:-0}"
-# Solo 0 y 1 significan algo; cualquier otra cosa (`true`, `01`, un dedazo) se
-# trata como ENCENDIDO y lo dice. El error seguro en un mecanismo de licencia
-# es "se comprueba de mas", nunca "se dejo de comprobar sin que nadie se
-# entere" -- eso es precisamente el fallo abierto que un valor raro no puede
-# producir en silencio.
+# Solo 0 y 1 significan algo. Hasta la tarea 4 un valor raro (`true`, `01`, un
+# dedazo) se trataba como ENCENDIDO y se registraba: aqui todavia no habia
+# ningun apagado, asi que "se comprueba de mas" no le costaba nada a nadie.
+# Con el apagado ya construido eso cambio: un dedazo en la configuracion
+# detendria el contenedor de una instancia administrada, y eso no se puede
+# adivinar. Ahora aborta por configuracion, la misma convencion que ya usa el
+# guion para lo que no entiende, y no toca nada.
 case "$LICENCIA_REQUERIDA" in
   0|'') LICENCIA_REQUERIDA=0 ;;
   1)    LICENCIA_REQUERIDA=1 ;;
-  *)    registrar "licencia: LICENCIA_REQUERIDA=\"$LICENCIA_REQUERIDA\" no es 0 ni 1; se trata como 1 (se comprueba)"
-        LICENCIA_REQUERIDA=1 ;;
+  *) salir "$EX_CONFIG" "ERROR update: LICENCIA_REQUERIDA=\"$LICENCIA_REQUERIDA\" no es 0 ni 1. No se adivina: un valor que este guion no entiende no puede decidir si se apaga una instancia. Nada se toco." ;;
 esac
 LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
 LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
 # Las tres rutas del apagado (tarea 5). Un enlace simbolico entre `NORMAL` y
 # `SIN_LICENCIA` es lo que decide que sitio sirve nginx; `ACTIVO` es ese
 # enlace.
-NGINX_SITIO_ACTIVO="${NGINX_SITIO_ACTIVO:-/etc/nginx/sites-enabled/space-os.conf}"
-NGINX_SITIO_NORMAL="${NGINX_SITIO_NORMAL:-/etc/nginx/sites-available/space-os.conf}"
-NGINX_SITIO_SIN_LICENCIA="${NGINX_SITIO_SIN_LICENCIA:-/etc/nginx/sites-available/space-os-sin-licencia.conf}"
+#
+# `provision-instancia.sh:284-287` NO usa `space-os.conf`: escribe
+# `sites-available/$DOMINIO` y lo enlaza en `sites-enabled/$DOMINIO`, los dos
+# SIN extension y nombrados por el dominio real. Con las rutas fijas de la
+# primera version de esta tarea, el apagado habria escrito un enlace que
+# ninguna instancia real usa, y la degradacion habria sido un 502 desnudo sin
+# pagina -- el mismo fallo que esta tarea existe para evitar. `NORMAL` y
+# `ACTIVO` reproducen ese patron; `SIN_LICENCIA` es un archivo nuevo que
+# instala la tarea 8, junto al del dominio y no dentro de `sites-enabled`
+# (solo uno de los dos esta enlazado a la vez).
+NGINX_SITIO_ACTIVO="${NGINX_SITIO_ACTIVO:-/etc/nginx/sites-enabled/${DOMINIO:-space-os.conf}}"
+NGINX_SITIO_NORMAL="${NGINX_SITIO_NORMAL:-/etc/nginx/sites-available/${DOMINIO:-space-os.conf}}"
+NGINX_SITIO_SIN_LICENCIA="${NGINX_SITIO_SIN_LICENCIA:-/etc/nginx/sites-available/${DOMINIO:-space-os}-sin-licencia.conf}"
 LICENCIA_ESTADO='no-aplica'
 
 # Lee un campo de texto del JSON. Se llama SOLO despues de que la firma valide:
@@ -928,22 +947,43 @@ licencia_estado() {
 
 if [ "$LICENCIA_REQUERIDA" = 1 ]; then
   # `openssl` es una dependencia NUEVA de este bloque -- el resto de update.sh
-  # no la necesitaba hasta hoy -- y si falta, `licencia_valida` fallaria igual
-  # pero diciendo "la firma NO valida", que es mentira y manda a buscar el
-  # problema en el sitio equivocado. Y `-rawin` con Ed25519 exige OpenSSL 3.0
-  # o mas: con 1.1.1 una licencia BUENA se leeria como invalida y apagaria una
-  # instancia al corriente de pago (la tarea 5 es la que apaga, pero el estado
-  # que decide esta linea es el mismo). Se falla cerrado en los dos casos,
-  # igual que antes, pero el log dice la causa real.
+  # no la necesitaba hasta hoy. Si falta, o si la version no soporta
+  # `pkeyutl -verify -rawin` con Ed25519 (hace falta OpenSSL 3.0 o mas), no se
+  # puede comprobar NADA: ni que la firma valida ni que sea invalida. Hasta la
+  # ronda anterior esto se trataba igual que una firma que no valida
+  # ("invalida"), y apagaba una instancia al corriente de pago por un
+  # problema que es NUESTRO, no del cliente.
+  #
+  # Ahora es un estado propio, `no-comprobable`, y el `case` de mas abajo NO
+  # apaga por el: fallar cerrado solo se defiende si cerrar impide algo, y el
+  # cliente tiene root -- puede desactivar la comprobacion desde su propio
+  # `instancia.env` (LICENCIA_REQUERIDA=0, o apuntando NGINX_SITIO_SIN_LICENCIA
+  # al sitio normal) con la misma facilidad con la que rompe `openssl`. Apagar
+  # aqui no anadiria ninguna disuasion; solo anadiria caidas a quien no esta
+  # atacando nada.
+  #
+  # Lo que SI sigue apagando: una licencia ausente o ilegible (el cliente
+  # quito su propio documento) y una firma que no valida (una afirmacion
+  # falsa). La linea no es "que se rompio", es "hay una afirmacion del
+  # cliente que contradice su derecho" -- y eso solo puede decidirlo
+  # `licencia_valida`, nunca la ausencia de una herramienta nuestra.
+  LICENCIA_MOTIVO_NO_COMPROBABLE=''
   if ! command -v openssl >/dev/null 2>&1; then
-    registrar "   licencia: falta \`openssl\` en esta maquina. NO se puede comprobar la firma, asi que la licencia se trata como invalida -- pero el problema NO es la licencia: es que falta la herramienta."
+    LICENCIA_MOTIVO_NO_COMPROBABLE='falta `openssl` en esta maquina'
   else
     case "$(openssl version 2>/dev/null)" in
       'OpenSSL 3'*) ;;
-      *) registrar "   licencia: $(openssl version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas). NO se puede comprobar la firma, asi que la licencia se trata como invalida -- pero el problema NO es la licencia: es la version de openssl." ;;
+      *) LICENCIA_MOTIVO_NO_COMPROBABLE="$(openssl version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas)" ;;
     esac
   fi
-  if licencia_valida; then LICENCIA_ESTADO="$(licencia_estado)"; else LICENCIA_ESTADO='invalida'; fi
+  if [ -n "$LICENCIA_MOTIVO_NO_COMPROBABLE" ]; then
+    LICENCIA_ESTADO='no-comprobable'
+    registrar "   licencia: $LICENCIA_MOTIVO_NO_COMPROBABLE. NO se puede comprobar la firma -- pero el problema NO es la licencia: es la herramienta. La instancia SIGUE sirviendo."
+  elif licencia_valida; then
+    LICENCIA_ESTADO="$(licencia_estado)"
+  else
+    LICENCIA_ESTADO='invalida'
+  fi
   registrar "licencia: $LICENCIA_ESTADO"
 fi
 
@@ -955,7 +995,7 @@ fi
 # licencia vencio» con «la aplicacion se cayo» -- las dos cosas que el panel
 # de flota existe para no mezclar.
 nginx_sitio() {
-  local modo="$1" origen
+  local modo="$1" origen anterior
   case "$modo" in
     normal)       origen="$NGINX_SITIO_NORMAL" ;;
     sin-licencia) origen="$NGINX_SITIO_SIN_LICENCIA" ;;
@@ -964,14 +1004,43 @@ nginx_sitio() {
   [ -f "$origen" ] || { registrar "   nginx: no existe $origen, no se cambia el sitio"; return 0; }
   # Si ya apunta ahi no se toca: recargar nginx cada noche por nada es ruido, y
   # una recarga es una ventana -- pequena, pero real -- de peticiones perdidas.
-  [ "$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)" = "$(readlink -f "$origen")" ] && return 0
-  ln -sfn "$origen" "$NGINX_SITIO_ACTIVO"
+  anterior="$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)"
+  [ "$anterior" = "$(readlink -f "$origen")" ] && return 0
+  # Bajo `set -e`, un `ln` que falla (permisos, disco de solo lectura) mataria
+  # el guion aqui mismo con el codigo 1 -- "NADA se toco", que seria falso a
+  # medias: nginx queda como estaba, pero el guion nunca llega a `salir` ni
+  # reporta a la flota ni sube el log. Se atrapa y se sigue sin tocar nada mas.
+  ln -sfn "$origen" "$NGINX_SITIO_ACTIVO" || { registrar "   nginx: no se pudo cambiar el enlace $NGINX_SITIO_ACTIVO; no se toca nada mas"; return 0; }
   if nginx -t >/dev/null 2>&1; then
     systemctl reload nginx >/dev/null 2>&1 || nginx -s reload >/dev/null 2>&1 || true
     registrar "   nginx: sitio -> $modo"
   else
-    registrar "   nginx: \`nginx -t\` fallo con el sitio $modo, no se recarga (queda el que estaba sirviendo)"
+    # Se DESHACE el enlace, no solo se deja de recargar: dejarlo apuntando a
+    # una plantilla que `nginx -t` rechaza significa que el siguiente reload
+    # de certbot falla y que un reinicio deja nginx SIN ARRANCAR. El log de
+    # antes decia "queda el que estaba sirviendo", y era cierto solo en
+    # memoria -- en disco, el enlace ya apuntaba a la plantilla mala.
+    if [ -n "$anterior" ]; then
+      ln -sfn "$anterior" "$NGINX_SITIO_ACTIVO" 2>/dev/null || registrar "   nginx: no se pudo devolver el enlace $NGINX_SITIO_ACTIVO a $anterior"
+    fi
+    registrar "   nginx: \`nginx -t\` rechazo el sitio $modo; no se recarga y el enlace se deja como estaba"
   fi
+}
+
+# Si la corrida anterior apago por licencia, el contenedor esta PARADO y su
+# imagen no cambio -- asi que el camino normal de mas abajo (el que compara
+# `ID_ACTUAL` con la imagen nueva) saldria con "sin cambios" y lo dejaria
+# parado PARA SIEMPRE. Se arranca aqui, y SIEMPRE antes de devolver el sitio
+# de nginx a la normalidad: al reves se retira la pagina que explica lo que
+# pasa, y lo que queda detras -- hasta que llegue una imagen nueva de verdad
+# -- es un 502 desnudo. E125 no lo veia venir porque solo probaba con una
+# licencia valida desde el principio, nunca con el rastro de un apagado
+# previo.
+licencia_arrancar_si_parado() {
+  [ -n "$(docker inspect --format '{{.Id}}' "$CONTENEDOR" 2>/dev/null || true)" ] || return 0
+  [ "$(docker inspect --format '{{.State.Running}}' "$CONTENEDOR" 2>/dev/null || echo false)" != true ] || return 0
+  registrar "   licencia: el contenedor estaba parado; se arranca antes de devolver nginx a la normalidad"
+  docker start "$CONTENEDOR" >/dev/null 2>&1 || registrar "   licencia: \`docker start\` fallo; el camino normal de mas abajo lo intentara"
 }
 
 if [ "$LICENCIA_REQUERIDA" = 1 ]; then
@@ -983,11 +1052,26 @@ if [ "$LICENCIA_REQUERIDA" = 1 ]; then
       nginx_sitio sin-licencia
       salir "$EX_LICENCIA" "APAGADO (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". El contenedor esta detenido y nginx sirve la pagina de vencimiento. NO se ha tocado la base, NO se ha borrado nada y el respaldo sigue donde estaba: para reanudar basta con instalar una licencia valida en $LICENCIA_DIR y esperar a la siguiente corrida."
       ;;
+    no-comprobable)
+      # No se apaga (ver el porque junto a EX_LICENCIA_NO_COMPROBABLE, arriba):
+      # se sirve exactamente como si la licencia fuera sana -- arrancando el
+      # contenedor si quedo parado de un apagado anterior, y devolviendo nginx
+      # a la normalidad -- pero esta corrida NO sigue con el resto del update
+      # (ni pull ni migracion): sin poder comprobar la licencia, lo prudente es
+      # no avanzar solo, y se grita en el log y se sale con un codigo propio
+      # para que quede visible y el panel de flota (tarea 6) lo distinga de un
+      # "sin cambios" cualquiera.
+      licencia_arrancar_si_parado
+      nginx_sitio normal
+      salir "$EX_LICENCIA_NO_COMPROBABLE" "AVISO (9): la licencia de esta instancia NO SE PUDO COMPROBAR ($LICENCIA_MOTIVO_NO_COMPROBABLE). La instancia SIGUE sirviendo con normalidad: falta o no sirve una herramienta NUESTRA, no un derecho del cliente, y apagar aqui no anadiria ninguna disuasion. Esta corrida no siguio actualizando; revisar \`openssl\` en este droplet."
+      ;;
     *)
-      # Sana, aviso o gracia: se sirve con normalidad. Y se devuelve el sitio
-      # al normal por si la corrida anterior lo dejo en el de vencimiento --
-      # que es todo el mecanismo de reanudacion, y por eso no hay ningun
-      # comando que alguien tenga que acordarse de correr.
+      # Sana, aviso o gracia: se sirve con normalidad. Se arranca el
+      # contenedor si quedo parado, y se devuelve el sitio al normal por si la
+      # corrida anterior lo dejo en el de vencimiento -- que es todo el
+      # mecanismo de reanudacion, y por eso no hay ningun comando que alguien
+      # tenga que acordarse de correr.
+      licencia_arrancar_si_parado
       nginx_sitio normal
       ;;
   esac
