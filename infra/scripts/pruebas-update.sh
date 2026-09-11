@@ -111,6 +111,8 @@ case "$sub" in
     case "$todo" in
       *--detach*)
         [ "${D_RUN_FALLA:-0}" = 1 ] && { echo 'no se pudo crear el contenedor'; exit 125; }
+        # Hay contenedor sirviendo otra vez: la aplicacion vuelve a contestar.
+        rm -f "$REG_PARADO"
         printf '%s\n' "${D_NUEVO_ID:-c0ntened0rnuev0}"
         exit 0 ;;
       *"node -e"*)
@@ -152,7 +154,11 @@ case "$sub" in
         printf 'HUELLA %s\n' "$valor"
         exit 0 ;;
     esac ;;
-  stop) exit 0 ;;
+  # Parar el contenedor deja a la aplicacion SIN CONTESTAR en 127.0.0.1:3000.
+  # El doble de `curl` lee esta marca: sin ella, `flota_cuerpo` obtenia un
+  # cuerpo con `"version"` de un contenedor parado, que es imposible, y el
+  # defecto F3 era invisible para los 141 escenarios.
+  stop) : >"$REG_PARADO"; exit 0 ;;
   # `docker logs` del contenedor nuevo es la peor via de fuga del paso 7: son
   # los registros de la APLICACION, y ahi caben correos, importes y nombres de
   # clientes. Por omision no dice nada; E53 lo llena a proposito.
@@ -166,6 +172,7 @@ case "$sub" in
   rm)   exit "${D_RM_CODIGO:-0}" ;;
   start)
     [ "${D_START_FALLA:-0}" = 1 ] && exit 1
+    rm -f "$REG_PARADO"
     exit 0 ;;
   *) exit 0 ;;
 esac
@@ -204,7 +211,15 @@ sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | sed -n "${n}p")"
 # un reporte", y NINGUN escenario podria ver lo que se manda al padre.
 case " $* " in
   *" -w "*) ;;
-  *) printf '%s' "${C_SALUD_CUERPO:-}"; exit "$sal" ;;
+  *)
+    # Con el contenedor PARADO no contesta nadie en 127.0.0.1:3000. Es el
+    # unico punto del arnes donde esto importa y donde antes se mentia: sin
+    # esta rama, `flota_cuerpo` recibia un cuerpo con `"version"` de una
+    # aplicacion que no estaba corriendo, y el defecto F3 --el codigo 8 que
+    # nunca llegaba al panel-- no lo podia ver ningun escenario. 7 es el
+    # codigo de curl para "no se pudo conectar".
+    if [ -f "${REG_PARADO:-/nonexistent}" ]; then exit 7; fi
+    printf '%s' "${C_SALUD_CUERPO:-}"; exit "$sal" ;;
 esac
 [ "$cod" = NADA ] || printf '%s' "$cod"
 exit "$sal"
@@ -483,8 +498,20 @@ preparar() {
   # doble de `readlink -f` los resuelva. Un escenario puede pre-sembrar un
   # enlace escribiendo aqui directamente, en la forma "DESTINO<TAB>ORIGEN".
   export REG_ENLACES="$RAIZ_TMP/enlaces.tsv"
+  # SI EL CONTENEDOR ESTA PARADO AHORA MISMO. Existe por el defecto F3, que
+  # ninguno de los ~25 escenarios de licencia podia ver: el doble de `curl`
+  # contestaba el cuerpo de `/api/version` SIEMPRE, incluso despues de un
+  # `docker stop`. En una maquina de verdad, con el contenedor parado, no
+  # contesta nadie -- y ahi el reporte al padre salia vacio y no se mandaba ni
+  # se encolaba. El doble mentia justo en el punto donde estaba el fallo.
+  #
+  # Lo escribe el doble de `docker` (`stop` lo pone, `start` y `run --detach`
+  # lo quitan) y lo lee el de `curl`. Va por ARCHIVO y no por variable de
+  # entorno porque los dobles son procesos aparte: uno no puede cambiarle el
+  # entorno al otro.
+  export REG_PARADO="$RAIZ_TMP/contenedor-parado"
   : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"; : >"$REG_S3_SUBIDO"
-  : >"$REG_FLOTA_POST"; : >"$REG_ENLACES"
+  : >"$REG_FLOTA_POST"; : >"$REG_ENLACES"; rm -f "$REG_PARADO"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
@@ -2940,6 +2967,52 @@ codigo_es 8
 log_dice 'no se pudo cambiar el enlace'
 limpiar
 
+# ─── EL 8 TIENE QUE LLEGAR AL PANEL (E133-E134, revision final, F3) ─────────
+#  El defecto que ninguno de los ~25 escenarios de licencia podia ver, porque
+#  NINGUNO encendia `usar_flota`: en la rama `vencida|invalida` se hacia
+#  `docker stop` ANTES de `salir`, y `salir` compone el reporte preguntandole a
+#  la propia aplicacion por `$SALUD_URL`. Con el contenedor parado no contesta
+#  nadie: el cuerpo salia vacio, NO SE MANDABA NI SE ENCOLABA, y el padre veia
+#  «sin respuesta» -- que es exactamente la lectura que el codigo 8 existe para
+#  evitar (`apps/flota/diagnostico.mjs:133`). El gate del bloque 8 de
+#  `docs/evidencias/ensayo-licencia-demo.txt` no podia pasar.
+#
+#  Y el arnes no lo veia por DOS motivos a la vez, que es lo que lo hizo durar:
+#  ningun escenario de licencia encendia la flota, y el doble de `curl`
+#  contestaba el cuerpo de `/api/version` aunque el contenedor estuviera
+#  parado. Las dos cosas estan arregladas: el doble ahora lee `REG_PARADO`.
+preparar 'E133 con la licencia vencida el reporte SI llega al padre, y lleva el codigo 8'
+usar_flota
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+hubo 'docker stop'
+# LA comprobacion: el cuerpo se compuso y se POSTEO, con el 8 dentro. Sin el
+# arreglo esto esta vacio -- no es que llegue mal, es que no llega nada.
+posteo_dice '"codigo":8'
+posteo_dice '"instancia":"demo"'
+# Y el contrato del receptor se cumple: `apps/flota/reporte.mjs:88` rechaza un
+# cuerpo sin `version`, asi que sin esto el padre lo tiraria igualmente.
+posteo_dice '"version"'
+log_calla 'reporte de flota: no se pudo componer'
+limpiar
+
+# LA OTRA MITAD, y la que demuestra que el doble discrimina de verdad: si el
+# reporte se compusiera DESPUES del `docker stop`, este escenario seria
+# identico al de arriba salvo en que no llega nada. Aqui se comprueba el
+# camino simetrico que SIEMPRE funciono -- el codigo 9, que deja el contenedor
+# vivo -- para que un futuro cambio que rompa el doble se note en los dos.
+preparar 'E134 el 9 tambien llega al padre, y ahi el contenedor nunca se para'
+usar_flota
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export OPENSSL_BIN=openssl-que-no-existe
+correr
+codigo_es 9
+no_hubo 'docker stop'
+posteo_dice '"codigo":9'
+unset OPENSSL_BIN
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -3242,6 +3315,14 @@ if [ "${1:-}" = '--mutantes' ]; then
   # comprobaciones de antes sin que ningun escenario se enterara.
   probar_mutante 'el apagado sirve el sitio normal en vez de la pagina de vencimiento' \
     's@^    sin-licencia) origen="\$NGINX_SITIO_SIN_LICENCIA" ;;$@    sin-licencia) origen="$NGINX_SITIO_NORMAL"       ;;@'
+
+  # Y el cuarto (F3, revision final): quitar el reporte que va ANTES del
+  # `docker stop` deja el unico que queda --el de `salir`-- componiendose
+  # contra un contenedor parado. Es EXACTAMENTE el defecto que se arreglo, y
+  # su forma de fallar es que al padre no llega nada y el panel dice «sin
+  # respuesta». Tiene que morder, o E133 no vale de nada.
+  probar_mutante 'no reportar antes de parar el contenedor: el 8 no llega al panel' \
+    's@^      reportar_a_flota || true$@      true                    @'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

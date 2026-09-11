@@ -341,6 +341,14 @@
 #    · el cuerpo sale de la propia instancia por `$SALUD_URL` —127.0.0.1—, que
 #      es la misma URL con la que este script ya comprueba la salud.
 #
+#  CUANDO SE COMPONE, que no es un detalle: normalmente al final, desde
+#  `salir()`. La excepcion es el apagado por licencia (codigo 8), que compone y
+#  encola el reporte ANTES de parar el contenedor — porque el cuerpo se lo
+#  pregunta a la aplicacion, y una aplicacion parada no contesta. Sin esa
+#  excepcion, el unico estado que el panel existia para distinguir era
+#  precisamente el unico que no llegaba nunca. Esta escrito con detalle junto
+#  al `case` que lo hace.
+#
 #  Y lo que NO puede hacer, que es lo importante: **abortar el update**. Si el
 #  padre esta caido, o el DNS no resuelve, o el token esta mal, la instancia
 #  sigue actualizada y sirviendo. El reporte se guarda en
@@ -1075,6 +1083,35 @@ licencia_arrancar_si_parado() {
 if [ "$LICENCIA_REQUERIDA" = 1 ]; then
   case "$LICENCIA_ESTADO" in
     vencida|invalida)
+      # EL REPORTE VA ANTES DEL `docker stop`, Y ESE ORDEN ES EL ARREGLO.
+      #
+      # `flota_cuerpo()` compone el reporte preguntandole a LA PROPIA
+      # APLICACION por `$SALUD_URL` (127.0.0.1:3000) y exige que la respuesta
+      # traiga `"version"` dentro. Con el contenedor ya parado no contesta
+      # nadie: el cuerpo salia vacio, no se mandaba NI SE ENCOLABA, y el padre
+      # veia «sin respuesta» -- que es exactamente la lectura que el codigo 8
+      # existe para evitar (`apps/flota/diagnostico.mjs:133`). Y no era solo la
+      # primera noche: todas las siguientes hacian lo mismo.
+      #
+      # La prueba de que el diagnostico era ese esta en la ASIMETRIA: el codigo
+      # 9, tres lineas mas abajo, SI llegaba al panel -- y en ese camino el
+      # contenedor queda vivo.
+      #
+      # Por que componer antes y no relajar el contrato del receptor
+      # (`apps/flota/reporte.mjs:88` rechaza un cuerpo sin `version`): porque
+      # la version que interesa es LA QUE ESTABA SIRVIENDO cuando se apago, y
+      # el unico que la sabe con certeza es el contenedor que todavia corre.
+      # Recordar la ultima version conocida en disco seria inventar un segundo
+      # origen de verdad para el dato que el panel usa precisamente para
+      # detectar instancias rezagadas.
+      #
+      # `FLOTA_CODIGO` se fija aqui a mano porque normalmente lo pone `salir`,
+      # y `salir` llega despues del `stop`. `salir` lo volvera a fijar al mismo
+      # valor y llamara otra vez a `reportar_a_flota`, que no hara nada: el
+      # guard `FLOTA_REPORTADO` --que ya existia, para que dos `salir` no
+      # duplicaran el reporte-- cubre este caso tal cual.
+      FLOTA_CODIGO="$EX_LICENCIA"
+      reportar_a_flota || true
       # `docker stop`, nunca `docker rm`: los datos estan en Postgres y ahi se
       # quedan, y conservar el contenedor hace que reanudar sea arrancarlo.
       docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
