@@ -64,7 +64,15 @@ TPL_INST="$RAIZ/infra/env/instancia.env.example"
 TPL_NGINX_NORMAL="$RAIZ/infra/nginx/instancia.conf.tpl"
 TPL_NGINX_SIN_LICENCIA="$RAIZ/infra/nginx/instancia-sin-licencia.conf.tpl"
 TPL_LICENCIA_HTML="$RAIZ/infra/nginx/publico/licencia-vencida.html"
-LICENCIA_PUB_ORIGEN="$RAIZ/infra/licencias/space-os.pub"
+# COSTURA DE PRUEBAS (tarea 11): el par de llaves real NO vive en este
+# repositorio -- lo genera la tarjeta `docs/evidencias/llaves-de-licencia.txt`
+# y se agrega al paquete de alta al armarlo -- asi que un arnes automatizado
+# no puede llegar mas alla de `verificar_licencia()` sin poder firmar una
+# licencia de prueba contra ALGUNA llave publica. Mismo patron que
+# `SPACE_OS_BASE_INSTANCIA_SH` (mas abajo) y que `LICENCIA_PUB` en
+# `update.sh:843`: ausente por omision, y con `--confirmar` en una maquina
+# real esto sigue resolviendo al archivo del paquete, nunca a otro.
+LICENCIA_PUB_ORIGEN="${SPACE_OS_LICENCIA_PUB:-$RAIZ/infra/licencias/space-os.pub}"
 
 uso() { sed -n '/^# ===USO-INICIO===$/,/^# ===USO-FIN===$/p' "$0" | sed '1d;$d'; }
 
@@ -215,12 +223,25 @@ ejecutar() {
 # porque la mayoria de lo que se escribe con esto lleva secretos. El
 # CONTENIDO nunca pasa por un argumento de ningun proceso: solo por la
 # tuberia, que no es visible en `ps`.
+#
+# COSTURA DE PRUEBAS (tarea 11): en `--dry-run`, si `SPACE_OS_CAPTURA_DIR`
+# esta puesto, el contenido se GUARDA ahi (con el destino saneado como nombre
+# de archivo) en vez de tirarse a `/dev/null`. Sin esto, este guion de 600
+# lineas que corre como root en la maquina de un cliente no tenia NINGUNA
+# prueba automatica mirando lo que escribe -- solo el nombre del destino,
+# nunca lo que llevaba dentro (asi se le escapo el defecto de esta misma
+# tarea). Ausente por omision, y el camino con `--confirmar` NUNCA la mira:
+# la maquina real siempre escribe donde escribia, sin excepcion.
 escribir() {
   local destino="$1" modo="${2:-600}"
   if [[ "$CONFIRMAR" -eq 1 ]]; then
     install -m "$modo" /dev/null "$destino" && cat > "$destino"
   else
-    cat >/dev/null
+    if [[ -n "${SPACE_OS_CAPTURA_DIR:-}" ]]; then
+      cat > "$SPACE_OS_CAPTURA_DIR/$(printf '%s' "$destino" | tr -c 'A-Za-z0-9._-' '_')"
+    else
+      cat >/dev/null
+    fi
     printf '%s escribir %s (modo %s)\n' "$DRY_ETIQUETA" "$destino" "$modo"
   fi
 }
@@ -269,13 +290,37 @@ sustituir_y_verificar() {
 # como argumentos de esta funcion, y la comparacion de cadenas no interpreta
 # nada del valor: es texto literal, siempre.
 #
-# Ademas ENTRECOMILLA todo lo que reemplaza. `update.sh` hace `. "$CONF"` --
-# SOURCEA el archivo -- y un valor con un espacio sin comillas hace que bash
-# ejecute la SEGUNDA PALABRA como si fuera un comando, como root, cada noche
-# (I7; documentado tambien en CLAUDE.md). `validar_valor_seguro()` ya
-# rechazo antes cualquier valor que pudiera romper las comillas mismas
-# (comillas dobles, `$`, backtick, barra invertida).
-reescribir_env() {
+# HASTA la tarea 11 esto era UNA sola funcion para los DOS archivos que se
+# escriben abajo, y siempre ENTRECOMILLABA el valor. Eso rompia `app.env`:
+# nadie lo sourcea, lo lee Docker como `--env-file`, y `update.sh` ya traia
+# escrito por que se lee asi (`update.sh:1417-1420`): *"Formato --env-file de
+# docker: CLAVE=valor, sin comillas ni export. Por eso se lee con grep y no
+# con '.': sourcearlo interpretaria las comillas de otra manera que docker, y
+# ahi es donde nacen las diferencias invisibles."* Docker no las quita: se
+# las queda DENTRO del valor. Con eso, `url_de_env_app()` (grep+cut, sin
+# sourcear -- el mismo motivo de arriba) leia el `DATABASE_URL` de `app.env`
+# CON las comillas puestas, `update.sh:1430-1433` lo comparaba contra el de
+# `instancia.env` (que si se sourcea, y sale SIN comillas), los dos destinos
+# no coincidian nunca, y el cron paraba con `EX_CONFIG` en su primera corrida:
+# la instancia quedaba servida pero sin poder actualizarse jamas.
+#
+# La regla, en una frase: UN archivo, UN parser. Por eso hay DOS funciones, no
+# una con un `if`: `instancia.env` la SOURCEA bash (`update.sh` hace
+# `. "$CONF"`) y sus valores TIENEN que ir entrecomillados, o un valor con un
+# espacio ejecuta su segunda palabra como root cada noche (I7, documentado en
+# CLAUDE.md). `app.env` lo lee Docker y sus valores van TAL CUAL: Docker no
+# interpreta comillas, las conserva como parte del dato. NO SE VUELVAN A
+# UNIR "para simplificar" -- es exactamente asi como nacio este defecto.
+#
+# Las dos siguen recibiendo solo valores que ya pasaron por
+# `validar_valor_seguro()` en el llamador: que un valor vaya sin comillas en
+# `app.env` no lo hace seguro por si mismo -- lo hace seguro que ya se haya
+# rechazado antes lo que no puede llevar. Y el peligro cambia de FORMA en un
+# `--env-file`: no hay ejecucion de palabras (no lo sourcea nadie), pero un
+# SALTO DE LINEA dentro de un valor inventa una variable nueva -- por eso
+# `validar_valor_seguro()` lo rechaza tambien, antes de que el valor llegue
+# a cualquiera de las dos funciones.
+reescribir_env_sourceado() {
   local plantilla="$1"; shift
   local linea clave valor par encontrado
   while IFS= read -r linea || [[ -n "$linea" ]]; do
@@ -301,6 +346,36 @@ reescribir_env() {
       done
       if [[ "$encontrado" -eq 1 ]]; then
         printf '%s="%s"\n' "$clave" "$valor"
+        continue
+      fi
+    fi
+    printf '%s\n' "$linea"
+  done < "$plantilla"
+}
+
+# Hermana de la de arriba, para `app.env`. MISMO recorrido linea por linea,
+# MISMA plantilla, MISMA razon para estar escrita en bash y no con `sed` --
+# la unica diferencia, y la que tiene que quedarse asi, es que el valor
+# sustituido va SIN comillas: son dos parsers de dos formatos distintos, y
+# unificarlos es el defecto que esta funcion existe para no repetir (ver el
+# comentario de arriba).
+reescribir_env_docker() {
+  local plantilla="$1"; shift
+  local linea clave valor par encontrado
+  while IFS= read -r linea || [[ -n "$linea" ]]; do
+    linea="${linea%$'\r'}"
+    if [[ "$linea" =~ ^([A-Z_][A-Z0-9_]*)= ]]; then
+      clave="${BASH_REMATCH[1]}"
+      encontrado=0
+      for par in "$@"; do
+        if [[ "$par" == "$clave="* ]]; then
+          valor="${par#*=}"
+          encontrado=1
+          break
+        fi
+      done
+      if [[ "$encontrado" -eq 1 ]]; then
+        printf '%s=%s\n' "$clave" "$valor"
         continue
       fi
     fi
@@ -654,7 +729,7 @@ ejecutar mkdir -p /etc/space-os
 # mantener un solo mecanismo de lectura de plantillas es mas simple de revisar.
 VALOR_DOCKER_OPCIONES_APP=""
 while IFS= read -r _linea_dopc; do
-  _linea_dopc="${_linea_dopc%$'\r'}"  # ver el comentario sobre CRLF en reescribir_env()
+  _linea_dopc="${_linea_dopc%$'\r'}"  # ver el comentario sobre CRLF en reescribir_env_sourceado()
   if [[ "$_linea_dopc" == DOCKER_OPCIONES_APP=* ]]; then
     VALOR_DOCKER_OPCIONES_APP="${_linea_dopc#DOCKER_OPCIONES_APP=}"
     VALOR_DOCKER_OPCIONES_APP="${VALOR_DOCKER_OPCIONES_APP%\"}"
@@ -674,7 +749,7 @@ DOCKER_OPCIONES_APP_NUEVO="${VALOR_DOCKER_OPCIONES_APP} -v /etc/space-os/licenci
 FLOTA_REPORTE_URL_VALOR="$PADRE_URL/flota/reporte"
 
 TMP_INST="$(mktemp)"
-reescribir_env "$TPL_INST" \
+reescribir_env_sourceado "$TPL_INST" \
   "INSTANCIA=$INSTANCIA" \
   "DATABASE_URL=$URL_MIGRADOR" \
   "REGISTRY=$REGISTRY" \
@@ -699,7 +774,7 @@ reescribir_env "$TPL_INST" \
 escribir /etc/space-os/instancia.env 600 < "$TMP_INST"
 rm -f "$TMP_INST"
 
-reescribir_env "$TPL_APP" \
+reescribir_env_docker "$TPL_APP" \
   "APP_URL=https://$DOMINIO" \
   "DATABASE_URL=$(url_app "$CLAVE_APP")" \
   "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
