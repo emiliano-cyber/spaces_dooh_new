@@ -2,6 +2,9 @@
  TARJETA · El alta cuando el cliente pone su propio droplet    2026-09-11
  Tarea 8 de docs/superpowers/plans/2026-09-10-alta-en-droplet-propio.md
  ADR 0032 · guion: infra/scripts/instalar-hijo.sh
+ Ronda de correccion 1: cada comando de esta tarjeta se corrio de verdad en
+ un directorio de pruebas antes de escribirla asi. El informe de la tarea
+ trae la salida de cada uno.
 ================================================================================
 
 QUE HACE
@@ -12,10 +15,11 @@ QUE HACE
   le entregamos y una licencia que expira si deja de pagar.
 
 QUE NO HACE
-  No crea ningun droplet (es SUYO). No toca su DNS (es SUYA la zona). No deja
-  la instancia en el canal `beta` -- una instancia de cliente sigue SIEMPRE
-  `estable` (invariante 13), y ni el instalador ni esta tarjeta traen forma de
-  cambiarlo.
+  No crea ningun droplet (es SUYO). No toca su DNS (es SUYA la zona, y el
+  instalador la COMPRUEBA antes de tocar nada -- no la asume). No deja la
+  instancia en el canal `beta` -- una instancia de cliente sigue SIEMPRE
+  `estable` (invariante 13), y ni el instalador ni esta tarjeta traen forma
+  de cambiarlo.
 
 --------------------------------------------------------------------------------
  ⚠️ ESTA TARJETA TIENE DOS DESTINATARIOS, Y NO SE PARECEN EN NADA
@@ -47,7 +51,7 @@ QUE NO HACE
   nosotros. Se llama a la misma funcion a mano, una vez por cliente, desde el
   PADRE:
 
-FLOTA_TOKEN_NUEVO=$(openssl rand -hex 32)
+export FLOTA_TOKEN_NUEVO=$(openssl rand -hex 32)
 cd /var/www/Spaces/apps/flota
 node -e '
 import("./inscribir.mjs").then(async ({ inscribir }) => {
@@ -59,6 +63,13 @@ import("./inscribir.mjs").then(async ({ inscribir }) => {
   console.log(r)
 })
 '
+
+  🚦 EL `export` NO ES DECORATIVO. Sin el, `FLOTA_TOKEN_NUEVO` queda como
+     variable de ESTA shell y no le llega a `node` (es un proceso aparte):
+     el token entra como `undefined` y `inscribir()` devuelve
+     `{ ok: false, motivo: 'faltan nombre, dominio o token: no se apunta
+     nada' }` -- probado sin el `export` para confirmarlo antes de escribir
+     esta tarjeta.
 
   ESPERADO: `{ ok: true }`. Si sale `{ ok: false, motivo: ... }`, el motivo lo
   dice todo -- no se sigue con un token que el panel no va a reconocer.
@@ -83,9 +94,15 @@ node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
   --vence <YYYY-MM-DD> \
   --salida /tmp/licencia-<instancia-del-cliente>
 
-  Pide la frase de paso de la llave privada (ver
-  `docs/evidencias/llaves-de-licencia.txt`, seccion D, para donde vive). Dos
-  archivos resultan: `licencia.json` y `licencia.firma`.
+  Pide la frase de paso de la llave privada, tecleada a mano por quien tenga
+  acceso a ella (ver `docs/evidencias/llaves-de-licencia.txt`, seccion A --
+  DONDE vive esa frase a largo plazo sigue siendo la pregunta abierta de su
+  seccion D, sin cerrar todavia). Dos archivos resultan: `licencia.json` y
+  `licencia.firma`. Sella los dos con su propio `sha256sum`, que es lo que
+  A4 entrega junto con ellos:
+
+cd /tmp/licencia-<instancia-del-cliente>
+sha256sum licencia.json licencia.firma > licencia.sha256
 
 --------------------------------------------------------------------------------
  A3 · 🚦 GATE · armar el paquete COMUN -- UNA SOLA VEZ, se reusa para toda la flota
@@ -97,7 +114,7 @@ node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
   archivos que no cambiaron.
 
   `instalar-hijo.sh` resuelve su propia raiz como `../..` de donde vive
-  (`infra/scripts/instalar-hijo.sh:60`), asi que el paquete tiene que
+  (`infra/scripts/instalar-hijo.sh:55`), asi que el paquete tiene que
   conservar la MISMA forma de directorios que este repositorio, o el guion no
   encuentra sus propias plantillas:
 
@@ -116,8 +133,13 @@ cp infra/nginx/instancia-sin-licencia.conf.tpl "$D"/infra/nginx/
 cp infra/nginx/publico/licencia-vencida.html   "$D"/infra/nginx/publico/
 cp infra/licencias/space-os.pub     "$D"/infra/licencias/
 
-find "$D" -type f -exec sha256sum {} \; | sed "s#$D/##" | sort -k2 > "$D.sha256"
+( cd "$D" && find . -type f -exec sha256sum {} \; | sort -k2 > ../paquete-space-os.sha256 )
 tar -C "$D" -czf /tmp/paquete-space-os.tar.gz .
+
+  El `./` que va a aparecer delante de cada ruta en el `.sha256` es cosmetico
+  -- `sha256sum -c` lo resuelve igual de bien que sin el, siempre que se
+  compruebe desde el mismo directorio en el que se genero (ver el 🚦 de B3).
+  Probado con y sin el prefijo: los dos verifican en verde.
 
   🚦 GATE: `cat /tmp/paquete-space-os.sha256` y comprueba a ojo que
      `infra/licencias/space-os.pub` esta en la lista. Si no esta, el paquete
@@ -132,14 +154,16 @@ tar -C "$D" -czf /tmp/paquete-space-os.tar.gz .
 --------------------------------------------------------------------------------
  A4 · Lo que se le entrega a ESTE cliente
 --------------------------------------------------------------------------------
-  DOS cosas, y NO se mezclan con las de otro cliente:
+  TRES cosas, y NO se mezclan con las de otro cliente:
 
   1. `/tmp/paquete-space-os.tar.gz` + `/tmp/paquete-space-os.sha256`
      (el mismo para todos, de A3).
-  2. La carpeta de A2 (`licencia.json` + `licencia.firma` de ESTE cliente),
-     con su propio `sha256sum licencia.json licencia.firma`.
-  3. El `FLOTA_TOKEN_NUEVO` de A1 (por un canal que NO sea el mismo correo que
-     lleva el paquete -- un secreto y su paquete no viajan juntos).
+  2. La carpeta de A2 completa: `licencia.json` + `licencia.firma` +
+     `licencia.sha256` (los TRES; el cliente verifica los dos primeros
+     contra el tercero en B3, igual que hace con el paquete).
+  3. El `FLOTA_TOKEN_NUEVO` de A1, y el REGISTRY / REGISTRY_TOKEN / PADRE_URL
+     que usa en B4 y B6 (por un canal que NO sea el mismo correo que lleva
+     el paquete -- un secreto y su paquete no viajan juntos).
 
   El canal de entrega no lo decide esta tarjeta: lo decide Comercial, igual
   que hoy decide como se entrega cualquier otro dato del alta.
@@ -177,9 +201,11 @@ tar -C "$D" -czf /tmp/paquete-space-os.tar.gz .
 
     dig +short <tu-dominio>      # tiene que devolver la IP de tu droplet
 
-  El paso final (el certificado, B6) FALLA si tu DNS todavia no resuelve, y
-  Let's Encrypt limita a cinco intentos por hora -- confirma este paso antes
-  de seguir.
+  El instalador (B4 y B6) COMPRUEBA esto por su cuenta antes de tocar nada, y
+  para con el registro exacto que falta si no resuelve todavia -- pero
+  confirmarlo aqui ahorra un viaje completo de ida y vuelta. El paso del
+  certificado (dentro de B6) ademas FALLA si el DNS no resuelve, y Let's
+  Encrypt limita a cinco intentos por hora.
 
 --------------------------------------------------------------------------------
  B3 · 🚦 GATE · descarga el instalador y COMPRUEBA que llego entero
@@ -191,35 +217,61 @@ tar -C "$D" -czf /tmp/paquete-space-os.tar.gz .
 
   Con el paquete ya en el droplet:
 
+mkdir -p paquete-space-os
 tar -xzf paquete-space-os.tar.gz -C paquete-space-os/
-sha256sum -c paquete-space-os.sha256
 
-  🚦 ESPERADO: `OK` en cada linea. Si alguna dice `FAILED`, PARA y avisanos --
-     no sigas con un archivo que no coincide con el que te enviamos.
+  🚦 EL `mkdir -p` VA ANTES, SIEMPRE. Sin el, `tar` no tiene donde extraer y
+     falla con "Cannot open: No such file or directory" -- probado. El
+     directorio no lo crea `tar -C` por si solo.
 
-  Haz lo mismo con tu licencia (el archivo que te dimos aparte, con su propio
-  `.sha256`), y ponla junto al paquete:
+  Y el `sha256sum -c` se corre DESDE DENTRO del directorio que acabas de
+  crear -- las rutas del `.sha256` son relativas a ahi, asi que corrido
+  desde el directorio de arriba (donde esta el `.tar.gz`) TODAS las lineas
+  dan `FAILED` (probado: "No such file or directory" en cada una), y esa NO
+  es una alarma real:
 
-sha256sum -c licencia.sha256
-mkdir -p licencia && mv licencia.json licencia.firma licencia/
+cd paquete-space-os
+sha256sum -c ../paquete-space-os.sha256
+
+  🚦 ESPERADO: `OK` en cada linea. Si alguna dice `FAILED` estando parado
+     AQUI DENTRO, esa si es una alarma real: PARA y avisanos, no sigas con
+     un archivo que no coincide con el que te enviamos.
+
+  Haz lo mismo con tu licencia (la carpeta que te dimos aparte, con su propio
+  `licencia.sha256`):
+
+cd ..
+sha256sum -c licencia.sha256      # corrido DENTRO de la carpeta de la licencia
+mkdir -p licencia
+mv licencia.json licencia.firma paquete-space-os/licencia/
+
+  (El nombre de la carpeta de destino en el ultimo `mv` es un ejemplo --
+  usa la ruta que le vas a pasar a `--licencia` en B4/B6.)
 
 --------------------------------------------------------------------------------
  B4 · Corre el instalador EN SECO primero -- es el modo por omision
 --------------------------------------------------------------------------------
   Sin `--confirmar`, el instalador NO TOCA NADA: solo cuenta lo que haria.
-  Necesitas el registro de imagenes que te dimos (dos valores, se ponen en el
-  entorno y no como argumento para que no queden en tu historial):
+  Necesitas tres valores que te dimos, en el ENTORNO y no como argumento
+  para que no queden en tu historial:
 
 export REGISTRY='<el registro que te dimos>'
 export REGISTRY_TOKEN='<el token de solo lectura que te dimos>'
+export PADRE_URL='<la URL que te dimos, sin barra al final>'
 
-sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
+sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
   --flota-token '<el token que te dimos en A1>' \
   --licencia ./licencia \
   --contacto <tu-correo-de-soporte> \
   --spaces-key '<tu llave de Spaces>' --spaces-secret '<tu secreto>' --spaces-bucket '<tu bucket>'
+
+  🚦 `sudo -E`, NUNCA `sudo` a secas. Por diseno, `sudo` LIMPIA tu entorno
+     (`env_reset`) antes de correr el comando: sin `-E`, las tres variables
+     que acabas de exportar no le llegan al instalador, y muere en el acto
+     diciendo "falta REGISTRY en el entorno" aunque la acabes de exportar --
+     probado. `-E` es lo que le dice a `sudo` que preserve tu entorno.
 
   Las tres ultimas (`--spaces-*`) son para que tus respaldos y tus registros
   salgan de este droplet hacia tu propio Spaces -- si todavia no los tienes,
@@ -229,20 +281,21 @@ sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 --------------------------------------------------------------------------------
  B5 · 🚦 GATE · lee lo que el instalador dijo que haria
 --------------------------------------------------------------------------------
-  Revisa la salida de B4 de principio a fin. Tiene que terminar diciendo que
-  la simulacion no toco nada, sin ningun error en rojo por el camino. Si algo
-  falla aqui (una licencia que no verifica, un dominio que no resuelve, una
-  credencial vacia a medias), es MUCHO mejor enterarse ahora que a mitad de la
-  instalacion real.
+  Revisa la salida de B4 de principio a fin. Tiene que terminar con el banner
+  "SIMULACION TERMINADA — NO SE TOCO NADA", sin ningun error en rojo por el
+  camino. Si algo falla aqui (una licencia que no verifica, un dominio que no
+  resuelve, una credencial vacia a medias), es MUCHO mejor enterarse ahora
+  que a mitad de la instalacion real.
 
 --------------------------------------------------------------------------------
  B6 · La instalacion de verdad
 --------------------------------------------------------------------------------
-  El MISMO comando de B4, con `--confirmar` al final. Tarda varios minutos:
-  instala Docker, PostgreSQL, nginx y certbot; crea tu base de datos; baja la
-  imagen de la aplicacion; y pide tu certificado.
+  El MISMO comando de B4 (con las mismas tres variables ya exportadas), con
+  `--confirmar` al final. Tarda varios minutos: instala Docker, PostgreSQL,
+  nginx y certbot; crea tu base de datos; baja la imagen de la aplicacion; y
+  pide tu certificado.
 
-sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
+sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
   --flota-token '<el token que te dimos en A1>' \
@@ -251,9 +304,11 @@ sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --spaces-key '<tu llave de Spaces>' --spaces-secret '<tu secreto>' --spaces-bucket '<tu bucket>' \
   --confirmar
 
-  ESPERADO al final: `login 200` y un mensaje de instalacion terminada. Si se
+  ESPERADO al final: `login 200` y el banner "INSTALACION HECHA". Si se
   detiene antes con un error, el mensaje dice que revisar -- si no sabes que
-  hacer con el, escribenos con el texto completo.
+  hacer con el, escribenos con el texto completo. El instalador PARA en el
+  primer paso que de verdad falle (no sigue adelante fingiendo que todo esta
+  bien), asi que el ultimo mensaje en pantalla es el que importa.
 
   A partir de aqui tu instancia se actualiza SOLA, todas las noches a las
   4:17 (tu hora del servidor), y se apaga sola -- con una pagina explicando
@@ -264,9 +319,11 @@ sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 ================================================================================
   No es «lo vimos funcionar»: en este camino, quien instala no somos
   nosotros, asi que no hay nada que "ver". Lo que cierra el alta es que la fila
-  de tu instancia aparezca en el panel:
+  de tu instancia aparezca en el panel (la URL es la misma `PADRE_URL` de B4,
+  con `/flota/` al final -- te la confirmamos junto con el resto de datos de
+  A4):
 
-    https://space-os.io/flota/
+    <PADRE_URL>/flota/
 
   Si tu instancia reporta su version por si sola (F6.4) sin que nadie mas
   entre a tu servidor, esa fila es la prueba de que el alta funciono de
@@ -280,20 +337,20 @@ sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   paso en este proyecto que una tarjeta puso un comando destructivo en la fila
   normal y se corrio por inercia.
 
-  `instalar-hijo.sh` no se auto-reintenta ni deja la maquina "a medias" a
-  proposito (si un paso de verdad falla, se avisa y se sigue en vez de
-  abortar, igual que `provision-instancia.sh`) -- pero si algo se ve mal a
-  mitad de camino:
+  `instalar-hijo.sh` PARA en el primer paso que de verdad falla (a partir de
+  la ronda de correccion 1, ya no sigue adelante en silencio si la primera
+  corrida de la aplicacion no levanta) -- asi que si algo se ve mal a mitad
+  de camino, el mensaje en pantalla ya dice que paso. Lo que sigue es solo
+  para limpiar y reintentar:
 
-  · Revisa el ultimo paso que se imprimio en pantalla: cada paso dice lo que
-    estaba haciendo.
   · El log del actualizador, si ya se llego a la primera corrida:
 
 # tail -60 /var/log/space-os/update.log
 
-  · Si la base de datos quedo a medio crear y quieres empezar de cero en ESTE
-    droplet (no se puede volver a correr el instalador sobre roles que ya
-    existen: `create role` falla si el rol ya esta):
+  · Si la base de datos quedo a medio crear y quieres reinstalar en ESTE
+    MISMO droplet: este instalador es de UN SOLO USO, no compone sobre una
+    instalacion previa (si el rol `spaces_app` ya existe, PARA con este
+    mismo mensaje antes de tocar nada mas). Para empezar de cero aqui:
 
 # sudo -u postgres psql -c "drop database if exists spaces"
 # sudo -u postgres psql -c "drop role if exists spaces_app"
@@ -308,8 +365,9 @@ sudo bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 ================================================================================
   1. El resultado de A1 (`{ ok: true }` o el motivo si fallo).
   2. La ruta del paquete de A3 y su `.sha256`.
-  3. Confirmacion de que el cliente completo B3 (sha256 verificado) y B5 (la
-     simulacion no mostro ningun error).
-  4. La captura o el enlace de la fila del cliente en
-     https://space-os.io/flota/ -- es el gate C, y es lo que cierra el alta.
+  3. Confirmacion de que el cliente completo B3 (sha256 verificado, del
+     paquete Y de la licencia) y B5 (la simulacion termino con el banner de
+     "NO SE TOCO NADA" y sin errores).
+  4. La captura o el enlace de la fila del cliente en `<PADRE_URL>/flota/` --
+     es el gate C, y es lo que cierra el alta.
 ================================================================================

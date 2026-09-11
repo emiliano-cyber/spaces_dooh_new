@@ -23,14 +23,22 @@
 #  `provision-instancia.sh`.
 #
 #  Variables de entorno (nunca argumentos, para que no acaben en `ps` ni en el
-#  historial de la shell):
+#  historial de la shell). Se pasan con `sudo -E` -- `sudo` sin `-E` limpia el
+#  entorno (`env_reset`) y el guion moriria en "falta REGISTRY" a pesar de
+#  haberlo exportado:
 #    REGISTRY        (obligatoria)  registry.digitalocean.com/<nombre>
 #    REGISTRY_TOKEN  (obligatoria con --confirmar)  de SOLO LECTURA
+#    PADRE_URL       (obligatoria)  https://<dominio-del-padre>, sin barra
+#                     final. De ahi sale a donde esta instancia reporta su
+#                     version cada noche (F6.4) y donde el cliente comprueba
+#                     que su alta quedo hecha -- ninguno de los dos se quema
+#                     aqui.
 #
 #  Lo que este guion NO hace, y es deliberado:
 #   · NO crea el droplet: el cliente ya lo creo, en SU cuenta.
 #   · NO toca el DNS: el cliente ya lo apunto antes de bajar este instalador
-#     (asi lo dice su tarjeta, `docs/evidencias/alta-droplet-propio.txt`).
+#     (asi lo dice su tarjeta, `docs/evidencias/alta-droplet-propio.txt`), y
+#     este guion lo COMPRUEBA (no lo asume) antes de tocar nada.
 #   · NO deja el canal en `beta`: una instancia de cliente sigue SIEMPRE
 #     `estable` (invariante 13). No es un argumento a proposito.
 # ===USO-FIN===
@@ -88,6 +96,31 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Rechaza un valor que un archivo SOURCEADO por bash (`instancia.env`,
+# `app.env`, via `update.sh`) no puede llevar sin riesgo: comillas dobles,
+# `$`, un backtick o una barra invertida bastan para que una asignacion se
+# convierta en codigo que se ejecuta como root la proxima vez que el cron
+# corra `update.sh` a las 4:17. Documentado en CLAUDE.md, y ya paso una vez
+# con un espacio sin comillas -- esto va mas lejos que comillas: rechaza en
+# vez de intentar escapar, porque escapar a mano este conjunto es como se
+# llega al defecto de `sed` que esta misma ronda encontro (M1).
+validar_valor_seguro() {
+  local etiqueta="$1" valor="$2"
+  case "$valor" in
+    *'"'*|*'$'*|*'`'*|*'\'*)
+      echo "instalar-hijo: $etiqueta trae un caracter que no se puede escribir con seguridad" >&2
+      echo "               en un archivo que \`update.sh\` sourcea (comillas dobles, \$," >&2
+      echo "               backtick o barra invertida). No se adivina que se quiso decir:" >&2
+      echo "               se rechaza." >&2
+      exit "$EX_USO"
+      ;;
+  esac
+  if [[ "$valor" == *$'\n'* ]]; then
+    echo "instalar-hijo: $etiqueta trae un salto de linea. No se escribe." >&2
+    exit "$EX_USO"
+  fi
+}
+
 # ─── Validacion de argumentos ────────────────────────────────────────────────
 # Todo lo que el operador escribe se revisa ANTES de mirar un solo archivo del
 # paquete: es el dato mas facil de equivocar (una `y` de mas, un dominio sin
@@ -97,6 +130,7 @@ done
 [[ -n "$DOMINIO" ]]       || { echo "instalar-hijo: falta --dominio <dominio>" >&2; exit "$EX_USO"; }
 [[ -n "$FLOTA_TOKEN" ]]   || { echo "instalar-hijo: falta --flota-token <token>" >&2; exit "$EX_USO"; }
 [[ -n "$LICENCIA_ORIGEN" ]] || { echo "instalar-hijo: falta --licencia <directorio>" >&2; exit "$EX_USO"; }
+validar_valor_seguro "--flota-token" "$FLOTA_TOKEN"
 
 # `--contacto` no esta en la lista de argumentos del brief, y por eso es
 # OPCIONAL y no se exige: la prueba en seco de la tarea 2 del brief la invoca
@@ -137,18 +171,22 @@ if [[ "$N_SPACES" -gt 0 && "$N_SPACES" -lt 3 ]]; then
   echo "instalar-hijo: --spaces-key, --spaces-secret y --spaces-bucket van juntas o ninguna. No se adivina cual falta." >&2
   exit "$EX_USO"
 fi
+[[ -n "$SPACES_KEY" ]]    && validar_valor_seguro "--spaces-key" "$SPACES_KEY"
+[[ -n "$SPACES_SECRET" ]] && validar_valor_seguro "--spaces-secret" "$SPACES_SECRET"
+[[ -n "$SPACES_BUCKET" ]] && validar_valor_seguro "--spaces-bucket" "$SPACES_BUCKET"
 
 command -v sed >/dev/null 2>&1 || { echo "instalar-hijo: falta 'sed' en esta maquina" >&2; exit "$EX_ENTORNO"; }
 
-# ─── El registro de imagenes, por ENTORNO y no por argumento ────────────────
+# ─── El registro de imagenes y el PADRE, por ENTORNO y no por argumento ─────
 # Mismos dos motivos que en `provision-instancia.sh`: el token no debe
-# aparecer en `ps` ni en el historial, y el nombre del registro no se quema en
-# un archivo versionado (regla de CLAUDE.md). Se DECLARAN aqui pero se
-# COMPRUEBAN mas abajo, despues de la licencia: un dato que el cliente
-# proporciona (la licencia) se revisa antes que uno de configuracion del
-# entorno de quien instala.
+# aparecer en `ps` ni en el historial, y ni el registro ni el dominio del
+# PADRE se queman en un archivo versionado (regla de CLAUDE.md). Se DECLARAN
+# aqui pero se COMPRUEBAN mas abajo, despues de la licencia: un dato que el
+# cliente proporciona (la licencia) se revisa antes que uno de configuracion
+# del entorno de quien instala.
 REGISTRY="${REGISTRY:-}"
 REGISTRY_TOKEN="${REGISTRY_TOKEN:-}"
+PADRE_URL="${PADRE_URL:-}"
 IMAGEN_NOMBRE="${IMAGEN_NOMBRE:-space-os}"
 # Nunca `beta`: es la instancia de un cliente. No hay bandera para cambiarlo.
 CANAL=estable
@@ -160,7 +198,9 @@ paso() { printf '\n── %s\n' "$*"; }
 
 # Corre un comando de verdad, o lo imprime sin tocar nada. Todo pasa por aqui a
 # proposito -- un `if $CONFIRMAR` repetido en cada sitio es donde se cuela el
-# paso que si se ejecuta porque alguien olvido uno.
+# paso que si se ejecuta porque alguien olvido uno. NO USAR con un comando que
+# lleve un secreto en uno de sus argumentos: `printf ' %q'` lo imprimiria
+# entero en pantalla. Para eso hay funciones dedicadas mas abajo.
 ejecutar() {
   if [[ "$CONFIRMAR" -eq 1 ]]; then
     "$@"
@@ -172,7 +212,9 @@ ejecutar() {
 }
 
 # Escribe un archivo LOCAL por la entrada estandar. Modo por omision 600
-# porque la mayoria de lo que se escribe con esto lleva secretos.
+# porque la mayoria de lo que se escribe con esto lleva secretos. El
+# CONTENIDO nunca pasa por un argumento de ningun proceso: solo por la
+# tuberia, que no es visible en `ps`.
 escribir() {
   local destino="$1" modo="${2:-600}"
   if [[ "$CONFIRMAR" -eq 1 ]]; then
@@ -188,6 +230,12 @@ escribir() {
 # ya instalado: asi la comprobacion vale igual en `--dry-run` que con
 # `--confirmar`, y el riesgo real -- sustituir un marcador y olvidar el otro --
 # se cacha con una persona delante en vez de en la pantalla del cliente.
+#
+# Solo se usa con DOMINIO y CONTACTO, que no son secretos (viajan igual de
+# claros en el propio certificado TLS y en el remitente de un correo): los
+# valores que SI son secretos (tokens, claves) nunca pasan por aqui ni por
+# ningun `sed -e`, para no repetir el defecto que esta ronda encontro (I6,
+# M1) en un sitio nuevo.
 sustituir_y_verificar() {
   local plantilla="$1" destino="$2" modo="$3"; shift 3
   local tmp
@@ -204,6 +252,60 @@ sustituir_y_verificar() {
   fi
   escribir "$destino" "$modo" < "$tmp"
   rm -f "$tmp"
+}
+
+# Reescribe una plantilla de entorno linea por linea, EN BASH -- nunca con
+# `sed`. Dos razones, las dos de esta ronda de correccion:
+#   1. `sed -e "s#...#$VALOR#"` pasa el VALOR como parte del propio programa
+#      de `sed`, y ese programa es un argumento de linea de comandos: un
+#      token queda en el `ps` de esta maquina mientras `sed` corre (I6).
+#   2. Un valor con `&`, `/` o una barra invertida CORROMPE la sustitucion
+#      -- son caracteres especiales del lado derecho de un `s///` -- y un
+#      token de DigitalOcean o de Spaces puede traer cualquiera de los tres
+#      sin que nadie lo note hasta que la instancia no arranca (M1, medido
+#      por el revisor: `ab&cd` quedaba escrito como `abREGISTRY_TOKEN=cd`).
+# Una funcion de bash no genera un proceso nuevo (no hay `exec` de por
+# medio), asi que los valores tampoco aparecen en NINGUN `ps` al pasarlos
+# como argumentos de esta funcion, y la comparacion de cadenas no interpreta
+# nada del valor: es texto literal, siempre.
+#
+# Ademas ENTRECOMILLA todo lo que reemplaza. `update.sh` hace `. "$CONF"` --
+# SOURCEA el archivo -- y un valor con un espacio sin comillas hace que bash
+# ejecute la SEGUNDA PALABRA como si fuera un comando, como root, cada noche
+# (I7; documentado tambien en CLAUDE.md). `validar_valor_seguro()` ya
+# rechazo antes cualquier valor que pudiera romper las comillas mismas
+# (comillas dobles, `$`, backtick, barra invertida).
+reescribir_env() {
+  local plantilla="$1"; shift
+  local linea clave valor par encontrado
+  while IFS= read -r linea || [[ -n "$linea" ]]; do
+    # Si la plantilla trae CRLF (medido: un checkout de Windows con
+    # `core.autocrlf=true` deja `infra/env/*.example` asi, aunque el
+    # repositorio guarda LF), `read -r` solo quita el `\n` y el `\r` se queda
+    # pegado al final de la linea. Sin esto, la comparacion de clave sigue
+    # funcionando (el `\r` cae DESPUES del `=`), pero el VALOR que se
+    # preserva de una linea sin reemplazo arrastraria el `\r`, y quien lea el
+    # archivo instalado veria un caracter invisible al final de cada linea
+    # asi. Se quita aqui, una sola vez, en vez de en cada sitio que use esta
+    # funcion.
+    linea="${linea%$'\r'}"
+    if [[ "$linea" =~ ^([A-Z_][A-Z0-9_]*)= ]]; then
+      clave="${BASH_REMATCH[1]}"
+      encontrado=0
+      for par in "$@"; do
+        if [[ "$par" == "$clave="* ]]; then
+          valor="${par#*=}"
+          encontrado=1
+          break
+        fi
+      done
+      if [[ "$encontrado" -eq 1 ]]; then
+        printf '%s="%s"\n' "$clave" "$valor"
+        continue
+      fi
+    fi
+    printf '%s\n' "$linea"
+  done < "$plantilla"
 }
 
 # Secretos: hex y nada mas, mismo motivo que `provision-instancia.sh` --
@@ -298,10 +400,24 @@ done
   echo "               Va por entorno, no por argumento: no se quema en el repo." >&2
   exit "$EX_USO"
 }
+validar_valor_seguro "REGISTRY" "$REGISTRY"
 if [[ "$CONFIRMAR" -eq 1 && -z "$REGISTRY_TOKEN" ]]; then
   echo "instalar-hijo: falta REGISTRY_TOKEN (de SOLO LECTURA) en el entorno para bajar la imagen." >&2
   exit "$EX_USO"
 fi
+[[ -n "$REGISTRY_TOKEN" ]] && validar_valor_seguro "REGISTRY_TOKEN" "$REGISTRY_TOKEN"
+
+[[ -n "$PADRE_URL" ]] || {
+  echo "instalar-hijo: falta PADRE_URL en el entorno (https://<dominio-del-padre>, sin barra final)." >&2
+  echo "               De ahi sale FLOTA_REPORTE_URL, y sin ella la instancia no" >&2
+  echo "               tiene a donde contar en que version se quedo cada noche." >&2
+  exit "$EX_USO"
+}
+if ! [[ "$PADRE_URL" =~ ^https://[a-z0-9.-]+(:[0-9]+)?$ ]]; then
+  echo "instalar-hijo: PADRE_URL '$PADRE_URL' no parece 'https://dominio', sin barra final." >&2
+  exit "$EX_USO"
+fi
+validar_valor_seguro "PADRE_URL" "$PADRE_URL"
 
 # ─── Root y Ubuntu 22.04, como setup-droplet.sh ─────────────────────────────
 # Gateado por --confirmar, igual que todo lo demas: en seco, cualquiera puede
@@ -321,6 +437,60 @@ if [[ "$CONFIRMAR" -eq 1 ]]; then
 else
   echo "  $DRY_ETIQUETA se comprobaria: EUID=0 (root) y Ubuntu 22.04"
 fi
+
+# ============================================================================
+#  El DNS, ANTES de tocar nada -- I9
+# ----------------------------------------------------------------------------
+#  Sin esto, todo el aprovisionamiento se hacia igual y era CERTBOT quien
+#  reventaba al final, con la maquina ya montada y un intento de Let's
+#  Encrypt gastado (limite: cinco por hora). Se comprueba aqui, de lectura
+#  pura y sin tocar nada, y si el dominio no resuelve a ESTE droplet se para
+#  con el registro exacto que falta -- mismo espiritu que `avanzarDns()` en
+#  `apps/flota/avanzar.mjs`, que hace la misma comparacion para el alta
+#  administrada.
+# ============================================================================
+comprobar_dns() {
+  local ip_publica resueltos
+  # La IP publica de ESTE droplet, desde el metadata service de
+  # DigitalOcean: no depende de que ningun DNS resuelva todavia, y por eso
+  # sirve como referencia. Si esta maquina no es un droplet de DigitalOcean
+  # (por ejemplo, al ensayar este guion en otra maquina), el metadata no
+  # contesta y la comprobacion se OMITE con aviso en vez de fallar -- no es
+  # el problema que este guion existe para resolver.
+  ip_publica="$(curl -s -m 5 http://169.254.169.254/metadata/v1/interfaces/public/0/ipv4/address 2>/dev/null || true)"
+  if [[ -z "$ip_publica" ]]; then
+    echo "  aviso: no se pudo leer la IP publica de este droplet (metadata de DigitalOcean no contesto); se omite la comprobacion de DNS." >&2
+    return 0
+  fi
+  if ! command -v getent >/dev/null 2>&1; then
+    echo "  aviso: no hay 'getent' en esta maquina; se omite la comprobacion de DNS." >&2
+    return 0
+  fi
+  resueltos="$(getent hosts "$DOMINIO" 2>/dev/null | awk '{print $1}' | sort -u)"
+  if [[ -z "$resueltos" ]]; then
+    echo "" >&2
+    echo "instalar-hijo: '$DOMINIO' todavia no resuelve a ninguna IP." >&2
+    echo "               Falta un registro EN TU DNS antes de seguir:" >&2
+    echo "" >&2
+    echo "                 A    $DOMINIO    ->    $ip_publica" >&2
+    echo "" >&2
+    echo "               Apuntalo y espera a que propague (dig +short $DOMINIO tiene" >&2
+    echo "               que devolver esa IP). Certbot falla si no resuelve, y Let's" >&2
+    echo "               Encrypt limita a 5 intentos por hora." >&2
+    exit "$EX_USO"
+  fi
+  if ! grep -qxF "$ip_publica" <<< "$resueltos"; then
+    echo "" >&2
+    echo "instalar-hijo: '$DOMINIO' resuelve a $(tr '\n' ' ' <<< "$resueltos")y no a $ip_publica (la IP de este droplet)." >&2
+    echo "               Corrige el registro A en tu DNS antes de seguir:" >&2
+    echo "" >&2
+    echo "                 A    $DOMINIO    ->    $ip_publica" >&2
+    echo "" >&2
+    exit "$EX_USO"
+  fi
+  echo "  DNS: $DOMINIO resuelve a $ip_publica (esta maquina)"
+}
+comprobar_dns
 
 if [[ "$N_SPACES" -eq 0 ]]; then
   cat <<'AVISO'
@@ -357,16 +527,58 @@ ejecutar bash "$SETUP_DROPLET"
 # vez de por ssh. Ver ahi el porque de NOBYPASSRLS en el rol de la app y
 # BYPASSRLS en el de migracion -- la explicacion no cambia por correr local.
 paso "Base de datos"
+
+# M11: este instalador es de UN SOLO USO por droplet -- no se hizo
+# idempotente a proposito (no hace falta: un droplet propio no se reinstala,
+# se destruye y se crea de nuevo). Sin este chequeo, reejecutarlo muere en
+# `create role ... ya existe`, un error de Postgres que no dice nada de lo
+# que en verdad paso. Se detecta ANTES y se explica.
+if [[ "$CONFIRMAR" -eq 1 ]]; then
+  if sudo -u postgres psql -tAc "select 1 from pg_roles where rolname='spaces_app'" 2>/dev/null | grep -q '^1$'; then
+    echo "" >&2
+    echo "instalar-hijo: el rol 'spaces_app' ya existe en esta maquina: este" >&2
+    echo "               instalador ya se corrio aqui antes." >&2
+    echo "               Es de UN SOLO USO por droplet -- no reintenta ni compone" >&2
+    echo "               sobre una instalacion previa. Si de verdad quieres" >&2
+    echo "               reinstalar EN ESTA maquina, borra primero lo que quedo:" >&2
+    echo "" >&2
+    echo "                 sudo -u postgres psql -c 'drop database if exists spaces'" >&2
+    echo "                 sudo -u postgres psql -c \"drop role if exists spaces_app\"" >&2
+    echo "                 sudo -u postgres psql -c \"drop role if exists spaces_migrador\"" >&2
+    echo "" >&2
+    echo "               Y si el problema es la maquina entera, lo mas simple es" >&2
+    echo "               destruir este droplet y crear uno nuevo." >&2
+    exit "$EX_FALLA"
+  fi
+fi
+
 CLAVE_APP="$(secreto)"
 CLAVE_MIGRADOR="$(secreto)"
 URL_MIGRADOR="postgresql://spaces_migrador:$CLAVE_MIGRADOR@127.0.0.1:5432/spaces"
 
-ejecutar sudo -u postgres psql -v ON_ERROR_STOP=1 -c \
-  "create role spaces_app login password '$CLAVE_APP' nosuperuser nocreatedb nocreaterole noinherit nobypassrls"
-ejecutar sudo -u postgres psql -v ON_ERROR_STOP=1 -c \
-  "create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit bypassrls"
-ejecutar sudo -u postgres psql -v ON_ERROR_STOP=1 -c \
-  "create database spaces owner spaces_migrador"
+# El SQL entra a `psql` por la ENTRADA ESTANDAR, nunca por `-c`: un `-c` con
+# la clave dentro queda en el argv de `psql`, visible para cualquier otro
+# usuario de esta maquina mientras el proceso corre (I6). `printf` aqui es un
+# builtin de bash -- no crea un proceso propio, asi que la clave nunca sale
+# de la memoria de ESTE guion hasta que entra por la tuberia a `psql`.
+crear_rol_o_base() {
+  local sql="$1" sql_oculto="$2"
+  if [[ "$CONFIRMAR" -eq 1 ]]; then
+    printf '%s\n' "$sql" | sudo -u postgres psql -v ON_ERROR_STOP=1
+  else
+    printf '%s sudo -u postgres psql -v ON_ERROR_STOP=1   <<< "%s"\n' "$DRY_ETIQUETA" "$sql_oculto"
+  fi
+}
+
+crear_rol_o_base \
+  "create role spaces_app login password '$CLAVE_APP' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;" \
+  "create role spaces_app login password '(oculta)' nosuperuser nocreatedb nocreaterole noinherit nobypassrls;"
+crear_rol_o_base \
+  "create role spaces_migrador login password '$CLAVE_MIGRADOR' nosuperuser nocreaterole noinherit bypassrls;" \
+  "create role spaces_migrador login password '(oculta)' nosuperuser nocreaterole noinherit bypassrls;"
+crear_rol_o_base \
+  "create database spaces owner spaces_migrador;" \
+  "create database spaces owner spaces_migrador;"
 
 # ─── 3 · La llave publica de licencia ───────────────────────────────────────
 paso "Llave publica de licencia"
@@ -388,24 +600,43 @@ ejecutar mkdir -p /etc/space-os
 # `--network host`): se COMPONE con el, no se pisa. Montar el DIRECTORIO de la
 # licencia y no el archivo suelto es lo que deja que una renovacion la vea el
 # contenedor sin reiniciarlo -- un archivo montado ata el montaje a su inodo,
-# y la licencia nueva quedaria invisible para siempre.
-VALOR_DOCKER_OPCIONES_APP="$(grep '^DOCKER_OPCIONES_APP=' "$TPL_INST" | head -n1 | sed 's/^DOCKER_OPCIONES_APP=//; s/^"//; s/"$//')"
+# y la licencia nueva quedaria invisible para siempre. Se lee en BASH, no con
+# `sed`/`grep`+`sed` como antes: es texto de la plantilla (no un secreto), pero
+# mantener un solo mecanismo de lectura de plantillas es mas simple de revisar.
+VALOR_DOCKER_OPCIONES_APP=""
+while IFS= read -r _linea_dopc; do
+  _linea_dopc="${_linea_dopc%$'\r'}"  # ver el comentario sobre CRLF en reescribir_env()
+  if [[ "$_linea_dopc" == DOCKER_OPCIONES_APP=* ]]; then
+    VALOR_DOCKER_OPCIONES_APP="${_linea_dopc#DOCKER_OPCIONES_APP=}"
+    VALOR_DOCKER_OPCIONES_APP="${VALOR_DOCKER_OPCIONES_APP%\"}"
+    VALOR_DOCKER_OPCIONES_APP="${VALOR_DOCKER_OPCIONES_APP#\"}"
+    break
+  fi
+done < "$TPL_INST"
 DOCKER_OPCIONES_APP_NUEVO="${VALOR_DOCKER_OPCIONES_APP} -v /etc/space-os/licencia:/etc/space-os/licencia:ro"
 
-sed_args_inst=(
-  -e "s#^INSTANCIA=.*#INSTANCIA=$INSTANCIA#"
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=$URL_MIGRADOR#"
-  -e "s#^REGISTRY=.*#REGISTRY=$REGISTRY#"
-  -e "s#^REGISTRY_TOKEN=.*#REGISTRY_TOKEN=$REGISTRY_TOKEN#"
-  -e "s#^CANAL=.*#CANAL=$CANAL#"
-  -e "s#^DOCKER_OPCIONES_APP=.*#DOCKER_OPCIONES_APP=\"$DOCKER_OPCIONES_APP_NUEVO\"#"
-)
-[[ -n "$SPACES_KEY" ]]    && sed_args_inst+=(-e "s#^SPACES_KEY=.*#SPACES_KEY=$SPACES_KEY#")
-[[ -n "$SPACES_SECRET" ]] && sed_args_inst+=(-e "s#^SPACES_SECRET=.*#SPACES_SECRET=$SPACES_SECRET#")
-[[ -n "$SPACES_BUCKET" ]] && sed_args_inst+=(-e "s#^SPACES_BUCKET=.*#SPACES_BUCKET=$SPACES_BUCKET#")
+# El PADRE recibe el reporte saliente de esta instancia cada noche (F6.4) --
+# es el mecanismo que sobrevive a que el cliente cierre `/api/version` desde
+# fuera, que es SU derecho porque es SU servidor. Dejar esto vacio (como
+# hacia la version anterior de este guion) renuncia a ese mecanismo sin
+# decirlo (I8): la fila del panel quedaria dependiendo por completo de que
+# el PADRE pueda ENTRAR a preguntar, que es justo lo que el reporte saliente
+# existe para no necesitar.
+FLOTA_REPORTE_URL_VALOR="$PADRE_URL/flota/reporte"
 
 TMP_INST="$(mktemp)"
-sed "${sed_args_inst[@]}" "$TPL_INST" > "$TMP_INST"
+reescribir_env "$TPL_INST" \
+  "INSTANCIA=$INSTANCIA" \
+  "DATABASE_URL=$URL_MIGRADOR" \
+  "REGISTRY=$REGISTRY" \
+  "REGISTRY_TOKEN=$REGISTRY_TOKEN" \
+  "CANAL=$CANAL" \
+  "DOCKER_OPCIONES_APP=$DOCKER_OPCIONES_APP_NUEVO" \
+  "FLOTA_REPORTE_URL=$FLOTA_REPORTE_URL_VALOR" \
+  ${SPACES_KEY:+"SPACES_KEY=$SPACES_KEY"} \
+  ${SPACES_SECRET:+"SPACES_SECRET=$SPACES_SECRET"} \
+  ${SPACES_BUCKET:+"SPACES_BUCKET=$SPACES_BUCKET"} \
+  > "$TMP_INST"
 {
   printf '\n'
   printf '# ─── Anadidas por instalar-hijo.sh (ADR 0032, tarea 8) ────────────────\n'
@@ -413,29 +644,41 @@ sed "${sed_args_inst[@]}" "$TPL_INST" > "$TMP_INST"
   printf '# enciende un mecanismo (el apagado por licencia, el anclaje de dominio\n'
   printf '# de licencia_valida() en update.sh). La plantilla solo lleva DOMINIO\n'
   printf '# comentada, como documentacion.\n'
-  printf 'DOMINIO=%s\n' "$DOMINIO"
-  printf 'LICENCIA_REQUERIDA=1\n'
+  printf 'DOMINIO="%s"\n' "$DOMINIO"
+  printf 'LICENCIA_REQUERIDA="1"\n'
 } >> "$TMP_INST"
 escribir /etc/space-os/instancia.env 600 < "$TMP_INST"
 rm -f "$TMP_INST"
 
-sed \
-  -e "s#^APP_URL=.*#APP_URL=https://$DOMINIO#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces#" \
-  -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/#" \
-  -e "s#^BOOTSTRAP_TOKEN=.*#BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN#" \
-  -e "s#^FLOTA_TOKEN=.*#FLOTA_TOKEN=$FLOTA_TOKEN#" \
-  -e "s#^CANAL=.*#CANAL=$CANAL#" \
-  "$TPL_APP" | escribir /etc/space-os/app.env 600
+reescribir_env "$TPL_APP" \
+  "APP_URL=https://$DOMINIO" \
+  "DATABASE_URL=postgresql://spaces_app:$CLAVE_APP@127.0.0.1:5432/spaces" \
+  "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
+  "BOOTSTRAP_TOKEN=$BOOTSTRAP_TOKEN" \
+  "FLOTA_TOKEN=$FLOTA_TOKEN" \
+  "CANAL=$CANAL" \
+  | escribir /etc/space-os/app.env 600
 
-# ─── 6 · docker login ───────────────────────────────────────────────────────
+# ─── 6 · Entrar al registro de imagenes, sin credenciales en la linea de
+#         comandos ───────────────────────────────────────────────────────────
+# `docker login --username "$TOKEN" --password-stdin` deja el TOKEN en el
+# argv del proceso `docker login` mientras corre -- `--password-stdin` evita
+# que la CONTRASENA viaje por argv, pero no dice nada del `--username` (I6).
+# Se evita del todo escribiendo el credential store de Docker directamente:
+# es exactamente lo que `docker login` hace por dentro, solo que sin pasar
+# el secreto como argumento de ningun proceso. `base64` lo recibe por su
+# ENTRADA ESTANDAR, nunca como argumento.
 paso "Entrando al registro de imagenes"
 REGISTRY_HOST="${REGISTRY%%/*}"
-if [[ "$CONFIRMAR" -eq 1 ]]; then
-  printf '%s' "$REGISTRY_TOKEN" | docker login "$REGISTRY_HOST" --username "$REGISTRY_TOKEN" --password-stdin >/dev/null
-else
-  printf '%s docker login %s (token por stdin)\n' "$DRY_ETIQUETA" "$REGISTRY_HOST"
-fi
+AUTH_B64="$(printf '%s:%s' "$REGISTRY_TOKEN" "$REGISTRY_TOKEN" | base64 -w0)"
+ejecutar mkdir -p /root/.docker
+{
+  printf '{\n'
+  printf '  "auths": {\n'
+  printf '    "%s": { "auth": "%s" }\n' "$REGISTRY_HOST" "$AUTH_B64"
+  printf '  }\n'
+  printf '}\n'
+} | escribir /root/.docker/config.json 600
 
 # ─── 7 · Esquema y migraciones ──────────────────────────────────────────────
 # No esta en la lista de pasos del brief, pero sin esto "primera corrida de
@@ -443,7 +686,9 @@ fi
 # que YA EXISTE, no la crea. Mismo orden y mismos comandos que
 # `provision-instancia.sh` (el esquema base sale de la imagen, y se aplica
 # como `spaces_migrador` para que las migraciones que alteran esas tablas mas
-# tarde no choquen con el dueno).
+# tarde no choquen con el dueno). El `DATABASE_URL` de migraciones va por
+# variable de ENTORNO del contenedor (`--env`), nunca en el propio comando de
+# `docker run` como texto: eso es lo que ya evitaba I6 aqui.
 paso "Esquema y migraciones"
 IMAGEN="$REGISTRY/$IMAGEN_NOMBRE:$CANAL"
 ejecutar docker pull "$IMAGEN"
@@ -527,18 +772,24 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 CRON
 
 # ─── 10 · Primera corrida, sin esperar al cron ──────────────────────────────
-# Si falla no se aborta: la maquina ya esta aprovisionada y el cron la
-# reintenta a las 4:17. Mismo criterio que `provision-instancia.sh` -- abortar
-# aqui convertiria una instancia buena en un alta fallida.
+# M8: a diferencia de `provision-instancia.sh` (que no aborta aqui porque el
+# cron reintenta esa misma noche sin que nadie este mirando), este guion lo
+# corre un CLIENTE, en vivo, delante de la pantalla (tarjeta, bloque B6). Que
+# la aplicacion no levante y el guion siga de todos modos hacia el
+# certificado es peor que pararse: el chequeo final fallaria igual, pero tres
+# pasos y varios minutos despues, y por la misma razon que aqui ya se sabia.
 paso "Levantando la aplicacion"
 if [[ "$CONFIRMAR" -eq 1 ]]; then
   if /opt/space-os/update.sh; then
     echo "  la instancia ya sirve: no hay que esperar al cron de las 4:17"
   else
     echo "" >&2
-    echo "  AVISO: el alta SI termino y la maquina esta lista, pero la aplicacion" >&2
-    echo "         no quedo levantada. El cron lo reintentara a las 4:17. Para no" >&2
-    echo "         esperar: tail -40 /var/log/space-os/update-publicable.log" >&2
+    echo "instalar-hijo: la primera corrida de update.sh fallo. La maquina quedo con" >&2
+    echo "               Docker, PostgreSQL, la base y el entorno instalados, pero la" >&2
+    echo "               aplicacion NO levanto. No se sigue al certificado sobre una" >&2
+    echo "               aplicacion que no responde. Revisa:" >&2
+    echo "                 tail -60 /var/log/space-os/update.log" >&2
+    exit "$EX_FALLA"
   fi
 else
   printf '%s /opt/space-os/update.sh\n' "$DRY_ETIQUETA"
@@ -546,9 +797,9 @@ fi
 
 # ─── 11 · El certificado ────────────────────────────────────────────────────
 # A diferencia de `provision-instancia.sh` (que se detiene aqui porque el
-# owner todavia no aplico su DNS), este guion lo corre AHORA: la tarjeta del
-# cliente le pide apuntar su DNS ANTES de bajar el instalador, asi que para
-# cuando llega hasta aqui el dominio ya resuelve.
+# owner todavia no aplico su DNS), este guion lo corre AHORA: `comprobar_dns`
+# (arriba) ya confirmo que el dominio resuelve a esta maquina antes de llegar
+# hasta aqui.
 paso "Certificado"
 ejecutar certbot certonly --webroot -w /var/www/html -n --agree-tos --no-eff-email \
   -m "$CONTACTO" -d "$DOMINIO"
@@ -579,14 +830,32 @@ else
   fi
 fi
 
-cat <<FIN
+# I10: en `--dry-run` este banner tiene que decir que no se hizo nada -- la
+# version anterior decia "INSTALACION HECHA" tambien en seco, contradiciendo
+# el propio aviso de mas arriba ("SIMULACION. No se toca nada."). M6: la URL
+# del panel no se queda quemada aqui: sale de PADRE_URL, la misma variable
+# que ya trajo FLOTA_REPORTE_URL.
+if [[ "$CONFIRMAR" -eq 1 ]]; then
+  cat <<FIN
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║  INSTALACION HECHA                                                    ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
   El gate que cierra el alta no lo comprueba este guion: es que la fila de
-  "$INSTANCIA" aparezca en https://space-os.io/flota/ -- eso es lo que le
-  cuenta a AS OOH que la instancia esta viva sin que nadie entre a mirarla.
+  "$INSTANCIA" aparezca en $PADRE_URL/flota/ -- eso es lo que le cuenta a
+  AS OOH que la instancia esta viva sin que nadie entre a mirarla.
 
 FIN
+else
+  cat <<FIN
+
+╔══════════════════════════════════════════════════════════════════════╗
+║  SIMULACION TERMINADA — NO SE TOCO NADA                               ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+  Todo lo de arriba es lo que este guion HARIA. Si el plan se ve bien,
+  repite el mismo comando con --confirmar para instalar de verdad.
+
+FIN
+fi
