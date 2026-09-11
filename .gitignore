@@ -148,3 +148,11 @@ apps/flota/publico/
 manuales/.auth/
 manuales/.playwright-artifacts/
 manuales/capturas/
+
+# ─── Los mutantes del arnes de aprovisionamiento ──────────────────────────
+# `pruebas-provision.sh --mutantes` crea la copia mutada del guion AL LADO del
+# original (en /tmp no sirve: `provision-instancia.sh` resuelve todo lo que
+# manda al servidor contra `$(dirname "$0")/../..`, que desde /tmp sale `/`).
+# La barrida las borra siempre, pero una corrida interrumpida deja una: es
+# basura y no tiene que poder colarse en un commit.
+infra/scripts/.mutante-*.sh

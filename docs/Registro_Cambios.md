@@ -5,6 +5,89 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-11
+
+- **Ahora se puede vender el sistema con el cliente poniendo su propio
+  servidor.** Hasta hoy, cuando alguien contrataba SPACE OS, nosotros
+  levantábamos su servidor y lo administrábamos. Eso **sigue funcionando
+  exactamente igual**. Lo nuevo es una segunda forma: el cliente crea su propio
+  servidor, en su propia cuenta, y nosotros le entregamos un paquete para
+  instalar el sistema ahí. Sigue siendo el mismo programa; lo que cambia es
+  quién es dueño de la máquina.
+
+  **Para los servidores que ponemos nosotros no cambia absolutamente nada.**
+  Si ya eres cliente y nosotros administramos tu servidor, esto no te afecta
+  en lo más mínimo.
+
+- **En la nueva forma, el sistema sabe hasta cuándo tiene permiso de
+  funcionar.** Cuando un cliente pone su propio servidor, ese servidor lleva un
+  documento firmado por nosotros que dice hasta qué fecha está pagado. El
+  sistema avisa con semanas de anticipación de que se acerca el vencimiento, y
+  si de todos modos llega la fecha, da un margen de gracia antes de dejar de
+  funcionar. **Un olvido en la facturación no deja a nadie sin poder trabajar
+  de un día para otro.**
+
+- **Si el problema es nuestro, el sistema sigue funcionando y nos avisa a
+  nosotros, no al cliente.** Comprobar el permiso necesita una herramienta que
+  a veces puede faltar en un servidor. Si eso pasa, el sistema **no castiga al
+  cliente** por algo que no es su culpa: sigue funcionando con normalidad, y lo
+  que se avisa es que alguien de nuestro lado tiene que entrar a revisar esa
+  máquina.
+
+- **Los datos del cliente nunca se tocan.** En esta nueva forma, la información
+  del cliente vive en su propio servidor, no en el nuestro. Pase lo que pase
+  con el pago, sus datos siguen siendo suyos y siguen en su máquina.
+
+  **Todavía no hay ningún cliente usando esta forma nueva.** Lo que falta antes
+  del primero es terminar de repartir las llaves de seguridad, firmar el primer
+  documento de permiso, y hacer un ensayo completo — apagando y volviendo a
+  encender el mecanismo a propósito, contra el servidor de pruebas, nunca
+  contra un cliente real.
+
+- **Repaso completo de esa forma nueva, antes de estrenarla con nadie.** Se
+  revisó el mecanismo entero de punta a punta, y aparecieron cosas que no se
+  veían mirando cada pieza por separado. Ninguna había llegado a un cliente
+  —todavía no hay ninguno— pero todas habrían aparecido con el primero:
+
+  - **El aviso de vencimiento no se habría visto nunca.** El sistema tenía que
+    avisar dentro de la pantalla durante el mes anterior al vencimiento y los
+    quince días de gracia. No lo hacía: el documento de permiso quedaba
+    guardado de forma que el propio sistema no podía leerlo, y en vez de
+    quejarse se quedaba callado. Lo primero que habría visto el cliente sería
+    la pantalla de «vencido», sin un solo aviso previo. Corregido, y además
+    ahora si vuelve a pasar **se queja** en vez de callarse, y quien instala
+    tiene un paso nuevo para comprobarlo antes de dar el alta por terminada.
+
+  - **El tablero no se iba a enterar de un apagado.** Cuando el sistema se
+    apaga por vencimiento, tiene que avisar al tablero con un aviso propio —el
+    que dice «está apagado a propósito, no es una avería»—. Ese aviso se
+    preparaba *después* de apagar, y para entonces ya no había nadie que lo
+    pudiera preparar: al tablero llegaba «sin respuesta», que es exactamente
+    lo que ese aviso existía para evitar. Ahora se manda antes de apagar.
+
+  - **Las contraseñas del cliente quedaban en el historial de su terminal.**
+    Los instructivos pedían escribirlas en la misma línea del comando de
+    instalación, con lo que quedaban guardadas en su máquina para siempre.
+    Ahora van por otro camino que no deja rastro, y si alguien las escribe a
+    la antigua, el instalador se detiene y le explica cómo hacerlo bien.
+
+  - **Dos comandos del instructivo del cliente no funcionaban**, y el
+    instructivo no decía en qué orden se hacen las cosas —se podía dar de alta
+    a un cliente sin haber hecho antes el ensayo de prueba—. Las dos cosas
+    arregladas, y esta vez cada comando se ejecutó de verdad antes de
+    escribirlo.
+
+  - **La prueba en seco apagaba el sistema de verdad.** El actualizador tiene
+    un modo «cuéntame qué harías sin hacer nada», y el instructivo le pide a
+    quien instala que lo use **antes** de la instalación real, justamente para
+    que nada pueda salir mal. Pero si en ese momento el permiso estaba
+    vencido, ese modo **apagaba la instancia igual** —y encima sin avisar de
+    que lo iba a hacer—. Alguien podía dejar un sistema abajo creyendo que
+    sólo estaba mirando. Ahora la prueba en seco no toca nada y **dice en voz
+    alta** lo que haría: «apagaría, porque el permiso está vencido». Las dos
+    cosas hacían falta: una prueba que apaga es mala, y una que se calla que
+    el permiso venció no sirve para ensayar nada.
+
 ## 2026-09-10
 
 - **El tablero de servidores ya dice POR QUÉ uno no responde.** Cuando un servidor

@@ -36,6 +36,8 @@ const leer = (...p: string[]) => readFileSync(join(RAIZ, ...p), 'utf8')
 const DOCKERFILE = leer('Dockerfile')
 const SETUP = leer('infra', 'scripts', 'setup-droplet.sh')
 const PROVISION = leer('infra', 'scripts', 'provision-instancia.sh')
+const INSTALAR_HIJO = leer('infra', 'scripts', 'instalar-hijo.sh')
+const BASE_INSTANCIA = leer('infra', 'scripts', 'base-instancia.sh')
 const UPDATE = leer('infra', 'scripts', 'update.sh')
 const INSTANCIA_ENV = leer('infra', 'env', 'instancia.env.example')
 
@@ -52,6 +54,58 @@ function ejecutable(guion: string): string {
     .split(/\r?\n/)
     .filter((l) => !l.trim().startsWith('#'))
     .join(' ')
+}
+
+// ============================================================================
+//  EL CAMINO DE ALTA SON TRES GUIONES, y estas pruebas leen los TRES.
+// ----------------------------------------------------------------------------
+//  Hasta el 2026-09-11 leian UNO (`provision-instancia.sh`). Entonces `aa124cb`
+//  saco el SQL de los roles y las recetas de Docker a `base-instancia.sh` -- un
+//  refactor CORRECTO, que existe justamente para que los dos caminos de alta no
+//  vuelvan a divergir-- y seis de estas pruebas se quedaron leyendo el archivo
+//  viejo. Tres de esas seis son las que custodian R2 (`nobypassrls` del rol de
+//  la aplicacion, `bypassrls` del migrador, y que sean dos roles distintos).
+//
+//  Se pusieron ROJAS, que fue una suerte: buscaban una cadena que ya no estaba.
+//  Una comprobacion por AUSENCIA en el mismo sitio (`not.toMatch`) se habria
+//  quedado en VERDE sin medir nada, y nadie se habria enterado nunca. Esa es la
+//  leccion que fija esta constante:
+//
+//    una prueba que lee un archivo por su ruta afirma DOS cosas a la vez -- lo
+//    que busca, y donde vive. La segunda caduca sola, sin avisar.
+//
+//  Asi que se busca en el CAMINO entero y no en un archivo, y cada ayudante de
+//  abajo devuelve TAMBIEN donde encontro lo que buscaba, para que el rojo diga
+//  "no esta en ninguno de los tres" y no "cadena vacia".
+const GUIONES_DEL_ALTA: ReadonlyArray<readonly [string, string]> = [
+  ['infra/scripts/base-instancia.sh', BASE_INSTANCIA],
+  ['infra/scripts/provision-instancia.sh', PROVISION],
+  ['infra/scripts/instalar-hijo.sh', INSTALAR_HIJO],
+]
+
+/**
+ * Los tres guiones del alta aplanados, uno por linea. El `\n` entre ellos no
+ * es cosmetico: `ejecutable()` convierte cada guion en UNA linea, asi que un
+ * patron con `[^\n]*` dentro no puede cruzar de un archivo al siguiente y
+ * fabricar una coincidencia que no existe en ninguno de los dos.
+ */
+const ALTA = GUIONES_DEL_ALTA.map(([, guion]) => ejecutable(guion)).join('\n')
+
+/**
+ * La sentencia SQL que crea un rol, buscada por el nombre de su RECETA en los
+ * tres guiones del alta.
+ *
+ * Se busca por la receta y no por el nombre del rol porque el nombre ya no
+ * aparece en la sentencia: `base-instancia.sh` lo pasa por `%s` desde
+ * `PG_ROL_APP`, que es lo que impide tener dos nombres distintos en dos
+ * caminos. Buscar `create role spaces_app` volveria a dejar esto mudo.
+ */
+function sqlDeRol(receta: string): { sql: string; donde: string } {
+  for (const [archivo, guion] of GUIONES_DEL_ALTA) {
+    const m = ejecutable(guion).match(new RegExp(`${receta}\\(\\)[\\s\\S]{0,400}?(create role[^"\\\\]*)`))
+    if (m) return { sql: m[1], donde: archivo }
+  }
+  return { sql: '', donde: 'NINGUNO de los guiones del alta' }
 }
 
 describe('la imagen trae lo que la instancia necesita para migrar', () => {
@@ -115,25 +169,25 @@ describe('el respaldo y el log SALEN del droplet, o no hay de donde restaurar', 
 
 describe('el alta migra dentro de un contenedor, no contra un repo', () => {
   it('no da por hecho un repo clonado en la instancia', () => {
-    expect(ejecutable(PROVISION)).not.toMatch(/cd \/var\/www\/Spaces/)
+    expect(ALTA).not.toMatch(/cd \/var\/www\/Spaces/)
   })
 
   it('corre el runner con `docker run`, igual que `update.sh`', () => {
-    expect(ejecutable(PROVISION)).toMatch(/docker run[^\n]*--rm/)
+    expect(ALTA).toMatch(/docker run[^\n]*--rm/)
   })
 
   it('y pasa `--instalacion-nueva`, que `update.sh` nunca pasa', () => {
     // `update.sh` llama al runner sin banderas (`:1511`), y el runner ABORTA si
     // no puede distinguir una base nueva de una rezagada. La primera migración
     // es del aprovisionamiento, sí o sí.
-    expect(ejecutable(PROVISION)).toMatch(/--instalacion-nueva/)
+    expect(ALTA).toMatch(/--instalacion-nueva/)
   })
 
   it('la conexión que migra NO es un socket unix', () => {
     // Un contenedor no ve `/var/run/postgresql` del anfitrión, y montarlo no
     // bastaría: sin usuario en la URL, libpq usa el del SISTEMA, que dentro del
     // contenedor es `node` y no `postgres`, así que *peer* falla igual.
-    expect(ejecutable(PROVISION)).not.toMatch(/postgresql:\/\/\/spaces\?host=/)
+    expect(ALTA).not.toMatch(/postgresql:\/\/\/spaces\?host=/)
   })
 })
 
@@ -152,13 +206,19 @@ describe('la aplicacion en contenedor puede ver su base', () => {
 
   const APP_ENV = leer('infra', 'env', 'app.env.example')
 
-  it('el alta escribe las DOS urls con el MISMO destino, o `update.sh` se para', () => {
-    // Se mira el SCRIPT y no las plantillas: `instancia.env.example` trae
+  it('todas las urls del alta apuntan al MISMO destino, o `update.sh` se para', () => {
+    // Se miran los GUIONES y no las plantillas: `instancia.env.example` trae
     // `DATABASE_URL=` vacio a proposito -- lo rellena el alta --, asi que
-    // comparar plantillas no mediria nada. Las dos urls nacen aqui.
-    const destinos = [...ejecutable(PROVISION).matchAll(/postgresql:\/\/[^@\s'"]+@([^/\s'"]+)\//g)]
-      .map((m) => m[1])
-    expect(destinos.length, 'el alta deberia escribir dos urls').toBeGreaterThanOrEqual(2)
+    // comparar plantillas no mediria nada. Las urls nacen aqui.
+    //
+    // Hasta el 11/09 esto exigia DOS urls porque `provision-instancia.sh` las
+    // escribia por separado. Hoy las dos salen de la MISMA `url_conexion()` de
+    // `base-instancia.sh`, asi que ya no pueden diferir por construccion y
+    // exigir dos seria exigir que se vuelvan a duplicar. Lo que sigue
+    // importando -- y lo que esto afirma -- es que en TODO el camino de alta no
+    // aparezca un segundo destino escrito a mano.
+    const destinos = [...ALTA.matchAll(/postgresql:\/\/[^@\s'"]+@([^/\s'"]+)\//g)].map((m) => m[1])
+    expect(destinos.length, 'ningun guion del alta escribe una url de Postgres').toBeGreaterThanOrEqual(1)
     expect(new Set(destinos).size, `destinos distintos: ${destinos.join(' vs ')}`).toBe(1)
   })
 
@@ -190,22 +250,46 @@ describe('los dos roles de la base, y cual puede saltarse la RLS', () => {
   //  la línea que sostiene el aislamiento entre organizaciones (R2), y su modo de
   //  fallo no da error — devuelve filas de otra empresa, o ninguna, en silencio.
 
-  const creaRol = (nombre: string) =>
-    ejecutable(PROVISION).match(new RegExp(`create role ${nombre}[^"\\\\]*`))?.[0] ?? ''
+  //  Y una tercera leccion, del 2026-09-11: estas tres comprobaciones pasaron
+  //  DIAS apuntando al archivo del que el SQL ya se habia mudado. Por eso cada
+  //  una empieza afirmando que ENCONTRO la sentencia, y por eso la ultima
+  //  cuenta cuantas hay en todo el camino -- ver `sqlDeRol` arriba.
+
+  const APP = sqlDeRol('sql_crear_rol_app')
+  const MIGRADOR = sqlDeRol('sql_crear_rol_migrador')
+
+  it('la sentencia de cada rol EXISTE en el camino de alta (si no, lo de abajo no mide nada)', () => {
+    expect(APP.sql, `no se encontro \`sql_crear_rol_app\` en ${APP.donde}`).not.toBe('')
+    expect(MIGRADOR.sql, `no se encontro \`sql_crear_rol_migrador\` en ${MIGRADOR.donde}`).not.toBe('')
+  })
 
   it('el de la APLICACION no puede saltarse la RLS, y se dice explicito', () => {
-    expect(creaRol('spaces_app')).toMatch(/\bnobypassrls\b/)
+    expect(APP.sql, `receta hallada en ${APP.donde}`).toMatch(/\bnobypassrls\b/)
   })
 
   it('el que MIGRA y RESPALDA si, o el respaldo saldria vacio', () => {
-    const migrador = creaRol('spaces_migrador')
-    expect(migrador).toMatch(/\bbypassrls\b/)
-    expect(migrador, 'el migrador no debe ser superusuario').toMatch(/\bnosuperuser\b/)
+    expect(MIGRADOR.sql, `receta hallada en ${MIGRADOR.donde}`).toMatch(/\bbypassrls\b/)
+    expect(MIGRADOR.sql, 'el migrador no debe ser superusuario').toMatch(/\bnosuperuser\b/)
   })
 
   it('y son DOS roles distintos: la aplicacion nunca usa el del respaldo', () => {
-    expect(creaRol('spaces_app')).not.toBe('')
-    expect(creaRol('spaces_migrador')).not.toBe('')
+    expect(APP.sql).not.toBe(MIGRADOR.sql)
+    // `\b` no casa dentro de `nobypassrls`, asi que esto afirma que al rol de
+    // la aplicacion no se le concedio el privilegio suelto.
+    expect(APP.sql).not.toMatch(/\bbypassrls\b/)
+  })
+
+  it('y el SQL esta escrito UNA sola vez en todo el camino de alta', () => {
+    // `base-instancia.sh` existe precisamente porque esto estuvo escrito dos
+    // veces y derivo en el mismo commit en que se copio. Si alguien vuelve a
+    // pegar un `create role` en `provision-instancia.sh` o en
+    // `instalar-hijo.sh`, el privilegio arreglado en un sitio dejaria de
+    // llegar al otro -- y ese fallo NO da error: sirve datos de quien no toca.
+    const sentencias = ALTA.match(/create role/g) ?? []
+    expect(
+      sentencias.length,
+      `hay ${sentencias.length} sentencias \`create role\` en el camino de alta; deberian ser 2 (una por rol) y vivir solo en base-instancia.sh`,
+    ).toBe(2)
   })
 })
 

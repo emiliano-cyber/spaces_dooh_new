@@ -1,0 +1,433 @@
+================================================================================
+ TARJETA · Ensayar el apagado y la reanudacion por licencia, contra DEMO
+ 2026-09-11
+ Tarea 9 de docs/superpowers/plans/2026-09-10-alta-en-droplet-propio.md
+ ADR 0032 (enmendado 11/09) · guion: infra/scripts/update.sh
+================================================================================
+
+  ⚠️ ES LA PUERTA ANTES DE VENDER ESTO. Un interruptor que apaga instancias
+  cuyo primer uso real fuera contra un cliente que paga seria la peor forma
+  posible de estrenarlo. Todo lo de esta tarjeta corre contra DEMO
+  (`prueba.space-os.io`), nunca contra un cliente.
+
+QUE HACE
+  Prueba, en una instancia de verdad (no en el arnes de `pruebas-update.sh`),
+  el mecanismo completo de licencia: firmar, instalar, apagar cuando vence,
+  avisar en el panel de flota con el codigo correcto, y reanudar solo cuando
+  llega una licencia buena. Incluye el caso que nadie ha visto funcionar
+  todavia: que una herramienta NUESTRA rota (`openssl`) NO apague la
+  instancia.
+
+QUE NO HACE
+  No prueba el instalador (`instalar-hijo.sh`) ni el paquete de alta de un
+  cliente -- eso lo cubre `docs/evidencias/alta-droplet-propio.txt`. No deja
+  a DEMO con una licencia puesta al terminar: el bloque 8 la retira, porque
+  los hijos administrados (DEMO incluida) **no llevan licencia**. No toca la
+  base de datos de DEMO ni su contenido.
+
+--------------------------------------------------------------------------------
+ ⚠️ ANTES DE EMPEZAR: ESTA TARJETA ASUME QUE LA TAREA 3 YA SE CORRIO
+--------------------------------------------------------------------------------
+  El par de llaves de verdad (`docs/evidencias/llaves-de-licencia.txt`) tiene
+  que existir YA en el PADRE antes de este ensayo:
+
+    · `/etc/space-os/llaves/space-os.key.pem` -- para firmar en el bloque 2.
+    · `infra/licencias/space-os.pub` -- committeado en el repositorio, para
+      que `/var/www/Spaces` (el checkout del PADRE) lo traiga con el ultimo
+      `git pull`.
+
+  Compruebalo antes de seguir:
+
+ls -l /etc/space-os/llaves/space-os.key.pem
+test -f /var/www/Spaces/infra/licencias/space-os.pub && echo 'existe' || echo 'FALTA: corre primero llaves-de-licencia.txt'
+
+  🚦 Si el segundo comando dice FALTA, PARA aqui. Sin la publica no hay contra
+     que verificar nada, y `licencia_valida()` fallaria con "no hay llave
+     publica en $LICENCIA_PUB" en cada corrida -- que se vería igual que una
+     licencia invalida, y no lo es: es una tarjeta corrida fuera de orden.
+
+--------------------------------------------------------------------------------
+ ⚠️ Y ESTA: DEMO NACIO ANTES DE ADR 0032, Y LE FALTAN DOS ARCHIVOS
+--------------------------------------------------------------------------------
+  DEMO se aprovisiono el 2026-09-02 (F3.5), por el camino ADMINISTRADO
+  (`provision-instancia.sh`), que NO escribe `DOMINIO=` en `instancia.env` ni
+  el sitio de nginx "sin licencia" -- eso solo lo escribe `instalar-hijo.sh`
+  (comprobado en el codigo de los dos guiones el 2026-09-11: ningun `sed` de
+  `provision-instancia.sh` toca `DOMINIO` ni conoce
+  `instancia-sin-licencia.conf.tpl`). Sin lo de abajo, `update.sh` calcularia
+  las rutas de nginx a partir de `${DOMINIO:-space-os.conf}` -- un archivo que
+  no existe para DEMO -- y el apagado no cambiaria el sitio servido: quedaria
+  contando "APAGADO (8)" en el log mientras el navegador sigue viendo la
+  aplicacion normal, o un 502 desnudo. Por eso el bloque 1 de la Seccion A lo
+  arma UNA VEZ, antes de tocar la licencia.
+
+================================================================================
+ A · PREPARAR DEMO PARA PODER LLEVAR LICENCIA  ·  [SERVIDOR: PADRE, 137.184.107.53]
+================================================================================
+ Se corre UNA SOLA VEZ. Lo que se instala aqui es inerte mientras
+ `LICENCIA_REQUERIDA=0` (el valor de siempre): `nginx_sitio()` y el bloque de
+ licencia de `update.sh` solo se ejecutan con `LICENCIA_REQUERIDA=1`. No hace
+ falta deshacer nada de esta seccion al terminar el ensayo.
+
+--------------------------------------------------------------------------------
+ 0 · 🚦 GATE DE MAQUINA -- si dice g500, PARA
+--------------------------------------------------------------------------------
+hostname; hostname -I 2>/dev/null || hostname -i
+
+  🚦 ESPERADO: el hostname y la IP del PADRE (137.184.107.53). Si el hostname
+     dice `g500` o la IP es la de un cliente, esto NO es el PADRE: PARA y
+     averigua en que maquina estas antes de escribir una sola linea mas. Esta
+     tarjeta apaga contenedores; correrla en la maquina equivocada apaga la
+     instancia de un cliente.
+
+--------------------------------------------------------------------------------
+ 1 · El dominio, para que `update.sh` sepa que archivos de nginx tocar
+--------------------------------------------------------------------------------
+grep -q '^DOMINIO=' /etc/space-os/demo-instancia.env && echo 'ya estaba' || {
+  printf 'DOMINIO=prueba.space-os.io\n' >> /etc/space-os/demo-instancia.env
+  echo 'agregado'
+}
+grep '^DOMINIO=' /etc/space-os/demo-instancia.env
+
+  ESPERADO: `DOMINIO=prueba.space-os.io`. Con esto, `NGINX_SITIO_NORMAL`,
+  `NGINX_SITIO_ACTIVO` y `NGINX_SITIO_SIN_LICENCIA` (los tres calculados a
+  partir de `$DOMINIO` en `update.sh:871-873`) apuntan a los archivos REALES
+  de esta instancia y no a un `space-os.conf` que no existe. Se queda
+  permanente: no es parte de lo que el bloque 8 retira.
+
+--------------------------------------------------------------------------------
+ 2 · 🚦 GATE · el sitio de nginx para cuando la licencia esta vencida
+--------------------------------------------------------------------------------
+  Copia del MISMO certificado que ya sirve DEMO -- si esto fallara, el
+  navegador mostraria una alerta de seguridad ENCIMA del aviso de licencia, y
+  nadie leeria el mensaje real.
+
+DOMINIO=prueba.space-os.io
+CONTACTO=soporte@prueba.space-os.io
+mkdir -p /var/www/space-os-licencia
+sed -e "s/__DOMINIO__/$DOMINIO/g" -e "s/__CONTACTO__/$CONTACTO/g" \
+  /var/www/Spaces/infra/nginx/instancia-sin-licencia.conf.tpl \
+  > "/etc/nginx/sites-available/$DOMINIO-sin-licencia.conf"
+sed -e "s/__DOMINIO__/$DOMINIO/g" -e "s/__CONTACTO__/$CONTACTO/g" \
+  /var/www/Spaces/infra/nginx/publico/licencia-vencida.html \
+  > /var/www/space-os-licencia/licencia-vencida.html
+nginx -t
+
+  🚦 ESPERADO: `nginx -t` termina en `syntax is ok` / `test is successful`. El
+     archivo nuevo NO esta enlazado en `sites-enabled/` todavia -- `nginx -t`
+     valida sintaxis de todo lo que hay en `sites-available/`, enlazado o no,
+     asi que este paso no cambia lo que nginx sirve hoy. Si falla aqui, PARA:
+     no sigas a la licencia con un sitio de vencimiento que nginx rechazaria
+     en la primera recarga real.
+
+--------------------------------------------------------------------------------
+ 3 · La llave publica, para que `update.sh` pueda verificar sin instalarla aparte
+--------------------------------------------------------------------------------
+grep -q '^LICENCIA_PUB=' /etc/space-os/demo-instancia.env && echo 'ya estaba' || {
+  printf 'LICENCIA_PUB=/var/www/Spaces/infra/licencias/space-os.pub\n' >> /etc/space-os/demo-instancia.env
+  echo 'agregado'
+}
+
+  Apunta directo al checkout del PADRE en vez de copiar a `/opt/space-os/`
+  (que es lo que hace `instalar-hijo.sh` en la maquina de un cliente, que no
+  tiene este repositorio): en el PADRE, `/var/www/Spaces` YA es la copia
+  vigente y se actualiza sola con cada despliegue, asi que apuntar ahi evita
+  un archivo mas que se puede quedar desactualizado.
+
+mkdir -p /etc/space-os/licencia
+
+================================================================================
+ B · EL ENSAYO  ·  [SERVIDOR: PADRE, 137.184.107.53]
+================================================================================
+
+--------------------------------------------------------------------------------
+ 4 · Firmar una licencia PARA DEMO, YA CADUCADA a proposito
+--------------------------------------------------------------------------------
+  `--instancia` y `--dominio` tienen que ser CARACTER A CARACTER
+  `demo` y `prueba.space-os.io` -- son los que `licencia_valida()` compara
+  contra `INSTANCIA` y `DOMINIO` de `demo-instancia.env` (confirmados en el
+  bloque 1 y en la configuracion ya escrita el 02/09).
+
+  🚦 OJO CON LA FECHA: `firmar-licencia.mjs` pone `--aviso-dias 30` y
+     `--gracia-dias 15` por omision (`firmar-licencia.mjs:57-58`), y
+     `licencia_estado()` solo devuelve `vencida` cuando `ahora >= vence +
+     gracia_dias` (`update.sh:954-959`). Un `--vence` de AYER cae en
+     `gracia`, que **no apaga** -- el `case` de `update.sh:1100` solo apaga en
+     `vencida|invalida`. Por eso la fecha va **20 dias atras**, con margen de
+     sobra sobre los 15 de gracia por omision.
+
+node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
+  --instancia demo --dominio prueba.space-os.io \
+  --vence "$(date -u -d '20 days ago' +%F)" \
+  --salida /tmp/licencia-ensayo-demo
+
+  Pide la frase de paso de la llave privada real (ver
+  `docs/evidencias/llaves-de-licencia.txt`, seccion D). Dos archivos resultan
+  en `/tmp/licencia-ensayo-demo/`: `licencia.json` y `licencia.firma`.
+
+--------------------------------------------------------------------------------
+ 5 · Instalarla
+--------------------------------------------------------------------------------
+cp /tmp/licencia-ensayo-demo/licencia.json  /etc/space-os/licencia/licencia.json
+cp /tmp/licencia-ensayo-demo/licencia.firma /etc/space-os/licencia/licencia.firma
+chmod 755 /etc/space-os/licencia
+chmod 644 /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+
+  🚦 644 Y NO 600, Y EL DIRECTORIO TAMBIEN. Aqui dentro da igual --en DEMO
+     lee root y este directorio no se monta en el contenedor-- pero ESTAS
+     SON LAS LINEAS QUE ALGUIEN VA A COPIAR el dia que haya que reponer una
+     licencia a mano en la maquina de un cliente. Y ahi el contenedor corre
+     como `node`: con 600 de root, o con el archivo bien dentro de un
+     directorio 700, la aplicacion no puede leer la licencia, y el sintoma
+     NO es un error -- es que la banda de aviso de vencimiento deja de
+     pintarse, callada, los 30 dias de aviso y los 15 de gracia. Es el
+     defecto F2 de la revision final, corregido en `instalar-hijo.sh` el
+     11/09; estas dos lineas eran el ultimo sitio donde seguia vivo.
+
+     Y no se pierde nada al abrirlo: una licencia NO es un secreto. Es una
+     afirmacion firmada y publica, y su valor esta en la firma.
+
+--------------------------------------------------------------------------------
+ 6 · Encender la comprobacion
+--------------------------------------------------------------------------------
+grep -q '^LICENCIA_REQUERIDA=' /etc/space-os/demo-instancia.env \
+  && sed -i 's/^LICENCIA_REQUERIDA=.*/LICENCIA_REQUERIDA=1/' /etc/space-os/demo-instancia.env \
+  || printf 'LICENCIA_REQUERIDA=1\n' >> /etc/space-os/demo-instancia.env
+grep '^LICENCIA_REQUERIDA=' /etc/space-os/demo-instancia.env
+
+  ESPERADO: `LICENCIA_REQUERIDA=1`.
+
+--------------------------------------------------------------------------------
+ 7 · 🚦 GATE · correr `update.sh`, y que apague
+--------------------------------------------------------------------------------
+  `SPACE_OS_CONF` NO ES OPCIONAL: sin el, `update.sh` lee
+  `/etc/space-os/instancia.env` por omision (`update.sh:367`), que no es la
+  configuracion de DEMO -- ese guion "actualizaria otra cosa", con el mismo
+  aviso ya escrito en `docs/evidencias/flota-fase2-desplegar.txt:125`.
+
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
+echo "codigo de salida: $?"
+
+  🚦 ESPERADO: `codigo de salida: 8`. El log dice
+     `APAGADO (8): la licencia de esta instancia esta "vencida"...` y registra
+     que nginx cambio a `sin-licencia`. Comprueba las DOS cosas por separado,
+     no solo el codigo:
+
+docker inspect --format '{{.State.Running}}' space-os-demo
+  # ESPERADO: false
+
+curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+  # ESPERADO: 503 (la pagina de vencimiento, sirviendo bajo el CERTIFICADO
+  # real -- este `curl` corre EN EL PADRE, contra el dominio publico, asi que
+  # no hace falta `-k`: si el certificado fuera invalido, `curl` fallaria
+  # aqui y esa seria otra alarma real)
+
+  🚦 Y a mano, desde un navegador -- que es lo que de verdad hay que ver antes
+     de vender esto: abre `https://prueba.space-os.io/spaces-dooh/login/` y
+     confirma que el candado del navegador esta CERRADO y sin advertencia
+     (el mismo certificado que el sitio normal), con el texto de
+     "La licencia de SPACE OS para esta instancia vencio" en pantalla.
+     GUARDA UNA CAPTURA -- es parte de lo que esta tarjeta tiene que devolver.
+
+--------------------------------------------------------------------------------
+ 8 · 🚦 GATE · el panel de flota dice "8", con su frase -- no una averia
+--------------------------------------------------------------------------------
+  Espera a que DEMO reporte (el reporte saliente de F6.4 corre al terminar
+  `update.sh`, en el mismo proceso) y abre:
+
+    https://space-os.io/flota/
+
+  🚦 ESPERADO: la fila de DEMO muestra el codigo **8** traducido a la frase
+     *"la licencia vencio y la instancia esta apagada a proposito: no es una
+     averia"* (`apps/flota/diagnostico.mjs:133`) -- NO como "sin respuesta" ni
+     como una averia de servidor. GUARDA UNA CAPTURA de esta fila: es el
+     primer estado de los tres que esta tarjeta tiene que devolver.
+
+================================================================================
+ C · EL CASO DEL CODIGO 9 -- LA MITAD DEL MECANISMO QUE NADIE HA VISTO FUNCIONAR
+================================================================================
+ Licencia BUENA, pero la herramienta NUESTRA para comprobarla no esta. Esto
+ tiene que demostrar lo contrario del bloque B: la instancia SIGUE sirviendo.
+
+--------------------------------------------------------------------------------
+ 9 · Firmar y dejar instalada una licencia BUENA
+--------------------------------------------------------------------------------
+node /var/www/Spaces/apps/flota/firmar-licencia.mjs \
+  --instancia demo --dominio prueba.space-os.io \
+  --vence "$(date -u -d '+180 days' +%F)" \
+  --salida /tmp/licencia-ensayo-demo-buena
+
+cp /tmp/licencia-ensayo-demo-buena/licencia.json  /etc/space-os/licencia/licencia.json
+cp /tmp/licencia-ensayo-demo-buena/licencia.firma /etc/space-os/licencia/licencia.firma
+chmod 644 /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+
+  El `chmod` se repite aqui y no se da por heredado del bloque 5: `cp` sobre
+  un archivo que YA existe conserva los permisos del destino, pero si alguien
+  copia solo este bloque --que es justo lo que va a hacer quien reponga una
+  licencia-- el archivo puede no existir y nacer con el umask de la sesion.
+
+--------------------------------------------------------------------------------
+ 10 · 🚦 GATE · correr `update.sh` con `openssl` INALCANZABLE
+--------------------------------------------------------------------------------
+  `OPENSSL_BIN` es la costura que existe justo para esto (`update.sh:857`):
+  antepone el binario al PATH sin reemplazarlo, asi que apuntarlo a una ruta
+  que no existe ejercita de verdad la rama "falta la herramienta" sin tocar
+  el `openssl` real de la maquina (que otros procesos SI necesitan).
+
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env \
+  OPENSSL_BIN=/opt/space-os/openssl-que-no-existe \
+  /opt/space-os/update.sh
+echo "codigo de salida: $?"
+
+  🚦 ESPERADO: `codigo de salida: 9`. El log dice
+     `AVISO (9): la licencia de esta instancia NO SE PUDO COMPROBAR (...)`,
+     con el motivo entre parentesis diciendo que falta
+     `openssl-que-no-existe` en esta maquina (`update.sh:986,1095`), y termina
+     ahi -- SIN seguir con pull ni migraciones. Comprueba que la instancia
+     realmente sigue respondiendo, no solo que el codigo sea 9:
+
+docker inspect --format '{{.State.Running}}' space-os-demo
+  # ESPERADO: true
+
+curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+  # ESPERADO: 200 -- la aplicacion normal, no la pagina de vencimiento
+
+  🚦 Si cualquiera de las dos comprobaciones de arriba falla (contenedor
+     detenido, o un codigo distinto de 200), PARA: significaria que una
+     herramienta rota SIGUE apagando instancias al corriente, que es
+     exactamente el defecto que este mecanismo existe para no repetir.
+
+--------------------------------------------------------------------------------
+ 11 · 🚦 GATE · el panel de flota dice "9" -- y a quien hay que llamar cambia
+--------------------------------------------------------------------------------
+    https://space-os.io/flota/
+
+  🚦 ESPERADO: la fila de DEMO ahora dice **9**, traducido como *"no se pudo
+     verificar la licencia: la instancia sigue sirviendo, pero hay un
+     problema de herramienta"* (`apps/flota/diagnostico.mjs:134`). GUARDA UNA
+     CAPTURA: es el segundo de los tres estados. La llamada que dispara este
+     codigo es a NOSOTROS -- a revisar `openssl` en esta maquina -- nunca al
+     cliente.
+
+================================================================================
+ D · LA REANUDACION  ·  [SERVIDOR: PADRE]
+================================================================================
+
+--------------------------------------------------------------------------------
+ 12 · 🚦 GATE · con `openssl` de vuelta y licencia buena, vuelve a servir SOLO
+--------------------------------------------------------------------------------
+  La licencia buena de B9 ya esta instalada. Basta con correr `update.sh` SIN
+  la variable que rompia `openssl` -- exactamente el comando del bloque 7,
+  sin `OPENSSL_BIN`:
+
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
+echo "codigo de salida: $?"
+
+  🚦 ESPERADO: `codigo de salida: 0` (o el que corresponda a "sin cambios" si
+     no hay imagen nueva que jalar -- lo que importa es que NO sea 8 ni 9).
+     Sin ejecutar NINGUN comando de reanudacion aparte: `licencia_arrancar_si_parado()`
+     (`update.sh:1084-1096`) arranca el contenedor si habia quedado detenido,
+     ANTES de devolver nginx a la normalidad. Comprueba las dos cosas:
+
+docker inspect --format '{{.State.Running}}' space-os-demo
+  # ESPERADO: true
+
+curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+  # ESPERADO: 200
+
+  🚦 Esto es lo que ya fallo una vez en este trabajo: una version anterior de
+     `update.sh` devolvia nginx a la normalidad SIN arrancar el contenedor,
+     dejando un 502 desnudo detras de un sitio que ya no explicaba nada
+     (defecto C-1, corregido en el commit `943fd88` --
+     "fix(licencia): ronda 2 - reanudacion arranca el contenedor y no apaga
+     por herramienta rota"). Si el `curl` de arriba da 502, ese defecto
+     volvio.
+
+--------------------------------------------------------------------------------
+ 13 · 🚦 GATE · el panel de flota vuelve a verse sano
+--------------------------------------------------------------------------------
+    https://space-os.io/flota/
+
+  🚦 ESPERADO: la fila de DEMO vuelve a su estado normal (sin el codigo 8 ni
+     el 9 destacados). GUARDA UNA CAPTURA: es el tercer y ultimo estado.
+
+================================================================================
+ E · CERRAR EL ENSAYO -- DEMO NO SE QUEDA CON LICENCIA
+================================================================================
+
+--------------------------------------------------------------------------------
+ 14 · 🚦 GATE · apagar la comprobacion, y confirmar que DEMO sigue como siempre
+--------------------------------------------------------------------------------
+  NO ES OPCIONAL: los hijos administrados -- DEMO incluida -- no llevan
+  licencia (decision de Emiliano, 10/09; ADR 0032). Dejar `LICENCIA_REQUERIDA=1`
+  en DEMO seria la unica instancia administrada con un interruptor que un
+  ensayo futuro podria tropezar por accidente.
+
+sed -i 's/^LICENCIA_REQUERIDA=.*/LICENCIA_REQUERIDA=0/' /etc/space-os/demo-instancia.env
+rm -f /etc/space-os/licencia/licencia.json /etc/space-os/licencia/licencia.firma
+grep '^LICENCIA_REQUERIDA=' /etc/space-os/demo-instancia.env
+
+SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh
+echo "codigo de salida: $?"
+
+  🚦 ESPERADO: `codigo de salida: 0` (nada relacionado con licencia se
+     ejecuta con `LICENCIA_REQUERIDA=0` -- ni siquiera se calcula el estado,
+     `update.sh:962`). Confirma una ultima vez:
+
+curl -s -o /dev/null -w 'https -> %{http_code}\n' https://prueba.space-os.io/spaces-dooh/login/
+  # ESPERADO: 200
+
+  Lo que SI se queda instalado, a proposito (ver el aviso de la Seccion A):
+  `DOMINIO=` en `demo-instancia.env`, `LICENCIA_PUB=` en el mismo archivo, y
+  el sitio de nginx `prueba.space-os.io-sin-licencia.conf` en
+  `sites-available/` (nunca enlazado mientras `LICENCIA_REQUERIDA=0`). Es
+  trabajo hecho que no hay que rehacer en el proximo ensayo o en la primera
+  instalacion de un cliente real.
+
+================================================================================
+ ⛔ LO DE ABAJO NO ES EL PASO SIGUIENTE
+================================================================================
+  Que hacer si el bloque 7 o el 10 no vuelven a "sano" (§D) y DEMO se queda
+  sirviendo la pagina de vencimiento con una licencia buena instalada. No es
+  un procedimiento de rutina: se lee solo si algo salio mal.
+
+  · Confirma que la licencia buena de verdad quedo en disco y con el nombre
+    correcto (un `cp` a medio terminar deja `licencia.json` sin
+    `licencia.firma`, o viceversa):
+
+# ls -la /etc/space-os/licencia/
+
+  · Corre `update.sh` a mano y lee el log completo, no solo el codigo de
+    salida -- `licencia_valida()` registra la razon exacta por la que una
+    firma no valida (`update.sh:892-900`):
+
+# SPACE_OS_CONF=/etc/space-os/demo-instancia.env /opt/space-os/update.sh 2>&1 | grep licencia
+
+  · Si nginx quedo sirviendo el sitio equivocado pero el contenedor SI esta
+    corriendo (`docker inspect` dice `true`), el problema es solo el enlace
+    simbolico, no la aplicacion. Se puede forzar a mano SOLO como diagnostico,
+    nunca como arreglo permanente:
+
+# ls -la /etc/nginx/sites-enabled/prueba.space-os.io
+# ln -sfn /etc/nginx/sites-available/prueba.space-os.io /etc/nginx/sites-enabled/prueba.space-os.io
+# nginx -t && systemctl reload nginx
+
+  · Si nada de esto explica el estado, DETENTE y no sigas experimentando
+    contra DEMO: el respaldo de DEMO existe (F3.7) y es la vuelta atras real.
+    Un ensayo de un mecanismo de apagado que se queda el mismo confundido
+    despues de tres intentos es exactamente la senal de que no esta listo
+    para un cliente real todavia.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  1. El codigo de salida de CADA corrida de `update.sh`: bloque 7 (8), bloque
+     10 (9), bloque 12 (0 o el de "sin cambios") y bloque 14 (0).
+  2. La captura de la pagina de vencimiento del bloque 7, tomada en un
+     navegador de verdad, mostrando el candado cerrado sin advertencia.
+  3. Las TRES capturas de la fila de DEMO en `https://space-os.io/flota/`:
+     con el codigo 8 (bloque 8), con el codigo 9 (bloque 11), y de vuelta a
+     sana (bloque 13).
+  4. Confirmacion de que el bloque 14 devolvio DEMO a `LICENCIA_REQUERIDA=0`
+     y a `200` en `/login/`.
+================================================================================

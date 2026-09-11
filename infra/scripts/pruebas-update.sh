@@ -91,13 +91,28 @@ case "$sub" in
     esac
     exit 0 ;;
   inspect)
+    # `--format '{{.State.Running}}'` es del apagado (tarea 5, ronda 2): sin
+    # distinguirlo del resto, cualquier `docker inspect` (incluido el que ya
+    # usaba `id_del_contenedor` con `.Image`) devolveria siempre
+    # `D_ID_CONTENEDOR`, y nunca se podria montar "el contenedor existe pero
+    # esta parado".
+    fmt=''
+    while [ $# -gt 0 ]; do
+      case "$1" in --format) fmt="$2"; shift 2 ;; *) shift ;; esac
+    done
     [ -n "${D_ID_CONTENEDOR:-}" ] || exit 1
-    printf '%s\n' "$D_ID_CONTENEDOR"
+    case "$fmt" in
+      *State.Running*)
+        if [ "${D_CONTENEDOR_PARADO:-0}" = 1 ]; then printf 'false\n'; else printf 'true\n'; fi ;;
+      *) printf '%s\n' "$D_ID_CONTENEDOR" ;;
+    esac
     exit 0 ;;
   run)
     case "$todo" in
       *--detach*)
         [ "${D_RUN_FALLA:-0}" = 1 ] && { echo 'no se pudo crear el contenedor'; exit 125; }
+        # Hay contenedor sirviendo otra vez: la aplicacion vuelve a contestar.
+        rm -f "$REG_PARADO"
         printf '%s\n' "${D_NUEVO_ID:-c0ntened0rnuev0}"
         exit 0 ;;
       *"node -e"*)
@@ -139,7 +154,11 @@ case "$sub" in
         printf 'HUELLA %s\n' "$valor"
         exit 0 ;;
     esac ;;
-  stop) exit 0 ;;
+  # Parar el contenedor deja a la aplicacion SIN CONTESTAR en 127.0.0.1:3000.
+  # El doble de `curl` lee esta marca: sin ella, `flota_cuerpo` obtenia un
+  # cuerpo con `"version"` de un contenedor parado, que es imposible, y el
+  # defecto F3 era invisible para los 141 escenarios.
+  stop) : >"$REG_PARADO"; exit 0 ;;
   # `docker logs` del contenedor nuevo es la peor via de fuga del paso 7: son
   # los registros de la APLICACION, y ahi caben correos, importes y nombres de
   # clientes. Por omision no dice nada; E53 lo llena a proposito.
@@ -153,6 +172,7 @@ case "$sub" in
   rm)   exit "${D_RM_CODIGO:-0}" ;;
   start)
     [ "${D_START_FALLA:-0}" = 1 ] && exit 1
+    rm -f "$REG_PARADO"
     exit 0 ;;
   *) exit 0 ;;
 esac
@@ -191,7 +211,15 @@ sal="$(printf '%s\n' "${C_SALIDAS:-0}" | tr ' ' '\n' | sed -n "${n}p")"
 # un reporte", y NINGUN escenario podria ver lo que se manda al padre.
 case " $* " in
   *" -w "*) ;;
-  *) printf '%s' "${C_SALUD_CUERPO:-}"; exit "$sal" ;;
+  *)
+    # Con el contenedor PARADO no contesta nadie en 127.0.0.1:3000. Es el
+    # unico punto del arnes donde esto importa y donde antes se mentia: sin
+    # esta rama, `flota_cuerpo` recibia un cuerpo con `"version"` de una
+    # aplicacion que no estaba corriendo, y el defecto F3 --el codigo 8 que
+    # nunca llegaba al panel-- no lo podia ver ningun escenario. 7 es el
+    # codigo de curl para "no se pudo conectar".
+    if [ -f "${REG_PARADO:-/nonexistent}" ]; then exit 7; fi
+    printf '%s' "${C_SALUD_CUERPO:-}"; exit "$sal" ;;
 esac
 [ "$cod" = NADA ] || printf '%s' "$cod"
 exit "$sal"
@@ -375,6 +403,76 @@ done
 exit "${PSQL_CODIGO:-0}"
 FIN
 
+  # `nginx` doblado: anota lo que le piden y puede fallar el `-t` a peticion.
+  # Sin esto no se puede comprobar lo que mas importa del apagado: que un `-t`
+  # en rojo NO recargue, porque dejar a un cliente sin nginx por un error de
+  # plantilla seria peor que el problema que se esta resolviendo.
+  cat >"$BIN/nginx" <<'FIN'
+#!/usr/bin/env bash
+printf 'nginx %s\n' "$*" >>"$REG_LLAMADAS"
+case "$*" in *-t*) exit "${N_TEST_CODIGO:-0}" ;; esac
+exit 0
+FIN
+  cat >"$BIN/systemctl" <<'FIN'
+#!/usr/bin/env bash
+printf 'systemctl %s\n' "$*" >>"$REG_LLAMADAS"
+exit 0
+FIN
+
+  # `ln` y `readlink` TAMPOCO son de verdad, y por un motivo medido en esta
+  # maquina: en Windows/Git Bash `ln -s` no crea un enlace real -- cae a
+  # copiar el archivo -- asi que ni `ln` ni `readlink -f` reflejarian nunca
+  # "a donde apunta" nada, y el "ya apunta ahi" de `nginx_sitio` (y su
+  # reversion tras un `nginx -t` en rojo) serian imposibles de comprobar aqui
+  # SIN IMPORTAR como se escriba el escenario -- confirmado con `mklink`
+  # tambien: "Carece de privilegios suficientes". Se simulan del todo, igual
+  # que `docker`/`nginx`/`systemctl`: `ln` anota el enlace en $REG_ENLACES en
+  # vez de tocar el sistema de archivos, y `readlink -f` lo resuelve de ahi.
+  # Solo cubren la forma exacta que llama `nginx_sitio()`.
+  #
+  # `LN_FALLA` (ronda 3, barato 2): sin ella el doble salia 0 SIEMPRE, y las
+  # guardas de I-3 (`|| { registrar ...; return 0; }`) eran codigo muerto
+  # desde el punto de vista del arnes -- nunca se ejercitaban.
+  cat >"$BIN/ln" <<'FIN'
+#!/usr/bin/env bash
+printf 'ln %s\n' "$*" >>"$REG_LLAMADAS"
+[ "${LN_FALLA:-0}" = 1 ] && exit 1
+origen="$2"; destino="$3"
+{ grep -vF -- "$destino	" "$REG_ENLACES" 2>/dev/null; printf '%s\t%s\n' "$destino" "$origen"; } >"$REG_ENLACES.tmp"
+mv "$REG_ENLACES.tmp" "$REG_ENLACES"
+exit 0
+FIN
+  cat >"$BIN/readlink" <<'FIN'
+#!/usr/bin/env bash
+ruta="$2"
+visto=''
+while true; do
+  siguiente="$(awk -F'\t' -v d="$ruta" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+  [ -n "$siguiente" ] || break
+  case " $visto " in *" $ruta "*) break ;; esac
+  visto="$visto $ruta"
+  ruta="$siguiente"
+done
+printf '%s\n' "$ruta"
+exit 0
+FIN
+
+  # `openssl` NO se dobla como los demas: la firma y la verificacion de
+  # `usar_licencia` y de `licencia_valida` tienen que ser criptografia REAL,
+  # o los ~25 escenarios de licencia no demostrarian nada. Este doble solo
+  # intercepta `openssl version` cuando `D_OPENSSL_VERSION` esta puesta (para
+  # fingir una version sin soporte para `-rawin`), y reenvia TODO lo demas al
+  # binario real -- que se resuelve AQUI, con el PATH de fuera, antes de que
+  # `correr` anteponga `$BIN`.
+  cat >"$BIN/openssl" <<FIN
+#!/usr/bin/env bash
+if [ "\$1" = version ] && [ -n "\${D_OPENSSL_VERSION:-}" ]; then
+  printf '%s\n' "\$D_OPENSSL_VERSION"
+  exit 0
+fi
+exec $(command -v openssl) "\$@"
+FIN
+
   chmod +x "$BIN"/*
 }
 
@@ -396,8 +494,24 @@ preparar() {
   export REG_S3_SUBIDO="$RAIZ_TMP/s3-subido.txt"
   # Lo que se POSTEA al padre, cuerpo a cuerpo.
   export REG_FLOTA_POST="$RAIZ_TMP/flota-posteado.txt"
+  # Los enlaces que "crea" el doble de `ln` (ver montar_dobles), para que el
+  # doble de `readlink -f` los resuelva. Un escenario puede pre-sembrar un
+  # enlace escribiendo aqui directamente, en la forma "DESTINO<TAB>ORIGEN".
+  export REG_ENLACES="$RAIZ_TMP/enlaces.tsv"
+  # SI EL CONTENEDOR ESTA PARADO AHORA MISMO. Existe por el defecto F3, que
+  # ninguno de los ~25 escenarios de licencia podia ver: el doble de `curl`
+  # contestaba el cuerpo de `/api/version` SIEMPRE, incluso despues de un
+  # `docker stop`. En una maquina de verdad, con el contenedor parado, no
+  # contesta nadie -- y ahi el reporte al padre salia vacio y no se mandaba ni
+  # se encolaba. El doble mentia justo en el punto donde estaba el fallo.
+  #
+  # Lo escribe el doble de `docker` (`stop` lo pone, `start` y `run --detach`
+  # lo quitan) y lo lee el de `curl`. Va por ARCHIVO y no por variable de
+  # entorno porque los dobles son procesos aparte: uno no puede cambiarle el
+  # entorno al otro.
+  export REG_PARADO="$RAIZ_TMP/contenedor-parado"
   : >"$REG_LLAMADAS"; : >"$REG_DBURL"; : >"$REG_PGENV"; : >"$REG_S3ENV"; : >"$REG_S3_SUBIDO"
-  : >"$REG_FLOTA_POST"
+  : >"$REG_FLOTA_POST"; : >"$REG_ENLACES"; rm -f "$REG_PARADO"
   montar_dobles
 
   export SPACE_OS_CONF="$RAIZ_TMP/instancia.env"
@@ -409,6 +523,14 @@ preparar() {
   # el mismo motivo y "cazado" no significaria nada.
   export SPACE_OS_RESPALDO_SH="${RESPALDO_MUT:-$RAIZ/infra/scripts/respaldo.sh}"
   export CONTENEDOR_NOMBRE=space-os
+  # Las tres rutas del apagado (tarea 5), al directorio temporal del
+  # escenario. `ACTIVO` es el enlace que `nginx_sitio` crea o reescribe; los
+  # otros dos son archivos vacios para que los encuentre (`[ -f "$origen" ]`).
+  export NGINX_SITIO_ACTIVO="$RAIZ_TMP/nginx-activo.conf"
+  export NGINX_SITIO_NORMAL="$RAIZ_TMP/nginx-normal.conf"
+  export NGINX_SITIO_SIN_LICENCIA="$RAIZ_TMP/nginx-sin-licencia.conf"
+  : >"$NGINX_SITIO_NORMAL"
+  : >"$NGINX_SITIO_SIN_LICENCIA"
   SALIDA="$RAIZ_TMP/salida.txt"
   # El log que VIAJA, en el disco de la instancia. Se mira aparte de `$SALIDA`
   # y de `update.log`: los escenarios del candado necesitan saber que hay
@@ -460,7 +582,8 @@ FIN
   unset C_SALUD_CUERPO 2>/dev/null || true
   unset D_HUELLA_3 D_PULL_FALLA D_RUN_FALLA D_RENAME_FALLA D_START_FALLA \
         PGD_VACIO PGD_FALLA PGR_CODIGO FLOCK_OCUPADO D_PENDIENTES_CODIGO S3_LENTO \
-        D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN 2>/dev/null || true
+        D_LOGS_SALIDA PSQL_CODIGO PGR_LIST_CODIGO D_BORRAR_RESPALDOS_EN \
+        N_TEST_CODIGO D_CONTENEDOR_PARADO D_OPENSSL_VERSION LN_FALLA 2>/dev/null || true
   export PGR_CODIGO=0
   export PGR_LIST_CODIGO=0
   export PSQL_CODIGO=0
@@ -474,6 +597,8 @@ FIN
   export D_RUN_FALLA=0
   export D_RENAME_FALLA=0
   export D_START_FALLA=0
+  export N_TEST_CODIGO=0
+  export LN_FALLA=0
 }
 
 correr() {
@@ -524,6 +649,69 @@ FIN
   export C_SALUD_CUERPO='{"ok":true,"version":"v0.4.2","ultimaMigracion":"20260910_x.sql","base":"ok","canal":"estable","uptime":120}'
 }
 
+# Fabrica una licencia FIRMADA para este escenario, con su propio par de llaves.
+#   usar_licencia <vence> [aviso_dias] [gracia_dias] [instancia] [dominio]
+# Deja `LICENCIA_REQUERIDA=1` en la configuracion y las rutas apuntando al
+# directorio temporal.
+usar_licencia() {
+  local vence="$1" aviso="${2:-30}" gracia="${3:-15}"
+  local inst="${4:-demo}" dom="${5:-demo.ejemplo.invalid}"
+  mkdir -p "$RAIZ_TMP/licencia"
+  openssl genpkey -algorithm ed25519 -out "$RAIZ_TMP/k.pem" 2>/dev/null
+  openssl pkey -in "$RAIZ_TMP/k.pem" -pubout -out "$RAIZ_TMP/k.pub" 2>/dev/null
+  cat >"$RAIZ_TMP/licencia/licencia.json" <<FIN
+{
+  "instancia": "$inst",
+  "dominio": "$dom",
+  "emitida": "2026-01-01",
+  "vence": "$vence",
+  "aviso_dias": $aviso,
+  "gracia_dias": $gracia
+}
+FIN
+  openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+    -in "$RAIZ_TMP/licencia/licencia.json" \
+    -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+  cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/licencia
+LICENCIA_PUB=$RAIZ_TMP/k.pub
+DOMINIO=$dom
+FIN
+}
+
+# Recorre el banco de casos COMPARTIDO con `apps/web`. Que las dos
+# implementaciones de la misma regla no se separen es todo el motivo de que ese
+# archivo exista, y esto es la mitad que lo comprueba desde bash.
+escenarios_del_banco() {
+  local banco="$RAIZ/infra/licencias/estados.casos.tsv" n=0 hoy_real delta vence_real
+  # El reloj NO se mueve: se mueven las FECHAS DE LA LICENCIA, que es lo que este
+  # arnes fabrica de todos modos. La alternativa era una variable de entorno que
+  # fijara el "ahora", y `update.sh` sourcea `$CONF`, asi que esa variable seria
+  # alcanzable por el cliente: podria congelar su licencia en "sana" escribiendola
+  # en su propio `instancia.env`, sin parchear nada y sin dejar de reportar. Una
+  # puerta de pruebas que vive en el codigo de produccion es una puerta.
+  hoy_real="$(date -u +%F)"
+  # Una corrida que cruce la medianoche UTC entre este calculo y la lectura de
+  # `ahora` DENTRO de `update.sh` podria parpadear. Es una ventana de
+  # milisegundos y no justifica complicar esto.
+  while IFS=$'\t' read -r vence aviso gracia hoy estado; do
+    case "$vence" in ''|'#'*) continue ;; esac
+    n=$((n + 1))
+    delta=$(( ( $(date -u -d "$vence" +%s) - $(date -u -d "$hoy" +%s) ) / 86400 ))
+    vence_real="$(date -u -d "$hoy_real + $delta days" +%F)"
+    preparar "E107.$n banco de casos: vence en $delta dias -> $estado"
+    usar_licencia "$vence_real" "$aviso" "$gracia"
+    correr
+    log_dice "licencia: $estado"
+    limpiar
+  done <"$banco"
+  if [ "$n" -lt 10 ]; then
+    ESCENARIO_ACTUAL='banco de casos'
+    mal "el banco de casos se leyo vacio o a medias ($n casos): la ruta esta mal"
+  fi
+}
+
 # ─── Predicados ────────────────────────────────────────────────────────────
 codigo_es() { if [ "$CODIGO" = "$1" ]; then bien; else mal "codigo esperado $1, real $CODIGO"; fi; }
 # Lo que viaja DENTRO del cuerpo posteado al padre.
@@ -535,6 +723,50 @@ hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then bien; else mal "no se llamo: 
 no_hubo() { if grep -qF -- "$1" "$REG_LLAMADAS"; then mal "no deberia haberse llamado: $1"; else bien; fi; }
 hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then bien; else mal "ninguna llamada casa con: $1"; fi; }
 no_hubo_regex() { if grep -qE -- "$1" "$REG_LLAMADAS"; then mal "alguna llamada casa con lo prohibido: $1"; else bien; fi; }
+# A DONDE apunta el enlace ACTIVO de nginx, de verdad -- I-1 e I-4 (ronda 2).
+# "no se recargo" solo dice que nginx no se entero en memoria; esto compara
+# el DESTINO resuelto del enlace, que es lo unico que importa la proxima vez
+# que arranque nginx o renueve certbot.
+#
+# Resuelve desde $REG_ENLACES -- lo mismo que hace el doble de `readlink -f`
+# que ve `update.sh` dentro de `correr` -- en vez de llamar al `readlink` de
+# verdad: esta funcion corre en el proceso de FUERA, sin `$BIN` en el PATH, y
+# ademas el `readlink` real de esta maquina (Windows/Git Bash) no serviria de
+# nada: `ln -s` aqui no crea un enlace real, cae a copiar el archivo, asi que
+# nunca coincidiria con nada por mas correcto que estuviera el guion.
+# Confirmado tambien con `mklink`: "Carece de privilegios suficientes".
+_resolver_enlace() {
+  local ruta="$1" visto='' siguiente
+  while true; do
+    siguiente="$(awk -F'\t' -v d="$ruta" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+    [ -n "$siguiente" ] || break
+    case " $visto " in *" $ruta "*) break ;; esac
+    visto="$visto $ruta"
+    ruta="$siguiente"
+  done
+  printf '%s' "$ruta"
+}
+enlace_apunta_a() {
+  local real_activo real_esperado
+  real_activo="$(_resolver_enlace "$NGINX_SITIO_ACTIVO")"
+  real_esperado="$(_resolver_enlace "$1")"
+  if [ "$real_activo" = "$real_esperado" ]; then bien
+  else mal "el enlace $NGINX_SITIO_ACTIVO apunta (resuelto) a '$real_activo', se esperaba '$real_esperado' ($1)"; fi
+}
+# Que el enlace ACTIVO no haya quedado apuntando a SI MISMO -- el bug exacto
+# de la ronda 3 (I-1): `readlink -f` de una ruta que no existe imprime esa
+# misma ruta y sale 0 (no falla), asi que sin comparar contra ella "anterior"
+# se cuela como si fuera un destino de verdad, y la reversion tras un
+# `nginx -t` en rojo termina en `ln -sfn "$X" "$X"`.
+no_es_autoenlace() {
+  local destino
+  destino="$(awk -F'\t' -v d="$NGINX_SITIO_ACTIVO" '$1==d{v=$2} END{print v}' "$REG_ENLACES" 2>/dev/null)"
+  if [ "$destino" = "$NGINX_SITIO_ACTIVO" ]; then
+    mal "el enlace $NGINX_SITIO_ACTIVO quedo apuntando a si mismo"
+  else
+    bien
+  fi
+}
 # El ORDEN entre dos llamadas. Que las dos hayan ocurrido no dice nada si
 # ocurrieron al reves: tirar el esquema DESPUES de restaurar deja la base vacia,
 # y comprobar el respaldo DESPUES de tirarlo no comprueba nada. Se compara la
@@ -2420,6 +2652,392 @@ posteo_calla 'CLIENTE-CONFIDENCIAL'
 posteo_calla 'ERROR'
 limpiar
 
+# ─── LA LICENCIA (E107-E115) ───────────────────────────────────────────────
+#  El cliente es dueno de su droplet: la licencia es lo que dice hasta cuando
+#  puede correr nuestro sistema. Todo esto vive detras de `LICENCIA_REQUERIDA`,
+#  que vale 0 por omision -- E115 es el escenario que lo demuestra, y es el que
+#  garantiza que la flota administrada de hoy no cambia en absoluto.
+
+escenarios_del_banco
+
+preparar 'E108 sin LICENCIA_REQUERIDA no se mira nada, aunque haya licencia vencida'
+usar_licencia '2020-01-01'
+# Se pisa la que dejo usar_licencia: la ultima gana al hacer `source`.
+cat >>"$SPACE_OS_CONF" <<'FIN'
+LICENCIA_REQUERIDA=0
+FIN
+correr
+codigo_es 0
+log_calla 'licencia'
+limpiar
+
+preparar 'E109 una firma que no valida es INVALIDA, nunca "se asume buena"'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+printf 'x' >>"$RAIZ_TMP/licencia/licencia.json"
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+preparar 'E110 una licencia de OTRA instancia no vale'
+usar_licencia "$(date -u -d '+60 days' +%F)" 30 15 'otracosa' 'demo.ejemplo.invalid'
+correr
+log_dice 'licencia: invalida'
+log_dice 'no es de esta instancia'
+limpiar
+
+preparar 'E111 una licencia de OTRO dominio no vale'
+usar_licencia "$(date -u -d '+60 days' +%F)" 30 15 'demo' 'demo.ejemplo.invalid'
+# La configuracion se PISA a proposito: `usar_licencia` escribe el dominio del
+# JSON y el `DOMINIO` de la instancia desde el mismo valor, asi que sin esta
+# linea los dos coincidirian siempre y este escenario no probaria nada. Es la
+# diferencia con E110, donde `INSTANCIA` viene anclada en la configuracion base
+# y `usar_licencia` no la toca.
+cat >>"$SPACE_OS_CONF" <<'FIN'
+DOMINIO=otra.ejemplo.invalid
+FIN
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+preparar 'E112 sin el archivo de firma es invalida'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+rm -f "$RAIZ_TMP/licencia/licencia.firma"
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+preparar 'E113 un campo que falta NO cae a un valor por omision'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+grep -v 'gracia_dias' "$RAIZ_TMP/licencia/licencia.json" >"$RAIZ_TMP/l.tmp"
+# Se quita la coma que colgaba de la linea anterior para que siga siendo JSON.
+sed -i 's/"aviso_dias": 30,/"aviso_dias": 30/' "$RAIZ_TMP/l.tmp"
+mv "$RAIZ_TMP/l.tmp" "$RAIZ_TMP/licencia/licencia.json"
+openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+  -in "$RAIZ_TMP/licencia/licencia.json" -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+preparar 'E114 con LICENCIA_REQUERIDA=1 y sin licencia, es invalida'
+cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/no-existe
+LICENCIA_PUB=$RAIZ_TMP/tampoco.pub
+FIN
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+# EL escenario que protege a la flota de hoy: sin la variable, ni una linea del
+# bloque nuevo se ejecuta y el update es el de siempre.
+preparar 'E115 sin la variable en la configuracion, el update es identico al de hoy'
+correr
+codigo_es 0
+log_calla 'licencia'
+limpiar
+
+# Ronda de correccion 1 (revision de la tarea 4): `date -d` acepta mucho mas
+# que una fecha ISO -- "next year" da una licencia ETERNA -- y el lado de
+# TypeScript (`licencia.mjs`) llama invalida a eso. Bash es el que APAGA
+# instancias, asi que no puede ser el mas permisivo de los dos.
+preparar 'E116 un `vence` que `date` entiende pero no es una fecha ISO es invalido'
+usar_licencia 'next year'
+correr
+log_dice 'licencia: invalida'
+limpiar
+
+# La rama que va a correr en el primer hijo de verdad: `instancia.env.example`
+# solo trae `INSTANCIA` (linea 120), `DOMINIO` es trabajo de la tarea 8. Afirma
+# las dos cosas a la vez: que el silencio NO es silencioso, y que saltarse esa
+# comprobacion no invalida por si sola una licencia buena.
+preparar 'E117 sin DOMINIO en la configuracion se REGISTRA que no se comprueba, y lo demas sigue valiendo'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+grep -v '^DOMINIO=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp" && mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+correr
+log_dice 'licencia: sana'
+log_dice 'no se comprueba el dominio'
+limpiar
+
+# El fallo abierto: un dedazo en la configuracion (`true`, `01`, …) no puede
+# apagar la comprobacion en silencio. Se trata como encendido y se dice.
+# Hasta la ronda 1 de la tarea 5 esto se trataba como ENCENDIDO y se seguia
+# de largo. Con el apagado ya construido, eso significaria que un dedazo en
+# la configuracion puede DETENER el contenedor de una instancia administrada
+# -- y eso no se puede adivinar. Ahora aborta por configuracion, sin tocar
+# nada, con el mismo codigo que usa el guion para lo que no entiende.
+preparar 'E118 un LICENCIA_REQUERIDA que no es 0 ni 1 aborta por configuracion, sin tocar nada'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+cat >>"$SPACE_OS_CONF" <<'FIN'
+LICENCIA_REQUERIDA=true
+FIN
+correr
+codigo_es 1
+log_dice 'LICENCIA_REQUERIDA="true" no es 0 ni 1'
+no_hubo 'docker stop'
+no_hubo 'docker run --detach'
+limpiar
+
+# El otro fallo abierto, medido: una licencia SIN instancia, en una maquina
+# SIN `INSTANCIA` ni hostname, pasaba el anclaje porque las dos cadenas vacias
+# coincidian. El doble de `hostname` se sobreescribe SOLO en este escenario:
+# el de por omision (`D_HOSTNAME:-demo-owner`) no sirve para medir el fallo,
+# que es sobre el NOMBRE, no sobre la maquina.
+preparar 'E119 una licencia sin instancia, en una maquina sin INSTANCIA ni hostname, no vale'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+sed -i 's/"instancia": "demo",/"instancia": "",/' "$RAIZ_TMP/licencia/licencia.json"
+openssl pkeyutl -sign -inkey "$RAIZ_TMP/k.pem" -rawin \
+  -in "$RAIZ_TMP/licencia/licencia.json" -out "$RAIZ_TMP/licencia/licencia.firma" 2>/dev/null
+grep -v '^INSTANCIA=' "$SPACE_OS_CONF" >"$SPACE_OS_CONF.tmp" && mv "$SPACE_OS_CONF.tmp" "$SPACE_OS_CONF"
+cat >"$BIN/hostname" <<'FIN'
+#!/usr/bin/env bash
+printf ''
+FIN
+chmod +x "$BIN/hostname"
+correr
+log_dice 'licencia: invalida'
+log_dice 'no dice de que instancia es'
+limpiar
+
+# ─── EL APAGADO (E120-E132, ADR 0032, tarea 5) ─────────────────────────────
+#  Hasta aqui el arnes solo comprobaba que se DECIDIERA el estado; de aqui en
+#  adelante comprueba que ese estado ACTUE: que se apague, que nginx cambie de
+#  sitio, y que reanudar no dependa de que nadie se acuerde de nada.
+preparar 'E120 una licencia vencida NO levanta el contenedor y sale con 8'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo 'docker run --detach'
+log_dice 'licencia: vencida'
+limpiar
+
+preparar 'E121 al apagar se cambia el sitio de nginx y se recarga'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+hubo 'nginx -t'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# LA comprobacion del apagado, y la que mas importa de esta tarea: apagar
+# retira LO NUESTRO. Los datos del cliente estan en SU Postgres, en SU
+# droplet.
+preparar 'E122 apagar no toca la base, ni borra el contenedor, ni retira el respaldo'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo_regex 'docker rm|pg_restore|drop schema'
+limpiar
+
+preparar 'E123 si `nginx -t` falla NO se recarga, y el codigo sigue siendo 8'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export N_TEST_CODIGO=1
+correr
+codigo_es 8
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+log_dice 'no se recarga'
+# Ronda 3 (I-1): sin enlace pre-sembrado, `readlink -f` de una ruta que no
+# existe se cuela como "anterior" y la reversion termina en un enlace A SI
+# MISMO -- "Too many levels of symbolic links" para siempre en un droplet.
+no_es_autoenlace
+limpiar
+
+preparar 'E124 en gracia la instancia SIGUE funcionando'
+usar_licencia "$(date -u -d '-5 days' +%F)" 30 15
+correr
+codigo_es 0
+hubo 'docker run --detach'
+log_dice 'licencia: gracia'
+limpiar
+
+# Reanudar no tiene comando: la siguiente corrida con una licencia buena
+# devuelve el sitio de nginx y arranca. Un procedimiento que hay que recordar
+# es un procedimiento que se olvida el dia que hace falta.
+preparar 'E125 con una licencia valida se reanuda solo, sin ningun comando'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+correr
+codigo_es 0
+hubo 'docker run --detach'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# ─── Ronda 2 de revision: C-1, C-2, I-1, I-4, I-5 ──────────────────────────
+# C-1, el peor hallazgo: `docker inspect` funciona sobre un contenedor
+# DETENIDO, asi que el camino normal de mas abajo veria "la imagen no
+# cambio" y saldria con "sin cambios" sin arrancar nada. E125 no lo veia
+# porque nunca montaba el rastro de un apagado anterior (contenedor parado,
+# MISMA imagen).
+preparar 'E126 tras un apagado por licencia, una licencia buena ARRANCA el contenedor y no deja un 502'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export D_ID_CONTENEDOR='sha256:nueva'
+export D_CONTENEDOR_PARADO=1
+correr
+codigo_es 0
+hubo_regex 'docker start|docker run --detach'
+antes_que 'docker start' 'nginx -t'
+limpiar
+
+# I-1: `ln -sfn` iba ANTES de `nginx -t` y no se deshacia. "no se recarga"
+# solo es cierto EN MEMORIA si el enlace en disco se queda apuntando a la
+# plantilla mala -- y eso es peor que el problema que se resuelve: el
+# siguiente reload de certbot fallaria, y un reinicio dejaria nginx sin
+# arrancar.
+preparar 'E127 un `nginx -t` en rojo revierte el enlace, no lo deja apuntando a la plantilla mala'
+# Pre-siembra el enlace directamente en $REG_ENLACES (ver el doble de `ln`):
+# un `ln -sfn` de verdad aqui usaria el `ln` REAL de la maquina, no el doble,
+# porque este cuerpo de escenario corre FUERA de `correr` y su PATH con $BIN.
+printf '%s\t%s\n' "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_NORMAL" >>"$REG_ENLACES"
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export N_TEST_CODIGO=1
+correr
+codigo_es 8
+enlace_apunta_a "$NGINX_SITIO_NORMAL"
+limpiar
+
+# I-4: nadie pre-creaba el enlace ACTIVO, asi que la comparacion "ya apunta
+# ahi" nunca se ejercitaba de verdad -- el arnes seguiria verde aunque nginx
+# se recargara todas las noches sin necesidad.
+preparar 'E128 si el enlace ya apunta al sitio correcto, no hay nginx -t ni reload'
+printf '%s\t%s\n' "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_SIN_LICENCIA" >>"$REG_ENLACES"
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+no_hubo 'nginx -t'
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+enlace_apunta_a "$NGINX_SITIO_SIN_LICENCIA"
+limpiar
+
+# C-2: falta NUESTRA herramienta (o no sirve) no es lo mismo que el cliente
+# incumpliendo su licencia. Fallar cerrado aqui no anadiria disuasion -- el
+# cliente tiene root y puede apagar la comprobacion desde su propio
+# instancia.env con la misma facilidad -- y si anadiria caidas a quien no
+# esta atacando nada.
+preparar 'E129 una version de openssl que no soporta la licencia NO apaga, sigue sirviendo, sale con 9'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export D_OPENSSL_VERSION='OpenSSL 1.1.1  25 Mar 2021'
+correr
+codigo_es 9
+no_hubo 'docker stop'
+log_dice 'licencia: no-comprobable'
+hubo_regex 'systemctl reload nginx|nginx -s reload'
+limpiar
+
+# Y el que impide que C-2 se convierta en un bypass: una licencia borrada de
+# verdad (el cliente quito su propio documento) sigue siendo `invalida`, NUNCA
+# `no-comprobable`, y sigue apagando.
+preparar 'E130 con la licencia borrada (sin archivos), sigue apagando con 8'
+cat >>"$SPACE_OS_CONF" <<FIN
+LICENCIA_REQUERIDA=1
+LICENCIA_DIR=$RAIZ_TMP/no-existe
+LICENCIA_PUB=$RAIZ_TMP/tampoco.pub
+FIN
+correr
+codigo_es 8
+log_dice 'licencia: invalida'
+hubo 'docker stop'
+limpiar
+
+# ─── Ronda 3 de revision: el critico I-1 y los dos baratos ────────────────
+# Barato 1: hacer comprobable de verdad la rama "openssl ausente". `$BIN` se
+# antepone al PATH sin reemplazarlo, asi que `command -v openssl` a secas
+# siempre encontraba el openssl real de esta maquina -- E129 solo probaba la
+# OTRA rama del mismo `if` (version sin soporte). Con `OPENSSL_BIN` como
+# variable, apuntarlo a un nombre que no existe hace fallar `command -v` DE
+# VERDAD, ejercitando la rama exacta.
+preparar 'E131 con OPENSSL_BIN apuntando a un binario que no existe, no-comprobable de verdad'
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export OPENSSL_BIN=openssl-que-no-existe
+correr
+codigo_es 9
+log_dice 'licencia: no-comprobable'
+log_dice 'falta `openssl-que-no-existe` en esta maquina'
+no_hubo 'docker stop'
+unset OPENSSL_BIN
+limpiar
+
+# Barato 2: el doble de `ln` salia 0 SIEMPRE, asi que las guardas de I-3
+# (`|| { registrar ...; return 0; }`) eran codigo muerto desde el punto de
+# vista del arnes. El fallo que I-3 describia: morir bajo `set -Eeuo
+# pipefail` sin pasar por `salir` deja al cliente sin reporte a la flota y
+# sin log subido.
+preparar 'E132 si `ln` falla, el guion no muere: sigue y sale con el codigo de licencia que le tocaba'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+export LN_FALLA=1
+correr
+codigo_es 8
+log_dice 'no se pudo cambiar el enlace'
+limpiar
+
+# ─── EL 8 TIENE QUE LLEGAR AL PANEL (E133-E134, revision final, F3) ─────────
+#  El defecto que ninguno de los ~25 escenarios de licencia podia ver, porque
+#  NINGUNO encendia `usar_flota`: en la rama `vencida|invalida` se hacia
+#  `docker stop` ANTES de `salir`, y `salir` compone el reporte preguntandole a
+#  la propia aplicacion por `$SALUD_URL`. Con el contenedor parado no contesta
+#  nadie: el cuerpo salia vacio, NO SE MANDABA NI SE ENCOLABA, y el padre veia
+#  «sin respuesta» -- que es exactamente la lectura que el codigo 8 existe para
+#  evitar (`apps/flota/diagnostico.mjs:133`). El gate del bloque 8 de
+#  `docs/evidencias/ensayo-licencia-demo.txt` no podia pasar.
+#
+#  Y el arnes no lo veia por DOS motivos a la vez, que es lo que lo hizo durar:
+#  ningun escenario de licencia encendia la flota, y el doble de `curl`
+#  contestaba el cuerpo de `/api/version` aunque el contenedor estuviera
+#  parado. Las dos cosas estan arregladas: el doble ahora lee `REG_PARADO`.
+preparar 'E133 con la licencia vencida el reporte SI llega al padre, y lleva el codigo 8'
+usar_flota
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr
+codigo_es 8
+hubo 'docker stop'
+# LA comprobacion: el cuerpo se compuso y se POSTEO, con el 8 dentro. Sin el
+# arreglo esto esta vacio -- no es que llegue mal, es que no llega nada.
+posteo_dice '"codigo":8'
+posteo_dice '"instancia":"demo"'
+# Y el contrato del receptor se cumple: `apps/flota/reporte.mjs:88` rechaza un
+# cuerpo sin `version`, asi que sin esto el padre lo tiraria igualmente.
+posteo_dice '"version"'
+log_calla 'reporte de flota: no se pudo componer'
+limpiar
+
+# LA OTRA MITAD, y la que demuestra que el doble discrimina de verdad: si el
+# reporte se compusiera DESPUES del `docker stop`, este escenario seria
+# identico al de arriba salvo en que no llega nada. Aqui se comprueba el
+# camino simetrico que SIEMPRE funciono -- el codigo 9, que deja el contenedor
+# vivo -- para que un futuro cambio que rompa el doble se note en los dos.
+preparar 'E134 el 9 tambien llega al padre, y ahi el contenedor nunca se para'
+usar_flota
+usar_licencia "$(date -u -d '+60 days' +%F)"
+export OPENSSL_BIN=openssl-que-no-existe
+correr
+codigo_es 9
+no_hubo 'docker stop'
+posteo_dice '"codigo":9'
+unset OPENSSL_BIN
+limpiar
+
+# ─── EL --dry-run NO APAGA (E135, ultima ronda) ────────────────────────────
+#  Defecto introducido por ESTA rama (tarea 5, `8f271bd`): el bloque de
+#  licencia no miraba `DRY_RUN`, asi que `update.sh --dry-run` con una licencia
+#  vencida PARABA el contenedor de un cliente, reescribia el enlace de nginx y
+#  lo recargaba -- mientras la cabecera del guion promete «mira y cuenta; NO
+#  toca nada» y la tarjeta del alta manda correr en seco ANTES de instalar.
+#
+#  Y lo que se afirma no es solo la mitad negativa: un dry-run que apagara es
+#  malo, pero uno que se callara que la licencia esta vencida seria igual de
+#  inutil. Tiene que CONTAR lo que haria.
+preparar 'E135 con --dry-run la licencia vencida se DICE, no se apaga'
+usar_licencia "$(date -u -d '-30 days' +%F)"
+correr --dry-run
+# La mitad negativa: nada de lo que apaga llego a ocurrir.
+no_hubo 'docker stop'
+no_hubo 'nginx -t'
+no_hubo_regex 'systemctl reload nginx|nginx -s reload'
+no_hubo_regex 'ln -sfn.*sin-licencia'
+# Y la positiva, que es la que hace util el ensayo: se dice el veredicto, con
+# su codigo, sin sufrirlo. `APAGADO (8)` no es subcadena de `APAGARIA (8)`.
+log_dice 'APAGARIA (8)'
+log_dice 'licencia: vencida'
+log_calla 'APAGADO (8)'
+limpiar
+
 printf '\n%s escenarios · %s comprobaciones · %s rojas\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 
 # ============================================================================
@@ -2699,6 +3317,45 @@ if [ "${1:-}" = '--mutantes' ]; then
   # el panel se queda callado afirmando que todo fue bien.
   probar_mutante 'aplanar el codigo a 0: el panel afirma que todo fue bien' \
     's@^  FLOTA_CODIGO="\$codigo"$@  FLOTA_CODIGO=0             @'
+
+  # ── Y los dos de la licencia (ADR 0032, tarea 5) ─────────────────────────
+  # El primero es EL defecto que haria inutil todo el mecanismo: comprobar la
+  # firma DESPUES de leer los campos, o sea creerse un archivo sin firmar. Se
+  # anula el `if` de la verificacion (queda `false && ...`), asi que el
+  # cuerpo NUNCA se trata como sin firmar y `licencia_valida` sigue adelante
+  # sin haber comprobado nada.
+  # (La ronda 3 metio `OPENSSL_BIN` como variable; el mutante ahora anula el
+  # `if` con el binario en variable, mismo defecto.)
+  probar_mutante 'leer los campos antes de comprobar la firma' \
+    's@^  if ! "\$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "\$LICENCIA_PUB" -rawin \\$@  if false \&\& "$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \\@'
+  # Y el segundo es el que nadie ve venir: tratar la licencia ilegible como
+  # sana. Falla ABIERTO, que en un mecanismo de licencia es no tener ninguno.
+  # (La ronda 2 de revision separo el `if` en un `if/elif/else` para meter el
+  # estado `no-comprobable`; el mutante ahora toca solo la rama `else`.)
+  probar_mutante 'una licencia invalida se trata como sana' \
+    's@^    LICENCIA_ESTADO='"'"'invalida'"'"'$@    LICENCIA_ESTADO='"'"'sana'"'"'    @'
+  # Y el tercero (I-7, ronda 2): el brazo `sin-licencia` de `nginx_sitio`
+  # sirve el sitio NORMAL en vez de la pagina de vencimiento. Nadie miraba a
+  # donde apuntaba el enlace de verdad, asi que este defecto pasaba las 134
+  # comprobaciones de antes sin que ningun escenario se enterara.
+  probar_mutante 'el apagado sirve el sitio normal en vez de la pagina de vencimiento' \
+    's@^    sin-licencia) origen="\$NGINX_SITIO_SIN_LICENCIA" ;;$@    sin-licencia) origen="$NGINX_SITIO_NORMAL"       ;;@'
+
+  # Y el cuarto (F3, revision final): quitar el reporte que va ANTES del
+  # `docker stop` deja el unico que queda --el de `salir`-- componiendose
+  # contra un contenedor parado. Es EXACTAMENTE el defecto que se arreglo, y
+  # su forma de fallar es que al padre no llega nada y el panel dice «sin
+  # respuesta». Tiene que morder, o E133 no vale de nada.
+  probar_mutante 'no reportar antes de parar el contenedor: el 8 no llega al panel' \
+    's@^      reportar_a_flota || true$@      true                    @'
+
+  # Y el quinto: quitarle el guard al `--dry-run` del apagado. La comparacion
+  # con un valor que `DRY_RUN` nunca toma hace que SIEMPRE se vaya por el brazo
+  # que apaga -- que es el defecto tal cual estaba. Un dry-run que para el
+  # contenedor de un cliente no rompe nada visible en la corrida: rompe la
+  # promesa de la cabecera y la del ensayo en seco de la tarjeta del alta.
+  probar_mutante 'el --dry-run del apagado pierde su guard y vuelve a apagar' \
+    's@^      if \[ "\$DRY_RUN" = 1 \]; then$@      if [ "$DRY_RUN" = 9 ]; then@'
 
   printf '\n%s mutantes · %s escapan\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1

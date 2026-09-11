@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0024**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0032**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -166,10 +166,10 @@ zona, porque tocarlos bloquea a los demás: `middleware.ts`, `next.config.mjs`,
 > Si el cambio toca **sesión, tenant, migración o dinero**, es ROJO aunque parezca
 > de una línea.
 
-Las seis zonas rojas son: autenticación y sesión (R1), aislamiento entre
+Las siete zonas rojas son: autenticación y sesión (R1), aislamiento entre
 organizaciones por RLS (R2), migraciones ya aplicadas en producción (R3), dinero
-irreversible (R4), borrados en cascada (R5) y configuración de nginx y del proceso
-(R6).
+irreversible (R4), borrados en cascada (R5), configuración de nginx y del proceso
+(R6) y la escritura sin sanear de la configuración de una instancia (R7).
 
 **R2 merece atención especial porque su modo de fallo no da error**: usar `qRaw`
 donde tocaba `q` hace que una consulta devuelva cero filas en silencio, o datos de

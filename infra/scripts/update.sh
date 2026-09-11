@@ -341,6 +341,14 @@
 #    · el cuerpo sale de la propia instancia por `$SALUD_URL` —127.0.0.1—, que
 #      es la misma URL con la que este script ya comprueba la salud.
 #
+#  CUANDO SE COMPONE, que no es un detalle: normalmente al final, desde
+#  `salir()`. La excepcion es el apagado por licencia (codigo 8), que compone y
+#  encola el reporte ANTES de parar el contenedor — porque el cuerpo se lo
+#  pregunta a la aplicacion, y una aplicacion parada no contesta. Sin esa
+#  excepcion, el unico estado que el panel existia para distinguir era
+#  precisamente el unico que no llegaba nunca. Esta escrito con detalle junto
+#  al `case` que lo hace.
+#
 #  Y lo que NO puede hacer, que es lo importante: **abortar el update**. Si el
 #  padre esta caido, o el DNS no resuelve, o el token esta mal, la instancia
 #  sigue actualizada y sirviendo. El reporte se guarda en
@@ -385,6 +393,15 @@ EX_BASE_DISTINTA=6
 # restauracion fallo. La base no esta "a medias": esta VACIA, y levantar la
 # version anterior no sirve de nada hasta restaurarla a mano.
 EX_BASE_VACIA=7
+EX_LICENCIA=8    # la licencia vencio: esta instancia esta APAGADA a proposito
+# NO se apaga: falta o no sirve NUESTRA herramienta para comprobar la firma
+# (openssl ausente, o sin soporte para `-rawin` con Ed25519). Fallar cerrado
+# aqui no anadiria ninguna disuasion -- el cliente tiene root y puede
+# desactivar la comprobacion desde su propio instancia.env con la misma
+# facilidad con la que rompe openssl -- y si anadiria caidas a quien no esta
+# atacando nada. La instancia sigue sirviendo; este codigo es solo para que
+# el panel de flota (tarea 6) distinga "no se pudo comprobar" de "sin cambios".
+EX_LICENCIA_NO_COMPROBABLE=9
 EX_OCUPADO=75
 
 DRY_RUN=0
@@ -799,6 +816,371 @@ PG_RESTORE="${PG_RESTORE:-pg_restore}"
 # instalado, y el unico momento en que hace falta es el que ya va mal.
 PSQL="${PSQL:-psql}"
 DIR_RESPALDOS="${DIR_RESPALDOS:-$DIR_ESTADO/respaldos}"
+
+# ─── La licencia (ADR 0032) ────────────────────────────────────────────────
+#  Un hijo de «droplet propio» corre en la maquina del cliente, que es suya y
+#  donde el tiene root. La licencia es lo que dice hasta cuando puede correr
+#  nuestro sistema.
+#
+#  ─── Por que la comprobacion esta AQUI y no dentro de la aplicacion ───────
+#  Porque el cliente puede reescribir todo el JavaScript que quiera: si quien
+#  decide fuera la aplicacion, decidiria el. Aqui, fuera del contenedor, lo que
+#  tendria que reescribir es este guion -- y entonces deja de reportar bien al
+#  padre, y el silencio ya es un estado en el panel de flota. No podemos
+#  impedirlo; podemos hacer que no se pueda esconder.
+#
+#  ─── Y por que vale 0 por omision ─────────────────────────────────────────
+#  Los hijos que damos de alta nosotros NO llevan licencia: la maquina es
+#  nuestra y apagarla es trivial. Sin esta variable no se ejecuta ni una linea
+#  de lo de abajo, y este guion se comporta exactamente como el de siempre. Lo
+#  comprueba E115.
+LICENCIA_REQUERIDA="${LICENCIA_REQUERIDA:-0}"
+# Solo 0 y 1 significan algo. Hasta la tarea 4 un valor raro (`true`, `01`, un
+# dedazo) se trataba como ENCENDIDO y se registraba: aqui todavia no habia
+# ningun apagado, asi que "se comprueba de mas" no le costaba nada a nadie.
+# Con el apagado ya construido eso cambio: un dedazo en la configuracion
+# detendria el contenedor de una instancia administrada, y eso no se puede
+# adivinar. Ahora aborta por configuracion, la misma convencion que ya usa el
+# guion para lo que no entiende, y no toca nada.
+case "$LICENCIA_REQUERIDA" in
+  0|'') LICENCIA_REQUERIDA=0 ;;
+  1)    LICENCIA_REQUERIDA=1 ;;
+  *) salir "$EX_CONFIG" "ERROR update: LICENCIA_REQUERIDA=\"$LICENCIA_REQUERIDA\" no es 0 ni 1. No se adivina: un valor que este guion no entiende no puede decidir si se apaga una instancia. Nada se toco." ;;
+esac
+LICENCIA_DIR="${LICENCIA_DIR:-/etc/space-os/licencia}"
+LICENCIA_PUB="${LICENCIA_PUB:-/opt/space-os/space-os.pub}"
+# El binario en una variable, no quemado, para que el arnes pueda apuntar a
+# uno que no existe y ejercitar de verdad la rama "openssl ausente": `$BIN`
+# se antepone al PATH sin reemplazarlo, asi que `command -v openssl` a secas
+# siempre encontraria el openssl real de la maquina, sin importar que doble
+# se monte (ronda 3, barato 1).
+OPENSSL_BIN="${OPENSSL_BIN:-openssl}"
+# Las tres rutas del apagado (tarea 5). Un enlace simbolico entre `NORMAL` y
+# `SIN_LICENCIA` es lo que decide que sitio sirve nginx; `ACTIVO` es ese
+# enlace.
+#
+# `provision-instancia.sh:284-287` NO usa `space-os.conf`: escribe
+# `sites-available/$DOMINIO` y lo enlaza en `sites-enabled/$DOMINIO`, los dos
+# SIN extension y nombrados por el dominio real. Con las rutas fijas de la
+# primera version de esta tarea, el apagado habria escrito un enlace que
+# ninguna instancia real usa, y la degradacion habria sido un 502 desnudo sin
+# pagina -- el mismo fallo que esta tarea existe para evitar. `NORMAL` y
+# `ACTIVO` reproducen ese patron; `SIN_LICENCIA` es un archivo nuevo que
+# instala la tarea 8, junto al del dominio y no dentro de `sites-enabled`
+# (solo uno de los dos esta enlazado a la vez).
+NGINX_SITIO_ACTIVO="${NGINX_SITIO_ACTIVO:-/etc/nginx/sites-enabled/${DOMINIO:-space-os.conf}}"
+NGINX_SITIO_NORMAL="${NGINX_SITIO_NORMAL:-/etc/nginx/sites-available/${DOMINIO:-space-os.conf}}"
+NGINX_SITIO_SIN_LICENCIA="${NGINX_SITIO_SIN_LICENCIA:-/etc/nginx/sites-available/${DOMINIO:-space-os}-sin-licencia.conf}"
+LICENCIA_ESTADO='no-aplica'
+
+# Lee un campo de texto del JSON. Se llama SOLO despues de que la firma valide:
+# decidir con un JSON sin firmar seria confiar en un archivo que cualquiera
+# puede escribir. Y es un analizador pobre a proposito -- no hay `jq` en el
+# droplet, el archivo lo escribimos nosotros y su forma es fija.
+licencia_texto() {
+  grep -o "\"$1\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$LICENCIA_DIR/licencia.json" 2>/dev/null \
+    | head -n1 | sed 's/.*:[[:space:]]*"//; s/"$//'
+}
+
+licencia_numero() {
+  grep -o "\"$1\"[[:space:]]*:[[:space:]]*[0-9][0-9]*" "$LICENCIA_DIR/licencia.json" 2>/dev/null \
+    | head -n1 | sed 's/.*:[[:space:]]*//'
+}
+
+# 0 si la firma valida Y la licencia es de ESTA instancia y ESTE dominio.
+licencia_valida() {
+  [ -f "$LICENCIA_DIR/licencia.json" ] || { registrar "   licencia: no hay licencia.json en $LICENCIA_DIR"; return 1; }
+  [ -f "$LICENCIA_DIR/licencia.firma" ] || { registrar "   licencia: no hay licencia.firma en $LICENCIA_DIR"; return 1; }
+  [ -f "$LICENCIA_PUB" ] || { registrar "   licencia: no hay llave publica en $LICENCIA_PUB"; return 1; }
+
+  if ! "$OPENSSL_BIN" pkeyutl -verify -pubin -inkey "$LICENCIA_PUB" -rawin \
+       -in "$LICENCIA_DIR/licencia.json" -sigfile "$LICENCIA_DIR/licencia.firma" >/dev/null 2>&1; then
+    registrar "   licencia: la firma NO valida"
+    return 1
+  fi
+
+  # Ahora si: el contenido esta firmado, asi que se puede leer y creer.
+  local inst dom
+  inst="$(licencia_texto instancia)"
+  dom="$(licencia_texto dominio)"
+  # Una licencia firmada pero sin decir de que instancia es NO puede pasar el
+  # anclaje por accidente: si esta maquina tampoco tiene `INSTANCIA` ni
+  # `hostname`, las dos cadenas vacias coinciden y una licencia sin dueno
+  # quedaria valida. Medido: sin este guard, ese caso da "sana".
+  [ -n "$inst" ] || { registrar "   licencia: no dice de que instancia es"; return 1; }
+  if [ "$inst" != "$(respaldo_instancia 2>/dev/null || echo "${INSTANCIA:-}")" ]; then
+    registrar "   licencia: firmada pero no es de esta instancia (dice \"$inst\")"
+    return 1
+  fi
+  # `DOMINIO` no existe hoy en `instancia.env.example` (solo `INSTANCIA`,
+  # F5.3/tarea 8). Sin ella no hay con que comparar, y saltarse el guard en
+  # silencio es la clase de fallo que este repositorio persigue -- se
+  # registra, y NO se inventa un valor ni se falla por su ausencia.
+  if [ -z "${DOMINIO:-}" ]; then
+    registrar "   licencia: sin DOMINIO en la configuracion, no se comprueba el dominio de la licencia"
+  elif [ "$dom" != "$DOMINIO" ]; then
+    registrar "   licencia: firmada pero no es de este dominio (dice \"$dom\")"
+    return 1
+  fi
+  return 0
+}
+
+# Los cuatro estados. La MISMA regla que `apps/web/lib/licencia.ts`, y lo que
+# impide que las dos se separen es `infra/licencias/estados.casos.tsv`, que
+# leen las dos suites.
+licencia_estado() {
+  local vence aviso gracia t_vence t_aviso t_fin ahora
+  vence="$(licencia_texto vence)"
+  aviso="$(licencia_numero aviso_dias)"
+  gracia="$(licencia_numero gracia_dias)"
+  # Un campo ilegible NO cae a un valor por omision: una licencia a medias es
+  # una licencia rota, y elegir por ella seria inventarse lo que se concedio.
+  [ -n "$vence" ] && [ -n "$aviso" ] && [ -n "$gracia" ] || { echo invalida; return 0; }
+  # La forma antes que `date`, y con las mismas reglas que el firmador
+  # (`licencia.mjs`): `date -d` acepta "next year" y "2027-1-1", que darian una
+  # licencia eterna o una fecha que el lado de TypeScript llama invalida. Bash es
+  # el que APAGA instancias, asi que no puede ser el mas permisivo de los dos.
+  case "$vence" in
+    [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+    *) echo invalida; return 0 ;;
+  esac
+  case "$aviso$gracia" in
+    ''|*[!0-9]*) echo invalida; return 0 ;;
+  esac
+  t_vence="$(date -u -d "$vence" +%s 2>/dev/null || true)"
+  [ -n "$t_vence" ] || { echo invalida; return 0; }
+  ahora="$(date -u +%s)"
+  t_aviso=$(( t_vence - aviso * 86400 ))
+  t_fin=$((   t_vence + gracia * 86400 ))
+  if   [ "$ahora" -lt "$t_aviso" ]; then echo sana
+  elif [ "$ahora" -lt "$t_vence" ]; then echo aviso
+  elif [ "$ahora" -lt "$t_fin"   ]; then echo gracia
+  else                                   echo vencida
+  fi
+}
+
+if [ "$LICENCIA_REQUERIDA" = 1 ]; then
+  # `openssl` es una dependencia NUEVA de este bloque -- el resto de update.sh
+  # no la necesitaba hasta hoy. Si falta, o si la version no soporta
+  # `pkeyutl -verify -rawin` con Ed25519 (hace falta OpenSSL 3.0 o mas), no se
+  # puede comprobar NADA: ni que la firma valida ni que sea invalida. Hasta la
+  # ronda anterior esto se trataba igual que una firma que no valida
+  # ("invalida"), y apagaba una instancia al corriente de pago por un
+  # problema que es NUESTRO, no del cliente.
+  #
+  # Ahora es un estado propio, `no-comprobable`, y el `case` de mas abajo NO
+  # apaga por el: fallar cerrado solo se defiende si cerrar impide algo, y el
+  # cliente tiene root -- puede desactivar la comprobacion desde su propio
+  # `instancia.env` (LICENCIA_REQUERIDA=0, o apuntando NGINX_SITIO_SIN_LICENCIA
+  # al sitio normal) con la misma facilidad con la que rompe `openssl`. Apagar
+  # aqui no anadiria ninguna disuasion; solo anadiria caidas a quien no esta
+  # atacando nada.
+  #
+  # Lo que SI sigue apagando: una licencia ausente o ilegible (el cliente
+  # quito su propio documento) y una firma que no valida (una afirmacion
+  # falsa). La linea no es "que se rompio", es "hay una afirmacion del
+  # cliente que contradice su derecho" -- y eso solo puede decidirlo
+  # `licencia_valida`, nunca la ausencia de una herramienta nuestra.
+  LICENCIA_MOTIVO_NO_COMPROBABLE=''
+  if ! command -v "$OPENSSL_BIN" >/dev/null 2>&1; then
+    LICENCIA_MOTIVO_NO_COMPROBABLE="falta \`$OPENSSL_BIN\` en esta maquina"
+  else
+    case "$("$OPENSSL_BIN" version 2>/dev/null)" in
+      'OpenSSL 3'*) ;;
+      *) LICENCIA_MOTIVO_NO_COMPROBABLE="$("$OPENSSL_BIN" version 2>/dev/null || echo 'version de openssl no detectada') no soporta \`pkeyutl -verify -rawin\` con Ed25519 (hace falta OpenSSL 3.0 o mas)" ;;
+    esac
+  fi
+  if [ -n "$LICENCIA_MOTIVO_NO_COMPROBABLE" ]; then
+    LICENCIA_ESTADO='no-comprobable'
+    registrar "   licencia: $LICENCIA_MOTIVO_NO_COMPROBABLE. NO se puede comprobar la firma -- pero el problema NO es la licencia: es la herramienta. La instancia SIGUE sirviendo."
+  elif licencia_valida; then
+    LICENCIA_ESTADO="$(licencia_estado)"
+  else
+    LICENCIA_ESTADO='invalida'
+  fi
+  registrar "licencia: $LICENCIA_ESTADO"
+fi
+
+# Cambia el sitio activo de nginx. `modo` es `normal` o `sin-licencia`.
+#
+# Un enlace simbolico y no un `if` dentro de nginx: `if` dentro de un
+# `location` es celebre por comportarse distinto de como se lee, y esto tiene
+# que ser predecible. Y tampoco un `error_page 502`, que confundiria «la
+# licencia vencio» con «la aplicacion se cayo» -- las dos cosas que el panel
+# de flota existe para no mezclar.
+nginx_sitio() {
+  local modo="$1" origen anterior=''
+  case "$modo" in
+    normal)       origen="$NGINX_SITIO_NORMAL" ;;
+    sin-licencia) origen="$NGINX_SITIO_SIN_LICENCIA" ;;
+    *) return 0 ;;
+  esac
+  [ -f "$origen" ] || { registrar "   nginx: no existe $origen, no se cambia el sitio"; return 0; }
+  # Si ya apunta ahi no se toca: recargar nginx cada noche por nada es ruido, y
+  # una recarga es una ventana -- pequena, pero real -- de peticiones perdidas.
+  #
+  # `readlink -f` de una ruta que NO existe imprime esa MISMA ruta y sale 0 --
+  # no falla -- asi que sin esta comparacion `anterior` nunca quedaria vacio,
+  # y la reversion de mas abajo terminaba haciendo
+  # `ln -sfn "$NGINX_SITIO_ACTIVO" "$NGINX_SITIO_ACTIVO"`: un enlace que
+  # apunta A SI MISMO. En un droplet eso es "Too many levels of symbolic
+  # links" para siempre y nginx sin arrancar tras un reinicio -- exactamente
+  # lo que esta reversion existe para evitar. Reproducido con los dobles del
+  # arnes en E123 antes de este guard.
+  #
+  # Se compara la CADENA y no se usa `-L`: `-L` es una prueba real del
+  # sistema de archivos que ningun doble puede fingir (los escenarios anotan
+  # el enlace en su propio registro, nunca crean nada en esa ruta del
+  # disco), y habria dejado el arnes ciego justo en E127/E128 -- que vigilan
+  # esto mismo. La comparacion de cadena de paso cubre el enlace ya
+  # enroscado, donde el `readlink -f` de verdad tambien devuelve vacio.
+  anterior="$(readlink -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true)"
+  [ "$anterior" = "$NGINX_SITIO_ACTIVO" ] && anterior=''
+  [ -n "$anterior" ] && [ "$anterior" = "$(readlink -f "$origen")" ] && return 0
+  # El guard del `--dry-run` va AQUI, despues de decidir que si hay cambio y
+  # justo antes del `ln`: es el ultimo punto en el que todavia no se ha tocado
+  # nada y el primero en el que ya se sabe QUE se tocaria. Puesto arriba diria
+  # "cambiaria el sitio" en cada corrida aunque el enlace ya apuntara bien.
+  if [ "${DRY_RUN:-0}" = 1 ]; then
+    registrar "   nginx: en una corrida de verdad el sitio activo pasaria a -> $modo (--dry-run: no se toca)"
+    return 0
+  fi
+  # Bajo `set -e`, un `ln` que falla (permisos, disco de solo lectura) mataria
+  # el guion aqui mismo con el codigo 1 -- "NADA se toco", que seria falso a
+  # medias: nginx queda como estaba, pero el guion nunca llega a `salir` ni
+  # reporta a la flota ni sube el log. Se atrapa y se sigue sin tocar nada mas.
+  ln -sfn "$origen" "$NGINX_SITIO_ACTIVO" || { registrar "   nginx: no se pudo cambiar el enlace $NGINX_SITIO_ACTIVO; no se toca nada mas"; return 0; }
+  if nginx -t >/dev/null 2>&1; then
+    systemctl reload nginx >/dev/null 2>&1 || nginx -s reload >/dev/null 2>&1 || true
+    registrar "   nginx: sitio -> $modo"
+  else
+    # Se DESHACE el enlace, no solo se deja de recargar: dejarlo apuntando a
+    # una plantilla que `nginx -t` rechaza significa que el siguiente reload
+    # de certbot falla y que un reinicio deja nginx SIN ARRANCAR. El log de
+    # antes decia "queda el que estaba sirviendo", y era cierto solo en
+    # memoria -- en disco, el enlace ya apuntaba a la plantilla mala.
+    if [ -n "$anterior" ]; then
+      ln -sfn "$anterior" "$NGINX_SITIO_ACTIVO" 2>/dev/null || registrar "   nginx: no se pudo devolver el enlace $NGINX_SITIO_ACTIVO a $anterior"
+    else
+      # No habia enlace antes (o `NGINX_SITIO_ACTIVO` era un archivo regular,
+      # que el `ln -sfn` de arriba ya sobreescribio): inventar un destino
+      # seria peor que no tocar nada, asi que se quita el enlace y se deja
+      # sin sitio activo.
+      rm -f "$NGINX_SITIO_ACTIVO" 2>/dev/null || true
+    fi
+    registrar "   nginx: \`nginx -t\` rechazo el sitio $modo; no se recarga y el enlace se deja como estaba"
+  fi
+}
+
+# Si la corrida anterior apago por licencia, el contenedor esta PARADO y su
+# imagen no cambio -- asi que el camino normal de mas abajo (el que compara
+# `ID_ACTUAL` con la imagen nueva) saldria con "sin cambios" y lo dejaria
+# parado PARA SIEMPRE. Se arranca aqui, y SIEMPRE antes de devolver el sitio
+# de nginx a la normalidad: al reves se retira la pagina que explica lo que
+# pasa, y lo que queda detras -- hasta que llegue una imagen nueva de verdad
+# -- es un 502 desnudo. E125 no lo veia venir porque solo probaba con una
+# licencia valida desde el principio, nunca con el rastro de un apagado
+# previo.
+licencia_arrancar_si_parado() {
+  [ -n "$(docker inspect --format '{{.Id}}' "$CONTENEDOR" 2>/dev/null || true)" ] || return 0
+  [ "$(docker inspect --format '{{.State.Running}}' "$CONTENEDOR" 2>/dev/null || echo false)" != true ] || return 0
+  # El guard va DESPUES de las dos comprobaciones de estado, no antes: asi el
+  # `--dry-run` habla solo cuando de verdad haria algo, en vez de decir "lo
+  # arrancaria" en las corridas --la mayoria-- en que ya estaba corriendo.
+  if [ "${DRY_RUN:-0}" = 1 ]; then
+    registrar "   licencia: el contenedor esta PARADO; en una corrida de verdad se arrancaria aqui (--dry-run: no se toca)"
+    return 0
+  fi
+  registrar "   licencia: el contenedor estaba parado; se arranca antes de devolver nginx a la normalidad"
+  docker start "$CONTENEDOR" >/dev/null 2>&1 || registrar "   licencia: \`docker start\` fallo; el camino normal de mas abajo lo intentara"
+}
+
+if [ "$LICENCIA_REQUERIDA" = 1 ]; then
+  case "$LICENCIA_ESTADO" in
+    vencida|invalida)
+      # EL REPORTE VA ANTES DEL `docker stop`, Y ESE ORDEN ES EL ARREGLO.
+      #
+      # `flota_cuerpo()` compone el reporte preguntandole a LA PROPIA
+      # APLICACION por `$SALUD_URL` (127.0.0.1:3000) y exige que la respuesta
+      # traiga `"version"` dentro. Con el contenedor ya parado no contesta
+      # nadie: el cuerpo salia vacio, no se mandaba NI SE ENCOLABA, y el padre
+      # veia «sin respuesta» -- que es exactamente la lectura que el codigo 8
+      # existe para evitar (`apps/flota/diagnostico.mjs:133`). Y no era solo la
+      # primera noche: todas las siguientes hacian lo mismo.
+      #
+      # La prueba de que el diagnostico era ese esta en la ASIMETRIA: el codigo
+      # 9, tres lineas mas abajo, SI llegaba al panel -- y en ese camino el
+      # contenedor queda vivo.
+      #
+      # Por que componer antes y no relajar el contrato del receptor
+      # (`apps/flota/reporte.mjs:88` rechaza un cuerpo sin `version`): porque
+      # la version que interesa es LA QUE ESTABA SIRVIENDO cuando se apago, y
+      # el unico que la sabe con certeza es el contenedor que todavia corre.
+      # Recordar la ultima version conocida en disco seria inventar un segundo
+      # origen de verdad para el dato que el panel usa precisamente para
+      # detectar instancias rezagadas.
+      #
+      # `FLOTA_CODIGO` se fija aqui a mano porque normalmente lo pone `salir`,
+      # y `salir` llega despues del `stop`. `salir` lo volvera a fijar al mismo
+      # valor y llamara otra vez a `reportar_a_flota`, que no hara nada: el
+      # guard `FLOTA_REPORTADO` --que ya existia, para que dos `salir` no
+      # duplicaran el reporte-- cubre este caso tal cual.
+      # EL `--dry-run` NO APAGA. CUENTA QUE APAGARIA.
+      #
+      # Hasta el 2026-09-11 este bloque no miraba `DRY_RUN`, asi que
+      # `update.sh --dry-run` con una licencia vencida PARABA el contenedor,
+      # reescribia el enlace de nginx y recargaba nginx -- mientras la cabecera
+      # de este mismo guion promete «mira y cuenta; NO toca nada» y la tarjeta
+      # del alta manda al cliente correr en seco ANTES de instalar de verdad.
+      # Lo introdujo esta misma rama (tarea 5, `8f271bd`): antes de ella no
+      # habia bloque de licencia que pudiera apagar nada.
+      #
+      # La convencion ya estaba resuelta en este archivo --`reportar_a_flota`
+      # hace `[ "$DRY_RUN" = 0 ] || return 0` (`:635`) con su motivo al lado--
+      # y esto la sigue. Lo que NO se hace es callar: un ensayo en seco que no
+      # dijera que la licencia esta vencida seria tan inutil como uno que
+      # apagara. Se dice en voz alta, con el codigo que tendria, y la corrida
+      # SIGUE por su camino de dry-run normal en vez de salir por aqui.
+      #
+      # Los otros dos brazos del `case` no necesitan guard propio: lo que
+      # tocaba en ellos son `licencia_arrancar_si_parado` y `nginx_sitio`, y
+      # esos dos llevan el suyo dentro, donde se sabe si de verdad actuarian.
+      if [ "$DRY_RUN" = 1 ]; then
+        registrar "APAGARIA (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". En una corrida de verdad, aqui se pararia el contenedor y nginx pasaria a servir la pagina de vencimiento. NADA de eso se ha hecho: esto es --dry-run. Para que vuelva a estar al corriente, instala una licencia valida en $LICENCIA_DIR."
+      else
+        FLOTA_CODIGO="$EX_LICENCIA"
+        reportar_a_flota || true
+        # `docker stop`, nunca `docker rm`: los datos estan en Postgres y ahi se
+        # quedan, y conservar el contenedor hace que reanudar sea arrancarlo.
+        docker stop "$CONTENEDOR" >/dev/null 2>&1 || true
+        nginx_sitio sin-licencia
+        salir "$EX_LICENCIA" "APAGADO (8): la licencia de esta instancia esta \"$LICENCIA_ESTADO\". El contenedor esta detenido y nginx sirve la pagina de vencimiento. NO se ha tocado la base, NO se ha borrado nada y el respaldo sigue donde estaba: para reanudar basta con instalar una licencia valida en $LICENCIA_DIR y esperar a la siguiente corrida."
+      fi
+      ;;
+    no-comprobable)
+      # No se apaga (ver el porque junto a EX_LICENCIA_NO_COMPROBABLE, arriba):
+      # se sirve exactamente como si la licencia fuera sana -- arrancando el
+      # contenedor si quedo parado de un apagado anterior, y devolviendo nginx
+      # a la normalidad -- pero esta corrida NO sigue con el resto del update
+      # (ni pull ni migracion): sin poder comprobar la licencia, lo prudente es
+      # no avanzar solo, y se grita en el log y se sale con un codigo propio
+      # para que quede visible y el panel de flota (tarea 6) lo distinga de un
+      # "sin cambios" cualquiera.
+      licencia_arrancar_si_parado
+      nginx_sitio normal
+      salir "$EX_LICENCIA_NO_COMPROBABLE" "AVISO (9): la licencia de esta instancia NO SE PUDO COMPROBAR ($LICENCIA_MOTIVO_NO_COMPROBABLE). La instancia SIGUE sirviendo con normalidad: falta o no sirve una herramienta NUESTRA, no un derecho del cliente, y apagar aqui no anadiria ninguna disuasion. Esta corrida no siguio actualizando; revisar \`openssl\` en este droplet."
+      ;;
+    *)
+      # Sana, aviso o gracia: se sirve con normalidad. Se arranca el
+      # contenedor si quedo parado, y se devuelve el sitio al normal por si la
+      # corrida anterior lo dejo en el de vencimiento -- que es todo el
+      # mecanismo de reanudacion, y por eso no hay ningun comando que alguien
+      # tenga que acordarse de correr.
+      licencia_arrancar_si_parado
+      nginx_sitio normal
+      ;;
+  esac
+fi
 
 [ -n "$CANAL" ] || salir "$EX_CONFIG" "ERROR update: falta CANAL en $CONF (estable o beta)."
 [ -n "$REGISTRY" ] || salir "$EX_CONFIG" "ERROR update: falta REGISTRY en $CONF."

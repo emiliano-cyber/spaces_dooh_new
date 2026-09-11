@@ -1,13 +1,17 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-09-11
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
   - db/migrations/
   - apps/web/middleware.ts
   - infra/nginx/demo.space-os.io.conf
+  - infra/scripts/base-instancia.sh
+  - infra/scripts/pruebas-provision.sh
+  - infra/scripts/provision-instancia.sh
+  - infra/scripts/instalar-hijo.sh
 ---
 
 # Zonas de riesgo
@@ -61,6 +65,69 @@ ellas dejó el desbloqueo inservible **un despliegue entero**.
 - [ ] Que la consulta nueva use `q`/`q1`, y si usa `qRaw` esté justificado por
       escrito.
 - [ ] Que el rol de la base **no** sea superusuario ni `BYPASSRLS`.
+- [ ] Si tocas cómo NACE ese rol (`infra/scripts/base-instancia.sh`, o
+      cualquiera de los dos caminos de alta que lo sourcean): corre
+      `bash infra/scripts/pruebas-provision.sh --mutantes` y comprueba que el
+      **centinela** sigue escapando y que ningún otro mutante lo hace — ver el
+      aviso de abajo.
+
+> [!danger] 2026-09-11 · Con qué privilegios NACE la base de una instancia es R2 también, y hasta ayer ninguna prueba lo miraba
+> El aislamiento no depende sólo de las políticas RLS de `db/schema.sql`:
+> depende de que el rol con el que la **aplicación** se conecta se cree con
+> `nobypassrls`. Esa sola palabra es lo único que impide que la aplicación
+> atraviese la RLS entera — y hasta el 2026-09-11 **ninguna prueba, ni aquí ni
+> en las suites de `apps/web`, miraba el CONTENIDO del SQL que crea ese rol**:
+> `infra/scripts/pruebas-provision.sh` verificaba el FLUJO del alta de una
+> instancia (qué llamadas se hacen, cómo se reportan los errores), nunca la
+> sentencia SQL en sí.
+>
+> **Medido con una barrida de mutantes** contra
+> `infra/scripts/base-instancia.sh` — lo que crea los dos roles y la base para
+> los DOS caminos de alta de una instancia, ver [[modelo-instancias-soberanas]]
+> §6-bis —: **cinco mutantes escapaban con 0 fallos**, entre ellos:
+>
+> - quitarle `nobypassrls` al rol de la aplicación
+>   (`sql_crear_rol_app()`, `base-instancia.sh:96-100`) — un rol sin esa
+>   palabra atraviesa la RLS entera y sirve datos de todas las organizaciones,
+>   **sin dar ningún error**;
+> - y poner a la aplicación a conectarse con el rol de **migración**
+>   (`sql_crear_rol_migrador()`, `base-instancia.sh:128-132`), que lleva
+>   `bypassrls` a propósito porque tiene que respaldar y migrar sobre tablas
+>   con RLS `FORCE` — la aplicación nunca debería usar ese rol, y con ese
+>   mutante lo hacía sin que nada se quejara.
+>
+> Es exactamente el modo de fallo que esta sección ya advierte arriba: nada
+> falla, la instancia parece sana, y lo único que cambia es que empiezan a
+> verse datos de otro cliente. Lo único que sostenía esos dos privilegios era
+> estar escritos bien **en dos guiones de alta a la vez**
+> (`provision-instancia.sh` y `instalar-hijo.sh`), y esa deriva ya había
+> empezado por otra vía: `CANAL` se sustituía en uno y no en el otro.
+>
+> **Lo que hay hoy, para no repetirlo:** siete comprobaciones sobre el
+> contenido del SQL en el escenario `GLOBAL` de `pruebas-provision.sh`
+> (`nobypassrls`, `nosuperuser nocreatedb nocreaterole`, el `bypassrls` del
+> migrador, `owner spaces_migrador`, la ruta del esquema base, `ON_ERROR_STOP`
+> y `--instalacion-nueva`), más un escenario `CONTENIDO` que comprueba con qué
+> rol se conecta CADA archivo escrito en la instancia (`app.env` con
+> `spaces_app`, `instancia.env` con `spaces_migrador`) — el otro extremo de la
+> misma cadena, y el que falla igual de callado si se invierten. Y un
+> **centinela** en la barrida de mutantes
+> (`bash infra/scripts/pruebas-provision.sh --mutantes`): un mutante que es el
+> guion intacto con un comentario de más al final, que por construcción **no
+> cambia nada** y por eso **tiene que escapar** — porque esta misma barrida
+> llevaba tiempo matando todo por una causa común (la copia moría antes de
+> correr un solo escenario) y diciendo «0 escapan» sin haber probado nada.
+> Medido el 2026-09-11: `18 mutantes (el primero es el centinela) · 0 mal` — el
+> centinela escapa como debe, y los otros 17 mueren cada uno por su propia
+> comprobación.
+>
+> **Antes de tocar cómo nace un rol de Postgres, en cualquiera de los dos
+> caminos de alta:** corre la barrida de mutantes y confirma que el centinela
+> sigue escapando solo. Un mutante que escapa aquí no es un detalle del
+> arnés: es la misma clase de agujero que ya costó dos incidentes de
+> aislamiento en este repositorio (`43f9284` y el desbloqueo inservible de
+> arriba), sólo que un paso más atrás — antes de que exista una sola consulta
+> que pueda tocar `qRaw` o `q`.
 
 ## R3 · Migraciones ya aplicadas en producción
 
@@ -176,6 +243,67 @@ limitador en memoria funcione.
 
 **Verificar:**
 - [ ] Si subes `instances`, migra `rate-limit.ts` a un store compartido **antes**.
+
+## R7 · Cómo se escriben `instancia.env` y `app.env` de una instancia
+
+**Archivos:** `infra/scripts/provision-instancia.sh`, `infra/scripts/instalar-hijo.sh`
+
+> [!danger] 2026-09-11 · `provision-instancia.sh` escribe la configuración de un cliente SIN saneamiento — hallazgo de forma, no explotado hoy
+> **Por qué:** `update.sh` **sourcea** `instancia.env` (`. "$CONF"`,
+> `update.sh:740`) como root, por cron, cada noche. Eso significa que ese
+> archivo no es texto: es bash. Un valor con un espacio dentro, sin comillas,
+> se lee como DOS palabras — la primera queda como una asignación de entorno
+> para la segunda, que bash **ejecuta como un comando**. En el servidor de un
+> cliente. Como root.
+>
+> **Qué se rompe.** `instalar-hijo.sh` (el camino nuevo, el que instala el
+> cliente en su propio droplet) sí se protege por partida doble:
+> `reescribir_env_sourceado()` **entrecomilla** todo lo que va a
+> `instancia.env`, y `validar_valor_seguro()`
+> (`instalar-hijo.sh:115-130`) rechaza comillas dobles, `$`, backtick, barra
+> invertida y salto de línea **antes** de que un valor llegue a escribirse —
+> llamada sobre `REGISTRY` (`:517`), `REGISTRY_TOKEN` (`:522`) y `PADRE_URL`
+> (`:534`).
+>
+> `provision-instancia.sh` (el camino administrado, el que da de alta a un
+> cliente HOY) **no tiene ninguna de las dos protecciones**: escribe
+> `app.env` e `instancia.env` con `sed` crudo, sin entrecomillar nada en
+> ninguno de los dos (`provision-instancia.sh:633-640` y `:645-648`), y no
+> existe ningún `validar_valor_seguro()` en el archivo — comprobado, cero
+> resultados. De los valores que llegan a ese `sed`: `INSTANCIA`
+> (`:515`) sólo se comprueba que no esté vacío, sin regla de forma;
+> `REGISTRY`, `REGISTRY_TOKEN` y `CANAL` (`:89-95`) **no se validan en
+> absoluto**. `DOMINIO` sí tiene un regex estricto (`:157`, sin espacios ni
+> comillas posibles) y `DATABASE_URL`/los secretos se construyen internamente
+> con `secreto()` (hex) — esos dos son seguros por construcción.
+>
+> **El riesgo real hoy, sin inflarlo:** estos valores los tecleamos
+> **nosotros**, al correr `provision-instancia.sh` desde nuestra máquina para
+> dar de alta un cliente por el camino administrado — el cliente no tiene
+> forma de inyectar nada por aquí. El alta automatizada (ADR 0029) valida
+> `instancia` y `dominio` con su propia lista blanca antes de llegar a este
+> punto, y nunca expone `REGISTRY`, `REGISTRY_TOKEN` ni `CANAL` a una entrada
+> no confiable. **Lo que queda es el dedazo de un operador en el camino
+> manual** — un espacio de más al copiar `INSTANCIA`, un carácter especial
+> pegado en `REGISTRY_TOKEN` desde otra fuente — y el resultado de ese
+> dedazo no es un error visible: es una palabra ajena ejecutada como root en
+> el servidor de un cliente, la próxima vez que su cron corra `update.sh`.
+>
+> **Qué hacer distinto, a partir de ahora:**
+> - [ ] Antes de correr `provision-instancia.sh`, revisa a mano cada valor de
+>       `INSTANCIA`, `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`: que no traiga un
+>       espacio, una comilla, `$`, un backtick ni una barra invertida.
+> - [ ] Si tocas este archivo por cualquier motivo, **no inventes una
+>       validación nueva**: porta `reescribir_env_sourceado()` /
+>       `reescribir_env_docker()` y `validar_valor_seguro()` desde
+>       `instalar-hijo.sh` — es el mismo patrón, ya escrito y ya probado
+>       contra el mismo defecto.
+> - [ ] No lo confundas con R2: aquí no hay RLS ni tenant de por medio, es
+>       ejecución de comandos por un archivo de configuración mal escrito.
+>
+> Medido el 2026-09-11 al documentar la tarea 9 del plan de alta en droplet
+> propio (`docs/adr/0032-el-alta-en-droplet-propio-del-cliente.md`, sección
+> «Lo que queda abierto»). No tiene tarea propia todavía.
 
 ---
 

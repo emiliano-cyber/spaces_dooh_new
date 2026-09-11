@@ -1,8 +1,8 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-09-10
-tags: [instancias, despliegue, padre, demo, flota, costos, plan]
+actualizado: 2026-09-11
+tags: [instancias, despliegue, padre, demo, flota, costos, plan, licencia]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
   - db/schema.sql
@@ -12,8 +12,14 @@ archivos:
   - apps/web/middleware.ts
   - apps/flota/diagnostico.mjs
   - infra/scripts/update.sh
+  - infra/scripts/provision-instancia.sh
   - apps/flota/estado.mjs
   - apps/flota/servidor.mjs
+  - infra/scripts/instalar-hijo.sh
+  - infra/scripts/base-instancia.sh
+  - apps/flota/firmar-licencia.mjs
+  - apps/web/lib/licencia.ts
+  - docs/adr/0032-el-alta-en-droplet-propio-del-cliente.md
 ---
 
 # Modelo de instancias soberanas — avance de la corrección
@@ -348,6 +354,316 @@ cometer»*.
 > correcto: una corrida que no se ejecutó no puede sobrescribir el estado de la
 > que sí. El panel trata el 75 como sano de todos modos, pero esa rama es
 > defensiva, no un caso vivo.
+
+## 6-bis · Los dos caminos de alta, y la licencia — 2026-09-10, construido el 11/09
+
+> [!success] 2026-09-11 · Construido en `feat/alta-droplet-propio`, sin desplegar
+> Decisión tomada el 10/09 y recogida en el **ADR 0032**, enmendado el 11/09.
+> Diseño completo en
+> `docs/superpowers/specs/2026-09-10-alta-en-droplet-propio-design.md`. Los dos
+> caminos de alta, la licencia firmada, el apagado, la página de vencimiento y
+> el aviso dentro de la aplicación **existen y están probados con arneses
+> locales** (`infra/scripts/pruebas-update.sh`, `pruebas-provision.sh`,
+> `pruebas-instalar-hijo.sh`).
+>
+> **Lo que falta es humano, no código**: generar el par de llaves de verdad
+> (`docs/evidencias/llaves-de-licencia.txt`), firmar la primera licencia real y
+> correr el ensayo completo en DEMO
+> (`docs/evidencias/ensayo-licencia-demo.txt`). **Nada de esto está encendido
+> en ninguna máquina**: `LICENCIA_REQUERIDA` vale `0` por omisión
+> (`infra/scripts/update.sh:837`) y ningún hijo, DEMO incluido, lo tiene en `1`
+> hoy.
+
+### Vocabulario: PADRE y **hijos**
+
+Emiliano fijó la palabra el 10/09. **Un hijo es cualquier instancia**: `g500`,
+`DEMO` y las que vengan. Todas corren **la misma imagen**. Lo que las distingue
+no es lo que son, sino **por qué camino nacieron**.
+
+### Los dos caminos
+
+| | **Alta administrada** (existe) | **Alta en droplet propio** (nueva) |
+|---|---|---|
+| Crea la máquina | nosotros, con `doctl` | el cliente, en su cuenta |
+| Paga a DigitalOcean | nosotros | el cliente |
+| Instala | nosotros, por SSH (`remoto()`) | el cliente, con nuestro paquete |
+| Consola web con root | nuestra | **suya** |
+| Nuestro acceso | SSH `soporte` + cuenta de DO | **SSH `soporte` y nada más** |
+| Respaldos y logs | bucket de la casa | **bucket del cliente, con sus claves** |
+| Licencia | **no** (`LICENCIA_REQUERIDA=0`) | **sí** (`=1`) |
+| Cómo sabemos que salió bien | **lo vimos hacerlo** | **nos lo cuenta el hijo** |
+
+Esa última fila es el hallazgo del diseño y no un parche: es el **mismo canal de
+flota** en dos usos. En la administrada verificamos *haciendo*; en la de droplet
+propio verificamos *escuchando*. Y «entregué el paquete y todavía no ha
+reportado» es información por sí sola: separa «no lo ha instalado» de «lo
+instaló y algo falló».
+
+> [!success] La mitad ya estaba preparada, sin saberlo
+> `provision-instancia.sh` lleva los dos modos desde que se escribió
+> —`--crear-droplet` y `--host <ip|dns>`, este último anotado como *«el caso
+> cuenta del owner»*— y su cabecera dice que **no hay uno por omisión a
+> propósito**, porque la decisión estaba abierta (§8.3 del plan v3). Esa
+> abstención se cobra hoy: el camino existe y está probado
+> (`pruebas-provision.sh`). Lo que falta es el instalador que corre **dentro**
+> del droplet del hijo.
+
+### Lo que crea una base de datos se escribe UNA vez
+
+`infra/scripts/base-instancia.sh` (nuevo, 225 líneas, se **sourcea** — no se
+ejecuta, modo `100644`) es lo que crean los dos roles de Postgres, la base y lo
+que aplica el esquema y las migraciones. Lo sourcean los dos caminos de alta:
+`provision-instancia.sh` por ssh y `instalar-hijo.sh` dentro del droplet del
+cliente.
+
+**Por qué existe:** estaba escrito dos veces, y la deriva ya había empezado —
+`CANAL` se sustituía en `app.env` en un camino y no en el otro, así que el
+panel de flota podía decir `estable` de una instancia que el actualizador
+seguía jalando en `beta`. Medido y corregido el 2026-09-11. Con `base-instancia.sh`
+un arreglo de privilegios llega a los dos caminos a la vez, o a ninguno — ver
+el hallazgo de [[zonas-de-riesgo]] §R2, que es la razón de fondo.
+
+### `instalar-hijo.sh` y sus tres tarjetas
+
+`infra/scripts/instalar-hijo.sh` (993 líneas) es el instalador que corre
+**dentro** del droplet del cliente: sin `--confirmar` sólo simula, y con
+`--confirmar` instala Docker, Postgres, nginx y certbot, crea la base, baja la
+imagen y pide el certificado. Sus tres tarjetas, en el orden en que se usan:
+
+1. `docs/evidencias/llaves-de-licencia.txt` — generar el par de llaves Ed25519,
+   una sola vez por flota.
+2. `docs/evidencias/alta-droplet-propio.txt` — armar el paquete de alta,
+   firmar la licencia del cliente, y lo que el cliente corre en su propio
+   droplet.
+3. `docs/evidencias/ensayo-licencia-demo.txt` — el ensayo del apagado y la
+   reanudación contra DEMO, con una licencia caducada a propósito, antes de
+   que exista un primer cliente en este camino.
+
+### La regla de los dos archivos de configuración: un archivo, un parser
+
+`instancia.env` lo **sourcea** bash (`update.sh` hace `. "$CONF"`,
+`update.sh:367`) y sus valores van **entrecomillados**: un valor con un
+espacio sin comillas hace que bash ejecute la segunda palabra como si fuera un
+comando, como root, cada noche (invariante I7, documentado también en
+`CLAUDE.md`). `app.env` lo lee **Docker** como `--env-file`
+(`update.sh:2083` arranca el contenedor con él) y sus valores van **sin
+comillas**: Docker no las interpreta, se las queda dentro del valor.
+
+El propio `update.sh` ya advertía la diferencia, antes de que hiciera falta:
+
+> Formato `--env-file` de docker: CLAVE=valor, sin comillas ni `export`. Por
+> eso se lee con grep y no con `.`: sourcearlo interpretaria las comillas de
+> otra manera que docker, y ahi es donde nacen las diferencias invisibles.
+> — `update.sh:1493-1496`
+
+`instalar-hijo.sh` tenía una sola función para los dos archivos y siempre
+entrecomillaba, así que `app.env` quedaba con la comilla dentro del valor.
+`url_de_env_app()` (`update.sh:1492-1498`) leía esa comilla, la comparaba
+contra el destino de `instancia.env` (que sí sourcea, sin comillas), los dos
+nunca coincidían, y `update.sh:1509` abortaba con `EX_CONFIG` en la primera
+corrida del cron: la instancia quedaba servida pero sin poder actualizarse
+jamás. Corregido separando `reescribir_env_sourceado()` (para `instancia.env`)
+de `reescribir_env_docker()` (para `app.env`) — el aviso estaba escrito
+(`update.sh:1493-1496`) y lo que faltó fue leerlo.
+
+### Los dos códigos de salida, y son dos llamadas de teléfono distintas
+
+| Código | Qué significa | A quién se llama |
+|---|---|---|
+| **8** (`EX_LICENCIA`, `update.sh:396`) | la licencia venció, es inválida, o es de otra instancia/dominio: el contenedor está detenido a propósito y nginx sirve la página de vencimiento | al cliente, de facturación |
+| **9** (`EX_LICENCIA_NO_COMPROBABLE`, `update.sh:404`) | falta `openssl` o su versión no soporta `pkeyutl -verify -rawin` con Ed25519: la instancia **sigue sirviendo** | a nosotros, a arreglar una herramienta propia — el cliente no tiene nada que ver |
+
+El panel de flota ya distingue los dos (`apps/flota/diagnostico.mjs:133-134`):
+el 8 se traduce como *«la licencia vencio y la instancia esta apagada a
+proposito: no es una averia»*, el 9 como *«no se pudo verificar la licencia: la
+instancia sigue sirviendo, pero hay un problema de herramienta»*. Confundirlos
+en una sola fila de «avería» dispararía la llamada equivocada.
+
+Dentro del shell autenticado, `apps/web/lib/licencia.ts` (`avisoDeLicencia()`,
+línea 64) traduce el estado a una banda discreta en `aviso` y `gracia`, y
+calla en `sana`, `vencida` e `invalida` — las dos últimas porque `update.sh`
+ya apagó el contenedor con `openssl`, fuera de la aplicación: pintar algo ahí
+describiría un estado que no puede darse con ese código corriendo.
+
+### Lo que la revisión del conjunto encontró en las costuras — 11/09
+
+Once tareas revisadas una a una salieron limpias; la revisión del **conjunto**
+encontró siete defectos, y **cada uno vivía entre dos tareas**. Es el hallazgo
+metodológico de esta rama y conviene que quede escrito: revisar tarea por tarea
+no ve lo que pasa en la unión.
+
+Los que cambian comportamiento, con lo que se aprendió de cada uno. El cuarto
+no lo encontró la revisión: apareció al arreglar el segundo, y es el único que
+esta rama se había hecho a sí misma sin darse cuenta.
+
+**1 · La banda de aviso no se pintaba nunca, y no lo decía nadie.**
+`instalar-hijo.sh` instalaba la licencia en **600 de root**; el contenedor corre
+como `node`, y el montaje conserva los permisos del anfitrión. `readFile` daba
+`EACCES`, el `catch` devolvía `null`, y `null` era **el mismo valor** que «hijo
+administrado sin licencia». Los 30 días de aviso y los 15 de gracia pasaban
+mudos en toda instancia de droplet propio. **No lo cazaba ningún gate, ningún
+log y ninguna prueba.**
+Ahora **644**, con el porqué al lado — *una licencia no es un secreto: es una
+afirmación firmada y pública, y su valor está en la firma* — y el modo del
+**directorio** fijado explícito, porque un 644 dentro de un 700 falla igual de
+callado. `layout.tsx` distingue `ENOENT` (calla: es el caso normal de media
+flota, y este layout se renderiza en cada navegación) de cualquier otro código
+(registra: es un error de instalación). Y la tarjeta del alta gana un gate
+`docker exec -u node`, que es el único sitio donde la respuesta es la verdadera.
+
+**2 · El código 8 no podía llegar al panel.** `docker stop` iba **antes** de
+`salir`, y `salir` compone el reporte preguntándole a la propia aplicación por
+`$SALUD_URL`. Con el contenedor parado el cuerpo salía vacío y no se mandaba ni
+se encolaba: el padre veía **«sin respuesta»**, justo la lectura que el 8 existe
+para evitar. La prueba del diagnóstico era la **asimetría** — el 9 sí llegaba, y
+ahí el contenedor queda vivo. Arreglado componiendo y encolando **antes** de
+parar, no relajando el contrato del receptor ni recordando la versión en disco
+(sería un segundo origen de verdad para el dato que detecta rezagadas).
+Lo que no se veía desde fuera: **el arnés mentía en ese punto**. El doble de
+`curl` contestaba el cuerpo de `/api/version` incluso con el contenedor parado,
+así que un escenario nuevo habría nacido verde con el defecto puesto. El doble
+ahora modela el estado real.
+
+**3 · Los secretos del cliente viajaban por `argv`** — contra lo que el propio
+instalador declaraba en su cabecera. `--flota-token`, `--spaces-key`,
+`--spaces-secret` y `--spaces-bucket` **retiradas**: van por entorno, como
+`REGISTRY_TOKEN`. La regla queda en una línea: *por argumento, lo que identifica
+a la instancia (y ya es público: está en su DNS y en su certificado); por
+entorno, todo lo demás.*
+
+Y uno que no cambia comportamiento pero explica por qué los otros duraron: la
+prueba que **custodia R2** (`nobypassrls` del rol de la aplicación) llevaba días
+leyendo `provision-instancia.sh`, del que ese SQL ya se había mudado a
+`base-instancia.sh`. Se puso roja, que fue una suerte — una comprobación por
+ausencia en el mismo sitio habría quedado **verde sin medir nada**. La lección
+que se fijó en el archivo: *una prueba que lee un archivo por su ruta afirma dos
+cosas a la vez, y la segunda caduca sola*. Ahora busca en el camino de alta
+entero y dice en qué archivo encontró lo que mide.
+
+**4 · El `--dry-run` apagaba la instancia, y el defecto era nuestro.** Con una
+licencia vencida, `update.sh --dry-run` hacía `docker stop`, reescribía el
+enlace de nginx y lo recargaba — mientras la cabecera del propio guion promete
+*«mira y cuenta; NO toca nada»* y la tarjeta del alta manda al cliente **correr
+en seco antes** de instalar de verdad.
+
+Conviene decir de quién es, porque la primera versión de esta nota lo dio por
+heredado y **no lo era**: `git show 97c0304:infra/scripts/update.sh | grep -c
+LICENCIA_REQUERIDA` devuelve **0**. Antes de esta rama no había bloque de
+licencia que pudiera apagar nada; lo introdujo `8f271bd` (tarea 5). Lo anterior
+es sólo la *estructura* — que la rama de `--dry-run` viva mucho más abajo.
+
+Corregido siguiendo la convención que el propio archivo ya tenía resuelta
+(`reportar_a_flota` hace `[ "$DRY_RUN" = 0 ] || return 0`), y **sin callarse**:
+en seco se registra `APAGARIA (8): …` y la corrida sigue por su camino de
+dry-run normal. Un ensayo que apaga es malo; uno que no dice que la licencia
+venció es igual de inútil.
+
+Los guards de los otros dos actuadores viven **dentro** de
+`licencia_arrancar_si_parado()` y `nginx_sitio()`, después de que cada uno
+decida que de verdad actuaría — así el dry-run habla sólo cuando hay algo que
+contar, en vez de anunciar un cambio que no haría.
+
+### No hay puerta de pruebas para la fecha
+
+Hasta una ronda de corrección del 11/09, `licencia_estado()` aceptaba
+`LICENCIA_HOY` para que el arnés pudiera fijar el «ahora» sin esperar a que
+una fecha real llegara. Era alcanzable **desde producción**: `update.sh`
+sourcea `instancia.env`, así que el cliente podía escribir esa misma variable
+en su propio archivo y congelar su licencia en `sana` para siempre, sin
+parchear una sola línea de código y sin dejar de reportar al panel de flota.
+Se quitó por completo de `licencia_estado()`; ahora usa siempre `date -u +%s`
+(`update.sh:952`). El arnés ya no mueve el reloj: mueve las **fechas de la
+licencia** contra un banco de casos compartido
+(`infra/licencias/estados.casos.tsv`), que es lo que ya fabricaba de todos
+modos. Vale la pena que quede escrito por qué se cerró: es la clase de agujero
+que se reintroduce solo si nadie deja la razón al lado.
+
+### La licencia, en cuatro frases
+
+1. **Archivo firmado en la máquina, comprobado sin salir a internet.** El PADRE
+   firma con su llave privada; la pública es idéntica para toda la flota y
+   **viaja en el paquete de alta, no en la imagen** — `instalar-hijo.sh:751` la
+   instala en `/opt/space-os/space-os.pub` (modo 644), que es de donde la lee
+   `update.sh:851`. En el `Dockerfile` no hay ningún `COPY` de `space-os.pub`, y
+   no puede haberlo: quien comprueba la firma es `update.sh`, **fuera** del
+   contenedor. El PADRE sólo hace falta para **renovar**, nunca para funcionar —
+   si se cae, ningún cliente se queda fuera de su propio sistema.
+
+   > Esta nota decía «va en la imagen» hasta el 2026-09-11. Era falso, y del
+   > tipo que más caro sale: mandaba a buscar la llave a un sitio donde no
+   > está, y sugería que el artefacto cambia entre clientes cuando el que
+   > cambia es el paquete.
+2. **`update.sh` apaga; la aplicación sólo avisa.** La comprobación (Ed25519 con
+   `openssl`) vive fuera del contenedor, así que parchear el JavaScript no cambia
+   nada. La aplicación no comprueba ninguna firma: pinta la banda y nada más.
+3. **Aviso, gracia y apagado, en ese orden.** Un error de facturación no cierra
+   una empresa un lunes por la mañana.
+4. **Y apagar es defendible aquí** porque los datos están en **su** Postgres, en
+   **su** droplet: apagar retira lo nuestro, no retiene nada suyo.
+
+> [!warning] Ninguna licencia sobrevive a root, y en este modelo el cliente tiene root
+> Está aceptado a sabiendas y escrito en el ADR 0032. El objetivo **no** es que
+> sea imposible:
+>
+> > **No podemos impedirlo. Podemos hacer que no se pueda esconder.**
+>
+> Lo que sí sujeta el diseño: la licencia lleva dentro el nombre y el dominio
+> (copiarla a otra máquina no funciona) · quien apaga es `update.sh`, fuera del
+> contenedor (parchear la aplicación no sirve) · `update.sh` ya compara el digest
+> de la imagen que corre con el registro (una imagen hecha a mano se ve) · y para
+> manipular sin que se note habría que apagar también el reporte de flota, donde
+> **el silencio ya es un estado**. Apagar lo que delata es la delación.
+>
+> Lo que esto compra es **contractual, no técnico**: convierte «usarlo sin pagar»
+> de inercia en un acto deliberado. Vendido como candado técnico sería falso.
+
+### Por qué `middleware.ts` queda descartado, y no es preferencia
+
+La imagen es **idéntica para toda la flota**, así que la licencia es un dato *por
+máquina*. Y el middleware corre en el runtime edge, donde `process.env` **puede
+quedar horneado en el build** — un aviso que este repositorio ya se ganó y que
+está escrito en `middleware.ts:33-34`. Un dato por instancia no se puede leer
+desde ahí. El aviso se pinta en el shell autenticado, en servidor.
+
+### La llave privada es el secreto de más valor del sistema
+
+Por encima del token del registro: quien la tenga fabrica licencias eternas para
+cualquiera. Se guarda **cifrada**, con la frase de paso fuera de todo archivo, y
+**firmar es un acto de una persona** — no entra en la máquina de estados
+desatendida del ADR 0029, por la misma razón que su punto 5 dejó fuera el
+bootstrap: firmar dice *«este cliente pagó, hasta esta fecha»*, y eso es
+comercial.
+
+Y la honestidad de siempre: cifrarla protege contra **instantáneas, respaldos de
+la cuenta de DO y copias del disco**; **no** contra alguien con root en el PADRE
+mientras se firma. Se acota, no se cierra.
+
+### Lo que queda abierto, con disparador escrito
+
+**La credencial del registro de imágenes.** Cada instancia guarda
+`REGISTRY_TOKEN` en disco, el cliente tiene root, y ese token es **el mismo para
+toda la flota**. Se decide **no** resolverlo ahora: sirve para *bajar* imágenes,
+no para correrlas —la licencia decide si arrancan—, y la alternativa es un
+servicio de reparto nuevo en un droplet de seis dólares **para cero clientes de
+este modelo**. Se hacen las dos mitigaciones baratas (el origen de la imagen como
+un único valor de configuración, y la tarjeta de rotación probada una vez), y el
+disparador para construirlo de verdad queda escrito: **el segundo cliente en este
+modelo, o el primer final de contrato en malos términos**.
+
+### La puerta antes de vender esto
+
+**El ensayo en DEMO**, con `LICENCIA_REQUERIDA=1` y una licencia caducada a
+propósito: que apaga, que nginx sirve la página, que el código **8** llega al
+panel, y que una licencia nueva lo reanima solo — arrancando el contenedor sin
+ningún comando de reanudación. Y el caso que nadie ha visto funcionar
+todavía: con la licencia buena pero `openssl` fuera de alcance, que la
+instancia **siga sirviendo** y que el panel diga **9**, no 8. Después se
+vuelve a poner `LICENCIA_REQUERIDA=0`. Los hijos administrados **no llevan
+licencia** (decisión de Emiliano del 10/09), y probar el mecanismo no exige
+que DEMO viva con una. Guión completo:
+`docs/evidencias/ensayo-licencia-demo.txt` — **todavía sin correr**: un
+interruptor que apaga instancias cuyo primer uso real fuera contra un cliente
+que paga sería la peor forma posible de estrenarlo.
 
 ## 7 · Lo que está bloqueado, y por quién
 

@@ -100,6 +100,43 @@ jobs:
       - name: Mutantes del aprovisionamiento
         run: bash infra/scripts/pruebas-provision.sh --mutantes
 
+      # El arnés de `instalar-hijo.sh` — el guion de 1000 líneas que corre COMO
+      # ROOT en la máquina de un cliente, la única de las dos altas que no
+      # ejecutamos nosotros. Se construyó con la tarea 11 y hasta hoy no lo
+      # corría nadie automáticamente: una verificación que solo existe en la
+      # máquina de quien la escribió no es una verificación, es un recuerdo.
+      #
+      # Tarda segundos. No sale a la red (dobla `curl`) y nunca usa
+      # `--confirmar`, así que `escribir()` no instala nada: solo se inspecciona
+      # el CONTENIDO y los PERMISOS de lo que escribiría.
+      - name: Pruebas del instalador del cliente
+        run: bash infra/scripts/pruebas-instalar-hijo.sh
+
+      - name: Mutantes del instalador del cliente
+        run: bash infra/scripts/pruebas-instalar-hijo.sh --mutantes
+
+      # ─── PREGUNTA ABIERTA: `pruebas-update.sh` NO está aquí, y es una
+      #     decisión de Emiliano, no del autor de este workflow ──────────────
+      #  El coste, MEDIDO el 2026-09-11 y no copiado: **144 escenarios y ~7
+      #  MINUTOS** por corrida. Trátalo como una afirmación con fecha: ese
+      #  número sube con cada tarea (141 el 10/09, 144 el 11/09 tras esta ola).
+      #  Si vas a decidir con él, vuelve a medirlo:
+      #      bash infra/scripts/pruebas-update.sh | tail -1
+      #  Y el workflow se dispara en CADA pull request del repositorio, así que
+      #  añadirlo se lo cobra a todos los PRs, incluidos los que solo tocan
+      #  documentación.
+      #
+      #  A favor de añadirlo: es el arnés que cubre el guion que corre CADA
+      #  NOCHE en el servidor de un cliente real, y el defecto F3 de la revisión
+      #  final (el código 8 que no llegaba al panel) vivía justo ahí.
+      #
+      #  Las salidas intermedias, si se decide que sí: un job aparte que corra
+      #  en paralelo con éste, o `on: schedule` una vez al día, o sólo cuando el
+      #  diff toque `infra/scripts/`. Ninguna se elige aquí.
+      #
+      #  Mientras tanto se corre a mano:  bash infra/scripts/pruebas-update.sh
+      #  Anotado también en `docs/adr/0032…` §d.4.
+
       - name: Build de producción
         run: npx turbo run build --filter=web
 

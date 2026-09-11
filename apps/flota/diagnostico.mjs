@@ -130,6 +130,8 @@ const CODIGO_UPDATE = {
   5: 'el arranque fallo y la vuelta atras NO se pudo completar: la instancia puede estar caida',
   6: 'la vuelta atras devolvio el servicio, pero la base no volvio a la huella que tenia antes de migrar',
   7: 'LA BASE QUEDO VACIA: hay que restaurarla ANTES de levantar el contenedor',
+  8: 'la licencia vencio y la instancia esta apagada a proposito: no es una averia',
+  9: 'no se pudo verificar la licencia: la instancia sigue sirviendo, pero hay un problema de herramienta',
 }
 
 /** Los codigos que NO son un fallo. El 75 es «ya habia otro update en marcha». */
