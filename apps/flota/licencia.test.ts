@@ -46,6 +46,18 @@ describe('construirLicencia', () => {
   it('rechaza una fecha que no tiene forma de fecha', () => {
     expect(() => construirLicencia({ ...datos, vence: '01/01/2027' })).toThrow()
   })
+
+  // JavaScript desborda las fechas imposibles en vez de rechazarlas, asi que
+  // `Date.parse` a secas no sirve de guard. Y esto importa porque la otra mitad
+  // del mecanismo es `date -u -d` en bash, que SI las rechaza: una licencia con
+  // una fecha asi apagaria la instancia de un cliente al corriente.
+  it('una fecha que no existe en el calendario se rechaza, no se desborda', () => {
+    expect(() => construirLicencia({ ...datos, vence: '2027-02-30' })).toThrow()
+    expect(() => construirLicencia({ ...datos, vence: '2027-04-31' })).toThrow()
+    expect(() => construirLicencia({ ...datos, vence: '2026-02-29' })).toThrow()
+    // Y el 29 de febrero de un bisiesto de verdad SI se acepta.
+    expect(() => construirLicencia({ ...datos, vence: '2028-02-29' })).not.toThrow()
+  })
 })
 
 describe('firmar y verificar', () => {

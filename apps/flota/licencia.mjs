@@ -31,8 +31,19 @@ function exigirFecha(nombre, valor) {
   if (typeof valor !== 'string' || !FECHA_VALIDA.test(valor)) {
     throw new Error(`\`${nombre}\` no es una fecha YYYY-MM-DD: ${String(valor)}`)
   }
-  if (Number.isNaN(Date.parse(`${valor}T00:00:00Z`))) {
+  const t = Date.parse(`${valor}T00:00:00Z`)
+  if (Number.isNaN(t)) {
     throw new Error(`\`${nombre}\` tiene forma de fecha pero no existe: ${valor}`)
+  }
+  // La ida y vuelta, y no basta con que `Date.parse` no diga NaN: JavaScript
+  // DESBORDA las fechas imposibles en vez de rechazarlas -- `2027-02-30` se
+  // convierte en `2027-03-02` sin protestar. Sin esta comprobacion, un dedazo
+  // al teclear el vencimiento se firma tal cual, y la instancia del cliente lo
+  // lee con `date -u -d`, que SI lo rechaza: se apagaria una instancia al
+  // corriente de pago. La divergencia entre las dos implementaciones se corta
+  // aqui, en el unico sitio que fabrica licencias.
+  if (new Date(t).toISOString().slice(0, 10) !== valor) {
+    throw new Error(`\`${nombre}\` no existe en el calendario: ${valor}`)
   }
 }
 
