@@ -5,6 +5,45 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-11
+
+- **Ahora se puede vender el sistema con el cliente poniendo su propio
+  servidor.** Hasta hoy, cuando alguien contrataba SPACE OS, nosotros
+  levantábamos su servidor y lo administrábamos. Eso **sigue funcionando
+  exactamente igual**. Lo nuevo es una segunda forma: el cliente crea su propio
+  servidor, en su propia cuenta, y nosotros le entregamos un paquete para
+  instalar el sistema ahí. Sigue siendo el mismo programa; lo que cambia es
+  quién es dueño de la máquina.
+
+  **Para los servidores que ponemos nosotros no cambia absolutamente nada.**
+  Si ya eres cliente y nosotros administramos tu servidor, esto no te afecta
+  en lo más mínimo.
+
+- **En la nueva forma, el sistema sabe hasta cuándo tiene permiso de
+  funcionar.** Cuando un cliente pone su propio servidor, ese servidor lleva un
+  documento firmado por nosotros que dice hasta qué fecha está pagado. El
+  sistema avisa con semanas de anticipación de que se acerca el vencimiento, y
+  si de todos modos llega la fecha, da un margen de gracia antes de dejar de
+  funcionar. **Un olvido en la facturación no deja a nadie sin poder trabajar
+  de un día para otro.**
+
+- **Si el problema es nuestro, el sistema sigue funcionando y nos avisa a
+  nosotros, no al cliente.** Comprobar el permiso necesita una herramienta que
+  a veces puede faltar en un servidor. Si eso pasa, el sistema **no castiga al
+  cliente** por algo que no es su culpa: sigue funcionando con normalidad, y lo
+  que se avisa es que alguien de nuestro lado tiene que entrar a revisar esa
+  máquina.
+
+- **Los datos del cliente nunca se tocan.** En esta nueva forma, la información
+  del cliente vive en su propio servidor, no en el nuestro. Pase lo que pase
+  con el pago, sus datos siguen siendo suyos y siguen en su máquina.
+
+  **Todavía no hay ningún cliente usando esta forma nueva.** Lo que falta antes
+  del primero es terminar de repartir las llaves de seguridad, firmar el primer
+  documento de permiso, y hacer un ensayo completo — apagando y volviendo a
+  encender el mecanismo a propósito, contra el servidor de pruebas, nunca
+  contra un cliente real.
+
 ## 2026-09-10
 
 - **El tablero de servidores ya dice POR QUÉ uno no responde.** Cuando un servidor

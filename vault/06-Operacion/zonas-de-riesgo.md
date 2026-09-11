@@ -1,13 +1,15 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-09-11
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
   - db/migrations/
   - apps/web/middleware.ts
   - infra/nginx/demo.space-os.io.conf
+  - infra/scripts/base-instancia.sh
+  - infra/scripts/pruebas-provision.sh
 ---
 
 # Zonas de riesgo
@@ -61,6 +63,69 @@ ellas dejó el desbloqueo inservible **un despliegue entero**.
 - [ ] Que la consulta nueva use `q`/`q1`, y si usa `qRaw` esté justificado por
       escrito.
 - [ ] Que el rol de la base **no** sea superusuario ni `BYPASSRLS`.
+- [ ] Si tocas cómo NACE ese rol (`infra/scripts/base-instancia.sh`, o
+      cualquiera de los dos caminos de alta que lo sourcean): corre
+      `bash infra/scripts/pruebas-provision.sh --mutantes` y comprueba que el
+      **centinela** sigue escapando y que ningún otro mutante lo hace — ver el
+      aviso de abajo.
+
+> [!danger] 2026-09-11 · Con qué privilegios NACE la base de una instancia es R2 también, y hasta ayer ninguna prueba lo miraba
+> El aislamiento no depende sólo de las políticas RLS de `db/schema.sql`:
+> depende de que el rol con el que la **aplicación** se conecta se cree con
+> `nobypassrls`. Esa sola palabra es lo único que impide que la aplicación
+> atraviese la RLS entera — y hasta el 2026-09-11 **ninguna prueba, ni aquí ni
+> en las suites de `apps/web`, miraba el CONTENIDO del SQL que crea ese rol**:
+> `infra/scripts/pruebas-provision.sh` verificaba el FLUJO del alta de una
+> instancia (qué llamadas se hacen, cómo se reportan los errores), nunca la
+> sentencia SQL en sí.
+>
+> **Medido con una barrida de mutantes** contra
+> `infra/scripts/base-instancia.sh` — lo que crea los dos roles y la base para
+> los DOS caminos de alta de una instancia, ver [[modelo-instancias-soberanas]]
+> §6-bis —: **cinco mutantes escapaban con 0 fallos**, entre ellos:
+>
+> - quitarle `nobypassrls` al rol de la aplicación
+>   (`sql_crear_rol_app()`, `base-instancia.sh:96-100`) — un rol sin esa
+>   palabra atraviesa la RLS entera y sirve datos de todas las organizaciones,
+>   **sin dar ningún error**;
+> - y poner a la aplicación a conectarse con el rol de **migración**
+>   (`sql_crear_rol_migrador()`, `base-instancia.sh:128-132`), que lleva
+>   `bypassrls` a propósito porque tiene que respaldar y migrar sobre tablas
+>   con RLS `FORCE` — la aplicación nunca debería usar ese rol, y con ese
+>   mutante lo hacía sin que nada se quejara.
+>
+> Es exactamente el modo de fallo que esta sección ya advierte arriba: nada
+> falla, la instancia parece sana, y lo único que cambia es que empiezan a
+> verse datos de otro cliente. Lo único que sostenía esos dos privilegios era
+> estar escritos bien **en dos guiones de alta a la vez**
+> (`provision-instancia.sh` y `instalar-hijo.sh`), y esa deriva ya había
+> empezado por otra vía: `CANAL` se sustituía en uno y no en el otro.
+>
+> **Lo que hay hoy, para no repetirlo:** siete comprobaciones sobre el
+> contenido del SQL en el escenario `GLOBAL` de `pruebas-provision.sh`
+> (`nobypassrls`, `nosuperuser nocreatedb nocreaterole`, el `bypassrls` del
+> migrador, `owner spaces_migrador`, la ruta del esquema base, `ON_ERROR_STOP`
+> y `--instalacion-nueva`), más un escenario `CONTENIDO` que comprueba con qué
+> rol se conecta CADA archivo escrito en la instancia (`app.env` con
+> `spaces_app`, `instancia.env` con `spaces_migrador`) — el otro extremo de la
+> misma cadena, y el que falla igual de callado si se invierten. Y un
+> **centinela** en la barrida de mutantes
+> (`bash infra/scripts/pruebas-provision.sh --mutantes`): un mutante que es el
+> guion intacto con un comentario de más al final, que por construcción **no
+> cambia nada** y por eso **tiene que escapar** — porque esta misma barrida
+> llevaba tiempo matando todo por una causa común (la copia moría antes de
+> correr un solo escenario) y diciendo «0 escapan» sin haber probado nada.
+> Medido el 2026-09-11: `18 mutantes (el primero es el centinela) · 0 mal` — el
+> centinela escapa como debe, y los otros 17 mueren cada uno por su propia
+> comprobación.
+>
+> **Antes de tocar cómo nace un rol de Postgres, en cualquiera de los dos
+> caminos de alta:** corre la barrida de mutantes y confirma que el centinela
+> sigue escapando solo. Un mutante que escapa aquí no es un detalle del
+> arnés: es la misma clase de agujero que ya costó dos incidentes de
+> aislamiento en este repositorio (`43f9284` y el desbloqueo inservible de
+> arriba), sólo que un paso más atrás — antes de que exista una sola consulta
+> que pueda tocar `qRaw` o `q`.
 
 ## R3 · Migraciones ya aplicadas en producción
 

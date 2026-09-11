@@ -1,7 +1,7 @@
 # ADR 0032 — El alta en droplet propio del cliente, y la licencia firmada
 
 - **Fecha:** 2026-09-10
-- **Estado:** Aceptada · **sin implementar**
+- **Estado:** Aceptada · **implementada, sin desplegar** (enmendado 2026-09-11 — ver Enmienda)
 - **Decide:** Emiliano
 - **Responde a:** la pregunta que el
   [ADR 0025](0025-acceso-de-soporte-a-una-instancia.md) dejó abierta **por su
@@ -14,6 +14,90 @@
   `docs/superpowers/specs/2026-09-10-alta-en-droplet-propio-design.md`
 
 ---
+
+## Enmienda del 2026-09-11 — implementada; y la línea de «cuándo apaga» cambió
+
+El cuerpo de este ADR, más abajo, es el registro de lo que se decidió el 10/09
+y **no se reescribe**. Esto es lo que cambió al construirlo, en las once tareas
+que siguieron.
+
+### a) El estado pasa a «Aceptada · implementada, sin desplegar»
+
+Los dos caminos de alta, la licencia firmada, el apagado en `update.sh`, la
+página de vencimiento en nginx, el aviso dentro de la aplicación y el
+instalador con sus tarjetas — todo existe en la rama `feat/alta-droplet-propio`
+y está probado con arneses locales.
+
+**Lo que falta es humano, no código:** generar el par de llaves de verdad
+(`docs/evidencias/llaves-de-licencia.txt`), firmar la primera licencia real y
+correr el ensayo completo en DEMO
+(`docs/evidencias/ensayo-licencia-demo.txt`) antes de que exista un primer
+cliente en este camino. **Nada de esto está encendido en ninguna máquina**:
+`LICENCIA_REQUERIDA` vale `0` por omisión (`infra/scripts/update.sh:829`) y
+ninguna instancia hoy lo tiene en `1`.
+
+### b) `invalida` se parte en dos, y la línea no es «qué se rompió»
+
+El cuerpo original (punto 5 de la Decisión) dice que la instancia se apaga
+cuando la licencia venció. Al construirlo apareció un caso que ese texto no
+contemplaba: el código también apagaba cuando **no se podía comprobar la
+firma** —por ejemplo si `openssl` falta o es anterior a la versión 3.0—, y eso
+tiraba a un cliente al corriente de pago por un fallo de una herramienta
+**nuestra**, no suya.
+
+La regla que quedó, y que gobierna todo el bloque de licencia de
+`infra/scripts/update.sh:954-994` (calcula el estado) y `:1075-1107` (decide
+qué hacer con él): **¿tengo una afirmación del cliente que contradice su
+derecho?**
+
+| Situación | Qué es | Qué hace | Código |
+|---|---|---|---|
+| Firma que no valida | una afirmación falsa | **apaga** | 8 |
+| Instancia o dominio que no cuadran con la licencia | una licencia de otro | **apaga** | 8 |
+| Licencia ausente o ilegible | quitó su propio documento | **apaga** | 8 |
+| `openssl` ausente o sin `pkeyutl -verify -rawin` | falta **nuestra** herramienta | **sigue sirviendo, y avisa** | 9 |
+
+Las tres primeras filas caen en la rama `vencida|invalida` del `case` de
+`update.sh:1077` (el estado lo decide `licencia_valida()`,
+`update.sh:883-918`), y esa rama termina en `salir "$EX_LICENCIA" ...`
+(`update.sh:1082`). La cuarta es la rama `no-comprobable` del **mismo** `case`
+(`update.sh:986,1084-1095`): arranca el contenedor si estaba parado, devuelve
+nginx a la normalidad, y sale con `EX_LICENCIA_NO_COMPROBABLE`
+(`update.sh:396,1095`) sin seguir actualizando esa noche — se distingue de la
+primera rama por lo que hace, no por vivir fuera del `case`.
+
+**El argumento que lo zanjó, para que quede escrito:** fallar cerrado sólo se
+defiende si cerrar impide algo, y en este modelo el cliente tiene root — puede
+poner `LICENCIA_REQUERIDA=0`, o apuntar las rutas de nginx a donde quiera,
+porque salen de su propio `instancia.env`. Apagar por una herramienta rota no
+añade ninguna disuasión; sólo añade caídas a quien no está atacando nada. Lo
+que sostiene el mecanismo, como ya decía el cuerpo de este ADR, es que el
+sabotaje deja huella — no que cerrar sea siempre la respuesta.
+
+**Lo que se descartó en esa misma discusión, con su razón:** un contador de
+noches seguidas en `no-comprobable` antes de apagar de todos modos. Se
+descartó porque necesita estado persistente entre corridas y compra poco: quien
+quiera saltárselo edita una línea de su propio `instancia.env`, que es más
+fácil que borrar `openssl` y esperar dos semanas a que el contador se cumpla.
+**Su disparador para retomarlo, escrito de antemano:** el día que exista un
+tercero con root sobre ese droplet que no sea el cliente.
+
+### c) Un valor de configuración que no se entiende aborta; no apaga
+
+`LICENCIA_REQUERIDA` con cualquier valor que no sea `0` ni `1` **detiene el
+update con un error de configuración** (`EX_CONFIG`,
+`infra/scripts/update.sh:840`) y no toca el contenedor ni nginx. Hasta la
+ronda de corrección que cerró esto, un valor raro se trataba como «encendido» y
+se registraba sin más — con el apagado ya construido, eso significa que un
+dedazo en la configuración de un hijo **administrado** (que nunca debería
+llevar licencia) podía terminar apagándolo. Un valor que este guion no entiende
+no puede decidir si se apaga la instancia de un cliente.
+
+### Lo que no cambia
+
+Los ocho puntos de la Decisión y el riesgo aceptado siguen como se escribieron
+el 10/09. Esta enmienda corrige un matiz de **cuándo** apaga `update.sh`, no
+**que** apague, ni el resto del diseño.
 
 ## Contexto
 
