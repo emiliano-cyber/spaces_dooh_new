@@ -288,8 +288,12 @@ bash paquete-space-os/infra/scripts/instalar-hijo.sh \
      ningun `sudo` de por medio. Y en un droplet RECIEN CREADO de
      DigitalOcean ya eres root de entrada, asi que `sudo -i` no cambia nada
      y no estorba -- por eso este paso va siempre, se necesite o no.
-     **No lo "simplifiques" de vuelta a `sudo -E`**: se probo que falla por
-     omision (ronda de correccion 2 de esta tarea).
+     **No lo "simplifiques" de vuelta a `sudo -E`**: el comportamiento de
+     `sudo` esta documentado -- con `env_reset` (el valor por omision) solo
+     preserva el entorno con el privilegio `SETENV` o con `env_keep`, y
+     ninguno de los dos es el valor por omision de Ubuntu. No se reprodujo
+     el rechazo en una maquina real (ronda de correccion 2 de esta tarea);
+     el razonamiento de arriba es lo que sostiene la decision.
 
   Las tres ultimas (`--spaces-*`) son para que tus respaldos y tus registros
   salgan de este droplet hacia tu propio Spaces -- si todavia no los tienes,

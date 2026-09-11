@@ -431,7 +431,9 @@ if [[ "$CONFIRMAR" -eq 1 ]]; then
   . /etc/os-release 2>/dev/null || true
   if [[ "${VERSION_ID:-}" != "22.04" ]]; then
     echo "instalar-hijo: esta maquina no es Ubuntu 22.04 (VERSION_ID=${VERSION_ID:-desconocido})." >&2
-    echo "               setup-droplet.sh se escribio y se probo solo contra esa version." >&2
+    echo "               setup-droplet.sh se escribio para esa version: sus propios" >&2
+    echo "               comentarios documentan fallos medidos contra droplets Ubuntu" >&2
+    echo "               22.04 reales (setup-droplet.sh:27,40,142), no se probo contra otra." >&2
     exit "$EX_ROOT"
   fi
 else
