@@ -412,12 +412,20 @@ dice 'La puerta ya se cerro sola'
 limpiar
 
 # ============================================================================
-#  Y dos afirmaciones GLOBALES sobre el propio arnes
+#  Lo GLOBAL sobre el propio arnes, y los privilegios con los que nace la base
 # ============================================================================
-#  No son de cortesia. Un arnes de aprovisionamiento que se saliera a la red
-#  crearia droplets cada vez que alguien corre las pruebas, y uno que no
-#  intercepta nada da verde sin haber probado nada.
-escenario 'GLOBAL · el arnes intercepta, y nada salio de los dobles'
+#  Las dos primeras no son de cortesia. Un arnes de aprovisionamiento que se
+#  saliera a la red crearia droplets cada vez que alguien corre las pruebas, y
+#  uno que no intercepta nada da verde sin haber probado nada.
+#
+#  Las siete siguientes son nuevas del 2026-09-11 y nacen de un agujero MEDIDO:
+#  al extraer lo que crea la base de datos a `base-instancia.sh` se muto ese
+#  archivo para ver si este arnes lo cazaba, y NO lo cazaba. Cinco mutantes
+#  escapaban con 0 fallos --entre ellos quitarle `nobypassrls` al rol de la
+#  aplicacion-- porque estos escenarios comprueban el FLUJO (que llamadas se
+#  hacen y como se reportan los errores) y nadie comprobaba el CONTENIDO del
+#  SQL. El registro de llamadas ya lo tenia delante: solo faltaba mirarlo.
+escenario 'GLOBAL · el arnes intercepta, nada salio de los dobles, y la base nace con los privilegios que aislan'
 preparar
 correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
   --host "$IP" --dominio "$DOM" --instancia p --confirmar
@@ -426,6 +434,38 @@ if [ -s "$REG_LLAMADAS" ]; then bien; else mal "no se registro ni una llamada: e
 # RFC 2606): no existen ni pueden existir.
 no_hubo 'digitalocean.com'
 no_hubo 'space-os.io'
+
+# >>> ESTA ES LA COMPROBACION MAS IMPORTANTE DE ESTE ARCHIVO, y conviene decir
+# >>> por que esta aqui: el aislamiento entre organizaciones se apoya en la RLS
+# >>> de Postgres, y `nobypassrls` es lo UNICO que impide que el rol de la
+# >>> aplicacion la atraviese. Un privilegio que se olvide NO DA ERROR --
+# >>> `zonas-de-riesgo.md` (R2) lo clasifica en rojo por eso mismo: la consulta
+# >>> contesta igual, con filas de otras empresas o con cero en silencio, y la
+# >>> instancia parece sana. Hasta hoy esa palabra no la miraba NINGUNA prueba:
+# >>> lo unico que la sostenia era estar escrita bien en los dos guiones de
+# >>> alta a la vez, y desde hoy esta escrita una sola (`base-instancia.sh`).
+hubo 'noinherit nobypassrls'
+# Y que tampoco gane privilegios por el otro lado: el rol de la aplicacion no
+# crea bases ni roles.
+hubo 'nosuperuser nocreatedb nocreaterole'
+# El de MIGRACION si atraviesa la RLS, y tambien a proposito: `db/schema.sql`
+# pone RLS con FORCE, que aplica INCLUSO AL DUENO, asi que sin esto el `pg_dump`
+# que `update.sh` hace ANTES de migrar sale vacio y el update aborta. Ese rol no
+# lo usa la aplicacion jamas: solo migra y respalda.
+hubo 'noinherit bypassrls'
+# La base es del migrador: todas las migraciones tienen que correr con el mismo
+# dueno o un `alter` sobre una tabla ajena falla (hallazgo H1 del 24/08).
+hubo 'owner spaces_migrador'
+# El esquema base sale de la imagen y va ANTES de las migraciones: sin ese paso
+# la primera se estrella contra una base vacia con `relation "public.clientes"
+# does not exist` (medido el 2026-09-01).
+hubo 'cat /app/db/schema.sql'
+# Y se aplica con el rol MIGRADOR, que es el unico con DDL, parando en el primer
+# error: a medias es peor que no aplicado.
+hubo '-U spaces_migrador -d spaces -v ON_ERROR_STOP=1 -f /tmp/space-os-schema.sql'
+# `--instalacion-nueva` lo pasa el ALTA y nunca `update.sh`: es lo que le dice
+# al runner que esta base acaba de nacer y no es una rezagada.
+hubo 'migrar.mjs --instalacion-nueva'
 limpiar
 
 # ============================================================================
