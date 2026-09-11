@@ -251,15 +251,24 @@ mv licencia.json licencia.firma paquete-space-os/licencia/
 --------------------------------------------------------------------------------
  B4 · Corre el instalador EN SECO primero -- es el modo por omision
 --------------------------------------------------------------------------------
-  Sin `--confirmar`, el instalador NO TOCA NADA: solo cuenta lo que haria.
-  Necesitas tres valores que te dimos, en el ENTORNO y no como argumento
-  para que no queden en tu historial:
+  Primero, hazte root y QUEDATE en esa sesion hasta terminar B6: B4, B5 y B6
+  no son independientes entre si -- las variables que exportas aqui solo
+  viven mientras no cierres esta terminal.
+
+sudo -i
+
+  Ya como root (tu prompt cambia a `#`), exporta los tres valores que te
+  dimos -- en el ENTORNO y no como argumento, para que no queden en tu
+  historial -- y corre el instalador SIN anteponer `sudo`: ya eres root, y
+  anteponerlo aqui reintroduce exactamente el problema que `sudo -i` evita
+  (el 🚦 de abajo dice por que). Sin `--confirmar`, el instalador NO TOCA
+  NADA: solo cuenta lo que haria.
 
 export REGISTRY='<el registro que te dimos>'
 export REGISTRY_TOKEN='<el token de solo lectura que te dimos>'
 export PADRE_URL='<la URL que te dimos, sin barra al final>'
 
-sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
+bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
   --flota-token '<el token que te dimos en A1>' \
@@ -267,11 +276,20 @@ sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --contacto <tu-correo-de-soporte> \
   --spaces-key '<tu llave de Spaces>' --spaces-secret '<tu secreto>' --spaces-bucket '<tu bucket>'
 
-  🚦 `sudo -E`, NUNCA `sudo` a secas. Por diseno, `sudo` LIMPIA tu entorno
-     (`env_reset`) antes de correr el comando: sin `-E`, las tres variables
-     que acabas de exportar no le llegan al instalador, y muere en el acto
-     diciendo "falta REGISTRY en el entorno" aunque la acabes de exportar --
-     probado. `-E` es lo que le dice a `sudo` que preserve tu entorno.
+  🚦 POR QUE `sudo -i` Y NO `sudo -E`. `sudo -E` solo preserva tu entorno si
+     tienes el privilegio `SETENV` en `sudoers`, o si esas variables estan
+     en `env_keep` -- ninguna de las dos cosas es el valor por omision de
+     Ubuntu: con la linea tipica `%sudo ALL=(ALL:ALL) ALL`, `sudo -E` se
+     RECHAZA con "sorry, you are not allowed to preserve the environment".
+     Apostar por `-E` cambiaria un fallo conocido por otro que depende de
+     una configuracion de `sudoers` que no controlamos ni podemos ver desde
+     aqui. Volviendote root con `sudo -i` quita el problema entero: a partir
+     de ahi no hay ningun `sudo` que pueda limpiar nada, porque no hay
+     ningun `sudo` de por medio. Y en un droplet RECIEN CREADO de
+     DigitalOcean ya eres root de entrada, asi que `sudo -i` no cambia nada
+     y no estorba -- por eso este paso va siempre, se necesite o no.
+     **No lo "simplifiques" de vuelta a `sudo -E`**: se probo que falla por
+     omision (ronda de correccion 2 de esta tarea).
 
   Las tres ultimas (`--spaces-*`) son para que tus respaldos y tus registros
   salgan de este droplet hacia tu propio Spaces -- si todavia no los tienes,
@@ -290,12 +308,14 @@ sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
 --------------------------------------------------------------------------------
  B6 · La instalacion de verdad
 --------------------------------------------------------------------------------
-  El MISMO comando de B4 (con las mismas tres variables ya exportadas), con
-  `--confirmar` al final. Tarda varios minutos: instala Docker, PostgreSQL,
-  nginx y certbot; crea tu base de datos; baja la imagen de la aplicacion; y
-  pide tu certificado.
+  El MISMO comando de B4, SIN `sudo` delante (sigues siendo root de la misma
+  sesion que abriste con `sudo -i` en B4 -- si cerraste esa terminal, repite
+  `sudo -i` y los tres `export` antes de seguir), con `--confirmar` al
+  final. Tarda varios minutos: instala Docker, PostgreSQL, nginx y certbot;
+  crea tu base de datos; baja la imagen de la aplicacion; y pide tu
+  certificado.
 
-sudo -E bash paquete-space-os/infra/scripts/instalar-hijo.sh \
+bash paquete-space-os/infra/scripts/instalar-hijo.sh \
   --instancia <tu-nombre-de-instancia> \
   --dominio <tu-dominio> \
   --flota-token '<el token que te dimos en A1>' \
