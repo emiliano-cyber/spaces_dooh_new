@@ -1,0 +1,201 @@
+================================================================================
+ TARJETA · Generar y custodiar el par de llaves de licencia    2026-09-11
+ Tarea 3 de docs/superpowers/plans/2026-09-10-alta-en-droplet-propio.md
+================================================================================
+
+QUE HACE
+  Da de alta el par de llaves Ed25519 con el que el PADRE firma las licencias
+  de los hijos (`apps/flota/firmar-licencia.mjs`) y con el que cada instancia
+  las verifica (`node:crypto` en el droplet del owner, sin dependencias). Se
+  hace UNA SOLA VEZ por flota: todos los hijos comparten la misma llave
+  publica.
+
+QUE NO HACE
+  No emite ninguna licencia. No toca ningun droplet de cliente. No decide
+  donde vive la frase de paso -- eso lo pide esta tarjeta al final, no lo
+  supone.
+
+--------------------------------------------------------------------------------
+ ⚠️ SI ESTA LLAVE PRIVADA SE PIERDE O SE FILTRA, NO HAY VUELTA ATRAS BARATA
+--------------------------------------------------------------------------------
+  El respaldo de la llave privada es TAN VALIOSO COMO LA LLAVE.
+
+  · Perderla sin respaldo significa no poder renovar NINGUNA licencia de
+    NINGUN cliente nunca mas -- ni siquiera de los que van al corriente.
+  · Filtrarla significa que cualquiera con esos bytes puede emitir licencias
+    validas para cualquier instancia, indistinguibles de las nuestras.
+
+  Ninguna de las dos se arregla con un commit. La seccion de rotacion, al
+  final de esta tarjeta, dice lo que cuesta la segunda.
+
+================================================================================
+ A · GENERAR EL PAR  ·  [SERVIDOR: PADRE, 137.184.107.53]
+================================================================================
+  Se hace en el PADRE porque ahi es donde vive `firmar-licencia.mjs`, y la
+  llave privada no tiene motivo para existir en ninguna otra maquina.
+
+--------------------------------------------------------------------------------
+ A1 · El directorio
+--------------------------------------------------------------------------------
+mkdir -p /etc/space-os/llaves
+chmod 700 /etc/space-os/llaves
+
+  ESPERADO: el directorio existe y solo su dueno puede entrar.
+
+--------------------------------------------------------------------------------
+ A2 · 🚦 GATE · la llave privada, cifrada
+--------------------------------------------------------------------------------
+openssl genpkey -algorithm ed25519 -out /etc/space-os/llaves/space-os.key.pem -aes256
+
+  Pide la frase de paso DOS VECES (una para fijarla, otra para confirmarla) y
+  NO LA ESCRIBE EN NINGUN SITIO -- ni en el archivo, ni en el historial de la
+  shell, ni en ningun log. La teclea una persona, de memoria o desde donde
+  responda la pregunta abierta de la seccion D.
+
+  🚦 Si el comando pide la frase por un argumento `-pass` en vez de por
+     pantalla, algo copio mal este comando: PARAR. `-pass` en la linea de
+     comandos deja la frase en `ps` y en el historial, que es exactamente lo
+     que esta llave existe para evitar.
+
+--------------------------------------------------------------------------------
+ A3 · La llave publica, sin cifrar
+--------------------------------------------------------------------------------
+openssl pkey -in /etc/space-os/llaves/space-os.key.pem -pubout \
+  -out /etc/space-os/llaves/space-os.pub
+
+  Pide la frase de paso una vez, para leer la privada. La publica que resulta
+  NO es un secreto: viaja con el instalador de cada instancia (ver C).
+
+--------------------------------------------------------------------------------
+ A4 · 🚦 GATE · permisos
+--------------------------------------------------------------------------------
+chmod 600 /etc/space-os/llaves/space-os.key.pem
+chmod 644 /etc/space-os/llaves/space-os.pub
+ls -l /etc/space-os/llaves/
+
+  ESPERADO:
+    -rw-------  ... space-os.key.pem
+    -rw-r--r--  ... space-os.pub
+
+  🚦 Si `space-os.key.pem` sale con permiso de lectura para grupo u otros,
+     PARAR y corregir antes de seguir: cualquier proceso de esa maquina podria
+     leer una llave que solo deberia poder abrir quien firma.
+
+================================================================================
+ B · COMPROBAR QUE EL PAR FUNCIONA  ·  [LOCAL o PADRE]
+================================================================================
+  Firmar y verificar algo de prueba ANTES de dar la llave por buena. Esto es
+  lo que ya se hizo con una llave de usar-y-tirar al construir
+  `firmar-licencia.mjs` (paso 2 de la tarea 3): genera un par en un directorio
+  temporal, firma con el guion, verifica con `openssl pkeyutl -verify`, y
+  espera ver `Signature Verified Successfully`. El resultado de esa
+  comprobacion, con las llaves reales del PADRE, es lo que confirma que A
+  salio bien -- no hace falta repetirla aqui palabra por palabra: si `openssl
+  pkeyutl -verify` dice `Signature Verified Successfully` contra una firma
+  hecha con `/etc/space-os/llaves/space-os.key.pem`, el par sirve.
+
+================================================================================
+ C · LA PUBLICA VA AL REPOSITORIO  ·  [LOCAL]
+================================================================================
+  `infra/licencias/space-os.pub` no es un secreto: es lo que cada instalador
+  de instancia usa para comprobar que una licencia la firmo el PADRE, y tiene
+  que viajar con el instalador para que un hijo pueda verificar sin llamar a
+  ningun sitio.
+
+mkdir -p infra/licencias
+cp /etc/space-os/llaves/space-os.pub infra/licencias/space-os.pub
+git add infra/licencias/space-os.pub
+git commit -m "chore(licencia): la llave publica de firma, para que cada instancia verifique"
+
+  🚦 GATE: lo unico que entra al repositorio es `space-os.pub`. Si
+     `git status` muestra algo con `.key` o `.pem` en el nombre, PARAR: eso es
+     la privada a punto de subirse a un repositorio compartido.
+
+================================================================================
+ D · ❓ PREGUNTA ABIERTA PARA EMILIANO -- DONDE VIVE LA FRASE DE PASO
+================================================================================
+  Esto no lo decide quien ejecuta la tarjeta: la frase de paso NO va a ningun
+  archivo (ni siquiera fuera del repositorio) ni a un gestor compartido del
+  que cualquiera con acceso pueda sacarla sin dejar rastro -- eso convertiria
+  una llave cifrada en una llave sin cifrar con un paso extra.
+
+  Falta decidir DONDE vive esa frase para que se pueda usar `firmar-licencia.mjs`
+  el dia que toque renovar una licencia sin depender de que una sola persona
+  la recuerde de memoria:
+
+    · ¿Un gestor de contraseñas personal de una sola persona designada?
+    · ¿Un secreto compartido con auditoria de acceso (Vault, 1Password Teams
+      con log, algo ya en uso en AS Network)?
+    · ¿Se acepta que solo Emiliano la conozca, y el respaldo de la llave (E)
+      vive donde el pueda llegar sin depender de nadie mas?
+
+  Sin esta respuesta, la llave generada en A queda utilizable pero con un
+  punto ciego: si a la persona que la tecleo le pasa algo, nadie mas puede
+  firmar una licencia aunque la llave privada este intacta.
+
+================================================================================
+ E · EL RESPALDO  ·  [SERVIDOR: PADRE] → [fuera del PADRE]
+================================================================================
+  El respaldo de la llave privada es tan valioso como la llave: sin uno, un
+  disco danado en el PADRE es el mismo desastre que una filtracion, solo que
+  sin que nadie se la haya robado.
+
+  · El archivo a respaldar es SOLO `/etc/space-os/llaves/space-os.key.pem`
+    (cifrado con la frase de D: el archivo por si solo no sirve sin ella).
+  · El respaldo va fuera del PADRE, en un sitio con el mismo nivel de cuidado
+    que un secreto de produccion -- no en el mismo droplet, no en un
+    repositorio, no en un correo.
+  · El COMANDO para copiarlo se escribe para que lo corra una persona, una vez
+    que D este decidido, porque el destino depende de esa respuesta:
+
+# scp /etc/space-os/llaves/space-os.key.pem <destino-que-decida-D>:<ruta>
+
+================================================================================
+ ⛔ LO DE ABAJO NO ES EL PASO SIGUIENTE
+================================================================================
+  Es la ROTACION -- que hacer si la llave privada se filtra o se pierde sin
+  respaldo -- y va comentada a proposito. No es un procedimiento de rutina: es
+  el que se corre el dia malo, y se deja escrito de antemano para que ese dia
+  no se improvise. Ya paso en este proyecto que una tarjeta puso un comando
+  destructivo en la fila y se ejecuto por inercia.
+
+  Lo que cuesta una rotacion, en orden:
+
+  1. Generar un par nuevo (repetir A completo, con una frase de paso nueva).
+
+# openssl genpkey -algorithm ed25519 -out /etc/space-os/llaves/space-os.key.pem.nuevo -aes256
+# openssl pkey -in /etc/space-os/llaves/space-os.key.pem.nuevo -pubout -out /etc/space-os/llaves/space-os.pub.nuevo
+
+  2. Publicar la nueva publica en `infra/licencias/space-os.pub` (paso C) y
+     sacar una IMAGEN NUEVA -- el instalador de cada hijo lee esa ruta desde
+     la imagen, asi que la publica vieja sigue viva en cada instancia hasta
+     que actualice.
+
+  3. RELICENCIAR A TODOS LOS HIJOS: cada licencia emitida con la llave vieja
+     deja de poder verificarse en cuanto un hijo actualice a la imagen con la
+     publica nueva. Hay que correr `firmar-licencia.mjs` con la llave nueva
+     para cada instancia activa ANTES de que actualicen, o se quedan sin
+     licencia valida al primer `update.sh`.
+
+  4. Si la llave vieja se filtro (no solo se perdio): revocarla no basta con
+     dejar de usarla -- toca coordinar que ninguna instancia quede corriendo
+     una imagen vieja que aun confie en la publica filtrada, porque esa
+     publica seguiria validando licencias falsificadas con la privada
+     robada.
+
+  5. Reemplazar el respaldo de E por el de la llave nueva, y destruir el
+     respaldo de la vieja.
+
+  Esto es trabajo de horas, no de minutos, y toca a todos los clientes a la
+  vez -- es la razon de fondo por la que esta tarjeta pide en D un sitio para
+  la frase de paso que no dependa de una sola persona ni de un archivo suelto.
+
+================================================================================
+ QUE DEVOLVER
+================================================================================
+  1. La salida de A4 (`ls -l`) con los permisos.
+  2. Confirmacion de que B dio `Signature Verified Successfully` con la
+     llave real.
+  3. El hash del commit de C.
+  4. La respuesta a D, y si el respaldo de E ya se hizo.
+================================================================================
