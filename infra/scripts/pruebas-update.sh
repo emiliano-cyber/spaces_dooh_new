@@ -695,9 +695,35 @@ escenarios_del_banco() {
   # Una corrida que cruce la medianoche UTC entre este calculo y la lectura de
   # `ahora` DENTRO de `update.sh` podria parpadear. Es una ventana de
   # milisegundos y no justifica complicar esto.
-  while IFS=$'\t' read -r vence aviso gracia hoy estado; do
+  #
+  # El `\r` en el IFS NO es adorno: el banco esta en git con LF (medido:
+  # `git cat-file -p HEAD:infra/licencias/estados.casos.tsv | tr -cd '\r' | wc -c`
+  # -> 0), pero `core.autocrlf` lo entrega en disco con CRLF en Windows (medido
+  # ahi mismo sin `git cat-file`: 29). Sin el `\r` en el IFS, `read` lo deja
+  # pegado al ULTIMO campo (`estado="sana\r"`), y `log_dice "licencia: $estado"`
+  # busca un `\r` que el log no tiene -- con un mensaje ("el log no dice:
+  # licencia: sana") que manda a buscar en `update.sh` cuando el log SI lo dice.
+  # Los diez escenarios del banco se ponen rojos por como git dejo el archivo,
+  # no por el codigo. Metiendolo en el IFS, el `\r` se trata como separador y
+  # desaparece del campo igual que el `\t`, y el resultado es el mismo con
+  # CRLF o con LF puro.
+  #
+  # La otra forma de arreglar esto es un `.gitattributes` que fije `eol=lf` (o
+  # `-text`) para `infra/licencias/*.tsv` y le quite el problema a la raiz en
+  # vez de tolerarlo aqui. Es mas ambiciosa de lo que pide este arreglo: hoy
+  # NO existe `.gitattributes` en el repo, y anadir uno cambiaria los finales
+  # de linea de medio repositorio en el proximo checkout de todo el mundo. Eso
+  # es una decision de Emiliano, no del arnes. Queda como pregunta abierta.
+  while IFS=$'\t\r' read -r vence aviso gracia hoy estado; do
     case "$vence" in ''|'#'*) continue ;; esac
     n=$((n + 1))
+    case "$estado" in
+      sana|aviso|gracia|vencida) ;;
+      *)
+        ESCENARIO_ACTUAL="E107.$n banco de casos"
+        mal "el banco de casos esta mal formado: estado leido '$estado' no es sana/aviso/gracia/vencida (caso $n de $banco)"
+        continue ;;
+    esac
     delta=$(( ( $(date -u -d "$vence" +%s) - $(date -u -d "$hoy" +%s) ) / 86400 ))
     vence_real="$(date -u -d "$hoy_real + $delta days" +%F)"
     preparar "E107.$n banco de casos: vence en $delta dias -> $estado"
