@@ -1,0 +1,84 @@
+================================================================================
+ QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-11
+================================================================================
+
+  Siete tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
+  pueden adelantar. Las demas son independientes entre si.
+
+  Todas salen del repositorio (docs/evidencias/). Estas copias son para tenerlas
+  a mano; si alguna se te queda vieja, la del repositorio es la buena.
+
+
+--------------------------------------------------------------------------------
+ INDEPENDIENTES · se pueden hacer hoy, en cualquier orden
+--------------------------------------------------------------------------------
+
+  01  El panel de flota dice POR QUE una instancia no contesta
+      En el PADRE. Un `git pull` y reiniciar el panel.
+      OJO en su bloque B3: es la corrida donde puede aparecer una averia que
+      nadie sabia. Anota lo que salga antes de arreglar nada.
+
+  02  El panel dice CON QUE CODIGO acabo la ultima actualizacion
+      Despues de la 01.
+      EL ORDEN DE DENTRO NO ES NEGOCIABLE: primero el PADRE, luego DEMO, luego
+      g500. Al reves, el PADRE rechaza el reporte entero y esa instancia se
+      queda MUDA en el panel, justo en la corrida en que algo pudo fallar.
+
+  06  Retirar de g500 las llaves y los archivos temporales de la migracion
+      Higiene pendiente desde el 09/09: dos llaves SSH y dos archivos en /tmp
+      con datos comerciales del cliente.
+
+
+--------------------------------------------------------------------------------
+ LA LICENCIA · 03 -> 04 -> 05, y no se saltan
+--------------------------------------------------------------------------------
+
+  03  Generar el par de llaves
+      Se hace UNA VEZ. Sin esto no se puede firmar ninguna licencia, asi que
+      bloquea las dos siguientes.
+      Su bloque A0 es un ENSAYO con una llave que se tira: comprueba que la
+      frase de paso no se queda escrita en la pantalla ANTES de que exista la
+      llave de verdad. No te lo saltes: es barato y es lo unico que lo comprueba.
+
+  04  El ensayo en DEMO
+      LA PUERTA ANTES DE VENDER ESTO. Enciende la licencia en DEMO con una
+      caducada a proposito, comprueba que apaga, que la pagina de vencimiento
+      sale bien y que el panel lo dice, y luego lo apaga todo otra vez.
+      Su ultimo bloque devuelve DEMO a como estaba. No es opcional.
+
+      Por que existe: el mecanismo apaga el sistema de una empresa. Estrenarlo
+      contra un cliente que paga seria la peor forma posible de probarlo.
+
+  05  El alta de un cliente en su propio droplet
+      Solo despues de la 04. Tiene DOS destinatarios y estan separados dentro:
+      lo que haces tu, y lo que hace el cliente en su maquina.
+
+
+--------------------------------------------------------------------------------
+ BLOQUEADA · no se puede hacer todavia
+--------------------------------------------------------------------------------
+
+  07  Promover v0.5.0 al canal estable
+      NO la intentes aun. Falta un registro DNS y sin el la promocion falla en
+      su primera puerta:
+
+          tipo A   ·   nombre: prueba   ·   valor: 137.184.107.53
+          proxy (la nube naranja de Cloudflare): APAGADO
+
+      Ese mismo registro desactiva de paso un fallo que llegaria solo: la
+      renovacion del certificado de space-os.io hacia finales de octubre, que
+      hoy fallaria y se llevaria por delante el certificado del PADRE.
+
+      Es lo unico de esta lista que no depende de nosotros: son dos minutos en
+      Cloudflare.
+
+
+================================================================================
+ LO QUE NINGUNA DE ESTAS TARJETAS HACE
+================================================================================
+
+  Nada de esto enciende la licencia en una instancia de cliente. La 04 la
+  enciende en DEMO y la vuelve a apagar; la 05 la enciende en el primer cliente
+  cuando lo haya. Hoy no hay ninguna maquina con la licencia activada.
+
+================================================================================
