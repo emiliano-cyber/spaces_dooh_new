@@ -243,6 +243,56 @@ resolvectl status | grep -E "DNS Servers"
 #  los NS de la zona son de Cloudflare (`gabe`/`ryleigh`). O sea
 #  que la zona esta viva y el nombre no esta dentro.
 #
+# ────────────────────────────────────────────────────────────
+#  ANTES DE NADA · COMO NACE UNA DIRECCION EN ESTE SISTEMA
+# ────────────────────────────────────────────────────────────
+#  La aplicacion NO vive en la raiz de su dominio. Vive bajo
+#  `/spaces-dooh`, porque asi esta declarado en el codigo
+#  (`apps/web/next.config.mjs:126`, `basePath: '/spaces-dooh'`),
+#  y nginx manda la raiz al login:
+#
+#      location = / { return 302 /spaces-dooh/login/; }
+#
+#  Asi que TODA direccion de este sistema tiene esta forma, sea
+#  del PADRE, de DEMO o de un cliente:
+#
+#      https://<dominio>/spaces-dooh/inicio/     <- la pantalla
+#      https://<dominio>/spaces-dooh/login/      <- la entrada
+#      https://<dominio>/spaces-dooh/api/...     <- el BFF
+#
+#  >>> Y AQUI ESTA LA CONFUSION QUE HAY QUE EVITAR, porque las
+#  >>> TRES direcciones viven en la MISMA maquina (137.184.107.53)
+#  >>> y solo se distinguen por el `server_name`:
+#
+#    space-os.io ......... -> spaces_padre  (127.0.0.1:3000)
+#                            LA APP DEL PADRE. El plano de
+#                            control. Es lo que ves si abres
+#                            https://space-os.io/spaces-dooh/inicio/
+#
+#    prueba.space-os.io .. -> spaces_demo   (127.0.0.1:3001)
+#                            DEMO, la instancia de prueba. El
+#                            vhost YA ESTA puesto y el
+#                            certificado YA lo cubre. Lo unico
+#                            que le falta es el registro A.
+#
+#    demo.space-os.io .... -> spaces_demo en el vhost, PERO su
+#                            DNS apunta a 209.97.146.136, el
+#                            droplet VIEJO. O sea que ese bloque
+#                            de nginx NUNCA se alcanza. No lo
+#                            uses para nada.
+#
+#  (`infra/nginx/space-os.io.conf:68-76` y `:131,211,286`)
+#
+#  >>> POR QUE NO SIRVE APUNTAR EL SMOKE A `space-os.io`, aunque
+#  >>> funcione y sea comodo: `promover.yml` valida `DEMO_URL`
+#  >>> ANTES de promover, y lo que tiene que mirar es **la
+#  >>> instancia que corre la imagen nueva** (el 3001). Con
+#  >>> `space-os.io` estaria mirando el PADRE (el 3000), que es
+#  >>> otro proceso y otra version: el smoke daria VERDE con DEMO
+#  >>> rota, y promoveria a `estable` --el canal que jalan las
+#  >>> instancias de cliente-- una imagen que nadie comprobo.
+#  >>> Por eso el registro `prueba` hay que crearlo, no sortearlo.
+#
 #  Elige UN camino. Los dos dejan el mismo registro.
 
 # ────────────────────────────────────────────────────────────
