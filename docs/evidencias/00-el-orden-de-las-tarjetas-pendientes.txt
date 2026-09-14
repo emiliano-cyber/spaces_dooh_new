@@ -13,7 +13,11 @@
  LO PRIMERO, Y LO MAS BARATO  ·  anadida el 2026-09-14
 --------------------------------------------------------------------------------
 
-  00B El resolutor del PADRE, y el registro DNS
+  00B El resolutor del PADRE, y el registro DNS   [✅ HECHA el 14/09]
+      Los dos bloques cerrados y medidos. El PADRE ya tiene tres
+      resolutores en sus tres ambitos, y `prueba.space-os.io` existe y
+      resuelve. La puerta de promocion pasa entera: dig + curl 200.
+      >>> Con eso la 07 YA NO ESTA BLOQUEADA.
       Tarjeta: 00B-resolutor-del-padre-y-el-dns.txt
       SUSTITUYE al bloque A de la 00A, que daba el DNS por un tramite.
 
@@ -97,9 +101,10 @@
  BLOQUEADA · no se puede hacer todavia
 --------------------------------------------------------------------------------
 
-  07  Promover v0.5.0 al canal estable
-      NO la intentes aun. Falta un registro DNS y sin el la promocion falla en
-      su primera puerta:
+  07  Promover v0.5.0 al canal estable   [✅ DESBLOQUEADA el 14/09]
+      El registro DNS ya existe y la puerta pasa entera (dig + curl 200),
+      comprobado el 14/09. Lo de abajo se conserva como historia de por que
+      estuvo bloqueada:
 
           tipo A   ·   nombre: prueba   ·   valor: 137.184.107.53
           proxy (la nube naranja de Cloudflare): APAGADO

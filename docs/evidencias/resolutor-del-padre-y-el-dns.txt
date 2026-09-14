@@ -4,6 +4,49 @@
  Sustituye al BLOQUE A de 00A-dns-y-subir-la-r7.txt
 ============================================================
 
+
+ ############################################################
+  ✅ CERRADA · 2026-09-14, por la tarde. Medido, no afirmado.
+ ############################################################
+
+  BLOQUE A · el resolutor del PADRE ........... HECHO
+    Los TRES ambitos con `10.116.15.254 1.1.1.1 8.8.8.8`:
+    Global (por `zz-dns-fallback.conf`, que gano el orden lexico
+    a `DigitalOcean.conf`) y eth0/eth1 (por
+    `99-dns-fallback.yaml`, con `netplan try` -> "Configuration
+    accepted"). Ninguno de los dos archivos originales se toco.
+
+    Y los de repuesto SE ALCANZAN, que era lo que quedaba en el
+    aire porque todo lo de hoy habia salido por el primero:
+      dig @1.1.1.1 registry.digitalocean.com -> 172.64.151.146
+      dig @8.8.8.8 registry.digitalocean.com -> 104.18.36.110
+    Publicas, no `10.116.15.254`: confirman de una vez que estan
+    vivos y el horizonte partido.
+
+  BLOQUE B · el registro DNS .................. HECHO
+    Creado con `crearRegistroA()`, id
+    `d79893eaa36a4ff3c7966cf0e7c77904`. Resuelve a
+    137.184.107.53 desde 1.1.1.1 y desde 8.8.8.8, comprobado
+    FUERA de la VPC.
+
+  Y LA PUERTA DE PROMOCION PASA ENTERA, por primera vez:
+    dig  -> 137.184.107.53
+    curl -> 200   (https://prueba.space-os.io/spaces-dooh/api/auth/metodos/)
+    Con eso la TARJETA 07 queda desbloqueada.
+
+  LO QUE FALTA, y es de manana:
+    journalctl -u systemd-resolved --since today --no-pager | grep -c degraded
+    Contra las ~10 lineas de degradacion del 12, 13 y 14. Eso es
+    lo que cierra el bloque A de verdad; lo de hoy es que la
+    configuracion esta puesta y probada.
+
+  LO QUE NO SE PUDO DEMOSTRAR, dicho entero: el relevo en si.
+  Tres intentos, tres confundidos distintos --la cache, una sola
+  interfaz, y el ambito global-- porque los TRES ambitos
+  apuntaban al mismo servidor y no habia forma de dejar uno solo
+  mudo sin tocar configuracion persistente. Lo que si se probo es
+  que los repuestos se alcanzan; lo que falta es verlos entrar.
+
  POR QUE ESTA TARJETA EXISTE
    La 00A daba el registro DNS por un tramite de dos minutos en
    Cloudflare. Al ir a comprobarlo aparecio otra cosa: el PADRE
