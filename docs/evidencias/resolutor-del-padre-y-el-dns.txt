@@ -147,24 +147,54 @@ for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
 #  detras. Si el relevo funciona, la resolucion sigue viva.
 #  Sigue siendo SOLO EN MEMORIA.
 
+#  >>> Y DOS COSAS QUE LA PRIMERA VERSION DE ESTE PASO HIZO MAL,
+#  >>> medidas el 14/09 al correrlo:
+#  >>>
+#  >>>  1. LA CACHE. Se pidio `space-os.io`, que se acababa de
+#  >>>     consultar cinco veces en A1. `systemd-resolved`
+#  >>>     CACHEA, asi que las tres respuestas salieron de
+#  >>>     memoria y NO se toco ningun servidor. La prueba dio
+#  >>>     verde sin probar nada. Se ve en que
+#  >>>     `Current DNS Server` seguia diciendo `192.0.2.1`: si
+#  >>>     hubiera habido relevo, esa linea habria cambiado.
+#  >>>     -> Hay que VACIAR la cache y pedir nombres que no
+#  >>>        esten en ella.
+#  >>>
+#  >>>  2. LA PACIENCIA. `+time=2` es el limite de `dig`, no el
+#  >>>     de `resolved`. Si el relevo tarda mas de 2 s, `dig` se
+#  >>>     rinde antes y parece que no resuelve cuando si.
+#  >>>     -> `+time=10`, para medir a `resolved` y no a `dig`.
+#  >>>
+#  >>>  Y se piden DOS nombres que son los que esta maquina
+#  >>>  necesita de verdad: el registro de imagenes que jala
+#  >>>  `update.sh` cada noche, y la API de Cloudflare del alta.
+
+resolvectl flush-caches
 resolvectl dns eth0 192.0.2.1 1.1.1.1
-for i in 1 2 3; do dig +short +time=2 +tries=1 space-os.io; done
+time dig +short +time=10 +tries=1 registry.digitalocean.com
+time dig +short +time=10 +tries=1 api.cloudflare.com
 resolvectl status | grep -A4 "Link 2" | grep "Current DNS Server"
 
 #  🚦 PUERTA A1b
-#     ESPERADO: las tres consultas devuelven 137.184.107.53
-#     --puede tardar un par de segundos la primera, que es el
-#     tiempo que tarda en rendirse con el primero-- y al final
-#     `Current DNS Server: 1.1.1.1`.
+#     ESPERADO: las dos consultas devuelven direcciones, y al
+#     final `Current DNS Server: 1.1.1.1`.
 #
-#     ESO es la prueba: cambio de servidor por su cuenta y siguio
-#     resolviendo. Si en cambio las tres salen vacias, el relevo
-#     NO funciona y persistir la lista no arregla nada: para y
-#     dimelo.
+#     ESO es la prueba: con el primero muerto cambio de servidor
+#     por su cuenta y siguio resolviendo.
+#
+#     MIRA TAMBIEN EL `real` DEL `time`, que es un dato que hace
+#     falta: es lo que cuesta CADA consulta mientras el primero
+#     este caido. Un par de segundos es aceptable; si fueran 30,
+#     el relevo funciona pero `update.sh` se arrastraria, y eso
+#     habria que decidirlo aparte.
+#
+#     SI LAS DOS SALEN VACIAS: el relevo NO funciona y persistir
+#     la lista no arregla nada. Para y dimelo.
 
 #  Y se devuelve a la lista buena antes de seguir:
 
 resolvectl dns eth0 10.116.15.254 1.1.1.1 8.8.8.8
+resolvectl flush-caches
 
 #  ↩️  VUELTA ATRAS DE A1 / A1b (si quieres dejarlo como estaba):
 
