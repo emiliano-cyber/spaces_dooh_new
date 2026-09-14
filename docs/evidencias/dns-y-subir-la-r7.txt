@@ -1,0 +1,223 @@
+============================================================
+ TH-DNS+SUBIR · EL REGISTRO DNS, Y LA R7 A `main`
+ Escrita 2026-09-14
+ main @ 720b138 · el arreglo de la R7 es el commit f60e429
+============================================================
+
+ QUE HACE ESTA TARJETA
+   Dos cosas INDEPENDIENTES, en cualquier orden. Todo desde el
+   navegador salvo UNA linea de consola (la B1, que no se puede
+   hacer desde la web: GitHub no puede jalar un commit que solo
+   existe en tu disco).
+
+     BLOQUE A · el registro DNS que falta      (Cloudflare)
+     BLOQUE B · subir la R7 y fusionarla       (GitHub)
+
+ QUE **NO** HACE ESTA TARJETA
+   · NO despliega el panel de flota en el PADRE .. tarjetas 01 y 02
+   · NO promueve v0.5.0 .......................... tarjeta 07
+   · NO enciende ninguna licencia ................ tarjetas 03/04/05
+   Ninguna maquina cambia de comportamiento por correr esto.
+
+
+# ############################################################
+#  BLOQUE A · EL REGISTRO DNS        CLOUDFLARE      ~2 min
+# ############################################################
+#
+#  POR QUE, y son DOS motivos, no uno:
+#
+#   1. Desbloquea la tarjeta 07 (promover v0.5.0). `promover.yml`
+#      valida contra `DEMO_URL` ANTES de promover, y esa URL es
+#      https://prueba.space-os.io/spaces-dooh. Hoy el nombre no
+#      resuelve, asi que la promocion falla en su primera puerta.
+#
+#   2. Y apaga una mecha CON FECHA, que es lo mas serio: el
+#      certificado de space-os.io lleva `prueba.space-os.io`
+#      como SAN y vence el 2026-11-29. certbot renueva a los 30
+#      dias --sobre el 2026-10-30-- y el reto http-01 de ese
+#      nombre FALLARA, tirando la renovacion ENTERA: la del
+#      certificado que sirve el PLANO DE CONTROL. El timer corre
+#      dos veces al dia y el error solo se ve en su log.
+#
+#  Comprobado hoy, 14/09: sigue sin existir (NXDOMAIN).
+#
+#  --- A1 · en el panel de Cloudflare, zona space-os.io ---
+#
+#      DNS > Records > Add record
+#
+#        Type    : A
+#        Name    : prueba
+#        IPv4    : 137.184.107.53
+#        Proxy   : DESACTIVADO   <-- nube GRIS, no naranja
+#        TTL     : Auto
+#
+#      > Save
+#
+#  >>> LA NUBE GRIS NO ES UN DETALLE. Con el proxy encendido el
+#  >>> nombre resuelve a Cloudflare y el certificado se pediria
+#  >>> sobre otra cosa. Esta escrito en el codigo por algo
+#  >>> (`apps/flota/dns.mjs:10-14`). El 03/09 costo dos horas.
+
+#  PUERTA A · desde cualquier sitio con red (o desde
+#  dnschecker.org si prefieres no abrir consola):
+
+dig +short prueba.space-os.io
+curl -sS -o /dev/null -w "%{http_code}\n" https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+
+#  ESPERADO:  137.184.107.53
+#             200
+#
+#  Son las DOS cosas exactas que mira `promover.yml`. Si el
+#  `dig` sale vacio, espera un minuto y repite: la propagacion
+#  con TTL Auto es rapida pero no instantanea.
+#
+#  SI EL DIG DA LA IP PERO EL CURL NO DA 200:
+#    para aqui y dimelo. Significa que el vhost o el certificado
+#    del 3001 cambiaron desde el 02/09, y eso NO se arregla
+#    desde Cloudflare.
+
+
+# ############################################################
+#  BLOQUE B · SUBIR LA R7 Y FUSIONARLA
+# ############################################################
+#
+#  QUE LLEVA ESE COMMIT
+#   · Cierra la zona de riesgo R7: la configuracion de una
+#     instancia se escribia sin sanear y `update.sh` la SOURCEA
+#     como root cada noche. Un valor con un espacio ejecutaba su
+#     segunda palabra. Demostrado con un canario antes de
+#     taparlo, no deducido.
+#   · Y arregla un defecto que NO era de ese trabajo: la tarjeta
+#     05 no copiaba `base-instancia.sh` al paquete del cliente.
+#     Rota desde el 11/09. El primer cliente por el camino nuevo
+#     habria muerto en su propio --dry-run.
+#
+#  Ninguna instancia ya instalada necesita nada: el cambio solo
+#  afecta a lo que se escriba a partir de ahora.
+
+#  --- B1 · LA UNICA LINEA DE CONSOLA      EN TU WINDOWS ---
+#
+#  Esto NO se puede hacer desde la web: el commit solo existe en
+#  tu disco. Copia las dos lineas tal cual.
+
+cd C:/Users/Server/spaces_doohmain_nueva/.claude/worktrees/r7-entorno
+git push emiliano fix/r7-entorno-sin-sanear
+
+#  ESPERADO: termina con una linea que dice
+#     * [new branch] fix/r7-entorno-sin-sanear -> fix/r7-entorno-sin-sanear
+#  y te imprime un enlace de GitHub para abrir el PR.
+#
+#  OJO CON EL REMOTO: es `emiliano`, no `origin`. `origin`
+#  apunta al repositorio MUERTO (408 commits atras). Si te
+#  equivocas ahi no rompes nada, pero el PR no aparece donde lo
+#  esperas.
+
+#  --- B2 · ABRIR EL PR                 GITHUB (navegador) ---
+#
+#  Usa el enlace que te imprimio el push, o entra a
+#  github.com/emiliano-cyber/spaces_dooh_new y pulsa el boton
+#  "Compare & pull request" que sale solo.
+#
+#    base:    main
+#    compare: fix/r7-entorno-sin-sanear
+#
+#  Titulo sugerido:
+#
+#    fix(instancias): cerrar la R7 y el paquete incompleto del alta
+#
+#  Cuerpo sugerido (pegalo tal cual, entre las dos lineas ---):
+
+---
+Cierra la zona R7. `update.sh` sourcea `instancia.env` como root por cron cada
+noche, asi que ese archivo no es texto: es bash. `provision-instancia.sh` lo
+escribia con `sed` crudo, sin comillas y sin rechazar nada, mientras
+`instalar-hijo.sh` hacia las dos cosas desde el 11/09.
+
+El defecto se demostro antes de taparlo: un canario ejecutable en el PATH del
+arnes, mas sourcear el `instancia.env` que el alta acababa de escribir, y el
+canario se ejecuto. No era teorico.
+
+Las tres funciones no se portaron, se MOVIERON a `entorno-instancia.sh`, que
+sourcean los dos caminos de alta. Mismo patron y mismo motivo que
+`base-instancia.sh`.
+
+Y de paso: la tarjeta del alta no copiaba `base-instancia.sh` al paquete del
+cliente, roto desde el 11/09 a las 08:28. Arreglado, con un escenario PAQUETE
+que cuadra la tarjeta contra el guion.
+
+Medido en local:
+- pruebas-provision.sh      23 · 86 · 0 fallos · 22 mutantes, 0 mal
+- pruebas-instalar-hijo.sh   6 · 31 · 0 fallos ·  4 mutantes, 0 mal
+- pruebas-update.sh        144 · 804 · 0 rojas
+- apps/web                1138 unitarias · typecheck limpio
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+---
+
+#  > Create pull request
+
+#  --- B3 · LA PUERTA QUE IMPORTA   GITHUB > pestana Checks ---
+#
+#  Abrir el PR dispara CI solo (corre en `pull_request`). Espera
+#  a que el job "Typecheck · pruebas · build" termine.
+#
+#  NO te quedes con la palomita verde: ABRE el job y comprueba
+#  que estos CUATRO pasos aparecen y pasan. CI ya los corria
+#  desde antes, y son los que verifican justo lo de este PR:
+#
+#   Pruebas del aprovisionamiento ...... 23 escenarios · 86 comprobaciones · 0 fallos
+#   Mutantes del aprovisionamiento ..... 22 mutantes (el primero es el centinela) · 0 mal
+#   Pruebas del instalador del cliente .  6 escenarios · 31 comprobaciones · 0 fallos
+#   Mutantes del instalador del cliente   4 mutantes (el primero es el centinela) · 0 mal
+#
+#  >>> POR QUE MIRAR LOS NUMEROS Y NO EL COLOR: en la linea de
+#  >>> mutantes, "centinela: ESCAPA" es lo que demuestra que la
+#  >>> barrida DISCRIMINA. Si algun dia todos los mutantes mueren
+#  >>> --incluido el centinela, que no cambia nada-- la barrida
+#  >>> esta rota y sus "muerde" no significan nada. Ya paso el
+#  >>> 11/09, y por eso el centinela existe.
+#
+#  SI LOS NUMEROS DE CI NO COINCIDEN con los de arriba: PARA y
+#  dimelo. Es la maquina limpia contradiciendo a la mia, y eso
+#  se investiga antes de fusionar, no despues.
+
+#  --- B4 · FUSIONAR                    GITHUB (navegador) ---
+#
+#    > Merge pull request  >  Confirm merge
+#
+#  Y borra la rama con el boton "Delete branch" que sale
+#  despues: ya no hace falta, el commit vive en `main`.
+
+#  --- B5 · LIMPIAR EN TU DISCO    opcional, cuando quieras ---
+#
+#  El worktree de la R7 ocupa un `node_modules` entero.
+
+cd C:/Users/Server/spaces_doohmain_nueva
+git fetch emiliano main:main
+git worktree remove .claude/worktrees/r7-entorno
+git branch -d fix/r7-entorno-sin-sanear
+
+#  `git fetch emiliano main:main` actualiza tu `main` local SIN
+#  hacer checkout, que es como se hace en este repo porque
+#  ningun worktree esta parado en `main`.
+
+
+# ############################################################
+#  CIERRE · QUE DESBLOQUEA CADA BLOQUE
+# ############################################################
+#
+#   BLOQUE A  ->  desbloquea la tarjeta 07 (promover v0.5.0) y
+#                 apaga la mecha del certificado de octubre.
+#
+#   BLOQUE B  ->  no desbloquea ninguna tarjeta: pone a salvo el
+#                 arreglo. PERO si vas a correr la 05 (alta en
+#                 droplet propio) DESPUES de esto, rearma el
+#                 paquete desde la tarjeta corregida: la lista de
+#                 `cp` cambio, y la vieja entrega un paquete al
+#                 que le falta un archivo que el instalador
+#                 sourcea sin alternativa.
+#
+#  LO QUE SIGUE PENDIENTE Y NO ESTA AQUI: 01 y 02 (panel de
+#  flota, en el PADRE), 03 -> 04 -> 05 (la licencia), 06
+#  (higiene de g500) y 07 (promover, ya con el DNS puesto).
+============================================================

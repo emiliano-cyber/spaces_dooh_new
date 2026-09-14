@@ -158,6 +158,22 @@ sha256sum licencia.json licencia.firma > licencia.sha256
   vez y reusarlo evita firmar un `sha256` distinto por cada alta para
   archivos que no cambiaron.
 
+  ⚠️  CORREGIDO el 2026-09-14. Hasta esa fecha esta lista NO llevaba
+      `base-instancia.sh`, y el instalador lo SOURCEA sin alternativa
+      (`instalar-hijo.sh:438-446`): el paquete armado tal y como decia esta
+      tarjeta moria con EX_ENTORNO en el `--dry-run` del cliente, antes de
+      tocar nada. Llevaba asi desde el 2026-09-11, tres dias, porque el
+      archivo nacio a las 08:28 y la tarjeta se toco por ultima vez a las
+      11:44 del mismo dia sin enterarse.
+
+      Los DOS `.sh` que se sourcean son tan obligatorios como el guion:
+      `base-instancia.sh` define los privilegios de los roles de Postgres y
+      `entorno-instancia.sh` como se escribe la configuracion. Ninguno de los
+      dos lleva `$RAIZ` delante en el guion --se resuelven al lado del
+      propio instalador-- que es justo la forma que se le escapo a esta
+      lista. Ahora hay una prueba que lo cuadra sola:
+      `pruebas-instalar-hijo.sh`, escenario PAQUETE.
+
   `instalar-hijo.sh` resuelve su propia raiz como `../..` de donde vive
   (`infra/scripts/instalar-hijo.sh:55`), asi que el paquete tiene que
   conservar la MISMA forma de directorios que este repositorio, o el guion no
@@ -167,6 +183,8 @@ D=/tmp/paquete-space-os
 rm -rf "$D"; mkdir -p "$D"/infra/scripts "$D"/infra/env "$D"/infra/nginx/publico "$D"/infra/licencias "$D"/scripts
 
 cp infra/scripts/instalar-hijo.sh   "$D"/infra/scripts/
+cp infra/scripts/base-instancia.sh  "$D"/infra/scripts/
+cp infra/scripts/entorno-instancia.sh "$D"/infra/scripts/
 cp infra/scripts/setup-droplet.sh   "$D"/infra/scripts/
 cp infra/scripts/update.sh          "$D"/infra/scripts/
 cp infra/scripts/respaldo.sh        "$D"/infra/scripts/

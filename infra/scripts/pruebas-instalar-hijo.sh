@@ -352,6 +352,53 @@ if grep -qF 'falta FLOTA_TOKEN en el entorno' "$SALIDA"; then bien
 else mal "no dice que falta FLOTA_TOKEN: $(tail -2 "$SALIDA" | tr '\n' ' ')"; fi
 limpiar
 
+# ============================================================================
+#  PAQUETE · lo que el instalador NECESITA esta en la lista que arma la tarjeta
+# ============================================================================
+#  El defecto que lo motivo, medido el 2026-09-14 y con tres dias de vida:
+#
+#  El 2026-09-11 a las 08:28 (`aa124cb`) el SQL de los roles salio de
+#  `instalar-hijo.sh` a `base-instancia.sh`, que el instalador SOURCEA y sin el
+#  cual aborta (`instalar-hijo.sh:438-446`). La tarjeta que arma el paquete que
+#  se le entrega al cliente --`docs/evidencias/alta-droplet-propio.txt`-- se
+#  toco por ultima vez a las 11:44 del MISMO dia y nunca menciono ese archivo.
+#  Resultado: el paquete armado tal y como manda la tarjeta no lo lleva, y el
+#  alta del PRIMER cliente por el camino nuevo habria muerto con
+#  `EX_ENTORNO` en su `--dry-run`, antes de tocar nada.
+#
+#  Ningun arnes podia verlo: este corre el guion DESDE EL REPOSITORIO, donde
+#  todos sus archivos estan al lado por definicion. La lista de la tarjeta es
+#  una COPIA a mano de las dependencias del guion, y --como siempre en este
+#  repositorio-- lo que se copia, deriva.
+#
+#  Asi que esta prueba no mira el guion ni la tarjeta por separado: mira si
+#  CUADRAN. Se lee lo que el instalador resuelve (`$RAIZ/...` y lo que sourcea
+#  de su propio directorio) y se exige que cada cosa aparezca en un `cp` de la
+#  tarjeta. Es mecanica a proposito: un archivo nuevo entra en la lista o esto
+#  se pone rojo el mismo dia, no tres despues.
+escenario 'PAQUETE · cada archivo que el instalador necesita esta en los `cp` de la tarjeta'
+TARJETA="$RAIZ/docs/evidencias/alta-droplet-propio.txt"
+if [ ! -f "$TARJETA" ]; then
+  mal "no existe $TARJETA: la comprobacion habria pasado sola"
+else
+  # Lo que la tarjeta copia, normalizado a ruta del repositorio.
+  COPIADOS="$(grep -oE '^cp[[:space:]]+[^[:space:]]+' "$TARJETA" | awk '{print $2}' | sort -u)"
+  # Lo que el guion resuelve contra la raiz del paquete...
+  NECESITA="$(grep -oE '\$RAIZ/[a-zA-Z0-9._/-]+' "$GUION" | sed 's@^\$RAIZ/@@' | sort -u)"
+  # ...y lo que sourcea de su propio directorio, que es igual de obligatorio y
+  # no lleva `$RAIZ` delante: es justo la forma que se le escapo a la tarjeta.
+  AL_LADO="$(grep -oE 'BASH_SOURCE\[0\]\}"\)/[a-zA-Z0-9._-]+' "$GUION" \
+             | sed 's@.*)/@infra/scripts/@' | sort -u)"
+  for necesario in $NECESITA $AL_LADO; do
+    # Solo archivos que existen de verdad en el repositorio: `$RAIZ/...` casa
+    # tambien con rutas que el guion construye para el DESTINO en la maquina.
+    [ -f "$RAIZ/$necesario" ] || continue
+    if printf '%s\n' "$COPIADOS" | grep -qxF "$necesario"; then bien
+    else mal "la tarjeta del alta NO copia '$necesario', y el instalador lo necesita"; fi
+  done
+fi
+
+
 printf '\n%s escenarios · %s comprobaciones · %s fallos\n' "$ESCENARIOS" "$COMPROBACIONES" "$FALLOS"
 [ "$FALLOS" -eq 0 ] || exit 1
 

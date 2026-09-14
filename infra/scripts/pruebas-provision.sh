@@ -213,6 +213,11 @@ preparar() {
   # `pruebas-update.sh:494-497`; `BASE_MUT` permite, ademas, mutar el propio
   # archivo sourceado.
   export SPACE_OS_BASE_INSTANCIA_SH="${BASE_MUT:-$RAIZ/infra/scripts/base-instancia.sh}"
+  # Y lo mismo con `entorno-instancia.sh` (2026-09-14, R7): como `base-instancia.sh`,
+  # vive fuera del guion y lo comparten los dos caminos de alta, asi que la
+  # barrida tiene que poder mutarlo o sus comprobaciones no tendrian a nadie
+  # que demostrara que muerden.
+  export SPACE_OS_ENTORNO_INSTANCIA_SH="${ENTORNO_MUT:-$RAIZ/infra/scripts/entorno-instancia.sh}"
 }
 
 limpiar() {
@@ -561,13 +566,17 @@ escrito_dice /etc/space-os/app.env 'DATABASE_URL=postgresql://spaces_app:'
 # Y no se le acerca al otro. La plantilla no menciona `spaces_migrador` en
 # ninguna parte, ni en un comentario, asi que esta ausencia es exacta.
 escrito_calla /etc/space-os/app.env 'spaces_migrador'
+# >>> Las comillas de `instancia.env` no son cosmetica y estas tres lineas las
+# >>> afirmaban SIN ellas hasta el 2026-09-14 --o sea que afirmaban el formato
+# >>> vulnerable-- : bash SOURCEA ese archivo como root cada noche. El porque
+# >>> entero, y el canario que lo demostro, en el bloque R7 de mas abajo.
 # El canal, en los DOS archivos: es la deriva que cerro la tarea 10.
 escrito_dice /etc/space-os/app.env 'CANAL=beta'
-escrito_dice /etc/space-os/instancia.env 'CANAL=beta'
+escrito_dice /etc/space-os/instancia.env 'CANAL="beta"'
 # El actualizador si usa el rol privilegiado: sin DDL no puede migrar, y sin
 # `bypassrls` el pg_dump previo saldria vacio.
-escrito_dice /etc/space-os/instancia.env 'DATABASE_URL=postgresql://spaces_migrador:'
-escrito_dice /etc/space-os/instancia.env 'INSTANCIA=p'
+escrito_dice /etc/space-os/instancia.env 'DATABASE_URL="postgresql://spaces_migrador:'
+escrito_dice /etc/space-os/instancia.env 'INSTANCIA="p"'
 # El dominio llega a las dos variables que lo necesitan, y no a medias: un
 # `APP_URL` con el dominio de la plantilla manda los correos y los redirects de
 # OAuth a otra parte.
@@ -578,6 +587,111 @@ escrito_dice /etc/space-os/app.env "GOOGLE_REDIRECT_URI=https://$DOM/spaces-dooh
 # se queda sin Dueño y la puerta no se cierra sola.
 escrito_casa /etc/space-os/app.env '^BOOTSTRAP_TOKEN=[0-9a-f]{64}$'
 escrito_casa /etc/space-os/app.env '^FLOTA_TOKEN=[0-9a-f]{64}$'
+limpiar
+
+# ============================================================================
+#  R7 · lo que se ESCRIBE en la configuracion de una instancia  (2026-09-14)
+# ============================================================================
+#  `update.sh` hace `. "$CONF"` sobre `instancia.env` (`update.sh:740`) como
+#  root, por cron, cada noche. Eso significa que ese archivo NO ES TEXTO: es
+#  bash. `provision-instancia.sh` lo escribia con `sed` crudo, sin entrecomillar
+#  nada y sin rechazar nada, mientras `instalar-hijo.sh` --el otro camino de
+#  alta, para el MISMO archivo-- hacia las dos cosas desde el 2026-09-11.
+#
+#  Son DOS protecciones distintas y ninguna sustituye a la otra:
+#
+#    · las COMILLAS atrapan el espacio. `REGISTRY_TOKEN=tok canario` sin
+#      comillas no es una asignacion: es `canario` EJECUTADO con REGISTRY_TOKEN
+#      puesto en su entorno. Como root, en el servidor de un cliente.
+#    · la VALIDACION atrapa lo que las comillas no pueden contener -- una
+#      comilla doble las cierra, y `$`/backtick se expanden DENTRO de ellas.
+#
+#  Por eso hay cinco escenarios y no uno: unos por cada mitad. Y el primero
+#  SOURCEA de verdad el archivo que el alta escribio, con un canario en el
+#  PATH, porque es la unica forma de afirmar la propiedad que importa --que
+#  sourcearlo sea inerte-- en vez de afirmar una forma que se parece a ella.
+
+escenario 'R7 · un valor con un espacio NO ejecuta su segunda palabra al sourcear instancia.env'
+preparar
+# El canario es un comando de verdad en el PATH del arnes. Si el alta escribe
+# el token sin comillas, sourcear el archivo lo EJECUTA y deja su marca.
+cat >"$BIN/canario" <<'FIN'
+#!/usr/bin/env bash
+: >"$RAIZ_TMP/CANARIO_EJECUTADO"
+FIN
+chmod +x "$BIN/canario"
+export RAIZ_TMP
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN='tok canario' CANAL=beta -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+INST_ESCRITO="$(ruta_escrita /etc/space-os/instancia.env)"
+if [ ! -f "$INST_ESCRITO" ]; then
+  mal "no se escribio instancia.env: el resto de este escenario pasaria solo"
+else
+  # Se sourcea en un subshell, que es exactamente lo que hace `update.sh`.
+  ( set +u; . "$INST_ESCRITO" ) >/dev/null 2>&1 || true
+  if [ -f "$RAIZ_TMP/CANARIO_EJECUTADO" ]; then
+    mal "sourcear instancia.env EJECUTO la segunda palabra del valor (R7)"
+  else
+    bien
+  fi
+  # Y el valor tiene que llegar ENTERO, no partido por el espacio: un token
+  # truncado no da error, da un `docker login` que falla cada noche.
+  VAL_TOKEN="$( set +u; . "$INST_ESCRITO" >/dev/null 2>&1; printf '%s' "${REGISTRY_TOKEN:-}" )"
+  if [ "$VAL_TOKEN" = 'tok canario' ]; then bien
+  else mal "REGISTRY_TOKEN sourceado vale '$VAL_TOKEN', se esperaba 'tok canario'"; fi
+fi
+limpiar
+
+escenario 'R7 · instancia.env sale ENTRECOMILLADO, porque bash lo sourcea'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+escrito_casa /etc/space-os/instancia.env '^INSTANCIA="p"$'
+escrito_casa /etc/space-os/instancia.env '^REGISTRY="registro.ejemplo/x"$'
+escrito_casa /etc/space-os/instancia.env '^CANAL="beta"$'
+escrito_casa /etc/space-os/instancia.env '^DATABASE_URL="postgresql://spaces_migrador:'
+limpiar
+
+# >>> La hermana por AUSENCIA, y no es simetria decorativa: unir las dos
+# >>> escrituras "para simplificar" es como nacio el defecto que dejaba una
+# >>> instancia servida y sin poder actualizarse jamas. Docker no quita las
+# >>> comillas de un `--env-file`: se las queda DENTRO del valor.
+escenario 'R7 · app.env sigue SIN comillas, porque lo lee Docker y no bash'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL=beta -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+escrito_casa /etc/space-os/app.env '^CANAL=beta$'
+escrito_casa /etc/space-os/app.env '^DATABASE_URL=postgresql://spaces_app:'
+escrito_calla /etc/space-os/app.env 'CANAL="beta"'
+limpiar
+
+escenario 'R7 · un valor con una comilla doble se RECHAZA antes de tocar el servidor'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN='t"x' -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 64
+# Y lo importante no es el codigo: es que no se llego a hablar con la maquina.
+no_hubo 'ssh '
+limpiar
+
+escenario 'R7 · y lo mismo con $, backtick y barra invertida, en INSTANCIA, REGISTRY y CANAL'
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia 'p$(id)' --confirmar
+codigo_es 64
+no_hubo 'ssh '
+limpiar
+preparar
+correr REGISTRY='reg`id`' REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 64
+no_hubo 'ssh '
+limpiar
+preparar
+correr REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t CANAL='beta\x' -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 64
+no_hubo 'ssh '
 limpiar
 
 # ============================================================================
@@ -652,6 +766,7 @@ if [ "${1:-}" = '--mutantes' ]; then
   MUT_TOTAL=0
   MUT_FALLOS=0
   BASE_ORIG="$RAIZ/infra/scripts/base-instancia.sh"
+  ENTORNO_ORIG="$RAIZ/infra/scripts/entorno-instancia.sh"
 
   # ─── Donde se crea la copia, que es la mitad de que esto sirva ────────────
   #  AL LADO del guion, nunca en /tmp, y no es una preferencia de orden:
@@ -679,23 +794,28 @@ if [ "${1:-}" = '--mutantes' ]; then
   # puso rojo» y «murio por otra cosa» tienen que poder distinguirse.
   rojas_con() {
     local cual="$1" copia="$2" resumen
-    if [ "$cual" = provision ]; then
-      resumen="$(GUION_PROVISION="$copia" bash "$0" 2>/dev/null | tail -n1)"
-    else
-      resumen="$(BASE_MUT="$copia" bash "$0" 2>/dev/null | tail -n1)"
-    fi
+    case "$cual" in
+      provision) resumen="$(GUION_PROVISION="$copia" bash "$0" 2>/dev/null | tail -n1)" ;;
+      entorno)   resumen="$(ENTORNO_MUT="$copia"     bash "$0" 2>/dev/null | tail -n1)" ;;
+      *)         resumen="$(BASE_MUT="$copia"        bash "$0" 2>/dev/null | tail -n1)" ;;
+    esac
     case "$resumen" in
       *comprobaciones*fallos) printf '%s' "$resumen" | awk '{print $(NF-1)}' ;;
       *) printf '' ;;   # el arnes no llego ni a imprimir el resumen
     esac
   }
 
-  probar_mutante()      { probar_mutante_en provision "$1" "$2"; }
-  probar_mutante_base() { probar_mutante_en base      "$1" "$2"; }
+  probar_mutante()         { probar_mutante_en provision "$1" "$2"; }
+  probar_mutante_base()    { probar_mutante_en base      "$1" "$2"; }
+  probar_mutante_entorno() { probar_mutante_en entorno   "$1" "$2"; }
 
   probar_mutante_en() {
     local cual="$1" desc="$2" expresion="$3" objetivo copia rojas
-    if [ "$cual" = provision ]; then objetivo="$GUION"; else objetivo="$BASE_ORIG"; fi
+    case "$cual" in
+      provision) objetivo="$GUION" ;;
+      entorno)   objetivo="$ENTORNO_ORIG" ;;
+      *)         objetivo="$BASE_ORIG" ;;
+    esac
     MUT_TOTAL=$((MUT_TOTAL + 1))
     copia="$(copia_al_lado)"
     sed "$expresion" "$objetivo" >"$copia"
@@ -809,8 +929,11 @@ if [ "${1:-}" = '--mutantes' ]; then
   #  expresion no los distingue sin anclarse a la linea entera: da igual para lo
   #  que importa --que la comprobacion de `app.env` muerda-- y dice la verdad
   #  sobre lo que hace.
+  #  Reescrito el 2026-09-14: apuntaba al `sed` que la R7 retiro. Ahora tumba
+  #  las lineas que pasan el par a las dos funciones de escritura, que es donde
+  #  vive hoy la misma sustitucion.
   probar_mutante 'el CANAL deja de sustituirse en los dos archivos' \
-    's@s#\^CANAL=\.\*#CANAL=\$CANAL#@s#^CANAL_QUE_NO_EXISTE=.*#CANAL=$CANAL#@'
+    's@"CANAL=$CANAL"@"CANAL_QUE_NO_EXISTE=$CANAL"@g'
 
   # ============================================================================
   #  MUTANTES SOBRE `base-instancia.sh`  (2026-09-11)
@@ -853,6 +976,36 @@ if [ "${1:-}" = '--mutantes' ]; then
 
   probar_mutante_base 'el esquema se aplica sin ON_ERROR_STOP (a medias y sin decirlo)' \
     's/-v ON_ERROR_STOP=1 -f/-f/'
+
+  # ============================================================================
+  #  MUTANTES SOBRE `entorno-instancia.sh`  ·  R7  (2026-09-14)
+  # ----------------------------------------------------------------------------
+  #  Las dos protecciones de la R7 son COMPLEMENTARIAS, y cada una tiene su
+  #  mutante porque cada una falla distinto:
+  #
+  #    · sin COMILLAS, un valor con un espacio ejecuta su segunda palabra al
+  #      sourcear -- el defecto entero, y lo que el canario demuestra;
+  #    · sin VALIDACION, una comilla doble CIERRA las comillas y reabre el mismo
+  #      agujero por otro lado, con las comillas puestas.
+  #
+  #  El tercero guarda la asimetria entre los dos archivos: ponerle comillas a
+  #  `app.env` no rompe nada visible al escribirlo, y deja la instancia servida
+  #  y sin poder actualizarse jamas. Es el defecto que separo estas dos
+  #  funciones, y el unico que se nota semanas despues.
+  # ============================================================================
+
+  probar_mutante_entorno 'instancia.env vuelve a escribirse SIN comillas (se ejecuta al sourcear)' \
+    "s@printf '%s=\"%s\"@printf '%s=%s@"
+
+  probar_mutante_entorno 'app.env gana comillas (los dos destinos dejan de coincidir para siempre)' \
+    "s@printf '%s=%s@printf '%s=\"%s\"@"
+
+  probar_mutante_entorno 'validar_valor_seguro deja pasar la comilla doble, el dolar y el backtick' \
+    "s@case \"\$valor\" in@case \"NADA_QUE_CASE_JAMAS\" in@"
+
+  # Y en el llamador: las funciones pueden estar perfectas y no llamarse.
+  probar_mutante 'provision deja de validar lo que el operador teclea' \
+    's@validar_valor_seguro "REGISTRY_TOKEN"@true "REGISTRY_TOKEN"@'
 
   printf '\n%s mutantes (el primero es el centinela) · %s mal\n' "$MUT_TOTAL" "$MUT_FALLOS"
   [ "$MUT_FALLOS" -eq 0 ] || exit 1
