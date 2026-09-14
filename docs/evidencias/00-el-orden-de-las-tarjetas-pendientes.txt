@@ -1,12 +1,34 @@
 ================================================================================
- QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-11
+ QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-14
 ================================================================================
 
-  Siete tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
+  Ocho tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
   pueden adelantar. Las demas son independientes entre si.
 
   Todas salen del repositorio (docs/evidencias/). Estas copias son para tenerlas
   a mano; si alguna se te queda vieja, la del repositorio es la buena.
+
+
+--------------------------------------------------------------------------------
+ LO PRIMERO, Y LO MAS BARATO  ·  anadida el 2026-09-14
+--------------------------------------------------------------------------------
+
+  00A El registro DNS, y subir la R7 a `main`
+      Tarjeta: 00A-dns-y-subir-la-r7.txt
+      Dos bloques independientes, casi todo desde el navegador.
+
+      El BLOQUE A son dos minutos en Cloudflare y es lo unico de toda esta
+      lista que no depende de nosotros: desbloquea la 07 y apaga la mecha
+      del certificado de finales de octubre. Hazlo al empezar, para que
+      propague mientras corres lo demas.
+
+      El BLOQUE B sube el arreglo de la zona R7 (la configuracion de una
+      instancia se escribia sin sanear y se EJECUTABA al sourcearla).
+
+      >>> Y OJO CON LA 05: ese mismo trabajo encontro que la tarjeta del
+      >>> alta NO copiaba `base-instancia.sh` al paquete del cliente, y el
+      >>> instalador lo sourcea sin alternativa. Rota desde el 11/09. Ya
+      >>> esta corregida: si armaste el paquete antes de hoy, REARMALO.
 
 
 --------------------------------------------------------------------------------
