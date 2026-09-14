@@ -199,6 +199,40 @@ fi
 # shellcheck source=base-instancia.sh
 . "$BASE_INSTANCIA_SH"
 
+# ─── Y como se ESCRIBE esa configuracion, tambien ───────────────────────────
+# Mismo patron y mismo motivo que el bloque de arriba, con un agravante: estas
+# tres funciones existieron desde el 2026-09-11 **solo en `instalar-hijo.sh`**,
+# asi que durante tres dias el camino administrado --el de los clientes que
+# HAY, incluido g500-- escribio `instancia.env` con `sed` crudo. `update.sh` lo
+# SOURCEA como root por cron cada noche (`update.sh:740`), asi que un valor con
+# un espacio dentro no es un valor: es su segunda palabra EJECUTADA. Es la zona
+# R7 de `vault/06-Operacion/zonas-de-riesgo.md`, y el 2026-09-14 un canario en
+# el PATH del arnes demostro que no era teorico.
+ENTORNO_GUION="provision"
+ENTORNO_INSTANCIA_SH="${SPACE_OS_ENTORNO_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/entorno-instancia.sh}"
+if [[ ! -f "$ENTORNO_INSTANCIA_SH" ]]; then
+  echo "provision: falta $ENTORNO_INSTANCIA_SH, que trae como se escribe la" >&2
+  echo "           configuracion de esta instancia. No se sigue sin el: un valor" >&2
+  echo "           mal escrito en \`instancia.env\` se EJECUTA como root cada noche." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=entorno-instancia.sh
+. "$ENTORNO_INSTANCIA_SH"
+
+# Todo lo que va a acabar dentro de uno de los dos archivos de entorno se
+# revisa AQUI, antes de la primera palabra que viaja por ssh. `DOMINIO` ya paso
+# su propio regex (`:157`) y los secretos se generan con `secreto()` (hex), asi
+# que quedan estos cuatro: los tres que entran por el entorno del operador y el
+# nombre de la instancia, que entra por argumento.
+#
+# `INSTANCIA` se comprueba solo si trae algo: los modos que no aprovisionan
+# (`--emitir-certificado`, `--bootstrap`) no lo exigen, y exigirlo aqui les
+# cambiaria el contrato. El modo A/B si lo exige, mas abajo (`:549`).
+[[ -n "$INSTANCIA" ]]       && validar_valor_seguro "--instancia" "$INSTANCIA"
+[[ -n "$REGISTRY" ]]        && validar_valor_seguro "REGISTRY" "$REGISTRY"
+[[ -n "$REGISTRY_TOKEN" ]]  && validar_valor_seguro "REGISTRY_TOKEN" "$REGISTRY_TOKEN"
+[[ -n "$CANAL" ]]           && validar_valor_seguro "CANAL" "$CANAL"
+
 # ─── El unico camino que toca el servidor ───────────────────────────────────
 DRY_ETIQUETA="[SIMULACION]"
 [[ "$CONFIRMAR" -eq 1 ]] && DRY_ETIQUETA=""
@@ -630,22 +664,32 @@ remoto "mkdir -p /etc/space-os"
 # `estable` por omision: la unica corrida en que divergian era un ensayo con
 # CANAL=beta, donde `/api/version` habria dicho `estable` mientras el
 # actualizador jalaba `beta`.
-sed \
-  -e "s#^APP_URL=.*#APP_URL=https://$DOMINIO#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=$(url_app "$CLAVE_APP")#" \
-  -e "s#^GOOGLE_REDIRECT_URI=.*#GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/#" \
-  -e "s#^BOOTSTRAP_TOKEN=.*#BOOTSTRAP_TOKEN=$TOKEN_ARRANQUE#" \
-  -e "s#^FLOTA_TOKEN=.*#FLOTA_TOKEN=$TOKEN_FLOTA#" \
-  -e "s#^CANAL=.*#CANAL=$CANAL#" \
-  "$TPL_APP" | remoto_escribir /etc/space-os/app.env 600
+# >>> Y se escriben EN BASH, no con `sed`. El motivo entero esta en
+# >>> `entorno-instancia.sh`; el resumen es que `sed -e "s#...#$VALOR#"` mete el
+# >>> valor DENTRO del programa de sed --que es un argumento de linea de
+# >>> comandos, visible en `ps` mientras corre-- y que un `&` o una barra
+# >>> invertida en un token corrompen la sustitucion sin dar error. Las dos
+# >>> funciones son DOS a proposito: `app.env` lo lee Docker y va sin comillas,
+# >>> `instancia.env` lo sourcea bash y va entrecomillado. No se unen.
+reescribir_env_docker "$TPL_APP" \
+  "APP_URL=https://$DOMINIO" \
+  "DATABASE_URL=$(url_app "$CLAVE_APP")" \
+  "GOOGLE_REDIRECT_URI=https://$DOMINIO/spaces-dooh/api/auth/google/callback/" \
+  "BOOTSTRAP_TOKEN=$TOKEN_ARRANQUE" \
+  "FLOTA_TOKEN=$TOKEN_FLOTA" \
+  "CANAL=$CANAL" \
+  | remoto_escribir /etc/space-os/app.env 600
 
 # `instancia.env`. Desde el 2026-09-01 `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`
 # se escriben de verdad: la decision del registro se tomo el 31/08 y sin
 # credencial una instancia no puede bajar la imagen de un registro privado.
-sed \
-  -e "s#^INSTANCIA=.*#INSTANCIA=$INSTANCIA#" \
-  -e "s#^DATABASE_URL=.*#DATABASE_URL=$URL_MIGRADOR#"   -e "s#^REGISTRY=.*#REGISTRY=$REGISTRY#"   -e "s#^REGISTRY_TOKEN=.*#REGISTRY_TOKEN=$REGISTRY_TOKEN#"   -e "s#^CANAL=.*#CANAL=$CANAL#" \
-  "$TPL_INST" | remoto_escribir /etc/space-os/instancia.env 600
+reescribir_env_sourceado "$TPL_INST" \
+  "INSTANCIA=$INSTANCIA" \
+  "DATABASE_URL=$URL_MIGRADOR" \
+  "REGISTRY=$REGISTRY" \
+  "REGISTRY_TOKEN=$REGISTRY_TOKEN" \
+  "CANAL=$CANAL" \
+  | remoto_escribir /etc/space-os/instancia.env 600
 
 # ─── 5 · nginx, TODAVIA SIN certificado ─────────────────────────────────────
 paso "nginx (solo HTTP por ahora)"

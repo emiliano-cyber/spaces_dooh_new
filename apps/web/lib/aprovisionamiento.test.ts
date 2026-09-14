@@ -38,6 +38,7 @@ const SETUP = leer('infra', 'scripts', 'setup-droplet.sh')
 const PROVISION = leer('infra', 'scripts', 'provision-instancia.sh')
 const INSTALAR_HIJO = leer('infra', 'scripts', 'instalar-hijo.sh')
 const BASE_INSTANCIA = leer('infra', 'scripts', 'base-instancia.sh')
+const ENTORNO_INSTANCIA = leer('infra', 'scripts', 'entorno-instancia.sh')
 const UPDATE = leer('infra', 'scripts', 'update.sh')
 const INSTANCIA_ENV = leer('infra', 'env', 'instancia.env.example')
 
@@ -79,6 +80,13 @@ function ejecutable(guion: string): string {
 //  "no esta en ninguno de los tres" y no "cadena vacia".
 const GUIONES_DEL_ALTA: ReadonlyArray<readonly [string, string]> = [
   ['infra/scripts/base-instancia.sh', BASE_INSTANCIA],
+  // Cuarto desde el 2026-09-14: `entorno-instancia.sh` salio de
+  // `instalar-hijo.sh` al cerrar la R7, por el mismo motivo que
+  // `base-instancia.sh` salio de `provision-instancia.sh`. Entra en esta lista
+  // el MISMO dia que nace, que es precisamente lo que el comentario de arriba
+  // pedia: el camino del alta son los guiones que lo componen HOY, no los que
+  // lo componian cuando alguien escribio la constante.
+  ['infra/scripts/entorno-instancia.sh', ENTORNO_INSTANCIA],
   ['infra/scripts/provision-instancia.sh', PROVISION],
   ['infra/scripts/instalar-hijo.sh', INSTALAR_HIJO],
 ]

@@ -1,7 +1,7 @@
 ---
 tipo: operacion
 estado: verificado
-actualizado: 2026-09-11
+actualizado: 2026-09-14
 tags: [riesgo, seguridad, operacion, obligatorio]
 archivos:
   - apps/web/lib/server/
@@ -9,6 +9,7 @@ archivos:
   - apps/web/middleware.ts
   - infra/nginx/demo.space-os.io.conf
   - infra/scripts/base-instancia.sh
+  - infra/scripts/entorno-instancia.sh
   - infra/scripts/pruebas-provision.sh
   - infra/scripts/provision-instancia.sh
   - infra/scripts/instalar-hijo.sh
@@ -244,7 +245,7 @@ limitador en memoria funcione.
 **Verificar:**
 - [ ] Si subes `instances`, migra `rate-limit.ts` a un store compartido **antes**.
 
-## R7 · Cómo se escriben `instancia.env` y `app.env` de una instancia
+## R7 · Cómo se escriben `instancia.env` y `app.env` de una instancia — ✅ CERRADA el 2026-09-14
 
 **Archivos:** `infra/scripts/provision-instancia.sh`, `infra/scripts/instalar-hijo.sh`
 
@@ -290,20 +291,78 @@ limitador en memoria funcione.
 > el servidor de un cliente, la próxima vez que su cron corra `update.sh`.
 >
 > **Qué hacer distinto, a partir de ahora:**
-> - [ ] Antes de correr `provision-instancia.sh`, revisa a mano cada valor de
->       `INSTANCIA`, `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`: que no traiga un
->       espacio, una comilla, `$`, un backtick ni una barra invertida.
-> - [ ] Si tocas este archivo por cualquier motivo, **no inventes una
->       validación nueva**: porta `reescribir_env_sourceado()` /
->       `reescribir_env_docker()` y `validar_valor_seguro()` desde
->       `instalar-hijo.sh` — es el mismo patrón, ya escrito y ya probado
->       contra el mismo defecto.
-> - [ ] No lo confundas con R2: aquí no hay RLS ni tenant de por medio, es
->       ejecución de comandos por un archivo de configuración mal escrito.
+> - [x] ~~Revisar a mano cada valor antes de correr `provision-instancia.sh`~~ —
+>       lo hace el guion desde el 2026-09-14, y una revisión a ojo no es una
+>       verificación. Ver el cierre al final de esta sección.
+> - [x] ~~Portar las tres funciones desde `instalar-hijo.sh`~~ — **no se
+>       portaron: se movieron**, a `infra/scripts/entorno-instancia.sh`, que
+>       sourcean los dos caminos. Portarlas habría dejado dos copias que
+>       derivan, que es como nació esta zona.
+> - [ ] **Sigue vigente:** no lo confundas con R2. Aquí no hay RLS ni tenant de
+>       por medio, es ejecución de comandos por un archivo de configuración mal
+>       escrito.
+> - [ ] **Y sigue vigente lo que el cierre NO cubre:** quien edita a mano el
+>       `instancia.env` de una instancia ya instalada se salta las dos
+>       protecciones, porque no pasa por ningún guion. `update.sh` lo sourcea
+>       igual.
 >
 > Medido el 2026-09-11 al documentar la tarea 9 del plan de alta en droplet
 > propio (`docs/adr/0032-el-alta-en-droplet-propio-del-cliente.md`, sección
 > «Lo que queda abierto»). No tiene tarea propia todavía.
+
+> [!success] 2026-09-14 · **CERRADA**, y el defecto quedó DEMOSTRADO antes de taparlo
+> Lo que faltaba está escrito: `validar_valor_seguro()`,
+> `reescribir_env_sourceado()` y `reescribir_env_docker()` ya no viven dentro de
+> `instalar-hijo.sh`. Salieron a **`infra/scripts/entorno-instancia.sh`**, que
+> **sourcean los dos caminos de alta** — el mismo patrón, y por el mismo motivo,
+> que `base-instancia.sh` con los privilegios de los roles.
+>
+> **No se portó la protección: se movió.** Copiarla habría dejado dos copias que
+> derivan, que es exactamente cómo nació esta zona de riesgo.
+>
+> **Lo que lo convierte en un cierre y no en una afirmación:** el arnés puso un
+> **canario** ejecutable en el `PATH`, corrió el alta con
+> `REGISTRY_TOKEN='tok canario'` y **sourceó el `instancia.env` que el alta había
+> escrito**. El canario se ejecutó. O sea que esto nunca fue teórico: era
+> ejecución de un comando arbitrario como root, reproducible en una prueba.
+> Después del arreglo el mismo escenario está en verde y el valor llega entero.
+>
+> **Las dos protecciones son complementarias y cada una tiene su mutante**, que
+> es lo que impide que esto se vuelva decorativo:
+>
+> | Mutante | Qué deshace | Resultado |
+> |---|---|---|
+> | `instancia.env` sin comillas | la mitad del espacio | **muerde** (9 en rojo) |
+> | `app.env` con comillas | la asimetría entre los dos parsers | **muerde** (9 en rojo) |
+> | `validar_valor_seguro` pasa todo | la mitad de la comilla doble | **muerde** (8 en rojo) |
+> | `provision` deja de validar | las funciones existen y no se llaman | **muerde** (2 en rojo) |
+>
+> Y el **centinela sigue escapando**, así que la barrida discrimina: 22 mutantes,
+> 0 mal. El arnés pasó de **18 · 69** a **23 · 86**.
+>
+> **Lo que NO cambia:** las dos funciones siguen siendo **dos**, y unirlas «para
+> simplificar» reabre el defecto que dejaba una instancia servida y sin poder
+> actualizarse jamás. Está dicho en la cabecera del archivo nuevo.
+
+> [!danger] 2026-09-14 · y buscando esto aparecieron TRES DÍAS con la tarjeta del alta rota
+> `base-instancia.sh` nació el **2026-09-11 a las 08:28** (`aa124cb`) y el
+> instalador lo **sourcea sin alternativa** (`instalar-hijo.sh:438-446`). La
+> tarjeta que arma el paquete del cliente —`docs/evidencias/alta-droplet-propio.txt`—
+> se tocó por última vez a las **11:44 del mismo día** y **nunca lo mencionó**.
+>
+> Medido: armando el paquete exactamente como manda la tarjeta,
+> `infra/scripts/base-instancia.sh` **no está**. El alta del primer cliente por
+> el camino nuevo habría muerto con `EX_ENTORNO` en su propio `--dry-run`.
+>
+> **Ningún arnés podía verlo**, y eso es lo que hay que recordar: todos corren el
+> guion **desde el repositorio**, donde sus archivos están al lado por
+> definición. La lista de `cp` de la tarjeta es una **copia a mano** de las
+> dependencias del guion — y lo que se copia, deriva.
+>
+> Arreglado en la tarjeta, y cerrado con una prueba que cuadra las dos cosas
+> solas: `pruebas-instalar-hijo.sh`, escenario **PAQUETE**. Cazó los dos
+> archivos que faltaban —el viejo y el que este trabajo añadió— antes de que
+> nadie los echara en falta.
 
 ---
 

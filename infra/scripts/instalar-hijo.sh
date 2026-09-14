@@ -145,30 +145,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Rechaza un valor que un archivo SOURCEADO por bash (`instancia.env`,
-# `app.env`, via `update.sh`) no puede llevar sin riesgo: comillas dobles,
-# `$`, un backtick o una barra invertida bastan para que una asignacion se
-# convierta en codigo que se ejecuta como root la proxima vez que el cron
-# corra `update.sh` a las 4:17. Documentado en CLAUDE.md, y ya paso una vez
-# con un espacio sin comillas -- esto va mas lejos que comillas: rechaza en
-# vez de intentar escapar, porque escapar a mano este conjunto es como se
-# llega al defecto de `sed` que esta misma ronda encontro (M1).
-validar_valor_seguro() {
-  local etiqueta="$1" valor="$2"
-  case "$valor" in
-    *'"'*|*'$'*|*'`'*|*'\'*)
-      echo "instalar-hijo: $etiqueta trae un caracter que no se puede escribir con seguridad" >&2
-      echo "               en un archivo que \`update.sh\` sourcea (comillas dobles, \$," >&2
-      echo "               backtick o barra invertida). No se adivina que se quiso decir:" >&2
-      echo "               se rechaza." >&2
-      exit "$EX_USO"
-      ;;
-  esac
-  if [[ "$valor" == *$'\n'* ]]; then
-    echo "instalar-hijo: $etiqueta trae un salto de linea. No se escribe." >&2
-    exit "$EX_USO"
-  fi
-}
+# ─── Como se escribe la configuracion se SOURCEA, no se copia ───────────────
+# `entorno-instancia.sh` es la UNICA definicion de COMO se escriben `app.env` e
+# `instancia.env` y de QUE valores nos negamos a escribir. La comparte con
+# `provision-instancia.sh`, que hace el mismo alta desde fuera por ssh.
+#
+# Estas tres funciones nacieron AQUI el 2026-09-11 y el otro camino no las
+# tuvo nunca: durante tres dias el alta administrada --la de los clientes que
+# HAY-- escribio los dos archivos con `sed` crudo, sin comillas y sin rechazar
+# nada. Es la zona R7, y se saco de aqui el 2026-09-14 por el mismo motivo que
+# `base-instancia.sh`: lo que se copia, deriva; lo que vive en un solo guion,
+# le falta al otro.
+#
+# Va aqui --justo despues de leer los argumentos-- y no mas abajo con
+# `base-instancia.sh`: `validar_valor_seguro()` se usa sobre `FLOTA_TOKEN`
+# mucho antes (`:186`), y `--ayuda` ya salio dentro del `case` de arriba, asi
+# que sigue contestando aunque el paquete este incompleto.
+ENTORNO_GUION="instalar-hijo"
+ENTORNO_INSTANCIA_SH="${SPACE_OS_ENTORNO_INSTANCIA_SH:-$(dirname "${BASH_SOURCE[0]}")/entorno-instancia.sh}"
+if [[ ! -f "$ENTORNO_INSTANCIA_SH" ]]; then
+  echo "instalar-hijo: falta $ENTORNO_INSTANCIA_SH, que trae como se escribe la" >&2
+  echo "               configuracion de esta instancia. No se sigue sin el: un" >&2
+  echo "               valor mal escrito en \`instancia.env\` se EJECUTA como root" >&2
+  echo "               cada noche. Vuelve a armar el paquete de alta con ese archivo." >&2
+  exit "$EX_ENTORNO"
+fi
+# shellcheck source=entorno-instancia.sh
+. "$ENTORNO_INSTANCIA_SH"
+
 
 # ─── Validacion de argumentos ────────────────────────────────────────────────
 # Todo lo que el operador escribe se revisa ANTES de mirar un solo archivo del
@@ -314,114 +318,6 @@ sustituir_y_verificar() {
   fi
   escribir "$destino" "$modo" < "$tmp"
   rm -f "$tmp"
-}
-
-# Reescribe una plantilla de entorno linea por linea, EN BASH -- nunca con
-# `sed`. Dos razones, las dos de esta ronda de correccion:
-#   1. `sed -e "s#...#$VALOR#"` pasa el VALOR como parte del propio programa
-#      de `sed`, y ese programa es un argumento de linea de comandos: un
-#      token queda en el `ps` de esta maquina mientras `sed` corre (I6).
-#   2. Un valor con `&`, `/` o una barra invertida CORROMPE la sustitucion
-#      -- son caracteres especiales del lado derecho de un `s///` -- y un
-#      token de DigitalOcean o de Spaces puede traer cualquiera de los tres
-#      sin que nadie lo note hasta que la instancia no arranca (M1, medido
-#      por el revisor: `ab&cd` quedaba escrito como `abREGISTRY_TOKEN=cd`).
-# Una funcion de bash no genera un proceso nuevo (no hay `exec` de por
-# medio), asi que los valores tampoco aparecen en NINGUN `ps` al pasarlos
-# como argumentos de esta funcion, y la comparacion de cadenas no interpreta
-# nada del valor: es texto literal, siempre.
-#
-# HASTA la tarea 11 esto era UNA sola funcion para los DOS archivos que se
-# escriben abajo, y siempre ENTRECOMILLABA el valor. Eso rompia `app.env`:
-# nadie lo sourcea, lo lee Docker como `--env-file`, y `update.sh` ya traia
-# escrito por que se lee asi (`update.sh:1417-1420`): *"Formato --env-file de
-# docker: CLAVE=valor, sin comillas ni export. Por eso se lee con grep y no
-# con '.': sourcearlo interpretaria las comillas de otra manera que docker, y
-# ahi es donde nacen las diferencias invisibles."* Docker no las quita: se
-# las queda DENTRO del valor. Con eso, `url_de_env_app()` (grep+cut, sin
-# sourcear -- el mismo motivo de arriba) leia el `DATABASE_URL` de `app.env`
-# CON las comillas puestas, `update.sh:1430-1433` lo comparaba contra el de
-# `instancia.env` (que si se sourcea, y sale SIN comillas), los dos destinos
-# no coincidian nunca, y el cron paraba con `EX_CONFIG` en su primera corrida:
-# la instancia quedaba servida pero sin poder actualizarse jamas.
-#
-# La regla, en una frase: UN archivo, UN parser. Por eso hay DOS funciones, no
-# una con un `if`: `instancia.env` la SOURCEA bash (`update.sh` hace
-# `. "$CONF"`) y sus valores TIENEN que ir entrecomillados, o un valor con un
-# espacio ejecuta su segunda palabra como root cada noche (I7, documentado en
-# CLAUDE.md). `app.env` lo lee Docker y sus valores van TAL CUAL: Docker no
-# interpreta comillas, las conserva como parte del dato. NO SE VUELVAN A
-# UNIR "para simplificar" -- es exactamente asi como nacio este defecto.
-#
-# Las dos siguen recibiendo solo valores que ya pasaron por
-# `validar_valor_seguro()` en el llamador: que un valor vaya sin comillas en
-# `app.env` no lo hace seguro por si mismo -- lo hace seguro que ya se haya
-# rechazado antes lo que no puede llevar. Y el peligro cambia de FORMA en un
-# `--env-file`: no hay ejecucion de palabras (no lo sourcea nadie), pero un
-# SALTO DE LINEA dentro de un valor inventa una variable nueva -- por eso
-# `validar_valor_seguro()` lo rechaza tambien, antes de que el valor llegue
-# a cualquiera de las dos funciones.
-reescribir_env_sourceado() {
-  local plantilla="$1"; shift
-  local linea clave valor par encontrado
-  while IFS= read -r linea || [[ -n "$linea" ]]; do
-    # Si la plantilla trae CRLF (medido: un checkout de Windows con
-    # `core.autocrlf=true` deja `infra/env/*.example` asi, aunque el
-    # repositorio guarda LF), `read -r` solo quita el `\n` y el `\r` se queda
-    # pegado al final de la linea. Sin esto, la comparacion de clave sigue
-    # funcionando (el `\r` cae DESPUES del `=`), pero el VALOR que se
-    # preserva de una linea sin reemplazo arrastraria el `\r`, y quien lea el
-    # archivo instalado veria un caracter invisible al final de cada linea
-    # asi. Se quita aqui, una sola vez, en vez de en cada sitio que use esta
-    # funcion.
-    linea="${linea%$'\r'}"
-    if [[ "$linea" =~ ^([A-Z_][A-Z0-9_]*)= ]]; then
-      clave="${BASH_REMATCH[1]}"
-      encontrado=0
-      for par in "$@"; do
-        if [[ "$par" == "$clave="* ]]; then
-          valor="${par#*=}"
-          encontrado=1
-          break
-        fi
-      done
-      if [[ "$encontrado" -eq 1 ]]; then
-        printf '%s="%s"\n' "$clave" "$valor"
-        continue
-      fi
-    fi
-    printf '%s\n' "$linea"
-  done < "$plantilla"
-}
-
-# Hermana de la de arriba, para `app.env`. MISMO recorrido linea por linea,
-# MISMA plantilla, MISMA razon para estar escrita en bash y no con `sed` --
-# la unica diferencia, y la que tiene que quedarse asi, es que el valor
-# sustituido va SIN comillas: son dos parsers de dos formatos distintos, y
-# unificarlos es el defecto que esta funcion existe para no repetir (ver el
-# comentario de arriba).
-reescribir_env_docker() {
-  local plantilla="$1"; shift
-  local linea clave valor par encontrado
-  while IFS= read -r linea || [[ -n "$linea" ]]; do
-    linea="${linea%$'\r'}"
-    if [[ "$linea" =~ ^([A-Z_][A-Z0-9_]*)= ]]; then
-      clave="${BASH_REMATCH[1]}"
-      encontrado=0
-      for par in "$@"; do
-        if [[ "$par" == "$clave="* ]]; then
-          valor="${par#*=}"
-          encontrado=1
-          break
-        fi
-      done
-      if [[ "$encontrado" -eq 1 ]]; then
-        printf '%s=%s\n' "$clave" "$valor"
-        continue
-      fi
-    fi
-    printf '%s\n' "$linea"
-  done < "$plantilla"
 }
 
 # Secretos: hex y nada mas, mismo motivo que `provision-instancia.sh` --

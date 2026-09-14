@@ -1,10 +1,34 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-09
+actualizado: 2026-09-14
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-14 · **R7 CERRADA** — y la tarjeta del alta llevaba tres dias rota
+> Las tres funciones que protegen la configuracion de una instancia salieron de
+> `instalar-hijo.sh` a **`infra/scripts/entorno-instancia.sh`**, que sourcean los
+> **dos** caminos de alta. **Movidas, no copiadas**: copiarlas es como nacio esta
+> zona de riesgo.
+>
+> **El defecto se demostro antes de taparlo.** Un canario en el PATH del arnes +
+> sourcear el `instancia.env` que el alta habia escrito = el canario se ejecuto.
+> No era teorico: era ejecucion como root en el servidor de un cliente.
+>
+> 🔴 **Y aparecio un defecto que no era de este trabajo:** la tarjeta
+> `alta-droplet-propio.txt` (la **05** de las pendientes de hoy) **no copiaba
+> `base-instancia.sh`** al paquete del cliente, y el instalador lo sourcea sin
+> alternativa. Roto desde el **11/09 a las 08:28**. El alta del primer cliente
+> por el camino nuevo habria muerto en su propio `--dry-run`. Arreglado, y
+> cerrado con el escenario **PAQUETE**, que cuadra la tarjeta contra el guion.
+>
+> Medido: `pruebas-provision.sh` **23 · 86 · 22 mutantes** (era 18 · 69 · 18) ·
+> `pruebas-instalar-hijo.sh` **6 · 31** (era 5 · 20) · `apps/web` **1138** y
+> typecheck limpio. Detalle en [[07-Agentes/diario/2026-09-14]].
+>
+> **Zona reclamada y LIBERADA en el mismo commit** (`infra/scripts/` del alta).
+> Es ROJO por R7 y se hizo con aprobacion humana explicita.
 
 > [!success] 2026-09-09, noche · **g500 TIENE SUS DATOS**, y de paso salio un defecto de flota
 > Las cuatro etapas ejecutadas el mismo dia: **541 filas** dentro, las **12

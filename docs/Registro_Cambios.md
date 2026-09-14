@@ -5,6 +5,38 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-14
+
+- **Se cerró un agujero de seguridad en cómo se prepara el servidor de un
+  cliente.** Cuando damos de alta a un cliente, su servidor guarda un archivo
+  con su configuración —a qué base de datos apunta, de dónde baja las
+  actualizaciones—. Ese archivo lo vuelve a leer el propio servidor todas las
+  noches, con los permisos más altos que existen. Hasta hoy, si al escribirlo
+  alguien dejaba por accidente un espacio de más en uno de esos valores, el
+  servidor **no leía un dato: ejecutaba una orden**. No daba ningún error y no
+  lo avisaba nadie.
+
+  **No le pasó a ningún cliente.** Esos valores los escribimos nosotros, así
+  que hacía falta una equivocación nuestra para dispararlo. Pero el resultado de
+  esa equivocación era grave, así que ahora el sistema **se niega a escribir**
+  un valor que pueda dar problemas, en vez de confiar en que nadie se equivoque.
+
+- **Y antes de arreglarlo, se reprodujo.** En vez de corregirlo leyendo el
+  código, se montó una prueba que provoca el fallo a propósito y demuestra que
+  ocurre de verdad. Esa prueba se queda puesta: si alguien deshace el arreglo
+  algún día, se entera en el momento y no cuando ya esté en el servidor de
+  alguien.
+
+- **Apareció, de paso, que las instrucciones para dar de alta a un cliente
+  estaban incompletas desde hace tres días.** El paquete que se le entrega a un
+  cliente que pone su propio servidor **no incluía uno de los archivos** que el
+  instalador necesita para arrancar. Nadie lo había usado todavía —no hay
+  ningún cliente por esa vía— pero el primero se habría quedado parado en el
+  primer paso. Corregido, y ahora hay una comprobación automática que avisa si
+  las instrucciones y el programa dejan de coincidir.
+
+---
+
 ## 2026-09-11
 
 - **Ahora se puede vender el sistema con el cliente poniendo su propio
