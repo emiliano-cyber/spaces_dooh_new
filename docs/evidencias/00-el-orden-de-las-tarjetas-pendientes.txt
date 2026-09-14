@@ -2,7 +2,7 @@
  QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-14
 ================================================================================
 
-  Ocho tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
+  Nueve tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
   pueden adelantar. Las demas son independientes entre si.
 
   Todas salen del repositorio (docs/evidencias/). Estas copias son para tenerlas
@@ -13,7 +13,24 @@
  LO PRIMERO, Y LO MAS BARATO  ·  anadida el 2026-09-14
 --------------------------------------------------------------------------------
 
-  00A El registro DNS, y subir la R7 a `main`
+  00B El resolutor del PADRE, y el registro DNS
+      Tarjeta: 00B-resolutor-del-padre-y-el-dns.txt
+      SUSTITUYE al bloque A de la 00A, que daba el DNS por un tramite.
+
+      Al ir a comprobar el registro aparecio otra averia: el PADRE pierde
+      la resolucion de nombres cada pocas horas desde el 12/09. Tiene UN
+      solo resolutor (el de la VPC) y ningun otro al que caer.
+
+      >>> AFECTA A LAS 01 Y 02. El panel traduce el error de un resolutor
+      >>> que no contesta (EAI_AGAIN) a "el dominio no resuelve", asi que
+      >>> durante uno de esos baches acusa a instancias SANAS. Arregla el
+      >>> bloque A antes de fiarte de lo que diga el panel.
+
+      El bloque B (el registro DNS) sigue pendiente de verdad: NXDOMAIN
+      medido el 14/09 contra 1.1.1.1 y 8.8.8.8.
+
+  00A El registro DNS, y subir la R7 a `main`   [su bloque B: HECHO]
+      Su bloque A lo sustituye la 00B. El B se fusiono como PR #84.
       Tarjeta: 00A-dns-y-subir-la-r7.txt
       Dos bloques independientes, casi todo desde el navegador.
 

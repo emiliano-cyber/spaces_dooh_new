@@ -1,0 +1,374 @@
+============================================================
+ TH-PADRE · EL RESOLUTOR DEL PADRE, Y EL REGISTRO DNS
+ Escrita 2026-09-14 · main @ dc1dcd1
+ Sustituye al BLOQUE A de 00A-dns-y-subir-la-r7.txt
+============================================================
+
+ POR QUE ESTA TARJETA EXISTE
+   La 00A daba el registro DNS por un tramite de dos minutos en
+   Cloudflare. Al ir a comprobarlo aparecio otra cosa: el PADRE
+   no resuelve nombres a ratos, y lleva asi desde el 12/09.
+
+   Son DOS averias distintas y la confusion salio cara una vez
+   ya, asi que se separan:
+
+     BLOQUE A · el PADRE pierde la resolucion cada pocas horas
+     BLOQUE B · el registro `prueba` no existe en Cloudflare
+
+   El BLOQUE A no arregla el B, y el B no arregla el A.
+
+ EL ORDEN SI IMPORTA, y solo por un motivo
+   El BLOQUE B tiene dos caminos: por el navegador (B1) o desde
+   el PADRE con el codigo del proyecto (B2). **B2 necesita que
+   el PADRE resuelva `api.cloudflare.com`**, o sea el BLOQUE A
+   hecho. B1 no necesita nada.
+
+ 🔴 ESTO ES ZONA R6 (configuracion de la maquina y del proceso)
+   Toca la red del PADRE, que es el plano de control de toda la
+   flota. Por eso cada paso de A trae su vuelta atras ANTES de
+   aplicarse, y el paso que persiste usa `netplan try`, que se
+   revierte SOLO si no lo confirmas.
+
+ >>> LO QUE NO PUDE PROBAR, dicho antes de que lo corras:
+ >>> el BLOQUE A no se ha ejecutado en ningun sitio. Los nombres
+ >>> de interfaz (`eth0`, `eth1`) y el resolutor `10.116.15.254`
+ >>> salen de TU propia salida de `resolvectl`, no de una
+ >>> suposicion -- pero el netplan de A2 esta escrito, no
+ >>> medido. Por eso va con `netplan try` y no con
+ >>> `netplan apply`.
+
+
+# ############################################################
+#  BLOQUE A · EL RESOLUTOR DEL PADRE
+# ############################################################
+#
+#  EL DIAGNOSTICO, y lo que lo sostiene
+#
+#  `systemd-resolved` NO esta caido: lleva 3 dias corriendo y
+#  dice "Processing requests". El problema es que el PADRE tiene
+#  UN SOLO resolutor, `10.116.15.254` (el de la VPC de
+#  DigitalOcean), y falla a ratos. Sin un segundo al que caer,
+#  cada bache deja la maquina sin resolver NADA.
+#
+#  Su propio log lo dice, y es un patron de tres dias:
+#
+#    Sep 12 10:24  degraded ... TCP instead of UDP
+#    Sep 13 02:59  degraded UDP instead of UDP+EDNS0
+#    Sep 14 15:47  degraded    Sep 14 17:58  degraded
+#
+#  Degrada `UDP+EDNS0 -> UDP -> TCP`, se recupera ("grace period
+#  over"), y vuelve a caer. Varias veces al dia.
+#
+#  Y `dig @1.1.1.1 space-os.io` SI contesta: la salida a
+#  internet esta bien. Lo unico roto es a quien le pregunta.
+#
+#  POR QUE MERECE ARREGLARSE HOY, y no la semana que viene:
+#   · el panel de flota traduce `EAI_AGAIN` --el error de un
+#     resolutor que no contesta-- a "el dominio no resuelve"
+#     (`apps/flota/diagnostico.mjs:24-25`). Durante una de esas
+#     ventanas el panel acusa a instancias SANAS, y señala a la
+#     maquina del cliente cuando el fallo es del PADRE. Es justo
+#     lo que ibas a correr en las tarjetas 01 y 02;
+#   · `update.sh` corre por cron cada noche en esta maquina y
+#     hace `docker pull` del registro;
+#   · certbot renueva por el mismo camino.
+
+#  --- A0 · FOTOGRAFIA Y RESPALDO, antes de tocar nada ---
+
+mkdir -p /root/respaldo-dns-20260914
+cp -a /etc/netplan            /root/respaldo-dns-20260914/netplan
+cp -a /etc/systemd/resolved.conf /root/respaldo-dns-20260914/
+resolvectl status > /root/respaldo-dns-20260914/resolvectl-ANTES.txt
+ls -la /etc/netplan/
+cat /etc/netplan/*.yaml
+
+#  🚦 PUERTA A0 — pegame la salida del `cat` ANTES de seguir.
+#     Son dos cosas las que hay que mirar, y las dos cambian el
+#     paso A2:
+#
+#     1. Si el `ls` muestra algo mas que `50-cloud-init.yaml`,
+#        esta maquina ya tiene red tocada a mano. PARA.
+#
+#     2. Mira si `eth0` y `eth1` llevan `dhcp4: true`.
+#        · SI lo llevan  -> el A2 vale tal cual esta escrito.
+#        · NO lo llevan (direcciones estaticas bajo `addresses:`)
+#          -> el bloque `dhcp4-overrides` de A2 SOBRA y puede
+#          hacer fallar el `netplan generate`. Dimelo y te paso
+#          el A2 sin esas dos lineas: el resto es identico.
+#
+#     No lo adivines por mi: esto es lo unico de esta tarjeta que
+#     no pude comprobar desde aqui.
+
+#  --- A1 · LA PRUEBA EN CALIENTE (no persiste, es su red) ---
+#
+#  `resolvectl dns` cambia la configuracion EN MEMORIA. No toca
+#  ningun archivo y se va sola al reiniciar la maquina o el
+#  servicio. Es la forma mas barata de confirmar el diagnostico
+#  antes de escribir nada.
+#
+#  El de la VPC se queda EL PRIMERO a proposito: resuelve
+#  nombres internos de DigitalOcean que los publicos no conocen.
+#  Los dos publicos van detras, como red.
+
+resolvectl dns eth0 10.116.15.254 1.1.1.1 8.8.8.8
+resolvectl dns eth1 10.116.15.254 1.1.1.1 8.8.8.8
+resolvectl status | grep -E "Current DNS Server|DNS Servers"
+
+#  Y ahora se le pide cinco veces seguidas, con poca paciencia,
+#  que es como se ve un resolutor intermitente. Una sola
+#  consulta que salga bien no prueba nada.
+
+for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
+
+#  🚦 PUERTA A1
+#     ESPERADO: cinco veces `137.184.107.53`, sin un solo
+#     "communications error" ni linea en blanco.
+#
+#     SI SIGUE FALLANDO con los tres resolutores puestos: PARA.
+#     Entonces no es el resolutor de la VPC, es la salida de red
+#     de la maquina, y esta tarjeta no lo arregla.
+
+#  ↩️  VUELTA ATRAS DE A1 (si quieres dejarlo como estaba):
+
+#      resolvectl revert eth0
+#      resolvectl revert eth1
+
+#  --- A2 · HACERLO PERSISTENTE, con reversion automatica ---
+#
+#  >>> POR QUE UN ARCHIVO NUEVO Y NO EDITAR `50-cloud-init.yaml`:
+#  >>> ese lo REGENERA cloud-init, y en el siguiente arranque se
+#  >>> lleva por delante lo que le hayas escrito, sin avisar.
+#  >>> netplan fusiona todos los `/etc/netplan/*.yaml` en orden,
+#  >>> asi que un `99-` gana sin tocar el de cloud-init y sin
+#  >>> tener que desactivarlo.
+
+cat > /etc/netplan/99-dns-fallback.yaml <<'FIN'
+# ---------------------------------------------------------------
+#  Resolutores del PADRE.  Anadido 2026-09-14.
+#
+#  POR QUE: hasta hoy la maquina tenia UN solo resolutor, el de
+#  la VPC (10.116.15.254), y perdia la resolucion entera cada vez
+#  que ese servidor tenia un bache -- varias veces al dia desde
+#  el 12/09, visible en `journalctl -u systemd-resolved` como
+#  "Using degraded feature set".
+#
+#  El de la VPC se queda EL PRIMERO: resuelve nombres internos de
+#  DigitalOcean que 1.1.1.1 y 8.8.8.8 no conocen. Los publicos
+#  son la red, no el sustituto.
+#
+#  `use-dns: false` es lo que hace que esta lista MANDE sobre la
+#  que reparte el DHCP. El precio, dicho: si DigitalOcean cambia
+#  la direccion de su resolutor de VPC, aqui se queda la vieja --
+#  pero la maquina sigue resolviendo por los otros dos, que es
+#  justo lo que hoy no tiene.
+# ---------------------------------------------------------------
+network:
+  version: 2
+  ethernets:
+    eth0:
+      dhcp4-overrides:
+        use-dns: false
+      nameservers:
+        addresses: [10.116.15.254, 1.1.1.1, 8.8.8.8]
+    eth1:
+      dhcp4-overrides:
+        use-dns: false
+      nameservers:
+        addresses: [10.116.15.254, 1.1.1.1, 8.8.8.8]
+FIN
+
+chmod 600 /etc/netplan/99-dns-fallback.yaml
+netplan generate
+
+#  🚦 PUERTA A2a — `netplan generate` no debe imprimir NADA. Si
+#     se queja del YAML, borra el archivo y dimelo: no sigas.
+
+#  Y ahora el que trae la vuelta atras puesta. `netplan try`
+#  aplica la configuracion y espera a que confirmes con ENTER:
+#  **si no confirmas en 120 s, la revierte sola**. Es la red de
+#  seguridad de cambiar la red de una maquina remota.
+
+netplan try --timeout 120
+
+#  >>> NO PULSES ENTER TODAVIA. Con el `try` corriendo, abre
+#  >>> OTRA sesion ssh al PADRE y comprueba ahi que la maquina
+#  >>> sigue viva y resolviendo:
+#  >>>
+#  >>>     resolvectl status | grep -E "Current DNS|DNS Servers"
+#  >>>     for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
+#  >>>
+#  >>> Si esa segunda sesion entra y resuelve, vuelve a la
+#  >>> primera y pulsa ENTER. Si NO entra, no toques nada: a los
+#  >>> 120 s la maquina vuelve sola a como estaba.
+
+#  --- A3 · VERIFICAR, ya confirmado ---
+
+resolvectl status | grep -E "Current DNS Server|DNS Servers"
+for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
+journalctl -u systemd-resolved --since "10 min ago" --no-pager | tail -20
+
+#  ESPERADO:
+#    · `DNS Servers: 10.116.15.254 1.1.1.1 8.8.8.8` en eth0 y eth1
+#    · cinco veces 137.184.107.53
+#    · y en el log, NINGUN "Using degraded feature set" nuevo
+#      despues de la hora en que aplicaste.
+#
+#  >>> El log es el que dice si funciono DE VERDAD, y no se ve
+#  >>> hoy: la prueba es que pasen unas horas sin una sola linea
+#  >>> de degradacion. Vuelve a mirarlo manana con:
+#  >>>     journalctl -u systemd-resolved --since today --no-pager | grep -c degraded
+
+# ############################################################
+#  ↩️  VUELTA ATRAS COMPLETA DEL BLOQUE A
+# ############################################################
+#  Si despues de confirmar algo va mal, esto lo deja EXACTAMENTE
+#  como estaba. Son dos lineas porque el cambio fue un archivo:
+
+rm -f /etc/netplan/99-dns-fallback.yaml
+netplan apply
+resolvectl status | grep -E "DNS Servers"
+
+#  ESPERADO tras revertir: vuelve a decir solo `10.116.15.254`.
+#  Y si hiciera falta el respaldo entero:
+#      cp -a /root/respaldo-dns-20260914/netplan/. /etc/netplan/
+#      netplan apply
+
+
+# ############################################################
+#  BLOQUE B · EL REGISTRO `prueba` EN CLOUDFLARE
+# ############################################################
+#
+#  SIGUE SIN EXISTIR. Medido el 14/09 contra 1.1.1.1 y 8.8.8.8:
+#  NXDOMAIN en los dos, mientras `demo` y `g500` si responden y
+#  los NS de la zona son de Cloudflare (`gabe`/`ryleigh`). O sea
+#  que la zona esta viva y el nombre no esta dentro.
+#
+#  Elige UN camino. Los dos dejan el mismo registro.
+
+# ────────────────────────────────────────────────────────────
+#  B1 · POR EL NAVEGADOR        (no necesita el BLOQUE A)
+# ────────────────────────────────────────────────────────────
+#
+#  Cloudflare > zona space-os.io > DNS > Records > Add record
+#
+#      Type    : A
+#      Name    : prueba          <-- SOLO esto. Ver el aviso
+#      IPv4    : 137.184.107.53
+#      Proxy   : DESACTIVADO (nube GRIS)
+#      TTL     : Auto
+#
+#  >>> LA TRAMPA DEL CAMPO `Name`, que es la sospecha de por que
+#  >>> no aparecio la primera vez: Cloudflare AÑADE el dominio de
+#  >>> la zona solo. Si escribes ahi `prueba.space-os.io`, el
+#  >>> registro que se crea es
+#  >>>       prueba.space-os.io.space-os.io
+#  >>> que existe, se ve en la lista, y no sirve para nada.
+#  >>> Comprueba en la LISTA que la fila diga exactamente
+#  >>> `prueba.space-os.io`.
+
+# ────────────────────────────────────────────────────────────
+#  B2 · DESDE EL PADRE, CON EL CODIGO DEL PROYECTO
+#       (necesita el BLOQUE A hecho)
+# ────────────────────────────────────────────────────────────
+#
+#  POR QUE ESTE CAMINO: no usa un `curl` inventado, usa
+#  `crearRegistroA()` de `apps/flota/dns.mjs` -- la misma
+#  funcion que corre en cada alta. Lleva `proxied: false`
+#  ESCRITO EN EL CODIGO, comprueba que el dominio cuelga de una
+#  zona nuestra, y no puede equivocarse con el campo `Name`.
+#
+#  El token vive en `/etc/space-os/ejecutor.env` y NO se escribe
+#  en ningun sitio: el guion lo lee y no lo imprime.
+
+#  --- B2a · MIRAR ANTES DE ESCRIBIR ---
+#  Si un intento anterior dejo un registro a medias, esto lo
+#  enseña. Crear encima sin mirar deja DOS.
+
+cat > /tmp/ver-prueba.mjs <<'FIN'
+import { readFileSync } from 'node:fs'
+const env = Object.fromEntries(
+  readFileSync('/etc/space-os/ejecutor.env', 'utf8')
+    .split('\n')
+    .filter((l) => l.includes('=') && !l.trim().startsWith('#'))
+    .map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]),
+)
+const zonas = JSON.parse(env.CLOUDFLARE_ZONAS ?? '{}')
+const zona = zonas['space-os.io']
+if (!zona) { console.error('no hay zona space-os.io en CLOUDFLARE_ZONAS'); process.exit(1) }
+const r = await fetch(
+  `https://api.cloudflare.com/client/v4/zones/${zona}/dns_records?type=A&per_page=100`,
+  { headers: { Authorization: `Bearer ${env.CLOUDFLARE_TOKEN}` } },
+)
+const d = await r.json()
+if (!d.success) { console.error('Cloudflare:', d.errors?.map((e) => e.message).join('; ')); process.exit(1) }
+for (const x of d.result) {
+  if (x.name.includes('prueba')) console.log(x.name, '->', x.content, 'proxied=' + x.proxied)
+}
+console.log('--- total de registros A en la zona:', d.result.length)
+FIN
+/usr/local/bin/node /tmp/ver-prueba.mjs
+
+#  🚦 PUERTA B2a
+#     · Si NO imprime ninguna linea con `prueba`: sigue a B2b.
+#     · Si imprime `prueba.space-os.io.space-os.io`: ahi esta el
+#       fallo de la primera vez. Borra ESE en el panel y sigue.
+#     · Si imprime `prueba.space-os.io -> 137.184.107.53
+#       proxied=false`: ya esta hecho, no crees nada. Salta a la
+#       puerta final.
+#     · Si dice `proxied=true`: apagalo en el panel (nube gris).
+
+#  --- B2b · CREARLO ---
+
+cat > /tmp/crear-prueba.mjs <<'FIN'
+import { readFileSync } from 'node:fs'
+import { crearRegistroA } from '/var/www/Spaces/apps/flota/dns.mjs'
+const env = Object.fromEntries(
+  readFileSync('/etc/space-os/ejecutor.env', 'utf8')
+    .split('\n')
+    .filter((l) => l.includes('=') && !l.trim().startsWith('#'))
+    .map((l) => [l.slice(0, l.indexOf('=')).trim(), l.slice(l.indexOf('=') + 1).trim()]),
+)
+const r = await crearRegistroA('prueba.space-os.io', '137.184.107.53', {
+  zonas: JSON.parse(env.CLOUDFLARE_ZONAS ?? '{}'),
+  token: env.CLOUDFLARE_TOKEN ?? '',
+})
+console.log('creado:', JSON.stringify(r))
+FIN
+/usr/local/bin/node /tmp/crear-prueba.mjs
+rm -f /tmp/ver-prueba.mjs /tmp/crear-prueba.mjs
+
+#  ESPERADO: `creado: {"id":"...","dominio":"prueba.space-os.io","ip":"137.184.107.53"}`
+
+
+# ############################################################
+#  🚦 PUERTA FINAL — la que decide si el BLOQUE B esta hecho
+# ############################################################
+#  CORRELA DESDE TU WINDOWS, no desde el PADRE: si la corres en
+#  el PADRE estas midiendo tambien su resolutor, y entonces no
+#  sabes cual de las dos cosas te contesto.
+
+nslookup prueba.space-os.io 1.1.1.1
+nslookup prueba.space-os.io 8.8.8.8
+
+#  ESPERADO en las dos: 137.184.107.53
+#
+#  Y con eso queda desbloqueada la tarjeta 07 (promover v0.5.0),
+#  cuya primera puerta es exactamente esta consulta mas un 200
+#  contra https://prueba.space-os.io/spaces-dooh/api/auth/metodos/
+
+
+# ############################################################
+#  QUE HACER DESPUES, y en este orden
+# ############################################################
+#   1. BLOQUE A confirmado  -> ya te puedes fiar del panel, asi
+#                              que corre las tarjetas 01 y 02.
+#   2. BLOQUE B confirmado  -> ya se puede correr la 07.
+#   3. Y lo de la licencia (03 -> 04 -> 05) sigue igual: no
+#      depende de ninguna de estas dos.
+#
+#  >>> SI CORRES LA 01 ANTES DEL BLOQUE A y ves
+#  >>> "el dominio no resuelve (EAI_AGAIN)" en alguna instancia,
+#  >>> NO es la instancia: es el resolutor de esta maquina. El
+#  >>> codigo entre parentesis es lo unico que separa los dos
+#  >>> casos, y por eso el panel lo imprime.
+============================================================
