@@ -128,7 +128,45 @@ for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
 #     Entonces no es el resolutor de la VPC, es la salida de red
 #     de la maquina, y esta tarjeta no lo arregla.
 
-#  ↩️  VUELTA ATRAS DE A1 (si quieres dejarlo como estaba):
+#  --- A1b · DEMOSTRAR EL RELEVO, que es lo que A1 NO prueba ---
+#
+#  >>> POR QUE HACE FALTA ESTE PASO. Que A1 diera 5 de 5 NO
+#  >>> demuestra que el arreglo sirva: demuestra que AHORA MISMO
+#  >>> el resolutor de la VPC esta en una de sus ventanas buenas.
+#  >>> De hecho `Current DNS Server` seguia diciendo
+#  >>> `10.116.15.254`, o sea que los dos publicos no llegaron a
+#  >>> usarse. Lo que hay que probar es lo otro: que cuando el
+#  >>> primero DEJE de contestar, la maquina siga resolviendo.
+#  >>>
+#  >>> Es la misma regla que el resto del repositorio: un verde
+#  >>> que nadie ha visto ponerse rojo no es una verificacion.
+#
+#  Se pone de primero una direccion que NO contesta nunca
+#  --192.0.2.1 es TEST-NET-1, reservada por la RFC 5737 para
+#  documentacion: no existe en internet-- y se deja 1.1.1.1
+#  detras. Si el relevo funciona, la resolucion sigue viva.
+#  Sigue siendo SOLO EN MEMORIA.
+
+resolvectl dns eth0 192.0.2.1 1.1.1.1
+for i in 1 2 3; do dig +short +time=2 +tries=1 space-os.io; done
+resolvectl status | grep -A4 "Link 2" | grep "Current DNS Server"
+
+#  🚦 PUERTA A1b
+#     ESPERADO: las tres consultas devuelven 137.184.107.53
+#     --puede tardar un par de segundos la primera, que es el
+#     tiempo que tarda en rendirse con el primero-- y al final
+#     `Current DNS Server: 1.1.1.1`.
+#
+#     ESO es la prueba: cambio de servidor por su cuenta y siguio
+#     resolviendo. Si en cambio las tres salen vacias, el relevo
+#     NO funciona y persistir la lista no arregla nada: para y
+#     dimelo.
+
+#  Y se devuelve a la lista buena antes de seguir:
+
+resolvectl dns eth0 10.116.15.254 1.1.1.1 8.8.8.8
+
+#  ↩️  VUELTA ATRAS DE A1 / A1b (si quieres dejarlo como estaba):
 
 #      resolvectl revert eth0
 #      resolvectl revert eth1
@@ -142,37 +180,55 @@ for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
 #  >>> asi que un `99-` gana sin tocar el de cloud-init y sin
 #  >>> tener que desactivarlo.
 
+#  >>> CORREGIDO el 2026-09-14 con la salida de la PUERTA A0
+#  >>> delante. Esta version llevaba un bloque `dhcp4-overrides:
+#  >>> use-dns: false`, que existe para que una lista escrita a
+#  >>> mano gane a la que reparte el DHCP. **Este PADRE no usa
+#  >>> DHCP**: `50-cloud-init.yaml` declara las dos interfaces
+#  >>> con `addresses:` estaticas y ya trae su propio
+#  >>> `nameservers:` con el resolutor de la VPC. Con DHCP
+#  >>> apagado ese bloque no tiene nada que anular, y habria
+#  >>> hecho fallar el `netplan generate`.
+#  >>>
+#  >>> O sea que aqui no anadimos una lista: SUSTITUIMOS la que
+#  >>> ya hay, de uno a tres. netplan fusiona por interfaz y el
+#  >>> archivo de numero mas alto manda sobre la misma clave.
+
 cat > /etc/netplan/99-dns-fallback.yaml <<'FIN'
 # ---------------------------------------------------------------
 #  Resolutores del PADRE.  Anadido 2026-09-14.
 #
 #  POR QUE: hasta hoy la maquina tenia UN solo resolutor, el de
-#  la VPC (10.116.15.254), y perdia la resolucion entera cada vez
-#  que ese servidor tenia un bache -- varias veces al dia desde
-#  el 12/09, visible en `journalctl -u systemd-resolved` como
-#  "Using degraded feature set".
+#  la VPC (10.116.15.254) -- declarado asi en `50-cloud-init.yaml`,
+#  una sola direccion en cada interfaz-- y perdia la resolucion
+#  ENTERA cada vez que ese servidor tenia un bache. Varias veces
+#  al dia desde el 12/09, visible en
+#  `journalctl -u systemd-resolved` como "Using degraded feature
+#  set". Sin un segundo al que caer, un bache alli deja la
+#  maquina sin resolver nada: ni el registro de imagenes que
+#  `update.sh` jala cada noche, ni Let's Encrypt, ni los dominios
+#  de las instancias que el panel de flota comprueba.
 #
 #  El de la VPC se queda EL PRIMERO: resuelve nombres internos de
 #  DigitalOcean que 1.1.1.1 y 8.8.8.8 no conocen. Los publicos
 #  son la red, no el sustituto.
 #
-#  `use-dns: false` es lo que hace que esta lista MANDE sobre la
-#  que reparte el DHCP. El precio, dicho: si DigitalOcean cambia
-#  la direccion de su resolutor de VPC, aqui se queda la vieja --
-#  pero la maquina sigue resolviendo por los otros dos, que es
-#  justo lo que hoy no tiene.
+#  NO se edita `50-cloud-init.yaml`: ese lo regenera cloud-init y
+#  en algun arranque se llevaria el cambio por delante sin
+#  avisar. netplan fusiona todos los `/etc/netplan/*.yaml` en
+#  orden, asi que este `99-` gana sobre la clave `nameservers`
+#  sin tocar el suyo.
+#
+#  Las interfaces son ESTATICAS en esta maquina, asi que aqui no
+#  hay ningun `dhcp4-overrides`: no hay DHCP que anular.
 # ---------------------------------------------------------------
 network:
   version: 2
   ethernets:
     eth0:
-      dhcp4-overrides:
-        use-dns: false
       nameservers:
         addresses: [10.116.15.254, 1.1.1.1, 8.8.8.8]
     eth1:
-      dhcp4-overrides:
-        use-dns: false
       nameservers:
         addresses: [10.116.15.254, 1.1.1.1, 8.8.8.8]
 FIN
