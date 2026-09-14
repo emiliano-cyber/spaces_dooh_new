@@ -169,18 +169,43 @@ for i in 1 2 3 4 5; do dig +short +time=2 +tries=1 space-os.io; done
 #  >>>  necesita de verdad: el registro de imagenes que jala
 #  >>>  `update.sh` cada noche, y la API de Cloudflare del alta.
 
+#  >>> Y UNA TERCERA, del 14/09: hay que envenenar LAS DOS
+#  >>> INTERFACES, no una. `eth0` y `eth1` llevan las dos
+#  >>> `+DefaultRoute`, asi que con solo `eth0` roto `resolved`
+#  >>> contesta por `eth1` y no hay relevo que observar.
+#  >>>
+#  >>> Como se supo, y es bonito: al pedir
+#  >>> `registry.digitalocean.com` con `eth0` envenenada, la
+#  >>> respuesta fue `10.116.15.254` en 0.028 s. Esa direccion
+#  >>> SOLO la sabe el resolutor de la VPC --que en ese momento
+#  >>> solo seguia puesto en `eth1`-- asi que la respuesta dijo
+#  >>> por donde habia entrado.
+
 resolvectl flush-caches
 resolvectl dns eth0 192.0.2.1 1.1.1.1
+resolvectl dns eth1 192.0.2.1 1.1.1.1
 time dig +short +time=10 +tries=1 registry.digitalocean.com
 time dig +short +time=10 +tries=1 api.cloudflare.com
-resolvectl status | grep -A4 "Link 2" | grep "Current DNS Server"
+resolvectl status | grep -E "Current DNS Server"
 
 #  🚦 PUERTA A1b
 #     ESPERADO: las dos consultas devuelven direcciones, y al
-#     final `Current DNS Server: 1.1.1.1`.
+#     final `Current DNS Server: 1.1.1.1` en las dos interfaces.
 #
 #     ESO es la prueba: con el primero muerto cambio de servidor
 #     por su cuenta y siguio resolviendo.
+#
+#     >>> Y MIRA QUE DEVUELVE `registry.digitalocean.com`, que es
+#     >>> lo mas interesante de esta corrida:
+#     >>>
+#     >>>   `10.116.15.254`  -> contesto el resolutor de la VPC,
+#     >>>                       o sea que NO hubo relevo (o no
+#     >>>                       envenenaste las dos interfaces).
+#     >>>   `172.64.x` / `104.18.x` -> contesto un resolutor
+#     >>>                       publico: EL RELEVO OCURRIO.
+#     >>>
+#     >>> Las dos respuestas son CORRECTAS y apuntan al mismo
+#     >>> servicio por caminos distintos. Ver el aviso de abajo.
 #
 #     MIRA TAMBIEN EL `real` DEL `time`, que es un dato que hace
 #     falta: es lo que cuesta CADA consulta mientras el primero
@@ -194,7 +219,38 @@ resolvectl status | grep -A4 "Link 2" | grep "Current DNS Server"
 #  Y se devuelve a la lista buena antes de seguir:
 
 resolvectl dns eth0 10.116.15.254 1.1.1.1 8.8.8.8
+resolvectl dns eth1 10.116.15.254 1.1.1.1 8.8.8.8
 resolvectl flush-caches
+
+# ────────────────────────────────────────────────────────────
+#  LO QUE SALIO DE ESA PRUEBA, y es el motivo del ORDEN
+# ────────────────────────────────────────────────────────────
+#  MEDIDO el 2026-09-14, el mismo nombre desde los dos sitios:
+#
+#    registry.digitalocean.com
+#      desde el PADRE (resolutor de la VPC) -> 10.116.15.254
+#      desde fuera    (1.1.1.1)             -> 172.64.151.146
+#                                              104.18.36.110
+#
+#  DigitalOcean hace **DNS de horizonte partido**: dentro de una
+#  VPC, su propio registro de imagenes se resuelve a un endpoint
+#  PRIVADO. O sea que el `docker pull` que `update.sh` hace cada
+#  noche hoy viaja por la red privada, no por internet.
+#
+#  >>> POR ESO `10.116.15.254` VA EL PRIMERO EN LA LISTA, y no
+#  >>> es una preferencia estetica: si los publicos fueran
+#  >>> primero, `registry.digitalocean.com` resolveria a las
+#  >>> direcciones publicas y el pull cambiaria de camino --
+#  >>> seguiria funcionando, pero saldria a internet, y eso es un
+#  >>> cambio de comportamiento que nadie decidio (y que en
+#  >>> DigitalOcean se factura distinto: el trafico privado no
+#  >>> cuenta).
+#
+#  Y la contrapartida, dicha entera: mientras el de la VPC este
+#  en uno de sus baches, `resolved` usara un publico y el pull
+#  SI saldra a internet durante esa ventana. Es exactamente lo
+#  que queremos -- un pull por el camino largo le gana a ningun
+#  pull, que es lo que hay hoy.
 
 #  ↩️  VUELTA ATRAS DE A1 / A1b (si quieres dejarlo como estaba):
 
@@ -239,9 +295,15 @@ cat > /etc/netplan/99-dns-fallback.yaml <<'FIN'
 #  `update.sh` jala cada noche, ni Let's Encrypt, ni los dominios
 #  de las instancias que el panel de flota comprueba.
 #
-#  El de la VPC se queda EL PRIMERO: resuelve nombres internos de
-#  DigitalOcean que 1.1.1.1 y 8.8.8.8 no conocen. Los publicos
-#  son la red, no el sustituto.
+#  El de la VPC se queda EL PRIMERO, y esto esta MEDIDO, no
+#  supuesto (14/09): `registry.digitalocean.com` resuelve a
+#  `10.116.15.254` --un endpoint PRIVADO-- desde dentro de la
+#  VPC, y a `172.64.151.146 / 104.18.36.110` desde fuera. Es DNS
+#  de horizonte partido. Con los publicos primero, el `docker
+#  pull` que `update.sh` hace cada noche saldria a internet en
+#  vez de ir por la red privada: seguiria funcionando, pero es
+#  un cambio de camino que nadie decidio y que se factura
+#  distinto. Los publicos son la RED, no el sustituto.
 #
 #  NO se edita `50-cloud-init.yaml`: ese lo regenera cloud-init y
 #  en algun arranque se llevaria el cambio por delante sin
