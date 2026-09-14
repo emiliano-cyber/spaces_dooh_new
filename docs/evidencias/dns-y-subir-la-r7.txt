@@ -4,6 +4,13 @@
  main @ 720b138 · el arreglo de la R7 es el commit f60e429
 ============================================================
 
+ >>> ESTADO AL 2026-09-14, por la tarde:
+ >>>   BLOQUE B (subir la R7) .... HECHO. PR #84 fusionado, main = dc1dcd1.
+ >>>   BLOQUE A (el registro DNS)  LO SUSTITUYE LA TARJETA 00B. Al ir a
+ >>>     comprobarlo aparecio que el PADRE no resuelve nombres a ratos, y
+ >>>     eso hay que separarlo del registro que falta. No corras el bloque
+ >>>     A de aqui: corre la 00B, que lleva los dos casos y su vuelta atras.
+
  QUE HACE ESTA TARJETA
    Dos cosas INDEPENDIENTES, en cualquier orden. Todo desde el
    navegador salvo UNA linea de consola (la B1, que no se puede
