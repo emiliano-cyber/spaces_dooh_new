@@ -1,5 +1,5 @@
 ================================================================================
- QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-14
+ QUE HAY QUE CORRER, Y EN QUE ORDEN                              2026-09-15
 ================================================================================
 
   Nueve tarjetas. El numero manda: las 03, 04 y 05 DEPENDEN una de otra y no se
@@ -30,8 +30,10 @@
       >>> durante uno de esos baches acusa a instancias SANAS. Arregla el
       >>> bloque A antes de fiarte de lo que diga el panel.
 
-      El bloque B (el registro DNS) sigue pendiente de verdad: NXDOMAIN
-      medido el 14/09 contra 1.1.1.1 y 8.8.8.8.
+      Y su verificacion de A3c, la que solo se podia mirar al dia
+      siguiente, salio el 15/09: `grep -c degraded` = 0 contra las ~10
+      diarias del 12, 13 y 14, sin reinicio de por medio (uptime del
+      21/08). El bloque A queda CERRADO Y MEDIDO.
 
   00A El registro DNS, y subir la R7 a `main`   [su bloque B: HECHO]
       Su bloque A lo sustituye la 00B. El B se fusiono como PR #84.
