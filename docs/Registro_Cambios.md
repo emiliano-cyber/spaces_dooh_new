@@ -24,6 +24,23 @@ La entrada más reciente va arriba.
   estuvo en la máquina del cliente. Con el listín arreglado, lo que diga el
   panel vuelve a ser fiable.
 
+- **Encontrado: el cliente g500 lleva seis días con la aplicación casi
+  inalcanzable.** Quien abre su dirección sin haber iniciado sesión acaba en una
+  dirección interna del servidor, en vez de en la pantalla de acceso; sólo entra
+  quien escriba a mano la dirección del login. El arreglo existe desde el 10 de
+  septiembre, pero **nunca llegó a su máquina**.
+
+- **Por qué no llegó, y por qué nadie lo vio.** Las instancias bajan cada noche la
+  versión publicada en el canal de actualizaciones. Ese canal se quedó apuntando a
+  una copia del 9 de septiembre, **anterior al arreglo, pero con el mismo número de
+  versión que la copia buena**: dos paquetes distintos llamados igual. El tablero
+  interno mostraba el número correcto, así que todo parecía en orden.
+
+- **Y el tablero tampoco ayudaba.** Marcaba a todas las instancias como
+  «rezagadas» desde el 27 de agosto, porque la versión de referencia con la que se
+  compara se había quedado congelada. Cuando todo está en ámbar, el ámbar deja de
+  avisar de nada.
+
 - **Comprobado un día después, y no el mismo día.** El registro de la máquina
   pasó de unas diez señales de avería diarias a **cero** en una jornada
   completa. Se esperó a tener el día entero antes de darlo por bueno: un arreglo
