@@ -78,7 +78,12 @@
  LA LICENCIA · 03 -> 04 -> 05, y no se saltan
 --------------------------------------------------------------------------------
 
-  03  Generar el par de llaves
+  03  Generar el par de llaves   [HECHA el 15/09]
+      Par creado y probado en el PADRE: firma y verificacion en verde,
+      y la publica ya esta en el repositorio. Su bloque A0 NO se puede
+      correr tal cual -- `script` mata al guion-- y queda explicado en
+      la propia tarjeta. Sigue abierta su seccion D: donde vive la frase.
+      >>> Con esto la 04 queda desbloqueada.
       Se hace UNA VEZ. Sin esto no se puede firmar ninguna licencia, asi que
       bloquea las dos siguientes.
       Su bloque A0 es un ENSAYO con una llave que se tira: comprueba que la
