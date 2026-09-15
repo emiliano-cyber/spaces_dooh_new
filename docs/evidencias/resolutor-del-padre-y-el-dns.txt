@@ -505,6 +505,37 @@ dig @8.8.8.8 +short +time=5 registry.digitalocean.com
 #  >>>     journalctl -u systemd-resolved --since today --no-pager | grep -c degraded
 
 # ############################################################
+#  MEDIDO EL 2026-09-15 - BLOQUE A CERRADO
+# ############################################################
+#    grep -c degraded  ..................  0     (eran ~10 diarias)
+#    communications error to 127.0.0.53 ..  ninguno
+#    uptime -s ..........................  2026-08-21 15:33:37
+#
+#  El `uptime` es la mitad del valor: sin reinicio desde el 21 de
+#  agosto, ese cero es un DIA COMPLETO de maquina viva con el
+#  arreglo puesto, no un contador que se puso a cero solo.
+#
+#  Y el relevo quedo demostrado por donde no se habia mirado. La
+#  pregunta buena no era "¿salta?" sino "¿de donde sale la lista?":
+#
+#      systemctl restart systemd-resolved
+#      resolvectl status | grep -E "DNS Servers"
+#      -> las TRES lineas con los tres servidores
+#
+#  El reinicio DESCARTA todo lo que puso `resolvectl dns`, que
+#  vive en memoria. Que sigan los tres despues de el prueba que
+#  el trabajo lo hacen los dos ARCHIVOS.
+#
+#  LO QUE SIGUE SIN DEMOSTRARSE, y se dice: el relevo servidor a
+#  servidor (con el primero mudo, que conteste el segundo). Se
+#  cierra POR AUSENCIA DE SINTOMA, no por observacion directa.
+#
+#  OJO, leccion del cierre: al rehacer los dos archivos con
+#  `printf` se perdieron sus COMENTARIOS, incluido el que explica
+#  por que el nombre empieza por `zz-`. Restaurados el mismo dia.
+#  En un servidor no hay revision de codigo que cace eso.
+
+# ############################################################
 #  ↩️  VUELTA ATRAS COMPLETA DEL BLOQUE A
 # ############################################################
 #  Si despues de confirmar algo va mal, esto lo deja EXACTAMENTE

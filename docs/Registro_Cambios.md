@@ -5,6 +5,49 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-15
+
+- **El servidor central dejó de quedarse sordo cada pocas horas.** Desde el 12
+  de septiembre, el servidor desde el que administramos toda la flota perdía
+  varias veces al día la capacidad de **traducir nombres de internet a
+  direcciones** —lo que hace un listín telefónico—. Tenía un solo listín y
+  ninguno de repuesto, así que cuando ese fallaba, la máquina no podía hablar
+  con nadie: ni bajar las actualizaciones que reparte cada noche, ni renovar los
+  certificados de seguridad, ni comprobar si las instancias de los clientes
+  están vivas. Ahora tiene tres, y usa el siguiente cuando el primero no
+  contesta.
+
+- **Y mientras tanto, el tablero de control acusaba a quien no debía.** Durante
+  esos ratos, el panel donde vemos el estado de cada cliente marcaba instancias
+  **perfectamente sanas** como caídas, porque no distinguía entre «el servidor
+  del cliente no responde» y «desde aquí no puedo ni preguntar». El fallo nunca
+  estuvo en la máquina del cliente. Con el listín arreglado, lo que diga el
+  panel vuelve a ser fiable.
+
+- **Encontrado: el cliente g500 lleva seis días con la aplicación casi
+  inalcanzable.** Quien abre su dirección sin haber iniciado sesión acaba en una
+  dirección interna del servidor, en vez de en la pantalla de acceso; sólo entra
+  quien escriba a mano la dirección del login. El arreglo existe desde el 10 de
+  septiembre, pero **nunca llegó a su máquina**.
+
+- **Por qué no llegó, y por qué nadie lo vio.** Las instancias bajan cada noche la
+  versión publicada en el canal de actualizaciones. Ese canal se quedó apuntando a
+  una copia del 9 de septiembre, **anterior al arreglo, pero con el mismo número de
+  versión que la copia buena**: dos paquetes distintos llamados igual. El tablero
+  interno mostraba el número correcto, así que todo parecía en orden.
+
+- **Y el tablero tampoco ayudaba.** Marcaba a todas las instancias como
+  «rezagadas» desde el 27 de agosto, porque la versión de referencia con la que se
+  compara se había quedado congelada. Cuando todo está en ámbar, el ámbar deja de
+  avisar de nada.
+
+- **Comprobado un día después, y no el mismo día.** El registro de la máquina
+  pasó de unas diez señales de avería diarias a **cero** en una jornada
+  completa. Se esperó a tener el día entero antes de darlo por bueno: un arreglo
+  de este tipo se ve funcionando con el tiempo, no en el momento de aplicarlo.
+
+---
+
 ## 2026-09-14
 
 - **Se cerró un agujero de seguridad en cómo se prepara el servidor de un

@@ -3,6 +3,36 @@
  Tarea 3 de docs/superpowers/plans/2026-09-10-alta-en-droplet-propio.md
 ================================================================================
 
+########## CERRADA EL 2026-09-15 ##########
+  Par creado en el PADRE. Medido, no afirmado:
+    A3  space-os.pub ........ 113 bytes, PEM valido
+    B   firmar-licencia.mjs .. codigo [0], firma y escribe los dos archivos
+    B   openssl pkeyutl ...... Signature Verified Successfully, codigo [0]
+  La publica esta en el repositorio: infra/licencias/space-os.pub
+  SIGUE ABIERTA la seccion D: donde vive la frase de paso.
+
+  DOS COSAS DE ESTA TARJETA QUE NO FUNCIONAN COMO DICE, medidas hoy:
+
+  1) EL BLOQUE A0 NO SE PUEDE CORRER TAL CUAL. `script -q -c` mata al guion
+     que pretende grabar: el guion lee de `process.stdin`, bajo `script` eso
+     llega a EOF, el `await` de nivel superior nunca se resuelve y node sale
+     con 13 SIN IMPRIMIR NADA. El `sesion.txt` queda con la cabecera y
+     `COMMAND_EXIT_CODE="13"`, y el `grep` da 0 -- un verde VACIO, porque la
+     frase nunca se tecleo.
+       >>> Lo que A0 protege se comprobo por observacion directa, que es la
+       >>> alternativa que esta misma tarjeta ofrece: se ejecuto el guion en
+       >>> un TTY real (ssh, /dev/pts/0), se tecleo la frase desechable y en
+       >>> el scrollback de la sesion no aparece. El mecanismo funciona.
+       >>> Y OJO: en la consola WEB del droplet el guion tampoco funciona,
+       >>> por lo mismo. `openssl` si, porque abre /dev/tty en vez de stdin.
+       >>> Si el guion leyera de /dev/tty, A0 y la consola web se arreglarian
+       >>> los dos con el mismo cambio. Anotado como tarea.
+
+  2) LA NOTA DE A2 SOBRE `existsSync` YA NO ES CIERTA. El guion SI comprueba
+     que la llave exista antes de pedir la frase (firmar-licencia.mjs:87) y
+     sale con 66 sin pedir nada. Se arreglo el 2026-09-11.
+###########################################
+
 QUE HACE
   Da de alta el par de llaves Ed25519 con el que el PADRE firma las licencias
   de los hijos (`apps/flota/firmar-licencia.mjs`) y con el que cada instancia

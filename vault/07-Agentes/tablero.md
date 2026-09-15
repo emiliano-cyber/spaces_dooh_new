@@ -6,6 +6,25 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!success] 2026-09-15 · **el resolutor del PADRE, cerrado con la medicion que lo cerraba**
+> `grep -c degraded` = **0** hoy, contra las ~10 diarias del 12, 13 y 14, y **sin
+> reinicio de por medio** (`uptime -s` = 21/08): es un dia completo de maquina
+> viva con el arreglo puesto.
+>
+> **Y el relevo quedo demostrado por donde no se habia mirado.** Los tres
+> intentos del 14/09 preguntaban «¿salta?»; la pregunta buena era «¿de donde sale
+> la lista?». `systemctl restart systemd-resolved` **descarta lo que puso
+> `resolvectl dns`**, y los tres ambitos siguen con los tres servidores: mandan
+> los archivos, no la memoria.
+>
+> ⚠️ **Al rehacer los dos archivos con `printf` se perdieron sus comentarios**,
+> incluido el que explica por que el nombre empieza por `zz-` —systemd aplica los
+> drop-ins por orden lexico y gana el ultimo—. Restaurados el mismo dia. En un
+> servidor no hay revision de codigo que cace eso.
+>
+> **Con el panel ya creible, siguen la 01 y la 02.** Detalle en
+> [[07-Agentes/diario/2026-09-15]].
+
 > [!success] 2026-09-14 · **R7 CERRADA** — y la tarjeta del alta llevaba tres dias rota
 > Las tres funciones que protegen la configuracion de una instancia salieron de
 > `instalar-hijo.sh` a **`infra/scripts/entorno-instancia.sh`**, que sourcean los
