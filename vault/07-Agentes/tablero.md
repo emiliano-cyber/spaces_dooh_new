@@ -6,6 +6,34 @@ tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
 
+> [!danger] 2026-09-15 · **g500 lleva seis dias mandando a `localhost`, y el panel no podia verlo**
+> `estable` sirve una imagen del **09/09 07:29 UTC**, dieciseis horas ANTERIOR al
+> arreglo del middleware (PR #78, 10/09 00:06 UTC) — y **sellada tambien como
+> `v0.5.0`**. La etiqueta de version se movio al reconstruir el 10/09 y el canal se
+> quedo con la primera.
+>
+> **Nada de lo que vigila esto aviso:** el nombre no distingue dos artefactos, y
+> `flota.json` compara contra `v0.1.0-padre` desde el 27/08, asi que TODAS las
+> instancias salen `rezagada`. **Cuando todo esta en ambar, el ambar no avisa.**
+>
+> Lo arregla el **PASO 3 de la tarjeta 07** — los otros tres ya estan dados. La
+> imagen vieja quedo nombrada `v0.5.0-09sep` (mismo digest) para que exista vuelta
+> atras. Detalle en [[07-Agentes/diario/2026-09-15]] y en `docs/Traspaso_20260915.md`.
+
+> [!success] 2026-09-15 · **tarjeta 03 CERRADA — el PADRE ya puede firmar licencias**
+> Par Ed25519 creado y probado: el guion firma con **codigo 0** y `openssl pkeyutl`
+> dice **Signature Verified Successfully**. La publica vive en
+> `infra/licencias/space-os.pub`, con `.gitattributes` para que no cambie de finales
+> de linea al viajar al cliente. **Desbloquea la 04.**
+>
+> ⚠️ Su bloque **A0 no se puede correr tal cual**: `script` mata al guion que
+> pretende grabar (node sale con **13** sin imprimir nada), y el `grep` da 0 — un
+> verde vacio. Se comprobo por observacion directa en un TTY real. **Y en la consola
+> web del droplet el guion tampoco funciona**: hoy no se podria firmar una licencia
+> desde ahi. Tarea anotada: leer la frase de `/dev/tty`, como hace `openssl`.
+>
+> ❓ **Sigue abierta la seccion D**: donde vive la frase de paso.
+
 > [!success] 2026-09-15 · **el resolutor del PADRE, cerrado con la medicion que lo cerraba**
 > `grep -c degraded` = **0** hoy, contra las ~10 diarias del 12, 13 y 14, y **sin
 > reinicio de por medio** (`uptime -s` = 21/08): es un dia completo de maquina
