@@ -1,0 +1,10 @@
+# Finales de linea. Este archivo NO decide la politica del repositorio
+# entero -- esa decision sigue abierta--: solo congela los archivos donde
+# una conversion silenciosa causaria un fallo en la maquina de un cliente.
+#
+# `infra/licencias/*.pub`: la llave publica de firma viaja con el instalador
+# de cada instancia. Se genera en Linux con LF, pero un checkout en Windows
+# la dejaba con CRLF (git avisa al commitearla), y desde Windows es desde
+# donde se arma el paquete del cliente. `-text` significa: no la conviertas
+# nunca, ni al traerla ni al guardarla.
+infra/licencias/*.pub -text
