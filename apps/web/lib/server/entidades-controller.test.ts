@@ -74,7 +74,11 @@ describe('el RFC pasa por el calendario, como en clientes y arrendadores', () =>
   })
 
   it('el mismo control en la edición', async () => {
-    await expect(editarEntidadCtrl('E1', { rfc: 'ESTO-NO-ES-UN-RFC' })).rejects.toThrow(
+    // El mismo RFC de 13 caracteres, no una cadena cualquiera: un texto más
+    // largo lo rechaza antes el `max(13)` del schema y la prueba pasaría sin
+    // haber ejercitado el calendario. Medido al escribirla — daba
+    // «RFC: No puede tener más de 13 caracteres».
+    await expect(editarEntidadCtrl('E1', { rfc: 'XAXX021301000' })).rejects.toThrow(
       'RFC inválido',
     )
     expect(repo.editarEntidad).not.toHaveBeenCalled()

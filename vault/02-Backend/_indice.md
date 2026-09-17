@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-17
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -10,9 +10,16 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **90** Route Handlers
-(medidos el 27/08) sobre **89** archivos en `apps/web/lib/server/`. No hay
-servicio aparte.
+El backend es un **BFF dentro de la propia app Next**: **94** Route Handlers
+sobre **97** archivos en `apps/web/lib/server/` —60 de módulo y 37 de prueba—.
+No hay servicio aparte.
+
+> [!tip] Recuento medido el 2026-09-17, no copiado
+> `find app/api -name route.ts | wc -l` y `ls lib/server/*.ts | wc -l`. La
+> medición anterior (27/08) decía 90 y 89: los dos números se habían quedado
+> atrás, y este archivo es de los que más caro cuesta tener mal. Si lo necesitas
+> exacto, vuelve a correr esas dos líneas en tu propio árbol — cada worktree está
+> en una rama distinta y da un recuento distinto.
 
 ## Notas de este apartado
 
@@ -22,7 +29,8 @@ servicio aparte.
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |
-| [[arrendadores-y-contratos]] | Arrendadores, contratos, rentas, firma |
+| [[arrendadores-y-contratos]] | Arrendadores, contratos, rentas, firma — la razón social de quien me **COBRA** |
+| [[entidades-fiscales]] | Las razones sociales **PROPIAS** del owner: quien **PAGA**, compra activos, tramita licencias o vende |
 | [[comercial-propuestas-campanas]] | Propuestas, reservas, campañas, creativos |
 | [[operaciones-y-ot]] | Órdenes de trabajo, evidencias, imprenta, almacén |
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |

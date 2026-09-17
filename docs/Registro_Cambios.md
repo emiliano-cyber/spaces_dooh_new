@@ -7,6 +7,40 @@ La entrada más reciente va arriba.
 
 ## 2026-09-17
 
+- **El sistema ya puede guardar TUS razones sociales, no solo la del dueño de la
+  pantalla.** Hasta hoy SPACE OS guardaba con detalle a nombre de quién te cobra
+  la renta el propietario de un predio, pero no guardaba **ninguna de las tuyas**.
+  Y una empresa de publicidad exterior no opera con una sola: normalmente hay una
+  que paga las rentas, otra que compra los equipos, otra que hace los trámites y
+  las licencias con gobierno, otra u otras que venden, y la operación con su
+  nómina aparte. Ahora se pueden dar de alta todas, cada una con su RFC, su
+  régimen, su código postal fiscal y la serie con la que folia sus documentos.
+
+- **Cada razón social lleva escrito para qué sirve, y puede servir para varias
+  cosas a la vez.** De partida hay cinco papeles —paga rentas, compra activos,
+  trámites y licencias, operación, ventas— y una misma sociedad puede tener
+  varios, porque es lo normal: operación y ventas casi siempre coinciden. Esa
+  lista de papeles **se puede cambiar sin tocar el programa**, a propósito: está
+  guardada como datos, no escrita dentro del código, porque todavía puede crecer.
+
+- **Dar de baja una razón social no borra nada.** Deja de aparecer al capturar,
+  pero sigue guardada: los contratos y los comprobantes que la nombran tienen que
+  seguir diciendo a nombre de quién se hicieron. Y si un día se eliminara de
+  verdad, los contratos **no desaparecen con ella**: se quedan sin razón social
+  asignada, que es un estado que el sistema entiende.
+
+- **Los contratos y los comprobantes ya existentes se quedan «sin asignar», y es
+  correcto.** No se inventó a quién pertenecen. Cada uno se irá asignando a mano
+  cuando alguien lo decida; nada se rellenó solo.
+
+- **Esto lo ve y lo edita quien administra la empresa**, no quien captura
+  contratos: es la identidad fiscal del negocio, no un dato operativo. Y cada
+  alta, cada cambio y cada baja queda anotada en el historial de actividad, con
+  el valor anterior y el nuevo cuando se trata de un cambio.
+
+- **Lo que todavía NO hay: pantalla.** Hoy solo se construyó la parte de abajo,
+  la que guarda y protege los datos. La pantalla para capturarlas llega aparte.
+
 - **Repartida la versión del 10 de septiembre a toda la flota.** El canal por el
   que las instancias bajan sus actualizaciones cada noche llevaba desde el 9 de
   septiembre apuntando a una copia vieja. Hoy se le puso la del 10.

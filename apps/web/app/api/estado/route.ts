@@ -23,6 +23,7 @@ import {
   listarLicencias,
   recomputarEstatusArrendadores,
 } from '@/lib/server/arrendadores-repo'
+import { listarEntidades } from '@/lib/server/entidades-repo'
 import { listarPropuestas } from '@/lib/server/propuestas-repo'
 import { listarOrdenesCompra } from '@/lib/server/ordenes-compra-repo'
 import { listarNotificaciones } from '@/lib/server/notificaciones-repo'
@@ -94,7 +95,7 @@ export async function GET() {
     puede('arrendadores') ? recomputarEstatusArrendadores() : null,
   ])
 
-  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias] =
+  const [sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales] =
     await Promise.all([
       si('network', listarSitios),
       si('network', listarSitiosRed),
@@ -121,9 +122,14 @@ export async function GET() {
       si('arrendadores', listarPredios),
       si('arrendadores', listarRazonesSociales),
       si('arrendadores', listarLicencias),
+      // Las razones sociales PROPIAS del owner — quien PAGA la renta, compra
+      // los activos o vende—, que no son las de `razonesSociales`: esas son del
+      // ARRENDADOR, quien me COBRA. Van por `administracion` porque son la
+      // identidad fiscal del negocio y no un dato operativo.
+      si('administracion', () => listarEntidades()),
     ])
   const cuerpo = {
-    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias,
+    sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales,
   }
   if (process.env.MEDIR_ESTADO === '1') medirRebanadas(cuerpo)
   return NextResponse.json(cuerpo)

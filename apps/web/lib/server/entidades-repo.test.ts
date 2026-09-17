@@ -212,11 +212,18 @@ describe('4 · el catálogo de roles se lee de la BASE, no de una constante', ()
 })
 
 describe('5 · el repo no se salta el contexto de tenant', () => {
-  it('no menciona `qRaw` en ninguna línea', () => {
+  it('no LLAMA a `qRaw` ni lo importa', () => {
     // `qRaw` existe para el bootstrap (tenants, usuarios, sesiones), que se
     // resuelve ANTES de conocer la organización. Aquí no hay nada así, y usarlo
     // desactivaría la RLS sin dar ningún error.
+    //
+    // Se buscan LLAMADAS y el import, no la palabra: la cabecera del repo
+    // explica por qué no se usa, y prohibir mencionarlo obligaría a borrar
+    // justo el comentario que impide que alguien lo use.
     const fuente = readFileSync(join(__dirname, 'entidades-repo.ts'), 'utf8')
-    expect(fuente).not.toMatch(/\bqRaw1?\b/)
+    expect(fuente).not.toMatch(/\bqRaw1?\s*\(/)
+    const linea = fuente.match(/^import \{[^}]*\} from '\.\/db'$/m)?.[0] ?? ''
+    expect(linea).not.toMatch(/qRaw/)
+    expect(linea, 'el repo tiene que importar `q` de ./db').toMatch(/\bq\b/)
   })
 })
