@@ -1,7 +1,7 @@
 ---
 tipo: manual
 estado: en-curso
-actualizado: 2026-09-15
+actualizado: 2026-09-17
 tags: [manual, usuario-final, negocio, instancias]
 archivos:
   - vault/00-Inventario/inventario-2026-09-15.md
@@ -10,7 +10,13 @@ archivos:
   - apps/web/middleware.ts
   - apps/web/app/(app)/login/page.tsx
   - apps/web/app/(app)/(shell)/
+  - apps/web/app/(app)/(shell)/integraciones/page.tsx
+  - apps/web/app/(app)/(shell)/actividad/page.tsx
+  - apps/web/app/(app)/(shell)/comisiones/page.tsx
+  - apps/web/app/(app)/(shell)/network/page.tsx
   - apps/web/app/(app)/codigos-recuperacion/
+  - apps/web/lib/server/integraciones.ts
+  - apps/web/lib/server/acciones-repo.ts
   - manuales/capturas-pendientes.md
 ---
 
@@ -32,6 +38,10 @@ pantalla.
 > revisión del **25 de agosto de 2026**, cuando se leyó la aplicación pantalla por
 > pantalla. **No se han vuelto a comprobar**. Si un botón se llama distinto en tu
 > instalación, manda lo que ves en tu instalación.
+>
+> Lo que se añadió el **17 de septiembre de 2026** —los apartados 3.7, 4.7, 4.8, 6.10 y
+> 6.11, y el capítulo 10 entero— lleva los textos vigentes a esa fecha. **Tampoco se ha
+> recorrido delante de la pantalla todavía.**
 
 Lo que este manual **no** cubre: la instalación de una organización nueva, el panel con el
 que se vigila el conjunto de instalaciones, y las licencias del producto. Eso lo opera
@@ -231,6 +241,11 @@ el Dueño— y, si él tampoco puede, a quien os da soporte de SPACE OS.
 
 Lo que un perfil no debe ver **no aparece en el menú**. No es que esté en gris: no está.
 
+El menú lateral va por fases, en el orden en que ocurre el trabajo: arriba **«Dashboard»**,
+solo y sin encabezado, y debajo cinco grupos —**«Inventario»**, **«Comercial»**,
+**«Operaciones»**, **«Finanzas»** y **«Sistema»**—. Un grupo del que no ves ninguna entrada
+tampoco muestra su título.
+
 > [!warning] Ver un módulo no es poder hacer todo dentro de él
 > Además del perfil, cada acción concreta —Ver, Crear, Aprobar, Facturar— depende del
 > permiso que tenga ese perfil sobre ese módulo. Si una opción no te aparece o te la
@@ -343,6 +358,45 @@ hace que las siete operaciones del apartado 2.6 pidan la contraseña.
 
 **Crear otra organización** dentro de tu instalación está reservado a quien administra la
 plataforma. Si necesitas una, pídesela a quien te da soporte.
+
+### 3.7 · Ver quién hizo qué, y cuándo
+
+> [!info] Solo si tu cuenta es Dueño
+> El resto de perfiles no ve **«Actividad»** en el menú.
+
+**Empiezas en:** el menú lateral, grupo **«Sistema»** → **«Actividad»**.
+
+**Vas a conseguir:** la lista de lo que se ha hecho en tu empresa, con el nombre de quien
+lo hizo y la fecha con hora.
+
+1. Abre **«Actividad»**.
+2. Si buscas un día concreto, elígelo en **«Fecha»**.
+3. Si buscas una franja horaria, elígela en **«Hora»**. Viene puesto en **«Toda hora»**.
+4. Si buscas a una persona, elígela en **«Quién»**. Viene puesto en **«Todos»**.
+5. Para volver a verlo todo, pulsa **«Limpiar»**.
+
+**Salió bien si:** la tarjeta **«Registro de acciones»** lista las acciones de la más
+reciente a la más antigua, cada una con quién, qué y cuándo. Junto a los filtros ves el
+conteo de cuántas coinciden sobre el total.
+
+Ejemplos de lo que queda anotado, con el texto que verás: *«Creó cliente»*, *«Dio de alta
+pantalla»*, *«Creó contrato de arrendamiento»*, *«Envió contrato a firma»*, *«Registró
+pago de renta»*, *«Creó OT»*, *«Cerró OT con testigo»*, *«Subió creativo»*, *«Aprobó
+creativo»*, *«Generó factura»*, *«Envió recordatorio de cobro»*, *«Invitó usuario»*,
+*«Desbloqueó los cambios»* y *«Contraseña de cambios incorrecta»*.
+
+> [!warning] La pantalla trae las 200 acciones más recientes, no la historia completa
+> Si filtras por una fecha antigua y no sale nada, no significa que aquel día no pasara
+> nada: significa que eso ya no entra en las 200 que la pantalla carga. Para una consulta
+> más vieja, pídesela a quien te da soporte.
+
+Lo que hace el sistema por su cuenta, sin persona detrás, aparece a nombre de **Sistema**.
+
+Si todavía no hay nada, la tarjeta lo dice: *«Sin actividad todavía»*. Y si hay acciones
+pero ninguna cuadra con los filtros: *«Ninguna acción coincide con los filtros.»*
+
+> [!note] Captura: la pantalla «Actividad» con el filtro «Quién» desplegado
+> No existe todavía.
 
 ---
 
@@ -496,6 +550,73 @@ Eye»** con el estado del dispositivo, la última señal, la foto y el veredicto
 verificación: **«Anuncio correcto»**, **«No coincide con la creatividad»** o **«Sin
 verificación IA aún»**.
 
+### 4.7 · Marcar una pantalla como compartida a la Network
+
+Entran el **Dueño** y **Comercial**, pero solo el Dueño la guarda: lee el aviso de abajo.
+
+**Empiezas en:** el menú lateral, grupo **«Inventario»** → **«Network»**.
+
+**Vas a conseguir:** dejar señalado qué espacios tuyos sin vender estás dispuesto a
+compartir.
+
+1. Baja a la tarjeta **«Reglas de comercialización por pantalla»**.
+2. Busca la pantalla en la tabla. Cada fila trae su nombre y, debajo, su código.
+3. Pulsa el interruptor de la columna **«En Network»**.
+
+**Salió bien si:** el interruptor queda encendido, abajo aparece el aviso *«<pantalla>
+compartida a la Network»* y el indicador **«En la Network»** de la fila de arriba sube en
+uno.
+
+Para dejar de compartirla, pulsa otra vez el mismo interruptor: *«<pantalla> quitada de la
+Network»*.
+
+> [!warning] Si tu cuenta es Comercial, el interruptor te aparece pero no guarda
+> El cambio necesita permiso para crear en el módulo de inventario, que el perfil Comercial
+> no trae de fábrica. Lo confuso es que **el aviso de confirmación sale igual**: fíate del
+> interruptor, que vuelve a su sitio, y no del mensaje. Si hace falta cambiarlo, pídeselo al
+> Dueño, o que te conceda ese permiso (apartado 3.5).
+
+También puedes marcarla al darla de alta desde **«Comercial»** → **«Nueva pantalla»**, con
+la casilla *«Compartir a la Network (inventario no vendido)»*.
+
+> [!info] Compartir no reserva, no bloquea y no cambia la tarifa
+> Dentro de SPACE OS, marcar una pantalla aquí la cuenta en los indicadores de esta
+> pantalla y hace que su ficha diga **«En Network · Sí»**. Nada más. Si esperas que
+> aparezca en algún catálogo fuera de tu instalación, pregúntaselo a quien te da soporte:
+> está anotado en los pendientes del final.
+
+**Los cuatro indicadores de arriba.** **«Espacios totales»** (con cuántos van en la
+Network), **«En la Network»**, **«Programáticos»** —los de venta automatizada— y
+**«Tradicionales»** —los de venta directa—.
+
+**Las dos columnas que no se editan aquí.** **«Comercialización»** dice *Programático* o
+*Tradicional*, y **«CMS»** dice con qué sistema se reproduce la pantalla digital
+—*Broadsign*, *Invidis*, *Doohmain* u *Otros*—. Las dos se capturan al dar de alta la
+pantalla desde **«Comercial»**, en **«Regla de comercialización»** y **«CMS»**; en esta
+tabla solo se consultan.
+
+La tarjeta **«CMS utilizado en la Network»** cuenta cuántas pantallas compartidas usa cada
+sistema. Si no has compartido ninguna digital, dice *«Ningún espacio digital compartido
+aún.»*
+
+> [!note] Captura: la tabla «Reglas de comercialización por pantalla» con un interruptor encendido
+> No existe todavía.
+
+### 4.8 · Consultar la red de pantallas de la plataforma
+
+**Empiezas en:** **«Network»** → tarjeta **«Red de pantallas · toda la plataforma»**.
+
+Es un catálogo de consulta, con **Pantalla · Operador · Tipo · Ubicación · Tarifa**. Las
+tuyas llevan la etiqueta **«Tuya»**. La propia tarjeta avisa de la regla: *«Solo el
+operador dueño puede editarlas.»*
+
+**Lo que ves hoy son tus propias pantallas.** Tu instalación solo contiene los datos de tu
+empresa, así que no vas a encontrar aquí inventario de otros operadores. Si la tabla está
+vacía, lo dice: *«Aún no hay pantallas en la red.»*
+
+De lo que no fuera tuyo, la aplicación nunca muestra costos internos ni margen: solo el
+nombre, el tipo, dónde está y la tarifa publicada.
+
 ---
 
 ## 5 · Arrendadores y contratos
@@ -551,7 +672,7 @@ Dashboard.
 
 > [!info] Esto no tiene nada que ver con la licencia de SPACE OS
 > Aquí se registran los permisos de anuncio de tus sitios. La licencia del producto es
-> otra cosa y la lleva quien te da soporte (apartado 10.4).
+> otra cosa y la lleva quien te da soporte (apartado 11.4).
 
 ### 5.4 · Completar un contrato que quedó incompleto
 
@@ -807,6 +928,82 @@ campaña aparece en **«Campañas»**.
 | **Sitios de la campaña** | Las pantallas asignadas |
 | **Imprenta** · **Órdenes de trabajo** · **Creatividades** · **Evidencias fotográficas** | El trabajo de ejecución, en su propio bloque |
 | **Reproducciones (proof of play)** | Lo efectivamente reproducido, por rango de fechas |
+
+### 6.10 · Ajustar la comisión de una agencia
+
+Entran el **Dueño** y **Comercial**. Si tu perfil solo consulta el módulo comercial, verás
+los datos pero no podrás cambiarlos.
+
+**Empiezas en:** el menú lateral, grupo **«Finanzas»** → **«Comisiones»**.
+
+**Vas a conseguir:** que las propuestas de los clientes de esa agencia se calculen con el
+porcentaje correcto.
+
+1. En la tarjeta **«Agencias y su comisión»**, busca la agencia.
+2. Escribe el porcentaje en la casilla de la columna **«Comisión (%)»**.
+3. Pulsa **«Guardar»**, que aparece en cuanto el número cambia. También vale pulsar Enter.
+
+**Salió bien si:** el número queda fijado y la columna **«Comisión aplicada»** de la
+tarjeta de abajo cambia para los clientes de esa agencia.
+
+> [!warning] Cambiar la comisión aquí no toca las propuestas ya hechas
+> Cada propuesta guarda el porcentaje con el que se armó (apartado 6.4). Lo que cambias en
+> esta pantalla se aplica de aquí en adelante.
+
+**La negociación, en la misma fila.** La columna **«Negociación»** muestra uno de tres
+estados:
+
+| Lo que ves | Qué significa | Qué puedes hacer |
+|---|---|---|
+| **«Sin negociación»** | No hay términos particulares que validar | Nada |
+| **«Sin validar»** | Hay términos, pero nadie los ha dado por buenos | Pulsar **«Validar»** |
+| **«Validada»** | Ya se puede vender con esa agencia | Pulsar **«Quitar»** para volver atrás |
+
+> [!warning] Sin la negociación validada no se vende a esa agencia
+> La propia pantalla lo dice: *«Sin validar, no se pueden crear ni aprobar propuestas con
+> esta agencia.»*
+
+**Dar de alta una agencia nueva.**
+
+1. Pulsa **«Nueva agencia»**.
+2. Captura el **«Nombre de la agencia»**.
+3. Captura la **«Comisión de la agencia (%)»**.
+4. Si hay acuerdo particular, marca *«¿Hay negociación con la agencia?»* y escribe los
+   términos —comisión especial, condiciones de pago— en el recuadro.
+5. Marca **«Negociación validada»** solo si de verdad está validada.
+6. Pulsa **«Crear agencia»**.
+
+**Salió bien si:** la agencia aparece en la tabla con su comisión y su estado de
+negociación.
+
+> [!info] Una agencia es un cliente de tipo Agencia
+> La ventana lo dice: *«Alta de cliente tipo Agencia con su comisión»*. Vas a encontrarla
+> también en **«Clientes»**, y desde ahí puedes completarle los datos fiscales (apartado
+> 6.1).
+
+Si aún no hay ninguna, la tarjeta lo dice: *«Aún no hay agencias. Usa «Nueva agencia» para
+crear una.»*
+
+> [!note] Captura: la tarjeta «Agencias y su comisión» con una negociación sin validar
+> No existe todavía.
+
+### 6.11 · Decir qué agencia le aplica a un cliente
+
+**Empiezas en:** **«Comisiones»** → tarjeta **«Clientes y su agencia»**.
+
+1. Busca al cliente en la tabla.
+2. Elige la agencia en el selector de su fila. Viene puesto en **«— Selecciona agencia —»**.
+
+**Salió bien si:** la columna **«Comisión aplicada»** pasa a mostrar el porcentaje de esa
+agencia. Un cliente sin agencia muestra un guion.
+
+> [!warning] Desde aquí se cambia de agencia, pero no se quita
+> Volver a elegir **«— Selecciona agencia —»** no hace nada. Si un cliente tiene que
+> quedarse sin agencia, está anotado en los pendientes del final: hoy no hay una forma
+> escrita de hacerlo.
+
+La columna **«Clientes»** de la tarjeta de arriba te dice cuántos clientes cuelgan de cada
+agencia. Si no hay clientes directos, la tarjeta lo dice: *«No hay clientes directos.»*
 
 ---
 
@@ -1064,9 +1261,97 @@ Pide al remitente que te envíe uno nuevo.»*
 
 ---
 
-## 10 · Preguntas frecuentes y problemas típicos
+## 10 · Los sistemas de otras empresas que SPACE OS puede usar
 
-### 10.1 · Avisos, alertas y notificaciones: son tres cosas
+> [!info] Solo si tu cuenta es Dueño
+> El resto de perfiles no ve **«Integraciones»** en el menú.
+
+SPACE OS puede apoyarse en servicios de terceros: quien cuenta la audiencia frente a una
+pantalla, quien reproduce el contenido en los equipos de la calle, quien sella
+fiscalmente las facturas. En la pantalla **«Integraciones»** compruebas cuáles de esos
+servicios tiene enchufados tu copia.
+
+### 10.1 · Comprobar qué conectores tiene tu instalación
+
+**Empiezas en:** el menú lateral, grupo **«Sistema»** → **«Integraciones»**.
+
+Ves tres tarjetas, y cada una explica para qué sirve con estas palabras:
+
+| Conector | Para qué es |
+|---|---|
+| **«AdMobilize (Computer Vision)»** | *«Conteo de audiencia y vehículos por dispositivo de visión.»* |
+| **«CMS / players DOOH»** | *«Publicar contenido y traer proof-of-play (Broadsign, Doohmain, etc.).»* |
+| **«Facturación fiscal (CFDI / SUNAT)»** | *«Timbrado fiscal de facturas por país (PAC en MX / SUNAT en PE).»* |
+
+Cada tarjeta lleva una etiqueta a la derecha:
+
+- **«Conectado»**, y debajo *«Credenciales cargadas · responde el proveedor real.»*
+- **«Sin credenciales»**, y debajo *«Devuelve datos simulados.»*
+
+**Salió bien si:** ves las tres tarjetas con su etiqueta. Si a alguna le faltan las claves,
+arriba aparece además el aviso *«Hay conectores sin credenciales: devuelven datos simulados
+hasta que se configuren en el servidor.»* Si están los tres conectados, ese aviso no sale:
+no es que se haya perdido.
+
+> [!warning] Desde esta pantalla no se conecta nada
+> No hay dónde escribir una clave ni un usuario. Las credenciales se cargan en el servidor
+> de tu instalación, y eso lo hace quien te da soporte. Esta pantalla informa; no opera.
+
+> [!info] «Conectado» significa que la clave está cargada
+> No significa que el proveedor esté respondiendo bien en este momento, ni que ese servicio
+> se esté usando hoy en tu operación.
+
+> [!note] Captura: la pantalla «Integraciones» con un conector «Conectado» y otro «Sin credenciales»
+> No existe todavía.
+
+### 10.2 · Probar el conteo de audiencia de un dispositivo
+
+**Empiezas en:** **«Integraciones»** → tarjeta **«Probar AdMobilize»**.
+
+**Vas a conseguir:** comprobar si el conector de conteo de audiencia contesta.
+
+1. Escribe el identificador del equipo en **«ID del dispositivo»**. La casilla viene con un
+   ejemplo escrito; bórralo y pon el tuyo.
+2. Pulsa **«Consultar métricas»**. Mientras consulta, el botón dice **«Consultando…»**.
+
+**Salió bien si:** debajo aparece un recuadro con **«Vehículos»**, **«Personas»**, **«Vel.
+prom.»** en kilómetros por hora y **«Ventana»**, que es el periodo al que corresponden esas
+cifras.
+
+> [!danger] Si el conector está «Sin credenciales», esos números son inventados
+> El propio recuadro lo marca: *«Datos simulados (sin credenciales)»*. No los uses para
+> cobrarle a un cliente, ni para un reporte de campaña, ni para negociar una tarifa.
+
+La verificación de que tu anuncio se está viendo de verdad en una pantalla con cámara no se
+lee aquí: está en la ficha de la pantalla, en el bloque **«Inteligencia artificial · Space
+Eye»** (apartado 4.6). Es otra conexión distinta y no aparece en esta pantalla.
+
+### 10.3 · Qué hacer cuando un conector dice «Sin credenciales»
+
+Significa que tu instalación no tiene todavía la clave de ese proveedor. No es una avería
+tuya y no se arregla desde la aplicación.
+
+**A quién avisas:** a quien te da soporte de SPACE OS. Dile qué conector es, tal como lo
+nombra la pantalla.
+
+| Lo que ves | Qué significa para tu trabajo |
+|---|---|
+| **«AdMobilize (Computer Vision)» · Sin credenciales** | Las cifras del apartado 10.2 son simuladas. No hay conteo de audiencia real |
+| **«CMS / players DOOH» · Sin credenciales** | No es lo que gobierna la publicación de tus campañas digitales. Lee el aviso de abajo |
+| **«Facturación fiscal (CFDI / SUNAT)» · Sin credenciales** | No hay sellado fiscal conectado por esta vía. Tu factura se emite igual (apartado 8.2) |
+
+> [!warning] Esta pantalla no manda sobre la publicación de campañas digitales
+> Mandar el arte a las pantallas de la calle tiene su propio camino y sus propios mensajes
+> (apartado 7.3), incluido *«La integración con DOOHmain está apagada»*. Puede darse que
+> aquí leas **«Sin credenciales»** y tus campañas se publiquen sin problema, y también al
+> revés. Si las dos cosas no cuadran, hazle caso a lo que te diga la campaña y avisa a
+> soporte.
+
+---
+
+## 11 · Preguntas frecuentes y problemas típicos
+
+### 11.1 · Avisos, alertas y notificaciones: son tres cosas
 
 | | Dónde | Qué es |
 |---|---|---|
@@ -1083,7 +1368,7 @@ dejan de consultarse y se ponen al día al volver.
 Puedes apagar tipos de alerta que no quieres ver desde la tarjeta **«Alertas»**. Es una
 preferencia **de tu navegador**: no cambia nada para tus compañeros.
 
-### 10.2 · Mensajes que vas a ver, y qué hacer con ellos
+### 11.2 · Mensajes que vas a ver, y qué hacer con ellos
 
 | Mensaje | Qué significa | Qué haces |
 |---|---|---|
@@ -1102,7 +1387,7 @@ preferencia **de tu navegador**: no cambia nada para tus compañeros.
 | *«No tienes permiso para esta acción»* | Tu perfil no incluye esa capacidad | Pídesela al Dueño (apartado 3.5) |
 | *«Esas pantallas son de alguien más (otro operador ya las registró en la red)»* | Estás importando inventario ya registrado | Revisa el archivo de carga |
 
-### 10.3 · El navegador me lleva a una dirección rara y no llego al login
+### 11.3 · El navegador me lleva a una dirección rara y no llego al login
 
 Es un fallo conocido y **está medido**. En algunas instalaciones, al abrir la dirección de
 tu empresa sin haber entrado, el navegador te manda a una dirección local que no existe en
@@ -1116,7 +1401,7 @@ con normalidad.
 instalación está sirviendo una versión anterior al arreglo de la redirección*. Con eso
 sabrá qué hacer.
 
-### 10.4 · Me aparece una banda avisando de la licencia
+### 11.4 · Me aparece una banda avisando de la licencia
 
 Tu copia de SPACE OS tiene una licencia con fecha. Cuando se acerca el vencimiento, aparece
 una banda arriba.
@@ -1128,12 +1413,12 @@ de gracia posterior al vencimiento.
 > No es que se ponga lenta o que falle una pantalla: la dirección deja de mostrar SPACE OS.
 > Si ves la banda, avisa a quien te vende SPACE OS **antes** de que se cumpla el plazo.
 
-### 10.5 · ¿Hay que hacer algo para actualizar?
+### 11.5 · ¿Hay que hacer algo para actualizar?
 
 No. Tu copia se actualiza sola de madrugada, a las 04:17, y hace una copia de seguridad de
 tus datos antes de tocar nada.
 
-### 10.6 · Otras preguntas que salen seguido
+### 11.6 · Otras preguntas que salen seguido
 
 **¿Cuánto dura mi sesión?** Hasta que caduca o hasta que alguien restablece tu contraseña.
 Si te saca, vuelve a entrar con normalidad.
@@ -1149,7 +1434,8 @@ arrendamiento sí admiten elegir MXN o USD al crearlos.
 **¿Puedo borrar a una persona del equipo?** No se borra: se deja **Inactiva** (apartado
 3.3). Su rastro en la bitácora tiene que seguir existiendo.
 
-**¿Dónde veo quién hizo qué?** En **«Actividad»**, que filtra por fecha, hora y persona.
+**¿Dónde veo quién hizo qué?** En **«Actividad»**, que filtra por fecha, hora y persona
+(apartado 3.7). La pantalla trae las 200 acciones más recientes.
 
 **¿Qué significan los estados que veo en las etiquetas de color?**
 
@@ -1176,6 +1462,7 @@ arrendamiento sí admiten elegir MXN o USD al crearlos.
 
 [[00-Inventario/inventario-2026-09-15]] · [[08-Manuales/manual-usuario-2026-08-25]] ·
 [[08-Manuales/manual-tecnico-2026-08-11]] · [[00-Indice/MOC-Proyecto]] ·
+[[02-Backend/integraciones-externas]] · [[03-Frontend/modulos-internos]] ·
 [[03-Frontend/shell-y-navegacion]] · [[03-Frontend/paginas-publicas]] ·
 [[05-Flujos/flujo-login]] · [[05-Flujos/flujo-acceso-con-google]] ·
 [[05-Flujos/flujo-propuesta-a-campana]] · [[05-Flujos/flujo-facturacion-y-cobranza]] ·
@@ -1189,50 +1476,82 @@ Preguntas concretas que este manual **no puede responder** con el inventario del
 septiembre. Hay que probarlas en la aplicación o preguntárselas a quien las decidió, y la
 respuesta se corrige en el inventario, no a mano aquí.
 
-1. **¿Cómo se llaman hoy los grupos del menú lateral?** La revisión del 25 de agosto los
-   nombraba Inventario, Vender, Entregar, Finanzas y Sistema. El encargo de esta corrida
-   dice que el menú cambió a Comercial y Operaciones. El inventario del 15/09 lista las
-   pantallas y quién entra a cada una, pero no nombra los grupos.
-2. **¿Por dónde se llega a «Configuración» y quién puede entrar?** La pantalla existe, pero
+> El pendiente sobre los nombres de los grupos del menú **queda resuelto**: hoy son
+> **«Inventario»**, **«Comercial»**, **«Operaciones»**, **«Finanzas»** y **«Sistema»**, con
+> **«Dashboard»** arriba y sin encabezado (apartado 3.1).
+
+1. **¿Por dónde se llega a «Configuración» y quién puede entrar?** La pantalla existe, pero
    no aparece en la lista de módulos del menú. El manual anterior decía que se abre desde
    tu nombre, arriba a la derecha. No está comprobado.
-3. **¿Cuántos códigos de recuperación genera el sistema, y se pueden volver a ver?** Se
+2. **¿Cuántos códigos de recuperación genera el sistema, y se pueden volver a ver?** Se
    sabe que son de un solo uso y que la pantalla existe. El resto está por comprobar.
-4. **¿Cuándo obliga el sistema a pasar por «Códigos de recuperación»?** El inventario dice
+3. **¿Cuándo obliga el sistema a pasar por «Códigos de recuperación»?** El inventario dice
    que esa pantalla es salida obligatoria del control de sesión, pero no en qué situaciones
    te lleva allí.
-5. **¿Cuánto dura una sesión antes de caducar?** La revisión de agosto decía 30 días. No
+4. **¿Cuánto dura una sesión antes de caducar?** La revisión de agosto decía 30 días. No
    está confirmado hoy.
-6. **¿Cuántos intentos fallidos de entrar admite el sistema, y por cuánto tiempo bloquea?**
+5. **¿Cuántos intentos fallidos de entrar admite el sistema, y por cuánto tiempo bloquea?**
    La revisión de agosto daba cifras concretas; el inventario del 15/09 solo confirma que
    existe un límite en la entrada con Google.
-7. **¿Sigue existiendo la entrada pública «Ver tu propuesta» donde el cliente teclea un
+6. **¿Sigue existiendo la entrada pública «Ver tu propuesta» donde el cliente teclea un
    código tipo `PR-A0BC4F`?** El inventario lista una pantalla de propuesta que exige
    sesión, lo que apunta a que hoy es otra cosa.
-8. **¿Está encendida la recuperación de contraseña por correo en las instalaciones de
+7. **¿Está encendida la recuperación de contraseña por correo en las instalaciones de
    clientes?** Depende de si cada instalación tiene servidor de correo configurado. Sin
    respuesta, el apartado 2.4 tiene que quedar en condicional.
-9. **¿Puede el cliente subir su propia orden de compra desde el portal, o siempre la
+8. **¿Puede el cliente subir su propia orden de compra desde el portal, o siempre la
    registras tú?** No está descrito.
-10. **¿Cómo se reasigna una orden de trabajo que quedó con la cuadrilla equivocada?** Hoy
-    la aplicación no ofrece esa acción. Falta decidir si se añade o si el procedimiento es
-    cancelar y crear otra.
-11. **¿Cómo se corrige un abono de cobranza mal capturado?** No hay acción en la interfaz.
+9. **¿Cómo se reasigna una orden de trabajo que quedó con la cuadrilla equivocada?** Hoy
+   la aplicación no ofrece esa acción. Falta decidir si se añade o si el procedimiento es
+   cancelar y crear otra.
+10. **¿Cómo se corrige un abono de cobranza mal capturado?** No hay acción en la interfaz.
     Hace falta un procedimiento escrito.
-12. **«Plazos de cobranza (días)» no gobierna nada.** La lista se guarda en Administración
+11. **«Plazos de cobranza (días)» no gobierna nada.** La lista se guarda en Administración
     y la ventana de facturar ofrece siempre 60, 90 y 120. O el ajuste debe mandar sobre esa
     ventana, o debe retirarse. Un ajuste que aparenta hacer algo y no lo hace es peor que
     no tenerlo.
-13. **¿Está en uso real el módulo «Almacén»,** o es funcionalidad adelantada que todavía no
+12. **¿Está en uso real el módulo «Almacén»,** o es funcionalidad adelantada que todavía no
     usa nadie?
-14. **¿Cuál es el catálogo oficial de tipos de licencia y de métodos de pago?** Los
+13. **¿Cuál es el catálogo oficial de tipos de licencia y de métodos de pago?** Los
     selectores los ofrecen, pero no están fijados por escrito como catálogo de negocio.
-15. **¿Qué política hay para los adjuntos** —facturas y comprobantes de renta, documentos
+14. **¿Qué política hay para los adjuntos** —facturas y comprobantes de renta, documentos
     de contrato—: cuánto se conservan y quién puede borrarlos.
-16. **¿Está encendida la subida de imágenes en las instalaciones nuevas?** El inventario
+15. **¿Está encendida la subida de imágenes en las instalaciones nuevas?** El inventario
     señala que la configuración de almacenamiento de archivos no viaja en la plantilla de
     instalación, y que no se sabe si eso es deliberado. Si está apagada, la carga de
     imágenes de pantallas y creativos no funciona en una instalación recién puesta.
-17. **Las capturas.** De las 32 planificadas solo hay material para tres, tomadas el 11 de
-    agosto. El recuento vive en `manuales/capturas-pendientes.md`. Este manual marca con
-    una nota cada sitio donde hace falta una.
+16. **¿Qué ocurre fuera de SPACE OS cuando compartes una pantalla a la Network?** Dentro de
+    la aplicación, marcarla solo la cuenta en los indicadores de esa pantalla y hace que su
+    ficha diga **«En Network · Sí»**. Nadie ha escrito a dónde viaja ese inventario ni
+    quién lo ve. Mientras no haya respuesta, el apartado 4.7 no puede prometer más.
+17. **¿Debe «Red de pantallas · toda la plataforma» enseñar pantallas de otras empresas?**
+    Hoy una instalación solo tiene los datos de su empresa, así que esa tabla y su columna
+    **«Operador»** —con su valor *«Otro operador»*— nunca muestran nada ajeno. O la tabla
+    tiene un origen que falta, o sobra la columna.
+18. **El interruptor «En Network» le aparece a Comercial y no le guarda.** Guardar necesita
+    permiso sobre el inventario, que Comercial no tiene, y aun así sale el aviso de
+    confirmación. Hay que decidir si se le concede el permiso, si se le oculta el
+    interruptor, o si el aviso debe decir que no se guardó. **Un aviso de éxito sobre algo
+    que no ocurrió es lo peor de las tres opciones.**
+19. **¿Cómo se deja a un cliente sin agencia?** En **«Comisiones»**, el selector de agencia
+    cambia de una a otra pero no admite quitarla: elegir **«— Selecciona agencia —»** no
+    hace nada. Falta decir por dónde se hace, o añadirlo.
+20. **¿Cuánto se conserva la bitácora de «Actividad», y cómo se consulta lo anterior?** La
+    pantalla trae las 200 acciones más recientes y no ofrece descarga. Para una auditoría
+    de hace meses no hay procedimiento escrito.
+21. **¿A quién se le piden las credenciales de un conector, y qué hay que darle?** La
+    pantalla **«Integraciones»** no tiene dónde escribirlas: se cargan en el servidor. Falta
+    el procedimiento, y con él lo que el Dueño tiene que aportar de cada proveedor.
+22. **¿Qué usa de verdad cada uno de los tres conectores de «Integraciones»?** Hoy la
+    etiqueta **«Conectado»** solo dice que la credencial está cargada, y el resto de la
+    aplicación no cambia según esa etiqueta: la publicación de campañas digitales (apartado
+    7.3) va por su propio camino, y la factura se emite igual. O la pantalla se reduce a lo
+    que sí opera, o se explica qué enciende cada conector.
+23. **¿El «ID del dispositivo» de «Probar AdMobilize» es el mismo identificador** que se
+    captura en la ficha de la pantalla, en la solapa **«IA/Vision»**? Si no lo es, hay que
+    decir de dónde se saca cada uno.
+24. **Las capturas.** De las 32 planificadas solo hay material para tres, tomadas el 11 de
+    agosto, y esta corrida añade **cuatro** sitios más donde hace falta una —Actividad,
+    Network, Comisiones e Integraciones—. El recuento vive en
+    `manuales/capturas-pendientes.md`. Este manual marca con una nota cada sitio donde
+    falta.
