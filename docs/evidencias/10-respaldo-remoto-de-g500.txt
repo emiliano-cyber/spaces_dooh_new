@@ -1,0 +1,211 @@
+##############################################################
+#  10 · EL RESPALDO REMOTO DE UNA INSTANCIA
+#  Levantada y EJECUTADA el 2026-09-17 sobre g500.
+#  Se conserva corregida con lo que se aprendio al correrla:
+#  sirve tal cual para la siguiente instancia.
+##############################################################
+#
+#  QUE PASABA
+#  ----------
+#  `update.sh` lo decia cada vez que corria, y lo dijo DOS VECES
+#  el 17/09 sin que nadie lo leyera:
+#
+#    respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET.
+#    Esta instancia NO tiene respaldo fuera del droplet: si la
+#    maquina desaparece, el dump desaparece con ella.
+#
+#  g500 es la UNICA instancia con datos reales de cliente. Sus
+#  respaldos vivian en /var/lib/space-os/respaldos DEL MISMO
+#  DROPLET que protegen. Un `pg_dump` que solo existe en la
+#  maquina de la que te protege no es un respaldo.
+#
+#  Y habia un circulo cerrado que lo hacia invisible: el aviso
+#  sale en el log, y el log tampoco salia del droplet porque
+#  faltaba LOGS_BUCKET. Para enterarte de que no tienes respaldo
+#  habia que entrar al servidor -- justo lo que este modelo evita.
+#
+#  NO ERA UN OLVIDO DE g500. `provision-instancia.sh` nunca
+#  escribio esas claves. TODA instancia nacia asi. Arreglado en
+#  `fix/instancia-nace-sin-respaldo-remoto`: ahora el alta SE PARA
+#  si faltan. Esta tarjeta arregla las que YA existen.
+#
+##############################################################
+#  ⚠️  LOS TRES ERRORES QUE COSTARON TIEMPO AL EJECUTARLA
+##############################################################
+#
+#  1) LA REGION NO ES `nyc3`. `respaldo.sh:95` la trae como valor
+#     por omision y ESTA CUENTA USA `sfo3`. Se lee en la URL del
+#     bucket, en el panel:
+#
+#       https://space-os-respaldos.sfo3.digitaloceanspaces.com
+#                                   ^^^^
+#
+#     Con la region equivocada la subida falla con
+#     `404 NoSuchBucket`, que se lee como «el bucket no existe» y
+#     manda a crear uno que YA EXISTE.
+#
+#  2) `respaldo.sh` NO LEE `instancia.env` POR SU CUENTA -- lo
+#     sourcea `update.sh`, que es quien trae la configuracion.
+#     Lanzado suelto no tiene credenciales. Y va por subcomandos
+#     (`subir`, `podar`, `destino`): a secas imprime la ayuda y
+#     sale con 1. Por eso todos los comandos de abajo cargan el
+#     entorno primero.
+#
+#  3) `respaldo.sh destino` NO DEMUESTRA NADA. Solo compone la
+#     cadena con SPACES_BUCKET e INSTANCIA; no mira las
+#     credenciales y no habla con S3. Y como SPACES_BUCKET tiene
+#     valor por omision, IMPRIME UNA RUTA BONITA CON EL ARCHIVO
+#     SIN CONFIGURAR. La unica prueba es `subir`.
+#
+##############################################################
+#  PASO 1 · LOS BUCKETS              🌐 EN DIGITALOCEAN
+##############################################################
+#
+#  Panel > Spaces Object Storage > pestaña "Buckets".
+#
+#  a) Si ya existe `space-os-respaldos`, USALO y APUNTA SU REGION
+#     de la URL que aparece bajo el nombre. No crees otro: un
+#     nombre distinto obliga a poner SPACES_BUCKET en cada
+#     instancia y a acordarse siempre.
+#
+#  b) Si no existe, boton "Create Bucket":
+#       Nombre  : space-os-respaldos
+#       Region  : la que elijas -- ANOTALA, es SPACES_REGION
+#       Acceso  : RESTRINGIDO. Nunca publico: son datos de cliente.
+#
+#  c) El de logs, EN LA MISMA REGION:
+#       Nombre  : space-os-logs
+#     Son dos A PROPOSITO: los respaldos llevan datos del cliente
+#     y los logs no, asi que no comparten permisos.
+#
+#  >>> DECISION ABIERTA: el plan (F3.7) pedia "una llave por
+#  >>> instancia con permiso solo sobre SU prefijo", y Spaces NO
+#  >>> puede hacerlo: sus llaves se limitan POR BUCKET. El 27/08
+#  >>> se decidio bucket compartido porque habia una sola
+#  >>> instancia. Con la segunda vuelve a la mesa (F5.7).
+#
+##############################################################
+#  PASO 2 · LA LLAVE                 🌐 EN DIGITALOCEAN
+##############################################################
+#
+#  Dos caminos, los dos validos:
+#
+#  a) REUSAR la del PADRE. Ya existe y funciona -- se comprobo el
+#     17/09: su fallo era `404 NoSuchBucket`, que es una respuesta
+#     AUTENTICADA (si la credencial no valiera, seria 403). En el
+#     PADRE:
+#
+       grep -E '^(SPACES_KEY|SPACES_SECRET)=' /etc/space-os/instancia.env
+#
+#  b) GENERAR UNA NUEVA: pestaña "Access Keys" > Generate New Key.
+#     NUNCA la maestra de la cuenta. El SECRET se ve UNA VEZ.
+#     Ventaja unica: poder revocar la de una instancia sin tumbar
+#     las otras. El ALCANCE es el mismo -- Spaces limita por
+#     bucket, no por prefijo.
+#
+#  Medidas correctas, para comprobar que copiaste bien:
+#    KEY    20 caracteres
+#    SECRET 43 caracteres
+#
+##############################################################
+#  PASO 3 · ESCRIBIRLAS EN LA INSTANCIA   🖥️ EN SU DROPLET
+##############################################################
+#
+#  Mira que hay (imprime CLAVES, no valores):
+#
+    sed 's/=.*/=<valor>/' /etc/space-os/instancia.env
+#
+#  Respaldo del archivo y edicion:
+#
+    cp /etc/space-os/instancia.env /etc/space-os/instancia.env.bak
+    nano /etc/space-os/instancia.env
+#
+#  >>> LAS CUATRO PRIMERAS YA EXISTEN EN EL ARCHIVO, vacias, bajo
+#  >>> "Respaldos y registro de corridas". EDITALAS, no añadas
+#  >>> lineas nuevas: el archivo se sourcea y una clave duplicada
+#  >>> hace que gane la ultima.
+#  >>> SPACES_REGION **no existe** en la plantilla: esa si se añade.
+#
+#    SPACES_KEY="<KEY>"
+#    SPACES_SECRET="<SECRET>"
+#    SPACES_BUCKET="space-os-respaldos"
+#    SPACES_REGION="<la del PASO 1>"      # <-- SE AÑADE
+#    LOGS_BUCKET="space-os-logs"
+#
+#  >>> LAS COMILLAS NO SON DECORACION. `update.sh:700` hace
+#  >>> `. "$CONF"`: bash SOURCEA este archivo. Un valor con un
+#  >>> espacio sin comillas hace que bash EJECUTE la segunda
+#  >>> palabra COMO ROOT, cada noche. Medido el 2026-09-02
+#  >>> (expediente de F3.5, punto 12).
+#
+    chmod 600 /etc/space-os/instancia.env
+    ls -l /etc/space-os/instancia.env      # -rw-------
+#
+#  Comprueba que quedaron puestas. Imprime LONGITUDES, nunca
+#  valores, asi que se puede pegar en un chat sin riesgo:
+#
+    bash -c 'set -a; . /etc/space-os/instancia.env; set +a; for v in SPACES_KEY SPACES_SECRET SPACES_BUCKET SPACES_REGION LOGS_BUCKET; do val="${!v}"; printf "%-15s %s\n" "$v" "$([ -n "$val" ] && echo "puesta, ${#val} caracteres" || echo VACIA)"; done'
+#
+##############################################################
+#  PASO 4 · QUE SUBE DE VERDAD          🚦 LA UNICA PUERTA
+##############################################################
+#
+#  Con un dump que ya exista en el disco. `ls` primero para coger
+#  el nombre real:
+#
+    ls -lh /var/lib/space-os/respaldos/
+    bash -c 'set -a; . /etc/space-os/instancia.env; set +a; /opt/space-os/respaldo.sh subir /var/lib/space-os/respaldos/<ARCHIVO>.dump'
+#
+#    ✅ BIEN   `respaldo remoto OK: s3://...` y una linea de
+#              `upload:` con los BYTES, que tienen que coincidir
+#              con los del `ls`.
+#
+#    ❌ "NO CONFIGURADO"   -> las claves estan vacias. PASO 3.
+#    ❌ 403                -> la credencial no vale.
+#    ❌ 404 NoSuchBucket   -> la REGION o el nombre del bucket.
+#                            Empieza por la region (error 1).
+#
+#  Y CONFIRMALO DESDE FUERA, que es lo unico que lo demuestra:
+#  panel > space-os-respaldos > carpeta <instancia>/, con su
+#  tamaño y su fecha.
+#
+#  >>> Esto comprueba que SUBE. Que se pueda RESTAURAR es otra
+#  >>> prueba, y no la hemos hecho nunca.
+#
+##############################################################
+#  EJECUCION DEL 2026-09-17 SOBRE g500 -- RESULTADO
+##############################################################
+#
+#  Bucket `space-os-respaldos` ya existia, en **sfo3**, 20 dias,
+#  3 objetos (los del PADRE). Se reuso la llave del PADRE.
+#
+#  Subidos los dos dumps del dia, con los bytes cuadrando contra
+#  el `ls` local:
+#
+#    s3://space-os-respaldos/g500/2026-09-17-1849.dump  6305264
+#    s3://space-os-respaldos/g500/2026-09-17-1850.dump  6305141
+#
+#  >>> OJO con el tercer dump que habia en disco: el del 09/09 son
+#  >>> 181 KB contra los 6,1 MB de hoy. Es ANTERIOR a que entraran
+#  >>> los datos del cliente. Quien restaure "el mas antiguo"
+#  >>> pensando que es un punto de vuelta atras recuperaria una
+#  >>> base practicamente vacia.
+#
+##############################################################
+#  LO QUE ESTA TARJETA NO ARREGLA
+##############################################################
+#
+#   · QUE EL RESPALDO SEA PERIODICO. Hoy el `pg_dump` lo hace
+#     `update.sh` en su paso 3, y SOLO cuando hay imagen nueva: si
+#     el digest no cambio, sale en "sin cambios" sin respaldar. O
+#     sea que hay copia los dias que hay release y ningun otro.
+#     Lo resuelve `--solo-respaldo` + cron, que esta propuesto y
+#     sin aprobar.
+#   · La RETENCION en el bucket. La regla de ciclo de vida de 30
+#     dias hay que crearla en DigitalOcean y NADIE HA COMPROBADO
+#     QUE EXISTA.
+#   · La RESTAURACION. Hasta restaurar uno uno vez, "tenemos
+#     respaldo" es una suposicion.
+#   · El bucket por instancia (F5.7), sin decidir.
+#
+##############################################################

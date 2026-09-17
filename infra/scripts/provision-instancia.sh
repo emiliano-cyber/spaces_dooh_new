@@ -32,6 +32,25 @@
 #   · NO deja credenciales en disco del operador ni en el historial: el token
 #     de arranque y la clave del Dueño se imprimen UNA VEZ.
 #
+#  ─── Lo que SI hace desde el 2026-09-17: dejar el respaldo configurado ─────
+#  Hasta esa fecha no escribia ninguna clave de Spaces, asi que toda instancia
+#  nacia SIN respaldo fuera de su propio droplet. Se descubrio en g500 --la
+#  primera con datos reales-- leyendo un aviso que `update.sh` llevaba dando
+#  desde su alta. Ahora `SPACES_KEY` y `SPACES_SECRET` son OBLIGATORIAS y el
+#  alta se para sin ellas; para saltarselo hay que teclear
+#  `--sin-respaldo-remoto`, que es una decision y no un descuido.
+#
+#    SPACES_KEY  SPACES_SECRET     obligatorias, por entorno (nunca en `ps`)
+#    SPACES_REGION                 OBLIGATORIA. Sin default a proposito: la
+#                                  del bucket se lee en su URL del panel,
+#                                  `<bucket>.<REGION>.digitaloceanspaces.com`.
+#                                  Medido el 17/09: esta cuenta usa `sfo3` y
+#                                  `respaldo.sh:95` trae `nyc3`
+#    SPACES_BUCKET                 por omision `space-os-respaldos`
+#    LOGS_BUCKET                   opcional; sin el, el log de cada update se
+#                                  queda en el droplet y diagnosticar exige
+#                                  entrar al servidor del owner
+#
 #  ─── Los dos modos de servidor, y por que estan los dos ────────────────────
 #  Todavia no esta decidido en que cuenta de DigitalOcean nacen las instancias
 #  (§8.3 del plan). En vez de esperar, el script lleva los dos caminos:
@@ -94,6 +113,56 @@ IMAGEN_NOMBRE="${IMAGEN_NOMBRE:-space-os}"
 # desviacion consciente del runbook.
 CANAL="${CANAL:-estable}"
 
+# ─── El respaldo FUERA del droplet ──────────────────────────────────────────
+#
+# Por ENTORNO y no por argumento, por el mismo motivo que `REGISTRY_TOKEN`: un
+# secreto en la linea de comandos es visible en `ps` mientras corre y queda en
+# el historial de quien lanza el alta.
+#
+# >>> POR QUE EXISTE ESTE BLOQUE. Hasta el 2026-09-17 este guion NO escribia
+# >>> ninguna de estas claves, y la plantilla las deja vacias. O sea que TODA
+# >>> instancia nacia sin respaldo fuera de su propio droplet -- el unico sitio
+# >>> del que no sirve de nada tener una copia. Se descubrio leyendo el log de
+# >>> g500, la primera instancia con datos reales de cliente, que lo dice desde
+# >>> que existe y que nadie leyo:
+# >>>
+# >>>   respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET. Esta
+# >>>   instancia NO tiene respaldo fuera del droplet: si la maquina desaparece,
+# >>>   el dump desaparece con ella.
+# >>>
+# >>> `respaldo.sh:124` solo sube si estan las tres (`SPACES_KEY`,
+# >>> `SPACES_SECRET`, `SPACES_BUCKET`), y si no, LO REGISTRA Y SIGUE. Es lo
+# >>> correcto para un update --un respaldo remoto fallido no debe tumbar una
+# >>> actualizacion-- pero convierte la ausencia en algo que solo se ve leyendo
+# >>> un log que, sin `LOGS_BUCKET`, tampoco sale del droplet. El circulo se
+# >>> cierra aqui: si no estan, el alta se para.
+SPACES_KEY="${SPACES_KEY:-}"
+SPACES_SECRET="${SPACES_SECRET:-}"
+# El bucket toma el mismo valor por omision que `respaldo.sh:94`, para que una
+# instancia no acabe apuntando a un bucket distinto del que el propio script de
+# respaldo usaria. Si divergen, el dump se sube a un sitio y se busca en otro.
+SPACES_BUCKET="${SPACES_BUCKET:-space-os-respaldos}"
+
+# ⚠️ LA REGION NO TIENE VALOR POR OMISION, y es a proposito. `respaldo.sh:95`
+# trae `nyc3`, que es lo que este bloque copiaba hasta que se MIDIO contra la
+# cuenta real el 2026-09-17:
+#
+#   https://space-os-respaldos.sfo3.digitaloceanspaces.com
+#
+# El bucket vive en `sfo3`. Una instancia con `nyc3` habria hablado con el
+# endpoint equivocado y respondido `404 NoSuchBucket` -- que se lee como «el
+# bucket no existe» y manda a crear uno que ya existe, en vez de a mirar la
+# region. Un valor por omision que acierta en una cuenta y falla en otra es peor
+# que no tener ninguno: convierte un error de configuracion en una caceria.
+SPACES_REGION="${SPACES_REGION:-}"
+# El de los logs es OTRO bucket a proposito (`instancia.env.example:143`): los
+# respaldos llevan datos del cliente y los logs no, asi que no comparten
+# permisos. Vacio = el log se queda en el droplet.
+LOGS_BUCKET="${LOGS_BUCKET:-}"
+# La unica forma de dar de alta una instancia SIN respaldo fuera de su droplet.
+# No hay valor por defecto que lo permita: tiene que teclearlo una persona.
+SIN_RESPALDO_REMOTO=0
+
 uso() { sed -n '2,44p' "$0"; }
 
 while [[ $# -gt 0 ]]; do
@@ -107,6 +176,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run)             CONFIRMAR=0; shift ;;
     --emitir-certificado)  EMITIR_CERT=1; shift ;;
     --bootstrap)           BOOTSTRAP=1; shift ;;
+    --sin-respaldo-remoto) SIN_RESPALDO_REMOTO=1; shift ;;
     -h|--ayuda|--help)     uso; exit 0 ;;
     *) echo "provision: argumento desconocido: $1" >&2; uso >&2; exit "$EX_USO" ;;
   esac
@@ -114,6 +184,28 @@ done
 
 # ─── Validacion ─────────────────────────────────────────────────────────────
 [[ -n "$DOMINIO" ]] || { echo "provision: falta --dominio" >&2; exit "$EX_USO"; }
+
+# Fail-closed, y el mismo patron que el guard del arnes de pruebas: lo que se
+# evita no es la decision, es el DESCUIDO. Una instancia de cliente sin respaldo
+# fuera de su droplet tiene que ser algo que alguien eligio y no algo que paso.
+if [[ -z "$SPACES_KEY" || -z "$SPACES_SECRET" || -z "$SPACES_REGION" ]] && [[ "$SIN_RESPALDO_REMOTO" -eq 0 ]]; then
+  echo "provision: faltan SPACES_KEY, SPACES_SECRET y/o SPACES_REGION." >&2
+  echo "           Sin ellas la instancia NO tiene respaldo fuera de su droplet:" >&2
+  echo "           si la maquina desaparece, los dumps desaparecen con ella." >&2
+  echo "           Medido en g500 el 2026-09-17, que llevaba asi desde su alta." >&2
+  echo "" >&2
+  echo "           Van por ENTORNO, nunca por argumento (se verian en \`ps\`):" >&2
+  echo "             export SPACES_KEY=...    SPACES_SECRET=..." >&2
+  echo "             export SPACES_BUCKET=$SPACES_BUCKET" >&2
+  echo "             export SPACES_REGION=... # la del BUCKET, no la del droplet." >&2
+  echo "                                      # Se lee en su URL en el panel:" >&2
+  echo "                                      # <bucket>.<REGION>.digitaloceanspaces.com" >&2
+  echo "             export LOGS_BUCKET=...   # opcional: sin el, el log no sale del droplet" >&2
+  echo "" >&2
+  echo "           Si de verdad quieres una instancia sin respaldo remoto:" >&2
+  echo "             --sin-respaldo-remoto" >&2
+  exit "$EX_USO"
+fi
 
 if [[ "$CREAR_DROPLET" -eq 1 && -n "$HOST" ]]; then
   echo "provision: --crear-droplet y --host se excluyen. Elige uno." >&2
@@ -683,12 +775,22 @@ reescribir_env_docker "$TPL_APP" \
 # `instancia.env`. Desde el 2026-09-01 `REGISTRY`, `REGISTRY_TOKEN` y `CANAL`
 # se escriben de verdad: la decision del registro se tomo el 31/08 y sin
 # credencial una instancia no puede bajar la imagen de un registro privado.
+#
+# Las cinco de respaldo entran desde el 2026-09-17. Antes NO se escribian y la
+# plantilla las deja vacias, asi que toda instancia nacia sin copia fuera de su
+# droplet. Van aqui y no en `app.env` porque quien las lee es `respaldo.sh`, que
+# sourcea este archivo -- la aplicacion no las necesita ni debe verlas.
 reescribir_env_sourceado "$TPL_INST" \
   "INSTANCIA=$INSTANCIA" \
   "DATABASE_URL=$URL_MIGRADOR" \
   "REGISTRY=$REGISTRY" \
   "REGISTRY_TOKEN=$REGISTRY_TOKEN" \
   "CANAL=$CANAL" \
+  "SPACES_KEY=$SPACES_KEY" \
+  "SPACES_SECRET=$SPACES_SECRET" \
+  "SPACES_BUCKET=$SPACES_BUCKET" \
+  "SPACES_REGION=$SPACES_REGION" \
+  "LOGS_BUCKET=$LOGS_BUCKET" \
   | remoto_escribir /etc/space-os/instancia.env 600
 
 # ─── 5 · nginx, TODAVIA SIN certificado ─────────────────────────────────────

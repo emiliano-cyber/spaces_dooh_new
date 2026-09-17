@@ -38,6 +38,24 @@ exec </dev/null
 RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 GUION="${GUION_PROVISION:-$RAIZ/infra/scripts/provision-instancia.sh}"
 
+# ─── El respaldo remoto, para TODOS los escenarios ──────────────────────────
+#  Desde el 2026-09-17 `provision-instancia.sh` se NIEGA a dar de alta una
+#  instancia sin respaldo fuera de su droplet (`SPACES_KEY`, `SPACES_SECRET` y
+#  `SPACES_REGION`, o `--sin-respaldo-remoto` tecleado a proposito). Se exportan
+#  aqui, una vez, porque `correr()` usa `env` SIN `-i`: lo que este en el
+#  entorno del arnes llega a todos los escenarios, y ninguno de los 23 trata
+#  sobre esto.
+#
+#  >>> Se escriben aqui y no en cada `correr` A PROPOSITO: repartidas por 23
+#  >>> escenarios, el dia que el guard cambie hay que tocarlas en 23 sitios y
+#  >>> el olvido de uno se lee como un fallo del escenario, no del arnes.
+#
+#  Valores de mentira, y ninguno es un valor real de la cuenta: aqui nadie sube
+#  nada -- el cliente de S3 tambien es un doble.
+export SPACES_KEY='llave-de-mentira'
+export SPACES_SECRET='secreto-de-mentira'
+export SPACES_REGION='region0'
+
 ESCENARIOS=0
 COMPROBACIONES=0
 FALLOS=0
@@ -331,6 +349,68 @@ dice 'falta CERTBOT_EMAIL'
 # Lo que importa no es el mensaje: es que NO se haya pedido un certificado. Un
 # intento fallido consume cuota de Let's Encrypt (cinco por hora y dominio).
 no_hubo 'certbot certonly'
+limpiar
+
+# ============================================================================
+#  DEFECTO 38 · una instancia NO nace sin respaldo fuera de su droplet
+# ----------------------------------------------------------------------------
+#  Medido en g500 el 2026-09-17, la primera instancia con datos reales de
+#  cliente: sus respaldos vivian en el MISMO droplet que protegen, porque este
+#  guion no escribia ninguna clave de Spaces y la plantilla las deja vacias.
+#  TODA instancia nacia asi.
+#
+#  El aviso existia --`update.sh` lo daba en cada corrida-- y era invisible por
+#  construccion: sale en el log, y el log tampoco salia del droplet porque
+#  faltaba `LOGS_BUCKET`. Para enterarte de que no tienes respaldo habia que
+#  entrar al servidor, que es justo lo que este modelo evita.
+# ============================================================================
+escenario '38 · sin credenciales de Spaces el alta SE PARA, y antes de tocar el servidor'
+preparar
+correr -u SPACES_KEY -u SPACES_SECRET -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 64
+dice 'SPACES_KEY'
+# Lo que importa no es el mensaje: es que no se haya creado nada. Media alta
+# --droplet cobrandose, base creada, sin respaldo-- es peor que ninguna.
+no_hubo 'ssh '
+limpiar
+
+escenario '38b · la REGION tambien se exige: sin default, porque uno equivocado da 404'
+preparar
+# `respaldo.sh:95` trae `nyc3` y la cuenta real usa `sfo3` (medido el 17/09 en la
+# URL del bucket). Con la region equivocada la subida falla con `404
+# NoSuchBucket`, que se lee como «el bucket no existe» y manda a crear uno que
+# YA EXISTE. Un default que acierta en una cuenta y falla en otra es peor que
+# ninguno.
+correr -u SPACES_REGION -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 64
+dice 'SPACES_REGION'
+limpiar
+
+escenario '38c · `--sin-respaldo-remoto` lo permite: es una decision, no un descuido'
+preparar
+correr -u SPACES_KEY -u SPACES_SECRET -u SPACES_REGION \
+  REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --sin-respaldo-remoto --confirmar
+codigo_es 0
+limpiar
+
+escenario '38d · con credenciales, las cinco llegan a instancia.env y NINGUNA a app.env'
+preparar
+correr SPACES_BUCKET=cubo-de-mentira LOGS_BUCKET=cubo-logs \
+  REGISTRY=registro.ejemplo/x REGISTRY_TOKEN=t -- \
+  --host "$IP" --dominio "$DOM" --instancia p --confirmar
+codigo_es 0
+escrito_dice /etc/space-os/instancia.env 'SPACES_KEY="llave-de-mentira"'
+escrito_dice /etc/space-os/instancia.env 'SPACES_SECRET="secreto-de-mentira"'
+escrito_dice /etc/space-os/instancia.env 'SPACES_BUCKET="cubo-de-mentira"'
+escrito_dice /etc/space-os/instancia.env 'SPACES_REGION="region0"'
+escrito_dice /etc/space-os/instancia.env 'LOGS_BUCKET="cubo-logs"'
+# `app.env` lo lee Docker y se lo pasa al CONTENEDOR. El secreto del respaldo no
+# le sirve de nada a la aplicacion, y meterlo ahi solo ampliaria lo que queda
+# expuesto si ese archivo se filtra.
+escrito_calla /etc/space-os/app.env 'secreto-de-mentira'
 limpiar
 
 # ============================================================================

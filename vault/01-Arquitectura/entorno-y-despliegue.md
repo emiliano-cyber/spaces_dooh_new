@@ -1011,6 +1011,40 @@ antes de escribirle el secreto dentro **y borrado también si el script muere po
 señal** (`trap`, corregido el 18/08); con la CLI de AWS, por el entorno. Es el mismo
 criterio que sacó la contraseña de Postgres de `ps`.
 
+> [!danger] 2026-09-17 · ese párrafo describía un mecanismo que NUNCA se activaba
+> **Todo lo de arriba es cierto sobre `respaldo.sh` y era irrelevante en la práctica:
+> las credenciales no llegaban.** `provision-instancia.sh` escribía `instancia.env`
+> con `INSTANCIA`, `DATABASE_URL`, `REGISTRY`, `REGISTRY_TOKEN` y `CANAL` — **y
+> ninguna clave de Spaces**. La plantilla las deja vacías
+> (`instancia.env.example:140-143`). Así que **toda instancia nacía sin respaldo fuera
+> de su propio droplet**, que es el único sitio del que no sirve de nada tener copia.
+>
+> **Medido en g500**, la primera instancia con datos reales de cliente, en su log de
+> las 16:32 y otra vez en el de las 17:51:
+>
+> ```
+> respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET. Esta instancia
+> NO tiene respaldo fuera del droplet: si la maquina desaparece, el dump
+> desaparece con ella.
+> ```
+>
+> **Y el aviso era invisible por construcción**: sale en el log, y el log tampoco sale
+> del droplet porque falta `LOGS_BUCKET`. Para enterarte de que no tienes respaldo
+> había que entrar al servidor — justo lo que este modelo existe para evitar.
+>
+> **Y la frase «una llave por instancia con permiso solo sobre su prefijo» tampoco es
+> cierta**: Spaces limita sus llaves **por bucket, no por prefijo**. El 27/08 se
+> decidió arrancar con bucket compartido porque había una sola instancia; con la
+> segunda vuelve a la mesa (**F5.7**).
+>
+> **Arreglado el 17/09** en `provision-instancia.sh`: las cinco claves se escriben, y
+> **el alta se para** si faltan `SPACES_KEY`/`SPACES_SECRET` — para saltárselo hay que
+> teclear `--sin-respaldo-remoto`, que es una decisión y no un descuido. Es el mismo
+> patrón fail-closed que el guard del arnés de pruebas.
+>
+> **La instancia que YA existe no la arregla ese cambio**: g500 se corrige a mano con
+> `docs/evidencias/10-respaldo-remoto-de-g500.txt`.
+
 > [!important] La retención es **asimétrica**, y eso es lo importante de la tarea
 > **3 respaldos locales**, podados por el script. **30 días en Spaces, podados por la
 > regla de ciclo de vida del bucket** — en `respaldo.sh` **no hay un solo borrado
