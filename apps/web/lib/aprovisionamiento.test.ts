@@ -166,6 +166,48 @@ describe('el respaldo y el log SALEN del droplet, o no hay de donde restaurar', 
     expect(UPDATE).toMatch(/s3:\/\/%s\/%s\/%s\.log/)
   })
 
+  // ── 2026-09-17 · las tres de arriba estaban VERDES y g500 no tenía respaldo ──
+  //
+  // Medido en el droplet del cliente, dos veces el mismo día, dicho por el
+  // propio `update.sh`:
+  //
+  //   respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET. Esta
+  //   instancia NO tiene respaldo fuera del droplet: si la maquina desaparece,
+  //   el dump desaparece con ella.
+  //
+  // Y no era un olvido de g500: `provision-instancia.sh` escribe `instancia.env`
+  // con INSTANCIA, DATABASE_URL, REGISTRY, REGISTRY_TOKEN y CANAL, y NINGUNA
+  // clave de respaldo. La plantilla las deja vacías. Así que **toda instancia
+  // nacía sin respaldo fuera de su propio droplet**, que es el único sitio del
+  // que no sirve de nada tener una copia.
+  //
+  // Las tres pruebas de arriba comprueban la FORMA de la ruta S3 y qué cliente
+  // se instala. Ninguna comprueba que lleguen las credenciales sin las que esa
+  // ruta no se usa jamás. Es el fallo del día en miniatura: mirar la parte que
+  // no falla.
+  it('el aprovisionamiento ESCRIBE las credenciales del respaldo, no solo la ruta', () => {
+    const bloque = PROVISION.slice(PROVISION.indexOf('reescribir_env_sourceado'))
+
+    for (const clave of ['SPACES_KEY', 'SPACES_SECRET', 'SPACES_BUCKET', 'SPACES_REGION']) {
+      expect(bloque).toContain(`${clave}=$${clave}`)
+    }
+  })
+
+  it('las credenciales entran por ENTORNO, nunca por argumento', () => {
+    // Mismo motivo que `REGISTRY_TOKEN` (`provision-instancia.sh:85-88`): un
+    // secreto en la línea de comandos es visible en `ps` y queda en el historial.
+    expect(PROVISION).toMatch(/SPACES_KEY="\$\{SPACES_KEY:-\}"/)
+    expect(PROVISION).not.toMatch(/--spaces-key\)/)
+  })
+
+  it('sin credenciales, el alta SE NIEGA salvo que alguien lo decida a propósito', () => {
+    // Fail-closed, el mismo patrón que el guard del arnés de pruebas: lo que se
+    // evita no es la decisión, es el descuido. Una instancia de cliente sin
+    // respaldo fuera de su droplet tiene que ser algo que alguien eligió.
+    expect(PROVISION).toMatch(/--sin-respaldo-remoto/)
+    expect(PROVISION).toMatch(/EX_USO|exit/)
+  })
+
   it('el cliente que instala el alta es uno de los que el respaldo sabe usar', () => {
     // Guarda contra el desacople: si alguien cambia el instalador a `minio-cli`
     // o el resolvedor a otro nombre, esto se pone rojo en vez de descubrirse

@@ -1,0 +1,169 @@
+##############################################################
+#  10 · g500 NO TIENE RESPALDO FUERA DE SU DROPLET
+#  Levantado el 2026-09-17. Lo corre una persona, en el droplet
+#  del cliente y en el PADRE.
+##############################################################
+#
+#  QUE PASA
+#  --------
+#  `update.sh` lo dice cada vez que corre, y lo dijo DOS VECES
+#  el 17/09 sin que nadie lo leyera:
+#
+#    respaldo remoto NO CONFIGURADO: faltan SPACES_KEY/SPACES_SECRET.
+#    Esta instancia NO tiene respaldo fuera del droplet: si la
+#    maquina desaparece, el dump desaparece con ella.
+#
+#  g500 es la UNICA instancia con datos reales de cliente. Sus
+#  respaldos (6,3 MB, uno por actualizacion, podados a 3) viven
+#  en /var/lib/space-os/respaldos DEL MISMO DROPLET que
+#  protegen. Un `pg_dump` que solo existe en la maquina de la que
+#  te protege no es un respaldo.
+#
+#  Y hay un circulo cerrado que lo hacia invisible: el aviso sale
+#  en el log, y el log tampoco sale del droplet porque falta
+#  LOGS_BUCKET. Para enterarte de que no tienes respaldo hay que
+#  entrar al servidor -- que es justo lo que este modelo evita.
+#
+#  NO ES UN OLVIDO DE g500. `provision-instancia.sh` nunca
+#  escribio esas claves: escribia INSTANCIA, DATABASE_URL,
+#  REGISTRY, REGISTRY_TOKEN y CANAL, y la plantilla las deja
+#  vacias. TODA instancia nacia asi. Arreglado en la rama
+#  `fix/instancia-nace-sin-respaldo-remoto`: ahora el alta SE
+#  PARA si faltan. Esta tarjeta arregla la que ya existe.
+#
+##############################################################
+#  PASO 1 · EL BUCKET                🌐 EN DIGITALOCEAN
+##############################################################
+#
+#  Panel de DigitalOcean > Spaces Object Storage.
+#
+#  a) Comprueba si YA existe `space-os-respaldos`. Es el valor por
+#     omision de `respaldo.sh:94`, asi que si existe, usalo y no
+#     crees otro: un bucket nuevo con otro nombre obliga a poner
+#     SPACES_BUCKET en cada instancia y a acordarse siempre.
+#
+#  b) Si no existe, crealo:
+#       Nombre  : space-os-respaldos
+#       Region  : nyc3        (la de `respaldo.sh:95`; si eliges
+#                              otra, tendras que poner SPACES_REGION)
+#       Acceso  : RESTRINGIDO. Nunca publico: son datos de cliente.
+#
+#  c) Crea TAMBIEN el de logs, que hoy no existe. El PADRE ya lo
+#     intenta y falla con `404 (NoSuchBucket)` sobre
+#     `s3://space-os-logs`:
+#       Nombre  : space-os-logs
+#       Region  : la misma
+#     Son dos buckets A PROPOSITO: los respaldos llevan datos del
+#     cliente y los logs no, asi que no comparten permisos.
+#
+#  >>> DECISION QUE SIGUE ABIERTA, y conviene saberla antes de
+#  >>> crear nada: el plan (F3.7) pedia "una llave por instancia
+#  >>> con permiso solo sobre SU prefijo", y Spaces NO puede
+#  >>> hacerlo -- sus llaves se limitan POR BUCKET, no por
+#  >>> prefijo. El 27/08 se decidio arrancar con bucket compartido
+#  >>> porque habia una sola instancia. Con la segunda esto vuelve
+#  >>> a la mesa (F5.7). Hoy no lo bloquea.
+#
+##############################################################
+#  PASO 2 · LA LLAVE                 🌐 EN DIGITALOCEAN
+##############################################################
+#
+#  Spaces Object Storage > pestaña "Access Keys" > Generate New Key.
+#
+#    · NUNCA la llave maestra de la cuenta.
+#    · El SECRET se enseña UNA SOLA VEZ. Copialo ya.
+#
+#  Te quedan dos valores:  <KEY>  y  <SECRET>
+#
+##############################################################
+#  PASO 3 · ESCRIBIRLAS EN g500      🖥️ EN EL DROPLET DEL CLIENTE
+##############################################################
+#
+#  Entra al droplet de g500 y mira primero que hay:
+#
+    sed 's/=.*/=<valor>/' /etc/space-os/instancia.env
+#
+#  Deberia faltarle SPACES_KEY y SPACES_SECRET. Añadelas:
+#
+    cp /etc/space-os/instancia.env /etc/space-os/instancia.env.bak
+    nano /etc/space-os/instancia.env
+#
+#  Y deja estas lineas (sustituyendo <KEY> y <SECRET>):
+#
+#    SPACES_KEY="<KEY>"
+#    SPACES_SECRET="<SECRET>"
+#    SPACES_BUCKET="space-os-respaldos"
+#    SPACES_REGION="nyc3"
+#    LOGS_BUCKET="space-os-logs"
+#
+#  >>> LAS COMILLAS NO SON DECORACION. `update.sh:700` hace
+#  >>> `. "$CONF"`, o sea que bash SOURCEA este archivo. Un valor
+#  >>> con un espacio sin comillas hace que bash EJECUTE la
+#  >>> segunda palabra como una orden, COMO ROOT, cada noche.
+#  >>> Medido el 2026-09-02 (expediente de F3.5, punto 12).
+#
+#  Permisos, que ahora guarda un secreto:
+#
+    chmod 600 /etc/space-os/instancia.env
+    ls -l /etc/space-os/instancia.env      # tiene que decir -rw-------
+#
+##############################################################
+#  PASO 4 · COMPROBAR QUE SUBE DE VERDAD   🚦 LA UNICA PUERTA
+##############################################################
+#
+#  No te fies de que el archivo este bien escrito: pruebalo.
+#
+    /opt/space-os/respaldo.sh
+    echo "codigo de salida: $?"
+#
+#    ✅ BIEN   una linea con `s3://space-os-respaldos/g500/...`
+#              y NINGUNA mencion a "NO CONFIGURADO" ni a
+#              "RESPALDO REMOTO FALLIDO".
+#
+#    ❌ MAL    sigue diciendo "respaldo remoto NO CONFIGURADO"
+#              -> el archivo no se esta leyendo o las claves estan
+#                 vacias. Revisa el PASO 3.
+#
+#    ❌ MAL    "RESPALDO REMOTO FALLIDO" o un error de S3
+#              -> las claves estan pero no valen, o el bucket no
+#                 existe, o la region no es esa. El mensaje de S3
+#                 lo distingue: 403 = credencial, 404
+#                 NoSuchBucket = el bucket.
+#
+#  Y CONFIRMALO DESDE FUERA, que es lo unico que lo demuestra:
+#  entra al panel de Spaces y comprueba que el archivo esta ahi,
+#  con su tamaño (~6 MB) y su fecha de hoy.
+#
+#  >>> Un respaldo que nadie ha restaurado nunca es una hipotesis.
+#  >>> Esto comprueba que SUBE. Que se pueda RESTAURAR es otra
+#  >>> prueba, y no la hemos hecho.
+#
+##############################################################
+#  PASO 5 · EL PADRE, que tambien lo tiene roto
+##############################################################
+#
+#  En el PADRE el log remoto falla con:
+#    ERROR: S3 error: 404 (NoSuchBucket): The specified bucket
+#    does not exist
+#
+#  O sea que SPACES_KEY/SPACES_SECRET si estan ahi, pero el bucket
+#  `space-os-logs` no existe. Con el PASO 1c creado, se arregla
+#  solo. Compruebalo:
+#
+    grep 'LOGS_BUCKET\|SPACES_BUCKET' /etc/space-os/instancia.env
+    /opt/space-os/respaldo.sh ; echo "codigo: $?"
+#
+##############################################################
+#  LO QUE ESTA TARJETA NO ARREGLA
+##############################################################
+#
+#   · La RETENCION. La poda local deja 3 dumps; la del bucket la
+#     hace una regla de ciclo de vida de 30 dias que hay que
+#     configurar en DigitalOcean y que nadie ha comprobado que
+#     exista.
+#   · La RESTAURACION. Nunca se ha restaurado un respaldo de g500.
+#     Hasta que se haga una vez, "tenemos respaldo" es una
+#     suposicion.
+#   · El bucket por instancia (F5.7), que sigue sin decidirse.
+#
+##############################################################
