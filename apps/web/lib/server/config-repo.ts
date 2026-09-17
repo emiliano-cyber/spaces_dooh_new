@@ -1,6 +1,7 @@
 import 'server-only'
 import { q, q1 } from './db'
 import { tenantActual } from './tenant'
+import { sanearCostosOt } from '../costos-ot'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -44,6 +45,11 @@ export function rowToConfig(r: any) {
     spotSeg: r.spot_seg != null ? Number(r.spot_seg) : 10,
     // ADR 0008: cupo de clientes por defecto. null = sin límite (regla apagada).
     maxClientesPantalla: r.max_clientes_pantalla != null ? Number(r.max_clientes_pantalla) : null,
+    // Costo de mano de obra por TIPO de OT. Se SANEA al leer, no solo al
+    // escribir: la columna es jsonb y puede traer lo que le dejaran antes de
+    // que existiera el saneo (o lo que meta una corrección a mano en la base).
+    // Objeto vacío = sin configurar → manda `COSTOS_OT_RESPALDO`.
+    costosOt: sanearCostosOt(r.costos_ot),
   }
 }
 

@@ -23,6 +23,7 @@ import type {
   ContratoArrendamiento,
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
+import { costoDeOt } from '../costos-ot'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -249,9 +250,18 @@ export function estadoCobranza(cob: Cobranza): EstCobranza {
 
 // ─── Métricas del dashboard del dueño (7.1) ─────────────────────────────────
 
-// Costo operativo estimado por orden de trabajo (mano de obra de cuadrilla).
-// Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
-const COSTO_OPERATIVO_POR_OT = 1500
+// El costo operativo por orden de trabajo YA NO ES UNA CONSTANTE de este
+// archivo. Era `COSTO_OPERATIVO_POR_OT = 1500`, con un comentario que admitía
+// que era un parámetro de demo «que en producción vendría de ConfigNegocio o
+// por tipo de OT». Desde el 2026-09-17 viene de las dos cosas: sale de
+// `configNegocio.costosOt` (una fila por tenant, ADR 0011) y se resuelve POR
+// TIPO en `lib/costos-ot.ts`, con respaldo por tipo para que un tenant sin
+// configurar no reviente ni cueste 0.
+//
+// La tabla vive en un módulo compartido, no aquí, porque el mismo costo lo
+// aplican el dashboard (que corre en el navegador sobre el store) y
+// `lib/server/reportes-repo.ts` (que corre en el servidor). Dos copias darían
+// dos márgenes para el mismo mes.
 
 // ─── Totalización por moneda (A-3) ──────────────────────────────────────────
 // Suma importes RESPETANDO la moneda. Si todos comparten moneda, devuelve el
@@ -615,7 +625,11 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   )
   // 3) Operación: mano de obra de cuadrilla por cada orden de trabajo activa.
   const otsOperativas = state.ordenesTrabajo.filter((o) => o.estatus !== 'CANCELADA')
-  const costoOperacionMes = otsOperativas.length * COSTO_OPERATIVO_POR_OT
+  //    El importe sale de la configuración del tenant POR TIPO de OT. Ya no es
+  //    `otsOperativas.length * 1500`: ese producto cobraba lo mismo por montar
+  //    una lona que por una inspección.
+  const costosOt = state.configNegocio?.costosOt
+  const costoOperacionMes = otsOperativas.reduce((sum, o) => sum + costoDeOt(o.tipo, costosOt), 0)
 
   const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
 
@@ -732,7 +746,10 @@ export function margenCampana(c: Campana, state: DemoState): MargenCampana {
   const ots = state.ordenesTrabajo.filter(
     (o) => o.campanaId === c.id && o.estatus !== 'CANCELADA',
   )
-  const costoOperacion = ots.length * COSTO_OPERATIVO_POR_OT
+  // La MISMA tabla que el dashboard (`dashboardMetrics`, arriba). Si aquí se
+  // quedara la constante, el margen de una campaña y el del mes dejarían de
+  // cuadrar entre sí sin que nada fallara.
+  const costoOperacion = ots.reduce((s, o) => s + costoDeOt(o.tipo, state.configNegocio?.costosOt), 0)
   const costoTotal = costoEspacios + costoImpresion + costoOperacion
   const margen = ingreso - costoTotal
   const margenPct = ingreso > 0 ? (margen / ingreso) * 100 : 0

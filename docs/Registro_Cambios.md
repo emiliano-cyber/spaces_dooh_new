@@ -7,6 +7,24 @@ La entrada más reciente va arriba.
 
 ## 2026-09-17
 
+- **Cuánto cuesta una orden de trabajo ya se puede configurar, y por tipo.**
+  Hasta hoy el sistema cobraba **1 500 pesos por cada orden de trabajo**, fuera
+  montar una lona o pasar a hacer una inspección, y ese número estaba escrito
+  dentro del programa: no había pantalla ni forma de cambiarlo. Como de ahí sale
+  el costo de operación, el margen que enseña el tablero y el de cada campaña
+  se apoyaban en ese único importe para todas las empresas.
+
+  Ahora cada organización guarda **su** importe para cada uno de los nueve tipos
+  de tarea, y lo que guarda solo le afecta a ella.
+
+- **Nadie verá cambiar sus números por esto, y es intencional.** Mientras una
+  organización no capture nada, el sistema sigue usando 1 500 para todo: las
+  cifras de hoy son idénticas a las de ayer. El cambio abre la puerta; cruzarla
+  es una decisión del dueño, no del programa.
+
+  Un detalle que sí importa: capturar **0** es válido —una inspección que hace el
+  propio dueño no paga cuadrilla— y no se confunde con «no lo he capturado».
+
 - **Repartida la versión del 10 de septiembre a toda la flota.** El canal por el
   que las instancias bajan sus actualizaciones cada noche llevaba desde el 9 de
   septiembre apuntando a una copia vieja. Hoy se le puso la del 10.
