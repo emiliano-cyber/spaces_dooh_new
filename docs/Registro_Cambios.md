@@ -25,11 +25,18 @@ La entrada más reciente va arriba.
   aplicación **exige el destino completo** y rechaza el abreviado, así que en vez
   de mandar a nadie a ninguna parte, devolvía un error.
 
-- **Corregido, y con la prueba que faltaba.** Ahora el destino se arma con el
-  nombre de dominio por el que entró la persona, así que sale correcto en
+- **Corregido, desplegado y COMPROBADO el mismo día.** Ahora el destino se arma
+  con el nombre de dominio por el que entró la persona, así que sale correcto en
   cualquier instalación sin que la aplicación tenga que saber cuál es. Va con su
   registro de decisión, porque tiene implicaciones de seguridad que quedaron
   escritas.
+
+  **Medido en g500 a las 17:52**, que es lo que convierte esto en un cierre y no
+  en una afirmación: quien abre la dirección del cliente sin haber iniciado
+  sesión **llega a la pantalla de acceso de su propio dominio**. Nueve días
+  después de que apareciera el fallo. La actualización no cambió ningún dato
+  —cero modificaciones de base— y dejó su copia de seguridad hecha antes de
+  empezar.
 
 - **Lo que más importa de todo esto: tres comprobaciones automáticas dieron por
   buena una versión rota.** Las tres miraban páginas públicas, y el fallo sólo
