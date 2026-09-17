@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-02
+actualizado: 2026-09-17
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -659,23 +659,37 @@ descuido, y reconstruir daría un binario distinto del validado (invariante 3).
   nada** —un entorno sin reglas se crea al vuelo y deja pasar—; ponerle revisores es
   una orden aparte, escrita en el propio archivo.
 
-> [!warning] El smoke dice que DEMO responde, **no** que DEMO corra esa versión
-> Saber qué versión corre una instancia es `/api/version`, que **no existe todavía**
-> (F6.1) y que, cuando exista, no la dirá sin `X-Flota-Token`. El workflow ya manda
-> la cabecera si hay secreto `FLOTA_TOKEN` y **compara**; mientras no haya ruta, deja
-> escrito en el resumen, con todas sus letras, que ese punto **no está comprobado**.
-> Un smoke verde que se leyera como «DEMO corre esta versión» sería peor que no
-> tenerlo.
+> [!success] El smoke YA comprueba qué versión corre DEMO — desde que existe `/api/version`
+> **Actualizado el 2026-09-17.** Esta nota decía que `/api/version` «no existe todavía»
+> y que el punto quedaba sin comprobar. **Ya existe** (`apps/web/app/api/version/route.ts`,
+> y compara contra `FLOTA_TOKEN` en `:62`), así que el workflow dejó de ser informativo
+> **solo, sin tocar el archivo** — que era exactamente el diseño (`promover.yml:270-274`).
+>
+> Hoy, si hay secreto `FLOTA_TOKEN`, `promover.yml:279-289` pregunta a DEMO qué versión
+> corre y **aborta** si no es la que se está promoviendo. La promoción del 17/09 pasó por
+> ahí. Si el secreto faltara, el resumen del run vuelve a decir con todas sus letras que
+> ese punto **no está comprobado**: un smoke verde que se leyera como «DEMO corre esta
+> versión» sería peor que no tenerlo.
 
 > [!danger] Promover manda a **toda la flota** a jalar esa imagen
-> Y las instancias que ya jalaron **no vuelven solas** por sí mismas: dependen de su
-> rollback local, que es `update.sh` (F3.4, abajo). Desde el 17/08 ese rollback
-> **existe escrito**, pero **no se ha corrido en ningún servidor** — el ensayo es
-> F3.5. Hasta entonces, debajo de este botón sigue sin haber red probada.
+> Y las instancias que ya jalaron **no vuelven solas**: devolver la etiqueta `estable`
+> a la imagen anterior sólo surte efecto en el **siguiente cron** de cada instancia
+> (~24 h), o corriendo `update.sh` a mano en su droplet.
+>
+> Lo que sí hay debajo del botón, y esta nota decía que no: el rollback local de
+> `update.sh` (F3.4) **está corrido en servidores de verdad** desde el ensayo de F3.5
+> (02/09) y corre cada noche en DEMO y en g500. La red existe y está probada; lo que no
+> existe es una vuelta atrás **instantánea** de la flota.
 
 ### `update.sh` — la instancia jala su versión (17/08, F3.4)
 
-**Escrito, NUNCA corrido en un servidor.** Vive en `infra/scripts/update.sh`, se
+> [!note] Corregido el 2026-09-17: ya no es «escrito y nunca corrido»
+> Se corrió en un servidor de verdad el **02/09** (ensayo de F3.5, expediente en
+> `docs/evidencias/f3-5-demo-instancia-20260902.md`) y desde entonces corre **cada
+> noche** por cron en DEMO y en g500. Lo que sigue describiendo el mecanismo es
+> correcto; lo que estaba caduco era su estado.
+
+Vive en `infra/scripts/update.sh`, se
 instala en `/opt/space-os/update.sh` y lo lanza el cron de la propia instancia. Su
 manual completo —configuración, códigos de salida, cron— está en
 `infra/scripts/README.md`.
