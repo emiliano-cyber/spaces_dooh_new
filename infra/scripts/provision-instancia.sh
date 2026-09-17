@@ -41,8 +41,12 @@
 #  `--sin-respaldo-remoto`, que es una decision y no un descuido.
 #
 #    SPACES_KEY  SPACES_SECRET     obligatorias, por entorno (nunca en `ps`)
-#    SPACES_BUCKET SPACES_REGION   por omision `space-os-respaldos` y `nyc3`,
-#                                  los mismos que `respaldo.sh:94-95`
+#    SPACES_REGION                 OBLIGATORIA. Sin default a proposito: la
+#                                  del bucket se lee en su URL del panel,
+#                                  `<bucket>.<REGION>.digitaloceanspaces.com`.
+#                                  Medido el 17/09: esta cuenta usa `sfo3` y
+#                                  `respaldo.sh:95` trae `nyc3`
+#    SPACES_BUCKET                 por omision `space-os-respaldos`
 #    LOGS_BUCKET                   opcional; sin el, el log de cada update se
 #                                  queda en el droplet y diagnosticar exige
 #                                  entrar al servidor del owner
@@ -134,11 +138,23 @@ CANAL="${CANAL:-estable}"
 # >>> cierra aqui: si no estan, el alta se para.
 SPACES_KEY="${SPACES_KEY:-}"
 SPACES_SECRET="${SPACES_SECRET:-}"
-# Los dos con el mismo valor por omision que `respaldo.sh:94-95`, para que una
+# El bucket toma el mismo valor por omision que `respaldo.sh:94`, para que una
 # instancia no acabe apuntando a un bucket distinto del que el propio script de
 # respaldo usaria. Si divergen, el dump se sube a un sitio y se busca en otro.
 SPACES_BUCKET="${SPACES_BUCKET:-space-os-respaldos}"
-SPACES_REGION="${SPACES_REGION:-nyc3}"
+
+# ⚠️ LA REGION NO TIENE VALOR POR OMISION, y es a proposito. `respaldo.sh:95`
+# trae `nyc3`, que es lo que este bloque copiaba hasta que se MIDIO contra la
+# cuenta real el 2026-09-17:
+#
+#   https://space-os-respaldos.sfo3.digitaloceanspaces.com
+#
+# El bucket vive en `sfo3`. Una instancia con `nyc3` habria hablado con el
+# endpoint equivocado y respondido `404 NoSuchBucket` -- que se lee como «el
+# bucket no existe» y manda a crear uno que ya existe, en vez de a mirar la
+# region. Un valor por omision que acierta en una cuenta y falla en otra es peor
+# que no tener ninguno: convierte un error de configuracion en una caceria.
+SPACES_REGION="${SPACES_REGION:-}"
 # El de los logs es OTRO bucket a proposito (`instancia.env.example:143`): los
 # respaldos llevan datos del cliente y los logs no, asi que no comparten
 # permisos. Vacio = el log se queda en el droplet.
@@ -172,15 +188,18 @@ done
 # Fail-closed, y el mismo patron que el guard del arnes de pruebas: lo que se
 # evita no es la decision, es el DESCUIDO. Una instancia de cliente sin respaldo
 # fuera de su droplet tiene que ser algo que alguien eligio y no algo que paso.
-if [[ -z "$SPACES_KEY" || -z "$SPACES_SECRET" ]] && [[ "$SIN_RESPALDO_REMOTO" -eq 0 ]]; then
-  echo "provision: faltan SPACES_KEY y/o SPACES_SECRET." >&2
+if [[ -z "$SPACES_KEY" || -z "$SPACES_SECRET" || -z "$SPACES_REGION" ]] && [[ "$SIN_RESPALDO_REMOTO" -eq 0 ]]; then
+  echo "provision: faltan SPACES_KEY, SPACES_SECRET y/o SPACES_REGION." >&2
   echo "           Sin ellas la instancia NO tiene respaldo fuera de su droplet:" >&2
   echo "           si la maquina desaparece, los dumps desaparecen con ella." >&2
   echo "           Medido en g500 el 2026-09-17, que llevaba asi desde su alta." >&2
   echo "" >&2
   echo "           Van por ENTORNO, nunca por argumento (se verian en \`ps\`):" >&2
   echo "             export SPACES_KEY=...    SPACES_SECRET=..." >&2
-  echo "             export SPACES_BUCKET=$SPACES_BUCKET  SPACES_REGION=$SPACES_REGION" >&2
+  echo "             export SPACES_BUCKET=$SPACES_BUCKET" >&2
+  echo "             export SPACES_REGION=... # la del BUCKET, no la del droplet." >&2
+  echo "                                      # Se lee en su URL en el panel:" >&2
+  echo "                                      # <bucket>.<REGION>.digitaloceanspaces.com" >&2
   echo "             export LOGS_BUCKET=...   # opcional: sin el, el log no sale del droplet" >&2
   echo "" >&2
   echo "           Si de verdad quieres una instancia sin respaldo remoto:" >&2

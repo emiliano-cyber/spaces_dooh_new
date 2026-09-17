@@ -200,6 +200,16 @@ describe('el respaldo y el log SALEN del droplet, o no hay de donde restaurar', 
     expect(PROVISION).not.toMatch(/--spaces-key\)/)
   })
 
+  it('la región NO tiene valor por omisión: un default que acierta a veces es peor', () => {
+    // Medido contra la cuenta real el 2026-09-17: el bucket vive en `sfo3`
+    //   https://space-os-respaldos.sfo3.digitaloceanspaces.com
+    // y `respaldo.sh:95` trae `nyc3`. Una instancia con el default habría
+    // hablado con el endpoint equivocado y contestado `404 NoSuchBucket`, que
+    // se lee como «el bucket no existe» y manda a crear uno que ya existe.
+    expect(PROVISION).toMatch(/SPACES_REGION="\$\{SPACES_REGION:-\}"/)
+    expect(PROVISION).not.toMatch(/SPACES_REGION="\$\{SPACES_REGION:-\w/)
+  })
+
   it('sin credenciales, el alta SE NIEGA salvo que alguien lo decida a propósito', () => {
     // Fail-closed, el mismo patrón que el guard del arnés de pruebas: lo que se
     // evita no es la decisión, es el descuido. Una instancia de cliente sin
