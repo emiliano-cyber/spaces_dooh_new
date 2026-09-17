@@ -48,3 +48,54 @@ export function etiquetaDeHost(host: string): string | null {
 
   return primera
 }
+
+// ─── El origen público de la instancia, para las redirecciones ──────────────
+//
+// Existe por el 500 del 2026-09-17, y conviene leer los dos fallos juntos
+// porque el segundo nació del arreglo del primero:
+//
+//   09/09 · `NextResponse.redirect(request.nextUrl.clone())` mandaba a
+//           `https://localhost:3000/…`. `nextUrl` toma su origen de donde
+//           ESCUCHA el servidor (`Dockerfile:72-73`), no de la petición.
+//   17/09 · se cambió por una `Location` RELATIVA, y toda ruta protegida sin
+//           sesión pasó a devolver 500. El adaptador de middleware de Next
+//           parsea SIEMPRE esa cabecera —`adapter.js:242-248`, `new NextURL()`
+//           sobre `new URL()` sin base—, así que una relativa no es una opción
+//           en Next 14.2.29: es un `ERR_INVALID_URL`.
+//
+// Quedan descartadas las tres salidas evidentes, y por eso volvemos al `Host`:
+// `process.env` se hornea en el build del middleware (sería el error de
+// `NEXT_PUBLIC_AUTOREGISTRO` otra vez, un valor por instancia congelado en el
+// artefacto de la flota) y la relativa es imposible.
+//
+// > [!important] Lo que esta función NO concede
+// > Decide el ORIGEN de una redirección cuyo destino es SIEMPRE una ruta interna
+// > fija. El `Host` no elige a dónde va el usuario, no entra en la cadena de
+// > datos y no resuelve tenant ni organización — eso sigue prohibido, igual que
+// > en `etiquetaDeHost`.
+//
+// El riesgo que motivó descartar el `Host` en su día —un open redirect— se acota
+// en dos capas: nginx ya filtra por `server_name`, y aquí sólo se admite lo que
+// tiene forma de nombre de máquina. Cualquier otra cosa devuelve `null` y quien
+// llama cae a su origen interno: se rompe la redirección, que es visible, en vez
+// de mandar a alguien al dominio de un tercero, que no lo es.
+const NOMBRE_DE_MAQUINA = /^[a-z0-9.-]+(:\d{1,5})?$/
+
+export function origenPublico(host: string | null, protoDeclarado: string | null): string | null {
+  if (typeof host !== 'string') return null
+
+  const nombre = host.trim().toLowerCase()
+  if (nombre === '') return null
+
+  // Todo lo que no sea un nombre de máquina: `@` (userinfo), `/` y `\` (que
+  // algunos parsers leen como separador de autoridad), `?`, `#`, espacios, y la
+  // IPv6 entre corchetes, que aquí no hace falta y sólo añade formas de error.
+  if (!NOMBRE_DE_MAQUINA.test(nombre)) return null
+
+  // El esquema lo anuncia el proxy. Sin él se asume `https`, que es lo que
+  // sirven todas las instancias; un `http` sólo se toma si lo pide de verdad.
+  const proto = (protoDeclarado ?? '').split(',')[0].trim().toLowerCase()
+  const esquema = proto === 'http' ? 'http' : 'https'
+
+  return `${esquema}://${nombre}`
+}

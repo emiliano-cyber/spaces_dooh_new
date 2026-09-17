@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-09
+actualizado: 2026-09-17
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
@@ -9,6 +9,8 @@ archivos:
   - apps/web/lib/server/usuarios-repo.ts
   - apps/web/lib/server/password-reset-repo.ts
   - apps/web/middleware.ts
+  - apps/web/middleware.test.ts
+  - apps/web/lib/host.ts
   - db/migrations/20260720_hard1_usuarios_rls.sql
   - db/migrations/20260819_semilla_rol_permisos.sql
   - db/migrations/20260825_sesion_metodo.sql
@@ -262,12 +264,49 @@ Cobertura del bloque: `lib/test/codigos-recuperacion.e2e.test.ts`,
 `lib/test/codigos-vistos.e2e.test.ts`, `lib/test/solo-google.e2e.test.ts`,
 `lib/test/regenerar-codigos.e2e.test.ts` y `lib/test/primer-dia-dueno.e2e.test.ts`.
 
-## El gate de sesión, y por qué su redirección es RELATIVA
+## El gate de sesión, y de dónde sale el origen de su redirección
 
-`middleware.ts:140-143`. Sin cookie `spaces_sesion` en una ruta no pública, se
-responde **307 con `Location` relativa** — `/spaces-dooh/login/` — nunca una URL
-absoluta. Lo mismo hace la compatibilidad de las rutas viejas `/demo/*`
-(`middleware.ts:68-74`, 308).
+`middleware.ts:173`. Sin cookie `spaces_sesion` en una ruta no pública, se
+responde **307 con una `Location` ABSOLUTA construida desde la cabecera `Host`** —
+`https://g500.space-os.io/spaces-dooh/login/`. Lo mismo hace la compatibilidad de
+las rutas viejas `/demo/*` (`middleware.ts:104`, 308).
+
+> [!danger] 2026-09-17 · la `Location` relativa devolvía **500 en toda la flota**
+> **Esta sección decía «relativa, nunca una URL absoluta» y estaba equivocada.**
+> `v0.5.0` llegó al canal `estable` el 17/09 y, medido en **g500 y en DEMO**,
+> cualquier ruta protegida sin sesión pasó a devolver HTTP 500:
+>
+> ```
+> TypeError: Invalid URL ... code: 'ERR_INVALID_URL',
+>                            input: '/spaces-dooh/login/'
+> ```
+>
+> **El mecanismo, verificado en el propio Next**
+> (`node_modules/next/dist/server/web/adapter.js:242-248`): el adaptador de
+> middleware **siempre** parsea la cabecera `Location`, con
+> `new NextURL(redirect, …)` sobre `new URL()` **sin base**. Una relativa no es
+> una URL absoluta. **En Next 14.2.29 un middleware no puede devolver `Location`
+> relativa** — no es estilo, es que ese camino no existe.
+>
+> El RFC 7231 §7.1.2 sí las permite. El párrafo que las defendía era correcto
+> sobre HTTP y falso sobre este framework.
+>
+> Decisión y sus cuatro capas de acotación: **[ADR 0033](../../docs/adr/0033-el-origen-de-las-redirecciones-sale-del-host.md)**.
+
+> [!danger] Y las TRES comprobaciones dieron verde sobre la aplicación rota
+> Es lo más caro del episodio, porque no fue mala suerte:
+>
+> | Comprobación | Por qué no lo vio |
+> |---|---|
+> | `middleware.test.ts` | Llama a `middleware()` a pelo: el `new URL()` que revienta está en el **adaptador**, por encima |
+> | Smoke de `promover.yml:245` | Mira `/login/` y `/api/auth/metodos/`, **las dos públicas**: el gate no se dispara |
+> | Salud de `update.sh` | La misma ruta pública |
+>
+> El arreglo tocó **sólo** el camino del redirect, y ninguna de las tres pasa por
+> ese camino. **DEMO validó `v0.5.0` en verde sin ejecutar la línea que rompía.**
+>
+> De ahí la regla que ahora sujeta esto: **toda prueba de una redirección
+> comprueba que su `Location` sobrevive a `new URL()`**.
 
 > [!danger] 2026-09-09 · esto dejó una instancia de cliente inalcanzable
 > Hasta hoy las dos redirecciones se construían con `request.nextUrl.clone()`. En
@@ -287,27 +326,43 @@ absoluta. Lo mismo hace la compatibilidad de las rutas viejas `/demo/*`
 > la imagen (`Dockerfile:72-73`), que Next presenta como `localhost:3000`. O sea
 > que el middleware mandaba al cliente a la dirección **interna del contenedor**.
 
-Las dos alternativas evidentes se descartaron **a propósito**, y conviene que
-quede escrito para que nadie las reintroduzca:
+De las tres opciones posibles **quedó una en pie**, y conviene que quede escrito
+por qué, para que nadie reintroduzca las otras dos:
 
 | Alternativa | Por qué no |
 |---|---|
-| Leer la cabecera `Host` | La controla quien hace la petición: convierte este gate en un *open redirect* |
-| `process.env.APP_URL` | El middleware corre en el runtime **edge**, donde `process.env` puede quedar horneado en el BUILD. Sería el mismo error que `HSTS` y `NEXT_PUBLIC_AUTOREGISTRO`: un valor **por instancia** congelado en el artefacto de **toda la flota** |
+| `Location` **relativa** | **Imposible**: `ERR_INVALID_URL` en el adaptador de Next. Es el fallo del 17/09 |
+| `process.env.APP_URL` | El middleware se compila a un bundle donde `process.env` puede quedar horneado **en el BUILD**. Sería el mismo error que `HSTS` y `NEXT_PUBLIC_AUTOREGISTRO`: un valor **por instancia** congelado en el artefacto de **toda la flota** |
+| **La cabecera `Host`** | **Es la elegida** (ADR 0033). Su riesgo —*open redirect*— es real y se acota, ver abajo |
 
-Una `Location` relativa la resuelve el navegador contra la URL que ya tiene, así
-que sale correcta en cualquier dominio **sin que la aplicación sepa cuál es** —
-que es justo lo que necesita un artefacto idéntico para toda la flota. El RFC
-7231 §7.1.2 las permite.
+El origen lo construye **`origenPublico()`** en `lib/host.ts`, que **sólo admite lo
+que tiene forma de nombre de máquina** (`/^[a-z0-9.-]+(:\d{1,5})?$/` tras `trim` y
+`toLowerCase`), con el esquema que anuncie `x-forwarded-proto`.
+
+> [!important] El `Host` decide el ORIGEN, nunca el DESTINO
+> La ruta es siempre interna, fija y literal (`/login/`, `/inicio/`, la subruta de
+> `/demo`). **Ningún valor de la petición elige a dónde va el usuario.** Y el
+> `Host` sigue sin entrar en la cadena de datos y sin resolver tenant ni
+> organización — el modelo de subdominios por tenant está muerto (ADR 0022) y
+> sigue estándolo.
+>
+> Las otras tres capas: **nginx filtra por `server_name`**; `origenPublico()` tumba
+> el userinfo, la barra, la contrabarra, la query, el fragmento y los espacios; y
+> si el `Host` no vale **se cae al origen interno**, que rompe la redirección de
+> forma visible en vez de desviar a un tercero de forma invisible.
 
 > [!warning] Al construir la cabecera a mano, el `basePath` ya no se antepone solo
 > Lo hacía Next al redirigir con `nextUrl`. Ahora lo pone `redirigir()`
-> (`middleware.ts:46-52`), junto con la barra final que exige
+> (`middleware.ts:74-83`), junto con la barra final que exige
 > `trailingSlash: true` — sin ella Next añadiría otro salto para ponerla.
 
-Cobertura: `apps/web/middleware.test.ts`, 7 casos. Incluye los negativos, que
-son los que sujetan esto: que la `Location` **no contenga** `localhost` ni
-`:3000`, que con sesión no se redirija, y que `/login` no rebote sobre sí mismo.
+Cobertura: `apps/web/middleware.test.ts`. Los negativos son los que sujetan esto:
+que la `Location` **no contenga** `localhost` ni `:3000`, que con sesión no se
+redirija, que `/login` no rebote sobre sí mismo, que **un `Host` que no es un
+nombre no cuele otro origen** (siete formas probadas, entre ellas
+`usuario:clave@evil.com` y `evil.com/@robado.com`), que la ruta de destino **no la
+decida nunca el `Host`**, y sobre todo que toda `Location` **sobreviva a
+`new URL()`**, que es literalmente lo que hace el adaptador de Next.
 
 ## CSRF — double-submit
 

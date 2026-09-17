@@ -5,6 +5,75 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-17
+
+- **Repartida la versión del 10 de septiembre a toda la flota.** El canal por el
+  que las instancias bajan sus actualizaciones cada noche llevaba desde el 9 de
+  septiembre apuntando a una copia vieja. Hoy se le puso la del 10.
+
+- **Pero NO arregló lo que iba a arreglar, y hay que decirlo así.** La dirección
+  de g500 seguía sin funcionar para quien la abriera sin haber iniciado sesión:
+  antes acababa en una dirección interna del servidor, y desde hoy muestra una
+  página de error. **Lo mismo le pasaba a la instalación de demostración**, así
+  que el fallo era de todas las instancias, no de un cliente.
+
+- **La causa, y por qué el arreglo de septiembre no podía funcionar.** Cuando
+  alguien entra sin sesión, el sistema tiene que mandarlo a la pantalla de
+  acceso. El arreglo del 10 de septiembre cambió la forma de indicar ese destino
+  por una **abreviada** —«vete a la pantalla de acceso», sin decir de qué
+  servidor—. Resulta que la tecnología sobre la que está construida la
+  aplicación **exige el destino completo** y rechaza el abreviado, así que en vez
+  de mandar a nadie a ninguna parte, devolvía un error.
+
+- **Corregido, y con la prueba que faltaba.** Ahora el destino se arma con el
+  nombre de dominio por el que entró la persona, así que sale correcto en
+  cualquier instalación sin que la aplicación tenga que saber cuál es. Va con su
+  registro de decisión, porque tiene implicaciones de seguridad que quedaron
+  escritas.
+
+- **Lo que más importa de todo esto: tres comprobaciones automáticas dieron por
+  buena una versión rota.** Las tres miraban páginas públicas, y el fallo sólo
+  aparecía en las páginas que exigen haber entrado. La instalación de
+  demostración aprobó la versión sin llegar a ejecutar ni una vez la parte
+  averiada. Se añadió la comprobación que faltaba.
+
+- **Se publicó exactamente lo que se había probado, ni una coma más.** No se
+  construyó nada nuevo: se le puso otro nombre a un paquete que ya existía y ya
+  estaba validado. Es a propósito — reconstruir produciría un paquete distinto
+  del que se probó. El sistema lo comprobó por su cuenta tres veces antes de
+  hacerlo (que la versión fuera la que está en pruebas, que la instalación de
+  demostración estuviera sana y corriendo esa misma versión, y que el paquete no
+  cambiara al renombrarlo) y dejó escrito cómo deshacerlo.
+
+- **Aplicado en la base del cliente: el país deja de rellenarse solo.** Hasta hoy,
+  una pantalla dada de alta sin indicar país quedaba registrada en «Perú», y la
+  ficha pública lo imprimía. Ya no. **No cambió ningún dato ya guardado** — las
+  pantallas de g500 registradas como peruanas se corrigen aparte y por decisión
+  suya, no como efecto colateral de una actualización. La instancia hizo una
+  copia de seguridad de 6,3 MB antes de tocar nada.
+
+- **Detectado de paso, y pesa más que lo anterior: g500 no tiene copias de
+  seguridad fuera de su propio servidor.** Los respaldos se guardan en la misma
+  máquina porque faltan las credenciales del almacén externo. Es la instalación
+  con datos reales de cliente: si esa máquina desapareciera, las copias
+  desaparecerían con ella. Sin resolver.
+
+- **Ampliado el manual de usuario con lo que le faltaba.** Se documentó el área
+  de **Integraciones** —los sistemas de otras empresas que SPACE OS puede usar—,
+  que no aparecía en absoluto, y se escribieron por fin las tareas de
+  **Actividad**, **Comisiones** y **Network**, que hasta ahora sólo se
+  mencionaban de pasada. Ocho tareas nuevas en total. El manual sigue marcado
+  como **en curso**: le falta recorrerse contra la aplicación en pantalla.
+
+- **Encontrado al documentar: un aviso que miente.** En la ficha de una pantalla,
+  el interruptor para compartirla a la Network le aparece al perfil Comercial,
+  pero ese perfil no tiene permiso para guardarlo. El interruptor vuelve solo a
+  su sitio **y aun así sale el mensaje de que se compartió**. Está sin corregir:
+  antes hay que decidir si a Comercial se le concede ese permiso o se le oculta
+  el interruptor.
+
+---
+
 ## 2026-09-15
 
 - **El servidor central dejó de quedarse sordo cada pocas horas.** Desde el 12

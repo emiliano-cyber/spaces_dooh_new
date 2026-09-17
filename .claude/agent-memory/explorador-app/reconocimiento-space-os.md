@@ -5,38 +5,50 @@ metadata:
   type: project
 ---
 
-**El repo tiene una sola pista viva: `apps/web` (Next 14 + BFF integrado). Todo lo demás es infraestructura latente.**
+**Hay DOS cosas vivas, no una: `apps/web` (Next 14 + BFF, el producto) y
+`apps/flota` (el plano de control del PADRE). Todo lo demás es archivo o infraestructura.**
 
-**Why:** el repo conserva restos de una arquitectura anterior de dos servicios, y
-confundirlos es el error más caro posible aquí — hay un `AuthProvider` JWT muerto
-montado en el árbol de render que parece el sistema de sesión y no lo es.
+**Why:** el repo conserva restos de una arquitectura anterior de dos servicios, y desde
+el 28/08 añadió un plano de control entero que **no viaja en la imagen** —el `Dockerfile`
+construye con `--filter=web`, y ese filtro es lo único que lo garantiza—. Clasificar mal
+cualquiera de los dos lleva a conclusiones falsas sobre qué corre un cliente.
 
-**How to apply:** al explorar, clasifica siempre cada hallazgo en VIVA o LATENTE.
+**How to apply:** al explorar, clasifica cada hallazgo en VIVA (`apps/web`), CONTROL
+(`apps/flota`, `infra/`) o LATENTE.
 
-Latente: `_archive/api` (Fastify+Prisma+BullMQ, fuera de los workspaces npm),
-`_archive/web-frontend-2`, `app/_legacy/` (7 páginas), `lib/auth-context.tsx` y sus
-consumidores, `infra/nginx/spaces.conf`, `infra/apache/spaces.conf`, `README.md` raíz.
+Latente y confirmado el 15/09: `_archive/api` (Fastify+Prisma+BullMQ),
+`_archive/web-frontend-2`, `infra/nginx/spaces.conf`, `infra/apache/`, y el
+**`README.md` de la raíz**, que sigue describiendo Fastify+Prisma+Redis y
+`infra/scripts/new-tenant.sh`.
 
-Ojo con dos premisas que circulan y son **falsas**: no existe `apps/` con más de un
-workspace (solo `web`), y no existen grupos de ruta `(comercial)`/`(operaciones)`.
-Los únicos grupos son `(app)`, `(app)/(shell)` y `_legacy/(auth)`.
+**Ya NO existen** (la memoria vieja los daba por vivos): `apps/web/lib/auth-context.tsx`,
+`apps/web/app/_legacy/`. El `AuthProvider` muerto se retiró el 27/08.
 
 ## Orden barato de exploración
 
-1. `vault/` completo — 39 notas curadas, cubre el 90 % y ahorra horas.
-2. `vault/07-Agentes/diario/` más reciente + `git log --since` desde el `actualizado:`
-   de las notas. Ahí está la deriva que ningún recuento detecta.
-3. Después el código, solo para verificar.
+1. **`docs/Traspaso_*.md` MÁS RECIENTE** — es lo único que dice el estado *de hoy*.
+   Empezar por el MOC hace perder tiempo: lleva cifras viejas.
+2. `vault/07-Agentes/diario/` del día + `vault/07-Agentes/tablero.md` (enorme, leer solo
+   la cabecera).
+3. `vault/` por carpetas, para el contexto estructural.
+4. El código, solo para verificar.
 
-## Dónde vive cada capa
+## Dónde vive cada capa (medido 2026-09-15)
 
-- Endpoints: `apps/web/app/api/**/route.ts` (88 archivos, 110 métodos HTTP).
-- Capas del BFF: `route.ts` (guard+HTTP) → `*-controller.ts` (zod+reglas) → `*-repo.ts` (SQL) → `db.ts`.
-- Pantallas internas: `app/(app)/(shell)/` (22). Sin chrome: `app/(app)/` a secas (8).
-- Menú **y** control de acceso: el mismo `components/demo/shell/nav.ts` (lo usa `AuthGate`).
-- Esquema: `db/schema.sql` + 66 migraciones. `schema.sql` solo **no** es seguro: crea
-  RLS permisiva y el fail-closed llega por migración.
-- Correcciones de datos de producción: `docs/datos/` (con rollback), nunca en `db/migrations/`.
+- Endpoints: `apps/web/app/api/**/route.ts` — **92** archivos, **115** métodos.
+- Capas del BFF: `route.ts` → `*-controller.ts` → `*-repo.ts` → `db.ts`.
+- Pantallas: `app/(app)/(shell)/` (22, con chrome) y `app/(app)/` (9, sin chrome).
+- Menú **y** control de acceso: `components/demo/shell/nav.ts`.
+- Re-autenticación de dinero: `exigirCambioSensible` en `lib/server/cambios.ts:236` —
+  8 endpoints la llevan.
+- Esquema: `db/schema.sql` (28 tablas) + **80** migraciones (12 tablas más) = **40**.
+  `schema.sql` crea RLS **permisiva**; el fail-closed llega por 8 migraciones.
+- Orden de migraciones: `scripts/migrar.mjs:63` (`ANTES_DE`), declarado UNA vez.
+- Guiones de instancia: `infra/scripts/` — `provision-instancia.sh` (administrado),
+  `instalar-hijo.sh` (droplet del cliente, ADR 0032), `update.sh` (2341 líneas),
+  y `base-instancia.sh` / `entorno-instancia.sh`, que los dos caminos **sourcean**.
+- Licencias Ed25519: `apps/flota/licencia.mjs` firma, `update.sh:890-960` verifica,
+  pública en `infra/licencias/space-os.pub`.
 - Runbooks ejecutados: `DESPLIEGUE_*.txt` en la **raíz**, no en `docs/`.
 
 Relacionadas: [[trampas-verificacion-boveda]] · [[codigo-muerto-alcanzable]]

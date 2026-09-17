@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { etiquetaDeHost } from './lib/host'
+import { etiquetaDeHost, origenPublico } from './lib/host'
 
 // Must match basePath in next.config.mjs
 const BASE_PATH = '/spaces-dooh'
@@ -12,8 +12,12 @@ const moduleMap: Record<string, string> = {
   portal: '/portal',
 }
 
-// ─── Las redirecciones van con `Location` RELATIVA ──────────────────────────
+// ─── El origen de las redirecciones sale del `Host`, no del servidor ────────
 //
+// Dos fallos en producción, y el segundo nació del arreglo del primero. Se
+// cuentan los dos porque el orden es lo que explica la decisión de hoy.
+//
+// ── 2026-09-09 · el redirect mandaba a `localhost` ──
 // Medido en la instancia `g500` el 2026-09-09: una ruta interna sin sesión
 // contestaba `location: https://localhost:3000/spaces-dooh/login/` y el
 // navegador se iba a `localhost`. No era nginx —la misma petición directa al
@@ -39,15 +43,46 @@ const moduleMap: Record<string, string> = {
 // sale correcta en cualquier dominio sin que la aplicación sepa cuál es. El RFC
 // 7231 §7.1.2 las permite, y es lo que ya emite `next.config.mjs`.
 //
+// ─── 2026-09-17 · LA RELATIVA DEVOLVÍA 500, Y POR ESO VUELVE EL `Host` ──────
+//
+// El párrafo de arriba se queda porque es cierto sobre HTTP y porque explica de
+// dónde viene esto. Pero es FALSO sobre Next, y costó un despliegue a toda la
+// flota: medido en g500 y en DEMO con `v0.5.0` ya sirviendo, cualquier ruta
+// protegida sin sesión devolvía
+//
+//   TypeError: Invalid URL ... code: 'ERR_INVALID_URL',
+//                              input: '/spaces-dooh/login/'
+//
+// El adaptador de middleware de Next parsea SIEMPRE la cabecera `Location` que
+// devuelve esta función —`node_modules/next/dist/server/web/adapter.js:242-248`,
+// `new NextURL(redirect, …)` sobre `new URL()` sin base—. Una ruta relativa no
+// es una URL absoluta: revienta antes de llegar al navegador. En Next 14.2.29
+// un middleware NO PUEDE devolver `Location` relativa.
+//
+// Así que el origen vuelve a salir del `Host` (ADR 0033), que es la única de las
+// tres opciones que queda en pie: `process.env` se hornea en el build y la
+// relativa no existe. El open redirect que motivó descartarlo se acota en
+// `origenPublico()` (`lib/host.ts`) y en el `server_name` de nginx, y el destino
+// de esta función es SIEMPRE una ruta interna fija: el `Host` decide el origen,
+// nunca a dónde va el usuario.
+//
+// Si el `Host` no tiene forma de nombre de máquina se cae al origen interno.
+// Eso ROMPE la redirección —vuelve el `localhost` del 09/09— pero no manda a
+// nadie al dominio de un tercero, y sigue siendo una URL absoluta, así que no
+// puede reaparecer el 500. Detrás de nginx no ocurre.
+//
 // El `basePath` se antepone AQUÍ a propósito: lo hacía Next al redirigir con
 // `nextUrl`, y al construir la cabecera a mano esa magia deja de aplicar.
 // `trailingSlash: true` obliga a la barra final; sin ella Next añadiría otro
 // salto para ponerla.
-function redirigir(ruta: string, estado: 307 | 308, query = '') {
+function redirigir(request: NextRequest, ruta: string, estado: 307 | 308, query = '') {
   const conBarra = ruta.endsWith('/') ? ruta : `${ruta}/`
+  const origen =
+    origenPublico(request.headers.get('host'), request.headers.get('x-forwarded-proto')) ??
+    request.nextUrl.origin
   return new NextResponse(null, {
     status: estado,
-    headers: { location: `${BASE_PATH}${conBarra}${query}` },
+    headers: { location: `${origen}${BASE_PATH}${conBarra}${query}` },
   })
 }
 
@@ -70,7 +105,7 @@ export function middleware(request: NextRequest) {
     // El resto conserva su subruta ya sin el segmento '/demo'.
     const resto = normalizedPath.slice('/demo'.length)
     const destino = resto === '' || resto === '/' ? '/inicio' : resto
-    return redirigir(destino, 308, request.nextUrl.search)
+    return redirigir(request, destino, 308, request.nextUrl.search)
   }
 
   // ─── CSRF (Hardening 1 · Bloque E): double-submit en mutaciones con sesión ──
@@ -139,7 +174,7 @@ export function middleware(request: NextRequest) {
 
   // Gate: sin cookie de sesión → redirige al login (no expone ninguna otra ruta).
   if (!publico && !request.cookies.has('spaces_sesion')) {
-    return redirigir('/login', 307, request.nextUrl.search)
+    return redirigir(request, '/login', 307, request.nextUrl.search)
   }
 
   return NextResponse.next()
