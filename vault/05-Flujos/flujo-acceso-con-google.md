@@ -1,7 +1,7 @@
 ---
 tipo: flujo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-17
 tags: [flujo, auth, google, oidc, rojo]
 archivos:
   - docs/adr/0012-acceso-con-cuenta-de-google.md
@@ -237,6 +237,53 @@ hiciera.
    > que lee el proceso—; si divergen, manda el segundo.
    > Ver [[entorno-y-despliegue]].
 4. Apagar es inmediato: `GOOGLE_OAUTH=0` + reinicio del servicio.
+
+## Para probarlo en LOCAL (2026-09-17)
+
+Las dos rutas, con el `basePath` `/spaces-dooh` y `npm run dev` en el 3000:
+
+| | |
+|---|---|
+| Arranca el flujo | `http://localhost:3000/spaces-dooh/api/auth/google/inicio/` |
+| Vuelve Google | `http://localhost:3000/spaces-dooh/api/auth/google/callback/` |
+| La pantalla de acceso | `http://localhost:3000/spaces-dooh/login/` |
+
+En `apps/web/.env.local`:
+
+```
+GOOGLE_CLIENT_ID=…
+GOOGLE_CLIENT_SECRET=…
+GOOGLE_REDIRECT_URI=http://localhost:3000/spaces-dooh/api/auth/google/callback/
+APP_URL=http://localhost:3000
+```
+
+> [!important] La variable explícita, aunque parezca redundante
+> `redirectUri()` (`lib/server/google-oauth.ts:63-68`) **prefiere
+> `GOOGLE_REDIRECT_URI`** sobre deducirla del request, y el comentario de
+> `:60-62` dice por qué: Google compara la URI **carácter por carácter** contra
+> la registrada, y deducirla detrás de un proxy es justo donde se cuelan las
+> diferencias de protocolo, host y puerto.
+
+> [!danger] Copiar el `CLIENT_ID` del PADRE NO basta
+> Google valida la URI de retorno contra la lista registrada en **ese proyecto**.
+> Hay que **añadir** —sin borrar la del PADRE, conviven— en Google Cloud Console
+> → Credentials → ese OAuth client → *Authorized redirect URIs*:
+>
+> ```
+> http://localhost:3000/spaces-dooh/api/auth/google/callback/
+> ```
+>
+> Y `http://localhost:3000` como *Authorized JavaScript origin*. Si falta, el
+> error es `redirect_uri_mismatch`, que al menos es explícito.
+>
+> **La barra final tampoco aquí es cosmética**: mismo motivo que en producción
+> (`google-oauth.ts:55-58`), y Google **no sigue redirecciones** en el callback.
+
+> [!tip] Y si sólo quieres ver la pantalla, hay un doble
+> `apps/web/lib/test/doble-google.ts`, con `GOOGLE_DOBLE_EMAIL` (por omisión
+> `duenio@alfa.test`) y `GOOGLE_DOBLE_SUB`. Es el que usan las e2e, y evita dar
+> de alta credenciales reales sólo para recorrer el flujo. El runbook del PADRE
+> lo lista como **«nunca en producción»** (`Runbook_Padre_Droplet_Nuevo.md:371`).
 
 ## Relacionadas
 [[autenticacion-y-sesion]] · [[flujo-login]] · [[acceso-y-sesion-ui]] ·
