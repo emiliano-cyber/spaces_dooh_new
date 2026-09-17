@@ -1,7 +1,7 @@
 ---
 tipo: indice
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-17
 tags: [backend, indice]
 archivos:
   - apps/web/app/api/
@@ -10,9 +10,16 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **90** Route Handlers
-(medidos el 27/08) sobre **89** archivos en `apps/web/lib/server/`. No hay
-servicio aparte.
+El backend es un **BFF dentro de la propia app Next**: los Route Handlers de
+`apps/web/app/api/**/route.ts` sobre los archivos de `apps/web/lib/server/`. No
+hay servicio aparte.
+
+> [!warning] No copies de aquí un recuento — mídelo
+> El párrafo anterior decía «90 route handlers sobre 89 archivos, medidos el
+> 27/08». Esa cifra ya no vale: el 17/09 nació `/api/reportes/rentabilidad`
+> ([[reportes-rentabilidad]]) y con él tres archivos de `lib/server/`. Si
+> necesitas el número, cuéntalo — es el mismo aviso que `convenciones.md` da
+> para las pruebas, y por el mismo motivo.
 
 ## Notas de este apartado
 
@@ -26,6 +33,7 @@ servicio aparte.
 | [[comercial-propuestas-campanas]] | Propuestas, reservas, campañas, creativos |
 | [[operaciones-y-ot]] | Órdenes de trabajo, evidencias, imprenta, almacén |
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |
+| [[reportes-rentabilidad]] | El límite `/api/reportes/*` y el prorrateo por periodo |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
 
@@ -50,6 +58,7 @@ Tamaño = superficie de conflicto entre agentes. Ver [[AGENTES]].
 | `lib/server/doohmain.ts` | 313 | [[integraciones-externas]] |
 | `lib/server/finanzas-repo.ts` | 298 | [[finanzas-y-cobranza]] |
 | `lib/server/google-oauth.ts` | 289 | [[autenticacion-y-sesion]] |
+| `lib/server/reportes-repo.ts` | 159 | [[reportes-rentabilidad]] |
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[03-Frontend/_indice|Índice de Frontend]] · [[esquema]] ·

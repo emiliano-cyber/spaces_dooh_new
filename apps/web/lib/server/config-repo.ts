@@ -127,6 +127,25 @@ export function plazoPorDefecto(plazos: number[]): number {
   return lista.includes(90) ? 90 : Math.min(...lista)
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+//  Costo de mano de obra por TIPO de orden de trabajo
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Lo usan el motor de reportes (`lib/server/reportes-repo.ts`) y, por la vía de
+// `/api/estado`, el dashboard del navegador. Va por `obtenerConfigRow()` —y no
+// por una consulta propia— para heredar su filtro por `tenant_id`: el
+// invariante dice que quien lee `config_negocio` usa la consulta CON tenant. Un
+// `qRaw` aquí devolvería la fila de otra empresa, o cero filas EN SILENCIO, y el
+// costo de operación de una organización lo acabaría decidiendo la
+// configuración de otra — sobre dinero, y sin dar ningún error.
+//
+// Mapa VACÍO = esta organización no ha configurado nada, y entonces manda
+// `COSTOS_OT_RESPALDO` (`lib/costos-ot.ts`). Nunca se devuelve 0 por omisión:
+// un costo de 0 se suma sin que nada falle y deja el margen inflado en pantalla.
+export async function costosOtDelTenant() {
+  return sanearCostosOt((await obtenerConfigRow()).costos_ot)
+}
+
 export async function obtenerConfig() {
   const cfg = rowToConfig(await obtenerConfigRow())
   // Identidad de la organización: siempre de `tenants`. Es la ÚNICA fuente

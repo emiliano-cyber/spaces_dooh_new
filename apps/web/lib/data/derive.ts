@@ -1223,7 +1223,20 @@ export function sitiosSinContratoCompleto(
   return bloqueadas
 }
 
-export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoArrendamiento> {
+// Lo ÚNICO que la atribución de renta necesita del estado. Se declara para que
+// el servidor pueda reusar estas funciones sin fabricar un `DemoState` entero
+// con veintitantas rebanadas vacías: `lib/server/reportes-repo.ts` lee de la
+// base solo las pantallas y los contratos, y los pasa aquí.
+//
+// `DemoState` sigue encajando por estructura, así que ni un llamador de la UI
+// cambia. La alternativa era copiar la atribución al servidor, y este repo ya
+// documenta esa clase de error como su error de raíz (`lib/server/tenant.ts:87-89`).
+export interface DatosAtribucion {
+  sitios: Sitio[]
+  contratos: ContratoArrendamiento[]
+}
+
+export function contratoVigentePorSitio(state: DatosAtribucion): Map<string, ContratoArrendamiento> {
   const mayorRenta = (a: ContratoArrendamiento, b: ContratoArrendamiento) =>
     rentaAMensual(a.montoRenta, a.periodicidad) >= rentaAMensual(b.montoRenta, b.periodicidad) ? a : b
 
@@ -1266,7 +1279,7 @@ export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoA
 //     pantallas distintas entre las que repartir.
 // Sin contrato activo ⇒ 0. NUNCA usa costoCompra: la renta ES el costo del
 // espacio (un solo costo, sin doble conteo).
-export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
+export function rentaAtribuidaPorSitio(state: DatosAtribucion): Map<string, number> {
   const contratoDe = contratoVigentePorSitio(state)
   // Σ caras por predio: solo hace falta para repartir un contrato de predio.
   const carasPredio = new Map<string, number>()
@@ -1460,7 +1473,14 @@ export function formatFechaHora(iso: string): string {
 
 // ─── Serie de ocupación día/semana/mes (7.1) ────────────────────────────────
 
-export type Granularidad = 'dia' | 'semana' | 'mes'
+// `trimestre` entra el 2026-09-17 con los reportes de rentabilidad
+// ([[02-Backend/reportes-rentabilidad]]): un P&L se lee por trimestre, no por
+// semana. Se añade AQUÍ y no en un tipo paralelo del módulo de reportes para
+// que el etiquetado de buckets siga declarándose una sola vez; el reporte
+// acepta solo el subconjunto `'mes' | 'trimestre'` (ver `GranularidadReporte`
+// en lib/data/reportes.ts), porque una rentabilidad por día sobre historia de
+// años es justo la consulta sin límite que ese endpoint viene a evitar.
+export type Granularidad = 'dia' | 'semana' | 'mes' | 'trimestre'
 
 export interface PuntoOcupacion {
   label: string
@@ -1479,6 +1499,12 @@ const CONFIG_GRAN: Record<Granularidad, { buckets: number; dias: number }> = {
   dia: { buckets: 14, dias: 1 },
   semana: { buckets: 8, dias: 7 },
   mes: { buckets: 6, dias: 30 },
+  // La gráfica de ocupación del inicio no ofrece trimestre (`GRANS` en
+  // `app/(app)/(shell)/inicio/page.tsx:48`), pero `CONFIG_GRAN` es un
+  // `Record<Granularidad, …>` y dejarlo fuera sería un error de tipos. Se
+  // declara con cuatro trimestres de 91 días —el año fiscal completo—, que es lo
+  // que tendría sentido pintar si algún día se ofrece.
+  trimestre: { buckets: 4, dias: 91 },
 }
 
 function startOfToday(): Date {
@@ -1519,7 +1545,16 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
   return { puntos, diasOcupados, diasDisponibles }
 }
 
-function etiquetaBucket(d: Date, gran: Granularidad): string {
+// Exportada desde el 17/09: la usan la gráfica de ocupación y los reportes de
+// rentabilidad. Dos etiquetados del mismo bucket acabarían diciendo «T1» en una
+// pantalla y «1er trimestre» en la otra para el mismo periodo.
+export function etiquetaBucket(d: Date, gran: Granularidad): string {
+  if (gran === 'trimestre') {
+    // `T1 2026`. Lleva el año porque un reporte cruza años con normalidad y
+    // «T1» a secas no dice cuál — al contrario que los meses de la gráfica, que
+    // siempre son los seis siguientes a hoy.
+    return `T${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+  }
   if (gran === 'mes') {
     return d.toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')
   }

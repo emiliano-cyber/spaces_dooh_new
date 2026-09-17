@@ -7,6 +7,39 @@ La entrada más reciente va arriba.
 
 ## 2026-09-17
 
+- **Los reportes de rentabilidad ya tienen por dónde pedir sus números, y no
+  es el navegador.** Se abrió la dirección `/api/reportes/rentabilidad`: el
+  servidor recibe qué periodo se quiere ver y devuelve el reporte **ya sumado**.
+  Todavía no hay pantallas que lo usen; esto es la tubería sobre la que se van
+  a construir.
+
+  **Por qué se hizo ahora y no cuando estén las pantallas.** Hoy la aplicación
+  se trae al navegador **tablas completas** en cada carga y saca los márgenes
+  ahí. Eso ya reventó una vez: la respuesta llegó a **6 MB** y la pantalla se
+  quedaba en blanco entre **6 y 12 segundos**, sin dar ningún error. Los
+  reportes de rentabilidad van a mirar **años** de historia, así que por ese
+  camino no aguantan. Hacerlo al revés —pantallas primero— habría obligado a
+  rehacerlas todas después.
+
+- **Lo que ya calcula: la rentabilidad por pantalla, repartida por periodo.**
+  Antes el margen por pantalla era una **foto de hoy**: solo contaba lo que
+  estuviera vendido en este momento. Ahora se puede pedir un trimestre o un mes
+  concretos, y una campaña que empieza en marzo y acaba en abril **se reparte
+  por los días que le toca a cada uno**, en vez de contarse entera en el mes en
+  que arranca. Los dos trozos suman el precio exacto de la campaña: el reparto
+  no pierde ni inventa dinero.
+
+  La renta que se paga al arrendador se reparte al revés, por **meses de
+  calendario**, porque así se paga: un mes completo cuenta como un mes, tenga
+  28 o 31 días.
+
+- **Falta decir lo que NO hace, para que nadie lea de más.** Se puede agrupar
+  **por pantalla**; las otras tres agrupaciones previstas —por trimestre, por
+  operación y por metro cuadrado— están declaradas y contestan «todavía no
+  disponible» con ese mensaje, no con un error. Y el costo de renta usa el
+  contrato **vigente hoy**, así que un reporte de un trimestre pasado no ve un
+  contrato que ya venció entonces.
+
 - **Cuánto cuesta una orden de trabajo ya se puede configurar, y por tipo.**
   Hasta hoy el sistema cobraba **1 500 pesos por cada orden de trabajo**, fuera
   montar una lona o pasar a hacer una inspección, y ese número estaba escrito
