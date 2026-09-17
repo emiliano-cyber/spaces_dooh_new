@@ -666,10 +666,25 @@ descuido, y reconstruir daría un binario distinto del validado (invariante 3).
 > **solo, sin tocar el archivo** — que era exactamente el diseño (`promover.yml:270-274`).
 >
 > Hoy, si hay secreto `FLOTA_TOKEN`, `promover.yml:279-289` pregunta a DEMO qué versión
-> corre y **aborta** si no es la que se está promoviendo. La promoción del 17/09 pasó por
-> ahí. Si el secreto faltara, el resumen del run vuelve a decir con todas sus letras que
-> ese punto **no está comprobado**: un smoke verde que se leyera como «DEMO corre esta
-> versión» sería peor que no tenerlo.
+> corre y **aborta** si no es la que se está promoviendo. Si el secreto faltara, el resumen
+> del run dice con todas sus letras que ese punto **no está comprobado**: un smoke verde
+> que se leyera como «DEMO corre esta versión» sería peor que no tenerlo.
+
+> [!danger] 2026-09-17 · esa puerta parece APAGADA, y esta nota llegó a decir lo contrario
+> **Este mismo callout afirmó que «la promoción del 17/09 pasó por ahí». Estaba
+> deducido, no medido**, y el mismo día quedó desmentido: la promoción de `v0.5.1`
+> salió **verde** con el contenedor `space-os-demo` todavía en la imagen anterior.
+> Si la comparación corriera, habría abortado.
+>
+> Lo más probable es que **falte el secreto `FLOTA_TOKEN`**. Se cierra mirando la
+> línea «Smoke en DEMO» del resumen del run, y no antes.
+>
+> **Y hay algo peor debajo**, medido en el PADRE el 17/09: ese contenedor **no
+> tiene unidad de systemd, no tiene cron, y `update.sh` nunca estuvo configurado
+> ahí** —su `/etc/space-os/instancia.env` sólo trae las claves de `respaldo.sh`—.
+> Corre `:beta` porque alguien lo levantó a mano el 02/09 y nadie lo ha movido
+> desde entonces. **Una promoción valida hoy dos rutas públicas de una máquina
+> congelada.**
 
 > [!danger] Promover manda a **toda la flota** a jalar esa imagen
 > Y las instancias que ya jalaron **no vuelven solas**: devolver la etiqueta `estable`
