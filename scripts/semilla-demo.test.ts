@@ -8,7 +8,7 @@ import {
   SITIO_SANTA_MONICA,
   COSTOS_OT_DEMO,
 } from './semilla-demo.mjs'
-import { rentabilidadPorSitio } from '@/lib/data/reportes'
+import { rentabilidadPorSitio, rentabilidadPorM2, rentabilidadPorLuz } from '@/lib/data/reportes'
 
 // ============================================================================
 //  El GUION de la demo, probado sin Postgres.
@@ -272,5 +272,225 @@ describe('idempotencia', () => {
     expect(texto).not.toMatch(/space-os\.io|digitalocean|registryspaces/i)
     for (const a of plan().arrendadores) expect(a.rfc).toMatch(/^DMO/)
     for (const c of plan().clientes) expect(c.rfc).toMatch(/^DMO/)
+  })
+})
+
+// ============================================================================
+//  LO QUE LA BASE DE DEMOSTRACIÓN NO PODÍA ENSEÑAR — 2026-09-18
+// ----------------------------------------------------------------------------
+//  Medido sobre `spaces_ver2` el 18/09, que es la base con la que se ensaya el
+//  14 de octubre:
+//
+//    · recibos de luz .................. 0   → la quinta dimensión, vacía
+//    · pantallas con más de una cara ... 0   → la decisión del m² por caras,
+//                                              tomada el 18/09, INVISIBLE
+//    · contratos con razón social ...... 1 de 3, y las dos entidades se habían
+//                                              creado a mano desde la interfaz:
+//                                              el guion NO las sembraba
+//
+//  Tres de las cinco cosas construidas no se podían enseñar sobre una base
+//  recién sembrada. Estas pruebas son ese hueco escrito como aserción.
+// ============================================================================
+
+// Los CINCO papeles del catálogo. Son FIJOS por decisión del dueño del
+// 2026-09-18 (`vault/02-Backend/multi-entidad-en-uso`), y se escriben aquí para
+// que inventar un sexto en la semilla salga en rojo: `entidad_roles.rol` es una
+// FK contra `catalogo_roles_entidad`, así que un papel inventado revienta
+// contra la base — y eso se ve corriendo el script, no leyendo el plan.
+const ROLES_DEL_CATALOGO = ['ARRENDAMIENTOS', 'ACTIVOS', 'LICENCIAS', 'OPERACION', 'VENTAS']
+
+/** Los meses `AAAA-MM-01` que cubre el histórico del plan. */
+function mesesDelPlan(p: any): string[] {
+  const out: string[] = []
+  const [a0, m0] = p.trimestres[0].desde.slice(0, 7).split('-').map(Number)
+  const ultimo = p.trimestres[p.trimestres.length - 1].hasta.slice(0, 7)
+  for (let i = 0; i < 240; i++) {
+    const d = new Date(Date.UTC(a0, m0 - 1 + i, 1))
+    const clave = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`
+    out.push(`${clave}-01`)
+    if (clave === ultimo) break
+  }
+  return out
+}
+
+describe('razones sociales: sembradas, con sus papeles, y EN USO', () => {
+  it('siembra al menos DOS razones sociales propias del owner', () => {
+    // Hasta hoy el guion no sembraba ninguna: las dos de `spaces_ver2` se
+    // habían tecleado a mano en la interfaz, así que una base recién sembrada
+    // no podía enseñar ni la pantalla de razones sociales ni la asignación.
+    const p = plan()
+    expect(p.entidades.length).toBeGreaterThanOrEqual(2)
+    for (const e of p.entidades) {
+      expect(e.razonSocial, 'razón social vacía').toBeTruthy()
+      expect(e.rfc, `RFC de ${e.razonSocial} no es de demostración`).toMatch(/^DMO/)
+    }
+  })
+
+  it('ningún papel inventado, y los CINCO del catálogo tienen dueño', () => {
+    // El catálogo es global y fijo. Un papel que no esté en él no es un dato
+    // discutible: es un 23503 contra `catalogo_roles_entidad` al sembrar.
+    const p = plan()
+    const asignados = p.entidades.flatMap((e: any) => e.roles)
+    for (const rol of asignados) expect(ROLES_DEL_CATALOGO).toContain(rol)
+    for (const rol of ROLES_DEL_CATALOGO) {
+      expect(asignados.filter((r: string) => r === rol).length, `papel ${rol}`).toBe(1)
+    }
+  })
+
+  it('los contratos llevan su PAGADORA, y uno queda SIN ASIGNAR a propósito', () => {
+    // «Sin asignar» es un estado que el producto sabe pintar («La paga: sin
+    // asignar»), y no se puede enseñar si la semilla los asigna todos.
+    const p = plan()
+    const conEntidad = p.contratos.filter((c: any) => c.entidadClave != null)
+    const sinEntidad = p.contratos.filter((c: any) => c.entidadClave == null)
+    expect(conEntidad.length).toBeGreaterThanOrEqual(2)
+    expect(sinEntidad.length).toBe(1)
+
+    // Y la que paga es la que tiene el papel de ARRENDAMIENTOS: si fuera otra,
+    // el aviso de «papel sin dueño» de la pantalla no diría nada.
+    const paga = p.entidades.find((e: any) => e.roles.includes('ARRENDAMIENTOS'))
+    for (const c of conEntidad) expect(c.entidadClave).toBe(paga.clave)
+  })
+
+  it('los comprobantes llevan su EMISORA, y es la que vende', () => {
+    const p = plan()
+    expect(p.comprobantes.length).toBeGreaterThan(0)
+    const vende = p.entidades.find((e: any) => e.roles.includes('VENTAS'))
+    for (const f of p.comprobantes) expect(f.entidadClave).toBe(vende.clave)
+    // Uno por campaña: `facturas_campana_uq` es único por campaña, así que dos
+    // comprobantes de la misma campaña no serían un dato feo sino un error.
+    const folios = p.comprobantes.map((f: any) => f.campanaFolio)
+    expect(new Set(folios).size).toBe(folios.length)
+  })
+})
+
+describe('recibos de luz: los cuatro trimestres, con huecos a propósito', () => {
+  it('siembra un recibo por predio y por mes del histórico, menos los huecos', () => {
+    const p = plan()
+    const meses = mesesDelPlan(p)
+    expect(meses.length).toBe(p.trimestres.length * 3)
+
+    const esperados = p.predios.length * meses.length
+    expect(p.consumosEnergia.length).toBeGreaterThan(0)
+    expect(p.consumosEnergia.length).toBeLessThan(esperados)
+
+    // Todos caen en el día 1 de un mes del histórico: la base lo exige con un
+    // CHECK, y una fila a mitad de mes se repartiría como si el mes empezara
+    // ese día.
+    for (const c of p.consumosEnergia) {
+      expect(meses, `periodo fuera del histórico: ${c.periodo}`).toContain(c.periodo)
+      expect(c.kwh).toBeGreaterThan(0)
+      expect(c.importe).toBeGreaterThan(0)
+    }
+    // Y ninguno repetido: el índice único es (tenant, predio, periodo, medidor),
+    // y un recibo capturado dos veces DUPLICA el costo de la luz sin dar error.
+    const claves = p.consumosEnergia.map((c: any) => `${c.predioClave}|${c.periodo}|${c.medidor}`)
+    expect(new Set(claves).size).toBe(claves.length)
+  })
+
+  it('el reporte de luz DECLARA los huecos, que es la mitad del reporte', () => {
+    // Una pantalla sin recibo sale con `costoEnergia: 0`, indistinguible de una
+    // que de verdad no gasta luz. La rejilla en ámbar y este aviso existen para
+    // eso, y no se pueden enseñar sobre una base completa.
+    const p = plan()
+    const rep = rentabilidadPorLuz(datosDeRentabilidad(p) as any, rangoDelPlan(p))
+    expect(rep.cobertura!.esperados).toBe(p.predios.length * p.trimestres.length * 3)
+    expect(rep.cobertura!.faltantes).toBeGreaterThan(0)
+    expect(rep.cobertura!.recibosSinDestino).toBe(0)
+    // Y la luz llega a las pantallas: si el reparto no diera nada a nadie, el
+    // dinero desaparecería del reporte sin error.
+    expect(rep.totales.costoEnergia).toBeGreaterThan(0)
+  })
+
+  it('la luz NO explica la brecha del guion: las dos protagonistas pierden el MISMO mes', () => {
+    // Si a Tlalpan le faltara un recibo que a Santa Mónica no, la brecha de
+    // margen del guion tendría una segunda causa y dejaría de ser atribuible a
+    // la operación, que es lo único que este guion existe para demostrar.
+    const p = plan()
+    const mesesDe = (clave: string) =>
+      p.consumosEnergia
+        .filter((c: any) => c.predioClave === clave)
+        .map((c: any) => c.periodo)
+        .sort()
+    expect(mesesDe('PRE-TLP')).toEqual(mesesDe('PRE-STM'))
+
+    const rep = rentabilidadPorSitio(datosDeRentabilidad(p) as any, rangoDelPlan(p))
+    const t = filaDe(rep, SITIO_TLALPAN)
+    const s = filaDe(rep, SITIO_SANTA_MONICA)
+    const brecha = s.margen - t.margen
+    expect(t.costoOperacion - s.costoOperacion).toBeGreaterThan(brecha * 0.75)
+    expect(Math.abs(t.costoEnergia - s.costoEnergia)).toBeLessThan(brecha * 0.25)
+  })
+})
+
+describe('caras: la decisión del m² deja de ser invisible', () => {
+  it('las dos protagonistas se quedan en UNA cara', () => {
+    // Sus cifras están escritas en `docs/Guion_Summit_20261014.md` y en dos
+    // notas de la bóveda, y el dueño ya las validó. `rentaAtribuidaPorSitio()`
+    // reparte la renta del predio ENTRE LAS CARAS de sus pantallas: tocarles
+    // las caras les mueve la renta, el margen y todos los totales.
+    const p = plan()
+    expect(sitioDe(p, SITIO_TLALPAN).caras).toBe(1)
+    expect(sitioDe(p, SITIO_SANTA_MONICA).caras).toBe(1)
+  })
+
+  it('hay pantallas con MÁS de una cara, y con medidas capturadas', () => {
+    const p = plan()
+    const conVariasCaras = p.sitios.filter((s: any) => s.caras > 1)
+    expect(conVariasCaras.length).toBeGreaterThan(0)
+    for (const s of conVariasCaras) {
+      expect(s.ancho, `${s.clave} sin ancho: el m² la excluiría`).not.toBeNull()
+      expect(s.alto, `${s.clave} sin alto: el m² la excluiría`).not.toBeNull()
+    }
+  })
+
+  it('el reporte por m² compara pantallas de DISTINTO número de caras', () => {
+    // Sin esto, «los m² los define cada pantalla igual que cada cara» es una
+    // decisión que no se puede enseñar: todas las filas del ranking contarían
+    // una sola cara y el reporte se leería igual con la convención contraria.
+    const p = plan()
+    const rep = rentabilidadPorM2(datosDeRentabilidad(p) as any, rangoDelPlan(p))
+    expect(rep.convencionM2).toBe('todas-las-caras')
+
+    const porClave = new Map<string, any>(p.sitios.map((s: any) => [s.clave, s]))
+    const caras = rep.filas.map((f: any) => porClave.get(f.detalle)?.caras)
+    expect(new Set(caras).size, 'todas las filas del m² tienen las mismas caras').toBeGreaterThan(1)
+
+    // Y el m² de una de dos caras es el doble de su superficie física: es la
+    // comprobación de que la convención llega hasta la fila.
+    const dobles = rep.filas.filter((f: any) => porClave.get(f.detalle)!.caras === 2)
+    expect(dobles.length).toBeGreaterThan(0)
+    for (const f of dobles) {
+      const s = porClave.get(f.detalle)!
+      expect(f.m2).toBeCloseTo(Number(s.ancho) * Number(s.alto) * 2, 2)
+    }
+  })
+
+  it('cambiar las caras de las DEMÁS no mueve el margen de las protagonistas', () => {
+    // El invariante que protege el guion. Se mide mutando el dato: si alguien
+    // metiera a Tlalpan o a Santa Mónica en un predio compartido, la renta
+    // empezaría a repartirse y esta prueba se pondría roja — que es donde hay
+    // que verlo, y no en el escenario.
+    const p = plan()
+    const base: any = datosDeRentabilidad(p)
+    const rango = rangoDelPlan(p)
+    const antes = rentabilidadPorSitio(base, rango)
+
+    const protagonistas: string[] = [SITIO_TLALPAN, SITIO_SANTA_MONICA]
+    const mutado = {
+      ...base,
+      sitios: base.sitios.map((s: any) =>
+        protagonistas.includes(s.claveInterna) ? s : { ...s, caras: s.caras * 3 },
+      ),
+    }
+    const despues = rentabilidadPorSitio(mutado, rango)
+
+    for (const clave of protagonistas) {
+      const a = filaDe(antes, clave)
+      const d = filaDe(despues, clave)
+      expect(d.costoEspacio, `${clave} costoEspacio`).toBe(a.costoEspacio)
+      expect(d.costoEnergia, `${clave} costoEnergia`).toBe(a.costoEnergia)
+      expect(d.margen, `${clave} margen`).toBe(a.margen)
+    }
   })
 })
