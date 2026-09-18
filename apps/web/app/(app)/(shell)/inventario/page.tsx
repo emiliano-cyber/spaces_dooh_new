@@ -20,15 +20,27 @@ import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 // que la elevación vaya en la dirección que espera quien mira.
 function claseVia(activa: boolean): string {
   return cn(
-    'inline-flex items-center gap-1.5 rounded border px-3.5 py-2',
+    'inline-flex items-center gap-1.5 rounded px-3.5 py-2',
     // Solo color y sombra en la transición: animar la caja movería el texto.
-    'transition-[background-color,border-color,box-shadow,color] duration-150',
+    'transition-[background-color,box-shadow,color] duration-150',
     // Estos botones no tenían NINGUNA marca de foco. `ring-accent` es la
     // convención que ya documenta `demo.css:141` para los controles.
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+    // El contorno va por `ring-*` y NO por `border-*`, y esto NO es capricho:
+    // `demo.css:70-77` pone `border-color: var(--border)` en TODO descendiente
+    // de `.demo-root`, empata en especificidad con la utilidad de Tailwind y
+    // gana por orden de archivo. Medido en el navegador el 2026-09-18: el
+    // `border-border-strong` que había aquí llegaba como `--border`, o sea que
+    // el borde acentuado del activo no existía. `ring-*` es `box-shadow`, que
+    // ese reset no toca.
+    //
+    // Y `bg-transparent` es obligatorio en el inactivo, no decorativo: con el
+    // preflight de Tailwind desactivado, un `<button>` sin fondo hereda el del
+    // SISTEMA OPERATIVO —`rgb(240,240,240)` en Windows—, un gris frío dentro de
+    // una paleta crema cálida. Se veía como cuatro bloques grises sobre crema.
     activa
-      ? 'border-border-strong bg-surface font-medium text-ink shadow-sm'
-      : 'border-transparent text-muted hover:border-border hover:bg-surface hover:text-ink',
+      ? 'bg-surface font-medium text-ink shadow-sm ring-1 ring-border-strong'
+      : 'bg-transparent text-muted ring-1 ring-border hover:bg-surface hover:text-ink hover:ring-border-strong',
   )
 }
 
