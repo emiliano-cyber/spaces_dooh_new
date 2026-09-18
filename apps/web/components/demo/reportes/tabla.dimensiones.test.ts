@@ -30,6 +30,14 @@ import { DIMENSIONES_UI } from './consulta'
 //  primera columna decia «PANTALLA» mientras las filas eran trimestres.
 // ============================================================================
 
+// El 18 de septiembre de 2026 el trimestre vivo es T3 (jul-sep). Los avisos de
+// los bloques 4 y 5 se piden sobre un rango CERRADO a proposito: asi, si el
+// aviso de «periodo en curso» se colara donde no toca, sus `toEqual([])` y sus
+// listas de claves se ponen rojos.
+const HOY = new Date(2026, 8, 18)
+const CERRADO = { desde: '2026-04-01', hasta: '2026-06-30', hoy: HOY }
+const EN_CURSO = { desde: '2026-07-01', hasta: '2026-09-30', hoy: HOY }
+
 function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
   return {
     etiqueta: p.clave,
@@ -188,6 +196,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
     const nota =
       'Quedaron fuera del ranking: 3 pantallas digitales o rotativas, porque su denominador correcto son spots y no metros.'
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 3, sinMedidas: 0, nota },
@@ -203,6 +212,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
     const nota =
       'No se excluyó ninguna pantalla: todas las que tuvieron movimiento son estáticas y tienen sus medidas capturadas.'
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 0, sinMedidas: 0, nota },
@@ -217,6 +227,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
     // pendiente sobre si multiplica por caras: el usuario tiene que ver cual se
     // uso sin preguntarle a nadie.
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
@@ -229,6 +240,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
 
   it('si el dueño decide que multiplica por caras, el aviso lo dice al reves', () => {
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
@@ -243,7 +255,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
     // El motor no manda `excluidas` ni `convencionM2` fuera de `m2`. Un aviso
     // de superficie encima de un reporte por pantalla afirmaria que se
     // escondieron filas que nadie escondio.
-    const avisos = avisosDelReporte({ dimension: 'sitio', filas: filasM2 })
+    const avisos = avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: filasM2 })
     expect(avisos.map((a) => a.clave)).not.toContain('m2-excluidas')
     expect(avisos.map((a) => a.clave)).not.toContain('m2-convencion')
   })
@@ -252,6 +264,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
 describe('5 · los avisos de contrato y de ingreso hablan de lo que ES la fila', () => {
   it('en `sitio` cuenta pantallas sin contrato y pantallas que costaron sin vender', () => {
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'sitio',
       filas: [
         fila({ clave: 'a', ingreso: 0, tieneContrato: false }),
@@ -270,6 +283,7 @@ describe('5 · los avisos de contrato y de ingreso hablan de lo que ES la fila',
     // Contado como pantallas, el aviso afirma algo que no existe —«2 pantallas
     // no tienen contrato» sobre dos trimestres sin renta— y no da ningun error.
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'trimestre',
       filas: [
         fila({ clave: '2026-T1', tieneContrato: false, ingreso: 0 }),
@@ -283,6 +297,7 @@ describe('5 · los avisos de contrato y de ingreso hablan de lo que ES la fila',
     // Un trimestre sin movimiento SI aparece, en cero y a proposito: un hueco
     // en una serie se lee como «faltan datos».
     const avisos = avisosDelReporte({
+      ...CERRADO,
       dimension: 'trimestre',
       filas: [fila({ clave: '2026-T1', ingreso: 0 }), fila({ clave: '2026-T2', ingreso: 5 })],
     })
@@ -292,7 +307,9 @@ describe('5 · los avisos de contrato y de ingreso hablan de lo que ES la fila',
   })
 
   it('sin nada que advertir, la lista viene vacia y no se pinta la caja', () => {
-    expect(avisosDelReporte({ dimension: 'sitio', filas: [fila({ clave: 'a', ingreso: 1 })] })).toEqual([])
+    expect(
+      avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: [fila({ clave: 'a', ingreso: 1 })] }),
+    ).toEqual([])
   })
 })
 
@@ -425,5 +442,92 @@ describe('10 · `valorDeColumna` lee el campo que la columna declara', () => {
     const f = fila({ clave: 'a' })
     const col = columnasDeDimension('m2').find((c) => c.clave === 'margenPorM2')!
     expect(valorDeColumna(f, col)).toBeNull()
+  })
+})
+
+describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el trimestre vivo', () => {
+  // La pantalla abre en el trimestre EN CURSO por decision del dueño
+  // (2026-09-18). Consecuencia exacta y medida en la base sembrada: al abrir se
+  // ve `Ingreso $0.00 · Costo $184,500.00 · Margen ($184,500.00)`, y eso SE LEE
+  // COMO UNA PERDIDA REAL cuando no lo es — la renta de los espacios corre
+  // desde el primer dia del trimestre y lo vendido se cobra al cerrar.
+  //
+  // El arreglo acordado no es cambiar el rango: es DECIRLO en pantalla.
+  const filas = [fila({ clave: 's1', ingreso: 0, costoEspacio: 184_500, costoTotal: 184_500, margen: -184_500 })]
+
+  it('sale cuando el rango toca el trimestre vivo, y va PRIMERO', () => {
+    // Primero porque cambia como se lee TODO lo demas que hay en pantalla. Un
+    // aviso sobre la validez de las cifras puesto debajo de las cifras llega
+    // tarde.
+    const avisos = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })
+    expect(avisos[0]?.clave).toBe('periodo-en-curso')
+  })
+
+  it('NEGATIVO: NO sale sobre un periodo ya cerrado', () => {
+    // La condicion que hace que el aviso signifique algo. Si el usuario cambia
+    // el rango a un trimestre terminado, desaparece.
+    const avisos = avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas })
+    expect(avisos.map((a) => a.clave)).not.toContain('periodo-en-curso')
+  })
+
+  it('dice que el periodo NO HA TERMINADO, y cuanto lleva corrido', () => {
+    const t = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })[0].texto
+    expect(t).toMatch(/en curso|no ha (terminado|cerrado)/i)
+    expect(t).toContain('T3 2026')
+    expect(t).toContain('80')
+    expect(t).toContain('92')
+  })
+
+  it('explica EL MECANISMO: el costo ya corrio y el ingreso no esta dentro', () => {
+    // Es la parte que de verdad quita el susto. Sin el mecanismo, «el periodo
+    // esta incompleto» no le dice a nadie por que la cifra sale negativa ni en
+    // que direccion va a moverse.
+    const t = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })[0].texto
+    expect(t).toMatch(/renta/i)
+    expect(t).toMatch(/todav[ií]a no|aun no|no est[aá] dentro/i)
+    expect(t).toMatch(/al cerrar|al terminar|se cobra/i)
+  })
+
+  it('avisa de que NO se compara con un trimestre cerrado', () => {
+    const t = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })[0].texto
+    expect(t).toMatch(/compar/i)
+  })
+
+  it('esta escrito para el dueño de una empresa, no para un programador', () => {
+    // Quien lo lee vende publicidad. Ni un nombre de campo ni una palabra de
+    // codigo: este repo ya tiene la leccion escrita sobre mensajes de error que
+    // mandan al usuario a leer codigo.
+    const t = avisosDelReporte({ ...EN_CURSO, dimension: 'sitio', filas })[0].texto
+    for (const jerga of ['costoEspacio', 'margenPct', 'null', 'endpoint', 'query', 'bucket', 'NaN']) {
+      expect(t, jerga).not.toContain(jerga)
+    }
+  })
+
+  it('sale en las CUATRO dimensiones: el periodo a medias no es cosa de una', () => {
+    // El rango lo elige el usuario y aplica a la consulta entera, asi que la
+    // advertencia vale igual en `m2` o en `operacion`.
+    for (const dimension of ['sitio', 'trimestre', 'operacion', 'm2'] as const) {
+      const avisos = avisosDelReporte({ ...EN_CURSO, dimension, filas })
+      expect(avisos.map((a) => a.clave), dimension).toContain('periodo-en-curso')
+    }
+  })
+
+  it('convive con los demas avisos sin taparlos', () => {
+    const avisos = avisosDelReporte({
+      ...EN_CURSO,
+      dimension: 'm2',
+      // Sin contrato Y sin ingreso, para que salgan los cinco a la vez y el
+      // orden quede fijado de verdad.
+      filas: [fila({ clave: 's1', ingreso: 0, tieneContrato: false })],
+      excluidas: { digitales: 1, sinMedidas: 0, nota: 'Quedaron fuera del ranking: 1 pantalla digital.' },
+      convencionM2: 'una-cara',
+    })
+    expect(avisos.map((a) => a.clave)).toEqual([
+      'periodo-en-curso',
+      'm2-convencion',
+      'm2-excluidas',
+      'sin-contrato',
+      'sin-ingreso',
+    ])
   })
 })
