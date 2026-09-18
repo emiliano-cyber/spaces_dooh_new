@@ -8,7 +8,17 @@ import {
   SITIO_SANTA_MONICA,
   COSTOS_OT_DEMO,
 } from './semilla-demo.mjs'
-import { rentabilidadPorSitio, rentabilidadPorM2, rentabilidadPorLuz } from '@/lib/data/reportes'
+import {
+  motivoDelRechazo,
+  opcionesDeArgv as opcionesDeReinicio,
+  nombreDeBase as nombreDeBaseDeReinicio,
+} from './reiniciar-razones-sociales.mjs'
+import {
+  rentabilidadPorSitio,
+  rentabilidadPorM2,
+  rentabilidadPorLuz,
+  rentabilidadPorTrimestre,
+} from '@/lib/data/reportes'
 
 // ============================================================================
 //  El GUION de la demo, probado sin Postgres.
@@ -349,14 +359,16 @@ describe('razones sociales: sembradas, con sus papeles, y EN USO', () => {
     // Y la que paga es la que tiene el papel de ARRENDAMIENTOS: si fuera otra,
     // el aviso de «papel sin dueño» de la pantalla no diría nada.
     const paga = p.entidades.find((e: any) => e.roles.includes('ARRENDAMIENTOS'))
-    for (const c of conEntidad) expect(c.entidadClave).toBe(paga.clave)
+    expect(paga, 'ninguna razón social tiene el papel de ARRENDAMIENTOS').toBeTruthy()
+    for (const c of conEntidad) expect(c.entidadClave).toBe(paga!.clave)
   })
 
   it('los comprobantes llevan su EMISORA, y es la que vende', () => {
     const p = plan()
     expect(p.comprobantes.length).toBeGreaterThan(0)
     const vende = p.entidades.find((e: any) => e.roles.includes('VENTAS'))
-    for (const f of p.comprobantes) expect(f.entidadClave).toBe(vende.clave)
+    expect(vende, 'ninguna razón social tiene el papel de VENTAS').toBeTruthy()
+    for (const f of p.comprobantes) expect(f.entidadClave).toBe(vende!.clave)
     // Uno por campaña: `facturas_campana_uq` es único por campaña, así que dos
     // comprobantes de la misma campaña no serían un dato feo sino un error.
     const folios = p.comprobantes.map((f: any) => f.campanaFolio)
@@ -492,5 +504,117 @@ describe('caras: la decisión del m² deja de ser invisible', () => {
       expect(d.costoEnergia, `${clave} costoEnergia`).toBe(a.costoEnergia)
       expect(d.margen, `${clave} margen`).toBe(a.margen)
     }
+  })
+})
+
+// ============================================================================
+//  EL GUION DE REINICIO DEL CUESTIONARIO — sus puertas, que es lo que tiene
+// ----------------------------------------------------------------------------
+//  `scripts/reiniciar-razones-sociales.mjs` BORRA, se corre a mano y se corre
+//  el dia del ensayo, que es el peor dia para equivocarse de base. Lo unico que
+//  hay que probar de el son sus puertas: lo que hace cuando le apuntan a donde
+//  no debe.
+//
+//  Vive en este archivo y no en uno propio porque es la otra mitad de la misma
+//  decision: el cuestionario solo sale con CERO razones sociales
+//  (`bienvenida-repo.ts:70`), asi que sembrarlas y poder quitarlas son dos caras
+//  del mismo problema de demostracion.
+// ============================================================================
+describe('reiniciar-razones-sociales: las puertas', () => {
+  it('se niega POR NOMBRE a cualquier base que no sea desechable', () => {
+    // El mismo criterio con el que la semilla se niega a sembrar `spaces_e2e`:
+    // el arnes rehace esa base en cada corrida y tocarla a mano pone rojas
+    // suites ajenas con un rojo que no dice por que.
+    expect(motivoDelRechazo('spaces_e2e')).toMatch(/no se tocan/)
+    // La base de desarrollo del 5433 no es una base de demostracion.
+    expect(motivoDelRechazo('spaces')).toMatch(/no se tocan/)
+    expect(motivoDelRechazo('postgres')).toMatch(/no se tocan/)
+    // Nada con «prod» en el nombre, se llame como se llame.
+    expect(motivoDelRechazo('spaces_prod')).toMatch(/prod/)
+    expect(motivoDelRechazo('spaces_produccion')).toMatch(/prod/)
+    // Y tiene que parecer una base de este producto: el accidente que importa
+    // es apuntar a la base de otro proyecto abierta en la misma terminal.
+    expect(motivoDelRechazo('otra_cosa')).toMatch(/no empieza por/)
+    expect(motivoDelRechazo('')).toMatch(/no se pudo leer/)
+  })
+
+  it('deja pasar las desechables de demostracion', () => {
+    expect(motivoDelRechazo('spaces_ver2')).toBeNull()
+    expect(motivoDelRechazo('spaces_semilla_tmp')).toBeNull()
+  })
+
+  it('ni la base ni la organizacion tienen valor por omision', () => {
+    // Una base por omision es una base que alguien borra sin haberla elegido, y
+    // un tenant por omision es la deriva que este repositorio ya pago
+    // etiquetando como 'rgb' filas de otras empresas.
+    expect(() => opcionesDeReinicio([])).toThrow(/--base/)
+    expect(() => opcionesDeReinicio(['--base=spaces_ver2'])).toThrow(/--org/)
+    expect(() => opcionesDeReinicio(['--org=demo'])).toThrow(/--base/)
+  })
+
+  it('no borra a menos que se lo pidan: sin --borrar solo cuenta', () => {
+    const o = opcionesDeReinicio(['--base=spaces_ver2', '--org=demo-rentabilidad'])
+    expect(o.borrar).toBe(false)
+    expect(opcionesDeReinicio(['--base=spaces_ver2', '--org=demo', '--borrar']).borrar).toBe(true)
+  })
+
+  it('un argumento mal escrito es un error, no algo que se ignore', () => {
+    // Un `--baes=` con typo que se ignorara en silencio dejaria la base sin
+    // elegir y el mensaje de error hablaria de otra cosa.
+    expect(() => opcionesDeReinicio(['--baes=spaces_ver2', '--org=demo'])).toThrow(/desconocida/)
+    expect(() => opcionesDeReinicio(['borrar'])).toThrow(/desconocido/)
+  })
+
+  it('lee el nombre de la base de la URL, que es con lo que se compara', () => {
+    expect(nombreDeBaseDeReinicio('postgresql://u:c@localhost:5433/spaces_ver2')).toBe('spaces_ver2')
+    expect(nombreDeBaseDeReinicio('no-es-una-url')).toBe('')
+  })
+})
+
+describe('el eje del tiempo: el ingreso es plano y el margen CAE', () => {
+  // Es el paso 4 del guion del Summit, y la frase que se dice en voz alta:
+  // «el ingreso es plano los cuatro trimestres y el margen cae — no estas
+  // vendiendo peor, te esta costando mas».
+  //
+  // ⚠️ Esta prueba nacio de un defecto REAL, y de los que no se ven leyendo.
+  // Al sembrar los recibos de luz, los cuatro predios perdian el MISMO ultimo
+  // mes del historico, asi que el ultimo trimestre salia con un mes menos de
+  // luz que los demas y su margen SUBIA: 120 018 · 116 966 · 104 666 · 113 885.
+  // La tabla era correcta —ese dinero de verdad no esta capturado— y el guion
+  // dejaba de contar lo que dice contar. Se vio pidiendole el reporte al
+  // endpoint, no leyendo la semilla.
+  it('el ingreso NO se mueve entre trimestres', () => {
+    const p = plan()
+    const rep = rentabilidadPorTrimestre(datosDeRentabilidad(p) as any, rangoDelPlan(p))
+    const ingresos = new Set(rep.filas.map((f: any) => f.ingreso))
+    expect(ingresos.size, `ingresos distintos: ${[...ingresos].join(' · ')}`).toBe(1)
+  })
+
+  it('el margen del reporte por trimestre CAE, y sin repuntes', () => {
+    const p = plan()
+    const rep = rentabilidadPorTrimestre(datosDeRentabilidad(p) as any, rangoDelPlan(p))
+    const margenes = rep.filas.map((f: any) => f.margen)
+    expect(margenes.length).toBe(p.trimestres.length)
+    for (let i = 1; i < margenes.length; i++) {
+      expect(
+        margenes[i],
+        `el trimestre ${i + 1} repunta: ${margenes.join(' · ')}`,
+      ).toBeLessThan(margenes[i - 1])
+    }
+  })
+
+  it('los huecos de luz no se concentran en un trimestre', () => {
+    // La causa de raiz del defecto de arriba, dicha como dato: si un trimestre
+    // pierde muchos mas recibos que los demas, su costo de luz baja y el eje
+    // del tiempo deja de medir lo que cree medir.
+    const p = plan()
+    const porTrimestre = p.trimestres.map((t: any) => {
+      const meses = p.meses.filter((m: string) => m >= t.desde && m <= t.hasta)
+      const hay = p.consumosEnergia.filter((c: any) => meses.includes(c.periodo)).length
+      return p.predios.length * meses.length - hay
+    })
+    const max = Math.max(...porTrimestre)
+    const min = Math.min(...porTrimestre)
+    expect(max - min, `huecos por trimestre: ${porTrimestre.join(' · ')}`).toBeLessThanOrEqual(2)
   })
 })
