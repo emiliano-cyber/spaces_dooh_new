@@ -90,12 +90,50 @@ function xmlTarea() {
 
 function instalarTarea() {
   const xml = path.join(rutas.BASE, 'tarea.xml');
-  // El Programador de tareas exige UTF-16 para el XML.
-  fs.writeFileSync(xml, xmlTarea(), 'utf16le');
+  // El Programador de tareas exige UTF-16 CON MARCA DE ORDEN DE BYTES (BOM).
+  //
+  // `writeFileSync(..., 'utf16le')` de Node escribe UTF-16 SIN BOM, y sin ella
+  // schtasks lee el archivo como si fuera de un byte por caracter: encuentra el
+  // '<' y despues el NUL que va detras, y aborta con
+  //   (1,2)::ERROR: elemento de raiz unico
+  // que suena a XML mal armado y no lo es -la columna 2 es justamente ese NUL-.
+  // Visto en el sitio de REVOLUCION el 09-sep: la camara quedaba configurada y
+  // el arranque automatico no, o sea que el equipo moria al primer reinicio.
+  fs.writeFileSync(xml, '\uFEFF' + xmlTarea(), 'utf16le');
   try {
     execFileSync('schtasks', ['/Create', '/F', '/TN', TAREA, '/XML', xml], { stdio: 'pipe' });
   } finally {
     try { fs.unlinkSync(xml); } catch (_) {}
+  }
+}
+
+/**
+ * Respaldo sin XML, por si el Programador de tareas rechaza el archivo en alguna
+ * version de Windows.
+ *
+ * Con banderas simples no se puede pedir IgnoreNew, pero no hace falta: el agente
+ * tiene candado de instancia unica (el puerto 47713 en index.js), asi que una
+ * segunda copia no toma el puerto y se sale sola. `/SC MINUTE /MO 10` cubre las
+ * dos cosas que importan -arranca despues de encender la PC y vuelve si el
+ * proceso murio-; lo unico que se pierde es arrancar en el segundo cero del
+ * encendido en vez de dentro de los primeros diez minutos.
+ */
+function instalarTareaSimple() {
+  execFileSync('schtasks', [
+    '/Create', '/F', '/TN', TAREA,
+    '/TR', `"${rutas.ejecutable}" --servicio`,
+    '/SC', 'MINUTE', '/MO', '10',
+    '/RU', 'SYSTEM', '/RL', 'HIGHEST',
+  ], { stdio: 'pipe' });
+}
+
+/** Que la tarea EXISTA de verdad, no que el comando no haya dado error. */
+function tareaRegistrada() {
+  try {
+    execFileSync('schtasks', ['/Query', '/TN', TAREA], { stdio: 'pipe' });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -237,15 +275,30 @@ async function asistente() {
   fs.writeFileSync(rutas.config, JSON.stringify(cfg, null, 2));
   console.log(`\n  Configuracion guardada.`);
 
-  // La vista en vivo necesita ffmpeg, que no viene con Windows. Se avisa AQUI,
-  // con la persona todavia en el sitio: si se entera despues, hay que volver.
-  if (!hayFfmpegVecino()) {
-    console.log('');
-    console.log('  AVISO: falta ffmpeg.exe para la VISTA EN VIVO.');
-    console.log(`         Copialo junto a este programa: ${rutaVecina()}`);
-    console.log('         Las fotos funcionan sin el; solo el video en vivo lo necesita.');
-    console.log('         Despues puedes comprobarlo con:');
-    console.log(`         "${rutas.ejecutable}" --probar-stream`);
+  // --- Sustituir un equipo, en vez de crear uno nuevo ---------------------
+  //
+  // El backend reconoce a un equipo por su `device_uid`, y el agente lo deriva
+  // del nombre de la PC mas la camara. Cambiar la PC cambia el nombre, asi que
+  // sale un equipo NUEVO y se pierde el historial del sitio: galeria, ajustes
+  // de camara, marca de informacion, campanas y las huellas de creativos.
+  //
+  // Con `--uid` se le dice cual es su identidad y el sitio sigue siendo el
+  // mismo. El uid viejo se saca de la base:
+  //   SELECT device_uid FROM devices WHERE id = <equipo>;
+  // Funciona incluso cuando la PC anterior ya no existe, que es justo el caso
+  // cuando se sustituye por averia -y es el caso en que antes no habia salida.
+  if (par.uid) {
+    const uid = String(par.uid).trim();
+    if (!/^pc-[0-9a-f]{8,}$/i.test(uid)) {
+      console.log('');
+      console.log(`  AVISO: "${uid}" no parece un uid de agente de PC.`);
+      console.log('         Se esperaba algo como pc-1a2b3c4d5e6f... Se ignora,');
+      console.log('         y el equipo se dara de alta como NUEVO.');
+    } else {
+      fs.writeFileSync(rutas.estado, JSON.stringify({ device_uid: uid }, null, 2));
+      console.log(`  Identidad fijada: sustituye al equipo ${uid}`);
+      console.log('  (conserva galeria, ajustes y campanas del sitio)');
+    }
   }
 
   if (!esAdministrador()) {
@@ -256,28 +309,117 @@ async function asistente() {
     console.log('  Cierra esta ventana, haz CLIC DERECHO sobre el archivo y elige');
     console.log('  "Ejecutar como administrador". La camara ya quedo configurada,');
     console.log('  solo te volvera a preguntar para confirmar.');
+    if (!hayFfmpegVecino()) {
+      console.log('');
+      console.log('  Y aprovecha para copiar ffmpeg.exe junto a este programa:');
+      console.log(`  ${rutaVecina()}  (sin el no hay vista en vivo)`);
+    }
     return pausar();
   }
 
+  // --- Arranque automatico ------------------------------------------------
+  //
+  // Se intenta por XML y, si Windows lo rechaza, con banderas simples. Antes un
+  // fallo aqui dejaba la instalacion A MEDIAS -camara si, arranque no- y el
+  // equipo moria al primer reinicio del sitio, avisado con una sola linea en
+  // medio de la pantalla que es facil pasar por alto. Paso en REVOLUCION.
+  console.log('');
+  console.log('  Registrando el arranque automatico...');
+
+  let modo = null;
+  let detalle = '';
   try {
     instalarTarea();
-    arrancarTarea();
-    console.log('');
-    console.log('  ===========================================');
-    console.log('   INSTALADO Y FUNCIONANDO');
-    console.log('  ===========================================');
-    console.log('');
-    console.log(`  El agente arranca solo con Windows (tarea "${TAREA}").`);
-    console.log('  Ya aparece en el dashboard como equipo nuevo: entra a su ficha');
-    console.log('  y ponle el nombre del sitio.');
-    console.log('');
-    console.log(`  Si algo falla, revisa: ${rutas.registro}`);
+    modo = 'completo';
   } catch (e) {
-    console.log(`\n  No pude registrar el arranque automatico: ${e.message}`);
-    console.log('  La camara si quedo configurada; puedes arrancarlo a mano');
-    console.log(`  ejecutando: "${rutas.ejecutable}" --servicio`);
+    detalle = primeraLinea(e);
+    console.log(`  El Programador de tareas rechazo el XML (${detalle}).`);
+    console.log('  Reintentando de otra forma...');
+    try {
+      instalarTareaSimple();
+      modo = 'simple';
+    } catch (e2) {
+      detalle = primeraLinea(e2);
+    }
   }
+
+  // Que el comando no diera error no prueba que la tarea exista.
+  if (modo && !tareaRegistrada()) {
+    modo = null;
+    detalle = 'el comando no fallo pero la tarea no quedo registrada';
+  }
+  if (modo) {
+    try { arrancarTarea(); } catch (e) { /* la tarea existe; arrancara sola */ }
+  }
+
+  const faltaFfmpeg = !hayFfmpegVecino();
+
+  console.log('');
+  console.log('  ===========================================');
+  console.log(modo ? '   LISTO' : '   INSTALACION A MEDIAS');
+  console.log('  ===========================================');
+  console.log('');
+  console.log(`   [OK] Camara ${cfg.camara.host} conectada y probada`);
+  console.log('   [OK] Configuracion guardada');
+  console.log(modo
+    ? `   [OK] Arranca solo con Windows (tarea "${TAREA}")`
+    : '   [!!] NO arranca solo con Windows');
+  console.log(faltaFfmpeg
+    ? '   [!!] Falta ffmpeg.exe: no habra VISTA EN VIVO (las fotos si)'
+    : '   [OK] ffmpeg.exe presente: vista en vivo disponible');
+
+  if (modo === 'simple') {
+    console.log('');
+    console.log('   Nota: quedo registrado de la forma sencilla. Funciona igual;');
+    console.log('   la unica diferencia es que al encender la PC puede tardar');
+    console.log('   hasta 10 minutos en arrancar en vez de hacerlo al instante.');
+  }
+
+  console.log('');
+  console.log('  QUE SIGUE:');
+  if (!modo) {
+    console.log('');
+    console.log('   1. Abre CMD como administrador y pega esta linea:');
+    console.log('');
+    console.log(`      schtasks /Create /F /TN "${TAREA}" /TR "\"${rutas.ejecutable}\" --servicio" /SC MINUTE /MO 10 /RU SYSTEM /RL HIGHEST`);
+    console.log('');
+    console.log('   2. Para no dejar el sitio mudo mientras tanto, arrancalo a mano:');
+    console.log(`      "${rutas.ejecutable}" --servicio`);
+    console.log('');
+    console.log(`   Motivo del fallo: ${detalle || 'desconocido'}`);
+  } else {
+    let paso = 1;
+    if (faltaFfmpeg) {
+      console.log('');
+      console.log(`   ${paso++}. Copia ffmpeg.exe junto a este programa:`);
+      console.log(`      ${rutaVecina()}`);
+      console.log('      Se baja de http://159.203.188.58:4000/ffmpeg.exe');
+      console.log(`      Comprueba con: "${rutas.ejecutable}" --probar-stream`);
+    }
+    console.log('');
+    console.log(`   ${paso++}. Abre ${muestra} y confirma`);
+    console.log('      que el encuadre de la pantalla es el correcto.');
+    console.log('');
+    console.log(`   ${paso++}. En el dashboard aparece como equipo NUEVO, sin nombre.`);
+    console.log('      Entra a su ficha y ponle el nombre del sitio.');
+  }
+  console.log('');
+  console.log('  IDENTIDAD DE ESTE EQUIPO:');
+  console.log(`   ${rutas.estado}`);
+  console.log('   GUARDA UNA COPIA de ese archivo. Si algun dia hay que cambiar');
+  console.log('   esta PC, es lo unico que permite sustituirla sin perder la');
+  console.log('   galeria y los ajustes del sitio.');
+  console.log('');
+  console.log(`  Registro de lo que haga el agente: ${rutas.registro}`);
   pausar();
+}
+
+/** El primer renglon de un error: los mensajes de schtasks traen varios. */
+function primeraLinea(e) {
+  return String((e && (e.stderr || e.message)) || e)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)[0] || 'sin detalle';
 }
 
 function desinstalar() {
@@ -326,8 +468,18 @@ async function menu(cfgActual) {
   if (r === '2') return 'arrancar';
   if (r === '3') return 'probar';
   if (r === '4') return 'salir';
-  await asistente();
+  // Reconfigurar abre el asistente con ventanas, igual que una instalacion
+  // nueva. Se carga aqui y no arriba para no crear un require circular:
+  // asistente-web reutiliza las piezas de este archivo.
+  await require('./asistente-web').asistenteWeb();
   return 'salir';
 }
 
-module.exports = { asistente, desinstalar, menu, pausar, TAREA };
+// El asistente con ventanas (asistente-web.js) reutiliza estas piezas en vez de
+// duplicarlas: el registro de la tarea y sus respaldos son justo donde una copia
+// divergente costaria caro.
+module.exports = {
+  asistente, desinstalar, menu, pausar, TAREA, SERVIDOR_POR_DEFECTO,
+  esAdministrador, instalarTarea, instalarTareaSimple, tareaRegistrada,
+  arrancarTarea, partirHost, primeraLinea, leerParametros,
+};

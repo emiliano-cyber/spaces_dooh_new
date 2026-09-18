@@ -26,7 +26,7 @@ const rutas = require('./rutas');
 // contestaba "vista en vivo no disponible en el agente de PC", y en el navegador
 // eso salia como "la camara esta ocupada". Nadie podia saber, mirando el
 // dashboard, que ese equipo tenia un programa viejo.
-const VERSION = '1.2.0';
+const VERSION = '1.4.0';
 const RAIZ = rutas.BASE;
 const RUTA_CONFIG = rutas.config;
 const RUTA_ESTADO = rutas.estado;
@@ -409,6 +409,22 @@ process.on('unhandledRejection', (e) => log('fallo no controlado:', e?.message |
 //   doble clic       -> asistente de instalacion, o el agente si ya esta configurado
 const flags = process.argv.slice(2);
 const { asistente, desinstalar, menu, pausar } = require('./instalar');
+const { asistenteWeb } = require('./asistente-web');
+
+// Con ventanas o en la consola.
+//
+// La instalacion NORMAL -doble clic en el sitio- abre una pagina en el
+// navegador: quien va a instalar no siempre es una persona tecnica, y una
+// ventana negra con texto se lee como un error aunque todo haya salido bien.
+//
+// La consola se conserva para dos casos donde es lo correcto: la instalacion
+// DESATENDIDA por parametros (varios sitios de golpe, sin navegador de por
+// medio) y `--consola`, por si en alguna PC el navegador no abre.
+function instalacion() {
+  const desatendida = flags.includes('--camara') && flags.includes('--clave');
+  if (flags.includes('--consola') || desatendida) return asistente();
+  return asistenteWeb();
+}
 
 // Candado de instancia unica.
 //
@@ -477,7 +493,7 @@ if (flags.includes('--version') || flags.includes('-v')) {
 if (flags.includes('--desinstalar')) {
   desinstalar();
 } else if (flags.includes('--instalar') || flags.includes('--configurar')) {
-  asistente().catch((e) => { console.error('Fallo la instalacion:', e.message); process.exit(1); });
+  instalacion().catch((e) => { console.error('Fallo la instalacion:', e.message); process.exit(1); });
 } else if (flags.includes('--probar-stream')) {
   probarStream()
     .catch((e) => console.log(`\n  No pude completar la prueba: ${e.message}\n`))
@@ -499,7 +515,7 @@ if (flags.includes('--desinstalar')) {
     })
     .catch((e) => { console.error('Error:', e.message); pausar(); });
 } else {
-  asistente().catch((e) => {
+  instalacion().catch((e) => {
     console.error('Fallo la instalacion:', e.message);
     process.exit(1);
   });

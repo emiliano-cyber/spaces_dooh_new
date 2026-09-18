@@ -35,12 +35,54 @@ cada sitio — ya paso.
 1. Copia a la PC (donde sea, por ejemplo el Escritorio) **los dos archivos
    juntos, en la misma carpeta**: `SpaceEyeAgente.exe` y `ffmpeg.exe`.
 2. **Clic derecho sobre `SpaceEyeAgente.exe` → Ejecutar como administrador.**
-3. Contesta tres preguntas: IP de la camara, usuario y clave.
-4. Antes de irte, comprueba la vista en vivo:
-   `SpaceEyeAgente.exe --probar-stream`
+3. **Se abre solo en el navegador** un formulario: IP de la camara, usuario y
+   clave. El boton "Probar camara" **muestra la foto ahi mismo**, para confirmar
+   el encuadre sin ir a buscar ningun archivo.
+4. "Instalar". Al terminar sale un tablero con un renglon por cosa: camara,
+   configuracion, arranque automatico y ffmpeg, cada uno con su palomita o su
+   tache. Si algo quedo a medias **lo dice en el titulo** y da la linea exacta
+   para completarlo.
 
-Eso es todo. El programa prueba la camara, guarda una foto de muestra para que
-confirmes el encuadre, y queda arrancando solo cada vez que prende la PC.
+Eso es todo; queda arrancando solo cada vez que prende la PC.
+
+> **Por que en el navegador y no una ventana negra.** Quien va al sitio no
+> siempre es una persona tecnica, y una consola con texto se lee como un error
+> aunque todo haya salido bien. Peor: el resultado se juzga mal. En REVOLUCION la
+> instalacion decia "OK" tres veces y "no pude registrar el arranque automatico"
+> una, en medio del texto, y se dio por buena — el equipo murio al primer
+> reinicio. En el tablero eso no se puede pasar por alto.
+>
+> No engorda el ejecutable ni un byte: el servidor se levanta con el modulo
+> `http` que Node ya trae dentro, escucha **solo** en `127.0.0.1`, en un puerto
+> al azar y exigiendo un testigo secreto en cada peticion, y se cierra al
+> terminar.
+
+Si en alguna PC el navegador no abriera, `--consola` vuelve al asistente de
+preguntas de siempre:
+
+```bat
+SpaceEyeAgente.exe --consola
+```
+
+## Sustituir la PC de un sitio
+
+El backend reconoce un equipo por su `device_uid`, que el agente deriva del
+**nombre de la PC + la camara**. Cambiar la PC cambia el nombre, asi que por
+omision sale un equipo **nuevo** y se pierde el historial del sitio: galeria,
+ajustes de camara, marca de informacion, campanas y las huellas de creativos.
+
+Para que el sitio siga siendo el mismo, en "Opciones avanzadas" del formulario
+esta **"Sustituir un equipo existente (uid)"**. El uid se saca de la base:
+
+```sql
+SELECT device_uid FROM devices WHERE id = <equipo>;
+```
+
+Funciona **aunque la PC anterior ya no exista**, que es justo el caso cuando se
+sustituye por averia. Por linea de comandos es `--uid pc-...`.
+
+El archivo `state.json`, junto al ejecutable, es esa identidad. **Conviene
+guardar una copia** de cada sitio: con el, sustituir una PC es copiarlo y listo.
 
 No hace falta instalar nada mas: el ejecutable lleva todo dentro. El unico
 archivo aparte es `ffmpeg.exe`, y solo lo necesita la **vista en vivo** (las
