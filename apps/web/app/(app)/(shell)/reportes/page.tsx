@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
@@ -11,7 +12,7 @@ import type { ReporteRentabilidad } from '@/lib/data/reportes'
 import { FiltrosRentabilidad } from '@/components/demo/reportes/FiltrosRentabilidad'
 import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
 import {
-  RANGO_DE_APERTURA,
+  filtrosDesdeUrl,
   construirConsulta,
   cuenta,
   motivoInvalido,
@@ -69,15 +70,25 @@ export default function ReportesPage() {
   // arregla aquí: se dice en pantalla, con el aviso `periodo-en-curso` de
   // `avisosDelReporte`. El porqué entero —y cómo se vuelve atrás en una línea si
   // cambia de opinión— está en `RANGO_DE_APERTURA` (`consulta.ts`).
-  const [filtros, setFiltros] = useState<FiltrosReporte>(() => ({
-    dimension: 'sitio',
-    granularidad: 'mes',
-    ...RANGO_DE_APERTURA(new Date()),
-  }))
+  // La direccion puede traer los filtros, para poder dejar un enlace preparado
+  // con el reporte ya filtrado. Sin esto habia que teclear dos fechas en vivo.
+  //
+  // Se lee UNA sola vez, en el inicializador del `useState`: a partir de ahi
+  // manda lo que el usuario toque. Si se releyera en cada render, cambiar un
+  // filtro con el mismo `searchParams` en la barra lo devolveria al de la URL y
+  // la pantalla pelearia contra su propio usuario.
+  //
+  // Lo que la dirección NO puede hacer es dejar la pantalla en un estado que su
+  // selector no sepa pintar — eso lo garantiza `filtrosDesdeUrl`, que ignora lo
+  // que no encaja. Ver su cabecera en `consulta.ts`.
+  const params = useSearchParams()
+  const [filtros, setFiltros] = useState<FiltrosReporte>(() =>
+    filtrosDesdeUrl(new URLSearchParams(params?.toString() ?? ''), new Date()),
+  )
   const [cargando, setCargando] = useState(false)
   const [respuesta, setRespuesta] = useState<RespuestaReporte | null>(null)
   const [reporte, setReporte] = useState<ReporteRentabilidad | null>(null)
-  const [orden, setOrden] = useState<Orden>(() => ordenInicialDe('sitio'))
+  const [orden, setOrden] = useState<Orden>(() => ordenInicialDe(filtros.dimension))
 
   const motivo = motivoInvalido(filtros)
 

@@ -287,3 +287,50 @@ export function avanceDelTrimestreEnCurso(hoy: Date): {
     etiqueta: etiquetaBucket(inicio, 'trimestre'),
   }
 }
+
+// ─── Los filtros de apertura pueden venir en la dirección ────────────────────
+//
+// Hasta el 2026-09-18 esta pantalla IGNORABA la querystring: navegar a
+// `?dimension=luz&desde=…` abría igual por pantalla y en el trimestre en curso.
+// Consecuencia práctica, que es la que lo arregla: **no se podía dejar un enlace
+// preparado con el reporte ya filtrado**, y había que teclear dos fechas en vivo
+// — delante de quien fuera.
+//
+// Y la regla que gobierna esta función: **la dirección la escribe cualquiera**,
+// así que es entrada que NO se confía. Un valor que no encaja **se ignora y se
+// cae al de siempre**; nunca deja la pantalla en un estado que su propio
+// selector no sepa representar. El servidor volvería a validarlo con su zod,
+// pero para entonces la pantalla ya estaría pintando una dimensión que no
+// existe en su desplegable.
+const FORMA_FECHA = /^\d{4}-\d{2}-\d{2}$/
+
+export function filtrosDesdeUrl(q: URLSearchParams, hoy: Date): FiltrosReporte {
+  const base: FiltrosReporte = {
+    dimension: 'sitio',
+    granularidad: 'mes',
+    ...RANGO_DE_APERTURA(hoy),
+  }
+
+  const d = q.get('dimension')
+  if (d && DIMENSIONES_UI.some((x) => x.valor === d)) base.dimension = d as DimensionUI
+
+  const g = q.get('granularidad')
+  if (g && GRANULARIDADES_UI.some((x) => x.valor === g)) base.granularidad = g as GranularidadUI
+
+  // El rango entra o no entra ENTERO. Media pareja —el `desde` de la dirección
+  // con el `hasta` del trimestre en curso— sería un rango que nadie pidió, y se
+  // vería como un reporte legítimo.
+  //
+  // La forma se exige con `\d{4}-\d{2}-\d{2}` y no con `Date.parse`, por lo
+  // mismo que ya documenta `solapaTrimestreEnCurso`: `2026-9-1` es una fecha
+  // válida para `Date` y como CADENA va después de `2026-09-30`, así que las
+  // comparaciones de este módulo darían la vuelta sin dar ningún error.
+  const desde = q.get('desde')
+  const hasta = q.get('hasta')
+  if (desde && hasta && FORMA_FECHA.test(desde) && FORMA_FECHA.test(hasta) && desde <= hasta) {
+    base.desde = desde
+    base.hasta = hasta
+  }
+
+  return base
+}
