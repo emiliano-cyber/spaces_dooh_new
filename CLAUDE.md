@@ -33,16 +33,18 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
 
 ### Qué es, técnicamente
 
-**83 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**84 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **1087 enlaces internos** sobre **83 notas**, con **2
+Al 2026-09-18 tiene **1093 enlaces internos** sobre **84 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
-bóveda, así que es un choque de convención más que un enlace muerto— y **1
-nota huérfana** (`diario/2026-09-17`). Las
+bóveda, así que es un choque de convención más que un enlace muerto— y
+**0 notas huérfanas**: la de `diario/2026-09-17` dejó de estarlo el 18/09, al
+encadenarla desde el diario del día siguiente, que es como se enlazan los
+diarios entre sí. Las
 mediciones previas daban 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395
 sobre 43 (10/08).
 
@@ -281,6 +283,26 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > (`Get-NetTCPConnection -LocalPort <puerto>`), no al envoltorio de `npx`:
 > matar el envoltorio deja al hijo sirviendo el build viejo, que es la misma
 > trampa otra vez y más difícil de ver.
+
+> [!danger] Y NO SIEMPRE se queda en blanco — a veces sirve código viejo tan campante
+> El recuadro de arriba decía «deja la página en blanco» como si pasara siempre.
+> **No pasa siempre, y el caso bueno es el peligroso.** Encontrado el
+> **2026-09-18 por la tarde**, al arrancar el ensayo del guion del Summit: el
+> proceso del 3399 llevaba corriendo desde las **11:30** y el build de disco era
+> de las **17:16** —casi seis horas— y **la aplicación se veía perfecta**.
+> Inventario, reportes, todo. Estaba sirviendo el código de la mañana sin dar una
+> sola señal.
+>
+> El motivo es que los trozos de código viven en `/_next/static/chunks/` y **no
+> llevan el `BUILD_ID` en la ruta**: mientras un trozo conserve su nombre, el
+> servidor viejo lo sirve sin quejarse. La pantalla se queda en blanco **solo
+> cuando el nombre cambia**, o sea según lo que hayas tocado. Un fallo que
+> aparece a veces es peor que uno constante, porque el constante se ve.
+>
+> **Consecuencia práctica, y es la que importa: «se ve bien» NO prueba que el
+> servidor sirva el build de disco.** Si has reconstruido, el estado de la
+> pantalla no te dice nada; compara las dos cadenas o reinicia. Reiniciar cuesta
+> **376 ms**, que es menos de lo que cuesta dudarlo.
 
 ### La trampa del orden de migraciones
 

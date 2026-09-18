@@ -1,10 +1,24 @@
 ---
 tipo: tablero
 estado: verificado
-actualizado: 2026-09-14
+actualizado: 2026-09-18
 tags: [agentes, coordinacion, vivo]
 archivos: []
 ---
+
+> [!success] 2026-09-18 · **el guion del Summit se recorrio entero y se cronometro**
+> Los cinco pasos y el extra, medidos uno por uno contra `spaces_ver2`: **todas
+> las cifras del guion coinciden celda por celda** y nada tarda mas de **719 ms**.
+> El ciclo del cuestionario —borrar, enseñar, resembrar— se ensayo completo y la
+> huella de la base volvio identica fila por fila.
+>
+> **Encontro tres cosas que no se veian leyendo:** el enlace no trae el orden y
+> la historia lo necesita (un clic en `Ingreso`), el paso 4 citaba una columna
+> **que no existe** en esa vista, y un servidor viejo puede servir codigo de hace
+> seis horas **con la pantalla viendose perfecta**.
+>
+> Detalle en [[07-Agentes/diario/2026-09-18]] y en `docs/Guion_Summit_20261014.md` §7.
+> **Queda una sola cosa sin medir del guion, y no es software: la lectura a tres metros.**
 
 > [!danger] 2026-09-15 · **g500 lleva seis dias mandando a `localhost`, y el panel no podia verlo**
 > `estable` sirve una imagen del **09/09 07:29 UTC**, dieciseis horas ANTERIOR al

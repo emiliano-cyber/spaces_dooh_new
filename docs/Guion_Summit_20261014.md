@@ -46,6 +46,31 @@ sostenerla con números.
 > y matando al dueño del puerto (`Get-NetTCPConnection -LocalPort 3399`), no a la
 > ventana de `npx`.
 
+> [!danger] Y «la página no está en blanco» NO prueba que el build sea el bueno
+> **Encontrado el 2026-09-18 al empezar este ensayo.** El servidor llevaba
+> corriendo desde las 11:30 y el build de disco era de las 17:16: **cinco horas
+> y tres cuartos de diferencia**. Y la aplicación **se veía perfecta** — inventario,
+> reportes, todo. Se veía perfecta y estaba sirviendo **el código de la mañana**.
+>
+> El motivo es que los trozos de código de Next viven en `/_next/static/chunks/`
+> y **no llevan el `BUILD_ID` en la ruta**: mientras un trozo conserve su
+> nombre, el servidor viejo lo sirve sin quejarse. La página se queda en blanco
+> solo cuando el nombre cambia — o sea, **a veces**. Es peor que un fallo
+> constante: un fallo constante se ve.
+>
+> **Así que la comprobación de arranque no es mirar la pantalla, es comparar dos
+> cadenas.** Un minuto, la víspera y otra vez el mismo día:
+>
+> ```powershell
+> # 1 · qué build hay en disco
+> cat apps/web/.next/BUILD_ID
+> # 2 · qué build sirve el proceso  (tienen que ser IGUALES)
+> (Invoke-WebRequest http://localhost:3399/spaces-dooh/login/).Content -match 'buildId[":\]+([A-Za-z0-9_-]{15,})'; $Matches[1]
+> ```
+>
+> Si no coinciden: matar al dueño del puerto y volver a arrancar. **No hace
+> falta reconstruir** si el disco ya está al día — arrancó en **376 ms**.
+
 ### Los cinco enlaces — ponlos en marcadores ANTES
 
 Desde el 2026-09-18 la pantalla **lee los filtros de la dirección**, así que cada
@@ -61,7 +86,29 @@ una sola fecha delante de la sala.**
 | 5 · Por metro cuadrado | `/spaces-dooh/reportes/?dimension=m2&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
 | extra · Por consumo de luz | `/spaces-dooh/reportes/?dimension=luz&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
 
-> **Y esto resuelve solo el aviso del paso 2.** Con el enlace, el reporte abre ya
+> [!important] El enlace NO trae el orden — y el orden es la historia
+> **Cronometrado el 2026-09-18 pantalla por pantalla.** La tabla abre ordenada
+> «peor margen primero», que es lo correcto para trabajar y **lo contrario de
+> lo que cuenta la historia**: las dos comparables salen en las filas **4 y 6**,
+> con otra pantalla en medio. Y el orden **no viaja en la dirección**: solo
+> `dimension`, `desde`, `hasta` y `granularidad`.
+>
+> Se arregla con **un clic en una cabecera**, y sale gratis: reordena en el
+> navegador, **sin volver a pedir nada al servidor**. La regla, para no pensarla
+> en el escenario:
+>
+> | Paso | Clic | Deja arriba |
+> |---|---|---|
+> | 2 · Por pantalla | **Ingreso** | Tlalpan y Santa Mónica, filas 1 y 2 |
+> | 3 · Por operación | **Ingreso** | las mismas dos, juntas |
+> | 4 · Por trimestre | **ninguno** | ya viene en orden cronológico |
+> | 5 · Por metro cuadrado | **Margen / m²** | el ranking de mejor a peor |
+> | extra · Por consumo de luz | **ninguno** | ya salen juntas |
+>
+> **Las tablas de §3 están escritas EN EL ORDEN DE DESPUÉS DEL CLIC.** Sin el
+> clic, la pantalla dice los mismos números en otro orden.
+
+> **Y el enlace resuelve solo el aviso del paso 2.** Con el enlace, el reporte abre ya
 > en el rango bueno: la pérdida del trimestre en curso **no aparece**. Sigue
 > existiendo si alguien entra por el menú —y el aviso ámbar sigue estando para
 > eso— pero deja de ser un riesgo del escenario.
@@ -164,16 +211,27 @@ Es el momento de la presentación. Si algo se ensaya dos veces, es éste.
 
 Abre el **enlace del paso 4**. (Por el menú: **Agrupar** → `Por trimestre`.)
 
-| Trimestre | Ingreso | Margen | % | Visitas |
+Las columnas, **en el orden en que salen**:
+
+| Trimestre | Ingreso | Operación | Margen | % |
 |---|---:|---:|---:|---:|
-| T3 2025 | 462,000 | 130,953 | 28.3 % | 27 |
-| T4 2025 | 462,000 | 114,710 | 24.8 % | 28 |
-| T1 2026 | 462,000 | 108,288 | 23.4 % | 29 |
-| T2 2026 | 462,000 | **103,310** | **22.4 %** | 30 |
+| T3 2025 | 462,000 | 68,800 | 130,953 | 28.3 % |
+| T4 2025 | 462,000 | 73,900 | 114,710 | 24.8 % |
+| T1 2026 | 462,000 | 84,100 | 108,288 | 23.4 % |
+| T2 2026 | 462,000 | **89,200** | **103,310** | **22.4 %** |
 
 > «**El ingreso es plano: 462 mil los cuatro trimestres.** Y el margen cae del 28
-> al 22 por ciento mientras las visitas suben de 27 a 30. No estás vendiendo peor. **Te está costando más.** Eso es lo
-> que un reporte anual no te enseña nunca.»
+> al 22 por ciento mientras **el costo de operación sube de 68 mil a 89 mil**. No
+> estás vendiendo peor. **Te está costando más.** Eso es lo que un reporte anual
+> no te enseña nunca.»
+
+> [!warning] La columna de visitas NO existe en esta vista — medido el 18/09
+> Esta dimensión pinta **Ingreso · Espacio · Operación · Luz · Costo total ·
+> Margen · Margen %**, y nada más. La frase anterior de este guion citaba
+> «las visitas suben de 27 a 30»: **el dato es cierto** —27 + 28 + 29 + 30 son
+> las 114 órdenes sembradas— **pero no está en la pantalla que se está
+> señalando**, y eso en una sala se nota. El costo de operación sí está, sube un
+> **30 %** y cuenta exactamente lo mismo.
 
 Cualquier fila se puede desplegar para ver el detalle mes a mes. Solo si la sala
 lo pide: no alarga el guion por gusto.
@@ -206,6 +264,32 @@ Lo que sí se puede decir con seguridad, porque no depende de la cifra:
 Ese detalle vende más que la tabla. Es la diferencia entre un reporte y un
 reporte en el que se puede confiar.
 
+### Paso extra · Por consumo de luz — solo si sobra tiempo
+
+Abre el **enlace extra**. **No necesita clic**: las dos comparables ya salen
+juntas, ordenadas por lo que cuesta la luz.
+
+| | Consumo | Costo / kWh | Costo de la luz |
+|---|---:|---:|---:|
+| Tlalpan G500 | 6,745 kWh | 6.20 | 41,819 |
+| G500 Santa Mónica | 6,540 kWh | 6.10 | 39,894 |
+
+La tabla no es lo que vende aquí. **Lo que vende es el aviso de arriba**, y está
+escrito en la pantalla con estas palabras:
+
+> «Faltan 8 de 48 recibos del periodo, así que el costo de la luz que ves está
+> INCOMPLETO y el margen sale mejor de lo que va a quedar. Un mes sin recibo no
+> es un mes sin consumo: es un dato que nadie ha capturado todavía.»
+
+> [!tip] Si solo te queda un minuto para el cierre, usa éste y no la tabla
+> Es el mismo argumento del paso 5 —el sistema dice lo que le falta— pero **más
+> fuerte, porque además dice en qué dirección te está engañando**: «el margen
+> sale mejor de lo que va a quedar». Un reporte que avisa de que su propio
+> número es optimista es algo que la sala no ha visto antes.
+>
+> Y los 8 huecos **están sembrados a propósito**. No es un defecto de la demo:
+> es la demo.
+
 ---
 
 ## 4 · La trampa del cuestionario de bienvenida
@@ -217,8 +301,21 @@ reporte en el que se puede confiar.
 > por nombre sobre `spaces`, `spaces_e2e` y cualquiera con `prod`.
 >
 > **La secuencia del ensayo:** reiniciar → enseñar el cuestionario → volver a
-> sembrar con `semilla-demo.mjs`. Medido: el ciclo completo devuelve la base al
-> mismo sitio, al dígito.
+> sembrar con `semilla-demo.mjs`. **Ensayada entera el 2026-09-18, con huella de
+> la base tomada antes y después:**
+>
+> | | Tiempo | Salida |
+> |---|---:|---|
+> | Ensayo sin `--borrar` | **195 ms** | 0 — y lista las 3 razones y los 5 papeles |
+> | `--borrar` de verdad | **180 ms** | 0 — y **relee la base tras el commit** |
+> | Cuestionario en pantalla | **135 ms** | las 3 preguntas y los 5 papeles |
+> | `semilla-demo --verificar` | **624 ms** | 0 — y reafirma 82 581 vs 156 906 |
+>
+> **La huella volvió idéntica, fila por fila**: 3 razones · 5 papeles · 3
+> contratos asignados · 8 comprobantes con emisora · 6 sitios · 114 órdenes ·
+> 40 recibos. Y el reporte volvió a dar **1 848 000 / 457 261 / 24.7 %**, los
+> mismos dígitos que antes de borrar. **Menos de dos segundos de máquina en
+> total**, así que el ciclo cabe entre dos preguntas del público.
 >
 > Lo de abajo se conserva porque explica **por qué** hacía falta.
 
@@ -229,8 +326,9 @@ reporte en el que se puede confiar.
 > contesta, no vuelve a salir. **Es el comportamiento correcto**, y es una trampa
 > para una demostración en vivo.
 >
-> Y **la base de demostración ya tiene 2 razones sociales dadas de alta**, así que
-> **el cuestionario ya no sale ahí**. Medido el 18/09.
+> Y **la base de demostración tiene 3 razones sociales dadas de alta** —eran 2
+> cuando se escribió esto—, así que **el cuestionario ya no sale ahí**. Vuelto a
+> medir el 18/09.
 >
 > Salidas, a elegir antes del ensayo:
 >
@@ -273,9 +371,25 @@ Esta lista es el trabajo que queda, y se vacía o se convierte en «no se enseñ
 | ~~**m² por caras**~~ | ✅ **HECHO** | Aplicado, medido y en el paso 5 |
 | ~~**Multi-entidad: pantalla y asignación**~~ | ✅ **HECHO** | En `main` con el PR #91, y sembrado en la demo |
 | ~~**Consumo de luz**~~ | ✅ **HECHO** | 40 recibos sembrados, con 8 huecos a propósito |
-| ~~**Guion de reinicio** del cuestionario~~ | ✅ **EXISTE** | `scripts/reiniciar-razones-sociales.mjs`, con ensayo sin `--borrar` |
-| **Lectura a tres metros** | **Sin verificar** | Una pasada con el proyector, la víspera |
+| ~~**Guion de reinicio** del cuestionario~~ | ✅ **ENSAYADO** | Ciclo entero corrido el 18/09: borra, enseña y resiembra en **&lt; 2 s**, y la huella de la base vuelve idéntica (§4) |
+| ~~**El recorrido entero, cronometrado**~~ | ✅ **HECHO** | Los cinco pasos y el extra, medidos uno por uno. Todo bajo **0.72 s** (§7) |
+| **Tres papeles sin acentos** | **Defecto abierto** | `Tramites`, `Operacion y nomina` y `Licencias` se pintan sin acento en el cuestionario. Están **sembrados en una migración ya aplicada** (`20260917_entidades_fiscales.sql:78-80`), así que se arregla con una migración nueva, no editando ésa |
+| **Lectura a tres metros** | **Sin verificar** | Una pasada con el proyector, la víspera. **Es lo único del guion que sigue sin medir** |
 | **Dónde se presenta** | **Sin decidir** | ¿Portátil con la base local, o una instancia de verdad servida? No es lo mismo y cambia el ensayo |
+
+> [!success] Lo que este ensayo cerró, y lo que dejó abierto
+> **Cerró tres cosas**: los cinco pasos dan **exactamente** las cifras escritas en
+> §3 —comprobadas celda por celda—, el ciclo del cuestionario es reversible **con
+> huella medida antes y después**, y el tiempo de máquina del recorrido completo
+> cabe en **dos segundos**.
+>
+> **Y encontró tres que no se veían leyendo:** que el enlace no trae el orden y
+> la historia lo necesita (§2), que el paso 4 citaba una columna **que no está en
+> esa pantalla** (§3), y que un servidor viejo puede servir código de hace seis
+> horas **sin que la pantalla lo delate** (§2).
+>
+> Queda **una sola cosa sin medir en todo el documento**, y no es de software:
+> cómo se lee esto a tres metros.
 
 ### Y la pregunta que nadie ha hecho todavía
 
@@ -286,7 +400,60 @@ certificado. Es la clase de cosa que solo falla el día que importa.
 
 ---
 
-## 7 · Cómo se reproduce cada cifra de este documento
+## 7 · El cronómetro — recorrido completo del 2026-09-18
+
+Recorrido entero, paso por paso, en el navegador y contra `spaces_ver2`. Las
+cifras de máquina son del `Navigation Timing` y del `Resource Timing` del propio
+navegador, no de un cronómetro a mano.
+
+### Lo que tarda la máquina
+
+| Paso | HTML | Página lista | **El número en pantalla** |
+|---|---:|---:|---:|
+| 1 · Inventario | 118 ms | 291 ms | **719 ms** |
+| 2 · Por pantalla | 67 ms | 221 ms | **531 ms** |
+| 3 · Por operación | 87 ms | 194 ms | **486 ms** |
+| 4 · Por trimestre | 77 ms | 148 ms | **429 ms** |
+| 5 · Por metro cuadrado | 52 ms | 130 ms | **353 ms** |
+| extra · Por consumo de luz | 50 ms | 92 ms | **367 ms** |
+| Cuestionario de bienvenida | 41 ms | 61 ms | **135 ms** |
+
+**Nada pasa de siete décimas**, y los clics de ordenar no cuestan red: reordenan
+en el navegador sin volver a preguntar.
+
+> [!tip] El primero es el caro, y por eso se abre antes de que miren
+> Los 719 ms del inventario son **el único arranque en frío**: paga los trozos de
+> código que los demás ya encuentran guardados. Los cinco pasos siguientes bajan
+> a la mitad. **Abre el paso 1 antes de que la sala esté mirando** y el recorrido
+> entero va sobre ruedas.
+
+### Lo que tarda la persona
+
+Esto no lo mide una máquina, así que va contado en palabras, que sí se cuentan:
+
+| Paso | Palabras de guion |
+|---|---:|
+| 1 · Inventario | 5 |
+| 2 · Por pantalla | 78 |
+| 3 · Por operación | 45 |
+| 4 · Por trimestre | 52 |
+| 5 · Por metro cuadrado | 48 |
+| **Total** | **228** |
+
+A ritmo de presentación —de 110 a 150 palabras por minuto— las frases escritas
+son **entre 1.5 y 2 minutos**. Eso es el esqueleto, no la presentación: contando
+el encuadre de cada pantalla, las pausas y el silencio del «¿por qué?» del paso
+2, **calcula de 6 a 8 minutos** el recorrido de cinco pasos, y **dos segundos de
+máquina en todo**.
+
+> **El reparto dice dónde ensayar.** El 99.9 % del tiempo eres tú hablando. Lo
+> único que puede fallar de la máquina ya está medido y cabe en una décima; lo
+> que puede fallar de verdad es el orden de las frases. Los tres clics de ordenar
+> son lo único que hace tu mano, y son siempre el mismo gesto.
+
+---
+
+## 8 · Cómo se reproduce cada cifra de este documento
 
 Para que nadie tenga que creerme:
 

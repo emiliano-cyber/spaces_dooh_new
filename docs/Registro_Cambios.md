@@ -7,6 +7,29 @@ La entrada más reciente va arriba.
 
 ## 2026-09-18
 
+- **La presentación del 14 de octubre se recorrió entera y se cronometró.** No es
+  un cambio en el sistema: es una comprobación. Se abrieron las seis pantallas
+  del recorrido una por una y **se compararon todas las cifras, celda por celda,
+  contra las que el guion tiene escritas**. Coinciden todas. Lo que tarda la
+  máquina en poner un número en pantalla va de **0.13 a 0.72 segundos**, y la
+  más lenta es la primera, porque es la que carga el programa; a partir de ahí
+  todas bajan a la mitad. También se ensayó de principio a fin el borrado y la
+  vuelta a sembrar de las razones sociales —lo que hace falta para poder enseñar
+  el cuestionario de bienvenida en vivo—: **tarda menos de dos segundos y deja la
+  base exactamente como estaba**, contado dato por dato antes y después.
+
+- **Y encontró tres cosas que no se veían leyendo el guion.** Primera: la tabla
+  del reporte abre con las pantallas que peor van arriba, que es lo correcto para
+  trabajar, pero deja separadas las dos que la presentación compara — se juntan
+  con **un clic** en el encabezado, y ese clic ahora está escrito en el guion como
+  un paso más. Segunda: el guion mandaba señalar una columna de «visitas» en la
+  vista por trimestre, **y esa columna no existe ahí**; el dato era cierto, pero
+  no estaba en la pantalla, así que la frase ahora usa el costo de operación, que
+  sí está y sube un 30 % en el año. Tercera: el programa puede estar sirviendo una
+  versión vieja **con la pantalla viéndose perfecta**, así que la comprobación de
+  antes de empezar dejó de ser «mirar si se ve bien» y pasó a ser comparar dos
+  códigos de versión, que tarda un minuto.
+
 - **El costo de un periodo pasado ya no miente.** El reporte de rentabilidad
   calculaba el costo de la renta con **el contrato vigente hoy**. Eso hacía dos
   cosas mal en cualquier reporte de un trimestre ya cerrado: no veía el contrato
