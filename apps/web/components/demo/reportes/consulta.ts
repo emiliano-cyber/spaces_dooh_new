@@ -59,7 +59,8 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
   {
     valor: 'sitio',
     label: 'Por pantalla',
-    ayuda: 'Ingreso, costo del espacio y costo de operación de cada pantalla. Peor margen primero.',
+    ayuda:
+      'Ingreso y las tres fuentes de costo de cada pantalla —espacio, operación y luz—. Peor margen primero.',
   },
   {
     valor: 'trimestre',
