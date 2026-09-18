@@ -54,12 +54,26 @@ pantalla**.
 | Archivo | Qué hace |
 |---|---|
 | `app/api/reportes/rentabilidad/route.ts` | `exigir('finanzas','ver')`, `runtime = 'nodejs'`, `dynamic = 'force-dynamic'`, `respuestaError(e)` |
-| `lib/server/reportes-controller.ts:81` | `validarConsultaRentabilidad` — zod, enums cerrados |
-| `lib/server/reportes-controller.ts:95` | `rentabilidadCtrl` — despacha por dimensión, 501 si no hay motor |
+| `lib/server/reportes-controller.ts:100` | `validarConsultaRentabilidad` — zod, enums cerrados |
+| `lib/server/reportes-controller.ts:128` | `rentabilidadCtrl` — despacha por dimensión con un `Record` exhaustivo: una dimensión sin motor **no compila** |
 | `lib/server/reportes-repo.ts:50` | `datosRentabilidad` — las 5 consultas + el costo de OT |
-| `lib/data/reportes.ts:300` | `rentabilidadPorSitio` — el prorrateo |
-| `lib/data/reportes.ts:207` | `bucketsDelRango` — el eje de tiempo |
-| `lib/data/reportes.ts:266` | `mesesEquivalentes` — días de calendario a meses de renta |
+| `lib/data/reportes.ts:986` | `rentabilidadPorSitio` — el prorrateo |
+| `lib/data/reportes.ts:340` | `bucketsDelRango` — el eje de tiempo |
+| `lib/data/reportes.ts:400` | `mesesEquivalentes` — días de calendario a meses de renta |
+
+> [!warning] 2026-09-18 · esta tabla tuvo CINCO de sus SEIS citas mal
+> Y es la tabla que alguien abriría para navegar el módulo por primera vez, o
+> sea la que más caro cuesta tener mal. La peor mandaba a `reportes.ts:300`, un
+> comentario: la función estaba en la **986**, a **686 líneas**. La única que
+> seguía bien era `datosRentabilidad:50`, y solo porque su archivo apenas creció.
+>
+> **No derivaron por descuido, derivaron por crecer.** Entre el 17 y el 18/09
+> `reportes.ts` pasó de unas 300 líneas a más de mil al entrar las cuatro
+> dimensiones y la energía. Un archivo que crece invalida **todas** sus citas de
+> golpe, y ninguna da error: solo mandan al sitio equivocado. Es el chequeo 4 de
+> `convenciones.md`, y es el único que no es binario.
+>
+> Si vuelves a tocar este módulo, **remídelas**: `grep -n "^export function <nombre>"`.
 
 ## Por qué `finanzas` y no `dashboard`
 
