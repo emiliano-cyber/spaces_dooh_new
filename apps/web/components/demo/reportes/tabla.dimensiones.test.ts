@@ -44,6 +44,7 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
     ingreso: 0,
     costoEspacio: 0,
     costoOperacion: 0,
+    costoEnergia: 0,
     costoTotal: 0,
     margen: 0,
     margenPct: null,
@@ -331,13 +332,14 @@ describe('6 · el pie NO inventa totales que el servidor no manda', () => {
       .filter((c) => c.totalizable)
       .map((c) => c.clave)
 
-  it('solo las seis columnas de dinero de `Totales` son totalizables', () => {
-    // `reporte.totales` trae seis campos y ninguno mas. Sumar aqui las visitas
-    // —o peor, promediar `margenPorM2`— daria un pie que no cuadra con nada: el
-    // promedio de los margenes por metro NO es el margen por metro del total,
-    // porque cada fila tiene una superficie distinta.
+  it('solo las columnas de dinero de `Totales` son totalizables', () => {
+    // `reporte.totales` trae SIETE campos y ninguno mas — el septimo es
+    // `costoEnergia`, que entro el 2026-09-18 con la dimension `luz`. Sumar
+    // aqui las visitas —o peor, promediar `margenPorM2`— daria un pie que no
+    // cuadra con nada: el promedio de los margenes por metro NO es el margen por
+    // metro del total, porque cada fila tiene una superficie distinta.
     expect(totalizables('sitio').sort()).toEqual(
-      ['costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margen', 'margenPct'].sort(),
+      ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margen', 'margenPct'].sort(),
     )
   })
 
@@ -409,9 +411,9 @@ describe('8 · `visitasPorTipo` se lee, no se cuenta dos veces', () => {
 
 describe('9 · el desglose por periodo se pinta en el orden del SERVIDOR', () => {
   const periodos = [
-    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 9, visitas: 0 },
-    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 89, visitas: 2 },
-    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 49, visitas: 1 },
+    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 9, visitas: 0 },
+    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 89, visitas: 2 },
+    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 49, visitas: 1 },
   ]
 
   it('no se reordena por importe: es una serie de tiempo', () => {

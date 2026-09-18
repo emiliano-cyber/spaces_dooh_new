@@ -345,19 +345,29 @@ describe('LO QUE FALTA SE DECLARA — un consumo ausente no es un consumo cero',
 
   it('una pantalla SIN PREDIO cuenta como su propio punto de medicion', () => {
     // Si no, el hueco de una pantalla suelta no se contaría y el reporte diría
-    // que no falta nada cuando le falta justo esa.
+    // que no falta nada cuando le falta justo esa. `sitios.predio_id` es
+    // nullable, así que este caso existe de verdad.
+    //
+    // X1 lleva contrato propio A PROPÓSITO: sin él no tendría movimiento, no
+    // saldría en el reporte y no sería un hueco — que es la regla de la prueba
+    // siguiente. Las dos reglas conviven y este fixture es el que las separa.
     const datos = baseDatos({
       sitios: [
         { id: 'S1', predioId: 'P1', caras: 1, nombre: 'Uno', claveInterna: 'K1' },
         { id: 'X1', predioId: null, caras: 1, nombre: 'Suelta', claveInterna: 'SUE' },
       ],
-      contratos: [contratoPredio('P1', 9000)],
+      contratos: [
+        contratoPredio('P1', 9000),
+        { id: 'C-X1', sitioId: 'X1', predioId: null, arrendadorId: 'A1', montoRenta: 4000,
+          periodicidad: 'MENSUAL', estatus: 'VIGENTE', fechaInicio: '2026-01-01', fechaFin: '2026-12-31' },
+      ],
       arrendadores: ARRENDADORES,
       consumosEnergia: [recibo()],
     })
     const r = rentabilidadPorLuz(datos, FEBRERO)
     // Dos puntos (el predio P1 y la pantalla suelta X1) × 1 mes = 2 esperados,
     // y solo el predio tiene recibo.
+    expect(r.filas.map((f) => f.clave).sort()).toEqual(['S1', 'X1'])
     expect(r.cobertura!.esperados).toBe(2)
     expect(r.cobertura!.faltantes).toBe(1)
   })

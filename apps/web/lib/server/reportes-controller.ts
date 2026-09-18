@@ -8,6 +8,7 @@ import {
   rentabilidadPorTrimestre,
   rentabilidadPorOperacion,
   rentabilidadPorM2,
+  rentabilidadPorLuz,
   DIMENSIONES_REPORTE,
   type DatosRentabilidad,
   type GranularidadReporte,
@@ -28,7 +29,7 @@ import {
 //  nada —hay un guard que lo comprueba leyendo el archivo.
 // ============================================================================
 
-// Las cuatro dimensiones DECLARADAS del contrato del endpoint. Se declaran en
+// Las CINCO dimensiones DECLARADAS del contrato del endpoint. Se declaran en
 // el MOTOR (`lib/data/reportes.ts`) y aquí solo se reexportan para que zod
 // valide contra la misma lista: dos declaraciones dejarían un enum que acepta
 // una dimensión sin motor, o un motor que nadie puede pedir.
@@ -62,7 +63,9 @@ export interface ConsultaRentabilidad {
 const consultaSchema = z
   .object({
     dimension: z.enum(DIMENSIONES, {
-      errorMap: () => ({ message: 'Selecciona una dimensión válida: sitio, trimestre, operacion o m2' }),
+      errorMap: () => ({
+        message: 'Selecciona una dimensión válida: sitio, trimestre, operacion, m2 o luz',
+      }),
     }),
     granularidad: z.enum(GRANULARIDADES, {
       errorMap: () => ({ message: 'Selecciona una granularidad válida: mes o trimestre' }),
@@ -108,19 +111,23 @@ type MotorRentabilidad = (
 // motor —o al revés— sin que el typecheck lo diga. Un `switch` con `default`
 // habría dejado ese hueco abierto en tiempo de ejecución.
 //
-// Las cuatro leen los MISMOS datos y con la misma consulta: la diferencia entre
+// Las CINCO leen los MISMOS datos y con la misma consulta: la diferencia entre
 // dimensiones está en cómo se pivota la matriz sitio × periodo, no en qué se
 // lee. Por eso la dimensión no llega nunca al SQL.
+//
+// `luz` se añadió el 2026-09-18 y no cambió ni una línea de este despacho más
+// que su propia entrada: fue el `Record` exhaustivo el que obligó a escribirla.
 const MOTORES: Record<DimensionRentabilidad, MotorRentabilidad> = {
   sitio: rentabilidadPorSitio,
   trimestre: rentabilidadPorTrimestre,
   operacion: rentabilidadPorOperacion,
   m2: rentabilidadPorM2,
+  luz: rentabilidadPorLuz,
 }
 
 export async function rentabilidadCtrl(params: unknown): Promise<ReporteRentabilidad> {
   const consulta = validarConsultaRentabilidad(params)
-  // La dimensión ya pasó por `z.enum`, así que aquí es una de las cuatro claves
+  // La dimensión ya pasó por `z.enum`, así que aquí es una de las cinco claves
   // del `Record` y no hay forma de que el índice salga vacío.
   const motor = MOTORES[consulta.dimension]
   const datos = await datosRentabilidad(consulta)

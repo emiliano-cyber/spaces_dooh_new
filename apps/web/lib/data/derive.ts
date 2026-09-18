@@ -1281,12 +1281,7 @@ export function contratoVigentePorSitio(state: DatosAtribucion): Map<string, Con
 // espacio (un solo costo, sin doble conteo).
 export function rentaAtribuidaPorSitio(state: DatosAtribucion): Map<string, number> {
   const contratoDe = contratoVigentePorSitio(state)
-  // Σ caras por predio: solo hace falta para repartir un contrato de predio.
-  const carasPredio = new Map<string, number>()
-  for (const s of state.sitios) {
-    if (!s.predioId) continue
-    carasPredio.set(s.predioId, (carasPredio.get(s.predioId) ?? 0) + (s.caras || 1))
-  }
+  const reparto = fraccionDeCarasPorPredio(state.sitios)
   const out = new Map<string, number>()
   for (const s of state.sitios) {
     const c = contratoDe.get(s.id)
@@ -1297,8 +1292,52 @@ export function rentaAtribuidaPorSitio(state: DatosAtribucion): Map<string, numb
     // aunque ella pertenezca a un predio. Repartirlo entre las caras del predio
     // le cobraría a pantallas que ese contrato no cubre.
     if (!c.predioId) { out.set(s.id, renta); continue }
-    const total = carasPredio.get(c.predioId) ?? 0
-    out.set(s.id, total > 0 ? renta * ((s.caras || 1) / total) : 0)
+    out.set(s.id, renta * (reparto.get(c.predioId)?.get(s.id) ?? 0))
+  }
+  return out
+}
+
+// ─── El reparto de un importe de PREDIO entre sus pantallas ─────────────────
+//
+// Salió de dentro de `rentaAtribuidaPorSitio()` el 2026-09-18, y **se movió, no
+// se copió**: es la operación que también necesita el recibo de luz, porque el
+// dueño eligió capturarlo por predio y «repartirlo entre sus pantallas IGUAL QUE
+// LA RENTA» (ver `lib/data/reportes.ts`, dimensión `luz`).
+//
+// Vive aquí y no en el motor de reportes porque el llamador original está aquí.
+// Copiarla al motor habría creado dos verdades sobre el mismo reparto, y este
+// repo documenta esa clase de error como su error de raíz
+// (`lib/server/tenant.ts:87-89`). Divergir aquí significa que **la renta de un
+// predio se reparta de una forma y su luz de otra sobre las mismas pantallas**,
+// y las dos cifras saldrían en la misma fila de la misma tabla.
+//
+// Devuelve `predioId → (sitioId → fracción)`, y las fracciones de un predio
+// suman 1 exactamente cuando el predio tiene alguna cara. Eso es lo que hace que
+// repartir no invente ni pierda dinero, que es la propiedad que se le exige a
+// todo prorrateo de este módulo.
+//
+// Un predio sin pantallas NO sale en el mapa: no hay a quién repartirle. Quien
+// llame tiene que decidir qué hace con ese importe —el reporte por consumo de
+// luz lo DECLARA en vez de tirarlo, porque un recibo capturado que no aparece en
+// ninguna fila es dinero que desaparece sin dar error.
+export function fraccionDeCarasPorPredio(sitios: Sitio[]): Map<string, Map<string, number>> {
+  // Σ caras por predio. `caras || 1` y no `caras ?? 1`: la columna es nullable y
+  // además un 0 capturado tiene que contar como una cara, o la pantalla se
+  // quedaría sin su parte y el resto del predio se repartiría un importe que no
+  // suma el recibo.
+  const total = new Map<string, number>()
+  for (const s of sitios) {
+    if (!s.predioId) continue
+    total.set(s.predioId, (total.get(s.predioId) ?? 0) + (s.caras || 1))
+  }
+  const out = new Map<string, Map<string, number>>()
+  for (const s of sitios) {
+    if (!s.predioId) continue
+    const suma = total.get(s.predioId) ?? 0
+    if (suma <= 0) continue
+    let m = out.get(s.predioId)
+    if (!m) { m = new Map(); out.set(s.predioId, m) }
+    m.set(s.id, (s.caras || 1) / suma)
   }
   return out
 }

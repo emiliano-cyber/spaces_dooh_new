@@ -587,11 +587,13 @@ describe('la regla de «digital» del m2 no puede divergir de la de la UI', () =
   })
 })
 
-describe('las cuatro dimensiones se declaran UNA sola vez', () => {
+describe('las dimensiones se declaran UNA sola vez', () => {
   it('DIMENSIONES_REPORTE es la lista del contrato del endpoint', () => {
     // El controller valida con zod contra ESTA lista. Declararla dos veces
     // —una en el motor puro y otra en el controller— dejaría un enum que acepta
     // una dimensión sin motor, o un motor que nadie puede pedir.
-    expect(DIMENSIONES_REPORTE).toEqual(['sitio', 'trimestre', 'operacion', 'm2'])
+    //
+    // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
+    expect(DIMENSIONES_REPORTE).toEqual(['sitio', 'trimestre', 'operacion', 'm2', 'luz'])
   })
 })

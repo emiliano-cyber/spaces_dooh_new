@@ -30,6 +30,7 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     ingreso: 0,
     costoEspacio: 0,
     costoOperacion: 0,
+    costoEnergia: 0,
     costoTotal: 0,
     margen: 0,
     margenPct: null,
@@ -42,6 +43,8 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     m2: 0,
     ingresoPorM2: 0,
     margenPorM2: 0,
+    kwh: 0,
+    costoPorKwh: null,
     ...p,
   }
 }

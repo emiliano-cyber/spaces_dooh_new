@@ -1,6 +1,12 @@
 import { formatMonto } from '@/lib/data/derive'
 import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
-import type { ConvencionM2, ExclusionesM2, FilaRentabilidad, PeriodoFila } from '@/lib/data/reportes'
+import type {
+  CoberturaEnergia,
+  ConvencionM2,
+  ExclusionesM2,
+  FilaRentabilidad,
+  PeriodoFila,
+} from '@/lib/data/reportes'
 import {
   avanceDelTrimestreEnCurso,
   cuenta,
@@ -42,6 +48,7 @@ export type FilaOrdenable = Pick<
   | 'ingreso'
   | 'costoEspacio'
   | 'costoOperacion'
+  | 'costoEnergia'
   | 'costoTotal'
   | 'margen'
   | 'margenPct'
@@ -58,6 +65,8 @@ export type FilaOrdenable = Pick<
       | 'm2'
       | 'ingresoPorM2'
       | 'margenPorM2'
+      | 'kwh'
+      | 'costoPorKwh'
     >
   >
 
@@ -66,6 +75,7 @@ export type ColumnaReporte =
   | 'ingreso'
   | 'costoEspacio'
   | 'costoOperacion'
+  | 'costoEnergia'
   | 'costoTotal'
   | 'margen'
   | 'margenPct'
@@ -75,6 +85,8 @@ export type ColumnaReporte =
   | 'm2'
   | 'ingresoPorM2'
   | 'margenPorM2'
+  | 'kwh'
+  | 'costoPorKwh'
 
 export type Direccion = 'asc' | 'desc'
 
@@ -88,7 +100,14 @@ export interface Orden {
 // tiempo» y pintado como «0.0 h» afirma que la cuadrilla entró y salió en el
 // mismo instante — una medición, no una ausencia. `visitas` en cero es lo
 // contrario: un hecho medido, y ahí el cero es la verdad.
-export type FormatoColumna = 'texto' | 'dinero' | 'porcentaje' | 'entero' | 'superficie' | 'horas'
+export type FormatoColumna =
+  | 'texto'
+  | 'dinero'
+  | 'porcentaje'
+  | 'entero'
+  | 'superficie'
+  | 'horas'
+  | 'kwh'
 
 export interface DefinicionColumna {
   clave: ColumnaReporte
@@ -114,6 +133,11 @@ const TOTALIZABLES: ReadonlySet<ColumnaReporte> = new Set<ColumnaReporte>([
   'ingreso',
   'costoEspacio',
   'costoOperacion',
+  // `costoEnergia` entra el 2026-09-18 con la dimensión `luz`, y entra AQUÍ
+  // —no solo en el catálogo— porque `Totales` la trae del servidor. Si el pie
+  // no la totalizara, la suma de las columnas de la tabla no daría el
+  // `Costo total` del pie y no habría nada que explicara la diferencia.
+  'costoEnergia',
   'costoTotal',
   'margen',
   'margenPct',
@@ -143,6 +167,7 @@ export const COLUMNAS: DefinicionColumna[] = [
   def('ingreso', 'Ingreso', 'dinero', 'desc'),
   def('costoEspacio', 'Costo del espacio', 'dinero', 'desc'),
   def('costoOperacion', 'Costo de operación', 'dinero', 'desc'),
+  def('costoEnergia', 'Costo de la luz', 'dinero', 'desc'),
   def('costoTotal', 'Costo total', 'dinero', 'desc'),
   // Margen y margen % arrancan por el PEOR, igual que el reporte: la pregunta
   // que contesta es «¿qué pantallas están perdiendo dinero?».
@@ -156,6 +181,9 @@ export const COLUMNAS: DefinicionColumna[] = [
   def('m2', 'Superficie', 'superficie', 'desc'),
   def('ingresoPorM2', 'Ingreso / m²', 'dinero', 'desc'),
   def('margenPorM2', 'Margen / m²', 'dinero', 'asc'),
+  // ─── Solo en `luz` ──────────────────────────────────────────────────────
+  def('kwh', 'Consumo', 'kwh', 'desc'),
+  def('costoPorKwh', 'Costo / kWh', 'dinero', 'desc'),
 ]
 
 const CATALOGO = new Map(COLUMNAS.map((c) => [c.clave, c]))
@@ -168,6 +196,12 @@ const COMUNES: ColumnaReporte[] = [
   'ingreso',
   'costoEspacio',
   'costoOperacion',
+  // La energía es una columna COMÚN, no una columna de `luz`, y esto no es una
+  // preferencia de presentación: entra en `costoTotal` y en el margen de todas
+  // las dimensiones (`lib/data/reportes.ts`). Si solo se pintara en `luz`, la
+  // tabla de `sitio` enseñaría Espacio + Operación y un Costo total MAYOR que
+  // su suma — una resta que no cuadra, y sin nada en pantalla que la explique.
+  'costoEnergia',
   'costoTotal',
   'margen',
   'margenPct',
@@ -199,6 +233,11 @@ const COLUMNAS_POR_DIMENSION: Record<DimensionUI, ColumnaReporte[]> = {
     'margenPct',
     ['ingresoPorM2', 'margenPorM2'],
   ),
+  // Los kWh y el costo por kWh van pegados al costo de la luz que explican,
+  // igual que las visitas van pegadas al costo de operación: cuánta energía se
+  // consumió y a qué precio. Sin ellas el reporte «por consumo de luz» calcula
+  // bien y no enseña un solo kWh.
+  luz: inserta(COMUNES_SIN_TOTAL, 'costoTotal', ['kwh', 'costoPorKwh']),
 }
 
 // El encabezado de la primera columna dice QUÉ son las filas. Decía «PANTALLA»
@@ -214,6 +253,7 @@ const PRIMERA_COLUMNA: Record<DimensionUI, { label: string; campoOrden?: keyof F
   trimestre: { label: 'Trimestre', campoOrden: 'clave' },
   operacion: { label: 'Pantalla' },
   m2: { label: 'Pantalla' },
+  luz: { label: 'Pantalla' },
 }
 
 export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
@@ -246,6 +286,11 @@ const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
   // una valla pequeña que rinde poco por metro es peor negocio que un
   // espectacular grande con el mismo margen total.
   m2: { columna: 'margenPorM2', direccion: 'asc' },
+  // Por MÁS COSTO DE LUZ, no por peor margen, y por el mismo motivo que
+  // `operacion`: una pantalla con margen horrible por una renta cara no es un
+  // problema de consumo, y por peor margen saldría primera tapando justo a las
+  // que sí lo son. La pregunta de esta dimensión es «¿cuáles se comen la luz?».
+  luz: { columna: 'costoEnergia', direccion: 'desc' },
 }
 
 export function ordenInicialDe(d: DimensionUI): Orden {
@@ -339,6 +384,12 @@ export function formatoCelda(v: string | number | null, formato: FormatoColumna)
   if (formato === 'horas') {
     return `${n.toLocaleString('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} h`
   }
+  // El consumo lleva su unidad: «1,500» a secas no dice kWh, y esta columna
+  // convive con cinco de pesos. Sin decimales, porque un recibo se lee en kWh
+  // enteros y los decimales aquí vienen del reparto entre caras, no del medidor.
+  if (formato === 'kwh') {
+    return `${n.toLocaleString('es-MX', { maximumFractionDigits: 0 })} kWh`
+  }
   // La superficie lleva su unidad: «18» a secas no dice metros, y esta columna
   // convive con cinco de pesos.
   return `${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m²`
@@ -370,6 +421,7 @@ export const COLUMNAS_DESGLOSE: { clave: keyof PeriodoFila; label: string; forma
   { clave: 'ingreso', label: 'Ingreso', formato: 'dinero' },
   { clave: 'costoEspacio', label: 'Espacio', formato: 'dinero' },
   { clave: 'costoOperacion', label: 'Operación', formato: 'dinero' },
+  { clave: 'costoEnergia', label: 'Luz', formato: 'dinero' },
   { clave: 'margen', label: 'Margen', formato: 'dinero' },
   { clave: 'visitas', label: 'Visitas', formato: 'entero' },
 ]
@@ -382,8 +434,30 @@ export function desgloseDeFila(f: { periodos?: readonly PeriodoFila[] }): Period
 }
 
 export interface AvisoReporte {
-  clave: 'periodo-en-curso' | 'm2-convencion' | 'm2-excluidas' | 'sin-contrato' | 'sin-ingreso'
+  clave:
+    | 'periodo-en-curso'
+    | 'luz-sin-recibo'
+    | 'm2-convencion'
+    | 'm2-excluidas'
+    | 'sin-contrato'
+    | 'sin-ingreso'
   texto: string
+  /**
+   * Con qué peso se pinta. `alerta` es ámbar y con triángulo; `info` es gris y
+   * con la «i».
+   *
+   * Vive AQUÍ y no en el `.tsx`, y eso cambió el 2026-09-18. Antes la pantalla
+   * decidía con `a.clave === 'periodo-en-curso'` escrito dentro del componente,
+   * y `vitest.config.ts` no monta jsdom a propósito: **una decisión escrita
+   * dentro de un `.tsx` no la prueba nadie**. Al llegar el segundo aviso que
+   * necesita ámbar —el de los recibos que faltan— esa condición habría tenido
+   * que crecer justo donde ninguna prueba la ve.
+   *
+   * La distinción no es de estilo. Los avisos `info` cuentan **lo que el reporte
+   * no mide**; los `alerta` dicen que **las cifras que se están viendo no son
+   * las definitivas**, y eso cambia cómo se lee cada número de la pantalla.
+   */
+  tono: 'alerta' | 'info'
 }
 
 export interface ReporteParaAvisos {
@@ -405,6 +479,8 @@ export interface ReporteParaAvisos {
   filas: readonly FilaOrdenable[]
   excluidas?: ExclusionesM2 | null
   convencionM2?: ConvencionM2 | null
+  /** Solo en `luz`: de cuántos recibos del periodo no se tiene el dato. */
+  cobertura?: CoberturaEnergia | null
 }
 
 // La frase que dice QUÉ cuenta como metro cuadrado en las cifras de la tabla.
@@ -466,6 +542,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     const { corridos, totales, etiqueta } = avanceDelTrimestreEnCurso(r.hoy)
     avisos.push({
       clave: 'periodo-en-curso',
+      tono: 'alerta',
       texto: `El periodo que estás viendo toca ${etiqueta}, que está EN CURSO: llevan ${corridos} de sus ${totales} días. La renta de los espacios ya corrió esos ${corridos} días completos, pero lo que se vendió se cobra al cerrar, así que el ingreso todavía no está dentro y el margen sale peor de lo que va a quedar. No lo compares con un trimestre terminado.`,
     })
   }
@@ -473,8 +550,36 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // Primero la convención, porque sin ella las cifras por metro de la tabla no
   // se pueden conciliar con nada: una cifra por metro cuadrado sin decir qué
   // cuenta como metro cuadrado no significa nada.
+  // ─── LOS RECIBOS DE LUZ QUE FALTAN ────────────────────────────────────────
+  // Va justo después del periodo en curso y antes que todo lo demás, por la
+  // misma razón: cambia cómo se lee cada cifra de costo y de margen que hay en
+  // pantalla.
+  //
+  // Es el aviso más importante de la dimensión `luz`, y el motivo es que el
+  // hueco NO SE VE. Una pantalla sin recibo sale con su costo de luz en cero,
+  // que es indistinguible de una pantalla que de verdad no gasta luz: el
+  // reporte suma solo lo capturado y lo presenta como el total de la energía.
+  // Eso no da ningún error — da un margen mejor de lo que es.
+  //
+  // La nota la redacta el MOTOR (`notaDeCobertura`) y se pinta verbatim, por lo
+  // mismo que la de exclusiones del m²: volver a escribirla aquí sería la
+  // segunda implementación de la misma frase, y divergir significaría decirle al
+  // usuario que falta otra cosa de la que falta.
+  //
+  // Se pinta TAMBIÉN cuando no falta ninguno —el hallazgo C1: «no falta
+  // ninguno» y «no te lo digo» se ven igual si no hay texto— pero entonces en
+  // gris: un ámbar que saliera siempre no lo leería nadie, que es la lección del
+  // ámbar que dejó de avisar por salir en todo.
+  if (r.cobertura) {
+    avisos.push({
+      clave: 'luz-sin-recibo',
+      tono: r.cobertura.faltantes > 0 || r.cobertura.recibosSinDestino > 0 ? 'alerta' : 'info',
+      texto: r.cobertura.nota,
+    })
+  }
+
   if (r.convencionM2) {
-    avisos.push({ clave: 'm2-convencion', texto: TEXTO_CONVENCION[r.convencionM2] })
+    avisos.push({ clave: 'm2-convencion', tono: 'info', texto: TEXTO_CONVENCION[r.convencionM2] })
   }
 
   // La nota viene REDACTADA del servidor (`notaDeExclusiones`) y se pinta tal
@@ -487,7 +592,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   // «no te lo digo» se ven igual si no hay texto — el hallazgo C1 de la
   // auditoría QA otra vez, el silencio indistinguible de la ausencia.
   if (r.excluidas) {
-    avisos.push({ clave: 'm2-excluidas', texto: r.excluidas.nota })
+    avisos.push({ clave: 'm2-excluidas', tono: 'info', texto: r.excluidas.nota })
   }
 
   // Solo donde la fila ES una pantalla. El sustantivo se declara una vez, en
@@ -497,6 +602,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     if (n > 0) {
       avisos.push({
         clave: 'sin-contrato',
+        tono: 'info',
         texto: `${cuenta(n, r.dimension)} ${n === 1 ? 'no tiene' : 'no tienen'} contrato de arrendamiento en el periodo: su costo del espacio sale en cero porque falta el dato, no porque sea gratis, y su margen se lee mejor de lo que es.`,
       })
     }
@@ -506,6 +612,7 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   if (n > 0) {
     avisos.push({
       clave: 'sin-ingreso',
+      tono: 'info',
       texto:
         r.dimension === 'trimestre'
           ? // Un trimestre sin movimiento SÍ aparece, en cero y a propósito: un
