@@ -24,3 +24,18 @@ infra/licencias/*.pub -text
 # convertir, hace falta GARANTIZAR LF en el arbol de trabajo, venga el archivo
 # de donde venga.
 scripts/*.mjs text eol=lf
+
+# `db/migrations/*.sql`: el runner registra el sha256 del archivo TAL COMO ESTA
+# EN DISCO (`scripts/migrar.mjs`), asi que con conversion de finales de linea
+# **el checksum de una migracion depende de en que maquina se hizo el checkout**.
+#
+# Medido el 2026-09-18 sobre las cinco que tenian bloqueada la base `spaces` del
+# 5433: en LAS CINCO el checksum registrado coincidia exactamente con el sha256
+# del archivo en LF, y el de disco con el de CRLF. El SQL era identico. El runner
+# abortaba con salida 3 —«NO se aplico nada»— y parecia que cinco migraciones ya
+# aplicadas habian cambiado de contenido. No habian cambiado: cambio el checkout.
+#
+# Es el mismo defecto que `scripts/*.mjs` de arriba, en otra puerta, y el peor de
+# los dos: aquel rompia una prueba, este BLOQUEA TODA MIGRACION FUTURA en la
+# maquina donde pase.
+db/migrations/*.sql text eol=lf
