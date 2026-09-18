@@ -140,6 +140,29 @@ export function trimestresCerrados(ancla, cuantos) {
   return out
 }
 
+/**
+ * Los meses `AAAA-MM-01` que cubren esos trimestres, del más antiguo al más
+ * reciente.
+ *
+ * El día 1 no es estética: `consumos_energia` lo exige con un CHECK
+ * (`20260918_consumos_energia.sql`), porque el motor reparte el recibo por los
+ * días de SU mes y una fila con `periodo = 2026-02-17` se repartiría como si el
+ * mes empezara ese día.
+ */
+export function mesesDelHistorico(trimestres) {
+  const out = []
+  for (const t of trimestres) {
+    const [anio, mes] = t.desde.slice(0, 7).split('-').map(Number)
+    for (let k = 0; k < 3; k++) {
+      const d = new Date(Date.UTC(anio, mes - 1 + k, 1))
+      out.push(
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-01`,
+      )
+    }
+  }
+  return out
+}
+
 // ─── Las dos pantallas del guion ───────────────────────────────────────────
 // Se exportan porque la prueba interroga al reporte POR ESTAS CLAVES: si el
 // guion cambiara de nombre, la prueba tiene que romperse, no adaptarse sola.
@@ -238,6 +261,14 @@ function cierreDeJornada(tipo, indice) {
 const PRECIO_COMPARABLE = 72000
 const PRECIO_SIN_MEDIDAS = 18000
 
+// Las dos del predio de las CARAS. La de dos caras se vende más cara pero NO al
+// doble, que es lo que hace que la comparación por metro cuadrado diga algo: si
+// vendiera exactamente el doble, las dos rendirían lo mismo por m² y la tabla
+// sería una fila repetida. Con estos números la de dos caras factura casi el
+// doble y rinde MENOS por metro, que es justo la pregunta de esa dimensión.
+const PRECIO_DOBLE_CARA = 45000
+const PRECIO_UNA_CARA = 24000
+
 const ARRENDADORES = [
   {
     clave: 'ARR-SUR',
@@ -265,6 +296,15 @@ const ARRENDADORES = [
     email: 'arrendador.viaducto@ejemplo.invalid',
     direccion: 'Calle DEMO Viaducto 000, Ciudad de Mexico',
     formaPago: 'EFECTIVO',
+  },
+  {
+    clave: 'ARR-INS',
+    nombre: 'Arrendador DEMO Insurgentes',
+    rfc: 'DMO010101AA4',
+    telefono: '55 0000 0004',
+    email: 'arrendador.insurgentes@ejemplo.invalid',
+    direccion: 'Avenida DEMO Insurgentes 000, Ciudad de Mexico',
+    formaPago: 'TRANSFERENCIA',
   },
 ]
 
@@ -295,6 +335,19 @@ const PREDIOS = [
     nombre: 'Predio DEMO Viaducto',
     direccion: 'Eje DEMO Viaducto 000, Iztacalco, Ciudad de Mexico',
     tipoUbicacion: 'Bardado industrial',
+    estado: 'OCUPADO',
+  },
+  // El predio de las CARAS. Existe para que el reporte por metro cuadrado tenga
+  // algo que comparar: hasta el 18/09 las cuatro pantallas del guion tenían UNA
+  // cara, y con eso la convención «el m² cuenta TODAS las caras» —decidida ese
+  // mismo día— no se podía ni enseñar ni distinguir de la contraria. Ver
+  // `SITIOS` más abajo.
+  {
+    clave: 'PRE-INS',
+    arrendadorClave: 'ARR-INS',
+    nombre: 'Predio DEMO Insurgentes',
+    direccion: 'Avenida DEMO Insurgentes 000, Benito Juarez, Ciudad de Mexico',
+    tipoUbicacion: 'Azotea',
     estado: 'OCUPADO',
   },
 ]
@@ -403,6 +456,74 @@ const SITIOS = [
     tarifa: PRECIO_SIN_MEDIDAS,
     notas: 'DEMO · sin medidas capturadas a proposito: el reporte de m2 la excluye y la cuenta.',
   },
+  // ─── Las dos de las CARAS ─────────────────────────────────────────────────
+  //
+  // MISMA superficie física (10 × 4 = 40 m² por cara) y DISTINTO número de
+  // caras. Es el par que hace visible la convención del m² decidida el
+  // 2026-09-18: «los m2 los define cada pantalla igual que cada cara», o sea
+  // que una pantalla de dos caras aporta 80 m² y no 40
+  // (`lib/data/reportes.ts` → `MULTIPLICAR_M2_POR_CARAS`). Con las cuatro
+  // pantallas anteriores todas en una cara, esa decisión daba EXACTAMENTE las
+  // mismas cifras que la contraria y no se podía enseñar ni comprobar.
+  //
+  // Van las dos en el MISMO predio con un solo contrato, así que además la
+  // renta se reparte 2/3 – 1/3 entre ellas —y la luz igual, con la misma
+  // fracción de caras—, que es la otra mitad de lo que `caras` significa aquí.
+  //
+  // ⚠️ Y por eso NO se les tocan las caras a Tlalpan ni a Santa Mónica:
+  // `rentaAtribuidaPorSitio()` reparte la renta del predio ENTRE LAS CARAS, así
+  // que subirles una cara les movería la renta atribuida, el margen y todos los
+  // totales del guion que el dueño ya validó. Están solas en su predio, y la
+  // prueba «cambiar las caras de las DEMÁS no mueve el margen de las
+  // protagonistas» lo fija mutando el dato.
+  {
+    clave: 'DEMO-DC-01',
+    papel: 'caras',
+    sufijoFolio: 'DC1',
+    codigoProveedor: 'DEMO-PROV-DC-01',
+    nombre: 'Doble Cara DEMO Insurgentes',
+    predioClave: 'PRE-INS',
+    tipoMedio: 'ESPECTACULAR',
+    direccion: 'Avenida DEMO Insurgentes 000, vista norte y sur',
+    alcaldia: 'Benito Juarez',
+    plazaCiudad: 'Ciudad de Mexico',
+    ciudad: 'Ciudad de Mexico',
+    estado: 'Ciudad de Mexico',
+    pais: 'MX',
+    ancho: 10,
+    alto: 4,
+    caras: 2,
+    iluminado: true,
+    exhibicion: 'fijo',
+    unidad: 'mensual',
+    tarifa: PRECIO_DOBLE_CARA,
+    notas: 'DEMO · DOS caras: aporta el doble de m2 y se lleva 2/3 de la renta del predio.',
+  },
+  {
+    clave: 'DEMO-UC-01',
+    papel: 'caras',
+    sufijoFolio: 'UC1',
+    codigoProveedor: 'DEMO-PROV-UC-01',
+    nombre: 'Una Cara DEMO Insurgentes',
+    predioClave: 'PRE-INS',
+    tipoMedio: 'ESPECTACULAR',
+    direccion: 'Avenida DEMO Insurgentes 000, vista poniente',
+    alcaldia: 'Benito Juarez',
+    plazaCiudad: 'Ciudad de Mexico',
+    ciudad: 'Ciudad de Mexico',
+    estado: 'Ciudad de Mexico',
+    pais: 'MX',
+    // La MISMA superficie física que la de dos caras, a propósito: lo único que
+    // las separa en el ranking por m² es el número de caras.
+    ancho: 10,
+    alto: 4,
+    caras: 1,
+    iluminado: true,
+    exhibicion: 'fijo',
+    unidad: 'mensual',
+    tarifa: PRECIO_UNA_CARA,
+    notas: 'DEMO · UNA cara, misma superficie fisica que su vecina: el m2 las separa.',
+  },
 ]
 
 // Rentas PARECIDAS en las dos comparables (1.8 % de diferencia). Tienen que
@@ -413,6 +534,136 @@ const RENTAS = {
   'PRE-TLP': { sitioAncla: SITIO_TLALPAN, monto: 28000 },
   'PRE-STM': { sitioAncla: SITIO_SANTA_MONICA, monto: 27500 },
   'PRE-VIA': { sitioAncla: 'DEMO-SM-01', monto: 6000 },
+  // 18 000 se parte 12 000 / 6 000 entre las tres caras del predio: es la cifra
+  // más fácil de comprobar a ojo delante de gente, que es para lo que existe.
+  'PRE-INS': { sitioAncla: 'DEMO-DC-01', monto: 18000 },
+}
+
+// ─── Las razones sociales PROPIAS del owner ────────────────────────────────
+//
+// No son los clientes ni los arrendadores: son las sociedades del dueño. Una
+// paga las rentas, otra vende publicidad, otra opera y tramita
+// ([[02-Backend/entidades-fiscales]]). Hasta el 18/09 el guion no sembraba
+// NINGUNA: las dos que tenía `spaces_ver2` se habían tecleado a mano en la
+// interfaz, así que una base recién sembrada no podía enseñar ni la pantalla de
+// razones sociales ni la asignación en contratos y comprobantes.
+//
+// ⚠️ Los CINCO papeles son FIJOS por decisión del dueño del 2026-09-18 y viven
+// en `catalogo_roles_entidad`, que es global y sin `tenant_id`.
+// `entidad_roles.rol` es una FK contra él: un papel inventado aquí no es un
+// dato discutible, es un 23503 al sembrar. NO se inventan más, y NO se copia la
+// lista a una constante nueva — este repositorio ya pagó dos veces tener dos
+// catálogos que divergían sin dar error.
+//
+// Los cinco se reparten entre TRES sociedades y cada papel tiene exactamente un
+// dueño: así la pantalla no pinta ni «papel sin dueño» ni «papel compartido», y
+// el selector de contratos y comprobantes puede PREASIGNAR — que es lo que se
+// va a enseñar.
+export const ENTIDADES = [
+  {
+    clave: 'ENT-ARR',
+    razonSocial: 'Inmuebles DEMO del Centro, S.A. de C.V.',
+    rfc: 'DMO010101EA1',
+    regimen: '601 - General de Ley Personas Morales',
+    cpFiscal: '00000',
+    serieFolios: 'DEMO-A',
+    roles: ['ARRENDAMIENTOS', 'ACTIVOS'],
+  },
+  {
+    clave: 'ENT-VTA',
+    razonSocial: 'Publicidad DEMO Exterior, S.A. de C.V.',
+    rfc: 'DMO010101EB2',
+    regimen: '601 - General de Ley Personas Morales',
+    cpFiscal: '00000',
+    serieFolios: 'DEMO-B',
+    roles: ['VENTAS'],
+  },
+  {
+    clave: 'ENT-OPE',
+    razonSocial: 'Servicios DEMO Operativos, S.A. de C.V.',
+    rfc: 'DMO010101EC3',
+    regimen: '601 - General de Ley Personas Morales',
+    cpFiscal: '00000',
+    serieFolios: 'DEMO-C',
+    roles: ['OPERACION', 'LICENCIAS'],
+  },
+]
+
+// Qué razón social PAGA la renta de cada predio.
+//
+// `PRE-VIA` se queda en `null` A PROPÓSITO: «sin asignar» es un estado que el
+// producto sabe pintar —y que tienen todas las filas anteriores al 2026-09-17—,
+// y si la semilla los asignara todos no habría forma de enseñarlo ni de
+// comprobar que la ficha del contrato no se inventa un nombre.
+const ENTIDAD_QUE_PAGA = {
+  'PRE-TLP': 'ENT-ARR',
+  'PRE-STM': 'ENT-ARR',
+  'PRE-VIA': null,
+  'PRE-INS': 'ENT-ARR',
+}
+
+// Qué razón social EMITE los comprobantes. Es la que tiene el papel de VENTAS,
+// y se busca por el papel en vez de escribir la clave: si alguien moviera el
+// papel de sociedad, el guion lo sigue en vez de quedarse mintiendo.
+const ROL_EMISOR = 'VENTAS'
+
+// ─── La luz ────────────────────────────────────────────────────────────────
+//
+// Un recibo por predio y por mes, que es la forma que eligió el dueño el
+// 2026-09-18: «el medidor suele ser del predio, no de la pantalla, así que se
+// captura una vez por predio y por mes y se reparte entre sus pantallas igual
+// que la renta» ([[02-Backend/energia-consumos]]).
+//
+// La tarifa por kWh es DISTINTA entre predios a propósito: la columna
+// `costoPorKwh` de la dimensión `luz` no compara nada si todos pagan lo mismo.
+// El contraste vive en Viaducto (dos estáticas, una sin iluminar) y en
+// Insurgentes, NO entre las dos protagonistas del guion — ver `HUECOS_LUZ`.
+// Los kWh son los de un espectacular ILUMINADO con reflectores, no los de una
+// nave: Viaducto son dos estáticas sin iluminar y su medidor es de servicio.
+// La cifra importa más de lo que parece — con un consumo inflado, la luz se
+// come el margen y el guion pasa a contar otra historia, que no es la que el
+// dueño validó. `variacion` es el paso de la oscilación mensual, en kWh.
+//
+// ⚠️ Y los tres números de cada fila están elegidos para que el importe salga
+// ENTERO **y siga siéndolo tras el reparto entre caras**: Viaducto se parte en
+// 2 e Insurgentes en 3, así que base y paso tienen que ser divisibles por eso.
+// No es cosmética — esto se proyecta delante de gente, y un «$ 4,090.20» de
+// costo de luz atribuido invita a preguntar por los centavos en vez de por el
+// margen. Por eso Viaducto va a 5.20 y no a 5.10: con 5.10 el paso es 51, y la
+// mitad de 51 tiene decimales.
+const LUZ_POR_PREDIO = {
+  'PRE-TLP': { medidor: 'DEMO-MED-TLP-001', kwh: 620, variacion: 25, tarifa: 6.2 },
+  'PRE-STM': { medidor: 'DEMO-MED-STM-001', kwh: 600, variacion: 20, tarifa: 6.1 },
+  'PRE-VIA': { medidor: 'DEMO-MED-VIA-001', kwh: 180, variacion: 10, tarifa: 5.2 },
+  'PRE-INS': { medidor: 'DEMO-MED-INS-001', kwh: 500, variacion: 20, tarifa: 6.9 },
+}
+
+// ─── Los HUECOS, que son la mitad del reporte de energía ───────────────────
+//
+// Índices de mes dentro del histórico (0 = el primer mes del primer trimestre)
+// en los que NO hay recibo. No es desidia: la pantalla de captura y el aviso de
+// cobertura del reporte existen para AVISAR DE LO QUE FALTA, y eso no se puede
+// enseñar sobre una base completa — la rejilla saldría entera y el aviso en
+// gris diciendo «no falta ninguno».
+//
+// ⚠️ Tlalpan y Santa Mónica pierden EXACTAMENTE EL MISMO MES. Si a una le
+// faltara un recibo que a la otra no, la brecha de margen del guion tendría una
+// segunda causa y dejaría de ser atribuible a la operación, que es lo único que
+// este guion existe para demostrar. Hay una prueba que lo fija.
+//
+// ⚠️⚠️ Y REPARTIDOS ENTRE LOS CUATRO TRIMESTRES, que es un defecto que este
+// archivo ya tuvo. La primera versión ponía el hueco de los cuatro predios en
+// el ÚLTIMO mes del histórico, y con eso el último trimestre salía con un mes
+// menos de luz que los demás: el margen por trimestre daba
+// `120 018 · 116 966 · 104 666 · 113 885` — **repuntaba al final**. La tabla era
+// correcta (ese dinero de verdad no está capturado) y el guion del Summit
+// dejaba de poder decir su frase: «el ingreso es plano y el margen cae». No se
+// vio leyendo la semilla: se vio pidiéndole el reporte al endpoint.
+const HUECOS_LUZ = {
+  'PRE-TLP': [1],
+  'PRE-STM': [1],
+  'PRE-VIA': [4, 8, 10],
+  'PRE-INS': [2, 6, 11],
 }
 
 const CLIENTES = [
@@ -484,10 +735,18 @@ export function planSemilla(opciones = {}) {
     moneda,
     deposito: RENTAS[p.clave].monto * 2,
     estatus: 'VIGENTE',
+    // Cuál de MIS razones sociales paga esta renta. `null` es un estado
+    // legítimo y está puesto a propósito en un predio — ver `ENTIDAD_QUE_PAGA`.
+    entidadClave: ENTIDAD_QUE_PAGA[p.clave] ?? null,
   }))
 
   const comparables = SITIOS.filter((s) => s.papel === 'comparable').map((s) => s.clave)
   const sinMedidas = SITIOS.filter((s) => s.papel === 'sin-medidas').map((s) => s.clave)
+  const conCaras = SITIOS.filter((s) => s.papel === 'caras').map((s) => s.clave)
+  // El precio de una pantalla es SU tarifa, no una tabla aparte: dos listas de
+  // precios acabarían discrepando y el reporte enseñaría un ingreso que no se
+  // corresponde con el inventario que se acaba de ver en pantalla.
+  const precioDe = (clave) => SITIOS.find((s) => s.clave === clave).tarifa
 
   const campanas = []
   const reservas = []
@@ -511,13 +770,10 @@ export function planSemilla(opciones = {}) {
       const cliente = CLIENTES[(iT + tramo.n) % CLIENTES.length]
       const folio = `DEMO-CMP-${t.clave}-${tramo.n}`
       const sitiosDeLaCampana = tramo.conSinMedidas
-        ? [...comparables, ...sinMedidas]
-        : [...comparables]
+        ? [...comparables, ...conCaras, ...sinMedidas]
+        : [...comparables, ...conCaras]
 
-      const bruto = sitiosDeLaCampana.reduce(
-        (a, clave) => a + (comparables.includes(clave) ? PRECIO_COMPARABLE : PRECIO_SIN_MEDIDAS),
-        0,
-      )
+      const bruto = sitiosDeLaCampana.reduce((a, clave) => a + precioDe(clave), 0)
 
       campanas.push({
         folio,
@@ -544,7 +800,7 @@ export function planSemilla(opciones = {}) {
           trimestre: t.clave,
           fechaInicio: tramo.desde,
           fechaFin: tramo.hasta,
-          precio: comparables.includes(clave) ? PRECIO_COMPARABLE : PRECIO_SIN_MEDIDAS,
+          precio: precioDe(clave),
           tipoVenta: 'FIXED_PKG',
           estatus: 'CONFIRMADA',
         })
@@ -637,11 +893,89 @@ export function planSemilla(opciones = {}) {
     }
   })
 
+  // ─── Los comprobantes ────────────────────────────────────────────────────
+  //
+  // Uno por campaña, que es lo que la base garantiza: `facturas_campana_uq` es
+  // único por `campana_id`, así que dos comprobantes de la misma campaña no
+  // serían un dato feo sino un error. Existen aquí por UNA razón concreta —
+  // enseñar «Emite: <razón social>» sobre un comprobante de verdad—, y por eso
+  // el importe se deriva del presupuesto de la campaña y del IVA del cliente,
+  // igual que hace el servidor al facturar: un comprobante cuyo importe no
+  // cuadre con su campaña es una demostración que se cae en la primera pregunta.
+  //
+  // Los de los trimestres ya cerrados van PAGADA, y los del último EMITIDA: una
+  // campaña completada hace un año con el comprobante sin cobrar es incoherente
+  // en la pantalla de cobranza, y la demo se mira entera, no solo el reporte.
+  const emisor = ENTIDADES.find((e) => e.roles.includes(ROL_EMISOR))
+  const ultimoTrimestre = trimestres[trimestres.length - 1].clave
+  const comprobantes = campanas.map((c, i) => {
+    const cliente = CLIENTES.find((x) => x.rfc === c.clienteRfc)
+    const subtotal = c.presupuestoBruto
+    const igv = Math.round(subtotal * (cliente.ivaPct / 100) * 100) / 100
+    const pagada = c.trimestre !== ultimoTrimestre
+    return {
+      folio: `DEMO-FAC-${c.trimestre}-${String(i + 1).padStart(2, '0')}`,
+      campanaFolio: c.folio,
+      clienteRfc: c.clienteRfc,
+      entidadClave: emisor.clave,
+      serie: emisor.serieFolios,
+      // Nada que se parezca a un UUID fiscal del SAT: aquí no se timbra nada, y
+      // un folio con pinta de real en una pantalla proyectada es justo lo que no
+      // debe salir. Ver [[02-Backend/finanzas-y-cobranza]].
+      folioFiscal: `DEMO-FOLIO-FISCAL-${String(i + 1).padStart(3, '0')}`,
+      usoCfdi: 'G03 - Gastos en general',
+      subtotal,
+      igv,
+      monto: Math.round((subtotal + igv) * 100) / 100,
+      moneda,
+      fechaEmision: c.fechaFin,
+      fechaVencimiento: masDias(c.fechaFin, 30),
+      plazoDias: 30,
+      estatus: pagada ? 'PAGADA' : 'EMITIDA',
+      estatusCobranza: pagada ? 'PAGADA' : 'AL_CORRIENTE',
+      montoPagado: pagada ? Math.round((subtotal + igv) * 100) / 100 : 0,
+    }
+  })
+
+  // ─── Los recibos de luz ──────────────────────────────────────────────────
+  //
+  // Un recibo por predio y por mes del histórico, MENOS los huecos declarados
+  // en `HUECOS_LUZ`. Deterministas: los kWh salen del índice del mes y no de
+  // `Math.random()`, que es lo que mantiene la idempotencia — con azar, la
+  // segunda corrida escribiría cifras distintas y ninguna prueba podría fijar
+  // un número.
+  //
+  // Solo meses de los trimestres CERRADOS: el trimestre en curso no se siembra
+  // aquí por el mismo motivo que no se siembran sus reservas, y además un
+  // recibo de un mes que no ha terminado es un dato que nadie tiene.
+  const meses = mesesDelHistorico(trimestres)
+  const consumosEnergia = []
+  for (const p of PREDIOS) {
+    const luz = LUZ_POR_PREDIO[p.clave]
+    const huecos = HUECOS_LUZ[p.clave] ?? []
+    meses.forEach((periodo, i) => {
+      if (huecos.includes(i)) return
+      // Variación estable de ±4 pasos alrededor de la base. El 7 y el 9 son
+      // primos entre sí, así que la serie no se repite dentro de un año.
+      const kwh = luz.kwh + (((i * 7) % 9) - 4) * luz.variacion
+      consumosEnergia.push({
+        predioClave: p.clave,
+        periodo,
+        medidor: luz.medidor,
+        kwh,
+        importe: Math.round(kwh * luz.tarifa * 100) / 100,
+        notas: 'DEMO · recibo de luz del guion de rentabilidad.',
+      })
+    })
+  }
+
   return {
     organizacion: { slug, nombre, moneda },
     ancla,
     trimestres,
+    meses,
     costosOt: COSTOS_OT_DEMO,
+    entidades: ENTIDADES,
     arrendadores: ARRENDADORES,
     predios: PREDIOS,
     sitios: SITIOS,
@@ -650,6 +984,8 @@ export function planSemilla(opciones = {}) {
     campanas,
     reservas,
     ordenesTrabajo,
+    comprobantes,
+    consumosEnergia,
   }
 }
 
@@ -675,6 +1011,17 @@ export function datosDeRentabilidad(plan) {
       codigoProveedor: s.codigoProveedor,
       caras: s.caras,
       predioId: s.predioClave,
+      // Los cinco que decide la dimensión `m2`: `tipoMedio`, `esRotativo` y
+      // `exhibicion` dicen si la pantalla se vende por metros o por spots, y
+      // `ancho`/`alto` son la superficie. Sin ellos el motor ve ancho nulo y
+      // EXCLUYE las cuatro pantallas por «sin medidas» — que es exactamente lo
+      // que pasaba: el reporte por m² salía vacío y nadie lo notaba, porque
+      // esta función solo se usaba para comprobar márgenes.
+      tipoMedio: s.tipoMedio,
+      esRotativo: false,
+      exhibicion: s.exhibicion,
+      ancho: s.ancho,
+      alto: s.alto,
     })),
     contratos: plan.contratos.map((c) => ({
       id: c.clave,
@@ -702,6 +1049,16 @@ export function datosDeRentabilidad(plan) {
       fechaCompletada: o.fechaCompletada,
       fechaProgramada: o.fechaProgramada,
       creadoEn: null,
+    })),
+    // Los recibos de luz, con el anclaje EXCLUYENTE que garantiza el CHECK de
+    // la base: aquí todos van al predio, que es la forma que eligió el dueño.
+    // `sitioId` en null y no ausente: el motor distingue los dos anclajes.
+    consumosEnergia: plan.consumosEnergia.map((c) => ({
+      predioId: c.predioClave,
+      sitioId: null,
+      periodo: c.periodo,
+      kwh: c.kwh,
+      importe: c.importe,
     })),
     costosOt: plan.costosOt,
   }
@@ -778,6 +1135,47 @@ export function sentenciasDelPlan(plan, tenantId) {
            where tenant_id = $1::uuid`,
     valores: [T, JSON.stringify(plan.costosOt), plan.organizacion.moneda],
   })
+
+  // ─── Las razones sociales del owner, y sus papeles ──────────────────────
+  // Van ANTES que los contratos porque el contrato se asigna a una de ellas más
+  // abajo. El guard es por `razon_social` dentro del tenant: no hay índice
+  // único en la tabla —dos sociedades pueden llamarse parecido en la vida
+  // real—, así que el `not exists` filtrado por `tenant_id` es aquí el correcto
+  // Y el necesario: sin el filtro, una homónima de OTRA empresa dejaría a ésta
+  // sin sembrar.
+  for (const e of plan.entidades) {
+    out.push({
+      etiqueta: `razon social ${e.razonSocial}`,
+      sql: `insert into entidades_fiscales (
+              tenant_id, razon_social, rfc, regimen, cp_fiscal, serie_folios, activo)
+            select $1::uuid, $2::text, $3::text, $4::text, $5::text, $6::text, true
+             where not exists (
+               select 1 from entidades_fiscales x
+                where x.tenant_id = $1::uuid and x.razon_social = $2::text)`,
+      valores: [T, e.razonSocial, e.rfc, e.regimen, e.cpFiscal, e.serieFolios],
+    })
+  }
+
+  for (const e of plan.entidades) {
+    for (const rol of e.roles) {
+      out.push({
+        etiqueta: `papel ${rol} → ${e.razonSocial}`,
+        // `entidad_roles` lleva su PROPIO `tenant_id` además del de la entidad,
+        // y la FK es COMPUESTA `(entidad_id, tenant_id)` desde el 18/09: una
+        // clave ajena plana se comprueba con los privilegios del dueño de la
+        // tabla y ELUDE la RLS, así que dejaba colgar el papel de una
+        // organización de la razón social de otra sin dar ningún error.
+        sql: `insert into entidad_roles (entidad_id, rol, tenant_id)
+              select e.id, $2::text, $1::uuid
+                from entidades_fiscales e
+               where e.tenant_id = $1::uuid and e.razon_social = $3::text
+                 and not exists (
+                   select 1 from entidad_roles x
+                    where x.tenant_id = $1::uuid and x.entidad_id = e.id and x.rol = $2::text)`,
+        valores: [T, rol, e.razonSocial],
+      })
+    }
+  }
 
   for (const a of plan.arrendadores) {
     out.push({
@@ -865,6 +1263,36 @@ export function sentenciasDelPlan(plan, tenantId) {
     })
   }
 
+  // ─── Quién PAGA cada renta ───────────────────────────────────────────────
+  //
+  // Va como `update` y no dentro del `insert` del contrato porque el contrato
+  // puede existir ya de una corrida anterior —o de antes de que existieran las
+  // razones sociales, que es el caso de `spaces_ver2`—, y lo que hay que dejar
+  // asignado es el que hay, no uno nuevo.
+  //
+  // `and c.entidad_id is null` es lo que lo hace seguro de repetir Y respetuoso:
+  // un contrato al que alguien le asignó OTRA sociedad a mano no se pisa. Una
+  // semilla que sobrescribiera una decisión humana sin avisar es exactamente el
+  // modo de fallo que este repositorio persigue.
+  for (const c of plan.contratos) {
+    if (!c.entidadClave) continue
+    const entidad = plan.entidades.find((e) => e.clave === c.entidadClave)
+    const predio = plan.predios.find((p) => p.clave === c.predioClave)
+    out.push({
+      etiqueta: `contrato de ${predio.nombre} → paga ${entidad.razonSocial}`,
+      actualiza: true,
+      sql: `update contratos_arrendamiento c
+               set entidad_id = e.id
+              from entidades_fiscales e, predios p
+             where c.tenant_id = $1::uuid
+               and e.tenant_id = $1::uuid and e.razon_social = $2::text
+               and p.tenant_id = $1::uuid and p.nombre = $3::text
+               and c.predio_id = p.id
+               and c.entidad_id is null`,
+      valores: [T, entidad.razonSocial, predio.nombre],
+    })
+  }
+
   for (const cl of plan.clientes) {
     out.push({
       etiqueta: `cliente ${cl.nombre}`,
@@ -937,6 +1365,112 @@ export function sentenciasDelPlan(plan, tenantId) {
     })
   }
 
+  // ─── Los comprobantes, con su EMISORA ────────────────────────────────────
+  //
+  // `on conflict do nothing` SIN columna a propósito: `facturas` tiene DOS
+  // restricciones únicas —`folio` y `campana_id`— y nombrar una sola dejaría
+  // que la otra se estrellara. Los importes se derivan del plan y no se vuelven
+  // a calcular aquí: son un dato del guion, igual que el precio de la reserva.
+  //
+  // El `join` con `entidades_fiscales` lleva `tenant_id`: sin él, un `select`
+  // por razón social podría traer la sociedad homónima de otra organización y
+  // el comprobante nacería emitido por quien no es — el fallo R2 clásico, que
+  // no da error.
+  for (const f of plan.comprobantes) {
+    const entidad = plan.entidades.find((e) => e.clave === f.entidadClave)
+    out.push({
+      etiqueta: `comprobante ${f.folio}`,
+      sql: `insert into facturas (
+              tenant_id, folio, campana_id, cliente_id, subtotal, igv, monto, moneda,
+              fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social,
+              uso_cfdi, entidad_emisora_id)
+            select $1::uuid, $2::text, c.id, cl.id, $3::numeric, $4::numeric, $5::numeric,
+                   $6::text, $7::date, $8::est_factura, $9::text, $10::text,
+                   cl.rfc, cl.razon_social, $11::text, e.id
+              from campanas c
+              join clientes cl
+                on cl.tenant_id = $1::uuid and cl.id = c.cliente_id
+              join entidades_fiscales e
+                on e.tenant_id = $1::uuid and e.razon_social = $12::text
+             where c.tenant_id = $1::uuid and c.folio = $13::text
+            on conflict do nothing`,
+      valores: [
+        T, f.folio, f.subtotal, f.igv, f.monto, f.moneda, f.fechaEmision,
+        f.estatus, f.serie, f.folioFiscal, f.usoCfdi, entidad.razonSocial, f.campanaFolio,
+      ],
+    })
+  }
+
+  // ─── Quién EMITE cada comprobante ────────────────────────────────────────
+  //
+  // Igual que con el contrato, y por una razón que se vio corriéndolo: tras
+  // pasar `reiniciar-razones-sociales.mjs`, los comprobantes siguen ahí y sin
+  // emisora, así que el `insert` de arriba no hace nada —su `on conflict do
+  // nothing` los reconoce— y volver a sembrar dejaba los ocho SIN EMISORA.
+  // Medido: `facturas_con_emisora=0` después de reiniciar y resembrar. El
+  // `insert` no basta; hace falta el `update`.
+  for (const f of plan.comprobantes) {
+    const entidad = plan.entidades.find((e) => e.clave === f.entidadClave)
+    out.push({
+      etiqueta: `comprobante ${f.folio} → emite ${entidad.razonSocial}`,
+      actualiza: true,
+      sql: `update facturas fa
+               set entidad_emisora_id = e.id
+              from entidades_fiscales e
+             where fa.tenant_id = $1::uuid
+               and e.tenant_id = $1::uuid and e.razon_social = $2::text
+               and fa.folio = $3::text
+               and fa.entidad_emisora_id is null`,
+      valores: [T, entidad.razonSocial, f.folio],
+    })
+  }
+
+  // La cobranza del comprobante. Va aparte y no es un extra: el servidor NUNCA
+  // emite una factura sin su cobranza (`finanzas-repo.ts`), y una factura
+  // huérfana dejaría la pantalla de cobranza con un hueco que no existe en el
+  // producto. Cobro único, que es el caso normal: `numero` y `monto` en null.
+  for (const f of plan.comprobantes) {
+    out.push({
+      etiqueta: `cobranza de ${f.folio}`,
+      sql: `insert into cobranzas (
+              tenant_id, factura_id, plazo_dias, fecha_vencimiento, estatus, monto_pagado)
+            select $1::uuid, fa.id, $2::integer, $3::date, $4::est_cobranza, $5::numeric
+              from facturas fa
+             where fa.tenant_id = $1::uuid and fa.folio = $6::text
+               and not exists (
+                 select 1 from cobranzas x
+                  where x.tenant_id = $1::uuid and x.factura_id = fa.id)`,
+      valores: [
+        T, f.plazoDias, f.fechaVencimiento, f.estatusCobranza, f.montoPagado, f.folio,
+      ],
+    })
+  }
+
+  // ─── Los recibos de luz ──────────────────────────────────────────────────
+  //
+  // El guard reproduce EL ÍNDICE ÚNICO de la tabla, incluido el
+  // `coalesce(medidor,'')`: en Postgres dos NULL son distintos dentro de un
+  // índice único, así que un guard por `medidor` a secas dejaría entrar dos
+  // recibos del mismo mes sin número de medidor — y un recibo capturado dos
+  // veces DUPLICA el costo de la luz de ese mes sin dar ningún error.
+  for (const c of plan.consumosEnergia) {
+    const predio = plan.predios.find((p) => p.clave === c.predioClave)
+    out.push({
+      etiqueta: `recibo de luz ${predio.nombre} · ${c.periodo.slice(0, 7)}`,
+      sql: `insert into consumos_energia (
+              tenant_id, predio_id, periodo, medidor, kwh, importe, notas)
+            select $1::uuid, p.id, $2::date, $3::text, $4::numeric, $5::numeric, $6::text
+              from predios p
+             where p.tenant_id = $1::uuid and p.nombre = $7::text
+               and not exists (
+                 select 1 from consumos_energia x
+                  where x.tenant_id = $1::uuid and x.predio_id = p.id
+                    and x.periodo = $2::date
+                    and coalesce(x.medidor, '') = coalesce($3::text, ''))`,
+      valores: [T, c.periodo, c.medidor, c.kwh, c.importe, c.notas, predio.nombre],
+    })
+  }
+
   return out
 }
 
@@ -985,22 +1519,44 @@ operacion as (
      and coalesce(o.fecha_completada, o.fecha_programada, o.creado_en)::date
          between $2::date and $3::date
    group by 1
+),
+-- La energía es la CUARTA fuente de costo y entra en el margen, no es una
+-- columna decorativa. Se reparte con la MISMA fracción de caras que la renta,
+-- que es lo que decidió el dueño («se reparte entre sus pantallas igual que la
+-- renta»). Aquí no hace falta prorratear por días: los recibos que siembra este
+-- guion cubren meses enteros dentro del rango. Si algún día dejara de ser
+-- cierto, la que manda sigue siendo lib/data/reportes.ts.
+energia as (
+  select sd.id,
+         sum(ce.importe * (sd.caras::numeric / cp.caras)) monto,
+         sum(ce.kwh     * (sd.caras::numeric / cp.caras)) kwh
+    from sitios_demo sd
+    join caras_predio cp on cp.predio_id = sd.predio_id
+    join consumos_energia ce
+      on ce.tenant_id = $1::uuid and ce.predio_id = sd.predio_id
+     and ce.periodo between $2::date and $3::date
+   group by sd.id
 )
 select sd.clave_interna                                          as clave,
        sd.nombre,
        (sd.ancho is null and sd.alto is null)                     as sin_medidas,
+       sd.caras,
        coalesce(i.n, 0)                                           as reservas,
        coalesce(i.monto, 0)                                       as ingreso,
        round(coalesce(re.mensual, 0) * $4::numeric, 2)            as costo_espacio,
        coalesce(op.n, 0)                                          as ot,
        coalesce(op.monto, 0)                                      as costo_operacion,
+       round(coalesce(en.monto, 0), 2)                            as costo_energia,
+       round(coalesce(en.kwh, 0), 2)                              as kwh,
        coalesce(i.monto, 0)
          - round(coalesce(re.mensual, 0) * $4::numeric, 2)
-         - coalesce(op.monto, 0)                                  as margen
+         - coalesce(op.monto, 0)
+         - round(coalesce(en.monto, 0), 2)                        as margen
   from sitios_demo sd
   left join renta re     on re.id = sd.id
   left join ingreso i    on i.sitio_id = sd.id
   left join operacion op on op.sitio_id = sd.id
+  left join energia en   on en.id = sd.id
  order by margen asc`
 
 const SQL_MEDICION_OT = `
@@ -1072,6 +1628,17 @@ function imprimirGuion(plan) {
     `               ${plan.clientes.length} clientes · ${plan.campanas.length} campanas · ` +
       `${plan.reservas.length} reservas · ${plan.ordenesTrabajo.length} ordenes de trabajo`,
   )
+  console.log(
+    `               ${plan.entidades.length} razones sociales · ` +
+      `${plan.comprobantes.length} comprobantes · ` +
+      `${plan.consumosEnergia.length} recibos de luz`,
+  )
+  const sinAsignar = plan.contratos.filter((c) => !c.entidadClave).length
+  const huecos = plan.predios.length * plan.meses.length - plan.consumosEnergia.length
+  console.log(
+    `               contratos sin razon social: ${sinAsignar} (a proposito) · ` +
+      `meses de luz sin recibo: ${huecos} de ${plan.predios.length * plan.meses.length} (a proposito)`,
+  )
   console.log('\n  ordenes de trabajo por pantalla:')
   for (const s of plan.sitios) {
     const suyas = plan.ordenesTrabajo.filter((o) => o.sitioClave === s.clave)
@@ -1089,18 +1656,20 @@ function imprimirTabla(filas) {
   const n = (v) => Number(v).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   console.log('')
   console.log(
-    'clave        pantalla                 m2?   res   ingreso        espacio        OT  operacion      margen',
+    'clave        pantalla                 m2? car  res   ingreso        espacio    OT  operacion         luz        margen',
   )
-  console.log('-'.repeat(118))
+  console.log('-'.repeat(126))
   for (const f of filas) {
     console.log(
       `${f.clave.padEnd(12)} ${String(f.nombre).slice(0, 24).padEnd(24)} ` +
-        `${(f.sin_medidas ? 'NO' : 'si').padEnd(5)} ` +
-        `${String(f.reservas).padStart(3)} ` +
+        `${(f.sin_medidas ? 'NO' : 'si').padEnd(3)} ` +
+        `${String(f.caras).padStart(3)} ` +
+        `${String(f.reservas).padStart(4)} ` +
         `${n(f.ingreso).padStart(13)} ` +
-        `${n(f.costo_espacio).padStart(14)} ` +
+        `${n(f.costo_espacio).padStart(13)} ` +
         `${String(f.ot).padStart(4)} ` +
-        `${n(f.costo_operacion).padStart(13)} ` +
+        `${n(f.costo_operacion).padStart(11)} ` +
+        `${n(f.costo_energia).padStart(11)} ` +
         `${n(f.margen).padStart(13)}`,
     )
   }
