@@ -29,7 +29,7 @@ La entrada más reciente va arriba.
   en cero porque falta el dato, no porque sea gratis, y eso se avisa encima de la
   tabla. **Lo ven el Dueño y el rol de Finanzas**: es información de dinero.
 
-- **Las cuatro formas de mirar el reporte ya funcionan.** Además de **por
+- **Las cinco formas de mirar el reporte ya funcionan.** Además de **por
   pantalla**, ahora calculan **por trimestre**, para ver cómo evoluciona el
   negocio en el tiempo; **por operación**, que cruza las visitas de mantenimiento
   con el dinero que produce cada pantalla —es el reporte que contesta «han tenido
@@ -38,9 +38,11 @@ La entrada más reciente va arriba.
   compara el rendimiento de las estáticas. Esta última **deja fuera a propósito
   las pantallas digitales** (se venden por spots, no por metros) y las estáticas
   sin ancho o alto capturados, **y dice cuántas dejó fuera y por qué**, para que
-  nadie lea la tabla creyendo que está el inventario completo. Queda una decisión
-  pendiente: en una pantalla de dos caras de 3×6, el metro cuadrado son 18 o 36.
-  Por ahora se calcula **una cara**, y el reporte lo dice.
+  nadie lea la tabla creyendo que está el inventario completo. Y **el metro
+  cuadrado suma todas las caras**: una pantalla de dos caras de 3 × 6 cuenta
+  36 m², no 18, porque es la superficie que de verdad se vende. El reporte lo
+  dice en pantalla, para que nadie lea las cifras sin saber con qué criterio se
+  contaron.
 
 - **Al entrar por primera vez, el sistema pregunta por tus razones sociales.**
   Casi todas las empresas de medios reparten su operación entre varias: una paga

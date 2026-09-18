@@ -112,14 +112,21 @@ if ($SoloMirar) {
 }
 
 # --- 4. Reconciliar ---------------------------------------------------------
-$hechas = 0; $fallos = @()
-foreach ($archivo in $aReconciliar) {
-  node scripts/migrar.mjs --forzar-checksum=$archivo | Out-Null
-  if ($LASTEXITCODE -eq 0) { $hechas++ } else { $fallos += $archivo }
-}
+# TODAS en UNA sola invocacion, y esto no es una optimizacion: es la unica
+# forma que funciona. La comprobacion de integridad del runner corre ANTES de
+# perdonar nada, asi que una llamada por archivo aborta con salida 3 en la
+# primera —las otras 79 siguen divergiendo— y no reconcilia ni una.
+#
+# Medido el 2026-09-18 sobre `spaces_ver2`: la version anterior de este guion,
+# que llamaba en bucle, fallaba en el primer archivo. El runner acumula las
+# banderas en un arreglo (`scripts/migrar.mjs:394,404`) precisamente para esto.
+$banderas = $aReconciliar | ForEach-Object { "--forzar-checksum=$_" }
+Write-Host "reconciliando $($aReconciliar.Count) en una sola invocacion..."
+node scripts/migrar.mjs @banderas
+$ok = ($LASTEXITCODE -eq 0)
 
-Write-Host "reconciliadas: $hechas · fallos: $($fallos.Count)" -ForegroundColor Green
-if ($fallos.Count -gt 0) { $fallos | ForEach-Object { Write-Host "  fallo: $_" -ForegroundColor Red } }
+if ($ok) { Write-Host "reconciliadas: $($aReconciliar.Count)" -ForegroundColor Green }
+else     { Write-Host "el runner devolvio $LASTEXITCODE. Nada se da por hecho: mira su salida de arriba." -ForegroundColor Red }
 
 # --- 5. La comprobacion que lo cierra ---------------------------------------
 Write-Host ""

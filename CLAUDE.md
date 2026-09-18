@@ -33,16 +33,16 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
 
 ### Qué es, técnicamente
 
-**79 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**83 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **~1000 enlaces internos** sobre **79 notas**, y **no está
-limpia**: quedan **2 wikilinks rotos** —los dos apuntan a ADR, que viven en
-`docs/` y no en la bóveda, así que es un choque de convención más que un
-enlace muerto— y **2 notas huérfanas**, las dos manuales con fecha. Las
+Al 2026-09-18 tiene **1087 enlaces internos** sobre **83 notas**, con **2
+wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
+bóveda, así que es un choque de convención más que un enlace muerto— y **1
+nota huérfana** (`diario/2026-09-17`). Las
 mediciones previas daban 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395
 sobre 43 (10/08).
 
@@ -97,15 +97,28 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **96** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **43** | `vault/04-Datos/esquema.md` |
-| Migraciones | **82** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **98** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **44** | `vault/04-Datos/esquema.md` |
+| Migraciones | **84** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-09-18**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
-> **Este archivo ya los tuvo mal DOS VECES, y por eso conviene decirlo aquí:**
+> [!danger] NO LOS ACTUALICES A MANO. Córrelos.
+> ```
+> node scripts/recuentos.mjs
+> ```
+> Imprime las siete de golpe, **medidas sobre el árbol donde lo corres** — y eso
+> importa, porque cada worktree está en una rama distinta y da otro número.
+>
+> **Este archivo ha tenido las MISMAS SEIS CIFRAS MAL TRES VECES**, y la tercera
+> es la que enseña algo: se corrigieron a mano en un commit y **la misma rama**
+> las volvió a caducar dos commits después, al añadir cuatro `route.ts` y dos
+> migraciones. El problema no es que nadie se acuerde: es que **una cifra que se
+> mantiene a mano en un repositorio que crece caduca en el commit siguiente.**
+
+> **Este archivo ya los tuvo mal TRES VECES, y por eso conviene decirlo aquí:**
 > entre el 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
 > migraciones, notas, enlaces y el número de ADR— **mientras la bóveda estaba
 > al día**. Y volvió a pasar: al 18/09 arrastraba **las mismas seis**, otra vez

@@ -159,7 +159,7 @@ export function CuestionarioRazonesSociales({
               </h2>
               <p className="mt-2 text-[13px] leading-relaxed text-muted">
                 {varias === false
-                  ? 'Se le asignarán todos los roles. Después puedes separarlos en Administración.'
+                  ? 'Se le asignarán todos los roles. Después puedes separarlos en Razones sociales.'
                   : 'Una misma razón social puede llevar varios roles: escribe el mismo nombre y se agrupan en una sola. Lo que no sepas todavía, déjalo en blanco.'}
               </p>
             </div>
@@ -227,7 +227,7 @@ export function CuestionarioRazonesSociales({
           {enviando ? 'Guardando…' : 'Guardar y continuar'}
         </Button>
         {/* Nadie queda encerrado: se puede saltar y el cuestionario sigue
-            accesible desde Administración. Un paso obligatorio aquí dejaría al
+            accesible desde Razones sociales. Un paso obligatorio aquí dejaría al
             Dueño fuera de su propia aplicación por un dato que quizá tiene que
             preguntarle a su contador. */}
         <Button variant="ghost" onClick={alSaltar} disabled={enviando}>
