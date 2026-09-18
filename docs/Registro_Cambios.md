@@ -58,6 +58,30 @@ La entrada más reciente va arriba.
   razones sociales, el cuestionario no vuelve a aparecer. Solo lo ve el Dueño: es
   la identidad fiscal del negocio. En el menú está como **Razones sociales**.
 
+- **Lo que la pantalla enseña de cada reporte.** «Por operación» ya muestra las
+  columnas que lo hacen ser de operación: cuántas visitas tuvo cada pantalla, qué
+  proporción del ingreso se comió la operación, cuántas horas estuvo la cuadrilla en
+  sitio y sobre cuántas visitas se midieron, y de qué tipo fue cada visita. «Por metro
+  cuadrado» muestra la superficie y el rendimiento por metro, dice encima de la tabla
+  cuántas pantallas quedaron fuera del ranking y por qué, y **declara con qué criterio
+  se contó el metro cuadrado** (hoy, la superficie de una sola cara) — es una decisión
+  pendiente y cambia el orden de toda la tabla. «Por trimestre» llama **Trimestre** a
+  su primera columna, donde antes decía «Pantalla», y sale en **orden cronológico** en
+  vez de del peor al mejor, porque es una serie de tiempo. Cualquier fila se despliega
+  para ver su desglose mes a mes. Y el desplegable ya no marca tres de los cuatro
+  reportes como «en preparación»: los cuatro funcionan.
+
+- **El reporte avisa cuando el trimestre no ha terminado.** Sigue abriendo en el
+  **trimestre en curso**, que es lo que se pidió ver. Pero un trimestre a medias se lee
+  peor de lo que es: la renta de los espacios se paga desde el primer día y lo que se
+  vende se cobra al cerrar. Así que ahora la pantalla lo advierte — cuando el periodo
+  toca un trimestre que no ha terminado, sale un aviso en ámbar encima de la tabla que
+  dice cuántos días lleva corridos de cuántos, explica que la renta ya corrió completa
+  pero el ingreso todavía no está dentro, y recuerda que ese margen no se compara con
+  el de un trimestre terminado. **Solo sale cuando hace falta**: al cambiar a un
+  trimestre ya cerrado desaparece, y esa desaparición dice que las cifras ya son
+  definitivas.
+
 - **Datos de demostración para los reportes.** Se añadió una semilla que deja una
   base lista para enseñar el módulo con una historia de verdad: cuatro trimestres
   cerrados de campañas y de visitas sobre cuatro pantallas. No son datos al azar,
