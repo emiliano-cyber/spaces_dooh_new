@@ -14,7 +14,10 @@ import type { EntidadPlaneada, RolCatalogo, EntidadConRoles } from '@/lib/cuesti
 //  del recuento, así que este módulo no necesita ninguna migración.
 //
 //  ─── `entidad_id` NO es una frontera de seguridad ────────────────────────
-//  La frontera es UNA: `tenant_id` con RLS (`db.ts:54-69`). Toda consulta de
+//  La frontera es UNA: `tenant_id` con RLS (`db.ts:60` en `fijarTenant` y
+//  `db.ts:79` en `q`, que es donde se fija el GUC). El rango `:54-69` que
+//  citaba antes ya derivó, y la deriva era de las que enseñan al revés: caía
+//  dentro de `qRaw`, que es exactamente lo contrario de la frontera. Toda consulta de
 //  aquí lleva `and tenant_id = $n` explícito como SEGUNDA capa sobre la
 //  política, y usa `q` — nunca `qRaw`, que no fija el contexto de tenant. No es
 //  ceremonia: el fallo R2 de este repositorio no da error, devuelve cero filas

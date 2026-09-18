@@ -22,10 +22,10 @@ import type { DatosRentabilidad, RangoReporte } from '@/lib/data/reportes'
 //
 //  ─── Por qué esto existe, y es lo importante del cambio ──────────────────
 //  Hasta hoy la analítica se calculaba en el NAVEGADOR: `GET /api/estado`
-//  devuelve 23 rebanadas de tablas completas (`app/api/estado/route.ts:97-124`)
+//  devuelve 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`)
 //  y el front derivaba los márgenes con `useStoreMemo` (`lib/data/client.ts:329`).
 //  Ese endpoint ya se descontroló una vez —6.12 MB y pantalla en blanco de 6–12
-//  segundos, documentado en `app/api/estado/route.ts:132-141`— y los reportes
+//  segundos, documentado en `app/api/estado/route.ts:146-156`— y los reportes
 //  de rentabilidad verán historia de AÑOS. Por ese camino no aguantan.
 //
 //  Aquí la lectura ya va ACOTADA POR EL RANGO donde se puede (reservas y

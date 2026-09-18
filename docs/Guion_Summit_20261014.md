@@ -46,6 +46,30 @@ sostenerla con números.
 > y matando al dueño del puerto (`Get-NetTCPConnection -LocalPort 3399`), no a la
 > ventana de `npx`.
 
+### Los cinco enlaces — ponlos en marcadores ANTES
+
+Desde el 2026-09-18 la pantalla **lee los filtros de la dirección**, así que cada
+paso del recorrido es un enlace. **No hay que tocar un solo selector ni teclear
+una sola fecha delante de la sala.**
+
+| Paso | Enlace |
+|---|---|
+| 1 · Inventario | `/spaces-dooh/inventario/` |
+| 2 · Por pantalla | `/spaces-dooh/reportes/?dimension=sitio&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
+| 3 · Por operación | `/spaces-dooh/reportes/?dimension=operacion&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
+| 4 · Por trimestre | `/spaces-dooh/reportes/?dimension=trimestre&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
+| 5 · Por metro cuadrado | `/spaces-dooh/reportes/?dimension=m2&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
+| extra · Por consumo de luz | `/spaces-dooh/reportes/?dimension=luz&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre` |
+
+> **Y esto resuelve solo el aviso del paso 2.** Con el enlace, el reporte abre ya
+> en el rango bueno: la pérdida del trimestre en curso **no aparece**. Sigue
+> existiendo si alguien entra por el menú —y el aviso ámbar sigue estando para
+> eso— pero deja de ser un riesgo del escenario.
+>
+> Probado el 18/09: un valor inventado en la dirección (`dimension=nomina`,
+> `desde=ayer`) **se ignora** y la pantalla cae al estado de siempre. Un enlace
+> mal pegado no rompe nada; simplemente abre por omisión.
+
 ### Ensayo completo, la víspera
 
 No el mismo día. Al menos una pasada entera con el proyector encendido, porque
@@ -74,22 +98,20 @@ inventario, no una maqueta.
 
 `Reportes` en el menú, dentro del bloque de Finanzas.
 
-> [!warning] Lo primero que va a aparecer NO es lo que quieres enseñar
-> El reporte **abre en el trimestre en curso**, que todavía no ha terminado. La
-> renta ya corrió y las ventas aún no están dentro, así que **abre mostrando una
-> pérdida**. Hay un aviso en ámbar que lo explica, y el aviso es bueno — pero la
-> cifra roja entra por el ojo antes que el aviso.
+> [!tip] Con el enlace preparado, esto ya no es un riesgo
+> Entrando **por el enlace del paso 2** el reporte abre en el rango bueno y la
+> pérdida del trimestre en curso no aparece. Lo de abajo aplica solo si entras
+> por el menú.
 >
-> **Decide antes de subir al escenario cuál de las dos cosas haces:**
+> Entrando por el menú, el reporte **abre en el trimestre en curso** y muestra
+> una pérdida: la renta ya corrió y las ventas aún no están dentro. Hay un aviso
+> en ámbar que lo explica, pero la cifra roja entra por el ojo antes.
 >
-> **(a) Cambiar el rango de inmediato**, antes de que la sala lea el número.
-> Pon `2025-07-01` → `2026-06-30`. Es lo más seguro.
->
-> **(b) Usarlo a propósito**, que es más valiente y más vendedor: dejas que se
-> vea la pérdida, señalas el aviso ámbar y dices *«esto es un trimestre a medias,
-> y el sistema te avisa de que no lo compares — la mayoría de los reportes te
-> habrían dejado creer que estás perdiendo dinero»*. Si eliges ésta, **ensáyala**:
-> depende de que la frase salga antes que la cara de susto.
+> **Y se puede usar a propósito, que es más vendedor:** dejas que se vea, señalas
+> el ámbar y dices *«esto es un trimestre a medias, y el sistema te avisa de que
+> no lo compares — la mayoría de los reportes te habrían dejado creer que estás
+> perdiendo dinero»*. Si lo haces, **ensáyalo**: depende de que la frase salga
+> antes que la cara de susto.
 
 Con el rango en `2025-07-01` → `2026-06-30`, agrupado **por pantalla**:
 
@@ -120,7 +142,7 @@ escenario y se pasa al paso siguiente.
 
 ### Paso 3 · Por operación — la respuesta
 
-Cambia **Agrupar** a `Por operación`.
+Abre el **enlace del paso 3**. (Por el menú: **Agrupar** → `Por operación`.)
 
 | | Visitas | Horas en sitio | Costo operación | % del ingreso | Margen |
 |---|---:|---:|---:|---:|---:|
@@ -140,7 +162,7 @@ Es el momento de la presentación. Si algo se ensaya dos veces, es éste.
 
 ### Paso 4 · Por trimestre — «y va a peor»
 
-Cambia **Agrupar** a `Por trimestre`, mismo rango.
+Abre el **enlace del paso 4**. (Por el menú: **Agrupar** → `Por trimestre`.)
 
 | Trimestre | Ingreso | Margen | % | Visitas |
 |---|---:|---:|---:|---:|
@@ -158,7 +180,7 @@ lo pide: no alarga el guion por gusto.
 
 ### Paso 5 · Por metro cuadrado — el cierre técnico
 
-Cambia **Agrupar** a `Por metro cuadrado`.
+Abre el **enlace del paso 5**. (Por el menú: **Agrupar** → `Por metro cuadrado`.)
 
 Convención: **todas las caras**, decidida el 18/09 y ya medida.
 

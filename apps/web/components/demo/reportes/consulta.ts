@@ -13,7 +13,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  y el front deriva los márgenes con `useStoreMemo` (`lib/data/client.ts:329`).
 //  Ese camino ya reventó una vez —6.12 MB y pantalla en blanco de 6 a 12
 //  segundos, sin dar ningún error; lo cuenta su propio código en
-//  `app/api/estado/route.ts:142-146`—, y los reportes verán historia de AÑOS.
+//  `app/api/estado/route.ts:146-156`—, y los reportes verán historia de AÑOS.
 //  Colgar esta pantalla del store obligaría a rehacerla entera cuando el
 //  cálculo se porte a agregación SQL. Por eso el límite se respeta desde el
 //  primer render.

@@ -11,10 +11,10 @@ export const dynamic = 'force-dynamic'
 //
 // ─── Este endpoint es un LÍMITE, y eso es lo que aporta ─────────────────────
 // Hoy la analítica de SPACE OS se calcula en el NAVEGADOR: `/api/estado`
-// devuelve 23 rebanadas de tablas completas (`app/api/estado/route.ts:97-124`)
+// devuelve 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`)
 // y el front deriva los márgenes con `useStoreMemo` (`lib/data/client.ts:329`).
 // Ese endpoint ya llegó a 6.12 MB con una pantalla en blanco de 6–12 segundos
-// —lo cuenta su propio código, `app/api/estado/route.ts:132-141`— y los
+// —lo cuenta su propio código, `app/api/estado/route.ts:146-156`— y los
 // reportes de rentabilidad verán historia de AÑOS.
 //
 // Las pantallas de reportes hablan con esta ruta desde el día uno. Detrás, esta

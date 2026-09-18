@@ -38,7 +38,7 @@ se le arreglaron **tres defectos que solo se vieron ABRIÉNDOLA** — ver
 > 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`) y el front
 > deriva con `useStoreMemo` (`lib/data/client.ts:329`). **Ese camino ya reventó
 > una vez: 6.12 MB y pantalla en blanco de 6 a 12 segundos, sin dar error**
-> —lo cuenta su propio código en `app/api/estado/route.ts:142-146`—.
+> —lo cuenta su propio código en `app/api/estado/route.ts:146-156`—.
 >
 > Un reporte de rentabilidad verá **historia de años**: por ahí su volumen
 > crecería con la antigüedad de la cuenta, no con el periodo consultado. Y el

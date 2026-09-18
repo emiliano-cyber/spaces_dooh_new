@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-18
 tags: [adr, decisiones, reglas-de-negocio]
 archivos:
   - docs/adr/
@@ -11,6 +11,16 @@ archivos:
 ---
 
 # Decisiones de diseño
+
+> [!warning] 2026-09-18 · esta nota llevaba ONCE ADR de retraso
+> Listaba hasta el `0024` con fecha del 27/08, mientras `docs/adr/` iba por el
+> `0035`. **Es la nota cuyo trabajo ES indexar decisiones**, así que su retraso
+> no es un detalle: quien la abriera para saber qué se ha decidido se llevaría
+> once decisiones menos, incluidas las dos que definen el módulo que se presenta
+> el 14 de octubre.
+>
+> Se completó midiendo `docs/adr/` en vez de releyendo. El recuento sale de
+> `node scripts/recuentos.mjs`.
 
 ## ADR formales
 
@@ -43,6 +53,17 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0022 | **Una instancia dedicada por owner**; la RLS pasa a defensa en profundidad | Aceptada (26/08) | Toda la Fase 5: `infra/scripts/provision-instancia.sh`, `/api/bootstrap`, `/api/version`. Ver [[modelo-instancias-soberanas]] |
 | 0023 | **El droplet viejo sale del modelo**, y sus datos no se rescatan | Aceptada (27/08) | Retira `F0.2`, `F1.1`, `F1.5`, `F7.1`, `F7.2` y `F7.3`: **la Fase 7 entera**. El plan queda en **40 tareas con objeto**. Extiende el 0017 |
 | 0024 | **`demo.space-os.io` es la demo ORIGINAL y se eliminará** | Aceptada (27/08) — **sustituye al 0021** | No se mueve al PADRE ni se le emite certificado. **`F4.3` queda sin objeto**: el plan baja a **39 tareas con objeto**. Su certificado (26/10) pasa a ser caducidad natural, no plazo |
+| 0025 | **El acceso de soporte a la instancia de un owner** | Aceptada | Cómo entra soporte sin quedarse con una llave permanente |
+| 0026 | **El panel de flota tiene pantalla propia, fuera del artefacto** | Aceptada | No viaja en la imagen que corre cada instancia |
+| 0027 | **El alta de una instancia se pide desde el panel, y la ejecuta otro proceso** | Aceptada | Separa pedir de ejecutar |
+| 0028 | **Google obligatorio; la contraseña se reserva para los cambios** | Aceptada | Entrar es Google; cambiar dinero o catálogo pide contraseña |
+| 0029 | **El ejecutor de altas pasa de «una pasada, un alta» a una máquina de estados** | Aceptada | Un alta se reanuda en vez de repetirse |
+| 0030 | **El basemap de la flota no lleva clave** | Aceptada | Ninguna credencial en un artefacto que se distribuye |
+| 0031 | **Los datos de g500 SÍ se rescatan del droplet viejo** | Aceptada | Sustituye **solo el punto 2** del 0023 |
+| 0032 | **El alta en droplet propio del cliente, y la licencia firmada** | Aceptada | Cada owner en su droplet, con licencia firmada por el PADRE |
+| 0033 | **El origen de las redirecciones sale de la cabecera `Host`** | Aceptada | Arregla el 500 que la flota daba con `Location` relativa |
+| 0034 | **Multi-entidad es ATRIBUCIÓN, no aislamiento** | Aceptada (18/09) — PR #91 | La frase ES la decisión: el owner no quiere separar sus razones sociales, quiere **verlas juntas**. Descarta «un tenant por razón social», que rompía el consolidado por diseño. Su apartado de seguridad lleva el agujero R2 con su medición |
+| 0035 | **Los reportes se agregan en el SERVIDOR, no en el navegador** | Aceptada (18/09) — PR #91 | El límite `/api/reportes/*`. Motivo medido: `/api/estado` llegó a **6.12 MB** con pantalla en blanco de 6-12 s **sin dar error**, y un reporte trimestral mira años. Declara lo que NO hace: sin agregación en SQL y sin tope de rango |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día

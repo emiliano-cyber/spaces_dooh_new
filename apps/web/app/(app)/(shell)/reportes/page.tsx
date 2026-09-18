@@ -38,7 +38,7 @@ import {
 //  `/api/estado` se trae 24 rebanadas de tablas completas y el front deriva los
 //  márgenes con `useStoreMemo`. Ese camino ya reventó una vez —6.12 MB y
 //  pantalla en blanco de 6 a 12 segundos, sin dar ningún error
-//  (`app/api/estado/route.ts:142-146`)— y un reporte de rentabilidad verá
+//  (`app/api/estado/route.ts:146-156`)— y un reporte de rentabilidad verá
 //  historia de AÑOS: su volumen crecería con la antigüedad de la cuenta, no con
 //  el periodo consultado. Colgar esta pantalla del store obligaría a rehacerla
 //  entera cuando el cálculo se porte a agregación SQL, y entonces ya no se
