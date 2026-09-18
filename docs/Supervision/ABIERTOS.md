@@ -17,11 +17,27 @@ dos motivos del rojo están cerrados y medidos:
   Verificado en el navegador: sale en jul–sep 2026 y **desaparece** al mover el rango
   a abr–jun 2026.
 
-**Veredicto vigente de `chore/cierre-ola4`: 🟠 ÁMBAR** — aterriza con la deuda de
-abajo declarada. Medido el **2026-09-18** en el worktree `.claude/worktrees/entidades`.
-El ámbar que de verdad importa es **B23**: la base de demostración del SUMMIT dejó de
-aceptar migraciones, y es lo único de esta lista que puede parar trabajo en los 26
-días que quedan.
+~~**Veredicto de `chore/cierre-ola4`: 🟠 ÁMBAR por B23.**~~ **Revisado el 2026-09-18,
+noche.** B23 está cerrada y medida en las dos bases, así que **ya no hay nada en esta
+lista que pueda parar trabajo.**
+
+**Veredicto vigente: 🟠 ÁMBAR, y por un solo motivo: `B8`.** Nadie ha abierto el PR,
+así que `ci.yml` **no ha verificado nada en una máquina limpia** — y la regla de este
+expediente es que *verde en mi árbol no es verde*. Todo lo demás está medido aquí:
+typecheck limpio · **130 archivos / 1659 unitarias** · build correcto · **41 archivos /
+461 e2e**. **B8 no lo puedo cerrar yo**: `git push` y `gh` están prohibidos por la
+regla del repositorio, así que ese ámbar se vuelve verde en cuanto abras el PR.
+
+Lo único más que queda abierto es **B11**, que no es un defecto: es una pantalla que no
+existe todavía. Y **tres decisiones tuyas** —D6, D7 y la nueva **D8**, que salió del
+ensayo del guion—.
+
+> **De las 15 advertencias que este expediente llegó a tener, quedan 2.** Y conviene
+> anotar cómo se cerraron cinco de ellas el 18/09: **ya estaban arregladas y nadie lo
+> había apuntado** —el arreglo entró en una ola posterior y la advertencia siguió
+> figurando como abierta—. Es el mismo vicio que este archivo persigue, cometido por
+> el archivo mismo. La lección: **una lista de pendientes también caduca**, y se
+> reverifica contra el repositorio antes de leerla, no después.
 
 ---
 
@@ -347,6 +363,45 @@ archivo dentro de la pregunta.
 
 ---
 
+### D8 · Tres de los cinco papeles se pintan SIN ACENTO en la primera pantalla de la demo. ¿Se corrigen con una migración nueva antes del 14/10?
+
+- **Encontrada:** 2026-09-18, recorriendo el guion del Summit en el navegador. No la
+  vio ninguna prueba: son datos, no código.
+- **Qué es:** el cuestionario de bienvenida —**la primera pantalla que ve un cliente
+  nuevo, y un paso del guion**— lista los cinco papeles así:
+
+  | En pantalla | Como debería |
+  |---|---|
+  | Paga las rentas a los arrendadores | ✅ correcto |
+  | Compra los activos y el equipo | ✅ correcto |
+  | **Tramites** y licencias con gobierno | Trámites |
+  | **Operacion y nomina** | Operación y nómina |
+  | Vende publicidad | ✅ correcto |
+
+  Y el contraste es lo que lo hace visible: la prosa **alrededor** sí lleva acentos
+  («Sí», «más tarde», «operación»), así que no parece una convención: parece un
+  descuido.
+- **Por qué es una decisión tuya y no un arreglo:** las etiquetas están **sembradas
+  en una migración YA APLICADA** —`db/migrations/20260917_entidades_fiscales.sql:78-80`—
+  y la regla del repositorio prohíbe editar una migración aplicada. Corregirlo exige
+  **una migración nueva** que actualice esas tres filas, y toda migración es **ROJO**:
+  para y pide aprobación humana. No es difícil; es que no me corresponde.
+- **Opciones:**
+  - **a) Migración nueva** que haga `update` de las tres etiquetas. Coste: una
+    migración más en la cuenta, y hay que correrla en cada base antes del 14/10
+    —incluida la de la demostración— o la pantalla sigue igual donde se presenta.
+  - **b) No se toca.** Coste: tres palabras sin acento en la primera pantalla, delante
+    de una sala mexicana. Nadie se va por eso, pero es lo primero que se lee.
+- **Recomendación:** **(a)**, y pronto, porque el coste real no es escribir la
+  migración: es **acordarse de correrla en la base desde la que presentes**. Cuanto
+  más tarde, más fácil olvidarlo. Recomendar no es decidir.
+- **Si nadie contesta:** se queda (b). No rompe nada.
+- **Caduca:** **el día que decidas desde dónde presentas.** Si es una instancia
+  servida, la migración tiene que haber llegado antes; si es el portátil, basta con
+  correrla aquí.
+
+---
+
 ## B · Advertencias por estabilizar
 
 Separadas en dos grupos, porque **mezclarlas es cómo se pierde la importante**: una
@@ -566,7 +621,22 @@ calendario.
   listo justo donde sí lo está, y tres de las cinco vistas que pidió el jefe se ven
   idénticas entre sí.
 
-#### B5 · `CLAUDE.md` arrastra otra vez las seis cifras — **SE CORRIGIÓ Y VOLVIÓ A CADUCAR EN LA MISMA RAMA. Tercera vez. Sigue ABIERTA, y ahora el MOC también**
+#### ~~B5 · `CLAUDE.md` arrastra otra vez las seis cifras — **SE CORRIGIÓ Y VOLVIÓ A CADUCAR EN LA MISMA RAMA. Tercera vez. Sigue ABIERTA, y ahora el MOC también**~~
+
+> ✅ **CERRADA el 2026-09-18, al terminar el ensayo del guion — y con la
+> herramienta, no a mano.** Las siete cifras de `CLAUDE.md` §2 coinciden hoy con
+> `node scripts/recuentos.mjs` medido en este árbol: **98 endpoints · 44 tablas ·
+> 84 migraciones · 35 ADR · 84 notas · 1093 enlaces · 2 rotos · 0 huérfanas**.
+>
+> Y el cierre incluye lo que la advertencia pedía de verdad: **la nota huérfana
+> desapareció**. Era `diario/2026-09-17`, y se arregló encadenándola desde el
+> diario del 18/09, que es como se enlazan los diarios entre sí. Los 2 rotos que
+> quedan apuntan a ADR, que viven en `docs/`: choque de convención, no enlace
+> muerto.
+>
+> **Lo que NO cierra esta advertencia, y conviene decirlo:** que vuelvan a
+> caducar. Seguirá pasando cada vez que se añada un `route.ts` o una migración.
+> Lo único que lo hace barato es que medirlas cuesta un comando, y ése ya existe.
 
 > 🔴 **Remedido el 2026-09-18, tarde. Esto es lo más instructivo de todo el
 > expediente y por eso no se tacha.** `cc5f6a1` corrigió las seis, y las dejó
@@ -653,7 +723,20 @@ calendario.
 
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
-#### B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80
+#### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
+
+> ✅ **CERRADA el 2026-09-18. Medido en las DOS bases, que era el punto.**
+> `node scripts/migrar.mjs --pendientes` devuelve **salida 0** contra
+> `spaces_ver2` y contra `spaces`: **83 aplicadas, 0 pendientes de esquema** en
+> las dos. La única pendiente es `20260731_calendario_meses_cortos.sql`, que es
+> `[datos]` y **está excluida a propósito** — entra solo con `--con-datos`.
+>
+> La reconciliación se hizo con `infra/scripts/reconciliar-checksums-migraciones.ps1`:
+> **80 divergencias en `spaces_ver2` y 65 en `spaces`, 0 inexplicables**, y los
+> datos intactos. Y el propio guion se corrigió en el camino: llamaba al runner
+> una vez por archivo, y así **aborta siempre en el primero**, porque la
+> comprobación de integridad corre antes de perdonar nada. Ahora pasa todas las
+> banderas en una sola invocación.
 
 - **Qué es:** el paso (2) de B2 —congelar `db/migrations/*.sql` a LF— es correcto y
   está aplicado. Pero el paso (1), la reconciliación del registro, **no se ha
@@ -714,7 +797,16 @@ calendario.
 >   detecta CRLF (`:56-58`). Hoy no se dispara —el árbol ya está en LF, medido— pero
 >   si se disparara con una migración sin commitear, **se la lleva**.
 
-#### B24 · Dos migraciones y una tabla nuevas, y ni la nota de migraciones ni la de esquema las mencionan — **y los dos commits no llevan nota de bóveda, que es la regla 4 de `AGENTES.md`**
+#### ~~B24 · Dos migraciones y una tabla nuevas, y ni la nota de migraciones ni la de esquema las mencionan — **y los dos commits no llevan nota de bóveda, que es la regla 4 de `AGENTES.md`**~~
+
+> ✅ **CERRADA el 2026-09-18** en `1b1fa03`. Las dos migraciones del 18/09 están
+> documentadas en `vault/04-Datos/migraciones.md`, incluida la que cierra R2 con
+> las dos sutilezas que costaron saberlo —la lista de columnas del
+> `on delete set null` y el `MATCH SIMPLE` que deja pasar «sin asignar»—.
+>
+> Y el hallazgo colateral, que era peor que la advertencia: **`esquema.md` tenía
+> TRES recuentos de tablas distintos en el mismo archivo** —39 en el cuerpo, 43
+> en la cabecera, 44 en el árbol— y ninguno era el de hoy.
 
 - **Qué es:** las dos migraciones del 18/09 entraron **solas**, sin la nota que las
   describe en el mismo commit. Una de ellas es la que cierra un agujero de
@@ -747,7 +839,19 @@ calendario.
   `entidades_fiscales` cambiaron. El próximo que abra `esquema.md` para saber contra
   qué escribe va a leer «39 tablas».
 
-#### B25 · La bitácora se contradice dentro del mismo día, **y la versión falsa va primero**
+#### ~~B25 · La bitácora se contradice dentro del mismo día, **y la versión falsa va primero**~~
+
+> ✅ **CERRADA el 2026-09-18.** Vuelto a medir hoy sobre el archivo: dice «las
+> **cinco** formas de mirar el reporte» y «el metro cuadrado **suma todas las
+> caras**» **arriba**, donde se lee. Las dos frases falsas que denunciaba esta
+> advertencia —«cuatro formas» y «por ahora se calcula una cara»— **ya no
+> existen en el archivo**, y tampoco la que decía que la decisión del m² seguía
+> pendiente después de tomarse.
+>
+> Queda un residuo que **no es un defecto**: la sección del 18/09 dice dos veces
+> lo mismo, porque las entradas que eran la corrección siguen debajo de las ya
+> corregidas. Es ruido, no una contradicción, y borrar historia de la bitácora
+> cuesta más de lo que arregla.
 
 - **Qué es:** `docs/Registro_Cambios.md` es el documento escrito para quien no
   programa — el que lee el dueño. Su sección del 2026-09-18 afirma dos cosas que ella
@@ -776,7 +880,23 @@ calendario.
   **después** de que la tomara y se construyera. Este repositorio ya pagó un cierre
   en falso que tres documentos copiaron; el molde es el mismo.
 
-#### B26 · La promesa falsa de D2 sigue viva en el cuestionario: manda a «Administración», y ahí no hay nada
+#### ~~B26 · La promesa falsa de D2 sigue viva en el cuestionario: manda a «Administración», y ahí no hay nada~~
+
+> ✅ **CERRADA el 2026-09-18.** Vuelto a medir en el código, que es lo que esta
+> advertencia pedía:
+> `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:162` dice hoy
+> **«Después puedes separarlos en Razones sociales»**, y el comentario de `:230`
+> dice **«el cuestionario sigue accesible desde Razones sociales»**. Las dos
+> frases que mandaban a «Administración» desaparecieron.
+>
+> Comprobado además que el destino es el bueno:
+> `grep -rn "azones sociales" "app/(app)/(shell)/administracion/"` sigue
+> devolviendo **vacío** —o sea que la frase vieja era falsa— y el cuestionario se
+> alcanza desde **Razones sociales**.
+>
+> **Se cerró sin que nadie lo apuntara**, que es el patrón que este archivo
+> existe para romper: el arreglo entró en una ola posterior y la advertencia
+> siguió figurando como abierta. Vale para las cinco que se cierran hoy.
 
 - **Qué es:** se arregló **una** de las dos frases. La pantalla de «ya contestado»
   ahora enlaza a donde de verdad están las razones sociales; el **cuestionario**, que
