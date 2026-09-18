@@ -388,6 +388,10 @@ export interface ContratoArrendamiento {
   estatus: EstContrato
   predioId?: string | null // predio (inmueble) al que pertenece el contrato — fuente de la renta
   razonSocialId?: string | null // razón social bajo la que se paga
+  // Cuál de MIS razones sociales PAGA esta renta. `null` = «sin asignar», y es
+  // legítimo: todas las filas anteriores al 2026-09-17 están así. No confundir
+  // con `razonSocialId`, que es la del ARRENDADOR — quien me COBRA.
+  entidadId?: string | null
   deposito?: number | null
   motivoCancelacion?: string | null
   // Nombre de la pantalla, denormalizado en `listarContratos` (Finanzas ve los
@@ -678,6 +682,9 @@ export interface Factura {
   rfc: string | null
   razonSocial: string | null
   usoCfdi: string | null
+  // Cuál de MIS razones sociales EMITE el comprobante. `razonSocial` (arriba) es
+  // la del CLIENTE; ésta es la mía. `null` = «sin asignar», y se pinta.
+  entidadEmisoraId?: string | null
   creadoEn: string
 }
 

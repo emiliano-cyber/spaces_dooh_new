@@ -242,6 +242,14 @@ const editarContratoSchema = z.object({
   // ADR 0001: completar un contrato INCOMPLETO exige poder asignarle su
   // arrendador, que hasta ahora no era editable (nacía obligatorio).
   arrendadorId: z.string().uuid().optional(),
+  // Cuál de MIS razones sociales PAGA esta renta. `nullish` y no `optional`
+  // porque `null` tiene que poder llegar: es DESASIGNAR, y «sin asignar» es el
+  // estado de todas las filas anteriores al 2026-09-17.
+  //
+  // OJO: `razonSocialId` (arriba) es la del ARRENDADOR —quien me COBRA— y ésta
+  // la del OWNER —quien PAGA—. Se parecen en el nombre y no tienen nada que ver;
+  // el aviso está aquí porque es donde se confunden.
+  entidadId: z.string().uuid().nullish(),
 }).strict()
 
 export async function editarContratoCtrl(id: string, body: unknown) {

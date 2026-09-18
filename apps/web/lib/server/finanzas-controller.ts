@@ -4,6 +4,7 @@ import { AppError, validar } from './errores'
 import { plazosCobranzaDelTenant, plazoPorDefecto } from './config-repo'
 import { fechaZod } from './fechas'
 import { generarFactura, registrarPagoCobranza, FacturaError } from './finanzas-repo'
+import { obtenerEntidad } from './entidades-repo'
 
 // ============================================================================
 //  lib/server/finanzas-controller.ts — Capa controller de dinero (facturación
@@ -57,7 +58,26 @@ function facturaSchemaDe(plazos: number[]) {
       })
       .strict()
       .nullish(),
+    // CUAL DE MIS RAZONES SOCIALES EMITE el comprobante. Es lo unico que este
+    // campo hace: no toca ningun importe.
+    //
+    // `nullish` y no `optional`: ausente y `null` significan lo mismo aqui —«sin
+    // asignar»— y el servidor NO adivina. La derivacion por roles
+    // (`emisorPorOmision`) es una sugerencia de la pantalla; elegirla aqui seria
+    // emitir a nombre de una sociedad que nadie eligio, y sin que quedara claro
+    // quien lo decidio.
+    entidadEmisoraId: z
+      .string()
+      .uuid('La razon social emisora no es un identificador valido')
+      .nullish(),
   })
+    // `.strict()` PUESTO, y es un endurecimiento deliberado: esto emite dinero.
+    // Sin el, un campo desconocido —un `subtotal` o un `monto` colado en el
+    // cuerpo— se ignoraba EN SILENCIO, y quien lo mandara creeria que se aplico.
+    // Los importes se derivan en el servidor desde el presupuesto de la campana
+    // y la tasa del cliente, y ahora un intento de mandarlos se rechaza con 400
+    // en vez de pasar desapercibido.
+    .strict()
 }
 
 export async function generarFacturaCtrl(campanaId: string, body: unknown) {
@@ -73,7 +93,23 @@ export async function generarFacturaCtrl(campanaId: string, body: unknown) {
     // y la columna `cobranzas.plazo_dias` es un `integer` cualquiera. Ensanchar
     // esos tipos toca `finanzas-repo.ts`, `lib/data/types.ts` y
     // `lib/data/estado-api.ts`, que no son de este cambio.
-    return await generarFactura(campanaId, d.plazoDias as 60 | 90 | 120, d.plan ?? null)
+    // La entidad emisora se valida CONTRA EL TENANT antes de emitir. No es
+    // redundante con la FK compuesta de `20260918_entidad_tenant_compuesto.sql`:
+    // la base rechazaria la ajena, pero por el camino del 23503, que llega al
+    // usuario como un 500 sin nada que corregir sobre un comprobante que no se
+    // emitio. Se REUTILIZA `obtenerEntidad`, que ya lee por id Y tenant y
+    // devuelve `null` cuando es de otra organizacion.
+    if (d.entidadEmisoraId) {
+      if (!(await obtenerEntidad(d.entidadEmisoraId))) {
+        throw new AppError('La razon social emisora no existe o es de otra organizacion.', 404)
+      }
+    }
+    return await generarFactura(
+      campanaId,
+      d.plazoDias as 60 | 90 | 120,
+      d.plan ?? null,
+      d.entidadEmisoraId ?? null,
+    )
   } catch (e) {
     if (e instanceof FacturaError) {
       // A-1: "ya tiene factura" (incluida la carrera que rebota en el índice

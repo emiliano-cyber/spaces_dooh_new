@@ -523,6 +523,10 @@ export async function editarContratoApi(
     moneda?: string
     autoRenovable?: boolean
     razonSocialId?: string | null
+    // Cuál de MIS razones sociales PAGA esta renta. Ausente = «no la toques»;
+    // `null` = desasignar. Es la distinción que el PATCH interpreta, y sin ella
+    // editar el importe borraría la razón social en silencio.
+    entidadId?: string | null
     deposito?: number | null
     documentoUrl?: string | null
   },
@@ -633,11 +637,18 @@ export async function generarFacturaApi(
   campanaId: string,
   plazoDias: 60 | 90 | 120,
   plan?: PlanCuotasApi | null,
+  // Cuál de MIS razones sociales emite el comprobante. `null` = «sin asignar»,
+  // y el servidor no adivina.
+  entidadEmisoraId?: string | null,
 ): Promise<void> {
   const r = await fetch(`${API}/campanas/${campanaId}/facturar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plazoDias, plan: plan ?? null }),
+    body: JSON.stringify({
+      plazoDias,
+      plan: plan ?? null,
+      entidadEmisoraId: entidadEmisoraId ?? null,
+    }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la factura')
