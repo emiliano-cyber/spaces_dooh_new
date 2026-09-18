@@ -360,6 +360,47 @@ Decidirlo ahora, no en la sala.
   integración. Si alguien pregunta, ésa es la respuesta: es el plan, no un hueco.
 - **No se dan fechas de lo que no está construido.**
 
+### La pregunta de los cinco papeles, y la respuesta preparada
+
+**Medido el 2026-09-18 en el código.** El cuestionario captura los **cinco** papeles
+que pidió el jefe, y eso está bien — pero solo **dos mueven dinero hoy**:
+
+| Papel | ¿Lo usa el producto? | Dónde |
+|---|---|---|
+| **Paga las rentas a los arrendadores** | ✅ **sí** | el contrato dice quién paga, y se puede cambiar (`ContratoSheet.tsx:177`) |
+| **Vende publicidad** | ✅ **sí** | el comprobante dice «Emite: …», y se elige al emitirlo (`finanzas/page.tsx:255`) |
+| Compra los activos y el equipo | ⬜ **se captura, nada lo consume** | **no hay módulo de activos** |
+| Trámites y licencias con gobierno | ⬜ **se captura, nada lo consume** | **no hay módulo de licencias** |
+| Operación y nómina | ⬜ **se captura, nada lo consume** | el costo de una OT **no se atribuye** a una razón social |
+
+> [!important] Y esto NO es trabajo a medias — es la diferencia que hay que saber decir
+> Los tres papeles que no hacen nada no esperan a que alguien termine una pantalla:
+> esperan a que el producto **tenga activos, licencias o nómina**, y hoy no los tiene.
+> `lib/modulos.ts` no declara ninguno de los tres.
+>
+> Capturarlos igualmente **es lo correcto**, y conviene decirlo así: el sistema
+> aprende la estructura fiscal completa de la empresa **el primer día**, y el día que
+> entre el módulo de activos ya sabe a nombre de quién se compran. Lo contrario
+> —preguntarlo cuando haga falta— es volver a molestar al cliente y a su contador.
+>
+> **La respuesta si alguien pregunta «¿y lo de los activos?»:** *«El sistema ya sabe
+> con qué razón social los compras. Lo que todavía no tiene es dónde registrarlos —
+> eso llega después, y cuando llegue no hay que volver a preguntártelo.»* Es el plan,
+> no un hueco, y es la misma respuesta que la del timbrado.
+
+### Lo que el jefe NO pidió, y por eso no está
+
+**No hay reporte «por razón social».** Las cinco dimensiones son las cinco que pidió
+—pantalla, trimestre, operación, m² y luz— y ninguna agrupa por sociedad. **El dato
+existe** (`contratos_arrendamiento.entidad_id` y `facturas.entidad_emisora_id`), así
+que es una sexta dimensión, no una reconstrucción.
+
+> **Conviene tenerlo pensado porque es la pregunta natural del encargo.** El ADR 0034
+> dice que el dueño **no quiere separar** sus razones sociales, quiere **verlas
+> juntas** — y el siguiente paso obvio de esa frase es «¿cuánto deja cada una?». Si
+> sale en la sala, la respuesta honesta es que el dato ya está capturado y la vista es
+> el siguiente reporte. **No se promete fecha** (§5).
+
 ---
 
 ## 6 · Lo que todavía no está, al 2026-09-18
