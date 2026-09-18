@@ -59,7 +59,7 @@ verificar (§6).
 
 ### Paso 1 · Inventario — «esto es lo que tienes»
 
-`Inventario` en el menú. Cuatro pantallas con su tipo, ubicación, tarifa,
+`Inventario` en el menú. **Seis pantallas** con su tipo, ubicación, tarifa,
 arrendador y renta.
 
 Es el paso corto, y sirve para dos cosas: que la sala entienda de qué se habla
@@ -93,19 +93,27 @@ inventario, no una maqueta.
 
 Con el rango en `2025-07-01` → `2026-06-30`, agrupado **por pantalla**:
 
-| | Ingreso | Costo espacio | Costo operación | Margen | |
-|---|---:|---:|---:|---:|---:|
-| Tlalpan G500 | 576,000 | 336,000 | 115,600 | **124,400** | 21.6 % |
-| G500 Santa Mónica | 576,000 | 330,000 | 49,200 | **196,800** | 34.2 % |
-| Mural DEMO Viaducto | 72,000 | 36,000 | 26,400 | 9,600 | 13.3 % |
-| Valla DEMO Zaragoza | 72,000 | 36,000 | 26,400 | 9,600 | 13.3 % |
-| **Total (4)** | **1,296,000** | **738,000** | **217,600** | **340,400** | **26.3 %** |
+| | Ingreso | Espacio | Operación | Luz | Margen | |
+|---|---:|---:|---:|---:|---:|---:|
+| **Tlalpan G500** | 576,000 | 336,000 | 115,600 | 41,819 | **82,581** | 14.3 % |
+| **G500 Santa Mónica** | 576,000 | 330,000 | 49,200 | 39,894 | **156,906** | 27.2 % |
+| Doble Cara DEMO Insurgentes | 360,000 | 144,000 | 49,200 | 20,332 | 146,468 | 40.7 % |
+| Una Cara DEMO Insurgentes | 192,000 | 72,000 | 49,200 | 10,166 | 60,634 | 31.6 % |
+| Mural DEMO Viaducto | 72,000 | 36,000 | 26,400 | 4,264 | 5,336 | 7.4 % |
+| Valla DEMO Zaragoza | 72,000 | 36,000 | 26,400 | 4,264 | 5,336 | 7.4 % |
+| **Total (6)** | **1,848,000** | **954,000** | **316,000** | **120,739** | **457,261** | **24.7 %** |
+
+> **Remedido el 2026-09-18.** Las cifras anteriores no llevaban el costo de la
+> luz, que ahora entra en el margen de todos los reportes. La brecha entre las
+> dos comparables es **74,325**, y la operación explica **66,400 — el 89 %**. El
+> espacio pone 6,000 y la luz solo 1,925: **el guion sigue en pie, y ahora con
+> una fuente de costo más que lo confirma.**
 
 **La frase de este paso, y conviene decirla tal cual:**
 
-> «Las dos de arriba son espectaculares casi iguales. Facturaron **exactamente lo
-> mismo**: 576 mil cada una. Y una deja 124 mil y la otra 196 mil. **Setenta y dos
-> mil pesos de diferencia, con el mismo ingreso.**»
+> «Las dos primeras son espectaculares casi iguales. Facturaron **exactamente lo
+> mismo**: 576 mil cada una. Y una deja 82 mil y la otra 157 mil. **Setenta y
+> cuatro mil pesos de diferencia, con el mismo ingreso.**»
 
 Que la pregunta «¿por qué?» la haga la sala. Si no la hace, se hace desde el
 escenario y se pasa al paso siguiente.
@@ -116,8 +124,8 @@ Cambia **Agrupar** a `Por operación`.
 
 | | Visitas | Horas en sitio | Costo operación | % del ingreso | Margen |
 |---|---:|---:|---:|---:|---:|
-| Tlalpan G500 | **30** | **109.5 h** | 115,600 | 20.1 % | 21.6 % |
-| G500 Santa Mónica | **20** | **50 h** | 49,200 | 8.5 % | 34.2 % |
+| Tlalpan G500 | **30** | **109.5 h** | 115,600 | 20.1 % | 82,581 |
+| G500 Santa Mónica | **20** | **50 h** | 49,200 | 8.5 % | 156,906 |
 
 Y debajo de cada nombre, el desglose de qué tipo de trabajo fue cada visita.
 **Tlalpan tiene mantenimiento correctivo, eléctrico y herrería. Santa Mónica no
@@ -134,15 +142,15 @@ Es el momento de la presentación. Si algo se ensaya dos veces, es éste.
 
 Cambia **Agrupar** a `Por trimestre`, mismo rango.
 
-| Trimestre | Ingreso | Margen | % |
-|---|---:|---:|---:|
-| T3 2025 | 324,000 | 95,300 | 29.4 % |
-| T4 2025 | 324,000 | 90,200 | 27.8 % |
-| T1 2026 | 324,000 | 80,000 | 24.7 % |
-| T2 2026 | 324,000 | **74,900** | **23.1 %** |
+| Trimestre | Ingreso | Margen | % | Visitas |
+|---|---:|---:|---:|---:|
+| T3 2025 | 462,000 | 130,953 | 28.3 % | 27 |
+| T4 2025 | 462,000 | 114,710 | 24.8 % | 28 |
+| T1 2026 | 462,000 | 108,288 | 23.4 % | 29 |
+| T2 2026 | 462,000 | **103,310** | **22.4 %** | 30 |
 
-> «**El ingreso es plano: 324 mil los cuatro trimestres.** Y el margen cae del 29
-> al 23 por ciento. No estás vendiendo peor. **Te está costando más.** Eso es lo
+> «**El ingreso es plano: 462 mil los cuatro trimestres.** Y el margen cae del 28
+> al 22 por ciento mientras las visitas suben de 27 a 30. No estás vendiendo peor. **Te está costando más.** Eso es lo
 > que un reporte anual no te enseña nunca.»
 
 Cualquier fila se puede desplegar para ver el detalle mes a mes. Solo si la sala
@@ -152,11 +160,19 @@ lo pide: no alarga el guion por gusto.
 
 Cambia **Agrupar** a `Por metro cuadrado`.
 
-> [!warning] Cifras PENDIENTES DE REMEDIR
-> Hasta el 18/09 el metro cuadrado contaba **una sola cara**, y las dos
-> espectaculares daban 92.88 m². **Jochelo decidió el 18/09 que cuenten todas las
-> caras**, así que estas cifras cambian. **Se remiden antes del ensayo** — y las
-> que salgan van aquí, no en la memoria de nadie.
+Convención: **todas las caras**, decidida el 18/09 y ya medida.
+
+| Pantalla | Caras | m² | Margen / m² |
+|---|---:|---:|---:|
+| **Doble Cara DEMO Insurgentes** | **2** | **80.00** | **1,830.85** |
+| G500 Santa Mónica | 1 | 92.88 | 1,689.34 |
+| **Una Cara DEMO Insurgentes** | **1** | **40.00** | **1,515.85** |
+| Tlalpan G500 | 1 | 92.88 | 889.11 |
+
+> **La pareja que hace visible la decisión:** las dos de Insurgentes miden lo
+> mismo físicamente (10 × 4), y el ranking las separa **solo por las caras** —
+> 80 m² contra 40. Si alguien pregunta por qué el metro cuadrado suma caras,
+> ésas dos son la respuesta.
 
 Lo que sí se puede decir con seguridad, porque no depende de la cifra:
 
@@ -171,6 +187,18 @@ reporte en el que se puede confiar.
 ---
 
 ## 4 · La trampa del cuestionario de bienvenida
+
+> [!success] RESUELTO el 2026-09-18 — ya existe el guion de reinicio
+> `node scripts/reiniciar-razones-sociales.mjs --base=spaces_ver2 --org=demo-rentabilidad`
+> cuenta lo que borraría **sin tocar nada**; con `--borrar` lo hace. Exige la URL,
+> el nombre de la base repetido **y** la bandera: tres cosas a la vez. Se niega
+> por nombre sobre `spaces`, `spaces_e2e` y cualquiera con `prod`.
+>
+> **La secuencia del ensayo:** reiniciar → enseñar el cuestionario → volver a
+> sembrar con `semilla-demo.mjs`. Medido: el ciclo completo devuelve la base al
+> mismo sitio, al dígito.
+>
+> Lo de abajo se conserva porque explica **por qué** hacía falta.
 
 > [!danger] No se pueden enseñar las dos cosas en la misma base
 > El cuestionario de razones sociales **solo aparece si la organización no tiene
@@ -220,10 +248,10 @@ Esta lista es el trabajo que queda, y se vacía o se convierte en «no se enseñ
 
 | | Estado | Qué falta |
 |---|---|---|
-| **m² por caras** | Decidido, **sin remedir** | Aplicar y volver a medir las cifras del paso 5 |
-| **Multi-entidad: pantalla y asignación** | En construcción | Verlo funcionando y decidir si entra al guion |
-| **Consumo de luz** | En construcción | Es la quinta dimensión; sin datos capturados no hay nada que enseñar |
-| **Guion de reinicio** del cuestionario | **No existe** | §4 |
+| ~~**m² por caras**~~ | ✅ **HECHO** | Aplicado, medido y en el paso 5 |
+| ~~**Multi-entidad: pantalla y asignación**~~ | ✅ **HECHO** | En `main` con el PR #91, y sembrado en la demo |
+| ~~**Consumo de luz**~~ | ✅ **HECHO** | 40 recibos sembrados, con 8 huecos a propósito |
+| ~~**Guion de reinicio** del cuestionario~~ | ✅ **EXISTE** | `scripts/reiniciar-razones-sociales.mjs`, con ensayo sin `--borrar` |
 | **Lectura a tres metros** | **Sin verificar** | Una pasada con el proyector, la víspera |
 | **Dónde se presenta** | **Sin decidir** | ¿Portátil con la base local, o una instancia de verdad servida? No es lo mismo y cambia el ensayo |
 
