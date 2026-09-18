@@ -5,6 +5,16 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-18
+
+- **Los cuatro botones de Inventario ahora se ven como botones.** Arriba de
+  Inventario hay cuatro opciones —ver el inventario, contrato + pantalla, carga
+  masiva y alta manual— que iban pegadas unas a otras y sin relieve, y costaba
+  saber cuál estaba activa y dónde acababa cada una. Ahora van **separadas**, la
+  opción activa **sobresale** en blanco con su sombra sobre el fondo crema, y las
+  demás dibujan su borde al pasar el ratón por encima. Además, al recorrerlas con
+  el teclado se ve un anillo que marca en cuál estás: antes no se veía nada.
+
 ## 2026-09-17
 
 - **El sistema ya puede guardar TUS razones sociales, no solo la del dueño de la
