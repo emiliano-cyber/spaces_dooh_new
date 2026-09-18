@@ -163,10 +163,15 @@ const OPERACION = baseDatos({
   sitios: [
     { id: 'TLA', predioId: null, caras: 1, nombre: 'Tlalpan G500', claveInterna: 'TLA-01' },
     { id: 'SMO', predioId: null, caras: 1, nombre: 'G500 Santa Monica', claveInterna: 'SMO-01' },
+    // La pantalla que DISCRIMINA los dos órdenes posibles: margen pésimo por una
+    // renta carísima y CERO visitas. Por peor margen saldría primera; en un
+    // reporte de operación no tiene nada que decir, y si saliera arriba taparía
+    // justamente las que sí son un problema de operación.
+    { id: 'CAR', predioId: null, caras: 1, nombre: 'Renta Cara', claveInterna: 'CAR-01' },
   ],
-  contratos: [contrato('TLA', 5000), contrato('SMO', 5000)],
+  contratos: [contrato('TLA', 5000), contrato('SMO', 5000), contrato('CAR', 50000)],
   arrendadores: ARRENDADORES,
-  reservas: [reserva('TLA', 30000), reserva('SMO', 30000)],
+  reservas: [reserva('TLA', 30000), reserva('SMO', 30000), reserva('CAR', 30000)],
   ordenesTrabajo: [
     // A Tlalpan van a cada rato: tres correctivos y una herrería. Dos de ellas
     // con duración real medida (2 h y 3 h).
@@ -206,9 +211,14 @@ describe('dimension operacion — el reporte del ejemplo del dueno', () => {
   // horrible por renta cara no es un problema de operación.
   it('ordena por costo de operacion DESCENDENTE, no por peor margen', () => {
     const r = rentabilidadPorOperacion(OPERACION, { ...Q1, granularidad: 'trimestre' })
-    expect(r.filas.map((f) => f.clave)).toEqual(['TLA', 'SMO'])
-    // Por peor margen el orden sería el contrario.
-    expect(r.filas[0].margen).toBeGreaterThan(r.filas[1].margen)
+    expect(r.filas.map((f) => f.clave)).toEqual(['TLA', 'SMO', 'CAR'])
+    // CAR tiene el peor margen de las tres, con diferencia: 30 000 de ingreso
+    // contra 50 000 × 3 = 150 000 de renta → −120 000. Por peor margen iría
+    // primera, y no tiene una sola visita que explicar.
+    const car = r.filas.find((f) => f.clave === 'CAR')!
+    expect(car.margen).toBe(-120000)
+    expect(car.visitas).toBe(0)
+    expect(r.filas[r.filas.length - 1].clave).toBe('CAR')
   })
 
   it('dice QUE PROPORCION del ingreso se come la operacion', () => {
