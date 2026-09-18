@@ -15,6 +15,7 @@ archivos:
   - apps/web/components/demo/energia/FormularioRecibo.tsx
   - apps/web/lib/data/reportes.ts
   - apps/web/lib/data/derive.ts
+  - apps/web/lib/test/energia-consumos.e2e.test.ts
 ---
 
 # Consumo de luz — la captura y la quinta dimensión
@@ -290,13 +291,37 @@ Sobre la base desechable `spaces_energia_tmp`, con el rol **`spaces_app`**
 | `insert` con un `tenant_id` ajeno al contexto | **rechazado** por la política |
 | Superusuario | 3 — lo que prueba que los ceros no eran una tabla vacía |
 
-> [!danger] Y aun así falta la e2e, que es otra cosa
-> Lo de arriba se midió **a mano contra Postgres**. Lo que no existe todavía es
-> la e2e **automática** que lo vuelva a medir en cada corrida, con dos
-> organizaciones sembradas y el reporte de una sin una sola fila de la otra.
-> **Tiene que usar `poolApp()` y NUNCA el pool de administración**: el rol
-> `spaces` es superusuario y se salta la RLS, así que con él la prueba pasaría
-> **por casualidad**. Ver §10.
+> [!success] 2026-09-18, tarde · ya existe la e2e automática
+> Lo de arriba se midió **a mano contra Postgres**; ahora lo vuelve a medir cada
+> corrida: `apps/web/lib/test/energia-consumos.e2e.test.ts`, **23 casos**, con
+> `poolApp()` y nunca el pool de administración. Las dos organizaciones capturan
+> el **mismo periodo y el mismo importe** (3 100 sobre 1 550 kWh), así que un
+> fallo sale como **un total al doble** y no como una lista de nombres distinta.
+>
+> **Demostrada por mutación, y de las dos capas por separado** — que es el
+> detalle que conviene tener escrito:
+> - con la política de RLS reescrita a `using (true)`, se ponen rojas las cuatro
+>   aserciones de sonda directa… **y el reporte sigue dando 3 100**, porque el
+>   `and tenant_id = $1` de `reportes-repo.ts` lo sostiene solo;
+> - quitando **además** ese `and tenant_id`, la sonda directa da **6 200** — pero
+>   el reporte **seguía dando 3 100**, y eso enseñó algo que no se veía leyendo.
+>
+> Las dos mutaciones se revirtieron.
+
+> [!important] El «total al doble» del REPORTE es imposible, y por eso la prueba
+> se reforzó
+> Descubierto por la mutación, no por lectura: aunque la consulta de
+> `reportes-repo.ts` se trajera los recibos de la otra organización, **su importe
+> no puede sumarse a ninguna fila mía**. El reparto va por
+> `fraccionDeCarasPorPredio()` sobre **mis** sitios, así que un recibo colgado del
+> predio de otro no encuentra destino y se descarta.
+>
+> O sea: el síntoma de una fuga aquí **no es un total al doble**, es
+> `cobertura.recibosSinDestino` subiendo con su `importeSinDestino`. Justo lo que
+> §6 dice que existe para que el dinero no desaparezca sin avisar — y resulta que
+> además es el **detector** de la fuga. La e2e afirma ahora las tres cifras
+> (`recibosSinDestino`, `importeSinDestino`, `faltantes`) junto al total; sin
+> ellas, esa mutación pasaba en verde.
 
 ---
 
@@ -385,43 +410,53 @@ quinta dimensión no le costó nada a la pantalla que ya existía.
 
 ## 10 · Lo que NO está hecho
 
-1. **Las e2e no se corrieron.** El puerto **3311** y la base `spaces_e2e` los
-   tenía otro agente esta ola. Las que hay que correr después están en §8 y en
-   la lista de abajo.
-2. **El área `energia` no está registrada** en `lib/modulos.ts` ni en
-   `components/demo/shell/nav.ts` — los tiene el otro agente de la ola.
-   > [!success] CERRADO el 2026-09-18, al fusionar la ola 4
-   > La entrada de menú **ya existe** (`nav.ts`, grupo `entregar`, tras Almacén) y
-   > el área está declarada en `lib/modulos.ts:42`. Lo de abajo se conserva porque
-   > explica **por qué una entrada de menú no es cosmética en este repo**, y porque
-   > un agente que escribía el manual leyó esta nota el mismo día y reportó el
-   > hueco como abierto: una nota que describe un problema resuelto **produce
-   > documentación falsa**.
+1. ~~**Las e2e no se corrieron.**~~ **HECHAS el 2026-09-18, tarde**, con el
+   puerto 3311 y `spaces_e2e` ya libres: aislamiento del consumo entre
+   organizaciones, el 403 del rol sin `operaciones`, el 401 sin sesión y el 409
+   del recibo duplicado. Ver la lista de abajo.
+2. ~~**El área `energia` no está registrada**~~ **YA LO ESTÁ**, desde el merge de
+   la ola 4: `lib/modulos.ts:42` y `components/demo/shell/nav.ts:130` (medido
+   sobre `main`, `ac4f71c`). Con eso `moduloDe()` resuelve `/energia` y
+   `noAutorizado` vuelve a decidir. **Si vuelves a leer este punto en presente,
+   está viejo.**
+
+   > [!warning] Se conserva lo de abajo, y no por nostalgia
+   > Explica **por qué una entrada de menú no es cosmética en este repo**. Y hay
+   > una segunda razón, medida el mismo día: un agente que escribía el manual de
+   > usuario leyó este punto cuando ya estaba resuelto y **reportó el hueco como
+   > abierto**. Una nota que describe en presente un problema cerrado **produce
+   > documentación falsa**. Por eso los cierres van arriba y tachados, no al final.
 
    **Consecuencia medida** (`AuthGate.tsx:19-24`): `moduloDe()` devuelve `null`
    para una ruta que el NAV no conoce, `noAutorizado` queda en `false` y la
-   pantalla **se abre por enlace directo a cualquier rol interno**. El **dato**
-   sigue protegido —el endpoint exige `operaciones`— pero el rol equivocado
-   vería la pantalla y se comería un 403 sin saber por qué, que es el encierro
-   que este repo ya documentó dos veces.
+   pantalla **se abriría por enlace directo a cualquier rol interno**. El **dato**
+   seguiría protegido —el endpoint exige `operaciones`— pero el rol equivocado
+   vería la pantalla y se comería un 403 sin saber por qué.
 3. **No hay edición de un recibo**, solo alta y borrado. Un importe mal tecleado
    se borra y se vuelve a capturar. Es el mismo criterio que `licencias`, y
    evita un camino de actualización que tendría que respetar el índice único.
 4. **No hay agregación en SQL**, igual que el resto del módulo: el motor lee y
    suma en Node.
 
-### Las e2e que quedan pendientes
+### Las e2e que quedaban pendientes — HECHAS el 2026-09-18, tarde
 
-- **Aislamiento del consumo entre organizaciones**, con `poolApp()` y **nunca**
-  el pool de administración. Dos organizaciones con recibos en el mismo periodo
-  y **el mismo importe**, para que un fallo de aislamiento salga como un total
-  **al doble** y no como una lista de nombres distinta — mismo diseño que la
-  e2e de rentabilidad.
-- **El 403 del rol sin `operaciones`** sobre `POST /api/energia/consumos`, y el
-  401 sin sesión.
-- **El 409 del recibo duplicado** contra el índice real.
-- **`reportes-rentabilidad.e2e.test.ts`**, que se tocó para la convención del m²
-  y no se ha corrido.
+Todas en `apps/web/lib/test/energia-consumos.e2e.test.ts` (**21 casos**):
+
+- **Aislamiento del consumo entre organizaciones**, con `poolApp()` y nunca el
+  pool de administración, con el **mismo periodo y el mismo importe** en las dos.
+- **El 403 del rol sin `operaciones`** sobre `POST /api/energia/consumos`, el
+  **401** sin sesión, el 403 de la rejilla y el 403 del borrado —que pide
+  `aprobar`—, y en los tres casos **comprobando que no se escribió nada**.
+- **El 409 del recibo duplicado** contra el índice real, incluido el caso que el
+  `coalesce(medidor,'')` viene a cubrir —**dos recibos sin medidor**, que con la
+  columna a secas entrarían los dos— y su contrapeso: **otro medidor del mismo
+  predio y mes SÍ entra**.
+- **`reportes-rentabilidad.e2e.test.ts`** corrido y **en verde** — se tocó para
+  la convención del m² y llevaba desde entonces sin ejecutarse.
+
+Y una que no estaba en la lista y sale de aquí: **borrar el recibo de otra
+organización da 404 y no lo borra**. Un `ok` silencioso ahí sería lo peor de los
+dos mundos.
 
 ---
 
