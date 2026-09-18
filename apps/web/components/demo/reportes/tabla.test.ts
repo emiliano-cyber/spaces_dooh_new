@@ -26,7 +26,6 @@ type FilaDePrueba = FilaOrdenable
 
 function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
   return {
-    clave: p.clave,
     etiqueta: p.clave,
     ingreso: 0,
     costoEspacio: 0,

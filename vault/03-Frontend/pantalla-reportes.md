@@ -8,6 +8,7 @@ archivos:
   - apps/web/components/demo/reportes/consulta.ts
   - apps/web/components/demo/reportes/estado.ts
   - apps/web/components/demo/reportes/tabla.ts
+  - apps/web/components/demo/reportes/tabla.dimensiones.test.ts
   - apps/web/components/demo/reportes/FiltrosRentabilidad.tsx
   - apps/web/components/demo/reportes/TablaRentabilidad.tsx
   - apps/web/lib/modulos.ts
@@ -17,7 +18,17 @@ archivos:
 # Pantalla de reportes de rentabilidad
 
 `/reportes`, dentro del shell. Nació el **2026-09-18**, un día después del
-endpoint que consume ([[02-Backend/reportes-rentabilidad]]).
+endpoint que consume ([[02-Backend/reportes-rentabilidad]]), y esa misma tarde
+se le arreglaron **tres defectos que solo se vieron ABRIÉNDOLA** — ver
+§ «Los tres defectos que solo vio un navegador».
+
+> [!important] Las columnas SALEN DE LA DIMENSIÓN
+> Es lo segundo más importante de esta nota, después del límite del store.
+> `columnasDeDimension()` (`components/demo/reportes/tabla.ts`) decide qué
+> columnas hay, cómo se llama la primera y con qué orden abre la tabla. No hay
+> un juego fijo de siete columnas: `operacion` trae visitas, proporción de
+> operación y horas en sitio; `m2` trae superficie e ingreso y margen por metro;
+> `trimestre` llama «Trimestre» a su primera columna y ordena **cronológico**.
 
 > [!important] Pide sus números al ENDPOINT, nunca al store. Es lo único
 > importante de esta nota
@@ -51,9 +62,9 @@ primera corrección: es el error de raíz que este repositorio documenta en
 
 | Archivo | Qué decide |
 |---|---|
-| `components/demo/reportes/consulta.ts` | La ruta, los enums de los selectores, la querystring y la validación previa del rango |
-| `components/demo/reportes/estado.ts` | Las **siete** fases: `inicial · cargando · invalido · sin-motor · error · vacio · datos` |
-| `components/demo/reportes/tabla.ts` | El ordenamiento, las columnas y el formato del porcentaje |
+| `components/demo/reportes/consulta.ts` | La ruta, los enums de los selectores, la querystring, la validación previa del rango, **el rango de apertura** y **qué es una fila** en cada dimensión (`sustantivoFila`) |
+| `components/demo/reportes/estado.ts` | Las **seis** fases: `inicial · cargando · invalido · error · vacio · datos` |
+| `components/demo/reportes/tabla.ts` | **Las columnas de cada dimensión**, el encabezado de la primera, el orden inicial, el ordenamiento, los formatos y los avisos |
 | `app/(app)/(shell)/reportes/page.tsx` | El cableado: `useEffect`, `fetch`, y qué componente se pinta en cada fase |
 
 > [!warning] Nada que pueda equivocarse vive en un `.tsx`, y no es una
@@ -64,11 +75,15 @@ primera corrección: es el error de raíz que este repositorio documenta en
 >
 > Ya pasó: la decisión de negocio de la compuerta del shell vivía en un `.tsx`,
 > se sacó a `components/demo/shell/compuerta.ts` y **aparecieron nueve casos en
-> rojo**. Aquí se hizo al revés desde el principio — **54 pruebas** sobre los
-> tres módulos puros (62 contando `registro.test.ts`), y los dos `.tsx` se
-> quedan con pintar. Medido el 18/09: 19 · 18 · 17 · 8.
+> rojo**. Aquí se hizo al revés desde el principio, y los dos `.tsx` se quedan
+> con pintar. Medido el 18/09 tras la ola 3: **102 pruebas en 5 archivos**
+> (22 · 17 · 17 · 38 · 8).
+>
+> **Y aun así los tres defectos de la ola 3 pasaron por aquí sin rozarse con
+> nada**, porque ninguno era una decisión mal escrita: eran decisiones **que no
+> estaban escritas en ningún sitio**. Ver la sección siguiente.
 
-## Lo que se probó, y los tres defectos que encontró
+## Lo que encontraron las PRUEBAS el día uno
 
 - **El `null` de `margenPct` va al final en las DOS direcciones.** Es el único
   sitio de la pantalla donde el ordenamiento puede **mentir sin dar error**:
@@ -100,23 +115,125 @@ primera corrección: es el error de raíz que este repositorio documenta en
 > habría pintado como «no se pudo calcular el reporte» sin decir nada de la
 > causa.
 
-## El 501 se degrada, no se esconde
+## Los tres defectos que solo vio un navegador
 
-Hoy solo `sitio` tiene motor; `trimestre`, `operacion` y `m2` devuelven **501**
-(ver [[02-Backend/reportes-rentabilidad]]). La pantalla:
+Se encontraron el **2026-09-18**, con el build fusionado y la app abierta sobre
+la base sembrada `spaces_ver2`. **Ninguno lo vio el typecheck, ni las
+unitarias, ni las e2e**, y eso es lo que los hace valiosos: cada uno falla por
+una razón que ninguna herramienta puede ver.
 
-1. **Las ofrece igual** en el selector, marcadas «(en preparación)». No se
-   deshabilitan: el contrato del endpoint ya las contempla, y esconderlas
-   obligaría a volver a tocar esta pantalla el día que aterricen — que es
-   exactamente lo que el límite existe para evitar.
-2. **Las pide.** El 501 lo decide el servidor. Si la pantalla se negara a
-   preguntar, habría dos sitios donde está escrito qué dimensión funciona.
-3. **Pinta el mensaje del servidor**, que nombra cuál falta. No es `error` ni
-   `vacio`: un error manda a buscar un fallo que no existe y un vacío afirma que
-   no hay datos, cuando lo que pasa es que no se calcularon.
+### 1 · El selector mentía sobre su propia aplicación
 
-**Cuando el motor de las otras tres aterrice, esta pantalla funciona sin
-cambios.** Es la afirmación que se puede comprobar leyendo `estado.ts`.
+El desplegable ofrecía «Por trimestre **(en preparación)**» y al elegirla
+**calculaba perfectamente**. La pantalla nació el 17/09 con `trimestre`,
+`operacion` y `m2` devolviendo 501; la ola 2 cerró las tres el 18/09 y la
+etiqueta se quedó.
+
+**Por qué no lo vio nada: es un texto.** Una etiqueta de más no rompe ninguna
+prueba ni ningún tipo. El campo `conMotor` se **retiró** en vez de ponerlo en
+`true` para las cuatro — un interruptor que siempre vale lo mismo es el que se
+queda desfasado.
+
+> [!note] Y el camino del 501 se borró, pero MEDIDO antes
+> Quitar el manejo de un error que sí puede ocurrir es peor que dejarlo de
+> sobra, así que se comprobó que es **inalcanzable** y no se supuso:
+>
+> - `grep` de `status: 501` sobre `apps/web/lib` y `apps/web/app`, sin
+>   pruebas: **cero líneas**.
+> - `MOTORES` (`lib/server/reportes-controller.ts:114`) es un `Record`
+>   **exhaustivo** sobre el enum, así que declarar una dimensión sin su motor
+>   **no compila**. Lo que el tipo garantiza no necesita además un error en
+>   tiempo de ejecución.
+> - los demás caminos de error del endpoint están enumerados y ninguno da 501:
+>   `AppError` (400 por omisión), zod (400 o el status que pida el issue), los
+>   códigos de Postgres de `errores.ts:105-114` (400/403/409), el 500 de
+>   respaldo y el 401/403 de `exigir`.
+>
+> Con eso, la fase `sin-motor` salió de `estado.ts` y `dimension` salió de
+> `EntradaEstado` (era su único uso). Si un 501 llegara de todos modos ya no
+> podría venir de una dimensión sin motor —sería un intermediario diciendo que
+> no implementa el método—, así que cae como **error**, que es donde le toca.
+> La prueba que lo fija está en `estado.test.ts` §1.
+
+### 2 · La tabla pintaba SIEMPRE las columnas de `sitio` — el defecto de fondo
+
+«Por operación» calculaba bien —Tlalpan 21.6 % contra Santa Mónica 34.2 %, el
+guion del dueño— y **no enseñaba ni visitas ni horas**, que es justo lo que la
+hace «por operación». Y en trimestral el encabezado de la primera columna decía
+**«PANTALLA»** sobre filas que eran trimestres.
+
+> [!danger] Por qué esto no lo puede ver NINGUNA prueba de las que había
+> Las columnas propias de `operacion` y de `m2` son campos **opcionales** de
+> `FilaRentabilidad` (`lib/data/reportes.ts:118-134`). **Un campo opcional que
+> nadie lee no da error de tipos ni de ejecución**: da una tabla que calcula
+> perfectamente y no contesta su propia pregunta. El typecheck está contento, la
+> respuesta del endpoint es correcta y su e2e pasa — el dato llega y se tira en
+> el último metro.
+
+Lo que hay ahora, todo en `tabla.ts` y todo probado:
+
+| Dimensión | Columnas propias | Primera columna | Orden de apertura |
+|---|---|---|---|
+| `sitio` | — | Pantalla | peor **margen** |
+| `trimestre` | — | **Trimestre** | **cronológico** (por `clave`) |
+| `operacion` | `visitas` · `costoOperacionPct` · `horasEnSitio` | Pantalla | más **costo de operación** |
+| `m2` | `m2` · `ingresoPorM2` · `margenPorM2` | Pantalla | peor **margen / m²** |
+
+Cuatro decisiones del diseño que no son de estilo:
+
+- **`costoTotal` es la única columna que cede el sitio** cuando la dimensión
+  trae propias. Es la suma exacta de las dos que tiene al lado, que siguen en
+  pantalla, así que no se pierde nada; y once columnas de cifras a 13 px no se
+  leen «a tres metros (proyector)», que es donde esto se presenta.
+- **En `trimestre` se ordena por `clave` (`2026-T1`) y se pinta la etiqueta
+  (`T1 2026`).** Como texto, «T4 2025» va **después** de «T1 2026» —la T4 pesa
+  más que la T1— y en el calendario va antes. Es la trampa de comparar fechas
+  como cadenas que este repo ya pagó dos veces.
+- **El pie solo totaliza las seis columnas que trae `Totales`.** Las demás salen
+  en blanco a propósito: sumar aquí divergiría del servidor, y con
+  `margenPorM2` sería peor que divergir — es un **cociente**, y el promedio de
+  los cocientes de las filas no es el cociente del total porque cada pantalla
+  tiene otra superficie. Sería una cifra que no es de nadie.
+- **El orden de cada dimensión es EL MISMO que el de su motor.** Si la tabla
+  reordenara al recibir, discutiría con el servidor sobre la misma pregunta.
+  `trimestre` es la única que no va «peor primero», y es deliberado: sus filas
+  son una serie de tiempo, no un ranking.
+
+Y dos cosas que llegaron con ellas:
+
+- **`visitasPorTipo` se lee bajo el nombre de la pantalla**
+  («Desmontaje 2 · Inspección 1»), no en una columna: es un objeto tipo→conteo
+  y no hay orden sensato entre dos repartos. Un tipo que no esté en
+  `TIPO_OT_LABEL` se pinta con su clave y **no se omite** — seguiría contando en
+  `visitas`, y omitirlo dejaría dos cifras que no cuadran sin decir por qué.
+- **El desglose por periodo**, que toda dimensión trae en `periodos[]` y hasta
+  hoy no llegaba a ninguna parte: se despliega por fila, con el ingreso,
+  espacio, operación, margen y visitas de cada bucket, y **en el orden del
+  servidor**. Solo se ofrece cuando hay más de un bucket: con uno repetiría la
+  fila de arriba.
+
+### 3 · La pantalla abría en un periodo vacío
+
+Por omisión tomaba el **trimestre en curso**. En la base de demostración eso es
+jul-sep 2026, que no tiene ingresos pero **sí tiene renta**, así que lo primero
+que se veía era el negocio **perdiendo 184 500**.
+
+Abre en el **último trimestre CERRADO**, y el motivo es de producto y no de
+demo: un trimestre a medias siempre se lee peor que uno completo —la renta se
+devenga desde el día 1 y lo vendido se cobra al cerrar—, así que el reporte
+arrancaba dando una impresión falsa del negocio a cualquiera que lo abra.
+
+> [!tip] Es UNA línea, y es una decisión del dueño
+> `RANGO_DE_APERTURA` en `consulta.ts`. Cambiarla a `rangoDelTrimestreDe`
+> devuelve el trimestre en curso y nada más se toca; `rangoDelTrimestreDe` se
+> conserva por eso, y porque es la base con la que se calcula el cerrado.
+>
+> El cerrado se calcula retrocediendo al día **anterior** al primero del
+> trimestre en curso (`new Date(anio, primerMes, 0)`) y preguntando por el
+> trimestre de ese día. Escrito como `mes - 3` sin cruzar el año, **enero daría
+> octubre a diciembre del año en curso**: un trimestre que todavía no ha pasado,
+> presentado como cerrado, y sin dar ningún error. Hay una prueba para ese caso
+> y otra para que el cerrado nunca solape al que está en curso.
 
 ## Los vacíos son honestos
 
@@ -124,11 +241,36 @@ cambios.** Es la afirmación que se puede comprobar leyendo `estado.ts`.
   puede salir vacío (una pantalla sin ingreso, sin renta y sin OT no aparece en
   el reporte), en vez de un «no hay datos» que deja sin saber si el problema son
   las fechas o el inventario.
-- **Lo que el reporte no mide se cuenta encima de la tabla**
-  (`advertenciasDelReporte`): las pantallas **sin contrato** —su costo del
-  espacio sale en cero porque falta el dato, no porque sea gratis, así que su
-  margen se lee mejor de lo que es— y las que **costaron sin vender**, que son
-  justo las que este reporte existe para encontrar.
+- **Lo que el reporte no mide, y lo que deja FUERA, se cuenta encima de la
+  tabla** (`avisosDelReporte`). Son cuatro avisos y cada uno tiene su porqué:
+  - **sin contrato** — su costo del espacio sale en cero porque falta el dato,
+    no porque sea gratis, así que su margen se lee mejor de lo que es.
+  - **sin ingreso** — costaron y no vendieron: son justo las que este reporte
+    existe para encontrar.
+  - **exclusiones del m²** — cuántas digitales y cuántas sin medidas quedaron
+    fuera del ranking. **La nota la redacta el motor** (`notaDeExclusiones`) y
+    se pinta **verbatim**: volver a escribirla aquí sería la segunda
+    implementación de la misma frase, y divergir significaría decirle al usuario
+    que se excluyó otra cosa de la que se excluyó. Y se pinta **también cuando
+    no se excluyó nada**, porque «no excluí ninguna» y «no te lo digo» se ven
+    igual si no hay texto — el hallazgo C1 otra vez.
+  - **convención del m²** — hoy **una cara**, y hay una decisión del dueño
+    pendiente sobre si multiplica por caras. Una cifra por metro cuadrado sin
+    decir qué cuenta como metro cuadrado no se puede conciliar con nada, y esa
+    decisión **cambia el orden de toda la tabla**.
+
+> [!danger] Un aviso era FALSO en trimestral, y nada se quejaba
+> El aviso de «sin contrato» contaba **filas**, y en `trimestre`
+> `tieneContrato` significa «hubo renta en el trimestre» — la fila no es una
+> pantalla ([[02-Backend/reportes-dimensiones]] §3). Sobre dos trimestres sin
+> renta, la pantalla afirmaba **«2 pantallas no tienen contrato»**: algo que no
+> existe, en una caja de avisos que está ahí precisamente para ser honesta.
+>
+> Ahora ese aviso **no se pinta** en `trimestre`, y el de «sin ingreso» habla de
+> trimestres y **defiende el cero** —un hueco en una serie se lee como «faltan
+> datos»—. El sustantivo de la fila se declara **una vez**, en `sustantivoFila`,
+> y lo leen también la cabecera («4 trimestres con movimiento», que decía
+> «4 pantallas») y la tabla.
 
 ## Detalles del cableado que no son de estilo
 
@@ -144,10 +286,14 @@ cambios.** Es la afirmación que se puede comprobar leyendo `estado.ts`.
 - **Los totales vienen del servidor** (`reporte.totales`) y no se suman aquí:
   dos sumas de lo mismo divergen, y la del servidor es la que cuadra con el
   desglose por periodo.
-- **El rango de apertura es el trimestre en curso**, construido desde las partes
-  **locales** de la fecha. Con `toISOString()`, el 1.º de enero a medianoche en
-  México (UTC−6) sale como 31 de diciembre y el rango caería en el trimestre
-  anterior — la misma trampa que ya se pagó en `diasHasta` (`derive.ts`).
+- **El rango de apertura es el último trimestre CERRADO**, construido desde las
+  partes **locales** de la fecha. Con `toISOString()`, el 1.º de enero a
+  medianoche en México (UTC−6) sale como 31 de diciembre y el rango caería en el
+  trimestre anterior — la misma trampa que ya se pagó en `diasHasta`
+  (`derive.ts`).
+- **Al cambiar de dimensión se vuelve al orden de ESA dimensión**, no a uno
+  fijo: conservar «margen ascendente» al pasar a trimestral ordenaba una serie
+  de tiempo por importe.
 
 ## Permisos — el área está DECLARADA
 
@@ -174,35 +320,73 @@ marcar una casilla abría pantallas que nada mencionaba.
 
 ## Pruebas
 
-| Archivo | Qué ancla |
-|---|---|
-| `components/demo/reportes/consulta.test.ts` | Los 4 parámetros exactos, el `basePath`, el rango invertido por calendario, el trimestre de apertura |
-| `components/demo/reportes/estado.test.ts` | Las siete fases, el 501 que no es error, el `status: 0` que no es vacío, la matriz del spinner |
-| `components/demo/reportes/tabla.test.ts` | El `null` al final en las dos direcciones, la no mutación, el orden en español, las advertencias |
-| `components/demo/reportes/registro.test.ts` | El área bajo `finanzas` y los roles del menú |
+| Archivo | Qué ancla | Casos |
+|---|---|---|
+| `components/demo/reportes/consulta.test.ts` | Los 4 parámetros exactos, el `basePath`, el rango invertido por calendario, **el trimestre cerrado de apertura y su cruce de año**, y que **ninguna dimensión se ofrece «en preparación»** | 22 |
+| `components/demo/reportes/estado.test.ts` | Las seis fases, **el 501 retirado y medido**, el `status: 0` que no es vacío, la matriz del spinner | 17 |
+| `components/demo/reportes/tabla.test.ts` | El `null` al final en las dos direcciones, la no mutación, el orden en español, el catálogo completo de columnas | 17 |
+| `components/demo/reportes/tabla.dimensiones.test.ts` | **Las columnas de cada dimensión**, el encabezado, el orden cronológico, las exclusiones y la convención del m², los avisos por dimensión, los formatos y el desglose | 38 |
+| `components/demo/reportes/registro.test.ts` | El área bajo `finanzas` y los roles del menú | 8 |
 
-**1312 unitarias en 115 archivos** el 18/09 en esta rama, contra 1250 en 111 al
-salir de ella. `npm run typecheck` limpio y `npm run build` en verde.
+**1470 unitarias en 122 archivos** el 18/09 tras la ola 3, contra 1430 antes de
+ella. `npm run typecheck` limpio, `npm run build` en verde, `next lint` sin
+avisos nuevos y **390 e2e en 36 archivos, con 1 omitida** — las e2e **sí se
+corrieron** esta vez, con el build hecho antes. Los recuentos caducan: si
+necesitas el número, córrelo.
 
-> [!warning] NO se corrió ninguna e2e, y falta una
-> El puerto **3311** y la base **`spaces_e2e`** los tenía otro agente en
-> exclusiva: colisionar habría dado rojos falsos a los dos. Cuando el arnés
-> quede libre hay que correr `cd apps/web && npm run build && npm run test:e2e`
-> —con el build **antes**, o fallan todas en falso—.
+> [!tip] Los negativos son los que valen, y son cinco
+> Una dimensión que trae columnas ajenas · `trimestre` ordenado por margen en
+> vez de cronológico · las exclusiones del m² que llegan y no se pintan · una
+> columna propia colada en el pie de totales · y el aviso de «pantallas sin
+> contrato» sobre filas que son trimestres. Los cinco describen algo que
+> **calcula bien y dice algo falso**, que es la única clase de defecto que esta
+> pantalla puede tener.
+
+> [!warning] Y hay una clase de defecto que NINGUNA prueba automática cubre
+> Los tres de la ola 3 se vieron **mirando**. Las pruebas de ahora los fijan
+> para que no vuelvan, pero no habrían encontrado el siguiente de su especie: un
+> dato que el endpoint devuelve bien y la pantalla no pinta **no tiene síntoma
+> mecánico**. La pasada visual con datos sembrados es parte del trabajo de esta
+> pantalla, no un extra.
 >
-> **Y falta una e2e propia de la pantalla**, que las unitarias no pueden dar: que
-> un rol sin `finanzas.ver` no vea la entrada del menú **ni** pueda abrir
-> `/reportes` por enlace directo. Las unitarias comprueban que el `NAV` lo dice;
-> que el servidor lo cumpla con el rol real solo lo ve una e2e.
+> Se hace así, y el orden importa:
+>
+> ```
+> cd apps/web && npm run build
+> DATABASE_URL="postgresql://spaces:spaces@localhost:5433/spaces_ver2" npx next start -p 3402
+> ```
+>
+> `duena@demo.invalid`, y el reporte en `/spaces-dooh/reportes/`. **El build
+> ANTES y el servidor DESPUÉS**: reconstruir `.next` con un `next start` ya
+> corriendo deja la página **en blanco sin ningún error** —el navegador pide
+> chunks de un build que ya no existe—. Pasó otra vez el 18/09 al reiniciar,
+> porque matar la tarea de fondo mató el envoltorio `npx` y **no el proceso
+> hijo**: hubo que matar al dueño del puerto 3402 a mano
+> (`Get-NetTCPConnection -LocalPort 3402`).
 
-> [!danger] Lo que NO se pudo comprobar
-> **La pantalla no se abrió en un navegador.** Lo verificado es: `npm test`,
-> `npm run typecheck`, `npm run build` (la ruta `/reportes` se emite) y `next
-> lint` sin avisos nuevos. **Nada de eso dice que se vea bien**, ni que el
-> selector se lea a tres metros en un proyector. Falta una pasada visual con
-> datos reales de la base del 5433.
+> [!warning] Falta una e2e propia de la pantalla
+> Las unitarias no pueden darla: que un rol sin `finanzas.ver` no vea la entrada
+> del menú **ni** pueda abrir `/reportes` por enlace directo. Las unitarias
+> comprueban que el `NAV` lo dice; que el servidor lo cumpla con el rol real
+> solo lo ve una e2e.
+
+> [!success] 2026-09-18 · la pantalla YA se abrió en un navegador
+> Es lo que el aviso anterior de esta nota reclamaba, y encontró **tres
+> defectos** en una sesión (§ «Los tres defectos que solo vio un navegador»).
+> Comprobado sobre `spaces_ver2` en el 5433, con el guion de Tlalpan contra
+> Santa Mónica: las cuatro dimensiones pintan sus columnas, el trimestral sale
+> cronológico (T3 2025 → T2 2026, con los márgenes **descendiendo**, que es
+> justo el caso donde el orden viejo lo invertía), el m² declara su convención y
+> sus exclusiones, y la pantalla abre en abr-jun 2026 con **+74 900** en vez de
+> la pérdida de 184 500 del trimestre en curso.
+>
+> **El presupuesto de la ruta se midió otra vez, porque es el riesgo crítico
+> del módulo:** `/reportes` pasó de **110 kB** a **111 kB** de primera carga,
+> contra 533 kB de `/inicio`. Nueve columnas, los avisos y el desglose caben en
+> **1 kB**: nada se colgó del store.
 
 ## Relacionadas
-[[02-Backend/reportes-rentabilidad]] · [[03-Frontend/_indice]] ·
-[[shell-y-navegacion]] · [[modulos-internos]] · [[estado-y-data-fetching]] ·
-[[02-Backend/finanzas-y-cobranza]] · [[convenciones]] · [[MOC-Proyecto]]
+[[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
+[[03-Frontend/_indice]] · [[shell-y-navegacion]] · [[modulos-internos]] ·
+[[estado-y-data-fetching]] · [[02-Backend/finanzas-y-cobranza]] ·
+[[02-Backend/operaciones-y-ot]] · [[convenciones]] · [[MOC-Proyecto]]

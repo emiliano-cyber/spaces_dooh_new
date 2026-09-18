@@ -32,7 +32,6 @@ import { DIMENSIONES_UI } from './consulta'
 
 function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
   return {
-    clave: p.clave,
     etiqueta: p.clave,
     ingreso: 0,
     costoEspacio: 0,

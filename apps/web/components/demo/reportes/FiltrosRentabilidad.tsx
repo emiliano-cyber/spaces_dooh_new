@@ -45,12 +45,15 @@ export function FiltrosRentabilidad({
             value={filtros.dimension}
             onChange={(e) => onCambio({ ...filtros, dimension: e.target.value as DimensionUI })}
           >
+            {/* Las cuatro, a secas. Tres llevaban «(en preparación)» desde que
+                la pantalla nació con ellas devolviendo 501; la ola 2 cerró las
+                tres motores y la etiqueta se quedó, así que el desplegable
+                ofrecía «Por trimestre (en preparación)» y al elegirla calculaba
+                perfectamente. Es un texto: no rompe nada y no lo ve ninguna
+                prueba — apareció al abrir la app en un navegador. */}
             {DIMENSIONES_UI.map((d) => (
               <option key={d.valor} value={d.valor}>
-                {/* Las tres sin motor se ofrecen igual y se marcan. Deshabilitarlas
-                    esconderÍa que el contrato ya las contempla, y el día que
-                    aterricen habría que volver a tocar esta pantalla. */}
-                {d.conMotor ? d.label : `${d.label} (en preparación)`}
+                {d.label}
               </option>
             ))}
           </select>

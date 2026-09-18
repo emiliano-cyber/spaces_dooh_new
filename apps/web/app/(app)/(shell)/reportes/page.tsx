@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, CalendarSearch, Hammer, ServerCrash, TrendingUp } from 'lucide-react'
+import { BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { EmptyState } from '@/components/demo/EmptyState'
@@ -10,16 +10,17 @@ import type { ReporteRentabilidad } from '@/lib/data/reportes'
 import { FiltrosRentabilidad } from '@/components/demo/reportes/FiltrosRentabilidad'
 import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
 import {
+  RANGO_DE_APERTURA,
   construirConsulta,
+  cuenta,
   motivoInvalido,
-  rangoDelTrimestreDe,
   type FiltrosReporte,
 } from '@/components/demo/reportes/consulta'
 import { debePedir, estadoDeReporte, type RespuestaReporte } from '@/components/demo/reportes/estado'
 import {
-  ORDEN_INICIAL,
-  advertenciasDelReporte,
+  avisosDelReporte,
   formatoPorcentaje,
+  ordenInicialDe,
   siguienteOrden,
   type ColumnaReporte,
   type Orden,
@@ -48,26 +49,30 @@ import {
 //  divergiendo a la primera corrección.
 //
 //  Toda la lógica que puede equivocarse sin dar error vive fuera de este
-//  archivo, en `components/demo/reportes/{consulta,estado,tabla}.ts`, con 54
-//  pruebas. `vitest.config.ts` no monta jsdom a propósito, así que lo que se
-//  escribe dentro de un `.tsx` no lo prueba nadie — es por lo que la compuerta
-//  del shell salió a `compuerta.ts` y aparecieron nueve casos en rojo.
+//  archivo, en `components/demo/reportes/{consulta,estado,tabla}.ts`.
+//  `vitest.config.ts` no monta jsdom a propósito, así que lo que se escribe
+//  dentro de un `.tsx` no lo prueba nadie — es por lo que la compuerta del
+//  shell salió a `compuerta.ts` y aparecieron nueve casos en rojo.
+//
+//  Y por lo que las COLUMNAS salen de `tabla.ts`: hasta el 18/09 esta pantalla
+//  pintaba siempre las siete de `sitio`, así que «Por operación» calculaba bien
+//  y no enseñaba ni visitas ni horas. No lo vio nada automático —los campos que
+//  faltaban son opcionales en el contrato— y solo apareció al mirarla.
 // ============================================================================
 
 export default function ReportesPage() {
-  // Abre con el trimestre en curso. No es un valor por omisión del endpoint
-  // —allí las fechas son obligatorias a propósito, porque un rango por omisión
-  // sobre años de historia es una consulta sin límite disfrazada de comodidad—:
-  // es lo que la pantalla escribe en sus dos campos para no arrancar en blanco.
+  // Abre en el último trimestre CERRADO, no en el que está en curso. El porqué
+  // —y cómo se vuelve atrás en una línea, porque es una decisión del dueño—
+  // está en `RANGO_DE_APERTURA` (`consulta.ts`).
   const [filtros, setFiltros] = useState<FiltrosReporte>(() => ({
     dimension: 'sitio',
     granularidad: 'mes',
-    ...rangoDelTrimestreDe(new Date()),
+    ...RANGO_DE_APERTURA(new Date()),
   }))
   const [cargando, setCargando] = useState(false)
   const [respuesta, setRespuesta] = useState<RespuestaReporte | null>(null)
   const [reporte, setReporte] = useState<ReporteRentabilidad | null>(null)
-  const [orden, setOrden] = useState<Orden>(ORDEN_INICIAL)
+  const [orden, setOrden] = useState<Orden>(() => ordenInicialDe('sitio'))
 
   const motivo = motivoInvalido(filtros)
 
@@ -113,22 +118,35 @@ export default function ReportesPage() {
     return () => control.abort()
   }, [filtros])
 
-  const estado = estadoDeReporte({
-    motivoInvalido: motivo,
-    cargando,
-    dimension: filtros.dimension,
-    respuesta,
-  })
+  const estado = estadoDeReporte({ motivoInvalido: motivo, cargando, respuesta })
 
-  // Al cambiar de filtros se vuelve al orden del servidor (peor margen
-  // primero): conservar un «ordenado por nombre» de la consulta anterior
-  // esconde la respuesta a la pregunta que el reporte contesta.
+  // Al cambiar de filtros se vuelve al orden DEL SERVIDOR PARA ESA DIMENSIÓN
+  // —peor margen en `sitio`, más costo de operación en `operacion`, peor margen
+  // por metro en `m2` y CRONOLÓGICO en `trimestre`—. Conservar un «ordenado por
+  // nombre» de la consulta anterior esconde la respuesta que el reporte
+  // contesta; y conservar «margen ascendente» al pasar a trimestral ordenaba
+  // una serie de tiempo por importe, que es ilegible.
   const cambiarFiltros = useCallback((f: FiltrosReporte) => {
     setFiltros(f)
-    setOrden(ORDEN_INICIAL)
+    setOrden(ordenInicialDe(f.dimension))
   }, [])
 
-  const avisos = useMemo(() => advertenciasDelReporte(reporte?.filas ?? []), [reporte])
+  // Lo que el reporte no mide, lo que deja fuera y con qué convención cuenta el
+  // metro cuadrado. Los textos se arman en `tabla.ts` porque uno de ellos era
+  // FALSO en trimestral y nada se quejaba: ahí `tieneContrato` significa «hubo
+  // renta en el trimestre», no que la fila sea una pantalla con contrato.
+  const avisos = useMemo(
+    () =>
+      reporte
+        ? avisosDelReporte({
+            dimension: reporte.dimension,
+            filas: reporte.filas,
+            excluidas: reporte.excluidas,
+            convencionM2: reporte.convencionM2,
+          })
+        : [],
+    [reporte],
+  )
 
   const hayDatos = estado.fase === 'datos' && reporte
 
@@ -181,7 +199,11 @@ export default function ReportesPage() {
             <KPICard
               label="Margen sobre ingreso"
               value={formatoPorcentaje(reporte.totales.margenPct)}
-              sub={`${reporte.filas.length} pantallas con movimiento`}
+              /* «N pantallas con movimiento» en TODA dimensión: en trimestral
+                 las filas son trimestres. El sustantivo lo declara
+                 `sustantivoFila` una sola vez, y lo leen también la tabla y los
+                 avisos. */
+              sub={`${cuenta(reporte.filas.length, reporte.dimension)} con movimiento`}
               tono={
                 reporte.totales.margenPct == null ? 'neutro' : reporte.totales.margenPct < 0 ? 'rojo' : 'verde'
               }
@@ -207,18 +229,12 @@ export default function ReportesPage() {
           ) : null}
         </CardHeader>
         <CardContent>
+          {/* La rama del 501 («esta dimensión aún no está disponible») se
+              retiró: las cuatro dimensiones calculan desde el 18/09 y ese
+              camino es inalcanzable — medido antes de borrarlo, ver la cabecera
+              de `estado.ts`. */}
           {estado.fase === 'cargando' ? (
             <div className="h-48 w-full animate-pulse rounded-md bg-surface-2" />
-          ) : estado.fase === 'sin-motor' ? (
-            /* La degradación con elegancia del 501. NO es un error y no se
-               pinta como uno: la dimensión es parte del contrato del endpoint y
-               su motor está escribiéndose. Cuando aterrice, esta pantalla
-               funciona sin tocarse. */
-            <EmptyState
-              icon={Hammer}
-              titulo="Esta dimensión aún no está disponible"
-              detalle={estado.mensaje ?? undefined}
-            />
           ) : estado.fase === 'error' ? (
             <EmptyState
               icon={ServerCrash}
@@ -238,25 +254,21 @@ export default function ReportesPage() {
             />
           ) : hayDatos ? (
             <div className="space-y-3">
-              {/* Lo que el reporte NO mide, dicho encima de la tabla en vez de
-                  escondido detrás de cifras que parecen completas. */}
-              {avisos.sinContrato > 0 || avisos.sinIngreso > 0 ? (
+              {/* Lo que el reporte NO mide y lo que deja FUERA, dicho encima de
+                  la tabla en vez de escondido detrás de cifras que parecen
+                  completas. En `m2` esto incluye las exclusiones —cuántas
+                  digitales y cuántas sin medidas quedaron fuera del ranking, con
+                  la nota que redacta el propio motor— y la convención con la que
+                  se contó el metro cuadrado: una cifra por metro cuadrado sin
+                  decir qué cuenta como metro cuadrado no se concilia con nada. */}
+              {avisos.length > 0 ? (
                 <ul className="space-y-1 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                  {avisos.sinContrato > 0 ? (
-                    <li>
-                      <span className="font-medium text-ink">{avisos.sinContrato}</span>{' '}
-                      {avisos.sinContrato === 1 ? 'pantalla no tiene' : 'pantallas no tienen'} contrato de
-                      arrendamiento vigente: su costo del espacio sale en cero porque falta el dato, no
-                      porque sea gratis, y su margen se lee mejor de lo que es.
+                  {avisos.map((a) => (
+                    <li key={a.clave} className="flex items-start gap-1.5">
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{a.texto}</span>
                     </li>
-                  ) : null}
-                  {avisos.sinIngreso > 0 ? (
-                    <li>
-                      <span className="font-medium text-ink">{avisos.sinIngreso}</span>{' '}
-                      {avisos.sinIngreso === 1 ? 'pantalla costó' : 'pantallas costaron'} sin vender nada en
-                      el periodo, así que no tienen margen porcentual (la columna sale con «—»).
-                    </li>
-                  ) : null}
+                  ))}
                 </ul>
               ) : null}
               <TablaRentabilidad
