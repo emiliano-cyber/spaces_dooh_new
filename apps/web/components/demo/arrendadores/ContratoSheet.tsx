@@ -19,6 +19,7 @@ import {
 import {
   useArrendadores,
   useRazonesSociales,
+  useEntidadesFiscales,
   useSitios,
   usePagosRenta,
   formatMonto,
@@ -37,6 +38,14 @@ import {
   editarContratoApi,
 } from '@/lib/data/estado-api'
 import { PERIODICIDADES, periodicidadLabel } from '@/lib/renta-periodicidad'
+import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
+import {
+  ROL_CONTRATO,
+  SIN_ASIGNAR,
+  entidadPreseleccionada,
+  etiquetaAsignacion,
+  opcionesDeAsignacion,
+} from '@/components/demo/razones-sociales/asignacion'
 
 const TIPO_INC: { value: TipoIncidencia; label: string }[] = [
   { value: 'LEGAL', label: 'Legal / permiso' },
@@ -65,8 +74,11 @@ export function ContratoSheet({
   const arrendadores = useArrendadores()
   const sitios = useSitios()
   const pagos = usePagosRenta()
+  const entidades = useEntidadesFiscales()
   const [incOpen, setIncOpen] = useState(false)
   const [completarOpen, setCompletarOpen] = useState(false)
+  // Cambiar SOLO la razón social que paga, sin abrir el formulario entero.
+  const [pagadoraOpen, setPagadoraOpen] = useState(false)
   // Pago cuyo modal está abierto (registrar el pago o adjuntar sus documentos).
   const [pagoActivo, setPagoActivo] = useState<PagoRenta | null>(null)
 
@@ -150,6 +162,28 @@ export function ContratoSheet({
                 valor={!contrato.fechaFin ? '—' : dias < 0 ? 'Vencido' : `${dias} días`}
               />
               <Fila label="Renovación automática" valor={contrato.autoRenovable ? 'Sí' : 'No'} />
+              {/* Cuál de MIS razones sociales paga esta renta. Se PINTA el
+                  hueco: todas las filas anteriores al 2026-09-17 están «sin
+                  asignar» y no se sabe de quién son. Esconderlo sería
+                  inventárselo.
+                  El botón va AQUÍ y no solo dentro de «Completar información»:
+                  ese formulario solo aparece cuando el contrato está
+                  INCOMPLETO, así que sin esto un contrato VIGENTE —o sea, la
+                  inmensa mayoría— no tendría ninguna forma de asignar su razón
+                  social. Se vio al mirar la pantalla, no leyendo el código. */}
+              <div className="flex items-center justify-between">
+                <dt className="text-muted">La paga</dt>
+                <dd className="flex items-center gap-2 text-ink">
+                  {etiquetaAsignacion(entidades ?? [], contrato.entidadId)}
+                  <button
+                    type="button"
+                    onClick={() => setPagadoraOpen(true)}
+                    className="text-[12px] text-accent underline-offset-2 hover:underline"
+                  >
+                    Cambiar
+                  </button>
+                </dd>
+              </div>
             </dl>
             <div className="mt-2 flex flex-wrap gap-2">
               {/* Documento REDACTADO por el sistema a partir del expediente.
@@ -291,7 +325,112 @@ export function ContratoSheet({
         contrato={contrato}
         onHecho={onToast}
       />
+
+      <RazonSocialQuePagaModal
+        open={pagadoraOpen}
+        onOpenChange={setPagadoraOpen}
+        contrato={contrato}
+        entidades={entidades ?? []}
+        onHecho={onToast}
+      />
     </>
+  )
+}
+
+// ── Cambiar SOLO la razón social que paga ───────────────────────────────────
+//
+// Existe porque el selector vivía únicamente dentro de «Completar información»,
+// y ese formulario SOLO aparece cuando el contrato está INCOMPLETO. O sea: un
+// contrato VIGENTE —la inmensa mayoría— no tenía ninguna forma de asignar su
+// razón social desde la aplicación, que es justo lo que este trabajo venía a
+// arreglar. Se vio al abrir la pantalla, no leyendo el código.
+//
+// Pide UN dato y nada más, por el mismo motivo que aquel pide cuatro: mezclarlo
+// con el resto convierte «di quién paga» en «revisa doce campos».
+//
+// NO toca ningún importe. El PATCH lleva solo `entidadId`, y el resto del
+// contrato viaja como `undefined`, que el servidor entiende como «no lo toques».
+function RazonSocialQuePagaModal({
+  open,
+  onOpenChange,
+  contrato,
+  entidades,
+  onHecho,
+}: {
+  open: boolean
+  onOpenChange: (v: boolean) => void
+  contrato: ContratoArrendamiento
+  entidades: EntidadUI[]
+  onHecho: (msg: string) => void
+}) {
+  const [elegida, setElegida] = useState(() =>
+    entidadPreseleccionada(entidades, ROL_CONTRATO, contrato.entidadId),
+  )
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  return (
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Con cuál de tus razones sociales se paga"
+      subtitle="Solo cambia a nombre de quién sale esta renta. No toca el importe."
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={() => onOpenChange(false)} disabled={enviando}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={enviando}
+            onClick={async () => {
+              setEnviando(true)
+              setError(null)
+              try {
+                // Cadena vacía = «sin asignar», y viaja como `null` explícito:
+                // es lo que el PATCH entiende por DESASIGNAR.
+                await editarContratoApi(contrato.id, { entidadId: elegida || null })
+                onHecho(
+                  elegida
+                    ? 'Razón social asignada al contrato'
+                    : 'El contrato quedó sin razón social asignada',
+                )
+                onOpenChange(false)
+              } catch (e) {
+                setError(e instanceof Error ? e.message : 'No se pudo guardar')
+              }
+              setEnviando(false)
+            }}
+          >
+            {enviando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Guardar
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-2">
+        <select className={inputCls} value={elegida} onChange={(e) => setElegida(e.target.value)}>
+          {opcionesDeAsignacion(entidades, ROL_CONTRATO, contrato.entidadId).map((o) => (
+            <option key={o.valor || 'sin-asignar'} value={o.valor}>
+              {o.etiqueta}
+              {o.recomendada ? ' — la que arrienda' : ''}
+            </option>
+          ))}
+        </select>
+        {entidades.length === 0 && (
+          <p className="text-[12px] text-muted">
+            Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales.
+          </p>
+        )}
+        {elegida === SIN_ASIGNAR && entidades.length > 0 && (
+          <p className="text-[12px] text-muted">
+            Dejarlo sin asignar es legítimo: el contrato es un acuerdo real aunque todavía no se
+            haya decidido con qué sociedad se paga.
+          </p>
+        )}
+        {error && <p className="text-[12px] text-error">{error}</p>}
+      </div>
+    </Modal>
   )
 }
 
@@ -321,12 +460,24 @@ function CompletarContratoModal({
 }) {
   const arrendadores = useArrendadores()
   const razones = useRazonesSociales()
+  const entidades = useEntidadesFiscales()
   // Se prellena con lo que YA tenga: un contrato puede estar incompleto por
   // faltarle solo la fecha de fin, y volver a pedir el resto sería absurdo.
   const [arrendadorId, setArrendadorId] = useState(contrato.arrendadorId ?? '')
   const [monto, setMonto] = useState(contrato.montoRenta != null ? String(contrato.montoRenta) : '')
   const [periodicidad, setPeriodicidad] = useState(contrato.periodicidad ?? 'MENSUAL')
   const [fechaFin, setFechaFin] = useState(contrato.fechaFin ? contrato.fechaFin.slice(0, 10) : '')
+  // Quién PAGA la renta. El valor inicial sale de `entidadPreseleccionada`, que
+  // respeta lo guardado y solo propone cuando el contrato no tiene ninguna Y hay
+  // una sola razón social con el papel de arrendamientos. Con dos no propone
+  // nada, a propósito: adivinar sería pagar con la sociedad equivocada.
+  //
+  // Se pasa por `useState` de inicialización perezosa y NO se recalcula en cada
+  // render: el store hidrata después del primer montaje, y recalcular
+  // sobrescribiría lo que quien captura ya hubiera elegido a mano.
+  const [entidadId, setEntidadId] = useState<string>(() =>
+    entidadPreseleccionada(entidades ?? [], ROL_CONTRATO, contrato.entidadId),
+  )
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
@@ -371,6 +522,10 @@ function CompletarContratoModal({
         montoRenta: montoNum,
         periodicidad,
         fechaFin,
+        // Cadena vacía = «sin asignar», y viaja como `null` explícito: es lo que
+        // el PATCH entiende por DESASIGNAR. `undefined` sería «no la toques», y
+        // entonces no se podría quitar una vez puesta.
+        entidadId: entidadId || null,
       })
       // Al quedar completo el servidor recalcula el estatus por fechas y genera
       // el calendario de pagos, así que conviene decirlo: es la consecuencia
@@ -494,6 +649,40 @@ function CompletarContratoModal({
             />
           </label>
         </div>
+
+        {/* CON QUÉ RAZÓN SOCIAL MÍA se paga esta renta. Va aquí, con el
+            importe y la periodicidad, porque es parte del mismo acuerdo: quién
+            paga es tan parte de la renta como cuánto.
+            NO bloquea el guardado — «sin asignar» es legítimo y todas las filas
+            anteriores al 2026-09-17 están así. */}
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">
+            Con cuál de tus razones sociales se paga
+          </span>
+          <select
+            className={inputCls}
+            value={entidadId}
+            onChange={(e) => setEntidadId(e.target.value)}
+          >
+            {opcionesDeAsignacion(entidades ?? [], ROL_CONTRATO, contrato.entidadId).map((o) => (
+              <option key={o.valor || 'sin-asignar'} value={o.valor}>
+                {o.etiqueta}
+                {o.recomendada ? ' — la que arrienda' : ''}
+              </option>
+            ))}
+          </select>
+          {(entidades ?? []).length === 0 ? (
+            <p className="mt-1 text-[11.5px] text-muted">
+              Todavía no tienes razones sociales capturadas. Se pueden dar de alta en Razones
+              sociales, y el contrato se guarda igual mientras tanto.
+            </p>
+          ) : entidadId === SIN_ASIGNAR ? (
+            <p className="mt-1 text-[11.5px] text-muted">
+              Se puede dejar sin asignar: el contrato es un acuerdo real aunque todavía no se
+              haya decidido con qué sociedad se paga.
+            </p>
+          ) : null}
+        </label>
 
         <p className="rounded border border-border bg-surface-2 p-2 text-[12px] text-muted">
           Al guardar, el contrato deja de estar incompleto: empieza a contar como costo de

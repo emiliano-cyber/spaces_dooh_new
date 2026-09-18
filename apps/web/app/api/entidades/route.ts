@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { exigir } from '@/lib/server/auth'
 import { crearEntidadCtrl } from '@/lib/server/entidades-controller'
 import { listarEntidades } from '@/lib/server/entidades-repo'
+import { catalogoRolesConEtiqueta } from '@/lib/server/bienvenida-repo'
 import { respuestaError } from '@/lib/server/errores'
 import { registrarAccion } from '@/lib/server/acciones-repo'
 
@@ -29,7 +30,28 @@ export async function GET(req: Request) {
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const incluirInactivas = new URL(req.url).searchParams.get('inactivas') === '1'
-    return NextResponse.json({ entidades: await listarEntidades({ incluirInactivas }) })
+    // El `catalogo` viaja con el listado porque la pantalla necesita las dos
+    // cosas a la vez y pedirlas por separado son dos viajes para pintar una
+    // tabla. Va CON su etiqueta y en el orden de la tabla (`orden`), no como una
+    // lista escrita en el front.
+    //
+    // Los cinco papeles son FIJOS para toda la flota por decisión de Jochelo
+    // del 2026-09-18 — pero fijos NO es quemados: siguen viviendo en
+    // `catalogo_roles_entidad` a propósito, porque corregir una etiqueta,
+    // cambiar el orden o añadir un sexto es un `insert` y no reconstruir la
+    // imagen y actualizar cada instancia. Y la FK de `entidad_roles` es lo que
+    // impide que entre un rol inventado.
+    //
+    // Se REUTILIZA `catalogoRolesConEtiqueta` en vez de escribir aquí la
+    // consulta: este repositorio ya tuvo DOS catálogos de permisos —uno en una
+    // migración y otro en el guion de aprovisionamiento— y ganaba el que
+    // corriera último, sin error y sin aviso. Lo que impide que dos listas
+    // divergan no es que hoy coincidan, es que solo exista una.
+    const [entidades, catalogo] = await Promise.all([
+      listarEntidades({ incluirInactivas }),
+      catalogoRolesConEtiqueta(),
+    ])
+    return NextResponse.json({ entidades, catalogo })
   } catch (e) {
     return respuestaError(e)
   }

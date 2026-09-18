@@ -50,6 +50,7 @@ export async function refrescarEstado(): Promise<void> {
     arrendadores: e.arrendadores ?? [],
     predios: e.predios ?? [],
     razonesSociales: e.razonesSociales ?? [],
+    entidadesFiscales: e.entidadesFiscales ?? [],
     licencias: e.licencias ?? [],
     contratos: e.contratos ?? [],
     pagosRenta: e.pagosRenta ?? [],
@@ -522,6 +523,10 @@ export async function editarContratoApi(
     moneda?: string
     autoRenovable?: boolean
     razonSocialId?: string | null
+    // Cuál de MIS razones sociales PAGA esta renta. Ausente = «no la toques»;
+    // `null` = desasignar. Es la distinción que el PATCH interpreta, y sin ella
+    // editar el importe borraría la razón social en silencio.
+    entidadId?: string | null
     deposito?: number | null
     documentoUrl?: string | null
   },
@@ -632,11 +637,18 @@ export async function generarFacturaApi(
   campanaId: string,
   plazoDias: 60 | 90 | 120,
   plan?: PlanCuotasApi | null,
+  // Cuál de MIS razones sociales emite el comprobante. `null` = «sin asignar»,
+  // y el servidor no adivina.
+  entidadEmisoraId?: string | null,
 ): Promise<void> {
   const r = await fetch(`${API}/campanas/${campanaId}/facturar/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ plazoDias, plan: plan ?? null }),
+    body: JSON.stringify({
+      plazoDias,
+      plan: plan ?? null,
+      entidadEmisoraId: entidadEmisoraId ?? null,
+    }),
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo generar la factura')
@@ -946,5 +958,61 @@ export async function borrarRazonSocialApi(id: string): Promise<void> {
   const r = await fetch(`${API}/razones-sociales/${id}/`, { method: 'DELETE' })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo eliminar la razón social')
+  await refrescarEstado()
+}
+
+// ─── Entidades fiscales del OWNER ───────────────────────────────────────────
+// OJO con el vecino de arriba: `razones-sociales` es la razón social del
+// ARRENDADOR —quien me COBRA la renta— y `entidades` es la del OWNER —quien la
+// PAGA—. Los nombres se parecen y las tablas no tienen nada que ver. La
+// confusión ya vive en el repositorio y por eso el aviso está aquí, pegado a
+// las dos familias de funciones.
+
+export interface BorradorEntidadApi {
+  razonSocial: string
+  rfc?: string | null
+  regimen?: string | null
+  cpFiscal?: string | null
+  serieFolios?: string | null
+  roles?: string[]
+  // Reactivar una dada de baja. Solo lo usa el PATCH; en el alta no tiene
+  // sentido porque una entidad nace activa.
+  activo?: boolean
+}
+
+export async function crearEntidadApi(input: BorradorEntidadApi): Promise<void> {
+  const r = await fetch(`${API}/entidades/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo crear la razón social')
+  await refrescarEstado()
+}
+
+// Solo viajan los campos presentes: así se COMPLETA el RFC que faltaba sin
+// reescribir lo demás. Los roles son la excepción y se reemplazan en bloque —
+// lo decidió el módulo el 17/09 (`editarEntidad`), porque un parche por rol
+// obligaría a mandar «quita éste, pon aquél» y el formulario no piensa así.
+export async function editarEntidadApi(id: string, input: BorradorEntidadApi): Promise<void> {
+  const r = await fetch(`${API}/entidades/${id}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo actualizar la razón social')
+  await refrescarEstado()
+}
+
+// Baja LÓGICA: el DELETE pone `activo = false`. No es un atajo — la entidad
+// aparece en contratos y comprobantes ya emitidos, y un borrado de verdad NO
+// fallaría (las FK son `on delete set null`): dejaría esos documentos sin razón
+// social en silencio, que es peor que un error.
+export async function desactivarEntidadApi(id: string): Promise<void> {
+  const r = await fetch(`${API}/entidades/${id}/`, { method: 'DELETE' })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo dar de baja la razón social')
   await refrescarEstado()
 }

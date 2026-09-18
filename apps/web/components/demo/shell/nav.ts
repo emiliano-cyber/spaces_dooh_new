@@ -135,9 +135,15 @@ export const NAV: NavItem[] = [
   // Actividad y Administración cierran el menú SIEMPRE: son el historial y los
   // ajustes, no un paso del proceso.
   { key: 'integraciones', label: 'Integraciones', href: '/integraciones', icon: Plug, roles: ['DUENO'], grupo: 'sistema' },
-  // Las razones sociales del propio owner. Sin esta entrada nadie llega solo al
-  // cuestionario de bienvenida: la pantalla existe y solo se alcanza por URL.
-  { key: 'bienvenida', label: 'Razones sociales', href: '/bienvenida', icon: Building2, roles: ['DUENO'], grupo: 'sistema' },
+  // Las razones sociales del propio owner. Sin esta entrada nadie llega solo:
+  // la pantalla existe y solo se alcanza por URL.
+  //
+  // Apuntaba a `/bienvenida` —el cuestionario— y desde el 2026-09-18 apunta a la
+  // pantalla de GESTIÓN. El cuestionario es de una sola vez: contestado, responde
+  // 409 y solo enseña lo que se contestó, así que un menú que lleve ahí manda a
+  // una pantalla que ya no hace nada. El propio cuestionario enlaza aquí, y esta
+  // pantalla enlaza al cuestionario mientras no haya ninguna razón social.
+  { key: 'razones-sociales', label: 'Razones sociales', href: '/razones-sociales', icon: Building2, roles: ['DUENO'], grupo: 'sistema' },
   // Va aqui y no junto a Administracion: `nav.test.ts` exige que Actividad y
   // Administracion sean SIEMPRE los dos ultimos, en ese orden. La prueba lo
   // cazo al primer intento.

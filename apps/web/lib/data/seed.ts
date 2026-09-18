@@ -491,6 +491,7 @@ export function buildSeed(): DemoState {
     arrendadores: [],
     predios: [],
     razonesSociales: [],
+    entidadesFiscales: [],
     licencias: [],
     contratos: [],
     pagosRenta: [],

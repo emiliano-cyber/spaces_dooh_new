@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/demo/ui/Button'
 import { Card, CardContent } from '@/components/demo/ui/Card'
 import { CuestionarioRazonesSociales } from '@/components/demo/bienvenida/CuestionarioRazonesSociales'
@@ -121,9 +122,20 @@ export default function Bienvenida() {
                 ))}
               </ul>
             )}
+            {/* Mandaba a «Administración», y ahí NO HABÍA NADA: una promesa
+                escrita que el producto no cumplía, y el motivo por el que el
+                dueño pidió la pantalla el 2026-09-18. Ahora manda donde de
+                verdad están, y con un enlace en vez de una indicación. */}
             <p className="text-[13px] text-muted">
-              Para cambiarlas o añadir otra, ve a Administración.
+              Para cambiarlas, añadir otra o dar una de baja, ve a{' '}
+              <Link href="/razones-sociales" className="underline hover:text-ink">
+                Razones sociales
+              </Link>
+              .
             </p>
+            <Button variant="secondary" onClick={() => router.push('/razones-sociales')}>
+              Ir a Razones sociales
+            </Button>
             <Button variant="secondary" onClick={alInicio}>
               Ir al inicio
             </Button>

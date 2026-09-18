@@ -189,6 +189,10 @@ function rowToContrato(r: any) {
     deposito: r.deposito != null ? Number(r.deposito) : null,
     predioId: r.predio_id ?? null,
     razonSocialId: r.razon_social_id ?? null,
+    // La razon social del OWNER que paga esta renta. `null` = «sin asignar», y
+    // es un estado LEGITIMO: todas las filas anteriores al 2026-09-17 estan
+    // asi. La pantalla lo PINTA en vez de esconderlo.
+    entidadId: r.entidad_id ?? null,
     motivoCancelacion: r.motivo_cancelacion ?? null,
     sitioNombre: r.sitio_nombre ?? null,
     creadoEn: iso(r.creado_en),
@@ -350,7 +354,7 @@ export async function listarContratos() {
   const rows = await q(
     `select c.id, c.sitio_id, c.arrendador_id, c.fecha_inicio, c.fecha_fin,
             c.monto_renta, c.periodicidad, c.moneda, c.auto_renovable, c.deposito,
-            c.motivo_cancelacion, c.predio_id, c.razon_social_id, c.estatus,
+            c.motivo_cancelacion, c.predio_id, c.razon_social_id, c.entidad_id, c.estatus,
             c.creado_en, c.tenant_id, c.ciudad_firma, c.dia_pago,
             c.incremento_anual_pct, c.uso_permitido, c.congelado_en,
             (c.documento_url is not null) as tiene_documento,
@@ -1119,6 +1123,10 @@ export async function editarContrato(id: string, patch: {
   fechaInicio?: string; fechaFin?: string; montoRenta?: number; periodicidad?: string
   moneda?: string; deposito?: number | null; documentoUrl?: string | null
   autoRenovable?: boolean; razonSocialId?: string | null; arrendadorId?: string
+  // Cual de MIS razones sociales PAGA esta renta. `null` explicito DESASIGNA;
+  // `undefined` no la toca. No confundir con `razonSocialId`, que es la del
+  // ARRENDADOR — quien me COBRA.
+  entidadId?: string | null
 }): Promise<
   | { noEncontrado: true }
   | { cancelado: true }
@@ -1188,12 +1196,36 @@ export async function editarContrato(id: string, patch: {
       }
     }
 
+    // La entidad fiscal del OWNER que paga la renta. Se comprueba contra el
+    // tenant ANTES de escribirla, y esto NO es redundante con la FK compuesta
+    // de `20260918_entidad_tenant_compuesto.sql`: la base rechazaria la ajena,
+    // pero por el camino del error 23503, que llega al usuario como un 500 sin
+    // nada que corregir. La FK es la red; esto es la puerta, y ademas sigue
+    // haciendo falta el dia que otra ruta escriba esta columna.
+    //
+    // Solo se valida si viene un VALOR. `null` es desasignar —«sin asignar» es
+    // un estado legitimo— y buscarlo en la base lo rechazaria por «no existe»,
+    // convirtiendo un desasignar legitimo en un error.
+    if (patch.entidadId != null) {
+      const { rows: ef } = await client.query(
+        `select id from entidades_fiscales where id = $1 and tenant_id = $2`,
+        [patch.entidadId, tenantId],
+      )
+      if (!ef[0]) {
+        throw new AppError(
+          'La razon social elegida no existe o es de otra organizacion.',
+          404,
+        )
+      }
+    }
+
     const map: [string, unknown][] = [
       ['fecha_inicio', patch.fechaInicio], ['fecha_fin', patch.fechaFin],
       ['monto_renta', patch.montoRenta], ['periodicidad', patch.periodicidad],
       ['moneda', patch.moneda], ['deposito', patch.deposito],
       ['documento_url', patch.documentoUrl], ['auto_renovable', patch.autoRenovable],
       ['razon_social_id', patch.razonSocialId], ['arrendador_id', patch.arrendadorId],
+      ['entidad_id', patch.entidadId],
     ]
     const provided = map.filter(([, v]) => v !== undefined)
 

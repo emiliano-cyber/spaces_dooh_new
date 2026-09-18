@@ -50,6 +50,16 @@ const parcheSchema = z.object({
   cpFiscal: z.union([z.null(), z.literal(''), cpSchema]).optional(),
   serieFolios: z.string().trim().max(20).nullish(),
   roles: rolesSchema.optional(),
+  // REACTIVAR. El DELETE da de baja lógica y hasta hoy no había vuelta: una
+  // entidad apagada se quedaba apagada, y la única salida era capturar otra con
+  // el mismo nombre — el duplicado que este módulo existe para evitar, porque
+  // entonces nadie sabe cuál de las dos pagan los contratos.
+  //
+  // `z.boolean()` y no `z.coerce.boolean()`: la cadena `"false"` coaccionada es
+  // VERDADERA, así que un cliente que mandara texto reactivaría creyendo que
+  // apaga. Es el mismo motivo por el que el cuestionario de bienvenida usa
+  // `z.boolean()` en sus preguntas de sí/no.
+  activo: z.boolean().optional(),
 })
 
 // Los roles se comprueban contra el CATÁLOGO DE LA BASE, no contra una lista
@@ -129,6 +139,7 @@ export async function editarEntidadCtrl(id: string, body: unknown) {
       cpFiscal: vacioEsNulo(d.cpFiscal),
       serieFolios: vacioEsNulo(d.serieFolios),
       roles,
+      activo: d.activo,
     })
   } catch (e) {
     traducirChoque(e)

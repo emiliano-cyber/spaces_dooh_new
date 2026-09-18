@@ -351,6 +351,26 @@ export interface RazonSocial {
   creadoEn: string
 }
 
+// Las razones sociales PROPIAS del owner: con cuál PAGA las rentas, compra los
+// activos, tramita licencias o vende. NO es `RazonSocial`, que es la del
+// ARRENDADOR —quien me COBRA la renta—. Son dos catálogos distintos, en dos
+// pantallas distintas, y ninguno sustituye al otro.
+//
+// `entidad_id` NO ES UNA FRONTERA DE SEGURIDAD: la única es `tenant_id` con RLS.
+export interface EntidadFiscal {
+  id: string
+  razonSocial: string
+  rfc: string | null
+  regimen: string | null
+  cpFiscal: string | null
+  serieFolios: string | null
+  // Baja LÓGICA: una entidad retirada sigue aquí para sostener los contratos y
+  // comprobantes que la nombran. El shell las recibe TODAS y filtra por esto.
+  activo: boolean
+  creadoEn?: string | null
+  roles: string[]
+}
+
 export interface ContratoArrendamiento {
   id: string
   sitioId: string
@@ -368,6 +388,10 @@ export interface ContratoArrendamiento {
   estatus: EstContrato
   predioId?: string | null // predio (inmueble) al que pertenece el contrato — fuente de la renta
   razonSocialId?: string | null // razón social bajo la que se paga
+  // Cuál de MIS razones sociales PAGA esta renta. `null` = «sin asignar», y es
+  // legítimo: todas las filas anteriores al 2026-09-17 están así. No confundir
+  // con `razonSocialId`, que es la del ARRENDADOR — quien me COBRA.
+  entidadId?: string | null
   deposito?: number | null
   motivoCancelacion?: string | null
   // Nombre de la pantalla, denormalizado en `listarContratos` (Finanzas ve los
@@ -658,6 +682,9 @@ export interface Factura {
   rfc: string | null
   razonSocial: string | null
   usoCfdi: string | null
+  // Cuál de MIS razones sociales EMITE el comprobante. `razonSocial` (arriba) es
+  // la del CLIENTE; ésta es la mía. `null` = «sin asignar», y se pinta.
+  entidadEmisoraId?: string | null
   creadoEn: string
 }
 
@@ -754,6 +781,10 @@ export interface DemoState {
   arrendadores: Arrendador[]
   predios: Predio[]
   razonesSociales: RazonSocial[]
+  // Las del OWNER, no las del arrendador. Llegan con las dadas de baja
+  // incluidas: el shell tiene que poder pintar el nombre de la sociedad que
+  // emitió un comprobante aunque se haya retirado despues.
+  entidadesFiscales: EntidadFiscal[]
   licencias: Licencia[]
   contratos: ContratoArrendamiento[]
   pagosRenta: PagoRenta[]

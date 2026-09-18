@@ -50,6 +50,14 @@ export const AREAS: AreaProducto[] = [
   { clave: 'reportes', label: 'Reportes', modulo: 'finanzas', apiPropia: true },
   { clave: 'network', label: 'Network', modulo: 'network', apiPropia: true },
   { clave: 'integraciones', label: 'Integraciones', modulo: 'administracion', apiPropia: true },
+  // Las razones sociales PROPIAS del owner van bajo `administracion` y NO bajo
+  // `arrendadores`: son la identidad fiscal del negocio —a nombre de quién paga
+  // y factura—, no un dato operativo del módulo de propietarios. Quien captura
+  // contratos no decide con qué sociedad se firma. El guard de sus endpoints ya
+  // exige `administracion` (`app/api/entidades/route.ts`), así que declararla en
+  // otro módulo sería declarar una mentira — y quien marcara esa casilla en la
+  // matriz de permisos creería estar concediendo otra cosa.
+  { clave: 'razones-sociales', label: 'Razones sociales', modulo: 'administracion', apiPropia: true },
   { clave: 'actividad', label: 'Actividad', modulo: 'administracion', apiPropia: false },
   { clave: 'administracion', label: 'Administración', modulo: 'administracion', apiPropia: true },
 ]
