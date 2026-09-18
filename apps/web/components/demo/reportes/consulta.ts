@@ -1,4 +1,5 @@
-import { esFechaValida, ordenInvertido } from '@/lib/server/fechas'
+import { etiquetaBucket } from '@/lib/data/derive'
+import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fechas'
 
 // ============================================================================
 //  components/demo/reportes/consulta.ts — Qué se le pide al endpoint.
@@ -155,9 +156,8 @@ export function motivoInvalido(f: FiltrosReporte): string | null {
 
 const dosCifras = (n: number) => String(n).padStart(2, '0')
 
-// El trimestre EN CURSO. Ya NO es el rango de apertura —ver `RANGO_DE_APERTURA`
-// al final del archivo— pero no se borra: es la vuelta atrás de esa decisión y
-// además la base con la que se calcula el cerrado.
+// El trimestre EN CURSO, y **el rango con el que abre la pantalla** — ver
+// `RANGO_DE_APERTURA` al final del archivo.
 //
 // Se construye desde las PARTES LOCALES de la fecha (`getMonth`, no
 // `toISOString`): en México (UTC−6) el 1.º de enero a las 00:00 locales sale
@@ -189,21 +189,94 @@ export function rangoDelTrimestreCerradoDe(hoy: Date): { desde: string; hasta: s
   return rangoDelTrimestreDe(new Date(hoy.getFullYear(), primerMes, 0))
 }
 
-// ─── DECISIÓN DE PRODUCTO, y se cambia en ESTA LÍNEA ────────────────────────
+// ─── DECISIÓN DEL DUEÑO, 2026-09-18. NO ES UN DESCUIDO ──────────────────────
 // Con qué rango abre la pantalla. Es lo que escribe en sus dos campos —no un
 // valor por omisión del endpoint, donde las fechas son obligatorias a propósito
 // porque un rango por omisión sobre años de historia es una consulta sin límite
 // disfrazada de comodidad— y viaja en la querystring como cualquier otro rango
 // que elija una persona.
 //
-// Abre en el último trimestre CERRADO y no en el que está en curso, y el motivo
-// es de producto: un trimestre a medias siempre se lee peor que uno completo
-// —la renta del espacio se devenga desde el día 1 y lo vendido se cobra al
-// cerrar—, así que el reporte arrancaría dando una impresión falsa del negocio
-// a cualquiera que lo abra. Medido en la base de demostración el 2026-09-18: el
-// trimestre en curso (jul-sep 2026) no tenía ingresos y sí tenía renta, y lo
-// primero que enseñaba la pantalla era el negocio perdiendo 184 500.
+// **Abre en el trimestre EN CURSO, y eso está decidido, no pendiente.**
 //
-// Es una decisión del dueño y puede querer la otra: cambiar ESTA línea a
-// `rangoDelTrimestreDe` devuelve el trimestre en curso, y nada más se toca.
-export const RANGO_DE_APERTURA: (hoy: Date) => { desde: string; hasta: string } = rangoDelTrimestreCerradoDe
+// Quien lea esto va a notar enseguida que un trimestre a medias se lee PEOR de
+// lo que es: la renta del espacio corre desde el día 1 y lo vendido se cobra al
+// cerrar, así que al abrir se ve mucho costo y poco ingreso. Medido en la base
+// de demostración el 2026-09-18: el trimestre en curso (jul-sep 2026) no tenía
+// ingresos y sí tenía renta, y la pantalla arrancaba enseñando
+// `Ingreso $0.00 · Costo $184,500.00 · Margen ($184,500.00)`.
+//
+// Eso se vio, se llevó al dueño con las tres salidas y sus consecuencias, y
+// **eligió ver el trimestre VIVO al abrir**, porque es lo que quiere mirar. La
+// letra pequeña de su elección es que el engaño se arregla POR EL OTRO LADO:
+// diciéndolo en pantalla. Lo dice `avisosDelReporte` con la clave
+// `periodo-en-curso` (`tabla.ts`), y `solapaTrimestreEnCurso` de aquí abajo
+// decide cuándo.
+//
+// **Así que no "arregles" esta línea.** Si vuelve a cambiar de opinión, se
+// cambia a `rangoDelTrimestreCerradoDe` —que se conserva entero, con sus
+// pruebas— y nada más se toca.
+export const RANGO_DE_APERTURA: (hoy: Date) => { desde: string; hasta: string } = rangoDelTrimestreDe
+
+// ¿El rango que se pidió toca el trimestre que todavía no ha cerrado?
+//
+// Es la condición del aviso de periodo incompleto, y la condición importa tanto
+// como el aviso: **uno que saliera siempre no lo leería nadie**. Es la misma
+// lección del ámbar que dejó de avisar por salir en todo. Si el usuario mueve el
+// rango a un trimestre terminado, el aviso desaparece — y esa desaparición es
+// información: dice que las cifras que está viendo ya son definitivas.
+//
+// Se compara con `diaComparable` y NO con `<=` de cadenas. `motivoInvalido`
+// acepta `2026-9-1` sin cero a la izquierda, así que aquí puede llegar; como
+// texto va DESPUÉS de `2026-09-30` —el '9' pesa más que el '0'—, y un `<=` de
+// cadenas diría que septiembre no solapa con septiembre. El aviso no saldría
+// justo en el mes en el que hace falta. Es el defecto que este repo ya pagó dos
+// veces (`lib/server/fechas.ts:42-48`).
+export function solapaTrimestreEnCurso(
+  rango: { desde: string; hasta: string },
+  hoy: Date,
+): boolean {
+  const vivo = rangoDelTrimestreDe(hoy)
+  const desde = diaComparable(rango.desde)
+  const hasta = diaComparable(rango.hasta)
+  // Una fecha que no se puede reducir a un día queda FUERA en vez de compararse
+  // mal: sin poder afirmar el solape, no se afirma. El rango además ya pasó por
+  // `motivoInvalido`, que rechaza esas formas.
+  if (desde == null || hasta == null) return false
+  return desde <= diaComparable(vivo.hasta)! && diaComparable(vivo.desde)! <= hasta
+}
+
+// Días entre dos fechas contando solo el día del calendario. Se normalizan a
+// UTC desde las PARTES LOCALES: una resta de dos `Date` en horas da 23 o 25 el
+// día del cambio de horario, y el redondeo de un trimestre entero se iría un día.
+const diasEntre = (a: Date, b: Date) =>
+  Math.round(
+    (Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) -
+      Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) /
+      86_400_000,
+  )
+
+// Cuánto lleva corrido el trimestre vivo, para poder decirlo en el aviso: «80 de
+// 92 días» explica por sí solo por qué falta ingreso.
+//
+// **Los dos extremos son inclusive**, igual que el rango del reporte: el primer
+// día del trimestre es UNO corrido y no cero — la renta de ese día ya corrió, y
+// «0 de 92» se leería como que el periodo no ha empezado.
+//
+// La etiqueta sale de `etiquetaBucket`, la misma que pinta la gráfica de
+// ocupación y la dimensión `trimestre`: dos etiquetados del mismo trimestre
+// acabarían diciendo «T3 2026» en un sitio y «3er trimestre» en el otro.
+export function avanceDelTrimestreEnCurso(hoy: Date): {
+  corridos: number
+  totales: number
+  etiqueta: string
+} {
+  const anio = hoy.getFullYear()
+  const primerMes = Math.floor(hoy.getMonth() / 3) * 3
+  const inicio = new Date(anio, primerMes, 1)
+  const fin = new Date(anio, primerMes + 3, 0)
+  return {
+    corridos: diasEntre(inicio, hoy) + 1,
+    totales: diasEntre(inicio, fin) + 1,
+    etiqueta: etiquetaBucket(inicio, 'trimestre'),
+  }
+}

@@ -1,7 +1,12 @@
 import { formatMonto } from '@/lib/data/derive'
 import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
 import type { ConvencionM2, ExclusionesM2, FilaRentabilidad, PeriodoFila } from '@/lib/data/reportes'
-import { cuenta, type DimensionUI } from './consulta'
+import {
+  avanceDelTrimestreEnCurso,
+  cuenta,
+  solapaTrimestreEnCurso,
+  type DimensionUI,
+} from './consulta'
 
 // ============================================================================
 //  components/demo/reportes/tabla.ts — Qué columnas trae cada dimensión.
@@ -377,12 +382,26 @@ export function desgloseDeFila(f: { periodos?: readonly PeriodoFila[] }): Period
 }
 
 export interface AvisoReporte {
-  clave: 'm2-convencion' | 'm2-excluidas' | 'sin-contrato' | 'sin-ingreso'
+  clave: 'periodo-en-curso' | 'm2-convencion' | 'm2-excluidas' | 'sin-contrato' | 'sin-ingreso'
   texto: string
 }
 
 export interface ReporteParaAvisos {
   dimension: DimensionUI
+  /** El rango que se pidió. `AAAA-MM-DD`, inclusive. */
+  desde: string
+  hasta: string
+  /**
+   * El día de hoy, INYECTADO y no leído de `new Date()` aquí dentro: es lo que
+   * permite probar el aviso del periodo en curso sin falsear el reloj.
+   *
+   * Los tres son obligatorios a propósito, aunque solo los use un aviso. Con
+   * ellos opcionales, la pantalla podía olvidarse de pasarlos y el aviso
+   * **dejaría de salir sin que nada se quejara** — que es EXACTAMENTE el defecto
+   * que esta pantalla ya tuvo con las columnas de `operacion` y `m2`, campos
+   * opcionales que nadie leía. Obligatorios, el typecheck lo impide.
+   */
+  hoy: Date
   filas: readonly FilaOrdenable[]
   excluidas?: ExclusionesM2 | null
   convencionM2?: ConvencionM2 | null
@@ -406,6 +425,36 @@ const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
 // tienen contrato» sobre dos trimestres sin renta afirma algo que no existe.
 export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   const avisos: AvisoReporte[] = []
+
+  // ─── EL PERIODO QUE NO HA CERRADO ─────────────────────────────────────────
+  // Va PRIMERO porque cambia cómo se lee todo lo demás que hay en pantalla. Un
+  // aviso sobre la validez de las cifras puesto debajo de las cifras llega
+  // tarde.
+  //
+  // La pantalla abre en el trimestre EN CURSO por decisión del dueño
+  // (`RANGO_DE_APERTURA`, 2026-09-18), y el precio de esa decisión es este
+  // aviso. Sin él, lo primero que se ve es `Ingreso $0.00 · Costo $184,500.00 ·
+  // Margen ($184,500.00)` —medido en la base sembrada— y **eso se lee como una
+  // pérdida real cuando no lo es**: es un periodo a medias.
+  //
+  // El texto dice las tres cosas que hacen falta para no leerlo mal, y ninguna
+  // es opcional:
+  //  1. que el periodo sigue abierto, con cuánto lleva corrido;
+  //  2. EL MECANISMO — la renta ya corrió completa y lo vendido todavía no está
+  //     dentro. Sin esto, «el periodo está incompleto» no explica por qué la
+  //     cifra sale negativa ni hacia dónde va a moverse;
+  //  3. que no se compara con un trimestre terminado.
+  //
+  // Y está escrito en lenguaje de negocio. Quien lo lee vende publicidad: no
+  // hay un solo nombre de campo ni una palabra de código, y hay una prueba que
+  // lo vigila.
+  if (solapaTrimestreEnCurso({ desde: r.desde, hasta: r.hasta }, r.hoy)) {
+    const { corridos, totales, etiqueta } = avanceDelTrimestreEnCurso(r.hoy)
+    avisos.push({
+      clave: 'periodo-en-curso',
+      texto: `El periodo que estás viendo toca ${etiqueta}, que está EN CURSO: llevan ${corridos} de sus ${totales} días. La renta de los espacios ya corrió esos ${corridos} días completos, pero lo que se vendió se cobra al cerrar, así que el ingreso todavía no está dentro y el margen sale peor de lo que va a quedar. No lo compares con un trimestre terminado.`,
+    })
+  }
 
   // Primero la convención, porque sin ella las cifras por metro de la tabla no
   // se pueden conciliar con nada: una cifra por metro cuadrado sin decir qué

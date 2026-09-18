@@ -173,19 +173,26 @@ describe('5 · el porcentaje sin ingreso no se pinta como 0 %', () => {
 })
 
 describe('6 · lo que el reporte deja fuera se ensena, no se esconde', () => {
+  // Rango CERRADO: el 18 de septiembre de 2026 el trimestre vivo es jul-sep, y
+  // abr-jun ya termino. Se pide asi para que el aviso de «periodo en curso» no
+  // se cuele en estas aserciones — si se colara, el `toEqual([])` de abajo se
+  // pone rojo, que es justo lo que se quiere. Ese aviso tiene su propio bloque
+  // en `tabla.dimensiones.test.ts`.
+  const CERRADO = { desde: '2026-04-01', hasta: '2026-06-30', hoy: new Date(2026, 8, 18) }
+
   it('cuenta las filas sin contrato: su costo de espacio NO esta medido', () => {
     // Sin contrato no hay renta atribuida, asi que su costo de espacio es 0 y
     // su margen sale infladamente bueno. Esconderlo es peor que no tenerlo.
-    const a = avisosDelReporte({ dimension: 'sitio', filas })
+    const a = avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas })
     expect(a.find((x) => x.clave === 'sin-contrato')?.texto).toMatch(/^1 pantalla /)
   })
 
   it('cuenta las filas sin ingreso en el rango: cuestan y no vendieron', () => {
-    const a = avisosDelReporte({ dimension: 'sitio', filas })
+    const a = avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas })
     expect(a.find((x) => x.clave === 'sin-ingreso')?.texto).toMatch(/^1 pantalla /)
   })
 
   it('sobre cero filas no inventa advertencias', () => {
-    expect(avisosDelReporte({ dimension: 'sitio', filas: [] })).toEqual([])
+    expect(avisosDelReporte({ ...CERRADO, dimension: 'sitio', filas: [] })).toEqual([])
   })
 })

@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
+import { AlertTriangle, BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
+import { cn } from '@/lib/cn'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
 import { KPICard, KPICardSkeleton } from '@/components/demo/KPICard'
 import { EmptyState } from '@/components/demo/EmptyState'
@@ -61,9 +62,11 @@ import {
 // ============================================================================
 
 export default function ReportesPage() {
-  // Abre en el último trimestre CERRADO, no en el que está en curso. El porqué
-  // —y cómo se vuelve atrás en una línea, porque es una decisión del dueño—
-  // está en `RANGO_DE_APERTURA` (`consulta.ts`).
+  // Abre en el trimestre EN CURSO, **por decisión del dueño del 2026-09-18** y
+  // no por omisión. Un trimestre a medias se lee peor de lo que es, y eso no se
+  // arregla aquí: se dice en pantalla, con el aviso `periodo-en-curso` de
+  // `avisosDelReporte`. El porqué entero —y cómo se vuelve atrás en una línea si
+  // cambia de opinión— está en `RANGO_DE_APERTURA` (`consulta.ts`).
   const [filtros, setFiltros] = useState<FiltrosReporte>(() => ({
     dimension: 'sitio',
     granularidad: 'mes',
@@ -131,15 +134,25 @@ export default function ReportesPage() {
     setOrden(ordenInicialDe(f.dimension))
   }, [])
 
-  // Lo que el reporte no mide, lo que deja fuera y con qué convención cuenta el
-  // metro cuadrado. Los textos se arman en `tabla.ts` porque uno de ellos era
-  // FALSO en trimestral y nada se quejaba: ahí `tieneContrato` significa «hubo
-  // renta en el trimestre», no que la fila sea una pantalla con contrato.
+  // Lo que el reporte no mide, lo que deja fuera, con qué convención cuenta el
+  // metro cuadrado y —el primero de todos— si el periodo que se está viendo
+  // todavía no ha cerrado. Los textos se arman en `tabla.ts` porque uno de
+  // ellos era FALSO en trimestral y nada se quejaba: ahí `tieneContrato`
+  // significa «hubo renta en el trimestre», no que la fila sea una pantalla con
+  // contrato.
+  //
+  // El rango sale de `reporte` y NO de `filtros`: es el que el servidor
+  // confirma haber calculado. Con el de los filtros, un aviso podría hablar de
+  // un periodo que el usuario acaba de escribir y cuyo reporte no ha llegado.
+  // Y `hoy` se INYECTA para que la decisión sea pura y se pueda probar.
   const avisos = useMemo(
     () =>
       reporte
         ? avisosDelReporte({
             dimension: reporte.dimension,
+            desde: reporte.desde,
+            hasta: reporte.hasta,
+            hoy: new Date(),
             filas: reporte.filas,
             excluidas: reporte.excluidas,
             convencionM2: reporte.convencionM2,
@@ -262,13 +275,31 @@ export default function ReportesPage() {
                   se contó el metro cuadrado: una cifra por metro cuadrado sin
                   decir qué cuenta como metro cuadrado no se concilia con nada. */}
               {avisos.length > 0 ? (
-                <ul className="space-y-1 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
-                  {avisos.map((a) => (
-                    <li key={a.clave} className="flex items-start gap-1.5">
-                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      <span>{a.texto}</span>
-                    </li>
-                  ))}
+                <ul className="space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
+                  {avisos.map((a) => {
+                    // El del periodo sin cerrar se pinta en ÁMBAR y con el
+                    // triángulo, y los demás en gris con la «i»: no es el mismo
+                    // tipo de frase. Los otros cuentan lo que el reporte no
+                    // mide; este dice que las cifras que se están viendo
+                    // TODAVÍA NO SON las definitivas, y sin eso el margen se
+                    // lee como una pérdida real.
+                    //
+                    // Y el ámbar aquí no se gasta, que es la objeción de
+                    // siempre en este repo: este aviso solo sale cuando el
+                    // rango toca el trimestre vivo, así que sobre un periodo
+                    // cerrado la caja vuelve a ser toda gris.
+                    const alerta = a.clave === 'periodo-en-curso'
+                    const Icono = alerta ? AlertTriangle : Info
+                    return (
+                      <li
+                        key={a.clave}
+                        className={cn('flex items-start gap-1.5', alerta && 'font-medium text-warning')}
+                      >
+                        <Icono className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{a.texto}</span>
+                      </li>
+                    )
+                  })}
                 </ul>
               ) : null}
               <TablaRentabilidad

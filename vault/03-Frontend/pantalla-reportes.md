@@ -9,6 +9,7 @@ archivos:
   - apps/web/components/demo/reportes/estado.ts
   - apps/web/components/demo/reportes/tabla.ts
   - apps/web/components/demo/reportes/tabla.dimensiones.test.ts
+  - apps/web/components/demo/reportes/consulta.test.ts
   - apps/web/components/demo/reportes/FiltrosRentabilidad.tsx
   - apps/web/components/demo/reportes/TablaRentabilidad.tsx
   - apps/web/lib/modulos.ts
@@ -212,28 +213,82 @@ Y dos cosas que llegaron con ellas:
   servidor**. Solo se ofrece cuando hay más de un bucket: con uno repetiría la
   fila de arriba.
 
-### 3 · La pantalla abría en un periodo vacío
+### 3 · La pantalla abría en un periodo vacío, y **no se arregló cambiando el rango**
 
-Por omisión tomaba el **trimestre en curso**. En la base de demostración eso es
+Por omisión toma el **trimestre en curso**. En la base de demostración eso es
 jul-sep 2026, que no tiene ingresos pero **sí tiene renta**, así que lo primero
-que se veía era el negocio **perdiendo 184 500**.
+que se ve es `Ingreso $0.00 · Costo $184,500.00 · Margen ($184,500.00)` — y eso
+**se lee como una pérdida real cuando no lo es**.
 
-Abre en el **último trimestre CERRADO**, y el motivo es de producto y no de
-demo: un trimestre a medias siempre se lee peor que uno completo —la renta se
-devenga desde el día 1 y lo vendido se cobra al cerrar—, así que el reporte
-arrancaba dando una impresión falsa del negocio a cualquiera que lo abra.
-
-> [!tip] Es UNA línea, y es una decisión del dueño
-> `RANGO_DE_APERTURA` en `consulta.ts`. Cambiarla a `rangoDelTrimestreDe`
-> devuelve el trimestre en curso y nada más se toca; `rangoDelTrimestreDe` se
-> conserva por eso, y porque es la base con la que se calcula el cerrado.
+> [!important] Abre en el trimestre EN CURSO por DECISIÓN DEL DUEÑO, 2026-09-18
+> **Esto es lo primero que hay que leer de este apartado, porque el código
+> parece el defecto y no lo es.**
 >
-> El cerrado se calcula retrocediendo al día **anterior** al primero del
-> trimestre en curso (`new Date(anio, primerMes, 0)`) y preguntando por el
-> trimestre de ese día. Escrito como `mes - 3` sin cruzar el año, **enero daría
-> octubre a diciembre del año en curso**: un trimestre que todavía no ha pasado,
-> presentado como cerrado, y sin dar ningún error. Hay una prueba para ese caso
-> y otra para que el cerrado nunca solape al que está en curso.
+> Se implementó primero al contrario —abriendo en el último trimestre
+> **cerrado**— y se le llevó al dueño con las tres salidas y sus consecuencias.
+> **Eligió ver el trimestre VIVO al abrir**, porque es lo que quiere mirar. La
+> letra pequeña de su elección, que es el encargo que vino con ella: entonces el
+> engaño se arregla **por el otro lado**, avisando en pantalla de que el periodo
+> está incompleto.
+>
+> Así que **`RANGO_DE_APERTURA` no se "arregla"**. Si vuelve a cambiar de
+> opinión, se apunta a `rangoDelTrimestreCerradoDe` —que se conserva entero, con
+> sus pruebas, incluida la del cruce de año en enero— y nada más se toca.
+
+#### El aviso de periodo en curso, que es el precio de esa decisión
+
+Clave `periodo-en-curso` en `avisosDelReporte`, y **va primero de todos** porque
+cambia cómo se lee cada cifra que hay en pantalla: un aviso sobre la validez de
+los números puesto debajo de los números llega tarde. Se pinta en **ámbar y con
+el triángulo**, mientras los demás van en gris con la «i» — no es el mismo tipo
+de frase: los otros cuentan lo que el reporte no mide, este dice que lo que se
+está viendo **todavía no es definitivo**.
+
+Dice tres cosas, y ninguna es de adorno:
+
+1. **que el periodo sigue abierto**, con cuánto lleva corrido («80 de sus
+   92 días»);
+2. **el mecanismo** — la renta ya corrió esos días completos y lo vendido se
+   cobra al cerrar, así que el ingreso todavía no está dentro y el margen sale
+   peor de lo que va a quedar. Sin esto, «el periodo está incompleto» no explica
+   por qué la cifra es negativa ni hacia dónde se va a mover;
+3. **que no se compara** con un trimestre terminado.
+
+Y está escrito en lenguaje de negocio: quien lo lee vende publicidad. No hay un
+solo nombre de campo ni una palabra de código, y **hay una prueba que lo
+vigila** con una lista de jerga prohibida.
+
+> [!tip] La condición vale tanto como el aviso
+> Sale **solo cuando el rango solapa el trimestre en curso**
+> (`solapaTrimestreEnCurso`). Uno que saliera siempre no lo leería nadie — es la
+> lección del ámbar que dejó de avisar por salir en todo. Y su desaparición es
+> información: si el usuario mueve el rango a un trimestre terminado, el aviso se
+> va, y eso dice que las cifras que está viendo ya son definitivas.
+>
+> **El solape se decide por CALENDARIO, con `diaComparable`, y no con un `<=` de
+> cadenas.** `motivoInvalido` acepta `2026-9-1` sin cero a la izquierda, así que
+> aquí puede llegar; como texto va DESPUÉS de `2026-09-30` —el '9' pesa más que
+> el '0'—, y un `<=` de cadenas diría que septiembre no solapa con septiembre.
+> **El aviso no saldría justo en el mes en el que hace falta.** Es el defecto que
+> este repo ya pagó dos veces (`lib/server/fechas.ts:42-48`).
+>
+> Un solo día de solape basta, y está **medido en el navegador**: con el rango
+> `2026-04-01 → 2026-07-01`, el costo del espacio sube de 184 500 a **186 483.87**
+> por ese único día de renta de julio sin ingreso que lo acompañe. El aviso vuelve
+> a salir, y con razón.
+
+> [!note] Los tres campos del rango son OBLIGATORIOS en `ReporteParaAvisos`
+> `desde`, `hasta` y `hoy`, aunque solo los use un aviso. Con ellos opcionales,
+> la pantalla podía olvidarse de pasarlos y **el aviso dejaría de salir sin que
+> nada se quejara** — que es exactamente el defecto nº 2 de esta misma tanda,
+> campos opcionales del contrato que nadie leía. Obligatorios, el typecheck lo
+> impide, y de hecho lo impidió: al hacerlos obligatorios se pusieron rojas las
+> tres llamadas de `tabla.test.ts` que faltaban.
+>
+> `hoy` se **inyecta** en vez de leerse con `new Date()` dentro: es lo que
+> permite probar el aviso sin falsear el reloj. Y el rango sale de `reporte` y no
+> de `filtros`, porque el de los filtros puede ser uno que el usuario acaba de
+> escribir y cuyo reporte todavía no ha llegado.
 
 ## Los vacíos son honestos
 
@@ -242,7 +297,10 @@ arrancaba dando una impresión falsa del negocio a cualquiera que lo abra.
   el reporte), en vez de un «no hay datos» que deja sin saber si el problema son
   las fechas o el inventario.
 - **Lo que el reporte no mide, y lo que deja FUERA, se cuenta encima de la
-  tabla** (`avisosDelReporte`). Son cuatro avisos y cada uno tiene su porqué:
+  tabla** (`avisosDelReporte`). Son cinco avisos y cada uno tiene su porqué:
+  - **periodo en curso** — el primero y el único en ámbar: el rango toca un
+    trimestre que no ha cerrado, así que la renta ya corrió y el ingreso todavía
+    no está dentro. Ver § 3 de los tres defectos.
   - **sin contrato** — su costo del espacio sale en cero porque falta el dato,
     no porque sea gratis, así que su margen se lee mejor de lo que es.
   - **sin ingreso** — costaron y no vendieron: son justo las que este reporte
@@ -286,11 +344,14 @@ arrancaba dando una impresión falsa del negocio a cualquiera que lo abra.
 - **Los totales vienen del servidor** (`reporte.totales`) y no se suman aquí:
   dos sumas de lo mismo divergen, y la del servidor es la que cuadra con el
   desglose por periodo.
-- **El rango de apertura es el último trimestre CERRADO**, construido desde las
-  partes **locales** de la fecha. Con `toISOString()`, el 1.º de enero a
-  medianoche en México (UTC−6) sale como 31 de diciembre y el rango caería en el
-  trimestre anterior — la misma trampa que ya se pagó en `diasHasta`
-  (`derive.ts`).
+- **El rango de apertura es el trimestre EN CURSO** —decisión del dueño, ver
+  § 3— construido desde las partes **locales** de la fecha. Con `toISOString()`,
+  el 1.º de enero a medianoche en México (UTC−6) sale como 31 de diciembre y el
+  rango caería en el trimestre anterior — la misma trampa que ya se pagó en
+  `diasHasta` (`derive.ts`). Los días corridos del trimestre se cuentan
+  normalizando a UTC desde esas partes locales: una resta de dos `Date` en horas
+  da 23 o 25 el día del cambio de horario, y el redondeo de un trimestre entero
+  se iría un día.
 - **Al cambiar de dimensión se vuelve al orden de ESA dimensión**, no a uno
   fijo: conservar «margen ascendente» al pasar a trimestral ordenaba una serie
   de tiempo por importe.
@@ -322,25 +383,27 @@ marcar una casilla abría pantallas que nada mencionaba.
 
 | Archivo | Qué ancla | Casos |
 |---|---|---|
-| `components/demo/reportes/consulta.test.ts` | Los 4 parámetros exactos, el `basePath`, el rango invertido por calendario, **el trimestre cerrado de apertura y su cruce de año**, y que **ninguna dimensión se ofrece «en preparación»** | 22 |
+| `components/demo/reportes/consulta.test.ts` | Los 4 parámetros exactos, el `basePath`, el rango invertido por calendario, **el trimestre en curso de apertura**, el cerrado con su cruce de año, **el solape por calendario y los días corridos**, y que **ninguna dimensión se ofrece «en preparación»** | 32 |
 | `components/demo/reportes/estado.test.ts` | Las seis fases, **el 501 retirado y medido**, el `status: 0` que no es vacío, la matriz del spinner | 17 |
 | `components/demo/reportes/tabla.test.ts` | El `null` al final en las dos direcciones, la no mutación, el orden en español, el catálogo completo de columnas | 17 |
-| `components/demo/reportes/tabla.dimensiones.test.ts` | **Las columnas de cada dimensión**, el encabezado, el orden cronológico, las exclusiones y la convención del m², los avisos por dimensión, los formatos y el desglose | 38 |
+| `components/demo/reportes/tabla.dimensiones.test.ts` | **Las columnas de cada dimensión**, el encabezado, el orden cronológico, las exclusiones y la convención del m², los avisos por dimensión, **el aviso de periodo en curso y su condición**, los formatos y el desglose | 46 |
 | `components/demo/reportes/registro.test.ts` | El área bajo `finanzas` y los roles del menú | 8 |
 
-**1470 unitarias en 122 archivos** el 18/09 tras la ola 3, contra 1430 antes de
-ella. `npm run typecheck` limpio, `npm run build` en verde, `next lint` sin
+**1488 unitarias en 122 archivos** el 18/09 al cerrar la ola 3, contra 1430 al
+empezarla. `npm run typecheck` limpio, `npm run build` en verde, `next lint` sin
 avisos nuevos y **390 e2e en 36 archivos, con 1 omitida** — las e2e **sí se
 corrieron** esta vez, con el build hecho antes. Los recuentos caducan: si
 necesitas el número, córrelo.
 
-> [!tip] Los negativos son los que valen, y son cinco
+> [!tip] Los negativos son los que valen, y son siete
 > Una dimensión que trae columnas ajenas · `trimestre` ordenado por margen en
 > vez de cronológico · las exclusiones del m² que llegan y no se pintan · una
-> columna propia colada en el pie de totales · y el aviso de «pantallas sin
-> contrato» sobre filas que son trimestres. Los cinco describen algo que
-> **calcula bien y dice algo falso**, que es la única clase de defecto que esta
-> pantalla puede tener.
+> columna propia colada en el pie de totales · el aviso de «pantallas sin
+> contrato» sobre filas que son trimestres · **el aviso de periodo en curso
+> saliendo sobre un periodo ya cerrado** · y **el solape decidido comparando
+> texto**, que lo apagaría justo en el mes que importa. Los siete describen algo
+> que **calcula bien y dice algo falso**, que es la única clase de defecto que
+> esta pantalla puede tener.
 
 > [!warning] Y hay una clase de defecto que NINGUNA prueba automática cubre
 > Los tres de la ola 3 se vieron **mirando**. Las pruebas de ahora los fijan
@@ -377,13 +440,21 @@ necesitas el número, córrelo.
 > Santa Mónica: las cuatro dimensiones pintan sus columnas, el trimestral sale
 > cronológico (T3 2025 → T2 2026, con los márgenes **descendiendo**, que es
 > justo el caso donde el orden viejo lo invertía), el m² declara su convención y
-> sus exclusiones, y la pantalla abre en abr-jun 2026 con **+74 900** en vez de
-> la pérdida de 184 500 del trimestre en curso.
+> sus exclusiones, y el desglose por periodo se despliega por fila.
 >
-> **El presupuesto de la ruta se midió otra vez, porque es el riesgo crítico
-> del módulo:** `/reportes` pasó de **110 kB** a **111 kB** de primera carga,
-> contra 533 kB de `/inicio`. Nueve columnas, los avisos y el desglose caben en
-> **1 kB**: nada se colgó del store.
+> **Y la segunda pasada, con el rango de apertura ya vuelto al trimestre en
+> curso por decisión del dueño:** la pantalla abre en jul-sep 2026 enseñando
+> `Ingreso $0.00 · Margen ($184,500.00)` **con el aviso ámbar encima**, que dice
+> los 80 de 92 días y el porqué. Al mover el rango a abr-jun —un trimestre
+> terminado— **el aviso desaparece** y el margen sale en +74 900. Al estirarlo un
+> solo día dentro de julio, vuelve, y el costo del espacio sube a 186 483.87 por
+> ese día de renta sin ingreso. Con `m2` en curso se apilan **cuatro avisos** y
+> la tabla se sigue viendo entera debajo: no tapa nada.
+>
+> **El presupuesto de la ruta se midió las dos veces, porque es el riesgo
+> crítico del módulo:** `/reportes` pasó de **110 kB** a **111 kB** con las
+> columnas por dimensión, y a **112 kB** con el aviso — contra 533 kB de
+> `/inicio`. Nada se colgó del store.
 
 ## Relacionadas
 [[02-Backend/reportes-rentabilidad]] · [[02-Backend/reportes-dimensiones]] ·
