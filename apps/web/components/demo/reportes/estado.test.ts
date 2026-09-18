@@ -55,7 +55,7 @@ describe('2 · nunca un spinner infinito', () => {
     // El modo de fallo que este arnes existe para impedir. Se barre la matriz
     // entera en vez de un caso: el defecto aparece en la combinacion que nadie
     // escribio a mano.
-    for (const status of [200, 400, 401, 403, 404, 500, 501]) {
+    for (const status of [0, 200, 302, 400, 401, 403, 404, 500, 501]) {
       for (const filas of [0, 1, 250]) {
         for (const mensaje of [null, 'algo paso']) {
           const e = estadoDeReporte({ ...listo, cargando: false, respuesta: { status, mensaje, filas } })
@@ -114,6 +114,23 @@ describe('4 · cero filas no es un error, y un error no es cero filas', () => {
     const e = estadoDeReporte({ ...listo, respuesta: { status: 403, mensaje: 'Sin permiso para finanzas', filas: 0 } })
     expect(e.fase).toBe('error')
     expect(e.mensaje).toBe('Sin permiso para finanzas')
+  })
+
+  it('una peticion que NO LLEGO (status 0) es `error`, jamas `vacio`', () => {
+    // Aparecio al cablear la pantalla: un fallo de red no trae status HTTP, y
+    // el `fetch` revienta antes de que haya cuerpo. Con el corte escrito como
+    // `status >= 400`, ese caso caia por debajo y con cero filas se pintaba
+    // «no hubo movimiento en el rango» — una afirmacion FALSA sobre el
+    // negocio puesta encima de un cable desconectado. Es el mismo defecto que
+    // el hallazgo C1 de la auditoria QA: el sistema vacio indistinguible del
+    // sistema no cargado.
+    const e = estadoDeReporte({ ...listo, respuesta: { status: 0, mensaje: 'No se pudo contactar al servidor', filas: 0 } })
+    expect(e.fase).toBe('error')
+    expect(e.mensaje).toContain('servidor')
+  })
+
+  it('un 3xx tampoco es un exito: solo el 2xx trae reporte', () => {
+    expect(estadoDeReporte({ ...listo, respuesta: { status: 302, mensaje: null, filas: 0 } }).fase).toBe('error')
   })
 
   it('un error sin mensaje trae uno honesto, nunca vacio', () => {

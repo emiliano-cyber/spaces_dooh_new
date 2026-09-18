@@ -70,7 +70,15 @@ export function estadoDeReporte(e: EntradaEstado): EstadoReporte {
     }
   }
 
-  if (status >= 400) {
+  // SOLO el 2xx trae reporte, y el corte se escribe así —no como
+  // `status >= 400`— por un caso que no tiene status HTTP: cuando la petición
+  // no llega (red caída, servidor apagado) no hay respuesta ni cuerpo, y quien
+  // pide lo representa con `status: 0`. Con el corte en 400, ese caso caía por
+  // debajo y, con cero filas, se pintaba «no hubo movimiento en el rango»:
+  // una afirmación FALSA sobre el negocio encima de un cable desconectado.
+  // Es el hallazgo C1 de la auditoría QA otra vez —el sistema vacío
+  // indistinguible del no cargado—, y no da ningún error.
+  if (status < 200 || status >= 300) {
     // Nunca un mensaje vacío: un error sin texto se pinta como una caja gris y
     // manda al usuario a revisar sus filtros por un problema que no es suyo.
     return {

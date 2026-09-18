@@ -19,7 +19,11 @@ import {
 //  sale del `.tsx`.
 // ============================================================================
 
-function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
+// La `clave` viaja con la fila porque es su identidad (la llave de React), no
+// una medida: no se ordena por ella y no es parte de `FilaOrdenable`.
+type FilaDePrueba = FilaOrdenable & { clave: string }
+
+function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
   return {
     etiqueta: p.clave,
     ingreso: 0,
@@ -33,7 +37,7 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
   }
 }
 
-const filas: FilaOrdenable[] = [
+const filas: FilaDePrueba[] = [
   fila({ clave: 'a', etiqueta: 'Periferico Sur', ingreso: 100_000, margen: 40_000, margenPct: 40, costoTotal: 60_000 }),
   fila({ clave: 'b', etiqueta: 'Andes', ingreso: 50_000, margen: -10_000, margenPct: -20, costoTotal: 60_000 }),
   fila({ clave: 'c', etiqueta: 'Ángeles', ingreso: 0, margen: -15_000, margenPct: null, costoTotal: 15_000, tieneContrato: true }),
