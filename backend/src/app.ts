@@ -6,6 +6,7 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { createRoutes } from './routes';
 import { env } from './config/env';
+import { firmaValida } from './utils/firmaArchivos';
 
 export function createApp() {
   const app = express();
@@ -37,7 +38,24 @@ export function createApp() {
   // Serve locally-stored photos (STORAGE_DRIVER=local). Sin esto, /storage/*.jpg
   // caeria en el fallback SPA y devolveria index.html en vez de la imagen.
   if (env.STORAGE_DRIVER === 'local') {
+    // Portero ANTES del static: sin firma valida no se sirve el archivo.
+    //
+    // Hasta el 2026-09-14 esto estaba abierto: cualquiera con la URL veia la
+    // foto de cualquier pantalla de cualquier cliente. Va montado aqui y no
+    // dentro de express.static porque static responde y termina; si el filtro no
+    // corre antes, no corre nunca.
+    app.use('/storage', (req, res, next) => {
+      const ruta = decodeURIComponent(req.baseUrl + req.path);
+      if (firmaValida(ruta, req.query.exp, req.query.sig)) return next();
+      res.status(403).json({ error: 'enlace_invalido_o_vencido' });
+    });
     app.use('/storage', express.static(path.resolve(process.cwd(), env.STORAGE_DIR)));
+    // Si el archivo no esta, express.static llama a next() y la peticion cae en
+    // el comodin de mas abajo, que devuelve index.html con 200. O sea que pedir
+    // una foto borrada contestaba una PAGINA WEB haciendose pasar por imagen: el
+    // navegador pinta una imagen rota y el ai-worker intenta decodificar HTML
+    // como JPEG. Aqui se corta con un 404 honesto.
+    app.use('/storage', (_req, res) => res.status(404).json({ error: 'archivo_no_encontrado' }));
   }
 
   // API routes

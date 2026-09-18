@@ -8,6 +8,7 @@ import { env } from '../config/env';
 import { pool } from '../config/database';
 import { verificationQueue } from './verification.service';
 import { estaTransmitiendo } from '../utils/streamWatchdog';
+import { firmar } from '../utils/firmaArchivos';
 
 const s3 = new S3Client({
   endpoint: env.SPACES_ENDPOINT,
@@ -61,7 +62,10 @@ export async function deleteStored(storagePath: string): Promise<void> {
 // - En otro caso: se asume clave de Spaces/S3 y se construye la URL publica.
 export function resolveStorageUrl(storagePath: string): string {
   if (/^https?:\/\//i.test(storagePath)) return storagePath;
-  if (storagePath.startsWith('/')) return `${env.PUBLIC_BASE_URL}${storagePath}`;
+  // El ai-worker descarga esto con un GET pelado, sin cabeceras, asi que la
+  // autorizacion tiene que ir DENTRO de la URL. Vigencia larga a proposito: la
+  // verificacion pasa por una cola y puede tardar en salir de ella.
+  if (storagePath.startsWith('/')) return `${env.PUBLIC_BASE_URL}${firmar(storagePath, 24 * 3600)}`;
   return `${env.SPACES_ENDPOINT}/${env.SPACES_BUCKET}/${storagePath}`;
 }
 

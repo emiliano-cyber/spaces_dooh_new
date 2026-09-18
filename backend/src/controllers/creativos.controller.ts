@@ -10,6 +10,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../config/database';
 import { z } from 'zod';
+import { firmarFilas } from '../utils/firmaArchivos';
 
 /** Bits distintos entre dos huellas de 256 bits en hexadecimal. */
 export function distancia(a: string, b: string): number {
@@ -174,7 +175,7 @@ export async function listarDeEquipo(req: Request, res: Response) {
   res.json({
     config,
     fotos_hoy: await fotosDeHoy(did),
-    creativos: filas,
+    creativos: firmarFilas(filas as any[]),
   });
 }
 

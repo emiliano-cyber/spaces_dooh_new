@@ -161,7 +161,10 @@ async function downloadAlbumZip(photos, zipName, onProgress) {
       } else {
         blob = await (await fetch(p.storage_path)).blob();
       }
-      const base = (p.storage_path.split('/').pop() || ('photo_' + p.id + '.jpg'));
+      // Se corta la consulta antes del nombre: desde que /storage exige firma,
+      // storage_path trae `?exp=...&sig=...`, y `?` y `&` no son caracteres
+      // validos en un nombre de archivo de Windows — el ZIP salia ilegible.
+      const base = (p.storage_path.split('?')[0].split('/').pop() || ('photo_' + p.id + '.jpg'));
       zip.file(base, blob);
     } catch (e) {
       /* omitir la que falle */
