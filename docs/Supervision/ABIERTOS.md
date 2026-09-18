@@ -7,11 +7,21 @@
 > **Nace el 2026-09-18**, sobre `integra/entidades-y-reportes` medida en el worktree
 > `.claude/worktrees/entidades`. Fecha dura: **2026-10-14, OOH SUMMIT** — 26 días.
 
-**Veredicto vigente de la rama: 🔴 ROJO.** Lo que lo impide y lo que lo cierra está
-en el informe de la jornada; el resumen es: la puerta obligatoria de e2e **no se
-corrió** (la rama toca sesión, tenant, dinero y migraciones, así que la lista de
-`AGENTES.md` la exige) y la pantalla de reportes **abre afirmando una pérdida que no
-ocurrió**. Ninguna de las dos es trabajo grande.
+~~**Veredicto vigente de la rama: 🔴 ROJO.**~~ **Superado el 2026-09-18, tarde.** Los
+dos motivos del rojo están cerrados y medidos:
+
+- la puerta de e2e **se corrió en este árbol**: `41 archivos · 461 pruebas · 1 omitida`,
+  exit 0, 198 s, con el build hecho antes;
+- la pantalla de reportes ya **no afirma una pérdida sin decirlo**: el dueño eligió
+  seguir abriendo en el trimestre vivo y entró un aviso en ámbar condicionado.
+  Verificado en el navegador: sale en jul–sep 2026 y **desaparece** al mover el rango
+  a abr–jun 2026.
+
+**Veredicto vigente de `chore/cierre-ola4`: 🟠 ÁMBAR** — aterriza con la deuda de
+abajo declarada. Medido el **2026-09-18** en el worktree `.claude/worktrees/entidades`.
+El ámbar que de verdad importa es **B23**: la base de demostración del SUMMIT dejó de
+aceptar migraciones, y es lo único de esta lista que puede parar trabajo en los 26
+días que quedan.
 
 ---
 
@@ -21,9 +31,29 @@ Ordenadas por **cuánto trabajo bloquea cada una**, que es el orden en que convi
 preguntarlas. Están escritas para leerse en voz alta: sin jerga y sin rutas de
 archivo dentro de la pregunta.
 
+> **Estado al 2026-09-18, tarde.** De las seis, **cinco están contestadas y
+> construidas** (D1, D2, D3, D4, D5) — y en tres de ellas el dueño eligió **algo
+> distinto de lo que yo recomendaba**, que es como debe ser. **Quedan vivas: D6** y
+> la nueva **D7**. Las contestadas se conservan tachadas, con la elección y con qué
+> se comprobó que está aplicada y no solo escrita.
+
 ---
 
-### D1 · El jefe pidió medir el consumo de luz. Hoy no existe ese dato en ningún sitio: ¿quién lo va a teclear, y cada cuánto?
+### ~~D1 · El jefe pidió medir el consumo de luz. Hoy no existe ese dato en ningún sitio: ¿quién lo va a teclear, y cada cuánto?~~
+
+> ✅ **CONTESTADA por el dueño y CONSTRUIDA. 2026-09-18.** Eligió la opción (a),
+> captura manual, con el grano en **predio y mes** y no en pantalla y mes.
+> **Con qué se midió:** tabla `consumos_energia` creada por
+> `db/migrations/20260918_consumos_energia.sql:28`, pantalla **Consumo de luz** en
+> el bloque de Operaciones (`components/demo/shell/nav.ts`), endpoints
+> `app/api/energia/consumos/route.ts:34,49` con `exigir('operaciones','ver'|'crear')`,
+> y **40 recibos sembrados** en `spaces_ver2`
+> (`select count(*) from consumos_energia` → `40`). Vista en el navegador el 18/09:
+> rejilla predio × mes con los huecos en ámbar y el aviso literal «Faltan 14 de 24
+> recibos del periodo». La quinta dimensión del reporte calcula:
+> `Luz $30,990.00` sobre abr–jun 2026, con columnas `CONSUMO` y `COSTO / KWH`.
+
+
 
 - **Bloquea:** la quinta forma de ver el reporte, completa. No hay dónde guardar un
   consumo, no hay pantalla para capturarlo y no hay un solo registro en la base. Es
@@ -58,7 +88,24 @@ archivo dentro de la pregunta.
 
 ---
 
-### D2 · Las razones sociales se pueden guardar, pero no hay pantalla para verlas ni para usarlas. ¿Se enseña esto el 14 de octubre, o se deja para después?
+### ~~D2 · Las razones sociales se pueden guardar, pero no hay pantalla para verlas ni para usarlas. ¿Se enseña esto el 14 de octubre, o se deja para después?~~
+
+> ✅ **CONTESTADA por el dueño y CONSTRUIDA COMPLETA. 2026-09-18.** Eligió la (a),
+> no la (b) que yo recomendaba: pantalla **y** asignación.
+> **Con qué se midió:** pantalla `/razones-sociales`
+> (`app/(app)/(shell)/razones-sociales/page.tsx`), entrada propia en el menú
+> (`components/demo/shell/nav.ts:153`, rol `DUENO`), selector de entidad en
+> contratos y comprobantes (`8c6002e`), y **3 razones sociales sembradas** en
+> `spaces_ver2` con **3 de 4 contratos asignados**
+> (`select count(*) total, count(entidad_id) from contratos_arrendamiento` → `4 | 3`).
+> Vista en el navegador el 18/09: tres renglones con RFC, régimen y sus papeles, y
+> los botones «+ Nueva razón social» · «Editar» · «Dar de baja». Con eso **B10
+> también queda cerrada**.
+>
+> ⚠️ **Pero la promesa falsa que motivó esta pregunta sigue viva a medias** — ver
+> **B26**: el cuestionario sigue mandando a «Administración», donde no hay nada.
+
+
 
 - **Bloquea:** la mitad del alcance que pidió el jefe. Hoy el sistema sabe guardar
   varias razones sociales y para qué sirve cada una, pero **nadie puede verlas ni
@@ -92,7 +139,36 @@ archivo dentro de la pregunta.
 
 ---
 
-### D3 · El reporte de rentabilidad abre en el trimestre en curso, que todavía no ha terminado. ¿Debe abrir ahí, o en el último trimestre cerrado?
+### ~~D3 · El reporte de rentabilidad abre en el trimestre en curso, que todavía no ha terminado. ¿Debe abrir ahí, o en el último trimestre cerrado?~~
+
+> ✅ **CONTESTADA por el dueño. 2026-09-18.** Eligió la **(b)**, no la (a) que yo
+> recomendaba: **abre en el trimestre vivo, porque es lo que quiere mirar**, y el
+> engaño se arregla por el otro lado —diciéndolo en pantalla—.
+>
+> **Con qué se midió que la elección está aplicada y no solo escrita:**
+> `RANGO_DE_APERTURA` es `rangoDelTrimestreDe` (`consulta.ts:236`), el camino de
+> vuelta `rangoDelTrimestreCerradoDe` se conserva entero con sus pruebas
+> (`consulta.ts:195`), y el aviso sale de `avisosDelReporte` con la clave
+> `periodo-en-curso` bajo la condición `solapaTrimestreEnCurso` (`consulta.ts:241`).
+> **Visto en el navegador el 18/09, las dos mitades:** en jul–sep 2026 la pantalla
+> abre con `Ingreso $0.00 · Costo $238,500.00 · Margen ($238,500.00)` **y** el ámbar
+> encima diciendo «El periodo que estás viendo toca T3 2026, que está EN CURSO:
+> llevan 80 de sus 92 días… No lo compares con un trimestre terminado»; al mover el
+> rango a abr–jun 2026 la pantalla da `Ingreso $462,000.00 · Margen 22.4 %` y **el
+> ámbar desaparece**. Esa desaparición es la parte que hace que el aviso valga: no
+> sale siempre.
+>
+> **Juicio del supervisor sobre el aviso, que es lo que se me pidió:** basta. La
+> condición muerde (probada en `consulta.test.ts:187,205,212,219,233`, incluido el
+> caso `2026-9-1` sin cero a la izquierda, que es el que un `<=` de cadenas habría
+> dejado pasar justo en el mes que importa). Queda un residuo declarado, **no un
+> motivo de rojo**: las cuatro cifras grandes del encabezado —las pensadas para
+> leerse de lejos en un proyector— **no llevan el ámbar dentro**, así que a tres
+> metros de la pantalla se lee «−$238,500.00 en rojo» sin el matiz. Si el dueño
+> quiere cubrir eso sin cambiar su decisión, lo barato es marcar el propio KPI, no
+> mover el rango.
+
+
 
 - **Bloquea:** que la pantalla de reportes se pueda enseñar. No bloquea nada más: se
   cambia en un renglón y la vuelta atrás es el mismo renglón.
@@ -124,7 +200,23 @@ archivo dentro de la pregunta.
 
 ---
 
-### D4 · Una pantalla de dos caras de 3 × 6 metros: ¿son 18 metros cuadrados o 36?
+### ~~D4 · Una pantalla de dos caras de 3 × 6 metros: ¿son 18 metros cuadrados o 36?~~
+
+> ✅ **CONTESTADA por el dueño. 2026-09-18.** Eligió la **(b), todas las caras**.
+> **Con qué se midió:** `MULTIPLICAR_M2_POR_CARAS = true` (`lib/data/reportes.ts:1227`),
+> `CONVENCION_M2 = 'todas-las-caras'` (`:1229`), aplicado en `superficieM2()` (`:1236`).
+> Y verificado en el navegador el 18/09 con dos pantallas que existen a propósito
+> para esto: **«Doble Cara DEMO Insurgentes» = 80.00 m²** y **«Una Cara DEMO
+> Insurgentes» = 40.00 m²**, el doble exacto. La pantalla **declara la convención**,
+> que era la condición que yo ponía en «si nadie contesta»: «La superficie suma
+> TODAS las caras de cada pantalla: una de dos caras de 3 × 6 cuenta 36 m², no 18».
+> Y dice cuántas dejó fuera: «Quedaron fuera del ranking: 2 estáticas sin ancho o
+> sin alto capturados».
+>
+> ⚠️ **La bitácora todavía dice lo contrario más arriba de donde lo corrige** — ver
+> **B25**.
+
+
 
 - **Bloquea:** la columna de metros cuadrados del reporte, que está a medio hacer, y
   cualquier cifra por metro cuadrado que se presente como definitiva. El resto del
@@ -152,7 +244,24 @@ archivo dentro de la pregunta.
 
 ---
 
-### D5 · Las cinco etiquetas de para qué sirve cada razón social («paga las rentas», «vende publicidad»…): ¿se quedan fijas para todos, o cada dueño define las suyas?
+### ~~D5 · Las cinco etiquetas de para qué sirve cada razón social («paga las rentas», «vende publicidad»…): ¿se quedan fijas para todos, o cada dueño define las suyas?~~
+
+> ✅ **CONTESTADA por el dueño. 2026-09-18.** Eligió la **(a), las cinco fijas** —no
+> la (c) que yo recomendaba—, y **siguen viviendo en una tabla, no en el código**,
+> que es lo que deja abierta la (c) para después sin rehacer nada.
+> **Con qué se midió:** `catalogo_roles_entidad` con los cinco `insert … on conflict
+> do nothing` (`db/migrations/20260917_entidades_fiscales.sql:62,76-82`), y
+> `entidad_roles.rol` los referencia por clave ajena (`:117`). Las cinco etiquetas,
+> tal como se leen en pantalla el 18/09: «Paga las rentas a los arrendadores» ·
+> «Compra los activos y el equipo» · «Tramites y licencias con gobierno» ·
+> «Operacion y nomina» · «Vende publicidad».
+>
+> **Consecuencia que conviene que sepa quien enseñe el producto**, y que era mi
+> condición de aceptabilidad: un cliente que pida una sexta etiqueta o un nombre
+> distinto **espera un despliegue**. La tabla hace que ese despliegue sea una
+> migración de una línea, no un cambio de código.
+
+
 
 - **Bloquea:** el diseño de la pantalla de razones sociales (la de D2). Una lista
   fija es un menú de cinco opciones; una lista propia de cada dueño necesita además
@@ -206,6 +315,38 @@ archivo dentro de la pregunta.
 
 ---
 
+### D7 · El manual de usuario está escrito pero sin ilustrar, y le faltan cinco frases que solo se ven provocando un error. ¿Se termina antes del 14 de octubre, o se enseña el producto sin manual?
+
+- **Bloquea:** nada del producto. Bloquea **poder dejarle algo en la mano** a quien
+  vea la demostración. Todo lo de la lista B avanza sin esta respuesta.
+- **Por qué importa:** el manual ya cubre las tres áreas nuevas y **ocho de sus
+  catorce huecos se cerraron mirando la aplicación**, con el texto tal como sale en
+  pantalla. Quedan cinco frases que hay que provocar —qué dice el sistema cuando una
+  empresa no tiene ninguna razón social, cuando un papel no tiene dueño, cuando se
+  borra un recibo de luz— y, aparte, **no tiene una sola captura de pantalla**.
+  Terminarlo es media jornada de alguien recorriendo la aplicación a propósito; no
+  es trabajo de programar.
+- **Opciones:**
+  - **a) Se termina completo, con capturas.** Es lo que se le puede entregar a un
+    cliente el mismo día. Coste: media jornada de una persona recorriendo la
+    aplicación, y hay que hacerlo **después** de que no vaya a cambiar nada más de
+    pantalla, o las capturas nacen viejas.
+  - **b) Se cierran solo las cinco frases, sin capturas.** Queda un manual correcto
+    y utilizable, en texto. Coste: menos presentable, y el que lo lea sin el producto
+    delante se pierde.
+  - **c) No entra al 14 de octubre.** Coste: se enseña el producto y no hay nada que
+    dejar; quien se interese se va con la memoria.
+- **Recomendación:** **(b) ahora y (a) la semana del 6 de octubre**, cuando ya no se
+  esperen cambios de pantalla. Hacer las capturas antes es tirarlas. Recomendar no es
+  decidir.
+- **Si nadie contesta:** se queda como está —completo en lo que se pudo comprobar, con
+  cinco huecos marcados como preguntas— y sin capturas. **Es aceptable** si nadie
+  espera repartir un manual el día del SUMMIT; no lo es si alguien lo da por hecho.
+- **Caduca:** **2026-10-06.** Después no hay hueco para recorrer la aplicación y
+  maquetar antes de la fecha.
+
+---
+
 ## B · Advertencias por estabilizar
 
 Separadas en dos grupos, porque **mezclarlas es cómo se pierde la importante**: una
@@ -214,7 +355,18 @@ calendario.
 
 ### B · i — Críticas por SEVERIDAD (fallo silencioso · dato que miente)
 
-#### B1 · La pantalla de reportes abre afirmando una pérdida de $184,500 que no ocurrió
+#### ~~B1 · La pantalla de reportes abre afirmando una pérdida de $184,500 que no ocurrió~~
+
+> ✅ **CERRADA el 2026-09-18, y NO como yo lo proponía.** No se cambió el rango: el
+> dueño decidió mantenerlo (D3) y se añadió el aviso en ámbar. Ya no «afirma una
+> pérdida», la **enmarca**.
+> **Con qué se midió:** los dos estados vistos en el navegador contra `spaces_ver2`
+> en el 3409 — con el ámbar en jul–sep 2026 y sin él en abr–jun 2026, donde la misma
+> pantalla da `Ingreso $462,000.00 · Margen 22.4 %`. La cifra de la pérdida de
+> apertura, por cierto, **ya no es 184 500 sino 238 500**: la semilla creció, y eso
+> confirma que el número era del dato y no del código.
+> **Residuo declarado, no bloqueante:** las cuatro cifras grandes del encabezado no
+> llevan el matiz dentro (detalle en D3).
 
 - **Qué es:** el reporte abre en el trimestre en curso, donde el costo del espacio ya
   corrió pero las ventas todavía no están dentro. No es una pantalla vacía —eso se
@@ -239,7 +391,14 @@ calendario.
 - **Si no se cierra antes del 14/10:** la pantalla nueva —la que se construyó para
   el SUMMIT— abre en rojo con una pérdida inventada delante de los clientes.
 
-#### B2 · La base `spaces` del 5433 bloquea toda migración — y **la causa está medida: son los finales de línea, no el contenido**
+#### ~~B2 · La base `spaces` del 5433 bloquea toda migración~~ — **el diagnóstico se confirmó, el arreglo se aplicó a medias, y el problema CRECIÓ. Sigue en B23**
+
+> ⚠️ **2026-09-18, tarde.** El paso (2) está hecho y es correcto: `.gitattributes`
+> congela `db/migrations/*.sql` a LF (`git check-attr text eol -- …` →
+> `text: set · eol: lf`, y los `.sql` en disco están **sin un solo CRLF**, medido).
+> El paso (1) —la reconciliación del registro— **no se ha corrido**, y sin él el
+> arreglo del (2) **invirtió qué bases están rotas**. Los números nuevos están en
+> **B23**, que es donde sigue viva esta advertencia.
 
 - **Qué es:** el runner de migraciones aborta contra `spaces` con cinco checksums
   divergentes. Frenó a dos agentes. **No es una divergencia de contenido:** el SQL
@@ -285,7 +444,31 @@ calendario.
   desarrollo, que es precisamente lo que hace falta para D1 (la tabla del consumo
   de luz).
 
-#### B3 · Una fila puede colgarse de la razón social de OTRA organización, y la base lo permite — **comprobado, no deducido**
+#### ~~B3 · Una fila puede colgarse de la razón social de OTRA organización, y la base lo permite~~
+
+> ✅ **CERRADA el 2026-09-18 en el esquema, que era la opción buena de las dos.**
+> `0d85521`, con su rojo previo en `e9605c9` («el rojo del insert cruzado que las FK
+> planas dejaban pasar»).
+> **Con qué se midió — leído de la base, no del archivo.** En `spaces_ver2`:
+> ```
+> select conname, pg_get_constraintdef(oid) from pg_constraint
+>  where confrelid='entidades_fiscales'::regclass and contype='f';
+>
+> entidad_roles_entidad_tenant_fkey            FOREIGN KEY (entidad_id, tenant_id)
+>   REFERENCES entidades_fiscales(id, tenant_id) ON DELETE CASCADE
+> contratos_arrendamiento_entidad_tenant_fkey  FOREIGN KEY (entidad_id, tenant_id)
+>   REFERENCES entidades_fiscales(id, tenant_id) ON DELETE SET NULL (entidad_id)
+> facturas_entidad_emisora_tenant_fkey         FOREIGN KEY (entidad_emisora_id, tenant_id)
+>   REFERENCES entidades_fiscales(id, tenant_id) ON DELETE SET NULL (entidad_emisora_id)
+> ```
+> Las **tres** llevan la pareja; ninguna queda plana. Y la migración no se cree a sí
+> misma: su §6 es un `assert` **dentro de la transacción** que revienta si alguna
+> sigue con una sola columna (`20260918_entidad_tenant_compuesto.sql`), así que un
+> arreglo a medias revierte en vez de dejar la base afirmando que el agujero está
+> cerrado. Los dos detalles que podían romper comportamiento están resueltos y
+> escritos: `MATCH SIMPLE` deja entrar «sin asignar», y `on delete set null
+> (entidad_id)` con lista de columnas explícita evita anular el `tenant_id`.
+> **Y no toca ni un importe:** `subtotal`, `igv` y `monto` no aparecen en el archivo.
 
 - **Qué es:** las tres claves que apuntan a `entidades_fiscales` no llevan el
   componente de organización, y en Postgres **la comprobación de una clave ajena no
@@ -323,7 +506,27 @@ calendario.
   trabajo de D2, y entonces será un fallo de aislamiento entre clientes que no da
   error.
 
-#### B4 · Tres de las cuatro dimensiones dicen «(en preparación)» y las tres funcionan; y la tabla no enseña ninguna columna de su dimensión
+#### ~~B4 · Tres de las cuatro dimensiones dicen «(en preparación)» y las tres funcionan; y la tabla no enseña ninguna columna de su dimensión~~
+
+> ✅ **CERRADA el 2026-09-18, las dos mitades, y lo que la cierra es un navegador.**
+> **Con qué se midió — leído del selector en la aplicación el 18/09:** «Por
+> pantalla» · «Por trimestre» · «Por operación» · «Por metro cuadrado» · «Por
+> consumo de luz». **Ninguna dice «(en preparación)»**, y son cinco, no cuatro.
+> Y las columnas ya son propias de cada dimensión, columna por columna:
+> - **por metro cuadrado** → `SUPERFICIE` · `INGRESO / M²` · `MARGEN / M²`, con la
+>   convención declarada encima y las excluidas contadas;
+> - **por operación** → `VISITAS` · `OPERACIÓN / INGRESO` · `HORAS EN SITIO` («36.0 h
+>   de 9 visitas»), con el desglose por tipo de visita en el subtítulo de cada
+>   renglón — las tres cosas que `Registro_Cambios.md` prometía y no se veían;
+> - **por consumo de luz** → `CONSUMO` (kWh) · `COSTO / KWH`;
+> - **por trimestre** → la primera columna se llama **`TRIMESTRE`** y el renglón dice
+>   «T2 2026 · 2026-04-01 a 2026-06-30». Era el síntoma más feo del `Pick` de
+>   `tabla.ts`: trimestres bajo un encabezado que decía PANTALLA.
+>
+> Y «por operación» y «por pantalla» **ya no devuelven tablas idénticas**: para
+> abr–jun 2026 la primera trae cuatro columnas que la segunda no tiene.
+> **La duda que dejé declarada queda resuelta con la medición:** sí estaba
+> resolviéndose en `ola3/reportes-columnas`, y aterrizó en `cb6ffc2`.
 
 - **Qué es:** dos defectos del mismo sitio, los dos visibles solo en un navegador.
   (1) el selector etiqueta como no disponibles tres dimensiones que calculan
@@ -363,11 +566,42 @@ calendario.
   listo justo donde sí lo está, y tres de las cinco vistas que pidió el jefe se ven
   idénticas entre sí.
 
-#### B5 · `CLAUDE.md` arrastra otra vez las seis cifras que él mismo avisa que ya tuvo mal
+#### B5 · `CLAUDE.md` arrastra otra vez las seis cifras — **SE CORRIGIÓ Y VOLVIÓ A CADUCAR EN LA MISMA RAMA. Tercera vez. Sigue ABIERTA, y ahora el MOC también**
 
-- **Qué es:** lo primero que lee un agente al abrir el repositorio empieza con seis
-  números falsos. El MOC ya está corregido; este no.
-- **Evidencia (medido en este árbol, contra lo que afirma el archivo):**
+> 🔴 **Remedido el 2026-09-18, tarde. Esto es lo más instructivo de todo el
+> expediente y por eso no se tacha.** `cc5f6a1` corrigió las seis, y las dejó
+> **exactas en ese commit** — comprobado: en `cc5f6a1` el árbol tenía 96 endpoints,
+> 82 migraciones y 79 notas, justo lo que el archivo dice. Lo que pasó después es
+> que **la misma rama siguió**: `f0db34b`, `0d85521`, `a4639dc` y `8c6002e` añadieron
+> cuatro `route.ts` y dos migraciones, y `38c44fb` cuatro notas. Nadie volvió a
+> medir, y la rama tocó `CLAUDE.md` **dos veces más** (`447b01d`, `726fc48`) sin
+> hacerlo.
+>
+> **Y esta vez el MOC no salva:** `MOC-Proyecto.md:30-32` arrastra las mismas tres.
+> La corrección del 18/09 de la mañana fue «copiar del MOC»; hoy no hay de dónde
+> copiar, hay que medir.
+>
+> | Afirma | Dónde | Dice | **Medido en HEAD (`b9b0a31`)** | Con qué |
+> |---|---|---|---|---|
+> | Endpoints | `CLAUDE.md:100` · `MOC:30` | 96 | **98** | `find apps/web/app/api -name route.ts \| wc -l` |
+> | Tablas | `CLAUDE.md:101` · `MOC:31` | 43 | **44** | `select count(*) … information_schema.tables` en `spaces_ver2`; lo confirma el guard `esquema-sin-owner.e2e.test.ts:163` |
+> | Migraciones | `CLAUDE.md:102` · `MOC:32` | 82 | **84** | `ls db/migrations/*.sql \| wc -l` |
+> | Notas de bóveda | `CLAUDE.md:36,42` | 79 | **83** | `find vault -name '*.md' \| wc -l` |
+> | Enlaces internos | `CLAUDE.md:42` | «~1000» | **1087** | recorrido de wikilinks sobre las 83 notas |
+> | Huérfanas | `CLAUDE.md:42` | 2 | **1** (`diario/2026-09-17.md`) | el mismo recorrido |
+> | ADR | `CLAUDE.md:25` · `MOC:33` | 0035 / 35 | **0035 / 35** ✅ | `ls docs/adr/*.md \| wc -l` |
+>
+> Los rotos **sí** siguen siendo 2, y son los dos de `diario/2026-09-07.md` que ya
+> estaban en B14: apuntan a `docs/adr/` desde dentro de `vault/`.
+>
+> **Lo que esto enseña, y es más valioso que las seis cifras:** el problema no es que
+> nadie las actualice, es que **se actualizan a mano en medio de una rama que sigue
+> creciendo**. Cualquier corrección manual caduca en el commit siguiente. Mientras no
+> haya un chequeo que las mida, este apartado va a volver — van tres.
+
+- **Qué era (18/09, mañana):** lo primero que lee un agente al abrir el repositorio
+  empieza con seis números falsos. El MOC ya está corregido; este no.
+- **Evidencia de entonces (medida contra lo que afirmaba el archivo):**
 
   | Afirma | Dónde | Dice | Medido |
   |---|---|---|---|
@@ -387,7 +621,16 @@ calendario.
 - **Si no se cierra antes del 14/10:** cada agente que entre arranca con seis datos
   falsos. Es el sitio del repositorio donde un número equivocado cuesta más.
 
-#### B6 · La trampa que costó un diagnóstico hoy está escrita en un solo sitio, y es el único que casi nadie lee
+#### ~~B6 · La trampa que costó un diagnóstico hoy está escrita en un solo sitio, y es el único que casi nadie lee~~
+
+> ✅ **CERRADA el 2026-09-18** por `cc5f6a1`, y exactamente donde pedía: pegada al
+> aviso de las e2e.
+> **Con qué se midió:** `CLAUDE.md:252-267` trae el recuadro
+> «reconstruir `.next` con un `next start` YA CORRIENDO deja la página EN BLANCO»,
+> con el diagnóstico por `BUILD_ID` y —lo que más falta hacía— **«al reiniciar, mata
+> al dueño del puerto, no al envoltorio de `npx`»** (`:267`). Usado hoy: el servidor
+> del 3409 se apagó por su PID (`netstat -ano` → 6376 → `taskkill`), no por el
+> envoltorio.
 
 - **Qué es:** reconstruir `.next` con un `next start` ya corriendo deja la página
   **en blanco sin ningún error** — el navegador pide trozos de un build que ya no
@@ -410,7 +653,181 @@ calendario.
 
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
-#### B7 · La puerta obligatoria de e2e no se ha corrido sobre el árbol fusionado
+#### B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80
+
+- **Qué es:** el paso (2) de B2 —congelar `db/migrations/*.sql` a LF— es correcto y
+  está aplicado. Pero el paso (1), la reconciliación del registro, **no se ha
+  corrido**, y sin él el arreglo **invirtió qué bases están rotas**: el registro de
+  las bases con historia guarda el checksum del archivo *tal como estaba cuando se
+  aplicó*, y ahora el archivo en disco es otro. El registro quedó **mezclado**: unas
+  filas se escribieron desde un árbol CRLF y otras desde un árbol LF, así que ninguna
+  normalización sola arregla las dos.
+- **Evidencia (medida el 2026-09-18, tarde, en solo lectura — `--pendientes` no
+  aplica nada):**
+
+  | Base | Divergencias el 18/09 **mañana** | **Ahora** | Salida |
+  |---|---|---|---|
+  | `spaces` | 5 | **65** | `exit=3` · «NO se aplico nada» |
+  | **`spaces_ver2`** (la de la demo) | **0 — limpia** | **80** de 82 aplicadas | `exit=3` · «NO se aplico nada» |
+  | `spaces_e2e` | 0 | **0** ✅ | `exit=0` |
+
+  Y la causa, medida archivo por archivo con sha256 de las tres variantes:
+  ```
+  20260625_agencia_en_propuesta.sql   CRLF:0  LF-solo:14
+     disco = c6b05328 (= LF)   registrado en spaces = e8f87671 (= CRLF)  -> DIVERGE
+  20260812_sin_default_tenant.sql     CRLF:0  LF-solo:77
+     disco = 3c366a9e (= LF)   registrado en spaces = 3c366a9e (= LF)    -> YA CUADRA
+  ```
+  O sea: **las cinco originales se curaron solas** con `.gitattributes`, y las 65
+  que cuadraban se rompieron. Es el mismo defecto, con el signo cambiado.
+- **Por qué `spaces_e2e` está limpia y por qué eso es una trampa:** el arnés hace
+  `drop schema public cascade` y reaplica de cero en cada corrida, así que su
+  registro se escribe **siempre desde el disco de hoy**. Consecuencia:
+  **las 461 e2e en verde no ven nada de esto.** Es «verde en mi árbol» en su forma
+  más pura — la suite no puede delatarlo por construcción.
+- **Cómo se cierra:** correr `infra/scripts/reconciliar-checksums-migraciones.ps1`
+  —que existe, clasifica cada fila por finales de línea y **se detiene sin tocar nada
+  si alguna no se explica así**— **contra las dos bases, una por una y por su
+  nombre**: `-Base spaces` y `-Base spaces_ver2`. Con `-SoloMirar` primero.
+  **La corre una persona**, y hay que decirle que son dos bases, no una.
+- **Quién puede cerrarla:** una persona. El supervisor no la corre y **no usa
+  `--forzar-checksum`**.
+- **Si no se cierra antes del 14/10:** la base sobre la que se enseña el producto el
+  día del SUMMIT **no acepta ni una migración más**. Cualquier arreglo de datos o de
+  esquema entre hoy y esa fecha se queda fuera de la demo, y el runner lo dirá con un
+  error que parece un problema de contenido y no lo es. Es la única advertencia de
+  esta lista que puede **parar trabajo** en los 26 días que quedan.
+
+> [!danger] Y hay un agravante que no es técnico: **el guion no está escrito en
+> ningún sitio donde alguien lo busque**
+> Medido: `grep -rn "reconciliar-checksums\|reconciliacion" --include=*.md docs/ vault/ CLAUDE.md`
+> devuelve **cero**. El guion existe (`infra/scripts/…ps1`, commit `9c16a57`), su
+> cabecera es excelente y su mensaje de commit explica todo — pero **no hay entrada
+> en la bitácora, ni runbook, ni nota de bóveda, ni una línea en `CLAUDE.md`**. Una
+> tarea que «la corre una persona» y que no aparece en ningún documento que una
+> persona abra es una tarea que no se va a correr. Dos detalles más del guion, para
+> quien lo ejecute:
+> - su `$Repo` por omisión es **una ruta absoluta de esta máquina**
+>   (`reconciliar-checksums-migraciones.ps1:39`) — no es un secreto, pero es un valor
+>   real quemado en un archivo versionado, y en otra máquina falla;
+> - su paso 1 hace `Remove-Item db\migrations\*.sql -Force` + `git checkout --` si
+>   detecta CRLF (`:56-58`). Hoy no se dispara —el árbol ya está en LF, medido— pero
+>   si se disparara con una migración sin commitear, **se la lleva**.
+
+#### B24 · Dos migraciones y una tabla nuevas, y ni la nota de migraciones ni la de esquema las mencionan — **y los dos commits no llevan nota de bóveda, que es la regla 4 de `AGENTES.md`**
+
+- **Qué es:** las dos migraciones del 18/09 entraron **solas**, sin la nota que las
+  describe en el mismo commit. Una de ellas es la que cierra un agujero de
+  aislamiento: es exactamente el cambio que más falta hace tener escrito.
+- **Evidencia:**
+  ```
+  $ git show --stat --format="" 0d85521
+   db/migrations/20260918_entidad_tenant_compuesto.sql | 207 +++++
+   1 file changed, 207 insertions(+)
+  $ git show --stat --format="" f0db34b
+   db/migrations/20260918_consumos_energia.sql | 212 +++++
+   1 file changed, 212 insertions(+)
+  ```
+  Y el efecto, hoy:
+  - `vault/04-Datos/migraciones.md:108` dice **82 archivos**; hay **84**. Y
+    `grep -c 20260918` sobre esa nota devuelve **0**: ninguna de las dos consta.
+  - `vault/04-Datos/esquema.md` lleva `actualizado: 2026-09-17`, su callout de
+    cabecera dice **43 tablas / 81 archivos** (hay **44 / 84**), su cuerpo `:36` y
+    `:54` siguen diciendo **«39 tablas»**, y `grep -c consumos_energia` devuelve
+    **0** — la tabla nueva no existe para la nota del esquema.
+  - `vault/02-Backend/api-endpoints.md:13,18` dice **94 endpoints**; hay **98**.
+  - `vault/01-Arquitectura/decisiones.md` —la nota cuyo trabajo *es* indexar
+    decisiones— lleva `actualizado: 2026-08-27` y lista **0001–0024**. Faltan
+    **once**: 0025 a 0035, incluidos los **dos ADR que esta rama acaba de escribir**.
+- **Cómo se cierra:** cuatro notas, con la cifra medida y no copiada, y el hábito de
+  la regla 4. Nada de esto es trabajo grande; lo que cuesta es que nadie lo vea.
+- **Quién puede cerrarla:** cualquier ejecutor. El supervisor no toca la bóveda.
+- **Si no se cierra antes del 14/10:** la bóveda es lo que se lee **antes de tocar
+  código**, y hoy no sabe que existe la tabla de los consumos ni que las FK hacia
+  `entidades_fiscales` cambiaron. El próximo que abra `esquema.md` para saber contra
+  qué escribe va a leer «39 tablas».
+
+#### B25 · La bitácora se contradice dentro del mismo día, **y la versión falsa va primero**
+
+- **Qué es:** `docs/Registro_Cambios.md` es el documento escrito para quien no
+  programa — el que lee el dueño. Su sección del 2026-09-18 afirma dos cosas que ella
+  misma desmiente 44 líneas más abajo, y el orden es el malo: lo falso arriba.
+- **Evidencia (líneas exactas del archivo):**
+  ```
+  :32  «Las cuatro formas de mirar el reporte ya funcionan.»        <- son CINCO
+  :42  «Queda una decisión pendiente: … el metro cuadrado son 18 o 36.»
+  :43  «Por ahora se calcula una cara, y el reporte lo dice.»       <- son TODAS las caras
+  ...
+  :76  «Ya son los cinco reportes: entra el consumo de luz.»        <- la corrección
+  :86  «El metro cuadrado suma todas las caras.»                    <- la corrección
+  ```
+  Y lo que dice el código, medido: `MULTIPLICAR_M2_POR_CARAS = true`
+  (`lib/data/reportes.ts:1227`), y la pantalla escribe «cuenta 36 m², no 18». O sea
+  que `:43` no solo está desfasada: **afirma lo contrario de lo que el producto hace
+  y de lo que el propio texto promete que el reporte dice**.
+- **Cómo se cierra:** tachar o reescribir `:32` y `:42-43`. La cabecera del archivo
+  declara que «la entrada más reciente va arriba», y dentro de un mismo día ese
+  criterio deja la corrección debajo de lo corregido, que es justo al revés de como se
+  lee.
+- **Quién puede cerrarla:** cualquier ejecutor. `Registro_Cambios.md` es archivo de
+  alto contacto y se reclama por separado.
+- **Si no se cierra antes del 14/10:** es el documento que se le pone delante al
+  dueño para contarle qué entró. Hoy le dice que su decisión del m² sigue pendiente
+  **después** de que la tomara y se construyera. Este repositorio ya pagó un cierre
+  en falso que tres documentos copiaron; el molde es el mismo.
+
+#### B26 · La promesa falsa de D2 sigue viva en el cuestionario: manda a «Administración», y ahí no hay nada
+
+- **Qué es:** se arregló **una** de las dos frases. La pantalla de «ya contestado»
+  ahora enlaza a donde de verdad están las razones sociales; el **cuestionario**, que
+  es lo que ve alguien la primera vez, sigue mandando al sitio equivocado.
+- **Evidencia:**
+  - arreglado: `app/(app)/bienvenida/page.tsx:125-137` — «ve a **Razones sociales**»,
+    con `<Link href="/razones-sociales">` y un botón, y el comentario que explica por
+    qué («Mandaba a Administración, y ahí NO HABÍA NADA»).
+  - **sin arreglar, y es texto que el usuario lee:**
+    `components/demo/bienvenida/CuestionarioRazonesSociales.tsx:162` →
+    *«Se le asignarán todos los roles. Después puedes separarlos en Administración.»*
+  - y el comentario de `:230` repite el error: «el cuestionario sigue accesible desde
+    Administración».
+  - **medido que las dos frases son falsas:**
+    `grep -rn "azones sociales\|razones-sociales" app/(app)/(shell)/administracion/`
+    devuelve **vacío**, y el único enlace a `/bienvenida` de toda la interfaz está en
+    `app/(app)/(shell)/razones-sociales/page.tsx:124` — o sea que el cuestionario se
+    alcanza desde **Razones sociales**, nunca desde Administración.
+- **Cómo se cierra:** dos frases. La visible manda a «Razones sociales»; el
+  comentario dice la verdad.
+- **Quién puede cerrarla:** un ejecutor.
+- **Si no se cierra antes del 14/10:** es la **primera pantalla** que ve un cliente
+  nuevo, y le da una instrucción que no lleva a ninguna parte. Es el mismo defecto
+  que motivó que el dueño pidiera la pantalla, sobreviviendo en el sitio donde más se
+  nota.
+
+
+#### ~~B7 · La puerta obligatoria de e2e no se ha corrido sobre el árbol fusionado~~
+
+> ✅ **CERRADA el 2026-09-18, tarde.** Corrida en este árbol, con el 3311 y
+> `spaces_e2e` libres y con el build hecho antes. **La salida, pegada:**
+> ```
+> $ cd apps/web && npm run build && npm run test:e2e
+>  Test Files  41 passed (41)
+>       Tests  461 passed | 1 skipped (462)
+>    Duration  198.35s
+> EXIT=0
+> ```
+> **La omitida no es una sorpresa y conviene nombrarla:** es
+> `aislamiento.e2e.test.ts:212`, un `it.skip` preexistente («requiere un build con la
+> bandera de producción — se verifica en el despliegue»). **Ese archivo no está en el
+> diff** (`git diff --name-only main...HEAD`), así que el invariante 7 se cumple: pasa
+> **sin tocarse**. Tampoco están `servidor-e2e.ts` ni `db/schema.sql`.
+> Y las dos otras puertas, en el mismo árbol:
+> ```
+> $ npm run typecheck          → tsc --noEmit, EXIT=0
+> $ npm test                   → Test Files 130 passed (130) · Tests 1651 passed (1651)
+> ```
+> Los archivos que yo nombraba como imprescindibles y nadie había visto en verde aquí
+> están dentro de esos 41, incluido `esquema-sin-owner.e2e.test.ts` —el que afirma el
+> recuento de tablas, hoy **44**—.
 
 - **Qué es:** la lista de `AGENTES.md` exige `npm run test:e2e` cuando el cambio
   toca auth, tenant, dinero o migraciones. **Esta rama toca las cuatro.** No se
@@ -447,7 +864,40 @@ calendario.
 - **Si no se cierra antes del 14/10:** se aterriza sin comprobación independiente,
   en la rama que sostiene el lanzamiento.
 
-#### B9 · Ninguna pantalla nueva tiene e2e propia
+#### ~~B9 · Ninguna pantalla nueva tiene e2e propia~~
+
+> ✅ **CERRADA el 2026-09-18, tarde, y con más de lo que pedía.** Tres archivos
+> nuevos, **52 casos**, y los tres **demostrados por mutación** con la mutación
+> revertida, que es lo que separa un guard que muerde de uno que decora:
+> - `bienvenida.e2e.test.ts` (18): con la política de RLS reescrita a `using (true)`
+>   se ponen rojas cuatro aserciones; con `contarEntidadesDelTenant()` además sin su
+>   `and tenant_id`, la que afirma «5 y no 10».
+> - `energia-consumos.e2e.test.ts` (23): las dos capas mutadas **por separado**, y
+>   ahí apareció lo que no se veía leyendo — aunque la consulta se trajera los
+>   recibos de otra organización, **el síntoma de la fuga no es un total al doble**,
+>   porque el reparto va por las caras de *mis* sitios y el recibo ajeno no encuentra
+>   destino. El detector es `cobertura.recibosSinDestino`, y la prueba se reforzó
+>   para afirmarlo: sin eso, esa mutación pasaba en verde.
+> - `reportes-acceso.e2e.test.ts` (11): las cinco dimensiones dan 403 al rol sin
+>   `finanzas`, con **control positivo** (el Dueño de la misma organización recibe
+>   200) y comprobando antes que el permiso **no está sembrado**, para que el 403 no
+>   pueda venir de una semilla incompleta.
+>
+> **Y la que yo decía que «más valdría» existe con otro nombre:** no hace falta una
+> e2e que afirme que el reporte no abre con ingreso cero, porque el dueño decidió que
+> sí abra así (D3); lo que se prueba en su lugar es el aviso, en
+> `consulta.test.ts:187-233`.
+>
+> **Lo que esas e2e destaparon, y esto es lo que hace que cerrar B9 valga:** cuatro
+> afirmaciones que la bóveda hacía y el servidor no sostenía, corregidas por su autor
+> en el mismo commit. La más importante, en `pantalla-reportes.md`: la nota decía que
+> un rol sin `finanzas` **no puede abrir `/reportes` por enlace directo**, y el
+> servidor **no lo impide** — `middleware.ts:174-179` solo compuerta por presencia de
+> sesión, así que a un COMERCIAL autenticado `/reportes/` le responde **200** con el
+> HTML; quien lo desvía es `AuthGate` en el navegador. **No es fuga de datos** —el
+> HTML no trae ni una cifra y el endpoint le contesta 403, y la e2e lo comprueba—
+> pero la frase era falsa. Lo que protege el dinero es el guard del endpoint, no la
+> ruta de la página.
 
 - **Qué es:** las dos pantallas nuevas —el cuestionario de bienvenida y el reporte
   de rentabilidad— no tienen prueba de extremo a extremo que las recorra.
@@ -465,7 +915,23 @@ calendario.
 - **Si no se cierra antes del 14/10:** el mismo tipo de defecto vuelve, y vuelve
   invisible.
 
-#### B10 · Multi-entidad no tiene un solo dato en la base de demostración
+#### ~~B10 · Multi-entidad no tiene un solo dato en la base de demostración~~
+
+> ✅ **CERRADA el 2026-09-18** por `cda3db8`, con su rojo previo en `2d246cf`.
+> **Con qué se midió — contado en `spaces_ver2`, no en el guion:**
+> ```
+> select count(*) from entidades_fiscales;                              →  3
+> select count(*) total, count(entidad_id) from contratos_arrendamiento; →  4 | 3
+> select count(*) from consumos_energia;                                → 40
+> ```
+> Y visto en pantalla: las tres razones sociales con sus papeles repartidos
+> —«Inmuebles DEMO del Centro» paga rentas y compra activos, «Publicidad DEMO
+> Exterior» vende, «Servicios DEMO Operativos» licencias y nómina—. Los RFC son
+> inventados (`DMO010101…`), no hay ninguno real en el diff.
+> **Y el rojo de `2d246cf` era FUERTE, no de resolución de módulo** —la lección de
+> B18—: comprobado que `scripts/semilla-demo.mjs` ya existía en ese commit
+> (`git cat-file -e 2d246cf:scripts/semilla-demo.mjs` pasa) y que **los siete
+> símbolos que la prueba importa estaban exportados**, así que falló por aserción.
 
 - **Qué es:** aunque se construyera la pantalla de D2, **no hay nada que enseñar**.
 - **Evidencia:**
@@ -509,8 +975,95 @@ calendario.
 
 ### B · iii — Menores, para que no se pierdan
 
-- **B12 · La tabla «qué archivo hace qué» de la nota nueva del módulo apunta mal en
-  5 de 6 filas.** `vault/02-Backend/reportes-rentabilidad.md:57-62` — verificado
+- **B27 · La pantalla de reportes ignora la querystring, así que un reporte no se
+  puede compartir por enlace.** `reportes/page.tsx:72-76` inicializa el estado con
+  `RANGO_DE_APERTURA(new Date())` y **nunca lee `searchParams`**. Medido: navegar a
+  `/spaces-dooh/reportes/?desde=2026-04-01&hasta=2026-06-30` deja la pantalla en
+  jul–sep 2026 con los datos del trimestre en curso; la URL cambia y la pantalla no.
+  El comentario de `consulta.ts:202-204` dice que el rango «viaja en la querystring
+  como cualquier otro rango que elija una persona», y es cierto **de la llamada al
+  endpoint**, no de la dirección de la pantalla — es fácil leerlo al revés. No es un
+  defecto de cálculo, pero para una presentación el 14/10 significa que **no hay
+  forma de dejar preparado un enlace que abra el reporte ya filtrado**: hay que
+  teclear dos fechas en vivo. Conviene saberlo antes del ensayo, no durante.
+- **B28 · Las 41 e2e prueban `next start`; la imagen que corre en producción arranca
+  otra cosa.** `next.config.mjs:119` tiene `output: 'standalone'` y el `Dockerfile:149`
+  hace `CMD ["node", "apps/web/server.js"]`, mientras `servidor-e2e.ts` levanta
+  `npx next start`. El propio `next start` lo avisa al arrancar, y lo vi hoy en el
+  log del 3409: *«"next start" does not work with "output: standalone" configuration.
+  Use "node .next/standalone/server.js" instead.»* En la práctica sirvió bien —las
+  páginas cargaron y los datos también—, así que **no es un fallo**, es un hueco de
+  cobertura **preexistente** (viene de `8ae8f77`, no de esta rama): ninguna prueba de
+  este repositorio ejercita el artefacto que de verdad se despliega. Se menciona aquí
+  porque es la forma que tiene «verde en mi árbol» en este proyecto, y porque el
+  aviso del arranque es fácil de confundir con un entorno roto.
+- **B29 · La cita derivada que se reportó y NO se corrigió, y está en código de
+  producción.** `apps/web/lib/server/bienvenida-repo.ts:17` dice «La frontera es UNA:
+  `tenant_id` con RLS (`db.ts:54-69`)». Medido hoy: `db.ts` tiene 180 líneas, la
+  **54** es el `return` de `tenantDeRequest`, la **60** es `fijarTenant` y el rango
+  cae dentro de `qRaw` —que es **lo contrario** de la frontera que la frase señala—.
+  El `set_config` de `q()` está en la **79**. Lo llamativo es que la bóveda **ya lo
+  documenta**: `vault/02-Backend/cuestionario-bienvenida.md:214-216` cita bien
+  (`:79` y `:60`) y avisa «esa nota cita `db.ts:54-69` y ese rango ya derivó». O sea
+  que se midió, se escribió el aviso, y **no se arregló el sitio que lo tiene mal**.
+  Quedan dos más con el rango viejo: `vault/01-Arquitectura/vision-general.md:185` y
+  `vault/00-Inventario/inventario-2026-08-11.md:777` (esta última es un inventario
+  con fecha, discutible si se toca). El MOC y `entidades-fiscales.md:26` ya citan
+  `:60` y `:79`.
+- **B30 · Del manual de usuario quedan seis pendientes, y uno ya se puede cerrar sin
+  abrir la aplicación.** `vault/08-Manuales/manual-usuario-2026-09-18.md:592` en
+  adelante: ocho de los catorce se cerraron **mirando la aplicación** y están escritos
+  con el texto literal de pantalla, que es como se hace. De los seis que quedan, el
+  **nº 6** —«¿qué ve un perfil de Operaciones si intenta abrir el reporte?»— **ya
+  está medido** por la e2e nueva `reportes-acceso.e2e.test.ts`, que afirma el 403 de
+  las cinco dimensiones y que el mensaje no filtra ninguna clave; basta copiar la
+  frase de ahí. Los otros cinco necesitan provocar un estado (una organización sin
+  razones sociales, un papel sin dueño, borrar un recibo) y **no se inventan**: bien
+  dejados abiertos. El nº 1 —que el inventario vigente es del 15/09 y no cubre estas
+  tres áreas— es una decisión de alcance, no una pregunta de redacción.
+
+
+- **~~B12 · La tabla «qué archivo hace qué» de la nota nueva del módulo apunta mal en
+  5 de 6 filas.~~** ✅ **CERRADA el 2026-09-18** por `d0c9cd2`. **Con qué se midió:
+  las seis filas, una por una, con `sed -n` sobre la línea citada** —
+  `reportes-controller.ts:100` → `export function validarConsultaRentabilidad`;
+  `:128` → `export async function rentabilidadCtrl`; `reportes-repo.ts:50` →
+  `datosRentabilidad`; `reportes.ts:986` → `rentabilidadPorSitio`; `:340` →
+  `bucketsDelRango`; `:400` → `mesesEquivalentes`. **Seis de seis aciertan**, y la
+  fila que además afirmaba «501 si no hay motor» ya no lo dice. La nota deja escrito
+  que derivaron *por crecer*, que es el dato reutilizable.
+- **~~B20 · Rebanada sin consumidor en `/api/estado`.~~** ✅ **CERRADA el 2026-09-18**:
+  `entidadesFiscales` ya tiene consumidor —
+  `grep -rln entidadesFiscales --include=*.tsx` devuelve
+  `app/(app)/(shell)/razones-sociales/page.tsx`. Se justificó sola en cuanto existió
+  la pantalla de D2, tal como estaba previsto.
+- **~~B18 · Un rojo de TDD de los cuatro es débil.~~** ✅ **No volvió a pasar en la
+  ola nueva.** Ver la medición en B10: el rojo de `2d246cf` es por aserción.
+- **B13 · SIGUE ABIERTA, y una de las dos citas empeoró.** Remedido el 18/09:
+  `reportes-repo.ts:25` sigue diciendo «23 rebanadas» y citando
+  `estado/route.ts:97-124`; `consulta.ts:12` dice «24» y cita `:98-130`. **La
+  destructuración está en `:98` y lleva 24 nombres** —contados uno a uno, el último
+  es `entidadesFiscales`— así que **`consulta.ts` es la correcta**, como ya decía.
+  Lo nuevo: **las DOS fallan en la otra cita**. El comentario de los 6.12 MB está hoy
+  en `estado/route.ts:146-157` (la línea que dice «6.12 MB» es la `:152`);
+  `reportes-repo.ts:27` manda a `:132-141` y `consulta.ts:16` a `:142-146`, y ninguno
+  de los dos rangos lo contiene ya.
+- **B22 · SIGUE ABIERTA y ahora está replicada.** El patrón de bucle sin control
+  positivo propio se repitió en el guard nuevo:
+  `energia-repo.aislamiento.test.ts:317,324,333` iteran `rutas(DIR)` sin afirmar
+  antes que la lista no está vacía, igual que
+  `reportes-repo.aislamiento.test.ts:166,174`. **En los dos casos un `it` hermano sí
+  tiene el control positivo** (`energia…:308` con `toBeGreaterThan(0)`,
+  `reportes…:154` igual), así que el escenario malo se detectaría por ahí: es
+  fragilidad de forma, **no fallo activo**.
+  **Y lo demás de esos guards SÍ muerde — comprobado por mutación hoy, en memoria y
+  sin tocar el archivo:** el extractor de `energia-repo.aislamiento.test.ts:208-214`
+  encuentra **4 consultas** en `energia-repo.ts` y **0 violaciones**; quitando
+  `and tenant_id = $2` del fuente, salta a **1 violación** y la nombra
+  (`delete from consumos_energia where id = $1 returning id`). El árbol quedó
+  intacto (`git status` limpio).
+- **B12-bis (histórico) · La tabla «qué archivo hace qué» apuntaba mal en 5 de 6
+  filas.** Detalle de la medición original: `vault/02-Backend/reportes-rentabilidad.md:57-62` — verificado
   línea a línea: `:57` manda a `reportes-controller.ts:81`, que es un `addIssue`
   (la función está en `:97`); `:58` a `:95`, que es `})` (está en `:121`); `:60` a
   `reportes.ts:300`, un comentario (`rentabilidadPorSitio` está en `:791`, **491
@@ -581,6 +1134,51 @@ calendario.
 ---
 
 ## C · Cerradas
+
+#### ✅ C6 · «Las e2e no se han corrido» — **CERRADA el 2026-09-18, tarde**
+
+**Con qué se midió:** `cd apps/web && npm run build && npm run test:e2e` en el
+worktree `entidades`, con el 3311 y `spaces_e2e` libres:
+`41 archivos · 461 pruebas · 1 omitida · exit 0 · 198.35 s`. La omitida es el
+`it.skip` preexistente de `aislamiento.e2e.test.ts:212`. Detalle en B7.
+
+#### ✅ C7 · «El aviso en ámbar no basta / hay que cambiar el rango de apertura» — **JUZGADA COMO ESTÁ, y basta. 2026-09-18**
+
+Mi recomendación era cambiar el rango; el dueño eligió lo contrario y resolverlo con
+un aviso. **Con qué se midió que el aviso vale:** sale en jul–sep 2026 y
+**desaparece** en abr–jun 2026, visto en el navegador contra `spaces_ver2` en el 3409.
+Un aviso que saliera siempre no lo leería nadie, y esa desaparición es información.
+La condición está probada en `consulta.test.ts:187-233`, incluido el caso `2026-9-1`
+sin cero a la izquierda —el que un `<=` de cadenas habría dejado pasar justo en el mes
+que hace falta—. **Queda un residuo declarado**, no un motivo de rojo: las cuatro
+cifras grandes del encabezado no llevan el matiz dentro (D3).
+
+#### ✅ C8 · «Puede que B4 ya esté resuelta en `ola3/reportes-columnas` — no verificado» — **VERIFICADA. 2026-09-18**
+
+Lo dejé como hueco declarado porque la instrucción de esa corrida era no entrar al
+worktree. **Con qué se midió:** esa rama aterrizó en `cb6ffc2`, y las dos mitades se
+comprobaron en un navegador, no leyendo — selector sin «(en preparación)» y una tabla
+con columnas propias por dimensión. Detalle en B4.
+
+#### ✅ C9 · «Los guards podrían ser vacuos» — **COMPROBADO POR MUTACIÓN. 2026-09-18**
+
+**Con qué se midió:** el extractor de `energia-repo.aislamiento.test.ts:208-214`
+encuentra 4 consultas reales en `energia-repo.ts` y 0 violaciones; **quitando
+`and tenant_id = $2` se pone rojo** y nombra el `delete`. Mutación hecha **en memoria,
+sin tocar el archivo** —el classificador de permisos, con razón, no deja escribir un
+debilitamiento de aislamiento en el árbol—, y `git status` quedó limpio. Las e2e
+nuevas traen además sus propias mutaciones documentadas y revertidas (B9).
+
+#### ✅ C10 · «Toda ruta citada existe y ningún número de línea ha derivado, en las notas nuevas» — **MEDIDO. 2026-09-18**
+
+**Con qué se midió:** recorrido automático de las ocho notas y ADR que toca la rama
+(`cuestionario-bienvenida`, `energia-consumos`, `pantalla-reportes`,
+`semilla-de-demostracion`, `03-Frontend/_indice`, `manual-usuario-2026-09-18`, ADR
+0034 y 0035), probando cada ruta contra las **dos** bases (repo y `apps/web`):
+**0 citas fuera de rango** y **0 rutas inexistentes** una vez resueltos los nombres
+sueltos sin directorio, que son convención de la bóveda y no enlaces roscados
+(comprobados uno a uno: `cuestionario-entidades.ts`, `bootstrap-auth.mjs`,
+`_error.tsx` y el resto existen). Es el mejor resultado que ha dado este chequeo.
 
 #### ✅ C1 · «Los cinco checksums divergentes son una decisión del dueño» — **DESCARTADA como decisión el 2026-09-18**
 
