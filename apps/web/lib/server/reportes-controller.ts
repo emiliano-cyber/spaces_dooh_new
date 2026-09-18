@@ -1,9 +1,19 @@
 import 'server-only'
 import { z } from 'zod'
-import { AppError, validar } from './errores'
+import { validar } from './errores'
 import { fechaZod, diaComparable } from './fechas'
 import { datosRentabilidad } from './reportes-repo'
-import { rentabilidadPorSitio, type ReporteRentabilidad } from '@/lib/data/reportes'
+import {
+  rentabilidadPorSitio,
+  rentabilidadPorTrimestre,
+  rentabilidadPorOperacion,
+  rentabilidadPorM2,
+  DIMENSIONES_REPORTE,
+  type DatosRentabilidad,
+  type GranularidadReporte,
+  type RangoReporte,
+  type ReporteRentabilidad,
+} from '@/lib/data/reportes'
 
 // ============================================================================
 //  lib/server/reportes-controller.ts — La validación del límite.
@@ -18,12 +28,18 @@ import { rentabilidadPorSitio, type ReporteRentabilidad } from '@/lib/data/repor
 //  nada —hay un guard que lo comprueba leyendo el archivo.
 // ============================================================================
 
-// Las cuatro dimensiones DECLARADAS. Solo `sitio` está implementada; las otras
-// tres se declaran ya y devuelven 501, a propósito: el contrato del endpoint es
-// lo que las pantallas consumen desde el día uno, y ampliarlo después sin
-// romperlas es justo lo que este límite existe para permitir. Un 404 diría «esto
-// no existe» y un 400 «lo pediste mal»; ninguna de las dos es verdad.
-export const DIMENSIONES = ['sitio', 'trimestre', 'operacion', 'm2'] as const
+// Las cuatro dimensiones DECLARADAS del contrato del endpoint. Se declaran en
+// el MOTOR (`lib/data/reportes.ts`) y aquí solo se reexportan para que zod
+// valide contra la misma lista: dos declaraciones dejarían un enum que acepta
+// una dimensión sin motor, o un motor que nadie puede pedir.
+//
+// Nacieron las cuatro el 17/09 aunque solo `sitio` tenía cálculo, y las otras
+// tres contestaban 501 —no 404 ni 400: la dimensión ERA parte del contrato, solo
+// que no tenía implementación—. Desde el 18/09 las cuatro calculan, y el 501
+// desapareció por donde tenía que desaparecer: `MOTORES` es un `Record`
+// exhaustivo, así que añadir una dimensión al enum sin escribir su motor ya no
+// compila. Lo que el tipo garantiza no necesita un error en tiempo de ejecución.
+export const DIMENSIONES = DIMENSIONES_REPORTE
 export const GRANULARIDADES = ['mes', 'trimestre'] as const
 
 export type DimensionRentabilidad = (typeof DIMENSIONES)[number]
@@ -82,29 +98,31 @@ export function validarConsultaRentabilidad(params: unknown): ConsultaRentabilid
   return validar(consultaSchema, params)
 }
 
-// Nombre legible de cada dimensión, para el mensaje del 501. Se dice CUÁL falta,
-// no «no implementado»: quien lo lea tiene que saber si pedir otra cosa o
-// esperar.
-const ETIQUETA_DIMENSION: Record<DimensionRentabilidad, string> = {
-  sitio: 'pantalla',
-  trimestre: 'trimestre',
-  operacion: 'operación',
-  m2: 'metro cuadrado',
+type MotorRentabilidad = (
+  datos: DatosRentabilidad,
+  opts: RangoReporte & { granularidad: GranularidadReporte },
+) => ReporteRentabilidad
+
+// El despacho por dimensión. Es un `Record` EXHAUSTIVO sobre el enum a
+// propósito: es lo que hace imposible declarar una dimensión y olvidarse de su
+// motor —o al revés— sin que el typecheck lo diga. Un `switch` con `default`
+// habría dejado ese hueco abierto en tiempo de ejecución.
+//
+// Las cuatro leen los MISMOS datos y con la misma consulta: la diferencia entre
+// dimensiones está en cómo se pivota la matriz sitio × periodo, no en qué se
+// lee. Por eso la dimensión no llega nunca al SQL.
+const MOTORES: Record<DimensionRentabilidad, MotorRentabilidad> = {
+  sitio: rentabilidadPorSitio,
+  trimestre: rentabilidadPorTrimestre,
+  operacion: rentabilidadPorOperacion,
+  m2: rentabilidadPorM2,
 }
 
 export async function rentabilidadCtrl(params: unknown): Promise<ReporteRentabilidad> {
   const consulta = validarConsultaRentabilidad(params)
-
-  // 501 y no 400: la dimensión ES parte del contrato del endpoint, solo que
-  // todavía no tiene motor. Se corta ANTES de tocar la base — leer para no
-  // usarlo sería pagar la consulta por nada.
-  if (consulta.dimension !== 'sitio') {
-    throw new AppError(
-      `El reporte de rentabilidad por ${ETIQUETA_DIMENSION[consulta.dimension]} todavía no está disponible. Por ahora solo «sitio».`,
-      501,
-    )
-  }
-
+  // La dimensión ya pasó por `z.enum`, así que aquí es una de las cuatro claves
+  // del `Record` y no hay forma de que el índice salga vacío.
+  const motor = MOTORES[consulta.dimension]
   const datos = await datosRentabilidad(consulta)
-  return rentabilidadPorSitio(datos, consulta)
+  return motor(datos, consulta)
 }

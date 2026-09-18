@@ -57,11 +57,20 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
   // (ver `diasHasta` en `lib/data/derive.ts`), y en un reporte prorrateado por
   // días desplazaría dinero de un periodo a otro sin dar ningún síntoma.
   const [sitios, contratos, arrendadores, reservas, ordenesTrabajo, costosOt] = await Promise.all([
-    // Solo las columnas que la atribución necesita. `select *` sobre `sitios`
-    // arrastra las fotos en data URL —1.0 MB por doce pantallas— y fue una de
-    // las causas de los 6.12 MB de `/api/estado`.
+    // Solo las columnas que la atribución y las dimensiones necesitan.
+    // `select *` sobre `sitios` arrastra las fotos en data URL —1.0 MB por doce
+    // pantallas— y fue una de las causas de los 6.12 MB de `/api/estado`.
+    //
+    // `tipo_medio`, `es_rotativo` y `exhibicion` deciden si la pantalla se vende
+    // por metros o por spots, y `ancho`/`alto` son la superficie. Los cinco son
+    // escalares pequeños y entran desde el 18/09 con la dimensión `m2`.
+    //
+    // NO se lee `precio_m2`: existe, y significa OTRA COSA —el costo de
+    // impresión por m², de donde sale `tarifa_impresion` (`sitios-repo.ts`)—.
+    // Leerlo aquí invitaría a usarlo como si hablara de rentabilidad.
     q<any>(
-      `select id, nombre, clave_interna, codigo_proveedor, caras, predio_id
+      `select id, nombre, clave_interna, codigo_proveedor, caras, predio_id,
+              tipo_medio, es_rotativo, exhibicion, ancho, alto
          from sitios
         where tenant_id = $1`,
       [tenantId],
@@ -101,11 +110,20 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // el código decide en qué periodo CAEN: si difirieran, una OT quedaría
     // fuera del reporte sin aparecer en ningún periodo y sin dar error.
     // `reportes-repo.aislamiento.test.ts` compara las dos listas.
+    //
+    // `duracion_seg` es la duración REAL de la visita, y se calcula EN SQL como
+    // la diferencia de dos `timestamptz` —o sea un intervalo— en vez de traer
+    // las dos marcas y restarlas en Node. Un intervalo no tiene zona horaria:
+    // así la cuenta no depende de en qué máquina corre el proceso. Nula cuando
+    // la OT no tiene las dos marcas, que es «no se sabe» y no «cero».
     q<any>(
       `select sitio_id, tipo, estatus,
               to_char(fecha_completada, 'YYYY-MM-DD') as fecha_completada,
               to_char(fecha_programada, 'YYYY-MM-DD') as fecha_programada,
-              to_char(creado_en,        'YYYY-MM-DD') as creado_en
+              to_char(creado_en,        'YYYY-MM-DD') as creado_en,
+              case when fecha_inicio is not null and fecha_completada is not null
+                   then extract(epoch from (fecha_completada - fecha_inicio))
+              end as duracion_seg
          from ordenes_trabajo
         where tenant_id = $1
           and coalesce(fecha_completada, fecha_programada, creado_en)::date
@@ -126,6 +144,15 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       codigoProveedor: r.codigo_proveedor ?? '',
       caras: r.caras ?? 1,
       predioId: r.predio_id ?? null,
+      tipoMedio: r.tipo_medio,
+      esRotativo: r.es_rotativo === true,
+      exhibicion: r.exhibicion ?? '',
+      // `numeric` llega del driver como TEXTO, no como número: sin este
+      // `Number()` la superficie sería `'6' * '3'` —que en JavaScript sí da 18—
+      // pero `'6.5' * null` daría 0 y una comparación `> 0` sobre una cadena
+      // haría cosas distintas según el valor. Se convierte una vez, aquí.
+      ancho: r.ancho == null ? null : Number(r.ancho),
+      alto: r.alto == null ? null : Number(r.alto),
     })) as any,
     contratos: contratos.map((r) => ({
       id: r.id,
@@ -153,6 +180,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       fechaCompletada: r.fecha_completada ?? null,
       fechaProgramada: r.fecha_programada ?? null,
       creadoEn: r.creado_en ?? null,
+      duracionSeg: r.duracion_seg == null ? null : Number(r.duracion_seg),
     })),
     costosOt,
   }
