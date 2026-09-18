@@ -11,6 +11,7 @@ import { agentePcInfo, agentePiInfo, apkInfo } from '../utils/apkInfo';
 import { proximoDisparo, ventanasValidas } from '../utils/horarios';
 import { env } from '../config/env';
 import crypto from 'crypto';
+import { firmarFilas, firmar } from '../utils/firmaArchivos';
 
 // --- Vista en vivo de los equipos que NO son telefonos ---------------------
 // La Raspberry y las PCs con camara IP no pueden hacer WebRTC punto a punto sin
@@ -84,6 +85,11 @@ export async function listDevices(req: Request, res: Response) {
              WHERE 1=1`;
   const params: any[] = [];
 
+  // Alcance de la llave de servicio. Va PRIMERO y no es opcional: una llave de
+  // instancia solo ve los equipos de su dueno. Probado en local el 17-sep que
+  // sin esto una organizacion nueva de SPACE OS veia camaras de g500.
+  if (req.servicio?.owner) { sql += ` AND d.owner = ?`; params.push(req.servicio.owner); }
+
   if (status && status !== 'all') {
     if (status === 'online') {
       sql += ` AND d.online = TRUE`;
@@ -121,6 +127,11 @@ export async function getDevice(req: Request, res: Response) {
   );
   const device = (rows as any[])[0];
   if (!device) return res.status(404).json({ error: 'not_found' });
+  // Un equipo de otro dueno se contesta igual que uno que no existe: decir
+  // "prohibido" ya confirmaria que ese equipo existe.
+  if (req.servicio?.owner && device.owner !== req.servicio.owner) {
+    return res.status(404).json({ error: 'not_found' });
+  }
 
   const [statusRows] = await pool.query<any[]>(
     `SELECT * FROM device_status WHERE device_id = ? ORDER BY reported_at DESC LIMIT 1`,
@@ -176,6 +187,21 @@ const ajustesSchema = z.object({
   awb_rojo: z.number().min(0.1).max(8).nullable().optional(),
   awb_azul: z.number().min(0.1).max(8).nullable().optional(),
   ruido: z.enum(['auto', 'off', 'cdn_off', 'cdn_fast', 'cdn_hq']).optional(),
+  // --- Exposicion y lineas de la pantalla ---------------------------------
+  // 'brillo' NO sirve para una pantalla de LED: suma luz sobre la imagen ya
+  // revelada y no puede devolver un canal recortado. Medido en la Raspberry el
+  // 27-ago: el 21.4% de los pixeles de la pantalla tenia un canal pegado en
+  // 250. Lo que lo evita es exponer menos, y eso son estos mandos.
+  medicion: z.enum(['centre', 'spot', 'average', 'matrix']).optional(),
+  // Exposicion fija en microsegundos (0 = automatico). Al fijarla conviene
+  // fijar tambien la ganancia, o la foto queda a merced de la hora del dia.
+  obturador: z.number().int().min(0).max(200000).optional(),
+  ganancia: z.number().min(0).max(16).optional(),
+  // Cuadros a promediar (1 = un disparo, como siempre). Es lo que borra las
+  // LINEAS del LED: el patron de bandas cae en fase distinta en cada cuadro
+  // -correlacion medida entre dos capturas: -0.10-, asi que promediando N la
+  // amplitud baja con la raiz de N. Con 16 cuadros va del 40% al 10%.
+  cuadros: z.number().int().min(1).max(32).optional(),
   // Enfoque fijo del sitio. En un espectacular la distancia NO cambia nunca, asi
   // que el autofoco continuo solo estorba: cada vez que pasa un creativo de
   // muchos colores la camara vuelve a buscar foco y la imagen "salta". Con esto
@@ -271,6 +297,15 @@ export async function updateDevice(req: Request, res: Response) {
     state: z.string().optional(),
     group_id: z.number().nullable().optional(),
     status: z.enum(['active', 'inactive', 'maintenance', 'provisioning']).optional(),
+    // Coordenadas del sitio. Estan en la tabla desde el principio y con indice
+    // (idx_devices_location), pero no habia por donde escribirlas: ninguna
+    // pantalla de la flota tiene posicion. Ademas de ubicarla en un mapa, es lo
+    // que permite calcular la luz de SU sitio -amanecer, mediodia solar,
+    // atardecer-, y esa luz es la que decide si la foto sale con rayas o limpia:
+    // a mediodia el obturador se acorta y el parpadeo del LED aparece en bandas.
+    // Sin coordenadas, las franjas de las fotos se eligen a ojo.
+    lat: z.number().min(-90).max(90).nullable().optional(),
+    lng: z.number().min(-180).max(180).nullable().optional(),
     stream_quality: z.enum(['low', 'medium', 'high']).optional(),
     capture_quality: z.enum(['low', 'medium', 'high']).optional(),
     pinned: z.boolean().optional(),
@@ -674,6 +709,9 @@ export async function listPhotos(req: Request, res: Response) {
              FROM photos p JOIN devices d ON p.device_id = d.id WHERE 1=1`;
   const params: any[] = [];
 
+  // Mismo alcance que en la lista de equipos: una foto pertenece a su equipo.
+  if (req.servicio?.owner) { sql += ` AND d.owner = ?`; params.push(req.servicio.owner); }
+
   if (device_id) { sql += ` AND p.device_id = ?`; params.push(device_id); }
   if (campaign_id) { sql += ` AND p.campaign_id = ?`; params.push(campaign_id); }
   if (from) { sql += ` AND p.taken_at >= ?`; params.push(from); }
@@ -687,12 +725,17 @@ export async function listPhotos(req: Request, res: Response) {
   const [rows] = await pool.query(sql, params);
 
   const [countResult] = await pool.query<any[]>(
-    `SELECT COUNT(*) as total FROM photos p WHERE 1=1` +
+    // El conteo lleva el MISMO alcance que la lista. Sin esto, una llave de
+    // instancia recibia sus pocas fotos pero un total de toda la flota: no ve el
+    // contenido ajeno, pero sabe cuanto hay, y la paginacion se vuelve mentira.
+    `SELECT COUNT(*) as total FROM photos p JOIN devices d ON d.id = p.device_id WHERE 1=1` +
+    (req.servicio?.owner ? ` AND d.owner = ${pool.escape(req.servicio.owner)}` : '') +
     (device_id ? ` AND p.device_id = ${Number(device_id)}` : '') +
     (campaign_id ? ` AND p.campaign_id = ${Number(campaign_id)}` : ''),
   );
 
-  res.json({ photos: rows, total: (countResult as any[])[0]?.total || 0 });
+  // Las rutas salen FIRMADAS: /storage exige firma desde el 2026-09-14.
+  res.json({ photos: firmarFilas(rows as any[]), total: (countResult as any[])[0]?.total || 0 });
 }
 
 // Elimina una foto tomada por error: borra archivos (full + thumb) y la fila.
@@ -865,7 +908,8 @@ export async function listCampaigns(req: Request, res: Response) {
        (SELECT COUNT(*) FROM photos p WHERE p.campaign_id = c.id) as photo_count
      FROM campaigns c ORDER BY c.created_at DESC`
   );
-  res.json({ campaigns: rows });
+  // creative_path se muestra con <img> en la pantalla de campanas: va firmada.
+  res.json({ campaigns: firmarFilas(rows as any[]) });
 }
 
 export async function createCampaign(req: Request, res: Response) {
@@ -939,7 +983,8 @@ export async function subirCreatividad(req: Request, res: Response) {
   );
 
   await pool.query(`UPDATE campaigns SET creative_path = ? WHERE id = ?`, [ruta, campaignId]);
-  res.json({ ok: true, creative_path: ruta });
+  // Firmada tambien aqui: la vista previa se pinta con esta misma respuesta.
+  res.json({ ok: true, creative_path: firmar(ruta) });
 }
 
 /** Editar una campana: datos, vigencia, verificacion y equipos. */
@@ -1018,5 +1063,5 @@ export async function listVerifications(req: Request, res: Response) {
   params.push(Number(limit), offset);
 
   const [rows] = await pool.query(sql, params);
-  res.json({ verifications: rows });
+  res.json({ verifications: firmarFilas(rows as any[]) });
 }

@@ -6,6 +6,7 @@ import { requireUser, requireDevice, requireRole, requireWorker } from '../middl
 import * as auth from '../controllers/auth.controller';
 import * as device from '../controllers/device.controller';
 import * as dashboard from '../controllers/dashboard.controller';
+import * as llaves from '../controllers/llaves.controller';
 import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
@@ -79,6 +80,12 @@ export function createRoutes() {
   router.post('/api/capture', requireUser, requireRole('admin', 'operator'), dashboard.capturarAhora);
   router.get('/api/photos', requireUser, dashboard.listPhotos);
   router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), dashboard.deletePhoto);
+
+  // Llaves de servicio: como entra OTRO SISTEMA a leer, sin la cuenta admin.
+  // Todo admin: crear una llave es repartir acceso a los datos de la flota.
+  router.get('/api/llaves', requireUser, requireRole('admin'), llaves.listar);
+  router.post('/api/llaves', requireUser, requireRole('admin'), llaves.crear);
+  router.delete('/api/llaves/:id', requireUser, requireRole('admin'), llaves.revocar);
 
   // Schedules
   router.get('/api/schedules', requireUser, dashboard.listSchedules);
