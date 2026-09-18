@@ -34,7 +34,13 @@ export interface FiltrosReporte {
   hasta: string
 }
 
-export const RUTA_RENTABILIDAD = '/api/reportes/rentabilidad'
+// CON el basePath y CON la barra final. `next.config.mjs:126-127` declara
+// `basePath: '/spaces-dooh'` y `trailingSlash: true`: una ruta escrita
+// '/api/reportes/rentabilidad' sale del navegador hacia el ORIGEN, no hacia la
+// app, y el síntoma no es un error de red — es el 404 de Next con cuerpo HTML,
+// que esta pantalla pintaría como «no se pudo calcular el reporte». Misma forma
+// que ya usan `lib/data/estado-api.ts` y `components/demo/admin/OrganizacionesPanel.tsx`.
+export const RUTA_RENTABILIDAD = '/spaces-dooh/api/reportes/rentabilidad/'
 
 // Las cuatro dimensiones DECLARADAS por el contrato del endpoint. Se ofrecen
 // las cuatro aunque tres devuelvan 501: la dimensión es parte del contrato, y

@@ -27,11 +27,22 @@ const base: FiltrosReporte = {
 }
 
 describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
-  it('apunta a /api/reportes/rentabilidad', () => {
+  it('apunta al endpoint de rentabilidad y no a /api/estado', () => {
     // Si esto cambiara a /api/estado, la pantalla volveria al camino que ya
     // reventó una vez: 6.12 MB y pantalla en blanco de 6 a 12 segundos.
-    expect(RUTA_RENTABILIDAD).toBe('/api/reportes/rentabilidad')
-    expect(construirConsulta(base).startsWith('/api/reportes/rentabilidad?')).toBe(true)
+    expect(RUTA_RENTABILIDAD).toContain('/api/reportes/rentabilidad')
+    expect(RUTA_RENTABILIDAD).not.toContain('/api/estado')
+  })
+
+  it('lleva el basePath y la barra final, o el fetch cae en el 404 de Next', () => {
+    // `next.config.mjs:126-127` declara `basePath: '/spaces-dooh'` y
+    // `trailingSlash: true`. Una ruta escrita como '/api/...' desde el
+    // navegador sale al ORIGEN, no a la app, y el sintoma no es un error de
+    // red: es un 404 con cuerpo HTML que la pantalla pinta como «no se pudo
+    // calcular el reporte». Es la misma forma que ya usan `estado-api.ts` y
+    // `OrganizacionesPanel.tsx`.
+    expect(RUTA_RENTABILIDAD).toBe('/spaces-dooh/api/reportes/rentabilidad/')
+    expect(construirConsulta(base).startsWith('/spaces-dooh/api/reportes/rentabilidad/?')).toBe(true)
   })
 
   it('manda EXACTAMENTE los cuatro parametros que el schema admite, ni uno mas', () => {
