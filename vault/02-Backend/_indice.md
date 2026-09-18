@@ -10,22 +10,24 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **94** Route Handlers
-sobre **97** archivos en `apps/web/lib/server/` —60 de módulo y 37 de prueba—.
+El backend es un **BFF dentro de la propia app Next**: **95** Route Handlers
+sobre **101** archivos en `apps/web/lib/server/` —62 de módulo y 39 de prueba—.
 No hay servicio aparte.
 
-> [!tip] Recuento medido el 2026-09-17, no copiado
+> [!tip] Recuento medido el 2026-09-18 sobre el árbol FUSIONADO, no copiado
 > `find app/api -name route.ts | wc -l` y `ls lib/server/*.ts | wc -l`. La
-> medición anterior (27/08) decía 90 y 89: los dos números se habían quedado
-> atrás, y este archivo es de los que más caro cuesta tener mal. Si lo necesitas
-> exacto, vuelve a correr esas dos líneas en tu propio árbol — cada worktree está
-> en una rama distinta y da un recuento distinto.
+> medición del 27/08 decía 90 y 89, y las dos se habían quedado atrás. Y ojo con
+> el modo en que este número engaña al fusionar: la rama de entidades midió 94 y
+> la de reportes se negó a dar cifra, **y las dos tenían razón en su árbol** —
+> juntas nacen `/api/entidades`, `/api/entidades/[id]` y
+> `/api/reportes/rentabilidad`. Si lo necesitas exacto, corre esas dos líneas en
+> TU árbol: cada worktree está en una rama distinta y da un recuento distinto.
 
 ## Notas de este apartado
 
 | Nota | Cubre |
 |---|---|
-| [[api-endpoints]] | Los 90 endpoints con método, guard y módulo |
+| [[api-endpoints]] | Los 95 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |
@@ -34,6 +36,7 @@ No hay servicio aparte.
 | [[comercial-propuestas-campanas]] | Propuestas, reservas, campañas, creativos |
 | [[operaciones-y-ot]] | Órdenes de trabajo, evidencias, imprenta, almacén |
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |
+| [[reportes-rentabilidad]] | El límite `/api/reportes/*` y el prorrateo por periodo |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
 
@@ -58,6 +61,7 @@ Tamaño = superficie de conflicto entre agentes. Ver [[AGENTES]].
 | `lib/server/doohmain.ts` | 313 | [[integraciones-externas]] |
 | `lib/server/finanzas-repo.ts` | 298 | [[finanzas-y-cobranza]] |
 | `lib/server/google-oauth.ts` | 289 | [[autenticacion-y-sesion]] |
+| `lib/server/reportes-repo.ts` | 159 | [[reportes-rentabilidad]] |
 
 ## Relacionadas
 [[MOC-Proyecto]] · [[03-Frontend/_indice|Índice de Frontend]] · [[esquema]] ·

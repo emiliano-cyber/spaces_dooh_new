@@ -9,6 +9,8 @@ import { respuestaError, validar } from '@/lib/server/errores'
 import { LIMITES, uploadZod } from '@/lib/server/uploads'
 import { rfcTenant, textoTenant } from '@/lib/server/config-fiscal'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
+import { sanearCostosOt } from '@/lib/costos-ot'
+import { TODOS_TIPOS_OT } from '@/lib/tipos-ot'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -53,6 +55,25 @@ const configSchema = z
       .max(254, 'El correo no puede pasar de 254 caracteres')
       .refine((v) => v === '' || esEmailValido(v), { message: EMAIL_INVALIDO })
       .nullable(),
+    // Costo de mano de obra por TIPO de orden de trabajo. Las claves son el
+    // enum `tipo_ot` (db/schema.sql:53) declarado como ENUM CERRADO, no texto
+    // libre: un mapa con claves abiertas acabaría con importes colgados de
+    // tipos que no existen, y el lector no podría distinguirlos de un tipo
+    // retirado del catálogo.
+    //
+    // Un importe `null` es QUITAR ese tipo (vuelve al respaldo), igual que el
+    // logo o el correo. El 0 NO es quitarlo: es un costo capturado de verdad
+    // —una inspección que hace el propio dueño—, y `sanearCostosOt` lo
+    // conserva. Distinguir los dos es el punto.
+    costosOt: z
+      .record(
+        z.enum(TODOS_TIPOS_OT as [string, ...string[]]),
+        z.coerce
+          .number()
+          .min(0, 'El costo de una orden de trabajo no puede ser negativo')
+          .max(99_999_999, 'El costo de una orden de trabajo es demasiado grande')
+          .nullable(),
+      ),
     razonSocial: z.string().trim().max(200).nullable(),
     nombreComercial: z.string().trim().max(200).nullable(),
     // Datos fiscales de la parte ARRENDATARIA (los recita el contrato).
@@ -97,11 +118,18 @@ export async function PATCH(req: Request) {
     logoUrl: 'logo_url', ivaTasas: 'iva_tasas', loopSeg: 'loop_seg', spotSeg: 'spot_seg',
     maxClientesPantalla: 'max_clientes_pantalla',
     emailRemitente: 'email_remitente',
+    costosOt: 'costos_ot',
   }
   // Vaciar el campo es QUITAR el correo, no guardar una cadena vacía: un
   // Reply-To vacío es una cabecera rota, y el CHECK de la columna la rechaza
   // (acepta null o una dirección con forma, nada intermedio).
   if (b.emailRemitente === '') b.emailRemitente = null
+  // El mapa de costos entra a una columna jsonb, así que viaja como texto JSON
+  // y SANEADO: `sanearCostosOt` descarta las claves que no son del enum y los
+  // importes no utilizables (null = «quitar este tipo»). Se sanea también aquí
+  // y no solo al leer porque dejar basura entrar a la columna es arrastrarla en
+  // cada respaldo y que el siguiente que lea el jsonb crudo se la crea.
+  if (b.costosOt !== undefined) b.costosOt = JSON.stringify(sanearCostosOt(b.costosOt))
   const sets: string[] = []
   const vals: unknown[] = []
   for (const [k, col] of Object.entries(map)) {

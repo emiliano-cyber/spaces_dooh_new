@@ -1,6 +1,7 @@
 import 'server-only'
 import { q, q1 } from './db'
 import { tenantActual } from './tenant'
+import { sanearCostosOt } from '../costos-ot'
 
 // ============================================================================
 //  lib/server/config-repo.ts — Configuración del negocio. UNA FILA POR TENANT
@@ -44,6 +45,11 @@ export function rowToConfig(r: any) {
     spotSeg: r.spot_seg != null ? Number(r.spot_seg) : 10,
     // ADR 0008: cupo de clientes por defecto. null = sin límite (regla apagada).
     maxClientesPantalla: r.max_clientes_pantalla != null ? Number(r.max_clientes_pantalla) : null,
+    // Costo de mano de obra por TIPO de OT. Se SANEA al leer, no solo al
+    // escribir: la columna es jsonb y puede traer lo que le dejaran antes de
+    // que existiera el saneo (o lo que meta una corrección a mano en la base).
+    // Objeto vacío = sin configurar → manda `COSTOS_OT_RESPALDO`.
+    costosOt: sanearCostosOt(r.costos_ot),
   }
 }
 
@@ -119,6 +125,25 @@ export function plazoPorDefecto(plazos: number[]): number {
   // sobre una factura. En dinero, un caso «imposible» se cierra, no se supone.
   const lista = plazos.length ? plazos : PLAZOS_COBRANZA_RESPALDO
   return lista.includes(90) ? 90 : Math.min(...lista)
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Costo de mano de obra por TIPO de orden de trabajo
+// ────────────────────────────────────────────────────────────────────────────
+//
+// Lo usan el motor de reportes (`lib/server/reportes-repo.ts`) y, por la vía de
+// `/api/estado`, el dashboard del navegador. Va por `obtenerConfigRow()` —y no
+// por una consulta propia— para heredar su filtro por `tenant_id`: el
+// invariante dice que quien lee `config_negocio` usa la consulta CON tenant. Un
+// `qRaw` aquí devolvería la fila de otra empresa, o cero filas EN SILENCIO, y el
+// costo de operación de una organización lo acabaría decidiendo la
+// configuración de otra — sobre dinero, y sin dar ningún error.
+//
+// Mapa VACÍO = esta organización no ha configurado nada, y entonces manda
+// `COSTOS_OT_RESPALDO` (`lib/costos-ot.ts`). Nunca se devuelve 0 por omisión:
+// un costo de 0 se suma sin que nada falle y deja el margen inflado en pantalla.
+export async function costosOtDelTenant() {
+  return sanearCostosOt((await obtenerConfigRow()).costos_ot)
 }
 
 export async function obtenerConfig() {

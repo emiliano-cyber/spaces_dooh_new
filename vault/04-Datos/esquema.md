@@ -162,7 +162,7 @@ erDiagram
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`) |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]] |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |

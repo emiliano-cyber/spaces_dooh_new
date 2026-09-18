@@ -721,6 +721,16 @@ export interface ConfigNegocio {
   // ADR 0008: cupo de clientes por defecto para las pantallas sin uno propio.
   // null = sin límite; la regla se enciende capturando un número.
   maxClientesPantalla: number | null
+  // Costo de mano de obra por TIPO de orden de trabajo. Objeto VACÍO = esta
+  // organización no ha configurado ninguno, y entonces manda el respaldo de
+  // `lib/costos-ot.ts`. Un tipo ausente cae al respaldo, nunca a 0.
+  //
+  // Sí viaja en /api/estado, al contrario que los datos fiscales: el margen que
+  // ESTE importe produce (`costoOperacionMes`) ya se pinta en el dashboard, así
+  // que esconder el importe y enseñar su resultado no protegería nada — y
+  // dejaría al navegador calculando el costo con una tabla distinta a la del
+  // servidor, que es la divergencia que se está cerrando.
+  costosOt?: Partial<Record<TipoOT, number>>
 }
 
 export interface Notificacion {

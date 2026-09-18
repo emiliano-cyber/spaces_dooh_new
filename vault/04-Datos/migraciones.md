@@ -21,6 +21,7 @@ archivos:
   - db/migrations/20260826_clientes_rfc_unico.sql
   - db/migrations/20260828_reautenticacion_por_defecto.sql
   - db/migrations/20260910_pais_sin_default.sql
+  - db/migrations/20260917_costos_ot_por_tipo.sql
   - db/migrations/20260917_entidades_fiscales.sql
 ---
 
@@ -36,6 +37,11 @@ archivos:
 > **exactamente UNO** con `@tipo: datos` en su primera línea
 > (`20260731_calendario_meses_cortos.sql`), o sea **80 de esquema**. El runner lo
 > dice él mismo al acabar: «80 aplicadas, 1 de datos pendientes».
+>
+> **Esa cifra es de su rama, y la fusión la movió a 82 / 81 de esquema**: el
+> mismo día nació también `20260917_costos_ot_por_tipo.sql`, en otra rama y sin
+> que ninguna de las dos pudiera verla. Es el modo exacto en que un recuento
+> caduca aquí — no por el paso del tiempo, por una fusión.
 >
 > **Aplicada y verificada solo en LOCAL**, contra ningún servidor: la receta
 > completa sobre una base desechable con
@@ -99,8 +105,10 @@ archivos:
 
 ## Cómo funciona
 
-- **80 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
-  (medidos el 2026-09-10; eran 75 el 31/08). La última es
+- **82 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
+  (medidos el 2026-09-18 sobre el árbol fusionado; eran 80 el 10/09 y 75 el
+  31/08). Las dos últimas son **`20260917_costos_ot_por_tipo.sql`** y
+  **`20260917_entidades_fiscales.sql`**; la anterior era
   **`20260910_pais_sin_default.sql`**, que le quita a `sitios.pais` el
   `not null default 'PE'` que arrastraba del origen peruano del producto —
   cierra la última mitad de **DATA-01**, la que el 26/08 no se pudo tocar
@@ -764,4 +772,27 @@ instancia nueva**: `provision-instancia.sh` corre `db/schema.sql` y
 > aplicara otro rol, las tres tablas nacerían **sin permisos y sin error**, y el
 > SDK publicaría bien sin poder registrar que publicó: el reintento duplicaría.
 
-**Van 76 migraciones**, y hay **42 tablas**.
+## `20260917_costos_ot_por_tipo.sql` — el costo de una OT deja de estar a fuego
+
+Añade `config_negocio.costos_ot jsonb not null default '{}'` con un CHECK de
+forma (`jsonb_typeof = 'object'`) y su bloque de comprobación. Retira la
+constante `COSTO_OPERATIVO_POR_OT = 1500` de `apps/web/lib/data/derive.ts:254`
+al código compartido `apps/web/lib/costos-ot.ts`. Detalle en
+[[02-Backend/operaciones-y-ot]] y [[02-Backend/reportes-rentabilidad]].
+
+> [!tip] El CHECK de forma existe porque el fallo sin él no da error
+> Un `'[]'` o un `'3'` entrarían en la columna y el lector los trataría como
+> «sin configurar» **en silencio**. Es el modo de fallo que este repo persigue:
+> no revienta, solo miente. Con el CHECK es un 23514 en la escritura.
+
+Aplicada y reaplicada **en local sobre una base desechable** el 17/09 (creada y
+borrada en el mismo Postgres del 5433, sin tocar `spaces` ni `spaces_e2e`):
+segunda pasada sin error, `costos_ot` = `jsonb` `NOT NULL` con default `'{}'`,
+el arreglo rechazado por el CHECK y el objeto aceptado. **Contra ningún
+servidor.**
+
+**Hay 82 archivos en `db/migrations/`** —medido el 2026-09-18 con
+`ls db/migrations/*.sql | wc -l` sobre el árbol fusionado— y **43 tablas**. Este
+párrafo ha tenido la cifra mal dos veces seguidas: traía 76 (del 10/09) y la
+rama de reportes la corrigió a 81 y 42 sin poder ver las tres tablas que la rama
+de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.
