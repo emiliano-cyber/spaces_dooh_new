@@ -71,6 +71,13 @@ La entrada más reciente va arriba.
   reporte por metro cuadrado los deja fuera **y lo dice**. Se puede volver a
   correr sin miedo: no duplica nada. Y **no se instala en la copia de ningún
   cliente**: es solo para demostraciones.
+- **Los cuatro botones de Inventario ahora se ven como botones.** Arriba de
+  Inventario hay cuatro opciones —ver el inventario, contrato + pantalla, carga
+  masiva y alta manual— que iban pegadas unas a otras y sin relieve, y costaba
+  saber cuál estaba activa y dónde acababa cada una. Ahora van **separadas**, la
+  opción activa **sobresale** en blanco con su sombra sobre el fondo crema, y las
+  demás dibujan su borde al pasar el ratón por encima. Además, al recorrerlas con
+  el teclado se ve un anillo que marca en cuál estás: antes no se veía nada.
 
 ## 2026-09-17
 

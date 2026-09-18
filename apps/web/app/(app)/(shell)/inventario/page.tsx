@@ -9,6 +9,29 @@ import { InventarioTabla } from '@/components/demo/inventario/InventarioTabla'
 import { ContratoWizard } from '@/components/demo/inventario/ContratoWizard'
 import { useSesionCtx } from '@/components/demo/shell/SesionContext'
 
+// Clases de un botón del selector de vía, en UN solo sitio a propósito: son
+// cuatro botones con la misma pinta, y cuatro copias de la misma cadena de
+// clases es la forma segura de que en un mes tengan tres pintas distintas.
+//
+// La pastilla activa es la BLANCA y el riel es el crema, no al revés. Antes el
+// activo llevaba `bg-surface-2` (crema) dentro de un contenedor `bg-surface`
+// (blanco): más oscuro que su propio fondo, así que se leía HUNDIDO — justo lo
+// contrario del relieve que se buscaba. Invertir figura y fondo es lo que hace
+// que la elevación vaya en la dirección que espera quien mira.
+function claseVia(activa: boolean): string {
+  return cn(
+    'inline-flex items-center gap-1.5 rounded border px-3.5 py-2',
+    // Solo color y sombra en la transición: animar la caja movería el texto.
+    'transition-[background-color,border-color,box-shadow,color] duration-150',
+    // Estos botones no tenían NINGUNA marca de foco. `ring-accent` es la
+    // convención que ya documenta `demo.css:141` para los controles.
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+    activa
+      ? 'border-border-strong bg-surface font-medium text-ink shadow-sm'
+      : 'border-transparent text-muted hover:border-border hover:bg-surface hover:text-ink',
+  )
+}
+
 // Pantalla "Inventario" (solo Dueño). Reemplaza al modal: las vías
 // — contrato+pantalla, carga masiva y alta manual — viven aquí, en la página.
 export default function AgregarInventarioPage() {
@@ -56,46 +79,20 @@ export default function AgregarInventarioPage() {
         </div>
       </div>
 
-      {/* Selector de vía */}
-      <div className="inline-flex rounded-md border border-border bg-surface p-0.5 text-[13px]">
-        <button
-          type="button"
-          onClick={() => setModo('lista')}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
-            modo === 'lista' ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
-          )}
-        >
+      {/* Selector de vía — pastilla elevada sobre riel hundido.
+          El `gap-1.5` y el `p-1` son la separación: antes los cuatro iban
+          pegados dentro de un `p-0.5` y no se distinguía dónde acababa uno. */}
+      <div className="inline-flex gap-1.5 rounded-md border border-border bg-surface-2 p-1 text-[13px]">
+        <button type="button" onClick={() => setModo('lista')} className={claseVia(modo === 'lista')}>
           <Table2 className="h-3.5 w-3.5" /> Inventario
         </button>
-        <button
-          type="button"
-          onClick={() => setModo('contrato')}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
-            modo === 'contrato' ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
-          )}
-        >
+        <button type="button" onClick={() => setModo('contrato')} className={claseVia(modo === 'contrato')}>
           <FileSignature className="h-3.5 w-3.5" /> Contrato + pantalla
         </button>
-        <button
-          type="button"
-          onClick={() => setModo('masiva')}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
-            modo === 'masiva' ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
-          )}
-        >
+        <button type="button" onClick={() => setModo('masiva')} className={claseVia(modo === 'masiva')}>
           <Upload className="h-3.5 w-3.5" /> Carga masiva
         </button>
-        <button
-          type="button"
-          onClick={() => setModo('manual')}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded px-3 py-1.5 transition-colors duration-150',
-            modo === 'manual' ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:text-ink',
-          )}
-        >
+        <button type="button" onClick={() => setModo('manual')} className={claseVia(modo === 'manual')}>
           <FilePlus2 className="h-3.5 w-3.5" /> Alta manual
         </button>
       </div>
