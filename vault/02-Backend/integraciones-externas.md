@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-17
 tags: [backend, integraciones, terceros, cron]
 archivos:
   - apps/web/lib/server/doohmain.ts
@@ -57,6 +57,49 @@ hemos visto una respuesta con datos, así que no se interpreta nada todavía»*.
 captura fotos y las verifica contra la creatividad con IA. El enlace
 pantalla↔cámara es **por código**: `sitios.codigo_proveedor == device.billboard_code`.
 Credenciales **solo por env, nunca al cliente**.
+
+> [!danger] 2026-09-17 · `SPACE_EYE_*` no está en NINGUNA plantilla
+> Se lee en `space-eye.ts:17-19` y **no se declara en
+> `infra/env/app.env.example`**. Hoy **no hay ningún camino** por el que esas
+> variables lleguen a una instancia aprovisionada.
+>
+> **El modo de fallo es silencioso**, que es lo que lo hace caro:
+> `spaceEyeHabilitado()` devuelve `no_configurado` sin error ni aviso
+> (`space-eye.ts:116`). Una instancia nueva nace con Space Eye apagado y nadie
+> se entera hasta que un cliente pregunta por sus cámaras.
+>
+> **Es la misma familia que costó dos correcciones el mismo día** (PR #89):
+> `provision-instancia.sh` no escribía ninguna clave de respaldo, y al
+> arreglarlo `SPACES_REGION` **seguía perdiéndose** porque
+> `reescribir_env_sourceado` parte de la plantilla y la plantilla no la
+> declaraba. **La plantilla es el eslabón que se olvida.**
+>
+> Aplica igual a `ADMOBILIZE_API_KEY`, `CMS_API_TOKEN` y `CFDI_PAC_KEY`, que el
+> traspaso del 15/09 ya había señalado.
+
+> [!success] 2026-09-17 · el PADRE NO lleva la integración — medido, no supuesto
+> Se levantó como «divergencia del E4.1» del plan de Space Eye. **No existe.**
+> Leído el entorno real del PADRE (`/etc/space-os/padre.env`, que es el
+> `EnvironmentFile` de `spaces-web.service:77`):
+>
+> ```
+> SPACE_EYE_BASE_URL     VACIA
+> SPACE_EYE_USER         VACIA
+> SPACE_EYE_PASS         VACIA
+> ```
+>
+> Coincide con `docs/Runbook_Padre_Droplet_Nuevo.md:370`, que lista `SPACE_EYE_*`
+> como **«No. Son de operación, y el PADRE es plano de control»**.
+>
+> **Lo que sí está encendido con credenciales reales es el entorno de
+> desarrollo**: `apps/web/.env.local`, que está en `.gitignore:15` y nunca se ha
+> versionado. Eso es lo correcto, y era el origen de la confusión: el «aquí» de
+> aquella nota era la máquina de desarrollo, no el plano de control.
+>
+> **Queda un cabo**: el PADRE no corre la imagen —arranca `next start` desde
+> `/var/www/Spaces/apps/web` (`spaces-web.service:75,83`)—, así que Next carga
+> los `.env` de ese directorio aunque `padre.env` esté limpio. Se cierra con
+> `grep -l SPACE_EYE /var/www/Spaces/apps/web/.env*`.
 
 ## Correo (Resend) — dos canales
 
