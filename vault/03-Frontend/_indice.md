@@ -27,6 +27,7 @@ Router en uso**.
 | [[shell-y-navegacion]] | Layouts anidados, sidebar, topbar, guards de UI |
 | [[acceso-y-sesion-ui]] | Login, recuperar contraseña, autoregistro |
 | [[modulos-internos]] | Las 22 pantallas dentro del shell |
+| [[pantalla-reportes]] | El tablero de rentabilidad: el límite con el endpoint, el 501 y los vacíos |
 | [[paginas-publicas]] | Portal, firma, propuesta compartible, OT móvil |
 | [[estado-y-data-fetching]] | React Query, zustand, el parche de `fetch` |
 

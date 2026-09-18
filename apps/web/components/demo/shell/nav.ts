@@ -18,6 +18,7 @@ import {
   Percent,
   CalendarRange,
   Warehouse,
+  TrendingUp,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -123,6 +124,11 @@ export const NAV: NavItem[] = [
 
   // ─── Finanzas ────────────────────────────────────────────────────────────
   { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
+  // Reportes va PEGADO a Finanzas y con sus MISMOS roles, porque la autoriza el
+  // mismo módulo (`finanzas`, ver `lib/modulos.ts`). Si los roles divergieran,
+  // un rol vería la entrada y se comería el 403 de `exigir('finanzas','ver')`
+  // sin saber por qué — el encierro que este repo ya documentó dos veces.
+  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
   { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'], grupo: 'cobrar' },
 
   // ─── Sistema ─────────────────────────────────────────────────────────────
