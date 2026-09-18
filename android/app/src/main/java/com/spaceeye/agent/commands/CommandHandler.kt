@@ -2,9 +2,12 @@ package com.spaceeye.agent.commands
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.PowerManager
 import android.location.Geocoder
 import android.location.LocationManager
 import android.util.Log
+import com.spaceeye.agent.camera.CamaraNoDisponible
 import com.spaceeye.agent.camera.PhotoCapture
 import com.spaceeye.agent.camera.PhotoWatermark
 import java.text.SimpleDateFormat
@@ -122,6 +125,28 @@ class CommandHandler(
 
     // Ubicacion actual (ultima conocida) para estampar en la foto.
     @SuppressLint("MissingPermission")
+    /**
+     * El estado del telefono que explica un fallo de camara, en una linea.
+     *
+     * Son las tres cosas que hasta ahora habia que ir a mirar al sitio: si el
+     * permiso sigue concedido (Android lo revoca solo a las apps que considera
+     * sin uso), si el equipo esta en modo de ahorro -que limita el trabajo en
+     * segundo plano- y si el servicio logro declararse en uso de camara, sin lo
+     * cual Android niega las capturas aunque el permiso este dado.
+     */
+    private fun estadoDeCamara(): String {
+        val permiso = try {
+            ctx.checkSelfPermission(android.Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED
+        } catch (e: Exception) { false }
+        val ahorro = try {
+            (ctx.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
+        } catch (e: Exception) { false }
+        return "permiso de camara: ${if (permiso) "concedido" else "NEGADO"}; " +
+            "servicio en uso de camara: ${if (MonitorService.camaraDeclarada()) "si" else "NO"}; " +
+            "modo de ahorro: ${if (ahorro) "encendido" else "apagado"}"
+    }
+
     private fun currentLatLng(): Pair<Double, Double>? {
         return try {
             val lm = ctx.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -174,6 +199,11 @@ class CommandHandler(
                         // el visor antes. Ahora las dos pasan por la misma sesion
                         // con los mismos parametros.
                         val estabaTransmitiendo = webrtc.isStreaming()
+                        // Por que no salio la foto. Se arma por el camino y viaja
+                        // al dashboard: antes todo fallo -camara negada, otra app
+                        // usandola, servicio caido- llegaba como "capture_failed",
+                        // que no dice a nadie que hacer.
+                        var motivoFallo: String? = null
                         val photo: ByteArray? = try {
                             val porCameraX = suspendCancellableCoroutine<ByteArray?> { cont ->
                                 webrtc.capturarFoto(rotation) { bytes -> if (cont.isActive) cont.resume(bytes) }
@@ -185,15 +215,22 @@ class CommandHandler(
                             // queda sin evidencia del dia.
                             porCameraX ?: run {
                                 Log.w(TAG, "CameraX no dio foto; se intenta por el camino directo")
+                                motivoFallo = "la sesion de camara no entrego imagen"
                                 try {
                                     photoCapture.captureNow(lente, zoom)
+                                } catch (e: CamaraNoDisponible) {
+                                    Log.e(TAG, "respaldo tambien fallo: ${e.message}")
+                                    motivoFallo = e.motivo
+                                    null
                                 } catch (e: Exception) {
                                     Log.e(TAG, "respaldo tambien fallo: ${e.message}")
+                                    motivoFallo = e.message ?: e.javaClass.simpleName
                                     null
                                 }
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "captura fallida: ${e.message}")
+                            motivoFallo = e.message ?: e.javaClass.simpleName
                             null
                         } finally {
                             // Si la camara se abrio solo para esta foto, se libera
@@ -235,10 +272,17 @@ class CommandHandler(
                                 }
                             }
                         } else {
-                            RemoteLog.error(ctx, "photo", "Fallo al capturar la foto")
+                            val motivo = motivoFallo ?: "sin motivo reportado por la camara"
+                            RemoteLog.error(
+                                ctx, "photo",
+                                "Fallo al capturar la foto: $motivo. ${estadoDeCamara()}"
+                            )
                             if (id > 0) {
                                 withContext(Dispatchers.IO) {
-                                    apiClient.reportCommandResult(id, false, errorMessage = "capture_failed")
+                                    apiClient.reportCommandResult(
+                                        id, false,
+                                        errorMessage = motivo.take(240)
+                                    )
                                 }
                             }
                         }

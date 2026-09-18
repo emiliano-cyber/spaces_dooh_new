@@ -12,10 +12,41 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * La camara no se pudo abrir, y por que.
+ *
+ * Antes esto viajaba como un RuntimeException("camera_error_3") y el dashboard
+ * mostraba un "capture_failed" pelado: para saber que el 3 significa "el sistema
+ * te niega la camara" habia que leer la documentacion de Android con el codigo
+ * en la mano. El motivo va escrito, en castellano, para que se pueda actuar
+ * desde el dashboard sin ir al sitio.
+ */
+class CamaraNoDisponible(val codigo: Int, val motivo: String) :
+    RuntimeException("camera_error_$codigo: $motivo")
+
 class PhotoCapture(private val ctx: Context) {
 
     companion object {
         private const val TAG = "PhotoCapture"
+
+        /**
+         * Traduce los codigos de CameraDevice.StateCallback. Son cinco y cada uno
+         * pide una accion distinta -desde "cierra la otra app" hasta "reinicia el
+         * telefono"-, asi que confundirlos cuesta un viaje al sitio.
+         */
+        fun motivoDeError(codigo: Int): String = when (codigo) {
+            CameraDevice.StateCallback.ERROR_CAMERA_IN_USE ->
+                "otra app tiene tomada la camara"
+            CameraDevice.StateCallback.ERROR_MAX_CAMERAS_IN_USE ->
+                "el sistema ya tiene abiertas todas las camaras que permite a la vez"
+            CameraDevice.StateCallback.ERROR_CAMERA_DISABLED ->
+                "el sistema no permite abrir la camara: revisa el interruptor de Acceso a la camara, el permiso de la app o una politica del dispositivo"
+            CameraDevice.StateCallback.ERROR_CAMERA_DEVICE ->
+                "la camara devolvio un error de hardware; casi siempre se arregla reiniciando el telefono"
+            CameraDevice.StateCallback.ERROR_CAMERA_SERVICE ->
+                "el servicio de camara de Android se cayo; hace falta reiniciar el telefono"
+            else -> "error $codigo de la camara"
+        }
 
         /**
          * Elige la camara trasera a usar.
@@ -127,7 +158,7 @@ class PhotoCapture(private val ctx: Context) {
         val cm = ctx.getSystemService(Context.CAMERA_SERVICE) as CameraManager
         val cameraId = elegirCamara(cm, lente)
             ?: return@suspendCancellableCoroutine cont.resumeWithException(
-                IllegalStateException("no_back_camera")
+                IllegalStateException("el equipo no reporta ninguna camara trasera")
             )
         android.util.Log.d(TAG, "captura con lente=$lente id=$cameraId zoom=$zoomLineal")
 
@@ -155,6 +186,23 @@ class PhotoCapture(private val ctx: Context) {
         var session: CameraCaptureSession? = null
         val closed = AtomicBoolean(false)
 
+        // UNA sola respuesta, pase lo que pase.
+        //
+        // Aqui habia una carrera que tumbaba la app entera: cada callback hacia
+        // "if (cont.isActive) cont.resume(...)", y mirar y responder no son un
+        // solo paso. Con la camara negada llegaban dos avisos casi juntos (el
+        // error del dispositivo y el de la sesion), los dos veian la operacion
+        // viva y el segundo reventaba con "Already resumed". El fallo de camara
+        // se convertia en un crash del agente -visto en TLALPAN el 26-ago-,
+        // cuando lo correcto es reportarlo y seguir trabajando.
+        val respondido = AtomicBoolean(false)
+        fun entregar(bytes: ByteArray) {
+            if (respondido.compareAndSet(false, true)) cont.resume(bytes)
+        }
+        fun fallar(e: Throwable) {
+            if (respondido.compareAndSet(false, true)) cont.resumeWithException(e)
+        }
+
         fun cleanup() {
             if (!closed.compareAndSet(false, true)) return
             try { session?.close() } catch (_: Exception) {}
@@ -172,7 +220,7 @@ class PhotoCapture(private val ctx: Context) {
             buf.get(bytes)
             image.close()
             cleanup()
-            if (cont.isActive) cont.resume(bytes)
+            entregar(bytes)
         }, handler)
 
         try {
@@ -208,33 +256,33 @@ class PhotoCapture(private val ctx: Context) {
                                         s.capture(builder.build(), null, handler)
                                     } catch (e: Exception) {
                                         cleanup()
-                                        if (cont.isActive) cont.resumeWithException(e)
+                                        fallar(e)
                                     }
                                 }
                                 override fun onConfigureFailed(s: CameraCaptureSession) {
                                     cleanup()
-                                    if (cont.isActive) cont.resumeWithException(RuntimeException("session_failed"))
+                                    fallar(RuntimeException("la camara no acepto la sesion de captura"))
                                 }
                             },
                             handler
                         )
                     } catch (e: Exception) {
                         cleanup()
-                        if (cont.isActive) cont.resumeWithException(e)
+                        fallar(e)
                     }
                 }
                 override fun onDisconnected(camera: CameraDevice) {
                     cleanup()
-                    if (cont.isActive) cont.resumeWithException(RuntimeException("camera_disconnected"))
+                    fallar(RuntimeException("el sistema desconecto la camara a media captura (suele ser otra app pidiendola)"))
                 }
                 override fun onError(camera: CameraDevice, error: Int) {
                     cleanup()
-                    if (cont.isActive) cont.resumeWithException(RuntimeException("camera_error_$error"))
+                    fallar(CamaraNoDisponible(error, motivoDeError(error)))
                 }
             }, handler)
         } catch (e: Exception) {
             cleanup()
-            if (cont.isActive) cont.resumeWithException(e)
+            fallar(e)
         }
     }
 }

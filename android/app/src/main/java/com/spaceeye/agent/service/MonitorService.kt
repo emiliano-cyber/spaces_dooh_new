@@ -42,6 +42,17 @@ class MonitorService : Service() {
         fun setCameraActive(active: Boolean) {
             instance?.updateForegroundType(active)
         }
+
+        /**
+         * Si el servicio logro declararse "en uso de camara".
+         *
+         * Importa para diagnosticar a distancia: si esto es false, Android niega
+         * la camara a una app en segundo plano por diseno, y el sintoma es
+         * identico a un bloqueo del sistema. Hasta ahora ese dato solo existia
+         * en el log interno del telefono, que es justo lo que no se puede leer
+         * desde el dashboard.
+         */
+        fun camaraDeclarada(): Boolean = instance?.cameraTypeActive ?: false
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -146,6 +157,16 @@ class MonitorService : Service() {
                 startForeground(NOTIF_ID, notif, type)
             } catch (e: Exception) {
                 Log.w(TAG, "startForeground(type=$type) fallo: ${e.message}")
+                // Que esto no se quede solo en el logcat del telefono: si la
+                // promocion a "camara" falla, TODAS las capturas van a fallar
+                // despues y sin este aviso el motivo era invisible a distancia.
+                if (camera) {
+                    cameraTypeActive = false
+                    RemoteLog.warn(
+                        applicationContext, "camera",
+                        "El servicio no pudo declararse en uso de camara (${e.message}); Android va a negar las capturas en segundo plano"
+                    )
+                }
                 try {
                     startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
                 } catch (_: Exception) {}
