@@ -122,7 +122,10 @@ describe('4 · el clic en la cabecera', () => {
     // vacia, que es como un guard se queda verde por accidente. Y si el
     // contrato del endpoint gana un campo, esto se pone rojo en vez de dejar
     // una columna muda.
-    const ordenables = Object.keys(fila({ clave: 'x' })).filter((k) => k !== 'tieneContrato')
+    // `clave` es la identidad de la fila (la llave de React) y `tieneContrato`
+    // es un aviso, no una medida: ninguno de los dos se ordena.
+    const NO_SON_MEDIDAS = ['clave', 'tieneContrato']
+    const ordenables = Object.keys(fila({ clave: 'x' })).filter((k) => !NO_SON_MEDIDAS.includes(k))
     expect([...COLUMNAS.map((c) => c.clave)].sort()).toEqual(ordenables.sort())
     expect(new Set(COLUMNAS.map((c) => c.clave)).size).toBe(COLUMNAS.length)
   })
