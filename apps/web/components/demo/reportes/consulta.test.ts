@@ -3,10 +3,12 @@ import {
   DIMENSIONES_UI,
   GRANULARIDADES_UI,
   RUTA_RENTABILIDAD,
+  RANGO_DE_APERTURA,
   construirConsulta,
-  etiquetaDimension,
   motivoInvalido,
+  rangoDelTrimestreCerradoDe,
   rangoDelTrimestreDe,
+  sustantivoFila,
   type FiltrosReporte,
 } from './consulta'
 
@@ -76,11 +78,17 @@ describe('2 · las cuatro dimensiones del contrato estan declaradas', () => {
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual(['sitio', 'trimestre', 'operacion', 'm2'])
   })
 
-  it('hoy solo `sitio` tiene motor, y las otras tres lo dicen', () => {
-    // Se declaran ya para que la pantalla no cambie cuando aterricen: el
-    // selector las ofrece y el 501 se degrada con elegancia.
-    const conMotor = DIMENSIONES_UI.filter((d) => d.conMotor).map((d) => d.valor)
-    expect(conMotor).toEqual(['sitio'])
+  it('NINGUNA se ofrece «en preparacion»: las cuatro calculan', () => {
+    // EL DEFECTO, visto en el navegador el 2026-09-18. La pantalla nacio el 17
+    // con tres dimensiones devolviendo 501, y en la ola 2 se cerraron las tres
+    // — pero nadie quito la etiqueta. El desplegable ofrecia «Por trimestre (en
+    // preparacion)» y al elegirla calculaba perfectamente: el selector mentia
+    // sobre su propia aplicacion, y ni el typecheck ni las unitarias lo vieron
+    // porque una etiqueta no rompe nada.
+    for (const d of DIMENSIONES_UI) {
+      expect(d.label, d.valor).not.toMatch(/prepara/i)
+      expect('conMotor' in d, d.valor).toBe(false)
+    }
   })
 
   it('cada dimension tiene etiqueta en español y ninguna se llama como su clave', () => {
@@ -90,9 +98,14 @@ describe('2 · las cuatro dimensiones del contrato estan declaradas', () => {
     }
   })
 
-  it('etiquetaDimension nombra CUAL falta, no «no implementado»', () => {
-    expect(etiquetaDimension('m2')).toMatch(/cuadrado/i)
-    expect(etiquetaDimension('operacion')).toMatch(/operaci/i)
+  it('`sustantivoFila` dice QUE es una fila en cada dimension', () => {
+    // La cabecera decia «N pantallas con movimiento» en TODA dimension, y en
+    // trimestral las filas son trimestres. Es el mismo defecto que el
+    // encabezado «PANTALLA» de la primera columna, en otro sitio de la pantalla.
+    expect(sustantivoFila('sitio')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('operacion')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('m2')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('trimestre')).toEqual({ singular: 'trimestre', plural: 'trimestres' })
   })
 
   it('las granularidades son solo `mes` y `trimestre`', () => {
@@ -135,11 +148,43 @@ describe('3 · el rango se valida ANTES de pedir', () => {
   })
 })
 
-describe('4 · el rango que se propone al abrir', () => {
-  it('propone el trimestre en curso: acotado y explicito, no «toda la historia»', () => {
-    // No es un valor por omision del ENDPOINT —ahi las fechas son obligatorias
-    // a proposito—: es lo que la pantalla escribe en sus dos campos, y viaja en
-    // la querystring como cualquier otro rango que elija una persona.
+describe('4 · el rango que se propone al abrir es el ULTIMO TRIMESTRE CERRADO', () => {
+  it('propone el trimestre COMPLETO anterior, no el que esta en curso', () => {
+    // EL DEFECTO, y el que mas caro sale de los tres. Con el trimestre EN CURSO
+    // la pantalla abria en un periodo a medias: en la base de demostracion,
+    // jul-sep 2026 no tiene ingresos y SI tiene renta, asi que lo primero que
+    // se veia era el negocio perdiendo 184 500.
+    //
+    // El motivo del cambio es de PRODUCTO, no de demo: un trimestre en curso
+    // siempre se lee peor que uno completo —la renta se devenga desde el dia 1
+    // y las reservas se cobran al cerrar—, asi que el reporte abriria dando una
+    // impresion falsa a cualquier cliente, el suyo incluido.
+    expect(RANGO_DE_APERTURA(new Date(2026, 8, 18))).toEqual({ desde: '2026-04-01', hasta: '2026-06-30' })
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 8, 18))).toEqual({ desde: '2026-04-01', hasta: '2026-06-30' })
+  })
+
+  it('en enero retrocede de AÑO, no a un T4 del año en curso', () => {
+    // Un `mes - 3` sin cruzar el año daria `2026-10-01` a `2026-12-31`: un
+    // trimestre que todavia no ha pasado, presentado como cerrado. No da error.
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 0, 5))).toEqual({ desde: '2025-10-01', hasta: '2025-12-31' })
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 2, 31))).toEqual({ desde: '2025-10-01', hasta: '2025-12-31' })
+  })
+
+  it('el cerrado NUNCA solapa al que esta en curso', () => {
+    // Un solo dia de solape metaria en el reporte el periodo incompleto que
+    // este cambio existe para sacar.
+    for (const mes of [0, 1, 3, 5, 6, 8, 9, 11]) {
+      const hoy = new Date(2026, mes, 15)
+      const cerrado = rangoDelTrimestreCerradoDe(hoy)
+      const enCurso = rangoDelTrimestreDe(hoy)
+      expect(cerrado.hasta < enCurso.desde, `mes ${mes}`).toBe(true)
+    }
+  })
+
+  it('el trimestre EN CURSO se conserva, porque la decision es del dueño', () => {
+    // `rangoDelTrimestreDe` no se borra: volver al trimestre en curso es
+    // cambiar UNA linea (`RANGO_DE_APERTURA`), y es una decision de producto
+    // que el dueño puede querer al reves.
     expect(rangoDelTrimestreDe(new Date(2026, 1, 15))).toEqual({ desde: '2026-01-01', hasta: '2026-03-31' })
     expect(rangoDelTrimestreDe(new Date(2026, 8, 30))).toEqual({ desde: '2026-07-01', hasta: '2026-09-30' })
     expect(rangoDelTrimestreDe(new Date(2026, 11, 1))).toEqual({ desde: '2026-10-01', hasta: '2026-12-31' })
@@ -147,7 +192,7 @@ describe('4 · el rango que se propone al abrir', () => {
 
   it('el rango propuesto siempre es valido para el endpoint', () => {
     for (const mes of [0, 3, 6, 9, 11]) {
-      const r = rangoDelTrimestreDe(new Date(2026, mes, 20))
+      const r = RANGO_DE_APERTURA(new Date(2026, mes, 20))
       expect(motivoInvalido({ ...base, ...r }), `mes ${mes}`).toBeNull()
     }
   })

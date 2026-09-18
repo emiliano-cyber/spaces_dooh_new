@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   COLUMNAS,
-  ORDEN_INICIAL,
-  advertenciasDelReporte,
+  avisosDelReporte,
   formatoPorcentaje,
+  ordenInicialDe,
   ordenarFilas,
   siguienteOrden,
   type FilaOrdenable,
@@ -19,12 +19,14 @@ import {
 //  sale del `.tsx`.
 // ============================================================================
 
-// La `clave` viaja con la fila porque es su identidad (la llave de React), no
-// una medida: no se ordena por ella y no es parte de `FilaOrdenable`.
-type FilaDePrueba = FilaOrdenable & { clave: string }
+// La fila de prueba trae TODOS los campos del contrato, incluidos los que solo
+// llegan en una dimension: es lo que hace que el guard del bloque 4 se ponga
+// rojo cuando el endpoint gana un campo, en vez de dejar una columna muda.
+type FilaDePrueba = FilaOrdenable
 
 function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
   return {
+    clave: p.clave,
     etiqueta: p.clave,
     ingreso: 0,
     costoEspacio: 0,
@@ -33,6 +35,14 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     margen: 0,
     margenPct: null,
     tieneContrato: true,
+    visitas: 0,
+    visitasPorTipo: {},
+    costoOperacionPct: null,
+    horasEnSitio: null,
+    visitasConDuracion: 0,
+    m2: 0,
+    ingresoPorM2: 0,
+    margenPorM2: 0,
     ...p,
   }
 }
@@ -45,12 +55,13 @@ const filas: FilaDePrueba[] = [
 ]
 
 describe('1 · el orden por omision es el del servidor: peor margen primero', () => {
-  it('ORDEN_INICIAL ordena por margen ascendente', () => {
+  it('en `sitio` el orden inicial es por margen ascendente', () => {
     // La pregunta que contesta este reporte es «¿que pantallas estan perdiendo
     // dinero?». Si la pantalla reordenara al recibir, discutiria con el
-    // servidor sobre la misma pregunta.
-    expect(ORDEN_INICIAL).toEqual({ columna: 'margen', direccion: 'asc' })
-    expect(ordenarFilas(filas, ORDEN_INICIAL).map((f) => f.etiqueta)).toEqual([
+    // servidor sobre la misma pregunta. El orden de las otras tres dimensiones
+    // —y el CRONOLOGICO de `trimestre`— esta en `tabla.dimensiones.test.ts`.
+    expect(ordenInicialDe('sitio')).toEqual({ columna: 'margen', direccion: 'asc' })
+    expect(ordenarFilas(filas, ordenInicialDe('sitio'), 'sitio').map((f) => f.etiqueta)).toEqual([
       'Ángeles',
       'Andes',
       'Bosques',
@@ -61,7 +72,7 @@ describe('1 · el orden por omision es el del servidor: peor margen primero', ()
 
 describe('2 · el null de margenPct no se ordena como un cero', () => {
   it('va al final ordenando ascendente', () => {
-    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'asc' })
+    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'asc' }, 'sitio')
     expect(r.map((f) => f.margenPct)).toEqual([-20, 40, 100, null])
   })
 
@@ -69,7 +80,7 @@ describe('2 · el null de margenPct no se ordena como un cero', () => {
     // Un `null` tratado como 0 se colaria entre -20 y 40 en una direccion y al
     // principio en la otra: la fila sin ingreso saltaria de sitio y parecia que
     // «no gana ni pierde».
-    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'desc' })
+    const r = ordenarFilas(filas, { columna: 'margenPct', direccion: 'desc' }, 'sitio')
     expect(r.map((f) => f.margenPct)).toEqual([100, 40, -20, null])
   })
 })
@@ -79,18 +90,18 @@ describe('3 · lo que un ordenamiento hecho a mano rompe', () => {
     // `Array.prototype.sort` ordena EN SITIO. Sobre el arreglo del `useState`
     // de React eso es una mutacion invisible que no vuelve a renderizar.
     const antes = filas.map((f) => f.clave)
-    ordenarFilas(filas, { columna: 'ingreso', direccion: 'desc' })
+    ordenarFilas(filas, { columna: 'ingreso', direccion: 'desc' }, 'sitio')
     expect(filas.map((f) => f.clave)).toEqual(antes)
   })
 
   it('ordena texto con la regla del español, no por codigo de caracter', () => {
     // 'Á' vale 193 y 'B' 66: por codigo, «Ángeles» iria DESPUES de «Bosques».
-    const r = ordenarFilas(filas, { columna: 'etiqueta', direccion: 'asc' })
+    const r = ordenarFilas(filas, { columna: 'etiqueta', direccion: 'asc' }, 'sitio')
     expect(r.map((f) => f.etiqueta)).toEqual(['Andes', 'Ángeles', 'Bosques', 'Periferico Sur'])
   })
 
   it('las columnas numericas ordenan por numero', () => {
-    const r = ordenarFilas(filas, { columna: 'ingreso', direccion: 'desc' })
+    const r = ordenarFilas(filas, { columna: 'ingreso', direccion: 'desc' }, 'sitio')
     expect(r.map((f) => f.ingreso)).toEqual([100_000, 50_000, 20_000, 0])
   })
 })
@@ -127,8 +138,11 @@ describe('4 · el clic en la cabecera', () => {
     // contrato del endpoint gana un campo, esto se pone rojo en vez de dejar
     // una columna muda.
     // `clave` es la identidad de la fila (la llave de React) y `tieneContrato`
-    // es un aviso, no una medida: ninguno de los dos se ordena.
-    const NO_SON_MEDIDAS = ['clave', 'tieneContrato']
+    // es un aviso, no una medida: ninguno de los dos se ordena. `visitasPorTipo`
+    // es un objeto —no hay un orden sensato entre dos repartos por tipo— y
+    // `visitasConDuracion` es el DENOMINADOR de `horasEnSitio`: una nota al pie
+    // de esa celda, no una columna con la que rankear.
+    const NO_SON_MEDIDAS = ['clave', 'tieneContrato', 'visitasPorTipo', 'visitasConDuracion']
     const ordenables = Object.keys(fila({ clave: 'x' })).filter((k) => !NO_SON_MEDIDAS.includes(k))
     expect([...COLUMNAS.map((c) => c.clave)].sort()).toEqual(ordenables.sort())
     expect(new Set(COLUMNAS.map((c) => c.clave)).size).toBe(COLUMNAS.length)
@@ -136,7 +150,7 @@ describe('4 · el clic en la cabecera', () => {
 
   it('toda columna declarada se puede ordenar y tiene etiqueta en español', () => {
     for (const c of COLUMNAS) {
-      expect(() => ordenarFilas(filas, { columna: c.clave, direccion: 'asc' }), c.clave).not.toThrow()
+      expect(() => ordenarFilas(filas, { columna: c.clave, direccion: 'asc' }, 'sitio'), c.clave).not.toThrow()
       expect(c.label.length, c.clave).toBeGreaterThan(2)
       expect(c.label, c.clave).not.toBe(c.clave)
     }
@@ -163,14 +177,16 @@ describe('6 · lo que el reporte deja fuera se ensena, no se esconde', () => {
   it('cuenta las filas sin contrato: su costo de espacio NO esta medido', () => {
     // Sin contrato no hay renta atribuida, asi que su costo de espacio es 0 y
     // su margen sale infladamente bueno. Esconderlo es peor que no tenerlo.
-    expect(advertenciasDelReporte(filas).sinContrato).toBe(1)
+    const a = avisosDelReporte({ dimension: 'sitio', filas })
+    expect(a.find((x) => x.clave === 'sin-contrato')?.texto).toMatch(/^1 pantalla /)
   })
 
   it('cuenta las filas sin ingreso en el rango: cuestan y no vendieron', () => {
-    expect(advertenciasDelReporte(filas).sinIngreso).toBe(1)
+    const a = avisosDelReporte({ dimension: 'sitio', filas })
+    expect(a.find((x) => x.clave === 'sin-ingreso')?.texto).toMatch(/^1 pantalla /)
   })
 
   it('sobre cero filas no inventa advertencias', () => {
-    expect(advertenciasDelReporte([])).toEqual({ sinContrato: 0, sinIngreso: 0 })
+    expect(avisosDelReporte({ dimension: 'sitio', filas: [] })).toEqual([])
   })
 })
