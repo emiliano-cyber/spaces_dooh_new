@@ -8,11 +8,11 @@ import { esFechaValida, ordenInvertido } from '@/lib/server/fechas'
 //  NUNCA al store.
 //
 //  Hoy el resto de la analítica se calcula en el navegador: `/api/estado`
-//  devuelve 23 rebanadas de tablas completas (`app/api/estado/route.ts:97-124`)
+//  devuelve 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`)
 //  y el front deriva los márgenes con `useStoreMemo` (`lib/data/client.ts:329`).
 //  Ese camino ya reventó una vez —6.12 MB y pantalla en blanco de 6 a 12
 //  segundos, sin dar ningún error; lo cuenta su propio código en
-//  `app/api/estado/route.ts:132-141`—, y los reportes verán historia de AÑOS.
+//  `app/api/estado/route.ts:142-146`—, y los reportes verán historia de AÑOS.
 //  Colgar esta pantalla del store obligaría a rehacerla entera cuando el
 //  cálculo se porte a agregación SQL. Por eso el límite se respeta desde el
 //  primer render.
