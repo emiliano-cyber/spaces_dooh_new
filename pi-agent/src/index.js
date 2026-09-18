@@ -21,7 +21,7 @@ const { Vigilante } = require('./vigilante');
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.4.0';
+const VERSION = '0.5.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -256,6 +256,15 @@ async function main() {
         zoom: payload.camera_zoom,
         ajustes: payload.camera_ajustes,
       });
+      // Si la captura tuvo algo que contar -por ejemplo que no pudo promediar
+      // cuadros y fue con un disparo simple-, tiene que llegar al dashboard: si
+      // no, la foto sale con lineas y nadie sabe por que.
+      const aviso = camara.tomarAviso && camara.tomarAviso();
+      if (aviso) {
+        log(`camara: ${aviso}`);
+        api.log('warning', 'camera', aviso);
+      }
+
       const meta = {
         taken_at: new Date().toISOString(),
         command_id: cmd.id,

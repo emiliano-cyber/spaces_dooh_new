@@ -16,6 +16,12 @@ const { spawn } = require('child_process');
 const ANCHO = 1920;
 const ALTO = 1080;
 
+// Tope de cuadros a promediar. Mas alla no se gana casi nada -la mejora va con
+// la raiz de N- y la captura empieza a tardar de mas: 32 cuadros a 30 por
+// segundo ya es mas de un segundo de escena, y si pasa un coche o cambia el
+// creativo a media captura, sale mezclado.
+const CUADROS_MAX = 32;
+
 // spawn en vez de execFile: la foto es binaria y puede pesar varios MB, mas de
 // lo que aguanta el buffer por omision de execFile.
 function ejecutar(cmd, args, { entradaVacia = true } = {}) {
@@ -38,6 +44,37 @@ function ejecutar(cmd, args, { entradaVacia = true } = {}) {
       resolve(buf);
     });
     if (p.stdin) p.stdin.end();
+  });
+}
+
+// Dos procesos encadenados: la salida del primero entra al segundo, y lo que
+// devuelve el segundo es el resultado. Sin shell de por medio, igual que en la
+// transmision: los argumentos van como argumentos y no hay nada que
+// entrecomillar ni que se pueda colar en una linea de comandos.
+function ejecutarTuberia(cmdA, argsA, cmdB, argsB) {
+  return new Promise((resolve, reject) => {
+    const a = spawn(cmdA, argsA, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const b = spawn(cmdB, argsB, { stdio: ['pipe', 'pipe', 'pipe'] });
+    const salida = [];
+    const errA = [];
+    const errB = [];
+    a.stdout.pipe(b.stdin);
+    // Si el segundo muere primero, la tuberia da EPIPE: no es un fallo nuestro.
+    a.stdout.on('error', () => {});
+    b.stdin.on('error', () => {});
+    a.stderr.on('data', (d) => errA.push(d));
+    b.stderr.on('data', (d) => errB.push(d));
+    b.stdout.on('data', (d) => salida.push(d));
+    const rechazar = (e) => reject(e instanceof Error ? e : new Error(String(e)));
+    a.on('error', (e) => rechazar(new Error(`${cmdA}: ${e.message}`)));
+    b.on('error', (e) => rechazar(new Error(`${cmdB}: ${e.message}`)));
+    b.on('close', (codigo) => {
+      const cola = (l) => Buffer.concat(l).toString().trim().split('\n').slice(-2).join(' ');
+      if (codigo !== 0) {
+        return reject(new Error(`${cmdB} termino con codigo ${codigo}: ${cola(errB) || cola(errA) || 'sin detalle'}`));
+      }
+      resolve(Buffer.concat(salida));
+    });
   });
 }
 
@@ -93,6 +130,9 @@ const entre = (v, min, max, porDefecto) => {
 // Modos de balance de blancos que entiende rpicam-still.
 const MODOS_AWB = ['auto', 'incandescent', 'tungsten', 'fluorescent', 'indoor', 'daylight', 'cloudy'];
 
+// A que parte del cuadro le hace caso el automatico de exposicion.
+const MODOS_MEDICION = ['centre', 'spot', 'average', 'matrix'];
+
 /**
  * Traduce el encuadre y los ajustes de imagen del dashboard a banderas de
  * rpicam-still.
@@ -133,6 +173,32 @@ function argumentosDeAjuste(opciones = {}) {
   if (a.saturacion !== undefined) args.push('--saturation', String(entre(a.saturacion, 0, 2, 1)));
   if (a.nitidez !== undefined) args.push('--sharpness', String(entre(a.nitidez, 0, 2, 1)));
   if (a.ev !== undefined) args.push('--ev', String(entre(a.ev, -10, 10, 0)));
+
+  // --- Exposicion -----------------------------------------------------------
+  //
+  // ESTO es lo que arregla una pantalla de LED, y no el 'brillo'. Medido en la
+  // foto del 27-ago del espectacular: el 21.4% de los pixeles de la pantalla
+  // tenia al menos un canal pegado en 250, o sea recortado. Un canal recortado
+  // ya perdio el dato; `--brightness` suma luz DESPUES de revelar la imagen y
+  // no lo puede devolver. Lo unico que lo evita es exponer menos.
+  //
+  //   ev        -1 aprox = la mitad de luz. Es la forma facil: se deja el
+  //             automatico y solo se le dice "menos".
+  //   medicion  a que le hace caso el automatico. 'spot' mide el centro del
+  //             cuadro: con la pantalla al centro, la expone para ella y no
+  //             para el cielo, que es lo que la estaba quemando.
+  //   obturador tiempo de exposicion FIJO, en microsegundos. Es el mando
+  //             directo contra las LINEAS del LED (ver _fotoPromediada), pero
+  //             al fijarlo se pierde el automatico: hay que fijar tambien la
+  //             ganancia o la foto sale a oscuras o quemada segun la hora.
+  //   ganancia  ganancia analogica fija (1 = la minima, la mas limpia).
+  if (MODOS_MEDICION.includes(String(a.medicion))) {
+    args.push('--metering', String(a.medicion));
+  }
+  const obturador = Math.round(entre(a.obturador, 0, 200000, 0));
+  if (obturador > 0) args.push('--shutter', String(obturador));
+  const ganancia = entre(a.ganancia, 0, 16, 0);
+  if (ganancia > 0) args.push('--gain', String(ganancia));
 
   // --- Balance de blancos ---------------------------------------------------
   // Las ganancias manuales mandan sobre el modo: es lo que sirve contra el tinte
@@ -330,16 +396,104 @@ class Camara {
     return { gris, ancho, alto };
   }
 
+  /**
+   * Foto promediando varios cuadros seguidos. Es lo que borra las LINEAS de la
+   * pantalla.
+   *
+   * POR QUE APARECEN LAS LINEAS
+   * ---------------------------
+   * Un LED no esta encendido de continuo: prende y apaga miles de veces por
+   * segundo y la pantalla ademas se refresca por franjas. A mediodia la camara
+   * expone en menos de un milisegundo, o sea que atrapa solo un pedazo de ese
+   * ciclo: la franja que estaba encendida sale clara y la que no, oscura. De
+   * ahi las bandas. Medido en la foto del 27-ago del espectacular: 40% de
+   * amplitud sobre el nivel del naranja.
+   *
+   * POR QUE PROMEDIAR SI FUNCIONA
+   * -----------------------------
+   * Porque el patron NO se repite. Entre las dos capturas de ese dia la
+   * correlacion de las bandas es -0.10: cada cuadro pilla el ciclo en otra
+   * fase. Promediando N cuadros la amplitud baja con la raiz de N, asi que con
+   * 16 cuadros se va del 40% al 10%. De paso baja el ruido en la misma
+   * proporcion, que es lo que hace que la pantalla se lea.
+   *
+   * El mando directo seria alargar la exposicion (`obturador`) hasta cubrir
+   * varios ciclos completos, pero a plena luz eso quema la foto entera: harian
+   * falta 8 pasos de luz menos, o sea un filtro ND sobre la lente. Promediar da
+   * el mismo resultado sin tocar el hardware.
+   *
+   * COMO
+   * ----
+   * rpicam-vid graba unos cuadros y ffmpeg los promedia (`tmix`). Los dos ya
+   * estan en el equipo -ffmpeg lo usa la vista en vivo-, asi que no hace falta
+   * instalar nada nuevo.
+   *
+   * Se graba en MJPEG y NO en crudo a proposito: en crudo habria que adivinar
+   * el relleno de filas de cada version de rpicam-vid, y una suposicion mala
+   * sale como una imagen rasgada (el mismo motivo por el que mirarEnGris pide
+   * `rgb`). En MJPEG los cuadros vienen delimitados y ffmpeg los lee sin que
+   * nadie tenga que interpretar nada; se graba a calidad 95 y el promedio, por
+   * ser una media, se come el ruido de esa compresion.
+   *
+   * La imagen sale a un archivo en /dev/shm -memoria, no la tarjeta SD- porque
+   * con `-update` ffmpeg reescribe el archivo en cada cuadro y al terminar
+   * queda el ULTIMO: el unico que promedio la ventana completa, y ademas el que
+   * tiene la exposicion ya estabilizada. Por una tuberia no se puede, saldrian
+   * todas las imagenes pegadas una tras otra.
+   */
+  async _fotoPromediada(cuadros, comunes, ajustes) {
+    const fps = Math.round(entre(this.cfg.fps_promedio, 5, 60, 30));
+    // Se graba la espera de convergencia MAS los cuadros que hay que promediar,
+    // con margen por si alguno se cae.
+    const ms = Math.round((this.cfg.espera_ms || 1500) + ((cuadros + 4) / fps) * 1000);
+    const binVid = this._bin.replace('-still', '-vid');
+    const archivo = `/dev/shm/space-eye-promedio-${process.pid}.jpg`;
+
+    try {
+      await ejecutarTuberia(
+        binVid,
+        [
+          '-n', '-t', String(ms),
+          '--framerate', String(fps),
+          '--codec', 'mjpeg', '--quality', '95',
+          ...comunes,
+          // {video:true}: `--autofocus-on-capture` no existe al grabar video.
+          ...this._argumentosDeEnfoque(ajustes, { video: true }),
+          '-o', '-',
+        ],
+        'ffmpeg',
+        [
+          '-hide_banner', '-loglevel', 'error',
+          '-f', 'mjpeg', '-i', '-',
+          '-vf', `tmix=frames=${cuadros}`,
+          '-q:v', String(entre(this.cfg.calidad_promedio, 2, 31, 2)),
+          '-f', 'image2', '-update', '1', '-y', archivo,
+        ]
+      );
+      const jpeg = fs.readFileSync(archivo);
+      if (!jpeg.length) throw new Error('el promedio salio vacio');
+      return jpeg;
+    } finally {
+      try { fs.unlinkSync(archivo); } catch { /* puede no haberse creado */ }
+    }
+  }
+
+  /** Aviso del ultimo intento de captura, si hubo algo que contar (y se consume). */
+  tomarAviso() {
+    const a = this._aviso;
+    this._aviso = null;
+    return a;
+  }
+
   async tomarFoto(opciones = {}) {
     const modo = await this.detectar();
 
     if (modo === 'libcamera') {
-      // -n sin vista previa, -t deja converger exposicion y balance de blancos.
-      const args = [
-        '-n', '-t', String(this.cfg.espera_ms || 1500),
-        '--width', String(this.ancho), '--height', String(this.alto),
-        '-q', String(this.cfg.calidad || 90),
-      ];
+      const ajustes = opciones.ajustes || {};
+
+      // Banderas que valen para las DOS formas de capturar -un disparo suelto o
+      // varios cuadros promediados-, para que las dos den la misma imagen.
+      const comunes = ['--width', String(this.ancho), '--height', String(this.alto)];
 
       // Perfil de color del sensor.
       //
@@ -350,13 +504,26 @@ class Camara {
       // colores naturales. (Comprobado a mediodia, comparando ocho variantes.)
       //
       // El perfil estandar SOLO, sin ganancias, tiñe todo de rosa: van juntos.
-      const perfil = this._rutaPerfil((opciones.ajustes || {}).perfil);
-      if (perfil) args.push('--tuning-file', perfil);
+      const perfil = this._rutaPerfil(ajustes.perfil);
+      if (perfil) comunes.push('--tuning-file', perfil);
 
       // Encuadre y color que manda el dashboard en la orden. Hasta ahora la Pi
       // los ignoraba: el zoom que se ajustaba desde el dashboard funcionaba en
       // los telefonos y en la Raspberry no hacia absolutamente nada.
-      args.push(...argumentosDeAjuste(opciones));
+      comunes.push(...argumentosDeAjuste(opciones));
+
+      // --- Varios cuadros promediados ---------------------------------------
+      // Es lo unico que borra las LINEAS del LED. Se intenta primero y, si por
+      // lo que sea no se puede, se cae al disparo simple: la foto nunca se
+      // pierde por esto.
+      const cuadros = Math.round(entre(ajustes.cuadros, 1, CUADROS_MAX, 1));
+      if (cuadros > 1) {
+        try {
+          return await this._fotoPromediada(cuadros, comunes, ajustes);
+        } catch (e) {
+          this._aviso = `no pude promediar ${cuadros} cuadros, va con un disparo simple (${e.message})`;
+        }
+      }
 
       // La Module 3 tiene autofoco, pero NO enfoca por su cuenta al capturar:
       // sin pedirselo la foto sale borrosa. Dos formas:
@@ -364,10 +531,15 @@ class Camara {
       //   manual -> enfoque fijo en dioptrias (1/metros; 0 = infinito). Es lo
       //             que conviene en un espectacular: la distancia no cambia y
       //             se evita que el autofoco se despiste de noche o con lluvia.
-      args.push(...this._argumentosDeEnfoque(opciones.ajustes || {}));
-
-      args.push('-o', '-');
-      return ejecutar(this._bin, args);
+      //
+      // -n sin vista previa, -t deja converger exposicion y balance de blancos.
+      return ejecutar(this._bin, [
+        '-n', '-t', String(this.cfg.espera_ms || 1500),
+        ...comunes,
+        '-q', String(this.cfg.calidad || 90),
+        ...this._argumentosDeEnfoque(ajustes),
+        '-o', '-',
+      ]);
     }
 
     if (modo === 'usb') {

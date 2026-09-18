@@ -10,12 +10,15 @@
   "intervalo_sondeo_seg": 300,
   "intervalo_sondeo_caido_seg": 30,
 
+  "_comentario_camara": "Los ajustes de imagen (exposicion, color, encuadre, cuadros a promediar) se manejan POR EQUIPO desde el dashboard y llegan en la orden; aqui solo va lo del equipo en si. 'fps_promedio' y 'calidad_promedio' son de la captura promediada: 30 cuadros por segundo y calidad 2 de ffmpeg (2 = la mejor, 31 = la peor).",
   "camara": {
     "modo": "auto",
     "ancho": 1920,
     "alto": 1080,
     "calidad": 90,
-    "espera_ms": 1500
+    "espera_ms": 1500,
+    "fps_promedio": 30,
+    "calidad_promedio": 2
   },
 
   "_comentario_stream": "Vista en vivo. El caudal se calcula del tamano (720p15 = ~1.5 Mbps = ~11 MB/min). Fijar 'bitrate' solo si un sitio necesita otra cosa: sin limite, rpicam-vid manda ~7 Mbps, o sea 50 MB por minuto.",
