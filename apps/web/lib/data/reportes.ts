@@ -1388,8 +1388,13 @@ export function rentabilidadPorM2(
  * Los meses de calendario que TOCA un rango. Un recibo cubre su mes entero, así
  * que un rango que empieza el 10 de febrero necesita el recibo de febrero para
  * estar completo: el mes cuenta aunque el rango solo lo roce.
+ *
+ * Se EXPORTA porque la pantalla de captura pregunta lo mismo —qué meses tiene
+ * que enseñar con sus huecos— y dos respuestas distintas a «qué meses cubre este
+ * rango» harían que el usuario rellenara todas las celdas de la captura y el
+ * reporte siguiera diciendo que le falta un recibo.
  */
-function mesesDelRango(rango: RangoReporte): string[] {
+export function mesesDelRango(rango: RangoReporte): string[] {
   const [aD, mD] = partes(rango.desde)
   const [aH, mH] = partes(rango.hasta)
   if (nDia(rango.hasta) < nDia(rango.desde)) return []
@@ -1403,6 +1408,19 @@ function mesesDelRango(rango: RangoReporte): string[] {
     if (mes > 11) { mes = 0; anio += 1 }
   }
   return out
+}
+
+/**
+ * La clave del PUNTO DE MEDICIÓN de una pantalla: el predio del que cuelga, o
+ * ella misma cuando no tiene predio (`sitios.predio_id` es nullable).
+ *
+ * Se declara AQUÍ y la usan el reporte y la pantalla de captura
+ * (`lib/server/energia-controller.ts`). Con dos definiciones, la captura
+ * enseñaría un hueco donde el reporte no lo cuenta —o al revés—, y el usuario
+ * no tendría forma de dejar el reporte completo.
+ */
+export function puntoDeMedicion(predioId: string | null | undefined, sitioId: string): string {
+  return predioId ? `P:${predioId}` : `S:${sitioId}`
 }
 
 /** La frase, redactada UNA vez y pintada verbatim. Ver `notaDeExclusiones`. */
@@ -1461,7 +1479,7 @@ function coberturaDeRecibos(
 ): CoberturaEnergia {
   const meses = mesesDelRango(rango)
   const puntos = new Set<string>()
-  for (const s of sitiosConFila) puntos.add(s.predioId ? `P:${s.predioId}` : `S:${s.id}`)
+  for (const s of sitiosConFila) puntos.add(puntoDeMedicion(s.predioId, s.id))
 
   // Qué pares ya tienen recibo. Da igual cuántos medidores traiga el punto: con
   // uno capturado ese mes deja de ser un hueco. Contar «medidores que faltan»
@@ -1469,7 +1487,7 @@ function coberturaDeRecibos(
   // capturan— y daría un número que no se puede bajar a cero.
   const conRecibo = new Set<string>()
   for (const c of consumos) {
-    const punto = c.predioId ? `P:${c.predioId}` : `S:${c.sitioId}`
+    const punto = puntoDeMedicion(c.predioId, c.sitioId ?? '')
     if (!puntos.has(punto)) continue
     conRecibo.add(`${punto}|${c.periodo.slice(0, 7)}`)
   }

@@ -218,16 +218,45 @@ describe('energia-repo — aislamiento por tenant', () => {
     expect(consultas(FUENTE).length).toBeGreaterThanOrEqual(3)
   })
 
-  it('TODA consulta filtra por tenant_id de forma parametrizada', () => {
+  it('TODA consulta que LEE o TOCA filas filtra por tenant_id', () => {
     // Segunda capa SOBRE la RLS. `entidad_id` NO es frontera de seguridad: la
     // única es `tenant_id`.
+    //
+    // Un `insert` se comprueba distinto A PROPÓSITO, y la distinción se
+    // descubrió con este guard en rojo sobre un `insert` correcto: un alta no
+    // SELECCIONA filas existentes, así que no tiene `where` donde poner el
+    // filtro. Lo que hay que exigirle es lo otro — que ESCRIBA el `tenant_id`, y
+    // que lo escriba desde un PARÁMETRO. Un insert sin la columna la dejaría en
+    // null y reventaría el NOT NULL; uno con el tenant interpolado del cuerpo de
+    // la petición sería la puerta que el diseño cierra al sacarlo de la sesión.
     for (const sql of consultas(FUENTE)) {
       const unaLinea = sql.replace(/\s+/g, ' ').trim()
+      if (/^\s*insert\b/i.test(unaLinea)) {
+        expect(unaLinea, `insert que no escribe tenant_id:\n${unaLinea}`).toMatch(
+          /insert into \w+\s*\([^)]*\btenant_id\b/i,
+        )
+        expect(unaLinea, `insert cuyo tenant_id no viene de un parametro:\n${unaLinea}`).toMatch(
+          /values\s*\(\s*\$\d/i,
+        )
+        continue
+      }
       expect(
         /tenant_id\s*=\s*\$\d/.test(unaLinea),
         `esta consulta no filtra por tenant_id:\n${unaLinea}`,
       ).toBe(true)
     }
+  })
+
+  it('el insert NO deja mandar el tenant desde el cuerpo de la peticion', () => {
+    // El `tenant_id` sale de `tenantActual()` y de ningún otro sitio. Que no
+    // haya por dónde mandarlo es parte del diseño del endpoint, no una omisión:
+    // un alta que aceptara un tenant del cuerpo escribiría en otra organización
+    // con la bendición de la aplicación, y la RLS `with check` sería la única
+    // defensa que quedaría.
+    expect(FUENTE).toMatch(/tenantActual\(\)/)
+    expect(FUENTE, 'el tenant llega desde los datos de la peticion').not.toMatch(
+      /d\.tenantId|body\.tenantId|params\.tenantId/,
+    )
   })
 
   it('NO usa qRaw: qRaw no fija app.tenant_id y la RLS no corta', () => {
