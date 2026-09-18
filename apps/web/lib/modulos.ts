@@ -41,6 +41,13 @@ export const AREAS: AreaProducto[] = [
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },
   { clave: 'imprenta', label: 'Imprenta', modulo: 'imprenta', apiPropia: true },
   { clave: 'finanzas', label: 'Finanzas', modulo: 'finanzas', apiPropia: true },
+  // Reportes de rentabilidad va bajo `finanzas` y NO bajo `dashboard`: enseña
+  // lo que se cobra por cada pantalla y lo que se le paga a cada arrendador, o
+  // sea dinero, no un indicador de vitrina. Con `dashboard` lo vería cualquier
+  // rol que pueda abrir el tablero. El guard del endpoint ya exige
+  // `finanzas.ver` (`app/api/reportes/rentabilidad/route.ts`), así que
+  // declararla en otro módulo sería declarar una mentira.
+  { clave: 'reportes', label: 'Reportes', modulo: 'finanzas', apiPropia: true },
   { clave: 'network', label: 'Network', modulo: 'network', apiPropia: true },
   { clave: 'integraciones', label: 'Integraciones', modulo: 'administracion', apiPropia: true },
   { clave: 'actividad', label: 'Actividad', modulo: 'administracion', apiPropia: false },
