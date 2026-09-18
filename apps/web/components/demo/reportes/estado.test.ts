@@ -4,49 +4,58 @@ import { estadoDeReporte, debePedir, type EntradaEstado } from './estado'
 // ============================================================================
 //  La maquina de estados de la pantalla de reportes.
 // ----------------------------------------------------------------------------
-//  Tiene SIETE salidas y una de ellas —el 501— no es un error. Escrita dentro
-//  del `.tsx` no la probaria nadie (vitest no monta jsdom), y sus dos modos de
-//  fallo son silenciosos: un spinner que no termina nunca, y un «no hay datos»
-//  puesto sobre un fallo de red.
+//  Tiene SEIS salidas. Tuvo siete: hubo una —`sin-motor`, el 501— que existia
+//  porque tres de las cuatro dimensiones no tenian motor. Desde el 2026-09-18
+//  las cuatro calculan y ese camino es INALCANZABLE, asi que se retiro; la
+//  medicion que lo autoriza esta en el primer bloque.
+//
+//  Escrita dentro del `.tsx` no la probaria nadie (vitest no monta jsdom), y
+//  sus dos modos de fallo son silenciosos: un spinner que no termina nunca, y
+//  un «no hay datos» puesto sobre un fallo de red.
 // ============================================================================
 
 const listo: EntradaEstado = {
   motivoInvalido: null,
   cargando: false,
-  dimension: 'sitio',
   respuesta: { status: 200, mensaje: null, filas: 4 },
 }
 
-describe('1 · el 501 NO es un error, es una dimension sin motor', () => {
-  it('un 501 cae en `sin-motor`', () => {
-    const e = estadoDeReporte({ ...listo, dimension: 'm2', respuesta: { status: 501, mensaje: null, filas: 0 } })
-    expect(e.fase).toBe('sin-motor')
-  })
-
-  it('un 501 NUNCA cae en `error` ni en `vacio`', () => {
-    // Un 501 pintado como error manda a buscar un fallo que no existe; pintado
-    // como vacio afirma que no hay datos, y eso es falso: no se calcularon.
+describe('1 · el camino del 501 se RETIRO, y esta MEDIDO antes de borrarlo', () => {
+  it('la fase `sin-motor` ya no existe', () => {
+    // La medicion, hecha el 2026-09-18 ANTES de borrar el camino, porque
+    // borrar un manejo de error que si puede ocurrir es peor que dejarlo:
+    //
+    //  · `grep -rn "status: 501|, 501)|501 }"` sobre `apps/web/lib` y
+    //    `apps/web/app` (sin pruebas): CERO lineas.
+    //  · `MOTORES` en `reportes-controller.ts:114` es un `Record` EXHAUSTIVO
+    //    sobre el enum de dimensiones, asi que una dimension declarada sin
+    //    motor NO COMPILA. Lo que el tipo garantiza no necesita un error en
+    //    tiempo de ejecucion.
+    //  · los demas caminos de error del endpoint estan enumerados: `AppError`
+    //    (400 por omision), zod (400, o el status que pida el issue), los
+    //    codigos de Postgres de `errores.ts:105-114` (400/403/409), el 500 de
+    //    respaldo y el 401/403 de `exigir`. Ninguno devuelve 501.
     for (const filas of [0, 7]) {
-      const e = estadoDeReporte({ ...listo, dimension: 'trimestre', respuesta: { status: 501, mensaje: null, filas } })
-      expect(e.fase).not.toBe('error')
-      expect(e.fase).not.toBe('vacio')
+      const e = estadoDeReporte({ ...listo, respuesta: { status: 501, mensaje: null, filas } })
+      expect(e.fase, `filas ${filas}`).not.toBe('sin-motor')
     }
   })
 
-  it('usa el mensaje del servidor cuando lo trae', () => {
-    const e = estadoDeReporte({
-      ...listo,
-      dimension: 'm2',
-      respuesta: { status: 501, mensaje: 'El reporte de rentabilidad por metro cuadrado todavía no está disponible.', filas: 0 },
-    })
-    expect(e.mensaje).toContain('metro cuadrado')
+  it('un 501 que llegara de todos modos es ERROR, y jamas `vacio`', () => {
+    // Ya no podria venir de una dimension sin motor: seria un intermediario
+    // —nginx, un proxy— diciendo que no implementa el metodo, y eso SI es un
+    // fallo que hay que ver. Lo que no puede pasar nunca es que caiga en
+    // `vacio`: cero filas encima de un 501 afirmaria que no hubo movimiento.
+    const e = estadoDeReporte({ ...listo, respuesta: { status: 501, mensaje: null, filas: 0 } })
+    expect(e.fase).toBe('error')
+    expect(e.fase).not.toBe('vacio')
+    expect((e.mensaje ?? '').length).toBeGreaterThan(10)
   })
 
-  it('y si no lo trae, el mensaje propio NOMBRA la dimension que falta', () => {
-    // «No implementado» no le dice a nadie si pedir otra cosa o esperar.
-    const e = estadoDeReporte({ ...listo, dimension: 'operacion', respuesta: { status: 501, mensaje: null, filas: 0 } })
-    expect(e.mensaje).toMatch(/operaci/i)
-    expect(e.mensaje).not.toMatch(/501|no implementado/i)
+  it('la fase ya no depende de la dimension', () => {
+    // `dimension` salio de `EntradaEstado` con el 501: era su unico uso. Un
+    // campo de entrada que nadie lee es lo primero que se queda desfasado.
+    expect(Object.keys(listo)).not.toContain('dimension')
   })
 })
 
@@ -91,11 +100,15 @@ describe('3 · el rango invalido corta antes de pedir', () => {
     expect(debePedir({ dimension: 'sitio', granularidad: 'mes', desde: '2026-03-31', hasta: '2026-01-01' })).toBe(false)
   })
 
-  it('y SI pide una dimension sin motor: el 501 lo decide el servidor, no la pantalla', () => {
-    // Si la pantalla se negara a pedir `m2`, el dia que aterrice su motor
-    // habria que tocar la pantalla — que es exactamente lo que el limite existe
-    // para evitar.
-    expect(debePedir({ dimension: 'm2', granularidad: 'mes', desde: '2026-01-01', hasta: '2026-03-31' })).toBe(true)
+  it('y pide las CUATRO dimensiones: solo el rango decide si se pide', () => {
+    // Lo unico que corta es un rango que no se puede mandar. La dimension no
+    // entra en la decision, y por eso el dia que se añada una quinta esta
+    // pantalla no se toca.
+    for (const dimension of ['sitio', 'trimestre', 'operacion', 'm2'] as const) {
+      expect(debePedir({ dimension, granularidad: 'mes', desde: '2026-01-01', hasta: '2026-03-31' }), dimension).toBe(
+        true,
+      )
+    }
   })
 })
 

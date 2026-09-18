@@ -3,10 +3,14 @@ import {
   DIMENSIONES_UI,
   GRANULARIDADES_UI,
   RUTA_RENTABILIDAD,
+  RANGO_DE_APERTURA,
+  avanceDelTrimestreEnCurso,
   construirConsulta,
-  etiquetaDimension,
   motivoInvalido,
+  rangoDelTrimestreCerradoDe,
   rangoDelTrimestreDe,
+  solapaTrimestreEnCurso,
+  sustantivoFila,
   type FiltrosReporte,
 } from './consulta'
 
@@ -76,11 +80,17 @@ describe('2 · las cuatro dimensiones del contrato estan declaradas', () => {
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual(['sitio', 'trimestre', 'operacion', 'm2'])
   })
 
-  it('hoy solo `sitio` tiene motor, y las otras tres lo dicen', () => {
-    // Se declaran ya para que la pantalla no cambie cuando aterricen: el
-    // selector las ofrece y el 501 se degrada con elegancia.
-    const conMotor = DIMENSIONES_UI.filter((d) => d.conMotor).map((d) => d.valor)
-    expect(conMotor).toEqual(['sitio'])
+  it('NINGUNA se ofrece «en preparacion»: las cuatro calculan', () => {
+    // EL DEFECTO, visto en el navegador el 2026-09-18. La pantalla nacio el 17
+    // con tres dimensiones devolviendo 501, y en la ola 2 se cerraron las tres
+    // — pero nadie quito la etiqueta. El desplegable ofrecia «Por trimestre (en
+    // preparacion)» y al elegirla calculaba perfectamente: el selector mentia
+    // sobre su propia aplicacion, y ni el typecheck ni las unitarias lo vieron
+    // porque una etiqueta no rompe nada.
+    for (const d of DIMENSIONES_UI) {
+      expect(d.label, d.valor).not.toMatch(/prepara/i)
+      expect('conMotor' in d, d.valor).toBe(false)
+    }
   })
 
   it('cada dimension tiene etiqueta en español y ninguna se llama como su clave', () => {
@@ -90,9 +100,14 @@ describe('2 · las cuatro dimensiones del contrato estan declaradas', () => {
     }
   })
 
-  it('etiquetaDimension nombra CUAL falta, no «no implementado»', () => {
-    expect(etiquetaDimension('m2')).toMatch(/cuadrado/i)
-    expect(etiquetaDimension('operacion')).toMatch(/operaci/i)
+  it('`sustantivoFila` dice QUE es una fila en cada dimension', () => {
+    // La cabecera decia «N pantallas con movimiento» en TODA dimension, y en
+    // trimestral las filas son trimestres. Es el mismo defecto que el
+    // encabezado «PANTALLA» de la primera columna, en otro sitio de la pantalla.
+    expect(sustantivoFila('sitio')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('operacion')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('m2')).toEqual({ singular: 'pantalla', plural: 'pantallas' })
+    expect(sustantivoFila('trimestre')).toEqual({ singular: 'trimestre', plural: 'trimestres' })
   })
 
   it('las granularidades son solo `mes` y `trimestre`', () => {
@@ -135,20 +150,120 @@ describe('3 · el rango se valida ANTES de pedir', () => {
   })
 })
 
-describe('4 · el rango que se propone al abrir', () => {
-  it('propone el trimestre en curso: acotado y explicito, no «toda la historia»', () => {
-    // No es un valor por omision del ENDPOINT —ahi las fechas son obligatorias
-    // a proposito—: es lo que la pantalla escribe en sus dos campos, y viaja en
-    // la querystring como cualquier otro rango que elija una persona.
-    expect(rangoDelTrimestreDe(new Date(2026, 1, 15))).toEqual({ desde: '2026-01-01', hasta: '2026-03-31' })
-    expect(rangoDelTrimestreDe(new Date(2026, 8, 30))).toEqual({ desde: '2026-07-01', hasta: '2026-09-30' })
-    expect(rangoDelTrimestreDe(new Date(2026, 11, 1))).toEqual({ desde: '2026-10-01', hasta: '2026-12-31' })
+describe('4 · el rango que se propone al abrir: EL TRIMESTRE EN CURSO', () => {
+  it('abre en el trimestre EN CURSO, por decision del dueño del 2026-09-18', () => {
+    // OJO AL LEER ESTO: el trimestre en curso abre a medias y por eso se lee
+    // peor de lo que es —la renta corre desde el dia 1 y lo vendido se cobra al
+    // cerrar—. Eso NO es un defecto pendiente: se le pregunto al dueño con las
+    // tres opciones y sus consecuencias, y eligio ver el trimestre VIVO al
+    // abrir. El precio de esa eleccion se paga con el aviso de periodo
+    // incompleto (`avisosDelReporte`, clave `periodo-en-curso`), no cambiando
+    // esta linea.
+    expect(RANGO_DE_APERTURA(new Date(2026, 8, 18))).toEqual({ desde: '2026-07-01', hasta: '2026-09-30' })
+    expect(RANGO_DE_APERTURA(new Date(2026, 1, 15))).toEqual({ desde: '2026-01-01', hasta: '2026-03-31' })
+    expect(RANGO_DE_APERTURA(new Date(2026, 11, 1))).toEqual({ desde: '2026-10-01', hasta: '2026-12-31' })
+  })
+
+  it('el CERRADO se conserva entero, porque la decision puede volver a cambiar', () => {
+    // No se borra al dejar de ser el de apertura: volver a abrir en el ultimo
+    // trimestre completo es cambiar `RANGO_DE_APERTURA` a esta funcion, y su
+    // caso del cruce de año es el que nadie escribe a mano.
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 8, 18))).toEqual({ desde: '2026-04-01', hasta: '2026-06-30' })
+  })
+
+  it('el cerrado retrocede de AÑO en enero, no a un T4 del año en curso', () => {
+    // Un `mes - 3` sin cruzar el año daria `2026-10-01` a `2026-12-31`: un
+    // trimestre que todavia no ha pasado, presentado como cerrado. No da error.
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 0, 5))).toEqual({ desde: '2025-10-01', hasta: '2025-12-31' })
+    expect(rangoDelTrimestreCerradoDe(new Date(2026, 2, 31))).toEqual({ desde: '2025-10-01', hasta: '2025-12-31' })
+  })
+
+  it('el cerrado NUNCA solapa al que esta en curso', () => {
+    for (const mes of [0, 1, 3, 5, 6, 8, 9, 11]) {
+      const hoy = new Date(2026, mes, 15)
+      expect(solapaTrimestreEnCurso(rangoDelTrimestreCerradoDe(hoy), hoy), `mes ${mes}`).toBe(false)
+    }
   })
 
   it('el rango propuesto siempre es valido para el endpoint', () => {
     for (const mes of [0, 3, 6, 9, 11]) {
-      const r = rangoDelTrimestreDe(new Date(2026, mes, 20))
+      const r = RANGO_DE_APERTURA(new Date(2026, mes, 20))
       expect(motivoInvalido({ ...base, ...r }), `mes ${mes}`).toBeNull()
     }
+  })
+})
+
+describe('5 · cuando el rango toca un periodo que NO HA CERRADO', () => {
+  // 18 de septiembre de 2026: el trimestre en curso es T3, del 1 de julio al
+  // 30 de septiembre.
+  const hoy = new Date(2026, 8, 18)
+
+  it('el rango de apertura SI solapa: es justo el trimestre vivo', () => {
+    expect(solapaTrimestreEnCurso(RANGO_DE_APERTURA(hoy), hoy)).toBe(true)
+  })
+
+  it('NEGATIVO: un periodo ya cerrado NO solapa, y por eso el aviso desaparece', () => {
+    // La condicion que hace que el aviso valga algo. Un aviso que sale siempre
+    // es un aviso que nadie lee — la misma trampa que el ambar que deja de
+    // avisar por salir en todo.
+    expect(solapaTrimestreEnCurso({ desde: '2026-04-01', hasta: '2026-06-30' }, hoy)).toBe(false)
+    expect(solapaTrimestreEnCurso({ desde: '2025-01-01', hasta: '2025-12-31' }, hoy)).toBe(false)
+  })
+
+  it('UN SOLO DIA de solape cuenta: el periodo sigue estando a medias', () => {
+    // Un rango que termina el 1.º de julio ya arrastra un dia de renta del
+    // trimestre vivo sin su ingreso.
+    expect(solapaTrimestreEnCurso({ desde: '2026-01-01', hasta: '2026-07-01' }, hoy)).toBe(true)
+    expect(solapaTrimestreEnCurso({ desde: '2026-09-30', hasta: '2026-12-31' }, hoy)).toBe(true)
+  })
+
+  it('un año entero que lo contiene solapa', () => {
+    expect(solapaTrimestreEnCurso({ desde: '2026-01-01', hasta: '2026-12-31' }, hoy)).toBe(true)
+  })
+
+  it('NEGATIVO: el solape se decide por CALENDARIO, no comparando texto', () => {
+    // `motivoInvalido` acepta `2026-9-1` sin cero a la izquierda, asi que aqui
+    // puede llegar. Como cadena, '2026-9-1' va DESPUES de '2026-09-30' —el '9'
+    // pesa mas que el '0'—, asi que un `<=` de texto diria que septiembre no
+    // solapa con septiembre y el aviso no saldria. Es el defecto que este repo
+    // ya pago dos veces; se reusa `diaComparable` de `lib/server/fechas.ts`.
+    expect(solapaTrimestreEnCurso({ desde: '2026-9-1', hasta: '2026-9-30' }, hoy)).toBe(true)
+  })
+
+  it('cuenta los dias corridos del trimestre vivo y los que tiene', () => {
+    // T3 de 2026: julio 31 + agosto 31 + septiembre 30 = 92 dias, y al 18 de
+    // septiembre llevan corridos 31 + 31 + 18 = 80.
+    expect(avanceDelTrimestreEnCurso(hoy)).toEqual({ corridos: 80, totales: 92, etiqueta: 'T3 2026' })
+  })
+
+  it('el primer dia del trimestre es UNO corrido, no cero', () => {
+    // Inclusive, como el rango del reporte. «0 de 92 dias» el dia que arranca
+    // se lee como que no ha empezado, y la renta de ese dia ya corrio.
+    expect(avanceDelTrimestreEnCurso(new Date(2026, 6, 1)).corridos).toBe(1)
+  })
+
+  it('el ultimo dia del trimestre esta COMPLETO: corridos = totales', () => {
+    const a = avanceDelTrimestreEnCurso(new Date(2026, 8, 30))
+    expect(a.corridos).toBe(a.totales)
+    expect(a.totales).toBe(92)
+  })
+
+  it('en los cuatro trimestres los dias cuadran con el calendario', () => {
+    // 2026 no es bisiesto: T1 = 31+28+31 = 90.
+    const dias = { 0: 90, 3: 91, 6: 92, 9: 92 } as Record<number, number>
+    for (const mes of [0, 3, 6, 9]) {
+      const a = avanceDelTrimestreEnCurso(new Date(2026, mes, 10))
+      expect(a.totales, `mes ${mes}`).toBe(dias[mes])
+      expect(a.corridos, `mes ${mes}`).toBeLessThanOrEqual(a.totales)
+      expect(a.corridos, `mes ${mes}`).toBeGreaterThan(0)
+    }
+  })
+
+  it('la etiqueta del trimestre es la MISMA que pinta el resto de la app', () => {
+    // `etiquetaBucket` de `derive.ts`, la que usan la grafica de ocupacion y la
+    // dimension `trimestre`. Dos etiquetados del mismo trimestre acabarian
+    // diciendo «T1» en una pantalla y «1er trimestre» en la otra.
+    expect(avanceDelTrimestreEnCurso(new Date(2026, 0, 10)).etiqueta).toBe('T1 2026')
+    expect(avanceDelTrimestreEnCurso(new Date(2025, 11, 31)).etiqueta).toBe('T4 2025')
   })
 })
