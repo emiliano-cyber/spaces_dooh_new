@@ -36,6 +36,22 @@ async function fireSchedule(schedule: any) {
     equipos = rows as any[];
   }
 
+  // Un schedule que apunta a una campana sin equipos asignados -o a un grupo
+  // vacio, o a un equipo borrado- se dispara todos los dias y NO toma ninguna
+  // foto: el bucle de abajo no tiene sobre que iterar y next_fire_at avanza como
+  // si todo hubiera ido bien. En el dashboard el schedule se ve sano, con su
+  // "ultimo disparo" al dia, y la evidencia diaria simplemente no existe. Sin
+  // esta linea no hay forma de enterarse salvo notando que faltan fotos.
+  if (equipos.length === 0) {
+    const motivo = schedule.device_id ? `el equipo ${schedule.device_id} ya no existe`
+      : schedule.group_id ? `el grupo ${schedule.group_id} no tiene equipos`
+      : schedule.campaign_id ? `la campana ${schedule.campaign_id} no tiene equipos asignados`
+      : 'toda la flota esta inactiva o en mantenimiento';
+    console.warn(`[scheduleWorker] schedule ${schedule.id} ("${schedule.name}") disparo SIN EQUIPOS: ${motivo}. No se tomo ninguna foto.`);
+  } else {
+    console.log(`[scheduleWorker] schedule ${schedule.id} ("${schedule.name}") -> ${equipos.length} equipo(s)`);
+  }
+
   for (const eq of equipos) {
     // El encuadre fijo del equipo (lente y zoom) viaja en la orden. Sin esto, la
     // foto por horario salia siempre al encuadre por defecto del lente principal:

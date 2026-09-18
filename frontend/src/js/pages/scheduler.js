@@ -161,8 +161,62 @@ function schedulerPage() {
       return s.cron_expression || s.frequency_type;
     },
 
+    // --- Estado REAL de una programacion ------------------------------------
+    //
+    // El badge decia "Activa" mirando SOLO `s.active` e ignorando la vigencia.
+    // Una programacion con `valid_from` en el futuro se veia verde, con su
+    // proxima foto "en cola", y no tomaba ni una: el worker la excluye por fecha
+    // (`valid_from <= CURDATE()` en scheduleWorker). Asi es como la evidencia
+    // diaria de toda la flota puede estar detenida semanas sin que nada en esta
+    // pantalla lo diga -y paso.
+    //
+    // Se compara contra la fecha UTC a proposito: es la que usa CURDATE() en el
+    // servidor. La idea es reflejar lo que el worker hace de verdad, no lo que
+    // uno esperaria que hiciera.
+    _soloFecha(v) {
+      if (!v) return null;
+      const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v));
+      if (m) return m[1];
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+    },
+
+    fechaCorta(iso) {
+      const [a, m, d] = String(iso).split('-');
+      const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      return `${Number(d)} ${meses[Number(m) - 1] || m} ${a}`;
+    },
+
+    /** null si dispara hoy; el motivo por el que no, si no. */
+    fueraDeVigencia(s) {
+      const hoy = new Date().toISOString().slice(0, 10);
+      const desde = this._soloFecha(s.valid_from);
+      const hasta = this._soloFecha(s.valid_until);
+      if (desde && desde > hoy) return { tipo: 'espera', fecha: desde };
+      if (hasta && hasta < hoy) return { tipo: 'vencida', fecha: hasta };
+      return null;
+    },
+
+    estado(s) {
+      if (!s.active) return { texto: 'Pausada', clase: 'bg-neutral-100 text-neutral-500 border-neutral-200' };
+      const f = this.fueraDeVigencia(s);
+      if (f?.tipo === 'espera') {
+        return { texto: `Empieza el ${this.fechaCorta(f.fecha)}`, clase: 'bg-amber-50 text-amber-800 border-amber-200' };
+      }
+      if (f?.tipo === 'vencida') {
+        return { texto: `Vencio el ${this.fechaCorta(f.fecha)}`, clase: 'bg-red-50 text-red-700 border-red-200' };
+      }
+      return { texto: 'Activa', clase: 'bg-green-50 text-green-700 border-green-200' };
+    },
+
     proximaTexto(s) {
       if (!s.active) return '—';
+      // Fuera de vigencia el worker no la mira, asi que next_fire_at se queda
+      // clavado en el pasado. Decir "en cola" ahi era el peor de los engaños:
+      // se lee como "esta por dispararse".
+      const f = this.fueraDeVigencia(s);
+      if (f?.tipo === 'espera') return `No dispara hasta el ${this.fechaCorta(f.fecha)}`;
+      if (f?.tipo === 'vencida') return 'No dispara: vencida';
       if (!s.next_fire_at) return 'Sin calcular';
       const d = new Date(s.next_fire_at);
       const faltan = d.getTime() - Date.now();

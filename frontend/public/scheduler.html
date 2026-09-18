@@ -195,11 +195,21 @@
                 <td class="px-4 py-3" x-text="proximaTexto(s)"></td>
                 <td class="px-4 py-3 text-neutral-600">
                   <span x-text="s.fotos || 0"></span>
-                  <span class="text-neutral-400 text-xs" x-show="s.fotos_semana > 0">(<span x-text="s.fotos_semana"></span> esta semana)</span>
+                  <!-- Se muestra SIEMPRE, tambien en cero. Antes se ocultaba con
+                       x-show="s.fotos_semana > 0", o sea que el numero que delata el
+                       problema desaparecia exactamente cuando habia problema. En rojo
+                       cuando la programacion deberia estar disparando y no ha tomado
+                       ninguna en siete dias. -->
+                  <span class="text-xs whitespace-nowrap"
+                        :class="(s.active && !fueraDeVigencia(s) && !(s.fotos_semana > 0)) ? 'text-red-600 font-medium' : 'text-neutral-400'"
+                        x-text="'(' + (s.fotos_semana || 0) + ' esta semana)'"></span>
                 </td>
                 <td class="px-4 py-3">
-                  <span :class="s.active ? 'bg-green-50 text-green-700 border-green-200' : 'bg-neutral-100 text-neutral-500 border-neutral-200'"
-                        class="px-2 py-0.5 rounded text-xs border" x-text="s.active ? 'Activa' : 'Pausada'"></span>
+                  <!-- El estado sale de estado(), que mira `active` Y la vigencia. Antes
+                       solo miraba `active`: una programacion que aun no empieza o que ya
+                       vencio se veia verde y "Activa" sin tomar una sola foto. -->
+                  <span :class="estado(s).clase"
+                        class="px-2 py-0.5 rounded text-xs border whitespace-nowrap" x-text="estado(s).texto"></span>
                 </td>
                 <td class="px-4 py-3 text-right whitespace-nowrap">
                   <button @click="editar(s)" class="text-neutral-600 hover:underline text-xs mr-3">Editar</button>
