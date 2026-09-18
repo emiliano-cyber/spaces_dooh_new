@@ -23,7 +23,7 @@ compra los activos, con cuál tramita las licencias y con cuál vende. Nacieron 
 
 > [!danger] `entidad_id` NO es una frontera de seguridad
 > La frontera sigue siendo **UNA**: `tenant_id` con RLS
-> (`apps/web/lib/server/db.ts:54-69`). Si una consulta filtra por `entidad_id`
+> (`apps/web/lib/server/db.ts:60` y `:79`). Si una consulta filtra por `entidad_id`
 > creyendo que eso aísla y se le cae el `tenant_id`, aparece el fallo **R2** de
 > este repositorio, que **no da error**: devuelve cero filas en silencio o filas
 > de otra empresa. Ya pasó dos veces (ver [[06-Operacion/zonas-de-riesgo]]).

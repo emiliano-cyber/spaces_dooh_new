@@ -5,6 +5,73 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-18
+
+- **El costo de un periodo pasado ya no miente.** El reporte de rentabilidad
+  calculaba el costo de la renta con **el contrato vigente hoy**. Eso hacía dos
+  cosas mal en cualquier reporte de un trimestre ya cerrado: no veía el contrato
+  que se pagaba entonces —la pantalla salía sin costo, o no salía— y aplicaba la
+  renta de hoy hacia atrás, como si el precio hubiera sido siempre el actual. En
+  el ejemplo con el que se probó, el reporte **escondía 48 000 pesos de renta
+  realmente pagada, sin dar ningún aviso**. Ahora cuenta el contrato que cubría
+  las fechas que se piden, aunque ya haya vencido, y si hubo cambio de arrendador
+  a mitad de mes cobra cada parte del mes a su precio.
+
+- **Nueva pantalla: Reportes de rentabilidad.** En el menú, dentro del bloque de
+  Finanzas, aparece **Reportes**: qué ingresa y qué cuesta cada pantalla en el
+  periodo que elijas. Se abre con el trimestre en curso y trae cuatro controles
+  —cómo agrupar, desde cuándo, hasta cuándo, y si los periodos son meses o
+  trimestres—. Arriba, cuatro cifras grandes pensadas para leerse de lejos en un
+  proyector; abajo, una tabla que se ordena con un clic en cualquier encabezado,
+  con las pantallas que **peor** van primero, porque la pregunta que importa es
+  cuáles están perdiendo dinero. La pantalla dice lo que **no** sabe en vez de
+  esconderlo: si una pantalla no tiene contrato vigente, su costo de espacio sale
+  en cero porque falta el dato, no porque sea gratis, y eso se avisa encima de la
+  tabla. **Lo ven el Dueño y el rol de Finanzas**: es información de dinero.
+
+- **Las cuatro formas de mirar el reporte ya funcionan.** Además de **por
+  pantalla**, ahora calculan **por trimestre**, para ver cómo evoluciona el
+  negocio en el tiempo; **por operación**, que cruza las visitas de mantenimiento
+  con el dinero que produce cada pantalla —es el reporte que contesta «han tenido
+  las mismas campañas, pero a una van a cada rato a arreglarla», con cuántas
+  visitas, de qué tipo y cuántas horas reales—; y **por metro cuadrado**, que
+  compara el rendimiento de las estáticas. Esta última **deja fuera a propósito
+  las pantallas digitales** (se venden por spots, no por metros) y las estáticas
+  sin ancho o alto capturados, **y dice cuántas dejó fuera y por qué**, para que
+  nadie lea la tabla creyendo que está el inventario completo. Queda una decisión
+  pendiente: en una pantalla de dos caras de 3×6, el metro cuadrado son 18 o 36.
+  Por ahora se calcula **una cara**, y el reporte lo dice.
+
+- **Al entrar por primera vez, el sistema pregunta por tus razones sociales.**
+  Casi todas las empresas de medios reparten su operación entre varias: una paga
+  las rentas, otra compra el equipo, otra hace los trámites con gobierno, y la
+  operación y las ventas a veces van juntas y a veces no. Hasta hoy el sistema no
+  tenía forma de preguntarlo. Ahora, si tu empresa todavía no tiene ninguna
+  registrada, aparece una pantalla de bienvenida con tres preguntas: si tienes
+  varias, si la operación está en la misma que factura las ventas, y con cuál
+  haces cada cosa. Las dos primeras están para **ahorrarte trabajo en la
+  tercera**: quien tiene una sola escribe **un** nombre y no cinco, y quien tiene
+  operación y ventas juntas contesta **un** campo menos. Si dos roles son de la
+  misma razón social, escribes el mismo nombre y se agrupan en una: no se
+  duplica. Al guardar quedan creadas **todas a la vez, o ninguna**. **Se puede
+  saltar** con «Lo hago más tarde» y volver cuando quieras. Y si ya tenías
+  razones sociales, el cuestionario no vuelve a aparecer. Solo lo ve el Dueño: es
+  la identidad fiscal del negocio. En el menú está como **Razones sociales**.
+
+- **Datos de demostración para los reportes.** Se añadió una semilla que deja una
+  base lista para enseñar el módulo con una historia de verdad: cuatro trimestres
+  cerrados de campañas y de visitas sobre cuatro pantallas. No son datos al azar,
+  cuentan un caso. Dos espectaculares muy parecidos —«Tlalpan G500» y «G500 Santa
+  Mónica», mismas medidas y rentas casi iguales— reciben **exactamente las mismas
+  campañas y facturan lo mismo**, pero a Tlalpan hay que ir a repararla cada vez
+  más seguido: su margen baja de 41 300 a 20 900 trimestre a trimestre, mientras
+  el de Santa Mónica se queda plano en 49 200. El reporte lo enseña y señala la
+  causa: no son las ventas, son las órdenes de trabajo (30 contra 20). Se siembran
+  además dos anuncios sin medidas capturadas, a propósito, para que se vea que el
+  reporte por metro cuadrado los deja fuera **y lo dice**. Se puede volver a
+  correr sin miedo: no duplica nada. Y **no se instala en la copia de ningún
+  cliente**: es solo para demostraciones.
+
 ## 2026-09-17
 
 - **El sistema ya puede guardar TUS razones sociales, no solo la del dueño de la

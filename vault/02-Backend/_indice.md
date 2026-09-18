@@ -10,8 +10,8 @@ archivos:
 
 # Índice — Backend
 
-El backend es un **BFF dentro de la propia app Next**: **95** Route Handlers
-sobre **101** archivos en `apps/web/lib/server/` —62 de módulo y 39 de prueba—.
+El backend es un **BFF dentro de la propia app Next**: **96** Route Handlers
+sobre **105** archivos en `apps/web/lib/server/`.
 No hay servicio aparte.
 
 > [!tip] Recuento medido el 2026-09-18 sobre el árbol FUSIONADO, no copiado
@@ -27,7 +27,7 @@ No hay servicio aparte.
 
 | Nota | Cubre |
 |---|---|
-| [[api-endpoints]] | Los 95 endpoints con método, guard y módulo |
+| [[api-endpoints]] | Los 96 endpoints con método, guard y módulo |
 | [[autenticacion-y-sesion]] | Cookie, sesión, CSRF, RBAC, reautenticación |
 | [[multi-tenancy-y-rls]] | Aislamiento entre organizaciones |
 | [[inventario-y-sitios]] | Pantallas, predios, modalidades, importación |
@@ -37,6 +37,8 @@ No hay servicio aparte.
 | [[operaciones-y-ot]] | Órdenes de trabajo, evidencias, imprenta, almacén |
 | [[finanzas-y-cobranza]] | Facturación, candado, parcialidades |
 | [[reportes-rentabilidad]] | El límite `/api/reportes/*` y el prorrateo por periodo |
+| [[reportes-dimensiones]] | Las cuatro dimensiones y la atribución **consciente del periodo** |
+| [[cuestionario-bienvenida]] | El cuestionario que crea las razones sociales del owner al entrar |
 | [[integraciones-externas]] | DOOHmain, Space Eye, S3, Resend, Google, cron |
 | [[infraestructura-servidor]] | Pool, errores, folios, rate limit, subidas |
 

@@ -25,12 +25,12 @@ cobranza.
 | Producto vivo | Una sola app Next.js con BFF integrado | `apps/web/package.json` · lo arranca **systemd**, no pm2 (`infra/systemd/spaces-web.service:83`) |
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
-| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
+| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Producción | **El PADRE `137.184.107.53` sirve `space-os.io`**, certificado propio hasta el **2026-11-23** con renovación automática. DEMO vive dentro de él (proceso `3001`, base `spaces_demo`) y desde el **31/08 se llama `pruebas.space-os.io`** — nombre nuevo, no `demo.space-os.io`, que es solo la demostración ORIGINAL, la sirve la máquina vieja y **se eliminará** ([ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md), que sustituye al 0021) | `infra/nginx/space-os.io.conf:124` y `:188` · [ADR 0017](../../docs/adr/0017-todo-se-concentra-en-el-padre.md) · [ADR 0024](../../docs/adr/0024-demo-space-os-io-es-la-demo-original-y-se-elimina.md) · [ADR 0022](../../docs/adr/0022-instancia-dedicada-por-owner.md) |
-| Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | 42 | [[esquema]] |
-| Migraciones | **76** | [[migraciones]] |
-| ADR | **24** (`0001`–`0024`) | `docs/adr/` · [[decisiones]] |
+| Endpoints | **96** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **43** | [[esquema]] |
+| Migraciones | **82** | [[migraciones]] |
+| ADR | **33** (`0001`–`0033`) | `docs/adr/` · [[decisiones]] |
 
 > [!success] `demo.space-os.io` SE ELIMINARÁ — cerrado el 27/08 por el ADR 0024
 > Ese nombre **no sirve más que para la demostración original** —la anterior al
@@ -96,8 +96,9 @@ cobranza.
 - [[estado-y-data-fetching]] — React Query, zustand, el parche de `fetch`
 
 ### 04 · Datos
-- [[esquema]] — diagrama ER y las 39 tablas
-- [[migraciones]] — las 75 en orden, y las trampas de orden
+- [[esquema]] — diagrama ER y las 43 tablas
+- [[migraciones]] — las 82 en orden, y las trampas de orden
+- [[04-Datos/semilla-de-demostracion]] — el guion de datos de la demo del 14/10
 
 ### 05 · Flujos
 - [[flujo-login]] — del clic a la cookie

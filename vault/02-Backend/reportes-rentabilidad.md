@@ -21,15 +21,15 @@ reportes y el cálculo. Nació el **2026-09-17** con el módulo de rentabilidad.
 
 > [!important] Los reportes NO pasan por el store, y esto es LO ÚNICO importante de esta nota
 > Hoy **toda la analítica de SPACE OS se calcula en el navegador**.
-> `GET /api/estado` devuelve **23 rebanadas de tablas completas**
-> (`app/api/estado/route.ts:97-124`), el front las mete en el store de zustand
+> `GET /api/estado` devuelve **24 rebanadas de tablas completas**
+> (`app/api/estado/route.ts:98-130`), el front las mete en el store de zustand
 > ([[03-Frontend/estado-y-data-fetching]]) y deriva los márgenes con
 > `useStoreMemo` (`lib/data/client.ts:329`).
 >
 > **Ese endpoint ya se descontroló una vez: 6.12 MB** —contratos 3.95 · sitios
 > 1.0 · sitiosRed 1.0— **y el síntoma fue una pantalla en blanco de 6 a 12
 > segundos, no un error.** Lo cuenta su propio código en
-> `app/api/estado/route.ts:132-141`, junto al medidor que se dejó detrás de la
+> `app/api/estado/route.ts:142-146`, junto al medidor que se dejó detrás de la
 > bandera `MEDIR_ESTADO=1` precisamente para poder volver a mirarlo. Un
 > `select *` con una columna nueva y grande basta para repetirlo.
 >
@@ -78,7 +78,7 @@ GET /api/reportes/rentabilidad?dimension=sitio&granularidad=mes
 
 | Parámetro | Valores | Nota |
 |---|---|---|
-| `dimension` | `sitio` · `trimestre` · `operacion` · `m2` | solo `sitio` tiene motor; las otras **501** |
+| `dimension` | `sitio` · `trimestre` · `operacion` · `m2` | **las cuatro tienen motor** desde el 18/09 — ver [[02-Backend/reportes-dimensiones]] |
 | `granularidad` | `mes` · `trimestre` | `dia` y `semana` existen en `Granularidad` y **no valen aquí** |
 | `desde` / `hasta` | `AAAA-MM-DD`, inclusive | **obligatorias**, sin valor por omisión |
 
@@ -103,13 +103,18 @@ El rango invertido se rechaza con 400, y se detecta con `diaComparable`
 dos veces** en este repo, y rechazaba periodos correctos además de dejar pasar
 los invertidos.
 
-## Las tres dimensiones sin motor devuelven 501
+## El 501 existió un día, y así desapareció
 
-No 404 y no 400. La dimensión **es** parte del contrato del endpoint, solo que
-todavía no tiene implementación: un 404 diría «esto no existe» y un 400 «lo
-pediste mal», y ninguna de las dos es verdad. El mensaje dice **cuál** falta
-(«por metro cuadrado todavía no está disponible»), y el corte ocurre **antes de
-leer la base**: pagar la consulta para tirarla no tiene sentido.
+> [!info] Histórico — ya no hay ninguna dimensión sin motor
+> Esta sección describía el 501 que devolvían `trimestre`, `operacion` y `m2`.
+> **Se cerraron el 2026-09-18** ([[02-Backend/reportes-dimensiones]]) y el 501
+> no volvió a hacer falta.
+
+Se conserva porque el **cómo** dejó de hacer falta vale más que el 501: `MOTORES`
+pasó a ser un `Record` exhaustivo sobre el tipo de las dimensiones, así que
+declarar una dimensión sin implementarla **ya no compila**. Un estado imposible
+es mejor que un estado bien señalizado, y esa es la razón de que este apartado
+no tenga sustituto.
 
 ## Qué se reusa y qué es nuevo
 
@@ -127,7 +132,7 @@ leer la base**: pagar la consulta para tirarla no tiene sentido.
 > veintitantas rebanadas vacías.
 >
 > La alternativa era copiar la atribución al servidor. Este repo documenta esa
-> clase de error como su error de raíz (`lib/server/tenant.ts:87-89`): **dos
+> clase de error como su error de raíz (`lib/server/tenant.ts:86-88`): **dos
 > implementaciones divergen**, y aquí divergir significa que el reporte y el
 > dashboard darían dos costos distintos para la misma pantalla.
 
@@ -218,7 +223,8 @@ cualquier consulta pierde su filtro, si aparece un `qRaw` o si algo se interpola
 > Al fusionar con `feat/entidades-fiscales` se puso **rojo sin que nadie tocara
 > `reportes-repo.ts`**. La causa no era el código vigilado, era el vigilante:
 > `sinComentarios()` quitaba los comentarios con `//.*$` línea a línea, y **el
-> `.` de JavaScript no cruza ``**. El archivo se escribió con LF y git lo saca
+> `.` de JavaScript no cruza `
+`**. El archivo se escribió con LF y git lo saca
 > con **CRLF** en cualquier otro árbol (`core.autocrlf`), así que el patrón no
 > llegaba al final de línea, el comentario no se quitaba, y sobrevivían **las
 > propias advertencias que citan `qRaw`** para explicar por qué no se usa.
@@ -251,16 +257,16 @@ dinero de un periodo a otro sin dar ningún síntoma.
 
 Dicho aquí para que no sorprenda a quien lea los números:
 
-1. **El costo usa el contrato vigente HOY.** La atribución que se reusa resuelve
-   con `contratoActivo()` (`derive.ts:1133`), que solo acepta `VIGENTE`,
-   `POR_VENCER` y `RENOVADO`. Consecuencia: un reporte de un trimestre pasado
-   **no ve** un contrato que ya venció en ese trimestre, y un cambio de renta a
-   mitad de año se aplica hacia atrás. Lo que sí respeta es la **vigencia** del
-   contrato que encuentra. Arreglarlo pide una atribución consciente del periodo,
-   y esa es la pieza que el porte a agregación SQL tiene que traer.
+1. ~~**El costo usa el contrato vigente HOY.**~~ **CORREGIDO el 2026-09-18**, y
+   conviene saber lo que costaba: el reporte escondía **48 000 de renta realmente
+   pagada** en el ejemplo con el que se probó, sin un solo síntoma. Hoy cuenta el
+   contrato que **solapa el rango** —un `VENCIDO` cuenta en su periodo: está
+   caducado, no es falso— y parte el bucket por las fronteras de vigencia, así
+   que un relevo a mitad de mes cobra cada mitad a su precio. Detalle y pruebas
+   en [[02-Backend/reportes-dimensiones]].
 2. **No hay agregación en SQL.** El motor lee y suma en Node. El límite existe
    para que ese porte sea invisible desde las pantallas.
-3. **`trimestre`, `operacion` y `m2` como dimensión devuelven 501.**
+3. ~~**`trimestre`, `operacion` y `m2` devuelven 501.**~~ **CERRADO el 2026-09-18**: las cuatro dimensiones calculan.
 4. **Una pantalla sin ingreso, sin renta y sin OT en el rango no aparece.** Un
    reporte con quinientas filas a cero no se lee, y las que importan —las que
    cuestan sin vender— tienen costo, así que salen igual. De ahí que un rango sin
@@ -282,15 +288,19 @@ este reporte es «¿qué pantallas están perdiendo dinero?».
 | `lib/server/reportes-repo.aislamiento.test.ts` | `tenant_id` en toda consulta, nada de `qRaw`, cero interpolación, `finanzas` en el route, la no divergencia con el motor |
 | `lib/costos-ot.test.ts` · `lib/data/derive.costos-ot.test.ts` | El costo de OT por tipo y su respaldo |
 
-> [!warning] Lo que falta correr, y no se corrió a propósito
-> Este trabajo se hizo con el puerto **3311** y la base **`spaces_e2e`**
-> ocupados por otro agente, así que **no se corrió ninguna e2e**: colisionar
-> habría dado rojos falsos a los dos. Cuando el arnés quede libre hay que correr
-> `cd apps/web && npm run build && npm run test:e2e` —con el build ANTES, o
-> fallan todas en falso— y en particular `aislamiento.e2e.test.ts`, que es la
-> única que comprueba la RLS con el rol de la aplicación. **Falta además una e2e
-> propia del endpoint**: dos organizaciones con reservas en el mismo periodo, y
-> que el reporte de una no traiga ni una fila de la otra.
+> [!success] 2026-09-18 · las e2e YA se corrieron, y en verde
+> Este apartado decía que no se había corrido ninguna e2e porque el puerto
+> **3311** y la base **`spaces_e2e`** los tenía otro agente. Se corrieron al
+> cerrarse las dimensiones: **36 archivos · 390 pruebas · 1 saltada** (217 s),
+> con `aislamiento.e2e.test.ts` **verde y sin tocarse**.
+>
+> Y la e2e propia del endpoint que este apartado reclamaba **existe**:
+> `apps/web/lib/test/reportes-rentabilidad.e2e.test.ts`, 15 casos, incluido el
+> que importa —dos organizaciones con reservas en el mismo periodo, y que el
+> reporte de una no traiga ni una fila de la otra—.
+>
+> Recuerda el requisito que no cambia: **el build va ANTES**, o las e2e fallan
+> todas en falso y el rojo no dice nada del código.
 
 ## Relacionadas
 [[02-Backend/_indice]] · [[02-Backend/finanzas-y-cobranza]] ·
