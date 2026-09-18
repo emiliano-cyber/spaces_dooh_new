@@ -8,3 +8,34 @@
 # donde se arma el paquete del cliente. `-text` significa: no la conviertas
 # nunca, ni al traerla ni al guardarla.
 infra/licencias/*.pub -text
+
+# `scripts/*.mjs`: los guiones de la raiz llevan shebang (`#!/usr/bin/env node`)
+# y alguno lo IMPORTA una prueba. Vitest transforma el archivo en vez de dejarlo
+# a Node, y su limpieza del shebang no reconoce la linea cuando acaba en CRLF:
+# el `#!` llega al parser de JavaScript y el archivo muere con
+# «SyntaxError: Invalid or unexpected token», que no dice nada del shebang.
+#
+# Lo que lo hace caro es DONDE aparece: git guarda LF y convierte al hacer
+# checkout, asi que `scripts/semilla-demo.test.ts` pasaba en el arbol donde se
+# escribio y moria al fusionarse en otro. Verde en un sitio y rojo en otro,
+# con el mismo commit. Medido el 2026-09-18 al fusionar la ola 2.
+#
+# `text eol=lf` y no `-text` como la llave de arriba: aqui no basta con no
+# convertir, hace falta GARANTIZAR LF en el arbol de trabajo, venga el archivo
+# de donde venga.
+scripts/*.mjs text eol=lf
+
+# `db/migrations/*.sql`: el runner registra el sha256 del archivo TAL COMO ESTA
+# EN DISCO (`scripts/migrar.mjs`), asi que con conversion de finales de linea
+# **el checksum de una migracion depende de en que maquina se hizo el checkout**.
+#
+# Medido el 2026-09-18 sobre las cinco que tenian bloqueada la base `spaces` del
+# 5433: en LAS CINCO el checksum registrado coincidia exactamente con el sha256
+# del archivo en LF, y el de disco con el de CRLF. El SQL era identico. El runner
+# abortaba con salida 3 —«NO se aplico nada»— y parecia que cinco migraciones ya
+# aplicadas habian cambiado de contenido. No habian cambiado: cambio el checkout.
+#
+# Es el mismo defecto que `scripts/*.mjs` de arriba, en otra puerta, y el peor de
+# los dos: aquel rompia una prueba, este BLOQUEA TODA MIGRACION FUTURA en la
+# maquina donde pase.
+db/migrations/*.sql text eol=lf

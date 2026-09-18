@@ -27,6 +27,10 @@ function rowToFactura(r: any) {
     estatus: r.estatus,
     serie: r.serie ?? null, folioFiscal: r.folio_fiscal ?? null,
     rfc: r.rfc ?? null, razonSocial: r.razon_social ?? null, usoCfdi: r.uso_cfdi ?? null,
+    // OJO: `razonSocial` (arriba) es la del CLIENTE, capturada al emitir.
+    // `entidadEmisoraId` es la MIA, la que emite. Son dos lados del mismo
+    // documento y se confunden por el nombre.
+    entidadEmisoraId: r.entidad_emisora_id ?? null,
     creadoEn: iso(r.creado_en),
   }
 }
@@ -149,6 +153,14 @@ export async function generarFactura(
   campanaId: string,
   plazoDias: 60 | 90 | 120,
   plan?: PlanCuotas | null,
+  // Cual de MIS razones sociales EMITE el comprobante. `null` = «sin asignar»,
+  // que es el estado de todas las facturas anteriores al 2026-09-17 y un estado
+  // legitimo. El controller ya la valido contra el tenant.
+  //
+  // NO participa en ningun calculo: subtotal, igv y monto se siguen derivando
+  // del presupuesto de la campana y de la tasa del cliente, mas arriba en esta
+  // misma funcion. Este parametro solo viaja al INSERT.
+  entidadEmisoraId?: string | null,
 ) {
   const c = await q1<any>('select * from campanas where id=$1', [campanaId])
   if (!c) throw new FacturaError('Campaña no encontrada')
@@ -194,9 +206,9 @@ export async function generarFactura(
     try {
       fac = (
         await client.query(
-          `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, tenant_id)
-           values ($1,$2,$3,$4,$5,$6,coalesce((select moneda from campanas where id=$2),(select moneda from tenants where id=$11),'MXN'),current_date,'EMITIDA','A',$7,$8,$9,$10,$11) returning *`,
-          [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual()],
+          `insert into facturas (folio, campana_id, cliente_id, subtotal, igv, monto, moneda, fecha_emision, estatus, serie, folio_fiscal, rfc, razon_social, uso_cfdi, entidad_emisora_id, tenant_id)
+           values ($1,$2,$3,$4,$5,$6,coalesce((select moneda from campanas where id=$2),(select moneda from tenants where id=$11),'MXN'),current_date,'EMITIDA','A',$7,$8,$9,$10,$12,$11) returning *`,
+          [folioFactura(), campanaId, c.cliente_id, neto, igv, total, folioFiscalSim(), cli.rfc, cli.razon_social, cli.uso_cfdi ?? null, await tenantActual(), entidadEmisoraId ?? null],
         )
       ).rows[0]
     } catch (e) {

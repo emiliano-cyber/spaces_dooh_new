@@ -39,10 +39,26 @@ export const AREAS: AreaProducto[] = [
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },
+  { clave: 'energia', label: 'Consumo de luz', modulo: 'operaciones', apiPropia: true },
   { clave: 'imprenta', label: 'Imprenta', modulo: 'imprenta', apiPropia: true },
   { clave: 'finanzas', label: 'Finanzas', modulo: 'finanzas', apiPropia: true },
+  // Reportes de rentabilidad va bajo `finanzas` y NO bajo `dashboard`: enseña
+  // lo que se cobra por cada pantalla y lo que se le paga a cada arrendador, o
+  // sea dinero, no un indicador de vitrina. Con `dashboard` lo vería cualquier
+  // rol que pueda abrir el tablero. El guard del endpoint ya exige
+  // `finanzas.ver` (`app/api/reportes/rentabilidad/route.ts`), así que
+  // declararla en otro módulo sería declarar una mentira.
+  { clave: 'reportes', label: 'Reportes', modulo: 'finanzas', apiPropia: true },
   { clave: 'network', label: 'Network', modulo: 'network', apiPropia: true },
   { clave: 'integraciones', label: 'Integraciones', modulo: 'administracion', apiPropia: true },
+  // Las razones sociales PROPIAS del owner van bajo `administracion` y NO bajo
+  // `arrendadores`: son la identidad fiscal del negocio —a nombre de quién paga
+  // y factura—, no un dato operativo del módulo de propietarios. Quien captura
+  // contratos no decide con qué sociedad se firma. El guard de sus endpoints ya
+  // exige `administracion` (`app/api/entidades/route.ts`), así que declararla en
+  // otro módulo sería declarar una mentira — y quien marcara esa casilla en la
+  // matriz de permisos creería estar concediendo otra cosa.
+  { clave: 'razones-sociales', label: 'Razones sociales', modulo: 'administracion', apiPropia: true },
   { clave: 'actividad', label: 'Actividad', modulo: 'administracion', apiPropia: false },
   { clave: 'administracion', label: 'Administración', modulo: 'administracion', apiPropia: true },
 ]

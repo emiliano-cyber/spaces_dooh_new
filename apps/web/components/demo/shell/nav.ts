@@ -18,6 +18,8 @@ import {
   Percent,
   CalendarRange,
   Warehouse,
+  Zap,
+  TrendingUp,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
 
@@ -120,15 +122,38 @@ export const NAV: NavItem[] = [
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
+  // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
+  // lo que el NAV no conoce, y `AuthGate` deja pasar a cualquier rol interno.
+  // El dato sigue protegido —el endpoint exige `operaciones`— pero el rol
+  // equivocado veria la pantalla y se comeria un 403 sin saber por que, que es
+  // el encierro que este repo ya documento dos veces. No es cosmetica.
+  { key: 'energia', label: 'Consumo de luz', href: '/energia', icon: Zap, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
 
   // ─── Finanzas ────────────────────────────────────────────────────────────
   { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
+  // Reportes va PEGADO a Finanzas y con sus MISMOS roles, porque la autoriza el
+  // mismo módulo (`finanzas`, ver `lib/modulos.ts`). Si los roles divergieran,
+  // un rol vería la entrada y se comería el 403 de `exigir('finanzas','ver')`
+  // sin saber por qué — el encierro que este repo ya documentó dos veces.
+  { key: 'reportes', label: 'Reportes', href: '/reportes', icon: TrendingUp, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },
   { key: 'comisiones', label: 'Comisiones', href: '/comisiones', icon: Percent, roles: ['DUENO', 'COMERCIAL'], grupo: 'cobrar' },
 
   // ─── Sistema ─────────────────────────────────────────────────────────────
   // Actividad y Administración cierran el menú SIEMPRE: son el historial y los
   // ajustes, no un paso del proceso.
   { key: 'integraciones', label: 'Integraciones', href: '/integraciones', icon: Plug, roles: ['DUENO'], grupo: 'sistema' },
+  // Las razones sociales del propio owner. Sin esta entrada nadie llega solo:
+  // la pantalla existe y solo se alcanza por URL.
+  //
+  // Apuntaba a `/bienvenida` —el cuestionario— y desde el 2026-09-18 apunta a la
+  // pantalla de GESTIÓN. El cuestionario es de una sola vez: contestado, responde
+  // 409 y solo enseña lo que se contestó, así que un menú que lleve ahí manda a
+  // una pantalla que ya no hace nada. El propio cuestionario enlaza aquí, y esta
+  // pantalla enlaza al cuestionario mientras no haya ninguna razón social.
+  { key: 'razones-sociales', label: 'Razones sociales', href: '/razones-sociales', icon: Building2, roles: ['DUENO'], grupo: 'sistema' },
+  // Va aqui y no junto a Administracion: `nav.test.ts` exige que Actividad y
+  // Administracion sean SIEMPRE los dos ultimos, en ese orden. La prueba lo
+  // cazo al primer intento.
   { key: 'actividad', label: 'Actividad', href: '/actividad', icon: History, roles: ['DUENO'], grupo: 'sistema' },
   { key: 'administracion', label: 'Administración', href: '/administracion', icon: Settings, roles: ['DUENO'], grupo: 'sistema' },
 ]

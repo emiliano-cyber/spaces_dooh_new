@@ -23,6 +23,7 @@ import type {
   ContratoArrendamiento,
 } from './types'
 import { factorMensual, diasAvisoPago, diasCriticoPago } from '../renta-periodicidad'
+import { costoDeOt } from '../costos-ot'
 
 // Orden canónico de las 10 etapas del pipeline (sección 7.4).
 export const ETAPAS_PIPELINE: EtapaPipeline[] = [
@@ -249,9 +250,18 @@ export function estadoCobranza(cob: Cobranza): EstCobranza {
 
 // ─── Métricas del dashboard del dueño (7.1) ─────────────────────────────────
 
-// Costo operativo estimado por orden de trabajo (mano de obra de cuadrilla).
-// Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
-const COSTO_OPERATIVO_POR_OT = 1500
+// El costo operativo por orden de trabajo YA NO ES UNA CONSTANTE de este
+// archivo. Era `COSTO_OPERATIVO_POR_OT = 1500`, con un comentario que admitía
+// que era un parámetro de demo «que en producción vendría de ConfigNegocio o
+// por tipo de OT». Desde el 2026-09-17 viene de las dos cosas: sale de
+// `configNegocio.costosOt` (una fila por tenant, ADR 0011) y se resuelve POR
+// TIPO en `lib/costos-ot.ts`, con respaldo por tipo para que un tenant sin
+// configurar no reviente ni cueste 0.
+//
+// La tabla vive en un módulo compartido, no aquí, porque el mismo costo lo
+// aplican el dashboard (que corre en el navegador sobre el store) y
+// `lib/server/reportes-repo.ts` (que corre en el servidor). Dos copias darían
+// dos márgenes para el mismo mes.
 
 // ─── Totalización por moneda (A-3) ──────────────────────────────────────────
 // Suma importes RESPETANDO la moneda. Si todos comparten moneda, devuelve el
@@ -615,7 +625,11 @@ export function dashboardMetrics(state: DemoState): DashboardMetrics {
   )
   // 3) Operación: mano de obra de cuadrilla por cada orden de trabajo activa.
   const otsOperativas = state.ordenesTrabajo.filter((o) => o.estatus !== 'CANCELADA')
-  const costoOperacionMes = otsOperativas.length * COSTO_OPERATIVO_POR_OT
+  //    El importe sale de la configuración del tenant POR TIPO de OT. Ya no es
+  //    `otsOperativas.length * 1500`: ese producto cobraba lo mismo por montar
+  //    una lona que por una inspección.
+  const costosOt = state.configNegocio?.costosOt
+  const costoOperacionMes = otsOperativas.reduce((sum, o) => sum + costoDeOt(o.tipo, costosOt), 0)
 
   const costoTotalMes = costoEspaciosMes + costoImpresionMes + costoOperacionMes
 
@@ -732,7 +746,10 @@ export function margenCampana(c: Campana, state: DemoState): MargenCampana {
   const ots = state.ordenesTrabajo.filter(
     (o) => o.campanaId === c.id && o.estatus !== 'CANCELADA',
   )
-  const costoOperacion = ots.length * COSTO_OPERATIVO_POR_OT
+  // La MISMA tabla que el dashboard (`dashboardMetrics`, arriba). Si aquí se
+  // quedara la constante, el margen de una campaña y el del mes dejarían de
+  // cuadrar entre sí sin que nada fallara.
+  const costoOperacion = ots.reduce((s, o) => s + costoDeOt(o.tipo, state.configNegocio?.costosOt), 0)
   const costoTotal = costoEspacios + costoImpresion + costoOperacion
   const margen = ingreso - costoTotal
   const margenPct = ingreso > 0 ? (margen / ingreso) * 100 : 0
@@ -1206,7 +1223,20 @@ export function sitiosSinContratoCompleto(
   return bloqueadas
 }
 
-export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoArrendamiento> {
+// Lo ÚNICO que la atribución de renta necesita del estado. Se declara para que
+// el servidor pueda reusar estas funciones sin fabricar un `DemoState` entero
+// con veintitantas rebanadas vacías: `lib/server/reportes-repo.ts` lee de la
+// base solo las pantallas y los contratos, y los pasa aquí.
+//
+// `DemoState` sigue encajando por estructura, así que ni un llamador de la UI
+// cambia. La alternativa era copiar la atribución al servidor, y este repo ya
+// documenta esa clase de error como su error de raíz (`lib/server/tenant.ts:87-89`).
+export interface DatosAtribucion {
+  sitios: Sitio[]
+  contratos: ContratoArrendamiento[]
+}
+
+export function contratoVigentePorSitio(state: DatosAtribucion): Map<string, ContratoArrendamiento> {
   const mayorRenta = (a: ContratoArrendamiento, b: ContratoArrendamiento) =>
     rentaAMensual(a.montoRenta, a.periodicidad) >= rentaAMensual(b.montoRenta, b.periodicidad) ? a : b
 
@@ -1249,14 +1279,9 @@ export function contratoVigentePorSitio(state: DemoState): Map<string, ContratoA
 //     pantallas distintas entre las que repartir.
 // Sin contrato activo ⇒ 0. NUNCA usa costoCompra: la renta ES el costo del
 // espacio (un solo costo, sin doble conteo).
-export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
+export function rentaAtribuidaPorSitio(state: DatosAtribucion): Map<string, number> {
   const contratoDe = contratoVigentePorSitio(state)
-  // Σ caras por predio: solo hace falta para repartir un contrato de predio.
-  const carasPredio = new Map<string, number>()
-  for (const s of state.sitios) {
-    if (!s.predioId) continue
-    carasPredio.set(s.predioId, (carasPredio.get(s.predioId) ?? 0) + (s.caras || 1))
-  }
+  const reparto = fraccionDeCarasPorPredio(state.sitios)
   const out = new Map<string, number>()
   for (const s of state.sitios) {
     const c = contratoDe.get(s.id)
@@ -1267,8 +1292,52 @@ export function rentaAtribuidaPorSitio(state: DemoState): Map<string, number> {
     // aunque ella pertenezca a un predio. Repartirlo entre las caras del predio
     // le cobraría a pantallas que ese contrato no cubre.
     if (!c.predioId) { out.set(s.id, renta); continue }
-    const total = carasPredio.get(c.predioId) ?? 0
-    out.set(s.id, total > 0 ? renta * ((s.caras || 1) / total) : 0)
+    out.set(s.id, renta * (reparto.get(c.predioId)?.get(s.id) ?? 0))
+  }
+  return out
+}
+
+// ─── El reparto de un importe de PREDIO entre sus pantallas ─────────────────
+//
+// Salió de dentro de `rentaAtribuidaPorSitio()` el 2026-09-18, y **se movió, no
+// se copió**: es la operación que también necesita el recibo de luz, porque el
+// dueño eligió capturarlo por predio y «repartirlo entre sus pantallas IGUAL QUE
+// LA RENTA» (ver `lib/data/reportes.ts`, dimensión `luz`).
+//
+// Vive aquí y no en el motor de reportes porque el llamador original está aquí.
+// Copiarla al motor habría creado dos verdades sobre el mismo reparto, y este
+// repo documenta esa clase de error como su error de raíz
+// (`lib/server/tenant.ts:87-89`). Divergir aquí significa que **la renta de un
+// predio se reparta de una forma y su luz de otra sobre las mismas pantallas**,
+// y las dos cifras saldrían en la misma fila de la misma tabla.
+//
+// Devuelve `predioId → (sitioId → fracción)`, y las fracciones de un predio
+// suman 1 exactamente cuando el predio tiene alguna cara. Eso es lo que hace que
+// repartir no invente ni pierda dinero, que es la propiedad que se le exige a
+// todo prorrateo de este módulo.
+//
+// Un predio sin pantallas NO sale en el mapa: no hay a quién repartirle. Quien
+// llame tiene que decidir qué hace con ese importe —el reporte por consumo de
+// luz lo DECLARA en vez de tirarlo, porque un recibo capturado que no aparece en
+// ninguna fila es dinero que desaparece sin dar error.
+export function fraccionDeCarasPorPredio(sitios: Sitio[]): Map<string, Map<string, number>> {
+  // Σ caras por predio. `caras || 1` y no `caras ?? 1`: la columna es nullable y
+  // además un 0 capturado tiene que contar como una cara, o la pantalla se
+  // quedaría sin su parte y el resto del predio se repartiría un importe que no
+  // suma el recibo.
+  const total = new Map<string, number>()
+  for (const s of sitios) {
+    if (!s.predioId) continue
+    total.set(s.predioId, (total.get(s.predioId) ?? 0) + (s.caras || 1))
+  }
+  const out = new Map<string, Map<string, number>>()
+  for (const s of sitios) {
+    if (!s.predioId) continue
+    const suma = total.get(s.predioId) ?? 0
+    if (suma <= 0) continue
+    let m = out.get(s.predioId)
+    if (!m) { m = new Map(); out.set(s.predioId, m) }
+    m.set(s.id, (s.caras || 1) / suma)
   }
   return out
 }
@@ -1443,7 +1512,14 @@ export function formatFechaHora(iso: string): string {
 
 // ─── Serie de ocupación día/semana/mes (7.1) ────────────────────────────────
 
-export type Granularidad = 'dia' | 'semana' | 'mes'
+// `trimestre` entra el 2026-09-17 con los reportes de rentabilidad
+// ([[02-Backend/reportes-rentabilidad]]): un P&L se lee por trimestre, no por
+// semana. Se añade AQUÍ y no en un tipo paralelo del módulo de reportes para
+// que el etiquetado de buckets siga declarándose una sola vez; el reporte
+// acepta solo el subconjunto `'mes' | 'trimestre'` (ver `GranularidadReporte`
+// en lib/data/reportes.ts), porque una rentabilidad por día sobre historia de
+// años es justo la consulta sin límite que ese endpoint viene a evitar.
+export type Granularidad = 'dia' | 'semana' | 'mes' | 'trimestre'
 
 export interface PuntoOcupacion {
   label: string
@@ -1462,6 +1538,12 @@ const CONFIG_GRAN: Record<Granularidad, { buckets: number; dias: number }> = {
   dia: { buckets: 14, dias: 1 },
   semana: { buckets: 8, dias: 7 },
   mes: { buckets: 6, dias: 30 },
+  // La gráfica de ocupación del inicio no ofrece trimestre (`GRANS` en
+  // `app/(app)/(shell)/inicio/page.tsx:48`), pero `CONFIG_GRAN` es un
+  // `Record<Granularidad, …>` y dejarlo fuera sería un error de tipos. Se
+  // declara con cuatro trimestres de 91 días —el año fiscal completo—, que es lo
+  // que tendría sentido pintar si algún día se ofrece.
+  trimestre: { buckets: 4, dias: 91 },
 }
 
 function startOfToday(): Date {
@@ -1502,7 +1584,16 @@ export function ocupacionSerie(state: DemoState, gran: Granularidad): SerieOcupa
   return { puntos, diasOcupados, diasDisponibles }
 }
 
-function etiquetaBucket(d: Date, gran: Granularidad): string {
+// Exportada desde el 17/09: la usan la gráfica de ocupación y los reportes de
+// rentabilidad. Dos etiquetados del mismo bucket acabarían diciendo «T1» en una
+// pantalla y «1er trimestre» en la otra para el mismo periodo.
+export function etiquetaBucket(d: Date, gran: Granularidad): string {
+  if (gran === 'trimestre') {
+    // `T1 2026`. Lleva el año porque un reporte cruza años con normalidad y
+    // «T1» a secas no dice cuál — al contrario que los meses de la gráfica, que
+    // siempre son los seis siguientes a hoy.
+    return `T${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`
+  }
   if (gran === 'mes') {
     return d.toLocaleDateString('es-PE', { month: 'short' }).replace('.', '')
   }

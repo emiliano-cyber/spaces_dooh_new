@@ -1,7 +1,7 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-17
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
@@ -10,6 +10,28 @@ archivos:
 ---
 
 # Esquema de datos
+
+> [!warning] 2026-09-17 · remedido, y tres de las cifras de abajo caducaron
+> Medido en este árbol al añadir `20260917_entidades_fiscales.sql`, con la
+> receta completa sobre una base desechable y con el runner de verdad
+> (`node scripts/migrar.mjs --instalacion-nueva`):
+>
+> | Dato | Decía abajo (27/08) | **Medido el 17/09** | Cómo |
+> |---|---|---|---|
+> | Tablas | 39 | **43** | `esquema-sin-owner.e2e.test.ts:145` |
+> | Archivos de migración | 74 | **81** | `ls db/migrations/*.sql \| wc -l` |
+> | De datos (`@tipo: datos` en la 1.ª línea) | 4 | **1** | `head -1` de cada archivo |
+>
+> Las tres subidas de tabla desde el 07/09 son las de este módulo:
+> `entidades_fiscales`, `entidad_roles` y `catalogo_roles_entidad` — ver
+> [[02-Backend/entidades-fiscales]]. **La cifra de «de datos» no subió: bajó**, y
+> eso no lo causó este trabajo. Hoy el único archivo con la marca en su primera
+> línea es `20260731_calendario_meses_cortos.sql`; el runner lo confirma por su
+> cuenta al terminar («80 aplicadas, 1 de datos pendientes»). O sea que el aviso
+> de más abajo sobre «las de datos son CUATRO» describe un estado que ya no es, y
+> eso **importa en la dirección contraria a la que él advertía**: los otros tres
+> archivos **sí** los aplica una actualización normal, sin `--con-datos`.
+> Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
 **PostgreSQL, un solo schema (`public`), 39 tablas, sin ORM.** `db/schema.sql`
 (679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
@@ -140,7 +162,7 @@ erDiagram
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
-| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`) |
+| `config_negocio` | fail-closed + FORCE | Una fila **por tenant**, sin DEFAULT. La crea quien da de alta la organización, o la app al primer acceso (`lib/server/config-repo.ts:59-61`). Desde el 17/09 lleva `costos_ot jsonb` —costo de mano de obra por tipo de OT, `{}` = sin configurar— con CHECK de forma; ver [[02-Backend/operaciones-y-ot]] |
 | `folios_consecutivos` | Sin tenant_id | Contador global |
 | `schema_migrations` | Sin tenant_id | Qué migraciones corrió **esta instancia**. Ver [[migraciones]] |
 | `acciones` | fail-closed | Bitácora append-only |

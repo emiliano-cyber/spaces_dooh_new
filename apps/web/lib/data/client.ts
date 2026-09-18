@@ -174,6 +174,14 @@ export function useRazonesSociales() {
   const v = useDemoStore((s) => s.razonesSociales)
   return m ? v : undefined
 }
+// Las razones sociales PROPIAS del owner. Llegan con las dadas de baja
+// incluidas: un contrato o un comprobante puede nombrar a una que se retiro
+// despues, y sin ella en la lista la pantalla pintaria un hueco donde hay dato.
+export function useEntidadesFiscales() {
+  const m = useMounted()
+  const v = useDemoStore((s) => s.entidadesFiscales)
+  return m ? v : undefined
+}
 export function useContratos() {
   const m = useMounted()
   const v = useDemoStore((s) => s.contratos)

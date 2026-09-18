@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0032**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0033**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -33,15 +33,24 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0032**), los **planes**
 
 ### Qué es, técnicamente
 
-**57 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**79 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-08-28 tenía **753 enlaces internos, 0 rotos y 0 notas huérfanas** sobre
-57 notas. Las mediciones previas daban 606 sobre 48 (17/08) y 395 sobre 43
-(10/08): crece con el diario y con las notas de la ejecución del plan v3.
+Al 2026-09-18 tiene **~1000 enlaces internos** sobre **79 notas**, y **no está
+limpia**: quedan **2 wikilinks rotos** —los dos apuntan a ADR, que viven en
+`docs/` y no en la bóveda, así que es un choque de convención más que un
+enlace muerto— y **2 notas huérfanas**, las dos manuales con fecha. Las
+mediciones previas daban 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395
+sobre 43 (10/08).
+
+> **Y ojo con lo que este párrafo afirmaba hasta hoy:** decía «0 rotos y 0
+> notas huérfanas» con fecha del 28/08, y **las dos afirmaciones eran falsas**
+> al medirlas el 18/09. Es el mismo vicio que el recuadro de abajo denuncia,
+> en el mismo archivo: una cifra de calidad copiada en vez de medida es peor
+> que no tenerla, porque quien la lee deja de comprobar.
 
 ### La estructura
 
@@ -87,19 +96,22 @@ código, no de memoria:
 | Producto vivo | Una sola app Next.js con BFF integrado | `ecosystem.config.js:1-3` |
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
-| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:54-69` |
-| Endpoints | **90** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **42** | `vault/04-Datos/esquema.md` |
-| Migraciones | **76** | `vault/04-Datos/migraciones.md` |
+| Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
+| Endpoints | **96** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **43** | `vault/04-Datos/esquema.md` |
+| Migraciones | **82** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-08-28**. Trátalos como una
+> Esos recuentos llevan fecha de validación **2026-09-18**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
-> **Este archivo ya los tuvo mal, y por eso conviene decirlo aquí:** entre el
-> 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
+> **Este archivo ya los tuvo mal DOS VECES, y por eso conviene decirlo aquí:**
+> entre el 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
 > migraciones, notas, enlaces y el número de ADR— **mientras la bóveda estaba
-> al día**. Es el sitio que más caro cuesta tener mal: es lo primero que lee un
+> al día**. Y volvió a pasar: al 18/09 arrastraba **las mismas seis**, otra vez
+> con el MOC ya correcto. La segunda vez no la delató nadie leyendo: la delató
+> una auditoría que las midió una por una. La lección no es «actualízalas»,
+> es que **este bloque hay que medirlo, no releerlo**. Es el sitio que más caro cuesta tener mal: es lo primero que lee un
 > agente, y arranca con seis números falsos antes de abrir una sola nota.
 
 ### Cómo está escrita cada nota
@@ -236,6 +248,26 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 >
 > Comprobado el 2026-08-13, y otra vez el 28/08 al abrir un worktree nuevo
 > desde `main`: el síntoma es idéntico y sigue sin decir nada del código.
+
+> [!danger] Y su hermana: reconstruir `.next` con un `next start` YA CORRIENDO
+> deja la página EN BLANCO, sin un solo error
+> Pasó el **2026-09-18** y costó un diagnóstico entero. El servidor arrancó con
+> un `BUILD_ID` y un `npm run build` posterior lo cambió, así que el navegador
+> pedía chunks de un build **que ya no existía**. React no arranca y la página
+> queda en blanco: ni error de red, ni 500, ni nada en el log del servidor. Se
+> parece exactamente a un defecto de código y no lo es.
+>
+> Se diagnostica comparando el `BUILD_ID` que sirve el proceso con
+> `cat apps/web/.next/BUILD_ID`. La regla es simple:
+>
+> ```
+> build PRIMERO, servidor DESPUÉS      # y si reconstruyes, reinicia
+> ```
+>
+> Y al reiniciar, **mata al dueño del puerto**
+> (`Get-NetTCPConnection -LocalPort <puerto>`), no al envoltorio de `npx`:
+> matar el envoltorio deja al hijo sirviendo el build viejo, que es la misma
+> trampa otra vez y más difícil de ver.
 
 ### La trampa del orden de migraciones
 

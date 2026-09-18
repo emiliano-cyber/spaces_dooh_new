@@ -142,8 +142,8 @@ describe('el esquema base no trae la organización de nadie', () => {
     expect(primera.stdout).toContain(`${migracionesDeEsquema().length} aplicadas`)
   })
 
-  it('y deja las 40 tablas, sin que ninguna organización se haya colado', () => {
-    // 40 es la cuenta medida el 2026-09-07 sobre la receta completa. Si cambia,
+  it('y deja las 44 tablas, sin que ninguna organización se haya colado', () => {
+    // 44 es la cuenta medida el 2026-09-18 sobre la receta completa. Si cambia,
     // es porque una migración nueva añadió tabla: se actualiza a conciencia.
     //
     // Historia de la cifra, que es lo que la hace útil:
@@ -151,7 +151,16 @@ describe('el esquema base no trae la organización de nadie', () => {
     //   · 40 el 2026-09-07: `20260907_codigos_recuperacion.sql` añade
     //     `codigos_recuperacion` (ADR 0028). Esta prueba fue lo que lo delató, y
     //     era justo su trabajo.
-    expect(trasMigrar.tablas).toBe(40)
+    //   · 43 el 2026-09-17: `20260917_entidades_fiscales.sql` añade TRES —
+    //     `entidades_fiscales`, `entidad_roles` y `catalogo_roles_entidad`, el
+    //     catálogo de razones sociales propias del owner. Otra vez fue esta
+    //     prueba la que lo delató, y otra vez era su trabajo.
+    //   · 44 el 2026-09-18: `20260918_consumos_energia.sql` añade
+    //     `consumos_energia`, el recibo de luz por predio y mes. Van CUATRO
+    //     veces que esta prueba delata una tabla nueva antes que nadie, y esta
+    //     vez lo hizo sobre un árbol donde se habían fusionado dos ramas que no
+    //     se vieron entre sí — que es justo cuando algo se cuela.
+    expect(trasMigrar.tablas).toBe(44)
     // Lo que de verdad importa: ni las migraciones resucitan al owner.
     expect(trasMigrar.tenants).toBe(0)
   })

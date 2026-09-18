@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-17
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -10,6 +10,8 @@ archivos:
   - apps/web/lib/server/operaciones-eventos.ts
   - apps/web/lib/server/almacen-repo.ts
   - apps/web/lib/tipos-ot.ts
+  - apps/web/lib/costos-ot.ts
+  - db/migrations/20260917_costos_ot_por_tipo.sql
 ---
 
 # Operaciones, OT e imprenta
@@ -79,6 +81,49 @@ Ver [[arrendadores-y-contratos]]. Cancelar contrato → OT de retiro; alta de
 pantalla fija → OT de montaje. Nacen `PENDIENTE` con nota de origen y son a
 mejor esfuerzo.
 
+## Cuánto cuesta una OT — por TIPO y desde Configuración
+
+Desde el **2026-09-17** el costo de mano de obra de una orden de trabajo sale de
+`config_negocio.costos_ot` (jsonb, una fila por tenant — ADR 0011) y se resuelve
+por tipo en `lib/costos-ot.ts`. Lo lee todo el que calcula margen:
+`dashboardMetrics` (`derive.ts:618`), `margenCampana` (`derive.ts:735`) y los
+reportes de rentabilidad ([[reportes-rentabilidad]]).
+
+Antes era una constante en el archivo de derivados:
+
+```ts
+// lib/data/derive.ts:254 — RETIRADA el 17/09
+const COSTO_OPERATIVO_POR_OT = 1500
+// Parámetro de demo; en producción vendría de ConfigNegocio o por tipo de OT.
+```
+
+> [!important] El respaldo NO se siembra en la base, y es a propósito
+> `COSTOS_OT_RESPALDO` (`lib/costos-ot.ts`) tiene los **nueve** tipos del enum
+> `tipo_ot` (`db/schema.sql:53`) y **todos valen 1500**, que es lo que costaba
+> cualquier OT antes del cambio. El DEFAULT de la columna es `{}` —«sin
+> configurar»—, no los nueve importes: sembrarlos pondría el número en dos
+> sitios, y el día que el negocio lo cambie la flota seguiría con el viejo
+> quemado en su fila sin que nada lo dijera.
+>
+> Consecuencia medible: la migración **no mueve el margen**. Una organización que
+> no configure nada ve exactamente las cifras de ayer.
+>
+> Y cuánto cuesta una herrería frente a una inspección **no lo decide el
+> código**: se captura en Configuración. El respaldo solo existe para que un
+> tenant sin configurar no reviente ni cueste 0 — un costo de 0 se suma sin que
+> nada falle y deja el margen inflado en pantalla.
+
+`costoDeOt(tipo, costos)` cae al respaldo ante cualquier hueco: tenant sin fila,
+columna vacía, tipo sin capturar, valor basura en el jsonb, y **tipo fuera del
+enum** (cae al respaldo de `OTRO`, no a 0). El `0` configurado **sí manda**: es
+un costo capturable de verdad, y confundirlo con «sin configurar» sería volver a
+decidir por el usuario — el mismo hallazgo de CFG-01 con los plazos de cobranza.
+
+Se escribe por `PATCH /api/config` con las claves como **enum cerrado**
+(`app/api/config/route.ts`), y se **sanea al leer y al escribir**
+(`sanearCostosOt`): la columna es jsonb y lo que entre se arrastra en cada
+respaldo.
+
 ## Módulo móvil
 
 `/m/ot/[id]` es una vista sin chrome para la cuadrilla en campo. Ver
@@ -91,5 +136,5 @@ mejor esfuerzo.
 > archivos salieron con la pista archivada. Ver [[zonas-de-riesgo]] §A6.
 
 ## Relacionadas
-[[flujo-orden-de-trabajo]] · [[finanzas-y-cobranza]] ·
+[[flujo-orden-de-trabajo]] · [[finanzas-y-cobranza]] · [[reportes-rentabilidad]] ·
 [[arrendadores-y-contratos]] · [[integraciones-externas]] · [[MOC-Proyecto]]

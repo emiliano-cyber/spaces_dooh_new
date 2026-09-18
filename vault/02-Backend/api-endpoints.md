@@ -1,7 +1,7 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-08-28
+actualizado: 2026-09-17
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
@@ -10,10 +10,15 @@ archivos:
   - apps/web/lib/server/cambios.ts
 ---
 
-# API — los 90 endpoints
+# API — los 94 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:93`).
+
+> [!tip] 94 medidos el 2026-09-17, no copiados
+> `find app/api -name route.ts | wc -l`. Decía 90 (28/08). Dos de los cuatro que
+> faltaban son las rutas de [[entidades-fiscales]]; los otros dos ya estaban en el
+> repositorio y esta nota no los había recogido.
 
 > [!warning] El host **no** es parte de la API — no lo cablees
 > Esta nota decía `https://demo.space-os.io/spaces-dooh/api/...` como si hubiera
@@ -79,6 +84,19 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET·PUT | `/api/cambios` | exigir | Interruptor de reautenticación |
 | POST·DELETE | `/api/cambios/desbloquear` | exigir | |
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
+| GET·POST | `/api/entidades` | `administracion:ver` · `:crear` | Razones sociales **PROPIAS** del owner (17/09). `?inactivas=1` |
+| GET·PATCH·DELETE | `/api/entidades/[id]` | `administracion:ver` · `:crear` | `DELETE` es baja **lógica** (`activo = false`) |
+
+> [!warning] `/api/entidades` y `/api/razones-sociales` NO son lo mismo
+> `/api/entidades` son las razones sociales **del owner** —quien **PAGA** la
+> renta, compra los activos, tramita licencias o vende— y van por
+> `administracion`, porque son la identidad fiscal del negocio.
+> `/api/razones-sociales` (abajo, en Arrendadores) es la razón social **del
+> arrendador**: quien me **COBRA**, y va por `arrendadores`. Detalle en
+> [[entidades-fiscales]].
+>
+> Una de otra organización responde **404**, no 403: un 403 confirmaría que ese
+> id existe en alguna parte.
 
 > [!note] Alta con Google (ADR 0012 enmendado, 07/08)
 > `POST /api/usuarios` y `POST /api/tenants` aceptan `entraConGoogle: true` y

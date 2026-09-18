@@ -28,6 +28,7 @@ import {
   useCobranzas,
   useClientes,
   useConfigNegocio,
+  useEntidadesFiscales,
   estadoCobranza,
   saldoCobranza,
   formatMonto,
@@ -35,9 +36,18 @@ import {
   diasHasta,
   type Campana,
 } from '@/lib/data/client'
+import type { EntidadUI } from '@/components/demo/razones-sociales/gestion'
+import {
+  ROL_COMPROBANTE,
+  SIN_ASIGNAR,
+  entidadPreseleccionada,
+  etiquetaAsignacion,
+  opcionesDeAsignacion,
+} from '@/components/demo/razones-sociales/asignacion'
 
 export default function FinanzasPage() {
   const resumen = useCampanasResumen()
+  const entidades = useEntidadesFiscales()
   const facturas = useFacturas()
   const cobranzas = useCobranzas()
   const clientes = useClientes()
@@ -217,7 +227,7 @@ export default function FinanzasPage() {
                   {grupos.map((g) => {
                     const abierta = expandidas.has(g.factura?.id ?? '')
                     if (g.cuotas.length === 1) {
-                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
+                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
                     }
                     return (
                       <Fragment key={g.factura?.id ?? g.cuotas[0].id}>
@@ -236,6 +246,14 @@ export default function FinanzasPage() {
                               {g.factura?.folioFiscal ? `${g.factura.folioFiscal.slice(0, 13)}…` : '—'}
                             </div>
                             {g.factura?.rfc && <div className="demo-num text-[10px] text-muted">{g.factura.rfc}</div>}
+                            {/* Quién EMITIÓ el comprobante: una de MIS razones
+                                sociales, no la del cliente (ésa es `rfc` y va
+                                arriba). Se PINTA el hueco — las facturas
+                                anteriores al 2026-09-17 están «sin asignar» y
+                                no se sabe a nombre de quién salieron. */}
+                            <div className="text-[10px] text-muted">
+                              Emite: {etiquetaAsignacion(entidades ?? [], g.factura?.entidadEmisoraId)}
+                            </div>
                           </td>
                           <td className="px-4 py-2.5 text-muted">{g.factura ? cliNombre(g.factura.clienteId) : '—'}</td>
                           <td className="demo-num px-4 py-2.5 text-right text-ink">
@@ -254,7 +272,7 @@ export default function FinanzasPage() {
                             <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
                           </td>
                         </tr>
-                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
+                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
                       </Fragment>
                     )
                   })}
@@ -282,7 +300,20 @@ export default function FinanzasPage() {
       />
 
       <GenerarFacturaDialog
+        // `key` con la campaña: obliga a REMONTAR el diálogo cada vez que se
+        // elige una. Sin esto monta con la página —vive fuera del `&&` y solo
+        // devuelve `null` cuando no hay campaña—, así que su estado inicial se
+        // calculaba cuando el store todavía no había hidratado: `entidades`
+        // llegaba vacío y la razón social emisora salía «sin asignar» AUNQUE
+        // hubiera una sola que vende. MEDIDO el 2026-09-18 mirando la pantalla:
+        // el selector marcaba la recomendada en la lista y no la preseleccionaba.
+        //
+        // La alternativa —recalcular en cada render— sobrescribiría la que quien
+        // factura hubiera elegido a mano, que es peor: emitiría a nombre de otra
+        // sociedad sin avisar.
+        key={facturar?.id ?? 'ninguna'}
         campana={facturar}
+        entidades={entidades ?? []}
         onClose={() => setFacturar(null)}
         onDone={() => notify('Factura generada')}
       />
@@ -317,10 +348,13 @@ function Conteo({ color, label, n }: { color: string; label: string; n: number }
 
 function GenerarFacturaDialog({
   campana,
+  entidades,
   onClose,
   onDone,
 }: {
   campana: Campana | null
+  /** Las razones sociales del OWNER: cuál de ellas EMITE este comprobante. */
+  entidades: EntidadUI[]
   onClose: () => void
   onDone: (folio: string) => void
 }) {
@@ -354,6 +388,17 @@ function GenerarFacturaDialog({
         ? 90
         : Math.min(...plazos)
   const [enviando, setEnviando] = useState(false)
+  // QUIÉN EMITE el comprobante. La preselección sale de `entidadPreseleccionada`
+  // con el papel de VENTAS: si una sola sociedad vende, ésa; si venden dos,
+  // NINGUNA — adivinar sería emitir a nombre de la sociedad equivocada, y un
+  // comprobante emitido no se deshace.
+  //
+  // Inicialización perezosa y sin recalcular en cada render: el store hidrata
+  // después del primer montaje y recalcular sobrescribiría lo que quien factura
+  // ya hubiera elegido a mano.
+  const [emisoraId, setEmisoraId] = useState<string>(() =>
+    entidadPreseleccionada(entidades, ROL_COMPROBANTE, null),
+  )
   // Cobro en parcialidades. Apagado por defecto: el comportamiento de siempre es
   // una sola exhibición, y activarlo tiene que ser una decisión explícita.
   const [enCuotas, setEnCuotas] = useState(false)
@@ -392,6 +437,9 @@ function GenerarFacturaDialog({
                   // servidor lo vuelve a validar contra ella.
                   plazo as 60 | 90 | 120,
                   enCuotas && periodicidad ? { periodicidad, primerVencimiento: primerVenc } : null,
+                  // Cadena vacía = «sin asignar», y viaja como `null`: el
+                  // servidor NO adivina cuál de mis sociedades emite.
+                  emisoraId || null,
                 )
                 onDone('generada')
                 onClose()
@@ -433,6 +481,41 @@ function GenerarFacturaDialog({
             </span>
           </div>
         </div>
+        {/* QUIÉN EMITE el comprobante — una de MIS razones sociales, no la del
+            cliente. Va DEBAJO de los importes y no los toca: cambiar el emisor
+            no cambia ni el subtotal, ni el IVA, ni el total, que los deriva el
+            servidor del presupuesto de la campaña y de la tasa del cliente.
+            Emitir es zona R4 y lo único que este selector decide es el nombre
+            que va arriba del documento. */}
+        <label className="block">
+          <span className="mb-1 block text-[12px] font-medium text-ink">
+            Con cuál de tus razones sociales se emite
+          </span>
+          <select
+            className="h-9 w-full rounded border border-border-strong bg-surface px-3 text-[13px] text-ink outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            value={emisoraId}
+            onChange={(e) => setEmisoraId(e.target.value)}
+          >
+            {opcionesDeAsignacion(entidades, ROL_COMPROBANTE).map((o) => (
+              <option key={o.valor || 'sin-asignar'} value={o.valor}>
+                {o.etiqueta}
+                {o.recomendada ? ' — la que vende' : ''}
+              </option>
+            ))}
+          </select>
+          {entidades.length === 0 ? (
+            <p className="mt-1 text-[11.5px] text-muted">
+              Todavía no tienes razones sociales capturadas. Se dan de alta en Razones sociales;
+              la factura se emite igual y queda «sin asignar».
+            </p>
+          ) : emisoraId === SIN_ASIGNAR ? (
+            <p className="mt-1 text-[11.5px] text-muted">
+              Sin elegir, el comprobante queda «sin asignar». No se inventa: hay más de una
+              razón social que vende, o ninguna la tiene marcada.
+            </p>
+          ) : null}
+        </label>
+
         {/* Cobro en parcialidades. Las opciones y el nº de cuotas se DERIVAN de
             la duración de la campaña: solo se ofrece lo que da un número entero
             de cuotas y al menos 2. Cobrar en "una parcialidad" no es fraccionar
@@ -608,10 +691,12 @@ function PagoModal({
 // cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
 // cinco props y las vale.
 function FilaCuota({
-cob, fac, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
+cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
 }: {
 cob: Cobranza
 fac?: Factura
+/** Las razones sociales del OWNER, para poder nombrar la que emitio. */
+entidades: EntidadUI[]
 sangrada?: boolean
 cliNombre: (id: string) => string
 puedeCobrar: boolean
@@ -633,6 +718,14 @@ onRecordar: (id: string) => void
               {fac?.folioFiscal ? `${fac.folioFiscal.slice(0, 13)}…` : '—'}
             </div>
             {fac?.rfc && <div className="demo-num text-[10px] text-muted">{fac.rfc}</div>}
+            {/* Quién EMITIÓ el comprobante. Va tambien AQUI y no solo en la
+                fila agrupada: una factura de cuota unica —el caso normal— no se
+                agrupa y se pinta por este camino, asi que sin esto el dato solo
+                se veia en las de parcialidades. MEDIDO el 2026-09-18 mirando la
+                pantalla, no leyendo el codigo. */}
+            <div className="text-[10px] text-muted">
+              Emite: {etiquetaAsignacion(entidades, fac?.entidadEmisoraId)}
+            </div>
           </>
         )}
       </td>

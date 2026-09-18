@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-31
+actualizado: 2026-09-17
 tags: [backend, finanzas, facturacion, dinero, rojo]
 archivos:
   - apps/web/lib/server/finanzas-repo.ts
@@ -12,6 +12,14 @@ archivos:
 ---
 
 # Finanzas: facturación y cobranza
+
+> [!note] Los reportes de rentabilidad son otra nota, y otra base de cálculo
+> `GET /api/reportes/rentabilidad` exige el mismo permiso que esta nota
+> (`finanzas`, `ver`) pero **no lee ni facturas ni pagos de renta**: su base es
+> **devengado** —ingreso de `reservas`, costo de `contratos_arrendamiento`—,
+> que es lo que ya calcula el dashboard, así que sus números coinciden con lo
+> que la aplicación enseña y no hay dos verdades que explicar. Ver
+> [[reportes-rentabilidad]].
 
 > [!danger] Dinero irreversible
 > `POST /api/campanas/[id]/facturar` y `POST /api/cobranzas/[id]/pagar` son

@@ -5,7 +5,219 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-18
+
+- **El costo de un periodo pasado ya no miente.** El reporte de rentabilidad
+  calculaba el costo de la renta con **el contrato vigente hoy**. Eso hacía dos
+  cosas mal en cualquier reporte de un trimestre ya cerrado: no veía el contrato
+  que se pagaba entonces —la pantalla salía sin costo, o no salía— y aplicaba la
+  renta de hoy hacia atrás, como si el precio hubiera sido siempre el actual. En
+  el ejemplo con el que se probó, el reporte **escondía 48 000 pesos de renta
+  realmente pagada, sin dar ningún aviso**. Ahora cuenta el contrato que cubría
+  las fechas que se piden, aunque ya haya vencido, y si hubo cambio de arrendador
+  a mitad de mes cobra cada parte del mes a su precio.
+
+- **Nueva pantalla: Reportes de rentabilidad.** En el menú, dentro del bloque de
+  Finanzas, aparece **Reportes**: qué ingresa y qué cuesta cada pantalla en el
+  periodo que elijas. Se abre con el trimestre en curso y trae cuatro controles
+  —cómo agrupar, desde cuándo, hasta cuándo, y si los periodos son meses o
+  trimestres—. Arriba, cuatro cifras grandes pensadas para leerse de lejos en un
+  proyector; abajo, una tabla que se ordena con un clic en cualquier encabezado,
+  con las pantallas que **peor** van primero, porque la pregunta que importa es
+  cuáles están perdiendo dinero. La pantalla dice lo que **no** sabe en vez de
+  esconderlo: si una pantalla no tiene contrato vigente, su costo de espacio sale
+  en cero porque falta el dato, no porque sea gratis, y eso se avisa encima de la
+  tabla. **Lo ven el Dueño y el rol de Finanzas**: es información de dinero.
+
+- **Las cuatro formas de mirar el reporte ya funcionan.** Además de **por
+  pantalla**, ahora calculan **por trimestre**, para ver cómo evoluciona el
+  negocio en el tiempo; **por operación**, que cruza las visitas de mantenimiento
+  con el dinero que produce cada pantalla —es el reporte que contesta «han tenido
+  las mismas campañas, pero a una van a cada rato a arreglarla», con cuántas
+  visitas, de qué tipo y cuántas horas reales—; y **por metro cuadrado**, que
+  compara el rendimiento de las estáticas. Esta última **deja fuera a propósito
+  las pantallas digitales** (se venden por spots, no por metros) y las estáticas
+  sin ancho o alto capturados, **y dice cuántas dejó fuera y por qué**, para que
+  nadie lea la tabla creyendo que está el inventario completo. Queda una decisión
+  pendiente: en una pantalla de dos caras de 3×6, el metro cuadrado son 18 o 36.
+  Por ahora se calcula **una cara**, y el reporte lo dice.
+
+- **Al entrar por primera vez, el sistema pregunta por tus razones sociales.**
+  Casi todas las empresas de medios reparten su operación entre varias: una paga
+  las rentas, otra compra el equipo, otra hace los trámites con gobierno, y la
+  operación y las ventas a veces van juntas y a veces no. Hasta hoy el sistema no
+  tenía forma de preguntarlo. Ahora, si tu empresa todavía no tiene ninguna
+  registrada, aparece una pantalla de bienvenida con tres preguntas: si tienes
+  varias, si la operación está en la misma que factura las ventas, y con cuál
+  haces cada cosa. Las dos primeras están para **ahorrarte trabajo en la
+  tercera**: quien tiene una sola escribe **un** nombre y no cinco, y quien tiene
+  operación y ventas juntas contesta **un** campo menos. Si dos roles son de la
+  misma razón social, escribes el mismo nombre y se agrupan en una: no se
+  duplica. Al guardar quedan creadas **todas a la vez, o ninguna**. **Se puede
+  saltar** con «Lo hago más tarde» y volver cuando quieras. Y si ya tenías
+  razones sociales, el cuestionario no vuelve a aparecer. Solo lo ve el Dueño: es
+  la identidad fiscal del negocio. En el menú está como **Razones sociales**.
+
+- **Razones sociales: ya se pueden gestionar y asignar.** Hasta ahora el sistema
+  guardaba las razones sociales de tu empresa pero no había ninguna pantalla para
+  verlas: la de bienvenida te decía que fueras a Administración, y ahí no había
+  nada. Ahora hay una pantalla propia, **Razones sociales**, donde se dan de alta,
+  se editan, se dan de baja y se vuelven a activar. Cada una lleva su papel —quién
+  paga las rentas, quién compra los activos, quién tramita licencias, quién opera
+  y quién vende— y la pantalla **avisa cuando un papel se queda sin nadie**, porque
+  a partir de ahí los documentos de ese tipo nacen sin razón social. Y lo más
+  importante: **ya se puede decir con cuál se paga cada contrato de renta y con
+  cuál se emite cada comprobante**. Si solo una tiene el papel, viene propuesta
+  sola; si hay dos, el sistema no elige por ti. Lo que ya existía se queda como
+  **«sin asignar»** y así se muestra, porque nadie sabe a nombre de quién se hizo y
+  no se inventa. **Ningún importe cambió**: aquí solo se decide el nombre que va en
+  el documento.
+
+- **Ya son los cinco reportes: entra el consumo de luz.** Hay una pantalla nueva,
+  **Consumo de luz**, donde operaciones teclea un recibo por predio y por mes. El
+  importe se reparte entre las pantallas de ese predio **igual que la renta**, y
+  entra en el costo y en el margen de **todos** los reportes, no solo del suyo.
+  Lo más útil de esa pantalla no es capturar: es que **enseña lo que falta**. Una
+  rejilla con un predio por fila y un mes por columna marca los meses sin recibo, y
+  el reporte avisa de cuántos le faltan. Sin eso, un mes que nadie capturó se vería
+  como si ese predio no gastara luz y el margen saldría mejor de lo que es, sin que
+  nada lo dijera. Capturar dos veces el mismo recibo ya no es posible.
+
+- **El metro cuadrado suma todas las caras.** Una pantalla de dos caras de 3 × 6
+  cuenta 36 m², no 18, porque es la superficie que de verdad se vende. Cambia el
+  orden del reporte por metro cuadrado; el ingreso, el costo y el margen no se
+  mueven.
+
+- **Lo que la pantalla enseña de cada reporte.** «Por operación» ya muestra las
+  columnas que lo hacen ser de operación: cuántas visitas tuvo cada pantalla, qué
+  proporción del ingreso se comió la operación, cuántas horas estuvo la cuadrilla en
+  sitio y sobre cuántas visitas se midieron, y de qué tipo fue cada visita. «Por metro
+  cuadrado» muestra la superficie y el rendimiento por metro, dice encima de la tabla
+  cuántas pantallas quedaron fuera del ranking y por qué, y **declara con qué criterio
+  se contó el metro cuadrado** (hoy, la superficie de una sola cara) — es una decisión
+  pendiente y cambia el orden de toda la tabla. «Por trimestre» llama **Trimestre** a
+  su primera columna, donde antes decía «Pantalla», y sale en **orden cronológico** en
+  vez de del peor al mejor, porque es una serie de tiempo. Cualquier fila se despliega
+  para ver su desglose mes a mes. Y el desplegable ya no marca tres de los cuatro
+  reportes como «en preparación»: los cuatro funcionan.
+
+- **El reporte avisa cuando el trimestre no ha terminado.** Sigue abriendo en el
+  **trimestre en curso**, que es lo que se pidió ver. Pero un trimestre a medias se lee
+  peor de lo que es: la renta de los espacios se paga desde el primer día y lo que se
+  vende se cobra al cerrar. Así que ahora la pantalla lo advierte — cuando el periodo
+  toca un trimestre que no ha terminado, sale un aviso en ámbar encima de la tabla que
+  dice cuántos días lleva corridos de cuántos, explica que la renta ya corrió completa
+  pero el ingreso todavía no está dentro, y recuerda que ese margen no se compara con
+  el de un trimestre terminado. **Solo sale cuando hace falta**: al cambiar a un
+  trimestre ya cerrado desaparece, y esa desaparición dice que las cifras ya son
+  definitivas.
+
+- **Datos de demostración para los reportes.** Se añadió una semilla que deja una
+  base lista para enseñar el módulo con una historia de verdad: cuatro trimestres
+  cerrados de campañas y de visitas sobre cuatro pantallas. No son datos al azar,
+  cuentan un caso. Dos espectaculares muy parecidos —«Tlalpan G500» y «G500 Santa
+  Mónica», mismas medidas y rentas casi iguales— reciben **exactamente las mismas
+  campañas y facturan lo mismo**, pero a Tlalpan hay que ir a repararla cada vez
+  más seguido: su margen baja de 41 300 a 20 900 trimestre a trimestre, mientras
+  el de Santa Mónica se queda plano en 49 200. El reporte lo enseña y señala la
+  causa: no son las ventas, son las órdenes de trabajo (30 contra 20). Se siembran
+  además dos anuncios sin medidas capturadas, a propósito, para que se vea que el
+  reporte por metro cuadrado los deja fuera **y lo dice**. Se puede volver a
+  correr sin miedo: no duplica nada. Y **no se instala en la copia de ningún
+  cliente**: es solo para demostraciones.
+- **Los cuatro botones de Inventario ahora se ven como botones.** Arriba de
+  Inventario hay cuatro opciones —ver el inventario, contrato + pantalla, carga
+  masiva y alta manual— que iban pegadas unas a otras y sin relieve, y costaba
+  saber cuál estaba activa y dónde acababa cada una. Ahora van **separadas**, la
+  opción activa **sobresale** en blanco con su sombra sobre el fondo crema, y las
+  demás dibujan su borde al pasar el ratón por encima. Además, al recorrerlas con
+  el teclado se ve un anillo que marca en cuál estás: antes no se veía nada.
+
 ## 2026-09-17
+
+- **El sistema ya puede guardar TUS razones sociales, no solo la del dueño de la
+  pantalla.** Hasta hoy SPACE OS guardaba con detalle a nombre de quién te cobra
+  la renta el propietario de un predio, pero no guardaba **ninguna de las tuyas**.
+  Y una empresa de publicidad exterior no opera con una sola: normalmente hay una
+  que paga las rentas, otra que compra los equipos, otra que hace los trámites y
+  las licencias con gobierno, otra u otras que venden, y la operación con su
+  nómina aparte. Ahora se pueden dar de alta todas, cada una con su RFC, su
+  régimen, su código postal fiscal y la serie con la que folia sus documentos.
+
+- **Cada razón social lleva escrito para qué sirve, y puede servir para varias
+  cosas a la vez.** De partida hay cinco papeles —paga rentas, compra activos,
+  trámites y licencias, operación, ventas— y una misma sociedad puede tener
+  varios, porque es lo normal: operación y ventas casi siempre coinciden. Esa
+  lista de papeles **se puede cambiar sin tocar el programa**, a propósito: está
+  guardada como datos, no escrita dentro del código, porque todavía puede crecer.
+
+- **Dar de baja una razón social no borra nada.** Deja de aparecer al capturar,
+  pero sigue guardada: los contratos y los comprobantes que la nombran tienen que
+  seguir diciendo a nombre de quién se hicieron. Y si un día se eliminara de
+  verdad, los contratos **no desaparecen con ella**: se quedan sin razón social
+  asignada, que es un estado que el sistema entiende.
+
+- **Los contratos y los comprobantes ya existentes se quedan «sin asignar», y es
+  correcto.** No se inventó a quién pertenecen. Cada uno se irá asignando a mano
+  cuando alguien lo decida; nada se rellenó solo.
+
+- **Esto lo ve y lo edita quien administra la empresa**, no quien captura
+  contratos: es la identidad fiscal del negocio, no un dato operativo. Y cada
+  alta, cada cambio y cada baja queda anotada en el historial de actividad, con
+  el valor anterior y el nuevo cuando se trata de un cambio.
+
+- **Lo que todavía NO hay: pantalla.** Hoy solo se construyó la parte de abajo,
+  la que guarda y protege los datos. La pantalla para capturarlas llega aparte.
+- **Los reportes de rentabilidad ya tienen por dónde pedir sus números, y no
+  es el navegador.** Se abrió la dirección `/api/reportes/rentabilidad`: el
+  servidor recibe qué periodo se quiere ver y devuelve el reporte **ya sumado**.
+  Todavía no hay pantallas que lo usen; esto es la tubería sobre la que se van
+  a construir.
+
+  **Por qué se hizo ahora y no cuando estén las pantallas.** Hoy la aplicación
+  se trae al navegador **tablas completas** en cada carga y saca los márgenes
+  ahí. Eso ya reventó una vez: la respuesta llegó a **6 MB** y la pantalla se
+  quedaba en blanco entre **6 y 12 segundos**, sin dar ningún error. Los
+  reportes de rentabilidad van a mirar **años** de historia, así que por ese
+  camino no aguantan. Hacerlo al revés —pantallas primero— habría obligado a
+  rehacerlas todas después.
+
+- **Lo que ya calcula: la rentabilidad por pantalla, repartida por periodo.**
+  Antes el margen por pantalla era una **foto de hoy**: solo contaba lo que
+  estuviera vendido en este momento. Ahora se puede pedir un trimestre o un mes
+  concretos, y una campaña que empieza en marzo y acaba en abril **se reparte
+  por los días que le toca a cada uno**, en vez de contarse entera en el mes en
+  que arranca. Los dos trozos suman el precio exacto de la campaña: el reparto
+  no pierde ni inventa dinero.
+
+  La renta que se paga al arrendador se reparte al revés, por **meses de
+  calendario**, porque así se paga: un mes completo cuenta como un mes, tenga
+  28 o 31 días.
+
+- **Falta decir lo que NO hace, para que nadie lea de más.** Se puede agrupar
+  **por pantalla**; las otras tres agrupaciones previstas —por trimestre, por
+  operación y por metro cuadrado— están declaradas y contestan «todavía no
+  disponible» con ese mensaje, no con un error. Y el costo de renta usa el
+  contrato **vigente hoy**, así que un reporte de un trimestre pasado no ve un
+  contrato que ya venció entonces.
+
+- **Cuánto cuesta una orden de trabajo ya se puede configurar, y por tipo.**
+  Hasta hoy el sistema cobraba **1 500 pesos por cada orden de trabajo**, fuera
+  montar una lona o pasar a hacer una inspección, y ese número estaba escrito
+  dentro del programa: no había pantalla ni forma de cambiarlo. Como de ahí sale
+  el costo de operación, el margen que enseña el tablero y el de cada campaña
+  se apoyaban en ese único importe para todas las empresas.
+
+  Ahora cada organización guarda **su** importe para cada uno de los nueve tipos
+  de tarea, y lo que guarda solo le afecta a ella.
+
+- **Nadie verá cambiar sus números por esto, y es intencional.** Mientras una
+  organización no capture nada, el sistema sigue usando 1 500 para todo: las
+  cifras de hoy son idénticas a las de ayer. El cambio abre la puerta; cruzarla
+  es una decisión del dueño, no del programa.
+
+  Un detalle que sí importa: capturar **0** es válido —una inspección que hace el
+  propio dueño no paga cuadrilla— y no se confunde con «no lo he capturado».
 
 - **Repartida la versión del 10 de septiembre a toda la flota.** El canal por el
   que las instancias bajan sus actualizaciones cada noche llevaba desde el 9 de
