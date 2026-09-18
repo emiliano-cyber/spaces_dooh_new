@@ -15,6 +15,10 @@ function deviceDetail() {
     // referencia contra la que se calcula el zoom instantaneo del visor.
     zoomEnStream: 0,
     centroEnStream: null,
+    // Brillo con el que salio ESTA transmision. Es la referencia contra la que se
+    // calcula la vista previa: si no, al reabrir la vista con el brillo ya
+    // aplicado se veria aclarada dos veces.
+    brilloEnStream: 0,
     streamLeft: 0, // segundos restantes antes del corte automatico
     // Numero del visor vigente. Es un NUMERO a proposito, no el objeto del
     // visor: Alpine guarda los datos del componente en un proxy reactivo, asi
@@ -47,6 +51,11 @@ function deviceDetail() {
     lens: 'main',       // 'main' | 'wide' (gran angular 0.5x)
     savedLens: 'main',
     savedZoom: 0,
+    // A donde apunta el recorte, tal como esta GUARDADO en el equipo. Hacia falta
+    // para poder comparar: sin esto el boton no sabia si habias movido el centro,
+    // y "Descartar" no tenia a donde volver.
+    savedCentro: { x: 0.5, y: 0.5 },
+    savedBrillo: 0,
     isAdmin: false,     // solo admin puede fijar la orientacion / overlay
     // Quien puede GUARDAR ajustes de camara (encuadre, color, enfoque). El
     // operador tambien: ajustar la vista de un sitio es parte de operarlo.
@@ -58,6 +67,7 @@ function deviceDetail() {
     ajustesAbiertos: false,
     ajustes: {},
     manualWb: false,
+    exposicionManual: false,
     fotoPrueba: '',
     probandoAjustes: false,
     guardandoAjustes: false,
@@ -65,6 +75,7 @@ function deviceDetail() {
       { campo: 'centro_x',   nombre: 'Centro horizontal', min: 0,  max: 1, pordefecto: 0.5 },
       { campo: 'centro_y',   nombre: 'Centro vertical',   min: 0,  max: 1, pordefecto: 0.5 },
       { campo: 'brillo',     nombre: 'Brillo',            min: -1, max: 1, pordefecto: 0 },
+      { campo: 'ev',         nombre: 'Exposición',        min: -3, max: 3, pordefecto: 0 },
       { campo: 'contraste',  nombre: 'Contraste',         min: 0,  max: 2, pordefecto: 1 },
       { campo: 'saturacion', nombre: 'Saturación',        min: 0,  max: 2, pordefecto: 1 },
       { campo: 'nitidez',    nombre: 'Nitidez',           min: 0,  max: 2, pordefecto: 1 },
@@ -145,7 +156,13 @@ function deviceDetail() {
             : this.device.camera_ajustes;
           this.ajustes = aj || {};
         } catch (_) { this.ajustes = {}; }
+        this.savedCentro = {
+          x: Number(this.ajustes.centro_x ?? 0.5),
+          y: Number(this.ajustes.centro_y ?? 0.5),
+        };
+        this.savedBrillo = Number(this.ajustes.brillo ?? 0);
         this.manualWb = this.ajustes.awb_rojo != null && this.ajustes.awb_azul != null;
+        this.exposicionManual = Number(this.ajustes.obturador) > 0;
         // Enfoque fijo del sitio: si esta guardado, el visor arranca bloqueado
         // para todos, no solo para quien lo puso.
         this.focusLocked = this.ajustes.enfoque_fijo === true;
@@ -303,38 +320,82 @@ function deviceDetail() {
     reencuadrando: false,
     vistaOcupada: null,   // {con, minutos} si otra persona tiene la vista
 
+    // Mover un deslizador NO toca el equipo: solo mueve la vista previa.
+    //
+    // Antes se guardaba solo a los 1.5 s de soltar y la transmision se reabria
+    // sola, con su aviso encima, cada vez que alguien corregia el encuadre. Para
+    // afinar hacen falta varios intentos, asi que eso eran varios cortes y varios
+    // avisos seguidos: molestaba y ademas escribia en el equipo encuadres que el
+    // usuario todavia estaba descartando. Ahora se comporta como la camara de un
+    // telefono: se ve al momento, y lo que decide es el boton.
     encuadreDeSitio(campo, valor) {
       const v = Number(valor) || 0;
       if (campo === 'zoom') this.zoom = v;
       else this.ajustes = { ...this.ajustes, [campo]: v };
-
-      // Se espera a que suelte el deslizador: si no, se guardaria en cada pixel
-      // que arrastra y se reabriria la transmision decenas de veces.
-      //
-      // Se puede esperar MAS que antes -y conviene- porque el encuadre ya se ve
-      // al instante: lo que ocurre al soltar es solo ir a buscar la version
-      // nitida. Antes 800 ms era la espera hasta VER algo; ahora es solo la
-      // espera hasta afinar, y darle mas margen evita reabrir la transmision a
-      // media maniobra si el usuario duda o corrige.
-      if (this._encuadreT) clearTimeout(this._encuadreT);
-      this._encuadreT = setTimeout(() => this._aplicarEncuadre(), 1500);
     },
 
-    async _aplicarEncuadre() {
-      const cuerpo = { zoom: this.zoom, ajustes: this._cuerpoAjustes() };
+    // Volver al encuadre que tiene guardado el equipo, sin pedirle nada a nadie:
+    // es la salida para quien se perdio moviendo deslizadores.
+    descartarEncuadre() {
+      this.zoom = Number(this.savedZoom) || 0;
+      this.lens = this.savedLens;
+      this.ajustes = {
+        ...this.ajustes,
+        centro_x: this.savedCentro.x,
+        centro_y: this.savedCentro.y,
+        brillo: this.savedBrillo,
+      };
+      // En los telefonos el zoom ya viajo a la camara mientras lo movias (canal
+      // de camara en vivo), asi que devolver el numero no basta: hay que pedirle
+      // al equipo que vuelva. En los de relay no hace falta, porque ahi nada
+      // habia salido del navegador.
+      if (!this.esRelay && this.streaming) this.onZoom();
+    },
+
+    // El unico camino que escribe el encuadre en el equipo. Lo usan los dos
+    // visores: el de los telefonos y el de los equipos que pasan por el servidor
+    // de medios.
+    async aplicarEncuadre() {
+      if (this.reencuadrando) return;
+      const cambioLente = this.lens !== this.savedLens;
+      // El brillo cuenta igual que el recorte: en estos equipos se le pasa a la
+      // camara al arrancar, asi que para verlo de verdad hay que reabrir.
+      const cambioRecorte = Math.abs(Number(this.zoom) - this.savedZoom) > 0.001
+        || Math.abs(Number(this.ajustes.centro_x ?? 0.5) - this.savedCentro.x) > 0.001
+        || Math.abs(Number(this.ajustes.centro_y ?? 0.5) - this.savedCentro.y) > 0.001
+        || Math.abs(Number(this.ajustes.brillo ?? 0) - this.savedBrillo) > 0.001;
+
       try {
-        await API.put(`/api/devices/${this.deviceId}/camera`, cuerpo);
-        this.savedZoom = this.zoom;
-        if (this.device) this.device.camera_zoom = this.zoom;
+        await API.put(`/api/devices/${this.deviceId}/camera`, {
+          lens: this.lens,
+          zoom: Number(this.zoom) || 0,
+          ajustes: this._cuerpoAjustes(),
+        });
+        this.savedLens = this.lens;
+        this.savedZoom = Number(this.zoom) || 0;
+        this.savedCentro = {
+          x: Number(this.ajustes.centro_x ?? 0.5),
+          y: Number(this.ajustes.centro_y ?? 0.5),
+        };
+        this.savedBrillo = Number(this.ajustes.brillo ?? 0);
+        if (this.device) {
+          this.device.camera_lens = this.savedLens;
+          this.device.camera_zoom = this.savedZoom;
+        }
       } catch (err) {
         this.showToast(err && err.status === 403 ? 'Necesitas rol admin' : 'No se pudo guardar el encuadre', 'error');
         return;
       }
 
-      if (!this.streaming) {
-        this.showToast('Encuadre guardado: se aplica a las fotos y a la vista en vivo', 'success');
-        return;
-      }
+      this.showToast('Encuadre fijado: se aplica también a las fotos programadas', 'success');
+
+      // Reabrir la vista solo cuando hace falta de verdad. En los telefonos el
+      // zoom ya viaja en vivo por el canal de camara, asi que ahi solo el LENTE
+      // -que es otra camara fisica- obliga a reabrir. En los equipos que pasan
+      // por el servidor de medios el recorte se le da a la camara al arrancar,
+      // asi que para ver la version nitida hay que reabrir.
+      const hayQueReabrir = cambioLente || (this.esRelay && cambioRecorte);
+      if (!this.streaming || !hayQueReabrir) return;
 
       // Se reabre SIN bajar la bandera de streaming, para que el visor y sus
       // controles sigan en pantalla y no parezca que se cayo la transmision.
@@ -379,6 +440,20 @@ function deviceDetail() {
       }
     },
 
+    // Exposicion a mano. Va todo o nada: el obturador fijo sin ganancia fija
+    // deja la foto a merced de la hora del dia, asi que se guardan los dos o
+    // ninguno.
+    alternarExposicionManual(activado) {
+      this.exposicionManual = activado;
+      if (activado) {
+        if (!Number(this.ajustes.obturador)) this.ajustes.obturador = 8000;
+        if (!Number(this.ajustes.ganancia)) this.ajustes.ganancia = 1;
+      } else {
+        this.ajustes.obturador = 0;
+        this.ajustes.ganancia = 0;
+      }
+    },
+
     // Punto de partida para una camara SIN filtro infrarrojo (la Module 3 NoIR).
     // La vegetacion refleja muchisimo infrarrojo cercano, esa luz entra al sensor
     // y las hojas salen moradas. Se baja la ganancia de rojo, se sube algo la de
@@ -396,9 +471,37 @@ function deviceDetail() {
       this.showToast('Punto de partida aplicado. Dale a "Probar" y afina con los deslizadores.', 'info');
     },
 
+    // Punto de partida para fotografiar una PANTALLA de LED, que es lo que
+    // hacen todos estos equipos y el caso que peor sale por omision.
+    //
+    // Dos problemas distintos, dos mandos:
+    //
+    //   LINEAS. Un LED prende y apaga miles de veces por segundo y se refresca
+    //   por franjas; a mediodia la camara expone en menos de un milisegundo y
+    //   atrapa solo un pedazo de ese ciclo. Medido el 27-ago en el
+    //   espectacular: 40% de amplitud. El patron cae en fase distinta en cada
+    //   cuadro -correlacion entre dos capturas: -0.10-, asi que promediando 16
+    //   se va al 10%.
+    //
+    //   COLOR DURO. El 21.4% de los pixeles de la pantalla tenia un canal
+    //   pegado en 250, o sea recortado, y un canal recortado ya perdio el dato.
+    //   Se corrige exponiendo MENOS (ev) y midiendo la luz en el centro, donde
+    //   esta la pantalla, en vez de en todo el cuadro, que es lo que la estaba
+    //   quemando. El 'Brillo' no sirve para esto: suma luz despues de revelar.
+    presetPantallaLed() {
+      this.ajustes = {
+        ...this.ajustes,
+        cuadros: 16,
+        ev: -0.7,
+        medicion: 'spot',
+      };
+      this.showToast('Punto de partida para pantalla aplicado. Dale a "Probar" y sube o baja la Exposición.', 'info');
+    },
+
     restablecerAjustes() {
       this.ajustes = {};
       this.manualWb = false;
+      this.exposicionManual = false;
       this.showToast('Ajustes en blanco. Guarda para que el equipo los tome.', 'info');
     },
 
@@ -408,6 +511,8 @@ function deviceDetail() {
       if (!this.manualWb || a.awb_rojo == null || a.awb_azul == null) {
         delete a.awb_rojo; delete a.awb_azul;
       }
+      // 0 significa "automatico" para el agente; mandarlo suelto solo ensucia.
+      if (!this.exposicionManual) { delete a.obturador; delete a.ganancia; }
       Object.keys(a).forEach((k) => { if (a[k] === null || a[k] === undefined) delete a[k]; });
       return Object.keys(a).length ? a : null;
     },
@@ -572,12 +677,32 @@ function deviceDetail() {
         address: d.address || '',
         city: d.city || '',
         state: d.state || '',
+        status: d.status || 'provisioning',
+        // MySQL devuelve DECIMAL como texto, no como numero.
+        lat: d.lat == null ? '' : String(d.lat),
+        lng: d.lng == null ? '' : String(d.lng),
       };
       this.editMode = true;
     },
+
+    // Las coordenadas se escriben a mano y hay que limpiarlas antes de mandarlas:
+    // el campo vacio significa "no se sabe" (null) y NO cero, que es una isla en
+    // el golfo de Guinea; y el backend espera numero, no texto.
+    _cuerpoEquipo() {
+      const c = { ...this.editForm };
+      for (const k of ['lat', 'lng']) {
+        const t = String(c[k] ?? '').trim();
+        if (t === '') { c[k] = null; continue; }
+        const n = Number(t);
+        if (!Number.isFinite(n)) { delete c[k]; continue; }
+        c[k] = n;
+      }
+      return c;
+    },
+
     async saveDevice() {
       try {
-        await API.put(`/api/devices/${this.deviceId}`, this.editForm);
+        await API.put(`/api/devices/${this.deviceId}`, this._cuerpoEquipo());
         await this.loadDevice();
         this.editMode = false;
         this.showToast('Datos del sitio guardados', 'success');
@@ -589,10 +714,10 @@ function deviceDetail() {
     async startStream() {
       // Un solo intento a la vez. El boton ya se deshabilita en la vista, pero
       // aqui se entra tambien desde el "Reintentar" de vista ocupada, desde el
-      // cambio de lente y desde _aplicarEncuadre, y dos START_STREAM encimados
+      // cambio de lente y desde aplicarEncuadre, y dos START_STREAM encimados
       // dejaban al equipo publicando en una ruta y al visor esperando en otra.
       //
-      // El candado mira SOLO el intento en curso, no `streaming`: _aplicarEncuadre
+      // El candado mira SOLO el intento en curso, no `streaming`: aplicarEncuadre
       // reabre la vista a proposito con la bandera arriba para que el visor no
       // parpadee, y mirar `streaming` aqui lo romperia.
       if (this.streamStarting) return;
@@ -671,7 +796,7 @@ function deviceDetail() {
         };
         this.streamError = motivos[err?.body?.error]
           || `No se pudo iniciar la transmisión${err?.message ? ` (${err.message})` : ''}.`;
-        // Puede venir de _aplicarEncuadre, que reabre con la bandera arriba: si
+        // Puede venir de aplicarEncuadre, que reabre con la bandera arriba: si
         // el reintento falla hay que bajarla o el visor se queda diciendo "en
         // vivo" sobre una transmision que ya no existe.
         this.streaming = false;
@@ -700,6 +825,7 @@ function deviceDetail() {
       // no contra el deslizador- que se calcula el recorte de la vista previa.
       // Sin esta referencia, el video se veria ampliado dos veces.
       this.zoomEnStream = Number(this.savedZoom) || 0;
+      this.brilloEnStream = Number(this.savedBrillo) || 0;
       this.centroEnStream = {
         x: Number(this.ajustes?.centro_x ?? 0.5),
         y: Number(this.ajustes?.centro_y ?? 0.5),
@@ -790,10 +916,35 @@ function deviceDetail() {
       const r = ((Number(this.rotation) % 360) + 360) % 360;
       const giro = (r === 90 || r === 270) ? (4 / 3) : 1;
       const p = this.previewDeZoom();
-      return {
+      const estilo = {
         transform: `rotate(${r}deg) scale(${(giro * p.escala).toFixed(4)}) `
           + `translate(${p.tx.toFixed(2)}%, ${p.ty.toFixed(2)}%)`,
       };
+      const b = this.previewDeBrillo();
+      if (b !== 1) estilo.filter = `brightness(${b.toFixed(3)})`;
+      return estilo;
+    },
+
+    // --- Brillo instantaneo --------------------------------------------------
+    //
+    // Mientras se mueve el deslizador, el video que ya esta llegando se aclara u
+    // oscurece en el navegador. Es una APROXIMACION a proposito: el equipo aplica
+    // el brillo dentro de la camara (--brightness, que suma luz a la imagen) y el
+    // navegador solo puede multiplicar. Sirve para decidir hacia donde ir; el
+    // resultado exacto llega al pulsar "Fijar encuadre", cuando la vista se
+    // reabre con el valor puesto en la camara.
+    //
+    // Se calcula contra el brillo con el que SALIO la transmision, no contra
+    // cero: si no, al reabrir la vista ya corregida se veria el efecto dos veces.
+    previewDeBrillo() {
+      if (!this.streaming || !this.esRelay) return 1;
+      const deseado = Math.min(1, Math.max(-1, Number(this.ajustes?.brillo ?? 0)));
+      const enStream = Math.min(1, Math.max(-1, Number(this.brilloEnStream) || 0));
+      const delta = deseado - enStream;
+      if (Math.abs(delta) < 0.001) return 1;
+      // Un tope de 0.6 a cada lado: mas alla el video se va a blanco o a negro y
+      // deja de servir para juzgar nada.
+      return Math.min(1.6, Math.max(0.4, 1 + delta * 0.6));
     },
 
     // --- Zoom instantaneo ----------------------------------------------------
@@ -1000,31 +1151,15 @@ function deviceDetail() {
     // Se guarda en el servidor y el backend lo manda en CADA orden de foto, asi
     // que aplica igual a las programadas. Antes el zoom de la vista en vivo no
     // llegaba a las capturas por horario: salian siempre al encuadre por defecto.
+    // Hay algo sin guardar. Incluye el centro del recorte: antes solo miraba
+    // lente y zoom, asi que mover el recorte de lado dejaba el boton en gris y
+    // no habia forma de aplicarlo.
     encuadreCambiado() {
-      return this.lens !== this.savedLens || Math.abs(Number(this.zoom) - this.savedZoom) > 0.001;
-    },
-    async saveCamera() {
-      try {
-        await API.put(`/api/devices/${this.deviceId}/camera`, {
-          lens: this.lens,
-          zoom: Number(this.zoom) || 0,
-        });
-        const cambioLente = this.lens !== this.savedLens;
-        this.savedLens = this.lens;
-        this.savedZoom = Number(this.zoom) || 0;
-        if (this.device) {
-          this.device.camera_lens = this.savedLens;
-          this.device.camera_zoom = this.savedZoom;
-        }
-        this.showToast('Encuadre fijado: se aplicará también a las fotos programadas', 'success');
-        // El lente es una cámara física distinta: hay que reabrirla para verlo.
-        if (cambioLente && this.streaming) {
-          await this.stopStream();
-          setTimeout(() => this.startStream(), 1200);
-        }
-      } catch (e) {
-        this.showToast('No se pudo guardar el encuadre (¿eres admin?)', 'error');
-      }
+      return this.lens !== this.savedLens
+        || Math.abs(Number(this.zoom) - this.savedZoom) > 0.001
+        || Math.abs(Number(this.ajustes.centro_x ?? 0.5) - this.savedCentro.x) > 0.001
+        || Math.abs(Number(this.ajustes.centro_y ?? 0.5) - this.savedCentro.y) > 0.001
+        || Math.abs(Number(this.ajustes.brillo ?? 0) - this.savedBrillo) > 0.001;
     },
 
     // ---- Marca de informacion (overlay) configurable ----

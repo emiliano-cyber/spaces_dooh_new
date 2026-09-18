@@ -127,34 +127,154 @@
               Orientación fija
             </div>
 
-            <!-- Controles del visor para Raspberry y PC con camara IP.
-                 Los de abajo (zoom/exposicion/balance/enfoque en vivo) viajan por
-                 el canal de datos de WebRTC y SOLO los entienden los telefonos: en
-                 estos equipos se movian y no pasaba nada. Aqui el zoom se guarda y
-                 se reabre la transmision para verlo. -->
-            <div x-show="streaming && esRelay" style="display:none" @click.stop
+            <!-- Controles del visor: UNA sola barra para toda la flota.
+                 Habia dos barras gemelas -una para los telefonos y otra para los
+                 equipos que pasan por el servidor de medios- y se desincronizaron:
+                 a una le faltaba el giro, a la otra el "Descartar", y el boton de
+                 orientacion acababa solo en otro renglon por un ml-auto. Ahora lo
+                 unico que cambia segun el equipo son los DESLIZADORES; la fila de
+                 botones es la misma para todos, asi que un tipo de equipo nuevo la
+                 hereda sin que nadie la copie a mano.
+                 Los deslizadores de los telefonos mandan ordenes EN VIVO por el
+                 canal de camara; los de los equipos de relay solo mueven la vista
+                 previa y no tocan el equipo hasta "Fijar encuadre". -->
+            <div x-show="streaming" style="display:none" @click.stop
                  class="absolute inset-x-0 bottom-0 px-3 pt-8 pb-3 bg-gradient-to-t from-black/75 via-black/45 to-transparent text-white">
-              <div class="flex items-center gap-3 mb-2">
-                <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
-                <input type="range" min="0" max="0.9" step="0.05" :value="zoom"
-                       @input="encuadreDeSitio('zoom', $event.target.value)"
-                       class="w-full accent-white cursor-pointer" title="Zoom">
-                <span class="text-xs tabular-nums w-12 text-right" x-text="Math.round(Number(zoom) * 100) + '%'"></span>
+
+              <!-- Deslizadores de los telefonos: zoom y exposicion, en vivo -->
+              <div x-show="!esRelay" style="display:none">
+                <!-- Sliders -->
+                <div class="flex items-center gap-4 mb-2.5">
+                  <div class="flex items-center gap-2 flex-1">
+                    <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
+                    <input type="range" min="0" max="1" step="0.02" x-model="zoom" @input="onZoom()"
+                           class="w-full accent-white cursor-pointer" title="Zoom">
+                  </div>
+                  <div class="flex items-center gap-2 flex-1">
+                    <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M7.05 7.05L5.64 5.64m12.72 0l-1.41 1.41M7.05 16.95l-1.41 1.41M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                    <input type="range" min="-12" max="12" step="1" x-model="exposure" @input="onExposure()"
+                           class="w-full accent-white cursor-pointer" title="Exposición / brillo">
+                  </div>
+                </div>
               </div>
-              <!-- Posicion del recorte: solo tiene sentido si hay zoom -->
-              <div class="flex items-center gap-3" :class="Number(zoom) < 0.05 && 'opacity-40 pointer-events-none'">
-                <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h16M12 4v16"/></svg>
-                <input type="range" min="0" max="1" step="0.05" :value="ajustes.centro_x ?? 0.5"
-                       @input="encuadreDeSitio('centro_x', $event.target.value)"
-                       class="w-full accent-white cursor-pointer" title="Mover a los lados">
-                <input type="range" min="0" max="1" step="0.05" :value="ajustes.centro_y ?? 0.5"
-                       @input="encuadreDeSitio('centro_y', $event.target.value)"
-                       class="w-full accent-white cursor-pointer" title="Mover arriba y abajo">
+
+              <!-- Deslizadores de los equipos de relay: encuadre del sitio -->
+              <div x-show="esRelay" style="display:none">
+                <div class="flex items-center gap-3 mb-2">
+                  <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
+                  <input type="range" min="0" max="0.9" step="0.05" :value="zoom"
+                         @input="encuadreDeSitio('zoom', $event.target.value)"
+                         class="w-full accent-white cursor-pointer" title="Zoom">
+                  <span class="text-xs tabular-nums w-12 text-right" x-text="Math.round(Number(zoom) * 100) + '%'"></span>
+                </div>
+                <!-- Brillo del sitio. Se ve al momento (el navegador aclara el
+                     video que ya llega) y se aplica de verdad al fijar el
+                     encuadre, cuando la vista se reabre con el valor en la
+                     camara. Sirve igual para las fotos, incluidas las
+                     programadas: es el mismo ajuste guardado. -->
+                <div class="flex items-center gap-3 mb-2">
+                  <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M7.05 7.05L5.64 5.64m12.72 0l-1.41 1.41M7.05 16.95l-1.41 1.41M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                  <input type="range" min="-1" max="1" step="0.05" :value="ajustes.brillo ?? 0"
+                         @input="encuadreDeSitio('brillo', $event.target.value)"
+                         class="w-full accent-white cursor-pointer" title="Brillo">
+                  <span class="text-xs tabular-nums w-12 text-right"
+                        x-text="(Number(ajustes.brillo ?? 0) > 0 ? '+' : '') + Math.round(Number(ajustes.brillo ?? 0) * 100) + '%'"></span>
+                </div>
+                <!-- Posicion del recorte: solo tiene sentido si hay zoom -->
+                <div class="flex items-center gap-3 mb-2.5" :class="Number(zoom) < 0.05 && 'opacity-40 pointer-events-none'">
+                  <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 12h16M12 4v16"/></svg>
+                  <input type="range" min="0" max="1" step="0.05" :value="ajustes.centro_x ?? 0.5"
+                         @input="encuadreDeSitio('centro_x', $event.target.value)"
+                         class="w-full accent-white cursor-pointer" title="Mover a los lados">
+                  <input type="range" min="0" max="1" step="0.05" :value="ajustes.centro_y ?? 0.5"
+                         @input="encuadreDeSitio('centro_y', $event.target.value)"
+                         class="w-full accent-white cursor-pointer" title="Mover arriba y abajo">
+                </div>
               </div>
-              <p class="text-[10px] text-white/60 mt-2">
-                Este equipo no acepta ajustes en vivo: el encuadre se guarda y la vista se reabre sola para
-                aplicarlo. El color se ajusta abajo, en <strong>Ajustes de imagen</strong>.
+
+              <!-- LA fila de botones. Es la MISMA para toda la flota; cada control
+                   se muestra segun lo que ese equipo sepa hacer y segun el permiso
+                   de quien mira. -->
+              <div class="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-0.5">
+                <!-- Balance de blancos en vivo: solo los telefonos lo entienden -->
+                <select x-show="!esRelay" style="display:none" x-model="wb" @change="onWb()"
+                        class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-1.5 py-1 border-0 outline-none cursor-pointer backdrop-blur-sm">
+                  <option class="text-black" value="auto">Auto</option>
+                  <option class="text-black" value="daylight">Luz de día</option>
+                  <option class="text-black" value="cloudy">Nublado</option>
+                  <option class="text-black" value="incandescent">Incandescente</option>
+                  <option class="text-black" value="fluorescent">Fluorescente</option>
+                </select>
+                <!-- Bloqueo de enfoque en vivo: idem, solo telefonos -->
+                <button x-show="!esRelay" style="display:none" @click="toggleFocusLock()"
+                  :class="focusLocked ? 'bg-amber-500 hover:bg-amber-600' : 'bg-white/15 hover:bg-white/25'"
+                  class="shrink-0 flex items-center gap-1 text-white text-[11px] rounded px-2 py-1 backdrop-blur-sm transition-colors">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  <span x-text="focusLocked ? 'Enfoque fijo' : 'Fijar enfoque'"></span>
+                </button>
+                <!-- Girar en los dos sentidos. El giro lo hace el navegador, asi que
+                     sirve para cualquier equipo: antes solo estaba en los telefonos. -->
+                <div class="shrink-0 flex items-center bg-white/15 rounded backdrop-blur-sm overflow-hidden">
+                  <button @click="rotate(-1)" title="Girar a la izquierda"
+                    class="flex items-center hover:bg-white/20 text-white px-2 py-1">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L4 10l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 10h10a6 6 0 016 6v2"/></svg>
+                  </button>
+                  <span class="text-white text-[11px] tabular-nums px-1 select-none" x-text="rotation + '°'"></span>
+                  <button @click="rotate(1)" title="Girar a la derecha"
+                    class="flex items-center hover:bg-white/20 text-white px-2 py-1">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l5-5-5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 10H10a6 6 0 00-6 6v2"/></svg>
+                  </button>
+                </div>
+                <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
+                     no se llega con zoom. Solo en equipos que lo tengan. -->
+                <select x-show="!esRelay && puedeAjustar" style="display:none" x-model="lens"
+                        class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-1.5 py-1 border-0 outline-none cursor-pointer backdrop-blur-sm"
+                        title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
+                  <option class="text-black" value="main">Lente normal</option>
+                  <option class="text-black" value="wide">Gran angular 0.5x</option>
+                </select>
+                <!-- Fija el encuadre para las fotos, incluidas las programadas.
+                     Pide permiso, que es lo que exige el servidor: en los equipos de
+                     relay el boton se veia habilitado para cualquiera y contestaba 403. -->
+                <button x-show="puedeAjustar" style="display:none" @click="aplicarEncuadre()"
+                  :disabled="!encuadreCambiado() || reencuadrando"
+                  class="shrink-0 flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-[11px] rounded px-2 py-1"
+                  title="Guarda el encuadre actual. Se aplica también a las fotos programadas.">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                  <span x-text="reencuadrando ? 'Aplicando…' : (encuadreCambiado() ? 'Fijar encuadre' : 'Encuadre guardado')">Fijar encuadre</span>
+                </button>
+                <!-- Volver al encuadre guardado, sin tocar el equipo -->
+                <button x-show="puedeAjustar && encuadreCambiado() && !reencuadrando" style="display:none"
+                        @click="descartarEncuadre()"
+                        class="shrink-0 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-2 py-1 backdrop-blur-sm"
+                        title="Volver al encuadre que tiene guardado el equipo.">
+                  Descartar
+                </button>
+                <!-- Fijar orientacion para todos (solo admin). SIN ml-auto: va pegado
+                     a "Fijar encuadre" en vez de desterrado al otro extremo, donde
+                     caia solo en un segundo renglon. -->
+                <button x-show="isAdmin" style="display:none" @click="saveRotation()"
+                  :disabled="rotation === savedRotation"
+                  class="shrink-0 flex items-center gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-default text-white text-[11px] rounded px-2 py-1"
+                  :title="rotation === savedRotation ? 'La orientación guardada es la que todos ven al recargar' : 'Fijar esta orientación para todos'">
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  <span x-show="rotation !== savedRotation" style="display:none">Fijar orientación</span>
+                </button>
+                <!-- Reset a la orientacion fija (no-admin y admin) -->
+                <button x-show="rotation !== savedRotation" @click="resetRotation()" style="display:none"
+                  class="shrink-0 flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] rounded px-2 py-1"
+                  title="Volver a la orientación guardada del equipo">
+                  Volver
+                </button>
+              </div>
+
+              <p x-show="esRelay" style="display:none" class="text-[10px] text-white/60 mt-2">
+                Muévelos con confianza: lo que ves es una vista previa y el equipo no se toca hasta que pulses
+                <strong>Fijar encuadre</strong> (ahí la vista se reabre un segundo para traer la imagen nítida).
+                La orientación fija (solo admin) es la que todos ven al recargar. El color se ajusta abajo, en
+                <strong>Ajustes de imagen</strong>.
               </p>
+              <p x-show="!esRelay" style="display:none" class="text-[10px] text-white/60 mt-2">Toca el video para enfocar. El zoom, exposición y balance son temporales hasta que pulses <strong>Fijar encuadre</strong>; la orientación fija (solo admin) es la que todos ven al recargar.</p>
             </div>
 
             <!-- Otra persona tiene abierta la vista de este equipo.
@@ -197,85 +317,6 @@
               </div>
             </div>
 
-            <!-- Controles estilo camara: superpuestos en la parte inferior del video -->
-            <div x-show="streaming && !esRelay" style="display:none" @click.stop
-                 class="absolute inset-x-0 bottom-0 px-3 pt-8 pb-3 bg-gradient-to-t from-black/75 via-black/45 to-transparent text-white">
-              <!-- Sliders -->
-              <div class="flex items-center gap-4 mb-2.5">
-                <div class="flex items-center gap-2 flex-1">
-                  <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 8v6M8 11h6M19 11a8 8 0 11-16 0 8 8 0 0116 0z"/></svg>
-                  <input type="range" min="0" max="1" step="0.02" x-model="zoom" @input="onZoom()"
-                         class="w-full accent-white cursor-pointer" title="Zoom">
-                </div>
-                <div class="flex items-center gap-2 flex-1">
-                  <svg class="w-4 h-4 shrink-0 text-white/80" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.36 6.36l-1.42-1.42M7.05 7.05L5.64 5.64m12.72 0l-1.41 1.41M7.05 16.95l-1.41 1.41M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-                  <input type="range" min="-12" max="12" step="1" x-model="exposure" @input="onExposure()"
-                         class="w-full accent-white cursor-pointer" title="Exposición / brillo">
-                </div>
-              </div>
-              <!-- Botones -->
-              <div class="flex items-center gap-2 flex-wrap">
-                <select x-model="wb" @change="onWb()"
-                        class="bg-white/15 hover:bg-white/25 text-white text-xs rounded px-2 py-1.5 border-0 outline-none cursor-pointer backdrop-blur-sm">
-                  <option class="text-black" value="auto">Auto</option>
-                  <option class="text-black" value="daylight">Luz de día</option>
-                  <option class="text-black" value="cloudy">Nublado</option>
-                  <option class="text-black" value="incandescent">Incandescente</option>
-                  <option class="text-black" value="fluorescent">Fluorescente</option>
-                </select>
-                <button @click="toggleFocusLock()"
-                  :class="focusLocked ? 'bg-amber-500 hover:bg-amber-600' : 'bg-white/15 hover:bg-white/25'"
-                  class="flex items-center gap-1.5 text-white text-xs rounded px-3 py-1.5 backdrop-blur-sm transition-colors">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                  <span x-text="focusLocked ? 'Enfoque fijo' : 'Fijar enfoque'"></span>
-                </button>
-                <!-- Girar en los dos sentidos: corregir 90 grados de mas ya no
-                     obliga a dar tres vueltas. -->
-                <div class="flex items-center bg-white/15 rounded backdrop-blur-sm overflow-hidden">
-                  <button @click="rotate(-1)" title="Girar a la izquierda"
-                    class="flex items-center hover:bg-white/20 text-white px-2.5 py-1.5">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15L4 10l5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M4 10h10a6 6 0 016 6v2"/></svg>
-                  </button>
-                  <span class="text-white text-xs tabular-nums px-1.5 select-none" x-text="rotation + '°'"></span>
-                  <button @click="rotate(1)" title="Girar a la derecha"
-                    class="flex items-center hover:bg-white/20 text-white px-2.5 py-1.5">
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l5-5-5-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 10H10a6 6 0 00-6 6v2"/></svg>
-                  </button>
-                </div>
-
-                <!-- Lente: el gran angular (0.5x) es una camara fisica distinta,
-                     no se llega con zoom. Solo en equipos que lo tengan. -->
-                <select x-show="puedeAjustar" style="display:none" x-model="lens"
-                        class="bg-white/15 hover:bg-white/25 text-white text-xs rounded px-2 py-1.5 border-0 outline-none cursor-pointer backdrop-blur-sm"
-                        title="Gran angular: abarca más desde la misma distancia. Solo si el equipo lo tiene.">
-                  <option class="text-black" value="main">Lente normal</option>
-                  <option class="text-black" value="wide">Gran angular 0.5x</option>
-                </select>
-
-                <!-- Fija lente + zoom para las fotos, incluidas las programadas -->
-                <button x-show="puedeAjustar" style="display:none" @click="saveCamera()"
-                  :disabled="!encuadreCambiado()"
-                  class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-default text-white text-xs rounded px-3 py-1.5"
-                  title="Guarda el lente y el zoom actuales. Se aplican también a las fotos programadas.">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-                  Fijar encuadre
-                </button>
-                <!-- Fijar orientacion para todos (solo admin) -->
-                <button x-show="isAdmin" style="display:none" @click="saveRotation()"
-                  :disabled="rotation === savedRotation"
-                  class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-default text-white text-xs rounded px-3 py-1.5 ml-auto">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                  <span x-text="rotation === savedRotation ? 'Orientación guardada' : 'Fijar orientación'"></span>
-                </button>
-                <!-- Reset a la orientacion fija (no-admin y admin) -->
-                <button x-show="rotation !== savedRotation" @click="resetRotation()" style="display:none"
-                  class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white text-xs rounded px-3 py-1.5"
-                  :class="puedeAjustar ? '' : 'ml-auto'">
-                  Volver a la fija
-                </button>
-              </div>
-              <p class="text-[10px] text-white/60 mt-2">Toca el video para enfocar. El zoom, exposición y balance son temporales hasta que pulses <strong>Fijar encuadre</strong>; la orientación fija (solo admin) es la que todos ven al recargar.</p>
-            </div>
           </div>
         </div>
 
@@ -476,6 +517,63 @@
               </div>
 
               <div class="border-t border-neutral-100 pt-4">
+                <label class="block text-xs text-neutral-600 mb-2 font-medium">Pantalla de LED</label>
+
+                <label class="flex justify-between text-xs text-neutral-600 mb-1">
+                  <span>Cuadros a promediar</span>
+                  <span class="text-neutral-400" x-text="(Number(ajustes.cuadros ?? 1) > 1 ? Number(ajustes.cuadros) + ' cuadros' : 'un disparo')"></span>
+                </label>
+                <input type="range" min="1" max="32" step="1"
+                       :value="ajustes.cuadros ?? 1"
+                       @input="ajustes.cuadros = Number($event.target.value)"
+                       class="w-full mb-1" title="Promediar varios cuadros borra las líneas del LED">
+                <p class="text-xs text-neutral-400 mb-3">
+                  Contra las líneas de la pantalla. Cada cuadro las agarra en otra posición, así que
+                  al promediarlos se cancelan: con 16 la marca baja de 40% a 10%. Tarda ~1 s más y,
+                  si el creativo cambia a media captura, sale mezclado.
+                </p>
+
+                <label class="block text-xs text-neutral-600 mb-1">Dónde mide la luz</label>
+                <select x-model="ajustes.medicion" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm mb-2">
+                  <option value="centre">Centro del cuadro (normal)</option>
+                  <option value="spot">Solo el centro — para exponer la pantalla</option>
+                  <option value="average">Todo el cuadro por igual</option>
+                  <option value="matrix">Por zonas</option>
+                </select>
+
+                <label class="flex items-center gap-2 text-xs text-neutral-600 mb-2">
+                  <input type="checkbox" :checked="exposicionManual" @change="alternarExposicionManual($event.target.checked)">
+                  Fijar la exposición a mano
+                </label>
+
+                <div x-show="exposicionManual" class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="flex justify-between text-xs text-neutral-600 mb-1">
+                      <span>Obturador</span>
+                      <span class="text-neutral-400" x-text="Math.round(Number(ajustes.obturador || 8000)) + ' µs'"></span>
+                    </label>
+                    <input type="range" min="200" max="40000" step="100"
+                           :value="ajustes.obturador ?? 8000"
+                           @input="ajustes.obturador = Number($event.target.value)" class="w-full">
+                  </div>
+                  <div>
+                    <label class="flex justify-between text-xs text-neutral-600 mb-1">
+                      <span>Ganancia</span>
+                      <span class="text-neutral-400" x-text="Number(ajustes.ganancia || 1).toFixed(2)"></span>
+                    </label>
+                    <input type="range" min="1" max="16" step="0.25"
+                           :value="ajustes.ganancia ?? 1"
+                           @input="ajustes.ganancia = Number($event.target.value)" class="w-full">
+                  </div>
+                </div>
+                <p x-show="exposicionManual" class="text-xs text-neutral-400 mt-1">
+                  Al fijarlo se pierde el automático: hay que mover los dos juntos o la foto sale
+                  quemada o a oscuras según la hora. Un obturador largo también borra las líneas,
+                  pero a plena luz quema la escena: para eso hace falta un filtro ND en la lente.
+                </p>
+              </div>
+
+              <div class="border-t border-neutral-100 pt-4">
                 <label class="block text-xs text-neutral-600 mb-1">Balance de blancos</label>
                 <select x-model="ajustes.awb" class="w-full px-3 py-2 border border-neutral-300 rounded text-sm mb-2">
                   <option value="auto">Automático</option>
@@ -510,6 +608,11 @@
               </div>
 
               <div class="border-t border-neutral-100 pt-4 flex flex-wrap gap-2">
+                <button @click="presetPantallaLed()"
+                        class="px-3 py-1.5 text-xs border border-sky-300 bg-sky-50 text-sky-900 rounded hover:bg-sky-100"
+                        title="Promedia 16 cuadros, baja la exposición y mide la luz en la pantalla">
+                  Pantalla de LED: punto de partida
+                </button>
                 <button @click="presetSinFiltroIR()"
                         class="px-3 py-1.5 text-xs border border-amber-300 bg-amber-50 text-amber-900 rounded hover:bg-amber-100"
                         title="Punto de partida para cámaras sin filtro infrarrojo, donde la vegetación sale morada">
@@ -729,12 +832,12 @@
       <span x-text="toast.msg"></span>
     </div>
 
-    <!-- Modal editar nombre / sitio -->
+    <!-- Modal editar pantalla (datos del sitio, posicion y estado) -->
     <!-- El modal solo se cierra con Cancelar / Guardar (no al hacer click fuera ni al escribir). -->
     <div x-show="editMode" style="display:none" x-transition.opacity
          class="fixed inset-0 z-[65] bg-black/50 flex items-center justify-center p-4">
       <div @click.stop class="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl">
-        <h3 class="font-medium mb-4">Editar nombre / sitio</h3>
+        <h3 class="font-medium mb-4">Editar pantalla</h3>
         <div class="space-y-3 text-sm">
           <label class="block">
             <span class="text-neutral-500">Nombre</span>
@@ -763,6 +866,43 @@
                      class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
             </label>
           </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <label class="block">
+              <span class="text-neutral-500">Latitud</span>
+              <input x-model="editForm.lat" type="text" inputmode="decimal" placeholder="19.4326"
+                     class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+            </label>
+            <label class="block">
+              <span class="text-neutral-500">Longitud</span>
+              <input x-model="editForm.lng" type="text" inputmode="decimal" placeholder="-99.1332"
+                     class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded">
+            </label>
+          </div>
+          <p class="text-xs text-neutral-400 -mt-1">
+            Déjalas vacías si no las sabes. Sirven para ubicar la pantalla y para calcular la luz
+            de su sitio —amanecer, mediodía solar, atardecer—, que es lo que decide a qué horas
+            la foto sale limpia y a qué horas sale con líneas.
+          </p>
+
+          <label class="block">
+            <span class="text-neutral-500">Estado</span>
+            <select x-model="editForm.status"
+                    class="w-full mt-1 px-3 py-2 border border-neutral-300 rounded bg-white">
+              <option value="provisioning">En operación</option>
+              <option value="active">Activa</option>
+              <option value="maintenance">En mantenimiento</option>
+              <option value="inactive">Dada de baja</option>
+            </select>
+          </label>
+          <p class="text-xs text-neutral-400 -mt-1">
+            <span class="font-medium">Mantenimiento</span> y <span class="font-medium">dada de baja</span>
+            dejan a la pantalla fuera de las programaciones de toda la flota: no le llegan fotos
+            y deja de gastar datos. Es la forma de detenerla mientras se le trabaja, sin borrar
+            nada ni tocar las programaciones. <span class="font-medium">En operación</span> y
+            <span class="font-medium">Activa</span> hoy se comportan igual: toda la flota quedó en
+            la primera y el programador no distingue entre las dos.
+          </p>
         </div>
         <div class="flex justify-end gap-2 mt-5">
           <button @click="editMode = false" class="px-4 py-2 text-sm text-neutral-600 hover:bg-neutral-100 rounded">Cancelar</button>
