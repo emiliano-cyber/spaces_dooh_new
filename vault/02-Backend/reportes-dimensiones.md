@@ -303,6 +303,32 @@ aparecen en el código. **Normaliza los finales de línea antes de mirar** — �
 > se invierte. Si alguna cifra de dinero se hubiera movido habría un
 > acoplamiento que no debe existir.
 
+> [!success] 2026-09-18 · comprobado EN EL NAVEGADOR, contra `spaces_ver2`
+> Y encontró algo que ninguna prueba iba a decir: **la base sembrada no puede
+> enseñar este cambio.** Sus cuatro pantallas tienen `caras = 1`
+> —`DEMO-TLP-01`, `DEMO-STM-01`, `DEMO-SM-01`, `DEMO-SM-02`—, así que el m² sale
+> en **92.88** con las dos convenciones y **el ranking es idéntico antes y
+> después**. Quien mire la app para validar la decisión no verá nada, y eso no
+> significa que no se aplicó.
+>
+> Así que se midió poniéndole **dos caras a Tlalpan** en la base —dato de
+> prueba, y **restaurado a 1 al terminar**, verificado con un `select`— para ver
+> la multiplicación llegar a la pantalla de verdad:
+>
+> | Tlalpan G500, abr–jun 2026 | 1 cara | 2 caras |
+> |---|---|---|
+> | Superficie | 92.88 m² | **185.76 m²** |
+> | Ingreso / m² | 1 550.39 | **775.19** |
+> | Margen / m² | 225.02 | **112.51** |
+> | Ingreso · Costo del espacio · Costo de operación · Margen · Margen % | 144 000 · 84 000 · 39 100 · 20 900 · 14.5 % | **los mismos** |
+> | Totales del pie | 288 000 · 217 900 · 70 100 · 24.3 % | **los mismos** |
+>
+> El aviso se leyó en pantalla y **afirma**: «La superficie suma TODAS las caras
+> de cada pantalla: una de dos caras de 3 × 6 cuenta 36 m², no 18. Es la
+> superficie que se vende, y cada pantalla aporta la de sus propias caras.» Ni
+> una palabra de pendiente. Y el presupuesto de la ruta no se movió:
+> `/reportes` sigue en **112 kB**.
+
 Las pruebas que la fijan, y que **estaban escritas al revés a propósito** —por
 eso valen—: al invertir la bandera se pusieron en rojo **cuatro**, con
 `expected 36 to be 18`, `expected 'todas-las-caras' to be 'una-cara'` y
