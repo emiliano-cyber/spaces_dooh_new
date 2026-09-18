@@ -18,6 +18,7 @@ import {
   Percent,
   CalendarRange,
   Warehouse,
+  Zap,
   TrendingUp,
 } from 'lucide-react'
 import type { RolDemo } from '@/lib/data/types'
@@ -121,6 +122,12 @@ export const NAV: NavItem[] = [
   { key: 'imprenta', label: 'Imprenta', href: '/imprenta', icon: Printer, roles: ['DUENO', 'IMPRENTA'], grupo: 'entregar' },
   { key: 'operaciones', label: 'Operaciones', href: '/operaciones', icon: ClipboardList, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
   { key: 'almacen', label: 'Almacén', href: '/almacen', icon: Warehouse, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
+  // Sin esta entrada la ruta NO TIENE PUERTA: `moduloDe()` devuelve null para
+  // lo que el NAV no conoce, y `AuthGate` deja pasar a cualquier rol interno.
+  // El dato sigue protegido —el endpoint exige `operaciones`— pero el rol
+  // equivocado veria la pantalla y se comeria un 403 sin saber por que, que es
+  // el encierro que este repo ya documento dos veces. No es cosmetica.
+  { key: 'energia', label: 'Consumo de luz', href: '/energia', icon: Zap, roles: ['DUENO', 'OPERACIONES'], grupo: 'entregar' },
 
   // ─── Finanzas ────────────────────────────────────────────────────────────
   { key: 'finanzas', label: 'Finanzas', href: '/finanzas', icon: Receipt, roles: ['DUENO', 'FINANZAS'], grupo: 'cobrar' },

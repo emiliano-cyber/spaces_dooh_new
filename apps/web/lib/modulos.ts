@@ -39,6 +39,7 @@ export const AREAS: AreaProducto[] = [
   { clave: 'arrendadores', label: 'Arrendadores', modulo: 'arrendadores', apiPropia: true },
   { clave: 'operaciones', label: 'Operaciones', modulo: 'operaciones', apiPropia: true },
   { clave: 'almacen', label: 'Almacén', modulo: 'operaciones', apiPropia: true },
+  { clave: 'energia', label: 'Consumo de luz', modulo: 'operaciones', apiPropia: true },
   { clave: 'imprenta', label: 'Imprenta', modulo: 'imprenta', apiPropia: true },
   { clave: 'finanzas', label: 'Finanzas', modulo: 'finanzas', apiPropia: true },
   // Reportes de rentabilidad va bajo `finanzas` y NO bajo `dashboard`: enseña

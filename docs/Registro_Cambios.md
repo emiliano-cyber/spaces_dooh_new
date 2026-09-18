@@ -58,6 +58,36 @@ La entrada más reciente va arriba.
   razones sociales, el cuestionario no vuelve a aparecer. Solo lo ve el Dueño: es
   la identidad fiscal del negocio. En el menú está como **Razones sociales**.
 
+- **Razones sociales: ya se pueden gestionar y asignar.** Hasta ahora el sistema
+  guardaba las razones sociales de tu empresa pero no había ninguna pantalla para
+  verlas: la de bienvenida te decía que fueras a Administración, y ahí no había
+  nada. Ahora hay una pantalla propia, **Razones sociales**, donde se dan de alta,
+  se editan, se dan de baja y se vuelven a activar. Cada una lleva su papel —quién
+  paga las rentas, quién compra los activos, quién tramita licencias, quién opera
+  y quién vende— y la pantalla **avisa cuando un papel se queda sin nadie**, porque
+  a partir de ahí los documentos de ese tipo nacen sin razón social. Y lo más
+  importante: **ya se puede decir con cuál se paga cada contrato de renta y con
+  cuál se emite cada comprobante**. Si solo una tiene el papel, viene propuesta
+  sola; si hay dos, el sistema no elige por ti. Lo que ya existía se queda como
+  **«sin asignar»** y así se muestra, porque nadie sabe a nombre de quién se hizo y
+  no se inventa. **Ningún importe cambió**: aquí solo se decide el nombre que va en
+  el documento.
+
+- **Ya son los cinco reportes: entra el consumo de luz.** Hay una pantalla nueva,
+  **Consumo de luz**, donde operaciones teclea un recibo por predio y por mes. El
+  importe se reparte entre las pantallas de ese predio **igual que la renta**, y
+  entra en el costo y en el margen de **todos** los reportes, no solo del suyo.
+  Lo más útil de esa pantalla no es capturar: es que **enseña lo que falta**. Una
+  rejilla con un predio por fila y un mes por columna marca los meses sin recibo, y
+  el reporte avisa de cuántos le faltan. Sin eso, un mes que nadie capturó se vería
+  como si ese predio no gastara luz y el margen saldría mejor de lo que es, sin que
+  nada lo dijera. Capturar dos veces el mismo recibo ya no es posible.
+
+- **El metro cuadrado suma todas las caras.** Una pantalla de dos caras de 3 × 6
+  cuenta 36 m², no 18, porque es la superficie que de verdad se vende. Cambia el
+  orden del reporte por metro cuadrado; el ingreso, el costo y el margen no se
+  mueven.
+
 - **Lo que la pantalla enseña de cada reporte.** «Por operación» ya muestra las
   columnas que lo hacen ser de operación: cuántas visitas tuvo cada pantalla, qué
   proporción del ingreso se comió la operación, cuántas horas estuvo la cuadrilla en
