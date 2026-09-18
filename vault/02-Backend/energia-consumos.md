@@ -390,6 +390,14 @@ quinta dimensión no le costó nada a la pantalla que ya existía.
    la lista de abajo.
 2. **El área `energia` no está registrada** en `lib/modulos.ts` ni en
    `components/demo/shell/nav.ts` — los tiene el otro agente de la ola.
+   > [!success] CERRADO el 2026-09-18, al fusionar la ola 4
+   > La entrada de menú **ya existe** (`nav.ts`, grupo `entregar`, tras Almacén) y
+   > el área está declarada en `lib/modulos.ts:42`. Lo de abajo se conserva porque
+   > explica **por qué una entrada de menú no es cosmética en este repo**, y porque
+   > un agente que escribía el manual leyó esta nota el mismo día y reportó el
+   > hueco como abierto: una nota que describe un problema resuelto **produce
+   > documentación falsa**.
+
    **Consecuencia medida** (`AuthGate.tsx:19-24`): `moduloDe()` devuelve `null`
    para una ruta que el NAV no conoce, `noAutorizado` queda en `false` y la
    pantalla **se abre por enlace directo a cualquier rol interno**. El **dato**
