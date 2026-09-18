@@ -8,6 +8,7 @@ import { uploadPhoto } from '../services/photoStorage.service';
 import { configDe, registrarRecorrido, ligarFoto } from './creativos.controller';
 import { apkInfo } from '../utils/apkInfo';
 import { redis } from '../config/redis';
+import { comprobar, pareceLlave } from '../utils/llaveServicio';
 
 // Los limites reflejan el tamaño real de las columnas: sin ellos, un dato mas
 // largo llegaba a MySQL, reventaba el INSERT y el error tumbaba el proceso. Se
@@ -21,13 +22,30 @@ const registerSchema = z.object({
   app_version: recorta(64),
   model: recorta(100),
   manufacturer: recorta(100),
+  // Testigo de alta que el instalador trae dentro. Opcional a proposito: los
+  // equipos que ya estan instalados no lo llevan y se siguen dando de alta como
+  // siempre; lo que no traiga testigo queda SIN dueno, que es lo correcto -un
+  // equipo sin asignar no es de todos, es de nadie hasta que alguien lo asigne.
+  provision_token: recorta(128).optional(),
 });
 
 export async function register(req: Request, res: Response) {
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
-  const { device_uid, android_version, app_version, model, manufacturer } = parsed.data;
+  const { device_uid, android_version, app_version, model, manufacturer, provision_token } = parsed.data;
+
+  // De quien es este equipo. NO se acepta un nombre de dueno enviado por el
+  // aparato: se deduce del testigo, que solo existe para una instancia. El
+  // equipo no puede mentir porque no conoce el testigo de nadie mas.
+  let duenoDelTestigo: string | null = null;
+  if (provision_token) {
+    const llave = pareceLlave(provision_token) ? await comprobar(provision_token) : null;
+    if (!llave || llave.uso !== 'alta' || !llave.owner) {
+      return res.status(401).json({ error: 'testigo_de_alta_invalido' });
+    }
+    duenoDelTestigo = llave.owner;
+  }
 
   const [existing] = await pool.query<any[]>(
     `SELECT id FROM devices WHERE device_uid = ? LIMIT 1`,
@@ -41,11 +59,15 @@ export async function register(req: Request, res: Response) {
       `UPDATE devices SET android_version=?, app_version=?, model=?, manufacturer=? WHERE id=?`,
       [android_version, app_version, model, manufacturer, deviceId]
     );
+    // El dueno de un equipo que YA existe no se toca aqui. Reinstalar el agente
+    // con el testigo de otra instancia no puede mudar una camara de cliente sin
+    // que nadie lo decida: eso se hace desde el dashboard, a conciencia.
   } else {
     const [result] = await pool.query<any>(
-      `INSERT INTO devices (device_uid, name, status, android_version, app_version, model, manufacturer, auth_token_hash, token_issued_at)
-       VALUES (?, ?, 'provisioning', ?, ?, ?, ?, '', NOW())`,
-      [device_uid, `Device ${device_uid.slice(0, 8)}`, android_version, app_version, model, manufacturer]
+      `INSERT INTO devices (device_uid, name, status, owner, android_version, app_version, model, manufacturer, auth_token_hash, token_issued_at)
+       VALUES (?, ?, 'provisioning', ?, ?, ?, ?, ?, '', NOW())`,
+      [device_uid, `Device ${device_uid.slice(0, 8)}`, duenoDelTestigo,
+       android_version, app_version, model, manufacturer]
     );
     deviceId = (result as any).insertId;
   }

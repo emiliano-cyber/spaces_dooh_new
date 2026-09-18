@@ -57,6 +57,12 @@ export async function requireUser(req: Request, res: Response, next: NextFunctio
     if (!llave.escritura && !['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
       return res.status(401).json({ error: 'llave_de_solo_lectura' });
     }
+    // Un testigo de alta viaja dentro de un instalador, por manos y correos: no
+    // puede servir para leer. Se responde igual que una credencial invalida para
+    // no ir diciendo que clase de credencial es cada una.
+    if (llave.uso !== 'lectura') {
+      return res.status(401).json({ error: 'llave_invalida' });
+    }
     if (!RUTAS_DE_LLAVE.some((r) => r.test(req.path))) {
       return res.status(403).json({ error: 'ruta_no_permitida_para_llave' });
     }

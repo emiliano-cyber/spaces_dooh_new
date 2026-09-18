@@ -12,7 +12,7 @@ export async function listar(_req: Request, res: Response) {
   // Nunca sale el hash. Lo que se muestra es el prefijo, que es justo lo que
   // permite reconocer una llave en una pantalla sin poder usarla.
   const [filas] = await pool.query<any[]>(
-    `SELECT k.id, k.nombre, k.prefijo, k.escritura, k.owner, k.creada_en, k.ultimo_uso,
+    `SELECT k.id, k.nombre, k.prefijo, k.escritura, k.owner, k.uso, k.creada_en, k.ultimo_uso,
             k.revocada_en, u.full_name AS creada_por
        FROM api_keys k
        LEFT JOIN users u ON u.id = k.creada_por
@@ -30,14 +30,23 @@ export async function crear(req: Request, res: Response) {
     // padre y nuestra propia operacion; para la llave de una instancia hay que
     // ponerlo, y es lo unico que la separa de ver camaras de otro cliente.
     owner: z.string().min(1).max(64).nullable().optional(),
+    // 'alta' es el testigo que viaja dentro del instalador; solo sirve para
+    // registrar un equipo y estamparle este dueno. Exige alcance: un testigo sin
+    // dueno no sabria a quien asignar el equipo.
+    uso: z.enum(['lectura', 'alta']).optional().default('lectura'),
   });
   const leido = esquema.safeParse(req.body);
   if (!leido.success) return res.status(400).json({ error: 'invalid_input', details: leido.error.flatten() });
 
+  if (leido.data.uso === 'alta' && !leido.data.owner) {
+    return res.status(400).json({ error: 'un_testigo_de_alta_exige_dueno' });
+  }
+
   const { llave, prefijo, hash } = generar();
   const [r] = await pool.query<any>(
-    `INSERT INTO api_keys (nombre, prefijo, hash, escritura, owner, creada_por) VALUES (?, ?, ?, ?, ?, ?)`,
-    [leido.data.nombre, prefijo, hash, leido.data.escritura, leido.data.owner ?? null, req.user?.uid ?? null]
+    `INSERT INTO api_keys (nombre, prefijo, hash, escritura, owner, uso, creada_por) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [leido.data.nombre, prefijo, hash, leido.data.escritura, leido.data.owner ?? null,
+     leido.data.uso, req.user?.uid ?? null]
   );
 
   // La llave completa viaja UNA sola vez, aqui. No se guarda en ningun lado:
@@ -48,6 +57,7 @@ export async function crear(req: Request, res: Response) {
     nombre: leido.data.nombre,
     escritura: leido.data.escritura,
     owner: leido.data.owner ?? null,
+    uso: leido.data.uso,
     llave,
     aviso: 'Guardala ahora: no se vuelve a mostrar.',
   });

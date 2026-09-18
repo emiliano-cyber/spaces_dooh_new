@@ -20,6 +20,10 @@ export type LlaveServicio = {
   // Alcance. null = ve la flota entera (el padre y nuestra propia operacion);
   // con valor, solo los equipos de ese dueno.
   owner: string | null;
+  // 'lectura' consulta el espejo; 'alta' solo sirve para registrar un equipo.
+  // Una credencial no puede hacer las dos cosas: ver el comentario de la
+  // migracion 017.
+  uso: 'lectura' | 'alta';
 };
 
 /** Crea una llave nueva. El secreto se devuelve UNA vez y no se guarda. */
@@ -63,7 +67,7 @@ export async function comprobar(llave: string): Promise<LlaveServicio | null> {
   const prefijo = m[1];
 
   const [filas] = await pool.query<any[]>(
-    `SELECT id, nombre, prefijo, hash, escritura, owner FROM api_keys
+    `SELECT id, nombre, prefijo, hash, escritura, owner, uso FROM api_keys
       WHERE prefijo = ? AND revocada_en IS NULL LIMIT 1`,
     [prefijo]
   );
@@ -90,5 +94,6 @@ export async function comprobar(llave: string): Promise<LlaveServicio | null> {
     prefijo: fila.prefijo,
     escritura: !!fila.escritura,
     owner: fila.owner ?? null,
+    uso: fila.uso === 'alta' ? 'alta' : 'lectura',
   };
 }
