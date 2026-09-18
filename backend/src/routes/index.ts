@@ -7,6 +7,7 @@ import * as auth from '../controllers/auth.controller';
 import * as device from '../controllers/device.controller';
 import * as dashboard from '../controllers/dashboard.controller';
 import * as llaves from '../controllers/llaves.controller';
+import * as eyes from '../controllers/eyes.controller';
 import * as verification from '../controllers/verification.controller';
 import * as telemetry from '../controllers/telemetry.controller';
 import * as users from '../controllers/users.controller';
@@ -80,6 +81,9 @@ export function createRoutes() {
   router.post('/api/capture', requireUser, requireRole('admin', 'operator'), dashboard.capturarAhora);
   router.get('/api/photos', requireUser, dashboard.listPhotos);
   router.delete('/api/photos/:id', requireUser, requireRole('admin', 'operator'), dashboard.deletePhoto);
+
+  // Espejo de SPACE OS: de aqui saca cada instancia lo que cambio en SUS camaras.
+  router.get('/api/eyes/cambios', requireUser, eyes.cambios);
 
   // Llaves de servicio: como entra OTRO SISTEMA a leer, sin la cuenta admin.
   // Todo admin: crear una llave es repartir acceso a los datos de la flota.

@@ -29,6 +29,7 @@ const RUTAS_DE_LLAVE: RegExp[] = [
   /^\/api\/devices$/,
   /^\/api\/devices\/\d+$/,
   /^\/api\/photos$/,
+  /^\/api\/eyes\/cambios$/,
 ];
 
 export async function requireUser(req: Request, res: Response, next: NextFunction) {
