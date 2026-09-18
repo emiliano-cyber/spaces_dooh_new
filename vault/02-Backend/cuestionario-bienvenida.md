@@ -14,6 +14,7 @@ archivos:
   - apps/web/app/(app)/bienvenida/page.tsx
   - apps/web/components/demo/bienvenida/CuestionarioRazonesSociales.tsx
   - apps/web/components/demo/bienvenida/PreguntaSiNo.tsx
+  - apps/web/lib/test/bienvenida.e2e.test.ts
 ---
 
 # El cuestionario de bienvenida
@@ -251,6 +252,7 @@ distinto de irse sin enterarse. Ver [[03-Frontend/shell-y-navegacion]].
 | Unitaria | `cuestionario-entidades.test.ts` | 33 | La traducción, las dos derivaciones y **todos** los negativos |
 | Unitaria | `bienvenida-controller.test.ts` | 14 | Que nada se escribe con respuestas inválidas, y el 409 por los dos caminos |
 | Unitaria | `bienvenida-repo.test.ts` | 11 | Que toda consulta nombra `tenant_id`, el orden cerrojo→recuento→insert, y la atomicidad |
+| **Integración** | `bienvenida.e2e.test.ts` | **18** | Aislamiento con RLS de verdad, la reversión de la transacción, el 409 y la carrera de dos POST simultáneos |
 
 Medido el **2026-09-18** en el worktree `ola2/cuestionario`: **1308 unitarias en
 114 archivos**, verde, y `npm run typecheck` limpio. El rojo previo fueron
@@ -278,18 +280,32 @@ Los negativos son el corazón, y son éstos:
 > Postgres real y con `poolApp()`, nunca con el pool de administración: el rol
 > `spaces` es superusuario y se salta la RLS aunque la tabla tenga FORCE.
 
-> [!warning] Lo que falta por probar, y no se probó
-> **No hay e2e de este módulo todavía**, y la unitaria no la sustituye. Faltan
-> tres cosas que solo se ven contra Postgres real:
-> 1. Que el POST de una organización **no cree entidades en otra** (el caso
->    negativo: el mismo cuerpo desde dos sesiones distintas);
-> 2. Que la transacción **revierte de verdad** — un rol inválido a mitad del plan
->    tiene que dejar cero filas, no la primera entidad escrita;
-> 3. Que el segundo POST responde **409 sin escribir**, con el cerrojo de por
->    medio.
+> [!success] 2026-09-18, tarde · las tres e2e YA EXISTEN
+> `apps/web/lib/test/bienvenida.e2e.test.ts`, **18 casos**, contra Postgres real
+> y con `poolApp()`. Cubre las tres que este aviso reclamaba:
+> 1. el mismo cuerpo desde dos sesiones distintas **no cruza ni una fila**;
+> 2. un plan que falla a mitad deja **cero** filas, no la primera entidad;
+> 3. el segundo POST responde **409 sin escribir**, y **dos POST simultáneos**
+>    dejan exactamente un 201, un 409 y cinco filas.
 >
-> No se corrieron porque el puerto 3311 y `spaces_e2e` los tenía otro agente en
-> exclusiva el 18/09.
+> **Y demostradas por mutación**: con la política de RLS reescrita a
+> `using (true)` se ponen rojas **cuatro** aserciones de aislamiento; con
+> `contarEntidadesDelTenant()` además sin su `and tenant_id`, se pone roja la
+> que afirma que el recuento de A es **5 y no 10**. Revertido las dos veces.
+
+> [!danger] Corrección medida · el «rol inválido» NO sirve para probar la reversión
+> Este aviso proponía provocar el fallo a mitad con **un rol fuera del
+> catálogo**, y ese camino **no toca la transacción**: `planDelCuestionario`
+> rechaza el rol y el controller devuelve **400 antes de abrirla**
+> (`bienvenida-controller.ts`, el `if (!plan.ok)` va antes del
+> `crearEntidadesDelCuestionario`). Una prueba montada así saldría **verde con
+> la transacción quitada**: verde por vacuidad.
+>
+> Lo que sí ejercita la reversión es cualquier cosa que reviente en el **segundo
+> insert**. La e2e lo reproduce con un **trigger de prueba** que rechaza el
+> segundo insert de un tenant, y comprueba antes —con dos inserts a pelo— que el
+> trigger deja pasar el primero: sin esa comprobación, el cero final no
+> distinguiría «revirtió» de «nunca escribió nada».
 
 ## Lo que este módulo NO hace
 
