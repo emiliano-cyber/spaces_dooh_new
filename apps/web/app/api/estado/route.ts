@@ -126,7 +126,15 @@ export async function GET() {
       // los activos o vende—, que no son las de `razonesSociales`: esas son del
       // ARRENDADOR, quien me COBRA. Van por `administracion` porque son la
       // identidad fiscal del negocio y no un dato operativo.
-      si('administracion', () => listarEntidades()),
+      //
+      // `incluirInactivas` va PUESTO, y no es un descuido: una entidad dada de
+      // baja sigue nombrando contratos y comprobantes ya emitidos. Sin ella en
+      // el cuerpo, esas pantallas pintarían un hueco —o peor, «sin asignar»—
+      // donde sí hay dato, y el primer guardado del formulario borraría la
+      // referencia sin que nadie lo pidiera. Quién se OFRECE al capturar lo
+      // decide la interfaz con el campo `activo` (`opcionesDeAsignacion`), que
+      // es donde esa distinción importa.
+      si('administracion', () => listarEntidades({ incluirInactivas: true })),
     ])
   const cuerpo = {
     sitios, sitiosRed, clientes, campanas, reservas, creatividades, ordenesTrabajo, evidencias, facturas, cobranzas, ordenesImpresion, acciones, arrendadores, contratos, pagosRenta, incidencias, propuestas, ordenesCompra, notificaciones, configNegocio, predios, razonesSociales, licencias, entidadesFiscales,

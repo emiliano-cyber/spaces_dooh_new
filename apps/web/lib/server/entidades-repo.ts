@@ -183,6 +183,8 @@ export interface ParcheEntidad {
   cpFiscal?: string | null
   serieFolios?: string | null
   roles?: string[]
+  /** Reactivar una dada de baja: la baja es lógica y tiene vuelta. */
+  activo?: boolean
 }
 
 // Solo toca lo que venga en `patch`: así se puede COMPLETAR un dato que faltaba
@@ -203,6 +205,12 @@ export async function editarEntidad(
       ['regimen', patch.regimen],
       ['cp_fiscal', patch.cpFiscal],
       ['serie_folios', patch.serieFolios],
+      // Reactivar va por el MISMO camino que los demás campos, así que la
+      // escritura sigue acotada por `and tenant_id = $n`: reactivar la entidad
+      // de otra organización no encuentra fila y el controller lo convierte en
+      // 404. Una ruta aparte para esto habría sido una segunda escritura donde
+      // volver a olvidarse del tenant.
+      ['activo', patch.activo],
     ]
     const dadas = columnas.filter(([, v]) => v !== undefined)
 
