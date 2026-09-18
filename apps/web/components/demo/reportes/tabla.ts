@@ -407,11 +407,25 @@ export interface ReporteParaAvisos {
   convencionM2?: ConvencionM2 | null
 }
 
+// La frase que dice QUÉ cuenta como metro cuadrado en las cifras de la tabla.
+// Va siempre, porque un número por metro cuadrado sin esto no se puede
+// conciliar con nada.
+//
+// La convención vigente desde el 2026-09-18 es `todas-las-caras`, por decisión
+// del dueño («los m2 los define cada pantalla igual que cada cara»), y su texto
+// está redactado como lo que es: una afirmación. **No dice que haya nada
+// pendiente**, porque ya no lo hay — hasta esa fecha sí lo decía, y dejarlo
+// habría hecho que la pantalla siguiera preguntando algo ya contestado.
+//
+// El texto de `una-cara` se conserva entero porque la bandera del motor
+// (`MULTIPLICAR_M2_POR_CARAS`) se conserva: si el dueño cambia de opinión, el
+// aviso vuelve a ser cierto sin escribir una línea. Y nombra la convención
+// vigente como la alternativa, para que quien lo lea sepa que la otra existe.
 const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
-  'una-cara':
-    'La superficie es la de UNA cara: una pantalla de dos caras de 3 × 6 cuenta 18 m², no 36. Está pendiente de decidir si el metro cuadrado debe multiplicar por caras, y esa decisión cambia el orden de toda la tabla.',
   'todas-las-caras':
-    'La superficie suma TODAS las caras: una pantalla de dos caras de 3 × 6 cuenta 36 m², no 18.',
+    'La superficie suma TODAS las caras de cada pantalla: una de dos caras de 3 × 6 cuenta 36 m², no 18. Es la superficie que se vende, y cada pantalla aporta la de sus propias caras.',
+  'una-cara':
+    'La superficie es la de UNA cara: una pantalla de dos caras de 3 × 6 cuenta 18 m², no 36. Mide la superficie del soporte y no la que se vende, así que las pantallas de varias caras salen mejor situadas que si se contaran todas.',
 }
 
 // Lo que el reporte NO mide, o deja fuera, dicho ENCIMA de la tabla en vez de

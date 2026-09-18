@@ -200,7 +200,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 3, sinMedidas: 0, nota },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.texto)).toContain(nota)
   })
@@ -216,39 +216,51 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 0, sinMedidas: 0, nota },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.texto)).toContain(nota)
   })
 
+  function textoConvencion(convencionM2: 'una-cara' | 'todas-las-caras'): string {
+    const avisos = avisosDelReporte({
+      ...CERRADO,
+      dimension: 'm2',
+      filas: filasM2,
+      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
+      convencionM2,
+    })
+    return avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
+  }
+
   it('la convencion del metro cuadrado se DECLARA en pantalla', () => {
     // Una cifra por metro cuadrado sin decir que cuenta como metro cuadrado no
-    // se puede conciliar con nada. Hoy es UNA CARA y hay una decision del dueño
-    // pendiente sobre si multiplica por caras: el usuario tiene que ver cual se
-    // uso sin preguntarle a nadie.
-    const avisos = avisosDelReporte({
-      ...CERRADO,
-      dimension: 'm2',
-      filas: filasM2,
-      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
-      convencionM2: 'una-cara',
-    })
-    const texto = avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
-    expect(texto).toMatch(/una cara/i)
-    expect(texto).toMatch(/18/)
-  })
-
-  it('si el dueño decide que multiplica por caras, el aviso lo dice al reves', () => {
-    const avisos = avisosDelReporte({
-      ...CERRADO,
-      dimension: 'm2',
-      filas: filasM2,
-      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
-      convencionM2: 'todas-las-caras',
-    })
-    const texto = avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
+    // se puede conciliar con nada. Desde el 2026-09-18 la convencion es TODAS
+    // LAS CARAS, por decision del dueño, y el usuario tiene que ver cual se uso
+    // sin preguntarle a nadie.
+    const texto = textoConvencion('todas-las-caras')
     expect(texto).toMatch(/todas las caras/i)
     expect(texto).toMatch(/36/)
+  })
+
+  it('el aviso AFIRMA la convencion: ya no dice que haya nada pendiente', () => {
+    // Hasta el 2026-09-18 este texto decia «esta pendiente de decidir si el
+    // metro cuadrado debe multiplicar por caras». La decision se tomo, y un
+    // aviso que sigue preguntando algo ya contestado hace dudar de cifras que
+    // son firmes. Ninguna de las dos convenciones puede hablar de pendientes:
+    // la vigente porque no lo hay, y la alternativa porque seria igual de falso
+    // el dia que se vuelva a ella.
+    for (const c of ['todas-las-caras', 'una-cara'] as const) {
+      expect(textoConvencion(c), c).not.toMatch(/pendiente|por decidir|se decidir/i)
+    }
+  })
+
+  it('si el dueño vuelve a UNA CARA, el aviso lo dice al reves y sigue siendo cierto', () => {
+    // La otra via se conserva entera —bandera y texto— porque la bandera del
+    // motor se conserva: `MULTIPLICAR_M2_POR_CARAS` vuelve a `false` y este
+    // aviso es correcto sin escribir una linea.
+    const texto = textoConvencion('una-cara')
+    expect(texto).toMatch(/una cara/i)
+    expect(texto).toMatch(/18/)
   })
 
   it('NEGATIVO: en `sitio` no aparece ningun aviso de m2', () => {
@@ -520,7 +532,7 @@ describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el tr
       // orden quede fijado de verdad.
       filas: [fila({ clave: 's1', ingreso: 0, tieneContrato: false })],
       excluidas: { digitales: 1, sinMedidas: 0, nota: 'Quedaron fuera del ranking: 1 pantalla digital.' },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.clave)).toEqual([
       'periodo-en-curso',

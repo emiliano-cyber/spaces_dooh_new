@@ -992,22 +992,44 @@ export function rentabilidadPorOperacion(
 //  4 · `m2` — ¿qué superficie estática rinde?
 // ════════════════════════════════════════════════════════════════════════════
 
-// ⚠️⚠️⚠️  DECISIÓN DE NEGOCIO ABIERTA — NO LA TOMA EL CÓDIGO  ⚠️⚠️⚠️
+// ─── DECISIÓN DEL DUEÑO, 2026-09-18. NO ES UN VALOR POR OMISIÓN ─────────────
 //
 //  ¿El metro cuadrado de una pantalla de DOS CARAS de 3 × 6 son 18 m² o 36 m²?
 //
-//  Las dos respuestas son defendibles y cambian el ranking entero:
-//   · 18 (una cara) → el m² mide la superficie del SOPORTE.
-//   · 36 (todas)    → el m² mide la superficie que se VENDE.
+//  **Lo decidió Jochelo el 2026-09-18, y quedó CERRADA**: son 36. Sus palabras,
+//  literales — «los m2 los define cada pantalla igual que cada cara». O sea que
+//  cada pantalla aporta la superficie de TODAS sus caras, y el número de caras
+//  sale de la propia pantalla (`sitios.caras`), no de una regla global. El
+//  razonamiento de negocio: si se venden las dos caras, las dos son superficie
+//  que se monetiza, así que el m² mide la superficie que se VENDE y no la del
+//  soporte.
 //
-//  Hoy se implementa UNA CARA, y esto es lo único que hay que cambiar el día que
-//  el dueño conteste: pasar esta constante a `true`. El reporte además DECLARA
-//  qué convención usó en `convencionM2`, porque una cifra por metro cuadrado sin
-//  decir qué cuenta como metro cuadrado no se puede conciliar con nada.
+//  Estuvo abierta desde el 18/09 por la mañana, cuando la dimensión nació: la
+//  alternativa era contar UNA CARA —el m² como superficie del soporte—, que es
+//  lo que se implementó mientras no había respuesta, precisamente porque no
+//  inventa superficie. **Las dos respuestas cambian el ranking entero**, y por
+//  eso no la tomó el código.
 //
-//  No se eligió «lo razonable» para no perder tiempo: se eligió lo que no
-//  inventa superficie, se dejó a la vista y se dejó reversible en una línea.
-const MULTIPLICAR_M2_POR_CARAS: boolean = false
+//  **La bandera SE QUEDA, y eso es deliberado.** Sin ella el siguiente lector
+//  encontraría un `× caras` suelto dentro de `superficieM2()` y lo tomaría por
+//  un descuido —o por un valor por omisión que nadie eligió— y lo invertiría.
+//  Es el mismo criterio que `RANGO_DE_APERTURA` en `components/demo/reportes/
+//  consulta.ts`: lo que una persona decidió se deja escrito, con su fecha y con
+//  la alternativa nombrada, para que se pueda volver atrás sin rehacer nada.
+//  Si el dueño cambia de opinión, esto vuelve a `false` y no se toca nada más.
+//
+//  Y el reporte DECLARA la convención que usó en `convencionM2`: una cifra por
+//  metro cuadrado sin decir qué cuenta como metro cuadrado no se puede
+//  conciliar con nada.
+//
+//  MEDIDO al invertirla, porque era el riesgo de verdad: al multiplicar por
+//  caras el m² sube y los cocientes bajan, pero **el ingreso y el costo no se
+//  mueven**. Dos corridas del mismo rango, una con cada valor, dan cifras
+//  idénticas en `ingreso`, `costoEspacio`, `costoOperacion`, `costoTotal`,
+//  `margen`, `margenPct` y `visitas` —y en los dos totales del reporte—, y solo
+//  cambian `m2`, `ingresoPorM2` y `margenPorM2`. Si alguna cifra de dinero se
+//  moviera habría un acoplamiento que no debe existir.
+const MULTIPLICAR_M2_POR_CARAS: boolean = true
 
 const CONVENCION_M2: ConvencionM2 = MULTIPLICAR_M2_POR_CARAS ? 'todas-las-caras' : 'una-cara'
 
