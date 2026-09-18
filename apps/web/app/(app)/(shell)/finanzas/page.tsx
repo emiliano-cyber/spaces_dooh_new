@@ -227,7 +227,7 @@ export default function FinanzasPage() {
                   {grupos.map((g) => {
                     const abierta = expandidas.has(g.factura?.id ?? '')
                     if (g.cuotas.length === 1) {
-                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
+                      return <FilaCuota key={g.cuotas[0].id} cob={g.cuotas[0]} fac={g.factura} entidades={entidades ?? []} cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />
                     }
                     return (
                       <Fragment key={g.factura?.id ?? g.cuotas[0].id}>
@@ -272,7 +272,7 @@ export default function FinanzasPage() {
                             <StatusBadge tono={COBRANZA_TONO[g.estado]}>{COBRANZA_LABEL[g.estado]}</StatusBadge>
                           </td>
                         </tr>
-                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
+                        {abierta && g.cuotas.map((c) => <FilaCuota key={c.id} cob={c} fac={g.factura} entidades={entidades ?? []} sangrada cliNombre={cliNombre} puedeCobrar={puedeCobrar} recordando={recordando} onPagar={setPagoCob} onRecordar={recordar} />)}
                       </Fragment>
                     )
                   })}
@@ -300,6 +300,18 @@ export default function FinanzasPage() {
       />
 
       <GenerarFacturaDialog
+        // `key` con la campaña: obliga a REMONTAR el diálogo cada vez que se
+        // elige una. Sin esto monta con la página —vive fuera del `&&` y solo
+        // devuelve `null` cuando no hay campaña—, así que su estado inicial se
+        // calculaba cuando el store todavía no había hidratado: `entidades`
+        // llegaba vacío y la razón social emisora salía «sin asignar» AUNQUE
+        // hubiera una sola que vende. MEDIDO el 2026-09-18 mirando la pantalla:
+        // el selector marcaba la recomendada en la lista y no la preseleccionaba.
+        //
+        // La alternativa —recalcular en cada render— sobrescribiría la que quien
+        // factura hubiera elegido a mano, que es peor: emitiría a nombre de otra
+        // sociedad sin avisar.
+        key={facturar?.id ?? 'ninguna'}
         campana={facturar}
         entidades={entidades ?? []}
         onClose={() => setFacturar(null)}
@@ -679,10 +691,12 @@ function PagoModal({
 // cada tecla del filtro. Sería justo lo contrario de lo que busca M7. Cuesta
 // cinco props y las vale.
 function FilaCuota({
-cob, fac, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
+cob, fac, entidades, sangrada, cliNombre, puedeCobrar, recordando, onPagar, onRecordar,
 }: {
 cob: Cobranza
 fac?: Factura
+/** Las razones sociales del OWNER, para poder nombrar la que emitio. */
+entidades: EntidadUI[]
 sangrada?: boolean
 cliNombre: (id: string) => string
 puedeCobrar: boolean
@@ -704,6 +718,14 @@ onRecordar: (id: string) => void
               {fac?.folioFiscal ? `${fac.folioFiscal.slice(0, 13)}…` : '—'}
             </div>
             {fac?.rfc && <div className="demo-num text-[10px] text-muted">{fac.rfc}</div>}
+            {/* Quién EMITIÓ el comprobante. Va tambien AQUI y no solo en la
+                fila agrupada: una factura de cuota unica —el caso normal— no se
+                agrupa y se pinta por este camino, asi que sin esto el dato solo
+                se veia en las de parcialidades. MEDIDO el 2026-09-18 mirando la
+                pantalla, no leyendo el codigo. */}
+            <div className="text-[10px] text-muted">
+              Emite: {etiquetaAsignacion(entidades, fac?.entidadEmisoraId)}
+            </div>
           </>
         )}
       </td>
