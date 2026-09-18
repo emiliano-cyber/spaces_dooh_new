@@ -352,6 +352,7 @@ Hay **una sola pista viva**: `apps/web`, Next con BFF integrado sobre `db/schema
 |---|---|---|
 | **`main`** | — | **La base, y donde vive el trabajo de instancias.** Protegida por `ci.yml` (typecheck + test + build) y `lockfile-check.yml` |
 | `feat/ui-base-404-atajos` | raíz del repo | UI base y atajos del 404 |
+| ~~`integra/entidades-y-reportes`~~ | — | **ATERRIZADA el 18/09**, PR #91 (`ac4f71c`): multi-entidad y el modulo de reportes. 68 commits. Ya no existe como trabajo pendiente |
 | **`chore/retirar-scripts-pista-archivada`** | — | **F5.5, preparada y SIN FUSIONAR.** Depende de F3.6, que espera el registry. **No la borres** |
 | `docs/manual-usuario-y-reglas-agentes` | — | Ya absorbida; redundante |
 
