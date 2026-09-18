@@ -123,7 +123,7 @@ describe('validarConsultaRentabilidad — NEGATIVOS, que es lo que importa', () 
   })
 })
 
-describe('rentabilidadCtrl — las dimensiones declaradas y sin motor', () => {
+describe('rentabilidadCtrl — las cuatro dimensiones tienen motor', () => {
   async function statusAsync(fn: () => Promise<unknown>): Promise<number | null> {
     try {
       await fn()
@@ -133,24 +133,37 @@ describe('rentabilidadCtrl — las dimensiones declaradas y sin motor', () => {
     }
   }
 
-  // 501 y no 404 ni 400: la dimensión ES parte del contrato del endpoint, solo
-  // que todavía no tiene motor. Un 404 diría «esto no existe» y un 400 «lo
-  // pediste mal»; ninguna de las dos es verdad, y las dos harían que la pantalla
-  // se escribiera esperando otra cosa.
-  it('trimestre, operacion y m2 dan 501 con un mensaje que dice cual falta', async () => {
-    for (const d of ['trimestre', 'operacion', 'm2']) {
-      expect(await statusAsync(() => rentabilidadCtrl({ ...OK, dimension: d }))).toBe(501)
+  // Hasta el 2026-09-18 `trimestre`, `operacion` y `m2` contestaban 501: la
+  // dimensión era parte del contrato del endpoint y no tenía motor. Ya lo tiene,
+  // y lo que este bloque protege es que NINGUNA vuelva a quedarse sin él: el
+  // despacho es un `Record<DimensionRentabilidad, Motor>` EXHAUSTIVO, así que
+  // añadir una dimensión al enum sin escribir su motor ya no compila — no hace
+  // falta un 501 en tiempo de ejecución para lo que el tipo garantiza antes.
+  it('ninguna dimension declarada devuelve 501', async () => {
+    for (const d of DIMENSIONES) {
+      expect(await statusAsync(() => rentabilidadCtrl({ ...OK, dimension: d })), d).toBeNull()
     }
-    await expect(rentabilidadCtrl({ ...OK, dimension: 'm2' })).rejects.toThrow(/metro cuadrado/)
   })
 
-  it('el 501 NO lee la base: se corta antes de pagar la consulta', async () => {
-    lecturas.length = 0
-    await rentabilidadCtrl({ ...OK, dimension: 'operacion' }).catch(() => {})
-    expect(lecturas).toEqual([])
+  it('cada dimension devuelve un reporte que dice CUAL es', async () => {
+    for (const d of DIMENSIONES) {
+      const r = await rentabilidadCtrl({ ...OK, dimension: d })
+      expect(r.dimension, d).toBe(d)
+      expect(r.desde).toBe('2026-01-01')
+      expect(r.hasta).toBe('2026-03-31')
+    }
   })
 
-  it('una dimension invalida tampoco lee la base', async () => {
+  it('solo m2 trae el recuento de exclusiones, porque solo m2 excluye', async () => {
+    // Un campo que aparece en las cuatro dimensiones con valor cero invita a
+    // pintarlo siempre; aquí solo significa algo en `m2`.
+    expect((await rentabilidadCtrl({ ...OK, dimension: 'm2' })).excluidas).toBeDefined()
+    for (const d of ['sitio', 'trimestre', 'operacion']) {
+      expect((await rentabilidadCtrl({ ...OK, dimension: d })).excluidas, d).toBeUndefined()
+    }
+  })
+
+  it('una dimension invalida no lee la base', async () => {
     lecturas.length = 0
     await rentabilidadCtrl({ ...OK, dimension: 'arrendador' }).catch(() => {})
     expect(lecturas).toEqual([])
