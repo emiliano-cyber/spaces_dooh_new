@@ -591,37 +591,60 @@ de Finanzas. Pídeselo a quien administra tu organización.
 
 ## PENDIENTES
 
-Ninguno de estos datos aparece por escrito en las fuentes consultadas, y ninguno se
-inventó. Se resuelven mirando la aplicación y corrigiendo las notas de origen, no este
-manual.
+> [!success] 2026-09-18, tarde · **ocho de los catorce, cerrados MIRANDO la aplicación**
+> Se levantó la aplicación con la base de demostración ya sembrada y se comprobaron
+> uno por uno. Lo de abajo **ya no se pregunta: se afirma**, con el texto tal como
+> sale en pantalla.
+>
+> **La entrada del reporte se llama «Reportes»**, en el bloque de Finanzas.
+>
+> **Las cinco miradas del selector**, literales: «Por pantalla» · «Por trimestre» ·
+> «Por operación» · «Por metro cuadrado» · **«Por consumo de luz»**. Ninguna dice ya
+> «(en preparación)».
+>
+> **Consumo de luz SÍ tiene entrada propia**, en el bloque de Operaciones, después
+> de Almacén. El hueco que este manual reportaba **estaba cerrado antes de que se
+> escribiera**: la nota de origen describía el estado anterior. Un perfil de
+> Operaciones sí tiene forma de llegar.
+>
+> **Los campos de la captura**, en orden: `DESDE` · `HASTA` · `PREDIO O PANTALLA` ·
+> `MES DEL RECIBO` · `MEDIDOR` (marcado *opcional*) · `KWH` · `IMPORTE`, y el botón
+> **«Guardar recibo»**.
+>
+> **Los botones de «Razones sociales»**: **«+ Nueva razón social»**, y en cada
+> renglón **«Editar»** y **«Dar de baja»**.
+>
+> **Las etiquetas de los cinco papeles**, tal como se leen: «Paga las rentas a los
+> arrendadores» · «Compra los activos y el equipo» · «Tramites y licencias con
+> gobierno» · «Operacion y nomina» · «Vende publicidad».
+>
+> **El aviso de los recibos que faltan**, literal:
+> *«Faltan 14 de 24 recibos del periodo. Mientras falten, el reporte de rentabilidad
+> suma solo lo capturado y enseña un costo de luz MENOR del real, sin avisar de
+> nada: un mes sin recibo no es un mes sin consumo.»*
+> Y los meses sin recibo se pintan con **una raya ámbar**, nunca con `$0.00`.
+>
+> **Las columnas del reporte**, como encabezados reales: `Pantalla` · `Ingreso` ·
+> `Costo del espacio` · `Costo de operación` · **`Costo de la luz`** · `Costo total` ·
+> `Margen` · `Margen %`. Cada renglón lleva además **«Ver el desglose por periodo»**.
 
-1. **El inventario vigente no cubre nada de esto.** El más reciente es del 15 de septiembre
-   de 2026 y es anterior a la fusión de estas tres áreas. ¿Se levanta un inventario nuevo
-   con fecha del 18 de septiembre antes del lanzamiento del 14 de octubre?
-2. **¿Cómo se llama exactamente la entrada de menú del reporte de rentabilidad?** Solo
-   consta que está bajo el módulo de Finanzas y lleva sus mismos perfiles.
-3. **¿Cómo se llaman exactamente las cinco opciones del selector de miradas?** Solo están
-   confirmadas por escrito **«Por trimestre»** y **«Por operación»**. Las de pantalla, metro
-   cuadrado y consumo de luz se describen en este manual en palabras, sin comillas.
-4. **¿Tiene la pantalla de consumo de luz una entrada propia en el menú, y cómo se llama?**
-   Al 18 de septiembre el área no estaba registrada en el menú. Sin ella, un perfil de
-   Operaciones no tiene forma de llegar. Ver el defecto 1 de la lista de abajo.
-5. **¿Cómo se llaman los campos de la línea de captura del recibo de luz?** Este manual los
-   describe por su contenido (predio, mes, medidor, kilovatios-hora, importe), no por su
-   etiqueta.
-6. **¿Cómo se llama el botón que guarda el cuestionario de bienvenida?**
-7. **¿Cómo se llaman los botones de alta, edición, baja y reactivación de la pantalla
-   «Razones sociales»?**
-8. **¿Con qué etiqueta aparece cada uno de los cinco papeles en pantalla?** Constan sus
-   nombres internos, no el texto que lee el usuario.
-9. **¿Cuál es el texto exacto del aviso ámbar de periodo en curso?** Consta lo que dice y
-   que incluye los días corridos, no su redacción literal.
-10. **¿Cuál es el texto exacto de los avisos de papel sin dueño y papel compartido?**
-11. **¿Cuál es el texto exacto de los avisos de exclusiones por metro cuadrado, sin
-    contrato, sin ingreso, recibos que faltan y recibos sin destino?**
-12. **¿Cuál es el texto exacto del botón y de la confirmación al borrar un recibo de luz?**
-    Consta que pide aprobar.
-13. **¿Qué ve exactamente un perfil de Operaciones si intenta abrir el reporte de
-    rentabilidad?** Conviene tener la frase para el apartado 7.1.
-14. **¿Cómo se llaman en pantalla las columnas de cada mirada?** Constan las de consumo de
-    luz y las de metro cuadrado; las de trimestre y operación se describen en palabras.
+### Los que siguen abiertos
+
+Estos seis necesitan entrar a un flujo concreto o provocar un error a propósito, y
+**no se inventan**. Se cierran en la pasada de ensayo, con la aplicación delante.
+
+1. **El inventario vigente no cubre nada de esto.** El más reciente es del 15 de
+   septiembre y es anterior a estas tres áreas. ¿Se levanta uno nuevo antes del
+   lanzamiento?
+2. **¿Cómo se llama el botón que guarda el cuestionario de bienvenida?** Hay que
+   entrar con una organización sin ninguna razón social para verlo, y el guion
+   `scripts/reiniciar-razones-sociales.mjs` deja la demostración en ese estado.
+3. **¿Cuál es el texto exacto del aviso ámbar de periodo en curso?** Consta lo que
+   dice y que incluye los días corridos, no su redacción palabra por palabra.
+4. **¿Cuál es el texto de los avisos de papel sin dueño y papel compartido?** En la
+   demostración no salen: cada papel tiene exactamente una dueña, que es el caso
+   sano. Hay que provocarlo.
+5. **¿Cuál es el texto del botón y de la confirmación al borrar un recibo de luz?**
+   Consta que pide aprobar.
+6. **¿Qué ve exactamente un perfil de Operaciones si intenta abrir el reporte de
+   rentabilidad?** Conviene tener la frase literal para el apartado de errores.
