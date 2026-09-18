@@ -2,6 +2,7 @@ import type { ContratoArrendamiento, Sitio, TipoOT } from './types'
 import {
   rentaAtribuidaPorSitio,
   contratoVigentePorSitio,
+  fraccionDeCarasPorPredio,
   etiquetaBucket,
   type DatosAtribucion,
 } from './derive'
@@ -34,7 +35,7 @@ import { costoDeOt } from '../costos-ot'
 //  `derive.ts`. El SQL —y solo el SQL— vive en `lib/server/reportes-repo.ts`,
 //  que es quien lee la base y llama aquí.
 //
-//  ─── Las cuatro dimensiones, y por qué no son un `group by` ──────────────
+//  ─── Las CINCO dimensiones, y por qué no son un `group by` ───────────────
 //  Cada una contesta una PREGUNTA distinta, con su propio orden y sus propias
 //  columnas:
 //
@@ -42,11 +43,18 @@ import { costoDeOt } from '../costos-ot'
 //   · `trimestre` → ¿cómo evoluciona el negocio?          (orden CRONOLÓGICO)
 //   · `operacion` → ¿dónde se nos va el dinero en visitas? (más operación primero)
 //   · `m2`        → ¿qué superficie estática rinde?        (peor margen/m² primero)
+//   · `luz`       → ¿qué pantallas se comen la energía?    (más consumo primero)
 //
-//  Las cuatro comparten la MATRIZ sitio × periodo (`matriz()`), que es donde
+//  Las cinco comparten la MATRIZ sitio × periodo (`matriz()`), que es donde
 //  vive el prorrateo, y se diferencian solo en cómo la pivotan. Si cada una
-//  recalculara el dinero, cuatro dimensiones darían cuatro cifras distintas del
+//  recalculara el dinero, cinco dimensiones darían cinco cifras distintas del
 //  mismo mes.
+//
+//  ES NUEVA, desde el 2026-09-18, LA ENERGÍA COMO CUARTA FUENTE DE COSTO. No es
+//  una columna de `luz`: entra en `costoTotal` y en el margen de TODAS las
+//  dimensiones, porque es un costo real de la pantalla. Si `sitio` no lo
+//  contara, `sitio` y `luz` darían dos márgenes distintos para la misma
+//  pantalla y las dos cifras serían defendibles por separado.
 //
 //  ─── Lo que esta versión sigue sin hacer ─────────────────────────────────
 //  NO HAY AGREGACIÓN EN SQL: el motor lee y suma en Node. El límite del
@@ -57,7 +65,7 @@ import { costoDeOt } from '../costos-ot'
 // y el controller valida con zod contra esta misma lista: dos declaraciones
 // —una en el motor y otra en el validador— dejarían un enum que acepta una
 // dimensión sin motor, o un motor que nadie puede pedir.
-export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2'] as const
+export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz'] as const
 export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 
 // Las dos granularidades que admite un reporte de dinero. Son un subconjunto de
@@ -88,6 +96,8 @@ export interface PeriodoFila extends Bucket {
   ingreso: number
   costoEspacio: number
   costoOperacion: number
+  /** Parte del recibo de luz que corresponde a este periodo. Ver `luz`. */
+  costoEnergia: number
   costoTotal: number
   margen: number
   /** Órdenes de trabajo que cayeron en este periodo. */
@@ -103,6 +113,14 @@ export interface FilaRentabilidad {
   ingreso: number
   costoEspacio: number
   costoOperacion: number
+  /**
+   * Costo de la energía eléctrica atribuido en el rango. Es la CUARTA fuente de
+   * costo —junto al espacio, la impresión y la operación— y entra en
+   * `costoTotal` y en el margen de TODAS las dimensiones, no solo de `luz`: es
+   * un costo real de la pantalla, y si `sitio` no lo contara, `sitio` y `luz`
+   * darían dos márgenes distintos para la misma pantalla.
+   */
+  costoEnergia: number
   costoTotal: number
   margen: number
   /**
@@ -132,12 +150,23 @@ export interface FilaRentabilidad {
   m2?: number
   ingresoPorM2?: number
   margenPorM2?: number
+
+  // ─── Solo en `luz` ──────────────────────────────────────────────────────
+  /** Kilovatios-hora atribuidos en el rango, con el mismo reparto que el importe. */
+  kwh?: number
+  /**
+   * Lo que cuesta cada kWh en esta pantalla. `null` con cero kWh, NO 0: un
+   * «$0.00 por kWh» se lee como «aquí la luz es gratis», que es lo contrario de
+   * «no hay consumo con el que calcularlo». Mismo criterio que `margenPct`.
+   */
+  costoPorKwh?: number | null
 }
 
 export interface Totales {
   ingreso: number
   costoEspacio: number
   costoOperacion: number
+  costoEnergia: number
   costoTotal: number
   margen: number
   margenPct: number | null
@@ -167,6 +196,46 @@ export interface ReporteRentabilidad {
   excluidas?: ExclusionesM2
   /** Solo en `m2`: qué cuenta como metro cuadrado en estas cifras. */
   convencionM2?: ConvencionM2
+  /** Solo en `luz`: de cuántos recibos del periodo NO se tiene el dato. */
+  cobertura?: CoberturaEnergia
+}
+
+/**
+ * Cuánta de la luz del periodo se sabe de verdad. Ver `coberturaDeRecibos`.
+ *
+ * Existe por la misma razón que `ExclusionesM2`: un reporte que suma solo lo
+ * que tiene capturado y lo presenta como el total MIENTE SIN DAR ERROR. Con la
+ * energía es peor que con la superficie, porque el hueco no se ve — una pantalla
+ * sin recibo sale con `costoEnergia: 0`, que es indistinguible de una pantalla
+ * que de verdad no gasta luz.
+ */
+export interface CoberturaEnergia {
+  /** Pares (punto de medición × mes) que el reporte necesitaba. */
+  esperados: number
+  /** De esos, cuántos NO tienen recibo capturado. */
+  faltantes: number
+  /** Recibos capturados cuyo importe no llegó a ninguna fila del reporte. */
+  recibosSinDestino: number
+  /** Cuánto dinero suman esos recibos. */
+  importeSinDestino: number
+  /** Frase lista para pintar: el número no debe aparecer sin su porqué. */
+  nota: string
+}
+
+/**
+ * Un recibo de luz, tal como sale de `consumos_energia`.
+ *
+ * El anclaje es EXCLUYENTE y lo garantiza un CHECK de la base: o `predioId`, o
+ * `sitioId`. El medidor no interviene en el reparto —solo en la unicidad, para
+ * que un predio pueda tener dos— y por eso no viaja hasta aquí.
+ */
+interface ConsumoEnergiaReporte {
+  predioId: string | null
+  sitioId: string | null
+  /** `YYYY-MM-01`. El primer día de su mes, garantizado por un CHECK. */
+  periodo: string
+  kwh: number
+  importe: number
 }
 
 interface ReservaReporte {
@@ -199,6 +268,8 @@ export interface DatosRentabilidad extends DatosAtribucion {
   ordenesTrabajo: OtReporte[]
   /** Costo por tipo de OT de ESTE tenant. Vacío = manda `COSTOS_OT_RESPALDO`. */
   costosOt?: Partial<Record<TipoOT, number>> | null
+  /** Recibos de luz del rango. Ausente = no hay captura, que NO es consumo cero. */
+  consumosEnergia?: ConsumoEnergiaReporte[]
 }
 
 // ─── Fechas de CALENDARIO, sin zona horaria ─────────────────────────────────
@@ -503,6 +574,8 @@ interface Celda {
   ingreso: number
   costoEspacio: number
   costoOperacion: number
+  costoEnergia: number
+  kwh: number
   visitas: number
   visitasConDuracion: number
   segundos: number
@@ -522,6 +595,8 @@ function celdaVacia(): Celda {
     ingreso: 0,
     costoEspacio: 0,
     costoOperacion: 0,
+    costoEnergia: 0,
+    kwh: 0,
     visitas: 0,
     visitasConDuracion: 0,
     segundos: 0,
@@ -563,6 +638,13 @@ interface Matriz {
   porSitio: Map<string, Celda[]>
   /** El contrato que gobernó cada pantalla en el rango (el más reciente). */
   contratoDelPeriodo: Map<string, ContratoArrendamiento>
+  /**
+   * Recibos del rango cuyo importe NO llegó a ninguna pantalla: los de un predio
+   * sin pantallas, o los de una pantalla que no está en el inventario. Se
+   * arrastran hasta aquí en vez de descartarse en silencio porque son dinero
+   * capturado que no aparece en ninguna fila — `luz` los DECLARA.
+   */
+  energiaSinDestino: { recibos: number; importe: number }
 }
 
 /**
@@ -590,6 +672,39 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   const contratos = contratosDelPeriodo(datos.contratos, opts)
   const porId = new Map(contratos.map((c) => [c.id, c]))
   const memo = new Map<string, Atribucion>()
+
+  // La fracción de caras de cada predio, calculada UNA vez: no depende del
+  // periodo, así que recalcularla por bucket recorrería el inventario entero
+  // doce veces en un reporte anual. Sale de `derive.ts`, y es LA MISMA que usa
+  // `rentaAtribuidaPorSitio()` para la renta.
+  const repartoPorCaras = fraccionDeCarasPorPredio(datos.sitios)
+  const idsDeSitio = new Set(datos.sitios.map((s) => s.id))
+
+  // Los recibos que TOCAN el rango. Un recibo cubre su mes entero, así que entra
+  // si ese mes solapa el rango y no si el día 1 cae dentro: un rango que empieza
+  // el 10 de febrero sí se lleva su parte del recibo de febrero.
+  const consumos = (datos.consumosEnergia ?? []).filter((c) => {
+    const [anio, mes] = partes(c.periodo)
+    const finDeMes = Date.UTC(anio, mes, 0) / 86_400_000
+    return nDia(c.periodo) <= nDia(opts.hasta) && finDeMes >= nDia(opts.desde)
+  })
+
+  // Un recibo cuyo importe no puede llegar a ninguna pantalla. Se cuenta ANTES
+  // del reparto, porque DESPUÉS es indistinguible de un recibo de cero: el
+  // reparto simplemente no le da nada a nadie y el dinero desaparece del reporte
+  // sin dar ningún error. Es el caso del predio dado de alta y todavía sin
+  // pantallas, que es normal mientras se captura inventario.
+  const energiaSinDestino = { recibos: 0, importe: 0 }
+  for (const c of consumos) {
+    const llega = c.predioId
+      ? (repartoPorCaras.get(c.predioId)?.size ?? 0) > 0
+      : !!c.sitioId && idsDeSitio.has(c.sitioId)
+    if (!llega) {
+      energiaSinDestino.recibos += 1
+      energiaSinDestino.importe += c.importe
+    }
+  }
+  energiaSinDestino.importe = centavos(energiaSinDestino.importe)
 
   const porSitio = new Map<string, Celda[]>()
   for (const s of datos.sitios) porSitio.set(s.id, buckets.map(celdaVacia))
@@ -621,6 +736,9 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
         celda.ingreso += r.precio * (dentroDelBucket / diasTotales)
       }
 
+      // La ENERGÍA no se calcula aquí: un recibo se reparte entre VARIAS
+      // pantallas, así que su bucle natural es el del recibo, más abajo.
+
       // ─── COSTO DE OPERACIÓN: las OT que caen en el bucket ──────────────
       // NO se prorratea: una orden de trabajo es un evento, no un periodo. Su
       // costo entra completo en el mes en que se trabaja, y el importe sale por
@@ -638,6 +756,58 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
           celda.segundos += o.duracionSeg
           celda.visitasConDuracion += 1
         }
+      }
+    }
+
+    // ─── COSTO DE LA ENERGÍA: el recibo MENSUAL, repartido dos veces ─────
+    //
+    // Un recibo se reparte en DOS dimensiones, y las dos importan:
+    //
+    //  1. EN EL TIEMPO, por los días del mes que el bucket cubre. El recibo es
+    //     de un mes de calendario, igual que la renta, así que se usa
+    //     `mesesEquivalentes()` sobre la INTERSECCIÓN del bucket con ese mes: un
+    //     mes entero vale 1 y medio mes vale la fracción de SUS días. Es
+    //     aditiva, así que la suma de los buckets es exactamente el recibo y el
+    //     desglose por periodo cuadra con su fila.
+    //
+    //     Por los días de SU MES y no por una tasa diaria fija: la luz se
+    //     factura por periodo de medición, igual que la renta se paga por mes.
+    //
+    //  2. ENTRE LAS PANTALLAS del predio, con la MISMA fracción de caras que la
+    //     renta —`fraccionDeCarasPorPredio()`, que salió de dentro de
+    //     `rentaAtribuidaPorSitio()` justamente para esto—. Es la decisión
+    //     literal del dueño: «se reparte entre sus pantallas igual que la
+    //     renta». Copiar el reparto aquí habría hecho que la renta de un predio
+    //     se repartiera de una forma y su luz de otra sobre las mismas
+    //     pantallas, en la misma fila de la misma tabla.
+    //
+    // Un recibo de PANTALLA SUELTA no se reparte: es íntegro de esa pantalla, y
+    // sus caras NO lo dividen — son lados de la misma pantalla, no pantallas
+    // distintas. Mismo criterio que el contrato de pantalla suelta.
+    for (const c of consumos) {
+      const [anio, mes] = partes(c.periodo)
+      const mesHasta = isoDe(Date.UTC(anio, mes, 0) / 86_400_000)
+      const fraccionDelMes = mesesEquivalentes(
+        nDia(c.periodo) > nDia(b.desde) ? c.periodo : b.desde,
+        nDia(mesHasta) < nDia(b.hasta) ? mesHasta : b.hasta,
+      )
+      if (fraccionDelMes <= 0) continue
+
+      if (c.predioId) {
+        // Sin destino ya se contó antes del bucle; aquí solo se salta.
+        const destino = repartoPorCaras.get(c.predioId)
+        if (!destino) continue
+        for (const [sitioId, fraccion] of destino) {
+          const celdas = porSitio.get(sitioId)
+          if (!celdas) continue
+          celdas[i].costoEnergia += c.importe * fraccionDelMes * fraccion
+          celdas[i].kwh += c.kwh * fraccionDelMes * fraccion
+        }
+      } else if (c.sitioId) {
+        const celdas = porSitio.get(c.sitioId)
+        if (!celdas) continue
+        celdas[i].costoEnergia += c.importe * fraccionDelMes
+        celdas[i].kwh += c.kwh * fraccionDelMes
       }
     }
 
@@ -681,10 +851,12 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
       c.ingreso = centavos(c.ingreso)
       c.costoEspacio = centavos(c.costoEspacio)
       c.costoOperacion = centavos(c.costoOperacion)
+      c.costoEnergia = centavos(c.costoEnergia)
+      c.kwh = centavos(c.kwh)
     }
   }
 
-  return { buckets, porSitio, contratoDelPeriodo }
+  return { buckets, porSitio, contratoDelPeriodo, energiaSinDestino }
 }
 
 // ─── De celdas a filas ──────────────────────────────────────────────────────
@@ -697,8 +869,13 @@ function periodosDe(buckets: Bucket[], celdas: Celda[]): PeriodoFila[] {
       ingreso: c.ingreso,
       costoEspacio: c.costoEspacio,
       costoOperacion: c.costoOperacion,
-      costoTotal: centavos(c.costoEspacio + c.costoOperacion),
-      margen: centavos(c.ingreso - c.costoEspacio - c.costoOperacion),
+      costoEnergia: c.costoEnergia,
+      // Las TRES fuentes de costo. Al añadir la energía el 2026-09-18 hubo que
+      // tocar este total, el de la fila y el del reporte a la vez: un
+      // `costoTotal` que se quedara con dos de las tres daría un margen
+      // optimista y un desglose que no suma su propia fila, sin dar error.
+      costoTotal: centavos(c.costoEspacio + c.costoOperacion + c.costoEnergia),
+      margen: centavos(c.ingreso - c.costoEspacio - c.costoOperacion - c.costoEnergia),
       visitas: c.visitas,
     }
   })
@@ -711,12 +888,14 @@ function sumar(periodos: PeriodoFila[]): Totales {
   const ingreso = centavos(periodos.reduce((a, p) => a + p.ingreso, 0))
   const costoEspacio = centavos(periodos.reduce((a, p) => a + p.costoEspacio, 0))
   const costoOperacion = centavos(periodos.reduce((a, p) => a + p.costoOperacion, 0))
-  const costoTotal = centavos(costoEspacio + costoOperacion)
+  const costoEnergia = centavos(periodos.reduce((a, p) => a + p.costoEnergia, 0))
+  const costoTotal = centavos(costoEspacio + costoOperacion + costoEnergia)
   const margen = centavos(ingreso - costoTotal)
   return {
     ingreso,
     costoEspacio,
     costoOperacion,
+    costoEnergia,
     costoTotal,
     margen,
     margenPct: ingreso > 0 ? centavos((margen / ingreso) * 100) : null,
@@ -727,12 +906,14 @@ function totalesDeFilas(filas: FilaRentabilidad[]): Totales {
   const ingreso = centavos(filas.reduce((a, f) => a + f.ingreso, 0))
   const costoEspacio = centavos(filas.reduce((a, f) => a + f.costoEspacio, 0))
   const costoOperacion = centavos(filas.reduce((a, f) => a + f.costoOperacion, 0))
-  const costoTotal = centavos(costoEspacio + costoOperacion)
+  const costoEnergia = centavos(filas.reduce((a, f) => a + f.costoEnergia, 0))
+  const costoTotal = centavos(costoEspacio + costoOperacion + costoEnergia)
   const margen = centavos(ingreso - costoTotal)
   return {
     ingreso,
     costoEspacio,
     costoOperacion,
+    costoEnergia,
     costoTotal,
     margen,
     margenPct: ingreso > 0 ? centavos((margen / ingreso) * 100) : null,
@@ -746,8 +927,18 @@ function totalesDeFilas(filas: FilaRentabilidad[]): Totales {
 // Las VISITAS cuentan como movimiento aunque su costo configurado sea 0: una
 // inspección que hace el propio dueño no paga cuadrilla (`costos-ot.ts`), y aun
 // así es un hecho del periodo que el reporte de operación tiene que enseñar.
+//
+// La ENERGÍA también cuenta como movimiento, y no es un detalle: una pantalla
+// que solo consumió luz en el rango TIENE un costo del periodo, y dejarla fuera
+// escondería dinero gastado en el único reporte que existe para enseñarlo.
 function hayMovimiento(t: Totales, visitas: number): boolean {
-  return t.ingreso !== 0 || t.costoEspacio !== 0 || t.costoOperacion !== 0 || visitas !== 0
+  return (
+    t.ingreso !== 0 ||
+    t.costoEspacio !== 0 ||
+    t.costoOperacion !== 0 ||
+    t.costoEnergia !== 0 ||
+    visitas !== 0
+  )
 }
 
 // Suma las celdas de VARIAS pantallas bucket a bucket. El número de buckets se
@@ -761,6 +952,8 @@ function acumularCeldas(celdas: Celda[][], buckets: number): Celda[] {
       out[i].ingreso += fila[i].ingreso
       out[i].costoEspacio += fila[i].costoEspacio
       out[i].costoOperacion += fila[i].costoOperacion
+      out[i].costoEnergia += fila[i].costoEnergia
+      out[i].kwh += fila[i].kwh
       out[i].visitas += fila[i].visitas
       out[i].visitasConDuracion += fila[i].visitasConDuracion
       out[i].segundos += fila[i].segundos
@@ -774,6 +967,8 @@ function acumularCeldas(celdas: Celda[][], buckets: number): Celda[] {
     c.ingreso = centavos(c.ingreso)
     c.costoEspacio = centavos(c.costoEspacio)
     c.costoOperacion = centavos(c.costoOperacion)
+    c.costoEnergia = centavos(c.costoEnergia)
+    c.kwh = centavos(c.kwh)
   }
   return out
 }
@@ -992,22 +1187,44 @@ export function rentabilidadPorOperacion(
 //  4 · `m2` — ¿qué superficie estática rinde?
 // ════════════════════════════════════════════════════════════════════════════
 
-// ⚠️⚠️⚠️  DECISIÓN DE NEGOCIO ABIERTA — NO LA TOMA EL CÓDIGO  ⚠️⚠️⚠️
+// ─── DECISIÓN DEL DUEÑO, 2026-09-18. NO ES UN VALOR POR OMISIÓN ─────────────
 //
 //  ¿El metro cuadrado de una pantalla de DOS CARAS de 3 × 6 son 18 m² o 36 m²?
 //
-//  Las dos respuestas son defendibles y cambian el ranking entero:
-//   · 18 (una cara) → el m² mide la superficie del SOPORTE.
-//   · 36 (todas)    → el m² mide la superficie que se VENDE.
+//  **Lo decidió Jochelo el 2026-09-18, y quedó CERRADA**: son 36. Sus palabras,
+//  literales — «los m2 los define cada pantalla igual que cada cara». O sea que
+//  cada pantalla aporta la superficie de TODAS sus caras, y el número de caras
+//  sale de la propia pantalla (`sitios.caras`), no de una regla global. El
+//  razonamiento de negocio: si se venden las dos caras, las dos son superficie
+//  que se monetiza, así que el m² mide la superficie que se VENDE y no la del
+//  soporte.
 //
-//  Hoy se implementa UNA CARA, y esto es lo único que hay que cambiar el día que
-//  el dueño conteste: pasar esta constante a `true`. El reporte además DECLARA
-//  qué convención usó en `convencionM2`, porque una cifra por metro cuadrado sin
-//  decir qué cuenta como metro cuadrado no se puede conciliar con nada.
+//  Estuvo abierta desde el 18/09 por la mañana, cuando la dimensión nació: la
+//  alternativa era contar UNA CARA —el m² como superficie del soporte—, que es
+//  lo que se implementó mientras no había respuesta, precisamente porque no
+//  inventa superficie. **Las dos respuestas cambian el ranking entero**, y por
+//  eso no la tomó el código.
 //
-//  No se eligió «lo razonable» para no perder tiempo: se eligió lo que no
-//  inventa superficie, se dejó a la vista y se dejó reversible en una línea.
-const MULTIPLICAR_M2_POR_CARAS: boolean = false
+//  **La bandera SE QUEDA, y eso es deliberado.** Sin ella el siguiente lector
+//  encontraría un `× caras` suelto dentro de `superficieM2()` y lo tomaría por
+//  un descuido —o por un valor por omisión que nadie eligió— y lo invertiría.
+//  Es el mismo criterio que `RANGO_DE_APERTURA` en `components/demo/reportes/
+//  consulta.ts`: lo que una persona decidió se deja escrito, con su fecha y con
+//  la alternativa nombrada, para que se pueda volver atrás sin rehacer nada.
+//  Si el dueño cambia de opinión, esto vuelve a `false` y no se toca nada más.
+//
+//  Y el reporte DECLARA la convención que usó en `convencionM2`: una cifra por
+//  metro cuadrado sin decir qué cuenta como metro cuadrado no se puede
+//  conciliar con nada.
+//
+//  MEDIDO al invertirla, porque era el riesgo de verdad: al multiplicar por
+//  caras el m² sube y los cocientes bajan, pero **el ingreso y el costo no se
+//  mueven**. Dos corridas del mismo rango, una con cada valor, dan cifras
+//  idénticas en `ingreso`, `costoEspacio`, `costoOperacion`, `costoTotal`,
+//  `margen`, `margenPct` y `visitas` —y en los dos totales del reporte—, y solo
+//  cambian `m2`, `ingresoPorM2` y `margenPorM2`. Si alguna cifra de dinero se
+//  moviera habría un acoplamiento que no debe existir.
+const MULTIPLICAR_M2_POR_CARAS: boolean = true
 
 const CONVENCION_M2: ConvencionM2 = MULTIPLICAR_M2_POR_CARAS ? 'todas-las-caras' : 'una-cara'
 
@@ -1148,5 +1365,221 @@ export function rentabilidadPorM2(
     totales: totalesDeFilas(filas),
     excluidas: { digitales, sinMedidas, nota: notaDeExclusiones(digitales, sinMedidas) },
     convencionM2: CONVENCION_M2,
+  }
+}
+// ════════════════════════════════════════════════════════════════════════════
+//  5 · `luz` — ¿qué pantallas se comen la energía?
+// ════════════════════════════════════════════════════════════════════════════
+//
+//  La quinta dimensión, y la única de las cinco que nació SIN UN SOLO DATO en el
+//  sistema: hasta el 2026-09-18 una búsqueda por `kwh`, `consumo`, `energia`,
+//  `electric`, `cfe` y `recibo_luz` sobre todo el repositorio devolvía UNA
+//  coincidencia, y era el valor `'ELECTRICO'` del enum `tipo_ot`.
+//
+//  Se le preguntó al dueño quién iba a teclear el dato y cada cuánto, y eligió
+//  —2026-09-18, sus palabras—: «El medidor suele ser del predio, no de la
+//  pantalla, así que se captura una vez por predio y por mes y SE REPARTE ENTRE
+//  SUS PANTALLAS IGUAL QUE LA RENTA». De ahí sale todo: la tabla
+//  `consumos_energia`, el reparto por la fracción de caras (`matriz()`), y esta
+//  dimensión.
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Los meses de calendario que TOCA un rango. Un recibo cubre su mes entero, así
+ * que un rango que empieza el 10 de febrero necesita el recibo de febrero para
+ * estar completo: el mes cuenta aunque el rango solo lo roce.
+ *
+ * Se EXPORTA porque la pantalla de captura pregunta lo mismo —qué meses tiene
+ * que enseñar con sus huecos— y dos respuestas distintas a «qué meses cubre este
+ * rango» harían que el usuario rellenara todas las celdas de la captura y el
+ * reporte siguiera diciendo que le falta un recibo.
+ */
+export function mesesDelRango(rango: RangoReporte): string[] {
+  const [aD, mD] = partes(rango.desde)
+  const [aH, mH] = partes(rango.hasta)
+  if (nDia(rango.hasta) < nDia(rango.desde)) return []
+  const out: string[] = []
+  let anio = aD
+  let mes = mD - 1
+  for (let guardia = 0; guardia < 4000; guardia++) {
+    if (anio > aH || (anio === aH && mes > mH - 1)) break
+    out.push(`${anio}-${String(mes + 1).padStart(2, '0')}-01`)
+    mes += 1
+    if (mes > 11) { mes = 0; anio += 1 }
+  }
+  return out
+}
+
+/**
+ * La clave del PUNTO DE MEDICIÓN de una pantalla: el predio del que cuelga, o
+ * ella misma cuando no tiene predio (`sitios.predio_id` es nullable).
+ *
+ * Se declara AQUÍ y la usan el reporte y la pantalla de captura
+ * (`lib/server/energia-controller.ts`). Con dos definiciones, la captura
+ * enseñaría un hueco donde el reporte no lo cuenta —o al revés—, y el usuario
+ * no tendría forma de dejar el reporte completo.
+ */
+export function puntoDeMedicion(predioId: string | null | undefined, sitioId: string): string {
+  return predioId ? `P:${predioId}` : `S:${sitioId}`
+}
+
+/** La frase, redactada UNA vez y pintada verbatim. Ver `notaDeExclusiones`. */
+function notaDeCobertura(
+  faltantes: number,
+  esperados: number,
+  recibosSinDestino: number,
+  importeSinDestino: number,
+): string {
+  const partes: string[] = []
+  if (faltantes === 0) {
+    // Se dice IGUAL cuando no falta nada: «no falta ninguno» y «no te lo digo»
+    // se ven idénticos si no hay texto. Es el hallazgo C1 de la auditoría QA —
+    // el silencio indistinguible de la ausencia— y el mismo criterio que la nota
+    // de exclusiones del m².
+    partes.push(
+      esperados === 0
+        ? 'No hay recibos de luz que esperar en este periodo.'
+        : `No falta ningún recibo: están capturados los ${esperados} del periodo, así que el costo de la luz está completo.`,
+    )
+  } else {
+    partes.push(
+      `Faltan ${faltantes} de ${esperados} recibos del periodo, así que el costo de la luz que ves está INCOMPLETO y el margen sale mejor de lo que va a quedar. Un mes sin recibo no es un mes sin consumo: es un dato que nadie ha capturado todavía.`,
+    )
+  }
+  if (recibosSinDestino > 0) {
+    // Dinero capturado que no aparece en ninguna fila. Sin esta frase
+    // desaparecería del reporte sin dar ningún error.
+    partes.push(
+      `Además, ${recibosSinDestino} ${recibosSinDestino === 1 ? 'recibo' : 'recibos'} por ${importeSinDestino} no ${recibosSinDestino === 1 ? 'aparece' : 'aparecen'} en ninguna fila, porque su predio todavía no tiene pantallas dadas de alta.`,
+    )
+  }
+  return partes.join(' ')
+}
+
+/**
+ * Cuánto de la luz del periodo se sabe de verdad.
+ *
+ * LA UNIDAD ES EL PAR (PUNTO DE MEDICIÓN × MES), y el punto de medición es el
+ * predio de la pantalla — o la pantalla misma, cuando no tiene predio
+ * (`sitios.predio_id` es nullable). Sin esa segunda mitad, el hueco de una
+ * pantalla suelta no se contaría y el reporte diría que no falta nada cuando le
+ * falta justo esa.
+ *
+ * SOLO cuentan los puntos de las pantallas QUE TIENEN FILA en el reporte, que es
+ * el mismo criterio que las exclusiones del m²: si no, un catálogo con
+ * trescientos predios dormidos diría «faltan 900 recibos» en un reporte donde
+ * eso no significa nada. El recuento contesta «cuánto te falta para que ESTE
+ * reporte esté completo», no «cuánto te falta de capturar en general».
+ */
+function coberturaDeRecibos(
+  sitiosConFila: Sitio[],
+  consumos: ConsumoEnergiaReporte[],
+  rango: RangoReporte,
+  sinDestino: { recibos: number; importe: number },
+): CoberturaEnergia {
+  const meses = mesesDelRango(rango)
+  const puntos = new Set<string>()
+  for (const s of sitiosConFila) puntos.add(puntoDeMedicion(s.predioId, s.id))
+
+  // Qué pares ya tienen recibo. Da igual cuántos medidores traiga el punto: con
+  // uno capturado ese mes deja de ser un hueco. Contar «medidores que faltan»
+  // sería imposible —nadie sabe cuántos medidores tiene un predio hasta que se
+  // capturan— y daría un número que no se puede bajar a cero.
+  const conRecibo = new Set<string>()
+  for (const c of consumos) {
+    const punto = puntoDeMedicion(c.predioId, c.sitioId ?? '')
+    if (!puntos.has(punto)) continue
+    conRecibo.add(`${punto}|${c.periodo.slice(0, 7)}`)
+  }
+
+  let esperados = 0
+  let faltantes = 0
+  for (const punto of puntos) {
+    for (const mes of meses) {
+      esperados += 1
+      if (!conRecibo.has(`${punto}|${mes.slice(0, 7)}`)) faltantes += 1
+    }
+  }
+
+  return {
+    esperados,
+    faltantes,
+    recibosSinDestino: sinDestino.recibos,
+    importeSinDestino: sinDestino.importe,
+    nota: notaDeCobertura(faltantes, esperados, sinDestino.recibos, sinDestino.importe),
+  }
+}
+
+/**
+ * Consumo eléctrico contra el dinero que la pantalla produce.
+ *
+ * Ordena por MÁS COSTO DE ENERGÍA descendente y no por peor margen, por el mismo
+ * motivo que `operacion` ordena por costo de operación: una pantalla con margen
+ * horrible por una renta cara no es un problema de luz, y por peor margen
+ * saldría arriba tapando justo a las que sí lo son.
+ *
+ * Y trae `cobertura`, que es la mitad del reporte: un reporte de energía que
+ * suma solo los recibos capturados y presenta el resultado como el total de la
+ * luz MIENTE SIN DAR ERROR. Aquí es peor que en el m², porque el hueco no se ve:
+ * una pantalla sin recibo sale con `costoEnergia: 0`, indistinguible de una que
+ * de verdad no gasta luz.
+ */
+export function rentabilidadPorLuz(
+  datos: DatosRentabilidad,
+  opts: OpcionesReporte,
+): ReporteRentabilidad {
+  const m = matriz(datos, opts)
+  const arrendadorDe = nombreArrendadorDe(datos)
+  const filas: FilaRentabilidad[] = []
+  const conFila: Sitio[] = []
+
+  for (const s of datos.sitios) {
+    const celdas = m.porSitio.get(s.id)!
+    const periodos = periodosDe(m.buckets, celdas)
+    const t = sumar(periodos)
+    const visitas = periodos.reduce((a, p) => a + p.visitas, 0)
+    if (!hayMovimiento(t, visitas)) continue
+
+    conFila.push(s)
+    const kwh = centavos(celdas.reduce((a, c) => a + c.kwh, 0))
+    const contrato = m.contratoDelPeriodo.get(s.id)
+    filas.push({
+      clave: s.id,
+      etiqueta: s.nombre,
+      detalle: s.claveInterna || s.codigoProveedor || '',
+      ...t,
+      tieneContrato: !!contrato,
+      arrendador: arrendadorDe(contrato),
+      periodos,
+      visitas,
+      kwh,
+      // `null` con cero kWh, NO 0: un «$0.00 por kWh» se lee como «aquí la luz
+      // es gratis», que es lo contrario de «no hay consumo con el que
+      // calcularlo». Mismo criterio que `margenPct` sin ingreso.
+      costoPorKwh: kwh > 0 ? centavos(t.costoEnergia / kwh) : null,
+    })
+  }
+
+  filas.sort(
+    (a, b) =>
+      b.costoEnergia - a.costoEnergia ||
+      (b.kwh ?? 0) - (a.kwh ?? 0) ||
+      a.etiqueta.localeCompare(b.etiqueta),
+  )
+
+  return {
+    dimension: 'luz',
+    granularidad: opts.granularidad,
+    desde: opts.desde,
+    hasta: opts.hasta,
+    periodos: m.buckets,
+    filas,
+    totales: totalesDeFilas(filas),
+    cobertura: coberturaDeRecibos(
+      conFila,
+      datos.consumosEnergia ?? [],
+      opts,
+      m.energiaSinDestino,
+    ),
   }
 }

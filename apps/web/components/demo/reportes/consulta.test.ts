@@ -75,9 +75,12 @@ describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
   })
 })
 
-describe('2 · las cuatro dimensiones del contrato estan declaradas', () => {
-  it('declara las cuatro, en el mismo orden del contrato', () => {
-    expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual(['sitio', 'trimestre', 'operacion', 'm2'])
+describe('2 · las dimensiones del contrato estan declaradas', () => {
+  it('declara las cinco, en el mismo orden del contrato', () => {
+    // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
+    expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual([
+      'sitio', 'trimestre', 'operacion', 'm2', 'luz',
+    ])
   })
 
   it('NINGUNA se ofrece «en preparacion»: las cuatro calculan', () => {

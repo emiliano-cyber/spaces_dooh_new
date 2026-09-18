@@ -44,10 +44,12 @@ import {
 //  haría. El contrato del endpoint está en
 //  `vault/02-Backend/reportes-rentabilidad.md`.
 //
-//  Y es UNA pantalla, no cinco. «Por sitio», «por m²», «por trimestre» y «por
-//  operación» son la misma pregunta —¿qué gana y qué cuesta cada cosa?—
-//  agrupada distinto: cinco secciones serían cinco copias de la misma tabla,
-//  divergiendo a la primera corrección.
+//  Y es UNA pantalla, no cinco. «Por sitio», «por m²», «por trimestre», «por
+//  operación» y «por consumo de luz» son la misma pregunta —¿qué gana y qué
+//  cuesta cada cosa?— agrupada distinto: cinco secciones serían cinco copias de
+//  la misma tabla, divergiendo a la primera corrección. Con `luz` cerrada el
+//  2026-09-18 están las CINCO que pidió el dueño, y la pantalla no creció: ganó
+//  una entrada en el selector.
 //
 //  Toda la lógica que puede equivocarse sin dar error vive fuera de este
 //  archivo, en `components/demo/reportes/{consulta,estado,tabla}.ts`.
@@ -156,6 +158,10 @@ export default function ReportesPage() {
             filas: reporte.filas,
             excluidas: reporte.excluidas,
             convencionM2: reporte.convencionM2,
+            // Solo llega en `luz`. Es el aviso que dice cuántos recibos del
+            // periodo faltan: sin él, el reporte suma lo capturado y lo
+            // presenta como el total de la energía, que es mentir sin error.
+            cobertura: reporte.cobertura,
           })
         : [],
     [reporte],
@@ -199,10 +205,15 @@ export default function ReportesPage() {
         ) : hayDatos ? (
           <>
             <KPICard label="Ingreso del periodo" value={formatMonto(reporte.totales.ingreso)} tono="azul" />
+            {/* Las TRES fuentes de costo, y las tres a la vista. El día que la
+                energía entró en `costoTotal` (2026-09-18) este subtítulo se
+                quedaba con dos: el KPI habría enseñado un total que no es la
+                suma de lo que dice debajo, en el sitio más grande de la
+                pantalla y sin nada que lo explicara. */}
             <KPICard
               label="Costo total"
               value={formatMonto(reporte.totales.costoTotal)}
-              sub={`Espacio ${formatMonto(reporte.totales.costoEspacio)} · Operación ${formatMonto(reporte.totales.costoOperacion)}`}
+              sub={`Espacio ${formatMonto(reporte.totales.costoEspacio)} · Operación ${formatMonto(reporte.totales.costoOperacion)} · Luz ${formatMonto(reporte.totales.costoEnergia)}`}
             />
             <KPICard
               label="Margen"
@@ -243,7 +254,7 @@ export default function ReportesPage() {
         </CardHeader>
         <CardContent>
           {/* La rama del 501 («esta dimensión aún no está disponible») se
-              retiró: las cuatro dimensiones calculan desde el 18/09 y ese
+              retiró: las cinco dimensiones calculan desde el 18/09 y ese
               camino es inalcanzable — medido antes de borrarlo, ver la cabecera
               de `estado.ts`. */}
           {estado.fase === 'cargando' ? (
@@ -277,18 +288,27 @@ export default function ReportesPage() {
               {avisos.length > 0 ? (
                 <ul className="space-y-1.5 rounded-md border border-dashed border-border bg-surface-2 px-3 py-2 text-[12px] text-muted">
                   {avisos.map((a) => {
-                    // El del periodo sin cerrar se pinta en ÁMBAR y con el
-                    // triángulo, y los demás en gris con la «i»: no es el mismo
-                    // tipo de frase. Los otros cuentan lo que el reporte no
-                    // mide; este dice que las cifras que se están viendo
-                    // TODAVÍA NO SON las definitivas, y sin eso el margen se
-                    // lee como una pérdida real.
+                    // ÁMBAR con triángulo, o gris con la «i». La distinción no
+                    // es de estilo: los grises cuentan lo que el reporte no
+                    // mide, y los ámbar dicen que las cifras que se están
+                    // viendo TODAVÍA NO SON las definitivas —el periodo que no
+                    // ha cerrado, y los recibos de luz que faltan—. Sin eso, un
+                    // margen incompleto se lee como una pérdida real.
                     //
-                    // Y el ámbar aquí no se gasta, que es la objeción de
-                    // siempre en este repo: este aviso solo sale cuando el
-                    // rango toca el trimestre vivo, así que sobre un periodo
-                    // cerrado la caja vuelve a ser toda gris.
-                    const alerta = a.clave === 'periodo-en-curso'
+                    // El tono lo decide `avisosDelReporte` y NO este archivo.
+                    // Hasta el 2026-09-18 estaba escrito aquí como
+                    // `a.clave === 'periodo-en-curso'`, y `vitest.config.ts` no
+                    // monta jsdom a propósito: una decisión dentro de un `.tsx`
+                    // no la prueba nadie. Al llegar el segundo aviso que
+                    // necesita ámbar, esa condición habría crecido justo donde
+                    // ninguna prueba la ve.
+                    //
+                    // Y el ámbar no se gasta, que es la objeción de siempre en
+                    // este repo: los dos salen solo cuando hay algo que decir
+                    // —el rango toca el trimestre vivo, o falta algún recibo—,
+                    // así que sobre un reporte completo y cerrado la caja
+                    // vuelve a ser toda gris.
+                    const alerta = a.tono === 'alerta'
                     const Icono = alerta ? AlertTriangle : Info
                     return (
                       <li

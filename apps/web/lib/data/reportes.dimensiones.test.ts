@@ -316,8 +316,10 @@ function estatica(id: string, nombre: string, ancho: number | null, alto: number
 
 const SUPERFICIE = baseDatos({
   sitios: [
-    // 6 × 3 = 18 m² de UNA cara. Tiene DOS caras a propósito: es el caso que
-    // distingue las dos respuestas de la decisión abierta (18 vs 36).
+    // 6 × 3 = 18 m² por cara, y tiene DOS caras: 36 m². Las dos caras están
+    // puestas a propósito, porque es el caso que distingue las dos convenciones
+    // posibles (18 vs 36) — y desde el 2026-09-18 la que manda es 36, por
+    // decisión del dueño. Ver `MULTIPLICAR_M2_POR_CARAS` en `reportes.ts`.
     estatica('SE1', 'Espectacular Norte', 6, 3, { tipoMedio: 'ESPECTACULAR', caras: 2 }),
     estatica('SE2', 'Valla Sur', 4, 2),
     // Digital por tipo de medio.
@@ -344,46 +346,93 @@ const SUPERFICIE = baseDatos({
 describe('dimension m2 — solo estaticas, y diciendo a quien dejo fuera', () => {
   // ─── Cuenta a mano, T1 2026 ───────────────────────────────────────────────
   //  SE1: ingreso 36 000 · espacio 6 000 × 3 = 18 000 · margen 18 000
-  //       superficie de UNA cara = 6 × 3 = 18 m²
-  //       ingreso/m² = 36 000/18 = 2 000 · margen/m² = 18 000/18 = 1 000
+  //       superficie = 6 × 3 × 2 caras = 36 m²
+  //       ingreso/m² = 36 000/36 = 1 000 · margen/m² = 18 000/36 = 500
   //  SE2: ingreso 8 000 · espacio 1 000 × 3 = 3 000 · margen 5 000
-  //       superficie = 4 × 2 = 8 m²
+  //       superficie = 4 × 2 × 1 cara = 8 m²
   //       ingreso/m² = 8 000/8 = 1 000 · margen/m² = 5 000/8 = 625
   it('calcula el rendimiento por metro cuadrado de las estaticas', () => {
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
     const se1 = r.filas.find((f) => f.clave === 'SE1')!
     const se2 = r.filas.find((f) => f.clave === 'SE2')!
-    expect(se1.m2).toBe(18)
-    expect(se1.ingresoPorM2).toBe(2000)
-    expect(se1.margenPorM2).toBe(1000)
+    expect(se1.m2).toBe(36)
+    expect(se1.ingresoPorM2).toBe(1000)
+    expect(se1.margenPorM2).toBe(500)
     expect(se2.m2).toBe(8)
     expect(se2.ingresoPorM2).toBe(1000)
     expect(se2.margenPorM2).toBe(625)
   })
 
-  // ⚠️ DECISIÓN DE NEGOCIO ABIERTA: si el m² multiplica por caras. Se implementa
-  // UNA CARA y esta prueba es la que fija la respuesta de hoy. El día que el
-  // dueño conteste «todas las caras», esta prueba es la que cambia — junto con
-  // UNA línea del motor.
-  it('la superficie es la de UNA cara: 6 x 3 con dos caras son 18 m2, no 36', () => {
+  // ─── DECISIÓN DEL DUEÑO, 2026-09-18 — esta prueba la FIJA ─────────────────
+  // «Los m2 los define cada pantalla igual que cada cara»: cada pantalla aporta
+  // la superficie de TODAS sus caras. Estuvo abierta desde la mañana de ese
+  // mismo día, y mientras no había respuesta se contaba UNA CARA.
+  //
+  // Esta prueba estaba escrita al revés —fijaba las 18— y eso es lo que la hace
+  // valer: al invertir la bandera se puso en rojo con
+  // `expected 36 to be 18`, junto con las otras tres de este bloque. Una
+  // convención que nadie fija se invierte sin que nada se queje.
+  it('la superficie suma TODAS las caras: 6 x 3 con dos caras son 36 m2, no 18', () => {
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
-    expect(r.filas.find((f) => f.clave === 'SE1')!.m2).toBe(18)
-    expect(r.filas.find((f) => f.clave === 'SE1')!.m2).not.toBe(36)
+    expect(r.filas.find((f) => f.clave === 'SE1')!.m2).toBe(36)
+    expect(r.filas.find((f) => f.clave === 'SE1')!.m2).not.toBe(18)
+  })
+
+  // Lo literal de la decisión: las caras salen de CADA PANTALLA (`sitios.caras`)
+  // y no de una regla global. Con un multiplicador fijo —«×2 para todas», que
+  // es la lectura perezosa de «multiplica por caras»— la de una cara y la de
+  // tres darían la misma superficie y nadie lo vería: el reporte seguiría
+  // calculando y el ranking sería otro.
+  it('cada pantalla multiplica por SUS caras, no por un numero fijo', () => {
+    const datos = baseDatos({
+      sitios: [
+        estatica('C1', 'Una cara', 5, 2, { caras: 1 }),
+        estatica('C2', 'Dos caras', 5, 2, { caras: 2 }),
+        estatica('C3', 'Tres caras', 5, 2, { caras: 3 }),
+        // `caras` es nullable en la base: sin dato se cuenta UNA, que es no
+        // inventar superficie. Un `null × 10` daría 0 m² y una división por
+        // cero más abajo.
+        estatica('C0', 'Sin caras', 5, 2, { caras: null }),
+      ],
+      contratos: [contrato('C1', 1000), contrato('C2', 1000), contrato('C3', 1000), contrato('C0', 1000)],
+      arrendadores: ARRENDADORES,
+      reservas: [reserva('C1', 1000), reserva('C2', 1000), reserva('C3', 1000), reserva('C0', 1000)],
+    })
+    const r = rentabilidadPorM2(datos, { ...Q1, granularidad: 'trimestre' })
+    const m2De = (clave: string) => r.filas.find((f) => f.clave === clave)!.m2
+    expect(m2De('C1')).toBe(10)
+    expect(m2De('C2')).toBe(20)
+    expect(m2De('C3')).toBe(30)
+    expect(m2De('C0')).toBe(10)
   })
 
   it('el reporte DICE que convencion de superficie uso', () => {
     // Un número por metro cuadrado sin decir qué cuenta como metro cuadrado es
     // una cifra que no se puede conciliar con nada.
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
-    expect(r.convencionM2).toBe('una-cara')
+    expect(r.convencionM2).toBe('todas-las-caras')
+  })
+
+  // El guard que sobrevive a la decisión, y el que de verdad importa: lo que el
+  // reporte DECLARA tiene que ser lo que CALCULÓ. Vale para las dos
+  // convenciones, así que sigue vigilando el día que la bandera vuelva atrás —
+  // declarar una y aplicar la otra es una cifra por metro que no es de nadie, y
+  // no da ningún error.
+  it('la convencion declarada coincide con la superficie calculada', () => {
+    const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
+    const se1 = r.filas.find((f) => f.clave === 'SE1')! // 6 × 3, dos caras
+    const unaCara = 6 * 3
+    expect(se1.m2).toBe(r.convencionM2 === 'todas-las-caras' ? unaCara * 2 : unaCara)
   })
 
   it('ordena por PEOR margen por m2 primero', () => {
-    // 625 (SE2) antes que 1 000 (SE1). Ojo: por margen absoluto el orden sería
-    // el contrario (5 000 < 18 000), así que el caso discrimina.
+    // 500 (SE1) antes que 625 (SE2). Ojo: por margen ABSOLUTO el orden sería el
+    // contrario —peor primero serían los 5 000 de SE2 contra los 18 000 de
+    // SE1—, así que el caso sigue discriminando entre los dos órdenes después de
+    // la decisión del 18/09, igual que antes de ella.
     const r = rentabilidadPorM2(SUPERFICIE, { ...Q1, granularidad: 'trimestre' })
-    expect(r.filas.map((f) => f.clave)).toEqual(['SE2', 'SE1'])
-    expect(r.filas[0].margen).toBeLessThan(r.filas[1].margen)
+    expect(r.filas.map((f) => f.clave)).toEqual(['SE1', 'SE2'])
+    expect(r.filas[0].margen).toBeGreaterThan(r.filas[1].margen)
   })
 
   describe('las exclusiones, que son la mitad del reporte', () => {
@@ -485,8 +534,19 @@ describe('`precio_m2` de la base NO es el metro cuadrado de este reporte', () =>
     // Si `sinComentarios` dejara de quitar comentarios, los dos casos de arriba
     // se pondrían rojos por los comentarios que explican esta trampa — y el
     // arreglo fácil sería borrar la explicación.
-    expect(MOTOR).not.toMatch(/DECISI[OÓ]N DE NEGOCIO/)
-    expect(readFileSync(join(__dirname, 'reportes.ts'), 'utf8')).toMatch(/DECISI[OÓ]N DE NEGOCIO/)
+    //
+    // El ancla es `precio_m2` DENTRO DE UN COMENTARIO, que es exactamente lo
+    // que este guard protege: mientras la advertencia exista, el archivo en
+    // crudo la trae y el archivo sin comentarios no. Antes el ancla era el
+    // título «DECISIÓN DE NEGOCIO» de otro comentario del mismo archivo, y eso
+    // lo hacía frágil por una razón que se cobró el 2026-09-18: al cerrarse la
+    // decisión del m² por caras ese título pasó a «DECISIÓN DEL DUEÑO» y el
+    // control se puso rojo **sin que nada del guard ni de la trampa hubiera
+    // cambiado**. Un control positivo que se rompe al reescribir un
+    // encabezado no mide el guard: mide la redacción.
+    const CRUDO = readFileSync(join(__dirname, 'reportes.ts'), 'utf8')
+    expect(CRUDO, 'la advertencia sobre precio_m2 desaparecio del motor').toMatch(/precio_m2/)
+    expect(MOTOR, 'sinComentarios dejo de quitar comentarios').not.toMatch(/precio_m2/)
   })
 })
 
@@ -527,11 +587,13 @@ describe('la regla de «digital» del m2 no puede divergir de la de la UI', () =
   })
 })
 
-describe('las cuatro dimensiones se declaran UNA sola vez', () => {
+describe('las dimensiones se declaran UNA sola vez', () => {
   it('DIMENSIONES_REPORTE es la lista del contrato del endpoint', () => {
     // El controller valida con zod contra ESTA lista. Declararla dos veces
     // —una en el motor puro y otra en el controller— dejaría un enum que acepta
     // una dimensión sin motor, o un motor que nadie puede pedir.
-    expect(DIMENSIONES_REPORTE).toEqual(['sitio', 'trimestre', 'operacion', 'm2'])
+    //
+    // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
+    expect(DIMENSIONES_REPORTE).toEqual(['sitio', 'trimestre', 'operacion', 'm2', 'luz'])
   })
 })

@@ -231,9 +231,12 @@ describe('R2 · dos organizaciones con reservas en el mismo periodo', () => {
     const d = await reporte(ca, { ...AHORA(), dimension: 'm2', granularidad: 'trimestre' })
     const fila = d.filas.find((f: any) => f.clave === datosAlfa.sitioEstatico)
     expect(fila, JSON.stringify(d)).toBeTruthy()
-    // 6 × 3 de UNA cara. La decisión de si multiplica por caras está abierta.
+    // La estática se siembra con `caras = 1`, así que su superficie es la misma
+    // con las dos convenciones: `6 × 3 × 1`. Lo que sí cambió el 2026-09-18, por
+    // decisión del dueño, es la convención que el reporte DECLARA — ahora suma
+    // todas las caras de cada pantalla (`MULTIPLICAR_M2_POR_CARAS`).
     expect(fila.m2).toBe(ANCHO * ALTO)
-    expect(d.convencionM2).toBe('una-cara')
+    expect(d.convencionM2).toBe('todas-las-caras')
     // La pantalla que siembra `sembrarTenant` es PANTALLA_DIGITAL y tiene
     // contrato vigente por su predio, así que tiene movimiento en el rango: es
     // una exclusión de verdad y el reporte lo dice.

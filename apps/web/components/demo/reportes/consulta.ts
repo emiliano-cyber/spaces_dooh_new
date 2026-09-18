@@ -23,7 +23,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  El contrato del endpoint está en `vault/02-Backend/reportes-rentabilidad.md`.
 // ============================================================================
 
-export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2'
+export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz'
 export type GranularidadUI = 'mes' | 'trimestre'
 
 export interface FiltrosReporte {
@@ -59,7 +59,8 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
   {
     valor: 'sitio',
     label: 'Por pantalla',
-    ayuda: 'Ingreso, costo del espacio y costo de operación de cada pantalla. Peor margen primero.',
+    ayuda:
+      'Ingreso y las tres fuentes de costo de cada pantalla —espacio, operación y luz—. Peor margen primero.',
   },
   {
     valor: 'trimestre',
@@ -75,6 +76,11 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
     valor: 'm2',
     label: 'Por metro cuadrado',
     ayuda: 'Qué superficie estática rinde. Las digitales no entran: su denominador son spots.',
+  },
+  {
+    valor: 'luz',
+    label: 'Por consumo de luz',
+    ayuda: 'Qué pantallas se comen la energía. El recibo del predio se reparte entre sus pantallas.',
   },
 ]
 
@@ -93,13 +99,14 @@ export const GRANULARIDADES_UI: { valor: GranularidadUI; label: string }[] = [
 // columna de la tabla, cometido en otro sitio de la misma pantalla, y por eso
 // se declara UNA vez y lo leen los dos.
 //
-// `operacion` y `m2` pivotan la misma rejilla que `sitio`, así que sus filas
-// siguen siendo pantallas: lo que cambia es qué se mide de ellas.
+// `operacion`, `m2` y `luz` pivotan la misma rejilla que `sitio`, así que sus
+// filas siguen siendo pantallas: lo que cambia es qué se mide de ellas.
 const SUSTANTIVO_FILA: Record<DimensionUI, { singular: string; plural: string }> = {
   sitio: { singular: 'pantalla', plural: 'pantallas' },
   trimestre: { singular: 'trimestre', plural: 'trimestres' },
   operacion: { singular: 'pantalla', plural: 'pantallas' },
   m2: { singular: 'pantalla', plural: 'pantallas' },
+  luz: { singular: 'pantalla', plural: 'pantallas' },
 }
 
 export function sustantivoFila(d: DimensionUI): { singular: string; plural: string } {

@@ -44,6 +44,7 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaOrdenable {
     ingreso: 0,
     costoEspacio: 0,
     costoOperacion: 0,
+    costoEnergia: 0,
     costoTotal: 0,
     margen: 0,
     margenPct: null,
@@ -200,7 +201,7 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 3, sinMedidas: 0, nota },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.texto)).toContain(nota)
   })
@@ -216,39 +217,51 @@ describe('4 · las exclusiones del m2 se ENSEÑAN, y la convencion se declara', 
       dimension: 'm2',
       filas: filasM2,
       excluidas: { digitales: 0, sinMedidas: 0, nota },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.texto)).toContain(nota)
   })
 
+  function textoConvencion(convencionM2: 'una-cara' | 'todas-las-caras'): string {
+    const avisos = avisosDelReporte({
+      ...CERRADO,
+      dimension: 'm2',
+      filas: filasM2,
+      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
+      convencionM2,
+    })
+    return avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
+  }
+
   it('la convencion del metro cuadrado se DECLARA en pantalla', () => {
     // Una cifra por metro cuadrado sin decir que cuenta como metro cuadrado no
-    // se puede conciliar con nada. Hoy es UNA CARA y hay una decision del dueño
-    // pendiente sobre si multiplica por caras: el usuario tiene que ver cual se
-    // uso sin preguntarle a nadie.
-    const avisos = avisosDelReporte({
-      ...CERRADO,
-      dimension: 'm2',
-      filas: filasM2,
-      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
-      convencionM2: 'una-cara',
-    })
-    const texto = avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
-    expect(texto).toMatch(/una cara/i)
-    expect(texto).toMatch(/18/)
-  })
-
-  it('si el dueño decide que multiplica por caras, el aviso lo dice al reves', () => {
-    const avisos = avisosDelReporte({
-      ...CERRADO,
-      dimension: 'm2',
-      filas: filasM2,
-      excluidas: { digitales: 0, sinMedidas: 0, nota: 'x' },
-      convencionM2: 'todas-las-caras',
-    })
-    const texto = avisos.find((a) => a.clave === 'm2-convencion')?.texto ?? ''
+    // se puede conciliar con nada. Desde el 2026-09-18 la convencion es TODAS
+    // LAS CARAS, por decision del dueño, y el usuario tiene que ver cual se uso
+    // sin preguntarle a nadie.
+    const texto = textoConvencion('todas-las-caras')
     expect(texto).toMatch(/todas las caras/i)
     expect(texto).toMatch(/36/)
+  })
+
+  it('el aviso AFIRMA la convencion: ya no dice que haya nada pendiente', () => {
+    // Hasta el 2026-09-18 este texto decia «esta pendiente de decidir si el
+    // metro cuadrado debe multiplicar por caras». La decision se tomo, y un
+    // aviso que sigue preguntando algo ya contestado hace dudar de cifras que
+    // son firmes. Ninguna de las dos convenciones puede hablar de pendientes:
+    // la vigente porque no lo hay, y la alternativa porque seria igual de falso
+    // el dia que se vuelva a ella.
+    for (const c of ['todas-las-caras', 'una-cara'] as const) {
+      expect(textoConvencion(c), c).not.toMatch(/pendiente|por decidir|se decidir/i)
+    }
+  })
+
+  it('si el dueño vuelve a UNA CARA, el aviso lo dice al reves y sigue siendo cierto', () => {
+    // La otra via se conserva entera —bandera y texto— porque la bandera del
+    // motor se conserva: `MULTIPLICAR_M2_POR_CARAS` vuelve a `false` y este
+    // aviso es correcto sin escribir una linea.
+    const texto = textoConvencion('una-cara')
+    expect(texto).toMatch(/una cara/i)
+    expect(texto).toMatch(/18/)
   })
 
   it('NEGATIVO: en `sitio` no aparece ningun aviso de m2', () => {
@@ -319,13 +332,14 @@ describe('6 · el pie NO inventa totales que el servidor no manda', () => {
       .filter((c) => c.totalizable)
       .map((c) => c.clave)
 
-  it('solo las seis columnas de dinero de `Totales` son totalizables', () => {
-    // `reporte.totales` trae seis campos y ninguno mas. Sumar aqui las visitas
-    // —o peor, promediar `margenPorM2`— daria un pie que no cuadra con nada: el
-    // promedio de los margenes por metro NO es el margen por metro del total,
-    // porque cada fila tiene una superficie distinta.
+  it('solo las columnas de dinero de `Totales` son totalizables', () => {
+    // `reporte.totales` trae SIETE campos y ninguno mas — el septimo es
+    // `costoEnergia`, que entro el 2026-09-18 con la dimension `luz`. Sumar
+    // aqui las visitas —o peor, promediar `margenPorM2`— daria un pie que no
+    // cuadra con nada: el promedio de los margenes por metro NO es el margen por
+    // metro del total, porque cada fila tiene una superficie distinta.
     expect(totalizables('sitio').sort()).toEqual(
-      ['costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margen', 'margenPct'].sort(),
+      ['costoEnergia', 'costoEspacio', 'costoOperacion', 'costoTotal', 'ingreso', 'margen', 'margenPct'].sort(),
     )
   })
 
@@ -397,9 +411,9 @@ describe('8 · `visitasPorTipo` se lee, no se cuenta dos veces', () => {
 
 describe('9 · el desglose por periodo se pinta en el orden del SERVIDOR', () => {
   const periodos = [
-    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 9, visitas: 0 },
-    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 89, visitas: 2 },
-    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoTotal: 1, margen: 49, visitas: 1 },
+    { clave: '2026-01', etiqueta: 'ene', desde: '2026-01-01', hasta: '2026-01-31', ingreso: 10, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 9, visitas: 0 },
+    { clave: '2026-02', etiqueta: 'feb', desde: '2026-02-01', hasta: '2026-02-28', ingreso: 90, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 89, visitas: 2 },
+    { clave: '2026-03', etiqueta: 'mar', desde: '2026-03-01', hasta: '2026-03-31', ingreso: 50, costoEspacio: 1, costoOperacion: 0, costoEnergia: 0, costoTotal: 1, margen: 49, visitas: 1 },
   ]
 
   it('no se reordena por importe: es una serie de tiempo', () => {
@@ -520,7 +534,7 @@ describe('11 · el aviso de PERIODO EN CURSO, que es el precio de abrir en el tr
       // orden quede fijado de verdad.
       filas: [fila({ clave: 's1', ingreso: 0, tieneContrato: false })],
       excluidas: { digitales: 1, sinMedidas: 0, nota: 'Quedaron fuera del ranking: 1 pantalla digital.' },
-      convencionM2: 'una-cara',
+      convencionM2: 'todas-las-caras',
     })
     expect(avisos.map((a) => a.clave)).toEqual([
       'periodo-en-curso',

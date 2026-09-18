@@ -250,25 +250,99 @@ hablara del proveedor de lonas se leería como si dijera algo del negocio.
 Hay un guard que lee `reportes.ts` y `reportes-repo.ts` y falla si esos nombres
 aparecen en el código. **Normaliza los finales de línea antes de mirar** — §7.
 
-### La decisión de negocio que sigue ABIERTA
+### La decisión de negocio, CERRADA el 2026-09-18
 
-> [!danger] ¿Una pantalla de DOS caras de 3 × 6 son 18 m² o 36 m²?
-> **No la decide el código, y no se ha decidido.** Las dos respuestas son
-> defendibles y **cambian el ranking entero**:
+> [!success] ¿Una pantalla de DOS caras de 3 × 6 son 18 m² o 36 m²? **36.**
+> **La cerró Jochelo el 2026-09-18**, y sus palabras son la regla: «los m2 los
+> define cada pantalla igual que cada cara». Cada pantalla aporta la superficie
+> de **todas sus caras**, y el número de caras sale de **la propia pantalla**
+> (`sitios.caras`) — no de una regla global ni de un multiplicador fijo.
 >
-> · **18** (una cara) → el m² mide la superficie del **soporte**.
-> · **36** (todas) → el m² mide la superficie que se **vende**.
+> El razonamiento de negocio: si se venden las dos caras, las dos son superficie
+> que se monetiza, así que el m² mide la superficie que se **vende** y no la del
+> **soporte**. La alternativa —contar una cara— es la que estuvo implementada
+> desde la mañana de ese mismo día, mientras no había respuesta, precisamente
+> porque no inventa superficie.
 >
-> Hoy se implementa **UNA CARA**, y cambiarlo cuando el dueño conteste es
-> **literalmente una línea**: `MULTIPLICAR_M2_POR_CARAS` en `reportes.ts` pasa a
-> `true`. `CONVENCION_M2` se deriva de ella y la respuesta la **declara** en
-> `convencionM2`, porque **una cifra por metro cuadrado sin decir qué cuenta como
-> metro cuadrado no se puede conciliar con nada**.
+> El cambio fue **una línea**: `MULTIPLICAR_M2_POR_CARAS` en `reportes.ts` pasó
+> a `true`. `CONVENCION_M2` se deriva de ella y la respuesta lo **declara** en
+> `convencionM2`, porque **una cifra por metro cuadrado sin decir qué cuenta
+> como metro cuadrado no se puede conciliar con nada**.
+
+> [!important] La bandera SE QUEDA, y el texto AFIRMA en vez de preguntar
+> Dos cosas que no son adorno:
 >
-> No se eligió «lo razonable» para no perder tiempo: se eligió lo que **no
-> inventa superficie**, se dejó **a la vista** y se dejó **reversible en una
-> línea**. La prueba que fija la respuesta de hoy es
-> «la superficie es la de UNA cara: 6 x 3 con dos caras son 18 m2, no 36».
+> 1. **La bandera no se sustituyó por un `× caras` suelto.** Sin ella, el
+>    siguiente lector encontraría la multiplicación dentro de `superficieM2()`
+>    y la tomaría por un descuido —o por un valor por omisión que nadie
+>    eligió— y la invertiría. Lleva la fecha de la decisión y nombra la
+>    alternativa, mismo criterio que `RANGO_DE_APERTURA`.
+> 2. **El aviso de pantalla dejó de decir que hay algo pendiente.** Decía
+>    «está pendiente de decidir si el metro cuadrado debe multiplicar por
+>    caras»; ya no lo está, y un aviso que sigue preguntando algo ya contestado
+>    hace dudar de cifras que son firmes. Hay una prueba que lo vigila en las
+>    **dos** convenciones.
+
+> [!tip] Lo que se MIDIÓ al invertirla, porque era el riesgo de verdad
+> Al multiplicar por caras el m² sube y los cocientes bajan, pero **el ingreso y
+> el costo no se mueven**. Dos corridas del mismo rango, una con cada valor de
+> la bandera, sobre tres estáticas de 1, 2 y 3 caras:
+>
+> | | antes (una cara) | después (todas) |
+> |---|---|---|
+> | `m2` de la de 2 caras | 18 | **36** |
+> | `ingresoPorM2` | 2 000 | **1 000** |
+> | `margenPorM2` | 916.67 | **458.33** |
+> | `ingreso` · `costoEspacio` · `costoOperacion` · `costoTotal` · `margen` · `margenPct` · `visitas` | — | **idénticos** |
+> | `totales` del reporte (m² y sitio) | — | **idénticos** |
+> | orden de la dimensión `sitio` | — | **idéntico** |
+>
+> Solo se movieron `m2`, `ingresoPorM2` y `margenPorM2`. **El ranking por m² sí
+> cambia**, y eso es la decisión, no un defecto: la de tres caras pasó de 300 a
+> 100 de margen/m² y la de dos de 916.67 a 458.33, así que el orden entre ellas
+> se invierte. Si alguna cifra de dinero se hubiera movido habría un
+> acoplamiento que no debe existir.
+
+> [!success] 2026-09-18 · comprobado EN EL NAVEGADOR, contra `spaces_ver2`
+> Y encontró algo que ninguna prueba iba a decir: **la base sembrada no puede
+> enseñar este cambio.** Sus cuatro pantallas tienen `caras = 1`
+> —`DEMO-TLP-01`, `DEMO-STM-01`, `DEMO-SM-01`, `DEMO-SM-02`—, así que el m² sale
+> en **92.88** con las dos convenciones y **el ranking es idéntico antes y
+> después**. Quien mire la app para validar la decisión no verá nada, y eso no
+> significa que no se aplicó.
+>
+> Así que se midió poniéndole **dos caras a Tlalpan** en la base —dato de
+> prueba, y **restaurado a 1 al terminar**, verificado con un `select`— para ver
+> la multiplicación llegar a la pantalla de verdad:
+>
+> | Tlalpan G500, abr–jun 2026 | 1 cara | 2 caras |
+> |---|---|---|
+> | Superficie | 92.88 m² | **185.76 m²** |
+> | Ingreso / m² | 1 550.39 | **775.19** |
+> | Margen / m² | 225.02 | **112.51** |
+> | Ingreso · Costo del espacio · Costo de operación · Margen · Margen % | 144 000 · 84 000 · 39 100 · 20 900 · 14.5 % | **los mismos** |
+> | Totales del pie | 288 000 · 217 900 · 70 100 · 24.3 % | **los mismos** |
+>
+> El aviso se leyó en pantalla y **afirma**: «La superficie suma TODAS las caras
+> de cada pantalla: una de dos caras de 3 × 6 cuenta 36 m², no 18. Es la
+> superficie que se vende, y cada pantalla aporta la de sus propias caras.» Ni
+> una palabra de pendiente. Y el presupuesto de la ruta no se movió:
+> `/reportes` sigue en **112 kB**.
+
+Las pruebas que la fijan, y que **estaban escritas al revés a propósito** —por
+eso valen—: al invertir la bandera se pusieron en rojo **cuatro**, con
+`expected 36 to be 18`, `expected 'todas-las-caras' to be 'una-cara'` y
+`expected [ 'SE1', 'SE2' ] to deeply equal [ 'SE2', 'SE1' ]`. Ahora fijan la
+convención vigente, y se les sumaron dos:
+
+- **«cada pantalla multiplica por SUS caras, no por un numero fijo»** — 1, 2, 3
+  caras y `caras` nulo (que cuenta **una**, porque `null` no inventa
+  superficie). Con un multiplicador fijo, la de una cara y la de tres darían la
+  misma superficie y nadie lo vería.
+- **«la convencion declarada coincide con la superficie calculada»** — el guard
+  que sobrevive a la decisión: vale para las **dos** convenciones, así que sigue
+  vigilando el día que la bandera vuelva atrás. Declarar una y aplicar la otra
+  es una cifra por metro que no es de nadie, y no da ningún error.
 
 ---
 

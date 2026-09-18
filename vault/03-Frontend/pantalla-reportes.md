@@ -312,10 +312,17 @@ vigila** con una lista de jerga prohibida.
     que se excluyó otra cosa de la que se excluyó. Y se pinta **también cuando
     no se excluyó nada**, porque «no excluí ninguna» y «no te lo digo» se ven
     igual si no hay texto — el hallazgo C1 otra vez.
-  - **convención del m²** — hoy **una cara**, y hay una decisión del dueño
-    pendiente sobre si multiplica por caras. Una cifra por metro cuadrado sin
-    decir qué cuenta como metro cuadrado no se puede conciliar con nada, y esa
-    decisión **cambia el orden de toda la tabla**.
+  - **convención del m²** — **todas las caras de cada pantalla**, por decisión
+    del dueño del **2026-09-18** («los m2 los define cada pantalla igual que
+    cada cara»). Una cifra por metro cuadrado sin decir qué cuenta como metro
+    cuadrado no se puede conciliar con nada, y esa convención **cambia el orden
+    de toda la tabla** — ver [[02-Backend/reportes-dimensiones]] §5.
+    **El texto AFIRMA, no pregunta**: hasta esa fecha decía «está pendiente de
+    decidir si el metro cuadrado debe multiplicar por caras», y un aviso que
+    sigue preguntando algo ya contestado hace dudar de cifras firmes. El texto
+    de la otra convención se conserva entero —porque la bandera del motor se
+    conserva—, y hay una prueba que comprueba que **ninguno de los dos** habla
+    de pendientes.
 
 > [!danger] Un aviso era FALSO en trimestral, y nada se quejaba
 > El aviso de «sin contrato» contaba **filas**, y en `trimestre`

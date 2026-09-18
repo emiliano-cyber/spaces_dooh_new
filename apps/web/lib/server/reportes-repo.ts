@@ -56,7 +56,8 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
   // (UTC−6) eso devuelve el día ANTERIOR. Ese error ya se pagó en este repo
   // (ver `diasHasta` en `lib/data/derive.ts`), y en un reporte prorrateado por
   // días desplazaría dinero de un periodo a otro sin dar ningún síntoma.
-  const [sitios, contratos, arrendadores, reservas, ordenesTrabajo, costosOt] = await Promise.all([
+  const [sitios, contratos, arrendadores, reservas, ordenesTrabajo, consumosEnergia, costosOt] =
+    await Promise.all([
     // Solo las columnas que la atribución y las dimensiones necesitan.
     // `select *` sobre `sitios` arrastra las fotos en data URL —1.0 MB por doce
     // pantallas— y fue una de las causas de los 6.12 MB de `/api/estado`.
@@ -130,11 +131,35 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
               between $2::date and $3::date`,
       [tenantId, rango.desde, rango.hasta],
     ),
+    // ACOTADA POR EL RANGO, y por el MES del recibo y no por su día 1: un
+    // recibo cubre su mes entero, así que el de febrero cuenta en un rango que
+    // empieza el 10 de febrero. Si el `where` filtrara por `periodo between`, ese
+    // recibo se quedaría fuera y la pantalla saldría sin costo de luz en un mes
+    // en el que sí lo tuvo — sin dar ningún error, que es el modo de fallo que
+    // este módulo entero existe para no tener.
+    //
+    // `periodo` sale como TEXTO con `to_char`, igual que las demás fechas de
+    // calendario de este repo: `pg` entrega un `date` como Date a medianoche
+    // local y `toISOString()` lo corre a UTC, que en México (UTC−6) devuelve el
+    // día ANTERIOR — y aquí eso movería el recibo al mes anterior entero.
+    //
+    // `medidor` NO se lee: no interviene en el reparto, solo en la unicidad de
+    // la captura. Traerlo invitaría a agrupar por él en el motor, que es una
+    // pregunta que este reporte no contesta.
+    q<any>(
+      `select predio_id, sitio_id, kwh, importe,
+              to_char(periodo, 'YYYY-MM-DD') as periodo
+         from consumos_energia
+        where tenant_id = $1
+          and periodo <= $3::date
+          and (periodo + interval '1 month - 1 day')::date >= $2::date`,
+      [tenantId, rango.desde, rango.hasta],
+    ),
     // El costo por tipo de OT sale de `config_negocio` (una fila por tenant,
     // ADR 0011) por su función de siempre, no por una consulta propia: el
     // invariante dice que quien lee esa tabla usa la consulta CON tenant.
     costosOtDelTenant(),
-  ])
+    ])
 
   return {
     sitios: sitios.map((r) => ({
@@ -181,6 +206,17 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       fechaProgramada: r.fecha_programada ?? null,
       creadoEn: r.creado_en ?? null,
       duracionSeg: r.duracion_seg == null ? null : Number(r.duracion_seg),
+    })),
+    // `numeric` llega del driver como TEXTO. Sin el `Number()`, sumar kWh
+    // concatenaría cadenas y el reparto multiplicaría texto por fracción: a
+    // veces da el número y a veces `NaN`, según el valor. Se convierte una vez,
+    // aquí en el borde, igual que `ancho` y `alto`.
+    consumosEnergia: consumosEnergia.map((r) => ({
+      predioId: r.predio_id ?? null,
+      sitioId: r.sitio_id ?? null,
+      periodo: r.periodo,
+      kwh: num(r.kwh),
+      importe: num(r.importe),
     })),
     costosOt,
   }
