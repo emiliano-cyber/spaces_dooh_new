@@ -33,6 +33,34 @@ puesta a propósito y comprobada.
 > `scripts/semilla-demo.test.ts` preguntándole al mismo motor que corre detrás
 > de `GET /api/reportes/rentabilidad`.
 
+
+> [!warning] 2026-09-18 · la columna de horas salía VACÍA, y solo se vio corriendo la app
+> Las 74 órdenes nacían con `fecha_completada` y **sin `fecha_inicio`**, así que
+> el reporte por operación devolvía `horasEnSitio: null` y
+> `visitasConDuracion: 0`. El reporte no estaba mal —informaba null en vez de
+> inventar un cero—: la semilla no daba el dato. Ni el typecheck, ni las 1430
+> unitarias, ni las 390 e2e lo vieron; apareció al levantar la app y pedirle el
+> reporte por su propio endpoint.
+>
+> Arreglado con `HORAS_POR_TIPO`, rangos **aprobados por Jochelo** el mismo día:
+> inspección 0.5-1.5 h · desmontaje 1.5-3 · montaje de lona 2-4 · montaje
+> digital 3-6 · preventivo 1.5-3 · **eléctrico 2-5 · correctivo 3-8 · herrería
+> 4-10** · otro 1-3. Son datos de DEMOSTRACIÓN, no medición de campo.
+>
+> **Lo que no hay que deshacer al retocarlos:** las visitas extra de Tlalpan son
+> correctivo, eléctrico y herrería — las **tres más largas**. Medido tras
+> resembrar: **109.5 h contra 50 h**, o sea **2.19×**, cuando la razón de visitas
+> es solo 1.5×. Las horas **amplifican** la conclusión del guion. Aplanar los
+> rangos dejaría el reporte correcto y sin demostrar nada.
+>
+> La duración es **determinista** (sale del índice estable de la orden, no de
+> `Math.random()`), que es lo que mantiene la idempotencia: la 2.ª corrida dice
+> `filas nuevas: 0`. Y la jornada arranca a las **08:00** con cierre máximo a las
+> 18:00, así que `fecha_completada::date` no cambia y los buckets del reporte
+> caen donde caían — de paso, las 08:00 son más seguras que la medianoche
+> implícita que había antes, que es la hora que un desplazamiento de zona manda
+> al día anterior.
+
 ## Lo que siembra
 
 | | |

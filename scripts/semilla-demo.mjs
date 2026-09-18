@@ -187,6 +187,50 @@ const AVERIAS_TLALPAN = [
   ['MANTENIMIENTO_CORRECTIVO', 'MANTENIMIENTO_CORRECTIVO', 'HERRERIA', 'ELECTRICO'],
 ]
 
+// ─── Cuánto dura una visita, por tipo ──────────────────────────────────────
+//
+// Rangos en HORAS, aprobados por Jochelo el 2026-09-18. Son datos de
+// DEMOSTRACIÓN, no una medición de campo: el día que haya horas reales
+// capturadas, esta tabla deja de hacer falta. Ordenados por duración porque el
+// orden ES la información — una inspección es mirar y subir fotos, y una
+// herrería es soldadura en estructura.
+//
+// Y hay una coincidencia que conviene NO deshacer al retocarlos: las visitas
+// extra de Tlalpan son `MANTENIMIENTO_CORRECTIVO`, `ELECTRICO` y `HERRERIA`
+// (ver `AVERIAS_TLALPAN` arriba), o sea las TRES MÁS LARGAS. Por eso las horas
+// amplifican la historia del guion en vez de diluirla. Si alguien aplanara
+// estos rangos, el reporte por operación seguiría siendo correcto y dejaría de
+// demostrar nada.
+const HORAS_POR_TIPO = {
+  INSPECCION: [0.5, 1.5],
+  OTRO: [1, 3],
+  DESMONTAJE: [1.5, 3],
+  MANTENIMIENTO_PREVENTIVO: [1.5, 3],
+  MONTAJE_LONA: [2, 4],
+  ELECTRICO: [2, 5],
+  MANTENIMIENTO_CORRECTIVO: [3, 8],
+  MONTAJE_DIGITAL: [3, 6],
+  HERRERIA: [4, 10],
+}
+
+// Hora de cierre de la jornada, en `HH:MM:SS`, arrancando a las 08:00.
+//
+// DETERMINISTA a propósito, y es la parte que importa: la semilla tiene que ser
+// idempotente, así que dos corridas del mismo guion deben producir la MISMA
+// hora. Con `Math.random()` la segunda corrida escribiría duraciones distintas
+// —y aunque el `on conflict … do nothing` las ignorase, el guion dejaría de ser
+// reproducible y ninguna prueba podría fijar un número—. La variedad sale del
+// índice de la orden dentro de su sitio, que ya es estable por construcción.
+function cierreDeJornada(tipo, indice) {
+  const [min, max] = HORAS_POR_TIPO[tipo] ?? HORAS_POR_TIPO.OTRO
+  const pasos = Math.round((max - min) / 0.5) + 1        // tramos de media hora
+  const horas = min + (((indice * 3 + tipo.length) % pasos) * 0.5)
+  const fin = 8 * 60 + Math.round(horas * 60)            // minutos desde las 00:00
+  const hh = String(Math.floor(fin / 60)).padStart(2, '0')
+  const mm = String(fin % 60).padStart(2, '0')
+  return `${hh}:${mm}:00`
+}
+
 // Precio por campaña y por pantalla. IDÉNTICO en las dos comparables: si
 // difiriera, la conclusión del reporte seguiría siendo cierta pero dejaría de
 // demostrar nada —el dueño podría atribuirla a que una se vende peor—. Es
@@ -570,7 +614,23 @@ export function planSemilla(opciones = {}) {
           // Trimestres cerrados: el trabajo ya se hizo. `fechaDeOt()` del
           // reporte usa `completada → programada → creación`, así que con la
           // completada puesta el costo cae en el periodo en que se trabajó.
-          fechaCompletada: o.fecha,
+          //
+          // Las DOS llevan hora, y no solo fecha, porque sin `fecha_inicio` el
+          // reporte por operación devuelve `horasEnSitio: null` y
+          // `visitasConDuracion: 0` — medido el 18/09 con la app levantada, y
+          // la columna de horas salía vacía. El reporte no estaba mal: informaba
+          // null en vez de inventar un cero, y era la semilla la que no daba el
+          // dato.
+          //
+          // La jornada empieza a las 08:00 y la duración sale de la tabla de
+          // arriba, así que el cierre nunca pasa de las 18:00 y **la fecha no
+          // cambia**: los buckets del reporte se calculan con
+          // `fecha_completada::date` y tienen que seguir cayendo donde caían.
+          // De paso, 08:00 es más seguro que la medianoche implícita que había
+          // antes, que es la hora que un desplazamiento de zona manda al día
+          // anterior.
+          fechaInicio: `${o.fecha}T08:00:00`,
+          fechaCompletada: `${o.fecha}T${cierreDeJornada(o.tipo, i)}`,
           estatus: 'COMPLETADA',
         })
       })
@@ -861,16 +921,17 @@ export function sentenciasDelPlan(plan, tenantId) {
       etiqueta: `OT ${o.folio}`,
       sql: `insert into ordenes_trabajo (
               tenant_id, folio, tipo, sitio_id, campana_id, descripcion,
-              prioridad, fecha_programada, fecha_completada, estatus)
+              prioridad, fecha_programada, fecha_inicio, fecha_completada, estatus)
             select $1::uuid, $2::text, $3::tipo_ot, s.id, c.id, $4::text,
-                   $5::prioridad, $6::timestamptz, $7::timestamptz, $8::est_ot
+                   $5::prioridad, $6::timestamptz, $7::timestamptz, $8::timestamptz,
+                   $9::est_ot
               from sitios s
-              left join campanas c on c.tenant_id = $1::uuid and c.folio = $9::text
-             where s.tenant_id = $1::uuid and s.clave_interna = $10::text
+              left join campanas c on c.tenant_id = $1::uuid and c.folio = $10::text
+             where s.tenant_id = $1::uuid and s.clave_interna = $11::text
             on conflict (folio) do nothing`,
       valores: [
         T, o.folio, o.tipo, o.descripcion, o.prioridad,
-        o.fechaProgramada, o.fechaCompletada, o.estatus,
+        o.fechaProgramada, o.fechaInicio, o.fechaCompletada, o.estatus,
         o.campanaFolio, o.sitioClave,
       ],
     })

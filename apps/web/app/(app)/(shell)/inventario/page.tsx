@@ -80,9 +80,11 @@ export default function AgregarInventarioPage() {
       </div>
 
       {/* Selector de vía — pastilla elevada sobre riel hundido.
-          El `gap-1.5` y el `p-1` son la separación: antes los cuatro iban
-          pegados dentro de un `p-0.5` y no se distinguía dónde acababa uno. */}
-      <div className="inline-flex gap-1.5 rounded-md border border-border bg-surface-2 p-1 text-[13px]">
+          El `gap-3` y el `p-1.5` son la separación. Iba en `gap-1.5`/`p-1`, que
+          ya era mejor que el `p-0.5` original con los cuatro pegados, pero
+          seguía leyéndose como un bloque: a 12 px cada pastilla se lee sola y
+          el riel sigue diciendo que son opciones del mismo grupo. */}
+      <div className="inline-flex gap-3 rounded-md border border-border bg-surface-2 p-1.5 text-[13px]">
         <button type="button" onClick={() => setModo('lista')} className={claseVia(modo === 'lista')}>
           <Table2 className="h-3.5 w-3.5" /> Inventario
         </button>
