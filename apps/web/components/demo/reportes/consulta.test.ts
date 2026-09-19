@@ -77,10 +77,18 @@ describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
 })
 
 describe('2 · las dimensiones del contrato estan declaradas', () => {
-  it('declara las cinco, en el mismo orden del contrato', () => {
+  it('declara las SEIS, en el mismo orden del contrato', () => {
     // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual([
-      'sitio', 'trimestre', 'operacion', 'm2', 'luz',
+      'sitio',
+      'trimestre',
+      'operacion',
+      'm2',
+      'luz',
+      // La SEXTA, del 2026-09-18. No la pidio el jefe: sale de la frase del
+      // ADR 0034 —el dueno quiere ver sus razones sociales JUNTAS— y la
+      // pregunta siguiente de esa frase es cuanto pasa por cada una.
+      'entidad',
     ])
   })
 

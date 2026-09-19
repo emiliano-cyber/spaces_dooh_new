@@ -23,7 +23,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  El contrato del endpoint está en `vault/02-Backend/reportes-rentabilidad.md`.
 // ============================================================================
 
-export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz'
+export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz' | 'entidad'
 export type GranularidadUI = 'mes' | 'trimestre'
 
 export interface FiltrosReporte {
@@ -82,6 +82,16 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
     label: 'Por consumo de luz',
     ayuda: 'Qué pantallas se comen la energía. El recibo del predio se reparte entre sus pantallas.',
   },
+  // La SEXTA, y la única cuyas filas no son pantallas ni periodos. No la pidió
+  // el dueño —pidió cinco— pero es la pregunta siguiente del ADR 0034: si no
+  // quiere separar sus razones sociales sino verlas juntas, lo que va a
+  // preguntar es cuánto pasa por cada una.
+  {
+    valor: 'entidad',
+    label: 'Por razón social',
+    ayuda:
+      'Cuánto factura y cuánta renta paga cada una de tus razones sociales. La operación y la luz no se reparten: no hay dato que diga de quién son.',
+  },
 ]
 
 // `dia` y `semana` existen en `Granularidad` para la gráfica de ocupación y NO
@@ -102,6 +112,7 @@ export const GRANULARIDADES_UI: { valor: GranularidadUI; label: string }[] = [
 // `operacion`, `m2` y `luz` pivotan la misma rejilla que `sitio`, así que sus
 // filas siguen siendo pantallas: lo que cambia es qué se mide de ellas.
 const SUSTANTIVO_FILA: Record<DimensionUI, { singular: string; plural: string }> = {
+  entidad: { singular: 'razón social', plural: 'razones sociales' },
   sitio: { singular: 'pantalla', plural: 'pantallas' },
   trimestre: { singular: 'trimestre', plural: 'trimestres' },
   operacion: { singular: 'pantalla', plural: 'pantallas' },

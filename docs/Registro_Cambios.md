@@ -7,6 +7,25 @@ La entrada más reciente va arriba.
 
 ## 2026-09-18
 
+- **Nuevo reporte: por razón social.** En Reportes, «Agrupar» tiene una sexta
+  opción: **Por razón social**. Una fila por cada una de tus razones sociales, con
+  lo que facturó y la renta que paga. Es la respuesta a «¿cuánto pasa por cada una
+  de mis sociedades?», y hasta hoy el dato estaba capturado sin ningún sitio donde
+  mirarlo. Las sociedades que no mueven dinero **también salen, en cero**: que una
+  aparezca sin nada es información, no un hueco. Y lo que no tiene dueño en el dato
+  sale en una fila **«Sin asignar»**, que se queda siempre al final porque no es una
+  de tus sociedades: es algo por capturar.
+
+- **Y este reporte dice lo que NO sabe, que es lo importante.** La operación y la
+  luz **no se reparten** entre razones sociales, porque no hay ningún dato que diga
+  a nombre de quién se paga una visita o un recibo de luz. Así que la tabla **no
+  muestra margen** — lo diría mejor de lo que es— y en su lugar muestra el **saldo
+  atribuido**, con ese nombre para que no se confunda. Encima de la tabla, en
+  ámbar, dice cuánto dinero es lo que no se reparte y cuántos contratos o
+  comprobantes les falta la razón social. Las cuatro cifras grandes de arriba
+  siguen siendo las del negocio completo, idénticas a las de los otros reportes:
+  cambiar de agrupador no cambia el total.
+
 - **La presentación del 14 de octubre se recorrió entera y se cronometró.** No es
   un cambio en el sistema: es una comprobación. Se abrieron las seis pantallas
   del recorrido una por una y **se compararon todas las cifras, celda por celda,

@@ -65,7 +65,7 @@ import { costoDeOt } from '../costos-ot'
 // y el controller valida con zod contra esta misma lista: dos declaraciones
 // —una en el motor y otra en el validador— dejarían un enum que acepta una
 // dimensión sin motor, o un motor que nadie puede pedir.
-export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz'] as const
+export const DIMENSIONES_REPORTE = ['sitio', 'trimestre', 'operacion', 'm2', 'luz', 'entidad'] as const
 export type DimensionReporte = (typeof DIMENSIONES_REPORTE)[number]
 
 // Las dos granularidades que admite un reporte de dinero. Son un subconjunto de
@@ -151,6 +151,21 @@ export interface FilaRentabilidad {
   ingresoPorM2?: number
   margenPorM2?: number
 
+  // ─── Solo en `entidad` ──────────────────────────────────────────────────
+  /** Los papeles de esta razón social. Son el porqué de lo que se le atribuye. */
+  papeles?: string[]
+  /**
+   * `ingreso − costoEspacio`, y se llama ASÍ y no «margen» a propósito.
+   *
+   * No es el margen: le faltan la operación y la luz, que en esta dimensión no
+   * se pueden repartir entre sociedades. Un campo llamado `margen` con dos de
+   * las cuatro fuentes de costo dentro saldría MEJOR QUE EL REAL, y este módulo
+   * entero existe para no tener números que mienten sin dar error.
+   */
+  saldoAtribuido?: number
+  /** Qué parte de la facturación del periodo emitió esta razón social. */
+  pctDelIngreso?: number | null
+
   // ─── Solo en `luz` ──────────────────────────────────────────────────────
   /** Kilovatios-hora atribuidos en el rango, con el mismo reparto que el importe. */
   kwh?: number
@@ -198,6 +213,30 @@ export interface ReporteRentabilidad {
   convencionM2?: ConvencionM2
   /** Solo en `luz`: de cuántos recibos del periodo NO se tiene el dato. */
   cobertura?: CoberturaEnergia
+  /** Solo en `entidad`: qué se pudo atribuir y qué no. */
+  atribucion?: AtribucionEntidad
+}
+
+/**
+ * Qué quedó sin atribuir en el reporte por razón social, y cuánto dinero es.
+ *
+ * Existe por la misma razón que `ExclusionesM2` y `CoberturaEnergia`: un
+ * reporte que reparte solo lo que sabe repartir y presenta el resultado como el
+ * negocio completo MIENTE SIN DAR ERROR. Aquí el hueco es grande y estructural
+ * —dos de las cuatro fuentes de costo no tienen columna que las ate a una
+ * sociedad— así que no se insinúa: se pone encima de la tabla con su importe.
+ */
+export interface AtribucionEntidad {
+  /** Reservas del rango cuya campaña no tiene comprobante con emisora. */
+  reservasSinEmisora: number
+  /** Contratos que gobernaron el rango sin razón social asignada. */
+  contratosSinEntidad: number
+  /** Costo de operación del periodo que NO se reparte. Ninguna OT dice de quién es. */
+  costoOperacionSinRepartir: number
+  /** Costo de la luz del periodo que NO se reparte. El recibo es del predio. */
+  costoEnergiaSinRepartir: number
+  /** Frase lista para pintar: el número no debe aparecer sin su porqué. */
+  nota: string
 }
 
 /**
@@ -240,6 +279,13 @@ interface ConsumoEnergiaReporte {
 
 interface ReservaReporte {
   sitioId: string
+  /**
+   * La campaña a la que pertenece. Es el ÚNICO puente entre una reserva y una
+   * razón social: la reserva no sabe quién factura, la campaña tiene un
+   * comprobante y el comprobante tiene emisora. `null` = no se puede atribuir,
+   * y eso se declara, no se esconde.
+   */
+  campanaId?: string | null
   precio: number
   estatus: string
   fechaInicio: string
@@ -262,8 +308,38 @@ interface OtReporte {
   duracionSeg?: number | null
 }
 
+/** Una de MIS razones sociales, con los papeles que lleva. */
+export interface EntidadReporte {
+  id: string
+  razonSocial: string
+  /**
+   * Los papeles que lleva, ya ETIQUETADOS —«Paga las rentas a los
+   * arrendadores»—, no los códigos. Se pintan tal cual: son el porqué de lo que
+   * esta fila tiene atribuido, y la etiqueta la declara una sola vez
+   * `catalogo_roles_entidad`.
+   */
+  papeles: string[]
+}
+
+/**
+ * El puente campaña → razón social emisora.
+ *
+ * Solo estas dos columnas de `facturas`: el importe NO se usa, y es deliberado.
+ * El ingreso del reporte sale de las RESERVAS prorrateadas por días, y tomarlo
+ * de aquí daría una facturación distinta a la de las otras cinco dimensiones
+ * sobre el mismo periodo. Este mapa dice a nombre de QUIÉN, nunca CUÁNTO.
+ */
+export interface FacturaEmisora {
+  campanaId: string
+  entidadEmisoraId: string | null
+}
+
 export interface DatosRentabilidad extends DatosAtribucion {
   arrendadores: { id: string; nombre: string }[]
+  /** Ausente o vacío = no hay razones sociales: todo cae en «Sin asignar». */
+  entidades?: EntidadReporte[]
+  /** Ausente = ninguna campaña tiene emisora conocida. */
+  facturas?: FacturaEmisora[]
   reservas: ReservaReporte[]
   ordenesTrabajo: OtReporte[]
   /** Costo por tipo de OT de ESTE tenant. Vacío = manda `COSTOS_OT_RESPALDO`. */
@@ -632,8 +708,29 @@ function agrupar<T>(items: T[], clave: (t: T) => string | null): Map<string, T[]
   return out
 }
 
+/**
+ * Lo que la matriz acumula por RAZÓN SOCIAL, en el mismo recorrido que por
+ * pantalla. Clave `''` = sin asignar.
+ *
+ * Se calcula AQUÍ y no en `rentabilidadPorEntidad` por una razón concreta: el
+ * ingreso se prorratea por días y la renta por meses equivalentes, con
+ * segmentos de vigencia y fracción de caras. Repetir esa aritmética en otra
+ * función daría dos facturaciones distintas del mismo periodo el día que una de
+ * las dos cambie — el error de raíz que este repo documenta en
+ * `lib/server/tenant.ts:87-89`. Compartiendo el bucle no hay dos copias que
+ * puedan divergir: hay una.
+ */
+interface PorEntidad {
+  ingreso: Map<string, number>
+  espacio: Map<string, number>
+  reservasSinEmisora: number
+  contratosSinEntidad: number
+}
+
 interface Matriz {
   buckets: Bucket[]
+  /** Los mismos importes, pivotados por razón social. Ver `PorEntidad`. */
+  porEntidad: PorEntidad
   /** Una fila por pantalla, alineada con `buckets`. */
   porSitio: Map<string, Celda[]>
   /** El contrato que gobernó cada pantalla en el rango (el más reciente). */
@@ -710,6 +807,44 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
   for (const s of datos.sitios) porSitio.set(s.id, buckets.map(celdaVacia))
   const contratoDelPeriodo = new Map<string, ContratoArrendamiento>()
 
+  // El puente campaña → razón social emisora. Una campaña sin comprobante, o
+  // con comprobante sin emisora, NO está en el mapa: las dos son «no se sabe»,
+  // y las dos van a «Sin asignar». No se distinguen porque para el reporte son
+  // lo mismo — un ingreso que no se puede poner a nombre de nadie.
+  const emisoraDeCampana = new Map<string, string>()
+  for (const f of datos.facturas ?? []) {
+    if (f.entidadEmisoraId) emisoraDeCampana.set(f.campanaId, f.entidadEmisoraId)
+  }
+  const idsDeEntidad = new Set((datos.entidades ?? []).map((e) => e.id))
+  const porEntidad: PorEntidad = {
+    ingreso: new Map(),
+    espacio: new Map(),
+    reservasSinEmisora: 0,
+    contratosSinEntidad: 0,
+  }
+  const suma = (m: Map<string, number>, clave: string, v: number) =>
+    m.set(clave, (m.get(clave) ?? 0) + v)
+
+  // La emisora de una reserva, o `''`. Una emisora que apunta a una razón social
+  // que ya no está en la lista cuenta como sin asignar: pintar un id crudo en
+  // una tabla de dinero es peor que decir que falta.
+  const entidadDeReserva = (campanaId: string | null | undefined): string => {
+    if (!campanaId) return ''
+    const e = emisoraDeCampana.get(campanaId)
+    return e && idsDeEntidad.has(e) ? e : ''
+  }
+
+  // Se cuentan las reservas SIN emisora una sola vez, fuera del bucle de
+  // buckets: dentro se contarían una vez por periodo que la reserva toca, y una
+  // campaña anual saldría como doce reservas sin emisora.
+  for (const r of datos.reservas) {
+    if (r.estatus === 'CANCELADA') continue
+    if (!entidadDeReserva(r.campanaId)) porEntidad.reservasSinEmisora += 1
+  }
+  for (const c of contratos) {
+    if (!c.entidadId || !idsDeEntidad.has(c.entidadId)) porEntidad.contratosSinEntidad += 1
+  }
+
   for (let i = 0; i < buckets.length; i++) {
     const b = buckets[i]
 
@@ -733,7 +868,11 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
         if (diasTotales <= 0) continue
         const dentroDelBucket = diasSolapados(r.fechaInicio, r.fechaFin, b.desde, b.hasta)
         if (dentroDelBucket === 0) continue
-        celda.ingreso += r.precio * (dentroDelBucket / diasTotales)
+        const parte = r.precio * (dentroDelBucket / diasTotales)
+        celda.ingreso += parte
+        // La MISMA parte, pivotada por quien emite. Sumar aquí y no en otra
+        // pasada es lo que garantiza que las dos vistas no puedan diferir.
+        suma(porEntidad.ingreso, entidadDeReserva(r.campanaId), parte)
       }
 
       // La ENERGÍA no se calcula aquí: un recibo se reparte entre VARIAS
@@ -834,6 +973,17 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
       for (const s of datos.sitios) {
         const mensual = renta.get(s.id) ?? 0
         if (mensual > 0) porSitio.get(s.id)![i].costoEspacio += mensual * meses
+        // A nombre de quién se paga ESTE trozo. Se lee del contrato que gobierna
+        // la pantalla en ESTE segmento, no del que gobierna el rango: un relevo
+        // de contrato a mitad de año puede cambiar de razón social, y cargarle
+        // el año entero a la última sería mover dinero entre sociedades sin
+        // dar ningún síntoma.
+        if (mensual > 0) {
+          const idGob = gobierna.get(s.id)
+          const cGob = idGob ? porId.get(idGob) : undefined
+          const ent = cGob?.entidadId
+          suma(porEntidad.espacio, ent && idsDeEntidad.has(ent) ? ent : '', mensual * meses)
+        }
         // El último que gana es el más reciente del rango: los buckets y los
         // segmentos se recorren en orden cronológico. Es el que se enseña en la
         // columna del arrendador, que es la pregunta «¿a quién se le paga esto?».
@@ -856,7 +1006,12 @@ function matriz(datos: DatosRentabilidad, opts: OpcionesReporte): Matriz {
     }
   }
 
-  return { buckets, porSitio, contratoDelPeriodo, energiaSinDestino }
+  // Se redondea al salir, igual que las celdas: los segmentos se suman en crudo.
+  for (const m of [porEntidad.ingreso, porEntidad.espacio]) {
+    for (const [k, v] of m) m.set(k, centavos(v))
+  }
+
+  return { buckets, porSitio, porEntidad, contratoDelPeriodo, energiaSinDestino }
 }
 
 // ─── De celdas a filas ──────────────────────────────────────────────────────
@@ -1394,6 +1549,163 @@ export function rentabilidadPorM2(
  * rango» harían que el usuario rellenara todas las celdas de la captura y el
  * reporte siguiera diciendo que le falta un recibo.
  */
+/** La fila del dinero que no se puede poner a nombre de nadie. */
+const CLAVE_SIN_ASIGNAR = ''
+
+function notaDeAtribucion(a: Omit<AtribucionEntidad, 'nota'>): string {
+  const pesos = (v: number) =>
+    v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+
+  // Primero lo estructural, que es lo que cambia cómo se lee la tabla entera, y
+  // después los huecos de captura, que son arreglables por una persona.
+  const partes = [
+    `La operación (${pesos(a.costoOperacionSinRepartir)}) y la luz ` +
+      `(${pesos(a.costoEnergiaSinRepartir)}) NO se reparten entre razones sociales: ` +
+      'ningún dato dice a nombre de quién se pagan. Por eso esta vista no muestra ' +
+      'margen — saldría mejor que el real.',
+  ]
+  if (a.reservasSinEmisora > 0) {
+    partes.push(
+      `${a.reservasSinEmisora} ` +
+        (a.reservasSinEmisora === 1 ? 'reserva' : 'reservas') +
+        ' del periodo sin comprobante con emisora: su ingreso sale en «Sin asignar».',
+    )
+  }
+  if (a.contratosSinEntidad > 0) {
+    partes.push(
+      `${a.contratosSinEntidad} ` +
+        (a.contratosSinEntidad === 1 ? 'contrato' : 'contratos') +
+        ' sin razón social asignada: su renta sale en «Sin asignar».',
+    )
+  }
+  return partes.join(' ')
+}
+
+/**
+ * Una fila por razón social: cuánto FACTURÓ y cuánta RENTA PAGA.
+ *
+ * La sexta dimensión, y la única que no pivota la matriz por pantalla: pivota
+ * por a nombre de QUIÉN. El reparto lo hace `matriz()` en el mismo recorrido
+ * que las celdas, con la misma aritmética, así que esta función solo ordena y
+ * etiqueta — no calcula dinero. Ver `PorEntidad`.
+ *
+ * ─── Las tres decisiones que la definen ──────────────────────────────────
+ *
+ *  1. NO PINTA MARGEN. La operación y la luz no tienen columna que las ate a
+ *     una sociedad, así que un margen por razón social le faltarían dos de las
+ *     cuatro fuentes de costo y saldría MEJOR QUE EL REAL. Lo que se pinta es
+ *     `saldoAtribuido`, con ese nombre para que no se pueda confundir, y la
+ *     nota de `atribucion` lo dice encima de la tabla con su importe.
+ *
+ *  2. TODAS LAS RAZONES SOCIALES SALEN, aunque sea en cero. Mismo criterio que
+ *     `trimestre`: un hueco se lee como «faltan datos» y un cero como «no pasó
+ *     nada», que es la verdad. Y en la demostración importa — la sociedad de
+ *     trámites y nómina no mueve dinero por el sistema y tiene que verse que
+ *     existe, no desaparecer.
+ *
+ *  3. «SIN ASIGNAR» VA SIEMPRE AL FINAL. No es un competidor del ranking: es un
+ *     hueco de captura. Ordenado por importe podría salir primero y leerse como
+ *     la sociedad que más factura.
+ *
+ * Los TOTALES son los del negocio completo —los mismos que `sitio`, con la
+ * operación y la luz dentro—, no la suma de lo atribuido. Cambiar de dimensión
+ * no puede cambiar las cifras grandes de arriba: son el mismo periodo y el
+ * mismo dinero.
+ */
+export function rentabilidadPorEntidad(
+  datos: DatosRentabilidad,
+  opts: OpcionesReporte,
+): ReporteRentabilidad {
+  const m = matriz(datos, opts)
+
+  // Los totales del NEGOCIO, idénticos a los de `sitio`: se acumulan las mismas
+  // celdas. Es la garantía de que las cuatro cifras de arriba no cambien al
+  // cambiar el agrupador.
+  const totalPorBucket = acumularCeldas([...m.porSitio.values()], m.buckets.length)
+  const periodosTodos = periodosDe(m.buckets, totalPorBucket)
+  const totales = sumar(periodosTodos)
+
+  const { ingreso: ingresoDe, espacio: espacioDe } = m.porEntidad
+  const filas: FilaRentabilidad[] = []
+
+  const fila = (
+    clave: string,
+    etiqueta: string,
+    detalle: string,
+    papeles: string[] | undefined,
+  ): FilaRentabilidad => {
+    const ingreso = ingresoDe.get(clave) ?? 0
+    const costoEspacio = espacioDe.get(clave) ?? 0
+    return {
+      clave,
+      etiqueta,
+      detalle,
+      ingreso,
+      costoEspacio,
+      // Cero y no el importe real: en esta dimensión NO se atribuyen, y ponerlos
+      // aquí los repartiría a ojo entre las filas. Su total vive en `atribucion`.
+      costoOperacion: 0,
+      costoEnergia: 0,
+      costoTotal: costoEspacio,
+      // `margen` existe en el tipo y se usa para ordenar en otras dimensiones,
+      // así que lleva el saldo; lo que NO se pinta es la columna. Y `margenPct`
+      // es `null` SIEMPRE —no 0—: un porcentaje de margen incompleto es
+      // exactamente el número que miente que esta dimensión evita.
+      margen: centavos(ingreso - costoEspacio),
+      margenPct: null,
+      tieneContrato: costoEspacio > 0,
+      arrendador: null,
+      periodos: [],
+      visitas: 0,
+      papeles,
+      saldoAtribuido: centavos(ingreso - costoEspacio),
+      pctDelIngreso: totales.ingreso > 0 ? centavos((ingreso / totales.ingreso) * 100) : null,
+    }
+  }
+
+  for (const e of datos.entidades ?? []) {
+    filas.push(fila(e.id, e.razonSocial, e.papeles.join(' · '), e.papeles))
+  }
+
+  // Quién factura más, primero; a igualdad, quién carga con más renta. Es la
+  // pregunta del dueño: «¿cuánto pasa por cada una de mis sociedades?».
+  filas.sort(
+    (a, b) => b.ingreso - a.ingreso || b.costoEspacio - a.costoEspacio,
+  )
+
+  const sinIngreso = ingresoDe.get(CLAVE_SIN_ASIGNAR) ?? 0
+  const sinEspacio = espacioDe.get(CLAVE_SIN_ASIGNAR) ?? 0
+  if (sinIngreso > 0 || sinEspacio > 0) {
+    // Al final, después del `sort`: no entra en el ranking.
+    filas.push(
+      fila(
+        CLAVE_SIN_ASIGNAR,
+        'Sin asignar',
+        'Sin razón social en el dato de origen',
+        undefined,
+      ),
+    )
+  }
+
+  const sinNota = {
+    reservasSinEmisora: m.porEntidad.reservasSinEmisora,
+    contratosSinEntidad: m.porEntidad.contratosSinEntidad,
+    costoOperacionSinRepartir: totales.costoOperacion,
+    costoEnergiaSinRepartir: totales.costoEnergia,
+  }
+
+  return {
+    dimension: 'entidad',
+    granularidad: opts.granularidad,
+    desde: opts.desde,
+    hasta: opts.hasta,
+    periodos: m.buckets,
+    filas,
+    totales,
+    atribucion: { ...sinNota, nota: notaDeAtribucion(sinNota) },
+  }
+}
+
 export function mesesDelRango(rango: RangoReporte): string[] {
   const [aD, mD] = partes(rango.desde)
   const [aH, mH] = partes(rango.hasta)

@@ -56,7 +56,17 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
   // (UTC−6) eso devuelve el día ANTERIOR. Ese error ya se pagó en este repo
   // (ver `diasHasta` en `lib/data/derive.ts`), y en un reporte prorrateado por
   // días desplazaría dinero de un periodo a otro sin dar ningún síntoma.
-  const [sitios, contratos, arrendadores, reservas, ordenesTrabajo, consumosEnergia, costosOt] =
+  const [
+    sitios,
+    contratos,
+    arrendadores,
+    reservas,
+    ordenesTrabajo,
+    consumosEnergia,
+    entidades,
+    facturas,
+    costosOt,
+  ] =
     await Promise.all([
     // Solo las columnas que la atribución y las dimensiones necesitan.
     // `select *` sobre `sitios` arrastra las fotos en data URL —1.0 MB por doce
@@ -81,6 +91,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // quedan fuera a propósito (ver `listarContratos`: ~300 kB por contrato).
     q<any>(
       `select id, sitio_id, arrendador_id, predio_id, monto_renta, periodicidad, estatus,
+              entidad_id,
               to_char(fecha_inicio, 'YYYY-MM-DD') as fecha_inicio,
               to_char(fecha_fin,    'YYYY-MM-DD') as fecha_fin
          from contratos_arrendamiento
@@ -96,7 +107,7 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
     // suma, TENTATIVA sí porque el lugar ya está apartado») vive en
     // `lib/data/reportes.ts`, una sola vez.
     q<any>(
-      `select sitio_id, precio, estatus,
+      `select sitio_id, campana_id, precio, estatus,
               to_char(fecha_inicio, 'YYYY-MM-DD') as fecha_inicio,
               to_char(fecha_fin,    'YYYY-MM-DD') as fecha_fin
          from reservas
@@ -155,6 +166,59 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
           and (periodo + interval '1 month - 1 day')::date >= $2::date`,
       [tenantId, rango.desde, rango.hasta],
     ),
+    // MIS razones sociales, con sus papeles ya ETIQUETADOS. Son dos LEFT JOIN y
+    // no un `join` a secas: una razón social recién dada de alta y todavía sin
+    // papeles tiene que salir igual —existe, y su fila del reporte en cero es
+    // información— y con un `join` desaparecería sin dar ningún error.
+    //
+    // La etiqueta sale de `catalogo_roles_entidad` y NO se escribe en el
+    // cliente: es la MISMA fuente que usa la pantalla de Razones sociales
+    // (`GestionEntidadesFiscales.tsx:70`), así que el mismo papel no puede
+    // llamarse de dos formas según dónde salga. Y el orden es el `orden` del
+    // catálogo, no el alfabético del código: «Paga las rentas» antes que
+    // «Compra los activos» es una decisión del catálogo.
+    //
+    // `catalogo_roles_entidad` NO lleva `tenant_id` —es un catálogo del
+    // producto, los cinco papeles son iguales para toda la flota— así que su
+    // join no necesita filtro de tenant. El de `entidad_roles` sí lo lleva.
+    //
+    // Se leen TAMBIÉN las dadas de baja (activo = false). No es un descuido: un
+    // reporte de un periodo pasado puede tener renta y facturación a nombre de
+    // una sociedad que hoy ya no se usa, y filtrarlas aquí movería ese dinero a
+    // «Sin asignar» — o sea, reescribiría la historia según el estado de hoy. Es
+    // el mismo error que este módulo ya pagó con los contratos vencidos.
+    q<any>(
+      `select e.id, e.razon_social, e.activo,
+              coalesce(
+                array_agg(c.etiqueta order by c.orden) filter (where r.rol is not null),
+                '{}'
+              ) as papeles
+         from entidades_fiscales e
+         left join entidad_roles r
+                on r.entidad_id = e.id
+               and r.tenant_id  = e.tenant_id
+         left join catalogo_roles_entidad c
+                on c.rol = r.rol
+        where e.tenant_id = $1
+        group by e.id, e.razon_social, e.activo
+        order by e.razon_social`,
+      [tenantId],
+    ),
+    // El puente campaña → razón social emisora. SOLO esas dos columnas: el
+    // importe del comprobante NO se lee, y es deliberado. El ingreso del reporte
+    // sale de las reservas prorrateadas por días, y tomarlo de aquí daría dos
+    // facturaciones distintas del mismo periodo según la dimensión.
+    //
+    // NO se acota por rango: lo que hace falta es el mapa de las campañas que
+    // tocan el periodo, y la fecha del comprobante no tiene por qué caer dentro
+    // —se emite antes o después—. Son dos columnas por campaña facturada, que es
+    // el orden de magnitud de las campañas, no de las reservas.
+    q<any>(
+      `select campana_id, entidad_emisora_id
+         from facturas
+        where tenant_id = $1`,
+      [tenantId],
+    ),
     // El costo por tipo de OT sale de `config_negocio` (una fila por tenant,
     // ADR 0011) por su función de siempre, no por una consulta propia: el
     // invariante dice que quien lee esa tabla usa la consulta CON tenant.
@@ -189,10 +253,26 @@ export async function datosRentabilidad(rango: RangoReporte): Promise<DatosRenta
       estatus: r.estatus,
       fechaInicio: r.fecha_inicio,
       fechaFin: r.fecha_fin ?? null,
+      // Cuál de MIS razones sociales paga esta renta. null es «sin asignar», y
+      // es un estado legítimo: las filas anteriores al 17/09 están todas así.
+      entidadId: r.entidad_id ?? null,
     })) as any,
     arrendadores: arrendadores.map((r) => ({ id: r.id, nombre: r.nombre })),
+    entidades: entidades.map((r) => ({
+      id: r.id,
+      razonSocial: r.razon_social,
+      // array_agg llega como arreglo de JS por el driver, pero conviene no
+      // fiarse del borde: se normaliza aquí para que el motor puro no tenga que
+      // defenderse de un null.
+      papeles: Array.isArray(r.papeles) ? r.papeles : [],
+    })),
+    facturas: facturas.map((r) => ({
+      campanaId: r.campana_id,
+      entidadEmisoraId: r.entidad_emisora_id ?? null,
+    })),
     reservas: reservas.map((r) => ({
       sitioId: r.sitio_id,
+      campanaId: r.campana_id ?? null,
       precio: num(r.precio),
       estatus: r.estatus,
       fechaInicio: r.fecha_inicio,

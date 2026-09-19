@@ -45,6 +45,9 @@ function fila(p: Partial<FilaOrdenable> & { clave: string }): FilaDePrueba {
     margenPorM2: 0,
     kwh: 0,
     costoPorKwh: null,
+    papeles: [],
+    saldoAtribuido: 0,
+    pctDelIngreso: null,
     ...p,
   }
 }
@@ -144,7 +147,18 @@ describe('4 · el clic en la cabecera', () => {
     // es un objeto —no hay un orden sensato entre dos repartos por tipo— y
     // `visitasConDuracion` es el DENOMINADOR de `horasEnSitio`: una nota al pie
     // de esa celda, no una columna con la que rankear.
-    const NO_SON_MEDIDAS = ['clave', 'tieneContrato', 'visitasPorTipo', 'visitasConDuracion']
+    // `papeles` se suma a la lista el 2026-09-18 con la dimension `entidad`: es
+    // la lista de papeles de una razon social, que se pinta DEBAJO de su nombre
+    // como subtitulo de la fila —igual que la clave interna de una pantalla— y
+    // no es una medida. Entre dos listas de papeles no hay un orden que
+    // signifique nada.
+    const NO_SON_MEDIDAS = [
+      'clave',
+      'tieneContrato',
+      'visitasPorTipo',
+      'visitasConDuracion',
+      'papeles',
+    ]
     const ordenables = Object.keys(fila({ clave: 'x' })).filter((k) => !NO_SON_MEDIDAS.includes(k))
     expect([...COLUMNAS.map((c) => c.clave)].sort()).toEqual(ordenables.sort())
     expect(new Set(COLUMNAS.map((c) => c.clave)).size).toBe(COLUMNAS.length)

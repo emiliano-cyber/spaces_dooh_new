@@ -33,13 +33,13 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
 
 ### Qué es, técnicamente
 
-**84 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**85 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **1093 enlaces internos** sobre **84 notas**, con **2
+Al 2026-09-18 tiene **1101 enlaces internos** sobre **85 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**: la de `diario/2026-09-17` dejó de estarlo el 18/09, al

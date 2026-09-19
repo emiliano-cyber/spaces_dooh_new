@@ -14,13 +14,13 @@ import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
 import {
   filtrosDesdeUrl,
   construirConsulta,
-  cuenta,
   motivoInvalido,
   type FiltrosReporte,
 } from '@/components/demo/reportes/consulta'
 import { debePedir, estadoDeReporte, type RespuestaReporte } from '@/components/demo/reportes/estado'
 import {
   avisosDelReporte,
+  subtituloDeConteo,
   formatoPorcentaje,
   ordenInicialDe,
   siguienteOrden,
@@ -173,6 +173,11 @@ export default function ReportesPage() {
             // periodo faltan: sin él, el reporte suma lo capturado y lo
             // presenta como el total de la energía, que es mentir sin error.
             cobertura: reporte.cobertura,
+            // Solo llega en `entidad`. Es el aviso que dice que la operación y
+            // la luz NO se reparten entre razones sociales, y por eso la tabla
+            // no tiene columna de margen: sin él, quien venga de «Por pantalla»
+            // buscaría el margen y supondría que se le olvidó a alguien.
+            atribucion: reporte.atribucion,
           })
         : [],
     [reporte],
@@ -234,11 +239,12 @@ export default function ReportesPage() {
             <KPICard
               label="Margen sobre ingreso"
               value={formatoPorcentaje(reporte.totales.margenPct)}
-              /* «N pantallas con movimiento» en TODA dimensión: en trimestral
-                 las filas son trimestres. El sustantivo lo declara
-                 `sustantivoFila` una sola vez, y lo leen también la tabla y los
-                 avisos. */
-              sub={`${cuenta(reporte.filas.length, reporte.dimension)} con movimiento`}
+              /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
+                 archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
+                 y por eso llegó a decir «4 razones sociales con movimiento» con
+                 una de ellas en cero, contando además «Sin asignar» como una
+                 sociedad más del cliente. */
+              sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
               tono={
                 reporte.totales.margenPct == null ? 'neutro' : reporte.totales.margenPct < 0 ? 'rojo' : 'verde'
               }

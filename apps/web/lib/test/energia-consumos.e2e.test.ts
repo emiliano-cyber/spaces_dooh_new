@@ -228,7 +228,24 @@ describe('2 · aislamiento del consumo — el síntoma sería un total AL DOBLE'
     expect(r.status, JSON.stringify(r.datos)).toBe(200)
     expect(r.datos.totales.costoEnergia).toBe(IMPORTE)
     const t = r.datos.totales
-    expect(t.costoTotal).toBe(t.costoEspacio + t.costoOperacion + t.costoEnergia)
+    // Redondeado a CENTAVOS en los dos lados, y no `toBe` sobre la suma cruda.
+    //
+    // El servidor devuelve `costoTotal = centavos(espacio + operacion + luz)`
+    // (`lib/data/reportes.ts`, `totalesDeFilas`), porque un total de dinero se
+    // redondea; la suma en coma flotante de los tres, en cambio, arrastra su
+    // residuo. Con los importes que siembra esta prueba son
+    // **10 841.94 contra 10 841.939999999999**, y `toBe` usa `Object.is`: la
+    // prueba fallaba por el residuo del binario, no porque la luz se quedara
+    // fuera del total.
+    //
+    // Lo que esta prueba tiene que demostrar es que la energia ESTA DENTRO del
+    // costo total —que no es una columna decorativa—, y eso se demuestra igual
+    // comparando dinero con dinero al centavo. Un guard que falla por el
+    // ultimo bit de un `double` no protege nada y ensucia el rojo de los que si.
+    const centavos = (v: number) => Math.round(v * 100) / 100
+    expect(t.costoTotal).toBe(centavos(t.costoEspacio + t.costoOperacion + t.costoEnergia))
+    // Y que de verdad la lleva dentro: sin la luz, el total seria menor.
+    expect(t.costoTotal).toBeGreaterThan(centavos(t.costoEspacio + t.costoOperacion))
   })
 
   it('la rejilla de captura de A no enseña el recibo ni el predio de B', async () => {
