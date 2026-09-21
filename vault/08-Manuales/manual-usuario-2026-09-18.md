@@ -1,8 +1,8 @@
 ---
 tipo: manual
 estado: en-curso
-actualizado: 2026-09-18
-tags: [manual, usuario-final, negocio, entidades, fiscal, energia, reportes, rentabilidad]
+actualizado: 2026-09-21
+tags: [manual, usuario-final, negocio, entidades, fiscal, energia, reportes, rentabilidad, ilustrado]
 archivos:
   - vault/08-Manuales/manual-usuario-2026-09-15.md
   - vault/02-Backend/entidades-fiscales.md
@@ -12,6 +12,7 @@ archivos:
   - vault/02-Backend/reportes-rentabilidad.md
   - vault/02-Backend/reportes-dimensiones.md
   - vault/03-Frontend/pantalla-reportes.md
+  - manuales/capturas-2026-09-18.spec.ts
 ---
 
 # Manual de usuario — lo que entró en septiembre
@@ -33,11 +34,23 @@ Todo lo demás —entrar, el inventario, los arrendadores, las propuestas, las c
 Los nombres de botones, pantallas y avisos van **entre comillas**, tal como aparecen en
 pantalla.
 
-> [!warning] Este manual no se recorrió delante de la aplicación
-> Los textos que van entre comillas son los que están registrados por escrito en la
-> documentación interna del 17 y 18 de septiembre. Los que **no** pudieron confirmarse
-> están listados como preguntas en `## PENDIENTES`, al final. Si un botón se llama distinto
-> en tu instalación, manda lo que ves en tu instalación.
+> [!success] 2026-09-21 · recorrido delante de la aplicación, con capturas
+> Este manual se volvió a caminar completo con la base de demostración
+> (`demo-rentabilidad`, sembrada con `scripts/semilla-demo.mjs`) y la app en
+> `next build && next start` — **no** en `next dev`: la CSP bloqueante del
+> 28/08 usa `unsafe-eval` implícitamente en modo desarrollo (Fast Refresh) y
+> ese modo deja el formulario de acceso sin reaccionar, con el botón
+> «Entrar» permanentemente deshabilitado. No es un defecto de este manual;
+> es un defecto del entorno de desarrollo local y se reporta aparte.
+>
+> Las capturas están en `capturas-2026-09-18/`, junto a este archivo, y el
+> guion que las toma —re-ejecutable— es
+> `manuales/capturas-2026-09-18.spec.ts`. Los cinco textos entre comillas que
+> quedaban por confirmar ya están confirmados **mirando la pantalla**, y
+> quedan escritos donde corresponden y también en `## PENDIENTES`, al final,
+> con la cita literal. Lo que no cambia: si un botón se llama distinto en tu
+> instalación, manda lo que ves en tu instalación — esto se verificó contra
+> UNA base de demostración, no contra la tuya.
 
 ---
 
@@ -68,7 +81,7 @@ instalación recién estrenada.
    social que comercializa o factura las ventas?»**. Responde sí o no.
 3. Escribe el nombre de la razón social que corresponde a cada papel. El sistema te enseña
    solo los campos que hacen falta según lo que contestaste antes.
-4. Envía el cuestionario.
+4. Pulsa **«Guardar y continuar»**.
 
 Las dos primeras preguntas existen para **ahorrarte la tercera**. Esto es lo que cambia:
 
@@ -101,6 +114,12 @@ Las dos primeras preguntas existen para **ahorrarte la tercera**. Esto es lo que
 > [!note] Captura: el cuestionario de bienvenida con las tres preguntas, en el caso de
 > «varias razones sociales» con operación y ventas separadas (cinco campos)
 
+![El cuestionario de bienvenida con las tres preguntas contestadas — varias razones sociales, operación y ventas separadas — y los cinco campos de razón social debajo](capturas-2026-09-18/01-01-bienvenida-cuestionario-cinco-campos.png)
+*Captura — apartado 1.1, pasos 1-3. Tomada el 2026-09-21 contra una organización sin
+ninguna razón social (`scripts/reiniciar-razones-sociales.mjs` deja ese estado exacto;
+aquí se hizo el borrado equivalente a mano porque el guion se niega a tocar la base
+`spaces` del 5433 por nombre — ver `## PENDIENTES`).*
+
 ### 1.2 · Saltarte el cuestionario y contestarlo después
 
 **Empiezas en:** la pantalla de bienvenida.
@@ -131,6 +150,11 @@ el papel, las das de baja y las vuelves a activar.
 > [!note] Captura: la pantalla «Razones sociales» con el listado, los papeles de cada una y
 > los avisos de papel sin dueño y papel compartido
 
+![La pantalla «Razones sociales» con las tres razones sociales de la organización de demostración, cada una con su papel, y sin avisos: es el caso sano, con una sola dueña por papel](capturas-2026-09-18/02-01-razones-sociales-sano.png)
+*Captura — apartado 2, estado sano. En la base de demostración, cada papel tiene
+exactamente una dueña, así que los dos avisos de 2.2 no aparecen aquí; se muestran
+provocados más abajo.*
+
 ### 2.1 · Dar de baja una razón social
 
 1. Abre **«Razones sociales»**.
@@ -158,6 +182,31 @@ otra vez con el mismo nombre: eso crearía un duplicado, y el sistema lo rechaza
 
 Ninguno de los dos te impide trabajar. Los dos te dicen por qué el sistema deja de
 sugerirte una razón social donde antes te la sugería.
+
+> [!success] 2026-09-21 · Los dos avisos, provocados y confirmados palabra por palabra
+> En la demostración cada papel tiene una sola dueña, así que hubo que forzar el estado:
+> se dio de baja «Servicios DEMO Operativos» (única dueña de `OPERACION` y `LICENCIAS`,
+> lo que deja esos dos papeles sin dueño) y se le añadió `ARRENDAMIENTOS` a «Publicidad
+> DEMO Exterior», que ya lo tenía «Inmuebles DEMO del Centro» (papel compartido).
+>
+> **Papel sin dueño**, literal:
+> *«Ninguna razón social activa tiene Trámites y licencias con gobierno, Operación y
+> nómina. Los documentos de ese tipo van a nacer sin razón social hasta que se lo asignes
+> a alguna.»*
+>
+> **Papel compartido**, literal:
+> *«Paga las rentas a los arrendadores lo tienen dos o más. Cuando hay varias con el mismo
+> papel el sistema no propone ninguna, así que habrá que elegirla a mano en cada contrato
+> o comprobante.»*
+>
+> Cita: `apps/web/components/demo/razones-sociales/GestionEntidadesFiscales.tsx:284-303`.
+> Y de paso: las etiquetas de los papeles salen **con acento** («Trámites», «Operación y
+> nómina»), así que la migración `20260921_corrige_acentos_catalogo_roles_entidad.sql`
+> (D8 de `docs/Supervision/ABIERTOS.md`) **ya estaba aplicada** en el entorno donde se
+> hizo esta pasada.
+
+![La pantalla «Razones sociales» con los dos avisos en ámbar: «Papel sin dueño» sobre Trámites y licencias con gobierno y Operación y nómina, y «Papel compartido» sobre Paga las rentas a los arrendadores](capturas-2026-09-18/02-02-razones-sociales-avisos.png)
+*Captura — apartado 2.2, avisos provocados a propósito para esta pasada.*
 
 ---
 
@@ -191,6 +240,12 @@ información»**, junto con el resto de los datos que faltan.
 
 > [!note] Captura: la ficha de un contrato mostrando «La paga» con su botón «Cambiar», y el
 > cuadro de un solo campo que se abre al pulsarlo
+
+![La ficha del contrato de «Tlalpan G500», con «La paga: Inmuebles DEMO del Centro, S.A. de C.V.» y el enlace «Cambiar» a la derecha](capturas-2026-09-18/03-01-contrato-la-paga.png)
+*Captura — apartado 3.1, paso 2.*
+
+![El cuadro «Con cuál de tus razones sociales se paga», de un solo campo, abierto sobre la ficha del contrato tras pulsar «Cambiar»](capturas-2026-09-18/03-02-contrato-la-paga-editar.png)
+*Captura — apartado 3.1, pasos 3-4.*
 
 ### 3.2 · Asignar la razón social que emite un comprobante
 
@@ -297,6 +352,9 @@ para capturar un lote de recibos seguidos sin volver a elegir el predio cada vez
 > [!note] Captura: la rejilla de predios por meses, con celdas capturadas y celdas en ámbar,
 > y el aviso de cuántos recibos faltan
 
+![La rejilla de predios por meses: celdas con importe y kWh capturados, celdas en ámbar con una raya para los meses sin recibo, y el aviso «Faltan 14 de 24 recibos del periodo…» sobre la tabla](capturas-2026-09-18/05-01-consumo-luz-rejilla.png)
+*Captura — apartado 5.1/5.4.*
+
 ### 5.2 · Un predio con dos medidores
 
 Si el predio tiene más de un medidor, captura **un recibo por cada uno**, con su número de
@@ -309,13 +367,46 @@ consume cada medidor.
 
 **No hay edición.** Si te equivocaste, borra el recibo y captúralo de nuevo.
 
-1. Localiza el recibo en la pantalla.
-2. Bórralo. El sistema te pide confirmar.
+1. Localiza el recibo en la pantalla. Cada uno se identifica por su número de medidor (o
+   «sin número» si no lo tiene), debajo de la cifra, con un icono de papelera.
+2. Bórralo.
 3. Captúralo otra vez con las cifras correctas.
 
 > [!warning] El borrado existe precisamente porque no puedes capturarlo dos veces
 > El sistema rechaza el mismo recibo repetido, así que un importe con un cero de más se
 > quedaría inflando el costo de ese mes para siempre si no pudieras borrarlo.
+
+> [!danger] 2026-09-21 · El paso 2 dice mal las cosas: NO hay confirmación
+> Verificado mirando la pantalla: al pulsar el icono de papelera, el recibo se borra **de
+> inmediato**, sin ningún cuadro de diálogo que pedir aceptar. No hay «¿Seguro que quieres
+> borrar…?», ni nativo del navegador ni de la aplicación. El botón, además, **no lleva un
+> texto visible que diga «Borrar»**: es solo el icono y el número de medidor, con un
+> `title="Borrar este recibo"` que solo se lee al pasar el mouse por encima.
+>
+> Esto es lo contrario de lo que dice el paso 2 arriba, y es la respuesta a la pregunta que
+> este manual tenía pendiente. Se deja la corrección aquí, sin tocar el paso, porque
+> corregir el cuerpo del manual es decisión de quien lo revise.
+>
+> Cita: `apps/web/components/demo/energia/RejillaCaptura.tsx:84-95` (el botón, sin
+> `confirm()` alguno) y `apps/web/app/(app)/(shell)/energia/page.tsx:127-138` (`borrar()`,
+> que llama al DELETE sin preguntar antes).
+>
+> **Y hay un segundo hallazgo, más grave, de permisos:** el botón de borrar se pinta igual
+> para cualquier rol, pero borrar exige `exigir('operaciones', 'aprobar')`
+> (`app/api/energia/consumos/[id]/route.ts:24`) y el rol OPERACIONES —el mismo al que este
+> apartado dice que le toca esta pantalla— solo tiene `ver` y `crear` sobre `operaciones`,
+> no `aprobar`. Un perfil de Operaciones que pulsa la papelera para corregir SU PROPIO
+> error no puede: recibe 403 («No tienes permiso para esta acción») y, como ese mensaje
+> comparte el mismo estado que el de «no cargó la pantalla», **la rejilla entera
+> desaparece** y se sustituye por «No se pudo cargar la captura» — no un aviso junto al
+> botón, sino la pantalla completa. Verificado en vivo con una cuenta OPERACIONES real.
+
+![Con la cuenta Dueño (que sí tiene el permiso), la misma rejilla justo después de borrar un recibo: la celda de ese mes vuelve a ámbar y el contador de faltantes sube en uno, sin ningún diálogo de por medio](capturas-2026-09-18/05-02-consumo-luz-tras-borrar.png)
+*Captura — apartado 5.3, tras el paso 2, con una cuenta que sí puede borrar.*
+
+![Un perfil de Operaciones, tras pulsar «Borrar este recibo»: la rejilla entera desaparece y la pantalla muestra «No se pudo cargar la captura · No tienes permiso para esta acción»](capturas-2026-09-18/05-03-operaciones-borrar-recibo-403.png)
+*Captura — hallazgo de producto, no pedida por el manual. El contador «Faltan 14 de 24»
+no cambió: el borrado sí se rechazó en el servidor, pero la pantalla no lo dice así.*
 
 ### 5.4 · Ver qué recibos te faltan
 
@@ -344,6 +435,23 @@ Finanzas.
 El reporte contesta una sola pregunta —qué ingresa y qué cuesta cada cosa— y te deja
 mirarla de cinco formas. **No son cinco reportes**: es una pantalla con un selector.
 
+> [!success] 2026-09-21 · Qué ve exactamente un perfil de Operaciones si lo intenta
+> Verificado con una cuenta OPERACIONES real: la entrada **«Reportes» no aparece en su
+> menú** —el menú de Operaciones solo trae Operaciones, Almacén y Consumo de luz—, y si
+> escribe la dirección `/reportes/` a mano, **no llega a verla**. El sistema lo manda de
+> vuelta a `/operaciones/`, su propio tablero, al instante y sin ningún mensaje de error:
+> ni un 403 en pantalla, ni un aviso de «no tienes permiso». Simplemente nunca aparece
+> Reportes, como si esa dirección no existiera para él.
+>
+> Esto pasa ANTES de que la pantalla llegue a pedir datos al servidor: la decide el propio
+> menú (`components/demo/shell/nav.ts:138`, la entrada de Reportes solo lista
+> `roles: ['DUENO', 'FINANZAS']`) y la reafirma la compuerta de la aplicación
+> (`components/demo/shell/compuerta.ts:59-66` y `AuthGate.tsx:73`, que redirige a
+> `landingDeRol(rol)` en cuanto detecta que el rol no alcanza el módulo de la ruta).
+
+![Un perfil de Operaciones tras intentar abrir /reportes/: termina en su propio tablero «Vista de Operaciones», con el menú lateral mostrando solo Operaciones, Almacén y Consumo de luz — sin Reportes y sin ningún mensaje de error](capturas-2026-09-18/07-01-operaciones-intenta-reportes.png)
+*Captura — respuesta al pendiente 6, apartado 6.*
+
 ### 6.1 · Sacar el reporte
 
 **Empiezas en:** el menú lateral, en la entrada de reportes.
@@ -364,6 +472,22 @@ obligatorias. Si pones un rango al revés, el sistema te lo dice y no calcula.
 
 > [!note] Captura: la pantalla de reportes abierta, con el selector de las cinco miradas, el
 > rango de fechas, los indicadores de arriba y la tabla
+
+![La pantalla «Reportes de rentabilidad» recién abierta: el selector «Agrupar» en «Por pantalla», el rango 01/07/2026-30/09/2026, los cuatro indicadores de arriba, el aviso ámbar de periodo en curso y la tabla con sus seis pantallas](capturas-2026-09-18/06-01-reportes-periodo-en-curso.png)
+*Captura — apartado 6.1/6.2. Tomada el 2026-09-21, que cae en el trimestre jul-sep 2026:
+el reporte abrió ahí solo, sin tocar las fechas.*
+
+> [!warning] 2026-09-21 · La pantalla ya no ofrece cinco miradas: ofrece SEIS
+> El selector «Agrupar» trae hoy: «Por pantalla» · «Por trimestre» · «Por operación» ·
+> «Por metro cuadrado» · «Por consumo de luz» · **«Por razón social»**. La sexta no la
+> documenta ningún apartado de este manual — entró con el commit `30af088`
+> («feat(reportes): la sexta dimension — por razon social»), posterior a la redacción del
+> 18/09. No es un error de este manual en el sentido de que diga algo falso: es que quedó
+> incompleto por un cambio de producto que llegó después. Se deja constancia aquí; añadir
+> el apartado 6.3-bis con «Por razón social» es trabajo aparte, no de esta pasada.
+>
+> Cita: `apps/web/components/demo/reportes/consulta.ts:58-92` (`DIMENSIONES_UI`, con las
+> seis entradas).
 
 ### 6.2 · El reporte abre en el trimestre en curso, y avisa de que está incompleto
 
@@ -393,6 +517,18 @@ que lo que estás viendo ya no va a cambiar.
 > [!warning] Basta un solo día de solape para que el aviso vuelva
 > Si estiras el rango un día dentro del trimestre en curso, el aviso reaparece. Y con razón:
 > ese día ya trae renta pagada y todavía no trae el ingreso que lo acompaña.
+
+> [!success] 2026-09-21 · El texto exacto del aviso ámbar, palabra por palabra
+> Verificado en pantalla el 2026-09-21, con el reporte abierto de forma natural (sin tocar
+> el rango) en jul-sep 2026:
+>
+> *«El periodo que estás viendo toca T3 2026, que está EN CURSO: llevan 83 de sus 92 días.
+> La renta de los espacios ya corrió esos 83 días completos, pero lo que se vendió se cobra
+> al cerrar, así que el ingreso todavía no está dentro y el margen sale peor de lo que va a
+> quedar. No lo compares con un trimestre terminado.»*
+>
+> Los números («83 de sus 92») cambian con la fecha en la que se mire; el resto de la frase
+> no. Cita: `apps/web/components/demo/reportes/tabla.ts:662`.
 
 ### 6.3 · Las cinco formas de mirar
 
@@ -628,23 +764,43 @@ de Finanzas. Pídeselo a quien administra tu organización.
 > `Costo del espacio` · `Costo de operación` · **`Costo de la luz`** · `Costo total` ·
 > `Margen` · `Margen %`. Cada renglón lleva además **«Ver el desglose por periodo»**.
 
-### Los que siguen abiertos
+> [!success] 2026-09-21 · Cinco de los seis, cerrados MIRANDO la aplicación (y con capturas)
+> Se levantó la aplicación con `next build && next start` (no `next dev`: ver el aviso al
+> principio de este manual) contra la base de demostración `demo-rentabilidad`, sembrada
+> con `scripts/semilla-demo.mjs`, y se recorrió cada flujo con Playwright
+> (`manuales/capturas-2026-09-18.spec.ts`), con capturas en `capturas-2026-09-18/`.
+>
+> **2. El botón del cuestionario de bienvenida es «Guardar y continuar»**, no «Enviar».
+> Confirmado con una organización sin ninguna razón social (ver el apartado 1.1).
+>
+> **3. El texto exacto del aviso ámbar de periodo en curso** está citado palabra por
+> palabra en el apartado 6.2.
+>
+> **4. El texto de los avisos de papel sin dueño y papel compartido** está citado palabra
+> por palabra en el apartado 2.2, provocado a propósito porque en la demostración cada
+> papel tiene una sola dueña.
+>
+> **5. El botón de borrar un recibo NO tiene texto visible** (es un icono de papelera con
+> `title="Borrar este recibo"`) **y NO hay ninguna confirmación**: el borrado es inmediato.
+> Contradice lo que dice el paso 2 del apartado 5.3, que queda anotado ahí con la cita del
+> código. Y de paso se encontró que un perfil de Operaciones —al que este manual le asigna
+> la pantalla— no puede borrar su propio recibo mal capturado: el borrado exige el permiso
+> `aprobar`, que Operaciones no tiene, y el 403 resultante le borra la rejilla entera de la
+> pantalla. Ver el apartado 5.3.
+>
+> **6. Un perfil de Operaciones que intenta `/reportes/` no ve ni un 403 ni un mensaje**:
+> el sistema lo redirige de inmediato a su propio tablero (`/operaciones/`), y la entrada
+> «Reportes» ni siquiera aparece en su menú. Ver el apartado 6.
+>
+> **Hallazgo aparte, no pedido por ninguno de los seis:** el selector de reportes ya no
+> ofrece cinco miradas, ofrece **seis** — «Por razón social» se añadió después de escribirse
+> este manual (commit `30af088`). Ver el aviso en el apartado 6.1.
 
-Estos seis necesitan entrar a un flujo concreto o provocar un error a propósito, y
-**no se inventan**. Se cierran en la pasada de ensayo, con la aplicación delante.
+### El que sigue abierto — es una decisión de negocio, no técnica
 
-1. **El inventario vigente no cubre nada de esto.** El más reciente es del 15 de
-   septiembre y es anterior a estas tres áreas. ¿Se levanta uno nuevo antes del
-   lanzamiento?
-2. **¿Cómo se llama el botón que guarda el cuestionario de bienvenida?** Hay que
-   entrar con una organización sin ninguna razón social para verlo, y el guion
-   `scripts/reiniciar-razones-sociales.mjs` deja la demostración en ese estado.
-3. **¿Cuál es el texto exacto del aviso ámbar de periodo en curso?** Consta lo que
-   dice y que incluye los días corridos, no su redacción palabra por palabra.
-4. **¿Cuál es el texto de los avisos de papel sin dueño y papel compartido?** En la
-   demostración no salen: cada papel tiene exactamente una dueña, que es el caso
-   sano. Hay que provocarlo.
-5. **¿Cuál es el texto del botón y de la confirmación al borrar un recibo de luz?**
-   Consta que pide aprobar.
-6. **¿Qué ve exactamente un perfil de Operaciones si intenta abrir el reporte de
-   rentabilidad?** Conviene tener la frase literal para el apartado de errores.
+1. **¿Se levanta un inventario nuevo antes del lanzamiento?** Esta pregunta **no se puede
+   contestar recorriendo la aplicación**: no es un comportamiento del sistema, es una
+   decisión de qué inventario enseñar el día del SUMMIT. El inventario vigente
+   (`vault/00-Inventario/inventario-2026-08-11.md`) sigue siendo del 15 de septiembre y
+   anterior a razones sociales, consumo de luz y reportes de rentabilidad. Queda para quien
+   decide el guion de la demostración, no para esta pasada.
