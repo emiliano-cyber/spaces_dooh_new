@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-08-27
+actualizado: 2026-09-21
 tags: [frontend, modulos, pantallas, verde]
 archivos:
   - apps/web/app/(app)/(shell)/
@@ -32,7 +32,18 @@ archivos:
 | `/almacen` | Activos y traslados | `/api/almacen` | — |
 | `/finanzas` | Facturas y cobranza | `/api/campanas/[id]/facturar`, `/api/cobranzas/*` | — |
 | `/comisiones` | Comisiones | derivado | — |
-| `/administracion` | Usuarios, permisos, organizaciones | `/api/usuarios`, `/api/tenants` | `OrganizacionesPanel`, `ControlCambiosPanel`, `permisos.ts` |
+| `/administracion` | Usuarios, permisos, organizaciones, actualizacion de la instancia | `/api/usuarios`, `/api/tenants`, `/api/actualizaciones` | `OrganizacionesPanel`, `ControlCambiosPanel`, `ActualizacionesPanel`, `permisos.ts` |
+
+> [!tip] `ActualizacionesPanel` (ADR 0037) — la frase y el tono NO viven en el `.tsx`
+> Igual que `payloadCostosOt` o `compuerta.ts`: `vitest.config.ts` no monta jsdom
+> (ver `CLAUDE.md`), así que una decisión escrita dentro de un componente no la
+> prueba nadie — es la lección de B32/B33. `textoDeEstado()` y
+> `textoConfirmarInstalar()` viven en `components/demo/admin/actualizaciones-ui.ts`
+> con sus 9 pruebas; el `.tsx` solo llama al endpoint y pinta lo que esas
+> funciones deciden. El caso negativo que prueban: una aprobación cuyo digest ya
+> no es el disponible **no se pinta como aprobada** — se pinta como que hay una
+> versión más nueva, que es la mentira exacta que el ADR 0037 existe para
+> impedir.
 
 > [!tip] Un panel que no aplica **se explica**, no se esfuma
 > `OrganizacionesPanel.tsx` mostraba nada cuando no eras el super-admin de

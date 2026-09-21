@@ -7,6 +7,17 @@ La entrada más reciente va arriba.
 
 ## 2026-09-21
 
+- **El Dueño ya puede ver y decidir si esta instancia toma la versión nueva.**
+  Nueva tarjeta **Actualizaciones** en Administración → Configuración: dice qué
+  versión corre, qué hay disponible, cuántas migraciones traería y desde cuándo
+  se comprobó. Hay dos modos — **con aprobación** (el Dueño decide cuándo, y
+  nace así por omisión) o **automática** (se instala sola de madrugada en
+  cuanto se publica). Instalar corta el servicio y migra la base, así que pide
+  confirmación explícita, con el número de migraciones y el aviso del corte por
+  delante. Si el Dueño aprobó una versión y mientras tanto salió otra, la
+  pantalla no lo deja pensando que "ya aprobó, tranquilo": avisa que hay una más
+  nueva.
+
 - **El control de cambios ya admite una contraseña de equipo, aparte de la de
   cada persona.** Cuando el Dueño activa el control de cambios (Administración →
   Roles y permisos), los cambios que mueven dinero o catálogo piden una
