@@ -101,9 +101,16 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Este estado sale SOLO del GET (`cargar()`, arriba: 401/403 -> aqui) y
+              el GET exige `administracion:ver` (`app/api/actualizaciones/route.ts`,
+              `exigir('administracion', 'ver')`), nunca `aprobar` -- ese es del
+              PATCH, al que no se llega sin pasar antes por el GET. Nombrar el
+              permiso equivocado es peor que no decir nada: suena autoritativo y
+              manda a pedir algo que no resuelve nada (ronda 2 de revision). Si el
+              guard del GET cambia de accion, esta frase tiene que cambiar con el. */}
           <p className="text-[12px] text-muted">
             Ver y decidir la actualización de esta instancia está reservado a quien tenga el
-            permiso de <b className="text-ink">Administración → aprobar</b>. Pídeselo a quien
+            permiso de <b className="text-ink">Administración → ver</b>. Pídeselo a quien
             administre los roles y permisos de tu organización.
           </p>
         </CardContent>
