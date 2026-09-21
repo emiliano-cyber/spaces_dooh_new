@@ -21,16 +21,17 @@ dos motivos del rojo están cerrados y medidos:
 noche.** B23 está cerrada y medida en las dos bases, así que **ya no hay nada en esta
 lista que pueda parar trabajo.**
 
-**Veredicto vigente: 🟠 ÁMBAR, y por un solo motivo: `B8`.** Nadie ha abierto el PR,
-así que `ci.yml` **no ha verificado nada en una máquina limpia** — y la regla de este
-expediente es que *verde en mi árbol no es verde*. Todo lo demás está medido aquí:
-typecheck limpio · **130 archivos / 1659 unitarias** · build correcto · **41 archivos /
-461 e2e**. **B8 no lo puedo cerrar yo**: `git push` y `gh` están prohibidos por la
-regla del repositorio, así que ese ámbar se vuelve verde en cuanto abras el PR.
+~~**Veredicto vigente: 🟠 ÁMBAR, y por un solo motivo: `B8`.**~~ **CERRADO el
+2026-09-21.** PR #92 abierto y fusionado el mismo día — `ci.yml` y
+`lockfile-check.yml` corrieron en máquina limpia contra `main` protegido, y el
+trabajo de `chore/cierre-ola4` está en `main` (`emiliano/main` en `42fe847`).
 
-Lo único más que queda abierto es **B11**, que no es un defecto: es una pantalla que no
-existe todavía. Y **tres decisiones tuyas** —D6, D7 y la nueva **D8**, que salió del
-ensayo del guion—.
+**Veredicto vigente: 🟢 VERDE**, con un hallazgo rescatado aparte (**B29**, de una
+rama del 14/09 que nunca se fusionó: una copia de `ejecutor.env` en el PADRE que
+quedó legible por cualquier usuario, con tokens reales dentro — pendiente de que
+una persona la verifique en el servidor), **B11**, que no es un defecto: es una
+pantalla que no existe todavía, y **tres decisiones tuyas** —D6, D7 y **D8**, que
+salió del ensayo del guion—.
 
 > **De las 15 advertencias que este expediente llegó a tener, quedan 2.** Y conviene
 > anotar cómo se cerraron cinco de ellas el 18/09: **ya estaban arregladas y nadie lo
@@ -721,6 +722,37 @@ calendario.
   —que a 26 días del SUMMIT van a ser varios— pierde el mismo rato otra vez, y el
   síntoma no dice nada del código.
 
+#### B29 · 🔴 En el PADRE hay una copia de `ejecutor.env` legible por cualquier usuario, con tokens reales de DigitalOcean y Cloudflare dentro
+
+- **Qué es:** rescatado de `docs/hallazgos-14-septiembre`, una rama del 2026-09-14
+  que nunca se fusionó — de sus cuatro hallazgos, este es el único que no aparece
+  resuelto ni mencionado en ningún commit, ADR, traspaso o diario posterior. Se
+  quedó sin seguimiento **una semana completa**.
+- **Evidencia, medida el 14/09 en `/etc/space-os/` del PADRE:**
+  ```
+  -rw-------  1 altas altas  553  Sep  8 18:53  ejecutor.env
+  -rw-r--r--  1 root  root   395  Sep  5 02:20  ejecutor.env.save
+  ```
+  El archivo bueno está en **600**. Su copia `.save` está en **644** —legible por
+  cualquier usuario del PADRE— desde el **05/09**, y contiene **4 líneas**
+  `TOKEN`/`SECRET`/`KEY` (medido con `grep -c`): las credenciales de
+  DigitalOcean y Cloudflare del único proceso que las tiene.
+- **No verificado desde entonces:** nadie ha confirmado si sigue así. Esta nota no
+  lo mide de nuevo — no se toca producción desde una sesión de planeación — solo
+  recupera el hallazgo para que no se pierda una segunda vez.
+- **Cómo se cierra, en el servidor y por una persona:**
+  ```
+  ssh <usuario>@137.184.107.53
+  ls -l /etc/space-os/ejecutor.env.save          # confirmar que sigue en 644
+  sudo chmod 600 /etc/space-os/ejecutor.env.save # o, mejor: sudo rm /etc/space-os/ejecutor.env.save
+  ```
+  Y si hay duda de que alguien más la haya leído en estos 16+ días, rotar los
+  tokens de DigitalOcean y Cloudflare que trae.
+- **Quién puede cerrarla:** una persona. Ningún agente puede tocar el PADRE por
+  `ssh` (prohibido por la regla del repositorio).
+- **Si no se cierra:** sigue expuesto un archivo con credenciales reales de dos
+  proveedores, en un servidor con altas de instancias de clientes.
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
@@ -969,7 +1001,13 @@ calendario.
   precisamente para lo que esta rama toca. Es lo primero que hay que hacer, y hasta
   entonces **el veredicto no puede pasar de rojo**.
 
-#### B8 · Nadie ha abierto el PR, así que `ci.yml` no ha verificado nada en una máquina limpia
+#### ~~B8 · Nadie ha abierto el PR, así que `ci.yml` no ha verificado nada en una máquina limpia~~
+
+> ✅ **CERRADA el 2026-09-21.** PR #92 abierto contra `main` (`emiliano-cyber/spaces_dooh_new`)
+> y fusionado el mismo día — `emiliano/main` está hoy en `42fe847`, "Merge pull
+> request #92 from emiliano-cyber/chore/cierre-ola4". `main` protegido exige
+> `ci.yml` y `lockfile-check.yml` en verde para poder fusionar, así que la
+> comprobación en máquina limpia que faltaba ya corrió.
 
 - **Qué es:** «verde en mi árbol» no es «verde». La verificación independiente la da
   `ci.yml` (typecheck + test + build) en una máquina limpia, y no se ha ejecutado.
