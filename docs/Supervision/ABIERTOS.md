@@ -26,7 +26,7 @@ lista que pueda parar trabajo.**
 `lockfile-check.yml` corrieron en máquina limpia contra `main` protegido, y el
 trabajo de `chore/cierre-ola4` está en `main` (`emiliano/main` en `42fe847`).
 
-**Veredicto vigente: 🟢 VERDE.** Al 2026-09-21, en un solo día se cerraron **B29**
+**Veredicto vigente: 🟢 VERDE.** Al 2026-09-21, en un solo día se cerraron **B31**
 (el hallazgo rescatado de `ejecutor.env.save`, verificado y borrado por el dueño
 desde la consola del PADRE), **B11** (pantalla de costos por tipo de OT, construida
 y probada), **D8** (migración de acentos, aplicada y verificada) y **D7 en lo
@@ -35,16 +35,12 @@ queda abierto solo el que es decisión de negocio, no técnica: si se levanta un
 inventario nuevo antes del SUMMIT). Sigue viva **D6** (tope de meses en el
 reporte, no bloquea el 14/10).
 
-> **Nuevo de hoy, sin cerrar:** el recorrido del manual encontró tres defectos de
-> producto reales que no se corrigieron a propósito (decisión del humano, no del
-> agente que los halló): borrar un recibo de luz no pide confirmación pese a que
-> el propio manual lo afirmaba; un perfil de Operaciones no puede borrar su
-> propio recibo mal capturado y el 403 le borra la rejilla entera en vez de
-> avisar junto al botón (misma familia que B26); y `next dev` en local queda con
-> el botón "Entrar" deshabilitado sin ningún error visible por la CSP sin
-> `unsafe-eval` (hay que usar `next build && next start` para desarrollar).
-> Ninguno tiene número B todavía — quedan para una próxima pasada de este
-> expediente.
+> **Nuevo de hoy:** el recorrido del manual encontró tres defectos reales que no
+> se corrigieron a propósito (decisión del humano, no del agente que los halló),
+> ya con número — **B32** (borrar un recibo de luz sin confirmación, contradice
+> el manual), **B33** (el 403 al borrar borra la rejilla entera en vez de avisar
+> junto al botón, misma familia que B26) y **B34** (`next dev` roto en local por
+> la CSP sin `unsafe-eval`, misma familia que B6).
 
 > **De las 15 advertencias que este expediente llegó a tener, quedan 2.** Y conviene
 > anotar cómo se cerraron cinco de ellas el 18/09: **ya estaban arregladas y nadie lo
@@ -735,7 +731,7 @@ calendario.
   —que a 26 días del SUMMIT van a ser varios— pierde el mismo rato otra vez, y el
   síntoma no dice nada del código.
 
-#### ~~B29 · 🔴 En el PADRE hay una copia de `ejecutor.env` legible por cualquier usuario, con tokens reales de DigitalOcean y Cloudflare dentro~~
+#### ~~B31 · 🔴 En el PADRE hay una copia de `ejecutor.env` legible por cualquier usuario, con tokens reales de DigitalOcean y Cloudflare dentro~~
 
 > ✅ **CERRADA el 2026-09-21, por el dueño desde la consola web de DigitalOcean.**
 > Reverificado en el PADRE real (`curl -s ifconfig.me` → `137.184.107.53`,
@@ -777,6 +773,71 @@ calendario.
   `ssh` (prohibido por la regla del repositorio).
 - **Si no se cierra:** sigue expuesto un archivo con credenciales reales de dos
   proveedores, en un servidor con altas de instancias de clientes.
+
+#### B32 · Borrar un recibo de luz no pide ninguna confirmación, y el manual dice que sí
+
+- **Qué es:** encontrado recorriendo la aplicación para ilustrar el manual del
+  18/09. El botón de borrar un recibo de consumo de energía actúa de inmediato,
+  sin diálogo de por medio — un clic de más y el dato desaparece.
+- **Evidencia:** `apps/web/components/demo/energia/RejillaCaptura.tsx:88-90` —
+  `onClick={() => void onBorrar(r.id)}` con `title="Borrar este recibo"` como
+  única pista visual (ni siquiera lleva texto). No hay `window.confirm`, modal
+  ni paso intermedio en todo el componente. El manual, en cambio, afirma lo
+  contrario: `vault/08-Manuales/manual-usuario-2026-09-18.md:379` trae el
+  callout `[!danger]` que ya deja anotada la contradicción con el paso 2 del
+  apartado 5.3 («El sistema te pide confirmar»).
+- **Cómo se cierra:** un diálogo de confirmación antes de llamar `onBorrar`, o
+  corregir el manual si de verdad no se quiere el diálogo — pero lo segundo dejaría
+  un borrado irreversible a un clic, que es el problema de fondo.
+- **Quién puede cerrarla:** un ejecutor.
+- **Si no se cierra antes del 14/10:** un clic de más en la demo borra un recibo
+  delante de la sala, sin forma de deshacerlo desde la aplicación.
+
+#### B33 · Un 403 al borrar un recibo hace desaparecer TODA la rejilla, no solo avisa junto al botón
+
+- **Qué es:** Operaciones tiene permiso para `ver` y `crear` consumos de energía,
+  pero borrar exige `aprobar`, que Operaciones no tiene. El 403 resultante no se
+  queda junto al botón: se confunde con «la pantalla no cargó» y se lleva
+  puesta toda la tabla. Misma familia que B26: no da error, miente en silencio.
+- **Evidencia:**
+  - Permiso: `apps/web/app/api/energia/consumos/[id]/route.ts:24` exige
+    `exigir('operaciones', 'aprobar')` en el DELETE, mientras el GET
+    (`consumos/route.ts:34`) y el POST (`:49`) solo exigen `ver`/`crear`.
+  - El mecanismo que lo hace visible: `apps/web/app/(app)/(shell)/energia/page.tsx:127-134`
+    (`borrar()`) mete el error del DELETE fallido en el mismo estado `error` que
+    usa la carga inicial (`setError(cuerpo?.error ?? 'No se pudo borrar el recibo')`).
+    El render, en `:239-256`, prioriza ese estado sobre todo lo demás:
+    `error ? <EmptyState icon={ServerCrash} titulo="No se pudo cargar la captura" .../> : … : tablero ? <RejillaCaptura … /> : null`.
+    Un DELETE 403 —que no tiene nada que ver con la carga— hace que la rejilla
+    completa (`tablero`, intacto) deje de pintarse y salga un título que dice
+    literalmente «No se pudo cargar la captura», que es falso: sí cargó.
+- **Cómo se cierra:** un estado de error separado para el borrado (p. ej. un toast
+  junto al botón), sin tocar el estado que controla si se pinta la rejilla.
+- **Quién puede cerrarla:** un ejecutor.
+- **Si no se cierra antes del 14/10:** un perfil de Operaciones que intenta
+  corregir su propio recibo mal capturado pierde la pantalla entera y lee un
+  mensaje que no describe lo que pasó.
+
+#### B34 · `next dev` en local queda con el botón "Entrar" deshabilitado para siempre, sin ningún error visible
+
+- **Qué es:** encontrado al levantar el entorno para el manual del 18/09.
+  `next dev` usa `eval()` para el Fast Refresh de React; la CSP del 28/08 lo
+  bloquea sin avisar, React nunca hidrata, y el botón de login queda
+  deshabilitado sin ningún mensaje — parece un defecto de la pantalla y es del
+  entorno.
+- **Evidencia:** `apps/web/next.config.mjs:97-103` —
+  `POLITICA_CSP` trae `"script-src 'self' 'unsafe-inline'"` (`:103`), sin
+  `'unsafe-eval'`, aplicada globalmente por `headers()` (`:148-226`). Es la misma
+  familia que B6 (documentado en `CLAUDE.md:252-267`, cerrado el 18/09): un
+  entorno que se ve roto y no lo está, y cuesta un diagnóstico entero la primera
+  vez. El rodeo que usó el agente del manual: `next build && next start` en vez
+  de `next dev`.
+- **Cómo se cierra:** un párrafo en `CLAUDE.md`, junto a los otros dos avisos de
+  esta misma familia (B5/B6), documentando el síntoma y el rodeo
+  (`next build && next start`) — no se toca la CSP de producción por esto.
+- **Quién puede cerrarla:** cualquiera, es solo documentación.
+- **Si no se cierra:** cualquiera que arranque el entorno de desarrollo normal
+  pierde el mismo rato de diagnóstico, y a 23 días del SUMMIT van a ser varios.
 
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
