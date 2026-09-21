@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [backend, operaciones, ot, imprenta, amarillo]
 archivos:
   - apps/web/lib/server/ot-repo.ts
@@ -11,6 +11,8 @@ archivos:
   - apps/web/lib/server/almacen-repo.ts
   - apps/web/lib/tipos-ot.ts
   - apps/web/lib/costos-ot.ts
+  - apps/web/lib/costos-ot-payload.ts
+  - apps/web/app/(app)/(shell)/administracion/page.tsx
   - db/migrations/20260917_costos_ot_por_tipo.sql
 ---
 
@@ -123,6 +125,22 @@ Se escribe por `PATCH /api/config` con las claves como **enum cerrado**
 (`app/api/config/route.ts`), y se **sanea al leer y al escribir**
 (`sanearCostosOt`): la columna es jsonb y lo que entre se arrastra en cada
 respaldo.
+
+> [!success] 2026-09-21 · Ya hay pantalla — B11 cerrado
+> Hasta hoy `PATCH /api/config` aceptaba `costosOt` pero solo se podía escribir
+> con una petición a mano: la pantalla no existía. Ahora hay una tarjeta en
+> **Administración → pestaña Configuración** (`CostosOtCard`,
+> `app/(app)/(shell)/administracion/page.tsx`), con un input por cada tipo
+> vigente de `TODOS_TIPOS_OT` (excluye `TIPO_OT_OBSOLETO`, o sea
+> `MONTAJE_DIGITAL`: ya no se ofrece en ninguna pantalla).
+>
+> Qué viaja en el PATCH es la única decisión no trivial: solo los tipos que el
+> usuario tocó en esta sesión, comparando el borrador contra el `costosOt` que
+> trajo el último GET. Un campo vaciado desde un valor existente manda `null`
+> explícito (quitar ese tipo, vuelve al respaldo); un campo que nunca se tocó
+> no viaja. Vive en `lib/costos-ot-payload.ts` (`payloadCostosOt`), con su
+> propia prueba — `.tsx` no se prueba con unitarias porque `vitest.config.ts`
+> no monta jsdom.
 
 ## Módulo móvil
 

@@ -5,6 +5,17 @@ La entrada más reciente va arriba.
 
 ---
 
+## 2026-09-21
+
+- **Ya se puede fijar el costo de mano de obra por tipo de orden de trabajo desde
+  Administración.** El costo que usan el dashboard y los reportes de rentabilidad
+  para calcular el margen de una OT (montaje de lona, herrería, mantenimiento…) ya
+  se podía guardar por API desde hace unos días, pero solo con una petición a mano:
+  no había ninguna pantalla. Ahora hay una tarjeta nueva en **Administración →
+  Configuración**, con un campo por tipo de tarea. Dejar un campo vacío no borra
+  nada: quita ese tipo y vuelve a usar el valor de respaldo (el mismo que aplicaba
+  a todas las OT antes de esta tarjeta).
+
 ## 2026-09-18
 
 - **Nuevo reporte: por razón social.** En Reportes, «Agrupar» tiene una sexta
