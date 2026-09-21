@@ -29,12 +29,30 @@ const MODOS = ['automatica', 'aprobacion'] as const
 // `.strict()`: un campo con typo, o uno que le toca al actualizador
 // (`digestDisponible`, `versionInstalada`...), da 400 en vez de ignorarse en
 // silencio — el mismo criterio que `configSchema` en `app/api/config/route.ts`.
+//
+// El `.refine()` de abajo hace XOR: exactamente uno de los dos campos, nunca
+// los dos ni ninguno. No es un capricho de forma: son DOS ACCIONES distintas
+// (cambiar el modo, o aprobar una version) y el tipo del brief —
+// `{ modo? } | { aprobarDigest: string }` — ya las trataba como alternativas.
+//
+// Elegido sobre "envolver las dos escrituras en una transaccion" (ronda de
+// revision 1) porque el producto no le encuentra sentido a pedir las dos
+// cosas en una sola peticion real de la UI (un interruptor de modo y un boton
+// de "instalar ahora" son dos gestos distintos), y el XOR es mas honesto:
+// rechaza ANTES de tocar la base, en vez de escribir y decidir si revertir.
+// Con una transaccion la peticion combinada seguiria siendo ambigua -- ¿que
+// se le informa al dueno si el modo se guarda pero la aprobacion revienta,
+// todo dentro de una transaccion que al final SI hace commit del modo? -- y
+// el propio revisor senalo que el fallo real era justo esa ambiguedad.
 const patchSchema = z
   .object({
     modo: z.enum(MODOS).optional(),
     aprobarDigest: z.string().trim().min(1).optional(),
   })
   .strict()
+  .refine((b) => (b.modo !== undefined) !== (b.aprobarDigest !== undefined), {
+    message: 'Manda `modo` o `aprobarDigest`, no los dos a la vez ni ninguno',
+  })
 
 function aEstado(fila: FilaActualizacion) {
   return {
@@ -62,17 +80,16 @@ export async function GET() {
   }
 }
 
-// PATCH: el dueño cambia el modo y/o aprueba el digest disponible. La
-// comprobación del digest va EN EL SERVIDOR (`aprobarDigest()` en el repo):
-// aprobar algo que ya no es lo disponible da 409, nunca se guarda.
+// PATCH: el dueño cambia el modo, O aprueba el digest disponible — nunca las
+// dos en la misma petición (el `.refine()` del schema lo impone y ya rechazó
+// cualquier otra combinación antes de llegar aquí). La comprobación del
+// digest va EN EL SERVIDOR (`aprobarDigest()` en el repo): aprobar algo que
+// ya no es lo disponible da 409, nunca se guarda.
 export async function PATCH(req: Request) {
   const g = await exigir('administracion', 'aprobar')
   if (!g.ok) return NextResponse.json({ error: g.error }, { status: g.status })
   try {
     const b = validar(patchSchema, await req.json().catch(() => ({})))
-    if (b.modo === undefined && b.aprobarDigest === undefined) {
-      return NextResponse.json({ error: 'Falta `modo` o `aprobarDigest`' }, { status: 400 })
-    }
 
     if (b.modo !== undefined) {
       await fijarModo(b.modo)
