@@ -31,15 +31,16 @@ import {
 //  que `rol` sea texto y no un enum (ver `vault/02-Backend/entidades-fiscales.md`).
 // ============================================================================
 
-// Los cinco que hoy siembra `20260917_entidades_fiscales.sql:76`, en su orden.
-// Se escriben aquí como ENTRADA de las pruebas, que es distinto de que el
-// módulo los conozca.
+// Los cinco que hoy siembra `20260917_entidades_fiscales.sql:76`, en su orden,
+// con las dos etiquetas que `20260921_corrige_acentos_catalogo_roles_entidad.sql`
+// acentuó (LICENCIAS y OPERACION). Se escriben aquí como ENTRADA de las
+// pruebas, que es distinto de que el módulo los conozca.
 const CATALOGO = ['ARRENDAMIENTOS', 'ACTIVOS', 'LICENCIAS', 'OPERACION', 'VENTAS']
 const CATALOGO_CON_ETIQUETA = [
   { rol: 'ARRENDAMIENTOS', etiqueta: 'Paga las rentas a los arrendadores' },
   { rol: 'ACTIVOS', etiqueta: 'Compra los activos y el equipo' },
-  { rol: 'LICENCIAS', etiqueta: 'Tramites y licencias con gobierno' },
-  { rol: 'OPERACION', etiqueta: 'Operacion y nomina' },
+  { rol: 'LICENCIAS', etiqueta: 'Trámites y licencias con gobierno' },
+  { rol: 'OPERACION', etiqueta: 'Operación y nómina' },
   { rol: 'VENTAS', etiqueta: 'Vende publicidad' },
 ]
 
@@ -119,7 +120,7 @@ describe('2 · varias razones sociales, con operación y ventas juntas', () => {
     // La etiqueta sale del CATÁLOGO, no de una cadena escrita en el código: la
     // etiqueta es un dato de la fila (`catalogo_roles_entidad.etiqueta`) y
     // quien la renombre en su instancia tiene que verlo en pantalla.
-    expect(fusionado.etiqueta).toContain('Operacion y nomina')
+    expect(fusionado.etiqueta).toContain('Operación y nómina')
     expect(fusionado.etiqueta).toContain('Vende publicidad')
   })
 

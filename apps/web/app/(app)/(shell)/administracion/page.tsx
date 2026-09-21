@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { conteo } from '@/lib/plural'
-import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2 } from 'lucide-react'
+import { CheckCircle2, Users, ShieldCheck, UserPlus, Building2, X, Plus, Check, Upload, Percent, MonitorPlay, KeyRound, Scale, AlertTriangle, Mail, CornerUpLeft, Loader2, Wrench, Save } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/demo/ui/Card'
 import { Button } from '@/components/demo/ui/Button'
 import { Modal } from '@/components/demo/ui/Modal'
@@ -19,7 +19,8 @@ import { cn } from '@/lib/cn'
 import { esEmailValido, EMAIL_INVALIDO } from '@/lib/validacion'
 import { restablecerPasswordApi, desbloquearApi, esErrorDeDesbloqueo } from '@/lib/data/cambios-api'
 import { areasDeModulo } from '@/lib/modulos'
-import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, tiposOtPara } from '@/lib/tipos-ot'
+import { TIPO_OT_LABEL, TIPO_OT_SOLO_FIJA, TIPO_OT_OBSOLETO, TODOS_TIPOS_OT, tiposOtPara } from '@/lib/tipos-ot'
+import { payloadCostosOt } from '@/lib/costos-ot-payload'
 import { OrganizacionesPanel } from '@/components/demo/admin/OrganizacionesPanel'
 import { ControlCambiosPanel } from '@/components/demo/admin/ControlCambiosPanel'
 import {
@@ -34,6 +35,7 @@ import {
 } from '@/lib/data/admin-api'
 import { useActualizarConfig, useSitios } from '@/lib/data/client'
 import type { RolDemo, UsuarioDemo, ConfigNegocio } from '@/lib/data/client'
+import type { TipoOT } from '@/lib/data/types'
 import { validarPassword, REGLA_PASSWORD } from '@/lib/password'
 
 const inputCls =
@@ -930,7 +932,98 @@ function Configuracion({ onToast }: { onToast: (m: string) => void }) {
           </ul>
         </CardContent>
       </Card>
+
+      <CostosOtCard config={config} guardar={guardar} />
     </div>
+  )
+}
+
+// ─── Costo de mano de obra por tipo de OT (B11) ─────────────────────────────
+// El PATCH ya existía (`app/api/config/route.ts`, `sanearCostosOt`): faltaba
+// solo la pantalla. Antes de este bloque solo se podía fijar con una petición
+// a mano.
+//
+// `MONTAJE_DIGITAL` (TIPO_OT_OBSOLETO) queda fuera de la lista: ya no se
+// ofrece en ninguna pantalla, así que capturarle un costo aquí sería
+// configurar algo que nadie puede crear.
+//
+// Qué viaja en el PATCH —solo los tipos tocados, `null` explícito para
+// "quitar"— es la única decisión no trivial de esta tarjeta y vive en
+// `lib/costos-ot-payload.ts`, con su propia prueba: `vitest.config.ts` no
+// monta jsdom (CLAUDE.md §4), así que nada dentro de este .tsx se prueba con
+// unitarias. Este componente solo orquesta el estado de los inputs.
+function CostosOtCard({
+  config,
+  guardar,
+}: {
+  config: ConfigNegocio
+  guardar: (cambios: Partial<ConfigNegocio>, msg?: string) => Promise<boolean>
+}) {
+  const tipos = TODOS_TIPOS_OT.filter((t) => !TIPO_OT_OBSOLETO.includes(t))
+  const original = config.costosOt ?? {}
+
+  const borradorInicial = () =>
+    Object.fromEntries(tipos.map((t) => [t, original[t] != null ? String(original[t]) : ''])) as Partial<
+      Record<TipoOT, string>
+    >
+  const [borrador, setBorrador] = useState<Partial<Record<TipoOT, string>>>(borradorInicial)
+  const [busy, setBusy] = useState(false)
+
+  // Tras guardar, `guardar()` reemplaza `config` con la respuesta del
+  // servidor (ya saneada): esto resincroniza los inputs con lo que de verdad
+  // quedó escrito, igual que hace CorreoDeAvisos con `config.emailRemitente`.
+  useEffect(() => {
+    setBorrador(borradorInicial())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.costosOt])
+
+  const payload = payloadCostosOt(original, borrador)
+  const hayCambios = Object.keys(payload).length > 0
+
+  async function guardarCostos() {
+    setBusy(true)
+    // `ConfigNegocio.costosOt` describe la forma que devuelve el GET —ya
+    // saneada por `sanearCostosOt`, nunca con `null`—; el PATCH admite además
+    // `null` por tipo para "quitarlo" (route.ts:64-67). Ensanchar el tipo
+    // compartido para ese único campo de escritura afectaría a cada lector de
+    // `costosOt` (derive.ts, reportes.ts), así que la forma más amplia se
+    // declara aquí, acotada a esta única llamada.
+    const cambios = { costosOt: payload } as unknown as Partial<ConfigNegocio>
+    await guardar(cambios, 'Costos de mano de obra actualizados')
+    setBusy(false)
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center gap-2">
+        <Wrench className="h-4 w-4 text-muted" />
+        <CardTitle>Costo de mano de obra por tipo de orden de trabajo</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-[12px] text-muted">
+          Se usa para calcular el margen en el dashboard y en los reportes de rentabilidad.
+          Deja un campo en blanco para que ese tipo use el valor de respaldo, el mismo que
+          aplicaba a todas las OT antes de que existiera esta tarjeta.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {tipos.map((t) => (
+            <Campo key={t} label={TIPO_OT_LABEL[t]}>
+              <input
+                type="number"
+                min={0}
+                placeholder="Usa el respaldo"
+                className={`demo-num ${inputCls}`}
+                value={borrador[t] ?? ''}
+                onChange={(e) => setBorrador((b) => ({ ...b, [t]: e.target.value }))}
+              />
+            </Campo>
+          ))}
+        </div>
+        <Button size="sm" disabled={busy || !hayCambios} onClick={guardarCostos}>
+          <Save className="h-3.5 w-3.5" /> {busy ? 'Guardando…' : 'Guardar'}
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 

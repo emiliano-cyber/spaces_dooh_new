@@ -5,6 +5,7 @@ actualizado: 2026-09-17
 tags: [backend, entidades, fiscal, administracion, tenant, rojo]
 archivos:
   - db/migrations/20260917_entidades_fiscales.sql
+  - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
   - apps/web/lib/server/entidades-repo.ts
   - apps/web/lib/server/entidades-controller.ts
   - apps/web/app/api/entidades/route.ts
@@ -60,6 +61,7 @@ tablas y añade **dos** columnas.
 |---|---|---|
 | `catalogo_roles_entidad` | Vocabulario de roles. **Sin `tenant_id`** | `:62` |
 | Semilla de los 5 roles | `ARRENDAMIENTOS · ACTIVOS · LICENCIAS · OPERACION · VENTAS` | `:76` |
+| Corrección de acentos (`20260921`) | `LICENCIAS` y `OPERACION` sembraron su `etiqueta` sin acento (D8 de `docs/Supervision/ABIERTOS.md`); un `update` idempotente en una migración nueva lo corrige, sin tocar la del 17/09 ya aplicada | `db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql` |
 | `entidades_fiscales` | La razón social propia, con `activo` para la baja lógica | `:85` |
 | `entidad_roles` | Qué papel juega cada una. `unique (entidad_id, rol)` | `:115` |
 | `contratos_arrendamiento.entidad_id` | Quién paga esta renta. **Nullable** | `:133` |
