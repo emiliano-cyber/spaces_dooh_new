@@ -23,9 +23,19 @@ archivos:
   - db/migrations/20260910_pais_sin_default.sql
   - db/migrations/20260917_costos_ot_por_tipo.sql
   - db/migrations/20260917_entidades_fiscales.sql
+  - db/migrations/20260921_corrige_acentos_catalogo_roles_entidad.sql
 ---
 
 # Migraciones
+
+> [!note] 2026-09-21 · un `update` para corregir dos acentos sembrados el 17/09
+> `20260921_corrige_acentos_catalogo_roles_entidad.sql` — D8 de
+> `docs/Supervision/ABIERTOS.md`, autorizada por el dueño. `20260917_entidades_fiscales.sql`
+> sembró `LICENCIAS` y `OPERACION` con la `etiqueta` sin acento; como esa
+> migración ya está APLICADA (no se edita), se corrige con un `update` nuevo,
+> idempotente porque su `where` compara también la etiqueta vieja. Las otras
+> tres etiquetas del catálogo no se tocaron. Ver
+> [[02-Backend/entidades-fiscales]].
 
 > [!note] 2026-09-17 · una migración nueva, y dos recuentos remedidos
 > `20260917_entidades_fiscales.sql` — el catálogo de razones sociales propias del
