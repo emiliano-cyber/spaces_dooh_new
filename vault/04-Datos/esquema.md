@@ -33,7 +33,7 @@ archivos:
 > archivos **sí** los aplica una actualización normal, sin `--con-datos`.
 > Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
-**PostgreSQL, un solo schema (`public`), 39 tablas, sin ORM.** `db/schema.sql`
+**PostgreSQL, un solo schema (`public`), 44 tablas, sin ORM.** `db/schema.sql`
 (679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
 (medido el 27/08).
 
@@ -51,7 +51,14 @@ archivos:
 > migración. El estado real = `schema.sql` + las **74** en orden. Ver
 > [[migraciones]].
 >
-> **Las 39 tablas no se movieron con las seis migraciones nuevas**, y conviene
+> [!warning] 2026-09-18 · esta nota decía **39** en su cuerpo y **43** en su
+> cabecera, sobre un árbol de **44**
+> Las tres cifras estaban en el mismo archivo y ninguna era la de hoy. Se mide
+> con `node scripts/recuentos.mjs`, no releyendo. Las cinco que faltaban:
+> `entidades_fiscales`, `entidad_roles`, `catalogo_roles_entidad` (17/09) y
+> `consumos_energia` (18/09), más `codigos_recuperacion` (07/09).
+
+> **Las tablas no se movieron con las seis migraciones nuevas**, y conviene
 > entender por qué: `schema.sql` crea **28** y las migraciones las **11**
 > restantes; las de después del 19/08 añaden columnas, índices y GRANT, no
 > tablas. Recuento de migraciones y recuento de tablas **no suben juntos**, y

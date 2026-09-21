@@ -594,6 +594,16 @@ describe('las dimensiones se declaran UNA sola vez', () => {
     // una dimensión sin motor, o un motor que nadie puede pedir.
     //
     // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
-    expect(DIMENSIONES_REPORTE).toEqual(['sitio', 'trimestre', 'operacion', 'm2', 'luz'])
+    expect(DIMENSIONES_REPORTE).toEqual([
+      'sitio',
+      'trimestre',
+      'operacion',
+      'm2',
+      'luz',
+      // La SEXTA, del 2026-09-18. No la pidio el jefe: sale de la frase del
+      // ADR 0034 —el dueno quiere ver sus razones sociales JUNTAS— y la
+      // pregunta siguiente de esa frase es cuanto pasa por cada una.
+      'entidad',
+    ])
   })
 })

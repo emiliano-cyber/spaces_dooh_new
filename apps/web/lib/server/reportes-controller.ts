@@ -9,6 +9,7 @@ import {
   rentabilidadPorOperacion,
   rentabilidadPorM2,
   rentabilidadPorLuz,
+  rentabilidadPorEntidad,
   DIMENSIONES_REPORTE,
   type DatosRentabilidad,
   type GranularidadReporte,
@@ -123,6 +124,7 @@ const MOTORES: Record<DimensionRentabilidad, MotorRentabilidad> = {
   operacion: rentabilidadPorOperacion,
   m2: rentabilidadPorM2,
   luz: rentabilidadPorLuz,
+  entidad: rentabilidadPorEntidad,
 }
 
 export async function rentabilidadCtrl(params: unknown): Promise<ReporteRentabilidad> {

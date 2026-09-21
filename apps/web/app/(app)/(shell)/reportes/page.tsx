@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, BarChart3, CalendarSearch, Info, ServerCrash, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/demo/ui/Card'
@@ -11,15 +12,15 @@ import type { ReporteRentabilidad } from '@/lib/data/reportes'
 import { FiltrosRentabilidad } from '@/components/demo/reportes/FiltrosRentabilidad'
 import { TablaRentabilidad } from '@/components/demo/reportes/TablaRentabilidad'
 import {
-  RANGO_DE_APERTURA,
+  filtrosDesdeUrl,
   construirConsulta,
-  cuenta,
   motivoInvalido,
   type FiltrosReporte,
 } from '@/components/demo/reportes/consulta'
 import { debePedir, estadoDeReporte, type RespuestaReporte } from '@/components/demo/reportes/estado'
 import {
   avisosDelReporte,
+  subtituloDeConteo,
   formatoPorcentaje,
   ordenInicialDe,
   siguienteOrden,
@@ -37,7 +38,7 @@ import {
 //  `/api/estado` se trae 24 rebanadas de tablas completas y el front deriva los
 //  márgenes con `useStoreMemo`. Ese camino ya reventó una vez —6.12 MB y
 //  pantalla en blanco de 6 a 12 segundos, sin dar ningún error
-//  (`app/api/estado/route.ts:142-146`)— y un reporte de rentabilidad verá
+//  (`app/api/estado/route.ts:146-156`)— y un reporte de rentabilidad verá
 //  historia de AÑOS: su volumen crecería con la antigüedad de la cuenta, no con
 //  el periodo consultado. Colgar esta pantalla del store obligaría a rehacerla
 //  entera cuando el cálculo se porte a agregación SQL, y entonces ya no se
@@ -69,15 +70,25 @@ export default function ReportesPage() {
   // arregla aquí: se dice en pantalla, con el aviso `periodo-en-curso` de
   // `avisosDelReporte`. El porqué entero —y cómo se vuelve atrás en una línea si
   // cambia de opinión— está en `RANGO_DE_APERTURA` (`consulta.ts`).
-  const [filtros, setFiltros] = useState<FiltrosReporte>(() => ({
-    dimension: 'sitio',
-    granularidad: 'mes',
-    ...RANGO_DE_APERTURA(new Date()),
-  }))
+  // La direccion puede traer los filtros, para poder dejar un enlace preparado
+  // con el reporte ya filtrado. Sin esto habia que teclear dos fechas en vivo.
+  //
+  // Se lee UNA sola vez, en el inicializador del `useState`: a partir de ahi
+  // manda lo que el usuario toque. Si se releyera en cada render, cambiar un
+  // filtro con el mismo `searchParams` en la barra lo devolveria al de la URL y
+  // la pantalla pelearia contra su propio usuario.
+  //
+  // Lo que la dirección NO puede hacer es dejar la pantalla en un estado que su
+  // selector no sepa pintar — eso lo garantiza `filtrosDesdeUrl`, que ignora lo
+  // que no encaja. Ver su cabecera en `consulta.ts`.
+  const params = useSearchParams()
+  const [filtros, setFiltros] = useState<FiltrosReporte>(() =>
+    filtrosDesdeUrl(new URLSearchParams(params?.toString() ?? ''), new Date()),
+  )
   const [cargando, setCargando] = useState(false)
   const [respuesta, setRespuesta] = useState<RespuestaReporte | null>(null)
   const [reporte, setReporte] = useState<ReporteRentabilidad | null>(null)
-  const [orden, setOrden] = useState<Orden>(() => ordenInicialDe('sitio'))
+  const [orden, setOrden] = useState<Orden>(() => ordenInicialDe(filtros.dimension))
 
   const motivo = motivoInvalido(filtros)
 
@@ -162,6 +173,11 @@ export default function ReportesPage() {
             // periodo faltan: sin él, el reporte suma lo capturado y lo
             // presenta como el total de la energía, que es mentir sin error.
             cobertura: reporte.cobertura,
+            // Solo llega en `entidad`. Es el aviso que dice que la operación y
+            // la luz NO se reparten entre razones sociales, y por eso la tabla
+            // no tiene columna de margen: sin él, quien venga de «Por pantalla»
+            // buscaría el margen y supondría que se le olvidó a alguien.
+            atribucion: reporte.atribucion,
           })
         : [],
     [reporte],
@@ -223,11 +239,12 @@ export default function ReportesPage() {
             <KPICard
               label="Margen sobre ingreso"
               value={formatoPorcentaje(reporte.totales.margenPct)}
-              /* «N pantallas con movimiento» en TODA dimensión: en trimestral
-                 las filas son trimestres. El sustantivo lo declara
-                 `sustantivoFila` una sola vez, y lo leen también la tabla y los
-                 avisos. */
-              sub={`${cuenta(reporte.filas.length, reporte.dimension)} con movimiento`}
+              /* La frase la decide `subtituloDeConteo`, en `tabla.ts`, y no este
+                 archivo: aquí dentro no la probaba nadie —vitest no monta jsdom—
+                 y por eso llegó a decir «4 razones sociales con movimiento» con
+                 una de ellas en cero, contando además «Sin asignar» como una
+                 sociedad más del cliente. */
+              sub={subtituloDeConteo(reporte.dimension, reporte.filas)}
               tono={
                 reporte.totales.margenPct == null ? 'neutro' : reporte.totales.margenPct < 0 ? 'rojo' : 'verde'
               }

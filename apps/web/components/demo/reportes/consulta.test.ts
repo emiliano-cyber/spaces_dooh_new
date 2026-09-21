@@ -6,6 +6,7 @@ import {
   RANGO_DE_APERTURA,
   avanceDelTrimestreEnCurso,
   construirConsulta,
+  filtrosDesdeUrl,
   motivoInvalido,
   rangoDelTrimestreCerradoDe,
   rangoDelTrimestreDe,
@@ -76,10 +77,18 @@ describe('1 · la pantalla pide sus numeros al endpoint, no al store', () => {
 })
 
 describe('2 · las dimensiones del contrato estan declaradas', () => {
-  it('declara las cinco, en el mismo orden del contrato', () => {
+  it('declara las SEIS, en el mismo orden del contrato', () => {
     // `luz` entra el 2026-09-18 con el consumo electrico, y es la quinta.
     expect(DIMENSIONES_UI.map((d) => d.valor)).toEqual([
-      'sitio', 'trimestre', 'operacion', 'm2', 'luz',
+      'sitio',
+      'trimestre',
+      'operacion',
+      'm2',
+      'luz',
+      // La SEXTA, del 2026-09-18. No la pidio el jefe: sale de la frase del
+      // ADR 0034 —el dueno quiere ver sus razones sociales JUNTAS— y la
+      // pregunta siguiente de esa frase es cuanto pasa por cada una.
+      'entidad',
     ])
   })
 
@@ -268,5 +277,65 @@ describe('5 · cuando el rango toca un periodo que NO HA CERRADO', () => {
     // diciendo «T1» en una pantalla y «1er trimestre» en la otra.
     expect(avanceDelTrimestreEnCurso(new Date(2026, 0, 10)).etiqueta).toBe('T1 2026')
     expect(avanceDelTrimestreEnCurso(new Date(2025, 11, 31)).etiqueta).toBe('T4 2025')
+  })
+})
+
+// ── Los filtros de apertura pueden venir en la direccion ────────────────────
+//
+// Hasta el 18/09 la pantalla ignoraba la querystring: navegar a
+// `?dimension=luz&desde=…` abria igual en el trimestre en curso y por pantalla.
+// Consecuencia practica, y por eso se arregla: NO se podia dejar un enlace
+// preparado con el reporte ya filtrado. Habia que teclear dos fechas en vivo.
+describe('5 · filtrosDesdeUrl — un enlace puede traer el reporte ya filtrado', () => {
+  const hoy = new Date(2026, 8, 18)
+  const q = (s: string) => new URLSearchParams(s)
+
+  it('sin querystring devuelve exactamente lo de siempre', () => {
+    expect(filtrosDesdeUrl(q(''), hoy)).toEqual({
+      dimension: 'sitio',
+      granularidad: 'mes',
+      ...RANGO_DE_APERTURA(hoy),
+    })
+  })
+
+  it('toma las cuatro cosas cuando vienen bien', () => {
+    expect(filtrosDesdeUrl(q('dimension=luz&desde=2025-07-01&hasta=2026-06-30&granularidad=trimestre'), hoy))
+      .toEqual({ dimension: 'luz', granularidad: 'trimestre', desde: '2025-07-01', hasta: '2026-06-30' })
+  })
+
+  it('acepta una dimension sola y deja el rango de apertura', () => {
+    const f = filtrosDesdeUrl(q('dimension=operacion'), hoy)
+    expect(f.dimension).toBe('operacion')
+    expect({ desde: f.desde, hasta: f.hasta }).toEqual(RANGO_DE_APERTURA(hoy))
+  })
+
+  // NEGATIVOS. La direccion la escribe cualquiera, asi que es entrada que no se
+  // confia: un valor malo se IGNORA y se cae al de siempre. Nunca deja la
+  // pantalla en un estado que su propio selector no sepa representar.
+  it('una dimension inventada se ignora, no rompe el selector', () => {
+    expect(filtrosDesdeUrl(q('dimension=nomina'), hoy).dimension).toBe('sitio')
+  })
+
+  it('una granularidad inventada se ignora', () => {
+    expect(filtrosDesdeUrl(q('granularidad=semanal'), hoy).granularidad).toBe('mes')
+  })
+
+  it('una fecha con forma invalida se ignora, y NO deja media pareja', () => {
+    // Media pareja seria peor que ignorarla: `desde` de la URL con `hasta` del
+    // trimestre en curso es un rango que nadie pidio.
+    const f = filtrosDesdeUrl(q('desde=ayer&hasta=2026-06-30'), hoy)
+    expect({ desde: f.desde, hasta: f.hasta }).toEqual(RANGO_DE_APERTURA(hoy))
+  })
+
+  it('un rango invertido se ignora: lo habria rechazado el servidor igual', () => {
+    const f = filtrosDesdeUrl(q('desde=2026-06-30&hasta=2025-07-01'), hoy)
+    expect({ desde: f.desde, hasta: f.hasta }).toEqual(RANGO_DE_APERTURA(hoy))
+  })
+
+  it('`2026-9-1` sin cero a la izquierda se ignora: no es la forma del contrato', () => {
+    // Es la misma trampa que ya cazo el aviso de periodo en curso: como cadena
+    // `2026-9-1` va DESPUES de `2026-09-30`.
+    const f = filtrosDesdeUrl(q('desde=2026-9-1&hasta=2026-09-30'), hoy)
+    expect({ desde: f.desde, hasta: f.hasta }).toEqual(RANGO_DE_APERTURA(hoy))
   })
 })

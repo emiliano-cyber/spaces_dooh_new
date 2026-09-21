@@ -78,6 +78,21 @@ describe('1 · `luz` esta en el selector y sus filas son pantallas', () => {
   })
 })
 
+// La UNICA dimension que no pinta la energia, y la exencion es la propia
+// decision de diseno de `entidad`: no pinta NINGUNA de las columnas que no se
+// pueden atribuir a una razon social —operacion, luz, costo total y margen—
+// porque ningun dato dice a nombre de quien se paga una visita o un recibo.
+//
+// Y por eso el defecto que este guard impide AHI NO EXISTE: el motivo del guard
+// es que un `costoTotal` sin su columna de energia no cuadra con las columnas
+// que tiene al lado, y en `entidad` no hay columna de costo total con la que no
+// cuadrar. Lo que falta se dice con el aviso ambar, con su importe.
+//
+// Se escribe como una lista con nombre y no como un `filter` en el bucle a
+// proposito: una exencion con su porque al lado es revisable; una condicion
+// dentro del bucle se copia sin pensarla a la siguiente dimension.
+const SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE = ['entidad']
+
 describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => {
   it('`costoEnergia` es una columna comun, no propia de `luz`', () => {
     // EL DEFECTO QUE ESTO IMPIDE: con la energía dentro de `costoTotal` pero
@@ -85,7 +100,17 @@ describe('2 · el costo de la ENERGIA se pinta en TODAS las dimensiones', () => 
     // un Costo total de 8 000. Una tabla de dinero cuyas columnas no suman su
     // propio total es peor que una tabla sin total.
     for (const d of DIMENSIONES_UI) {
+      if (SIN_COLUMNAS_DE_COSTO_NO_ATRIBUIBLE.includes(d.valor)) continue
       expect(columnasDeDimension(d.valor).map((c) => c.clave), d.valor).toContain('costoEnergia')
+    }
+  })
+
+  it('y la exencion de `entidad` es EXACTA: ni costo total, ni margen, ni operacion', () => {
+    // Que la exencion no se convierta en una puerta abierta: si algun dia
+    // `entidad` gana una columna de margen, este guard se pone rojo.
+    const claves = columnasDeDimension('entidad').map((c) => c.clave)
+    for (const c of ['costoEnergia', 'costoOperacion', 'costoTotal', 'margen', 'margenPct']) {
+      expect(claves, c).not.toContain(c)
     }
   })
 

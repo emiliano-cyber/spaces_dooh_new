@@ -7,6 +7,48 @@ La entrada más reciente va arriba.
 
 ## 2026-09-18
 
+- **Nuevo reporte: por razón social.** En Reportes, «Agrupar» tiene una sexta
+  opción: **Por razón social**. Una fila por cada una de tus razones sociales, con
+  lo que facturó y la renta que paga. Es la respuesta a «¿cuánto pasa por cada una
+  de mis sociedades?», y hasta hoy el dato estaba capturado sin ningún sitio donde
+  mirarlo. Las sociedades que no mueven dinero **también salen, en cero**: que una
+  aparezca sin nada es información, no un hueco. Y lo que no tiene dueño en el dato
+  sale en una fila **«Sin asignar»**, que se queda siempre al final porque no es una
+  de tus sociedades: es algo por capturar.
+
+- **Y este reporte dice lo que NO sabe, que es lo importante.** La operación y la
+  luz **no se reparten** entre razones sociales, porque no hay ningún dato que diga
+  a nombre de quién se paga una visita o un recibo de luz. Así que la tabla **no
+  muestra margen** — lo diría mejor de lo que es— y en su lugar muestra el **saldo
+  atribuido**, con ese nombre para que no se confunda. Encima de la tabla, en
+  ámbar, dice cuánto dinero es lo que no se reparte y cuántos contratos o
+  comprobantes les falta la razón social. Las cuatro cifras grandes de arriba
+  siguen siendo las del negocio completo, idénticas a las de los otros reportes:
+  cambiar de agrupador no cambia el total.
+
+- **La presentación del 14 de octubre se recorrió entera y se cronometró.** No es
+  un cambio en el sistema: es una comprobación. Se abrieron las seis pantallas
+  del recorrido una por una y **se compararon todas las cifras, celda por celda,
+  contra las que el guion tiene escritas**. Coinciden todas. Lo que tarda la
+  máquina en poner un número en pantalla va de **0.13 a 0.72 segundos**, y la
+  más lenta es la primera, porque es la que carga el programa; a partir de ahí
+  todas bajan a la mitad. También se ensayó de principio a fin el borrado y la
+  vuelta a sembrar de las razones sociales —lo que hace falta para poder enseñar
+  el cuestionario de bienvenida en vivo—: **tarda menos de dos segundos y deja la
+  base exactamente como estaba**, contado dato por dato antes y después.
+
+- **Y encontró tres cosas que no se veían leyendo el guion.** Primera: la tabla
+  del reporte abre con las pantallas que peor van arriba, que es lo correcto para
+  trabajar, pero deja separadas las dos que la presentación compara — se juntan
+  con **un clic** en el encabezado, y ese clic ahora está escrito en el guion como
+  un paso más. Segunda: el guion mandaba señalar una columna de «visitas» en la
+  vista por trimestre, **y esa columna no existe ahí**; el dato era cierto, pero
+  no estaba en la pantalla, así que la frase ahora usa el costo de operación, que
+  sí está y sube un 30 % en el año. Tercera: el programa puede estar sirviendo una
+  versión vieja **con la pantalla viéndose perfecta**, así que la comprobación de
+  antes de empezar dejó de ser «mirar si se ve bien» y pasó a ser comparar dos
+  códigos de versión, que tarda un minuto.
+
 - **El costo de un periodo pasado ya no miente.** El reporte de rentabilidad
   calculaba el costo de la renta con **el contrato vigente hoy**. Eso hacía dos
   cosas mal en cualquier reporte de un trimestre ya cerrado: no veía el contrato
@@ -29,7 +71,7 @@ La entrada más reciente va arriba.
   en cero porque falta el dato, no porque sea gratis, y eso se avisa encima de la
   tabla. **Lo ven el Dueño y el rol de Finanzas**: es información de dinero.
 
-- **Las cuatro formas de mirar el reporte ya funcionan.** Además de **por
+- **Las cinco formas de mirar el reporte ya funcionan.** Además de **por
   pantalla**, ahora calculan **por trimestre**, para ver cómo evoluciona el
   negocio en el tiempo; **por operación**, que cruza las visitas de mantenimiento
   con el dinero que produce cada pantalla —es el reporte que contesta «han tenido
@@ -38,9 +80,11 @@ La entrada más reciente va arriba.
   compara el rendimiento de las estáticas. Esta última **deja fuera a propósito
   las pantallas digitales** (se venden por spots, no por metros) y las estáticas
   sin ancho o alto capturados, **y dice cuántas dejó fuera y por qué**, para que
-  nadie lea la tabla creyendo que está el inventario completo. Queda una decisión
-  pendiente: en una pantalla de dos caras de 3×6, el metro cuadrado son 18 o 36.
-  Por ahora se calcula **una cara**, y el reporte lo dice.
+  nadie lea la tabla creyendo que está el inventario completo. Y **el metro
+  cuadrado suma todas las caras**: una pantalla de dos caras de 3 × 6 cuenta
+  36 m², no 18, porque es la superficie que de verdad se vende. El reporte lo
+  dice en pantalla, para que nadie lea las cifras sin saber con qué criterio se
+  contaron.
 
 - **Al entrar por primera vez, el sistema pregunta por tus razones sociales.**
   Casi todas las empresas de medios reparten su operación entre varias: una paga

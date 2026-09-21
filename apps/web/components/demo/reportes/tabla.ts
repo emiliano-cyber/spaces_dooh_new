@@ -1,6 +1,7 @@
 import { formatMonto } from '@/lib/data/derive'
 import { TIPO_OT_LABEL } from '@/lib/tipos-ot'
 import type {
+  AtribucionEntidad,
   CoberturaEnergia,
   ConvencionM2,
   ExclusionesM2,
@@ -67,6 +68,9 @@ export type FilaOrdenable = Pick<
       | 'margenPorM2'
       | 'kwh'
       | 'costoPorKwh'
+      | 'papeles'
+      | 'saldoAtribuido'
+      | 'pctDelIngreso'
     >
   >
 
@@ -87,6 +91,8 @@ export type ColumnaReporte =
   | 'margenPorM2'
   | 'kwh'
   | 'costoPorKwh'
+  | 'saldoAtribuido'
+  | 'pctDelIngreso'
 
 export type Direccion = 'asc' | 'desc'
 
@@ -184,6 +190,12 @@ export const COLUMNAS: DefinicionColumna[] = [
   // ─── Solo en `luz` ──────────────────────────────────────────────────────
   def('kwh', 'Consumo', 'kwh', 'desc'),
   def('costoPorKwh', 'Costo / kWh', 'dinero', 'desc'),
+  // ─── Solo en `entidad` ──────────────────────────────────────────────────
+  // NO se llama «Margen», y el nombre es la mitad del trabajo de esta columna:
+  // es `ingreso − renta`, le faltan la operación y la luz, y llamarlo margen
+  // lo haría leer como el margen de esa sociedad — siempre mejor que el real.
+  def('saldoAtribuido', 'Saldo atribuido', 'dinero', 'desc'),
+  def('pctDelIngreso', '% de la facturación', 'porcentaje', 'desc'),
 ]
 
 const CATALOGO = new Map(COLUMNAS.map((c) => [c.clave, c]))
@@ -238,6 +250,17 @@ const COLUMNAS_POR_DIMENSION: Record<DimensionUI, ColumnaReporte[]> = {
   // consumió y a qué precio. Sin ellas el reporte «por consumo de luz» calcula
   // bien y no enseña un solo kWh.
   luz: inserta(COMUNES_SIN_TOTAL, 'costoTotal', ['kwh', 'costoPorKwh']),
+  // La ÚNICA que no parte de `COMUNES`, y es la decisión de diseño de la
+  // dimensión, no un ahorro de columnas: la operación, la luz, el costo total y
+  // el margen NO SE PUEDEN ATRIBUIR a una razón social —ningún dato dice a
+  // nombre de quién se paga una visita o un recibo—. Pintarlas en cero se leería
+  // como «esta sociedad no gasta nada en operación», y pintar un margen con dos
+  // de las cuatro fuentes de costo dentro daría un número mejor que el real.
+  //
+  // Se pinta lo que el dato SÍ dice —lo que facturó y la renta que paga—, su
+  // resta con un nombre que no se pueda confundir, y qué parte del negocio
+  // emite. Lo que falta lo dice el aviso ámbar, con su importe.
+  entidad: ['etiqueta', 'ingreso', 'costoEspacio', 'saldoAtribuido', 'pctDelIngreso'],
 }
 
 // El encabezado de la primera columna dice QUÉ son las filas. Decía «PANTALLA»
@@ -254,6 +277,7 @@ const PRIMERA_COLUMNA: Record<DimensionUI, { label: string; campoOrden?: keyof F
   operacion: { label: 'Pantalla' },
   m2: { label: 'Pantalla' },
   luz: { label: 'Pantalla' },
+  entidad: { label: 'Razón social' },
 }
 
 export function columnasDeDimension(d: DimensionUI): DefinicionColumna[] {
@@ -291,10 +315,66 @@ const ORDEN_POR_DIMENSION: Record<DimensionUI, Orden> = {
   // problema de consumo, y por peor margen saldría primera tapando justo a las
   // que sí lo son. La pregunta de esta dimensión es «¿cuáles se comen la luz?».
   luz: { columna: 'costoEnergia', direccion: 'desc' },
+  // Por quien FACTURA más. No hay margen que ordenar aquí, y la pregunta del
+  // dueño es «¿cuánto pasa por cada una de mis sociedades?».
+  entidad: { columna: 'ingreso', direccion: 'desc' },
 }
 
 export function ordenInicialDe(d: DimensionUI): Orden {
   return ORDEN_POR_DIMENSION[d]
+}
+
+// Las dimensiones cuyas filas NO son una pantalla. Sobre ellas, dos frases que
+// la tabla daba por buenas dicen algo falso, y las dos se encontraron EN EL
+// NAVEGADOR con las 1691 unitarias en verde — porque vivían dentro de un
+// `.tsx`, y `vitest.config.ts` no monta jsdom a propósito. Viven aquí por lo
+// mismo que el tono de los avisos: una decisión escrita en un componente no la
+// prueba nadie.
+const FILAS_QUE_NO_SON_PANTALLAS: ReadonlySet<DimensionUI> = new Set<DimensionUI>([
+  'trimestre',
+  'entidad',
+])
+
+/**
+ * Lo que va debajo del nombre de la fila sobre el contrato de arrendamiento, o
+ * `null` si ahí no significa nada.
+ *
+ * EL DEFECTO QUE ESTO IMPIDE, visto en pantalla el 18/09: «Vende publicidad ·
+ * **sin contrato**» debajo de una razón social. Una sociedad que solo
+ * comercializa **no tiene por qué** tener un contrato de arrendamiento, así que
+ * la frase señalaba un problema inexistente justo debajo del nombre de la
+ * empresa del cliente. En `trimestre` ya estaba excluida por el mismo motivo:
+ * ahí `tieneContrato` significa «hubo renta en el trimestre».
+ */
+export function notaDeArrendador(
+  dimension: DimensionUI,
+  tieneContrato: boolean,
+  arrendador: string | null,
+): string | null {
+  if (FILAS_QUE_NO_SON_PANTALLAS.has(dimension)) return null
+  return tieneContrato ? arrendador : 'sin contrato'
+}
+
+/**
+ * El subtítulo del último indicador: cuántas filas trae el reporte.
+ *
+ * EL OTRO DEFECTO del 18/09: decía «4 razones sociales **con movimiento**» con
+ * una de ellas en cero de ingreso y cero de renta. `entidad` pinta TODAS sus
+ * razones sociales a propósito —un cero es información: esa sociedad no mueve
+ * dinero por el sistema— así que la cabecera no puede afirmar que todas se
+ * movieron. Y de paso contaba «Sin asignar» como una razón social más, lo que
+ * infla el número de sociedades que el dueño cree tener dadas de alta.
+ */
+export function subtituloDeConteo(
+  dimension: DimensionUI,
+  filas: readonly { clave: string }[],
+): string {
+  if (dimension === 'entidad') {
+    // Sin «Sin asignar»: su clave es la vacía, y no es una sociedad del cliente.
+    const n = filas.filter((f) => f.clave !== '').length
+    return cuenta(n, dimension)
+  }
+  return `${cuenta(filas.length, dimension)} con movimiento`
 }
 
 // `es-MX` explícito y no el locale del navegador: 'Á' vale 193 y 'B' 66, así
@@ -319,10 +399,22 @@ export function ordenarFilas<T extends FilaOrdenable>(
   const col = definicionPara(orden, dimension)
   const campo = (col.campoOrden ?? col.clave) as keyof FilaOrdenable
   const signo = orden.direccion === 'asc' ? 1 : -1
+  // «Sin asignar» se queda SIEMPRE al final, ordene el usuario lo que ordene.
+  // No es un competidor del ranking: es un hueco de captura. Un clic en
+  // «Ingreso» que lo subiera a la primera fila lo haría leer como la razón
+  // social que más factura, que es justo lo que no es.
+  //
+  // Se reconoce por la clave vacía, y eso es seguro: es la única fila de todo el
+  // reporte que no tiene id —las demás son un id de sitio o una clave de
+  // periodo—, así que en las otras cinco dimensiones esta regla no se activa
+  // nunca. Hay una prueba que lo comprueba.
+  const alFinal = (f: FilaOrdenable) => (f.clave === '' ? 1 : 0)
   // Copia antes de ordenar: `Array.prototype.sort` ordena EN SITIO, y sobre el
   // arreglo que guarda un `useState` eso es una mutación que React no ve, así
   // que la tabla no se vuelve a pintar.
   return [...filas].sort((a, b) => {
+    const fijo = alFinal(a) - alFinal(b)
+    if (fijo !== 0) return fijo
     if (!col.numerica) {
       return signo * comparadorTexto.compare(String(a[campo] ?? ''), String(b[campo] ?? ''))
     }
@@ -435,6 +527,7 @@ export function desgloseDeFila(f: { periodos?: readonly PeriodoFila[] }): Period
 
 export interface AvisoReporte {
   clave:
+    | 'entidad-atribucion'
     | 'periodo-en-curso'
     | 'luz-sin-recibo'
     | 'm2-convencion'
@@ -462,6 +555,8 @@ export interface AvisoReporte {
 
 export interface ReporteParaAvisos {
   dimension: DimensionUI
+  /** Solo en `entidad`: qué no se pudo atribuir. Su nota se pinta verbatim. */
+  atribucion?: AtribucionEntidad
   /** El rango que se pidió. `AAAA-MM-DD`, inclusive. */
   desde: string
   hasta: string
@@ -515,6 +610,27 @@ const TEXTO_CONVENCION: Record<ConvencionM2, string> = {
 // tienen contrato» sobre dos trimestres sin renta afirma algo que no existe.
 export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
   const avisos: AvisoReporte[] = []
+
+  // ─── LO QUE NO SE PUEDE PONER A NOMBRE DE NADIE ───────────────────────────
+  // Va PRIMERO, incluso antes del periodo en curso, y por la razón más fuerte
+  // de las dos: no advierte de que las cifras estén a medias, advierte de que
+  // la tabla NO TIENE una columna que en las otras cinco dimensiones sí está.
+  // Quien llega aquí desde «Por pantalla» busca el margen, y si no encuentra ni
+  // la columna ni la explicación va a suponer que se le olvidó a alguien.
+  //
+  // Siempre en ÁMBAR, y esta vez sí siempre: no es un hueco de captura que
+  // pueda estar vacío —como los recibos de luz, que a veces no faltan—, es una
+  // limitación estructural del dato que aplica en todos los periodos. Un aviso
+  // que siempre sale es el que hay que dar cuando la cosa de la que avisa
+  // siempre está.
+  //
+  // La nota la redacta el MOTOR (`notaDeAtribucion`) y se pinta verbatim, por
+  // lo mismo que la del m² y la de la luz: reescribirla aquí sería la segunda
+  // implementación de la misma frase, y divergir significaría decirle al usuario
+  // que falta algo distinto de lo que falta.
+  if (r.atribucion) {
+    avisos.push({ clave: 'entidad-atribucion', tono: 'alerta', texto: r.atribucion.nota })
+  }
 
   // ─── EL PERIODO QUE NO HA CERRADO ─────────────────────────────────────────
   // Va PRIMERO porque cambia cómo se lee todo lo demás que hay en pantalla. Un
@@ -597,7 +713,11 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
 
   // Solo donde la fila ES una pantalla. El sustantivo se declara una vez, en
   // `consulta.ts`, porque lo leen también la cabecera y la tabla.
-  if (r.dimension !== 'trimestre') {
+  // Ni en `trimestre` ni en `entidad`: en las dos la fila no es una pantalla.
+  // Y en `entidad` además sería FALSO Y ALARMANTE — una razón social que solo
+  // vende publicidad no tiene por qué tener un contrato de arrendamiento, así
+  // que decir que «le falta el dato» señalaría un problema que no existe.
+  if (r.dimension !== 'trimestre' && r.dimension !== 'entidad') {
     const n = r.filas.filter((f) => !f.tieneContrato).length
     if (n > 0) {
       avisos.push({
@@ -608,7 +728,10 @@ export function avisosDelReporte(r: ReporteParaAvisos): AvisoReporte[] {
     }
   }
 
-  const n = r.filas.filter((f) => f.ingreso === 0).length
+  // `entidad` queda fuera: una sociedad que solo paga las rentas no vende nada
+  // y su ingreso en cero es lo correcto, no un hueco. El aviso hablaría de algo
+  // que «costó sin vender», que ahí no significa nada.
+  const n = r.dimension === 'entidad' ? 0 : r.filas.filter((f) => f.ingreso === 0).length
   if (n > 0) {
     avisos.push({
       clave: 'sin-ingreso',

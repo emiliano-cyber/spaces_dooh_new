@@ -13,7 +13,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  y el front deriva los márgenes con `useStoreMemo` (`lib/data/client.ts:329`).
 //  Ese camino ya reventó una vez —6.12 MB y pantalla en blanco de 6 a 12
 //  segundos, sin dar ningún error; lo cuenta su propio código en
-//  `app/api/estado/route.ts:142-146`—, y los reportes verán historia de AÑOS.
+//  `app/api/estado/route.ts:146-156`—, y los reportes verán historia de AÑOS.
 //  Colgar esta pantalla del store obligaría a rehacerla entera cuando el
 //  cálculo se porte a agregación SQL. Por eso el límite se respeta desde el
 //  primer render.
@@ -23,7 +23,7 @@ import { diaComparable, esFechaValida, ordenInvertido } from '@/lib/server/fecha
 //  El contrato del endpoint está en `vault/02-Backend/reportes-rentabilidad.md`.
 // ============================================================================
 
-export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz'
+export type DimensionUI = 'sitio' | 'trimestre' | 'operacion' | 'm2' | 'luz' | 'entidad'
 export type GranularidadUI = 'mes' | 'trimestre'
 
 export interface FiltrosReporte {
@@ -82,6 +82,16 @@ export const DIMENSIONES_UI: { valor: DimensionUI; label: string; ayuda: string 
     label: 'Por consumo de luz',
     ayuda: 'Qué pantallas se comen la energía. El recibo del predio se reparte entre sus pantallas.',
   },
+  // La SEXTA, y la única cuyas filas no son pantallas ni periodos. No la pidió
+  // el dueño —pidió cinco— pero es la pregunta siguiente del ADR 0034: si no
+  // quiere separar sus razones sociales sino verlas juntas, lo que va a
+  // preguntar es cuánto pasa por cada una.
+  {
+    valor: 'entidad',
+    label: 'Por razón social',
+    ayuda:
+      'Cuánto factura y cuánta renta paga cada una de tus razones sociales. La operación y la luz no se reparten: no hay dato que diga de quién son.',
+  },
 ]
 
 // `dia` y `semana` existen en `Granularidad` para la gráfica de ocupación y NO
@@ -102,6 +112,7 @@ export const GRANULARIDADES_UI: { valor: GranularidadUI; label: string }[] = [
 // `operacion`, `m2` y `luz` pivotan la misma rejilla que `sitio`, así que sus
 // filas siguen siendo pantallas: lo que cambia es qué se mide de ellas.
 const SUSTANTIVO_FILA: Record<DimensionUI, { singular: string; plural: string }> = {
+  entidad: { singular: 'razón social', plural: 'razones sociales' },
   sitio: { singular: 'pantalla', plural: 'pantallas' },
   trimestre: { singular: 'trimestre', plural: 'trimestres' },
   operacion: { singular: 'pantalla', plural: 'pantallas' },
@@ -286,4 +297,51 @@ export function avanceDelTrimestreEnCurso(hoy: Date): {
     totales: diasEntre(inicio, fin) + 1,
     etiqueta: etiquetaBucket(inicio, 'trimestre'),
   }
+}
+
+// ─── Los filtros de apertura pueden venir en la dirección ────────────────────
+//
+// Hasta el 2026-09-18 esta pantalla IGNORABA la querystring: navegar a
+// `?dimension=luz&desde=…` abría igual por pantalla y en el trimestre en curso.
+// Consecuencia práctica, que es la que lo arregla: **no se podía dejar un enlace
+// preparado con el reporte ya filtrado**, y había que teclear dos fechas en vivo
+// — delante de quien fuera.
+//
+// Y la regla que gobierna esta función: **la dirección la escribe cualquiera**,
+// así que es entrada que NO se confía. Un valor que no encaja **se ignora y se
+// cae al de siempre**; nunca deja la pantalla en un estado que su propio
+// selector no sepa representar. El servidor volvería a validarlo con su zod,
+// pero para entonces la pantalla ya estaría pintando una dimensión que no
+// existe en su desplegable.
+const FORMA_FECHA = /^\d{4}-\d{2}-\d{2}$/
+
+export function filtrosDesdeUrl(q: URLSearchParams, hoy: Date): FiltrosReporte {
+  const base: FiltrosReporte = {
+    dimension: 'sitio',
+    granularidad: 'mes',
+    ...RANGO_DE_APERTURA(hoy),
+  }
+
+  const d = q.get('dimension')
+  if (d && DIMENSIONES_UI.some((x) => x.valor === d)) base.dimension = d as DimensionUI
+
+  const g = q.get('granularidad')
+  if (g && GRANULARIDADES_UI.some((x) => x.valor === g)) base.granularidad = g as GranularidadUI
+
+  // El rango entra o no entra ENTERO. Media pareja —el `desde` de la dirección
+  // con el `hasta` del trimestre en curso— sería un rango que nadie pidió, y se
+  // vería como un reporte legítimo.
+  //
+  // La forma se exige con `\d{4}-\d{2}-\d{2}` y no con `Date.parse`, por lo
+  // mismo que ya documenta `solapaTrimestreEnCurso`: `2026-9-1` es una fecha
+  // válida para `Date` y como CADENA va después de `2026-09-30`, así que las
+  // comparaciones de este módulo darían la vuelta sin dar ningún error.
+  const desde = q.get('desde')
+  const hasta = q.get('hasta')
+  if (desde && hasta && FORMA_FECHA.test(desde) && FORMA_FECHA.test(hasta) && desde <= hasta) {
+    base.desde = desde
+    base.hasta = hasta
+  }
+
+  return base
 }

@@ -16,6 +16,7 @@ import {
   type ColumnaReporte,
   type DefinicionColumna,
   type Orden,
+  notaDeArrendador,
 } from './tabla'
 
 // ============================================================================
@@ -210,13 +211,14 @@ function FilaTabla({
                     <span className="text-ink">{fila.etiqueta}</span>
                     {/* El detalle desambigua nombres repetidos, y el arrendador dice
                         a quién se le paga la renta que sale en «costo del espacio».
-                        En `trimestre` NO se dice «sin contrato»: ahí `tieneContrato`
-                        significa «hubo renta en el trimestre» y la fila no es una
-                        pantalla, así que esa etiqueta afirmaría algo que no existe. */}
+                        DÓNDE se dice y dónde no lo decide `notaDeArrendador`, en
+                        `tabla.ts`: aquí dentro esa condición no la probaba nadie,
+                        y por eso llegó a pintar «sin contrato» debajo de una razón
+                        social — donde afirma un problema que no existe. */}
                     <span className="block text-[11px] text-muted">
                       {[
                         fila.detalle || null,
-                        dimension === 'trimestre' ? null : fila.tieneContrato ? fila.arrendador : 'sin contrato',
+                        notaDeArrendador(dimension, fila.tieneContrato, fila.arrendador),
                         // Las visitas por tipo van bajo el nombre y no en una
                         // columna: son un objeto tipo→conteo, y una columna con
                         // «Herrería 3 · Inspección 1» no se puede ordenar.

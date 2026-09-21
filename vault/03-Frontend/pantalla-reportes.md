@@ -14,6 +14,7 @@ archivos:
   - apps/web/components/demo/reportes/TablaRentabilidad.tsx
   - apps/web/lib/modulos.ts
   - apps/web/components/demo/shell/nav.ts
+  - apps/web/lib/test/reportes-acceso.e2e.test.ts
 ---
 
 # Pantalla de reportes de rentabilidad
@@ -37,7 +38,7 @@ se le arreglaron **tres defectos que solo se vieron ABRIÉNDOLA** — ver
 > 24 rebanadas de tablas completas (`app/api/estado/route.ts:98-130`) y el front
 > deriva con `useStoreMemo` (`lib/data/client.ts:329`). **Ese camino ya reventó
 > una vez: 6.12 MB y pantalla en blanco de 6 a 12 segundos, sin dar error**
-> —lo cuenta su propio código en `app/api/estado/route.ts:142-146`—.
+> —lo cuenta su propio código en `app/api/estado/route.ts:146-156`—.
 >
 > Un reporte de rentabilidad verá **historia de años**: por ahí su volumen
 > crecería con la antigüedad de la cuenta, no con el periodo consultado. Y el
@@ -434,11 +435,31 @@ necesitas el número, córrelo.
 > hijo**: hubo que matar al dueño del puerto 3402 a mano
 > (`Get-NetTCPConnection -LocalPort 3402`).
 
-> [!warning] Falta una e2e propia de la pantalla
-> Las unitarias no pueden darla: que un rol sin `finanzas.ver` no vea la entrada
-> del menú **ni** pueda abrir `/reportes` por enlace directo. Las unitarias
-> comprueban que el `NAV` lo dice; que el servidor lo cumpla con el rol real
-> solo lo ve una e2e.
+> [!success] 2026-09-18, tarde · ya existe: `reportes-acceso.e2e.test.ts`
+> **11 casos.** Lo que cubre, con el rol real leído de `rol_permisos` en una base
+> de verdad —y comprobando antes que el permiso **no está sembrado**, para que un
+> 403 no pueda venir de una semilla incompleta—:
+> - las **CINCO** dimensiones del selector responden **403** al rol sin
+>   `finanzas`, `luz` incluida, y el mensaje no filtra ni una clave;
+> - el **control positivo**: el Dueño de la MISMA organización recibe 200, así
+>   que el 403 es del permiso y no de una ruta rota;
+> - la ruta EXACTA `/spaces-dooh/api/reportes/rentabilidad/` pedida **desde el
+>   origen pelado** devuelve 200 y JSON, y la constante se **importa** del módulo
+>   de la pantalla en vez de reescribirse;
+> - **sin el basePath** devuelve el 404 de Next **con cuerpo HTML** —el defecto
+>   que documenta esta nota, ahora fijado— y **sin la barra final**, un 308.
+
+> [!danger] Lo que esa e2e NO puede afirmar, y conviene no creerse
+> El aviso que había aquí decía «ni pueda abrir `/reportes` por enlace directo».
+> **Medido el 18/09: el servidor NO lo impide.** `middleware.ts:174-179` solo
+> compuerta por **presencia de sesión**, así que a un COMERCIAL autenticado
+> `/reportes/` le responde **200** con el HTML de la pantalla; quien lo desvía es
+> `AuthGate` **en el navegador**.
+>
+> No es un agujero de datos —el HTML no trae ni una cifra, porque la pantalla las
+> pide al endpoint y el endpoint le contesta 403, y la e2e lo comprueba— pero
+> **sí es una afirmación que esta nota hacía y el servidor no sostiene**. Lo que
+> protege el dinero es el guard del endpoint, no la ruta de la página.
 
 > [!success] 2026-09-18 · la pantalla YA se abrió en un navegador
 > Es lo que el aviso anterior de esta nota reclamaba, y encontró **tres

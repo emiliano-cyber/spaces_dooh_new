@@ -10,7 +10,7 @@ archivos:
   - apps/web/lib/server/cambios.ts
 ---
 
-# API — los 94 endpoints
+# API — los 98 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:93`).

@@ -105,7 +105,7 @@ archivos:
 
 ## Cómo funciona
 
-- **82 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
+- **84 archivos** en `db/migrations/`, nombrados `YYYYMMDD_descripcion.sql`
   (medidos el 2026-09-18 sobre el árbol fusionado; eran 80 el 10/09 y 75 el
   31/08). Las dos últimas son **`20260917_costos_ot_por_tipo.sql`** y
   **`20260917_entidades_fiscales.sql`**; la anterior era
@@ -791,8 +791,31 @@ segunda pasada sin error, `costos_ot` = `jsonb` `NOT NULL` con default `'{}'`,
 el arreglo rechazado por el CHECK y el objeto aceptado. **Contra ningún
 servidor.**
 
-**Hay 82 archivos en `db/migrations/`** —medido el 2026-09-18 con
-`ls db/migrations/*.sql | wc -l` sobre el árbol fusionado— y **43 tablas**. Este
+**Hay 84 archivos en `db/migrations/`** y **44 tablas**, medidos el 2026-09-18
+con `node scripts/recuentos.mjs`, que existe justo para que esta cifra no se
+vuelva a mantener a mano — este párrafo la ha tenido mal **tres veces**.
+
+> [!important] Las dos del 18/09, que no constaban en esta nota
+> Se añadieron sin su entrada aquí, contra la regla 4 de `AGENTES.md`:
+>
+> **`20260918_consumos_energia.sql`** — el recibo de luz por predio y mes, con
+> RLS fail-closed y FORCE, unicidad por `(tenant_id, predio, periodo, medidor)`
+> con `coalesce` para que dos recibos SIN medidor no entren los dos, y anclaje
+> excluyente a predio **o** a pantalla suelta, porque `sitios.predio_id` es
+> nullable y el consumo de una pantalla sin predio no tendría dónde ir.
+>
+> **`20260918_entidad_tenant_compuesto.sql`** — **la que cierra el agujero R2.**
+> Añade `unique (id, tenant_id)` a `entidades_fiscales` y repunta las tres FK a
+> la pareja, porque las comprobaciones de clave ajena **no pasan por RLS** y se
+> podía colgar una fila de la razón social de otra organización. Dos sutilezas
+> medidas: `on delete set null` **exige lista de columnas** o borrar una entidad
+> fallaría en vez de dejar el documento «sin asignar», y `MATCH SIMPLE` —el de
+> omisión— es lo que permite que «sin asignar» siga entrando.
+>
+> Las dos se ensayaron el 18/09 **por el camino real**: base con historia y con
+> datos, runner de verdad, y también la secuencia fea —FK creadas de cero sobre
+> filas ya asignadas—. Salida 0 en las dos, datos intactos, y segunda pasada
+> idempotente. Este
 párrafo ha tenido la cifra mal dos veces seguidas: traía 76 (del 10/09) y la
 rama de reportes la corrigió a 81 y 42 sin poder ver las tres tablas que la rama
 de entidades añadía en paralelo. Si la necesitas, cuéntala, no la copies.

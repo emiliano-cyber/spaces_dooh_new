@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0033**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -33,16 +33,18 @@ En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0033**), los **planes**
 
 ### Qué es, técnicamente
 
-**79 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
+**85 notas Markdown** en `vault/`, enlazadas entre sí con wikilinks. Está pensada
 para abrirse con Obsidian, pero **no hay carpeta `.obsidian/` en el repositorio**:
 no se versiona configuración de la herramienta. Consecuencia práctica: la bóveda es
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **~1000 enlaces internos** sobre **79 notas**, y **no está
-limpia**: quedan **2 wikilinks rotos** —los dos apuntan a ADR, que viven en
-`docs/` y no en la bóveda, así que es un choque de convención más que un
-enlace muerto— y **2 notas huérfanas**, las dos manuales con fecha. Las
+Al 2026-09-18 tiene **1101 enlaces internos** sobre **85 notas**, con **2
+wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
+bóveda, así que es un choque de convención más que un enlace muerto— y
+**0 notas huérfanas**: la de `diario/2026-09-17` dejó de estarlo el 18/09, al
+encadenarla desde el diario del día siguiente, que es como se enlazan los
+diarios entre sí. Las
 mediciones previas daban 753 sobre 57 (28/08), 606 sobre 48 (17/08) y 395
 sobre 43 (10/08).
 
@@ -97,15 +99,28 @@ código, no de memoria:
 | Framework | Next.js 14.2.29, App Router | `apps/web/package.json:17` |
 | Base de datos | PostgreSQL, `pg` directo (sin ORM) | `apps/web/lib/server/db.ts:2` |
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
-| Endpoints | **96** route handlers | `apps/web/app/api/**/route.ts` |
-| Tablas | **43** | `vault/04-Datos/esquema.md` |
-| Migraciones | **82** | `vault/04-Datos/migraciones.md` |
+| Endpoints | **98** route handlers | `apps/web/app/api/**/route.ts` |
+| Tablas | **44** | `vault/04-Datos/esquema.md` |
+| Migraciones | **84** | `vault/04-Datos/migraciones.md` |
 
 > Esos recuentos llevan fecha de validación **2026-09-18**. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
-> **Este archivo ya los tuvo mal DOS VECES, y por eso conviene decirlo aquí:**
+> [!danger] NO LOS ACTUALICES A MANO. Córrelos.
+> ```
+> node scripts/recuentos.mjs
+> ```
+> Imprime las siete de golpe, **medidas sobre el árbol donde lo corres** — y eso
+> importa, porque cada worktree está en una rama distinta y da otro número.
+>
+> **Este archivo ha tenido las MISMAS SEIS CIFRAS MAL TRES VECES**, y la tercera
+> es la que enseña algo: se corrigieron a mano en un commit y **la misma rama**
+> las volvió a caducar dos commits después, al añadir cuatro `route.ts` y dos
+> migraciones. El problema no es que nadie se acuerde: es que **una cifra que se
+> mantiene a mano en un repositorio que crece caduca en el commit siguiente.**
+
+> **Este archivo ya los tuvo mal TRES VECES, y por eso conviene decirlo aquí:**
 > entre el 10/08 y el 28/08 arrastró seis cifras desfasadas —endpoints, tablas,
 > migraciones, notas, enlaces y el número de ADR— **mientras la bóveda estaba
 > al día**. Y volvió a pasar: al 18/09 arrastraba **las mismas seis**, otra vez
@@ -269,6 +284,26 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > matar el envoltorio deja al hijo sirviendo el build viejo, que es la misma
 > trampa otra vez y más difícil de ver.
 
+> [!danger] Y NO SIEMPRE se queda en blanco — a veces sirve código viejo tan campante
+> El recuadro de arriba decía «deja la página en blanco» como si pasara siempre.
+> **No pasa siempre, y el caso bueno es el peligroso.** Encontrado el
+> **2026-09-18 por la tarde**, al arrancar el ensayo del guion del Summit: el
+> proceso del 3399 llevaba corriendo desde las **11:30** y el build de disco era
+> de las **17:16** —casi seis horas— y **la aplicación se veía perfecta**.
+> Inventario, reportes, todo. Estaba sirviendo el código de la mañana sin dar una
+> sola señal.
+>
+> El motivo es que los trozos de código viven en `/_next/static/chunks/` y **no
+> llevan el `BUILD_ID` en la ruta**: mientras un trozo conserve su nombre, el
+> servidor viejo lo sirve sin quejarse. La pantalla se queda en blanco **solo
+> cuando el nombre cambia**, o sea según lo que hayas tocado. Un fallo que
+> aparece a veces es peor que uno constante, porque el constante se ve.
+>
+> **Consecuencia práctica, y es la que importa: «se ve bien» NO prueba que el
+> servidor sirva el build de disco.** Si has reconstruido, el estado de la
+> pantalla no te dice nada; compara las dos cadenas o reinicia. Reiniciar cuesta
+> **376 ms**, que es menos de lo que cuesta dudarlo.
+
 ### La trampa del orden de migraciones
 
 El orden **no es lexicográfico puro**. El mapa `ANTES_DE` con las dos excepciones
@@ -352,6 +387,7 @@ Hay **una sola pista viva**: `apps/web`, Next con BFF integrado sobre `db/schema
 |---|---|---|
 | **`main`** | — | **La base, y donde vive el trabajo de instancias.** Protegida por `ci.yml` (typecheck + test + build) y `lockfile-check.yml` |
 | `feat/ui-base-404-atajos` | raíz del repo | UI base y atajos del 404 |
+| ~~`integra/entidades-y-reportes`~~ | — | **ATERRIZADA el 18/09**, PR #91 (`ac4f71c`): multi-entidad y el modulo de reportes. 68 commits. Ya no existe como trabajo pendiente |
 | **`chore/retirar-scripts-pista-archivada`** | — | **F5.5, preparada y SIN FUSIONAR.** Depende de F3.6, que espera el registry. **No la borres** |
 | `docs/manual-usuario-y-reglas-agentes` | — | Ya absorbida; redundante |
 

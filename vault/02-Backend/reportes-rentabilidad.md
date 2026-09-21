@@ -29,7 +29,7 @@ reportes y el cálculo. Nació el **2026-09-17** con el módulo de rentabilidad.
 > **Ese endpoint ya se descontroló una vez: 6.12 MB** —contratos 3.95 · sitios
 > 1.0 · sitiosRed 1.0— **y el síntoma fue una pantalla en blanco de 6 a 12
 > segundos, no un error.** Lo cuenta su propio código en
-> `app/api/estado/route.ts:142-146`, junto al medidor que se dejó detrás de la
+> `app/api/estado/route.ts:146-156`, junto al medidor que se dejó detrás de la
 > bandera `MEDIR_ESTADO=1` precisamente para poder volver a mirarlo. Un
 > `select *` con una columna nueva y grande basta para repetirlo.
 >
