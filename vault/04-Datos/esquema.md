@@ -1,15 +1,45 @@
 ---
 tipo: datos
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [datos, esquema, er, postgres]
 archivos:
   - db/schema.sql
   - db/semilla-desarrollo.sql
   - db/migrations/
+  - db/migrations/20260921_actualizaciones_instancia.sql
 ---
 
 # Esquema de datos
+
+> [!note] 2026-09-21 · tabla nueva, `actualizaciones_instancia` — ADR 0037
+> `db/migrations/20260921_actualizaciones_instancia.sql` — la tabla de LA
+> INSTANCIA (sin `tenant_id`, sin RLS, una sola fila con `check (id)` sobre una
+> pk booleana) que hace de buzón entre la aplicación y el actualizador: cada
+> droplet elige si toma la versión nueva cuando se publica una. Ver
+> [[docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva|ADR 0037]] y
+> [[migraciones]].
+>
+> **Tablas: 44 → 45**, medido con `node scripts/recuentos.mjs` sobre este árbol.
+>
+> Dos escritores separados por `grant` de COLUMNA, no por convención: la app
+> (`spaces_app`/`spaces_user`) solo puede escribir `modo`, `aprobado_digest`,
+> `aprobado_por`, `aprobado_en` y `actualizado_en`; las columnas de lo
+> *disponible* (`digest_disponible`, `version_disponible`, …) las escribe el
+> actualizador con el rol privilegiado. `obligatoria` nace sin escritor a
+> propósito — ver la cabecera de la migración.
+>
+> **Ojo con el candado que casi no restringe nada:**
+> `20260820_grants_rol_app.sql` y `20260824_grants_tablas_futuras.sql` fijan
+> privilegios POR OMISIÓN para el propietario que corre las migraciones, y esos
+> alcanzan a CUALQUIER tabla nueva que ese propietario cree — con
+> `select+insert+update+delete` de tabla COMPLETA. Un privilegio de tabla
+> completo gana siempre a uno por columna, así que sin un `revoke all` explícito
+> ANTES del `grant update (columnas)`, la app seguiría pudiendo escribir
+> `digest_disponible` pese al grant por columna. Lo delató la propia prueba de
+> este ADR — pasaba en verde por el motivo equivocado hasta que se añadió el
+> `revoke`. Cualquier tabla nueva con escritores separados por columna necesita
+> el mismo `revoke all` primero.
 
 > [!warning] 2026-09-17 · remedido, y tres de las cifras de abajo caducaron
 > Medido en este árbol al añadir `20260917_entidades_fiscales.sql`, con la
@@ -33,9 +63,10 @@ archivos:
 > archivos **sí** los aplica una actualización normal, sin `--con-datos`.
 > Comprobar por qué perdieron la marca es una tarea propia, no se hizo aquí.
 
-**PostgreSQL, un solo schema (`public`), 44 tablas, sin ORM.** `db/schema.sql`
+**PostgreSQL, un solo schema (`public`), ~~44~~ 45 tablas (ver la nota del
+21/09 arriba), sin ORM.** `db/schema.sql`
 (679 líneas) + **74** migraciones aditivas — **70 de esquema y 4 de datos**
-(medido el 27/08).
+(medido el 27/08, y ya caducado — ver los avisos de arriba).
 
 > [!warning] Las de datos son CUATRO, no una — y el runner las salta por defecto
 > Esta nota decía «una de datos» desde el 19/08 y ya entonces eran tres. Hoy
