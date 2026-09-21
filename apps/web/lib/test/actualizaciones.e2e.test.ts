@@ -130,6 +130,32 @@ describe('GET/PATCH /api/actualizaciones', () => {
     expect(fila.rows[0].aprobado_en).not.toBeNull()
   })
 
+  it('NEGATIVO: modo y aprobarDigest juntos se rechazan SIN escribir nada', async () => {
+    // Ronda de revision 1: el PATCH original no era atomico entre las dos
+    // escrituras -- si `modo` se guardaba y despues `aprobarDigest` reventaba
+    // con 409 por digest caducado, el cambio de modo sobrevivia a una
+    // respuesta de error. Un efecto secundario que sobrevive a un fallo es la
+    // familia de defectos que este repositorio persigue.
+    //
+    // El tipo del brief (`{ modo? } | { aprobarDigest: string }`) ya decia que
+    // son alternativas: el schema ahora lo IMPONE con un XOR, asi que la
+    // peticion se rechaza ANTES de tocar la base -- no hay nada que revertir
+    // porque no hay nada que escribir.
+    await sembrarDisponible('sha256:nuevo')
+    const c = await comoDueno()
+    const r = await c.pedir('/api/actualizaciones/', {
+      metodo: 'PATCH',
+      cuerpo: { modo: 'automatica', aprobarDigest: 'sha256:de-ayer' },
+    })
+    expect(r.status).toBe(400)
+    const fila = await poolTest().query(
+      'select modo, aprobado_digest from actualizaciones_instancia where id = true',
+    )
+    // El modo NO cambio -- se quedo en el default de aprobacion del beforeEach.
+    expect(fila.rows[0].modo).toBe('aprobacion')
+    expect(fila.rows[0].aprobado_digest).toBeNull()
+  })
+
   it('GET devuelve el estado, y hayNovedad compara el digest disponible contra el instalado', async () => {
     await sembrarDisponible('sha256:nuevo')
     const c = await comoDueno()
