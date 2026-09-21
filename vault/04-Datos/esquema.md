@@ -163,9 +163,9 @@ erDiagram
 ### Plataforma y acceso
 | Tabla | RLS | Nota |
 |---|---|---|
-| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba) |
+| `tenants` | **Exenta** | Una fila por organización. **El esquema no siembra ninguna** (ver el aviso de arriba). Desde el 21/09 lleva `cambios_password_hash` — la contraseña compartida del candado de cambios (ADR 0036), `null` = sin asignar — ver [[02-Backend/autenticacion-y-sesion]] |
 | `usuarios` | fail-closed + FORCE | Correo UNIQUE **global** `lower(email)` |
-| `sesiones` | **Exenta** | + `desbloqueo_expira_en` |
+| `sesiones` | **Exenta** | + `desbloqueo_expira_en` + `desbloqueo_es_propio` (ADR 0036: si el desbloqueo vigente fue con la contraseña propia o la compartida) |
 | `identidades_externas` | fail-closed + FORCE | ADR 0012 |
 | `password_resets` | fail-closed (desde 07/08) | Token único, 60 min |
 | `rol_permisos` | **Sin tenant_id** | RBAC global a la instalación |
