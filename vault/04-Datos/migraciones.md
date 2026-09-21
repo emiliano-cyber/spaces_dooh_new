@@ -803,7 +803,21 @@ servidor.**
 
 **Hay 84 archivos en `db/migrations/`** y **44 tablas**, medidos el 2026-09-18
 con `node scripts/recuentos.mjs`, que existe justo para que esta cifra no se
-vuelva a mantener a mano — este párrafo la ha tenido mal **tres veces**.
+vuelva a mantener a mano — este párrafo la ha tenido mal **tres veces**. Ya
+caducó otra vez con la del 21/09 de abajo: vuelve a correr el script si la
+necesitas, no sumes a mano.
+
+> [!success] 2026-09-21 — `20260921_restaura_contrasena_compartida_cambios.sql`
+> Trae de vuelta `tenants.cambios_password_hash` (ADR 0036, enmienda al 0009 —
+> la del 04/08 se retiró a propósito y no se edita). Añade además
+> `sesiones.desbloqueo_es_propio`: distingue si el desbloqueo vigente se
+> concedió con la contraseña PROPIA o con la compartida, porque solo la propia
+> sirve para `exigirReautenticacionSiempre` (resetear la contraseña de un
+> tercero). Aditiva, sin `drop`. Verificada aplicándola dos veces seguidas
+> contra Postgres real (segunda vez: `UPDATE 0` en las dos sentencias, sin
+> error) y ejercitada de nuevo por la cadena completa de migraciones en el
+> arnés de e2e (41 archivos / 461 pruebas). Detalle del mecanismo en
+> [[02-Backend/autenticacion-y-sesion]].
 
 > [!important] Las dos del 18/09, que no constaban en esta nota
 > Se añadieron sin su entrada aquí, contra la regla 4 de `AGENTES.md`:

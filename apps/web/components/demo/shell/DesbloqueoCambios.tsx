@@ -86,7 +86,7 @@ export function DesbloqueoCambios() {
         title={
           abierto
             ? `Cambios desbloqueados ${restan} min más · clic para bloquear`
-            : 'Los cambios de dinero y catálogo necesitan la contraseña del Dueño'
+            : 'Los cambios de dinero y catálogo necesitan una contraseña'
         }
         className={cn(
           'inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-[12px] transition-colors',
@@ -103,7 +103,7 @@ export function DesbloqueoCambios() {
         open={open}
         onOpenChange={(v) => { setOpen(v); if (!v) { setPass(''); setError(null) } }}
         title="Desbloquear cambios"
-        subtitle="Contraseña del Dueño"
+        subtitle="Tu contraseña, o la del control de cambios"
         footer={
           <div className="flex justify-end gap-2">
             <Button variant="secondary" size="sm" onClick={() => setOpen(false)} disabled={enviando}>Cancelar</Button>
@@ -116,8 +116,9 @@ export function DesbloqueoCambios() {
         <div className="space-y-3">
           <p className="text-[13px] text-muted">
             Los cambios que mueven dinero o el catálogo —tarifas, rentas, contratos, pagos,
-            facturación y borrados— necesitan la contraseña que puso el Dueño. Al teclearla quedas
-            desbloqueado un rato y no te la vuelve a pedir.
+            facturación y borrados— necesitan una contraseña. Sirve <b>tu propia contraseña de
+            acceso</b>, o la contraseña del control de cambios que haya asignado el Dueño. Al
+            teclear cualquiera de las dos quedas desbloqueado un rato y no te la vuelve a pedir.
           </p>
           <label className="block">
             <span className="mb-1 block text-[12px] font-medium text-ink">Contraseña</span>

@@ -1,22 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ============================================================================
-//  Control de cambios con reautenticación INDIVIDUAL (ADR 0009).
+//  Control de cambios: contraseña PROPIA o COMPARTIDA (ADR 0009 + ADR 0036).
 //
 //  Lo que estas pruebas protegen:
 //   · que el candado se decida en el SERVIDOR — el desbloqueo vive contra el
 //     token de sesión, no en el navegador, así que la UI no puede fabricárselo;
-//   · que la contraseña que se verifica sea la DEL USUARIO y no un secreto de
-//     tenant, que es el corazón del hallazgo A7;
 //   · que NO haya exención por rol. Antes el Dueño pasaba sin teclear nada; esa
 //     exención se retiró y hay pruebas explícitas para que no vuelva por
-//     descuido.
+//     descuido;
+//   · el corazón del ADR 0036: la contraseña COMPARTIDA desbloquea el candado
+//     general, pero NUNCA sirve para `exigirReautenticacionSiempre` (tocar el
+//     acceso de OTRA persona) — solo la PROPIA prueba identidad para eso, que
+//     es justo lo que el ADR 0009 protegía y no se quiere perder.
 // ============================================================================
 
-let sesionRow: { e: string | null } | null = { e: null }
-let tenantRow: { e: boolean } | null = { e: false }
+let sesionRow: { e: string | null; propio: boolean } | null = { e: null, propio: false }
+let tenantRow: { e: boolean; h: string | null } | null = { e: false, h: null }
 let usuarioRow: { h: string | null } | null = { h: null }
 let usuario: { id: string; rol: string; tenantId: string | null } | null = null
+let ultimoEsPropio: boolean | null = null
 const consultas: string[] = []
 
 // La BD simulada distingue las DOS vías, porque en producción no son
@@ -31,7 +34,13 @@ vi.mock('./db', () => ({
     if (sql.includes('from usuarios')) return usuarioRow ? [usuarioRow] : []
     return []
   }),
-  qRaw: vi.fn(async (sql: string) => { consultas.push(sql); return [] }),
+  qRaw: vi.fn(async (sql: string, params?: unknown[]) => {
+    consultas.push(sql)
+    if (sql.includes('update sesiones') && sql.includes('desbloqueo_es_propio')) {
+      ultimoEsPropio = (params?.[1] as boolean) ?? null
+    }
+    return []
+  }),
   qRaw1: vi.fn(async (sql: string) => {
     consultas.push(sql)
     // `tenants` y `sesiones` SÍ están exentas de la RLS: son pre-sesión.
@@ -48,13 +57,15 @@ vi.mock('./auth', async () => {
     SESSION_COOKIE: 'spaces_sesion',
     usuarioActual: vi.fn(async () => usuario),
     exigir: vi.fn(async () => ({ ok: true, usuario })),
+    hashPassword: (p: string) => bcrypt.hash(p, 4),
     verifyPassword: (p: string, h: string | null) => (h ? bcrypt.compare(p, h) : Promise.resolve(false)),
   }
 })
 
 const {
   exigirDesbloqueo, desbloquear, estadoControlCambios,
-  fijarExigirReautenticacion, exigirReautenticacionSiempre, respuestaDesbloqueo,
+  fijarExigirReautenticacion, fijarContrasenaCambios,
+  exigirReautenticacionSiempre, respuestaDesbloqueo,
 } = await import('./cambios')
 const { esErrorDeDesbloqueo } = await import('@/lib/data/cambios-api')
 const { MENSAJE_DESBLOQUEO } = await import('@/lib/cambios-mensajes')
@@ -65,11 +76,16 @@ const conPassword = async (p: string) => {
   const bcrypt = (await import('bcryptjs')).default
   usuarioRow = { h: await bcrypt.hash(p, 4) }
 }
+const conContrasenaCompartida = async (p: string) => {
+  const bcrypt = (await import('bcryptjs')).default
+  tenantRow = { ...(tenantRow ?? { e: false, h: null }), h: await bcrypt.hash(p, 4) }
+}
 
 beforeEach(() => {
   consultas.length = 0
-  sesionRow = { e: null }
-  tenantRow = { e: false }
+  ultimoEsPropio = null
+  sesionRow = { e: null, propio: false }
+  tenantRow = { e: false, h: null }
   usuarioRow = { h: null }
   usuario = { id: 'u1', rol: 'COMERCIAL', tenantId: 't1' }
 })
@@ -81,13 +97,13 @@ describe('exigirDesbloqueo — el candado', () => {
   })
 
   it('control APAGADO: todo pasa como antes, sin sorpresas', async () => {
-    tenantRow = { e: false }
+    tenantRow = { e: false, h: null }
     expect((await exigirDesbloqueo()).ok).toBe(true)
   })
 
   it('control activo y sesión SIN desbloquear: 403 con la marca para la UI', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: null }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: null, propio: false }
     const r: any = await exigirDesbloqueo()
     expect(r.ok).toBe(false)
     expect(r.status).toBe(403)
@@ -95,14 +111,14 @@ describe('exigirDesbloqueo — el candado', () => {
   })
 
   it('sesión desbloqueada y vigente: pasa', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: EN_15_MIN() }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: false }
     expect((await exigirDesbloqueo()).ok).toBe(true)
   })
 
   it('desbloqueo EXPIRADO: vuelve a pedir contraseña', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: HACE_1_MIN() }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: HACE_1_MIN(), propio: false }
     const r: any = await exigirDesbloqueo()
     expect(r.ok).toBe(false)
     expect(r.requiereDesbloqueo).toBe(true)
@@ -113,8 +129,8 @@ describe('exigirDesbloqueo — el candado', () => {
     // Esta es LA prueba del hallazgo A7. Antes el Dueño pasaba sin teclear nada,
     // y en el tenant auditado los tres usuarios eran Dueño: el candado existía
     // pero no tocaba a nadie.
-    tenantRow = { e: true }
-    sesionRow = { e: null }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: null, propio: false }
     usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
     const r: any = await exigirDesbloqueo()
     expect(r.ok).toBe(false)
@@ -122,23 +138,23 @@ describe('exigirDesbloqueo — el candado', () => {
   })
 
   it('el Dueño con la sesión ya desbloqueada pasa, como cualquiera', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: EN_15_MIN() }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: false }
     usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
     expect((await exigirDesbloqueo()).ok).toBe(true)
   })
 
   it('el desbloqueo se lee de la SESIÓN en la BD, no de nada del cliente', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: EN_15_MIN() }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: false }
     await exigirDesbloqueo()
     // Si esto dejara de consultar `sesiones`, el candado sería falsificable.
     expect(consultas.some((s) => s.includes('from sesiones'))).toBe(true)
   })
 })
 
-describe('desbloquear — verifica la contraseña PROPIA', () => {
-  beforeEach(() => { tenantRow = { e: true } })
+describe('desbloquear — verifica la propia y, si no, la compartida', () => {
+  beforeEach(() => { tenantRow = { e: true, h: null } })
 
   it('rechaza la contraseña incorrecta', async () => {
     await conPassword('LaBuena123')
@@ -154,14 +170,53 @@ describe('desbloquear — verifica la contraseña PROPIA', () => {
     expect(new Date(r.hasta).getTime()).toBeGreaterThan(Date.now())
   })
 
-  it('compara contra el hash del USUARIO, no contra ninguno del tenant', async () => {
-    // El corazón de A7: si esto volviera a leer un hash de `tenants`, la
-    // contraseña sería otra vez un secreto de equipo y la bitácora dejaría de
-    // probar quién actuó.
+  it('con la contraseña PROPIA correcta, el desbloqueo queda marcado como propio', async () => {
     await conPassword('LaBuena123')
     await desbloquear('LaBuena123')
-    expect(consultas.some((s) => s.includes('password_hash') && s.includes('from usuarios'))).toBe(true)
-    expect(consultas.some((s) => s.includes('password_hash') && s.includes('from tenants'))).toBe(false)
+    expect(ultimoEsPropio).toBe(true)
+  })
+
+  // ── Lo que trae el ADR 0036 de vuelta ───────────────────────────────────
+  it('sin coincidir la propia, la COMPARTIDA del tenant también desbloquea', async () => {
+    await conPassword('LaPropia123')
+    await conContrasenaCompartida('LaDeEquipo123')
+    const r: any = await desbloquear('LaDeEquipo123')
+    expect(r.ok).toBe(true)
+  })
+
+  it('el desbloqueo con la COMPARTIDA queda marcado como NO propio', async () => {
+    // El corazón del ADR 0036: distinguir con cuál se concedió es lo que deja
+    // que `exigirReautenticacionSiempre` siga siendo fuerte.
+    await conPassword('LaPropia123')
+    await conContrasenaCompartida('LaDeEquipo123')
+    await desbloquear('LaDeEquipo123')
+    expect(ultimoEsPropio).toBe(false)
+  })
+
+  it('la PROPIA tiene prioridad: si coincide, no hace falta que coincida la compartida', async () => {
+    await conPassword('LaBuena123')
+    await conContrasenaCompartida('OtraDistinta123')
+    const r: any = await desbloquear('LaBuena123')
+    expect(r.ok).toBe(true)
+    expect(ultimoEsPropio).toBe(true)
+  })
+
+  it('sin contraseña PROPIA pero con la COMPARTIDA asignada, sí puede desbloquear', async () => {
+    // Un usuario dado de alta solo con Google (password_hash null) hoy no podía
+    // desbloquear nada de dinero/catálogo. Con una compartida asignada, ya sí.
+    usuarioRow = { h: null }
+    await conContrasenaCompartida('LaDeEquipo123')
+    const r: any = await desbloquear('LaDeEquipo123')
+    expect(r.ok).toBe(true)
+    expect(ultimoEsPropio).toBe(false)
+  })
+
+  it('ni la propia ni la compartida coinciden: contraseña incorrecta', async () => {
+    await conPassword('LaBuena123')
+    await conContrasenaCompartida('LaDeEquipo123')
+    const r: any = await desbloquear('NingunaDeLasDos')
+    expect(r.error).toMatch(/incorrecta/i)
+    expect(r.status).toBe(403)
   })
 
   it('lee `usuarios` CON contexto de tenant, no por la vía raw', async () => {
@@ -189,7 +244,7 @@ describe('desbloquear — verifica la contraseña PROPIA', () => {
     // `exigirReautenticacionSiempre` pide contraseña con el candado apagado; si
     // este endpoint la rechazara, esas operaciones se quedarían sin salida:
     // piden la contraseña y el sitio donde darla contesta que no hace falta.
-    tenantRow = { e: false }
+    tenantRow = { e: false, h: null }
     await conPassword('LaBuena123')
     const r: any = await desbloquear('LaBuena123')
     expect(r.ok).toBe(true)
@@ -198,25 +253,33 @@ describe('desbloquear — verifica la contraseña PROPIA', () => {
 
 describe('estadoControlCambios — lo que ve la UI', () => {
   it('con el control activo, a cualquier rol le dice que requiere', async () => {
-    tenantRow = { e: true }
-    sesionRow = { e: EN_15_MIN() }
+    tenantRow = { e: true, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: false }
     usuario = { id: 'u1', rol: 'DUENO', tenantId: 't1' }
     const e = await estadoControlCambios()
     expect(e).toEqual({
       activo: true, requiere: true, desbloqueadoHasta: expect.any(String), minutos: 15,
+      tieneContrasenaCompartida: false,
     })
   })
 
   it('con el control apagado no requiere nada', async () => {
-    tenantRow = { e: false }
+    tenantRow = { e: false, h: null }
     const e = await estadoControlCambios()
     expect(e.activo).toBe(false)
     expect(e.requiere).toBe(false)
   })
+
+  it('dice si ya hay una contraseña compartida asignada, SIN revelar el hash', async () => {
+    tenantRow = { e: false, h: 'un-hash-bcrypt-cualquiera' }
+    const e = await estadoControlCambios()
+    expect(e.tieneContrasenaCompartida).toBe(true)
+    expect(JSON.stringify(e)).not.toContain('un-hash-bcrypt-cualquiera')
+  })
 })
 
 describe('fijarExigirReautenticacion — el interruptor del Dueño', () => {
-  it('ya no recibe ninguna contraseña: no hay secreto que guardar', async () => {
+  it('sigue sin recibir ninguna contraseña: eso lo hace fijarContrasenaCambios aparte', async () => {
     await fijarExigirReautenticacion('t1', true)
     const update = consultas.find((s) => s.includes('update tenants'))
     expect(update).toBeTruthy()
@@ -239,6 +302,24 @@ describe('fijarExigirReautenticacion — el interruptor del Dueño', () => {
   it('al APAGARLO no toca las sesiones: no hay nada que revocar', async () => {
     await fijarExigirReautenticacion('t1', false)
     expect(consultas.some((s) => s.includes('update sesiones'))).toBe(false)
+  })
+})
+
+describe('fijarContrasenaCambios — el Dueño asigna la compartida (ADR 0036)', () => {
+  it('rechaza una contraseña que no cumple la misma regla que cualquier otra', async () => {
+    const r: any = await fijarContrasenaCambios('t1', '123')
+    expect('error' in r).toBe(true)
+    expect(consultas.some((s) => s.includes('update tenants') && s.includes('cambios_password_hash'))).toBe(false)
+  })
+
+  it('con una válida, guarda el HASH en tenants.cambios_password_hash, nunca en claro', async () => {
+    const r: any = await fijarContrasenaCambios('t1', 'LaDeEquipo123')
+    expect(r.ok).toBe(true)
+    const update = consultas.find((s) => s.includes('update tenants') && s.includes('cambios_password_hash'))
+    expect(update).toBeTruthy()
+    // La propia consulta no debe llevar la contraseña en claro incrustada: va
+    // parametrizada ($1), así que el texto de la consulta nunca la contiene.
+    expect(update).not.toContain('LaDeEquipo123')
   })
 })
 
@@ -273,18 +354,29 @@ describe('exigirReautenticacionSiempre — no depende del interruptor', () => {
     // El caso real: los cinco tenants de producción lo tienen apagado. Si esto
     // mirara `exigir_reautenticacion`, restablecer la contraseña de un tercero
     // no pediría nada y A7 seguiría abierto.
-    tenantRow = { e: false }
-    sesionRow = { e: null }
+    tenantRow = { e: false, h: null }
+    sesionRow = { e: null, propio: false }
     const r: any = await exigirReautenticacionSiempre()
     expect(r.ok).toBe(false)
     expect(r.status).toBe(403)
     expect(r.requiereDesbloqueo).toBe(true)
   })
 
-  it('pasa si la sesión ya está desbloqueada', async () => {
-    tenantRow = { e: false }
-    sesionRow = { e: EN_15_MIN() }
+  it('pasa si la sesión ya está desbloqueada CON la contraseña propia', async () => {
+    tenantRow = { e: false, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: true }
     expect((await exigirReautenticacionSiempre()).ok).toBe(true)
+  })
+
+  it('NO pasa si el desbloqueo vigente fue con la contraseña COMPARTIDA', async () => {
+    // El corazón del ADR 0036: la compartida no prueba identidad, así que no
+    // basta para tocar el acceso de otra persona, aunque el candado general sí
+    // la acepte.
+    tenantRow = { e: false, h: null }
+    sesionRow = { e: EN_15_MIN(), propio: false }
+    const r: any = await exigirReautenticacionSiempre()
+    expect(r.ok).toBe(false)
+    expect(r.requiereDesbloqueo).toBe(true)
   })
 
   it('sin sesión no pasa', async () => {

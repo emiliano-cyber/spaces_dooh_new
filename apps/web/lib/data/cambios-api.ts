@@ -16,6 +16,7 @@ export interface EstadoCambios {
   requiere: boolean
   desbloqueadoHasta: string | null
   minutos: number
+  tieneContrasenaCompartida: boolean
 }
 
 export async function estadoCambiosApi(): Promise<EstadoCambios> {
@@ -25,8 +26,8 @@ export async function estadoCambiosApi(): Promise<EstadoCambios> {
 }
 
 // Enciende o apaga la exigencia de reautenticación. Solo el Dueño (lo exige el
-// servidor). Ya no manda ninguna contraseña: desde el ADR 0009 cada quien se
-// reautentica con la suya, así que esto es un interruptor.
+// servidor). Es un interruptor aparte de la contraseña compartida — ver
+// `fijarContrasenaCambiosApi` — se puede encender sin haber asignado ninguna.
 export async function fijarExigirReautenticacionApi(activo: boolean): Promise<void> {
   const r = await fetch(`${API}/cambios/`, {
     method: 'PUT',
@@ -35,6 +36,18 @@ export async function fijarExigirReautenticacionApi(activo: boolean): Promise<vo
   })
   const d = await r.json().catch(() => ({}))
   if (!r.ok) throw new Error(d.error ?? 'No se pudo guardar')
+}
+
+// Asigna o rota la contraseña compartida del candado de cambios (ADR 0036).
+// Solo el Dueño. Independiente del interruptor de arriba.
+export async function fijarContrasenaCambiosApi(password: string): Promise<void> {
+  const r = await fetch(`${API}/cambios/`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+  const d = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(d.error ?? 'No se pudo asignar la contraseña')
 }
 
 // Restablece la contraseña de OTRO usuario. Devuelve la temporal, que se enseña

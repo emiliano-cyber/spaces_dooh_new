@@ -7,6 +7,16 @@ La entrada más reciente va arriba.
 
 ## 2026-09-21
 
+- **El control de cambios ya admite una contraseña de equipo, aparte de la de
+  cada persona.** Cuando el Dueño activa el control de cambios (Administración →
+  Roles y permisos), los cambios que mueven dinero o catálogo piden una
+  contraseña para confirmar. Antes solo servía la contraseña de acceso de quien
+  hace el cambio; ahora el Dueño puede además **asignar una contraseña propia del
+  control de cambios**, distinta de la de acceso de nadie, y cualquiera de las dos
+  desbloquea. La única excepción: **restablecer la contraseña de otra persona**
+  sigue pidiendo siempre la contraseña de acceso de quien lo hace — la de equipo
+  no sirve para eso, a propósito.
+
 - **Ya se puede fijar el costo de mano de obra por tipo de orden de trabajo desde
   Administración.** El costo que usan el dashboard y los reportes de rentabilidad
   para calcular el margen de una OT (montaje de lona, herrería, mantenimiento…) ya

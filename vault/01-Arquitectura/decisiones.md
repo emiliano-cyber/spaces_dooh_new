@@ -37,7 +37,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0006 | **Un solo costo por pantalla: la renta al arrendador** | Aceptada | `costo_compra` no es un costo aparte |
 | 0007 | Vencimientos anclados al inicio del contrato | Aceptada | `20260728_calendario_contratos_existentes.sql` |
 | 0008 | Cupo de clientes por pantalla | Aceptada | `sitios.max_clientes`, `config_negocio.max_clientes_pantalla` |
-| 0009 | **Reautenticación individual** | Aceptada | `lib/server/cambios.ts` — ver [[autenticacion-y-sesion]] |
+| 0009 | **Reautenticación individual** | Aceptada, enmendada por `0036` | `lib/server/cambios.ts` — ver [[autenticacion-y-sesion]] |
 | 0010 | Catálogo explícito de módulos, retiro del rol `CLIENTE` | Aceptada | `lib/modulos.ts`; el enum aún lo tiene |
 | 0011 | `config_negocio` por tenant | **Propuesta** | Ya implementado (`db/schema.sql:643-674`) |
 | 0012 | **Acceso con cuenta de Google** | Aceptada + **enmendada el 07/08** | [[flujo-acceso-con-google]] |
@@ -64,6 +64,7 @@ se escribe uno nuevo que lo reemplace (`~/.claude/skills/eng-architecture`).
 | 0033 | **El origen de las redirecciones sale de la cabecera `Host`** | Aceptada | Arregla el 500 que la flota daba con `Location` relativa |
 | 0034 | **Multi-entidad es ATRIBUCIÓN, no aislamiento** | Aceptada (18/09) — PR #91 | La frase ES la decisión: el owner no quiere separar sus razones sociales, quiere **verlas juntas**. Descarta «un tenant por razón social», que rompía el consolidado por diseño. Su apartado de seguridad lleva el agujero R2 con su medición |
 | 0035 | **Los reportes se agregan en el SERVIDOR, no en el navegador** | Aceptada (18/09) — PR #91 | El límite `/api/reportes/*`. Motivo medido: `/api/estado` llegó a **6.12 MB** con pantalla en blanco de 6-12 s **sin dar error**, y un reporte trimestral mira años. Declara lo que NO hace: sin agregación en SQL y sin tope de rango |
+| 0036 | **Contraseña compartida de vuelta para el control de cambios** | Aceptada (21/09) | Enmienda al `0009`, pedida por el dueño. `tenants.cambios_password_hash` vuelve, pero SOLO desbloquea el candado general — `exigirReautenticacionSiempre` (resetear a un tercero) sigue exigiendo la propia — ver [[autenticacion-y-sesion]] |
 
 > [!danger] Cuatro de estos ADR se superaron entre sí en 48 horas — lee el estado, no el número
 > `0015` → `0016` → `0017` y `0020` → `0021` cambiaron de decisión **el mismo día

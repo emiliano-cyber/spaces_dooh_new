@@ -1,11 +1,22 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [backend, auth, seguridad, rojo]
 archivos:
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
+  - apps/web/lib/server/cambios.test.ts
+  - apps/web/app/api/cambios/route.ts
+  - apps/web/app/api/cambios/desbloquear/route.ts
+  - apps/web/app/api/usuarios/[id]/restablecer/route.ts
+  - apps/web/components/demo/admin/ControlCambiosPanel.tsx
+  - apps/web/components/demo/shell/DesbloqueoCambios.tsx
+  - db/migrations/20260716_control_cambios.sql
+  - db/migrations/20260804_reautenticacion_individual.sql
+  - db/migrations/20260921_restaura_contrasena_compartida_cambios.sql
+  - docs/adr/0009-reautenticacion-individual-en-vez-de-contrasena-compartida.md
+  - docs/adr/0036-contrasena-compartida-de-vuelta-para-el-control-de-cambios.md
   - apps/web/lib/server/usuarios-repo.ts
   - apps/web/lib/server/password-reset-repo.ts
   - apps/web/middleware.ts
@@ -430,27 +441,52 @@ reenviarlo (`lib/csrf-client.ts:36-66`).
 > `CLIENTE` sigue retirado de esa lista por el ADR 0010 (`nav.ts:138-141`) — esas
 > tres citas también habían derivado.
 
-## Reautenticación para cambios sensibles (ADR 0009)
+## Reautenticación para cambios sensibles (ADR 0009 + ADR 0036)
 
-Para tocar dinero o catálogo hay que reescribir **la propia contraseña de
-login**; eso desbloquea esa sesión 15 minutos.
+Para tocar dinero o catálogo hay que desbloquear con **una de dos** contraseñas:
+la propia de login, o una **compartida** que asigna el Dueño (ADR 0036, ver más
+abajo). Cualquiera de las dos desbloquea esa sesión 15 minutos.
 
 | Pieza | Dónde |
 |---|---|
 | Interruptor por organización | `tenants.exigir_reautenticacion` (**apagado por defecto**) |
+| Contraseña compartida (ADR 0036) | `tenants.cambios_password_hash` — `null` = sin asignar |
 | Estado del desbloqueo | `sesiones.desbloqueo_expira_en` — **en el servidor** |
-| Duración | `DESBLOQUEO_MINUTOS = 15` (`cambios.ts:49`) |
-| Sin exención por rol | Retirada a propósito (`cambios.ts:41-44`) |
+| Con cuál se concedió | `sesiones.desbloqueo_es_propio` (ADR 0036) |
+| Duración | `DESBLOQUEO_MINUTOS = 15` (`cambios.ts:58`) |
+| Sin exención por rol | Retirada a propósito (ADR 0009) |
 
-`exigirReautenticacionSiempre()` (`cambios.ts:221-226`) ignora el interruptor:
-tocar el **acceso** de otra persona no debe depender de una preferencia del
-tenant. Es lo que protege `/api/usuarios/[id]/restablecer`.
+`exigirReautenticacionSiempre()` (`cambios.ts:301-306`) ignora el interruptor
+**y además exige `desbloqueo_es_propio = true`**: tocar el **acceso** de otra
+persona no debe depender de una preferencia del tenant, y tampoco basta con la
+contraseña compartida — solo la propia prueba identidad. Es lo que protege
+`/api/usuarios/[id]/restablecer`.
+
+> [!success] ADR 0036 (21/09) — la contraseña compartida vuelve, con alcance acotado
+> El ADR 0009 había retirado `tenants.cambios_password_hash` porque un secreto de
+> equipo no prueba identidad. El dueño del producto pidió que volviera, a
+> propósito, para el candado general — la migración
+> `20260921_restaura_contrasena_compartida_cambios.sql` la trae de vuelta.
+> **Pero no para todo:** `desbloquear()` (`cambios.ts:192-237`) prueba primero la
+> contraseña propia (si coincide, el desbloqueo sirve para todo) y solo si no
+> coincide prueba la compartida (si coincide, el desbloqueo **no** sirve para
+> `exigirReautenticacionSiempre`). `fijarContrasenaCambios()` la asigna, solo el
+> Dueño, con la misma regla que cualquier otra contraseña del sistema.
+>
+> **La UI que muestra esto:** `ControlCambiosPanel.tsx` (Administración) tiene el
+> formulario para asignar/rotar; `DesbloqueoCambios.tsx` (el modal que ve
+> cualquier rol) dejó de decir «contraseña del Dueño» — ese texto describía el
+> mecanismo de ANTES del ADR 0009 y llevaba semanas desactualizado, y fue lo que
+> disparó esta conversación.
 
 > [!danger] INVARIANTE: todo usuario tiene `password_hash`
 > `cambios.ts:168-170` responde *«Tu usuario no tiene contraseña»* y
 > `perfil-controller.ts:83-88` exige `passwordActual`. Un usuario con
-> `password_hash = null` **no puede** desbloquear, ni cambiar su correo, ni salir
-> de `debe_cambiar_password`: queda encerrado sin salida desde la aplicación.
+> `password_hash = null` **no puede** cambiar su correo, ni salir de
+> `debe_cambiar_password`: sigue encerrado sin salida por esas dos vías. **Desde
+> el ADR 0036 sí puede desbloquear el candado general de cambios**, si el Dueño
+> asignó una contraseña compartida — pero nunca `exigirReautenticacionSiempre`,
+> que solo acepta la propia.
 >
 > El invariante se sostiene en dos sitios: `crearUsuario()` lanza si no recibe
 > contraseña (`usuarios-repo.ts:49-50`), y el alta «entra con Google» **genera una

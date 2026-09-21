@@ -10,38 +10,47 @@ import { cookies } from 'next/headers'
 // desde Hardening 1, y en producción la app conecta con un rol NOBYPASSRLS. Una
 // lectura RAW de esa tabla devuelve CERO filas, siempre.
 import { qRaw as q, qRaw1 as q1, qConTenant } from './db'
-import { SESSION_COOKIE, exigir, usuarioActual, verifyPassword, type UsuarioSesion } from './auth'
+import { SESSION_COOKIE, exigir, usuarioActual, hashPassword, verifyPassword, type UsuarioSesion } from './auth'
+import { validarPassword } from '@/lib/password'
 import { MENSAJE_DESBLOQUEO } from '@/lib/cambios-mensajes'
 
 // ============================================================================
-//  lib/server/cambios.ts — Control de cambios con reautenticación INDIVIDUAL.
+//  lib/server/cambios.ts — Control de cambios, con DOS contraseñas posibles.
 // ----------------------------------------------------------------------------
-//  Para tocar dinero o catálogo hay que volver a teclear LA PROPIA contraseña
-//  de login; eso desbloquea esa sesión por un rato. ADR 0009.
+//  Para tocar dinero o catálogo hay que desbloquear la sesión con UNA de dos
+//  contraseñas: la PROPIA de login, o una COMPARTIDA que asigna el Dueño
+//  (`tenants.cambios_password_hash`). ADR 0009 + ADR 0036.
 //
-//  Antes esto era una contraseña ÚNICA por tenant (`cambios_password_hash`) que
-//  todo el equipo compartía. Se retiró porque un secreto colectivo no prueba
-//  identidad: la bitácora afirmaba «Ana facturó» cuando lo único verificado era
-//  «alguien que conoce el secreto del equipo facturó», y esa es la peor
-//  propiedad que puede tener un registro de auditoría en un sistema que mueve
-//  dinero. Con la contraseña propia, cada desbloqueo sí prueba quién era, y dar
-//  de baja a una persona basta para revocarle el acceso — antes había que rotar
-//  la contraseña de todos.
+//  Historia corta: nació con solo la compartida. El ADR 0009 la retiró porque
+//  un secreto colectivo no prueba identidad: la bitácora afirmaba «Ana facturó»
+//  cuando lo único verificado era «alguien que conoce el secreto del equipo
+//  facturó». El ADR 0036 (2026-09-21) la trae de vuelta, a propósito, como
+//  decisión explícita del dueño del producto — PERO sin perder esa garantía
+//  donde de verdad importa: ver el punto 3 más abajo.
 //
 //  Dónde vive cada cosa y por qué:
-//   • La contraseña: `usuarios.password_hash`, la de siempre. No hay ningún
-//     secreto nuevo que guardar ni que rotar.
-//   • El desbloqueo: `sesiones.desbloqueo_expira_en`, contra el token de sesión.
-//     Vive en el SERVIDOR. Si estuviera en el navegador, cualquiera se lo
-//     inventaría con las herramientas de desarrollo y el candado sería un adorno.
+//   • Las contraseñas: `usuarios.password_hash` (de siempre) y
+//     `tenants.cambios_password_hash` (bcrypt, nunca viaja al cliente, null =
+//     sin asignar).
+//   • El desbloqueo: `sesiones.desbloqueo_expira_en` + `desbloqueo_es_propio`,
+//     contra el token de sesión. Vive en el SERVIDOR. Si estuviera en el
+//     navegador, cualquiera se lo inventaría con las herramientas de
+//     desarrollo y el candado sería un adorno.
 //
 //  Apagado por defecto (`tenants.exigir_reautenticacion = false`): encender esto
 //  por sorpresa dejaría al equipo sin poder trabajar.
 //
-//  NO hay exención por rol. La había para el Dueño y se retiró: con la
-//  contraseña propia el coste para él es el mismo que para los demás —teclear lo
-//  que ya sabe—, así que la exención dejó de comprar comodidad y solo compraba
-//  riesgo. Es justo la sesión del Dueño la que más daño hace desatendida.
+//  NO hay exención por rol para el candado general. La había para el Dueño y se
+//  retiró (ADR 0009): es justo la sesión del Dueño la que más daño hace
+//  desatendida.
+//
+//  3 · Por qué la compartida NO sirve para tocar el acceso de otra persona.
+//  `exigirReautenticacionSiempre()` protege `POST /api/usuarios/:id/restablecer`
+//  — resetear la contraseña de un TERCERO. Si la compartida abriera esa puerta,
+//  cualquiera que la supiera podría resetear a otra persona sin probar que es
+//  quien dice ser: exactamente el hueco de impersonación que el ADR 0009 cerró.
+//  Por eso `desbloquear()` guarda CON QUÉ contraseña se concedió
+//  (`desbloqueo_es_propio`), y esa ruta exige que sea `true`.
 // ============================================================================
 
 // Cuánto dura el desbloqueo. Suficiente para una tanda de correcciones, corto
@@ -61,15 +70,29 @@ async function exigeReautenticacion(tenantId: string | null): Promise<boolean> {
   return !!r?.e
 }
 
-// Hasta cuándo está desbloqueada la sesión del token dado, o null.
-async function desbloqueoVigente(t: string | null): Promise<string | null> {
+// Hasta cuándo está desbloqueada la sesión del token dado, o null. `soloPropio`
+// exige además que se haya concedido con la contraseña PROPIA (para
+// `exigirReautenticacionSiempre`, ver el punto 3 del encabezado).
+async function desbloqueoVigente(t: string | null, soloPropio = false): Promise<string | null> {
   if (!t) return null
-  const s = await q1<{ e: string | null }>(
-    'select desbloqueo_expira_en as e from sesiones where token = $1',
+  const s = await q1<{ e: string | null; propio: boolean }>(
+    'select desbloqueo_expira_en as e, desbloqueo_es_propio as propio from sesiones where token = $1',
     [t],
   )
   if (!s?.e) return null
+  if (soloPropio && !s.propio) return null
   return new Date(s.e).getTime() > Date.now() ? new Date(s.e).toISOString() : null
+}
+
+// La contraseña compartida del tenant, o null si no se ha asignado ninguna.
+// `tenants` está exenta de la RLS (pre-sesión), se lee con `q1` como el resto.
+async function contrasenaCompartidaDe(tenantId: string | null): Promise<string | null> {
+  if (!tenantId) return null
+  const r = await q1<{ h: string | null }>(
+    'select cambios_password_hash as h from tenants where id = $1',
+    [tenantId],
+  )
+  return r?.h ?? null
 }
 
 export interface EstadoControlCambios {
@@ -82,30 +105,41 @@ export interface EstadoControlCambios {
   // Hasta cuándo está desbloqueada esta sesión (ISO) o null.
   desbloqueadoHasta: string | null
   minutos: number
+  // ¿El Dueño ya asignó una contraseña compartida? NUNCA el hash: solo si hay
+  // una o no, para que la UI sepa si ofrecer "asignar" o "cambiar".
+  tieneContrasenaCompartida: boolean
 }
 
 // Lo que la UI necesita saber: si hay candado y hasta cuándo estoy desbloqueado.
 export async function estadoControlCambios(): Promise<EstadoControlCambios> {
   const u = await usuarioActual()
-  const base = { activo: false, requiere: false, desbloqueadoHasta: null, minutos: DESBLOQUEO_MINUTOS }
+  const base = {
+    activo: false, requiere: false, desbloqueadoHasta: null, minutos: DESBLOQUEO_MINUTOS,
+    tieneContrasenaCompartida: false,
+  }
   if (!u) return base
+  const tieneContrasenaCompartida = !!(await contrasenaCompartidaDe(u.tenantId))
   const activo = await exigeReautenticacion(u.tenantId)
-  if (!activo) return base
+  if (!activo) return { ...base, tieneContrasenaCompartida }
   return {
     activo: true,
     requiere: true,
     desbloqueadoHasta: await desbloqueoVigente(token()),
     minutos: DESBLOQUEO_MINUTOS,
+    tieneContrasenaCompartida,
   }
 }
 
 // Enciende o apaga la exigencia de reautenticación del tenant. Solo el Dueño.
-// Ya no recibe ninguna contraseña: no hay secreto que fijar.
+// El interruptor sigue sin recibir ninguna contraseña: eso es aparte, ver
+// `fijarContrasenaCambios`. Se puede encender sin haber asignado ninguna
+// compartida — en ese caso el candado solo acepta la contraseña propia de
+// cada quien, como en el ADR 0009.
 //
 // Al APAGARLO no se cierran los desbloqueos vivos (no hay nada que revocar: se
-// concedieron con la contraseña personal de cada quien, que sigue siendo válida).
-// Al ENCENDERLO sí se cierran, para que nadie herede un desbloqueo de antes de
-// que el candado existiera.
+// concedieron con una contraseña que sigue siendo válida). Al ENCENDERLO sí se
+// cierran, para que nadie herede un desbloqueo de antes de que el candado
+// existiera.
 export async function fijarExigirReautenticacion(
   tenantId: string,
   exigir: boolean,
@@ -131,8 +165,25 @@ export async function fijarExigirReautenticacion(
   return { ok: true, activo: exigir }
 }
 
-// Verifica la contraseña PROPIA y desbloquea ESTA sesión por DESBLOQUEO_MINUTOS.
-// La comparación es bcrypt en el servidor: el cliente nunca ve el hash.
+// Asigna (o rota) la contraseña compartida del candado de cambios. Solo el
+// Dueño. Independiente del interruptor: se puede fijar sin encenderlo, o
+// dejarlo encendido sin ninguna asignada (ver `fijarExigirReautenticacion`).
+// Misma regla que cualquier otra contraseña del sistema (`validarPassword`):
+// no tiene sentido exigirle 8 caracteres a la de login y aceptar «1234» aquí.
+export async function fijarContrasenaCambios(
+  tenantId: string,
+  password: string,
+): Promise<{ ok: true } | { error: string; status: number }> {
+  const motivo = validarPassword(password)
+  if (motivo) return { error: motivo, status: 400 }
+  const hash = await hashPassword(password)
+  await q('update tenants set cambios_password_hash = $1 where id = $2', [hash, tenantId])
+  return { ok: true }
+}
+
+// Verifica la contraseña — PROPIA o la COMPARTIDA del tenant, en ese orden —
+// y desbloquea ESTA sesión por DESBLOQUEO_MINUTOS. La comparación es bcrypt en
+// el servidor: el cliente nunca ve ningún hash.
 // No comprueba si el tenant tiene el candado encendido: reautenticarse siempre
 // está permitido. Antes se rechazaba con «el control no está activado», y eso
 // dejaba sin salida a las operaciones que exigen reautenticación SIEMPRE (ver
@@ -162,26 +213,51 @@ export async function desbloquear(
     'select password_hash as h from usuarios where id = $1 and tenant_id = $2',
     [u.id, u.tenantId],
   )
-  const fila = filas[0] ?? null
-  // Un usuario sin contraseña (alta a medias) no puede desbloquear. Mensaje
-  // aparte: «incorrecta» lo mandaría a probar contraseñas que no existen.
-  if (!fila?.h) {
+  const propioHash = filas[0]?.h ?? null
+  const compartidaHash = await contrasenaCompartidaDe(u.tenantId)
+
+  // Sin NINGUNA contraseña posible que comparar (alta a medias y el Dueño
+  // tampoco asignó la compartida): no puede desbloquear con nada. Mensaje
+  // aparte de «incorrecta», que mandaría a probar contraseñas que no existen.
+  if (!propioHash && !compartidaHash) {
     return { error: 'Tu usuario no tiene contraseña. Pide que te la restablezcan.', status: 400 }
   }
-  if (!(await verifyPassword(password, fila.h))) {
-    return { error: 'Contraseña incorrecta', status: 403 }
+
+  // La PROPIA primero: si coincide, este desbloqueo sirve para TODO, incluida
+  // `exigirReautenticacionSiempre` (tocar el acceso de otra persona).
+  if (propioHash && (await verifyPassword(password, propioHash))) {
+    return concederDesbloqueo(true)
   }
+  // La COMPARTIDA, si el Dueño asignó una: desbloquea el candado de cambios,
+  // pero NO sirve para tocar el acceso de otra persona (ver encabezado, punto 3).
+  if (compartidaHash && (await verifyPassword(password, compartidaHash))) {
+    return concederDesbloqueo(false)
+  }
+  return { error: 'Contraseña incorrecta', status: 403 }
+}
+
+async function concederDesbloqueo(
+  esPropio: boolean,
+): Promise<{ ok: true; hasta: string } | { error: string; status: number }> {
   const t = token()
   if (!t) return { error: 'Sin sesión', status: 401 }
   const hasta = new Date(Date.now() + DESBLOQUEO_MINUTOS * 60_000)
-  await q('update sesiones set desbloqueo_expira_en = $1 where token = $2', [hasta.toISOString(), t])
+  await q(
+    'update sesiones set desbloqueo_expira_en = $1, desbloqueo_es_propio = $2 where token = $3',
+    [hasta.toISOString(), esPropio, t],
+  )
   return { ok: true, hasta: hasta.toISOString() }
 }
 
 // Cierra el desbloqueo de esta sesión (botón "bloquear" o al terminar).
 export async function bloquear(): Promise<void> {
   const t = token()
-  if (t) await q('update sesiones set desbloqueo_expira_en = null where token = $1', [t])
+  if (t) {
+    await q(
+      'update sesiones set desbloqueo_expira_en = null, desbloqueo_es_propio = false where token = $1',
+      [t],
+    )
+  }
 }
 
 export interface FaltaDesbloqueo {
@@ -218,10 +294,14 @@ export async function exigirDesbloqueo(): Promise<{ ok: true } | FaltaDesbloqueo
 // depender de ese interruptor: tocar el ACCESO de otra persona es una de ellas.
 // Sin esto, restablecer la contraseña de un tercero seguiría sin pedir nada, que
 // es exactamente lo que señaló A7.
+//
+// Exige además que el desbloqueo sea con la contraseña PROPIA (`soloPropio`,
+// ADR 0036): la compartida no prueba identidad, así que no basta para tocar el
+// acceso de otra persona, aunque sí baste para el candado general de cambios.
 export async function exigirReautenticacionSiempre(): Promise<{ ok: true } | FaltaDesbloqueo> {
   const u = await usuarioActual()
   if (!u) return { ok: false, status: 401, error: 'Sin sesión', requiereDesbloqueo: true }
-  if (await desbloqueoVigente(token())) return { ok: true }
+  if (await desbloqueoVigente(token(), true)) return { ok: true }
   return { ok: false, status: 403, error: MENSAJE_DESBLOQUEO, requiereDesbloqueo: true }
 }
 
