@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Pool } from 'pg'
-import { recrearEsquema, poolTest, cerrarPool, URL_TEST } from './db-e2e'
+import { recrearEsquema, poolTest, poolApp, cerrarPool, URL_TEST } from './db-e2e'
 import { vigilarPool } from './pool-e2e'
 // Solo para MONTAR el escenario de la instancia rezagada: aplicar su historia
 // en el orden real. Las expectativas de estas pruebas nunca salen de aquí.
@@ -99,10 +99,11 @@ describe('registro de migraciones aplicadas', () => {
     // `folios_consecutivos` (`db/schema.sql:93-99`).
     const { rows } = await poolTest().query(
       `select relname, relrowsecurity from pg_class
-        where relname in ('schema_migrations', 'folios_consecutivos')
+        where relname in ('schema_migrations', 'folios_consecutivos', 'actualizaciones_instancia')
         order by relname`,
     )
     expect(rows).toEqual([
+      { relname: 'actualizaciones_instancia', relrowsecurity: false },
       { relname: 'folios_consecutivos', relrowsecurity: false },
       { relname: 'schema_migrations', relrowsecurity: false },
     ])
@@ -198,6 +199,53 @@ describe('registro de migraciones aplicadas', () => {
       await admin.query(`drop database if exists ${BASE_VIRGEN} with (force)`)
     }
   }, 30_000)
+})
+
+// ============================================================================
+//  `actualizaciones_instancia` — ADR 0037: cada instancia elige si toma la
+//  version nueva.
+// ----------------------------------------------------------------------------
+//  Es hermana de `schema_migrations`, no de `config_negocio`: describe el
+//  DROPLET, no una organizacion de dentro. Sin `tenant_id` y sin RLS a
+//  proposito, y con UNA sola fila posible.
+//
+//  Dos escritores con papeles separados por GRANT de columna, no por
+//  convencion de codigo: el actualizador (rol privilegiado) escribe lo
+//  disponible; la app (`spaces_app`) escribe solo lo que decide el dueno. Si
+//  la app pudiera escribir `digest_disponible` podria auto-aprobarse
+//  cualquier imagen.
+// ============================================================================
+
+describe('actualizaciones_instancia (ADR 0037)', () => {
+  it('actualizaciones_instancia es de la INSTANCIA: una sola fila y sin tenant_id', async () => {
+    // Sin `tenant_id` a proposito: describe el droplet, no una organizacion.
+    // Si alguien le anade la columna, esta prueba lo dice antes de que la
+    // pregunta "la de que tenant manda" se quede sin respuesta.
+    const cols = await poolTest().query(
+      `select count(*)::int as n from information_schema.columns
+        where table_name = 'actualizaciones_instancia' and column_name = 'tenant_id'`,
+    )
+    expect(cols.rows[0].n).toBe(0)
+
+    const filas = await poolTest().query('select count(*)::int as n from actualizaciones_instancia')
+    expect(filas.rows[0].n).toBe(1)
+
+    // NEGATIVO: una segunda fila no cabe. El `check (id)` mas la clave
+    // primaria booleana son lo que lo impide.
+    await expect(
+      poolTest().query('insert into actualizaciones_instancia (id) values (false)'),
+    ).rejects.toThrow()
+  })
+
+  it('el rol de la app puede leer todo, y escribir SOLO lo del dueno', async () => {
+    // La separacion de escritores no es una convencion: la impone la base.
+    // `digest_disponible` lo escribe el actualizador con el rol privilegiado;
+    // si la app pudiera escribirlo, podria auto-aprobarse cualquier cosa.
+    await expect(poolApp().query('select modo from actualizaciones_instancia')).resolves.toBeTruthy()
+    await expect(
+      poolApp().query("update actualizaciones_instancia set digest_disponible = 'sha256:inventado'"),
+    ).rejects.toThrow()
+  })
 })
 
 // ============================================================================
