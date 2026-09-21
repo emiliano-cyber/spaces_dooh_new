@@ -312,10 +312,44 @@ export interface EstadoCaptura {
   tablero: TableroUI | null
 }
 
-export function vistaDeCaptura(_e: EstadoCaptura): VistaCaptura {
-  throw new Error('sin implementar')
+/**
+ * Qué se pinta en el cuerpo de la tarjeta de la rejilla.
+ *
+ * LO QUE ESTA FUNCIÓN EXISTE PARA IMPEDIR: que un fallo al BORRAR se lleve la
+ * rejilla por delante. `errorBorrado` está en `EstadoCaptura` y aquí NO se mira
+ * ni una vez, y eso es la corrección, no un descuido.
+ *
+ * Antes había un solo estado `error` para las dos cosas. Un DELETE con 403
+ * —Operaciones puede `ver` y `crear` consumos, pero borrar exige `aprobar`—
+ * entraba en el mismo sitio que el fallo de carga, y el render lo prioriza
+ * sobre todo lo demás: la tabla completa, intacta en memoria, dejaba de
+ * pintarse y salía «No se pudo cargar la captura». Falso: sí cargó. Es la
+ * familia de errores que este repositorio ya conoce —los que mienten sin dar
+ * error— y el aviso del borrado va junto al botón, sin tocar lo que se enseña.
+ */
+export function vistaDeCaptura(e: EstadoCaptura): VistaCaptura {
+  // El orden ES la decisión. `cargando` va primero porque enseñar la rejilla
+  // vieja mientras llega la nueva afirma un dato que ya no se sostiene.
+  if (e.cargando) return 'cargando'
+  if (e.errorCarga) return 'error-carga'
+  if (e.motivo) return 'periodo-invalido'
+  if (!e.tablero) return 'nada'
+  if (e.tablero.puntos.length === 0) return 'sin-puntos'
+  return 'rejilla'
 }
 
-export function textoDeConfirmacionDeBorrado(_r: ConsumoEnergia): string {
-  throw new Error('sin implementar')
+/**
+ * Lo que se lee antes de borrar un recibo.
+ *
+ * No dice «¿seguro?»: nombra el recibo —medidor, mes e importe— y dice la
+ * consecuencia REAL, que no es «se pierde un dato». Es que ese mes vuelve a ser
+ * un HUECO, y mientras lo sea el reporte de rentabilidad suma solo lo capturado
+ * y enseña un costo de luz menor del real sin avisar de nada. Un «¿seguro?» no
+ * deja decidir; esto sí.
+ */
+export function textoDeConfirmacionDeBorrado(r: ConsumoEnergia): string {
+  // `sin número` y no «null»: un recibo sin medidor es normal —no todos los
+  // predios lo traen— y en la rejilla ya se nombra así.
+  const medidor = r.medidor?.trim() || 'sin número'
+  return `Se borra el recibo del medidor ${medidor}, de ${etiquetaDeMes(r.periodo.slice(0, 7))}, por ${pesos(r.importe)}. No se puede deshacer: ese mes vuelve a contar como un hueco, y hasta que lo captures otra vez el reporte de rentabilidad enseñará un costo de luz menor del real.`
 }

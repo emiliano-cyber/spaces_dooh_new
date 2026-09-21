@@ -1,7 +1,7 @@
 ---
 tipo: modulo
 estado: verificado
-actualizado: 2026-09-18
+actualizado: 2026-09-21
 tags: [backend, energia, luz, reportes, rentabilidad, captura, operaciones, dinero, rojo]
 archivos:
   - db/migrations/20260918_consumos_energia.sql
@@ -258,6 +258,35 @@ afirmaría que ese mes no se gastó luz y una celda en blanco no diría nada.
 **Hay DELETE, y no es un extra.** El índice único impide recapturar el mismo
 recibo, así que sin borrado un importe con un cero de más **infla el costo de un
 mes para siempre**. Pide `aprobar`, igual que el borrado de licencias.
+
+> [!danger] 2026-09-21 · Ese `aprobar` tenía un modo de fallo que MENTÍA, y una
+> puerta sin confirmación. Las dos corregidas
+> Las encontró el recorrido del manual del 18/09 (**B32** y **B33** de
+> `docs/Supervision/ABIERTOS.md`) y ninguna la vio ninguna prueba: vivían dentro
+> de un `.tsx`, y `vitest.config.ts` no monta jsdom a propósito.
+>
+> **B33 — el 403 se llevaba la rejilla entera.** Operaciones tiene `ver` y
+> `crear` pero no `aprobar`, así que su DELETE devuelve 403. Ese error entraba en
+> el **mismo** estado de React que el fallo de carga, y el render lo prioriza
+> sobre todo: la tabla —intacta en memoria— dejaba de pintarse y salía
+> «No se pudo cargar la captura». **Falso: sí cargó.** Es la familia de B26, la
+> de los errores que mienten sin dar error.
+>
+> La corrección no es un `if` más en el componente: la decisión salió del `.tsx`
+> a `vistaDeCaptura()` en `captura.ts`, donde sí hay pruebas. `errorBorrado` es
+> un campo de su entrada y la función **no lo mira ni una vez** — eso ES la
+> corrección, y el caso negativo que la sujeta afirma que un fallo al borrar
+> devuelve `'rejilla'`.
+>
+> **B32 — borrar no pedía confirmación**, mientras el manual de usuario
+> afirmaba que sí. Ahora usa `ConfirmDialog` (el de la aplicación, no
+> `window.confirm`) y el texto lo arma `textoDeConfirmacionDeBorrado()`: nombra
+> medidor, mes e importe, y dice la consecuencia **real**, que no es «se pierde
+> un dato» sino que ese mes vuelve a ser un **hueco** y el reporte enseñará un
+> costo de luz menor del real.
+>
+> Lo que **no** se tocó: el permiso. `aprobar` para borrar sigue igual y es
+> correcto — lo que estaba mal era cómo se contaba el «no».
 
 Y el duplicado **no se comprueba con un `select` previo**: entre el select y el
 insert cabe otra petición, y el único sitio donde esa carrera no existe es el
