@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: en-curso
-actualizado: 2026-09-11
+actualizado: 2026-09-21
 tags: [instancias, despliegue, padre, demo, flota, costos, plan, licencia]
 archivos:
   - docs/Plan_Instancias_Soberanas_v2.md
@@ -13,6 +13,7 @@ archivos:
   - apps/flota/diagnostico.mjs
   - infra/scripts/update.sh
   - infra/scripts/provision-instancia.sh
+  - scripts/actualizaciones.mjs
   - apps/flota/estado.mjs
   - apps/flota/servidor.mjs
   - infra/scripts/instalar-hijo.sh
@@ -664,6 +665,38 @@ que DEMO viva con una. Guión completo:
 `docs/evidencias/ensayo-licencia-demo.txt` — **todavía sin correr**: un
 interruptor que apaga instancias cuyo primer uso real fuera contra un cliente
 que paga sería la peor forma posible de estrenarlo.
+
+## 6-ter · Cada instancia elige si toma la version nueva — ADR 0037, en curso
+
+Desde el 2026-09-21, **el dueño de cada instancia decide si instala la versión
+nueva** cuando se publica, en vez de que `CANAL=estable` se la imponga en la
+siguiente corrida del cron de las 04:17. Decisión completa, con las cuatro
+piezas del diseño (tabla de una fila sin RLS, aprobación atada al DIGEST y no al
+nombre de versión, comprobar separado de actualizar, y `aprobacion` por
+omisión) en [[docs/adr/0037-cada-instancia-elige-si-toma-la-version-nueva]].
+Plan de siete tareas en `docs/Plan_Actualizacion_Elegida_Por_Instancia.md`.
+
+**Tarea 1 — hecha (2026-09-21).** La decisión no se escribe en bash: nace como
+función pura, `decidirActualizacion({ modo, corrida, digestInstalado,
+digestDisponible, aprobadoDigest })`, en `scripts/actualizaciones.mjs` (mismo
+patrón que `scripts/migrar.mjs`: `.mjs` porque `update.sh` corre `node` dentro
+de la imagen, sin TypeScript compilado que importar). Sus 10 pruebas viven en
+`scripts/actualizaciones.test.ts`, recogidas por `npm test` vía
+`apps/web/vitest.config.ts:41`.
+
+El orden de las preguntas dentro de la función **es** la decisión: `automatica`
+se resuelve antes de mirar cualquier aprobación (para que una aprobación vieja
+colgando no congele a quien eligió automática), y una aprobación solo cuenta si
+su digest coincide con el **disponible** — el corazón del ADR: el dueño aprueba
+lo que vio, no un nombre de versión que la etiqueta del canal puede haber
+movido después. Un `modo` que no es `'automatica'` ni `'aprobacion'` nunca
+actualiza (`motivo: 'modo-desconocido'`): fail-closed, porque actualizar corta
+el servicio y migra la base.
+
+Lo que **todavía no existe**: la tabla de instancia, el endpoint/pantalla de
+Administración, la escritura de `update.sh --comprobar` contra esa tabla y el
+cron de 15 minutos. `decidirActualizacion()` está aislada y probada, pero nadie
+la invoca todavía — eso es el resto del plan de siete tareas.
 
 ## 7 · Lo que está bloqueado, y por quién
 
