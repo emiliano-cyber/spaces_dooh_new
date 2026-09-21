@@ -288,3 +288,34 @@ export function motivoInvalidoDelRecibo(r: ReciboEnFormulario, hoy: Date): strin
 
   return null
 }
+
+// ─── Qué se pinta en el cuerpo de la tarjeta, y qué NO puede taparlo ────────
+
+export type VistaCaptura =
+  | 'cargando'
+  | 'error-carga'
+  | 'periodo-invalido'
+  | 'sin-puntos'
+  | 'rejilla'
+  | 'nada'
+
+export interface EstadoCaptura {
+  cargando: boolean
+  /** Falló traer el tablero: no hay nada fiable que enseñar. */
+  errorCarga: string | null
+  /**
+   * Falló BORRAR un recibo. Va aparte a propósito y esta función NO lo mira:
+   * ver `vistaDeCaptura`.
+   */
+  errorBorrado: string | null
+  motivo: string | null
+  tablero: TableroUI | null
+}
+
+export function vistaDeCaptura(_e: EstadoCaptura): VistaCaptura {
+  throw new Error('sin implementar')
+}
+
+export function textoDeConfirmacionDeBorrado(_r: ConsumoEnergia): string {
+  throw new Error('sin implementar')
+}
