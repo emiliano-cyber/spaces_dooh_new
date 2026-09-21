@@ -20,13 +20,15 @@ const ENTIDADES_CREADAS = [
   { id: 'E2', razonSocial: 'Operadora Comercial SA de CV', roles: ['OPERACION', 'VENTAS'] },
 ]
 
-// Los cinco que siembra `20260917_entidades_fiscales.sql:76`. Son la ENTRADA de
-// las pruebas, no una lista que el código conozca.
+// Los cinco que siembra `20260917_entidades_fiscales.sql:76`, con las dos
+// etiquetas que `20260921_corrige_acentos_catalogo_roles_entidad.sql`
+// acentuó (LICENCIAS y OPERACION). Son la ENTRADA de las pruebas, no una
+// lista que el código conozca.
 const CATALOGO = [
   { rol: 'ARRENDAMIENTOS', etiqueta: 'Paga las rentas a los arrendadores' },
   { rol: 'ACTIVOS', etiqueta: 'Compra los activos y el equipo' },
-  { rol: 'LICENCIAS', etiqueta: 'Tramites y licencias con gobierno' },
-  { rol: 'OPERACION', etiqueta: 'Operacion y nomina' },
+  { rol: 'LICENCIAS', etiqueta: 'Trámites y licencias con gobierno' },
+  { rol: 'OPERACION', etiqueta: 'Operación y nómina' },
   { rol: 'VENTAS', etiqueta: 'Vende publicidad' },
 ]
 
