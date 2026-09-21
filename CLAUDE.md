@@ -22,7 +22,7 @@ Confundirlos es el error más común al llegar.
 | **Formato** | Notas enlazadas entre sí, con frontmatter | Archivos sueltos: ADR, planes, runbooks, bitácora |
 | **Se lee** | Antes de tocar código | Cuando necesitas el porqué de una decisión |
 
-En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0035**), los **planes**
+En `docs/` viven: los **ADR** (`docs/adr/`, van por la **0036**), los **planes**
 (`docs/Plan_*.md`), los **runbooks**, las **correcciones de datos en producción**
 (`docs/datos/`, cada una con su rollback capturado antes) y la **bitácora**
 (`docs/Registro_Cambios.md`), que está escrita para quien no programa.
@@ -39,7 +39,7 @@ no se versiona configuración de la herramienta. Consecuencia práctica: la bóv
 Markdown puro y **se lee igual desde un editor, desde `cat` o desde un agente**. No
 necesitas instalar nada.
 
-Al 2026-09-18 tiene **1101 enlaces internos** sobre **85 notas**, con **2
+Al 2026-09-21 tiene **1106 enlaces internos** sobre **85 notas**, con **2
 wikilinks rotos** —los dos apuntan a ADR, que viven en `docs/` y no en la
 bóveda, así que es un choque de convención más que un enlace muerto— y
 **0 notas huérfanas**: la de `diario/2026-09-17` dejó de estarlo el 18/09, al
@@ -101,9 +101,10 @@ código, no de memoria:
 | Aislamiento | RLS de Postgres por `app.tenant_id` | `apps/web/lib/server/db.ts:60` y `:79` |
 | Endpoints | **98** route handlers | `apps/web/app/api/**/route.ts` |
 | Tablas | **44** | `vault/04-Datos/esquema.md` |
-| Migraciones | **84** | `vault/04-Datos/migraciones.md` |
+| Migraciones | **86** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-18**. Trátalos como una
+> Esos recuentos llevan fecha de validación **2026-09-21**, medidos con
+> `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
