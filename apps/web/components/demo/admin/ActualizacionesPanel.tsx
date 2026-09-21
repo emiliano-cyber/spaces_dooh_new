@@ -19,8 +19,11 @@ import { textoDeEstado, textoConfirmarInstalar } from '@/components/demo/admin/a
 //  tiene pruebas (`vitest.config.ts` no monta jsdom, ver CLAUDE.md).
 //
 //  GET/PATCH /api/actualizaciones exige `administracion:ver`/`:aprobar`
-//  (route.ts). Si el servidor responde 403, el panel se oculta en vez de
-//  pintar un error — el mismo criterio que `OrganizacionesPanel`.
+//  (route.ts). Si el servidor responde 403, se explica por qué en vez de
+//  esfumarse — el mismo criterio que `OrganizacionesPanel.tsx:59-66`. Esa
+//  capacidad se edita en Roles y permisos (`lib/server/auth.ts:173-179`), así
+//  que un Dueño al que se la quiten cae aquí en producción: un panel que
+//  desaparece sin más lo deja adivinando qué le falta.
 // ============================================================================
 
 const TONO_ICONO = { ok: CheckCircle2, alerta: AlertTriangle, info: Info } as const
@@ -87,7 +90,26 @@ export function ActualizacionesPanel({ onToast }: { onToast: (m: string) => void
     setInstalando(false)
   }
 
-  if (status === 'sin-permiso') return null
+  // Sin permiso: se explica en vez de esfumarse, y se dice a quién pedírselo.
+  // No cambia ningún permiso — el servidor sigue respondiendo 403 igual.
+  if (status === 'sin-permiso') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-4 w-4 text-muted" /> Actualizaciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-[12px] text-muted">
+            Ver y decidir la actualización de esta instancia está reservado a quien tenga el
+            permiso de <b className="text-ink">Administración → aprobar</b>. Pídeselo a quien
+            administre los roles y permisos de tu organización.
+          </p>
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <Card>
