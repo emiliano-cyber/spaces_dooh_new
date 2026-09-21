@@ -1,24 +1,25 @@
 ---
 tipo: referencia
 estado: verificado
-actualizado: 2026-09-17
+actualizado: 2026-09-21
 tags: [backend, api, endpoints]
 archivos:
   - apps/web/app/api/
   - apps/web/middleware.ts
   - apps/web/lib/server/auth.ts
   - apps/web/lib/server/cambios.ts
+  - apps/web/lib/server/actualizaciones-repo.ts
 ---
 
-# API — los 98 endpoints
+# API — los 99 endpoints
 
 Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 `basePath` `/spaces-dooh` (`apps/web/next.config.mjs:93`).
 
-> [!tip] 94 medidos el 2026-09-17, no copiados
-> `find app/api -name route.ts | wc -l`. Decía 90 (28/08). Dos de los cuatro que
-> faltaban son las rutas de [[entidades-fiscales]]; los otros dos ya estaban en el
-> repositorio y esta nota no los había recogido.
+> [!tip] 99 medidos el 2026-09-21 con `node scripts/recuentos.mjs`, no copiados
+> Decía 94 (17/09) y **el título seguía en 98** —una cifra que ni el propio
+> archivo se creía—. El script mide sobre el árbol donde se corre; hazlo tú si
+> lo necesitas exacto, no confíes en este número pasado un commit.
 
 > [!warning] El host **no** es parte de la API — no lo cablees
 > Esta nota decía `https://demo.space-os.io/spaces-dooh/api/...` como si hubiera
@@ -86,6 +87,7 @@ Todos son Route Handlers de Next (`app/api/**/route.ts`), servidos bajo el
 | GET | `/api/estado` | exigir | Devuelve **todo** el tenant |
 | GET·POST | `/api/entidades` | `administracion:ver` · `:crear` | Razones sociales **PROPIAS** del owner (17/09). `?inactivas=1` |
 | GET·PATCH·DELETE | `/api/entidades/[id]` | `administracion:ver` · `:crear` | `DELETE` es baja **lógica** (`activo = false`) |
+| GET·PATCH | `/api/actualizaciones` | `administracion:ver` · `:aprobar` | ADR 0037 — el dueño ve la versión instalada/disponible y aprueba por **DIGEST**, nunca por nombre de versión; `PATCH` con un digest que ya no es el disponible da **409** (comprobado y escrito en el mismo `UPDATE`, ver [[infraestructura-servidor]]) |
 
 > [!warning] `/api/entidades` y `/api/razones-sociales` NO son lo mismo
 > `/api/entidades` son las razones sociales **del owner** —quien **PAGA** la
