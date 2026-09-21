@@ -26,12 +26,25 @@ lista que pueda parar trabajo.**
 `lockfile-check.yml` corrieron en máquina limpia contra `main` protegido, y el
 trabajo de `chore/cierre-ola4` está en `main` (`emiliano/main` en `42fe847`).
 
-**Veredicto vigente: 🟢 VERDE**, con un hallazgo rescatado aparte (**B29**, de una
-rama del 14/09 que nunca se fusionó: una copia de `ejecutor.env` en el PADRE que
-quedó legible por cualquier usuario, con tokens reales dentro — pendiente de que
-una persona la verifique en el servidor), **B11**, que no es un defecto: es una
-pantalla que no existe todavía, y **tres decisiones tuyas** —D6, D7 y **D8**, que
-salió del ensayo del guion—.
+**Veredicto vigente: 🟢 VERDE.** Al 2026-09-21, en un solo día se cerraron **B29**
+(el hallazgo rescatado de `ejecutor.env.save`, verificado y borrado por el dueño
+desde la consola del PADRE), **B11** (pantalla de costos por tipo de OT, construida
+y probada), **D8** (migración de acentos, aplicada y verificada) y **D7 en lo
+técnico** (manual ilustrado, 5 de 6 pendientes cerrados mirando la aplicación —
+queda abierto solo el que es decisión de negocio, no técnica: si se levanta un
+inventario nuevo antes del SUMMIT). Sigue viva **D6** (tope de meses en el
+reporte, no bloquea el 14/10).
+
+> **Nuevo de hoy, sin cerrar:** el recorrido del manual encontró tres defectos de
+> producto reales que no se corrigieron a propósito (decisión del humano, no del
+> agente que los halló): borrar un recibo de luz no pide confirmación pese a que
+> el propio manual lo afirmaba; un perfil de Operaciones no puede borrar su
+> propio recibo mal capturado y el 403 le borra la rejilla entera en vez de
+> avisar junto al botón (misma familia que B26); y `next dev` en local queda con
+> el botón "Entrar" deshabilitado sin ningún error visible por la CSP sin
+> `unsafe-eval` (hay que usar `next build && next start` para desarrollar).
+> Ninguno tiene número B todavía — quedan para una próxima pasada de este
+> expediente.
 
 > **De las 15 advertencias que este expediente llegó a tener, quedan 2.** Y conviene
 > anotar cómo se cerraron cinco de ellas el 18/09: **ya estaban arregladas y nadie lo
@@ -722,7 +735,19 @@ calendario.
   —que a 26 días del SUMMIT van a ser varios— pierde el mismo rato otra vez, y el
   síntoma no dice nada del código.
 
-#### B29 · 🔴 En el PADRE hay una copia de `ejecutor.env` legible por cualquier usuario, con tokens reales de DigitalOcean y Cloudflare dentro
+#### ~~B29 · 🔴 En el PADRE hay una copia de `ejecutor.env` legible por cualquier usuario, con tokens reales de DigitalOcean y Cloudflare dentro~~
+
+> ✅ **CERRADA el 2026-09-21, por el dueño desde la consola web de DigitalOcean.**
+> Reverificado en el PADRE real (`curl -s ifconfig.me` → `137.184.107.53`,
+> confirmado antes de actuar): `ejecutor.env.save` ya estaba en **600**, no en
+> 644 — alguien lo corrigió entre el 14/09 y el 21/09 sin que quedara
+> documentado en ningún commit. Se borró el archivo (`rm`), y `ls -la
+> /etc/space-os/` después ya no lo lista.
+>
+> **Ventana de exposición confirmada: 05/09 → al menos el 14/09** (9 días
+> mínimo, legible por cualquier usuario del PADRE con esas credenciales de
+> DigitalOcean y Cloudflare dentro). **Decisión del dueño: no rotar los
+> tokens** — se acepta el riesgo de esos 9 días sin rotación.
 
 - **Qué es:** rescatado de `docs/hallazgos-14-septiembre`, una rama del 2026-09-14
   que nunca se fusionó — de sus cuatro hallazgos, este es el único que no aparece
