@@ -269,6 +269,49 @@ escrito_dice /etc/space-os/instancia.env 'DATABASE_URL="postgresql://spaces_migr
 limpiar
 
 # ============================================================================
+#  CRON · el cron frecuente --comprobar se suma al de las 4:17  (tarea 6, ADR 0037)
+# ----------------------------------------------------------------------------
+#  La entrada de las 4:17 sigue siendo la del modo automatico y la red de
+#  seguridad; no se toca. La nueva corre cada 15 minutos con `--comprobar`
+#  (SS3 del ADR): mira el registry y solo actualiza si hay una aprobacion que
+#  cuadra -- y si no hay nada que hacer, sale con 0 ("esperar no es un error").
+#
+#  El candado de `update.sh` (flock) sale con 75 cuando ya habia otro update en
+#  marcha (update.sh:74, "no es un error"). Sin tolerarlo en la propia linea de
+#  cron, la corrida de las 4:17 le pisaria el paso al --comprobar de al lado y
+#  cron mandaria correo por algo que funciona bien -- hasta varias veces cada
+#  madrugada, no una vez al dia como hoy.
+# ============================================================================
+escenario 'CRON · --comprobar se anade JUNTO a la entrada de las 4:17, no en su lugar'
+preparar
+fabricar_licencia p "$DOM"
+correr REGISTRY=registro.ejemplo/x PADRE_URL=https://padre.ejemplo.invalid FLOTA_TOKEN=t0ken-de-flota -- \
+  --instancia p --dominio "$DOM" --licencia "$LICDIR"
+codigo_es 0
+
+# La de siempre sigue exactamente igual.
+escrito_casa /etc/cron.d/space-os-update '^17 4 \* \* \* root /opt/space-os/update\.sh >> /var/log/space-os/cron\.log 2>&1$'
+
+# La nueva lleva --comprobar y corre cada 15 minutos.
+escrito_casa /etc/cron.d/space-os-update '^\*/15 \* \* \* \* root /opt/space-os/update\.sh --comprobar '
+
+# El candado (75) tolerado en la MISMA linea: un fallo real (1-7) sigue
+# mandando correo, porque solo el 75 se convierte en exito.
+escrito_dice /etc/cron.d/space-os-update '|| [ $? -eq 75 ]'
+limpiar
+
+escenario 'CRON · la linea --comprobar es IDENTICA en instalar-hijo.sh y provision-instancia.sh'
+LINEA_A="$(grep -- '--comprobar' "$RAIZ/infra/scripts/instalar-hijo.sh" | tr -d '[:space:]')"
+LINEA_B="$(grep -- '--comprobar' "$RAIZ/infra/scripts/provision-instancia.sh" | tr -d '[:space:]')"
+if [ -z "$LINEA_A" ] || [ -z "$LINEA_B" ]; then
+  mal "no se encontro la linea --comprobar en alguno de los dos guiones (a='$LINEA_A' b='$LINEA_B')"
+elif [ "$LINEA_A" = "$LINEA_B" ]; then
+  bien
+else
+  mal "instalar-hijo.sh y provision-instancia.sh escriben la linea --comprobar distinta (a='$LINEA_A' b='$LINEA_B')"
+fi
+
+# ============================================================================
 #  PERMISOS · un secreto va en 600; un documento publico, en 644  (F2)
 # ----------------------------------------------------------------------------
 #  La licencia NO es un secreto: es una afirmacion firmada y publica, y su
