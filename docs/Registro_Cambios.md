@@ -26,6 +26,21 @@ La entrada más reciente va arriba.
   pendientes" tanto si eran cero como si **no se habían podido contar**; ahora
   distingue las dos cosas, porque ese aviso es el que va justo antes de un corte
   de servicio.
+- **Borrar un recibo de luz ahora pregunta antes, y dice qué se va a borrar.**
+  Hasta hoy el icono de la papelera borraba al primer clic, sin preguntar nada
+  — y el manual de usuario decía lo contrario. Ahora sale un aviso que nombra
+  el medidor, el mes y el importe, y explica lo que de verdad pasa al borrarlo:
+  ese mes vuelve a contar como un hueco, y mientras lo sea el reporte de
+  rentabilidad enseña un costo de luz **menor** del real. Importa porque el
+  sistema no deja capturar dos veces el mismo recibo: si lo borras por error,
+  hay que teclearlo otra vez.
+
+- **Y si no tienes permiso para borrarlo, ya no desaparece la tabla entera.**
+  Quien trabaja en Operaciones puede capturar recibos pero no borrarlos. Al
+  intentarlo, la pantalla se quedaba en blanco con un mensaje que decía
+  «No se pudo cargar la captura» — que era falso, porque sí había cargado: lo
+  que falló fue el borrado. Ahora el aviso sale junto a la tabla, la tabla
+  sigue ahí, y dice lo que de verdad pasó.
 
 - **El control de cambios ya admite una contraseña de equipo, aparte de la de
   cada persona.** Cuando el Dueño activa el control de cambios (Administración →

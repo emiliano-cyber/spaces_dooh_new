@@ -42,6 +42,15 @@ reporte, no bloquea el 14/10).
 > junto al botón, misma familia que B26) y **B34** (`next dev` roto en local por
 > la CSP sin `unsafe-eval`, misma familia que B6).
 
+> **Al 2026-09-21, tarde · quedan 0 advertencias abiertas y 2 decisiones.**
+> Se cerraron **B11** (medida, la tenía tachada la cabecera pero no el
+> apartado), **B32** y **B33** (con su rojo fuerte delante y la decisión sacada
+> del `.tsx`), **B34** (documentada donde se busca) y, la que no estaba en la
+> lista, **B35**: la base desde la que se presenta el 14/10 **no aceptaba
+> migraciones**, y las dos del 21/09 llevaban tres días sin llegar a ella —
+> incluida la de los acentos, que este mismo expediente daba por aplicada.
+> Quedan vivas **D6** y **D7**, y ninguna bloquea el SUMMIT.
+
 > **De las 15 advertencias que este expediente llegó a tener, quedan 2.** Y conviene
 > anotar cómo se cerraron cinco de ellas el 18/09: **ya estaban arregladas y nadie lo
 > había apuntado** —el arreglo entró en una ola posterior y la advertencia siguió
@@ -774,7 +783,14 @@ calendario.
 - **Si no se cierra:** sigue expuesto un archivo con credenciales reales de dos
   proveedores, en un servidor con altas de instancias de clientes.
 
-#### B32 · Borrar un recibo de luz no pide ninguna confirmación, y el manual dice que sí
+#### ~~B32 · Borrar un recibo de luz no pide ninguna confirmación, y el manual dice que sí~~
+
+> ✅ **CERRADA el 2026-09-21.** Ahora usa `ConfirmDialog` —el diálogo de la
+> aplicación, no `window.confirm`— y el texto lo arma
+> `textoDeConfirmacionDeBorrado()` en `captura.ts`, con sus pruebas. No dice
+> «¿seguro?»: nombra medidor, mes e importe y dice la consecuencia real — ese
+> mes vuelve a ser un **hueco** y el reporte enseñará un costo de luz menor del
+> real. **Rojo fuerte antes** (`sin implementar`, no resolución de módulo).
 
 - **Qué es:** encontrado recorriendo la aplicación para ilustrar el manual del
   18/09. El botón de borrar un recibo de consumo de energía actúa de inmediato,
@@ -793,7 +809,14 @@ calendario.
 - **Si no se cierra antes del 14/10:** un clic de más en la demo borra un recibo
   delante de la sala, sin forma de deshacerlo desde la aplicación.
 
-#### B33 · Un 403 al borrar un recibo hace desaparecer TODA la rejilla, no solo avisa junto al botón
+#### ~~B33 · Un 403 al borrar un recibo hace desaparecer TODA la rejilla, no solo avisa junto al botón~~
+
+> ✅ **CERRADA el 2026-09-21.** Los dos estados van separados: `errorCarga` y
+> `errorBorrado`. Y la decisión **salió del `.tsx`**, que es lo que impide que
+> vuelva: `vistaDeCaptura()` vive en `captura.ts` —donde sí hay pruebas, porque
+> `vitest.config.ts` no monta jsdom a propósito— y `errorBorrado` es un campo de
+> su entrada **que la función no mira ni una vez**. Eso *es* la corrección. El
+> caso negativo que la sujeta: un fallo al borrar devuelve `'rejilla'`.
 
 - **Qué es:** Operaciones tiene permiso para `ver` y `crear` consumos de energía,
   pero borrar exige `aprobar`, que Operaciones no tiene. El 403 resultante no se
@@ -818,7 +841,11 @@ calendario.
   corregir su propio recibo mal capturado pierde la pantalla entera y lee un
   mensaje que no describe lo que pasó.
 
-#### B34 · `next dev` en local queda con el botón "Entrar" deshabilitado para siempre, sin ningún error visible
+#### ~~B34 · `next dev` en local queda con el botón "Entrar" deshabilitado para siempre, sin ningún error visible~~
+
+> ✅ **CERRADA el 2026-09-21.** Documentada en `CLAUDE.md`, junto a sus dos
+> hermanas (B5/B6), con el síntoma y el rodeo (`npm run build && npm start`). La
+> CSP de producción no se tocó, que era la condición.
 
 - **Qué es:** encontrado al levantar el entorno para el manual del 18/09.
   `next dev` usa `eval()` para el Fast Refresh de React; la CSP del 28/08 lo
@@ -839,10 +866,75 @@ calendario.
 - **Si no se cierra:** cualquiera que arranque el entorno de desarrollo normal
   pierde el mismo rato de diagnóstico, y a 23 días del SUMMIT van a ser varios.
 
+#### ~~B35 · 🔴 La base de la demo del SUMMIT no aceptaba migraciones, y la causa NO era la que B23 dio por cerrada~~
+
+> ✅ **DIAGNOSTICADA Y CERRADA el 2026-09-21**, y es la advertencia más cara de
+> este expediente porque **`git status` no puede delatarla**.
+
+- **Qué se observaba:** `node scripts/migrar.mjs --pendientes` contra
+  `spaces_ver2` —la base desde la que se presenta el 14/10— salía con
+  **código 3**, «una migracion YA APLICADA tiene otro contenido en disco», y **no
+  aplicaba nada**. 29 divergencias. B23 daba esto por cerrado el 18/09 con
+  **exit 0 medido en las dos bases**, así que o la medición era falsa o algo
+  volvió a romperlo.
+- **Ninguna de las dos.** La reconciliación del 18/09 **fue correcta**: dejó el
+  registro en LF, que es lo canónico. Lo que nadie rematerializó fue **el árbol
+  de trabajo**.
+- **Causa raíz, medida archivo por archivo:**
+
+  | | sha256 | qué es |
+  |---|---|---|
+  | blob en git (`git show HEAD:…`) | `c6b05328` | **LF — el canónico** |
+  | registrado en `spaces_ver2` | `c6b05328` | **cuadra: el registro estaba BIEN** |
+  | archivo en disco | `e8f87671` | **CRLF — el árbol era el que mentía** |
+
+  `.gitattributes` congela `db/migrations/*.sql` a `text eol=lf` desde el 18/09,
+  pero **git no reescribe un archivo que ya está en disco**: los que ya estaban
+  se quedaron en CRLF. Medido: **30 de 86**.
+- **Y por qué nadie lo vio:** con el atributo `text`, git **normaliza al
+  commitear**, así que `git status` sale **limpio** con el árbol en CRLF. No hay
+  mandato de git que lo diga. A eso se suman dos exenciones silenciosas: las
+  filas con el centinela `'backfill'` se saltan la comprobación
+  (`scripts/migrar.mjs:199`), y `spaces_e2e` se recrea de cero en cada corrida,
+  así que su registro se escribe **siempre desde el disco de hoy**. Consecuencia
+  que conviene no olvidar: **las e2e en verde no pueden ver esto, por
+  construcción.**
+- **La afirmación de B23 que resultó falsa**, y se deja escrita porque es la
+  lección: decía «Hoy no se dispara —el árbol ya está en LF, medido—». **No lo
+  estaba.** Lo que se midió fue *un* archivo de muestra
+  (`reconciliar-checksums-migraciones.ps1:53` mira
+  `20260812_sin_default_tenant.sql` y nada más) y se generalizó a los 86.
+- **Cómo se cerró:** rematerializando el árbol (`rm` + `git checkout --`, con
+  `git status` limpio comprobado antes) — 86 archivos, **0 en CRLF** después.
+  `spaces_ver2` pasó a **exit 0, 0 divergencias**, y con eso entraron las dos
+  migraciones del 21/09 que llevaban tres días sin llegar a la demo.
+- **Y descubrió un tercer defecto**, en el propio guion que B23 receta como cura:
+  filtraba `where tipo is distinct from 'backfill'` cuando el centinela vive en
+  **`checksum`**, así que sobre `spaces` declaraba **65 INEXPLICABLES** y se
+  detenía. La cura de B23 era **imposible de aplicar** en esa base. Corregido en
+  `b6d972a`, junto con su `$Repo` por omisión, que apuntaba a un worktree
+  borrado.
+- **Queda escrito donde se busca:** `CLAUDE.md`, en el bloque de trampas de
+  entorno, con el diagnóstico, la cura, y por qué `--forzar-checksum` es aquí la
+  respuesta **equivocada** — grabaría la mentira, porque el registro estaba bien.
+
+> [!danger] La lección, y es la de siempre en este archivo
+> **B23 se cerró con una medición real y un diagnóstico incompleto.** El exit 0
+> del 18/09 era cierto; lo que no era cierto es la frase que explicaba por qué.
+> Una advertencia se cierra con la causa entendida, no solo con el síntoma
+> apagado — porque el síntoma vuelve y el expediente ya dice que no puede.
+
 ### B · ii — Críticas por CALENDARIO (no hay fallo silencioso; aprieta la fecha)
 
 #### ~~B23 · 🟠 **El arreglo de los checksums funcionó, y por eso la base de demostración del SUMMIT dejó de aceptar migraciones.** Pasó de 0 divergencias a 80~~
 
+> ⚠️ **Su diagnóstico estaba INCOMPLETO. Ver [B35], del 2026-09-21:** la
+> reconciliación de abajo fue correcta —dejó el registro en LF— pero **nadie
+> rematerializó el árbol de trabajo**, que siguió en CRLF. El exit 0 que se
+> midió aquel día era cierto y aun así la base volvió a bloquearse, porque la
+> frase «el árbol ya está en LF, medido» se generalizó desde **un solo archivo
+> de muestra**.
+>
 > ✅ **CERRADA el 2026-09-18. Medido en las DOS bases, que era el punto.**
 > `node scripts/migrar.mjs --pendientes` devuelve **salida 0** contra
 > `spaces_ver2` y contra `spaces`: **83 aplicadas, 0 pendientes de esquema** en
@@ -1196,7 +1288,12 @@ calendario.
 - **Si no se cierra antes del 14/10:** la mitad del alcance que pidió el jefe no se
   puede demostrar, ni siquiera con la pantalla construida.
 
-#### B11 · El costo de una orden de trabajo se puede configurar, pero no hay pantalla para hacerlo
+#### ~~B11 · El costo de una orden de trabajo se puede configurar, pero no hay pantalla para hacerlo~~
+
+> ✅ **CERRADA el 2026-09-21** por `2f0a390`. **Con qué se midió:** la búsqueda
+> que la abrió —`costosOt` en cualquier `.tsx`— ya no vuelve vacía:
+> `app/(app)/(shell)/administracion/page.tsx`. La tarjeta está en
+> Administración → Configuración, con un campo por tipo de tarea.
 
 - **Qué es:** cabo suelto de las horas por tipo de OT aprobadas el 18/09. Los costos
   por tipo se guardan y se leen correctamente, pero solo se pueden poner con una

@@ -37,7 +37,10 @@ param(
   [int]$Puerto = 5433,
   [string]$Usuario = "spaces",
   [string]$Clave = "spaces",
-  [string]$Repo = "C:\Users\Server\spaces_doohmain_nueva\.claude\worktrees\entidades",
+  # Se deriva del propio guion (`infra/scripts/` -> raiz del repo). Antes era
+  # una ruta absoluta de una maquina, apuntando ademas a un worktree que ya no
+  # existe: en cualquier otro arbol el guion media los archivos EQUIVOCADOS.
+  [string]$Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path,
   [switch]$SoloMirar
 )
 
@@ -62,7 +65,13 @@ if ((Get-Content -Raw -Path $muestra) -match "`r`n") {
 }
 
 # --- 2. Clasificar cada fila registrada -------------------------------------
-$sql = "select archivo || '|' || checksum from schema_migrations where tipo is distinct from 'backfill' order by archivo;"
+# El centinela vive en CHECKSUM, no en `tipo`. Esta linea filtraba `tipo` y el
+# guion se tragaba las 65 filas del backfill de `spaces`, las declaraba
+# INEXPLICABLES y se detenia: la reconciliacion que este guion existe para
+# hacer era imposible de correr en esa base. Medido el 2026-09-21 --
+# `select tipo, count(*)` devuelve 'esquema' para las 71 filas, y
+# `checksum='backfill'` para 65 de ellas.
+$sql = "select archivo || '|' || checksum from schema_migrations where checksum <> 'backfill' order by archivo;"
 $filas = docker exec spaces_db psql -U $Usuario -d $Base -tAc $sql
 
 $aReconciliar = @(); $yaBien = 0; $inexplicables = @()

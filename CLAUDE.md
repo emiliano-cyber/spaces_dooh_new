@@ -101,7 +101,8 @@ código, no de memoria:
 | Tablas | **45** | `vault/04-Datos/esquema.md` |
 | Migraciones | **87** | `vault/04-Datos/migraciones.md` |
 
-> Esos recuentos llevan fecha de validación **2026-09-22**. Trátalos como una
+> Esos recuentos llevan fecha de validación **2026-09-22**, medidos con
+> `node scripts/recuentos.mjs` sobre este árbol. Trátalos como una
 > afirmación con fecha, no como una verdad permanente — §5 explica cómo
 > reverificarlos.
 >
@@ -301,6 +302,76 @@ Están completas en `vault/06-Operacion/convenciones.md`. Lo mínimo:
 > servidor sirva el build de disco.** Si has reconstruido, el estado de la
 > pantalla no te dice nada; compara las dos cadenas o reinicia. Reiniciar cuesta
 > **376 ms**, que es menos de lo que cuesta dudarlo.
+
+> [!danger] `next dev` deja el botón «Entrar» MUERTO para siempre, sin un solo error
+> Encontrado el **2026-09-18** levantando el entorno para el manual, y es la
+> tercera de esta misma familia: un entorno que se ve roto y **no lo está**.
+>
+> `next dev` usa `eval()` para el Fast Refresh de React. La CSP del 28/08 trae
+> `script-src 'self' 'unsafe-inline'` **sin `'unsafe-eval'`**
+> (`apps/web/next.config.mjs:103`, aplicada globalmente por `headers()`), así que
+> el navegador lo bloquea, React **nunca hidrata**, y el botón de login queda
+> deshabilitado sin ningún mensaje. Parece un defecto de la pantalla y es del
+> entorno.
+>
+> **El rodeo, y no se toca la CSP de producción por esto:**
+>
+> ```
+> cd apps/web && npm run build && npm start
+> ```
+
+> [!danger] Y la peor de todas, porque `git status` NO puede delatarla:
+> el árbol de trabajo en CRLF **bloquea toda migración futura**
+> Diagnosticada el **2026-09-21**. El síntoma: `node scripts/migrar.mjs` sale con
+> **código 3** — «una migracion YA APLICADA tiene otro contenido en disco» — y
+> **no aplica nada**. Parece que alguien editó una migración aplicada, que es lo
+> que el repositorio prohíbe. **No es eso.**
+>
+> El runner registra el **sha256 del archivo tal como está en disco**. Con
+> `core.autocrlf=true` —que es lo que hay en esta máquina— un checkout deja
+> CRLF, y el checksum de una migración **depende de en qué máquina se hizo el
+> checkout**. `.gitattributes` congela `db/migrations/*.sql` a `text eol=lf`
+> desde el 18/09, **pero git no reescribe un archivo que ya está en disco**: los
+> que ya estaban se quedaron en CRLF para siempre.
+>
+> **Y aquí está lo que lo hace caro:** con el atributo `text`, git normaliza al
+> commitear, así que **`git status` sale LIMPIO** con el árbol en CRLF. No hay
+> ningún mandato de git que te lo diga. Medido ese día: **30 de 86** migraciones
+> en CRLF en un árbol que `git status` daba por limpio, y **29 divergencias**
+> contra `spaces_ver2` — la base de la demostración del SUMMIT.
+>
+> **Cómo se ve, y cómo se arregla.** El diagnóstico es comparar el archivo con su
+> variante sin CR; si el hash cambia, hay CRLF:
+>
+> ```bash
+> for f in db/migrations/*.sql; do
+>   [ "$(sha256sum < "$f")" != "$(tr -d '\r' < "$f" | sha256sum)" ] && echo "CRLF: $f"
+> done
+> ```
+>
+> Y la cura es **rematerializar el árbol desde git**, con `git status` limpio
+> antes (si no, se lleva por delante una migración sin commitear):
+>
+> ```bash
+> git status --short db/migrations/     # tiene que salir VACIO
+> rm -f db/migrations/*.sql && git checkout -- db/migrations/
+> ```
+>
+> **No uses `--forzar-checksum` para esto.** Esa bandera le dice al registro que
+> el contenido nuevo es el bueno, y aquí el contenido nuevo es el **equivocado**:
+> el registro estaba bien y el disco mal. Forzarlo graba la mentira.
+>
+> **Ojo con el sentido del error**, que es lo que confunde: si el registro de una
+> base se escribió desde un árbol CRLF, arreglar el árbol **rompe esa base** y
+> deja de romper las demás. Es el mismo defecto con el signo cambiado, y ya pasó
+> dos veces (B2 y B23). La señal de que vas bien: el hash del archivo en disco
+> tiene que coincidir con `git show HEAD:<ruta> | sha256sum`, que es el canónico.
+>
+> Y hay bases **exentas sin que se note**: las filas con el centinela
+> `'backfill'` se saltan la comprobación (`scripts/migrar.mjs:199`), y
+> `spaces_e2e` se recrea de cero en cada corrida, así que su registro se escribe
+> **siempre desde el disco de hoy**. Consecuencia: **las e2e en verde no ven nada
+> de esto, por construcción.**
 
 ### La trampa del orden de migraciones
 

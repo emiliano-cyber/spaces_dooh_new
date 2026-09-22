@@ -14,6 +14,7 @@ import {
   motivoInvalido,
   resumenDeCobertura,
   rutaDeBorrado,
+  vistaDeCaptura,
   type RangoCaptura,
   type ReciboEnFormulario,
   type TableroUI,
@@ -52,7 +53,12 @@ export default function EnergiaPage() {
   const [rango, setRango] = useState<RangoCaptura>(() => RANGO_DE_APERTURA(new Date()))
   const [cargando, setCargando] = useState(false)
   const [tablero, setTablero] = useState<TableroUI | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  // DOS estados de error, y la separacion es la correccion de B33: un fallo al
+  // BORRAR no dice nada de la carga, asi que no puede decidir si se pinta la
+  // rejilla. Ver `vistaDeCaptura` en `captura.ts`, donde esta la regla y su
+  // prueba.
+  const [errorCarga, setErrorCarga] = useState<string | null>(null)
+  const [errorBorrado, setErrorBorrado] = useState<string | null>(null)
   // Cambia a mano para forzar una recarga tras guardar o borrar, sin duplicar
   // la lógica del efecto en dos sitios.
   const [version, setVersion] = useState(0)
@@ -76,15 +82,15 @@ export default function EnergiaPage() {
         if (control.signal.aborted) return
         if (!r.ok) {
           setTablero(null)
-          setError(cuerpo?.error ?? 'No se pudo cargar la captura de consumos')
+          setErrorCarga(cuerpo?.error ?? 'No se pudo cargar la captura de consumos')
           return
         }
         setTablero(cuerpo)
-        setError(null)
+        setErrorCarga(null)
       } catch {
         if (control.signal.aborted) return
         setTablero(null)
-        setError('No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.')
+        setErrorCarga('No se pudo contactar al servidor. Revisa la conexión y vuelve a intentar.')
       } finally {
         // En el `finally`: es lo que impide el spinner infinito pase lo que pase.
         if (!control.signal.aborted) setCargando(false)
@@ -129,15 +135,20 @@ export default function EnergiaPage() {
       const r = await fetch(rutaDeBorrado(id), { method: 'DELETE' })
       if (!r.ok) {
         const cuerpo = (await r.json().catch(() => null)) as { error?: string } | null
-        setError(cuerpo?.error ?? 'No se pudo borrar el recibo')
+        // A SU PROPIO estado. El 403 de aqui —Operaciones no tiene `aprobar`—
+        // no tiene nada que ver con si el tablero cargo, y mandarlo al estado
+        // de la carga vaciaba la rejilla entera. B33.
+        setErrorBorrado(cuerpo?.error ?? 'No se pudo borrar el recibo')
         return
       }
+      setErrorBorrado(null)
       recargar()
     },
     [recargar],
   )
 
   const resumen = useMemo(() => (tablero ? resumenDeCobertura(tablero) : null), [tablero])
+  const vista = vistaDeCaptura({ cargando, errorCarga, errorBorrado, motivo, tablero })
 
   return (
     <div className="w-full space-y-4">
@@ -236,13 +247,23 @@ export default function EnergiaPage() {
             </ul>
           ) : null}
 
-          {cargando ? (
+          {/* El fallo al BORRAR se dice AQUI, encima de la rejilla y sin
+              taparla. Antes entraba en el estado de la carga y hacia
+              desaparecer toda la tabla bajo un titulo falso: B33. */}
+          {errorBorrado ? (
+            <p className="flex items-start gap-1.5 rounded-md border border-error/30 bg-error-soft px-3 py-2 text-[12px] text-error">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{errorBorrado}</span>
+            </p>
+          ) : null}
+
+          {vista === 'cargando' ? (
             <div className="h-48 w-full animate-pulse rounded-md bg-surface-2" />
-          ) : error ? (
-            <EmptyState icon={ServerCrash} titulo="No se pudo cargar la captura" detalle={error} />
-          ) : motivo ? (
-            <EmptyState icon={CalendarSearch} titulo="Revisa el periodo" detalle={motivo} />
-          ) : tablero && tablero.puntos.length === 0 ? (
+          ) : vista === 'error-carga' ? (
+            <EmptyState icon={ServerCrash} titulo="No se pudo cargar la captura" detalle={errorCarga ?? ''} />
+          ) : vista === 'periodo-invalido' ? (
+            <EmptyState icon={CalendarSearch} titulo="Revisa el periodo" detalle={motivo ?? ''} />
+          ) : vista === 'sin-puntos' ? (
             /* Vacío HONESTO: se dice POR QUÉ está vacío y qué hacer, en vez de
                un «no hay datos» que deja sin saber si el problema es el rango o
                el inventario. */
@@ -251,7 +272,7 @@ export default function EnergiaPage() {
               titulo="Todavía no hay dónde capturar"
               detalle="Un recibo de luz cuelga de un predio con pantallas, o de una pantalla sin predio. Da de alta el inventario y esta pantalla se llena sola."
             />
-          ) : tablero ? (
+          ) : vista === 'rejilla' && tablero ? (
             <RejillaCaptura tablero={tablero} onBorrar={borrar} />
           ) : null}
         </CardContent>

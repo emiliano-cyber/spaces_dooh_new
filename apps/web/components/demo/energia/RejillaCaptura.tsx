@@ -1,9 +1,17 @@
 'use client'
 
+import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { formatMonto } from '@/lib/data/derive'
-import { etiquetaDeMes, filasDelTablero, type TableroUI } from './captura'
+import { ConfirmDialog } from '@/components/demo/ui/ConfirmDialog'
+import type { ConsumoEnergia } from '@/lib/server/energia-repo'
+import {
+  etiquetaDeMes,
+  filasDelTablero,
+  textoDeConfirmacionDeBorrado,
+  type TableroUI,
+} from './captura'
 
 // ============================================================================
 //  La rejilla: un punto de medición por fila, un mes por columna.
@@ -31,6 +39,13 @@ export function RejillaCaptura({
   onBorrar: (id: string) => Promise<void>
 }) {
   const filas = filasDelTablero(tablero)
+  // B32: el borrado pedia confirmacion en el manual y no la pedia en la
+  // pantalla. Un clic de mas en un icono sin texto borraba el recibo, y como el
+  // sistema rechaza capturar dos veces el mismo, recuperarlo exige volver a
+  // teclearlo. Se usa el dialogo de la aplicacion y no `window.confirm`: el
+  // texto tiene que caber y decir QUE se va, no solo preguntar.
+  const [porBorrar, setPorBorrar] = useState<ConsumoEnergia | null>(null)
+  const [borrando, setBorrando] = useState(false)
 
   return (
     <div className="overflow-x-auto">
@@ -85,7 +100,7 @@ export function RejillaCaptura({
                         <button
                           key={r.id}
                           type="button"
-                          onClick={() => void onBorrar(r.id)}
+                          onClick={() => setPorBorrar(r)}
                           className="flex w-full items-center justify-end gap-1 text-[11px] text-muted hover:text-error"
                           title="Borrar este recibo"
                         >
@@ -110,6 +125,28 @@ export function RejillaCaptura({
           ))}
         </tbody>
       </table>
+
+      <ConfirmDialog
+        open={porBorrar !== null}
+        onOpenChange={(v) => !v && setPorBorrar(null)}
+        title="Borrar este recibo"
+        confirmLabel="Borrar el recibo"
+        busy={borrando}
+        onConfirm={() => {
+          if (!porBorrar) return
+          setBorrando(true)
+          // El dialogo se cierra pase lo que pase: si el borrado falla, quien
+          // lo dice es el aviso de la pantalla, junto a la rejilla y sin
+          // taparla (B33). Dejarlo abierto sobre un error invita a reintentar
+          // lo que el permiso no va a permitir.
+          void onBorrar(porBorrar.id).finally(() => {
+            setBorrando(false)
+            setPorBorrar(null)
+          })
+        }}
+      >
+        {porBorrar ? textoDeConfirmacionDeBorrado(porBorrar) : null}
+      </ConfirmDialog>
     </div>
   )
 }

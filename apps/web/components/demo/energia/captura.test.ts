@@ -9,6 +9,8 @@ import {
   motivoInvalidoDelRecibo,
   resumenDeCobertura,
   rutaDeBorrado,
+  textoDeConfirmacionDeBorrado,
+  vistaDeCaptura,
   type TableroUI,
 } from './captura'
 
@@ -276,5 +278,140 @@ describe('6 · lo que se rechaza ANTES de mandar', () => {
     expect(motivoInvalidoDelRecibo({ ...base, periodo: '2027-01' }, new Date(2026, 8, 18))).toBeTruthy()
     // El mes EN CURSO sí vale: un recibo puede llegar a mitad de mes.
     expect(motivoInvalidoDelRecibo({ ...base, periodo: '2026-09' }, new Date(2026, 8, 18))).toBeNull()
+  })
+})
+
+// ============================================================================
+//  B33 · Un fallo AL BORRAR no puede llevarse la rejilla por delante.
+// ----------------------------------------------------------------------------
+//  Operaciones puede `ver` y `crear` consumos, pero borrar exige `aprobar`
+//  (`app/api/energia/consumos/[id]/route.ts:24`). El 403 que sale de ahí no
+//  dice nada de la carga: el tablero ya está en memoria y está intacto. Pintar
+//  «No se pudo cargar la captura» y vaciar la tabla es AFIRMAR algo falso —la
+//  carga sí funcionó— y además esconde el dato que la persona estaba mirando.
+//
+//  Por eso el estado del borrado va SEPARADO del estado de la carga, y esta
+//  prueba es la que lo sujeta: es la misma familia que B26, la de los errores
+//  que mienten en silencio.
+// ============================================================================
+describe('vistaDeCaptura', () => {
+  const lleno = tablero()
+
+  it('NEGATIVO: un fallo al BORRAR deja la rejilla en pie', () => {
+    // El corazón de B33. Si esto se pone en verde devolviendo 'error-carga',
+    // la pantalla volvió a mentir.
+    expect(
+      vistaDeCaptura({
+        cargando: false,
+        errorCarga: null,
+        errorBorrado: 'No tienes permiso para borrar recibos.',
+        motivo: null,
+        tablero: lleno,
+      }),
+    ).toBe('rejilla')
+  })
+
+  it('un fallo al CARGAR sí tapa la rejilla: no hay nada fiable que enseñar', () => {
+    expect(
+      vistaDeCaptura({
+        cargando: false,
+        errorCarga: 'No se pudo cargar la captura de consumos',
+        errorBorrado: null,
+        motivo: null,
+        tablero: lleno,
+      }),
+    ).toBe('error-carga')
+  })
+
+  it('cargando gana a todo: enseñar datos viejos mientras llegan los nuevos es mentir a medias', () => {
+    expect(
+      vistaDeCaptura({
+        cargando: true,
+        errorCarga: 'lo que sea',
+        errorBorrado: 'lo que sea',
+        motivo: null,
+        tablero: lleno,
+      }),
+    ).toBe('cargando')
+  })
+
+  it('un periodo invalido se dice como tal, y no como un fallo del servidor', () => {
+    expect(
+      vistaDeCaptura({
+        cargando: false,
+        errorCarga: null,
+        errorBorrado: null,
+        motivo: 'La fecha de inicio va despues de la final.',
+        tablero: lleno,
+      }),
+    ).toBe('periodo-invalido')
+  })
+
+  it('sin puntos de medicion se dice POR QUE esta vacio', () => {
+    expect(
+      vistaDeCaptura({
+        cargando: false,
+        errorCarga: null,
+        errorBorrado: null,
+        motivo: null,
+        tablero: tablero({ puntos: [], celdas: [] }),
+      }),
+    ).toBe('sin-puntos')
+  })
+
+  it('sin tablero todavia no se pinta nada', () => {
+    expect(
+      vistaDeCaptura({
+        cargando: false,
+        errorCarga: null,
+        errorBorrado: null,
+        motivo: null,
+        tablero: null,
+      }),
+    ).toBe('nada')
+  })
+})
+
+// ============================================================================
+//  B32 · Borrar un recibo pide confirmación, y la confirmación DICE QUÉ se va.
+// ----------------------------------------------------------------------------
+//  El botón era un icono sin texto y borraba al primer clic. El manual de
+//  usuario afirmaba lo contrario («El sistema te pide confirmar»), así que una
+//  de las dos cosas estaba mal; se corrige la que deja un borrado irreversible
+//  a un clic de distancia.
+//
+//  Y el texto no dice «¿seguro?»: nombra el recibo y dice la consecuencia real,
+//  que no es «se pierde un dato» sino que ese mes vuelve a ser un HUECO y el
+//  reporte de rentabilidad enseñará un costo de luz menor del real.
+// ============================================================================
+describe('textoDeConfirmacionDeBorrado', () => {
+  const recibo = {
+    id: 'r1',
+    predioId: 'p1',
+    sitioId: null,
+    periodo: '2026-02-01',
+    medidor: 'M-4471',
+    kwh: 1200,
+    importe: 8450,
+    notas: null,
+    creadoEn: '2026-03-01T00:00:00.000Z',
+  }
+
+  it('nombra el medidor, el mes y el importe: sin eso no se puede decidir', () => {
+    const t = textoDeConfirmacionDeBorrado(recibo)
+    expect(t).toContain('M-4471')
+    expect(t).toContain('feb')
+    expect(t).toContain('2026')
+    expect(t).toMatch(/8,450/)
+  })
+
+  it('dice la consecuencia de verdad: ese mes vuelve a contar como un hueco', () => {
+    expect(textoDeConfirmacionDeBorrado(recibo)).toMatch(/hueco/i)
+  })
+
+  it('un recibo sin numero de medidor se nombra igual, y no como «null»', () => {
+    const t = textoDeConfirmacionDeBorrado({ ...recibo, medidor: null })
+    expect(t).toContain('sin número')
+    expect(t).not.toMatch(/null/)
   })
 })
