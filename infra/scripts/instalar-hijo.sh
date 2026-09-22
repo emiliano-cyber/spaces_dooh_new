@@ -864,6 +864,14 @@ cat <<'CRON' | escribir /etc/cron.d/space-os-update 644
 # La instancia se actualiza SOLA. Nadie entra por ssh desde fuera a desplegar.
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# ADR 0037 (tarea 6): comprobar corre cada 15 min y solo actualiza si hay una
+# aprobacion cuyo digest cuadra con lo disponible; si no hay nada que hacer,
+# sale con 0 ("esperar no es un error"). El "|| [ $? -eq 75 ]" tolera el
+# candado de update.sh (flock, "ya habia otro update en marcha", tambien sale
+# 0 en espiritu): sin esto, la corrida de las 4:17 le pisa el paso al
+# --comprobar de al lado y cron manda correo por algo que funciona bien,
+# hasta varias veces cada madrugada. Un fallo real (1-7) lo sigue mandando.
+*/15 * * * * root /opt/space-os/update.sh --comprobar >> /var/log/space-os/cron.log 2>&1 || [ $? -eq 75 ]
 17 4 * * * root /opt/space-os/update.sh >> /var/log/space-os/cron.log 2>&1
 CRON
 

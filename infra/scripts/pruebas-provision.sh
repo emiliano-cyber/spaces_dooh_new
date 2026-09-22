@@ -705,8 +705,12 @@ escrito_dice /etc/cron.d/space-os-update '|| [ $? -eq 75 ]'
 limpiar
 
 escenario 'CRON · la linea --comprobar es IDENTICA en instalar-hijo.sh y provision-instancia.sh'
-LINEA_A="$(grep -- '--comprobar' "$RAIZ/infra/scripts/instalar-hijo.sh" | tr -d '[:space:]')"
-LINEA_B="$(grep -- '--comprobar' "$RAIZ/infra/scripts/provision-instancia.sh" | tr -d '[:space:]')"
+# Ancorado a `^\*/15`, no a `--comprobar` a secas: el comentario de arriba
+# tambien menciona `--comprobar` y, si un dia difiere entre los dos guiones,
+# un grep sin ancla lo mezclaria con la linea de cron y podria dar un
+# falso verde.
+LINEA_A="$(grep -E -- '^\*/15 ' "$RAIZ/infra/scripts/instalar-hijo.sh" | tr -d '[:space:]')"
+LINEA_B="$(grep -E -- '^\*/15 ' "$RAIZ/infra/scripts/provision-instancia.sh" | tr -d '[:space:]')"
 if [ -z "$LINEA_A" ] || [ -z "$LINEA_B" ]; then
   mal "no se encontro la linea --comprobar en alguno de los dos guiones (a='$LINEA_A' b='$LINEA_B')"
 elif [ "$LINEA_A" = "$LINEA_B" ]; then

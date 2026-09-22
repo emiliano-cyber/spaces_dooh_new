@@ -1,7 +1,7 @@
 ---
 tipo: arquitectura
 estado: verificado
-actualizado: 2026-09-21
+actualizado: 2026-09-22
 tags: [despliegue, entorno, ci, env, instancias]
 archivos:
   - infra/scripts/pruebas-update.sh
@@ -32,6 +32,9 @@ archivos:
   - infra/nginx/snippets/proxy-app.conf
   - infra/systemd/spaces-demo.service
   - infra/scripts/provision-instancia.sh
+  - infra/scripts/instalar-hijo.sh
+  - infra/scripts/pruebas-instalar-hijo.sh
+  - infra/scripts/pruebas-provision.sh
   - infra/env/instancia.env.example
   - db/docker-compose.yml
 ---
@@ -734,6 +737,31 @@ la promesa de que los cortes de servicio son de madrugada:
 |---|---|---|
 | `update.sh --comprobar` | cron cada 15 min | anota lo disponible y aplica **solo** si hay una aprobación cuyo digest cuadra. Con `modo = automatica` **no hace nada** |
 | `update.sh` (sin bandera) | cron 04:17 | la de siempre: aplica si `modo = automatica`, o si hay una aprobación que el cron frecuente no llegó a aplicar |
+
+> [!success] 2026-09-22 · Tarea 6 — el cron cada 15 min ya existe, no solo se describe
+> Hasta esta tarea la fila de `--comprobar` de la tabla de arriba describía el
+> diseño: la tabla `actualizaciones_instancia` y `update.sh --comprobar` existían
+> y funcionaban a mano, pero **nada los lanzaba cada 15 minutos**. La única
+> entrada de cron real era la de las 04:17.
+>
+> Ahora `instalar-hijo.sh:874` y `provision-instancia.sh:841` escriben, **junto
+> a** la de las 04:17 y sin reemplazarla, la misma línea en los dos caminos de
+> alta:
+>
+> ```
+> */15 * * * * root /opt/space-os/update.sh --comprobar >> /var/log/space-os/cron.log 2>&1 || [ $? -eq 75 ]
+> ```
+>
+> El `|| [ $? -eq 75 ]` tolera el candado de `update.sh` (`flock`, código **75**,
+> «ya había otro update en marcha» — no es un error, ver `update.sh:74`). Sin
+> tolerarlo, la corrida de las 04:17 le pisaría el paso a la de al lado 96 veces
+> al día y cron mandaría correo por algo que funciona bien. Un fallo real
+> (1-7) lo sigue mandando: solo el 75 se convierte en éxito.
+>
+> Probado en los dos arneses (`infra/scripts/pruebas-instalar-hijo.sh` y
+> `infra/scripts/pruebas-provision.sh`), sobre el CONTENIDO que cada camino de
+> alta escribiría en `/etc/cron.d/space-os-update`, y con un escenario aparte
+> que compara la línea `*/15 …` byte a byte entre los dos guiones.
 
 > [!important] La decisión NO está escrita en bash, y eso es deliberado
 > La regla vive en `decidirActualizacion()` (`scripts/actualizaciones.mjs`, con sus
