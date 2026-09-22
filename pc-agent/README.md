@@ -30,10 +30,51 @@ cada sitio — ya paso.
 > La primera instalacion **si** hay que hacerla a mano: un equipo con el agente
 > viejo no sabe actualizarse. De ahi en adelante, todo por red.
 
+## De quien es el equipo (testigo de alta)
+
+Desde la **v1.5.0** el agente puede dar de alta el equipo **ya asignado a su
+cliente**. Para eso el paquete trae, junto al programa, un archivo
+**`testigo.txt`** con una sola linea: el testigo de alta de ese cliente
+(`se_...`), que sale de la pantalla de descarga de su perfil.
+
+No lleva el NOMBRE del cliente a proposito: eso lo podria escribir cualquiera.
+El testigo solo existe para una instancia, el servidor mira de quien es y
+**estampa el dueno el mismo**. Ese testigo no sirve para leer nada: no abre
+fotos, no lista equipos.
+
+- El instalador lo recoge solo y lo guarda en `config.json` como
+  `testigo_de_alta`. Lo dice en pantalla antes de instalar, con el prefijo a la
+  vista (el secreto no se imprime nunca).
+- **Sin testigo el equipo se da de alta SIN dueno**: no lo ve ningun cliente,
+  solo nosotros, y hay que asignarlo desde el dashboard. Es a proposito — un
+  equipo sin asignar no es de todos, es de nadie.
+- Si el servidor lo rechaza (mal copiado, revocado, de otro servidor), el agente
+  **no se queda trabado**: se da de alta sin dueno y lo reporta al dashboard como
+  error, para que se vea por que ese equipo salio sin asignar.
+- Reconfigurar un equipo **conserva** el testigo con el que se instalo, aunque el
+  `testigo.txt` ya no este en la carpeta.
+- Cambiar el testigo **no muda** un equipo que ya existe de un cliente a otro:
+  eso se hace a proposito desde el dashboard.
+- Para instalaciones desatendidas: `--testigo se_...`.
+
+De donde sale un testigo (hoy no hay pantalla en el dashboard; se pide a la API
+con una sesion de admin):
+
+```bash
+curl -X POST http://159.203.188.58:4000/api/llaves \
+  -H "Authorization: Bearer <token de admin>" -H 'Content-Type: application/json' \
+  -d '{"nombre":"alta g500","uso":"alta","owner":"g500"}'
+```
+
+La llave completa **se muestra una sola vez**; no se guarda en ningun lado y si
+se pierde se revoca (`DELETE /api/llaves/:id`) y se crea otra. Un testigo de alta
+**exige dueno** al crearse: uno sin el no sabria a quien asignar el equipo.
+
 ## Instalacion en el sitio
 
-1. Copia a la PC (donde sea, por ejemplo el Escritorio) **los dos archivos
-   juntos, en la misma carpeta**: `SpaceEyeAgente.exe` y `ffmpeg.exe`.
+1. Copia a la PC (donde sea, por ejemplo el Escritorio) **los archivos juntos, en
+   la misma carpeta**: `SpaceEyeAgente.exe`, `ffmpeg.exe` y —si el paquete lo
+   trae— `testigo.txt`.
 2. **Clic derecho sobre `SpaceEyeAgente.exe` → Ejecutar como administrador.**
 3. **Se abre solo en el navegador** un formulario: IP de la camara, usuario y
    clave. El boton "Probar camara" **muestra la foto ahi mismo**, para confirmar

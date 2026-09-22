@@ -152,7 +152,7 @@ function pausar() {
 
 // Permite instalar sin contestar preguntas, util para varios sitios de golpe:
 //   SpaceEyeAgente.exe --instalar --camara 192.168.1.64 --usuario admin --clave xxx
-// Opcionales: --servidor --puerto --canal --canal-stream --puerto-rtsp
+// Opcionales: --servidor --puerto --canal --canal-stream --puerto-rtsp --testigo
 function leerParametros(argv) {
   const p = {};
   for (let i = 0; i < argv.length; i++) {
@@ -160,6 +160,68 @@ function leerParametros(argv) {
     if (a.startsWith('--') && argv[i + 1] && !argv[i + 1].startsWith('--')) p[a.slice(2)] = argv[++i];
   }
   return p;
+}
+
+// --- El testigo de alta (SE.6) -------------------------------------------
+//
+// Es lo que hace que el equipo nazca ya asignado a su dueno, y el agente NO
+// puede llevar el NOMBRE del dueno: eso lo podria escribir cualquiera. Lleva un
+// testigo que solo existe para una instancia, y el servidor mira de quien es.
+//
+// Viaja en un archivo suelto junto al programa y no compilado dentro, porque el
+// .exe es UNO para toda la flota: la pantalla de descarga arma el ZIP metiendo
+// el testigo de ese cliente al lado, sin recompilar nada.
+const NOMBRE_TESTIGO = 'testigo.txt';
+
+// `se_<12>_<43>`: la forma que genera el servidor. Se comprueba aqui para que un
+// pegado a medias o un archivo con otra cosa dentro se vea en el sitio, y no
+// tres semanas despues al notar que el equipo no es de nadie.
+function pareceTestigo(valor) {
+  return /^se_[0-9a-f]{12}_[A-Za-z0-9_-]{43}$/.test(String(valor || '').trim());
+}
+
+// Lo que trae el paquete. Devuelve tambien lo mal escrito, para poder avisar:
+// un testigo ilegible tiene que dar la cara, no desaparecer en silencio.
+function testigoDelPaquete() {
+  const ruta = path.join(rutas.BASE, NOMBRE_TESTIGO);
+  if (!fs.existsSync(ruta)) return '';
+  try {
+    // Se limpian comillas y BOM: el archivo puede venir de un copiar y pegar.
+    return fs.readFileSync(ruta, 'utf8').replace(/^\uFEFF/, '').trim().replace(/^["']|["']$/g, '');
+  } catch {
+    return '';
+  }
+}
+
+// El que ya tiene instalado este equipo. Reconfigurar la camara de un sitio no
+// puede dejarlo sin dueno de rebote: el paquete con el testigo.txt suele estar
+// solo en la instalacion original, y quien vuelve meses despues a cambiar una IP
+// no trae nada.
+function testigoInstalado() {
+  try {
+    return String(JSON.parse(fs.readFileSync(rutas.config, 'utf8')).testigo_de_alta || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+// De donde salio, para poder decirlo en pantalla: no es lo mismo "lo trae el
+// paquete" que "se conserva el que ya tenia".
+function resolverTestigo(dado) {
+  const aMano = String(dado || '').trim();
+  if (aMano) return { testigo: aMano, origen: 'dado a mano' };
+  const delPaquete = testigoDelPaquete();
+  if (delPaquete) return { testigo: delPaquete, origen: 'del paquete de descarga' };
+  const yaEstaba = testigoInstalado();
+  if (yaEstaba) return { testigo: yaEstaba, origen: 'el que ya tenia este equipo' };
+  return { testigo: '', origen: '' };
+}
+
+// El prefijo viaja en claro justamente para poder ensenarlo sin revelar nada; el
+// secreto no se imprime NUNCA, y menos en la pantalla de una PC ajena.
+function testigoParaVer(valor) {
+  const t = String(valor || '');
+  return t.length > 15 ? `${t.slice(0, 15)}...` : t;
 }
 
 // Acepta "192.168.1.64" o "192.168.1.64:8000": algunas camaras no usan el 80.
@@ -222,9 +284,31 @@ async function asistente() {
     console.log('  (Se continua de todos modos: el agente reintenta solo cuando haya red.)');
   }
 
+  // --testigo permite darlo a mano (instalacion desatendida, o rehacer una que
+  // salio sin el); lo normal es que venga en el paquete.
+  const { testigo, origen } = resolverTestigo(par.testigo);
+  if (testigo && pareceTestigo(testigo)) {
+    console.log('');
+    console.log(`  Testigo de alta: ${testigoParaVer(testigo)}  (${origen})`);
+    console.log('  El equipo quedara asignado a su dueno al darse de alta.');
+  } else if (testigo) {
+    console.log('');
+    console.log('  AVISO: el testigo de alta no tiene la forma que espera el servidor');
+    console.log(`         (se_...): "${testigoParaVer(testigo)}"`);
+    console.log('         Se instala SIN testigo: el equipo quedara SIN dueno y habra');
+    console.log('         que asignarlo desde el dashboard.');
+  } else {
+    console.log('');
+    console.log('  Sin testigo de alta en el paquete: el equipo quedara SIN dueno');
+    console.log('  hasta que se le asigne desde el dashboard.');
+  }
+
   const { host, puerto } = partirHost(destino, Number(par.puerto) || 80);
   const cfg = {
     server_url: servidor,
+    // Solo si es legible: escribir uno roto seria dejar al agente reintentando
+    // contra un rechazo seguro.
+    ...(pareceTestigo(testigo) ? { testigo_de_alta: testigo } : {}),
     camara: {
       host,
       puerto,
@@ -455,6 +539,9 @@ async function menu(cfgActual) {
       ? `${cfgActual.camara?.canal_stream || 102} (ahorro de datos, otro encuadre)`
       : `${cfgActual.camara?.canal || 101} (el mismo de la foto)`}` +
     (hayFfmpegVecino() ? '' : '   (SIN ffmpeg.exe: la vista en vivo no funcionara)'));
+  console.log(`  Testigo:  ${cfgActual.testigo_de_alta
+      ? `${testigoParaVer(cfgActual.testigo_de_alta)} (el equipo tiene dueno)`
+      : 'ninguno (el equipo no esta asignado a ningun cliente)'}`);
   console.log('');
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -482,4 +569,6 @@ module.exports = {
   asistente, desinstalar, menu, pausar, TAREA, SERVIDOR_POR_DEFECTO,
   esAdministrador, instalarTarea, instalarTareaSimple, tareaRegistrada,
   arrancarTarea, partirHost, primeraLinea, leerParametros,
+  testigoDelPaquete, testigoInstalado, resolverTestigo, pareceTestigo,
+  testigoParaVer, NOMBRE_TESTIGO,
 };

@@ -26,7 +26,7 @@ const rutas = require('./rutas');
 // contestaba "vista en vivo no disponible en el agente de PC", y en el navegador
 // eso salia como "la camara esta ocupada". Nadie podia saber, mirando el
 // dashboard, que ese equipo tenia un programa viejo.
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const RAIZ = rutas.BASE;
 const RUTA_CONFIG = rutas.config;
 const RUTA_ESTADO = rutas.estado;
@@ -51,6 +51,11 @@ const log = (...a) => {
 };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// El servidor rechaza un testigo que no reconoce con un nombre propio, y por eso
+// se mira el nombre y no el 401 a secas: un 401 del alta puede ser eso, y
+// tambien puede ser cualquier otra cosa del dia que el servidor cambie.
+const esTestigoInvalido = (e) => e?.status === 401 && /testigo_de_alta_invalido/.test(e.cuerpo || '');
+
 function cargarConfig() {
   if (!fs.existsSync(RUTA_CONFIG)) {
     console.error(`No encuentro la configuracion en ${RUTA_CONFIG}.`);
@@ -64,6 +69,10 @@ function cargarConfig() {
   for (const campo of ['host', 'usuario', 'clave']) {
     if (!cfg.camara[campo]) { console.error(`Falta "camara.${campo}" en config.json`); process.exit(1); }
   }
+  // Testigo de alta (SE.6): lo escribe el instalador con lo que venia en el
+  // paquete de descarga. Se acepta tambien con el nombre que usa el servidor,
+  // para que un config.json generado del otro lado funcione tal cual.
+  cfg.testigo_de_alta = String(cfg.testigo_de_alta || cfg.provision_token || '').trim();
   return cfg;
 }
 
@@ -124,6 +133,7 @@ async function main() {
   actualizar.limpiarAnterior(log);
   log(`servidor: ${cfg.server_url}`);
   log(`camara:   ${cfg.camara.host}:${cfg.camara.puerto || 80} (canal ${cfg.camara.canal || 101})`);
+  if (cfg.testigo_de_alta) log('testigo:  presente — este equipo se dara de alta con su dueno');
 
   // --- registro ---
   const uid = uidEstable(estado, cfg);
@@ -143,13 +153,32 @@ async function main() {
     // Se recorta: la columna del servidor tiene limite y un valor largo hacia
     // fallar el registro.
     os_version: `${os.type()} ${os.release()}`.slice(0, 60),
+    // Va tal cual lo trae el archivo. El agente NO sabe de quien es -ni tiene
+    // por que saberlo-: solo lo entrega y el servidor estampa el dueno.
+    provision_token: cfg.testigo_de_alta || undefined,
   };
 
   let reg = null;
+  let sinTestigo = false;
   for (let intento = 1; !reg; intento++) {
     try {
       reg = await api.registrar(datosRegistro);
     } catch (e) {
+      // Un testigo que el servidor no reconoce -mal copiado, revocado, de otro
+      // servidor- no va a empezar a funcionar por reintentar. Y quedarse en el
+      // bucle seria el peor final: el equipo no aparece en NINGUN lado y quien
+      // lo instalo ya se fue del sitio. Asi que se da de alta sin el, igual que
+      // un equipo viejo: nace sin dueno, visible para el padre y a la espera de
+      // que alguien lo asigne. No hay riesgo de que se cuele en la vista de un
+      // cliente ajeno, porque sin dueno no es de nadie.
+      if (esTestigoInvalido(e) && datosRegistro.provision_token) {
+        delete datosRegistro.provision_token;
+        sinTestigo = true;
+        log('AVISO: el servidor RECHAZO el testigo de alta de este equipo.');
+        log('       Se da de alta SIN dueno; hay que asignarlo desde el dashboard');
+        log('       y revisar el testigo que trae el paquete de descarga.');
+        continue;
+      }
       const espera = Math.min(60, intento * 10);
       log(`no pude registrarme (intento ${intento}): ${e.message}`);
       log(`  -> reintento en ${espera}s. Revisa server_url en config.json y la conexion.`);
@@ -160,6 +189,12 @@ async function main() {
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
   api.log('info', 'startup', `Agente de PC v${VERSION} iniciado en ${os.hostname()}`);
+  // Que el rechazo no se quede en el log de la PC del sitio: el sintoma que se ve
+  // desde el dashboard es un equipo sin dueno, y sin esto nadie sabria por que.
+  if (sinTestigo) {
+    api.log('error', 'startup',
+      'El servidor rechazo el testigo de alta: este equipo quedo SIN dueno y hay que asignarlo a mano');
+  }
 
   const enCurso = new Set();
   const transmision = new Transmision(log, cfg.camara);
@@ -295,11 +330,10 @@ async function main() {
       } catch (e) {
         if (e.status === 401) {
           log('token rechazado; volviendo a registrar...');
-          try { await api.registrar({
-            device_uid: uid, app_version: `pc-agent ${VERSION}`,
-            model: info?.modelo || 'Camara IP', manufacturer: 'HiLook/Hikvision',
-            os_version: `${os.type()} ${os.release()}`,
-          }); } catch { /* reintenta en el siguiente ciclo */ }
+          // Los mismos datos del alta, no una copia escrita a mano: esa copia ya
+          // se habia quedado atras -sin el recorte de os_version- y ahora
+          // ademas dejaria fuera el testigo.
+          try { await api.registrar(datosRegistro); } catch { /* reintenta en el siguiente ciclo */ }
         }
       }
       await dormir(intervaloSondeo);

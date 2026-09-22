@@ -207,6 +207,19 @@ No hace falta crear `config.json`: por omision apunta al servidor de produccion
 (`http://159.203.188.58:4000`). Para cambiarlo, copiar `config.example.json` a
 `config.json`, o arrancar con `SPACEEYE_SERVER=http://otro:4000 npm start`.
 
+### De quien es el equipo (testigo de alta)
+
+Desde la **v0.6.0**, si `config.json` trae `testigo_de_alta` (un `se_...` que
+sale de la pantalla de descarga del perfil del cliente), el equipo **nace ya
+asignado a ese cliente**. No lleva el nombre del dueno a proposito: eso lo podria
+escribir cualquiera; el servidor mira de quien es el testigo y estampa el dueno
+el mismo. Ese testigo **no sirve para leer nada**.
+
+Sin testigo el equipo se da de alta **sin dueno**: no lo ve ningun cliente, solo
+nosotros, y hay que asignarlo desde el dashboard. Si el servidor lo rechaza, el
+agente **no se queda trabado**: se da de alta sin dueno y lo reporta como error
+al dashboard. En el arranque se ve la linea `testigo: presente` cuando lo lleva.
+
 ## 5. Que deberias ver
 
 En la consola de la Pi:

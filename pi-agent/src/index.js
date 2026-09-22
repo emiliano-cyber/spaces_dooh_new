@@ -21,7 +21,7 @@ const { Vigilante } = require('./vigilante');
 // la misma version, no hay forma de saber que corre cada sitio -y eso ya costo
 // caro en la flota: REVOLUCION 267 llevaba TRES versiones de atraso sin que el
 // dashboard lo delatara, porque el numero nunca cambiaba.
-const VERSION = '0.5.0';
+const VERSION = '0.6.0';
 const SERVIDOR_POR_OMISION = 'http://159.203.188.58:4000';
 
 const ahora = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
@@ -44,6 +44,14 @@ const log = (...a) => {
 };
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// El servidor rechaza un testigo que no reconoce con un nombre propio, y por eso
+// se mira el nombre y no el 401 a secas: un 401 del alta puede ser eso, y
+// tambien puede ser cualquier otra cosa del dia que el servidor cambie.
+const esTestigoInvalido = (e) => e?.status === 401 && /testigo_de_alta_invalido/.test(e.cuerpo || '');
+
+// La forma que genera el servidor: se_<prefijo de 12>_<secreto de 43>.
+const FORMA_TESTIGO = /^se_[0-9a-f]{12}_[A-Za-z0-9_-]{43}$/;
+
 // La configuracion es OPCIONAL a proposito: recien sacada de la caja, la Pi
 // arranca contra el servidor de produccion sin que nadie edite un archivo.
 function cargarConfig() {
@@ -57,6 +65,17 @@ function cargarConfig() {
   }
   cfg.server_url = process.env.SPACEEYE_SERVER || cfg.server_url || SERVIDOR_POR_OMISION;
   cfg.camara = cfg.camara || {};
+  // Testigo de alta (SE.6): la credencial que la pantalla de descarga mete en el
+  // perfil del equipo. Se acepta tambien con el nombre que usa el servidor, para
+  // que un config.json generado del otro lado funcione tal cual.
+  cfg.testigo_de_alta = String(cfg.testigo_de_alta || cfg.provision_token || '').trim();
+  // El config.json de la Pi se escribe a mano por ssh, que es justo donde un
+  // testigo se pega a medias. Se avisa al arrancar -no se calla y no se corrige-:
+  // se manda igual para que el servidor lo rechace y el rechazo llegue al
+  // dashboard, que es donde se ve el sintoma (un equipo sin dueno).
+  if (cfg.testigo_de_alta && !FORMA_TESTIGO.test(cfg.testigo_de_alta)) {
+    log('AVISO: testigo_de_alta no tiene la forma que espera el servidor (se_<12>_<43>).');
+  }
   return cfg;
 }
 
@@ -166,6 +185,11 @@ async function main() {
   // sitio tiene que poder ver de un vistazo que su consumo se esta cobrando
   // como movil, sin ir a abrir el config.json.
   if (cfg.enlace) log(`enlace:    ${cfg.enlace}${cfg.operador ? ` (${cfg.operador})` : ''} — el consumo se reporta como datos moviles`);
+  if (cfg.testigo_de_alta) {
+    log(`testigo:   ${FORMA_TESTIGO.test(cfg.testigo_de_alta)
+      ? 'presente — este equipo se dara de alta con su dueno'
+      : 'presente pero con forma dudosa — el servidor lo va a rechazar'}`);
+  }
 
   // Avisar de una fuente insuficiente ANTES de nada: es la causa mas comun de
   // que una Pi 5 se comporte raro (se reinicia sola, la camara falla).
@@ -194,13 +218,32 @@ async function main() {
     model: identidad.model,
     manufacturer: identidad.manufacturer,
     os_version: identidad.os_version,
+    // Va tal cual lo trae el archivo. El agente NO sabe de quien es -ni tiene
+    // por que saberlo-: solo lo entrega.
+    provision_token: cfg.testigo_de_alta || undefined,
   };
 
   let reg = null;
+  let sinTestigo = false;
   for (let intento = 1; !reg; intento++) {
     try {
       reg = await api.registrar(datosRegistro);
     } catch (e) {
+      // Un testigo que el servidor no reconoce -mal copiado, revocado, de otro
+      // servidor- no va a empezar a funcionar por reintentar. Y quedarse en el
+      // bucle seria el peor final: el equipo no aparece en NINGUN lado y quien
+      // lo instalo ya se fue del sitio. Asi que se da de alta sin el, que es lo
+      // mismo que hace un equipo viejo: nace sin dueno, visible para el padre y
+      // a la espera de que alguien lo asigne. No hay riesgo de que se cuele en
+      // la vista de un cliente ajeno, porque sin dueno no es de nadie.
+      if (esTestigoInvalido(e) && datosRegistro.provision_token) {
+        delete datosRegistro.provision_token;
+        sinTestigo = true;
+        log('AVISO: el servidor RECHAZO el testigo de alta de este equipo.');
+        log('       Se da de alta SIN dueno; hay que asignarlo desde el dashboard');
+        log('       y revisar el testigo que trae el perfil de descarga.');
+        continue;
+      }
       const espera = Math.min(60, intento * 10);
       log(`no pude registrarme (intento ${intento}): ${e.message}`);
       log(`  -> reintento en ${espera}s. Revisa la conexion y server_url.`);
@@ -211,6 +254,12 @@ async function main() {
   guardarEstado(estado);
   log(`registrado como equipo #${reg.device_id} (uid ${uid})`);
   api.log('info', 'startup', `Agente de Raspberry Pi v${VERSION} iniciado — ${modoCamara}`);
+  // Que el rechazo no se quede en el log del equipo: el sintoma que se ve desde
+  // el dashboard es un equipo sin dueno, y sin esto nadie sabria por que.
+  if (sinTestigo) {
+    api.log('error', 'startup',
+      'El servidor rechazo el testigo de alta: este equipo quedo SIN dueno y hay que asignarlo a mano');
+  }
 
   // Ya nos registramos: la version nueva no solo arranca, tambien habla. Recien
   // ahora se da por buena la actualizacion y se deja de contar intentos.

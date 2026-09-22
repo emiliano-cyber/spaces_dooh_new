@@ -98,10 +98,17 @@ async function probarServidor(servidor) {
   }
 }
 
+// CUIDADO con la palabra: en este archivo "testigo" a secas es el del navegador
+// (el que impide que otra pestana dispare una instalacion). El de alta -la
+// credencial que le pone dueno al equipo- se llama SIEMPRE testigoDeAlta.
 function configDesde(d) {
   const { host, puerto } = inst.partirHost(String(d.camara || '').trim(), 80);
+  const { testigo: testigoDeAlta } = inst.resolverTestigo(d.testigo_alta);
   return {
     server_url: String(d.servidor || inst.SERVIDOR_POR_DEFECTO).replace(/\/+$/, ''),
+    // Solo si es legible: escribir uno roto seria dejar al agente reintentando
+    // contra un rechazo seguro.
+    ...(inst.pareceTestigo(testigoDeAlta) ? { testigo_de_alta: testigoDeAlta } : {}),
     camara: {
       host,
       puerto,
@@ -157,6 +164,16 @@ async function probarCamara(d) {
 }
 
 function instalar(d) {
+  // Un testigo escrito a mano y mal copiado se atrapa AQUI, con la persona
+  // enfrente de la pantalla. Si se dejara pasar, el equipo se daria de alta sin
+  // dueno y eso no se ve hasta dias despues, desde el dashboard, cuando ya nadie
+  // esta en el sitio. El aviso de la pagina se calcula al abrirla y no puede
+  // saber lo que se escribio despues.
+  const aMano = String(d.testigo_alta || '').trim();
+  if (aMano && !inst.pareceTestigo(aMano)) {
+    return { error: `El testigo de alta "${inst.testigoParaVer(aMano)}" no tiene la forma que espera el servidor (se_...). Copialo completo o dejalo vacio.` };
+  }
+
   const cfg = configDesde(d);
   fs.writeFileSync(rutas.config, JSON.stringify(cfg, null, 2));
 
@@ -275,6 +292,9 @@ no arrancara solo cuando se reinicie la PC.</div>
     </div>
     <label>Sustituir un equipo existente (uid)</label>
     <input id="uid" placeholder="pc-... — dejalo vacio para dar de alta un equipo nuevo" autocomplete="off">
+    <label>Testigo de alta</label>
+    <div id="alta" class="sub" style="margin:0 0 6px"></div>
+    <input id="testigo_alta" placeholder="se_... — dejalo vacio si el paquete ya lo trae" autocomplete="off">
   </details>
 </div>
 
@@ -308,11 +328,20 @@ if (D.cfg) {
   $('canal_stream').value = D.cfg.canal_stream || 102;
 }
 if (!D.admin) $('admin').classList.remove('oculto');
+// El dueno es lo que separa a un cliente de otro, asi que se dice en pantalla
+// ANTES de instalar: descubrirlo despues obliga a volver al sitio o a corregirlo
+// a mano en el dashboard.
+$('alta').innerHTML = D.alta.valido
+  ? 'Este equipo se dara de alta <b>con su dueno</b>. Testigo: <code>' + D.alta.visible + '</code> (' + D.alta.origen + ').'
+  : (D.alta.visible
+      ? '<b>El testigo que encontre no tiene la forma correcta</b> (<code>' + D.alta.visible + '</code>). Revisa el archivo <code>' + D.alta.archivo + '</code> o pega uno aqui.'
+      : 'No encontre ningun testigo (<code>' + D.alta.archivo + '</code> junto al programa). El equipo quedara <b>sin dueno</b> hasta que se le asigne desde el dashboard.');
 
 const datos = () => ({
   servidor: $('servidor').value.trim(), camara: $('camara').value.trim(),
   usuario: $('usuario').value.trim(), clave: $('clave').value,
   canal: $('canal').value, canal_stream: $('canal_stream').value, uid: $('uid').value.trim(),
+  testigo_alta: $('testigo_alta').value.trim(),
 });
 
 async function pedir(ruta, cuerpo) {
@@ -419,6 +448,17 @@ function asistenteWeb() {
       admin: inst.esAdministrador(),
       carpeta: rutas.BASE,
       estado: rutas.estado,
+      // Nunca el secreto: solo el prefijo, que existe justamente para poder
+      // ensenarlo. La pagina la abre un navegador de una PC ajena.
+      alta: (() => {
+        const { testigo, origen } = inst.resolverTestigo('');
+        return {
+          visible: inst.testigoParaVer(testigo),
+          origen,
+          valido: inst.pareceTestigo(testigo),
+          archivo: inst.NOMBRE_TESTIGO,
+        };
+      })(),
     };
 
     let temporizador = null;

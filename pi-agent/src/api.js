@@ -30,6 +30,9 @@ class Api {
       const txt = await res.text().catch(() => '');
       const err = new Error(`${metodo} ${ruta} -> HTTP ${res.status} ${txt.slice(0, 200)}`);
       err.status = res.status;
+      // El cuerpo entero, no solo el recorte del mensaje: quien llama necesita
+      // distinguir un 401 por token caducado de un 401 por testigo invalido.
+      err.cuerpo = txt;
       throw err;
     }
     return res.json();
@@ -37,13 +40,19 @@ class Api {
 
   // El backend identifica al equipo por device_uid: si se reinstala el agente
   // con el mismo uid, se reutiliza el mismo equipo en vez de duplicarlo.
-  async registrar({ device_uid, app_version, model, manufacturer, os_version }) {
+  // `provision_token` es el testigo de alta que viaja DENTRO del instalador. No
+  // lleva el nombre del dueno: el servidor mira de quien es el testigo y estampa
+  // el dueno el mismo, asi el equipo no puede declararse de quien quiera. Se
+  // manda solo si existe -sin testigo el alta es la de siempre y el equipo nace
+  // sin dueno, a la espera de que alguien lo asigne desde el dashboard.
+  async registrar({ device_uid, app_version, model, manufacturer, os_version, provision_token }) {
     const r = await this._req('POST', '/api/device/register', {
       device_uid,
       android_version: os_version, // el backend llama asi al campo de version del SO
       app_version,
       model,
       manufacturer,
+      ...(provision_token ? { provision_token } : {}),
     });
     this.token = r.token;
     return r;
