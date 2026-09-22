@@ -40,7 +40,12 @@ exec </dev/null
 
 RAIZ="$(cd "$(dirname "$0")/../.." && pwd)"
 GUION="${GUION_RESPALDO_DIARIO:-$RAIZ/infra/scripts/respaldo-diario.sh}"
-UPDATE_SH="$RAIZ/infra/scripts/update.sh"
+# Sobreescribible SOLO para poder mutarlo: R7 y R12 leen este archivo, y sin una
+# forma de apuntarlos a una copia no hay manera de demostrar que muerden sin
+# tocar el `update.sh` de verdad, que esta desplegado. Copiar el arnes a /tmp no
+# vale: `RAIZ` sale de `dirname $0`, asi que la copia pierde todo lo demas y los
+# 46 fallos de alrededor tapan el unico que importa.
+UPDATE_SH="${GUION_UPDATE:-$RAIZ/infra/scripts/update.sh}"
 CONEXION_SH="$RAIZ/infra/scripts/conexion-pg.sh"
 
 ESCENARIOS=0
@@ -456,10 +461,18 @@ escenario 'R9b · el valor por omision sigue siendo el del montaje estandar'
 # No se ejecuta nada: se lee el guion. Un guion que cayera a otra ruta se
 # llevaria por delante a g500, que es el montaje estandar y el que tiene los
 # datos reales.
-if grep -qF '/etc/space-os/instancia.env' "$GUION"; then bien
-else mal 'el guion no cae a /etc/space-os/instancia.env, que es el montaje estandar de g500'; fi
-if grep -qF 'SPACE_OS_CONF' "$GUION"; then bien
+#
+# ⚠️ ANCLADOS A `^CONF=`, y hace falta. Nacieron como `grep -qF` sueltos y los
+# dos literales aparecen en COMENTARIOS de este guion (`:12`, `:58-60`, `:95`),
+# asi que casaban con la prosa. Demostrado el 22/09: cambiando `:115` a
+# `/etc/space-os/otra-cosa.env` el arnes daba 0 fallos -- justo el mutante
+# contra el que este escenario dice defender. Y no lo salva `preparar()`, que
+# exporta SPACE_OS_CONF siempre: la rama por omision NO se ejecuta nunca, asi
+# que leer el guion es lo unico que queda.
+if grep -qE '^CONF="\$\{SPACE_OS_CONF:-' "$GUION"; then bien
 else mal 'el guion no respeta SPACE_OS_CONF: en el PADRE leeria la configuracion de la instancia equivocada'; fi
+if grep -qE '^CONF=.*:-/etc/space-os/instancia\.env\}"$' "$GUION"; then bien
+else mal 'el guion no cae a /etc/space-os/instancia.env, que es el montaje estandar de g500 -- el que tiene los datos reales'; fi
 
 # ============================================================================
 #  R11 · `DIR_RESPALDOS` SE PUEDE FIJAR DESDE LA PROPIA CONFIGURACION
@@ -503,6 +516,44 @@ if find "$DIR_RESPALDOS" -maxdepth 1 -type f -name 'spaces_*.dump' 2>/dev/null |
 else bien; fi
 hubo_regex 'pg_dump-argv .*--file='"$OTRO"'/spaces_'
 limpiar
+
+# ============================================================================
+#  R12 · EL INVARIANTE DE `update.sh` DEL QUE DEPENDE TODO EL ARREGLO DEL PADRE
+# ----------------------------------------------------------------------------
+#  ESTE ESCENARIO NO PRUEBA ESTE GUION. Vigila una linea de OTRO archivo, y es
+#  deliberado.
+#
+#  El arreglo del PADRE --que DEMO deje de comerse los respaldos del PADRE-- es
+#  una sola linea dentro de `demo-instancia.env`:
+#
+#      DIR_RESPALDOS=/var/lib/space-os/demo/respaldos
+#
+#  y funciona SOLO porque `update.sh` deriva `DIR_RESPALDOS` DESPUES de sourcear
+#  esa configuracion. Si alguien sube esa linea por encima del `. "$CONF"` --un
+#  reordenado inocente mientras toca otra cosa-- el valor del archivo deja de
+#  tener efecto, `update.sh` de DEMO vuelve a escribir y podar en el directorio
+#  del PADRE, y NO HAY NINGUNA SEÑAL: no falla nada, no hay error, y la nota de
+#  boveda sigue diciendo que esta cerrado. Se descubriria el dia que hiciera
+#  falta un respaldo del PADRE y no estuviera.
+#
+#  Es un invariante MEDIDO EN EL CODIGO Y NUNCA EJECUTADO --`update.sh` tiene su
+#  propio arnes de 15 minutos y esta rama lo declara intocable-- asi que lo unico
+#  que se puede hacer aqui es que un reordenado se ponga rojo. Cuesta un segundo.
+#
+#  NO toca `update.sh`: solo lo lee.
+# ============================================================================
+escenario 'R12 · update.sh deriva DIR_RESPALDOS DESPUES de sourcear la configuracion'
+n_src="$(grep -nE '^\. "\$CONF"' "$UPDATE_SH" | head -1 | cut -d: -f1)"
+n_dir="$(grep -nE '^DIR_RESPALDOS=' "$UPDATE_SH" | head -1 | cut -d: -f1)"
+if [ -z "$n_src" ]; then
+  mal 'no se encuentra `. "$CONF"` a principio de linea en update.sh: el guard no puede comprobar nada'
+elif [ -z "$n_dir" ]; then
+  mal 'no se encuentra `DIR_RESPALDOS=` a principio de linea en update.sh'
+elif [ "$n_dir" -gt "$n_src" ]; then
+  bien
+else
+  mal "update.sh deriva DIR_RESPALDOS en la linea $n_dir, ANTES de sourcear \$CONF en la $n_src. Con eso, el DIR_RESPALDOS que se pone en demo-instancia.env deja de tener efecto y el update.sh de DEMO vuelve a escribir y podar en los respaldos del PADRE, en silencio. Ver la tarjeta 12, paso B1b."
+fi
 
 # ============================================================================
 #  R8 · LO QUE ESTE GUION NO PUEDE HACER NUNCA

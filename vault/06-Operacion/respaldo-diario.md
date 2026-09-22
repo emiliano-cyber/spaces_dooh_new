@@ -139,6 +139,36 @@ inventó aquí: es el que ya usa `respaldo.sh:229-232`.
 > No se arregló en código a propósito: hacerle adivinar un subdirectorio por base
 > rompería el contrato de nombres que comparte con `update.sh` para la poda y el
 > `pg_restore`.
+>
+> **Y el invariante del que todo esto depende está vigilado**: el escenario **R12**
+> comprueba que `update.sh` sigue derivando `DIR_RESPALDOS` **después** del
+> `. "$CONF"`. Si alguien sube esa línea por encima del source —un reordenado
+> inocente—, el valor del archivo deja de tener efecto y DEMO vuelve a comerse el
+> directorio del PADRE **sin una sola señal**, con esta nota diciendo que está
+> cerrado. R12 lee `update.sh`; no lo toca.
+
+> [!warning] Lo mismo pasa un nivel más arriba, y NO está cerrado
+> `DIR_RESPALDOS` mueve **solo los respaldos**. `update.sh` deriva otras dos cosas
+> de `$DIR_ESTADO`, que el cron de DEMO no cambia:
+>
+> ```
+> update.sh:2379   ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"
+> update.sh:2580   … >"$DIR_ESTADO/version-actual"
+> ```
+>
+> Si el PADRE corre su propio `update.sh`, ese par **colisiona exactamente igual**
+> que los respaldos — y es el archivo que decide **a qué versión se vuelve** en una
+> vuelta atrás. No lo cierra la tarjeta 12 ni la bloquea; queda escrito para que no
+> se redescubra dentro de tres meses. La salida natural es `SPACE_OS_DIR_ESTADO` en
+> la línea de cron de DEMO: esa sí se lee antes del source y movería las tres cosas
+> de golpe.
+
+> [!warning] Dos dumps con el mismo nombre y distinta base
+> Todos se llaman `spaces_<fecha>.dump`, así que en el directorio del PADRE puede
+> haber dumps de `spaces_demo` con pinta de dumps del PADRE. El **nombre** no
+> distingue, pero el **archivo** sí: `pg_restore -l` lleva dentro el nombre de la
+> base. Es el paso **B1c** de la tarjeta, que no mueve ni borra nada — solo mira, y
+> de paso mide cuánto daño había de verdad, que hoy es una deducción.
 
 
 
@@ -178,7 +208,7 @@ escenario R9 del arnés.
 bash infra/scripts/pruebas-respaldo-diario.sh
 ```
 
-**17 escenarios · 66 comprobaciones · 0 fallos**, en **15 segundos** (medido el
+**18 escenarios · 67 comprobaciones · 0 fallos**, en **15 segundos** (medido el
 22/09). No sale a la red, no toca ninguna base y no toca ningún servidor: dobla
 `pg_dump`, `s3cmd` y `hostname`.
 

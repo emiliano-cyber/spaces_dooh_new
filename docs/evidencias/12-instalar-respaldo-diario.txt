@@ -371,19 +371,67 @@ ssh padre@<IP-DEL-PADRE> '
 #     de las 04:31), porque los dos leen ese archivo.
 
 ssh padre@<IP-DEL-PADRE> '
-  grep -q "^DIR_RESPALDOS=" /etc/space-os/demo-instancia.env ||
+  sudo grep -q "^DIR_RESPALDOS=" /etc/space-os/demo-instancia.env ||
     echo "DIR_RESPALDOS=/var/lib/space-os/demo/respaldos" | sudo tee -a /etc/space-os/demo-instancia.env
   sudo grep -n "^DIR_RESPALDOS=" /etc/space-os/demo-instancia.env'
 
+#     >>> EL `sudo` DEL PRIMER `grep` NO SOBRA. <<<
+#     Este bloque entra como el usuario `padre` y
+#     demo-instancia.env es 0600 DE ROOT: sin `sudo`, ese grep
+#     no puede leerlo, sale con 2 y "Permission denied", y
+#     entonces el `||` DISPARA SIEMPRE. Con eso, correr el paso
+#     dos veces deja DOS lineas, y si ya habia una con otro
+#     valor se le anade la nueva detras -- y al sourcear GANA LA
+#     ULTIMA, que es justo lo contrario de lo que promete la
+#     linea de abajo. Se escribio sin `sudo` en la primera
+#     version y las dos promesas eran falsas.
+#
 #     SE ESPERA: una sola linea
 #       DIR_RESPALDOS=/var/lib/space-os/demo/respaldos
 #
-#     El `grep -q ... ||` lo hace idempotente: correrlo dos
+#     El `sudo grep -q ... ||` lo hace idempotente: correrlo dos
 #     veces no deja dos lineas. Si ya habia una con otro valor,
 #     NO se toca -- revisala a mano antes de seguir.
 #
 #     OJO: el archivo se SOURCEA. Sin comillas y sin espacios
 #     alrededor del `=`, o bash ejecuta la segunda palabra.
+
+# --- B1c · DE QUE BASE ES CADA DUMP VIEJO DEL PADRE ---------
+#     Los dumps que YA estan en /var/lib/space-os/respaldos del
+#     PADRE **no hay que moverlos ni borrarlos**: la poda los
+#     limpia sola en tres updates. Pero conviene MIRARLOS una
+#     vez, y es gratis.
+#
+#     El motivo: como dice el aviso de arriba, POR EL NOMBRE NO
+#     SE DISTINGUE de que base es cada uno -- todos se llaman
+#     `spaces_<fecha>.dump`. O sea que ahi puede haber dumps de
+#     `spaces_demo` con pinta de dumps del PADRE, y el dia que
+#     alguien restaure el PADRE eligiendo "el mas reciente"
+#     podria estar restaurando la base equivocada. Ese es el
+#     peor momento posible para enterarse.
+#
+#     El NOMBRE no distingue, pero el ARCHIVO si: un dump en
+#     formato custom lleva dentro el nombre de la base.
+
+ssh padre@<IP-DEL-PADRE> '
+  for f in /var/lib/space-os/respaldos/*.dump; do
+    printf "%s -> %s\n" "$f" "$(sudo pg_restore -l "$f" | sed -n "s/^; *dbname: //p")"
+  done'
+
+#     SE ESPERA: una linea por dump, con su base al lado.
+#
+#     Y lee el resultado, que es un dato que hoy NO TENEMOS:
+#       · si salen TODOS de `spaces` -> el dano era cero y el
+#         "DEMO se come los respaldos del PADRE" seguia siendo
+#         una deduccion, no algo que hubiera pasado ya;
+#       · si sale ALGUNO de `spaces_demo` -> ya habia ocurrido,
+#         y ese archivo NO es un respaldo del PADRE por mucho
+#         que lo parezca. Anotalo antes de que la poda lo
+#         retire.
+#
+#     Si el directorio esta vacio, el `for` imprime la ruta con
+#     el asterisco sin expandir. Es normal y no hay nada que
+#     hacer.
 
 # --- B2 · LA PRUEBA A MANO, CON `SPACE_OS_CONF` DELANTE -----
 #     >>> Si te saltas SPACE_OS_CONF, esto respalda la instancia
@@ -491,7 +539,26 @@ ssh padre@<IP-DEL-PADRE> '
 #     este guion NO reporta al panel de flota. Decision
 #     pendiente: si el respaldo diario debe reportar, y a donde.
 #
-#  3) LAS DEMAS INSTANCIAS. Hoy son g500 y DEMO. La proxima que
+#  3) `version-anterior` Y `version-actual` SIGUEN COLISIONANDO
+#     EN EL PADRE. `DIR_RESPALDOS` mueve SOLO los respaldos.
+#     `update.sh` deriva otras dos cosas de `$DIR_ESTADO`, que
+#     el cron de DEMO no cambia:
+#
+#       update.sh:2379  ARCHIVO_ANTERIOR="$DIR_ESTADO/version-anterior"
+#       update.sh:2580  ... >"$DIR_ESTADO/version-actual"
+#
+#     Si el PADRE corre su propio `update.sh`, ese par colisiona
+#     EXACTAMENTE IGUAL que los respaldos, un nivel mas arriba
+#     -- y es el archivo que decide A QUE VERSION SE VUELVE en
+#     una vuelta atras.
+#
+#     NO lo cierra esta tarjeta y NO la bloquea. Queda escrito
+#     para que no se redescubra dentro de tres meses. La salida
+#     natural es la misma de siempre: `SPACE_OS_DIR_ESTADO` en
+#     la linea de cron de DEMO, que eso si se lee antes del
+#     source y mueve las tres cosas de golpe.
+#
+#  4) LAS DEMAS INSTANCIAS. Hoy son g500 y DEMO. La proxima que
 #     nazca deberia llevar esto desde el alta
 #     (`provision-instancia.sh` / `instalar-hijo.sh` escriben
 #     /etc/cron.d/space-os-update y NO este). Mientras no se
