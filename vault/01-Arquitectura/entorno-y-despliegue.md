@@ -807,25 +807,40 @@ Tres detalles del guion que no se ven leyendo y cuestan una tarde:
 > en seco** el día que jalara la imagen nueva: se quedaría esperando una
 > aprobación que nadie sabe que hay que dar. Lo fija **E141**.
 >
-> Y si la base **no se puede leer** en 2b, se **comporta** igual —se sigue, y el
-> respaldo tres pasos más abajo topará con el mismo problema y lo explicará con su
-> propio mensaje ya probado— pero **lo dice distinto**, y esa diferencia costó una
-> corrección: hasta la ronda 1 el log afirmaba *«actualizaciones_instancia no
-> existe todavía en esta instancia»* también cuando la causa era que `to_regclass`
-> **no llegó a contestar**. La tabla podía estar ahí perfectamente. Mandar a quien
-> lee el log a las 4 de la mañana a buscar una migración que no falta es
-> exactamente el vicio que este archivo ya corrigió el 20/08 con «La base NO se
-> vació»: **lo que no se midió, no se afirma**. Lo fija **E143**.
+> **Que no se pueda LEER es otra cosa, y se separó en dos pasos.** Primero el log:
+> hasta la ronda 1 afirmaba *«actualizaciones_instancia no existe todavía en esta
+> instancia»* también cuando la causa era que `to_regclass` **no llegó a
+> contestar** — y la tabla podía estar ahí perfectamente. Mandar a quien lee el log
+> a las 4 de la mañana a buscar una migración que no falta es exactamente el vicio
+> que este archivo ya corrigió el 20/08 con «La base NO se vació»: **lo que no se
+> midió, no se afirma**.
+>
+> Y después el código de salida. La corrida **programada** sigue de largo (el
+> respaldo, tres pasos más abajo, topará con el mismo problema y lo explicará con
+> su propio mensaje ya probado), pero **`--comprobar` ya no sale con 0**: sale con
+> **1**, el mismo que este guion usa cuando no puede leer la huella de la base
+> (`update.sh:2348`). Lo fija **E143**, que nació fijando lo contrario.
+
+> [!note] Por qué cambió, y quién lo decidió
+> El 2026-09-22, con el coste delante. Con el cron de 15 minutos, salir con 0 daba
+> **96 corridas en verde al día con la base muerta**, y el único proceso que lo
+> sabía cada cuarto de hora era justo el que se callaba: nadie se enteraría hasta
+> las 04:17. **Coste aceptado: hasta 96 correos al día mientras el problema dure.**
+> Es preferible a 96 verdes falsos, que es lo que este proyecto lleva meses
+> quitándose de encima.
 
 **Dónde va 2b, y por qué ahí.** Después de la compuerta de licencia (`EX_LICENCIA`,
-`update.sh:1223-1237`) y antes del respaldo. El orden importa: una aprobación del
+`update.sh:1240-1254`) y antes del respaldo. El orden importa: una aprobación del
 dueño **no puede resucitar una instancia con la licencia vencida**. Y `--dry-run`
 sale antes de llegar a 2b, que es lo que su cabecera promete.
 
 **Cuando no hay nada que hacer se sale con `EX_OK` (0), no con error.** Esperar una
 aprobación no es un fallo y un cron que corre cada 15 minutos no puede alarmar 96
-veces al día. **Con una excepción, y tiene su propio recuadro más abajo**: una
-imagen sin `RepoDigest` no es una espera sino un bloqueo, y ésa sí sale con 1.
+veces al día. **Con dos excepciones, que tienen su propio recuadro más abajo**: una
+imagen sin `RepoDigest` y una tabla que **no se puede leer**. Ninguna de las dos es
+una espera —en la primera el dueño no puede aprobar aunque quiera, en la segunda no
+se sabe nada— y las dos salen con **1**. Están en el ADR 0037, en «Dos casos que NO
+son espera».
 Al actualizar de verdad, `marcar_instalado()` escribe
 `version_instalada`/`digest_instalado` y **limpia `aprobado_digest`** — y lo hace
 **solo al cerrar con la salud ya comprobada**, nunca junto a la decisión: escrito
@@ -859,10 +874,22 @@ sirviendo.
 > es un bloqueo sin salida. Hasta la ronda 1 se saldaba con un **0** y un «esperar
 > no es un error» — invisible en un cron de cada 15 minutos.
 >
-> Ahora sale con **`EX_CONFIG` (1)**, cuya fila de la tabla ya dice lo que aquí es
-> literal: no se pudo ni empezar y **nada se tocó**. Tampoco se actualiza «como
-> antes del ADR»: el modo por omisión es `aprobacion`, y saltarse al dueño porque a
-> una imagen le falta un campo sería abrir justo la puerta que este ADR cierra.
+> Ahora sale con **`EX_CONFIG` (1)**: no se pudo ni empezar. Tampoco se actualiza
+> «como antes del ADR»: el modo por omisión es `aprobacion`, y saltarse al dueño
+> porque a una imagen le falta un campo sería abrir justo la puerta que este ADR
+> cierra.
+>
+> > [!danger] Y su mensaje decía «nada se tocó», que era **falso**
+> > La sonda corre **antes** de ese corte y su primera sentencia es
+> > `update … set comprobado_en = now()`. Con la tabla presente —que es la
+> > condición exacta para llegar ahí— esa corrida **ya escribió**, y además dejó
+> > `digest_disponible` en NULL. No hay daño operativo: lo que había era un log
+> > afirmando un hecho falso, **en el mismo commit que arreglaba justamente eso**
+> > tres párrafos más arriba. Y se había propagado a la fila del código `1` de las
+> > dos tablas.
+> >
+> > Corregido el 22/09 en los tres sitios, diciendo qué **sí** se escribió. Lo
+> > sujeta **E144**, con un `log_calla 'Nada se toco'`.
 >
 > **Y la asimetría con la tabla ausente es deliberada**: donde no hay tabla no hay
 > dueño a quien saltarse, así que ahí una imagen sin digest **sigue actualizando
@@ -913,7 +940,7 @@ repetirla a ciegas es como se corrompe una base. El health check conserva sus 10
 de F3.4. Cada reintento sale **numerado** en el log (`reintento 2/3`), así que se
 cuenta desde fuera con `grep -c reintento /var/log/space-os/update.log`. Las esperas
 > [!danger] `instancia.env` NO es un `.env`: `update.sh` lo SOURCEA
-> `update.sh:814` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
+> `update.sh:831` hace `. "$CONF"`, así que ese archivo **es un script de shell**,
 > no una lista de pares clave-valor. Consecuencia: **todo valor con espacios va
 > entrecomillado**, o bash toma la primera palabra como la asignación y **ejecuta
 > el resto como un comando**.
@@ -1171,7 +1198,7 @@ línea de comandos de ninguna llamada doblada.
 
 > [!warning] La retención la pone el BUCKET, y el ADR 0025 pide un año para otra cosa
 > Aquí no hay ni un borrado remoto, a propósito: lo que caduca lo caduca la **regla
-> de ciclo de vida** del bucket — 90 días para logs (`update.sh:267`) y el mismo
+> de ciclo de vida** del bucket — 90 días para logs (`update.sh:275`) y el mismo
 > criterio para respaldos.
 >
 > **Ojo con el cruce:** el ADR 0025 decidió que el **registro de accesos** se

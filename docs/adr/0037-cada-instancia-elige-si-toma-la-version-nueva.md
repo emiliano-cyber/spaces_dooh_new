@@ -108,6 +108,29 @@ el mismo día y «instalar ahora» significa un cuarto de hora.
    de madrugada**. Un dueño que pulsa *instalar* está pidiendo el corte a esa hora
    a propósito; el modo automático no se lo pide nadie.
 
+#### Dos casos que NO son espera, y salen con error a propósito
+
+*Añadido el 2026-09-22, al implementarlo.* «Esperar no es un error» vale mientras
+**haya algo que esperar**. Hay dos situaciones en las que el actualizador no está
+esperando nada, y saldar ninguna de las dos con un `0` sería esconderla — con un
+cron cada quince minutos, **96 veces al día**:
+
+- **La imagen no trae `RepoDigest`.** Sin digest disponible la aplicación no tiene
+  qué enseñar y la aprobación no se puede escribir, porque va atada al digest (§2
+  de *Las cuatro piezas*). **El dueño no puede aprobar aunque quiera**: no es una
+  espera, es un bloqueo sin salida. Y tampoco se actualiza «como antes de este
+  ADR»: el modo por omisión es `aprobacion`, así que hacerlo sería saltarse al
+  dueño por un campo que falta, justo la puerta que este ADR cierra.
+- **La tabla no se puede LEER.** Distinto de que no exista: que no exista es un
+  hecho medido y sigue saliendo con 0 (una instancia con una imagen anterior a la
+  migración se actualiza como siempre). Que no se pueda leer es no saber nada, y
+  el cron frecuente es el único proceso que lo sabría cada cuarto de hora.
+
+Los dos usan el código que este actualizador ya tenía para «no se pudo ni
+empezar», que es el mismo con el que aborta cuando no puede leer la huella de la
+base. **El coste está aceptado**: hasta 96 correos al día mientras el problema
+dure. Es preferible a 96 corridas en verde con la base muerta.
+
 ### Qué se prueba, y dónde
 
 La decisión **no se escribe en bash**. Es una función pura

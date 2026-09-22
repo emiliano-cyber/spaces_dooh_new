@@ -3219,9 +3219,15 @@ log_dice 'no existe todavia en esta instancia: se actualiza como antes del ADR 0
 log_local_calla 'INSTALADO ok'
 limpiar
 
-# ─── ADR 0037 · los huecos de la ronda 1 (E142-E146, tarea 5) ──────────────
-#  Los cuatro primeros cierran caminos que EXISTIAN y no probaba nadie. El
-#  ultimo fija una asimetria a proposito, para que no se "arregle" por error.
+# ─── ADR 0037 · los huecos de la ronda 1 (E142-E147, tarea 5) ──────────────
+#  SEIS escenarios, no cinco: E147 entro despues, al descubrir que el arreglo
+#  de E146 dejaba escribir al `--dry-run`.
+#    · E142, E143, E144 y E146 cierran caminos que EXISTIAN y no probaba nadie.
+#    · E145 fija una asimetria a proposito, para que no se "arregle" por error.
+#    · E147 es el guard que E146 hizo necesario.
+#  (Esta cabecera decia "E142-E146" y "los cuatro primeros … el ultimo"
+#  despues de que ya fueran seis: una cita falsa de las que este arnes existe
+#  para cazar, en el arnes mismo.)
 
 # E142 · `--comprobar` SIN la tabla. Es la unica de las siete combinaciones que
 #        la ronda 1 dejo sin escenario, y resulta ser **la del despliegue**:
@@ -3241,23 +3247,41 @@ log_dice 'no existe todavia'
 limpiar
 
 # E143 · LA SONDA NO PUEDE LEER LA BASE (caida, credencial mala, red rota).
-#        Dos cosas que fijar, y la segunda es la que la ronda 1 hacia mal:
-#        que NO se toque nada y se salga con 0 -- el comportamiento de hoy--,
-#        y que el log NO afirme "la tabla no existe todavia", que es un hecho
-#        que nadie midio. `to_regclass` no llego a contestar: la tabla puede
-#        estar ahi perfectamente y el problema ser otro. Mandar a quien lee el
-#        log a buscar una migracion que no falta cuesta una madrugada.
-preparar 'E143 la sonda no puede leer la base: no toca nada y NO afirma que la tabla falte'
+#        Fija dos cosas, y la primera CAMBIO en la ronda 3:
+#
+#        · Se sale con 1, NO con 0. Este escenario nacio en la ronda 2 con
+#          `codigo_es 0`, fijando el comportamiento de entonces a peticion
+#          expresa. Decision del dueno el 2026-09-22, con el coste delante:
+#          una base ilegible no puede salir en verde, porque con un cron cada
+#          15 minutos son 96 corridas verdes al dia con la base muerta y el
+#          unico proceso que lo sabe cada cuarto de hora es justo el que se
+#          calla. El codigo no se invento: `EX_CONFIG` es el que ya usa este
+#          guion cuando no puede leer la HUELLA de la base (`update.sh:2348`),
+#          y la fila del 1 ya listaba ese caso. El coste aceptado son hasta 96
+#          correos al dia mientras el problema dure.
+#        · El log NO afirma "la tabla no existe todavia", que es un hecho que
+#          nadie midio: `to_regclass` no llego a contestar, asi que la tabla
+#          puede estar ahi perfectamente y el problema ser otro. Mandar a
+#          quien lee el log a buscar una migracion que no falta cuesta una
+#          madrugada. Eso no cambia.
+#
+#        Y sigue sin tocarse nada de lo caro -respaldo, runner, contenedor-,
+#        que es lo que distingue "abortar" de "romper".
+preparar 'E143 la sonda no puede leer la base: aborta con 1 y NO afirma que la tabla falte'
 export D_ESTADO_1=FALLA
 correr --comprobar
-codigo_es 0
+codigo_es 1
 no_hubo 'pg_dump'
 no_hubo 'node scripts/migrar.mjs'
 no_hubo '--detach'
 log_dice 'NO SE PUDO LEER la base'
 log_calla 'no existe todavia en esta instancia'
-# Y el mensaje crudo de la sonda se queda en el log del droplet, que es donde
-# se diagnostica: filtrar no es perder.
+# Y tampoco se afirma lo que no se sabe: la sonda fallo a mitad, asi que desde
+# fuera NO consta si alcanzo a escribir algo. Decir "nada se toco" a secas
+# seria el mismo vicio que este escenario existe para cazar.
+log_calla 'Nada se toco'
+# El mensaje crudo de la sonda se queda en el log del droplet, que es donde se
+# diagnostica: filtrar no es perder.
 log_local_dice 'estado: no se pudo leer la base'
 limpiar
 
@@ -3268,6 +3292,12 @@ limpiar
 #        **no puede aprobar**. No es una espera, es un bloqueo sin salida, y
 #        hasta la ronda 1 se saldaba con un 0 y un "esperar no es un error"
 #        -- invisible en un cron de cada 15 minutos.
+#
+#        Y desde la ronda 3 fija algo mas, que es de lo que el propio mensaje
+#        se equivoco: NO puede decir "nada se toco". La sonda corre ANTES de
+#        este corte, y con la tabla presente -que es la condicion para llegar
+#        aqui- ya escribio `comprobado_en`. Un abort que miente sobre lo que
+#        dejo hecho es peor que un abort.
 preparar 'E144 imagen sin RepoDigest y con tabla: para en seco, y no lo llama espera'
 export D_DIGEST=''
 export D_ESTADO_1='aprobacion sha256:instalada -'
@@ -3279,6 +3309,9 @@ no_hubo 'node scripts/migrar.mjs'
 no_hubo '--detach'
 log_dice 'no trae RepoDigest'
 log_calla 'Esperar no es un error'
+# Lo de la ronda 3: el mensaje NO miente sobre lo que dejo escrito.
+log_calla 'Nada se toco'
+log_dice 'Lo UNICO que esta corrida escribio es la comprobacion'
 limpiar
 
 # E145 · La MISMA imagen sin RepoDigest, pero SIN la tabla: actualiza como

@@ -43,9 +43,15 @@
 #       DATABASE_URL no se entiende como URL de conexion, el pull fallo, el
 #       respaldo salio VACIO, el runner de migraciones se nego a arrancar
 #       (por ejemplo: base con datos y sin `schema_migrations`, que pide
-#       intervencion humana), o la imagen no trae RepoDigest teniendo la tabla
+#       intervencion humana), la imagen no trae RepoDigest teniendo la tabla
 #       del ADR 0037 —ahi el dueno no puede aprobar nada, asi que no es una
-#       espera sino un bloqueo—. NADA se toco.
+#       espera sino un bloqueo—, o `--comprobar` no pudo LEER esa tabla.
+#       Ni respaldo, ni migracion, ni contenedor, ni un dato de negocio. CON
+#       UNA EXCEPCION desde el ADR 0037, y conviene saberla: los dos cortes
+#       del paso 2b salen DESPUES de la sonda, asi que esa corrida pudo dejar
+#       escrita la comprobacion en `actualizaciones_instancia`
+#       (`version_disponible`, `digest_disponible`, `migraciones_pendientes`,
+#       `comprobado_en`). "Nada se toco" a secas seria falso ahi.
 #    2  las migraciones fallaron a medias, o se aplicaron y no se pudieron
 #       registrar: LA BASE PUDO CAMBIAR. No se conmuto el trafico —la version
 #       anterior sigue sirviendo— y NO se restaura nada automaticamente (ver
@@ -490,11 +496,13 @@ for arg in "$@"; do
     # en blanco de enmedio, otra vez— es el corte nuevo.
     #
     # Y CADUCO UNA CUARTA VEZ, en la ronda 2 de la misma tarea, por anadir DOS
-    # lineas a la fila del codigo 1 (la imagen sin RepoDigest). Van ya cuatro,
-    # y la leccion es siempre la misma: este numero NO se ajusta restando ni
-    # sumando de cabeza, se REMIDE. Hoy: la politica termina en 161, "── Cron"
-    # abre en 163, y el corte es 162 —la linea en blanco de enmedio—.
-    -h|--help) sed -n '2,162p' "$0"; exit 0 ;;
+    # lineas a la fila del codigo 1 (la imagen sin RepoDigest). Y una QUINTA
+    # en la ronda 3, por seis lineas mas en esa MISMA fila. Van cinco, todas
+    # por lo mismo, y la leccion no cambia: este numero NO se ajusta restando
+    # ni sumando de cabeza, se REMIDE leyendo. Hoy: la politica de reintentos
+    # termina en 167, "── Cron" abre en 169, y el corte es 168 —la linea en
+    # blanco de enmedio, como las cinco veces anteriores—.
+    -h|--help) sed -n '2,168p' "$0"; exit 0 ;;
     *) echo "update: argumento desconocido: $arg (usa --dry-run, --comprobar, --simular-fallo-pull o --help)" >&2; exit "$EX_CONFIG" ;;
   esac
 done
@@ -2205,12 +2213,28 @@ if [ "$AI_MODO" = 'sin-tabla' ]; then
     registrar "2b · actualizaciones_instancia no existe todavia en esta instancia: se actualiza como antes del ADR 0037."
   fi
   if [ "$CORRIDA" = comprobar ]; then
-    # `--comprobar` sin tabla -o sin poder leerla- no tiene nada que anotar ni
-    # que obedecer, y no es su trabajo forzar un update fuera de la madrugada:
-    # la corrida de las 4:17 sigue actualizando igual que siempre.
+    # UNA BASE ILEGIBLE NO SALE EN VERDE. Decision del dueno, 2026-09-22, con
+    # el coste delante: hasta 96 correos al dia mientras el problema dure.
+    # Hasta esta ronda salia con `EX_OK`, y eso es lo que estaba mal: con un
+    # cron cada 15 minutos, una base que no responde daba 96 VERDES al dia y
+    # el unico proceso que lo sabia cada cuarto de hora era justo el que se
+    # callaba. Nadie se enteraria hasta la corrida de las 4:17.
+    #
+    # El codigo NO se inventa: `EX_CONFIG` es el que este mismo guion ya usa
+    # cuando no puede leer la base -- la huella, en `:2317`, aborta con 1 y
+    # con el mismo argumento ("sin punto de partida no se puede decidir"). Y
+    # la fila del 1, en las dos tablas, ya listaba "no se pudo leer la huella
+    # de la base". Este caso es ese caso.
+    #
+    # Y NO SE DICE "nada se toco": la sonda fallo a mitad y desde fuera no se
+    # sabe si llego a escribir antes de caerse. Lo que si se sabe es lo que
+    # NO se toco.
     if [ "$AI_CAUSA" = ilegible ]; then
-      salir "$EX_OK" "--comprobar: no se pudo LEER actualizaciones_instancia, asi que no hay nada que anotar ni aprobacion que obedecer. No se toca nada. Si la base sigue sin responder, la corrida programada de las 4:17 topara con lo mismo al respaldar y ahi SI aborta, con su propio mensaje."
+      salir "$EX_CONFIG" "ERROR update (--comprobar): NO SE PUDO LEER actualizaciones_instancia; el mensaje de arriba es de la sonda. Esto ya no sale con 0 a proposito: con un cron cada 15 minutos una base que no responde daria 96 corridas en verde al dia y nadie se enteraria hasta la madrugada. Mismo codigo y mismo criterio que cuando no se puede leer la huella de la base. No consta si la sonda alcanzo a escribir algo antes de fallar; lo que seguro NO se toco es el respaldo, el contenedor y los datos de negocio."
     fi
+    # Sin tabla es otra cosa: ahi la sonda SI contesto, y contesto un hecho
+    # -no existe-. Eso no es un fallo, es el estado normal de una instancia
+    # con una imagen anterior a la migracion, y sale con 0.
     salir "$EX_OK" "--comprobar: actualizaciones_instancia no existe todavia, asi que no hay nada que anotar ni que aprobar. No se toca nada; la corrida programada de las 4:17 sigue actualizando como siempre."
   fi
   # CORRIDA=programada y sin tabla: se sigue de largo, sin llamar a
@@ -2232,11 +2256,18 @@ else
   # Tampoco se actualiza a la brava "como antes del ADR": el modo por omision
   # es `aprobacion`, y saltarse al dueno porque a una imagen le falta un campo
   # seria abrir justo la puerta que este ADR cierra. Se para, y se para con
-  # `EX_CONFIG`, cuya fila de la tabla ya dice lo que aqui es literal: no se
-  # pudo ni empezar y NADA se toco. La tabla ausente es otro caso y sigue
+  # `EX_CONFIG`: no se pudo ni empezar. La tabla ausente es otro caso y sigue
   # actualizando como siempre: alli no hay dueno a quien saltarse.
+  #
+  # Y EL MENSAJE NO PUEDE DECIR "nada se toco", aunque sea lo que apetece
+  # escribir en un abort: la sonda corre en `:2199`, ANTES de este corte, y su
+  # primera sentencia es un `update … set comprobado_en = now()`. Con la tabla
+  # presente -que es la condicion exacta para llegar aqui- esta corrida YA
+  # escribio, y ademas dejo `digest_disponible` en NULL. La primera version de
+  # este `salir` afirmaba lo contrario, en el mismo commit que arreglaba
+  # justamente eso tres parrafos mas arriba.
   if [ -z "$DIGEST_NUEVO" ]; then
-    salir "$EX_CONFIG" "ERROR update: la imagen $IMAGEN no trae RepoDigest, asi que no hay digest disponible que anotar ni que aprobar. Con la tabla \`actualizaciones_instancia\` presente (ADR 0037) eso no es una espera sino un bloqueo: el dueno no puede aprobar lo que la pantalla no puede ensenarle. Suele significar que la imagen no se jalo de un registro (un \`docker load\`, o una construida en el propio droplet). Nada se toco: ni base, ni respaldo, ni contenedor."
+    salir "$EX_CONFIG" "ERROR update: la imagen $IMAGEN no trae RepoDigest, asi que no hay digest disponible que anotar ni que aprobar. Con la tabla \`actualizaciones_instancia\` presente (ADR 0037) eso no es una espera sino un bloqueo: el dueno no puede aprobar lo que la pantalla no puede ensenarle. Suele significar que la imagen no se jalo de un registro (un \`docker load\`, o una construida en el propio droplet). Lo UNICO que esta corrida escribio es la comprobacion en \`actualizaciones_instancia\` -la sonda corre antes de este corte-, con \`digest_disponible\` en NULL. No se respaldo, no se migro, no se conmuto el trafico y no se toco ningun dato de negocio."
   fi
   AI_ACTUALIZAR="$(printf '%s' "$DECISION_LINEA" | awk '{print $1}')"
   AI_MOTIVO="$(printf '%s' "$DECISION_LINEA" | cut -d' ' -f2-)"
